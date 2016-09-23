@@ -288,7 +288,7 @@ Features
     - oracle
       Query data from an Oracle database.
 
-    - ovs_link
+    - ovs_events
       The plugin monitors the link status of OVS connected interfaces,
       dispatches the values to collectd and send the notification whenever
       the link state change occurs in OVS DB. It requires YAJL library to be
@@ -935,8 +935,8 @@ Prerequisites
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_link' and
-    `log_logstash' plugins.
+    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_events'
+    and `log_logstash' plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)

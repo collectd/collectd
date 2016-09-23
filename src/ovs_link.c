@@ -1,5 +1,5 @@
 /**
- * collectd - src/ovs_link.c
+ * collectd - src/ovs_events.c
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
@@ -26,49 +26,50 @@
  **/
 
 #include "common.h"             /* auxiliary functions */
+
 #include "utils_ovs.h"          /* OVS helpers */
 
-#define OVS_LINK_PLUGIN "ovs_link"
-#define OVS_LINK_DEFAULT_OVS_DB_SERVER_URL "tcp:127.0.0.1:6640"
-#define OVS_LINK_CTX_LOCK for (int __i = ovs_link_ctx_lock(); __i != 0 ; \
-                               __i = ovs_link_ctx_unlock())
-#define OVS_LINK_CONFIG_ERROR(option) do { \
-  ERROR(OVS_LINK_PLUGIN ": read '%s' config option failed", option); \
+#define OVS_EVENTS_PLUGIN "ovs_events"
+#define OVS_EVENTS_DEFAULT_OVS_DB_SERVER_URL "tcp:127.0.0.1:6640"
+#define OVS_EVENTS_CTX_LOCK for (int __i = ovs_events_ctx_lock(); __i != 0 ; \
+                                 __i = ovs_events_ctx_unlock())
+#define OVS_EVENTS_CONFIG_ERROR(option) do { \
+  ERROR(OVS_EVENTS_PLUGIN ": read '%s' config option failed", option); \
   goto failure; } while (0)
 
 /* Link status type */
-enum ovs_link_link_status_e {DOWN, UP, UNKNOWN};
-typedef enum ovs_link_link_status_e ovs_link_link_status_t;
+enum ovs_events_link_status_e {DOWN, UP, UNKNOWN};
+typedef enum ovs_events_link_status_e ovs_events_link_status_t;
 
 /* Interface info */
-struct ovs_link_interface_info_s {
+struct ovs_events_interface_info_s {
   char *name;                   /* interface name */
-  ovs_link_link_status_t link_status;   /* link status */
-  struct ovs_link_interface_info_s *next;       /* next interface info */
+  ovs_events_link_status_t link_status; /* link status */
+  struct ovs_events_interface_info_s *next;     /* next interface info */
 };
-typedef struct ovs_link_interface_info_s ovs_link_interface_info_t;
+typedef struct ovs_events_interface_info_s ovs_events_interface_info_t;
 
-/* OVS link configuration data */
-struct ovs_link_config_s {
+/* OVS events configuration data */
+struct ovs_events_config_s {
   _Bool send_notification;      /* sent notification to collectd? */
   char *ovs_db_server_url;      /* OVS DB server URL */
 };
-typedef struct ovs_link_config_s ovs_link_config_t;
+typedef struct ovs_events_config_s ovs_events_config_t;
 
-/* OVS link context type */
-struct ovs_link_ctx_s {
+/* OVS events context type */
+struct ovs_events_ctx_s {
   pthread_mutex_t mutex;        /* mutex to lock the context */
   pthread_mutexattr_t mutex_attr;       /* context mutex attribute */
   ovs_db_t *ovs_db;             /* pointer to OVS DB instance */
-  ovs_link_config_t config;     /* plugin config */
-  ovs_link_interface_info_t *ifaces;    /* interface info */
+  ovs_events_config_t config;   /* plugin config */
+  ovs_events_interface_info_t *ifaces;  /* interface info */
 };
-typedef struct ovs_link_ctx_s ovs_link_ctx_t;
+typedef struct ovs_events_ctx_s ovs_events_ctx_t;
 
 /*
  * Private variables
  */
-static ovs_link_ctx_t ovs_link_ctx = {
+static ovs_events_ctx_t ovs_events_ctx = {
   .mutex = PTHREAD_MUTEX_INITIALIZER,
   .config = {
              .send_notification = 0,    /* do not send notification */
@@ -76,32 +77,33 @@ static ovs_link_ctx_t ovs_link_ctx = {
   .ovs_db = NULL,
   .ifaces = NULL};
 
-/* This function is used only by "OVS_LINK_CTX_LOCK" define (see above).
+/* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 1 when context is locked.
  */
 static inline int
-ovs_link_ctx_lock()
+ovs_events_ctx_lock()
 {
-  pthread_mutex_lock(&ovs_link_ctx.mutex);
+  pthread_mutex_lock(&ovs_events_ctx.mutex);
   return (1);
 }
 
-/* This function is used only by "OVS_LINK_CTX_LOCK" define (see above).
+/* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 0 when context is unlocked.
  */
 static inline int
-ovs_link_ctx_unlock()
+ovs_events_ctx_unlock()
 {
-  pthread_mutex_unlock(&ovs_link_ctx.mutex);
+  pthread_mutex_unlock(&ovs_events_ctx.mutex);
   return (0);
 }
 
-/* Update link status in OVS link context (cache) */
+/* Update link status in OVS events context (cache) */
 static void
-ovs_link_link_status_update(const char *name, ovs_link_link_status_t status)
+ovs_events_link_status_update(const char *name,
+                              ovs_events_link_status_t status)
 {
-  OVS_LINK_CTX_LOCK {
-    for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+  OVS_EVENTS_CTX_LOCK {
+    for (ovs_events_interface_info_t *iface = ovs_events_ctx.ifaces; iface;
          iface = iface->next)
       if (strcmp(iface->name, name) == 0)
         iface->link_status = status;
@@ -113,12 +115,12 @@ ovs_link_link_status_update(const char *name, ovs_link_link_status_t status)
  * 1 is returned
  */
 static int
-ovs_link_config_iface_exists(const char *ifname)
+ovs_events_config_iface_exists(const char *ifname)
 {
   int rc = 0;
-  OVS_LINK_CTX_LOCK {
-    if (!(rc = (ovs_link_ctx.ifaces == NULL))) {
-      for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+  OVS_EVENTS_CTX_LOCK {
+    if (!(rc = (ovs_events_ctx.ifaces == NULL))) {
+      for (ovs_events_interface_info_t *iface = ovs_events_ctx.ifaces; iface;
            iface = iface->next)
         if (rc = (strcmp(ifname, iface->name) == 0))
           break;
@@ -129,14 +131,14 @@ ovs_link_config_iface_exists(const char *ifname)
 
 /* Release memory allocated for configuration data */
 static void
-ovs_link_config_free()
+ovs_events_config_free()
 {
-  ovs_link_interface_info_t *del_iface = NULL;
-  OVS_LINK_CTX_LOCK {
-    sfree(ovs_link_ctx.config.ovs_db_server_url);
-    while (ovs_link_ctx.ifaces) {
-      del_iface = ovs_link_ctx.ifaces;
-      ovs_link_ctx.ifaces = ovs_link_ctx.ifaces->next;
+  ovs_events_interface_info_t *del_iface = NULL;
+  OVS_EVENTS_CTX_LOCK {
+    sfree(ovs_events_ctx.config.ovs_db_server_url);
+    while (ovs_events_ctx.ifaces) {
+      del_iface = ovs_events_ctx.ifaces;
+      ovs_events_ctx.ifaces = ovs_events_ctx.ifaces->next;
       free(del_iface->name);
       free(del_iface);
     }
@@ -147,66 +149,67 @@ ovs_link_config_free()
  * in allocated memory. Returns negative value in case of error.
  */
 static int
-ovs_link_plugin_config(oconfig_item_t *ci)
+ovs_events_plugin_config(oconfig_item_t *ci)
 {
-  ovs_link_interface_info_t *new_iface;
+  ovs_events_interface_info_t *new_iface;
   char *if_name;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
       if (cf_util_get_boolean(child,
-                              &ovs_link_ctx.config.send_notification) < 0)
-        OVS_LINK_CONFIG_ERROR(child->key);
+                              &ovs_events_ctx.config.send_notification) < 0)
+        OVS_EVENTS_CONFIG_ERROR(child->key);
     } else if (strcasecmp("OvsDbServerUrl", child->key) == 0) {
       if (cf_util_get_string(child,
-                             &ovs_link_ctx.config.ovs_db_server_url) < 0)
-        OVS_LINK_CONFIG_ERROR(child->key);
+                             &ovs_events_ctx.config.ovs_db_server_url) < 0)
+        OVS_EVENTS_CONFIG_ERROR(child->key);
     } else if (strcasecmp("Interfaces", child->key) == 0) {
       for (int j = 0; j < child->values_num; j++) {
         /* check value type */
         if (child->values[j].type != OCONFIG_TYPE_STRING) {
-          ERROR(OVS_LINK_PLUGIN
+          ERROR(OVS_EVENTS_PLUGIN
                 ": given interface name is not a string [idx=%d]", j);
           goto failure;
         }
         /* get value */
         if ((if_name = strdup(child->values[j].value.string)) == NULL) {
-          ERROR(OVS_LINK_PLUGIN " strdup() copy interface name fail");
+          ERROR(OVS_EVENTS_PLUGIN " strdup() copy interface name fail");
           goto failure;
         }
         if ((new_iface = malloc(sizeof(*new_iface))) == NULL) {
-          ERROR(OVS_LINK_PLUGIN ": malloc () copy interface name fail");
+          ERROR(OVS_EVENTS_PLUGIN ": malloc () copy interface name fail");
           goto failure;
         } else {
           /* store interface name */
           new_iface->name = if_name;
           new_iface->link_status = UNKNOWN;
-          new_iface->next = ovs_link_ctx.ifaces;
-          ovs_link_ctx.ifaces = new_iface;
-          DEBUG(OVS_LINK_PLUGIN ": found monitored interface \"%s\"",
+          new_iface->next = ovs_events_ctx.ifaces;
+          ovs_events_ctx.ifaces = new_iface;
+          DEBUG(OVS_EVENTS_PLUGIN ": found monitored interface \"%s\"",
                 if_name);
         }
       }
     } else {
-      ERROR(OVS_LINK_PLUGIN ": option '%s' is not allowed here", child->key);
+      ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here",
+            child->key);
       goto failure;
     }
   }
   return (0);
 
 failure:
-  ovs_link_config_free();
+  ovs_events_config_free();
   return (-1);
 }
 
 /* Dispatch OVS interface link status event to collectd */
 static int
-ovs_link_dispatch_notification(const char *link_name,
-                               ovs_link_link_status_t link_status)
+ovs_events_dispatch_notification(const char *link_name,
+                                 ovs_events_link_status_t link_status)
 {
   const char *msg_link_status = NULL;
-  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_LINK_PLUGIN,
+  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN,
                       "", "", "", NULL};
 
   /* convert link status to message string */
@@ -237,8 +240,8 @@ ovs_link_dispatch_notification(const char *link_name,
 
 /* Dispatch OVS interface link status value to collectd */
 static void
-ovs_link_link_status_submit(const char *link_name,
-                            ovs_link_link_status_t link_status)
+ovs_events_link_status_submit(const char *link_name,
+                              ovs_events_link_status_t link_status)
 {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -248,7 +251,7 @@ ovs_link_link_status_submit(const char *link_name,
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE(values);
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
-  sstrncpy(vl.plugin, OVS_LINK_PLUGIN, sizeof(vl.plugin));
+  sstrncpy(vl.plugin, OVS_EVENTS_PLUGIN, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, link_name, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "gauge", sizeof(vl.type));
   sstrncpy(vl.type_instance, "link_status", sizeof(vl.type_instance));
@@ -257,9 +260,9 @@ ovs_link_link_status_submit(const char *link_name,
 
 /* Dispatch OVS DB terminate connection event to collectd */
 static void
-ovs_link_dispatch_terminate_notification(const char *msg)
+ovs_events_dispatch_terminate_notification(const char *msg)
 {
-  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_LINK_PLUGIN,
+  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN,
                       "", "", "", NULL};
   ssnprintf(n.message, sizeof(n.message), msg);
   sstrncpy(n.host, hostname_g, sizeof(n.host));
@@ -271,7 +274,7 @@ ovs_link_dispatch_terminate_notification(const char *msg)
  * interfaces specified in configuration file.
  */
 static void
-ovs_link_table_update_cb(yajl_val jupdates)
+ovs_events_table_update_cb(yajl_val jupdates)
 {
   yajl_val jnew_val = NULL;
   yajl_val jupdate = NULL;
@@ -280,7 +283,7 @@ ovs_link_table_update_cb(yajl_val jupdates)
   yajl_val jlink_state = NULL;
   const char *link_name = NULL;
   const char *link_state = NULL;
-  ovs_link_link_status_t link_status = UNKNOWN;
+  ovs_events_link_status_t link_status = UNKNOWN;
 
   /* JSON "Interface" table update example:
    * ---------------------------------
@@ -302,13 +305,13 @@ ovs_link_table_update_cb(yajl_val jupdates)
    * }
    */
   if (!YAJL_IS_OBJECT(jupdates) || !(YAJL_GET_OBJECT(jupdates)->len > 0)) {
-    ERROR(OVS_LINK_PLUGIN ": unexpected OVS DB update event received");
+    ERROR(OVS_EVENTS_PLUGIN ": unexpected OVS DB update event received");
     return;
   }
   /* verify if this is a table event */
   jupdate = YAJL_GET_OBJECT(jupdates)->values[0];
   if (!YAJL_IS_OBJECT(jupdate)) {
-    ERROR(OVS_LINK_PLUGIN ": unexpected table update event received");
+    ERROR(OVS_EVENTS_PLUGIN ": unexpected table update event received");
     return;
   }
   /* go through all row updates  */
@@ -319,7 +322,7 @@ ovs_link_table_update_cb(yajl_val jupdates)
     /* check row update */
     jnew_val = ovs_utils_get_value_by_key(jrow_update, "new");
     if (jnew_val == NULL) {
-      ERROR(OVS_LINK_PLUGIN ": unexpected row update received");
+      ERROR(OVS_EVENTS_PLUGIN ": unexpected row update received");
       return;
     }
     /* get link status update */
@@ -327,7 +330,7 @@ ovs_link_table_update_cb(yajl_val jupdates)
     jlink_state = ovs_utils_get_value_by_key(jnew_val, "link_state");
     if (jlink_name && jlink_state) {
       link_name = YAJL_GET_STRING(jlink_name);
-      if (link_name && ovs_link_config_iface_exists(link_name)) {
+      if (link_name && ovs_events_config_iface_exists(link_name)) {
         /* convert OVS table link state to link status */
         if (YAJL_IS_STRING(jlink_state)) {
           link_state = YAJL_GET_STRING(jlink_state);
@@ -337,10 +340,10 @@ ovs_link_table_update_cb(yajl_val jupdates)
             link_status = DOWN;
         }
         /* update link status in cache */
-        ovs_link_link_status_update(link_name, link_status);
-        if (ovs_link_ctx.config.send_notification)
+        ovs_events_link_status_update(link_name, link_status);
+        if (ovs_events_ctx.config.send_notification)
           /* dispatch notification */
-          ovs_link_dispatch_notification(link_name, link_status);
+          ovs_events_dispatch_notification(link_name, link_status);
       }
     }
   }
@@ -348,22 +351,22 @@ ovs_link_table_update_cb(yajl_val jupdates)
 
 /* Process OVS DB result table callback. It handles init link status value
  * and dispatches the value(s) to collectd. The logic to handle init status
- * is same as 'ovs_link_table_update_cb'.
+ * is same as 'ovs_events_table_update_cb'.
  */
 static void
-ovs_link_table_result_cb(yajl_val jresult, yajl_val jerror)
+ovs_events_table_result_cb(yajl_val jresult, yajl_val jerror)
 {
   (void)jerror;
   /* jerror is not used as it is the same all the time
      (rfc7047, "Monitor" section, return value) */
-  ovs_link_table_update_cb(jresult);
+  ovs_events_table_update_cb(jresult);
 }
 
 /* Setup OVS DB table callback. It subscribes to OVS DB 'Interface' table
  * to receive link status event(s).
  */
 static void
-ovs_link_conn_initialize(ovs_db_t *pdb)
+ovs_events_conn_initialize(ovs_db_t *pdb)
 {
   int ret = 0;
   const char tb_name[] = "Interface";
@@ -371,119 +374,120 @@ ovs_link_conn_initialize(ovs_db_t *pdb)
 
   /* register the update callback */
   ret = ovs_db_table_cb_register(pdb, tb_name, columns,
-                                 ovs_link_table_update_cb,
-                                 ovs_link_table_result_cb,
+                                 ovs_events_table_update_cb,
+                                 ovs_events_table_result_cb,
                                  OVS_DB_TABLE_CB_FLAG_MODIFY |
                                  OVS_DB_TABLE_CB_FLAG_INITIAL);
   if (ret < 0) {
-    ERROR(OVS_LINK_PLUGIN ": register OVS DB update callback failed");
+    ERROR(OVS_EVENTS_PLUGIN ": register OVS DB update callback failed");
     return;
   }
 
-  DEBUG(OVS_LINK_PLUGIN ": OVS DB has been initialized");
+  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB has been initialized");
 }
 
 /* OVS DB terminate connection notification callback */
 static void
-ovs_link_conn_terminate()
+ovs_events_conn_terminate()
 {
   const char msg[] = "OVS DB connection has been lost";
-  if (ovs_link_ctx.config.send_notification)
-    ovs_link_dispatch_terminate_notification(msg);
-  WARNIG(OVS_LINK_PLUGIN ": %s", msg);
-  OVS_LINK_CTX_LOCK {
+  if (ovs_events_ctx.config.send_notification)
+    ovs_events_dispatch_terminate_notification(msg);
+  WARNING(OVS_EVENTS_PLUGIN ": %s", msg);
+  OVS_EVENTS_CTX_LOCK {
     /* update link status to UNKNOWN */
-    for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+    for (ovs_events_interface_info_t *iface = ovs_events_ctx.ifaces; iface;
          iface = iface->next)
-      ovs_link_link_status_update(iface->name, UNKNOWN);
+      ovs_events_link_status_update(iface->name, UNKNOWN);
   }
 }
 
-/* Read OVS link status plugin callback */
+/* Read OVS DB interface link status callback */
 static int
-ovs_link_plugin_read(user_data_t *ud)
+ovs_events_plugin_read(user_data_t *ud)
 {
   (void)ud;                     /* unused argument */
-  OVS_LINK_CTX_LOCK {
-    for (ovs_link_interface_info_t *iface = ovs_link_ctx.ifaces; iface;
+  OVS_EVENTS_CTX_LOCK {
+    for (ovs_events_interface_info_t *iface = ovs_events_ctx.ifaces; iface;
          iface = iface->next)
       /* submit link status value */
-      ovs_link_link_status_submit(iface->name, iface->link_status);
+      ovs_events_link_status_submit(iface->name, iface->link_status);
   }
   return (0);
 }
 
 /* Initialize OVS plugin */
 static int
-ovs_link_plugin_init(void)
+ovs_events_plugin_init(void)
 {
   ovs_db_t *ovs_db = NULL;
-  ovs_db_callback_t cb = {.post_conn_init = ovs_link_conn_initialize,
-                          .post_conn_terminate = ovs_link_conn_terminate};
+  ovs_db_callback_t cb = {.post_conn_init = ovs_events_conn_initialize,
+                          .post_conn_terminate = ovs_events_conn_terminate};
 
   /* Initialize the context mutex */
-  if (pthread_mutexattr_init(&ovs_link_ctx.mutex_attr) != 0) {
-    ERROR(OVS_LINK_PLUGIN ": init context mutex attribute failed");
+  if (pthread_mutexattr_init(&ovs_events_ctx.mutex_attr) != 0) {
+    ERROR(OVS_EVENTS_PLUGIN ": init context mutex attribute failed");
     return (-1);
   }
-  pthread_mutexattr_settype(&ovs_link_ctx.mutex_attr,
+  pthread_mutexattr_settype(&ovs_events_ctx.mutex_attr,
                             PTHREAD_MUTEX_RECURSIVE);
-  if (pthread_mutex_init(&ovs_link_ctx.mutex, &ovs_link_ctx.mutex_attr) != 0) {
-    ERROR(OVS_LINK_PLUGIN ": init context mutex failed");
-    goto ovs_link_failure;
+  if (pthread_mutex_init(&ovs_events_ctx.mutex, &ovs_events_ctx.mutex_attr) !=
+      0) {
+    ERROR(OVS_EVENTS_PLUGIN ": init context mutex failed");
+    goto ovs_events_failure;
   }
 
   /* set default OVS DB url */
-  if (ovs_link_ctx.config.ovs_db_server_url == NULL)
-    if ((ovs_link_ctx.config.ovs_db_server_url =
-         strdup(OVS_LINK_DEFAULT_OVS_DB_SERVER_URL)) == NULL) {
-      ERROR(OVS_LINK_PLUGIN ": fail to set default OVS DB URL");
-      goto ovs_link_failure;
+  if (ovs_events_ctx.config.ovs_db_server_url == NULL)
+    if ((ovs_events_ctx.config.ovs_db_server_url =
+         strdup(OVS_EVENTS_DEFAULT_OVS_DB_SERVER_URL)) == NULL) {
+      ERROR(OVS_EVENTS_PLUGIN ": fail to set default OVS DB URL");
+      goto ovs_events_failure;
     }
-  DEBUG(OVS_LINK_PLUGIN ": OVS DB url = %s",
-        ovs_link_ctx.config.ovs_db_server_url);
+  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB url = %s",
+        ovs_events_ctx.config.ovs_db_server_url);
 
   /* initialize OVS DB */
-  ovs_db = ovs_db_init(ovs_link_ctx.config.ovs_db_server_url, &cb);
+  ovs_db = ovs_db_init(ovs_events_ctx.config.ovs_db_server_url, &cb);
   if (ovs_db == NULL) {
-    ERROR(OVS_LINK_PLUGIN ": fail to connect to OVS DB server");
-    goto ovs_link_failure;
+    ERROR(OVS_EVENTS_PLUGIN ": fail to connect to OVS DB server");
+    goto ovs_events_failure;
   }
 
   /* store OVS DB handler */
-  OVS_LINK_CTX_LOCK {
-    ovs_link_ctx.ovs_db = ovs_db;
+  OVS_EVENTS_CTX_LOCK {
+    ovs_events_ctx.ovs_db = ovs_db;
   }
 
-  DEBUG(OVS_LINK_PLUGIN ": plugin has been initialized");
+  DEBUG(OVS_EVENTS_PLUGIN ": plugin has been initialized");
   return (0);
 
-ovs_link_failure:
-  ERROR(OVS_LINK_PLUGIN ": plugin initialize failed");
+ovs_events_failure:
+  ERROR(OVS_EVENTS_PLUGIN ": plugin initialize failed");
   /* release allocated memory */
-  ovs_link_config_free();
+  ovs_events_config_free();
   /* destroy context mutex */
-  pthread_mutexattr_destroy(&ovs_link_ctx.mutex_attr);
-  pthread_mutex_destroy(&ovs_link_ctx.mutex);
+  pthread_mutexattr_destroy(&ovs_events_ctx.mutex_attr);
+  pthread_mutex_destroy(&ovs_events_ctx.mutex);
   return (-1);
 }
 
 /* Shutdown OVS plugin */
 static int
-ovs_link_plugin_shutdown(void)
+ovs_events_plugin_shutdown(void)
 {
   /* release memory allocated for config */
-  ovs_link_config_free();
+  ovs_events_config_free();
 
   /* destroy OVS DB */
-  if (ovs_db_destroy(ovs_link_ctx.ovs_db))
-    ERROR(OVS_LINK_PLUGIN ": OVSDB object destroy failed");
+  if (ovs_db_destroy(ovs_events_ctx.ovs_db))
+    ERROR(OVS_EVENTS_PLUGIN ": OVSDB object destroy failed");
 
   /* destroy context mutex */
-  pthread_mutexattr_destroy(&ovs_link_ctx.mutex_attr);
-  pthread_mutex_destroy(&ovs_link_ctx.mutex);
+  pthread_mutexattr_destroy(&ovs_events_ctx.mutex_attr);
+  pthread_mutex_destroy(&ovs_events_ctx.mutex);
 
-  DEBUG(OVS_LINK_PLUGIN ": plugin has been destroyed");
+  DEBUG(OVS_EVENTS_PLUGIN ": plugin has been destroyed");
   return (0);
 }
 
@@ -491,9 +495,9 @@ ovs_link_plugin_shutdown(void)
 void
 module_register(void)
 {
-  plugin_register_complex_config(OVS_LINK_PLUGIN, ovs_link_plugin_config);
-  plugin_register_init(OVS_LINK_PLUGIN, ovs_link_plugin_init);
-  plugin_register_complex_read(NULL, OVS_LINK_PLUGIN, ovs_link_plugin_read,
-                               0, NULL);
-  plugin_register_shutdown(OVS_LINK_PLUGIN, ovs_link_plugin_shutdown);
+  plugin_register_complex_config(OVS_EVENTS_PLUGIN, ovs_events_plugin_config);
+  plugin_register_init(OVS_EVENTS_PLUGIN, ovs_events_plugin_init);
+  plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN,
+                               ovs_events_plugin_read, 0, NULL);
+  plugin_register_shutdown(OVS_EVENTS_PLUGIN, ovs_events_plugin_shutdown);
 }

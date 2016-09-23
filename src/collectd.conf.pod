@@ -5453,16 +5453,16 @@ refer to them from.
 
 =back
 
-=head2 Plugin C<ovs_link>
+=head2 Plugin C<ovs_events>
 
-The I<ovs_link> plugin monitors the link status of OVS connected interfaces,
+The I<ovs_events> plugin monitors the link status of OVS connected interfaces,
 dispatches the values to collectd and send the notification whenever the link
-state change occurs. This plugin uses OVSDB to get a link state change
+state change occurs. This plugin uses OVS DB to get a link state change
 notification.
 
 B<Synopsis:>
 
- <Plugin "ovs_link">
+ <Plugin "ovs_events">
    OvsDbServerUrl "tcp:127.0.0.1:6640"
    Interfaces "br0" "veth0"
    SendNotification false
