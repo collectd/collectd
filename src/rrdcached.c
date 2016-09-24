@@ -289,11 +289,33 @@ static int rc_config (oconfig_item_t *ci)
   return (0);
 } /* int rc_config */
 
+static int try_reconnect (void)
+{
+  int status;
+
+  rrdc_disconnect ();
+
+  rrd_clear_error ();
+  status = rrdc_connect (daemon_address);
+  if (status != 0)
+  {
+    char *err = rrd_get_error ();
+    ERROR ("rrdcached plugin: Failed to reconnect to RRDCacheD "
+        "at %s: %s (status=%d)", daemon_address, err, status);
+    return (-1);
+  }
+
+  INFO ("rrdcached plugin: Successfully reconnected to RRDCacheD "
+      "at %s", daemon_address);
+  return (0);
+} /* int try_reconnect */
+
 static int rc_read (void)
 {
   int status;
   rrdc_stats_t *head;
   rrdc_stats_t *ptr;
+  _Bool retried = 0;
 
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -317,15 +339,29 @@ static int rc_read (void)
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
-        daemon_address, status);
+    char *err = rrd_get_error ();
+    ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
+        "at %s: %s (status=%d)", daemon_address, err, status);
     return (-1);
   }
 
-  head = NULL;
-  status = rrdc_stats_get (&head);
-  if (status != 0)
+  while (42)
   {
+    /* The RRD client lib does not provide any means for checking a
+     * connection, hence we'll have to retry upon failed operations. */
+    head = NULL;
+    status = rrdc_stats_get (&head);
+    if (status == 0)
+      break;
+
+    if (! retried)
+    {
+      retried = 1;
+      if (try_reconnect () == 0)
+        continue;
+      /* else: report the error and fail */
+    }
+
     ERROR ("rrdcached plugin: rrdc_stats_get failed with status %i.", status);
     return (-1);
   }
@@ -414,6 +450,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
   char values[512];
   char *values_array[2];
   int status;
+  _Bool retried = 0;
 
   if (daemon_address == NULL)
   {
@@ -473,14 +510,28 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
-        daemon_address, status);
+    char *err = rrd_get_error ();
+    ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
+        "at %s: %s (status=%d)", daemon_address, err, status);
     return (-1);
   }
 
-  status = rrdc_update (filename, /* values_num = */ 1, (void *) values_array);
-  if (status != 0)
+  while (42)
   {
+    /* The RRD client lib does not provide any means for checking a
+     * connection, hence we'll have to retry upon failed operations. */
+    status = rrdc_update (filename, /* values_num = */ 1, (void *) values_array);
+    if (status == 0)
+      break;
+
+    if (! retried)
+    {
+      retried = 1;
+      if (try_reconnect () == 0)
+        continue;
+      /* else: report the error and fail */
+    }
+
     ERROR ("rrdcached plugin: rrdc_update (%s, [%s], 1) failed with "
         "status %i.",
         filename, values_array[0], status);
@@ -496,6 +547,7 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
 {
   char filename[PATH_MAX + 1];
   int status;
+  _Bool retried = 0;
 
   if (identifier == NULL)
     return (EINVAL);
@@ -508,14 +560,28 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: rrdc_connect (%s) failed with status %i.",
-        daemon_address, status);
+    char *err = rrd_get_error ();
+    ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
+        "at %s: %s (status=%d)", daemon_address, err, status);
     return (-1);
   }
 
-  status = rrdc_flush (filename);
-  if (status != 0)
+  while (42)
   {
+    /* The RRD client lib does not provide any means for checking a
+     * connection, hence we'll have to retry upon failed operations. */
+    status = rrdc_flush (filename);
+    if (status == 0)
+      break;
+
+    if (! retried)
+    {
+      retried = 1;
+      if (try_reconnect () == 0)
+        continue;
+      /* else: report the error and fail */
+    }
+
     ERROR ("rrdcached plugin: rrdc_flush (%s) failed with status %i.",
         filename, status);
     return (-1);
