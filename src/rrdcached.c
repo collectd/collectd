@@ -299,9 +299,8 @@ static int try_reconnect (void)
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    char *err = rrd_get_error ();
     ERROR ("rrdcached plugin: Failed to reconnect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, err, status);
+        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -336,12 +335,12 @@ static int rc_read (void)
     sstrncpy (vl.host, daemon_address, sizeof (vl.host));
   sstrncpy (vl.plugin, "rrdcached", sizeof (vl.plugin));
 
+  rrd_clear_error ();
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    char *err = rrd_get_error ();
     ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, err, status);
+        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -350,6 +349,7 @@ static int rc_read (void)
     /* The RRD client lib does not provide any means for checking a
      * connection, hence we'll have to retry upon failed operations. */
     head = NULL;
+    rrd_clear_error ();
     status = rrdc_stats_get (&head);
     if (status == 0)
       break;
@@ -362,7 +362,8 @@ static int rc_read (void)
       /* else: report the error and fail */
     }
 
-    ERROR ("rrdcached plugin: rrdc_stats_get failed with status %i.", status);
+    ERROR ("rrdcached plugin: rrdc_stats_get failed: %s (status=%i).",
+        rrd_get_error (), status);
     return (-1);
   }
 
@@ -507,12 +508,12 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
     }
   }
 
+  rrd_clear_error ();
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    char *err = rrd_get_error ();
     ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, err, status);
+        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -520,6 +521,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
   {
     /* The RRD client lib does not provide any means for checking a
      * connection, hence we'll have to retry upon failed operations. */
+    rrd_clear_error ();
     status = rrdc_update (filename, /* values_num = */ 1, (void *) values_array);
     if (status == 0)
       break;
@@ -532,9 +534,8 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
       /* else: report the error and fail */
     }
 
-    ERROR ("rrdcached plugin: rrdc_update (%s, [%s], 1) failed with "
-        "status %i.",
-        filename, values_array[0], status);
+    ERROR ("rrdcached plugin: rrdc_update (%s, [%s], 1) failed: %s (status=%i)",
+        filename, values_array[0], rrd_get_error (), status);
     return (-1);
   }
 
@@ -557,12 +558,12 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
   else
     ssnprintf (filename, sizeof (filename), "%s.rrd", identifier);
 
+  rrd_clear_error ();
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    char *err = rrd_get_error ();
     ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, err, status);
+        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -570,6 +571,7 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
   {
     /* The RRD client lib does not provide any means for checking a
      * connection, hence we'll have to retry upon failed operations. */
+    rrd_clear_error ();
     status = rrdc_flush (filename);
     if (status == 0)
       break;
@@ -582,8 +584,8 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
       /* else: report the error and fail */
     }
 
-    ERROR ("rrdcached plugin: rrdc_flush (%s) failed with status %i.",
-        filename, status);
+    ERROR ("rrdcached plugin: rrdc_flush (%s) failed: %s (status=%i).",
+        filename, rrd_get_error (), status);
     return (-1);
   }
   DEBUG ("rrdcached plugin: rrdc_flush (%s): Success.", filename);
