@@ -132,7 +132,7 @@ Features
       Monitor gps related data through gpsd.
 
     - grpc
-      Receive values over the network using the gRPC framework.
+      Send and receive values over the network using the gRPC framework.
 
     - hddtemp
       Hard disk temperatures using hddtempd.
