@@ -54,14 +54,6 @@
 # define BIND_DEFAULT_URL "http://localhost:8053/"
 #endif
 
-/*
- * Some types used for the callback functions. `translation_table_ptr_t' and
- * `list_info_ptr_t' are passed to the callbacks in the `void *user_data'
- * pointer.
- */
-typedef int (*list_callback_t) (const char *name, value_t value,
-    time_t current_time, void *user_data);
-
 struct cb_view_s
 {
   char *name;
@@ -102,24 +94,34 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 /* TODO: Remove time parsing code. */
 static _Bool config_parse_time = 1;
 
-static char *url                   = NULL;
-static int global_opcodes          = 1;
-static int global_qtypes           = 1;
-static int global_server_stats     = 1;
-static int global_zone_maint_stats = 1;
-static int global_resolver_stats   = 0;
-static int global_memory_stats     = 1;
-static int timeout                 = -1;
+struct bind_s
+{
+  char *name;
+  char *url;
+  int global_opcodes;
+  int global_qtypes;
+  int global_server_stats;
+  int global_zone_maint_stats;
+  int global_resolver_stats;
+  int global_memory_stats;
+  int timeout;
+  cb_view_t *views;
+  size_t views_num;
+  char  *bind_buffer;
+  size_t bind_buffer_size;
+  size_t bind_buffer_fill;
+  char   bind_curl_error[CURL_ERROR_SIZE];
+  CURL *curl;
+};/* bind_s */
+typedef struct bind_s bind_t;
 
-static cb_view_t *views = NULL;
-static size_t     views_num = 0;
-
-static CURL *curl = NULL;
-
-static char  *bind_buffer = NULL;
-static size_t bind_buffer_size = 0;
-static size_t bind_buffer_fill = 0;
-static char   bind_curl_error[CURL_ERROR_SIZE];
+/*
+ * Some types used for the callback functions. `translation_table_ptr_t' and
+ * `list_info_ptr_t' are passed to the callbacks in the `void *user_data'
+ * pointer.
+ */
+typedef int (*list_callback_t) (const char *name, value_t value,
+    time_t current_time, void *user_data, bind_t *st);
 
 /* Translation table for the `nsstats' values. */
 static const translation_info_t nsstats_translation_table[] = /* {{{ */
@@ -244,8 +246,38 @@ static int memsummary_translation_table_length =
   STATIC_ARRAY_SIZE (memsummary_translation_table);
 /* }}} */
 
+static int bind_read_host (user_data_t *user_data);
+
+static void bind_free (bind_t *st) /* {{{ */
+{
+  size_t j;
+
+  if (st == NULL)
+    return;
+
+  sfree (st->name);
+  sfree (st->url);
+  if (st->views != NULL)
+  {
+    for (j = 0; j < st->views->zones_num; j++)
+    {
+      sfree (st->views->zones[j]);
+    }
+    sfree (st->views);
+  }
+  sfree (st->bind_buffer);
+
+  if (st->curl != NULL)
+  {
+    curl_easy_cleanup (st->curl);
+    st->curl = NULL;
+  }
+  sfree (st);
+
+} /* }}} void bind_free */
+
 static void submit (time_t ts, const char *plugin_instance, /* {{{ */
-    const char *type, const char *type_instance, value_t value)
+    const char *type, const char *type_instance, value_t value, bind_t *st)
 {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -253,7 +285,7 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
   vl.values_len = 1;
   if (config_parse_time)
     vl.time = TIME_T_TO_CDTIME_T (ts);
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.host, (st->name != NULL) ? st->name : hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {
     sstrncpy(vl.plugin_instance, plugin_instance,
@@ -270,30 +302,39 @@ static void submit (time_t ts, const char *plugin_instance, /* {{{ */
 } /* }}} void submit */
 
 static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
-    size_t nmemb, void __attribute__((unused)) *stream)
+    size_t nmemb, void *user_data)
 {
   size_t len = size * nmemb;
+  bind_t *st;
+
+  st = user_data;
+  if (st == NULL)
+  {
+    ERROR ("bind plugin: bind_curl_callback: "
+      "user_data pointer is NULL.");
+    return (0);
+  }
 
   if (len == 0)
     return (len);
 
-  if ((bind_buffer_fill + len) >= bind_buffer_size)
+  if ((st->bind_buffer_fill + len) >= st->bind_buffer_size)
   {
     char *temp;
 
-    temp = realloc (bind_buffer, bind_buffer_fill + len + 1);
+    temp = realloc (st->bind_buffer, st->bind_buffer_fill + len + 1);
     if (temp == NULL)
     {
       ERROR ("bind plugin: realloc failed.");
       return (0);
     }
-    bind_buffer = temp;
-    bind_buffer_size = bind_buffer_fill + len + 1;
+    st->bind_buffer = temp;
+    st->bind_buffer_size = st->bind_buffer_fill + len + 1;
   }
 
-  memcpy (bind_buffer + bind_buffer_fill, (char *) buf, len);
-  bind_buffer_fill += len;
-  bind_buffer[bind_buffer_fill] = 0;
+  memcpy (st->bind_buffer + st->bind_buffer_fill, (char *) buf, len);
+  st->bind_buffer_fill += len;
+  st->bind_buffer[st->bind_buffer_fill] = 0;
 
   return (len);
 } /* }}} size_t bind_curl_callback */
@@ -303,7 +344,7 @@ static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
  * (Plugin instance is fixed, type and type instance come from lookup table.)
  */
 static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
-    time_t current_time, void *user_data)
+    time_t current_time, void *user_data, bind_t *st)
 {
   translation_table_ptr_t *table = (translation_table_ptr_t *) user_data;
 
@@ -319,7 +360,8 @@ static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
         table->plugin_instance,
         table->table[i].type,
         table->table[i].type_instance,
-        value);
+        value,
+        st);
     break;
   }
 
@@ -331,7 +373,8 @@ static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
  * (Plugin instance and type are fixed, xml name is used as type instance.)
  */
 static int bind_xml_list_callback (const char *name, /* {{{ */
-    value_t value, time_t current_time, void *user_data)
+    value_t value, time_t current_time, void *user_data,
+    bind_t *st)
 {
   list_info_ptr_t *list_info = (list_info_ptr_t *) user_data;
 
@@ -342,7 +385,8 @@ static int bind_xml_list_callback (const char *name, /* {{{ */
       list_info->plugin_instance,
       list_info->type,
       /* type instance = */ name,
-      value);
+      value,
+      st);
 
   return (0);
 } /* }}} int bind_xml_list_callback */
@@ -482,7 +526,8 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
     list_callback_t list_callback,
     void *user_data,
     xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time, int ds_type)
+    time_t current_time, int ds_type,
+    bind_t *st)
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
@@ -535,7 +580,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
       if (status != 0)
         continue;
 
-      status = (*list_callback) (name, value, current_time, user_data);
+      status = (*list_callback) (name, value, current_time, user_data, st);
       if (status == 0)
         num_entries++;
 
@@ -567,7 +612,7 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
     list_callback_t list_callback,
     void *user_data,
     xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time, int ds_type)
+    time_t current_time, int ds_type, bind_t *st)
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
@@ -605,7 +650,7 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
       if (status != 0)
         continue;
 
-      status = (*list_callback) (node_name, value, current_time, user_data);
+      status = (*list_callback) (node_name, value, current_time, user_data, st);
       if (status == 0)
         num_entries++;
     }
@@ -635,7 +680,7 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
     list_callback_t list_callback,
     void *user_data,
     xmlDoc *doc, xmlXPathContext *xpathCtx,
-    time_t current_time, int ds_type)
+    time_t current_time, int ds_type, bind_t *st)
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
@@ -680,7 +725,7 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
       if (status != 0)
         continue;
 
-      status = (*list_callback) (attr_name, value, current_time, user_data);
+      status = (*list_callback) (attr_name, value, current_time, user_data, st);
       if (status == 0)
         num_entries++;
     }
@@ -697,7 +742,7 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
 
 static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
     xmlXPathContext *path_ctx, xmlNode *node, cb_view_t *view,
-    time_t current_time)
+    time_t current_time, bind_t *st)
 {
   xmlXPathObject *path_obj;
   char *zone_name = NULL;
@@ -779,18 +824,18 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='rcode']",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
       bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='qtype']",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
     }
     else
     {
       bind_parse_generic_value_list (/* xpath = */ "counters",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+          doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
     }
   } /* }}} */
 
@@ -799,7 +844,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
 
 static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
     xmlXPathContext *path_ctx, xmlNode *node, cb_view_t *view,
-    time_t current_time)
+    time_t current_time, bind_t *st)
 {
   xmlXPathObject *zone_nodes = NULL;
   xmlXPathContext *zone_path_context;
@@ -827,7 +872,7 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
     zone_path_context->node = node;
 
     bind_xml_stats_handle_zone (version, doc, zone_path_context, node, view,
-        current_time);
+        current_time, st);
   }
 
   xmlXPathFreeObject (zone_nodes);
@@ -836,7 +881,8 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
 } /* }}} int bind_xml_stats_search_zones */
 
 static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *path_ctx, xmlNode *node, time_t current_time)
+    xmlXPathContext *path_ctx, xmlNode *node, time_t current_time,
+    bind_t *st)
 {
   char *view_name = NULL;
   cb_view_t *view;
@@ -852,9 +898,9 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
       return (-1);
     }
 
-    for (j = 0; j < views_num; j++)
+    for (j = 0; j < st->views_num; j++)
     {
-      if (strcasecmp (view_name, views[j].name) == 0)
+      if (strcasecmp (view_name, st->views[j].name) == 0)
         break;
     }
 
@@ -886,9 +932,9 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
       return (-1);
     }
 
-    for (j = 0; j < views_num; j++)
+    for (j = 0; j < st->views_num; j++)
     {
-      if (strcasecmp (view_name, views[j].name) == 0)
+      if (strcasecmp (view_name, st->views[j].name) == 0)
         break;
     }
 
@@ -900,10 +946,10 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
   }
 
 
-  if (j >= views_num)
+  if (j >= st->views_num)
     return (0);
 
-  view = views + j;
+  view = st->views + j;
 
   DEBUG ("bind plugin: bind_xml_stats_handle_view: Found view `%s'.",
       view->name);
@@ -924,14 +970,14 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_name_attr_value_list (/* xpath = */ "counters[@type='resqtype']",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
     }
     else
     {
       bind_parse_generic_name_value (/* xpath = */ "rdtype",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_COUNTER);
+        doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
     }
   } /* }}} */
 
@@ -952,14 +998,14 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_name_attr_value_list ("counters[@type='resstats']",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+          doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
     }
     else
     {
       bind_parse_generic_name_value ("resstat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, path_ctx, current_time, DS_TYPE_COUNTER);
+          doc, path_ctx, current_time, DS_TYPE_COUNTER, st);
     }
   } /* }}} */
 
@@ -979,18 +1025,19 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "cache/rrset",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, path_ctx, current_time, DS_TYPE_GAUGE);
+        doc, path_ctx, current_time, DS_TYPE_GAUGE, st);
   } /* }}} */
 
   if (view->zones_num > 0)
     bind_xml_stats_search_zones (version, doc, path_ctx, node, view,
-        current_time);
+        current_time, st);
 
   return (0);
 } /* }}} int bind_xml_stats_handle_view */
 
 static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time)
+    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time,
+    bind_t *st)
 {
   xmlXPathObject *view_nodes = NULL;
   xmlXPathContext *view_path_context;
@@ -1020,7 +1067,7 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
     view_path_context->node = node;
 
     bind_xml_stats_handle_view (version, doc, view_path_context, node,
-        current_time);
+        current_time, st);
   }
 
   xmlXPathFreeObject (view_nodes);
@@ -1029,7 +1076,8 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
 } /* }}} int bind_xml_stats_search_views */
 
 static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time)
+    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time,
+    bind_t *st)
 {
   /* XPath:     server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
@@ -1039,7 +1087,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counters>
    */
-  if (global_opcodes != 0)
+  if (st->global_opcodes != 0)
   {
     list_info_ptr_t list_info =
     {
@@ -1049,7 +1097,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_attr_value_list (/* xpath = */ "server/counters[@type='opcode']",
       /* callback = */ bind_xml_list_callback,
       /* user_data = */ &list_info,
-      doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+      doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 
   /* XPath:     server/counters[@type='qtype']
@@ -1062,7 +1110,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counters>
    */
-  if (global_qtypes != 0)
+  if (st->global_qtypes != 0)
   {
     list_info_ptr_t list_info =
     {
@@ -1073,7 +1121,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_attr_value_list (/* xpath = */ "server/counters[@type='qtype']",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 
   /* XPath:     server/counters[@type='nsstat']
@@ -1092,7 +1140,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counter>
    */
-  if (global_server_stats)
+  if (st->global_server_stats)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1104,7 +1152,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_attr_value_list ("server/counters[@type='nsstat']",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 
   /* XPath:     server/zonestats, server/zonestat, server/counters[@type='zonestat']
@@ -1118,7 +1166,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counter>
    */
-  if (global_zone_maint_stats)
+  if (st->global_zone_maint_stats)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1130,7 +1178,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_attr_value_list ("server/counters[@type='zonestat']",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 
   /* XPath:     server/resstats, server/counters[@type='resstat']
@@ -1145,7 +1193,7 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
    *     :
    *   </counter>
    */
-  if (global_resolver_stats != 0)
+  if (st->global_resolver_stats != 0)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1157,12 +1205,13 @@ static void bind_xml_stats_v3 (xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_attr_value_list ("server/counters[@type='resstat']",
         /* callback = */ bind_xml_table_callback,
         /* user_data = */ &table_ptr,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 } /* }}} bind_xml_stats_v3 */
 
 static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time)
+    xmlXPathContext *xpathCtx, xmlNode *statsnode, time_t current_time,
+    bind_t *st)
 {
   /* XPath:     server/requests/opcode, server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
@@ -1173,7 +1222,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </opcode>
    *   :
    */
-  if (global_opcodes != 0)
+  if (st->global_opcodes != 0)
   {
     list_info_ptr_t list_info =
     {
@@ -1184,7 +1233,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "server/requests/opcode",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 
   /* XPath:     server/queries-in/rdtype, server/counters[@type='qtype']
@@ -1198,7 +1247,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </rdtype>
    *   :
    */
-  if (global_qtypes != 0)
+  if (st->global_qtypes != 0)
   {
     list_info_ptr_t list_info =
     {
@@ -1209,7 +1258,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_name_value (/* xpath = */ "server/queries-in/rdtype",
         /* callback = */ bind_xml_list_callback,
         /* user_data = */ &list_info,
-        doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+        doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
   }
 
   /* XPath:     server/nsstats, server/nsstat, server/counters[@type='nsstat']
@@ -1238,7 +1287,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </nsstat>
    *   :
    */
-  if (global_server_stats)
+  if (st->global_server_stats)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1252,14 +1301,14 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_value_list ("server/nsstats",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
     }
     else
     {
       bind_parse_generic_name_value ("server/nsstat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
     }
   }
 
@@ -1284,7 +1333,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </zonestat>
    *   :
    */
-  if (global_zone_maint_stats)
+  if (st->global_zone_maint_stats)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1298,14 +1347,14 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_value_list ("server/zonestats",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
     }
     else
     {
       bind_parse_generic_name_value ("server/zonestat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
     }
   }
 
@@ -1331,7 +1380,7 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
    *   </resstat>
    *   :
    */
-  if (global_resolver_stats != 0)
+  if (st->global_resolver_stats != 0)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1345,20 +1394,20 @@ static void bind_xml_stats_v1_v2 (int version, xmlDoc *doc, /* {{{ */
       bind_parse_generic_value_list ("server/resstats",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
     }
     else
     {
       bind_parse_generic_name_value ("server/resstat",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_COUNTER);
+          doc, xpathCtx, current_time, DS_TYPE_COUNTER, st);
     }
   }
 } /* }}} bind_xml_stats_v1_v2 */
 
 static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
-    xmlXPathContext *xpathCtx, xmlNode *statsnode)
+    xmlXPathContext *xpathCtx, xmlNode *statsnode, bind_t *st)
 {
   time_t current_time = 0;
   int status;
@@ -1378,11 +1427,11 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
 
   if (version == 3)
   {
-    bind_xml_stats_v3(doc, xpathCtx, statsnode, current_time);
+    bind_xml_stats_v3(doc, xpathCtx, statsnode, current_time, st);
   }
   else
   {
-    bind_xml_stats_v1_v2(version, doc, xpathCtx, statsnode, current_time);
+    bind_xml_stats_v1_v2(version, doc, xpathCtx, statsnode, current_time, st);
   }
 
   /* XPath:  memory/summary
@@ -1396,7 +1445,7 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
    *     <Lost>0</Lost>
    *   </summary>
    */
-  if (global_memory_stats != 0)
+  if (st->global_memory_stats != 0)
   {
     translation_table_ptr_t table_ptr =
     {
@@ -1408,18 +1457,19 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
     bind_parse_generic_value_list ("memory/summary",
           /* callback = */ bind_xml_table_callback,
           /* user_data = */ &table_ptr,
-          doc, xpathCtx, current_time, DS_TYPE_GAUGE);
+          doc, xpathCtx, current_time, DS_TYPE_GAUGE, st);
   }
 
-  if (views_num > 0)
+  if (st->views_num > 0)
     bind_xml_stats_search_views (version, doc, xpathCtx, statsnode,
-        current_time);
+        current_time, st);
 
   return 0;
 } /* }}} int bind_xml_stats */
 
-static int bind_xml (const char *data) /* {{{ */
+static int bind_xml (bind_t *st) /* {{{ */
 {
+  const char *data = st->bind_buffer;
   xmlDoc *doc = NULL;
   xmlXPathContext *xpathCtx = NULL;
   xmlXPathObject *xpathObj = NULL;
@@ -1479,7 +1529,7 @@ static int bind_xml (const char *data) /* {{{ */
         xmlFree (attr_version);
         continue;
       }
-      ret = bind_xml_stats (3, doc, xpathCtx, node);
+      ret = bind_xml_stats (3, doc, xpathCtx, node, st);
 
       xmlFree (attr_version);
       /* One <statistics> node ought to be enough. */
@@ -1552,7 +1602,7 @@ static int bind_xml (const char *data) /* {{{ */
     }
 
     ret = bind_xml_stats (parsed_version,
-        doc, xpathCtx, node);
+        doc, xpathCtx, node, st);
 
     xmlFree (attr_version);
     /* One <statistics> node ought to be enough. */
@@ -1584,7 +1634,7 @@ static int bind_config_set_bool (const char *name, int *var, /* {{{ */
 } /* }}} int bind_config_set_bool */
 
 static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
-    oconfig_item_t *ci)
+    oconfig_item_t *ci, bind_t *st)
 {
   char **tmp;
 
@@ -1615,7 +1665,7 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
   return (0);
 } /* }}} int bind_config_add_view_zone */
 
-static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
+static int bind_config_add_view (oconfig_item_t *ci, bind_t *st) /* {{{ */
 {
   cb_view_t *tmp;
 
@@ -1625,14 +1675,14 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  tmp = realloc (views, sizeof (*views) * (views_num + 1));
+  tmp = realloc (st->views, sizeof (*st->views) * (st->views_num + 1));
   if (tmp == NULL)
   {
     ERROR ("bind plugin: realloc failed.");
     return (-1);
   }
-  views = tmp;
-  tmp = views + views_num;
+  st->views = tmp;
+  tmp = st->views + st->views_num;
 
   memset (tmp, 0, sizeof (*tmp));
   tmp->qtypes = 1;
@@ -1645,7 +1695,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
   if (tmp->name == NULL)
   {
     ERROR ("bind plugin: strdup failed.");
-    sfree (views);
+    sfree (st->views);
     return (-1);
   }
 
@@ -1660,7 +1710,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("CacheRRSets", child->key) == 0)
       bind_config_set_bool ("CacheRRSets", &tmp->cacherrsets, child);
     else if (strcasecmp ("Zone", child->key) == 0)
-      bind_config_add_view_zone (tmp, child);
+      bind_config_add_view_zone (tmp, child, st);
     else
     {
       WARNING ("bind plugin: Unknown configuration option "
@@ -1668,12 +1718,46 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  views_num++;
+  st->views_num++;
   return (0);
 } /* }}} int bind_config_add_view */
 
-static int bind_config (oconfig_item_t *ci) /* {{{ */
+static int bind_config_add (oconfig_item_t *ci) /* {{{ */
 {
+  bind_t *st;
+  int status;
+
+  st = calloc (1, sizeof (*st));
+  if (st == NULL)
+  {
+    ERROR ("bind plugin: malloc failed.");
+    return (-1);
+  }
+
+  st->name                    = NULL;
+  st->url                     = NULL;
+  st->global_opcodes          = 1;
+  st->global_qtypes           = 1;
+  st->global_server_stats     = 1;
+  st->global_zone_maint_stats = 1;
+  st->global_resolver_stats   = 0;
+  st->global_memory_stats     = 1;
+  st->timeout                 = -1;
+  st->views                   = NULL;
+  st->views_num               = 0;
+  st->curl                    = NULL;
+  st->bind_buffer             = NULL;
+  st->bind_buffer_size        = 0;
+  st->bind_buffer_fill        = 0;
+
+  status = cf_util_get_string (ci, &st->name);
+  if (status != 0)
+  {
+    bind_free (st);
+    return (status);
+  }
+  assert (st->name != NULL);
+
   for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
@@ -1686,106 +1770,178 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
         return (-1);
       }
 
-      sfree (url);
-      url = strdup (child->values[0].value.string);
-    } else if (strcasecmp ("OpCodes", child->key) == 0)
-      bind_config_set_bool ("OpCodes", &global_opcodes, child);
+      sfree (st->url);
+      st->url = strdup (child->values[0].value.string);
+    }
+    else if (strcasecmp ("OpCodes", child->key) == 0)
+      bind_config_set_bool ("OpCodes", &st->global_opcodes, child);
     else if (strcasecmp ("QTypes", child->key) == 0)
-      bind_config_set_bool ("QTypes", &global_qtypes, child);
+      bind_config_set_bool ("QTypes", &st->global_qtypes, child);
     else if (strcasecmp ("ServerStats", child->key) == 0)
-      bind_config_set_bool ("ServerStats", &global_server_stats, child);
+      bind_config_set_bool ("ServerStats", &st->global_server_stats, child);
     else if (strcasecmp ("ZoneMaintStats", child->key) == 0)
-      bind_config_set_bool ("ZoneMaintStats", &global_zone_maint_stats, child);
+      bind_config_set_bool ("ZoneMaintStats", &st->global_zone_maint_stats, child);
     else if (strcasecmp ("ResolverStats", child->key) == 0)
-      bind_config_set_bool ("ResolverStats", &global_resolver_stats, child);
+      bind_config_set_bool ("ResolverStats", &st->global_resolver_stats, child);
     else if (strcasecmp ("MemoryStats", child->key) == 0)
-      bind_config_set_bool ("MemoryStats", &global_memory_stats, child);
+      bind_config_set_bool ("MemoryStats", &st->global_memory_stats, child);
     else if (strcasecmp ("View", child->key) == 0)
-      bind_config_add_view (child);
+      bind_config_add_view (child, st);
     else if (strcasecmp ("ParseTime", child->key) == 0)
       cf_util_get_boolean (child, &config_parse_time);
     else if (strcasecmp ("Timeout", child->key) == 0)
-      cf_util_get_int (child, &timeout);
+      cf_util_get_int (child, &st->timeout);
     else
     {
       WARNING ("bind plugin: Unknown configuration option "
           "`%s' will be ignored.", child->key);
+      status = -1;
     }
+
+    if (status != 0)
+      break;
   }
 
-  return (0);
-} /* }}} int bind_config */
-
-static int bind_init (void) /* {{{ */
-{
-  if (curl != NULL)
-    return (0);
-
-  curl = curl_easy_init ();
-  if (curl == NULL)
+  /* Check if struct is complete.. */
+  if ((status == 0) && (st->url == NULL))
   {
-    ERROR ("bind plugin: bind_init: curl_easy_init failed.");
+    ERROR ("bind plugin: Server `%s': "
+          "No URL has been configured.",
+          st->name);
+    status = -1;
+  }
+
+  if (status == 0)
+  {
+    user_data_t ud;
+    char callback_name[3*DATA_MAX_NAME_LEN];
+
+    memset (&ud, 0, sizeof (ud));
+    ud.data = st;
+    ud.free_func = (void *) bind_free;
+
+    memset (callback_name, 0, sizeof (callback_name));
+    ssnprintf (callback_name, sizeof (callback_name),
+        "bind/%s",(st->name != NULL) ? st->name : "default");
+    status = plugin_register_complex_read (/* group = */ NULL,
+                                           /* name      = */ callback_name,
+                                           /* callback  = */ bind_read_host,
+                                           /* interval  = */ 0,
+                                           /* user_data = */ &ud);
+  }
+
+  if (status != 0)
+  {
+    bind_free (st);
     return (-1);
   }
 
-  curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, bind_curl_callback);
-  curl_easy_setopt (curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
-  curl_easy_setopt (curl, CURLOPT_ERRORBUFFER, bind_curl_error);
-  curl_easy_setopt (curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
-  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
-  curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
+  return (0);
+} /* }}} int bind_config_add */
+
+static int bind_config (oconfig_item_t *ci) /* {{{ */
+{
+  for (int i = 0; i < ci->children_num; i++)
+  {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp ("Server", child->key) == 0)
+      bind_config_add (child);
+    else
+      WARNING ("bind plugin: The configuration option "
+          "\"%s\" is not allowed here. Did you "
+          "forget to add an <Server /> block "
+          "around the configuration?",
+          child->key);
+  }
+  return 0;
+} /* }}} int bind_config */
+
+static int bind_init_host (bind_t *st) /* {{{ */
+{
+  assert (st->url != NULL);
+  /* (Assured by 'bind_config_add') */
+
+  if (st->curl != NULL)
+  {
+    curl_easy_cleanup (st->curl);
+    st->curl = NULL;
+  }
+
+  if (st->curl != NULL)
+    return (0);
+
+  st->curl = curl_easy_init ();
+  if (st->curl == NULL)
+  {
+    ERROR ("bind plugin: bind_init_host: curl_easy_init failed.");
+    return (-1);
+  }
+
+  curl_easy_setopt (st->curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt (st->curl, CURLOPT_WRITEFUNCTION, bind_curl_callback);
+  curl_easy_setopt (st->curl, CURLOPT_WRITEDATA, st);
+  curl_easy_setopt (st->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
+  curl_easy_setopt (st->curl, CURLOPT_ERRORBUFFER, st->bind_curl_error);
+  curl_easy_setopt (st->curl, CURLOPT_URL, (st->url != NULL) ? st->url : BIND_DEFAULT_URL);
+  curl_easy_setopt (st->curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt (st->curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
-  curl_easy_setopt (curl, CURLOPT_TIMEOUT_MS, (timeout >= 0) ?
-      (long) timeout : (long) CDTIME_T_TO_MS(plugin_get_interval()));
+  curl_easy_setopt (st->curl, CURLOPT_TIMEOUT_MS, (st->timeout >= 0) ?
+      (long) st->timeout : (long) CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
 
   return (0);
 } /* }}} int bind_init */
 
-static int bind_read (void) /* {{{ */
+static int bind_read_host (user_data_t *user_data) /* {{{ */
 {
   int status;
+  bind_t *st;
 
-  if (curl == NULL)
+  st = user_data->data;
+
+  assert (st->url != NULL);
+  /* (Assured by `bind_config_add') */
+
+  if (st->curl == NULL)
   {
-    ERROR ("bind plugin: I don't have a CURL object.");
-    return (-1);
-  }
+    int status;
 
-  bind_buffer_fill = 0;
-  if (curl_easy_perform (curl) != CURLE_OK)
+    status = bind_init_host(st);
+    if(status !=0)
+    {
+      ERROR ("bind plugin: I don't have a CURL object.");
+      return (-1);
+    }
+  }
+  assert (st->curl != NULL);
+
+  st->bind_buffer_fill = 0;
+  if (curl_easy_perform (st->curl) != CURLE_OK)
   {
     ERROR ("bind plugin: curl_easy_perform failed: %s",
-        bind_curl_error);
+        st->bind_curl_error);
     return (-1);
   }
 
-  status = bind_xml (bind_buffer);
+  status = bind_xml (st);
   if (status != 0)
     return (-1);
   else
     return (0);
-} /* }}} int bind_read */
+} /* }}} int bind_read_host */
 
-static int bind_shutdown (void) /* {{{ */
+static int bind_init (void) /* {{{ */
 {
-  if (curl != NULL)
-  {
-    curl_easy_cleanup (curl);
-    curl = NULL;
-  }
-
   return (0);
-} /* }}} int bind_shutdown */
+} /* }}} int bind_init */
 
 void module_register (void)
 {
   plugin_register_complex_config ("bind", bind_config);
   plugin_register_init ("bind", bind_init);
-  plugin_register_read ("bind", bind_read);
-  plugin_register_shutdown ("bind", bind_shutdown);
 } /* void module_register */
 
 /* vim: set sw=2 sts=2 ts=8 et fdm=marker : */
