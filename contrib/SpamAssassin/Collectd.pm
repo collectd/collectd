@@ -152,7 +152,7 @@ sub check_end {
 		#try at least $self->{main}->{conf}->{collectd_retries} to get a
 		#connection
 		for (my $i = 0; $i < $self->{main}->{conf}->{collectd_retries} ; ++$i) {
-		        my ($socket_path) = $self->{main}->{conf}->{collectd_socket} =~ /(.*)/ # Untaint path, which can contain any characters.
+		        my ($socket_path) = $self->{main}->{conf}->{collectd_socket} =~ /(.*)/; # Untaint path, which can contain any characters.
 			last if $sock = new IO::Socket::UNIX $socket_path;
 			#sleep a random value between 0 and 50 microsecs to try for a new
 			#thread
