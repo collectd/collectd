@@ -86,7 +86,6 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 
 	const data_set_t *ds;
 	value_list_t vl = VALUE_LIST_INIT;
-	size_t i;
 
 	if ((ret_putval == NULL) || (opts == NULL))
 	{
@@ -174,7 +173,7 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 
 	/* All the remaining fields are part of the option list. */
 	result = CMD_OK;
-	for (i = 1; i < argc; ++i)
+	for (size_t i = 1; i < argc; ++i)
 	{
 		value_list_t *tmp;
 
@@ -235,14 +234,12 @@ cmd_status_t cmd_parse_putval (size_t argc, char **argv,
 
 void cmd_destroy_putval (cmd_putval_t *putval)
 {
-	size_t i;
-
 	if (putval == NULL)
 		return;
 
 	sfree (putval->raw_identifier);
 
-	for (i = 0; i < putval->vl_num; ++i)
+	for (size_t i = 0; i < putval->vl_num; ++i)
 	{
 		if (i == 0) /* values is shared between all entries */
 			sfree (putval->vl[i].values);
@@ -258,7 +255,6 @@ cmd_status_t cmd_handle_putval (FILE *fh, char *buffer)
 {
 	cmd_error_handler_t err = { cmd_error_fh, fh };
 	cmd_t cmd;
-	size_t i;
 
 	int status;
 
@@ -275,7 +271,7 @@ cmd_status_t cmd_handle_putval (FILE *fh, char *buffer)
 		return (CMD_UNKNOWN_COMMAND);
 	}
 
-	for (i = 0; i < cmd.cmd.putval.vl_num; ++i)
+	for (size_t i = 0; i < cmd.cmd.putval.vl_num; ++i)
 		plugin_dispatch_values (&cmd.cmd.putval.vl[i]);
 
 	if (fh != stdout)

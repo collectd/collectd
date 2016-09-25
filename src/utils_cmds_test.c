@@ -278,9 +278,8 @@ DEF_TEST(parse)
 {
 	cmd_error_handler_t err = { error_cb, NULL };
 	int test_result = 0;
-	size_t i;
 
-	for (i = 0; i < STATIC_ARRAY_SIZE (parse_data); i++) {
+	for (size_t i = 0; i < STATIC_ARRAY_SIZE (parse_data); i++) {
 		char *input = strdup (parse_data[i].input);
 
 		char description[1024];

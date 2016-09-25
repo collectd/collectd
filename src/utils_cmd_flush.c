@@ -136,8 +136,6 @@ cmd_status_t cmd_handle_flush (FILE *fh, char *buffer)
 	int error   = 0;
 	int status;
 
-	size_t i;
-
 	if ((fh == NULL) || (buffer == NULL))
 		return (-1);
 
@@ -154,7 +152,7 @@ cmd_status_t cmd_handle_flush (FILE *fh, char *buffer)
 		return (CMD_UNKNOWN_COMMAND);
 	}
 
-	for (i = 0; (i == 0) || (i < cmd.cmd.flush.plugins_num); i++)
+	for (size_t i = 0; (i == 0) || (i < cmd.cmd.flush.plugins_num); i++)
 	{
 		char *plugin = NULL;
 

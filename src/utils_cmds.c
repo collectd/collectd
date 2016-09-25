@@ -49,7 +49,7 @@ static cmd_status_t cmd_split (char *buffer,
 		size_t *ret_len, char ***ret_fields,
 		cmd_error_handler_t *err)
 {
-	char *string, *field;
+	char *field;
 	bool in_field, in_quotes;
 
 	size_t estimate, len;
@@ -57,7 +57,7 @@ static cmd_status_t cmd_split (char *buffer,
 
 	estimate = 0;
 	in_field = false;
-	for (string = buffer; *string != '\0'; ++string)
+	for (char *string = buffer; *string != '\0'; ++string)
 	{
 		/* Make a quick worst-case estimate of the number of fields by
 		 * counting spaces and ignoring quotation marks. */
@@ -102,7 +102,7 @@ static cmd_status_t cmd_split (char *buffer,
 	field = NULL;
 	in_field = false;
 	in_quotes = false;
-	for (string = buffer; *string != '\0'; string++)
+	for (char *string = buffer; *string != '\0'; string++)
 	{
 		if (isspace ((int)string[0]))
 		{
