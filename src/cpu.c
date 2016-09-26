@@ -418,8 +418,7 @@ static int total_rate(gauge_t *sum_by_state, size_t state, derive_t d,
 				          value_to_rate_state_t* conv, cdtime_t now)
 {
 	gauge_t rate = NAN;
-	value_t val = { .derive = d };
-	int status = value_to_rate (&rate, val, DS_TYPE_DERIVE, now, conv);
+	int status = value_to_rate (&rate, (value_t) { .derive = d }, DS_TYPE_DERIVE, now, conv);
 	if (status != 0)
 		return (status);
 
@@ -462,10 +461,9 @@ static void aggregate (gauge_t *sum_by_state) /* {{{ */
 
 #if defined(HAVE_PERFSTAT) /* {{{ */
 	cdtime_t now = cdtime ();
-	perfstat_cpu_total_t cputotal;
-	memset(&cputotal, 0, sizeof(perfstat_cpu_total_t));
+	perfstat_cpu_total_t cputotal = { 0 };
 
-	if (!perfstat_cpu_total(NULL, &cputotal, sizeof(perfstat_cpu_total_t), 1)) {
+	if (!perfstat_cpu_total(NULL, &cputotal, sizeof(cputotal), 1)) {
 		char errbuf[1024];
 		WARNING ("cpu plugin: perfstat_cpu_total: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
