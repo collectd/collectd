@@ -152,10 +152,8 @@ static int dpdk_config(oconfig_item_t *ci) {
    */
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
   if (err) {
-#if COLLECT_DEBUG
     char errbuf[ERR_BUF_SIZE];
-#endif
-    DEBUG("dpdkstat: error in shm_init, %s",
+    ERROR("dpdkstat: error in shm_init, %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
