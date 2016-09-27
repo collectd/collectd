@@ -373,7 +373,7 @@ ovs_db_url_parse(const char *surl, ovs_conn_t *conn)
   return (0);
 
 failure:
-  OVS_ERROR("%s() : invalid OVS DB URL provided");
+  OVS_ERROR("invalid OVS DB URL provided [url=%s]", surl);
   sfree(in_str);
   return (-1);
 }
@@ -636,7 +636,7 @@ ovs_db_json_data_process(ovs_db_t *pdb, const char *data, size_t len)
     return (-1);
 
   sstrncpy(sjson, data, len + 1);
-  OVS_DEBUG("[len=%d] %s", len, sjson);
+  OVS_DEBUG("[len=%zu] %s", len, sjson);
 
   /* parse json data */
   jnode = yajl_tree_parse(sjson, yajl_errbuf, sizeof(yajl_errbuf));
@@ -1309,6 +1309,7 @@ ovs_utils_get_map_value(yajl_val jval, const char *key)
   size_t array_len = 0;
   yajl_val *map_values = NULL;
   yajl_val *array_values = NULL;
+  const char *str_val = NULL;
 
   /* check YAJL array */
   if (!YAJL_IS_ARRAY(jval) || (key == NULL))
@@ -1322,7 +1323,8 @@ ovs_utils_get_map_value(yajl_val jval, const char *key)
     return NULL;
 
   /* check first element of the array */
-  if (strcmp("map", YAJL_GET_STRING(array_values[0])) != 0)
+  str_val = YAJL_GET_STRING(array_values[0]);
+  if (strcmp("map", str_val) != 0)
     return NULL;
 
   /* try to find map value by map key */
@@ -1341,7 +1343,8 @@ ovs_utils_get_map_value(yajl_val jval, const char *key)
       break;
 
     /* return map value if given key equals map key */
-    if (strcmp(key, YAJL_GET_STRING(array_values[0])) == 0)
+    str_val = YAJL_GET_STRING(array_values[0]);
+    if (strcmp(key, str_val) == 0)
       return array_values[1];
   }
   return NULL;

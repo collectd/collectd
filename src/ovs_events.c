@@ -276,27 +276,27 @@ ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo)
     n.severity = NOTIF_WARNING;
     break;
   default:
-    ERROR(OVS_EVENTS_PLUGIN, ": unknown interface link status");
+    ERROR(OVS_EVENTS_PLUGIN ": unknown interface link status");
     return;
   }
 
   /* add interface metadata to the notification */
   if (plugin_notification_meta_add_string(&n, "uuid", ifinfo->uuid) < 0) {
-    ERROR(OVS_EVENTS_PLUGIN, ": add interface uuid meta data failed");
+    ERROR(OVS_EVENTS_PLUGIN ": add interface uuid meta data failed");
     return;
   }
 
   if (strlen(ifinfo->ext_vm_uuid) > 0)
     if (plugin_notification_meta_add_string
         (&n, "vm-uuid", ifinfo->ext_vm_uuid) < 0) {
-      ERROR(OVS_EVENTS_PLUGIN, ": add interface vm-uuid meta data failed");
+      ERROR(OVS_EVENTS_PLUGIN ": add interface vm-uuid meta data failed");
       return;
     }
 
   if (strlen(ifinfo->ext_iface_id) > 0)
     if (plugin_notification_meta_add_string
         (&n, "iface-id", ifinfo->ext_iface_id) < 0) {
-      ERROR(OVS_EVENTS_PLUGIN, ": add interface iface-id meta data failed");
+      ERROR(OVS_EVENTS_PLUGIN ": add interface iface-id meta data failed");
       return;
     }
 
@@ -322,15 +322,15 @@ ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo)
   /* add interface metadata to the submit value */
   if ((meta = meta_data_create()) != NULL) {
     if (meta_data_add_string(meta, "uuid", ifinfo->uuid) < 0)
-      ERROR(OVS_EVENTS_PLUGIN, ": add interface uuid meta data failed");
+      ERROR(OVS_EVENTS_PLUGIN ": add interface uuid meta data failed");
 
     if (strlen(ifinfo->ext_vm_uuid) > 0)
       if (meta_data_add_string(meta, "vm-uuid", ifinfo->ext_vm_uuid) < 0)
-        ERROR(OVS_EVENTS_PLUGIN, ": add interface vm-uuid meta data failed");
+        ERROR(OVS_EVENTS_PLUGIN ": add interface vm-uuid meta data failed");
 
     if (strlen(ifinfo->ext_iface_id) > 0)
       if (meta_data_add_string(meta, "iface-id", ifinfo->ext_iface_id) < 0)
-        ERROR(OVS_EVENTS_PLUGIN, ": add interface iface-id meta data failed");
+        ERROR(OVS_EVENTS_PLUGIN ": add interface iface-id meta data failed");
     vl.meta = meta;
   } else
     ERROR(OVS_EVENTS_PLUGIN ": create metadata failed");
@@ -354,7 +354,7 @@ ovs_events_dispatch_terminate_notification(const char *msg)
 {
   notification_t n = {NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN,
                       "", "", "", NULL};
-  ssnprintf(n.message, sizeof(n.message), msg);
+  sstrncpy(n.message, msg, sizeof(n.message));
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   plugin_dispatch_notification(&n);
 }
@@ -367,10 +367,11 @@ ovs_events_get_iface_info(yajl_val jobject, ovs_events_iface_info_t *ifinfo)
   yajl_val jexternal_ids = NULL;
   yajl_val jvalue = NULL;
   yajl_val juuid = NULL;
+  const char *state = NULL;
 
   /* check YAJL type */
   if (!YAJL_IS_OBJECT(jobject))
-    return NULL;
+    return (-1);
 
   /* try to find external_ids, name and link_state fields */
   jexternal_ids = ovs_utils_get_value_by_key(jobject, "external_ids");
@@ -407,11 +408,11 @@ ovs_events_get_iface_info(yajl_val jobject, ovs_events_iface_info_t *ifinfo)
 
   /* get OVS DB interface link status */
   jvalue = ovs_utils_get_value_by_key(jobject, "link_state");
-  if (jvalue != NULL && YAJL_IS_STRING(jvalue)) {
+  if (jvalue != NULL && ((state = YAJL_GET_STRING(jvalue)) != NULL)) {
     /* convert OVS table link state to link status */
-    if (strcmp(YAJL_GET_STRING(jvalue), "up") == 0)
+    if (strcmp(state, "up") == 0)
       ifinfo->link_status = UP;
-    else if (strcmp(YAJL_GET_STRING(jvalue), "down") == 0)
+    else if (strcmp(state, "down") == 0)
       ifinfo->link_status = DOWN;
   }
   return (0);

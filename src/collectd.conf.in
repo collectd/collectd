@@ -168,7 +168,7 @@
 #@BUILD_PLUGIN_OPENLDAP_TRUE@LoadPlugin openldap
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
-#@BUILD_PLUGIN_OVS_LINK_TRUE@LoadPlugin ovs_events
+#@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
