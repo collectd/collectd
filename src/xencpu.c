@@ -115,7 +115,6 @@ static void submit_value (int cpu_num, gauge_t value)
     vl.values = &(value_t) { .gauge = value };
     vl.values_len = 1;
 
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "xencpu", sizeof (vl.plugin));
     sstrncpy (vl.type, "percent", sizeof (vl.type));
     sstrncpy (vl.type_instance, "load", sizeof (vl.type_instance));

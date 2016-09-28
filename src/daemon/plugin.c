@@ -723,6 +723,9 @@ static value_list_t *plugin_value_list_clone (value_list_t const *vl_orig) /* {{
 		return (NULL);
 	memcpy (vl, vl_orig, sizeof (*vl));
 
+	if (vl->host[0] == 0)
+		sstrncpy (vl->host, hostname_g, sizeof (vl->host));
+
 	vl->values = calloc (vl_orig->values_len, sizeof (*vl->values));
 	if (vl->values == NULL)
 	{
@@ -2078,15 +2081,16 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	int status;
 	static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
-	value_t *saved_values;
-	int      saved_values_len;
-
 	data_set_t *ds;
 
-	int free_meta_data = 0;
+	_Bool free_meta_data = 0;
 
-	assert(vl);
-	assert(vl->plugin);
+	assert (vl != NULL);
+
+	/* These fields are initialized by plugin_value_list_clone() if needed: */
+	assert (vl->host[0] != 0);
+	assert (vl->time != 0); /* The time is determined at _enqueue_ time. */
+	assert (vl->interval != 0);
 
 	if (vl->type[0] == 0 || vl->values == NULL || vl->values_len < 1)
 	{
@@ -2126,11 +2130,6 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 		return (-1);
 	}
 
-	/* Assured by plugin_value_list_clone(). The time is determined at
-	 * _enqueue_ time. */
-	assert (vl->time != 0);
-	assert (vl->interval != 0);
-
 	DEBUG ("plugin_dispatch_values: time = %.3f; interval = %.3f; "
 			"host = %s; "
 			"plugin = %s; plugin_instance = %s; "
@@ -2168,31 +2167,6 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	escape_slashes (vl->type, sizeof (vl->type));
 	escape_slashes (vl->type_instance, sizeof (vl->type_instance));
 
-	/* Copy the values. This way, we can assure `targets' that they get
-	 * dynamically allocated values, which they can free and replace if
-	 * they like. */
-	if ((pre_cache_chain != NULL) || (post_cache_chain != NULL))
-	{
-		saved_values     = vl->values;
-		saved_values_len = vl->values_len;
-
-		vl->values = (value_t *) calloc (vl->values_len,
-				sizeof (*vl->values));
-		if (vl->values == NULL)
-		{
-			ERROR ("plugin_dispatch_values: calloc failed.");
-			vl->values = saved_values;
-			return (-1);
-		}
-		memcpy (vl->values, saved_values,
-				vl->values_len * sizeof (*vl->values));
-	}
-	else /* if ((pre == NULL) && (post == NULL)) */
-	{
-		saved_values     = NULL;
-		saved_values_len = 0;
-	}
-
 	if (pre_cache_chain != NULL)
 	{
 		status = fc_process_chain (ds, vl, pre_cache_chain);
@@ -2204,17 +2178,7 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 					status, status);
 		}
 		else if (status == FC_TARGET_STOP)
-		{
-			/* Restore the state of the value_list so that plugins
-			 * don't get confused.. */
-			if (saved_values != NULL)
-			{
-				sfree (vl->values);
-				vl->values     = saved_values;
-				vl->values_len = saved_values_len;
-			}
 			return (0);
-		}
 	}
 
 	/* Update the value cache */
@@ -2233,15 +2197,6 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 	}
 	else
 		fc_default_action (ds, vl);
-
-	/* Restore the state of the value_list so that plugins don't get
-	 * confused.. */
-	if (saved_values != NULL)
-	{
-		sfree (vl->values);
-		vl->values     = saved_values;
-		vl->values_len = saved_values_len;
-	}
 
 	if ((free_meta_data != 0) && (vl->meta != NULL))
 	{

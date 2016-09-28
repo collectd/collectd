@@ -305,7 +305,6 @@ static void disk_submit (const char *plugin_instance,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
@@ -325,7 +324,6 @@ static void submit_io_time (char const *plugin_instance, derive_t io_time, deriv
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "disk_io_time", sizeof (vl.type));
@@ -341,7 +339,6 @@ static void submit_in_progress (char const *disk_name, gauge_t in_progress)
 
 	vl.values = &(value_t) { .gauge = in_progress };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "disk", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, disk_name, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "pending_operations", sizeof (vl.type));

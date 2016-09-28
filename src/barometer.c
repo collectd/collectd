@@ -1600,7 +1600,6 @@ static int MPL115_collectd_barometer_read (void)
 
     norm_pressure = abs_to_mean_sea_level_pressure(pressure);
 
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "barometer", sizeof (vl.plugin));
     sstrncpy (vl.plugin_instance, "mpl115", sizeof (vl.plugin_instance));
 
@@ -1663,7 +1662,6 @@ static int MPL3115_collectd_barometer_read (void)
 
     norm_pressure = abs_to_mean_sea_level_pressure(pressure);
 
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "barometer", sizeof (vl.plugin));
     sstrncpy (vl.plugin_instance, "mpl3115", sizeof (vl.plugin_instance));
 
@@ -1726,7 +1724,6 @@ static int BMP085_collectd_barometer_read (void)
 
     norm_pressure = abs_to_mean_sea_level_pressure(pressure);
 
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "barometer", sizeof (vl.plugin));
     sstrncpy (vl.plugin_instance, "bmp085", sizeof (vl.plugin_instance));
 

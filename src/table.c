@@ -384,7 +384,6 @@ static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 	vl.values     = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "table", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, tbl->instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, res->type, sizeof (vl.type));

@@ -191,7 +191,6 @@ static void ethstat_submit_value (const char *device,
   vl.values = &(value_t) { .derive = value };
   vl.values_len = 1;
 
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "ethstat", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, device, sizeof (vl.plugin_instance));
   if (map != NULL)

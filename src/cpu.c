@@ -336,7 +336,6 @@ static void submit_value (int cpu_num, int cpu_state, const char *type, value_t 
 	vl.values = &value;
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, cpu_state_names[cpu_state],
@@ -509,7 +508,6 @@ static void cpu_commit_num_cpu (gauge_t value) /* {{{ */
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpu", sizeof (vl.plugin));
 	sstrncpy (vl.type, "count", sizeof (vl.type));
 

@@ -555,76 +555,75 @@ static void dpdk_submit_xstats(const char *dev_name,
                                const struct rte_eth_xstats *xstats,
                                uint32_t counters, cdtime_t port_read_time) {
   for (uint32_t j = 0; j < counters; j++) {
-    value_list_t dpdkstat_vl = VALUE_LIST_INIT;
+    value_list_t vl = VALUE_LIST_INIT;
     char *type_end;
 
-    dpdkstat_vl.values = &(value_t){.derive = (derive_t)xstats[j].value};
-    dpdkstat_vl.values_len = 1; /* Submit stats one at a time */
-    dpdkstat_vl.time = port_read_time;
-    sstrncpy(dpdkstat_vl.host, hostname_g, sizeof(dpdkstat_vl.host));
-    sstrncpy(dpdkstat_vl.plugin, "dpdkstat", sizeof(dpdkstat_vl.plugin));
-    sstrncpy(dpdkstat_vl.plugin_instance, dev_name,
-             sizeof(dpdkstat_vl.plugin_instance));
+    vl.values = &(value_t){.derive = (derive_t)xstats[j].value};
+    vl.values_len = 1; /* Submit stats one at a time */
+    vl.time = port_read_time;
+    sstrncpy(vl.plugin, "dpdkstat", sizeof(vl.plugin));
+    sstrncpy(vl.plugin_instance, dev_name,
+             sizeof(vl.plugin_instance));
 
     type_end = strrchr(xstats[j].name, '_');
 
     if ((type_end != NULL) &&
         (strncmp(xstats[j].name, "rx_", strlen("rx_")) == 0)) {
       if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_rx_errors", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_rx_errors", sizeof(vl.type));
       } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_rx_dropped", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_rx_dropped", sizeof(vl.type));
       } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_rx_octets", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_rx_octets", sizeof(vl.type));
       } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_rx_packets", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_rx_packets", sizeof(vl.type));
       } else if (strncmp(type_end, "_placement", strlen("_placement")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_rx_errors", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_rx_errors", sizeof(vl.type));
       } else if (strncmp(type_end, "_buff", strlen("_buff")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_rx_errors", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_rx_errors", sizeof(vl.type));
       } else {
         /* Does not fit obvious type: use a more generic one */
-        sstrncpy(dpdkstat_vl.type, "derive", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "derive", sizeof(vl.type));
       }
 
     } else if ((type_end != NULL) &&
                (strncmp(xstats[j].name, "tx_", strlen("tx_"))) == 0) {
       if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_tx_errors", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_tx_errors", sizeof(vl.type));
       } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_tx_dropped", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_tx_dropped", sizeof(vl.type));
       } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_tx_octets", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_tx_octets", sizeof(vl.type));
       } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "if_tx_packets", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "if_tx_packets", sizeof(vl.type));
       } else {
         /* Does not fit obvious type: use a more generic one */
-        sstrncpy(dpdkstat_vl.type, "derive", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "derive", sizeof(vl.type));
       }
     } else if ((type_end != NULL) &&
                (strncmp(xstats[j].name, "flow_", strlen("flow_"))) == 0) {
 
       if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "operations", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "operations", sizeof(vl.type));
       } else if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "errors", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "errors", sizeof(vl.type));
       } else if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "filter_result", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "filter_result", sizeof(vl.type));
       }
     } else if ((type_end != NULL) &&
                (strncmp(xstats[j].name, "mac_", strlen("mac_"))) == 0) {
       if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-        sstrncpy(dpdkstat_vl.type, "errors", sizeof(dpdkstat_vl.type));
+        sstrncpy(vl.type, "errors", sizeof(vl.type));
       }
     } else {
       /* Does not fit obvious type, or strrchr error:
        *   use a more generic type */
-      sstrncpy(dpdkstat_vl.type, "derive", sizeof(dpdkstat_vl.type));
+      sstrncpy(vl.type, "derive", sizeof(vl.type));
     }
 
-    sstrncpy(dpdkstat_vl.type_instance, xstats[j].name,
-             sizeof(dpdkstat_vl.type_instance));
-    plugin_dispatch_values(&dpdkstat_vl);
+    sstrncpy(vl.type_instance, xstats[j].name,
+             sizeof(vl.type_instance));
+    plugin_dispatch_values(&vl);
   }
 }
 

@@ -53,7 +53,6 @@ static void cs_submit (derive_t context_switches)
 
 	vl.values = &(value_t) { .derive = context_switches };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "contextswitch", sizeof (vl.plugin));
 	sstrncpy (vl.type, "contextswitch", sizeof (vl.type));
 

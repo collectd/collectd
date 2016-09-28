@@ -200,10 +200,8 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 	analog = packet->payload;
 	vl.values = &(value_t) { .gauge = analog->data[0] };
 	vl.values_len = 1;
-	sstrncpy(vl.host, hostname_g, sizeof(vl.host));
 	sstrncpy(vl.plugin, "sigrok", sizeof(vl.plugin));
-	ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
-			"%s", cfdev->name);
+	sstrncpy(vl.plugin_instance, cfdev->name, sizeof(vl.plugin_instance));
 	sstrncpy(vl.type, sigrok_value_type(analog), sizeof(vl.type));
 
 	plugin_dispatch_values(&vl);
