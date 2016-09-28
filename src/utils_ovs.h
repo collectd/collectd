@@ -65,15 +65,15 @@
 #ifndef UTILS_OVS_H
 #define UTILS_OVS_H
 
-#include <yajl/yajl_tree.h>
 #include <yajl/yajl_gen.h>
+#include <yajl/yajl_tree.h>
 
 /* Forward declaration */
 typedef struct ovs_db_s ovs_db_t;
 
 /* OVS DB callback type declaration */
-typedef void (*ovs_db_table_cb_t) (yajl_val jupdates);
-typedef void (*ovs_db_result_cb_t) (yajl_val jresult, yajl_val jerror);
+typedef void (*ovs_db_table_cb_t)(yajl_val jupdates);
+typedef void (*ovs_db_result_cb_t)(yajl_val jresult, yajl_val jerror);
 
 /* OVS DB structures */
 struct ovs_db_callback_s {
@@ -84,12 +84,12 @@ struct ovs_db_callback_s {
    * to subscribe to table update notification or poll
    * some OVS DB data. This field can be NULL.
    */
-  void (*post_conn_init) (ovs_db_t *pdb);
+  void (*post_conn_init)(ovs_db_t *pdb);
   /*
    * This callback is called when OVD DB connection
    * has been lost. This field can be NULL.
    */
-  void (*post_conn_terminate) (void);
+  void (*post_conn_terminate)(void);
 };
 typedef struct ovs_db_callback_s ovs_db_callback_t;
 
@@ -144,15 +144,15 @@ int ovs_db_destroy(ovs_db_t *pdb);
  * RETURN VALUE
  *   Zero upon success or non-zero if an error occurred.
  */
-int ovs_db_send_request(ovs_db_t *pdb, const char *method,
-                        const char *params, ovs_db_result_cb_t cb);
+int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
+                        ovs_db_result_cb_t cb);
 
 /* callback types */
 #define OVS_DB_TABLE_CB_FLAG_INITIAL 0x01U
-#define OVS_DB_TABLE_CB_FLAG_INSERT  0x02U
-#define OVS_DB_TABLE_CB_FLAG_DELETE  0x04U
-#define OVS_DB_TABLE_CB_FLAG_MODIFY  0x08U
-#define OVS_DB_TABLE_CB_FLAG_ALL     0x0FU
+#define OVS_DB_TABLE_CB_FLAG_INSERT 0x02U
+#define OVS_DB_TABLE_CB_FLAG_DELETE 0x04U
+#define OVS_DB_TABLE_CB_FLAG_MODIFY 0x08U
+#define OVS_DB_TABLE_CB_FLAG_ALL 0x0FU
 
 /*
  * NAME
@@ -187,8 +187,7 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method,
 int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
                              const char **tb_column,
                              ovs_db_table_cb_t update_cb,
-                             ovs_db_result_cb_t result_cb,
-                             unsigned int flags);
+                             ovs_db_result_cb_t result_cb, unsigned int flags);
 
 /*
  * OVS utils API
