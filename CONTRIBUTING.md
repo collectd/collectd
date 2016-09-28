@@ -2,7 +2,7 @@
 
 Thanks for taking the time to contribute to the [collectd
 project](https://collectd.org/)! This document tries to give some guidance to
-make the process of contributing to *collectd* as pleasant and possible.
+make the process of contributing to *collectd* as pleasant as possible.
 
 ## Bug reports
 
@@ -19,7 +19,7 @@ following questions:
     [stack trace](https://collectd.org/wiki/index.php/Core_file).
 
 Please monitor your issue for a couple of days and reply to questions. To keep
-the project manageable have to do some housekeeping, meaning we will close
+the project manageable, we have to do some housekeeping; meaning we will close
 issues that have become stale.
 
 ## Code contributions
