@@ -147,13 +147,13 @@ static void dpdk_config_init_default(void) {
 
 static int dpdk_config(oconfig_item_t *ci) {
   int port_counter = 0;
-  char errbuf[ERR_BUF_SIZE];
   /* Allocate g_configuration and
    * initialize a POSIX SHared Memory (SHM) object.
    */
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
   if (err) {
-    DEBUG("dpdkstat: error in shm_init, %s",
+    char errbuf[ERR_BUF_SIZE];
+    ERROR("dpdkstat: error in shm_init, %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
