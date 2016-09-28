@@ -360,7 +360,7 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 } /* }}} void log_list_callbacks */
 
 static int create_register_callback (llist_t **list, /* {{{ */
-		const char *name, void *callback, user_data_t *ud)
+		const char *name, void *callback, user_data_t const *ud)
 {
 	callback_func_t *cf;
 
@@ -1264,7 +1264,7 @@ int plugin_register_read (const char *name,
 int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
 		cdtime_t interval,
-		user_data_t *user_data)
+		user_data_t const *user_data)
 {
 	read_func_t *rf;
 	int status;
@@ -1308,7 +1308,7 @@ int plugin_register_complex_read (const char *group, const char *name,
 } /* int plugin_register_complex_read */
 
 int plugin_register_write (const char *name,
-		plugin_write_cb callback, user_data_t *ud)
+		plugin_write_cb callback, user_data_t const *ud)
 {
 	return (create_register_callback (&list_write, name,
 				(void *) callback, ud));
@@ -1355,7 +1355,7 @@ static char *plugin_flush_callback_name (const char *name)
 } /* static char *plugin_flush_callback_name */
 
 int plugin_register_flush (const char *name,
-		plugin_flush_cb callback, user_data_t *ud)
+		plugin_flush_cb callback, user_data_t const *ud)
 {
 	int status;
 	plugin_ctx_t ctx = plugin_get_ctx ();
@@ -1392,15 +1392,15 @@ int plugin_register_flush (const char *name,
 		}
 		cb->timeout = ctx.flush_timeout;
 
-		ud->data = cb;
-		ud->free_func = plugin_flush_timeout_callback_free;
-
 		status = plugin_register_complex_read (
 			/* group     = */ "flush",
 			/* name      = */ flush_name,
 			/* callback  = */ plugin_flush_timeout_callback,
 			/* interval  = */ ctx.flush_interval,
-			/* user data = */ ud);
+			/* user data = */ &(user_data_t) {
+				.data = cb,
+				.free_func = plugin_flush_timeout_callback_free,
+			});
 
 		sfree (flush_name);
 		if (status != 0)
@@ -1415,7 +1415,7 @@ int plugin_register_flush (const char *name,
 } /* int plugin_register_flush */
 
 int plugin_register_missing (const char *name,
-		plugin_missing_cb callback, user_data_t *ud)
+		plugin_missing_cb callback, user_data_t const *ud)
 {
 	return (create_register_callback (&list_missing, name,
 				(void *) callback, ud));
@@ -1486,14 +1486,14 @@ int plugin_register_data_set (const data_set_t *ds)
 } /* int plugin_register_data_set */
 
 int plugin_register_log (const char *name,
-		plugin_log_cb callback, user_data_t *ud)
+		plugin_log_cb callback, user_data_t const *ud)
 {
 	return (create_register_callback (&list_log, name,
 				(void *) callback, ud));
 } /* int plugin_register_log */
 
 int plugin_register_notification (const char *name,
-		plugin_notification_cb callback, user_data_t *ud)
+		plugin_notification_cb callback, user_data_t const *ud)
 {
 	return (create_register_callback (&list_notification, name,
 				(void *) callback, ud));
