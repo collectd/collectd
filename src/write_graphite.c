@@ -52,16 +52,34 @@
 
 #include <netdb.h>
 
-#define WG_DEFAULT_NODE "localhost"
-#define WG_DEFAULT_SERVICE "2003"
-#define WG_DEFAULT_PROTOCOL "tcp"
-#define WG_DEFAULT_LOG_SEND_ERRORS 1
-#define WG_DEFAULT_ESCAPE '_'
+#ifndef WG_DEFAULT_NODE
+# define WG_DEFAULT_NODE "localhost"
+#endif
+
+#ifndef WG_DEFAULT_SERVICE
+# define WG_DEFAULT_SERVICE "2003"
+#endif
+
+#ifndef WG_DEFAULT_PROTOCOL
+# define WG_DEFAULT_PROTOCOL "tcp"
+#endif
+
+#ifndef WG_DEFAULT_LOG_SEND_ERRORS
+# define WG_DEFAULT_LOG_SEND_ERRORS 1
+#endif
+
+#ifndef WG_DEFAULT_ESCAPE
+# define WG_DEFAULT_ESCAPE '_'
+#endif
 
 /* Ethernet - (IPv6 + TCP) = 1500 - (40 + 32) = 1428 */
-#define WG_SEND_BUF_SIZE 1428
+#ifndef WG_SEND_BUF_SIZE
+# define WG_SEND_BUF_SIZE 1428
+#endif
 
-#define WG_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T (1)
+#ifndef WG_MIN_RECONNECT_INTERVAL
+# define WG_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T (1)
+#endif
 
 /*
  * Private variables
