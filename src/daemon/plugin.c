@@ -1394,15 +1394,15 @@ int plugin_register_flush (const char *name,
 		}
 		cb->timeout = ctx.flush_timeout;
 
-		ud->data = cb;
-		ud->free_func = plugin_flush_timeout_callback_free;
-
 		status = plugin_register_complex_read (
 			/* group     = */ "flush",
 			/* name      = */ flush_name,
 			/* callback  = */ plugin_flush_timeout_callback,
 			/* interval  = */ ctx.flush_interval,
-			/* user data = */ ud);
+			/* user data = */ &(user_data_t) {
+				.data = cb,
+				.free_func = plugin_flush_timeout_callback_free,
+			});
 
 		sfree (flush_name);
 		if (status != 0)
