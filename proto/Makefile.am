@@ -1,1 +1,1 @@
-EXTRA_DIST = collectd.proto types.proto
+EXTRA_DIST = collectd.proto types.proto prometheus.proto
