@@ -25,9 +25,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_llist.h"
 
 #include <sys/stat.h>
@@ -300,10 +300,10 @@ static char *local_sockpath = NULL;
 
 /* <https://doc.powerdns.com/md/recursor/stats/> */
 static void submit (const char *plugin_instance, /* {{{ */
-    const char *pdns_type, const char *value)
+    const char *pdns_type, const char *value_str)
 {
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[1];
+  value_t value;
 
   const char *type = NULL;
   const char *type_instance = NULL;
@@ -318,7 +318,7 @@ static void submit (const char *plugin_instance, /* {{{ */
   if (i >= lookup_table_length)
   {
     INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
-        pdns_type, value);
+        pdns_type, value_str);
     return;
   }
 
@@ -345,14 +345,14 @@ static void submit (const char *plugin_instance, /* {{{ */
     return;
   }
 
-  if (0 != parse_value (value, &values[0], ds->ds[0].type))
+  if (0 != parse_value (value_str, &value, ds->ds[0].type))
   {
     ERROR ("powerdns plugin: Cannot convert `%s' "
-        "to a number.", value);
+        "to a number.", value_str);
     return;
   }
 
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "powerdns", sizeof (vl.plugin));
@@ -375,7 +375,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
   char *buffer = NULL;
   size_t buffer_size = 0;
 
-  struct sockaddr_un sa_unix;
+  struct sockaddr_un sa_unix = { 0 };
 
   struct timeval stv_timeout;
   cdtime_t cdt_timeout;
@@ -387,7 +387,6 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     return (-1);
   }
 
-  memset (&sa_unix, 0, sizeof (sa_unix));
   sa_unix.sun_family = AF_UNIX;
   sstrncpy (sa_unix.sun_path,
       (local_sockpath != NULL) ? local_sockpath : PDNS_LOCAL_SOCKPATH,
@@ -465,7 +464,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     return (-1);
 
   assert (buffer_size > 0);
-  buffer = (char *) malloc (buffer_size);
+  buffer = malloc (buffer_size);
   if (buffer == NULL)
   {
     FUNC_ERROR ("malloc");
@@ -542,7 +541,7 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     else if (status == 0)
       break;
 
-    buffer_new = (char *) realloc (buffer, buffer_size + status + 1);
+    buffer_new = realloc (buffer, buffer_size + status + 1);
     if (buffer_new == NULL)
     {
       FUNC_ERROR ("realloc");
@@ -631,8 +630,6 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
   saveptr = NULL;
   while ((key = strtok_r (dummy, ",", &saveptr)) != NULL)
   {
-    int i;
-
     dummy = NULL;
 
     value = strchr (key, '=');
@@ -646,6 +643,7 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
       continue;
 
     /* Check if this item was requested. */
+    int i;
     for (i = 0; i < fields_num; i++)
       if (strcasecmp (key, fields[i]) == 0)
 	break;
@@ -781,7 +779,6 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
 static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
     oconfig_item_t *ci)
 {
-  int i;
   char **temp;
 
   if (ci->values_num < 1)
@@ -791,7 +788,7 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("powerdns plugin: Only string arguments are allowed to "
@@ -799,7 +796,7 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
       return (-1);
     }
 
-  temp = (char **) realloc (li->fields,
+  temp = realloc (li->fields,
       sizeof (char *) * (li->fields_num + ci->values_num));
   if (temp == NULL)
   {
@@ -808,7 +805,7 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
   }
   li->fields = temp;
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     li->fields[li->fields_num] = strdup (ci->values[i].value.string);
     if (li->fields[li->fields_num] == NULL)
@@ -831,7 +828,6 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
   list_item_t *item;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -840,13 +836,12 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  item = (list_item_t *) malloc (sizeof (list_item_t));
+  item = calloc (1, sizeof (*item));
   if (item == NULL)
   {
-    ERROR ("powerdns plugin: malloc failed.");
+    ERROR ("powerdns plugin: calloc failed.");
     return (-1);
   }
-  memset (item, '\0', sizeof (list_item_t));
 
   item->instance = strdup (ci->values[0].value.string);
   if (item->instance == NULL)
@@ -881,7 +876,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -941,8 +936,6 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
 static int powerdns_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
   DEBUG ("powerdns plugin: powerdns_config (ci = %p);", (void *) ci);
 
   if (list == NULL)
@@ -956,7 +949,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -989,9 +982,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
 
 static int powerdns_read (void)
 {
-  llentry_t *e;
-
-  for (e = llist_head (list); e != NULL; e = e->next)
+  for (llentry_t *e = llist_head (list); e != NULL; e = e->next)
   {
     list_item_t *item = e->value;
     item->func (item);
@@ -1002,12 +993,10 @@ static int powerdns_read (void)
 
 static int powerdns_shutdown (void)
 {
-  llentry_t *e;
-
   if (list == NULL)
     return (0);
 
-  for (e = llist_head (list); e != NULL; e = e->next)
+  for (llentry_t *e = llist_head (list); e != NULL; e = e->next)
   {
     list_item_t *item = (list_item_t *) e->value;
     e->value = NULL;

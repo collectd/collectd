@@ -39,6 +39,7 @@
 #endif /* ! HAVE_CONFIG */
 
 #include <collectd/collectd.h>
+
 #include <collectd/common.h>
 #include <collectd/plugin.h>
 
@@ -84,36 +85,50 @@ static int my_init (void)
 } /* static int my_init (void) */
 
 /*
- * This function is called in regular intervalls to collect the data.
+ * This is a utility function used by the read callback to populate a
+ * value_list_t and pass it to plugin_dispatch_values.
  */
-static int my_read (void)
+static int my_submit (gauge_t value)
 {
-	value_t values[1]; /* the size of this list should equal the number of
-						  data sources */
 	value_list_t vl = VALUE_LIST_INIT;
 
-	/* do the magic to read the data */
-	values[0].gauge = random ();
-
-	vl.values     = values;
+	/* Convert the gauge_t to a value_t and add it to the value_list_t. */
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	vl.time       = time (NULL);
+
+	/* Only set vl.time yourself if you update multiple metrics (i.e. you
+	 * have multiple calls to plugin_dispatch_values()) and they need to all
+	 * have the same timestamp. */
+	/* vl.time = cdtime(); */
+
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "myplugin", sizeof (vl.plugin));
 
 	/* it is strongly recommended to use a type defined in the types.db file
 	 * instead of a custom type */
-	sstrncpy (vl.type, "myplugin", sizeof (vl.plugin));
+	sstrncpy (vl.type, "myplugin", sizeof (vl.type));
 	/* optionally set vl.plugin_instance and vl.type_instance to reasonable
 	 * values (default: "") */
 
 	/* dispatch the values to collectd which passes them on to all registered
 	 * write functions */
-	plugin_dispatch_values (&vl);
+	return plugin_dispatch_values (&vl);
+}
+
+/*
+ * This function is called in regular intervalls to collect the data.
+ */
+static int my_read (void)
+{
+	/* do the magic to read the data */
+	gauge_t value = random ();
+
+	if (my_submit (value) != 0)
+		WARNING ("myplugin plugin: Dispatching a random value failed.");
 
 	/* A return value != 0 indicates an error and the plugin will be skipped
 	 * for an increasing amount of time. */
-    return 0;
+	return 0;
 } /* static int my_read (void) */
 
 /*

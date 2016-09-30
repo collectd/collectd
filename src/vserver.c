@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -55,11 +56,11 @@ static int vserver_init (void)
 static void traffic_submit (const char *plugin_instance,
 		const char *type_instance, derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+		{ .derive = rx },
+		{ .derive = tx },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -75,12 +76,12 @@ static void traffic_submit (const char *plugin_instance,
 static void load_submit (const char *plugin_instance,
 		gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
-	value_t values[3];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = snum;
-	values[1].gauge = mnum;
-	values[2].gauge = lnum;
+	value_t values[] = {
+		{ .gauge = snum },
+		{ .gauge = mnum },
+		{ .gauge = lnum },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -96,13 +97,10 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 		const char *type_instance, gauge_t value)
 
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
@@ -146,7 +144,7 @@ static int vserver_read (void)
 	if (proc == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR, 
+		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -185,7 +183,7 @@ static int vserver_read (void)
 		len = ssnprintf (file, sizeof (file), PROCDIR "/%s", dent->d_name);
 		if ((len < 0) || (len >= BUFSIZE))
 			continue;
-		
+
 		status = stat (file, &statbuf);
 		if (status != 0)
 		{
@@ -194,7 +192,7 @@ static int vserver_read (void)
 					file, sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
-		
+
 		if (!S_ISDIR (statbuf.st_mode))
 			continue;
 

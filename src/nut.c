@@ -25,10 +25,10 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
-#include <pthread.h>
 #include <upsclient.h>
 
 #if HAVE_UPSCONN_T
@@ -80,13 +80,12 @@ static int nut_add_ups (const char *name)
 
   DEBUG ("nut plugin: nut_add_ups (name = %s);", name);
 
-  ups = (nut_ups_t *) malloc (sizeof (nut_ups_t));
+  ups = calloc (1, sizeof (*ups));
   if (ups == NULL)
   {
-    ERROR ("nut plugin: nut_add_ups: malloc failed.");
+    ERROR ("nut plugin: nut_add_ups: calloc failed.");
     return (1);
   }
-  memset (ups, '\0', sizeof (nut_ups_t));
 
   status = upscli_splitname (name, &ups->upsname, &ups->hostname,
       &ups->port);
@@ -121,13 +120,10 @@ static int nut_config (const char *key, const char *value)
 static void nut_submit (nut_ups_t *ups, const char *type,
     const char *type_instance, gauge_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
+  vl.values = &(value_t) { .gauge = value };
+  vl.values_len = 1;
   sstrncpy (vl.host,
       (strcasecmp (ups->hostname, "localhost") == 0)
       ? hostname_g
@@ -152,7 +148,7 @@ static int nut_read_one (nut_ups_t *ups)
   /* (Re-)Connect if we have no connection */
   if (ups->conn == NULL)
   {
-    ups->conn = (collectd_upsconn_t *) malloc (sizeof (collectd_upsconn_t));
+    ups->conn = malloc (sizeof (*ups->conn));
     if (ups->conn == NULL)
     {
       ERROR ("nut plugin: malloc failed.");
@@ -249,7 +245,6 @@ static int nut_read_one (nut_ups_t *ups)
 
 static int nut_read (void)
 {
-  nut_ups_t *ups;
   int success = 0;
 
   pthread_mutex_lock (&read_lock);
@@ -260,7 +255,7 @@ static int nut_read (void)
   if (success != 0)
     return (0);
 
-  for (ups = upslist_head; ups != NULL; ups = ups->next)
+  for (nut_ups_t *ups = upslist_head; ups != NULL; ups = ups->next)
     if (nut_read_one (ups) == 0)
       success++;
 

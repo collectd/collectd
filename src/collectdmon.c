@@ -55,6 +55,14 @@
 
 #include <unistd.h>
 
+#ifndef PREFIX
+# define PREFIX "/opt/" PACKAGE_NAME
+#endif
+
+#ifndef LOCALSTATEDIR
+# define LOCALSTATEDIR PREFIX "/var"
+#endif
+
 #ifndef COLLECTDMON_PIDFILE
 # define COLLECTDMON_PIDFILE LOCALSTATEDIR"/run/collectdmon.pid"
 #endif /* ! COLLECTDMON_PIDFILE */
@@ -156,21 +164,24 @@ static int daemonize (void)
 
 	dev_null = open ("/dev/null", O_RDWR);
 	if (dev_null == -1) {
-		syslog (LOG_ERR, "Error: couldn't failed to open /dev/null: %s", strerror (errno));
+		syslog (LOG_ERR, "Error: couldn't open /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
 	if (dup2 (dev_null, STDIN_FILENO) == -1) {
+		close (dev_null);
 		syslog (LOG_ERR, "Error: couldn't connect STDIN to /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
 	if (dup2 (dev_null, STDOUT_FILENO) == -1) {
+		close (dev_null);
 		syslog (LOG_ERR, "Error: couldn't connect STDOUT to /dev/null: %s", strerror (errno));
 		return -1;
 	}
 
 	if (dup2 (dev_null, STDERR_FILENO) == -1) {
+		close (dev_null);
 		syslog (LOG_ERR, "Error: couldn't connect STDERR to /dev/null: %s", strerror (errno));
 		return -1;
 	}

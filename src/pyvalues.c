@@ -21,13 +21,14 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <collectd at semidefinite.de>  
+ *   Sven Trenkel <collectd at semidefinite.de>
  **/
 
 #include <Python.h>
 #include <structmember.h>
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "cpython.h"
@@ -45,7 +46,7 @@ static PyObject *cpy_common_repr(PyObject *s) {
 	static PyObject *l_type = NULL, *l_type_instance = NULL, *l_plugin = NULL, *l_plugin_instance = NULL;
 	static PyObject *l_host = NULL, *l_time = NULL;
 	PluginData *self = (PluginData *) s;
-	
+
 	if (l_type == NULL)
 		l_type = cpy_string_to_unicode_or_bytes("(type=");
 	if (l_type_instance == NULL)
@@ -58,10 +59,10 @@ static PyObject *cpy_common_repr(PyObject *s) {
 		l_host = cpy_string_to_unicode_or_bytes(",host=");
 	if (l_time == NULL)
 		l_time = cpy_string_to_unicode_or_bytes(",time=");
-	
+
 	if (!l_type || !l_type_instance || !l_plugin || !l_plugin_instance || !l_host || !l_time)
 		return NULL;
-	
+
 	ret = cpy_string_to_unicode_or_bytes(s->ob_type->tp_name);
 
 	CPY_STRCAT(&ret, l_type);
@@ -134,11 +135,11 @@ static char PluginData_doc[] = "This is an internal class that is the base for V
 
 static PyObject *PluginData_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 	PluginData *self;
-	
+
 	self = (PluginData *) type->tp_alloc(type, 0);
 	if (self == NULL)
 		return NULL;
-	
+
 	self->time = 0;
 	self->host[0] = 0;
 	self->plugin[0] = 0;
@@ -154,11 +155,11 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	char *type = NULL, *plugin_instance = NULL, *type_instance = NULL, *plugin = NULL, *host = NULL;
 	static char *kwlist[] = {"type", "plugin_instance", "type_instance",
 			"plugin", "host", "time", NULL};
-	
+
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetd", kwlist, NULL, &type,
 			NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin, NULL, &host, &time))
 		return -1;
-	
+
 	if (type && plugin_get_ds(type) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
 		FreeAll();
@@ -180,13 +181,13 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 static PyObject *PluginData_repr(PyObject *s) {
 	PyObject *ret;
 	static PyObject *l_closing = NULL;
-	
+
 	if (l_closing == NULL)
 		l_closing = cpy_string_to_unicode_or_bytes(")");
-	
+
 	if (l_closing == NULL)
 		return NULL;
-	
+
 	ret = cpy_common_repr(s);
 	CPY_STRCAT(&ret, l_closing);
 	return ret;
@@ -199,14 +200,14 @@ static PyMemberDef PluginData_members[] = {
 
 static PyObject *PluginData_getstring(PyObject *self, void *data) {
 	const char *value = ((char *) self) + (intptr_t) data;
-	
+
 	return cpy_string_to_unicode_or_bytes(value);
 }
 
 static int PluginData_setstring(PyObject *self, PyObject *value, void *data) {
 	char *old;
 	const char *new;
-	
+
 	if (value == NULL) {
 		PyErr_SetString(PyExc_TypeError, "Cannot delete this attribute");
 		return -1;
@@ -226,7 +227,7 @@ static int PluginData_setstring(PyObject *self, PyObject *value, void *data) {
 static int PluginData_settype(PyObject *self, PyObject *value, void *data) {
 	char *old;
 	const char *new;
-	
+
 	if (value == NULL) {
 		PyErr_SetString(PyExc_TypeError, "Cannot delete this attribute");
 		return -1;
@@ -349,11 +350,11 @@ static char Values_doc[] = "A Values object used for dispatching values to colle
 
 static PyObject *Values_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 	Values *self;
-	
+
 	self = (Values *) PluginData_new(type, args, kwds);
 	if (self == NULL)
 		return NULL;
-	
+
 	self->values = PyList_New(0);
 	self->meta = PyDict_New();
 	self->interval = 0;
@@ -367,12 +368,12 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	char *type = NULL, *plugin_instance = NULL, *type_instance = NULL, *plugin = NULL, *host = NULL;
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
-	
+
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
 			NULL, &type, &values, NULL, &plugin_instance, NULL, &type_instance,
 			NULL, &plugin, NULL, &host, &time, &interval, &meta))
 		return -1;
-	
+
 	if (type && plugin_get_ds(type) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
 		FreeAll();
@@ -394,18 +395,18 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	} else {
 		Py_INCREF(values);
 	}
-	
+
 	if (meta == NULL) {
 		meta = PyDict_New();
 		PyErr_Clear();
 	} else {
 		Py_INCREF(meta);
 	}
-	
+
 	tmp = self->values;
 	self->values = values;
 	Py_XDECREF(tmp);
-	
+
 	tmp = self->meta;
 	self->meta = meta;
 	Py_XDECREF(tmp);
@@ -415,10 +416,10 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
 }
 
 static meta_data_t *cpy_build_meta(PyObject *meta) {
-	int i, s;
+	int s;
 	meta_data_t *m = NULL;
 	PyObject *l;
-	
+
 	if ((meta == NULL) || (meta == Py_None))
 		return NULL;
 
@@ -434,10 +435,10 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 	}
 
 	m = meta_data_create();
-	for (i = 0; i < s; ++i) {
+	for (int i = 0; i < s; ++i) {
 		const char *string, *keystring;
 		PyObject *key, *value, *item, *tmp;
-		
+
 		item = PyList_GET_ITEM(l, i);
 		key = PyTuple_GET_ITEM(item, 0);
 		Py_INCREF(key);
@@ -504,13 +505,13 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 	int ret;
 	const data_set_t *ds;
-	size_t size, i;
+	size_t size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
 	double time = self->data.time, interval = self->interval;
 	char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL, *type_instance = NULL;
-	
+
 	static char *kwlist[] = {"type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etOetetetetddO", kwlist,
@@ -548,22 +549,25 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 	value = calloc(size, sizeof(*value));
-	for (i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, (int) i); /* Borrowed reference. */
-		if (ds->ds->type == DS_TYPE_COUNTER) {
+		switch (ds->ds[i].type) {
+		case DS_TYPE_COUNTER:
 			num = PyNumber_Long(item); /* New reference. */
 			if (num != NULL) {
 				value[i].counter = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_GAUGE) {
+			break;
+		case DS_TYPE_GAUGE:
 			num = PyNumber_Float(item); /* New reference. */
 			if (num != NULL) {
 				value[i].gauge = PyFloat_AsDouble(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_DERIVE) {
+			break;
+		case DS_TYPE_DERIVE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -571,7 +575,8 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].derive = PyLong_AsLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
+			break;
+		case DS_TYPE_ABSOLUTE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -579,9 +584,10 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].absolute = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else {
+			break;
+		default:
 			free(value);
-			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, value_list.type);
+			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds[i].type, value_list.type);
 			return NULL;
 		}
 		if (PyErr_Occurred() != NULL) {
@@ -613,13 +619,13 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
 static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	int ret;
 	const data_set_t *ds;
-	size_t size, i;
+	size_t size;
 	value_t *value;
 	value_list_t value_list = VALUE_LIST_INIT;
 	PyObject *values = self->values, *meta = self->meta;
 	double time = self->data.time, interval = self->interval;
 	char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL, *type_instance = NULL, *dest = NULL;
-	
+
 	static char *kwlist[] = {"destination", "type", "values", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "interval", "meta", NULL};
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "et|etOetetetetdiO", kwlist, NULL, &dest,
@@ -652,22 +658,25 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 	value = calloc(size, sizeof(*value));
-	for (i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		PyObject *item, *num;
 		item = PySequence_Fast_GET_ITEM(values, i); /* Borrowed reference. */
-		if (ds->ds->type == DS_TYPE_COUNTER) {
+		switch (ds->ds[i].type) {
+		case DS_TYPE_COUNTER:
 			num = PyNumber_Long(item); /* New reference. */
 			if (num != NULL) {
 				value[i].counter = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_GAUGE) {
+			break;
+		case DS_TYPE_GAUGE:
 			num = PyNumber_Float(item); /* New reference. */
 			if (num != NULL) {
 				value[i].gauge = PyFloat_AsDouble(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_DERIVE) {
+			break;
+		case DS_TYPE_DERIVE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -675,7 +684,8 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].derive = PyLong_AsLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else if (ds->ds->type == DS_TYPE_ABSOLUTE) {
+			break;
+		case DS_TYPE_ABSOLUTE:
 			/* This might overflow without raising an exception.
 			 * Not much we can do about it */
 			num = PyNumber_Long(item); /* New reference. */
@@ -683,9 +693,10 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 				value[i].absolute = PyLong_AsUnsignedLongLong(num);
 				Py_XDECREF(num);
 			}
-		} else {
+			break;
+		default:
 			free(value);
-			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds->type, value_list.type);
+			PyErr_Format(PyExc_RuntimeError, "unknown data type %d for %s", ds->ds[i].type, value_list.type);
 			return NULL;
 		}
 		if (PyErr_Occurred() != NULL) {
@@ -697,7 +708,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 	value_list.values_len = size;
 	value_list.time = DOUBLE_TO_CDTIME_T(time);
 	value_list.interval = DOUBLE_TO_CDTIME_T(interval);
-	value_list.meta = cpy_build_meta(meta);;
+	value_list.meta = cpy_build_meta(meta);
 	if (value_list.host[0] == 0)
 		sstrncpy(value_list.host, hostname_g, sizeof(value_list.host));
 	if (value_list.plugin[0] == 0)
@@ -718,7 +729,7 @@ static PyObject *Values_repr(PyObject *s) {
 	PyObject *ret, *tmp;
 	static PyObject *l_interval = NULL, *l_values = NULL, *l_meta = NULL, *l_closing = NULL;
 	Values *self = (Values *) s;
-	
+
 	if (l_interval == NULL)
 		l_interval = cpy_string_to_unicode_or_bytes(",interval=");
 	if (l_values == NULL)
@@ -727,10 +738,10 @@ static PyObject *Values_repr(PyObject *s) {
 		l_meta = cpy_string_to_unicode_or_bytes(",meta=");
 	if (l_closing == NULL)
 		l_closing = cpy_string_to_unicode_or_bytes(")");
-	
+
 	if (l_interval == NULL || l_values == NULL || l_meta == NULL || l_closing == NULL)
 		return NULL;
-	
+
 	ret = cpy_common_repr(s);
 	if (self->interval != 0) {
 		CPY_STRCAT(&ret, l_interval);
@@ -844,12 +855,12 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	char *type = NULL, *plugin_instance = NULL, *type_instance = NULL, *plugin = NULL, *host = NULL;
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
-	
+
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist,
 			NULL, &type, NULL, &message, NULL, &plugin_instance, NULL, &type_instance,
 			NULL, &plugin, NULL, &host, &time, &severity))
 		return -1;
-	
+
 	if (type && plugin_get_ds(type) == NULL) {
 		PyErr_Format(PyExc_TypeError, "Dataset %s not found", type);
 		FreeAll();
@@ -879,7 +890,7 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 	int severity = self->severity;
 	char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL, *type_instance = NULL;
 	char *message = NULL;
-	
+
 	static char *kwlist[] = {"type", "message", "plugin_instance", "type_instance",
 			"plugin", "host", "time", "severity", NULL};
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist,
@@ -927,11 +938,11 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args, PyObj
 
 static PyObject *Notification_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 	Notification *self;
-	
+
 	self = (Notification *) PluginData_new(type, args, kwds);
 	if (self == NULL)
 		return NULL;
-	
+
 	self->message[0] = 0;
 	self->severity = 0;
 	return (PyObject *) self;
@@ -940,7 +951,7 @@ static PyObject *Notification_new(PyTypeObject *type, PyObject *args, PyObject *
 static int Notification_setstring(PyObject *self, PyObject *value, void *data) {
 	char *old;
 	const char *new;
-	
+
 	if (value == NULL) {
 		PyErr_SetString(PyExc_TypeError, "Cannot delete this attribute");
 		return -1;
@@ -961,17 +972,17 @@ static PyObject *Notification_repr(PyObject *s) {
 	PyObject *ret, *tmp;
 	static PyObject *l_severity = NULL, *l_message = NULL, *l_closing = NULL;
 	Notification *self = (Notification *) s;
-	
+
 	if (l_severity == NULL)
 		l_severity = cpy_string_to_unicode_or_bytes(",severity=");
 	if (l_message == NULL)
 		l_message = cpy_string_to_unicode_or_bytes(",message=");
 	if (l_closing == NULL)
 		l_closing = cpy_string_to_unicode_or_bytes(")");
-	
+
 	if (l_severity == NULL || l_message == NULL || l_closing == NULL)
 		return NULL;
-	
+
 	ret = cpy_common_repr(s);
 	if (self->severity != 0) {
 		CPY_STRCAT(&ret, l_severity);

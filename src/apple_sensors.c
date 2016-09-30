@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -59,7 +60,7 @@ static mach_port_t io_master_port = MACH_PORT_NULL;
 static int as_init (void)
 {
 	kern_return_t status;
-	
+
 	if (io_master_port != MACH_PORT_NULL)
 	{
 		mach_port_deallocate (mach_task_self (),
@@ -82,15 +83,9 @@ static int as_init (void)
 static void as_submit (const char *type, const char *type_instance,
 		double val)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	DEBUG ("type = %s; type_instance = %s; val = %f;",
-			type, type_instance, val);
-
-	values[0].gauge = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = val };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "apple_sensors", sizeof (vl.plugin));
@@ -113,8 +108,6 @@ static int as_read (void)
 	char   inst[128];
 	int    value_int;
 	double value_double;
-	int    i;
-
 	if (!io_master_port || (io_master_port == MACH_PORT_NULL))
 		return (-1);
 
@@ -169,7 +162,7 @@ static int as_read (void)
 					kCFStringEncodingASCII))
 			continue;
 		inst[sizeof (inst) - 1] = '\0';
-		for (i = 0; i < 128; i++)
+		for (int i = 0; i < 128; i++)
 		{
 			if (inst[i] == '\0')
 				break;

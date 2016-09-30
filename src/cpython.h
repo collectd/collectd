@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <collectd at semidefinite.de>  
+ *   Sven Trenkel <collectd at semidefinite.de>
  **/
 
 /* Some python versions don't include this by default. */
@@ -51,32 +51,6 @@
 #define CPY_RELEASE_THREADS \
 	PyGILState_Release(gil_state);\
 }
-
-/* Python 2.4 has this macro, older versions do not. */
-#ifndef Py_VISIT
-#define Py_VISIT(o) do {\
-	int _vret;\
-	if ((o) != NULL) {\
-		_vret = visit((o), arg);\
-		if (_vret != 0)\
-		return _vret;\
-	}\
-} while (0)
-#endif
-
-/* Python 2.4 has this macro, older versions do not. */
-#ifndef Py_CLEAR
-#define Py_CLEAR(o) do {\
-	PyObject *tmp = o;\
-	(o) = NULL;\
-	Py_XDECREF(tmp);\
-} while (0)
-#endif
-
-/* Python 2.4 has this macro, older versions do not. */
-#ifndef Py_RETURN_NONE
-# define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
-#endif
 
 /* This macro is a shortcut for calls like
  * x = PyObject_Repr(x);
@@ -111,10 +85,10 @@
 } while (0)
 static inline void CPY_STRCAT(PyObject **a, PyObject *b) {
 	PyObject *ret;
-	
+
 	if (!a || !*a)
 		return;
-	
+
 	ret = PyUnicode_Concat(*a, b);
 	Py_DECREF(*a);
 	*a = ret;
@@ -156,7 +130,7 @@ static inline PyObject *cpy_string_to_unicode_or_bytes(const char *buf) {
 	return PyBytes_FromString(buf);
 #else
 	return PyString_FromString(buf);
-#endif	
+#endif
 }
 
 void cpy_log_exception(const char *context);
@@ -170,7 +144,7 @@ typedef struct {
 	PyObject *values;    /* Sequence */
 	PyObject *children;  /* Sequence */
 } Config;
-PyTypeObject ConfigType;
+extern PyTypeObject ConfigType;
 
 typedef struct {
 	PyObject_HEAD        /* No semicolon! */
@@ -181,7 +155,7 @@ typedef struct {
 	char type[DATA_MAX_NAME_LEN];
 	char type_instance[DATA_MAX_NAME_LEN];
 } PluginData;
-PyTypeObject PluginDataType;
+extern PyTypeObject PluginDataType;
 #define PluginData_New() PyObject_CallFunctionObjArgs((PyObject *) &PluginDataType, (void *) 0)
 
 typedef struct {
@@ -190,7 +164,7 @@ typedef struct {
 	PyObject *meta;      /* dict */
 	double interval;
 } Values;
-PyTypeObject ValuesType;
+extern PyTypeObject ValuesType;
 #define Values_New() PyObject_CallFunctionObjArgs((PyObject *) &ValuesType, (void *) 0)
 
 typedef struct {
@@ -198,12 +172,12 @@ typedef struct {
 	int severity;
 	char message[NOTIF_MAX_MSG_LEN];
 } Notification;
-PyTypeObject NotificationType;
+extern PyTypeObject NotificationType;
 #define Notification_New() PyObject_CallFunctionObjArgs((PyObject *) &NotificationType, (void *) 0)
 
 typedef PyLongObject Signed;
-PyTypeObject SignedType;
+extern PyTypeObject SignedType;
 
 typedef PyLongObject Unsigned;
-PyTypeObject UnsignedType;
+extern PyTypeObject UnsignedType;
 

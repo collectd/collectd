@@ -39,16 +39,11 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
-#include "configfile.h"
-
 #include <stddef.h>
-
-#if HAVE_LIBPTHREAD
-# include <pthread.h>
-#endif
 
 #include <sys/un.h>
 #include <sys/select.h>
@@ -219,7 +214,7 @@ static int email_config (const char *key, const char *value)
 static void type_list_incr (type_list_t *list, char *name, int incr)
 {
 	if (NULL == list->head) {
-		list->head = (type_t *)smalloc (sizeof (type_t));
+		list->head = smalloc (sizeof (*list->head));
 
 		list->head->name  = sstrdup (name);
 		list->head->value = incr;
@@ -236,7 +231,7 @@ static void type_list_incr (type_list_t *list, char *name, int incr)
 		}
 
 		if (NULL == ptr) {
-			list->tail->next = (type_t *)smalloc (sizeof (type_t));
+			list->tail->next = smalloc (sizeof (*list->tail->next));
 			list->tail = list->tail->next;
 
 			list->tail->name  = sstrdup (name);
@@ -468,9 +463,6 @@ static void *open_connection (void __attribute__((unused)) *arg)
 	}
 
 	{ /* initialize collector threads */
-		int i   = 0;
-		int err = 0;
-
 		pthread_attr_t ptattr;
 
 		conns.head = NULL;
@@ -482,16 +474,16 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		available_collectors = max_conns;
 
 		collectors =
-			(collector_t **)smalloc (max_conns * sizeof (collector_t *));
+			smalloc (max_conns * sizeof (*collectors));
 
-		for (i = 0; i < max_conns; ++i) {
-			collectors[i] = (collector_t *)smalloc (sizeof (collector_t));
+		for (int i = 0; i < max_conns; ++i) {
+			collectors[i] = smalloc (sizeof (*collectors[i]));
 			collectors[i]->socket = NULL;
 
-			if (0 != (err = plugin_thread_create (&collectors[i]->thread,
-							&ptattr, collect, collectors[i]))) {
+			if (plugin_thread_create (&collectors[i]->thread,
+							&ptattr, collect, collectors[i]) != 0) {
 				char errbuf[1024];
-				log_err ("pthread_create() failed: %s",
+				log_err ("plugin_thread_create() failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				collectors[i]->thread = (pthread_t) 0;
 			}
@@ -537,13 +529,12 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			break;
 		}
 
-		connection = malloc (sizeof (*connection));
+		connection = calloc (1, sizeof (*connection));
 		if (connection == NULL)
 		{
 			close (remote);
 			continue;
 		}
-		memset (connection, 0, sizeof (*connection));
 
 		connection->socket = fdopen (remote, "r");
 		connection->next   = NULL;
@@ -576,13 +567,11 @@ static void *open_connection (void __attribute__((unused)) *arg)
 
 static int email_init (void)
 {
-	int err = 0;
-
-	if (0 != (err = plugin_thread_create (&connector, NULL,
-				open_connection, NULL))) {
+	if (plugin_thread_create (&connector, NULL,
+				open_connection, NULL) != 0) {
 		char errbuf[1024];
 		disabled = 1;
-		log_err ("pthread_create() failed: %s",
+		log_err ("plugin_thread_create() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -611,8 +600,6 @@ static void type_list_free (type_list_t *t)
 
 static int email_shutdown (void)
 {
-	int i = 0;
-
 	if (connector != ((pthread_t) 0)) {
 		pthread_kill (connector, SIGTERM);
 		connector = (pthread_t) 0;
@@ -629,7 +616,7 @@ static int email_shutdown (void)
 	available_collectors = 0;
 
 	if (collectors != NULL) {
-		for (i = 0; i < max_conns; ++i) {
+		for (int i = 0; i < max_conns; ++i) {
 			if (collectors[i] == NULL)
 				continue;
 
@@ -666,12 +653,9 @@ static int email_shutdown (void)
 
 static void email_submit (const char *type, const char *type_instance, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "email", sizeof (vl.plugin));
@@ -687,15 +671,12 @@ static void email_submit (const char *type, const char *type_instance, gauge_t v
  * after they have been copied to l2. */
 static void copy_type_list (type_list_t *l1, type_list_t *l2)
 {
-	type_t *ptr1;
-	type_t *ptr2;
-
 	type_t *last = NULL;
 
-	for (ptr1 = l1->head, ptr2 = l2->head; NULL != ptr1;
+	for (type_t *ptr1 = l1->head, *ptr2 = l2->head; NULL != ptr1;
 			ptr1 = ptr1->next, last = ptr2, ptr2 = ptr2->next) {
 		if (NULL == ptr2) {
-			ptr2 = (type_t *)smalloc (sizeof (type_t));
+			ptr2 = smalloc (sizeof (*ptr2));
 			ptr2->name = NULL;
 			ptr2->next = NULL;
 
@@ -721,8 +702,6 @@ static void copy_type_list (type_list_t *l1, type_list_t *l2)
 
 static int email_read (void)
 {
-	type_t *ptr;
-
 	double score_old;
 	int score_count_old;
 
@@ -736,7 +715,7 @@ static int email_read (void)
 
 	pthread_mutex_unlock (&count_mutex);
 
-	for (ptr = list_count_copy.head; NULL != ptr; ptr = ptr->next) {
+	for (type_t *ptr = list_count_copy.head; NULL != ptr; ptr = ptr->next) {
 		email_submit ("email_count", ptr->name, ptr->value);
 	}
 
@@ -747,7 +726,7 @@ static int email_read (void)
 
 	pthread_mutex_unlock (&size_mutex);
 
-	for (ptr = list_size_copy.head; NULL != ptr; ptr = ptr->next) {
+	for (type_t *ptr = list_size_copy.head; NULL != ptr; ptr = ptr->next) {
 		email_submit ("email_size", ptr->name, ptr->value);
 	}
 
@@ -771,7 +750,7 @@ static int email_read (void)
 
 	pthread_mutex_unlock (&check_mutex);
 
-	for (ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next)
+	for (type_t *ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next)
 		email_submit ("spam_check", ptr->name, ptr->value);
 
 	return (0);

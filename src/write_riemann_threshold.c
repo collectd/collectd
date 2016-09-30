@@ -25,11 +25,8 @@
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  **/
 
-#include <assert.h>
-#include <ltdl.h>
-#include <pthread.h>
-
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_avltree.h"
@@ -134,7 +131,6 @@ static int ut_check_one_threshold (const data_set_t *ds,
     int *statuses)
 { /* {{{ */
   int ret = -1;
-  size_t i;
   int status;
   gauge_t values_copy[ds->ds_num];
 
@@ -154,7 +150,7 @@ static int ut_check_one_threshold (const data_set_t *ds,
     }
 
     /* Prepare `sum' and `num'. */
-    for (i = 0; i < ds->ds_num; i++)
+    for (size_t i = 0; i < ds->ds_num; i++)
       if (!isnan (values[i]))
       {
         num++;
@@ -164,17 +160,17 @@ static int ut_check_one_threshold (const data_set_t *ds,
     if ((num == 0) /* All data sources are undefined. */
         || (sum == 0.0)) /* Sum is zero, cannot calculate percentage. */
     {
-      for (i = 0; i < ds->ds_num; i++)
+      for (size_t i = 0; i < ds->ds_num; i++)
         values_copy[i] = NAN;
     }
     else /* We can actually calculate the percentage. */
     {
-      for (i = 0; i < ds->ds_num; i++)
+      for (size_t i = 0; i < ds->ds_num; i++)
         values_copy[i] = 100.0 * values[i] / sum;
     }
   } /* if (UT_FLAG_PERCENTAGE) */
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     status = ut_check_one_data_source (ds, vl, th, values_copy, i);
     if (status != -1) {

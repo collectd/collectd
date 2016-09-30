@@ -25,11 +25,10 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_complain.h"
-
-#include <pthread.h>
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -166,9 +165,8 @@ static int csnmp_oid_to_string (char *buffer, size_t buffer_size,
 {
   char oid_str[MAX_OID_LEN][16];
   char *oid_str_ptr[MAX_OID_LEN];
-  size_t i;
 
-  for (i = 0; i < o->oid_len; i++)
+  for (size_t i = 0; i < o->oid_len; i++)
   {
     ssnprintf (oid_str[i], sizeof (oid_str[i]), "%lu", (unsigned long) o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
@@ -293,15 +291,13 @@ static int csnmp_config_add_data_instance_prefix (data_definition_t *dd,
 
 static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *ci)
 {
-  int i;
-
   if (ci->values_num < 1)
   {
     WARNING ("snmp plugin: `Values' needs at least one argument.");
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("snmp plugin: `Values' needs only string argument.");
@@ -310,12 +306,12 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
 
   sfree (dd->values);
   dd->values_len = 0;
-  dd->values = (oid_t *) malloc (sizeof (oid_t) * ci->values_num);
+  dd->values = malloc (sizeof (*dd->values) * ci->values_num);
   if (dd->values == NULL)
     return (-1);
   dd->values_len = (size_t) ci->values_num;
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     dd->values[i].oid_len = MAX_OID_LEN;
 
@@ -336,12 +332,10 @@ static int csnmp_config_add_data_values (data_definition_t *dd, oconfig_item_t *
 
 static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t *ci)
 {
-  int i;
-
   if (ci->values_num < 1)
     return (0);
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
@@ -353,7 +347,7 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t
   dd->ignores_len = 0;
   dd->ignores = NULL;
 
-  for (i = 0; i < ci->values_num; ++i)
+  for (int i = 0; i < ci->values_num; ++i)
   {
     if (strarray_add(&(dd->ignores), &(dd->ignores_len), ci->values[i].value.string) != 0)
     {
@@ -382,12 +376,10 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
 {
   data_definition_t *dd;
   int status = 0;
-  int i;
 
-  dd = (data_definition_t *) malloc (sizeof (data_definition_t));
+  dd = calloc (1, sizeof (*dd));
   if (dd == NULL)
     return (-1);
-  memset (dd, '\0', sizeof (data_definition_t));
 
   status = cf_util_get_string(ci, &dd->name);
   if (status != 0)
@@ -399,7 +391,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
   dd->scale = 1.0;
   dd->shift = 0.0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -505,7 +497,6 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
   data_definition_t *data;
   data_definition_t **data_list;
   int data_list_len;
-  int i;
 
   if (ci->values_num < 1)
   {
@@ -513,7 +504,7 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("snmp plugin: All arguments to `Collect' must be strings.");
@@ -521,13 +512,13 @@ static int csnmp_config_add_host_collect (host_definition_t *host,
     }
 
   data_list_len = host->data_list_len + ci->values_num;
-  data_list = (data_definition_t **) realloc (host->data_list,
+  data_list = realloc (host->data_list,
       sizeof (data_definition_t *) * data_list_len);
   if (data_list == NULL)
     return (-1);
   host->data_list = data_list;
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     for (data = data_head; data != NULL; data = data->next)
       if (strcasecmp (ci->values[i].value.string, data->name) == 0)
@@ -640,16 +631,13 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 {
   host_definition_t *hd;
   int status = 0;
-  int i;
 
   /* Registration stuff. */
   char cb_name[DATA_MAX_NAME_LEN];
-  user_data_t cb_data;
 
-  hd = (host_definition_t *) malloc (sizeof (host_definition_t));
+  hd = calloc (1, sizeof (*hd));
   if (hd == NULL)
     return (-1);
-  memset (hd, '\0', sizeof (host_definition_t));
   hd->version = 2;
   C_COMPLAIN_INIT (&hd->complaint);
 
@@ -663,7 +651,7 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
   hd->sess_handle = NULL;
   hd->interval = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
     status = 0;
@@ -776,12 +764,11 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
   ssnprintf (cb_name, sizeof (cb_name), "snmp-%s", hd->name);
 
-  memset (&cb_data, 0, sizeof (cb_data));
-  cb_data.data = hd;
-  cb_data.free_func = csnmp_host_definition_destroy;
-
   status = plugin_register_complex_read (/* group = */ NULL, cb_name,
-      csnmp_read_host, hd->interval, /* user_data = */ &cb_data);
+      csnmp_read_host, hd->interval, &(user_data_t) {
+        .data = hd,
+        .free_func = csnmp_host_definition_destroy,
+      });
   if (status != 0)
   {
     ERROR ("snmp plugin: Registering complex read function failed.");
@@ -794,11 +781,9 @@ static int csnmp_config_add_host (oconfig_item_t *ci)
 
 static int csnmp_config (oconfig_item_t *ci)
 {
-  int i;
-
   call_snmp_init_once ();
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Data", child->key) == 0)
@@ -946,9 +931,8 @@ static value_t csnmp_value_list_to_value (struct variable_list *vl, int type,
   }
   else
   {
-    char oid_buffer[1024];
+    char oid_buffer[1024] = { 0 };
 
-    memset (oid_buffer, 0, sizeof (oid_buffer));
     snprint_objid (oid_buffer, sizeof (oid_buffer) - 1,
         vl->name, vl->name_length);
 
@@ -1060,14 +1044,13 @@ static int csnmp_strvbcopy_hexstring (char *dst, /* {{{ */
 {
   char *buffer_ptr;
   size_t buffer_free;
-  size_t i;
 
   dst[0] = 0;
 
   buffer_ptr = dst;
   buffer_free = dst_size;
 
-  for (i = 0; i < vb->val_len; i++)
+  for (size_t i = 0; i < vb->val_len; i++)
   {
     int status;
 
@@ -1100,7 +1083,6 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
 {
   char *src;
   size_t num_chars;
-  size_t i;
 
   if (vb->type == ASN_OCTET_STR)
     src = (char *) vb->val.string;
@@ -1124,7 +1106,7 @@ static int csnmp_strvbcopy (char *dst, /* {{{ */
   if (num_chars > vb->val_len)
     num_chars = vb->val_len;
 
-  for (i = 0; i < num_chars; i++)
+  for (size_t i = 0; i < num_chars; i++)
   {
     /* Check for control characters. */
     if ((unsigned char)src[i] < 32)
@@ -1149,7 +1131,6 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
   struct variable_list *vb;
   oid_t vb_name;
   int status;
-  uint32_t i;
   uint32_t is_matched;
 
   /* Set vb on the last variable */
@@ -1162,13 +1143,12 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
 
   csnmp_oid_init (&vb_name, vb->name, vb->name_length);
 
-  il = malloc (sizeof (*il));
+  il = calloc (1, sizeof (*il));
   if (il == NULL)
   {
-    ERROR ("snmp plugin: malloc failed.");
+    ERROR ("snmp plugin: calloc failed.");
     return (-1);
   }
-  memset (il, 0, sizeof (*il));
   il->next = NULL;
 
   status = csnmp_oid_suffix (&il->suffix, &vb_name, &dd->instance.oid);
@@ -1185,7 +1165,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
 
     csnmp_strvbcopy (il->instance, vb, sizeof (il->instance));
     is_matched = 0;
-    for (i = 0; i < dd->ignores_len; i++)
+    for (uint32_t i = 0; i < dd->ignores_len; i++)
     {
       status = fnmatch(dd->ignores[i], il->instance, 0);
       if (status == 0)
@@ -1281,7 +1261,6 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
   vl.interval = host->interval;
 
   have_more = 1;
-  memset (&current_suffix, 0, sizeof (current_suffix));
   while (have_more)
   {
     _Bool suffix_skipped = 0;
@@ -1380,8 +1359,12 @@ static int csnmp_dispatch_table (host_definition_t *host, data_definition_t *dat
     for (i = 0; i < data->values_len; i++)
       vl.values[i] = value_table_ptr[i]->value;
 
-    /* If we get here `vl.type_instance' and all `vl.values' have been set */
-    plugin_dispatch_values (&vl);
+    /* If we get here `vl.type_instance' and all `vl.values' have been set
+     * vl.type_instance can be empty, i.e. a blank port description on a
+     * switch if you're using IF-MIB::ifDescr as Instance.
+     */
+    if (vl.type_instance[0] != '\0')
+      plugin_dispatch_values (&vl);
 
     if (instance_list != NULL)
       instance_list_ptr = instance_list_ptr->next;
@@ -1607,14 +1590,13 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
           continue;
         }
 
-        vt = malloc (sizeof (*vt));
+        vt = calloc (1, sizeof (*vt));
         if (vt == NULL)
         {
-          ERROR ("snmp plugin: malloc failed.");
+          ERROR ("snmp plugin: calloc failed.");
           status = -1;
           break;
         }
-        memset (vt, 0, sizeof (*vt));
 
         vt->value = csnmp_value_list_to_value (vb, ds->ds[i].type,
             data->scale, data->shift, host->name, data->name);
@@ -1677,7 +1659,7 @@ static int csnmp_read_table (host_definition_t *host, data_definition_t *data)
 static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 {
   struct snmp_pdu *req;
-  struct snmp_pdu *res;
+  struct snmp_pdu *res = NULL;
   struct variable_list *vb;
 
   const data_set_t *ds;
@@ -1710,7 +1692,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   }
 
   vl.values_len = ds->ds_num;
-  vl.values = (value_t *) malloc (sizeof (value_t) * vl.values_len);
+  vl.values = malloc (sizeof (*vl.values) * vl.values_len);
   if (vl.values == NULL)
     return (-1);
   for (i = 0; i < vl.values_len; i++)
@@ -1739,7 +1721,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
   for (i = 0; i < data->values_len; i++)
     snmp_add_null_var (req, data->values[i].oid, data->values[i].oid_len);
 
-  res = NULL;
   status = snmp_sess_synch_response (host->sess_handle, req, &res);
 
   if ((status != STAT_SUCCESS) || (res == NULL))
@@ -1752,7 +1733,6 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
 
     if (res != NULL)
       snmp_free_pdu (res);
-    res = NULL;
 
     sfree (errstr);
     sfree (vl.values);
@@ -1778,9 +1758,7 @@ static int csnmp_read_value (host_definition_t *host, data_definition_t *data)
             data->scale, data->shift, host->name, data->name);
   } /* for (res->variables) */
 
-  if (res != NULL)
-    snmp_free_pdu (res);
-  res = NULL;
+  snmp_free_pdu (res);
 
   DEBUG ("snmp plugin: -> plugin_dispatch_values (&vl);");
   plugin_dispatch_values (&vl);

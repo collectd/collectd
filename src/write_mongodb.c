@@ -29,12 +29,10 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
 #include "utils_cache.h"
-
-#include <pthread.h>
 
 #if HAVE_STDINT_H
 # define MONGO_HAVE_STDINT 1
@@ -77,7 +75,6 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
 {
   bson *ret;
   gauge_t *rates;
-  int i;
 
   ret = bson_alloc (); /* matched by bson_dealloc() */
   if (ret == NULL)
@@ -109,7 +106,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   bson_append_string (ret, "type_instance", vl->type_instance);
 
   bson_append_start_array (ret, "values"); /* {{{ */
-  for (i = 0; i < ds->ds_num; i++)
+  for (int i = 0; i < ds->ds_num; i++)
   {
     char key[16];
 
@@ -131,7 +128,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   bson_append_finish_array (ret); /* }}} values */
 
   bson_append_start_array (ret, "dstypes"); /* {{{ */
-  for (i = 0; i < ds->ds_num; i++)
+  for (int i = 0; i < ds->ds_num; i++)
   {
     char key[16];
 
@@ -145,7 +142,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   bson_append_finish_array (ret); /* }}} dstypes */
 
   bson_append_start_array (ret, "dsnames"); /* {{{ */
-  for (i = 0; i < ds->ds_num; i++)
+  for (int i = 0; i < ds->ds_num; i++)
   {
     char key[16];
 
@@ -272,12 +269,10 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
 {
   wm_node_t *node;
   int status;
-  int i;
 
-  node = malloc (sizeof (*node));
+  node = calloc (1, sizeof (*node));
   if (node == NULL)
     return (ENOMEM);
-  memset (node, 0, sizeof (*node));
   mongo_init (node->conn);
   node->host = NULL;
   node->store_rates = 1;
@@ -291,7 +286,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     return (status);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -341,14 +336,14 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   if (status == 0)
   {
     char cb_name[DATA_MAX_NAME_LEN];
-    user_data_t ud;
 
     ssnprintf (cb_name, sizeof (cb_name), "write_mongodb/%s", node->name);
 
-    ud.data = node;
-    ud.free_func = wm_config_free;
-
-    status = plugin_register_write (cb_name, wm_write, &ud);
+    status = plugin_register_write (cb_name, wm_write,
+		    &(user_data_t) {
+			    .data = node,
+			    .free_func = wm_config_free,
+		    });
     INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
   }
 
@@ -360,9 +355,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
 
 static int wm_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

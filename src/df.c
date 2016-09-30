@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_mount.h"
 #include "utils_ignorelist.h"
 
@@ -161,12 +161,9 @@ static void df_submit_one (char *plugin_instance,
 		const char *type, const char *type_instance,
 		gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "df", sizeof (vl.plugin));
@@ -190,7 +187,6 @@ static int df_read (void)
 #endif
 	/* struct STATANYFS statbuf; */
 	cu_mount_t *mnt_list;
-	cu_mount_t *mnt_ptr;
 
 	mnt_list = NULL;
 	if (cu_mount_getlist (&mnt_list) == NULL)
@@ -199,7 +195,7 @@ static int df_read (void)
 		return (-1);
 	}
 
-	for (mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
+	for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
 	{
 		unsigned long long blocksize;
 		char disk_name[256];
@@ -230,7 +226,10 @@ static int df_read (void)
 			}
 
 			/* Duplicate found: leave non-NULL dup_ptr. */
-			if (by_device && (strcmp (mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
+			if (by_device
+                            && (mnt_ptr->spec_device != NULL)
+                            && (dup_ptr->spec_device != NULL)
+                            && (strcmp (mnt_ptr->spec_device, dup_ptr->spec_device) == 0))
 				break;
 			else if (!by_device && (strcmp (mnt_ptr->dir, dup_ptr->dir) == 0))
 				break;
@@ -273,12 +272,12 @@ static int df_read (void)
 				sstrncpy (disk_name, "root", sizeof (disk_name));
 			else
 			{
-				int i, len;
+				int len;
 
 				sstrncpy (disk_name, mnt_ptr->dir + 1, sizeof (disk_name));
 				len = strlen (disk_name);
 
-				for (i = 0; i < len; i++)
+				for (int i = 0; i < len; i++)
 					if (disk_name[i] == '/')
 						disk_name[i] = '-';
 			}

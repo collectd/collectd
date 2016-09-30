@@ -23,6 +23,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -148,20 +149,18 @@ static int multimeter_read_value(double *value)
 
 static int multimeter_init (void)
 {
-	int i;
 	char device[] = "/dev/ttyS ";
 
-	for (i = 0; i < 10; i++)
+	for (int i = 0; i < 10; i++)
 	{
 		device[strlen(device)-1] = i + '0';
 
 		if ((fd = open(device, O_RDWR | O_NOCTTY)) != -1)
 		{
-			struct termios tios;
+			struct termios tios = { 0 };
 			int rts = TIOCM_RTS;
 			double value;
 
-			memset (&tios, 0, sizeof (tios));
 			tios.c_cflag = B1200 | CS7 | CSTOPB | CREAD | CLOCAL;
 			tios.c_iflag = IGNBRK | IGNPAR;
 			tios.c_oflag = 0;
@@ -194,12 +193,9 @@ static int multimeter_init (void)
 
 static void multimeter_submit (double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "multimeter", sizeof (vl.plugin));

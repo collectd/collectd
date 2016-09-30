@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -176,11 +177,11 @@ static int direct_list_insert(const char * config)
 {
     regmatch_t               pmatch[3];
     size_t                   nmatch = 3;
-    direct_access_element_t *element = NULL;
+    direct_access_element_t *element;
 
     DEBUG ("onewire plugin: direct_list_insert <%s>", config);
 
-    element = (direct_access_element_t *) malloc (sizeof(*element));
+    element = malloc (sizeof (*element));
     if (element == NULL)
     {
         ERROR ("onewire plugin: direct_list_insert - cannot allocate element");
@@ -335,10 +336,8 @@ static int cow_load_config (const char *key, const char *value)
 static int cow_read_values (const char *path, const char *name,
     const ow_family_features_t *family_info)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   int success = 0;
-  size_t i;
 
   if (sensor_list != NULL)
   {
@@ -347,18 +346,16 @@ static int cow_read_values (const char *path, const char *name,
       return 0;
   }
 
-  vl.values = values;
-  vl.values_len = 1;
-
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
 
-  for (i = 0; i < family_info->features_num; i++)
+  for (size_t i = 0; i < family_info->features_num; i++)
   {
     char *buffer;
     size_t buffer_size;
     int status;
+    char errbuf[1024];
 
     char file[4096];
     char *endptr;
@@ -373,14 +370,14 @@ static int cow_read_values (const char *path, const char *name,
     status = OW_get (file, &buffer, &buffer_size);
     if (status < 0)
     {
-      ERROR ("onewire plugin: OW_get (%s/%s) failed. status = %#x;",
-          path, family_info->features[i].filename, status);
+      ERROR ("onewire plugin: OW_get (%s/%s) failed. error = %s;",
+          path, family_info->features[i].filename, sstrerror(errno, errbuf, sizeof (errbuf)));
       return (-1);
     }
     DEBUG ("Read onewire device %s as %s", file, buffer);
 
     endptr = NULL;
-    values[0].gauge = strtod (buffer, &endptr);
+    gauge_t g = strtod (buffer, &endptr);
     if (endptr == NULL)
     {
       ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
@@ -390,6 +387,9 @@ static int cow_read_values (const char *path, const char *name,
     sstrncpy (vl.type, family_info->features[i].type, sizeof (vl.type));
     sstrncpy (vl.type_instance, family_info->features[i].type_instance,
         sizeof (vl.type_instance));
+
+    vl.values = &(value_t) { .gauge = g };
+    vl.values_len = 1;
 
     plugin_dispatch_values (&vl);
     success++;
@@ -430,6 +430,7 @@ static int cow_read_bus (const char *path)
   char *buffer;
   size_t buffer_size;
   int status;
+  char errbuf[1024];
 
   char *buffer_ptr;
   char *dummy;
@@ -439,8 +440,8 @@ static int cow_read_bus (const char *path)
   status = OW_get (path, &buffer, &buffer_size);
   if (status < 0)
   {
-    ERROR ("onewire plugin: OW_get (%s) failed. status = %#x;",
-        path, status);
+    ERROR ("onewire plugin: OW_get (%s) failed. error = %s;",
+        path, sstrerror(errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
   DEBUG ("onewire plugin: OW_get (%s) returned: %s",
@@ -493,20 +494,17 @@ static int cow_read_bus (const char *path)
 
 static int cow_simple_read (void)
 {
-  value_t      values[1];
   value_list_t vl = VALUE_LIST_INIT;
   char        *buffer;
   size_t       buffer_size;
   int          status;
+  char         errbuf[1024];
   char        *endptr;
   direct_access_element_t *traverse;
 
   /* traverse list and check entries */
   for (traverse = direct_list; traverse != NULL; traverse = traverse->next)
   {
-      vl.values = values;
-      vl.values_len = 1;
-
       sstrncpy (vl.host, hostname_g, sizeof (vl.host));
       sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
       sstrncpy (vl.plugin_instance, traverse->address, sizeof (vl.plugin_instance));
@@ -514,16 +512,15 @@ static int cow_simple_read (void)
       status = OW_get (traverse->path, &buffer, &buffer_size);
       if (status < 0)
       {
-          ERROR ("onewire plugin: OW_get (%s) failed. status = %#x;",
+          ERROR ("onewire plugin: OW_get (%s) failed. status = %s;",
                  traverse->path,
-                 status);
+                 sstrerror(errno, errbuf, sizeof (errbuf)));
           return (-1);
       }
       DEBUG ("onewire plugin: Read onewire device %s as %s", traverse->path, buffer);
 
-
       endptr = NULL;
-      values[0].gauge = strtod (buffer, &endptr);
+      gauge_t g = strtod (buffer, &endptr);
       if (endptr == NULL)
       {
           ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
@@ -532,6 +529,9 @@ static int cow_simple_read (void)
 
       sstrncpy (vl.type, traverse->file, sizeof (vl.type));
       sstrncpy (vl.type_instance, "",   sizeof (""));
+
+      vl.values = &(value_t) { .gauge = g };
+      vl.values_len = 1;
 
       plugin_dispatch_values (&vl);
       free (buffer);
@@ -590,6 +590,7 @@ static int cow_shutdown (void)
 static int cow_init (void)
 {
   int status;
+  char errbuf[1024];
 
   if (device_g == NULL)
   {
@@ -601,7 +602,7 @@ static int cow_init (void)
   status = (int) OW_init (device_g);
   if (status != 0)
   {
-    ERROR ("onewire plugin: OW_init(%s) failed: %i.", device_g, status);
+    ERROR ("onewire plugin: OW_init(%s) failed: %s.", device_g, sstrerror(errno, errbuf, sizeof (errbuf)));
     return (1);
   }
 

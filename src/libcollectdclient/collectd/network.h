@@ -56,7 +56,7 @@ typedef enum lcc_security_level_e lcc_security_level_t;
 lcc_network_t *lcc_network_create (void);
 void lcc_network_destroy (lcc_network_t *net);
 
-/* 
+/*
  * Add servers
  */
 lcc_server_t *lcc_server_create (lcc_network_t *net,

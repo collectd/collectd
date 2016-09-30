@@ -31,6 +31,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_tail.h"
 
@@ -45,10 +46,9 @@ static int cu_tail_reopen (cu_tail_t *obj)
 {
   int seek_end = 0;
   FILE *fh;
-  struct stat stat_buf;
+  struct stat stat_buf = { 0 };
   int status;
 
-  memset (&stat_buf, 0, sizeof (stat_buf));
   status = stat (obj->file, &stat_buf);
   if (status != 0)
   {
@@ -119,10 +119,9 @@ cu_tail_t *cu_tail_create (const char *file)
 {
 	cu_tail_t *obj;
 
-	obj = (cu_tail_t *) malloc (sizeof (cu_tail_t));
+	obj = calloc (1, sizeof (*obj));
 	if (obj == NULL)
 		return (NULL);
-	memset (obj, '\0', sizeof (cu_tail_t));
 
 	obj->file = strdup (file);
 	if (obj->file == NULL)

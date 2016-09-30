@@ -25,7 +25,6 @@
  **/
 
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
@@ -112,14 +111,13 @@ c_heap_t *c_heap_create (int (*compare) (const void *, const void *))
   if (compare == NULL)
     return (NULL);
 
-  h = malloc (sizeof (*h));
+  h = calloc (1, sizeof (*h));
   if (h == NULL)
     return (NULL);
 
-  memset (h, 0, sizeof (*h));
   pthread_mutex_init (&h->lock, /* attr = */ NULL);
   h->compare = compare;
-  
+
   h->list = NULL;
   h->list_len = 0;
   h->list_size = 0;
@@ -174,7 +172,7 @@ int c_heap_insert (c_heap_t *h, void *ptr)
 
   /* Reorganize the heap from bottom up. */
   reheap (h, /* parent of this node = */ (index - 1) / 2, DIR_UP);
-  
+
   pthread_mutex_unlock (&h->lock);
   return (0);
 } /* int c_heap_insert */

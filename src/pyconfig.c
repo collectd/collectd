@@ -21,13 +21,14 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Sven Trenkel <collectd at semidefinite.de>  
+ *   Sven Trenkel <collectd at semidefinite.de>
  **/
 
 #include <Python.h>
 #include <structmember.h>
 
 #include "collectd.h"
+
 #include "common.h"
 
 #include "cpython.h"
@@ -57,11 +58,11 @@ static char children_doc[] = "This is a tuple of child nodes. For most nodes thi
 
 static PyObject *Config_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 	Config *self;
-	
+
 	self = (Config *) type->tp_alloc(type, 0);
 	if (self == NULL)
 		return NULL;
-	
+
 	self->parent = NULL;
 	self->key = NULL;
 	self->values = NULL;
@@ -73,11 +74,11 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 	PyObject *key = NULL, *parent = NULL, *values = NULL, *children = NULL, *tmp;
 	Config *self = (Config *) s;
 	static char *kwlist[] = {"key", "parent", "values", "children", NULL};
-	
+
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOO", kwlist,
 			&key, &parent, &values, &children))
 		return -1;
-	
+
 	if (!IS_BYTES_OR_UNICODE(key)) {
 		PyErr_SetString(PyExc_TypeError, "argument 1 must be str");
 		Py_XDECREF(parent);
@@ -122,7 +123,7 @@ static PyObject *Config_repr(PyObject *s) {
 	Config *self = (Config *) s;
 	PyObject *ret = NULL;
 	static PyObject *node_prefix = NULL, *root_prefix = NULL, *ending = NULL;
-	
+
 	/* This is ok because we have the GIL, so this is thread-save by default. */
 	if (node_prefix == NULL)
 		node_prefix = cpy_string_to_unicode_or_bytes("<collectd.Config node ");
@@ -132,7 +133,7 @@ static PyObject *Config_repr(PyObject *s) {
 		ending = cpy_string_to_unicode_or_bytes(">");
 	if (node_prefix == NULL || root_prefix == NULL || ending == NULL)
 		return NULL;
-	
+
 	ret = PyObject_Str(self->key);
 	CPY_SUBSTITUTE(PyObject_Repr, ret, ret);
 	if (self->parent == NULL || self->parent == Py_None)
@@ -140,7 +141,7 @@ static PyObject *Config_repr(PyObject *s) {
 	else
 		CPY_STRCAT(&ret, node_prefix);
 	CPY_STRCAT(&ret, ending);
-	
+
 	return ret;
 }
 

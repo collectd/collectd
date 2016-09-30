@@ -25,8 +25,8 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
-#include "utils_cache.h"
 #include "filter_chain.h"
 
 /*
@@ -99,17 +99,15 @@ static int mh_config_match (const oconfig_item_t *ci, /* {{{ */
 static int mh_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mh_match_t *m;
-  int i;
 
-  m = (mh_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mh_create: malloc failed.");
+    ERROR ("mh_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -151,8 +149,6 @@ static int mh_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 {
   mh_match_t *m;
   uint32_t hash_val;
-  const char *host_ptr;
-  size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);
@@ -161,14 +157,14 @@ static int mh_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 
   hash_val = 0;
 
-  for (host_ptr = vl->host; *host_ptr != 0; host_ptr++)
+  for (const char *host_ptr = vl->host; *host_ptr != 0; host_ptr++)
   {
     /* 2184401929 is some appropriately sized prime number. */
     hash_val = (hash_val * UINT32_C (2184401929)) + ((uint32_t) *host_ptr);
   }
   DEBUG ("hashed match: host = %s; hash_val = %"PRIu32";", vl->host, hash_val);
 
-  for (i = 0; i < m->matches_num; i++)
+  for (size_t i = 0; i < m->matches_num; i++)
     if ((hash_val % m->matches[i].total) == m->matches[i].match)
       return (FC_MATCH_MATCHES);
 
@@ -177,9 +173,8 @@ static int mh_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
 
 void module_register (void)
 {
-  match_proc_t mproc;
+  match_proc_t mproc = { 0 };
 
-  memset (&mproc, 0, sizeof (mproc));
   mproc.create  = mh_create;
   mproc.destroy = mh_destroy;
   mproc.match   = mh_match;

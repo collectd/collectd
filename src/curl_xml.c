@@ -20,9 +20,10 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
+#include "utils_curl_stats.h"
 #include "utils_llist.h"
 
 #include <libxml/parser.h>
@@ -83,6 +84,7 @@ struct cx_s /* {{{ */
   char *post_body;
   int timeout;
   struct curl_slist *headers;
+  curl_stats_t *stats;
 
   cx_namespace_t *namespaces;
   size_t namespaces_num;
@@ -114,14 +116,14 @@ static size_t cx_curl_callback (void *buf, /* {{{ */
     return (0);
   }
 
-   if (len <= 0)
+  if (len == 0)
     return (len);
 
   if ((db->buffer_fill + len) >= db->buffer_size)
   {
     char *temp;
 
-    temp = (char *) realloc (db->buffer,
+    temp = realloc (db->buffer,
                     db->buffer_fill + len + 1);
     if (temp == NULL)
     {
@@ -170,13 +172,11 @@ static void cx_list_free (llist_t *list) /* {{{ */
   }
 
   llist_destroy (list);
-  list = NULL;
 } /* }}} void cx_list_free */
 
 static void cx_free (void *arg) /* {{{ */
 {
   cx_t *db;
-  size_t i;
 
   DEBUG ("curl_xml plugin: cx_free (arg = %p);", arg);
 
@@ -203,8 +203,9 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db->cacert);
   sfree (db->post_body);
   curl_slist_free_all (db->headers);
+  curl_stats_destroy (db->stats);
 
-  for (i = 0; i < db->namespaces_num; i++)
+  for (size_t i = 0; i < db->namespaces_num; i++)
   {
     sfree (db->namespaces[i].prefix);
     sfree (db->namespaces[i].url);
@@ -214,18 +215,28 @@ static void cx_free (void *arg) /* {{{ */
   sfree (db);
 } /* }}} void cx_free */
 
+static const char *cx_host (cx_t *db) /* {{{ */
+{
+  if (db->host == NULL)
+    return hostname_g;
+  return db->host;
+} /* }}} cx_host */
+
 static int cx_config_append_string (const char *name, struct curl_slist **dest, /* {{{ */
     oconfig_item_t *ci)
 {
+  struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
     WARNING ("curl_xml plugin: `%s' needs exactly one string argument.", name);
     return (-1);
   }
 
-  *dest = curl_slist_append(*dest, ci->values[0].value.string);
-  if (*dest == NULL)
+  temp = curl_slist_append(*dest, ci->values[0].value.string);
+  if (temp == NULL)
     return (-1);
+
+  *dest = temp;
 
   return (0);
 } /* }}} int cx_config_append_string */
@@ -248,7 +259,7 @@ static int cx_check_type (const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
   return (0);
 } /* }}} cx_check_type */
 
-static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */ 
+static xmlXPathObjectPtr cx_evaluate_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
            xmlChar *expr)
 {
   xmlXPathObjectPtr xpath_obj;
@@ -315,7 +326,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
   {
     WARNING ("curl_xml plugin: "
         "relative xpath expression \"%s\" is expected to return "
-        "only text/attribute node which is not the case. Skipping...", 
+        "only text/attribute node which is not the case. Skipping...",
         xpath->values[index].path);
     xmlXPathFreeObject (values_node_obj);
     return (-1);
@@ -336,7 +347,7 @@ static int cx_handle_single_value_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
       vl->values[index].absolute = (absolute_t) strtoull (node_value,
           /* endptr = */ NULL, /* base = */ 0);
       break;
-    case DS_TYPE_GAUGE: 
+    case DS_TYPE_GAUGE:
       vl->values[index].gauge = (gauge_t) strtod (node_value,
           /* endptr = */ NULL);
   }
@@ -356,14 +367,13 @@ static int cx_handle_all_value_xpaths (xmlXPathContextPtr xpath_ctx, /* {{{ */
 {
   value_t values[xpath->values_len];
   int status;
-  size_t i;
 
   assert (xpath->values_len > 0);
   assert (xpath->values_len == vl->values_len);
   assert (xpath->values_len == ds->ds_num);
   vl->values = values;
 
-  for (i = 0; i < xpath->values_len; i++)
+  for (size_t i = 0; i < xpath->values_len; i++)
   {
     status = cx_handle_single_value_xpath (xpath_ctx, xpath, ds, vl, i);
     if (status != 0)
@@ -472,18 +482,17 @@ static int cx_handle_instance_xpath (xmlXPathContextPtr xpath_ctx, /* {{{ */
 
 static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
     char const *host,
-    xmlXPathContextPtr xpath_ctx, const data_set_t *ds, 
+    xmlXPathContextPtr xpath_ctx, const data_set_t *ds,
     char *base_xpath, cx_xpath_t *xpath)
 {
   int total_nodes;
-  int i;
 
   xmlXPathObjectPtr base_node_obj = NULL;
   xmlNodeSetPtr base_nodes = NULL;
 
   value_list_t vl = VALUE_LIST_INIT;
 
-  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath); 
+  base_node_obj = cx_evaluate_xpath (xpath_ctx, BAD_CAST base_xpath);
   if (base_node_obj == NULL)
     return -1; /* error is logged already */
 
@@ -500,7 +509,7 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   }
 
   /* If base_xpath returned multiple results, then */
-  /* Instance in the xpath block is required */ 
+  /* Instance in the xpath block is required */
   if (total_nodes > 1 && xpath->instance == NULL)
   {
     ERROR ("curl_xml plugin: "
@@ -513,11 +522,11 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   vl.values_len = ds->ds_num;
   sstrncpy (vl.type, xpath->type, sizeof (vl.type));
   sstrncpy (vl.plugin, "curl_xml", sizeof (vl.plugin));
-  sstrncpy (vl.host, (host != NULL) ? host : hostname_g, sizeof (vl.host));
+  sstrncpy (vl.host, host, sizeof (vl.host));
   if (plugin_instance != NULL)
-    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance)); 
+    sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 
-  for (i = 0; i < total_nodes; i++)
+  for (int i = 0; i < total_nodes; i++)
   {
     int status;
 
@@ -534,19 +543,19 @@ static int  cx_handle_base_xpath (char const *plugin_instance, /* {{{ */
   } /* for (i = 0; i < total_nodes; i++) */
 
   /* free up the allocated memory */
-  xmlXPathFreeObject (base_node_obj); 
+  xmlXPathFreeObject (base_node_obj);
 
-  return (0); 
+  return (0);
 } /* }}} cx_handle_base_xpath */
 
-static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */ 
+static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
                        xmlXPathContextPtr xpath_ctx, cx_t *db)
 {
   llentry_t *le;
   const data_set_t *ds;
   cx_xpath_t *xpath;
   int status=-1;
-  
+
 
   le = llist_head (db->list);
   while (le != NULL)
@@ -556,7 +565,7 @@ static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
     ds = plugin_get_ds (xpath->type);
 
     if ( (cx_check_type(ds, xpath) == 0) &&
-         (cx_handle_base_xpath(db->instance, db->host,
+         (cx_handle_base_xpath(db->instance, cx_host (db),
                                xpath_ctx, ds, le->key, xpath) == 0) )
       status = 0; /* we got atleast one success */
 
@@ -571,7 +580,6 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
   int status;
   xmlDocPtr doc;
   xmlXPathContextPtr xpath_ctx;
-  size_t i;
 
   /* Load the XML */
   doc = xmlParseDoc(xml);
@@ -589,7 +597,7 @@ static int cx_parse_stats_xml(xmlChar* xml, cx_t *db) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < db->namespaces_num; i++)
+  for (size_t i = 0; i < db->namespaces_num; i++)
   {
     cx_namespace_t const *ns = db->namespaces + i;
     status = xmlXPathRegisterNs (xpath_ctx,
@@ -620,7 +628,7 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
   char *url;
   url = db->url;
 
-  db->buffer_fill = 0; 
+  db->buffer_fill = 0;
   status = curl_easy_perform (curl);
   if (status != CURLE_OK)
   {
@@ -628,6 +636,8 @@ static int cx_curl_perform (cx_t *db, CURL *curl) /* {{{ */
            status, db->curl_errbuf, url);
     return (-1);
   }
+  if (db->stats != NULL)
+    curl_stats_dispatch (db->stats, db->curl, cx_host (db), "curl_xml", db->instance);
 
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
@@ -668,15 +678,13 @@ static int cx_read (user_data_t *ud) /* {{{ */
 static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
                                       oconfig_item_t *ci)
 {
-  int i;
-
   if (ci->values_num < 1)
   {
     WARNING ("curl_xml plugin: `ValuesFrom' needs at least one argument.");
     return (-1);
   }
 
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
       WARNING ("curl_xml plugin: `ValuesFrom' needs only string argument.");
@@ -686,13 +694,13 @@ static int cx_config_add_values (const char *name, cx_xpath_t *xpath, /* {{{ */
   sfree (xpath->values);
 
   xpath->values_len = 0;
-  xpath->values = (cx_values_t *) malloc (sizeof (cx_values_t) * ci->values_num);
+  xpath->values = malloc (sizeof (cx_values_t) * ci->values_num);
   if (xpath->values == NULL)
     return (-1);
   xpath->values_len = (size_t) ci->values_num;
 
   /* populate cx_values_t structure */
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     xpath->values[i].path_len = sizeof (ci->values[i].value.string);
     sstrncpy (xpath->values[i].path, ci->values[i].value.string, sizeof (xpath->values[i].path));
@@ -707,15 +715,13 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   char *name;
   llentry_t *le;
   int status;
-  int i;
 
-  xpath = malloc (sizeof (*xpath));
+  xpath = calloc (1, sizeof (*xpath));
   if (xpath == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (xpath, 0, sizeof (*xpath));
 
   status = cf_util_get_string (ci, &xpath->path);
   if (status != 0)
@@ -734,7 +740,7 @@ static int cx_config_add_xpath (cx_t *db, oconfig_item_t *ci) /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -873,7 +879,7 @@ static int cx_init_curl (cx_t *db) /* {{{ */
     if (db->pass != NULL)
       credentials_size += strlen (db->pass);
 
-    db->credentials = (char *) malloc (credentials_size);
+    db->credentials = malloc (credentials_size);
     if (db->credentials == NULL)
     {
       ERROR ("curl_xml plugin: malloc failed.");
@@ -913,7 +919,6 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
 {
   cx_t *db;
   int status = 0;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -923,13 +928,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (cx_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_xml plugin: malloc failed.");
+    ERROR ("curl_xml plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
 
   db->timeout = -1;
 
@@ -951,7 +955,7 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   }
 
   /* Fill the `cx_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -981,6 +985,12 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
       status = cx_config_add_namespace (db, child);
     else if (strcasecmp ("Timeout", child->key) == 0)
       status = cf_util_get_int (child, &db->timeout);
+    else if (strcasecmp ("Statistics", child->key) == 0)
+    {
+      db->stats = curl_stats_from_config (child);
+      if (db->stats == NULL)
+        status = -1;
+    }
     else
     {
       WARNING ("curl_xml plugin: Option `%s' not allowed here.", child->key);
@@ -1006,7 +1016,6 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
   /* If all went well, register this database for reading */
   if (status == 0)
   {
-    user_data_t ud;
     char *cb_name;
 
     if (db->instance == NULL)
@@ -1015,13 +1024,14 @@ static int cx_config_add_url (oconfig_item_t *ci) /* {{{ */
     DEBUG ("curl_xml plugin: Registering new read callback: %s",
            db->instance);
 
-    memset (&ud, 0, sizeof (ud));
-    ud.data = (void *) db;
-    ud.free_func = cx_free;
-
     cb_name = ssnprintf_alloc ("curl_xml-%s-%s", db->instance, db->url);
+
     plugin_register_complex_read (/* group = */ "curl_xml", cb_name, cx_read,
-                                  /* interval = */ 0, &ud);
+        /* interval = */ 0,
+        &(user_data_t) {
+          .data = db,
+          .free_func = cx_free,
+        });
     sfree (cb_name);
   }
   else
@@ -1040,12 +1050,11 @@ static int cx_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

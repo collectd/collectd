@@ -26,16 +26,14 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
 
+#include "common.h"
 #include "plugin.h"
 #include "configfile.h"
 
 #include <sys/types.h>
 #include <sys/un.h>
 #include <netdb.h>
-
-#include <pthread.h>
 
 #if HAVE_LOCALE_H
 # include <locale.h>
@@ -54,7 +52,6 @@
  */
 char hostname_g[DATA_MAX_NAME_LEN];
 cdtime_t interval_g;
-int  pidfile_from_cli = 0;
 int  timeout_g;
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
@@ -100,9 +97,7 @@ static int init_hostname (void)
 {
 	const char *str;
 
-	struct addrinfo  ai_hints;
 	struct addrinfo *ai_list;
-	struct addrinfo *ai_ptr;
 	int status;
 
 	str = global_option_get ("Hostname");
@@ -123,8 +118,9 @@ static int init_hostname (void)
 	if (IS_FALSE (str))
 		return (0);
 
-	memset (&ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_flags = AI_CANONNAME;
+	struct addrinfo ai_hints = {
+		.ai_flags = AI_CANONNAME
+	};
 
 	status = getaddrinfo (hostname_g, NULL, &ai_hints, &ai_list);
 	if (status != 0)
@@ -137,7 +133,7 @@ static int init_hostname (void)
 		return (-1);
 	}
 
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		if (ai_ptr->ai_canonname == NULL)
 			continue;
@@ -196,7 +192,7 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0) {
+	if (dirlen == 0) {
 		free (dir);
 		return (-1);
 	}
@@ -332,9 +328,7 @@ static int do_init (void)
 	}
 #endif
 
-	plugin_init_all ();
-
-	return (0);
+	return plugin_init_all ();
 } /* int do_init () */
 
 
@@ -388,8 +382,7 @@ static int do_loop (void)
 
 static int do_shutdown (void)
 {
-	plugin_shutdown_all ();
-	return (0);
+	return plugin_shutdown_all ();
 } /* int do_shutdown */
 
 #if COLLECT_DAEMON
@@ -447,7 +440,7 @@ static int notify_systemd (void)
 {
     int                  fd;
     const char          *notifysocket;
-    struct sockaddr_un   su;
+    struct sockaddr_un   su = { 0 };
     size_t               su_size;
     char                 buffer[] = "READY=1\n";
 
@@ -477,7 +470,6 @@ static int notify_systemd (void)
         return 0;
     }
 
-    memset (&su, 0, sizeof (su));
     su.sun_family = AF_UNIX;
     if (notifysocket[0] != '@')
     {
@@ -515,16 +507,11 @@ static int notify_systemd (void)
 
 int main (int argc, char **argv)
 {
-	struct sigaction sig_int_action;
-	struct sigaction sig_term_action;
-	struct sigaction sig_usr1_action;
-	struct sigaction sig_pipe_action;
 	const char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	int test_readall = 0;
 	const char *basedir;
 #if COLLECT_DAEMON
-	struct sigaction sig_chld_action;
 	pid_t pid;
 	int daemonize    = 1;
 #endif
@@ -554,15 +541,14 @@ int main (int argc, char **argv)
 				break;
 			case 'T':
 				test_readall = 1;
-				global_option_set ("ReadThreads", "-1");
+				global_option_set ("ReadThreads", "-1", 1);
 #if COLLECT_DAEMON
 				daemonize = 0;
 #endif /* COLLECT_DAEMON */
 				break;
 #if COLLECT_DAEMON
 			case 'P':
-				global_option_set ("PIDFile", optarg);
-				pidfile_from_cli = 1;
+				global_option_set ("PIDFile", optarg, 1);
 				break;
 			case 'f':
 				daemonize = 0;
@@ -625,8 +611,10 @@ int main (int argc, char **argv)
 	/*
 	 * fork off child
 	 */
-	memset (&sig_chld_action, '\0', sizeof (sig_chld_action));
-	sig_chld_action.sa_handler = SIG_IGN;
+	struct sigaction sig_chld_action = {
+		.sa_handler = SIG_IGN
+	};
+
 	sigaction (SIGCHLD, &sig_chld_action, NULL);
 
     /*
@@ -692,15 +680,19 @@ int main (int argc, char **argv)
 	} /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
 
-	memset (&sig_pipe_action, '\0', sizeof (sig_pipe_action));
-	sig_pipe_action.sa_handler = SIG_IGN;
+	struct sigaction sig_pipe_action = {
+		.sa_handler = SIG_IGN
+	};
+
 	sigaction (SIGPIPE, &sig_pipe_action, NULL);
 
 	/*
 	 * install signal handlers
 	 */
-	memset (&sig_int_action, '\0', sizeof (sig_int_action));
-	sig_int_action.sa_handler = sig_int_handler;
+	struct sigaction sig_int_action = {
+		.sa_handler = sig_int_handler
+	};
+
 	if (0 != sigaction (SIGINT, &sig_int_action, NULL)) {
 		char errbuf[1024];
 		ERROR ("Error: Failed to install a signal handler for signal INT: %s",
@@ -708,8 +700,10 @@ int main (int argc, char **argv)
 		return (1);
 	}
 
-	memset (&sig_term_action, '\0', sizeof (sig_term_action));
-	sig_term_action.sa_handler = sig_term_handler;
+	struct sigaction sig_term_action = {
+		.sa_handler = sig_term_handler
+	};
+
 	if (0 != sigaction (SIGTERM, &sig_term_action, NULL)) {
 		char errbuf[1024];
 		ERROR ("Error: Failed to install a signal handler for signal TERM: %s",
@@ -717,8 +711,10 @@ int main (int argc, char **argv)
 		return (1);
 	}
 
-	memset (&sig_usr1_action, '\0', sizeof (sig_usr1_action));
-	sig_usr1_action.sa_handler = sig_usr1_handler;
+	struct sigaction sig_usr1_action = {
+		.sa_handler = sig_usr1_handler
+	};
+
 	if (0 != sigaction (SIGUSR1, &sig_usr1_action, NULL)) {
 		char errbuf[1024];
 		ERROR ("Error: Failed to install a signal handler for signal USR1: %s",
@@ -729,12 +725,19 @@ int main (int argc, char **argv)
 	/*
 	 * run the actual loops
 	 */
-	do_init ();
+	if (do_init () != 0)
+	{
+		ERROR ("Error: one or more plugin init callbacks failed.");
+		exit_status = 1;
+	}
 
 	if (test_readall)
 	{
 		if (plugin_read_all_once () != 0)
+		{
+			ERROR ("Error: one or more plugin read callbacks failed.");
 			exit_status = 1;
+		}
 	}
 	else
 	{
@@ -745,7 +748,11 @@ int main (int argc, char **argv)
 	/* close syslog */
 	INFO ("Exiting normally.");
 
-	do_shutdown ();
+	if (do_shutdown () != 0)
+	{
+		ERROR ("Error: one or more plugin shutdown callbacks failed.");
+		exit_status = 1;
+	}
 
 #if COLLECT_DAEMON
 	if (daemonize)

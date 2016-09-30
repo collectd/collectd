@@ -18,7 +18,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
- *   
+ *
  *   Lubos Stanek <lubek at users.sourceforge.net> Wed Oct 27, 2006
  *   - config ExtendedSensorNaming option
  *   - precise sensor feature selection (chip-bus-address/type-feature)
@@ -34,9 +34,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #if defined(HAVE_SENSORS_SENSORS_H)
@@ -76,7 +76,7 @@ struct sensors_labeltypes_s
 typedef struct sensors_labeltypes_s sensors_labeltypes_t;
 
 /* finite list of known labels extracted from lm_sensors */
-static sensors_labeltypes_t known_features[] = 
+static sensors_labeltypes_t known_features[] =
 {
 	{ "fan1", SENSOR_TYPE_FANSPEED },
 	{ "fan2", SENSOR_TYPE_FANSPEED },
@@ -140,7 +140,8 @@ static const char *config_keys[] =
 {
 	"Sensor",
 	"IgnoreSelected",
-	"SensorConfigFile"
+	"SensorConfigFile",
+	"UseLabels"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -169,6 +170,7 @@ typedef struct featurelist
 } featurelist_t;
 
 static char *conffile = NULL;
+static _Bool use_labels = 0;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -213,11 +215,9 @@ static int sensors_snprintf_chip_name (char *buf, size_t buf_size,
 
 static int sensors_feature_name_to_type (const char *name)
 {
-	int i;
-
 	/* Yes, this is slow, but it's only ever done during initialization, so
 	 * it's a one time cost.. */
-	for (i = 0; i < known_features_num; i++)
+	for (int i = 0; i < known_features_num; i++)
 		if (strcasecmp (known_features[i].label, name) == 0)
 			return (known_features[i].type);
 
@@ -257,6 +257,12 @@ static int sensors_config (const char *key, const char *value)
 		if (IS_TRUE (value))
 			ignorelist_set_invert (sensor_list, 0);
 	}
+#if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+	else if (strcasecmp (key, "UseLabels") == 0)
+	{
+		use_labels = IS_TRUE (value) ? 1 : 0;
+	}
+#endif
 	else
 	{
 		return (-1);
@@ -267,7 +273,6 @@ static int sensors_config (const char *key, const char *value)
 
 static void sensors_free_features (void)
 {
-	featurelist_t *thisft;
 	featurelist_t *nextft;
 
 	if (first_feature == NULL)
@@ -275,7 +280,7 @@ static void sensors_free_features (void)
 
 	sensors_cleanup ();
 
-	for (thisft = first_feature; thisft != NULL; thisft = nextft)
+	for (featurelist_t *thisft = first_feature; thisft != NULL; thisft = nextft)
 	{
 		nextft = thisft->next;
 		sfree (thisft);
@@ -289,7 +294,7 @@ static int sensors_load_conf (void)
 
 	FILE *fh = NULL;
 	featurelist_t *last_feature = NULL;
-	
+
 	const sensors_chip_name *chip;
 	int chip_num;
 
@@ -378,13 +383,12 @@ static int sensors_load_conf (void)
 				continue;
 			}
 
-			fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+			fl = calloc (1, sizeof (*fl));
 			if (fl == NULL)
 			{
-				ERROR ("sensors plugin: malloc failed.");
+				ERROR ("sensors plugin: calloc failed.");
 				continue;
 			}
-			memset (fl, '\0', sizeof (featurelist_t));
 
 			fl->chip = chip;
 			fl->data = feature;
@@ -435,13 +439,12 @@ static int sensors_load_conf (void)
 						&& (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
 					continue;
 
-				fl = (featurelist_t *) malloc (sizeof (featurelist_t));
+				fl = calloc (1, sizeof (*fl));
 				if (fl == NULL)
 				{
-					ERROR ("sensors plugin: malloc failed.");
+					ERROR ("sensors plugin: calloc failed.");
 					continue;
 				}
-				memset (fl, '\0', sizeof (featurelist_t));
 
 				fl->chip = chip;
 				fl->feature = feature;
@@ -478,12 +481,11 @@ static int sensors_shutdown (void)
 
 static void sensors_submit (const char *plugin_instance,
 		const char *type, const char *type_instance,
-		double val)
+		double value)
 {
 	char match_key[1024];
 	int status;
 
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
 	status = ssnprintf (match_key, sizeof (match_key), "%s/%s-%s",
@@ -498,9 +500,7 @@ static void sensors_submit (const char *plugin_instance,
 			return;
 	}
 
-	values[0].gauge = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -515,13 +515,11 @@ static void sensors_submit (const char *plugin_instance,
 
 static int sensors_read (void)
 {
-	featurelist_t *fl;
-
 	if (sensors_load_conf () != 0)
 		return (-1);
 
 #if SENSORS_API_VERSION < 0x400
-	for (fl = first_feature; fl != NULL; fl = fl->next)
+	for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next)
 	{
 		double value;
 		int status;
@@ -549,12 +547,13 @@ static int sensors_read (void)
 /* #endif SENSORS_API_VERSION < 0x400 */
 
 #elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
-	for (fl = first_feature; fl != NULL; fl = fl->next)
+	for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next)
 	{
 		double value;
 		int status;
 		char plugin_instance[DATA_MAX_NAME_LEN];
 		char type_instance[DATA_MAX_NAME_LEN];
+		char *sensor_label;
 		const char *type;
 
 		status = sensors_get_value (fl->chip,
@@ -567,8 +566,17 @@ static int sensors_read (void)
 		if (status < 0)
 			continue;
 
-		sstrncpy (type_instance, fl->feature->name,
-				sizeof (type_instance));
+		if (use_labels)
+		{
+			sensor_label = sensors_get_label (fl->chip, fl->feature);
+			sstrncpy (type_instance, sensor_label, sizeof (type_instance));
+			free (sensor_label);
+		}
+		else
+		{
+			sstrncpy (type_instance, fl->feature->name,
+					sizeof (type_instance));
+		}
 
 		if (fl->feature->type == SENSORS_FEATURE_IN)
 			type = "voltage";

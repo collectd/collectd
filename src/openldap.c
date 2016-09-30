@@ -1,7 +1,7 @@
 /**
  * collectd - src/openldap.c
  * Copyright (C) 2011       Kimo Rosenbaum
- * Copyright (C) 2014       Marc Fournier
+ * Copyright (C) 2014-2015  Marc Fournier
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,9 +27,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if defined(__APPLE__)
 #pragma clang diagnostic push
@@ -58,6 +58,9 @@ struct cldap_s /* {{{ */
 };
 typedef struct cldap_s cldap_t; /* }}} */
 
+static cldap_t **databases   = NULL;
+static size_t  databases_num = 0;
+
 static void cldap_free (cldap_t *st) /* {{{ */
 {
 	if (st == NULL)
@@ -79,6 +82,13 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 {
 	LDAP *ld;
 	int rc;
+
+	if (st->state && st->ld)
+	{
+		DEBUG ("openldap plugin: Already connected to %s", st->url);
+		return (0);
+	}
+
 	rc = ldap_initialize (&ld, st->url);
 	if (rc != LDAP_SUCCESS)
 	{
@@ -95,6 +105,8 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 
 	ldap_set_option (st->ld, LDAP_OPT_TIMEOUT,
 		&(const struct timeval){st->timeout, 0});
+
+	ldap_set_option (st->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
 
 	if (st->cacert != NULL)
 		ldap_set_option (st->ld, LDAP_OPT_X_TLS_CACERTFILE, st->cacert);
@@ -130,7 +142,7 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 		cred.bv_len = 0;
 	}
 
-	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred, 
+	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred,
 			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
@@ -160,13 +172,9 @@ static void cldap_submit_value (const char *type, const char *type_instance, /* 
 	if ((st->host == NULL)
 			|| (strcmp ("", st->host) == 0)
 			|| (strcmp ("localhost", st->host) == 0))
-	{
 		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	}
 	else
-	{
 		sstrncpy (vl.host, st->host, sizeof (vl.host));
-	}
 
 	sstrncpy (vl.plugin, "openldap", sizeof (vl.plugin));
 	if (st->name != NULL)
@@ -184,23 +192,19 @@ static void cldap_submit_value (const char *type, const char *type_instance, /* 
 static void cldap_submit_derive (const char *type, const char *type_instance, /* {{{ */
 		derive_t d, cldap_t *st)
 {
-	value_t v;
-	v.derive = d;
-	cldap_submit_value (type, type_instance, v, st);
+	cldap_submit_value (type, type_instance, (value_t) { .derive = d }, st);
 } /* }}} void cldap_submit_derive */
 
 static void cldap_submit_gauge (const char *type, const char *type_instance, /* {{{ */
 		gauge_t g, cldap_t *st)
 {
-	value_t v;
-	v.gauge = g;
-	cldap_submit_value (type, type_instance, v, st);
+	cldap_submit_value (type, type_instance, (value_t) { .gauge = g }, st);
 } /* }}} void cldap_submit_gauge */
 
 static int cldap_read_host (user_data_t *ud) /* {{{ */
 {
 	cldap_t *st;
-	LDAPMessage *e, *result;
+	LDAPMessage *result;
 	char *dn;
 	int rc;
 	int status;
@@ -236,11 +240,12 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 		ERROR ("openldap plugin: Failed to execute search: %s",
 				ldap_err2string (rc));
 		ldap_msgfree (result);
+		st->state = 0;
 		ldap_unbind_ext_s (st->ld, NULL, NULL);
 		return (-1);
 	}
 
-	for (e = ldap_first_entry (st->ld, result); e != NULL;
+	for (LDAPMessage *e = ldap_first_entry (st->ld, result); e != NULL;
 		e = ldap_next_entry (st->ld, e))
 	{
 		if ((dn = ldap_get_dn (st->ld, e)) != NULL)
@@ -533,7 +538,6 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 	}
 
 	ldap_msgfree (result);
-	ldap_unbind_ext_s (st->ld, NULL, NULL);
 	return (0);
 } /* }}} int cldap_read_host */
 
@@ -550,16 +554,14 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 {
 	cldap_t *st;
-	int i;
 	int status;
 
-	st = malloc (sizeof (*st));
+	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("openldap plugin: malloc failed.");
+		ERROR ("openldap plugin: calloc failed.");
 		return (-1);
 	}
-	memset (st, 0, sizeof (*st));
 
 	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
@@ -569,11 +571,11 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	}
 
 	st->starttls = 0;
-	st->timeout = -1;
+	st->timeout = (long) (CDTIME_T_TO_MS(plugin_get_interval()) / 1000);
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -617,9 +619,8 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	if ((status == 0) && (st->url != NULL))
 	{
 		LDAPURLDesc *ludpp;
-		int rc;
 
-		if ((rc = ldap_url_parse (st->url, &ludpp)) != 0)
+		if (ldap_url_parse (st->url, &ludpp) != 0)
 		{
 			ERROR ("openldap plugin: Instance `%s': "
 				"Invalid URL: `%s'",
@@ -628,32 +629,44 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 		}
 
 		if ((status == 0) && (ludpp->lud_host != NULL))
-		{
 			st->host = strdup (ludpp->lud_host);
-		}
 
 		ldap_free_urldesc (ludpp);
 	}
 
 	if (status == 0)
 	{
-		user_data_t ud;
-		char callback_name[3*DATA_MAX_NAME_LEN];
+		cldap_t **temp;
 
-		memset (&ud, 0, sizeof (ud));
-		ud.data = st;
+		temp = (cldap_t **) realloc (databases,
+			sizeof (*databases) * (databases_num + 1));
 
-		memset (callback_name, 0, sizeof (callback_name));
-		ssnprintf (callback_name, sizeof (callback_name),
-				"openldap/%s/%s",
-				(st->host != NULL) ? st->host : hostname_g,
-				(st->name != NULL) ? st->name : "default"),
+		if (temp == NULL)
+		{
+			ERROR ("openldap plugin: realloc failed");
+			status = -1;
+		}
+		else
+		{
+			char callback_name[3*DATA_MAX_NAME_LEN] = { 0 };
 
-		status = plugin_register_complex_read (/* group = */ NULL,
-				/* name      = */ callback_name,
-				/* callback  = */ cldap_read_host,
-				/* interval  = */ 0,
-				/* user_data = */ &ud);
+			databases = temp;
+			databases[databases_num] = st;
+			databases_num++;
+
+			ssnprintf (callback_name, sizeof (callback_name),
+					"openldap/%s/%s",
+					(st->host != NULL) ? st->host : hostname_g,
+					(st->name != NULL) ? st->name : "default");
+
+			status = plugin_register_complex_read (/* group = */ NULL,
+					/* name      = */ callback_name,
+					/* callback  = */ cldap_read_host,
+					/* interval  = */ 0,
+					&(user_data_t) {
+						.data = st,
+					});
+		}
 	}
 
 	if (status != 0)
@@ -667,10 +680,9 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 static int cldap_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
 	int status = 0;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -698,10 +710,22 @@ static int cldap_init (void) /* {{{ */
 	return (0);
 } /* }}} int cldap_init */
 
+static int cldap_shutdown (void) /* {{{ */
+{
+	for (size_t i = 0; i < databases_num; i++)
+		if (databases[i]->ld != NULL)
+			ldap_unbind_ext_s (databases[i]->ld, NULL, NULL);
+	sfree (databases);
+	databases_num = 0;
+
+	return (0);
+} /* }}} int cldap_shutdown */
+
 void module_register (void) /* {{{ */
 {
 	plugin_register_complex_config ("openldap", cldap_config);
 	plugin_register_init ("openldap", cldap_init);
+	plugin_register_shutdown ("openldap", cldap_shutdown);
 } /* }}} void module_register */
 
 #if defined(__APPLE__)

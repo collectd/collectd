@@ -46,9 +46,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_db_query.h"
 
 #include <oci.h>
@@ -93,7 +93,6 @@ static void o_report_error (const char *where, /* {{{ */
   char buffer[2048];
   sb4 error_code;
   int status;
-  unsigned int record_number;
 
   if (db_name == NULL)
     db_name = "(none)";
@@ -102,7 +101,7 @@ static void o_report_error (const char *where, /* {{{ */
 
   /* An operation may cause / return multiple errors. Loop until we have
    * handled all errors available (with a fail-save limit of 16). */
-  for (record_number = 1; record_number <= 16; record_number++)
+  for (unsigned int record_number = 1; record_number <= 16; record_number++)
   {
     memset (buffer, 0, sizeof (buffer));
     error_code = -1;
@@ -144,8 +143,6 @@ static void o_report_error (const char *where, /* {{{ */
 
 static void o_database_free (o_database_t *db) /* {{{ */
 {
-  size_t i;
-
   if (db == NULL)
     return;
 
@@ -156,7 +153,7 @@ static void o_database_free (o_database_t *db) /* {{{ */
   sfree (db->queries);
 
   if (db->q_prep_areas != NULL)
-    for (i = 0; i < db->queries_num; ++i)
+    for (size_t i = 0; i < db->queries_num; ++i)
       udb_query_delete_preparation_area (db->q_prep_areas[i]);
   free (db->q_prep_areas);
 
@@ -174,7 +171,7 @@ static void o_database_free (o_database_t *db) /* {{{ */
  *       ValuesFrom "value"
  *     </Result>
  *   </Query>
- *     
+ *
  *   <Database "plugin_instance1">
  *     ConnectID "db01"
  *     Username "oracle"
@@ -188,7 +185,6 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 {
   o_database_t *db;
   int status;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -198,13 +194,12 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  db = (o_database_t *) malloc (sizeof (*db));
+  db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("oracle plugin: malloc failed.");
+    ERROR ("oracle plugin: calloc failed.");
     return (-1);
   }
-  memset (db, 0, sizeof (*db));
   db->name = NULL;
   db->host = NULL;
   db->connect_id = NULL;
@@ -219,7 +214,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   }
 
   /* Fill the `o_database_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -273,12 +268,12 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
     if (db->q_prep_areas == NULL)
     {
-      WARNING ("oracle plugin: malloc failed");
+      WARNING ("oracle plugin: calloc failed");
       status = -1;
       break;
     }
 
-    for (i = 0; i < db->queries_num; ++i)
+    for (int i = 0; i < db->queries_num; ++i)
     {
       db->q_prep_areas[i]
         = udb_query_allocate_preparation_area (db->queries[i]);
@@ -300,7 +295,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   {
     o_database_t **temp;
 
-    temp = (o_database_t **) realloc (databases,
+    temp = realloc (databases,
         sizeof (*databases) * (databases_num + 1));
     if (temp == NULL)
     {
@@ -326,9 +321,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
 static int o_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Query", child->key) == 0)
@@ -400,7 +393,6 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   OCIDefine **oci_defines;
 
   int status;
-  size_t i;
 
   oci_statement = udb_query_get_user_data (q);
 
@@ -463,7 +455,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   {
     ub4 param_counter = 0;
     status = OCIAttrGet (oci_statement, OCI_HTYPE_STMT, /* {{{ */
-        &param_counter, /* size pointer = */ NULL, 
+        &param_counter, /* size pointer = */ NULL,
         OCI_ATTR_PARAM_COUNT, oci_error);
     if (status != OCI_SUCCESS)
     {
@@ -476,7 +468,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   } while (0); /* }}} */
 
   /* Allocate the following buffers:
-   * 
+   *
    *  +---------------+-----------------------------------+
    *  ! Name          ! Size                              !
    *  +---------------+-----------------------------------+
@@ -502,13 +494,12 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 #define ALLOC_OR_FAIL(ptr, ptr_size) \
   do { \
     size_t alloc_size = (size_t) ((ptr_size)); \
-    (ptr) = malloc (alloc_size); \
+    (ptr) = calloc (1, alloc_size); \
     if ((ptr) == NULL) { \
       FREE_ALL; \
-      ERROR ("oracle plugin: o_read_database_query: malloc failed."); \
+      ERROR ("oracle plugin: o_read_database_query: calloc failed."); \
       return (-1); \
     } \
-    memset ((ptr), 0, alloc_size); \
   } while (0)
 
   /* Initialize everything to NULL so the above works. */
@@ -519,13 +510,13 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
   ALLOC_OR_FAIL (column_names, column_num * sizeof (char *));
   ALLOC_OR_FAIL (column_names[0], column_num * DATA_MAX_NAME_LEN
       * sizeof (char));
-  for (i = 1; i < column_num; i++)
+  for (size_t i = 1; i < column_num; i++)
     column_names[i] = column_names[i - 1] + DATA_MAX_NAME_LEN;
 
   ALLOC_OR_FAIL (column_values, column_num * sizeof (char *));
   ALLOC_OR_FAIL (column_values[0], column_num * DATA_MAX_NAME_LEN
       * sizeof (char));
-  for (i = 1; i < column_num; i++)
+  for (size_t i = 1; i < column_num; i++)
     column_values[i] = column_values[i - 1] + DATA_MAX_NAME_LEN;
 
   ALLOC_OR_FAIL (oci_defines, column_num * sizeof (OCIDefine *));
@@ -533,7 +524,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 
   /* ``Define'' the returned data, i. e. bind the columns to the buffers
    * allocated above. */
-  for (i = 0; i < column_num; i++) /* {{{ */
+  for (size_t i = 0; i < column_num; i++) /* {{{ */
   {
     char *column_name;
     ub4 column_name_length;
@@ -644,7 +635,6 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
 
 static int o_read_database (o_database_t *db) /* {{{ */
 {
-  size_t i;
   int status;
 
   if (db->oci_service_context != NULL)
@@ -653,7 +643,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
     ub4 connection_status;
 
     server_handle = NULL;
-    status = OCIAttrGet ((void *) db->oci_service_context, OCI_HTYPE_SVCCTX, 
+    status = OCIAttrGet ((void *) db->oci_service_context, OCI_HTYPE_SVCCTX,
         (void *) &server_handle, /* size pointer = */ NULL,
         OCI_ATTR_SERVER, oci_error);
     if (status != OCI_SUCCESS)
@@ -719,7 +709,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
   DEBUG ("oracle plugin: o_read_database: db->connect_id = %s; db->oci_service_context = %p;",
       db->connect_id, db->oci_service_context);
 
-  for (i = 0; i < db->queries_num; i++)
+  for (size_t i = 0; i < db->queries_num; i++)
     o_read_database_query (db, db->queries[i], db->q_prep_areas[i]);
 
   return (0);
@@ -745,7 +735,7 @@ static int o_shutdown (void) /* {{{ */
       OCIHandleFree (databases[i]->oci_service_context, OCI_HTYPE_SVCCTX);
       databases[i]->oci_service_context = NULL;
     }
-  
+
   for (i = 0; i < queries_num; i++)
   {
     OCIStmt *oci_statement;
@@ -757,7 +747,7 @@ static int o_shutdown (void) /* {{{ */
       udb_query_set_user_data (queries[i], NULL);
     }
   }
-  
+
   OCIHandleFree (oci_env, OCI_HTYPE_ENV);
   oci_env = NULL;
 

@@ -28,13 +28,14 @@
  See: http://www.drbd.org/users-guide/ch-admin.html#s-performance-indicators
 
  version: 8.3.11 (api:88/proto:86-96)
- srcversion: 71955441799F513ACA6DA60 
+ srcversion: 71955441799F513ACA6DA60
   0: cs:Connected ro:Primary/Secondary ds:UpToDate/UpToDate B r-----
 	 ns:64363752 nr:0 dw:357799284 dr:846902273 al:34987022 bm:18062 lo:0 \
 						pe:0 ua:0 ap:0 ep:1 wo:f oos:0
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -69,7 +70,6 @@ static int drbd_submit_fields (long int resource,
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	value_t values[fields_num];
 	value_list_t vl = VALUE_LIST_INIT;
-	size_t i;
 
 	if (resource < 0)
 	{
@@ -88,7 +88,7 @@ static int drbd_submit_fields (long int resource,
 	ssnprintf (plugin_instance, sizeof (plugin_instance), "r%ld",
 			resource);
 
-	for (i = 0; i < drbd_names_num; i++)
+	for (size_t i = 0; i < drbd_names_num; i++)
 	{
 		char *data;
 		/* skip non numeric wo */
@@ -107,7 +107,7 @@ static int drbd_submit_fields (long int resource,
 			sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "drbd_resource", sizeof (vl.type));
 
-	for (i = 0; i < fields_num; i++)
+	for (size_t i = 0; i < fields_num; i++)
 	{
 		if (drbd_names[i] == NULL)
 			continue;

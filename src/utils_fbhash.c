@@ -25,9 +25,8 @@
  **/
 
 #include "collectd.h"
-#include "plugin.h"
 
-#include <pthread.h>
+#include "plugin.h"
 
 #include "utils_fbhash.h"
 #include "utils_avltree.h"
@@ -71,7 +70,7 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
 {
   FILE *fh;
   char buffer[4096];
-  struct flock fl;
+  struct flock fl = { 0 };
   c_avl_tree_t *tree;
   int status;
 
@@ -79,11 +78,8 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
   if (fh == NULL)
     return (-1);
 
-  memset (&fl, 0, sizeof (fl));
   fl.l_type = F_RDLCK;
   fl.l_whence = SEEK_SET;
-  fl.l_start = 0;
-  fl.l_len = 0; /* == entire file */
   /* TODO: Lock file? -> fcntl */
 
   status = fcntl (fileno (fh), F_SETLK, &fl);
@@ -93,7 +89,7 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
     return (-1);
   }
 
-  tree = c_avl_create ((void *) strcmp);
+  tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (tree == NULL)
   {
     fclose (fh);
@@ -179,10 +175,8 @@ static int fbh_read_file (fbhash_t *h) /* {{{ */
 
 static int fbh_check_file (fbhash_t *h) /* {{{ */
 {
-  struct stat statbuf;
+  struct stat statbuf = { 0 };
   int status;
-
-  memset (&statbuf, 0, sizeof (statbuf));
 
   status = stat (h->filename, &statbuf);
   if (status != 0)
@@ -209,10 +203,9 @@ fbhash_t *fbh_create (const char *file) /* {{{ */
   if (file == NULL)
     return (NULL);
 
-  h = malloc (sizeof (*h));
+  h = calloc (1, sizeof (*h));
   if (h == NULL)
     return (NULL);
-  memset (h, 0, sizeof (*h));
 
   h->filename = strdup (file);
   if (h->filename == NULL)

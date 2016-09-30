@@ -27,6 +27,7 @@
 #define DBL_PRECISION 1e-3
 
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_time.h"
 
@@ -64,9 +65,8 @@ DEF_TEST(conversion)
     // 1546167986577716567 / 2^30 = 1439981150.0475896215...
     {1546167986577716567ULL, 1439981150.048, 1439981150, 1439981150048ULL, {1439981150,  47590}, {1439981150,  47589622}},
   };
-  size_t i;
 
-  for (i = 0; i < (sizeof (cases) / sizeof (cases[0])); i++) {
+  for (size_t i = 0; i < (sizeof (cases) / sizeof (cases[0])); i++) {
     struct timeval tv;
     struct timespec ts;
 
@@ -107,9 +107,8 @@ DEF_TEST(ns_to_cdtime)
     // 1439981880053705608 * 2^30 / 10^9 = 1546168770415815077.4
     {1439981880053705608ULL, 1546168770415815077ULL},
   };
-  size_t i;
 
-  for (i = 0; i < (sizeof (cases) / sizeof (cases[0])); i++) {
+  for (size_t i = 0; i < (sizeof (cases) / sizeof (cases[0])); i++) {
     EXPECT_EQ_UINT64 (cases[i].want, NS_TO_CDTIME_T (cases[i].ns));
   }
 

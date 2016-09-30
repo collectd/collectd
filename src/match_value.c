@@ -30,6 +30,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_cache.h"
 #include "filter_chain.h"
@@ -58,18 +59,16 @@ struct mv_match_s
  */
 static void mv_free_match (mv_match_t *m) /* {{{ */
 {
-  size_t i;
-  
   if (m == NULL)
     return;
 
   if (m->data_sources != NULL)
   {
-    for (i = 0; i < m->data_sources_num; ++i)
+    for (size_t i = 0; i < m->data_sources_num; ++i)
       free(m->data_sources[i]);
     free(m->data_sources);
   }
-  
+
   free (m);
 } /* }}} void mv_free_match */
 
@@ -103,7 +102,6 @@ static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
 {
   size_t new_data_sources_num;
   char **temp;
-  int i;
 
   /* Check number of arbuments. */
   if (ci->values_num < 1)
@@ -114,7 +112,7 @@ static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
   }
 
   /* Check type of arguments */
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
     if (ci->values[i].type == OCONFIG_TYPE_STRING)
       continue;
@@ -129,7 +127,7 @@ static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
 
   /* Allocate space for the char pointers */
   new_data_sources_num = m->data_sources_num + ((size_t) ci->values_num);
-  temp = (char **) realloc (m->data_sources,
+  temp = realloc (m->data_sources,
       new_data_sources_num * sizeof (char *));
   if (temp == NULL)
   {
@@ -139,14 +137,12 @@ static int mv_config_add_data_source (mv_match_t *m, /* {{{ */
   m->data_sources = temp;
 
   /* Copy the strings, allocating memory as needed. */
-  for (i = 0; i < ci->values_num; i++)
+  for (int i = 0; i < ci->values_num; i++)
   {
-    size_t j;
-
     /* If we get here, there better be memory for us to write to. */
     assert (m->data_sources_num < new_data_sources_num);
 
-    j = m->data_sources_num;
+    size_t j = m->data_sources_num;
     m->data_sources[j] = sstrdup (ci->values[i].value.string);
     if (m->data_sources[j] == NULL)
     {
@@ -198,15 +194,13 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mv_match_t *m;
   int status;
-  int i;
 
-  m = (mv_match_t *) malloc (sizeof (*m));
+  m = calloc (1, sizeof (*m));
   if (m == NULL)
   {
-    ERROR ("mv_create: malloc failed.");
+    ERROR ("mv_create: calloc failed.");
     return (-ENOMEM);
   }
-  memset (m, 0, sizeof (*m));
 
   m->min = NAN;
   m->max = NAN;
@@ -216,7 +210,7 @@ static int mv_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   m->data_sources_num = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -277,7 +271,6 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
   mv_match_t *m;
   gauge_t *values;
   int status;
-  size_t i;
 
   if ((user_data == NULL) || (*user_data == NULL))
     return (-1);
@@ -294,7 +287,7 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   status = FC_MATCH_NO_MATCH;
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     int value_matches = 0;
 
@@ -336,7 +329,7 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
       if (m->satisfy == SATISFY_ANY)
         break;
     }
-    else if (value_matches == 0)
+    else
     {
       status = FC_MATCH_NO_MATCH;
       if (m->satisfy == SATISFY_ALL)
@@ -350,9 +343,8 @@ static int mv_match (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
 void module_register (void)
 {
-  match_proc_t mproc;
+  match_proc_t mproc = { 0 };
 
-  memset (&mproc, 0, sizeof (mproc));
   mproc.create  = mv_create;
   mproc.destroy = mv_destroy;
   mproc.match   = mv_match;

@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -163,7 +164,7 @@ int handle_putval (FILE *fh, char *buffer)
 	sfree (identifier_copy);
 
 	vl.values_len = ds->ds_num;
-	vl.values = (value_t *) malloc (vl.values_len * sizeof (value_t));
+	vl.values = malloc (vl.values_len * sizeof (*vl.values));
 	if (vl.values == NULL)
 	{
 		print_to_socket (fh, "-1 malloc failed.\n");
@@ -218,7 +219,8 @@ int handle_putval (FILE *fh, char *buffer)
 	} /* while (*buffer != 0) */
 	/* Done parsing the options. */
 
-	print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
+	if (fh!=stdout)
+		print_to_socket (fh, "0 Success: %i %s been dispatched.\n",
 			values_submitted,
 			(values_submitted == 1) ? "value has" : "values have");
 

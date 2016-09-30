@@ -27,9 +27,9 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if KERNEL_LINUX
   /* _GNU_SOURCE is needed for struct shm_info.used_ids on musl libc */
@@ -97,12 +97,9 @@ static void ipc_submit_g (const char *plugin_instance,
                           const char *type_instance,
                           gauge_t value) /* {{{ */
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "ipc", sizeof (vl.plugin));
@@ -213,7 +210,7 @@ static caddr_t ipc_get_info (cid_t cid, int cmd, int version, int stsize, int *n
 
   *nmemb = size / stsize;
 
-  buff = (caddr_t)malloc (size);
+  buff = malloc (size);
   if (buff == NULL)  {
     ERROR ("ipc plugin: ipc_get_info malloc failed.");
     return (NULL);
@@ -236,14 +233,14 @@ static int ipc_read_sem (void) /* {{{ */
   ipcinfo_sem_t *ipcinfo_sem;
   unsigned short sem_nsems=0;
   unsigned short sems=0;
-  int i,n;
+  int n;
 
   ipcinfo_sem = (ipcinfo_sem_t *)ipc_get_info(0,
     GET_IPCINFO_SEM_ALL, IPCINFO_SEM_VERSION, sizeof(ipcinfo_sem_t), &n);
   if (ipcinfo_sem == NULL)
     return -1;
 
-  for (i=0; i<n; i++) {
+  for (int i=0; i<n; i++) {
     sem_nsems += ipcinfo_sem[i].sem_nsems;
     sems++;
   }
@@ -261,14 +258,14 @@ static int ipc_read_shm (void) /* {{{ */
   ipcinfo_shm_t *pshm;
   unsigned int shm_segments=0;
   size64_t shm_bytes=0;
-  int i,n;
+  int n;
 
   ipcinfo_shm = (ipcinfo_shm_t *)ipc_get_info(0,
     GET_IPCINFO_SHM_ALL, IPCINFO_SHM_VERSION, sizeof(ipcinfo_shm_t), &n);
   if (ipcinfo_shm == NULL)
     return -1;
 
-  for (i=0, pshm=ipcinfo_shm; i<n; i++, pshm++) {
+  for (int i=0, pshm=ipcinfo_shm; i<n; i++, pshm++) {
     shm_segments++;
     shm_bytes += pshm->shm_segsz;
   }
@@ -287,14 +284,14 @@ static int ipc_read_msg (void) /* {{{ */
   uint32_t msg_used_space=0;
   uint32_t msg_alloc_queues=0;
   msgqnum32_t msg_qnum=0;
-  int i,n;
+  int n;
 
   ipcinfo_msg = (ipcinfo_msg_t *)ipc_get_info(0,
     GET_IPCINFO_MSG_ALL, IPCINFO_MSG_VERSION, sizeof(ipcinfo_msg_t), &n);
   if (ipcinfo_msg == NULL)
     return -1;
 
-  for (i=0; i<n; i++) {
+  for (int i=0; i<n; i++) {
     msg_alloc_queues++;
     msg_used_space += ipcinfo_msg[i].msg_cbytes;
     msg_qnum += ipcinfo_msg[i].msg_qnum;

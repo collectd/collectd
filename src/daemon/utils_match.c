@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -63,7 +64,7 @@ static char *match_substr (const char *str, int begin, int end)
   }
 
   ret_len = end - begin;
-  ret = (char *) malloc (sizeof (char) * (ret_len + 1));
+  ret = malloc (ret_len + 1);
   if (ret == NULL)
   {
     ERROR ("utils_match: match_substr: malloc failed.");
@@ -169,7 +170,7 @@ static int default_callback (const char __attribute__((unused)) *str,
 
     if (data->ds_type & UTILS_MATCH_CF_DERIVE_INC)
     {
-      data->value.counter++;
+      data->value.derive++;
       data->values_num++;
       return (0);
     }
@@ -238,10 +239,9 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
   DEBUG ("utils_match: match_create_callback: regex = %s, excluderegex = %s",
 	 regex, excluderegex);
 
-  obj = (cu_match_t *) malloc (sizeof (cu_match_t));
+  obj = calloc (1, sizeof (*obj));
   if (obj == NULL)
     return (NULL);
-  memset (obj, '\0', sizeof (cu_match_t));
 
   status = regcomp (&obj->regex, regex, REG_EXTENDED | REG_NEWLINE);
   if (status != 0)
@@ -275,10 +275,9 @@ cu_match_t *match_create_simple (const char *regex,
   cu_match_value_t *user_data;
   cu_match_t *obj;
 
-  user_data = (cu_match_value_t *) malloc (sizeof (cu_match_value_t));
+  user_data = calloc (1, sizeof (*user_data));
   if (user_data == NULL)
     return (NULL);
-  memset (user_data, '\0', sizeof (cu_match_value_t));
   user_data->ds_type = match_ds_type;
 
   obj = match_create_callback (regex, excluderegex,
@@ -323,9 +322,8 @@ int match_apply (cu_match_t *obj, const char *str)
 {
   int status;
   regmatch_t re_match[32];
-  char *matches[32];
+  char *matches[32] = { 0 };
   size_t matches_num;
-  size_t i;
 
   if ((obj == NULL) || (str == NULL))
     return (-1);
@@ -349,7 +347,6 @@ int match_apply (cu_match_t *obj, const char *str)
   if (status != 0)
     return (0);
 
-  memset (matches, '\0', sizeof (matches));
   for (matches_num = 0; matches_num < STATIC_ARRAY_SIZE (matches); matches_num++)
   {
     if ((re_match[matches_num].rm_so < 0)
@@ -378,7 +375,7 @@ int match_apply (cu_match_t *obj, const char *str)
     }
   }
 
-  for (i = 0; i < matches_num; i++)
+  for (size_t i = 0; i < matches_num; i++)
   {
     sfree (matches[i]);
   }

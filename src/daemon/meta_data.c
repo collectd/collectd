@@ -25,10 +25,12 @@
  **/
 
 #include "collectd.h"
+
+#include "common.h"
 #include "plugin.h"
 #include "meta_data.h"
 
-#include <pthread.h>
+#define MD_MAX_NONSTRING_CHARS 128
 
 /*
  * Data types
@@ -71,7 +73,7 @@ static char *md_strdup (const char *orig) /* {{{ */
     return (NULL);
 
   sz = strlen (orig) + 1;
-  dest = (char *) malloc (sz);
+  dest = malloc (sz);
   if (dest == NULL)
     return (NULL);
 
@@ -84,13 +86,12 @@ static meta_entry_t *md_entry_alloc (const char *key) /* {{{ */
 {
   meta_entry_t *e;
 
-  e = (meta_entry_t *) malloc (sizeof (*e));
+  e = calloc (1, sizeof (*e));
   if (e == NULL)
   {
-    ERROR ("md_entry_alloc: malloc failed.");
+    ERROR ("md_entry_alloc: calloc failed.");
     return (NULL);
   }
-  memset (e, 0, sizeof (*e));
 
   e->key = md_strdup (key);
   if (e->key == NULL)
@@ -106,12 +107,15 @@ static meta_entry_t *md_entry_alloc (const char *key) /* {{{ */
   return (e);
 } /* }}} meta_entry_t *md_entry_alloc */
 
-static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
+/* XXX: The lock on md must be held while calling this function! */
+static meta_entry_t *md_entry_clone_contents (const meta_entry_t *orig) /* {{{ */
 {
   meta_entry_t *copy;
 
-  if (orig == NULL)
-    return (NULL);
+  /* WARNINGS :
+   *  - we do not check that orig != NULL here. You should have done it before.
+   *  - we do not set copy->next. DO NOT FORGET TO SET copy->next IN YOUR FUNCTION
+   */
 
   copy = md_entry_alloc (orig->key);
   if (copy == NULL)
@@ -121,6 +125,18 @@ static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
     copy->value.mv_string = strdup (orig->value.mv_string);
   else
     copy->value = orig->value;
+
+  return (copy);
+} /* }}} meta_entry_t *md_entry_clone_contents */
+
+static meta_entry_t *md_entry_clone (const meta_entry_t *orig) /* {{{ */
+{
+  meta_entry_t *copy;
+
+  if (orig == NULL)
+    return (NULL);
+
+  copy = md_entry_clone_contents(orig);
 
   copy->next = md_entry_clone (orig->next);
   return (copy);
@@ -198,6 +214,63 @@ static int md_entry_insert (meta_data_t *md, meta_entry_t *e) /* {{{ */
 } /* }}} int md_entry_insert */
 
 /* XXX: The lock on md must be held while calling this function! */
+static int md_entry_insert_clone (meta_data_t *md, meta_entry_t *orig) /* {{{ */
+{
+  meta_entry_t *e;
+  meta_entry_t *this;
+  meta_entry_t *prev;
+
+  /* WARNINGS :
+   *  - we do not check that md and e != NULL here. You should have done it before.
+   *  - we do not use the lock. You should have set it before.
+   */
+
+  e = md_entry_clone_contents(orig);
+
+  prev = NULL;
+  this = md->head;
+  while (this != NULL)
+  {
+    if (strcasecmp (e->key, this->key) == 0)
+      break;
+
+    prev = this;
+    this = this->next;
+  }
+
+  if (this == NULL)
+  {
+    /* This key does not exist yet. */
+    if (md->head == NULL)
+      md->head = e;
+    else
+    {
+      assert (prev != NULL);
+      prev->next = e;
+    }
+
+    e->next = NULL;
+  }
+  else /* (this != NULL) */
+  {
+    if (prev == NULL)
+      md->head = e;
+    else
+      prev->next = e;
+
+    e->next = this->next;
+  }
+
+  if (this != NULL)
+  {
+    this->next = NULL;
+    md_entry_free (this);
+  }
+
+  return (0);
+} /* }}} int md_entry_insert_clone */
+
+/* XXX: The lock on md must be held while calling this function! */
 static meta_entry_t *md_entry_lookup (meta_data_t *md, /* {{{ */
     const char *key)
 {
@@ -214,21 +287,30 @@ static meta_entry_t *md_entry_lookup (meta_data_t *md, /* {{{ */
 } /* }}} meta_entry_t *md_entry_lookup */
 
 /*
+ * Each value_list_t*, as it is going through the system, is handled by exactly
+ * one thread. Plugins which pass a value_list_t* to another thread, e.g. the
+ * rrdtool plugin, must create a copy first. The meta data within a
+ * value_list_t* is not thread safe and doesn't need to be.
+ *
+ * The meta data associated with cache entries are a different story. There, we
+ * need to ensure exclusive locking to prevent leaks and other funky business.
+ * This is ensured by the uc_meta_data_get_*() functions.
+ */
+
+/*
  * Public functions
  */
 meta_data_t *meta_data_create (void) /* {{{ */
 {
   meta_data_t *md;
 
-  md = (meta_data_t *) malloc (sizeof (*md));
+  md = calloc (1, sizeof (*md));
   if (md == NULL)
   {
-    ERROR ("meta_data_create: malloc failed.");
+    ERROR ("meta_data_create: calloc failed.");
     return (NULL);
   }
-  memset (md, 0, sizeof (*md));
 
-  md->head = NULL;
   pthread_mutex_init (&md->lock, /* attr = */ NULL);
 
   return (md);
@@ -252,6 +334,26 @@ meta_data_t *meta_data_clone (meta_data_t *orig) /* {{{ */
   return (copy);
 } /* }}} meta_data_t *meta_data_clone */
 
+int meta_data_clone_merge (meta_data_t **dest, meta_data_t *orig) /* {{{ */
+{
+  if (orig == NULL)
+    return (0);
+
+  if (*dest == NULL) {
+    *dest = meta_data_clone(orig);
+    return(0);
+  }
+
+  pthread_mutex_lock (&orig->lock);
+  for (meta_entry_t *e=orig->head; e != NULL; e = e->next)
+  {
+    md_entry_insert_clone((*dest), e);
+  }
+  pthread_mutex_unlock (&orig->lock);
+
+  return (0);
+} /* }}} int meta_data_clone_merge */
+
 void meta_data_destroy (meta_data_t *md) /* {{{ */
 {
   if (md == NULL)
@@ -264,14 +366,12 @@ void meta_data_destroy (meta_data_t *md) /* {{{ */
 
 int meta_data_exists (meta_data_t *md, const char *key) /* {{{ */
 {
-  meta_entry_t *e;
-
   if ((md == NULL) || (key == NULL))
     return (-EINVAL);
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
   {
     if (strcasecmp (key, e->key) == 0)
     {
@@ -286,14 +386,12 @@ int meta_data_exists (meta_data_t *md, const char *key) /* {{{ */
 
 int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
 {
-  meta_entry_t *e;
-
   if ((md == NULL) || (key == NULL))
     return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
   {
     if (strcasecmp (key, e->key) == 0)
     {
@@ -309,15 +407,14 @@ int meta_data_type (meta_data_t *md, const char *key) /* {{{ */
 int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
 {
   int i = 0, count = 0;
-  meta_entry_t *e;
 
   if ((md == NULL) || (toc == NULL))
     return -EINVAL;
 
   pthread_mutex_lock (&md->lock);
 
-  for (e = md->head; e != NULL; e = e->next)
-    ++count;    
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
+    ++count;
 
   if (count == 0)
   {
@@ -326,9 +423,9 @@ int meta_data_toc (meta_data_t *md, char ***toc) /* {{{ */
   }
 
   *toc = calloc(count, sizeof(**toc));
-  for (e = md->head; e != NULL; e = e->next)
+  for (meta_entry_t *e = md->head; e != NULL; e = e->next)
     (*toc)[i++] = strdup(e->key);
-  
+
   pthread_mutex_unlock (&md->lock);
   return count;
 } /* }}} int meta_data_toc */
@@ -507,7 +604,7 @@ int meta_data_get_string (meta_data_t *md, /* {{{ */
     ERROR ("meta_data_get_string: md_strdup failed.");
     return (-ENOMEM);
   }
- 
+
   pthread_mutex_unlock (&md->lock);
 
   *value = temp;
@@ -634,5 +731,69 @@ int meta_data_get_boolean (meta_data_t *md, /* {{{ */
   pthread_mutex_unlock (&md->lock);
   return (0);
 } /* }}} int meta_data_get_boolean */
+
+int meta_data_as_string (meta_data_t *md, /* {{{ */
+    const char *key, char **value)
+{
+  meta_entry_t *e;
+  char *actual;
+  char buffer[MD_MAX_NONSTRING_CHARS];  /* For non-string types. */
+  char *temp;
+  int type;
+
+  if ((md == NULL) || (key == NULL) || (value == NULL))
+    return (-EINVAL);
+
+  pthread_mutex_lock (&md->lock);
+
+  e = md_entry_lookup (md, key);
+  if (e == NULL)
+  {
+    pthread_mutex_unlock (&md->lock);
+    return (-ENOENT);
+  }
+
+  type = e->type;
+
+  switch (type)
+  {
+    case MD_TYPE_STRING:
+      actual = e->value.mv_string;
+      break;
+    case MD_TYPE_SIGNED_INT:
+      ssnprintf (buffer, sizeof (buffer), "%"PRIi64, e->value.mv_signed_int);
+      actual = buffer;
+      break;
+    case MD_TYPE_UNSIGNED_INT:
+      ssnprintf (buffer, sizeof (buffer), "%"PRIu64, e->value.mv_unsigned_int);
+      actual = buffer;
+      break;
+    case MD_TYPE_DOUBLE:
+      ssnprintf (buffer, sizeof (buffer), GAUGE_FORMAT, e->value.mv_double);
+      actual = buffer;
+      break;
+    case MD_TYPE_BOOLEAN:
+      actual = e->value.mv_boolean ? "true" : "false";
+      break;
+    default:
+      pthread_mutex_unlock (&md->lock);
+      ERROR ("meta_data_as_string: unknown type %d for key `%s'", type, key);
+      return (-ENOENT);
+  }
+
+  pthread_mutex_unlock (&md->lock);
+
+  temp = md_strdup (actual);
+  if (temp == NULL)
+  {
+    pthread_mutex_unlock (&md->lock);
+    ERROR ("meta_data_as_string: md_strdup failed for key `%s'.", key);
+    return (-ENOMEM);
+  }
+
+  *value = temp;
+
+  return (0);
+} /* }}} int meta_data_as_string */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

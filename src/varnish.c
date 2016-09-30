@@ -24,9 +24,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if HAVE_VARNISH_V4
 #include <vapi/vsm.h>
@@ -117,22 +117,16 @@ static int varnish_submit_gauge (const char *plugin_instance, /* {{{ */
 		const char *category, const char *type, const char *type_instance,
 		uint64_t gauge_value)
 {
-	value_t value;
-
-	value.gauge = (gauge_t) gauge_value;
-
-	return (varnish_submit (plugin_instance, category, type, type_instance, value));
+	return (varnish_submit (plugin_instance, category, type, type_instance,
+				(value_t) { .gauge = (gauge_t) gauge_value }));
 } /* }}} int varnish_submit_gauge */
 
 static int varnish_submit_derive (const char *plugin_instance, /* {{{ */
 		const char *category, const char *type, const char *type_instance,
 		uint64_t derive_value)
 {
-	value_t value;
-
-	value.derive = (derive_t) derive_value;
-
-	return (varnish_submit (plugin_instance, category, type, type_instance, value));
+	return (varnish_submit (plugin_instance, category, type, type_instance,
+				(value_t) { .derive = (derive_t) derive_value }));
 } /* }}} int varnish_submit_derive */
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
@@ -938,29 +932,27 @@ static int varnish_config_apply_default (user_config_t *conf) /* {{{ */
 static int varnish_init (void) /* {{{ */
 {
 	user_config_t *conf;
-	user_data_t ud;
 
 	if (have_instance)
 		return (0);
 
-	conf = malloc (sizeof (*conf));
+	conf = calloc (1, sizeof (*conf));
 	if (conf == NULL)
 		return (ENOMEM);
-	memset (conf, 0, sizeof (*conf));
 
 	/* Default settings: */
 	conf->instance = NULL;
 
 	varnish_config_apply_default (conf);
 
-	ud.data = conf;
-	ud.free_func = varnish_config_free;
-
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ "varnish/localhost",
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &ud);
+			&(user_data_t) {
+				.data = conf,
+				.free_func = varnish_config_free,
+			});
 
 	return (0);
 } /* }}} int varnish_init */
@@ -968,14 +960,11 @@ static int varnish_init (void) /* {{{ */
 static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 {
 	user_config_t *conf;
-	user_data_t ud;
 	char callback_name[DATA_MAX_NAME_LEN];
-	int i;
 
-	conf = malloc (sizeof (*conf));
+	conf = calloc (1, sizeof (*conf));
 	if (conf == NULL)
 		return (ENOMEM);
-	memset (conf, 0, sizeof (*conf));
 	conf->instance = NULL;
 
 	varnish_config_apply_default (conf);
@@ -1006,7 +995,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 		return (EINVAL);
 	}
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -1016,9 +1005,11 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_connections);
 		else if (strcasecmp ("CollectESI", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_esi);
-#ifdef HAVE_VARNISH_V3
 		else if (strcasecmp ("CollectDirectorDNS", child->key) == 0)
+#ifdef HAVE_VARNISH_V3
 			cf_util_get_boolean (child, &conf->collect_dirdns);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v3");
 #endif
 		else if (strcasecmp ("CollectBackend", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_backend);
@@ -1028,11 +1019,16 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_hcb);
 		else if (strcasecmp ("CollectObjects", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_objects);
-#if HAVE_VARNISH_V2
 		else if (strcasecmp ("CollectPurge", child->key) == 0)
+#if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_purge);
 #else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+#endif
 		else if (strcasecmp ("CollectBan", child->key) == 0)
+#if HAVE_VARNISH_V2
+			WARNING ("Varnish plugin: \"%s\" is not available for Varnish %s.", child->key, "v2");
+#else
 			cf_util_get_boolean (child, &conf->collect_ban);
 #endif
 		else if (strcasecmp ("CollectSession", child->key) == 0)
@@ -1041,27 +1037,37 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 			cf_util_get_boolean (child, &conf->collect_shm);
 		else if (strcasecmp ("CollectSMS", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_sms);
-#if HAVE_VARNISH_V2
 		else if (strcasecmp ("CollectSMA", child->key) == 0)
+#if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_sma);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+#endif
 		else if (strcasecmp ("CollectSM", child->key) == 0)
+#if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_sm);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
 #endif
 		else if (strcasecmp ("CollectStruct", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_struct);
 		else if (strcasecmp ("CollectTotals", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_totals);
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 		else if (strcasecmp ("CollectUptime", child->key) == 0)
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 			cf_util_get_boolean (child, &conf->collect_uptime);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v3 and v4");
 #endif
 		else if (strcasecmp ("CollectVCL", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_vcl);
 		else if (strcasecmp ("CollectWorkers", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_workers);
-#if HAVE_VARNISH_V4
 		else if (strcasecmp ("CollectVSM", child->key) == 0)
+#if HAVE_VARNISH_V4
 			cf_util_get_boolean (child, &conf->collect_vsm);
+#else
+			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v4");
 #endif
 		else
 		{
@@ -1117,14 +1123,14 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	ssnprintf (callback_name, sizeof (callback_name), "varnish/%s",
 			(conf->instance == NULL) ? "localhost" : conf->instance);
 
-	ud.data = conf;
-	ud.free_func = varnish_config_free;
-
 	plugin_register_complex_read (/* group = */ "varnish",
 			/* name      = */ callback_name,
 			/* callback  = */ varnish_read,
 			/* interval  = */ 0,
-			/* user data = */ &ud);
+			&(user_data_t) {
+				.data = conf,
+				.free_func = varnish_config_free,
+			});
 
 	have_instance = 1;
 
@@ -1133,9 +1139,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 
 static int varnish_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 

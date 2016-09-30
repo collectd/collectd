@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -98,13 +99,10 @@ static int openvpn_strsplit (char *string, char **fields, size_t size)
 static void numusers_submit (const char *pinst, const char *tinst,
 		gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.type, "users", sizeof (vl.type));
@@ -121,11 +119,11 @@ static void numusers_submit (const char *pinst, const char *tinst,
 static void iostats_submit (const char *pinst, const char *tinst,
 		derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+    { .derive = rx },
+    { .derive = tx },
+  };
 
 	/* NOTE ON THE NEW NAMING SCHEMA:
 	 *       using plugin_instance to identify each vpn config (and
@@ -151,11 +149,11 @@ static void iostats_submit (const char *pinst, const char *tinst,
 static void compression_submit (const char *pinst, const char *tinst,
 		derive_t uncompressed, derive_t compressed)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = uncompressed;
-	values[1].derive = compressed;
+	value_t values[] = {
+    { .derive = uncompressed },
+    { .derive = compressed },
+  };
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
@@ -521,12 +519,12 @@ static int multi4_read (const char *name, FILE *fh)
 static int openvpn_read (void)
 {
 	FILE *fh;
-	int  i, read;
+	int  read;
 
 	read = 0;
 
 	/* call the right read function for every status entry in the list */
-	for (i = 0; i < vpn_num; i++)
+	for (int i = 0; i < vpn_num; i++)
 	{
 		int vpn_read = 0;
 
@@ -650,7 +648,7 @@ static int openvpn_config (const char *key, const char *value)
 	if (strcasecmp ("StatusFile", key) == 0)
 	{
 		char    *status_file, *status_name, *filename;
-		int     status_version, i;
+		int     status_version;
 		vpn_status_t *temp;
 
 		/* try to detect the status file format */
@@ -686,7 +684,7 @@ static int openvpn_config (const char *key, const char *value)
 		}
 
 		/* scan the list looking for a clone */
-		for (i = 0; i < vpn_num; i++)
+		for (int i = 0; i < vpn_num; i++)
 		{
 			if (strcasecmp (vpn_list[i]->name, status_name) == 0)
 			{
@@ -699,7 +697,7 @@ static int openvpn_config (const char *key, const char *value)
 		}
 
 		/* create a new vpn element since file, version and name are ok */
-		temp = (vpn_status_t *) malloc (sizeof (vpn_status_t));
+		temp = malloc (sizeof (*temp));
 		if (temp == NULL)
 		{
 			char errbuf[1024];
@@ -712,17 +710,19 @@ static int openvpn_config (const char *key, const char *value)
 		temp->version = status_version;
 		temp->name = status_name;
 
-		vpn_list = (vpn_status_t **) realloc (vpn_list, (vpn_num + 1) * sizeof (vpn_status_t *));
-		if (vpn_list == NULL)
+		vpn_status_t **tmp_list = realloc (vpn_list, (vpn_num + 1) * sizeof (*vpn_list));
+		if (tmp_list == NULL)
 		{
 			char errbuf[1024];
 			ERROR ("openvpn plugin: realloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 
+			sfree (vpn_list);
 			sfree (temp->file);
 			sfree (temp);
 			return (1);
 		}
+		vpn_list = tmp_list;
 
 		vpn_list[vpn_num] = temp;
 		vpn_num++;
@@ -775,9 +775,7 @@ static int openvpn_config (const char *key, const char *value)
 /* shutdown callback */
 static int openvpn_shutdown (void)
 {
-	int i;
-
-	for (i = 0; i < vpn_num; i++)
+	for (int i = 0; i < vpn_num; i++)
 	{
 		sfree (vpn_list[i]->file);
 		sfree (vpn_list[i]);

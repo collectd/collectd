@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_match.h"
 
 #include <libmemcached/memcached.h>
@@ -199,23 +199,21 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
 {
   web_match_t *match;
   int status;
-  int i;
 
   if (ci->values_num != 0)
   {
     WARNING ("memcachec plugin: Ignoring arguments for the `Match' block.");
   }
 
-  match = (web_match_t *) malloc (sizeof (*match));
+  match = calloc (1, sizeof (*match));
   if (match == NULL)
   {
-    ERROR ("memcachec plugin: malloc failed.");
+    ERROR ("memcachec plugin: calloc failed.");
     return (-1);
   }
-  memset (match, 0, sizeof (*match));
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -272,7 +270,7 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
       match->dstype);
   if (match->match == NULL)
   {
-    ERROR ("memcachec plugin: tail_match_add_match_simple failed.");
+    ERROR ("memcachec plugin: match_create_simple failed.");
     cmc_web_match_free (match);
     return (-1);
   }
@@ -297,7 +295,6 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
 {
   web_page_t *page;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -305,13 +302,12 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  page = (web_page_t *) malloc (sizeof (*page));
+  page = calloc (1, sizeof (*page));
   if (page == NULL)
   {
-    ERROR ("memcachec plugin: malloc failed.");
+    ERROR ("memcachec plugin: calloc failed.");
     return (-1);
   }
-  memset (page, 0, sizeof (*page));
   page->server = NULL;
   page->key = NULL;
 
@@ -325,7 +321,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
 
   /* Process all children */
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -389,7 +385,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
     web_page_t *prev;
 
     prev = pages_g;
-    while ((prev != NULL) && (prev->next != NULL))
+    while (prev->next != NULL)
       prev = prev->next;
     prev->next = page;
   }
@@ -402,12 +398,11 @@ static int cmc_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -446,14 +441,11 @@ static int cmc_init (void) /* {{{ */
 } /* }}} int cmc_init */
 
 static void cmc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
-    const cu_match_value_t *mv)
+    value_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = mv->value;
-
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "memcachec", sizeof (vl.plugin));
@@ -466,7 +458,6 @@ static void cmc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
 static int cmc_read_page (web_page_t *wp) /* {{{ */
 {
-  web_match_t *wm;
   memcached_return rc;
   size_t string_length;
   uint32_t flags;
@@ -484,7 +475,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
     return (-1);
   }
 
-  for (wm = wp->matches; wm != NULL; wm = wm->next)
+  for (web_match_t *wm = wp->matches; wm != NULL; wm = wm->next)
   {
     cu_match_value_t *mv;
 
@@ -502,7 +493,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
       continue;
     }
 
-    cmc_submit (wp, wm, mv);
+    cmc_submit (wp, wm, mv->value);
     match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
@@ -513,9 +504,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
 
 static int cmc_read (void) /* {{{ */
 {
-  web_page_t *wp;
-
-  for (wp = pages_g; wp != NULL; wp = wp->next)
+  for (web_page_t *wp = pages_g; wp != NULL; wp = wp->next)
     cmc_read_page (wp);
 
   return (0);

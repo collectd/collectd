@@ -28,6 +28,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -89,12 +90,10 @@ static long long get_zfs_value(kstat_t *ksp, const char *key)
 
 static void free_zfs_values (kstat_t *ksp)
 {
-	llentry_t *e;
-
 	if (ksp == NULL)
 		return;
 
-	for (e = llist_head (ksp); e != NULL; e = e->next)
+	for (llentry_t *e = llist_head (ksp); e != NULL; e = e->next)
 	{
 		sfree (e->key);
 		sfree (e->value);
@@ -103,7 +102,7 @@ static void free_zfs_values (kstat_t *ksp)
 	llist_destroy (ksp);
 }
 
-#elif !defined(__FreeBSD__) // Solaris
+#elif defined(KERNEL_SOLARIS)
 extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name)
@@ -111,7 +110,7 @@ static long long get_zfs_value(kstat_t *ksp, char *name)
 
 	return (get_kstat_value(ksp, name));
 }
-#else // FreeBSD
+#elif defined(KERNEL_FREEBSD)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -139,7 +138,7 @@ static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
 }
 #endif
 
-static void za_submit (const char* type, const char* type_instance, value_t* values, int values_len)
+static void za_submit (const char* type, const char* type_instance, value_t* values, size_t values_len)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -156,45 +155,34 @@ static void za_submit (const char* type, const char* type_instance, value_t* val
 
 static void za_submit_gauge (const char* type, const char* type_instance, gauge_t value)
 {
-	value_t vv;
-
-	vv.gauge = value;
-	za_submit (type, type_instance, &vv, 1);
+	za_submit (type, type_instance, &(value_t) { .gauge = value }, 1);
 }
 
 static int za_read_derive (kstat_t *ksp, const char *kstat_value,
     const char *type, const char *type_instance)
 {
-  long long tmp;
-  value_t v;
-
-  tmp = get_zfs_value (ksp, (char *)kstat_value);
+  long long tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
-  v.derive = (derive_t) tmp;
-  za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  za_submit (type, type_instance, &(value_t) { .derive = (derive_t) tmp }, /* values_num = */ 1);
   return (0);
 }
 
 static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
     const char *type, const char *type_instance)
 {
-  long long tmp;
-  value_t v;
-
-  tmp = get_zfs_value (ksp, (char *)kstat_value);
+  long long tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
-  v.gauge = (gauge_t) tmp;
-  za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  za_submit (type, type_instance, &(value_t) { .gauge = (gauge_t) tmp }, /* values_num = */ 1);
   return (0);
 }
 
@@ -216,10 +204,9 @@ static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t mi
 static int za_read (void)
 {
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
-	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
-#if KERNEL_LINUX
+#if defined(KERNEL_LINUX)
 	FILE *fh;
 	char buffer[1024];
 
@@ -259,7 +246,7 @@ static int za_read (void)
 
 	fclose (fh);
 
-#elif !defined(__FreeBSD__) // Solaris
+#elif defined(KERNEL_SOLARIS)
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
@@ -269,10 +256,19 @@ static int za_read (void)
 #endif
 
 	/* Sizes */
-	za_read_gauge (ksp, "size",    "cache_size", "arc");
-	za_read_gauge (ksp, "c",    "cache_size", "c");
-	za_read_gauge (ksp, "c_min",    "cache_size", "c_min");
-	za_read_gauge (ksp, "c_max",    "cache_size", "c_max");
+	za_read_gauge (ksp, "anon_size",      "cache_size", "anon_size");
+	za_read_gauge (ksp, "c",              "cache_size", "c");
+	za_read_gauge (ksp, "c_max",          "cache_size", "c_max");
+	za_read_gauge (ksp, "c_min",          "cache_size", "c_min");
+	za_read_gauge (ksp, "hdr_size",       "cache_size", "hdr_size");
+	za_read_gauge (ksp, "metadata_size",  "cache_size", "metadata_size");
+	za_read_gauge (ksp, "mfu_ghost_size", "cache_size", "mfu_ghost_size");
+	za_read_gauge (ksp, "mfu_size",       "cache_size", "mfu_size");
+	za_read_gauge (ksp, "mru_ghost_size", "cache_size", "mru_ghost_size");
+	za_read_gauge (ksp, "mru_size",       "cache_size", "mru_size");
+	za_read_gauge (ksp, "other_size",     "cache_size", "other_size");
+	za_read_gauge (ksp, "p",              "cache_size", "p");
+	za_read_gauge (ksp, "size",           "cache_size", "arc");
 
 	/* The "l2_size" value has disappeared from Solaris some time in
 	 * early 2013, and has only reappeared recently in Solaris 11.2.
@@ -284,17 +280,14 @@ static int za_read (void)
 
 	/* Operations */
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
-#if __FreeBSD__
+#if defined(KERNEL_FREEBSD)
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
-#if defined(__FreeBSD_version) && (__FreeBSD_version < 1002501)
-	/* stolen removed from sysctl kstat.zfs.misc.arcstats on FreeBSD 10.2+ */
-	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
-#endif
 #endif
 
 	/* Issue indicators */
 	za_read_derive (ksp, "mutex_miss", "mutex_operations", "miss");
 	za_read_derive (ksp, "hash_collisions", "hash_collisions", "");
+	za_read_derive (ksp, "memory_throttle_count", "memory_throttle_count", "");
 
 	/* Evictions */
 	za_read_derive (ksp, "evict_l2_cached",     "cache_eviction", "cached");
@@ -310,6 +303,11 @@ static int za_read (void)
 	za_read_derive (ksp, "demand_metadata_misses",   "cache_result", "demand_metadata-miss");
 	za_read_derive (ksp, "prefetch_data_misses",     "cache_result", "prefetch_data-miss");
 	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
+	za_read_derive (ksp, "mfu_hits",                 "cache_result", "mfu-hit");
+	za_read_derive (ksp, "mfu_ghost_hits",           "cache_result", "mfu_ghost-hit");
+	za_read_derive (ksp, "mru_hits",                 "cache_result", "mru-hit");
+	za_read_derive (ksp, "mru_ghost_hits",           "cache_result", "mru_ghost-hit");
+	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
 
 	/* Ratios */
 	arc_hits   = (gauge_t) get_zfs_value(ksp, "hits");
@@ -321,10 +319,11 @@ static int za_read (void)
 	za_submit_ratio ("L2", l2_hits, l2_misses);
 
 	/* I/O */
-	l2_io[0].derive = get_zfs_value(ksp, "l2_read_bytes");
-	l2_io[1].derive = get_zfs_value(ksp, "l2_write_bytes");
-
-	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
+	value_t  l2_io[] = {
+		{ .derive = (derive_t) get_zfs_value(ksp, "l2_read_bytes") },
+		{ .derive = (derive_t) get_zfs_value(ksp, "l2_write_bytes") },
+	};
+	za_submit ("io_octets", "L2", l2_io, STATIC_ARRAY_SIZE (l2_io));
 
 #if defined(KERNEL_LINUX)
 	free_zfs_values (ksp);
@@ -335,7 +334,7 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
-#if !defined(__FreeBSD__) && !defined(KERNEL_LINUX) // Solaris
+#if defined(KERNEL_SOLARIS)
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{

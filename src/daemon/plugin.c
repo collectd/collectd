@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "configfile.h"
@@ -150,34 +151,28 @@ static const char *plugin_get_dir (void)
 }
 
 static void plugin_update_internal_statistics (void) { /* {{{ */
-	derive_t copy_write_queue_length;
-	value_list_t vl = VALUE_LIST_INIT;
-	value_t values[2];
 
-	copy_write_queue_length = write_queue_length;
+	gauge_t copy_write_queue_length = (gauge_t) write_queue_length;
 
 	/* Initialize `vl' */
-	vl.values = values;
-	vl.values_len = 2;
-	vl.time = 0;
+	value_list_t vl = VALUE_LIST_INIT;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "collectd", sizeof (vl.plugin));
-
-	vl.type_instance[0] = 0;
-	vl.values_len = 1;
 
 	/* Write queue */
 	sstrncpy (vl.plugin_instance, "write_queue",
 			sizeof (vl.plugin_instance));
 
 	/* Write queue : queue length */
-	vl.values[0].gauge = (gauge_t) copy_write_queue_length;
+	vl.values = &(value_t) { .gauge = copy_write_queue_length };
+	vl.values_len = 1;
 	sstrncpy (vl.type, "queue_length", sizeof (vl.type));
 	vl.type_instance[0] = 0;
 	plugin_dispatch_values (&vl);
 
 	/* Write queue : Values dropped (queue length > low limit) */
-	vl.values[0].derive = (derive_t) stats_values_dropped;
+	vl.values = &(value_t) { .gauge = (gauge_t) stats_values_dropped };
+	vl.values_len = 1;
 	sstrncpy (vl.type, "derive", sizeof (vl.type));
 	sstrncpy (vl.type_instance, "dropped", sizeof (vl.type_instance));
 	plugin_dispatch_values (&vl);
@@ -187,7 +182,8 @@ static void plugin_update_internal_statistics (void) { /* {{{ */
 			sizeof (vl.plugin_instance));
 
 	/* Cache : Nb entry in cache tree */
-	vl.values[0].gauge = (gauge_t) uc_get_size();
+	vl.values = &(value_t) { .gauge = (gauge_t) uc_get_size() };
+	vl.values_len = 1;
 	sstrncpy (vl.type, "cache_size", sizeof (vl.type));
 	vl.type_instance[0] = 0;
 	plugin_dispatch_values (&vl);
@@ -318,8 +314,8 @@ static void log_list_callbacks (llist_t **list, /* {{{ */
 {
 	char *str;
 	int len;
-	llentry_t *le;
 	int i;
+	llentry_t *le;
 	int n;
 	char **keys;
 
@@ -368,13 +364,12 @@ static int create_register_callback (llist_t **list, /* {{{ */
 {
 	callback_func_t *cf;
 
-	cf = (callback_func_t *) malloc (sizeof (*cf));
+	cf = calloc (1, sizeof (*cf));
 	if (cf == NULL)
 	{
-		ERROR ("plugin: create_register_callback: malloc failed.");
+		ERROR ("plugin: create_register_callback: calloc failed.");
 		return (-1);
 	}
-	memset (cf, 0, sizeof (*cf));
 
 	cf->cf_callback = callback;
 	if (ud == NULL)
@@ -655,8 +650,6 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 
 static void start_read_threads (int num)
 {
-	int i;
-
 	if (read_threads != NULL)
 		return;
 
@@ -668,7 +661,7 @@ static void start_read_threads (int num)
 	}
 
 	read_threads_num = 0;
-	for (i = 0; i < num; i++)
+	for (int i = 0; i < num; i++)
 	{
 		if (pthread_create (read_threads + read_threads_num, NULL,
 					plugin_read_thread, NULL) == 0)
@@ -685,8 +678,6 @@ static void start_read_threads (int num)
 
 static void stop_read_threads (void)
 {
-	int i;
-
 	if (read_threads == NULL)
 		return;
 
@@ -698,7 +689,7 @@ static void stop_read_threads (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 
-	for (i = 0; i < read_threads_num; i++)
+	for (int i = 0; i < read_threads_num; i++)
 	{
 		if (pthread_join (read_threads[i], NULL) != 0)
 		{
@@ -870,8 +861,6 @@ static void *plugin_write_thread (void __attribute__((unused)) *args) /* {{{ */
 
 static void start_write_threads (size_t num) /* {{{ */
 {
-	size_t i;
-
 	if (write_threads != NULL)
 		return;
 
@@ -883,7 +872,7 @@ static void start_write_threads (size_t num) /* {{{ */
 	}
 
 	write_threads_num = 0;
-	for (i = 0; i < num; i++)
+	for (size_t i = 0; i < num; i++)
 	{
 		int status;
 
@@ -977,7 +966,7 @@ static _Bool plugin_is_loaded (char const *name)
 	int status;
 
 	if (plugins_loaded == NULL)
-		plugins_loaded = c_avl_create ((void *) strcasecmp);
+		plugins_loaded = c_avl_create ((int (*) (const void *, const void *)) strcasecmp);
 	assert (plugins_loaded != NULL);
 
 	status = c_avl_get (plugins_loaded, name, /* ret_value = */ NULL);
@@ -1244,14 +1233,13 @@ int plugin_register_read (const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1, sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_read: malloc failed.");
+		ERROR ("plugin_register_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	rf->rf_udata.data = NULL;
 	rf->rf_udata.free_func = NULL;
@@ -1278,14 +1266,13 @@ int plugin_register_complex_read (const char *group, const char *name,
 	read_func_t *rf;
 	int status;
 
-	rf = malloc (sizeof (*rf));
+	rf = calloc (1,sizeof (*rf));
 	if (rf == NULL)
 	{
-		ERROR ("plugin_register_complex_read: malloc failed.");
+		ERROR ("plugin_register_complex_read: calloc failed.");
 		return (ENOMEM);
 	}
 
-	memset (rf, 0, sizeof (read_func_t));
 	rf->rf_callback = (void *) callback;
 	if (group != NULL)
 		sstrncpy (rf->rf_group, group, sizeof (rf->rf_group));
@@ -1351,7 +1338,7 @@ static char *plugin_flush_callback_name (const char *name)
 	prefix_size = strlen(flush_prefix);
 	name_size = strlen(name);
 
-	flush_name = malloc (sizeof(char) * (name_size + prefix_size + 1));
+	flush_name = malloc (name_size + prefix_size + 1);
 	if (flush_name == NULL)
 	{
 		ERROR ("plugin_flush_callback_name: malloc failed.");
@@ -1384,7 +1371,7 @@ int plugin_register_flush (const char *name,
 		if (flush_name == NULL)
 			return (-1);
 
-		cb = malloc(sizeof(flush_callback_t));
+		cb = malloc(sizeof (*cb));
 		if (cb == NULL)
 		{
 			ERROR ("plugin_register_flush: malloc failed.");
@@ -1462,7 +1449,6 @@ static void plugin_free_data_sets (void)
 int plugin_register_data_set (const data_set_t *ds)
 {
 	data_set_t *ds_copy;
-	size_t i;
 
 	if ((data_sets != NULL)
 			&& (c_avl_get (data_sets, ds->type, NULL) == 0))
@@ -1477,12 +1463,12 @@ int plugin_register_data_set (const data_set_t *ds)
 			return (-1);
 	}
 
-	ds_copy = (data_set_t *) malloc (sizeof (data_set_t));
+	ds_copy = malloc (sizeof (*ds_copy));
 	if (ds_copy == NULL)
 		return (-1);
 	memcpy(ds_copy, ds, sizeof (data_set_t));
 
-	ds_copy->ds = (data_source_t *) malloc (sizeof (data_source_t)
+	ds_copy->ds = malloc (sizeof (*ds_copy->ds)
 			* ds->ds_num);
 	if (ds_copy->ds == NULL)
 	{
@@ -1490,7 +1476,7 @@ int plugin_register_data_set (const data_set_t *ds)
 		return (-1);
 	}
 
-	for (i = 0; i < ds->ds_num; i++)
+	for (size_t i = 0; i < ds->ds_num; i++)
 		memcpy (ds_copy->ds + i, ds->ds + i, sizeof (data_source_t));
 
 	return (c_avl_insert (data_sets, (void *) ds_copy->type, (void *) ds_copy));
@@ -1693,11 +1679,12 @@ int plugin_unregister_notification (const char *name)
 	return (plugin_unregister (list_notification, name));
 }
 
-void plugin_init_all (void)
+int plugin_init_all (void)
 {
 	char const *chain_name;
 	llentry_t *le;
 	int status;
+	int ret = 0;
 
 	/* Init the value cache */
 	uc_init ();
@@ -1742,7 +1729,7 @@ void plugin_init_all (void)
 	}
 
 	if ((list_init == NULL) && (read_heap == NULL))
-		return;
+		return ret;
 
 	/* Calling all init callbacks before checking if read callbacks
 	 * are available allows the init callbacks to register the read
@@ -1771,6 +1758,7 @@ void plugin_init_all (void)
 			 * handling themselves. */
 			/* FIXME: Unload _all_ functions */
 			plugin_unregister_read (le->key);
+			ret = -1;
 		}
 
 		le = le->next;
@@ -1792,6 +1780,7 @@ void plugin_init_all (void)
 		if (num != -1)
 			start_read_threads ((num > 0) ? num : 5);
 	}
+	return ret;
 } /* void plugin_init_all */
 
 /* TODO: Rename this function. */
@@ -1975,13 +1964,14 @@ int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
   return (0);
 } /* int plugin_flush */
 
-void plugin_shutdown_all (void)
+int plugin_shutdown_all (void)
 {
 	llentry_t *le;
-
-	stop_read_threads ();
+	int ret = 0;  // Assume success.
 
 	destroy_all_callbacks (&list_init);
+
+	stop_read_threads ();
 
 	pthread_mutex_lock (&read_lock);
 	llist_destroy (read_list);
@@ -1990,6 +1980,10 @@ void plugin_shutdown_all (void)
 
 	destroy_read_heap ();
 
+	/* blocks until all write threads have shut down. */
+	stop_write_threads ();
+
+	/* ask all plugins to write out the state they kept. */
 	plugin_flush (/* plugin = */ NULL,
 			/* timeout = */ 0,
 			/* identifier = */ NULL);
@@ -2014,12 +2008,11 @@ void plugin_shutdown_all (void)
 		 * after callback returns. */
 		le = le->next;
 
-		(*callback) ();
+		if ((*callback) () != 0)
+			ret = -1;
 
 		plugin_set_ctx (old_ctx);
 	}
-
-	stop_write_threads ();
 
 	/* Write plugins which use the `user_data' pointer usually need the
 	 * same data available to the flush callback. If this is the case, set
@@ -2036,6 +2029,7 @@ void plugin_shutdown_all (void)
 
 	plugin_free_loaded ();
 	plugin_free_data_sets ();
+	return (ret);
 } /* void plugin_shutdown_all */
 
 int plugin_dispatch_missing (const value_list_t *vl) /* {{{ */
@@ -2091,8 +2085,10 @@ static int plugin_dispatch_values_internal (value_list_t *vl)
 
 	int free_meta_data = 0;
 
-	if ((vl == NULL) || (vl->type[0] == 0)
-			|| (vl->values == NULL) || (vl->values_len < 1))
+	assert(vl);
+	assert(vl->plugin);
+
+	if (vl->type[0] == 0 || vl->values == NULL || vl->values_len < 1)
 	{
 		ERROR ("plugin_dispatch_values: Invalid value list "
 				"from plugin %s.", vl->plugin);
@@ -2357,7 +2353,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 
 	assert (template->values_len == 1);
 
-  /* Calculate sum for Gauge to calculate percent if needed */
+	/* Calculate sum for Gauge to calculate percent if needed */
 	if (DS_TYPE_GAUGE == store_type)	{
 		va_start (ap, store_type);
 		while (42)
@@ -2400,7 +2396,7 @@ int plugin_dispatch_multivalue (value_list_t const *template, /* {{{ */
 		case DS_TYPE_GAUGE:
 			vl->values[0].gauge = va_arg (ap, gauge_t);
 			if (store_percentage)
-				vl->values[0].gauge *= sum ? (100.0 / sum) : 0;
+				vl->values[0].gauge *= sum ? (100.0 / sum) : NAN;
 			break;
 		case DS_TYPE_ABSOLUTE:
 			vl->values[0].absolute = va_arg (ap, absolute_t);
@@ -2578,13 +2574,12 @@ static int plugin_notification_meta_add (notification_t *n,
     return (-1);
   }
 
-  meta = (notification_meta_t *) malloc (sizeof (notification_meta_t));
+  meta = calloc (1, sizeof (*meta));
   if (meta == NULL)
   {
-    ERROR ("plugin_notification_meta_add: malloc failed.");
+    ERROR ("plugin_notification_meta_add: calloc failed.");
     return (-1);
   }
-  memset (meta, 0, sizeof (notification_meta_t));
 
   sstrncpy (meta->name, name, sizeof (meta->name));
   meta->type = type;
@@ -2681,14 +2676,12 @@ int plugin_notification_meta_add_boolean (notification_t *n,
 int plugin_notification_meta_copy (notification_t *dst,
     const notification_t *src)
 {
-  notification_meta_t *meta;
-
   assert (dst != NULL);
   assert (src != NULL);
   assert (dst != src);
   assert ((src->meta == NULL) || (src->meta != dst->meta));
 
-  for (meta = src->meta; meta != NULL; meta = meta->next)
+  for (notification_meta_t *meta = src->meta; meta != NULL; meta = meta->next)
   {
     if (meta->type == NM_TYPE_STRING)
       plugin_notification_meta_add_string (dst, meta->name,

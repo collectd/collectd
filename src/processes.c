@@ -35,9 +35,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 /* Include header files for the mach system, if they exist.. */
 #if HAVE_THREAD_INFO
@@ -128,7 +128,13 @@
 #  undef SAVE_FOB_64
 #endif
 
+# include <sys/user.h>
 # include <dirent.h>
+
+#ifndef MAXCOMLEN
+#  define MAXCOMLEN 16
+#endif
+
 /* #endif KERNEL_SOLARIS */
 
 #else
@@ -263,20 +269,19 @@ static void ps_list_register (const char *name, const char *regexp)
 	procstat_t *ptr;
 	int status;
 
-	new = (procstat_t *) malloc (sizeof (procstat_t));
+	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 	{
-		ERROR ("processes plugin: ps_list_register: malloc failed.");
+		ERROR ("processes plugin: ps_list_register: calloc failed.");
 		return;
 	}
-	memset (new, 0, sizeof (procstat_t));
 	sstrncpy (new->name, name, sizeof (new->name));
 
 #if HAVE_REGEX_H
 	if (regexp != NULL)
 	{
 		DEBUG ("ProcessMatch: adding \"%s\" as criteria to process %s.", regexp, name);
-		new->re = (regex_t *) malloc (sizeof (regex_t));
+		new->re = malloc (sizeof (*new->re));
 		if (new->re == NULL)
 		{
 			ERROR ("processes plugin: ps_list_register: malloc failed.");
@@ -362,43 +367,38 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
-static void ps_update_counter (
-        _Bool init,
-        derive_t *group_counter,
-        derive_t *curr_counter, unsigned long *curr_value,
-        derive_t new_counter, unsigned long new_value) {
-    if (init)
-    {
-        *curr_value = new_value;
-        *curr_counter += new_value;
-        *group_counter += new_value;
-        return;
-    }
+static void ps_update_counter (_Bool init, derive_t *group_counter,
+				derive_t *curr_counter, unsigned long *curr_value,
+				derive_t new_counter, unsigned long new_value)
+{
+	if (init)
+	{
+		*curr_value = new_value;
+		*curr_counter += new_value;
+		*group_counter += new_value;
+		return;
+	}
 
-    if (new_counter < *curr_counter)
-    {
-        *curr_value = new_counter + (ULONG_MAX - *curr_counter);
-    }
-    else
-    {
-        *curr_value = new_counter - *curr_counter;
-    }
-    *curr_counter = new_counter;
-    *group_counter += *curr_value;
+	if (new_counter < *curr_counter)
+		*curr_value = new_counter + (ULONG_MAX - *curr_counter);
+	else
+		*curr_value = new_counter - *curr_counter;
+
+	*curr_counter = new_counter;
+	*group_counter += *curr_value;
 }
 
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
-	procstat_t *ps;
 	procstat_entry_t *pse;
 
 	if (entry->id == 0)
 		return;
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-        _Bool want_init;
+		_Bool want_init;
 
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
@@ -411,10 +411,9 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		{
 			procstat_entry_t *new;
 
-			new = (procstat_entry_t *) malloc (sizeof (procstat_entry_t));
+			new = calloc (1, sizeof (*new));
 			if (new == NULL)
 				return;
-			memset (new, 0, sizeof (procstat_entry_t));
 			new->id = entry->id;
 
 			if (pse == NULL)
@@ -483,11 +482,10 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 /* remove old entries from instances of processes in list_head_g */
 static void ps_list_reset (void)
 {
-	procstat_t *ps;
 	procstat_entry_t *pse;
 	procstat_entry_t *pse_prev;
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
@@ -539,9 +537,13 @@ static void ps_list_reset (void)
 /* put all pre-defined 'Process' names from config to list_head_g tree */
 static int ps_config (oconfig_item_t *ci)
 {
-	int i;
+#if KERNEL_LINUX
+	const size_t max_procname_len = 15;
+#elif KERNEL_SOLARIS || KERNEL_FREEBSD
+	const size_t max_procname_len = MAXCOMLEN -1;
+#endif
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (strcasecmp (c->key, "Process") == 0)
@@ -560,6 +562,15 @@ static int ps_config (oconfig_item_t *ci)
 						"content (%i elements) of the <Process '%s'> block.",
 						c->children_num, c->values[0].value.string);
 			}
+
+#if KERNEL_LINUX || KERNEL_SOLARIS || KERNEL_FREEBSD
+			if (strlen (c->values[0].value.string) > max_procname_len) {
+				WARNING ("processes plugin: this platform has a %zu character limit "
+						"to process names. The `Process \"%s\"' option will "
+						"not work as expected.",
+						max_procname_len, c->values[0].value.string);
+			}
+#endif
 
 			ps_list_register (c->values[0].value.string, NULL);
 		}
@@ -654,12 +665,9 @@ static int ps_init (void)
 /* submit global state (e.g.: qty of zombies, running, etc..) */
 static void ps_submit_state (const char *state, double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
@@ -673,11 +681,10 @@ static void ps_submit_state (const char *state, double value)
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list (procstat_t *ps)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[2];
 
 	vl.values = values;
-	vl.values_len = 2;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
@@ -778,12 +785,9 @@ static void ps_submit_proc_list (procstat_t *ps)
 #if KERNEL_LINUX || KERNEL_SOLARIS
 static void ps_submit_fork_rate (derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
 	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
@@ -1080,13 +1084,11 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	 * strchr(3) and strrchr(3) to avoid pointer arithmetic which would
 	 * otherwise be required to determine name_len. */
 	name_start_pos = 0;
-	while ((buffer[name_start_pos] != '(')
-			&& (name_start_pos < buffer_len))
+	while (name_start_pos < buffer_len && buffer[name_start_pos] != '(')
 		name_start_pos++;
 
 	name_end_pos = buffer_len;
-	while ((buffer[name_end_pos] != ')')
-			&& (name_end_pos > 0))
+	while (name_end_pos > 0 && buffer[name_end_pos] != ')')
 		name_end_pos--;
 
 	/* Either '(' or ')' is not found or they are in the wrong order.
@@ -1134,7 +1136,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 			ps->vmem_code = -1;
 			DEBUG("ps_read_process: did not get vmem data for pid %li", pid);
 		}
-		if (ps->num_lwp <= 0)
+		if (ps->num_lwp == 0)
 			ps->num_lwp = 1;
 		ps->num_proc = 1;
 	}
@@ -1270,7 +1272,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 		buf_ptr += status;
 		len     -= status;
 
-		if (len <= 0)
+		if (len == 0)
 			break;
 	}
 
@@ -1400,18 +1402,15 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 	snprintf(f_usage, sizeof (f_usage), "/proc/%li/usage", pid);
 
 
-	buffer = malloc(sizeof (pstatus_t));
-	memset(buffer, 0, sizeof (pstatus_t));
+	buffer = calloc(1, sizeof (pstatus_t));
 	read_file_contents(filename, buffer, sizeof (pstatus_t));
 	myStatus = (pstatus_t *) buffer;
 
-	buffer = malloc(sizeof (psinfo_t));
-	memset(buffer, 0, sizeof(psinfo_t));
+	buffer = calloc(1, sizeof (psinfo_t));
 	read_file_contents(f_psinfo, buffer, sizeof (psinfo_t));
 	myInfo = (psinfo_t *) buffer;
 
-	buffer = malloc(sizeof (prusage_t));
-	memset(buffer, 0, sizeof(prusage_t));
+	buffer = calloc(1, sizeof (prusage_t));
 	read_file_contents(f_usage, buffer, sizeof (prusage_t));
 	myUsage = (prusage_t *) buffer;
 
@@ -1421,6 +1420,10 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 		ps->num_proc = 0;
 		ps->num_lwp = 0;
 		*state = (char) 'Z';
+
+		sfree(myStatus);
+		sfree(myInfo);
+		sfree(myUsage);
 		return (0);
 	} else {
 		ps->num_proc = 1;
@@ -1505,13 +1508,12 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 static int read_fork_rate (void)
 {
 	extern kstat_ctl_t *kc;
-	kstat_t *ksp_chain = NULL;
 	derive_t result = 0;
 
 	if (kc == NULL)
 		return (-1);
 
-	for (ksp_chain = kc->kc_chain;
+	for (kstat_t *ksp_chain = kc->kc_chain;
 			ksp_chain != NULL;
 			ksp_chain = ksp_chain->ks_next)
 	{
@@ -1577,17 +1579,14 @@ static int ps_read (void)
 #if HAVE_THREAD_INFO
 	kern_return_t            status;
 
-	int                      pset;
 	processor_set_t          port_pset_priv;
 
-	int                      task;
 	task_array_t             task_list;
 	mach_msg_type_number_t   task_list_len;
 
 	int                      task_pid;
 	char                     task_name[MAXCOMLEN + 1];
 
-	int                      thread;
 	thread_act_array_t       thread_list;
 	mach_msg_type_number_t   thread_list_len;
 	thread_basic_info_data_t thread_data;
@@ -1612,7 +1611,7 @@ static int ps_read (void)
 	 * Tasks are assigned to sets of processors, so that's where you go to
 	 * get a list.
 	 */
-	for (pset = 0; pset < pset_list_len; pset++)
+	for (mach_msg_type_number_t pset = 0; pset < pset_list_len; pset++)
 	{
 		if ((status = host_processor_set_priv (port_host_self,
 						pset_list[pset],
@@ -1633,7 +1632,7 @@ static int ps_read (void)
 			continue;
 		}
 
-		for (task = 0; task < task_list_len; task++)
+		for (mach_msg_type_number_t task = 0; task < task_list_len; task++)
 		{
 			ps = NULL;
 			if (mach_get_task_name (task_list[task],
@@ -1731,7 +1730,7 @@ static int ps_read (void)
 				continue; /* with next task_list */
 			}
 
-			for (thread = 0; thread < thread_list_len; thread++)
+			for (mach_msg_type_number_t thread = 0; thread < thread_list_len; thread++)
 			{
 				thread_data_len = THREAD_BASIC_INFO_COUNT;
 				status = thread_info (thread_list[thread],
@@ -1858,8 +1857,6 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-	procstat_t *ps_ptr;
-
 	counter.running = counter.sleeping = counter.zombies = 0;
 	counter.stopped = counter.paging = counter.blocked = 0;
 	ps_list_reset ();
@@ -1960,7 +1957,7 @@ static int ps_read (void)
 	ps_submit_state ("paging",   counter.paging);
 	ps_submit_state ("blocked",  counter.blocked);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
 	read_fork_rate();
@@ -1980,9 +1977,7 @@ static int ps_read (void)
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
-	int i;
 
-	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2007,7 +2002,7 @@ static int ps_read (void)
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i = 0; i < count; i++)
+	for (int i = 0; i < count; i++)
 	{
 		/* Create only one process list entry per _process_, i.e.
 		 * filter out threads (duplicate PID entries). */
@@ -2110,7 +2105,7 @@ static int ps_read (void)
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("wait",     wait);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
@@ -2128,9 +2123,7 @@ static int ps_read (void)
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
-	int i;
 
-	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2155,7 +2148,7 @@ static int ps_read (void)
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i = 0; i < count; i++)
+	for (int i = 0; i < count; i++)
 	{
 		/* Create only one process list entry per _process_, i.e.
 		 * filter out threads (duplicate PID entries). */
@@ -2247,7 +2240,7 @@ static int ps_read (void)
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("dead",     dead);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
 
@@ -2263,7 +2256,6 @@ static int ps_read (void)
 	pid_t pindex = 0;
 	int nprocs;
 
-	procstat_t *ps;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2271,9 +2263,7 @@ static int ps_read (void)
 					/* fdsinfo = */ NULL, sizeof(struct fdsinfo64),
 					&pindex, MAXPROCENTRY)) > 0)
 	{
-		int i;
-
-		for (i = 0; i < nprocs; i++)
+		for (int i = 0; i < nprocs; i++)
 		{
 			tid64_t thindex;
 			int nthreads;
@@ -2384,7 +2374,7 @@ static int ps_read (void)
 	ps_submit_state ("paging",   paging);
 	ps_submit_state ("blocked",  blocked);
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 		ps_submit_proc_list (ps);
 /* #endif HAVE_PROCINFO_H */
 
@@ -2408,7 +2398,6 @@ static int ps_read (void)
 	DIR *proc;
 
 	int status;
-	procstat_t *ps_ptr;
 	char state;
 
 	char cmdline[PRARGSZ];
@@ -2498,7 +2487,7 @@ static int ps_read (void)
 	ps_submit_state ("system",   system);
 	ps_submit_state ("orphan",   orphan);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
 	read_fork_rate();

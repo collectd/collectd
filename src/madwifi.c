@@ -23,7 +23,7 @@
 
 
 /**
- * There are several data streams provided by Madwifi plugin, some are 
+ * There are several data streams provided by Madwifi plugin, some are
  * connected to network interface, some are connected to each node
  * associated to that interface. Nodes represents other sides in
  * wireless communication, for example on network interface in AP mode,
@@ -42,18 +42,18 @@
  *	node_stat	Node statistic counters
  *
  * Both statistic counters have type instances for each counter returned
- * by Madwifi. See madwifi.h for content of ieee80211_nodestats, 
+ * by Madwifi. See madwifi.h for content of ieee80211_nodestats,
  * ieee80211_stats and ath_stats structures. Type instances use the same
  * name as fields in these structures (like ns_rx_dup). Some fields are
  * not reported, because they are not counters (like ns_tx_deauth_code
  * or ast_tx_rssi). Fields ns_rx_bytes and ns_tx_bytes are reported as
  * node_octets data stream instead of type instance of node_stat.
  * Statistics are not logged when they are zero.
- * 
+ *
  * There are two sets of these counters - the first 'WatchList' is a
  * set of counters that are individually logged. The second 'MiscList'
  * is a set of counters that are summed together and the sum is logged.
- * By default, the most important statistics are in the WatchList and 
+ * By default, the most important statistics are in the WatchList and
  * many error statistics are in MiscList. There are also many statistics
  * that are not in any of these sets, so they are not monitored by default.
  * It is possible to alter these lists using configuration options:
@@ -89,9 +89,9 @@
 
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #include <dirent.h>
@@ -367,35 +367,34 @@ static int init_state = 0;
 static inline int item_watched(int i)
 {
 	assert (i >= 0);
-	assert (((size_t) i) < ((STATIC_ARRAY_SIZE (watch_items) + 1) * 32));
+	assert ((size_t) i < (STATIC_ARRAY_SIZE (watch_items) * 32));
 	return watch_items[i / 32] & FLAG (i);
 }
 
 static inline int item_summed(int i)
 {
 	assert (i >= 0);
-	assert (((size_t) i) < ((STATIC_ARRAY_SIZE (misc_items) + 1) * 32));
+	assert ((size_t) i < (STATIC_ARRAY_SIZE (misc_items) * 32));
 	return misc_items[i / 32] & FLAG (i);
 }
 
 static inline void watchlist_add (uint32_t *wl, int item)
 {
 	assert (item >= 0);
-	assert (item < ((WL_LEN + 1) * 32));
+	assert (item < WL_LEN * 32);
 	wl[item / 32] |= FLAG (item);
 }
 
 static inline void watchlist_remove (uint32_t *wl, int item)
 {
 	assert (item >= 0);
-	assert (item < ((WL_LEN + 1) * 32));
+	assert (item < WL_LEN * 32);
 	wl[item / 32] &= ~FLAG (item);
 }
 
 static inline void watchlist_set (uint32_t *wl, uint32_t val)
 {
-	int i;
-	for (i = 0; i < WL_LEN; i++)
+	for (int i = 0; i < WL_LEN; i++)
 		wl[i] = val;
 }
 
@@ -403,9 +402,8 @@ static inline void watchlist_set (uint32_t *wl, uint32_t val)
 static int watchitem_find (const char *name)
 {
 	int max = STATIC_ARRAY_SIZE (specs);
-	int i;
 
-	for (i = 0; i < max; i++)
+	for (int i = 0; i < max; i++)
 		if (strcasecmp (name, specs[i].name) == 0)
 			return i;
 
@@ -420,15 +418,14 @@ static int watchitem_find (const char *name)
 static int madwifi_real_init (void)
 {
 	size_t max = STATIC_ARRAY_SIZE (specs);
-	size_t i;
 
-	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
+	for (size_t i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i] = 0;
 
 	watchlist_set(watch_items, 0);
 	watchlist_set(misc_items, 0);
 
-	for (i = 0; i < max; i++)
+	for (size_t i = 0; i < max; i++)
 	{
 		bounds[specs[i].flags & SRC_MASK] = i;
 
@@ -439,7 +436,7 @@ static int madwifi_real_init (void)
 			misc_items[i / 32] |= FLAG (i);
 	}
 
-	for (i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
+	for (size_t i = 0; i < STATIC_ARRAY_SIZE (bounds); i++)
 		bounds[i]++;
 
 	return (0);
@@ -541,7 +538,7 @@ static int madwifi_config (const char *key, const char *value)
 
 
 static void submit (const char *dev, const char *type, const char *ti1,
-			const char *ti2, value_t *val, int len)
+			const char *ti2, value_t *val, size_t len)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -561,37 +558,34 @@ static void submit (const char *dev, const char *type, const char *ti1,
 }
 
 static void submit_derive (const char *dev, const char *type, const char *ti1,
-				const char *ti2, derive_t val)
+				const char *ti2, derive_t value)
 {
-	value_t item;
-	item.derive = val;
-	submit (dev, type, ti1, ti2, &item, 1);
+	submit (dev, type, ti1, ti2, &(value_t) { .derive = value }, 1);
 }
 
 static void submit_derive2 (const char *dev, const char *type, const char *ti1,
 				const char *ti2, derive_t val1, derive_t val2)
 {
-	value_t items[2];
-	items[0].derive = val1;
-	items[1].derive = val2;
-	submit (dev, type, ti1, ti2, items, 2);
+	value_t values[] = {
+          { .derive = val1 },
+          { .derive = val2 },
+        };
+
+	submit (dev, type, ti1, ti2, values, STATIC_ARRAY_SIZE (values));
 }
 
 static void submit_gauge (const char *dev, const char *type, const char *ti1,
-				const char *ti2, gauge_t val)
+				const char *ti2, gauge_t value)
 {
-	value_t item;
-	item.gauge = val;
-	submit (dev, type, ti1, ti2, &item, 1);
+	submit (dev, type, ti1, ti2, &(value_t) { .gauge = value }, 1);
 }
 
 static void submit_antx (const char *dev, const char *name,
 		u_int32_t *vals, int vals_num)
 {
 	char ti2[16];
-	int i;
 
-	for (i = 0; i < vals_num; i++)
+	for (int i = 0; i < vals_num; i++)
 	{
 		if (vals[i] == 0)
 			continue;
@@ -614,12 +608,11 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 			 const char *type_name, const char *misc_name)
 {
 	uint32_t misc = 0;
-	int i;
 
 	assert (which >= 1);
 	assert (((size_t) which) < STATIC_ARRAY_SIZE (bounds));
 
-	for (i = bounds[which - 1]; i < bounds[which]; i++)
+	for (int i = bounds[which - 1]; i < bounds[which]; i++)
 	{
 		uint32_t val = *(uint32_t *)(((char *) ptr) + specs[i].offset) ;
 
@@ -629,7 +622,7 @@ process_stat_struct (int which, const void *ptr, const char *dev, const char *ma
 		if (item_summed (i))
 			misc += val;
 	}
-	
+
 	if (misc != 0)
 		submit_derive (dev, type_name, misc_name, mac, misc);
 
@@ -699,7 +692,6 @@ process_80211stats (int sk, const char *dev)
 static int
 process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 {
-	struct iwreq iwr;
 	static char mac[DATA_MAX_NAME_LEN];
 	struct ieee80211req_sta_stats stats;
 	const struct ieee80211_nodestats *ns = &stats.is_stats;
@@ -714,10 +706,12 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 	if (item_watched (STAT_NODE_RSSI))
 		submit_gauge (dev, "node_rssi", mac, NULL, si->isi_rssi);
 
-	memset (&iwr, 0, sizeof (iwr));
+	struct iwreq iwr = {
+		.u.data.pointer = (void *) &stats,
+		.u.data.length = sizeof (stats)
+	};
 	sstrncpy(iwr.ifr_name, dev, sizeof (iwr.ifr_name));
-	iwr.u.data.pointer = (void *) &stats;
-	iwr.u.data.length = sizeof (stats);
+
 	memcpy(stats.is_u.macaddr, si->isi_macaddr, IEEE80211_ADDR_LEN);
 	status = ioctl(sk, IEEE80211_IOCTL_STA_STATS, &iwr);
 	if (status < 0)
@@ -750,17 +744,17 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 static int
 process_stations (int sk, const char *dev)
 {
-	uint8_t buf[24*1024];
-	struct iwreq iwr;
+	uint8_t buf[24*1024] = { 0 };
 	uint8_t *cp;
 	int nodes;
 	size_t len;
 	int status;
 
-	memset (&iwr, 0, sizeof (iwr));
+	struct iwreq iwr = {
+		.u.data.pointer = (void *) buf,
+		.u.data.length = sizeof (buf)
+	};
 	sstrncpy (iwr.ifr_name, dev, sizeof (iwr.ifr_name));
-	iwr.u.data.pointer = (void *) buf;
-	iwr.u.data.length = sizeof (buf);
 
 	status = ioctl (sk, IEEE80211_IOCTL_STA_INFO, &iwr);
 	if (status < 0)
@@ -891,7 +885,7 @@ procfs_iterate(int sk)
 	int status;
 	int num_success;
 	int num_fail;
-	
+
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		WARNING ("madwifi plugin: opening /proc/net/dev failed");
@@ -953,7 +947,7 @@ static int madwifi_read (void)
 
 /* procfs iteration is not safe because it does not check whether given
    interface is madwifi interface and there are private ioctls used, which
-   may do something completely different on non-madwifi devices.   
+   may do something completely different on non-madwifi devices.
    Therefore, it is not used unless explicitly enabled (and should be used
    together with ignorelist). */
 

@@ -35,6 +35,7 @@
 #endif
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -112,9 +113,7 @@ static _Bool values_percentage = 0;
 
 static int swap_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 		if (strcasecmp ("ReportBytes", child->key) == 0)
@@ -195,11 +194,10 @@ static void swap_submit_usage (char const *plugin_instance, /* {{{ */
 		gauge_t used, gauge_t free,
 		char const *other_name, gauge_t other_value)
 {
-	value_t v[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	vl.values = v;
-	vl.values_len = STATIC_ARRAY_SIZE (v);
+	vl.values = &(value_t) { .gauge = NAN };
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "swap", sizeof (vl.plugin));
 	if (plugin_instance != NULL)
@@ -223,12 +221,9 @@ static void swap_submit_derive (char const *type_instance, /* {{{ */
 		derive_t value)
 {
 	value_list_t vl = VALUE_LIST_INIT;
-	value_t v[1];
 
-	v[0].derive = value;
-
-	vl.values = v;
-	vl.values_len = STATIC_ARRAY_SIZE (v);
+	vl.values = &(value_t) { .derive = value };
+	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "swap", sizeof (vl.plugin));
 	sstrncpy (vl.type, "swap_io", sizeof (vl.type));
@@ -509,7 +504,6 @@ static int swap_read (void) /* {{{ */
 	char *s_paths;
         int swap_num;
         int status;
-        int i;
 
         gauge_t avail = 0;
         gauge_t total = 0;
@@ -542,7 +536,7 @@ static int swap_read (void) /* {{{ */
 		sfree (s);
 		return (-1);
 	}
-        for (i = 0; i < swap_num; i++)
+        for (int i = 0; i < swap_num; i++)
 		s->swt_ent[i].ste_path = s_paths + (i * PATH_MAX);
         s->swt_n = swap_num;
 
@@ -572,7 +566,7 @@ static int swap_read (void) /* {{{ */
 		/* less elements returned than requested */
 		swap_num = status;
 
-        for (i = 0; i < swap_num; i++)
+        for (int i = 0; i < swap_num; i++)
         {
 		char path[PATH_MAX];
 		gauge_t this_total;
@@ -625,7 +619,6 @@ static int swap_read (void) /* {{{ */
 	struct swapent *swap_entries;
 	int swap_num;
 	int status;
-	int i;
 
 	gauge_t used  = 0;
 	gauge_t total = 0;
@@ -664,7 +657,7 @@ static int swap_read (void) /* {{{ */
 
 	/* TODO: Report per-device stats. The path name is available from
 	 * swap_entries[i].se_path */
-	for (i = 0; i < swap_num; i++)
+	for (int i = 0; i < swap_num; i++)
 	{
 		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
 			continue;
@@ -677,6 +670,7 @@ static int swap_read (void) /* {{{ */
 	{
 		ERROR ("swap plugin: Total swap space (%g) is less than used swap space (%g).",
 				total, used);
+		sfree (swap_entries);
 		return (-1);
 	}
 
@@ -761,14 +755,13 @@ static int swap_read (void) /* {{{ */
 #elif HAVE_PERFSTAT
 static int swap_read (void) /* {{{ */
 {
-	perfstat_memory_total_t pmemory;
+	perfstat_memory_total_t pmemory = { 0 };
 	int status;
 
 	gauge_t total;
 	gauge_t free;
 	gauge_t reserved;
 
-	memset (&pmemory, 0, sizeof (pmemory));
         status = perfstat_memory_total (NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
 	if (status < 0)
 	{

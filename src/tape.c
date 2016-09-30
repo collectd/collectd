@@ -21,6 +21,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -60,14 +61,14 @@ static void tape_submit (const char *plugin_instance,
 		const char *type,
 		derive_t read, derive_t write)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = read;
-	values[1].derive = write;
+	value_t values[] = {
+		{ .derive = read },
+		{ .derive = write },
+	};
 
 	vl.values = values;
-	vl.values_len = 2;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "tape", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
@@ -98,7 +99,6 @@ static int tape_read (void)
 # error "kstat_io_t does not have the required members"
 #endif
 	static kstat_io_t kio;
-	int i;
 
 	if (kc == NULL)
 		return (-1);
@@ -106,7 +106,7 @@ static int tape_read (void)
 	if (numtape <= 0)
 		return (-1);
 
-	for (i = 0; i < numtape; i++)
+	for (int i = 0; i < numtape; i++)
 	{
 		if (kstat_read (kc, ksp[i], &kio) == -1)
 			continue;

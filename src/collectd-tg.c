@@ -46,7 +46,6 @@
 
 #include "libcollectdclient/collectd/client.h"
 #include "libcollectdclient/collectd/network.h"
-#include "libcollectdclient/collectd/network_buffer.h"
 
 #define DEF_NUM_HOSTS    1000
 #define DEF_NUM_PLUGINS    20
@@ -156,13 +155,12 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
   lcc_value_list_t *vl;
   int host_num;
 
-  vl = malloc (sizeof (*vl));
+  vl = calloc (1, sizeof (*vl));
   if (vl == NULL)
   {
-    fprintf (stderr, "malloc failed.\n");
+    fprintf (stderr, "calloc failed.\n");
     return (NULL);
   }
-  memset (vl, 0, sizeof (*vl));
 
   vl->values = calloc (/* nmemb = */ 1, sizeof (*vl->values));
   if (vl->values == NULL)
@@ -339,7 +337,6 @@ static int read_options (int argc, char **argv) /* {{{ */
 
 int main (int argc, char **argv) /* {{{ */
 {
-  int i;
   double last_time;
   int values_sent = 0;
 
@@ -368,7 +365,7 @@ int main (int argc, char **argv) /* {{{ */
   else
   {
     lcc_server_t *srv;
-    
+
     srv = lcc_server_create (net, conf_destination, conf_service);
     if (srv == NULL)
     {
@@ -385,7 +382,7 @@ int main (int argc, char **argv) /* {{{ */
 
   fprintf (stdout, "Creating %i values ... ", conf_num_values);
   fflush (stdout);
-  for (i = 0; i < conf_num_values; i++)
+  for (int i = 0; i < conf_num_values; i++)
   {
     lcc_value_list_t *vl;
 
@@ -452,7 +449,6 @@ int main (int argc, char **argv) /* {{{ */
 
   lcc_network_destroy (net);
   exit (EXIT_SUCCESS);
-  return (0);
 } /* }}} int main */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

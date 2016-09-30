@@ -25,19 +25,15 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
-#include "configfile.h"
-#include "utils_cache.h"
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
-#include "utils_crc32.h"
 
 #include <stdint.h>
 #include <librdkafka/rdkafka.h>
-#include <pthread.h>
-#include <zlib.h>
 #include <errno.h>
 
 struct kafka_topic_context {
@@ -74,11 +70,19 @@ static void kafka_log(const rd_kafka_t *rkt, int level,
 }
 #endif
 
+static uint32_t kafka_hash(const char *keydata, size_t keylen)
+{
+    uint32_t hash = 5381;
+    for (; keylen > 0; keylen--)
+        hash = ((hash << 5) + hash) + keydata[keylen - 1];
+    return hash;
+}
+
 static int32_t kafka_partition(const rd_kafka_topic_t *rkt,
                                const void *keydata, size_t keylen,
                                int32_t partition_cnt, void *p, void *m)
 {
-    uint32_t key = *((uint32_t *)keydata );
+    uint32_t key = kafka_hash(keydata, keylen);
     uint32_t target = key % partition_cnt;
     int32_t  i = partition_cnt;
 
@@ -114,7 +118,7 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 
         INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
 
-#ifdef HAVE_LIBRDKAFKA_LOGGER
+#if defined(HAVE_LIBRDKAFKA_LOGGER) && !defined(HAVE_LIBRDKAFKA_LOG_CB)
         rd_kafka_set_logger(ctx->kafka, kafka_log);
 #endif
     }
@@ -202,6 +206,8 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
     key = ctx->key;
     if (key != NULL)
         keylen = strlen (key);
+    else
+        keylen = 0;
 
     rd_kafka_produce(ctx->topic, RD_KAFKA_PARTITION_UA,
                      RD_KAFKA_MSG_F_COPY, buffer, blen,
@@ -234,13 +240,11 @@ static void kafka_topic_context_free(void *p) /* {{{ */
 static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{ */
 {
     int                          status;
-    int                          i;
     struct kafka_topic_context  *tctx;
     char                        *key = NULL;
     char                        *val;
     char                         callback_name[DATA_MAX_NAME_LEN];
     char                         errbuf[1024];
-    user_data_t                  ud;
     oconfig_item_t              *child;
     rd_kafka_conf_res_t          ret;
 
@@ -252,6 +256,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     tctx->escape_char = '.';
     tctx->store_rates = 1;
     tctx->format = KAFKA_FORMAT_JSON;
+    tctx->key = NULL;
 
     if ((tctx->kafka_conf = rd_kafka_conf_dup(conf)) == NULL) {
         sfree(tctx);
@@ -285,7 +290,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
         goto errout;
     }
 
-    for (i = 0; i < ci->children_num; i++) {
+    for (int i = 0; i < ci->children_num; i++) {
         /*
          * The code here could be simplified but makes room
          * for easy adding of new options later on.
@@ -315,6 +320,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 
         } else if (strcasecmp ("Key", child->key) == 0)  {
             cf_util_get_string (child, &tctx->key);
+            assert (tctx->key != NULL);
         } else if (strcasecmp ("Format", child->key) == 0) {
             status = cf_util_get_string(child, &key);
             if (status != 0)
@@ -377,10 +383,11 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     ssnprintf(callback_name, sizeof(callback_name),
               "write_kafka/%s", tctx->topic_name);
 
-    ud.data = tctx;
-    ud.free_func = kafka_topic_context_free;
-
-    status = plugin_register_write (callback_name, kafka_write, &ud);
+    status = plugin_register_write (callback_name, kafka_write,
+            &(user_data_t) {
+                .data = tctx,
+                .free_func = kafka_topic_context_free,
+            });
     if (status != 0) {
         WARNING ("write_kafka plugin: plugin_register_write (\"%s\") "
                 "failed with status %i.",
@@ -403,7 +410,6 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 
 static int kafka_config(oconfig_item_t *ci) /* {{{ */
 {
-    int                          i;
     oconfig_item_t              *child;
     rd_kafka_conf_t             *conf;
     rd_kafka_conf_res_t          ret;
@@ -413,7 +419,7 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
         WARNING("cannot allocate kafka configuration.");
         return -1;
     }
-    for (i = 0; i < ci->children_num; i++)  {
+    for (int i = 0; i < ci->children_num; i++)  {
         child = &ci->children[i];
 
         if (strcasecmp("Topic", child->key) == 0) {
@@ -469,4 +475,3 @@ void module_register(void)
 {
     plugin_register_complex_config ("write_kafka", kafka_config);
 }
-

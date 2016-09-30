@@ -26,6 +26,7 @@
 
 #include "collectd.h"
 
+
 #include <pthread.h>
 #include <regex.h>
 
@@ -157,7 +158,7 @@ static int lu_copy_ident_to_match_part (part_match_t *match_part, /* {{{ */
   assert (sizeof (match_part->str) > len);
   /* strip trailing slash */
   match_part->str[len - 2] = 0;
-  
+
   status = regcomp (&match_part->regex, match_part->str,
       /* flags = */ REG_EXTENDED);
   if (status != 0)
@@ -169,7 +170,7 @@ static int lu_copy_ident_to_match_part (part_match_t *match_part, /* {{{ */
     return (EINVAL);
   }
   match_part->is_regex = 1;
-  
+
   return (0);
 } /* }}} int lu_copy_ident_to_match_part */
 
@@ -204,13 +205,12 @@ static void *lu_create_user_obj (lookup_t *obj, /* {{{ */
 {
   user_obj_t *user_obj;
 
-  user_obj = malloc (sizeof (*user_obj));
+  user_obj = calloc (1, sizeof (*user_obj));
   if (user_obj == NULL)
   {
-    ERROR ("utils_vl_lookup: malloc failed.");
+    ERROR ("utils_vl_lookup: calloc failed.");
     return (NULL);
   }
-  memset (user_obj, 0, sizeof (*user_obj));
   user_obj->next = NULL;
 
   user_obj->user_obj = obj->cb_user_class (ds, vl, user_class->user_class);
@@ -337,7 +337,7 @@ static int lu_handle_user_class_list (lookup_t *obj, /* {{{ */
 {
   user_class_list_t *ptr;
   int retval = 0;
-  
+
   for (ptr = user_class_list; ptr != NULL; ptr = ptr->next)
   {
     int status;
@@ -373,17 +373,16 @@ static by_type_entry_t *lu_search_by_type (lookup_t *obj, /* {{{ */
     return (NULL);
   }
 
-  by_type = malloc (sizeof (*by_type));
+  by_type = calloc (1, sizeof (*by_type));
   if (by_type == NULL)
   {
-    ERROR ("utils_vl_lookup: malloc failed.");
+    ERROR ("utils_vl_lookup: calloc failed.");
     sfree (type_copy);
     return (NULL);
   }
-  memset (by_type, 0, sizeof (*by_type));
   by_type->wildcard_plugin_list = NULL;
-  
-  by_type->by_plugin_tree = c_avl_create ((void *) strcmp);
+
+  by_type->by_plugin_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (by_type->by_plugin_tree == NULL)
   {
     ERROR ("utils_vl_lookup: c_avl_create failed.");
@@ -403,7 +402,7 @@ static by_type_entry_t *lu_search_by_type (lookup_t *obj, /* {{{ */
     sfree (type_copy);
     return (NULL);
   }
-  
+
   return (by_type);
 } /* }}} by_type_entry_t *lu_search_by_type */
 
@@ -497,6 +496,21 @@ static void lu_destroy_user_class_list (lookup_t *obj, /* {{{ */
       obj->cb_free_class (user_class_list->entry.user_class);
     user_class_list->entry.user_class = NULL;
 
+#define CLEAR_FIELD(field) do { \
+    if (user_class_list->entry.match.field.is_regex) { \
+      regfree (&user_class_list->entry.match.field.regex); \
+      user_class_list->entry.match.field.is_regex = 0; \
+    } \
+} while (0)
+
+    CLEAR_FIELD (host);
+    CLEAR_FIELD (plugin);
+    CLEAR_FIELD (plugin_instance);
+    CLEAR_FIELD (type);
+    CLEAR_FIELD (type_instance);
+
+#undef CLEAR_FIELD
+
     lu_destroy_user_obj (obj, user_class_list->entry.user_obj_list);
     user_class_list->entry.user_obj_list = NULL;
     pthread_mutex_destroy (&user_class_list->entry.lock);
@@ -509,7 +523,7 @@ static void lu_destroy_user_class_list (lookup_t *obj, /* {{{ */
 static void lu_destroy_by_type (lookup_t *obj, /* {{{ */
     by_type_entry_t *by_type)
 {
-  
+
   while (42)
   {
     char *plugin = NULL;
@@ -544,15 +558,14 @@ lookup_t *lookup_create (lookup_class_callback_t cb_user_class, /* {{{ */
     lookup_free_class_callback_t cb_free_class,
     lookup_free_obj_callback_t cb_free_obj)
 {
-  lookup_t *obj = malloc (sizeof (*obj));
+  lookup_t *obj = calloc (1, sizeof (*obj));
   if (obj == NULL)
   {
-    ERROR ("utils_vl_lookup: malloc failed.");
+    ERROR ("utils_vl_lookup: calloc failed.");
     return (NULL);
   }
-  memset (obj, 0, sizeof (*obj));
 
-  obj->by_type_tree = c_avl_create ((void *) strcmp);
+  obj->by_type_tree = c_avl_create ((int (*) (const void *, const void *)) strcmp);
   if (obj->by_type_tree == NULL)
   {
     ERROR ("utils_vl_lookup: c_avl_create failed.");
@@ -605,13 +618,12 @@ int lookup_add (lookup_t *obj, /* {{{ */
   if (by_type == NULL)
     return (-1);
 
-  user_class_obj = malloc (sizeof (*user_class_obj));
+  user_class_obj = calloc (1, sizeof (*user_class_obj));
   if (user_class_obj == NULL)
   {
-    ERROR ("utils_vl_lookup: malloc failed.");
+    ERROR ("utils_vl_lookup: calloc failed.");
     return (ENOMEM);
   }
-  memset (user_class_obj, 0, sizeof (*user_class_obj));
   pthread_mutex_init (&user_class_obj->entry.lock, /* attr = */ NULL);
   user_class_obj->entry.user_class = user_class;
   lu_copy_ident_to_match (&user_class_obj->entry.match, ident, group_by);
@@ -655,6 +667,6 @@ int lookup_search (lookup_t *obj, /* {{{ */
       return (status);
     retval += status;
   }
-    
+
   return (retval);
 } /* }}} lookup_search */

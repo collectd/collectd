@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -35,12 +36,16 @@
 static const char *config_keys[] =
 {
   "Disk",
-  "IgnoreSelected"
+  "IgnoreSelected",
+  "IgnoreSleepMode",
+  "UseSerial"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+static int ignore_sleep_mode = 0;
+static int use_serial = 0;
 
 static int smart_config (const char *key, const char *value)
 {
@@ -60,6 +65,16 @@ static int smart_config (const char *key, const char *value)
       invert = 0;
     ignorelist_set_invert (ignorelist, invert);
   }
+  else if (strcasecmp ("IgnoreSleepMode", key) == 0)
+  {
+    if (IS_TRUE (value))
+      ignore_sleep_mode = 1;
+  }
+  else if (strcasecmp ("UseSerial", key) == 0)
+  {
+    if (IS_TRUE (value))
+      use_serial = 1;
+  }
   else
   {
     return (-1);
@@ -71,12 +86,9 @@ static int smart_config (const char *key, const char *value)
 static void smart_submit (const char *dev, const char *type,
 		const char *type_inst, double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "smart", sizeof (vl.plugin));
@@ -91,17 +103,20 @@ static void smart_handle_disk_attribute(SkDisk *d, const SkSmartAttributeParsedD
                                         void* userdata)
 {
   const char *dev = userdata;
-  value_t values[4];
-  value_list_t vl = VALUE_LIST_INIT;
 
-  if (!a->current_value_valid || !a->worst_value_valid) return;
-  values[0].gauge = a->current_value;
-  values[1].gauge = a->worst_value;
-  values[2].gauge = a->threshold_valid?a->threshold:0;
-  values[3].gauge = a->pretty_value;
+  if (!a->current_value_valid || !a->worst_value_valid)
+    return;
+
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {
+    { .gauge = a->current_value },
+    { .gauge = a->worst_value },
+    { .gauge = a->threshold_valid ? a->threshold : 0 },
+    { .gauge = a->pretty_value },
+  };
 
   vl.values = values;
-  vl.values_len = 4;
+  vl.values_len = STATIC_ARRAY_SIZE (values);
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "smart", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
@@ -130,7 +145,7 @@ static void smart_handle_disk_attribute(SkDisk *d, const SkSmartAttributeParsedD
   }
 }
 
-static void smart_handle_disk (const char *dev)
+static void smart_handle_disk (const char *dev, const char *serial)
 {
   SkDisk *d = NULL;
   SkBool awake = FALSE;
@@ -139,9 +154,16 @@ static void smart_handle_disk (const char *dev)
   const SkSmartParsedData *spd;
   uint64_t poweron, powercycles, badsectors, temperature;
 
-  shortname = strrchr(dev, '/');
-  if (!shortname) return;
-  shortname++;
+  if (use_serial && serial)
+  {
+    shortname = serial;
+  }
+  else
+  {
+    shortname = strrchr(dev, '/');
+    if (!shortname) return;
+    shortname++;
+  }
   if (ignorelist_match (ignorelist, shortname) != 0) {
     DEBUG ("smart plugin: ignoring %s.", dev);
     return;
@@ -165,10 +187,13 @@ static void smart_handle_disk (const char *dev)
     DEBUG ("smart plugin: disk %s has no SMART support.", dev);
     goto end;
   }
-  if (sk_disk_check_sleep_mode (d, &awake) < 0 || !awake)
+  if (!ignore_sleep_mode)
   {
-    DEBUG ("smart plugin: disk %s is sleeping.", dev);
-    goto end;
+    if (sk_disk_check_sleep_mode (d, &awake) < 0 || !awake)
+    {
+      DEBUG ("smart plugin: disk %s is sleeping.", dev);
+      goto end;
+    }
   }
   if (sk_disk_smart_read_data (d) < 0)
   {
@@ -247,13 +272,14 @@ static int smart_read (void)
   devices = udev_enumerate_get_list_entry (enumerate);
   udev_list_entry_foreach (dev_list_entry, devices)
   {
-    const char *path, *devpath;
+    const char *path, *devpath, *serial;
     path = udev_list_entry_get_name (dev_list_entry);
     dev = udev_device_new_from_syspath (handle_udev, path);
     devpath = udev_device_get_devnode (dev);
+    serial = udev_device_get_property_value (dev, "ID_SERIAL");
 
     /* Query status with libatasmart */
-    smart_handle_disk (devpath);
+    smart_handle_disk (devpath, serial);
     udev_device_unref (dev);
   }
 

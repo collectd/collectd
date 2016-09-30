@@ -28,6 +28,7 @@
 #define UTILS_FORMAT_JSON_H 1
 
 #include "collectd.h"
+
 #include "plugin.h"
 
 #ifndef JSON_GAUGE_FORMAT
@@ -41,5 +42,7 @@ int format_json_value_list (char *buffer,
     const data_set_t *ds, const value_list_t *vl, int store_rates);
 int format_json_finalize (char *buffer,
     size_t *ret_buffer_fill, size_t *ret_buffer_free);
+int format_json_notification (char *buffer, size_t buffer_size,
+    notification_t const *n);
 
 #endif /* UTILS_FORMAT_JSON_H */

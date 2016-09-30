@@ -27,6 +27,7 @@
 #define _BSD_SOURCE
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -77,8 +78,6 @@ static int load_config (const char *key, const char *value)
 }
 static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
-	value_t values[3];
-	value_list_t vl = VALUE_LIST_INIT;
         int cores = 0;
         char errbuf[1024];
 
@@ -96,9 +95,12 @@ static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 		lnum /= cores;
 	}
 
-	values[0].gauge = snum;
-	values[1].gauge = mnum;
-	values[2].gauge = lnum;
+	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[] = {
+		{ .gauge = snum },
+		{ .gauge = mnum },
+		{ .gauge = lnum },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);

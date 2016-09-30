@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_cache.h"
 #include "plugin.h"
@@ -29,6 +30,7 @@
 #include <unistd.h>
 #include <linux/i2c-dev.h>
 #include <math.h>
+#include <sys/ioctl.h>
 
 /* ------------ MPL115 defines ------------ */
 /* I2C address of the MPL115 sensor */
@@ -343,9 +345,9 @@ static temperature_list_t * temp_list = NULL;
  */
 static int temp_list_add(temperature_list_t * list, const char * sensor)
 {
-    temperature_list_t * new_temp;
+    temperature_list_t *new_temp;
 
-    new_temp = (temperature_list_t *) malloc(sizeof(*new_temp));
+    new_temp = malloc(sizeof (*new_temp));
     if(new_temp == NULL)
         return -1;
 
@@ -407,7 +409,6 @@ static int get_reference_temperature(double * result)
 
     gauge_t * values = NULL;   /**< rate values */
     size_t    values_num = 0;  /**< number of rate values */
-    size_t i;
 
     gauge_t values_history[REF_TEMP_AVG_NUM];
 
@@ -445,7 +446,7 @@ static int get_reference_temperature(double * result)
             list->initialized = 1;
             list->num_values = values_num;
 
-            for(i=0; i<values_num; ++i)
+            for(size_t i=0; i<values_num; ++i)
             {
                 DEBUG ("barometer: get_reference_temperature - rate %zu: %lf **",
                        i, values[i]);
@@ -474,7 +475,7 @@ static int get_reference_temperature(double * result)
             continue;
         }
 
-        for(i=0; i<REF_TEMP_AVG_NUM*list->num_values; ++i)
+        for(size_t i=0; i<REF_TEMP_AVG_NUM*list->num_values; ++i)
         {
             DEBUG ("barometer: get_reference_temperature - history %zu: %lf",
                    i, values_history[i]);
@@ -499,7 +500,7 @@ static int get_reference_temperature(double * result)
                 continue;
             }
 
-            for(i=0; i<values_num; ++i)
+            for(size_t i=0; i<values_num; ++i)
             {
                 DEBUG ("barometer: get_reference_temperature - rate last %zu: %lf **",
                        i, values[i]);
@@ -1580,8 +1581,7 @@ static int MPL115_collectd_barometer_read (void)
        already available. */
     if(!avg_initialized)
     {
-        int i;
-        for(i=0; i<config_oversample-1; ++i)
+        for(int i=0; i<config_oversample-1; ++i)
         {
             result = MPL115_read_averaged(&pressure, &temperature);
             if(result)

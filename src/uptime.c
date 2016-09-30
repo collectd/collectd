@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -57,14 +58,11 @@ static time_t boottime;
 extern kstat_ctl_t *kc;
 #endif /* #endif HAVE_LIBKSTAT */
 
-static void uptime_submit (gauge_t uptime)
+static void uptime_submit (gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = uptime;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -179,17 +177,13 @@ static int uptime_init (void) /* {{{ */
 /* #endif HAVE_LIBKSTAT */
 
 # elif HAVE_SYS_SYSCTL_H
-	struct timeval boottv;
+	struct timeval boottv = { 0 };
 	size_t boottv_len;
 	int status;
 
-	int mib[2];
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_BOOTTIME;
+	int mib[] = { CTL_KERN, KERN_BOOTTIME };
 
 	boottv_len = sizeof (boottv);
-	memset (&boottv, 0, boottv_len);
 
 	status = sysctl (mib, STATIC_ARRAY_SIZE (mib), &boottv, &boottv_len,
 			/* new_value = */ NULL, /* new_length = */ 0);

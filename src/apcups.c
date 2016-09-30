@@ -25,9 +25,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"      /* rrd_update_file */
 #include "plugin.h"      /* plugin_register, plugin_submit */
-#include "configfile.h"  /* cf_register */
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -38,6 +38,10 @@
 
 #if HAVE_NETINET_IN_H
 # include <netinet/in.h>
+#endif
+
+#ifndef APCUPS_SERVER_TIMEOUT
+# define APCUPS_SERVER_TIMEOUT 15.0
 #endif
 
 #ifndef APCUPS_DEFAULT_NODE
@@ -85,7 +89,7 @@ static int net_shutdown (int *fd)
 	if ((fd == NULL) || (*fd < 0))
 		return (EINVAL);
 
-	swrite (*fd, (void *) &packet_size, sizeof (packet_size));
+	(void)swrite (*fd, (void *) &packet_size, sizeof (packet_size));
 	close (*fd);
 	*fd = -1;
 
@@ -111,15 +115,14 @@ static int net_open (char const *node, char const *service)
 {
 	int              sd;
 	int              status;
-	struct addrinfo  ai_hints;
 	struct addrinfo *ai_return;
 	struct addrinfo *ai_list;
 
-	/* Resolve name */
-	memset (&ai_hints, 0, sizeof (ai_hints));
 	/* TODO: Change this to `AF_UNSPEC' if apcupsd can handle IPv6 */
-	ai_hints.ai_family   = AF_INET;
-	ai_hints.ai_socktype = SOCK_STREAM;
+	struct addrinfo ai_hints = {
+		.ai_family = AF_INET,
+		.ai_socktype = SOCK_STREAM
+	};
 
 	status = getaddrinfo (node, service, &ai_hints, &ai_return);
 	if (status != 0)
@@ -322,9 +325,6 @@ static int apc_query_server (char const *node, char const *service,
 		printf ("net_recv = `%s';\n", recvline);
 #endif /* if APCMAIN */
 
-		if (strncmp ("END APC", recvline, strlen ("END APC")) == 0)
-			break;
-
 		toksaveptr = NULL;
 		tokptr = strtok_r (recvline, " :\t", &toksaveptr);
 		while (tokptr != NULL)
@@ -380,9 +380,9 @@ static int apc_query_server (char const *node, char const *service,
 
 static int apcups_config (oconfig_item_t *ci)
 {
-	int i;
+	_Bool persistent_conn_set = 0;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -392,10 +392,23 @@ static int apcups_config (oconfig_item_t *ci)
 			cf_util_get_service (child, &conf_service);
 		else if (strcasecmp (child->key, "ReportSeconds") == 0)
 			cf_util_get_boolean (child, &conf_report_seconds);
-		else if (strcasecmp (child->key, "PersistentConnection") == 0)
+		else if (strcasecmp (child->key, "PersistentConnection") == 0) {
 			cf_util_get_boolean (child, &conf_persistent_conn);
+			persistent_conn_set = 1;
+		}
 		else
 			ERROR ("apcups plugin: Unknown config option \"%s\".", child->key);
+	}
+
+	if (!persistent_conn_set) {
+		double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
+		if (interval > APCUPS_SERVER_TIMEOUT) {
+			NOTICE ("apcups plugin: Plugin poll interval set to %.3f seconds. "
+				"Apcupsd NIS socket timeout is %.3f seconds, "
+				"PersistentConnection disabled by default.",
+				interval, APCUPS_SERVER_TIMEOUT);
+			conf_persistent_conn = 0;
+		}
 	}
 
 	return (0);
@@ -403,12 +416,9 @@ static int apcups_config (oconfig_item_t *ci)
 
 static void apc_submit_generic (const char *type, const char *type_inst, double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "apcups", sizeof (vl.plugin));

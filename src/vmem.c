@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -64,12 +65,13 @@ static void submit (const char *plugin_instance, const char *type,
 static void submit_two (const char *plugin_instance, const char *type,
     const char *type_instance, derive_t c0, derive_t c1)
 {
-  value_t values[2];
+  value_t values[] = {
+    { .derive = c0 },
+    { .derive = c1 },
+  };
 
-  values[0].derive = c0;
-  values[1].derive = c1;
-
-  submit (plugin_instance, type, type_instance, values, 2);
+  submit (plugin_instance, type, type_instance,
+      values, STATIC_ARRAY_SIZE (values));
 } /* void submit_one */
 
 static void submit_one (const char *plugin_instance, const char *type,
@@ -147,7 +149,7 @@ static int vmem_read (void)
     if (fields[1] == endptr)
       continue;
 
-    /* 
+    /*
      * Number of pages
      *
      * The total number of {inst} pages, e. g dirty pages.
@@ -167,7 +169,7 @@ static int vmem_read (void)
       }
     }
 
-    /* 
+    /*
      * Page in and page outs. For memory and swap.
      */
     else if (strcmp ("pgpgin", key) == 0)

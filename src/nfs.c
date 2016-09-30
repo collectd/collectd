@@ -23,6 +23,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -221,7 +222,7 @@ static size_t nfs4_server40_procedures_names_num = STATIC_ARRAY_SIZE (nfs4_serve
 static const char *nfs4_server41_procedures_names[] =
 {
 	"backchannel_ctl",
-	"bind_conn_to_session",	
+	"bind_conn_to_session",
 	"exchange_id",
 	"create_session",
 	"destroy_session",
@@ -345,8 +346,6 @@ static int nfs_init (void)
 #elif HAVE_LIBKSTAT
 static int nfs_init (void)
 {
-	kstat_t *ksp_chain = NULL;
-
 	nfs2_ksp_client = NULL;
 	nfs2_ksp_server = NULL;
 	nfs3_ksp_client = NULL;
@@ -357,7 +356,7 @@ static int nfs_init (void)
 	if (kc == NULL)
 		return (-1);
 
-	for (ksp_chain = kc->kc_chain; ksp_chain != NULL;
+	for (kstat_t *ksp_chain = kc->kc_chain; ksp_chain != NULL;
 			ksp_chain = ksp_chain->ks_next)
 	{
 		if (strncmp (ksp_chain->ks_module, "nfs", 3) != 0)
@@ -385,7 +384,6 @@ static void nfs_procedures_submit (const char *plugin_instance,
 		value_t *values, size_t values_num)
 {
 	value_list_t vl = VALUE_LIST_INIT;
-	size_t i;
 
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -394,7 +392,7 @@ static void nfs_procedures_submit (const char *plugin_instance,
 			sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "nfs_procedure", sizeof (vl.type));
 
-	for (i = 0; i < values_num; i++)
+	for (size_t i = 0; i < values_num; i++)
 	{
 		vl.values = values + i;
 		sstrncpy (vl.type_instance, type_instances[i],
@@ -404,17 +402,16 @@ static void nfs_procedures_submit (const char *plugin_instance,
 } /* void nfs_procedures_submit */
 
 #if KERNEL_LINUX
-static void nfs_submit_fields (int nfs_version, const char *instance, 
+static void nfs_submit_fields (int nfs_version, const char *instance,
 		char **fields, size_t fields_num, const char **proc_names)
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	value_t values[fields_num];
-	size_t i;
 
 	ssnprintf (plugin_instance, sizeof (plugin_instance), "v%i%s",
 			nfs_version, instance);
 
-	for (i = 0; i < fields_num; i++)
+	for (size_t i = 0; i < fields_num; i++)
 		(void) parse_value (fields[i], &values[i], DS_TYPE_DERIVE);
 
 	nfs_procedures_submit (plugin_instance, proc_names, values,
@@ -434,19 +431,19 @@ static int nfs_submit_fields_safe (int nfs_version, const char *instance,
 		return (EINVAL);
 	}
 
-	nfs_submit_fields (nfs_version, instance, fields, fields_num, 
+	nfs_submit_fields (nfs_version, instance, fields, fields_num,
 			proc_names);
 
 	return (0);
 }
 
-static int nfs_submit_nfs4_server (const char *instance, char **fields, 
+static int nfs_submit_nfs4_server (const char *instance, char **fields,
 		size_t fields_num)
 {
 	static int suppress_warning = 0;
 
 	if (fields_num != NFS4_SERVER40_NUM_PROC &&
-		fields_num != NFS4_SERVER41_NUM_PROC) 
+		fields_num != NFS4_SERVER41_NUM_PROC)
 	{
 		if (!suppress_warning)
 		{
@@ -466,7 +463,7 @@ static int nfs_submit_nfs4_server (const char *instance, char **fields,
 		}
 	}
 
-        nfs_submit_fields (4, instance, fields, 
+        nfs_submit_fields (4, instance, fields,
 			nfs4_server40_procedures_names_num,
 			nfs4_server40_procedures_names);
 
@@ -474,15 +471,15 @@ static int nfs_submit_nfs4_server (const char *instance, char **fields,
 	{
 		fields += nfs4_server40_procedures_names_num;
 
-	        nfs_submit_fields (4, instance, fields, 
-				nfs4_server41_procedures_names_num, 
+	        nfs_submit_fields (4, instance, fields,
+				nfs4_server41_procedures_names_num,
 				nfs4_server41_procedures_names);
 	}
 
 	return (0);
 }
 
-static int nfs_submit_nfs4_client (const char *instance, char **fields, 
+static int nfs_submit_nfs4_client (const char *instance, char **fields,
 		size_t fields_num)
 {
 	size_t proc40_names_num, proc41_names_num;
@@ -589,14 +586,14 @@ static void nfs_read_linux (FILE *fh, const char *inst)
 		else if (strcmp (fields[0], "proc4ops") == 0)
 		{
 			if (inst[0] == 's')
-				nfs_submit_nfs4_server (inst, fields + 2, 
+				nfs_submit_nfs4_server (inst, fields + 2,
 						(size_t) (fields_num - 2));
 		}
 		else if (strcmp (fields[0], "proc4") == 0)
 		{
 			if (inst[0] == 'c')
 				nfs_submit_nfs4_client (inst, fields + 2,
-						(size_t) (fields_num - 2));			
+						(size_t) (fields_num - 2));
 		}
 	} /* while (fgets) */
 } /* void nfs_read_linux */
@@ -608,7 +605,6 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, const char *inst,
 {
 	char plugin_instance[DATA_MAX_NAME_LEN];
 	value_t values[proc_names_num];
-	size_t i;
 
 	if (ksp == NULL)
 		return (EINVAL);
@@ -617,7 +613,7 @@ static int nfs_read_kstat (kstat_t *ksp, int nfs_version, const char *inst,
 			nfs_version, inst);
 
 	kstat_read(kc, ksp, NULL);
-	for (i = 0; i < proc_names_num; i++)
+	for (size_t i = 0; i < proc_names_num; i++)
 	{
 		/* The name passed to kstat_data_lookup() doesn't have the
 		 * "const" modifier, so we need to copy the name here. */

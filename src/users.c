@@ -3,7 +3,7 @@
  * Copyright (C) 2005-2007  Sebastian Harl
  * Copyright (C) 2005       Niki W. Waibel
  * Copyright (C) 2005-2007  Florian octo Forster
- * Copyright (C) 2008       Oleg King 
+ * Copyright (C) 2008       Oleg King
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -44,12 +45,9 @@
 
 static void users_submit (gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "users", sizeof (vl.plugin));
@@ -77,7 +75,7 @@ static int users_read (void)
 
 	users_submit (users);
 /* #endif HAVE_GETUTXENT */
-	
+
 #elif HAVE_GETUTENT
 	unsigned int users = 0;
 	struct utmp *entry = NULL;
@@ -106,7 +104,7 @@ static int users_read (void)
 	us = sg_get_user_stats ();
 # endif
 	if (us == NULL)
-		return (-1);   
+		return (-1);
 
 	users_submit ((gauge_t)
 # if HAVE_LIBSTATGRAB_0_90

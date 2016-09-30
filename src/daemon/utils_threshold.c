@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "utils_avltree.h"
 #include "utils_threshold.h"
@@ -124,16 +125,16 @@ int ut_search_threshold (const value_list_t *vl, /* {{{ */
   if (vl == NULL)
     return (EINVAL);
 
-	/* Is this lock really necessary? */
-	pthread_mutex_lock (&threshold_lock);
+  /* Is this lock really necessary? */
+  pthread_mutex_lock (&threshold_lock);
   t = threshold_search (vl);
   if (t == NULL) {
-		pthread_mutex_unlock (&threshold_lock);
+    pthread_mutex_unlock (&threshold_lock);
     return (ENOENT);
-	}
+  }
 
   memcpy (ret_threshold, t, sizeof (*ret_threshold));
-	pthread_mutex_unlock (&threshold_lock);
+  pthread_mutex_unlock (&threshold_lock);
 
   ret_threshold->next = NULL;
 

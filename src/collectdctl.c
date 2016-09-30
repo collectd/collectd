@@ -67,6 +67,14 @@
 
 #include "libcollectdclient/collectd/client.h"
 
+#ifndef PREFIX
+# define PREFIX "/opt/" PACKAGE_NAME
+#endif
+
+#ifndef LOCALSTATEDIR
+# define LOCALSTATEDIR PREFIX "/var"
+#endif
+
 #define DEFAULT_SOCK LOCALSTATEDIR"/run/"PACKAGE_NAME"-unixsock"
 
 extern char *optarg;
@@ -185,7 +193,6 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
   char   **ret_values_names = NULL;
 
   int status;
-  size_t i;
 
   assert (strcasecmp (argv[0], "getval") == 0);
 
@@ -194,7 +201,6 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
     return (-1);
   }
 
-  memset (&ident, 0, sizeof (ident));
   status = parse_identifier (c, argv[1], &ident);
   if (status != 0)
     return (status);
@@ -204,7 +210,7 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
     if (ret_values != NULL) \
       free (ret_values); \
     if (ret_values_names != NULL) { \
-      for (i = 0; i < ret_values_num; ++i) \
+      for (size_t i = 0; i < ret_values_num; ++i) \
         free (ret_values_names[i]); \
       free (ret_values_names); \
     } \
@@ -219,7 +225,7 @@ static int getval (lcc_connection_t *c, int argc, char **argv)
     BAIL_OUT (-1);
   }
 
-  for (i = 0; i < ret_values_num; ++i)
+  for (size_t i = 0; i < ret_values_num; ++i)
     printf ("%s=%e\n", ret_values_names[i], ret_values[i]);
   BAIL_OUT (0);
 #undef BAIL_OUT
@@ -236,7 +242,6 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
   size_t plugins_num = 0;
 
   int status;
-  int i;
 
   assert (strcasecmp (argv[0], "flush") == 0);
 
@@ -251,7 +256,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
     return (s); \
   } while (0)
 
-  for (i = 1; i < argc; ++i) {
+  for (int i = 1; i < argc; ++i) {
     char *key, *value;
 
     key   = argv[i];
@@ -315,7 +320,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
     plugins[0] = NULL;
   }
 
-  for (i = 0; i < plugins_num; ++i) {
+  for (size_t i = 0; i < plugins_num; ++i) {
     if (identifiers_num == 0) {
       status = lcc_flush (c, plugins[i], NULL, timeout);
       if (status != 0)
@@ -323,9 +328,7 @@ static int flush (lcc_connection_t *c, int argc, char **argv)
             (plugins[i] == NULL) ? "(all)" : plugins[i], lcc_strerror (c));
     }
     else {
-      int j;
-
-      for (j = 0; j < identifiers_num; ++j) {
+      for (size_t j = 0; j < identifiers_num; ++j) {
         status = lcc_flush (c, plugins[i], identifiers + j, timeout);
         if (status != 0) {
           char id[1024];
@@ -350,7 +353,6 @@ static int listval (lcc_connection_t *c, int argc, char **argv)
   size_t            ret_ident_num = 0;
 
   int status;
-  size_t i;
 
   assert (strcasecmp (argv[0], "listval") == 0);
 
@@ -373,7 +375,7 @@ static int listval (lcc_connection_t *c, int argc, char **argv)
     BAIL_OUT (status);
   }
 
-  for (i = 0; i < ret_ident_num; ++i) {
+  for (size_t i = 0; i < ret_ident_num; ++i) {
     char id[1024];
 
     status = lcc_identifier_to_string (c, id, sizeof (id), ret_ident + i);
@@ -399,7 +401,6 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
   size_t  values_len = 0;
 
   int status;
-  int i;
 
   assert (strcasecmp (argv[0], "putval") == 0);
 
@@ -416,7 +417,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
   if (status != 0)
     return (status);
 
-  for (i = 2; i < argc; ++i) {
+  for (int i = 2; i < argc; ++i) {
     char *tmp;
 
     tmp = strchr (argv[i], (int)'=');
@@ -483,7 +484,7 @@ static int putval (lcc_connection_t *c, int argc, char **argv)
 
       values_len = 0;
       value = tmp;
-      while (value != 0) {
+      while (value != NULL) {
         char *dot, *endptr;
 
         tmp = strchr (value, (int)':');
@@ -566,7 +567,6 @@ int main (int argc, char **argv) {
         break;
       case 'h':
         exit_usage (argv[0], 0);
-        break;
       default:
         exit_usage (argv[0], 1);
     }

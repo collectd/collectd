@@ -25,9 +25,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <curl/curl.h>
 
@@ -63,8 +63,10 @@ typedef struct apache_s apache_t;
 /* TODO: Remove this prototype */
 static int apache_read_host (user_data_t *user_data);
 
-static void apache_free (apache_t *st)
+static void apache_free (void *arg)
 {
+	apache_t *st = arg;
+
 	if (st == NULL)
 		return;
 
@@ -98,14 +100,14 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 		return (0);
 	}
 
-	if (len <= 0)
+	if (len == 0)
 		return (len);
 
 	if ((st->apache_buffer_fill + len) >= st->apache_buffer_size)
 	{
 		char *temp;
 
-		temp = (char *) realloc (st->apache_buffer,
+		temp = realloc (st->apache_buffer,
 				st->apache_buffer_fill + len + 1);
 		if (temp == NULL)
 		{
@@ -137,7 +139,7 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 		return (0);
 	}
 
-	if (len <= 0)
+	if (len == 0)
 		return (len);
 
 	/* look for the Server header */
@@ -172,16 +174,14 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 static int config_add (oconfig_item_t *ci)
 {
 	apache_t *st;
-	int i;
 	int status;
 
-	st = malloc (sizeof (*st));
+	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("apache plugin: malloc failed.");
+		ERROR ("apache plugin: calloc failed.");
 		return (-1);
 	}
-	memset (st, 0, sizeof (*st));
 
 	st->timeout = -1;
 
@@ -193,7 +193,7 @@ static int config_add (oconfig_item_t *ci)
 	}
 	assert (st->name != NULL);
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -239,24 +239,22 @@ static int config_add (oconfig_item_t *ci)
 
 	if (status == 0)
 	{
-		user_data_t ud;
 		char callback_name[3*DATA_MAX_NAME_LEN];
 
-		memset (&ud, 0, sizeof (ud));
-		ud.data = st;
-		ud.free_func = (void *) apache_free;
-
-		memset (callback_name, 0, sizeof (callback_name));
 		ssnprintf (callback_name, sizeof (callback_name),
 				"apache/%s/%s",
 				(st->host != NULL) ? st->host : hostname_g,
-				(st->name != NULL) ? st->name : "default"),
+				(st->name != NULL) ? st->name : "default");
 
 		status = plugin_register_complex_read (/* group = */ NULL,
 				/* name      = */ callback_name,
 				/* callback  = */ apache_read_host,
 				/* interval  = */ 0,
-				/* user_data = */ &ud);
+				&(user_data_t) {
+					.data = st,
+					.free_func = apache_free,
+				});
+
 	}
 
 	if (status != 0)
@@ -271,9 +269,8 @@ static int config_add (oconfig_item_t *ci)
 static int config (oconfig_item_t *ci)
 {
 	int status = 0;
-	int i;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -414,19 +411,15 @@ static void submit_value (const char *type, const char *type_instance,
 } /* void submit_value */
 
 static void submit_derive (const char *type, const char *type_instance,
-		derive_t c, apache_t *st)
+		derive_t d, apache_t *st)
 {
-	value_t v;
-	v.derive = c;
-	submit_value (type, type_instance, v, st);
+	submit_value (type, type_instance, (value_t) { .derive = d }, st);
 } /* void submit_derive */
 
 static void submit_gauge (const char *type, const char *type_instance,
 		gauge_t g, apache_t *st)
 {
-	value_t v;
-	v.gauge = g;
-	submit_value (type, type_instance, v, st);
+	submit_value (type, type_instance, (value_t) { .gauge = g }, st);
 } /* void submit_gauge */
 
 static void submit_scoreboard (char *buf, apache_t *st)
@@ -464,8 +457,7 @@ static void submit_scoreboard (char *buf, apache_t *st)
 	long long response_start = 0LL;
 	long long response_end   = 0LL;
 
-	int i;
-	for (i = 0; buf[i] != '\0'; i++)
+	for (int i = 0; buf[i] != '\0'; i++)
 	{
 		if (buf[i] == '.') open++;
 		else if (buf[i] == '_') waiting++;

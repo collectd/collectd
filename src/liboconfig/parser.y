@@ -208,15 +208,13 @@ statement_list:
 entire_file:
 	statement_list
 	{
-	 ci_root = malloc (sizeof (oconfig_item_t));
-	 memset (ci_root, '\0', sizeof (oconfig_item_t));
+	 ci_root = calloc (1, sizeof (*ci_root));
 	 ci_root->children = $1.statement;
 	 ci_root->children_num = $1.statement_num;
 	}
 	| /* epsilon */
 	{
-	 ci_root = malloc (sizeof (oconfig_item_t));
-	 memset (ci_root, '\0', sizeof (oconfig_item_t));
+	 ci_root = calloc (1, sizeof (*ci_root));
 	 ci_root->children = NULL;
 	 ci_root->children_num = 0;
 	}
@@ -241,7 +239,6 @@ static char *unquote (const char *orig)
 {
 	char *ret = strdup (orig);
 	int len;
-	int i;
 
 	if (ret == NULL)
 		return (NULL);
@@ -255,7 +252,7 @@ static char *unquote (const char *orig)
 	memmove (ret, ret + 1, len);
 	ret[len] = '\0';
 
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
 		if (ret[i] == '\\')
 		{

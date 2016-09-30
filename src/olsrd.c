@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -149,22 +150,18 @@ static size_t strtabsplit (char *string, char **fields, size_t size) /* {{{ */
 
 static FILE *olsrd_connect (void) /* {{{ */
 {
-  struct addrinfo  ai_hints;
-  struct addrinfo *ai_list, *ai_ptr;
+  struct addrinfo *ai_list;
   int              ai_return;
 
   FILE *fh;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags    = 0;
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = PF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_STREAM;
-  ai_hints.ai_protocol = IPPROTO_TCP;
+  struct addrinfo ai_hints = {
+    .ai_family   = AF_UNSPEC,
+    .ai_flags    = AI_ADDRCONFIG,
+    .ai_protocol = IPPROTO_TCP,
+    .ai_socktype = SOCK_STREAM
+  };
 
-  ai_list = NULL;
   ai_return = getaddrinfo (olsrd_get_node (), olsrd_get_service (),
       &ai_hints, &ai_list);
   if (ai_return != 0)
@@ -176,7 +173,7 @@ static FILE *olsrd_connect (void) /* {{{ */
   }
 
   fh = NULL;
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     int fd;
     int status;
@@ -219,12 +216,9 @@ __attribute__ ((nonnull(2)))
 static void olsrd_submit (const char *plugin_instance, /* {{{ */
     const char *type, const char *type_instance, gauge_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -557,9 +551,8 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
 
     if (config_want_topology == OLSRD_WANT_DETAIL)
     {
-      char type_instance[DATA_MAX_NAME_LEN];
+      char type_instance[DATA_MAX_NAME_LEN] = { 0 };
 
-      memset (type_instance, 0, sizeof (type_instance));
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-lq",
           fields[0], fields[1]);
       DEBUG ("olsrd plugin: type_instance = %s; lq = %g;", type_instance, lq);
@@ -581,9 +574,8 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
     }
     else
     {
-      char type_instance[DATA_MAX_NAME_LEN];
+      char type_instance[DATA_MAX_NAME_LEN] = { 0 };
 
-      memset (type_instance, 0, sizeof (type_instance));
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-nlq",
           fields[0], fields[1]);
       DEBUG ("olsrd plugin: type_instance = %s; nlq = %g;", type_instance, nlq);
@@ -611,7 +603,7 @@ static int olsrd_read_table (FILE *fh, /* {{{ */
   {
     /* An empty line ends the table. */
     buffer_len = strchomp (buffer);
-    if (buffer_len <= 0)
+    if (buffer_len == 0)
     {
       (*callback) (lineno, /* fields_num = */ 0, /* fields = */ NULL);
       break;
@@ -622,7 +614,7 @@ static int olsrd_read_table (FILE *fh, /* {{{ */
     (*callback) (lineno, fields_num, fields);
     lineno++;
   } /* while (fgets) */
-  
+
   return (0);
 } /* }}} int olsrd_read_table */
 
@@ -663,9 +655,9 @@ static int olsrd_read (void) /* {{{ */
   while (fgets (buffer, sizeof (buffer), fh) != NULL)
   {
     buffer_len = strchomp (buffer);
-    if (buffer_len <= 0)
+    if (buffer_len == 0)
       continue;
-    
+
     if (strcmp ("Table: Links", buffer) == 0)
       olsrd_read_table (fh, olsrd_cb_links);
     else if (strcmp ("Table: Neighbors", buffer) == 0)
@@ -690,7 +682,7 @@ static int olsrd_read (void) /* {{{ */
   } /* while (fgets) */
 
   fclose (fh);
-  
+
   return (0);
 } /* }}} int olsrd_read */
 

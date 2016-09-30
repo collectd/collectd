@@ -23,9 +23,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #if HAVE_SYS_TYPES_H
@@ -84,11 +84,13 @@ static const char *config_keys[] =
 {
 	"Interface",
 	"IgnoreSelected",
-	NULL
+	"ReportInactive",
 };
-static int config_keys_num = 2;
+static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 static ignorelist_t *ignorelist = NULL;
+
+static _Bool report_inactive = 1;
 
 #ifdef HAVE_LIBKSTAT
 #define MAX_NUMIF 256
@@ -114,6 +116,8 @@ static int interface_config (const char *key, const char *value)
 			invert = 0;
 		ignorelist_set_invert (ignorelist, invert);
 	}
+	else if (strcasecmp (key, "ReportInactive") == 0)
+		report_inactive = IS_TRUE (value);
 	else if (strcasecmp (key, "UniqueName") == 0)
 	{
 		#ifdef HAVE_LIBKSTAT
@@ -135,7 +139,6 @@ static int interface_config (const char *key, const char *value)
 static int interface_init (void)
 {
 	kstat_t *ksp_chain;
-	derive_t val;
 
 	numif = 0;
 
@@ -152,7 +155,7 @@ static int interface_init (void)
 			continue;
 		if (kstat_read (kc, ksp_chain, NULL) == -1)
 			continue;
-		if ((val = get_kstat_value (ksp_chain, "obytes")) == -1LL)
+		if (get_kstat_value (ksp_chain, "obytes") == -1LL)
 			continue;
 		ksp[numif++] = ksp_chain;
 	}
@@ -165,17 +168,17 @@ static void if_submit (const char *dev, const char *type,
 		derive_t rx,
 		derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[] = {
+		{ .derive = rx },
+		{ .derive = tx },
+	};
 
 	if (ignorelist_match (ignorelist, dev) != 0)
 		return;
 
-	values[0].derive = rx;
-	values[1].derive = tx;
-
 	vl.values = values;
-	vl.values_len = 2;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
 	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "interface", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
@@ -188,7 +191,6 @@ static int interface_read (void)
 {
 #if HAVE_GETIFADDRS
 	struct ifaddrs *if_list;
-	struct ifaddrs *if_ptr;
 
 /* Darwin/Mac OS X and possible other *BSDs */
 #if HAVE_STRUCT_IF_DATA
@@ -218,10 +220,13 @@ static int interface_read (void)
 	if (getifaddrs (&if_list) != 0)
 		return (-1);
 
-	for (if_ptr = if_list; if_ptr != NULL; if_ptr = if_ptr->ifa_next)
+	for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL; if_ptr = if_ptr->ifa_next)
 	{
 		if (if_ptr->ifa_addr != NULL && if_ptr->ifa_addr->sa_family == AF_LINK) {
 			if_data = (struct IFA_DATA *) if_ptr->ifa_data;
+
+			if (!report_inactive && if_data->IFA_RX_PACKT == 0 && if_data->IFA_TX_PACKT == 0)
+				continue;
 
 			if_submit (if_ptr->ifa_name, "if_octets",
 				if_data->IFA_RX_BYTES,
@@ -275,13 +280,16 @@ static int interface_read (void)
 		if (numfields < 11)
 			continue;
 
+		incoming = atoll (fields[1]);
+		outgoing = atoll (fields[9]);
+		if (!report_inactive && incoming == 0 && outgoing == 0)
+			continue;
+
+		if_submit (device, "if_packets", incoming, outgoing);
+
 		incoming = atoll (fields[0]);
 		outgoing = atoll (fields[8]);
 		if_submit (device, "if_octets", incoming, outgoing);
-
-		incoming = atoll (fields[1]);
-		outgoing = atoll (fields[9]);
-		if_submit (device, "if_packets", incoming, outgoing);
 
 		incoming = atoll (fields[2]);
 		outgoing = atoll (fields[10]);
@@ -296,7 +304,6 @@ static int interface_read (void)
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
-	int i;
 	derive_t rx;
 	derive_t tx;
 	char iname[DATA_MAX_NAME_LEN];
@@ -304,7 +311,7 @@ static int interface_read (void)
 	if (kc == NULL)
 		return (-1);
 
-	for (i = 0; i < numif; i++)
+	for (int i = 0; i < numif; i++)
 	{
 		if (kstat_read (kc, ksp[i], NULL) == -1)
 			continue;
@@ -313,6 +320,19 @@ static int interface_read (void)
 			ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module, ksp[i]->ks_instance, ksp[i]->ks_name);
 		else
 			sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
+
+		/* try to get 64bit counters */
+		rx = get_kstat_value (ksp[i], "ipackets64");
+		tx = get_kstat_value (ksp[i], "opackets64");
+		/* or fallback to 32bit */
+		if (rx == -1LL)
+			rx = get_kstat_value (ksp[i], "ipackets");
+		if (tx == -1LL)
+			tx = get_kstat_value (ksp[i], "opackets");
+		if (!report_inactive && rx == 0 && tx == 0)
+			continue;
+		if ((rx != -1LL) || (tx != -1LL))
+			if_submit (iname, "if_packets", rx, tx);
 
 		/* try to get 64bit counters */
 		rx = get_kstat_value (ksp[i], "rbytes64");
@@ -325,17 +345,6 @@ static int interface_read (void)
 		if ((rx != -1LL) || (tx != -1LL))
 			if_submit (iname, "if_octets", rx, tx);
 
-		/* try to get 64bit counters */
-		rx = get_kstat_value (ksp[i], "ipackets64");
-		tx = get_kstat_value (ksp[i], "opackets64");
-		/* or fallback to 32bit */
-		if (rx == -1LL)
-			rx = get_kstat_value (ksp[i], "ipackets");
-		if (tx == -1LL)
-			tx = get_kstat_value (ksp[i], "opackets");
-		if ((rx != -1LL) || (tx != -1LL))
-			if_submit (iname, "if_packets", rx, tx);
-
 		/* no 64bit error counters yet */
 		rx = get_kstat_value (ksp[i], "ierrors");
 		tx = get_kstat_value (ksp[i], "oerrors");
@@ -346,17 +355,20 @@ static int interface_read (void)
 
 #elif defined(HAVE_LIBSTATGRAB)
 	sg_network_io_stats *ios;
-	int i, num;
+	int num;
 
 	ios = sg_get_network_io_stats (&num);
 
-	for (i = 0; i < num; i++)
+	for (int i = 0; i < num; i++) {
+		if (!report_inactive && ios[i].rx == 0 && ios[i].tx == 0)
+			continue;
 		if_submit (ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
+	}
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
 	perfstat_id_t id;
-	int i, ifs;
+	int ifs;
 
 	if ((nif =  perfstat_netinterface(NULL, NULL, sizeof(perfstat_netinterface_t), 0)) < 0)
 	{
@@ -368,9 +380,8 @@ static int interface_read (void)
 
 	if (pnif != nif || ifstat == NULL)
 	{
-		if (ifstat != NULL)
-			free(ifstat);
-		ifstat = malloc(nif * sizeof(perfstat_netinterface_t));
+		free(ifstat);
+		ifstat = malloc(nif * sizeof (*ifstat));
 	}
 	pnif = nif;
 
@@ -383,8 +394,11 @@ static int interface_read (void)
 		return (-1);
 	}
 
-	for (i = 0; i < ifs; i++)
+	for (int i = 0; i < ifs; i++)
 	{
+		if (!report_inactive && ifstat[i].ipackets == 0 && ifstat[i].opackets == 0)
+			continue;
+
 		if_submit (ifstat[i].name, "if_octets", ifstat[i].ibytes, ifstat[i].obytes);
 		if_submit (ifstat[i].name, "if_packets", ifstat[i].ipackets ,ifstat[i].opackets);
 		if_submit (ifstat[i].name, "if_errors", ifstat[i].ierrors, ifstat[i].oerrors );
@@ -403,3 +417,4 @@ void module_register (void)
 #endif
 	plugin_register_read ("interface", interface_read);
 } /* void module_register */
+

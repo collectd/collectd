@@ -24,11 +24,10 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
-
-#include <pthread.h>
 
 #include <OpenIPMI/ipmiif.h>
 #include <OpenIPMI/ipmi_err.h>
@@ -82,9 +81,7 @@ static int c_ipmi_nofiy_notpresent = 0;
  */
 static void c_ipmi_error (const char *func, int status)
 {
-  char errbuf[4096];
-
-  memset (errbuf, 0, sizeof (errbuf));
+  char errbuf[4096] = { 0 };
 
   if (IPMI_IS_OS_ERR (status))
   {
@@ -118,7 +115,6 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     ipmi_states_t __attribute__((unused)) *states,
     void *user_data)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
   c_ipmi_sensor_list_t *list_item = (c_ipmi_sensor_list_t *)user_data;
@@ -217,9 +213,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     return;
   }
 
-  values[0].gauge = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -236,7 +230,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
   c_ipmi_sensor_list_t *list_item;
   c_ipmi_sensor_list_t *list_prev;
 
-  char buffer[DATA_MAX_NAME_LEN];
+  char buffer[DATA_MAX_NAME_LEN] = { 0 };
   const char *entity_id_string;
   char sensor_name[DATA_MAX_NAME_LEN];
   char *sensor_name_ptr;
@@ -246,7 +240,6 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
 
   sensor_id = ipmi_sensor_convert_to_id (sensor);
 
-  memset (buffer, 0, sizeof (buffer));
   ipmi_sensor_get_name (sensor, buffer, sizeof (buffer));
   buffer[sizeof (buffer) - 1] = 0;
 
@@ -279,7 +272,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
     {
       /* `sensor_id_ptr' now points to "(123)". */
       ssnprintf (sensor_name, sizeof (sensor_name),
-          "%s %s", sensor_name_ptr, sensor_id_ptr); 
+          "%s %s", sensor_name_ptr, sensor_id_ptr);
     }
     /* else: don't touch sensor_name. */
   }
@@ -436,11 +429,9 @@ static int sensor_list_remove (ipmi_sensor_t *sensor)
 
 static int sensor_list_read_all (void)
 {
-  c_ipmi_sensor_list_t *list_item;
-
   pthread_mutex_lock (&sensor_list_lock);
 
-  for (list_item = sensor_list;
+  for (c_ipmi_sensor_list_t *list_item = sensor_list;
       list_item != NULL;
       list_item = list_item->next)
   {
@@ -552,7 +543,6 @@ static void domain_connection_change_handler (ipmi_domain_t *domain,
 static int thread_init (os_handler_t **ret_os_handler)
 {
   os_handler_t *os_handler;
-  ipmi_open_option_t open_option[1];
   ipmi_con_t *smi_connection = NULL;
   ipmi_domain_id_t domain_id;
   int status;
@@ -576,9 +566,12 @@ static int thread_init (os_handler_t **ret_os_handler)
     return (-1);
   }
 
-  memset (open_option, 0, sizeof (open_option));
-  open_option[0].option = IPMI_OPEN_OPTION_ALL;
-  open_option[0].ival = 1;
+  ipmi_open_option_t open_option[1] = {
+    [0] = {
+      .option = IPMI_OPEN_OPTION_ALL,
+      { .ival = 1 }
+    }
+  };
 
   status = ipmi_open_domain ("mydomain", &smi_connection, /* num_con = */ 1,
       domain_connection_change_handler, /* user data = */ NULL,
