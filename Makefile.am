@@ -1041,6 +1041,13 @@ mbmon_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_MCELOG
+pkglib_LTLIBRARIES += mcelog.la
+mcelog_la_SOURCES = mcelog.c
+mcelog_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+mcelog_la_LIBADD =
+endif
+
 if BUILD_PLUGIN_MD
 pkglib_LTLIBRARIES += md.la
 md_la_SOURCES = src/md.c
