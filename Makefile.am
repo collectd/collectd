@@ -1280,7 +1280,7 @@ endif
 
 if BUILD_PLUGIN_OVS_EVENTS
 pkglib_LTLIBRARIES += ovs_events.la
-ovs_events_la_SOURCES = ovs_events.c utils_ovs.c
+ovs_events_la_SOURCES = ovs_events.c utils_ovs.c utils_ovs.h
 ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_CFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
