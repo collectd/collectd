@@ -291,7 +291,7 @@ public:
 		PutValuesRequest req;
 
 		while (reader->Read(&req)) {
-			value_list_t vl = VALUE_LIST_INIT;
+			value_list_t vl = {0};
 			auto status = unmarshal_value_list(req.value_list(), &vl);
 			if (!status.ok())
 				return status;
