@@ -249,22 +249,22 @@ static void label_pair_destroy(Io__Prometheus__Client__LabelPair *msg) {
   sfree(msg);
 }
 
-/* label_pair_create allocates and initializes a new label pair. */
-static Io__Prometheus__Client__LabelPair *label_pair_create(char const *name,
-                                                            char const *value) {
-  Io__Prometheus__Client__LabelPair *msg = calloc(1, sizeof(*msg));
-  if (msg == NULL)
+/* label_pair_clone allocates and initializes a new label pair. */
+static Io__Prometheus__Client__LabelPair *
+label_pair_clone(Io__Prometheus__Client__LabelPair const *orig) {
+  Io__Prometheus__Client__LabelPair *copy = calloc(1, sizeof(*copy));
+  if (copy == NULL)
     return NULL;
-  io__prometheus__client__label_pair__init(msg);
+  io__prometheus__client__label_pair__init(copy);
 
-  msg->name = strdup(name);
-  msg->value = strdup(value);
-  if ((msg->name == NULL) || (msg->value == NULL)) {
-    label_pair_destroy(msg);
+  copy->name = strdup(orig->name);
+  copy->value = strdup(orig->value);
+  if ((copy->name == NULL) || (copy->value == NULL)) {
+    label_pair_destroy(copy);
     return NULL;
   }
 
-  return msg;
+  return copy;
 }
 
 /* metric_destroy frees the memory used by a metric. */
@@ -281,47 +281,6 @@ static void metric_destroy(Io__Prometheus__Client__Metric *msg) {
   sfree(msg->counter);
 
   sfree(msg);
-}
-
-/* metric_add_labels adds the labels that identify this metric to m.
- * The logic is copied from the "collectd_exporter". Essentially, the labels
- * contain the hostname, the plugin instance and the type instance of a
- * value_list_t. */
-static int metric_add_labels(Io__Prometheus__Client__Metric *m,
-                             value_list_t const *vl) {
-  size_t n_label = 1;
-  if (strlen(vl->plugin_instance) != 0)
-    n_label++;
-  if (strlen(vl->type_instance) != 0)
-    n_label++;
-
-  m->label = calloc(n_label, sizeof(*m->label));
-  if (m->label == NULL)
-    return ENOMEM;
-
-  if (strlen(vl->plugin_instance) != 0) {
-    m->label[m->n_label] = label_pair_create(vl->plugin, vl->plugin_instance);
-    m->n_label++;
-  }
-
-  if (strlen(vl->type_instance) != 0) {
-    char const *name = "type";
-    if (strlen(vl->plugin_instance) == 0)
-      name = vl->plugin;
-
-    m->label[m->n_label] = label_pair_create(name, vl->type_instance);
-    m->n_label++;
-  }
-
-  m->label[m->n_label] = label_pair_create("instance", vl->host);
-  m->n_label++;
-
-  for (size_t i = 0; i < m->n_label; i++) {
-    if (m->label[i] == NULL)
-      return ENOMEM;
-  }
-
-  return 0;
 }
 
 /* metric_cmp compares two metrics. It's prototype makes it easy to use with
@@ -354,19 +313,68 @@ static int metric_cmp(void const *a, void const *b) {
   return 0;
 }
 
-/* metric_create allocates and initializes a new metric. */
-static Io__Prometheus__Client__Metric *metric_create(value_list_t const *vl) {
-  Io__Prometheus__Client__Metric *msg = calloc(1, sizeof(*msg));
-  if (msg == NULL)
-    return NULL;
-  io__prometheus__client__metric__init(msg);
+#define METRIC_INIT                                                            \
+  &(Io__Prometheus__Client__Metric) {                                          \
+    .label =                                                                   \
+        (Io__Prometheus__Client__LabelPair *[]){                               \
+            &(Io__Prometheus__Client__LabelPair){                              \
+                .name = NULL,                                                  \
+            },                                                                 \
+            &(Io__Prometheus__Client__LabelPair){                              \
+                .name = NULL,                                                  \
+            },                                                                 \
+            &(Io__Prometheus__Client__LabelPair){                              \
+                .name = NULL,                                                  \
+            },                                                                 \
+        },                                                                     \
+    .n_label = 0,                                                              \
+  }
 
-  if (metric_add_labels(msg, vl) != 0) {
-    metric_destroy(msg);
+#define METRIC_ADD_LABELS(m, vl)                                               \
+  do {                                                                         \
+    if (strlen((vl)->plugin_instance) != 0) {                                  \
+      (m)->label[(m)->n_label]->name = (char *)(vl)->plugin;                   \
+      (m)->label[(m)->n_label]->value = (char *)(vl)->plugin_instance;         \
+      (m)->n_label++;                                                          \
+    }                                                                          \
+                                                                               \
+    if (strlen((vl)->type_instance) != 0) {                                    \
+      (m)->label[(m)->n_label]->name = "type";                                 \
+      if (strlen((vl)->plugin_instance) == 0)                                  \
+        (m)->label[(m)->n_label]->name = (char *)(vl)->plugin;                 \
+      (m)->label[(m)->n_label]->value = (char *)(vl)->type_instance;           \
+      (m)->n_label++;                                                          \
+    }                                                                          \
+                                                                               \
+    (m)->label[(m)->n_label]->name = "instance";                               \
+    (m)->label[(m)->n_label]->value = (char *)(vl)->host;                      \
+    (m)->n_label++;                                                            \
+  } while (0)
+
+/* metric_clone allocates and initializes a new metric based on orig. */
+static Io__Prometheus__Client__Metric *
+metric_clone(Io__Prometheus__Client__Metric const *orig) {
+  Io__Prometheus__Client__Metric *copy = calloc(1, sizeof(*copy));
+  if (copy == NULL)
+    return NULL;
+  io__prometheus__client__metric__init(copy);
+
+  copy->n_label = orig->n_label;
+  copy->label = calloc(copy->n_label, sizeof(*copy->label));
+  if (copy->label == NULL) {
+    sfree(copy);
     return NULL;
   }
 
-  return msg;
+  for (size_t i = 0; i < copy->n_label; i++) {
+    copy->label[i] = label_pair_clone(orig->label[i]);
+    if (copy->label[i] == NULL) {
+      metric_destroy(copy);
+      return NULL;
+    }
+  }
+
+  return copy;
 }
 
 /* metric_update stores the new value and timestamp in m. */
@@ -452,9 +460,8 @@ static int metric_family_add_metric(Io__Prometheus__Client__MetricFamily *fam,
 static int
 metric_family_delete_metric(Io__Prometheus__Client__MetricFamily *fam,
                             value_list_t const *vl) {
-  Io__Prometheus__Client__Metric *key = metric_create(vl);
-  if (key == NULL)
-    return ENOMEM;
+  Io__Prometheus__Client__Metric *key = METRIC_INIT;
+  METRIC_ADD_LABELS(key, vl);
 
   size_t i;
   for (i = 0; i < fam->n_metric; i++) {
@@ -484,9 +491,8 @@ metric_family_delete_metric(Io__Prometheus__Client__MetricFamily *fam,
 static Io__Prometheus__Client__Metric *
 metric_family_get_metric(Io__Prometheus__Client__MetricFamily *fam,
                          value_list_t const *vl) {
-  Io__Prometheus__Client__Metric *key = metric_create(vl);
-  if (key == NULL)
-    return NULL;
+  Io__Prometheus__Client__Metric *key = METRIC_INIT;
+  METRIC_ADD_LABELS(key, vl);
 
   /* Metrics are sorted in metric_family_add_metric() so that we can do a binary
    * search here. */
@@ -494,18 +500,21 @@ metric_family_get_metric(Io__Prometheus__Client__MetricFamily *fam,
       &key, fam->metric, fam->n_metric, sizeof(*fam->metric), metric_cmp);
 
   if (m != NULL) {
-    metric_destroy(key);
     return *m;
   }
 
+  Io__Prometheus__Client__Metric *new_metric = metric_clone(key);
+  if (new_metric == NULL)
+    return NULL;
+
   DEBUG("write_prometheus plugin: created new metric in family");
-  int status = metric_family_add_metric(fam, key);
+  int status = metric_family_add_metric(fam, new_metric);
   if (status != 0) {
-    metric_destroy(key);
+    metric_destroy(new_metric);
     return NULL;
   }
 
-  return key;
+  return new_metric;
 }
 
 /* metric_family_update looks up the matching metric in a metric family,
