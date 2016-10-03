@@ -5341,6 +5341,11 @@ if test "x$with_libyajl" = "xyes"; then
     [with_libyajl="no (yajl/yajl_parse.h not found)"]
   )
 
+  AC_CHECK_HEADERS([yajl/yajl_tree.h],
+    [with_libyajl2="yes"],
+    [with_libyajl2="no (yajl/yajl_tree.h not found)"]
+  )
+
   AC_CHECK_HEADERS([yajl/yajl_version.h])
 
   CPPFLAGS="$SAVE_CPPFLAGS"
@@ -5353,6 +5358,11 @@ if test "x$with_libyajl" = "xyes"; then
   AC_CHECK_LIB([yajl], [yajl_alloc],
     [with_libyajl="yes"],
     [with_libyajl="no (Symbol 'yajl_alloc' not found)"]
+  )
+
+  AC_CHECK_LIB([yajl], [yajl_tree_parse],
+    [with_libyajl2="yes"],
+    [with_libyajl2="no (Symbol 'yajl_tree_parse' not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
@@ -5882,6 +5892,7 @@ plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
 plugin_numa="no"
+plugin_ovs_events="no"
 plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
@@ -6070,6 +6081,12 @@ if test "x$have_sysctl" = "xyes"; then
     plugin_swap="yes"
   fi
 fi
+
+if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"
+then
+  plugin_ovs_events="yes"
+fi
+
 if test "x$have_sysctlbyname" = "xyes"; then
   plugin_contextswitch="yes"
   plugin_cpu="yes"
@@ -6314,7 +6331,7 @@ AC_PLUGIN([onewire],             [$with_libowcapi],         [OneWire sensor stat
 AC_PLUGIN([openldap],            [$with_libldap],           [OpenLDAP statistics])
 AC_PLUGIN([openvpn],             [yes],                     [OpenVPN client statistics])
 AC_PLUGIN([oracle],              [$with_oracle],            [Oracle plugin])
-AC_PLUGIN([ovs_events],          [$with_libyajl],           [OVS events plugin])
+AC_PLUGIN([ovs_events],          [$plugin_ovs_events],      [OVS events plugin])
 AC_PLUGIN([perl],                [$plugin_perl],            [Embed a Perl interpreter])
 AC_PLUGIN([pf],                  [$have_net_pfvar_h],       [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.

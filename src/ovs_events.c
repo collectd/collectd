@@ -302,7 +302,6 @@ ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
 /* Dispatch OVS interface link status value to collectd */
 static void
 ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
   meta_data_t *meta = NULL;
 
@@ -322,11 +321,9 @@ ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
   } else
     ERROR(OVS_EVENTS_PLUGIN ": create metadata failed");
 
-  values[0].gauge = (gauge_t)ifinfo->link_status;
   vl.time = cdtime();
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  vl.values = &(value_t){.gauge = (gauge_t)ifinfo->link_status};
+  vl.values_len = 1;
   sstrncpy(vl.plugin, OVS_EVENTS_PLUGIN, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, ifinfo->name, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "gauge", sizeof(vl.type));
@@ -540,8 +537,7 @@ static void ovs_events_conn_terminate() {
 }
 
 /* Read OVS DB interface link status callback */
-static int ovs_events_plugin_read(user_data_t *ud) {
-  (void)ud; /* unused argument */
+static int ovs_events_plugin_read(__attribute__((unused)) user_data_t *u) {
   _Bool is_connected = 0;
   OVS_EVENTS_CTX_LOCK { is_connected = ovs_events_ctx.is_db_available; }
   if (is_connected)
