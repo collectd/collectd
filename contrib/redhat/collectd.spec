@@ -166,6 +166,8 @@
 %define with_barometer 0%{!?_without_barometer:0}
 # plugin grpc disabled, requires protobuf-compiler >= 3.0
 %define with_grpc 0%{!?_without_grpc:0}
+# plugin dpdk disabled, requires libdpdk
+%define with_dpdk 0%{!?_without_dpdk:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin mic disabled, requires Mic
@@ -1069,6 +1071,12 @@ Collectd utilities
 %define _with_drbd --disable-drbd
 %endif
 
+%if %{with_dpdk}
+%define _with_dpdk --enable-dpdk
+%else
+%define _with_dpdk --disable-dpdk
+%endif
+
 %if %{with_email}
 %define _with_email --enable-email
 %else
@@ -1758,6 +1766,7 @@ Collectd utilities
 	%{?_with_disk} \
 	%{?_with_dns} \
 	%{?_with_drbd} \
+	%{?_with_dpdk} \
 	%{?_with_email} \
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
@@ -2034,6 +2043,9 @@ fi
 %endif
 %if %{with_drbd}
 %{_libdir}/%{name}/drbd.so
+%endif
+%if %{with_dpdk}
+%{_libdir}/%{name}/dpdk.so
 %endif
 %if %{with_ethstat}
 %{_libdir}/%{name}/ethstat.so
@@ -2526,6 +2538,7 @@ fi
 * Tue Aug 23 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
 - New PRE-RELEASE version
 - New plugins enabled by default: hugepages
+- New plugins disabled by default: dpdk
 
 * Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
 - New PRE-RELEASE version
