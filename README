@@ -168,7 +168,8 @@ Features
 
     - java
       Integrates a `Java Virtual Machine' (JVM) to execute plugins in Java
-      bytecode. See “Configuring with libjvm” below.
+      bytecode.
+      See docs/BUILD.java.md for detailed build instructions.
 
     - load
       System load average over the last 1, 5 and 15 minutes.
@@ -740,8 +741,8 @@ Prerequisites
 
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the `java' plugin to execute Java bytecode. See “Configuring with
-    libjvm” below.
+    used by the `java' plugin to execute Java bytecode.
+    See docs/BUILD.java.md for detailed build instructions.
     <http://openjdk.java.net/> (and others)
 
   * libldap (optional)
@@ -934,44 +935,6 @@ Configuring / Compiling / Installing
   details. If you pass DESTDIR=<path> to `make install', <path> will be
   prefixed to all installation directories. This might be useful when creating
   packages for collectd.
-
-Configuring with libjvm
------------------------
-
-  To determine the location of the required files of a Java installation is not
-  an easy task, because the locations vary with your kernel (Linux, SunOS, …)
-  and with your architecture (x86, SPARC, …) and there is no ‘java-config’
-  script we could use. Configuration of the JVM library is therefore a bit
-  tricky.
-
-  The easiest way to use the `--with-java=$JAVA_HOME' option, where
-  `$JAVA_HOME' is usually something like:
-    /usr/lib/jvm/java-1.5.0-sun-1.5.0.14
-
-  The configure script will then use find(1) to look for the following files:
-
-    - jni.h
-    - jni_md.h
-    - libjvm.so
-
-  If found, appropriate CPP-flags and LD-flags are set and the following
-  library checks succeed.
-
-  If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
-  following environment variables:
-
-    - JAVA_CPPFLAGS
-    - JAVA_CFLAGS
-    - JAVA_LDFLAGS
-    - JAVA_LIBS
-
-  For example (shortened for demonstration purposes):
-
-    ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
-
-  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
-  do that.
 
 Generating the configure script
 -------------------------------
