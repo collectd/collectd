@@ -364,23 +364,24 @@ static int create_register_callback (llist_t **list, /* {{{ */
 {
 	callback_func_t *cf;
 
+	if ((name == NULL) || (callback == NULL))
+		return (EINVAL);
+
 	cf = calloc (1, sizeof (*cf));
 	if (cf == NULL)
 	{
 		ERROR ("plugin: create_register_callback: calloc failed.");
-		return (-1);
+		return (ENOMEM);
 	}
 
 	cf->cf_callback = callback;
-	if (ud == NULL)
-	{
-		cf->cf_udata.data = NULL;
-		cf->cf_udata.free_func = NULL;
-	}
-	else
-	{
+	if (ud != NULL)
 		cf->cf_udata = *ud;
-	}
+	else
+		cf->cf_udata = (user_data_t) {
+			.data = NULL,
+			.free_func = NULL,
+		};
 
 	cf->cf_ctx = plugin_get_ctx ();
 
@@ -1880,8 +1881,12 @@ int plugin_write (const char *plugin, /* {{{ */
       callback_func_t *cf = le->value;
       plugin_write_cb callback;
 
-      /* do not switch plugin context; rather keep the context (interval)
-       * information of the calling read plugin */
+      /* Keep the read plugin's interval and flush information but update the
+       * plugin name. */
+      plugin_ctx_t old_ctx = plugin_get_ctx();
+      plugin_ctx_t ctx = old_ctx;
+      ctx.name = cf->cf_ctx.name;
+      plugin_set_ctx(ctx);
 
       DEBUG ("plugin: plugin_write: Writing values via %s.", le->key);
       callback = cf->cf_callback;
@@ -1891,6 +1896,7 @@ int plugin_write (const char *plugin, /* {{{ */
       else
         success++;
 
+      plugin_set_ctx(old_ctx);
       le = le->next;
     }
 
@@ -2416,7 +2422,7 @@ int plugin_dispatch_notification (const notification_t *notif)
 
 void plugin_log (int level, const char *format, ...)
 {
-	char msg[1024];
+	char msg[1024] = "";
 	va_list ap;
 	llentry_t *le;
 
@@ -2425,9 +2431,13 @@ void plugin_log (int level, const char *format, ...)
 		return;
 #endif
 
+	char const *name = plugin_get_ctx().name;
+	if (name != NULL)
+		ssnprintf (msg, sizeof (msg), "%s plugin: ", name);
+
 	va_start (ap, format);
-	vsnprintf (msg, sizeof (msg), format, ap);
-	msg[sizeof (msg) - 1] = '\0';
+	vsnprintf (msg + strlen (msg), sizeof (msg) - strlen (msg), format, ap);
+	msg[sizeof (msg) - 1] = 0;
 	va_end (ap);
 
 	if (list_log == NULL)

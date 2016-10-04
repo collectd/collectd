@@ -270,9 +270,6 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 {
 	const char *name;
 	unsigned int flags = 0;
-	plugin_ctx_t ctx = { 0 };
-	plugin_ctx_t old_ctx;
-	int ret_val;
 
 	assert (strcasecmp (ci->key, "LoadPlugin") == 0);
 
@@ -286,9 +283,12 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 		name = "virt";
 
 	/* default to the global interval set before loading this plugin */
-	ctx.interval = cf_get_default_interval ();
-	ctx.flush_interval = 0;
-	ctx.flush_timeout = 0;
+	plugin_ctx_t ctx = {
+		.interval = cf_get_default_interval (),
+		.name = strdup (name),
+	};
+	if (ctx.name == NULL)
+		return (ENOMEM);
 
 	for (int i = 0; i < ci->children_num; ++i)
 	{
@@ -305,17 +305,17 @@ static int dispatch_loadplugin (oconfig_item_t *ci)
 		else {
 			WARNING("Ignoring unknown LoadPlugin option \"%s\" "
 					"for plugin \"%s\"",
-					child->key, ci->values[0].value.string);
+					child->key, name);
 		}
 	}
 
-	old_ctx = plugin_set_ctx (ctx);
-	ret_val = plugin_load (name, (uint32_t) flags);
+	plugin_ctx_t old_ctx = plugin_set_ctx (ctx);
+	int ret_val = plugin_load (name, (uint32_t) flags);
 	/* reset to the "global" context */
 	plugin_set_ctx (old_ctx);
 
 	return (ret_val);
-} /* int dispatch_value_loadplugin */
+} /* int dispatch_loadplugin */
 
 static int dispatch_value_plugin (const char *plugin, oconfig_item_t *ci)
 {
