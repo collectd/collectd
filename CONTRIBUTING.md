@@ -35,7 +35,7 @@ the mailing list have a tendency to fall through the cracks.
     coding style of the code around your changes.
 *   *Documentation:* New config options need to be documented in two places: the
     manpage (`src/collectd.conf.pod`) and the example config
-    (`src/collectd.conf.in`).
+    (`src/collectd.conf.in`). New plugins need to be added to the `README` file.
 *   *Continuous integration:* Once your PR is created, our continuous
     integration environment will try to build it on a number of platforms. If
     this reports a failure, please investigate and fix the problem. We will at
