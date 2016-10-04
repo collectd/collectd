@@ -318,7 +318,7 @@ Features
       Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
       Technology (CMT), Memory Bandwidth Monitoring (MBM). These features
       provide information about utilization of shared resources like last level
-      cache occupacy, local memory bandwidth usage, remote memory bandwidth
+      cache occupancy, local memory bandwidth usage, remote memory bandwidth
       usage, instructions per clock.
       <https://01.org/packet-processing/cache-monitoring-technology-memory-bandwidth-monitoring-cache-allocation-technology-code-and-data>
 

@@ -37,7 +37,7 @@
 
 struct rdtmon_core_group_s {
   char *desc;
-  int num_cores;
+  size_t num_cores;
   unsigned *cores;
   enum pqos_mon_event events;
 };
@@ -46,7 +46,7 @@ typedef struct rdtmon_core_group_s rdtmon_core_group_t;
 struct rdtmon_ctx_s {
   rdtmon_core_group_t cgroups[RDTMON_MAX_CORES];
   struct pqos_mon_data *pgroups[RDTMON_MAX_CORES];
-  int num_groups;
+  size_t num_groups;
   const struct pqos_cpuinfo *pqos_cpu;
   const struct pqos_cap *pqos_cap;
   const struct pqos_capability *cap_mon;
@@ -55,8 +55,8 @@ typedef struct rdtmon_ctx_s rdtmon_ctx_t;
 
 static rdtmon_ctx_t *g_rdtmon = NULL;
 
-static int isdup(const uint64_t *nums, unsigned size, uint64_t val) {
-  for (unsigned i = 0; i < size; i++)
+static int isdup(const uint64_t *nums, size_t size, uint64_t val) {
+  for (size_t i = 0; i < size; i++)
     if (nums[i] == val)
       return 1;
   return 0;
@@ -99,9 +99,9 @@ static int strtouint64(const char *s, uint64_t *n) {
  * RETURN VALUE
  *    Number of elements placed into nums.
  */
-static unsigned strlisttonums(char *s, uint64_t *nums, unsigned max) {
+static size_t strlisttonums(char *s, uint64_t *nums, size_t max) {
   int ret;
-  unsigned index = 0;
+  size_t index = 0;
   char *saveptr = NULL;
 
   if (s == NULL || nums == NULL || max == 0)
@@ -133,9 +133,7 @@ static unsigned strlisttonums(char *s, uint64_t *nums, unsigned max) {
       if (ret < 0)
         return (0);
       if (start > end) {
-        n = start;
-        start = end;
-        end = n;
+        return (0);
       }
       for (n = start; n <= end; n++) {
         if (!(isdup(nums, index, n))) {
@@ -208,21 +206,26 @@ static int cgroup_cmp(const rdtmon_core_group_t *cg_a,
 }
 
 static int cgroup_set(rdtmon_core_group_t *cg, char *desc, uint64_t *cores,
-                      int num_cores) {
+                      size_t num_cores) {
   assert(cg != NULL);
   assert(desc != NULL);
   assert(cores != NULL);
   assert(num_cores > 0);
 
-  cg->cores = malloc(sizeof(unsigned) * num_cores);
+  cg->cores = calloc(num_cores, sizeof(unsigned));
   if (cg->cores == NULL) {
     ERROR(RDTMON_PLUGIN ": Error allocating core group table");
     return (-ENOMEM);
   }
   cg->num_cores = num_cores;
-  cg->desc = desc;
+  cg->desc = strdup(desc);
+  if (cg->desc == NULL) {
+    ERROR(RDTMON_PLUGIN ": Error allocating core group description");
+    sfree(cg->cores);
+    return (-ENOMEM);
+  }
 
-  for (int i = 0; i < num_cores; i++)
+  for (size_t i = 0; i < num_cores; i++)
     cg->cores[i] = (unsigned)cores[i];
 
   return 0;
@@ -240,53 +243,57 @@ static int cgroup_set(rdtmon_core_group_t *cg, char *desc, uint64_t *cores,
  * PARAMETERS
  *   `item'        Config option containing core groups.
  *   `groups'      Table of core groups to set values in.
- *   `max'         Maximum number of core groups allowed.
+ *   `max_groups'  Maximum number of core groups allowed.
+ *   `max_core'    Maximum allowed core value.
  *
  * RETURN VALUE
  *   On success, the number of core groups set up. On error, appropriate
  *   negative error value.
  */
 static int oconfig_to_cgroups(oconfig_item_t *item, rdtmon_core_group_t *groups,
-                              unsigned max) {
-  int ret;
-  unsigned n, index = 0;
-  uint64_t cores[RDTMON_MAX_CORES];
-  char value[DATA_MAX_NAME_LEN];
+                              size_t max_groups, uint64_t max_core) {
+  int index = 0;
 
   assert(groups != NULL);
-  assert(max > 0);
+  assert(max_groups > 0);
   assert(item != NULL);
 
   for (int j = 0; j < item->values_num; j++) {
-    if (item->values[j].value.string != NULL &&
-        strlen(item->values[j].value.string)) {
-      char *desc = NULL;
+    int ret;
+    size_t n;
+    uint64_t cores[RDTMON_MAX_CORES] = {0};
+    char value[DATA_MAX_NAME_LEN];
 
-      sstrncpy(value, item->values[j].value.string, sizeof(value));
+    if ((item->values[j].value.string == NULL) || (strlen(item->values[j].value.string) == 0))
+      continue;
 
-      memset(cores, 0, sizeof(cores));
+    sstrncpy(value, item->values[j].value.string, sizeof(value));
 
-      n = strlisttonums(value, cores, RDTMON_MAX_CORES);
-      if (n == 0) {
-        ERROR(RDTMON_PLUGIN ": Error parsing core group (%s)", value);
+    n = strlisttonums(value, cores, STATIC_ARRAY_SIZE(cores));
+    if (n == 0) {
+      ERROR(RDTMON_PLUGIN ": Error parsing core group (%s)",
+            item->values[j].value.string);
+      return (-EINVAL);
+    }
+
+    for (int i = 0; i < n; i++) {
+      if (cores[i] > max_core) {
+        ERROR(RDTMON_PLUGIN ": Core group (%s) contains invalid core id (%d)",
+              item->values[j].value.string, (int)cores[i]);
         return (-EINVAL);
       }
+    }
 
-      desc = strdup(item->values[j].value.string);
+    /* set core group info */
+    ret = cgroup_set(&groups[index], item->values[j].value.string, cores, n);
+    if (ret < 0)
+      return ret;
 
-      /* set core group info */
-      ret = cgroup_set(&groups[index], desc, cores, n);
-      if (ret < 0) {
-        free(desc);
-        return ret;
-      }
+    index++;
 
-      index++;
-
-      if (index >= max) {
-        WARNING(RDTMON_PLUGIN ": Too many core groups configured");
-        return index;
-      }
+    if (index >= max_groups) {
+      WARNING(RDTMON_PLUGIN ": Too many core groups configured");
+      return index;
     }
   }
 
@@ -301,7 +308,7 @@ static void rdtmon_dump_cgroups(void) {
     return;
 
   DEBUG(RDTMON_PLUGIN ": Core Groups Dump");
-  DEBUG(RDTMON_PLUGIN ":  groups count: %d", g_rdtmon->num_groups);
+  DEBUG(RDTMON_PLUGIN ":  groups count: %zu", g_rdtmon->num_groups);
 
   for (int i = 0; i < g_rdtmon->num_groups; i++) {
 
@@ -351,18 +358,12 @@ static void rdtmon_dump_data(void) {
 
 static void rdtmon_free_cgroups(void) {
   for (int i = 0; i < RDTMON_MAX_CORES; i++) {
-    if (g_rdtmon->cgroups[i].desc) {
-      sfree(g_rdtmon->cgroups[i].desc);
-    }
+    sfree(g_rdtmon->cgroups[i].desc);
 
-    if (g_rdtmon->cgroups[i].cores) {
-      sfree(g_rdtmon->cgroups[i].cores);
-      g_rdtmon->cgroups[i].num_cores = 0;
-    }
+    sfree(g_rdtmon->cgroups[i].cores);
+    g_rdtmon->cgroups[i].num_cores = 0;
 
-    if (g_rdtmon->pgroups[i]) {
-      sfree(g_rdtmon->pgroups[i]);
-    }
+    sfree(g_rdtmon->pgroups[i]);
   }
 }
 
@@ -370,20 +371,16 @@ static int rdtmon_default_cgroups(void) {
   int ret;
 
   /* configure each core in separate group */
-  for (int i = 0; i < g_rdtmon->pqos_cpu->num_cores; i++) {
-    char *desc;
+  for (unsigned i = 0; i < g_rdtmon->pqos_cpu->num_cores; i++) {
+    char desc[DATA_MAX_NAME_LEN];
     uint64_t core = i;
 
-    desc = ssnprintf_alloc("%d", g_rdtmon->pqos_cpu->cores[i].lcore);
-    if (desc == NULL)
-      return (-ENOMEM);
+    ssnprintf(desc, sizeof(desc), "%d", g_rdtmon->pqos_cpu->cores[i].lcore);
 
     /* set core group info */
     ret = cgroup_set(&g_rdtmon->cgroups[i], desc, &core, 1);
-    if (ret < 0) {
-      free(desc);
+    if (ret < 0)
       return ret;
-    }
   }
 
   return g_rdtmon->pqos_cpu->num_cores;
@@ -408,7 +405,8 @@ static int rdtmon_config_cgroups(oconfig_item_t *item) {
     DEBUG(RDTMON_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
   }
 
-  n = oconfig_to_cgroups(item, g_rdtmon->cgroups, RDTMON_MAX_CORES);
+  n = oconfig_to_cgroups(item, g_rdtmon->cgroups, RDTMON_MAX_CORES,
+                         g_rdtmon->pqos_cpu->num_cores-1);
   if (n < 0) {
     rdtmon_free_cgroups();
     ERROR(RDTMON_PLUGIN ": Error parsing core groups configuration.");
@@ -434,13 +432,14 @@ static int rdtmon_config_cgroups(oconfig_item_t *item) {
 
   events &= ~(PQOS_PERF_EVENT_LLC_MISS);
 
-  DEBUG(RDTMON_PLUGIN ": Available events to monitor [0x%X]", events);
+  DEBUG(RDTMON_PLUGIN ": Number of cores in the system: %u",
+        g_rdtmon->pqos_cpu->num_cores);
+  DEBUG(RDTMON_PLUGIN ": Available events to monitor: %#x", events);
 
   g_rdtmon->num_groups = n;
   for (int i = 0; i < n; i++) {
-    int found = 0;
-
     for (int j = 0; j < i; j++) {
+      int found = 0;
       found = cgroup_cmp(&g_rdtmon->cgroups[j], &g_rdtmon->cgroups[i]);
       if (found != 0) {
         rdtmon_free_cgroups();
@@ -450,7 +449,7 @@ static int rdtmon_config_cgroups(oconfig_item_t *item) {
     }
 
     g_rdtmon->cgroups[i].events = events;
-    g_rdtmon->pgroups[i] = malloc(sizeof(struct pqos_mon_data));
+    g_rdtmon->pgroups[i] = calloc(1, sizeof(*g_rdtmon->pgroups[i]));
     if (g_rdtmon->pgroups[i] == NULL) {
       rdtmon_free_cgroups();
       ERROR(RDTMON_PLUGIN ": Failed to allocate memory for monitoring data.");
@@ -462,7 +461,6 @@ static int rdtmon_config_cgroups(oconfig_item_t *item) {
 }
 
 static int rdtmon_preinit(void) {
-  struct pqos_config pqos_cfg;
   int ret;
 
   if (g_rdtmon != NULL) {
@@ -470,28 +468,21 @@ static int rdtmon_preinit(void) {
     return (0);
   }
 
-  g_rdtmon = malloc(sizeof(rdtmon_ctx_t));
+  g_rdtmon = calloc(1, sizeof(*g_rdtmon));
   if (g_rdtmon == NULL) {
     ERROR(RDTMON_PLUGIN ": Failed to allocate memory for rdtmon context.");
     return (-ENOMEM);
   }
 
-  memset(g_rdtmon, 0, sizeof(rdtmon_ctx_t));
-
-  /* init PQoS library */
-  memset(&pqos_cfg, 0, sizeof(pqos_cfg));
-  /* TODO:
-   * stdout should not be used here. Will be reworked when support of log
-   * callback is added to PQoS library.
-  */
-  pqos_cfg.fd_log = STDOUT_FILENO;
-  pqos_cfg.verbose = 0;
-
   /* In case previous instance of the application was not closed properly
    * call fini and ignore return code. */
   pqos_fini();
 
-  ret = pqos_init(&pqos_cfg);
+  /* TODO:
+   * stdout should not be used here. Will be reworked when support of log
+   * callback is added to PQoS library.
+  */
+  ret = pqos_init(&(struct pqos_config){.fd_log = STDOUT_FILENO});
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDTMON_PLUGIN ": Error initializing PQoS library!");
     goto rdtmon_preinit_error1;
@@ -558,47 +549,39 @@ static int rdtmon_config(oconfig_item_t *ci) {
   return (0);
 }
 
-static void rdtmon_submit_gauge(char *cgroup, char *type, gauge_t value) {
-  value_t values[1];
+static void rdtmon_submit_derive(char *cgroup, char *type, char *type_instance,
+                                derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
+  vl.values = &(value_t) { .derive = value };
+  vl.values_len = 1;
 
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, RDTMON_PLUGIN, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "[%s]", cgroup);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
   sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 }
 
-static void rdtmon_submit_mbm(char *cgroup,
-                              const struct pqos_event_values *pv) {
-  value_t values[6];
+static void rdtmon_submit_gauge(char *cgroup, char *type, char *type_instance,
+                                gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = pv->mbm_local;
-  values[1].gauge = pv->mbm_remote;
-  values[2].gauge = pv->mbm_total;
-  values[3].gauge = pv->mbm_local_delta;
-  values[4].gauge = pv->mbm_remote_delta;
-  values[5].gauge = pv->mbm_total_delta;
+  vl.values = &(value_t) { .gauge = value };
+  vl.values_len = 1;
 
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
-
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, RDTMON_PLUGIN, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "[%s]", cgroup);
-  sstrncpy(vl.type, "mbm", sizeof(vl.type));
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 }
 
-static int rdtmon_read(user_data_t *ud) {
+static int rdtmon_read(__attribute__((unused)) user_data_t *ud) {
   int ret;
 
   if (g_rdtmon == NULL) {
@@ -626,13 +609,17 @@ static int rdtmon_read(user_data_t *ud) {
     /* Submit only monitored events data */
 
     if (g_rdtmon->cgroups[i].events & PQOS_MON_EVENT_L3_OCCUP)
-      rdtmon_submit_gauge(g_rdtmon->cgroups[i].desc, "llc", pv->llc);
+      rdtmon_submit_gauge(g_rdtmon->cgroups[i].desc, "bytes", "llc", pv->llc);
 
     if (g_rdtmon->cgroups[i].events & PQOS_PERF_EVENT_IPC)
-      rdtmon_submit_gauge(g_rdtmon->cgroups[i].desc, "ipc", pv->ipc);
+      rdtmon_submit_gauge(g_rdtmon->cgroups[i].desc, "ipc", NULL, pv->ipc);
 
-    if (g_rdtmon->cgroups[i].events & mbm_events)
-      rdtmon_submit_mbm(g_rdtmon->cgroups[i].desc, pv);
+    if (g_rdtmon->cgroups[i].events & mbm_events) {
+      rdtmon_submit_derive(g_rdtmon->cgroups[i].desc, "memory_bandwidth",
+                           "local", pv->mbm_local_delta);
+      rdtmon_submit_derive(g_rdtmon->cgroups[i].desc, "memory_bandwidth",
+                           "remote", pv->mbm_remote_delta);
+    }
   }
 
   return (0);
@@ -652,10 +639,9 @@ static int rdtmon_init(void) {
     ret = pqos_mon_start(cg->num_cores, cg->cores, cg->events, (void *)cg->desc,
                          g_rdtmon->pgroups[i]);
 
-    if (ret != PQOS_RETVAL_OK) {
-      ERROR(RDTMON_PLUGIN ": Error starting monitoring (pqos status=%d)", ret);
-      return (-1);
-    }
+    if (ret != PQOS_RETVAL_OK)
+      ERROR(RDTMON_PLUGIN ": Error starting monitoring group %s (pqos status=%d)",
+            cg->desc, ret);
   }
 
   return (0);
@@ -666,10 +652,8 @@ static int rdtmon_shutdown(void) {
 
   DEBUG(RDTMON_PLUGIN ": rdtmon_shutdown.");
 
-  if (g_rdtmon == NULL) {
-    ERROR(RDTMON_PLUGIN ": rdtmon_shutdown: plugin not initialized.");
-    return (-EINVAL);
-  }
+  if (g_rdtmon == NULL)
+    return (0);
 
   /* Stop monitoring */
   for (int i = 0; i < g_rdtmon->num_groups; i++) {
