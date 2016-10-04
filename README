@@ -661,11 +661,21 @@ Prerequisites
 
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
+    collectd makes use of some common C99 features, e.g. compound literals and
+    mixed declarations, and therefore requires a C99 compatible compiler.
+
+    On Debian and Ubuntu, the "build-essential" package should pull in
+    everything that's necessary.
+
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
     etc) collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
+
+  * When building from the Git repository, flex (tokenizer) and bison (parser
+    generator) are required. Release tarballs include the generated files – you
+    don't need these packages in that case.
 
   * aerotools-ng (optional)
     Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
