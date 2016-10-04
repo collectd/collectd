@@ -93,6 +93,10 @@ struct ovs_db_callback_s {
 };
 typedef struct ovs_db_callback_s ovs_db_callback_t;
 
+/* OVS DB defines */
+#define OVS_DB_ADDR_NODE_SIZE 256
+#define OVS_DB_ADDR_SERVICE_SIZE 128
+
 /* OVS DB prototypes */
 
 /*
@@ -104,13 +108,15 @@ typedef struct ovs_db_callback_s ovs_db_callback_t;
  *   shall destroy the returned object.
  *
  * PARAMETERS
- *   `surl'        OVS DB communication URL.
+ *   `node'        OVS DB Address.
+ *   `service'     OVS DB service name.
  *   `cb'          OVS DB callbacks.
  *
  * RETURN VALUE
  *   New ovs_db_t object upon success or NULL if an error occurred.
  */
-ovs_db_t *ovs_db_init(const char *surl, ovs_db_callback_t *cb);
+ovs_db_t *ovs_db_init(const char *node, const char *service,
+                      ovs_db_callback_t *cb);
 
 /*
  * NAME

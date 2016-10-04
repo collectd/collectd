@@ -5463,7 +5463,7 @@ notification.
 B<Synopsis:>
 
  <Plugin "ovs_events">
-   OvsDbServerUrl "tcp:127.0.0.1:6640"
+   OvsDbAddress "127.0.0.1" "6640"
    Interfaces "br0" "veth0"
    SendNotification false
  </Plugin>
@@ -5472,29 +5472,31 @@ The plugin provides the following configuration options:
 
 =over 4
 
-=item B<OvsDbServerUrl> I<server>
+=item B<OvsDbAddress> I<node> I<service>
 
-The URL is an address of OVS DB server JSON-RPC interface used by the plugin.
+The address of OVS DB server JSON-RPC interface used by the plugin.
 To enable the interface, OVS DB daemon should be running with '--remote=ptcp:'
-or '--remote=punix:' option. See L<ovsdb-server(1)> for more details. The URL
-must take one of the following forms:
+or '--remote=punix:' option. See L<ovsdb-server(1)> for more details. The
+address arguments must take one of the following forms:
 
 =over 4
 
-=item B<tcp:>I<ip>:I<port>
+=item I<node>
 
-Connect to the given tcp I<port> on I<ip>, where I<ip> is IPv4 address
-of OVS DB server which is listening on TCP I<port> for incoming
-JSON-RPC client connection.
+The I<node> argument of the address can be either network hostname, IPv4
+numbers-and-dots notation or IPv6 hexadecimal string format. In case of Unix
+domain socket, the "I<unix:>file" format should be used, where I<file> is
+the full name of OVS DB Unix domain socket.
 
-=item B<unix:>I<file>
+=item I<service>
 
-Connect to the unix domain server socket named I<file> which is
-used by OVS DB for incoming JSON-RPC client connection.
+The I<service> argument of the address specifies the service name used to
+connect to OVS DB. See L<services(5)> for more details. This argument is
+skipped if Unix domain address is used.
 
 =back
 
-Default: C<tcp:127.0.0.1:6640>
+Default: C<"localhost" "6640">
 
 =item B<Interfaces> [I<ifname> ...]
 

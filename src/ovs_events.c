@@ -25,6 +25,8 @@
  *   Volodymyr Mytnyk <volodymyrx.mytnyk@intel.com>
  **/
 
+#include "collectd.h"
+
 #include "common.h" /* auxiliary functions */
 
 #include "utils_ovs.h" /* OVS helpers */
@@ -33,7 +35,6 @@
 #define OVS_EVENTS_IFACE_UUID_SIZE 64
 #define OVS_EVENTS_EXT_IFACE_ID_SIZE 64
 #define OVS_EVENTS_EXT_VM_UUID_SIZE 64
-#define OVS_EVENTS_OVS_DB_URL_SIZE 64
 #define OVS_EVENTS_PLUGIN "ovs_events"
 #define OVS_EVENTS_CTX_LOCK                                                    \
   for (int __i = ovs_events_ctx_lock(); __i != 0; __i = ovs_events_ctx_unlock())
@@ -67,9 +68,10 @@ typedef struct ovs_events_iface_list_s ovs_events_iface_list_t;
 
 /* OVS events configuration data */
 struct ovs_events_config_s {
-  _Bool send_notification; /* sent notification to collectd? */
-  char ovs_db_server_url[OVS_EVENTS_OVS_DB_URL_SIZE]; /* OVS DB server URL */
-  ovs_events_iface_list_t *ifaces;                    /* interface info */
+  _Bool send_notification;                 /* sent notification to collectd? */
+  char ovs_db_node[OVS_DB_ADDR_NODE_SIZE]; /* OVS DB node */
+  char ovs_db_serv[OVS_DB_ADDR_SERVICE_SIZE]; /* OVS DB service */
+  ovs_events_iface_list_t *ifaces;            /* interface info */
 };
 typedef struct ovs_events_config_s ovs_events_config_t;
 
@@ -88,9 +90,9 @@ typedef struct ovs_events_ctx_s ovs_events_ctx_t;
  */
 static ovs_events_ctx_t ovs_events_ctx = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .config = {.send_notification = 0, /* do not send notification */
-               .ovs_db_server_url =
-                   "tcp:127.0.0.1:6640", /* use default OVS DB URL */
+    .config = {.send_notification = 0,     /* do not send notification */
+               .ovs_db_node = "localhost", /* use default OVS DB node */
+               .ovs_db_serv = "6640",      /* use default OVS DB service */
                .ifaces = NULL},
     .ovs_db_select_params = NULL,
     .is_db_available = 0,
@@ -99,7 +101,7 @@ static ovs_events_ctx_t ovs_events_ctx = {
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 1 when context is locked.
  */
-static inline int ovs_events_ctx_lock() {
+static int ovs_events_ctx_lock() {
   pthread_mutex_lock(&ovs_events_ctx.mutex);
   return (1);
 }
@@ -107,7 +109,7 @@ static inline int ovs_events_ctx_lock() {
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 0 when context is unlocked.
  */
-static inline int ovs_events_ctx_unlock() {
+static int ovs_events_ctx_unlock() {
   pthread_mutex_unlock(&ovs_events_ctx.mutex);
   return (0);
 }
@@ -131,7 +133,7 @@ static int ovs_events_config_iface_exists(const char *ifname) {
 /* Get OVS DB select parameter request based on rfc7047,
  * "Transact" & "Select" section
  */
-static inline char *ovs_events_get_select_params() {
+static char *ovs_events_get_select_params() {
   int ret = 0;
   size_t buff_size = 0;
   size_t offset = 0;
@@ -206,11 +208,28 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
       if (cf_util_get_boolean(child, &ovs_events_ctx.config.send_notification) <
           0)
         OVS_EVENTS_CONFIG_ERROR(child->key);
-    } else if (strcasecmp("OvsDbServerUrl", child->key) == 0) {
-      if (cf_util_get_string_buffer(
-              child, ovs_events_ctx.config.ovs_db_server_url,
-              sizeof(ovs_events_ctx.config.ovs_db_server_url)) < 0)
-        OVS_EVENTS_CONFIG_ERROR(child->key);
+    } else if (strcasecmp("OvsDbAddress", child->key) == 0) {
+      if (child->values_num < 1) {
+        ERROR(OVS_EVENTS_PLUGIN ": invalid OVS DB address specified");
+        goto failure;
+      }
+      /* check node type and get the value */
+      if (child->values[0].type != OCONFIG_TYPE_STRING) {
+        ERROR(OVS_EVENTS_PLUGIN ": OVS DB node is not a string");
+        goto failure;
+      }
+      sstrncpy(ovs_events_ctx.config.ovs_db_node, child->values[0].value.string,
+               sizeof(ovs_events_ctx.config.ovs_db_node));
+      /* get OVS DB address service name (optional) */
+      if (child->values_num > 1) {
+        if (child->values[1].type != OCONFIG_TYPE_STRING) {
+          ERROR(OVS_EVENTS_PLUGIN ": OVS DB service is not a string");
+          goto failure;
+        }
+        sstrncpy(ovs_events_ctx.config.ovs_db_serv,
+                 child->values[1].value.string,
+                 sizeof(ovs_events_ctx.config.ovs_db_serv));
+      }
     } else if (strcasecmp("Interfaces", child->key) == 0) {
       for (int j = 0; j < child->values_num; j++) {
         /* check value type */
@@ -556,8 +575,8 @@ static int ovs_events_plugin_init(void) {
   ovs_db_callback_t cb = {.post_conn_init = ovs_events_conn_initialize,
                           .post_conn_terminate = ovs_events_conn_terminate};
 
-  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB url = %s",
-        ovs_events_ctx.config.ovs_db_server_url);
+  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB node = %s, service=%s",
+        ovs_events_ctx.config.ovs_db_node, ovs_events_ctx.config.ovs_db_serv);
 
   /* generate OVS DB select condition based on list on configured interfaces */
   ovs_events_ctx.ovs_db_select_params = ovs_events_get_select_params();
@@ -567,7 +586,8 @@ static int ovs_events_plugin_init(void) {
   }
 
   /* initialize OVS DB */
-  ovs_db = ovs_db_init(ovs_events_ctx.config.ovs_db_server_url, &cb);
+  ovs_db = ovs_db_init(ovs_events_ctx.config.ovs_db_node,
+                       ovs_events_ctx.config.ovs_db_serv, &cb);
   if (ovs_db == NULL) {
     ERROR(OVS_EVENTS_PLUGIN ": fail to connect to OVS DB server");
     goto ovs_events_failure;

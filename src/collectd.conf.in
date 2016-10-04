@@ -993,7 +993,7 @@
 #</Plugin>
 
 #<Plugin ovs_events>
-#  OvsDbServerUrl "tcp:127.0.0.1:6640"
+#  OvsDbAddress "127.0.0.1" "6640"
 #  Interfaces "br0" "veth0"
 #  SendNotification false
 #</Plugin>

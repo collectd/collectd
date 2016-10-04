@@ -65,16 +65,28 @@
 /* clang-format on */
 
 /* collectd headers */
+#include "collectd.h"
+
 #include "common.h"
 
 /* private headers */
 #include "utils_ovs.h"
 
 /* system libraries */
+#if HAVE_NETDB_H
+#include <netdb.h>
+#endif
+#if HAVE_ARPA_INET_H
 #include <arpa/inet.h>
+#endif
+#if HAVE_POLL_H
 #include <poll.h>
-#include <semaphore.h>
+#endif
+#if HAVE_SYS_UN_H
 #include <sys/un.h>
+#endif
+
+#include <semaphore.h>
 
 #define OVS_ERROR(fmt, ...)                                                    \
   do {                                                                         \
@@ -145,19 +157,6 @@ struct ovs_callback_s {
 };
 typedef struct ovs_callback_s ovs_callback_t;
 
-/* Connection declaration */
-struct ovs_conn_s {
-  int sock;
-  int domain;
-  int type;
-  int addr_size;
-  union {
-    struct sockaddr_in s_inet;
-    struct sockaddr_un s_unix;
-  } addr;
-};
-typedef struct ovs_conn_s ovs_conn_t;
-
 /* Event thread data declaration */
 struct ovs_event_thread_s {
   pthread_t tid;
@@ -182,9 +181,10 @@ struct ovs_db_s {
   pthread_mutex_t mutex;
   ovs_callback_t *remote_cb;
   ovs_db_callback_t cb;
-  ovs_conn_t conn;
+  char service[OVS_DB_ADDR_SERVICE_SIZE];
+  char node[OVS_DB_ADDR_NODE_SIZE];
+  int sock;
 };
-typedef struct ovs_db_s ovs_db_t;
 
 /* Post an event to event thread.
  * Possible events are:
@@ -201,7 +201,7 @@ static void ovs_db_event_post(ovs_db_t *pdb, int event) {
 
 /* Check if POLL thread is still running. Returns
  * 1 if running otherwise 0 is returned */
-static inline int ovs_db_poll_is_running(ovs_db_t *pdb) {
+static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
   int state = 0;
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   state = pdb->poll_thread.state;
@@ -210,7 +210,7 @@ static inline int ovs_db_poll_is_running(ovs_db_t *pdb) {
 }
 
 /* Terminate POLL thread */
-static inline void ovs_db_poll_terminate(ovs_db_t *pdb) {
+static void ovs_db_poll_terminate(ovs_db_t *pdb) {
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   pdb->poll_thread.state = OVS_DB_POLL_STATE_EXITING;
   pthread_mutex_unlock(&pdb->poll_thread.mutex);
@@ -263,7 +263,7 @@ static void ovs_db_callback_remove_all(ovs_db_t *pdb) {
   pthread_mutex_lock(&pdb->mutex);
   for (ovs_callback_t *del_cb = pdb->remote_cb; pdb->remote_cb;
        del_cb = pdb->remote_cb) {
-    pdb->remote_cb = pdb->remote_cb->next;
+    pdb->remote_cb = del_cb->next;
     free(del_cb);
   }
   pdb->remote_cb = NULL;
@@ -271,15 +271,16 @@ static void ovs_db_callback_remove_all(ovs_db_t *pdb) {
 }
 
 /* Get/find callback in OVS DB object by UID. Returns pointer
- * to requested callback otherwise NULL is returned */
+ * to requested callback otherwise NULL is returned.
+ *
+ * IMPORTANT NOTE:
+ *   The OVS DB mutex should be locked by the caller
+ *   to make sure that returned callback is still valid.
+ */
 static ovs_callback_t *ovs_db_callback_get(ovs_db_t *pdb, uint64_t uid) {
-  pthread_mutex_lock(&pdb->mutex);
   for (ovs_callback_t *cb = pdb->remote_cb; cb != NULL; cb = cb->next)
-    if (cb->uid == uid) {
-      pthread_mutex_unlock(&pdb->mutex);
+    if (cb->uid == uid)
       return cb;
-    }
-  pthread_mutex_unlock(&pdb->mutex);
   return NULL;
 }
 
@@ -292,76 +293,12 @@ static int ovs_db_data_send(const ovs_db_t *pdb, const char *data, size_t len) {
   size_t off = 0;
 
   while (rem > 0) {
-    if ((nbytes = send(pdb->conn.sock, data + off, rem, 0)) <= 0)
+    if ((nbytes = send(pdb->sock, data + off, rem, 0)) <= 0)
       return (-1);
     rem -= (size_t)nbytes;
     off += (size_t)nbytes;
   }
   return (0);
-}
-
-/* Parse OVS server URL.
- * Format of the URL:
- *   "tcp:a.b.c.d:port" - define TCP connection (INET domain)
- *   "unix:file" - define UNIX socket file (UNIX domain)
- */
-static int ovs_db_url_parse(const char *surl, ovs_conn_t *conn) {
-  ovs_conn_t tmp_conn;
-  char *nexttok = NULL;
-  char *in_str = NULL;
-  char *saveptr;
-  int ret = 0;
-
-  /* sanity check */
-  if ((surl == NULL) || (strlen(surl) < 1))
-    return (-1);
-
-  /* parse domain */
-  tmp_conn = *conn;
-  in_str = sstrdup(surl);
-  if ((nexttok = strtok_r(in_str, ":", &saveptr)) != NULL) {
-    if (strcmp("tcp", nexttok) == 0) {
-      tmp_conn.domain = AF_INET;
-      tmp_conn.type = SOCK_STREAM;
-      tmp_conn.addr_size = sizeof(tmp_conn.addr.s_inet);
-    } else if (strcmp("unix", nexttok) == 0) {
-      tmp_conn.domain = AF_UNIX;
-      tmp_conn.type = SOCK_STREAM;
-      tmp_conn.addr_size = sizeof(tmp_conn.addr.s_unix);
-    } else
-      goto failure;
-  } else
-    goto failure;
-
-  /* parse url depending on domain */
-  if ((nexttok = strtok_r(NULL, ":", &saveptr)) != NULL) {
-    if (tmp_conn.domain == AF_UNIX) {
-      /* <UNIX-NAME> */
-      tmp_conn.addr.s_inet.sin_family = AF_UNIX;
-      sstrncpy(tmp_conn.addr.s_unix.sun_path, nexttok, strlen(nexttok) + 1);
-    } else {
-      /* <IP:PORT> */
-      tmp_conn.addr.s_inet.sin_family = AF_INET;
-      ret = inet_pton(AF_INET, nexttok, (void *)&tmp_conn.addr.s_inet.sin_addr);
-      if (ret == 1) {
-        if ((nexttok = strtok_r(NULL, ":", &saveptr)) != NULL)
-          tmp_conn.addr.s_inet.sin_port = htons(atoi(nexttok));
-        else
-          goto failure;
-      } else
-        goto failure;
-    }
-  }
-
-  /* save result and return success */
-  *conn = tmp_conn;
-  sfree(in_str);
-  return (0);
-
-failure:
-  OVS_ERROR("invalid OVS DB URL provided [url=%s]", surl);
-  sfree(in_str);
-  return (-1);
 }
 
 /*
@@ -376,9 +313,9 @@ failure:
  * jgen   - YAJL generator handle allocated by yajl_gen_alloc()
  * string - Null-terminated string
  */
-static inline yajl_gen_status ovs_yajl_gen_tstring(yajl_gen hander,
-                                                   const char *string) {
-  return yajl_gen_string(hander, string, strlen(string));
+static yajl_gen_status ovs_yajl_gen_tstring(yajl_gen hander,
+                                            const char *string) {
+  return yajl_gen_string(hander, (const unsigned char *)string, strlen(string));
 }
 
 /* Add YAJL value into YAJL generator handle (JSON object)
@@ -495,7 +432,8 @@ yajl_gen_failure:
 
 /* Get OVS DB registered callback by YAJL val. The YAJL
  * value should be YAJL string (UID). Returns NULL if
- * callback hasn't been found.
+ * callback hasn't been found. See also ovs_db_callback_get()
+ * description for addition info.
  */
 static ovs_callback_t *ovs_db_table_callback_get(ovs_db_t *pdb, yajl_val jid) {
   char *endptr = NULL;
@@ -543,12 +481,16 @@ static int ovs_db_table_update_cb(ovs_db_t *pdb, yajl_val jnode) {
     goto ovs_failure;
 
   /* find registered callback based on <json-value> */
+  pthread_mutex_lock(&pdb->mutex);
   cb = ovs_db_table_callback_get(pdb, jvalue);
-  if (cb == NULL || cb->table.call == NULL)
+  if (cb == NULL || cb->table.call == NULL) {
+    pthread_mutex_unlock(&pdb->mutex);
     goto ovs_failure;
+  }
 
   /* call registered callback */
   cb->table.call(jtable_updates);
+  pthread_mutex_unlock(&pdb->mutex);
   return 0;
 
 ovs_failure:
@@ -579,6 +521,7 @@ static int ovs_db_result_cb(ovs_db_t *pdb, yajl_val jnode) {
     return (-1);
 
   /* try to find registered callback */
+  pthread_mutex_lock(&pdb->mutex);
   cb = ovs_db_table_callback_get(pdb, jid);
   if (cb != NULL && cb->result.call != NULL) {
     /* call registered callback */
@@ -587,6 +530,7 @@ static int ovs_db_result_cb(ovs_db_t *pdb, yajl_val jnode) {
     sem_post(&cb->result.sync);
   }
 
+  pthread_mutex_unlock(&pdb->mutex);
   return (0);
 }
 
@@ -621,7 +565,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
   }
 
   /* get method name */
-  if (jval = yajl_tree_get(jnode, method_path, yajl_t_string)) {
+  if ((jval = yajl_tree_get(jnode, method_path, yajl_t_string)) != NULL) {
     method = YAJL_GET_STRING(jval);
     if (strcmp("echo", method) == 0) {
       /* echo request from the server */
@@ -632,7 +576,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
       if (ovs_db_table_update_cb(pdb, jnode) < 0)
         OVS_ERROR("handle update notification failed");
     }
-  } else if (jval = yajl_tree_get(jnode, result_path, yajl_t_any)) {
+  } else if ((jval = yajl_tree_get(jnode, result_path, yajl_t_any)) != NULL) {
     /* result notification */
     if (ovs_db_result_cb(pdb, jnode) < 0)
       OVS_ERROR("handle result reply failed");
@@ -654,7 +598,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
  */
 
 /* Allocate JSON reader instance */
-static inline ovs_json_reader_t *ovs_json_reader_alloc() {
+static ovs_json_reader_t *ovs_json_reader_alloc() {
   ovs_json_reader_t *jreader = NULL;
 
   if ((jreader = calloc(sizeof(ovs_json_reader_t), 1)) == NULL)
@@ -664,8 +608,8 @@ static inline ovs_json_reader_t *ovs_json_reader_alloc() {
 }
 
 /* Push raw data into into the JSON reader for processing */
-static inline int ovs_json_reader_push_data(ovs_json_reader_t *jreader,
-                                            const char *data, size_t data_len) {
+static int ovs_json_reader_push_data(ovs_json_reader_t *jreader,
+                                     const char *data, size_t data_len) {
   char *new_buff = NULL;
   size_t available = jreader->buff_size - jreader->buff_offset;
 
@@ -693,9 +637,8 @@ static inline int ovs_json_reader_push_data(ovs_json_reader_t *jreader,
 /* Pop one fully-fledged JSON if already exists. Returns 0 if
  * completed JSON already exists otherwise negative value is
  * returned */
-static inline int ovs_json_reader_pop(ovs_json_reader_t *jreader,
-                                      const char **json_ptr,
-                                      size_t *json_len_ptr) {
+static int ovs_json_reader_pop(ovs_json_reader_t *jreader,
+                               const char **json_ptr, size_t *json_len_ptr) {
   size_t nbraces = 0;
   size_t json_len = 0;
   char *json = NULL;
@@ -742,7 +685,7 @@ static inline int ovs_json_reader_pop(ovs_json_reader_t *jreader,
 /* Reset JSON reader. It is useful when start processing
  * new raw data. E.g.: in case of lost stream connection.
  */
-static inline void ovs_json_reader_reset(ovs_json_reader_t *jreader) {
+static void ovs_json_reader_reset(ovs_json_reader_t *jreader) {
   if (jreader) {
     jreader->buff_offset = 0;
     jreader->json_offset = 0;
@@ -750,41 +693,85 @@ static inline void ovs_json_reader_reset(ovs_json_reader_t *jreader) {
 }
 
 /* Release internal data allocated for JSON reader */
-static inline void ovs_json_reader_free(ovs_json_reader_t *jreader) {
+static void ovs_json_reader_free(ovs_json_reader_t *jreader) {
   if (jreader) {
     free(jreader->buff_ptr);
     free(jreader);
   }
 }
 
-/* Reconnect to OVD DB and call init OVS DB callback
- * 'init_cb' if connection has been established.
+/* Reconnect to OVD DB and call the OVS DB post connection init callback
+ * if connection has been established.
  */
 static int ovs_db_reconnect(ovs_db_t *pdb) {
   char errbuff[OVS_ERROR_BUFF_SIZE];
+  const char unix_prefix[] = "unix:";
+  struct addrinfo *result, *rp;
+  _Bool is_connected = 0;
+  struct sockaddr_un saunix;
 
   /* remove all registered OVS DB table/result callbacks */
   ovs_db_callback_remove_all(pdb);
 
-  /* open new socket */
-  if ((pdb->conn.sock = socket(pdb->conn.domain, pdb->conn.type, 0)) < 0) {
-    sstrerror(errno, errbuff, sizeof(errbuff));
-    OVS_ERROR("socket(): %s", errbuff);
-    return (-1);
-  }
+  if (strncmp(pdb->node, unix_prefix, strlen(unix_prefix)) == 0) {
+    /* create unix socket address */
+    rp = calloc(1, sizeof(struct addrinfo));
+    struct sockaddr_un *sa_unix = calloc(1, sizeof(struct sockaddr_un));
+    if (rp == NULL || sa_unix == NULL) {
+      sfree(rp);
+      sfree(sa_unix);
+      return (1);
+    }
+    rp->ai_family = AF_UNIX;
+    rp->ai_socktype = SOCK_STREAM;
+    rp->ai_addrlen = sizeof(*sa_unix);
+    rp->ai_addr = (struct sockaddr *)sa_unix;
+    sa_unix->sun_family = rp->ai_family;
+    sstrncpy(sa_unix->sun_path, (pdb->node + strlen(unix_prefix)),
+             sizeof(sa_unix->sun_path));
+    result = rp;
+  } else {
+    /* intet socket address */
+    int ret = 0;
+    struct addrinfo hints;
 
-  /* try to connect to server */
-  if (connect(pdb->conn.sock, (struct sockaddr *)&pdb->conn.addr,
-              pdb->conn.addr_size) < 0) {
-    sstrerror(errno, errbuff, sizeof(errbuff));
-    OVS_ERROR("connect(): %s", errbuff);
-    close(pdb->conn.sock);
-    return (-1);
+    /* setup criteria for selecting the socket address */
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    /* get socket addresses */
+    if ((ret = getaddrinfo(pdb->node, pdb->service, &hints, &result)) != 0) {
+      OVS_ERROR("getaddrinfo(): %s", gai_strerror(ret));
+      return (1);
+    }
+  }
+  /* try to connect to the server */
+  for (rp = result; rp != NULL; rp = rp->ai_next) {
+    if ((pdb->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) <
+        0) {
+      sstrerror(errno, errbuff, sizeof(errbuff));
+      OVS_DEBUG("socket(): %s", errbuff);
+      continue;
+    }
+    if (connect(pdb->sock, rp->ai_addr, rp->ai_addrlen) < 0) {
+      sstrerror(errno, errbuff, sizeof(errbuff));
+      OVS_DEBUG("connect(): %s [family=%d]", errbuff, rp->ai_family);
+      close(pdb->sock);
+    } else {
+      is_connected = 1;
+      break;
+    }
   }
 
   /* send notification to event thread */
-  ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
-  return (0);
+  if (is_connected)
+    ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
+  else
+    OVS_ERROR("connect to \"%s\" failed", pdb->node);
+
+  freeaddrinfo(result);
+  return !is_connected;
 }
 
 /* POLL worker thread.
@@ -808,7 +795,7 @@ static void *ovs_poll_worker(void *arg) {
   }
 
   /* start polling data */
-  poll_fd.fd = pdb->conn.sock;
+  poll_fd.fd = pdb->sock;
   poll_fd.events = POLLIN | POLLPRI;
   poll_fd.revents = 0;
 
@@ -823,7 +810,7 @@ static void *ovs_poll_worker(void *arg) {
           usleep(OVS_DB_RECONNECT_TIMEOUT * 1000000);
         }
         ovs_json_reader_reset(jreader);
-        poll_fd.fd = pdb->conn.sock;
+        poll_fd.fd = pdb->sock;
       } else if ((poll_fd.revents & POLLERR) || (poll_fd.revents & POLLHUP)) {
         /* connection is broken */
         OVS_ERROR("poll() peer closed its end of the channel");
@@ -934,7 +921,8 @@ static int ovs_db_poll_thread_stop(ovs_db_t *pdb) {
  * Public OVS DB API implementation
  */
 
-ovs_db_t *ovs_db_init(const char *surl, ovs_db_callback_t *cb) {
+ovs_db_t *ovs_db_init(const char *node, const char *service,
+                      ovs_db_callback_t *cb) {
   pthread_mutexattr_t mutex_attr;
   ovs_db_t *pdb = NULL;
 
@@ -942,9 +930,14 @@ ovs_db_t *ovs_db_init(const char *surl, ovs_db_callback_t *cb) {
   if ((pdb = calloc(1, sizeof(*pdb))) == NULL)
     return (NULL);
 
-  /* convert string url to socket addr */
-  if (ovs_db_url_parse(surl, &pdb->conn) < 0)
-    goto failure;
+  /* node cannot be unset */
+  if (node == NULL || strlen(node) == 0)
+    return (NULL);
+
+  /* store the OVS DB address */
+  sstrncpy(pdb->node, node, sizeof(pdb->node));
+  if (service != NULL)
+    sstrncpy(pdb->service, service, sizeof(pdb->service));
 
   /* setup OVS DB callbacks */
   if (cb)
@@ -982,9 +975,9 @@ ovs_db_t *ovs_db_init(const char *surl, ovs_db_callback_t *cb) {
   return pdb;
 
 failure:
-  if (pdb->conn.sock)
+  if (pdb->sock)
     /* close connection */
-    close(pdb->conn.sock);
+    close(pdb->sock);
   if (pdb->event_thread.tid != 0)
     /* stop event thread */
     if (ovs_db_event_thread_stop(pdb) < 0)
@@ -1193,7 +1186,7 @@ int ovs_db_destroy(ovs_db_t *pdb) {
     return (-1);
 
   /* try to lock the structure before releasing */
-  if (ret = pthread_mutex_lock(&pdb->mutex)) {
+  if ((ret = pthread_mutex_lock(&pdb->mutex))) {
     OVS_ERROR("pthread_mutex_lock() DB mutext lock failed (%d)", ret);
     return (-1);
   }
@@ -1214,8 +1207,8 @@ int ovs_db_destroy(ovs_db_t *pdb) {
   ovs_db_callback_remove_all(pdb);
 
   /* close connection */
-  if (pdb->conn.sock)
-    close(pdb->conn.sock);
+  if (pdb->sock)
+    close(pdb->sock);
 
   /* release DB handler */
   pthread_mutex_unlock(&pdb->mutex);
