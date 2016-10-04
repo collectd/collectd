@@ -96,7 +96,7 @@ Features
       DNS traffic: Query types, response codes, opcodes and traffic/octets
       transferred.
 
-    - dpdk
+    - dpdkstat
       Collect DPDK interface statistics.
 
     - drbd
