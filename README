@@ -98,6 +98,7 @@ Features
 
     - dpdkstat
       Collect DPDK interface statistics.
+      See docs/BUILD.dpdkstat.md for detailed build instructions.
 
     - drbd
       Collect individual drbd resource statistics.
@@ -130,9 +131,6 @@ Features
 
     - gps
       Monitor gps related data through gpsd.
-
-    - grpc
-      Send and receive values over the network using the gRPC framework.
 
     - hddtemp
       Hard disk temperatures using hddtempd.
@@ -167,7 +165,8 @@ Features
 
     - java
       Integrates a `Java Virtual Machine' (JVM) to execute plugins in Java
-      bytecode. See “Configuring with libjvm” below.
+      bytecode.
+      See docs/BUILD.java.md for detailed build instructions.
 
     - load
       System load average over the last 1, 5 and 15 minutes.
@@ -190,13 +189,13 @@ Features
       Queries very detailed usage statistics from wireless LAN adapters and
       interfaces that use the Atheros chipset and the MadWifi driver.
 
-    - mbmon
-      Motherboard sensors: temperature, fan speed and voltage information,
-      using mbmon(1).
-
     - md
       Linux software-RAID device information (number of active, failed, spare
       and missing disks).
+
+    - mbmon
+      Motherboard sensors: temperature, fan speed and voltage information,
+      using mbmon(1).
 
     - memcachec
       Query and parse data from a memcache daemon (memcached).
@@ -216,9 +215,6 @@ Features
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
-
-    - mqtt
-      Publishes and subscribes to MQTT topics.
 
     - multimeter
       Information provided by serial multimeters, such as the `Metex
@@ -398,7 +394,7 @@ Features
       CPU, memory, disk and network I/O statistics from virtual machines.
 
     - vmem
-      Virtual memory statistics, e. g. the number of page-ins/-outs or the
+      Virtual memory statistics, e.g. the number of page-ins/-outs or the
       number of pagefaults.
 
     - vserver
@@ -436,9 +432,15 @@ Features
       diskspace but is extremely portable and can be analysed with almost
       every program that can analyse anything. Even Microsoft's Excel..
 
+    - grpc
+      Send and receive values over the network using the gRPC framework.
+
     - lua
       It's possible to implement write plugins in Lua using the Lua
       plugin. See collectd-lua(5) for details.
+
+    - mqtt
+      Publishes and subscribes to MQTT topics.
 
     - network
       Send the data to a remote host to save the data somehow. This is useful
@@ -659,11 +661,21 @@ Prerequisites
 
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
+    collectd makes use of some common C99 features, e.g. compound literals and
+    mixed declarations, and therefore requires a C99 compatible compiler.
+
+    On Debian and Ubuntu, the "build-essential" package should pull in
+    everything that's necessary.
+
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
     etc) collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
+
+  * When building from the Git repository, flex (tokenizer) and bison (parser
+    generator) are required. Release tarballs include the generated files – you
+    don't need these packages in that case.
 
   * aerotools-ng (optional)
     Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
@@ -739,8 +751,8 @@ Prerequisites
 
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the `java' plugin to execute Java bytecode. See “Configuring with
-    libjvm” below.
+    used by the `java' plugin to execute Java bytecode.
+    See docs/BUILD.java.md for detailed build instructions.
     <http://openjdk.java.net/> (and others)
 
   * libldap (optional)
@@ -934,44 +946,6 @@ Configuring / Compiling / Installing
   prefixed to all installation directories. This might be useful when creating
   packages for collectd.
 
-Configuring with libjvm
------------------------
-
-  To determine the location of the required files of a Java installation is not
-  an easy task, because the locations vary with your kernel (Linux, SunOS, …)
-  and with your architecture (x86, SPARC, …) and there is no ‘java-config’
-  script we could use. Configuration of the JVM library is therefore a bit
-  tricky.
-
-  The easiest way to use the `--with-java=$JAVA_HOME' option, where
-  `$JAVA_HOME' is usually something like:
-    /usr/lib/jvm/java-1.5.0-sun-1.5.0.14
-
-  The configure script will then use find(1) to look for the following files:
-
-    - jni.h
-    - jni_md.h
-    - libjvm.so
-
-  If found, appropriate CPP-flags and LD-flags are set and the following
-  library checks succeed.
-
-  If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
-  following environment variables:
-
-    - JAVA_CPPFLAGS
-    - JAVA_CFLAGS
-    - JAVA_LDFLAGS
-    - JAVA_LIBS
-
-  For example (shortened for demonstration purposes):
-
-    ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
-
-  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
-  do that.
-
 Generating the configure script
 -------------------------------
 
@@ -989,6 +963,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - pkg-config
 
 The `build.sh' script takes no arguments.
+
 
 Crosscompiling
 --------------
@@ -1020,147 +995,16 @@ Crosscompiling
     * `endianflip' (12345678 -> 87654321)
     * `intswap'    (12345678 -> 56781234)
 
-Configuring with DPDK
----------------------
-
-Note: DPDK 16.04 is the minimum version and currently supported version of DPDK
-required for the dpdkstat plugin. This is to allow the plugin to take advantage
-of functions added to detect if the DPDK primary process is alive.
-
-Note: For Ubuntu, GCC 4.9 is the minimum version required to build collectd
-with DPDK. Ubuntu 14.04, for example, has GCC 4.8 by default and will require
-an upgrade:
-  $ sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-  $ sudo apt-get update
-  $ sudo apt-get install gcc-4.9
-Alternatively, if you know that the platform that you wish to run collectd
-on supports the SSSE3 instruction set, you can run make as follows:
-  $ make -j CFLAGS+='-mssse3'
-
-Build DPDK for use with collectd:
-  To compile DPDK for use with collectd dpdkstat start by:
-    - Clone DPDK:
-      $ git clone git://dpdk.org/dpdk
-    - Checkout the system requirements at
-      http://dpdk.org/doc/guides/linux_gsg/sys_reqs.html and make sure you have
-      the required tools and hugepage setup as specified there.
-      NOTE: It's recommended to use the 1GB hugepage setup for best performance,
-            please follow the instruction for "Reserving Hugepages for DPDK Use"
-            in the link above.
-      However if you plan on configuring 2MB hugepages on the fly please ensure
-      to add appropriate commands to reserve hugepages in a system startup script
-      if collectd is booted at system startup time. These commands include:
-          mkdir -p /mnt/huge
-          mount -t hugetlbfs nodev /mnt/huge
-          echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
-    - To configure the DPDK build for the combined shared library modify
-      config/common_base in your DPDK as follows
-        #
-        # Compile to share library
-        #
-        -CONFIG_RTE_BUILD_SHARED_LIB=n
-        +CONFIG_RTE_BUILD_SHARED_LIB=y
-    - Prepare the configuration for the appropriate target as specified at:
-      http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
-      For example:
-          $ make config T=x86_64-native-linuxapp-gcc
-    - Build the target:
-          $ make
-    - Install DPDK to /usr
-          $ sudo make install prefix=/usr
-      NOTE 1: You must run make install as the configuration of collectd with
-            DPDK expects DPDK to be installed somewhere.
-      NOTE 2: If you don't specify a prefix then DPDK will be installed in /usr/local/
-      NOTE 3: If you are not root then use sudo to make install DPDK to the appropriate
-            location.
-    - Check that the DPDK library has been installed in /usr/lib or /lib
-          $ ls /usr/lib | grep dpdk
-    - Bind the interfaces to use with dpdkstat to DPDK:
-      DPDK devices can be setup with either the VFIO (for DPDK 1.7+) or UIO modules.
-      Note: UIO requires inserting an out of tree driver igb_uio.ko that is available
-      in DPDK.
-      UIO Setup:
-      - Insert uio.ko:
-           $ sudo modprobe uio
-      - Insert igb_uio.ko:
-           $ sudo insmod $DPDK_BUILD/kmod/igb_uio.ko
-      - Bind network device to igb_uio:
-           $ sudo $DPDK_DIR/tools/dpdk_nic_bind.py --bind=igb_uio eth1
-      VFIO Setup:
-      - VFIO needs to be supported in the kernel and the BIOS. More information can be found
-        @ http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
-      - Insert the `vfio-pci.ko' module: modprobe vfio-pci
-      - Set the correct permissions for the vfio device:
-           $ sudo /usr/bin/chmod a+x /dev/vfio
-           $ sudo /usr/bin/chmod 0666 /dev/vfio/*
-     - Bind the network device to vfio-pci:
-           $ sudo $DPDK_DIR/tools/dpdk_nic_bind.py --bind=vfio-pci eth1
-       NOTE: Please ensure to add appropriate commands to bind the network
-             interfaces to DPDK in a system startup script if collectd is
-             booted at system startup time.
-     - Run ldconfig to update the shared library cache.
-
-  Build static DPDK library for use with collectd:
-     - To configure DPDK to build the combined static library libdpdk.a
-       ensure that CONFIG_RTE_BUILD_SHARED_LIB is set to n in
-       config/common_base in your DPDK as follows:
-       #
-       # Compile to share library
-       #
-       CONFIG_RTE_BUILD_SHARED_LIB=n
-     - Prepare the configuration for the appropriate target as specified at:
-       http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
-       For example:
-          $ make config T=x86_64-native-linuxapp-gcc
-     - Build the target using -fPIC:
-          $ make EXTRA_CFLAGS=-fPIC -j
-     - Install DPDK to /usr
-          $ sudo make install prefix=/usr
-
-Configure collectd with DPDK:
-NOTE: The Address-Space Layout Randomization (ASLR) security feature in Linux should
-	be disabled, in order for the same hugepage memory mappings to be present in all
-	DPDK multi-process applications. Note that this has security implications.
-	To disable ASLR:
-		$ echo 0 > /proc/sys/kernel/randomize_va_space
-	To fully enable ASLR:
-		$ echo 2 > /proc/sys/kernel/randomize_va_space
-	See http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
-
-    - Generate the build script as specified below. (i.e. run `build.sh').
-    - Configure collectd with the DPDK shared library:
-       ./configure --with-libdpdk=/usr
-      NOTE: To configure collectd with the DPDK static library:
-       ./configure --with-libdpdk=/usr CFLAGS=" -lpthread -Wl,--whole-archive
-        -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
-
-       Libraries:
-       ...
-       libdpdk  . . . . . . . . yes
-
-       Modules:
-       ...
-       dpdkstat . . . . . . .yes
-
-
-    - Make sure that dpdk and dpdkstat are enabled in the configuration log:
-
-    - Build collectd:
-          $ make -j && make -j install.
-      NOTE: As mentioned above, if you are building on Ubuntu 14.04 with GCC <= 4.8.X,
-        you need to use:
-          $  make -j CFLAGS+='-mssse3' && make -j install
-
-Usage of dpdkstat:
-    - The same PCI device configuration should be passed to the primary process
-      as the secondary process uses the same port indexes as the primary.
-      NOTE: A blacklist/whitelist of NICs isn't supported yet.
 
 Contact
 -------
 
-  For questions, bug reports, development information and basically all other
-  concerns please send an email to collectd's mailing list at
+  Please use GitHub to report bugs and submit pull requests:
+  <https://github.com/collectd/collectd/>.
+  See CONTRIBUTING.md for details.
+
+  For questions, development information and basically all other concerns please
+  send an email to collectd's mailing list at
   <list at collectd.org>.
 
   For live discussion and more personal contact visit us in IRC, we're in
@@ -1174,5 +1018,3 @@ Author
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
 
-  Please use GitHub reporting bugs and submitting pull requests.
-  See CONTRIBUTING.md for details.
