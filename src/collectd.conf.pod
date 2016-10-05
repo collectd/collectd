@@ -3361,17 +3361,18 @@ following options are allowed:
 
 Sets the B<host> field of dispatched values. Defaults to the global hostname
 setting.
-For backwards compatibility, values are also dispatched with the global hostname
-when B<Host> is set to "127.0.0.1" or "localhost" and B<Address> is not set.
+For backwards compatibility, values are also dispatched with the global
+hostname when B<Host> is set to B<127.0.0.1> or B<localhost> and B<Address> is
+not set.
 
 =item B<Address> I<Address>
 
-Hostname or IP to connect to. For backwards compatibility, it defaults to B<Host>
-value or to B<127.0.0.1> if it does not set.
+Hostname or IP to connect to. For backwards compatibility, defaults to the
+value of B<Host> or B<127.0.0.1> if B<Host> is unset.
 
 =item B<Port> I<Port>
 
-TCP-Port to connect to. Defaults to B<11211>.
+TCP port to connect to. Defaults to B<11211>.
 
 =item B<Socket> I<Path>
 

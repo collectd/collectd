@@ -532,14 +532,15 @@ static int memcached_add_read_callback (memcached_t *st)
       (st->name != NULL) ? st->name : "__legacy__");
 
   /* If no <Address> used then:
-   * - connect to destination, specified by <Host>, if it presents.
-   * - Keep default hostname, if any:
-   *    - Legacy mode is used (no configuration options at all);
-   *    - "Host" option is not provided;
+   * - Connect to the destination specified by <Host>, if present.
+   *   If not, use the default address.
+   * - Use the default hostname (set st->host to NULL), if
+   *    - Legacy mode is used (no configuration options at all), or
+   *    - "Host" option is not provided, or
    *    - "Host" option is set to "localhost" or "127.0.0.1".
    *
-   * If <Address> used then host may be set to "localhost"
-   * or "127.0.0.1" explicitly.
+   * If <Address> used then host may be set to "localhost" or "127.0.0.1"
+   * explicitly.
    */
   if (st->connhost == NULL)
   {
