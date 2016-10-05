@@ -3341,11 +3341,12 @@ interpreted. For a description of match blocks, please see L<"Plugin tail">.
 
 The B<memcached plugin> connects to a memcached server and queries statistics
 about cache utilization, memory and bandwidth used.
-L<http://www.danga.com/memcached/>
+L<http://memcached.org/>
 
  <Plugin "memcached">
    <Instance "name">
-     Host "memcache.example.com"
+     #Host "memcache.example.com"
+     Address "127.0.0.1"
      Port 11211
    </Instance>
  </Plugin>
@@ -3358,16 +3359,25 @@ following options are allowed:
 
 =item B<Host> I<Hostname>
 
-Hostname to connect to. Defaults to B<127.0.0.1>.
+Sets the B<host> field of dispatched values. Defaults to the global hostname
+setting.
+For backwards compatibility, values are also dispatched with the global
+hostname when B<Host> is set to B<127.0.0.1> or B<localhost> and B<Address> is
+not set.
+
+=item B<Address> I<Address>
+
+Hostname or IP to connect to. For backwards compatibility, defaults to the
+value of B<Host> or B<127.0.0.1> if B<Host> is unset.
 
 =item B<Port> I<Port>
 
-TCP-Port to connect to. Defaults to B<11211>.
+TCP port to connect to. Defaults to B<11211>.
 
 =item B<Socket> I<Path>
 
 Connect to I<memcached> using the UNIX domain socket at I<Path>. If this
-setting is given, the B<Host> and B<Port> settings are ignored.
+setting is given, the B<Address> and B<Port> settings are ignored.
 
 =back
 

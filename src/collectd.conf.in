@@ -705,7 +705,8 @@
 
 #<Plugin memcached>
 #	<Instance "local">
-#		Host "127.0.0.1"
+#		#Host "memcache.example.com"
+#		Address "127.0.0.1"
 #		Port "11211"
 #	</Instance>
 #</Plugin>
