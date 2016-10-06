@@ -128,6 +128,7 @@
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 #@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
+#@BUILD_PLUGIN_INTEL_RDT_TRUE@LoadPlugin intel_rdt
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
@@ -613,6 +614,10 @@
 #    ValuesPages      true
 #    ValuesBytes      false
 #    ValuesPercentage false
+#</Plugin>
+
+#<Plugin "intel_rdt">
+#  Cores "0-2"
 #</Plugin>
 
 #<Plugin interface>

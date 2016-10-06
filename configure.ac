@@ -4098,6 +4098,55 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
 # }}}
 
+# --with-libpqos {{{
+with_libpqos_cppflags=""
+with_libpqos_ldflags=""
+AC_ARG_WITH(libpqos, [AS_HELP_STRING([--with-libpqos@<:@=PREFIX@:>@], [Path to libpqos.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libpqos_cppflags="-I$withval/include"
+		with_libpqos_ldflags="-L$withval/lib"
+		with_libpqos="yes"
+	else
+		with_libpqos="$withval"
+	fi
+],
+[
+	with_libpqos="yes"
+])
+if test "x$with_libpqos" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+
+	AC_CHECK_HEADERS(pqos.h, [with_libpqos="yes"], [with_libpqos="no (pqos.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+	LDFLAGS="$LDFLAGS $with_libpqos_ldflags"
+
+	AC_CHECK_LIB(pqos, pqos_init, [with_libpqos="yes"], [with_libpqos="no (Can't find libpqos)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
+	BUILD_WITH_LIBPQOS_CPPFLAGS="$with_libpqos_cppflags"
+	BUILD_WITH_LIBPQOS_LDFLAGS="$with_libpqos_ldflags"
+	BUILD_WITH_LIBPQOS_LIBS="-lpqos"
+	AC_SUBST(BUILD_WITH_LIBPQOS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQOS_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQOS_LIBS)
+fi
+# }}}
+
 # --with-libprotobuf {{{
 with_libprotobuf_cppflags=""
 with_libprotobuf_ldflags=""
@@ -5786,6 +5835,7 @@ plugin_fscache="no"
 plugin_gps="no"
 plugin_grpc="no"
 plugin_hugepages="no"
+plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -6243,6 +6293,7 @@ AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
+AC_PLUGIN([intel_rdt],           [$with_libpqos],           [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])
@@ -6604,6 +6655,7 @@ AC_MSG_RESULT([    libpcap . . . . . . . $with_libpcap])
 AC_MSG_RESULT([    libperfstat . . . . . $with_perfstat])
 AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
+AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
@@ -6676,6 +6728,7 @@ AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
+AC_MSG_RESULT([    intel_rdt. . . . .  . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])
