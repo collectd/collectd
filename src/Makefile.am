@@ -962,12 +962,12 @@ protocols_la_SOURCES = protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
-if BUILD_PLUGIN_RDTMON
-pkglib_LTLIBRARIES += rdtmon.la
-rdtmon_la_SOURCES = rdtmon.c
-rdtmon_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
-rdtmon_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
-rdtmon_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
+if BUILD_PLUGIN_INTEL_RDT
+pkglib_LTLIBRARIES += intel_rdt.la
+intel_rdt_la_SOURCES = intel_rdt.c
+intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
+intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
+intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
 endif
 
 if BUILD_PLUGIN_REDIS

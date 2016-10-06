@@ -5835,6 +5835,7 @@ plugin_fscache="no"
 plugin_gps="no"
 plugin_grpc="no"
 plugin_hugepages="no"
+plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -5850,7 +5851,6 @@ plugin_pinba="no"
 plugin_processes="no"
 plugin_protocols="no"
 plugin_python="no"
-plugin_rdtmon="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
@@ -6293,6 +6293,7 @@ AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
+AC_PLUGIN([intel_rdt],           [$with_libpqos],           [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])
@@ -6348,7 +6349,6 @@ AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
-AC_PLUGIN([rdtmon],              [$with_libpqos],           [RDT monitor plugin])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
 AC_PLUGIN([routeros],            [$with_librouteros],       [RouterOS plugin])
 AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],     [RRDTool output plugin])
@@ -6728,6 +6728,7 @@ AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
+AC_MSG_RESULT([    intel_rdt. . . . .  . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])
@@ -6783,7 +6784,6 @@ AC_MSG_RESULT([    processes . . . . . . $enable_processes])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
-AC_MSG_RESULT([    rdtmon . . . . . .  . $enable_rdtmon])
 AC_MSG_RESULT([    routeros  . . . . . . $enable_routeros])
 AC_MSG_RESULT([    rrdcached . . . . . . $enable_rrdcached])
 AC_MSG_RESULT([    rrdtool . . . . . . . $enable_rrdtool])

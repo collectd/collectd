@@ -128,6 +128,7 @@
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 #@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
+#@BUILD_PLUGIN_INTEL_RDT_TRUE@LoadPlugin intel_rdt
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
@@ -175,7 +176,6 @@
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
-#@BUILD_PLUGIN_RDTMON_TRUE@LoadPlugin rdtmon
 #@BUILD_PLUGIN_ROUTEROS_TRUE@LoadPlugin routeros
 #@BUILD_PLUGIN_RRDCACHED_TRUE@LoadPlugin rrdcached
 @LOAD_PLUGIN_RRDTOOL@LoadPlugin rrdtool
@@ -614,6 +614,10 @@
 #    ValuesPages      true
 #    ValuesBytes      false
 #    ValuesPercentage false
+#</Plugin>
+
+#<Plugin "intel_rdt">
+#  Cores "0-2"
 #</Plugin>
 
 #<Plugin interface>
@@ -1096,10 +1100,6 @@
 #	<Module spam>
 #		spam "wonderful" "lovely"
 #	</Module>
-#</Plugin>
-
-#<Plugin "rdtmon">
-#  Cores "0-2"
 #</Plugin>
 
 #<Plugin redis>

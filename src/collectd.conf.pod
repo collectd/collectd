@@ -2928,6 +2928,60 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<intel_rdt>
+
+The I<intel_rdt> plugin collects information provided by monitoring features of
+Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
+Technology (CMT), Memory Bandwidth Monitoring (MBM). These features provide
+information about utilization of shared resources. CMT monitors last level cache
+occupancy (LLC). MBM supports two types of events reporting local and remote
+memory bandwidth. Local memory bandwidth (MBL) reports the bandwidth of
+accessing memory associated with the local socket. Remote memory bandwidth (MBR)
+reports the bandwidth of accessing the remote socket. Also this technology
+allows to monitor instructions per clock (IPC).
+Monitor events are hardware dependant. Monitoring capabilities are detected on
+plugin initialization and only supported events are monitored.
+
+B<Synopsis:>
+
+  <Plugin "intel_rdt">
+    Cores "0-2" "3,4,6" "8-10,15"
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Interval> I<seconds>
+
+The interval within which to retrieve statistics on monitored events in seconds.
+For milliseconds divide the time by 1000 for example if the desired interval
+is 50ms, set interval to 0.05. Due to limited capacity of counters it is not
+recommended to set interval higher than 1 sec.
+
+=item B<Cores> I<cores groups>
+
+All events are reported on a per core basis. Monitoring of the events can be
+configured for group of cores (aggregated statistics). This field defines groups
+of cores on which to monitor supported events. The field is represented as list
+of strings with core group values. Each string represents a list of cores in a
+group. Allowed formats are:
+    0,1,2,3
+    0-10,20-18
+    1,3,5-8,10,0x10-12
+
+If an empty string is provided as value for this field default cores
+configuration is applied - a separate group is created for each core.
+
+=back
+
+B<Note:> By default global interval is used to retrieve statistics on monitored
+events. To configure a plugin specific interval use B<Interval> option of the
+intel_rdt <LoadPlugin> block. For milliseconds divide the time by 1000 for
+example if the desired interval is 50ms, set interval to 0.05.
+Due to limited capacity of counters it is not recommended to set interval higher
+than 1 sec.
+
 =head2 Plugin C<interface>
 
 =over 4
@@ -6294,60 +6348,6 @@ When enabled, the number of sectors written and bad blocks will be collected.
 Defaults to B<false>.
 
 =back
-
-=head2 Plugin C<rdtmon>
-
-The I<rdtmon> plugin collects information provided by monitoring features of
-Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
-Technology (CMT), Memory Bandwidth Monitoring (MBM). These features provide
-information about utilization of shared resources. CMT monitors last level cache
-occupancy (LLC). MBM supports two types of events reporting local and remote
-memory bandwidth. Local memory bandwidth (MBL) reports the bandwidth of
-accessing memory associated with the local socket. Remote memory bandwidth (MBR)
-reports the bandwidth of accessing the remote socket. Also this technology
-allows to monitor instructions per clock (IPC).
-Monitor events are hardware dependant. Monitoring capabilities are detected on
-plugin initialization and only supported events are monitored.
-
-B<Synopsis:>
-
-  <Plugin "rdtmon">
-    Cores "0-2" "3,4,6" "8-10,15"
-  </Plugin>
-
-B<Options:>
-
-=over 4
-
-=item B<Interval> I<seconds>
-
-The interval within which to retrieve statistics on monitored events in seconds.
-For milliseconds divide the time by 1000 for example if the desired interval
-is 50ms, set interval to 0.05. Due to limited capacity of counters it is not
-recommended to set interval higher than 1 sec.
-
-=item B<Cores> I<cores groups>
-
-All events are reported on a per core basis. Monitoring of the events can be
-configured for group of cores (aggregated statistics). This field defines groups
-of cores on which to monitor supported events. The field is represented as list
-of strings with core group values. Each string represents a list of cores in a
-group. Allowed formats are:
-    0,1,2,3
-    0-10,20-18
-    1,3,5-8,10,0x10-12
-
-If an empty string is provided as value for this field default cores
-configuration is applied - a separate group is created for each core.
-
-=back
-
-B<Note:> By default global interval is used to retrieve statistics on monitored
-events. To configure a plugin specific interval use B<Interval> option of the
-rdtmon <LoadPlugin> block. For milliseconds divide the time by 1000 for example
-if the desired interval is 50ms, set interval to 0.05.
-Due to limited capacity of counters it is not recommended to set interval higher
-than 1 sec.
 
 =head2 Plugin C<redis>
 
