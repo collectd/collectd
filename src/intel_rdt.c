@@ -25,9 +25,10 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include <pqos.h>
-
+#include "collectd.h"
 #include "common.h"
+
+#include <pqos.h>
 
 #define RDT_PLUGIN "intel_rdt"
 
