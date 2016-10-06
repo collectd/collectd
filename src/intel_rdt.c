@@ -3,15 +3,15 @@
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -265,7 +265,8 @@ static int oconfig_to_cgroups(oconfig_item_t *item, rdt_core_group_t *groups,
     uint64_t cores[RDT_MAX_CORES] = {0};
     char value[DATA_MAX_NAME_LEN];
 
-    if ((item->values[j].value.string == NULL) || (strlen(item->values[j].value.string) == 0))
+    if ((item->values[j].value.string == NULL) ||
+        (strlen(item->values[j].value.string) == 0))
       continue;
 
     sstrncpy(value, item->values[j].value.string, sizeof(value));
@@ -399,15 +400,14 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   DEBUG(RDT_PLUGIN ": Core groups [%d]:", item->values_num);
   for (int j = 0; j < item->values_num; j++) {
     if (item->values[j].type != OCONFIG_TYPE_STRING) {
-      ERROR(RDT_PLUGIN ": given core group value is not a string [idx=%d]",
-            j);
+      ERROR(RDT_PLUGIN ": given core group value is not a string [idx=%d]", j);
       return (-EINVAL);
     }
     DEBUG(RDT_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
   }
 
   n = oconfig_to_cgroups(item, g_rdt->cgroups, RDT_MAX_CORES,
-                         g_rdt->pqos_cpu->num_cores-1);
+                         g_rdt->pqos_cpu->num_cores - 1);
   if (n < 0) {
     rdt_free_cgroups();
     ERROR(RDT_PLUGIN ": Error parsing core groups configuration.");
@@ -419,8 +419,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     n = rdt_default_cgroups();
     if (n < 0) {
       rdt_free_cgroups();
-      ERROR(RDT_PLUGIN
-            ": Error creating default core groups configuration.");
+      ERROR(RDT_PLUGIN ": Error creating default core groups configuration.");
       return n;
     }
     INFO(RDT_PLUGIN
@@ -495,8 +494,7 @@ static int rdt_preinit(void) {
     goto rdt_preinit_error2;
   }
 
-  ret = pqos_cap_get_type(g_rdt->pqos_cap, PQOS_CAP_TYPE_MON,
-                          &g_rdt->cap_mon);
+  ret = pqos_cap_get_type(g_rdt->pqos_cap, PQOS_CAP_TYPE_MON, &g_rdt->cap_mon);
   if (ret == PQOS_RETVAL_PARAM) {
     ERROR(RDT_PLUGIN ": Error retrieving monitoring capabilities.");
     goto rdt_preinit_error2;
@@ -542,8 +540,7 @@ static int rdt_config(oconfig_item_t *ci) {
 #endif /* COLLECT_DEBUG */
 
     } else {
-      ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".",
-            child->key);
+      ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
   }
 
@@ -551,10 +548,10 @@ static int rdt_config(oconfig_item_t *ci) {
 }
 
 static void rdt_submit_derive(char *cgroup, char *type, char *type_instance,
-                                derive_t value) {
+                              derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t) { .derive = value };
+  vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
@@ -567,10 +564,10 @@ static void rdt_submit_derive(char *cgroup, char *type, char *type_instance,
 }
 
 static void rdt_submit_gauge(char *cgroup, char *type, char *type_instance,
-                                gauge_t value) {
+                             gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t) { .gauge = value };
+  vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
@@ -616,10 +613,10 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
       rdt_submit_gauge(g_rdt->cgroups[i].desc, "ipc", NULL, pv->ipc);
 
     if (g_rdt->cgroups[i].events & mbm_events) {
-      rdt_submit_derive(g_rdt->cgroups[i].desc, "memory_bandwidth",
-                           "local", pv->mbm_local_delta);
-      rdt_submit_derive(g_rdt->cgroups[i].desc, "memory_bandwidth",
-                           "remote", pv->mbm_remote_delta);
+      rdt_submit_derive(g_rdt->cgroups[i].desc, "memory_bandwidth", "local",
+                        pv->mbm_local_delta);
+      rdt_submit_derive(g_rdt->cgroups[i].desc, "memory_bandwidth", "remote",
+                        pv->mbm_remote_delta);
     }
   }
 
