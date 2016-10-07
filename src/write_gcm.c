@@ -122,6 +122,9 @@ static _Bool wg_some_error_occured_g = 0;
 // The maximum size of the project id (platform-defined).
 #define MAX_PROJECT_ID_SIZE ((size_t) 64)
 
+// The limit on metadata sizes (platform-defined).
+#define MAX_METADATA_SIZE ((size_t) 1024)
+
 // The size of the URL buffer.
 #define URL_BUFFER_SIZE ((size_t) 512)
 
@@ -1456,9 +1459,9 @@ static int wg_typed_value_create_from_meta_data_inline(wg_typed_value_t *result,
       if (meta_data_get_string(md, key, &result->value_text) != 0) {
         return -1;
       }
-      // Truncate all metadata entries to 512 characters.
-      if (strlen(result->value_text) > 512) {
-        result->value_text[512] = '\0';
+      // Truncate all metadata entries to the platform limit.
+      if (strlen(result->value_text) > MAX_METADATA_SIZE) {
+        result->value_text[MAX_METADATA_SIZE] = '\0';
       }
       return 0;
     }
