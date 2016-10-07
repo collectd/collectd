@@ -658,10 +658,16 @@ static int cpu_read (void)
 	char *fields[9];
 	int numfields;
 
-	if ((fh = fopen ("/proc/stat", "r")) == NULL)
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	const char *path   = "/proc/stat";
+	char statfile[strlen(prefix) + strlen(path) + 1];
+
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, path);
+	if ((fh = fopen (statfile, "r")) == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cpu plugin: fopen (/proc/stat) failed: %s",
+		ERROR ("cpu plugin: fopen (%s) failed: %s",
+				statfile,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

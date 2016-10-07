@@ -691,12 +691,22 @@ static int disk_read (void)
 
 	diskstats_t *ds, *pre_ds;
 
-	if ((fh = fopen ("/proc/diskstats", "r")) == NULL)
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	const char *diskstats_path = "/proc/diskstats";
+	const char *partitions_path = "/proc/partitions";
+	char proc_diskstats[strlen(prefix) + strlen(diskstats_path) + 1];
+	char proc_partitions[strlen(prefix) + strlen(partitions_path) + 1];
+
+	ssnprintf(proc_diskstats, sizeof(proc_diskstats), "%s%s", prefix, diskstats_path);
+	ssnprintf(proc_partitions, sizeof(proc_partitions), "%s%s", prefix, partitions_path);
+
+	if ((fh = fopen (proc_diskstats, "r")) == NULL)
 	{
-		fh = fopen ("/proc/partitions", "r");
+		fh = fopen (proc_partitions, "r");
 		if (fh == NULL)
 		{
-			ERROR ("disk plugin: fopen (/proc/{diskstats,partitions}) failed.");
+			ERROR ("disk plugin: fopen (%s/proc/{diskstats,partitions}) failed.",
+					prefix);
 			return (-1);
 		}
 

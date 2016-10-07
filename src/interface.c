@@ -252,11 +252,16 @@ static int interface_read (void)
 	char *fields[16];
 	int numfields;
 
-	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	const char *path   = "/proc/net/dev";
+	char statfile[strlen(prefix) + strlen(path) + 1];
+
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, path);
+	if ((fh = fopen (statfile, "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("interface plugin: fopen: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		WARNING ("interface plugin: fopen(%s): %s",
+				statfile, sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 

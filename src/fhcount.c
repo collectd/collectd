@@ -84,8 +84,13 @@ static int fhcount_read(void) {
   char errbuf[1024];
   FILE *fp;
 
+  const char *prefix = global_option_get("PseudoFSPrefix");
+  const char *path   = "/proc/sys/fs/file-nr";
+  char statfile[strlen(prefix) + strlen(path) + 1];
+
   // Open file
-  fp = fopen("/proc/sys/fs/file-nr" , "r");
+  ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, path);
+  fp = fopen(statfile, "r");
   if (fp == NULL) {
     ERROR("fhcount: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     return(EXIT_FAILURE);

@@ -219,12 +219,18 @@ uuidcache_init(void)
 	char device[110];
 	int handleOnFirst;
 
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char statfile[strlen(prefix) + strlen(PROC_PARTITIONS) + 1];
+
 	if(uuidCache) {
 		return;
 	}
 
-	procpt = fopen(PROC_PARTITIONS, "r");
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, PROC_PARTITIONS);
+	procpt = fopen(statfile, "r");
 	if(procpt == NULL) {
+		ERROR ("utils_mount: fopen (%s) failed.",
+				statfile);
 		return;
 	}
 
@@ -577,16 +583,21 @@ static cu_mount_t *cu_mount_getmntent (void)
 	struct mntent me;
 	char mntbuf[1024];
 
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char statfile[strlen(prefix) + strlen(COLLECTD_MNTTAB) + 1];
+
 	cu_mount_t *first = NULL;
 	cu_mount_t *last  = NULL;
 	cu_mount_t *new   = NULL;
 
-	DEBUG ("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, COLLECTD_MNTTAB);
 
-	if ((fp = setmntent (COLLECTD_MNTTAB, "r")) == NULL)
+	DEBUG ("utils_mount: (void); COLLECTD_MNTTAB = %s", statfile);
+
+	if ((fp = setmntent (statfile, "r")) == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("setmntent (%s): %s", COLLECTD_MNTTAB,
+		ERROR ("setmntent (%s): %s", statfile,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (NULL);
 	}

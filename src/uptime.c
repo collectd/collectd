@@ -90,9 +90,13 @@ static int uptime_init (void) /* {{{ */
 	int ret;
 	FILE *fh;
 
+	const char *prefix = global_option_get("PseudoFSPrefix");
+	char statfile[strlen(prefix) + strlen(STAT_FILE) + 1];
+
 	ret = 0;
 
-	fh = fopen (STAT_FILE, "r");
+	ssnprintf(statfile, sizeof(statfile), "%s%s", prefix, STAT_FILE);
+	fh = fopen (statfile, "r");
 
 	if (fh == NULL)
 	{
