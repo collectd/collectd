@@ -104,7 +104,7 @@ static int my_read (void)
 
 	/* it is strongly recommended to use a type defined in the types.db file
 	 * instead of a custom type */
-	sstrncpy (vl.type, "myplugin", sizeof (vl.plugin));
+	sstrncpy (vl.type, "myplugin", sizeof (vl.type));
 	/* optionally set vl.plugin_instance and vl.type_instance to reasonable
 	 * values (default: "") */
 
@@ -114,7 +114,7 @@ static int my_read (void)
 
 	/* A return value != 0 indicates an error and the plugin will be skipped
 	 * for an increasing amount of time. */
-    return 0;
+	return 0;
 } /* static int my_read (void) */
 
 /*
