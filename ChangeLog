@@ -1,3 +1,27 @@
+2016-10-07, Version 5.6.1
+	* Build system: Unnecessary linking of the Write Graphite plugin with
+	  libyajl has been removed. Thanks to Marc Fournier.
+	  Debian#839771, #1976
+	* collectd: A bug in the "FlushInterval" option that caused a
+	  segmentation fault in the Write HTTP plugin has been fixed. Thanks to
+	  Florian Forster. #1954
+	* Apache plugin: A syntax error has been fixed. Thanks to Florian
+	  Forster.
+	* cURL-JSON plugin: A segmentation fault that occurred when handling
+	  JSON with unexpected structure has been fixed. Thanks to Florian
+	  Forster. #1896
+	* PostgreSQL plugin: Handling of "NULL" values in the "query_plans" and
+	  "query_plans_by_table" queries has been fixed. Thanks to Bernd
+	  Zeimetz. #1905
+	* RRDCacheD plugin: Reconnection behavior has been added. Thanks to
+	  Sebastian Harl. Debian#657877
+	* VServer plugin: Use of a deprecated API ("readdir_r()") has been
+	  fixed. Thanks to Sebastian Harl.
+	* Write Graphite plugin: Make default values configurable at compile
+	  time again. Thanks to Florian Forster. #1953
+	* Write HTTP plugin: A bug has been fixed that lead to flush callbacks
+	  being registered twice. Thanks to Florian Forster. #1955
+
 2016-09-11, Version 5.6.0
 	* Build system: An option to to avoid building the DF plugin against XFS
 	  has been added. Thanks to Ruben Kerkhof. #1878
