@@ -64,6 +64,11 @@
 extern kstat_ctl_t *kc;
 #endif
 
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
+#endif
+
 #if !HAVE_GETPWNAM_R
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
