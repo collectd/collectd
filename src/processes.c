@@ -230,6 +230,7 @@ typedef struct procstat
 static procstat_t *list_head_g = NULL;
 
 static _Bool report_ctx_switch = 0;
+static _Bool count_thread_state = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -600,6 +601,10 @@ static int ps_config (oconfig_item_t *ci)
 		{
 			cf_util_get_boolean (c, &report_ctx_switch);
 		}
+		else if (strcasecmp (c->key, "CountThreadState") == 0)
+		{
+			cf_util_get_boolean (c, &count_thread_state);
+		}
 		else
 		{
 			ERROR ("processes plugin: The `%s' configuration option is not "
@@ -793,89 +798,6 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
-static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
-{
-	char           dirname[64];
-	DIR           *dh;
-	char           filename[64];
-	FILE          *fh;
-	struct dirent *ent;
-	derive_t cswitch_vol = 0;
-	derive_t cswitch_invol = 0;
-	char buffer[1024];
-	char *fields[8];
-	int numfields;
-
-	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
-
-	if ((dh = opendir (dirname)) == NULL)
-	{
-		DEBUG ("Failed to open directory `%s'", dirname);
-		return (NULL);
-	}
-
-	while ((ent = readdir (dh)) != NULL)
-	{
-		char *tpid;
-
-		if (!isdigit ((int) ent->d_name[0]))
-			continue;
-
-		tpid = ent->d_name;
-
-		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", pid, tpid);
-		if ((fh = fopen (filename, "r")) == NULL)
-		{
-			DEBUG ("Failed to open file `%s'", filename);
-			continue;
-		}
-
-		while (fgets (buffer, sizeof(buffer), fh) != NULL)
-		{
-			derive_t tmp;
-			char *endptr;
-
-			if (strncmp (buffer, "voluntary_ctxt_switches", 23) != 0
-				&& strncmp (buffer, "nonvoluntary_ctxt_switches", 26) != 0)
-				continue;
-
-			numfields = strsplit (buffer, fields,
-				STATIC_ARRAY_SIZE (fields));
-
-			if (numfields < 2)
-				continue;
-
-			errno = 0;
-			endptr = NULL;
-			tmp = (derive_t) strtoll (fields[1], &endptr, /* base = */ 10);
-			if ((errno == 0) && (endptr != fields[1]))
-			{
-				if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0)
-				{
-					cswitch_vol += tmp;
-				}
-				else if (strncmp (buffer, "nonvoluntary_ctxt_switches", 26) == 0)
-				{
-					cswitch_invol += tmp;
-				}
-			}
-		} /* while (fgets) */
-
-		if (fclose (fh))
-		{
-			char errbuf[1024];
-			WARNING ("processes: fclose: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		}
-	}
-	closedir (dh);
-
-	ps->cswitch_vol = cswitch_vol;
-	ps->cswitch_invol = cswitch_invol;
-
-	return (ps);
-} /* int *ps_read_tasks_status */
-
 /* Read data from /proc/pid/status */
 static procstat_t *ps_read_status (long pid, procstat_t *ps)
 {
@@ -1001,6 +923,124 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 
 	return (ps);
 } /* procstat_t *ps_read_io */
+
+static int ps_iter_dir (const char *dirname, const char *iterfile, void (*callback)(void *, char *, int), void *ctx)
+{
+	DIR           *dh;
+	struct dirent *ent;
+	char           filename[PATH_MAX];
+	FILE          *fh;
+	char           buffer[1024];
+
+	if ((dh = opendir (dirname)) == NULL)
+	{
+		ERROR ("Failed to open directory `%s'", dirname);
+		return (-1);
+	}
+
+	while ((ent = readdir (dh)) != NULL)
+	{
+		if (ent->d_name[0] == '.')
+			continue;
+
+		ssnprintf (filename, sizeof (filename), "%s/%s/%s", \
+				dirname, ent->d_name, iterfile);
+		if ((fh = fopen (filename, "r")) == NULL)
+		{
+			ERROR ("Failed to open file `%s'", filename);
+			continue;
+		}
+
+		while (fgets (buffer, sizeof(buffer), fh) != NULL)
+		{
+			callback(ctx, buffer, sizeof(buffer));
+		}
+
+		if (fclose (fh))
+		{
+			char errbuf[1024];
+			WARNING ("processes: fclose: %s",
+				sstrerror (errno, errbuf, sizeof (errbuf)));
+		}
+	}
+
+	closedir (dh);
+	return (0);
+} /* int ps_iter_dir */
+
+typedef struct taskstate_counter_s
+{
+	int running;
+	int sleeping;
+	int zombies;
+	int stopped;
+	int paging;
+	int blocked;
+} taskstate_counter_t;
+
+static void ps_state_callback (void *ctx, char *buffer, int buflen)
+{
+	taskstate_counter_t *counter;
+	char *fields[2];
+	int   numfields;
+
+	counter = (taskstate_counter_t *) ctx;
+
+	if (strncmp (buffer, "State:", strlen("State:")) != 0)
+		return;
+
+	numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+	if (numfields < 2)
+		return;
+
+	switch (fields[1][0])
+	{
+		case 'R': counter->running++;  break;
+		case 'S': counter->sleeping++; break;
+		case 'D': counter->blocked++;  break;
+		case 'Z': counter->zombies++;  break;
+		case 'T': counter->stopped++;  break;
+		case 'W': counter->paging++;   break;
+	}
+}
+
+typedef struct taskswitch_counter_s
+{
+	derive_t cswitch_vol;
+	derive_t cswitch_invol;
+} taskswitch_counter_t;
+
+static void ps_ctxt_switch_callback (void *ctx, char *buffer, int buflen)
+{
+	taskswitch_counter_t *counter;
+	char    *fields[8];
+	int      numfields;
+	value_t  count;
+	int      status;
+
+	counter = (taskswitch_counter_t *) ctx;
+
+	if (strncmp (buffer, "voluntary_ctxt_switches", 23) != 0
+		&& strncmp (buffer, "nonvoluntary_ctxt_switches", 26) != 0)
+		return;
+
+	numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+	if (numfields < 2)
+		return;
+
+	status = parse_value (fields[1], &count, DS_TYPE_DERIVE);
+	if (status == 0)
+	{
+		if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0)
+		{
+			counter->cswitch_vol += count.derive;
+		}
+		else if (strncmp (buffer, "nonvoluntary_ctxt_switches", 26) == 0)
+		{
+			counter->cswitch_invol += count.derive;
+		}
+	}
+} /* void ps_ctxt_switch_callback */
 
 static int ps_read_process (long pid, procstat_t *ps, char *state)
 {
@@ -1146,13 +1186,25 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 
 	if ( report_ctx_switch )
 	{
-		if ( (ps_read_tasks_status(pid, ps)) == NULL)
+		taskswitch_counter_t counter = { 0 };
+		char dirname[PATH_MAX];
+
+		counter.cswitch_vol = 0;
+		counter.cswitch_invol = 0;
+
+		ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
+		if ( (ps_iter_dir(dirname, "status", ps_ctxt_switch_callback, &counter)) ) 
 		{
 			ps->cswitch_vol = -1;
 			ps->cswitch_invol = -1;
 
 			DEBUG("ps_read_tasks_status: not get context "
 					"switch data for pid %li", pid);
+		}
+		else
+		{
+			ps->cswitch_vol = counter.cswitch_vol;
+			ps->cswitch_invol = counter.cswitch_invol;
 		}
 	}
 
@@ -1788,12 +1840,8 @@ static int ps_read (void)
 /* #endif HAVE_THREAD_INFO */
 
 #elif KERNEL_LINUX
-	int running  = 0;
-	int sleeping = 0;
-	int zombies  = 0;
-	int stopped  = 0;
-	int paging   = 0;
-	int blocked  = 0;
+	taskstate_counter_t counter = { 0 };
+	char dirname[PATH_MAX];
 
 	struct dirent *ent;
 	DIR           *proc;
@@ -1806,7 +1854,8 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-	running = sleeping = zombies = stopped = paging = blocked = 0;
+	counter.running = counter.sleeping = counter.zombies = 0;
+	counter.stopped = counter.paging = counter.blocked = 0;
 	ps_list_reset ();
 
 	if ((proc = opendir ("/proc")) == NULL)
@@ -1862,14 +1911,25 @@ static int ps_read (void)
 		pse.cswitch_vol = ps.cswitch_vol;
 		pse.cswitch_invol = ps.cswitch_invol;
 
-		switch (state)
+		if (!count_thread_state)
 		{
-			case 'R': running++;  break;
-			case 'S': sleeping++; break;
-			case 'D': blocked++;  break;
-			case 'Z': zombies++;  break;
-			case 'T': stopped++;  break;
-			case 'W': paging++;   break;
+			switch (state)
+			{
+				case 'R': counter.running++;  break;
+				case 'S': counter.sleeping++; break;
+				case 'D': counter.blocked++;  break;
+				case 'Z': counter.zombies++;  break;
+				case 'T': counter.stopped++;  break;
+				case 'W': counter.paging++;   break;
+			}
+		}
+		else
+		{
+			ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
+			if ( ps_iter_dir(dirname, "status", ps_state_callback, &counter) )
+			{
+				DEBUG ("ps_iter_dir failed for pid %li", pid);
+			}
 		}
 
 		ps_list_add (ps.name,
@@ -1879,12 +1939,20 @@ static int ps_read (void)
 
 	closedir (proc);
 
-	ps_submit_state ("running",  running);
-	ps_submit_state ("sleeping", sleeping);
-	ps_submit_state ("zombies",  zombies);
-	ps_submit_state ("stopped",  stopped);
-	ps_submit_state ("paging",   paging);
-	ps_submit_state ("blocked",  blocked);
+	if (count_thread_state)
+	{
+		/* don't count this thread, which mostly sleeps */
+		if (counter.running > 0)
+			counter.running--;
+		else
+			DEBUG ("Expect >= 1 running thread if count_thread_state");
+	}
+	ps_submit_state ("running",  counter.running);
+	ps_submit_state ("sleeping", counter.sleeping);
+	ps_submit_state ("zombies",  counter.zombies);
+	ps_submit_state ("stopped",  counter.stopped);
+	ps_submit_state ("paging",   counter.paging);
+	ps_submit_state ("blocked",  counter.blocked);
 
 	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
