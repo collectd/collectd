@@ -37,7 +37,11 @@
 
 struct fc_directory_conf_s {
   char *path;
+  char *plugin_name;
   char *instance;
+  char *files_size_type;
+  char *files_num_type;
+  char *type_instance;
 
   int options;
 
@@ -58,31 +62,56 @@ typedef struct fc_directory_conf_s fc_directory_conf_t;
 static fc_directory_conf_t **directories = NULL;
 static size_t directories_num = 0;
 
+void fc_free_dir(fc_directory_conf_t *dir) {
+  sfree(dir->path);
+  sfree(dir->plugin_name);
+  sfree(dir->instance);
+  sfree(dir->files_size_type);
+  sfree(dir->files_num_type);
+  sfree(dir->type_instance);
+  sfree(dir->name);
+  
+  sfree(dir);
+} /* void fc_free_dir */
+
 static void fc_submit_dir(const fc_directory_conf_t *dir) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t){.gauge = (gauge_t)dir->files_num};
+  sstrncpy (vl.plugin, dir->plugin_name, sizeof (vl.plugin));
+  if (dir->instance != NULL)
+    sstrncpy(vl.plugin_instance, dir->instance, sizeof(vl.plugin_instance));
+  if (dir->type_instance != NULL)
+    sstrncpy(vl.type_instance, dir->type_instance, sizeof(vl.type_instance));
+
   vl.values_len = 1;
-  sstrncpy(vl.plugin, "filecount", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, dir->instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, "files", sizeof(vl.type));
 
-  plugin_dispatch_values(&vl);
+  if (dir->files_num_type != NULL) {
+    vl.values = &(value_t) {.gauge = (gauge_t)dir->files_num};
+    sstrncpy (vl.type, dir->files_num_type, sizeof(vl.type));
+    plugin_dispatch_values(&vl);
+  }
 
-  vl.values = &(value_t){.gauge = (gauge_t)dir->files_size};
-  sstrncpy(vl.type, "bytes", sizeof(vl.type));
-
-  plugin_dispatch_values(&vl);
+  if (dir->files_size_type != NULL) {
+    vl.values = &(value_t) {.gauge = (gauge_t)dir->files_size};
+    sstrncpy (vl.type, dir->files_size_type, sizeof(vl.type));
+    plugin_dispatch_values (&vl);
+  }
 } /* void fc_submit_dir */
 
 /*
  * Config:
  * <Plugin filecount>
  *   <Directory /path/to/dir>
+ *     Plugin "foo"
  *     Instance "foobar"
  *     Name "*.conf"
  *     MTime -3600
  *     Size "+10M"
+ *     Recursive true
+ *     IncludeHidden false
+ *     FilesSizeType "bytes"
+ *     FilesCountType "files"
+ *     TypeInstance "instance"
  *   </Directory>
  * </Plugin>
  *
@@ -103,9 +132,6 @@ static int fc_config_set_instance(fc_directory_conf_t *dir, const char *str) {
 
   for (ptr = buffer; *ptr == '_'; ptr++)
     /* do nothing */;
-
-  if (*ptr == 0)
-    return -1;
 
   copy = strdup(ptr);
   if (copy == NULL)
@@ -303,7 +329,7 @@ static int fc_config_add_dir_option(fc_directory_conf_t *dir,
 } /* int fc_config_add_dir_option */
 
 static int fc_config_add_dir(oconfig_item_t *ci) {
-  fc_directory_conf_t *dir;
+  fc_directory_conf_t *dir, **temp;
   int status;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
@@ -322,23 +348,37 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
   dir->path = strdup(ci->values[0].value.string);
   if (dir->path == NULL) {
     ERROR("filecount plugin: strdup failed.");
-    sfree(dir);
+    fc_free_dir(dir);
     return -1;
   }
-
-  fc_config_set_instance(dir, dir->path);
 
   dir->options = FC_RECURSIVE;
 
   dir->name = NULL;
+  dir->plugin_name = strdup("filecount");
+  dir->instance = NULL;
+  dir->type_instance = NULL;
   dir->mtime = 0;
   dir->size = 0;
+
+  dir->files_size_type = strdup("bytes");
+  dir->files_num_type = strdup("files");
+
+  if (dir->plugin_name == NULL
+      || dir->files_size_type == NULL
+      || dir->files_num_type == NULL) {
+    ERROR("filecount plugin: strdup failed.");
+    fc_free_dir(dir);
+    return -1;
+  }
 
   status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp("Instance", option->key) == 0)
+    if (strcasecmp("Plugin", option->key) == 0)
+      status = cf_util_get_string(option, &dir->plugin_name);
+    else if (strcasecmp("Instance", option->key) == 0)
       status = fc_config_add_dir_instance(dir, option);
     else if (strcasecmp("Name", option->key) == 0)
       status = fc_config_add_dir_name(dir, option);
@@ -350,6 +390,12 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
       status = fc_config_add_dir_option(dir, option, FC_RECURSIVE);
     else if (strcasecmp("IncludeHidden", option->key) == 0)
       status = fc_config_add_dir_option(dir, option, FC_HIDDEN);
+    else if (strcasecmp("FilesSizeType", option->key) == 0)
+      status = cf_util_get_string (option, &dir->files_size_type);
+    else if (strcasecmp("FilesCountType", option->key) == 0)
+      status = cf_util_get_string (option, &dir->files_num_type);
+    else if (strcasecmp("TypeInstance", option->key) == 0)
+      status = cf_util_get_string (option, &dir->type_instance);
     else {
       WARNING("filecount plugin: fc_config_add_dir: "
               "Option `%s' not allowed here.",
@@ -361,27 +407,50 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
       break;
   } /* for (ci->children) */
 
-  if (status == 0) {
-    fc_directory_conf_t **temp;
+  if (status != 0) {
+    fc_free_dir(dir);
+    return -1;
+  }
 
-    temp = realloc(directories, sizeof(*directories) * (directories_num + 1));
-    if (temp == NULL) {
-      ERROR("filecount plugin: realloc failed.");
-      status = -1;
-    } else {
-      directories = temp;
-      directories[directories_num] = dir;
-      directories_num++;
+  /* Set default plugin instance */
+  if (dir->instance == NULL) {
+    fc_config_set_instance(dir, dir->path);
+    if (dir->instance == NULL || strlen(dir->instance) == 0) {
+      ERROR("filecount plugin: failed to build plugin instance name.");
+      fc_free_dir(dir);
+      return -1;
     }
   }
 
-  if (status != 0) {
-    sfree(dir->name);
+  /* Handle disabled types */
+  if (strlen(dir->instance) == 0)
     sfree(dir->instance);
-    sfree(dir->path);
-    sfree(dir);
+
+  if (strlen(dir->files_size_type) == 0)
+    sfree(dir->files_size_type);
+
+  if (strlen(dir->files_num_type) == 0)
+    sfree(dir->files_num_type);
+
+  if (dir->files_size_type == NULL && dir->files_num_type == NULL) {
+    WARNING("filecount plugin: Both `FilesSizeType' and `FilesCountType ' "
+            "are disabled for '%s'. There's no types to report.",
+            dir->path);
+    fc_free_dir(dir);
     return -1;
   }
+
+  /* Ready to add it to list */
+  temp = realloc(directories, sizeof(*directories) * (directories_num + 1));
+  if (temp == NULL) {
+    ERROR("filecount plugin: realloc failed.");
+    fc_free_dir(dir);
+    return -1;
+  }
+
+  directories = temp;
+  directories[directories_num] = dir;
+  directories_num++;
 
   return 0;
 } /* int fc_config_add_dir */
