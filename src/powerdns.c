@@ -50,7 +50,7 @@
 #define RECURSOR_SOCKET  LOCALSTATEDIR"/run/pdns_recursor.controlsocket"
 #define RECURSOR_COMMAND "get noerror-answers nxdomain-answers " \
   "servfail-answers sys-msec user-msec qa-latency cache-entries cache-hits " \
-  "cache-misses questions\n"
+  "cache-misses questions \n"
 
 struct list_item_s;
 typedef struct list_item_s list_item_t;
