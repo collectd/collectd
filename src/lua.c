@@ -547,7 +547,7 @@ static int lua_config_script(const oconfig_item_t *ci) /* {{{ */
   if (status != 0)
     return (status);
 
-  INFO("Lua plugin: File \"%s\" loaded succesfully", abs_path);
+  INFO("Lua plugin: File \"%s\" loaded successfully", abs_path);
 
   return 0;
 } /* }}} int lua_config_script */
