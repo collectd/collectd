@@ -185,9 +185,11 @@ typedef struct procstat_entry_s
 	derive_t io_wchar;
 	derive_t io_syscr;
 	derive_t io_syscw;
+	_Bool    has_io;
 
 	derive_t cswitch_vol;
 	derive_t cswitch_invol;
+	_Bool    has_cswitch;
 
 	struct procstat_entry_s *next;
 } procstat_entry_t;
@@ -241,6 +243,7 @@ static mach_msg_type_number_t     pset_list_len;
 
 #elif KERNEL_LINUX
 static long pagesize_g;
+static void ps_fill_details (const procstat_t *ps, procstat_entry_t *entry);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
@@ -401,6 +404,10 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
+
+#if KERNEL_LINUX
+		ps_fill_details(ps, entry);
+#endif
 
 		for (pse = ps->instances; pse != NULL; pse = pse->next)
 			if ((pse->id == entry->id) || (pse->next == NULL))
@@ -793,7 +800,7 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
-static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
+static int ps_read_tasks_status (procstat_entry_t *ps)
 {
 	char           dirname[64];
 	DIR           *dh;
@@ -806,12 +813,12 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
+	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", ps->id);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
 		DEBUG ("Failed to open directory `%s'", dirname);
-		return (NULL);
+		return (-1);
 	}
 
 	while ((ent = readdir (dh)) != NULL)
@@ -823,7 +830,7 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 
 		tpid = ent->d_name;
 
-		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", pid, tpid);
+		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", ps->id, tpid);
 		if ((fh = fopen (filename, "r")) == NULL)
 		{
 			DEBUG ("Failed to open file `%s'", filename);
@@ -873,7 +880,7 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 	ps->cswitch_vol = cswitch_vol;
 	ps->cswitch_invol = cswitch_invol;
 
-	return (ps);
+	return (0);
 } /* int *ps_read_tasks_status */
 
 /* Read data from /proc/pid/status */
@@ -947,7 +954,7 @@ static procstat_t *ps_read_status (long pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_vmem */
 
-static procstat_t *ps_read_io (long pid, procstat_t *ps)
+static int ps_read_io (procstat_entry_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -956,9 +963,9 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%li/io", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/io", ps->id);
 	if ((fh = fopen (filename, "r")) == NULL)
-		return (NULL);
+		return (-1);
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
@@ -998,9 +1005,36 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 		WARNING ("processes: fclose: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
+	return (0);
+} /* int ps_read_io (...) */
 
-	return (ps);
-} /* procstat_t *ps_read_io */
+static void ps_fill_details (const procstat_t *ps, procstat_entry_t *entry)
+{
+	if ( entry->has_io == 0 && ps_read_io (entry) != 0 )
+	{
+		/* no io data */
+		entry->io_rchar = -1;
+		entry->io_wchar = -1;
+		entry->io_syscr = -1;
+		entry->io_syscw = -1;
+
+		DEBUG("ps_read_process: not get io data for pid %li", entry->id);
+	}
+	entry->has_io = 1;
+
+	if ( report_ctx_switch )
+	{
+		if ( entry->has_cswitch == 0 && ps_read_tasks_status(entry) != 0 )
+		{
+			entry->cswitch_vol = -1;
+			entry->cswitch_invol = -1;
+
+			DEBUG("ps_read_tasks_status: not get context "
+					"switch data for pid %li", entry->id);
+		}
+		entry->has_cswitch = 1;
+	}
+} /* void ps_fill_details (...) */
 
 static int ps_read_process (long pid, procstat_t *ps, char *state)
 {
@@ -1132,29 +1166,6 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	ps->vmem_size = (unsigned long) vmem_size;
 	ps->vmem_rss = (unsigned long) vmem_rss;
 	ps->stack_size = (unsigned long) stack_size;
-
-	if ( (ps_read_io (pid, ps)) == NULL)
-	{
-		/* no io data */
-		ps->io_rchar = -1;
-		ps->io_wchar = -1;
-		ps->io_syscr = -1;
-		ps->io_syscw = -1;
-
-		DEBUG("ps_read_process: not get io data for pid %li", pid);
-	}
-
-	if ( report_ctx_switch )
-	{
-		if ( (ps_read_tasks_status(pid, ps)) == NULL)
-		{
-			ps->cswitch_vol = -1;
-			ps->cswitch_invol = -1;
-
-			DEBUG("ps_read_tasks_status: not get context "
-					"switch data for pid %li", pid);
-		}
-	}
 
 	/* success */
 	return (0);
