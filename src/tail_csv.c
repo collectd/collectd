@@ -537,7 +537,7 @@ static int tcsv_init(void) { /* {{{ */
         else if (ds->ds_num != 1)
         {
             ERROR ("tail_csv plugin: The type \"%s\" has %zu data sources. "
-                    "Only types with a single data soure are supported.",
+                    "Only types with a single data source are supported.",
                     ds->type, ds->ds_num);
             continue;
         }

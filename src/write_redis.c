@@ -91,7 +91,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
     if (node->conn == NULL)
     {
-      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unkown reason",
+      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unknown reason",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 6379);
       pthread_mutex_unlock (&node->lock);
