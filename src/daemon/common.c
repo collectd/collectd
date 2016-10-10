@@ -68,6 +68,11 @@
 extern kstat_ctl_t *kc;
 #endif
 
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
+#endif
+
 #if !HAVE_GETPWNAM_R
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -1134,7 +1139,7 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as %s: %s.",
+    ERROR ("parse_value: Failed to parse string as %s: \"%s\".",
         DS_TYPE_TO_STRING (ds_type), value);
     sfree (value);
     return -1;
