@@ -170,13 +170,9 @@ typedef struct procstat_entry_s
 	unsigned long vmem_code;
 	unsigned long stack_size;
 
-	unsigned long vmem_minflt;
-	unsigned long vmem_majflt;
 	derive_t      vmem_minflt_counter;
 	derive_t      vmem_majflt_counter;
 
-	unsigned long cpu_user;
-	unsigned long cpu_system;
 	derive_t      cpu_user_counter;
 	derive_t      cpu_system_counter;
 
@@ -367,24 +363,20 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 } /* int ps_list_match */
 
 static void ps_update_counter (_Bool init, derive_t *group_counter,
-				derive_t *curr_counter, unsigned long *curr_value,
-				derive_t new_counter, unsigned long new_value)
+				derive_t *curr_counter, derive_t new_counter)
 {
+	unsigned long curr_value;
+	
 	if (init)
-	{
-		*curr_value = new_value;
-		*curr_counter += new_value;
-		*group_counter += new_value;
 		return;
-	}
 
 	if (new_counter < *curr_counter)
-		*curr_value = new_counter + (ULONG_MAX - *curr_counter);
+		curr_value = new_counter + (ULONG_MAX - *curr_counter);
 	else
-		*curr_value = new_counter - *curr_counter;
+		curr_value = new_counter - *curr_counter;
 
 	*curr_counter = new_counter;
-	*group_counter += *curr_value;
+	*group_counter += curr_value;
 }
 
 /* add process entry to 'instances' of process 'name' (or refresh it) */
@@ -458,23 +450,23 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 				&& (entry->vmem_majflt_counter == 0);
 		ps_update_counter (want_init,
 				&ps->vmem_minflt_counter,
-				&pse->vmem_minflt_counter, &pse->vmem_minflt,
-				entry->vmem_minflt_counter, entry->vmem_minflt);
+				&pse->vmem_minflt_counter,
+				entry->vmem_minflt_counter);
 		ps_update_counter (want_init,
 				&ps->vmem_majflt_counter,
-				&pse->vmem_majflt_counter, &pse->vmem_majflt,
-				entry->vmem_majflt_counter, entry->vmem_majflt);
+				&pse->vmem_majflt_counter,
+				entry->vmem_majflt_counter);
 
 		want_init = (entry->cpu_user_counter == 0)
 				&& (entry->cpu_system_counter == 0);
 		ps_update_counter (want_init,
 				&ps->cpu_user_counter,
-				&pse->cpu_user_counter, &pse->cpu_user,
-				entry->cpu_user_counter, entry->cpu_user);
+				&pse->cpu_user_counter,
+				entry->cpu_user_counter);
 		ps_update_counter (want_init,
 				&ps->cpu_system_counter,
-				&pse->cpu_system_counter, &pse->cpu_system,
-				entry->cpu_system_counter, entry->cpu_system);
+				&pse->cpu_system_counter,
+				entry->cpu_system_counter);
 	}
 }
 
@@ -1844,14 +1836,10 @@ static int ps_read (void)
 		pse.vmem_code  = ps.vmem_code;
 		pse.stack_size = ps.stack_size;
 
-		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
-		pse.vmem_majflt = 0;
 		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
 
-		pse.cpu_user = 0;
 		pse.cpu_user_counter = ps.cpu_user_counter;
-		pse.cpu_system = 0;
 		pse.cpu_system_counter = ps.cpu_system_counter;
 
 		pse.io_rchar = ps.io_rchar;
@@ -1976,13 +1964,9 @@ static int ps_read (void)
 			pse.vmem_data = procs[i].ki_dsize * pagesize;
 			pse.vmem_code = procs[i].ki_tsize * pagesize;
 			pse.stack_size = procs[i].ki_ssize * pagesize;
-			pse.vmem_minflt = 0;
 			pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
-			pse.vmem_majflt = 0;
 			pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
 
-			pse.cpu_user = 0;
-			pse.cpu_system = 0;
 			pse.cpu_user_counter = 0;
 			pse.cpu_system_counter = 0;
 			/*
@@ -2122,13 +2106,9 @@ static int ps_read (void)
 			pse.vmem_code = procs[i].p_vm_tsize * pagesize;
 			pse.stack_size = procs[i].p_vm_ssize * pagesize;
 			pse.vmem_size = pse.stack_size + pse.vmem_code + pse.vmem_data;
-			pse.vmem_minflt = 0;
 			pse.vmem_minflt_counter = procs[i].p_uru_minflt;
-			pse.vmem_majflt = 0;
 			pse.vmem_majflt_counter = procs[i].p_uru_majflt;
 
-			pse.cpu_user = 0;
-			pse.cpu_system = 0;
 			pse.cpu_user_counter = procs[i].p_uutime_usec +
 						(1000000lu * procs[i].p_uutime_sec);
 			pse.cpu_system_counter = procs[i].p_ustime_usec +
@@ -2260,7 +2240,6 @@ static int ps_read (void)
 					break;
 			}
 
-			pse.cpu_user = 0;
 			/* tv_usec is nanosec ??? */
 			pse.cpu_user_counter = procentry[i].pi_ru.ru_utime.tv_sec * 1000000 +
 				procentry[i].pi_ru.ru_utime.tv_usec / 1000;
@@ -2270,9 +2249,7 @@ static int ps_read (void)
 			pse.cpu_system_counter = procentry[i].pi_ru.ru_stime.tv_sec * 1000000 +
 				procentry[i].pi_ru.ru_stime.tv_usec / 1000;
 
-			pse.vmem_minflt = 0;
 			pse.vmem_minflt_counter = procentry[i].pi_minflt;
-			pse.vmem_majflt = 0;
 			pse.vmem_majflt_counter = procentry[i].pi_majflt;
 
 			pse.vmem_size = procentry[i].pi_tsize + procentry[i].pi_dvm * pagesize;
@@ -2370,14 +2347,10 @@ static int ps_read (void)
 		pse.vmem_code  = ps.vmem_code;
 		pse.stack_size = ps.stack_size;
 
-		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
-		pse.vmem_majflt = 0;
 		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
 
-		pse.cpu_user = 0;
 		pse.cpu_user_counter = ps.cpu_user_counter;
-		pse.cpu_system = 0;
 		pse.cpu_system_counter = ps.cpu_system_counter;
 
 		pse.io_rchar = ps.io_rchar;
