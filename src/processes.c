@@ -225,6 +225,7 @@ typedef struct procstat
 
 static procstat_t *list_head_g = NULL;
 
+static _Bool want_init = 1;
 static _Bool report_ctx_switch = 0;
 
 #if HAVE_THREAD_INFO
@@ -362,13 +363,16 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
-static void ps_update_counter (_Bool init, derive_t *group_counter,
+static void ps_update_counter (derive_t *group_counter,
 				derive_t *curr_counter, derive_t new_counter)
 {
 	unsigned long curr_value;
 	
-	if (init)
+	if (want_init)
+	{
+		*curr_counter = new_counter;
 		return;
+	}
 
 	if (new_counter < *curr_counter)
 		curr_value = new_counter + (ULONG_MAX - *curr_counter);
@@ -389,8 +393,6 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 
 	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-		_Bool want_init;
-
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
 
@@ -446,24 +448,20 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->cswitch_vol   += ((pse->cswitch_vol == -1)?0:pse->cswitch_vol);
 		ps->cswitch_invol += ((pse->cswitch_invol == -1)?0:pse->cswitch_invol);
 
-		want_init = (entry->vmem_minflt_counter == 0)
-				&& (entry->vmem_majflt_counter == 0);
-		ps_update_counter (want_init,
+		ps_update_counter (
 				&ps->vmem_minflt_counter,
 				&pse->vmem_minflt_counter,
 				entry->vmem_minflt_counter);
-		ps_update_counter (want_init,
+		ps_update_counter (
 				&ps->vmem_majflt_counter,
 				&pse->vmem_majflt_counter,
 				entry->vmem_majflt_counter);
 
-		want_init = (entry->cpu_user_counter == 0)
-				&& (entry->cpu_system_counter == 0);
-		ps_update_counter (want_init,
+		ps_update_counter (
 				&ps->cpu_user_counter,
 				&pse->cpu_user_counter,
 				entry->cpu_user_counter);
-		ps_update_counter (want_init,
+		ps_update_counter (
 				&ps->cpu_system_counter,
 				&pse->cpu_system_counter,
 				entry->cpu_system_counter);
@@ -2394,6 +2392,8 @@ static int ps_read (void)
 
 	read_fork_rate();
 #endif /* KERNEL_SOLARIS */
+
+	want_init = 0;
 
 	return (0);
 } /* int ps_read */
