@@ -170,6 +170,8 @@
 %define with_dpdkstat 0%{!?_without_dpdkstat:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin intel_rdt disabled, requires intel-cmt-cat
+%define with_intel_rdt 0%{!?_without_intel_rdt:0}
 # plugin mic disabled, requires Mic
 %define with_mic 0%{!?_without_mic:0}
 # plugin netapp disabled, requires libnetapp
@@ -452,6 +454,17 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+%if %{with_intel_rdt}
+%package intel_rdt
+Summary:	Intel RDT plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	intel-cmt-cat
+%description intel_rdt
+The intel_rdt plugin collects information provided by monitoring features of
+Intel Resource Director Technology (Intel(R) RDT).
 %endif
 
 %if %{with_ipmi}
@@ -1149,6 +1162,12 @@ Collectd utilities
 %define _with_hugepages --disable-hugepages
 %endif
 
+%if %{with_intel_rdt}
+%define _with_intel_rdt --enable-intel_rdt
+%else
+%define _with_intel_rdt --disable-intel_rdt
+%endif
+
 %if %{with_interface}
 %define _with_interface --enable-interface
 %else
@@ -1779,6 +1798,7 @@ Collectd utilities
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_hugepages} \
+	%{?_with_intel_rdt} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
 	%{?_with_ipmi} \
@@ -2327,6 +2347,11 @@ fi
 %{_libdir}/%{name}/hddtemp.so
 %endif
 
+%if %{with_intel_rdt}
+%files intel_rdt
+%{_libdir}/%{name}/intel_rdt.so
+%endif
+
 %if %{with_ipmi}
 %files ipmi
 %{_libdir}/%{name}/ipmi.so
@@ -2538,7 +2563,7 @@ fi
 * Tue Aug 23 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
 - New PRE-RELEASE version
 - New plugins enabled by default: hugepages
-- New plugins disabled by default: dpdkstat
+- New plugins disabled by default: dpdkstat, intel_rdt
 
 * Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
 - New PRE-RELEASE version
