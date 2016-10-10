@@ -2512,8 +2512,11 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Oct 10 2016 Victor Demonchy <v.demonchy@criteo.com> - 5.6.1-1
+- New upstream version
+
 * Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
-- New PRE-RELEASE version
+- New upstream version
 - New plugins enabled by default: chrony, cpusleep, gps, lua, mqtt, notify_nagios
 - New plugins disabled by default: grpc, xencpu, zone
 
