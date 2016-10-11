@@ -48,7 +48,6 @@ size_t   latency_counter_get_num (latency_counter_t *lc);
 cdtime_t latency_counter_get_average (latency_counter_t *lc);
 cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
     double percent);
-cdtime_t latency_counter_get_start_time (const latency_counter_t *lc);
 
 /*
  * NAME

@@ -290,15 +290,6 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
   return (latency_interpolated);
 } /* }}} cdtime_t latency_counter_get_percentile */
 
-cdtime_t latency_counter_get_start_time (const latency_counter_t *lc) /* {{{ */
-{
-  if (lc == NULL)
-    return (0);
-
-  return lc->start_time;
-} /* }}} cdtime_t latency_counter_get_start_time */
-
-
 double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
         cdtime_t lower, cdtime_t upper, const cdtime_t now)
 {
