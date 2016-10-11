@@ -1730,7 +1730,7 @@ int check_capability (int capability) /* {{{ */
 	}
 
 	cap_header->pid = getpid();
-	cap_header->version = _LINUX_CAPABILITY_VERSION;
+	cap_header->version = _LINUX_CAPABILITY_VERSION_3;
 	if (capget(cap_header, cap_data) < 0)
 	{
 		ERROR("check_capability: capget failed");
