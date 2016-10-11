@@ -37,10 +37,6 @@
 # define LLONG_MAX 9223372036854775807LL
 #endif
 
-#ifndef HISTOGRAM_NUM_BINS
-# define HISTOGRAM_NUM_BINS 1000
-#endif
-
 #ifndef HISTOGRAM_DEFAULT_BIN_WIDTH
 /* 1048576 = 2^20 ^= 1/1024 s */
 # define HISTOGRAM_DEFAULT_BIN_WIDTH 1048576
@@ -302,15 +298,6 @@ cdtime_t latency_counter_get_start_time (const latency_counter_t *lc) /* {{{ */
   return lc->start_time;
 } /* }}} cdtime_t latency_counter_get_start_time */
 
-/*
- * NAME
- *  latency_counter_get_rate(counter,lower,upper,now)
- *
- * DESCRIPTION
- *   Calculates rate of latency values fall within requested interval.
- *   Interval specified as [lower,upper] (including boundaries).
- *   When upper value is equal to 0 then interval is [lower, infinity).
- */
 
 double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
         cdtime_t lower, cdtime_t upper, const cdtime_t now)
@@ -322,17 +309,16 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
   if ((lc == NULL) || (lc->num == 0))
     return (0);
 
-  if (lower < 1) {
-    //sum += lc->zero;
-    //lower = 1;
-    return (0);
-  }
-
   if (upper && (upper < lower))
     return (0);
 
-  /* A latency of _exactly_ 1.0 ms is stored in the buffer 0 */
-  lower_bin = (lower - 1) / lc->bin_width;
+  /* Buckets have an exclusive lower bound and an inclusive upper bound. That
+   * means that the first bucket, index 0, represents (0-bin_width]. That means
+   * that lower==bin_width needs to result in lower_bin=0, hence the -1. */
+  if (lower)
+    lower_bin = (lower - 1) / lc->bin_width;
+  else
+    lower_bin = 0;
 
   if (upper)
     upper_bin = (upper - 1) / lc->bin_width;
@@ -353,22 +339,21 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
     sum += lc->histogram[i];
   }
 
-  /* Approximate ratio of requests below "lower" */
-  cdtime_t lower_bin_boundary = lower_bin * lc->bin_width;
+  if (lower) {
+    /* Approximate ratio of requests in lower_bin, that fall between
+     * lower_bin_boundary and lower. This ratio is then subtracted from sum to
+     * increase accuracy. */
+    cdtime_t lower_bin_boundary = lower_bin * lc->bin_width;
+    assert (lower > lower_bin_boundary);
+    double lower_ratio = (double)(lower - lower_bin_boundary - 1) / ((double) lc->bin_width);
+    sum -= lower_ratio * lc->histogram[lower_bin];
+  }
 
-  /* When bin width is 0.125 (for example), then bin 0 stores
-   * values for interval [0, 0.124) (excluding).
-   * With lower = 0.100, the ratio should be 0.099 / 0.125.
-   * I.e. ratio = 0.100 - 0.000 - 0.001
-   */
-  double ratio = (double)(lower - lower_bin_boundary - DOUBLE_TO_CDTIME_T(0.001))
-                  / (double)lc->bin_width;
-  sum -= ratio * lc->histogram[lower_bin];
-
-  /* Approximate ratio of requests above "upper" */
-  cdtime_t upper_bin_boundary = (upper_bin + 1) * lc->bin_width;
   if (upper)
   {
+    /* As above: approximate ratio of requests in upper_bin, that fall between
+     * upper and upper_bin_boundary. */
+    cdtime_t upper_bin_boundary = (upper_bin + 1) * lc->bin_width;
     assert (upper <= upper_bin_boundary);
     double ratio = (double)(upper_bin_boundary - upper) / (double)lc->bin_width;
     sum -= ratio * lc->histogram[upper_bin];
