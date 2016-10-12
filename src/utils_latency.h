@@ -55,9 +55,10 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
  *
  * DESCRIPTION
  *   Calculates rate of latency values fall within requested interval.
- *   Interval specified as [lower,upper], i.e. boundaries are inclusive.
+ *   Interval specified as (lower,upper], i.e. the lower boundary is exclusive,
+ *   the upper boundary is inclusive.
  *   When lower is zero, then the interval is (0, upper].
- *   When upper is zero, then the interval is [lower, infinity).
+ *   When upper is zero, then the interval is (lower, infinity).
  */
 double latency_counter_get_rate (const latency_counter_t *lc,
     cdtime_t lower, cdtime_t upper, const cdtime_t now);

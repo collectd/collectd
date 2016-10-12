@@ -192,10 +192,25 @@ DEF_TEST (get_rate) {
       0,
       1.00,
     },
-    { // overflow test
+    { // overflow test: upper >> longest latency
       DOUBLE_TO_CDTIME_T(1.000),
       DOUBLE_TO_CDTIME_T(999999),
       124.00,
+    },
+    { // overflow test: lower > longest latency
+      DOUBLE_TO_CDTIME_T(130),
+      0,
+      0.00,
+    },
+    { // lower > upper => error
+      DOUBLE_TO_CDTIME_T(10),
+      DOUBLE_TO_CDTIME_T(9),
+      NAN,
+    },
+    { // lower == upper => zero
+      DOUBLE_TO_CDTIME_T(9),
+      DOUBLE_TO_CDTIME_T(9),
+      0.00,
     },
   };
 
