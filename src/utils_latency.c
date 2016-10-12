@@ -290,9 +290,9 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
   return (latency_interpolated);
 } /* }}} cdtime_t latency_counter_get_percentile */
 
-double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
-        cdtime_t lower, cdtime_t upper, const cdtime_t now)
-{
+double latency_counter_get_rate(const latency_counter_t *lc, /* {{{ */
+                                cdtime_t lower, cdtime_t upper,
+                                const cdtime_t now) {
   if ((lc == NULL) || (lc->num == 0))
     return (NAN);
 
@@ -308,7 +308,7 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
   cdtime_t lower_bin = 0;
   if (lower)
     /* lower is *exclusive* => determine bucket for lower+1 */
-    lower_bin = ((lower+1) - 1) / lc->bin_width;
+    lower_bin = ((lower + 1) - 1) / lc->bin_width;
 
   /* lower is greater than the longest latency observed => rate is zero. */
   if (lower_bin >= HISTOGRAM_NUM_BINS)
@@ -332,22 +332,22 @@ double latency_counter_get_rate (const latency_counter_t *lc, /* {{{ */
      * lower_bin_boundary and lower. This ratio is then subtracted from sum to
      * increase accuracy. */
     cdtime_t lower_bin_boundary = lower_bin * lc->bin_width;
-    assert (lower >= lower_bin_boundary);
-    double lower_ratio = (double)(lower - lower_bin_boundary) / ((double) lc->bin_width);
+    assert(lower >= lower_bin_boundary);
+    double lower_ratio =
+        (double)(lower - lower_bin_boundary) / ((double)lc->bin_width);
     sum -= lower_ratio * lc->histogram[lower_bin];
   }
 
-  if (upper)
-  {
+  if (upper) {
     /* As above: approximate ratio of requests in upper_bin, that fall between
      * upper and upper_bin_boundary. */
     cdtime_t upper_bin_boundary = (upper_bin + 1) * lc->bin_width;
-    assert (upper <= upper_bin_boundary);
+    assert(upper <= upper_bin_boundary);
     double ratio = (double)(upper_bin_boundary - upper) / (double)lc->bin_width;
     sum -= ratio * lc->histogram[upper_bin];
   }
 
-  return sum / (CDTIME_T_TO_DOUBLE (now - lc->start_time));
+  return sum / (CDTIME_T_TO_DOUBLE(now - lc->start_time));
 } /* }}} double latency_counter_get_rate */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

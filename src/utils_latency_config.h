@@ -31,18 +31,17 @@
 #include "collectd.h"
 #include "utils_time.h"
 
-struct latency_config_s
-{
-  double   *percentile;
-  size_t   percentile_num;
-  char     *percentile_type;
+struct latency_config_s {
+  double *percentile;
+  size_t percentile_num;
+  char *percentile_type;
   cdtime_t *rates;
-  size_t   rates_num;
-  char     *rates_type;
-  _Bool    lower;
-  _Bool    upper;
+  size_t rates_num;
+  char *rates_type;
+  _Bool lower;
+  _Bool upper;
   //_Bool sum;
-  _Bool    avg;
+  _Bool avg;
   //_Bool count;
 };
 typedef struct latency_config_s latency_config_t;
