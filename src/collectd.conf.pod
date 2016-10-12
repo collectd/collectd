@@ -7222,20 +7222,23 @@ computed latency.
 Different percentiles can be calculated by setting this option several times.
 
 =item B<LatencyPercentileType> I<Type>
+
 Sets the type used to dispatch B<LatencyPercentile> values.
 
 =item B<LatencyRate> I<lower_latency> I<upper_latency>
 
 Calculate and dispatch rate of latency values fall within requested interval.
-Interval is specified as [I<lower_latency>, I<upper_latency>] (including
-boundaries). Rate cannot be reported for 0.000 latency, so I<lower_latency>
-should be 0.001 or greater. When I<upper_latency> value is equal to 0 then
-interval is [lower, infinity).
+Both, I<lower_latency> and I<upper_latency> is a duration in seconds and can be
+a fractional number, such as B<0.5>. The settings specify the interval
+C<(I<lower_latency>, I<upper_latency>]>, i.e. the range I<excludes> the lower
+bound and I<includes> the upper bound. I<lower_latency> and I<upper_latency>
+can be zero, meaning no lower/upper bound.
 
 Rates for different intervals can be calculated by setting this option several
 times.
 
 =item B<LatencyRateType> I<Type>
+
 Sets the type used to dispatch B<LatencyRate> values.
 
 =back

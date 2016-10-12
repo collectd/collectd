@@ -1287,9 +1287,9 @@
 #      LatencyPercentile 70
 #      LatencyPercentile 95
 #      LatencyRateType "requests"
-#      LatencyRate 0.001 0.100
-#      LatencyRate 0.101 0.200
-#      LatencyRate 0.201 0
+#      LatencyRate 0     0.100
+#      LatencyRate 0.100 0.200
+#      LatencyRate 0.200 0
 #    </Match>
 #  </File>
 #</Plugin>
