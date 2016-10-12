@@ -305,10 +305,22 @@ typedef int _Bool;
 # define GAUGE_FORMAT "%.15g"
 #endif
 
+#include "utils_dmi.h"
+#define DMI_SETTING_NOT_AVAILABLE "N/A"
+
 /* Type for time as used by "utils_time.h" */
 typedef uint64_t cdtime_t;
 
+/* If setting is not found, it is set to DMI_SETTING_NOT_AVAILABLE */
+typedef struct bios_info_s {
+  char vendor[DMI_MAX_VAL_LEN];
+  char version[DMI_MAX_VAL_LEN];
+  char release_date[DMI_MAX_VAL_LEN];
+  char revision[DMI_MAX_VAL_LEN];
+} bios_info_t;
+
 extern char     hostname_g[];
+extern bios_info_t bios_info_g;
 extern cdtime_t interval_g;
 extern int      timeout_g;
 
