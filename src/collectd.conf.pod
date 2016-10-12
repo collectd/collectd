@@ -4719,6 +4719,8 @@ signature):
    </Server>
  </Plugin>
 
+You can also use B<Node> to group servers. This is useful for routing
+metrics to different servers.
 =over 4
 
 =item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
@@ -4835,6 +4837,12 @@ behavior is, to let the kernel choose the appropriate interface. Thus incoming
 traffic gets only accepted, if it arrives on the given interface.
 
 =back
+
+=item B<Node> I<Nodename>
+
+The B<Node> block identifies a new servers group. The name for node is
+a canonical identifier which is used as I<plugin instance>. It is limited to
+64E<nbsp>characters in length. You can put B<Server> entries here.
 
 =item B<TimeToLive> I<1-255>
 

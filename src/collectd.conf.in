@@ -884,6 +884,11 @@
 #	</Listen>
 #	MaxPacketSize 1452
 #
+# # node setup:
+# <Node "alerts">
+#   Server "ff18::efc0:4a42" "25826"
+# </Node>
+#
 #	# proxy setup (client and server as above):
 #	Forward true
 #
