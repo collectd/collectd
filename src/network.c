@@ -2356,26 +2356,17 @@ static int sockent_add (sockent_t *se, sockent_t **sockets) /* {{{ */
 		}
 
 		listen_sockets_num += se->data.server.fd_num;
-
-		if (listen_sockets == NULL)
-		{
-			listen_sockets = se;
-			return (0);
-		}
-		last_ptr = listen_sockets;
 	}
-	else /* if (se->type == SOCKENT_TYPE_CLIENT) */
+
+	if (sockets == NULL)
+		return (-1);
+
+	if (*sockets == NULL)
 	{
-		if (sockets == NULL)
-			return (-1);
-
-		if (*sockets == NULL)
-		{
-			*sockets = se;
-			return (0);
-		}
-		last_ptr = *sockets;
+		*sockets = se;
+		return (0);
 	}
+	last_ptr = *sockets;
 
 	while (last_ptr->next != NULL)
 		last_ptr = last_ptr->next;
@@ -3122,7 +3113,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  status = sockent_add (se, NULL);
+  status = sockent_add (se, &listen_sockets);
   if (status != 0)
   {
     ERROR ("network plugin: network_config_add_listen: sockent_add failed.");
