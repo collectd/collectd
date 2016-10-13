@@ -3377,11 +3377,11 @@ static int network_config_node (oconfig_item_t *ci)
 
 	/* Get callback name */
 	cf_util_get_string (ci, &cb->node);
-	if (strcasecmp ("network", cb->node) == 0) {
-		sstrncpy(cb->name, cb->node, DATA_MAX_NAME_LEN);
-	} else {
-		ssnprintf(cb->name, DATA_MAX_NAME_LEN, "network/%s", cb->node);
-	}
+
+	if (strcasecmp ("network", cb->node) == 0)
+		sstrncpy(cb->name, cb->node, sizeof (cb->name));
+	else
+		ssnprintf(cb->name, sizeof (cb->name), "network/%s", cb->node);
 
 	/* Iterate over config options */
 	for (i = 0; i < ci->children_num; i++)
