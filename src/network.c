@@ -3239,6 +3239,8 @@ static void network_callback_free(void *data)
 	 * plugin_unregister_write (cb->name);
 	*/
 
+	sfree(cb->node);
+	sfree(cb->send_buffer);
 	sfree(cb);
 
 	return;
