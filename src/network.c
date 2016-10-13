@@ -3369,7 +3369,7 @@ static int network_config_node (oconfig_item_t *ci)
 	cb = calloc(1, sizeof(network_callback_t));
 	if (cb == NULL)
 	{
-		ERROR("write_network plugin: calloc failed.");
+		ERROR("network plugin: calloc failed.");
 		return(-1);
 	}
 
