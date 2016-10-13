@@ -4721,6 +4721,7 @@ signature):
 
 You can also use B<Node> to group servers. This is useful for routing
 metrics to different servers.
+
 =over 4
 
 =item B<E<lt>Server> I<Host> [I<Port>]B<E<gt>>
