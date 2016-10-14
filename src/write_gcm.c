@@ -107,7 +107,7 @@ static _Bool wg_some_error_occured_g = 0;
 // The maximum numbers of entries we keep in our queue before we start dropping
 // entries. If the consumer thread gets way backed up, we won't keep more than
 // this many items in our queue.
-#define QUEUE_DROP_SIZE 1000
+#define QUEUE_DROP_SIZE 100000
 
 // Size of the JSON buffer sent to the server. At flush time we format a JSON
 // message to send to the server.  We would like it to be no more than a certain
@@ -4158,6 +4158,24 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl,
     }
     --queue->size;
     to_remove->next = NULL;
+    char metadata[8192];
+    char *meta_ptr = metadata;
+    size_t meta_size = sizeof(metadata);
+    bufprintf(&meta_ptr, &meta_size, "{");
+    for (int i = 0; i < to_remove->key.num_metadata_entries; ++i) {
+      bufprintf(&meta_ptr, &meta_size, "%s'%s' = '%s'",
+          i == 0 ? "" : ", ",
+          to_remove->key.metadata_entries[i].key,
+          to_remove->key.metadata_entries[i].value.value_text);
+    }
+    bufprintf(&meta_ptr, &meta_size, "}");
+    DEBUG("write_gcm: dropping payload [%s:%s:%s:%s:%s] %s",
+          to_remove->key.host,
+          to_remove->key.plugin,
+          to_remove->key.plugin_instance,
+          to_remove->key.type,
+          to_remove->key.type_instance,
+          metadata);
     wg_payload_destroy(to_remove);
   }
 
