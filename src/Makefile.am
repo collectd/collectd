@@ -49,6 +49,21 @@ TESTS += test_utils_latency
 test_utils_latency_SOURCES = utils_latency_test.c testing.h
 test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
+noinst_LTLIBRARIES += libcmds.la
+libcmds_la_SOURCES = utils_cmds.c utils_cmds.h \
+		utils_cmd_flush.c utils_cmd_flush.h \
+		utils_cmd_getval.c utils_cmd_getval.h \
+		utils_cmd_listval.c utils_cmd_listval.h \
+		utils_cmd_putval.c utils_cmd_putval.h \
+		utils_parse_option.c
+libcmds_la_LIBADD = daemon/libcommon.la daemon/libmetadata.la \
+		daemon/libplugin_mock.la -lm
+check_PROGRAMS += test_utils_cmds
+TESTS += test_utils_cmds
+test_utils_cmds_SOURCES = utils_cmds_test.c testing.h
+test_utils_cmds_LDADD = libcmds.la \
+		daemon/libplugin_mock.la daemon/libmetadata.la
+
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
 liblookup_la_LIBADD = daemon/libavltree.la
@@ -154,8 +169,9 @@ endif
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
+		  utils_cmds.c utils_cmds.h \
 		  utils_cmd_putval.c utils_cmd_putval.h \
-	          utils_parse_option.c utils_parse_option.h \
+		  utils_parse_option.c utils_parse_option.h \
 		  utils_format_graphite.c utils_format_graphite.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
@@ -419,6 +435,7 @@ endif
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = exec.c \
+		  utils_cmds.c utils_cmds.h \
 		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
 		  utils_cmd_putval.c utils_cmd_putval.h \
 		  utils_parse_option.h utils_parse_option.c
@@ -1189,6 +1206,7 @@ endif
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c \
+		      utils_cmds.c utils_cmds.h \
 		      utils_cmd_flush.h utils_cmd_flush.c \
 		      utils_cmd_getval.h utils_cmd_getval.c \
 		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
@@ -1288,6 +1306,7 @@ if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
                         utils_format_graphite.c utils_format_graphite.h \
+                        utils_cmds.c utils_cmds.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)

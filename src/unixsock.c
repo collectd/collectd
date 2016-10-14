@@ -289,7 +289,7 @@ static void *us_handle_client (void *arg)
 
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
-			handle_getval (fhout, buffer);
+			cmd_handle_getval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "getthreshold") == 0)
 		{
@@ -297,11 +297,11 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "putval") == 0)
 		{
-			handle_putval (fhout, buffer);
+			cmd_handle_putval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "listval") == 0)
 		{
-			handle_listval (fhout, buffer);
+			cmd_handle_listval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
@@ -309,7 +309,7 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "flush") == 0)
 		{
-			handle_flush (fhout, buffer);
+			cmd_handle_flush (fhout, buffer);
 		}
 		else
 		{

@@ -85,7 +85,7 @@ typedef struct user_obj_s user_obj_t;
 struct user_obj_s
 {
   void *user_obj;
-  identifier_t ident;
+  lookup_identifier_t ident;
 
   user_obj_t *next;
 };
@@ -175,7 +175,7 @@ static int lu_copy_ident_to_match_part (part_match_t *match_part, /* {{{ */
 } /* }}} int lu_copy_ident_to_match_part */
 
 static int lu_copy_ident_to_match (identifier_match_t *match, /* {{{ */
-    identifier_t const *ident, unsigned int group_by)
+    lookup_identifier_t const *ident, unsigned int group_by)
 {
   memset (match, 0, sizeof (*match));
 
@@ -609,7 +609,7 @@ void lookup_destroy (lookup_t *obj) /* {{{ */
 } /* }}} void lookup_destroy */
 
 int lookup_add (lookup_t *obj, /* {{{ */
-    identifier_t const *ident, unsigned int group_by, void *user_class)
+    lookup_identifier_t const *ident, unsigned int group_by, void *user_class)
 {
   by_type_entry_t *by_type = NULL;
   user_class_list_t *user_class_obj;

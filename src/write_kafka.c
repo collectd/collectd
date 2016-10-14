@@ -172,9 +172,9 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
 
     switch (ctx->format) {
     case KAFKA_FORMAT_COMMAND:
-        status = create_putval(buffer, sizeof(buffer), ds, vl);
+        status = cmd_create_putval(buffer, sizeof(buffer), ds, vl);
         if (status != 0) {
-            ERROR("write_kafka plugin: create_putval failed with status %i.",
+            ERROR("write_kafka plugin: cmd_create_putval failed with status %i.",
                   status);
             return status;
         }

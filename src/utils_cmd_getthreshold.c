@@ -101,7 +101,8 @@ int handle_getthreshold (FILE *fh, char *buffer)
 
   status = parse_identifier (identifier_copy, &host,
       &plugin, &plugin_instance,
-      &type, &type_instance);
+      &type, &type_instance,
+      /* default_host = */ NULL);
   if (status != 0)
   {
     DEBUG ("handle_getthreshold: Cannot parse identifier `%s'.", identifier);
