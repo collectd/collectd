@@ -117,7 +117,7 @@ static _Bool wg_some_error_occured_g = 0;
 // so that we cam always try to send a valid JSON message.
 
 // The "soft target" for the max size of our json messages.
-#define JSON_SOFT_TARGET_SIZE 64000
+#define JSON_SOFT_TARGET_SIZE 512000
 
 // The maximum size of the project id (platform-defined).
 #define MAX_PROJECT_ID_SIZE ((size_t) 64)
