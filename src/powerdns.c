@@ -43,6 +43,7 @@
 # define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
 #endif
 #define FUNC_ERROR(func) do { char errbuf[1024]; ERROR ("powerdns plugin: %s failed: %s", func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
+#define SOCK_ERROR(func, sockpath) do { char errbuf[1024]; ERROR ("powerdns plugin: Socket `%s` %s failed: %s", sockpath, func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
 
 #define SERVER_SOCKET  LOCALSTATEDIR"/run/pdns.controlsocket"
 #define SERVER_COMMAND "SHOW * \n"
@@ -394,7 +395,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
   status = unlink (sa_unix.sun_path);
   if ((status != 0) && (errno != ENOENT))
   {
-    FUNC_ERROR ("unlink");
+    SOCK_ERROR ("unlink", sa_unix.sun_path);
     close (sd);
     return (-1);
   }
@@ -406,7 +407,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     status = bind (sd, (struct sockaddr *) &sa_unix, sizeof (sa_unix));
     if (status != 0)
     {
-      FUNC_ERROR ("bind");
+      SOCK_ERROR ("bind", sa_unix.sun_path);
       break;
     }
 
@@ -414,7 +415,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     status = chmod (sa_unix.sun_path, 0666);
     if (status != 0)
     {
-      FUNC_ERROR ("chmod");
+      SOCK_ERROR ("chmod", sa_unix.sun_path);
       break;
     }
 
@@ -427,7 +428,7 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &stv_timeout, sizeof (stv_timeout));
     if (status != 0)
     {
-      FUNC_ERROR ("setsockopt");
+      SOCK_ERROR ("setsockopt", sa_unix.sun_path);
       break;
     }
 
@@ -435,21 +436,21 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
         sizeof (item->sockaddr));
     if (status != 0)
     {
-      FUNC_ERROR ("connect");
+      SOCK_ERROR ("connect", sa_unix.sun_path);
       break;
     }
 
     status = send (sd, item->command, strlen (item->command), 0);
     if (status < 0)
     {
-      FUNC_ERROR ("send");
+      SOCK_ERROR ("send", sa_unix.sun_path);
       break;
     }
 
     status = recv (sd, temp, sizeof (temp), /* flags = */ 0);
     if (status < 0)
     {
-      FUNC_ERROR ("recv");
+      SOCK_ERROR ("recv", sa_unix.sun_path);
       break;
     }
     buffer_size = status + 1;
@@ -512,7 +513,7 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
       sizeof (item->sockaddr));
   if (status != 0)
   {
-    FUNC_ERROR ("connect");
+    SOCK_ERROR ("connect", item->sockaddr.sun_path);
     close (sd);
     return (-1);
   }
@@ -522,7 +523,7 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
       /* flags = */ 0);
   if (status < 0)
   {
-    FUNC_ERROR ("send");
+    SOCK_ERROR ("send", item->sockaddr.sun_path);
     close (sd);
     return (-1);
   }
@@ -534,7 +535,7 @@ static int powerdns_get_data_stream (list_item_t *item, /* {{{ */
     status = recv (sd, temp, sizeof (temp), /* flags = */ 0);
     if (status < 0)
     {
-      FUNC_ERROR ("recv");
+      SOCK_ERROR ("recv", item->sockaddr.sun_path);
       break;
     }
     else if (status == 0)
