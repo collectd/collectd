@@ -637,8 +637,8 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
 /* metric_family_get looks up the matching metric family, allocating it if
  * necessary. */
 static Io__Prometheus__Client__MetricFamily *
-metric_family_get(data_set_t const *ds, value_list_t const *vl,
-                  size_t ds_index) {
+metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
+                  _Bool allocate) {
   char *name = metric_family_name(ds, vl, ds_index);
   if (name == NULL) {
     ERROR("write_prometheus plugin: Allocating metric family name failed.");
@@ -651,6 +651,9 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl,
     assert(fam != NULL);
     return fam;
   }
+
+  if (!allocate)
+    return NULL;
 
   fam = metric_family_create(name, ds, vl, ds_index);
   if (fam == NULL) {
@@ -733,7 +736,8 @@ static int prom_write(data_set_t const *ds, value_list_t const *vl,
   pthread_mutex_lock(&metrics_lock);
 
   for (size_t i = 0; i < ds->ds_num; i++) {
-    Io__Prometheus__Client__MetricFamily *fam = metric_family_get(ds, vl, i);
+    Io__Prometheus__Client__MetricFamily *fam =
+        metric_family_get(ds, vl, i, /* allocate = */ 1);
     if (fam == NULL)
       continue;
 
@@ -759,7 +763,8 @@ static int prom_missing(value_list_t const *vl,
   pthread_mutex_lock(&metrics_lock);
 
   for (size_t i = 0; i < ds->ds_num; i++) {
-    Io__Prometheus__Client__MetricFamily *fam = metric_family_get(ds, vl, i);
+    Io__Prometheus__Client__MetricFamily *fam =
+        metric_family_get(ds, vl, i, /* allocate = */ 0);
     if (fam == NULL)
       continue;
 
@@ -768,6 +773,7 @@ static int prom_missing(value_list_t const *vl,
       ERROR("write_prometheus plugin: Deleting a metric in family \"%s\" "
             "failed with status %d",
             fam->name, status);
+
       continue;
     }
 
