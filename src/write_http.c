@@ -366,7 +366,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         if ((cb == NULL) || (cb->send_buffer == NULL))
                 return -1;
 
-        if (strcmp (ds->type, vl->type) == 0) {
+        if (strcmp (ds->type, vl->type) != 0) {
                 ERROR ("write_http plugin: DS type does not match "
                                 "value list type");
                 return -1;
