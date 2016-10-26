@@ -1620,10 +1620,8 @@ void set_sock_opts (int sockfd) /* {{{ */
 	int status;
 	int socktype;
 
-	socklen_t socklen = sizeof (socklen_t);
-	int so_keepalive = 1;
-
-	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE, &socktype, &socklen);
+	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE,
+			&socktype, &(socklen_t) { sizeof (socktype) });
 	if (status != 0)
 	{
 		WARNING ("set_sock_opts: failed to determine socket type");
@@ -1633,7 +1631,7 @@ void set_sock_opts (int sockfd) /* {{{ */
 	if (socktype == SOCK_STREAM)
 	{
 		status = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE,
-				&so_keepalive, sizeof (so_keepalive));
+				&(int) {1}, sizeof (int));
 		if (status != 0)
 			WARNING ("set_sock_opts: failed to set socket keepalive flag");
 
