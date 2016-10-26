@@ -7773,7 +7773,7 @@ option is set to 0, refreshing is disabled completely.
 
 =item B<BlockDevice> I<name:dev>
 
-=item B<lockDeviceFormat> B<source>|B<dev>
+=item B<BlockDeviceFormat> B<source>|B<dev>
 
 =item B<BlockDeviceFormatBasename> B<false>|B<true>
 
