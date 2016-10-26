@@ -7773,6 +7773,10 @@ option is set to 0, refreshing is disabled completely.
 
 =item B<BlockDevice> I<name:dev>
 
+=item B<lockDeviceFormat> B<source>|B<dev>
+
+=item B<BlockDeviceFormatBasename> B<false>|B<true>
+
 =item B<InterfaceDevice> I<name:dev>
 
 =item B<IgnoreSelected> B<true>|B<false>
@@ -7797,6 +7801,53 @@ Example:
 
 Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
 will be collected.
+
+If I<BlockDeviceFormat> is set to B<dev>, then the device names will be the ones
+in the I<target> node for the device in the XML definition of the domain. The
+default is B<dev>. This is the behavior before adding the option.
+
+If I<BlockDeviceFormat> is set to B<source>, then the device names will be the ones
+in the I<source> node for the device in the XML definition of the domain.
+
+Example:
+
+If the domain XML have the following device defined:
+
+   <disk type='block' device='disk'>
+      <driver name='qemu' type='raw' cache='none' io='native' discard='unmap'/>
+      <source dev='/var/lib/libvirt/images/image1.qcow2'/>
+      <target dev='sda' bus='scsi'/>
+      <boot order='2'/>
+      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+    </disk>
+
+setting 
+
+	 BlockDeviceFormat dev
+
+will name the device in the graph as sda 
+
+setting
+ 
+	BlockDeviceFormat source
+
+will name the device in the graph as var_lib_libvirt_images_image1.qcow2
+
+These names will also be part of the RRD filename.
+
+I<BlockDeviceFormatBasename> - this option is honored if and only if 
+option I<BlockDeviceFormat> is set to B<source>. If set to B<true> then 
+only the last part of the path will be used for device name and naming the
+RRD file.
+
+Example: 
+
+if the device path (source tag) is: /var/lib/libvirt/images/image1.qcow2
+
+setting:
+	BlockDeviceFormatBasename true
+
+will set the device name to: image1.qcow2
 
 =item B<HostnameFormat> B<name|uuid|hostname|...>
 

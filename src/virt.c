@@ -31,6 +31,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <libgen.h>
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
@@ -42,6 +43,8 @@ static const char *config_keys[] = {
 
     "Domain",
     "BlockDevice",
+    "BlockDeviceFormat",
+    "BlockDeviceFormatBasename",
     "InterfaceDevice",
     "IgnoreSelected",
 
@@ -130,6 +133,12 @@ enum plginst_field {
 static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] =
     { plginst_none };
 
+/* BlockDeviceFormat */
+enum bd_field {
+	dev,
+	source
+};
+
 /* InterfaceFormat. */
 enum if_field {
     if_address,
@@ -137,6 +146,9 @@ enum if_field {
     if_number
 };
 
+/* BlockDeviceFormatBasename */
+char *blockdevice_format_basename="false";
+static enum bd_field blockdevice_format = dev;
 static enum if_field interface_format = if_name;
 
 /* Time that we last refreshed. */
@@ -336,6 +348,29 @@ lv_config (const char *key, const char *value)
     }
     if (strcasecmp (key, "BlockDevice") == 0) {
         if (ignorelist_add (il_block_devices, value)) return 1;
+        return 0;
+    }
+
+    if (strcasecmp (key, "BlockDeviceFormat") == 0) {
+        if (strcasecmp (value, "dev") == 0)
+            blockdevice_format = dev;
+        else if (strcasecmp (value, "source") == 0)
+            blockdevice_format = source;
+        else {
+            ERROR (PLUGIN_NAME " plugin: unknown BlockDeviceFormat: %s", value);
+            return -1;
+        }
+        return 0;
+    }
+    if (strcasecmp (key, "BlockDeviceFormatBasename") == 0) {
+        if (strcasecmp (value, "true") == 0)
+            blockdevice_format_basename = "true";
+        else if (strcasecmp (value, "false") == 0)
+            blockdevice_format_basename = "false";
+        else {
+            ERROR (PLUGIN_NAME " plugin: unknown BlockDeviceFormatBasename: %s", value);
+            return -1;
+        }
         return 0;
     }
     if (strcasecmp (key, "InterfaceDevice") == 0) {
@@ -578,15 +613,23 @@ lv_read (void)
                     &stats, sizeof stats) != 0)
             continue;
 
+	char *new_path=NULL;
+	if( 0==strcasecmp("true", blockdevice_format_basename) && source==blockdevice_format){ //valid only if we use source (full path to the device)
+		new_path=strdup(basename(block_devices[i].path));
+	}else{
+		new_path=strdup(block_devices[i].path);
+	}
         if ((stats.rd_req != -1) && (stats.wr_req != -1))
             submit_derive2 ("disk_ops",
                     (derive_t) stats.rd_req, (derive_t) stats.wr_req,
-                    block_devices[i].dom, block_devices[i].path);
+                    block_devices[i].dom, new_path);
 
         if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
             submit_derive2 ("disk_octets",
                     (derive_t) stats.rd_bytes, (derive_t) stats.wr_bytes,
-                    block_devices[i].dom, block_devices[i].path);
+                    block_devices[i].dom, new_path);
+	
+	free(new_path);
     } /* for (nr_block_devices) */
 
     /* Get interface stats for each domain. */
@@ -715,9 +758,18 @@ refresh_lists (void)
             xpath_ctx = xmlXPathNewContext (xml_doc);
 
             /* Block devices. */
+	    char * bd_xmlpath=NULL;
+	    if( source == blockdevice_format ){
+		    bd_xmlpath="/domain/devices/disk/source[@dev]";
+	    }else{
+			if( dev == blockdevice_format ){
+				bd_xmlpath="/domain/devices/disk/target[@dev]";
+			}
+	    }
             xpath_obj = xmlXPathEval
-                ((xmlChar *) "/domain/devices/disk/target[@dev]",
-                 xpath_ctx);
+                  ((xmlChar *) bd_xmlpath,
+                   xpath_ctx);
+
             if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
                 xpath_obj->nodesetval == NULL)
                 goto cont;
