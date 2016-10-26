@@ -67,9 +67,6 @@ DEF_TEST(conversion)
   };
 
   for (size_t i = 0; i < (sizeof (cases) / sizeof (cases[0])); i++) {
-    struct timeval tv;
-    struct timespec ts;
-
     // cdtime -> s
     EXPECT_EQ_UINT64 (cases[i].tt, CDTIME_T_TO_TIME_T (cases[i].t));
 
@@ -77,12 +74,12 @@ DEF_TEST(conversion)
     EXPECT_EQ_UINT64(cases[i].ms, CDTIME_T_TO_MS (cases[i].t));
 
     // cdtime -> us
-    CDTIME_T_TO_TIMEVAL (cases[i].t, &tv);
+    struct timeval tv = CDTIME_T_TO_TIMEVAL (cases[i].t);
     EXPECT_EQ_UINT64 (cases[i].tv.tv_sec, tv.tv_sec);
     EXPECT_EQ_UINT64 (cases[i].tv.tv_usec, tv.tv_usec);
 
     // cdtime -> ns
-    CDTIME_T_TO_TIMESPEC (cases[i].t, &ts);
+    struct timespec ts = CDTIME_T_TO_TIMESPEC (cases[i].t);
     EXPECT_EQ_UINT64 (cases[i].ts.tv_sec, ts.tv_sec);
     EXPECT_EQ_UINT64 (cases[i].ts.tv_nsec, ts.tv_nsec);
 

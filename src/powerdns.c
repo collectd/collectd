@@ -377,7 +377,6 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
 
   struct sockaddr_un sa_unix = { 0 };
 
-  struct timeval stv_timeout;
   cdtime_t cdt_timeout;
 
   sd = socket (PF_UNIX, item->socktype, 0);
@@ -423,9 +422,9 @@ static int powerdns_get_data_dgram (list_item_t *item, /* {{{ */
     if (cdt_timeout < TIME_T_TO_CDTIME_T (2))
       cdt_timeout = TIME_T_TO_CDTIME_T (2);
 
-    CDTIME_T_TO_TIMEVAL (cdt_timeout, &stv_timeout);
-
-    status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO, &stv_timeout, sizeof (stv_timeout));
+    status = setsockopt (sd, SOL_SOCKET, SO_RCVTIMEO,
+                         &CDTIME_T_TO_TIMEVAL(cdt_timeout),
+                         sizeof(struct timeval));
     if (status != 0)
     {
       SOCK_ERROR ("setsockopt", sa_unix.sun_path);

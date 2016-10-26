@@ -522,12 +522,8 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 				&& (cdtime () < rf->rf_next_read)
 				&& rc == 0)
 		{
-			struct timespec ts = { 0 };
-
-			CDTIME_T_TO_TIMESPEC (rf->rf_next_read, &ts);
-
 			rc = pthread_cond_timedwait (&read_cond, &read_lock,
-				&ts);
+				&CDTIME_T_TO_TIMESPEC (rf->rf_next_read));
 		}
 
 		/* Must hold `read_lock' when accessing `rf->rf_type'. */
