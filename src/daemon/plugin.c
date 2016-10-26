@@ -108,7 +108,7 @@ static c_avl_tree_t *data_sets;
 static char *plugindir = NULL;
 
 #ifndef DEFAULT_MAX_READ_INTERVAL
-# define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T (86400)
+# define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T_STATIC (86400)
 #endif
 static c_heap_t       *read_heap = NULL;
 static llist_t        *read_list;
