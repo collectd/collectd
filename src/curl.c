@@ -637,11 +637,11 @@ static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
 } /* }}} void cc_submit_response_code */
 
 static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
-    cdtime_t response_time)
+    gauge_t response_time)
 {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t) { .gauge = CDTIME_T_TO_DOUBLE (response_time) };
+  vl.values = &(value_t) { .gauge = response_time };
   vl.values_len = 1;
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
@@ -668,7 +668,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
   }
 
   if (wp->response_time)
-    cc_submit_response_time (wp, cdtime() - start);
+    cc_submit_response_time (wp, CDTIME_T_TO_DOUBLE (cdtime() - start));
   if (wp->stats != NULL)
     curl_stats_dispatch (wp->stats, wp->curl, hostname_g, "curl", wp->instance);
 
