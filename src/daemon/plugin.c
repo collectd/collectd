@@ -108,7 +108,7 @@ static c_avl_tree_t *data_sets;
 static char *plugindir = NULL;
 
 #ifndef DEFAULT_MAX_READ_INTERVAL
-# define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T (86400)
+# define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T_STATIC (86400)
 #endif
 static c_heap_t       *read_heap = NULL;
 static llist_t        *read_list;
@@ -522,12 +522,8 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 				&& (cdtime () < rf->rf_next_read)
 				&& rc == 0)
 		{
-			struct timespec ts = { 0 };
-
-			CDTIME_T_TO_TIMESPEC (rf->rf_next_read, &ts);
-
 			rc = pthread_cond_timedwait (&read_cond, &read_lock,
-				&ts);
+				&CDTIME_T_TO_TIMESPEC (rf->rf_next_read));
 		}
 
 		/* Must hold `read_lock' when accessing `rf->rf_type'. */

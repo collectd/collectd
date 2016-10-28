@@ -341,7 +341,6 @@ static int do_loop (void)
 
 	while (loop == 0)
 	{
-		struct timespec ts_wait = { 0, 0 };
 		cdtime_t now;
 
 #if HAVE_LIBKSTAT
@@ -361,7 +360,7 @@ static int do_loop (void)
 			continue;
 		}
 
-		CDTIME_T_TO_TIMESPEC (wait_until - now, &ts_wait);
+		struct timespec ts_wait = CDTIME_T_TO_TIMESPEC (wait_until - now);
 		wait_until = wait_until + interval;
 
 		while ((loop == 0) && (nanosleep (&ts_wait, &ts_wait) != 0))

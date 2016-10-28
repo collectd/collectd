@@ -278,30 +278,16 @@ static int dns_run_pcap_loop (void)
 
 static int dns_sleep_one_interval (void) /* {{{ */
 {
-	cdtime_t interval;
-	struct timespec ts = { 0, 0 };
-	int status = 0;
-
-	interval = plugin_get_interval ();
-	CDTIME_T_TO_TIMESPEC (interval, &ts);
-
-	while (42)
+	struct timespec ts = CDTIME_T_TO_TIMESPEC (plugin_get_interval ());
+	while (nanosleep (&ts, &ts) != 0)
 	{
-		struct timespec rem = { 0, 0 };
-
-		status = nanosleep (&ts, &rem);
-		if (status == 0)
-			break;
-		else if ((errno == EINTR) || (errno == EAGAIN))
-		{
-			ts = rem;
+		if ((errno == EINTR) || (errno == EAGAIN))
 			continue;
-		}
-		else
-			break;
+
+		return (errno);
 	}
 
-	return (status);
+	return (0);
 } /* }}} int dns_sleep_one_interval */
 
 static void *dns_child_loop (__attribute__((unused)) void *dummy) /* {{{ */

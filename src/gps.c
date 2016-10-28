@@ -64,6 +64,7 @@ static cgps_data_t cgps_data = {NAN, NAN, NAN, NAN};
 static pthread_t cgps_thread_id;
 static pthread_mutex_t  cgps_data_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t  cgps_thread_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t   cgps_thread_cond = PTHREAD_COND_INITIALIZER;
 static int cgps_thread_shutdown = CGPS_FALSE;
 static int cgps_thread_running = CGPS_FALSE;
 
@@ -72,27 +73,16 @@ static int cgps_thread_running = CGPS_FALSE;
  */
 static int cgps_thread_pause(cdtime_t pTime)
 {
-  cdtime_t now;
-  now = cdtime ();
-  struct timespec pause_th;
-  CDTIME_T_TO_TIMESPEC (MS_TO_CDTIME_T(10), &pause_th);
-  while (CGPS_TRUE)
-  {
-    if ( (cdtime () - now) > pTime )
-    {
-      break;
-    }
+  cdtime_t until = cdtime() + pTime;
 
-    pthread_mutex_lock (&cgps_thread_lock);
-    if (cgps_thread_shutdown == CGPS_TRUE)
-    {
-      return CGPS_FALSE;
-    }
-    pthread_mutex_unlock (&cgps_thread_lock);
-    nanosleep (&pause_th, NULL);
- }
+  pthread_mutex_lock (&cgps_thread_lock);
+  pthread_cond_timedwait (&cgps_thread_cond, &cgps_thread_lock,
+      &CDTIME_T_TO_TIMESPEC (until));
 
- return CGPS_TRUE;
+  int ret = !cgps_thread_shutdown;
+
+  pthread_mutex_lock (&cgps_thread_lock);
+  return ret;
 }
 
 /**
@@ -329,6 +319,7 @@ static int cgps_shutdown (void)
 
   pthread_mutex_lock (&cgps_thread_lock);
   cgps_thread_shutdown = CGPS_TRUE;
+  pthread_cond_broadcast (&cgps_thread_cond);
   pthread_mutex_unlock (&cgps_thread_lock);
 
   pthread_join(cgps_thread_id, &res);

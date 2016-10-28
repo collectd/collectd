@@ -447,12 +447,12 @@ static int dpdk_helper_run(void) {
 
   while (1) {
     /* sem_timedwait() to avoid blocking forever */
-    struct timespec ts;
     cdtime_t now = cdtime();
     cdtime_t safety_period = MS_TO_CDTIME_T(1500);
-    CDTIME_T_TO_TIMESPEC(now + safety_period + g_configuration->interval * 2,
-                         &ts);
-    int ret = sem_timedwait(&g_configuration->sema_helper_get_stats, &ts);
+    int ret =
+        sem_timedwait(&g_configuration->sema_helper_get_stats,
+                      &CDTIME_T_TO_TIMESPEC(now + safety_period +
+                                            g_configuration->interval * 2));
 
     if (ret == -1 && errno == ETIMEDOUT) {
       ERROR("dpdkstat-helper: sem timedwait()"
@@ -562,8 +562,7 @@ static void dpdk_submit_xstats(const char *dev_name,
     vl.values_len = 1; /* Submit stats one at a time */
     vl.time = port_read_time;
     sstrncpy(vl.plugin, "dpdkstat", sizeof(vl.plugin));
-    sstrncpy(vl.plugin_instance, dev_name,
-             sizeof(vl.plugin_instance));
+    sstrncpy(vl.plugin_instance, dev_name, sizeof(vl.plugin_instance));
 
     type_end = strrchr(xstats[j].name, '_');
 
@@ -621,8 +620,7 @@ static void dpdk_submit_xstats(const char *dev_name,
       sstrncpy(vl.type, "derive", sizeof(vl.type));
     }
 
-    sstrncpy(vl.type_instance, xstats[j].name,
-             sizeof(vl.type_instance));
+    sstrncpy(vl.type_instance, xstats[j].name, sizeof(vl.type_instance));
     plugin_dispatch_values(&vl);
   }
 }
@@ -700,10 +698,9 @@ static int dpdk_read(user_data_t *ud) {
   /* Kick helper process through SHM */
   sem_post(&g_configuration->sema_helper_get_stats);
 
-  struct timespec ts;
   cdtime_t now = cdtime();
-  CDTIME_T_TO_TIMESPEC(now + g_configuration->interval, &ts);
-  ret = sem_timedwait(&g_configuration->sema_stats_in_shm, &ts);
+  ret = sem_timedwait(&g_configuration->sema_stats_in_shm,
+                      &CDTIME_T_TO_TIMESPEC(now + g_configuration->interval));
   if (ret == -1) {
     if (errno == ETIMEDOUT)
       DEBUG(
