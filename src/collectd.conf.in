@@ -1412,7 +1412,7 @@
 #	RefreshInterval 60
 #	Domain "name"
 #	BlockDevice "name:device"
-#	BlockDeviceFormat dev
+#	BlockDeviceFormat target
 #	BlockDeviceFormatBasename false
 #	InterfaceDevice "name:device"
 #	IgnoreSelected false

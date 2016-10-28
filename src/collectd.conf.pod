@@ -7773,9 +7773,7 @@ option is set to 0, refreshing is disabled completely.
 
 =item B<BlockDevice> I<name:dev>
 
-=item B<BlockDeviceFormat> B<source>|B<dev>
-
-=item B<BlockDeviceFormatBasename> B<false>|B<true>
+=item B<BlockDeviceFormat> B<source>|B<target>
 
 =item B<InterfaceDevice> I<name:dev>
 
@@ -7802,9 +7800,9 @@ Example:
 Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
 will be collected.
 
-If I<BlockDeviceFormat> is set to B<dev>, then the device names will be the ones
+If I<BlockDeviceFormat> is set to B<target>, then the device names will be the ones
 in the I<target> node for the device in the XML definition of the domain. The
-default is B<dev>. This is the behavior before adding the option.
+default is B<target>. This is the behavior before adding the option.
 
 If I<BlockDeviceFormat> is set to B<source>, then the device names will be the ones
 in the I<source> node for the device in the XML definition of the domain.
@@ -7823,17 +7821,19 @@ If the domain XML have the following device defined:
 
 setting 
 
-	 BlockDeviceFormat dev
+	 BlockDeviceFormat target
 
-will name the device in the graph as sda 
+will name the device in the graph as C<sda> 
 
 setting
  
 	BlockDeviceFormat source
 
-will name the device in the graph as var_lib_libvirt_images_image1.qcow2
+will name the device in the graph as C<var_lib_libvirt_images_image1.qcow2>
 
 These names will also be part of the RRD filename.
+
+=item B<BlockDeviceFormatBasename> B<false>|B<true>
 
 I<BlockDeviceFormatBasename> - this option is honored if and only if 
 option I<BlockDeviceFormat> is set to B<source>. If set to B<true> then 
@@ -7842,12 +7842,12 @@ RRD file.
 
 Example: 
 
-if the device path (source tag) is: /var/lib/libvirt/images/image1.qcow2
+if the device path (source tag) is: C</var/lib/libvirt/images/image1.qcow2>
 
 setting:
 	BlockDeviceFormatBasename true
 
-will set the device name to: image1.qcow2
+will set the device name to: C<image1.qcow2>
 
 =item B<HostnameFormat> B<name|uuid|hostname|...>
 
