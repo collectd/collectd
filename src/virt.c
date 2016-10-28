@@ -32,7 +32,6 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 #include <libgen.h>
-#include <stdbool.h>
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
@@ -148,7 +147,7 @@ enum if_field {
 };
 
 /* BlockDeviceFormatBasename */
-_Bool blockdevice_format_basename = false;
+_Bool blockdevice_format_basename = 0;
 static enum bd_field blockdevice_format = target;
 static enum if_field interface_format = if_name;
 
@@ -365,9 +364,9 @@ lv_config (const char *key, const char *value)
     }
     if (strcasecmp (key, "BlockDeviceFormatBasename") == 0) {
         if (strcasecmp (value, "true") == 0)
-            blockdevice_format_basename = true;
+            blockdevice_format_basename = 1;
         else if (strcasecmp (value, "false") == 0)
-            blockdevice_format_basename = false;
+            blockdevice_format_basename = 0;
         else {
             ERROR (PLUGIN_NAME " plugin: unknown BlockDeviceFormatBasename: %s", value);
             return -1;
@@ -615,14 +614,10 @@ lv_read (void)
             continue;
 
 	char *type_instance = NULL;
-	if( blockdevice_format_basename && blockdevice_format == source ) //valid only if we use "source" (full path to the device)
-	{
+	if (blockdevice_format_basename && blockdevice_format == source)
 		type_instance = strdup(basename(block_devices[i].path));
-	}
 	else
-	{
 		type_instance = strdup(block_devices[i].path);
-	}
         if ((stats.rd_req != -1) && (stats.wr_req != -1))
             submit_derive2 ("disk_ops",
                     (derive_t) stats.rd_req, (derive_t) stats.wr_req,
@@ -762,11 +757,9 @@ refresh_lists (void)
             xpath_ctx = xmlXPathNewContext (xml_doc);
 
             /* Block devices. */
-	    char * bd_xmlpath = "/domain/devices/disk/target[@dev]";  //the default behavior
-	    if( blockdevice_format == source )
-	    {
+	    char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
+	    if (blockdevice_format == source)
 		bd_xmlpath = "/domain/devices/disk/source[@dev]";
-	    }
             xpath_obj = xmlXPathEval ((xmlChar *) bd_xmlpath, xpath_ctx);
 
             if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
