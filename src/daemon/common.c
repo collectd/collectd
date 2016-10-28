@@ -60,7 +60,7 @@
 # include <arpa/inet.h>
 #endif
 
-#ifdef HAVE_SYS_CAPABILITY_H
+#if HAVE_CAPABILITY
 # include <sys/capability.h>
 #endif
 
@@ -1678,51 +1678,25 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 	sfree (array);
 } /* }}} void strarray_free */
 
-#ifdef HAVE_SYS_CAPABILITY_H
-int check_capability (int capability) /* {{{ */
+#if HAVE_CAPABILITY
+int check_capability (int arg) /* {{{ */
 {
-#ifdef _LINUX_CAPABILITY_VERSION_3
-	cap_user_header_t cap_header = calloc(1, sizeof (*cap_header));
-	if (cap_header == NULL)
-	{
-		ERROR("check_capability: calloc failed");
-		return (-1);
-	}
+	cap_value_t cap = (cap_value_t) arg;
 
-	cap_user_data_t cap_data = calloc(1, sizeof (*cap_data));
-	if (cap_data == NULL)
-	{
-		ERROR("check_capability: calloc failed");
-		sfree(cap_header);
+	if (!CAP_IS_SUPPORTED (cap))
 		return (-1);
-	}
 
-	cap_header->pid = getpid();
-	cap_header->version = _LINUX_CAPABILITY_VERSION_3;
-	if (capget(cap_header, cap_data) < 0)
-	{
-		ERROR("check_capability: capget failed");
-		sfree(cap_header);
-		sfree(cap_data);
+	int have_cap = cap_get_bound (cap);
+	if (have_cap != 1)
 		return (-1);
-	}
 
-	if ((cap_data->effective & (1 << capability)) == 0)
-	{
-		sfree(cap_header);
-		sfree(cap_data);
-		return (-1);
-	}
-	else
-	{
-		sfree(cap_header);
-		sfree(cap_data);
-		return (0);
-	}
-#else
-	WARNING ("check_capability: unsupported capability implementation. "
-	    "Some plugin(s) may require elevated privileges to work properly.");
 	return (0);
-#endif /* _LINUX_CAPABILITY_VERSION_3 */
 } /* }}} int check_capability */
-#endif /* HAVE_SYS_CAPABILITY_H */
+#else
+int check_capability (__attribute__((unused)) int arg) /* {{{ */
+{
+	WARNING ("check_capability: unsupported capability implementation. "
+		 "Some plugin(s) may require elevated privileges to work properly.");
+	return (0);
+} /* }}} int check_capability */
+#endif /* HAVE_CAPABILITY */

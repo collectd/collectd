@@ -808,7 +808,20 @@ fi
 have_cpuid_h="no"
 AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
 
-AC_CHECK_HEADERS(sys/capability.h)
+have_capability="yes"
+AC_CHECK_HEADERS(sys/capability.h,
+                 [have_capability="yes"],
+                 [have_capability="no (<sys/capability.h> not found)"])
+if test "x$have_capability" = "xyes"; then
+AC_CHECK_LIB(cap, cap_get_bound,
+                 [have_capability="yes"],
+                 [have_capability="no (cap_get_bound() not found)"])
+fi
+if test "x$have_capability" = "xyes"; then
+  AC_DEFINE(HAVE_CAPABILITY, 1, [Define to 1 if you have cap_get_bound() (-lcap).])
+fi
+AM_CONDITIONAL(BUILD_WITH_CAPABILITY, test "x$have_capability" = "xyes")
+
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #
