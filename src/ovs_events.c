@@ -71,6 +71,7 @@ struct ovs_events_config_s {
   _Bool send_notification;                 /* sent notification to collectd? */
   char ovs_db_node[OVS_DB_ADDR_NODE_SIZE]; /* OVS DB node */
   char ovs_db_serv[OVS_DB_ADDR_SERVICE_SIZE]; /* OVS DB service */
+  char ovs_db_unix[OVS_DB_ADDR_UNIX_SIZE];    /* OVS DB unix socket path */
   ovs_events_iface_list_t *ifaces;            /* interface info */
 };
 typedef struct ovs_events_config_s ovs_events_config_t;
@@ -93,6 +94,7 @@ static ovs_events_ctx_t ovs_events_ctx = {
     .config = {.send_notification = 0,     /* do not send notification */
                .ovs_db_node = "localhost", /* use default OVS DB node */
                .ovs_db_serv = "6640",      /* use default OVS DB service */
+               .ovs_db_unix = "",          /* UNIX path empty by default */
                .ifaces = NULL},
     .ovs_db_select_params = NULL,
     .is_db_available = 0,
@@ -137,9 +139,8 @@ static int ovs_events_config_iface_exists(const char *ifname) {
 static char *ovs_events_get_select_params() {
   int ret = 0;
   size_t buff_size = 0;
-  size_t offset = 0;
-  char *buff = NULL;
-  char *new_buff = NULL;
+  size_t buff_off = 0;
+  char *opt_buff = NULL;
   const char params_fmt[] = "[\"Open_vSwitch\"%s]";
   const char option_fmt[] = ",{\"op\":\"select\",\"table\":\"Interface\","
                             "\"where\":[[\"name\",\"==\",\"%s\"]],"
@@ -150,40 +151,40 @@ static char *ovs_events_get_select_params() {
                              "\"external_ids\",\"name\",\"_uuid\"]}";
   /* setup OVS DB interface condition */
   for (ovs_events_iface_list_t *iface = ovs_events_ctx.config.ifaces; iface;
-       iface = iface->next, offset += ret) {
+       iface = iface->next, buff_off += ret) {
     /* allocate new buffer (format size + ifname len is good enough) */
     buff_size += (sizeof(option_fmt) + strlen(iface->name));
-    new_buff = realloc(buff, buff_size);
-    if (new_buff == NULL)
-      goto failure;
-    buff = new_buff;
-    ret = ssnprintf(buff + offset, buff_size, option_fmt, iface->name);
-    if (ret < 0)
-      goto failure;
+    char *new_buff = realloc(opt_buff, buff_size);
+    if (new_buff == NULL) {
+      sfree(opt_buff);
+      return NULL;
+    }
+    opt_buff = new_buff;
+    ret = ssnprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
+                    iface->name);
+    if (ret < 0) {
+      sfree(opt_buff);
+      return NULL;
+    }
   }
   /* if no interfaces are configured, use default params */
-  if (buff == NULL) {
-    buff = strdup(default_opt);
-    offset = strlen(default_opt);
-  }
+  if (opt_buff == NULL)
+    opt_buff = strdup(default_opt);
 
   /* allocate memory for OVS DB select params */
-  buff_size = offset + sizeof(params_fmt);
-  new_buff = malloc(buff_size);
-  if (new_buff == NULL)
-    goto failure;
+  size_t params_size = sizeof(params_fmt) + strlen(opt_buff);
+  char *params_buff = malloc(params_size);
+  if (params_buff == NULL) {
+    sfree(opt_buff);
+    return NULL;
+  }
 
   /* create OVS DB select params */
-  if (ssnprintf(new_buff, buff_size, params_fmt, buff) < 0)
-    goto failure;
+  if (ssnprintf(params_buff, params_size, params_fmt, opt_buff) < 0)
+    sfree(params_buff);
 
-  sfree(buff);
-  return new_buff;
-
-failure:
-  sfree(new_buff);
-  sfree(buff);
-  return NULL;
+  sfree(opt_buff);
+  return params_buff;
 }
 
 /* Release memory allocated for configuration data */
@@ -206,31 +207,24 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
-      if (cf_util_get_boolean(child, &ovs_events_ctx.config.send_notification) <
-          0)
+      if (cf_util_get_boolean(child,
+                              &ovs_events_ctx.config.send_notification) != 0)
         OVS_EVENTS_CONFIG_ERROR(child->key);
-    } else if (strcasecmp("OvsDbAddress", child->key) == 0) {
-      if (child->values_num < 1) {
-        ERROR(OVS_EVENTS_PLUGIN ": invalid OVS DB address specified");
-        goto failure;
-      }
-      /* check node type and get the value */
-      if (child->values[0].type != OCONFIG_TYPE_STRING) {
-        ERROR(OVS_EVENTS_PLUGIN ": OVS DB node is not a string");
-        goto failure;
-      }
-      sstrncpy(ovs_events_ctx.config.ovs_db_node, child->values[0].value.string,
-               sizeof(ovs_events_ctx.config.ovs_db_node));
-      /* get OVS DB address service name (optional) */
-      if (child->values_num > 1) {
-        if (child->values[1].type != OCONFIG_TYPE_STRING) {
-          ERROR(OVS_EVENTS_PLUGIN ": OVS DB service is not a string");
-          goto failure;
-        }
-        sstrncpy(ovs_events_ctx.config.ovs_db_serv,
-                 child->values[1].value.string,
-                 sizeof(ovs_events_ctx.config.ovs_db_serv));
-      }
+    } else if (strcasecmp("Address", child->key) == 0) {
+      if (cf_util_get_string_buffer(
+              child, ovs_events_ctx.config.ovs_db_node,
+              sizeof(ovs_events_ctx.config.ovs_db_node)) != 0)
+        OVS_EVENTS_CONFIG_ERROR(child->key);
+    } else if (strcasecmp("Port", child->key) == 0) {
+      if (cf_util_get_string_buffer(
+              child, ovs_events_ctx.config.ovs_db_serv,
+              sizeof(ovs_events_ctx.config.ovs_db_serv)) != 0)
+        OVS_EVENTS_CONFIG_ERROR(child->key);
+    } else if (strcasecmp("Socket", child->key) == 0) {
+      if (cf_util_get_string_buffer(
+              child, ovs_events_ctx.config.ovs_db_unix,
+              sizeof(ovs_events_ctx.config.ovs_db_unix)) != 0)
+        OVS_EVENTS_CONFIG_ERROR(child->key);
     } else if (strcasecmp("Interfaces", child->key) == 0) {
       for (int j = 0; j < child->values_num; j++) {
         /* check value type */
@@ -481,9 +475,9 @@ static void ovs_events_table_update_cb(yajl_val jupdates) {
   }
 }
 
-/* OVD DB reply callback. It parses reply, receives
+/* OVS DB reply callback. It parses reply, receives
  * interface information and dispatches the info to
- * collecd
+ * collectd
  */
 static void ovs_events_poll_result_cb(yajl_val jresult, yajl_val jerror) {
   yajl_val *jvalues = NULL;
@@ -544,7 +538,7 @@ static void ovs_events_conn_initialize(ovs_db_t *pdb) {
     }
   }
   OVS_EVENTS_CTX_LOCK { ovs_events_ctx.is_db_available = 1; }
-  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB has been initialized");
+  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB connection has been initialized");
 }
 
 /* OVS DB terminate connection notification callback */
@@ -576,8 +570,9 @@ static int ovs_events_plugin_init(void) {
   ovs_db_callback_t cb = {.post_conn_init = ovs_events_conn_initialize,
                           .post_conn_terminate = ovs_events_conn_terminate};
 
-  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB node = %s, service=%s",
-        ovs_events_ctx.config.ovs_db_node, ovs_events_ctx.config.ovs_db_serv);
+  DEBUG(OVS_EVENTS_PLUGIN ": OVS DB address=%s, service=%s, unix=%s",
+        ovs_events_ctx.config.ovs_db_node, ovs_events_ctx.config.ovs_db_serv,
+        ovs_events_ctx.config.ovs_db_unix);
 
   /* generate OVS DB select condition based on list on configured interfaces */
   ovs_events_ctx.ovs_db_select_params = ovs_events_get_select_params();
@@ -588,7 +583,8 @@ static int ovs_events_plugin_init(void) {
 
   /* initialize OVS DB */
   ovs_db = ovs_db_init(ovs_events_ctx.config.ovs_db_node,
-                       ovs_events_ctx.config.ovs_db_serv, &cb);
+                       ovs_events_ctx.config.ovs_db_serv,
+                       ovs_events_ctx.config.ovs_db_unix, &cb);
   if (ovs_db == NULL) {
     ERROR(OVS_EVENTS_PLUGIN ": fail to connect to OVS DB server");
     goto ovs_events_failure;

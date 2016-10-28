@@ -5463,7 +5463,9 @@ notification.
 B<Synopsis:>
 
  <Plugin "ovs_events">
-   OvsDbAddress "127.0.0.1" "6640"
+   Port "6640"
+   Address "127.0.0.1"
+   Socket "/var/run/openvswitch/db.sock"
    Interfaces "br0" "veth0"
    SendNotification false
  </Plugin>
@@ -5472,31 +5474,26 @@ The plugin provides the following configuration options:
 
 =over 4
 
-=item B<OvsDbAddress> I<node> I<service>
+=item B<Address> I<node>
 
-The address of OVS DB server JSON-RPC interface used by the plugin.
-To enable the interface, OVS DB daemon should be running with '--remote=ptcp:'
-or '--remote=punix:' option. See L<ovsdb-server(1)> for more details. The
-address arguments must take one of the following forms:
+The address of OVS DB server JSON-RPC interface used by the plugin. To enable
+the interface, OVS DB daemon should be running with '--remote=ptcp:' option.
+See L<ovsdb-server(1)> for more details. The option may be either network
+hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string format.
+Defaults to 'localhost'.
 
-=over 4
+=item B<Port> I<service>
 
-=item I<node>
+TCP-port to connect to. Either a service name or a port number may be given.
+Please note that numerical port numbers must be given as a string. Defaults
+to "6640".
 
-The I<node> argument of the address can be either network hostname, IPv4
-numbers-and-dots notation or IPv6 hexadecimal string format. In case of Unix
-domain socket, the "I<unix:>file" format should be used, where I<file> is
-the full name of OVS DB Unix domain socket.
+=item B<Socket> I<path>
 
-=item I<service>
-
-The I<service> argument of the address specifies the service name used to
-connect to OVS DB. See L<services(5)> for more details. This argument is
-skipped if Unix domain address is used.
-
-=back
-
-Default: C<"localhost" "6640">
+The UNIX domain socket path of OVS DB server JSON-RPC interface used by the
+plugin. To enable the interface, the OVS DB daemon should be running with
+'--remote=punix:' option. See L<ovsdb-server(1)> for more details. If this
+option is set, B<Address> and B<Port> options are ignored.
 
 =item B<Interfaces> [I<ifname> ...]
 

@@ -993,7 +993,9 @@
 #</Plugin>
 
 #<Plugin ovs_events>
-#  OvsDbAddress "127.0.0.1" "6640"
+#  Port "6640"
+#  Address "127.0.0.1"
+#  Socket "/var/run/openvswitch/db.sock"
 #  Interfaces "br0" "veth0"
 #  SendNotification false
 #</Plugin>

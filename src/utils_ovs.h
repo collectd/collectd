@@ -86,7 +86,7 @@ struct ovs_db_callback_s {
    */
   void (*post_conn_init)(ovs_db_t *pdb);
   /*
-   * This callback is called when OVD DB connection
+   * This callback is called when OVS DB connection
    * has been lost. This field can be NULL.
    */
   void (*post_conn_terminate)(void);
@@ -96,6 +96,7 @@ typedef struct ovs_db_callback_s ovs_db_callback_t;
 /* OVS DB defines */
 #define OVS_DB_ADDR_NODE_SIZE 256
 #define OVS_DB_ADDR_SERVICE_SIZE 128
+#define OVS_DB_ADDR_UNIX_SIZE 108
 
 /* OVS DB prototypes */
 
@@ -110,13 +111,14 @@ typedef struct ovs_db_callback_s ovs_db_callback_t;
  * PARAMETERS
  *   `node'        OVS DB Address.
  *   `service'     OVS DB service name.
+ *   `unix'        OVS DB unix socket path.
  *   `cb'          OVS DB callbacks.
  *
  * RETURN VALUE
  *   New ovs_db_t object upon success or NULL if an error occurred.
  */
 ovs_db_t *ovs_db_init(const char *node, const char *service,
-                      ovs_db_callback_t *cb);
+                      const char *unix_path, ovs_db_callback_t *cb);
 
 /*
  * NAME
