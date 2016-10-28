@@ -31,7 +31,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
-#include <libgen.h>
+#include <libgen.h> /* for basename(3) */
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
