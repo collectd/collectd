@@ -363,14 +363,7 @@ lv_config (const char *key, const char *value)
         return 0;
     }
     if (strcasecmp (key, "BlockDeviceFormatBasename") == 0) {
-        if (strcasecmp (value, "true") == 0)
-            blockdevice_format_basename = 1;
-        else if (strcasecmp (value, "false") == 0)
-            blockdevice_format_basename = 0;
-        else {
-            ERROR (PLUGIN_NAME " plugin: unknown BlockDeviceFormatBasename: %s", value);
-            return -1;
-        }
+        blockdevice_format_basename = IS_TRUE (value);
         return 0;
     }
     if (strcasecmp (key, "InterfaceDevice") == 0) {
