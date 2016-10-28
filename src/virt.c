@@ -606,11 +606,12 @@ lv_read (void)
                     &stats, sizeof stats) != 0)
             continue;
 
-	char *type_instance = NULL;
-	if (blockdevice_format_basename && blockdevice_format == source)
-		type_instance = strdup(basename(block_devices[i].path));
-	else
-		type_instance = strdup(block_devices[i].path);
+        char *type_instance = NULL;
+        if (blockdevice_format_basename && blockdevice_format == source)
+            type_instance = strdup(basename(block_devices[i].path));
+        else
+            type_instance = strdup(block_devices[i].path);
+
         if ((stats.rd_req != -1) && (stats.wr_req != -1))
             submit_derive2 ("disk_ops",
                     (derive_t) stats.rd_req, (derive_t) stats.wr_req,
@@ -620,15 +621,14 @@ lv_read (void)
             submit_derive2 ("disk_octets",
                     (derive_t) stats.rd_bytes, (derive_t) stats.wr_bytes,
                     block_devices[i].dom, type_instance);
-	
-	sfree(type_instance);
+
+        sfree (type_instance);
     } /* for (nr_block_devices) */
 
     /* Get interface stats for each domain. */
     for (int i = 0; i < nr_interface_devices; ++i) {
         struct _virDomainInterfaceStats stats;
         char *display_name = NULL;
-
 
         switch (interface_format) {
             case if_address:
@@ -750,9 +750,9 @@ refresh_lists (void)
             xpath_ctx = xmlXPathNewContext (xml_doc);
 
             /* Block devices. */
-	    char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
-	    if (blockdevice_format == source)
-		bd_xmlpath = "/domain/devices/disk/source[@dev]";
+            char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
+            if (blockdevice_format == source)
+                bd_xmlpath = "/domain/devices/disk/source[@dev]";
             xpath_obj = xmlXPathEval ((xmlChar *) bd_xmlpath, xpath_ctx);
 
             if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
