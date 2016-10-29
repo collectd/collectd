@@ -440,7 +440,7 @@ static int dispatch_block_plugin (oconfig_item_t *ci)
 		else
 		{
 			WARNING ("There is a `%s' block within the "
-					"configuration for the %s plugin. "
+					"configuration for the `%s' plugin. "
 					"The plugin either only expects "
 					"\"simple\" configuration statements "
 					"or wasn't loaded using `LoadPlugin'."

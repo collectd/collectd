@@ -1096,7 +1096,11 @@ int plugin_load (char const *plugin_name, uint32_t flags)
 			/* success */
 			plugin_mark_loaded (plugin_name);
 			ret = 0;
-			INFO ("plugin_load: plugin \"%s\" successfully loaded.", plugin_name);
+			/*
+			  Plugin name will be added from context. Result:
+			  network plugin: plugin successfully loaded.
+			*/
+			INFO ("plugin successfully loaded.");
 			break;
 		}
 		else
