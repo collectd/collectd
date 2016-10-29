@@ -971,8 +971,6 @@ static int rrd_config (const char *key, const char *value)
 		double tmp = atof (value);
 		if (tmp < 0)
 		{
-			fprintf (stderr, "rrdtool: `CacheTimeout' must "
-					"be greater than 0.\n");
 			ERROR ("`CacheTimeout' must be greater than 0.\n");
 			return (1);
 		}
@@ -983,8 +981,6 @@ static int rrd_config (const char *key, const char *value)
 		int tmp = atoi (value);
 		if (tmp < 0)
 		{
-			fprintf (stderr, "rrdtool: `CacheFlush' must "
-					"be greater than 0.\n");
 			ERROR ("`CacheFlush' must be greater than 0.\n");
 			return (1);
 		}
@@ -1047,8 +1043,6 @@ static int rrd_config (const char *key, const char *value)
 		int tmp = atoi (value);
 		if (tmp <= 0)
 		{
-			fprintf (stderr, "rrdtool: `RRARows' must "
-					"be greater than 0.\n");
 			ERROR ("`RRARows' must be greater than 0.\n");
 			return (1);
 		}
@@ -1075,7 +1069,6 @@ static int rrd_config (const char *key, const char *value)
 					sizeof (int) * (rrdcreate_config.timespans_num + 1));
 			if (tmp_alloc == NULL)
 			{
-				fprintf (stderr, "rrdtool: realloc failed.\n");
 				ERROR ("realloc failed.\n");
 				free (value_copy);
 				return (1);
@@ -1098,8 +1091,6 @@ static int rrd_config (const char *key, const char *value)
 		double tmp = atof (value);
 		if ((tmp < 0.0) || (tmp >= 1.0))
 		{
-			fprintf (stderr, "rrdtool: `XFF' must "
-					"be in the range 0 to 1 (exclusive).");
 			ERROR ("`XFF' must be in the range 0 to 1 (exclusive).");
 			return (1);
 		}
@@ -1111,8 +1102,7 @@ static int rrd_config (const char *key, const char *value)
 
 		if (wps < 0.0)
 		{
-			fprintf (stderr, "rrdtool: `WritesPerSecond' must be "
-					"greater than or equal to zero.");
+			ERROR ("`WritesPerSecond' must be greater than or equal to zero.");
 			return (1);
 		}
 		else if (wps == 0.0)
@@ -1131,10 +1121,7 @@ static int rrd_config (const char *key, const char *value)
 		tmp = atof (value);
 		if (tmp < 0.0)
 		{
-			fprintf (stderr, "rrdtool: `RandomTimeout' must "
-					"be greater than or equal to zero.\n");
-			ERROR ("`RandomTimeout' must "
-					"be greater then or equal to zero.");
+			ERROR ("`RandomTimeout' must be greater then or equal to zero.");
 		}
 		else
 		{
