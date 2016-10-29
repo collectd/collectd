@@ -2244,45 +2244,6 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 /*
  * Configuration handling
  */
-/* Sets a given flag if the boolean argument is true and unsets the flag if it
- * is false. On error, the flag-field is not changed. */
-static int cna_config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
-		uint32_t *flags, uint32_t flag)
-{
-	if ((ci == NULL) || (flags == NULL))
-		return (EINVAL);
-
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-	{
-		WARNING ("The %s option needs exactly one boolean argument.",
-				ci->key);
-		return (-1);
-	}
-
-	if (ci->values[0].value.boolean)
-		*flags |= flag;
-	else
-		*flags &= ~flag;
-
-	return (0);
-} /* }}} int cna_config_bool_to_flag */
-
-/* Handling of the "Interval" option which is allowed in every block. */
-static int cna_config_get_interval (const oconfig_item_t *ci, /* {{{ */
-		cna_interval_t *out_interval)
-{
-	cdtime_t tmp = 0;
-	int status;
-
-	status = cf_util_get_cdtime (ci, &tmp);
-	if (status != 0)
-		return (status);
-
-	out_interval->interval = tmp;
-	out_interval->last_read = 0;
-
-	return (0);
-} /* }}} int cna_config_get_interval */
 
 /* Handling of the "GetIO", "GetOps" and "GetLatency" options within a
  * <VolumePerf /> block. */
@@ -2410,7 +2371,7 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_volume_perf->interval);
+			cf_util_get_cdtime (item, &cfg_volume_perf->interval.interval);
 		else if (!strcasecmp(item->key, "GetIO"))
 			cna_config_volume_perf_option (cfg_volume_perf, item);
 		else if (!strcasecmp(item->key, "GetOps"))
@@ -2508,7 +2469,7 @@ static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp (item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_quota->interval);
+			cf_util_get_cdtime (item, &cfg_quota->interval.interval);
 		else
 			WARNING ("The option %s is not allowed within "
 					"`Quota' blocks.", item->key);
@@ -2544,9 +2505,9 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_disk->interval);
+			cf_util_get_cdtime (item, &cfg_disk->interval.interval);
 		else if (strcasecmp(item->key, "GetBusy") == 0)
-			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
+			cf_util_get_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
 	}
 
 	if ((cfg_disk->flags & CFG_DISK_ALL) == 0)
@@ -2585,15 +2546,15 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_wafl->interval);
+			cf_util_get_cdtime (item, &cfg_wafl->interval.interval);
 		else if (!strcasecmp(item->key, "GetNameCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_NAME_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_NAME_CACHE);
 		else if (!strcasecmp(item->key, "GetDirCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_DIR_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_DIR_CACHE);
 		else if (!strcasecmp(item->key, "GetBufferCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_BUF_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_BUF_CACHE);
 		else if (!strcasecmp(item->key, "GetInodeCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_INODE_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_INODE_CACHE);
 		else
 			WARNING ("The %s config option is not allowed within "
 					"`WAFL' blocks.", item->key);
@@ -2669,7 +2630,7 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_volume_usage->interval);
+			cf_util_get_cdtime (item, &cfg_volume_usage->interval.interval);
 		else if (!strcasecmp(item->key, "GetCapacity"))
 			cna_config_volume_usage_option (cfg_volume_usage, item);
 		else if (!strcasecmp(item->key, "GetSnapshot"))
@@ -2711,7 +2672,7 @@ static int cna_config_snapvault (host_config_t *host, /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp (item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_snapvault->interval);
+			cf_util_get_cdtime (item, &cfg_snapvault->interval.interval);
 		else
 			WARNING ("The option %s is not allowed within "
 					"`SnapVault' blocks.", item->key);
@@ -2747,15 +2708,15 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interval") == 0) {
-			cna_config_get_interval (item, &cfg_system->interval);
+			cf_util_get_cdtime (item, &cfg_system->interval.interval);
 		} else if (!strcasecmp(item->key, "GetCPULoad")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
 		} else if (!strcasecmp(item->key, "GetInterfaces")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_NET);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_NET);
 		} else if (!strcasecmp(item->key, "GetDiskOps")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_OPS);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_OPS);
 		} else if (!strcasecmp(item->key, "GetDiskIO")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
 		} else {
 			WARNING ("The %s config option is not allowed within "
 					"`System' blocks.", item->key);

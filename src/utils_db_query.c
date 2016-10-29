@@ -93,32 +93,6 @@ struct udb_query_preparation_area_s /* {{{ */
 /*
  * Config Private functions
  */
-static int udb_config_set_string (char **ret_string, /* {{{ */
-    oconfig_item_t *ci)
-{
-  char *string;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  string = strdup (ci->values[0].value.string);
-  if (string == NULL)
-  {
-    ERROR ("strdup failed.");
-    return (-1);
-  }
-
-  if (*ret_string != NULL)
-    free (*ret_string);
-  *ret_string = string;
-
-  return (0);
-} /* }}} int udb_config_set_string */
 
 static int udb_config_add_string (char ***ret_array, /* {{{ */
     size_t *ret_array_len, oconfig_item_t *ci)
@@ -586,9 +560,9 @@ static int udb_result_create (const char *query_name, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Type", child->key) == 0)
-      status = udb_config_set_string (&r->type, child);
+      status = cf_util_get_string(child, &r->type);
     else if (strcasecmp ("InstancePrefix", child->key) == 0)
-      status = udb_config_set_string (&r->instance_prefix, child);
+      status = cf_util_get_string(child, &r->instance_prefix);
     else if (strcasecmp ("InstancesFrom", child->key) == 0)
       status = udb_config_add_string (&r->instances, &r->instances_num, child);
     else if (strcasecmp ("ValuesFrom", child->key) == 0)
@@ -702,7 +676,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   q->results = NULL;
   q->plugin_instance_from = NULL;
 
-  status = udb_config_set_string (&q->name, ci);
+  status = cf_util_get_string (ci, &q->name);
   if (status != 0)
   {
     sfree (q);
@@ -715,7 +689,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Statement", child->key) == 0)
-      status = udb_config_set_string (&q->statement, child);
+      status = cf_util_get_string (child, &q->statement);
     else if (strcasecmp ("Result", child->key) == 0)
       status = udb_result_create (q->name, &q->results, child);
     else if (strcasecmp ("MinVersion", child->key) == 0)
@@ -723,7 +697,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     else if (strcasecmp ("MaxVersion", child->key) == 0)
       status = udb_config_set_uint (&q->max_version, child);
     else if (strcasecmp ("PluginInstanceFrom", child->key) == 0)
-      status = udb_config_set_string (&q->plugin_instance_from, child);
+      status = cf_util_get_string (child, &q->plugin_instance_from);
 
     /* Call custom callbacks */
     else if (cb != NULL)

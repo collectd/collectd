@@ -66,7 +66,7 @@ struct data_definition_s
   struct data_definition_s *next;
   char **ignores;
   size_t ignores_len;
-  int invert_match;
+  _Bool invert_match;
 };
 typedef struct data_definition_s data_definition_t;
 
@@ -358,19 +358,6 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd, oconfig_item_t
   return 0;
 } /* int csnmp_config_add_data_blacklist */
 
-static int csnmp_config_add_data_blacklist_match_inverted(data_definition_t *dd, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-  {
-    WARNING ("`InvertMatch' needs exactly one boolean argument.");
-    return (-1);
-  }
-
-  dd->invert_match = ci->values[0].value.boolean ? 1 : 0;
-
-  return (0);
-} /* int csnmp_config_add_data_blacklist_match_inverted */
-
 static int csnmp_config_add_data (oconfig_item_t *ci)
 {
   data_definition_t *dd;
@@ -411,7 +398,7 @@ static int csnmp_config_add_data (oconfig_item_t *ci)
     else if (strcasecmp ("Ignore", option->key) == 0)
       status = csnmp_config_add_data_blacklist(dd, option);
     else if (strcasecmp ("InvertMatch", option->key) == 0)
-      status = csnmp_config_add_data_blacklist_match_inverted(dd, option);
+      status = cf_util_get_boolean(option, &dd->invert_match);
     else
     {
       WARNING ("Option `%s' not allowed here.", option->key);
@@ -1166,7 +1153,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
       status = fnmatch(dd->ignores[i], il->instance, 0);
       if (status == 0)
       {
-        if (dd->invert_match == 0)
+        if (!dd->invert_match)
         {
           sfree(il);
           return 0;
@@ -1178,7 +1165,7 @@ static int csnmp_instance_list_add (csnmp_list_instances_t **head,
 	}
       }
     }
-    if (dd->invert_match != 0 && is_matched == 0)
+    if (dd->invert_match && is_matched == 0)
     {
       sfree(il);
       return 0;

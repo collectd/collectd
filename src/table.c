@@ -121,19 +121,6 @@ static size_t tables_num;
  * configuration handling
  */
 
-static int tbl_config_set_s (char *name, char **var, oconfig_item_t *ci)
-{
-	if ((1 != ci->values_num)
-			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		ERROR ("\"%s\" expects a single string argument.", name);
-		return 1;
-	}
-
-	sfree (*var);
-	*var = sstrdup (ci->values[0].value.string);
-	return 0;
-} /* tbl_config_set_separator */
-
 static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 		oconfig_item_t *ci)
 {
@@ -200,9 +187,9 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Type"))
-			tbl_config_set_s (c->key, &res->type, c);
+			cf_util_get_string (c, &res->type);
 		else if (0 == strcasecmp (c->key, "InstancePrefix"))
-			tbl_config_set_s (c->key, &res->instance_prefix, c);
+			cf_util_get_string (c, &res->instance_prefix);
 		else if (0 == strcasecmp (c->key, "InstancesFrom"))
 			tbl_config_append_array_i (c->key,
 					&res->instances, &res->instances_num, c);
@@ -264,9 +251,9 @@ static int tbl_config_table (oconfig_item_t *ci)
 		oconfig_item_t *c = ci->children + i;
 
 		if (0 == strcasecmp (c->key, "Separator"))
-			tbl_config_set_s (c->key, &tbl->sep, c);
+			cf_util_get_string (c, &tbl->sep);
 		else if (0 == strcasecmp (c->key, "Instance"))
-			tbl_config_set_s (c->key, &tbl->instance, c);
+			cf_util_get_string (c, &tbl->instance);
 		else if (0 == strcasecmp (c->key, "Result"))
 			tbl_config_result (tbl, c);
 		else
