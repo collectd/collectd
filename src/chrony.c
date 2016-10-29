@@ -62,7 +62,6 @@ static uint32_t  g_chrony_rand    = 1;
 static uint32_t  g_chrony_seq_is_initialized;
 
 #define PLUGIN_NAME_SHORT "chrony"
-#define PLUGIN_NAME       PLUGIN_NAME_SHORT " plugin"
 #define DAEMON_NAME       PLUGIN_NAME_SHORT
 #define CHRONY_DEFAULT_HOST "localhost"
 #define CHRONY_DEFAULT_PORT "323"
@@ -319,7 +318,7 @@ connect_client(const char *p_hostname,
 
   if (n < 0)
   {
-    ERROR(PLUGIN_NAME ": getaddrinfo error:: [%s]", gai_strerror(n));
+    ERROR("getaddrinfo error:: [%s]", gai_strerror(n));
     return -1;
   }
 
@@ -376,7 +375,7 @@ niptoha(const tChrony_IPAddr * addr, char *p_buf, size_t p_buf_size)
     const char *rp = inet_ntop(AF_INET6, addr->addr.ip6, p_buf, p_buf_size);
     if (rp == NULL)
     {
-      ERROR(PLUGIN_NAME ": Error converting ipv6 address to string. Errno = %d", errno);
+      ERROR("Error converting ipv6 address to string. Errno = %d", errno);
       rc = snprintf(p_buf, p_buf_size, "[UNKNOWN]");
     }
     break;
@@ -421,7 +420,7 @@ chrony_connect(void)
     g_chrony_host = strdup(CHRONY_DEFAULT_HOST);
     if (g_chrony_host == NULL)
     {
-      ERROR(PLUGIN_NAME ": Error duplicating chrony host name");
+      ERROR("Error duplicating chrony host name");
       return CHRONY_RC_FAIL;
     }
   }
@@ -430,7 +429,7 @@ chrony_connect(void)
     g_chrony_port = strdup(CHRONY_DEFAULT_PORT);
     if (g_chrony_port == NULL)
     {
-      ERROR(PLUGIN_NAME ": Error duplicating chrony port string");
+      ERROR("Error duplicating chrony port string");
       return CHRONY_RC_FAIL;
     }
   }
@@ -440,19 +439,19 @@ chrony_connect(void)
     assert(g_chrony_timeout >= 0);
   }
 
-  DEBUG(PLUGIN_NAME ": Connecting to %s:%s", g_chrony_host, g_chrony_port);
+  DEBUG("Connecting to %s:%s", g_chrony_host, g_chrony_port);
   socket = connect_client(g_chrony_host, g_chrony_port, AF_UNSPEC, SOCK_DGRAM);
   if (socket < 0)
   {
-    ERROR(PLUGIN_NAME ": Error connecting to daemon. Errno = %d", errno);
+    ERROR("Error connecting to daemon. Errno = %d", errno);
     return CHRONY_RC_FAIL;
   }
-  DEBUG(PLUGIN_NAME ": Connected");
+  DEBUG("Connected");
   g_chrony_socket = socket;
 
   if (chrony_set_timeout())
   {
-    ERROR(PLUGIN_NAME ": Error setting timeout to %llds. Errno = %d",
+    ERROR("Error setting timeout to %llds. Errno = %d",
           (long long)g_chrony_timeout, errno);
     return CHRONY_RC_FAIL;
   }
@@ -465,7 +464,7 @@ chrony_send_request(const tChrony_Request * p_req, size_t p_req_size)
 {
   if (send(g_chrony_socket, p_req, p_req_size, 0) < 0)
   {
-    ERROR(PLUGIN_NAME ": Error sending packet. Errno = %d", errno);
+    ERROR("Error sending packet. Errno = %d", errno);
     return CHRONY_RC_FAIL;
   }
   return CHRONY_RC_OK;
@@ -479,7 +478,7 @@ chrony_recv_response(tChrony_Response * p_resp, size_t p_resp_max_size,
   ssize_t rc = recv(g_chrony_socket, p_resp, p_resp_max_size, 0);
   if (rc <= 0)
   {
-    ERROR(PLUGIN_NAME ": Error receiving packet: %s (%d)", strerror(errno),
+    ERROR("Error receiving packet: %s (%d)", strerror(errno),
           errno);
     return CHRONY_RC_FAIL;
   }
@@ -508,7 +507,7 @@ chrony_query(const int p_command, tChrony_Request * p_req,
     }
     else
     {
-      ERROR(PLUGIN_NAME ": Unable to connect. Errno = %d", errno);
+      ERROR("Unable to connect. Errno = %d", errno);
       return CHRONY_RC_FAIL;
     }
   }
@@ -546,7 +545,7 @@ chrony_query(const int p_command, tChrony_Request * p_req,
       valid_command = 1;
       break;
     default:
-      ERROR(PLUGIN_NAME ": Unknown request command (Was: %d)", p_command);
+      ERROR("Unknown request command (Was: %d)", p_command);
       break;
     }
 
@@ -558,51 +557,49 @@ chrony_query(const int p_command, tChrony_Request * p_req,
     p_req->header.f_cmd_try = 0;
     p_req->header.f_seq = seq_nr;
 
-    DEBUG(PLUGIN_NAME ": Sending request (.cmd = %d, .seq = %d)", p_command,
+    DEBUG("Sending request (.cmd = %d, .seq = %d)", p_command,
           seq_nr);
     if (chrony_send_request(p_req, req_size) != 0)
       break;
 
-    DEBUG(PLUGIN_NAME ": Waiting for response");
+    DEBUG("Waiting for response");
     if (chrony_recv_response(p_resp, resp_size, p_resp_size) != 0)
       break;
 
-    DEBUG(PLUGIN_NAME
-          ": Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
+    DEBUG("Received response: .version = %u, .type = %u, .cmd = %u, .reply = %u, .status = %u, .seq = %u",
           p_resp->header.f_version, p_resp->header.f_type,
           ntohs(p_resp->header.f_cmd), ntohs(p_resp->header.f_reply),
           ntohs(p_resp->header.f_status), p_resp->header.f_seq);
 
     if (p_resp->header.f_version != p_req->header.f_version)
     {
-      ERROR(PLUGIN_NAME ": Wrong protocol version (Was: %d, expected: %d)",
+      ERROR("Wrong protocol version (Was: %d, expected: %d)",
             p_resp->header.f_version, p_req->header.f_version);
       return CHRONY_RC_FAIL;
     }
     if (p_resp->header.f_type != PKT_TYPE_CMD_REPLY)
     {
-      ERROR(PLUGIN_NAME ": Wrong packet type (Was: %d, expected: %d)",
+      ERROR("Wrong packet type (Was: %d, expected: %d)",
             p_resp->header.f_type, PKT_TYPE_CMD_REPLY);
       return CHRONY_RC_FAIL;
     }
     if (p_resp->header.f_seq != seq_nr)
     {
       /* FIXME: Implement sequence number handling */
-      ERROR(PLUGIN_NAME
-            ": Unexpected sequence number (Was: %d, expected: %d)",
+      ERROR("Unexpected sequence number (Was: %d, expected: %d)",
             p_resp->header.f_seq, p_req->header.f_seq);
       return CHRONY_RC_FAIL;
     }
     if (p_resp->header.f_cmd != p_req->header.f_cmd)
     {
-      ERROR(PLUGIN_NAME ": Wrong reply command (Was: %d, expected: %d)",
+      ERROR("Wrong reply command (Was: %d, expected: %d)",
             p_resp->header.f_cmd, p_req->header.f_cmd);
       return CHRONY_RC_FAIL;
     }
 
     if (ntohs(p_resp->header.f_reply) != resp_code)
     {
-      ERROR(PLUGIN_NAME ": Wrong reply code (Was: %d, expected: %d)",
+      ERROR("Wrong reply code (Was: %d, expected: %d)",
             ntohs(p_resp->header.f_reply), resp_code);
       return CHRONY_RC_FAIL;
     }
@@ -610,11 +607,10 @@ chrony_query(const int p_command, tChrony_Request * p_req,
     switch (p_resp->header.f_status)
     {
     case STT_SUCCESS:
-      DEBUG(PLUGIN_NAME ": Reply packet status STT_SUCCESS");
+      DEBUG("Reply packet status STT_SUCCESS");
       break;
     default:
-      ERROR(PLUGIN_NAME
-            ": Reply packet contains error status: %d (expected: %d)",
+      ERROR("Reply packet contains error status: %d (expected: %d)",
             p_resp->header.f_status, STT_SUCCESS);
       return CHRONY_RC_FAIL;
     }
@@ -726,13 +722,13 @@ chrony_init_seq(void)
     ssize_t rc = read(fh, &g_chrony_rand, sizeof(g_chrony_rand));
     if (rc != sizeof(g_chrony_rand))
     {
-      ERROR(PLUGIN_NAME ": Reading from random source \'%s\'failed: %s (%d)",
+      ERROR("Reading from random source \'%s\'failed: %s (%d)",
             URAND_DEVICE_PATH, strerror(errno), errno);
       close(fh);
       return CHRONY_RC_FAIL;
     }
     close(fh);
-    DEBUG(PLUGIN_NAME ": Seeding RNG from " URAND_DEVICE_PATH);
+    DEBUG("Seeding RNG from " URAND_DEVICE_PATH);
   }
   else
   {
@@ -745,25 +741,24 @@ chrony_init_seq(void)
         ssize_t rc = read(fh, &g_chrony_rand, sizeof(g_chrony_rand));
         if (rc != sizeof(g_chrony_rand))
         {
-          ERROR(PLUGIN_NAME
-                ": Reading from random source \'%s\'failed: %s (%d)",
+          ERROR("Reading from random source \'%s\' failed: %s (%d)",
                 RAND_DEVICE_PATH, strerror(errno), errno);
           close(fh);
           return CHRONY_RC_FAIL;
         }
         close(fh);
-        DEBUG(PLUGIN_NAME ": Seeding RNG from " RAND_DEVICE_PATH);
+        DEBUG("Seeding RNG from " RAND_DEVICE_PATH);
       }
       else
       {
         /* Error opening RAND_DEVICE_PATH. Try time(NULL) as fall-back */
-        DEBUG(PLUGIN_NAME ": Seeding RNG from time(NULL)");
+        DEBUG("Seeding RNG from time(NULL)");
         g_chrony_rand = time(NULL) ^ getpid();
       }
     }
     else
     {
-      ERROR(PLUGIN_NAME ": Opening random source \'%s\' failed: %s (%d)",
+      ERROR("Opening random source \'%s\' failed: %s (%d)",
             URAND_DEVICE_PATH, strerror(errno), errno);
       return CHRONY_RC_FAIL;
     }
@@ -790,7 +785,7 @@ chrony_config(const char *p_key, const char *p_value)
 
     if ((g_chrony_host = strdup(p_value)) == NULL)
     {
-      ERROR(PLUGIN_NAME ": Error duplicating host name");
+      ERROR("Error duplicating host name");
       return CHRONY_RC_FAIL;
     }
   }
@@ -803,7 +798,7 @@ chrony_config(const char *p_key, const char *p_value)
 
       if ((g_chrony_port = strdup(p_value)) == NULL)
       {
-        ERROR(PLUGIN_NAME ": Error duplicating port name");
+        ERROR("Error duplicating port name");
         return CHRONY_RC_FAIL;
       }
     }
@@ -816,7 +811,7 @@ chrony_config(const char *p_key, const char *p_value)
       }
       else
       {
-        WARNING(PLUGIN_NAME ": Unknown configuration variable: %s %s", p_key, p_value);
+        WARNING("Unknown configuration variable: %s %s", p_key, p_value);
         return CHRONY_RC_FAIL;
       }
     }
@@ -841,7 +836,7 @@ chrony_request_daemon_stats(void)
     chrony_query(REQ_TRACKING, &chrony_req, &chrony_resp, &chrony_resp_size);
   if (rc != 0)
   {
-    ERROR(PLUGIN_NAME ": chrony_query (REQ_TRACKING) failed with status %i",
+    ERROR("chrony_query (REQ_TRACKING) failed with status %i",
           rc);
     return rc;
   }
@@ -849,7 +844,7 @@ chrony_request_daemon_stats(void)
   {
     char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
     niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
-    DEBUG(PLUGIN_NAME ": Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u:%u:%u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f", src_addr, ntohs(chrony_resp.body.tracking.f_ref_id),  
+    DEBUG("Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u:%u:%u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f", src_addr, ntohs(chrony_resp.body.tracking.f_ref_id),  
           ntohs(chrony_resp.body.tracking.f_stratum),
           ntohs(chrony_resp.body.tracking.f_leap_status),
           ntohl(chrony_resp.body.tracking.f_ref_time.tv_sec_high),
@@ -904,19 +899,18 @@ chrony_request_sources_count(unsigned int *p_count)
   tChrony_Request chrony_req;
   tChrony_Response chrony_resp;
 
-  DEBUG(PLUGIN_NAME ": Requesting data");
+  DEBUG("Requesting data");
   chrony_init_req(&chrony_req);
   rc =
     chrony_query(REQ_N_SOURCES, &chrony_req, &chrony_resp, &chrony_resp_size);
   if (rc != 0)
   {
-    ERROR(PLUGIN_NAME ": chrony_query (REQ_N_SOURCES) failed with status %i",
-          rc);
+    ERROR("chrony_query (REQ_N_SOURCES) failed with status %i", rc);
     return rc;
   }
 
   *p_count = ntohl(chrony_resp.body.n_sources.f_n_sources);
-  DEBUG(PLUGIN_NAME ": Getting data of %d clock sources", *p_count);
+  DEBUG("Getting data of %d clock sources", *p_count);
 
   return CHRONY_RC_OK;
 }
@@ -940,14 +934,12 @@ chrony_request_source_data(int p_src_idx, int *p_is_reachable)
                  &chrony_resp_size);
   if (rc != 0)
   {
-    ERROR(PLUGIN_NAME
-          ": chrony_query (REQ_SOURCE_DATA) failed with status %i", rc);
+    ERROR("chrony_query (REQ_SOURCE_DATA) failed with status %i", rc);
     return rc;
   }
 
   niptoha(&chrony_resp.body.source_data.addr, src_addr, sizeof(src_addr));
-  DEBUG(PLUGIN_NAME
-        ": Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
+  DEBUG("Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, .state = %u, .mode = %u, .flags = %u, .reach = %u, .latest_meas_ago = %u, .orig_latest_meas = %f, .latest_meas = %f, .latest_meas_err = %f",
         p_src_idx, src_addr, ntohs(chrony_resp.body.source_data.f_poll),
         ntohs(chrony_resp.body.source_data.f_stratum),
         ntohs(chrony_resp.body.source_data.f_state),
@@ -1007,8 +999,7 @@ chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
                    &chrony_resp_size);
     if (rc != 0)
     {
-      ERROR(PLUGIN_NAME
-            ": chrony_query (REQ_SOURCE_STATS) failed with status %i", rc);
+      ERROR("chrony_query (REQ_SOURCE_STATS) failed with status %i", rc);
       return rc;
     }
 
@@ -1018,8 +1009,7 @@ chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
     time_offset = ntohf(chrony_resp.body.source_stats.f_est_offset);
 
     niptoha(&chrony_resp.body.source_stats.addr, src_addr, sizeof(src_addr));
-    DEBUG(PLUGIN_NAME
-          ": Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, "
+    DEBUG("Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, "
           ".n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, "
           ".rtc_gain_rate_ppm = %f, .skew_ppm= %f, .est_offset = %f, .est_offset_err = %f",
           p_src_idx, src_addr,

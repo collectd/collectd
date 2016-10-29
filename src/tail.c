@@ -66,7 +66,7 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("tail plugin: `DSType' needs exactly one string argument.");
+    WARNING ("`DSType' needs exactly one string argument.");
     return (-1);
   }
 
@@ -127,7 +127,7 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
 
   if (cm->flags == 0)
   {
-    WARNING ("tail plugin: `%s' is not a valid argument to `DSType'.",
+    WARNING ("`%s' is not a valid argument to `DSType'.",
 	ci->values[0].value.string);
     return (-1);
   }
@@ -143,7 +143,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
 
   if (ci->values_num != 0)
   {
-    WARNING ("tail plugin: Ignoring arguments for the `Match' block.");
+    WARNING ("Ignoring arguments for the `Match' block.");
   }
 
   status = 0;
@@ -163,7 +163,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       status = cf_util_get_string (option, &cm.type_instance);
     else
     {
-      WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
+      WARNING ("Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
@@ -175,21 +175,21 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   {
     if (cm.regex == NULL)
     {
-      WARNING ("tail plugin: `Regex' missing in `Match' block.");
+      WARNING ("`Regex' missing in `Match' block.");
       status = -1;
       break;
     }
 
     if (cm.type == NULL)
     {
-      WARNING ("tail plugin: `Type' missing in `Match' block.");
+      WARNING ("`Type' missing in `Match' block.");
       status = -1;
       break;
     }
 
     if (cm.flags == 0)
     {
-      WARNING ("tail plugin: `DSType' missing in `Match' block.");
+      WARNING ("`DSType' missing in `Match' block.");
       status = -1;
       break;
     }
@@ -204,7 +204,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
 
     if (status != 0)
     {
-      ERROR ("tail plugin: tail_match_add_match_simple failed.");
+      ERROR ("tail_match_add_match_simple failed.");
     }
   }
 
@@ -225,14 +225,14 @@ static int ctail_config_add_file (oconfig_item_t *ci)
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("tail plugin: `File' needs exactly one string argument.");
+    WARNING ("`File' needs exactly one string argument.");
     return (-1);
   }
 
   tm = tail_match_create (ci->values[0].value.string);
   if (tm == NULL)
   {
-    ERROR ("tail plugin: tail_match_create (%s) failed.",
+    ERROR ("tail_match_create (%s) failed.",
         ci->values[0].value.string);
     return (-1);
   }
@@ -267,7 +267,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
 
   if (num_matches == 0)
   {
-    ERROR ("tail plugin: No (valid) matches found for file `%s'.",
+    ERROR ("No (valid) matches found for file `%s'.",
         ci->values[0].value.string);
     tail_match_destroy (tm);
     return (-1);
@@ -280,7 +280,7 @@ static int ctail_config_add_file (oconfig_item_t *ci)
         sizeof (cu_tail_match_t *) * (tail_match_list_num + 1));
     if (temp == NULL)
     {
-      ERROR ("tail plugin: realloc failed.");
+      ERROR ("realloc failed.");
       tail_match_destroy (tm);
       return (-1);
     }
@@ -304,7 +304,7 @@ static int ctail_config (oconfig_item_t *ci)
       ctail_config_add_file (option);
     else
     {
-      WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
+      WARNING ("Option `%s' not allowed here.", option->key);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
@@ -318,7 +318,7 @@ static int ctail_read (user_data_t *ud)
   status = tail_match_read ((cu_tail_match_t *)ud->data);
   if (status != 0)
   {
-    ERROR ("tail plugin: tail_match_read failed.");
+    ERROR ("tail_match_read failed.");
     return (-1);
   }
 
@@ -331,7 +331,7 @@ static int ctail_init (void)
 
   if (tail_match_list_num == 0)
   {
-    WARNING ("tail plugin: File list is empty. Returning an error.");
+    WARNING ("File list is empty. Returning an error.");
     return (-1);
   }
 

@@ -120,7 +120,7 @@ static int swap_config (oconfig_item_t *ci) /* {{{ */
 #if KERNEL_LINUX
 			cf_util_get_boolean (child, &report_bytes);
 #else
-			WARNING ("swap plugin: The \"ReportBytes\" option "
+			WARNING ("The \"ReportBytes\" option "
 					"is only valid under Linux. "
 					"The option is going to be ignored.");
 #endif
@@ -128,7 +128,7 @@ static int swap_config (oconfig_item_t *ci) /* {{{ */
 #if SWAP_HAVE_REPORT_BY_DEVICE
 			cf_util_get_boolean (child, &report_by_device);
 #else
-			WARNING ("swap plugin: The \"ReportByDevice\" option "
+			WARNING ("The \"ReportByDevice\" option "
 					"is not supported on this platform. "
 					"The option is going to be ignored.");
 #endif /* SWAP_HAVE_REPORT_BY_DEVICE */
@@ -137,8 +137,7 @@ static int swap_config (oconfig_item_t *ci) /* {{{ */
 		else if (strcasecmp ("ValuesPercentage", child->key) == 0)
 			cf_util_get_boolean (child, &values_percentage);
 		else
-			WARNING ("swap plugin: Unknown config option: \"%s\"",
-					child->key);
+			WARNING ("Unknown config option: \"%s\"", child->key);
 	}
 
 	return (0);
@@ -174,7 +173,7 @@ static int swap_init (void) /* {{{ */
 
 	if (kvm_obj == NULL)
 	{
-		ERROR ("swap plugin: kvm_openfiles failed, %s", errbuf);
+		ERROR ("kvm_openfiles failed, %s", errbuf);
 		return (-1);
 	}
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
@@ -241,7 +240,7 @@ static int swap_read_separate (void) /* {{{ */
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("swap plugin: fopen (/proc/swaps) failed: %s",
+		WARNING ("fopen (/proc/swaps) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -301,7 +300,7 @@ static int swap_read_combined (void) /* {{{ */
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("swap plugin: fopen (/proc/meminfo) failed: %s",
+		WARNING ("fopen (/proc/meminfo) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -459,7 +458,7 @@ static int swap_read_kstat (void) /* {{{ */
 	if (swapctl (SC_AINFO, &ai) == -1)
 	{
 		char errbuf[1024];
-		ERROR ("swap plugin: swapctl failed: %s",
+		ERROR ("swapctl failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -509,7 +508,7 @@ static int swap_read (void) /* {{{ */
         swap_num = swapctl (SC_GETNSWP, NULL);
         if (swap_num < 0)
         {
-                ERROR ("swap plugin: swapctl (SC_GETNSWP) failed with status %i.",
+                ERROR ("swapctl (SC_GETNSWP) failed with status %i.",
                                 swap_num);
                 return (-1);
         }
@@ -520,7 +519,7 @@ static int swap_read (void) /* {{{ */
         s = malloc (swap_num * sizeof (swapent_t) + sizeof (struct swaptable));
         if (s == NULL)
         {
-                ERROR ("swap plugin: malloc failed.");
+                ERROR ("malloc failed.");
                 return (-1);
         }
 
@@ -530,7 +529,7 @@ static int swap_read (void) /* {{{ */
 	s_paths = calloc (swap_num, PATH_MAX);
 	if (s_paths == NULL)
 	{
-		ERROR ("swap plugin: calloc failed.");
+		ERROR ("calloc failed.");
 		sfree (s);
 		return (-1);
 	}
@@ -542,7 +541,7 @@ static int swap_read (void) /* {{{ */
         if (status < 0)
         {
 		char errbuf[1024];
-                ERROR ("swap plugin: swapctl (SC_LIST) failed: %s",
+                ERROR ("swapctl (SC_LIST) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		sfree (s_paths);
                 sfree (s);
@@ -551,7 +550,7 @@ static int swap_read (void) /* {{{ */
 	else if (swap_num < status)
 	{
 		/* more elements returned than requested */
-		ERROR ("swap plugin: I allocated memory for %i structure%s, "
+		ERROR ("I allocated memory for %i structure%s, "
 				"but swapctl(2) claims to have returned %i. "
 				"I'm confused and will give up.",
 				swap_num, (swap_num == 1) ? "" : "s",
@@ -593,7 +592,7 @@ static int swap_read (void) /* {{{ */
 
         if (total < avail)
         {
-                ERROR ("swap plugin: Total swap space (%g) is less than free swap space (%g).",
+                ERROR ("Total swap space (%g) is less than free swap space (%g).",
                                 total, avail);
 		sfree (s_paths);
                 sfree (s);
@@ -624,8 +623,7 @@ static int swap_read (void) /* {{{ */
 	swap_num = swapctl (SWAP_NSWAP, NULL, 0);
 	if (swap_num < 0)
 	{
-		ERROR ("swap plugin: swapctl (SWAP_NSWAP) failed with status %i.",
-				swap_num);
+		ERROR ("swapctl (SWAP_NSWAP) failed with status %i.", swap_num);
 		return (-1);
 	}
 	else if (swap_num == 0)
@@ -634,15 +632,14 @@ static int swap_read (void) /* {{{ */
 	swap_entries = calloc (swap_num, sizeof (*swap_entries));
 	if (swap_entries == NULL)
 	{
-		ERROR ("swap plugin: calloc failed.");
+		ERROR ("calloc failed.");
 		return (-1);
 	}
 
 	status = swapctl (SWAP_STATS, swap_entries, swap_num);
 	if (status != swap_num)
 	{
-		ERROR ("swap plugin: swapctl (SWAP_STATS) failed with status %i.",
-				status);
+		ERROR ("swapctl (SWAP_STATS) failed with status %i.", status);
 		sfree (swap_entries);
 		return (-1);
 	}
@@ -666,7 +663,7 @@ static int swap_read (void) /* {{{ */
 
 	if (total < used)
 	{
-		ERROR ("swap plugin: Total swap space (%g) is less than used swap space (%g).",
+		ERROR ("Total swap space (%g) is less than used swap space (%g).",
 				total, used);
 		sfree (swap_entries);
 		return (-1);
@@ -764,7 +761,7 @@ static int swap_read (void) /* {{{ */
 	if (status < 0)
 	{
                 char errbuf[1024];
-                WARNING ("swap plugin: perfstat_memory_total failed: %s",
+                WARNING ("perfstat_memory_total failed: %s",
                         sstrerror (errno, errbuf, sizeof (errbuf)));
                 return (-1);
         }

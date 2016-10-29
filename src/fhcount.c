@@ -87,11 +87,11 @@ static int fhcount_read(void) {
   // Open file
   fp = fopen("/proc/sys/fs/file-nr" , "r");
   if (fp == NULL) {
-    ERROR("fhcount: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     return(EXIT_FAILURE);
   }
   if (fgets(buffer, buffer_len, fp) == NULL) {
-    ERROR("fhcount: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     fclose(fp);
     return(EXIT_FAILURE);
   }
@@ -101,7 +101,7 @@ static int fhcount_read(void) {
   numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
 
   if (numfields != 3) {
-    ERROR("fhcount: Line doesn't contain 3 fields");
+    ERROR("Line doesn't contain 3 fields");
     return(EXIT_FAILURE);
   }
 

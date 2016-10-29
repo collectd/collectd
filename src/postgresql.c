@@ -43,11 +43,6 @@
 #include <pg_config_manual.h>
 #include <libpq-fe.h>
 
-#define log_err(...) ERROR ("postgresql: " __VA_ARGS__)
-#define log_warn(...) WARNING ("postgresql: " __VA_ARGS__)
-#define log_info(...) INFO ("postgresql: " __VA_ARGS__)
-#define log_debug(...) DEBUG ("postgresql: " __VA_ARGS__)
-
 #ifndef C_PSQL_DEFAULT_CONF
 # define C_PSQL_DEFAULT_CONF PKGDATADIR "/postgresql_default.conf"
 #endif
@@ -182,7 +177,7 @@ static int c_psql_begin (c_psql_database_t *db)
 			status = 0;
 		}
 		else
-			log_warn ("Failed to initiate ('BEGIN') transaction: %s",
+			WARNING ("Failed to initiate ('BEGIN') transaction: %s",
 					PQerrorMessage (db->conn));
 		PQclear (r);
 	}
@@ -198,11 +193,11 @@ static int c_psql_commit (c_psql_database_t *db)
 	if (r != NULL) {
 		if (PGRES_COMMAND_OK == PQresultStatus (r)) {
 			db->next_commit = 0;
-			log_debug ("Successfully committed transaction.");
+			DEBUG ("Successfully committed transaction.");
 			status = 0;
 		}
 		else
-			log_warn ("Failed to commit transaction: %s",
+			WARNING ("Failed to commit transaction: %s",
 					PQerrorMessage (db->conn));
 		PQclear (r);
 	}
@@ -216,14 +211,14 @@ static c_psql_database_t *c_psql_database_new (const char *name)
 
 	db = malloc (sizeof(*db));
 	if (NULL == db) {
-		log_err ("Out of memory.");
+		ERROR ("Out of memory.");
 		return NULL;
 	}
 
 	tmp = realloc (databases,
 			(databases_num + 1) * sizeof (*databases));
 	if (NULL == tmp) {
-		log_err ("Out of memory.");
+		ERROR ("Out of memory.");
 		sfree (db);
 		return NULL;
 	}
@@ -408,7 +403,7 @@ static int c_psql_check_connection (c_psql_database_t *db)
 				db->proto_version, PQbackendPID (db->conn));
 
 		if (3 > db->proto_version)
-			log_warn ("Protocol version %d does not support parameters.",
+			WARNING ("Protocol version %d does not support parameters.",
 					db->proto_version);
 	}
 	return 0;
@@ -490,7 +485,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	else if ((NULL == data) || (0 == data->params_num))
 		res = c_psql_exec_query_noparams (db, q);
 	else {
-		log_err ("Connection to database \"%s\" (%s) does not support "
+		ERROR ("Connection to database \"%s\" (%s) does not support "
 				"parameters (protocol version %d) - "
 				"cannot execute query \"%s\".",
 				db->database, db->instance, db->proto_version,
@@ -515,9 +510,9 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 			return c_psql_exec_query (db, q, prep_area);
 		}
 
-		log_err ("Failed to execute SQL query: %s",
+		ERROR ("Failed to execute SQL query: %s",
 				PQerrorMessage (db->conn));
-		log_info ("SQL query was: %s",
+		INFO ("SQL query was: %s",
 				udb_query_get_statement (q));
 		PQclear (res);
 		return -1;
@@ -538,13 +533,13 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	column_num = PQnfields (res);
 	column_names = (char **) calloc (column_num, sizeof (char *));
 	if (NULL == column_names) {
-		log_err ("calloc failed.");
+		ERROR ("calloc failed.");
 		BAIL_OUT (-1);
 	}
 
 	column_values = (char **) calloc (column_num, sizeof (char *));
 	if (NULL == column_values) {
-		log_err ("calloc failed.");
+		ERROR ("calloc failed.");
 		BAIL_OUT (-1);
 	}
 
@@ -553,7 +548,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 		 * `BAIL_OUT'. */
 		column_names[col] = PQfname (res, col);
 		if (NULL == column_names[col]) {
-			log_err ("Failed to resolve name of column %i.", col);
+			ERROR ("Failed to resolve name of column %i.", col);
 			BAIL_OUT (-1);
 		}
 	}
@@ -568,7 +563,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 	status = udb_query_prepare_result (q, prep_area, host, "postgresql",
 			db->instance, column_names, (size_t) column_num, db->interval);
 	if (0 != status) {
-		log_err ("udb_query_prepare_result failed with status %i.",
+		ERROR ("udb_query_prepare_result failed with status %i.",
 				status);
 		BAIL_OUT (-1);
 	}
@@ -580,7 +575,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 			 * `BAIL_OUT'. */
 			column_values[col] = PQgetvalue (res, row, col);
 			if (NULL == column_values[col]) {
-				log_err ("Failed to get value at (row = %i, col = %i).",
+				ERROR ("Failed to get value at (row = %i, col = %i).",
 						row, col);
 				break;
 			}
@@ -592,7 +587,7 @@ static int c_psql_exec_query (c_psql_database_t *db, udb_query_t *q,
 
 		status = udb_query_handle_result (q, prep_area, column_values);
 		if (status != 0) {
-			log_err ("udb_query_handle_result failed with status %i.",
+			ERROR ("udb_query_handle_result failed with status %i.",
 					status);
 		}
 	} /* for (row = 0; row < rows_num; ++row) */
@@ -610,7 +605,7 @@ static int c_psql_read (user_data_t *ud)
 	int success = 0;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
-		log_err ("c_psql_read: Invalid user data.");
+		ERROR ("c_psql_read: Invalid user data.");
 		return -1;
 	}
 
@@ -675,7 +670,7 @@ static char *values_name_to_sqlarray (const data_set_t *ds,
 	}
 
 	if (str_len <= 2) {
-		log_err ("c_psql_write: Failed to stringify value names");
+		ERROR ("c_psql_write: Failed to stringify value names");
 		return NULL;
 	}
 
@@ -720,7 +715,7 @@ static char *values_type_to_sqlarray (const data_set_t *ds,
 	}
 
 	if (str_len <= 2) {
-		log_err ("c_psql_write: Failed to stringify value types");
+		ERROR ("c_psql_write: Failed to stringify value types");
 		return NULL;
 	}
 
@@ -750,7 +745,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 				&& (ds->ds[i].type != DS_TYPE_COUNTER)
 				&& (ds->ds[i].type != DS_TYPE_DERIVE)
 				&& (ds->ds[i].type != DS_TYPE_ABSOLUTE)) {
-			log_err ("c_psql_write: Unknown data source type: %i",
+			ERROR ("c_psql_write: Unknown data source type: %i",
 					ds->ds[i].type);
 			sfree (rates);
 			return NULL;
@@ -764,7 +759,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 				rates = uc_get_rate (ds, vl);
 
 			if (rates == NULL) {
-				log_err ("c_psql_write: Failed to determine rate");
+				ERROR ("c_psql_write: Failed to determine rate");
 				return NULL;
 			}
 
@@ -798,7 +793,7 @@ static char *values_to_sqlarray (const data_set_t *ds, const value_list_t *vl,
 	sfree (rates);
 
 	if (str_len <= 2) {
-		log_err ("c_psql_write: Failed to stringify value list");
+		ERROR ("c_psql_write: Failed to stringify value list");
 		return NULL;
 	}
 
@@ -825,7 +820,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	int success = 0;
 
 	if ((ud == NULL) || (ud->data == NULL)) {
-		log_err ("c_psql_write: Invalid user data.");
+		ERROR ("c_psql_write: Invalid user data.");
 		return -1;
 	}
 
@@ -834,7 +829,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 	assert (db->writers != NULL);
 
 	if (rfc3339nano_local (time_str, sizeof (time_str), vl->time) != 0) {
-		log_err ("c_psql_write: Failed to convert time to RFC 3339 format");
+		ERROR ("c_psql_write: Failed to convert time to RFC 3339 format");
 		return -1;
 	}
 
@@ -855,7 +850,7 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 #undef VALUE_OR_NULL
 
 	if( db->expire_delay > 0 && vl->time < (cdtime() - vl->interval - db->expire_delay) ) {
-		log_info ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s",
+		INFO ("c_psql_write: Skipped expired value @ %s - %s/%s-%s/%s-%s/%s",
 			params[0], params[1], params[2], params[3], params[4], params[5], params[6] );
 		return 0;
         }
@@ -919,9 +914,9 @@ static int c_psql_write (const data_set_t *ds, const value_list_t *vl,
 				}
 			}
 
-			log_err ("Failed to execute SQL query: %s",
+			ERROR ("Failed to execute SQL query: %s",
 					PQerrorMessage (db->conn));
-			log_info ("SQL query was: '%s', "
+			INFO ("SQL query was: '%s', "
 					"params: %s, %s, %s, %s, %s, %s, %s, %s",
 					writer->statement,
 					params[0], params[1], params[2], params[3],
@@ -1029,7 +1024,7 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 	if (NULL == data) {
 		data = calloc (1, sizeof (*data));
 		if (NULL == data) {
-			log_err ("Out of memory.");
+			ERROR ("Out of memory.");
 			return -1;
 		}
 		data->params = NULL;
@@ -1040,7 +1035,7 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 
 	tmp = realloc (data->params, (data->params_num + 1) * sizeof (*data->params));
 	if (NULL == tmp) {
-		log_err ("Out of memory.");
+		ERROR ("Out of memory.");
 		return -1;
 	}
 	data->params = tmp;
@@ -1057,7 +1052,7 @@ static int config_query_param_add (udb_query_t *q, oconfig_item_t *ci)
 	else if (0 == strcasecmp (param_str, "instance"))
 		data->params[data->params_num] = C_PSQL_PARAM_INSTANCE;
 	else {
-		log_err ("Invalid parameter \"%s\".", param_str);
+		ERROR ("Invalid parameter \"%s\".", param_str);
 		return 1;
 	}
 
@@ -1070,7 +1065,7 @@ static int config_query_callback (udb_query_t *q, oconfig_item_t *ci)
 	if (0 == strcasecmp ("Param", ci->key))
 		return config_query_param_add (q, ci);
 
-	log_err ("Option not allowed within a Query block: `%s'", ci->key);
+	ERROR ("Option not allowed within a Query block: `%s'", ci->key);
 
 	return (-1);
 } /* config_query_callback */
@@ -1088,7 +1083,7 @@ static int config_add_writer (oconfig_item_t *ci,
 
 	if ((ci->values_num != 1)
 			|| (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-		log_err ("`Writer' expects a single string argument.");
+		ERROR ("`Writer' expects a single string argument.");
 		return 1;
 	}
 
@@ -1103,7 +1098,7 @@ static int config_add_writer (oconfig_item_t *ci,
 		tmp = realloc (*dst_writers,
 				sizeof (**dst_writers) * (*dst_writers_num + 1));
 		if (tmp == NULL) {
-			log_err ("Out of memory.");
+			ERROR ("Out of memory.");
 			return -1;
 		}
 
@@ -1115,7 +1110,7 @@ static int config_add_writer (oconfig_item_t *ci,
 	}
 
 	if (i >= src_writers_num) {
-		log_err ("No such writer: `%s'", name);
+		ERROR ("No such writer: `%s'", name);
 		return -1;
 	}
 
@@ -1131,14 +1126,14 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 
 	if ((ci->values_num != 1)
 			|| (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-		log_err ("<Writer> expects a single string argument.");
+		ERROR ("<Writer> expects a single string argument.");
 		return 1;
 	}
 
 	tmp = realloc (writers,
 			sizeof (*writers) * (writers_num + 1));
 	if (tmp == NULL) {
-		log_err ("Out of memory.");
+		ERROR ("Out of memory.");
 		return -1;
 	}
 
@@ -1158,7 +1153,7 @@ static int c_psql_config_writer (oconfig_item_t *ci)
 		else if (strcasecmp ("StoreRates", c->key) == 0)
 			status = cf_util_get_boolean (c, &writer->store_rates);
 		else
-			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+			WARNING ("Ignoring unknown config key \"%s\".", c->key);
 	}
 
 	if (status != 0) {
@@ -1180,7 +1175,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("<Database> expects a single string argument.");
+		ERROR ("<Database> expects a single string argument.");
 		return 1;
 	}
 
@@ -1220,7 +1215,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		else if (strcasecmp ("ExpireDelay", c->key) == 0)
 			cf_util_get_cdtime (c, &db->expire_delay);
 		else
-			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+			WARNING ("Ignoring unknown config key \"%s\".", c->key);
 	}
 
 	/* If no `Query' options were given, add the default queries.. */
@@ -1236,7 +1231,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 				db->queries_num, sizeof (*db->q_prep_areas));
 
 		if (db->q_prep_areas == NULL) {
-			log_err ("Out of memory.");
+			ERROR ("Out of memory.");
 			c_psql_database_delete (db);
 			return -1;
 		}
@@ -1252,7 +1247,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 			= udb_query_allocate_preparation_area (db->queries[i]);
 
 		if (db->q_prep_areas[i] == NULL) {
-			log_err ("Out of memory.");
+			ERROR ("Out of memory.");
 			c_psql_database_delete (db);
 			return -1;
 		}
@@ -1286,7 +1281,7 @@ static int c_psql_config_database (oconfig_item_t *ci)
 		plugin_register_flush (cb_name, c_psql_flush, &ud);
 	}
 	else if (db->commit_interval > 0) {
-		log_warn ("Database '%s': You do not have any writers assigned to "
+		WARNING ("Database '%s': You do not have any writers assigned to "
 				"this database connection. Setting 'CommitInterval' does "
 				"not have any effect.", db->database);
 	}
@@ -1304,12 +1299,12 @@ static int c_psql_config (oconfig_item_t *ci)
 
 		c = oconfig_parse_file (C_PSQL_DEFAULT_CONF);
 		if (NULL == c)
-			log_err ("Failed to read default config ("C_PSQL_DEFAULT_CONF").");
+			ERROR ("Failed to read default config ("C_PSQL_DEFAULT_CONF").");
 		else
 			c_psql_config (c);
 
 		if (NULL == queries)
-			log_err ("Default config ("C_PSQL_DEFAULT_CONF") did not define "
+			ERROR ("Default config ("C_PSQL_DEFAULT_CONF") did not define "
 					"any queries - please check your installation.");
 	}
 
@@ -1324,7 +1319,7 @@ static int c_psql_config (oconfig_item_t *ci)
 		else if (0 == strcasecmp (c->key, "Database"))
 			c_psql_config_database (c);
 		else
-			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+			WARNING ("Ignoring unknown config key \"%s\".", c->key);
 	}
 	return 0;
 } /* c_psql_config */

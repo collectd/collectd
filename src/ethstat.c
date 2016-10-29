@@ -73,8 +73,7 @@ static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
     return (status);
 
   interfaces_num++;
-  INFO("ethstat plugin: Registered interface %s",
-      interfaces[interfaces_num - 1]);
+  INFO("Registered interface %s", interfaces[interfaces_num - 1]);
 
   return (0);
 } /* }}} int ethstat_add_interface */
@@ -92,15 +91,14 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
       || ((ci->values_num == 3)
         && (ci->values[2].type != OCONFIG_TYPE_STRING)))
   {
-    ERROR ("ethstat plugin: The %s option requires "
-        "two or three string arguments.", ci->key);
+    ERROR ("The %s option requires two or three string arguments.", ci->key);
     return (-1);
   }
 
   key = strdup (ci->values[0].value.string);
   if (key == NULL)
   {
-    ERROR ("ethstat plugin: strdup(3) failed.");
+    ERROR ("strdup(3) failed.");
     return (ENOMEM);
   }
 
@@ -108,7 +106,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
   if (map == NULL)
   {
     sfree (key);
-    ERROR ("ethstat plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (ENOMEM);
   }
 
@@ -124,7 +122,7 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
     {
       sfree (map);
       sfree (key);
-      ERROR ("ethstat plugin: c_avl_create() failed.");
+      ERROR ("c_avl_create() failed.");
       return (-1);
     }
   }
@@ -135,9 +133,9 @@ static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
   if (status != 0)
   {
     if (status > 0)
-      ERROR ("ethstat plugin: Multiple mappings for \"%s\".", key);
+      ERROR ("Multiple mappings for \"%s\".", key);
     else
-      ERROR ("ethstat plugin: c_avl_insert(\"%s\") failed.", key);
+      ERROR ("c_avl_insert(\"%s\") failed.", key);
 
     sfree (map);
     sfree (key);
@@ -160,8 +158,7 @@ static int ethstat_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("MappedOnly", child->key) == 0)
       (void) cf_util_get_boolean (child, &collect_mapped_only);
     else
-      WARNING ("ethstat plugin: The config option \"%s\" is unknown.",
-          child->key);
+      WARNING ("The config option \"%s\" is unknown.", child->key);
   }
 
   return (0);
@@ -222,7 +219,7 @@ static int ethstat_read_interface (char *device)
   if (fd < 0)
   {
     char errbuf[1024];
-    ERROR("ethstat plugin: Failed to open control socket: %s",
+    ERROR("Failed to open control socket: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return 1;
   }
@@ -242,9 +239,8 @@ static int ethstat_read_interface (char *device)
   {
     char errbuf[1024];
     close (fd);
-    ERROR ("ethstat plugin: Failed to get driver information "
-        "from %s: %s", device,
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("Failed to get driver information from %s: %s",
+        device, sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
 
@@ -252,7 +248,7 @@ static int ethstat_read_interface (char *device)
   if (n_stats < 1)
   {
     close (fd);
-    ERROR("ethstat plugin: No stats available for %s", device);
+    ERROR("No stats available for %s", device);
     return (-1);
   }
 
@@ -268,7 +264,7 @@ static int ethstat_read_interface (char *device)
     close (fd);
     sfree (strings);
     sfree (stats);
-    ERROR("ethstat plugin: malloc failed.");
+    ERROR("malloc failed.");
     return (-1);
   }
 
@@ -283,7 +279,7 @@ static int ethstat_read_interface (char *device)
     close (fd);
     free (strings);
     free (stats);
-    ERROR ("ethstat plugin: Cannot get strings from %s: %s",
+    ERROR ("Cannot get strings from %s: %s",
         device,
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -299,7 +295,7 @@ static int ethstat_read_interface (char *device)
     close (fd);
     free(strings);
     free(stats);
-    ERROR("ethstat plugin: Reading statistics from %s failed: %s",
+    ERROR("Reading statistics from %s failed: %s",
         device,
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -314,7 +310,7 @@ static int ethstat_read_interface (char *device)
     while (isspace ((int) *stat_name))
         stat_name++;
 
-    DEBUG("ethstat plugin: device = \"%s\": %s = %"PRIu64,
+    DEBUG("device = \"%s\": %s = %"PRIu64,
         device, stat_name, (uint64_t) stats->data[i]);
     ethstat_submit_value (device,
         stat_name, (derive_t) stats->data[i]);

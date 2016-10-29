@@ -161,7 +161,7 @@ static size_t ascent_curl_callback (void *buf, size_t size, size_t nmemb, /* {{{
         ascent_buffer_fill + len + 1);
     if (temp == NULL)
     {
-      ERROR ("ascent plugin: realloc failed.");
+      ERROR ("realloc failed.");
       return (0);
     }
     ascent_buffer = temp;
@@ -217,7 +217,7 @@ static int ascent_account_player (player_stats_t *ps, /* {{{ */
   {
     if (((size_t) pi->race >= RACES_LIST_LENGTH)
         || (races_list[pi->race] == NULL))
-      ERROR ("ascent plugin: Ignoring invalid numeric race %i.", pi->race);
+      ERROR ("Ignoring invalid numeric race %i.", pi->race);
     else
       ps->races[pi->race]++;
   }
@@ -226,7 +226,7 @@ static int ascent_account_player (player_stats_t *ps, /* {{{ */
   {
     if (((size_t) pi->class >= CLASSES_LIST_LENGTH)
         || (classes_list[pi->class] == NULL))
-      ERROR ("ascent plugin: Ignoring invalid numeric class %i.", pi->class);
+      ERROR ("Ignoring invalid numeric class %i.", pi->class);
     else
       ps->classes[pi->class]++;
   }
@@ -235,8 +235,7 @@ static int ascent_account_player (player_stats_t *ps, /* {{{ */
   {
     if (((size_t) pi->gender >= GENDERS_LIST_LENGTH)
         || (genders_list[pi->gender] == NULL))
-      ERROR ("ascent plugin: Ignoring invalid numeric gender %i.",
-          pi->gender);
+      ERROR ("Ignoring invalid numeric gender %i.", pi->gender);
     else
       ps->genders[pi->gender]++;
   }
@@ -266,7 +265,7 @@ static int ascent_xml_submit_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
   str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL)
   {
-    ERROR ("ascent plugin: ascent_xml_submit_gauge: xmlNodeListGetString failed.");
+    ERROR ("ascent_xml_submit_gauge: xmlNodeListGetString failed.");
     return (-1);
   }
 
@@ -279,7 +278,7 @@ static int ascent_xml_submit_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
     if (str_ptr == end_ptr)
     {
       xmlFree(str_ptr);
-      ERROR ("ascent plugin: ascent_xml_submit_gauge: strtod failed.");
+      ERROR ("ascent_xml_submit_gauge: strtod failed.");
       return (-1);
     }
   }
@@ -297,7 +296,7 @@ static int ascent_xml_read_int (xmlDoc *doc, xmlNode *node, /* {{{ */
   str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL)
   {
-    ERROR ("ascent plugin: ascent_xml_read_int: xmlNodeListGetString failed.");
+    ERROR ("ascent_xml_read_int: xmlNodeListGetString failed.");
     return (-1);
   }
 
@@ -310,7 +309,7 @@ static int ascent_xml_read_int (xmlDoc *doc, xmlNode *node, /* {{{ */
     if (str_ptr == end_ptr)
     {
       xmlFree(str_ptr);
-      ERROR ("ascent plugin: ascent_xml_read_int: strtol failed.");
+      ERROR ("ascent_xml_read_int: strtol failed.");
       return (-1);
     }
   }
@@ -348,7 +347,7 @@ static int ascent_xml_sessions_plr (xmlDoc *doc, xmlNode *node, /* {{{ */
       /* ignore */;
     else
     {
-      WARNING ("ascent plugin: ascent_xml_status: Unknown tag: %s", child->name);
+      WARNING ("ascent_xml_status: Unknown tag: %s", child->name);
     }
   } /* for (child) */
 
@@ -377,7 +376,7 @@ static int ascent_xml_sessions (xmlDoc *doc, xmlNode *node) /* {{{ */
     }
     else
     {
-      WARNING ("ascent plugin: ascent_xml_status: Unknown tag: %s", child->name);
+      WARNING ("ascent_xml_status: Unknown tag: %s", child->name);
     }
   } /* for (child) */
 
@@ -417,7 +416,7 @@ static int ascent_xml_status (xmlDoc *doc, xmlNode *node) /* {{{ */
       /* ignore */;
     else
     {
-      WARNING ("ascent plugin: ascent_xml_status: Unknown tag: %s", child->name);
+      WARNING ("ascent_xml_status: Unknown tag: %s", child->name);
     }
   } /* for (child) */
 
@@ -439,21 +438,21 @@ static int ascent_xml (const char *data) /* {{{ */
 #endif
   if (doc == NULL)
   {
-    ERROR ("ascent plugin: xmlParseMemory failed.");
+    ERROR ("xmlParseMemory failed.");
     return (-1);
   }
 
   cur = xmlDocGetRootElement (doc);
   if (cur == NULL)
   {
-    ERROR ("ascent plugin: XML document is empty.");
+    ERROR ("XML document is empty.");
     xmlFreeDoc (doc);
     return (-1);
   }
 
   if (xmlStrcmp ((const xmlChar *) "serverpage", cur->name) != 0)
   {
-    ERROR ("ascent plugin: XML root element is not \"serverpage\".");
+    ERROR ("XML root element is not \"serverpage\".");
     xmlFreeDoc (doc);
     return (-1);
   }
@@ -473,7 +472,7 @@ static int ascent_xml (const char *data) /* {{{ */
       ascent_xml_sessions (doc, child);
     else
     {
-      WARNING ("ascent plugin: ascent_xml: Unknown tag: %s", child->name);
+      WARNING ("ascent_xml: Unknown tag: %s", child->name);
     }
   } /* for (child) */
 
@@ -519,8 +518,7 @@ static int ascent_init (void) /* {{{ */
 {
   if (url == NULL)
   {
-    WARNING ("ascent plugin: ascent_init: No URL configured, "
-        "returning an error.");
+    WARNING ("ascent_init: No URL configured, returning an error.");
     return (-1);
   }
 
@@ -531,7 +529,7 @@ static int ascent_init (void) /* {{{ */
 
   if ((curl = curl_easy_init ()) == NULL)
   {
-    ERROR ("ascent plugin: ascent_init: curl_easy_init failed.");
+    ERROR ("ascent_init: curl_easy_init failed.");
     return (-1);
   }
 
@@ -553,7 +551,7 @@ static int ascent_init (void) /* {{{ */
         user, (pass == NULL) ? "" : pass);
     if ((status < 0) || ((size_t) status >= sizeof (credentials)))
     {
-      ERROR ("ascent plugin: ascent_init: Returning an error because the "
+      ERROR ("ascent_init: Returning an error because the "
           "credentials have been truncated.");
       return (-1);
     }
@@ -595,20 +593,20 @@ static int ascent_read (void) /* {{{ */
 
   if (curl == NULL)
   {
-    ERROR ("ascent plugin: I don't have a CURL object.");
+    ERROR ("I don't have a CURL object.");
     return (-1);
   }
 
   if (url == NULL)
   {
-    ERROR ("ascent plugin: No URL has been configured.");
+    ERROR ("No URL has been configured.");
     return (-1);
   }
 
   ascent_buffer_fill = 0;
   if (curl_easy_perform (curl) != CURLE_OK)
   {
-    ERROR ("ascent plugin: curl_easy_perform failed: %s",
+    ERROR ("curl_easy_perform failed: %s",
         ascent_curl_error);
     return (-1);
   }

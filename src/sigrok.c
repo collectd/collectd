@@ -61,7 +61,7 @@ static int sigrok_log_callback(void*cb_data __attribute__((unused)),
 
 	if (msg_loglevel <= loglevel) {
 		vsnprintf(s, 512, format, args);
-		plugin_log(LOG_INFO, "sigrok plugin: %s", s);
+		INFO ("%s", s);
 	}
 
 	return 0;
@@ -72,12 +72,12 @@ static int sigrok_config_device(oconfig_item_t *ci)
 	struct config_device *cfdev;
 
 	if (!(cfdev = calloc(1, sizeof(*cfdev)))) {
-		ERROR("sigrok plugin: calloc failed.");
+		ERROR("calloc failed.");
 		return -1;
 	}
 	if (cf_util_get_string(ci, &cfdev->name)) {
 		free(cfdev);
-		WARNING("sigrok plugin: Invalid device name.");
+		WARNING("Invalid device name.");
 		return -1;
 	}
 	cfdev->min_dispatch_interval = DEFAULT_MIN_DISPATCH_INTERVAL;
@@ -93,8 +93,7 @@ static int sigrok_config_device(oconfig_item_t *ci)
 		else if (!strcasecmp(item->key, "minimuminterval"))
 			cf_util_get_cdtime(item, &cfdev->min_dispatch_interval);
 		else
-			WARNING("sigrok plugin: Invalid keyword \"%s\".",
-					item->key);
+			WARNING("Invalid keyword \"%s\".", item->key);
 	}
 
 	config_devices = g_slist_append(config_devices, cfdev);
@@ -114,8 +113,7 @@ static int sigrok_config(oconfig_item_t *ci)
 			if (status != 0)
 				continue;
 			else if ((tmp < 0) || (tmp > 5)) {
-				ERROR ("sigrok plugin: The \"LogLevel\" "
-						"configuration option expects "
+				ERROR ("The \"LogLevel\" configuration option expects "
 						"an integer between 0 and 5 "
 						"(inclusive); you provided %i.",
 						tmp);
@@ -125,8 +123,7 @@ static int sigrok_config(oconfig_item_t *ci)
 		} else if (!strcasecmp(item->key, "Device"))
 			sigrok_config_device(item);
 		else
-			WARNING("sigrok plugin: Invalid keyword \"%s\".",
-					item->key);
+			WARNING("Invalid keyword \"%s\".", item->key);
 	}
 
 	return 0;
@@ -175,7 +172,7 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 	}
 
 	if (!cfdev) {
-		ERROR("sigrok plugin: Received data from driver \"%s\" but "
+		ERROR("Received data from driver \"%s\" but "
 				"can't find a configuration / device matching "
 				"it.", sdi->driver->name);
 		return;
@@ -183,8 +180,7 @@ static void sigrok_feed_callback(const struct sr_dev_inst *sdi,
 
 	if (packet->type == SR_DF_END) {
 		/* TODO: try to restart acquisition after a delay? */
-		WARNING("sigrok plugin: acquisition for \"%s\" ended.",
-				cfdev->name);
+		WARNING("acquisition for \"%s\" ended.", cfdev->name);
 		return;
 	}
 
@@ -244,14 +240,12 @@ static int sigrok_init_driver(struct config_device *cfdev,
 	g_slist_free_full(drvopts, (GDestroyNotify)sigrok_free_drvopts);
 	if (!devlist) {
 		/* Not an error, but the user should know about it. */
-		WARNING("sigrok plugin: No device found for \"%s\".",
-				cfdev->name);
+		WARNING("No device found for \"%s\".", cfdev->name);
 		return 0;
 	}
 
 	if (g_slist_length(devlist) > 1) {
-		INFO("sigrok plugin: %d sigrok devices for device entry "
-				"\"%s\": must be 1.",
+		INFO("%d sigrok devices for device entry \"%s\": must be 1.",
 				g_slist_length(devlist), cfdev->name);
 		return -1;
 	}
@@ -261,7 +255,7 @@ static int sigrok_init_driver(struct config_device *cfdev,
 			cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
 			cfdev->sdi->model ? cfdev->sdi->model : "",
 			cfdev->sdi->version ? cfdev->sdi->version : "");
-	INFO("sigrok plugin: Device \"%s\" is a %s", cfdev->name, hwident);
+	INFO("Device \"%s\" is a %s", cfdev->name, hwident);
 
 	if (sr_dev_open(cfdev->sdi) != SR_OK)
 		return -1;
@@ -283,8 +277,7 @@ static void *sigrok_read_thread(void *arg __attribute__((unused)))
 	sr_log_loglevel_set(loglevel);
 
 	if ((ret = sr_init(&sr_ctx)) != SR_OK) {
-		ERROR("sigrok plugin: Failed to initialize libsigrok: %s.",
-				sr_strerror(ret));
+		ERROR("Failed to initialize libsigrok: %s.", sr_strerror(ret));
 		return NULL;
 	}
 
@@ -303,8 +296,7 @@ static void *sigrok_read_thread(void *arg __attribute__((unused)))
 			}
 		}
 		if (!drv) {
-			ERROR("sigrok plugin: Unknown driver \"%s\".",
-					cfdev->driver);
+			ERROR("Unknown driver \"%s\".", cfdev->driver);
 			return NULL;
 		}
 
@@ -347,7 +339,7 @@ static int sigrok_init(void)
 	int status;
 
 	if (sr_thread_running) {
-		ERROR("sigrok plugin: Thread already running.");
+		ERROR("Thread already running.");
 		return -1;
 	}
 
@@ -356,7 +348,7 @@ static int sigrok_init(void)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR("sigrok plugin: Failed to create thread: %s.",
+		ERROR("Failed to create thread: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}

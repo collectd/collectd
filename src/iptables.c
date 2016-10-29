@@ -426,7 +426,7 @@ static int iptables_read (void)
 
         if (!chain)
         {
-            DEBUG ("iptables plugin: chain == NULL");
+            DEBUG ("chain == NULL");
             continue;
         }
 
@@ -444,7 +444,7 @@ static int iptables_read (void)
 
             if (!handle)
             {
-                ERROR ("iptables plugin: iptc_init (%s) failed: %s",
+                ERROR ("iptc_init (%s) failed: %s",
                         chain->table, iptc_strerror (errno));
                 num_failures++;
                 continue;
@@ -466,7 +466,7 @@ static int iptables_read (void)
 #endif
             if (!handle)
             {
-                ERROR ("iptables plugin: ip6tc_init (%s) failed: %s",
+                ERROR ("ip6tc_init (%s) failed: %s",
                         chain->table, ip6tc_strerror (errno));
                 num_failures++;
                 continue;
@@ -501,12 +501,12 @@ static int iptables_init (void)
     if (check_capability (CAP_NET_ADMIN) != 0)
     {
         if (getuid () == 0)
-            WARNING ("iptables plugin: Running collectd as root, but the "
+            WARNING ("Running collectd as root, but the "
                   "CAP_NET_ADMIN capability is missing. The plugin's read "
                   "function will probably fail. Is your init system dropping "
                   "capabilities?");
         else
-            WARNING ("iptables plugin: collectd doesn't have the CAP_NET_ADMIN "
+            WARNING ("collectd doesn't have the CAP_NET_ADMIN "
                   "capability. If you don't want to run collectd as root, try "
                   "running \"setcap cap_net_admin=ep\" on the collectd binary.");
     }

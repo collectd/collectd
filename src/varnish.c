@@ -806,7 +806,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 		if (status < 0)
 		{
 			VSM_Delete (vd);
-			ERROR ("varnish plugin: VSM_n_Arg (\"%s\") failed "
+			ERROR ("VSM_n_Arg (\"%s\") failed "
 					"with status %i.",
 					conf->instance, status);
 			return (-1);
@@ -821,7 +821,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	if (!ok)
 	{
 		VSM_Delete (vd);
-		ERROR ("varnish plugin: Unable to open connection.");
+		ERROR ("Unable to open connection.");
 
 		return (-1);
 	}
@@ -834,7 +834,7 @@ static int varnish_read (user_data_t *ud) /* {{{ */
 	if (!stats)
 	{
 		VSM_Delete (vd);
-		ERROR ("varnish plugin: Unable to get statistics.");
+		ERROR ("Unable to get statistics.");
 
 		return (-1);
 	}
@@ -986,7 +986,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 	}
 	else if (ci->values_num > 1)
 	{
-		WARNING ("Varnish plugin: \"Instance\" blocks accept only "
+		WARNING ("\"Instance\" blocks accept only "
 				"one argument.");
 		sfree (conf);
 		return (EINVAL);
@@ -1006,7 +1006,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #ifdef HAVE_VARNISH_V3
 			cf_util_get_boolean (child, &conf->collect_dirdns);
 #else
-			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v3");
+			WARNING ("\"%s\" is available for Varnish %s only.", child->key, "v3");
 #endif
 		else if (strcasecmp ("CollectBackend", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_backend);
@@ -1020,11 +1020,11 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_purge);
 #else
-			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+			WARNING ("\"%s\" is available for Varnish %s only.", child->key, "v2");
 #endif
 		else if (strcasecmp ("CollectBan", child->key) == 0)
 #if HAVE_VARNISH_V2
-			WARNING ("Varnish plugin: \"%s\" is not available for Varnish %s.", child->key, "v2");
+			WARNING ("\"%s\" is not available for Varnish %s.", child->key, "v2");
 #else
 			cf_util_get_boolean (child, &conf->collect_ban);
 #endif
@@ -1038,13 +1038,13 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_sma);
 #else
-			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+			WARNING ("\"%s\" is available for Varnish %s only.", child->key, "v2");
 #endif
 		else if (strcasecmp ("CollectSM", child->key) == 0)
 #if HAVE_VARNISH_V2
 			cf_util_get_boolean (child, &conf->collect_sm);
 #else
-			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v2");
+			WARNING ("\"%s\" is available for Varnish %s only.", child->key, "v2");
 #endif
 		else if (strcasecmp ("CollectStruct", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_struct);
@@ -1054,7 +1054,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
 			cf_util_get_boolean (child, &conf->collect_uptime);
 #else
-			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v3 and v4");
+			WARNING ("\"%s\" is available for Varnish %s only.", child->key, "v3 and v4");
 #endif
 		else if (strcasecmp ("CollectVCL", child->key) == 0)
 			cf_util_get_boolean (child, &conf->collect_vcl);
@@ -1064,11 +1064,11 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #if HAVE_VARNISH_V4
 			cf_util_get_boolean (child, &conf->collect_vsm);
 #else
-			WARNING ("Varnish plugin: \"%s\" is available for Varnish %s only.", child->key, "v4");
+			WARNING ("\"%s\" is available for Varnish %s only.", child->key, "v4");
 #endif
 		else
 		{
-			WARNING ("Varnish plugin: Ignoring unknown "
+			WARNING ("Ignoring unknown "
 					"configuration option: \"%s\". Did "
 					"you forget to add an <Instance /> "
 					"block around the configuration?",
@@ -1110,7 +1110,7 @@ static int varnish_config_instance (const oconfig_item_t *ci) /* {{{ */
 #endif
 	)
 	{
-		WARNING ("Varnish plugin: No metric has been configured for "
+		WARNING ("No metric has been configured for "
 				"instance \"%s\". Disabling this instance.",
 				(conf->instance == NULL) ? "localhost" : conf->instance);
 		sfree (conf);
@@ -1144,7 +1144,7 @@ static int varnish_config (oconfig_item_t *ci) /* {{{ */
 			varnish_config_instance (child);
 		else
 		{
-			WARNING ("Varnish plugin: Ignoring unknown "
+			WARNING ("Ignoring unknown "
 					"configuration option: \"%s\"",
 					child->key);
 		}

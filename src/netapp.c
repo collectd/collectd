@@ -889,7 +889,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
 	if (instances == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_wafl_data: "
+		ERROR ("cna_handle_wafl_data: "
 				"na_elem_child (\"instances\") failed "
 				"for host %s.", hostname);
 		return (-1);
@@ -898,7 +898,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 	plugin_inst = na_child_get_string(instances, "name");
 	if (plugin_inst == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_wafl_data: "
+		ERROR ("cna_handle_wafl_data: "
 				"na_child_get_string (\"name\") failed "
 				"for host %s.", hostname);
 		return (-1);
@@ -946,7 +946,7 @@ static int cna_handle_wafl_data (const char *hostname, cfg_wafl_t *cfg_wafl, /* 
 			perf_data.inode_cache_miss = value;
 			perf_data.flags |= HAVE_WAFL_INODE_CACHE_MISS;
 		} else {
-			DEBUG("netapp plugin: cna_handle_wafl_data: "
+			DEBUG("cna_handle_wafl_data: "
 					"Found unexpected child: %s "
 					"for host %s.", name, hostname);
 		}
@@ -968,7 +968,7 @@ static int cna_setup_wafl (cfg_wafl_t *cw) /* {{{ */
 	cw->query = na_elem_new("perf-object-get-instances");
 	if (cw->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string (cw->query, "objectname", "wafl");
@@ -978,7 +978,7 @@ static int cna_setup_wafl (cfg_wafl_t *cw) /* {{{ */
 	{
 		na_elem_free (cw->query);
 		cw->query = NULL;
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string(e, "counter", "name_cache_hit");
@@ -1020,7 +1020,7 @@ static int cna_query_wafl (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_wafl->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_wafl: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_wafl: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -1053,8 +1053,7 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 	instances = na_elem_child (data, "instances");
 	if (instances == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_disk_data: "
-				"na_elem_child (\"instances\") failed "
+		ERROR ("cna_handle_disk_data: na_elem_child (\"instances\") failed "
 				"for host %s.", hostname);
 		return (-1);
 	}
@@ -1106,7 +1105,7 @@ static int cna_handle_disk_data (const char *hostname, /* {{{ */
 			}
 			else
 			{
-				DEBUG ("netapp plugin: cna_handle_disk_data: "
+				DEBUG ("cna_handle_disk_data: "
 						"Counter not handled: %s = %"PRIu64,
 						name, value);
 			}
@@ -1167,7 +1166,7 @@ static int cna_setup_disk (cfg_disk_t *cd) /* {{{ */
 	cd->query = na_elem_new ("perf-object-get-instances");
 	if (cd->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string (cd->query, "objectname", "disk");
@@ -1177,7 +1176,7 @@ static int cna_setup_disk (cfg_disk_t *cd) /* {{{ */
 	{
 		na_elem_free (cd->query);
 		cd->query = NULL;
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string(e, "counter", "disk_busy");
@@ -1213,7 +1212,7 @@ static int cna_query_disk (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_disk->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_disk: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_disk: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -1242,8 +1241,7 @@ static int cna_handle_volume_perf_data (const char *hostname, /* {{{ */
 	elem_instances = na_elem_child(data, "instances");
 	if (elem_instances == NULL)
 	{
-		ERROR ("netapp plugin: handle_volume_perf_data: "
-				"na_elem_child (\"instances\") failed "
+		ERROR ("handle_volume_perf_data: na_elem_child (\"instances\") failed "
 				"for host %s.", hostname);
 		return (-1);
 	}
@@ -1332,7 +1330,7 @@ static int cna_setup_volume_perf (cfg_volume_perf_t *cd) /* {{{ */
 	cd->query = na_elem_new ("perf-object-get-instances");
 	if (cd->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string (cd->query, "objectname", "volume");
@@ -1342,7 +1340,7 @@ static int cna_setup_volume_perf (cfg_volume_perf_t *cd) /* {{{ */
 	{
 		na_elem_free (cd->query);
 		cd->query = NULL;
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string(e, "counter", "read_ops");
@@ -1382,7 +1380,7 @@ static int cna_query_volume_perf (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem (host->srv, host->cfg_volume_perf->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_volume_perf: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_volume_perf: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -1438,7 +1436,7 @@ static int cna_submit_volume_usage_data (const char *hostname, /* {{{ */
 				norm_used -= snap_norm_used;
 			else
 			{
-				ERROR ("netapp plugin: (norm_used = %"PRIu64") < (snap_norm_used = "
+				ERROR ("(norm_used = %"PRIu64") < (snap_norm_used = "
 						"%"PRIu64") for host %s. Invalidating both.",
 						norm_used, snap_norm_used, hostname);
 				v->flags &= ~(HAVE_VOLUME_USAGE_NORM_USED | HAVE_VOLUME_USAGE_SNAP_USED);
@@ -1533,7 +1531,7 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 			if ((v->flags & IS_VOLUME_USAGE_OFFLINE) == 0)
 				cna_change_volume_status (host->name, v);
 		} else {
-			ERROR ("netapp plugin: cna_handle_volume_snap_usage: na_server_invoke_elem for "
+			ERROR ("cna_handle_volume_snap_usage: na_server_invoke_elem for "
 					"volume \"%s\" on host %s failed with error %d: %s", v->name,
 					host->name, na_results_errno(data), na_results_reason(data));
 		}
@@ -1547,7 +1545,7 @@ static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
 	elem_snapshots = na_elem_child (data, "snapshots");
 	if (elem_snapshots == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_volume_snap_usage: "
+		ERROR ("cna_handle_volume_snap_usage: "
 				"na_elem_child (\"snapshots\") failed "
 				"for host %s.", host->name);
 		na_elem_free(data);
@@ -1676,7 +1674,7 @@ static int cna_handle_volume_usage_data (const host_config_t *host, /* {{{ */
 	elem_volumes = na_elem_child (data, "volumes");
 	if (elem_volumes == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_volume_usage_data: "
+		ERROR ("cna_handle_volume_usage_data: "
 				"na_elem_child (\"volumes\") failed "
 				"for host %s.", host->name);
 		return (-1);
@@ -1755,7 +1753,7 @@ static int cna_setup_volume_usage (cfg_volume_usage_t *cvu) /* {{{ */
 	cvu->query = na_elem_new ("volume-list-info");
 	if (cvu->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 
@@ -1788,7 +1786,7 @@ static int cna_query_volume_usage (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_volume_usage->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_volume_usage: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_volume_usage: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -1813,7 +1811,7 @@ static int cna_handle_quota_data (const host_config_t *host, /* {{{ */
 	elem_quotas = na_elem_child (data, "quotas");
 	if (elem_quotas == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_quota_data: "
+		ERROR ("cna_handle_quota_data: "
 				"na_elem_child (\"quotas\") failed "
 				"for host %s.", host->name);
 		return (-1);
@@ -1880,7 +1878,7 @@ static int cna_setup_quota (cfg_quota_t *cq) /* {{{ */
 	cq->query = na_elem_new ("quota-report");
 	if (cq->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 
@@ -1913,7 +1911,7 @@ static int cna_query_quota (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem (host->srv, host->cfg_quota->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_quota: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_quota: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -1936,7 +1934,7 @@ static int cna_handle_snapvault_data (const char *hostname, /* {{{ */
 
 	status = na_elem_child (data, "status-list");
 	if (! status) {
-		ERROR ("netapp plugin: SnapVault status record missing status-list");
+		ERROR ("SnapVault status record missing status-list");
 		return (0);
 	}
 
@@ -2000,7 +1998,7 @@ static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
 	if (! tag)
 		return 0;
 
-	DEBUG ("netapp plugin: Iterating %u SV records (tag = %s)", records_count, tag);
+	DEBUG ("Iterating %u SV records (tag = %s)", records_count, tag);
 
 	for (uint32_t i = 0; i < records_count; ++i) {
 		na_elem_t *elem;
@@ -2011,7 +2009,7 @@ static int cna_handle_snapvault_iter (host_config_t *host, /* {{{ */
 
 		if (na_results_status (elem) != NA_OK)
 		{
-			ERROR ("netapp plugin: cna_handle_snapvault_iter: "
+			ERROR ("cna_handle_snapvault_iter: "
 					"na_server_invoke failed for host %s: %s",
 					host->name, na_results_reason (data));
 			na_elem_free (elem);
@@ -2040,7 +2038,7 @@ static int cna_setup_snapvault (cfg_snapvault_t *sv) /* {{{ */
 	sv->query = na_elem_new ("snapvault-secondary-relationship-status-list-iter-start");
 	if (sv->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 
@@ -2071,7 +2069,7 @@ static int cna_query_snapvault (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem (host->srv, host->cfg_snapvault->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_snapvault: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_snapvault: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -2106,8 +2104,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 	instances = na_elem_child(na_elem_child (data, "instances"), "instance-data");
 	if (instances == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_system_data: "
-				"na_elem_child (\"instances\") failed "
+		ERROR ("cna_handle_system_data: na_elem_child (\"instances\") failed "
 				"for host %s.", hostname);
 		return (-1);
 	}
@@ -2115,8 +2112,7 @@ static int cna_handle_system_data (const char *hostname, /* {{{ */
 	instance = na_child_get_string (instances, "name");
 	if (instance == NULL)
 	{
-		ERROR ("netapp plugin: cna_handle_system_data: "
-				"na_child_get_string (\"name\") failed "
+		ERROR ("cna_handle_system_data: na_child_get_string (\"name\") failed "
 				"for host %s.", hostname);
 		return (-1);
 	}
@@ -2196,7 +2192,7 @@ static int cna_setup_system (cfg_system_t *cs) /* {{{ */
 	cs->query = na_elem_new ("perf-object-get-instances");
 	if (cs->query == NULL)
 	{
-		ERROR ("netapp plugin: na_elem_new failed.");
+		ERROR ("na_elem_new failed.");
 		return (-1);
 	}
 	na_child_add_string (cs->query, "objectname", "system");
@@ -2229,7 +2225,7 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 	data = na_server_invoke_elem(host->srv, host->cfg_system->query);
 	if (na_results_status (data) != NA_OK)
 	{
-		ERROR ("netapp plugin: cna_query_system: na_server_invoke_elem failed for host %s: %s",
+		ERROR ("cna_query_system: na_server_invoke_elem failed for host %s: %s",
 				host->name, na_results_reason (data));
 		na_elem_free (data);
 		return (-1);
@@ -2248,45 +2244,6 @@ static int cna_query_system (host_config_t *host) /* {{{ */
 /*
  * Configuration handling
  */
-/* Sets a given flag if the boolean argument is true and unsets the flag if it
- * is false. On error, the flag-field is not changed. */
-static int cna_config_bool_to_flag (const oconfig_item_t *ci, /* {{{ */
-		uint32_t *flags, uint32_t flag)
-{
-	if ((ci == NULL) || (flags == NULL))
-		return (EINVAL);
-
-	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
-	{
-		WARNING ("netapp plugin: The %s option needs exactly one boolean argument.",
-				ci->key);
-		return (-1);
-	}
-
-	if (ci->values[0].value.boolean)
-		*flags |= flag;
-	else
-		*flags &= ~flag;
-
-	return (0);
-} /* }}} int cna_config_bool_to_flag */
-
-/* Handling of the "Interval" option which is allowed in every block. */
-static int cna_config_get_interval (const oconfig_item_t *ci, /* {{{ */
-		cna_interval_t *out_interval)
-{
-	cdtime_t tmp = 0;
-	int status;
-
-	status = cf_util_get_cdtime (ci, &tmp);
-	if (status != 0)
-		return (status);
-
-	out_interval->interval = tmp;
-	out_interval->last_read = 0;
-
-	return (0);
-} /* }}} int cna_config_get_interval */
 
 /* Handling of the "GetIO", "GetOps" and "GetLatency" options within a
  * <VolumePerf /> block. */
@@ -2298,7 +2255,7 @@ static void cna_config_volume_perf_option (cfg_volume_perf_t *cvp, /* {{{ */
 
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
 	{
-		WARNING ("netapp plugin: The %s option requires exactly one string argument.",
+		WARNING ("The %s option requires exactly one string argument.",
 				ci->key);
 		return;
 	}
@@ -2326,7 +2283,7 @@ static void cna_config_volume_perf_default (cfg_volume_perf_t *cvp, /* {{{ */
 
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
 	{
-		WARNING ("netapp plugin: The %s option requires exactly one string argument.",
+		WARNING ("The %s option requires exactly one string argument.",
 				ci->key);
 		return;
 	}
@@ -2414,7 +2371,7 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_volume_perf->interval);
+			cf_util_get_cdtime (item, &cfg_volume_perf->interval.interval);
 		else if (!strcasecmp(item->key, "GetIO"))
 			cna_config_volume_perf_option (cfg_volume_perf, item);
 		else if (!strcasecmp(item->key, "GetOps"))
@@ -2428,7 +2385,7 @@ static int cna_config_volume_performance (host_config_t *host, /* {{{ */
 		else if (!strcasecmp(item->key, "IgnoreSelectedLatency"))
 			cna_config_volume_perf_default (cfg_volume_perf, item);
 		else
-			WARNING ("netapp plugin: The option %s is not allowed within "
+			WARNING ("The option %s is not allowed within "
 					"`VolumePerf' blocks.", item->key);
 	}
 
@@ -2445,7 +2402,7 @@ static void cna_config_volume_usage_option (cfg_volume_usage_t *cvu, /* {{{ */
 
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
 	{
-		WARNING ("netapp plugin: The %s option requires exactly one string argument.",
+		WARNING ("The %s option requires exactly one string argument.",
 				ci->key);
 		return;
 	}
@@ -2471,7 +2428,7 @@ static void cna_config_volume_usage_default (cfg_volume_usage_t *cvu, /* {{{ */
 
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
 	{
-		WARNING ("netapp plugin: The %s option requires exactly one string argument.",
+		WARNING ("The %s option requires exactly one string argument.",
 				ci->key);
 		return;
 	}
@@ -2512,9 +2469,9 @@ static int cna_config_quota (host_config_t *host, oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp (item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_quota->interval);
+			cf_util_get_cdtime (item, &cfg_quota->interval.interval);
 		else
-			WARNING ("netapp plugin: The option %s is not allowed within "
+			WARNING ("The option %s is not allowed within "
 					"`Quota' blocks.", item->key);
 	}
 
@@ -2548,14 +2505,14 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_disk->interval);
+			cf_util_get_cdtime (item, &cfg_disk->interval.interval);
 		else if (strcasecmp(item->key, "GetBusy") == 0)
-			cna_config_bool_to_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
+			cf_util_get_flag (item, &cfg_disk->flags, CFG_DISK_BUSIEST);
 	}
 
 	if ((cfg_disk->flags & CFG_DISK_ALL) == 0)
 	{
-		NOTICE ("netapp plugin: All disk related values have been disabled. "
+		NOTICE ("All disk related values have been disabled. "
 				"Collection of per-disk data will be disabled entirely.");
 		free_cfg_disk (host->cfg_disk);
 		host->cfg_disk = NULL;
@@ -2589,23 +2546,23 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_wafl->interval);
+			cf_util_get_cdtime (item, &cfg_wafl->interval.interval);
 		else if (!strcasecmp(item->key, "GetNameCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_NAME_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_NAME_CACHE);
 		else if (!strcasecmp(item->key, "GetDirCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_DIR_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_DIR_CACHE);
 		else if (!strcasecmp(item->key, "GetBufferCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_BUF_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_BUF_CACHE);
 		else if (!strcasecmp(item->key, "GetInodeCache"))
-			cna_config_bool_to_flag (item, &cfg_wafl->flags, CFG_WAFL_INODE_CACHE);
+			cf_util_get_flag (item, &cfg_wafl->flags, CFG_WAFL_INODE_CACHE);
 		else
-			WARNING ("netapp plugin: The %s config option is not allowed within "
+			WARNING ("The %s config option is not allowed within "
 					"`WAFL' blocks.", item->key);
 	}
 
 	if ((cfg_wafl->flags & CFG_WAFL_ALL) == 0)
 	{
-		NOTICE ("netapp plugin: All WAFL related values have been disabled. "
+		NOTICE ("All WAFL related values have been disabled. "
 				"Collection of WAFL data will be disabled entirely.");
 		free_cfg_wafl (host->cfg_wafl);
 		host->cfg_wafl = NULL;
@@ -2673,7 +2630,7 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 
 		/* if (!item || !item->key || !*item->key) continue; */
 		if (strcasecmp(item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_volume_usage->interval);
+			cf_util_get_cdtime (item, &cfg_volume_usage->interval.interval);
 		else if (!strcasecmp(item->key, "GetCapacity"))
 			cna_config_volume_usage_option (cfg_volume_usage, item);
 		else if (!strcasecmp(item->key, "GetSnapshot"))
@@ -2683,7 +2640,7 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
 		else if (!strcasecmp(item->key, "IgnoreSelectedSnapshot"))
 			cna_config_volume_usage_default (cfg_volume_usage, item);
 		else
-			WARNING ("netapp plugin: The option %s is not allowed within "
+			WARNING ("The option %s is not allowed within "
 					"`VolumeUsage' blocks.", item->key);
 	}
 
@@ -2715,9 +2672,9 @@ static int cna_config_snapvault (host_config_t *host, /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp (item->key, "Interval") == 0)
-			cna_config_get_interval (item, &cfg_snapvault->interval);
+			cf_util_get_cdtime (item, &cfg_snapvault->interval.interval);
 		else
-			WARNING ("netapp plugin: The option %s is not allowed within "
+			WARNING ("The option %s is not allowed within "
 					"`SnapVault' blocks.", item->key);
 	}
 
@@ -2751,24 +2708,24 @@ static int cna_config_system (host_config_t *host, /* {{{ */
 		oconfig_item_t *item = ci->children + i;
 
 		if (strcasecmp(item->key, "Interval") == 0) {
-			cna_config_get_interval (item, &cfg_system->interval);
+			cf_util_get_cdtime (item, &cfg_system->interval.interval);
 		} else if (!strcasecmp(item->key, "GetCPULoad")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_CPU);
 		} else if (!strcasecmp(item->key, "GetInterfaces")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_NET);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_NET);
 		} else if (!strcasecmp(item->key, "GetDiskOps")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_OPS);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_OPS);
 		} else if (!strcasecmp(item->key, "GetDiskIO")) {
-			cna_config_bool_to_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
+			cf_util_get_flag (item, &cfg_system->flags, CFG_SYSTEM_DISK);
 		} else {
-			WARNING ("netapp plugin: The %s config option is not allowed within "
+			WARNING ("The %s config option is not allowed within "
 					"`System' blocks.", item->key);
 		}
 	}
 
 	if ((cfg_system->flags & CFG_SYSTEM_ALL) == 0)
 	{
-		NOTICE ("netapp plugin: All system related values have been disabled. "
+		NOTICE ("All system related values have been disabled. "
 				"Collection of system data will be disabled entirely.");
 		free_cfg_system (host->cfg_system);
 		host->cfg_system = NULL;
@@ -2889,7 +2846,7 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 		is_vfiler = 1;
 
 	if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-		WARNING ("netapp plugin: \"%s\" needs exactly one string argument. Ignoring host block.", ci->key);
+		WARNING ("\"%s\" needs exactly one string argument. Ignoring host block.", ci->key);
 		return (1);
 	}
 
@@ -2912,7 +2869,7 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 				host->port = tmp;
 		} else if (!strcasecmp(item->key, "Protocol")) {
 			if ((item->values_num != 1) || (item->values[0].type != OCONFIG_TYPE_STRING) || (strcasecmp(item->values[0].value.string, "http") && strcasecmp(item->values[0].value.string, "https"))) {
-				WARNING("netapp plugin: \"Protocol\" needs to be either \"http\" or \"https\". Ignoring host block \"%s\".", ci->values[0].value.string);
+				WARNING("\"Protocol\" needs to be either \"http\" or \"https\". Ignoring host block \"%s\".", ci->values[0].value.string);
 				return (1);
 			}
 			if (!strcasecmp(item->values[0].value.string, "http")) host->protocol = NA_SERVER_TRANSPORT_HTTP;
@@ -2942,7 +2899,7 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 
 			vfiler = cna_shallow_clone_host (host);
 			if (! vfiler) {
-				ERROR ("netapp plugin: Failed to allocate host object for vfiler.");
+				ERROR ("Failed to allocate host object for vfiler.");
 				continue;
 			}
 
@@ -2955,7 +2912,7 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 		} else if ((!strcasecmp(item->key, "VFilerName")) && is_vfiler) {
 			status = cf_util_get_string (item, &host->vfiler);
 		} else {
-			WARNING ("netapp plugin: Ignoring unknown config option \"%s\" in %s block \"%s\".",
+			WARNING ("Ignoring unknown config option \"%s\" in %s block \"%s\".",
 					item->key, is_vfiler ? "vfiler" : "host", ci->values[0].value.string);
 		}
 
@@ -2976,7 +2933,7 @@ static int cna_config_host (host_config_t *host, /* {{{ */
 		host->port = (host->protocol == NA_SERVER_TRANSPORT_HTTP) ? 80 : 443;
 
 	if ((host->username == NULL) || (host->password == NULL)) {
-		WARNING("netapp plugin: Please supply login information for host \"%s\". "
+		WARNING("Please supply login information for host \"%s\". "
 				"Ignoring host block.", host->name);
 		status = -1;
 	}
@@ -3008,7 +2965,7 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 
 	host->srv = na_server_open (host->host, major_version, minor_version);
 	if (host->srv == NULL) {
-		ERROR ("netapp plugin: na_server_open (%s) failed.", host->host);
+		ERROR ("na_server_open (%s) failed.", host->host);
 		return (-1);
 	}
 
@@ -3021,12 +2978,12 @@ static int cna_init_host (host_config_t *host) /* {{{ */
 
 	if (host->vfiler != NULL) {
 		if (! na_server_set_vfiler (host->srv, host->vfiler)) {
-			ERROR ("netapp plugin: Failed to connect to VFiler '%s' on host '%s'.",
+			ERROR ("Failed to connect to VFiler '%s' on host '%s'.",
 					host->vfiler, host->host);
 			return (-1);
 		}
 		else {
-			INFO ("netapp plugin: Connected to VFiler '%s' on host '%s'.",
+			INFO ("Connected to VFiler '%s' on host '%s'.",
 					host->vfiler, host->host);
 		}
 	}
@@ -3040,7 +2997,7 @@ static int cna_init (void) /* {{{ */
 
 	if (!na_startup(err, sizeof(err))) {
 		err[sizeof (err) - 1] = 0;
-		ERROR("netapp plugin: Error initializing netapp API: %s", err);
+		ERROR("Error initializing netapp API: %s", err);
 		return 1;
 	}
 
@@ -3117,7 +3074,7 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 
 			host = cna_alloc_host ();
 			if (host == NULL) {
-				ERROR ("netapp plugin: Failed to allocate host object.");
+				ERROR ("Failed to allocate host object.");
 				continue;
 			}
 
@@ -3130,7 +3087,7 @@ static int cna_config (oconfig_item_t *ci) { /* {{{ */
 		}
 		else /* if (item->key != "Host") */
 		{
-			WARNING("netapp plugin: Ignoring unknown config option \"%s\".", item->key);
+			WARNING("Ignoring unknown config option \"%s\".", item->key);
 		}
 	}
 	return 0;

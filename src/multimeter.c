@@ -51,7 +51,7 @@ static int multimeter_read_value(double *value)
 		if (gettimeofday (&time_end, NULL) < 0)
 	        {
 			char errbuf[1024];
-	                ERROR ("multimeter plugin: gettimeofday failed: %s",
+	                ERROR ("gettimeofday failed: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 	                return (-1);
@@ -70,7 +70,7 @@ static int multimeter_read_value(double *value)
 			status = swrite (fd, "D", 1);
 			if (status < 0)
 			{
-				ERROR ("multimeter plugin: swrite failed.");
+				ERROR ("swrite failed.");
 				return (-1);
 			}
 
@@ -80,8 +80,7 @@ static int multimeter_read_value(double *value)
 			if (gettimeofday (&time_now, NULL) < 0)
 	                {
 				char errbuf[1024];
-		                ERROR ("multimeter plugin: "
-						"gettimeofday failed: %s",
+		                ERROR ("gettimeofday failed: %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 	                        return (-1);
@@ -136,8 +135,7 @@ static int multimeter_read_value(double *value)
 			else /* status == -1 */
             		{
 				char errbuf[1024];
-		                ERROR ("multimeter plugin: "
-						"select failed: %s",
+		                ERROR ("select failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 	                        break;
 			}
@@ -179,14 +177,13 @@ static int multimeter_init (void)
 			}
 			else
 			{
-				INFO ("multimeter plugin: Device "
-						"found at %s", device);
+				INFO ("Device found at %s", device);
 				return (0);
 			}
 		}
 	}
 
-	ERROR ("multimeter plugin: No device found");
+	ERROR ("No device found");
 	return (-1);
 }
 #undef LINE_LENGTH

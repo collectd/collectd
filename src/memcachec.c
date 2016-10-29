@@ -111,7 +111,7 @@ static int cmc_page_init_memc (web_page_t *wp) /* {{{ */
   wp->memc = memcached_create(NULL);
   if (wp->memc == NULL)
   {
-    ERROR ("memcachec plugin: memcached_create failed.");
+    ERROR ("memcached_create failed.");
     return (-1);
   }
 
@@ -127,7 +127,7 @@ static int cmc_config_add_string (const char *name, char **dest, /* {{{ */
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("memcachec plugin: `%s' needs exactly one string argument.", name);
+    WARNING ("`%s' needs exactly one string argument.", name);
     return (-1);
   }
 
@@ -146,7 +146,7 @@ static int cmc_config_add_match_dstype (int *dstype_ret, /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("memcachec plugin: `DSType' needs exactly one string argument.");
+    WARNING ("`DSType' needs exactly one string argument.");
     return (-1);
   }
 
@@ -185,7 +185,7 @@ static int cmc_config_add_match_dstype (int *dstype_ret, /* {{{ */
 
   if (dstype == 0)
   {
-    WARNING ("memcachec plugin: `%s' is not a valid argument to `DSType'.",
+    WARNING ("`%s' is not a valid argument to `DSType'.",
 	ci->values[0].value.string);
     return (-1);
   }
@@ -202,13 +202,13 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
 
   if (ci->values_num != 0)
   {
-    WARNING ("memcachec plugin: Ignoring arguments for the `Match' block.");
+    WARNING ("Ignoring arguments for the `Match' block.");
   }
 
   match = calloc (1, sizeof (*match));
   if (match == NULL)
   {
-    ERROR ("memcachec plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
@@ -229,7 +229,7 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
       status = cmc_config_add_string ("Instance", &match->instance, child);
     else
     {
-      WARNING ("memcachec plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -241,19 +241,19 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
   {
     if (match->regex == NULL)
     {
-      WARNING ("memcachec plugin: `Regex' missing in `Match' block.");
+      WARNING ("`Regex' missing in `Match' block.");
       status = -1;
     }
 
     if (match->type == NULL)
     {
-      WARNING ("memcachec plugin: `Type' missing in `Match' block.");
+      WARNING ("`Type' missing in `Match' block.");
       status = -1;
     }
 
     if (match->dstype == 0)
     {
-      WARNING ("memcachec plugin: `DSType' missing in `Match' block.");
+      WARNING ("`DSType' missing in `Match' block.");
       status = -1;
     }
 
@@ -270,7 +270,7 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
       match->dstype);
   if (match->match == NULL)
   {
-    ERROR ("memcachec plugin: match_create_simple failed.");
+    ERROR ("match_create_simple failed.");
     cmc_web_match_free (match);
     return (-1);
   }
@@ -298,14 +298,14 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("memcachec plugin: `Page' blocks need exactly one string argument.");
+    WARNING ("`Page' blocks need exactly one string argument.");
     return (-1);
   }
 
   page = calloc (1, sizeof (*page));
   if (page == NULL)
   {
-    ERROR ("memcachec plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
   page->server = NULL;
@@ -314,7 +314,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
   {
-    ERROR ("memcachec plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (page);
     return (-1);
   }
@@ -334,7 +334,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
       cmc_config_add_match (page, child);
     else
     {
-      WARNING ("memcachec plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -347,20 +347,20 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
   {
     if (page->server == NULL)
     {
-      WARNING ("memcachec plugin: `Server' missing in `Page' block.");
+      WARNING ("`Server' missing in `Page' block.");
       status = -1;
     }
 
     if (page->key == NULL)
     {
-      WARNING ("memcachec plugin: `Key' missing in `Page' block.");
+      WARNING ("`Key' missing in `Page' block.");
       status = -1;
     }
 
     if (page->matches == NULL)
     {
       assert (page->instance != NULL);
-      WARNING ("memcachec plugin: No (valid) `Match' block "
+      WARNING ("No (valid) `Match' block "
           "within `Page' block `%s'.", page->instance);
       status = -1;
     }
@@ -416,14 +416,14 @@ static int cmc_config (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("memcachec plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       errors++;
     }
   }
 
   if ((success == 0) && (errors > 0))
   {
-    ERROR ("memcachec plugin: All statements failed.");
+    ERROR ("All statements failed.");
     return (-1);
   }
 
@@ -434,7 +434,7 @@ static int cmc_init (void) /* {{{ */
 {
   if (pages_g == NULL)
   {
-    INFO ("memcachec plugin: No pages have been defined.");
+    INFO ("No pages have been defined.");
     return (-1);
   }
   return (0);
@@ -469,8 +469,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
                               &string_length, &flags, &rc);
   if (rc != MEMCACHED_SUCCESS)
   {
-    ERROR ("memcachec plugin: memcached_get failed: %s",
-        memcached_strerror (wp->memc, rc));
+    ERROR ("memcached_get failed: %s", memcached_strerror (wp->memc, rc));
     return (-1);
   }
 
@@ -481,14 +480,14 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
     status = match_apply (wm->match, wp->buffer);
     if (status != 0)
     {
-      WARNING ("memcachec plugin: match_apply failed.");
+      WARNING ("match_apply failed.");
       continue;
     }
 
     mv = match_get_user_data (wm->match);
     if (mv == NULL)
     {
-      WARNING ("memcachec plugin: match_get_user_data returned NULL.");
+      WARNING ("match_get_user_data returned NULL.");
       continue;
     }
 

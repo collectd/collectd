@@ -133,7 +133,7 @@ static int vserver_read (void)
 	if (proc == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("vserver plugin: fopen (%s): %s", PROCDIR,
+		ERROR ("fopen (%s): %s", PROCDIR,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -161,7 +161,7 @@ static int vserver_read (void)
 			if (errno == 0) /* end of directory */
 				break;
 
-			ERROR ("vserver plugin: failed to read directory %s: %s",
+			ERROR ("failed to read directory %s: %s",
 					PROCDIR, sstrerror (errno, errbuf, sizeof (errbuf)));
 			closedir (proc);
 			return (-1);
@@ -178,7 +178,7 @@ static int vserver_read (void)
 		if (status != 0)
 		{
 			char errbuf[4096];
-			WARNING ("vserver plugin: stat (%s) failed: %s",
+			WARNING ("stat (%s) failed: %s",
 					file, sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}

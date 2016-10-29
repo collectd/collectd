@@ -51,7 +51,7 @@ static int tt_config (const char *key, const char *value)
 		temp = strdup (value);
 		if (temp == NULL)
 		{
-			ERROR("tokyotyrant plugin: Host strdup failed.");
+			ERROR("Host strdup failed.");
 			return (1);
 		}
 		sfree (config_host);
@@ -64,7 +64,7 @@ static int tt_config (const char *key, const char *value)
 		temp = strdup (value);
 		if (temp == NULL)
 		{
-			ERROR("tokyotyrant plugin: Port strdup failed.");
+			ERROR("Port strdup failed.");
 			return (1);
 		}
 		sfree (config_port);
@@ -72,7 +72,7 @@ static int tt_config (const char *key, const char *value)
 	}
 	else
 	{
-		ERROR ("tokyotyrant plugin: error: unrecognized configuration key %s", key);
+		ERROR ("Unrecognized configuration key %s", key);
 		return (-1);
 	}
 
@@ -82,8 +82,7 @@ static int tt_config (const char *key, const char *value)
 static void printerr (void)
 {
 	int ecode = tcrdbecode(rdb);
-	ERROR ("tokyotyrant plugin: error: %d, %s",
-			ecode, tcrdberrmsg(ecode));
+	ERROR ("error: %d, %s", ecode, tcrdberrmsg(ecode));
 }
 
 static void tt_submit (gauge_t value, const char* type)

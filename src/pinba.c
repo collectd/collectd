@@ -175,7 +175,7 @@ static void service_statnode_add(const char *name, /* {{{ */
       sizeof (*stat_nodes) * (stat_nodes_num + 1));
   if (node == NULL)
   {
-    ERROR ("pinba plugin: realloc failed");
+    ERROR ("realloc failed");
     return;
   }
   stat_nodes = node;
@@ -302,7 +302,7 @@ static int pb_add_socket (pinba_socket_t *s, /* {{{ */
 
   if (s->fd_num == PINBA_MAX_SOCKETS)
   {
-    WARNING ("pinba plugin: Sorry, you have hit the built-in limit of "
+    WARNING ("Sorry, you have hit the built-in limit of "
         "%i sockets. Please complain to the collectd developers so we can "
         "raise the limit.", PINBA_MAX_SOCKETS);
     return (-1);
@@ -312,7 +312,7 @@ static int pb_add_socket (pinba_socket_t *s, /* {{{ */
   if (fd < 0)
   {
     char errbuf[1024];
-    ERROR ("pinba plugin: socket(2) failed: %s",
+    ERROR ("socket(2) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (0);
   }
@@ -322,7 +322,7 @@ static int pb_add_socket (pinba_socket_t *s, /* {{{ */
   if (status != 0)
   {
     char errbuf[1024];
-    WARNING ("pinba plugin: setsockopt(SO_REUSEADDR) failed: %s",
+    WARNING ("setsockopt(SO_REUSEADDR) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
   }
 
@@ -330,7 +330,7 @@ static int pb_add_socket (pinba_socket_t *s, /* {{{ */
   if (status != 0)
   {
     char errbuf[1024];
-    ERROR ("pinba plugin: bind(2) failed: %s",
+    ERROR ("bind(2) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     close (fd);
     return (0);
@@ -367,7 +367,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
       &ai_hints, &ai_list);
   if (status != 0)
   {
-    ERROR ("pinba plugin: getaddrinfo(3) failed: %s",
+    ERROR ("getaddrinfo(3) failed: %s",
         gai_strerror (status));
     return (NULL);
   }
@@ -377,7 +377,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
   if (s == NULL)
   {
     freeaddrinfo (ai_list);
-    ERROR ("pinba plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (NULL);
   }
 
@@ -392,7 +392,7 @@ static pinba_socket_t *pinba_socket_open (const char *node, /* {{{ */
 
   if (s->fd_num < 1)
   {
-    WARNING ("pinba plugin: Unable to open socket for address %s.", node);
+    WARNING ("Unable to open socket for address %s.", node);
     sfree (s);
     s = NULL;
   }
@@ -455,13 +455,13 @@ static int pinba_udp_read_callback_fn (int sock) /* {{{ */
         continue;
       }
 
-      WARNING("pinba plugin: recvfrom(2) failed: %s",
+      WARNING("recvfrom(2) failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       return (-1);
     }
     else if (status == 0)
     {
-      DEBUG ("pinba plugin: recvfrom(2) returned unexpected status zero.");
+      DEBUG ("recvfrom(2) returned unexpected status zero.");
       return (-1);
     }
     else /* if (status > 0) */
@@ -472,7 +472,7 @@ static int pinba_udp_read_callback_fn (int sock) /* {{{ */
 
       status = pinba_process_stats_packet (buffer, buffer_size);
       if (status != 0)
-        DEBUG("pinba plugin: Parsing packet failed.");
+        DEBUG("Parsing packet failed.");
       return (status);
     }
   } /* while (42) */
@@ -489,7 +489,7 @@ static int receive_loop (void) /* {{{ */
   s = pinba_socket_open (conf_node, conf_service);
   if (s == NULL)
   {
-    ERROR ("pinba plugin: Collector thread is exiting prematurely.");
+    ERROR ("Collector thread is exiting prematurely.");
     return (-1);
   }
 
@@ -512,8 +512,7 @@ static int receive_loop (void) /* {{{ */
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
-      ERROR ("pinba plugin: poll(2) failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR ("poll(2) failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
       pinba_socket_free (s);
       return (-1);
     }
@@ -575,7 +574,7 @@ static int pinba_config_view (const oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (child, &script);
     else
     {
-      WARNING ("pinba plugin: Unknown config option: %s", child->key);
+      WARNING ("Unknown config option: %s", child->key);
       status = -1;
     }
 
@@ -611,7 +610,7 @@ static int plugin_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("View", child->key) == 0)
       pinba_config_view (child);
     else
-      WARNING ("pinba plugin: Unknown config option: %s", child->key);
+      WARNING ("Unknown config option: %s", child->key);
   }
 
   pthread_mutex_unlock(&stat_nodes_lock);
@@ -642,7 +641,7 @@ static int plugin_init (void) /* {{{ */
   if (status != 0)
   {
     char errbuf[1024];
-    ERROR ("pinba plugin: pthread_create(3) failed: %s",
+    ERROR ("pthread_create(3) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
@@ -657,14 +656,14 @@ static int plugin_shutdown (void) /* {{{ */
   {
     int status;
 
-    DEBUG ("pinba plugin: Shutting down collector thread.");
+    DEBUG ("Shutting down collector thread.");
     collector_thread_do_shutdown = 1;
 
     status = pthread_join (collector_thread_id, /* retval = */ NULL);
     if (status != 0)
     {
       char errbuf[1024];
-      ERROR ("pinba plugin: pthread_join(3) failed: %s",
+      ERROR ("pthread_join(3) failed: %s",
           sstrerror (status, errbuf, sizeof (errbuf)));
     }
 

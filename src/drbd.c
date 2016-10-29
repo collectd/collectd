@@ -73,13 +73,13 @@ static int drbd_submit_fields (long int resource,
 
 	if (resource < 0)
 	{
-		WARNING ("drbd plugin: Unable to parse resource");
+		WARNING ("Unable to parse resource");
 		return (EINVAL);
 	}
 
 	if (fields_num != drbd_names_num)
 	{
-		WARNING ("drbd plugin: Wrong number of fields for "
+		WARNING ("Wrong number of fields for "
 				 "r%ld statistics. Expected %zu, got %zu.",
 				 resource, drbd_names_num, fields_num);
 		return (EINVAL);
@@ -131,7 +131,7 @@ static int drbd_read (void)
 	fh = fopen (drbd_stats, "r");
 	if (fh == NULL)
 	{
-		WARNING ("drbd plugin: Unable to open %s", drbd_stats);
+		WARNING ("Unable to open %s", drbd_stats);
 		return (EINVAL);
 	}
 

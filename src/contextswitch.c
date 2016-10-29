@@ -71,8 +71,7 @@ static int cs_read (void)
 			/* new pointer = */ NULL, /* new length = */ 0);
 	if (status != 0)
 	{
-		ERROR("contextswitch plugin: sysctlbyname "
-				"(vm.stats.sys.v_swtch) failed");
+		ERROR("sysctlbyname (vm.stats.sys.v_swtch) failed");
 		return (-1);
 	}
 
@@ -89,7 +88,7 @@ static int cs_read (void)
 
 	fh = fopen ("/proc/stat", "r");
 	if (fh == NULL) {
-		ERROR ("contextswitch plugin: unable to open /proc/stat: %s",
+		ERROR ("unable to open /proc/stat: %s",
 				sstrerror (errno, buffer, sizeof (buffer)));
 		return (-1);
 	}
@@ -109,8 +108,7 @@ static int cs_read (void)
 		endptr = NULL;
 		result = (derive_t) strtoll (fields[1], &endptr, /* base = */ 10);
 		if ((endptr == fields[1]) || (errno != 0)) {
-			ERROR ("contextswitch plugin: Cannot parse ctxt value: %s",
-					fields[1]);
+			ERROR ("Cannot parse ctxt value: %s", fields[1]);
 			status = -1;
 			break;
 		}
@@ -122,7 +120,7 @@ static int cs_read (void)
 	fclose(fh);
 
 	if (status == -2)
-		ERROR ("contextswitch plugin: Unable to find context switch value.");
+		ERROR ("Unable to find context switch value.");
 /* #endif  KERNEL_LINUX */
 
 #elif HAVE_PERFSTAT
@@ -133,7 +131,7 @@ static int cs_read (void)
 	if (status < 0)
 	{
 		char errbuf[1024];
-		ERROR ("contextswitch plugin: perfstat_cpu_total: %s",
+		ERROR ("perfstat_cpu_total: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

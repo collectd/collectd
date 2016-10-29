@@ -289,7 +289,7 @@ static int ds_get (char ***ret, /* {{{ */
   if (ds_def == NULL)
   {
     char errbuf[1024];
-    ERROR ("rrdtool plugin: calloc failed: %s",
+    ERROR ("calloc failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
@@ -312,7 +312,7 @@ static int ds_get (char ***ret, /* {{{ */
       type = "ABSOLUTE";
     else
     {
-      ERROR ("rrdtool plugin: Unknown DS type: %i",
+      ERROR ("Unknown DS type: %i",
           d->type);
       break;
     }
@@ -389,7 +389,7 @@ static int srrd_create (const char *filename, /* {{{ */
 
   if (status != 0)
   {
-    WARNING ("rrdtool plugin: rrd_create_r (%s) failed: %s",
+    WARNING ("rrd_create_r (%s) failed: %s",
         filename, rrd_get_error ());
   }
 
@@ -416,7 +416,7 @@ static int srrd_create (const char *filename, /* {{{ */
   new_argv = malloc ((new_argc + 1) * sizeof (*new_argv));
   if (new_argv == NULL)
   {
-    ERROR ("rrdtool plugin: malloc failed.");
+    ERROR ("malloc failed.");
     return (-1);
   }
 
@@ -445,7 +445,7 @@ static int srrd_create (const char *filename, /* {{{ */
 
   if (status != 0)
   {
-    WARNING ("rrdtool plugin: rrd_create (%s) failed: %s",
+    WARNING ("rrd_create (%s) failed: %s",
         filename, rrd_get_error ());
   }
 

@@ -107,8 +107,7 @@ static int memory_config (oconfig_item_t *ci) /* {{{ */
 		else if (strcasecmp ("ValuesPercentage", child->key) == 0)
 			cf_util_get_boolean (child, &values_percentage);
 		else
-			ERROR ("memory plugin: Invalid configuration option: "
-					"\"%s\".", child->key);
+			ERROR ("Invalid configuration option: \"%s\".", child->key);
 	}
 
 	return (0);
@@ -149,7 +148,7 @@ static int memory_init (void)
 	pagesize = getpagesize ();
 	if (pagesize <= 0)
 	{
-		ERROR ("memory plugin: Invalid pagesize: %i", pagesize);
+		ERROR ("Invalid pagesize: %i", pagesize);
 		return (-1);
 	}
 /* #endif HAVE_SYSCTL */
@@ -191,7 +190,7 @@ static int memory_read_internal (value_list_t *vl)
 					(host_info_t) &vm_data,
 					&vm_data_len)) != KERN_SUCCESS)
 	{
-		ERROR ("memory-plugin: host_statistics failed and returned the value %i", (int) status);
+		ERROR ("host_statistics failed and returned the value %i", (int) status);
 		return (-1);
 	}
 
@@ -258,7 +257,7 @@ static int memory_read_internal (value_list_t *vl)
 					NULL, 0) == 0)
 		{
 			sysctl_vals[i] = value;
-			DEBUG ("memory plugin: %26s: %g", sysctl_keys[i], sysctl_vals[i]);
+			DEBUG ("%26s: %g", sysctl_keys[i], sysctl_vals[i]);
 		}
 		else
 		{
@@ -299,7 +298,7 @@ static int memory_read_internal (value_list_t *vl)
 	if ((fh = fopen ("/proc/meminfo", "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("memory: fopen: %s",
+		WARNING ("fopen: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -339,7 +338,7 @@ static int memory_read_internal (value_list_t *vl)
 	if (fclose (fh))
 	{
 		char errbuf[1024];
-		WARNING ("memory: fclose: %s",
+		WARNING ("fclose: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
@@ -400,7 +399,7 @@ static int memory_read_internal (value_list_t *vl)
 
 	if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL))
 	{
-		WARNING ("memory plugin: one of used, free or locked is negative.");
+		WARNING ("one of used, free or locked is negative.");
 		return (-1);
 	}
 
@@ -412,7 +411,7 @@ static int memory_read_internal (value_list_t *vl)
 		 * this seems to happen when swap space is small, e.g. 2G on a 32G system
 		 * we will make some assumptions here
 		 * educated solaris internals help welcome here */
-		DEBUG ("memory plugin: pages total is smaller than \"free\" "
+		DEBUG ("pages total is smaller than \"free\" "
 				"+ \"locked\". This is probably due to small "
 				"swap space");
 		mem_free = availrmem;
@@ -463,7 +462,7 @@ static int memory_read_internal (value_list_t *vl)
 
 	if (sysctl (mib, 2, &vmtotal, &size, NULL, 0) < 0) {
 		char errbuf[1024];
-		WARNING ("memory plugin: sysctl failed: %s",
+		WARNING ("sysctl failed: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -496,7 +495,7 @@ static int memory_read_internal (value_list_t *vl)
 	if (perfstat_memory_total(NULL, &pmemory, sizeof(pmemory), 1) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("memory plugin: perfstat_memory_total failed: %s",
+		WARNING ("perfstat_memory_total failed: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

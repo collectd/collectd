@@ -42,8 +42,8 @@
 #ifndef UNIX_PATH_MAX
 # define UNIX_PATH_MAX sizeof (((struct sockaddr_un *)0)->sun_path)
 #endif
-#define FUNC_ERROR(func) do { char errbuf[1024]; ERROR ("powerdns plugin: %s failed: %s", func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
-#define SOCK_ERROR(func, sockpath) do { char errbuf[1024]; ERROR ("powerdns plugin: Socket `%s` %s failed: %s", sockpath, func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
+#define FUNC_ERROR(func) do { char errbuf[1024]; ERROR ("%s failed: %s", func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
+#define SOCK_ERROR(func, sockpath) do { char errbuf[1024]; ERROR ("Socket `%s` %s failed: %s", sockpath, func, sstrerror (errno, errbuf, sizeof (errbuf))); } while (0)
 
 #define SERVER_SOCKET  LOCALSTATEDIR"/run/pdns.controlsocket"
 #define SERVER_COMMAND "SHOW * \n"
@@ -318,8 +318,7 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   if (i >= lookup_table_length)
   {
-    INFO ("powerdns plugin: submit: Not found in lookup table: %s = %s;",
-        pdns_type, value_str);
+    INFO ("submit: Not found in lookup table: %s = %s;", pdns_type, value_str);
     return;
   }
 
@@ -332,7 +331,7 @@ static void submit (const char *plugin_instance, /* {{{ */
   ds = plugin_get_ds (type);
   if (ds == NULL)
   {
-    ERROR ("powerdns plugin: The lookup table returned type `%s', "
+    ERROR ("The lookup table returned type `%s', "
         "but I cannot find it via `plugin_get_ds'.",
         type);
     return;
@@ -340,16 +339,14 @@ static void submit (const char *plugin_instance, /* {{{ */
 
   if (ds->ds_num != 1)
   {
-    ERROR ("powerdns plugin: type `%s' has %zu data sources, "
-        "but I can only handle one.",
+    ERROR ("type `%s' has %zu data sources, but I can only handle one.",
         type, ds->ds_num);
     return;
   }
 
   if (0 != parse_value (value_str, &value, ds->ds[0].type))
   {
-    ERROR ("powerdns plugin: Cannot convert `%s' "
-        "to a number.", value_str);
+    ERROR ("Cannot convert `%s' to a number.", value_str);
     return;
   }
 
@@ -578,7 +575,7 @@ static int powerdns_get_data (list_item_t *item, char **ret_buffer,
     return (powerdns_get_data_stream (item, ret_buffer, ret_buffer_size));
   else
   {
-    ERROR ("powerdns plugin: Unknown socket type: %i", (int) item->socktype);
+    ERROR ("Unknown socket type: %i", (int) item->socktype);
     return (-1);
   }
 } /* int powerdns_get_data */
@@ -602,7 +599,7 @@ static int powerdns_read_server (list_item_t *item) /* {{{ */
     item->command = strdup (SERVER_COMMAND);
   if (item->command == NULL)
   {
-    ERROR ("powerdns plugin: strdup failed.");
+    ERROR ("strdup failed.");
     return (-1);
   }
 
@@ -684,7 +681,7 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
 	/* seperator = */ " ");
     if (status < 0)
     {
-      ERROR ("powerdns plugin: strjoin failed.");
+      ERROR ("strjoin failed.");
       return (-1);
     }
     buffer[sizeof (buffer) - 1] = 0;
@@ -701,7 +698,7 @@ static int powerdns_update_recursor_command (list_item_t *li) /* {{{ */
   li->command = strdup (buffer);
   if (li->command == NULL)
   {
-    ERROR ("powerdns plugin: strdup failed.");
+    ERROR ("strdup failed.");
     return (-1);
   }
 
@@ -727,19 +724,18 @@ static int powerdns_read_recursor (list_item_t *item) /* {{{ */
     status = powerdns_update_recursor_command (item);
     if (status != 0)
     {
-      ERROR ("powerdns plugin: powerdns_update_recursor_command failed.");
+      ERROR ("powerdns_update_recursor_command failed.");
       return (-1);
     }
 
-    DEBUG ("powerdns plugin: powerdns_read_recursor: item->command = %s;",
-        item->command);
+    DEBUG ("powerdns_read_recursor: item->command = %s;", item->command);
   }
   assert (item->command != NULL);
 
   status = powerdns_get_data (item, &buffer, &buffer_size);
   if (status != 0)
   {
-    ERROR ("powerdns plugin: powerdns_get_data failed.");
+    ERROR ("powerdns_get_data failed.");
     return (-1);
   }
 
@@ -782,16 +778,14 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
 
   if (ci->values_num < 1)
   {
-    WARNING ("powerdns plugin: The `Collect' option needs "
-	"at least one argument.");
+    WARNING ("The `Collect' option needs at least one argument.");
     return (-1);
   }
 
   for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
-      WARNING ("powerdns plugin: Only string arguments are allowed to "
-	  "the `Collect' option.");
+      WARNING ("Only string arguments are allowed to the `Collect' option.");
       return (-1);
     }
 
@@ -799,7 +793,7 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
       sizeof (char *) * (li->fields_num + ci->values_num));
   if (temp == NULL)
   {
-    WARNING ("powerdns plugin: realloc failed.");
+    WARNING ("realloc failed.");
     return (-1);
   }
   li->fields = temp;
@@ -809,7 +803,7 @@ static int powerdns_config_add_collect (list_item_t *li, /* {{{ */
     li->fields[li->fields_num] = strdup (ci->values[i].value.string);
     if (li->fields[li->fields_num] == NULL)
     {
-      WARNING ("powerdns plugin: strdup failed.");
+      WARNING ("strdup failed.");
       continue;
     }
     li->fields_num++;
@@ -830,22 +824,21 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("powerdns plugin: `%s' needs exactly one string argument.",
-	ci->key);
+    WARNING ("`%s' needs exactly one string argument.", ci->key);
     return (-1);
   }
 
   item = calloc (1, sizeof (*item));
   if (item == NULL)
   {
-    ERROR ("powerdns plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
   item->instance = strdup (ci->values[0].value.string);
   if (item->instance == NULL)
   {
-    ERROR ("powerdns plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (item);
     return (-1);
   }
@@ -885,7 +878,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string (option, &socket_temp);
     else
     {
-      ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
+      ERROR ("Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
@@ -899,7 +892,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
     if (socket_temp == NULL)
     {
-      ERROR ("powerdns plugin: socket_temp == NULL.");
+      ERROR ("socket_temp == NULL.");
       status = -1;
       break;
     }
@@ -911,7 +904,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     e = llentry_create (item->instance, item);
     if (e == NULL)
     {
-      ERROR ("powerdns plugin: llentry_create failed.");
+      ERROR ("llentry_create failed.");
       status = -1;
       break;
     }
@@ -927,7 +920,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  DEBUG ("powerdns plugin: Add server: instance = %s;", item->instance);
+  DEBUG ("Add server: instance = %s;", item->instance);
 
   sfree (socket_temp);
   return (0);
@@ -935,7 +928,7 @@ static int powerdns_config_add_server (oconfig_item_t *ci) /* {{{ */
 
 static int powerdns_config (oconfig_item_t *ci) /* {{{ */
 {
-  DEBUG ("powerdns plugin: powerdns_config (ci = %p);", (void *) ci);
+  DEBUG ("powerdns_config (ci = %p);", (void *) ci);
 
   if (list == NULL)
   {
@@ -943,7 +936,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
 
     if (list == NULL)
     {
-      ERROR ("powerdns plugin: `llist_create' failed.");
+      ERROR ("`llist_create' failed.");
       return (-1);
     }
   }
@@ -959,7 +952,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
     {
       if ((option->values_num != 1) || (option->values[0].type != OCONFIG_TYPE_STRING))
       {
-        WARNING ("powerdns plugin: `%s' needs exactly one string argument.", option->key);
+        WARNING ("`%s' needs exactly one string argument.", option->key);
       }
       else
       {
@@ -972,7 +965,7 @@ static int powerdns_config (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      ERROR ("powerdns plugin: Option `%s' not allowed here.", option->key);
+      ERROR ("Option `%s' not allowed here.", option->key);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 

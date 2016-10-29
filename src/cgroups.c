@@ -77,7 +77,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
-		ERROR ("cgroups plugin: stat (\"%s\") failed.",
+		ERROR ("stat (\"%s\") failed.",
 				abs_path);
 		return (-1);
 	}
@@ -92,7 +92,7 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cgroups plugin: fopen (\"%s\") failed: %s",
+		ERROR ("fopen (\"%s\") failed: %s",
 				abs_path,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
@@ -158,7 +158,7 @@ static int read_cpuacct_root (const char *dirname, const char *filename,
 	status = lstat (abs_path, &statbuf);
 	if (status != 0)
 	{
-		ERROR ("cgroups plugin: stat (%s) failed.", abs_path);
+		ERROR ("stat (%s) failed.", abs_path);
 		return (-1);
 	}
 
@@ -210,7 +210,7 @@ static int cgroups_read (void)
 
 	if (cu_mount_getlist (&mnt_list) == NULL)
 	{
-		ERROR ("cgroups plugin: cu_mount_getlist failed.");
+		ERROR ("cu_mount_getlist failed.");
 		return (-1);
 	}
 
@@ -236,7 +236,7 @@ static int cgroups_read (void)
 
 	if (!cgroup_found)
 	{
-		WARNING ("cgroups plugin: Unable to find cgroup "
+		WARNING ("Unable to find cgroup "
 				"mount-point with the \"cpuacct\" option.");
 		return (-1);
 	}

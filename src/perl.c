@@ -96,11 +96,6 @@
 
 #define FC_CB_TYPES   3
 
-#define log_debug(...) DEBUG ("perl: " __VA_ARGS__)
-#define log_info(...) INFO ("perl: " __VA_ARGS__)
-#define log_warn(...) WARNING ("perl: " __VA_ARGS__)
-#define log_err(...) ERROR ("perl: " __VA_ARGS__)
-
 /* this is defined in DynaLoader.a */
 void boot_DynaLoader (PerlInterpreter *, CV *);
 
@@ -305,7 +300,7 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 		sstrncpy (ds->name, SvPV_nolen (*tmp), sizeof (ds->name));
 	}
 	else {
-		log_err ("hv2data_source: No DS name given.");
+		ERROR ("hv2data_source: No DS name given.");
 		return -1;
 	}
 
@@ -316,7 +311,7 @@ static int hv2data_source (pTHX_ HV *hash, data_source_t *ds)
 				&& (DS_TYPE_GAUGE != ds->type)
 				&& (DS_TYPE_DERIVE != ds->type)
 				&& (DS_TYPE_ABSOLUTE != ds->type)) {
-			log_err ("hv2data_source: Invalid DS type.");
+			ERROR ("hv2data_source: Invalid DS type.");
 			return -1;
 		}
 	}
@@ -347,16 +342,16 @@ static size_t av2value (pTHX_ char *name, AV *array, value_t *value, size_t arra
 
 	ds = plugin_get_ds (name);
 	if (NULL == ds) {
-		log_err ("av2value: Unknown dataset \"%s\"", name);
+		ERROR ("av2value: Unknown dataset \"%s\"", name);
 		return 0;
 	}
 
 	if (array_len < ds->ds_num) {
-		log_warn ("av2value: array does not contain enough elements for type \"%s\": got %zu, want %zu",
+		WARNING ("av2value: array does not contain enough elements for type \"%s\": got %zu, want %zu",
 				name, array_len, ds->ds_num);
 		return 0;
 	} else if (array_len > ds->ds_num) {
-		log_warn ("av2value: array contains excess elements for type \"%s\": got %zu, want %zu",
+		WARNING ("av2value: array contains excess elements for type \"%s\": got %zu, want %zu",
 				name, array_len, ds->ds_num);
 	}
 
@@ -400,7 +395,7 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 		return -1;
 
 	if (NULL == (tmp = hv_fetch (hash, "type", 4, 0))) {
-		log_err ("hv2value_list: No type given.");
+		ERROR ("hv2value_list: No type given.");
 		return -1;
 	}
 
@@ -408,7 +403,7 @@ static int hv2value_list (pTHX_ HV *hash, value_list_t *vl)
 
 	if ((NULL == (tmp = hv_fetch (hash, "values", 6, 0)))
 			|| (! (SvROK (*tmp) && (SVt_PVAV == SvTYPE (SvRV (*tmp)))))) {
-		log_err ("hv2value_list: No valid values given.");
+		ERROR ("hv2value_list: No valid values given.");
 		return -1;
 	}
 
@@ -467,7 +462,7 @@ static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
 	len = av_len (array);
 
 	if (-1 == len) {
-		log_err ("av2data_set: Invalid data set.");
+		ERROR ("av2data_set: Invalid data set.");
 		return -1;
 	}
 
@@ -478,19 +473,19 @@ static int av2data_set (pTHX_ AV *array, char *name, data_set_t *ds)
 		SV **elem = av_fetch (array, i, 0);
 
 		if (NULL == elem) {
-			log_err ("av2data_set: Failed to fetch data source %i.", i);
+			ERROR ("av2data_set: Failed to fetch data source %i.", i);
 			return -1;
 		}
 
 		if (! (SvROK (*elem) && (SVt_PVHV == SvTYPE (SvRV (*elem))))) {
-			log_err ("av2data_set: Invalid data source.");
+			ERROR ("av2data_set: Invalid data source.");
 			return -1;
 		}
 
 		if (-1 == hv2data_source (aTHX_ (HV *)SvRV (*elem), &ds->ds[i]))
 			return -1;
 
-		log_debug ("av2data_set: "
+		DEBUG ("av2data_set: "
 				"DS.name = \"%s\", DS.type = %i, DS.min = %f, DS.max = %f",
 				ds->ds[i].name, ds->ds[i].type, ds->ds[i].min, ds->ds[i].max);
 	}
@@ -527,7 +522,7 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 			return -1;
 
 		if (! (SvROK (*tmp) && (SVt_PVHV == SvTYPE (SvRV (*tmp))))) {
-			log_warn ("av2notification_meta: Skipping invalid "
+			WARNING ("av2notification_meta: Skipping invalid "
 					"meta information.");
 			continue;
 		}
@@ -537,7 +532,7 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 		*m = smalloc (sizeof (**m));
 
 		if (NULL == (tmp = hv_fetch (hash, "name", 4, 0))) {
-			log_warn ("av2notification_meta: Skipping invalid "
+			WARNING ("av2notification_meta: Skipping invalid "
 					"meta information.");
 			free (*m);
 			continue;
@@ -545,7 +540,7 @@ static int av2notification_meta (pTHX_ AV *array, notification_meta_t **meta)
 		sstrncpy ((*m)->name, SvPV_nolen (*tmp), sizeof ((*m)->name));
 
 		if (NULL == (tmp = hv_fetch (hash, "value", 5, 0))) {
-			log_warn ("av2notification_meta: Skipping invalid "
+			WARNING ("av2notification_meta: Skipping invalid "
 					"meta information.");
 			free (*m);
 			continue;
@@ -619,7 +614,7 @@ static int hv2notification (pTHX_ HV *hash, notification_t *n)
 	n->meta = NULL;
 	while (NULL != (tmp = hv_fetch (hash, "meta", 4, 0))) {
 		if (! (SvROK (*tmp) && (SVt_PVAV == SvTYPE (SvRV (*tmp))))) {
-			log_warn ("hv2notification: Ignoring invalid meta information.");
+			WARNING ("hv2notification: Ignoring invalid meta information.");
 			break;
 		}
 
@@ -865,7 +860,7 @@ static int oconfig_item2hv (pTHX_ oconfig_item_t *ci, HV *hash)
 				value = ci->values[i].value.boolean ? &PL_sv_yes : &PL_sv_no;
 				break;
 			default:
-				log_err ("oconfig_item2hv: Invalid value type %i.",
+				ERROR ("oconfig_item2hv: Invalid value type %i.",
 						ci->values[i].type);
 				value = &PL_sv_undef;
 		}
@@ -995,7 +990,7 @@ static int pplugin_write (pTHX_ const char *plugin, AV *data_set, HV *values)
 
 	ret = plugin_write (plugin, NULL == data_set ? NULL : &ds, &vl);
 	if (0 != ret)
-		log_warn ("Dispatching value to plugin \"%s\" failed with status %i.",
+		WARNING ("Dispatching value to plugin \"%s\" failed with status %i.",
 				NULL == plugin ? "<any>" : plugin, ret);
 
 	if (NULL != data_set)
@@ -1214,7 +1209,7 @@ static int pplugin_call (pTHX_ int type, ...)
 	SPAGAIN;
 	if (SvTRUE(ERRSV)) {
 		if (PLUGIN_LOG != type)
-			ERROR ("perl: %s error: %s", subname, SvPV_nolen(ERRSV));
+			ERROR ("%s error: %s", subname, SvPV_nolen(ERRSV));
 		ret = -1;
 	}
 	else if (0 < retvals) {
@@ -1249,7 +1244,7 @@ static void c_ithread_destroy (c_ithread_t *ithread)
 	   c_ithread_destroy -> log_debug -> perl_log()
 	*/
 	ithread->running = 1;
-	log_debug ("Shutting down Perl interpreter %p...", aTHX);
+	DEBUG ("Shutting down Perl interpreter %p...", aTHX);
 
 #if COLLECT_DEBUG
 	sv_report_used ();
@@ -1473,7 +1468,7 @@ static int fc_call (pTHX_ int type, int cb_type, pfc_user_data_t *data, ...)
 
 	SPAGAIN;
 	if (SvTRUE(ERRSV)) {
-		ERROR ("perl: Collectd::fc_call error: %s", SvPV_nolen(ERRSV));
+		ERROR ("Collectd::fc_call error: %s", SvPV_nolen(ERRSV));
 		ret = -1;
 	}
 	else if (0 < retvals) {
@@ -1516,12 +1511,12 @@ static int fc_create (int type, const oconfig_item_t *ci, void **user_data)
 		aTHX = t->interp;
 	}
 
-	log_debug ("fc_create: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("fc_create: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_warn ("A \"%s\" block expects a single string argument.",
+		WARNING ("A \"%s\" block expects a single string argument.",
 				(FC_MATCH == type) ? "Match" : "Target");
 		return -1;
 	}
@@ -1560,7 +1555,7 @@ static int fc_destroy (int type, void **user_data)
 		aTHX = t->interp;
 	}
 
-	log_debug ("fc_destroy: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("fc_destroy: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	ret = fc_call (aTHX_ type, FC_CB_DESTROY, data);
@@ -1592,7 +1587,7 @@ static int fc_exec (int type, const data_set_t *ds, const value_list_t *vl,
 		aTHX = t->interp;
 	}
 
-	log_debug ("fc_exec: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("fc_exec: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	return fc_call (aTHX_ type, FC_CB_EXEC, data, ds, vl, meta);
@@ -1654,18 +1649,18 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 	dXSARGS;
 
 	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_register_%s(pluginname, subname)",
+		ERROR ("Usage: Collectd::plugin_register_%s(pluginname, subname)",
 					desc);
 		XSRETURN_EMPTY;
 	}
 
 	if (! SvOK (ST (0))) {
-		log_err ("Collectd::plugin_register_%s(pluginname, subname): "
+		ERROR ("Collectd::plugin_register_%s(pluginname, subname): "
 		         "Invalid pluginname", desc);
 		XSRETURN_EMPTY;
 	}
 	if (! SvOK (ST (1))) {
-		log_err ("Collectd::plugin_register_%s(pluginname, subname): "
+		ERROR ("Collectd::plugin_register_%s(pluginname, subname): "
 		         "Invalid subname", desc);
 		XSRETURN_EMPTY;
 	}
@@ -1673,7 +1668,7 @@ static void _plugin_register_generic_userdata (pTHX, int type, const char *desc)
 	/* Use pluginname as-is to allow flush a single perl plugin */
 	pluginname = SvPV_nolen (ST (0));
 
-	log_debug ("Collectd::plugin_register_%s: "
+	DEBUG ("Collectd::plugin_register_%s: "
 			"plugin = \"%s\", sub = \"%s\"",
 			desc, pluginname, SvPV_nolen (ST (1)));
 
@@ -1757,17 +1752,17 @@ static void _plugin_unregister_generic (pTHX,
 	dXSARGS;
 
 	if (1 != items) {
-		log_err ("Usage: Collectd::plugin_unregister_%s(pluginname)", desc);
+		ERROR ("Usage: Collectd::plugin_unregister_%s(pluginname)", desc);
 		XSRETURN_EMPTY;
 	}
 
 	if (! SvOK (ST (0))) {
-		log_err ("Collectd::plugin_unregister_%s(pluginname): "
+		ERROR ("Collectd::plugin_unregister_%s(pluginname): "
 		         "Invalid pluginname", desc);
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_unregister_%s: plugin = \"%s\"",
+	DEBUG ("Collectd::plugin_unregister_%s: plugin = \"%s\"",
 			desc, SvPV_nolen (ST (0)));
 
 	unreg(SvPV_nolen (ST (0)));
@@ -1828,15 +1823,15 @@ static XS (Collectd_plugin_register_ds)
 
 	dXSARGS;
 
-	log_warn ("Using plugin_register() to register new data-sets is "
+	WARNING ("Using plugin_register() to register new data-sets is "
 			"deprecated - add new entries to a custom types.db instead.");
 
 	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_register_data_set(type, dataset)");
+		ERROR ("Usage: Collectd::plugin_register_data_set(type, dataset)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_register_data_set: "
+	DEBUG ("Collectd::plugin_register_data_set: "
 			"type = \"%s\", dataset = \"%s\"",
 			SvPV_nolen (ST (0)), SvPV_nolen (ST (1)));
 
@@ -1847,7 +1842,7 @@ static XS (Collectd_plugin_register_ds)
 				(AV *)SvRV (data));
 	}
 	else {
-		log_err ("Collectd::plugin_register_data_set: Invalid data.");
+		ERROR ("Collectd::plugin_register_data_set: Invalid data.");
 		XSRETURN_EMPTY;
 	}
 
@@ -1868,11 +1863,11 @@ static XS (Collectd_plugin_unregister_ds)
 	dXSARGS;
 
 	if (1 != items) {
-		log_err ("Usage: Collectd::plugin_unregister_data_set(type)");
+		ERROR ("Usage: Collectd::plugin_unregister_data_set(type)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_unregister_data_set: type = \"%s\"",
+	DEBUG ("Collectd::plugin_unregister_data_set: type = \"%s\"",
 			SvPV_nolen (ST (0)));
 
 	if (0 == pplugin_unregister_data_set (SvPV_nolen (ST (0))))
@@ -1899,11 +1894,11 @@ static XS (Collectd_plugin_dispatch_values)
 	dXSARGS;
 
 	if (1 != items) {
-		log_err ("Usage: Collectd::plugin_dispatch_values(values)");
+		ERROR ("Usage: Collectd::plugin_dispatch_values(values)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_dispatch_values: values=\"%s\"",
+	DEBUG ("Collectd::plugin_dispatch_values: values=\"%s\"",
 			SvPV_nolen (ST (/* stack index = */ 0)));
 
 	values = ST (/* stack index = */ 0);
@@ -1913,7 +1908,7 @@ static XS (Collectd_plugin_dispatch_values)
 
 	/* Make sure the argument is a hash reference. */
 	if (! (SvROK (values) && (SVt_PVHV == SvTYPE (SvRV (values))))) {
-		log_err ("Collectd::plugin_dispatch_values: Invalid values.");
+		ERROR ("Collectd::plugin_dispatch_values: Invalid values.");
 		XSRETURN_EMPTY;
 	}
 
@@ -1935,7 +1930,7 @@ static XS (Collectd_plugin_get_interval)
 	/* make sure we don't get any unused variable warnings for 'items';
 	 * don't abort, though */
 	if (items)
-		log_err ("Usage: Collectd::plugin_get_interval()");
+		ERROR ("Usage: Collectd::plugin_get_interval()");
 
 	XSRETURN_NV ((NV) CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
 } /* static XS (Collectd_plugin_get_interval) */
@@ -1962,11 +1957,11 @@ static XS (Collectd__plugin_write)
 	dXSARGS;
 
 	if (3 != items) {
-		log_err ("Usage: Collectd::plugin_write(plugin, ds, vl)");
+		ERROR ("Usage: Collectd::plugin_write(plugin, ds, vl)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_write: plugin=\"%s\", ds=\"%s\", vl=\"%s\"",
+	DEBUG ("Collectd::plugin_write: plugin=\"%s\", ds=\"%s\", vl=\"%s\"",
 			SvPV_nolen (ST (0)), SvOK (ST (1)) ? SvPV_nolen (ST (1)) : "",
 			SvPV_nolen (ST (2)));
 
@@ -1981,13 +1976,13 @@ static XS (Collectd__plugin_write)
 	else if (! SvOK (ds))
 		ds_array = NULL;
 	else {
-		log_err ("Collectd::plugin_write: Invalid data-set.");
+		ERROR ("Collectd::plugin_write: Invalid data-set.");
 		XSRETURN_EMPTY;
 	}
 
 	vl = ST (2);
 	if (! (SvROK (vl) && (SVt_PVHV == SvTYPE (SvRV (vl))))) {
-		log_err ("Collectd::plugin_write: Invalid value-list.");
+		ERROR ("Collectd::plugin_write: Invalid value-list.");
 		XSRETURN_EMPTY;
 	}
 
@@ -2020,7 +2015,7 @@ static XS (Collectd__plugin_flush)
 	dXSARGS;
 
 	if (3 != items) {
-		log_err ("Usage: Collectd::_plugin_flush(plugin, timeout, id)");
+		ERROR ("Usage: Collectd::_plugin_flush(plugin, timeout, id)");
 		XSRETURN_EMPTY;
 	}
 
@@ -2033,7 +2028,7 @@ static XS (Collectd__plugin_flush)
 	if (SvOK (ST (2)))
 		id = SvPV_nolen (ST (2));
 
-	log_debug ("Collectd::_plugin_flush: plugin = \"%s\", timeout = %i, "
+	DEBUG ("Collectd::_plugin_flush: plugin = \"%s\", timeout = %i, "
 			"id = \"%s\"", plugin, timeout, id);
 
 	if (0 == plugin_flush (plugin, timeout, id))
@@ -2057,17 +2052,17 @@ static XS (Collectd_plugin_dispatch_notification)
 	dXSARGS;
 
 	if (1 != items) {
-		log_err ("Usage: Collectd::plugin_dispatch_notification(notif)");
+		ERROR ("Usage: Collectd::plugin_dispatch_notification(notif)");
 		XSRETURN_EMPTY;
 	}
 
-	log_debug ("Collectd::plugin_dispatch_notification: notif = \"%s\"",
+	DEBUG ("Collectd::plugin_dispatch_notification: notif = \"%s\"",
 			SvPV_nolen (ST (0)));
 
 	notif = ST (0);
 
 	if (! (SvROK (notif) && (SVt_PVHV == SvTYPE (SvRV (notif))))) {
-		log_err ("Collectd::plugin_dispatch_notification: Invalid notif.");
+		ERROR ("Collectd::plugin_dispatch_notification: Invalid notif.");
 		XSRETURN_EMPTY;
 	}
 
@@ -2083,7 +2078,7 @@ static XS (Collectd_plugin_dispatch_notification)
  * Collectd::plugin_log (level, message).
  *
  * level:
- *   log level (LOG_DEBUG, ... LOG_ERR)
+ *   log level (LOG_DEBUG, ... LOG_ERROR)
  *
  * message:
  *   log message
@@ -2093,7 +2088,7 @@ static XS (Collectd_plugin_log)
 	dXSARGS;
 
 	if (2 != items) {
-		log_err ("Usage: Collectd::plugin_log(level, message)");
+		ERROR ("Usage: Collectd::plugin_log(level, message)");
 		XSRETURN_EMPTY;
 	}
 
@@ -2120,7 +2115,7 @@ static XS (Collectd__fc_register)
 	dXSARGS;
 
 	if (2 != items) {
-		log_err ("Usage: Collectd::_fc_register(type, name)");
+		ERROR ("Usage: Collectd::_fc_register(type, name)");
 		XSRETURN_EMPTY;
 	}
 
@@ -2189,7 +2184,7 @@ static int perl_init (void)
 		aTHX = t->interp;
 	}
 
-	log_debug ("perl_init: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("perl_init: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	/* Lock the base thread to avoid race conditions with c_ithread_create().
@@ -2228,7 +2223,7 @@ static int perl_read (user_data_t *user_data)
 	 * https://github.com/collectd/collectd/issues/9 for details. */
 	assert (aTHX != perl_threads->head->interp);
 
-	log_debug ("perl_read: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("perl_read: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	return pplugin_call (aTHX_ PLUGIN_READ, user_data->data);
@@ -2259,7 +2254,7 @@ static int perl_write (const data_set_t *ds, const value_list_t *vl,
 	if (aTHX == perl_threads->head->interp)
 		pthread_mutex_lock (&perl_threads->mutex);
 
-	log_debug ("perl_write: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("perl_write: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 	status = pplugin_call (aTHX_ PLUGIN_WRITE, user_data->data, ds, vl);
 
@@ -2368,7 +2363,7 @@ static int perl_shutdown (void)
 		aTHX = t->interp;
 	}
 
-	log_debug ("perl_shutdown: c_ithread: interp = %p (active threads: %i)",
+	DEBUG ("perl_shutdown: c_ithread: interp = %p (active threads: %i)",
 			aTHX, perl_threads->number_of_threads);
 
 	plugin_unregister_init ("perl");
@@ -2390,14 +2385,14 @@ static int perl_shutdown (void)
 		thr->shutdown = 1;
 		if (thr->running) {
 			/* Give some time to thread to exit from Perl interpreter */
-			WARNING ("perl shutdown: Thread is running inside Perl. Waiting.");
+			WARNING ("shutdown: Thread is running inside Perl. Waiting.");
 			ts_wait.tv_sec = 0;
 			ts_wait.tv_nsec = 500000;
 			nanosleep (&ts_wait, NULL);
 		}
 		if (thr->running) {
 			pthread_kill (thr->pthread, SIGTERM);
-			ERROR ("perl shutdown: Thread hangs inside Perl. Thread killed.");
+			ERROR ("shutdown: Thread hangs inside Perl. Thread killed.");
 		}
 		c_ithread_destroy (thr);
 	}
@@ -2439,7 +2434,7 @@ static int g_pv_set (pTHX_ SV *var, MAGIC *mg)
 
 static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 {
-	log_warn ("Accessing $interval_g is deprecated (and might not "
+	WARNING ("Accessing $interval_g is deprecated (and might not "
 			"give the desired results) - plugin_get_interval() should "
 			"be used instead.");
 	sv_setnv (var, CDTIME_T_TO_DOUBLE (interval_g));
@@ -2449,7 +2444,7 @@ static int g_interval_get (pTHX_ SV *var, MAGIC *mg)
 static int g_interval_set (pTHX_ SV *var, MAGIC *mg)
 {
 	double nv = (double)SvNV (var);
-	log_warn ("Accessing $interval_g is deprecated (and might not "
+	WARNING ("Accessing $interval_g is deprecated (and might not "
 			"give the desired results) - plugin_get_interval() should "
 			"be used instead.");
 	interval_g = DOUBLE_TO_CDTIME_T (nv);
@@ -2519,16 +2514,16 @@ static int init_pi (int argc, char **argv)
 	if (NULL != perl_threads)
 		return 0;
 
-	log_info ("Initializing Perl interpreter...");
+	INFO ("Initializing Perl interpreter...");
 #if COLLECT_DEBUG
 	{
 		for (int i = 0; i < argc; ++i)
-			log_debug ("argv[%i] = \"%s\"", i, argv[i]);
+			DEBUG ("argv[%i] = \"%s\"", i, argv[i]);
 	}
 #endif /* COLLECT_DEBUG */
 
 	if (0 != pthread_key_create (&perl_thr_key, c_ithread_destructor)) {
-		log_err ("init_pi: pthread_key_create failed");
+		ERROR ("init_pi: pthread_key_create failed");
 
 		/* this must not happen - cowardly giving up if it does */
 		return -1;
@@ -2555,7 +2550,7 @@ static int init_pi (int argc, char **argv)
 	perl_threads->tail = perl_threads->head;
 
 	if (NULL == (perl_threads->head->interp = perl_alloc ())) {
-		log_err ("init_pi: Not enough memory.");
+		ERROR ("init_pi: Not enough memory.");
 		exit (3);
 	}
 
@@ -2568,7 +2563,7 @@ static int init_pi (int argc, char **argv)
 
 	if (0 != perl_parse (aTHX_ xs_init, argc, argv, NULL)) {
 		SV *err = get_sv ("@", 1);
-		log_err ("init_pi: Unable to bootstrap Collectd: %s",
+		ERROR ("init_pi: Unable to bootstrap Collectd: %s",
 				SvPV_nolen (err));
 
 		perl_destruct (perl_threads->head->interp);
@@ -2600,14 +2595,14 @@ static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("LoadPlugin expects a single string argument.");
+		ERROR ("LoadPlugin expects a single string argument.");
 		return 1;
 	}
 
 	value = ci->values[0].value.string;
 
 	if (NULL == get_module_name (module_name, sizeof (module_name), value)) {
-		log_err ("Invalid module name %s", value);
+		ERROR ("Invalid module name %s", value);
 		return (1);
 	}
 
@@ -2619,7 +2614,7 @@ static int perl_config_loadplugin (pTHX_ oconfig_item_t *ci)
 
 	aTHX = perl_threads->head->interp;
 
-	log_debug ("perl_config: Loading Perl plugin \"%s\"", value);
+	DEBUG ("perl_config: Loading Perl plugin \"%s\"", value);
 	load_module (PERL_LOADMOD_NOIMPORT,
 			newSVpv (module_name, strlen (module_name)), Nullsv);
 	return 0;
@@ -2634,13 +2629,13 @@ static int perl_config_basename (pTHX_ oconfig_item_t *ci)
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("BaseName expects a single string argument.");
+		ERROR ("BaseName expects a single string argument.");
 		return 1;
 	}
 
 	value = ci->values[0].value.string;
 
-	log_debug ("perl_config: Setting plugin basename to \"%s\"", value);
+	DEBUG ("perl_config: Setting plugin basename to \"%s\"", value);
 	sstrncpy (base_name, value, sizeof (base_name));
 	return 0;
 } /* static int perl_config_basename (oconfig_item_it *) */
@@ -2654,12 +2649,12 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("EnableDebugger expects a single string argument.");
+		ERROR ("EnableDebugger expects a single string argument.");
 		return 1;
 	}
 
 	if (NULL != perl_threads) {
-		log_warn ("EnableDebugger has no effects if used after LoadPlugin.");
+		WARNING ("EnableDebugger has no effects if used after LoadPlugin.");
 		return 1;
 	}
 
@@ -2669,7 +2664,7 @@ static int perl_config_enabledebugger (pTHX_ oconfig_item_t *ci)
 			(++perl_argc + 1) * sizeof (char *));
 
 	if (NULL == perl_argv) {
-		log_err ("perl_config: Not enough memory.");
+		ERROR ("perl_config: Not enough memory.");
 		exit (3);
 	}
 
@@ -2695,7 +2690,7 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("IncludeDir expects a single string argument.");
+		ERROR ("IncludeDir expects a single string argument.");
 		return 1;
 	}
 
@@ -2706,7 +2701,7 @@ static int perl_config_includedir (pTHX_ oconfig_item_t *ci)
 				(++perl_argc + 1) * sizeof (char *));
 
 		if (NULL == perl_argv) {
-			log_err ("perl_config: Not enough memory.");
+			ERROR ("perl_config: Not enough memory.");
 			exit (3);
 		}
 
@@ -2738,7 +2733,7 @@ static int perl_config_plugin (pTHX_ oconfig_item_t *ci)
 	dSP;
 
 	if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("LoadPlugin expects a single string argument.");
+		ERROR ("LoadPlugin expects a single string argument.");
 		return 1;
 	}
 
@@ -2749,7 +2744,7 @@ static int perl_config_plugin (pTHX_ oconfig_item_t *ci)
 		hv_clear (config);
 		hv_undef (config);
 
-		log_err ("Unable to convert configuration to a Perl hash value.");
+		ERROR ("Unable to convert configuration to a Perl hash value.");
 		config = (HV *)&PL_sv_undef;
 	}
 
@@ -2810,13 +2805,13 @@ static int perl_config (oconfig_item_t *ci)
 			cf_util_get_boolean (c, &register_legacy_flush);
 		else
 		{
-			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+			WARNING ("Ignoring unknown config key \"%s\".", c->key);
 			current_status = 0;
 		}
 
 		/* fatal error - it's up to perl_config_* to clean up */
 		if (0 > current_status) {
-			log_err ("Configuration failed with a fatal error - "
+			ERROR ("Configuration failed with a fatal error - "
 					"plugin disabled!");
 			return current_status;
 		}

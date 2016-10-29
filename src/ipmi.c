@@ -98,7 +98,7 @@ static void c_ipmi_error (const char *func, int status)
   }
   errbuf[sizeof (errbuf) - 1] = 0;
 
-  ERROR ("ipmi plugin: %s failed: %s", func, errbuf);
+  ERROR ("%s failed: %s", func, errbuf);
 } /* void c_ipmi_error */
 
 /*
@@ -127,7 +127,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
       {
         list_item->sensor_not_present = 1;
 
-        INFO ("ipmi plugin: sensor_read_handler: sensor %s "
+        INFO ("sensor_read_handler: sensor %s "
             "not present.", list_item->sensor_name);
 
         if (c_ipmi_nofiy_notpresent)
@@ -148,29 +148,29 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
     }
     else if (IPMI_IS_IPMI_ERR(err) && IPMI_GET_IPMI_ERR(err) == IPMI_NOT_SUPPORTED_IN_PRESENT_STATE_CC)
     {
-      INFO ("ipmi plugin: sensor_read_handler: Sensor %s not ready",
+      INFO ("sensor_read_handler: Sensor %s not ready",
           list_item->sensor_name);
     }
     else
     {
       if (IPMI_IS_IPMI_ERR(err))
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("sensor_read_handler: Removing sensor %s, "
             "because it failed with IPMI error %#x.",
             list_item->sensor_name, IPMI_GET_IPMI_ERR(err));
       else if (IPMI_IS_OS_ERR(err))
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("sensor_read_handler: Removing sensor %s, "
             "because it failed with OS error %#x.",
             list_item->sensor_name, IPMI_GET_OS_ERR(err));
       else if (IPMI_IS_RMCPP_ERR(err))
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("sensor_read_handler: Removing sensor %s, "
             "because it failed with RMCPP error %#x.",
             list_item->sensor_name, IPMI_GET_RMCPP_ERR(err));
       else if (IPMI_IS_SOL_ERR(err))
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("sensor_read_handler: Removing sensor %s, "
             "because it failed with RMCPP error %#x.",
             list_item->sensor_name, IPMI_GET_SOL_ERR(err));
       else
-        INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+        INFO ("sensor_read_handler: Removing sensor %s, "
             "because it failed with error %#x. of class %#x",
             list_item->sensor_name, err & 0xff, err & 0xffffff00);
       sensor_list_remove (sensor);
@@ -181,8 +181,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
   {
     list_item->sensor_not_present = 0;
 
-    INFO ("ipmi plugin: sensor_read_handler: sensor %s present.",
-        list_item->sensor_name);
+    INFO ("sensor_read_handler: sensor %s present.", list_item->sensor_name);
 
     if (c_ipmi_nofiy_notpresent)
     {
@@ -202,7 +201,7 @@ static void sensor_read_handler (ipmi_sensor_t *sensor,
 
   if (value_present != IPMI_BOTH_VALUES_PRESENT)
   {
-    INFO ("ipmi plugin: sensor_read_handler: Removing sensor %s, "
+    INFO ("sensor_read_handler: Removing sensor %s, "
         "because it provides %s. If you need this sensor, "
         "please file a bug report.",
         list_item->sensor_name,
@@ -307,7 +306,7 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
         const char *sensor_type_str;
 
         sensor_type_str = ipmi_sensor_get_sensor_type_string (sensor);
-        INFO ("ipmi plugin: sensor_list_add: Ignore sensor %s, "
+        INFO ("sensor_list_add: Ignore sensor %s, "
             "because I don't know how to handle its type (%#x, %s). "
             "If you need this sensor, please file a bug report.",
             sensor_name_ptr, sensor_type, sensor_type_str);
@@ -549,7 +548,7 @@ static int thread_init (os_handler_t **ret_os_handler)
   os_handler = ipmi_posix_thread_setup_os_handler (SIGIO);
   if (os_handler == NULL)
   {
-    ERROR ("ipmi plugin: ipmi_posix_thread_setup_os_handler failed.");
+    ERROR ("ipmi_posix_thread_setup_os_handler failed.");
     return (-1);
   }
 
@@ -595,7 +594,7 @@ static void *thread_main (void __attribute__((unused)) *user_data)
   status = thread_init (&os_handler);
   if (status != 0)
   {
-    ERROR ("ipmi plugin: thread_init failed.\n");
+    ERROR ("thread_init failed.\n");
     return ((void *) -1);
   }
 
@@ -667,7 +666,7 @@ static int c_ipmi_init (void)
   {
     c_ipmi_active = 0;
     thread_id = (pthread_t) 0;
-    ERROR ("ipmi plugin: pthread_create failed.");
+    ERROR ("pthread_create failed.");
     return (-1);
   }
 
@@ -678,7 +677,7 @@ static int c_ipmi_read (void)
 {
   if ((c_ipmi_active == 0) || (thread_id == (pthread_t) 0))
   {
-    INFO ("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
+    INFO ("c_ipmi_read: I'm not active, returning false.");
     return (-1);
   }
 

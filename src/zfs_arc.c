@@ -80,7 +80,7 @@ static long long get_zfs_value(kstat_t *ksp, const char *key)
 	e = llist_search (ksp, key);
 	if (e == NULL)
 	{
-		ERROR ("zfs_arc plugin: `llist_search` failed for key: '%s'.", key);
+		ERROR ("`llist_search` failed for key: '%s'.", key);
 		return (-1);
 	}
 
@@ -163,7 +163,7 @@ static int za_read_derive (kstat_t *ksp, const char *kstat_value,
   long long tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
-    WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    WARNING ("Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
@@ -177,7 +177,7 @@ static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
   long long tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
-    WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    WARNING ("Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
@@ -213,7 +213,7 @@ static int za_read (void)
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("zfs_arc plugin: Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
+		ERROR ("Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
 		       sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -221,7 +221,7 @@ static int za_read (void)
 	ksp = llist_create ();
 	if (ksp == NULL)
 	{
-		ERROR ("zfs_arc plugin: `llist_create' failed.");
+		ERROR ("`llist_create' failed.");
 		fclose (fh);
 		return (-1);
 	}
@@ -249,7 +249,7 @@ static int za_read (void)
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
-		ERROR ("zfs_arc plugin: Cannot find zfs:0:arcstats kstat.");
+		ERROR ("Cannot find zfs:0:arcstats kstat.");
 		return (-1);
 	}
 #endif
@@ -337,7 +337,7 @@ static int za_init (void) /* {{{ */
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{
-		ERROR ("zfs_arc plugin: kstat chain control structure not available.");
+		ERROR ("kstat chain control structure not available.");
 		return (-1);
 	}
 #endif

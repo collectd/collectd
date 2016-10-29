@@ -93,32 +93,6 @@ struct udb_query_preparation_area_s /* {{{ */
 /*
  * Config Private functions
  */
-static int udb_config_set_string (char **ret_string, /* {{{ */
-    oconfig_item_t *ci)
-{
-  char *string;
-
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("db query utils: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
-    return (-1);
-  }
-
-  string = strdup (ci->values[0].value.string);
-  if (string == NULL)
-  {
-    ERROR ("db query utils: strdup failed.");
-    return (-1);
-  }
-
-  if (*ret_string != NULL)
-    free (*ret_string);
-  *ret_string = string;
-
-  return (0);
-} /* }}} int udb_config_set_string */
 
 static int udb_config_add_string (char ***ret_array, /* {{{ */
     size_t *ret_array_len, oconfig_item_t *ci)
@@ -128,7 +102,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
 
   if (ci->values_num < 1)
   {
-    WARNING ("db query utils: The `%s' config option "
+    WARNING ("The `%s' config option "
         "needs at least one argument.", ci->key);
     return (-1);
   }
@@ -137,7 +111,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
   {
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
-      WARNING ("db query utils: Argument %i to the `%s' option "
+      WARNING ("Argument %i to the `%s' option "
           "is not a string.", i + 1, ci->key);
       return (-1);
     }
@@ -148,7 +122,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
       sizeof (char *) * (array_len + ci->values_num));
   if (array == NULL)
   {
-    ERROR ("db query utils: realloc failed.");
+    ERROR ("udb_config_add_string: realloc failed.");
     return (-1);
   }
   *ret_array = array;
@@ -158,7 +132,7 @@ static int udb_config_add_string (char ***ret_array, /* {{{ */
     array[array_len] = strdup (ci->values[i].value.string);
     if (array[array_len] == NULL)
     {
-      ERROR ("db query utils: strdup failed.");
+      ERROR ("udb_config_add_string: strdup failed.");
       *ret_array_len = array_len;
       return (-1);
     }
@@ -177,7 +151,7 @@ static int udb_config_set_uint (unsigned int *ret_value, /* {{{ */
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
-    WARNING ("db query utils: The `%s' config option "
+    WARNING ("The `%s' config option "
         "needs exactly one numeric argument.", ci->key);
     return (-1);
   }
@@ -207,7 +181,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
   vl.values = calloc (r->values_num, sizeof (*vl.values));
   if (vl.values == NULL)
   {
-    ERROR ("db query utils: calloc failed.");
+    ERROR ("udb_result_submit: calloc failed.");
     return (-1);
   }
   vl.values_len = r_area->ds->ds_num;
@@ -218,7 +192,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
 
     if (0 != parse_value (value_str, &vl.values[i], r_area->ds->ds[i].type))
     {
-      ERROR ("db query utils: udb_result_submit: Parsing `%s' as %s failed.",
+      ERROR ("udb_result_submit: Parsing `%s' as %s failed.",
           value_str, DS_TYPE_TO_STRING (r_area->ds->ds[i].type));
       errno = EINVAL;
       free (vl.values);
@@ -290,7 +264,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
     vl.meta = meta_data_create ();
     if (vl.meta == NULL)
     {
-      ERROR ("db query utils:: meta_data_create failed.");
+      ERROR ("udb_result_submit: meta_data_create failed.");
       return (-ENOMEM);
     }
 
@@ -300,7 +274,7 @@ static int udb_result_submit (udb_result_t *r, /* {{{ */
           r_area->metadata_buffer[i]);
       if (status != 0)
       {
-        ERROR ("db query utils:: meta_data_add_string failed.");
+        ERROR ("udb_result_submit: meta_data_add_string failed.");
         meta_data_destroy (vl.meta);
         vl.meta = NULL;
         return (status);
@@ -384,7 +358,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
   prep_area->ds = plugin_get_ds (r->type);
   if (prep_area->ds == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: Type `%s' is not "
+    ERROR ("udb_result_prepare_result: Type `%s' is not "
         "known by the daemon. See types.db(5) for details.",
         r->type);
     BAIL_OUT (-1);
@@ -392,7 +366,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
   if (prep_area->ds->ds_num != r->values_num)
   {
-    ERROR ("db query utils: udb_result_prepare_result: The type `%s' "
+    ERROR ("udb_result_prepare_result: The type `%s' "
         "requires exactly %zu value%s, but the configuration specifies %zu.",
         r->type,
         prep_area->ds->ds_num, (prep_area->ds->ds_num == 1) ? "" : "s",
@@ -409,7 +383,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       = (size_t *) calloc (r->instances_num, sizeof (size_t));
     if (prep_area->instances_pos == NULL)
     {
-      ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
+      ERROR ("udb_result_prepare_result: calloc failed.");
       BAIL_OUT (-ENOMEM);
     }
 
@@ -417,7 +391,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
       = (char **) calloc (r->instances_num, sizeof (char *));
     if (prep_area->instances_buffer == NULL)
     {
-      ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
+      ERROR ("udb_result_prepare_result: calloc failed.");
       BAIL_OUT (-ENOMEM);
     }
   } /* if (r->instances_num > 0) */
@@ -426,7 +400,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (size_t *) calloc (r->values_num, sizeof (size_t));
   if (prep_area->values_pos == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
+    ERROR ("udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -434,7 +408,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (char **) calloc (r->values_num, sizeof (char *));
   if (prep_area->values_buffer == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
+    ERROR ("udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -442,7 +416,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (size_t *) calloc (r->metadata_num, sizeof (size_t));
   if (prep_area->metadata_pos == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
+    ERROR ("udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -450,7 +424,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
     = (char **) calloc (r->metadata_num, sizeof (char *));
   if (prep_area->metadata_buffer == NULL)
   {
-    ERROR ("db query utils: udb_result_prepare_result: calloc failed.");
+    ERROR ("udb_result_prepare_result: calloc failed.");
     BAIL_OUT (-ENOMEM);
   }
 
@@ -472,8 +446,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
     if (j >= column_num)
     {
-      ERROR ("db query utils: udb_result_prepare_result: "
-          "Column `%s' could not be found.",
+      ERROR ("udb_result_prepare_result: Column `%s' could not be found.",
           r->instances[i]);
       BAIL_OUT (-ENOENT);
     }
@@ -496,8 +469,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
     if (j >= column_num)
     {
-      ERROR ("db query utils: udb_result_prepare_result: "
-          "Column `%s' could not be found.",
+      ERROR ("udb_result_prepare_result: Column `%s' could not be found.",
           r->values[i]);
       BAIL_OUT (-ENOENT);
     }
@@ -519,7 +491,7 @@ static int udb_result_prepare_result (udb_result_t const *r, /* {{{ */
 
     if (j >= column_num)
     {
-      ERROR ("db query utils: udb_result_prepare_result: "
+      ERROR ("udb_result_prepare_result: "
           "Metadata column `%s' could not be found.",
           r->values[i]);
       BAIL_OUT (-ENOENT);
@@ -563,7 +535,7 @@ static int udb_result_create (const char *query_name, /* {{{ */
 
   if (ci->values_num != 0)
   {
-    WARNING ("db query utils: The `Result' block doesn't accept "
+    WARNING ("The `Result' block doesn't accept "
         "any arguments. Ignoring %i argument%s.",
         ci->values_num, (ci->values_num == 1) ? "" : "s");
   }
@@ -571,7 +543,7 @@ static int udb_result_create (const char *query_name, /* {{{ */
   r = calloc (1, sizeof (*r));
   if (r == NULL)
   {
-    ERROR ("db query utils: calloc failed.");
+    ERROR ("udb_result_create: calloc failed.");
     return (-1);
   }
   r->type = NULL;
@@ -588,9 +560,9 @@ static int udb_result_create (const char *query_name, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Type", child->key) == 0)
-      status = udb_config_set_string (&r->type, child);
+      status = cf_util_get_string(child, &r->type);
     else if (strcasecmp ("InstancePrefix", child->key) == 0)
-      status = udb_config_set_string (&r->instance_prefix, child);
+      status = cf_util_get_string(child, &r->instance_prefix);
     else if (strcasecmp ("InstancesFrom", child->key) == 0)
       status = udb_config_add_string (&r->instances, &r->instances_num, child);
     else if (strcasecmp ("ValuesFrom", child->key) == 0)
@@ -599,7 +571,7 @@ static int udb_result_create (const char *query_name, /* {{{ */
       status = udb_config_add_string (&r->metadata, &r->metadata_num, child);
     else
     {
-      WARNING ("db query utils: Query `%s': Option `%s' not allowed here.",
+      WARNING ("Query `%s': Option `%s' not allowed here.",
           query_name, child->key);
       status = -1;
     }
@@ -613,14 +585,12 @@ static int udb_result_create (const char *query_name, /* {{{ */
   {
     if (r->type == NULL)
     {
-      WARNING ("db query utils: `Type' not given for "
-          "result in query `%s'", query_name);
+      WARNING ("`Type' not given for result in query `%s'", query_name);
       status = -1;
     }
     if (r->values == NULL)
     {
-      WARNING ("db query utils: `ValuesFrom' not given for "
-          "result in query `%s'", query_name);
+      WARNING ("`ValuesFrom' not given for result in query `%s'", query_name);
       status = -1;
     }
 
@@ -690,15 +660,14 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("db query utils: The `Query' block "
-        "needs exactly one string argument.");
+    WARNING ("The `Query' block needs exactly one string argument.");
     return (-1);
   }
 
   q = calloc (1, sizeof (*q));
   if (q == NULL)
   {
-    ERROR ("db query utils: calloc failed.");
+    ERROR ("udb_query_create: calloc failed.");
     return (-1);
   }
   q->min_version = 0;
@@ -707,7 +676,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   q->results = NULL;
   q->plugin_instance_from = NULL;
 
-  status = udb_config_set_string (&q->name, ci);
+  status = cf_util_get_string (ci, &q->name);
   if (status != 0)
   {
     sfree (q);
@@ -720,7 +689,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp ("Statement", child->key) == 0)
-      status = udb_config_set_string (&q->statement, child);
+      status = cf_util_get_string (child, &q->statement);
     else if (strcasecmp ("Result", child->key) == 0)
       status = udb_result_create (q->name, &q->results, child);
     else if (strcasecmp ("MinVersion", child->key) == 0)
@@ -728,7 +697,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
     else if (strcasecmp ("MaxVersion", child->key) == 0)
       status = udb_config_set_uint (&q->max_version, child);
     else if (strcasecmp ("PluginInstanceFrom", child->key) == 0)
-      status = udb_config_set_string (&q->plugin_instance_from, child);
+      status = cf_util_get_string (child, &q->plugin_instance_from);
 
     /* Call custom callbacks */
     else if (cb != NULL)
@@ -736,13 +705,13 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
       status = (*cb) (q, child);
       if (status != 0)
       {
-        WARNING ("db query utils: The configuration callback failed "
-            "to handle `%s'.", child->key);
+        WARNING ("The configuration callback failed to handle `%s'.",
+            child->key);
       }
     }
     else
     {
-      WARNING ("db query utils: Query `%s': Option `%s' not allowed here.",
+      WARNING ("Query `%s': Option `%s' not allowed here.",
           q->name, child->key);
       status = -1;
     }
@@ -756,12 +725,12 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
   {
     if (q->statement == NULL)
     {
-      WARNING ("db query utils: Query `%s': No `Statement' given.", q->name);
+      WARNING ("Query `%s': No `Statement' given.", q->name);
       status = -1;
     }
     if (q->results == NULL)
     {
-      WARNING ("db query utils: Query `%s': No (valid) `Result' block given.",
+      WARNING ("Query `%s': No (valid) `Result' block given.",
           q->name);
       status = -1;
     }
@@ -777,7 +746,7 @@ int udb_query_create (udb_query_t ***ret_query_list, /* {{{ */
         sizeof (*query_list) * (query_list_len + 1));
     if (temp == NULL)
     {
-      ERROR ("db query utils: realloc failed");
+      ERROR ("udb_query_create: realloc failed");
       status = -1;
     }
     else
@@ -820,8 +789,7 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
   if ((name == NULL) || (src_list == NULL) || (dst_list == NULL)
       || (dst_list_len == NULL))
   {
-    ERROR ("db query utils: udb_query_pick_from_list_by_name: "
-        "Invalid argument.");
+    ERROR ("udb_query_pick_from_list_by_name: Invalid argument.");
     return (-EINVAL);
   }
 
@@ -839,7 +807,7 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
         * sizeof (udb_query_t *));
     if (tmp_list == NULL)
     {
-      ERROR ("db query utils: realloc failed.");
+      ERROR ("udb_query_pick_from_list_by_name: realloc failed.");
       return (-ENOMEM);
     }
 
@@ -854,15 +822,14 @@ int udb_query_pick_from_list_by_name (const char *name, /* {{{ */
 
   if (num_added <= 0)
   {
-    ERROR ("db query utils: Cannot find query `%s'. Make sure the <Query> "
+    ERROR ("Cannot find query `%s'. Make sure the <Query> "
         "block is above the database definition!",
         name);
     return (-ENOENT);
   }
   else
   {
-    DEBUG ("db query utils: Added %i versions of query `%s'.",
-        num_added, name);
+    DEBUG ("Added %i versions of query `%s'.", num_added, name);
   }
 
   return (0);
@@ -877,16 +844,15 @@ int udb_query_pick_from_list (oconfig_item_t *ci, /* {{{ */
   if ((ci == NULL) || (src_list == NULL) || (dst_list == NULL)
       || (dst_list_len == NULL))
   {
-    ERROR ("db query utils: udb_query_pick_from_list: "
-        "Invalid argument.");
+    ERROR ("udb_query_pick_from_list: Invalid argument.");
     return (-EINVAL);
   }
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    ERROR ("db query utils: The `%s' config option "
-        "needs exactly one string argument.", ci->key);
+    ERROR ("The `%s' config option needs exactly one string argument.",
+        ci->key);
     return (-1);
   }
   name = ci->values[0].value.string;
@@ -979,8 +945,7 @@ int udb_query_handle_result (udb_query_t const *q, /* {{{ */
   if ((prep_area->column_num < 1) || (prep_area->host == NULL)
       || (prep_area->plugin == NULL) || (prep_area->db_name == NULL))
   {
-    ERROR ("db query utils: Query `%s': Query is not prepared; "
-        "can't handle result.", q->name);
+    ERROR ("Query `%s': Query is not prepared; can't handle result.", q->name);
     return (-EINVAL);
   }
 
@@ -989,7 +954,7 @@ int udb_query_handle_result (udb_query_t const *q, /* {{{ */
   {
     for (size_t i = 0; i < prep_area->column_num; i++)
     {
-      DEBUG ("db query utils: udb_query_handle_result (%s, %s): "
+      DEBUG ("udb_query_handle_result (%s, %s): "
           "column[%zu] = %s;",
           prep_area->db_name, q->name, i, column_values[i]);
     }
@@ -1008,7 +973,7 @@ int udb_query_handle_result (udb_query_t const *q, /* {{{ */
 
   if (success == 0)
   {
-    ERROR ("db query utils: udb_query_handle_result (%s, %s): "
+    ERROR ("udb_query_handle_result (%s, %s): "
         "All results failed.", prep_area->db_name, q->name);
     return (-1);
   }
@@ -1040,7 +1005,7 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
   if ((prep_area->host == NULL) || (prep_area->plugin == NULL)
       || (prep_area->db_name == NULL))
   {
-    ERROR ("db query utils: Query `%s': Prepare failed: Out of memory.", q->name);
+    ERROR ("Query `%s': Prepare failed: Out of memory.", q->name);
     udb_query_finish_result (q, prep_area);
     return (-ENOMEM);
   }
@@ -1050,8 +1015,7 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
   {
     for (size_t i = 0; i < column_num; i++)
     {
-      DEBUG ("db query utils: udb_query_prepare_result: "
-          "query = %s; column[%zu] = %s;",
+      DEBUG ("db_query_prepare_result: query = %s; column[%zu] = %s;",
           q->name, i, column_names[i]);
     }
   } while (0);
@@ -1073,7 +1037,7 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
 
     if (i >= column_num)
     {
-      ERROR ("db query utils: udb_query_prepare_result: "
+      ERROR ("udb_query_prepare_result: "
           "Column `%s' from `PluginInstanceFrom' could not be found.",
           q->plugin_instance_from);
       udb_query_finish_result (q, prep_area);
@@ -1087,7 +1051,7 @@ int udb_query_prepare_result (udb_query_t const *q, /* {{{ */
   {
     if (! r_area)
     {
-      ERROR ("db query utils: Query `%s': Invalid number of result "
+      ERROR ("Query `%s': Invalid number of result "
           "preparation areas.", q->name);
       udb_query_finish_result (q, prep_area);
       return (-EINVAL);

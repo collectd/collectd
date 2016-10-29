@@ -78,8 +78,7 @@ static int tss2_add_vserver (int vserver_port)
 	/* Check port range */
 	if ((vserver_port <= 0) || (vserver_port > 65535))
 	{
-		ERROR ("teamspeak2 plugin: VServer port is invalid: %i",
-				vserver_port);
+		ERROR ("VServer port is invalid: %i", vserver_port);
 		return (-1);
 	}
 
@@ -87,7 +86,7 @@ static int tss2_add_vserver (int vserver_port)
 	entry = calloc (1, sizeof (*entry));
 	if (entry == NULL)
 	{
-		ERROR ("teamspeak2 plugin: calloc failed.");
+		ERROR ("calloc failed.");
 		return (-1);
 	}
 
@@ -109,7 +108,7 @@ static int tss2_add_vserver (int vserver_port)
 		prev->next = entry;
 	}
 
-	INFO ("teamspeak2 plugin: Registered new vserver: %i", vserver_port);
+	INFO ("Registered new vserver: %i", vserver_port);
 
 	return (0);
 } /* int tss2_add_vserver */
@@ -222,7 +221,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 			&ai_head);
 	if (status != 0)
 	{
-		ERROR ("teamspeak2 plugin: getaddrinfo failed: %s",
+		ERROR ("getaddrinfo failed: %s",
 				gai_strerror (status));
 		return (-1);
 	}
@@ -236,7 +235,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 		if (sd < 0)
 		{
 			char errbuf[1024];
-			WARNING ("teamspeak2 plugin: socket failed: %s",
+			WARNING ("socket failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
@@ -246,7 +245,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			WARNING ("teamspeak2 plugin: connect failed: %s",
+			WARNING ("connect failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (sd);
 			sd = -1;
@@ -270,7 +269,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	if (global_read_fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("teamspeak2 plugin: fdopen failed: %s",
+		ERROR ("fdopen failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sd);
 		return (-1);
@@ -280,7 +279,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 	if (global_write_fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("teamspeak2 plugin: fdopen failed: %s",
+		ERROR ("fdopen failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		tss2_close_socket ();
 		return (-1);
@@ -293,7 +292,7 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 		buffer_ptr = fgets (buffer, sizeof (buffer), global_read_fh);
 		if (buffer_ptr == NULL)
 		{
-			WARNING ("teamspeak2 plugin: Unexpected EOF received "
+			WARNING ("Unexpected EOF received "
 					"from remote host %s:%s.",
 					config_host ? config_host : DEFAULT_HOST,
 					config_port ? config_port : DEFAULT_PORT);
@@ -302,13 +301,13 @@ static int tss2_get_socket (FILE **ret_read_fh, FILE **ret_write_fh)
 
 		if (memcmp ("[TS]\r\n", buffer, 6) != 0)
 		{
-			ERROR ("teamspeak2 plugin: Unexpected response when connecting "
+			ERROR ("Unexpected response when connecting "
 					"to server. Expected ``[TS]'', got ``%s''.",
 					buffer);
 			tss2_close_socket ();
 			return (-1);
 		}
-		DEBUG ("teamspeak2 plugin: Server send correct banner, connected!");
+		DEBUG ("Server send correct banner, connected!");
 	}
 
 	/* Copy the new filehandles to the given pointers */
@@ -329,7 +328,7 @@ static int tss2_send_request (FILE *fh, const char *request)
 	status = fputs (request, fh);
 	if (status < 0)
 	{
-		ERROR ("teamspeak2 plugin: fputs failed.");
+		ERROR ("fputs failed.");
 		tss2_close_socket ();
 		return (-1);
 	}
@@ -353,7 +352,7 @@ static int tss2_receive_line (FILE *fh, char *buffer, int buffer_size)
 	if (temp == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("teamspeak2 plugin: fgets failed: %s",
+		ERROR ("fgets failed: %s",
 				sstrerror (errno, errbuf, sizeof(errbuf)));
 		tss2_close_socket ();
 		return (-1);
@@ -378,7 +377,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	status = tss2_send_request (write_fh, command);
 	if (status != 0)
 	{
-		ERROR ("teamspeak2 plugin: tss2_send_request (%s) failed.", command);
+		ERROR ("tss2_send_request (%s) failed.", command);
 		return (-1);
 	}
 
@@ -386,7 +385,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 	status = tss2_receive_line (read_fh, response, sizeof (response));
 	if (status != 0)
 	{
-		ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
+		ERROR ("tss2_receive_line failed.");
 		return (-1);
 	}
 	response[sizeof (response) - 1] = 0;
@@ -398,7 +397,7 @@ static int tss2_select_vserver (FILE *read_fh, FILE *write_fh, vserver_list_t *v
 				|| (response[2] == '\r')))
 		return (0);
 
-	ERROR ("teamspeak2 plugin: Command ``%s'' failed. "
+	ERROR ("Command ``%s'' failed. "
 			"Response received from server was: ``%s''.",
 			command, response);
 	return (-1);
@@ -418,7 +417,7 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 	status = tss2_send_request (write_fh, "gapl\r\n");
 	if (status != 0)
 	{
-		ERROR("teamspeak2 plugin: tss2_send_request (gapl) failed.");
+		ERROR("tss2_send_request (gapl) failed.");
 		return (-1);
 	}
 
@@ -434,7 +433,7 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 			/* Set to NULL just to make sure no one uses these FHs anymore. */
 			read_fh = NULL;
 			write_fh = NULL;
-			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
+			ERROR ("tss2_receive_line failed.");
 			return (-1);
 		}
 		buffer[sizeof (buffer) - 1] = 0;
@@ -461,7 +460,7 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 			if (value == endptr)
 			{
 				/* Failed */
-				WARNING ("teamspeak2 plugin: Could not read average package "
+				WARNING ("Could not read average package "
 						"loss from string: %s", buffer);
 				continue;
 			}
@@ -472,13 +471,12 @@ static int tss2_vserver_gapl (FILE *read_fh, FILE *write_fh,
 		}
 		else if (strncasecmp ("ERROR", buffer, 5) == 0)
 		{
-			ERROR ("teamspeak2 plugin: Server returned an error: %s", buffer);
+			ERROR ("Server returned an error: %s", buffer);
 			return (-1);
 		}
 		else
 		{
-			WARNING ("teamspeak2 plugin: Server returned unexpected string: %s",
-					buffer);
+			WARNING ("Server returned unexpected string: %s", buffer);
 		}
 	}
 
@@ -513,7 +511,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 	status = tss2_get_socket (&read_fh, &write_fh);
 	if (status != 0)
 	{
-		ERROR ("teamspeak2 plugin: tss2_get_socket failed.");
+		ERROR ("tss2_get_socket failed.");
 		return (-1);
 	}
 
@@ -538,7 +536,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 
 	if (status != 0)
 	{
-		ERROR ("teamspeak2 plugin: tss2_send_request failed.");
+		ERROR ("tss2_send_request failed.");
 		return (-1);
 	}
 
@@ -557,14 +555,13 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 			/* Set to NULL just to make sure no one uses these FHs anymore. */
 			read_fh = NULL;
 			write_fh = NULL;
-			ERROR ("teamspeak2 plugin: tss2_receive_line failed.");
+			ERROR ("tss2_receive_line failed.");
 			break;
 		}
 
 		if (strncasecmp ("ERROR", buffer, 5) == 0)
 		{
-			ERROR ("teamspeak2 plugin: Server returned an error: %s",
-					buffer);
+			ERROR ("Server returned an error: %s", buffer);
 			break;
 		}
 		else if (strncasecmp ("OK", buffer, 2) == 0)
@@ -576,7 +573,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		key = strchr (buffer, '_');
 		if (key == NULL)
 		{
-			DEBUG ("teamspeak2 plugin: Cannot parse line: %s", buffer);
+			DEBUG ("Cannot parse line: %s", buffer);
 			continue;
 		}
 		key++;
@@ -585,7 +582,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		value = strchr (key, '=');
 		if (value == NULL)
 		{
-			DEBUG ("teamspeak2 plugin: Cannot parse line: %s", buffer);
+			DEBUG ("Cannot parse line: %s", buffer);
 			continue;
 		}
 		*value = 0;
@@ -665,7 +662,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 			/* ignore */;
 		else
 		{
-			INFO ("teamspeak2 plugin: Unknown key-value-pair: "
+			INFO ("Unknown key-value-pair: "
 					"key = %s; value = %s;", key, value);
 		}
 	} /* while (42) */
@@ -681,7 +678,7 @@ static int tss2_read_vserver (vserver_list_t *vserver)
 		}
 		else
 		{
-			WARNING ("teamspeak2 plugin: Reading package loss "
+			WARNING ("Reading package loss "
 					"for vserver %i failed.", vserver->port);
 		}
 	}
@@ -721,7 +718,7 @@ static int tss2_config (const char *key, const char *value)
 		temp = strdup (value);
 		if (temp == NULL)
 		{
-			ERROR("teamspeak2 plugin: strdup failed.");
+			ERROR("strdup failed.");
 			return (1);
 		}
 		sfree (config_host);
@@ -734,7 +731,7 @@ static int tss2_config (const char *key, const char *value)
 		temp = strdup (value);
 		if (temp == NULL)
 		{
-			ERROR("teamspeak2 plugin: strdup failed.");
+			ERROR("strdup failed.");
 			return (1);
 		}
 		sfree (config_port);
@@ -775,7 +772,7 @@ static int tss2_read (void)
 	}
 	else
 	{
-		WARNING ("teamspeak2 plugin: Reading global server variables failed.");
+		WARNING ("Reading global server variables failed.");
 	}
 
 	/* Handle vservers */
@@ -788,7 +785,7 @@ static int tss2_read (void)
 		}
 		else
 		{
-			WARNING ("teamspeak2 plugin: Reading statistics "
+			WARNING ("Reading statistics "
 					"for vserver %i failed.", vserver->port);
 			continue;
 		}

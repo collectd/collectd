@@ -95,8 +95,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 	st = user_data;
 	if (st == NULL)
 	{
-		ERROR ("apache plugin: apache_curl_callback: "
-				"user_data pointer is NULL.");
+		ERROR ("apache_curl_callback: user_data pointer is NULL.");
 		return (0);
 	}
 
@@ -111,7 +110,7 @@ static size_t apache_curl_callback (void *buf, size_t size, size_t nmemb,
 				st->apache_buffer_fill + len + 1);
 		if (temp == NULL)
 		{
-			ERROR ("apache plugin: realloc failed.");
+			ERROR ("realloc failed.");
 			return (0);
 		}
 		st->apache_buffer = temp;
@@ -134,8 +133,7 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 	st = user_data;
 	if (st == NULL)
 	{
-		ERROR ("apache plugin: apache_header_callback: "
-				"user_data pointer is NULL.");
+		ERROR ("apache_header_callback: user_data pointer is NULL.");
 		return (0);
 	}
 
@@ -157,7 +155,7 @@ static size_t apache_header_callback (void *buf, size_t size, size_t nmemb,
 		const char *hdr = buf;
 
 		hdr += strlen ("Server: ");
-		NOTICE ("apache plugin: Unknown server software: %s", hdr);
+		NOTICE ("Unknown server software: %s", hdr);
 	}
 
 	return (len);
@@ -179,7 +177,7 @@ static int config_add (oconfig_item_t *ci)
 	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("apache plugin: calloc failed.");
+		ERROR ("calloc failed.");
 		return (-1);
 	}
 
@@ -219,8 +217,7 @@ static int config_add (oconfig_item_t *ci)
 			status = cf_util_get_int (child, &st->timeout);
 		else
 		{
-			WARNING ("apache plugin: Option `%s' not allowed here.",
-					child->key);
+			WARNING ("Option `%s' not allowed here.", child->key);
 			status = -1;
 		}
 
@@ -231,9 +228,7 @@ static int config_add (oconfig_item_t *ci)
 	/* Check if struct is complete.. */
 	if ((status == 0) && (st->url == NULL))
 	{
-		ERROR ("apache plugin: Instance `%s': "
-				"No URL has been configured.",
-				st->name);
+		ERROR ("Instance `%s': No URL has been configured.", st->name);
 		status = -1;
 	}
 
@@ -277,7 +272,7 @@ static int config (oconfig_item_t *ci)
 		if (strcasecmp ("Instance", child->key) == 0)
 			config_add (child);
 		else
-			WARNING ("apache plugin: The configuration option "
+			WARNING ("The configuration option "
 					"\"%s\" is not allowed here. Did you "
 					"forget to add an <Instance /> block "
 					"around the configuration?",
@@ -301,7 +296,7 @@ static int init_host (apache_t *st) /* {{{ */
 
 	if ((st->curl = curl_easy_init ()) == NULL)
 	{
-		ERROR ("apache plugin: init_host: `curl_easy_init' failed.");
+		ERROR ("init_host: `curl_easy_init' failed.");
 		return (-1);
 	}
 
@@ -323,7 +318,7 @@ static int init_host (apache_t *st) /* {{{ */
 		else if (strcasecmp(st->server, "ibm_http_server") == 0)
 			st->server_type = APACHE;
 		else
-			WARNING ("apache plugin: Unknown `Server' setting: %s",
+			WARNING ("Unknown `Server' setting: %s",
 					st->server);
 	}
 
@@ -351,7 +346,7 @@ static int init_host (apache_t *st) /* {{{ */
 				st->user, (st->pass == NULL) ? "" : st->pass);
 		if ((status < 0) || ((size_t) status >= sizeof (credentials)))
 		{
-			ERROR ("apache plugin: init_host: Returning an error "
+			ERROR ("init_host: Returning an error "
 					"because the credentials have been "
 					"truncated.");
 			curl_easy_cleanup (st->curl);
@@ -549,7 +544,7 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 	/* fallback - server_type to apache if not set at this time */
 	if (st->server_type == -1)
 	{
-		WARNING ("apache plugin: Unable to determine server software "
+		WARNING ("Unable to determine server software "
 				"automatically. Will assume Apache.");
 		st->server_type = APACHE;
 	}
@@ -558,7 +553,7 @@ static int apache_read_host (user_data_t *user_data) /* {{{ */
 	if ((status == CURLE_OK) && (content_type != NULL) &&
 	    (strncasecmp (content_type, text_plain, strlen (text_plain)) != 0))
 	{
-		WARNING ("apache plugin: `Content-Type' response header is not `%s' "
+		WARNING ("`Content-Type' response header is not `%s' "
 			"(received: `%s'). Expecting unparseable data. Please check `URL' "
 			"parameter (missing `?auto' suffix ?)",
 			text_plain, content_type);

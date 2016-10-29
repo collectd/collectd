@@ -78,12 +78,12 @@ static int nut_add_ups (const char *name)
   nut_ups_t *ups;
   int status;
 
-  DEBUG ("nut plugin: nut_add_ups (name = %s);", name);
+  DEBUG ("nut_add_ups (name = %s);", name);
 
   ups = calloc (1, sizeof (*ups));
   if (ups == NULL)
   {
-    ERROR ("nut plugin: nut_add_ups: calloc failed.");
+    ERROR ("nut_add_ups: calloc failed.");
     return (1);
   }
 
@@ -91,7 +91,7 @@ static int nut_add_ups (const char *name)
       &ups->port);
   if (status != 0)
   {
-    ERROR ("nut plugin: nut_add_ups: upscli_splitname (%s) failed.", name);
+    ERROR ("nut_add_ups: upscli_splitname (%s) failed.", name);
     free_nut_ups_t (ups);
     return (1);
   }
@@ -151,7 +151,7 @@ static int nut_read_one (nut_ups_t *ups)
     ups->conn = malloc (sizeof (*ups->conn));
     if (ups->conn == NULL)
     {
-      ERROR ("nut plugin: malloc failed.");
+      ERROR ("malloc failed.");
       return (-1);
     }
 
@@ -159,13 +159,13 @@ static int nut_read_one (nut_ups_t *ups)
 	UPSCLI_CONN_TRYSSL);
     if (status != 0)
     {
-      ERROR ("nut plugin: nut_read_one: upscli_connect (%s, %i) failed: %s",
+      ERROR ("nut_read_one: upscli_connect (%s, %i) failed: %s",
 	  ups->hostname, ups->port, upscli_strerror (ups->conn));
       sfree (ups->conn);
       return (-1);
     }
 
-    INFO ("nut plugin: Connection to (%s, %i) established.",
+    INFO ("Connection to (%s, %i) established.",
 	ups->hostname, ups->port);
   } /* if (ups->conn == NULL) */
 
@@ -174,7 +174,7 @@ static int nut_read_one (nut_ups_t *ups)
   status = upscli_list_start (ups->conn, query_num, query);
   if (status != 0)
   {
-    ERROR ("nut plugin: nut_read_one: upscli_list_start (%s) failed: %s",
+    ERROR ("nut_read_one: upscli_list_start (%s) failed: %s",
 	ups->upsname, upscli_strerror (ups->conn));
     upscli_disconnect (ups->conn);
     sfree (ups->conn);

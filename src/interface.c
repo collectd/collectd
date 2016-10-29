@@ -124,7 +124,7 @@ static int interface_config (const char *key, const char *value)
 		if (IS_TRUE (value))
 			unique_name = 1;
 		#else
-			WARNING ("interface plugin: the \"UniqueName\" option is only valid on Solaris.");
+			WARNING ("the \"UniqueName\" option is only valid on Solaris.");
 		#endif /* HAVE_LIBKSTAT */
 	}
 	else
@@ -255,8 +255,7 @@ static int interface_read (void)
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("interface plugin: fopen: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		WARNING ("fopen: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -372,7 +371,7 @@ static int interface_read (void)
 	if ((nif =  perfstat_netinterface(NULL, NULL, sizeof(perfstat_netinterface_t), 0)) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("interface plugin: perfstat_netinterface: %s",
+		WARNING ("perfstat_netinterface: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -388,7 +387,7 @@ static int interface_read (void)
 	if ((ifs = perfstat_netinterface(&id, ifstat, sizeof(perfstat_netinterface_t), nif)) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("interface plugin: perfstat_netinterface (interfaces=%d): %s",
+		WARNING ("perfstat_netinterface (interfaces=%d): %s",
 			nif, sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

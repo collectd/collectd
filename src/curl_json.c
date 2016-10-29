@@ -135,7 +135,7 @@ static size_t cj_curl_callback (void *buf, /* {{{ */
 
   unsigned char *msg = yajl_get_error(db->yajl, /* verbose = */ 1,
         /* jsonText = */ (unsigned char *) buf, (unsigned int) len);
-  ERROR ("curl_json plugin: yajl_parse failed: %s", msg);
+  ERROR ("yajl_parse failed: %s", msg);
   yajl_free_error(db->yajl, msg);
   return (0); /* abort write callback */
 } /* }}} size_t cj_curl_callback */
@@ -155,8 +155,7 @@ static int cj_get_type (cj_key_t *key)
     assert (key->type != NULL);
     if (strcmp (type, key->type) != 0)
     {
-      ERROR ("curl_json plugin: Unable to look up DS type \"%s\".",
-          key->type);
+      ERROR ("Unable to look up DS type \"%s\".", key->type);
       sstrncpy (type, key->type, sizeof (type));
     }
 
@@ -231,8 +230,7 @@ static int cj_cb_number (void *ctx,
 
   if ((key == NULL) || !CJ_IS_KEY (key)) {
     if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/) {
-      NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
-              " a map.", buffer);
+      NOTICE ("Found \"%s\", but the configuration expects a map.", buffer);
       return (CJ_CB_CONTINUE);
     }
 
@@ -251,7 +249,7 @@ static int cj_cb_number (void *ctx,
   status = parse_value (buffer, &vt, type);
   if (status != 0)
   {
-    NOTICE ("curl_json plugin: Unable to parse number: \"%s\"", buffer);
+    NOTICE ("Unable to parse number: \"%s\"", buffer);
     return (CJ_CB_CONTINUE);
   }
 
@@ -317,8 +315,7 @@ static int cj_cb_start (void *ctx)
   cj_t *db = (cj_t *)ctx;
   if (++db->depth >= YAJL_MAX_DEPTH)
   {
-    ERROR ("curl_json plugin: %s depth exceeds max, aborting.",
-           db->url ? db->url : db->sock);
+    ERROR ("%s depth exceeds max, aborting.", db->url ? db->url : db->sock);
     return (CJ_CB_ABORT);
   }
   return (CJ_CB_CONTINUE);
@@ -413,7 +410,7 @@ static void cj_free (void *arg) /* {{{ */
 {
   cj_t *db;
 
-  DEBUG ("curl_json plugin: cj_free (arg = %p);", arg);
+  DEBUG ("cj_free (arg = %p);", arg);
 
   db = (cj_t *) arg;
 
@@ -458,7 +455,7 @@ static int cj_config_append_string (const char *name, struct curl_slist **dest, 
   struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("curl_json plugin: `%s' needs exactly one string argument.", name);
+    WARNING ("`%s' needs exactly one string argument.", name);
     return (-1);
   }
 
@@ -480,15 +477,14 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("curl_json plugin: The `Key' block "
-             "needs exactly one string argument.");
+    WARNING ("The `Key' block needs exactly one string argument.");
     return (-1);
   }
 
   key = calloc (1, sizeof (*key));
   if (key == NULL)
   {
-    ERROR ("curl_json plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
   key->magic = CJ_KEY_MAGIC;
@@ -504,8 +500,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
   }
   else
   {
-    ERROR ("curl_json plugin: cj_config: "
-           "Invalid key: %s", ci->key);
+    ERROR ("cj_config: Invalid key: %s", ci->key);
     cj_key_free (key);
     return (-1);
   }
@@ -521,7 +516,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
       status = cf_util_get_string (child, &key->instance);
     else
     {
-      WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -537,7 +532,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
 
   if (key->type == NULL)
   {
-    WARNING ("curl_json plugin: `Type' missing in `Key' block.");
+    WARNING ("`Type' missing in `Key' block.");
     cj_key_free (key);
     return (-1);
   }
@@ -585,7 +580,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
 
   if (strlen (name) == 0)
   {
-    ERROR ("curl_json plugin: invalid key: %s", key->path);
+    ERROR ("invalid key: %s", key->path);
     cj_key_free (key);
     return (-1);
   }
@@ -599,7 +594,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
   db->curl = curl_easy_init ();
   if (db->curl == NULL)
   {
-    ERROR ("curl_json plugin: curl_easy_init failed.");
+    ERROR ("curl_easy_init failed.");
     return (-1);
   }
 
@@ -628,7 +623,7 @@ static int cj_init_curl (cj_t *db) /* {{{ */
     db->credentials = malloc (credentials_size);
     if (db->credentials == NULL)
     {
-      ERROR ("curl_json plugin: malloc failed.");
+      ERROR ("malloc failed.");
       return (-1);
     }
 
@@ -671,15 +666,14 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("curl_json plugin: The `URL' block "
-             "needs exactly one string argument.");
+    WARNING ("The `URL' block needs exactly one string argument.");
     return (-1);
   }
 
   db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("curl_json plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
@@ -691,8 +685,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     status = cf_util_get_string (ci, &db->sock);
   else
   {
-    ERROR ("curl_json plugin: cj_config: "
-           "Invalid key: %s", ci->key);
+    ERROR ("cj_config: Invalid key: %s", ci->key);
     cj_free (db);
     return (-1);
   }
@@ -741,7 +734,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -753,7 +746,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   {
     if (db->tree == NULL)
     {
-      WARNING ("curl_json plugin: No (valid) `Key' block within `%s' \"`%s'\".",
+      WARNING ("No (valid) `Key' block within `%s' \"`%s'\".",
                db->url ? "URL" : "Sock", db->url ? db->url : db->sock);
       status = -1;
     }
@@ -769,8 +762,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     if (db->instance == NULL)
       db->instance = strdup("default");
 
-    DEBUG ("curl_json plugin: Registering new read callback: %s",
-           db->instance);
+    DEBUG ("Registering new read callback: %s", db->instance);
 
     cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
@@ -817,14 +809,14 @@ static int cj_config (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("curl_json plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       errors++;
     }
   }
 
   if ((success == 0) && (errors > 0))
   {
-    ERROR ("curl_json plugin: All statements failed.");
+    ERROR ("All statements failed.");
     return (-1);
   }
 
@@ -882,7 +874,7 @@ static int cj_sock_perform (cj_t *db) /* {{{ */
     return (-1);
   if (connect (fd, (struct sockaddr *)&sa_unix, sizeof(sa_unix)) < 0)
   {
-    ERROR ("curl_json plugin: connect(%s) failed: %s",
+    ERROR ("connect(%s) failed: %s",
            (db->sock != NULL) ? db->sock : "<null>",
            sstrerror(errno, errbuf, sizeof (errbuf)));
     close (fd);
@@ -894,7 +886,7 @@ static int cj_sock_perform (cj_t *db) /* {{{ */
     unsigned char buffer[4096];
     red = read (fd, buffer, sizeof(buffer));
     if (red < 0) {
-        ERROR ("curl_json plugin: read(%s) failed: %s",
+        ERROR ("read(%s) failed: %s",
                (db->sock != NULL) ? db->sock : "<null>",
                sstrerror(errno, errbuf, sizeof (errbuf)));
         close (fd);
@@ -918,7 +910,7 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   status = curl_easy_perform (db->curl);
   if (status != CURLE_OK)
   {
-    ERROR ("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
+    ERROR ("curl_easy_perform failed with status %i: %s (%s)",
            status, db->curl_errbuf, url);
     return (-1);
   }
@@ -931,8 +923,7 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   /* The response code is zero if a non-HTTP transport was used. */
   if ((rc != 0) && (rc != 200))
   {
-    ERROR ("curl_json plugin: curl_easy_perform failed with "
-        "response code %ld (%s)", rc, url);
+    ERROR ("curl_easy_perform failed with response code %ld (%s)", rc, url);
     return (-1);
   }
   return (0);
@@ -952,7 +943,7 @@ static int cj_perform (cj_t *db) /* {{{ */
       /* context = */ (void *)db);
   if (db->yajl == NULL)
   {
-    ERROR ("curl_json plugin: yajl_alloc failed.");
+    ERROR ("yajl_alloc failed.");
     db->yajl = yprev;
     return (-1);
   }
@@ -979,8 +970,7 @@ static int cj_perform (cj_t *db) /* {{{ */
 
     errmsg = yajl_get_error (db->yajl, /* verbose = */ 0,
         /* jsonText = */ NULL, /* jsonTextLen = */ 0);
-    ERROR ("curl_json plugin: yajl_parse_complete failed: %s",
-        (char *) errmsg);
+    ERROR ("yajl_parse_complete failed: %s", (char *) errmsg);
     yajl_free_error (db->yajl, errmsg);
     yajl_free (db->yajl);
     db->yajl = yprev;
@@ -998,7 +988,7 @@ static int cj_read (user_data_t *ud) /* {{{ */
 
   if ((ud == NULL) || (ud->data == NULL))
   {
-    ERROR ("curl_json plugin: cj_read: Invalid user data.");
+    ERROR ("cj_read: Invalid user data.");
     return (-1);
   }
 

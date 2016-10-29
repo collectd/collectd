@@ -291,7 +291,7 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
 
   sstrncpy (buffer, buffer_in, sizeof (buffer));
 
-  DEBUG ("target_replace plugin: tr_action_invoke: <- buffer = %s;", buffer);
+  DEBUG ("tr_action_invoke: <- buffer = %s;", buffer);
 
   for (tr_action_t *act = act_head; act != NULL; act = act->next)
   {
@@ -325,7 +325,7 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
     }
     sstrncpy (buffer, temp, sizeof (buffer));
 
-    DEBUG ("target_replace plugin: tr_action_invoke: -- buffer = %s;", buffer);
+    DEBUG ("tr_action_invoke: -- buffer = %s;", buffer);
   } /* for (act = act_head; act != NULL; act = act->next) */
 
   if ((may_be_empty == 0) && (buffer[0] == 0))
@@ -335,7 +335,7 @@ static int tr_action_invoke (tr_action_t *act_head, /* {{{ */
     return (0);
   }
 
-  DEBUG ("target_replace plugin: tr_action_invoke: -> buffer = %s;", buffer);
+  DEBUG ("tr_action_invoke: -> buffer = %s;", buffer);
   sstrncpy (buffer_in, buffer, buffer_in_size);
 
   return (0);
@@ -381,7 +381,7 @@ static int tr_meta_data_action_invoke ( /* {{{ */
       return (meta_data_status);
     }
 
-    DEBUG ("target_replace plugin: tr_meta_data_action_invoke: `%s' "
+    DEBUG ("tr_meta_data_action_invoke: `%s' "
         "old value = `%s'", act->key, value);
 
     status = regexec (&act->re, value,
@@ -406,7 +406,7 @@ static int tr_meta_data_action_invoke ( /* {{{ */
     if (act->replacement == NULL)
     {
       /* no replacement; delete the key */
-      DEBUG ("target_replace plugin: tr_meta_data_action_invoke: "
+      DEBUG ("tr_meta_data_action_invoke: "
           "deleting `%s'", act->key);
       meta_data_delete (*dest, act->key);
       sfree (value);
@@ -425,7 +425,7 @@ static int tr_meta_data_action_invoke ( /* {{{ */
       continue;
     }
 
-    DEBUG ("target_replace plugin: tr_meta_data_action_invoke: `%s' "
+    DEBUG ("tr_meta_data_action_invoke: `%s' "
         "value `%s' -> `%s'", act->key, value, temp);
 
     if ((result = meta_data_create()) == NULL)

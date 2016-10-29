@@ -176,8 +176,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
         userhost, &param_size);
     if (status != 0)
     {
-      WARNING ("ping plugin: ping_iterator_get_info failed: %s",
-          ping_get_error (pingobj));
+      WARNING ("ping_iterator_get_info failed: %s", ping_get_error (pingobj));
       continue;
     }
 
@@ -187,7 +186,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
 
     if (hl == NULL)
     {
-      WARNING ("ping plugin: Cannot find host %s.", userhost);
+      WARNING ("Cannot find host %s.", userhost);
       continue;
     }
 
@@ -196,8 +195,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
         (void *) &latency, &param_size);
     if (status != 0)
     {
-      WARNING ("ping plugin: ping_iterator_get_info failed: %s",
-          ping_get_error (pingobj));
+      WARNING ("ping_iterator_get_info failed: %s", ping_get_error (pingobj));
       continue;
     }
 
@@ -222,7 +220,7 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
        * missed packages */
       hl->pkg_missed = 0;
 
-      WARNING ("ping plugin: host %s has not answered %d PING requests,"
+      WARNING ("host %s has not answered %d PING requests,"
           " triggering resolve", hl->host, ping_max_missed);
 
       /* we trigger the resolv simply be removeing and adding the host to our
@@ -230,13 +228,13 @@ static int ping_dispatch_all (pingobj_t *pingobj) /* {{{ */
       status = ping_host_remove (pingobj, hl->host);
       if (status != 0)
       {
-        WARNING ("ping plugin: ping_host_remove (%s) failed.", hl->host);
+        WARNING ("ping_host_remove (%s) failed.", hl->host);
       }
       else
       {
         status = ping_host_add (pingobj, hl->host);
         if (status != 0)
-          ERROR ("ping plugin: ping_host_add (%s) failed.", hl->host);
+          ERROR ("ping_host_add (%s) failed.", hl->host);
       }
     } /* }}} ping_max_missed */
   } /* }}} for (iter) */
@@ -262,7 +260,7 @@ static void *ping_thread (void *arg) /* {{{ */
   pingobj = ping_construct ();
   if (pingobj == NULL)
   {
-    ERROR ("ping plugin: ping_construct failed.");
+    ERROR ("ping_construct failed.");
     ping_thread_error = 1;
     pthread_mutex_unlock (&ping_lock);
     return ((void *) -1);
@@ -270,14 +268,12 @@ static void *ping_thread (void *arg) /* {{{ */
 
   if (ping_source != NULL)
     if (ping_setopt (pingobj, PING_OPT_SOURCE, (void *) ping_source) != 0)
-      ERROR ("ping plugin: Failed to set source address: %s",
-          ping_get_error (pingobj));
+      ERROR ("Failed to set source address: %s", ping_get_error (pingobj));
 
 #ifdef HAVE_OPING_1_3
   if (ping_device != NULL)
     if (ping_setopt (pingobj, PING_OPT_DEVICE, (void *) ping_device) != 0)
-      ERROR ("ping plugin: Failed to set device: %s",
-          ping_get_error (pingobj));
+      ERROR ("Failed to set device: %s", ping_get_error (pingobj));
 #endif
 
   ping_setopt (pingobj, PING_OPT_TIMEOUT, (void *) &ping_timeout);
@@ -293,7 +289,7 @@ static void *ping_thread (void *arg) /* {{{ */
     int tmp_status;
     tmp_status = ping_host_add (pingobj, hl->host);
     if (tmp_status != 0)
-      WARNING ("ping plugin: ping_host_add (%s) failed: %s",
+      WARNING ("ping_host_add (%s) failed: %s",
           hl->host, ping_get_error (pingobj));
     else
       count++;
@@ -301,7 +297,7 @@ static void *ping_thread (void *arg) /* {{{ */
 
   if (count == 0)
   {
-    ERROR ("ping plugin: No host could be added to ping object. Giving up.");
+    ERROR ("No host could be added to ping object. Giving up.");
     ping_thread_error = 1;
     pthread_mutex_unlock (&ping_lock);
     return ((void *) -1);
@@ -325,7 +321,7 @@ static void *ping_thread (void *arg) /* {{{ */
     if (gettimeofday (&tv_begin, NULL) < 0)
     {
       char errbuf[1024];
-      ERROR ("ping plugin: gettimeofday failed: %s",
+      ERROR ("gettimeofday failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       ping_thread_error = 1;
       break;
@@ -356,7 +352,7 @@ static void *ping_thread (void *arg) /* {{{ */
     if (gettimeofday (&tv_end, NULL) < 0)
     {
       char errbuf[1024];
-      ERROR ("ping plugin: gettimeofday failed: %s",
+      ERROR ("gettimeofday failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       ping_thread_error = 1;
       break;
@@ -396,7 +392,7 @@ static int start_thread (void) /* {{{ */
   if (status != 0)
   {
     ping_thread_loop = 0;
-    ERROR ("ping plugin: Starting thread failed.");
+    ERROR ("Starting thread failed.");
     pthread_mutex_unlock (&ping_lock);
     return (-1);
   }
@@ -424,7 +420,7 @@ static int stop_thread (void) /* {{{ */
   status = pthread_join (ping_thread_id, /* return = */ NULL);
   if (status != 0)
   {
-    ERROR ("ping plugin: Stopping thread failed.");
+    ERROR ("Stopping thread failed.");
     status = -1;
   }
 
@@ -440,26 +436,26 @@ static int ping_init (void) /* {{{ */
 {
   if (hostlist_head == NULL)
   {
-    NOTICE ("ping plugin: No hosts have been configured.");
+    NOTICE ("No hosts have been configured.");
     return (-1);
   }
 
   if (ping_timeout > ping_interval)
   {
     ping_timeout = 0.9 * ping_interval;
-    WARNING ("ping plugin: Timeout is greater than interval. "
-        "Will use a timeout of %gs.", ping_timeout);
+    WARNING ("Timeout is greater than interval. Will use a timeout of %gs.",
+        ping_timeout);
   }
 
 #if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_RAW)
   if (check_capability (CAP_NET_RAW) != 0)
   {
     if (getuid () == 0)
-      WARNING ("ping plugin: Running collectd as root, but the CAP_NET_RAW "
+      WARNING ("Running collectd as root, but the CAP_NET_RAW "
           "capability is missing. The plugin's read function will probably "
           "fail. Is your init system dropping capabilities?");
     else
-      WARNING ("ping plugin: collectd doesn't have the CAP_NET_RAW capability. "
+      WARNING ("collectd doesn't have the CAP_NET_RAW capability. "
           "If you don't want to run collectd as root, try running \"setcap "
           "cap_net_raw=ep\" on the collectd binary.");
   }
@@ -477,7 +473,7 @@ static int config_set_string (const char *name, /* {{{ */
   if (tmp == NULL)
   {
     char errbuf[1024];
-    ERROR ("ping plugin: Setting `%s' to `%s' failed: strdup failed: %s",
+    ERROR ("Setting `%s' to `%s' failed: strdup failed: %s",
         name, value, sstrerror (errno, errbuf, sizeof (errbuf)));
     return (1);
   }
@@ -499,8 +495,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     if (hl == NULL)
     {
       char errbuf[1024];
-      ERROR ("ping plugin: malloc failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR ("malloc failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
       return (1);
     }
 
@@ -509,8 +504,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     {
       char errbuf[1024];
       sfree (hl);
-      ERROR ("ping plugin: strdup failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR ("strdup failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
       return (1);
     }
 
@@ -543,7 +537,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     if ((ttl > 0) && (ttl <= 255))
       ping_ttl = ttl;
     else
-      WARNING ("ping plugin: Ignoring invalid TTL %i.", ttl);
+      WARNING ("Ignoring invalid TTL %i.", ttl);
   }
   else if (strcasecmp (key, "Interval") == 0)
   {
@@ -553,8 +547,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     if (tmp > 0.0)
       ping_interval = tmp;
     else
-      WARNING ("ping plugin: Ignoring invalid interval %g (%s)",
-          tmp, value);
+      WARNING ("Ignoring invalid interval %g (%s)", tmp, value);
   }
   else if (strcasecmp (key, "Size") == 0) {
     size_t size = (size_t) atoi (value);
@@ -566,7 +559,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
       ping_data = malloc (size + 1);
       if (ping_data == NULL)
       {
-        ERROR ("ping plugin: malloc failed.");
+        ERROR ("malloc failed.");
         return (1);
       }
 
@@ -585,7 +578,7 @@ static int ping_config (const char *key, const char *value) /* {{{ */
       }  /* }}} for (i = 0; i < size; i++) */
       ping_data[size] = 0;
     } else
-      WARNING ("ping plugin: Ignoring invalid Size %zu.", size);
+      WARNING ("Ignoring invalid Size %zu.", size);
   }
   else if (strcasecmp (key, "Timeout") == 0)
   {
@@ -595,14 +588,13 @@ static int ping_config (const char *key, const char *value) /* {{{ */
     if (tmp > 0.0)
       ping_timeout = tmp;
     else
-      WARNING ("ping plugin: Ignoring invalid timeout %g (%s)",
-          tmp, value);
+      WARNING ("Ignoring invalid timeout %g (%s)", tmp, value);
   }
   else if (strcasecmp (key, "MaxMissed") == 0)
   {
     ping_max_missed = atoi (value);
     if (ping_max_missed < 0)
-      INFO ("ping plugin: MaxMissed < 0, disabled re-resolving of hosts");
+      INFO ("MaxMissed < 0, disabled re-resolving of hosts");
   }
   else
   {
@@ -630,7 +622,7 @@ static int ping_read (void) /* {{{ */
 {
   if (ping_thread_error != 0)
   {
-    ERROR ("ping plugin: The ping thread had a problem. Restarting it.");
+    ERROR ("The ping thread had a problem. Restarting it.");
 
     stop_thread ();
 
@@ -678,8 +670,7 @@ static int ping_read (void) /* {{{ */
     /* This e. g. happens when starting up. */
     if (pkg_sent == 0)
     {
-      DEBUG ("ping plugin: No packages for host %s have been sent.",
-          hl->host);
+      DEBUG ("No packages for host %s have been sent.", hl->host);
       continue;
     }
 
@@ -714,7 +705,7 @@ static int ping_shutdown (void) /* {{{ */
 {
   hostlist_t *hl;
 
-  INFO ("ping plugin: Shutting down thread.");
+  INFO ("Shutting down thread.");
   if (stop_thread () < 0)
     return (-1);
 

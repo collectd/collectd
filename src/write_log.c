@@ -50,7 +50,7 @@ static int wl_write_graphite (const data_set_t *ds, const value_list_t *vl)
 
     if (0 != strcmp (ds->type, vl->type))
     {
-        ERROR ("write_log plugin: DS type does not match value list type");
+        ERROR ("DS type does not match value list type");
         return -1;
     }
 
@@ -59,7 +59,7 @@ static int wl_write_graphite (const data_set_t *ds, const value_list_t *vl)
     if (status != 0) /* error message has been printed already. */
         return (status);
 
-    INFO ("write_log values:\n%s", buffer);
+    INFO ("values:\n%s", buffer);
 
     return (0);
 } /* int wl_write_graphite */
@@ -72,7 +72,7 @@ static int wl_write_json (const data_set_t *ds, const value_list_t *vl)
 
     if (0 != strcmp (ds->type, vl->type))
     {
-        ERROR ("write_log plugin: DS type does not match value list type");
+        ERROR ("DS type does not match value list type");
         return -1;
     }
 
@@ -81,7 +81,7 @@ static int wl_write_json (const data_set_t *ds, const value_list_t *vl)
                            /* store rates = */ 0);
     format_json_finalize(buffer, &bfill, &bfree);
 
-    INFO ("write_log values:\n%s", buffer);
+    INFO ("values:\n%s", buffer);
 
     return (0);
 } /* int wl_write_json */
@@ -120,8 +120,7 @@ static int wl_config (oconfig_item_t *ci) /* {{{ */
 
             if (format_seen)
             {
-                WARNING ("write_log plugin: Redefining option `%s'.",
-                    child->key);
+                WARNING ("Redefining option `%s'.", child->key);
             }
             format_seen = 1;
 
@@ -131,15 +130,13 @@ static int wl_config (oconfig_item_t *ci) /* {{{ */
                 wl_format = WL_FORMAT_JSON;
             else
             {
-                ERROR ("write_log plugin: Unknown format `%s' for option `%s'.",
-                    str, child->key);
+                ERROR ("Unknown format `%s' for option `%s'.", str, child->key);
                 return (-EINVAL);
             }
         }
         else
         {
-            ERROR ("write_log plugin: Invalid configuration option: `%s'.",
-                child->key);
+            ERROR ("Invalid configuration option: `%s'.", child->key);
             return (-EINVAL);
         }
     }

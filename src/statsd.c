@@ -120,14 +120,14 @@ static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
   key_copy = strdup (key);
   if (key_copy == NULL)
   {
-    ERROR ("statsd plugin: strdup failed.");
+    ERROR ("strdup failed.");
     return (NULL);
   }
 
   metric = calloc (1, sizeof (*metric));
   if (metric == NULL)
   {
-    ERROR ("statsd plugin: calloc failed.");
+    ERROR ("calloc failed.");
     sfree (key_copy);
     return (NULL);
   }
@@ -139,7 +139,7 @@ static statsd_metric_t *statsd_metric_lookup_unsafe (char const *name, /* {{{ */
   status = c_avl_insert (metrics_tree, key_copy, metric);
   if (status != 0)
   {
-    ERROR ("statsd plugin: c_avl_insert failed.");
+    ERROR ("c_avl_insert failed.");
     sfree (key_copy);
     sfree (metric);
     return (NULL);
@@ -360,7 +360,7 @@ static int statsd_handle_set (char const *name, /* {{{ */
   if (metric->set == NULL)
   {
     pthread_mutex_unlock (&metrics_lock);
-    ERROR ("statsd plugin: c_avl_create failed.");
+    ERROR ("c_avl_create failed.");
     return (-1);
   }
 
@@ -368,7 +368,7 @@ static int statsd_handle_set (char const *name, /* {{{ */
   if (set_key == NULL)
   {
     pthread_mutex_unlock (&metrics_lock);
-    ERROR ("statsd plugin: strdup failed.");
+    ERROR ("strdup failed.");
     return (-1);
   }
 
@@ -377,8 +377,7 @@ static int statsd_handle_set (char const *name, /* {{{ */
   {
     pthread_mutex_unlock (&metrics_lock);
     if (status < 0)
-      ERROR ("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
-          set_key, status);
+      ERROR ("c_avl_insert (\"%s\") failed with status %i.", set_key, status);
     sfree (set_key);
     return (-1);
   }
@@ -461,7 +460,7 @@ static void statsd_parse_buffer (char *buffer) /* {{{ */
 
     status = statsd_parse_line (buffer);
     if (status != 0)
-      ERROR ("statsd plugin: Unable to parse line: \"%s\"", orig);
+      ERROR ("Unable to parse line: \"%s\"", orig);
 
     buffer = next;
   }
@@ -481,8 +480,7 @@ static void statsd_network_read (int fd) /* {{{ */
     if ((errno == EAGAIN) || (errno == EWOULDBLOCK))
       return;
 
-    ERROR ("statsd plugin: recv(2) failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("recv(2) failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
     return;
   }
 
@@ -516,7 +514,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
   status = getaddrinfo (node, service, &ai_hints, &ai_list);
   if (status != 0)
   {
-    ERROR ("statsd plugin: getaddrinfo (\"%s\", \"%s\") failed: %s",
+    ERROR ("getaddrinfo (\"%s\", \"%s\") failed: %s",
         node, service, gai_strerror (status));
     return (status);
   }
@@ -533,7 +531,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
     if (fd < 0)
     {
       char errbuf[1024];
-      ERROR ("statsd plugin: socket(2) failed: %s",
+      ERROR ("socket(2) failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       continue;
     }
@@ -541,14 +539,13 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
     getnameinfo (ai_ptr->ai_addr, ai_ptr->ai_addrlen,
         dbg_node, sizeof (dbg_node), dbg_service, sizeof (dbg_service),
         NI_DGRAM | NI_NUMERICHOST | NI_NUMERICSERV);
-    DEBUG ("statsd plugin: Trying to bind to [%s]:%s ...", dbg_node, dbg_service);
+    DEBUG ("Trying to bind to [%s]:%s ...", dbg_node, dbg_service);
 
     status = bind (fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0)
     {
       char errbuf[1024];
-      ERROR ("statsd plugin: bind(2) failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR ("bind(2) failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
       close (fd);
       continue;
     }
@@ -556,7 +553,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
     tmp = realloc (fds, sizeof (*fds) * (fds_num + 1));
     if (tmp == NULL)
     {
-      ERROR ("statsd plugin: realloc failed.");
+      ERROR ("realloc failed.");
       close (fd);
       continue;
     }
@@ -573,7 +570,7 @@ static int statsd_network_init (struct pollfd **ret_fds, /* {{{ */
 
   if (fds_num == 0)
   {
-    ERROR ("statsd plugin: Unable to create listening socket for [%s]:%s.",
+    ERROR ("Unable to create listening socket for [%s]:%s.",
         (node != NULL) ? node : "::", service);
     return (ENOENT);
   }
@@ -592,7 +589,7 @@ static void *statsd_network_thread (void *args) /* {{{ */
   status = statsd_network_init (&fds, &fds_num);
   if (status != 0)
   {
-    ERROR ("statsd plugin: Unable to open listening sockets.");
+    ERROR ("Unable to open listening sockets.");
     pthread_exit ((void *) 0);
   }
 
@@ -606,8 +603,7 @@ static void *statsd_network_thread (void *args) /* {{{ */
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
-      ERROR ("statsd plugin: poll(2) failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR ("poll(2) failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
       break;
     }
 
@@ -641,7 +637,7 @@ static int statsd_config_timer_percentile (oconfig_item_t *ci) /* {{{ */
 
   if ((percent <= 0.0) || (percent >= 100))
   {
-    ERROR ("statsd plugin: The value for \"%s\" must be between 0 and 100, "
+    ERROR ("The value for \"%s\" must be between 0 and 100, "
         "exclusively.", ci->key);
     return (ERANGE);
   }
@@ -650,7 +646,7 @@ static int statsd_config_timer_percentile (oconfig_item_t *ci) /* {{{ */
       sizeof (*conf_timer_percentile) * (conf_timer_percentile_num + 1));
   if (tmp == NULL)
   {
-    ERROR ("statsd plugin: realloc failed.");
+    ERROR ("realloc failed.");
     return (ENOMEM);
   }
   conf_timer_percentile = tmp;
@@ -691,8 +687,7 @@ static int statsd_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("TimerPercentile", child->key) == 0)
       statsd_config_timer_percentile (child);
     else
-      ERROR ("statsd plugin: The \"%s\" config option is not valid.",
-          child->key);
+      ERROR ("The \"%s\" config option is not valid.", child->key);
   }
 
   return (0);
@@ -716,7 +711,7 @@ static int statsd_init (void) /* {{{ */
     {
       char errbuf[1024];
       pthread_mutex_unlock (&metrics_lock);
-      ERROR ("statsd plugin: pthread_create failed: %s",
+      ERROR ("pthread_create failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       return (status);
     }
@@ -896,7 +891,7 @@ static int statsd_read (void) /* {{{ */
           || (conf_delete_gauges && (metric->type == STATSD_GAUGE))
           || (conf_delete_sets && (metric->type == STATSD_SET))))
     {
-      DEBUG ("statsd plugin: Deleting metric \"%s\".", name);
+      DEBUG ("Deleting metric \"%s\".", name);
       strarray_add (&to_be_deleted, &to_be_deleted_num, name);
       continue;
     }
@@ -920,7 +915,7 @@ static int statsd_read (void) /* {{{ */
         (void *) &name, (void *) &metric);
     if (status != 0)
     {
-      ERROR ("stats plugin: c_avl_remove (\"%s\") failed with status %i.",
+      ERROR ("c_avl_remove (\"%s\") failed with status %i.",
           to_be_deleted[i], status);
       continue;
     }

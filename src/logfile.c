@@ -60,7 +60,7 @@ static int logfile_config (const char *key, const char *value)
 		log_level = parse_log_severity(value);
 		if (log_level < 0) {
 			log_level = LOG_INFO;
-			ERROR ("logfile: invalid loglevel [%s] defaulting to 'info'", value);
+			ERROR ("invalid loglevel [%s] defaulting to 'info'", value);
 			return (1);
 		}
 	}

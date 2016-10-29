@@ -128,7 +128,7 @@ static int net_open (char const *node, char const *service)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		INFO ("apcups plugin: getaddrinfo failed: %s",
+		INFO ("getaddrinfo failed: %s",
 				(status == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
 				: gai_strerror (status));
@@ -147,7 +147,7 @@ static int net_open (char const *node, char const *service)
 
 	if (sd < 0)
 	{
-		DEBUG ("apcups plugin: Unable to open a socket");
+		DEBUG ("Unable to open a socket");
 		freeaddrinfo (ai_return);
 		return (-1);
 	}
@@ -159,13 +159,13 @@ static int net_open (char const *node, char const *service)
 	if (status != 0) /* `connect(2)' failed */
 	{
 		char errbuf[1024];
-		INFO ("apcups plugin: connect failed: %s",
+		INFO ("connect failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sd);
 		return (-1);
 	}
 
-	DEBUG ("apcups plugin: Done opening a socket %i", sd);
+	DEBUG ("Done opening a socket %i", sd);
 
 	return (sd);
 } /* int net_open */
@@ -194,7 +194,7 @@ static int net_recv (int *sockfd, char *buf, int buflen)
 	packet_size = ntohs (packet_size);
 	if (packet_size > buflen)
 	{
-		ERROR ("apcups plugin: Received %"PRIu16" bytes of payload "
+		ERROR ("Received %"PRIu16" bytes of payload "
 				"but have only %i bytes of buffer available.",
 				packet_size, buflen);
 		close (*sockfd);
@@ -277,7 +277,7 @@ static int apc_query_server (char const *node, char const *service,
 			global_sockfd = net_open (node, service);
 			if (global_sockfd < 0)
 			{
-				ERROR ("apcups plugin: Connecting to the "
+				ERROR ("Connecting to the "
 						"apcupsd failed.");
 				return (-1);
 			}
@@ -296,7 +296,7 @@ static int apc_query_server (char const *node, char const *service,
 				continue;
 			}
 
-			ERROR ("apcups plugin: Writing to the socket failed.");
+			ERROR ("Writing to the socket failed.");
 			return (-1);
 		}
 
@@ -310,7 +310,7 @@ static int apc_query_server (char const *node, char const *service,
 	count_iterations++;
 	if ((count_iterations == 10) && (count_retries > 2))
 	{
-		NOTICE ("apcups plugin: There have been %i retries in the "
+		NOTICE ("There have been %i retries in the "
 				"first %i iterations. Will close the socket "
 				"in future iterations.",
 				count_retries, count_iterations);
@@ -370,7 +370,7 @@ static int apc_query_server (char const *node, char const *service,
 	if (n < 0)
 	{
 		char errbuf[1024];
-		ERROR ("apcups plugin: Reading from socket failed: %s",
+		ERROR ("Reading from socket failed: %s",
 				sstrerror (status, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -397,13 +397,13 @@ static int apcups_config (oconfig_item_t *ci)
 			persistent_conn_set = 1;
 		}
 		else
-			ERROR ("apcups plugin: Unknown config option \"%s\".", child->key);
+			ERROR ("Unknown config option \"%s\".", child->key);
 	}
 
 	if (!persistent_conn_set) {
 		double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
 		if (interval > APCUPS_SERVER_TIMEOUT) {
-			NOTICE ("apcups plugin: Plugin poll interval set to %.3f seconds. "
+			NOTICE ("Plugin poll interval set to %.3f seconds. "
 				"Apcupsd NIS socket timeout is %.3f seconds, "
 				"PersistentConnection disabled by default.",
 				interval, APCUPS_SERVER_TIMEOUT);
@@ -463,7 +463,7 @@ static int apcups_read (void)
 	 */
 	if (status != 0)
 	{
-		DEBUG ("apcups plugin: apc_query_server (%s, %s) = %i",
+		DEBUG ("apc_query_server (%s, %s) = %i",
 				(conf_node == NULL) ? APCUPS_DEFAULT_NODE : conf_node,
 				(conf_service == NULL) ? APCUPS_DEFAULT_SERVICE : conf_service,
 				status);

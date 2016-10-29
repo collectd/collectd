@@ -97,7 +97,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     status = write (fd, pkt_request, sizeof(pkt_request));
     if (status <= 0)
     {
-        ERROR ("ted plugin: swrite failed.");
+        ERROR ("swrite failed.");
         return (-1);
     }
 
@@ -112,7 +112,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
         status = select (fd + 1, &input, NULL, NULL, &timeout);
         if (status == 0) /* Timeout */
         {
-            WARNING ("ted plugin: Timeout while waiting for file descriptor "
+            WARNING ("Timeout while waiting for file descriptor "
                     "to become ready.");
             return (-1);
         }
@@ -124,7 +124,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
         else if (status < 0)
         {
             char errbuf[1024];
-            ERROR ("ted plugin: select failed: %s",
+            ERROR ("select failed: %s",
                     sstrerror (errno, errbuf, sizeof (errbuf)));
             return (-1);
         }
@@ -135,19 +135,19 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
             char errbuf[1024];
             if ((errno == EAGAIN) || (errno == EINTR))
                 continue;
-            ERROR ("ted plugin: read(2) failed: %s",
+            ERROR ("read(2) failed: %s",
                     sstrerror (errno, errbuf, sizeof (errbuf)));
             return (-1);
         }
         else if (receive_buffer_length == 0)
         {
             /* Should we close the FD in this case? */
-            WARNING ("ted plugin: Received EOF from file descriptor.");
+            WARNING ("Received EOF from file descriptor.");
             return (-1);
         }
         else if (((size_t) receive_buffer_length) > sizeof (receive_buffer))
         {
-            ERROR ("ted plugin: read(2) returned invalid value %zi.",
+            ERROR ("read(2) returned invalid value %zi.",
                     receive_buffer_length);
             return (-1);
         }
@@ -187,7 +187,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
                 }
                 else
                 {
-                    DEBUG ("ted plugin: Unknown escaped byte: %#x",
+                    DEBUG ("Unknown escaped byte: %#x",
                             (unsigned int) receive_buffer[i]);
                 }
             }
@@ -240,7 +240,7 @@ static int ted_open_device (void)
     fd = open (dev, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
     if (fd < 0)
     {
-        ERROR ("ted plugin: Unable to open device %s.", dev);
+        ERROR ("Unable to open device %s.", dev);
         return (-1);
     }
 
@@ -257,7 +257,7 @@ static int ted_open_device (void)
     tcflush(fd, TCIFLUSH);
     tcsetattr(fd, TCSANOW, &options);
 
-    INFO ("ted plugin: Successfully opened %s.", dev);
+    INFO ("Successfully opened %s.", dev);
     return (0);
 } /* int ted_open_device */
 
@@ -287,14 +287,14 @@ static int ted_config (const char *key, const char *value)
         tmp = atoi (value);
         if (tmp < 0)
         {
-            WARNING ("ted plugin: Invalid retry count: %i", tmp);
+            WARNING ("Invalid retry count: %i", tmp);
             return (1);
         }
         conf_retries = tmp;
     }
     else
     {
-        ERROR ("ted plugin: Unknown config option: %s", key);
+        ERROR ("Unknown config option: %s", key);
         return (-1);
     }
 

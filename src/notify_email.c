@@ -103,12 +103,12 @@ static void monitor_cb (const char *buf, int buflen, int writing,
     log_str[buflen - 2] = 0; /* replace \n with \0 */
 
   if (writing == SMTP_CB_HEADERS) {
-    DEBUG ("notify_email plugin: SMTP --- H: %s", log_str);
+    DEBUG ("SMTP --- H: %s", log_str);
     return;
   }
   DEBUG (writing
-      ? "notify_email plugin: SMTP >>> C: %s"
-      : "notify_email plugin: SMTP <<< S: %s",
+      ? "SMTP >>> C: %s"
+      : "SMTP <<< S: %s",
       log_str);
 } /* void monitor_cb */
 
@@ -127,7 +127,7 @@ static int notify_email_init (void)
   session = smtp_create_session ();
   if (session == NULL) {
     pthread_mutex_unlock (&session_lock);
-    ERROR ("notify_email plugin: cannot create SMTP session");
+    ERROR ("cannot create SMTP session");
     return (-1);
   }
 
@@ -143,7 +143,7 @@ static int notify_email_init (void)
 
   if ( !smtp_auth_set_context (session, authctx)) {
     pthread_mutex_unlock (&session_lock);
-    ERROR ("notify_email plugin: cannot set SMTP auth context");
+    ERROR ("cannot set SMTP auth context");
     return (-1);
   }
 
@@ -197,7 +197,7 @@ static int notify_email_config (const char *key, const char *value)
     int port_tmp = atoi (value);
     if (port_tmp < 1 || port_tmp > 65535)
     {
-      WARNING ("notify_email plugin: Invalid SMTP port: %i", port_tmp);
+      WARNING ("Invalid SMTP port: %i", port_tmp);
       return (1);
     }
     smtp_port = port_tmp;
@@ -278,7 +278,7 @@ static int notify_email_notification (const notification_t *n,
 
   if (!(message = smtp_add_message (session))) {
     pthread_mutex_unlock (&session_lock);
-    ERROR ("notify_email plugin: cannot set SMTP message");
+    ERROR ("cannot set SMTP message");
     return (-1);
   }
   smtp_set_reverse_path (message, email_from);
@@ -290,7 +290,7 @@ static int notify_email_notification (const notification_t *n,
 
   /* Initiate a connection to the SMTP server and transfer the message. */
   if (!smtp_start_session (session)) {
-    ERROR ("notify_email plugin: SMTP server problem: %s",
+    ERROR ("SMTP server problem: %s",
         smtp_strerror (smtp_errno (), buf, sizeof buf));
     pthread_mutex_unlock (&session_lock);
     return (-1);
@@ -299,7 +299,7 @@ static int notify_email_notification (const notification_t *n,
     const smtp_status_t *status;
     /* Report on the success or otherwise of the mail transfer. */
     status = smtp_message_transfer_status (message);
-    DEBUG ("notify_email plugin: SMTP server report: %d %s",
+    DEBUG ("SMTP server report: %d %s",
       status->code, (status->text != NULL) ? status->text : "\n");
     #endif
     smtp_enumerate_recipients (message, print_recipient_status, NULL);

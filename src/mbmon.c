@@ -105,7 +105,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
 		char errbuf[1024];
-		ERROR ("mbmon: getaddrinfo (%s, %s): %s",
+		ERROR ("getaddrinfo (%s, %s): %s",
 				host, port,
 				(ai_return == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
@@ -120,7 +120,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 		if ((fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol)) < 0)
 		{
 			char errbuf[1024];
-			ERROR ("mbmon: socket: %s",
+			ERROR ("socket: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			continue;
@@ -130,7 +130,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 		if (connect (fd, (struct sockaddr *) ai_ptr->ai_addr, ai_ptr->ai_addrlen))
 		{
 			char errbuf[1024];
-			INFO ("mbmon: connect (%s, %s): %s", host, port,
+			INFO ("connect (%s, %s): %s", host, port,
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			close (fd);
@@ -147,7 +147,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 
 	if (fd < 0)
 	{
-		ERROR ("mbmon: Could not connect to daemon.");
+		ERROR ("Could not connect to daemon.");
 		return (-1);
 	}
 
@@ -164,7 +164,7 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
 
-			ERROR ("mbmon: Error reading from socket: %s",
+			ERROR ("Error reading from socket: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			close (fd);
@@ -179,12 +179,12 @@ static int mbmon_query_daemon (char *buffer, int buffer_size)
 	if (buffer_fill >= buffer_size)
 	{
 		buffer[buffer_size - 1] = '\0';
-		WARNING ("mbmon: Message from mbmon has been truncated.");
+		WARNING ("Message from mbmon has been truncated.");
 	}
 	else if (buffer_fill == 0)
 	{
-		WARNING ("mbmon: Peer has unexpectedly shut down the socket. "
-				"Buffer: `%s'", buffer);
+		WARNING ("Peer has unexpectedly shut down the socket. Buffer: `%s'",
+				buffer);
 		close (fd);
 		return (-1);
 	}
@@ -260,7 +260,7 @@ static int mbmon_read (void)
 		value = strtod (t, &nextc);
 		if ((*nextc != '\n') && (*nextc != '\0'))
 		{
-			ERROR ("mbmon: value for `%s' contains invalid characters: `%s'", s, t);
+			ERROR ("value for `%s' contains invalid characters: `%s'", s, t);
 			break;
 		}
 

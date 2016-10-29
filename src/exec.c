@@ -111,20 +111,18 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
 
   if (ci->children_num != 0)
   {
-    WARNING ("exec plugin: The config option `%s' may not be a block.",
-        ci->key);
+    WARNING ("The config option `%s' may not be a block.", ci->key);
     return (-1);
   }
   if (ci->values_num < 2)
   {
-    WARNING ("exec plugin: The config option `%s' needs at least two "
-        "arguments.", ci->key);
+    WARNING ("The config option `%s' needs at least two arguments.", ci->key);
     return (-1);
   }
   if ((ci->values[0].type != OCONFIG_TYPE_STRING)
       || (ci->values[1].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("exec plugin: The first two arguments to the `%s' option must "
+    WARNING ("The first two arguments to the `%s' option must "
         "be string arguments.", ci->key);
     return (-1);
   }
@@ -132,7 +130,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl = calloc (1, sizeof (*pl));
   if (pl == NULL)
   {
-    ERROR ("exec plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
@@ -144,7 +142,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->user = strdup (ci->values[0].value.string);
   if (pl->user == NULL)
   {
-    ERROR ("exec plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (pl);
     return (-1);
   }
@@ -159,7 +157,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->exec = strdup (ci->values[1].value.string);
   if (pl->exec == NULL)
   {
-    ERROR ("exec plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (pl->user);
     sfree (pl);
     return (-1);
@@ -168,7 +166,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->argv = calloc (ci->values_num, sizeof (*pl->argv));
   if (pl->argv == NULL)
   {
-    ERROR ("exec plugin: calloc failed.");
+    ERROR ("calloc failed.");
     sfree (pl->exec);
     sfree (pl->user);
     sfree (pl);
@@ -185,7 +183,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
   pl->argv[0] = strdup (buffer);
   if (pl->argv[0] == NULL)
   {
-    ERROR ("exec plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (pl->argv);
     sfree (pl->exec);
     sfree (pl->user);
@@ -219,7 +217,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
 
     if (pl->argv[i] == NULL)
     {
-      ERROR ("exec plugin: strdup failed.");
+      ERROR ("strdup failed.");
       break;
     }
   } /* for (i) */
@@ -239,7 +237,7 @@ static int exec_config_exec (oconfig_item_t *ci) /* {{{ */
 
   for (i = 0; pl->argv[i] != NULL; i++)
   {
-    DEBUG ("exec plugin: argv[%i] = %s", i, pl->argv[i]);
+    DEBUG ("argv[%i] = %s", i, pl->argv[i]);
   }
 
   pl->next = pl_head;
@@ -258,7 +256,7 @@ static int exec_config (oconfig_item_t *ci) /* {{{ */
       exec_config_exec (child);
     else
     {
-      WARNING ("exec plugin: Unknown config option `%s'.", child->key);
+      WARNING ("Unknown config option `%s'.", child->key);
     }
   } /* for (i) */
 
@@ -314,7 +312,7 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
   status = setgid (gid);
   if (status != 0)
   {
-    ERROR ("exec plugin: setgid (%i) failed: %s",
+    ERROR ("setgid (%i) failed: %s",
         gid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
@@ -324,7 +322,7 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
     status = setegid (egid);
     if (status != 0)
     {
-      ERROR ("exec plugin: setegid (%i) failed: %s",
+      ERROR ("setegid (%i) failed: %s",
           egid, sstrerror (errno, errbuf, sizeof (errbuf)));
       exit (-1);
     }
@@ -333,14 +331,14 @@ static void exec_child (program_list_t *pl, int uid, int gid, int egid) /* {{{ *
   status = setuid (uid);
   if (status != 0)
   {
-    ERROR ("exec plugin: setuid (%i) failed: %s",
+    ERROR ("setuid (%i) failed: %s",
         uid, sstrerror (errno, errbuf, sizeof (errbuf)));
     exit (-1);
   }
 
   execvp (pl->exec, pl->argv);
 
-  ERROR ("exec plugin: Failed to execute ``%s'': %s",
+  ERROR ("Failed to execute ``%s'': %s",
       pl->exec, sstrerror (errno, errbuf, sizeof (errbuf)));
   exit (-1);
 } /* void exec_child }}} */
@@ -361,8 +359,7 @@ static int create_pipe (int fd_pipe[2]) /* {{{ */
   status = pipe (fd_pipe);
   if (status != 0)
   {
-    ERROR ("exec plugin: pipe failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("pipe failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
 
@@ -413,14 +410,14 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   status = getpwnam_r (pl->user, &sp, nambuf, sizeof (nambuf), &sp_ptr);
   if (status != 0)
   {
-    ERROR ("exec plugin: Failed to get user information for user ``%s'': %s",
+    ERROR ("Failed to get user information for user ``%s'': %s",
         pl->user, sstrerror (errno, errbuf, sizeof (errbuf)));
     goto failed;
   }
 
   if (sp_ptr == NULL)
   {
-    ERROR ("exec plugin: No such user: `%s'", pl->user);
+    ERROR ("No such user: `%s'", pl->user);
     goto failed;
   }
 
@@ -428,7 +425,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   gid = sp.pw_gid;
   if (uid == 0)
   {
-    ERROR ("exec plugin: Cowardly refusing to exec program as root.");
+    ERROR ("Cowardly refusing to exec program as root.");
     goto failed;
   }
 
@@ -444,14 +441,13 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
       status = getgrnam_r (pl->group, &gr, nambuf, sizeof (nambuf), &gr_ptr);
       if (0 != status)
       {
-        ERROR ("exec plugin: Failed to get group information "
-            "for group ``%s'': %s", pl->group,
-            sstrerror (errno, errbuf, sizeof (errbuf)));
+        ERROR ("Failed to get group information for group ``%s'': %s",
+            pl->group, sstrerror (errno, errbuf, sizeof (errbuf)));
         goto failed;
       }
       if (NULL == gr_ptr)
       {
-        ERROR ("exec plugin: No such group: `%s'", pl->group);
+        ERROR ("No such group: `%s'", pl->group);
         goto failed;
       }
 
@@ -466,8 +462,7 @@ static int fork_child (program_list_t *pl, int *fd_in, int *fd_out, int *fd_err)
   pid = fork ();
   if (pid < 0)
   {
-    ERROR ("exec plugin: fork failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("fork failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
     goto failed;
   }
   else if (pid == 0)
@@ -552,8 +547,7 @@ static int parse_line (char *buffer) /* {{{ */
     return (handle_putnotif (stdout, buffer));
   else
   {
-    ERROR ("exec plugin: Unable to parse command, ignoring line: \"%s\"",
-	buffer);
+    ERROR ("Unable to parse command, ignoring line: \"%s\"", buffer);
     return (-1);
   }
 } /* int parse_line }}} */
@@ -656,7 +650,7 @@ static void *exec_read_one (void *arg) /* {{{ */
       else if (len == 0)
       {
         /* We've reached EOF */
-        NOTICE ("exec plugin: Program `%s' has closed STDERR.", pl->exec);
+        NOTICE ("Program `%s' has closed STDERR.", pl->exec);
 
         /* Remove file descriptor form select() set. */
         FD_CLR (fd_err, &fdset);
@@ -679,7 +673,7 @@ static void *exec_read_one (void *arg) /* {{{ */
         *pnl = '\0';
         if (*(pnl-1) == '\r' ) *(pnl-1) = '\0';
 
-        ERROR ("exec plugin: exec_read_one: error = %s", pbuffer_err);
+        ERROR ("exec_read_one: error = %s", pbuffer_err);
 
         pbuffer_err = ++pnl;
       }
@@ -697,12 +691,11 @@ static void *exec_read_one (void *arg) /* {{{ */
     copy = fdset;
   }
 
-  DEBUG ("exec plugin: exec_read_one: Waiting for `%s' to exit.", pl->exec);
+  DEBUG ("exec_read_one: Waiting for `%s' to exit.", pl->exec);
   if (waitpid (pl->pid, &status, 0) > 0)
     pl->status = status;
 
-  DEBUG ("exec plugin: Child %i exited with status %i.",
-      (int) pl->pid, pl->status);
+  DEBUG ("Child %i exited with status %i.", (int) pl->pid, pl->status);
 
   pl->pid = 0;
 
@@ -738,7 +731,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
   if (fh == NULL)
   {
     char errbuf[1024];
-    ERROR ("exec plugin: fdopen (%i) failed: %s", fd,
+    ERROR ("fdopen (%i) failed: %s", fd,
         sstrerror (errno, errbuf, sizeof (errbuf)));
     kill (pid, SIGTERM);
     close (fd);
@@ -791,8 +784,7 @@ static void *exec_notification_one (void *arg) /* {{{ */
 
   waitpid (pid, &status, 0);
 
-  DEBUG ("exec plugin: Child %i exited with status %i.",
-      pid, status);
+  DEBUG ("Child %i exited with status %i.", pid, status);
 
   if (n->meta != NULL)
     plugin_notification_meta_free (n->meta);
@@ -815,11 +807,11 @@ static int exec_init (void) /* {{{ */
       (check_capability (CAP_SETGID) != 0))
   {
     if (getuid () == 0)
-      WARNING ("exec plugin: Running collectd as root, but the CAP_SETUID "
+      WARNING ("Running collectd as root, but the CAP_SETUID "
           "or CAP_SETGID capabilities are missing. The plugin's read function "
           "will probably fail. Is your init system dropping capabilities?");
     else
-      WARNING ("exec plugin: collectd doesn't have the CAP_SETUID or "
+      WARNING ("collectd doesn't have the CAP_SETUID or "
           "CAP_SETGID capabilities. If you don't want to run collectd as root, "
           "try running \"setcap 'cap_setuid=ep cap_setgid=ep'\" on the "
           "collectd binary.");
@@ -880,7 +872,7 @@ static int exec_notification (const notification_t *n, /* {{{ */
     pln = malloc (sizeof (*pln));
     if (pln == NULL)
     {
-      ERROR ("exec plugin: malloc failed.");
+      ERROR ("malloc failed.");
       continue;
     }
 
@@ -914,7 +906,7 @@ static int exec_shutdown (void) /* {{{ */
     if (pl->pid > 0)
     {
       kill (pl->pid, SIGTERM);
-      INFO ("exec plugin: Sent SIGTERM to %hu", (unsigned short int) pl->pid);
+      INFO ("Sent SIGTERM to %hu", (unsigned short int) pl->pid);
     }
 
     sfree (pl->user);

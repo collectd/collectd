@@ -72,7 +72,7 @@ static int strtouint64(const char *s, uint64_t *n) {
   *n = strtoull(s, &endptr, 0);
 
   if (!(*s != '\0' && *endptr == '\0')) {
-    DEBUG(RDT_PLUGIN ": Error converting '%s' to unsigned number.", s);
+    DEBUG("Error converting '%s' to unsigned number.", s);
     return (-EINVAL);
   }
 
@@ -215,13 +215,13 @@ static int cgroup_set(rdt_core_group_t *cg, char *desc, uint64_t *cores,
 
   cg->cores = calloc(num_cores, sizeof(unsigned));
   if (cg->cores == NULL) {
-    ERROR(RDT_PLUGIN ": Error allocating core group table");
+    ERROR("Error allocating core group table");
     return (-ENOMEM);
   }
   cg->num_cores = num_cores;
   cg->desc = strdup(desc);
   if (cg->desc == NULL) {
-    ERROR(RDT_PLUGIN ": Error allocating core group description");
+    ERROR("Error allocating core group description");
     sfree(cg->cores);
     return (-ENOMEM);
   }
@@ -273,14 +273,14 @@ static int oconfig_to_cgroups(oconfig_item_t *item, rdt_core_group_t *groups,
 
     n = strlisttonums(value, cores, STATIC_ARRAY_SIZE(cores));
     if (n == 0) {
-      ERROR(RDT_PLUGIN ": Error parsing core group (%s)",
+      ERROR("Error parsing core group (%s)",
             item->values[j].value.string);
       return (-EINVAL);
     }
 
     for (int i = 0; i < n; i++) {
       if (cores[i] > max_core) {
-        ERROR(RDT_PLUGIN ": Core group (%s) contains invalid core id (%d)",
+        ERROR("Core group (%s) contains invalid core id (%d)",
               item->values[j].value.string, (int)cores[i]);
         return (-EINVAL);
       }
@@ -294,7 +294,7 @@ static int oconfig_to_cgroups(oconfig_item_t *item, rdt_core_group_t *groups,
     index++;
 
     if (index >= max_groups) {
-      WARNING(RDT_PLUGIN ": Too many core groups configured");
+      WARNING("Too many core groups configured");
       return index;
     }
   }
@@ -309,8 +309,8 @@ static void rdt_dump_cgroups(void) {
   if (g_rdt == NULL)
     return;
 
-  DEBUG(RDT_PLUGIN ": Core Groups Dump");
-  DEBUG(RDT_PLUGIN ":  groups count: %zu", g_rdt->num_groups);
+  DEBUG("Core Groups Dump");
+  DEBUG(" groups count: %zu", g_rdt->num_groups);
 
   for (int i = 0; i < g_rdt->num_groups; i++) {
 
@@ -320,10 +320,10 @@ static void rdt_dump_cgroups(void) {
                g_rdt->cgroups[i].cores[j]);
     }
 
-    DEBUG(RDT_PLUGIN ":  group[%d]:", i);
-    DEBUG(RDT_PLUGIN ":    description: %s", g_rdt->cgroups[i].desc);
-    DEBUG(RDT_PLUGIN ":    cores: %s", cores);
-    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->cgroups[i].events);
+    DEBUG(" group[%d]:", i);
+    DEBUG("   description: %s", g_rdt->cgroups[i].desc);
+    DEBUG("   cores: %s", cores);
+    DEBUG("   events: 0x%X", g_rdt->cgroups[i].events);
   }
 
   return;
@@ -393,24 +393,24 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   enum pqos_mon_event events = 0;
 
   if (item == NULL) {
-    DEBUG(RDT_PLUGIN ": cgroups_config: Invalid argument.");
+    DEBUG("cgroups_config: Invalid argument.");
     return (-EINVAL);
   }
 
-  DEBUG(RDT_PLUGIN ": Core groups [%d]:", item->values_num);
+  DEBUG("Core groups [%d]:", item->values_num);
   for (int j = 0; j < item->values_num; j++) {
     if (item->values[j].type != OCONFIG_TYPE_STRING) {
-      ERROR(RDT_PLUGIN ": given core group value is not a string [idx=%d]", j);
+      ERROR("given core group value is not a string [idx=%d]", j);
       return (-EINVAL);
     }
-    DEBUG(RDT_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
+    DEBUG(" [%d]: %s", j, item->values[j].value.string);
   }
 
   n = oconfig_to_cgroups(item, g_rdt->cgroups, RDT_MAX_CORES,
                          g_rdt->pqos_cpu->num_cores - 1);
   if (n < 0) {
     rdt_free_cgroups();
-    ERROR(RDT_PLUGIN ": Error parsing core groups configuration.");
+    ERROR("Error parsing core groups configuration.");
     return (-EINVAL);
   }
 
@@ -419,11 +419,10 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     n = rdt_default_cgroups();
     if (n < 0) {
       rdt_free_cgroups();
-      ERROR(RDT_PLUGIN ": Error creating default core groups configuration.");
+      ERROR("Error creating default core groups configuration.");
       return n;
     }
-    INFO(RDT_PLUGIN
-         ": No core groups configured. Default core groups created.");
+    INFO("No core groups configured. Default core groups created.");
   }
 
   /* Get all available events on this platform */
@@ -432,9 +431,9 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
 
   events &= ~(PQOS_PERF_EVENT_LLC_MISS);
 
-  DEBUG(RDT_PLUGIN ": Number of cores in the system: %u",
+  DEBUG("Number of cores in the system: %u",
         g_rdt->pqos_cpu->num_cores);
-  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
+  DEBUG("Available events to monitor: %#x", events);
 
   g_rdt->num_groups = n;
   for (int i = 0; i < n; i++) {
@@ -443,7 +442,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
       found = cgroup_cmp(&g_rdt->cgroups[j], &g_rdt->cgroups[i]);
       if (found != 0) {
         rdt_free_cgroups();
-        ERROR(RDT_PLUGIN ": Cannot monitor same cores in different groups.");
+        ERROR("Cannot monitor same cores in different groups.");
         return (-EINVAL);
       }
     }
@@ -452,7 +451,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     g_rdt->pgroups[i] = calloc(1, sizeof(*g_rdt->pgroups[i]));
     if (g_rdt->pgroups[i] == NULL) {
       rdt_free_cgroups();
-      ERROR(RDT_PLUGIN ": Failed to allocate memory for monitoring data.");
+      ERROR("Failed to allocate memory for monitoring data.");
       return (-ENOMEM);
     }
   }
@@ -470,7 +469,7 @@ static int rdt_preinit(void) {
 
   g_rdt = calloc(1, sizeof(*g_rdt));
   if (g_rdt == NULL) {
-    ERROR(RDT_PLUGIN ": Failed to allocate memory for rdt context.");
+    ERROR("Failed to allocate memory for rdt context.");
     return (-ENOMEM);
   }
 
@@ -484,26 +483,24 @@ static int rdt_preinit(void) {
   */
   ret = pqos_init(&(struct pqos_config){.fd_log = STDOUT_FILENO});
   if (ret != PQOS_RETVAL_OK) {
-    ERROR(RDT_PLUGIN ": Error initializing PQoS library!");
+    ERROR("Error initializing PQoS library!");
     goto rdt_preinit_error1;
   }
 
   ret = pqos_cap_get(&g_rdt->pqos_cap, &g_rdt->pqos_cpu);
   if (ret != PQOS_RETVAL_OK) {
-    ERROR(RDT_PLUGIN ": Error retrieving PQoS capabilities.");
+    ERROR("Error retrieving PQoS capabilities.");
     goto rdt_preinit_error2;
   }
 
   ret = pqos_cap_get_type(g_rdt->pqos_cap, PQOS_CAP_TYPE_MON, &g_rdt->cap_mon);
   if (ret == PQOS_RETVAL_PARAM) {
-    ERROR(RDT_PLUGIN ": Error retrieving monitoring capabilities.");
+    ERROR("Error retrieving monitoring capabilities.");
     goto rdt_preinit_error2;
   }
 
   if (g_rdt->cap_mon == NULL) {
-    ERROR(
-        RDT_PLUGIN
-        ": Monitoring capability not detected. Nothing to do for the plugin.");
+    ERROR("Monitoring capability not detected. Nothing to do for the plugin.");
     goto rdt_preinit_error2;
   }
 
@@ -540,7 +537,7 @@ static int rdt_config(oconfig_item_t *ci) {
 #endif /* COLLECT_DEBUG */
 
     } else {
-      ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
+      ERROR("Unknown configuration parameter \"%s\".", child->key);
     }
   }
 
@@ -583,13 +580,13 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
   int ret;
 
   if (g_rdt == NULL) {
-    ERROR(RDT_PLUGIN ": rdt_read: plugin not initialized.");
+    ERROR("rdt_read: plugin not initialized.");
     return (-EINVAL);
   }
 
   ret = pqos_mon_poll(&g_rdt->pgroups[0], (unsigned)g_rdt->num_groups);
   if (ret != PQOS_RETVAL_OK) {
-    ERROR(RDT_PLUGIN ": Failed to poll monitoring data.");
+    ERROR("Failed to poll monitoring data.");
     return (-1);
   }
 
@@ -638,7 +635,7 @@ static int rdt_init(void) {
                          g_rdt->pgroups[i]);
 
     if (ret != PQOS_RETVAL_OK)
-      ERROR(RDT_PLUGIN ": Error starting monitoring group %s (pqos status=%d)",
+      ERROR("Error starting monitoring group %s (pqos status=%d)",
             cg->desc, ret);
   }
 
@@ -648,7 +645,7 @@ static int rdt_init(void) {
 static int rdt_shutdown(void) {
   int ret;
 
-  DEBUG(RDT_PLUGIN ": rdt_shutdown.");
+  DEBUG("rdt_shutdown.");
 
   if (g_rdt == NULL)
     return (0);
@@ -660,7 +657,7 @@ static int rdt_shutdown(void) {
 
   ret = pqos_fini();
   if (ret != PQOS_RETVAL_OK)
-    ERROR(RDT_PLUGIN ": Error shutting down PQoS library.");
+    ERROR("Error shutting down PQoS library.");
 
   rdt_free_cgroups();
   sfree(g_rdt);

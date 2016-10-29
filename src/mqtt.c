@@ -182,7 +182,7 @@ static void on_message (
     int status;
 
     if (msg->payloadlen <= 0) {
-        DEBUG ("mqtt plugin: message has empty payload");
+        DEBUG ("message has empty payload");
         return;
     }
 
@@ -192,7 +192,7 @@ static void on_message (
     status = parse_identifier_vl (name, &vl);
     if (status != 0)
     {
-        ERROR ("mqtt plugin: Unable to parse topic \"%s\".", topic);
+        ERROR ("Unable to parse topic \"%s\".", topic);
         sfree (topic);
         return;
     }
@@ -201,14 +201,14 @@ static void on_message (
     ds = plugin_get_ds (vl.type);
     if (ds == NULL)
     {
-        ERROR ("mqtt plugin: Unknown type: \"%s\".", vl.type);
+        ERROR ("Unknown type: \"%s\".", vl.type);
         return;
     }
 
     vl.values = calloc (ds->ds_num, sizeof (*vl.values));
     if (vl.values == NULL)
     {
-        ERROR ("mqtt plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return;
     }
     vl.values_len = ds->ds_num;
@@ -216,18 +216,18 @@ static void on_message (
     payload = malloc (msg->payloadlen+1);
     if (payload == NULL)
     {
-        ERROR ("mqtt plugin: malloc for payload buffer failed.");
+        ERROR ("malloc for payload buffer failed.");
         sfree (vl.values);
         return;
     }
     memmove (payload, msg->payload, msg->payloadlen);
     payload[msg->payloadlen] = 0;
 
-    DEBUG ("mqtt plugin: payload = \"%s\"", payload);
+    DEBUG ("payload = \"%s\"", payload);
     status = parse_values (payload, &vl, ds);
     if (status != 0)
     {
-        ERROR ("mqtt plugin: Unable to parse payload \"%s\".", payload);
+        ERROR ("Unable to parse payload \"%s\".", payload);
         sfree (payload);
         sfree (vl.values);
         return;
@@ -288,7 +288,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
 #endif
     if (conf->mosq == NULL)
     {
-        ERROR ("mqtt plugin: mosquitto_new failed");
+        ERROR ("mosquitto_new failed");
         return (-1);
     }
 
@@ -297,7 +297,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
         status = mosquitto_tls_set(conf->mosq, conf->cacertificatefile, NULL,
 	                           conf->certificatefile, conf->certificatekeyfile, /* pw_callback */NULL);
         if (status != MOSQ_ERR_SUCCESS) {
-            ERROR ("mqtt plugin: cannot mosquitto_tls_set: %s", mosquitto_strerror(status));
+            ERROR ("cannot mosquitto_tls_set: %s", mosquitto_strerror(status));
             mosquitto_destroy (conf->mosq);
             conf->mosq = NULL;
             return (-1);
@@ -305,7 +305,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
 
         status = mosquitto_tls_opts_set(conf->mosq, SSL_VERIFY_PEER, conf->tlsprotocol, conf->ciphersuite);
         if (status != MOSQ_ERR_SUCCESS) {
-            ERROR ("mqtt plugin: cannot mosquitto_tls_opts_set: %s", mosquitto_strerror(status));
+            ERROR ("cannot mosquitto_tls_opts_set: %s", mosquitto_strerror(status));
             mosquitto_destroy (conf->mosq);
             conf->mosq = NULL;
             return (-1);
@@ -313,7 +313,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
 
         status = mosquitto_tls_insecure_set(conf->mosq, false);
         if (status != MOSQ_ERR_SUCCESS) {
-            ERROR ("mqtt plugin: cannot mosquitto_tls_insecure_set: %s", mosquitto_strerror(status));
+            ERROR ("cannot mosquitto_tls_insecure_set: %s", mosquitto_strerror(status));
             mosquitto_destroy (conf->mosq);
             conf->mosq = NULL;
             return (-1);
@@ -327,7 +327,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
         if (status != MOSQ_ERR_SUCCESS)
         {
             char errbuf[1024];
-            ERROR ("mqtt plugin: mosquitto_username_pw_set failed: %s",
+            ERROR ("mosquitto_username_pw_set failed: %s",
                     (status == MOSQ_ERR_ERRNO)
                     ? sstrerror (errno, errbuf, sizeof (errbuf))
                     : mosquitto_strerror (status));
@@ -347,7 +347,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
     if (status != MOSQ_ERR_SUCCESS)
     {
         char errbuf[1024];
-        ERROR ("mqtt plugin: mosquitto_connect failed: %s",
+        ERROR ("mosquitto_connect failed: %s",
                 (status == MOSQ_ERR_ERRNO)
                 ? sstrerror (errno, errbuf, sizeof (errbuf))
                 : mosquitto_strerror (status));
@@ -366,7 +366,7 @@ static int mqtt_connect (mqtt_client_conf_t *conf)
                 conf->topic, conf->qos);
         if (status != MOSQ_ERR_SUCCESS)
         {
-            ERROR ("mqtt plugin: Subscribing to \"%s\" failed: %s",
+            ERROR ("Subscribing to \"%s\" failed: %s",
                     conf->topic, mosquitto_strerror (status));
 
             mosquitto_disconnect (conf->mosq);
@@ -412,7 +412,7 @@ static void *subscribers_thread (void *arg)
         }
         else if (status != MOSQ_ERR_SUCCESS)
         {
-            ERROR ("mqtt plugin: mosquitto_loop failed: %s",
+            ERROR ("mosquitto_loop failed: %s",
                     mosquitto_strerror (status));
             mosquitto_destroy (conf->mosq);
             conf->mosq = NULL;
@@ -420,7 +420,7 @@ static void *subscribers_thread (void *arg)
             continue;
         }
 
-        DEBUG ("mqtt plugin: mosquitto_loop succeeded.");
+        DEBUG ("mosquitto_loop succeeded.");
     } /* while (conf->loop) */
 
     pthread_exit (0);
@@ -436,7 +436,7 @@ static int publish (mqtt_client_conf_t *conf, char const *topic,
     status = mqtt_connect (conf);
     if (status != 0) {
         pthread_mutex_unlock (&conf->lock);
-        ERROR ("mqtt plugin: unable to reconnect to broker");
+        ERROR ("unable to reconnect to broker");
         return (status);
     }
 
@@ -505,7 +505,7 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
     status = format_topic (topic, sizeof (topic), ds, vl, conf);
     if (status != 0)
     {
-        ERROR ("mqtt plugin: format_topic failed with status %d.", status);
+        ERROR ("format_topic failed with status %d.", status);
         return (status);
     }
 
@@ -513,14 +513,14 @@ static int mqtt_write (const data_set_t *ds, const value_list_t *vl,
             ds, vl, conf->store_rates);
     if (status != 0)
     {
-        ERROR ("mqtt plugin: format_values failed with status %d.", status);
+        ERROR ("format_values failed with status %d.", status);
         return (status);
     }
 
     status = publish (conf, topic, payload, strlen (payload) + 1);
     if (status != 0)
     {
-        ERROR ("mqtt plugin: publish failed: %s", mosquitto_strerror (status));
+        ERROR ("publish failed: %s", mosquitto_strerror (status));
         return (status);
     }
 
@@ -553,7 +553,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("mqtt plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return (-1);
     }
     conf->publish = 1;
@@ -591,7 +591,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
         {
             int tmp = cf_util_get_port_number (child);
             if (tmp < 0)
-                ERROR ("mqtt plugin: Invalid port number.");
+                ERROR ("Invalid port number.");
             else
                 conf->port = tmp;
         }
@@ -606,7 +606,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
             int tmp = -1;
             status = cf_util_get_int (child, &tmp);
             if ((status != 0) || (tmp < 0) || (tmp > 2))
-                ERROR ("mqtt plugin: Not a valid QoS setting.");
+                ERROR ("Not a valid QoS setting.");
             else
                 conf->qos = tmp;
         }
@@ -627,7 +627,7 @@ static int mqtt_config_publisher (oconfig_item_t *ci)
         else if (strcasecmp ("CipherSuite", child->key) == 0)
             cf_util_get_string (child, &conf->ciphersuite);
         else
-            ERROR ("mqtt plugin: Unknown config option: %s", child->key);
+            ERROR ("Unknown config option: %s", child->key);
     }
 
     ssnprintf (cb_name, sizeof (cb_name), "mqtt/%s", conf->name);
@@ -656,7 +656,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("mqtt plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return (-1);
     }
     conf->publish = 0;
@@ -694,7 +694,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
         {
             status = cf_util_get_port_number (child);
             if (status < 0)
-                ERROR ("mqtt plugin: Invalid port number.");
+                ERROR ("Invalid port number.");
             else
                 conf->port = status;
         }
@@ -709,7 +709,7 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
             int qos = -1;
             status = cf_util_get_int (child, &qos);
             if ((status != 0) || (qos < 0) || (qos > 2))
-                ERROR ("mqtt plugin: Not a valid QoS setting.");
+                ERROR ("Not a valid QoS setting.");
             else
                 conf->qos = qos;
         }
@@ -718,13 +718,13 @@ static int mqtt_config_subscriber (oconfig_item_t *ci)
         else if (strcasecmp ("CleanSession", child->key) == 0)
             cf_util_get_boolean (child, &conf->clean_session);
         else
-            ERROR ("mqtt plugin: Unknown config option: %s", child->key);
+            ERROR ("Unknown config option: %s", child->key);
     }
 
     tmp = realloc (subscribers, sizeof (*subscribers) * (subscribers_num + 1) );
     if (tmp == NULL)
     {
-        ERROR ("mqtt plugin: realloc failed.");
+        ERROR ("realloc failed.");
         mqtt_free (conf);
         return (-1);
     }
@@ -756,7 +756,7 @@ static int mqtt_config (oconfig_item_t *ci)
         else if (strcasecmp ("Subscribe", child->key) == 0)
             mqtt_config_subscriber (child);
         else
-            ERROR ("mqtt plugin: Unknown config option: %s", child->key);
+            ERROR ("Unknown config option: %s", child->key);
     }
 
     return (0);
@@ -780,7 +780,7 @@ static int mqtt_init (void)
         if (status != 0)
         {
             char errbuf[1024];
-            ERROR ("mqtt plugin: pthread_create failed: %s",
+            ERROR ("pthread_create failed: %s",
                     sstrerror (errno, errbuf, sizeof (errbuf)));
             continue;
         }

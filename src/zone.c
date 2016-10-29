@@ -71,7 +71,7 @@ zone_read_procfile(char const *pidstr, char const *name, void *buf, size_t bufsi
 
 	if (sread(fd, buf, bufsize) != 0) {
 		char errbuf[1024];
-		ERROR ("zone plugin: Reading \"%s\" failed: %s", procfile,
+		ERROR ("Reading \"%s\" failed: %s", procfile,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close(fd);
 		return (1);
@@ -106,17 +106,17 @@ zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid)
 
 	if (c_avl_get(tree, (void **)&zoneid, (void **)&ret)) {
 		if (!(ret = malloc(sizeof(*ret)))) {
-			WARNING("zone plugin: no memory");
+			WARNING("no memory");
 			return(NULL);
 		}
 		if (!(key = malloc(sizeof(*key)))) {
-			WARNING("zone plugin: no memory");
+			WARNING("no memory");
 			free(ret);
 			return(NULL);
 		}
 		*key = zoneid;
 		if (c_avl_insert(tree, key, ret)) {
-			WARNING("zone plugin: error inserting into tree");
+			WARNING("error inserting into tree");
 			return(NULL);
 		}
 	}
@@ -133,7 +133,7 @@ zone_submit_values(c_avl_tree_t *tree)
 	while (c_avl_pick (tree, (void **)&zoneid, (void **)&stats) == 0)
 	{
 		if (getzonenamebyid(*zoneid, zonename, sizeof( zonename )) == -1) {
-			WARNING("zone plugin: error retrieving zonename");
+			WARNING("error retrieving zonename");
 		} else {
 			zone_submit_value(zonename, (gauge_t)FRC2PCT(stats->pctcpu));
 		}
@@ -153,7 +153,7 @@ zone_scandir(DIR *procdir)
 	zone_stats_t *stats;
 
 	if (!(tree=c_avl_create(zone_compare))) {
-		WARNING("zone plugin: Failed to create tree");
+		WARNING("Failed to create tree");
 		return(NULL);
 	}
 
@@ -185,7 +185,7 @@ static int zone_read (void)
 	c_avl_tree_t *tree;
 
 	if ((procdir = opendir("/proc")) == NULL) {
-		ERROR("zone plugin: cannot open /proc directory\n");
+		ERROR("cannot open /proc directory\n");
 		return (-1);
 	}
 

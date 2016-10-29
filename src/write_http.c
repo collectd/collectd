@@ -92,7 +92,7 @@ static void wh_log_http_error (wh_callback_t *cb)
         curl_easy_getinfo (cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
 
         if (http_code != 200)
-                INFO ("write_http plugin: HTTP Error code: %lu", http_code);
+                INFO ("HTTP Error code: %lu", http_code);
 }
 
 static void wh_reset_buffer (wh_callback_t *cb)  /* {{{ */
@@ -125,7 +125,7 @@ static int wh_post_nolock (wh_callback_t *cb, char const *data) /* {{{ */
 
         if (status != CURLE_OK)
         {
-                ERROR ("write_http plugin: curl_easy_perform failed with "
+                ERROR ("curl_easy_perform failed with "
                                 "status %i: %s",
                                 status, cb->curl_errbuf);
         }
@@ -140,7 +140,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
         cb->curl = curl_easy_init ();
         if (cb->curl == NULL)
         {
-                ERROR ("curl plugin: curl_easy_init failed.");
+                ERROR ("curl_easy_init failed.");
                 return (-1);
         }
 
@@ -189,7 +189,7 @@ static int wh_callback_init (wh_callback_t *cb) /* {{{ */
                 cb->credentials = malloc (credentials_size);
                 if (cb->credentials == NULL)
                 {
-                        ERROR ("curl plugin: malloc failed.");
+                        ERROR ("malloc failed.");
                         return (-1);
                 }
 
@@ -227,7 +227,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
 {
         int status;
 
-        DEBUG ("write_http plugin: wh_flush_nolock: timeout = %.3f; "
+        DEBUG ("wh_flush_nolock: timeout = %.3f; "
                         "send_buffer_fill = %zu;",
                         CDTIME_T_TO_DOUBLE (timeout),
                         cb->send_buffer_fill);
@@ -266,7 +266,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
                                 &cb->send_buffer_free);
                 if (status != 0)
                 {
-                        ERROR ("write_http: wh_flush_nolock: "
+                        ERROR ("wh_flush_nolock: "
                                         "format_json_finalize failed.");
                         wh_reset_buffer (cb);
                         return (status);
@@ -277,7 +277,7 @@ static int wh_flush_nolock (cdtime_t timeout, wh_callback_t *cb) /* {{{ */
         }
         else
         {
-                ERROR ("write_http: wh_flush_nolock: "
+                ERROR ("wh_flush_nolock: "
                                 "Unknown format: %i",
                                 cb->format);
                 return (-1);
@@ -302,7 +302,7 @@ static int wh_flush (cdtime_t timeout, /* {{{ */
 
         if (wh_callback_init (cb) != 0)
         {
-                ERROR ("write_http plugin: wh_callback_init failed.");
+                ERROR ("wh_callback_init failed.");
                 pthread_mutex_unlock (&cb->send_lock);
                 return (-1);
         }
@@ -367,7 +367,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
                 return -1;
 
         if (strcmp (ds->type, vl->type) != 0) {
-                ERROR ("write_http plugin: DS type does not match "
+                ERROR ("DS type does not match "
                                 "value list type");
                 return -1;
         }
@@ -375,7 +375,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         /* Copy the identifier to `key' and escape it. */
         status = FORMAT_VL (key, sizeof (key), vl);
         if (status != 0) {
-                ERROR ("write_http plugin: error with format_name");
+                ERROR ("error with format_name");
                 return (status);
         }
         escape_string (key, sizeof (key));
@@ -384,8 +384,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
          * `values'. */
         status = format_values (values, sizeof (values), ds, vl, cb->store_rates);
         if (status != 0) {
-                ERROR ("write_http plugin: error with "
-                                "wh_value_list_to_string");
+                ERROR ("error with wh_value_list_to_string");
                 return (status);
         }
 
@@ -395,7 +394,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
                         CDTIME_T_TO_DOUBLE (vl->interval),
                         values);
         if (command_len >= sizeof (command)) {
-                ERROR ("write_http plugin: Command buffer too small: "
+                ERROR ("Command buffer too small: "
                                 "Need %zu bytes.", command_len + 1);
                 return (-1);
         }
@@ -403,7 +402,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         pthread_mutex_lock (&cb->send_lock);
         if (wh_callback_init (cb) != 0)
         {
-                ERROR ("write_http plugin: wh_callback_init failed.");
+                ERROR ("wh_callback_init failed.");
                 pthread_mutex_unlock (&cb->send_lock);
                 return (-1);
         }
@@ -429,7 +428,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         cb->send_buffer_fill += command_len;
         cb->send_buffer_free -= command_len;
 
-        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%) \"%s\"",
+        DEBUG ("<%s> buffer %zu/%zu (%g%%) \"%s\"",
                         cb->location,
                         cb->send_buffer_fill, cb->send_buffer_size,
                         100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size),
@@ -449,7 +448,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
         pthread_mutex_lock (&cb->send_lock);
         if (wh_callback_init (cb) != 0)
         {
-                ERROR ("write_http plugin: wh_callback_init failed.");
+                ERROR ("wh_callback_init failed.");
                 pthread_mutex_unlock (&cb->send_lock);
                 return (-1);
         }
@@ -479,7 +478,7 @@ static int wh_write_json (const data_set_t *ds, const value_list_t *vl, /* {{{ *
                 return (status);
         }
 
-        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%)",
+        DEBUG ("<%s> buffer %zu/%zu (%g%%)",
                         cb->location,
                         cb->send_buffer_fill, cb->send_buffer_size,
                         100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size));
@@ -502,7 +501,7 @@ static int wh_write_kairosdb (const data_set_t *ds, const value_list_t *vl, /* {
                 status = wh_callback_init (cb);
                 if (status != 0)
                 {
-                        ERROR ("write_http plugin: wh_callback_init failed.");
+                        ERROR ("wh_callback_init failed.");
                         pthread_mutex_unlock (&cb->send_lock);
                         return (-1);
                 }
@@ -533,7 +532,7 @@ static int wh_write_kairosdb (const data_set_t *ds, const value_list_t *vl, /* {
                 return (status);
         }
 
-        DEBUG ("write_http plugin: <%s> buffer %zu/%zu (%g%%)",
+        DEBUG ("<%s> buffer %zu/%zu (%g%%)",
                         cb->location,
                         cb->send_buffer_fill, cb->send_buffer_size,
                         100.0 * ((double) cb->send_buffer_fill) / ((double) cb->send_buffer_size));
@@ -585,14 +584,14 @@ static int wh_notify (notification_t const *n, user_data_t *ud) /* {{{ */
         status = format_json_notification (alert, sizeof (alert), n);
         if (status != 0)
         {
-                ERROR ("write_http plugin: formatting notification failed");
+                ERROR ("formatting notification failed");
                 return status;
         }
 
         pthread_mutex_lock (&cb->send_lock);
         if (wh_callback_init (cb) != 0)
         {
-                ERROR ("write_http plugin: wh_callback_init failed.");
+                ERROR ("wh_callback_init failed.");
                 pthread_mutex_unlock (&cb->send_lock);
                 return (-1);
         }
@@ -611,7 +610,7 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
         if ((ci->values_num != 1)
                         || (ci->values[0].type != OCONFIG_TYPE_STRING))
         {
-                WARNING ("write_http plugin: The `%s' config option "
+                WARNING ("The `%s' config option "
                                 "needs exactly one string argument.", ci->key);
                 return (-1);
         }
@@ -625,7 +624,7 @@ static int config_set_format (wh_callback_t *cb, /* {{{ */
                 cb->format = WH_FORMAT_KAIROSDB;
         else
         {
-                ERROR ("write_http plugin: Invalid format string: %s",
+                ERROR ("Invalid format string: %s",
                                 string);
                 return (-1);
         }
@@ -639,7 +638,7 @@ static int wh_config_append_string (const char *name, struct curl_slist **dest, 
   struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("write_http plugin: `%s' needs exactly one string argument.", name);
+    WARNING ("`%s' needs exactly one string argument.", name);
     return (-1);
   }
 
@@ -662,7 +661,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         cb = calloc (1, sizeof (*cb));
         if (cb == NULL)
         {
-                ERROR ("write_http plugin: calloc failed.");
+                ERROR ("calloc failed.");
                 return (-1);
         }
         cb->verify_peer = 1;
@@ -734,7 +733,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 #endif
                         else
                         {
-                                ERROR ("write_http plugin: Invalid SSLVersion "
+                                ERROR ("Invalid SSLVersion "
                                                 "option: %s.", value);
                                 status = EINVAL;
                         }
@@ -761,7 +760,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                         status = wh_config_append_string ("Header", &cb->headers, child);
                 else
                 {
-                        ERROR ("write_http plugin: Invalid configuration "
+                        ERROR ("Invalid configuration "
                                         "option: %s.", child->key);
                         status = EINVAL;
                 }
@@ -778,7 +777,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 
         if (cb->location == NULL)
         {
-                ERROR ("write_http plugin: no URL defined for instance '%s'",
+                ERROR ("no URL defined for instance '%s'",
                         cb->name);
                 wh_callback_free (cb);
                 return (-1);
@@ -786,7 +785,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 
         if (!cb->send_metrics && !cb->send_notifications)
         {
-                ERROR ("write_http plugin: Neither metrics nor notifications "
+                ERROR ("Neither metrics nor notifications "
                        "are enabled for \"%s\".", cb->name);
                 wh_callback_free (cb);
                 return (-1);
@@ -800,14 +799,14 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
         if (buffer_size >= 1024)
                 cb->send_buffer_size = (size_t) buffer_size;
         else if (buffer_size != 0)
-                ERROR ("write_http plugin: Ignoring invalid BufferSize setting (%d).",
+                ERROR ("Ignoring invalid BufferSize setting (%d).",
                                 buffer_size);
 
         /* Allocate the buffer. */
         cb->send_buffer = malloc (cb->send_buffer_size);
         if (cb->send_buffer == NULL)
         {
-                ERROR ("write_http plugin: malloc(%zu) failed.", cb->send_buffer_size);
+                ERROR ("malloc(%zu) failed.", cb->send_buffer_size);
                 wh_callback_free (cb);
                 return (-1);
         }
@@ -816,7 +815,7 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
 
         ssnprintf (callback_name, sizeof (callback_name), "write_http/%s",
                         cb->name);
-        DEBUG ("write_http: Registering write callback '%s' with URL '%s'",
+        DEBUG ("Registering write callback '%s' with URL '%s'",
                         callback_name, cb->location);
 
         user_data_t user_data = {
@@ -851,13 +850,13 @@ static int wh_config (oconfig_item_t *ci) /* {{{ */
                         wh_config_node (child);
                 /* FIXME: Remove this legacy mode in version 6. */
                 else if (strcasecmp ("URL", child->key) == 0) {
-                        WARNING ("write_http plugin: Legacy <URL> block found. "
+                        WARNING ("Legacy <URL> block found. "
                                 "Please use <Node> instead.");
                         wh_config_node (child);
                 }
                 else
                 {
-                        ERROR ("write_http plugin: Invalid configuration "
+                        ERROR ("Invalid configuration "
                                         "option: %s.", child->key);
                 }
         }

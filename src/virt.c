@@ -265,7 +265,7 @@ memory_stats_submit (gauge_t value, virDomainPtr dom, int tag_index)
                                     "unused", "available", "actual_balloon", "rss"};
 
     if ((tag_index < 0) || (tag_index >= STATIC_ARRAY_SIZE (tags))) {
-        ERROR ("virt plugin: Array index out of bounds: tag_index = %d", tag_index);
+        ERROR ("Array index out of bounds: tag_index = %d", tag_index);
         return;
     }
 
@@ -327,7 +327,7 @@ lv_config (const char *key, const char *value)
     if (strcasecmp (key, "Connection") == 0) {
         char *tmp = strdup (value);
         if (tmp == NULL) {
-            ERROR (PLUGIN_NAME " plugin: Connection strdup failed.");
+            ERROR ("Connection strdup failed.");
             return 1;
         }
         sfree (conn_string);
@@ -394,14 +394,14 @@ lv_config (const char *key, const char *value)
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
-            ERROR (PLUGIN_NAME " plugin: strdup failed.");
+            ERROR ("strdup failed.");
             return -1;
         }
 
         n = strsplit (value_copy, fields, HF_MAX_FIELDS);
         if (n < 1) {
             sfree (value_copy);
-            ERROR (PLUGIN_NAME " plugin: HostnameFormat: no fields");
+            ERROR ("HostnameFormat: no fields");
             return -1;
         }
 
@@ -413,7 +413,7 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 hostname_format[i] = hf_uuid;
             else {
-                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
+                ERROR ("unknown HostnameFormat field: %s", fields[i]);
                 sfree (value_copy);
                 return -1;
             }
@@ -433,14 +433,14 @@ lv_config (const char *key, const char *value)
 
         value_copy = strdup (value);
         if (value_copy == NULL) {
-            ERROR (PLUGIN_NAME " plugin: strdup failed.");
+            ERROR ("strdup failed.");
             return -1;
         }
 
         n = strsplit (value_copy, fields, PLGINST_MAX_FIELDS);
         if (n < 1) {
             sfree (value_copy);
-            ERROR (PLUGIN_NAME " plugin: PluginInstanceFormat: no fields");
+            ERROR ("PluginInstanceFormat: no fields");
             return -1;
         }
 
@@ -453,7 +453,7 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 plugin_instance_format[i] = plginst_uuid;
             else {
-                ERROR (PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s", fields[i]);
+                ERROR ("unknown PluginInstanceFormat field: %s", fields[i]);
                 sfree (value_copy);
                 return -1;
             }
@@ -474,7 +474,7 @@ lv_config (const char *key, const char *value)
         else if (strcasecmp (value, "number") == 0)
             interface_format = if_number;
         else {
-            ERROR (PLUGIN_NAME " plugin: unknown InterfaceFormat: %s", value);
+            ERROR ("unknown InterfaceFormat: %s", value);
             return -1;
         }
         return 0;
@@ -539,7 +539,7 @@ lv_read (void)
         status = virDomainGetInfo (domains[i], &info);
         if (status != 0)
         {
-            ERROR (PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
+            ERROR ("virDomainGetInfo failed with status %i.",
                     status);
             continue;
         }
@@ -555,7 +555,7 @@ lv_read (void)
 
         vinfo = malloc (info.nrVirtCpu * sizeof (vinfo[0]));
         if (vinfo == NULL) {
-            ERROR (PLUGIN_NAME " plugin: malloc failed.");
+            ERROR ("malloc failed.");
             continue;
         }
 
@@ -563,7 +563,7 @@ lv_read (void)
                 /* cpu map = */ NULL, /* cpu map length = */ 0);
         if (status < 0)
         {
-            ERROR (PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
+            ERROR ("virDomainGetVcpus failed with status %i.",
                     status);
             sfree (vinfo);
             continue;
@@ -577,14 +577,14 @@ lv_read (void)
 
         minfo = malloc (VIR_DOMAIN_MEMORY_STAT_NR * sizeof (virDomainMemoryStatStruct));
         if (minfo == NULL) {
-            ERROR ("virt plugin: malloc failed.");
+            ERROR ("malloc failed.");
             continue;
         }
 
         status = virDomainMemoryStats (domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
 
         if (status < 0) {
-            ERROR ("virt plugin: virDomainMemoryStats failed with status %i.",
+            ERROR ("virDomainMemoryStats failed with status %i.",
                     status);
             sfree (minfo);
             continue;
@@ -688,7 +688,7 @@ refresh_lists (void)
         /* Get list of domains. */
         domids = malloc (sizeof (*domids) * n);
         if (domids == NULL) {
-            ERROR (PLUGIN_NAME " plugin: malloc failed.");
+            ERROR ("malloc failed.");
             return -1;
         }
 
@@ -729,7 +729,7 @@ refresh_lists (void)
                 goto cont;
 
             if (add_domain (dom) < 0) {
-                ERROR (PLUGIN_NAME " plugin: malloc failed.");
+                ERROR ("malloc failed.");
                 goto cont;
             }
 
@@ -967,7 +967,7 @@ ignore_device_match (ignorelist_t *il, const char *domname, const char *devpath)
     n = sizeof (char) * (strlen (domname) + strlen (devpath) + 2);
     name = malloc (n);
     if (name == NULL) {
-        ERROR (PLUGIN_NAME " plugin: malloc failed.");
+        ERROR ("malloc failed.");
         return 0;
     }
     ssnprintf (name, n, "%s:%s", domname, devpath);

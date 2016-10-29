@@ -80,8 +80,7 @@ static int value_list_to_string (char *buffer, int buffer_len,
 				rates = uc_get_rate (ds, vl);
 			if (rates == NULL)
 			{
-				WARNING ("csv plugin: "
-						"uc_get_rate failed.");
+				WARNING ("uc_get_rate failed.");
 				return (-1);
 			}
 			status = ssnprintf (buffer + offset,
@@ -161,7 +160,7 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 	/* "-2013-07-12" => 11 bytes */
 	if (ptr_size < 12)
 	{
-		ERROR ("csv plugin: Buffer too small.");
+		ERROR ("Buffer too small.");
 		return (ENOMEM);
 	}
 
@@ -170,14 +169,14 @@ static int value_list_to_filename (char *buffer, size_t buffer_size,
 	now = time (NULL);
 	if (localtime_r (&now, &struct_tm) == NULL)
 	{
-		ERROR ("csv plugin: localtime_r failed");
+		ERROR ("localtime_r failed");
 		return (-1);
 	}
 
 	status = strftime (ptr, ptr_size, "-%Y-%m-%d", &struct_tm);
 	if (status == 0) /* yep, it returns zero on error. */
 	{
-		ERROR ("csv plugin: strftime failed");
+		ERROR ("strftime failed");
 		return (-1);
 	}
 
@@ -195,7 +194,7 @@ static int csv_create_file (const char *filename, const data_set_t *ds)
 	if (csv == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("csv plugin: fopen (%s) failed: %s",
+		ERROR ("fopen (%s) failed: %s",
 				filename,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
@@ -272,7 +271,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	int          status;
 
 	if (0 != strcmp (ds->type, vl->type)) {
-		ERROR ("csv plugin: DS type does not match value list type");
+		ERROR ("DS type does not match value list type");
 		return -1;
 	}
 
@@ -280,7 +279,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	if (status != 0)
 		return (-1);
 
-	DEBUG ("csv plugin: csv_write: filename = %s;", filename);
+	DEBUG ("filename = %s;", filename);
 
 	if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
 		return (-1);
@@ -333,7 +332,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	if (csv == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("csv plugin: fopen (%s) failed: %s", filename,
+		ERROR ("fopen (%s) failed: %s", filename,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -347,7 +346,7 @@ static int csv_write (const data_set_t *ds, const value_list_t *vl,
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("csv plugin: flock (%s) failed: %s", filename,
+		ERROR ("flock (%s) failed: %s", filename,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (csv);
 		return (-1);

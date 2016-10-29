@@ -61,10 +61,6 @@
 #define MAX_CONNS 5
 #define MAX_CONNS_LIMIT 16384
 
-#define log_debug(...) DEBUG ("email: "__VA_ARGS__)
-#define log_err(...) ERROR ("email: "__VA_ARGS__)
-#define log_warn(...) WARNING ("email: "__VA_ARGS__)
-
 /*
  * Private data structures
  */
@@ -183,20 +179,14 @@ static int email_config (const char *key, const char *value)
 		long int tmp = strtol (value, NULL, 0);
 
 		if (tmp < 1) {
-			fprintf (stderr, "email plugin: `MaxConns' was set to invalid "
-					"value %li, will use default %i.\n",
-					tmp, MAX_CONNS);
-			ERROR ("email plugin: `MaxConns' was set to invalid "
-					"value %li, will use default %i.\n",
+			ERROR ("`MaxConns' was set to invalid "
+					"value %li, will use default %i.",
 					tmp, MAX_CONNS);
 			max_conns = MAX_CONNS;
 		}
 		else if (tmp > MAX_CONNS_LIMIT) {
-			fprintf (stderr, "email plugin: `MaxConns' was set to invalid "
-					"value %li, will use hardcoded limit %i.\n",
-					tmp, MAX_CONNS_LIMIT);
-			ERROR ("email plugin: `MaxConns' was set to invalid "
-					"value %li, will use hardcoded limit %i.\n",
+			ERROR ("`MaxConns' was set to invalid "
+					"value %li, will use hardcoded limit %i.",
 					tmp, MAX_CONNS_LIMIT);
 			max_conns = MAX_CONNS_LIMIT;
 		}
@@ -271,7 +261,7 @@ static void *collect (void *arg)
 		 * thread and connection management */
 		this->socket = connection->socket;
 
-		log_debug ("collect: handling connection on fd #%i",
+		DEBUG ("collect: handling connection on fd #%i",
 				fileno (this->socket));
 
 		while (42) {
@@ -283,7 +273,7 @@ static void *collect (void *arg)
 			if (NULL == fgets (line, sizeof (line), this->socket)) {
 				if (0 != errno) {
 					char errbuf[1024];
-					log_err ("collect: reading from socket (fd #%i) "
+					ERROR ("collect: reading from socket (fd #%i) "
 							"failed: %s", fileno (this->socket),
 							sstrerror (errno, errbuf, sizeof (errbuf)));
 				}
@@ -292,7 +282,7 @@ static void *collect (void *arg)
 
 			len = strlen (line);
 			if (('\n' != line[len - 1]) && ('\r' != line[len - 1])) {
-				log_warn ("collect: line too long (> %zu characters): "
+				WARNING ("collect: line too long (> %zu characters): "
 						"'%s' (truncated)", sizeof (line) - 1, line);
 
 				while (NULL != fgets (line, sizeof (line), this->socket))
@@ -306,10 +296,10 @@ static void *collect (void *arg)
 
 			line[len - 1] = 0;
 
-			log_debug ("collect: line = '%s'", line);
+			DEBUG ("collect: line = '%s'", line);
 
 			if (':' != line[1]) {
-				log_err ("collect: syntax error in line '%s'", line);
+				ERROR ("collect: syntax error in line '%s'", line);
 				continue;
 			}
 
@@ -320,7 +310,7 @@ static void *collect (void *arg)
 				int  bytes = 0;
 
 				if (NULL == tmp) {
-					log_err ("collect: syntax error in line '%s'", line);
+					ERROR ("collect: syntax error in line '%s'", line);
 					continue;
 				}
 
@@ -357,12 +347,11 @@ static void *collect (void *arg)
 				pthread_mutex_unlock (&check_mutex);
 			}
 			else {
-				log_err ("collect: unknown type '%c'", line[0]);
+				ERROR ("collect: unknown type '%c'", line[0]);
 			}
 		} /* while (42) */
 
-		log_debug ("Shutting down connection on fd #%i",
-				fileno (this->socket));
+		DEBUG ("Shutting down connection on fd #%i", fileno (this->socket));
 
 		fclose (connection->socket);
 		free (connection);
@@ -392,7 +381,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 	if (-1 == (connector_socket = socket (PF_UNIX, SOCK_STREAM, 0))) {
 		char errbuf[1024];
 		disabled = 1;
-		log_err ("socket() failed: %s",
+		ERROR ("socket() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
 	}
@@ -408,7 +397,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		disabled = 1;
 		close (connector_socket);
 		connector_socket = -1;
-		log_err ("bind() failed: %s",
+		ERROR ("bind() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
 	}
@@ -419,7 +408,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		disabled = 1;
 		close (connector_socket);
 		connector_socket = -1;
-		log_err ("listen() failed: %s",
+		ERROR ("listen() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		pthread_exit ((void *)1);
 	}
@@ -435,12 +424,12 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			log_warn ("getgrnam_r (%s) failed: %s", group,
+			WARNING ("getgrnam_r (%s) failed: %s", group,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 		else if (grp == NULL)
 		{
-			log_warn ("No such group: `%s'", group);
+			WARNING ("No such group: `%s'", group);
 		}
 		else
 		{
@@ -448,7 +437,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			if (status != 0)
 			{
 				char errbuf[1024];
-				log_warn ("chown (%s, -1, %i) failed: %s",
+				WARNING ("chown (%s, -1, %i) failed: %s",
 						path, (int) grp->gr_gid,
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 			}
@@ -458,7 +447,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 	errno = 0;
 	if (0 != chmod (path, sock_perms)) {
 		char errbuf[1024];
-		log_warn ("chmod() failed: %s",
+		WARNING ("chmod() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
@@ -483,7 +472,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			if (plugin_thread_create (&collectors[i]->thread,
 							&ptattr, collect, collectors[i]) != 0) {
 				char errbuf[1024];
-				log_err ("plugin_thread_create() failed: %s",
+				ERROR ("plugin_thread_create() failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				collectors[i]->thread = (pthread_t) 0;
 			}
@@ -520,7 +509,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 				disabled = 1;
 				close (connector_socket);
 				connector_socket = -1;
-				log_err ("accept() failed: %s",
+				ERROR ("accept() failed: %s",
 						 sstrerror (errno, errbuf, sizeof (errbuf)));
 				pthread_exit ((void *)1);
 			}
@@ -571,7 +560,7 @@ static int email_init (void)
 				open_connection, NULL) != 0) {
 		char errbuf[1024];
 		disabled = 1;
-		log_err ("plugin_thread_create() failed: %s",
+		ERROR ("plugin_thread_create() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

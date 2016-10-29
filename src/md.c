@@ -97,14 +97,13 @@ static void md_process (const int minor, const char *path)
   fd = open (path, O_RDONLY);
   if (fd < 0)
   {
-    WARNING ("md: open(%s): %s", path,
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    WARNING ("open(%s): %s", path, sstrerror (errno, errbuf, sizeof (errbuf)));
     return;
   }
 
   if (fstat (fd, &st) < 0)
   {
-    WARNING ("md: Unable to fstat file descriptor for %s: %s", path,
+    WARNING ("Unable to fstat file descriptor for %s: %s", path,
         sstrerror (errno, errbuf, sizeof (errbuf)));
     close (fd);
     return;
@@ -112,14 +111,14 @@ static void md_process (const int minor, const char *path)
 
   if (! S_ISBLK (st.st_mode))
   {
-    WARNING ("md: %s is no block device", path);
+    WARNING ("%s is no block device", path);
     close (fd);
     return;
   }
 
   if (st.st_rdev != makedev (MD_MAJOR, minor))
   {
-    WARNING ("md: Major/minor of %s are %i:%i, should be %i:%i",
+    WARNING ("Major/minor of %s are %i:%i, should be %i:%i",
         path, (int)major(st.st_rdev), (int)minor(st.st_rdev),
         (int)MD_MAJOR, minor);
     close (fd);
@@ -128,7 +127,7 @@ static void md_process (const int minor, const char *path)
 
   /* Retrieve md information */
   if (ioctl (fd, GET_ARRAY_INFO, &array) < 0) {
-    WARNING ("md: Unable to retrieve array info from %s: %s", path,
+    WARNING ("Unable to retrieve array info from %s: %s", path,
         sstrerror (errno, errbuf, sizeof (errbuf)));
     close (fd);
     return;
@@ -167,7 +166,7 @@ static int md_read (void)
   fh = fopen (PROC_DISKSTATS, "r");
   if (fh == NULL) {
     char errbuf[1024];
-    WARNING ("md: Unable to open %s: %s",
+    WARNING ("Unable to open %s: %s",
         PROC_DISKSTATS ,
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);

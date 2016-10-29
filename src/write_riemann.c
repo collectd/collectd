@@ -258,12 +258,12 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
 
   msg = riemann_message_create_with_events(event, NULL);
   if (msg == NULL) {
-    ERROR("write_riemann plugin: riemann_message_create_with_events() failed.");
+    ERROR("riemann_message_create_with_events() failed.");
     riemann_event_free(event);
     return (NULL);
   }
 
-  DEBUG("write_riemann plugin: Successfully created message for notification: "
+  DEBUG("Successfully created message for notification: "
         "host = \"%s\", service = \"%s\", state = \"%s\"",
         event->host, event->service, event->state);
   return (msg);
@@ -280,7 +280,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
 
   event = riemann_event_new();
   if (event == NULL) {
-    ERROR("write_riemann plugin: riemann_event_new() failed.");
+    ERROR("riemann_event_new() failed.");
     return (NULL);
   }
 
@@ -386,7 +386,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
                       RIEMANN_EVENT_FIELD_NONE);
   }
 
-  DEBUG("write_riemann plugin: Successfully created message for metric: "
+  DEBUG("Successfully created message for metric: "
         "host = \"%s\", service = \"%s\"",
         event->host, event->service);
   return (event);
@@ -403,14 +403,14 @@ wrr_value_list_to_message(struct riemann_host const *host, /* {{{ */
   /* Initialize the Msg structure. */
   msg = riemann_message_new();
   if (msg == NULL) {
-    ERROR("write_riemann plugin: riemann_message_new failed.");
+    ERROR("riemann_message_new failed.");
     return (NULL);
   }
 
   if (host->store_rates) {
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
-      ERROR("write_riemann plugin: uc_get_rate failed.");
+      ERROR("uc_get_rate failed.");
       riemann_message_free(msg);
       return (NULL);
     }
@@ -506,7 +506,7 @@ static int wrr_batch_add_value_list(struct riemann_host *host, /* {{{ */
 
     if (status != 0) {
       pthread_mutex_unlock(&host->lock);
-      ERROR("write_riemann plugin: out of memory");
+      ERROR("out of memory");
       return -1;
     }
   }
@@ -615,7 +615,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   char callback_name[DATA_MAX_NAME_LEN];
 
   if ((host = calloc(1, sizeof(*host))) == NULL) {
-    ERROR("write_riemann plugin: calloc failed.");
+    ERROR("calloc failed.");
     return ENOMEM;
   }
   pthread_mutex_init(&host->lock, NULL);
@@ -639,7 +639,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_string(ci, &host->name);
   if (status != 0) {
-    WARNING("write_riemann plugin: Required host name is missing.");
+    WARNING("Required host name is missing.");
     wrr_free(host);
     return -1;
   }
@@ -686,24 +686,19 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
       if (status != 0)
         break;
 #else
-      WARNING("write_riemann plugin: The Timeout option is not supported. Please upgrade the Riemann client to at least 1.8.0.");
+      WARNING("The Timeout option is not supported. Please upgrade the Riemann client to at least 1.8.0.");
 #endif
     } else if (strcasecmp("Port", child->key) == 0) {
       host->port = cf_util_get_port_number(child);
       if (host->port == -1) {
-        ERROR("write_riemann plugin: Invalid argument "
-              "configured for the \"Port\" "
-              "option.");
+        ERROR("Invalid argument configured for the \"Port\" option.");
         break;
       }
     } else if (strcasecmp("Protocol", child->key) == 0) {
       char tmp[16];
       status = cf_util_get_string_buffer(child, tmp, sizeof(tmp));
       if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+        ERROR("cf_util_get_string_buffer failed with status %i.", status);
         break;
       }
 
@@ -714,7 +709,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
       else if (strcasecmp("TLS", tmp) == 0)
         host->client_type = RIEMANN_CLIENT_TLS;
       else
-        WARNING("write_riemann plugin: The value "
+        WARNING("The value "
                 "\"%s\" is not valid for the "
                 "\"Protocol\" option. Use "
                 "either \"UDP\", \"TCP\" or \"TLS\".",
@@ -722,28 +717,19 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("TLSCAFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_ca_file);
       if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+        ERROR("cf_util_get_string_buffer failed with status %i.", status);
         break;
       }
     } else if (strcasecmp("TLSCertFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_cert_file);
       if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+        ERROR("cf_util_get_string_buffer failed with status %i.", status);
         break;
       }
     } else if (strcasecmp("TLSKeyFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_key_file);
       if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+        ERROR("cf_util_get_string_buffer failed with status %i.", status);
         break;
       }
     } else if (strcasecmp("StoreRates", child->key) == 0) {
@@ -762,14 +748,14 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
       if (tmp >= 2.0) {
         host->ttl_factor = tmp;
       } else if (tmp >= 1.0) {
-        NOTICE("write_riemann plugin: The configured "
+        NOTICE("The configured "
                "TTLFactor is very small "
                "(%.1f). A value of 2.0 or "
                "greater is recommended.",
                tmp);
         host->ttl_factor = tmp;
       } else if (tmp > 0.0) {
-        WARNING("write_riemann plugin: The configured "
+        WARNING("The configured "
                 "TTLFactor is too small to be "
                 "useful (%.1f). I'll use it "
                 "since the user knows best, "
@@ -777,14 +763,10 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
                 tmp);
         host->ttl_factor = tmp;
       } else { /* zero, negative and NAN */
-        ERROR("write_riemann plugin: The configured "
-              "TTLFactor is invalid (%.1f).",
-              tmp);
+        ERROR("The configured TTLFactor is invalid (%.1f).", tmp);
       }
     } else {
-      WARNING("write_riemann plugin: ignoring unknown config "
-              "option: \"%s\"",
-              child->key);
+      WARNING("ignoring unknown config option: \"%s\"", child->key);
     }
   }
   if (status != 0) {
@@ -809,16 +791,14 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     plugin_register_flush(callback_name, wrr_batch_flush, &ud);
   }
   if (status != 0)
-    WARNING("write_riemann plugin: plugin_register_write (\"%s\") "
-            "failed with status %i.",
+    WARNING("plugin_register_write (\"%s\") failed with status %i.",
             callback_name, status);
   else /* success */
     host->reference_count++;
 
   status = plugin_register_notification(callback_name, wrr_notification, &ud);
   if (status != 0)
-    WARNING("write_riemann plugin: plugin_register_notification (\"%s\") "
-            "failed with status %i.",
+    WARNING("plugin_register_notification (\"%s\") failed with status %i.",
             callback_name, status);
   else /* success */
     host->reference_count++;
@@ -874,7 +854,7 @@ static int wrr_config(oconfig_item_t *ci) /* {{{ */
       }
       strarray_add(&riemann_attrs, &riemann_attrs_num, key);
       strarray_add(&riemann_attrs, &riemann_attrs_num, val);
-      DEBUG("write_riemann: got attr: %s => %s", key, val);
+      DEBUG("got attr: %s => %s", key, val);
       sfree(key);
       sfree(val);
     } else if (strcasecmp(child->key, "tag") == 0) {
@@ -884,10 +864,10 @@ static int wrr_config(oconfig_item_t *ci) /* {{{ */
         continue;
 
       strarray_add(&riemann_tags, &riemann_tags_num, tmp);
-      DEBUG("write_riemann plugin: Got tag: %s", tmp);
+      DEBUG("Got tag: %s", tmp);
       sfree(tmp);
     } else {
-      WARNING("write_riemann plugin: Ignoring unknown "
+      WARNING("Ignoring unknown "
               "configuration option \"%s\" at top level.",
               child->key);
     }

@@ -268,13 +268,13 @@ static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
     if ((ed_ret == NULL) && camqp_is_error (conf))
     {
         char errbuf[1024];
-        ERROR ("amqp plugin: amqp_exchange_declare failed: %s",
+        ERROR ("amqp_exchange_declare failed: %s",
                 camqp_strerror (conf, errbuf, sizeof (errbuf)));
         camqp_close_connection (conf);
         return (-1);
     }
 
-    INFO ("amqp plugin: Successfully created exchange \"%s\" "
+    INFO ("Successfully created exchange \"%s\" "
             "with type \"%s\".",
             conf->exchange, conf->exchange_type);
 
@@ -311,13 +311,13 @@ static int camqp_create_exchange (camqp_config_t *conf) /* {{{ */
     if ((ed_ret == NULL) && camqp_is_error (conf))
     {
         char errbuf[1024];
-        ERROR ("amqp plugin: amqp_exchange_declare failed: %s",
+        ERROR ("amqp_exchange_declare failed: %s",
                 camqp_strerror (conf, errbuf, sizeof (errbuf)));
         camqp_close_connection (conf);
         return (-1);
     }
 
-    INFO ("amqp plugin: Successfully created exchange \"%s\" "
+    INFO ("Successfully created exchange \"%s\" "
             "with type \"%s\".",
             conf->exchange, conf->exchange_type);
 
@@ -342,7 +342,7 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
             /* arguments   = */ AMQP_EMPTY_TABLE);
     if (qd_ret == NULL)
     {
-        ERROR ("amqp plugin: amqp_queue_declare failed.");
+        ERROR ("amqp_queue_declare failed.");
         camqp_close_connection (conf);
         return (-1);
     }
@@ -352,14 +352,14 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
         conf->queue = camqp_bytes_cstring (&qd_ret->queue);
         if (conf->queue == NULL)
         {
-            ERROR ("amqp plugin: camqp_bytes_cstring failed.");
+            ERROR ("camqp_bytes_cstring failed.");
             camqp_close_connection (conf);
             return (-1);
         }
 
-        INFO ("amqp plugin: Created queue \"%s\".", conf->queue);
+        INFO ("Created queue \"%s\".", conf->queue);
     }
-    DEBUG ("amqp plugin: Successfully created queue \"%s\".", conf->queue);
+    DEBUG ("Successfully created queue \"%s\".", conf->queue);
 
     /* bind to an exchange */
     if (conf->exchange != NULL)
@@ -378,13 +378,13 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
         if ((qb_ret == NULL) && camqp_is_error (conf))
         {
             char errbuf[1024];
-            ERROR ("amqp plugin: amqp_queue_bind failed: %s",
+            ERROR ("amqp_queue_bind failed: %s",
                     camqp_strerror (conf, errbuf, sizeof (errbuf)));
             camqp_close_connection (conf);
             return (-1);
         }
 
-        DEBUG ("amqp plugin: Successfully bound queue \"%s\" to exchange \"%s\".",
+        DEBUG ("Successfully bound queue \"%s\" to exchange \"%s\".",
                 conf->queue, conf->exchange);
     } /* if (conf->exchange != NULL) */
 
@@ -400,7 +400,7 @@ static int camqp_setup_queue (camqp_config_t *conf) /* {{{ */
     if ((cm_ret == NULL) && camqp_is_error (conf))
     {
         char errbuf[1024];
-        ERROR ("amqp plugin: amqp_basic_consume failed: %s",
+        ERROR ("amqp_basic_consume failed: %s",
                     camqp_strerror (conf, errbuf, sizeof (errbuf)));
         camqp_close_connection (conf);
         return (-1);
@@ -427,20 +427,20 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     time_t now = time(NULL);
     if (now < (last_connect_time + conf->connection_retry_delay))
     {
-        DEBUG("amqp plugin: skipping connection retry, "
+        DEBUG("skipping connection retry, "
             "ConnectionRetryDelay: %d", conf->connection_retry_delay);
         return(1);
     }
     else
     {
-        DEBUG ("amqp plugin: retrying connection");
+        DEBUG ("retrying connection");
         last_connect_time = now;
     }
 
     conf->connection = amqp_new_connection ();
     if (conf->connection == NULL)
     {
-        ERROR ("amqp plugin: amqp_new_connection failed.");
+        ERROR ("amqp_new_connection failed.");
         return (ENOMEM);
     }
 
@@ -451,7 +451,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     socket = amqp_tcp_socket_new (conf->connection);
     if (! socket)
     {
-        ERROR ("amqp plugin: amqp_tcp_socket_new failed.");
+        ERROR ("amqp_tcp_socket_new failed.");
         amqp_destroy_connection (conf->connection);
         conf->connection = NULL;
         return (ENOMEM);
@@ -462,7 +462,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     {
         char errbuf[1024];
         status *= -1;
-        ERROR ("amqp plugin: amqp_socket_open failed: %s",
+        ERROR ("amqp_socket_open failed: %s",
                 sstrerror (status, errbuf, sizeof (errbuf)));
         amqp_destroy_connection (conf->connection);
         conf->connection = NULL;
@@ -476,7 +476,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
     {
         char errbuf[1024];
         status = (-1) * sockfd;
-        ERROR ("amqp plugin: amqp_open_socket failed: %s",
+        ERROR ("amqp_open_socket failed: %s",
                 sstrerror (status, errbuf, sizeof (errbuf)));
         amqp_destroy_connection (conf->connection);
         conf->connection = NULL;
@@ -493,7 +493,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
             CONF(conf, user), CONF(conf, password));
     if (reply.reply_type != AMQP_RESPONSE_NORMAL)
     {
-        ERROR ("amqp plugin: amqp_login (vhost = %s, user = %s) failed.",
+        ERROR ("amqp_login (vhost = %s, user = %s) failed.",
                 CONF(conf, vhost), CONF(conf, user));
         amqp_destroy_connection (conf->connection);
         CLOSE_SOCKET ();
@@ -506,7 +506,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
      * it get set? --octo */
     if (reply.reply_type != AMQP_RESPONSE_NORMAL)
     {
-        ERROR ("amqp plugin: amqp_channel_open failed.");
+        ERROR ("amqp_channel_open failed.");
         amqp_connection_close (conf->connection, AMQP_REPLY_SUCCESS);
         amqp_destroy_connection (conf->connection);
         CLOSE_SOCKET ();
@@ -514,7 +514,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
         return (1);
     }
 
-    INFO ("amqp plugin: Successfully opened connection to vhost \"%s\" "
+    INFO ("Successfully opened connection to vhost \"%s\" "
             "on %s:%i.", CONF(conf, vhost), CONF(conf, host), conf->port);
 
     status = camqp_create_exchange (conf);
@@ -528,7 +528,7 @@ static int camqp_connect (camqp_config_t *conf) /* {{{ */
 
 static int camqp_shutdown (void) /* {{{ */
 {
-    DEBUG ("amqp plugin: Shutting down %zu subscriber threads.",
+    DEBUG ("Shutting down %zu subscriber threads.",
             subscriber_threads_num);
 
     subscriber_threads_running = 0;
@@ -544,7 +544,7 @@ static int camqp_shutdown (void) /* {{{ */
     subscriber_threads_num = 0;
     sfree (subscriber_threads);
 
-    DEBUG ("amqp plugin: All subscriber threads exited.");
+    DEBUG ("All subscriber threads exited.");
 
     return (0);
 } /* }}} int camqp_shutdown */
@@ -572,7 +572,7 @@ static int camqp_read_body (camqp_config_t *conf, /* {{{ */
         {
             char errbuf[1024];
             status = (-1) * status;
-            ERROR ("amqp plugin: amqp_simple_wait_frame failed: %s",
+            ERROR ("amqp_simple_wait_frame failed: %s",
                     sstrerror (status, errbuf, sizeof (errbuf)));
             camqp_close_connection (conf);
             return (status);
@@ -580,14 +580,14 @@ static int camqp_read_body (camqp_config_t *conf, /* {{{ */
 
         if (frame.frame_type != AMQP_FRAME_BODY)
         {
-            NOTICE ("amqp plugin: Unexpected frame type: %#"PRIx8,
+            NOTICE ("Unexpected frame type: %#"PRIx8,
                     frame.frame_type);
             return (-1);
         }
 
         if ((body_size - received) < frame.payload.body_fragment.len)
         {
-            WARNING ("amqp plugin: Body is larger than indicated by header.");
+            WARNING ("Body is larger than indicated by header.");
             return (-1);
         }
 
@@ -601,19 +601,19 @@ static int camqp_read_body (camqp_config_t *conf, /* {{{ */
     {
         status = cmd_handle_putval (stderr, body);
         if (status != 0)
-            ERROR ("amqp plugin: cmd_handle_putval failed with status %i.",
+            ERROR ("cmd_handle_putval failed with status %i.",
                     status);
         return (status);
     }
     else if (strcasecmp ("application/json", content_type) == 0)
     {
-        ERROR ("amqp plugin: camqp_read_body: Parsing JSON data has not "
+        ERROR ("camqp_read_body: Parsing JSON data has not "
                 "been implemented yet. FIXME!");
         return (0);
     }
     else
     {
-        ERROR ("amqp plugin: camqp_read_body: Unknown content type \"%s\".",
+        ERROR ("camqp_read_body: Unknown content type \"%s\".",
                 content_type);
         return (EINVAL);
     }
@@ -634,7 +634,7 @@ static int camqp_read_header (camqp_config_t *conf) /* {{{ */
     {
         char errbuf[1024];
         status = (-1) * status;
-        ERROR ("amqp plugin: amqp_simple_wait_frame failed: %s",
+        ERROR ("amqp_simple_wait_frame failed: %s",
                     sstrerror (status, errbuf, sizeof (errbuf)));
         camqp_close_connection (conf);
         return (status);
@@ -642,7 +642,7 @@ static int camqp_read_header (camqp_config_t *conf) /* {{{ */
 
     if (frame.frame_type != AMQP_FRAME_HEADER)
     {
-        NOTICE ("amqp plugin: Unexpected frame type: %#"PRIx8,
+        NOTICE ("Unexpected frame type: %#"PRIx8,
                 frame.frame_type);
         return (-1);
     }
@@ -651,7 +651,7 @@ static int camqp_read_header (camqp_config_t *conf) /* {{{ */
     content_type = camqp_bytes_cstring (&properties->content_type);
     if (content_type == NULL)
     {
-        ERROR ("amqp plugin: Unable to determine content type.");
+        ERROR ("Unable to determine content type.");
         return (-1);
     }
 
@@ -677,8 +677,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         status = camqp_connect (conf);
         if (status != 0)
         {
-            ERROR ("amqp plugin: camqp_connect failed. "
-                    "Will sleep for %.3f seconds.",
+            ERROR ("camqp_connect failed. Will sleep for %.3f seconds.",
                     CDTIME_T_TO_DOUBLE (interval));
             nanosleep (&CDTIME_T_TO_TIMESPEC (interval), /* remaining = */ NULL);
             continue;
@@ -687,8 +686,7 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         status = amqp_simple_wait_frame (conf->connection, &frame);
         if (status < 0)
         {
-            ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
-                    "Will sleep for %.3f seconds.",
+            ERROR ("amqp_simple_wait_frame failed. Will sleep for %.3f seconds.",
                     CDTIME_T_TO_DOUBLE (interval));
             camqp_close_connection (conf);
             nanosleep (&CDTIME_T_TO_TIMESPEC (interval), /* remaining = */ NULL);
@@ -697,14 +695,14 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
 
         if (frame.frame_type != AMQP_FRAME_METHOD)
         {
-            DEBUG ("amqp plugin: Unexpected frame type: %#"PRIx8,
+            DEBUG ("Unexpected frame type: %#"PRIx8,
                     frame.frame_type);
             continue;
         }
 
         if (frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD)
         {
-            DEBUG ("amqp plugin: Unexpected method id: %#"PRIx32,
+            DEBUG ("Unexpected method id: %#"PRIx32,
                     frame.payload.method.id);
             continue;
         }
@@ -728,7 +726,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
             sizeof (*subscriber_threads) * (subscriber_threads_num + 1));
     if (tmp == NULL)
     {
-        ERROR ("amqp plugin: realloc failed.");
+        ERROR ("realloc failed.");
         sfree (subscriber_threads);
         return (ENOMEM);
     }
@@ -741,7 +739,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     if (status != 0)
     {
         char errbuf[1024];
-        ERROR ("amqp plugin: pthread_create failed: %s",
+        ERROR ("pthread_create failed: %s",
                 sstrerror (status, errbuf, sizeof (errbuf)));
         return (status);
     }
@@ -791,7 +789,7 @@ static int camqp_write_locked (camqp_config_t *conf, /* {{{ */
                 amqp_cstring_bytes(buffer));
     if (status != 0)
     {
-        ERROR ("amqp plugin: amqp_basic_publish failed with status %i.",
+        ERROR ("amqp_basic_publish failed with status %i.",
                 status);
         camqp_close_connection (conf);
     }
@@ -837,7 +835,7 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
         status = cmd_create_putval (buffer, sizeof (buffer), ds, vl);
         if (status != 0)
         {
-            ERROR ("amqp plugin: cmd_create_putval failed with status %i.",
+            ERROR ("cmd_create_putval failed with status %i.",
                     status);
             return (status);
         }
@@ -858,14 +856,14 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
                     conf->graphite_flags);
         if (status != 0)
         {
-            ERROR ("amqp plugin: format_graphite failed with status %i.",
+            ERROR ("format_graphite failed with status %i.",
                     status);
             return (status);
         }
     }
     else
     {
-        ERROR ("amqp plugin: Invalid format (%i).", conf->format);
+        ERROR ("Invalid format (%i).", conf->format);
         return (-1);
     }
 
@@ -899,8 +897,7 @@ static int camqp_config_set_format (oconfig_item_t *ci, /* {{{ */
         conf->format = CAMQP_FORMAT_GRAPHITE;
     else
     {
-        WARNING ("amqp plugin: Invalid format string: %s",
-                string);
+        WARNING ("Invalid format string: %s", string);
     }
 
     free (string);
@@ -917,7 +914,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("amqp plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return (ENOMEM);
     }
 
@@ -1024,7 +1021,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
             char *tmp_buff = NULL;
             status = cf_util_get_string (child, &tmp_buff);
             if (strlen (tmp_buff) > 1)
-                WARNING ("amqp plugin: The option \"GraphiteEscapeChar\" handles "
+                WARNING ("The option \"GraphiteEscapeChar\" handles "
                         "only one character. Others will be ignored.");
             conf->escape_char = tmp_buff[0];
             sfree (tmp_buff);
@@ -1032,7 +1029,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         else if (strcasecmp ("ConnectionRetryDelay", child->key) == 0)
             status = cf_util_get_int (child, &conf->connection_retry_delay);
         else
-            WARNING ("amqp plugin: Ignoring unknown "
+            WARNING ("Ignoring unknown "
                     "configuration option \"%s\".", child->key);
 
         if (status != 0)
@@ -1042,11 +1039,11 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     if ((status == 0) && (conf->exchange == NULL))
     {
         if (conf->exchange_type != NULL)
-            WARNING ("amqp plugin: The option \"ExchangeType\" was given "
+            WARNING ("The option \"ExchangeType\" was given "
                     "without the \"Exchange\" option. It will be ignored.");
 
         if (!publish && (conf->routing_key != NULL))
-            WARNING ("amqp plugin: The option \"RoutingKey\" was given "
+            WARNING ("The option \"RoutingKey\" was given "
                     "without the \"Exchange\" option. It will be ignored.");
 
     }
@@ -1059,7 +1056,7 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
 
     if (conf->exchange != NULL)
     {
-        DEBUG ("amqp plugin: camqp_config_connection: exchange = %s;",
+        DEBUG ("camqp_config_connection: exchange = %s;",
                 conf->exchange);
     }
 
@@ -1103,7 +1100,7 @@ static int camqp_config (oconfig_item_t *ci) /* {{{ */
         else if (strcasecmp ("Subscribe", child->key) == 0)
             camqp_config_connection (child, /* publish = */ 0);
         else
-            WARNING ("amqp plugin: Ignoring unknown config option \"%s\".",
+            WARNING ("Ignoring unknown config option \"%s\".",
                     child->key);
     } /* for (ci->children_num) */
 

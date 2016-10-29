@@ -412,8 +412,7 @@ static void conn_reset_port_entry (void)
     {
       port_entry_t *next = pe->next;
 
-      DEBUG ("tcpconns plugin: Removing temporary entry "
-          "for listening port %"PRIu16, pe->port);
+      DEBUG ("Removing temporary entry for listening port %"PRIu16, pe->port);
 
       if (prev == NULL)
         port_list_head = next;
@@ -445,8 +444,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
 #endif
      )
   {
-    NOTICE ("tcpconns plugin: Ignoring connection with "
-	"unknown state 0x%02"PRIx8".", state);
+    NOTICE ("Ignoring connection with unknown state 0x%02"PRIx8".", state);
     return (-1);
   }
 
@@ -460,7 +458,7 @@ static int conn_handle_ports (uint16_t port_local, uint16_t port_remote, uint8_t
       pe->flags |= PORT_IS_LISTENING;
   }
 
-  DEBUG ("tcpconns plugin: Connection %"PRIu16" <-> %"PRIu16" (%s)",
+  DEBUG ("Connection %"PRIu16" <-> %"PRIu16" (%s)",
       port_local, port_remote, tcp_state[state]);
 
   pe = conn_get_port_entry (port_local, 0 /* no create */);
@@ -489,7 +487,7 @@ static int conn_read_netlink (void)
   fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_INET_DIAG);
   if (fd < 0)
   {
-    ERROR ("tcpconns plugin: conn_read_netlink: socket(AF_NETLINK, SOCK_RAW, "
+    ERROR ("conn_read_netlink: socket(AF_NETLINK, SOCK_RAW, "
 	"NETLINK_INET_DIAG) failed: %s",
 	sstrerror (errno, buf, sizeof (buf)));
     return (-1);
@@ -530,7 +528,7 @@ static int conn_read_netlink (void)
 
   if (sendmsg (fd, &msg, 0) < 0)
   {
-    ERROR ("tcpconns plugin: conn_read_netlink: sendmsg(2) failed: %s",
+    ERROR ("conn_read_netlink: sendmsg(2) failed: %s",
 	sstrerror (errno, buf, sizeof (buf)));
     close (fd);
     return (-1);
@@ -556,7 +554,7 @@ static int conn_read_netlink (void)
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
-      ERROR ("tcpconns plugin: conn_read_netlink: recvmsg(2) failed: %s",
+      ERROR ("conn_read_netlink: recvmsg(2) failed: %s",
 	  sstrerror (errno, buf, sizeof (buf)));
       close (fd);
       return (-1);
@@ -564,7 +562,7 @@ static int conn_read_netlink (void)
     else if (status == 0)
     {
       close (fd);
-      DEBUG ("tcpconns plugin: conn_read_netlink: Unexpected zero-sized "
+      DEBUG ("conn_read_netlink: Unexpected zero-sized "
 	  "reply from netlink socket.");
       return (0);
     }
@@ -588,8 +586,7 @@ static int conn_read_netlink (void)
 	struct nlmsgerr *msg_error;
 
 	msg_error = NLMSG_DATA(h);
-	WARNING ("tcpconns plugin: conn_read_netlink: Received error %i.",
-	    msg_error->error);
+	WARNING ("conn_read_netlink: Received error %i.", msg_error->error);
 
 	close (fd);
 	return (1);
@@ -637,7 +634,7 @@ static int conn_handle_line (char *buffer)
   fields_len = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
   if (fields_len < 12)
   {
-    DEBUG ("tcpconns plugin: Got %i fields, expected at least 12.", fields_len);
+    DEBUG ("Got %i fields, expected at least 12.", fields_len);
     return (-1);
   }
 
@@ -712,14 +709,14 @@ static int conn_config (const char *key, const char *value)
 
       if ((port < 1) || (port > 65535))
       {
-	ERROR ("tcpconns plugin: Invalid port: %i", port);
+	ERROR ("Invalid port: %i", port);
 	return (1);
       }
 
       pe = conn_get_port_entry ((uint16_t) port, 1 /* create */);
       if (pe == NULL)
       {
-	ERROR ("tcpconns plugin: conn_get_port_entry failed.");
+	ERROR ("conn_get_port_entry failed.");
 	return (1);
       }
 
@@ -783,14 +780,13 @@ static int conn_read (void)
     status = conn_read_netlink ();
     if (status == 0)
     {
-      INFO ("tcpconns plugin: Reading from netlink succeeded. "
+      INFO ("Reading from netlink succeeded. "
 	  "Will use the netlink method from now on.");
       linux_source = SRC_NETLINK;
     }
     else
     {
-      INFO ("tcpconns plugin: Reading from netlink failed. "
-	  "Will read from /proc from now on.");
+      INFO ("Reading from netlink failed. Will read from /proc from now on.");
       linux_source = SRC_PROC;
 
       /* return success here to avoid the "plugin failed" message. */
@@ -823,28 +819,28 @@ static int conn_read (void)
   status = sysctlbyname ("net.inet.tcp.pcblist", NULL, &buffer_len, 0, 0);
   if (status < 0)
   {
-    ERROR ("tcpconns plugin: sysctlbyname failed.");
+    ERROR ("sysctlbyname failed.");
     return (-1);
   }
 
   buffer = malloc (buffer_len);
   if (buffer == NULL)
   {
-    ERROR ("tcpconns plugin: malloc failed.");
+    ERROR ("malloc failed.");
     return (-1);
   }
 
   status = sysctlbyname ("net.inet.tcp.pcblist", buffer, &buffer_len, 0, 0);
   if (status < 0)
   {
-    ERROR ("tcpconns plugin: sysctlbyname failed.");
+    ERROR ("sysctlbyname failed.");
     sfree (buffer);
     return (-1);
   }
 
   if (buffer_len <= sizeof (struct xinpgen))
   {
-    ERROR ("tcpconns plugin: (buffer_len <= sizeof (struct xinpgen))");
+    ERROR ("(buffer_len <= sizeof (struct xinpgen))");
     sfree (buffer);
     return (-1);
   }
@@ -892,7 +888,7 @@ static int kread (u_long addr, void *buf, int size)
   status = kvm_read (kvmd, addr, buf, size);
   if (status != size)
   {
-    ERROR ("tcpconns plugin: kvm_read failed (got %i, expected %i): %s\n",
+    ERROR ("kvm_read failed (got %i, expected %i): %s\n",
 	status, size, kvm_geterr (kvmd));
     return (-1);
   }
@@ -913,21 +909,20 @@ static int conn_init (void)
   kvmd = kvm_openfiles (NULL, NULL, NULL, O_RDONLY, buf);
   if (kvmd == NULL)
   {
-    ERROR ("tcpconns plugin: kvm_openfiles failed: %s", buf);
+    ERROR ("kvm_openfiles failed: %s", buf);
     return (-1);
   }
 
   status = kvm_nlist (kvmd, nl);
   if (status < 0)
   {
-    ERROR ("tcpconns plugin: kvm_nlist failed with status %i.", status);
+    ERROR ("kvm_nlist failed with status %i.", status);
     return (-1);
   }
 
   if (nl[N_TCBTABLE].n_type == 0)
   {
-    ERROR ("tcpconns plugin: Error looking up kernel's namelist: "
-	"N_TCBTABLE is invalid.");
+    ERROR ("Error looking up kernel's namelist: N_TCBTABLE is invalid.");
     return (-1);
   }
 
@@ -1022,7 +1017,7 @@ static int conn_read (void)
   size = netinfo(NETINFO_TCP, 0, 0, 0);
   if (size < 0)
   {
-    ERROR ("tcpconns plugin: netinfo failed return: %i", size);
+    ERROR ("netinfo failed return: %i", size);
     return (-1);
   }
 
@@ -1031,20 +1026,20 @@ static int conn_read (void)
 
   if ((size - sizeof (struct netinfo_header)) % sizeof (struct netinfo_conn))
   {
-    ERROR ("tcpconns plugin: invalid buffer size");
+    ERROR ("invalid buffer size");
     return (-1);
   }
 
   data = malloc(size);
   if (data == NULL)
   {
-    ERROR ("tcpconns plugin: malloc failed");
+    ERROR ("malloc failed");
     return (-1);
   }
 
   if (netinfo(NETINFO_TCP, data, &size, 0) < 0)
   {
-    ERROR ("tcpconns plugin: netinfo failed");
+    ERROR ("netinfo failed");
     free(data);
     return (-1);
   }

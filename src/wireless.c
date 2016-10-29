@@ -96,7 +96,7 @@ static int wireless_read (void)
 	if ((fh = fopen (WIRELESS_PROC_FILE, "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("wireless: fopen: %s",
+		WARNING ("fopen: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

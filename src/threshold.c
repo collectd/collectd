@@ -116,103 +116,6 @@ static int ut_threshold_add (const threshold_t *th)
  * The following approximately two hundred functions are used to handle the
  * configuration and fill the threshold list.
  * {{{ */
-static int ut_config_type_datasource (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("threshold values: The `DataSource' option needs exactly one "
-	"string argument.");
-    return (-1);
-  }
-
-  sstrncpy (th->data_source, ci->values[0].value.string,
-      sizeof (th->data_source));
-
-  return (0);
-} /* int ut_config_type_datasource */
-
-static int ut_config_type_instance (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("threshold values: The `Instance' option needs exactly one "
-	"string argument.");
-    return (-1);
-  }
-
-  sstrncpy (th->type_instance, ci->values[0].value.string,
-      sizeof (th->type_instance));
-
-  return (0);
-} /* int ut_config_type_instance */
-
-static int ut_config_type_max (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("threshold values: The `%s' option needs exactly one "
-	"number argument.", ci->key);
-    return (-1);
-  }
-
-  if (strcasecmp (ci->key, "WarningMax") == 0)
-    th->warning_max = ci->values[0].value.number;
-  else
-    th->failure_max = ci->values[0].value.number;
-
-  return (0);
-} /* int ut_config_type_max */
-
-static int ut_config_type_min (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("threshold values: The `%s' option needs exactly one "
-	"number argument.", ci->key);
-    return (-1);
-  }
-
-  if (strcasecmp (ci->key, "WarningMin") == 0)
-    th->warning_min = ci->values[0].value.number;
-  else
-    th->failure_min = ci->values[0].value.number;
-
-  return (0);
-} /* int ut_config_type_min */
-
-static int ut_config_type_hits (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("threshold values: The `%s' option needs exactly one "
-      "number argument.", ci->key);
-    return (-1);
-  }
-
-  th->hits = ci->values[0].value.number;
-
-  return (0);
-} /* int ut_config_type_hits */
-
-static int ut_config_type_hysteresis (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
-  {
-    WARNING ("threshold values: The `%s' option needs exactly one "
-      "number argument.", ci->key);
-    return (-1);
-  }
-
-  th->hysteresis = ci->values[0].value.number;
-
-  return (0);
-} /* int ut_config_type_hysteresis */
 
 static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
 {
@@ -222,14 +125,13 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("threshold values: The `Type' block needs exactly one string "
-	"argument.");
+    WARNING ("The `Type' block needs exactly one string argument.");
     return (-1);
   }
 
   if (ci->children_num < 1)
   {
-    WARNING ("threshold values: The `Type' block needs at least one option.");
+    WARNING ("The `Type' block needs at least one option.");
     return (-1);
   }
 
@@ -249,15 +151,19 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
     oconfig_item_t *option = ci->children + i;
 
     if (strcasecmp ("Instance", option->key) == 0)
-      status = ut_config_type_instance (&th, option);
+      status = cf_util_get_string_buffer (option, th.type_instance,
+                  sizeof (th.type_instance));
     else if (strcasecmp ("DataSource", option->key) == 0)
-      status = ut_config_type_datasource (&th, option);
-    else if ((strcasecmp ("WarningMax", option->key) == 0)
-	|| (strcasecmp ("FailureMax", option->key) == 0))
-      status = ut_config_type_max (&th, option);
-    else if ((strcasecmp ("WarningMin", option->key) == 0)
-	|| (strcasecmp ("FailureMin", option->key) == 0))
-      status = ut_config_type_min (&th, option);
+      status = cf_util_get_string_buffer (option, th.data_source,
+                  sizeof (th.data_source));
+    else if (strcasecmp ("WarningMax", option->key) == 0)
+      status = cf_util_get_double (option, &th.warning_max);
+    else if (strcasecmp ("FailureMax", option->key) == 0)
+      status = cf_util_get_double (option, &th.failure_max);
+    else if (strcasecmp ("WarningMin", option->key) == 0)
+      status = cf_util_get_double (option, &th.warning_min);
+    else if (strcasecmp ("FailureMin", option->key) == 0)
+      status = cf_util_get_double (option, &th.failure_min);
     else if (strcasecmp ("Interesting", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_INTERESTING);
     else if (strcasecmp ("Invert", option->key) == 0)
@@ -269,13 +175,12 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
     else if (strcasecmp ("Percentage", option->key) == 0)
       status = cf_util_get_flag (option, &th.flags, UT_FLAG_PERCENTAGE);
     else if (strcasecmp ("Hits", option->key) == 0)
-      status = ut_config_type_hits (&th, option);
+      status = cf_util_get_int (option, &th.hits);
     else if (strcasecmp ("Hysteresis", option->key) == 0)
-      status = ut_config_type_hysteresis (&th, option);
+      status = cf_util_get_double (option, &th.hysteresis);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed inside a `Type' "
-	  "block.", option->key);
+      WARNING ("Option `%s' not allowed inside a `Type' block.", option->key);
       status = -1;
     }
 
@@ -291,22 +196,6 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   return (status);
 } /* int ut_config_type */
 
-static int ut_config_plugin_instance (threshold_t *th, oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    WARNING ("threshold values: The `Instance' option needs exactly one "
-	"string argument.");
-    return (-1);
-  }
-
-  sstrncpy (th->plugin_instance, ci->values[0].value.string,
-      sizeof (th->plugin_instance));
-
-  return (0);
-} /* int ut_config_plugin_instance */
-
 static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
 {
   threshold_t th;
@@ -315,15 +204,13 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("threshold values: The `Plugin' block needs exactly one string "
-	"argument.");
+    WARNING ("The `Plugin' block needs exactly one string argument.");
     return (-1);
   }
 
   if (ci->children_num < 1)
   {
-    WARNING ("threshold values: The `Plugin' block needs at least one nested "
-	"block.");
+    WARNING ("The `Plugin' block needs at least one nested block.");
     return (-1);
   }
 
@@ -337,11 +224,11 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
     if (strcasecmp ("Type", option->key) == 0)
       status = ut_config_type (&th, option);
     else if (strcasecmp ("Instance", option->key) == 0)
-      status = ut_config_plugin_instance (&th, option);
+      status = cf_util_get_string_buffer (option, th.plugin_instance,
+                  sizeof(th.plugin_instance));
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed inside a `Plugin' "
-	  "block.", option->key);
+      WARNING ("Option `%s' not allowed inside a `Plugin' block.", option->key);
       status = -1;
     }
 
@@ -360,15 +247,13 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("threshold values: The `Host' block needs exactly one string "
-	"argument.");
+    WARNING ("The `Host' block needs exactly one string argument.");
     return (-1);
   }
 
   if (ci->children_num < 1)
   {
-    WARNING ("threshold values: The `Host' block needs at least one nested "
-	"block.");
+    WARNING ("The `Host' block needs at least one nested block.");
     return (-1);
   }
 
@@ -385,8 +270,7 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_plugin (&th, option);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed inside a `Host' "
-	  "block.", option->key);
+      WARNING ("Option `%s' not allowed inside a `Host' block.", option->key);
       status = -1;
     }
 
@@ -895,7 +779,7 @@ static int ut_config (oconfig_item_t *ci)
       status = ut_config_host (&th, option);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed here.", option->key);
+      WARNING ("Option `%s' not allowed here.", option->key);
       status = -1;
     }
 

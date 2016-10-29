@@ -104,7 +104,7 @@ static void olsrd_set_detail (int *varptr, const char *detail, /* {{{ */
     *varptr = OLSRD_WANT_DETAIL;
   else
   {
-    ERROR ("olsrd plugin: Invalid argument given to the `%s' configuration "
+    ERROR ("Invalid argument given to the `%s' configuration "
         "option: `%s'. Expected: `No', `Summary', or `Detail'.",
         key, detail);
   }
@@ -166,7 +166,7 @@ static FILE *olsrd_connect (void) /* {{{ */
       &ai_hints, &ai_list);
   if (ai_return != 0)
   {
-    ERROR ("olsrd plugin: getaddrinfo (%s, %s) failed: %s",
+    ERROR ("getaddrinfo (%s, %s) failed: %s",
         olsrd_get_node (), olsrd_get_service (),
         gai_strerror (ai_return));
     return (NULL);
@@ -182,7 +182,7 @@ static FILE *olsrd_connect (void) /* {{{ */
     fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0)
     {
-      ERROR ("olsrd plugin: socket failed: %s",
+      ERROR ("socket failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       continue;
     }
@@ -190,7 +190,7 @@ static FILE *olsrd_connect (void) /* {{{ */
     status = connect (fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0)
     {
-      ERROR ("olsrd plugin: connect failed: %s",
+      ERROR ("connect failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       close (fd);
       continue;
@@ -199,7 +199,7 @@ static FILE *olsrd_connect (void) /* {{{ */
     fh = fdopen (fd, "r+");
     if (fh == NULL)
     {
-      ERROR ("olsrd plugin: fdopen failed.");
+      ERROR ("fdopen failed.");
       close (fd);
       continue;
     }
@@ -279,21 +279,21 @@ static int olsrd_cb_links (int lineno, /* {{{ */
   /* Special handling of the last line. */
   if (fields_num == 0)
   {
-    DEBUG ("olsrd plugin: Number of links: %"PRIu32, links_num);
+    DEBUG ("Number of links: %"PRIu32, links_num);
     olsrd_submit (/* p.-inst = */ "links", /* type = */ "links",
         /* t.-inst = */ NULL, (gauge_t) links_num);
 
     lq = NAN;
     if (lq_num > 0)
       lq = lq_sum / ((double) lq_num);
-    DEBUG ("olsrd plugin: Average  LQ: %g", lq);
+    DEBUG ("Average  LQ: %g", lq);
     olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
         "average-lq", lq);
 
     nlq = NAN;
     if (nlq_num > 0)
       nlq = nlq_sum / ((double) nlq_num);
-    DEBUG ("olsrd plugin: Average NLQ: %g", nlq);
+    DEBUG ("Average NLQ: %g", nlq);
     olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
         "average-nlq", nlq);
 
@@ -310,7 +310,7 @@ static int olsrd_cb_links (int lineno, /* {{{ */
   lq = strtod (fields[3], &endptr);
   if ((errno != 0) || (endptr == fields[3]))
   {
-    ERROR ("olsrd plugin: Cannot parse link quality: %s", fields[3]);
+    ERROR ("Cannot parse link quality: %s", fields[3]);
   }
   else
   {
@@ -327,7 +327,7 @@ static int olsrd_cb_links (int lineno, /* {{{ */
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-lq",
           fields[0], fields[1]);
 
-      DEBUG ("olsrd plugin: links: type_instance = %s;  lq = %g;",
+      DEBUG ("links: type_instance = %s;  lq = %g;",
           type_instance, lq);
       olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
           type_instance, lq);
@@ -339,7 +339,7 @@ static int olsrd_cb_links (int lineno, /* {{{ */
   nlq = strtod (fields[4], &endptr);
   if ((errno != 0) || (endptr == fields[4]))
   {
-    ERROR ("olsrd plugin: Cannot parse neighbor link quality: %s", fields[4]);
+    ERROR ("Cannot parse neighbor link quality: %s", fields[4]);
   }
   else
   {
@@ -356,7 +356,7 @@ static int olsrd_cb_links (int lineno, /* {{{ */
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-rx",
           fields[0], fields[1]);
 
-      DEBUG ("olsrd plugin: links: type_instance = %s; nlq = %g;",
+      DEBUG ("links: type_instance = %s; nlq = %g;",
           type_instance, lq);
       olsrd_submit (/* p.-inst = */ "links", /* type = */ "signal_quality",
           type_instance, nlq);
@@ -406,21 +406,21 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
   {
     double metric_avg;
 
-    DEBUG ("olsrd plugin: Number of routes: %"PRIu32, routes_num);
+    DEBUG ("Number of routes: %"PRIu32, routes_num);
     olsrd_submit (/* p.-inst = */ "routes", /* type = */ "routes",
         /* t.-inst = */ NULL, (gauge_t) routes_num);
 
     metric_avg = NAN;
     if (metric_num > 0)
       metric_avg = ((double) metric_sum) / ((double) metric_num);
-    DEBUG ("olsrd plugin: Average metric: %g", metric_avg);
+    DEBUG ("Average metric: %g", metric_avg);
     olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_metric",
         "average", metric_avg);
 
     etx = NAN;
     if (etx_num > 0)
       etx = etx_sum / ((double) etx_sum);
-    DEBUG ("olsrd plugin: Average ETX: %g", etx);
+    DEBUG ("Average ETX: %g", etx);
     olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_etx",
         "average", etx);
 
@@ -437,7 +437,7 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
   metric = (uint32_t) strtoul (fields[2], &endptr, 0);
   if ((errno != 0) || (endptr == fields[2]))
   {
-    ERROR ("olsrd plugin: Unable to parse metric: %s", fields[2]);
+    ERROR ("Unable to parse metric: %s", fields[2]);
   }
   else
   {
@@ -446,7 +446,7 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
 
     if (config_want_routes == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: destination = %s; metric = %"PRIu32";",
+      DEBUG ("destination = %s; metric = %"PRIu32";",
           fields[0], metric);
       olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_metric",
           /* t.-inst = */ fields[0], (gauge_t) metric);
@@ -458,7 +458,7 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
   etx = strtod (fields[3], &endptr);
   if ((errno != 0) || (endptr == fields[3]))
   {
-    ERROR ("olsrd plugin: Unable to parse ETX: %s", fields[3]);
+    ERROR ("Unable to parse ETX: %s", fields[3]);
   }
   else
   {
@@ -470,7 +470,7 @@ static int olsrd_cb_routes (int lineno, /* {{{ */
 
     if (config_want_routes == OLSRD_WANT_DETAIL)
     {
-      DEBUG ("olsrd plugin: destination = %s; etx = %g;",
+      DEBUG ("destination = %s; etx = %g;",
           fields[0], etx);
       olsrd_submit (/* p.-inst = */ "routes", /* type = */ "route_etx",
           /* t.-inst = */ fields[0], etx);
@@ -514,14 +514,14 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
   /* Special handling after the last line */
   if (fields_num == 0)
   {
-    DEBUG ("olsrd plugin: topology: Number of links: %"PRIu32, links_num);
+    DEBUG ("topology: Number of links: %"PRIu32, links_num);
     olsrd_submit (/* p.-inst = */ "topology", /* type = */ "links",
         /* t.-inst = */ NULL, (gauge_t) links_num);
 
     lq = NAN;
     if (lq_num > 0)
       lq = lq_sum / ((double) lq_sum);
-    DEBUG ("olsrd plugin: topology: Average link quality: %g", lq);
+    DEBUG ("topology: Average link quality: %g", lq);
     olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
         /* t.-inst = */ "average", lq);
 
@@ -538,7 +538,7 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
   lq = strtod (fields[2], &endptr);
   if ((errno != 0) || (endptr == fields[2]))
   {
-    ERROR ("olsrd plugin: Unable to parse LQ: %s", fields[2]);
+    ERROR ("Unable to parse LQ: %s", fields[2]);
   }
   else
   {
@@ -554,7 +554,7 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
 
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-lq",
           fields[0], fields[1]);
-      DEBUG ("olsrd plugin: type_instance = %s; lq = %g;", type_instance, lq);
+      DEBUG ("type_instance = %s; lq = %g;", type_instance, lq);
       olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
           type_instance, lq);
     }
@@ -569,7 +569,7 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
     nlq = strtod (fields[3], &endptr);
     if ((errno != 0) || (endptr == fields[3]))
     {
-      ERROR ("olsrd plugin: Unable to parse NLQ: %s", fields[3]);
+      ERROR ("Unable to parse NLQ: %s", fields[3]);
     }
     else
     {
@@ -577,7 +577,7 @@ static int olsrd_cb_topology (int lineno, /* {{{ */
 
       ssnprintf (type_instance, sizeof (type_instance), "%s-%s-nlq",
           fields[0], fields[1]);
-      DEBUG ("olsrd plugin: type_instance = %s; nlq = %g;", type_instance, nlq);
+      DEBUG ("type_instance = %s; nlq = %g;", type_instance, nlq);
       olsrd_submit (/* p.-inst = */ "topology", /* type = */ "signal_quality",
           type_instance, nlq);
     }
@@ -631,7 +631,7 @@ static int olsrd_config (const char *key, const char *value) /* {{{ */
     olsrd_set_detail (&config_want_topology, value, key);
   else
   {
-    ERROR ("olsrd plugin: Unknown configuration option given: %s", key);
+    ERROR ("Unknown configuration option given: %s", key);
     return (-1);
   }
 
@@ -676,7 +676,7 @@ static int olsrd_read (void) /* {{{ */
     }
     else
     {
-      DEBUG ("olsrd plugin: Unable to handle line: %s", buffer);
+      DEBUG ("Unable to handle line: %s", buffer);
     }
   } /* while (fgets) */
 

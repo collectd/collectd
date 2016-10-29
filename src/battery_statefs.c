@@ -80,7 +80,7 @@ int battery_read_statefs(void) {
     battery_submit("charge", v.gauge, NULL);
     success++;
   } else {
-    WARNING("battery plugin: Neither \""STATEFS_ROOT"ChargePercentage\" "
+    WARNING("Neither \""STATEFS_ROOT"ChargePercentage\" "
             "nor \""STATEFS_ROOT"Capacity\" could be read.");
   }
 
@@ -101,7 +101,7 @@ int battery_read_statefs(void) {
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(metrics); i++) {
     if (parse_value_file(metrics[i].path, &v, DS_TYPE_GAUGE) != 0) {
-      WARNING("battery plugin: Reading \"%s\" failed.", metrics[i].path);
+      WARNING("Reading \"%s\" failed.", metrics[i].path);
       continue;
     }
 
@@ -110,7 +110,7 @@ int battery_read_statefs(void) {
   }
 
   if (success == 0) {
-    ERROR("battery plugin: statefs backend: none of the statistics are available");
+    ERROR("statefs backend: none of the statistics are available");
     return (-1);
   }
 
