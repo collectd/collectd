@@ -123,7 +123,7 @@ static int ipc_read_sem (void) /* {{{ */
   if (status == -1)
   {
     char errbuf[1024];
-    ERROR("ipc plugin: semctl(2) failed: %s. "
+    ERROR("semctl(2) failed: %s. "
         "Maybe the kernel is not configured for semaphores?",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -144,7 +144,7 @@ static int ipc_read_shm (void) /* {{{ */
   if (status == -1)
   {
     char errbuf[1024];
-    ERROR("ipc plugin: shmctl(2) failed: %s. "
+    ERROR("shmctl(2) failed: %s. "
         "Maybe the kernel is not configured for shared memory?",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
@@ -193,8 +193,7 @@ static caddr_t ipc_get_info (cid_t cid, int cmd, int version, int stsize, int *n
   {
     if (errno != ENOSPC) {
       char errbuf[1024];
-      WARNING ("ipc plugin: get_ipc_info: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+      WARNING ("get_ipc_info: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
       return (NULL);
     }
   }
@@ -203,7 +202,7 @@ static caddr_t ipc_get_info (cid_t cid, int cmd, int version, int stsize, int *n
     return NULL;
 
   if (size % stsize) {
-    ERROR ("ipc plugin: ipc_get_info: missmatch struct size and buffer size");
+    ERROR ("ipc_get_info: missmatch struct size and buffer size");
     return (NULL);
   }
 
@@ -211,15 +210,14 @@ static caddr_t ipc_get_info (cid_t cid, int cmd, int version, int stsize, int *n
 
   buff = malloc (size);
   if (buff == NULL)  {
-    ERROR ("ipc plugin: ipc_get_info malloc failed.");
+    ERROR ("ipc_get_info malloc failed.");
     return (NULL);
   }
 
   if (get_ipc_info(cid, cmd, version, buff, &size) < 0)
   {
     char errbuf[1024];
-    WARNING ("ipc plugin: get_ipc_info: %s",
-      sstrerror (errno, errbuf, sizeof (errbuf)));
+    WARNING ("get_ipc_info: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
     free(buff);
     return (NULL);
   }

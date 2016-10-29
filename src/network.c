@@ -357,7 +357,7 @@ static _Bool check_send_okay (const value_list_t *vl) /* {{{ */
     return (1);
   else if (status != 0)
   {
-    ERROR ("network plugin: check_send_okay: meta_data_get_boolean failed "
+    ERROR ("check_send_okay: meta_data_get_boolean failed "
 	"with status %i.", status);
     return (1);
   }
@@ -419,8 +419,7 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
     char name[6*DATA_MAX_NAME_LEN];
     FORMAT_VL (name, sizeof (name), vl);
     name[sizeof (name) - 1] = 0;
-    DEBUG ("network plugin: network_dispatch_values: "
-	"NOT dispatching %s.", name);
+    DEBUG ("network_dispatch_values: NOT dispatching %s.", name);
 #endif
     stats_values_not_dispatched++;
     return (0);
@@ -431,14 +430,14 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
   vl->meta = meta_data_create ();
   if (vl->meta == NULL)
   {
-    ERROR ("network plugin: meta_data_create failed.");
+    ERROR ("meta_data_create failed.");
     return (-ENOMEM);
   }
 
   status = meta_data_add_boolean (vl->meta, "network:received", 1);
   if (status != 0)
   {
-    ERROR ("network plugin: meta_data_add_boolean failed.");
+    ERROR ("meta_data_add_boolean failed.");
     meta_data_destroy (vl->meta);
     vl->meta = NULL;
     return (status);
@@ -449,7 +448,7 @@ static int network_dispatch_values (value_list_t *vl, /* {{{ */
     status = meta_data_add_string (vl->meta, "network:username", username);
     if (status != 0)
     {
-      ERROR ("network plugin: meta_data_add_string failed.");
+      ERROR ("meta_data_add_string failed.");
       meta_data_destroy (vl->meta);
       vl->meta = NULL;
       return (status);
@@ -474,7 +473,7 @@ static int network_dispatch_notification (notification_t *n) /* {{{ */
   status = plugin_notification_meta_add_boolean (n, "network:received", 1);
   if (status != 0)
   {
-    ERROR ("network plugin: plugin_notification_meta_add_boolean failed.");
+    ERROR ("plugin_notification_meta_add_boolean failed.");
     plugin_notification_meta_free (n->meta);
     n->meta = NULL;
     return (status);
@@ -510,7 +509,7 @@ static int network_init_gcrypt (void) /* {{{ */
   err = gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
   if (err)
   {
-    ERROR ("network plugin: gcry_control (GCRYCTL_SET_THREAD_CBS) failed: %s", gcry_strerror (err));
+    ERROR ("gcry_control (GCRYCTL_SET_THREAD_CBS) failed: %s", gcry_strerror (err));
     return (-1);
   }
 # endif
@@ -520,7 +519,7 @@ static int network_init_gcrypt (void) /* {{{ */
   err = gcry_control (GCRYCTL_INIT_SECMEM, 32768);
   if (err)
   {
-    ERROR ("network plugin: gcry_control (GCRYCTL_INIT_SECMEM) failed: %s", gcry_strerror (err));
+    ERROR ("gcry_control (GCRYCTL_INIT_SECMEM) failed: %s", gcry_strerror (err));
     return (-1);
   }
 
@@ -567,8 +566,7 @@ static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
         GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_OFB, /* flags = */ 0);
     if (err != 0)
     {
-      ERROR ("network plugin: gcry_cipher_open returned: %s",
-          gcry_strerror (err));
+      ERROR ("gcry_cipher_open returned: %s", gcry_strerror (err));
       *cyper_ptr = NULL;
       return (NULL);
     }
@@ -583,8 +581,7 @@ static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
       password_hash, sizeof (password_hash));
   if (err != 0)
   {
-    ERROR ("network plugin: gcry_cipher_setkey returned: %s",
-        gcry_strerror (err));
+    ERROR ("gcry_cipher_setkey returned: %s", gcry_strerror (err));
     gcry_cipher_close (*cyper_ptr);
     *cyper_ptr = NULL;
     return (NULL);
@@ -593,8 +590,7 @@ static gcry_cipher_hd_t network_get_aes256_cypher (sockent_t *se, /* {{{ */
   err = gcry_cipher_setiv (*cyper_ptr, iv, iv_size);
   if (err != 0)
   {
-    ERROR ("network plugin: gcry_cipher_setkey returned: %s",
-        gcry_strerror (err));
+    ERROR ("gcry_cipher_setkey returned: %s", gcry_strerror (err));
     gcry_cipher_close (*cyper_ptr);
     *cyper_ptr = NULL;
     return (NULL);
@@ -629,7 +625,7 @@ static int write_part_values (char **ret_buffer, size_t *ret_buffer_len,
 	pkg_values_types = malloc (num_values * sizeof (*pkg_values_types));
 	if (pkg_values_types == NULL)
 	{
-		ERROR ("network plugin: write_part_values: malloc failed.");
+		ERROR ("write_part_values: malloc failed.");
 		return (-1);
 	}
 
@@ -637,7 +633,7 @@ static int write_part_values (char **ret_buffer, size_t *ret_buffer_len,
 	if (pkg_values == NULL)
 	{
 		free (pkg_values_types);
-		ERROR ("network plugin: write_part_values: malloc failed.");
+		ERROR ("write_part_values: malloc failed.");
 		return (-1);
 	}
 
@@ -670,8 +666,7 @@ static int write_part_values (char **ret_buffer, size_t *ret_buffer_len,
 			default:
 				free (pkg_values_types);
 				free (pkg_values);
-				ERROR ("network plugin: write_part_values: "
-						"Unknown data source type: %i",
+				ERROR ("write_part_values: Unknown data source type: %i",
 						ds->ds[i].type);
 				return (-1);
 		} /* switch (ds->ds[i].type) */
@@ -794,8 +789,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	if (buffer_len < 15)
 	{
-		NOTICE ("network plugin: packet is too short: "
-				"buffer_len = %zu", buffer_len);
+		NOTICE ("packet is too short: buffer_len = %zu", buffer_len);
 		return (-1);
 	}
 
@@ -817,7 +811,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 		+ pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
 	if (buffer_len < exp_size)
 	{
-		WARNING ("network plugin: parse_part_values: "
+		WARNING ("parse_part_values: "
 				"Packet too short: "
 				"Chunk of size %zu expected, "
 				"but buffer has only %zu bytes left.",
@@ -828,7 +822,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
 	if (pkg_length != exp_size)
 	{
-		WARNING ("network plugin: parse_part_values: "
+		WARNING ("parse_part_values: "
 				"Length and number of values "
 				"in the packet don't match.");
 		return (-1);
@@ -840,7 +834,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 	{
 		sfree (pkg_types);
 		sfree (pkg_values);
-		ERROR ("network plugin: parse_part_values: calloc failed.");
+		ERROR ("parse_part_values: calloc failed.");
 		return (-1);
 	}
 
@@ -870,7 +864,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 		    break;
 
 		  default:
-		    NOTICE ("network plugin: parse_part_values: "
+		    NOTICE ("parse_part_values: "
 			"Don't know how to handle data source type %"PRIu8,
 			pkg_types[i]);
 		    sfree (pkg_types);
@@ -903,7 +897,7 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 
 	if (buffer_len < exp_size)
 	{
-		WARNING ("network plugin: parse_part_number: "
+		WARNING ("parse_part_number: "
 				"Packet too short: "
 				"Chunk of size %zu expected, "
 				"but buffer has only %zu bytes left.",
@@ -946,7 +940,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 
 	if (buffer_len < header_size)
 	{
-		WARNING ("network plugin: parse_part_string: "
+		WARNING ("parse_part_string: "
 				"Packet too short: "
 				"Chunk of at least size %zu expected, "
 				"but buffer has only %zu bytes left.",
@@ -966,7 +960,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 	/* Check that packet fits in the input buffer */
 	if (pkg_length > buffer_len)
 	{
-		WARNING ("network plugin: parse_part_string: "
+		WARNING ("parse_part_string: "
 				"Packet too big: "
 				"Chunk of size %"PRIu16" received, "
 				"but buffer has only %zu bytes left.",
@@ -977,7 +971,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 	/* Check that pkg_length is in the valid range */
 	if (pkg_length <= header_size)
 	{
-		WARNING ("network plugin: parse_part_string: "
+		WARNING ("parse_part_string: "
 				"Packet too short: "
 				"Header claims this packet is only %hu "
 				"bytes long.", pkg_length);
@@ -989,7 +983,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 	 * `pkg_length > header_size' */
 	if (output_len < payload_size)
 	{
-		WARNING ("network plugin: parse_part_string: "
+		WARNING ("parse_part_string: "
 				"Buffer too small: "
 				"Output buffer holds %zu bytes, "
 				"which is too small to hold the received "
@@ -1006,7 +1000,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 	 * this statement. */
 	if (output[payload_size - 1] != 0)
 	{
-		WARNING ("network plugin: parse_part_string: "
+		WARNING ("parse_part_string: "
 				"Received string does not end "
 				"with a NULL-byte.");
 		return (-1);
@@ -1077,7 +1071,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   if ((pss_head_length <= PART_SIGNATURE_SHA256_SIZE)
       || (pss_head_length > buffer_len))
   {
-    ERROR ("network plugin: HMAC-SHA-256 with invalid length received.");
+    ERROR ("HMAC-SHA-256 with invalid length received.");
     return (-1);
   }
 
@@ -1100,7 +1094,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   secret = fbh_get (se->data.server.userdb, pss.username);
   if (secret == NULL)
   {
-    ERROR ("network plugin: Unknown user: %s", pss.username);
+    ERROR ("Unknown user: %s", pss.username);
     sfree (pss.username);
     return (-ENOENT);
   }
@@ -1110,8 +1104,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
   if (err != 0)
   {
-    ERROR ("network plugin: Creating HMAC-SHA-256 object failed: %s",
-        gcry_strerror (err));
+    ERROR ("Creating HMAC-SHA-256 object failed: %s", gcry_strerror (err));
     sfree (secret);
     sfree (pss.username);
     return (-1);
@@ -1120,7 +1113,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   err = gcry_md_setkey (hd, secret, strlen (secret));
   if (err != 0)
   {
-    ERROR ("network plugin: gcry_md_setkey failed: %s", gcry_strerror (err));
+    ERROR ("gcry_md_setkey failed: %s", gcry_strerror (err));
     gcry_md_close (hd);
     sfree (secret);
     sfree (pss.username);
@@ -1133,7 +1126,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
   hash_ptr = gcry_md_read (hd, GCRY_MD_SHA256);
   if (hash_ptr == NULL)
   {
-    ERROR ("network plugin: gcry_md_read failed.");
+    ERROR ("gcry_md_read failed.");
     gcry_md_close (hd);
     sfree (secret);
     sfree (pss.username);
@@ -1147,7 +1140,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
   if (memcmp (pss.hash, hash, sizeof (pss.hash)) != 0)
   {
-    WARNING ("network plugin: Verifying HMAC-SHA-256 signature failed: "
+    WARNING ("Verifying HMAC-SHA-256 signature failed: "
         "Hash mismatch. Username: %s", pss.username);
   }
   else
@@ -1196,7 +1189,7 @@ static int parse_part_sign_sha256 (sockent_t *se, /* {{{ */
 
   if (warning_has_been_printed == 0)
   {
-    WARNING ("network plugin: Received signed packet, but the network "
+    WARNING ("Received signed packet, but the network "
         "plugin was not linked with libgcrypt, so I cannot "
         "verify the signature. The packet will be accepted.");
     warning_has_been_printed = 1;
@@ -1232,7 +1225,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   /* Make sure at least the header if available. */
   if (buffer_len <= PART_ENCRYPTION_AES256_SIZE)
   {
-    NOTICE ("network plugin: parse_part_encr_aes256: "
+    NOTICE ("parse_part_encr_aes256: "
         "Discarding short packet.");
     return (-1);
   }
@@ -1248,7 +1241,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   if ((part_size <= PART_ENCRYPTION_AES256_SIZE)
       || (part_size > buffer_len))
   {
-    NOTICE ("network plugin: parse_part_encr_aes256: "
+    NOTICE ("parse_part_encr_aes256: "
         "Discarding part with invalid size.");
     return (-1);
   }
@@ -1260,7 +1253,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   if ((username_len == 0)
       || (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1))))
   {
-    NOTICE ("network plugin: parse_part_encr_aes256: "
+    NOTICE ("parse_part_encr_aes256: "
         "Discarding part with invalid username length.");
     return (-1);
   }
@@ -1283,7 +1276,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
       pea.username);
   if (cypher == NULL)
   {
-    ERROR ("network plugin: Failed to get cypher. Username: %s", pea.username);
+    ERROR ("Failed to get cypher. Username: %s", pea.username);
     sfree (pea.username);
     return (-1);
   }
@@ -1299,7 +1292,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   if (err != 0)
   {
     sfree (pea.username);
-    ERROR ("network plugin: gcry_cipher_decrypt returned: %s. Username: %s",
+    ERROR ("gcry_cipher_decrypt returned: %s. Username: %s",
         gcry_strerror (err), pea.username);
     return (-1);
   }
@@ -1316,7 +1309,7 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
       buffer + buffer_offset, payload_len);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
-    ERROR ("network plugin: Checksum mismatch. Username: %s", pea.username);
+    ERROR ("Checksum mismatch. Username: %s", pea.username);
     sfree (pea.username);
     return (-1);
   }
@@ -1363,14 +1356,13 @@ static int parse_part_encr_aes256 (sockent_t *se, /* {{{ */
   if ((ph_length <= PART_ENCRYPTION_AES256_SIZE)
       || (ph_length > buffer_size))
   {
-    ERROR ("network plugin: AES-256 encrypted part "
-        "with invalid length received.");
+    ERROR ("AES-256 encrypted part with invalid length received.");
     return (-1);
   }
 
   if (warning_has_been_printed == 0)
   {
-    WARNING ("network plugin: Received encrypted packet, but the network "
+    WARNING ("Received encrypted packet, but the network "
         "plugin was not linked with libgcrypt, so I cannot "
         "decrypt it. The part will be discarded.");
     warning_has_been_printed = 1;
@@ -1432,9 +1424,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 					&buffer, &buffer_size, flags);
 			if (status != 0)
 			{
-				ERROR ("network plugin: Decrypting AES256 "
-						"part failed "
-						"with status %i.", status);
+				ERROR ("Decrypting AES256 part failed with status %i.", status);
 				break;
 			}
 		}
@@ -1444,7 +1434,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 		{
 			if (printed_ignore_warning == 0)
 			{
-				INFO ("network plugin: Unencrypted packet or "
+				INFO ("Unencrypted packet or "
 						"part has been ignored.");
 				printed_ignore_warning = 1;
 			}
@@ -1459,8 +1449,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
                                         &buffer, &buffer_size, flags);
 			if (status != 0)
 			{
-				ERROR ("network plugin: Verifying HMAC-SHA-256 "
-						"signature failed "
+				ERROR ("Verifying HMAC-SHA-256 signature failed "
 						"with status %i.", status);
 				break;
 			}
@@ -1472,7 +1461,7 @@ static int parse_packet (sockent_t *se, /* {{{ */
 		{
 			if (printed_ignore_warning == 0)
 			{
-				INFO ("network plugin: Unsigned packet or "
+				INFO ("Unsigned packet or "
 						"part has been ignored.");
 				printed_ignore_warning = 1;
 			}
@@ -1584,22 +1573,16 @@ static int parse_packet (sockent_t *se, /* {{{ */
 					&& (n.severity != NOTIF_WARNING)
 					&& (n.severity != NOTIF_OKAY))
 			{
-				INFO ("network plugin: "
-						"Ignoring notification with "
-						"unknown severity %i.",
+				INFO ("Ignoring notification with unknown severity %i.",
 						n.severity);
 			}
 			else if (n.time == 0)
 			{
-				INFO ("network plugin: "
-						"Ignoring notification with "
-						"time == 0.");
+				INFO ("Ignoring notification with time == 0.");
 			}
 			else if (strlen (n.message) == 0)
 			{
-				INFO ("network plugin: "
-						"Ignoring notification with "
-						"an empty message.");
+				INFO ("Ignoring notification with an empty message.");
 			}
 			else
 			{
@@ -1616,15 +1599,14 @@ static int parse_packet (sockent_t *se, /* {{{ */
 		}
 		else
 		{
-			DEBUG ("network plugin: parse_packet: Unknown part"
-					" type: 0x%04hx", pkg_type);
+			DEBUG ("parse_packet: Unknown part type: 0x%04hx", pkg_type);
 			buffer = ((char *) buffer) + pkg_length;
 			buffer_size -= (size_t) pkg_length;
 		}
 	} /* while (buffer_size > sizeof (part_header_t)) */
 
 	if (status == 0 && buffer_size > 0)
-		WARNING ("network plugin: parse_packet: Received truncated "
+		WARNING ("parse_packet: Received truncated "
 				"packet, try increasing `MaxPacketSize'");
 
 	return (status);
@@ -1670,7 +1652,7 @@ static void sockent_destroy (sockent_t *se) /* {{{ */
 {
   sockent_t *next;
 
-  DEBUG ("network plugin: sockent_destroy (se = %p);", (void *) se);
+  DEBUG ("sockent_destroy (se = %p);", (void *) se);
 
   while (se != NULL)
   {
@@ -1700,8 +1682,7 @@ static void sockent_destroy (sockent_t *se) /* {{{ */
  */
 static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 {
-	DEBUG ("network plugin: network_set_ttl: network_config_ttl = %i;",
-			network_config_ttl);
+	DEBUG ("network_set_ttl: network_config_ttl = %i;", network_config_ttl);
 
         assert (se->type == SOCKENT_TYPE_CLIENT);
 
@@ -1723,7 +1704,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
-			ERROR ("network plugin: setsockopt (ipv4-ttl): %s",
+			ERROR ("setsockopt (ipv4-ttl): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -1744,7 +1725,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 					sizeof (network_config_ttl)) != 0)
 		{
 			char errbuf[1024];
-			ERROR ("network plugin: setsockopt(ipv6-ttl): %s",
+			ERROR ("setsockopt(ipv6-ttl): %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			return (-1);
@@ -1756,8 +1737,7 @@ static int network_set_ttl (const sockent_t *se, const struct addrinfo *ai)
 
 static int network_set_interface (const sockent_t *se, const struct addrinfo *ai) /* {{{ */
 {
-	DEBUG ("network plugin: network_set_interface: interface index = %i;",
-			se->interface);
+	DEBUG ("network_set_interface: interface index = %i;", se->interface);
 
         assert (se->type == SOCKENT_TYPE_CLIENT);
 
@@ -1789,7 +1769,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 						&mreq, sizeof (mreq)) != 0)
 			{
 				char errbuf[1024];
-				ERROR ("network plugin: setsockopt (ipv4-multicast-if): %s",
+				ERROR ("setsockopt (ipv4-multicast-if): %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				return (-1);
 			}
@@ -1808,7 +1788,7 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 						sizeof (se->interface)) != 0)
 			{
 				char errbuf[1024];
-				ERROR ("network plugin: setsockopt (ipv6-multicast-if): %s",
+				ERROR ("setsockopt (ipv6-multicast-if): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1827,21 +1807,21 @@ static int network_set_interface (const sockent_t *se, const struct addrinfo *ai
 		if (if_indextoname (se->interface, interface_name) == NULL)
 			return (-1);
 
-		DEBUG ("network plugin: Binding socket to interface %s", interface_name);
+		DEBUG ("Binding socket to interface %s", interface_name);
 
 		if (setsockopt (se->data.client.fd, SOL_SOCKET, SO_BINDTODEVICE,
 					interface_name,
 					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
-			ERROR ("network plugin: setsockopt (bind-if): %s",
+			ERROR ("setsockopt (bind-if): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
 /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
-		WARNING ("network plugin: Cannot set the interface on a unicast "
+		WARNING ("Cannot set the interface on a unicast "
 			"socket because "
 # if !defined(SO_BINDTODEVICE)
 			"the \"SO_BINDTODEVICE\" socket option "
@@ -1869,7 +1849,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 	if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR,
 				&yes, sizeof(yes)) == -1) {
                 char errbuf[1024];
-                ERROR ("network plugin: setsockopt (reuseaddr): %s",
+                ERROR ("setsockopt (reuseaddr): %s",
                                 sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1879,8 +1859,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 	if (bind (fd, ai->ai_addr, ai->ai_addrlen) == -1)
 	{
 		char errbuf[1024];
-		ERROR ("bind: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		ERROR ("bind: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
@@ -1912,7 +1891,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&loop, sizeof (loop)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("network plugin: setsockopt (multicast-loop): %s",
+				ERROR ("setsockopt (multicast-loop): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1922,7 +1901,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&mreq, sizeof (mreq)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("network plugin: setsockopt (add-membership): %s",
+				ERROR ("setsockopt (add-membership): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1960,7 +1939,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&loop, sizeof (loop)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("network plugin: setsockopt (ipv6-multicast-loop): %s",
+				ERROR ("setsockopt (ipv6-multicast-loop): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1970,7 +1949,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 						&mreq, sizeof (mreq)) == -1)
 			{
 				char errbuf[1024];
-				ERROR ("network plugin: setsockopt (ipv6-add-membership): %s",
+				ERROR ("setsockopt (ipv6-add-membership): %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				return (-1);
@@ -1998,7 +1977,7 @@ static int network_bind_socket (int fd, const struct addrinfo *ai, const int int
 					sizeof(interface_name)) == -1 )
 		{
 			char errbuf[1024];
-			ERROR ("network plugin: setsockopt (bind-if): %s",
+			ERROR ("setsockopt (bind-if): %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -2064,7 +2043,7 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 		{
 			if (network_init_gcrypt () < 0)
 			{
-				ERROR ("network plugin: Cannot configure client socket with "
+				ERROR ("Cannot configure client socket with "
 						"security: Failed to initialize crypto library.");
 				return (-1);
 			}
@@ -2072,7 +2051,7 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 			if ((se->data.client.username == NULL)
 					|| (se->data.client.password == NULL))
 			{
-				ERROR ("network plugin: Client socket with "
+				ERROR ("Client socket with "
 						"security requested, but no "
 						"credentials are configured.");
 				return (-1);
@@ -2088,7 +2067,7 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 		if ((se->data.server.security_level > SECURITY_LEVEL_NONE)
 				&& (se->data.server.auth_file == NULL))
 		{
-			ERROR ("network plugin: Server socket with security requested, "
+			ERROR ("Server socket with security requested, "
 					"but no \"AuthFile\" is configured.");
 			return (-1);
 		}
@@ -2096,7 +2075,7 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 		{
 			if (network_init_gcrypt () < 0)
 			{
-				ERROR ("network plugin: Cannot configure server socket with security: "
+				ERROR ("Cannot configure server socket with security: "
 						"Failed to initialize crypto library.");
 				return (-1);
 			}
@@ -2104,7 +2083,7 @@ static int sockent_init_crypto (sockent_t *se) /* {{{ */
 			se->data.server.userdb = fbh_create (se->data.server.auth_file);
 			if (se->data.server.userdb == NULL)
 			{
-				ERROR ("network plugin: Reading password file \"%s\" failed.",
+				ERROR ("Reading password file \"%s\" failed.",
 						se->data.server.auth_file);
 				return (-1);
 			}
@@ -2152,7 +2131,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 
 	now = cdtime ();
 	if (client->resolve_interval != 0 && client->next_resolve_reconnect < now) {
-		DEBUG("network plugin: Reconnecting socket, resolve_interval = %lf, next_resolve_reconnect = %lf",
+		DEBUG("Reconnecting socket, resolve_interval = %lf, next_resolve_reconnect = %lf",
 			CDTIME_T_TO_DOUBLE(client->resolve_interval), CDTIME_T_TO_DOUBLE(client->next_resolve_reconnect));
 		reconnect = 1;
 	}
@@ -2197,7 +2176,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 		if (client->fd < 0)
 		{
 			char errbuf[1024];
-			ERROR ("network plugin: socket(2) failed: %s",
+			ERROR ("socket(2) failed: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			continue;
@@ -2206,7 +2185,7 @@ static int sockent_client_connect (sockent_t *se) /* {{{ */
 		client->addr = calloc (1, sizeof (*client->addr));
 		if (client->addr == NULL)
 		{
-			ERROR ("network plugin: calloc failed.");
+			ERROR ("calloc failed.");
 			close (client->fd);
 			client->fd = -1;
 			continue;
@@ -2254,7 +2233,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
         if (service == NULL)
           service = NET_DEFAULT_PORT;
 
-        DEBUG ("network plugin: sockent_server_listen: node = %s; service = %s;",
+        DEBUG ("sockent_server_listen: node = %s; service = %s;",
             node, service);
 
 	struct addrinfo ai_hints = {
@@ -2267,7 +2246,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 	status = getaddrinfo (node, service, &ai_hints, &ai_list);
 	if (status != 0)
 	{
-		ERROR ("network plugin: getaddrinfo (%s, %s) failed: %s",
+		ERROR ("getaddrinfo (%s, %s) failed: %s",
 				(se->node == NULL) ? "(null)" : se->node,
 				(se->service == NULL) ? "(null)" : se->service,
 				gai_strerror (status));
@@ -2282,7 +2261,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 				sizeof (*tmp) * (se->data.server.fd_num + 1));
 		if (tmp == NULL)
 		{
-			ERROR ("network plugin: realloc failed.");
+			ERROR ("realloc failed.");
 			continue;
 		}
 		se->data.server.fd = tmp;
@@ -2293,7 +2272,7 @@ static int sockent_server_listen (sockent_t *se) /* {{{ */
 		if (*tmp < 0)
 		{
 			char errbuf[1024];
-			ERROR ("network plugin: socket(2) failed: %s",
+			ERROR ("socket(2) failed: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 			continue;
@@ -2335,7 +2314,7 @@ static int sockent_add (sockent_t *se) /* {{{ */
 					+ se->data.server.fd_num));
 		if (tmp == NULL)
 		{
-			ERROR ("network plugin: realloc failed.");
+			ERROR ("realloc failed.");
 			return (-1);
 		}
 		listen_sockets_pollfd = tmp;
@@ -2418,7 +2397,7 @@ static void *dispatch_thread (void __attribute__((unused)) *arg) /* {{{ */
 
     if (se == NULL)
     {
-      ERROR ("network plugin: Got packet from FD %i, but can't "
+      ERROR ("Got packet from FD %i, but can't "
           "find an appropriate socket entry.",
           ent->fd);
       sfree (ent->data);
@@ -2460,7 +2439,7 @@ static int network_receive (void) /* {{{ */
 			char errbuf[1024];
 			if (errno == EINTR)
 				continue;
-			ERROR ("network plugin: poll(2) failed: %s",
+			ERROR ("poll(2) failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			break;
 		}
@@ -2481,7 +2460,7 @@ static int network_receive (void) /* {{{ */
 			{
 				char errbuf[1024];
 				status = (errno != 0) ? errno : -1;
-				ERROR ("network plugin: recv(2) failed: %s",
+				ERROR ("recv(2) failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				break;
 			}
@@ -2496,7 +2475,7 @@ static int network_receive (void) /* {{{ */
 			ent = calloc (1, sizeof (*ent));
 			if (ent == NULL)
 			{
-				ERROR ("network plugin: calloc failed.");
+				ERROR ("calloc failed.");
 				status = ENOMEM;
 				break;
 			}
@@ -2505,7 +2484,7 @@ static int network_receive (void) /* {{{ */
 			if (ent->data == NULL)
 			{
 				sfree (ent);
-				ERROR ("network plugin: malloc failed.");
+				ERROR ("malloc failed.");
 				status = ENOMEM;
 				break;
 			}
@@ -2607,7 +2586,7 @@ static void network_send_buffer_plain (sockent_t *se, /* {{{ */
 			if ((errno == EINTR) || (errno == EAGAIN))
 				continue;
 
-			ERROR ("network plugin: sendto failed: %s. Closing sending socket.",
+			ERROR ("sendto failed: %s. Closing sending socket.",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			sockent_client_disconnect (se);
 			return;
@@ -2638,8 +2617,7 @@ static void network_send_buffer_signed (sockent_t *se, /* {{{ */
   err = gcry_md_open (&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
   if (err != 0)
   {
-    ERROR ("network plugin: Creating HMAC object failed: %s",
-        gcry_strerror (err));
+    ERROR ("Creating HMAC object failed: %s", gcry_strerror (err));
     return;
   }
 
@@ -2647,8 +2625,7 @@ static void network_send_buffer_signed (sockent_t *se, /* {{{ */
       strlen (se->data.client.password));
   if (err != 0)
   {
-    ERROR ("network plugin: gcry_md_setkey failed: %s",
-        gcry_strerror (err));
+    ERROR ("gcry_md_setkey failed: %s", gcry_strerror (err));
     gcry_md_close (hd);
     return;
   }
@@ -2656,8 +2633,7 @@ static void network_send_buffer_signed (sockent_t *se, /* {{{ */
   username_len = strlen (se->data.client.username);
   if (username_len > (BUFF_SIG_SIZE - PART_SIGNATURE_SHA256_SIZE))
   {
-    ERROR ("network plugin: Username too long: %s",
-        se->data.client.username);
+    ERROR ("Username too long: %s", se->data.client.username);
     return;
   }
 
@@ -2678,7 +2654,7 @@ static void network_send_buffer_signed (sockent_t *se, /* {{{ */
   hash = gcry_md_read (hd, GCRY_MD_SHA256);
   if (hash == NULL)
   {
-    ERROR ("network plugin: gcry_md_read failed.");
+    ERROR ("gcry_md_read failed.");
     gcry_md_close (hd);
     return;
   }
@@ -2720,7 +2696,7 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
   username_len = strlen (pea.username);
   if ((PART_ENCRYPTION_AES256_SIZE + username_len) > BUFF_SIG_SIZE)
   {
-    ERROR ("network plugin: Username too long: %s", pea.username);
+    ERROR ("Username too long: %s", pea.username);
     return;
   }
 
@@ -2729,8 +2705,7 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
     - sizeof (pea.hash);
 
   assert (buffer_size <= sizeof (buffer));
-  DEBUG ("network plugin: network_send_buffer_encrypted: "
-      "buffer_size = %zu;", buffer_size);
+  DEBUG ("network_send_buffer_encrypted: buffer_size = %zu;", buffer_size);
 
   pea.head.length = htons ((uint16_t) (PART_ENCRYPTION_AES256_SIZE
         + username_len + in_buffer_size));
@@ -2770,8 +2745,7 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
       /* in = */ NULL, /* in len = */ 0);
   if (err != 0)
   {
-    ERROR ("network plugin: gcry_cipher_encrypt returned: %s",
-        gcry_strerror (err));
+    ERROR ("gcry_cipher_encrypt returned: %s", gcry_strerror (err));
     return;
   }
 
@@ -2783,7 +2757,7 @@ static void network_send_buffer_encrypted (sockent_t *se, /* {{{ */
 
 static void network_send_buffer (char *buffer, size_t buffer_len) /* {{{ */
 {
-  DEBUG ("network plugin: network_send_buffer: buffer_len = %zu", buffer_len);
+  DEBUG ("network_send_buffer: buffer_len = %zu", buffer_len);
 
   for (sockent_t *se = sending_sockets; se != NULL; se = se->next)
   {
@@ -2870,8 +2844,7 @@ static int add_to_buffer (char *buffer, size_t buffer_size, /* {{{ */
 
 static void flush_buffer (void)
 {
-	DEBUG ("network plugin: flush_buffer: send_buffer_fill = %i",
-			send_buffer_fill);
+	DEBUG ("flush_buffer: send_buffer_fill = %i", send_buffer_fill);
 
 	network_send_buffer (send_buffer, (size_t) send_buffer_fill);
 
@@ -2897,8 +2870,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 	  char name[6*DATA_MAX_NAME_LEN];
 	  FORMAT_VL (name, sizeof (name), vl);
 	  name[sizeof (name) - 1] = 0;
-	  DEBUG ("network plugin: network_write: "
-	      "NOT sending %s.", name);
+	  DEBUG ("network_write: NOT sending %s.", name);
 #endif
 	  /* Counter is not protected by another lock and may be reached by
 	   * multiple threads */
@@ -2946,8 +2918,7 @@ static int network_write (const data_set_t *ds, const value_list_t *vl,
 
 	if (status < 0)
 	{
-		ERROR ("network plugin: Unable to append to the "
-				"buffer for some weird reason");
+		ERROR ("Unable to append to the buffer for some weird reason");
 	}
 	else if ((network_config_packet_size - send_buffer_fill) < 15)
 	{
@@ -2968,7 +2939,7 @@ static int network_config_set_ttl (const oconfig_item_t *ci) /* {{{ */
   else if ((tmp > 0) && (tmp <= 255))
     network_config_ttl = tmp;
   else {
-    WARNING ("network plugin: The `TimeToLive' must be between 1 and 255.");
+    WARNING ("The `TimeToLive' must be between 1 and 255.");
     return (-1);
   }
 
@@ -2996,7 +2967,7 @@ static int network_config_set_buffer_size (const oconfig_item_t *ci) /* {{{ */
   else if ((tmp >= 1024) && (tmp <= 65535))
     network_config_packet_size = tmp;
   else {
-    WARNING ("network plugin: The `MaxPacketSize' must be between 1024 and 65535.");
+    WARNING ("The `MaxPacketSize' must be between 1024 and 65535.");
     return (-1);
   }
 
@@ -3011,7 +2982,7 @@ static int network_config_set_security_level (oconfig_item_t *ci, /* {{{ */
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("network plugin: The `SecurityLevel' config option needs exactly "
+    WARNING ("The `SecurityLevel' config option needs exactly "
         "one string argument.");
     return (-1);
   }
@@ -3025,7 +2996,7 @@ static int network_config_set_security_level (oconfig_item_t *ci, /* {{{ */
     *retval = SECURITY_LEVEL_NONE;
   else
   {
-    WARNING ("network plugin: Unknown security level: %s.", str);
+    WARNING ("Unknown security level: %s.", str);
     return (-1);
   }
 
@@ -3042,7 +3013,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
       || (ci->values[0].type != OCONFIG_TYPE_STRING)
       || ((ci->values_num > 1) && (ci->values[1].type != OCONFIG_TYPE_STRING)))
   {
-    ERROR ("network plugin: The `%s' config option needs "
+    ERROR ("The `%s' config option needs "
         "one or two string arguments.", ci->key);
     return (-1);
   }
@@ -3050,7 +3021,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   se = sockent_create (SOCKENT_TYPE_SERVER);
   if (se == NULL)
   {
-    ERROR ("network plugin: sockent_create failed.");
+    ERROR ("sockent_create failed.");
     return (-1);
   }
 
@@ -3074,7 +3045,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
       network_config_set_interface (child, &se->interface);
     else
     {
-      WARNING ("network plugin: Option `%s' is not allowed here.",
+      WARNING ("Option `%s' is not allowed here.",
           child->key);
     }
   }
@@ -3083,7 +3054,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   if ((se->data.server.security_level > SECURITY_LEVEL_NONE)
       && (se->data.server.auth_file == NULL))
   {
-    ERROR ("network plugin: A security level higher than `none' was "
+    ERROR ("A security level higher than `none' was "
         "requested, but no AuthFile option was given. Cowardly refusing to "
         "open this socket!");
     sockent_destroy (se);
@@ -3094,7 +3065,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   status = sockent_init_crypto (se);
   if (status != 0)
   {
-    ERROR ("network plugin: network_config_add_listen: sockent_init_crypto() failed.");
+    ERROR ("network_config_add_listen: sockent_init_crypto() failed.");
     sockent_destroy (se);
     return (-1);
   }
@@ -3102,7 +3073,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   status = sockent_server_listen (se);
   if (status != 0)
   {
-    ERROR ("network plugin: network_config_add_listen: sockent_server_listen failed.");
+    ERROR ("network_config_add_listen: sockent_server_listen failed.");
     sockent_destroy (se);
     return (-1);
   }
@@ -3110,7 +3081,7 @@ static int network_config_add_listen (const oconfig_item_t *ci) /* {{{ */
   status = sockent_add (se);
   if (status != 0)
   {
-    ERROR ("network plugin: network_config_add_listen: sockent_add failed.");
+    ERROR ("network_config_add_listen: sockent_add failed.");
     sockent_destroy (se);
     return (-1);
   }
@@ -3127,7 +3098,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
       || (ci->values[0].type != OCONFIG_TYPE_STRING)
       || ((ci->values_num > 1) && (ci->values[1].type != OCONFIG_TYPE_STRING)))
   {
-    ERROR ("network plugin: The `%s' config option needs "
+    ERROR ("The `%s' config option needs "
         "one or two string arguments.", ci->key);
     return (-1);
   }
@@ -3135,7 +3106,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   se = sockent_create (SOCKENT_TYPE_CLIENT);
   if (se == NULL)
   {
-    ERROR ("network plugin: sockent_create failed.");
+    ERROR ("sockent_create failed.");
     return (-1);
   }
 
@@ -3163,8 +3134,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
       cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else
     {
-      WARNING ("network plugin: Option `%s' is not allowed here.",
-          child->key);
+      WARNING ("Option `%s' is not allowed here.", child->key);
     }
   }
 
@@ -3173,7 +3143,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
       && ((se->data.client.username == NULL)
         || (se->data.client.password == NULL)))
   {
-    ERROR ("network plugin: A security level higher than `none' was "
+    ERROR ("A security level higher than `none' was "
         "requested, but no Username or Password option was given. "
         "Cowardly refusing to open this socket!");
     sockent_destroy (se);
@@ -3184,7 +3154,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   status = sockent_init_crypto (se);
   if (status != 0)
   {
-    ERROR ("network plugin: network_config_add_server: sockent_init_crypto() failed.");
+    ERROR ("network_config_add_server: sockent_init_crypto() failed.");
     sockent_destroy (se);
     return (-1);
   }
@@ -3195,7 +3165,7 @@ static int network_config_add_server (const oconfig_item_t *ci) /* {{{ */
   status = sockent_add (se);
   if (status != 0)
   {
-    ERROR ("network plugin: network_config_add_server: sockent_add failed.");
+    ERROR ("network_config_add_server: sockent_add failed.");
     sockent_destroy (se);
     return (-1);
   }
@@ -3232,8 +3202,7 @@ static int network_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean (child, &network_config_stats);
     else
     {
-      WARNING ("network plugin: Option `%s' is not allowed here.",
-          child->key);
+      WARNING ("Option `%s' is not allowed here.", child->key);
     }
   }
 
@@ -3321,7 +3290,7 @@ static int network_shutdown (void)
 	/* Kill the listening thread */
 	if (receive_thread_running != 0)
 	{
-		INFO ("network plugin: Stopping receive thread.");
+		INFO ("Stopping receive thread.");
 		pthread_kill (receive_thread_id, SIGTERM);
 		pthread_join (receive_thread_id, NULL /* no return value */);
 		memset (&receive_thread_id, 0, sizeof (receive_thread_id));
@@ -3331,7 +3300,7 @@ static int network_shutdown (void)
 	/* Shutdown the dispatching thread */
 	if (dispatch_thread_running != 0)
 	{
-		INFO ("network plugin: Stopping dispatch thread.");
+		INFO ("Stopping dispatch thread.");
 		pthread_mutex_lock (&receive_list_lock);
 		pthread_cond_broadcast (&receive_list_cond);
 		pthread_mutex_unlock (&receive_list_lock);
@@ -3451,7 +3420,7 @@ static int network_init (void)
 	send_buffer = malloc (network_config_packet_size);
 	if (send_buffer == NULL)
 	{
-		ERROR ("network plugin: malloc failed.");
+		ERROR ("malloc failed.");
 		return (-1);
 	}
 	network_init_buffer ();
@@ -3481,7 +3450,7 @@ static int network_init (void)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			ERROR ("network: pthread_create failed: %s",
+			ERROR ("pthread_create failed: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 		}
@@ -3501,7 +3470,7 @@ static int network_init (void)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			ERROR ("network: pthread_create failed: %s",
+			ERROR ("pthread_create failed: %s",
 					sstrerror (errno, errbuf,
 						sizeof (errbuf)));
 		}

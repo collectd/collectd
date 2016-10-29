@@ -51,9 +51,6 @@
 # include <ip_vs.h>
 #endif /* HAVE_IP_VS_H */
 
-#define log_err(...) ERROR ("ipvs: " __VA_ARGS__)
-#define log_info(...) INFO ("ipvs: " __VA_ARGS__)
-
 /*
  * private variables
  */
@@ -74,7 +71,7 @@ static struct ip_vs_get_services *ipvs_get_services (void)
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 				(void *)&ipvs_info, &len)) {
 		char errbuf[1024];
-		log_err ("ip_vs_get_services: getsockopt() failed: %s",
+		ERROR ("ip_vs_get_services: getsockopt() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return NULL;
 	}
@@ -83,7 +80,7 @@ static struct ip_vs_get_services *ipvs_get_services (void)
 		sizeof (struct ip_vs_service_entry) * ipvs_info.num_services;
 
 	if (NULL == (ret = malloc (len))) {
-		log_err ("ipvs_get_services: Out of memory.");
+		ERROR ("ipvs_get_services: Out of memory.");
 		exit (3);
 	}
 
@@ -92,7 +89,7 @@ static struct ip_vs_get_services *ipvs_get_services (void)
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES,
 				(void *)ret, &len)) {
 		char errbuf[1024];
-		log_err ("ipvs_get_services: getsockopt failed: %s",
+		ERROR ("ipvs_get_services: getsockopt failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 
 		free(ret);
@@ -109,7 +106,7 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 	len = sizeof (*ret) + sizeof (struct ip_vs_dest_entry) * se->num_dests;
 
 	if (NULL == (ret = malloc (len))) {
-		log_err ("ipvs_get_dests: Out of memory.");
+		ERROR ("ipvs_get_dests: Out of memory.");
 		exit (3);
 	}
 
@@ -122,7 +119,7 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS,
 				(void *)ret, &len)) {
 		char errbuf[1024];
-		log_err ("ipvs_get_dests: getsockopt() failed: %s",
+		ERROR ("ipvs_get_dests: getsockopt() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		free (ret);
 		return NULL;
@@ -141,7 +138,7 @@ static int cipvs_init (void)
 
 	if (-1 == (sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW))) {
 		char errbuf[1024];
-		log_err ("cipvs_init: socket() failed: %s",
+		ERROR ("cipvs_init: socket() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
@@ -151,7 +148,7 @@ static int cipvs_init (void)
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 				(void *)&ipvs_info, &len)) {
 		char errbuf[1024];
-		log_err ("cipvs_init: getsockopt() failed: %s",
+		ERROR ("cipvs_init: getsockopt() failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sockfd);
 		sockfd = -1;
@@ -160,14 +157,14 @@ static int cipvs_init (void)
 
 	/* we need IPVS >= 1.1.4 */
 	if (ipvs_info.version < ((1 << 16) + (1 << 8) + 4)) {
-		log_err ("cipvs_init: IPVS version too old (%d.%d.%d < %d.%d.%d)",
+		ERROR ("cipvs_init: IPVS version too old (%d.%d.%d < %d.%d.%d)",
 				NVERSION (ipvs_info.version), 1, 1, 4);
 		close (sockfd);
 		sockfd = -1;
 		return -1;
 	}
 	else {
-		log_info ("Successfully connected to IPVS %d.%d.%d",
+		INFO ("Successfully connected to IPVS %d.%d.%d",
 				NVERSION (ipvs_info.version));
 	}
 	return 0;
@@ -196,7 +193,7 @@ static int get_pi (struct ip_vs_service_entry *se, char *pi, size_t size)
 			ntohs (se->port));
 
 	if ((0 > len) || (size <= ((size_t) len))) {
-		log_err ("plugin instance truncated: %s", pi);
+		ERROR ("plugin instance truncated: %s", pi);
 		return -1;
 	}
 	return 0;
@@ -219,7 +216,7 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 			ntohs (de->port));
 
 	if ((0 > len) || (size <= ((size_t) len))) {
-		log_err ("type instance truncated: %s", ti);
+		ERROR ("type instance truncated: %s", ti);
 		return -1;
 	}
 	return 0;

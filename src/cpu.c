@@ -235,7 +235,7 @@ static int init (void)
 	status = host_processors (port_host, &cpu_list, &cpu_list_len);
 	if (status == KERN_INVALID_ARGUMENT)
 	{
-		ERROR ("cpu plugin: Don't have a privileged host control port. "
+		ERROR ("Don't have a privileged host control port. "
 				"The most common cause for this problem is "
 				"that collectd is running without root "
 				"privileges, which are required to read CPU "
@@ -246,12 +246,12 @@ static int init (void)
 	}
 	if (status != KERN_SUCCESS)
 	{
-		ERROR ("cpu plugin: host_processors() failed with status %d.", (int) status);
+		ERROR ("host_processors() failed with status %d.", (int) status);
 		cpu_list_len = 0;
 		return (-1);
 	}
 
-	INFO ("cpu plugin: Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
+	INFO ("Found %i processor%s.", (int) cpu_list_len, cpu_list_len == 1 ? "" : "s");
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
@@ -283,7 +283,7 @@ static int init (void)
 	if (status == -1)
 	{
 		char errbuf[1024];
-		WARNING ("cpu plugin: sysctl: %s",
+		WARNING ("sysctl: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -297,7 +297,7 @@ static int init (void)
 	if (sysctlbyname ("hw.ncpu", &numcpu, &numcpu_size, NULL, 0) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("cpu plugin: sysctlbyname(hw.ncpu): %s",
+		WARNING ("sysctlbyname(hw.ncpu): %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -308,13 +308,13 @@ static int init (void)
 	if (sysctlbyname("kern.smp.maxcpus", &maxcpu, &numcpu_size, NULL, 0) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("cpu plugin: sysctlbyname(kern.smp.maxcpus): %s",
+		WARNING ("sysctlbyname(kern.smp.maxcpus): %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 #else
 	if (numcpu != 1)
-		NOTICE ("cpu: Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
+		NOTICE ("Only one processor supported when using `sysctlbyname' (found %i)", numcpu);
 #endif
 /* #endif HAVE_SYSCTLBYNAME */
 
@@ -383,7 +383,7 @@ static int cpu_states_alloc (size_t cpu_num) /* {{{ */
 	tmp = realloc (cpu_states, sz * sizeof (*cpu_states));
 	if (tmp == NULL)
 	{
-		ERROR ("cpu plugin: realloc failed.");
+		ERROR ("realloc failed.");
 		return (ENOMEM);
 	}
 	cpu_states = tmp;
@@ -457,7 +457,7 @@ static void aggregate (gauge_t *sum_by_state) /* {{{ */
 
 	if (!perfstat_cpu_total(NULL, &cputotal, sizeof(cputotal), 1)) {
 		char errbuf[1024];
-		WARNING ("cpu plugin: perfstat_cpu_total: %s",
+		WARNING ("perfstat_cpu_total: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return;
 	}
@@ -632,14 +632,14 @@ static int cpu_read (void)
 				(processor_info_t) &cpu_info, &cpu_info_len);
 		if (status != KERN_SUCCESS)
 		{
-			ERROR ("cpu plugin: processor_info (PROCESSOR_CPU_LOAD_INFO) failed: %s",
+			ERROR ("processor_info (PROCESSOR_CPU_LOAD_INFO) failed: %s",
 					mach_error_string (status));
 			continue;
 		}
 
 		if (cpu_info_len < CPU_STATE_MAX)
 		{
-			ERROR ("cpu plugin: processor_info returned only %i elements..", cpu_info_len);
+			ERROR ("processor_info returned only %i elements..", cpu_info_len);
 			continue;
 		}
 
@@ -661,7 +661,7 @@ static int cpu_read (void)
 	if ((fh = fopen ("/proc/stat", "r")) == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("cpu plugin: fopen (/proc/stat) failed: %s",
+		ERROR ("fopen (/proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -722,8 +722,7 @@ static int cpu_read (void)
 
 	if (numcpu < 1)
 	{
-		ERROR ("cpu plugin: Could not determine number of "
-				"installed CPUs using sysctl(3).");
+		ERROR ("Could not determine number of installed CPUs using sysctl(3).");
 		return (-1);
 	}
 
@@ -740,7 +739,7 @@ static int cpu_read (void)
 					cpuinfo[i], &cpuinfo_size, NULL, 0);
 			if (status == -1) {
 				char errbuf[1024];
-				ERROR ("cpu plugin: sysctl failed: %s.",
+				ERROR ("sysctl failed: %s.",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				return (-1);
 			}
@@ -759,7 +758,7 @@ static int cpu_read (void)
 		if (status == -1)
 		{
 			char errbuf[1024];
-			ERROR ("cpu plugin: sysctl failed: %s.",
+			ERROR ("sysctl failed: %s.",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -788,7 +787,7 @@ static int cpu_read (void)
 	if (sysctlbyname("kern.cp_times", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
 	{
 		char errbuf[1024];
-		ERROR ("cpu plugin: sysctlbyname failed: %s.",
+		ERROR ("sysctlbyname failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -811,7 +810,7 @@ static int cpu_read (void)
 	if (sysctlbyname("kern.cp_time", &cpuinfo, &cpuinfo_size, NULL, 0) < 0)
 	{
 		char errbuf[1024];
-		ERROR ("cpu plugin: sysctlbyname failed: %s.",
+		ERROR ("sysctlbyname failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -829,7 +828,7 @@ static int cpu_read (void)
 
 	if (cs == NULL)
 	{
-		ERROR ("cpu plugin: sg_get_cpu_stats failed.");
+		ERROR ("sg_get_cpu_stats failed.");
 		return (-1);
 	}
 
@@ -849,7 +848,7 @@ static int cpu_read (void)
 	if(numcpu == -1)
 	{
 		char errbuf[1024];
-		WARNING ("cpu plugin: perfstat_cpu: %s",
+		WARNING ("perfstat_cpu: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -865,7 +864,7 @@ static int cpu_read (void)
 	if ((cpus = perfstat_cpu(&id, perfcpu, sizeof(perfstat_cpu_t), numcpu)) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("cpu plugin: perfstat_cpu: %s",
+		WARNING ("perfstat_cpu: %s",
 			sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

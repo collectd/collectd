@@ -78,13 +78,13 @@ static int mic_init (void)
 	mic_count = (U32) STATIC_ARRAY_SIZE(mics);
 	ret = MicInitAPI(&mic_handle,  eTARGET_SCIF_DRIVER, mics, &mic_count);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem initializing MicAccessAPI: %s",
+		ERROR("Problem initializing MicAccessAPI: %s",
 				MicGetErrorString(ret));
 	}
-	DEBUG("mic plugin: found: %"PRIu32" MIC(s)",mic_count);
+	DEBUG("found: %"PRIu32" MIC(s)",mic_count);
 
 	if (mic_count<0 || mic_count>=MAX_MICS) {
-		ERROR("mic plugin: No Intel MICs in system");
+		ERROR("No Intel MICs in system");
 		return (1);
 	}
 	else {
@@ -155,7 +155,7 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 
 	value_list_t vl = VALUE_LIST_INIT;
 
 	/* MicAccessAPI reports KB's of memory, adjust for this */
-	DEBUG("mic plugin: Memory Value Report; %u %lf",value,((gauge_t)value)*1024.0);
+	DEBUG("Memory Value Report; %u %lf",value,((gauge_t)value)*1024.0);
 
 	vl.values = &(value_t) { .gauge = ((gauge_t)value) * 1024.0 };
 	vl.values_len = 1;
@@ -176,14 +176,14 @@ static int mic_read_memory(int mic)
 
 	ret = MicGetMemoryUtilization(mic_handle,&mem_total,&mem_free,&mem_bufs);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem getting Memory Utilization: %s",
+		ERROR("Problem getting Memory Utilization: %s",
 				MicGetErrorString(ret));
 		return (1);
 	}
 	mic_submit_memory_use(mic,"free",mem_free);
 	mic_submit_memory_use(mic,"used",mem_total-mem_free-mem_bufs);
 	mic_submit_memory_use(mic,"buffered",mem_bufs);
-	DEBUG("mic plugin: Memory Read: %u %u %u",mem_total,mem_free,mem_bufs);
+	DEBUG("Memory Read: %u %u %u",mem_total,mem_free,mem_bufs);
 	return (0);
 }
 
@@ -221,7 +221,7 @@ static int mic_read_temps(int mic)
 		status = MicGetTemperature(mic_handle, therm_ids[j],
 				&temp_buffer, &buffer_size);
 		if (status != MIC_ACCESS_API_SUCCESS) {
-			ERROR("mic plugin: Error reading temperature \"%s\": "
+			ERROR("Error reading temperature \"%s\": "
 					"%s", name, MicGetErrorString(status));
 			return (1);
 		}
@@ -264,7 +264,7 @@ static int mic_read_cpu(int mic)
 	status = MicGetCoreUtilization(mic_handle, &core_util,
 			core_jiffs, &core_jiffs_size);
 	if (status != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem getting CPU utilization: %s",
+		ERROR("Problem getting CPU utilization: %s",
 				MicGetErrorString(status));
 		return(-1);
 	}
@@ -311,7 +311,7 @@ static int mic_read_power(int mic)
 
 	ret = MicGetPowerUsage(mic_handle,&power_use);
 	if (ret != MIC_ACCESS_API_SUCCESS) {
-		ERROR("mic plugin: Problem getting Power Usage: %s",
+		ERROR("Problem getting Power Usage: %s",
 			MicGetErrorString(ret));
 		return (1);
 	}
@@ -350,7 +350,7 @@ static int mic_read (void)
 	for (int i = 0;i<num_mics;i++) {
 		ret = MicInitAdapter(&mic_handle,&mics[i]);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
-			ERROR("mic plugin: Problem initializing MicAdapter: %s",
+			ERROR("Problem initializing MicAdapter: %s",
 					MicGetErrorString(ret));
 			error = 1;
 		}
@@ -369,7 +369,7 @@ static int mic_read (void)
 
 		ret = MicCloseAdapter(mic_handle);
 		if (ret != MIC_ACCESS_API_SUCCESS) {
-			ERROR("mic plugin: Problem closing MicAdapter: %s",
+			ERROR("Problem closing MicAdapter: %s",
 					MicGetErrorString(ret));
 			error = 2;
 			break;

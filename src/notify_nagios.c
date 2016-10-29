@@ -49,7 +49,7 @@ static int nagios_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("CommandFile", child->key) == 0)
       cf_util_get_string (child, &nagios_command_file);
     else
-      WARNING ("notify_nagios plugin: Ignoring unknown config option \"%s\".",
+      WARNING ("Ignoring unknown config option \"%s\".",
           child->key);
   }
 
@@ -71,7 +71,7 @@ static int nagios_print (char const *buffer) /* {{{ */
   {
     char errbuf[1024];
     status = errno;
-    ERROR ("notify_nagios plugin: Opening \"%s\" failed: %s",
+    ERROR ("Opening \"%s\" failed: %s",
         file, sstrerror (status, errbuf, sizeof (errbuf)));
     return status;
   }
@@ -84,7 +84,7 @@ static int nagios_print (char const *buffer) /* {{{ */
   {
     char errbuf[1024];
     status = errno;
-    ERROR ("notify_nagios plugin: Failed to acquire write lock on \"%s\": %s",
+    ERROR ("Failed to acquire write lock on \"%s\": %s",
         file, sstrerror (status, errbuf, sizeof (errbuf)));
     close (fd);
     return status;
@@ -95,7 +95,7 @@ static int nagios_print (char const *buffer) /* {{{ */
   {
     char errbuf[1024];
     status = errno;
-    ERROR ("notify_nagios plugin: Seeking to end of \"%s\" failed: %s",
+    ERROR ("Seeking to end of \"%s\" failed: %s",
         file, sstrerror (status, errbuf, sizeof (errbuf)));
     close (fd);
     return status;
@@ -106,7 +106,7 @@ static int nagios_print (char const *buffer) /* {{{ */
   {
     char errbuf[1024];
     status = errno;
-    ERROR ("notify_nagios plugin: Writing to \"%s\" failed: %s",
+    ERROR ("Writing to \"%s\" failed: %s",
         file, sstrerror (status, errbuf, sizeof (errbuf)));
     close (fd);
     return status;
@@ -128,7 +128,7 @@ static int nagios_notify (const notification_t *n, /* {{{ */
       /* host */ "", n->plugin, n->plugin_instance, n->type, n->type_instance);
   if (status != 0)
   {
-    ERROR ("notify_nagios plugin: Formatting service name failed.");
+    ERROR ("Formatting service name failed.");
     return status;
   }
 

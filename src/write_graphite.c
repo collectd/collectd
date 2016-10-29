@@ -135,7 +135,7 @@ static void wg_force_reconnect_check (struct wg_callback *cb)
     cb->last_reconnect_time = now;
     cb->reconnect_interval_reached = 1;
 
-    INFO ("write_graphite plugin: Connection closed after %.3f seconds.",
+    INFO ("Connection closed after %.3f seconds.",
           CDTIME_T_TO_DOUBLE (now - cb->last_reconnect_time));
 }
 
@@ -163,7 +163,7 @@ static int wg_send_buffer (struct wg_callback *cb)
         if (cb->log_send_errors)
         {
             char errbuf[1024];
-            ERROR ("write_graphite plugin: send to %s:%s (%s) failed with status %zi (%s)",
+            ERROR ("send to %s:%s (%s) failed with status %zi (%s)",
                     cb->node, cb->service, cb->protocol,
                     status, sstrerror (errno, errbuf, sizeof (errbuf)));
         }
@@ -182,7 +182,7 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 {
     int status;
 
-    DEBUG ("write_graphite plugin: wg_flush_nolock: timeout = %.3f; "
+    DEBUG ("wg_flush_nolock: timeout = %.3f; "
             "send_buf_fill = %zu;",
             (double)timeout,
             cb->send_buf_fill);
@@ -240,7 +240,7 @@ static int wg_callback_init (struct wg_callback *cb)
     status = getaddrinfo (cb->node, cb->service, &ai_hints, &ai_list);
     if (status != 0)
     {
-        ERROR ("write_graphite plugin: getaddrinfo (%s, %s, %s) failed: %s",
+        ERROR ("getaddrinfo (%s, %s, %s) failed: %s",
                 cb->node, cb->service, cb->protocol, gai_strerror (status));
         return (-1);
     }
@@ -407,7 +407,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
     cb->send_buf_fill += message_len;
     cb->send_buf_free -= message_len;
 
-    DEBUG ("write_graphite plugin: [%s]:%s (%s) buf %zu/%zu (%.1f %%) \"%s\"",
+    DEBUG ("[%s]:%s (%s) buf %zu/%zu (%.1f %%) \"%s\"",
             cb->node, cb->service, cb->protocol,
             cb->send_buf_fill, sizeof (cb->send_buf),
             100.0 * ((double) cb->send_buf_fill) / ((double) sizeof (cb->send_buf)),
@@ -426,8 +426,7 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
 
     if (0 != strcmp (ds->type, vl->type))
     {
-        ERROR ("write_graphite plugin: DS type does not match "
-                "value list type");
+        ERROR ("DS type does not match value list type");
         return -1;
     }
 
@@ -472,14 +471,14 @@ static int config_set_char (char *dest,
 
     if (buffer[0] == 0)
     {
-        ERROR ("write_graphite plugin: Cannot use an empty string for the "
+        ERROR ("Cannot use an empty string for the "
                 "\"EscapeCharacter\" option.");
         return (-1);
     }
 
     if (buffer[1] != 0)
     {
-        WARNING ("write_graphite plugin: Only the first character of the "
+        WARNING ("Only the first character of the "
                 "\"EscapeCharacter\" option ('%c') will be used.",
                 (int) buffer[0]);
     }
@@ -498,7 +497,7 @@ static int wg_config_node (oconfig_item_t *ci)
     cb = calloc (1, sizeof (*cb));
     if (cb == NULL)
     {
-        ERROR ("write_graphite plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return (-1);
     }
     cb->sock_fd = -1;
@@ -544,8 +543,7 @@ static int wg_config_node (oconfig_item_t *ci)
             if (strcasecmp ("UDP", cb->protocol) != 0 &&
                 strcasecmp ("TCP", cb->protocol) != 0)
             {
-                ERROR ("write_graphite plugin: Unknown protocol (%s)",
-                        cb->protocol);
+                ERROR ("Unknown protocol (%s)", cb->protocol);
                 status = -1;
             }
         }
@@ -573,8 +571,7 @@ static int wg_config_node (oconfig_item_t *ci)
             config_set_char (&cb->escape_char, child);
         else
         {
-            ERROR ("write_graphite plugin: Invalid configuration "
-                        "option: %s.", child->key);
+            ERROR ("Invalid configuration option: %s.", child->key);
             status = -1;
         }
 
@@ -620,8 +617,7 @@ static int wg_config (oconfig_item_t *ci)
             wg_config_node (child);
         else
         {
-            ERROR ("write_graphite plugin: Invalid configuration "
-                    "option: %s.", child->key);
+            ERROR ("Invalid configuration option: %s.", child->key);
         }
     }
 

@@ -178,7 +178,7 @@ static int rc_config_get_xff (oconfig_item_t const *ci, double *ret)
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER))
   {
-    ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
+    ERROR ("The \"%s\" needs exactly one numeric argument "
         "in the range [0.0, 1.0)", ci->key);
     return (EINVAL);
   }
@@ -190,7 +190,7 @@ static int rc_config_get_xff (oconfig_item_t const *ci, double *ret)
     return (0);
   }
 
-  ERROR ("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
+  ERROR ("The \"%s\" needs exactly one numeric argument "
       "in the range [0.0, 1.0)", ci->key);
   return (EINVAL);
 } /* int rc_config_get_xff */
@@ -271,12 +271,12 @@ static int rc_config (oconfig_item_t *ci)
       status = rc_config_get_xff (child, &rrdcreate_config.xff);
     else
     {
-      WARNING ("rrdcached plugin: Ignoring invalid option %s.", key);
+      WARNING ("Ignoring invalid option %s.", key);
       continue;
     }
 
     if (status != 0)
-      WARNING ("rrdcached plugin: Handling the \"%s\" option failed.", key);
+      WARNING ("Handling the \"%s\" option failed.", key);
   }
 
   if (daemon_address != NULL)
@@ -297,13 +297,12 @@ static int try_reconnect (void)
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: Failed to reconnect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
+    ERROR ("Failed to reconnect to RRDCacheD at %s: %s (status=%d)",
+        daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
-  INFO ("rrdcached plugin: Successfully reconnected to RRDCacheD "
-      "at %s", daemon_address);
+  INFO ("Successfully reconnected to RRDCacheD at %s", daemon_address);
   return (0);
 } /* int try_reconnect */
 
@@ -332,8 +331,8 @@ static int rc_read (void)
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
+    ERROR ("Failed to connect to RRDCacheD at %s: %s (status=%d)",
+        daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -355,7 +354,7 @@ static int rc_read (void)
       /* else: report the error and fail */
     }
 
-    ERROR ("rrdcached plugin: rrdc_stats_get failed: %s (status=%i).",
+    ERROR ("rrdc_stats_get failed: %s (status=%i).",
         rrd_get_error (), status);
     return (-1);
   }
@@ -417,7 +416,7 @@ static int rc_read (void)
     }
     else
     {
-      DEBUG ("rrdcached plugin: rc_read: Unknown statistic `%s'.", ptr->name);
+      DEBUG ("rc_read: Unknown statistic `%s'.", ptr->name);
       continue;
     }
 
@@ -448,26 +447,26 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
 
   if (daemon_address == NULL)
   {
-    ERROR ("rrdcached plugin: daemon_address == NULL.");
+    ERROR ("daemon_address == NULL.");
     plugin_unregister_write ("rrdcached");
     return (-1);
   }
 
   if (strcmp (ds->type, vl->type) != 0)
   {
-    ERROR ("rrdcached plugin: DS type does not match value list type");
+    ERROR ("DS type does not match value list type");
     return (-1);
   }
 
   if (value_list_to_filename (filename, sizeof (filename), vl) != 0)
   {
-    ERROR ("rrdcached plugin: value_list_to_filename failed.");
+    ERROR ("value_list_to_filename failed.");
     return (-1);
   }
 
   if (value_list_to_string (values, sizeof (values), ds, vl) != 0)
   {
-    ERROR ("rrdcached plugin: value_list_to_string failed.");
+    ERROR ("value_list_to_string failed.");
     return (-1);
   }
 
@@ -484,7 +483,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
       if (errno != ENOENT)
       {
         char errbuf[1024];
-        ERROR ("rrdcached plugin: stat (%s) failed: %s",
+        ERROR ("stat (%s) failed: %s",
             filename, sstrerror (errno, errbuf, sizeof (errbuf)));
         return (-1);
       }
@@ -492,8 +491,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
       status = cu_rrd_create_file (filename, ds, vl, &rrdcreate_config);
       if (status != 0)
       {
-        ERROR ("rrdcached plugin: cu_rrd_create_file (%s) failed.",
-            filename);
+        ERROR ("cu_rrd_create_file (%s) failed.", filename);
         return (-1);
       }
       else if (rrdcreate_config.async)
@@ -505,8 +503,8 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
+    ERROR ("Failed to connect to RRDCacheD at %s: %s (status=%d)",
+        daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -527,7 +525,7 @@ static int rc_write (const data_set_t *ds, const value_list_t *vl,
       /* else: report the error and fail */
     }
 
-    ERROR ("rrdcached plugin: rrdc_update (%s, [%s], 1) failed: %s (status=%i)",
+    ERROR ("rrdc_update (%s, [%s], 1) failed: %s (status=%i)",
         filename, values_array[0], rrd_get_error (), status);
     return (-1);
   }
@@ -555,8 +553,8 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
   status = rrdc_connect (daemon_address);
   if (status != 0)
   {
-    ERROR ("rrdcached plugin: Failed to connect to RRDCacheD "
-        "at %s: %s (status=%d)", daemon_address, rrd_get_error (), status);
+    ERROR ("Failed to connect to RRDCacheD at %s: %s (status=%d)",
+        daemon_address, rrd_get_error (), status);
     return (-1);
   }
 
@@ -577,11 +575,11 @@ static int rc_flush (__attribute__((unused)) cdtime_t timeout, /* {{{ */
       /* else: report the error and fail */
     }
 
-    ERROR ("rrdcached plugin: rrdc_flush (%s) failed: %s (status=%i).",
+    ERROR ("rrdc_flush (%s) failed: %s (status=%i).",
         filename, rrd_get_error (), status);
     return (-1);
   }
-  DEBUG ("rrdcached plugin: rrdc_flush (%s): Success.", filename);
+  DEBUG ("rrdc_flush (%s): Success.", filename);
 
   return (0);
 } /* }}} int rc_flush */

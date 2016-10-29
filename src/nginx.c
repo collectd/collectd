@@ -122,7 +122,7 @@ static int init (void)
 
   if ((curl = curl_easy_init ()) == NULL)
   {
-    ERROR ("nginx plugin: curl_easy_init failed.");
+    ERROR ("curl_easy_init failed.");
     return (-1);
   }
 
@@ -142,7 +142,7 @@ static int init (void)
         "%s:%s", user, pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t) status >= sizeof (credentials)))
     {
-      ERROR ("nginx plugin: Credentials would have been truncated.");
+      ERROR ("Credentials would have been truncated.");
       return (-1);
     }
 
@@ -238,7 +238,7 @@ static int nginx_read (void)
   nginx_buffer_len = 0;
   if (curl_easy_perform (curl) != CURLE_OK)
   {
-    WARNING ("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
+    WARNING ("curl_easy_perform failed: %s", nginx_curl_error);
     return (-1);
   }
 

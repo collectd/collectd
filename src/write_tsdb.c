@@ -109,7 +109,7 @@ static int wt_send_buffer(struct wt_callback *cb)
     if (status < 0)
     {
         char errbuf[1024];
-        ERROR("write_tsdb plugin: send failed with status %zi (%s)",
+        ERROR("send failed with status %zi (%s)",
               status, sstrerror (errno, errbuf, sizeof (errbuf)));
 
         close (cb->sock_fd);
@@ -126,7 +126,7 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb)
 {
     int status;
 
-    DEBUG("write_tsdb plugin: wt_flush_nolock: timeout = %.3f; "
+    DEBUG("wt_flush_nolock: timeout = %.3f; "
           "send_buf_fill = %zu;",
           (double)timeout,
           cb->send_buf_fill);
@@ -173,7 +173,7 @@ static int wt_callback_init(struct wt_callback *cb)
     status = getaddrinfo(node, service, &ai_hints, &ai_list);
     if (status != 0)
     {
-        ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s",
+        ERROR("getaddrinfo (%s, %s) failed: %s",
               node, service, gai_strerror (status));
         return -1;
     }
@@ -204,7 +204,7 @@ static int wt_callback_init(struct wt_callback *cb)
     if (cb->sock_fd < 0)
     {
         char errbuf[1024];
-        ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
+        ERROR("Connecting to %s:%s failed. "
               "The last error was: %s", node, service,
               sstrerror (errno, errbuf, sizeof(errbuf)));
         return -1;
@@ -259,7 +259,7 @@ static int wt_flush(cdtime_t timeout,
         status = wt_callback_init(cb);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: wt_callback_init failed.");
+            ERROR("wt_callback_init failed.");
             pthread_mutex_unlock(&cb->send_lock);
             return -1;
         }
@@ -323,8 +323,7 @@ static int wt_format_values(char *ret, size_t ret_len,
         BUFFER_ADD("%" PRIu64, vl->values[ds_num].absolute);
     else
     {
-        ERROR("format_values plugin: Unknown data source type: %i",
-              ds->ds[ds_num].type);
+        ERROR("Unknown data source type: %i", ds->ds[ds_num].type);
         sfree(rates);
         return -1;
     }
@@ -421,7 +420,7 @@ static int wt_send_message (const char* key, const char* value,
         if (status == -ENOENT) {
             /* defaults to empty string */
         } else if (status < 0) {
-            ERROR("write_tsdb plugin: tags metadata get failure");
+            ERROR("tags metadata get failure");
             sfree(temp);
             pthread_mutex_unlock(&cb->send_lock);
             return status;
@@ -445,7 +444,7 @@ static int wt_send_message (const char* key, const char* value,
     message_len = (size_t) status;
 
     if (message_len >= sizeof(message)) {
-        ERROR("write_tsdb plugin: message buffer too small: "
+        ERROR("message buffer too small: "
               "Need %zu bytes.", message_len + 1);
         return -1;
     }
@@ -457,7 +456,7 @@ static int wt_send_message (const char* key, const char* value,
         status = wt_callback_init(cb);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: wt_callback_init failed.");
+            ERROR("wt_callback_init failed.");
             pthread_mutex_unlock(&cb->send_lock);
             return -1;
         }
@@ -483,7 +482,7 @@ static int wt_send_message (const char* key, const char* value,
     cb->send_buf_fill += message_len;
     cb->send_buf_free -= message_len;
 
-    DEBUG("write_tsdb plugin: [%s]:%s buf %zu/%zu (%.1f %%) \"%s\"",
+    DEBUG("[%s]:%s buf %zu/%zu (%.1f %%) \"%s\"",
           cb->node,
           cb->service,
           cb->send_buf_fill, sizeof(cb->send_buf),
@@ -506,7 +505,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     if (0 != strcmp(ds->type, vl->type))
     {
-        ERROR("write_tsdb plugin: DS type does not match "
+        ERROR("DS type does not match "
               "value list type");
         return -1;
     }
@@ -522,7 +521,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
         status = wt_format_name(key, sizeof(key), vl, cb, ds_name);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: error with format_name");
+            ERROR("error with format_name");
             return status;
         }
 
@@ -533,7 +532,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
                                   cb->store_rates);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: error with "
+            ERROR("error with "
                   "wt_format_values");
             return status;
         }
@@ -542,7 +541,7 @@ static int wt_write_messages(const data_set_t *ds, const value_list_t *vl,
         status = wt_send_message(key, values, vl->time, cb, vl->host, vl->meta);
         if (status != 0)
         {
-            ERROR("write_tsdb plugin: error with "
+            ERROR("error with "
                   "wt_send_message");
             return status;
         }
@@ -575,7 +574,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
     cb = calloc(1, sizeof(*cb));
     if (cb == NULL)
     {
-        ERROR("write_tsdb plugin: calloc failed.");
+        ERROR("calloc failed.");
         return -1;
     }
     cb->sock_fd = -1;
@@ -602,8 +601,7 @@ static int wt_config_tsd(oconfig_item_t *ci)
             cf_util_get_boolean(child, &cb->always_append_ds);
         else
         {
-            ERROR("write_tsdb plugin: Invalid configuration "
-                  "option: %s.", child->key);
+            ERROR("Invalid configuration option: %s.", child->key);
         }
     }
 
@@ -634,7 +632,7 @@ static int wt_config(oconfig_item_t *ci)
             wt_config_tsd(child);
         else
         {
-            ERROR("write_tsdb plugin: Invalid configuration "
+            ERROR("Invalid configuration "
                   "option: %s.", child->key);
         }
     }

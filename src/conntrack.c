@@ -77,14 +77,14 @@ static int conntrack_read (void)
 	char const *path = old_files ? CONNTRACK_FILE_OLD : CONNTRACK_FILE;
 	if (parse_value_file (path, &conntrack, DS_TYPE_GAUGE) != 0)
 	{
-		ERROR ("conntrack plugin: Reading \"%s\" failed.", path);
+		ERROR ("Reading \"%s\" failed.", path);
 		return (-1);
 	}
 
 	path = old_files ? CONNTRACK_MAX_FILE_OLD : CONNTRACK_MAX_FILE;
 	if (parse_value_file (path, &conntrack_max, DS_TYPE_GAUGE) != 0)
 	{
-		ERROR ("conntrack plugin: Reading \"%s\" failed.", path);
+		ERROR ("Reading \"%s\" failed.", path);
 		return (-1);
 	}
 

@@ -283,7 +283,7 @@ static size_t bind_curl_callback (void *buf, size_t size, /* {{{ */
     temp = realloc (bind_buffer, bind_buffer_fill + len + 1);
     if (temp == NULL)
     {
-      ERROR ("bind plugin: realloc failed.");
+      ERROR ("realloc failed.");
       return (0);
     }
     bind_buffer = temp;
@@ -356,14 +356,14 @@ static int bind_xml_read_derive (xmlDoc *doc, xmlNode *node, /* {{{ */
   str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL)
   {
-    ERROR ("bind plugin: bind_xml_read_derive: xmlNodeListGetString failed.");
+    ERROR ("bind_xml_read_derive: xmlNodeListGetString failed.");
     return (-1);
   }
 
   status = parse_value (str_ptr, &value, DS_TYPE_DERIVE);
   if (status != 0)
   {
-    ERROR ("bind plugin: Parsing string \"%s\" to derive value failed.",
+    ERROR ("Parsing string \"%s\" to derive value failed.",
         str_ptr);
     xmlFree(str_ptr);
     return (-1);
@@ -383,7 +383,7 @@ static int bind_xml_read_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
   str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL)
   {
-    ERROR ("bind plugin: bind_xml_read_gauge: xmlNodeListGetString failed.");
+    ERROR ("bind_xml_read_gauge: xmlNodeListGetString failed.");
     return (-1);
   }
 
@@ -393,11 +393,11 @@ static int bind_xml_read_gauge (xmlDoc *doc, xmlNode *node, /* {{{ */
   if (str_ptr == end_ptr || errno)
   {
     if (errno && (value < 0))
-      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed with underflow.");
+      ERROR ("bind_xml_read_gauge: strtod failed with underflow.");
     else if (errno && (value > 0))
-      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed with overflow.");
+      ERROR ("bind_xml_read_gauge: strtod failed with overflow.");
     else
-      ERROR ("bind plugin: bind_xml_read_gauge: strtod failed.");
+      ERROR ("bind_xml_read_gauge: strtod failed.");
     return (-1);
   }
 
@@ -417,7 +417,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   xpathObj = xmlXPathEvalExpression (BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
   {
-    ERROR ("bind plugin: Unable to evaluate XPath expression `%s'.",
+    ERROR ("Unable to evaluate XPath expression `%s'.",
         xpath_expression);
     return (-1);
   }
@@ -430,7 +430,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
 
   if (xpathObj->nodesetval->nodeNr != 1)
   {
-    NOTICE ("bind plugin: Evaluating the XPath expression `%s' returned "
+    NOTICE ("Evaluating the XPath expression `%s' returned "
         "%i nodes. Only handling the first one.",
         xpath_expression, xpathObj->nodesetval->nodeNr);
   }
@@ -439,7 +439,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
 
   if (node->xmlChildrenNode == NULL)
   {
-    ERROR ("bind plugin: bind_xml_read_timestamp: "
+    ERROR ("bind_xml_read_timestamp: "
         "node->xmlChildrenNode == NULL");
     xmlXPathFreeObject (xpathObj);
     return (-1);
@@ -448,7 +448,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   str_ptr = (char *) xmlNodeListGetString (doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL)
   {
-    ERROR ("bind plugin: bind_xml_read_timestamp: xmlNodeListGetString failed.");
+    ERROR ("bind_xml_read_timestamp: xmlNodeListGetString failed.");
     xmlXPathFreeObject (xpathObj);
     return (-1);
   }
@@ -457,7 +457,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   xmlFree(str_ptr);
   if (tmp == NULL)
   {
-    ERROR ("bind plugin: bind_xml_read_timestamp: strptime failed.");
+    ERROR ("bind_xml_read_timestamp: strptime failed.");
     xmlXPathFreeObject (xpathObj);
     return (-1);
   }
@@ -489,7 +489,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
   {
-    ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
+    ERROR("Unable to evaluate XPath expression `%s'.",
         xpath_expression);
     return (-1);
   }
@@ -503,7 +503,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
     xmlNode *parent;
 
     parent = xpathObj->nodesetval->nodeTab[i];
-    DEBUG ("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
+    DEBUG ("bind_parse_generic_name_value: parent->name = %s;",
         (char *) parent->name);
 
     /* Iterate over all child nodes. */
@@ -542,7 +542,7 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
     }
   }
 
-  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
+  DEBUG ("Found %d %s for XPath expression `%s'",
       num_entries, (num_entries == 1) ? "entry" : "entries",
       xpath_expression);
 
@@ -574,7 +574,7 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
   {
-    ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
+    ERROR("Unable to evaluate XPath expression `%s'.",
         xpath_expression);
     return (-1);
   }
@@ -610,7 +610,7 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
     }
   }
 
-  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
+  DEBUG ("Found %d %s for XPath expression `%s'",
       num_entries, (num_entries == 1) ? "entry" : "entries",
       xpath_expression);
 
@@ -642,7 +642,7 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
   {
-    ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
+    ERROR("Unable to evaluate XPath expression `%s'.",
         xpath_expression);
     return (-1);
   }
@@ -669,7 +669,7 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
       attr_name = (char *) xmlGetProp (child, BAD_CAST "name");
       if (attr_name == NULL)
       {
-        DEBUG ("bind plugin: found <counter> without name.");
+        DEBUG ("found <counter> without name.");
         continue;
       }
       if (ds_type == DS_TYPE_GAUGE)
@@ -685,7 +685,7 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
     }
   }
 
-  DEBUG ("bind plugin: Found %d %s for XPath expression `%s'",
+  DEBUG ("Found %d %s for XPath expression `%s'",
       num_entries, (num_entries == 1) ? "entry" : "entries",
       xpath_expression);
 
@@ -719,7 +719,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
     path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
     if (path_obj == NULL)
     {
-      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
+      ERROR ("xmlXPathEvalExpression failed.");
       return (-1);
     }
 
@@ -735,7 +735,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
 
   if (zone_name == NULL)
   {
-    ERROR ("bind plugin: Could not determine zone name.");
+    ERROR ("Could not determine zone name.");
     return (-1);
   }
 
@@ -753,7 +753,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
 
   zone_name = view->zones[j];
 
-  DEBUG ("bind plugin: bind_xml_stats_handle_zone: Found zone `%s'.",
+  DEBUG ("bind_xml_stats_handle_zone: Found zone `%s'.",
       zone_name);
 
   { /* Parse the <counters> tag {{{ */
@@ -806,14 +806,14 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
   zone_path_context = xmlXPathNewContext (doc);
   if (zone_path_context == NULL)
   {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
+    ERROR ("xmlXPathNewContext failed.");
     return (-1);
   }
 
   zone_nodes = xmlXPathEvalExpression (BAD_CAST "zones/zone", path_ctx);
   if (zone_nodes == NULL)
   {
-    ERROR ("bind plugin: Cannot find any <view> tags.");
+    ERROR ("Cannot find any <view> tags.");
     xmlXPathFreeContext (zone_path_context);
     return (-1);
   }
@@ -847,7 +847,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 
     if (view_name == NULL)
     {
-      ERROR ("bind plugin: Could not determine view name.");
+      ERROR ("Could not determine view name.");
       return (-1);
     }
 
@@ -866,7 +866,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
     path_obj = xmlXPathEvalExpression (BAD_CAST "name", path_ctx);
     if (path_obj == NULL)
     {
-      ERROR ("bind plugin: xmlXPathEvalExpression failed.");
+      ERROR ("xmlXPathEvalExpression failed.");
       return (-1);
     }
 
@@ -880,7 +880,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 
     if (view_name == NULL)
     {
-      ERROR ("bind plugin: Could not determine view name.");
+      ERROR ("Could not determine view name.");
       xmlXPathFreeObject (path_obj);
       return (-1);
     }
@@ -904,7 +904,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 
   view = views + j;
 
-  DEBUG ("bind plugin: bind_xml_stats_handle_view: Found view `%s'.",
+  DEBUG ("bind_xml_stats_handle_view: Found view `%s'.",
       view->name);
 
   if (view->qtypes != 0) /* {{{ */
@@ -997,14 +997,14 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
   view_path_context = xmlXPathNewContext (doc);
   if (view_path_context == NULL)
   {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
+    ERROR ("xmlXPathNewContext failed.");
     return (-1);
   }
 
   view_nodes = xmlXPathEvalExpression (BAD_CAST "views/view", xpathCtx);
   if (view_nodes == NULL)
   {
-    ERROR ("bind plugin: Cannot find any <view> tags.");
+    ERROR ("Cannot find any <view> tags.");
     xmlXPathFreeContext (view_path_context);
     return (-1);
   }
@@ -1370,10 +1370,10 @@ static int bind_xml_stats (int version, xmlDoc *doc, /* {{{ */
       doc, xpathCtx, &current_time);
   if (status != 0)
   {
-    ERROR ("bind plugin: Reading `server/current-time' failed.");
+    ERROR ("Reading `server/current-time' failed.");
     return (-1);
   }
-  DEBUG ("bind plugin: Current server time is %i.", (int) current_time);
+  DEBUG ("Current server time is %i.", (int) current_time);
 
   if (version == 3)
   {
@@ -1427,14 +1427,14 @@ static int bind_xml (const char *data) /* {{{ */
   doc = xmlParseMemory (data, strlen (data));
   if (doc == NULL)
   {
-    ERROR ("bind plugin: xmlParseMemory failed.");
+    ERROR ("xmlParseMemory failed.");
     return (-1);
   }
 
   xpathCtx = xmlXPathNewContext (doc);
   if (xpathCtx == NULL)
   {
-    ERROR ("bind plugin: xmlXPathNewContext failed.");
+    ERROR ("xmlXPathNewContext failed.");
     xmlFreeDoc (doc);
     return (-1);
   }
@@ -1446,7 +1446,7 @@ static int bind_xml (const char *data) /* {{{ */
   xpathObj = xmlXPathEvalExpression (BAD_CAST "/statistics", xpathCtx);
   if (xpathObj == NULL || xpathObj->nodesetval == NULL || xpathObj->nodesetval->nodeNr == 0)
   {
-    DEBUG ("bind plugin: Statistics appears not to be v3");
+    DEBUG ("Statistics appears not to be v3");
     // we will fallback to v1 or v2 detection
     if (xpathObj != NULL) { xmlXPathFreeObject (xpathObj); }
   }
@@ -1463,16 +1463,16 @@ static int bind_xml (const char *data) /* {{{ */
       attr_version = (char *) xmlGetProp (node, BAD_CAST "version");
       if (attr_version == NULL)
       {
-        NOTICE ("bind plugin: Found <statistics> tag doesn't have a "
+        NOTICE ("Found <statistics> tag doesn't have a "
             "`version' attribute.");
         continue;
       }
-      DEBUG ("bind plugin: Found: <statistics version=\"%s\">", attr_version);
+      DEBUG ("Found: <statistics version=\"%s\">", attr_version);
 
       if (strncmp ("3.", attr_version, strlen ("3.")) != 0)
       {
         /* TODO: Use the complaint mechanism here. */
-        NOTICE ("bind plugin: Found <statistics> tag with version `%s'. "
+        NOTICE ("Found <statistics> tag with version `%s'. "
             "Unfortunately I have no clue how to parse that. "
             "Please open a bug report for this.", attr_version);
         xmlFree (attr_version);
@@ -1500,14 +1500,14 @@ static int bind_xml (const char *data) /* {{{ */
   xpathObj = xmlXPathEvalExpression (BAD_CAST "/isc/bind/statistics", xpathCtx);
   if (xpathObj == NULL)
   {
-    ERROR ("bind plugin: Cannot find the <statistics> tag.");
+    ERROR ("Cannot find the <statistics> tag.");
     xmlXPathFreeContext (xpathCtx);
     xmlFreeDoc (doc);
     return (-1);
   }
   else if (xpathObj->nodesetval == NULL)
   {
-    ERROR ("bind plugin: xmlXPathEvalExpression failed.");
+    ERROR ("xmlXPathEvalExpression failed.");
     xmlXPathFreeObject (xpathObj);
     xmlXPathFreeContext (xpathCtx);
     xmlFreeDoc (doc);
@@ -1526,11 +1526,11 @@ static int bind_xml (const char *data) /* {{{ */
     attr_version = (char *) xmlGetProp (node, BAD_CAST "version");
     if (attr_version == NULL)
     {
-      NOTICE ("bind plugin: Found <statistics> tag doesn't have a "
+      NOTICE ("Found <statistics> tag doesn't have a "
           "`version' attribute.");
       continue;
     }
-    DEBUG ("bind plugin: Found: <statistics version=\"%s\">", attr_version);
+    DEBUG ("Found: <statistics version=\"%s\">", attr_version);
 
     /* At the time this plugin was written, version "1.0" was used by
      * BIND 9.5.0, version "2.0" was used by BIND 9.5.1 and 9.6.0. We assume
@@ -1543,7 +1543,7 @@ static int bind_xml (const char *data) /* {{{ */
     else
     {
       /* TODO: Use the complaint mechanism here. */
-      NOTICE ("bind plugin: Found <statistics> tag with version `%s'. "
+      NOTICE ("Found <statistics> tag with version `%s'. "
           "Unfortunately I have no clue how to parse that. "
           "Please open a bug report for this.", attr_version);
       xmlFree (attr_version);
@@ -1589,7 +1589,7 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("bind plugin: The `Zone' option needs "
+    WARNING ("The `Zone' option needs "
         "exactly one string argument.");
     return (-1);
   }
@@ -1598,7 +1598,7 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
       sizeof (char *) * (view->zones_num + 1));
   if (tmp == NULL)
   {
-    ERROR ("bind plugin: realloc failed.");
+    ERROR ("realloc failed.");
     return (-1);
   }
   view->zones = tmp;
@@ -1606,7 +1606,7 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
   view->zones[view->zones_num] = strdup (ci->values[0].value.string);
   if (view->zones[view->zones_num] == NULL)
   {
-    ERROR ("bind plugin: strdup failed.");
+    ERROR ("strdup failed.");
     return (-1);
   }
   view->zones_num++;
@@ -1620,14 +1620,14 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("bind plugin: `View' blocks need exactly one string argument.");
+    WARNING ("`View' blocks need exactly one string argument.");
     return (-1);
   }
 
   tmp = realloc (views, sizeof (*views) * (views_num + 1));
   if (tmp == NULL)
   {
-    ERROR ("bind plugin: realloc failed.");
+    ERROR ("realloc failed.");
     return (-1);
   }
   views = tmp;
@@ -1643,7 +1643,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
   tmp->name = strdup (ci->values[0].value.string);
   if (tmp->name == NULL)
   {
-    ERROR ("bind plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (views);
     return (-1);
   }
@@ -1662,7 +1662,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
       bind_config_add_view_zone (tmp, child);
     else
     {
-      WARNING ("bind plugin: Unknown configuration option "
+      WARNING ("Unknown configuration option "
           "`%s' in view `%s' will be ignored.", child->key, tmp->name);
     }
   } /* for (i = 0; i < ci->children_num; i++) */
@@ -1680,7 +1680,7 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Url", child->key) == 0) {
       if ((child->values_num != 1) || (child->values[0].type != OCONFIG_TYPE_STRING))
       {
-        WARNING ("bind plugin: The `Url' option needs "
+        WARNING ("The `Url' option needs "
                  "exactly one string argument.");
         return (-1);
       }
@@ -1707,7 +1707,7 @@ static int bind_config (oconfig_item_t *ci) /* {{{ */
       cf_util_get_int (child, &timeout);
     else
     {
-      WARNING ("bind plugin: Unknown configuration option "
+      WARNING ("Unknown configuration option "
           "`%s' will be ignored.", child->key);
     }
   }
@@ -1723,7 +1723,7 @@ static int bind_init (void) /* {{{ */
   curl = curl_easy_init ();
   if (curl == NULL)
   {
-    ERROR ("bind plugin: bind_init: curl_easy_init failed.");
+    ERROR ("bind_init: curl_easy_init failed.");
     return (-1);
   }
 
@@ -1749,14 +1749,14 @@ static int bind_read (void) /* {{{ */
 
   if (curl == NULL)
   {
-    ERROR ("bind plugin: I don't have a CURL object.");
+    ERROR ("I don't have a CURL object.");
     return (-1);
   }
 
   bind_buffer_fill = 0;
   if (curl_easy_perform (curl) != CURLE_OK)
   {
-    ERROR ("bind plugin: curl_easy_perform failed: %s",
+    ERROR ("curl_easy_perform failed: %s",
         bind_curl_error);
     return (-1);
   }

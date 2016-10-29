@@ -114,7 +114,7 @@ static int clua_read(user_data_t *ud) /* {{{ */
 
   int status = clua_load_callback(L, cb->callback_id);
   if (status != 0) {
-    ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
+    ERROR("Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
     pthread_mutex_unlock(&cb->lock);
     return (-1);
@@ -125,18 +125,17 @@ static int clua_read(user_data_t *ud) /* {{{ */
   if (status != 0) {
     const char *errmsg = lua_tostring(L, -1);
     if (errmsg == NULL)
-      ERROR("Lua plugin: Calling a read callback failed. "
+      ERROR("Calling a read callback failed. "
             "In addition, retrieving the error message failed.");
     else
-      ERROR("Lua plugin: Calling a read callback failed: %s", errmsg);
+      ERROR("Calling a read callback failed: %s", errmsg);
     lua_pop(L, 1);
     pthread_mutex_unlock(&cb->lock);
     return (-1);
   }
 
   if (!lua_isnumber(L, -1)) {
-    ERROR("Lua plugin: Read function \"%s\" (id %i) did not return a numeric "
-          "status.",
+    ERROR("Read function \"%s\" (id %i) did not return a numeric status.",
           cb->lua_function_name, cb->callback_id);
     status = -1;
   } else {
@@ -160,7 +159,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   int status = clua_load_callback(L, cb->callback_id);
   if (status != 0) {
-    ERROR("Lua plugin: Unable to load callback \"%s\" (id %i).",
+    ERROR("Unable to load callback \"%s\" (id %i).",
           cb->lua_function_name, cb->callback_id);
     pthread_mutex_unlock(&cb->lock);
     return (-1);
@@ -171,7 +170,7 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (status != 0) {
     lua_pop(L, 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
-    ERROR("Lua plugin: luaC_pushvaluelist failed.");
+    ERROR("luaC_pushvaluelist failed.");
     return (-1);
   }
   /* +1 = 2 */
@@ -180,18 +179,17 @@ static int clua_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (status != 0) {
     const char *errmsg = lua_tostring(L, -1);
     if (errmsg == NULL)
-      ERROR("Lua plugin: Calling the write callback failed. "
+      ERROR("Calling the write callback failed. "
             "In addition, retrieving the error message failed.");
     else
-      ERROR("Lua plugin: Calling the write callback failed:\n%s", errmsg);
+      ERROR("Calling the write callback failed:\n%s", errmsg);
     lua_pop(L, 1); /* -1 = 0 */
     pthread_mutex_unlock(&cb->lock);
     return (-1);
   }
 
   if (!lua_isnumber(L, -1)) {
-    ERROR("Lua plugin: Write function \"%s\" (id %i) did not return a numeric "
-          "value.",
+    ERROR("Write function \"%s\" (id %i) did not return a numeric value.",
           cb->lua_function_name, cb->callback_id);
     status = -1;
   } else {
@@ -259,7 +257,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
   char identifier[6 * DATA_MAX_NAME_LEN];
   FORMAT_VL(identifier, sizeof(identifier), vl);
 
-  DEBUG("Lua plugin: collectd.dispatch_values(): Received value list \"%s\", "
+  DEBUG("collectd.dispatch_values(): Received value list \"%s\", "
         "time %.3f, interval %.3f.",
         identifier, CDTIME_T_TO_DOUBLE(vl->time),
         CDTIME_T_TO_DOUBLE(vl->interval));
@@ -405,7 +403,7 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
   /* initialize the lua context */
   script->lua_state = luaL_newstate();
   if (script->lua_state == NULL) {
-    ERROR("Lua plugin: luaL_newstate() failed.");
+    ERROR("luaL_newstate() failed.");
     return (-1);
   }
 
@@ -446,7 +444,7 @@ static int lua_script_load(const char *script_path) /* {{{ */
 {
   lua_script_t *script = malloc(sizeof(*script));
   if (script == NULL) {
-    ERROR("Lua plugin: malloc failed.");
+    ERROR("malloc failed.");
     return (-1);
   }
 
@@ -458,15 +456,14 @@ static int lua_script_load(const char *script_path) /* {{{ */
 
   script->script_path = strdup(script_path);
   if (script->script_path == NULL) {
-    ERROR("Lua plugin: strdup failed.");
+    ERROR("strdup failed.");
     lua_script_free(script);
     return (-1);
   }
 
   status = luaL_loadfile(script->lua_state, script->script_path);
   if (status != 0) {
-    ERROR("Lua plugin: luaL_loadfile failed: %s",
-          lua_tostring(script->lua_state, -1));
+    ERROR("luaL_loadfile failed: %s", lua_tostring(script->lua_state, -1));
     lua_pop(script->lua_state, 1);
     lua_script_free(script);
     return (-1);
@@ -480,12 +477,11 @@ static int lua_script_load(const char *script_path) /* {{{ */
     const char *errmsg = lua_tostring(script->lua_state, -1);
 
     if (errmsg == NULL)
-      ERROR("Lua plugin: lua_pcall failed with status %i. "
+      ERROR("lua_pcall failed with status %i. "
             "In addition, no error message could be retrieved from the stack.",
             status);
     else
-      ERROR("Lua plugin: Executing script \"%s\" failed:\n%s",
-            script->script_path, errmsg);
+      ERROR("Executing script \"%s\" failed:\n%s", script->script_path, errmsg);
 
     lua_script_free(script);
     return (-1);
@@ -517,7 +513,7 @@ static int lua_config_base_path(const oconfig_item_t *ci) /* {{{ */
     base_path[len] = '\0';
   }
 
-  DEBUG("Lua plugin: base_path = \"%s\";", base_path);
+  DEBUG("base_path = \"%s\";", base_path);
 
   return (0);
 } /* }}} int lua_config_base_path */
@@ -537,13 +533,13 @@ static int lua_config_script(const oconfig_item_t *ci) /* {{{ */
   else
     ssnprintf(abs_path, sizeof(abs_path), "%s/%s", base_path, rel_path);
 
-  DEBUG("Lua plugin: abs_path = \"%s\";", abs_path);
+  DEBUG("abs_path = \"%s\";", abs_path);
 
   status = lua_script_load(abs_path);
   if (status != 0)
     return (status);
 
-  INFO("Lua plugin: File \"%s\" loaded successfully", abs_path);
+  INFO("File \"%s\" loaded successfully", abs_path);
 
   return 0;
 } /* }}} int lua_config_script */
@@ -566,7 +562,7 @@ static int lua_config(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("Script", child->key) == 0) {
       status = lua_config_script(child);
     } else {
-      ERROR("Lua plugin: Option `%s' is not allowed here.", child->key);
+      ERROR("Option `%s' is not allowed here.", child->key);
       status = 1;
     }
   }

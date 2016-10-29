@@ -91,22 +91,21 @@ static int redis_node_add (const redis_node_t *rn) /* {{{ */
 
   if (rn_ptr != NULL)
   {
-    ERROR ("redis plugin: A node with the name `%s' already exists.",
-        rn->name);
+    ERROR ("A node with the name `%s' already exists.", rn->name);
     return (-1);
   }
 
   rn_copy = malloc (sizeof (*rn_copy));
   if (rn_copy == NULL)
   {
-    ERROR ("redis plugin: malloc failed adding redis_node to the tree.");
+    ERROR ("malloc failed adding redis_node to the tree.");
     return (-1);
   }
 
   memcpy (rn_copy, rn, sizeof (*rn_copy));
   rn_copy->next = NULL;
 
-  DEBUG ("redis plugin: Adding node \"%s\".", rn->name);
+  DEBUG ("Adding node \"%s\".", rn->name);
 
   if (nodes_head == NULL)
     nodes_head = rn_copy;
@@ -128,7 +127,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
 
     rq = calloc(1, sizeof(*rq));
     if (rq == NULL) {
-        ERROR("redis plugin: calloc failed adding redis_query.");
+        ERROR("calloc failed adding redis_query.");
         return NULL;
     }
     status = cf_util_get_string_buffer(ci, rq->query, sizeof(rq->query));
@@ -150,7 +149,7 @@ static redis_query_t *redis_config_query (oconfig_item_t *ci) /* {{{ */
         } else if (strcasecmp("Instance", option->key) == 0) {
             status = cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
         } else {
-            WARNING("redis plugin: unknown configuration option: %s", option->key);
+            WARNING("unknown configuration option: %s", option->key);
             status = -1;
         }
         if (status != 0)
@@ -212,7 +211,7 @@ static int redis_config_node (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Password", option->key) == 0)
       status = cf_util_get_string_buffer (option, rn.passwd, sizeof (rn.passwd));
     else
-      WARNING ("redis plugin: Option `%s' not allowed inside a `Node' "
+      WARNING ("Option `%s' not allowed inside a `Node' "
           "block. I'll ignore this option.", option->key);
 
     if (status != 0)
@@ -234,13 +233,13 @@ static int redis_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Node", option->key) == 0)
       redis_config_node (option);
     else
-      WARNING ("redis plugin: Option `%s' not allowed in redis"
+      WARNING ("Option `%s' not allowed in redis"
           " configuration. It will be ignored.", option->key);
   }
 
   if (nodes_head == NULL)
   {
-    ERROR ("redis plugin: No valid node configuration could be found.");
+    ERROR ("No valid node configuration could be found.");
     return (ENOENT);
   }
 
@@ -301,7 +300,7 @@ static int redis_handle_info (char *node, char const *info_line, char const *typ
 
     if(parse_value (buf, &val, ds_type) == -1)
     {
-      WARNING ("redis plugin: Unable to parse field `%s'.", field_name);
+      WARNING ("Unable to parse field `%s'.", field_name);
       return (-1);
     }
 
@@ -320,17 +319,17 @@ static int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t
 
     ds = plugin_get_ds (rq->type);
     if (!ds) {
-        ERROR ("redis plugin: DataSet `%s' not defined.", rq->type);
+        ERROR ("DataSet `%s' not defined.", rq->type);
         return (-1);
     }
 
     if (ds->ds_num != 1) {
-        ERROR ("redis plugin: DS `%s' has too many types.", rq->type);
+        ERROR ("DS `%s' has too many types.", rq->type);
         return (-1);
     }
 
     if ((rr = redisCommand(rh, rq->query)) == NULL) {
-        WARNING("redis plugin: unable to carry out query `%s'.", rq->query);
+        WARNING("unable to carry out query `%s'.", rq->query);
         return (-1);
     }
 
@@ -353,13 +352,13 @@ static int redis_handle_query (redisContext *rh, redis_node_t *rn, redis_query_t
         break;
     case REDIS_REPLY_STRING:
         if (parse_value (rr->str, &val, ds->ds[0].type) == -1) {
-            WARNING("redis plugin: Unable to parse field `%s'.", rq->type);
+            WARNING("Unable to parse field `%s'.", rq->type);
             freeReplyObject (rr);
             return (-1);
         }
         break;
     default:
-        WARNING("redis plugin: Cannot coerce redis type.");
+        WARNING("Cannot coerce redis type.");
         freeReplyObject(rr);
         return (-1);
     }
@@ -376,28 +375,28 @@ static int redis_read (void) /* {{{ */
     redisContext *rh;
     redisReply   *rr;
 
-    DEBUG ("redis plugin: querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
+    DEBUG ("querying info from node `%s' (%s:%d).", rn->name, rn->host, rn->port);
 
     rh = redisConnectWithTimeout ((char *)rn->host, rn->port, rn->timeout);
     if (rh == NULL)
     {
-      ERROR ("redis plugin: unable to connect to node `%s' (%s:%d).", rn->name, rn->host, rn->port);
+      ERROR ("unable to connect to node `%s' (%s:%d).", rn->name, rn->host, rn->port);
       continue;
     }
 
     if (strlen (rn->passwd) > 0)
     {
-      DEBUG ("redis plugin: authenticating node `%s' passwd(%s).", rn->name, rn->passwd);
+      DEBUG ("authenticating node `%s' passwd(%s).", rn->name, rn->passwd);
 
       if ((rr = redisCommand (rh, "AUTH %s", rn->passwd)) == NULL)
       {
-        WARNING ("redis plugin: unable to authenticate on node `%s'.", rn->name);
+        WARNING ("unable to authenticate on node `%s'.", rn->name);
         goto redis_fail;
       }
 
       if (rr->type != REDIS_REPLY_STATUS)
       {
-        WARNING ("redis plugin: invalid authentication on node `%s'.", rn->name);
+        WARNING ("invalid authentication on node `%s'.", rn->name);
         goto redis_fail;
       }
 
@@ -406,7 +405,7 @@ static int redis_read (void) /* {{{ */
 
     if ((rr = redisCommand(rh, "INFO")) == NULL)
     {
-      WARNING ("redis plugin: unable to get info from node `%s'.", rn->name);
+      WARNING ("unable to get info from node `%s'.", rn->name);
       goto redis_fail;
     }
 

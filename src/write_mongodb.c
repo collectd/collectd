@@ -79,7 +79,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
   ret = bson_alloc (); /* matched by bson_dealloc() */
   if (ret == NULL)
   {
-    ERROR ("write_mongodb plugin: bson_create failed.");
+    ERROR ("bson_create failed.");
     return (NULL);
   }
 
@@ -88,7 +88,7 @@ static bson *wm_create_bson (const data_set_t *ds, /* {{{ */
     rates = uc_get_rate (ds, vl);
     if (rates == NULL)
     {
-      ERROR ("write_mongodb plugin: uc_get_rate() failed.");
+      ERROR ("uc_get_rate() failed.");
       return (NULL);
     }
   }
@@ -177,12 +177,12 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   if (!mongo_is_connected (node->conn))
   {
-    INFO ("write_mongodb plugin: Connecting to [%s]:%i",
+    INFO ("Connecting to [%s]:%i",
         (node->host != NULL) ? node->host : "localhost",
         (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
     status = mongo_connect (node->conn, node->host, node->port);
     if (status != MONGO_OK) {
-      ERROR ("write_mongodb plugin: Connecting to [%s]:%i failed.",
+      ERROR ("Connecting to [%s]:%i failed.",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : MONGO_DEFAULT_PORT);
       mongo_destroy (node->conn);
@@ -196,7 +196,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
           node->db, node->user, node->passwd);
       if (status != MONGO_OK)
       {
-        ERROR ("write_mongodb plugin: Authenticating to [%s]%i for database "
+        ERROR ("Authenticating to [%s]%i for database "
             "\"%s\" as user \"%s\" failed.",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : MONGO_DEFAULT_PORT,
@@ -210,7 +210,7 @@ static int wm_write (const data_set_t *ds, /* {{{ */
     if (node->timeout > 0) {
       status = mongo_set_op_timeout (node->conn, node->timeout);
       if (status != MONGO_OK) {
-        WARNING ("write_mongodb plugin: mongo_set_op_timeout(%i) failed: %s",
+        WARNING ("mongo_set_op_timeout(%i) failed: %s",
             node->timeout, node->conn->errstr);
       }
     }
@@ -229,11 +229,11 @@ static int wm_write (const data_set_t *ds, /* {{{ */
 
   if (status != MONGO_OK)
   {
-    ERROR ( "write_mongodb plugin: error inserting record: %d", node->conn->err);
+    ERROR ( "error inserting record: %d", node->conn->err);
     if (node->conn->err != MONGO_BSON_INVALID)
-      ERROR ("write_mongodb plugin: %s", node->conn->errstr);
+      ERROR ("%s", node->conn->errstr);
     else
-      ERROR ("write_mongodb plugin: Invalid BSON structure, error = %#x",
+      ERROR ("Invalid BSON structure, error = %#x",
           (unsigned int) bson_record->err);
 
     /* Disconnect except on data errors. */
@@ -312,8 +312,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Password", child->key) == 0)
       status = cf_util_get_string (child, &node->passwd);
     else
-      WARNING ("write_mongodb plugin: Ignoring unknown config option \"%s\".",
-          child->key);
+      WARNING ("Ignoring unknown config option \"%s\".", child->key);
 
     if (status != 0)
       break;
@@ -323,7 +322,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
   {
     if ((node->db == NULL) || (node->user == NULL) || (node->passwd == NULL))
     {
-      WARNING ("write_mongodb plugin: Authentication requires the "
+      WARNING ("Authentication requires the "
           "\"Database\", \"User\" and \"Password\" options to be specified, "
           "but at last one of them is missing. Authentication will NOT be "
           "used.");
@@ -344,7 +343,7 @@ static int wm_config_node (oconfig_item_t *ci) /* {{{ */
 			    .data = node,
 			    .free_func = wm_config_free,
 		    });
-    INFO ("write_mongodb plugin: registered write plugin %s %d",cb_name,status);
+    INFO ("registered write plugin %s %d",cb_name,status);
   }
 
   if (status != 0)
@@ -362,7 +361,7 @@ static int wm_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Node", child->key) == 0)
       wm_config_node (child);
     else
-      WARNING ("write_mongodb plugin: Ignoring unknown "
+      WARNING ("Ignoring unknown "
           "configuration option \"%s\" at top level.", child->key);
   }
 

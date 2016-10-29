@@ -91,7 +91,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     node->conn = redisConnectWithTimeout ((char *)node->host, node->port, node->timeout);
     if (node->conn == NULL)
     {
-      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: Unknown reason",
+      ERROR ("Connecting to host \"%s\" (port %i) failed: Unknown reason",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 6379);
       pthread_mutex_unlock (&node->lock);
@@ -99,7 +99,7 @@ static int wr_write (const data_set_t *ds, /* {{{ */
     }
     else if (node->conn->err)
     {
-      ERROR ("write_redis plugin: Connecting to host \"%s\" (port %i) failed: %s",
+      ERROR ("Connecting to host \"%s\" (port %i) failed: %s",
           (node->host != NULL) ? node->host : "localhost",
           (node->port != 0) ? node->port : 6379,
           node->conn->errstr);
@@ -221,8 +221,7 @@ static int wr_config_node (oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean (child, &node->store_rates);
     }
     else
-      WARNING ("write_redis plugin: Ignoring unknown config option \"%s\".",
-          child->key);
+      WARNING ("Ignoring unknown config option \"%s\".", child->key);
 
     if (status != 0)
       break;
@@ -256,7 +255,7 @@ static int wr_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Node", child->key) == 0)
       wr_config_node (child);
     else
-      WARNING ("write_redis plugin: Ignoring unknown "
+      WARNING ("Ignoring unknown "
           "configuration option \"%s\" at top level.", child->key);
   }
 

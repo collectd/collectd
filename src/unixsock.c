@@ -83,7 +83,7 @@ static int us_open_socket (void)
 	if (sock_fd < 0)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: socket failed: %s",
+		ERROR ("socket failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -92,7 +92,7 @@ static int us_open_socket (void)
 	sstrncpy (sa.sun_path, (sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 			sizeof (sa.sun_path));
 
-	DEBUG ("unixsock plugin: socket path = %s", sa.sun_path);
+	DEBUG ("socket path = %s", sa.sun_path);
 
 	if (delete_socket)
 	{
@@ -101,13 +101,13 @@ static int us_open_socket (void)
 		if ((status != 0) && (errno != ENOENT))
 		{
 			char errbuf[1024];
-			WARNING ("unixsock plugin: Deleting socket file \"%s\" failed: %s",
+			WARNING ("Deleting socket file \"%s\" failed: %s",
 					sa.sun_path,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 		else if (status == 0)
 		{
-			INFO ("unixsock plugin: Successfully deleted socket file \"%s\".",
+			INFO ("Successfully deleted socket file \"%s\".",
 					sa.sun_path);
 		}
 	}
@@ -117,7 +117,7 @@ static int us_open_socket (void)
 	{
 		char errbuf[1024];
 		sstrerror (errno, errbuf, sizeof (errbuf));
-		ERROR ("unixsock plugin: bind failed: %s", errbuf);
+		ERROR ("bind failed: %s", errbuf);
 		close (sock_fd);
 		sock_fd = -1;
 		return (-1);
@@ -127,7 +127,7 @@ static int us_open_socket (void)
 	if (status == -1)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: chmod failed: %s",
+		ERROR ("chmod failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sock_fd);
 		sock_fd = -1;
@@ -138,7 +138,7 @@ static int us_open_socket (void)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: listen failed: %s",
+		ERROR ("listen failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sock_fd);
 		sock_fd = -1;
@@ -159,13 +159,13 @@ static int us_open_socket (void)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			WARNING ("unixsock plugin: getgrnam_r (%s) failed: %s", grpname,
+			WARNING ("getgrnam_r (%s) failed: %s", grpname,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			break;
 		}
 		if (g == NULL)
 		{
-			WARNING ("unixsock plugin: No such group: `%s'",
+			WARNING ("No such group: `%s'",
 					grpname);
 			break;
 		}
@@ -174,7 +174,7 @@ static int us_open_socket (void)
 					(uid_t) -1, g->gr_gid) != 0)
 		{
 			char errbuf[1024];
-			WARNING ("unixsock plugin: chown (%s, -1, %i) failed: %s",
+			WARNING ("chown (%s, -1, %i) failed: %s",
 					(sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 					(int) g->gr_gid,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -194,13 +194,13 @@ static void *us_handle_client (void *arg)
 	free (arg);
 	arg = NULL;
 
-	DEBUG ("unixsock plugin: us_handle_client: Reading from fd #%i", fdin);
+	DEBUG ("us_handle_client: Reading from fd #%i", fdin);
 
 	fdout = dup (fdin);
 	if (fdout < 0)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: dup failed: %s",
+		ERROR ("dup failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (fdin);
 		pthread_exit ((void *) 1);
@@ -210,7 +210,7 @@ static void *us_handle_client (void *arg)
 	if (fhin == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: fdopen failed: %s",
+		ERROR ("fdopen failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (fdin);
 		close (fdout);
@@ -222,7 +222,7 @@ static void *us_handle_client (void *arg)
 	if (fhout == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: fdopen failed: %s",
+		ERROR ("fdopen failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (fhin); /* this closes fdin as well */
 		close (fdout);
@@ -234,7 +234,7 @@ static void *us_handle_client (void *arg)
 	if (setvbuf (fhout, NULL, _IOLBF, 0) != 0)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: setvbuf failed: %s",
+		ERROR ("setvbuf failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (fhin);
 		fclose (fhout);
@@ -259,7 +259,7 @@ static void *us_handle_client (void *arg)
 			if (errno != 0)
 			{
 				char errbuf[1024];
-				WARNING ("unixsock plugin: failed to read from socket #%i: %s",
+				WARNING ("failed to read from socket #%i: %s",
 						fileno (fhin),
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 			}
@@ -316,7 +316,7 @@ static void *us_handle_client (void *arg)
 			if (fprintf (fhout, "-1 Unknown command: %s\n", fields[0]) < 0)
 			{
 				char errbuf[1024];
-				WARNING ("unixsock plugin: failed to write to socket #%i: %s",
+				WARNING ("failed to write to socket #%i: %s",
 						fileno (fhout),
 						sstrerror (errno, errbuf, sizeof (errbuf)));
 				break;
@@ -324,7 +324,7 @@ static void *us_handle_client (void *arg)
 		}
 	} /* while (fgets) */
 
-	DEBUG ("unixsock plugin: us_handle_client: Exiting..");
+	DEBUG ("us_handle_client: Exiting..");
 	fclose (fhin);
 	fclose (fhout);
 
@@ -347,7 +347,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 
 	while (loop != 0)
 	{
-		DEBUG ("unixsock plugin: Calling accept..");
+		DEBUG ("Calling accept..");
 		status = accept (sock_fd, NULL, NULL);
 		if (status < 0)
 		{
@@ -356,7 +356,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 			if (errno == EINTR)
 				continue;
 
-			ERROR ("unixsock plugin: accept failed: %s",
+			ERROR ("accept failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (sock_fd);
 			sock_fd = -1;
@@ -368,7 +368,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 		if (remote_fd == NULL)
 		{
 			char errbuf[1024];
-			WARNING ("unixsock plugin: malloc failed: %s",
+			WARNING ("malloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (status);
 			continue;
@@ -382,7 +382,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 		if (status != 0)
 		{
 			char errbuf[1024];
-			WARNING ("unixsock plugin: pthread_create failed: %s",
+			WARNING ("pthread_create failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (*remote_fd);
 			free (remote_fd);
@@ -398,7 +398,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		NOTICE ("unixsock plugin: unlink (%s) failed: %s",
+		NOTICE ("unlink (%s) failed: %s",
 				(sock_file != NULL) ? sock_file : US_DEFAULT_PATH,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
@@ -463,7 +463,7 @@ static int us_init (void)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("unixsock plugin: pthread_create failed: %s",
+		ERROR ("pthread_create failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

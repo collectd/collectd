@@ -81,7 +81,7 @@ static int memcached_connect_unix (memcached_t *st)
   if (fd < 0)
   {
     char errbuf[1024];
-    ERROR ("memcached plugin: memcached_connect_unix: socket(2) failed: %s",
+    ERROR ("memcached_connect_unix: socket(2) failed: %s",
         sstrerror (errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
@@ -114,8 +114,7 @@ static int memcached_connect_inet (memcached_t *st)
   if (status != 0)
   {
     char errbuf[1024];
-    ERROR ("memcached plugin: memcached_connect_inet: "
-        "getaddrinfo(%s,%s) failed: %s",
+    ERROR ("memcached_connect_inet: getaddrinfo(%s,%s) failed: %s",
         st->connhost, st->connport,
         (status == EAI_SYSTEM)
         ? sstrerror (errno, errbuf, sizeof (errbuf))
@@ -130,8 +129,7 @@ static int memcached_connect_inet (memcached_t *st)
     if (fd < 0)
     {
       char errbuf[1024];
-      WARNING ("memcached plugin: memcached_connect_inet: "
-          "socket(2) failed: %s",
+      WARNING ("memcached_connect_inet: socket(2) failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       continue;
     }
@@ -169,8 +167,7 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
 
   fd = memcached_connect (st);
   if (fd < 0) {
-    ERROR ("memcached plugin: Instance \"%s\" could not connect to daemon.",
-        st->name);
+    ERROR ("Instance \"%s\" could not connect to daemon.", st->name);
     return -1;
   }
 
@@ -178,8 +175,7 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
   if (status != 0)
   {
     char errbuf[1024];
-    ERROR ("memcached plugin: write(2) failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("write(2) failed: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
     shutdown(fd, SHUT_RDWR);
     close (fd);
     return (-1);
@@ -200,7 +196,7 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
       if ((errno == EAGAIN) || (errno == EINTR))
           continue;
 
-      ERROR ("memcached: Error reading from socket: %s",
+      ERROR ("Error reading from socket: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       shutdown(fd, SHUT_RDWR);
       close (fd);
@@ -211,7 +207,7 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
     if (buffer_fill > buffer_size)
     {
       buffer_fill = buffer_size;
-      WARNING ("memcached plugin: Message was truncated.");
+      WARNING ("Message was truncated.");
       break;
     }
 
@@ -224,7 +220,7 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
   status = 0;
   if (buffer_fill == 0)
   {
-    WARNING ("memcached plugin: No data returned by memcached.");
+    WARNING ("No data returned by memcached.");
     status = -1;
   }
 
@@ -604,7 +600,7 @@ static int config_add_instance(oconfig_item_t *ci)
   st = calloc (1, sizeof (*st));
   if (st == NULL)
   {
-    ERROR ("memcached plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (ENOMEM);
   }
 
@@ -637,7 +633,7 @@ static int config_add_instance(oconfig_item_t *ci)
       status = cf_util_get_service (child, &st->connport);
     else
     {
-      WARNING ("memcached plugin: Option `%s' not allowed here.",
+      WARNING ("Option `%s' not allowed here.",
           child->key);
       status = -1;
     }
@@ -679,7 +675,7 @@ static int memcached_config (oconfig_item_t *ci)
       return (config_add_instance (ci));
     }
     else
-      WARNING ("memcached plugin: The configuration option "
+      WARNING ("The configuration option "
           "\"%s\" is not allowed here. Did you "
           "forget to add an <Instance /> block "
           "around the configuration?",

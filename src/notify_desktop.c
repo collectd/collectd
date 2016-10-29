@@ -40,10 +40,6 @@
 # define NOTIFY_CHECK_VERSION(x,y,z) 0
 #endif
 
-#define log_info(...) INFO ("notify_desktop: " __VA_ARGS__)
-#define log_warn(...) WARNING ("notify_desktop: " __VA_ARGS__)
-#define log_err(...) ERROR ("notify_desktop: " __VA_ARGS__)
-
 #define DEFAULT_TIMEOUT 5000
 
 static int okay_timeout = DEFAULT_TIMEOUT;
@@ -54,7 +50,7 @@ static int set_timeout (oconfig_item_t *ci, int *timeout)
 {
 	if ((0 != ci->children_num) || (1 != ci->values_num)
 			|| (OCONFIG_TYPE_NUMBER != ci->values[0].type)) {
-		log_err ("%s expects a single number argument.", ci->key);
+		ERROR ("%s expects a single number argument.", ci->key);
 		return 1;
 	}
 
@@ -109,7 +105,7 @@ static int c_notify (const notification_t *n,
 	, NULL);
 #endif
 	if (NULL == notification) {
-		log_err ("Failed to create a new notification.");
+		ERROR ("Failed to create a new notification.");
 		return -1;
 	}
 
@@ -117,7 +113,7 @@ static int c_notify (const notification_t *n,
 	notify_notification_set_timeout (notification, timeout);
 
 	if (! notify_notification_show (notification, NULL))
-		log_err ("Failed to display notification.");
+		ERROR ("Failed to display notification.");
 
 	g_object_unref (G_OBJECT (notification));
 	return 0;
@@ -142,15 +138,15 @@ static int c_notify_init (void)
 	char *spec_version = NULL;
 
 	if (! notify_init (PACKAGE_STRING)) {
-		log_err ("Failed to initialize libnotify.");
+		ERROR ("Failed to initialize libnotify.");
 		return -1;
 	}
 
 	if (! notify_get_server_info (&name, &vendor, &version, &spec_version))
-		log_warn ("Failed to get the notification server info. "
+		WARNING ("Failed to get the notification server info. "
 				"Check if you have a notification daemon running.");
 	else {
-		log_info ("Found notification daemon: %s (%s) %s (spec version %s)",
+		INFO ("Found notification daemon: %s (%s) %s (spec version %s)",
 				name, vendor, version, spec_version);
 		free (name);
 		free (vendor);

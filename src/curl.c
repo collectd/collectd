@@ -113,7 +113,7 @@ static size_t cc_curl_callback (void *buf, /* {{{ */
     temp = realloc (wp->buffer, temp_size);
     if (temp == NULL)
     {
-      ERROR ("curl plugin: realloc failed.");
+      ERROR ("realloc failed.");
       return (0);
     }
     wp->buffer = temp;
@@ -173,7 +173,7 @@ static int cc_config_append_string (const char *name, struct curl_slist **dest, 
   struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("curl plugin: `%s' needs exactly one string argument.", name);
+    WARNING ("`%s' needs exactly one string argument.", name);
     return (-1);
   }
 
@@ -193,7 +193,7 @@ static int cc_config_add_match_dstype (int *dstype_ret, /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("curl plugin: `DSType' needs exactly one string argument.");
+    WARNING ("`DSType' needs exactly one string argument.");
     return (-1);
   }
 
@@ -255,7 +255,7 @@ else if (strncasecmp ("Absolute", ci->values[0].value.string,
 
   if (dstype == 0)
   {
-    WARNING ("curl plugin: `%s' is not a valid argument to `DSType'.",
+    WARNING ("`%s' is not a valid argument to `DSType'.",
 	ci->values[0].value.string);
     return (-1);
   }
@@ -272,13 +272,13 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
 
   if (ci->values_num != 0)
   {
-    WARNING ("curl plugin: Ignoring arguments for the `Match' block.");
+    WARNING ("Ignoring arguments for the `Match' block.");
   }
 
   match = calloc (1, sizeof (*match));
   if (match == NULL)
   {
-    ERROR ("curl plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
@@ -299,7 +299,7 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
       status = cf_util_get_string (child, &match->instance);
     else
     {
-      WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -311,19 +311,19 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
   {
     if (match->regex == NULL)
     {
-      WARNING ("curl plugin: `Regex' missing in `Match' block.");
+      WARNING ("`Regex' missing in `Match' block.");
       status = -1;
     }
 
     if (match->type == NULL)
     {
-      WARNING ("curl plugin: `Type' missing in `Match' block.");
+      WARNING ("`Type' missing in `Match' block.");
       status = -1;
     }
 
     if (match->dstype == 0)
     {
-      WARNING ("curl plugin: `DSType' missing in `Match' block.");
+      WARNING ("`DSType' missing in `Match' block.");
       status = -1;
     }
 
@@ -340,7 +340,7 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
       match->dstype);
   if (match->match == NULL)
   {
-    ERROR ("curl plugin: match_create_simple failed.");
+    ERROR ("match_create_simple failed.");
     cc_web_match_free (match);
     return (-1);
   }
@@ -366,7 +366,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
   wp->curl = curl_easy_init ();
   if (wp->curl == NULL)
   {
-    ERROR ("curl plugin: curl_easy_init failed.");
+    ERROR ("curl_easy_init failed.");
     return (-1);
   }
 
@@ -395,7 +395,7 @@ static int cc_page_init_curl (web_page_t *wp) /* {{{ */
     wp->credentials = malloc (credentials_size);
     if (wp->credentials == NULL)
     {
-      ERROR ("curl plugin: malloc failed.");
+      ERROR ("malloc failed.");
       return (-1);
     }
 
@@ -435,14 +435,14 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("curl plugin: `Page' blocks need exactly one string argument.");
+    WARNING ("`Page' blocks need exactly one string argument.");
     return (-1);
   }
 
   page = calloc (1, sizeof (*page));
   if (page == NULL)
   {
-    ERROR ("curl plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
   page->url = NULL;
@@ -459,7 +459,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   page->instance = strdup (ci->values[0].value.string);
   if (page->instance == NULL)
   {
-    ERROR ("curl plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (page);
     return (-1);
   }
@@ -504,7 +504,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -517,7 +517,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
   {
     if (page->url == NULL)
     {
-      WARNING ("curl plugin: `URL' missing in `Page' block.");
+      WARNING ("`URL' missing in `Page' block.");
       status = -1;
     }
 
@@ -525,7 +525,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
         && !page->response_time && !page->response_code)
     {
       assert (page->instance != NULL);
-      WARNING ("curl plugin: No (valid) `Match' block "
+      WARNING ("No (valid) `Match' block "
           "or Statistics or MeasureResponseTime or MeasureResponseCode "
           "within `Page' block `%s'.", page->instance);
       status = -1;
@@ -582,14 +582,14 @@ static int cc_config (oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      WARNING ("curl plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       errors++;
     }
   }
 
   if ((success == 0) && (errors > 0))
   {
-    ERROR ("curl plugin: All statements failed.");
+    ERROR ("All statements failed.");
     return (-1);
   }
 
@@ -600,7 +600,7 @@ static int cc_init (void) /* {{{ */
 {
   if (pages_g == NULL)
   {
-    INFO ("curl plugin: No pages have been defined.");
+    INFO ("No pages have been defined.");
     return (-1);
   }
   curl_global_init (CURL_GLOBAL_SSL);
@@ -662,7 +662,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
   status = curl_easy_perform (wp->curl);
   if (status != CURLE_OK)
   {
-    ERROR ("curl plugin: curl_easy_perform failed with status %i: %s",
+    ERROR ("curl_easy_perform failed with status %i: %s",
         status, wp->curl_errbuf);
     return (-1);
   }
@@ -677,7 +677,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     long response_code = 0;
     status = curl_easy_getinfo(wp->curl, CURLINFO_RESPONSE_CODE, &response_code);
     if(status != CURLE_OK) {
-      ERROR ("curl plugin: Fetching response code failed with status %i: %s",
+      ERROR ("Fetching response code failed with status %i: %s",
         status, wp->curl_errbuf);
     } else {
       cc_submit_response_code(wp, response_code);
@@ -691,14 +691,14 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     status = match_apply (wm->match, wp->buffer);
     if (status != 0)
     {
-      WARNING ("curl plugin: match_apply failed.");
+      WARNING ("match_apply failed.");
       continue;
     }
 
     mv = match_get_user_data (wm->match);
     if (mv == NULL)
     {
-      WARNING ("curl plugin: match_get_user_data returned NULL.");
+      WARNING ("match_get_user_data returned NULL.");
       continue;
     }
 

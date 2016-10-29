@@ -128,12 +128,12 @@ static void o_report_error (const char *where, /* {{{ */
         buffer[buffer_length] = 0;
       }
 
-      ERROR ("oracle plugin: %s (db = %s, query = %s): %s failed: %s",
+      ERROR ("%s (db = %s, query = %s): %s failed: %s",
           where, db_name, query_name, what, buffer);
     }
     else
     {
-      ERROR ("oracle plugin: %s (db = %s, query = %s): %s failed. "
+      ERROR ("%s (db = %s, query = %s): %s failed. "
           "Additionally, OCIErrorGet failed with status %i.",
           where, db_name, query_name, what, status);
       return;
@@ -189,7 +189,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("oracle plugin: The `Database' block "
+    WARNING ("The `Database' block "
         "needs exactly one string argument.");
     return (-1);
   }
@@ -197,7 +197,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   db = calloc (1, sizeof (*db));
   if (db == NULL)
   {
-    ERROR ("oracle plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
   db->name = NULL;
@@ -231,7 +231,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
           &db->queries, &db->queries_num);
     else
     {
-      WARNING ("oracle plugin: Option `%s' not allowed here.", child->key);
+      WARNING ("Option `%s' not allowed here.", child->key);
       status = -1;
     }
 
@@ -244,17 +244,17 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
   {
     if (db->connect_id == NULL)
     {
-      WARNING ("oracle plugin: `ConnectID' not given for query `%s'", db->name);
+      WARNING ("`ConnectID' not given for query `%s'", db->name);
       status = -1;
     }
     if (db->username == NULL)
     {
-      WARNING ("oracle plugin: `Username' not given for query `%s'", db->name);
+      WARNING ("`Username' not given for query `%s'", db->name);
       status = -1;
     }
     if (db->password == NULL)
     {
-      WARNING ("oracle plugin: `Password' not given for query `%s'", db->name);
+      WARNING ("`Password' not given for query `%s'", db->name);
       status = -1;
     }
 
@@ -268,7 +268,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
     if (db->q_prep_areas == NULL)
     {
-      WARNING ("oracle plugin: calloc failed");
+      WARNING ("calloc failed");
       status = -1;
       break;
     }
@@ -280,7 +280,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
 
       if (db->q_prep_areas[i] == NULL)
       {
-        WARNING ("oracle plugin: udb_query_allocate_preparation_area failed");
+        WARNING ("udb_query_allocate_preparation_area failed");
         status = -1;
         break;
       }
@@ -299,7 +299,7 @@ static int o_config_add_database (oconfig_item_t *ci) /* {{{ */
         sizeof (*databases) * (databases_num + 1));
     if (temp == NULL)
     {
-      ERROR ("oracle plugin: realloc failed");
+      ERROR ("realloc failed");
       status = -1;
     }
     else
@@ -331,12 +331,12 @@ static int o_config (oconfig_item_t *ci) /* {{{ */
       o_config_add_database (child);
     else
     {
-      WARNING ("oracle plugin: Ignoring unknown config option `%s'.", child->key);
+      WARNING ("Ignoring unknown config option `%s'.", child->key);
     }
 
     if (queries_num > 0)
     {
-      DEBUG ("oracle plugin: o_config: queries_num = %zu; queries[0] = %p; udb_query_get_user_data (queries[0]) = %p;",
+      DEBUG ("o_config: queries_num = %zu; queries[0] = %p; udb_query_get_user_data (queries[0]) = %p;",
           queries_num, (void *) queries[0], udb_query_get_user_data (queries[0]));
     }
   } /* for (ci->children) */
@@ -363,7 +363,7 @@ static int o_init (void) /* {{{ */
       /* user_data_ptr  = */ NULL);
   if (status != 0)
   {
-    ERROR ("oracle plugin: OCIEnvCreate failed with status %i.", status);
+    ERROR ("OCIEnvCreate failed with status %i.", status);
     return (-1);
   }
 
@@ -371,8 +371,8 @@ static int o_init (void) /* {{{ */
       /* user_data_size = */ 0, /* user_data = */ NULL);
   if (status != OCI_SUCCESS)
   {
-    ERROR ("oracle plugin: OCIHandleAlloc (OCI_HTYPE_ERROR) failed "
-        "with status %i.", status);
+    ERROR ("OCIHandleAlloc (OCI_HTYPE_ERROR) failed with status %i.",
+        status);
     return (-1);
   }
 
@@ -428,7 +428,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
     }
     udb_query_set_user_data (q, oci_statement);
 
-    DEBUG ("oracle plugin: o_read_database_query (%s, %s): "
+    DEBUG ("o_read_database_query (%s, %s): "
         "Successfully allocated statement handle.",
         db->name, udb_query_get_name (q));
   } /* }}} */
@@ -497,7 +497,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
     (ptr) = calloc (1, alloc_size); \
     if ((ptr) == NULL) { \
       FREE_ALL; \
-      ERROR ("oracle plugin: o_read_database_query: calloc failed."); \
+      ERROR ("o_read_database_query: calloc failed."); \
       return (-1); \
     } \
   } while (0)
@@ -537,7 +537,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
     if (status != OCI_SUCCESS)
     {
       /* This is probably alright */
-      DEBUG ("oracle plugin: o_read_database_query: status = %#x (= %i);",
+      DEBUG ("o_read_database_query: status = %#x (= %i);",
           status, status);
       o_report_error ("o_read_database_query", db->name,
           udb_query_get_name (q), "OCIParamGet", oci_error);
@@ -568,7 +568,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
     memcpy (column_names[i], column_name, column_name_length);
     column_names[i][column_name_length] = 0;
 
-    DEBUG ("oracle plugin: o_read_database_query: column_names[%zu] = %s; "
+    DEBUG ("o_read_database_query: column_names[%zu] = %s; "
         "column_name_length = %"PRIu32";",
         i, column_names[i], (uint32_t) column_name_length);
 
@@ -591,8 +591,7 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
       /* interval = */ 0);
   if (status != 0)
   {
-    ERROR ("oracle plugin: o_read_database_query (%s, %s): "
-        "udb_query_prepare_result failed.",
+    ERROR ("o_read_database_query (%s, %s): udb_query_prepare_result failed.",
         db->name, udb_query_get_name (q));
     FREE_ALL;
     return (-1);
@@ -619,13 +618,13 @@ static int o_read_database_query (o_database_t *db, /* {{{ */
     status = udb_query_handle_result (q, prep_area, column_values);
     if (status != 0)
     {
-      WARNING ("oracle plugin: o_read_database_query (%s, %s): "
+      WARNING ("o_read_database_query (%s, %s): "
           "udb_query_handle_result failed.",
           db->name, udb_query_get_name (q));
     }
   } /* }}} while (42) */
 
-  /* DEBUG ("oracle plugin: o_read_database_query: This statement succeeded: %s", q->statement); */
+  /* DEBUG ("o_read_database_query: This statement succeeded: %s", q->statement); */
   FREE_ALL;
 
   return (0);
@@ -673,8 +672,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
 
     if (connection_status != OCI_SERVER_NORMAL)
     {
-      INFO ("oracle plugin: Connection to %s lost. Trying to reconnect.",
-          db->name);
+      INFO ("Connection to %s lost. Trying to reconnect.", db->name);
       OCIHandleFree (db->oci_service_context, OCI_HTYPE_SVCCTX);
       db->oci_service_context = NULL;
     }
@@ -694,7 +692,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
       ssnprintf (errfunc, sizeof (errfunc), "OCILogon(\"%s\")", db->connect_id);
 
       o_report_error ("o_read_database", db->name, NULL, errfunc, oci_error);
-      DEBUG ("oracle plugin: OCILogon (%s): db->oci_service_context = %p;",
+      DEBUG ("OCILogon (%s): db->oci_service_context = %p;",
           db->connect_id, db->oci_service_context);
       db->oci_service_context = NULL;
       return (-1);
@@ -706,7 +704,7 @@ static int o_read_database (o_database_t *db) /* {{{ */
     assert (db->oci_service_context != NULL);
   }
 
-  DEBUG ("oracle plugin: o_read_database: db->connect_id = %s; db->oci_service_context = %p;",
+  DEBUG ("o_read_database: db->connect_id = %s; db->oci_service_context = %p;",
       db->connect_id, db->oci_service_context);
 
   for (size_t i = 0; i < db->queries_num; i++)

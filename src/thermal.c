@@ -163,8 +163,7 @@ static int thermal_config (const char *key, const char *value)
 	{
 		if (ignorelist_add (device_list, value))
 		{
-			ERROR ("thermal plugin: "
-					"Cannot add value to ignorelist.");
+			ERROR ("Cannot add value to ignorelist.");
 			return 1;
 		}
 	}

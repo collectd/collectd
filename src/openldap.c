@@ -85,15 +85,14 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 
 	if (st->state && st->ld)
 	{
-		DEBUG ("openldap plugin: Already connected to %s", st->url);
+		DEBUG ("Already connected to %s", st->url);
 		return (0);
 	}
 
 	rc = ldap_initialize (&ld, st->url);
 	if (rc != LDAP_SUCCESS)
 	{
-		ERROR ("openldap plugin: ldap_initialize failed: %s",
-			ldap_err2string (rc));
+		ERROR ("ldap_initialize failed: %s", ldap_err2string (rc));
 		st->state = 0;
 		ldap_unbind_ext_s (ld, NULL, NULL);
 		return (-1);
@@ -122,7 +121,7 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 		rc = ldap_start_tls_s (ld, NULL, NULL);
 		if (rc != LDAP_SUCCESS)
 		{
-			ERROR ("openldap plugin: Failed to start tls on %s: %s",
+			ERROR ("Failed to start tls on %s: %s",
 					st->url, ldap_err2string (rc));
 			st->state = 0;
 			ldap_unbind_ext_s (st->ld, NULL, NULL);
@@ -146,16 +145,14 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
-		ERROR ("openldap plugin: Failed to bind to %s: %s",
-				st->url, ldap_err2string (rc));
+		ERROR ("Failed to bind to %s: %s", st->url, ldap_err2string (rc));
 		st->state = 0;
 		ldap_unbind_ext_s (st->ld, NULL, NULL);
 		return (-1);
 	}
 	else
 	{
-		DEBUG ("openldap plugin: Successfully connected to %s",
-				st->url);
+		DEBUG ("Successfully connected to %s", st->url);
 		st->state = 1;
 		return (0);
 	}
@@ -217,7 +214,7 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
-		ERROR ("openldap plugin: cldap_read_host: Invalid user data.");
+		ERROR ("cldap_read_host: Invalid user data.");
 		return (-1);
 	}
 
@@ -233,8 +230,7 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 
 	if (rc != LDAP_SUCCESS)
 	{
-		ERROR ("openldap plugin: Failed to execute search: %s",
-				ldap_err2string (rc));
+		ERROR ("Failed to execute search: %s", ldap_err2string (rc));
 		ldap_msgfree (result);
 		st->state = 0;
 		ldap_unbind_ext_s (st->ld, NULL, NULL);
@@ -555,7 +551,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("openldap plugin: calloc failed.");
+		ERROR ("calloc failed.");
 		return (-1);
 	}
 
@@ -593,8 +589,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_int (child, &st->version);
 		else
 		{
-			WARNING ("openldap plugin: Option `%s' not allowed here.",
-					child->key);
+			WARNING ("Option `%s' not allowed here.", child->key);
 			status = -1;
 		}
 
@@ -605,9 +600,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	/* Check if struct is complete.. */
 	if ((status == 0) && (st->url == NULL))
 	{
-		ERROR ("openldap plugin: Instance `%s': "
-				"No URL has been configured.",
-				st->name);
+		ERROR ("Instance `%s': No URL has been configured.", st->name);
 		status = -1;
 	}
 
@@ -618,9 +611,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 		if (ldap_url_parse (st->url, &ludpp) != 0)
 		{
-			ERROR ("openldap plugin: Instance `%s': "
-				"Invalid URL: `%s'",
-				st->name, st->url);
+			ERROR ("Instance `%s': Invalid URL: `%s'", st->name, st->url);
 			status = -1;
 		}
 
@@ -639,7 +630,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 		if (temp == NULL)
 		{
-			ERROR ("openldap plugin: realloc failed");
+			ERROR ("realloc failed");
 			status = -1;
 		}
 		else
@@ -685,7 +676,7 @@ static int cldap_config (oconfig_item_t *ci) /* {{{ */
 		if (strcasecmp ("Instance", child->key) == 0)
 			cldap_config_add (child);
 		else
-			WARNING ("openldap plugin: The configuration option "
+			WARNING ("The configuration option "
 					"\"%s\" is not allowed here. Did you "
 					"forget to add an <Instance /> block "
 					"around the configuration?",

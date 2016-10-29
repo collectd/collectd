@@ -127,8 +127,7 @@ static int dpdk_shm_init(size_t size);
 static void dpdk_config_init_default(void) {
   g_configuration->interval = plugin_get_interval();
   if (g_configuration->interval == cf_get_default_interval())
-    WARNING("dpdkstat: No time interval was configured, default value %lu ms "
-            "is set",
+    WARNING("No time interval was configured, default value %lu ms is set",
             CDTIME_T_TO_MS(g_configuration->interval));
   /* Default is all ports enabled */
   g_configuration->enabled_port_mask = ~0;
@@ -153,8 +152,7 @@ static int dpdk_config(oconfig_item_t *ci) {
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
   if (err) {
     char errbuf[ERR_BUF_SIZE];
-    ERROR("dpdkstat: error in shm_init, %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("error in shm_init, %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
 
@@ -167,39 +165,38 @@ static int dpdk_config(oconfig_item_t *ci) {
     if (strcasecmp("Coremask", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->coremask,
                                 sizeof(g_configuration->coremask));
-      DEBUG("dpdkstat:COREMASK %s ", g_configuration->coremask);
+      DEBUG("COREMASK %s ", g_configuration->coremask);
     } else if (strcasecmp("MemoryChannels", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->memory_channels,
                                 sizeof(g_configuration->memory_channels));
-      DEBUG("dpdkstat:Memory Channels %s ", g_configuration->memory_channels);
+      DEBUG("Memory Channels %s ", g_configuration->memory_channels);
     } else if (strcasecmp("SocketMemory", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->socket_memory,
                                 sizeof(g_configuration->memory_channels));
-      DEBUG("dpdkstat: socket mem %s ", g_configuration->socket_memory);
+      DEBUG("socket mem %s ", g_configuration->socket_memory);
     } else if (strcasecmp("ProcessType", child->key) == 0) {
       cf_util_get_string_buffer(child, g_configuration->process_type,
                                 sizeof(g_configuration->process_type));
-      DEBUG("dpdkstat: proc type %s ", g_configuration->process_type);
+      DEBUG("proc type %s ", g_configuration->process_type);
     } else if ((strcasecmp("FilePrefix", child->key) == 0) &&
                (child->values[0].type == OCONFIG_TYPE_STRING)) {
       ssnprintf(g_configuration->file_prefix, DATA_MAX_NAME_LEN,
                 "/var/run/.%s_config", child->values[0].value.string);
-      DEBUG("dpdkstat: file prefix %s ", g_configuration->file_prefix);
+      DEBUG("file prefix %s ", g_configuration->file_prefix);
     } else if ((strcasecmp("EnabledPortMask", child->key) == 0) &&
                (child->values[0].type == OCONFIG_TYPE_NUMBER)) {
       g_configuration->enabled_port_mask =
           (uint32_t)child->values[0].value.number;
-      DEBUG("dpdkstat: Enabled Port Mask %u",
-            g_configuration->enabled_port_mask);
+      DEBUG("Enabled Port Mask %u", g_configuration->enabled_port_mask);
     } else if (strcasecmp("PortName", child->key) == 0) {
       cf_util_get_string_buffer(
           child, g_configuration->port_name[port_counter],
           sizeof(g_configuration->port_name[port_counter]));
-      DEBUG("dpdkstat: Port %d Name: %s ", port_counter,
+      DEBUG("Port %d Name: %s ", port_counter,
             g_configuration->port_name[port_counter]);
       port_counter++;
     } else {
-      WARNING("dpdkstat: The config option \"%s\" is unknown.", child->key);
+      WARNING("The config option \"%s\" is unknown.", child->key);
     }
   }                 /* End for (int i = 0; i < ci->children_num; i++)*/
   g_configured = 1; /* Bypass configuration in dpdk_shm_init(). */
@@ -225,21 +222,21 @@ static int dpdk_shm_init(size_t size) {
   /* Create and open a new object, or open an existing object. */
   int fd = shm_open(DPDK_SHM_NAME, O_CREAT | O_TRUNC | O_RDWR, 0666);
   if (fd < 0) {
-    WARNING("dpdkstat:Failed to open %s as SHM:%s", DPDK_SHM_NAME,
+    WARNING("Failed to open %s as SHM:%s", DPDK_SHM_NAME,
             sstrerror(errno, errbuf, sizeof(errbuf)));
     goto fail;
   }
   /* Set the size of the shared memory object. */
   int ret = ftruncate(fd, size);
   if (ret != 0) {
-    WARNING("dpdkstat:Failed to resize SHM:%s",
+    WARNING("Failed to resize SHM:%s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
     goto fail_close;
   }
   /* Map the shared memory object into this process' virtual address space. */
   g_configuration = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (g_configuration == MAP_FAILED) {
-    WARNING("dpdkstat:Failed to mmap SHM:%s",
+    WARNING("Failed to mmap SHM:%s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
     goto fail_close;
   }
@@ -255,13 +252,13 @@ static int dpdk_shm_init(size_t size) {
   /* Initialize the semaphores for SHM use */
   int err = sem_init(&g_configuration->sema_helper_get_stats, 1, 0);
   if (err) {
-    ERROR("dpdkstat semaphore init failed: %s",
+    ERROR("semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     goto fail_close;
   }
   err = sem_init(&g_configuration->sema_stats_in_shm, 1, 0);
   if (err) {
-    ERROR("dpdkstat semaphore init failed: %s",
+    ERROR("semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     goto fail_close;
   }
@@ -283,7 +280,7 @@ fail:
 static int dpdk_re_init_shm() {
   dpdk_config_t temp_config;
   memcpy(&temp_config, g_configuration, sizeof(dpdk_config_t));
-  DEBUG("dpdkstat: %s: ports %" PRIu32 ", xstats %" PRIu32, __func__,
+  DEBUG("%s: ports %" PRIu32 ", xstats %" PRIu32, __func__,
         temp_config.num_ports, temp_config.num_xstats);
 
   size_t shm_xstats_size =
@@ -293,12 +290,12 @@ static int dpdk_re_init_shm() {
 
   int err = dpdk_shm_cleanup();
   if (err) {
-    ERROR("dpdkstat: Error in shm_cleanup in %s", __func__);
+    ERROR("Error in shm_cleanup in %s", __func__);
     return err;
   }
   err = dpdk_shm_init(shm_xstats_size);
   if (err) {
-    WARNING("dpdkstat: Error in shm_init in %s", __func__);
+    WARNING("Error in shm_init in %s", __func__);
     return err;
   }
   /* If the XML config() function has been run, don't re-initialize defaults */
@@ -314,7 +311,7 @@ static int dpdk_re_init_shm() {
 static int dpdk_init(void) {
   int err = dpdk_shm_init(sizeof(dpdk_config_t));
   if (err) {
-    ERROR("dpdkstat: %s : error %d in shm_init()", __func__, err);
+    ERROR("%s : error %d in shm_init()", __func__, err);
     return err;
   }
 
@@ -340,7 +337,7 @@ static int dpdk_helper_stop(int reset) {
   int err = kill(g_configuration->helper_pid, SIGKILL);
   if (err) {
     char errbuf[ERR_BUF_SIZE];
-    WARNING("dpdkstat: error sending kill to helper: %s",
+    WARNING("error sending kill to helper: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
   }
 
@@ -356,7 +353,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action) {
    * logging EAL failures, as rte_eal_init() calls rte_panic().
    */
   if (pipe(g_configuration->helper_pipes) != 0) {
-    DEBUG("dpdkstat: Could not create helper pipe: %s",
+    DEBUG("Could not create helper pipe: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
@@ -364,7 +361,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action) {
   int pipe0_flags = fcntl(g_configuration->helper_pipes[0], F_GETFL, 0);
   int pipe1_flags = fcntl(g_configuration->helper_pipes[1], F_GETFL, 0);
   if (pipe0_flags == -1 || pipe1_flags == -1) {
-    WARNING("dpdkstat: Failed setting up pipe flags: %s",
+    WARNING("Failed setting up pipe flags: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
   }
   int pipe0_err = fcntl(g_configuration->helper_pipes[0], F_SETFL,
@@ -372,7 +369,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action) {
   int pipe1_err = fcntl(g_configuration->helper_pipes[1], F_SETFL,
                         pipe0_flags | O_NONBLOCK);
   if (pipe0_err == -1 || pipe1_err == -1) {
-    WARNING("dpdkstat: Failed setting up pipes: %s",
+    WARNING("Failed setting up pipes: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
   }
 
@@ -380,7 +377,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action) {
   if (pid > 0) {
     close(g_configuration->helper_pipes[1]);
     g_configuration->helper_pid = pid;
-    DEBUG("dpdkstat: helper pid %lu", (long)g_configuration->helper_pid);
+    DEBUG("helper pid %lu", (long)g_configuration->helper_pid);
     /* Kick helper once its alive to have it start processing */
     sem_post(&g_configuration->sema_helper_get_stats);
   } else if (pid == 0) {
@@ -391,7 +388,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action) {
     dpdk_helper_run();
     exit(0);
   } else {
-    ERROR("dpdkstat: Failed to fork helper process: %s",
+    ERROR("Failed to fork helper process: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
@@ -542,7 +539,7 @@ static int dpdk_helper_run(void) {
     /* Now kick collectd send thread to send the stats */
     int err = sem_post(&g_configuration->sema_stats_in_shm);
     if (err) {
-      WARNING("dpdkstat: error posting semaphore to helper %s",
+      WARNING("error posting semaphore to helper %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
       dpdk_helper_stop(RESET);
     }
@@ -633,7 +630,7 @@ static int dpdk_read(user_data_t *ud) {
    * counted, so re-init SHM to be large enough to fit all the statistics.
    */
   if (g_configuration->collectd_reinit_shm) {
-    DEBUG("dpdkstat: read() now reinit SHM then launching send-thread");
+    DEBUG("read() now reinit SHM then launching send-thread");
     dpdk_re_init_shm();
   }
 
@@ -651,7 +648,7 @@ static int dpdk_read(user_data_t *ud) {
     int err = dpdk_helper_spawn(action);
     if (err) {
       char errbuf[ERR_BUF_SIZE];
-      ERROR("dpdkstat: error spawning helper %s",
+      ERROR("error spawning helper %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       return -1;
     }
@@ -678,7 +675,7 @@ static int dpdk_read(user_data_t *ud) {
   if (data_avail < 0) {
     char errbuf[ERR_BUF_SIZE];
     if (errno != EINTR || errno != EAGAIN)
-      ERROR("dpdkstats: poll(2) failed: %s",
+      ERROR("poll(2) failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
   }
   while (data_avail) {
@@ -686,7 +683,7 @@ static int dpdk_read(user_data_t *ud) {
     if (nbytes <= 0)
       break;
     ssnprintf(out, nbytes, "%s", buf);
-    DEBUG("dpdkstat: helper-proc: %s", out);
+    DEBUG("helper-proc: %s", out);
   }
 
   if (respawn_helper) {
@@ -703,8 +700,7 @@ static int dpdk_read(user_data_t *ud) {
                       &CDTIME_T_TO_TIMESPEC(now + g_configuration->interval));
   if (ret == -1) {
     if (errno == ETIMEDOUT)
-      DEBUG(
-          "dpdkstat: timeout in collectd thread: is a DPDK Primary running? ");
+      DEBUG("timeout in collectd thread: is a DPDK Primary running?");
     return 0;
   }
 
@@ -740,12 +736,12 @@ static int dpdk_shm_cleanup(void) {
   int ret = munmap(g_configuration, sizeof(dpdk_config_t));
   g_configuration = 0;
   if (ret) {
-    ERROR("dpdkstat: munmap returned %d", ret);
+    ERROR("munmap returned %d", ret);
     return ret;
   }
   ret = shm_unlink(DPDK_SHM_NAME);
   if (ret) {
-    ERROR("dpdkstat: shm_unlink returned %d", ret);
+    ERROR("shm_unlink returned %d", ret);
     return ret;
   }
   return 0;
@@ -757,13 +753,13 @@ static int dpdk_shutdown(void) {
   close(g_configuration->helper_pipes[1]);
   int err = kill(g_configuration->helper_pid, SIGKILL);
   if (err) {
-    ERROR("dpdkstat: error sending sigkill to helper %s",
+    ERROR("error sending sigkill to helper %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     ret = -1;
   }
   err = dpdk_shm_cleanup();
   if (err) {
-    ERROR("dpdkstat: error cleaning up SHM: %s",
+    ERROR("error cleaning up SHM: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     ret = -1;
   }

@@ -117,7 +117,7 @@ static char *hddtemp_query_daemon (void)
 	if ((ai_return = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
 		char errbuf[1024];
-		ERROR ("hddtemp plugin: getaddrinfo (%s, %s): %s",
+		ERROR ("getaddrinfo (%s, %s): %s",
 				host, port,
 				(ai_return == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
@@ -134,8 +134,7 @@ static char *hddtemp_query_daemon (void)
 		if (fd < 0)
 		{
 			char errbuf[1024];
-			ERROR ("hddtemp plugin: socket: %s",
-					sstrerror (errno, errbuf, sizeof (errbuf)));
+			ERROR ("socket: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 			continue;
 		}
 
@@ -144,7 +143,7 @@ static char *hddtemp_query_daemon (void)
 					ai_ptr->ai_addrlen))
 		{
 			char errbuf[1024];
-			INFO ("hddtemp plugin: connect (%s, %s) failed: %s",
+			INFO ("connect (%s, %s) failed: %s",
 					host, port,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
@@ -161,7 +160,7 @@ static char *hddtemp_query_daemon (void)
 
 	if (fd < 0)
 	{
-		ERROR ("hddtemp plugin: Could not connect to daemon.");
+		ERROR ("Could not connect to daemon.");
 		return (NULL);
 	}
 
@@ -179,15 +178,14 @@ static char *hddtemp_query_daemon (void)
 				buffer_size *= 2;
 			if (buffer_size > HDDTEMP_MAX_RECV_BUF)
 			{
-				WARNING ("hddtemp plugin: Message from hddtemp has been "
-						"truncated.");
+				WARNING ("Message from hddtemp has been truncated.");
 				break;
 			}
 			new_buffer = realloc (buffer, buffer_size);
 			if (new_buffer == NULL) {
 				close (fd);
 				free (buffer);
-				ERROR ("hddtemp plugin: Allocation failed.");
+				ERROR ("Allocation failed.");
 				return (NULL);
 			}
 			buffer = new_buffer;
@@ -203,7 +201,7 @@ static char *hddtemp_query_daemon (void)
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
 
-			ERROR ("hddtemp plugin: Error reading from socket: %s",
+			ERROR ("Error reading from socket: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			free (buffer);
@@ -214,7 +212,7 @@ static char *hddtemp_query_daemon (void)
 
 	if (buffer_fill == 0)
 	{
-		WARNING ("hddtemp plugin: Peer has unexpectedly shut down "
+		WARNING ("Peer has unexpectedly shut down "
 				"the socket. Buffer: `%s'", buffer);
 		close (fd);
 		free (buffer);

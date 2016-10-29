@@ -260,7 +260,7 @@ static int averaging_create(averaging_t *avg, int size)
     avg->ring_buffer = calloc ((size_t) size, sizeof (*avg->ring_buffer));
     if (avg->ring_buffer == NULL)
     {
-        ERROR ("barometer: averaging_create - ring buffer allocation of size %d failed",
+        ERROR ("averaging_create - ring buffer allocation of size %d failed",
                size);
         return -1;
     }
@@ -312,7 +312,7 @@ static double averaging_add_sample(averaging_t * avg, long int sample)
     avg->ring_buffer_head = (avg->ring_buffer_head+1) % avg->ring_buffer_size;
     result = (double)(avg->ring_buffer_sum) / (double)(avg->ring_buffer_size);
 
-    DEBUG ("barometer: averaging_add_sample - added %ld, result = %lf",
+    DEBUG ("averaging_add_sample - added %ld, result = %lf",
            sample,
            result);
 
@@ -433,13 +433,13 @@ static int get_reference_temperature(double * result)
                                    &values,
                                    &values_num))
             {
-                DEBUG ("barometer: get_reference_temperature - rate \"%s\" not found yet",
+                DEBUG ("get_reference_temperature - rate \"%s\" not found yet",
                        list->sensor_name);
                 list = list->next;
                 continue;
             }
 
-            DEBUG ("barometer: get_reference_temperature - initialize \"%s\", %zu vals",
+            DEBUG ("get_reference_temperature - initialize \"%s\", %zu vals",
                    list->sensor_name,
                    values_num);
 
@@ -448,7 +448,7 @@ static int get_reference_temperature(double * result)
 
             for(size_t i=0; i<values_num; ++i)
             {
-                DEBUG ("barometer: get_reference_temperature - rate %zu: %lf **",
+                DEBUG ("get_reference_temperature - rate %zu: %lf **",
                        i, values[i]);
                 if(!isnan(values[i]))
                 {
@@ -467,7 +467,7 @@ static int get_reference_temperature(double * result)
                                   REF_TEMP_AVG_NUM,
                                   list->num_values))
         {
-            ERROR ("barometer: get_reference_temperature - history \"%s\" lost",
+            ERROR ("get_reference_temperature - history \"%s\" lost",
                    list->sensor_name);
             list->initialized = 0;
             list->num_values = 0;
@@ -477,7 +477,7 @@ static int get_reference_temperature(double * result)
 
         for(size_t i=0; i<REF_TEMP_AVG_NUM*list->num_values; ++i)
         {
-            DEBUG ("barometer: get_reference_temperature - history %zu: %lf",
+            DEBUG ("get_reference_temperature - history %zu: %lf",
                    i, values_history[i]);
             if(!isnan(values_history[i]))
             {
@@ -492,7 +492,7 @@ static int get_reference_temperature(double * result)
                                    &values,
                                    &values_num))
             {
-                ERROR ("barometer: get_reference_temperature - rate \"%s\" lost",
+                ERROR ("get_reference_temperature - rate \"%s\" lost",
                        list->sensor_name);
                 list->initialized = 0;
                 list->num_values = 0;
@@ -502,7 +502,7 @@ static int get_reference_temperature(double * result)
 
             for(size_t i=0; i<values_num; ++i)
             {
-                DEBUG ("barometer: get_reference_temperature - rate last %zu: %lf **",
+                DEBUG ("get_reference_temperature - rate last %zu: %lf **",
                        i, values[i]);
                 if(!isnan(values[i]))
                 {
@@ -516,7 +516,7 @@ static int get_reference_temperature(double * result)
 
         if(avg_num == 0)
         {
-            ERROR ("barometer: get_reference_temperature - could not read \"%s\"",
+            ERROR ("get_reference_temperature - could not read \"%s\"",
                    list->sensor_name);
             list->initialized = 0;
             list->num_values = 0;
@@ -534,10 +534,10 @@ static int get_reference_temperature(double * result)
 
     if(*result == NAN)
     {
-        ERROR("barometer: get_reference_temperature - no sensor available (yet?)");
+        ERROR("get_reference_temperature - no sensor available (yet?)");
         return -1;
     }
-    DEBUG ("barometer: get_reference_temperature - temp is %lf", *result);
+    DEBUG ("get_reference_temperature - temp is %lf", *result);
     return 0;
 }
 
@@ -562,7 +562,7 @@ static int MPL115_detect(void)
 
     if (ioctl(i2c_bus_fd, I2C_SLAVE_FORCE, MPL115_I2C_ADDRESS) < 0)
     {
-        ERROR("barometer: MPL115_detect problem setting i2c slave address to 0x%02X: %s",
+        ERROR("MPL115_detect problem setting i2c slave address to 0x%02X: %s",
               MPL115_I2C_ADDRESS,
               sstrerror (errno, errbuf, sizeof (errbuf)));
         return 0 ;
@@ -571,11 +571,11 @@ static int MPL115_detect(void)
     res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL115_ADDR_COEFFS);
     if(res >= 0)
     {
-        DEBUG ("barometer: MPL115_detect - positive detection");
+        DEBUG ("MPL115_detect - positive detection");
         return 1;
     }
 
-    DEBUG ("barometer: MPL115_detect - negative detection");
+    DEBUG ("MPL115_detect - negative detection");
     return 0;
 }
 
@@ -603,7 +603,7 @@ static int MPL115_read_coeffs(void)
                                         mpl115_coeffs);
     if (res < 0)
     {
-        ERROR ("barometer: MPL115_read_coeffs - problem reading data: %s",
+        ERROR ("MPL115_read_coeffs - problem reading data: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
@@ -660,7 +660,7 @@ static int MPL115_read_coeffs(void)
     mpl115_coeffC22 /= 32.0; //16-11=5
     mpl115_coeffC22 /= 33554432.0;          /* 10+15=25 fract */
 
-    DEBUG("barometer: MPL115_read_coeffs: a0=%lf, b1=%lf, b2=%lf, c12=%lf, c11=%lf, c22=%lf",
+    DEBUG("MPL115_read_coeffs: a0=%lf, b1=%lf, b2=%lf, c12=%lf, c11=%lf, c22=%lf",
           mpl115_coeffA0,
           mpl115_coeffB1,
           mpl115_coeffB2,
@@ -691,7 +691,7 @@ static void MPL115_convert_adc_to_real(double   adc_pressure,
 
     *pressure = ((1150.0-500.0) * Pcomp / 1023.0) + 500.0;
     *temperature = (472.0 - adc_temp) / 5.35 + 25.0;
-    DEBUG ("barometer: MPL115_convert_adc_to_real - got %lf hPa, %lf C",
+    DEBUG ("MPL115_convert_adc_to_real - got %lf hPa, %lf C",
            *pressure,
            *temperature);
 }
@@ -733,14 +733,14 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
         --retries;
         if(retries>0)
         {
-            ERROR ("barometer: MPL115_read_averaged - requesting conversion: %s, " \
+            ERROR ("MPL115_read_averaged - requesting conversion: %s, " \
                    "will retry at most %d more times",
                    sstrerror (errno, errbuf, sizeof (errbuf)),
                    retries);
         }
         else
         {
-            ERROR ("barometer: MPL115_read_averaged - requesting conversion: %s, "\
+            ERROR ("MPL115_read_averaged - requesting conversion: %s, "\
                    "too many failed retries",
                    sstrerror (errno, errbuf, sizeof (errbuf)));
             return -1;
@@ -762,14 +762,14 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
         --retries;
         if (retries>0)
         {
-            ERROR ("barometer: MPL115_read_averaged - reading conversion: %s, " \
+            ERROR ("MPL115_read_averaged - reading conversion: %s, " \
                    "will retry at most %d more times",
                    sstrerror (errno, errbuf, sizeof (errbuf)),
                    retries);
         }
         else
         {
-            ERROR ("barometer: MPL115_read_averaged - reading conversion: %s, " \
+            ERROR ("MPL115_read_averaged - reading conversion: %s, " \
                    "too many failed retries",
                    sstrerror (errno, errbuf, sizeof (errbuf)));
             return -1;
@@ -778,7 +778,7 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
 
     conv_pressure    = ((mpl115_conv[0] << 8) | mpl115_conv[1]) >> 6;
     conv_temperature = ((mpl115_conv[2] << 8) | mpl115_conv[3]) >> 6;
-    DEBUG ("barometer: MPL115_read_averaged, raw pressure ADC value = %d, " \
+    DEBUG ("MPL115_read_averaged, raw pressure ADC value = %d, " \
            "raw temperature ADC value = %d",
            conv_pressure,
            conv_temperature);
@@ -788,7 +788,7 @@ static int MPL115_read_averaged(double * pressure, double * temperature)
 
     MPL115_convert_adc_to_real(adc_pressure, adc_temperature, pressure, temperature);
 
-    DEBUG ("barometer: MPL115_read_averaged - averaged ADC pressure = %lf / temperature = %lf, " \
+    DEBUG ("MPL115_read_averaged - averaged ADC pressure = %lf / temperature = %lf, " \
            "real pressure = %lf hPa / temperature = %lf C",
            adc_pressure,
            adc_temperature,
@@ -814,7 +814,7 @@ static int MPL3115_detect(void)
 
     if (ioctl(i2c_bus_fd, I2C_SLAVE_FORCE, MPL3115_I2C_ADDRESS) < 0)
     {
-        ERROR("barometer: MPL3115_detect problem setting i2c slave address to 0x%02X: %s",
+        ERROR("MPL3115_detect problem setting i2c slave address to 0x%02X: %s",
               MPL3115_I2C_ADDRESS,
               sstrerror (errno, errbuf, sizeof (errbuf)));
         return 0 ;
@@ -823,11 +823,11 @@ static int MPL3115_detect(void)
     res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_WHO_AM_I);
     if(res == MPL3115_WHO_AM_I_RESP)
     {
-        DEBUG ("barometer: MPL3115_detect - positive detection");
+        DEBUG ("MPL3115_detect - positive detection");
         return 1;
     }
 
-    DEBUG ("barometer: MPL3115_detect - negative detection");
+    DEBUG ("MPL3115_detect - negative detection");
     return 0;
 }
 
@@ -881,7 +881,7 @@ static void MPL3115_adjust_oversampling(void)
         mpl3115_oversample = MPL3115_CTRL_REG1_OST_1;
     }
 
-    DEBUG("barometer: MPL3115_adjust_oversampling - correcting oversampling from %d to %d",
+    DEBUG("MPL3115_adjust_oversampling - correcting oversampling from %d to %d",
           config_oversample,
           new_val);
     config_oversample = new_val;
@@ -907,7 +907,7 @@ static int MPL3115_read(double * pressure, double * temperature)
     res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_CTRL_REG1);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_read - cannot read CTRL_REG1: %s",
+        ERROR ("MPL3115_read - cannot read CTRL_REG1: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -917,7 +917,7 @@ static int MPL3115_read(double * pressure, double * temperature)
                                     ctrl | MPL3115_CTRL_REG1_SBYB);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_read - problem activating: %s",
+        ERROR ("MPL3115_read - problem activating: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -929,7 +929,7 @@ static int MPL3115_read(double * pressure, double * temperature)
     res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_STATUS);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_read - cannot read status register: %s",
+        ERROR ("MPL3115_read - cannot read status register: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -943,7 +943,7 @@ static int MPL3115_read(double * pressure, double * temperature)
         res = i2c_smbus_read_byte_data(i2c_bus_fd, MPL3115_REG_STATUS);
         if (res < 0)
         {
-            ERROR ("barometer: MPL3115_read - cannot read status register: %s",
+            ERROR ("MPL3115_read - cannot read status register: %s",
                    sstrerror (errno, errbuf, sizeof (errbuf)));
             return 1;
         }
@@ -956,14 +956,14 @@ static int MPL3115_read(double * pressure, double * temperature)
                                         data);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_read - cannot read data registers: %s",
+        ERROR ("MPL3115_read - cannot read data registers: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
 
     tmp_value = (data[0] << 16) | (data[1] << 8) | data[2];
     *pressure = ((double) tmp_value) / 4.0 / 16.0 / 100.0;
-    DEBUG ("barometer: MPL3115_read - absolute pressure = %lf hPa", *pressure);
+    DEBUG ("MPL3115_read - absolute pressure = %lf hPa", *pressure);
 
     if(data[3] > 0x7F)
     {
@@ -977,7 +977,7 @@ static int MPL3115_read(double * pressure, double * temperature)
     }
 
     *temperature += (double)(data[4]) / 256.0;
-    DEBUG ("barometer: MPL3115_read - temperature = %lf C", *temperature);
+    DEBUG ("MPL3115_read - temperature = %lf C", *temperature);
 
     return 0;
 }
@@ -1010,7 +1010,7 @@ static int MPL3115_init_sensor(void)
     res = i2c_smbus_write_byte_data(i2c_bus_fd, MPL3115_REG_OFF_T, offset);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_init_sensor - problem setting temp offset: %s",
+        ERROR ("MPL3115_init_sensor - problem setting temp offset: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
@@ -1021,7 +1021,7 @@ static int MPL3115_init_sensor(void)
     res = i2c_smbus_write_byte_data(i2c_bus_fd, MPL3115_REG_OFF_P, offset);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_init_sensor - problem setting pressure offset: %s",
+        ERROR ("MPL3115_init_sensor - problem setting pressure offset: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
@@ -1034,7 +1034,7 @@ static int MPL3115_init_sensor(void)
                                     | MPL3115_PT_DATA_TDEF);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_init_sensor - problem setting PT_DATA_CFG: %s",
+        ERROR ("MPL3115_init_sensor - problem setting PT_DATA_CFG: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
@@ -1045,7 +1045,7 @@ static int MPL3115_init_sensor(void)
                                     mpl3115_oversample);
     if (res < 0)
     {
-        ERROR ("barometer: MPL3115_init_sensor - problem configuring CTRL_REG1: %s",
+        ERROR ("MPL3115_init_sensor - problem configuring CTRL_REG1: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
@@ -1069,7 +1069,7 @@ static int BMP085_detect(void)
 
     if (ioctl(i2c_bus_fd, I2C_SLAVE_FORCE, BMP085_I2C_ADDRESS) < 0)
     {
-        ERROR("barometer: BMP085_detect - problem setting i2c slave address to 0x%02X: %s",
+        ERROR("BMP085_detect - problem setting i2c slave address to 0x%02X: %s",
               BMP085_I2C_ADDRESS,
               sstrerror (errno, errbuf, sizeof (errbuf)));
         return 0 ;
@@ -1078,23 +1078,23 @@ static int BMP085_detect(void)
     res = i2c_smbus_read_byte_data(i2c_bus_fd, BMP085_ADDR_ID_REG);
     if(res == BMP085_CHIP_ID)
     {
-        DEBUG ("barometer: BMP085_detect - positive detection");
+        DEBUG ("BMP085_detect - positive detection");
 
         /* get version */
         res = i2c_smbus_read_byte_data(i2c_bus_fd, BMP085_ADDR_VERSION );
         if (res < 0)
         {
-            ERROR("barometer: BMP085_detect - problem checking chip version: %s",
+            ERROR("BMP085_detect - problem checking chip version: %s",
                   sstrerror (errno, errbuf, sizeof (errbuf)));
             return 0 ;
         }
-        DEBUG ("barometer: BMP085_detect - chip version ML:0x%02X AL:0x%02X",
+        DEBUG ("BMP085_detect - chip version ML:0x%02X AL:0x%02X",
                res & 0x0f,
                (res & 0xf0) >> 4);
         return 1;
     }
 
-    DEBUG ("barometer: BMP085_detect - negative detection");
+    DEBUG ("BMP085_detect - negative detection");
     return 0;
 }
 
@@ -1137,7 +1137,7 @@ static void BMP085_adjust_oversampling(void)
         bmp085_timeCnvPress = BMP085_TIME_CNV_PRESS_0;
     }
 
-    DEBUG("barometer: BMP085_adjust_oversampling - correcting oversampling from %d to %d",
+    DEBUG("BMP085_adjust_oversampling - correcting oversampling from %d to %d",
           config_oversample,
           new_val);
     config_oversample = new_val;
@@ -1163,7 +1163,7 @@ static int BMP085_read_coeffs(void)
                                         coeffs);
     if (res < 0)
     {
-        ERROR ("barometer: BMP085_read_coeffs - problem reading data: %s",
+        ERROR ("BMP085_read_coeffs - problem reading data: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
     }
@@ -1180,7 +1180,7 @@ static int BMP085_read_coeffs(void)
     bmp085_MC =  ((int16_t)  coeffs[18] <<8) | (int16_t)  coeffs[19];
     bmp085_MD =  ((int16_t)  coeffs[20] <<8) | (int16_t)  coeffs[21];
 
-    DEBUG("barometer: BMP085_read_coeffs - AC1=%d, AC2=%d, AC3=%d, AC4=%u,"\
+    DEBUG("BMP085_read_coeffs - AC1=%d, AC2=%d, AC3=%d, AC4=%u,"\
           " AC5=%u, AC6=%u, B1=%d, B2=%d, MB=%d, MC=%d, MD=%d",
           bmp085_AC1,
           bmp085_AC2,
@@ -1261,7 +1261,7 @@ static void BMP085_convert_adc_to_real(long adc_pressure,
     P = P + ( ( X1 + X2 + 3791 ) >> 4);
 
     *pressure = P / 100.0; // in [hPa]
-    DEBUG ("barometer: BMP085_convert_adc_to_real - got %lf hPa, %lf C",
+    DEBUG ("BMP085_convert_adc_to_real - got %lf hPa, %lf C",
            *pressure,
            *temperature);
 }
@@ -1291,7 +1291,7 @@ static int BMP085_read(double * pressure, double * temperature)
                                      BMP085_CMD_CONVERT_TEMP );
     if (res < 0)
     {
-        ERROR ("barometer: BMP085_read - problem requesting temperature conversion: %s",
+        ERROR ("BMP085_read - problem requesting temperature conversion: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -1304,7 +1304,7 @@ static int BMP085_read(double * pressure, double * temperature)
                                          measBuff);
     if (res < 0)
     {
-        ERROR ("barometer: BMP085_read - problem reading temperature data: %s",
+        ERROR ("BMP085_read - problem reading temperature data: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -1318,7 +1318,7 @@ static int BMP085_read(double * pressure, double * temperature)
                                      bmp085_cmdCnvPress );
     if (res < 0)
     {
-        ERROR ("barometer: BMP085_read - problem requesting pressure conversion: %s",
+        ERROR ("BMP085_read - problem requesting pressure conversion: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -1331,7 +1331,7 @@ static int BMP085_read(double * pressure, double * temperature)
                                          measBuff );
     if (res < 0)
     {
-        ERROR ("barometer: BMP085_read - problem reading pressure data: %s",
+        ERROR ("BMP085_read - problem reading pressure data: %s",
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return 1;
     }
@@ -1339,7 +1339,7 @@ static int BMP085_read(double * pressure, double * temperature)
     adc_pressure = (long)((((ulong)measBuff[0]<<16) | ((ulong)measBuff[1]<<8) | (ulong)measBuff[2] ) >> (8 - bmp085_oversampling));
 
 
-    DEBUG ("barometer: BMP085_read - raw pressure ADC value = %ld, " \
+    DEBUG ("BMP085_read - raw pressure ADC value = %ld, " \
            "raw temperature ADC value = %ld",
            adc_pressure,
            adc_temperature);
@@ -1434,13 +1434,13 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
     break;
 
     default:
-        ERROR ("barometer: abs_to_mean_sea_level_pressure: wrong conversion method %d",
+        ERROR ("abs_to_mean_sea_level_pressure: wrong conversion method %d",
                config_normalize);
         mean = abs_pressure;
         break;
     }
 
-    DEBUG ("barometer: abs_to_mean_sea_level_pressure: absPressure = %lf hPa, method = %d, meanPressure = %lf hPa",
+    DEBUG ("abs_to_mean_sea_level_pressure: absPressure = %lf hPa, method = %d, meanPressure = %lf hPa",
            abs_pressure,
            config_normalize,
            mean);
@@ -1460,7 +1460,7 @@ static double abs_to_mean_sea_level_pressure(double abs_pressure)
  */
 static int collectd_barometer_config (const char *key, const char *value)
 {
-    DEBUG("barometer: collectd_barometer_config");
+    DEBUG("collectd_barometer_config");
 
     if (strcasecmp (key, "Device") == 0)
     {
@@ -1472,7 +1472,7 @@ static int collectd_barometer_config (const char *key, const char *value)
         int oversampling_tmp = atoi (value);
         if (oversampling_tmp < 1 || oversampling_tmp > 1024)
         {
-            WARNING ("barometer: collectd_barometer_config: invalid oversampling: %d." \
+            WARNING ("collectd_barometer_config: invalid oversampling: %d." \
                      " Allowed values are 1 to 1024 (for MPL115) or 1 to 128 (for MPL3115) or 1 to 8 (for BMP085).",
                      oversampling_tmp);
             return 1;
@@ -1488,7 +1488,7 @@ static int collectd_barometer_config (const char *key, const char *value)
         int normalize_tmp = atoi (value);
         if (normalize_tmp < 0 || normalize_tmp > 2)
         {
-            WARNING ("barometer: collectd_barometer_config: invalid normalization: %d",
+            WARNING ("collectd_barometer_config: invalid normalization: %d",
                      normalize_tmp);
             return 1;
         }
@@ -1527,7 +1527,7 @@ static int collectd_barometer_config (const char *key, const char *value)
  */
 static int collectd_barometer_shutdown(void)
 {
-    DEBUG ("barometer: collectd_barometer_shutdown");
+    DEBUG ("collectd_barometer_shutdown");
 
     if(sensor_type == Sensor_MPL115)
     {
@@ -1569,7 +1569,7 @@ static int MPL115_collectd_barometer_read (void)
     value_list_t vl = VALUE_LIST_INIT;
     value_t      values[1];
 
-    DEBUG("barometer: MPL115_collectd_barometer_read");
+    DEBUG("MPL115_collectd_barometer_read");
 
     if (!configured)
     {
@@ -1586,9 +1586,9 @@ static int MPL115_collectd_barometer_read (void)
             result = MPL115_read_averaged(&pressure, &temperature);
             if(result)
             {
-                ERROR ("barometer: MPL115_collectd_barometer_read - mpl115 read, ignored during init");
+                ERROR ("MPL115_collectd_barometer_read - mpl115 read, ignored during init");
             }
-            DEBUG("barometer: MPL115_collectd_barometer_read - init %d / %d", i+1, config_oversample-1);
+            DEBUG("MPL115_collectd_barometer_read - init %d / %d", i+1, config_oversample-1);
             usleep(20000);
         }
         avg_initialized = 1;
@@ -1649,7 +1649,7 @@ static int MPL3115_collectd_barometer_read (void)
     value_list_t vl = VALUE_LIST_INIT;
     value_t      values[1];
 
-    DEBUG("barometer: MPL3115_collectd_barometer_read");
+    DEBUG("MPL3115_collectd_barometer_read");
 
     if (!configured)
     {
@@ -1711,7 +1711,7 @@ static int BMP085_collectd_barometer_read (void)
     value_list_t vl = VALUE_LIST_INIT;
     value_t      values[1];
 
-    DEBUG("barometer: BMP085_collectd_barometer_read");
+    DEBUG("BMP085_collectd_barometer_read");
 
     if (!configured)
     {
@@ -1764,17 +1764,17 @@ static int collectd_barometer_init (void)
 {
     char errbuf[1024];
 
-    DEBUG ("barometer: collectd_barometer_init");
+    DEBUG ("collectd_barometer_init");
 
     if (config_device == NULL)
     {
-        ERROR("barometer: collectd_barometer_init I2C bus device not configured");
+        ERROR("collectd_barometer_init I2C bus device not configured");
         return -1;
     }
 
     if (config_normalize >= MSLP_INTERNATIONAL && isnan(config_altitude))
     {
-        ERROR("barometer: collectd_barometer_init no altitude configured " \
+        ERROR("collectd_barometer_init no altitude configured " \
               "for mean sea level pressure normalization.");
         return -1;
     }
@@ -1783,7 +1783,7 @@ static int collectd_barometer_init (void)
         &&
         temp_list == NULL)
     {
-        ERROR("barometer: collectd_barometer_init no temperature reference "\
+        ERROR("collectd_barometer_init no temperature reference "\
               "configured for mean sea level pressure normalization.");
         return -1;
     }
@@ -1792,7 +1792,7 @@ static int collectd_barometer_init (void)
     i2c_bus_fd = open(config_device, O_RDWR);
     if (i2c_bus_fd < 0)
     {
-        ERROR ("barometer: collectd_barometer_init problem opening I2C bus device \"%s\": %s (is loaded mod i2c-dev?)",
+        ERROR ("collectd_barometer_init problem opening I2C bus device \"%s\": %s (is loaded mod i2c-dev?)",
                config_device,
                sstrerror (errno, errbuf, sizeof (errbuf)));
         return -1;
@@ -1821,13 +1821,13 @@ static int collectd_barometer_init (void)
     {
         if (averaging_create (&pressure_averaging, config_oversample))
         {
-            ERROR("barometer: collectd_barometer_init pressure averaging init failed");
+            ERROR("collectd_barometer_init pressure averaging init failed");
             return -1;
         }
 
         if (averaging_create (&temperature_averaging, config_oversample))
         {
-            ERROR("barometer: collectd_barometer_init temperature averaging init failed");
+            ERROR("collectd_barometer_init temperature averaging init failed");
             return -1;
         }
 
@@ -1852,7 +1852,7 @@ static int collectd_barometer_init (void)
 
 /* anything else -> error */
     default:
-        ERROR("barometer: collectd_barometer_init - no supported sensor found");
+        ERROR("collectd_barometer_init - no supported sensor found");
         return -1;
     }
 

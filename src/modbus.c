@@ -320,8 +320,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
     if ((host->port < 1) || (host->port > 65535))
       host->port = MODBUS_TCP_DEFAULT_PORT;
 
-    DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
-        host->node, host->port);
+    DEBUG ("Trying to connect to \"%s\", port %i.", host->node, host->port);
 
     modbus_init_tcp (&host->connection,
         /* host = */ host->node,
@@ -329,7 +328,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   }
   else	/* MBCONN_RTU */
   {
-    DEBUG ("Modbus plugin: Trying to connect to \"%s\".", host->node);
+    DEBUG ("Trying to connect to \"%s\".", host->node);
 
     modbus_init_rtu (&host->connection,
        /* device = */ host->node,
@@ -340,7 +339,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   status = modbus_connect (&host->connection);
   if (status != 0)
   {
-    ERROR ("Modbus plugin: modbus_connect (%s, %i) failed with status %i.",
+    ERROR ("modbus_connect (%s, %i) failed with status %i.",
         host->node, host->port ? host->port : host->baudrate, status);
     return (status);
   }
@@ -367,25 +366,24 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
     if ((host->port < 1) || (host->port > 65535))
       host->port = MODBUS_TCP_DEFAULT_PORT;
 
-    DEBUG ("Modbus plugin: Trying to connect to \"%s\", port %i.",
-        host->node, host->port);
+    DEBUG ("Trying to connect to \"%s\", port %i.", host->node, host->port);
 
     host->connection = modbus_new_tcp (host->node, host->port);
     if (host->connection == NULL)
     {
-      ERROR ("Modbus plugin: Creating new Modbus/TCP object failed.");
+      ERROR ("Creating new Modbus/TCP object failed.");
       return (-1);
     }
   }
   else
   {
-    DEBUG ("Modbus plugin: Trying to connect to \"%s\", baudrate %i.",
+    DEBUG ("Trying to connect to \"%s\", baudrate %i.",
         host->node, host->baudrate);
 
     host->connection = modbus_new_rtu (host->node, host->baudrate, 'N', 8, 1);
     if (host->connection == NULL)
     {
-      ERROR ("Modbus plugin: Creating new Modbus/RTU object failed.");
+      ERROR ("Creating new Modbus/RTU object failed.");
       return (-1);
     }
   }
@@ -400,7 +398,7 @@ static int mb_init_connection (mb_host_t *host) /* {{{ */
   status = modbus_connect (host->connection);
   if (status != 0)
   {
-    ERROR ("Modbus plugin: modbus_connect (%s, %i) failed with status %i.",
+    ERROR ("modbus_connect (%s, %i) failed with status %i.",
         host->node, host->port ? host->port : host->baudrate, status);
     modbus_free (host->connection);
     host->connection = NULL;
@@ -436,13 +434,13 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   ds = plugin_get_ds (data->type);
   if (ds == NULL)
   {
-    ERROR ("Modbus plugin: Type \"%s\" is not defined.", data->type);
+    ERROR ("Type \"%s\" is not defined.", data->type);
     return (-1);
   }
 
   if (ds->ds_num != 1)
   {
-    ERROR ("Modbus plugin: The type \"%s\" has %zu data sources. "
+    ERROR ("The type \"%s\" has %zu data sources. "
         "I can only handle data sets with only one data source.",
         data->type, ds->ds_num);
     return (-1);
@@ -452,7 +450,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
       && (data->register_type != REG_TYPE_INT32)
       && (data->register_type != REG_TYPE_UINT32))
   {
-    NOTICE ("Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
+    NOTICE ("The data source of type \"%s\" is %s, not gauge. "
         "This will most likely result in problems, because the register type "
         "is not UINT32.", data->type, DS_TYPE_TO_STRING (ds->ds[0].type));
   }
@@ -484,8 +482,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     status = mb_init_connection (host);
     if (status != 0)
     {
-      ERROR ("Modbus plugin: mb_init_connection (%s/%s) failed. ",
-          host->host, host->node);
+      ERROR ("mb_init_connection (%s/%s) failed. ", host->host, host->node);
       host->is_connected = 0;
       host->connection = NULL;
       return (-1);
@@ -511,8 +508,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   status = modbus_set_slave (host->connection, slave->id);
   if (status != 0)
   {
-    ERROR ("Modbus plugin: modbus_set_slave (%i) failed with status %i.",
-        slave->id, status);
+    ERROR ("modbus_set_slave (%i) failed with status %i.", slave->id, status);
     return (-1);
   }
 #endif
@@ -528,7 +524,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
   if (status != values_num)
   {
-    ERROR ("Modbus plugin: modbus read function (%s/%s) failed. "
+    ERROR ("modbus read function (%s/%s) failed. "
            " status = %i, values_num = %i. Giving up.",
            host->host, host->node, status, values_num);
 #if LEGACY_LIBMODBUS
@@ -541,7 +537,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     return (-1);
   }
 
-  DEBUG ("Modbus plugin: mb_read_data: Success! "
+  DEBUG ("mb_read_data: Success! "
       "modbus_read_registers returned with status %i.", status);
 
   if (data->register_type == REG_TYPE_FLOAT)
@@ -550,8 +546,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
     value_t vt;
 
     float_value = mb_register_to_float (values[0], values[1]);
-    DEBUG ("Modbus plugin: mb_read_data: "
-        "Returned float value is %g", (double) float_value);
+    DEBUG ("mb_read_data: Returned float value is %g", (double) float_value);
 
     CAST_TO_VALUE_T (ds, vt, float_value);
     mb_submit (host, slave, data, vt);
@@ -567,8 +562,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
     v.u32 = (((uint32_t) values[0]) << 16)
       | ((uint32_t) values[1]);
-    DEBUG ("Modbus plugin: mb_read_data: "
-        "Returned int32 value is %"PRIi32, v.i32);
+    DEBUG ("mb_read_data: Returned int32 value is %"PRIi32, v.i32);
 
     CAST_TO_VALUE_T (ds, vt, v.i32);
     mb_submit (host, slave, data, vt);
@@ -584,8 +578,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
     v.u16 = values[0];
 
-    DEBUG ("Modbus plugin: mb_read_data: "
-        "Returned int16 value is %"PRIi16, v.i16);
+    DEBUG ("mb_read_data: Returned int16 value is %"PRIi16, v.i16);
 
     CAST_TO_VALUE_T (ds, vt, v.i16);
     mb_submit (host, slave, data, vt);
@@ -597,8 +590,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
     v32 = (((uint32_t) values[0]) << 16)
       | ((uint32_t) values[1]);
-    DEBUG ("Modbus plugin: mb_read_data: "
-        "Returned uint32 value is %"PRIu32, v32);
+    DEBUG ("mb_read_data: Returned uint32 value is %"PRIu32, v32);
 
     CAST_TO_VALUE_T (ds, vt, v32);
     mb_submit (host, slave, data, vt);
@@ -607,8 +599,7 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   {
     value_t vt;
 
-    DEBUG ("Modbus plugin: mb_read_data: "
-        "Returned uint16 value is %"PRIu16, values[0]);
+    DEBUG ("mb_read_data: Returned uint16 value is %"PRIu16, values[0]);
 
     CAST_TO_VALUE_T (ds, vt, values[0]);
     mb_submit (host, slave, data, vt);
@@ -754,14 +745,14 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
         data.register_type = REG_TYPE_FLOAT;
       else
       {
-        ERROR ("Modbus plugin: The register type \"%s\" is unknown.", tmp);
+        ERROR ("The register type \"%s\" is unknown.", tmp);
         status = -1;
       }
     }
     else if (strcasecmp ("RegisterCmd", child->key) == 0)
     {
 #if LEGACY_LIBMODBUS
-      ERROR("Modbus plugin: RegisterCmd parameter can not be used "
+      ERROR("RegisterCmd parameter can not be used "
             "with your libmodbus version");
 #else
       char tmp[16];
@@ -774,15 +765,14 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
         data.modbus_register_type = MREG_INPUT;
       else
       {
-        ERROR ("Modbus plugin: The modbus_register_type \"%s\" is unknown.",
-               tmp);
+        ERROR ("The modbus_register_type \"%s\" is unknown.", tmp);
         status = -1;
       }
 #endif
     }
     else
     {
-      ERROR ("Modbus plugin: Unknown configuration option: %s", child->key);
+      ERROR ("Unknown configuration option: %s", child->key);
       status = -1;
     }
 
@@ -793,8 +783,7 @@ static int mb_config_add_data (oconfig_item_t *ci) /* {{{ */
   assert (data.name != NULL);
   if (data.type[0] == 0)
   {
-    ERROR ("Modbus plugin: Data block \"%s\": No type has been specified.",
-        data.name);
+    ERROR ("Data block \"%s\": No type has been specified.", data.name);
     status = -1;
   }
 
@@ -826,7 +815,7 @@ static int mb_config_set_host_address (mb_host_t *host, /* {{{ */
   if (status != 0)
   {
     char errbuf[1024];
-    ERROR ("Modbus plugin: getaddrinfo failed: %s",
+    ERROR ("getaddrinfo failed: %s",
         (status == EAI_SYSTEM)
         ? sstrerror (errno, errbuf, sizeof (errbuf))
         : gai_strerror (status));
@@ -846,11 +835,10 @@ static int mb_config_set_host_address (mb_host_t *host, /* {{{ */
   freeaddrinfo (ai_list);
 
   if (status != 0)
-    ERROR ("Modbus plugin: Unable to translate node name: \"%s\"", address);
+    ERROR ("Unable to translate node name: \"%s\"", address);
   else /* if (status == 0) */
   {
-    DEBUG ("Modbus plugin: mb_config_set_host_address: %s -> %s",
-        address, host->node);
+    DEBUG ("mb_config_set_host_address: %s -> %s", address, host->node);
   }
 
   return (status);
@@ -893,7 +881,7 @@ static int mb_config_add_slave (mb_host_t *host, oconfig_item_t *ci) /* {{{ */
     }
     else
     {
-      ERROR ("Modbus plugin: Unknown configuration option: %s", child->key);
+      ERROR ("Unknown configuration option: %s", child->key);
       status = -1;
     }
 
@@ -972,7 +960,7 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
       mb_config_add_slave (host, child);
     else
     {
-      ERROR ("Modbus plugin: Unknown configuration option: %s", child->key);
+      ERROR ("Unknown configuration option: %s", child->key);
       status = -1;
     }
 
@@ -983,20 +971,20 @@ static int mb_config_add_host (oconfig_item_t *ci) /* {{{ */
   assert (host->host[0] != 0);
   if (host->node[0] == 0)
   {
-    ERROR ("Modbus plugin: Data block \"%s\": No address or device has been specified.",
+    ERROR ("Data block \"%s\": No address or device has been specified.",
         host->host);
     status = -1;
   }
   if (host->conntype == MBCONN_RTU && !host->baudrate)
   {
-    ERROR ("Modbus plugin: Data block \"%s\": No serial baudrate has been specified.",
+    ERROR ("Data block \"%s\": No serial baudrate has been specified.",
         host->host);
     status = -1;
   }
   if ((host->conntype == MBCONN_TCP && host->baudrate) ||
       (host->conntype == MBCONN_RTU && host->port))
   {
-    ERROR ("Modbus plugin: Data block \"%s\": You've mixed up RTU and TCP options.",
+    ERROR ("Data block \"%s\": You've mixed up RTU and TCP options.",
         host->host);
     status = -1;
   }
@@ -1037,7 +1025,7 @@ static int mb_config (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("Host", child->key) == 0)
       mb_config_add_host (child);
     else
-      ERROR ("Modbus plugin: Unknown configuration option: %s", child->key);
+      ERROR ("Unknown configuration option: %s", child->key);
   }
 
   return (0);

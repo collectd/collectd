@@ -34,9 +34,6 @@
 
 #include "plugin.h"
 
-#define log_err(...) ERROR ("table plugin: " __VA_ARGS__)
-#define log_warn(...) WARNING ("table plugin: " __VA_ARGS__)
-
 /*
  * private data types
  */
@@ -128,7 +125,7 @@ static int tbl_config_set_s (char *name, char **var, oconfig_item_t *ci)
 {
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("\"%s\" expects a single string argument.", name);
+		ERROR ("\"%s\" expects a single string argument.", name);
 		return 1;
 	}
 
@@ -144,14 +141,14 @@ static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 	size_t num;
 
 	if (1 > ci->values_num) {
-		log_err ("\"%s\" expects at least one argument.", name);
+		ERROR ("\"%s\" expects at least one argument.", name);
 		return 1;
 	}
 
 	num = (size_t) ci->values_num;
 	for (size_t i = 0; i < num; ++i) {
 		if (OCONFIG_TYPE_NUMBER != ci->values[i].type) {
-			log_err ("\"%s\" expects numerical arguments only.", name);
+			ERROR ("\"%s\" expects numerical arguments only.", name);
 			return 1;
 		}
 	}
@@ -159,7 +156,7 @@ static int tbl_config_append_array_i (char *name, size_t **var, size_t *len,
 	tmp = realloc (*var, ((*len) + num) * sizeof (**var));
 	if (NULL == tmp) {
 		char errbuf[1024];
-		log_err ("realloc failed: %s.",
+		ERROR ("realloc failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
@@ -180,7 +177,7 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 	int status = 0;
 
 	if (0 != ci->values_num) {
-		log_err ("<Result> does not expect any arguments.");
+		ERROR ("<Result> does not expect any arguments.");
 		return 1;
 	}
 
@@ -188,7 +185,7 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 			(tbl->results_num + 1) * sizeof (*tbl->results));
 	if (res == NULL) {
 		char errbuf[1024];
-		log_err ("realloc failed: %s.",
+		ERROR ("realloc failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
@@ -213,18 +210,18 @@ static int tbl_config_result (tbl_t *tbl, oconfig_item_t *ci)
 			tbl_config_append_array_i (c->key,
 					&res->values, &res->values_num, c);
 		else
-			log_warn ("Ignoring unknown config key \"%s\" "
-					" in <Result>.", c->key);
+			WARNING ("Ignoring unknown config key \"%s\" in <Result>.",
+					c->key);
 	}
 
 	if (NULL == res->type) {
-		log_err ("No \"Type\" option specified for <Result> "
+		ERROR ("No \"Type\" option specified for <Result> "
 				"in table \"%s\".", tbl->file);
 		status = 1;
 	}
 
 	if (NULL == res->values) {
-		log_err ("No \"ValuesFrom\" option specified for <Result> "
+		ERROR ("No \"ValuesFrom\" option specified for <Result> "
 				"in table \"%s\".", tbl->file);
 		status = 1;
 	}
@@ -245,14 +242,14 @@ static int tbl_config_table (oconfig_item_t *ci)
 
 	if ((1 != ci->values_num)
 			|| (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-		log_err ("<Table> expects a single string argument.");
+		ERROR ("<Table> expects a single string argument.");
 		return 1;
 	}
 
 	tbl = realloc (tables, (tables_num + 1) * sizeof (*tables));
 	if (NULL == tbl) {
 		char errbuf[1024];
-		log_err ("realloc failed: %s.",
+		ERROR ("realloc failed: %s.",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
@@ -273,12 +270,12 @@ static int tbl_config_table (oconfig_item_t *ci)
 		else if (0 == strcasecmp (c->key, "Result"))
 			tbl_config_result (tbl, c);
 		else
-			log_warn ("Ignoring unknown config key \"%s\" "
-					"in <Table %s>.", c->key, tbl->file);
+			WARNING ("Ignoring unknown config key \"%s\" in <Table %s>.",
+					c->key, tbl->file);
 	}
 
 	if (NULL == tbl->sep) {
-		log_err ("Table \"%s\" does not specify any separator.", tbl->file);
+		ERROR ("Table \"%s\" does not specify any separator.", tbl->file);
 		status = 1;
 	} else {
 		strunescape (tbl->sep, strlen (tbl->sep) + 1);
@@ -290,7 +287,7 @@ static int tbl_config_table (oconfig_item_t *ci)
 	}
 
 	if (NULL == tbl->results) {
-		log_err ("Table \"%s\" does not specify any (valid) results.",
+		ERROR ("Table \"%s\" does not specify any (valid) results.",
 				tbl->file);
 		status = 1;
 	}
@@ -323,7 +320,7 @@ static int tbl_config (oconfig_item_t *ci)
 		if (0 == strcasecmp (c->key, "Table"))
 			tbl_config_table (c);
 		else
-			log_warn ("Ignoring unknown config key \"%s\".", c->key);
+			WARNING ("Ignoring unknown config key \"%s\".", c->key);
 	}
 	return 0;
 } /* tbl_config */
@@ -339,13 +336,13 @@ static int tbl_prepare (tbl_t *tbl)
 
 		res->ds = plugin_get_ds (res->type);
 		if (NULL == res->ds) {
-			log_err ("Unknown type \"%s\". See types.db(5) for details.",
+			ERROR ("Unknown type \"%s\". See types.db(5) for details.",
 					res->type);
 			return -1;
 		}
 
 		if (res->values_num != res->ds->ds_num) {
-			log_err ("Invalid type \"%s\". Expected %zu data source%s, "
+			ERROR ("Invalid type \"%s\". Expected %zu data source%s, "
 					"got %zu.", res->type, res->values_num,
 					(1 == res->values_num) ? "" : "s",
 					res->ds->ds_num);
@@ -416,7 +413,7 @@ static int tbl_result_dispatch (tbl_t *tbl, tbl_result_t *res,
 
 		if ('\0' != vl.type_instance[sizeof (vl.type_instance) - 1]) {
 			vl.type_instance[sizeof (vl.type_instance) - 1] = '\0';
-			log_warn ("Truncated type instance: %s.", vl.type_instance);
+			WARNING ("Truncated type instance: %s.", vl.type_instance);
 		}
 	}
 
@@ -442,8 +439,7 @@ static int tbl_parse_line (tbl_t *tbl, char *line, size_t len)
 	}
 
 	if (i <= tbl->max_colnum) {
-		log_warn ("Not enough columns in line "
-				"(expected at least %zu, got %zu).",
+		WARNING ("Not enough columns in line (expected at least %zu, got %zu).",
 				tbl->max_colnum + 1, i);
 		return -1;
 	}
@@ -451,7 +447,7 @@ static int tbl_parse_line (tbl_t *tbl, char *line, size_t len)
 	for (i = 0; i < tbl->results_num; ++i)
 		if (0 != tbl_result_dispatch (tbl, tbl->results + i,
 					fields, STATIC_ARRAY_SIZE (fields))) {
-			log_err ("Failed to dispatch result.");
+			ERROR ("Failed to dispatch result.");
 			continue;
 		}
 	return 0;
@@ -465,7 +461,7 @@ static int tbl_read_table (tbl_t *tbl)
 	fh = fopen (tbl->file, "r");
 	if (NULL == fh) {
 		char errbuf[1024];
-		log_err ("Failed to open file \"%s\": %s.", tbl->file,
+		ERROR ("Failed to open file \"%s\": %s.", tbl->file,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return -1;
 	}
@@ -474,18 +470,18 @@ static int tbl_read_table (tbl_t *tbl)
 	while (NULL != fgets (buf, sizeof (buf), fh)) {
 		if ('\0' != buf[sizeof (buf) - 1]) {
 			buf[sizeof (buf) - 1] = '\0';
-			log_warn ("Table %s: Truncated line: %s", tbl->file, buf);
+			WARNING ("Table %s: Truncated line: %s", tbl->file, buf);
 		}
 
 		if (0 != tbl_parse_line (tbl, buf, sizeof (buf))) {
-			log_warn ("Table %s: Failed to parse line: %s", tbl->file, buf);
+			WARNING ("Table %s: Failed to parse line: %s", tbl->file, buf);
 			continue;
 		}
 	}
 
 	if (0 != ferror (fh)) {
 		char errbuf[1024];
-		log_err ("Failed to read from file \"%s\": %s.", tbl->file,
+		ERROR ("Failed to read from file \"%s\": %s.", tbl->file,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (fh);
 		return -1;
@@ -510,7 +506,7 @@ static int tbl_read (void)
 		tbl_t *tbl = tables + i;
 
 		if (0 != tbl_prepare (tbl)) {
-			log_err ("Failed to prepare and parse table \"%s\".", tbl->file);
+			ERROR ("Failed to prepare and parse table \"%s\".", tbl->file);
 			continue;
 		}
 

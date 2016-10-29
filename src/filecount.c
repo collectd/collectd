@@ -126,7 +126,7 @@ static int fc_config_add_dir_instance (fc_directory_conf_t *dir,
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("filecount plugin: The `Instance' config option needs exactly "
+    WARNING ("The `Instance' config option needs exactly "
         "one string argument.");
     return (-1);
   }
@@ -142,7 +142,7 @@ static int fc_config_add_dir_name (fc_directory_conf_t *dir,
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("filecount plugin: The `Name' config option needs exactly one "
+    WARNING ("The `Name' config option needs exactly one "
         "string argument.");
     return (-1);
   }
@@ -150,7 +150,7 @@ static int fc_config_add_dir_name (fc_directory_conf_t *dir,
   temp = strdup (ci->values[0].value.string);
   if (temp == NULL)
   {
-    ERROR ("filecount plugin: strdup failed.");
+    ERROR ("strdup failed.");
     return (-1);
   }
 
@@ -170,7 +170,7 @@ static int fc_config_add_dir_mtime (fc_directory_conf_t *dir,
       || ((ci->values[0].type != OCONFIG_TYPE_STRING)
         && (ci->values[0].type != OCONFIG_TYPE_NUMBER)))
   {
-    WARNING ("filecount plugin: The `MTime' config option needs exactly one "
+    WARNING ("The `MTime' config option needs exactly one "
         "string or numeric argument.");
     return (-1);
   }
@@ -187,8 +187,7 @@ static int fc_config_add_dir_mtime (fc_directory_conf_t *dir,
   if ((errno != 0) || (endptr == NULL)
       || (endptr == ci->values[0].value.string))
   {
-    WARNING ("filecount plugin: Converting `%s' to a number failed.",
-        ci->values[0].value.string);
+    WARNING ("Converting `%s' to a number failed.", ci->values[0].value.string);
     return (-1);
   }
 
@@ -225,7 +224,7 @@ static int fc_config_add_dir_mtime (fc_directory_conf_t *dir,
       break;
 
     default:
-      WARNING ("filecount plugin: Invalid suffix for `MTime': `%c'", *endptr);
+      WARNING ("Invalid suffix for `MTime': `%c'", *endptr);
       return (-1);
   } /* switch (*endptr) */
 
@@ -244,7 +243,7 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
       || ((ci->values[0].type != OCONFIG_TYPE_STRING)
         && (ci->values[0].type != OCONFIG_TYPE_NUMBER)))
   {
-    WARNING ("filecount plugin: The `Size' config option needs exactly one "
+    WARNING ("The `Size' config option needs exactly one "
         "string or numeric argument.");
     return (-1);
   }
@@ -261,8 +260,7 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
   if ((errno != 0) || (endptr == NULL)
       || (endptr == ci->values[0].value.string))
   {
-    WARNING ("filecount plugin: Converting `%s' to a number failed.",
-        ci->values[0].value.string);
+    WARNING ("Converting `%s' to a number failed.", ci->values[0].value.string);
     return (-1);
   }
 
@@ -299,7 +297,7 @@ static int fc_config_add_dir_size (fc_directory_conf_t *dir,
       break;
 
     default:
-      WARNING ("filecount plugin: Invalid suffix for `Size': `%c'", *endptr);
+      WARNING ("Invalid suffix for `Size': `%c'", *endptr);
       return (-1);
   } /* switch (*endptr) */
 
@@ -314,7 +312,7 @@ static int fc_config_add_dir_option (fc_directory_conf_t *dir,
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN))
   {
-    WARNING ("filecount plugin: The `Recursive' config options needs exactly "
+    WARNING ("The `Recursive' config options needs exactly "
         "one boolean argument.");
     return (-1);
   }
@@ -334,8 +332,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("filecount plugin: `Directory' needs exactly one string "
-        "argument.");
+    WARNING ("`Directory' needs exactly one string argument.");
     return (-1);
   }
 
@@ -343,14 +340,14 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   dir = calloc (1, sizeof (*dir));
   if (dir == NULL)
   {
-    ERROR ("filecount plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
   dir->path = strdup (ci->values[0].value.string);
   if (dir->path == NULL)
   {
-    ERROR ("filecount plugin: strdup failed.");
+    ERROR ("strdup failed.");
     sfree (dir);
     return (-1);
   }
@@ -382,8 +379,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
       status = fc_config_add_dir_option (dir, option, FC_HIDDEN);
     else
     {
-      WARNING ("filecount plugin: fc_config_add_dir: "
-          "Option `%s' not allowed here.", option->key);
+      WARNING ("fc_config_add_dir: Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
@@ -399,7 +395,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
         sizeof (*directories) * (directories_num + 1));
     if (temp == NULL)
     {
-      ERROR ("filecount plugin: realloc failed.");
+      ERROR ("realloc failed.");
       status = -1;
     }
     else
@@ -431,8 +427,7 @@ static int fc_config (oconfig_item_t *ci)
       fc_config_add_dir (child);
     else
     {
-      WARNING ("filecount plugin: Ignoring unknown config option `%s'.",
-          child->key);
+      WARNING ("Ignoring unknown config option `%s'.", child->key);
     }
   } /* for (ci->children) */
 
@@ -443,7 +438,7 @@ static int fc_init (void)
 {
   if (directories_num < 1)
   {
-    WARNING ("filecount plugin: No directories have been configured.");
+    WARNING ("No directories have been configured.");
     return (-1);
   }
 
@@ -466,7 +461,7 @@ static int fc_read_dir_callback (const char *dirname, const char *filename,
   status = lstat (abs_path, &statbuf);
   if (status != 0)
   {
-    ERROR ("filecount plugin: stat (%s) failed.", abs_path);
+    ERROR ("stat (%s) failed.", abs_path);
     return (-1);
   }
 
@@ -497,7 +492,7 @@ static int fc_read_dir_callback (const char *dirname, const char *filename,
     else
       mtime -= dir->mtime;
 
-    DEBUG ("filecount plugin: Only collecting files that were touched %s %u.",
+    DEBUG ("Only collecting files that were touched %s %u.",
         (dir->mtime < 0) ? "after" : "before",
         (unsigned int) mtime);
 
@@ -540,7 +535,7 @@ static int fc_read_dir (fc_directory_conf_t *dir)
       /* include hidden */ (dir->options & FC_HIDDEN) ? 1 : 0);
   if (status != 0)
   {
-    WARNING ("filecount plugin: walk_directory (%s) failed.", dir->path);
+    WARNING ("walk_directory (%s) failed.", dir->path);
     return (-1);
   }
 

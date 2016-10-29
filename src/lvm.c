@@ -163,13 +163,13 @@ static int lvm_read(void)
 
     lvm = lvm_init(NULL);
     if (!lvm) {
-        ERROR("lvm plugin: lvm_init failed.");
+        ERROR("lvm_init failed.");
         return (-1);
     }
 
     vg_names = lvm_list_vg_names(lvm);
     if (!vg_names) {
-        ERROR("lvm plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
+        ERROR("lvm_list_vg_name failed: %s", lvm_errmsg(lvm));
         lvm_quit(lvm);
         return (-1);
     }
@@ -179,7 +179,7 @@ static int lvm_read(void)
 
         vg = lvm_vg_open(lvm, name_list->str, "r", 0);
         if (!vg) {
-            ERROR ("lvm plugin: lvm_vg_open (%s) failed: %s",
+            ERROR ("lvm_vg_open (%s) failed: %s",
                     name_list->str, lvm_errmsg(lvm));
             continue;
         }

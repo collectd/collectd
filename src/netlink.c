@@ -176,7 +176,7 @@ static int check_ignorelist (const char *dev,
         && (strcasecmp (i->inst, type_instance) != 0))
       continue;
 
-    DEBUG ("netlink plugin: check_ignorelist: "
+    DEBUG ("check_ignorelist: "
         "(dev = %s; type = %s; inst = %s) matched "
         "(dev = %s; type = %s; inst = %s)",
         dev, type,
@@ -241,7 +241,7 @@ static int update_iflist (struct ifinfomsg *msg, const char *dev)
     temp = realloc (iflist, (msg->ifi_index + 1) * sizeof (char *));
     if (temp == NULL)
     {
-      ERROR ("netlink plugin: update_iflist: realloc failed.");
+      ERROR ("update_iflist: realloc failed.");
       return (-1);
     }
 
@@ -272,7 +272,7 @@ static void check_ignorelist_and_submit (const char *dev,
   }
   else
   {
-    DEBUG ("netlink plugin: Ignoring %s/interface.", dev);
+    DEBUG ("Ignoring %s/interface.", dev);
   }
 
   if (check_ignorelist (dev, "if_detail", NULL) == 0)
@@ -296,7 +296,7 @@ static void check_ignorelist_and_submit (const char *dev,
   }
   else
   {
-    DEBUG ("netlink plugin: Ignoring %s/if_detail.", dev);
+    DEBUG ("Ignoring %s/if_detail.", dev);
   }
 
 } /* void check_ignorelist_and_submit */
@@ -359,7 +359,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
 
   if (nlh->nlmsg_type != RTM_NEWLINK)
   {
-    ERROR ("netlink plugin: link_filter_cb: Don't know how to handle type %i.",
+    ERROR ("link_filter_cb: Don't know how to handle type %i.",
         nlh->nlmsg_type);
     return MNL_CB_ERROR;
   }
@@ -372,7 +372,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
 
     if (mnl_attr_validate (attr, MNL_TYPE_STRING) < 0)
     {
-      ERROR ("netlink plugin: link_filter_cb: IFLA_IFNAME mnl_attr_validate failed.");
+      ERROR ("link_filter_cb: IFLA_IFNAME mnl_attr_validate failed.");
       return MNL_CB_ERROR;
     }
 
@@ -384,7 +384,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
 
   if (dev == NULL)
   {
-    ERROR ("netlink plugin: link_filter_cb: dev == NULL");
+    ERROR ("link_filter_cb: dev == NULL");
     return MNL_CB_ERROR;
   }
 #ifdef HAVE_RTNL_LINK_STATS64
@@ -395,7 +395,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
 
     if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*stats.stats64)) < 0)
     {
-      ERROR ("netlink plugin: link_filter_cb: IFLA_STATS64 mnl_attr_validate2 failed.");
+      ERROR ("link_filter_cb: IFLA_STATS64 mnl_attr_validate2 failed.");
       return MNL_CB_ERROR;
     }
     stats.stats64 = mnl_attr_get_payload (attr);
@@ -412,7 +412,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
 
     if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*stats.stats32)) < 0)
     {
-      ERROR ("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 failed.");
+      ERROR ("link_filter_cb: IFLA_STATS mnl_attr_validate2 failed.");
       return MNL_CB_ERROR;
     }
     stats.stats32 = mnl_attr_get_payload (attr);
@@ -422,7 +422,7 @@ static int link_filter_cb (const struct nlmsghdr *nlh,
     return MNL_CB_OK;
   }
 
-  DEBUG ("netlink plugin: link_filter: No statistics for interface %s.", dev);
+  DEBUG ("link_filter: No statistics for interface %s.", dev);
   return MNL_CB_OK;
 
 } /* int link_filter_cb */
@@ -440,7 +440,7 @@ static int qos_attr_cb (const struct nlattr *attr, void *data)
   {
     if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (**bs)) < 0)
     {
-      ERROR ("netlink plugin: qos_attr_cb: TCA_STATS_BASIC mnl_attr_validate2 failed.");
+      ERROR ("qos_attr_cb: TCA_STATS_BASIC mnl_attr_validate2 failed.");
       return MNL_CB_ERROR;
     }
     *bs = mnl_attr_get_payload (attr);
@@ -475,15 +475,14 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
     tc_type = "filter";
   else
   {
-    ERROR ("netlink plugin: qos_filter_cb: Don't know how to handle type %i.",
+    ERROR ("qos_filter_cb: Don't know how to handle type %i.",
         nlh->nlmsg_type);
     return MNL_CB_ERROR;
   }
 
   if (tm->tcm_ifindex != wanted_ifindex)
   {
-    DEBUG ("netlink plugin: qos_filter_cb: Got %s for interface #%i, "
-        "but expected #%i.",
+    DEBUG ("qos_filter_cb: Got %s for interface #%i, but expected #%i.",
         tc_type, tm->tcm_ifindex, wanted_ifindex);
     return MNL_CB_OK;
   }
@@ -491,8 +490,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   if ((tm->tcm_ifindex >= 0)
       && ((size_t) tm->tcm_ifindex >= iflist_len))
   {
-    ERROR ("netlink plugin: qos_filter_cb: tm->tcm_ifindex = %i "
-        ">= iflist_len = %zu",
+    ERROR ("qos_filter_cb: tm->tcm_ifindex = %i >= iflist_len = %zu",
         tm->tcm_ifindex, iflist_len);
     return MNL_CB_ERROR;
   }
@@ -500,8 +498,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
   dev = iflist[tm->tcm_ifindex];
   if (dev == NULL)
   {
-    ERROR ("netlink plugin: qos_filter_cb: iflist[%i] == NULL",
-        tm->tcm_ifindex);
+    ERROR ("qos_filter_cb: iflist[%i] == NULL", tm->tcm_ifindex);
     return MNL_CB_ERROR;
   }
 
@@ -512,7 +509,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
     if (mnl_attr_validate (attr, MNL_TYPE_STRING) < 0)
     {
-      ERROR ("netlink plugin: qos_filter_cb: TCA_KIND mnl_attr_validate failed.");
+      ERROR ("qos_filter_cb: TCA_KIND mnl_attr_validate failed.");
       return MNL_CB_ERROR;
     }
 
@@ -522,7 +519,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
   if (kind == NULL)
   {
-    ERROR ("netlink plugin: qos_filter_cb: kind == NULL");
+    ERROR ("qos_filter_cb: kind == NULL");
     return (-1);
   }
 
@@ -539,8 +536,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
         numberic_id & 0x0000FFFF);
   }
 
-  DEBUG ("netlink plugin: qos_filter_cb: got %s for %s (%i).",
-      tc_type, dev, tm->tcm_ifindex);
+  DEBUG ("qos_filter_cb: got %s for %s (%i).", tc_type, dev, tm->tcm_ifindex);
 
   if (check_ignorelist (dev, tc_type, tc_inst))
     return MNL_CB_OK;
@@ -555,7 +551,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
     if (mnl_attr_validate (attr, MNL_TYPE_NESTED) < 0)
     {
-      ERROR ("netlink plugin: qos_filter_cb: TCA_STATS2 mnl_attr_validate failed.");
+      ERROR ("qos_filter_cb: TCA_STATS2 mnl_attr_validate failed.");
       return MNL_CB_ERROR;
     }
 
@@ -588,7 +584,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 
     if (mnl_attr_validate2 (attr, MNL_TYPE_UNSPEC, sizeof (*ts)) < 0)
     {
-      ERROR ("netlink plugin: qos_filter_cb: TCA_STATS mnl_attr_validate2 failed.");
+      ERROR ("qos_filter_cb: TCA_STATS mnl_attr_validate2 failed.");
       return MNL_CB_ERROR;
     }
     ts = mnl_attr_get_payload (attr);
@@ -610,8 +606,7 @@ static int qos_filter_cb (const struct nlmsghdr *nlh, void *args)
 #endif /* TCA_STATS */
 
 #if !(HAVE_TCA_STATS && HAVE_TCA_STATS2)
-  DEBUG ("netlink plugin: qos_filter_cb: Have neither TCA_STATS2 nor "
-      "TCA_STATS.");
+  DEBUG ("qos_filter_cb: Have neither TCA_STATS2 nor TCA_STATS.");
 #endif
 
   return MNL_CB_OK;
@@ -640,7 +635,7 @@ static int ir_config (const char *key, const char *value)
   {
     if (fields_num != 1)
     {
-      ERROR ("netlink plugin: Invalid number of fields for option "
+      ERROR ("Invalid number of fields for option "
           "`%s'. Got %i, expected 1.", key, fields_num);
       status = -1;
     }
@@ -658,7 +653,7 @@ static int ir_config (const char *key, const char *value)
   {
     if ((fields_num < 1) || (fields_num > 2))
     {
-      ERROR ("netlink plugin: Invalid number of fields for option "
+      ERROR ("Invalid number of fields for option "
           "`%s'. Got %i, expected 1 or 2.", key, fields_num);
       return (-1);
     }
@@ -673,7 +668,7 @@ static int ir_config (const char *key, const char *value)
   {
     if (fields_num != 1)
     {
-      ERROR ("netlink plugin: Invalid number of fields for option "
+      ERROR ("Invalid number of fields for option "
           "`IgnoreSelected'. Got %i, expected 1.", fields_num);
       status = -1;
     }
@@ -697,13 +692,13 @@ static int ir_init (void)
   nl = mnl_socket_open (NETLINK_ROUTE);
   if (nl == NULL)
   {
-    ERROR ("netlink plugin: ir_init: mnl_socket_open failed.");
+    ERROR ("ir_init: mnl_socket_open failed.");
     return (-1);
   }
 
   if (mnl_socket_bind (nl, 0, MNL_SOCKET_AUTOPID) < 0)
   {
-    ERROR ("netlink plugin: ir_init: mnl_socket_bind failed.");
+    ERROR ("ir_init: mnl_socket_bind failed.");
     return (-1);
   }
 
@@ -732,7 +727,7 @@ static int ir_read (void)
 
   if (mnl_socket_sendto (nl, nlh, nlh->nlmsg_len) < 0)
   {
-    ERROR ("netlink plugin: ir_read: rtnl_wilddump_request failed.");
+    ERROR ("ir_read: rtnl_wilddump_request failed.");
     return (-1);
   }
 
@@ -746,7 +741,7 @@ static int ir_read (void)
   }
   if (ret < 0)
   {
-    ERROR ("netlink plugin: ir_read: mnl_socket_recvfrom failed.");
+    ERROR ("ir_read: mnl_socket_recvfrom failed.");
     return (-1);
   }
 
@@ -763,12 +758,12 @@ static int ir_read (void)
     {
       if (check_ignorelist (iflist[ifindex], type_name[type_index], NULL))
       {
-        DEBUG ("netlink plugin: ir_read: check_ignorelist (%s, %s, (nil)) "
-            "== TRUE", iflist[ifindex], type_name[type_index]);
+        DEBUG ("ir_read: check_ignorelist (%s, %s, (nil)) == TRUE",
+            iflist[ifindex], type_name[type_index]);
         continue;
       }
 
-      DEBUG ("netlink plugin: ir_read: querying %s from %s (%zu).",
+      DEBUG ("ir_read: querying %s from %s (%zu).",
           type_name[type_index], iflist[ifindex], ifindex);
 
       nlh = mnl_nlmsg_put_header (buf);
@@ -781,7 +776,7 @@ static int ir_read (void)
 
       if (mnl_socket_sendto (nl, nlh, nlh->nlmsg_len) < 0)
       {
-        ERROR ("netlink plugin: ir_read: mnl_socket_sendto failed.");
+        ERROR ("ir_read: mnl_socket_sendto failed.");
         continue;
       }
 
@@ -795,7 +790,7 @@ static int ir_read (void)
       }
       if (ret < 0)
       {
-        ERROR ("netlink plugin: ir_read:mnl_socket_recvfrom failed.");
+        ERROR ("ir_read:mnl_socket_recvfrom failed.");
         continue;
       }
 

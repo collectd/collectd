@@ -103,20 +103,20 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 
     if (ctx->kafka == NULL) {
         if ((conf = rd_kafka_conf_dup(ctx->kafka_conf)) == NULL) {
-            ERROR("write_kafka plugin: cannot duplicate kafka config");
+            ERROR("cannot duplicate kafka config");
             return(1);
         }
 
         if ((ctx->kafka = rd_kafka_new(RD_KAFKA_PRODUCER, conf,
                                     errbuf, sizeof(errbuf))) == NULL) {
-            ERROR("write_kafka plugin: cannot create kafka handle.");
+            ERROR("cannot create kafka handle.");
             return 1;
         }
 
         rd_kafka_conf_destroy(ctx->kafka_conf);
         ctx->kafka_conf = NULL;
 
-        INFO ("write_kafka plugin: created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
+        INFO ("created KAFKA handle : %s", rd_kafka_name(ctx->kafka));
 
 #if defined(HAVE_LIBRDKAFKA_LOGGER) && !defined(HAVE_LIBRDKAFKA_LOG_CB)
         rd_kafka_set_logger(ctx->kafka, kafka_log);
@@ -125,13 +125,13 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
 
     if (ctx->topic == NULL ) {
         if ((topic_conf = rd_kafka_topic_conf_dup(ctx->conf)) == NULL) {
-            ERROR("write_kafka plugin: cannot duplicate kafka topic config");
+            ERROR("cannot duplicate kafka topic config");
             return 1;
         }
 
         if ((ctx->topic = rd_kafka_topic_new(ctx->kafka, ctx->topic_name,
                                             topic_conf)) == NULL) {
-            ERROR("write_kafka plugin: cannot create topic : %s\n",
+            ERROR("cannot create topic : %s\n",
             rd_kafka_err2str(rd_kafka_errno2err(errno)));
             return errno;
         }
@@ -139,7 +139,7 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
         rd_kafka_topic_conf_destroy(ctx->conf);
         ctx->conf = NULL;
 
-        INFO ("write_kafka plugin: handle created for topic : %s", rd_kafka_topic_name(ctx->topic));
+        INFO ("handle created for topic : %s", rd_kafka_topic_name(ctx->topic));
     }
 
     return(0);
@@ -174,8 +174,7 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
     case KAFKA_FORMAT_COMMAND:
         status = cmd_create_putval(buffer, sizeof(buffer), ds, vl);
         if (status != 0) {
-            ERROR("write_kafka plugin: cmd_create_putval failed with status %i.",
-                  status);
+            ERROR("cmd_create_putval failed with status %i.", status);
             return status;
         }
         blen = strlen(buffer);
@@ -192,14 +191,13 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
                                  ctx->prefix, ctx->postfix, ctx->escape_char,
                                  ctx->graphite_flags);
         if (status != 0) {
-            ERROR("write_kafka plugin: format_graphite failed with status %i.",
-                  status);
+            ERROR("format_graphite failed with status %i.", status);
             return status;
         }
         blen = strlen(buffer);
         break;
     default:
-        ERROR("write_kafka plugin: invalid format %i.", ctx->format);
+        ERROR("invalid format %i.", ctx->format);
         return -1;
     }
 
@@ -249,7 +247,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     rd_kafka_conf_res_t          ret;
 
     if ((tctx = calloc(1, sizeof (*tctx))) == NULL) {
-        ERROR ("write_kafka plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return;
     }
 
@@ -260,7 +258,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
 
     if ((tctx->kafka_conf = rd_kafka_conf_dup(conf)) == NULL) {
         sfree(tctx);
-        ERROR("write_kafka plugin: cannot allocate memory for kafka config");
+        ERROR("cannot allocate memory for kafka config");
         return;
     }
 
@@ -271,7 +269,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     if ((tctx->conf = rd_kafka_topic_conf_new()) == NULL) {
         rd_kafka_conf_destroy(tctx->kafka_conf);
         sfree(tctx);
-        ERROR ("write_kafka plugin: cannot create topic configuration.");
+        ERROR ("cannot create topic configuration.");
         return;
     }
 
@@ -286,7 +284,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
     }
 
     if ((tctx->topic_name = strdup(ci->values[0].value.string)) == NULL) {
-        ERROR("write_kafka plugin: cannot copy topic name.");
+        ERROR("cannot copy topic name.");
         goto errout;
     }
 
@@ -338,8 +336,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
                 tctx->format = KAFKA_FORMAT_JSON;
 
             } else {
-                WARNING ("write_kafka plugin: Invalid format string: %s",
-                         key);
+                WARNING ("Invalid format string: %s", key);
             }
 
             sfree(key);
@@ -365,12 +362,12 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
             char *tmp_buff = NULL;
             status = cf_util_get_string (child, &tmp_buff);
             if (strlen (tmp_buff) > 1)
-                WARNING ("write_kafka plugin: The option \"GraphiteEscapeChar\" handles "
+                WARNING ("The option \"GraphiteEscapeChar\" handles "
                         "only one character. Others will be ignored.");
             tctx->escape_char = tmp_buff[0];
             sfree (tmp_buff);
         } else {
-            WARNING ("write_kafka plugin: Invalid directive: %s.", child->key);
+            WARNING ("Invalid directive: %s.", child->key);
         }
 
         if (status != 0)
@@ -389,8 +386,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
                 .free_func = kafka_topic_context_free,
             });
     if (status != 0) {
-        WARNING ("write_kafka plugin: plugin_register_write (\"%s\") "
-                "failed with status %i.",
+        WARNING ("plugin_register_write (\"%s\") failed with status %i.",
                 callback_name, status);
         goto errout;
     }
@@ -457,7 +453,7 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
             sfree(key);
             sfree(val);
         } else {
-            WARNING ("write_kafka plugin: Ignoring unknown "
+            WARNING ("Ignoring unknown "
                  "configuration option \"%s\" at top level.",
                  child->key);
         }

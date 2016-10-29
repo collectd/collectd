@@ -78,7 +78,7 @@ static void mysql_database_free (void *arg) /* {{{ */
 {
 	mysql_database_t *db;
 
-	DEBUG ("mysql plugin: mysql_database_free (arg = %p);", arg);
+	DEBUG ("mysql_database_free (arg = %p);", arg);
 
 	db = arg;
 
@@ -121,15 +121,14 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	if ((ci->values_num != 1)
 	    || (ci->values[0].type != OCONFIG_TYPE_STRING))
 	{
-		WARNING ("mysql plugin: The `Database' block "
-			 "needs exactly one string argument.");
+		WARNING ("The `Database' block needs exactly one string argument.");
 		return (-1);
 	}
 
 	db = calloc (1, sizeof (*db));
 	if (db == NULL)
 	{
-		ERROR ("mysql plugin: calloc failed.");
+		ERROR ("calloc failed.");
 		return (-1);
 	}
 
@@ -211,7 +210,7 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 			status = cf_util_get_boolean (child, &db->wsrep_stats);
 		else
 		{
-			WARNING ("mysql plugin: Option `%s' not allowed here.", child->key);
+			WARNING ("Option `%s' not allowed here.", child->key);
 			status = -1;
 		}
 
@@ -224,7 +223,7 @@ static int mysql_config_database (oconfig_item_t *ci) /* {{{ */
 	{
 		char cb_name[DATA_MAX_NAME_LEN];
 
-		DEBUG ("mysql plugin: Registering new read callback: %s",
+		DEBUG ("Registering new read callback: %s",
 				(db->database != NULL) ? db->database : "<default>");
 
 		if (db->instance != NULL)
@@ -261,8 +260,7 @@ static int mysql_config (oconfig_item_t *ci) /* {{{ */
 		if (strcasecmp ("Database", child->key) == 0)
 			mysql_config_database (child);
 		else
-			WARNING ("mysql plugin: Option \"%s\" not allowed here.",
-					child->key);
+			WARNING ("Option \"%s\" not allowed here.", child->key);
 	}
 
 	return (0);
@@ -282,7 +280,7 @@ static MYSQL *getconnection (mysql_database_t *db)
 		if (status == 0)
 			return (db->con);
 
-		WARNING ("mysql plugin: Lost connection to instance \"%s\": %s",
+		WARNING ("Lost connection to instance \"%s\": %s",
 				db->instance, mysql_error (db->con));
 	}
 	db->is_connected = 0;
@@ -292,8 +290,7 @@ static MYSQL *getconnection (mysql_database_t *db)
 		db->con = mysql_init (NULL);
 		if (db->con == NULL)
 		{
-			ERROR ("mysql plugin: mysql_init failed: %s",
-					mysql_error (db->con));
+			ERROR ("mysql_init failed: %s", mysql_error (db->con));
 			return (NULL);
 		}
 	}
@@ -306,8 +303,7 @@ static MYSQL *getconnection (mysql_database_t *db)
 	if (mysql_real_connect (db->con, db->host, db->user, db->pass,
 				db->database, db->port, db->socket, 0) == NULL)
 	{
-		ERROR ("mysql plugin: Failed to connect to database %s "
-				"at server %s: %s",
+		ERROR ("Failed to connect to database %s at server %s: %s",
 				(db->database != NULL) ? db->database : "<none>",
 				(db->host != NULL) ? db->host : "localhost",
 				mysql_error (db->con));
@@ -316,8 +312,7 @@ static MYSQL *getconnection (mysql_database_t *db)
 
 	cipher = mysql_get_ssl_cipher (db->con);
 
-	INFO ("mysql plugin: Successfully connected to database %s "
-			"at server %s with cipher %s "
+	INFO ("Successfully connected to database %s at server %s with cipher %s "
 			"(server version: %s, protocol version: %d) ",
 			(db->database != NULL) ? db->database : "<none>",
 			mysql_get_host_info (db->con),
@@ -395,18 +390,16 @@ static MYSQL_RES *exec_query (MYSQL *con, const char *query)
 
 	if (mysql_real_query (con, query, query_len))
 	{
-		ERROR ("mysql plugin: Failed to execute query: %s",
-				mysql_error (con));
-		INFO ("mysql plugin: SQL query was: %s", query);
+		ERROR ("Failed to execute query: %s", mysql_error (con));
+		INFO ("SQL query was: %s", query);
 		return (NULL);
 	}
 
 	res = mysql_store_result (con);
 	if (res == NULL)
 	{
-		ERROR ("mysql plugin: Failed to store query result: %s",
-				mysql_error (con));
-		INFO ("mysql plugin: SQL query was: %s", query);
+		ERROR ("Failed to store query result: %s", mysql_error (con));
+		INFO ("SQL query was: %s", query);
 		return (NULL);
 	}
 
@@ -431,7 +424,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	row = mysql_fetch_row (res);
 	if (row == NULL)
 	{
-		ERROR ("mysql plugin: Failed to get master statistics: "
+		ERROR ("Failed to get master statistics: "
 				"`%s' did not return any rows.", query);
 		mysql_free_result (res);
 		return (-1);
@@ -440,7 +433,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 	field_num = mysql_num_fields (res);
 	if (field_num < 2)
 	{
-		ERROR ("mysql plugin: Failed to get master statistics: "
+		ERROR ("Failed to get master statistics: "
 				"`%s' returned less than two columns.", query);
 		mysql_free_result (res);
 		return (-1);
@@ -451,7 +444,7 @@ static int mysql_read_master_stats (mysql_database_t *db, MYSQL *con)
 
 	row = mysql_fetch_row (res);
 	if (row != NULL)
-		WARNING ("mysql plugin: `%s' returned more than one row - "
+		WARNING ("`%s' returned more than one row - "
 				"ignoring further results.", query);
 
 	mysql_free_result (res);
@@ -484,7 +477,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	row = mysql_fetch_row (res);
 	if (row == NULL)
 	{
-		ERROR ("mysql plugin: Failed to get slave statistics: "
+		ERROR ("Failed to get slave statistics: "
 				"`%s' did not return any rows.", query);
 		mysql_free_result (res);
 		return (-1);
@@ -493,7 +486,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 	field_num = mysql_num_fields (res);
 	if (field_num < 33)
 	{
-		ERROR ("mysql plugin: Failed to get slave statistics: "
+		ERROR ("Failed to get slave statistics: "
 				"`%s' returned less than 33 columns.", query);
 		mysql_free_result (res);
 		return (-1);
@@ -574,7 +567,7 @@ static int mysql_read_slave_stats (mysql_database_t *db, MYSQL *con)
 
 	row = mysql_fetch_row (res);
 	if (row != NULL)
-		WARNING ("mysql plugin: `%s' returned more than one row - "
+		WARNING ("`%s' returned more than one row - "
 				"ignoring further results.", query);
 
 	mysql_free_result (res);
@@ -725,7 +718,7 @@ static int mysql_read_wsrep_stats (mysql_database_t *db, MYSQL *con)
 	row = mysql_fetch_row (res);
 	if (row == NULL)
 	{
-		ERROR ("mysql plugin: Failed to get wsrep statistics: "
+		ERROR ("Failed to get wsrep statistics: "
 			"`%s' did not return any rows.", query);
 		mysql_free_result (res);
 		return (-1);
@@ -785,7 +778,7 @@ static int mysql_read (user_data_t *ud)
 
 	if ((ud == NULL) || (ud->data == NULL))
 	{
-		ERROR ("mysql plugin: mysql_database_read: Invalid user data.");
+		ERROR ("mysql_database_read: Invalid user data.");
 		return (-1);
 	}
 

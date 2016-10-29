@@ -55,7 +55,7 @@ static int sl_config (const char *key, const char *value)
 		if (log_level < 0)
 		{
 			log_level = LOG_INFO;
-			ERROR ("syslog: invalid loglevel [%s] defaulting to 'info'", value);
+			ERROR ("invalid loglevel [%s] defaulting to 'info'", value);
 			return (1);
 		}
 	}

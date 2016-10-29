@@ -87,7 +87,7 @@ static int pf_read (void)
 	if (fd < 0)
 	{
 		char errbuf[1024];
-		ERROR("pf plugin: Unable to open %s: %s",
+		ERROR("Unable to open %s: %s",
 				pf_device,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
@@ -97,7 +97,7 @@ static int pf_read (void)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s",
+		ERROR("ioctl(DIOCGETSTATUS) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		close(fd);
 		return (-1);
@@ -107,7 +107,7 @@ static int pf_read (void)
 
 	if (!state.running)
 	{
-		WARNING ("pf plugin: PF is not running.");
+		WARNING ("PF is not running.");
 		return (-1);
 	}
 

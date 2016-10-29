@@ -125,14 +125,14 @@ static int add_str_to_list(struct str_list *strs,
 	char **old_strs_ptr = strs->strs;
 	char *newstr = strdup(str_to_add);
 	if (newstr == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return -1;
 	}
 	strs->strs = realloc(strs->strs, sizeof(char *) *(strs->nb_strs + 1));
 	if (strs->strs == NULL) {
 		strs->strs = old_strs_ptr;
 		free(newstr);
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return -1;
 	}
 	strs->strs[strs->nb_strs] = newstr;
@@ -170,11 +170,11 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 		};
 
 		if ((e = getaddrinfo(node, service, &ai_hints, &(host->res))) != 0) {
-			ERROR("write_sensu plugin: Unable to resolve host \"%s\": %s",
+			ERROR("Unable to resolve host \"%s\": %s",
 					node, gai_strerror(e));
 			return -1;
 		}
-		DEBUG("write_sensu plugin: successfully resolved host/port: %s/%s",
+		DEBUG("successfully resolved host/port: %s/%s",
 				node, service);
 		host->flags |= F_READY;
 	}
@@ -193,7 +193,7 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 		so_linger.l_onoff = 1;
 		so_linger.l_linger = 3;
 		if (setsockopt(host->s, SOL_SOCKET, SO_LINGER, &so_linger, sizeof so_linger) != 0)
-			WARNING("write_sensu plugin: failed to set socket close() lingering");
+			WARNING("failed to set socket close() lingering");
 
 		set_sock_opts(host->s);
 
@@ -203,12 +203,12 @@ static int sensu_connect(struct sensu_host *host) /* {{{ */
 			host->s = -1;
 			continue;
 		}
-		DEBUG("write_sensu plugin: connected");
+		DEBUG("connected");
 		break;
 	}
 
 	if (host->s < 0) {
-		WARNING("write_sensu plugin: Unable to connect to sensu client");
+		WARNING("Unable to connect to sensu client");
 		return -1;
 	}
 	return 0;
@@ -230,7 +230,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	if (list->nb_strs == 0) {
 		ret_str = malloc(sizeof(char));
 		if (ret_str == NULL) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str[0] = '\0';
@@ -238,7 +238,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 
 	res = my_asprintf(&temp_str, "\"%s\": [\"%s\"", tag, list->strs[0]);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		free(ret_str);
 		return NULL;
 	}
@@ -246,7 +246,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 		res = my_asprintf(&ret_str, "%s, \"%s\"", temp_str, list->strs[i]);
 		free(temp_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		temp_str = ret_str;
@@ -254,7 +254,7 @@ static char *build_json_str_list(const char *tag, struct str_list const *list) /
 	res = my_asprintf(&ret_str, "%s]", temp_str);
 	free(temp_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 
@@ -339,7 +339,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 
 	char *handlers_str = build_json_str_list("handlers", &(host->metric_handlers));
 	if (handlers_str == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 
@@ -348,7 +348,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		free(handlers_str);
 		ret_str = strdup(part1);
 		if (ret_str == NULL) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 	}
@@ -356,7 +356,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&ret_str, "%s, %s", part1, handlers_str);
 		free(handlers_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 	}
@@ -365,7 +365,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	res = my_asprintf(&temp_str, "%s, \"collectd_plugin\": \"%s\"", ret_str, vl->plugin);
 	free(ret_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
@@ -374,7 +374,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	res = my_asprintf(&temp_str, "%s, \"collectd_plugin_type\": \"%s\"", ret_str, vl->type);
 	free(ret_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
@@ -384,7 +384,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_plugin_instance\": \"%s\"", ret_str, vl->plugin_instance);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -395,7 +395,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_plugin_type_instance\": \"%s\"", ret_str, vl->type_instance);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -408,7 +408,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_data_source_type\": \"%s\"", ret_str, ds_type);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -416,7 +416,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_data_source_type\": \"%s\"", ret_str, DS_TYPE_TO_STRING(ds->ds[index].type));
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -426,7 +426,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	res = my_asprintf(&temp_str, "%s, \"collectd_data_source_name\": \"%s\"", ret_str, ds->ds[index].name);
 	free(ret_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
@@ -438,7 +438,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_data_source_index\": %s", ret_str, ds_index);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -449,7 +449,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"%s\": \"%s\"", ret_str, sensu_attrs[i], sensu_attrs[i+1]);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -460,7 +460,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -471,14 +471,14 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 		res = my_asprintf(&value_str, GAUGE_FORMAT, vl->values[index].gauge);
 		if (res == -1) {
 			free(ret_str);
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 	} else if (rates != NULL) {
 		res = my_asprintf(&value_str, GAUGE_FORMAT, rates[index]);
 		if (res == -1) {
 			free(ret_str);
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 	} else {
@@ -486,7 +486,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 			res = my_asprintf(&value_str, "%"PRIi64, vl->values[index].derive);
 			if (res == -1) {
 				free(ret_str);
-				ERROR("write_sensu plugin: Unable to alloc memory");
+				ERROR("Unable to alloc memory");
 				return NULL;
 			}
 		}
@@ -494,7 +494,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 			res = my_asprintf(&value_str, "%"PRIu64, vl->values[index].absolute);
 			if (res == -1) {
 				free(ret_str);
-				ERROR("write_sensu plugin: Unable to alloc memory");
+				ERROR("Unable to alloc memory");
 				return NULL;
 			}
 		}
@@ -502,7 +502,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 			res = my_asprintf(&value_str, "%llu", vl->values[index].counter);
 			if (res == -1) {
 				free(ret_str);
-				ERROR("write_sensu plugin: Unable to alloc memory");
+				ERROR("Unable to alloc memory");
 				return NULL;
 			}
 		}
@@ -535,12 +535,12 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
 	free(ret_str);
 	free(value_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
 
-	DEBUG("write_sensu plugin: Successfully created json for metric: "
+	DEBUG("Successfully created json for metric: "
 			"host = \"%s\", service = \"%s\"",
 			vl->host, service_buffer);
 	return ret_str;
@@ -613,19 +613,19 @@ static char *replace_json_reserved(const char *message) /* {{{ */
 {
 	char *msg = replace_str(message, "\\", "\\\\");
 	if (msg == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	char *tmp = replace_str(msg, "\"", "\\\"");
 	free(msg);
 	if (tmp == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	msg = replace_str(tmp, "\n", "\\\n");
 	free(tmp);
 	if (msg == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	return msg;
@@ -661,7 +661,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	}
 	res = my_asprintf(&temp_str, "{\"status\": %d", status);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
@@ -670,14 +670,14 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	res = my_asprintf(&temp_str, "%s, \"timestamp\": %lld", ret_str, (long long)CDTIME_T_TO_TIME_T(n->time));
 	free(ret_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
 
 	char *handlers_str = build_json_str_list("handlers", &(host->notification_handlers));
 	if (handlers_str == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		free(ret_str);
 		return NULL;
 	}
@@ -687,7 +687,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		free(ret_str);
 		free(handlers_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -700,7 +700,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_plugin\": \"%s\"", ret_str, n->plugin);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -711,7 +711,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_plugin_type\": \"%s\"", ret_str, n->type);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -722,7 +722,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_plugin_instance\": \"%s\"", ret_str, n->plugin_instance);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -733,7 +733,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"collectd_plugin_type_instance\": \"%s\"", ret_str, n->type_instance);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -744,7 +744,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, \"%s\": \"%s\"", ret_str, sensu_attrs[i], sensu_attrs[i+1]);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -755,7 +755,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		res = my_asprintf(&temp_str, "%s, %s", ret_str, sensu_tags);
 		free(ret_str);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -770,7 +770,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	res = my_asprintf(&temp_str, "%s, \"name\": \"%s\"", ret_str, &service_buffer[1]);
 	free(ret_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
@@ -779,7 +779,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	if (n->message[0] != 0) {
 		char *msg = replace_json_reserved(n->message);
 		if (msg == NULL) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			free(ret_str);
 			return NULL;
 		}
@@ -787,7 +787,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 		free(ret_str);
 		free(msg);
 		if (res == -1) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return NULL;
 		}
 		ret_str = temp_str;
@@ -799,7 +799,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 			res = my_asprintf(&temp_str, "%s, \"current_value\": \"%.8f\"", ret_str, meta->nm_value.nm_double);
 			free(ret_str);
 			if (res == -1) {
-				ERROR("write_sensu plugin: Unable to alloc memory");
+				ERROR("Unable to alloc memory");
 				return NULL;
 			}
 			ret_str = temp_str;
@@ -808,7 +808,7 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 			res = my_asprintf(&temp_str, "%s, \"%s\": \"%s\"", ret_str, meta->name, meta->nm_value.nm_string);
 			free(ret_str);
 			if (res == -1) {
-				ERROR("write_sensu plugin: Unable to alloc memory");
+				ERROR("Unable to alloc memory");
 				return NULL;
 			}
 			ret_str = temp_str;
@@ -819,12 +819,12 @@ static char *sensu_notification_to_json(struct sensu_host *host, /* {{{ */
 	res = my_asprintf(&temp_str, "%s}\n", ret_str);
 	free(ret_str);
 	if (res == -1) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		return NULL;
 	}
 	ret_str = temp_str;
 
-	DEBUG("write_sensu plugin: Successfully created JSON for notification: "
+	DEBUG("Successfully created JSON for notification: "
 				"host = \"%s\", service = \"%s\", state = \"%s\"",
 				n->host, service_buffer, severity);
 	return ret_str;
@@ -846,7 +846,7 @@ static int sensu_send_msg(struct sensu_host *host, const char *msg) /* {{{ */
 
 	if (status != 0) {
 		char errbuf[1024];
-		ERROR("write_sensu plugin: Sending to Sensu at %s:%s failed: %s",
+		ERROR("Sending to Sensu at %s:%s failed: %s",
 				(host->node != NULL) ? host->node : SENSU_HOST,
 				(host->service != NULL) ? host->service : SENSU_PORT,
 				sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -891,7 +891,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 	if (host->store_rates) {
 		rates = uc_get_rate(ds, vl);
 		if (rates == NULL) {
-			ERROR("write_sensu plugin: uc_get_rate failed.");
+			ERROR("uc_get_rate failed.");
 			pthread_mutex_unlock(&host->lock);
 			return -1;
 		}
@@ -906,7 +906,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
 		status = sensu_send(host, msg);
 		free(msg);
 		if (status != 0) {
-			ERROR("write_sensu plugin: sensu_send failed with status %i", status);
+			ERROR("sensu_send failed with status %i", status);
 			pthread_mutex_unlock(&host->lock);
 			sfree(rates);
 			return status;
@@ -934,7 +934,7 @@ static int sensu_notification(const notification_t *n, user_data_t *ud) /* {{{ *
 	status = sensu_send(host, msg);
 	free(msg);
 	if (status != 0)
-		ERROR("write_sensu plugin: sensu_send failed with status %i", status);
+		ERROR("sensu_send failed with status %i", status);
 	pthread_mutex_unlock(&host->lock);
 
 	return status;
@@ -980,7 +980,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 	char				callback_name[DATA_MAX_NAME_LEN];
 
 	if ((host = calloc(1, sizeof(*host))) == NULL) {
-		ERROR("write_sensu plugin: calloc failed.");
+		ERROR("calloc failed.");
 		return ENOMEM;
 	}
 	pthread_mutex_init(&host->lock, NULL);
@@ -997,14 +997,14 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 	host->notification_handlers.strs = NULL;
 	host->separator = strdup("/");
 	if (host->separator == NULL) {
-		ERROR("write_sensu plugin: Unable to alloc memory");
+		ERROR("Unable to alloc memory");
 		sensu_free(host);
 		return -1;
 	}
 
 	status = cf_util_get_string(ci, &host->name);
 	if (status != 0) {
-		WARNING("write_sensu plugin: Required host name is missing.");
+		WARNING("Required host name is missing.");
 		sensu_free(host);
 		return -1;
 	}
@@ -1054,9 +1054,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 		} else if (strcasecmp("Port", child->key) == 0) {
 			status = cf_util_get_service(child, &host->service);
 			if (status != 0) {
-				ERROR("write_sensu plugin: Invalid argument "
-						"configured for the \"Port\" "
-						"option.");
+				ERROR("Invalid argument configured for the \"Port\" option.");
 				break;
 			}
 		} else if (strcasecmp("StoreRates", child->key) == 0) {
@@ -1069,8 +1067,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 			if (status != 0)
 				break;
 		} else {
-			WARNING("write_sensu plugin: ignoring unknown config "
-				"option: \"%s\"", child->key);
+			WARNING("ignoring unknown config option: \"%s\"", child->key);
 		}
 	}
 	if (status != 0) {
@@ -1080,28 +1077,28 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 
 	if (host->metrics && (host->metric_handlers.nb_strs == 0)) {
 			sensu_free(host);
-			WARNING("write_sensu plugin: metrics enabled but no MetricHandler defined. Giving up.");
+			WARNING("metrics enabled but no MetricHandler defined. Giving up.");
 			return -1;
 		}
 
 	if (host->notifications && (host->notification_handlers.nb_strs == 0)) {
 		sensu_free(host);
-		WARNING("write_sensu plugin: notifications enabled but no NotificationHandler defined. Giving up.");
+		WARNING("notifications enabled but no NotificationHandler defined. Giving up.");
 		return -1;
 	}
 
 	if ((host->notification_handlers.nb_strs > 0) && (host->notifications == 0)) {
-		WARNING("write_sensu plugin: NotificationHandler given so forcing notifications to be enabled");
+		WARNING("NotificationHandler given so forcing notifications to be enabled");
 		host->notifications = 1;
 	}
 
 	if ((host->metric_handlers.nb_strs > 0) && (host->metrics == 0)) {
-		WARNING("write_sensu plugin: MetricHandler given so forcing metrics to be enabled");
+		WARNING("MetricHandler given so forcing metrics to be enabled");
 		host->metrics = 1;
 	}
 
 	if (!(host->notifications || host->metrics)) {
-		WARNING("write_sensu plugin: neither metrics nor notifications enabled. Giving up.");
+		WARNING("neither metrics nor notifications enabled. Giving up.");
 		sensu_free(host);
 		return -1;
 	}
@@ -1118,7 +1115,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 	if (host->metrics) {
 		status = plugin_register_write(callback_name, sensu_write, &ud);
 		if (status != 0)
-			WARNING("write_sensu plugin: plugin_register_write (\"%s\") "
+			WARNING("plugin_register_write (\"%s\") "
 					"failed with status %i.",
 					callback_name, status);
 		else /* success */
@@ -1128,7 +1125,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
 	if (host->notifications) {
 		status = plugin_register_notification(callback_name, sensu_notification, &ud);
 		if (status != 0)
-			WARNING("write_sensu plugin: plugin_register_notification (\"%s\") "
+			WARNING("plugin_register_notification (\"%s\") "
 					"failed with status %i.",
 					callback_name, status);
 		else
@@ -1179,7 +1176,7 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 			strarray_add(&sensu_attrs, &sensu_attrs_num, child->values[0].value.string);
 			strarray_add(&sensu_attrs, &sensu_attrs_num, child->values[1].value.string);
 
-			DEBUG("write_sensu plugin: New attribute: %s => %s",
+			DEBUG("New attribute: %s => %s",
 					child->values[0].value.string,
 					child->values[1].value.string);
 		} else if (strcasecmp(child->key, "tag") == 0) {
@@ -1192,9 +1189,9 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 			sfree(tmp);
 			if (status != 0)
 				continue;
-			DEBUG("write_sensu plugin: Got tag: %s", tmp);
+			DEBUG("Got tag: %s", tmp);
 		} else {
-			WARNING("write_sensu plugin: Ignoring unknown "
+			WARNING("Ignoring unknown "
 				 "configuration option \"%s\" at top level.",
 				 child->key);
 		}
@@ -1204,7 +1201,7 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
 		sensu_tags = build_json_str_list("tags", &sensu_tags_arr);
 		free_str_list(&sensu_tags_arr);
 		if (sensu_tags == NULL) {
-			ERROR("write_sensu plugin: Unable to alloc memory");
+			ERROR("Unable to alloc memory");
 			return -1;
 		}
 	}

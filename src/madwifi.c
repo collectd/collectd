@@ -465,7 +465,7 @@ static int madwifi_config (const char *key, const char *value)
 			use_sysfs = 1;
 		else
 		{
-			ERROR ("madwifi plugin: The argument of the `Source' "
+			ERROR ("The argument of the `Source' "
 					"option must either be `SysFS' or "
 					"`ProcFS'.");
 			return -1;
@@ -640,8 +640,7 @@ process_athstats (int sk, const char *dev)
 	if (status < 0)
 	{
 		/* Silent, because not all interfaces support all ioctls. */
-		DEBUG ("madwifi plugin: Sending IO-control "
-				"SIOCGATHSTATS to device %s "
+		DEBUG ("Sending IO-control SIOCGATHSTATS to device %s "
 				"failed with status %i.",
 				dev, status);
 		return (status);
@@ -676,8 +675,7 @@ process_80211stats (int sk, const char *dev)
 	if (status < 0)
 	{
 		/* Silent, because not all interfaces support all ioctls. */
-		DEBUG ("madwifi plugin: Sending IO-control "
-				"SIOCG80211STATS to device %s "
+		DEBUG ("Sending IO-control SIOCG80211STATS to device %s "
 				"failed with status %i.",
 				dev, status);
 		return (status);
@@ -716,8 +714,7 @@ process_station (int sk, const char *dev, struct ieee80211req_sta_info *si)
 	if (status < 0)
 	{
 		/* Silent, because not all interfaces support all ioctls. */
-		DEBUG ("madwifi plugin: Sending IO-control "
-				"IEEE80211_IOCTL_STA_STATS to device %s "
+		DEBUG ("Sending IO-control IEEE80211_IOCTL_STA_STATS to device %s "
 				"failed with status %i.",
 				dev, status);
 		return (status);
@@ -759,8 +756,7 @@ process_stations (int sk, const char *dev)
 	if (status < 0)
 	{
 		/* Silent, because not all interfaces support all ioctls. */
-		DEBUG ("madwifi plugin: Sending IO-control "
-				"IEEE80211_IOCTL_STA_INFO to device %s "
+		DEBUG ("Sending IO-control IEEE80211_IOCTL_STA_INFO to device %s "
 				"failed with status %i.",
 				dev, status);
 		return (status);
@@ -841,7 +837,7 @@ sysfs_iterate(int sk)
 	nets = opendir ("/sys/class/net/");
 	if (nets == NULL)
 	{
-		WARNING ("madwifi plugin: opening /sys/class/net failed");
+		WARNING ("opening /sys/class/net failed");
 		return (-1);
 	}
 
@@ -858,8 +854,7 @@ sysfs_iterate(int sk)
 		status = process_device (sk, de->d_name);
 		if (status != 0)
 		{
-			ERROR ("madwifi plugin: Processing interface "
-					"%s failed.", de->d_name);
+			ERROR ("Processing interface %s failed.", de->d_name);
 			num_fail++;
 		}
 		else
@@ -887,7 +882,7 @@ procfs_iterate(int sk)
 
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
-		WARNING ("madwifi plugin: opening /proc/net/dev failed");
+		WARNING ("opening /proc/net/dev failed");
 		return (-1);
 	}
 
@@ -913,8 +908,7 @@ procfs_iterate(int sk)
 		status = process_device (sk, device);
 		if (status != 0)
 		{
-			ERROR ("madwifi plugin: Processing interface "
-					"%s failed.", device);
+			ERROR ("Processing interface %s failed.", device);
 			num_fail++;
 		}
 		else

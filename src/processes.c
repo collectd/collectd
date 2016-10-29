@@ -271,7 +271,7 @@ static void ps_list_register (const char *name, const char *regexp)
 	new = calloc (1, sizeof (*new));
 	if (new == NULL)
 	{
-		ERROR ("processes plugin: ps_list_register: calloc failed.");
+		ERROR ("ps_list_register: calloc failed.");
 		return;
 	}
 	sstrncpy (new->name, name, sizeof (new->name));
@@ -283,7 +283,7 @@ static void ps_list_register (const char *name, const char *regexp)
 		new->re = malloc (sizeof (*new->re));
 		if (new->re == NULL)
 		{
-			ERROR ("processes plugin: ps_list_register: malloc failed.");
+			ERROR ("ps_list_register: malloc failed.");
 			sfree (new);
 			return;
 		}
@@ -300,7 +300,7 @@ static void ps_list_register (const char *name, const char *regexp)
 #else
 	if (regexp != NULL)
 	{
-		ERROR ("processes plugin: ps_list_register: "
+		ERROR ("ps_list_register: "
 				"Regular expression \"%s\" found in config "
 				"file, but support for regular expressions "
 				"has been disabled at compile time.",
@@ -314,7 +314,7 @@ static void ps_list_register (const char *name, const char *regexp)
 	{
 		if (strcmp (ptr->name, name) == 0)
 		{
-			WARNING ("processes plugin: You have configured more "
+			WARNING ("You have configured more "
 					"than one `Process' or "
 					"`ProcessMatch' with the same name. "
 					"All but the first setting will be "
@@ -546,14 +546,14 @@ static int ps_config (oconfig_item_t *ci)
 		{
 			if ((c->values_num != 1)
 					|| (OCONFIG_TYPE_STRING != c->values[0].type)) {
-				ERROR ("processes plugin: `Process' expects exactly "
+				ERROR ("`Process' expects exactly "
 						"one string argument (got %i).",
 						c->values_num);
 				continue;
 			}
 
 			if (c->children_num != 0) {
-				WARNING ("processes plugin: the `Process' config option "
+				WARNING ("the `Process' config option "
 						"does not expect any child elements -- ignoring "
 						"content (%i elements) of the <Process '%s'> block.",
 						c->children_num, c->values[0].value.string);
@@ -561,7 +561,7 @@ static int ps_config (oconfig_item_t *ci)
 
 #if KERNEL_LINUX || KERNEL_SOLARIS || KERNEL_FREEBSD
 			if (strlen (c->values[0].value.string) > max_procname_len) {
-				WARNING ("processes plugin: this platform has a %zu character limit "
+				WARNING ("this platform has a %zu character limit "
 						"to process names. The `Process \"%s\"' option will "
 						"not work as expected.",
 						max_procname_len, c->values[0].value.string);
@@ -576,14 +576,14 @@ static int ps_config (oconfig_item_t *ci)
 					|| (OCONFIG_TYPE_STRING != c->values[0].type)
 					|| (OCONFIG_TYPE_STRING != c->values[1].type))
 			{
-				ERROR ("processes plugin: `ProcessMatch' needs exactly "
+				ERROR ("`ProcessMatch' needs exactly "
 						"two string arguments (got %i).",
 						c->values_num);
 				continue;
 			}
 
 			if (c->children_num != 0) {
-				WARNING ("processes plugin: the `ProcessMatch' config option "
+				WARNING ("The `ProcessMatch' config option "
 						"does not expect any child elements -- ignoring "
 						"content (%i elements) of the <ProcessMatch '%s' '%s'> "
 						"block.", c->children_num, c->values[0].value.string,
@@ -599,7 +599,7 @@ static int ps_config (oconfig_item_t *ci)
 		}
 		else
 		{
-			ERROR ("processes plugin: The `%s' configuration option is not "
+			ERROR ("The `%s' configuration option is not "
 					"understood and will be ignored.", c->key);
 			continue;
 		}
@@ -861,7 +861,7 @@ static int ps_read_tasks_status (procstat_entry_t *ps)
 		if (fclose (fh))
 		{
 			char errbuf[1024];
-			WARNING ("processes: fclose: %s",
+			WARNING ("fclose: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 	}
@@ -932,7 +932,7 @@ static procstat_t *ps_read_status (long pid, procstat_t *ps)
 	if (fclose (fh))
 	{
 		char errbuf[1024];
-		WARNING ("processes: fclose: %s",
+		WARNING ("fclose: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
@@ -992,8 +992,7 @@ static int ps_read_io (procstat_entry_t *ps)
 	if (fclose (fh))
 	{
 		char errbuf[1024];
-		WARNING ("processes: fclose: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		WARNING ("fclose: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 	return (0);
 } /* int ps_read_io (...) */
@@ -1076,7 +1075,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	 * Anyway, something weird that shouldn't happen ever. */
 	if (name_start_pos >= name_end_pos)
 	{
-		ERROR ("processes plugin: name_start_pos = %zu >= name_end_pos = %zu",
+		ERROR ("name_start_pos = %zu >= name_end_pos = %zu",
 				name_start_pos, name_end_pos);
 		return (-1);
 	}
@@ -1094,8 +1093,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 22)
 	{
-		DEBUG ("processes plugin: ps_read_process (pid = %li):"
-				" `%s' has only %i fields..",
+		DEBUG ("ps_read_process (pid = %li): `%s' has only %i fields..",
 				pid, filename, fields_len);
 		return (-1);
 	}
@@ -1125,8 +1123,7 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	/* Leave the rest at zero if this is only a zombi */
 	if (ps->num_proc == 0)
 	{
-		DEBUG ("processes plugin: This is only a zombie: pid = %li; "
-				"name = %s;", pid, ps->name);
+		DEBUG ("This is only a zombie: pid = %li; name = %s;", pid, ps->name);
 		return (0);
 	}
 
@@ -1183,7 +1180,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 		/* ENOENT means the process exited while we were handling it.
 		 * Don't complain about this, it only fills the logs. */
 		if (errno != ENOENT)
-			WARNING ("processes plugin: Failed to open `%s': %s.", file,
+			WARNING ("Failed to open `%s': %s.", file,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 		return NULL;
 	}
@@ -1204,7 +1201,7 @@ static char *ps_get_cmdline (long pid, char *name, char *buf, size_t buf_len)
 			if ((EAGAIN == errno) || (EINTR == errno))
 				continue;
 
-			WARNING ("processes plugin: Failed to read from `%s': %s.", file,
+			WARNING ("Failed to read from `%s': %s.", file,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (fd);
 			return NULL;
@@ -1266,7 +1263,7 @@ static int read_fork_rate (void)
 	if (proc_stat == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("processes plugin: fopen (/proc/stat) failed: %s",
+		ERROR ("fopen (/proc/stat) failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1314,7 +1311,7 @@ static char *ps_get_cmdline (long pid, char *name __attribute__((unused)), /* {{
 	status = read_file_contents (path, (void *) &info, sizeof (info));
 	if ((status < 0) || (((size_t) status) != sizeof (info)))
 	{
-		ERROR ("processes plugin: Unexpected return value "
+		ERROR ("Unexpected return value "
 				"while reading \"%s\": "
 				"Returned %zd but expected %zu.",
 				path, status, buffer_size);
@@ -1912,8 +1909,7 @@ static int ps_read (void)
 	kd = kvm_openfiles (NULL, "/dev/null", NULL, 0, errbuf);
 	if (kd == NULL)
 	{
-		ERROR ("processes plugin: Cannot open kvm interface: %s",
-				errbuf);
+		ERROR ("Cannot open kvm interface: %s", errbuf);
 		return (0);
 	}
 
@@ -1921,8 +1917,7 @@ static int ps_read (void)
 	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count);
 	if (procs == NULL)
 	{
-		ERROR ("processes plugin: Cannot get kvm processes list: %s",
-				kvm_geterr(kd));
+		ERROR ("Cannot get kvm processes list: %s", kvm_geterr(kd));
 		kvm_close (kd);
 		return (0);
 	}
@@ -1956,7 +1951,7 @@ static int ps_read (void)
 
 					status = strjoin (cmdline, sizeof (cmdline), argv, argc, " ");
 					if (status < 0)
-						WARNING ("processes plugin: Command line did not fit into buffer.");
+						WARNING ("Command line did not fit into buffer.");
 					else
 						have_cmdline = 1;
 				}
@@ -2054,8 +2049,7 @@ static int ps_read (void)
 	kd = kvm_open (NULL, NULL, NULL, 0, errbuf);
 	if (kd == NULL)
 	{
-		ERROR ("processes plugin: Cannot open kvm interface: %s",
-				errbuf);
+		ERROR ("Cannot open kvm interface: %s", errbuf);
 		return (0);
 	}
 
@@ -2063,8 +2057,7 @@ static int ps_read (void)
 	procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, sizeof(struct kinfo_proc), &count);
 	if (procs == NULL)
 	{
-		ERROR ("processes plugin: Cannot get kvm processes list: %s",
-				kvm_geterr(kd));
+		ERROR ("Cannot get kvm processes list: %s", kvm_geterr(kd));
 		kvm_close (kd);
 		return (0);
 	}
@@ -2097,7 +2090,7 @@ static int ps_read (void)
 
 					status = strjoin (cmdline, sizeof (cmdline), argv, argc, " ");
 					if (status < 0)
-						WARNING ("processes plugin: Command line did not fit into buffer.");
+						WARNING ("Command line did not fit into buffer.");
 					else
 						have_cmdline = 1;
 				}

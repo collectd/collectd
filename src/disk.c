@@ -181,7 +181,7 @@ static int disk_config (const char *key, const char *value)
 #if HAVE_IOKIT_IOKITLIB_H
     use_bsd_name = IS_TRUE (value) ? 1 : 0;
 #else
-    WARNING ("disk plugin: The \"UseBSDName\" option is only supported "
+    WARNING ("The \"UseBSDName\" option is only supported "
         "on Mach / Mac OS X and will be ignored.");
 #endif
   }
@@ -196,7 +196,7 @@ static int disk_config (const char *key, const char *value)
     if ((conf_udev_name_attr = strdup (value)) == NULL)
       return (1);
 #else
-    WARNING ("disk plugin: The \"UdevNameAttr\" option is only supported "
+    WARNING ("The \"UdevNameAttr\" option is only supported "
         "if collectd is built with libudev support");
 #endif
   }
@@ -236,7 +236,7 @@ static int disk_init (void)
 	{
 		handle_udev = udev_new();
 		if (handle_udev == NULL) {
-			ERROR ("disk plugin: udev_new() failed!");
+			ERROR ("udev_new() failed!");
 			return (-1);
 		}
 	}
@@ -376,7 +376,7 @@ static char *disk_udev_attr_name (struct udev *udev, char *disk_name, const char
 		prop = udev_device_get_property_value (dev, attr);
 		if (prop) {
 			output = strdup (prop);
-			DEBUG ("disk plugin: renaming %s => %s", disk_name, output);
+			DEBUG ("renaming %s => %s", disk_name, output);
 		}
 		udev_device_unref (dev);
 	}
@@ -441,7 +441,7 @@ static int disk_read (void)
 
 	/* Get the list of all disk objects. */
 	if (IOServiceGetMatchingServices (io_master_port, IOServiceMatching (kIOBlockStorageDriverClass), &disk_list) != kIOReturnSuccess) {
-		ERROR ("disk plugin: IOServiceGetMatchingServices failed.");
+		ERROR ("IOServiceGetMatchingServices failed.");
 		return (-1);
 	}
 
@@ -458,7 +458,7 @@ static int disk_read (void)
 			continue;
 		}
 		if (IORegistryEntryCreateCFProperties (disk_child, (CFMutableDictionaryRef *) &child_dict, kCFAllocatorDefault, kNilOptions) != kIOReturnSuccess || child_dict == NULL) {
-			ERROR ("disk plugin: IORegistryEntryCreateCFProperties (disk_child) failed.");
+			ERROR ("IORegistryEntryCreateCFProperties (disk_child) failed.");
 			IOObjectRelease (disk_child);
 			IOObjectRelease (disk);
 			continue;
@@ -473,13 +473,13 @@ static int disk_read (void)
 		}
 		disk_major = (int) dict_get_value (child_dict, kIOBSDMajorKey);
 		disk_minor = (int) dict_get_value (child_dict, kIOBSDMinorKey);
-		DEBUG ("disk plugin: child_disk_name_bsd=\"%s\" major=%d minor=%d", child_disk_name_bsd, disk_major, disk_minor);
+		DEBUG ("child_disk_name_bsd=\"%s\" major=%d minor=%d", child_disk_name_bsd, disk_major, disk_minor);
 		CFRelease (child_dict);
 		IOObjectRelease (disk_child);
 
 		/* get property dictionary of the disk entry itself */
 		if (IORegistryEntryCreateCFProperties (disk, (CFMutableDictionaryRef *) &props_dict, kCFAllocatorDefault, kNilOptions) != kIOReturnSuccess || props_dict == NULL) {
-			ERROR ("disk-plugin: IORegistryEntryCreateCFProperties failed.");
+			ERROR ("IORegistryEntryCreateCFProperties failed.");
 			IOObjectRelease (disk);
 			continue;
 		}
@@ -493,12 +493,12 @@ static int disk_read (void)
 		}
 		stats_dict = (CFDictionaryRef) CFDictionaryGetValue (props_dict, CFSTR (kIOBlockStorageDriverStatisticsKey));
 		if (stats_dict == NULL) {
-			ERROR ("disk plugin: CFDictionaryGetValue (%s) failed.", kIOBlockStorageDriverStatisticsKey);
+			ERROR ("CFDictionaryGetValue (%s) failed.", kIOBlockStorageDriverStatisticsKey);
 			CFRelease (props_dict);
 			IOObjectRelease (disk);
 			continue;
 		}
-		DEBUG ("disk plugin: props_disk_name_bsd=\"%s\"", props_disk_name_bsd);
+		DEBUG ("props_disk_name_bsd=\"%s\"", props_disk_name_bsd);
 
 		/* choose name */
 		if (use_bsd_name) {
@@ -507,14 +507,14 @@ static int disk_read (void)
 			else if (props_disk_name_bsd[0] != 0)
 				sstrncpy (disk_name, props_disk_name_bsd, sizeof (disk_name));
 			else {
-				ERROR ("disk plugin: can't find bsd disk name.");
+				ERROR ("can't find bsd disk name.");
 				ssnprintf (disk_name, sizeof (disk_name), "%i-%i", disk_major, disk_minor);
 			}
 		}
 		else
 			ssnprintf (disk_name, sizeof (disk_name), "%i-%i", disk_major, disk_minor);
 
-		DEBUG ("disk plugin: disk_name = \"%s\"", disk_name);
+		DEBUG ("disk_name = \"%s\"", disk_name);
 
 		/* check the name against ignore list */
 		if (ignorelist_match (ignorelist, disk_name) != 0) {
@@ -563,7 +563,7 @@ static int disk_read (void)
 		/* Get a fresh copy of stats snapshot */
 		snap = geom_stats_snapshot_get();
 		if (snap == NULL) {
-			ERROR("disk plugin: geom_stats_snapshot_get() failed.");
+			ERROR("geom_stats_snapshot_get() failed.");
 			return (-1);
 		}
 
@@ -579,7 +579,7 @@ static int disk_read (void)
 			if (geom_id == NULL) {
 				geom_deletetree(&geom_tree);
 				if (geom_gettree(&geom_tree) != 0) {
-					ERROR("disk plugin: geom_gettree() failed");
+					ERROR("geom_gettree() failed");
 					geom_stats_snapshot_free(snap);
 					return (-1);
 				}
@@ -696,7 +696,7 @@ static int disk_read (void)
 		fh = fopen ("/proc/partitions", "r");
 		if (fh == NULL)
 		{
-			ERROR ("disk plugin: fopen (/proc/{diskstats,partitions}) failed.");
+			ERROR ("fopen (/proc/{diskstats,partitions}) failed.");
 			return (-1);
 		}
 
@@ -811,7 +811,7 @@ static int disk_read (void)
 					+ (UINT_MAX - ds->read_ops);
 			else
 				diff_read_ops = read_ops - ds->read_ops;
-			DEBUG ("disk plugin: disk_name = %s; read_ops = %"PRIi64"; "
+			DEBUG ("disk_name = %s; read_ops = %"PRIi64"; "
 					"ds->read_ops = %"PRIi64"; diff_read_ops = %"PRIi64";",
 					disk_name,
 					read_ops, ds->read_ops, diff_read_ops);
@@ -861,7 +861,7 @@ static int disk_read (void)
 		ds->poll_count++;
 		if (ds->poll_count <= 2)
 		{
-			DEBUG ("disk plugin: (ds->poll_count = %i) <= "
+			DEBUG ("(ds->poll_count = %i) <= "
 					"(min_poll_count = 2); => Not writing.",
 					ds->poll_count);
 			continue;
@@ -869,8 +869,7 @@ static int disk_read (void)
 
 		if ((read_ops == 0) && (write_ops == 0))
 		{
-			DEBUG ("disk plugin: ((read_ops == 0) && "
-					"(write_ops == 0)); => Not writing.");
+			DEBUG ("((read_ops == 0) && (write_ops == 0)); => Not writing.");
 			continue;
 		}
 
@@ -1021,7 +1020,7 @@ static int disk_read (void)
 	if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("disk plugin: perfstat_disk: %s",
+		WARNING ("perfstat_disk: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -1037,7 +1036,7 @@ static int disk_read (void)
 	if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t), numdisk)) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("disk plugin: perfstat_disk : %s",
+		WARNING ("perfstat_disk : %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

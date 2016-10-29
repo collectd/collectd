@@ -104,7 +104,7 @@ static int irq_read (void)
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("irq plugin: fopen (/proc/interrupts): %s",
+		ERROR ("fopen (/proc/interrupts): %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -114,8 +114,7 @@ static int irq_read (void)
 		cpu_count = strsplit (buffer, fields,
 				STATIC_ARRAY_SIZE (fields));
 	} else {
-		ERROR ("irq plugin: unable to get CPU count from first line "
-				"of /proc/interrupts");
+		ERROR ("unable to get CPU count from first line of /proc/interrupts");
 		fclose (fh);
 		return (-1);
 	}

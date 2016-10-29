@@ -753,22 +753,22 @@ static int battery_read (void) /* {{{ */
 	if (query_statefs)
 		return battery_read_statefs ();
 
-	DEBUG ("battery plugin: Trying sysfs ...");
+	DEBUG ("Trying sysfs ...");
 	status = read_sysfs ();
 	if (status == 0)
 		return (0);
 
-	DEBUG ("battery plugin: Trying acpi ...");
+	DEBUG ("Trying acpi ...");
 	status = read_acpi ();
 	if (status == 0)
 		return (0);
 
-	DEBUG ("battery plugin: Trying pmu ...");
+	DEBUG ("Trying pmu ...");
 	status = read_pmu ();
 	if (status == 0)
 		return (0);
 
-	ERROR ("battery plugin: Add available input methods failed.");
+	ERROR ("Add available input methods failed.");
 	return (-1);
 } /* }}} int battery_read */
 #endif /* KERNEL_LINUX */
@@ -786,7 +786,7 @@ static int battery_config (oconfig_item_t *ci)
 		else if (strcasecmp ("QueryStateFS", child->key) == 0)
 			cf_util_get_boolean (child, &query_statefs);
 		else
-			WARNING ("battery plugin: Ignoring unknown "
+			WARNING ("Ignoring unknown "
 					"configuration option \"%s\".",
 					child->key);
 	}

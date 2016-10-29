@@ -245,7 +245,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
     if (rd->connection == NULL)
     {
       char errbuf[128];
-      ERROR ("routeros plugin: ros_connect failed: %s",
+      ERROR ("ros_connect failed: %s",
 	  sstrerror (errno, errbuf, sizeof (errbuf)));
       return (-1);
     }
@@ -259,7 +259,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
     if (status != 0)
     {
       char errbuf[128];
-      ERROR ("routeros plugin: ros_interface failed: %s",
+      ERROR ("ros_interface failed: %s",
 	  sstrerror (status, errbuf, sizeof (errbuf)));
       ros_disconnect (rd->connection);
       rd->connection = NULL;
@@ -274,7 +274,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
     if (status != 0)
     {
       char errbuf[128];
-      ERROR ("routeros plugin: ros_registration_table failed: %s",
+      ERROR ("ros_registration_table failed: %s",
 	  sstrerror (status, errbuf, sizeof (errbuf)));
       ros_disconnect (rd->connection);
       rd->connection = NULL;
@@ -293,7 +293,7 @@ static int cr_read (user_data_t *user_data) /* {{{ */
     if (status != 0)
     {
       char errbuf[128];
-      ERROR ("routeros plugin: ros_system_resource failed: %s",
+      ERROR ("ros_system_resource failed: %s",
 	  sstrerror (status, errbuf, sizeof (errbuf)));
       ros_disconnect (rd->connection);
       rd->connection = NULL;
@@ -365,7 +365,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
 #endif
     else
     {
-      WARNING ("routeros plugin: Unknown config option `%s'.", child->key);
+      WARNING ("Unknown config option `%s'.", child->key);
     }
 
     if (status != 0)
@@ -376,14 +376,14 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
   {
     if (router_data->node == NULL)
     {
-      ERROR ("routeros plugin: No `Host' option within a `Router' block. "
+      ERROR ("No `Host' option within a `Router' block. "
 	  "Where should I connect to?");
       status = -1;
     }
 
     if (router_data->password == NULL)
     {
-      ERROR ("routeros plugin: No `Password' option within a `Router' block. "
+      ERROR ("No `Password' option within a `Router' block. "
 	  "How should I authenticate?");
       status = -1;
     }
@@ -391,7 +391,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
     if (!router_data->collect_interface
 	&& !router_data->collect_regtable)
     {
-      ERROR ("routeros plugin: No `Collect*' option within a `Router' block. "
+      ERROR ("No `Collect*' option within a `Router' block. "
 	  "What statistics should I collect?");
       status = -1;
     }
@@ -402,7 +402,7 @@ static int cr_config_router (oconfig_item_t *ci) /* {{{ */
     router_data->username = sstrdup ("admin");
     if (router_data->username == NULL)
     {
-      ERROR ("routeros plugin: sstrdup failed.");
+      ERROR ("sstrdup failed.");
       status = -1;
     }
   }
@@ -431,7 +431,7 @@ static int cr_config (oconfig_item_t *ci)
       cr_config_router (child);
     else
     {
-      WARNING ("routeros plugin: Unknown config option `%s'.", child->key);
+      WARNING ("Unknown config option `%s'.", child->key);
     }
   }
 

@@ -127,7 +127,7 @@ static int zookeeper_connect (void)
 		if (sk < 0)
 		{
 			char errbuf[1024];
-			WARNING ("zookeeper: socket(2) failed: %s",
+			WARNING ("socket(2) failed: %s",
 					 sstrerror (errno, errbuf, sizeof(errbuf)));
 			continue;
 		}
@@ -137,7 +137,7 @@ static int zookeeper_connect (void)
 			char errbuf[1024];
 			close (sk);
 			sk = -1;
-			WARNING ("zookeeper: connect(2) failed: %s",
+			WARNING ("connect(2) failed: %s",
 					 sstrerror (errno, errbuf, sizeof(errbuf)));
 			continue;
 		}
@@ -158,7 +158,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 	sk = zookeeper_connect();
 	if (sk < 0)
 	{
-		ERROR ("zookeeper: Could not connect to daemon");
+		ERROR ("Could not connect to daemon");
 		return (-1);
 	}
 
@@ -166,7 +166,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("zookeeper: write(2) failed: %s",
+		ERROR ("write(2) failed: %s",
 			   sstrerror (errno, errbuf, sizeof (errbuf)));
 		close (sk);
 		return (-1);
@@ -183,7 +183,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 			char errbuf[1024];
 			if ((errno == EAGAIN) || (errno == EINTR))
 				continue;
-			ERROR ("zookeeper: Error reading from socket: %s",
+			ERROR ("Error reading from socket: %s",
 				   sstrerror (errno, errbuf, sizeof (errbuf)));
 			close (sk);
 			return (-1);
@@ -195,7 +195,7 @@ static int zookeeper_query (char *buffer, size_t buffer_size)
 	status = 0;
 	if (buffer_fill == 0)
 	{
-		WARNING ("zookeeper: No data returned by MNTR command.");
+		WARNING ("No data returned by MNTR command.");
 		status = -1;
 	}
 

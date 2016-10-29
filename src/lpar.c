@@ -88,7 +88,7 @@ static int lpar_init (void)
 	if (status != 1)
 	{
 		char errbuf[1024];
-		ERROR ("lpar plugin: perfstat_partition_total failed: %s (%i)",
+		ERROR ("perfstat_partition_total failed: %s (%i)",
 				sstrerror (errno, errbuf, sizeof (errbuf)),
 				status);
 		return (-1);
@@ -104,7 +104,7 @@ static int lpar_init (void)
 
 	if (pool_stats && !lparstats_old.type.b.pool_util_authority)
 	{
-		WARNING ("lpar plugin: This partition does not have pool authority. "
+		WARNING ("This partition does not have pool authority. "
 				"Disabling CPU pool statistics collection.");
 		pool_stats = 0;
 	}
@@ -145,7 +145,7 @@ static int lpar_read (void)
 	   from chassis to chassis through Live Partition Mobility (LPM). */
 	if (uname (&name) != 0)
 	{
-		ERROR ("lpar plugin: uname failed.");
+		ERROR ("uname failed.");
 		return (-1);
 	}
 	sstrncpy (serial, name.machine, sizeof (serial));
@@ -157,7 +157,7 @@ static int lpar_read (void)
 	if (status != 1)
 	{
 		char errbuf[1024];
-		ERROR ("lpar plugin: perfstat_partition_total failed: %s (%i)",
+		ERROR ("perfstat_partition_total failed: %s (%i)",
 				sstrerror (errno, errbuf, sizeof (errbuf)),
 				status);
 		return (-1);

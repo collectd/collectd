@@ -235,12 +235,12 @@ static agg_instance_t *agg_instance_create (data_set_t const *ds, /* {{{ */
 {
   agg_instance_t *inst;
 
-  DEBUG ("aggregation plugin: Creating new instance.");
+  DEBUG ("Creating new instance.");
 
   inst = calloc (1, sizeof (*inst));
   if (inst == NULL)
   {
-    ERROR ("aggregation plugin: calloc() failed.");
+    ERROR ("calloc() failed.");
     return (NULL);
   }
   pthread_mutex_init (&inst->lock, /* attr = */ NULL);
@@ -259,7 +259,7 @@ static agg_instance_t *agg_instance_create (data_set_t const *ds, /* {{{ */
     if (inst->state_ ## field == NULL) { \
       agg_instance_destroy (inst); \
       free (inst); \
-      ERROR ("aggregation plugin: calloc() failed."); \
+      ERROR ("calloc() failed."); \
       return (NULL); \
     } \
   } \
@@ -293,7 +293,7 @@ static int agg_instance_update (agg_instance_t *inst, /* {{{ */
 
   if (ds->ds_num != 1)
   {
-    ERROR ("aggregation plugin: The \"%s\" type (data set) has more than one "
+    ERROR ("The \"%s\" type (data set) has more than one "
         "data source. This is currently not supported by this plugin. "
         "Sorry.", ds->type);
     return (EINVAL);
@@ -304,7 +304,7 @@ static int agg_instance_update (agg_instance_t *inst, /* {{{ */
   {
     char ident[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL (ident, sizeof (ident), vl);
-    ERROR ("aggregation plugin: Unable to read the current rate of \"%s\".",
+    ERROR ("Unable to read the current rate of \"%s\".",
         ident);
     return (ENOENT);
   }
@@ -354,7 +354,7 @@ static int agg_instance_read_func (agg_instance_t *inst, /* {{{ */
     if (status == EAGAIN)
       return (0);
 
-    WARNING ("aggregation plugin: rate_to_value failed with status %i.",
+    WARNING ("rate_to_value failed with status %i.",
         status);
     return (-1);
   }
@@ -384,7 +384,7 @@ static int agg_instance_read (agg_instance_t *inst, cdtime_t t) /* {{{ */
   vl.meta = meta_data_create ();
   if (vl.meta == NULL)
   {
-    ERROR ("aggregation plugin: meta_data_create failed.");
+    ERROR ("meta_data_create failed.");
     return (-1);
   }
   meta_data_add_boolean (vl.meta, "aggregation:created", 1);
@@ -488,7 +488,7 @@ static int agg_config_handle_group_by (oconfig_item_t const *ci, /* {{{ */
 
     if (ci->values[i].type != OCONFIG_TYPE_STRING)
     {
-      ERROR ("aggregation plugin: Argument %i of the \"GroupBy\" option "
+      ERROR ("Argument %i of the \"GroupBy\" option "
           "is not a string.", i + 1);
       continue;
     }
@@ -504,9 +504,9 @@ static int agg_config_handle_group_by (oconfig_item_t const *ci, /* {{{ */
     else if (strcasecmp ("TypeInstance", value) == 0)
       agg->group_by |= LU_GROUP_BY_TYPE_INSTANCE;
     else if (strcasecmp ("Type", value) == 0)
-      ERROR ("aggregation plugin: Grouping by type is not supported.");
+      ERROR ("Grouping by type is not supported.");
     else
-      WARNING ("aggregation plugin: The \"%s\" argument to the \"GroupBy\" "
+      WARNING ("The \"%s\" argument to the \"GroupBy\" "
           "option is invalid and will be ignored.", value);
   } /* for (ci->values) */
 
@@ -522,7 +522,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   agg = calloc (1, sizeof (*agg));
   if (agg == NULL)
   {
-    ERROR ("aggregation plugin: calloc failed.");
+    ERROR ("calloc failed.");
     return (-1);
   }
 
@@ -576,7 +576,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp ("CalculateStddev", child->key) == 0)
       cf_util_get_boolean (child, &agg->calc_stddev);
     else
-      WARNING ("aggregation plugin: The \"%s\" key is not allowed inside "
+      WARNING ("The \"%s\" key is not allowed inside "
           "<Aggregation /> blocks and will be ignored.", child->key);
   }
 
@@ -593,7 +593,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   is_valid = 1;
   if (strcmp ("/.*/", agg->ident.type) == 0) /* {{{ */
   {
-    ERROR ("aggregation plugin: It appears you did not specify the required "
+    ERROR ("It appears you did not specify the required "
         "\"Type\" option in this aggregation. "
         "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
         "Type \"%s\", TypeInstance \"%s\")",
@@ -603,7 +603,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   }
   else if (strchr (agg->ident.type, '/') != NULL)
   {
-    ERROR ("aggregation plugin: The \"Type\" may not contain the '/' "
+    ERROR ("The \"Type\" may not contain the '/' "
         "character. Especially, it may not be a regex. The current "
         "value is \"%s\".", agg->ident.type);
     is_valid = 0;
@@ -612,7 +612,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   /* Check that there is at least one regex field without a grouping. {{{ */
   if ((agg->regex_fields & ~agg->group_by) == 0)
   {
-    ERROR ("aggregation plugin: An aggregation must contain at least one "
+    ERROR ("An aggregation must contain at least one "
         "wildcard. This is achieved by leaving at least one of the \"Host\", "
         "\"Plugin\", \"PluginInstance\" and \"TypeInstance\" options blank "
         "or using a regular expression and not grouping by that field. "
@@ -626,7 +626,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   /* Check that all grouping fields are regular expressions. {{{ */
   if (agg->group_by & ~agg->regex_fields)
   {
-    ERROR ("aggregation plugin: Only wildcard fields (fields for which a "
+    ERROR ("Only wildcard fields (fields for which a "
         "regular expression is configured or which are left blank) can be "
         "specified in the \"GroupBy\" option. "
         "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
@@ -639,7 +639,7 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   if (!agg->calc_num && !agg->calc_sum && !agg->calc_average /* {{{ */
       && !agg->calc_min && !agg->calc_max && !agg->calc_stddev)
   {
-    ERROR ("aggregation plugin: No aggregation function has been specified. "
+    ERROR ("No aggregation function has been specified. "
         "Without this, I don't know what I should be calculating. "
         "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
         "Type \"%s\", TypeInstance \"%s\")",
@@ -657,12 +657,12 @@ static int agg_config_aggregation (oconfig_item_t *ci) /* {{{ */
   status = lookup_add (lookup, &agg->ident, agg->group_by, agg);
   if (status != 0)
   {
-    ERROR ("aggregation plugin: lookup_add failed with status %i.", status);
+    ERROR ("lookup_add failed with status %i.", status);
     sfree (agg);
     return (-1);
   }
 
-  DEBUG ("aggregation plugin: Successfully added aggregation: "
+  DEBUG ("Successfully added aggregation: "
       "(Host \"%s\", Plugin \"%s\", PluginInstance \"%s\", "
       "Type \"%s\", TypeInstance \"%s\")",
       agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
@@ -683,7 +683,7 @@ static int agg_config (oconfig_item_t *ci) /* {{{ */
     if (lookup == NULL)
     {
       pthread_mutex_unlock (&agg_instance_list_lock);
-      ERROR ("aggregation plugin: lookup_create failed.");
+      ERROR ("lookup_create failed.");
       return (-1);
     }
   }
@@ -695,7 +695,7 @@ static int agg_config (oconfig_item_t *ci) /* {{{ */
     if (strcasecmp ("Aggregation", child->key) == 0)
       agg_config_aggregation (child);
     else
-      WARNING ("aggregation plugin: The \"%s\" key is not allowed inside "
+      WARNING ("The \"%s\" key is not allowed inside "
           "<Plugin aggregation /> blocks and will be ignored.", child->key);
   }
 
@@ -732,7 +732,7 @@ static int agg_read (void) /* {{{ */
 
     status = agg_instance_read (this, t);
     if (status != 0)
-      WARNING ("aggregation plugin: Reading an aggregation instance "
+      WARNING ("Reading an aggregation instance "
           "failed with status %i.", status);
     else
       success++;

@@ -112,7 +112,7 @@ static void * cgps_thread (void * pData)
 #endif
     if (status < 0)
     {
-      WARNING ("gps plugin: connecting to %s:%s failed: %s",
+      WARNING ("connecting to %s:%s failed: %s",
                cgps_config_data.host, cgps_config_data.port, gps_errstr (status));
 
       // Here we make a pause until a new tentative to connect, we check also if
@@ -149,7 +149,7 @@ static void * cgps_thread (void * pData)
 
       if (gps_read (&gpsd_conn) == -1)
       {
-        WARNING ("gps plugin: incorrect data! (err_count: %d)", err_count);
+        WARNING ("incorrect data! (err_count: %d)", err_count);
         err_count++;
 
         if (err_count > CGPS_MAX_ERROR)
@@ -157,7 +157,7 @@ static void * cgps_thread (void * pData)
           // Server is not responding ...
           if (gps_send (&gpsd_conn, CGPS_CONFIG) == -1)
           {
-            WARNING ("gps plugin: gpsd seems to be down, reconnecting");
+            WARNING ("gpsd seems to be down, reconnecting");
             gps_close (&gpsd_conn);
             break;
           }
@@ -186,7 +186,7 @@ static void * cgps_thread (void * pData)
         cgps_data.vdop = gpsd_conn.dop.vdop;
       }
 
-      DEBUG ("gps plugin: %.0f sats used (of %.0f visible), hdop = %.3f, vdop = %.3f",
+      DEBUG ("%.0f sats used (of %.0f visible), hdop = %.3f, vdop = %.3f",
              cgps_data.sats_used, cgps_data.sats_visible, cgps_data.hdop, cgps_data.vdop);
 
       pthread_mutex_unlock (&cgps_data_lock);
@@ -194,11 +194,11 @@ static void * cgps_thread (void * pData)
   }
 
 stop:
-  DEBUG ("gps plugin: thread closing gpsd connection ... ");
+  DEBUG ("thread closing gpsd connection ... ");
   gps_stream (&gpsd_conn, WATCH_DISABLE, NULL);
   gps_close (&gpsd_conn);
 quit:
-  DEBUG ("gps plugin: thread shutting down ... ");
+  DEBUG ("thread shutting down ... ");
   cgps_thread_running = CGPS_FALSE;
   pthread_mutex_unlock (&cgps_thread_lock);
   pthread_exit (NULL);
@@ -260,7 +260,7 @@ static int cgps_config (oconfig_item_t *ci)
     else if (strcasecmp ("PauseConnect", child->key) == 0)
       cf_util_get_cdtime (child, &cgps_config_data.pause_connect);
     else
-      WARNING ("gps plugin: Ignoring unknown config option \"%s\".", child->key);
+      WARNING ("Ignoring unknown config option \"%s\".", child->key);
   }
 
   // Controlling the value for timeout:
@@ -272,7 +272,7 @@ static int cgps_config (oconfig_item_t *ci)
     cgps_config_data.timeout < US_TO_CDTIME_T(500)
   )
   {
-    WARNING ("gps plugin: timeout set to %.6f sec. setting to default (%.6f).",
+    WARNING ("timeout set to %.6f sec. setting to default (%.6f).",
       CDTIME_T_TO_DOUBLE(cgps_config_data.timeout),
       CDTIME_T_TO_DOUBLE(CGPS_DEFAULT_TIMEOUT)
     );
@@ -291,11 +291,11 @@ static int cgps_init (void)
 
   if (cgps_thread_running == CGPS_TRUE)
   {
-    DEBUG ("gps plugin: error gps thread already running ... ");
+    DEBUG ("error gps thread already running ... ");
     return 0;
   }
 
-  DEBUG ("gps plugin: config{host: \"%s\", port: \"%s\", timeout: %.6f sec., pause connect: %.3f sec.}",
+  DEBUG ("config{host: \"%s\", port: \"%s\", timeout: %.6f sec., pause connect: %.3f sec.}",
          cgps_config_data.host, cgps_config_data.port,
          CDTIME_T_TO_DOUBLE (cgps_config_data.timeout),
          CDTIME_T_TO_DOUBLE (cgps_config_data.pause_connect));
@@ -303,7 +303,7 @@ static int cgps_init (void)
   status = plugin_thread_create (&cgps_thread_id, NULL, cgps_thread, NULL);
   if (status != 0)
   {
-    ERROR ("gps plugin: pthread_create() failed.");
+    ERROR ("pthread_create() failed.");
     return (-1);
   }
 

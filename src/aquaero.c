@@ -42,7 +42,7 @@ static int aquaero_config (oconfig_item_t *ci)
 			cf_util_get_string (child, &conf_device);
 		else
 		{
-			ERROR ("aquaero plugin: Unknown config option \"%s\".",
+			ERROR ("Unknown config option \"%s\".",
 					child->key);
 		}
 	}
@@ -104,7 +104,7 @@ static int aquaero_read (void)
 	if (libaquaero5_poll(conf_device, &aq_data, &err_msg) < 0)
 	{
 		char errbuf[1024];
-		ERROR ("aquaero plugin: Failed to poll device \"%s\": %s (%s)",
+		ERROR ("Failed to poll device \"%s\": %s (%s)",
 				conf_device ? conf_device : "default", err_msg,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
@@ -113,7 +113,7 @@ static int aquaero_read (void)
 	if (libaquaero5_getsettings(conf_device, &aq_sett, &err_msg) < 0)
 	{
 		char errbuf[1024];
-		ERROR ("aquaero plugin: Failed to get settings "
+		ERROR ("Failed to get settings "
 				"for device \"%s\": %s (%s)",
 				conf_device ? conf_device : "default", err_msg,
 				sstrerror (errno, errbuf, sizeof (errbuf)));

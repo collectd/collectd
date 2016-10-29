@@ -246,8 +246,7 @@ static int sensors_config (const char *key, const char *value)
 	{
 		if (ignorelist_add (sensor_list, value))
 		{
-			ERROR ("sensors plugin: "
-					"Cannot add value to ignorelist.");
+			ERROR ("Cannot add value to ignorelist.");
 			return (1);
 		}
 	}
@@ -311,7 +310,7 @@ static int sensors_load_conf (void)
 		if (fh == NULL)
 		{
 			char errbuf[1024];
-			ERROR ("sensors plugin: fopen(%s) failed: %s", conffile,
+			ERROR ("fopen(%s) failed: %s", conffile,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -323,8 +322,7 @@ static int sensors_load_conf (void)
 
 	if (status != 0)
 	{
-		ERROR ("sensors plugin: Cannot initialize sensors. "
-				"Data will not be collected.");
+		ERROR ("Cannot initialize sensors. Data will not be collected.");
 		return (-1);
 	}
 
@@ -351,7 +349,7 @@ static int sensors_load_conf (void)
 			/* "master features" only */
 			if (feature->mapping != SENSORS_NO_MAPPING)
 			{
-				DEBUG ("sensors plugin: sensors_load_conf: "
+				DEBUG ("sensors_load_conf: "
 						"Ignoring subfeature `%s', "
 						"because (feature->mapping "
 						"!= SENSORS_NO_MAPPING).",
@@ -362,7 +360,7 @@ static int sensors_load_conf (void)
 			/* skip ignored in sensors.conf */
 			if (sensors_get_ignored (*chip, feature->number) == 0)
 			{
-				DEBUG ("sensors plugin: sensors_load_conf: "
+				DEBUG ("sensors_load_conf: "
 						"Ignoring subfeature `%s', "
 						"because "
 						"`sensors_get_ignored' told "
@@ -375,7 +373,7 @@ static int sensors_load_conf (void)
 					feature->name);
 			if (feature_type == SENSOR_TYPE_UNKNOWN)
 			{
-				DEBUG ("sensors plugin: sensors_load_conf: "
+				DEBUG ("sensors_load_conf: "
 						"Ignoring subfeature `%s', "
 						"because its type is "
 						"unknown.",
@@ -386,7 +384,7 @@ static int sensors_load_conf (void)
 			fl = calloc (1, sizeof (*fl));
 			if (fl == NULL)
 			{
-				ERROR ("sensors plugin: calloc failed.");
+				ERROR ("calloc failed.");
 				continue;
 			}
 
@@ -421,7 +419,7 @@ static int sensors_load_conf (void)
 					&& (feature->type != SENSORS_FEATURE_TEMP)
 					&& (feature->type != SENSORS_FEATURE_POWER))
 			{
-				DEBUG ("sensors plugin: sensors_load_conf: "
+				DEBUG ("sensors_load_conf: "
 						"Ignoring feature `%s', "
 						"because its type is not "
 						"supported.", feature->name);
@@ -442,7 +440,7 @@ static int sensors_load_conf (void)
 				fl = calloc (1, sizeof (*fl));
 				if (fl == NULL)
 				{
-					ERROR ("sensors plugin: calloc failed.");
+					ERROR ("calloc failed.");
 					continue;
 				}
 
@@ -463,8 +461,7 @@ static int sensors_load_conf (void)
 	if (first_feature == NULL)
 	{
 		sensors_cleanup ();
-		INFO ("sensors plugin: lm_sensors reports no "
-				"features. Data will not be collected.");
+		INFO ("lm_sensors reports no features. Data will not be collected.");
 		return (-1);
 	}
 
@@ -495,7 +492,7 @@ static void sensors_submit (const char *plugin_instance,
 
 	if (sensor_list != NULL)
 	{
-		DEBUG ("sensors plugin: Checking ignorelist for `%s'", match_key);
+		DEBUG ("Checking ignorelist for `%s'", match_key);
 		if (ignorelist_match (sensor_list, match_key))
 			return;
 	}

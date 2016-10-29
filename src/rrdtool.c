@@ -143,8 +143,7 @@ static int srrd_update (char *filename, char *template,
 
 	if (status != 0)
 	{
-		WARNING ("rrdtool plugin: rrd_update_r (%s) failed: %s",
-				filename, rrd_get_error ());
+		WARNING ("rrd_update_r (%s) failed: %s", filename, rrd_get_error ());
 	}
 
 	return (status);
@@ -166,7 +165,7 @@ static int srrd_update (char *filename, char *template,
 	new_argv = malloc ((new_argc + 1) * sizeof (*new_argv));
 	if (new_argv == NULL)
 	{
-		ERROR ("rrdtool plugin: malloc failed.");
+		ERROR ("malloc failed.");
 		return (-1);
 	}
 
@@ -185,8 +184,7 @@ static int srrd_update (char *filename, char *template,
 
 	if (status != 0)
 	{
-		WARNING ("rrdtool plugin: rrd_update_r failed: %s: %s",
-				filename, rrd_get_error ());
+		WARNING ("rrd_update_r failed: %s: %s", filename, rrd_get_error ());
 	}
 
 	sfree (new_argv);
@@ -453,7 +451,7 @@ static void *rrd_queue_thread (void __attribute__((unused)) *data)
 		/* Write the values to the RRD-file */
 		srrd_update (queue_entry->filename, NULL,
 				values_num, (const char **)values);
-		DEBUG ("rrdtool plugin: queue thread: Wrote %i value%s to %s",
+		DEBUG ("queue thread: Wrote %i value%s to %s",
 				values_num, (values_num == 1) ? "" : "s",
 				queue_entry->filename);
 
@@ -556,8 +554,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 	char *key;
 	c_avl_iterator_t *iter;
 
-	DEBUG ("rrdtool plugin: Flushing cache, timeout = %.3f",
-			CDTIME_T_TO_DOUBLE (timeout));
+	DEBUG ("Flushing cache, timeout = %.3f", CDTIME_T_TO_DOUBLE (timeout));
 
 	now = cdtime ();
 	timeout = TIME_T_TO_CDTIME_T (timeout);
@@ -587,8 +584,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 			if (tmp == NULL)
 			{
 				char errbuf[1024];
-				ERROR ("rrdtool plugin: "
-						"realloc failed: %s",
+				ERROR ("realloc failed: %s",
 						sstrerror (errno, errbuf,
 							sizeof (errbuf)));
 				c_avl_iterator_destroy (iter);
@@ -606,7 +602,7 @@ static void rrd_cache_flush (cdtime_t timeout)
 	{
 		if (c_avl_remove (cache, keys[i], (void *) &key, (void *) &rc) != 0)
 		{
-			DEBUG ("rrdtool plugin: c_avl_remove (%s) failed.", keys[i]);
+			DEBUG ("c_avl_remove (%s) failed.", keys[i]);
 			continue;
 		}
 
@@ -650,7 +646,7 @@ static int rrd_cache_flush_identifier (cdtime_t timeout,
   status = c_avl_get (cache, key, (void *) &rc);
   if (status != 0)
   {
-    INFO ("rrdtool plugin: rrd_cache_flush_identifier: "
+    INFO ("rrd_cache_flush_identifier: "
         "c_avl_get (%s) failed. Does that file really exist?",
         key);
     return (status);
@@ -692,7 +688,7 @@ static int64_t rrd_get_random_variation (void)
   /* Assure that "cache_timeout + random_variation" is never negative. */
   if (random_timeout > cache_timeout)
   {
-	  INFO ("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
+	  INFO ("Adjusting \"RandomTimeout\" to %.3f seconds.",
 			  CDTIME_T_TO_DOUBLE (cache_timeout));
 	  random_timeout = cache_timeout;
   }
@@ -717,7 +713,7 @@ static int rrd_cache_insert (const char *filename,
 	if (cache == NULL)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		WARNING ("rrdtool plugin: cache == NULL.");
+		WARNING ("cache == NULL.");
 		return (-1);
 	}
 
@@ -744,8 +740,7 @@ static int rrd_cache_insert (const char *filename,
 	if (rc->last_value >= value_time)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		DEBUG ("rrdtool plugin: (rc->last_value = %"PRIu64") "
-				">= (value_time = %"PRIu64")",
+		DEBUG ("(rc->last_value = %"PRIu64") >= (value_time = %"PRIu64")",
 				rc->last_value, value_time);
 		return (-1);
 	}
@@ -762,7 +757,7 @@ static int rrd_cache_insert (const char *filename,
 		c_avl_remove (cache, filename, &cache_key, NULL);
 		pthread_mutex_unlock (&cache_lock);
 
-		ERROR ("rrdtool plugin: realloc failed: %s", errbuf);
+		ERROR ("realloc failed: %s", errbuf);
 
 		sfree (cache_key);
 		sfree (rc->values);
@@ -791,7 +786,7 @@ static int rrd_cache_insert (const char *filename,
 
 			pthread_mutex_unlock (&cache_lock);
 
-			ERROR ("rrdtool plugin: strdup failed: %s", errbuf);
+			ERROR ("strdup failed: %s", errbuf);
 
 			sfree (rc->values[0]);
 			sfree (rc->values);
@@ -802,8 +797,7 @@ static int rrd_cache_insert (const char *filename,
 		c_avl_insert (cache, cache_key, rc);
 	}
 
-	DEBUG ("rrdtool plugin: rrd_cache_insert: file = %s; "
-			"values_num = %i; age = %.3f;",
+	DEBUG ("rrd_cache_insert: file = %s; values_num = %i; age = %.3f;",
 			filename, rc->values_num,
 			CDTIME_T_TO_DOUBLE (rc->last_value - rc->first_value));
 
@@ -823,7 +817,7 @@ static int rrd_cache_insert (const char *filename,
 		}
 		else
 		{
-			DEBUG ("rrdtool plugin: `%s' is already queued.", filename);
+			DEBUG ("`%s' is already queued.", filename);
 		}
 	}
 
@@ -875,13 +869,12 @@ static int rrd_cache_destroy (void) /* {{{ */
 
   if (non_empty > 0)
   {
-    INFO ("rrdtool plugin: %i cache %s had values when destroying the cache.",
+    INFO ("%i cache %s had values when destroying the cache.",
         non_empty, (non_empty == 1) ? "entry" : "entries");
   }
   else
   {
-    DEBUG ("rrdtool plugin: No values have been lost "
-        "when destroying the cache.");
+    DEBUG ("No values have been lost when destroying the cache.");
   }
 
   pthread_mutex_unlock (&cache_lock);
@@ -913,7 +906,7 @@ static int rrd_write (const data_set_t *ds, const value_list_t *vl,
 		return (0);
 
 	if (0 != strcmp (ds->type, vl->type)) {
-		ERROR ("rrdtool plugin: DS type does not match value list type");
+		ERROR ("DS type does not match value list type");
 		return -1;
 	}
 
@@ -980,8 +973,7 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `CacheTimeout' must "
 					"be greater than 0.\n");
-			ERROR ("rrdtool: `CacheTimeout' must "
-					"be greater than 0.\n");
+			ERROR ("`CacheTimeout' must be greater than 0.\n");
 			return (1);
 		}
 		cache_timeout = DOUBLE_TO_CDTIME_T (tmp);
@@ -993,8 +985,7 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `CacheFlush' must "
 					"be greater than 0.\n");
-			ERROR ("rrdtool: `CacheFlush' must "
-					"be greater than 0.\n");
+			ERROR ("`CacheFlush' must be greater than 0.\n");
 			return (1);
 		}
 		cache_flush_timeout = tmp;
@@ -1007,7 +998,7 @@ static int rrd_config (const char *key, const char *value)
 		tmp = strdup (value);
 		if (tmp == NULL)
 		{
-			ERROR ("rrdtool plugin: strdup failed.");
+			ERROR ("strdup failed.");
 			return (1);
 		}
 
@@ -1020,7 +1011,7 @@ static int rrd_config (const char *key, const char *value)
 
 		if (len == 0)
 		{
-			ERROR ("rrdtool plugin: Invalid \"DataDir\" option.");
+			ERROR ("Invalid \"DataDir\" option.");
 			sfree (tmp);
 			return (1);
 		}
@@ -1058,8 +1049,7 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `RRARows' must "
 					"be greater than 0.\n");
-			ERROR ("rrdtool: `RRARows' must "
-					"be greater than 0.\n");
+			ERROR ("`RRARows' must be greater than 0.\n");
 			return (1);
 		}
 		rrdcreate_config.rrarows = tmp;
@@ -1086,7 +1076,7 @@ static int rrd_config (const char *key, const char *value)
 			if (tmp_alloc == NULL)
 			{
 				fprintf (stderr, "rrdtool: realloc failed.\n");
-				ERROR ("rrdtool: realloc failed.\n");
+				ERROR ("realloc failed.\n");
 				free (value_copy);
 				return (1);
 			}
@@ -1110,8 +1100,7 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `XFF' must "
 					"be in the range 0 to 1 (exclusive).");
-			ERROR ("rrdtool: `XFF' must "
-					"be in the range 0 to 1 (exclusive).");
+			ERROR ("`XFF' must be in the range 0 to 1 (exclusive).");
 			return (1);
 		}
 		rrdcreate_config.xff = tmp;
@@ -1144,7 +1133,7 @@ static int rrd_config (const char *key, const char *value)
 		{
 			fprintf (stderr, "rrdtool: `RandomTimeout' must "
 					"be greater than or equal to zero.\n");
-			ERROR ("rrdtool: `RandomTimeout' must "
+			ERROR ("`RandomTimeout' must "
 					"be greater then or equal to zero.");
 		}
 		else
@@ -1173,12 +1162,11 @@ static int rrd_shutdown (void)
 	if ((queue_thread_running != 0)
 			&& ((queue_head != NULL) || (flushq_head != NULL)))
 	{
-		INFO ("rrdtool plugin: Shutting down the queue thread. "
-				"This may take a while.");
+		INFO ("Shutting down the queue thread. This may take a while.");
 	}
 	else if (queue_thread_running != 0)
 	{
-		INFO ("rrdtool plugin: Shutting down the queue thread.");
+		INFO ("Shutting down the queue thread.");
 	}
 
 	/* Wait for all the values to be written to disk before returning. */
@@ -1187,7 +1175,7 @@ static int rrd_shutdown (void)
 		pthread_join (queue_thread, NULL);
 		memset (&queue_thread, 0, sizeof (queue_thread));
 		queue_thread_running = 0;
-		DEBUG ("rrdtool plugin: queue_thread exited.");
+		DEBUG ("queue_thread exited.");
 	}
 
 	rrd_cache_destroy ();
@@ -1214,7 +1202,7 @@ static int rrd_init (void)
 	if (cache == NULL)
 	{
 		pthread_mutex_unlock (&cache_lock);
-		ERROR ("rrdtool plugin: c_avl_create failed.");
+		ERROR ("c_avl_create failed.");
 		return (-1);
 	}
 
@@ -1232,12 +1220,12 @@ static int rrd_init (void)
 			rrd_queue_thread, /* args = */ NULL);
 	if (status != 0)
 	{
-		ERROR ("rrdtool plugin: Cannot create queue-thread.");
+		ERROR ("Cannot create queue-thread.");
 		return (-1);
 	}
 	queue_thread_running = 1;
 
-	DEBUG ("rrdtool plugin: rrd_init: datadir = %s; stepsize = %lu;"
+	DEBUG ("rrd_init: datadir = %s; stepsize = %lu;"
 			" heartbeat = %i; rrarows = %i; xff = %lf;",
 			(datadir == NULL) ? "(null)" : datadir,
 			rrdcreate_config.stepsize,

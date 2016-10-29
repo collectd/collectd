@@ -72,7 +72,7 @@ static int hp_config(oconfig_item_t *ci) {
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &g_values_percent);
     else
-      ERROR("%s: Invalid configuration option: \"%s\".", g_plugin_name,
+      ERROR("Invalid configuration option: \"%s\".", 
             child->key);
   }
 
@@ -129,12 +129,12 @@ static int read_hugepage_entry(const char *path, const char *entry,
 
   FILE *fh = fopen(path2, "rt");
   if (fh == NULL) {
-    ERROR("%s: cannot open %s", g_plugin_name, path2);
+    ERROR("cannot open %s",  path2);
     return -1;
   }
 
   if (fscanf(fh, "%lf", &value) != 1) {
-    ERROR("%s: cannot parse file %s", g_plugin_name, path2);
+    ERROR("cannot parse file %s",  path2);
     fclose(fh);
     return -1;
   }
@@ -170,7 +170,7 @@ static int read_syshugepages(const char *path, const char *node) {
 
   dir = opendir(path);
   if (dir == NULL) {
-    ERROR("%s: cannot open directory %s", g_plugin_name, path);
+    ERROR("cannot open directory %s",  path);
     return -1;
   }
 
@@ -186,8 +186,8 @@ static int read_syshugepages(const char *path, const char *node) {
                             /* endptr = */ NULL, /* base = */ 10);
     if (errno != 0) {
       char errbuf[1024];
-      ERROR("%s: failed to determine page size from directory name \"%s\": %s",
-            g_plugin_name, result->d_name,
+      ERROR("failed to determine page size from directory name \"%s\": %s",
+             result->d_name,
             sstrerror(errno, errbuf, sizeof(errbuf)));
       continue;
     }
@@ -207,7 +207,7 @@ static int read_syshugepages(const char *path, const char *node) {
 
   /* Check if NULL return from readdir() was an error */
   if (errno != 0) {
-    ERROR("%s: readdir failed", g_plugin_name);
+    ERROR("readdir failed");
     closedir(dir);
     return -1;
   }
@@ -227,7 +227,7 @@ static int read_nodes(void) {
 
   dir = opendir(sys_node);
   if (dir == NULL) {
-    ERROR("%s: cannot open directory %s", g_plugin_name, sys_node);
+    ERROR("cannot open directory %s",  sys_node);
     return -1;
   }
 
@@ -245,7 +245,7 @@ static int read_nodes(void) {
 
   /* Check if NULL return from readdir() was an error */
   if (errno != 0) {
-    ERROR("%s: readdir failed", g_plugin_name);
+    ERROR("readdir failed");
     closedir(dir);
     return -1;
   }

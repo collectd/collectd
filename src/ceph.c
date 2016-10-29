@@ -314,7 +314,7 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
             && (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0)
             && (strcmp("avgcount", state->key) == 0))
         {
-            DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
+            DEBUG("Skipping avgcount for filestore.JournalWrBytes");
             return CEPH_CB_CONTINUE;
         }
     }
@@ -337,7 +337,7 @@ ceph_cb_number(void *ctx, const char *number_val, yajl_len_t number_len)
 
     if (status != 0)
     {
-        ERROR("ceph plugin: JSON handler failed with status %d.", status);
+        ERROR("JSON handler failed with status %d.", status);
         return CEPH_CB_ABORT;
     }
 
@@ -391,7 +391,7 @@ ceph_cb_map_key(void *ctx, const unsigned char *key, yajl_len_t string_len)
     state->key = malloc (sz);
     if (state->key == NULL)
     {
-        ERROR ("ceph plugin: malloc failed.");
+        ERROR ("malloc failed.");
         return CEPH_CB_ABORT;
     }
 
@@ -427,7 +427,7 @@ static yajl_callbacks callbacks = {
 
 static void ceph_daemon_print(const struct ceph_daemon *d)
 {
-    DEBUG("ceph plugin: name=%s, asok_path=%s", d->name, d->asok_path);
+    DEBUG("name=%s, asok_path=%s", d->name, d->asok_path);
 }
 
 static void ceph_daemons_print(void)
@@ -666,7 +666,7 @@ static int cc_handle_str(struct oconfig_item_s *item, char *dest, int dest_len)
     val = item->values[0].value.string;
     if(snprintf(dest, dest_len, "%s", val) > (dest_len - 1))
     {
-        ERROR("ceph plugin: configuration parameter '%s' is too long.\n",
+        ERROR("configuration parameter '%s' is too long.\n",
                 item->key);
         return -ENAMETOOLONG;
     }
@@ -697,7 +697,7 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
 
     if((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
     {
-        WARNING("ceph plugin: `Daemon' blocks need exactly one string "
+        WARNING("`Daemon' blocks need exactly one string "
                 "argument.");
         return (-1);
     }
@@ -722,24 +722,24 @@ static int cc_add_daemon_config(oconfig_item_t *ci)
         }
         else
         {
-            WARNING("ceph plugin: ignoring unknown option %s", child->key);
+            WARNING("ignoring unknown option %s", child->key);
         }
     }
     if(cd.name[0] == '\0')
     {
-        ERROR("ceph plugin: you must configure a daemon name.\n");
+        ERROR("you must configure a daemon name.\n");
         return -EINVAL;
     }
     else if(cd.asok_path[0] == '\0')
     {
-        ERROR("ceph plugin(name=%s): you must configure an administrative "
+        ERROR("Daemon %s: you must configure an administrative "
         "socket path.\n", cd.name);
         return -EINVAL;
     }
     else if(!((cd.asok_path[0] == '/') ||
             (cd.asok_path[0] == '.' && cd.asok_path[1] == '/')))
     {
-        ERROR("ceph plugin(name=%s): administrative socket paths must begin "
+        ERROR("Daemon %s: administrative socket paths must begin "
                 "with '/' or './' Can't parse: '%s'\n", cd.name, cd.asok_path);
         return -EINVAL;
     }
@@ -776,7 +776,7 @@ static int ceph_config(oconfig_item_t *ci)
             ret = cc_add_daemon_config(child);
             if(ret == ENOMEM)
             {
-                ERROR("ceph plugin: Couldn't allocate memory");
+                ERROR("Couldn't allocate memory");
                 return ret;
             }
             else if(ret)
@@ -803,7 +803,7 @@ static int ceph_config(oconfig_item_t *ci)
         }
         else
         {
-            WARNING("ceph plugin: ignoring unknown option %s", child->key);
+            WARNING("ignoring unknown option %s", child->key);
         }
     }
     return 0;
@@ -824,7 +824,7 @@ traverse_json(const unsigned char *json, uint32_t json_len, yajl_handle hand)
             msg = yajl_get_error(hand, /* verbose = */ 1,
                                        /* jsonText = */ (unsigned char *) json,
                                                       (unsigned int) json_len);
-            ERROR ("ceph plugin: yajl_parse failed: %s", msg);
+            ERROR ("yajl_parse failed: %s", msg);
             yajl_free_error(hand, msg);
             return 1;
         case yajl_status_client_canceled:
@@ -1073,7 +1073,7 @@ static int node_handler_fetch_data(void *arg, const char *val, const char *key)
             break;
         case DSET_TYPE_UNFOUND:
         default:
-            ERROR("ceph plugin: ds %s was not properly initialized.", ds_name);
+            ERROR("ds %s was not properly initialized.", ds_name);
             return -1;
     }
 
@@ -1094,14 +1094,14 @@ static int cconn_connect(struct cconn *io)
     int flags, fd, err;
     if(io->state != CSTATE_UNCONNECTED)
     {
-        ERROR("ceph plugin: cconn_connect: io->state != CSTATE_UNCONNECTED");
+        ERROR("cconn_connect: io->state != CSTATE_UNCONNECTED");
         return -EDOM;
     }
     fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if(fd < 0)
     {
         err = -errno;
-        ERROR("ceph plugin: cconn_connect: socket(PF_UNIX, SOCK_STREAM, 0) "
+        ERROR("cconn_connect: socket(PF_UNIX, SOCK_STREAM, 0) "
             "failed: error %d", err);
         return err;
     }
@@ -1112,7 +1112,7 @@ static int cconn_connect(struct cconn *io)
         connect(fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un)));
     if(err < 0)
     {
-        ERROR("ceph plugin: cconn_connect: connect(%d) failed: error %d",
+        ERROR("cconn_connect: connect(%d) failed: error %d",
             fd, err);
         close(fd);
         return err;
@@ -1122,7 +1122,7 @@ static int cconn_connect(struct cconn *io)
     if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0)
     {
         err = -errno;
-        ERROR("ceph plugin: cconn_connect: fcntl(%d, O_NONBLOCK) error %d",
+        ERROR("cconn_connect: fcntl(%d, O_NONBLOCK) error %d",
             fd, err);
         close(fd);
         return err;
@@ -1200,7 +1200,7 @@ static int cconn_process_json(struct cconn *io)
 
     if(!hand)
     {
-        ERROR ("ceph plugin: yajl_alloc failed.");
+        ERROR ("yajl_alloc failed.");
         return ENOMEM;
     }
 
@@ -1238,7 +1238,7 @@ static int cconn_process_json(struct cconn *io)
     {
       unsigned char *errmsg = yajl_get_error (hand, /* verbose = */ 0,
           /* jsonText = */ NULL, /* jsonTextLen = */ 0);
-      ERROR ("ceph plugin: yajl_parse_complete failed: %s",
+      ERROR ("yajl_parse_complete failed: %s",
           (char *) errmsg);
       yajl_free_error (hand, errmsg);
       yajl_free (hand);
@@ -1254,7 +1254,7 @@ static int cconn_validate_revents(struct cconn *io, int revents)
 {
     if(revents & POLLERR)
     {
-        ERROR("ceph plugin: cconn_validate_revents(name=%s): got POLLERR",
+        ERROR("cconn_validate_revents(name=%s): got POLLERR",
             io->d->name);
         return -EIO;
     }
@@ -1267,7 +1267,7 @@ static int cconn_validate_revents(struct cconn *io, int revents)
         case CSTATE_READ_JSON:
             return (revents & POLLIN) ? 0 : -EINVAL;
         default:
-            ERROR("ceph plugin: cconn_validate_revents(name=%s) got to "
+            ERROR("cconn_validate_revents(name=%s) got to "
                 "illegal state on line %d", io->d->name, __LINE__);
             return -EDOM;
     }
@@ -1280,7 +1280,7 @@ static int cconn_handle_event(struct cconn *io)
     switch (io->state)
     {
         case CSTATE_UNCONNECTED:
-            ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
+            ERROR("cconn_handle_event(name=%s) got to illegal "
                 "state on line %d", io->d->name, __LINE__);
 
             return -EDOM;
@@ -1292,7 +1292,7 @@ static int cconn_handle_event(struct cconn *io)
             size_t cmd_len = strlen(cmd);
             RETRY_ON_EINTR(ret,
                   write(io->asok, ((char*)&cmd) + io->amt, cmd_len - io->amt));
-            DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,amt=%d,ret=%d)",
+            DEBUG("cconn_handle_event(name=%s,state=%d,amt=%d,ret=%d)",
                     io->d->name, io->state, io->amt, ret);
             if(ret < 0)
             {
@@ -1319,7 +1319,7 @@ static int cconn_handle_event(struct cconn *io)
             RETRY_ON_EINTR(ret,
                     read(io->asok, ((char*)(&io->d->version)) + io->amt,
                             sizeof(io->d->version) - io->amt));
-            DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+            DEBUG("cconn_handle_event(name=%s,state=%d,ret=%d)",
                     io->d->name, io->state, ret);
             if(ret < 0)
             {
@@ -1331,11 +1331,11 @@ static int cconn_handle_event(struct cconn *io)
                 io->d->version = ntohl(io->d->version);
                 if(io->d->version != 1)
                 {
-                    ERROR("ceph plugin: cconn_handle_event(name=%s) not "
+                    ERROR("cconn_handle_event(name=%s) not "
                         "expecting version %d!", io->d->name, io->d->version);
                     return -ENOTSUP;
                 }
-                DEBUG("ceph plugin: cconn_handle_event(name=%s): identified as "
+                DEBUG("cconn_handle_event(name=%s): identified as "
                         "version %d", io->d->name, io->d->version);
                 io->amt = 0;
                 cconn_close(io);
@@ -1348,7 +1348,7 @@ static int cconn_handle_event(struct cconn *io)
             RETRY_ON_EINTR(ret,
                     read(io->asok, ((char*)(&io->json_len)) + io->amt,
                             sizeof(io->json_len) - io->amt));
-            DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+            DEBUG("cconn_handle_event(name=%s,state=%d,ret=%d)",
                     io->d->name, io->state, ret);
             if(ret < 0)
             {
@@ -1363,7 +1363,7 @@ static int cconn_handle_event(struct cconn *io)
                 io->json = calloc(1, io->json_len + 1);
                 if(!io->json)
                 {
-                    ERROR("ceph plugin: error callocing io->json");
+                    ERROR("error callocing io->json");
                     return -ENOMEM;
                 }
             }
@@ -1373,7 +1373,7 @@ static int cconn_handle_event(struct cconn *io)
         {
             RETRY_ON_EINTR(ret,
                    read(io->asok, io->json + io->amt, io->json_len - io->amt));
-            DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+            DEBUG("cconn_handle_event(name=%s,state=%d,ret=%d)",
                     io->d->name, io->state, ret);
             if(ret < 0)
             {
@@ -1393,7 +1393,7 @@ static int cconn_handle_event(struct cconn *io)
             return 0;
         }
         default:
-            ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
+            ERROR("cconn_handle_event(name=%s) got to illegal "
                 "state on line %d", io->d->name, __LINE__);
             return -EDOM;
     }
@@ -1440,7 +1440,7 @@ static int cconn_prepare(struct cconn *io, struct pollfd* fds)
             fds->events = POLLIN;
             return 1;
         default:
-            ERROR("ceph plugin: cconn_prepare(name=%s) got to illegal state "
+            ERROR("cconn_prepare(name=%s) got to illegal state "
                 "on line %d", io->d->name, __LINE__);
             return -EDOM;
     }
@@ -1467,11 +1467,11 @@ static int cconn_main_loop(uint32_t request_type)
     struct timeval end_tv;
     struct cconn io_array[g_num_daemons];
 
-    DEBUG ("ceph plugin: entering cconn_main_loop(request_type = %"PRIu32")", request_type);
+    DEBUG ("entering cconn_main_loop(request_type = %"PRIu32")", request_type);
 
     if (g_num_daemons < 1)
     {
-        ERROR ("ceph plugin: No daemons configured. See the \"Daemon\" config option.");
+        ERROR ("No daemons configured. See the \"Daemon\" config option.");
         return ENOENT;
     }
 
@@ -1503,7 +1503,7 @@ static int cconn_main_loop(uint32_t request_type)
             ret = cconn_prepare(io, fds + nfds);
             if(ret < 0)
             {
-                WARNING("ceph plugin: cconn_prepare(name=%s,i=%zu,st=%d)=%d",
+                WARNING("cconn_prepare(name=%s,i=%zu,st=%d)=%d",
                         io->d->name, i, io->state, ret);
                 cconn_close(io);
                 io->request_type = ASOK_REQ_NONE;
@@ -1526,13 +1526,13 @@ static int cconn_main_loop(uint32_t request_type)
         {
             /* Timed out */
             ret = -ETIMEDOUT;
-            WARNING("ceph plugin: cconn_main_loop: timed out.");
+            WARNING("cconn_main_loop: timed out.");
             goto done;
         }
         RETRY_ON_EINTR(ret, poll(fds, nfds, diff));
         if(ret < 0)
         {
-            ERROR("ceph plugin: poll(2) error: %d", ret);
+            ERROR("poll(2) error: %d", ret);
             goto done;
         }
         for(int i = 0; i < nfds; ++i)
@@ -1546,7 +1546,7 @@ static int cconn_main_loop(uint32_t request_type)
             }
             else if(cconn_validate_revents(io, revents))
             {
-                WARNING("ceph plugin: cconn(name=%s,i=%d,st=%d): "
+                WARNING("cconn(name=%s,i=%d,st=%d): "
                 "revents validation error: "
                 "revents=0x%08x", io->d->name, i, io->state, revents);
                 cconn_close(io);
@@ -1558,7 +1558,7 @@ static int cconn_main_loop(uint32_t request_type)
                 ret = cconn_handle_event(io);
                 if(ret)
                 {
-                    WARNING("ceph plugin: cconn_handle_event(name=%s,"
+                    WARNING("cconn_handle_event(name=%s,"
                     "i=%d,st=%d): error %d", io->d->name, i, io->state, ret);
                     cconn_close(io);
                     io->request_type = ASOK_REQ_NONE;
@@ -1573,11 +1573,11 @@ static int cconn_main_loop(uint32_t request_type)
     }
     if(some_unreachable)
     {
-        DEBUG("ceph plugin: cconn_main_loop: some Ceph daemons were unreachable.");
+        DEBUG("cconn_main_loop: some Ceph daemons were unreachable.");
     }
     else
     {
-        DEBUG("ceph plugin: cconn_main_loop: reached all Ceph daemons :)");
+        DEBUG("cconn_main_loop: reached all Ceph daemons :)");
     }
     return ret;
 }
@@ -1594,12 +1594,12 @@ static int ceph_init(void)
   if (check_capability (CAP_DAC_OVERRIDE) != 0)
   {
     if (getuid () == 0)
-      WARNING ("ceph plugin: Running collectd as root, but the "
+      WARNING ("Running collectd as root, but the "
           "CAP_DAC_OVERRIDE capability is missing. The plugin's read "
           "function will probably fail. Is your init system dropping "
           "capabilities?");
     else
-      WARNING ("ceph plugin: collectd doesn't have the CAP_DAC_OVERRIDE "
+      WARNING ("collectd doesn't have the CAP_DAC_OVERRIDE "
           "capability. If you don't want to run collectd as root, try running "
           "\"setcap cap_dac_override=ep\" on the collectd binary.");
   }
@@ -1609,7 +1609,7 @@ static int ceph_init(void)
 
     if (g_num_daemons < 1)
     {
-        ERROR ("ceph plugin: No daemons configured. See the \"Daemon\" config option.");
+        ERROR ("No daemons configured. See the \"Daemon\" config option.");
         return ENOENT;
     }
 
@@ -1625,7 +1625,7 @@ static int ceph_shutdown(void)
     sfree(g_daemons);
     g_daemons = NULL;
     g_num_daemons = 0;
-    DEBUG("ceph plugin: finished ceph_shutdown");
+    DEBUG("finished ceph_shutdown");
     return 0;
 }
 

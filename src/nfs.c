@@ -423,7 +423,7 @@ static int nfs_submit_fields_safe (int nfs_version, const char *instance,
 {
 	if (fields_num != proc_names_num)
 	{
-		WARNING ("nfs plugin: Wrong number of fields for "
+		WARNING ("Wrong number of fields for "
 				"NFSv%i %s statistics. Expected %zu, got %zu.",
 				nfs_version, instance,
 				proc_names_num, fields_num);
@@ -446,7 +446,7 @@ static int nfs_submit_nfs4_server (const char *instance, char **fields,
 	{
 		if (!suppress_warning)
 		{
-			WARNING ("nfs plugin: Unexpected number of fields for "
+			WARNING ("Unexpected number of fields for "
 					"NFSv4 %s statistics: %zu. ",
 					instance, fields_num);
 		}
@@ -515,7 +515,7 @@ static int nfs_submit_nfs4_client (const char *instance, char **fields,
 		default:
 			if (!suppress_warning)
 			{
-				WARNING ("nfs plugin: Unexpected number of "
+				WARNING ("Unexpected number of "
 						"fields for NFSv4 %s "
 						"statistics: %zu. ",
 						instance, fields_num);

@@ -282,7 +282,7 @@ uuid_init (void)
         return (0);
     }
 
-    WARNING ("uuid: could not read UUID using any known method");
+    WARNING ("could not read UUID using any known method");
     return (0);
 }
 

@@ -72,7 +72,7 @@ static int gr_format_values (char *ret, size_t ret_len,
         BUFFER_ADD ("%"PRIu64, vl->values[ds_num].absolute);
     else
     {
-        ERROR ("gr_format_values plugin: Unknown data source type: %i",
+        ERROR ("Unknown data source type: %i",
                 ds->ds[ds_num].type);
         return (-1);
     }

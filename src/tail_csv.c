@@ -130,7 +130,7 @@ static _Bool tcsv_check_index (ssize_t index, size_t fields_num, char const *nam
     else if (((size_t) index) < fields_num)
         return 1;
 
-    ERROR ("tail_csv plugin: Metric \"%s\": Request for index %zd when "
+    ERROR ("Metric \"%s\": Request for index %zd when "
             "only %zu fields are available.",
             name, index, fields_num);
     return (0);
@@ -168,7 +168,7 @@ static int tcsv_read_buffer (instance_definition_t *id,
     }
 
     if (metrics_num == 1) {
-        ERROR("tail_csv plugin: last line of `%s' does not contain "
+        ERROR("last line of `%s' does not contain "
                 "enough values.", id->path);
         return (-1);
     }
@@ -176,7 +176,7 @@ static int tcsv_read_buffer (instance_definition_t *id,
     /* Create a list of all values */
     metrics = calloc (metrics_num, sizeof (*metrics));
     if (metrics == NULL) {
-        ERROR ("tail_csv plugin: calloc failed.");
+        ERROR ("calloc failed.");
         return (ENOMEM);
     }
 
@@ -218,7 +218,7 @@ static int tcsv_read (user_data_t *ud) {
         id->tail = cu_tail_create (id->path);
         if (id->tail == NULL)
         {
-            ERROR ("tail_csv plugin: cu_tail_create (\"%s\") failed.",
+            ERROR ("cu_tail_create (\"%s\") failed.",
                     id->path);
             return (-1);
         }
@@ -233,7 +233,7 @@ static int tcsv_read (user_data_t *ud) {
         status = cu_tail_readline (id->tail, buffer, (int) sizeof (buffer));
         if (status != 0)
         {
-            ERROR ("tail_csv plugin: File \"%s\": cu_tail_readline failed "
+            ERROR ("File \"%s\": cu_tail_readline failed "
                     "with status %i.", id->path, status);
             return (-1);
         }
@@ -269,13 +269,13 @@ static void tcsv_metric_definition_destroy(void *arg){
 
 static int tcsv_config_get_index(oconfig_item_t *ci, ssize_t *ret_index) {
     if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)){
-        WARNING("tail_csv plugin: The \"%s\" config option needs exactly one "
+        WARNING("The \"%s\" config option needs exactly one "
                 "integer argument.", ci->key);
         return (-1);
     }
 
     if (ci->values[0].value.number < 0) {
-        WARNING("tail_csv plugin: The \"%s\" config option must be positive "
+        WARNING("The \"%s\" config option must be positive "
                 "(or zero).", ci->key);
         return (-1);
     }
@@ -315,7 +315,7 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
         else if (strcasecmp("ValueFrom", option->key) == 0)
             status = tcsv_config_get_index (option, &md->value_from);
         else {
-            WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
+            WARNING("Option `%s' not allowed here.", option->key);
             status = -1;
         }
 
@@ -330,10 +330,10 @@ static int tcsv_config_add_metric(oconfig_item_t *ci){
 
     /* Verify all necessary options have been set. */
     if (md->type == NULL) {
-        WARNING("tail_csv plugin: Option `Type' must be set.");
+        WARNING("Option `Type' must be set.");
         status = -1;
     } else if (md->value_from < 0) {
-        WARNING("tail_csv plugin: Option `ValueFrom' must be set.");
+        WARNING("Option `ValueFrom' must be set.");
         status = -1;
     }
     if (status != 0) {
@@ -377,7 +377,7 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
     size_t metric_list_size;
 
     if (ci->values_num < 1) {
-        WARNING("tail_csv plugin: The `Collect' config option needs at least one argument.");
+        WARNING("The `Collect' config option needs at least one argument.");
         return (-1);
     }
 
@@ -391,7 +391,7 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
         char *metric_name;
 
         if (ci->values[i].type != OCONFIG_TYPE_STRING) {
-            WARNING("tail_csv plugin: All arguments to `Collect' must be strings.");
+            WARNING("All arguments to `Collect' must be strings.");
             continue;
         }
         metric_name = ci->values[i].value.string;
@@ -401,7 +401,7 @@ static int tcsv_config_add_instance_collect(instance_definition_t *id, oconfig_i
                 break;
 
         if (metric == NULL) {
-            WARNING ("tail_csv plugin: `Collect' argument not found `%s'.", metric_name);
+            WARNING ("`Collect' argument not found `%s'.", metric_name);
             continue;
         }
 
@@ -452,7 +452,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
         else if (strcasecmp("TimeFrom", option->key) == 0)
             status = tcsv_config_get_index (option, &id->time_from);
         else {
-            WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
+            WARNING("Option `%s' not allowed here.", option->key);
             status = -1;
         }
 
@@ -467,10 +467,10 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
 
     /* Verify all necessary options have been set. */
     if (id->path == NULL){
-        WARNING("tail_csv plugin: Option `Path' must be set.");
+        WARNING("Option `Path' must be set.");
         status = -1;
     } else if (id->metric_list == NULL){
-        WARNING("tail_csv plugin: Option `Collect' must be set.");
+        WARNING("Option `Collect' must be set.");
         status = -1;
    }
 
@@ -487,7 +487,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci)
                 .free_func = tcsv_instance_definition_destroy,
             });
     if (status != 0){
-        ERROR("tail_csv plugin: Registering complex read function failed.");
+        ERROR("Registering complex read function failed.");
         tcsv_instance_definition_destroy(id);
         return (-1);
     }
@@ -504,7 +504,7 @@ static int tcsv_config(oconfig_item_t *ci){
         else if (strcasecmp("File", child->key) == 0)
             tcsv_config_add_file(child);
         else
-            WARNING("tail_csv plugin: Ignore unknown config option `%s'.", child->key);
+            WARNING("Ignore unknown config option `%s'.", child->key);
     }
 
     return (0);
@@ -524,7 +524,7 @@ static int tcsv_init(void) { /* {{{ */
         ds = plugin_get_ds(md->type);
         if (ds == NULL)
         {
-            ERROR ("tail_csv plugin: Failed to look up type \"%s\" for "
+            ERROR ("Failed to look up type \"%s\" for "
                     "metric \"%s\". It may not be defined in the types.db "
                     "file. Please read the types.db(5) manual page for more "
                     "details.",
@@ -533,7 +533,7 @@ static int tcsv_init(void) { /* {{{ */
         }
         else if (ds->ds_num != 1)
         {
-            ERROR ("tail_csv plugin: The type \"%s\" has %zu data sources. "
+            ERROR ("The type \"%s\" has %zu data sources. "
                     "Only types with a single data source are supported.",
                     ds->type, ds->ds_num);
             continue;

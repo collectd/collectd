@@ -529,7 +529,7 @@ static int openvpn_read (void)
 		if (fh == NULL)
 		{
 			char errbuf[1024];
-			WARNING ("openvpn plugin: fopen(%s) failed: %s", vpn_list[i]->file,
+			WARNING ("fopen(%s) failed: %s", vpn_list[i]->file,
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 
 			continue;
@@ -580,7 +580,7 @@ static int version_detect (const char *filename)
 	if (fh == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("openvpn plugin: Unable to read \"%s\": %s", filename,
+		WARNING ("Unable to read \"%s\": %s", filename,
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (0);
 	}
@@ -591,35 +591,35 @@ static int version_detect (const char *filename)
 		/* we look at the first line searching for SINGLE mode configuration */
 		if (strcmp (buffer, VSSTRING) == 0)
 		{
-			DEBUG ("openvpn plugin: found status file version SINGLE");
+			DEBUG ("found status file version SINGLE");
 			version = SINGLE;
 			break;
 		}
 		/* searching for multi version 1 */
 		else if (strcmp (buffer, V1STRING) == 0)
 		{
-			DEBUG ("openvpn plugin: found status file version MULTI1");
+			DEBUG ("found status file version MULTI1");
 			version = MULTI1;
 			break;
 		}
 		/* searching for multi version 2 */
 		else if (strcmp (buffer, V2STRING) == 0)
 		{
-			DEBUG ("openvpn plugin: found status file version MULTI2");
+			DEBUG ("found status file version MULTI2");
 			version = MULTI2;
 			break;
 		}
 		/* searching for multi version 3 */
 		else if (strcmp (buffer, V3STRING) == 0)
 		{
-			DEBUG ("openvpn plugin: found status file version MULTI3");
+			DEBUG ("found status file version MULTI3");
 			version = MULTI3;
 			break;
 		}
 		/* searching for multi version 4 */
 		else if (strcmp (buffer, V4STRING) == 0)
 		{
-			DEBUG ("openvpn plugin: found status file version MULTI4");
+			DEBUG ("found status file version MULTI4");
 			version = MULTI4;
 			break;
 		}
@@ -629,7 +629,7 @@ static int version_detect (const char *filename)
 	{
 		/* This is only reached during configuration, so complaining to
 		 * the user is in order. */
-		NOTICE ("openvpn plugin: %s: Unknown file format, please "
+		NOTICE ("%s: Unknown file format, please "
 				"report this as bug. Make sure to include "
 				"your status file, so the plugin can "
 				"be adapted.", filename);
@@ -653,7 +653,7 @@ static int openvpn_config (const char *key, const char *value)
 
 		if (status_version == 0)
 		{
-			WARNING ("openvpn plugin: unable to detect status version, \
+			WARNING ("unable to detect status version, \
 					discarding status file \"%s\".", value);
 			return (1);
 		}
@@ -662,7 +662,7 @@ static int openvpn_config (const char *key, const char *value)
 		if (status_file == NULL)
 		{
 			char errbuf[1024];
-			WARNING ("openvpn plugin: sstrdup failed: %s",
+			WARNING ("sstrdup failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (1);
 		}
@@ -685,8 +685,7 @@ static int openvpn_config (const char *key, const char *value)
 		{
 			if (strcasecmp (vpn_list[i]->name, status_name) == 0)
 			{
-				WARNING ("openvpn plugin: status filename \"%s\" "
-						"already used, please choose a "
+				WARNING ("status filename \"%s\" already used, please choose a "
 						"different one.", status_name);
 				sfree (status_file);
 				return (1);
@@ -698,7 +697,7 @@ static int openvpn_config (const char *key, const char *value)
 		if (temp == NULL)
 		{
 			char errbuf[1024];
-			ERROR ("openvpn plugin: malloc failed: %s",
+			ERROR ("malloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			sfree (status_file);
 			return (1);
@@ -711,7 +710,7 @@ static int openvpn_config (const char *key, const char *value)
 		if (tmp_list == NULL)
 		{
 			char errbuf[1024];
-			ERROR ("openvpn plugin: realloc failed: %s",
+			ERROR ("realloc failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 
 			sfree (vpn_list);
@@ -724,7 +723,7 @@ static int openvpn_config (const char *key, const char *value)
 		vpn_list[vpn_num] = temp;
 		vpn_num++;
 
-		DEBUG ("openvpn plugin: status file \"%s\" added", temp->file);
+		DEBUG ("status file \"%s\" added", temp->file);
 
 	} /* if (strcasecmp ("StatusFile", key) == 0) */
 	else if ((strcasecmp ("CollectCompression", key) == 0)
@@ -739,7 +738,7 @@ static int openvpn_config (const char *key, const char *value)
 	{
 		if (IS_TRUE (value))
 		{
-			DEBUG ("openvpn plugin: using the new naming schema");
+			DEBUG ("using the new naming schema");
 			new_naming_schema = 1;
 		}
 		else
@@ -789,7 +788,7 @@ static int openvpn_init (void)
 			&& !collect_compression
 			&& !collect_user_count)
 	{
-		WARNING ("OpenVPN plugin: Neither `CollectIndividualUsers', "
+		WARNING ("Neither `CollectIndividualUsers', "
 				"`CollectCompression', nor `CollectUserCount' is true. There's no "
 				"data left to collect.");
 		return (-1);

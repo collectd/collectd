@@ -226,7 +226,7 @@ static int dns_run_pcap_loop (void)
 	}
 
 	/* Passing `pcap_device == NULL' is okay and the same as passign "any" */
-	DEBUG ("dns plugin: Creating PCAP object..");
+	DEBUG ("Creating PCAP object..");
 	pcap_obj = pcap_open_live ((pcap_device != NULL) ? pcap_device : "any",
 			PCAP_SNAPLEN,
 			0 /* Not promiscuous */,
@@ -234,8 +234,7 @@ static int dns_run_pcap_loop (void)
 			pcap_error);
 	if (pcap_obj == NULL)
 	{
-		ERROR ("dns plugin: Opening interface `%s' "
-				"failed: %s",
+		ERROR ("Opening interface `%s' failed: %s",
 				(pcap_device != NULL) ? pcap_device : "any",
 				pcap_error);
 		return (PCAP_ERROR);
@@ -244,20 +243,18 @@ static int dns_run_pcap_loop (void)
 	status = pcap_compile (pcap_obj, &fp, "udp port 53", 1, 0);
 	if (status < 0)
 	{
-		ERROR ("dns plugin: pcap_compile failed: %s",
-				pcap_statustostr (status));
+		ERROR ("pcap_compile failed: %s", pcap_statustostr (status));
 		return (status);
 	}
 
 	status = pcap_setfilter (pcap_obj, &fp);
 	if (status < 0)
 	{
-		ERROR ("dns plugin: pcap_setfilter failed: %s",
-				pcap_statustostr (status));
+		ERROR ("pcap_setfilter failed: %s", pcap_statustostr (status));
 		return (status);
 	}
 
-	DEBUG ("dns plugin: PCAP object created.");
+	DEBUG ("PCAP object created.");
 
 	dnstop_set_pcap_obj (pcap_obj);
 	dnstop_set_callback (dns_child_callback);
@@ -266,7 +263,7 @@ static int dns_run_pcap_loop (void)
 			-1 /* loop forever */,
 			handle_pcap /* callback */,
 			NULL /* user data */);
-	INFO ("dns plugin: pcap_loop exited with status %i.", status);
+	INFO ("pcap_loop exited with status %i.", status);
 	/* We need to handle "PCAP_ERROR" specially because libpcap currently
 	 * doesn't return PCAP_ERROR_IFACE_NOT_UP for compatibility reasons. */
 	if (status == PCAP_ERROR)
@@ -304,7 +301,7 @@ static void *dns_child_loop (__attribute__((unused)) void *dummy) /* {{{ */
 	}
 
 	if (status != PCAP_ERROR_BREAK)
-		ERROR ("dns plugin: PCAP returned error %s.",
+		ERROR ("PCAP returned error %s.",
 				pcap_statustostr (status));
 
 	listen_thread_init = 0;
@@ -329,7 +326,7 @@ static int dns_init (void)
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("dns plugin: pthread_create failed: %s",
+		ERROR ("pthread_create failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -340,11 +337,11 @@ static int dns_init (void)
 	if (check_capability (CAP_NET_RAW) != 0)
 	{
 		if (getuid () == 0)
-			WARNING ("dns plugin: Running collectd as root, but the CAP_NET_RAW "
+			WARNING ("Running collectd as root, but the CAP_NET_RAW "
 					"capability is missing. The plugin's read function will probably "
 					"fail. Is your init system dropping capabilities?");
 		else
-			WARNING ("dns plugin: collectd doesn't have the CAP_NET_RAW capability. "
+			WARNING ("collectd doesn't have the CAP_NET_RAW capability. "
 					"If you don't want to run collectd as root, try running \"setcap "
 					"cap_net_raw=ep\" on the collectd binary.");
 	}
@@ -411,7 +408,7 @@ static int dns_read (void)
 
 	for (int i = 0; i < len; i++)
 	{
-		DEBUG ("dns plugin: qtype = %u; counter = %u;", keys[i], values[i]);
+		DEBUG ("qtype = %u; counter = %u;", keys[i], values[i]);
 		submit_derive ("dns_qtype", qtype_str (keys[i]), values[i]);
 	}
 
@@ -427,7 +424,7 @@ static int dns_read (void)
 
 	for (int i = 0; i < len; i++)
 	{
-		DEBUG ("dns plugin: opcode = %u; counter = %u;", keys[i], values[i]);
+		DEBUG ("opcode = %u; counter = %u;", keys[i], values[i]);
 		submit_derive ("dns_opcode", opcode_str (keys[i]), values[i]);
 	}
 
@@ -443,7 +440,7 @@ static int dns_read (void)
 
 	for (int i = 0; i < len; i++)
 	{
-		DEBUG ("dns plugin: rcode = %u; counter = %u;", keys[i], values[i]);
+		DEBUG ("rcode = %u; counter = %u;", keys[i], values[i]);
 		submit_derive ("dns_rcode", rcode_str (keys[i]), values[i]);
 	}
 

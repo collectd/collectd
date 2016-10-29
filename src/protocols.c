@@ -62,8 +62,7 @@ static void submit (const char *protocol_name,
   status = parse_value (str_value, &value, DS_TYPE_DERIVE);
   if (status != 0)
   {
-    ERROR ("protocols plugin: Parsing string as integer failed: %s",
-        str_value);
+    ERROR ("Parsing string as integer failed: %s", str_value);
     return;
   }
 
@@ -94,7 +93,7 @@ static int read_file (const char *path)
   fh = fopen (path, "r");
   if (fh == NULL)
   {
-    ERROR ("protocols plugin: fopen (%s) failed: %s.",
+    ERROR ("fopen (%s) failed: %s.",
         path, sstrerror (errno, key_buffer, sizeof (key_buffer)));
     return (-1);
   }
@@ -113,12 +112,12 @@ static int read_file (const char *path)
       }
       else if (ferror (fh) != 0)
       {
-        ERROR ("protocols plugin: Reading from %s failed.", path);
+        ERROR ("Reading from %s failed.", path);
         break;
       }
       else
       {
-        ERROR ("protocols plugin: fgets failed for an unknown reason.");
+        ERROR ("fgets failed for an unknown reason.");
         break;
       }
     } /* if (key_ptr == NULL) */
@@ -126,15 +125,14 @@ static int read_file (const char *path)
     value_ptr = fgets (value_buffer, sizeof (value_buffer), fh);
     if (value_ptr == NULL)
     {
-      ERROR ("protocols plugin: read_file (%s): Could not read values line.",
-          path);
+      ERROR ("read_file (%s): Could not read values line.", path);
       break;
     }
 
     key_ptr = strchr (key_buffer, ':');
     if (key_ptr == NULL)
     {
-      ERROR ("protocols plugin: Could not find protocol name in keys line.");
+      ERROR ("Could not find protocol name in keys line.");
       break;
     }
     *key_ptr = 0;
@@ -143,8 +141,7 @@ static int read_file (const char *path)
     value_ptr = strchr (value_buffer, ':');
     if (value_ptr == NULL)
     {
-      ERROR ("protocols plugin: Could not find protocol name "
-          "in values line.");
+      ERROR ("Could not find protocol name in values line.");
       break;
     }
     *value_ptr = 0;
@@ -152,7 +149,7 @@ static int read_file (const char *path)
 
     if (strcmp (key_buffer, value_buffer) != 0)
     {
-      ERROR ("protocols plugin: Protocol names in keys and values lines "
+      ERROR ("Protocol names in keys and values lines "
           "don't match: `%s' vs. `%s'.",
           key_buffer, value_buffer);
       break;
@@ -166,7 +163,7 @@ static int read_file (const char *path)
 
     if (key_fields_num != value_fields_num)
     {
-      ERROR ("protocols plugin: Number of fields in keys and values lines "
+      ERROR ("Number of fields in keys and values lines "
           "don't match: %i vs %i.",
           key_fields_num, value_fields_num);
       break;

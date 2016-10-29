@@ -98,7 +98,7 @@ static grpc::string read_file(const char *filename)
 
 	f.open(filename);
 	if (!f.is_open()) {
-		ERROR("grpc: Failed to open '%s'", filename);
+		ERROR("Failed to open '%s'", filename);
 		return "";
 	}
 
@@ -388,7 +388,7 @@ public:
 
 		if (listeners.empty()) {
 			builder.AddListeningPort(default_addr, auth);
-			INFO("grpc: Listening on %s", default_addr.c_str());
+			INFO("Listening on %s", default_addr.c_str());
 		}
 		else {
 			for (auto l : listeners) {
@@ -402,7 +402,7 @@ public:
 				}
 
 				builder.AddListeningPort(addr, a);
-				INFO("grpc: Listening on %s%s", addr.c_str(), use_ssl.c_str());
+				INFO("Listening on %s%s", addr.c_str(), use_ssl.c_str());
 			}
 		}
 
@@ -434,21 +434,21 @@ public:
 		PutValuesRequest req;
 		auto status = marshal_value_list(vl, req.mutable_value_list());
 		if (!status.ok()) {
-			ERROR("grpc: Marshalling value_list_t failed.");
+			ERROR("Marshalling value_list_t failed.");
 			return -1;
 		}
 
 		PutValuesResponse res;
 		auto stream = stub_->PutValues(&ctx, &res);
 		if (!stream->Write(req)) {
-			NOTICE("grpc: Broken stream.");
+			NOTICE("Broken stream.");
 			/* intentionally not returning. */
 		}
 
 		stream->WritesDone();
 		status = stream->Finish();
 		if (!status.ok()) {
-			ERROR ("grpc: Error while closing stream.");
+			ERROR ("Error while closing stream.");
 			return -1;
 		}
 
@@ -481,7 +481,7 @@ extern "C" {
 		if ((ci->values_num != 2)
 				|| (ci->values[0].type != OCONFIG_TYPE_STRING)
 				|| (ci->values[1].type != OCONFIG_TYPE_STRING)) {
-			ERROR("grpc: The `%s` config option needs exactly "
+			ERROR("The `%s` config option needs exactly "
 					"two string argument (address and port).", ci->key);
 			return -1;
 		}
@@ -500,7 +500,7 @@ extern "C" {
 
 			if (!strcasecmp("EnableSSL", child->key)) {
 				if (cf_util_get_boolean(child, &use_ssl)) {
-					ERROR("grpc: Option `%s` expects a boolean value",
+					ERROR("Option `%s` expects a boolean value",
 							child->key);
 					return -1;
 				}
@@ -508,7 +508,7 @@ extern "C" {
 			else if (!strcasecmp("SSLCACertificateFile", child->key)) {
 				char *certs = NULL;
 				if (cf_util_get_string(child, &certs)) {
-					ERROR("grpc: Option `%s` expects a string value",
+					ERROR("Option `%s` expects a string value",
 							child->key);
 					return -1;
 				}
@@ -517,7 +517,7 @@ extern "C" {
 			else if (!strcasecmp("SSLCertificateKeyFile", child->key)) {
 				char *key = NULL;
 				if (cf_util_get_string(child, &key)) {
-					ERROR("grpc: Option `%s` expects a string value",
+					ERROR("Option `%s` expects a string value",
 							child->key);
 					return -1;
 				}
@@ -526,14 +526,14 @@ extern "C" {
 			else if (!strcasecmp("SSLCertificateFile", child->key)) {
 				char *cert = NULL;
 				if (cf_util_get_string(child, &cert)) {
-					ERROR("grpc: Option `%s` expects a string value",
+					ERROR("Option `%s` expects a string value",
 							child->key);
 					return -1;
 				}
 				pkcp.cert_chain = read_file(cert);
 			}
 			else {
-				WARNING("grpc: Option `%s` not allowed in <%s> block.",
+				WARNING("Option `%s` not allowed in <%s> block.",
 						child->key, ci->key);
 			}
 		}
@@ -553,7 +553,7 @@ extern "C" {
 		if ((ci->values_num != 2)
 				|| (ci->values[0].type != OCONFIG_TYPE_STRING)
 				|| (ci->values[1].type != OCONFIG_TYPE_STRING)) {
-			ERROR("grpc: The `%s` config option needs exactly "
+			ERROR("The `%s` config option needs exactly "
 					"two string argument (address and port).", ci->key);
 			return -1;
 		}
@@ -591,7 +591,7 @@ extern "C" {
 				ssl_opts.pem_cert_chain = read_file(cert);
 			}
 			else {
-				WARNING("grpc: Option `%s` not allowed in <%s> block.",
+				WARNING("Option `%s` not allowed in <%s> block.",
 						child->key, ci->key);
 			}
 		}
@@ -637,7 +637,7 @@ extern "C" {
 			}
 
 			else {
-				WARNING("grpc: Option `%s` not allowed here.", child->key);
+				WARNING("Option `%s` not allowed here.", child->key);
 			}
 		}
 
@@ -648,7 +648,7 @@ extern "C" {
 	{
 		server = new CollectdServer();
 		if (!server) {
-			ERROR("grpc: Failed to create server");
+			ERROR("Failed to create server");
 			return -1;
 		}
 

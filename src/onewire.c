@@ -165,7 +165,7 @@ static void direct_list_element_free(direct_access_element_t *el)
 {
     if (el != NULL)
     {
-        DEBUG ("onewire plugin: direct_list_element_free - deleting <%s>", el->path);
+        DEBUG ("direct_list_element_free - deleting <%s>", el->path);
         sfree (el->path);
         sfree (el->address);
         sfree (el->file);
@@ -179,12 +179,12 @@ static int direct_list_insert(const char * config)
     size_t                   nmatch = 3;
     direct_access_element_t *element;
 
-    DEBUG ("onewire plugin: direct_list_insert <%s>", config);
+    DEBUG ("direct_list_insert <%s>", config);
 
     element = malloc (sizeof (*element));
     if (element == NULL)
     {
-        ERROR ("onewire plugin: direct_list_insert - cannot allocate element");
+        ERROR ("direct_list_insert - cannot allocate element");
         return 1;
     }
     element->path    = NULL;
@@ -194,35 +194,35 @@ static int direct_list_insert(const char * config)
     element->path = strdup (config);
     if (element->path == NULL)
     {
-        ERROR ("onewire plugin: direct_list_insert - cannot allocate path");
+        ERROR ("direct_list_insert - cannot allocate path");
         direct_list_element_free (element);
         return 1;
     }
 
-    DEBUG ("onewire plugin: direct_list_insert - about to match %s", config);
+    DEBUG ("direct_list_insert - about to match %s", config);
 
     if (!regex_direct_initialized)
     {
         if (regcomp (&regex_direct, regexp_to_match, REG_EXTENDED))
         {
-            ERROR ("onewire plugin: Cannot compile regex");
+            ERROR ("Cannot compile regex");
             direct_list_element_free (element);
             return (1);
         }
         regex_direct_initialized = 1;
-        DEBUG ("onewire plugin: Compiled regex!!");
+        DEBUG ("Compiled regex!!");
     }
 
     if (regexec (&regex_direct, config, nmatch, pmatch, 0))
     {
-        ERROR ("onewire plugin: direct_list_insert - no regex  match");
+        ERROR ("direct_list_insert - no regex  match");
         direct_list_element_free (element);
         return 1;
     }
 
     if (pmatch[1].rm_so<0)
     {
-        ERROR ("onewire plugin: direct_list_insert - no address regex match");
+        ERROR ("direct_list_insert - no address regex match");
         direct_list_element_free (element);
         return 1;
     }
@@ -230,16 +230,15 @@ static int direct_list_insert(const char * config)
                                 pmatch[1].rm_eo - pmatch[1].rm_so);
     if (element->address == NULL)
     {
-        ERROR ("onewire plugin: direct_list_insert - cannot allocate address");
+        ERROR ("direct_list_insert - cannot allocate address");
         direct_list_element_free (element);
         return 1;
     }
-    DEBUG ("onewire plugin: direct_list_insert - found address <%s>",
-           element->address);
+    DEBUG ("direct_list_insert - found address <%s>", element->address);
 
     if (pmatch[2].rm_so<0)
     {
-        ERROR ("onewire plugin: direct_list_insert - no file regex match");
+        ERROR ("direct_list_insert - no file regex match");
         direct_list_element_free (element);
         return 1;
     }
@@ -247,11 +246,11 @@ static int direct_list_insert(const char * config)
                              pmatch[2].rm_eo - pmatch[2].rm_so);
     if (element->file == NULL)
     {
-        ERROR ("onewire plugin: direct_list_insert - cannot allocate file");
+        ERROR ("direct_list_insert - cannot allocate file");
         direct_list_element_free (element);
         return 1;
     }
-    DEBUG ("onewire plugin: direct_list_insert - found file <%s>", element->file);
+    DEBUG ("direct_list_insert - found file <%s>", element->file);
 
     element->next = direct_list;
     direct_list = element;
@@ -284,17 +283,17 @@ static int cow_load_config (const char *key, const char *value)
   {
     if (direct_list_insert (value))
     {
-        DEBUG ("onewire plugin: Cannot add %s to direct_list_insert.", value);
+        DEBUG ("Cannot add %s to direct_list_insert.", value);
 
         if (ignorelist_add (sensor_list, value))
         {
-            ERROR ("onewire plugin: Cannot add value to ignorelist.");
+            ERROR ("Cannot add value to ignorelist.");
             return (1);
         }
     }
     else
     {
-        DEBUG ("onewire plugin: %s is a direct access", value);
+        DEBUG ("%s is a direct access", value);
         direct_access = 1;
     }
   }
@@ -310,7 +309,7 @@ static int cow_load_config (const char *key, const char *value)
     temp = strdup (value);
     if (temp == NULL)
     {
-      ERROR ("onewire plugin: strdup failed.");
+      ERROR ("strdup failed.");
       return (1);
     }
     sfree (device_g);
@@ -323,7 +322,7 @@ static int cow_load_config (const char *key, const char *value)
     if (tmp > 0.0)
       ow_interval = DOUBLE_TO_CDTIME_T (tmp);
     else
-      ERROR ("onewire plugin: Invalid `Interval' setting: %s", value);
+      ERROR ("Invalid `Interval' setting: %s", value);
   }
   else
   {
@@ -341,7 +340,7 @@ static int cow_read_values (const char *path, const char *name,
 
   if (sensor_list != NULL)
   {
-    DEBUG ("onewire plugin: Checking ignorelist for `%s'", name);
+    DEBUG ("Checking ignorelist for `%s'", name);
     if (ignorelist_match (sensor_list, name) != 0)
       return 0;
   }
@@ -369,7 +368,7 @@ static int cow_read_values (const char *path, const char *name,
     status = OW_get (file, &buffer, &buffer_size);
     if (status < 0)
     {
-      ERROR ("onewire plugin: OW_get (%s/%s) failed. error = %s;",
+      ERROR ("OW_get (%s/%s) failed. error = %s;",
           path, family_info->features[i].filename, sstrerror(errno, errbuf, sizeof (errbuf)));
       return (-1);
     }
@@ -379,7 +378,7 @@ static int cow_read_values (const char *path, const char *name,
     gauge_t g = strtod (buffer, &endptr);
     if (endptr == NULL)
     {
-      ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
+      ERROR ("Buffer is not a number: %s", buffer);
       continue;
     }
 
@@ -439,11 +438,11 @@ static int cow_read_bus (const char *path)
   status = OW_get (path, &buffer, &buffer_size);
   if (status < 0)
   {
-    ERROR ("onewire plugin: OW_get (%s) failed. error = %s;",
+    ERROR ("OW_get (%s) failed. error = %s;",
         path, sstrerror(errno, errbuf, sizeof (errbuf)));
     return (-1);
   }
-  DEBUG ("onewire plugin: OW_get (%s) returned: %s",
+  DEBUG ("OW_get (%s) returned: %s",
       path, buffer);
 
   dummy = buffer;
@@ -510,18 +509,18 @@ static int cow_simple_read (void)
       status = OW_get (traverse->path, &buffer, &buffer_size);
       if (status < 0)
       {
-          ERROR ("onewire plugin: OW_get (%s) failed. status = %s;",
+          ERROR ("OW_get (%s) failed. status = %s;",
                  traverse->path,
                  sstrerror(errno, errbuf, sizeof (errbuf)));
           return (-1);
       }
-      DEBUG ("onewire plugin: Read onewire device %s as %s", traverse->path, buffer);
+      DEBUG ("Read onewire device %s as %s", traverse->path, buffer);
 
       endptr = NULL;
       gauge_t g = strtod (buffer, &endptr);
       if (endptr == NULL)
       {
-          ERROR ("onewire plugin: Buffer is not a number: %s", buffer);
+          ERROR ("Buffer is not a number: %s", buffer);
           continue;
       }
 
@@ -550,19 +549,19 @@ static int cow_read (user_data_t *ud __attribute__((unused)))
 
     if (direct_access)
     {
-        DEBUG ("onewire plugin: Direct access read");
+        DEBUG ("Direct access read");
         result = cow_simple_read ();
     }
     else
     {
-        DEBUG ("onewire plugin: Standard access read");
+        DEBUG ("Standard access read");
         result = cow_read_bus ("/");
     }
 
 #if COLLECT_DEBUG
     gettimeofday (&tv_end, NULL);
     timeval_subtract (&tv_diff, &tv_end, &tv_begin);
-    DEBUG ("onewire plugin: Onewire read took us %ld.%06ld s",
+    DEBUG ("Onewire read took us %ld.%06ld s",
            tv_diff.tv_sec,
            tv_diff.tv_usec);
 #endif /* COLLECT_DEBUG */
@@ -592,15 +591,15 @@ static int cow_init (void)
 
   if (device_g == NULL)
   {
-    ERROR ("onewire plugin: cow_init: No device configured.");
+    ERROR ("cow_init: No device configured.");
     return (-1);
   }
 
-  DEBUG ("onewire plugin: about to init device <%s>.", device_g);
+  DEBUG ("about to init device <%s>.", device_g);
   status = (int) OW_init (device_g);
   if (status != 0)
   {
-    ERROR ("onewire plugin: OW_init(%s) failed: %s.", device_g, sstrerror(errno, errbuf, sizeof (errbuf)));
+    ERROR ("OW_init(%s) failed: %s.", device_g, sstrerror(errno, errbuf, sizeof (errbuf)));
     return (1);
   }
 

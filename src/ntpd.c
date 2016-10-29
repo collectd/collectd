@@ -367,7 +367,7 @@ static int ntpd_connect (void)
 	if ((status = getaddrinfo (host, port, &ai_hints, &ai_list)) != 0)
 	{
 		char errbuf[1024];
-		ERROR ("ntpd plugin: getaddrinfo (%s, %s): %s",
+		ERROR ("getaddrinfo (%s, %s): %s",
 				host, port,
 				(status == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
@@ -398,7 +398,7 @@ static int ntpd_connect (void)
 
 	if (sock_descr < 0)
 	{
-		ERROR ("ntpd plugin: Unable to connect to server.");
+		ERROR ("Unable to connect to server.");
 	}
 
 	return (sock_descr);
@@ -445,7 +445,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 	if (gettimeofday (&time_end, NULL) < 0)
 	{
 		char errbuf[1024];
-		ERROR ("ntpd plugin: gettimeofday failed: %s",
+		ERROR ("gettimeofday failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
@@ -459,7 +459,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		if (gettimeofday (&time_now, NULL) < 0)
 		{
 			char errbuf[1024];
-			ERROR ("ntpd plugin: gettimeofday failed: %s",
+			ERROR ("gettimeofday failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -487,7 +487,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		if (status < 0)
 		{
 			char errbuf[1024];
-			ERROR ("ntpd plugin: poll failed: %s",
+			ERROR ("poll failed: %s",
 					sstrerror (errno, errbuf, sizeof (errbuf)));
 			return (-1);
 		}
@@ -522,36 +522,34 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		 */
 		if (status < RESP_HEADER_SIZE)
 		{
-			WARNING ("ntpd plugin: Short (%i bytes) packet received",
+			WARNING ("Short (%i bytes) packet received",
 					(int) status);
 			continue;
 		}
 		if (INFO_MODE (res.rm_vn_mode) != MODE_PRIVATE)
 		{
-			NOTICE ("ntpd plugin: Packet received with mode %i",
+			NOTICE ("Packet received with mode %i",
 					INFO_MODE (res.rm_vn_mode));
 			continue;
 		}
 		if (INFO_IS_AUTH (res.auth_seq))
 		{
-			NOTICE ("ntpd plugin: Encrypted packet received");
+			NOTICE ("Encrypted packet received");
 			continue;
 		}
 		if (!ISRESPONSE (res.rm_vn_mode))
 		{
-			NOTICE ("ntpd plugin: Received request packet, "
-					"wanted response");
+			NOTICE ("Received request packet, wanted response");
 			continue;
 		}
 		if (INFO_MBZ (res.mbz_itemsize))
 		{
-			WARNING ("ntpd plugin: Received packet with nonzero "
-					"MBZ field!");
+			WARNING ("Received packet with nonzero MBZ field!");
 			continue;
 		}
 		if (res.implementation != IMPL_XNTPD)
 		{
-			WARNING ("ntpd plugin: Asked for request of type %i, "
+			WARNING ("Asked for request of type %i, "
 					"got %i", (int) IMPL_XNTPD, (int) res.implementation);
 			continue;
 		}
@@ -559,7 +557,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		/* Check for error code */
 		if (INFO_ERR (res.err_nitems) != 0)
 		{
-			ERROR ("ntpd plugin: Received error code %i",
+			ERROR ("Received error code %i",
 					(int) INFO_ERR(res.err_nitems));
 			return ((int) INFO_ERR (res.err_nitems));
 		}
@@ -573,8 +571,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		/* Check if the reported items fit in the packet */
 		if ((pkt_item_num * pkt_item_len) > (status - RESP_HEADER_SIZE))
 		{
-			ERROR ("ntpd plugin: %i items * %i bytes > "
-					"%i bytes - %i bytes header",
+			ERROR ("%i items * %i bytes > %i bytes - %i bytes header",
 					(int) pkt_item_num, (int) pkt_item_len,
 					(int) status, (int) RESP_HEADER_SIZE);
 			continue;
@@ -582,8 +579,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 
 		if (pkt_item_len > res_item_size)
 		{
-			ERROR ("ntpd plugin: (pkt_item_len = %i) "
-					">= (res_item_size = %i)",
+			ERROR ("(pkt_item_len = %i) >= (res_item_size = %i)",
 					pkt_item_len, res_item_size);
 			continue;
 		}
@@ -622,7 +618,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		pkt_sequence = INFO_SEQ (res.auth_seq);
 		if ((pkt_sequence < 0) || (pkt_sequence > MAXSEQ))
 		{
-			ERROR ("ntpd plugin: Received packet with sequence %i",
+			ERROR ("Received packet with sequence %i",
 					pkt_sequence);
 			continue;
 		}
@@ -630,7 +626,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		/* Check if this sequence has been received before. If so, discard it. */
 		if (pkt_recvd[pkt_sequence] != '\0')
 		{
-			NOTICE ("ntpd plugin: Sequence %i received twice",
+			NOTICE ("Sequence %i received twice",
 					pkt_sequence);
 			continue;
 		}
@@ -641,7 +637,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 		{
 			if (pkt_lastseq != -1)
 			{
-				ERROR ("ntpd plugin: Two packets which both "
+				ERROR ("Two packets which both "
 						"claim to be the last one in the "
 						"sequence have been received.");
 				continue;
@@ -660,7 +656,7 @@ static int ntpd_receive_response (int *res_items, int *res_size,
 				(items_num + pkt_item_num) * res_item_size);
 		if (items == NULL)
 		{
-			ERROR ("ntpd plugin: realloc failed.");
+			ERROR ("realloc failed.");
 			continue;
 		}
 		items_num += pkt_item_num;
@@ -837,7 +833,7 @@ static int ntpd_get_name_from_address (char *buffer, size_t buffer_size,
 	if (status != 0)
 	{
 		char errbuf[1024];
-		ERROR ("ntpd plugin: getnameinfo failed: %s",
+		ERROR ("getnameinfo failed: %s",
 				(status == EAI_SYSTEM)
 				? sstrerror (errno, errbuf, sizeof (errbuf))
 				: gai_strerror (status));
@@ -911,12 +907,12 @@ static int ntpd_read (void)
 			sizeof (struct info_kernel));
 	if (status != 0)
 	{
-		ERROR ("ntpd plugin: ntpd_do_query (REQ_GET_KERNEL) failed with status %i", status);
+		ERROR ("ntpd_do_query (REQ_GET_KERNEL) failed with status %i", status);
 		return (status);
 	}
 	else if ((ik == NULL) || (ik_num == 0) || (ik_size == 0))
 	{
-		ERROR ("ntpd plugin: ntpd_do_query returned unexpected data. "
+		ERROR ("ntpd_do_query returned unexpected data. "
 				"(ik = %p; ik_num = %i; ik_size = %i)",
 				(void *) ik, ik_num, ik_size);
 		return (-1);
@@ -951,12 +947,12 @@ static int ntpd_read (void)
 			sizeof (struct info_peer_summary));
 	if (status != 0)
 	{
-		ERROR ("ntpd plugin: ntpd_do_query (REQ_PEER_LIST_SUM) failed with status %i", status);
+		ERROR ("ntpd_do_query (REQ_PEER_LIST_SUM) failed with status %i", status);
 		return (status);
 	}
 	else if ((ps == NULL) || (ps_num == 0) || (ps_size == 0))
 	{
-		ERROR ("ntpd plugin: ntpd_do_query returned unexpected data. "
+		ERROR ("ntpd_do_query returned unexpected data. "
 				"(ps = %p; ps_num = %i; ps_size = %i)",
 				(void *) ps, ps_num, ps_size);
 		return (-1);
@@ -975,7 +971,7 @@ static int ntpd_read (void)
 		status = ntpd_get_name (peername, sizeof (peername), ptr);
 		if (status != 0)
 		{
-			ERROR ("ntpd plugin: Determining name of peer failed.");
+			ERROR ("Determining name of peer failed.");
 			continue;
 		}
 

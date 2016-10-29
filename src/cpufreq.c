@@ -48,8 +48,7 @@ static int cpufreq_init (void)
 		num_cpu++;
 	}
 
-	INFO ("cpufreq plugin: Found %d CPU%s", num_cpu,
-			(num_cpu == 1) ? "" : "s");
+	INFO ("Found %d CPU%s", num_cpu, (num_cpu == 1) ? "" : "s");
 
 	if (num_cpu == 0)
 		plugin_unregister_read ("cpufreq");
@@ -81,7 +80,7 @@ static int cpufreq_read (void)
 		value_t v;
 		if (parse_value_file (filename, &v, DS_TYPE_GAUGE) != 0)
 		{
-			WARNING ("cpufreq plugin: Reading \"%s\" failed.", filename);
+			WARNING ("Reading \"%s\" failed.", filename);
 			continue;
 		}
 

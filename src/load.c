@@ -69,7 +69,7 @@ static int load_config (const char *key, const char *value)
 #ifdef _SC_NPROCESSORS_ONLN
 		report_relative_load = IS_TRUE (value) ? 1 : 0;
 #else
-                WARNING ("load plugin: The \"ReportRelative\" configuration "
+                WARNING ("The \"ReportRelative\" configuration "
                          "is not available, because I can't determine the "
                          "number of CPUS on this system. Sorry.");
 #endif
@@ -84,7 +84,7 @@ static void load_submit (gauge_t snum, gauge_t mnum, gauge_t lnum)
 #ifdef  _SC_NPROCESSORS_ONLN
         if (report_relative_load) {
                 if ((cores = sysconf(_SC_NPROCESSORS_ONLN)) < 1) {
-			WARNING ("load: sysconf failed : %s",
+			WARNING ("sysconf failed : %s",
 				 sstrerror (errno, errbuf, sizeof (errbuf)));
 		}
 	}
@@ -126,7 +126,7 @@ static int load_read (void)
         else
         {
                 char errbuf[1024];
-                WARNING ("load: getloadavg failed: %s",
+                WARNING ("getloadavg failed: %s",
                          sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 /* #endif HAVE_GETLOADAVG */
@@ -142,16 +142,14 @@ static int load_read (void)
 	if ((loadavg = fopen ("/proc/loadavg", "r")) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("load: fopen: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		WARNING ("fopen: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
 	if (fgets (buffer, 16, loadavg) == NULL)
 	{
 		char errbuf[1024];
-		WARNING ("load: fgets: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		WARNING ("fgets: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 		fclose (loadavg);
 		return (-1);
 	}
@@ -159,8 +157,7 @@ static int load_read (void)
 	if (fclose (loadavg))
 	{
 		char errbuf[1024];
-		WARNING ("load: fclose: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
+		WARNING ("fclose: %s", sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
 
 	numfields = strsplit (buffer, fields, 8);
@@ -195,7 +192,7 @@ static int load_read (void)
 	if (perfstat_cpu_total(NULL,  &cputotal, sizeof(perfstat_cpu_total_t), 1) < 0)
 	{
 		char errbuf[1024];
-		WARNING ("load: perfstat_cpu : %s",
+		WARNING ("perfstat_cpu : %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}

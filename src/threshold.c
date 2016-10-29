@@ -222,14 +222,13 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("threshold values: The `Type' block needs exactly one string "
-	"argument.");
+    WARNING ("The `Type' block needs exactly one string argument.");
     return (-1);
   }
 
   if (ci->children_num < 1)
   {
-    WARNING ("threshold values: The `Type' block needs at least one option.");
+    WARNING ("The `Type' block needs at least one option.");
     return (-1);
   }
 
@@ -274,8 +273,7 @@ static int ut_config_type (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_type_hysteresis (&th, option);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed inside a `Type' "
-	  "block.", option->key);
+      WARNING ("Option `%s' not allowed inside a `Type' block.", option->key);
       status = -1;
     }
 
@@ -315,15 +313,13 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("threshold values: The `Plugin' block needs exactly one string "
-	"argument.");
+    WARNING ("The `Plugin' block needs exactly one string argument.");
     return (-1);
   }
 
   if (ci->children_num < 1)
   {
-    WARNING ("threshold values: The `Plugin' block needs at least one nested "
-	"block.");
+    WARNING ("The `Plugin' block needs at least one nested block.");
     return (-1);
   }
 
@@ -340,8 +336,7 @@ static int ut_config_plugin (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_plugin_instance (&th, option);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed inside a `Plugin' "
-	  "block.", option->key);
+      WARNING ("Option `%s' not allowed inside a `Plugin' block.", option->key);
       status = -1;
     }
 
@@ -360,15 +355,13 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
-    WARNING ("threshold values: The `Host' block needs exactly one string "
-	"argument.");
+    WARNING ("The `Host' block needs exactly one string argument.");
     return (-1);
   }
 
   if (ci->children_num < 1)
   {
-    WARNING ("threshold values: The `Host' block needs at least one nested "
-	"block.");
+    WARNING ("The `Host' block needs at least one nested block.");
     return (-1);
   }
 
@@ -385,8 +378,7 @@ static int ut_config_host (const threshold_t *th_orig, oconfig_item_t *ci)
       status = ut_config_plugin (&th, option);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed inside a `Host' "
-	  "block.", option->key);
+      WARNING ("Option `%s' not allowed inside a `Host' block.", option->key);
       status = -1;
     }
 
@@ -895,7 +887,7 @@ static int ut_config (oconfig_item_t *ci)
       status = ut_config_host (&th, option);
     else
     {
-      WARNING ("threshold values: Option `%s' not allowed here.", option->key);
+      WARNING ("Option `%s' not allowed here.", option->key);
       status = -1;
     }
 
