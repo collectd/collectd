@@ -7144,6 +7144,13 @@ Use the greatest number only.
 
 Use the last number found.
 
+=item B<GaugePersist>
+
+Use the last number found. The number if not reset at the end of an interval.
+It is continously reported until another number if matched. This is intended
+for cases in which only state changes are reported, for example a thermometer
+that only reports the temperature when it changes.
+
 =item B<CounterSet>
 
 =item B<DeriveSet>
