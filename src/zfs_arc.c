@@ -319,7 +319,6 @@ static int za_read (void)
 	za_read_derive (ksp, "mfu_ghost_hits",           "cache_result", "mfu_ghost-hit");
 	za_read_derive (ksp, "mru_hits",                 "cache_result", "mru-hit");
 	za_read_derive (ksp, "mru_ghost_hits",           "cache_result", "mru_ghost-hit");
-	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
 
 	/* Ratios */
 	arc_hits   = (gauge_t) get_zfs_value(ksp, "hits");
