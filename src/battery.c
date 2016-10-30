@@ -797,7 +797,7 @@ static int battery_read (void) /* {{{ */
 	if (status == 0)
 		return (0);
 
-	ERROR ("battery plugin: Add available input methods failed.");
+	ERROR ("battery plugin: All available input methods failed.");
 	return (-1);
 } /* }}} int battery_read */
 #endif /* KERNEL_LINUX */
