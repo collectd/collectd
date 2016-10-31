@@ -7146,8 +7146,8 @@ Use the last number found.
 
 =item B<GaugePersist>
 
-Use the last number found. The number if not reset at the end of an interval.
-It is continously reported until another number if matched. This is intended
+Use the last number found. The number is not reset at the end of an interval.
+It is continously reported until another number is matched. This is intended
 for cases in which only state changes are reported, for example a thermometer
 that only reports the temperature when it changes.
 
