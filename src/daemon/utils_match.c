@@ -295,13 +295,16 @@ cu_match_t *match_create_simple (const char *regex,
 
 void match_value_reset (cu_match_value_t *mv)
 {
-  if ((mv == NULL)
-      || ((mv->ds_type & UTILS_MATCH_DS_TYPE_GAUGE) == 0)
-      || ((mv->ds_type & UTILS_MATCH_CF_GAUGE_PERSIST) != 0))
+  if (mv == NULL)
     return;
 
-  mv->value.gauge = NAN;
-  mv->values_num = 0;
+  /* Reset GAUGE metrics only and except GAUGE_PERSIST. */
+  if ((mv->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+      && !(mv->ds_type & UTILS_MATCH_CF_GAUGE_PERSIST))
+  {
+    mv->value.gauge = NAN;
+    mv->values_num = 0;
+  }
 } /* }}} void match_value_reset */
 
 void match_destroy (cu_match_t *obj)
