@@ -210,8 +210,14 @@ static int http_handler(void *cls, struct MHD_Connection *connection,
   else
     format_text(buffer);
 
-  struct MHD_Response *res = MHD_create_response_from_data(
+  struct MHD_Response *res =
+#if defined(MHD_VERSION) && MHD_VERSION >= 0x00090500
+    MHD_create_response_from_buffer(
+      simple.len, simple.data, MHD_RESPMEM_MUST_COPY);
+#else
+    MHD_create_response_from_data(
       simple.len, simple.data, /* must_free = */ 0, /* must_copy = */ 1);
+#endif
   MHD_add_response_header(res, MHD_HTTP_HEADER_CONTENT_TYPE,
                           want_proto ? CONTENT_TYPE_PROTO : CONTENT_TYPE_TEXT);
 
