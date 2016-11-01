@@ -100,7 +100,8 @@ static int default_callback (const char __attribute__((unused)) *str,
       return (-1);
 
     if ((data->values_num == 0)
-	|| (data->ds_type & UTILS_MATCH_CF_GAUGE_LAST))
+	|| (data->ds_type & UTILS_MATCH_CF_GAUGE_LAST)
+	|| (data->ds_type & UTILS_MATCH_CF_GAUGE_PERSIST))
     {
       data->value.gauge = value;
     }
