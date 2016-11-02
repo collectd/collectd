@@ -519,6 +519,9 @@ static int openvpn_read (void)
 	int  read;
 
 	read = 0;
+	
+	if (vpn_num == 0)
+		return (0);
 
 	/* call the right read function for every status entry in the list */
 	for (int i = 0; i < vpn_num; i++)
@@ -653,8 +656,8 @@ static int openvpn_config (const char *key, const char *value)
 
 		if (status_version == 0)
 		{
-			WARNING ("openvpn plugin: unable to detect status version, \
-					discarding status file \"%s\".", value);
+			WARNING ("openvpn plugin: unable to detect status version, "
+					"discarding status file \"%s\".", value);
 			return (1);
 		}
 

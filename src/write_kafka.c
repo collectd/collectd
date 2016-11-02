@@ -78,6 +78,15 @@ static uint32_t kafka_hash(const char *keydata, size_t keylen)
     return hash;
 }
 
+/* 31 bit -> 4 byte -> 8 byte hex string + null byte */
+#define KAFKA_RANDOM_KEY_SIZE 9
+#define KAFKA_RANDOM_KEY_BUFFER (char[KAFKA_RANDOM_KEY_SIZE]) {""}
+static char *kafka_random_key(char buffer[static KAFKA_RANDOM_KEY_SIZE])
+{
+    ssnprintf(buffer, KAFKA_RANDOM_KEY_SIZE, "%08lX", (unsigned long) mrand48());
+    return buffer;
+}
+
 static int32_t kafka_partition(const rd_kafka_topic_t *rkt,
                                const void *keydata, size_t keylen,
                                int32_t partition_cnt, void *p, void *m)
@@ -203,11 +212,10 @@ static int kafka_write(const data_set_t *ds, /* {{{ */
         return -1;
     }
 
-    key = ctx->key;
-    if (key != NULL)
-        keylen = strlen (key);
-    else
-        keylen = 0;
+    key = (ctx->key != NULL)
+        ? ctx->key
+        : kafka_random_key(KAFKA_RANDOM_KEY_BUFFER);
+    keylen = strlen (key);
 
     rd_kafka_produce(ctx->topic, RD_KAFKA_PARTITION_UA,
                      RD_KAFKA_MSG_F_COPY, buffer, blen,
@@ -319,8 +327,12 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
             }
 
         } else if (strcasecmp ("Key", child->key) == 0)  {
-            cf_util_get_string (child, &tctx->key);
-            assert (tctx->key != NULL);
+            if (cf_util_get_string (child, &tctx->key) != 0)
+                continue;
+            if (strcasecmp ("Random", tctx->key) == 0) {
+                sfree(tctx->key);
+                tctx->key = strdup (kafka_random_key (KAFKA_RANDOM_KEY_BUFFER));
+            }
         } else if (strcasecmp ("Format", child->key) == 0) {
             status = cf_util_get_string(child, &key);
             if (status != 0)
