@@ -246,6 +246,7 @@ int format_graphite (char *buffer, size_t buffer_size,
         }
         memcpy((void *) (buffer + buffer_pos), message, message_len);
         buffer_pos += message_len;
+        buffer[buffer_pos] = '\0';
     }
     sfree (rates);
     return (status);
