@@ -98,12 +98,7 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   vl.interval = data->interval;
   plugin_dispatch_values (&vl);
 
-  if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
-  {
-    match_value->value.gauge = NAN;
-    match_value->values_num = 0;
-  }
-
+  match_value_reset (match_value);
   return (0);
 } /* int simple_submit_match */
 
