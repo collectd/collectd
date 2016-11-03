@@ -1457,6 +1457,7 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Attribute "key" "value"     # only available for KAIRODB format
 #		Metrics true
 #		Notifications false
 #		StoreRates false
