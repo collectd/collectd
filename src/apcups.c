@@ -52,17 +52,17 @@
 /*
  * Private data types
  */
-struct apc_detail_s
+typedef struct
 {
-	double linev;
-	double loadpct;
-	double bcharge;
-	double timeleft;
-	double outputv;
-	double itemp;
-	double battv;
-	double linefreq;
-};
+	gauge_t linev;
+	gauge_t loadpct;
+	gauge_t bcharge;
+	gauge_t timeleft;
+	gauge_t outputv;
+	gauge_t itemp;
+	gauge_t battv;
+	gauge_t linefreq;
+} apc_detail_t;
 
 /*
  * Private variables
@@ -264,14 +264,12 @@ static int net_send (int *sockfd, char *buff, int len)
 
 /* Get and print status from apcupsd NIS server */
 static int apc_query_server (char *host, int port,
-		struct apc_detail_s *apcups_detail)
+		apc_detail_t *apcups_detail)
 {
 	int     n;
 	char    recvline[1024];
 	char   *tokptr;
 	char   *toksaveptr;
-	char   *key;
-	double  value;
 	_Bool retry = 1;
 	int status;
 
@@ -340,10 +338,13 @@ static int apc_query_server (char *host, int port,
 		tokptr = strtok_r (recvline, " :\t", &toksaveptr);
 		while (tokptr != NULL)
 		{
-			key = tokptr;
+			char *key = tokptr;
 			if ((tokptr = strtok_r (NULL, " :\t", &toksaveptr)) == NULL)
 				continue;
-			value = atof (tokptr);
+
+			gauge_t value;
+			if (strtogauge (tokptr, &value) != 0)
+				continue;
 
 			PRINT_VALUE (key, value);
 
@@ -425,10 +426,13 @@ static int apcups_config (const char *key, const char *value)
 	return (0);
 }
 
-static void apc_submit_generic (char *type, char *type_inst, double value)
+static void apc_submit_generic (char *type, char *type_inst, gauge_t value)
 {
 	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
+
+	if (isnan (value))
+		return;
 
 	values[0].gauge = value;
 
@@ -443,7 +447,7 @@ static void apc_submit_generic (char *type, char *type_inst, double value)
 	plugin_dispatch_values (&vl);
 }
 
-static void apc_submit (struct apc_detail_s *apcups_detail)
+static void apc_submit (apc_detail_t const *apcups_detail)
 {
 	apc_submit_generic ("voltage",    "input",   apcups_detail->linev);
 	apc_submit_generic ("voltage",    "output",  apcups_detail->outputv);
@@ -457,35 +461,27 @@ static void apc_submit (struct apc_detail_s *apcups_detail)
 
 static int apcups_read (void)
 {
-	struct apc_detail_s apcups_detail;
-	int status;
+	apc_detail_t apcups_detail = {
+		.linev    = NAN,
+		.outputv  = NAN,
+		.battv    = NAN,
+		.loadpct  = NAN,
+		.bcharge  = NAN,
+		.timeleft = NAN,
+		.itemp    = NAN,
+		.linefreq = NAN,
+	};
 
-	apcups_detail.linev    =   -1.0;
-	apcups_detail.outputv  =   -1.0;
-	apcups_detail.battv    =   -1.0;
-	apcups_detail.loadpct  =   -1.0;
-	apcups_detail.bcharge  =   -1.0;
-	apcups_detail.timeleft =    NAN;
-	apcups_detail.itemp    = -300.0;
-	apcups_detail.linefreq =   -1.0;
-
-	status = apc_query_server (conf_host == NULL
+	int status = apc_query_server (conf_host == NULL
 			? APCUPS_DEFAULT_HOST
 			: conf_host,
 			conf_port, &apcups_detail);
-
-	/*
-	 * if we did not connect then do not bother submitting
-	 * zeros. We want rrd files to have NAN.
-	 */
 	if (status != 0)
 	{
 		DEBUG ("apcups plugin: apc_query_server (%s, %i) = %i",
-				conf_host == NULL
-				? APCUPS_DEFAULT_HOST
-				: conf_host,
+				conf_host == NULL ? APCUPS_DEFAULT_HOST : conf_host,
 				conf_port, status);
-		return (-1);
+		return (status);
 	}
 
 	apc_submit (&apcups_detail);
