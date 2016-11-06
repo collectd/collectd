@@ -3914,11 +3914,10 @@ then
   if test "x$with_librdkafka_log_cb" = "xyes"
   then
         AC_DEFINE(HAVE_LIBRDKAFKA_LOG_CB, 1, [Define if librdkafka log facility is present and usable.])
-  fi
-  if test "x$with_librdkafka_logger" = "xyes"
+  else if test "x$with_librdkafka_logger" = "xyes"
   then
         AC_DEFINE(HAVE_LIBRDKAFKA_LOGGER, 1, [Define if librdkafka log facility is present and usable.])
-  fi
+  fi; fi
 fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
