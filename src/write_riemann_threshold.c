@@ -25,17 +25,16 @@
  *   Andrés J. Díaz <ajdiaz at connectical.com>
  **/
 
-#include <assert.h>
-#include <ltdl.h>
-#include <pthread.h>
-
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_avltree.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
 #include "write_riemann_threshold.h"
+
+#include <ltdl.h>
 
 /*
  * Threshold management
