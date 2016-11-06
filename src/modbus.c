@@ -21,13 +21,14 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
-#include "plugin.h"
-#include "configfile.h"
 
-#include <netdb.h>
+#include "common.h"
+#include "configfile.h"
+#include "plugin.h"
 
 #include <modbus.h>
+#include <netdb.h>
+#include <sys/socket.h>
 
 #ifndef LIBMODBUS_VERSION_CHECK
 /* Assume version 2.0.3 */
@@ -473,12 +474,9 @@ static int mb_read_data (mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
   else if (host->conntype == MBCONN_TCP)
   {
-    struct sockaddr sockaddr;
-    socklen_t saddrlen = sizeof (sockaddr);
-
-    status = getpeername (modbus_get_socket (host->connection),
-        &sockaddr, &saddrlen);
-    if (status != 0)
+    if (getpeername (modbus_get_socket (host->connection),
+          (void *) &(struct sockaddr_storage) {0},
+          &(socklen_t) {sizeof(struct sockaddr_storage)}) != 0)
       status = errno;
   }
 
