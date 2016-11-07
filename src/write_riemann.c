@@ -36,7 +36,6 @@
 #include "utils_complain.h"
 #include "write_riemann_threshold.h"
 
-#include <errno.h>
 #include <riemann/riemann-client.h>
 
 #define RIEMANN_HOST "localhost"
