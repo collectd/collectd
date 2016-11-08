@@ -368,6 +368,9 @@ static int ovs_events_get_iface_info(yajl_val jobject,
   if (!YAJL_IS_OBJECT(jobject))
     return (-1);
 
+  /* zero the interface info structure */
+  memset(ifinfo, 0, sizeof(*ifinfo));
+
   /* try to find external_ids, name and link_state fields */
   jexternal_ids = ovs_utils_get_value_by_key(jobject, "external_ids");
   if (jexternal_ids == NULL || ifinfo == NULL)
@@ -469,9 +472,12 @@ static void ovs_events_table_update_cb(yajl_val jupdates) {
             " :unexpected interface information data received");
       return;
     }
-    if (ovs_events_config_iface_exists(ifinfo.name) != 0)
+    if (ovs_events_config_iface_exists(ifinfo.name) != 0) {
+      DEBUG("name=%s, uuid=%s, ext_iface_id=%s, ext_vm_uuid=%s", ifinfo.name,
+            ifinfo.uuid, ifinfo.ext_iface_id, ifinfo.ext_vm_uuid);
       /* dispatch notification */
       ovs_events_dispatch_notification(&ifinfo);
+    }
   }
 }
 
@@ -505,7 +511,6 @@ static void ovs_events_poll_result_cb(yajl_val jresult, yajl_val jerror) {
     }
     /* get interfaces info */
     for (int j = 0; j < YAJL_GET_ARRAY(jvalue)->len; j++) {
-      memset(&ifinfo, 0, sizeof(ifinfo));
       if (ovs_events_get_iface_info(YAJL_GET_ARRAY(jvalue)->values[j],
                                     &ifinfo) < 0) {
         ERROR(OVS_EVENTS_PLUGIN
