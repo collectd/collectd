@@ -42,12 +42,12 @@
 # include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
-
+#ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/msg.h>
-
+#endif
 //Include our own version of ip_vs.h
 #include "ip_vs.h"
 
