@@ -406,7 +406,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 
 		get->num_services = i;
 		get = realloc(get, sizeof(*get)
-				+ sizeof(ip_vs_service_entry) * (get->num_services + 1));
+				+ sizeof(struct ip_vs_service_entry) * (get->num_services + 1));
 		*getp = get;
 		return 0;
 }
@@ -423,7 +423,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 		if (try_nl) {
 			struct nl_msg *msg;
 			len = sizeof(*get) +
-					sizeof(ip_vs_service_entry);
+					sizeof(struct ip_vs_service_entry);
 			if (!(get = malloc(len)))
 				return NULL;
 
@@ -440,7 +440,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 #endif
 
 		len = sizeof(*get) +
-			sizeof(ip_vs_service_entry) * ipvs_info.num_services;
+			sizeof(struct ip_vs_service_entry) * ipvs_info.num_services;
 		if (!(get = malloc(len)))
 			return NULL;
 		len = sizeof(*getk) +
@@ -532,7 +532,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	i++;
 
 	d->num_dests = i;
-	d = realloc(d, sizeof(*d) + sizeof(ip_vs_dest_entry) * (d->num_dests + 1));
+	d = realloc(d, sizeof(*d) + sizeof(struct ip_vs_dest_entry) * (d->num_dests + 1));
 	*dp = d;
 	return 0;
 }
