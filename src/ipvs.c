@@ -267,6 +267,7 @@ int ipvs_init(void)
 	return 0;
 }
 
+#ifdef LIBIPVS_USE_NL
 static int ipvs_parse_stats(struct ip_vs_stats64 *stats, struct nlattr *nla)
 {
 	struct nlattr *attrs[IPVS_STATS_ATTR_MAX + 1];
@@ -411,7 +412,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 		*getp = get;
 		return 0;
 }
-
+#endif
 struct ip_vs_get_services *ipvs_get_services(void)
 {
 		struct ip_vs_get_services *get;
@@ -470,7 +471,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 		free(getk);
 		return get;
 }
-
+#ifdef LIBIPVS_USE_NL
 static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
@@ -537,6 +538,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	*dp = d;
 	return 0;
 }
+#endif
 
 static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 {
