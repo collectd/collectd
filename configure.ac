@@ -3045,6 +3045,70 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBMEMCACHED, test "x$with_libmemcached" = "xyes")
 # }}}
 
+# --with-libmicrohttpd {{{
+with_libmicrohttpd_cppflags=""
+with_libmicrohttpd_ldflags=""
+AC_ARG_WITH([libmicrohttpd], [AS_HELP_STRING([--with-libmicrohttpd@<:@=PREFIX@:>@], [Path to libmicrohttpd.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+      with_libmicrohttpd_cppflags="-I$withval/include"
+      with_libmicrohttpd_ldflags="-L$withval/lib"
+      with_libmicrohttpd="yes"
+    fi
+    if test "x$withval" = "xno"
+    then
+      with_libmicrohttpd="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"
+then
+PKG_CHECK_MODULES([MICROHTTPD], [libmicrohttpd],
+  [with_libmicrohttpd="yes"],
+  [with_libmicrohttpd="no (pkg-config could not find libmicrohttpd)"]
+)
+fi
+
+if test "x$MICROHTTPD_LIBS" = "x"
+then
+  MICROHTTPD_LIBS="-lmicrohttpd"
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
+CPPFLAGS="$with_libmicrohttpd_cppflags $MICROHTTPD_CFLAGS"
+LDFLAGS="$with_libmicrohttpd_ldflags $LDFLAGS"
+LIBS="$LIBS $MICROHTTPD_LIBS"
+
+if test "x$with_libmicrohttpd" = "xyes"
+then
+  AC_CHECK_HEADERS([microhttpd.h],
+                   [with_libmicrohttpd="yes"],
+                   [with_libmicrohttpd="no (<microhttpd.h> not found)"])
+fi
+
+if test "x$with_libmicrohttpd" = "xyes"
+then
+  AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
+               [with_libmicrohttpd="yes"],
+               [with_libmicrohttpd="no (libmicrohttpd not found)"])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
+
+BUILD_WITH_LIBMICROHTTPD_CPPFLAGS="$with_libmicrohttpd_cppflags $MICROHTTPD_CFLAGS"
+BUILD_WITH_LIBMICROHTTPD_LDFLAGS="$with_libmicrohttpd_ldflags"
+BUILD_WITH_LIBMICROHTTPD_LIBS="$MICROHTTPD_LIBS"
+AC_SUBST([BUILD_WITH_LIBMICROHTTPD_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBMICROHTTPD_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBMICROHTTPD_LIBS])
+# }}}
+
 # --with-libmodbus {{{
 with_libmodbus_config=""
 with_libmodbus_cflags=""
@@ -5877,6 +5941,7 @@ plugin_virt="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_write_prometheus="no"
 plugin_xencpu="no"
 plugin_zfs_arc="no"
 plugin_zone="no"
@@ -6164,6 +6229,10 @@ fi
 if test "x$have_protoc_c" = "xyes" && test "x$with_libprotobuf_c" = "xyes"
 then
 	plugin_pinba="yes"
+	if test "x$with_libmicrohttpd" = "xyes"
+	then
+		plugin_write_prometheus="yes"
+	fi
 fi
 
 # Mac OS X memory interface
@@ -6403,6 +6472,7 @@ AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin]
 AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
 AC_PLUGIN([write_log],           [yes],                     [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$with_libmongoc],         [MongoDB output plugin])
+AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus], [Prometheus write plugin])
 AC_PLUGIN([write_redis],         [$with_libhiredis],        [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$with_libriemann_client], [Riemann output plugin])
 AC_PLUGIN([write_sensu],         [yes],                     [Sensu output plugin])
@@ -6651,6 +6721,7 @@ AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
 AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
 AC_MSG_RESULT([    liblvm2app  . . . . . $with_liblvm2app])
 AC_MSG_RESULT([    libmemcached  . . . . $with_libmemcached])
+AC_MSG_RESULT([    libmicrohttpd . . . . $with_libmicrohttpd])
 AC_MSG_RESULT([    libmnl  . . . . . . . $with_libmnl])
 AC_MSG_RESULT([    libmodbus . . . . . . $with_libmodbus])
 AC_MSG_RESULT([    libmongoc . . . . . . $with_libmongoc])
@@ -6837,6 +6908,7 @@ AC_MSG_RESULT([    write_http  . . . . . $enable_write_http])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
+AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])
 AC_MSG_RESULT([    write_sensu . . . . . $enable_write_sensu])

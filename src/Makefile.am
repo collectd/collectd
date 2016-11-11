@@ -1330,6 +1330,15 @@ write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
 write_mongodb_la_LIBADD = -lmongoc
 endif
 
+if BUILD_PLUGIN_WRITE_PROMETHEUS
+pkglib_LTLIBRARIES += write_prometheus.la
+write_prometheus_la_SOURCES = write_prometheus.c
+nodist_write_prometheus_la_SOURCES = prometheus.pb-c.c prometheus.pb-c.h
+write_prometheus_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_CPPFLAGS) $(BUILD_WITH_LIBMICROHTTPD_CPPFLAGS)
+write_prometheus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_C_LDFLAGS) $(BUILD_WITH_LIBMICROHTTPD_LDFLAGS)
+write_prometheus_la_LIBADD = $(BUILD_WITH_LIBPROTOBUF_C_LIBS) $(BUILD_WITH_LIBMICROHTTPD_LIBS)
+endif
+
 if BUILD_PLUGIN_WRITE_REDIS
 pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = write_redis.c
@@ -1470,6 +1479,15 @@ BUILT_SOURCES += pinba.pb-c.c pinba.pb-c.h
 
 pinba.pb-c.c pinba.pb-c.h: pinba.proto
 	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(srcdir) --c_out . $(srcdir)/pinba.proto
+endif
+
+# Protocol buffer for the "write_prometheus" plugin.
+if BUILD_PLUGIN_WRITE_PROMETHEUS
+CLEANFILES += prometheus.pb-c.c prometheus.pb-c.h
+BUILT_SOURCES += prometheus.pb-c.c prometheus.pb-c.h
+
+prometheus.pb-c.c prometheus.pb-c.h: $(top_srcdir)/proto/prometheus.proto
+	$(AM_V_PROTOC_C)$(PROTOC_C) -I$(top_srcdir)/proto --c_out=$(builddir) $(top_srcdir)/proto/prometheus.proto
 endif
 
 install-exec-hook:
