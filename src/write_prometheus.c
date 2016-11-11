@@ -37,7 +37,7 @@
 #include <microhttpd.h>
 
 #ifndef PROMETHEUS_DEFAULT_STALENESS_DELTA
-#define PROMETHEUS_DEFAULT_STALENESS_DELTA TIME_T_TO_CDTIME_T(300)
+#define PROMETHEUS_DEFAULT_STALENESS_DELTA TIME_T_TO_CDTIME_T_STATIC(300)
 #endif
 
 #define VARINT_UINT32_BYTES 5
@@ -210,12 +210,11 @@ static int http_handler(void *cls, struct MHD_Connection *connection,
   else
     format_text(buffer);
 
-  struct MHD_Response *res =
 #if defined(MHD_VERSION) && MHD_VERSION >= 0x00090500
-    MHD_create_response_from_buffer(
+  struct MHD_Response *res = MHD_create_response_from_buffer(
       simple.len, simple.data, MHD_RESPMEM_MUST_COPY);
 #else
-    MHD_create_response_from_data(
+  struct MHD_Response *res = MHD_create_response_from_data(
       simple.len, simple.data, /* must_free = */ 0, /* must_copy = */ 1);
 #endif
   MHD_add_response_header(res, MHD_HTTP_HEADER_CONTENT_TYPE,
