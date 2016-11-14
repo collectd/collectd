@@ -1261,11 +1261,20 @@ endif
 
 if BUILD_PLUGIN_VIRT
 pkglib_LTLIBRARIES += virt.la
-virt_la_SOURCES = virt.c
+virt_la_SOURCES = virt.c vminfo.c vminfo.h
 virt_la_CFLAGS = $(AM_CFLAGS) \
-		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
-virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+		$(BUILD_WITH_GLIB2_CFLAGS) $(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+virt_la_LIBADD = $(BUILD_WITH_GLIB2_LIBS) $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_virt_SOURCES = virt_test.c fake_libvirt.c fake_vminfo.c virt_test.h
+test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
+		$(BUILD_WITH_GLIB2_CFLAGS) $(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_virt_LDADD = daemon/libplugin_mock.la \
+		$(BUILD_WITH_GLIB2_LIBS) $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+check_PROGRAMS += test_plugin_virt
+TESTS += test_plugin_virt
 endif
 
 if BUILD_PLUGIN_VMEM

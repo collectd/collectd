@@ -1420,6 +1420,8 @@
 #	HostnameFormat name
 #	InterfaceFormat name
 #	PluginInstanceFormat name
+#	Instances 1
+#	DebugPartitioning false
 #</Plugin>
 
 #<Plugin vmem>

@@ -2314,6 +2314,18 @@ AC_SUBST(GCRYPT_LIBS)
 AM_CONDITIONAL(BUILD_WITH_LIBGCRYPT, test "x$with_libgcrypt" = "xyes")
 # }}}
 
+# --with-libglib2 {{{
+# we will detect the CFLAGS and LDFLAGS later, when we need it.
+# here we check only for the minimal subset needed.
+$PKG_CONFIG --exists glib-2.0 2>/dev/null
+if test "$?" = "0"
+then
+	with_glib2="yes"
+else
+	with_glib2="no (pkg-config doesn't know glib)"
+fi
+# }}}
+
 # --with-libgps {{{
 with_libgps_cflags=""
 with_libgps_ldflags=""
@@ -5511,7 +5523,7 @@ then
 fi
 # }}}
 
-# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
+# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt; pkg-config --exists glib-2.0; {{{
 with_libxml2="no (pkg-config isn't available)"
 with_libxml2_cflags=""
 with_libxml2_ldflags=""
@@ -5623,6 +5635,52 @@ if test "x$with_libvirt" = "xyes"; then
 	AC_SUBST(BUILD_WITH_LIBVIRT_CFLAGS)
 	AC_SUBST(BUILD_WITH_LIBVIRT_LIBS)
 fi
+if test "x$with_glib2" = "xyes"
+then
+	with_glib2_cflags="`$PKG_CONFIG --cflags glib-2.0`"
+	if test $? -ne 0
+	then
+		with_glib2="no"
+	fi
+	with_glib2_ldflags="`$PKG_CONFIG --libs glib-2.0`"
+	if test $? -ne 0
+	then
+		with_glib2="no"
+	fi
+fi
+if test "x$with_glib2" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_glib2_cflags"
+
+	AC_CHECK_HEADERS(glib.h, [],
+		      [with_glib2="no (glib.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_glib2" = "xyes"
+then
+	SAVE_CFLAGS="$CFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+
+	CFLAGS="$CFLAGS $with_glib2_cflags"
+	LDFLAGS="$LDFLAGS $with_glib2_ldflags"
+
+	AC_CHECK_LIB(glib-2.0, g_hash_table_new,
+		     [with_glib2="yes"],
+		     [with_glib2="no (symbol g_hash_table_new not found)"])
+
+	CFLAGS="$SAVE_CFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+dnl Add the right compiler flags and libraries.
+if test "x$with_glib2" = "xyes"; then
+	BUILD_WITH_GLIB2_CFLAGS="$with_glib2_cflags"
+	BUILD_WITH_GLIB2_LIBS="$with_glib2_ldflags"
+	AC_SUBST(BUILD_WITH_GLIB2_CFLAGS)
+	AC_SUBST(BUILD_WITH_GLIB2_LIBS)
+fi
+
 # }}}
 
 # $PKG_CONFIG --exists OpenIPMIpthread {{{
@@ -6304,7 +6362,7 @@ then
 	plugin_users="yes"
 fi
 
-if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes"
+if test "x$with_libxml2" = "xyes" && test "x$with_libvirt" = "xyes" && test "x$with_glib2" = "xyes"
 then
 	plugin_virt="yes"
 fi
@@ -6707,6 +6765,7 @@ AC_MSG_RESULT([    libdpdk . . . . . . . $with_libdpdk])
 AC_MSG_RESULT([    libesmtp  . . . . . . $with_libesmtp])
 AC_MSG_RESULT([    libganglia  . . . . . $with_libganglia])
 AC_MSG_RESULT([    libgcrypt . . . . . . $with_libgcrypt])
+AC_MSG_RESULT([    libglib2  . . . . . . $with_glib2])
 AC_MSG_RESULT([    libgps  . . . . . . . $with_libgps])
 AC_MSG_RESULT([    libgrpc++ . . . . . . $with_libgrpcpp])
 AC_MSG_RESULT([    libhal  . . . . . . . $with_libhal])
