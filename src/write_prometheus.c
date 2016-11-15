@@ -98,6 +98,43 @@ static void format_protobuf(ProtobufCBuffer *buffer) {
   pthread_mutex_unlock(&metrics_lock);
 }
 
+static char const *escape_label_value(char *buffer, size_t buffer_size,
+                                      char const *value) {
+  /* shortcut for values that don't need escaping. */
+  if (strpbrk(value, "\n\"\\") == NULL)
+    return value;
+
+  size_t value_len = strlen(value);
+  size_t buffer_len = 0;
+
+  for (size_t i = 0; i < value_len; i++) {
+    switch (value[i]) {
+    case '\n':
+    case '"':
+    case '\\':
+      if ((buffer_size - buffer_len) < 3) {
+        break;
+      }
+      buffer[buffer_len] = '\\';
+      buffer[buffer_len + 1] = (value[i] == '\n') ? 'n' : value[i];
+      buffer_len += 2;
+      break;
+
+    default:
+      if ((buffer_size - buffer_len) < 2) {
+        break;
+      }
+      buffer[buffer_len] = value[i];
+      buffer_len++;
+      break;
+    }
+  }
+
+  assert(buffer_len < buffer_size);
+  buffer[buffer_len] = 0;
+  return buffer;
+}
+
 /* format_labels formats a metric's labels in Prometheus-compatible format. This
  * format looks like this:
  *
@@ -109,16 +146,22 @@ static char *format_labels(char *buffer, size_t buffer_size,
   assert(m->n_label >= 1);
   assert(m->n_label <= 3);
 
-#define LABEL_BUFFER_SIZE (2 * DATA_MAX_NAME_LEN + 4)
+#define LABEL_KEY_SIZE DATA_MAX_NAME_LEN
+#define LABEL_VALUE_SIZE (2 * DATA_MAX_NAME_LEN - 1)
+#define LABEL_BUFFER_SIZE (LABEL_KEY_SIZE + LABEL_VALUE_SIZE + 4)
 
   char *labels[3] = {
       (char[LABEL_BUFFER_SIZE]){0}, (char[LABEL_BUFFER_SIZE]){0},
       (char[LABEL_BUFFER_SIZE]){0},
   };
 
-  for (size_t i = 0; i < m->n_label; i++)
+  /* N.B.: the label *names* are hard-coded by this plugin and therefore we
+   * know that they are sane. */
+  for (size_t i = 0; i < m->n_label; i++) {
+    char value[LABEL_VALUE_SIZE];
     ssnprintf(labels[i], LABEL_BUFFER_SIZE, "%s=\"%s\"", m->label[i]->name,
-              m->label[i]->value);
+              escape_label_value(value, sizeof(value), m->label[i]->value));
+  }
 
   strjoin(buffer, buffer_size, labels, m->n_label, ",");
   return buffer;
