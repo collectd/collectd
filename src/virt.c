@@ -533,7 +533,7 @@ static int virt2_acquire_domains(virt2_instance_t *inst) {
     return -1;
   }
   inst->domains_num = (size_t)ret;
-  DEBUG(PLUGIN_NAME " plugin#%s: found %i domains", inst->tag,
+  DEBUG(PLUGIN_NAME " plugin#%s: found %zu domains", inst->tag,
         inst->domains_num);
 
   if (inst->domains_num == 0)
