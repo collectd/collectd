@@ -35,28 +35,28 @@
 #include "utils_time.h"
 
 #include <getopt.h>
+#include <poll.h>
 #include <semaphore.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
-#include <poll.h>
 
+#include <rte_atomic.h>
+#include <rte_branch_prediction.h>
+#include <rte_common.h>
 #include <rte_config.h>
+#include <rte_debug.h>
+#include <rte_debug.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
-#include <rte_common.h>
-#include <rte_debug.h>
+#include <rte_launch.h>
+#include <rte_lcore.h>
+#include <rte_log.h>
 #include <rte_malloc.h>
 #include <rte_memory.h>
 #include <rte_memzone.h>
-#include <rte_launch.h>
-#include <rte_tailq.h>
-#include <rte_lcore.h>
 #include <rte_per_lcore.h>
-#include <rte_debug.h>
-#include <rte_log.h>
-#include <rte_atomic.h>
-#include <rte_branch_prediction.h>
 #include <rte_string_fns.h>
+#include <rte_tailq.h>
 #include <rte_version.h>
 
 #define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
@@ -71,24 +71,26 @@
 #define RTE_VERSION_16_07 RTE_VERSION_NUM(16, 7, 0, 16)
 
 #if RTE_VERSION < RTE_VERSION_16_07
-  #define DPDK_STATS_XSTAT_GET_VALUE(ctx, index) ctx->xstats[index].value
-  #define DPDK_STATS_XSTAT_GET_NAME(ctx, index) ctx->xstats[index].name
-  #define DPDK_STATS_CTX_GET_XSTAT_SIZE sizeof(struct rte_eth_xstats)
-  #define DPDK_STATS_CTX_INIT(ctx) do { \
-    ctx->xstats = (struct rte_eth_xstats *)&ctx->raw_data[0]; \
+#define DPDK_STATS_XSTAT_GET_VALUE(ctx, index) ctx->xstats[index].value
+#define DPDK_STATS_XSTAT_GET_NAME(ctx, index) ctx->xstats[index].name
+#define DPDK_STATS_CTX_GET_XSTAT_SIZE sizeof(struct rte_eth_xstats)
+#define DPDK_STATS_CTX_INIT(ctx)                                               \
+  do {                                                                         \
+    ctx->xstats = (struct rte_eth_xstats *)&ctx->raw_data[0];                  \
   } while (0)
 #else
-  #define DPDK_STATS_XSTAT_GET_VALUE(ctx, index) ctx->xstats[index].value
-  #define DPDK_STATS_XSTAT_GET_NAME(ctx, index) ctx->xnames[index].name
-  #define DPDK_STATS_CTX_GET_XSTAT_SIZE (sizeof(struct rte_eth_xstat) + \
-    sizeof(struct rte_eth_xstat_name))
-  #define DPDK_STATS_CTX_INIT(ctx) do { \
-    ctx->xstats = (struct rte_eth_xstat *)&ctx->raw_data[0]; \
-    ctx->xnames = (struct rte_eth_xstat_name *) \
-      &ctx->raw_data[ctx->num_xstats * sizeof(struct rte_eth_xstat)]; \
+#define DPDK_STATS_XSTAT_GET_VALUE(ctx, index) ctx->xstats[index].value
+#define DPDK_STATS_XSTAT_GET_NAME(ctx, index) ctx->xnames[index].name
+#define DPDK_STATS_CTX_GET_XSTAT_SIZE                                          \
+  (sizeof(struct rte_eth_xstat) + sizeof(struct rte_eth_xstat_name))
+#define DPDK_STATS_CTX_INIT(ctx)                                               \
+  do {                                                                         \
+    ctx->xstats = (struct rte_eth_xstat *)&ctx->raw_data[0];                   \
+    ctx->xnames =                                                              \
+        (struct rte_eth_xstat_name *)&ctx                                      \
+            ->raw_data[ctx->num_xstats * sizeof(struct rte_eth_xstat)];        \
   } while (0)
 #endif
-
 
 enum DPDK_HELPER_ACTION {
   DPDK_HELPER_ACTION_COUNT_STATS,
@@ -560,14 +562,15 @@ static int dpdk_helper_run(void) {
                 i, len);
           break;
         }
- #if RTE_VERSION >= RTE_VERSION_16_07
-          ret = rte_eth_xstats_get_names(i, g_configuration->xnames + num_xstats,
-                                      len);
-         if (ret < 0 || ret != len) {
-           ERROR("dpdkstat-helper: Error reading xstat names (port=%d; len=%d)", i, len);
-           break;
-         }
- #endif
+#if RTE_VERSION >= RTE_VERSION_16_07
+        ret = rte_eth_xstats_get_names(i, g_configuration->xnames + num_xstats,
+                                       len);
+        if (ret < 0 || ret != len) {
+          ERROR("dpdkstat-helper: Error reading xstat names (port=%d; len=%d)",
+                i, len);
+          break;
+        }
+#endif
         num_xstats += g_configuration->num_stats_in_port[enabled_port_count];
         enabled_port_count++;
       }
@@ -602,14 +605,13 @@ static void dpdk_submit_xstats(const char *dev_name, int count,
     char *type_end;
 
     vl.values = &(value_t){.derive = (derive_t)DPDK_STATS_XSTAT_GET_VALUE(
-                                               g_configuration, count + j)};
+                               g_configuration, count + j)};
     vl.values_len = 1; /* Submit stats one at a time */
     vl.time = port_read_time;
     sstrncpy(vl.plugin, "dpdkstat", sizeof(vl.plugin));
-    sstrncpy(vl.plugin_instance, dev_name,
-             sizeof(vl.plugin_instance));
+    sstrncpy(vl.plugin_instance, dev_name, sizeof(vl.plugin_instance));
     counter_name = DPDK_STATS_XSTAT_GET_NAME(g_configuration, count + j);
-    if(counter_name == NULL) {
+    if (counter_name == NULL) {
       WARNING("dpdkstat: Failed to get counter name.");
       return;
     }
@@ -670,8 +672,7 @@ static void dpdk_submit_xstats(const char *dev_name, int count,
       sstrncpy(vl.type, "derive", sizeof(vl.type));
     }
 
-    sstrncpy(vl.type_instance, counter_name,
-             sizeof(vl.type_instance));
+    sstrncpy(vl.type_instance, counter_name, sizeof(vl.type_instance));
     plugin_dispatch_values(&vl);
   }
 }

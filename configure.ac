@@ -2602,7 +2602,9 @@ rte_version_minor=""
 if test "x$with_libdpdk" = "xyes"
 then
   SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libdpdk_cppflags"
+  LDFLAGS="$LDFLAGS $with_libdpdk_ldflags"
   AC_RUN_IFELSE([AC_LANG_PROGRAM(
     [[#include <rte_version.h>]],
     [[return (RTE_VER_YEAR & 0xFF)]])],
@@ -2612,20 +2614,18 @@ then
     [[return (RTE_VER_MONTH & 0xFF)]])],
     [rte_version_minor=0], [rte_version_minor=$?])
   CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
 if test "x$with_libdpdk" = "xyes"
 then
     BUILD_WITH_DPDK_LDFLAGS="$with_libdpdk_ldflags"
-    if test $rte_version_major -eq 16
+    if test "$rte_version_major" -eq 16 && test "$rte_version_minor" -le 4
     then
-        if test $rte_version_minor -le 4
-        then
-            BUILD_WITH_DPDK_LDFLAGS+=" -Wl,--no-as-needed"
-        fi
+        BUILD_WITH_DPDK_LDFLAGS="$BUILD_WITH_DPDK_LDFLAGS -Wl,--no-as-needed"
     fi
-    BUILD_WITH_DPDK_CFLAGS+="-fPIC $with_libdpdk_cppflags"
-    BUILD_WITH_DPDK_LIBS="-Wl,--whole-archive,-ldpdk -Wl,--no-whole-archive "
+    BUILD_WITH_DPDK_CFLAGS="$BUILD_WITH_DPDK_CFLAGS $with_libdpdk_cppflags"
+    BUILD_WITH_DPDK_LIBS="-Wl,--whole-archive -Wl,-ldpdk -Wl,--no-whole-archive"
     AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
     AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
     AC_SUBST(BUILD_WITH_DPDK_LIBS)
