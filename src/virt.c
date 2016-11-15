@@ -443,7 +443,7 @@ static int virt2_init_instance(virt2_context_t *ctx, size_t i,
   ud->data = inst;
   ud->free_func = NULL;
 
-  g_hash_table_add(ctx->state.known_tags, inst->tag);
+  g_hash_table_insert(ctx->state.known_tags, inst->tag, inst->tag);
   return plugin_register_complex_read(NULL, inst->tag, func_body,
                                       ctx->conf.interval, ud);
 }
@@ -606,8 +606,8 @@ static int virt2_instance_include_domain(virt2_domain_t *vdom,
                                          virt2_instance_t *inst) {
   /* instance#0 will always be there, so it is in charge of extra duties */
   if (inst->id == 0) {
-    if (vdom->tag[0] == '\0' ||
-        !g_hash_table_contains(inst->state->known_tags, vdom->tag)) {
+    if ((vdom->tag[0] == '\0') ||
+        (g_hash_table_lookup(inst->state->known_tags, vdom->tag) == NULL)) {
       if (inst->conf->debug_partitioning)
         WARNING(PLUGIN_NAME " plugin#%s: adopted domain %s "
                             "with unknown tag '%s'",
