@@ -16,8 +16,8 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /etc/collectd/collectd.conf.d
 COPY collectd.conf /etc/collectd/collectd.conf
+COPY collectd.conf.d /etc/collectd/collectd.conf.d
 
 ENV LD_PRELOAD /usr/src/rootfs_prefix/rootfs_prefix.so
 
