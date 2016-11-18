@@ -70,7 +70,7 @@
 #define nl_socket_free  nl_handle_destroy
 #endif
 static  struct nl_sock *sock = NULL;
-static  int family
+static  int family;
 #endif
 
 static int try_nl = 1;
