@@ -70,9 +70,10 @@
 #define nl_socket_free  nl_handle_destroy
 #endif
 static  struct nl_sock *sock = NULL;
-static  int family, try_nl = 1;
+static  int family
 #endif
 
+static int try_nl = 1;
 
 #define log_err(...) ERROR ("ipvs: " __VA_ARGS__)
 #define log_info(...) INFO ("ipvs: " __VA_ARGS__)
@@ -225,7 +226,7 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg)
 
 	return NL_OK;
 }
-
+/*
 static int ipvs_getinfo(void)
 {
 	socklen_t len;
@@ -242,8 +243,9 @@ static int ipvs_getinfo(void)
 	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 			(char *)&ipvs_info, &len);
 
-}
+}*/
 #endif
+/*
 static int ipvs_init(void)
 {
 	socklen_t len;
@@ -269,7 +271,7 @@ static int ipvs_init(void)
 
 	return 0;
 }
-
+*/
 #ifdef LIBIPVS_USE_NL
 static int ipvs_parse_stats(struct ip_vs_stats64 *stats, struct nlattr *nla)
 {
@@ -627,13 +629,33 @@ ipvs_nl_dest_failure:
  //TODO ben pretty sure we should update this to use netlink?
 static int cipvs_init (void)
 {
-	struct ip_vs_getinfo ipvs_info;
-
-	socklen_t len;
+	//struct ip_vs_getinfo ipvs_info;
 
 #ifdef LIBIPVS_USE_NL
-ipvs_init();
-#endif
+	try_nl = 1;
+
+   if (ipvs_nl_send_message(NULL, NULL, NULL) == 0) {
+		   try_nl = 1;
+		   log_info("ben we have netlink");
+		//   return ipvs_getinfo();
+   } else {
+		   try_nl = 0;
+		   log_info("we no have netlink");
+   }
+
+	if (try_nl) {
+
+		struct nl_msg *msg;
+		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
+		if (msg) {
+			 ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb,NULL);
+		} else {
+			return -1;
+		}
+	}
+#else
+//ipvs_init();
+	socklen_t len;
 	if (-1 == (sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW))) {
 		char errbuf[1024];
 		log_err ("cipvs_init: socket() failed: %s",
@@ -652,7 +674,7 @@ ipvs_init();
 		sockfd = -1;
 		return -1;
 	}
-
+#endif
 	/* we need IPVS >= 1.1.4 */
 	if (ipvs_info.version < ((1 << 16) + (1 << 8) + 4)) {
 		log_err ("cipvs_init: IPVS version too old (%d.%d.%d < %d.%d.%d)",
@@ -848,8 +870,8 @@ static int cipvs_read (void)
 {
 	struct ip_vs_get_services *services = NULL;
 
-	//TODO ben check if this needs to be updated for netlink
-	if (sockfd < 0)
+	/* socket only available when not using netlink*/
+	if (!try_nl && sockfd < 0)
 		return (-1);
 
 	if (NULL == (services = ipvs_get_services ()))
