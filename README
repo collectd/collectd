@@ -934,9 +934,8 @@ Configuring / Compiling / Installing
 ------------------------------------
 
   To configure, build and install collectd with the default settings, run
-  `./configure && make && make install'.  For detailed, generic instructions
-  see INSTALL. For a complete list of configure options and their description,
-  run `./configure --help'.
+  `./configure && make && make install'.  For a complete list of configure
+  options and their description, run `./configure --help'.
 
   By default, the configure script will check for all build dependencies and
   disable all plugins whose requirements cannot be fulfilled (any other plugin
