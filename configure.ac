@@ -2558,7 +2558,7 @@ AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to t
 	DPDK_INCLUDE="$RTE_BUILD/include"
 	DPDK_LIB_DIR="$RTE_BUILD/lib"
 	FOUND_DPDK=yes
-], [with_libdpdk="no"])
+], [with_libdpdk="yes"])
 
 if test "x$with_libdpdk" = "xyes"
 then
