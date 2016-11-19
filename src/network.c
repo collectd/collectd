@@ -3477,7 +3477,7 @@ static int network_init (void)
 		status = plugin_thread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
-				NULL /* no argument */, "network dispatch");
+				NULL /* no argument */, "network disp");
 		if (status != 0)
 		{
 			char errbuf[1024];

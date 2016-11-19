@@ -214,7 +214,54 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_HEADER_STDBOOL
 
-AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h pthread_np.h)
+AC_CHECK_HEADERS([ \
+  arpa/inet.h \
+  assert.h \
+  ctype.h \
+  endian.h \
+  errno.h \
+  fcntl.h \
+  fnmatch.h \
+  fs_info.h \
+  fshelp.h \
+  grp.h \
+  kstat.h \
+  kvm.h \
+  libgen.h \
+  limits.h \
+  locale.h \
+  math.h \
+  mntent.h \
+  mnttab.h \
+  netdb.h \
+  paths.h \
+  poll.h \
+  pthread_np.h \
+  pwd.h \
+  regex.h \
+  signal.h \
+  stdarg.h \
+  stdio.h \
+  sys/fs_types.h \
+  sys/fstyp.h \
+  sys/ioctl.h \
+  sys/isa_defs.h \
+  sys/mntent.h \
+  sys/mnttab.h \
+  sys/param.h \
+  sys/resource.h \
+  sys/select.h \
+  sys/socket.h \
+  sys/statfs.h \
+  sys/statvfs.h \
+  sys/types.h \
+  sys/un.h \
+  sys/vfs.h \
+  sys/vfstab.h \
+  sys/vmmeter.h \
+  syslog.h \
+  wordexp.h \
+])
 
 # For entropy plugin on newer NetBSD
 AC_CHECK_HEADERS(sys/rndio.h, [], [],
@@ -656,31 +703,6 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #if HAVE_SYS_SOCKET_H
 #	include <sys/socket.h>
 #endif
-])
-
-AC_CHECK_HEADERS([ \
-  ctype.h \
-  fs_info.h \
-  fshelp.h \
-  grp.h \
-  kvm.h \
-  limits.h \
-  locale.h \
-  mntent.h \
-  mnttab.h \
-  paths.h \
-  pwd.h \
-  sys/fs_types.h \
-  sys/fstyp.h \
-  sys/mntent.h \
-  sys/mnttab.h \
-  sys/statfs.h \
-  sys/statvfs.h \
-  sys/un.h \
-  sys/vfs.h \
-  sys/vfstab.h \
-  sys/vmmeter.h \
-  wordexp.h \
 ])
 
 # --enable-xfs {{{
@@ -1666,7 +1688,7 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 SAVE_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS -lpthread"
 
-AC_MSG_CHECKING([if have pthread_setname_np])
+AC_MSG_CHECKING([for pthread_setname_np])
 	have_pthread_setname_np="no"
 	AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[
@@ -1684,7 +1706,7 @@ AC_MSG_CHECKING([if have pthread_setname_np])
 AC_MSG_RESULT([$have_pthread_setname_np])
 
 # check for pthread_set_name_np(3) (FreeBSD)
-AC_MSG_CHECKING([if have pthread_set_name_np])
+AC_MSG_CHECKING([for pthread_set_name_np])
 	have_pthread_set_name_np="no"
 	AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[

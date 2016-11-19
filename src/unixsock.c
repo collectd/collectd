@@ -378,7 +378,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 		DEBUG ("Spawning child to handle connection on fd #%i", *remote_fd);
 
 		status = plugin_thread_create (&th, &th_attr,
-				us_handle_client, (void *) remote_fd, "unixsock client");
+				us_handle_client, (void *) remote_fd, "unixsock conn");
 		if (status != 0)
 		{
 			char errbuf[1024];
@@ -459,7 +459,7 @@ static int us_init (void)
 	loop = 1;
 
 	status = plugin_thread_create (&listen_thread, NULL,
-			us_server_thread, NULL, "unixsock listener");
+			us_server_thread, NULL, "unixsock listen");
 	if (status != 0)
 	{
 		char errbuf[1024];
