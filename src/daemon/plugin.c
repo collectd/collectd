@@ -42,6 +42,10 @@
 #include "utils_time.h"
 #include "utils_random.h"
 
+#if HAVE_PTHREAD_NP_H
+# include <pthread_np.h> /* for pthread_set_name_np(3) */
+#endif
+
 #include <ltdl.h>
 
 /*
@@ -666,8 +670,9 @@ static void start_read_threads (int num)
 					plugin_read_thread, NULL) == 0)
 		{
 #if defined(HAVE_PTHREAD_SETNAME_NP) || defined(HAVE_PTHREAD_SET_NAME_NP)
-			char thread_name[16];
-			sstrncpy (thread_name, "plugin reader", sizeof(thread_name));
+			char thread_name[32];
+			ssnprintf(thread_name, sizeof (thread_name),
+					"plugin reader#%d", i);
 # if defined(HAVE_PTHREAD_SETNAME_NP)
 			pthread_setname_np (*(read_threads + read_threads_num),
 				thread_name);

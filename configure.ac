@@ -214,7 +214,7 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_HEADER_STDBOOL
 
-AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h)
+AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h pthread_np.h)
 
 # For entropy plugin on newer NetBSD
 AC_CHECK_HEADERS(sys/rndio.h, [], [],
@@ -1663,46 +1663,43 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 	])
 
 # check for pthread_setname_np
-SAVE_LDFLAGS=$LDFLAGS
+SAVE_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS -lpthread"
 
 AC_MSG_CHECKING([if have pthread_setname_np])
 	have_pthread_setname_np="no"
 	AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[
-#if HAVE_PTHREAD_H
+#define _GNU_SOURCE
 #include <pthread.h>
-#endif
 ]],
 [[
-        pthread_setname_np(pthread_self(), "conftest");
+        pthread_setname_np((pthread_t) {0}, "conftest");
 ]]
 	)], [
 		have_pthread_setname_np="yes"
-		AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [ pthread_setname_np() is available.])
+		AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [pthread_setname_np() is available.])
 	])
 
-AC_MSG_RESULT([$have_pthread_set_name_np])
+AC_MSG_RESULT([$have_pthread_setname_np])
 
-# check for pthread_set_name_np
+# check for pthread_set_name_np(3) (FreeBSD)
 AC_MSG_CHECKING([if have pthread_set_name_np])
 	have_pthread_set_name_np="no"
 	AC_LINK_IFELSE([AC_LANG_PROGRAM(
 [[
-#if HAVE_PTHREAD_H
-#include <pthread.h>
-#endif
+#include <pthread_np.h>
 ]],
 [[
-        pthread_set_name_np(pthread_self(), "conftest");
+        pthread_set_name_np((pthread_t) {0}, "conftest");
 ]]
 	)], [
 		have_pthread_set_name_np="yes"
-		AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [ pthread_set_name_np() is available.])
+		AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [pthread_set_name_np() is available.])
 	])
 AC_MSG_RESULT([$have_pthread_set_name_np])
 
-LDFLAGS=$SAVE_LDFLAGS
+LDFLAGS="$SAVE_LDFLAGS"
 
 #
 # Checks for libraries begin here
