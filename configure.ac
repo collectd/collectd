@@ -2545,77 +2545,90 @@ fi
 # }}}
 
 # --with-libdpdk {{{
+with_libdpdk_cppflags=""
+with_libdpdk_ldflags=""
 AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to the DPDK build directory.])],
 [
 	if test "x$withval" != "xno" && test "x$withval" != "xyes"
 	then
-		RTE_BUILD="$withval"
+		with_libdpdk_cppflags="-I$withval/include"
+		with_libdpdk_ldflags="-L$withval/lib"
 		with_libdpdk="yes"
 	else
-		RTE_BUILD="/usr"
-		with_libdpdk="$withval"
+		if test "x$withval" = "xno"
+		then
+			with_libdpdk="no (disabled)"
+		fi
 	fi
-	DPDK_INCLUDE="$RTE_BUILD/include"
-	DPDK_LIB_DIR="$RTE_BUILD/lib"
-	FOUND_DPDK=yes
 ], [with_libdpdk="no"])
 
 if test "x$with_libdpdk" = "xyes"
 then
-	LOCAL_DPDK_INSTALL="no"
-	AC_CHECK_HEADER([$DPDK_INCLUDE/rte_config.h], [LOCAL_DPDK_INSTALL=yes],
-		[AC_CHECK_HEADER([$DPDK_INCLUDE/dpdk/rte_config.h],
-		[],
-		[FOUND_DPDK=no], [])], [])
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libdpdk_cppflags"
+	AC_CHECK_HEADERS(rte_config.h, [with_libdpdk="yes"],
+		[
+			AC_CHECK_HEADERS(dpdk/rte_config.h,
+				[
+					with_libdpdk="yes"
+					with_libdpdk_cppflags="$with_libdpdk_cppflags/dpdk"
+				],
+				[
+					AC_MSG_ERROR([cannot find dpdk headers])
+				])
+		])
 
-	if test "x$LOCAL_DPDK_INSTALL" = "xno"
-	then
-		DPDK_INCLUDE=$DPDK_INCLUDE/dpdk
-	fi
-
-	if test "x$FOUND_DPDK" = "xno"
-	then
-		AC_MSG_ERROR([libdpdk error: rte_config.h not found])
-	fi
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_libdpdk" = "xyes"
 then
+	SAVE_CPPFLAGS="$CPPFLAGS"
 	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libdpdk_cppflags"
+	LDFLAGS="$LDFLAGS $with_libdpdk_ldflags"
 
-	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
-        fi
+	AC_CHECK_LIB(dpdk, rte_eal_init, [with_libdpdk="yes"],
+		[
+			AC_MSG_ERROR([cannot find dpdk library])
+		])
 
-	AC_CHECK_LIB(dpdk, rte_eal_init,
-                     [BUILD_WITH_DPDK_LIBS="-Wl,-ldpdk"],
-                     [FOUND_DPDK=no])
-
+	CPPFLAGS="$SAVE_CPPFLAGS"
 	LDFLAGS="$SAVE_LDFLAGS"
-	if test "x$FOUND_DPDK" = "xno"
-	then
-		AC_MSG_ERROR([libdpdk error: cannot link with dpdk in $DPDK_LIB_DIR])
-	fi
 fi
 
-#
-# Note: An issue on Ubuntu 14.04 necessitates the use of -Wl,--no-as-needed:
-# If you try compile with the older linker, the dpdk symbols will be undefined.
-# This workaround should be removed when no longer necessary.
-#
+rte_version_major=""
+rte_version_minor=""
 if test "x$with_libdpdk" = "xyes"
 then
-	BUILD_WITH_DPDK_CFLAGS+="-I$DPDK_INCLUDE"
-	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
-	then
-		BUILD_WITH_DPDK_LDFLAGS="-Wl,--no-as-needed"
-	else
-		BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR -Wl,--no-as-needed"
-        fi
-	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
-	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
-	AC_SUBST(BUILD_WITH_DPDK_LIBS)
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libdpdk_cppflags"
+  LDFLAGS="$LDFLAGS $with_libdpdk_ldflags"
+  AC_RUN_IFELSE([AC_LANG_PROGRAM(
+    [[#include <rte_version.h>]],
+    [[return (RTE_VER_YEAR & 0xFF)]])],
+    [rte_version_major=0], [rte_version_major=$?])
+  AC_RUN_IFELSE([AC_LANG_PROGRAM(
+    [[#include <rte_version.h>]],
+    [[return (RTE_VER_MONTH & 0xFF)]])],
+    [rte_version_minor=0], [rte_version_minor=$?])
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libdpdk" = "xyes"
+then
+    BUILD_WITH_DPDK_LDFLAGS="$with_libdpdk_ldflags"
+    if test "$rte_version_major" -eq 16 && test "$rte_version_minor" -le 4
+    then
+        BUILD_WITH_DPDK_LDFLAGS="$BUILD_WITH_DPDK_LDFLAGS -Wl,--no-as-needed"
+    fi
+    BUILD_WITH_DPDK_CFLAGS="$BUILD_WITH_DPDK_CFLAGS $with_libdpdk_cppflags"
+    BUILD_WITH_DPDK_LIBS="-Wl,--whole-archive -Wl,-ldpdk -Wl,--no-whole-archive"
+    AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
+    AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
+    AC_SUBST(BUILD_WITH_DPDK_LIBS)
 fi
 # }}}
 
