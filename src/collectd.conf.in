@@ -1278,18 +1278,19 @@
 #    Instance "apache"
 #    <Match>
 #      Regex "^\\S+ \"([0-9.]+)\""
-#      DSType "Latency"
-#      Type "response_time"
-#      #LatencyPercentileType "percentile"
-#      LatencyPercentile 5
-#      LatencyPercentile 30
-#      LatencyPercentile 50
-#      LatencyPercentile 70
-#      LatencyPercentile 95
-#      LatencyRateType "requests"
-#      LatencyRate 0     0.100
-#      LatencyRate 0.100 0.200
-#      LatencyRate 0.200 0
+#      <DSType Distribution>
+#        Percentile 80    # -> latency-foo-80
+#        Percentile 95    # -> latency-foo-95
+#        Percentile 99    # -> latency-foo-99
+#        Bucket 0   0.1   # -> bucket-latency-foo-0_0.1
+#        Bucket 0.1 0.2   # -> bucket-latency-foo-0.1_0.2
+#        Bucket 0.2 0.5   # -> bucket-latency-foo-0.2_0.5
+#        Bucket 0.5 1.0   # -> bucket-latency-foo-0.5_1
+#        Bucket 1.0 2.0   # -> bucket-latency-foo-1_2
+#        Bucket 2.0 0     # -> bucket-latency-foo-2_inf
+#      </DSType>
+#      Type "latency"
+#      Instance "foo"
 #    </Match>
 #  </File>
 #</Plugin>

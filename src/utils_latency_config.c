@@ -25,130 +25,126 @@
  *   Pavel Rochnyack <pavel2000 at ngs.ru>
  */
 
+#include "utils_latency_config.h"
 #include "collectd.h"
 #include "common.h"
-#include "utils_latency_config.h"
 
-int latency_config_add_percentile(const char *plugin, latency_config_t *cl,
-                                  oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    ERROR("%s plugin: \"%s\" requires exactly one numeric argument.", plugin,
-          ci->key);
-    return (-1);
-  }
-
-  double percent = ci->values[0].value.number;
-  double *tmp;
+static int latency_config_add_percentile(latency_config_t *conf,
+                                         oconfig_item_t *ci,
+                                         const char *plugin) {
+  double percent;
+  int status = cf_util_get_double(ci, &percent);
+  if (status != 0)
+    return status;
 
   if ((percent <= 0.0) || (percent >= 100)) {
     ERROR("%s plugin: The value for \"%s\" must be between 0 and 100, "
           "exclusively.",
           plugin, ci->key);
-    return (ERANGE);
+    return ERANGE;
   }
 
-  tmp = realloc(cl->percentile,
-                sizeof(*cl->percentile) * (cl->percentile_num + 1));
+  double *tmp = realloc(conf->percentile,
+                        sizeof(*conf->percentile) * (conf->percentile_num + 1));
   if (tmp == NULL) {
     ERROR("%s plugin: realloc failed.", plugin);
-    return (ENOMEM);
+    return ENOMEM;
   }
-  cl->percentile = tmp;
-  cl->percentile[cl->percentile_num] = percent;
-  cl->percentile_num++;
+  conf->percentile = tmp;
+  conf->percentile[conf->percentile_num] = percent;
+  conf->percentile_num++;
 
-  return (0);
+  return 0;
 } /* int latency_config_add_percentile */
 
-int latency_config_add_rate(const char *plugin, latency_config_t *cl,
-                            oconfig_item_t *ci) {
+static int latency_config_add_bucket(latency_config_t *conf, oconfig_item_t *ci,
+                                     const char *plugin) {
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_NUMBER) ||
       (ci->values[1].type != OCONFIG_TYPE_NUMBER)) {
     ERROR("%s plugin: \"%s\" requires exactly two numeric arguments.", plugin,
           ci->key);
-    return (-1);
+    return EINVAL;
   }
 
   if (ci->values[1].value.number &&
       ci->values[1].value.number <= ci->values[0].value.number) {
     ERROR("%s plugin: MIN must be less than MAX in \"%s\".", plugin, ci->key);
-    return (-1);
+    return ERANGE;
   }
 
-  if (ci->values[0].value.number < 0.001) {
-    ERROR("%s plugin: MIN must be greater or equal to 0.001 in \"%s\".", plugin,
-          ci->key);
-    return (-1);
+  if (ci->values[0].value.number < 0) {
+    ERROR("%s plugin: MIN must be greater then or equal to zero in \"%s\".",
+          plugin, ci->key);
+    return ERANGE;
   }
 
-  cdtime_t lower = DOUBLE_TO_CDTIME_T(ci->values[0].value.number);
-  cdtime_t upper = DOUBLE_TO_CDTIME_T(ci->values[1].value.number);
-  cdtime_t *tmp;
-
-  tmp = realloc(cl->rates, sizeof(*cl->rates) * (cl->rates_num + 1) * 2);
+  latency_bucket_t *tmp =
+      realloc(conf->buckets, sizeof(*conf->buckets) * (conf->buckets_num + 1));
   if (tmp == NULL) {
     ERROR("%s plugin: realloc failed.", plugin);
-    return (ENOMEM);
+    return ENOMEM;
   }
-  cl->rates = tmp;
-  cl->rates[cl->rates_num * 2] = lower;
-  cl->rates[cl->rates_num * 2 + 1] = upper;
-  cl->rates_num++;
+  conf->buckets = tmp;
+  conf->buckets[conf->buckets_num] = (latency_bucket_t){
+      .lower_bound = DOUBLE_TO_CDTIME_T(ci->values[0].value.number),
+      .upper_bound = DOUBLE_TO_CDTIME_T(ci->values[1].value.number),
+  };
+  conf->buckets_num++;
 
   return (0);
-} /* int latency_config_add_rate */
+} /* int latency_config_add_bucket */
+
+int latency_config(latency_config_t *conf, oconfig_item_t *ci,
+                   char const *plugin) {
+  int status = 0;
+
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp("Percentile", child->key) == 0)
+      status = latency_config_add_percentile(conf, child, plugin);
+    else if (strcasecmp("Bucket", child->key) == 0)
+      status = latency_config_add_bucket(conf, child, plugin);
+    else
+      WARNING("%s plugin: \"%s\" is not a valid option within a \"%s\" block.",
+              plugin, child->key, ci->key);
+
+    if (status != 0)
+      return status;
+  }
+
+  if ((status == 0) && (conf->percentile_num == 0) &&
+      (conf->buckets_num == 0)) {
+    ERROR("%s plugin: The \"%s\" block must contain at least one "
+          "\"Percentile\" or \"Bucket\" option.",
+          plugin, ci->key);
+    return EINVAL;
+  }
+
+  return 0;
+}
 
 int latency_config_copy(latency_config_t *dst, const latency_config_t src) {
   *dst = (latency_config_t){
-      .rates = NULL,
-      .rates_num = src.rates_num,
-      .rates_type = NULL,
-      .percentile = NULL,
-      .percentile_num = src.percentile_num,
-      .percentile_type = NULL,
+      .percentile_num = src.percentile_num, .buckets_num = src.buckets_num,
   };
 
-  /* Copy percentiles configuration */
-  dst->percentile_num = src.percentile_num;
-  dst->percentile = calloc(src.percentile_num, sizeof(*dst->percentile));
-  if (dst->percentile == NULL)
-    return (-1);
+  dst->percentile = calloc(dst->percentile_num, sizeof(*dst->percentile));
+  dst->buckets = calloc(dst->buckets_num, sizeof(*dst->buckets));
 
-  memcpy(dst->percentile, src.percentile,
-         (sizeof(*dst->percentile) * (src.percentile_num)));
-
-  if (src.percentile_type != NULL) {
-    dst->percentile_type = strdup(src.percentile_type);
-    if (dst->percentile_type == NULL) {
-      latency_config_free(*dst);
-      return (-1);
-    }
-  }
-
-  /* Copy rates configuration */
-  dst->rates_num = src.rates_num;
-  dst->rates = calloc(src.rates_num * 2, sizeof(*dst->rates));
-  if (dst->rates == NULL) {
+  if ((dst->percentile == NULL) || (dst->buckets == NULL)) {
     latency_config_free(*dst);
-    return (-1);
+    return ENOMEM;
   }
 
-  memcpy(dst->rates, src.rates, (sizeof(*dst->rates) * (src.rates_num) * 2));
+  memmove(dst->percentile, src.percentile,
+          dst->percentile_num * sizeof(*dst->percentile));
+  memmove(dst->buckets, src.buckets, dst->buckets_num * sizeof(*dst->buckets));
 
-  if (src.rates_type != NULL) {
-    dst->rates_type = strdup(src.rates_type);
-    if (dst->rates_type == NULL) {
-      latency_config_free(*dst);
-      return (-1);
-    }
-  }
-
-  return (0);
+  return 0;
 } /* int latency_config_copy */
 
-void latency_config_free(latency_config_t lc) {
-  sfree(lc.rates);
-  sfree(lc.rates_type);
-  sfree(lc.percentile);
-  sfree(lc.percentile_type);
+void latency_config_free(latency_config_t conf) {
+  sfree(conf.percentile);
+  sfree(conf.buckets);
 } /* void latency_config_free */

@@ -29,31 +29,34 @@
 #define UTILS_LATENCY_CONFIG_H 1
 
 #include "collectd.h"
+
+#include "liboconfig/oconfig.h"
 #include "utils_time.h"
 
-struct latency_config_s {
+typedef struct {
+  cdtime_t lower_bound;
+  cdtime_t upper_bound;
+} latency_bucket_t;
+
+typedef struct {
   double *percentile;
   size_t percentile_num;
-  char *percentile_type;
-  cdtime_t *rates;
-  size_t rates_num;
-  char *rates_type;
+
+  latency_bucket_t *buckets;
+  size_t buckets_num;
+
+  /*
   _Bool lower;
   _Bool upper;
-  //_Bool sum;
   _Bool avg;
-  //_Bool count;
-};
-typedef struct latency_config_s latency_config_t;
+  */
+} latency_config_t;
 
-int latency_config_add_percentile(const char *plugin, latency_config_t *cl,
-                                  oconfig_item_t *ci);
-
-int latency_config_add_rate(const char *plugin, latency_config_t *cl,
-                            oconfig_item_t *ci);
+int latency_config(latency_config_t *conf, oconfig_item_t *ci,
+                   char const *plugin);
 
 int latency_config_copy(latency_config_t *dst, const latency_config_t src);
 
-void latency_config_free(latency_config_t lc);
+void latency_config_free(latency_config_t conf);
 
 #endif /* UTILS_LATENCY_CONFIG_H */

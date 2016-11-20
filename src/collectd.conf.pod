@@ -7089,6 +7089,15 @@ user using (extended) regular expressions, as described in L<regex(7)>.
         Type "counter"
         Instance "local_user"
       </Match>
+      <Match>
+        Regex "l=([0-9]*\\.[0-9]*)"
+        <DSType "Distribution">
+          Percentile 99
+          Bucket 0 100
+        </DSType>
+        Type "latency"
+        Instance "foo"
+      </Match>
     </File>
   </Plugin>
 
@@ -7187,22 +7196,74 @@ Increase the internal counter by one. These B<DSType> are the only ones that do
 not use the matched subexpression, but simply count the number of matched
 lines. Thus, you may use a regular expression without submatch in this case.
 
-=item B<Latency>
+=item B<Distribution>
 
-Special type to handle latency values from logfiles. The matched value must be
-latency in seconds, floating point numbers are supported.
-Should be used with B<LatencyPercentile> or B<LatencyRate> options.
+Type to do calculations based on the distribution of values, primarily
+calculating percentiles. This is primarily geared towards latency, but can be
+used for other metrics as well. The range of values tracked with this setting
+must be in the range (0–2^34) and can be fractional. Please note that neither
+zero nor 2^34 are inclusive bounds, i.e. zero I<cannot> be handled by a
+distribution.
 
-The B<Instance> option cannot be used together with B<DSType> B<Latency>.
+This option must be used together with the B<Percentile> and/or B<Bucket>
+options.
+
+B<Synopsis:>
+
+  <DSType "Distribution">
+    Percentile 99
+    Bucket 0 100
+  </DSType>
+
+=over 4
+
+=item B<Percentile> I<Percent>
+
+Calculate and dispatch the configured percentile, i.e. compute the value, so
+that I<Percent> of all matched values are smaller than or equal to the computed
+latency.
+
+Metrics are reported with the I<type> B<Type> (the value of the above option)
+and the I<type instance> C<[E<lt>InstanceE<gt>-]E<lt>PercentE<gt>>.
+
+This option may be repeated to calculate more than one percentile.
+
+=item B<Bucket> I<lower_bound> I<upper_bound>
+
+Export the number of values (a C<DERIVE>) falling within the given range. Both,
+I<lower_bound> and I<upper_bound> may be a fractional number, such as B<0.5>.
+Each B<Bucket> option specifies an interval C<(I<lower_bound>,
+I<upper_bound>]>, i.e. the range I<excludes> the lower bound and I<includes>
+the upper bound. I<lower_bound> and I<upper_bound> may be zero, meaning no
+lower/upper bound.
+
+To export the entire (0–inf) range without overlap, use the upper bound of the
+previous range as the lower bound of the following range. In other words, use
+the following schema:
+
+  Bucket   0   1
+  Bucket   1   2
+  Bucket   2   5
+  Bucket   5  10
+  Bucket  10  20
+  Bucket  20  50
+  Bucket  50   0
+
+Metrics are reported with the I<type> C<bucket> and the I<type instance>
+C<E<lt>TypeE<gt>[-E<lt>InstanceE<gt>]-E<lt>lower_boundE<gt>_E<lt>upper_boundE<gt>>.
+
+This option may be repeated to calculate more than one rate.
 
 =back
 
-As you'd expect the B<Gauge*> types interpret the submatch as a floating point
-number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types interpret
-the submatch as an unsigned integer using L<strtoull(3)>. The B<Derive*> types
-interpret the submatch as a signed integer using L<strtoll(3)>. B<CounterInc>
-and B<DeriveInc> do not use the submatch at all and it may be omitted in this
-case.
+=back
+
+The B<Gauge*> and B<Distribution> types interpret the submatch as a floating
+point number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types
+interpret the submatch as an unsigned integer using L<strtoull(3)>. The
+B<Derive*> types interpret the submatch as a signed integer using
+L<strtoll(3)>. B<CounterInc> and B<DeriveInc> do not use the submatch at all
+and it may be omitted in this case.
 
 =item B<Type> I<Type>
 
@@ -7212,34 +7273,6 @@ their configuration can be found in L<types.db(5)>.
 =item B<Instance> I<TypeInstance>
 
 This optional setting sets the type instance to use.
-
-=item B<LatencyPercentile> I<Percent>
-
-Calculate and dispatch the configured percentile, i.e. compute the latency, so
-that I<Percent> of all matched latency values are smaller than or equal to the
-computed latency.
-
-Different percentiles can be calculated by setting this option several times.
-
-=item B<LatencyPercentileType> I<Type>
-
-Sets the type used to dispatch B<LatencyPercentile> values.
-
-=item B<LatencyRate> I<lower_latency> I<upper_latency>
-
-Calculate and dispatch rate of latency values fall within requested interval.
-Both, I<lower_latency> and I<upper_latency> is a duration in seconds and can be
-a fractional number, such as B<0.5>. The settings specify the interval
-C<(I<lower_latency>, I<upper_latency>]>, i.e. the range I<excludes> the lower
-bound and I<includes> the upper bound. I<lower_latency> and I<upper_latency>
-can be zero, meaning no lower/upper bound.
-
-Rates for different intervals can be calculated by setting this option several
-times.
-
-=item B<LatencyRateType> I<Type>
-
-Sets the type used to dispatch B<LatencyRate> values.
 
 =back
 
