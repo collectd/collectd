@@ -104,7 +104,7 @@
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
-#@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
+@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
 #@BUILD_PLUGIN_CPUSLEEP_TRUE@LoadPlugin cpusleep
 @LOAD_PLUGIN_CSV@LoadPlugin csv
 #@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
@@ -359,7 +359,11 @@
 #  ReportByState true
 #  ValuesPercentage false
 #</Plugin>
-#
+
+#<Plugin cpufreq>
+#  Path "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq"
+#</Plugin>
+
 #<Plugin csv>
 #	DataDir "@localstatedir@/lib/@PACKAGE_NAME@/csv"
 #	StoreRates false
