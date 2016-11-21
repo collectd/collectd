@@ -25,6 +25,9 @@
  *   Sebastian Harl <sh at tokkee.org>
  **/
 
+/* _GNU_SOURCE is needed in Linux to use pthread_setname_np */
+#define _GNU_SOURCE
+
 #include "collectd.h"
 
 #include "common.h"
@@ -38,6 +41,10 @@
 #include "utils_heap.h"
 #include "utils_time.h"
 #include "utils_random.h"
+
+#if HAVE_PTHREAD_NP_H
+# include <pthread_np.h> /* for pthread_set_name_np(3) */
+#endif
 
 #include <ltdl.h>
 
@@ -116,7 +123,7 @@ static int             read_loop = 1;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  read_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t      *read_threads = NULL;
-static int             read_threads_num = 0;
+static size_t          read_threads_num = 0;
 static cdtime_t        max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 
 static write_queue_t  *write_queue_head;
@@ -644,7 +651,38 @@ static void *plugin_read_thread (void __attribute__((unused)) *args)
 	return ((void *) 0);
 } /* void *plugin_read_thread */
 
-static void start_read_threads (int num)
+#ifdef PTHREAD_MAX_NAMELEN_NP
+# define THREAD_NAME_MAX PTHREAD_MAX_NAMELEN_NP
+#else
+# define THREAD_NAME_MAX 16
+#endif
+
+static void set_thread_name(pthread_t tid, char const *name) {
+#if defined(HAVE_PTHREAD_SETNAME_NP) || defined(HAVE_PTHREAD_SET_NAME_NP)
+
+	/* glibc limits the length of the name and fails if the passed string
+	 * is too long, so we truncate it here. */
+	char n[THREAD_NAME_MAX];
+	if (strlen (name) >= THREAD_NAME_MAX)
+		WARNING("set_thread_name(\"%s\"): name too long", name);
+	sstrncpy (n, name, sizeof(n));
+
+#if defined(HAVE_PTHREAD_SETNAME_NP)
+	int status = pthread_setname_np (tid, n);
+	if (status != 0)
+	{
+		char errbuf[1024];
+		ERROR ("set_thread_name(\"%s\"): %s", n,
+				sstrerror (status, errbuf, sizeof(errbuf)));
+	}
+#else /* if defined(HAVE_PTHREAD_SET_NAME_NP) */
+	pthread_set_name_np (tid, n);
+#endif
+
+#endif
+}
+
+static void start_read_threads (size_t num) /* {{{ */
 {
 	if (read_threads != NULL)
 		return;
@@ -657,27 +695,35 @@ static void start_read_threads (int num)
 	}
 
 	read_threads_num = 0;
-	for (int i = 0; i < num; i++)
+	for (size_t i = 0; i < num; i++)
 	{
-		if (pthread_create (read_threads + read_threads_num, NULL,
-					plugin_read_thread, NULL) == 0)
+		int status = pthread_create (read_threads + read_threads_num,
+				/* attr = */ NULL,
+				plugin_read_thread,
+				/* arg = */ NULL);
+		if (status != 0)
 		{
-			read_threads_num++;
-		}
-		else
-		{
-			ERROR ("plugin: start_read_threads: pthread_create failed.");
+			char errbuf[1024];
+			ERROR ("plugin: start_read_threads: pthread_create failed "
+					"with status %i (%s).", status,
+					sstrerror (status, errbuf, sizeof (errbuf)));
 			return;
 		}
+
+		char name[THREAD_NAME_MAX];
+		ssnprintf (name, sizeof (name), "reader#%zu", read_threads_num);
+		set_thread_name (read_threads[read_threads_num], name);
+
+		read_threads_num++;
 	} /* for (i) */
-} /* void start_read_threads */
+} /* }}} void start_read_threads */
 
 static void stop_read_threads (void)
 {
 	if (read_threads == NULL)
 		return;
 
-	INFO ("collectd: Stopping %i read threads.", read_threads_num);
+	INFO ("collectd: Stopping %zu read threads.", read_threads_num);
 
 	pthread_mutex_lock (&read_lock);
 	read_loop = 0;
@@ -685,7 +731,7 @@ static void stop_read_threads (void)
 	pthread_cond_broadcast (&read_cond);
 	pthread_mutex_unlock (&read_lock);
 
-	for (int i = 0; i < read_threads_num; i++)
+	for (size_t i = 0; i < read_threads_num; i++)
 	{
 		if (pthread_join (read_threads[i], NULL) != 0)
 		{
@@ -873,9 +919,7 @@ static void start_write_threads (size_t num) /* {{{ */
 	write_threads_num = 0;
 	for (size_t i = 0; i < num; i++)
 	{
-		int status;
-
-		status = pthread_create (write_threads + write_threads_num,
+		int status = pthread_create (write_threads + write_threads_num,
 				/* attr = */ NULL,
 				plugin_write_thread,
 				/* arg = */ NULL);
@@ -887,6 +931,10 @@ static void start_write_threads (size_t num) /* {{{ */
 					sstrerror (status, errbuf, sizeof (errbuf)));
 			return;
 		}
+
+		char name[THREAD_NAME_MAX];
+		ssnprintf (name, sizeof (name), "writer#%zu", write_threads_num);
+		set_thread_name (write_threads[write_threads_num], name);
 
 		write_threads_num++;
 	} /* for (i) */
@@ -1777,7 +1825,7 @@ int plugin_init_all (void)
 		rt = global_option_get ("ReadThreads");
 		num = atoi (rt);
 		if (num != -1)
-			start_read_threads ((num > 0) ? num : 5);
+			start_read_threads ((num > 0) ? ((size_t) num) : 5);
 	}
 	return ret;
 } /* void plugin_init_all */
@@ -2789,20 +2837,30 @@ static void *plugin_thread_start (void *arg)
 } /* void *plugin_thread_start */
 
 int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
-		void *(*start_routine) (void *), void *arg)
+		void *(*start_routine) (void *), void *arg, char const *name)
 {
 	plugin_thread_t *plugin_thread;
 
 	plugin_thread = malloc (sizeof (*plugin_thread));
 	if (plugin_thread == NULL)
-		return -1;
+		return ENOMEM;
 
 	plugin_thread->ctx           = plugin_get_ctx ();
 	plugin_thread->start_routine = start_routine;
 	plugin_thread->arg           = arg;
 
-	return pthread_create (thread, attr,
+	int ret = pthread_create (thread, attr,
 			plugin_thread_start, plugin_thread);
+	if (ret != 0)
+	{
+		sfree (plugin_thread);
+		return ret;
+	}
+
+	if (name != NULL)
+		set_thread_name (*thread, name);
+
+	return 0;
 } /* int plugin_thread_create */
 
 /* vim: set sw=8 ts=8 noet fdm=marker : */
