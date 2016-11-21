@@ -7973,6 +7973,12 @@ You can also specify combinations of the B<name> and B<uuid> fields.
 For example B<name uuid> means to concatenate the guest name and UUID
 (with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
+=item B<Instances> B<integer>
+
+How many read instances you want to use for this plugin. The default is one,
+and the sensible setting is a multiple of the B<ReadThreads> value.
+If you are not sure, just use the default setting.
+
 =back
 
 =head2 Plugin C<vmem>

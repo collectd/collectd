@@ -52,6 +52,8 @@ static const char *config_keys[] = {"Connection",
 
                                     "PluginInstanceFormat",
 
+                                    "Instances",
+
                                     NULL};
 #define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
 
@@ -99,10 +101,6 @@ struct lv_read_state {
   int nr_interface_devices;
 };
 
-static struct lv_read_state read_state = {
-    NULL, 0, NULL, 0, NULL, 0,
-};
-
 static void free_domains(struct lv_read_state *state);
 static int add_domain(struct lv_read_state *state, virDomainPtr dom);
 
@@ -114,6 +112,23 @@ static void free_interface_devices(struct lv_read_state *state);
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
                                 unsigned int number);
+
+#define PARTITION_TAG_MAX_LEN 32
+struct lv_read_instance {
+  struct lv_read_state read_state;
+  char tag[PARTITION_TAG_MAX_LEN];
+  size_t id;
+};
+
+struct lv_user_data {
+  struct lv_read_instance inst;
+  user_data_t ud;
+};
+
+#define NR_INSTANCES_DEFAULT 1
+#define NR_INSTANCES_MAX 128
+static size_t nr_instances = NR_INSTANCES_DEFAULT;
+static struct lv_user_data lv_read_user_data[NR_INSTANCES_MAX];
 
 /* HostnameFormat. */
 #define HF_MAX_FIELDS 3
@@ -283,13 +298,6 @@ static void submit_derive2(const char *type, derive_t v0, derive_t v1,
 
   submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
 } /* void submit_derive2 */
-
-static int lv_init(void) {
-  if (virInitialize() != 0)
-    return -1;
-  else
-    return 0;
-}
 
 static int lv_config(const char *key, const char *value) {
   if (virInitialize() != 0)
@@ -461,15 +469,39 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
 
+  if (strcasecmp(key, "Instances") == 0) {
+    char *eptr = NULL;
+    long val = strtol(value, &eptr, 10);
+    if (eptr == NULL || *eptr != '\0')
+      return 1;
+    if (val <= 0) {
+      ERROR(PLUGIN_NAME " plugin: Instances <= 0 makes no sense.");
+      return 1;
+    }
+    if (val > NR_INSTANCES_MAX) {
+      ERROR(PLUGIN_NAME " plugin: Instances=%li > NR_INSTANCES_MAX=%i"
+                        " use a lower setting or recompile the plugin.",
+            val, NR_INSTANCES_MAX);
+      return 1;
+    }
+    nr_instances = (size_t)val;
+    return 0;
+  }
+
   /* Unrecognised option. */
   return -1;
 }
 
-static int lv_read(void) {
+static int lv_read(user_data_t *ud) {
   time_t t;
-  struct lv_read_state *state = &read_state;
+  struct lv_read_instance *inst = ud->data;
+  struct lv_read_state *state = &inst->read_state;
+  if (!inst) {
+    ERROR(PLUGIN_NAME " plugin: NULL userdata");
+    return -1;
+  }
 
-  if (conn == NULL) {
+  if (inst->id == 0 && conn == NULL) {
     /* `conn_string == NULL' is acceptable. */
     conn = virConnectOpenReadOnly(conn_string);
     if (conn == NULL) {
@@ -645,6 +677,33 @@ static int lv_read(void) {
                      (derive_t)stats.tx_drop, state->interface_devices[i].dom,
                      display_name);
   } /* for (nr_interface_devices) */
+
+  return 0;
+}
+
+static int lv_init_instance(size_t i, plugin_read_cb callback) {
+  struct lv_user_data *lv_ud = &(lv_read_user_data[i]);
+  struct lv_read_instance *inst = &lv_ud->inst;
+
+  memset(lv_ud, 0, sizeof(*lv_ud));
+
+  ssnprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
+  inst->id = i;
+
+  user_data_t *ud = &lv_ud->ud;
+  ud->data = inst;
+  ud->free_func = NULL;
+
+  INFO(PLUGIN_NAME "plugin: reader %s initialized", inst->tag);
+  return plugin_register_complex_read(NULL, inst->tag, callback, 0, ud);
+}
+
+static int lv_init(void) {
+  if (virInitialize() != 0)
+    return -1;
+
+  for (size_t i = 0; i < nr_instances; ++i)
+    lv_init_instance(i, lv_read);
 
   return 0;
 }
@@ -959,10 +1018,12 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
 }
 
 static int lv_shutdown(void) {
-  struct lv_read_state *state = &read_state;
-  free_block_devices(state);
-  free_interface_devices(state);
-  free_domains(state);
+  for (size_t i = 0; i < nr_instances; ++i) {
+    struct lv_read_state *state = &(lv_read_user_data[i].inst.read_state);
+    free_block_devices(state);
+    free_interface_devices(state);
+    free_domains(state);
+  }
 
   if (conn != NULL)
     virConnectClose(conn);
@@ -981,7 +1042,7 @@ static int lv_shutdown(void) {
 void module_register(void) {
   plugin_register_config(PLUGIN_NAME, lv_config, config_keys, NR_CONFIG_KEYS);
   plugin_register_init(PLUGIN_NAME, lv_init);
-  plugin_register_read(PLUGIN_NAME, lv_read);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, lv_read, 0, NULL);
   plugin_register_shutdown(PLUGIN_NAME, lv_shutdown);
 }
 
