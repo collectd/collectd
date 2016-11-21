@@ -61,6 +61,8 @@
 #include "common.h"
 #include "plugin.h"
 
+#define MAX_STR_L 256
+
 static int num_cpu = 0;
 
 static const char * freq_fname_def = "/sys/devices/system/cpu/cpu%d/cpufreq/"
@@ -178,10 +180,8 @@ static void cpufreq_submit (int cpu_num, value_t value)
 static int cpufreq_read (void)
 {
 	int status;
-	unsigned long long val;
 	FILE *fp;
 	char filename[MAX_STR_L];
-	char buffer[16];
 
 	for (int i = 0; i < num_cpu; i++)
 	{
