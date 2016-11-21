@@ -295,7 +295,7 @@ Features
       installed.
       Detailed instructions for installing and setting up Open vSwitch, see
       OVS documentation.
-      <http://openvswitch.org/support/dist-docs/INSTALL.md.html>
+      <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
 
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
