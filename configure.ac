@@ -2606,78 +2606,35 @@ fi
 # }}}
 
 # --with-libdpdk {{{
-AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to the DPDK build directory.])],
-[
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		RTE_BUILD="$withval"
-		with_libdpdk="yes"
-	else
-		RTE_BUILD="/usr"
-		with_libdpdk="$withval"
-	fi
-	DPDK_INCLUDE="$RTE_BUILD/include"
-	DPDK_LIB_DIR="$RTE_BUILD/lib"
-	FOUND_DPDK=yes
-], [with_libdpdk="no"])
+LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+LIBDPDK_LDFLAGS=""
+AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
-if test "x$with_libdpdk" = "xyes"
+AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
+
+if test "x$with_libdpdk" != "xno"
 then
-	LOCAL_DPDK_INSTALL="no"
-	AC_CHECK_HEADER([$DPDK_INCLUDE/rte_config.h], [LOCAL_DPDK_INSTALL=yes],
-		[AC_CHECK_HEADER([$DPDK_INCLUDE/dpdk/rte_config.h],
-		[],
-		[FOUND_DPDK=no], [])], [])
-
-	if test "x$LOCAL_DPDK_INSTALL" = "xno"
-	then
-		DPDK_INCLUDE=$DPDK_INCLUDE/dpdk
-	fi
-
-	if test "x$FOUND_DPDK" = "xno"
-	then
-		AC_MSG_ERROR([libdpdk error: rte_config.h not found])
-	fi
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+	AC_CHECK_HEADERS([rte_config.h],
+		[with_libdpdk="yes"],
+		[with_libdpdk="no (rte_config.h not found)"]
+	)
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_libdpdk" = "xyes"
 then
 	SAVE_LDFLAGS="$LDFLAGS"
-
-	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
-        fi
-
-	AC_CHECK_LIB(dpdk, rte_eal_init,
-                     [BUILD_WITH_DPDK_LIBS="-Wl,-ldpdk"],
-                     [FOUND_DPDK=no])
-
+	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+	AC_CHECK_LIB([dpdk], [rte_eal_init],
+		[with_libdpkd="yes"],
+		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+	)
 	LDFLAGS="$SAVE_LDFLAGS"
-	if test "x$FOUND_DPDK" = "xno"
-	then
-		AC_MSG_ERROR([libdpdk error: cannot link with dpdk in $DPDK_LIB_DIR])
-	fi
 fi
 
-#
-# Note: An issue on Ubuntu 14.04 necessitates the use of -Wl,--no-as-needed:
-# If you try compile with the older linker, the dpdk symbols will be undefined.
-# This workaround should be removed when no longer necessary.
-#
-if test "x$with_libdpdk" = "xyes"
-then
-	BUILD_WITH_DPDK_CFLAGS+="-I$DPDK_INCLUDE"
-	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
-	then
-		BUILD_WITH_DPDK_LDFLAGS="-Wl,--no-as-needed"
-	else
-		BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR -Wl,--no-as-needed"
-        fi
-	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
-	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
-	AC_SUBST(BUILD_WITH_DPDK_LIBS)
-fi
 # }}}
 
 # --with-java {{{
@@ -5964,7 +5921,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_drbd="no"
-plugin_dpdk="no"
+plugin_dpdkstat="no"
 plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
@@ -6375,6 +6332,11 @@ then
   plugin_xencpu="yes"
 fi
 
+if test "x$with_libdpkd" = "xyes"
+then
+  plugin_dpdkstat="yes"
+fi
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
@@ -6421,7 +6383,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
-AC_PLUGIN([dpdkstat],            [$with_libdpdk],           [Stats & Status from DPDK])
+AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats & Status from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
@@ -6858,7 +6820,7 @@ AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
-AC_MSG_RESULT([    dpdkstat . . . . . . .$enable_dpdkstat])
+AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
 AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])
