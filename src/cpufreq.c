@@ -61,13 +61,11 @@
 #include "common.h"
 #include "plugin.h"
 
-#define MAX_STR_L 256
-
 static int num_cpu = 0;
 
 static const char * freq_fname_def = "/sys/devices/system/cpu/cpu%d/cpufreq/"
                                      "scaling_cur_freq";
-static char freq_fname[MAX_STR_L] = {0};
+static char freq_fname[PATH_MAX] = {0};
 
 static const char *config_keys[] =
 {
@@ -115,7 +113,7 @@ static int cpufreq_config (const char * key, const char * value)
 static int setup_freq_fname (void)
 {
 	int status;
-	char filename[MAX_STR_L];
+	char filename[PATH_MAX];
 
 	if (!freq_fname[0]) {
 		sstrncpy (freq_fname, freq_fname_def, sizeof (freq_fname));
@@ -135,7 +133,7 @@ static int setup_freq_fname (void)
 static int cpufreq_init (void)
 {
 	int status;
-	char filename[MAX_STR_L];
+	char filename[PATH_MAX];
 
 	if (!setup_freq_fname ()) {
 		return (-1);
@@ -181,7 +179,7 @@ static int cpufreq_read (void)
 {
 	int status;
 	FILE *fp;
-	char filename[MAX_STR_L];
+	char filename[PATH_MAX];
 
 	for (int i = 0; i < num_cpu; i++)
 	{
