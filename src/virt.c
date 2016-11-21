@@ -32,6 +32,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
@@ -113,7 +114,13 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
                                 unsigned int number);
 
+#define METADATA_VM_PARTITION_URI "http://ovirt.org/ovirtmap/tag/1.0"
+#define METADATA_VM_PARTITION_ELEMENT "tag"
+#define METADATA_VM_PARTITION_PREFIX "ovirtmap"
+
+#define BUFFER_MAX_LEN 256
 #define PARTITION_TAG_MAX_LEN 32
+
 struct lv_read_instance {
   struct lv_read_state read_state;
   char tag[PARTITION_TAG_MAX_LEN];
@@ -159,7 +166,7 @@ static enum if_field interface_format = if_name;
 /* Time that we last refreshed. */
 static time_t last_refresh = (time_t)0;
 
-static int refresh_lists(struct lv_read_state *state);
+static int refresh_lists(struct lv_read_instance *inst);
 
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn, s)                                                    \
@@ -519,7 +526,7 @@ static int lv_read(user_data_t *ud) {
   /* Need to refresh domain or device lists? */
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
-    if (refresh_lists(state) != 0) {
+    if (refresh_lists(inst) != 0) {
       if (conn != NULL)
         virConnectClose(conn);
       conn = NULL;
@@ -708,7 +715,89 @@ static int lv_init(void) {
   return 0;
 }
 
-static int refresh_lists(struct lv_read_state *state) {
+static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
+                             char *dom_tag) {
+  char xpath_str[BUFFER_MAX_LEN] = {'\0'};
+  xmlXPathObjectPtr xpath_obj = NULL;
+  xmlNodePtr xml_node = NULL;
+  int err = -1;
+
+  err = xmlXPathRegisterNs(xpath_ctx,
+                           (const xmlChar *)METADATA_VM_PARTITION_PREFIX,
+                           (const xmlChar *)METADATA_VM_PARTITION_URI);
+  if (err) {
+    ERROR(PLUGIN_NAME " plugin: xmlXpathRegisterNs(%s, %s) failed on domain %s",
+          METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_URI, dom_name);
+    goto done;
+  }
+
+  ssnprintf(xpath_str, sizeof(xpath_str), "/domain/metadata/%s:%s/text()",
+            METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_ELEMENT);
+  xpath_obj = xmlXPathEvalExpression((xmlChar *)xpath_str, xpath_ctx);
+  if (xpath_obj == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed on domain %s",
+          xpath_str, dom_name);
+    goto done;
+  }
+
+  if (xpath_obj->type != XPATH_NODESET) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unexpected return type %d "
+                      "(wanted %d) on domain %s",
+          xpath_str, xpath_obj->type, XPATH_NODESET, dom_name);
+    goto done;
+  }
+
+  /*
+   * from now on there is no real error, it's ok if a domain
+   * doesn't have the metadata partition tag.
+   */
+  err = 0;
+
+  if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
+    DEBUG(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
+                      "expected=1 on domain %s",
+          xpath_str,
+          (xpath_obj->nodesetval == NULL) ? 0 : xpath_obj->nodesetval->nodeNr,
+          dom_name);
+  } else {
+    xml_node = xpath_obj->nodesetval->nodeTab[0];
+    sstrncpy(dom_tag, (const char *)xml_node->content, PARTITION_TAG_MAX_LEN);
+  }
+
+done:
+  if (xpath_obj)
+    xmlXPathFreeObject(xpath_obj);
+
+  return err;
+}
+
+static int is_known_tag(const char *dom_tag) {
+  for (size_t i = 0; i < nr_instances; ++i)
+    if (!strcmp(dom_tag, lv_read_user_data[i].inst.tag))
+      return 1;
+  return 0;
+}
+
+static int lv_instance_include_domain(struct lv_read_instance *inst,
+                                      const char *dom_name,
+                                      const char *dom_tag) {
+  if ((dom_tag[0] != '\0') && (strcmp(dom_tag, inst->tag) == 0))
+    return 1;
+
+  /* instance#0 will always be there, so it is in charge of extra duties */
+  if (inst->id == 0) {
+    if (dom_tag[0] == '\0' || !is_known_tag(dom_tag)) {
+      DEBUG(PLUGIN_NAME " plugin#%s: adopted domain %s "
+                        "with unknown tag '%s'",
+            inst->tag, dom_name, dom_tag);
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+static int refresh_lists(struct lv_read_instance *inst) {
   int n;
 
   n = virConnectNumOfDomains(conn);
@@ -718,6 +807,7 @@ static int refresh_lists(struct lv_read_state *state) {
   }
 
   if (n > 0) {
+    struct lv_read_state *state = &inst->read_state;
     int *domids;
 
     /* Get list of domains. */
@@ -746,6 +836,7 @@ static int refresh_lists(struct lv_read_state *state) {
       xmlDocPtr xml_doc = NULL;
       xmlXPathContextPtr xpath_ctx = NULL;
       xmlXPathObjectPtr xpath_obj = NULL;
+      char tag[PARTITION_TAG_MAX_LEN];
 
       dom = virDomainLookupByID(conn, domids[i]);
       if (dom == NULL) {
@@ -763,11 +854,6 @@ static int refresh_lists(struct lv_read_state *state) {
       if (il_domains && ignorelist_match(il_domains, name) != 0)
         goto cont;
 
-      if (add_domain(state, dom) < 0) {
-        ERROR(PLUGIN_NAME " plugin: malloc failed.");
-        goto cont;
-      }
-
       /* Get a list of devices for this domain. */
       xml = virDomainGetXMLDesc(dom, 0);
       if (!xml) {
@@ -783,6 +869,19 @@ static int refresh_lists(struct lv_read_state *state) {
       }
 
       xpath_ctx = xmlXPathNewContext(xml_doc);
+
+      if (lv_domain_get_tag(xpath_ctx, name, tag) < 0) {
+        ERROR(PLUGIN_NAME " plugin: lv_domain_get_tag failed.");
+        goto cont;
+      }
+
+      if (!lv_instance_include_domain(inst, name, tag))
+        goto cont;
+
+      if (add_domain(state, dom) < 0) {
+        ERROR(PLUGIN_NAME " plugin: malloc failed.");
+        goto cont;
+      }
 
       /* Block devices. */
       char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
