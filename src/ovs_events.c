@@ -91,14 +91,9 @@ typedef struct ovs_events_ctx_s ovs_events_ctx_t;
  */
 static ovs_events_ctx_t ovs_events_ctx = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .config = {.send_notification = 0,     /* do not send notification */
-               .ovs_db_node = "localhost", /* use default OVS DB node */
-               .ovs_db_serv = "6640",      /* use default OVS DB service */
-               .ovs_db_unix = "",          /* UNIX path empty by default */
-               .ifaces = NULL},
-    .ovs_db_select_params = NULL,
-    .is_db_available = 0,
-    .ovs_db = NULL};
+    .config = {.ovs_db_node = "localhost", /* use default OVS DB node */
+               .ovs_db_serv = "6640"}      /* use default OVS DB service */
+};
 
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 1 when context is locked.
@@ -137,39 +132,42 @@ static int ovs_events_config_iface_exists(const char *ifname) {
  * "Transact" & "Select" section
  */
 static char *ovs_events_get_select_params() {
-  int ret = 0;
   size_t buff_size = 0;
   size_t buff_off = 0;
   char *opt_buff = NULL;
-  const char params_fmt[] = "[\"Open_vSwitch\"%s]";
-  const char option_fmt[] = ",{\"op\":\"select\",\"table\":\"Interface\","
-                            "\"where\":[[\"name\",\"==\",\"%s\"]],"
-                            "\"columns\":[\"link_state\",\"external_ids\","
-                            "\"name\",\"_uuid\"]}";
-  const char default_opt[] = ",{\"op\":\"select\",\"table\":\"Interface\","
-                             "\"where\":[],\"columns\":[\"link_state\","
-                             "\"external_ids\",\"name\",\"_uuid\"]}";
+  static const char params_fmt[] = "[\"Open_vSwitch\"%s]";
+  static const char option_fmt[] =
+      ",{\"op\":\"select\",\"table\":\"Interface\","
+      "\"where\":[[\"name\",\"==\",\"%s\"]],"
+      "\"columns\":[\"link_state\",\"external_ids\","
+      "\"name\",\"_uuid\"]}";
+  static const char default_opt[] =
+      ",{\"op\":\"select\",\"table\":\"Interface\","
+      "\"where\":[],\"columns\":[\"link_state\","
+      "\"external_ids\",\"name\",\"_uuid\"]}";
   /* setup OVS DB interface condition */
   for (ovs_events_iface_list_t *iface = ovs_events_ctx.config.ifaces; iface;
-       iface = iface->next, buff_off += ret) {
+       iface = iface->next) {
     /* allocate new buffer (format size + ifname len is good enough) */
-    buff_size += (sizeof(option_fmt) + strlen(iface->name));
+    buff_size += sizeof(option_fmt) + strlen(iface->name);
     char *new_buff = realloc(opt_buff, buff_size);
     if (new_buff == NULL) {
       sfree(opt_buff);
       return NULL;
     }
     opt_buff = new_buff;
-    ret = ssnprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
-                    iface->name);
+    int ret = ssnprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
+                        iface->name);
     if (ret < 0) {
       sfree(opt_buff);
       return NULL;
     }
+    buff_off += ret;
   }
   /* if no interfaces are configured, use default params */
   if (opt_buff == NULL)
-    opt_buff = strdup(default_opt);
+    if ((opt_buff = strdup(default_opt)) == NULL)
+      return NULL;
 
   /* allocate memory for OVS DB select params */
   size_t params_size = sizeof(params_fmt) + strlen(opt_buff);
@@ -261,8 +259,7 @@ failure:
 }
 
 /* Dispatch OVS interface link status event to collectd */
-static void
-ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
+static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
   const char *msg_link_status = NULL;
   notification_t n = {
       NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
@@ -314,8 +311,7 @@ ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
 }
 
 /* Dispatch OVS interface link status value to collectd */
-static void
-ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
+static void ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
   value_list_t vl = VALUE_LIST_INIT;
   meta_data_t *meta = NULL;
 
@@ -528,15 +524,14 @@ static void ovs_events_poll_result_cb(yajl_val jresult, yajl_val jerror) {
  * to receive link status event(s).
  */
 static void ovs_events_conn_initialize(ovs_db_t *pdb) {
-  int ret = 0;
   const char tb_name[] = "Interface";
   const char *columns[] = {"_uuid", "external_ids", "name", "link_state", NULL};
 
   /* register update link status event if needed */
   if (ovs_events_ctx.config.send_notification) {
-    ret = ovs_db_table_cb_register(pdb, tb_name, columns,
-                                   ovs_events_table_update_cb, NULL,
-                                   OVS_DB_TABLE_CB_FLAG_MODIFY);
+    int ret = ovs_db_table_cb_register(pdb, tb_name, columns,
+                                       ovs_events_table_update_cb, NULL,
+                                       OVS_DB_TABLE_CB_FLAG_MODIFY);
     if (ret < 0) {
       ERROR(OVS_EVENTS_PLUGIN ": register OVS DB update callback failed");
       return;

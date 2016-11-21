@@ -5456,7 +5456,7 @@ refer to them from.
 =head2 Plugin C<ovs_events>
 
 The I<ovs_events> plugin monitors the link status of OVS connected interfaces,
-dispatches the values to collectd and send the notification whenever the link
+dispatches the values to collectd and sends the notification whenever the link
 state change occurs. This plugin uses OVS DB to get a link state change
 notification.
 
@@ -5476,11 +5476,11 @@ The plugin provides the following configuration options:
 
 =item B<Address> I<node>
 
-The address of OVS DB server JSON-RPC interface used by the plugin. To enable
-the interface, OVS DB daemon should be running with '--remote=ptcp:' option.
-See L<ovsdb-server(1)> for more details. The option may be either network
-hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string format.
-Defaults to 'localhost'.
+The address of the OVS DB server JSON-RPC interface used by the plugin. To
+enable the interface, OVS DB daemon should be running with '--remote=ptcp:'
+option. See L<ovsdb-server(1)> for more details. The option may be either
+network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
+format. Defaults to 'localhost'.
 
 =item B<Port> I<service>
 
@@ -5497,8 +5497,9 @@ option is set, B<Address> and B<Port> options are ignored.
 
 =item B<Interfaces> [I<ifname> ...]
 
-List of interface names to be monitored by this plugin. If this option is missed
-or it's empty then all OVS connected interfaces on all bridges are monitored.
+List of interface names to be monitored by this plugin. If this option is not
+specified or is empty then all OVS connected interfaces on all bridges are
+monitored.
 
 Default: empty (all interfaces on all bridges are monitored)
 
