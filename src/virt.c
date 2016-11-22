@@ -683,19 +683,11 @@ refresh_lists (void)
     }
 
     if (n > 0) {
-        int *domids;
+        virDomainPtr *domains;
 
-        /* Get list of domains. */
-        domids = malloc (sizeof (*domids) * n);
-        if (domids == NULL) {
-            ERROR (PLUGIN_NAME " plugin: malloc failed.");
-            return -1;
-        }
-
-        n = virConnectListDomains (conn, domids, n);
+        n = virConnectListAllDomains (conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
         if (n < 0) {
             VIRT_ERROR (conn, "reading list of domains");
-            sfree (domids);
             return -1;
         }
 
@@ -705,19 +697,12 @@ refresh_lists (void)
 
         /* Fetch each domain and add it to the list, unless ignore. */
         for (int i = 0; i < n; ++i) {
-            virDomainPtr dom = NULL;
+            virDomainPtr dom = domains[i];
             const char *name;
             char *xml = NULL;
             xmlDocPtr xml_doc = NULL;
             xmlXPathContextPtr xpath_ctx = NULL;
             xmlXPathObjectPtr xpath_obj = NULL;
-
-            dom = virDomainLookupByID (conn, domids[i]);
-            if (dom == NULL) {
-                VIRT_ERROR (conn, "virDomainLookupByID");
-                /* Could be that the domain went away -- ignore it anyway. */
-                continue;
-            }
 
             name = virDomainGetName (dom);
             if (name == NULL) {
@@ -826,7 +811,7 @@ refresh_lists (void)
             sfree (xml);
         }
 
-        sfree (domids);
+        sfree (domains);
     }
 
     return 0;
