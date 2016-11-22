@@ -28,31 +28,16 @@
 # error "No applicable input method."
 #endif
 
-#define MAX_NUMTAPE 256
 extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMTAPE];
-static int numtape = 0;
+static kstat_set_t kstats;
 
 static int tape_init (void)
 {
-	kstat_t *ksp_chain;
-
-	numtape = 0;
-
-	if (kc == NULL)
+	if (kstat_set_init (&kstats) != 0)
 		return (-1);
-
-	for (numtape = 0, ksp_chain = kc->kc_chain;
-			(numtape < MAX_NUMTAPE) && (ksp_chain != NULL);
-			ksp_chain = ksp_chain->ks_next)
-	{
-		if (strncmp (ksp_chain->ks_class, "tape", 4) )
-			continue;
-		if (ksp_chain->ks_type != KSTAT_TYPE_IO)
-			continue;
-		ksp[numtape++] = ksp_chain;
-	}
-
+	static kstat_filter_t filter = KSTAT_FILTER_INIT;
+	filter.class = "tape";
+	plugin_register_kstat_set ("tape", &kstats, &filter);
 	return (0);
 } /* int tape_init */
 
@@ -103,24 +88,20 @@ static int tape_read (void)
 	if (kc == NULL)
 		return (-1);
 
-	if (numtape <= 0)
-		return (-1);
-
-	for (i = 0; i < numtape; i++)
+	for (i = 0; i < kstats.len; i++)
 	{
-		if (kstat_read (kc, ksp[i], &kio) == -1)
+		kstat_t *ks = kstats.items[i].kstat;
+
+		if (kstat_read (kc, ks, &kio) == -1)
 			continue;
 
-		if (strncmp (ksp[i]->ks_class, "tape", 4) == 0)
-		{
-			tape_submit (ksp[i]->ks_name, "tape_octets",
-					kio.KIO_ROCTETS, kio.KIO_WOCTETS);
-			tape_submit (ksp[i]->ks_name, "tape_ops",
-					kio.KIO_ROPS, kio.KIO_WOPS);
-			/* FIXME: Convert this to microseconds if necessary */
-			tape_submit (ksp[i]->ks_name, "tape_time",
-					kio.KIO_RTIME, kio.KIO_WTIME);
-		}
+		tape_submit (ks->ks_name, "tape_octets",
+				kio.KIO_ROCTETS, kio.KIO_WOCTETS);
+		tape_submit (ks->ks_name, "tape_ops",
+				kio.KIO_ROPS, kio.KIO_WOPS);
+		/* FIXME: Convert this to microseconds if necessary */
+		tape_submit (ks->ks_name, "tape_time",
+				kio.KIO_RTIME, kio.KIO_WTIME);
 	}
 
 	return (0);
