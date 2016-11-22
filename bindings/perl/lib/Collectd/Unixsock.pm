@@ -383,7 +383,7 @@ sub listval_filter
 	(exists $args{plugin_instance}   ? "-$args{plugin_instance}" : '(?:-[^/]+)?') .
 	(exists $args{type}              ? "/$args{type}"            : '/[^/-]+') .
 	(exists $args{type_instance}     ? "-$args{type_instance}"   : '(?:-[^/]+)?');
-	$pattern = qr/^\d+ $pattern$/;
+	$pattern = qr/^\d+\.\d+ $pattern$/;
 
 	my $msg = $self->_socket_command('LISTVAL') or return;
 	($nresults, $msg) = split / /, $msg, 2;
@@ -410,7 +410,7 @@ sub listval_filter
 	} # for (i = 0 .. $status)
 
 	return @ret;
-} # listval
+} # listval_filter
 
 =item I<$res> = I<$self>-E<gt>B<listval> ()
 
