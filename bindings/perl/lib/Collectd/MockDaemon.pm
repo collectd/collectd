@@ -56,8 +56,9 @@ sub daemon {
 
 sub listval {
     my $trunc_now = substr(time, 0, -1);
+    my $toggle;
     return print_nvalues(scalar @metrics) .
-    join('', map { sprintf("%s%d.%d %s\n", $trunc_now, rand(10), rand(1000), $_) } @metrics);
+    join('', map { $trunc_now . int(rand(10)) . ($toggle=!$toggle ? ".".int(rand(1000)) : '') . " $_\n" } @metrics);
 }
 
 sub getval {
