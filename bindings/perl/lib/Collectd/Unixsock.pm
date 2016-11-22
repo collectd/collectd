@@ -404,10 +404,10 @@ sub listval_filter
 		my ($time, $ident) = split / /, $msg, 2;
 
 		$ident = _parse_identifier ($ident);
-		$ident->{time} = int $time;
+		$ident->{time} = 0+$time;
 
 		push (@ret, $ident);
-	} # for (i = 0 .. $status)
+	} # for (i = 0 .. $nresults)
 
 	return @ret;
 } # listval_filter
@@ -446,10 +446,10 @@ sub listval
 		my ($time, $ident) = split / /, $msg, 2;
 
 		$ident = _parse_identifier ($ident);
-		$ident->{time} = int $time;
+		$ident->{time} = 0+$time;
 
 		push (@ret, $ident);
-	} # for (i = 0 .. $status)
+	} # for (i = 0 .. $nresults)
 
 	return @ret;
 } # listval
