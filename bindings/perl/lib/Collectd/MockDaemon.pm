@@ -55,9 +55,9 @@ sub daemon {
 }
 
 sub listval {
-    my $now = time;
+    my $trunc_now = substr(time, 0, -1);
     return print_nvalues(scalar @metrics) .
-    join('', map { "$now $_\n" } @metrics);
+    join('', map { sprintf("%s%d.%d %s\n", $trunc_now, rand(10), rand(1000), $_) } @metrics);
 }
 
 sub getval {
