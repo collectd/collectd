@@ -47,19 +47,19 @@
 #include <ip_vs.h>
 #else
 #if HAVE_LINUX_IP_VS_H
-#include <linux/ip_vs.h>
+# include <linux/ip_vs.h>
 #elif HAVE_NET_IP_VS_H
-#include <net/ip_vs.h>
+# include <net/ip_vs.h>
 #elif HAVE_IP_VS_H
-#include <ip_vs.h>
+# include <ip_vs.h>
 #endif /* HAVE_IP_VS_H */
 #endif
 
 #ifdef LIBIPVS_USE_NL
-#include <netlink/netlink.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/ctrl.h>
-#include <netlink/msg.h>
+# include <netlink/netlink.h>
+# include <netlink/genl/genl.h>
+# include <netlink/genl/ctrl.h>
+# include <netlink/msg.h>
 #endif
 
 
@@ -226,52 +226,9 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg)
 
 	return NL_OK;
 }
-/*
-static int ipvs_getinfo(void)
-{
-	socklen_t len;
 
-	if (try_nl) {
-		struct nl_msg *msg;
-		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
-		if (msg)
-			return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb,NULL);
-		return -1;
-	}
-
-	len = sizeof(ipvs_info);
-	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
-			(char *)&ipvs_info, &len);
-
-}*/
-#endif
-/*
-static int ipvs_init(void)
-{
-	socklen_t len;
-
-
-#ifdef LIBIPVS_USE_NL
-	try_nl = 1;
-
-	if (ipvs_nl_send_message(NULL, NULL, NULL) == 0) {
-		try_nl = 1;
-		return ipvs_getinfo();
-	}
-	try_nl = 0;
 #endif
 
-	len = sizeof(ipvs_info);
-	if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1)
-		return -1;
-
-	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
-			(char *)&ipvs_info, &len))
-		return -1;
-
-	return 0;
-}
-*/
 #ifdef LIBIPVS_USE_NL
 static int ipvs_parse_stats(struct ip_vs_stats64 *stats, struct nlattr *nla)
 {
@@ -422,26 +379,25 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 static struct ip_vs_get_services *ipvs_get_services(void)
 {
 	struct ip_vs_getinfo ipvs_info;
-	struct ip_vs_get_services *get;
-	//struct ip_vs_get_services_kern *getk;
+	struct ip_vs_get_services *ret;
 	socklen_t len;
 
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg;
-		len = sizeof(*get) +
+		len = sizeof(*ret) +
 				sizeof(struct ip_vs_service_entry);
-		if (!(get = malloc(len)))
+		if (!(ret = malloc(len)))
 			return NULL;
 
-		get->num_services = 0;
+		ret->num_services = 0;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_SERVICE, NLM_F_DUMP);
 
-		if (msg && (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &get) == 0)) {
-			return get;
+		if (msg && (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &ret) == 0)) {
+			return ret;
 		}
-		free(get);
+		free(ret);
 		return NULL;
 	}
 #endif
@@ -455,27 +411,27 @@ static struct ip_vs_get_services *ipvs_get_services(void)
 		return NULL;
 	}
 
-	len = sizeof (*get) +
+	len = sizeof (*ret) +
 		sizeof (struct ip_vs_service_entry) * ipvs_info.num_services;
 
-	if (NULL == (get = malloc (len))) {
+	if (NULL == (ret = malloc (len))) {
 		log_err ("ipvs_get_services: Out of memory.");
 		exit (3);
 	}
 
-	get->num_services = ipvs_info.num_services;
+	ret->num_services = ipvs_info.num_services;
 
 	if (0 != getsockopt (sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES,
-				(void *)get, &len)) {
+				(void *)ret, &len)) {
 		char errbuf[1024];
 		log_err ("ipvs_get_services: getsockopt failed: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 
-		free(get);
+		free(ret);
 		return NULL;
 	}
-	return get;
-}
+	return ret;
+} /* ipvs_get_services */
 
 #ifdef LIBIPVS_USE_NL
 static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
@@ -552,10 +508,11 @@ static struct ip_vs_get_dests *ipvs_get_dests (struct ip_vs_service_entry *se)
 	socklen_t len;
 
 	len = sizeof (*ret) + sizeof (struct ip_vs_dest_entry) * se->num_dests;
+
 	if (NULL == (ret = malloc (len))) {
-				log_err ("ipvs_get_dests: Out of memory.");
-				exit (3);
-		}
+		log_err ("ipvs_get_dests: Out of memory.");
+		exit (3);
+	}
 
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
@@ -626,22 +583,16 @@ ipvs_nl_dest_failure:
 /*
  * collectd plugin API and helper functions
  */
- //TODO ben pretty sure we should update this to use netlink?
 static int cipvs_init (void)
 {
-	//struct ip_vs_getinfo ipvs_info;
-
 #ifdef LIBIPVS_USE_NL
 	try_nl = 1;
 
-   if (ipvs_nl_send_message(NULL, NULL, NULL) == 0) {
-		   try_nl = 1;
-		   log_info("ben we have netlink");
-		//   return ipvs_getinfo();
-   } else {
-		   try_nl = 0;
-		   log_info("we no have netlink");
-   }
+	/*Test we can use netlink*/
+	if (ipvs_nl_send_message(NULL, NULL, NULL) == 0)
+		try_nl = 1;
+	else
+		try_nl = 0;
 
 	if (try_nl) {
 
@@ -654,8 +605,9 @@ static int cipvs_init (void)
 		}
 	}
 #else
-//ipvs_init();
+
 	socklen_t len;
+
 	if (-1 == (sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW))) {
 		char errbuf[1024];
 		log_err ("cipvs_init: socket() failed: %s",
@@ -674,6 +626,7 @@ static int cipvs_init (void)
 		sockfd = -1;
 		return -1;
 	}
+
 #endif
 	/* we need IPVS >= 1.1.4 */
 	if (ipvs_info.version < ((1 << 16) + (1 << 8) + 4)) {
@@ -706,18 +659,13 @@ static int get_pi (struct ip_vs_service_entry *se, char *pi, size_t size)
 #endif
 	int len = 0;
 
-
 	if ((NULL == se) || (NULL == pi))
 		return 0;
 
-#ifdef LIBIPVS_USE_NL
-	addr = se->addr;
-#else
-	addr.s_addr = se->addr;
-#endif
 	/* inet_ntoa() returns a pointer to a statically allocated buffer
 	 * I hope non-glibc systems behave the same */
 #ifdef LIBIPVS_USE_NL
+	addr = se->addr;
 	if ( se->af == AF_INET6) {
 		len = ssnprintf (pi, size, "%s_%s%u", inet_ntop(AF_INET6, &addr,
 			 	straddr, sizeof(straddr)), (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
@@ -728,7 +676,8 @@ static int get_pi (struct ip_vs_service_entry *se, char *pi, size_t size)
 				ntohs (se->port));
 	}
 #else
-	 len = ssnprintf (pi, size, "%s_%s%u", inet_ntoa (addr),
+	addr.s_addr = se->addr;
+	len = ssnprintf (pi, size, "%s_%s%u", inet_ntoa (addr),
 	 					(se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
 						ntohs (se->port));
 #endif
@@ -756,13 +705,8 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 
 #ifdef LIBIPVS_USE_NL
 	addr = de->addr;
-#else
-	addr.s_addr = de->addr;
-#endif
-
-#ifdef LIBIPVS_USE_NL
 	/* inet_ntoa() returns a pointer to a statically allocated buffer
-	* I hope non-glibc systems behave the same */
+	 I hope non-glibc systems behave the same */
 	if ( de->af == AF_INET6) {
 		len = ssnprintf (ti, size, "%s_%u", inet_ntop(AF_INET6, &addr,
 				straddr, sizeof(straddr)),
@@ -772,9 +716,9 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 				ntohs (de->port));
 	}
 #else
+	addr.s_addr = de->addr;
 	len = ssnprintf (ti, size, "%s_%u", inet_ntoa (addr),
 						ntohs (de->port));
-
 #endif
 
 	if ((0 > len) || (size <= ((size_t) len))) {
@@ -859,6 +803,7 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 	cipvs_submit_connections (pi, NULL, stats.conns);
 	cipvs_submit_if (pi, "if_packets", NULL, stats.inpkts, stats.outpkts);
 	cipvs_submit_if (pi, "if_octets", NULL, stats.inbytes, stats.outbytes);
+
 	for (unsigned int i = 0; i < dests->num_dests; ++i)
 		cipvs_submit_dest (pi, &dests->entrytable[i]);
 
