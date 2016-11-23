@@ -134,7 +134,7 @@ struct lv_user_data {
 
 #define NR_INSTANCES_DEFAULT 1
 #define NR_INSTANCES_MAX 128
-static size_t nr_instances = NR_INSTANCES_DEFAULT;
+static int nr_instances = NR_INSTANCES_DEFAULT;
 static struct lv_user_data lv_read_user_data[NR_INSTANCES_MAX];
 
 /* HostnameFormat. */
@@ -491,7 +491,7 @@ static int lv_config(const char *key, const char *value) {
             val, NR_INSTANCES_MAX);
       return 1;
     }
-    nr_instances = (size_t)val;
+    nr_instances = (int)val;
     return 0;
   }
 
@@ -712,7 +712,7 @@ static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
 
-  for (size_t i = 0; i < nr_instances; ++i)
+  for (int i = 0; i < nr_instances; ++i)
     lv_init_instance(i, lv_read);
 
   return 0;
@@ -775,7 +775,7 @@ done:
 }
 
 static int is_known_tag(const char *dom_tag) {
-  for (size_t i = 0; i < nr_instances; ++i)
+  for (int i = 0; i < nr_instances; ++i)
     if (!strcmp(dom_tag, lv_read_user_data[i].inst.tag))
       return 1;
   return 0;
@@ -1120,7 +1120,7 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
 }
 
 static int lv_shutdown(void) {
-  for (size_t i = 0; i < nr_instances; ++i) {
+  for (int i = 0; i < nr_instances; ++i) {
     struct lv_read_state *state = &(lv_read_user_data[i].inst.read_state);
     free_block_devices(state);
     free_interface_devices(state);
