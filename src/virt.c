@@ -671,6 +671,18 @@ lv_read (void)
     return 0;
 }
 
+/*
+  virConnectListAllDomains() appeared in 0.10.2
+  Note that LIBVIR_CHECK_VERSION appeared a year later, so
+  in some systems which actually have virConnectListAllDomains()
+  we can't detect this.
+ */
+#ifdef LIBVIR_CHECK_VERSION
+# if LIBVIR_CHECK_VERSION(0,10,2)
+#  define HAVE_LIST_ALL_DOMAINS 1
+# endif
+#endif
+
 static int
 refresh_lists (void)
 {
@@ -683,11 +695,27 @@ refresh_lists (void)
     }
 
     if (n > 0) {
+#ifdef HAVE_LIST_ALL_DOMAINS
         virDomainPtr *domains;
-
         n = virConnectListAllDomains (conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
+#else
+        int *domids;
+
+        /* Get list of domains. */
+        domids = malloc (sizeof (*domids) * n);
+        if (domids == NULL) {
+            ERROR (PLUGIN_NAME " plugin: malloc failed.");
+            return -1;
+        }
+
+        n = virConnectListDomains (conn, domids, n);
+#endif
+
         if (n < 0) {
             VIRT_ERROR (conn, "reading list of domains");
+#ifndef HAVE_LIST_ALL_DOMAINS
+            sfree (domids);
+#endif
             return -1;
         }
 
@@ -697,12 +725,24 @@ refresh_lists (void)
 
         /* Fetch each domain and add it to the list, unless ignore. */
         for (int i = 0; i < n; ++i) {
-            virDomainPtr dom = domains[i];
             const char *name;
             char *xml = NULL;
             xmlDocPtr xml_doc = NULL;
             xmlXPathContextPtr xpath_ctx = NULL;
             xmlXPathObjectPtr xpath_obj = NULL;
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+            virDomainPtr dom = domains[i];
+#else
+            virDomainPtr dom = NULL;
+
+            dom = virDomainLookupByID (conn, domids[i]);
+            if (dom == NULL) {
+                VIRT_ERROR (conn, "virDomainLookupByID");
+                /* Could be that the domain went away -- ignore it anyway. */
+                continue;
+            }
+#endif
 
             name = virDomainGetName (dom);
             if (name == NULL) {
@@ -811,7 +851,11 @@ refresh_lists (void)
             sfree (xml);
         }
 
+#ifdef HAVE_LIST_ALL_DOMAINS
         sfree (domains);
+#else
+        sfree (domids);
+#endif
     }
 
     return 0;
