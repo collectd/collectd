@@ -460,6 +460,10 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   return (0);
 }
 
+static void rdt_pqos_log(void *context, const size_t size, const char *msg) {
+  DEBUG(RDT_PLUGIN ": %s", msg);
+}
+
 static int rdt_preinit(void) {
   int ret;
 
@@ -478,11 +482,12 @@ static int rdt_preinit(void) {
    * call fini and ignore return code. */
   pqos_fini();
 
-  /* TODO:
-   * stdout should not be used here. Will be reworked when support of log
-   * callback is added to PQoS library.
-  */
-  ret = pqos_init(&(struct pqos_config){.fd_log = STDOUT_FILENO});
+  struct pqos_config pqos = {.fd_log = -1,
+                             .callback_log = rdt_pqos_log,
+                             .context_log = NULL,
+                             .verbose = 0};
+
+  ret = pqos_init(&pqos);
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDT_PLUGIN ": Error initializing PQoS library!");
     goto rdt_preinit_error1;
