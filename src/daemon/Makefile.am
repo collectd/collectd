@@ -47,6 +47,8 @@ libheap_la_SOURCES = utils_heap.c utils_heap.h
 libmetadata_la_SOURCES = meta_data.c meta_data.h
 
 libplugin_mock_la_SOURCES = plugin_mock.c utils_cache_mock.c \
+			    utils_complain.c utils_complain.h \
+			    utils_ignorelist.c utils_ignorelist.h \
 			    utils_time.c utils_time.h
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = $(COMMON_LIBS) libcommon.la

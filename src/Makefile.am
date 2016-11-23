@@ -1277,6 +1277,16 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_virt_SOURCES = virt_test.c
+test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
+		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_virt_LDADD = daemon/libplugin_mock.la \
+		$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+check_PROGRAMS += test_plugin_virt
+TESTS += test_plugin_virt
+
 endif
 
 if BUILD_PLUGIN_VMEM
