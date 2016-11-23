@@ -113,7 +113,8 @@ static void vg_read(vg_t vg, char const *vg_name)
     char const *attrs;
     uint64_t size;
 
-    lvm_submit (vg_name, "free", lvm_vg_get_free_size(vg));
+    lvm_submit ("free_size", vg_name, lvm_vg_get_free_size(vg));
+    lvm_submit ("total_size", vg_name, lvm_vg_get_size(vg));
 
     lvs = lvm_vg_list_lvs(vg);
     if (!lvs) {
