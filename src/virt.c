@@ -501,12 +501,15 @@ static int lv_config(const char *key, const char *value) {
 
 static int lv_read(user_data_t *ud) {
   time_t t;
-  struct lv_read_instance *inst = ud->data;
-  struct lv_read_state *state = &inst->read_state;
-  if (!inst) {
+  struct lv_read_instance *inst = NULL;
+  struct lv_read_state *state = NULL;
+  if (ud->data == NULL) {
     ERROR(PLUGIN_NAME " plugin: NULL userdata");
     return -1;
   }
+
+  inst = ud->data;
+  state = &inst->read_state;
 
   if (inst->id == 0 && conn == NULL) {
     /* `conn_string == NULL' is acceptable. */
