@@ -1,11 +1,11 @@
-# The dpdkstat plugin
+# The dpdkstats plugin
 
 **Data Plane Development Kit** (DPDK) is a set of drivers and libraries for fast
 packet processing.
 
 ## Summary
 
-The *dpdkstat plugin* has the following requirements:
+The *dpdkstats plugin* has the following requirements:
 
  * DPDK 16.04 or later
  * GCC 4.9 or later
@@ -103,7 +103,7 @@ instruction set manually:
 
         ls /usr/lib | grep dpdk
 
- *  Bind the interfaces to use with dpdkstat to DPDK:
+ *  Bind the interfaces to use with dpdkstats to DPDK:
 
     DPDK devices can be setup with either the VFIO (for DPDK 1.7+) or UIO
     modules.
@@ -179,7 +179,7 @@ To build static DPDK library for use with collectd:
 ## Build collectd with DPDK
 
 **Note:** DPDK 16.04 is the minimum version and currently supported version of
-DPDK required for the dpdkstat plugin. This is to allow the plugin to take
+DPDK required for the dpdkstats plugin. This is to allow the plugin to take
 advantage of functions added to detect if the DPDK primary process is alive.
 
 
@@ -201,7 +201,11 @@ See also: http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
  *  Generate the build script as specified below. (i.e. run `build.sh`).
  *  Configure collectd with the DPDK shared library:
 
-        ./configure --with-libdpdk=/usr
+        ./configure LIBDPDK_CPPFLAGS="-I/usr/include/dpdk" LIBDPDK_LDFLAGS="-L/usr/lib"
+
+**Note:** Modify these flags according to specific environment setup.
+LIBDPDK_CPPFLAGS should contain path to dpdk headers and  LIBDPDK_LDFLAGS should
+point out to dpdk libraries location.
 
 ### Build with the static DPDK library
 
@@ -209,19 +213,19 @@ To configure collectd with the DPDK static library:
 
  *  Run *configure* with the following CFLAGS:
 
-        ./configure --with-libdpdk=/usr CFLAGS=" -lpthread -Wl,--whole-archive -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
+        ./configure LIBDPDK_CPPFLAGS="-I/usr/include/dpdk" LIBDPDK_LDFLAGS="-L/usr/lib" CFLAGS=" -lpthread -Wl,--whole-archive -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
 
- *  Make sure that dpdk and dpdkstat are enabled in the *configure* output.
+ *  Make sure that dpdk and dpdkstats are enabled in the *configure* output.
 
     Expected output:
 
         Libraries:
         ...
         libdpdk  . . . . . . . . yes
-        
+
         Modules:
         ...
-        dpdkstat . . . . . . .yes
+        dpdkstats . . . . . . .yes
 
  *  Build collectd:
 
@@ -240,6 +244,6 @@ To configure collectd with the DPDK static library:
 
 ## License
 
-The *dpdkstat plugin* is copyright (c) 2016 *Intel Corporation* and licensed
+The *dpdkstats plugin* is copyright (c) 2016 *Intel Corporation* and licensed
 under the *MIT license*. Full licensing terms can be found in the file
 `COPYING`.
