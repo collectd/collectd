@@ -201,7 +201,11 @@ See also: http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
  *  Generate the build script as specified below. (i.e. run `build.sh`).
  *  Configure collectd with the DPDK shared library:
 
-        ./configure --with-libdpdk=/usr
+        ./configure LIBDPDK_CPPFLAGS="-I/usr/include/dpdk" LIBDPDK_LDFLAGS="-L/usr/lib"
+
+**Note:** Modify these flags according to specific environment setup.
+LIBDPDK_CPPFLAGS should contain path to dpdk headers and  LIBDPDK_LDFLAGS should
+point out to dpdk libraries location.
 
 ### Build with the static DPDK library
 
@@ -209,7 +213,7 @@ To configure collectd with the DPDK static library:
 
  *  Run *configure* with the following CFLAGS:
 
-        ./configure --with-libdpdk=/usr CFLAGS=" -lpthread -Wl,--whole-archive -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
+        ./configure LIBDPDK_CPPFLAGS="-I/usr/include/dpdk" LIBDPDK_LDFLAGS="-L/usr/lib" CFLAGS=" -lpthread -Wl,--whole-archive -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
 
  *  Make sure that dpdk and dpdkstat are enabled in the *configure* output.
 
@@ -218,7 +222,7 @@ To configure collectd with the DPDK static library:
         Libraries:
         ...
         libdpdk  . . . . . . . . yes
-        
+
         Modules:
         ...
         dpdkstat . . . . . . .yes

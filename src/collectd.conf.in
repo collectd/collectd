@@ -526,13 +526,15 @@
 #</Plugin>
 
 #<Plugin dpdkstat>
-#       Interval 1
-#       Coremask "0xf"
-#       ProcessType "secondary"
-#       FilePrefix "rte"
-#       EnabledPortMask 0xffff
-#       PortName "interface1"
-#       PortName "interface2"
+#  <EAL>
+#    Coremask "0x2"
+#    MemoryChannels "4"
+#    ProcessType "secondary"
+#    FilePrefix "rte"
+#  </EAL>
+#  EnabledPortMask 0xffff
+#  PortName "interface1"
+#  PortName "interface2"
 #</Plugin>
 
 #<Plugin email>
