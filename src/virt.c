@@ -836,6 +836,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
     return -1;
   }
 
+  lv_clean_read_state(state);
+
   if (n > 0) {
     int *domids;
 
@@ -852,8 +854,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
       sfree(domids);
       return -1;
     }
-
-    lv_clean_read_state(state);
 
     /* Fetch each domain and add it to the list, unless ignore. */
     for (int i = 0; i < n; ++i) {
