@@ -27,6 +27,15 @@ noinst_LTLIBRARIES =
 check_PROGRAMS =
 TESTS =
 
+noinst_LTLIBRARIES += libformat_graphite.la
+libformat_graphite_la_SOURCES  = utils_format_graphite.c utils_format_graphite.h
+libformat_graphite_la_CPPFLAGS = $(AM_CPPFLAGS)
+libformat_graphite_la_LDFLAGS  = $(AM_LDFLAGS)
+check_PROGRAMS += test_format_graphite
+TESTS += test_format_graphite
+test_format_graphite_SOURCES = utils_format_graphite_test.c testing.h
+test_format_graphite_LDADD = libformat_graphite.la daemon/libmetadata.la daemon/libplugin_mock.la -lm
+
 noinst_LTLIBRARIES += libformat_json.la
 libformat_json_la_SOURCES   = utils_format_json.c utils_format_json.h
 libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
@@ -171,11 +180,10 @@ pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmds.c utils_cmds.h \
 		  utils_cmd_putval.c utils_cmd_putval.h \
-		  utils_parse_option.c utils_parse_option.h \
-		  utils_format_graphite.c utils_format_graphite.h
+		  utils_parse_option.c utils_parse_option.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
-amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_json.la
+amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_APACHE
@@ -1288,9 +1296,9 @@ endif
 
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
-write_graphite_la_SOURCES = write_graphite.c \
-                        utils_format_graphite.c utils_format_graphite.h
+write_graphite_la_SOURCES = write_graphite.c
 write_graphite_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_graphite_la_LIBADD = libformat_graphite.la
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP
@@ -1305,21 +1313,19 @@ endif
 if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
-                        utils_format_graphite.c utils_format_graphite.h \
                         utils_cmds.c utils_cmds.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
-write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_json.la
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_LOG
 pkglib_LTLIBRARIES += write_log.la
-write_log_la_SOURCES = write_log.c \
-                        utils_format_graphite.c utils_format_graphite.h
+write_log_la_SOURCES = write_log.c
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_log_la_LIBADD = libformat_json.la
+write_log_la_LIBADD = libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_MONGODB
