@@ -376,6 +376,10 @@ static void kafka_config_topic(rd_kafka_conf_t *conf, oconfig_item_t *ci) /* {{{
             status = cf_util_get_flag (child, &tctx->graphite_flags,
                                        GRAPHITE_ALWAYS_APPEND_DS);
 
+        } else if (strcasecmp ("GraphitePreserveSeparator", child->key) == 0) {
+            status = cf_util_get_flag (child, &tctx->graphite_flags,
+                                       GRAPHITE_PRESERVE_SEPARATOR);
+
         } else if (strcasecmp ("GraphitePrefix", child->key) == 0) {
             status = cf_util_get_string (child, &tctx->prefix);
         } else if (strcasecmp ("GraphitePostfix", child->key) == 0) {

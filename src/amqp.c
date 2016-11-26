@@ -1015,6 +1015,9 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         else if ((strcasecmp ("GraphiteAlwaysAppendDS", child->key) == 0) && publish)
             status = cf_util_get_flag (child, &conf->graphite_flags,
                     GRAPHITE_ALWAYS_APPEND_DS);
+        else if ((strcasecmp ("GraphitePreserveSeparator", child->key) == 0) && publish)
+            status = cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_PRESERVE_SEPARATOR);
         else if ((strcasecmp ("GraphitePrefix", child->key) == 0) && publish)
             status = cf_util_get_string (child, &conf->prefix);
         else if ((strcasecmp ("GraphitePostfix", child->key) == 0) && publish)
