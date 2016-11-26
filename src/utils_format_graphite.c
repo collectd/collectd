@@ -83,7 +83,7 @@ static int gr_format_values (char *ret, size_t ret_len,
 }
 
 static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
-    char escape_char)
+    char escape_char, _Bool preserve_separator)
 {
     memset (dst, 0, dst_len);
 
@@ -98,7 +98,7 @@ static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
             break;
         }
 
-        if ((src[i] == '.')
+        if ((!preserve_separator && (src[i] == '.'))
                 || isspace ((int) src[i])
                 || iscntrl ((int) src[i]))
             dst[i] = escape_char;
@@ -130,16 +130,18 @@ static int gr_format_name (char *ret, int ret_len,
     if (postfix == NULL)
         postfix = "";
 
+    _Bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR) ? 1 : 0;
+
     gr_copy_escape_part (n_host, vl->host,
-            sizeof (n_host), escape_char);
+            sizeof (n_host), escape_char, preserve_separator);
     gr_copy_escape_part (n_plugin, vl->plugin,
-            sizeof (n_plugin), escape_char);
+            sizeof (n_plugin), escape_char, preserve_separator);
     gr_copy_escape_part (n_plugin_instance, vl->plugin_instance,
-            sizeof (n_plugin_instance), escape_char);
+            sizeof (n_plugin_instance), escape_char, preserve_separator);
     gr_copy_escape_part (n_type, vl->type,
-            sizeof (n_type), escape_char);
+            sizeof (n_type), escape_char, preserve_separator);
     gr_copy_escape_part (n_type_instance, vl->type_instance,
-            sizeof (n_type_instance), escape_char);
+            sizeof (n_type_instance), escape_char, preserve_separator);
 
     if (n_plugin_instance[0] != '\0')
         ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",

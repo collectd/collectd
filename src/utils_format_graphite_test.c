@@ -96,6 +96,19 @@ DEF_TEST(metric_name)
       .flags = GRAPHITE_ALWAYS_APPEND_DS,
       .want_name = "example@com.test-foo.single-bar.value",
     },
+    /* flag GRAPHITE_PRESERVE_SEPARATOR */
+    {
+      .plugin_instance = "f.o.o",
+      .type_instance = "b.a.r",
+      .flags = 0,
+      .want_name = "example@com.test-f@o@o.single-b@a@r",
+    },
+    {
+      .plugin_instance = "f.o.o",
+      .type_instance = "b.a.r",
+      .flags = GRAPHITE_PRESERVE_SEPARATOR,
+      .want_name = "example.com.test-f.o.o.single-b.a.r",
+    },
     /* prefix and suffix */
     {
       .prefix = "foo.",
