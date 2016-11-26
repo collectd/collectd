@@ -7512,6 +7512,13 @@ should only be used if the automated detection fails or if you want to
 disable some collections. The different bits of this bitmask accepted
 by this plugin are:
 
+=item B<LogicalCoreNames> I<true>|I<false>
+
+Boolean enabling the use of logical core numbering for per core 
+statistics. This mirrors the in-kernel per core numbering. On
+multi-socket systems, the original per-cpu numbering behavior
+stomps on values on subsequent sockets.
+
 =over 4
 
 =item 0 ('1'): Package
