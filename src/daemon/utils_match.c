@@ -99,7 +99,7 @@ static int default_callback (const char __attribute__((unused)) *str,
     if (matches[1] == endptr)
       return (-1);
 
-    if (data->ds_type & UTILS_MATCH_CF_GAUGE_LATENCY)
+    if (data->ds_type & UTILS_MATCH_CF_GAUGE_DIST)
     {
       latency_counter_add(data->latency, DOUBLE_TO_CDTIME_T(value));
       data->values_num++;
@@ -299,7 +299,7 @@ cu_match_t *match_create_simple (const char *regex,
   user_data->ds_type = match_ds_type;
 
   if ((match_ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
-      && (match_ds_type & UTILS_MATCH_CF_GAUGE_LATENCY))
+      && (match_ds_type & UTILS_MATCH_CF_GAUGE_DIST))
   {
     user_data->latency = latency_counter_create();
     if (user_data->latency == NULL)

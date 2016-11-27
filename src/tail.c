@@ -95,7 +95,7 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
   }
   else if (strcasecmp ("Distribution", ds_type) == 0)
   {
-    cm->flags = UTILS_MATCH_DS_TYPE_GAUGE | UTILS_MATCH_CF_GAUGE_LATENCY;
+    cm->flags = UTILS_MATCH_DS_TYPE_GAUGE | UTILS_MATCH_CF_GAUGE_DIST;
 
     int status = latency_config (&cm->latency, ci, "tail");
     if (status != 0)

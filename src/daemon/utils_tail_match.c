@@ -305,7 +305,7 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
   user_data->interval = interval;
 
   if ((ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
-      && (ds_type & UTILS_MATCH_CF_GAUGE_LATENCY))
+      && (ds_type & UTILS_MATCH_CF_GAUGE_DIST))
   {
     status = latency_config_copy(&user_data->latency_config, latency_cfg);
     if (status != 0)
