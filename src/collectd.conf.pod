@@ -555,6 +555,7 @@ B<Synopsis:>
  #   GraphiteEscapeChar "_"
  #   GraphiteSeparateInstances false
  #   GraphiteAlwaysAppendDS false
+ #   GraphitePreserveSeparator false
    </Publish>
 
    # Receive values from an AMQP broker
@@ -728,6 +729,12 @@ instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
+
+=item B<GraphitePreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
 
 =back
 
@@ -8014,6 +8021,12 @@ If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
 
+=item B<PreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<EscapeCharacter>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
+
 =item B<DropDuplicateFields> B<false>|B<true>
 
 If set to B<true>, detect and remove duplicate components in Graphite metric
@@ -8416,6 +8429,17 @@ path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
 default), the plugin and plugin instance (and likewise the type and type
 instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 
+=item B<GraphiteAlwaysAppendDS> B<true>|B<false>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=item B<GraphitePreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
 =item B<StoreRates> B<true>|B<false>
 
 If set to B<true> (the default), convert counter values to rates. If set to

@@ -1439,6 +1439,7 @@
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
 #    SeparateInstances false
+#    PreserveSeparator false
 #    DropDuplicateFields false
 #  </Node>
 #</Plugin>
