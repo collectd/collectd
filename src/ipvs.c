@@ -31,6 +31,7 @@
  */
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 
@@ -227,15 +228,11 @@ static int get_ti (struct ip_vs_dest_entry *de, char *ti, size_t size)
 static void cipvs_submit_connections (const char *pi, const char *ti,
 		derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
-
-	vl.values     = values;
+	vl.values     = &(value_t) { .derive = value };
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "connections", sizeof (vl.type));
@@ -249,16 +246,15 @@ static void cipvs_submit_connections (const char *pi, const char *ti,
 static void cipvs_submit_if (const char *pi, const char *t, const char *ti,
 		derive_t rx, derive_t tx)
 {
-	value_t values[2];
+	value_t values[] = {
+		{ .derive = rx },
+		{ .derive = tx },
+	};
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = rx;
-	values[1].derive = tx;
-
 	vl.values     = values;
-	vl.values_len = 2;
+	vl.values_len = STATIC_ARRAY_SIZE (values);
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, t, sizeof (vl.type));
@@ -291,8 +287,6 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 
 	char pi[DATA_MAX_NAME_LEN];
 
-	size_t i;
-
 	if (0 != get_pi (se, pi, sizeof (pi)))
 	{
 		free (dests);
@@ -303,7 +297,7 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 	cipvs_submit_if (pi, "if_packets", NULL, stats.inpkts, stats.outpkts);
 	cipvs_submit_if (pi, "if_octets", NULL, stats.inbytes, stats.outbytes);
 
-	for (i = 0; i < dests->num_dests; ++i)
+	for (size_t i = 0; i < dests->num_dests; ++i)
 		cipvs_submit_dest (pi, &dests->entrytable[i]);
 
 	free (dests);
@@ -313,7 +307,6 @@ static void cipvs_submit_service (struct ip_vs_service_entry *se)
 static int cipvs_read (void)
 {
 	struct ip_vs_get_services *services = NULL;
-	size_t i;
 
 	if (sockfd < 0)
 		return (-1);
@@ -321,7 +314,7 @@ static int cipvs_read (void)
 	if (NULL == (services = ipvs_get_services ()))
 		return -1;
 
-	for (i = 0; i < services->num_services; ++i)
+	for (size_t i = 0; i < services->num_services; ++i)
 		cipvs_submit_service (&services->entrytable[i]);
 
 	free (services);

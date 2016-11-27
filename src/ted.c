@@ -35,9 +35,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if HAVE_TERMIOS_H && HAVE_SYS_IOCTL_H && HAVE_MATH_H
 # include <termios.h>
@@ -74,7 +74,11 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     int package_buffer_pos;
 
     fd_set input;
-    struct timeval timeout;
+
+    /* Initialize timeout structure, set to 2 seconds */
+    struct timeval timeout = {
+      .tv_sec = 2
+    };
 
     int end_flag;
     int escape_flag;
@@ -86,11 +90,6 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     /* Initialize the input set*/
     FD_ZERO (&input);
     FD_SET (fd, &input);
-
-    /* Initialize timeout structure, set to 2 seconds */
-    memset (&timeout, 0, sizeof (timeout));
-    timeout.tv_sec = 2;
-    timeout.tv_usec = 0;
 
     /* clear out anything in the buffer */
     tcflush (fd, TCIFLUSH);
@@ -108,7 +107,6 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
     while (end_flag == 0)
     {
         ssize_t receive_buffer_length;
-        ssize_t i;
 
         /* check for timeout or input error*/
         status = select (fd + 1, &input, NULL, NULL, &timeout);
@@ -165,7 +163,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage)
          * the beginning of the package has been found. */
 
         escape_flag = 0;
-        for (i = 0; i < receive_buffer_length; i++)
+        for (ssize_t i = 0; i < receive_buffer_length; i++)
         {
             /* Check if previous byte was the escape byte. */
             if (escape_flag == 1)
@@ -265,14 +263,10 @@ static int ted_open_device (void)
 
 static void ted_submit (const char *type, double value)
 {
-    value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
-    values[0].gauge = value;
-
-    vl.values = values;
+    vl.values = &(value_t) { .gauge = value };
     vl.values_len = 1;
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "ted", sizeof (vl.plugin));
     sstrncpy (vl.type, type, sizeof (vl.type));
 
@@ -312,7 +306,6 @@ static int ted_read (void)
     double power;
     double voltage;
     int status;
-    int i;
 
     status = ted_open_device ();
     if (status != 0)
@@ -320,7 +313,7 @@ static int ted_read (void)
 
     power = NAN;
     voltage = NAN;
-    for (i = 0; i <= conf_retries; i++)
+    for (int i = 0; i <= conf_retries; i++)
     {
         status = ted_read_value (&power, &voltage);
         if (status == 0)

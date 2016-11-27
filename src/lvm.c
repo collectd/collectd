@@ -18,12 +18,13 @@
  *
  * Authors:
  *   Chad Malfait <malfaitc at yahoo.com>
- *   Benjamin Gilbert <bgilbert at cs.cmu.edu>
+ *   Benjamin Gilbert <bgilbert at backtick.net>
  **/
 
 #include <lvm2app.h>
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -54,15 +55,11 @@ static char const *get_lv_property_string(lv_t lv, char const *property)
 static void lvm_submit (char const *plugin_instance, char const *type_instance,
         uint64_t ivalue)
 {
-    value_t v;
     value_list_t vl = VALUE_LIST_INIT;
 
-    v.gauge = (gauge_t) ivalue;
-
-    vl.values = &v;
+    vl.values = &(value_t) { .gauge = (gauge_t) ivalue };
     vl.values_len = 1;
 
-    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "lvm", sizeof (vl.plugin));
     sstrncpy(vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
     sstrncpy(vl.type, "df_complex", sizeof (vl.type));

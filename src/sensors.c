@@ -34,9 +34,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #if defined(HAVE_SENSORS_SENSORS_H)
@@ -215,11 +215,9 @@ static int sensors_snprintf_chip_name (char *buf, size_t buf_size,
 
 static int sensors_feature_name_to_type (const char *name)
 {
-	int i;
-
 	/* Yes, this is slow, but it's only ever done during initialization, so
 	 * it's a one time cost.. */
-	for (i = 0; i < known_features_num; i++)
+	for (int i = 0; i < known_features_num; i++)
 		if (strcasecmp (known_features[i].label, name) == 0)
 			return (known_features[i].type);
 
@@ -275,7 +273,6 @@ static int sensors_config (const char *key, const char *value)
 
 static void sensors_free_features (void)
 {
-	featurelist_t *thisft;
 	featurelist_t *nextft;
 
 	if (first_feature == NULL)
@@ -283,7 +280,7 @@ static void sensors_free_features (void)
 
 	sensors_cleanup ();
 
-	for (thisft = first_feature; thisft != NULL; thisft = nextft)
+	for (featurelist_t *thisft = first_feature; thisft != NULL; thisft = nextft)
 	{
 		nextft = thisft->next;
 		sfree (thisft);
@@ -484,12 +481,11 @@ static int sensors_shutdown (void)
 
 static void sensors_submit (const char *plugin_instance,
 		const char *type, const char *type_instance,
-		double val)
+		double value)
 {
 	char match_key[1024];
 	int status;
 
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
 	status = ssnprintf (match_key, sizeof (match_key), "%s/%s-%s",
@@ -504,12 +500,9 @@ static void sensors_submit (const char *plugin_instance,
 			return;
 	}
 
-	values[0].gauge = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "sensors", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));
@@ -521,13 +514,11 @@ static void sensors_submit (const char *plugin_instance,
 
 static int sensors_read (void)
 {
-	featurelist_t *fl;
-
 	if (sensors_load_conf () != 0)
 		return (-1);
 
 #if SENSORS_API_VERSION < 0x400
-	for (fl = first_feature; fl != NULL; fl = fl->next)
+	for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next)
 	{
 		double value;
 		int status;
@@ -555,7 +546,7 @@ static int sensors_read (void)
 /* #endif SENSORS_API_VERSION < 0x400 */
 
 #elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
-	for (fl = first_feature; fl != NULL; fl = fl->next)
+	for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next)
 	{
 		double value;
 		int status;

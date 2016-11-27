@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "utils_latency.h"
 #include "common.h"
@@ -34,10 +35,6 @@
 
 #ifndef LLONG_MAX
 # define LLONG_MAX 9223372036854775807LL
-#endif
-
-#ifndef HISTOGRAM_NUM_BINS
-# define HISTOGRAM_NUM_BINS 1000
 #endif
 
 #ifndef HISTOGRAM_DEFAULT_BIN_WIDTH
@@ -96,9 +93,8 @@ static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   if (lc->num > 0) // if the histogram has data then iterate else skip
   {
       double width_change_ratio = ((double) old_bin_width) / ((double) new_bin_width);
-      size_t i;
 
-      for (i = 0; i < HISTOGRAM_NUM_BINS; i++)
+      for (size_t i = 0; i < HISTOGRAM_NUM_BINS; i++)
       {
          size_t new_bin = (size_t) (((double) i) * width_change_ratio);
          if (i == new_bin)
@@ -125,8 +121,8 @@ latency_counter_t *latency_counter_create (void) /* {{{ */
   if (lc == NULL)
     return (NULL);
 
-  latency_counter_reset (lc);
   lc->bin_width = HISTOGRAM_DEFAULT_BIN_WIDTH;
+  latency_counter_reset (lc);
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
@@ -152,7 +148,7 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
   if (lc->max < latency)
     lc->max = latency;
 
-  /* A latency of _exactly_ 1.0 ms should be stored in the buffer 0, so
+  /* A latency of _exactly_ 1.0 ms is stored in the buffer 0, so
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
   bin = (latency - 1) / lc->bin_width;
@@ -175,6 +171,28 @@ void latency_counter_reset (latency_counter_t *lc) /* {{{ */
     return;
 
   cdtime_t bin_width = lc->bin_width;
+  cdtime_t max_bin = (lc->max - 1) / lc->bin_width;
+
+/*
+  If max latency is REDUCE_THRESHOLD times less than histogram's range,
+  then cut it in half. REDUCE_THRESHOLD must be >= 2.
+  Value of 4 is selected to reduce frequent changes of bin width.
+*/
+#define REDUCE_THRESHOLD 4
+  if ((lc->num > 0) && (lc->bin_width >= HISTOGRAM_DEFAULT_BIN_WIDTH * 2)
+     && (max_bin < HISTOGRAM_NUM_BINS / REDUCE_THRESHOLD))
+  {
+    /* new bin width will be the previous power of 2 */
+    bin_width = bin_width / 2;
+
+    DEBUG("utils_latency: latency_counter_reset: max_latency = %.3f; "
+          "max_bin = %"PRIu64"; old_bin_width = %.3f; new_bin_width = %.3f;",
+        CDTIME_T_TO_DOUBLE (lc->max),
+        max_bin,
+        CDTIME_T_TO_DOUBLE (lc->bin_width),
+        CDTIME_T_TO_DOUBLE (bin_width));
+  }
+
   memset (lc, 0, sizeof (*lc));
 
   /* preserve bin width */
@@ -271,5 +289,65 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
       CDTIME_T_TO_DOUBLE (latency_interpolated));
   return (latency_interpolated);
 } /* }}} cdtime_t latency_counter_get_percentile */
+
+double latency_counter_get_rate(const latency_counter_t *lc, /* {{{ */
+                                cdtime_t lower, cdtime_t upper,
+                                const cdtime_t now) {
+  if ((lc == NULL) || (lc->num == 0))
+    return (NAN);
+
+  if (upper && (upper < lower))
+    return (NAN);
+  if (lower == upper)
+    return (0);
+
+  /* Buckets have an exclusive lower bound and an inclusive upper bound. That
+   * means that the first bucket, index 0, represents (0-bin_width]. That means
+   * that latency==bin_width needs to result in bin=0, that's why we need to
+   * subtract one before dividing by bin_width. */
+  cdtime_t lower_bin = 0;
+  if (lower)
+    /* lower is *exclusive* => determine bucket for lower+1 */
+    lower_bin = ((lower + 1) - 1) / lc->bin_width;
+
+  /* lower is greater than the longest latency observed => rate is zero. */
+  if (lower_bin >= HISTOGRAM_NUM_BINS)
+    return (0);
+
+  cdtime_t upper_bin = HISTOGRAM_NUM_BINS - 1;
+  if (upper)
+    upper_bin = (upper - 1) / lc->bin_width;
+
+  if (upper_bin >= HISTOGRAM_NUM_BINS) {
+    upper_bin = HISTOGRAM_NUM_BINS - 1;
+    upper = 0;
+  }
+
+  double sum = 0;
+  for (size_t i = lower_bin; i <= upper_bin; i++)
+    sum += lc->histogram[i];
+
+  if (lower) {
+    /* Approximate ratio of requests in lower_bin, that fall between
+     * lower_bin_boundary and lower. This ratio is then subtracted from sum to
+     * increase accuracy. */
+    cdtime_t lower_bin_boundary = lower_bin * lc->bin_width;
+    assert(lower >= lower_bin_boundary);
+    double lower_ratio =
+        (double)(lower - lower_bin_boundary) / ((double)lc->bin_width);
+    sum -= lower_ratio * lc->histogram[lower_bin];
+  }
+
+  if (upper) {
+    /* As above: approximate ratio of requests in upper_bin, that fall between
+     * upper and upper_bin_boundary. */
+    cdtime_t upper_bin_boundary = (upper_bin + 1) * lc->bin_width;
+    assert(upper <= upper_bin_boundary);
+    double ratio = (double)(upper_bin_boundary - upper) / (double)lc->bin_width;
+    sum -= ratio * lc->histogram[upper_bin];
+  }
+
+  return sum / (CDTIME_T_TO_DOUBLE(now - lc->start_time));
+} /* }}} double latency_counter_get_rate */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

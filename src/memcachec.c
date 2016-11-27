@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_match.h"
 
 #include <libmemcached/memcached.h>
@@ -199,7 +199,6 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
 {
   web_match_t *match;
   int status;
-  int i;
 
   if (ci->values_num != 0)
   {
@@ -214,7 +213,7 @@ static int cmc_config_add_match (web_page_t *page, /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -296,7 +295,6 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
 {
   web_page_t *page;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -323,7 +321,7 @@ static int cmc_config_add_page (oconfig_item_t *ci) /* {{{ */
 
   /* Process all children */
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -400,12 +398,11 @@ static int cmc_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -444,16 +441,12 @@ static int cmc_init (void) /* {{{ */
 } /* }}} int cmc_init */
 
 static void cmc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
-    const cu_match_value_t *mv)
+    value_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = mv->value;
-
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "memcachec", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, wm->type, sizeof (vl.type));
@@ -464,7 +457,6 @@ static void cmc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
 static int cmc_read_page (web_page_t *wp) /* {{{ */
 {
-  web_match_t *wm;
   memcached_return rc;
   size_t string_length;
   uint32_t flags;
@@ -482,7 +474,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
     return (-1);
   }
 
-  for (wm = wp->matches; wm != NULL; wm = wm->next)
+  for (web_match_t *wm = wp->matches; wm != NULL; wm = wm->next)
   {
     cu_match_value_t *mv;
 
@@ -500,7 +492,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
       continue;
     }
 
-    cmc_submit (wp, wm, mv);
+    cmc_submit (wp, wm, mv->value);
     match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
@@ -511,9 +503,7 @@ static int cmc_read_page (web_page_t *wp) /* {{{ */
 
 static int cmc_read (void) /* {{{ */
 {
-  web_page_t *wp;
-
-  for (wp = pages_g; wp != NULL; wp = wp->next)
+  for (web_page_t *wp = pages_g; wp != NULL; wp = wp->next)
     cmc_read_page (wp);
 
   return (0);

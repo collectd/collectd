@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_avltree.h"
 #include "utils_complain.h"
 #include "utils_curl_stats.h"
@@ -144,6 +144,9 @@ static int cj_get_type (cj_key_t *key)
 {
   const data_set_t *ds;
 
+  if ((key == NULL) || !CJ_IS_KEY (key))
+    return -EINVAL;
+
   ds = plugin_get_ds (key->type);
   if (ds == NULL)
   {
@@ -227,12 +230,15 @@ static int cj_cb_number (void *ctx,
   buffer[sizeof (buffer) - 1] = 0;
 
   if ((key == NULL) || !CJ_IS_KEY (key)) {
-    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/)
+    if (key != NULL && !db->state[db->depth].in_array/*can be inhomogeneous*/) {
       NOTICE ("curl_json plugin: Found \"%s\", but the configuration expects"
               " a map.", buffer);
+      return (CJ_CB_CONTINUE);
+    }
+
     cj_cb_inc_array_index (ctx, /* update_key = */ 1);
     key = db->state[db->depth].key;
-    if (key == NULL) {
+    if ((key == NULL) || !CJ_IS_KEY (key)) {
       return (CJ_CB_CONTINUE);
     }
   }
@@ -470,7 +476,6 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
 {
   cj_key_t *key;
   int status;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -506,7 +511,7 @@ static int cj_config_add_key (cj_t *db, /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -662,7 +667,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
 {
   cj_t *db;
   int status = 0;
-  int i;
 
   if ((ci->values_num != 1)
       || (ci->values[0].type != OCONFIG_TYPE_STRING))
@@ -699,7 +703,7 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   }
 
   /* Fill the `cj_t' structure.. */
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -760,7 +764,6 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
   /* If all went well, register this database for reading */
   if (status == 0)
   {
-    user_data_t ud;
     char *cb_name;
 
     if (db->instance == NULL)
@@ -769,16 +772,15 @@ static int cj_config_add_url (oconfig_item_t *ci) /* {{{ */
     DEBUG ("curl_json plugin: Registering new read callback: %s",
            db->instance);
 
-    memset (&ud, 0, sizeof (ud));
-    ud.data = (void *) db;
-    ud.free_func = cj_free;
-
     cb_name = ssnprintf_alloc ("curl_json-%s-%s",
                db->instance, db->url ? db->url : db->sock);
 
     plugin_register_complex_read (/* group = */ NULL, cb_name, cj_read,
                                   /* interval = */ db->interval,
-                                  &ud);
+                                  &(user_data_t) {
+                                    .data = db,
+                                    .free_func = cj_free,
+                                  });
     sfree (cb_name);
   }
   else
@@ -796,12 +798,11 @@ static int cj_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -850,8 +851,8 @@ static void cj_submit (cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 
   if (key->instance == NULL)
   {
-    int i, len = 0;
-    for (i = 0; i < db->depth; i++)
+    int len = 0;
+    for (int i = 0; i < db->depth; i++)
       len += ssnprintf(vl.type_instance+len, sizeof(vl.type_instance)-len,
                        i ? "-%s" : "%s", db->state[i+1].name);
   }

@@ -27,9 +27,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #if defined(__APPLE__)
 #pragma clang diagnostic push
@@ -169,11 +169,7 @@ static void cldap_submit_value (const char *type, const char *type_instance, /* 
 	vl.values     = &value;
 	vl.values_len = 1;
 
-	if ((st->host == NULL)
-			|| (strcmp ("", st->host) == 0)
-			|| (strcmp ("localhost", st->host) == 0))
-		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	else
+	if ((st->host != NULL) && (strcmp ("localhost", st->host) != 0))
 		sstrncpy (vl.host, st->host, sizeof (vl.host));
 
 	sstrncpy (vl.plugin, "openldap", sizeof (vl.plugin));
@@ -192,23 +188,19 @@ static void cldap_submit_value (const char *type, const char *type_instance, /* 
 static void cldap_submit_derive (const char *type, const char *type_instance, /* {{{ */
 		derive_t d, cldap_t *st)
 {
-	value_t v;
-	v.derive = d;
-	cldap_submit_value (type, type_instance, v, st);
+	cldap_submit_value (type, type_instance, (value_t) { .derive = d }, st);
 } /* }}} void cldap_submit_derive */
 
 static void cldap_submit_gauge (const char *type, const char *type_instance, /* {{{ */
 		gauge_t g, cldap_t *st)
 {
-	value_t v;
-	v.gauge = g;
-	cldap_submit_value (type, type_instance, v, st);
+	cldap_submit_value (type, type_instance, (value_t) { .gauge = g }, st);
 } /* }}} void cldap_submit_gauge */
 
 static int cldap_read_host (user_data_t *ud) /* {{{ */
 {
 	cldap_t *st;
-	LDAPMessage *e, *result;
+	LDAPMessage *result;
 	char *dn;
 	int rc;
 	int status;
@@ -249,7 +241,7 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 		return (-1);
 	}
 
-	for (e = ldap_first_entry (st->ld, result); e != NULL;
+	for (LDAPMessage *e = ldap_first_entry (st->ld, result); e != NULL;
 		e = ldap_next_entry (st->ld, e))
 	{
 		if ((dn = ldap_get_dn (st->ld, e)) != NULL)
@@ -558,7 +550,6 @@ static int cldap_read_host (user_data_t *ud) /* {{{ */
 static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 {
 	cldap_t *st;
-	int i;
 	int status;
 
 	st = calloc (1, sizeof (*st));
@@ -576,11 +567,11 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	}
 
 	st->starttls = 0;
-	st->timeout = (long) (CDTIME_T_TO_MS(plugin_get_interval()) / 1000);
+	st->timeout = (long) CDTIME_T_TO_TIME_T(plugin_get_interval());
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -653,27 +644,24 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 		}
 		else
 		{
-			user_data_t ud;
-			char callback_name[3*DATA_MAX_NAME_LEN];
+			char callback_name[3*DATA_MAX_NAME_LEN] = { 0 };
 
 			databases = temp;
 			databases[databases_num] = st;
 			databases_num++;
 
-			memset (&ud, 0, sizeof (ud));
-			ud.data = st;
-
-			memset (callback_name, 0, sizeof (callback_name));
 			ssnprintf (callback_name, sizeof (callback_name),
 					"openldap/%s/%s",
 					(st->host != NULL) ? st->host : hostname_g,
-					(st->name != NULL) ? st->name : "default"),
+					(st->name != NULL) ? st->name : "default");
 
 			status = plugin_register_complex_read (/* group = */ NULL,
 					/* name      = */ callback_name,
 					/* callback  = */ cldap_read_host,
 					/* interval  = */ 0,
-					/* user_data = */ &ud);
+					&(user_data_t) {
+						.data = st,
+					});
 		}
 	}
 
@@ -688,10 +676,9 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 
 static int cldap_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
 	int status = 0;
 
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -721,9 +708,7 @@ static int cldap_init (void) /* {{{ */
 
 static int cldap_shutdown (void) /* {{{ */
 {
-	size_t i;
-
-	for (i = 0; i < databases_num; i++)
+	for (size_t i = 0; i < databases_num; i++)
 		if (databases[i]->ld != NULL)
 			ldap_unbind_ext_s (databases[i]->ld, NULL, NULL);
 	sfree (databases);

@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -60,21 +61,17 @@ static size_t directories_num = 0;
 
 static void fc_submit_dir (const fc_directory_conf_t *dir)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = (gauge_t) dir->files_num;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  vl.values = &(value_t) { .gauge = (gauge_t) dir->files_num };
+  vl.values_len = 1;
   sstrncpy (vl.plugin, "filecount", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dir->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "files", sizeof (vl.type));
 
   plugin_dispatch_values (&vl);
 
-  values[0].gauge = (gauge_t) dir->files_size;
+  vl.values = &(value_t) { .gauge = (gauge_t) dir->files_size };
   sstrncpy (vl.type, "bytes", sizeof (vl.type));
 
   plugin_dispatch_values (&vl);
@@ -334,7 +331,6 @@ static int fc_config_add_dir (oconfig_item_t *ci)
 {
   fc_directory_conf_t *dir;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -368,7 +364,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
   dir->size = 0;
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *option = ci->children + i;
 
@@ -428,9 +424,7 @@ static int fc_config_add_dir (oconfig_item_t *ci)
 
 static int fc_config (oconfig_item_t *ci)
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp ("Directory", child->key) == 0)
@@ -557,9 +551,7 @@ static int fc_read_dir (fc_directory_conf_t *dir)
 
 static int fc_read (void)
 {
-  size_t i;
-
-  for (i = 0; i < directories_num; i++)
+  for (size_t i = 0; i < directories_num; i++)
     fc_read_dir (directories[i]);
 
   return (0);

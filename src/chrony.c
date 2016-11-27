@@ -26,6 +26,7 @@
  */
 
 #include "collectd.h"
+
 #include "common.h"             /* auxiliary functions */
 #include "plugin.h"             /* plugin_register_*, plugin_dispatch_values */
 
@@ -306,15 +307,15 @@ static int
 connect_client(const char *p_hostname,
                const char *p_service, int p_family, int p_socktype)
 {
-  struct addrinfo hints, *res = NULL, *ressave = NULL;
+  struct addrinfo *res, *ressave;
   int n, sockfd;
 
-  memset(&hints, 0, sizeof(struct addrinfo));
+  struct addrinfo ai_hints = {
+    .ai_family = p_family,
+    .ai_socktype = p_socktype
+  };
 
-  hints.ai_family = p_family;
-  hints.ai_socktype = p_socktype;
-
-  n = getaddrinfo(p_hostname, p_service, &hints, &res);
+  n = getaddrinfo(p_hostname, p_service, &ai_hints, &res);
 
   if (n < 0)
   {
@@ -451,8 +452,8 @@ chrony_connect(void)
 
   if (chrony_set_timeout())
   {
-    ERROR(PLUGIN_NAME ": Error setting timeout to %lds. Errno = %d",
-          g_chrony_timeout, errno);
+    ERROR(PLUGIN_NAME ": Error setting timeout to %llds. Errno = %d",
+          (long long)g_chrony_timeout, errno);
     return CHRONY_RC_FAIL;
   }
   return CHRONY_RC_OK;
@@ -676,18 +677,12 @@ ntohf(tFloat p_float)
 static void
 chrony_push_data(const char *p_type, const char *p_type_inst, double p_value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = p_value;    /* TODO: Check type??? (counter, gauge, derive, absolute) */
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = p_value };
   vl.values_len = 1;
 
   /* XXX: Shall g_chrony_host/g_chrony_port be reflected in the plugin's output? */
-  /* hostname_g is set in daemon/collectd.c (from config, via gethostname or by resolving localhost) */
-  /* defined as: char hostname_g[DATA_MAX_NAME_LEN]; (never NULL) */
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, PLUGIN_NAME_SHORT, sizeof(vl.plugin));
   if (g_chrony_plugin_instance != NULL)
   {
@@ -852,8 +847,7 @@ chrony_request_daemon_stats(void)
   }
 #if COLLECT_DEBUG
   {
-    char src_addr[IPV6_STR_MAX_SIZE];
-    memset(src_addr, 0, sizeof(src_addr));
+    char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
     niptoha(&chrony_resp.body.tracking.addr, src_addr, sizeof(src_addr));
     DEBUG(PLUGIN_NAME ": Daemon stat: .addr = %s, .ref_id= %u, .stratum = %u, .leap_status = %u, .ref_time = %u:%u:%u, .current_correction = %f, .last_offset = %f, .rms_offset = %f, .freq_ppm = %f, .skew_ppm = %f, .root_delay = %f, .root_dispersion = %f, .last_update_interval = %f", src_addr, ntohs(chrony_resp.body.tracking.f_ref_id),  
           ntohs(chrony_resp.body.tracking.f_stratum),
@@ -937,8 +931,7 @@ chrony_request_source_data(int p_src_idx, int *p_is_reachable)
   tChrony_Request chrony_req;
   tChrony_Response chrony_resp;
 
-  char src_addr[IPV6_STR_MAX_SIZE];
-  memset(src_addr, 0, sizeof(src_addr));
+  char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
 
   chrony_init_req(&chrony_req);
   chrony_req.body.source_data.f_index = htonl(p_src_idx);
@@ -997,8 +990,7 @@ chrony_request_source_stats(int p_src_idx, const int *p_is_reachable)
   tChrony_Response chrony_resp;
   double skew_ppm, frequency_error, time_offset;
 
-  char src_addr[IPV6_STR_MAX_SIZE];
-  memset(src_addr, 0, sizeof(src_addr));
+  char src_addr[IPV6_STR_MAX_SIZE] = { 0 };
 
   if (*p_is_reachable == 0)
   {
@@ -1055,7 +1047,7 @@ chrony_read(void)
 {
   /* collectd read callback: Perform data acquisition */
   int rc;
-  unsigned int now_src, n_sources;
+  unsigned int n_sources;
 
   if (g_chrony_seq_is_initialized == 0)
   {
@@ -1077,7 +1069,7 @@ chrony_read(void)
   if (rc != CHRONY_RC_OK)
     return rc;
 
-  for (now_src = 0; now_src < n_sources; ++now_src)
+  for (unsigned int now_src = 0; now_src < n_sources; ++now_src)
   {
     int is_reachable;
     rc = chrony_request_source_data(now_src, &is_reachable);

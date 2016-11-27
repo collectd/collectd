@@ -28,6 +28,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -89,12 +90,10 @@ static long long get_zfs_value(kstat_t *ksp, const char *key)
 
 static void free_zfs_values (kstat_t *ksp)
 {
-	llentry_t *e;
-
 	if (ksp == NULL)
 		return;
 
-	for (e = llist_head (ksp); e != NULL; e = e->next)
+	for (llentry_t *e = llist_head (ksp); e != NULL; e = e->next)
 	{
 		sfree (e->key);
 		sfree (e->value);
@@ -139,14 +138,13 @@ static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
 }
 #endif
 
-static void za_submit (const char* type, const char* type_instance, value_t* values, int values_len)
+static void za_submit (const char* type, const char* type_instance, value_t* values, size_t values_len)
 {
 	value_list_t vl = VALUE_LIST_INIT;
 
 	vl.values = values;
 	vl.values_len = values_len;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zfs_arc", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -156,45 +154,34 @@ static void za_submit (const char* type, const char* type_instance, value_t* val
 
 static void za_submit_gauge (const char* type, const char* type_instance, gauge_t value)
 {
-	value_t vv;
-
-	vv.gauge = value;
-	za_submit (type, type_instance, &vv, 1);
+	za_submit (type, type_instance, &(value_t) { .gauge = value }, 1);
 }
 
 static int za_read_derive (kstat_t *ksp, const char *kstat_value,
     const char *type, const char *type_instance)
 {
-  long long tmp;
-  value_t v;
-
-  tmp = get_zfs_value (ksp, (char *)kstat_value);
+  long long tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
-  v.derive = (derive_t) tmp;
-  za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  za_submit (type, type_instance, &(value_t) { .derive = (derive_t) tmp }, /* values_num = */ 1);
   return (0);
 }
 
 static int za_read_gauge (kstat_t *ksp, const char *kstat_value,
     const char *type, const char *type_instance)
 {
-  long long tmp;
-  value_t v;
-
-  tmp = get_zfs_value (ksp, (char *)kstat_value);
+  long long tmp = get_zfs_value (ksp, (char *)kstat_value);
   if (tmp == -1LL)
   {
     WARNING ("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
-  v.gauge = (gauge_t) tmp;
-  za_submit (type, type_instance, /* values = */ &v, /* values_num = */ 1);
+  za_submit (type, type_instance, &(value_t) { .gauge = (gauge_t) tmp }, /* values_num = */ 1);
   return (0);
 }
 
@@ -216,7 +203,6 @@ static void za_submit_ratio (const char* type_instance, gauge_t hits, gauge_t mi
 static int za_read (void)
 {
 	gauge_t  arc_hits, arc_misses, l2_hits, l2_misses;
-	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
 #if defined(KERNEL_LINUX)
@@ -295,10 +281,6 @@ static int za_read (void)
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
 #if defined(KERNEL_FREEBSD)
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
-#if __FreeBSD_version < 1002501
-	/* stolen removed from sysctl kstat.zfs.misc.arcstats on FreeBSD 10.2+ */
-	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
-#endif
 #endif
 
 	/* Issue indicators */
@@ -324,7 +306,6 @@ static int za_read (void)
 	za_read_derive (ksp, "mfu_ghost_hits",           "cache_result", "mfu_ghost-hit");
 	za_read_derive (ksp, "mru_hits",                 "cache_result", "mru-hit");
 	za_read_derive (ksp, "mru_ghost_hits",           "cache_result", "mru_ghost-hit");
-	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
 
 	/* Ratios */
 	arc_hits   = (gauge_t) get_zfs_value(ksp, "hits");
@@ -336,10 +317,11 @@ static int za_read (void)
 	za_submit_ratio ("L2", l2_hits, l2_misses);
 
 	/* I/O */
-	l2_io[0].derive = get_zfs_value(ksp, "l2_read_bytes");
-	l2_io[1].derive = get_zfs_value(ksp, "l2_write_bytes");
-
-	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
+	value_t  l2_io[] = {
+		{ .derive = (derive_t) get_zfs_value(ksp, "l2_read_bytes") },
+		{ .derive = (derive_t) get_zfs_value(ksp, "l2_write_bytes") },
+	};
+	za_submit ("io_octets", "L2", l2_io, STATIC_ARRAY_SIZE (l2_io));
 
 #if defined(KERNEL_LINUX)
 	free_zfs_values (ksp);

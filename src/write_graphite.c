@@ -43,25 +43,43 @@
   */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include "utils_complain.h"
 #include "utils_format_graphite.h"
 
 #include <netdb.h>
 
-#define WG_DEFAULT_NODE "localhost"
-#define WG_DEFAULT_SERVICE "2003"
-#define WG_DEFAULT_PROTOCOL "tcp"
-#define WG_DEFAULT_LOG_SEND_ERRORS 1
-#define WG_DEFAULT_ESCAPE '_'
+#ifndef WG_DEFAULT_NODE
+# define WG_DEFAULT_NODE "localhost"
+#endif
+
+#ifndef WG_DEFAULT_SERVICE
+# define WG_DEFAULT_SERVICE "2003"
+#endif
+
+#ifndef WG_DEFAULT_PROTOCOL
+# define WG_DEFAULT_PROTOCOL "tcp"
+#endif
+
+#ifndef WG_DEFAULT_LOG_SEND_ERRORS
+# define WG_DEFAULT_LOG_SEND_ERRORS 1
+#endif
+
+#ifndef WG_DEFAULT_ESCAPE
+# define WG_DEFAULT_ESCAPE '_'
+#endif
 
 /* Ethernet - (IPv6 + TCP) = 1500 - (40 + 32) = 1428 */
-#define WG_SEND_BUF_SIZE 1428
+#ifndef WG_SEND_BUF_SIZE
+# define WG_SEND_BUF_SIZE 1428
+#endif
 
-#define WG_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T (1)
+#ifndef WG_MIN_RECONNECT_INTERVAL
+# define WG_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T (1)
+#endif
 
 /*
  * Private variables
@@ -193,9 +211,7 @@ static int wg_flush_nolock (cdtime_t timeout, struct wg_callback *cb)
 
 static int wg_callback_init (struct wg_callback *cb)
 {
-    struct addrinfo ai_hints;
     struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
     cdtime_t now;
     int status;
 
@@ -211,18 +227,15 @@ static int wg_callback_init (struct wg_callback *cb)
         return (EAGAIN);
     cb->last_connect_time = now;
 
-    memset (&ai_hints, 0, sizeof (ai_hints));
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-    ai_hints.ai_family = AF_UNSPEC;
+    struct addrinfo ai_hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_flags  = AI_ADDRCONFIG
+    };
 
     if (0 == strcasecmp ("tcp", cb->protocol))
         ai_hints.ai_socktype = SOCK_STREAM;
     else
         ai_hints.ai_socktype = SOCK_DGRAM;
-
-    ai_list = NULL;
 
     status = getaddrinfo (cb->node, cb->service, &ai_hints, &ai_list);
     if (status != 0)
@@ -233,7 +246,7 @@ static int wg_callback_init (struct wg_callback *cb)
     }
 
     assert (ai_list != NULL);
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
     {
         cb->sock_fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype,
                 ai_ptr->ai_protocol);
@@ -243,6 +256,8 @@ static int wg_callback_init (struct wg_callback *cb)
                     sstrerror (errno, errbuf, sizeof (errbuf)));
             continue;
         }
+
+        set_sock_opts (cb->sock_fd);
 
         status = connect (cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
         if (status != 0)
@@ -406,7 +421,7 @@ static int wg_send_message (char const *message, struct wg_callback *cb)
 static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         struct wg_callback *cb)
 {
-    char buffer[WG_SEND_BUF_SIZE];
+    char buffer[WG_SEND_BUF_SIZE] = { 0 };
     int status;
 
     if (0 != strcmp (ds->type, vl->type))
@@ -416,7 +431,6 @@ static int wg_write_messages (const data_set_t *ds, const value_list_t *vl,
         return -1;
     }
 
-    memset (buffer, 0, sizeof (buffer));
     status = format_graphite (buffer, sizeof (buffer), ds, vl,
             cb->prefix, cb->postfix, cb->escape_char, cb->format_flags);
     if (status != 0) /* error message has been printed already. */
@@ -449,10 +463,8 @@ static int wg_write (const data_set_t *ds, const value_list_t *vl,
 static int config_set_char (char *dest,
         oconfig_item_t *ci)
 {
-    char buffer[4];
+    char buffer[4] = { 0 };
     int status;
-
-    memset (buffer, 0, sizeof (buffer));
 
     status = cf_util_get_string_buffer (ci, buffer, sizeof (buffer));
     if (status != 0)
@@ -480,9 +492,7 @@ static int config_set_char (char *dest,
 static int wg_config_node (oconfig_item_t *ci)
 {
     struct wg_callback *cb;
-    user_data_t user_data;
     char callback_name[DATA_MAX_NAME_LEN];
-    int i;
     int status = 0;
 
     cb = calloc (1, sizeof (*cb));
@@ -519,7 +529,7 @@ static int wg_config_node (oconfig_item_t *ci)
     pthread_mutex_init (&cb->send_lock, /* attr = */ NULL);
     C_COMPLAIN_INIT (&cb->init_complaint);
 
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 
@@ -556,6 +566,12 @@ static int wg_config_node (oconfig_item_t *ci)
         else if (strcasecmp ("AlwaysAppendDS", child->key) == 0)
             cf_util_get_flag (child, &cb->format_flags,
                     GRAPHITE_ALWAYS_APPEND_DS);
+        else if (strcasecmp ("PreserveSeparator", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_PRESERVE_SEPARATOR);
+        else if (strcasecmp ("DropDuplicateFields", child->key) == 0)
+            cf_util_get_flag (child, &cb->format_flags,
+                    GRAPHITE_DROP_DUPE_FIELDS);
         else if (strcasecmp ("EscapeCharacter", child->key) == 0)
             config_set_char (&cb->escape_char, child);
         else
@@ -583,22 +599,20 @@ static int wg_config_node (oconfig_item_t *ci)
         ssnprintf (callback_name, sizeof (callback_name), "write_graphite/%s",
                 cb->name);
 
-    memset (&user_data, 0, sizeof (user_data));
-    user_data.data = cb;
-    user_data.free_func = wg_callback_free;
-    plugin_register_write (callback_name, wg_write, &user_data);
+    plugin_register_write (callback_name, wg_write,
+            &(user_data_t) {
+                .data = cb,
+                .free_func = wg_callback_free,
+            });
 
-    user_data.free_func = NULL;
-    plugin_register_flush (callback_name, wg_flush, &user_data);
+    plugin_register_flush (callback_name, wg_flush, &(user_data_t) { .data = cb });
 
     return (0);
 }
 
 static int wg_config (oconfig_item_t *ci)
 {
-    int i;
-
-    for (i = 0; i < ci->children_num; i++)
+    for (int i = 0; i < ci->children_num; i++)
     {
         oconfig_item_t *child = ci->children + i;
 

@@ -29,9 +29,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <netdb.h>
 #include <sys/un.h>
@@ -44,9 +44,10 @@
 struct memcached_s
 {
   char *name;
-  char *socket;
   char *host;
-  char *port;
+  char *socket;
+  char *connhost;
+  char *connport;
 };
 typedef struct memcached_s memcached_t;
 
@@ -59,18 +60,18 @@ static void memcached_free (void *arg)
     return;
 
   sfree (st->name);
-  sfree (st->socket);
   sfree (st->host);
-  sfree (st->port);
+  sfree (st->socket);
+  sfree (st->connhost);
+  sfree (st->connport);
   sfree (st);
 }
 
 static int memcached_connect_unix (memcached_t *st)
 {
-  struct sockaddr_un serv_addr;
+  struct sockaddr_un serv_addr = { 0 };
   int fd;
 
-  memset (&serv_addr, 0, sizeof (serv_addr));
   serv_addr.sun_family = AF_UNIX;
   sstrncpy (serv_addr.sun_path, st->socket,
       sizeof (serv_addr.sun_path));
@@ -99,41 +100,30 @@ static int memcached_connect_unix (memcached_t *st)
 
 static int memcached_connect_inet (memcached_t *st)
 {
-  const char *host;
-  const char *port;
-
-  struct addrinfo  ai_hints;
-  struct addrinfo *ai_list, *ai_ptr;
+  struct addrinfo *ai_list;
   int status;
   int fd = -1;
 
-  memset (&ai_hints, 0, sizeof (ai_hints));
-  ai_hints.ai_flags    = 0;
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags   |= AI_ADDRCONFIG;
-#endif
-  ai_hints.ai_family   = AF_UNSPEC;
-  ai_hints.ai_socktype = SOCK_STREAM;
-  ai_hints.ai_protocol = 0;
+  struct addrinfo ai_hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_flags = AI_ADDRCONFIG,
+    .ai_socktype = SOCK_STREAM
+  };
 
-  host = (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST;
-  port = (st->port != NULL) ? st->port : MEMCACHED_DEF_PORT;
-
-  ai_list = NULL;
-  status = getaddrinfo (host, port, &ai_hints, &ai_list);
+  status = getaddrinfo (st->connhost, st->connport, &ai_hints, &ai_list);
   if (status != 0)
   {
     char errbuf[1024];
     ERROR ("memcached plugin: memcached_connect_inet: "
         "getaddrinfo(%s,%s) failed: %s",
-        host, port,
+        st->connhost, st->connport,
         (status == EAI_SYSTEM)
         ? sstrerror (errno, errbuf, sizeof (errbuf))
         : gai_strerror (status));
     return (-1);
   }
 
-  for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
   {
     /* create our socket descriptor */
     fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
@@ -246,32 +236,19 @@ static int memcached_query_daemon (char *buffer, size_t buffer_size, memcached_t
 static void memcached_init_vl (value_list_t *vl, memcached_t const *st)
 {
   sstrncpy (vl->plugin, "memcached", sizeof (vl->plugin));
-  if (strcmp (st->name, "__legacy__") == 0) /* legacy mode */
-  {
-    sstrncpy (vl->host, hostname_g, sizeof (vl->host));
-  }
-  else
-  {
-    if (st->socket != NULL)
-      sstrncpy (vl->host, hostname_g, sizeof (vl->host));
-    else
-      sstrncpy (vl->host,
-          (st->host != NULL) ? st->host : MEMCACHED_DEF_HOST,
-          sizeof (vl->host));
+  if (st->host != NULL)
+    sstrncpy (vl->host, st->host, sizeof (vl->host));
+  if (st->name != NULL)
     sstrncpy (vl->plugin_instance, st->name, sizeof (vl->plugin_instance));
-  }
 }
 
 static void submit_derive (const char *type, const char *type_inst,
     derive_t value, memcached_t *st)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+
   memcached_init_vl (&vl, st);
-
-  values[0].derive = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .derive = value };
   vl.values_len = 1;
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
@@ -283,15 +260,15 @@ static void submit_derive (const char *type, const char *type_inst,
 static void submit_derive2 (const char *type, const char *type_inst,
     derive_t value0, derive_t value1, memcached_t *st)
 {
-  value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {
+    { .derive = value0 },
+    { .derive = value1 },
+  };
+
   memcached_init_vl (&vl, st);
-
-  values[0].derive = value0;
-  values[1].derive = value1;
-
   vl.values = values;
-  vl.values_len = 2;
+  vl.values_len = STATIC_ARRAY_SIZE (values);
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
     sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -302,13 +279,10 @@ static void submit_derive2 (const char *type, const char *type_inst,
 static void submit_gauge (const char *type, const char *type_inst,
     gauge_t value, memcached_t *st)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
+
   memcached_init_vl (&vl, st);
-
-  values[0].gauge = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
@@ -320,15 +294,15 @@ static void submit_gauge (const char *type, const char *type_inst,
 static void submit_gauge2 (const char *type, const char *type_inst,
     gauge_t value0, gauge_t value1, memcached_t *st)
 {
-  value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {
+    { .gauge = value0 },
+    { .gauge = value1 },
+  };
+
   memcached_init_vl (&vl, st);
-
-  values[0].gauge = value0;
-  values[1].gauge = value1;
-
   vl.values = values;
-  vl.values_len = 2;
+  vl.values_len = STATIC_ARRAY_SIZE (values);
   sstrncpy (vl.type, type, sizeof (vl.type));
   if (type_inst != NULL)
     sstrncpy (vl.type_instance, type_inst, sizeof (vl.type_instance));
@@ -551,22 +525,62 @@ static int memcached_read (user_data_t *user_data)
 
 static int memcached_add_read_callback (memcached_t *st)
 {
-  user_data_t ud;
   char callback_name[3*DATA_MAX_NAME_LEN];
   int status;
 
-  memset (&ud, 0, sizeof (ud));
-  ud.data = st;
-  ud.free_func = memcached_free;
+  ssnprintf (callback_name, sizeof (callback_name), "memcached/%s",
+      (st->name != NULL) ? st->name : "__legacy__");
 
-  assert (st->name != NULL);
-  ssnprintf (callback_name, sizeof (callback_name), "memcached/%s", st->name);
+  /* If no <Address> used then:
+   * - Connect to the destination specified by <Host>, if present.
+   *   If not, use the default address.
+   * - Use the default hostname (set st->host to NULL), if
+   *    - Legacy mode is used (no configuration options at all), or
+   *    - "Host" option is not provided, or
+   *    - "Host" option is set to "localhost" or "127.0.0.1".
+   *
+   * If <Address> used then host may be set to "localhost" or "127.0.0.1"
+   * explicitly.
+   */
+  if (st->connhost == NULL)
+  {
+    if (st->host)
+    {
+      st->connhost = strdup(st->host);
+      if (st->connhost == NULL)
+        return (ENOMEM);
+
+      if ((strcmp ("127.0.0.1", st->host) == 0)
+          || (strcmp ("localhost", st->host) == 0))
+        sfree(st->host);
+    }
+    else
+    {
+      st->connhost = strdup(MEMCACHED_DEF_HOST);
+      if (st->connhost == NULL)
+        return (ENOMEM);
+    }
+  }
+
+  if (st->connport == NULL)
+  {
+      st->connport = strdup(MEMCACHED_DEF_PORT);
+      if (st->connport == NULL)
+        return (ENOMEM);
+  }
+
+  assert (st->connhost != NULL);
+  assert (st->connport != NULL);
 
   status = plugin_register_complex_read (/* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
       /* interval  = */ 0,
-      /* user_data = */ &ud);
+      &(user_data_t) {
+        .data = st,
+        .free_func = memcached_free,
+      });
+
   return (status);
 } /* int memcached_add_read_callback */
 
@@ -574,6 +588,7 @@ static int memcached_add_read_callback (memcached_t *st)
  * <Plugin memcached>
  *   <Instance "instance_name">
  *     Host foo.zomg.com
+ *     Address 1.2.3.4
  *     Port "1234"
  *   </Instance>
  * </Plugin>
@@ -581,7 +596,6 @@ static int memcached_add_read_callback (memcached_t *st)
 static int config_add_instance(oconfig_item_t *ci)
 {
   memcached_t *st;
-  int i;
   int status = 0;
 
   /* Disable automatic generation of default instance in the init callback. */
@@ -591,26 +605,25 @@ static int config_add_instance(oconfig_item_t *ci)
   if (st == NULL)
   {
     ERROR ("memcached plugin: calloc failed.");
-    return (-1);
+    return (ENOMEM);
   }
 
   st->name = NULL;
-  st->socket = NULL;
   st->host = NULL;
-  st->port = NULL;
+  st->socket = NULL;
+  st->connhost = NULL;
+  st->connport = NULL;
 
-  if (strcasecmp (ci->key, "Plugin") == 0) /* default instance */
-    st->name = sstrdup ("__legacy__");
-  else /* <Instance /> block */
+  if (strcasecmp (ci->key, "Instance") == 0)
     status = cf_util_get_string (ci, &st->name);
+
   if (status != 0)
   {
     sfree (st);
     return (status);
   }
-  assert (st->name != NULL);
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -618,8 +631,10 @@ static int config_add_instance(oconfig_item_t *ci)
       status = cf_util_get_string (child, &st->socket);
     else if (strcasecmp ("Host", child->key) == 0)
       status = cf_util_get_string (child, &st->host);
+    else if (strcasecmp ("Address", child->key) == 0)
+      status = cf_util_get_string (child, &st->connhost);
     else if (strcasecmp ("Port", child->key) == 0)
-      status = cf_util_get_service (child, &st->port);
+      status = cf_util_get_service (child, &st->connport);
     else
     {
       WARNING ("memcached plugin: Option `%s' not allowed here.",
@@ -647,9 +662,8 @@ static int memcached_config (oconfig_item_t *ci)
 {
   int status = 0;
   _Bool have_instance_block = 0;
-  int i;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -687,10 +701,11 @@ static int memcached_init (void)
   st = calloc (1, sizeof (*st));
   if (st == NULL)
     return (ENOMEM);
-  st->name = sstrdup ("__legacy__");
-  st->socket = NULL;
+  st->name = NULL;
   st->host = NULL;
-  st->port = NULL;
+  st->socket = NULL;
+  st->connhost = NULL;
+  st->connport = NULL;
 
   status = memcached_add_read_callback (st);
   if (status == 0)

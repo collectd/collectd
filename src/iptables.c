@@ -25,12 +25,16 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
+
+#ifdef HAVE_SYS_CAPABILITY_H
+# include <sys/capability.h>
+#endif
 
 /*
  * iptc_handle_t was available before libiptc was officially available as a
@@ -111,7 +115,8 @@ static int iptables_config (const char *key, const char *value)
     else
         return (1);
 
-    ip_chain_t temp, *final, **list;
+    ip_chain_t  temp = { 0 };
+    ip_chain_t *final, **list;
     char *table;
     int   table_len;
     char *chain;
@@ -120,8 +125,6 @@ static int iptables_config (const char *key, const char *value)
     char *value_copy;
     char *fields[4];
     int   fields_num;
-
-    memset (&temp, 0, sizeof (temp));
 
     value_copy = strdup (value);
     if (value_copy == NULL)
@@ -239,7 +242,6 @@ static int submit6_match (const struct ip6t_entry_match *match,
                           int rule_num)
 {
     int status;
-    value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
     /* Select the rules to collect */
@@ -257,9 +259,6 @@ static int submit6_match (const struct ip6t_entry_match *match,
             return (0);
     }
 
-    vl.values = values;
-    vl.values_len = 1;
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "ip6tables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
@@ -282,16 +281,16 @@ static int submit6_match (const struct ip6t_entry_match *match,
     }
 
     sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
-    values[0].derive = (derive_t) entry->counters.bcnt;
+    vl.values = &(value_t) { .derive = (derive_t) entry->counters.bcnt };
+    vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "ipt_packets", sizeof (vl.type));
-    values[0].derive = (derive_t) entry->counters.pcnt;
+    vl.values = &(value_t) { .derive = (derive_t) entry->counters.pcnt };
     plugin_dispatch_values (&vl);
 
     return (0);
-} /* int submit_match */
-
+} /* int submit6_match */
 
 /* This needs to return `int' for IPT_MATCH_ITERATE to work. */
 static int submit_match (const struct ipt_entry_match *match,
@@ -300,7 +299,6 @@ static int submit_match (const struct ipt_entry_match *match,
                          int rule_num)
 {
     int status;
-    value_t values[1];
     value_list_t vl = VALUE_LIST_INIT;
 
     /* Select the rules to collect */
@@ -318,9 +316,6 @@ static int submit_match (const struct ipt_entry_match *match,
             return (0);
     }
 
-    vl.values = values;
-    vl.values_len = 1;
-    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
     sstrncpy (vl.plugin, "iptables", sizeof (vl.plugin));
 
     status = ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
@@ -343,11 +338,12 @@ static int submit_match (const struct ipt_entry_match *match,
     }
 
     sstrncpy (vl.type, "ipt_bytes", sizeof (vl.type));
-    values[0].derive = (derive_t) entry->counters.bcnt;
+    vl.values = &(value_t) { .derive = (derive_t) entry->counters.bcnt };
+    vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "ipt_packets", sizeof (vl.type));
-    values[0].derive = (derive_t) entry->counters.pcnt;
+    vl.values = &(value_t) { .derive = (derive_t) entry->counters.pcnt };
     plugin_dispatch_values (&vl);
 
     return (0);
@@ -420,12 +416,11 @@ static void submit_chain (iptc_handle_t *handle, ip_chain_t *chain)
 
 static int iptables_read (void)
 {
-    int i;
     int num_failures = 0;
     ip_chain_t *chain;
 
     /* Init the iptc handle structure and query the correct table */
-    for (i = 0; i < chain_num; i++)
+    for (int i = 0; i < chain_num; i++)
     {
         chain = chain_list[i];
 
@@ -489,9 +484,7 @@ static int iptables_read (void)
 
 static int iptables_shutdown (void)
 {
-    int i;
-
-    for (i = 0; i < chain_num; i++)
+    for (int i = 0; i < chain_num; i++)
     {
         if ((chain_list[i] != NULL) && (chain_list[i]->rule_type == RTYPE_COMMENT))
             sfree (chain_list[i]->rule.comment);
@@ -502,10 +495,30 @@ static int iptables_shutdown (void)
     return (0);
 } /* int iptables_shutdown */
 
+static int iptables_init (void)
+{
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_ADMIN)
+    if (check_capability (CAP_NET_ADMIN) != 0)
+    {
+        if (getuid () == 0)
+            WARNING ("iptables plugin: Running collectd as root, but the "
+                  "CAP_NET_ADMIN capability is missing. The plugin's read "
+                  "function will probably fail. Is your init system dropping "
+                  "capabilities?");
+        else
+            WARNING ("iptables plugin: collectd doesn't have the CAP_NET_ADMIN "
+                  "capability. If you don't want to run collectd as root, try "
+                  "running \"setcap cap_net_admin=ep\" on the collectd binary.");
+    }
+#endif
+    return (0);
+} /* int iptables_init */
+
 void module_register (void)
 {
     plugin_register_config ("iptables", iptables_config,
                              config_keys, config_keys_num);
+    plugin_register_init ("iptables", iptables_init);
     plugin_register_read ("iptables", iptables_read);
     plugin_register_shutdown ("iptables", iptables_shutdown);
 } /* void module_register */

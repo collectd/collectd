@@ -20,9 +20,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_ignorelist.h"
 
 #if !KERNEL_LINUX
@@ -47,17 +47,13 @@ enum dev_type {
 };
 
 static void thermal_submit (const char *plugin_instance, enum dev_type dt,
-		gauge_t value)
+		value_t value)
 {
 	value_list_t vl = VALUE_LIST_INIT;
-	value_t v;
 
-	v.gauge = value;
-	vl.values = &v;
-
+	vl.values = &value;
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "thermal", sizeof(vl.plugin));
 	if (plugin_instance != NULL)
 		sstrncpy (vl.plugin_instance, plugin_instance,
@@ -72,52 +68,26 @@ static void thermal_submit (const char *plugin_instance, enum dev_type dt,
 static int thermal_sysfs_device_read (const char __attribute__((unused)) *dir,
 		const char *name, void __attribute__((unused)) *user_data)
 {
-	char filename[256];
-	char data[1024];
-	int len;
+	char filename[PATH_MAX];
 	_Bool success = 0;
+	value_t value;
 
 	if (device_list && ignorelist_match (device_list, name))
 		return -1;
 
-	len = ssnprintf (filename, sizeof (filename),
-			"%s/%s/temp", dirname_sysfs, name);
-	if ((len < 0) || ((size_t) len >= sizeof (filename)))
-		return -1;
-
-	len = (ssize_t) read_file_contents (filename, data, sizeof(data));
-	if (len > 1 && data[--len] == '\n') {
-		char *endptr = NULL;
-		double temp;
-
-		data[len] = 0;
-		errno = 0;
-		temp = strtod (data, &endptr) / 1000.0;
-
-		if (endptr == data + len && errno == 0) {
-			thermal_submit(name, TEMP, temp);
-			success = 1;
-		}
+	ssnprintf (filename, sizeof (filename), "%s/%s/temp", dirname_sysfs, name);
+	if (parse_value_file (filename, &value, DS_TYPE_GAUGE) == 0)
+	{
+		value.gauge /= 1000.0;
+		thermal_submit(name, TEMP, value);
+		success = 1;
 	}
 
-	len = ssnprintf (filename, sizeof (filename),
-			"%s/%s/cur_state", dirname_sysfs, name);
-	if ((len < 0) || ((size_t) len >= sizeof (filename)))
-		return -1;
-
-	len = (ssize_t) read_file_contents (filename, data, sizeof(data));
-	if (len > 1 && data[--len] == '\n') {
-		char *endptr = NULL;
-		double state;
-
-		data[len] = 0;
-		errno = 0;
-		state = strtod (data, &endptr);
-
-		if (endptr == data + len && errno == 0) {
-			thermal_submit(name, COOLING_DEV, state);
-			success = 1;
-		}
+	ssnprintf (filename, sizeof (filename), "%s/%s/cur_state", dirname_sysfs, name);
+	if (parse_value_file (filename, &value, DS_TYPE_GAUGE) == 0)
+	{
+		thermal_submit(name, COOLING_DEV, value);
+		success = 1;
 	}
 
 	return (success ? 0 : -1);
@@ -176,7 +146,7 @@ static int thermal_procfs_device_read (const char __attribute__((unused)) *dir,
 		temp = (strtod (data + len, &endptr) + add) * factor;
 
 		if (endptr != data + len && errno == 0) {
-			thermal_submit(name, TEMP, temp);
+			thermal_submit(name, TEMP, (value_t) { .gauge = temp });
 			return 0;
 		}
 	}

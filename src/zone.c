@@ -31,6 +31,7 @@
 #endif
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -90,7 +91,6 @@ zone_submit_value(char *zone, gauge_t value)
 
 	vl.values = values;
 	vl.values_len = 1; /*STATIC_ARRAY_SIZE (values);*/
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zone", sizeof (vl.plugin));
  	sstrncpy (vl.type, "percent", sizeof (vl.type));
  	sstrncpy (vl.type_instance, zone, sizeof (vl.type_instance));
@@ -133,7 +133,7 @@ zone_submit_values(c_avl_tree_t *tree)
 	while (c_avl_pick (tree, (void **)&zoneid, (void **)&stats) == 0)
 	{
 		if (getzonenamebyid(*zoneid, zonename, sizeof( zonename )) == -1) {
-			WARNING("zone plugin: error retreiving zonename");
+			WARNING("zone plugin: error retrieving zonename");
 		} else {
 			zone_submit_value(zonename, (gauge_t)FRC2PCT(stats->pctcpu));
 		}

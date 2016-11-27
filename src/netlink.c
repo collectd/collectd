@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 
@@ -156,14 +157,12 @@ static int add_ignorelist (const char *dev, const char *type,
 static int check_ignorelist (const char *dev,
     const char *type, const char *type_instance)
 {
-  ir_ignorelist_t *i;
-
   assert ((dev != NULL) && (type != NULL));
 
   if (ir_ignorelist_head == NULL)
     return (ir_ignorelist_invert ? 0 : 1);
 
-  for (i = ir_ignorelist_head; i != NULL; i = i->next)
+  for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = i->next)
   {
     /* i->device == NULL  =>  match all devices */
     if ((i->device != NULL)
@@ -195,14 +194,10 @@ static int check_ignorelist (const char *dev,
 static void submit_one (const char *dev, const char *type,
     const char *type_instance, derive_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].derive = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .derive = value };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "netlink", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
@@ -217,15 +212,14 @@ static void submit_two (const char *dev, const char *type,
     const char *type_instance,
     derive_t rx, derive_t tx)
 {
-  value_t values[2];
   value_list_t vl = VALUE_LIST_INIT;
-
-  values[0].derive = rx;
-  values[1].derive = tx;
+  value_t values[] = {
+    { .derive = rx },
+    { .derive = tx },
+  };
 
   vl.values = values;
-  vl.values_len = 2;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  vl.values_len = STATIC_ARRAY_SIZE (values);
   sstrncpy (vl.plugin, "netlink", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, type, sizeof (vl.type));
@@ -724,8 +718,6 @@ static int ir_read (void)
   int ret;
   unsigned int seq, portid;
 
-  size_t ifindex;
-
   static const int type_id[] = { RTM_GETQDISC, RTM_GETTCLASS, RTM_GETTFILTER };
   static const char *type_name[] = { "qdisc", "class", "filter" };
 
@@ -760,15 +752,14 @@ static int ir_read (void)
 
   /* `link_filter_cb' will update `iflist' which is used here to iterate
    * over all interfaces. */
-  for (ifindex = 1; ifindex < iflist_len; ifindex++)
+  for (size_t ifindex = 1; ifindex < iflist_len; ifindex++)
   {
     struct tcmsg *tm;
-    size_t type_index;
 
     if (iflist[ifindex] == NULL)
       continue;
 
-    for (type_index = 0; type_index < STATIC_ARRAY_SIZE (type_id); type_index++)
+    for (size_t type_index = 0; type_index < STATIC_ARRAY_SIZE (type_id); type_index++)
     {
       if (check_ignorelist (iflist[ifindex], type_name[type_index], NULL))
       {

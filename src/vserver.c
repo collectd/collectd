@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -55,15 +56,14 @@ static int vserver_init (void)
 static void traffic_submit (const char *plugin_instance,
 		const char *type_instance, derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+		{ .derive = rx },
+		{ .derive = tx },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
@@ -75,16 +75,15 @@ static void traffic_submit (const char *plugin_instance,
 static void load_submit (const char *plugin_instance,
 		gauge_t snum, gauge_t mnum, gauge_t lnum)
 {
-	value_t values[3];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = snum;
-	values[1].gauge = mnum;
-	values[2].gauge = lnum;
+	value_t values[] = {
+		{ .gauge = snum },
+		{ .gauge = mnum },
+		{ .gauge = lnum },
+	};
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "load", sizeof (vl.type));
@@ -96,14 +95,10 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 		const char *type_instance, gauge_t value)
 
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -131,15 +126,7 @@ static derive_t vserver_get_sock_bytes(const char *s)
 
 static int vserver_read (void)
 {
-#if NAME_MAX < 1024
-# define DIRENT_BUFFER_SIZE (sizeof (struct dirent) + 1024 + 1)
-#else
-# define DIRENT_BUFFER_SIZE (sizeof (struct dirent) + NAME_MAX + 1)
-#endif
-
-	DIR 			*proc;
-	struct dirent 	*dent; /* 42 */
-	char dirent_buffer[DIRENT_BUFFER_SIZE];
+	DIR *proc;
 
 	errno = 0;
 	proc = opendir (PROCDIR);
@@ -153,6 +140,7 @@ static int vserver_read (void)
 
 	while (42)
 	{
+		struct dirent *dent;
 		int len;
 		char file[BUFSIZE];
 
@@ -164,19 +152,19 @@ static int vserver_read (void)
 
 		int status;
 
-		status = readdir_r (proc, (struct dirent *) dirent_buffer, &dent);
-		if (status != 0)
+		errno = 0;
+		dent = readdir (proc);
+		if (dent == NULL)
 		{
 			char errbuf[4096];
-			ERROR ("vserver plugin: readdir_r failed: %s",
-					sstrerror (errno, errbuf, sizeof (errbuf)));
+
+			if (errno == 0) /* end of directory */
+				break;
+
+			ERROR ("vserver plugin: failed to read directory %s: %s",
+					PROCDIR, sstrerror (errno, errbuf, sizeof (errbuf)));
 			closedir (proc);
 			return (-1);
-		}
-		else if (dent == NULL)
-		{
-			/* end of directory */
-			break;
 		}
 
 		if (dent->d_name[0] == '.')

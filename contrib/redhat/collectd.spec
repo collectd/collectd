@@ -53,6 +53,7 @@
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
+%define with_cpusleep 0%{!?_without_cpusleep:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
 %define with_curl_json 0%{!?_without_curl_json:1}
@@ -70,7 +71,9 @@
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
 %define with_gmond 0%{!?_without_gmond:1}
+%define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
+%define with_hugepages 0%{!?_without_hugepages:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
@@ -81,6 +84,7 @@
 %define with_load 0%{!?_without_load:1}
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
+%define with_lua 0%{!?_without_lua:1}
 %define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
@@ -144,6 +148,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
+%define with_write_prometheus 0%{!?_without_write_prometheus:1}
 %define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
@@ -162,8 +167,12 @@
 %define with_barometer 0%{!?_without_barometer:0}
 # plugin grpc disabled, requires protobuf-compiler >= 3.0
 %define with_grpc 0%{!?_without_grpc:0}
+# plugin dpdkstat disabled, requires libdpdk
+%define with_dpdkstat 0%{!?_without_dpdkstat:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin intel_rdt disabled, requires intel-cmt-cat
+%define with_intel_rdt 0%{!?_without_intel_rdt:0}
 # plugin mic disabled, requires Mic
 %define with_mic 0%{!?_without_mic:0}
 # plugin netapp disabled, requires libnetapp
@@ -209,11 +218,14 @@
 %define with_redis 0
 %define with_smart 0
 %define with_turbostat 0
+%define with_write_prometheus 0
 %define with_write_redis 0
 %endif
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_cpusleep 0
+%define with_gps 0
 %define with_mqtt 0
 %define with_rrdcached 0
 %define with_xmms 0
@@ -221,14 +233,14 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.1
+Version:	5.7.0
 Release:	1%{?dist}
-URL:		http://collectd.org
-Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
+URL:		https://collectd.org
+Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, which
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?fedora} || 0%{?rhel} >= 7
@@ -416,6 +428,16 @@ The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
 %endif
 
+%if %{with_gps}
+%package gps
+Summary:	GPS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	gpsd-devel
+%description gps
+This plugin monitor gps related data through gpsd.
+%endif
+
 %if %{with_grpc}
 %package grpc
 Summary:	GRPC plugin for collectd
@@ -434,6 +456,17 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+%if %{with_intel_rdt}
+%package intel_rdt
+Summary:	Intel RDT plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	intel-cmt-cat
+%description intel_rdt
+The intel_rdt plugin collects information provided by monitoring features of
+Intel Resource Director Technology (Intel(R) RDT).
 %endif
 
 %if %{with_ipmi}
@@ -479,6 +512,17 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: yajl-devel
 %description log_logstash
 This plugin logs in logstash JSON format
+%endif
+
+%if %{with_lua}
+%package lua
+Summary:	Lua plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	lua-devel
+%description lua
+The Lua plugin embeds a Lua interpreter into collectd and exposes the
+application programming interface (API) to Lua scripts.
 %endif
 
 %if %{with_lvm}
@@ -786,6 +830,17 @@ BuildRequires: librdkafka-devel
 The write_kafka plugin sends values to kafka, a distributed messaging system.
 %endif
 
+%if %{with_write_prometheus}
+%package write_prometheus
+Summary:	Write-prometheus plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libmicrohttpd-devel
+%description write_prometheus
+The Write Prometheus plugin exposes collected values using an embedded HTTP
+server, turning the collectd daemon into a Prometheus exporter.
+%endif
+
 %if %{with_write_redis}
 %package write_redis
 Summary:	Write-Redis plugin for collectd
@@ -976,6 +1031,12 @@ Collectd utilities
 %define _with_cpufreq --disable-cpufreq
 %endif
 
+%if %{with_cpusleep}
+%define _with_cpusleep --enable-cpusleep
+%else
+%define _with_cpusleep --disable-cpusleep
+%endif
+
 %if %{with_csv}
 %define _with_csv --enable-csv
 %else
@@ -1036,6 +1097,12 @@ Collectd utilities
 %define _with_drbd --disable-drbd
 %endif
 
+%if %{with_dpdkstat}
+%define _with_dpdkstat --enable-dpdkstat
+%else
+%define _with_dpdkstat --disable-dpdkstat
+%endif
+
 %if %{with_email}
 %define _with_email --enable-email
 %else
@@ -1084,6 +1151,12 @@ Collectd utilities
 %define _with_gmond --disable-gmond
 %endif
 
+%if %{with_gps}
+%define _with_gps --enable-gps
+%else
+%define _with_gps --disable-gps
+%endif
+
 %if %{with_grpc}
 %define _with_grpc --enable-grpc
 %else
@@ -1094,6 +1167,18 @@ Collectd utilities
 %define _with_hddtemp --enable-hddtemp
 %else
 %define _with_hddtemp --disable-hddtemp
+%endif
+
+%if %{with_hugepages}
+%define _with_hugepages --enable-hugepages
+%else
+%define _with_hugepages --disable-hugepages
+%endif
+
+%if %{with_intel_rdt}
+%define _with_intel_rdt --enable-intel_rdt
+%else
+%define _with_intel_rdt --disable-intel_rdt
 %endif
 
 %if %{with_interface}
@@ -1166,6 +1251,12 @@ Collectd utilities
 %define _with_lpar --enable-lpar
 %else
 %define _with_lpar --disable-lpar
+%endif
+
+%if %{with_lua}
+%define _with_lua --enable-lua
+%else
+%define _with_lua --disable-lua
 %endif
 
 %if %{with_lvm}
@@ -1387,6 +1478,7 @@ Collectd utilities
 %if %{with_python}
 	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
+%define _python_config PYTHON_CONFIG="%{_bindir}/python2.6-config"
 	%else
 %define _with_python --enable-python
 	%endif
@@ -1610,6 +1702,12 @@ Collectd utilities
 %define _with_write_mongodb --disable-write_mongodb
 %endif
 
+%if %{with_write_prometheus}
+%define _with_write_prometheus --enable-write_prometheus
+%else
+%define _with_write_prometheus --disable-write_prometheus
+%endif
+
 %if %{with_write_redis}
 %define _with_write_redis --enable-write_redis
 %else
@@ -1665,6 +1763,7 @@ Collectd utilities
 %endif
 
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
+	%{?_python_config} \
 	--disable-static \
 	--without-included-ltdl \
 	--enable-all-plugins=yes \
@@ -1694,6 +1793,7 @@ Collectd utilities
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
+	%{?_with_cpusleep} \
 	%{?_with_cpu} \
 	%{?_with_csv} \
 	%{?_with_curl_json} \
@@ -1704,6 +1804,7 @@ Collectd utilities
 	%{?_with_disk} \
 	%{?_with_dns} \
 	%{?_with_drbd} \
+	%{?_with_dpdkstat} \
 	%{?_with_email} \
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
@@ -1712,8 +1813,11 @@ Collectd utilities
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
+	%{?_with_hugepages} \
+	%{?_with_intel_rdt} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
 	%{?_with_ipmi} \
@@ -1725,6 +1829,7 @@ Collectd utilities
 	%{?_with_log_logstash} \
 	%{?_with_logfile} \
 	%{?_with_lpar} \
+	%{?_with_lua} \
 	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
@@ -1800,6 +1905,7 @@ Collectd utilities
 	%{?_with_write_kafka} \
 	%{?_with_write_log} \
 	%{?_with_write_mongodb} \
+	%{?_with_write_prometheus} \
 	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
 	%{?_with_write_sensu} \
@@ -1849,6 +1955,10 @@ find %{buildroot} -type f -name perllocal.pod -delete
 rm -f %{buildroot}%{_datadir}/collectd/java/collectd-api.jar
 rm -f %{buildroot}%{_datadir}/collectd/java/generic-jmx.jar
 rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
+%endif
+
+%if ! %{with_lua}
+rm -f %{buildroot}%{_mandir}/man5/collectd-lua.5*
 %endif
 
 %if ! %{with_perl}
@@ -1962,6 +2072,9 @@ fi
 %if %{with_cpufreq}
 %{_libdir}/%{name}/cpufreq.so
 %endif
+%if %{with_cpusleep}
+%{_libdir}/%{name}/cpusleep.so
+%endif
 %if %{with_csv}
 %{_libdir}/%{name}/csv.so
 %endif
@@ -1970,6 +2083,9 @@ fi
 %endif
 %if %{with_drbd}
 %{_libdir}/%{name}/drbd.so
+%endif
+%if %{with_dpdkstat}
+%{_libdir}/%{name}/dpdkstat.so
 %endif
 %if %{with_ethstat}
 %{_libdir}/%{name}/ethstat.so
@@ -1988,6 +2104,9 @@ fi
 %endif
 %if %{with_fscache}
 %{_libdir}/%{name}/fscache.so
+%endif
+%if %{with_hugepages}
+%{_libdir}/%{name}/hugepages.so
 %endif
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
@@ -2233,6 +2352,11 @@ fi
 %{_libdir}/%{name}/gmond.so
 %endif
 
+%if %{with_gps}
+%files gps
+%{_libdir}/%{name}/gps.so
+%endif
+
 %if %{with_grpc}
 %files grpc
 %{_libdir}/%{name}/grpc.so
@@ -2241,6 +2365,11 @@ fi
 %if %{with_hddtemp}
 %files hddtemp
 %{_libdir}/%{name}/hddtemp.so
+%endif
+
+%if %{with_intel_rdt}
+%files intel_rdt
+%{_libdir}/%{name}/intel_rdt.so
 %endif
 
 %if %{with_ipmi}
@@ -2269,6 +2398,12 @@ fi
 %if %{with_log_logstash}
 %files log_logstash
 %{_libdir}/%{name}/log_logstash.so
+%endif
+
+%if %{with_lua}
+%files lua
+%{_mandir}/man5/collectd-lua*
+%{_libdir}/%{name}/lua.so
 %endif
 
 %if %{with_lvm}
@@ -2413,6 +2548,11 @@ fi
 %{_libdir}/%{name}/write_kafka.so
 %endif
 
+%if %{with_write_prometheus}
+%files write_prometheus
+%{_libdir}/%{name}/write_prometheus.so
+%endif
+
 %if %{with_write_redis}
 %files write_redis
 %{_libdir}/%{name}/write_redis.so
@@ -2445,10 +2585,26 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Oct 10 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
+- New PRE-RELEASE version
+- New plugins enabled by default: hugepages, write_prometheus
+- New plugins disabled by default: dpdkstat, intel_rdt
+
+* Mon Oct 10 2016 Victor Demonchy <v.demonchy@criteo.com> - 5.6.1-1
+- New upstream version
+
+* Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
+- New upstream version
+- New plugins enabled by default: chrony, cpusleep, gps, lua, mqtt, notify_nagios
+- New plugins disabled by default: grpc, xencpu, zone
+
+* Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
+- New upstream version
+- Contains fix for CVE-2016-6254
+- Change collectd.org url to https
+
 * Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
 - New upstream version
-- New plugins enabled by default: chrony, mqtt, notify_nagios
-- New plugins disabled by default: grpc, zone, xencpu
 
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version

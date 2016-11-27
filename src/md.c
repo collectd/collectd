@@ -20,6 +20,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
@@ -28,6 +29,10 @@
 
 #include <linux/major.h>
 #include <linux/raid/md_u.h>
+
+#ifdef HAVE_SYS_SYSMACROS_H
+#include <sys/sysmacros.h>
+#endif
 
 #define PROC_DISKSTATS "/proc/diskstats"
 #define DEV_DIR "/dev"
@@ -67,14 +72,10 @@ static int md_config (const char *key, const char *value)
 static void md_submit (const int minor, const char *type_instance,
     gauge_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = value };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "md", sizeof (vl.plugin));
   ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
       "%i", minor);

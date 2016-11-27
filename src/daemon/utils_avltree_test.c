@@ -26,6 +26,7 @@
 
 #include "common.h" /* STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
 #include "testing.h"
 #include "utils_avltree.h"
 
@@ -70,13 +71,12 @@ DEF_TEST(success)
   };
 
   c_avl_tree_t *t;
-  size_t i;
 
   RESET_COUNTS ();
   CHECK_NOT_NULL (t = c_avl_create (compare_callback));
 
   /* insert */
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
   {
     char *key;
     char *value;
@@ -89,11 +89,11 @@ DEF_TEST(success)
   }
 
   /* Key already exists. */
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
     EXPECT_EQ_INT (1, c_avl_insert (t, cases[i].key, cases[i].value));
 
   /* get */
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
   {
     char *value_ret = NULL;
 
@@ -102,7 +102,7 @@ DEF_TEST(success)
   }
 
   /* remove half */
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases) / 2; i++)
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE (cases) / 2; i++)
   {
     char *key = NULL;
     char *value = NULL;
@@ -121,7 +121,7 @@ DEF_TEST(success)
   }
 
   /* pick the other half */
-  for (i = STATIC_ARRAY_SIZE (cases) / 2; i < STATIC_ARRAY_SIZE (cases); i++)
+  for (size_t i = STATIC_ARRAY_SIZE (cases) / 2; i < STATIC_ARRAY_SIZE (cases); i++)
   {
     char *key = NULL;
     char *value = NULL;

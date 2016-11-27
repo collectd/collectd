@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -98,9 +99,7 @@ static _Bool values_percentage = 0;
 
 static int memory_config (oconfig_item_t *ci) /* {{{ */
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 		if (strcasecmp ("ValuesAbsolute", child->key) == 0)
@@ -250,9 +249,7 @@ static int memory_read_internal (value_list_t *vl)
 	};
 	double sysctl_vals[8];
 
-	int    i;
-
-	for (i = 0; sysctl_keys[i] != NULL; i++)
+	for (int i = 0; sysctl_keys[i] != NULL; i++)
 	{
 		int value;
 		size_t value_len = sizeof (value);
@@ -270,7 +267,7 @@ static int memory_read_internal (value_list_t *vl)
 	} /* for (sysctl_keys) */
 
 	/* multiply all all page counts with the pagesize */
-	for (i = 1; sysctl_keys[i] != NULL; i++)
+	for (int i = 1; sysctl_keys[i] != NULL; i++)
 		if (!isnan (sysctl_vals[i]))
 			sysctl_vals[i] *= sysctl_vals[0];
 
@@ -456,13 +453,12 @@ static int memory_read_internal (value_list_t *vl)
 
 #elif HAVE_SYSCTL
 	int mib[] = {CTL_VM, VM_METER};
-	struct vmtotal vmtotal;
+	struct vmtotal vmtotal = { 0 };
 	gauge_t mem_active;
 	gauge_t mem_inactive;
 	gauge_t mem_free;
 	size_t size;
 
-	memset (&vmtotal, 0, sizeof (vmtotal));
 	size = sizeof (vmtotal);
 
 	if (sysctl (mib, 2, &vmtotal, &size, NULL, 0) < 0) {
@@ -495,9 +491,8 @@ static int memory_read_internal (value_list_t *vl)
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-	perfstat_memory_total_t pmemory;
+	perfstat_memory_total_t pmemory = { 0 };
 
-	memset (&pmemory, 0, sizeof (pmemory));
 	if (perfstat_memory_total(NULL, &pmemory, sizeof(pmemory), 1) < 0)
 	{
 		char errbuf[1024];
@@ -532,7 +527,6 @@ static int memory_read (void) /* {{{ */
 
 	vl.values = v;
 	vl.values_len = STATIC_ARRAY_SIZE (v);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "memory", sizeof (vl.plugin));
 	sstrncpy (vl.type, "memory", sizeof (vl.type));
 	vl.time = cdtime ();

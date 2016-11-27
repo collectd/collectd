@@ -32,6 +32,7 @@
 #endif
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_cache.h"
@@ -50,13 +51,26 @@
 # include <netinet/in.h>
 #endif
 
+#if HAVE_NETINET_TCP_H
+# include <netinet/tcp.h>
+#endif
+
 /* for ntohl and htonl */
 #if HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif
 
+#if HAVE_CAPABILITY
+# include <sys/capability.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
+#endif
+
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
 #endif
 
 #if !HAVE_GETPWNAM_R
@@ -325,57 +339,65 @@ int strsplit (char *string, char **fields, size_t size)
 	return ((int) i);
 }
 
-int strjoin (char *buffer, size_t buffer_size,
-		char **fields, size_t fields_num,
-		const char *sep)
-{
-	size_t avail;
-	char *ptr;
-	size_t sep_len;
-	size_t i;
+int strjoin(char *buffer, size_t buffer_size, char **fields, size_t fields_num,
+            const char *sep) {
+  size_t avail = 0;
+  char *ptr = buffer;
+  size_t sep_len = 0;
 
-	if ((buffer_size < 1) || (fields_num == 0))
-		return (-1);
+  size_t buffer_req = 0;
 
-	memset (buffer, 0, buffer_size);
-	ptr = buffer;
-	avail = buffer_size - 1;
+  if (((fields_num != 0) && (fields == NULL)) ||
+      ((buffer_size != 0) && (buffer == NULL)))
+    return (-EINVAL);
 
-	sep_len = 0;
-	if (sep != NULL)
-		sep_len = strlen (sep);
+  if (buffer != NULL)
+    buffer[0] = 0;
 
-	for (i = 0; i < fields_num; i++)
-	{
-		size_t field_len;
+  if (buffer_size != 0)
+    avail = buffer_size - 1;
 
-		if ((i > 0) && (sep_len > 0))
-		{
-			if (avail < sep_len)
-				return (-1);
+  if (sep != NULL)
+    sep_len = strlen(sep);
 
-			memcpy (ptr, sep, sep_len);
-			ptr += sep_len;
-			avail -= sep_len;
-		}
+  for (size_t i = 0; i < fields_num; i++) {
+    size_t field_len = strlen(fields[i]);
 
-		field_len = strlen (fields[i]);
-		if (avail < field_len)
-			return (-1);
+    if (i != 0)
+      buffer_req += sep_len;
+    buffer_req += field_len;
 
-		memcpy (ptr, fields[i], field_len);
-		ptr += field_len;
-		avail -= field_len;
-	}
+    if ((i != 0) && (sep_len > 0)) {
+      if (sep_len >= avail) {
+        /* prevent subsequent iterations from writing to the
+         * buffer. */
+        avail = 0;
+        continue;
+      }
 
-	assert (buffer[buffer_size - 1] == 0);
-	return ((int) strlen (buffer));
+      memcpy(ptr, sep, sep_len);
+
+      ptr += sep_len;
+      avail -= sep_len;
+    }
+
+    if (field_len > avail)
+      field_len = avail;
+
+    memcpy(ptr, fields[i], field_len);
+    ptr += field_len;
+
+    avail -= field_len;
+    if (ptr != NULL)
+      *ptr = 0;
+  }
+
+  return (int)buffer_req;
 }
 
 int escape_string (char *buffer, size_t buffer_size)
 {
   char *temp;
-  size_t i;
   size_t j;
 
   /* Check if we need to escape at all first */
@@ -393,7 +415,7 @@ int escape_string (char *buffer, size_t buffer_size)
   temp[0] = '"';
   j = 1;
 
-  for (i = 0; i < buffer_size; i++)
+  for (size_t i = 0; i < buffer_size; i++)
   {
     if (buffer[i] == 0)
     {
@@ -427,9 +449,7 @@ int escape_string (char *buffer, size_t buffer_size)
 
 int strunescape (char *buf, size_t buf_len)
 {
-	size_t i;
-
-	for (i = 0; (i < buf_len) && (buf[i] != '\0'); ++i)
+	for (size_t i = 0; (i < buf_len) && (buf[i] != '\0'); ++i)
 	{
 		if (buf[i] != '\\')
 			continue;
@@ -483,7 +503,6 @@ size_t strstripnewline (char *buffer)
 int escape_slashes (char *buffer, size_t buffer_size)
 {
 	size_t buffer_len;
-	size_t i;
 
 	buffer_len = strlen (buffer);
 
@@ -505,7 +524,7 @@ int escape_slashes (char *buffer, size_t buffer_size)
 		buffer_len--;
 	}
 
-	for (i = 0; i < buffer_len; i++)
+	for (size_t i = 0; i < buffer_len; i++)
 	{
 		if (buffer[i] == '/')
 			buffer[i] = '_';
@@ -516,9 +535,7 @@ int escape_slashes (char *buffer, size_t buffer_size)
 
 void replace_special (char *buffer, size_t buffer_size)
 {
-	size_t i;
-
-	for (i = 0; i < buffer_size; i++)
+	for (size_t i = 0; i < buffer_size; i++)
 	{
 		if (buffer[i] == 0)
 			return;
@@ -592,7 +609,6 @@ int check_create_dir (const char *file_orig)
 	int   last_is_file = 1;
 	int   path_is_absolute = 0;
 	size_t len;
-	int   i;
 
 	/*
 	 * Sanity checks first
@@ -638,7 +654,7 @@ int check_create_dir (const char *file_orig)
 	/*
 	 * For each component, do..
 	 */
-	for (i = 0; i < (fields_num - last_is_file); i++)
+	for (int i = 0; i < (fields_num - last_is_file); i++)
 	{
 		/*
 		 * Do not create directories that start with a dot. This
@@ -937,7 +953,6 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 {
         size_t offset = 0;
         int status;
-        size_t i;
         gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
@@ -963,7 +978,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 
         BUFFER_ADD ("%.3f", CDTIME_T_TO_DOUBLE (vl->time));
 
-        for (i = 0; i < ds->ds_num; i++)
+        for (size_t i = 0; i < ds->ds_num; i++)
         {
                 if (ds->ds[i].type == DS_TYPE_GAUGE)
                         BUFFER_ADD (":"GAUGE_FORMAT, vl->values[i].gauge);
@@ -1001,7 +1016,8 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
-		char **ret_type, char **ret_type_instance)
+		char **ret_type, char **ret_type_instance,
+		char *default_host)
 {
 	char *hostname = NULL;
 	char *plugin = NULL;
@@ -1020,8 +1036,19 @@ int parse_identifier (char *str, char **ret_host,
 
 	type = strchr (plugin, '/');
 	if (type == NULL)
-		return (-1);
-	*type = '\0'; type++;
+	{
+		if (default_host == NULL)
+			return (-1);
+		/* else: no host specified; use default */
+		type = plugin;
+		plugin = hostname;
+		hostname = default_host;
+	}
+	else
+	{
+		*type = '\0';
+		type++;
+	}
 
 	plugin_instance = strchr (plugin, '-');
 	if (plugin_instance != NULL)
@@ -1062,7 +1089,8 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 
 	status = parse_identifier (str_copy, &host,
 			&plugin, &plugin_instance,
-			&type, &type_instance);
+			&type, &type_instance,
+			/* default_host = */ NULL);
 	if (status != 0)
 		return (status);
 
@@ -1124,7 +1152,7 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as %s: %s.",
+    ERROR ("parse_value: Failed to parse string as %s: \"%s\".",
         DS_TYPE_TO_STRING (ds_type), value);
     sfree (value);
     return -1;
@@ -1198,6 +1226,28 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		return (-1);
 	return (0);
 } /* int parse_values */
+
+int parse_value_file (char const *path, value_t *ret_value, int ds_type)
+{
+	FILE *fh;
+	char buffer[256];
+
+	fh = fopen (path, "r");
+	if (fh == NULL)
+		return (-1);
+
+	if (fgets (buffer, sizeof (buffer), fh) == NULL)
+	{
+		fclose (fh);
+		return (-1);
+	}
+
+	fclose (fh);
+
+	strstripnewline (buffer);
+
+	return parse_value (buffer, ret_value, ds_type);
+} /* int parse_value_file */
 
 #if !HAVE_GETPWNAM_R
 int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
@@ -1517,17 +1567,15 @@ int value_to_rate (gauge_t *ret_rate, /* {{{ */
 int service_name_to_port_number (const char *service_name)
 {
 	struct addrinfo *ai_list;
-	struct addrinfo *ai_ptr;
-	struct addrinfo ai_hints;
 	int status;
 	int service_number;
 
 	if (service_name == NULL)
 		return (-1);
 
-	ai_list = NULL;
-	memset (&ai_hints, 0, sizeof (ai_hints));
-	ai_hints.ai_family = AF_UNSPEC;
+	struct addrinfo ai_hints = {
+		.ai_family = AF_UNSPEC
+	};
 
 	status = getaddrinfo (/* node = */ NULL, service_name,
 			&ai_hints, &ai_list);
@@ -1539,7 +1587,7 @@ int service_name_to_port_number (const char *service_name)
 	}
 
 	service_number = -1;
-	for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+	for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
 	{
 		if (ai_ptr->ai_family == AF_INET)
 		{
@@ -1566,6 +1614,44 @@ int service_name_to_port_number (const char *service_name)
 		return (service_number);
 	return (-1);
 } /* int service_name_to_port_number */
+
+void set_sock_opts (int sockfd) /* {{{ */
+{
+	int status;
+	int socktype;
+
+	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE,
+			&socktype, &(socklen_t) { sizeof (socktype) });
+	if (status != 0)
+	{
+		WARNING ("set_sock_opts: failed to determine socket type");
+		return;
+	}
+
+	if (socktype == SOCK_STREAM)
+	{
+		status = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE,
+				&(int) {1}, sizeof (int));
+		if (status != 0)
+			WARNING ("set_sock_opts: failed to set socket keepalive flag");
+
+#ifdef TCP_KEEPIDLE
+		int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
+		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE,
+				&tcp_keepidle, sizeof (tcp_keepidle));
+		if (status != 0)
+			WARNING ("set_sock_opts: failed to set socket tcp keepalive time");
+#endif
+
+#ifdef TCP_KEEPINTVL
+		int tcp_keepintvl = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 1000 + 1);
+		status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL,
+				&tcp_keepintvl, sizeof (tcp_keepintvl));
+		if (status != 0)
+			WARNING ("set_sock_opts: failed to set socket tcp keepalive interval");
+#endif
+	}
+} /* }}} void set_sock_opts */
 
 int strtoderive (const char *string, derive_t *ret_value) /* {{{ */
 {
@@ -1630,9 +1716,30 @@ int strarray_add (char ***ret_array, size_t *ret_array_len, char const *str) /* 
 
 void strarray_free (char **array, size_t array_len) /* {{{ */
 {
-	size_t i;
-
-	for (i = 0; i < array_len; i++)
+	for (size_t i = 0; i < array_len; i++)
 		sfree (array[i]);
 	sfree (array);
 } /* }}} void strarray_free */
+
+#if HAVE_CAPABILITY
+int check_capability (int arg) /* {{{ */
+{
+	cap_value_t cap = (cap_value_t) arg;
+
+	if (!CAP_IS_SUPPORTED (cap))
+		return (-1);
+
+	int have_cap = cap_get_bound (cap);
+	if (have_cap != 1)
+		return (-1);
+
+	return (0);
+} /* }}} int check_capability */
+#else
+int check_capability (__attribute__((unused)) int arg) /* {{{ */
+{
+	WARNING ("check_capability: unsupported capability implementation. "
+		 "Some plugin(s) may require elevated privileges to work properly.");
+	return (0);
+} /* }}} int check_capability */
+#endif /* HAVE_CAPABILITY */

@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -50,7 +51,6 @@ static void submit (const char *plugin_instance, const char *type,
   vl.values = values;
   vl.values_len = values_len;
 
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "vmem", sizeof (vl.plugin));
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
@@ -64,12 +64,13 @@ static void submit (const char *plugin_instance, const char *type,
 static void submit_two (const char *plugin_instance, const char *type,
     const char *type_instance, derive_t c0, derive_t c1)
 {
-  value_t values[2];
+  value_t values[] = {
+    { .derive = c0 },
+    { .derive = c1 },
+  };
 
-  values[0].derive = c0;
-  values[1].derive = c1;
-
-  submit (plugin_instance, type, type_instance, values, 2);
+  submit (plugin_instance, type, type_instance,
+      values, STATIC_ARRAY_SIZE (values));
 } /* void submit_one */
 
 static void submit_one (const char *plugin_instance, const char *type,

@@ -67,6 +67,9 @@ Features
     - cpufreq
       CPU frequency (For laptops with speed step or a similar technology)
 
+    - cpusleep
+      CPU sleep: Time spent in suspend (For mobile devices which enter suspend automatically)
+
     - curl
       Parse statistics from websites using regular expressions.
 
@@ -92,6 +95,10 @@ Features
     - dns
       DNS traffic: Query types, response codes, opcodes and traffic/octets
       transferred.
+
+    - dpdkstat
+      Collect DPDK interface statistics.
+      See docs/BUILD.dpdkstat.md for detailed build instructions.
 
     - drbd
       Collect individual drbd resource statistics.
@@ -122,11 +129,25 @@ Features
     - gmond
       Receive multicast traffic from Ganglia instances.
 
-    - grpc
-      Receive values over the network using the gRPC framework.
+    - gps
+      Monitor gps related data through gpsd.
 
     - hddtemp
       Hard disk temperatures using hddtempd.
+
+    - hugepages
+      Report the number of used and free hugepages. More info on
+      hugepages can be found here:
+      https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt.
+
+    - intel_rdt
+      The intel_rdt plugin collects information provided by monitoring features
+      of Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
+      Technology (CMT), Memory Bandwidth Monitoring (MBM). These features
+      provide information about utilization of shared resources like last level
+      cache occupancy, local memory bandwidth usage, remote memory bandwidth
+      usage, instructions per clock.
+      <https://01.org/packet-processing/cache-monitoring-technology-memory-bandwidth-monitoring-cache-allocation-technology-code-and-data>
 
     - interface
       Interface traffic: Number of octets, packets and errors for each
@@ -153,7 +174,8 @@ Features
 
     - java
       Integrates a `Java Virtual Machine' (JVM) to execute plugins in Java
-      bytecode. See “Configuring with libjvm” below.
+      bytecode.
+      See docs/BUILD.java.md for detailed build instructions.
 
     - load
       System load average over the last 1, 5 and 15 minutes.
@@ -161,6 +183,12 @@ Features
     - lpar
       Detailed CPU statistics of the “Logical Partitions” virtualization
       technique built into IBM's POWER processors.
+
+    - lua
+      The Lua plugin implements a Lua interpreter into collectd. This
+      makes it possible to write plugins in Lua which are executed by
+      collectd without the need to start a heavy interpreter every interval.
+      See collectd-lua(5) for details.
 
     - lvm
       Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
@@ -170,13 +198,13 @@ Features
       Queries very detailed usage statistics from wireless LAN adapters and
       interfaces that use the Atheros chipset and the MadWifi driver.
 
-    - mbmon
-      Motherboard sensors: temperature, fan speed and voltage information,
-      using mbmon(1).
-
     - md
       Linux software-RAID device information (number of active, failed, spare
       and missing disks).
+
+    - mbmon
+      Motherboard sensors: temperature, fan speed and voltage information,
+      using mbmon(1).
 
     - memcachec
       Query and parse data from a memcache daemon (memcached).
@@ -196,9 +224,6 @@ Features
     - modbus
       Reads values from Modbus/TCP enabled devices. Supports reading values
       from multiple "slaves" so gateway devices can be used.
-
-    - mqtt
-      Publishes and subscribes to MQTT topics.
 
     - multimeter
       Information provided by serial multimeters, such as the `Metex
@@ -378,7 +403,7 @@ Features
       CPU, memory, disk and network I/O statistics from virtual machines.
 
     - vmem
-      Virtual memory statistics, e. g. the number of page-ins/-outs or the
+      Virtual memory statistics, e.g. the number of page-ins/-outs or the
       number of pagefaults.
 
     - vserver
@@ -415,6 +440,16 @@ Features
       Write to comma separated values (CSV) files. This needs lots of
       diskspace but is extremely portable and can be analysed with almost
       every program that can analyse anything. Even Microsoft's Excel..
+
+    - grpc
+      Send and receive values over the network using the gRPC framework.
+
+    - lua
+      It's possible to implement write plugins in Lua using the Lua
+      plugin. See collectd-lua(5) for details.
+
+    - mqtt
+      Publishes and subscribes to MQTT topics.
 
     - network
       Send the data to a remote host to save the data somehow. This is useful
@@ -635,11 +670,21 @@ Prerequisites
 
   * Usual suspects: C compiler, linker, preprocessor, make, ...
 
+    collectd makes use of some common C99 features, e.g. compound literals and
+    mixed declarations, and therefore requires a C99 compatible compiler.
+
+    On Debian and Ubuntu, the "build-essential" package should pull in
+    everything that's necessary.
+
   * A POSIX-threads (pthread) implementation.
     Since gathering some statistics is slow (network connections, slow devices,
     etc) collectd is parallelized. The POSIX threads interface is being
     used and should be found in various implementations for hopefully all
     platforms.
+
+  * When building from the Git repository, flex (tokenizer) and bison (parser
+    generator) are required. Release tarballs include the generated files – you
+    don't need these packages in that case.
 
   * aerotools-ng (optional)
     Used by the `aquaero' plugin. Currently, the `libaquaero5' library, which
@@ -697,6 +742,10 @@ Prerequisites
     Used by the `network' plugin for encryption and authentication.
     <http://www.gnupg.org/>
 
+  * libgps (optional)
+    Used by the `gps' plugin.
+    <http://developer.berlios.de/projects/gpsd/>
+
   * libhal (optional)
     If present, the `uuid' plugin will check for UUID from HAL.
     <http://hal.freedesktop.org/>
@@ -711,13 +760,17 @@ Prerequisites
 
   * libjvm (optional)
     Library that encapsulates the `Java Virtual Machine' (JVM). This library is
-    used by the `java' plugin to execute Java bytecode. See “Configuring with
-    libjvm” below.
+    used by the `java' plugin to execute Java bytecode.
+    See docs/BUILD.java.md for detailed build instructions.
     <http://openjdk.java.net/> (and others)
 
   * libldap (optional)
     Used by the `openldap' plugin.
     <http://www.openldap.org/>
+
+  * liblua (optional)
+    Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
+    <https://www.lua.org/>
 
   * liblvm2 (optional)
     Used by the `lvm' plugin.
@@ -782,6 +835,11 @@ Prerequisites
     The PostgreSQL C client library used by the `postgresql' plugin.
     <http://www.postgresql.org/>
 
+  * libpqos (optional)
+    The PQoS library for Intel(R) Resource Director Technology used by the
+    `intel_rdt' plugin.
+    <https://github.com/01org/intel-cmt-cat>
+
   * libprotobuf, protoc 3.0+ (optional)
     Used by the `grpc' plugin to generate service stubs and code to handle
     network packets of collectd's protobuf-based network protocol.
@@ -793,7 +851,7 @@ Prerequisites
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
-    Used by the `python' plugin. Currently, Python 2.3 and later and Python 3
+    Used by the `python' plugin. Currently, Python 2.6 and later and Python 3
     are supported.
     <http://www.python.org/>
 
@@ -902,44 +960,6 @@ Configuring / Compiling / Installing
   prefixed to all installation directories. This might be useful when creating
   packages for collectd.
 
-Configuring with libjvm
------------------------
-
-  To determine the location of the required files of a Java installation is not
-  an easy task, because the locations vary with your kernel (Linux, SunOS, …)
-  and with your architecture (x86, SPARC, …) and there is no ‘java-config’
-  script we could use. Configuration of the JVM library is therefore a bit
-  tricky.
-
-  The easiest way to use the `--with-java=$JAVA_HOME' option, where
-  `$JAVA_HOME' is usually something like:
-    /usr/lib/jvm/java-1.5.0-sun-1.5.0.14
-
-  The configure script will then use find(1) to look for the following files:
-
-    - jni.h
-    - jni_md.h
-    - libjvm.so
-
-  If found, appropriate CPP-flags and LD-flags are set and the following
-  library checks succeed.
-
-  If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
-  following environment variables:
-
-    - JAVA_CPPFLAGS
-    - JAVA_CFLAGS
-    - JAVA_LDFLAGS
-    - JAVA_LIBS
-
-  For example (shortened for demonstration purposes):
-
-    ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
-
-  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
-  do that.
-
 Generating the configure script
 -------------------------------
 
@@ -957,6 +977,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - pkg-config
 
 The `build.sh' script takes no arguments.
+
 
 Crosscompiling
 --------------
@@ -992,8 +1013,12 @@ Crosscompiling
 Contact
 -------
 
-  For questions, bug reports, development information and basically all other
-  concerns please send an email to collectd's mailing list at
+  Please use GitHub to report bugs and submit pull requests:
+  <https://github.com/collectd/collectd/>.
+  See CONTRIBUTING.md for details.
+
+  For questions, development information and basically all other concerns please
+  send an email to collectd's mailing list at
   <list at collectd.org>.
 
   For live discussion and more personal contact visit us in IRC, we're in
@@ -1006,7 +1031,4 @@ Author
   Florian octo Forster <octo at collectd.org>,
   Sebastian tokkee Harl <sh at tokkee.org>,
   and many contributors (see `AUTHORS').
-
-  Please send bug reports and patches to the mailing list, see `Contact'
-  above.
 

@@ -24,15 +24,17 @@
 # include "config.h"
 #endif
 
+#define _GNU_SOURCE
+
+#include "collectd.h"
+
+#include "utils_mount.h"
+
 #if HAVE_XFS_XQM_H
-# define _GNU_SOURCE
 # include <xfs/xqm.h>
 #define XFS_SUPER_MAGIC_STR "XFSB"
 #define XFS_SUPER_MAGIC2_STR "BSFX"
 #endif
-
-#include "collectd.h"
-#include "utils_mount.h"
 
 #include "common.h" /* sstrncpy() et alii */
 #include "plugin.h" /* ERROR() macro */
@@ -215,7 +217,6 @@ uuidcache_init(void)
 	FILE *procpt;
 	char uuid[16], *label = NULL;
 	char device[110];
-	int firstPass;
 	int handleOnFirst;
 
 	if(uuidCache) {
@@ -227,7 +228,7 @@ uuidcache_init(void)
 		return;
 	}
 
-	for(firstPass = 1; firstPass >= 0; firstPass--) {
+	for(int firstPass = 1; firstPass >= 0; firstPass--) {
 		fseek(procpt, 0, SEEK_SET);
 		while(fgets(line, sizeof(line), procpt)) {
 			if(sscanf(line, " %d %d %d %[^\n ]",
@@ -317,14 +318,13 @@ static char *
 get_spec_by_uuid(const char *s)
 {
 	char uuid[16];
-	int i;
 
 	if(strlen(s) != 36
 	|| s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-') {
 		goto bad_uuid;
 	}
 
-	for(i=0; i<16; i++) {
+	for(int i=0; i<16; i++) {
 		if(*s == '-') {
 			s++;
 		}
@@ -381,7 +381,6 @@ static char *get_device_name(const char *optstr)
 static cu_mount_t *cu_mount_listmntent (void)
 {
 	cu_mount_t *last = *list;
-	struct tabmntent *p;
 	struct mntent *mnt;
 
 	struct tabmntent *mntlist;
@@ -393,7 +392,7 @@ static cu_mount_t *cu_mount_listmntent (void)
 #endif /* COLLECT_DEBUG */
 	}
 
-	for(p = mntlist; p; p = p->next) {
+	for(struct tabmntent *p = mntlist; p; p = p->next) {
 		char *loop = NULL, *device = NULL;
 
 		mnt = p->ment;
@@ -450,7 +449,6 @@ static cu_mount_t *cu_mount_getfsstat (void)
 	STRUCT_STATFS *buf;
 
 	int num;
-	int i;
 
 	cu_mount_t *first = NULL;
 	cu_mount_t *last  = NULL;
@@ -483,7 +481,7 @@ static cu_mount_t *cu_mount_getfsstat (void)
 		return (NULL);
 	}
 
-	for (i = 0; i < num; i++)
+	for (int i = 0; i < num; i++)
 	{
 		if ((new = calloc (1, sizeof (*new))) == NULL)
 			break;
@@ -740,10 +738,9 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list)
 
 void cu_mount_freelist (cu_mount_t *list)
 {
-	cu_mount_t *this;
 	cu_mount_t *next;
 
-	for (this = list; this != NULL; this = next)
+	for (cu_mount_t *this = list; this != NULL; this = next)
 	{
 		next = this->next;
 

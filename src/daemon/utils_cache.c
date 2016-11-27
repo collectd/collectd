@@ -27,6 +27,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 #include "utils_avltree.h"
@@ -135,9 +136,7 @@ static void cache_free (cache_entry_t *ce)
 
 static void uc_check_range (const data_set_t *ds, cache_entry_t *ce)
 {
-  size_t i;
-
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (isnan (ce->values_gauge[i]))
       continue;
@@ -153,7 +152,6 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 {
   char *key_copy;
   cache_entry_t *ce;
-  size_t i;
 
   /* `cache_lock' has been locked by `uc_update' */
 
@@ -174,7 +172,7 @@ static int uc_insert (const data_set_t *ds, const value_list_t *vl,
 
   sstrncpy (ce->name, key, sizeof (ce->name));
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     switch (ds->ds[i].type)
     {
@@ -241,82 +239,54 @@ int uc_init (void)
 
 int uc_check_timeout (void)
 {
-  cdtime_t now;
-  cache_entry_t *ce;
+  cdtime_t now = cdtime();
 
-  char **keys = NULL;
-  cdtime_t *keys_time = NULL;
-  cdtime_t *keys_interval = NULL;
-  int keys_len = 0;
-
-  char *key;
-  c_avl_iterator_t *iter;
-
-  int status;
-  int i;
+  struct {
+    char *key;
+    cdtime_t time;
+    cdtime_t interval;
+  } *expired = NULL;
+  size_t expired_num = 0;
 
   pthread_mutex_lock (&cache_lock);
 
-  now = cdtime ();
-
   /* Build a list of entries to be flushed */
-  iter = c_avl_get_iterator (cache_tree);
+  c_avl_iterator_t *iter = c_avl_get_iterator (cache_tree);
+  char *key = NULL;
+  cache_entry_t *ce = NULL;
   while (c_avl_iterator_next (iter, (void *) &key, (void *) &ce) == 0)
   {
-    char **tmp;
-    cdtime_t *tmp_time;
-
     /* If the entry is fresh enough, continue. */
     if ((now - ce->last_update) < (ce->interval * timeout_g))
       continue;
 
-    /* If entry has not been updated, add to `keys' array */
-    tmp = realloc ((void *) keys,
-	(keys_len + 1) * sizeof (char *));
+    void *tmp = realloc (expired, (expired_num + 1) * sizeof (*expired));
     if (tmp == NULL)
     {
       ERROR ("uc_check_timeout: realloc failed.");
       continue;
     }
-    keys = tmp;
+    expired = tmp;
 
-    tmp_time = realloc (keys_time, (keys_len + 1) * sizeof (*keys_time));
-    if (tmp_time == NULL)
-    {
-      ERROR ("uc_check_timeout: realloc failed.");
-      continue;
-    }
-    keys_time = tmp_time;
+    expired[expired_num].key = strdup (key);
+    expired[expired_num].time = ce->last_time;
+    expired[expired_num].interval = ce->interval;
 
-    tmp_time = realloc (keys_interval, (keys_len + 1) * sizeof (*keys_interval));
-    if (tmp_time == NULL)
-    {
-      ERROR ("uc_check_timeout: realloc failed.");
-      continue;
-    }
-    keys_interval = tmp_time;
-
-    keys[keys_len] = strdup (key);
-    if (keys[keys_len] == NULL)
+    if (expired[expired_num].key == NULL)
     {
       ERROR ("uc_check_timeout: strdup failed.");
       continue;
     }
-    keys_time[keys_len] = ce->last_time;
-    keys_interval[keys_len] = ce->interval;
 
-    keys_len++;
+    expired_num++;
   } /* while (c_avl_iterator_next) */
 
   c_avl_iterator_destroy (iter);
   pthread_mutex_unlock (&cache_lock);
 
-  if (keys_len == 0)
+  if (expired_num == 0)
   {
-    /* realloc() may have been called for these. */
-    sfree (keys);
-    sfree (keys_time);
-    sfree (keys_interval);
+    sfree (expired);
     return (0);
   }
 
@@ -325,55 +295,45 @@ int uc_check_timeout (void)
    * including plugin specific meta data, rates, history, …. This must be done
    * without holding the lock, otherwise we will run into a deadlock if a
    * plugin calls the cache interface. */
-  for (i = 0; i < keys_len; i++)
+  for (size_t i = 0; i < expired_num; i++)
   {
-    value_list_t vl = VALUE_LIST_INIT;
+    value_list_t vl = {
+      .time = expired[i].time,
+      .interval = expired[i].interval,
+    };
 
-    vl.values = NULL;
-    vl.values_len = 0;
-    vl.meta = NULL;
-
-    status = parse_identifier_vl (keys[i], &vl);
-    if (status != 0)
+    if (parse_identifier_vl (expired[i].key, &vl) != 0)
     {
-      ERROR ("uc_check_timeout: parse_identifier_vl (\"%s\") failed.", keys[i]);
+      ERROR ("uc_check_timeout: parse_identifier_vl (\"%s\") failed.", expired[i].key);
       continue;
     }
 
-    vl.time = keys_time[i];
-    vl.interval = keys_interval[i];
-
     plugin_dispatch_missing (&vl);
-  } /* for (i = 0; i < keys_len; i++) */
+  } /* for (i = 0; i < expired_num; i++) */
 
   /* Now actually remove all the values from the cache. We don't re-evaluate
    * the timestamp again, so in theory it is possible we remove a value after
    * it is updated here. */
   pthread_mutex_lock (&cache_lock);
-  for (i = 0; i < keys_len; i++)
+  for (size_t i = 0; i < expired_num; i++)
   {
-    key = NULL;
-    ce = NULL;
+    char *key = NULL;
+    cache_entry_t *value = NULL;
 
-    status = c_avl_remove (cache_tree, keys[i],
-	(void *) &key, (void *) &ce);
-    if (status != 0)
+    if (c_avl_remove (cache_tree, expired[i].key, (void *) &key, (void *) &value) != 0)
     {
-      ERROR ("uc_check_timeout: c_avl_remove (\"%s\") failed.", keys[i]);
-      sfree (keys[i]);
+      ERROR ("uc_check_timeout: c_avl_remove (\"%s\") failed.", expired[i].key);
+      sfree (expired[i].key);
       continue;
     }
-
-    sfree (keys[i]);
     sfree (key);
-    cache_free (ce);
-  } /* for (i = 0; i < keys_len; i++) */
+    cache_free (value);
+
+    sfree (expired[i].key);
+  } /* for (i = 0; i < expired_num; i++) */
   pthread_mutex_unlock (&cache_lock);
 
-  sfree (keys);
-  sfree (keys_time);
-  sfree (keys_interval);
-
+  sfree (expired);
   return (0);
 } /* int uc_check_timeout */
 
@@ -382,7 +342,6 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int status;
-  size_t i;
 
   if (FORMAT_VL (name, sizeof (name), vl) != 0)
   {
@@ -414,7 +373,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
     return (-1);
   }
 
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     switch (ds->ds[i].type)
     {
@@ -463,7 +422,7 @@ int uc_update (const data_set_t *ds, const value_list_t *vl)
   if (ce->history != NULL)
   {
     assert (ce->history_index < ce->history_length);
-    for (i = 0; i < ce->values_num; i++)
+    for (size_t i = 0; i < ce->values_num; i++)
     {
       size_t hist_idx = (ce->values_num * ce->history_index) + i;
       ce->history[hist_idx] = ce->values_gauge[i];
@@ -643,9 +602,7 @@ int uc_get_names (char ***ret_names, cdtime_t **ret_times, size_t *ret_number)
 
   if (status != 0)
   {
-    size_t i;
-
-    for (i = 0; i < number; i++)
+    for (size_t i = 0; i < number; i++)
     {
       sfree (names[i]);
     }
@@ -720,7 +677,6 @@ int uc_get_history_by_name (const char *name,
     gauge_t *ret_history, size_t num_steps, size_t num_ds)
 {
   cache_entry_t *ce = NULL;
-  size_t i;
   int status = 0;
 
   pthread_mutex_lock (&cache_lock);
@@ -752,7 +708,7 @@ int uc_get_history_by_name (const char *name,
       return (-ENOMEM);
     }
 
-    for (i = ce->history_length * ce->values_num;
+    for (size_t i = ce->history_length * ce->values_num;
 	i < (num_steps * ce->values_num);
 	i++)
       tmp[i] = NAN;
@@ -762,7 +718,7 @@ int uc_get_history_by_name (const char *name,
   } /* if (ce->history_length < num_steps) */
 
   /* Copy the values to the output buffer. */
-  for (i = 0; i < num_steps; i++)
+  for (size_t i = 0; i < num_steps; i++)
   {
     size_t src_index;
     size_t dst_index;
@@ -947,8 +903,6 @@ int uc_iterator_get_time (uc_iter_t *iter, cdtime_t *ret_time)
 
 int uc_iterator_get_values (uc_iter_t *iter, value_t **ret_values, size_t *ret_num)
 {
-  size_t i;
-
   if ((iter == NULL) || (iter->entry == NULL)
       || (ret_values == NULL) || (ret_num == NULL))
     return (-1);
@@ -956,7 +910,7 @@ int uc_iterator_get_values (uc_iter_t *iter, value_t **ret_values, size_t *ret_n
   *ret_values = calloc (iter->entry->values_num, sizeof(*iter->entry->values_raw));
   if (*ret_values == NULL)
     return (-1);
-  for (i = 0; i < iter->entry->values_num; ++i)
+  for (size_t i = 0; i < iter->entry->values_num; ++i)
     *ret_values[i] = iter->entry->values_raw[i];
 
   *ret_num = iter->entry->values_num;

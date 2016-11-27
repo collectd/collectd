@@ -105,6 +105,7 @@
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
 #@BUILD_PLUGIN_CPUFREQ_TRUE@LoadPlugin cpufreq
+#@BUILD_PLUGIN_CPUSLEEP_TRUE@LoadPlugin cpusleep
 @LOAD_PLUGIN_CSV@LoadPlugin csv
 #@BUILD_PLUGIN_CURL_TRUE@LoadPlugin curl
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
@@ -113,6 +114,7 @@
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
+#@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
@@ -122,8 +124,11 @@
 #@BUILD_PLUGIN_FILECOUNT_TRUE@LoadPlugin filecount
 #@BUILD_PLUGIN_FSCACHE_TRUE@LoadPlugin fscache
 #@BUILD_PLUGIN_GMOND_TRUE@LoadPlugin gmond
+#@BUILD_PLUGIN_GPS_TRUE@LoadPlugin gps
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
+#@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
+#@BUILD_PLUGIN_INTEL_RDT_TRUE@LoadPlugin intel_rdt
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
 #@BUILD_PLUGIN_IPMI_TRUE@LoadPlugin ipmi
@@ -133,6 +138,7 @@
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
+#@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
 #@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
@@ -204,6 +210,7 @@
 #@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_LOG_TRUE@LoadPlugin write_log
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
+#@BUILD_PLUGIN_WRITE_PROMETHEUS_TRUE@LoadPlugin write_prometheus
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_WRITE_SENSU_TRUE@LoadPlugin write_sensu
@@ -296,6 +303,7 @@
 #<Plugin "battery">
 #  ValuesPercentage false
 #  ReportDegraded false
+#  QueryStateFS false
 #</Plugin>
 
 #<Plugin "bind">
@@ -515,6 +523,16 @@
 #	SelectNumericQueryTypes true
 #</Plugin>
 
+#<Plugin dpdkstat>
+#       Interval 1
+#       Coremask "0xf"
+#       ProcessType "secondary"
+#       FilePrefix "rte"
+#       EnabledPortMask 0xffff
+#       PortName "interface1"
+#       PortName "interface2"
+#</Plugin>
+
 #<Plugin email>
 #	SocketFile "@localstatedir@/run/@PACKAGE_NAME@-email"
 #	SocketGroup "collectd"
@@ -564,13 +582,25 @@
 #  </Metric>
 #</Plugin>
 
+#<Plugin gps>
+#  Host "127.0.0.1"
+#  Port "2947"
+#  Timeout 0.015
+#  PauseConnect 5
+#</Plugin>
+
 #<Plugin grpc>
-#	WorkerThreads 5
+#	<Server "example.com" "50051">
+#		EnableSSL true
+#		SSLCACertificateFile "/path/to/root.pem"
+#		SSLCertificateFile "/path/to/server.pem"
+#		SSLCertificateKeyFile "/path/to/server.key"
+#	</Server>
 #	<Listen "0.0.0.0" "50051">
 #		EnableSSL true
-#		SSLRootCerts "/path/to/root.pem"
-#		SSLServerCert "/path/to/server.pem"
-#		SSLServerKey "/path/to/server.key"
+#		SSLCACertificateFile "/path/to/root.pem"
+#		SSLCertificateFile "/path/to/client.pem"
+#		SSLCertificateKeyFile "/path/to/client.key"
 #	</Listen>
 #</Plugin>
 
@@ -579,9 +609,22 @@
 #  Port "7634"
 #</Plugin>
 
+#<Plugin hugepages>
+#    ReportPerNodeHP  true
+#    ReportRootHP     true
+#    ValuesPages      true
+#    ValuesBytes      false
+#    ValuesPercentage false
+#</Plugin>
+
+#<Plugin "intel_rdt">
+#  Cores "0-2"
+#</Plugin>
+
 #<Plugin interface>
 #	Interface "eth0"
 #	IgnoreSelected false
+#	ReportInactive true
 #	UniqueName false
 #</Plugin>
 
@@ -625,6 +668,12 @@
 #	ReportBySerial false
 #</Plugin>
 
+#<Plugin lua>
+#	BasePath "@prefix@/share/@PACKAGE_NAME@/lua"
+#	Script "script1.lua"
+#	Script "script2.lua"
+#</Plugin>
+
 #<Plugin madwifi>
 #	Interface "wlan0"
 #	IgnoreSelected false
@@ -662,7 +711,8 @@
 
 #<Plugin memcached>
 #	<Instance "local">
-#		Host "127.0.0.1"
+#		#Host "memcache.example.com"
+#		Address "127.0.0.1"
 #		Port "11211"
 #	</Instance>
 #</Plugin>
@@ -728,6 +778,11 @@
 #		User "db_user"
 #		Password "secret"
 #		Database "db_name"
+#		SSLKey "/path/to/key.pem"
+#		SSLCert "/path/to/cert.pem"
+#		SSLCA "/path/to/ca.pem"
+#		SSLCAPath "/path/to/cas/"
+#		SSLCipher "DHE-RSA-AES256-SHA"
 #		MasterStats true
 #		ConnectTimeout 10
 #		InnodbStats true
@@ -739,6 +794,12 @@
 #		Socket "/var/run/mysql/mysqld.sock"
 #		SlaveStats true
 #		SlaveNotifications true
+#	</Database>
+#	<Database galera>
+#		Alias "galera"
+#		Host "localhost"
+#		Socket "/var/run/mysql/mysqld.sock"
+#		WsrepStats true
 #	</Database>
 #</Plugin>
 
@@ -1211,6 +1272,27 @@
 #      Instance "local_user"
 #    </Match>
 #  </File>
+#  <File "/var/log/nginx/apache-time.log">
+#    #Use the following log format in nginx:
+#    #log_format response_time '[$host] "$upstream_response_time" ...'
+#    Instance "apache"
+#    <Match>
+#      Regex "^\\S+ \"([0-9.]+)\""
+#      <DSType Distribution>
+#        Percentile 80    # -> latency-foo-80
+#        Percentile 95    # -> latency-foo-95
+#        Percentile 99    # -> latency-foo-99
+#        Bucket 0   0.1   # -> bucket-latency-foo-0_0.1
+#        Bucket 0.1 0.2   # -> bucket-latency-foo-0.1_0.2
+#        Bucket 0.2 0.5   # -> bucket-latency-foo-0.2_0.5
+#        Bucket 0.5 1.0   # -> bucket-latency-foo-0.5_1
+#        Bucket 1.0 2.0   # -> bucket-latency-foo-1_2
+#        Bucket 2.0 0     # -> bucket-latency-foo-2_inf
+#      </DSType>
+#      Type "latency"
+#      Instance "foo"
+#    </Match>
+#  </File>
 #</Plugin>
 
 #<Plugin tail_csv>
@@ -1352,6 +1434,8 @@
 #	RefreshInterval 60
 #	Domain "name"
 #	BlockDevice "name:device"
+#	BlockDeviceFormat target
+#	BlockDeviceFormatBasename false
 #	InterfaceDevice "name:device"
 #	IgnoreSelected false
 #	HostnameFormat name
@@ -1375,6 +1459,9 @@
 #    StoreRates true
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
+#    SeparateInstances false
+#    PreserveSeparator false
+#    DropDuplicateFields false
 #  </Node>
 #</Plugin>
 
@@ -1393,6 +1480,8 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Metrics true
+#		Notifications false
 #		StoreRates false
 #		BufferSize 4096
 #		LowSpeedLimit 0
@@ -1417,6 +1506,10 @@
 #		User "auth_user"
 #		Password "auth_passwd"
 #	</Node>
+#</Plugin>
+
+#<Plugin write_prometheus>
+#	Port "9103"
 #</Plugin>
 
 #<Plugin write_redis>

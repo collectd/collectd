@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -46,7 +47,6 @@ static void numa_dispatch_value (int node, /* {{{ */
   vl.values = &v;
   vl.values_len = 1;
 
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "numa", sizeof (vl.plugin));
   ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "node%i", node);
   sstrncpy (vl.type, "vmpage_action", sizeof (vl.type));
@@ -130,11 +130,10 @@ static int numa_init (void) /* {{{ */
   while (42)
   {
     char path[PATH_MAX];
-    struct stat statbuf;
+    struct stat statbuf = { 0 };
     int status;
 
     ssnprintf (path, sizeof (path), NUMA_ROOT_DIR "/node%i", max_node + 1);
-    memset (&statbuf, 0, sizeof (statbuf));
 
     status = stat (path, &statbuf);
     if (status == 0)

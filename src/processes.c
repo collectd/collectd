@@ -35,9 +35,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 /* Include header files for the mach system, if they exist.. */
 #if HAVE_THREAD_INFO
@@ -170,13 +170,9 @@ typedef struct procstat_entry_s
 	unsigned long vmem_code;
 	unsigned long stack_size;
 
-	unsigned long vmem_minflt;
-	unsigned long vmem_majflt;
 	derive_t      vmem_minflt_counter;
 	derive_t      vmem_majflt_counter;
 
-	unsigned long cpu_user;
-	unsigned long cpu_system;
 	derive_t      cpu_user_counter;
 	derive_t      cpu_system_counter;
 
@@ -185,9 +181,11 @@ typedef struct procstat_entry_s
 	derive_t io_wchar;
 	derive_t io_syscr;
 	derive_t io_syscw;
+	_Bool    has_io;
 
 	derive_t cswitch_vol;
 	derive_t cswitch_invol;
+	_Bool    has_cswitch;
 
 	struct procstat_entry_s *next;
 } procstat_entry_t;
@@ -229,6 +227,7 @@ typedef struct procstat
 
 static procstat_t *list_head_g = NULL;
 
+static _Bool want_init = 1;
 static _Bool report_ctx_switch = 0;
 
 #if HAVE_THREAD_INFO
@@ -241,6 +240,7 @@ static mach_msg_type_number_t     pset_list_len;
 
 #elif KERNEL_LINUX
 static long pagesize_g;
+static void ps_fill_details (const procstat_t *ps, procstat_entry_t *entry);
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKVM_GETPROCS && (HAVE_STRUCT_KINFO_PROC_FREEBSD || HAVE_STRUCT_KINFO_PROC_OPENBSD)
@@ -366,42 +366,42 @@ static int ps_list_match (const char *name, const char *cmdline, procstat_t *ps)
 	return (0);
 } /* int ps_list_match */
 
-static void ps_update_counter (_Bool init, derive_t *group_counter,
-				derive_t *curr_counter, unsigned long *curr_value,
-				derive_t new_counter, unsigned long new_value)
+static void ps_update_counter (derive_t *group_counter,
+				derive_t *curr_counter, derive_t new_counter)
 {
-	if (init)
+	unsigned long curr_value;
+	
+	if (want_init)
 	{
-		*curr_value = new_value;
-		*curr_counter += new_value;
-		*group_counter += new_value;
+		*curr_counter = new_counter;
 		return;
 	}
 
 	if (new_counter < *curr_counter)
-		*curr_value = new_counter + (ULONG_MAX - *curr_counter);
+		curr_value = new_counter + (ULONG_MAX - *curr_counter);
 	else
-		*curr_value = new_counter - *curr_counter;
+		curr_value = new_counter - *curr_counter;
 
 	*curr_counter = new_counter;
-	*group_counter += *curr_value;
+	*group_counter += curr_value;
 }
 
 /* add process entry to 'instances' of process 'name' (or refresh it) */
 static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t *entry)
 {
-	procstat_t *ps;
 	procstat_entry_t *pse;
 
 	if (entry->id == 0)
 		return;
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-		_Bool want_init;
-
 		if ((ps_list_match (name, cmdline, ps)) == 0)
 			continue;
+
+#if KERNEL_LINUX
+		ps_fill_details(ps, entry);
+#endif
 
 		for (pse = ps->instances; pse != NULL; pse = pse->next)
 			if ((pse->id == entry->id) || (pse->next == NULL))
@@ -455,38 +455,33 @@ static void ps_list_add (const char *name, const char *cmdline, procstat_entry_t
 		ps->cswitch_vol   += ((pse->cswitch_vol == -1)?0:pse->cswitch_vol);
 		ps->cswitch_invol += ((pse->cswitch_invol == -1)?0:pse->cswitch_invol);
 
-		want_init = (entry->vmem_minflt_counter == 0)
-				&& (entry->vmem_majflt_counter == 0);
-		ps_update_counter (want_init,
+		ps_update_counter (
 				&ps->vmem_minflt_counter,
-				&pse->vmem_minflt_counter, &pse->vmem_minflt,
-				entry->vmem_minflt_counter, entry->vmem_minflt);
-		ps_update_counter (want_init,
+				&pse->vmem_minflt_counter,
+				entry->vmem_minflt_counter);
+		ps_update_counter (
 				&ps->vmem_majflt_counter,
-				&pse->vmem_majflt_counter, &pse->vmem_majflt,
-				entry->vmem_majflt_counter, entry->vmem_majflt);
+				&pse->vmem_majflt_counter,
+				entry->vmem_majflt_counter);
 
-		want_init = (entry->cpu_user_counter == 0)
-				&& (entry->cpu_system_counter == 0);
-		ps_update_counter (want_init,
+		ps_update_counter (
 				&ps->cpu_user_counter,
-				&pse->cpu_user_counter, &pse->cpu_user,
-				entry->cpu_user_counter, entry->cpu_user);
-		ps_update_counter (want_init,
+				&pse->cpu_user_counter,
+				entry->cpu_user_counter);
+		ps_update_counter (
 				&ps->cpu_system_counter,
-				&pse->cpu_system_counter, &pse->cpu_system,
-				entry->cpu_system_counter, entry->cpu_system);
+				&pse->cpu_system_counter,
+				entry->cpu_system_counter);
 	}
 }
 
 /* remove old entries from instances of processes in list_head_g */
 static void ps_list_reset (void)
 {
-	procstat_t *ps;
 	procstat_entry_t *pse;
 	procstat_entry_t *pse_prev;
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 		ps->num_proc    = 0;
 		ps->num_lwp     = 0;
@@ -538,15 +533,13 @@ static void ps_list_reset (void)
 /* put all pre-defined 'Process' names from config to list_head_g tree */
 static int ps_config (oconfig_item_t *ci)
 {
-	int i;
-
 #if KERNEL_LINUX
 	const size_t max_procname_len = 15;
 #elif KERNEL_SOLARIS || KERNEL_FREEBSD
 	const size_t max_procname_len = MAXCOMLEN -1;
 #endif
 
-	for (i = 0; i < ci->children_num; ++i) {
+	for (int i = 0; i < ci->children_num; ++i) {
 		oconfig_item_t *c = ci->children + i;
 
 		if (strcasecmp (c->key, "Process") == 0)
@@ -664,14 +657,10 @@ static int ps_init (void)
 /* submit global state (e.g.: qty of zombies, running, etc..) */
 static void ps_submit_state (const char *state, double value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "ps_state", sizeof (vl.type));
@@ -683,12 +672,10 @@ static void ps_submit_state (const char *state, double value)
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void ps_submit_proc_list (procstat_t *ps)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
+	value_t values[2];
 
 	vl.values = values;
-	vl.values_len = 2;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, ps->name, sizeof (vl.plugin_instance));
 
@@ -788,14 +775,10 @@ static void ps_submit_proc_list (procstat_t *ps)
 #if KERNEL_LINUX || KERNEL_SOLARIS
 static void ps_submit_fork_rate (derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
-	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy(vl.plugin, "processes", sizeof (vl.plugin));
 	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
 	sstrncpy(vl.type, "fork_rate", sizeof (vl.type));
@@ -807,7 +790,7 @@ static void ps_submit_fork_rate (derive_t value)
 
 /* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 #if KERNEL_LINUX
-static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
+static int ps_read_tasks_status (procstat_entry_t *ps)
 {
 	char           dirname[64];
 	DIR           *dh;
@@ -820,12 +803,12 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", pid);
+	ssnprintf (dirname, sizeof (dirname), "/proc/%li/task", ps->id);
 
 	if ((dh = opendir (dirname)) == NULL)
 	{
 		DEBUG ("Failed to open directory `%s'", dirname);
-		return (NULL);
+		return (-1);
 	}
 
 	while ((ent = readdir (dh)) != NULL)
@@ -837,7 +820,7 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 
 		tpid = ent->d_name;
 
-		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", pid, tpid);
+		ssnprintf (filename, sizeof (filename), "/proc/%li/task/%s/status", ps->id, tpid);
 		if ((fh = fopen (filename, "r")) == NULL)
 		{
 			DEBUG ("Failed to open file `%s'", filename);
@@ -887,7 +870,7 @@ static procstat_t *ps_read_tasks_status (long pid, procstat_t *ps)
 	ps->cswitch_vol = cswitch_vol;
 	ps->cswitch_invol = cswitch_invol;
 
-	return (ps);
+	return (0);
 } /* int *ps_read_tasks_status */
 
 /* Read data from /proc/pid/status */
@@ -961,7 +944,7 @@ static procstat_t *ps_read_status (long pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_vmem */
 
-static procstat_t *ps_read_io (long pid, procstat_t *ps)
+static int ps_read_io (procstat_entry_t *ps)
 {
 	FILE *fh;
 	char buffer[1024];
@@ -970,9 +953,9 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 	char *fields[8];
 	int numfields;
 
-	ssnprintf (filename, sizeof (filename), "/proc/%li/io", pid);
+	ssnprintf (filename, sizeof (filename), "/proc/%li/io", ps->id);
 	if ((fh = fopen (filename, "r")) == NULL)
-		return (NULL);
+		return (-1);
 
 	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
@@ -1012,9 +995,36 @@ static procstat_t *ps_read_io (long pid, procstat_t *ps)
 		WARNING ("processes: fclose: %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 	}
+	return (0);
+} /* int ps_read_io (...) */
 
-	return (ps);
-} /* procstat_t *ps_read_io */
+static void ps_fill_details (const procstat_t *ps, procstat_entry_t *entry)
+{
+	if ( entry->has_io == 0 && ps_read_io (entry) != 0 )
+	{
+		/* no io data */
+		entry->io_rchar = -1;
+		entry->io_wchar = -1;
+		entry->io_syscr = -1;
+		entry->io_syscw = -1;
+
+		DEBUG("ps_read_process: not get io data for pid %li", entry->id);
+	}
+	entry->has_io = 1;
+
+	if ( report_ctx_switch )
+	{
+		if ( entry->has_cswitch == 0 && ps_read_tasks_status(entry) != 0 )
+		{
+			entry->cswitch_vol = -1;
+			entry->cswitch_invol = -1;
+
+			DEBUG("ps_read_tasks_status: not get context "
+					"switch data for pid %li", entry->id);
+		}
+		entry->has_cswitch = 1;
+	}
+} /* void ps_fill_details (...) */
 
 static int ps_read_process (long pid, procstat_t *ps, char *state)
 {
@@ -1146,29 +1156,6 @@ static int ps_read_process (long pid, procstat_t *ps, char *state)
 	ps->vmem_size = (unsigned long) vmem_size;
 	ps->vmem_rss = (unsigned long) vmem_rss;
 	ps->stack_size = (unsigned long) stack_size;
-
-	if ( (ps_read_io (pid, ps)) == NULL)
-	{
-		/* no io data */
-		ps->io_rchar = -1;
-		ps->io_wchar = -1;
-		ps->io_syscr = -1;
-		ps->io_syscw = -1;
-
-		DEBUG("ps_read_process: not get io data for pid %li", pid);
-	}
-
-	if ( report_ctx_switch )
-	{
-		if ( (ps_read_tasks_status(pid, ps)) == NULL)
-		{
-			ps->cswitch_vol = -1;
-			ps->cswitch_invol = -1;
-
-			DEBUG("ps_read_tasks_status: not get context "
-					"switch data for pid %li", pid);
-		}
-	}
 
 	/* success */
 	return (0);
@@ -1467,13 +1454,12 @@ static int ps_read_process(long pid, procstat_t *ps, char *state)
 static int read_fork_rate (void)
 {
 	extern kstat_ctl_t *kc;
-	kstat_t *ksp_chain = NULL;
 	derive_t result = 0;
 
 	if (kc == NULL)
 		return (-1);
 
-	for (ksp_chain = kc->kc_chain;
+	for (kstat_t *ksp_chain = kc->kc_chain;
 			ksp_chain != NULL;
 			ksp_chain = ksp_chain->ks_next)
 	{
@@ -1539,17 +1525,14 @@ static int ps_read (void)
 #if HAVE_THREAD_INFO
 	kern_return_t            status;
 
-	int                      pset;
 	processor_set_t          port_pset_priv;
 
-	int                      task;
 	task_array_t             task_list;
 	mach_msg_type_number_t   task_list_len;
 
 	int                      task_pid;
 	char                     task_name[MAXCOMLEN + 1];
 
-	int                      thread;
 	thread_act_array_t       thread_list;
 	mach_msg_type_number_t   thread_list_len;
 	thread_basic_info_data_t thread_data;
@@ -1574,7 +1557,7 @@ static int ps_read (void)
 	 * Tasks are assigned to sets of processors, so that's where you go to
 	 * get a list.
 	 */
-	for (pset = 0; pset < pset_list_len; pset++)
+	for (mach_msg_type_number_t pset = 0; pset < pset_list_len; pset++)
 	{
 		if ((status = host_processor_set_priv (port_host_self,
 						pset_list[pset],
@@ -1595,7 +1578,7 @@ static int ps_read (void)
 			continue;
 		}
 
-		for (task = 0; task < task_list_len; task++)
+		for (mach_msg_type_number_t task = 0; task < task_list_len; task++)
 		{
 			ps = NULL;
 			if (mach_get_task_name (task_list[task],
@@ -1693,7 +1676,7 @@ static int ps_read (void)
 				continue; /* with next task_list */
 			}
 
-			for (thread = 0; thread < thread_list_len; thread++)
+			for (mach_msg_type_number_t thread = 0; thread < thread_list_len; thread++)
 			{
 				thread_data_len = THREAD_BASIC_INFO_COUNT;
 				status = thread_info (thread_list[thread],
@@ -1824,8 +1807,6 @@ static int ps_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-	procstat_t *ps_ptr;
-
 	running = sleeping = zombies = stopped = paging = blocked = 0;
 	ps_list_reset ();
 
@@ -1864,14 +1845,10 @@ static int ps_read (void)
 		pse.vmem_code  = ps.vmem_code;
 		pse.stack_size = ps.stack_size;
 
-		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
-		pse.vmem_majflt = 0;
 		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
 
-		pse.cpu_user = 0;
 		pse.cpu_user_counter = ps.cpu_user_counter;
-		pse.cpu_system = 0;
 		pse.cpu_system_counter = ps.cpu_system_counter;
 
 		pse.io_rchar = ps.io_rchar;
@@ -1906,7 +1883,7 @@ static int ps_read (void)
 	ps_submit_state ("paging",   paging);
 	ps_submit_state ("blocked",  blocked);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
 	read_fork_rate();
@@ -1926,9 +1903,7 @@ static int ps_read (void)
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
-	int i;
 
-	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -1953,7 +1928,7 @@ static int ps_read (void)
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i = 0; i < count; i++)
+	for (int i = 0; i < count; i++)
 	{
 		/* Create only one process list entry per _process_, i.e.
 		 * filter out threads (duplicate PID entries). */
@@ -1998,13 +1973,9 @@ static int ps_read (void)
 			pse.vmem_data = procs[i].ki_dsize * pagesize;
 			pse.vmem_code = procs[i].ki_tsize * pagesize;
 			pse.stack_size = procs[i].ki_ssize * pagesize;
-			pse.vmem_minflt = 0;
 			pse.vmem_minflt_counter = procs[i].ki_rusage.ru_minflt;
-			pse.vmem_majflt = 0;
 			pse.vmem_majflt_counter = procs[i].ki_rusage.ru_majflt;
 
-			pse.cpu_user = 0;
-			pse.cpu_system = 0;
 			pse.cpu_user_counter = 0;
 			pse.cpu_system_counter = 0;
 			/*
@@ -2056,7 +2027,7 @@ static int ps_read (void)
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("wait",     wait);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_FREEBSD */
 
@@ -2074,9 +2045,7 @@ static int ps_read (void)
 	struct kinfo_proc *procs;          /* array of processes */
 	struct kinfo_proc *proc_ptr = NULL;
 	int count;                         /* returns number of processes */
-	int i;
 
-	procstat_t *ps_ptr;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2101,7 +2070,7 @@ static int ps_read (void)
 	}
 
 	/* Iterate through the processes in kinfo_proc */
-	for (i = 0; i < count; i++)
+	for (int i = 0; i < count; i++)
 	{
 		/* Create only one process list entry per _process_, i.e.
 		 * filter out threads (duplicate PID entries). */
@@ -2146,13 +2115,9 @@ static int ps_read (void)
 			pse.vmem_code = procs[i].p_vm_tsize * pagesize;
 			pse.stack_size = procs[i].p_vm_ssize * pagesize;
 			pse.vmem_size = pse.stack_size + pse.vmem_code + pse.vmem_data;
-			pse.vmem_minflt = 0;
 			pse.vmem_minflt_counter = procs[i].p_uru_minflt;
-			pse.vmem_majflt = 0;
 			pse.vmem_majflt_counter = procs[i].p_uru_majflt;
 
-			pse.cpu_user = 0;
-			pse.cpu_system = 0;
 			pse.cpu_user_counter = procs[i].p_uutime_usec +
 						(1000000lu * procs[i].p_uutime_sec);
 			pse.cpu_system_counter = procs[i].p_ustime_usec +
@@ -2193,7 +2158,7 @@ static int ps_read (void)
 	ps_submit_state ("idle",     idle);
 	ps_submit_state ("dead",     dead);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 /* #endif HAVE_LIBKVM_GETPROCS && HAVE_STRUCT_KINFO_PROC_OPENBSD */
 
@@ -2209,7 +2174,6 @@ static int ps_read (void)
 	pid_t pindex = 0;
 	int nprocs;
 
-	procstat_t *ps;
 	procstat_entry_t pse;
 
 	ps_list_reset ();
@@ -2217,9 +2181,7 @@ static int ps_read (void)
 					/* fdsinfo = */ NULL, sizeof(struct fdsinfo64),
 					&pindex, MAXPROCENTRY)) > 0)
 	{
-		int i;
-
-		for (i = 0; i < nprocs; i++)
+		for (int i = 0; i < nprocs; i++)
 		{
 			tid64_t thindex;
 			int nthreads;
@@ -2287,7 +2249,6 @@ static int ps_read (void)
 					break;
 			}
 
-			pse.cpu_user = 0;
 			/* tv_usec is nanosec ??? */
 			pse.cpu_user_counter = procentry[i].pi_ru.ru_utime.tv_sec * 1000000 +
 				procentry[i].pi_ru.ru_utime.tv_usec / 1000;
@@ -2297,9 +2258,7 @@ static int ps_read (void)
 			pse.cpu_system_counter = procentry[i].pi_ru.ru_stime.tv_sec * 1000000 +
 				procentry[i].pi_ru.ru_stime.tv_usec / 1000;
 
-			pse.vmem_minflt = 0;
 			pse.vmem_minflt_counter = procentry[i].pi_minflt;
-			pse.vmem_majflt = 0;
 			pse.vmem_majflt_counter = procentry[i].pi_majflt;
 
 			pse.vmem_size = procentry[i].pi_tsize + procentry[i].pi_dvm * pagesize;
@@ -2330,7 +2289,7 @@ static int ps_read (void)
 	ps_submit_state ("paging",   paging);
 	ps_submit_state ("blocked",  blocked);
 
-	for (ps = list_head_g; ps != NULL; ps = ps->next)
+	for (procstat_t *ps = list_head_g; ps != NULL; ps = ps->next)
 		ps_submit_proc_list (ps);
 /* #endif HAVE_PROCINFO_H */
 
@@ -2354,7 +2313,6 @@ static int ps_read (void)
 	DIR *proc;
 
 	int status;
-	procstat_t *ps_ptr;
 	char state;
 
 	char cmdline[PRARGSZ];
@@ -2398,14 +2356,10 @@ static int ps_read (void)
 		pse.vmem_code  = ps.vmem_code;
 		pse.stack_size = ps.stack_size;
 
-		pse.vmem_minflt = 0;
 		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
-		pse.vmem_majflt = 0;
 		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
 
-		pse.cpu_user = 0;
 		pse.cpu_user_counter = ps.cpu_user_counter;
-		pse.cpu_system = 0;
 		pse.cpu_system_counter = ps.cpu_system_counter;
 
 		pse.io_rchar = ps.io_rchar;
@@ -2444,11 +2398,13 @@ static int ps_read (void)
 	ps_submit_state ("system",   system);
 	ps_submit_state ("orphan",   orphan);
 
-	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	for (procstat_t *ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 		ps_submit_proc_list (ps_ptr);
 
 	read_fork_rate();
 #endif /* KERNEL_SOLARIS */
+
+	want_init = 0;
 
 	return (0);
 } /* int ps_read */

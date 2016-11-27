@@ -85,9 +85,9 @@ uc_iter_t *uc_get_iterator (void);
  *
  * PARAMETERS
  *   `iter'     The iterator object to advance.
- *   `ret_name' Pointer to a string where to store the name. The returned
- *              value is a copy of the value and has to be freed by the
- *              caller.
+ *   `ret_name' Optional pointer to a string where to store the name. If not
+ *              NULL, the returned value is a copy of the value and has to be
+ *              freed by the caller.
  *
  * RETURN VALUE
  *   Zero upon success or non-zero if the iterator ie NULL or no further

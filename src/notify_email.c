@@ -23,6 +23,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -66,8 +67,7 @@ static char *email_subject = NULL;
 static int authinteract (auth_client_request_t request, char **result,
     int fields, void __attribute__((unused)) *arg)
 {
-  int i;
-  for (i = 0; i < fields; i++)
+  for (int i = 0; i < fields; i++)
   {
     if (request[i].flags & AUTH_USER)
       result[i] = smtp_user;
@@ -228,7 +228,6 @@ static int notify_email_notification (const notification_t *n,
     user_data_t __attribute__((unused)) *user_data)
 {
 
-  time_t tt;
   struct tm timestamp_tm;
   char timestamp_str[64];
 
@@ -248,8 +247,7 @@ static int notify_email_notification (const notification_t *n,
       (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
       severity, n->host);
 
-  tt = CDTIME_T_TO_TIME_T (n->time);
-  localtime_r (&tt, &timestamp_tm);
+  localtime_r (&CDTIME_T_TO_TIME_T (n->time), &timestamp_tm);
   strftime (timestamp_str, sizeof (timestamp_str), "%Y-%m-%d %H:%M:%S",
       &timestamp_tm);
   timestamp_str[sizeof (timestamp_str) - 1] = '\0';

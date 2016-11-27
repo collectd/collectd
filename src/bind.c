@@ -36,9 +36,9 @@
 #endif /* STRPTIME_NEEDS_STANDARDS */
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 
 /* Some versions of libcurl don't include this themselves and then don't have
  * fd_set available. */
@@ -125,47 +125,47 @@ static char   bind_curl_error[CURL_ERROR_SIZE];
 static const translation_info_t nsstats_translation_table[] = /* {{{ */
 {
   /* Requests */
-  { "Requestv4",       "dns_request",  "IPv4"        },
-  { "Requestv6",       "dns_request",  "IPv6"        },
-  { "ReqEdns0",        "dns_request",  "EDNS0"       },
-  { "ReqBadEDNSVer",   "dns_request",  "BadEDNSVer"  },
-  { "ReqTSIG",         "dns_request",  "TSIG"        },
-  { "ReqSIG0",         "dns_request",  "SIG0"        },
-  { "ReqBadSIG",       "dns_request",  "BadSIG"      },
-  { "ReqTCP",          "dns_request",  "TCP"         },
+  { "Requestv4",       "dns_request",  "IPv4"          },
+  { "Requestv6",       "dns_request",  "IPv6"          },
+  { "ReqEdns0",        "dns_request",  "EDNS0"         },
+  { "ReqBadEDNSVer",   "dns_request",  "BadEDNSVer"    },
+  { "ReqTSIG",         "dns_request",  "TSIG"          },
+  { "ReqSIG0",         "dns_request",  "SIG0"          },
+  { "ReqBadSIG",       "dns_request",  "BadSIG"        },
+  { "ReqTCP",          "dns_request",  "TCP"           },
   /* Rejects */
-  { "AuthQryRej",      "dns_reject",   "authorative" },
-  { "RecQryRej",       "dns_reject",   "recursive"   },
-  { "XfrRej",          "dns_reject",   "transfer"    },
-  { "UpdateRej",       "dns_reject",   "update"      },
+  { "AuthQryRej",      "dns_reject",   "authoritative" },
+  { "RecQryRej",       "dns_reject",   "recursive"     },
+  { "XfrRej",          "dns_reject",   "transfer"      },
+  { "UpdateRej",       "dns_reject",   "update"        },
   /* Responses */
-  { "Response",        "dns_response", "normal"      },
-  { "TruncatedResp",   "dns_response", "truncated"   },
-  { "RespEDNS0",       "dns_response", "EDNS0"       },
-  { "RespTSIG",        "dns_response", "TSIG"        },
-  { "RespSIG0",        "dns_response", "SIG0"        },
+  { "Response",        "dns_response", "normal"        },
+  { "TruncatedResp",   "dns_response", "truncated"     },
+  { "RespEDNS0",       "dns_response", "EDNS0"         },
+  { "RespTSIG",        "dns_response", "TSIG"          },
+  { "RespSIG0",        "dns_response", "SIG0"          },
   /* Queries */
-  { "QryAuthAns",      "dns_query",    "authorative" },
-  { "QryNoauthAns",    "dns_query",    "nonauth"     },
-  { "QryReferral",     "dns_query",    "referral"    },
-  { "QryRecursion",    "dns_query",    "recursion"   },
-  { "QryDuplicate",    "dns_query",    "dupliate"    },
-  { "QryDropped",      "dns_query",    "dropped"     },
-  { "QryFailure",      "dns_query",    "failure"     },
+  { "QryAuthAns",      "dns_query",    "authoritative" },
+  { "QryNoauthAns",    "dns_query",    "nonauth"       },
+  { "QryReferral",     "dns_query",    "referral"      },
+  { "QryRecursion",    "dns_query",    "recursion"     },
+  { "QryDuplicate",    "dns_query",    "duplicate"     },
+  { "QryDropped",      "dns_query",    "dropped"       },
+  { "QryFailure",      "dns_query",    "failure"       },
   /* Response codes */
-  { "QrySuccess",      "dns_rcode",    "tx-NOERROR"  },
-  { "QryNxrrset",      "dns_rcode",    "tx-NXRRSET"  },
-  { "QrySERVFAIL",     "dns_rcode",    "tx-SERVFAIL" },
-  { "QryFORMERR",      "dns_rcode",    "tx-FORMERR"  },
-  { "QryNXDOMAIN",     "dns_rcode",    "tx-NXDOMAIN" }
+  { "QrySuccess",      "dns_rcode",    "tx-NOERROR"    },
+  { "QryNxrrset",      "dns_rcode",    "tx-NXRRSET"    },
+  { "QrySERVFAIL",     "dns_rcode",    "tx-SERVFAIL"   },
+  { "QryFORMERR",      "dns_rcode",    "tx-FORMERR"    },
+  { "QryNXDOMAIN",     "dns_rcode",    "tx-NXDOMAIN"   }
 #if 0
-  { "XfrReqDone",      "type", "type_instance"       },
-  { "UpdateReqFwd",    "type", "type_instance"       },
-  { "UpdateRespFwd",   "type", "type_instance"       },
-  { "UpdateFwdFail",   "type", "type_instance"       },
-  { "UpdateDone",      "type", "type_instance"       },
-  { "UpdateFail",      "type", "type_instance"       },
-  { "UpdateBadPrereq", "type", "type_instance"       },
+  { "XfrReqDone",      "type",         "type_instance" },
+  { "UpdateReqFwd",    "type",         "type_instance" },
+  { "UpdateRespFwd",   "type",         "type_instance" },
+  { "UpdateFwdFail",   "type",         "type_instance" },
+  { "UpdateDone",      "type",         "type_instance" },
+  { "UpdateFail",      "type",         "type_instance" },
+  { "UpdateBadPrereq", "type",         "type_instance" },
 #endif
 };
 static int nsstats_translation_table_length =
@@ -247,16 +247,12 @@ static int memsummary_translation_table_length =
 static void submit (time_t ts, const char *plugin_instance, /* {{{ */
     const char *type, const char *type_instance, value_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = value;
-
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
   if (config_parse_time)
     vl.time = TIME_T_TO_CDTIME_T (ts);
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "bind", sizeof(vl.plugin));
   if (plugin_instance) {
     sstrncpy(vl.plugin_instance, plugin_instance,
@@ -309,12 +305,11 @@ static int bind_xml_table_callback (const char *name, value_t value, /* {{{ */
     time_t current_time, void *user_data)
 {
   translation_table_ptr_t *table = (translation_table_ptr_t *) user_data;
-  size_t i;
 
   if (table == NULL)
     return (-1);
 
-  for (i = 0; i < table->table_length; i++)
+  for (size_t i = 0; i < table->table_length; i++)
   {
     if (strcmp (table->table[i].xml_name, name) != 0)
       continue;
@@ -417,7 +412,7 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
   xmlNode *node;
   char *str_ptr;
   char *tmp;
-  struct tm tm;
+  struct tm tm = { 0 };
 
   xpathObj = xmlXPathEvalExpression (BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -458,7 +453,6 @@ static int bind_xml_read_timestamp (const char *xpath_expression, /* {{{ */
     return (-1);
   }
 
-  memset (&tm, 0, sizeof(tm));
   tmp = strptime (str_ptr, "%Y-%m-%dT%T", &tm);
   xmlFree(str_ptr);
   if (tmp == NULL)
@@ -491,7 +485,6 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
-  int i;
 
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -503,19 +496,18 @@ static int bind_parse_generic_name_value (const char *xpath_expression, /* {{{ *
 
   num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
   {
     xmlNode *name_node = NULL;
     xmlNode *counter = NULL;
     xmlNode *parent;
-    xmlNode *child;
 
     parent = xpathObj->nodesetval->nodeTab[i];
     DEBUG ("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
         (char *) parent->name);
 
     /* Iterate over all child nodes. */
-    for (child = parent->xmlChildrenNode;
+    for (xmlNode *child = parent->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -578,7 +570,6 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
-  int i;
 
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -590,12 +581,10 @@ static int bind_parse_generic_value_list (const char *xpath_expression, /* {{{ *
 
   num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
   {
-    xmlNode *child;
-
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+    for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -649,7 +638,6 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
 {
   xmlXPathObject *xpathObj = NULL;
   int num_entries;
-  int i;
 
   xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL)
@@ -661,12 +649,10 @@ static int bind_parse_generic_name_attr_value_list (const char *xpath_expression
 
   num_entries = 0;
   /* Iterate over all matching nodes. */
-  for (i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
+  for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr); i++)
   {
-    xmlNode *child;
-
     /* Iterate over all child nodes. */
-    for (child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
+    for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
         child != NULL;
         child = child->next)
     {
@@ -714,7 +700,6 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
 {
   xmlXPathObject *path_obj;
   char *zone_name = NULL;
-  int i;
   size_t j;
 
   if (version >= 3)
@@ -738,7 +723,7 @@ static int bind_xml_stats_handle_zone (int version, xmlDoc *doc, /* {{{ */
       return (-1);
     }
 
-    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    for (int i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
     {
       zone_name = (char *) xmlNodeListGetString (doc,
           path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
@@ -817,7 +802,6 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
 {
   xmlXPathObject *zone_nodes = NULL;
   xmlXPathContext *zone_path_context;
-  int i;
 
   zone_path_context = xmlXPathNewContext (doc);
   if (zone_path_context == NULL)
@@ -834,7 +818,7 @@ static int bind_xml_stats_search_zones (int version, xmlDoc *doc, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < zone_nodes->nodesetval->nodeNr; i++)
+  for (int i = 0; i < zone_nodes->nodesetval->nodeNr; i++)
   {
     node = zone_nodes->nodesetval->nodeTab[i];
     assert (node != NULL);
@@ -855,7 +839,6 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
 {
   char *view_name = NULL;
   cb_view_t *view;
-  int i;
   size_t j;
 
   if (version == 3)
@@ -887,7 +870,7 @@ static int bind_xml_stats_handle_view (int version, xmlDoc *doc, /* {{{ */
       return (-1);
     }
 
-    for (i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
+    for (int i = 0; path_obj->nodesetval && (i < path_obj->nodesetval->nodeNr); i++)
     {
       view_name = (char *) xmlNodeListGetString (doc,
           path_obj->nodesetval->nodeTab[i]->xmlChildrenNode, 1);
@@ -1010,7 +993,6 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
 {
   xmlXPathObject *view_nodes = NULL;
   xmlXPathContext *view_path_context;
-  int i;
 
   view_path_context = xmlXPathNewContext (doc);
   if (view_path_context == NULL)
@@ -1027,7 +1009,7 @@ static int bind_xml_stats_search_views (int version, xmlDoc *doc, /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < view_nodes->nodesetval->nodeNr; i++)
+  for (int i = 0; i < view_nodes->nodesetval->nodeNr; i++)
   {
     xmlNode *node;
 
@@ -1441,7 +1423,6 @@ static int bind_xml (const char *data) /* {{{ */
   xmlXPathContext *xpathCtx = NULL;
   xmlXPathObject *xpathObj = NULL;
   int ret = -1;
-  int i;
 
   doc = xmlParseMemory (data, strlen (data));
   if (doc == NULL)
@@ -1471,7 +1452,7 @@ static int bind_xml (const char *data) /* {{{ */
   }
   else
   {
-    for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+    for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++)
     {
       xmlNode *node;
       char *attr_version;
@@ -1533,7 +1514,7 @@ static int bind_xml (const char *data) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+  for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++)
   {
     xmlNode *node;
     char *attr_version;
@@ -1636,7 +1617,6 @@ static int bind_config_add_view_zone (cb_view_t *view, /* {{{ */
 static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
 {
   cb_view_t *tmp;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -1668,7 +1648,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
     return (-1);
   }
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -1693,9 +1673,7 @@ static int bind_config_add_view (oconfig_item_t *ci) /* {{{ */
 
 static int bind_config (oconfig_item_t *ci) /* {{{ */
 {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 

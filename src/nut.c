@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -119,13 +120,10 @@ static int nut_config (const char *key, const char *value)
 static void nut_submit (nut_ups_t *ups, const char *type,
     const char *type_instance, gauge_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = value;
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE (values);
+  vl.values = &(value_t) { .gauge = value };
+  vl.values_len = 1;
   sstrncpy (vl.host,
       (strcasecmp (ups->hostname, "localhost") == 0)
       ? hostname_g
@@ -247,7 +245,6 @@ static int nut_read_one (nut_ups_t *ups)
 
 static int nut_read (void)
 {
-  nut_ups_t *ups;
   int success = 0;
 
   pthread_mutex_lock (&read_lock);
@@ -258,7 +255,7 @@ static int nut_read (void)
   if (success != 0)
     return (0);
 
-  for (ups = upslist_head; ups != NULL; ups = ups->next)
+  for (nut_ups_t *ups = upslist_head; ups != NULL; ups = ups->next)
     if (nut_read_one (ups) == 0)
       success++;
 

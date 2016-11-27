@@ -22,9 +22,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "configfile.h"
 #include "utils_curl_stats.h"
 #include "utils_match.h"
 #include "utils_time.h"
@@ -269,7 +269,6 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
 {
   web_match_t *match;
   int status;
-  int i;
 
   if (ci->values_num != 0)
   {
@@ -284,7 +283,7 @@ static int cc_config_add_match (web_page_t *page, /* {{{ */
   }
 
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -433,7 +432,6 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
 {
   web_page_t *page;
   int status;
-  int i;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING))
   {
@@ -468,7 +466,7 @@ static int cc_config_add_page (oconfig_item_t *ci) /* {{{ */
 
   /* Process all children */
   status = 0;
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -566,12 +564,11 @@ static int cc_config (oconfig_item_t *ci) /* {{{ */
   int success;
   int errors;
   int status;
-  int i;
 
   success = 0;
   errors = 0;
 
-  for (i = 0; i < ci->children_num; i++)
+  for (int i = 0; i < ci->children_num; i++)
   {
     oconfig_item_t *child = ci->children + i;
 
@@ -611,16 +608,12 @@ static int cc_init (void) /* {{{ */
 } /* }}} int cc_init */
 
 static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
-    const cu_match_value_t *mv)
+    value_t value)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0] = mv->value;
-
-  vl.values = values;
+  vl.values = &value;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, wm->type, sizeof (vl.type));
@@ -632,14 +625,10 @@ static void cc_submit (const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
 static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = code;
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = (gauge_t) code };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "response_code", sizeof (vl.type));
@@ -648,16 +637,12 @@ static void cc_submit_response_code (const web_page_t *wp, long code) /* {{{ */
 } /* }}} void cc_submit_response_code */
 
 static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
-    cdtime_t response_time)
+    gauge_t response_time)
 {
-  value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
-  values[0].gauge = CDTIME_T_TO_DOUBLE (response_time);
-
-  vl.values = values;
+  vl.values = &(value_t) { .gauge = response_time };
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "curl", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, wp->instance, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "response_time", sizeof (vl.type));
@@ -667,7 +652,6 @@ static void cc_submit_response_time (const web_page_t *wp, /* {{{ */
 
 static int cc_read_page (web_page_t *wp) /* {{{ */
 {
-  web_match_t *wm;
   int status;
   cdtime_t start = 0;
 
@@ -684,7 +668,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
   }
 
   if (wp->response_time)
-    cc_submit_response_time (wp, cdtime() - start);
+    cc_submit_response_time (wp, CDTIME_T_TO_DOUBLE (cdtime() - start));
   if (wp->stats != NULL)
     curl_stats_dispatch (wp->stats, wp->curl, hostname_g, "curl", wp->instance);
 
@@ -700,7 +684,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
     }
   }
 
-  for (wm = wp->matches; wm != NULL; wm = wm->next)
+  for (web_match_t *wm = wp->matches; wm != NULL; wm = wm->next)
   {
     cu_match_value_t *mv;
 
@@ -718,7 +702,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
       continue;
     }
 
-    cc_submit (wp, wm, mv);
+    cc_submit (wp, wm, mv->value);
     match_value_reset (mv);
   } /* for (wm = wp->matches; wm != NULL; wm = wm->next) */
 
@@ -727,9 +711,7 @@ static int cc_read_page (web_page_t *wp) /* {{{ */
 
 static int cc_read (void) /* {{{ */
 {
-  web_page_t *wp;
-
-  for (wp = pages_g; wp != NULL; wp = wp->next)
+  for (web_page_t *wp = pages_g; wp != NULL; wp = wp->next)
     cc_read_page (wp);
 
   return (0);

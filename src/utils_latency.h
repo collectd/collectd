@@ -25,7 +25,12 @@
  **/
 
 #include "collectd.h"
+
 #include "utils_time.h"
+
+#ifndef HISTOGRAM_NUM_BINS
+# define HISTOGRAM_NUM_BINS 1000
+#endif
 
 struct latency_counter_s;
 typedef struct latency_counter_s latency_counter_t;
@@ -43,5 +48,19 @@ size_t   latency_counter_get_num (latency_counter_t *lc);
 cdtime_t latency_counter_get_average (latency_counter_t *lc);
 cdtime_t latency_counter_get_percentile (latency_counter_t *lc,
     double percent);
+
+/*
+ * NAME
+ *  latency_counter_get_rate(counter,lower,upper,now)
+ *
+ * DESCRIPTION
+ *   Calculates rate of latency values fall within requested interval.
+ *   Interval specified as (lower,upper], i.e. the lower boundary is exclusive,
+ *   the upper boundary is inclusive.
+ *   When lower is zero, then the interval is (0, upper].
+ *   When upper is zero, then the interval is (lower, infinity).
+ */
+double latency_counter_get_rate (const latency_counter_t *lc,
+    cdtime_t lower, cdtime_t upper, const cdtime_t now);
 
 /* vim: set sw=2 sts=2 et : */

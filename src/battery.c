@@ -24,6 +24,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -68,20 +69,19 @@
 # define SYSFS_FACTOR 0.000001
 #endif /* KERNEL_LINUX */
 
+int battery_read_statefs (void); /* defined in battery_statefs; used by StateFS backend */
+
 static _Bool report_percent = 0;
 static _Bool report_degraded = 0;
+static _Bool query_statefs = 0;
 
 static void battery_submit2 (char const *plugin_instance, /* {{{ */
 		char const *type, char const *type_instance, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "battery", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -201,7 +201,6 @@ static void get_via_io_power_sources (double *ret_charge, /* {{{ */
 	CFTypeRef       ps_obj;
 
 	double temp_double;
-	int i;
 
 	ps_raw       = IOPSCopyPowerSourcesInfo ();
 	ps_array     = IOPSCopyPowerSourcesList (ps_raw);
@@ -209,7 +208,7 @@ static void get_via_io_power_sources (double *ret_charge, /* {{{ */
 
 	DEBUG ("ps_array_len == %i", ps_array_len);
 
-	for (i = 0; i < ps_array_len; i++)
+	for (int i = 0; i < ps_array_len; i++)
 	{
 		ps_obj  = CFArrayGetValueAtIndex (ps_array, i);
 		ps_dict = IOPSGetPowerSourceDescription (ps_raw, ps_obj);
@@ -274,7 +273,6 @@ static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
 	CFDictionaryRef bat_root_dict;
 	CFArrayRef      bat_info_arry;
 	CFIndex         bat_info_arry_len;
-	CFIndex         bat_info_arry_pos;
 	CFDictionaryRef bat_info_dict;
 
 	double temp_double;
@@ -309,7 +307,7 @@ static void get_via_generic_iokit (double *ret_capacity_full, /* {{{ */
 		}
 		bat_info_arry_len = CFArrayGetCount (bat_info_arry);
 
-		for (bat_info_arry_pos = 0;
+		for (CFIndex bat_info_arry_pos = 0;
 				bat_info_arry_pos < bat_info_arry_len;
 				bat_info_arry_pos++)
 		{
@@ -360,6 +358,9 @@ static int battery_read (void) /* {{{ */
 	gauge_t capacity_full = NAN; /* Total capacity */
 	gauge_t capacity_design = NAN; /* Full design capacity */
 
+	if (query_statefs)
+		return battery_read_statefs ();
+
 #if HAVE_IOKIT_PS_IOPOWERSOURCES_H
 	get_via_io_power_sources (&charge_rel, &current, &voltage);
 #endif
@@ -387,47 +388,17 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
 		char const *basename,
 		char *buffer, size_t buffer_size)
 {
-	int status;
-	FILE *fp;
 	char filename[PATH_MAX];
+	int status;
 
 	ssnprintf (filename, sizeof (filename), "%s/%s/%s",
 			dir, power_supply, basename);
 
-	/* No file isn't the end of the world -- not every system will be
-	 * reporting the same set of statistics */
-	if (access (filename, R_OK) != 0)
-		return ENOENT;
-
-	fp = fopen (filename, "r");
-	if (fp == NULL)
-	{
-		status = errno;
-		if (status != ENOENT)
-		{
-			char errbuf[1024];
-			WARNING ("battery plugin: fopen (%s) failed: %s", filename,
-					sstrerror (status, errbuf, sizeof (errbuf)));
-		}
+	status = (int) read_file_contents (filename, buffer, buffer_size);
+	if (status < 0)
 		return status;
-	}
-
-	if (fgets (buffer, buffer_size, fp) == NULL)
-	{
-		status = errno;
-		if (status != ENODEV)
-		{
-			char errbuf[1024];
-			WARNING ("battery plugin: fgets (%s) failed: %s", filename,
-					sstrerror (status, errbuf, sizeof (errbuf)));
-		}
-		fclose (fp);
-		return status;
-	}
 
 	strstripnewline (buffer);
-
-	fclose (fp);
 	return 0;
 } /* }}} int sysfs_file_to_buffer */
 
@@ -713,11 +684,10 @@ static int read_acpi (void) /* {{{ */
 
 static int read_pmu (void) /* {{{ */
 {
-	int i;
-
+	int i = 0;
 	/* The upper limit here is just a safeguard. If there is a system with
 	 * more than 100 batteries, this can easily be increased. */
-	for (i = 0; i < 100; i++)
+	for (; i < 100; i++)
 	{
 		FILE *fh;
 
@@ -780,6 +750,9 @@ static int battery_read (void) /* {{{ */
 {
 	int status;
 
+	if (query_statefs)
+		return battery_read_statefs ();
+
 	DEBUG ("battery plugin: Trying sysfs ...");
 	status = read_sysfs ();
 	if (status == 0)
@@ -795,16 +768,14 @@ static int battery_read (void) /* {{{ */
 	if (status == 0)
 		return (0);
 
-	ERROR ("battery plugin: Add available input methods failed.");
+	ERROR ("battery plugin: All available input methods failed.");
 	return (-1);
 } /* }}} int battery_read */
 #endif /* KERNEL_LINUX */
 
 static int battery_config (oconfig_item_t *ci)
 {
-	int i;
-
-	for (i = 0; i < ci->children_num; i++)
+	for (int i = 0; i < ci->children_num; i++)
 	{
 		oconfig_item_t *child = ci->children + i;
 
@@ -812,6 +783,8 @@ static int battery_config (oconfig_item_t *ci)
 			cf_util_get_boolean (child, &report_percent);
 		else if (strcasecmp ("ReportDegraded", child->key) == 0)
 			cf_util_get_boolean (child, &report_degraded);
+		else if (strcasecmp ("QueryStateFS", child->key) == 0)
+			cf_util_get_boolean (child, &query_statefs);
 		else
 			WARNING ("battery plugin: Ignoring unknown "
 					"configuration option \"%s\".",

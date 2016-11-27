@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -34,16 +35,12 @@
 
 #define ENTROPY_FILE "/proc/sys/kernel/random/entropy_avail"
 
-static void entropy_submit (double entropy)
+static void entropy_submit (value_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = entropy;
-
-	vl.values = values;
+	vl.values = &value;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "entropy", sizeof (vl.plugin));
 	sstrncpy (vl.type, "entropy", sizeof (vl.type));
 
@@ -52,26 +49,14 @@ static void entropy_submit (double entropy)
 
 static int entropy_read (void)
 {
-	double entropy;
-	FILE *fh;
-	char buffer[64];
-
-	fh = fopen (ENTROPY_FILE, "r");
-	if (fh == NULL)
-		return (-1);
-
-	if (fgets (buffer, sizeof (buffer), fh) == NULL)
+	value_t v;
+	if (parse_value_file (ENTROPY_FILE, &v, DS_TYPE_GAUGE) != 0)
 	{
-		fclose (fh);
+		ERROR ("entropy plugin: Reading \""ENTROPY_FILE"\" failed.");
 		return (-1);
 	}
-	fclose (fh);
 
-	entropy = atof (buffer);
-	
-	if (entropy > 0.0)
-		entropy_submit (entropy);
-
+	entropy_submit (v);
 	return (0);
 }
 

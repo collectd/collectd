@@ -27,8 +27,6 @@
 #ifndef UTILS_DB_QUERY_H
 #define UTILS_DB_QUERY_H 1
 
-#include "configfile.h"
-
 /*
  * Data types
  */

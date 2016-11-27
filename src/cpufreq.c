@@ -21,10 +21,9 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-
-#define MODULE_NAME "cpufreq"
 
 static int num_cpu = 0;
 
@@ -58,73 +57,38 @@ static int cpufreq_init (void)
 	return (0);
 } /* int cpufreq_init */
 
-static void cpufreq_submit (int cpu_num, double value)
+static void cpufreq_submit (int cpu_num, value_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
+	vl.values = &value;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "cpufreq", sizeof (vl.plugin));
 	sstrncpy (vl.type, "cpufreq", sizeof (vl.type));
-	ssnprintf (vl.type_instance, sizeof (vl.type_instance),
-			"%i", cpu_num);
+	ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%i", cpu_num);
 
 	plugin_dispatch_values (&vl);
 }
 
 static int cpufreq_read (void)
 {
-        int status;
-	unsigned long long val;
-	int i = 0;
-	FILE *fp;
-	char filename[256];
-	char buffer[16];
-
-	for (i = 0; i < num_cpu; i++)
+	for (int i = 0; i < num_cpu; i++)
 	{
-		status = ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/"
-				"scaling_cur_freq", i);
-		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
-			return (-1);
+		char filename[PATH_MAX];
+		ssnprintf (filename, sizeof (filename),
+				"/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
 
-		if ((fp = fopen (filename, "r")) == NULL)
+		value_t v;
+		if (parse_value_file (filename, &v, DS_TYPE_GAUGE) != 0)
 		{
-			char errbuf[1024];
-			WARNING ("cpufreq: fopen (%s): %s", filename,
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
+			WARNING ("cpufreq plugin: Reading \"%s\" failed.", filename);
+			continue;
 		}
 
-		if (fgets (buffer, 16, fp) == NULL)
-		{
-			char errbuf[1024];
-			WARNING ("cpufreq: fgets: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			fclose (fp);
-			return (-1);
-		}
+		/* convert kHz to Hz */
+		v.gauge *= 1000.0;
 
-		if (fclose (fp))
-		{
-			char errbuf[1024];
-			WARNING ("cpufreq: fclose: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-		}
-
-
-		/* You're seeing correctly: The file is reporting kHz values.. */
-		val = atoll (buffer) * 1000;
-
-		cpufreq_submit (i, val);
+		cpufreq_submit (i, v);
 	}
 
 	return (0);

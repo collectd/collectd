@@ -337,7 +337,6 @@ static int read_options (int argc, char **argv) /* {{{ */
 
 int main (int argc, char **argv) /* {{{ */
 {
-  int i;
   double last_time;
   int values_sent = 0;
 
@@ -383,7 +382,7 @@ int main (int argc, char **argv) /* {{{ */
 
   fprintf (stdout, "Creating %i values ... ", conf_num_values);
   fflush (stdout);
-  for (i = 0; i < conf_num_values; i++)
+  for (int i = 0; i < conf_num_values; i++)
   {
     lcc_value_list_t *vl;
 

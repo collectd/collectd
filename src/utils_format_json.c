@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_format_json.c
- * Copyright (C) 2009       Florian octo Forster
+ * Copyright (C) 2009-2015  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,16 +25,27 @@
  **/
 
 #include "collectd.h"
+
+#include "utils_format_json.h"
+
 #include "plugin.h"
 #include "common.h"
-
 #include "utils_cache.h"
-#include "utils_format_json.h"
+
+#if HAVE_LIBYAJL
+# include <yajl/yajl_common.h>
+# include <yajl/yajl_gen.h>
+# if HAVE_YAJL_YAJL_VERSION_H
+#  include <yajl/yajl_version.h>
+# endif
+# if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+#  define HAVE_YAJL_V2 1
+# endif
+#endif
 
 static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
     const char *string)
 {
-  size_t src_pos;
   size_t dst_pos;
 
   if ((buffer == NULL) || (string == NULL))
@@ -56,7 +67,7 @@ static int json_escape_string (char *buffer, size_t buffer_size, /* {{{ */
 
   /* Escape special characters */
   BUFFER_ADD ('"');
-  for (src_pos = 0; string[src_pos] != 0; src_pos++)
+  for (size_t src_pos = 0; string[src_pos] != 0; src_pos++)
   {
     if ((string[src_pos] == '"')
         || (string[src_pos] == '\\'))
@@ -81,7 +92,6 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds, const value_list_t *vl, int store_rates)
 {
   size_t offset = 0;
-  size_t i;
   gauge_t *rates = NULL;
 
   memset (buffer, 0, buffer_size);
@@ -105,7 +115,7 @@ static int values_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   BUFFER_ADD ("[");
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (i > 0)
       BUFFER_ADD (",");
@@ -160,7 +170,6 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -177,7 +186,7 @@ static int dstypes_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   BUFFER_ADD ("[");
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (i > 0)
       BUFFER_ADD (",");
@@ -197,7 +206,6 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
                 const data_set_t *ds)
 {
   size_t offset = 0;
-  size_t i;
 
   memset (buffer, 0, buffer_size);
 
@@ -214,7 +222,7 @@ static int dsnames_to_json (char *buffer, size_t buffer_size, /* {{{ */
 } while (0)
 
   BUFFER_ADD ("[");
-  for (i = 0; i < ds->ds_num; i++)
+  for (size_t i = 0; i < ds->ds_num; i++)
   {
     if (i > 0)
       BUFFER_ADD (",");
@@ -235,7 +243,6 @@ static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
 {
   size_t offset = 0;
   int status;
-  size_t i;
 
   buffer[0] = 0;
 
@@ -250,7 +257,7 @@ static int meta_data_keys_to_json (char *buffer, size_t buffer_size, /* {{{ */
     offset += ((size_t) status); \
 } while (0)
 
-  for (i = 0; i < keys_num; ++i)
+  for (size_t i = 0; i < keys_num; ++i)
   {
     int type;
     char *key = keys[i];
@@ -314,7 +321,6 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
   char **keys = NULL;
   size_t keys_num;
   int status;
-  size_t i;
 
   if ((buffer == NULL) || (buffer_size == 0) || (meta == NULL))
     return (EINVAL);
@@ -326,7 +332,7 @@ static int meta_data_to_json (char *buffer, size_t buffer_size, /* {{{ */
 
   status = meta_data_keys_to_json (buffer, buffer_size, meta, keys, keys_num);
 
-  for (i = 0; i < keys_num; ++i)
+  for (size_t i = 0; i < keys_num; ++i)
     sfree (keys[i]);
   sfree (keys);
 
@@ -497,5 +503,216 @@ int format_json_value_list (char *buffer, /* {{{ */
         ret_buffer_fill, ret_buffer_free, ds, vl,
         store_rates, (*ret_buffer_free) - 2));
 } /* }}} int format_json_value_list */
+
+#if HAVE_LIBYAJL
+static int json_add_string (yajl_gen g, char const *str) /* {{{ */
+{
+  if (str == NULL)
+    return (int) yajl_gen_null (g);
+
+  return (int) yajl_gen_string (g, (unsigned char const *) str, (unsigned int) strlen (str));
+} /* }}} int json_add_string */
+
+#define JSON_ADD(g, str) do {                        \
+  yajl_gen_status status = json_add_string (g, str); \
+  if (status != yajl_gen_status_ok) { return -1; }   \
+} while (0)
+
+#define JSON_ADDF(g, format, ...) do {               \
+  char *str = ssnprintf_alloc (format, __VA_ARGS__); \
+  yajl_gen_status status = json_add_string (g, str); \
+  free (str);                                        \
+  if (status != yajl_gen_status_ok) { return -1; }   \
+} while (0)
+
+static int format_json_meta (yajl_gen g, notification_meta_t *meta) /* {{{ */
+{
+  if (meta == NULL)
+    return 0;
+
+  JSON_ADD (g, meta->name);
+  switch (meta->type)
+  {
+    case NM_TYPE_STRING:
+      JSON_ADD (g, meta->nm_value.nm_string);
+      break;
+    case NM_TYPE_SIGNED_INT:
+      JSON_ADDF (g, "%"PRIi64, meta->nm_value.nm_signed_int);
+      break;
+    case NM_TYPE_UNSIGNED_INT:
+      JSON_ADDF (g, "%"PRIu64, meta->nm_value.nm_unsigned_int);
+      break;
+    case NM_TYPE_DOUBLE:
+      JSON_ADDF (g, JSON_GAUGE_FORMAT, meta->nm_value.nm_double);
+      break;
+    case NM_TYPE_BOOLEAN:
+      JSON_ADD (g, meta->nm_value.nm_boolean ? "true" : "false");
+      break;
+    default:
+      ERROR ("format_json_meta: unknown meta data type %d (name \"%s\")", meta->type, meta->name);
+      yajl_gen_null (g);
+  }
+
+  return format_json_meta (g, meta->next);
+} /* }}} int format_json_meta */
+
+static int format_time (yajl_gen g, cdtime_t t) /* {{{ */
+{
+  char buffer[RFC3339NANO_SIZE] = "";
+
+  if (rfc3339nano (buffer, sizeof (buffer), t) != 0)
+    return -1;
+
+  JSON_ADD (g, buffer);
+  return 0;
+} /* }}} int format_time */
+
+static int format_alert (yajl_gen g, notification_t const *n) /* {{{ */
+{
+  yajl_gen_array_open (g);
+  yajl_gen_map_open (g); /* BEGIN alert */
+
+  /*
+   * labels
+   */
+  JSON_ADD (g, "labels");
+  yajl_gen_map_open (g); /* BEGIN labels */
+
+  JSON_ADD (g, "alertname");
+  if (strncmp (n->plugin, n->type, strlen (n->plugin)) == 0)
+    JSON_ADDF (g, "collectd_%s", n->type);
+  else
+    JSON_ADDF (g, "collectd_%s_%s", n->plugin, n->type);
+
+  JSON_ADD (g, "instance");
+  JSON_ADD (g, n->host);
+
+  /* mangling of plugin instance and type instance into labels is copied from
+   * the Prometheus collectd exporter. */
+  if (strlen (n->plugin_instance) > 0)
+  {
+    JSON_ADD (g, n->plugin);
+    JSON_ADD (g, n->plugin_instance);
+  }
+  if (strlen (n->type_instance) > 0)
+  {
+    if (strlen (n->plugin_instance) > 0)
+      JSON_ADD (g, "type");
+    else
+      JSON_ADD (g, n->plugin);
+    JSON_ADD (g, n->type_instance);
+  }
+
+  JSON_ADD (g, "severity");
+  JSON_ADD (g, (n->severity == NOTIF_FAILURE) ? "FAILURE"
+                   : (n->severity == NOTIF_WARNING) ? "WARNING"
+                   : (n->severity == NOTIF_OKAY) ? "OKAY"
+                   : "UNKNOWN");
+
+  JSON_ADD (g, "service");
+  JSON_ADD (g, "collectd");
+
+  yajl_gen_map_close (g); /* END labels */
+
+  /*
+   * annotations
+   */
+  JSON_ADD (g, "annotations");
+  yajl_gen_map_open (g); /* BEGIN annotations */
+
+  JSON_ADD (g, "summary");
+  JSON_ADD (g, n->message);
+
+  if (format_json_meta (g, n->meta) != 0)
+    return -1;
+
+  yajl_gen_map_close (g); /* END annotations */
+
+  JSON_ADD (g, "startsAt");
+  format_time (g, n->time);
+
+  yajl_gen_map_close (g); /* END alert */
+  yajl_gen_array_close (g);
+
+  return 0;
+} /* }}} format_alert */
+
+/*
+ * Format (prometheus/alertmanager v1):
+ *
+ * [{
+ *   "labels": {
+ *     "alertname": "collectd_cpu",
+ *     "instance":  "host.example.com",
+ *     "severity":  "FAILURE",
+ *     "service":   "collectd",
+ *     "cpu":       "0",
+ *     "type":      "wait"
+ *   },
+ *   "annotations": {
+ *     "summary": "...",
+ *     // meta
+ *   },
+ *   "startsAt": <rfc3339 time>,
+ *   "endsAt": <rfc3339 time>, // not used
+ * }]
+ */
+int format_json_notification (char *buffer, size_t buffer_size, /* {{{ */
+                              notification_t const *n)
+{
+  yajl_gen g;
+  unsigned char const *out;
+#if HAVE_YAJL_V2
+  size_t unused_out_len;
+#else
+  unsigned int unused_out_len;
+#endif
+
+  if ((buffer == NULL) || (n == NULL))
+    return EINVAL;
+
+#if HAVE_YAJL_V2
+  g = yajl_gen_alloc (NULL);
+  if (g == NULL)
+    return -1;
+# if COLLECT_DEBUG
+  yajl_gen_config (g, yajl_gen_beautify, 1);
+  yajl_gen_config (g, yajl_gen_validate_utf8, 1);
+# endif
+
+#else /* !HAVE_YAJL_V2 */
+  yajl_gen_config conf = { 0 };
+# if COLLECT_DEBUG
+  conf.beautify = 1;
+  conf.indentString = "  ";
+# endif
+  g = yajl_gen_alloc (&conf, NULL);
+  if (g == NULL)
+    return -1;
+#endif
+
+  if (format_alert (g, n) != 0)
+  {
+    yajl_gen_clear (g);
+    yajl_gen_free (g);
+    return -1;
+  }
+
+  /* copy to output buffer */
+  yajl_gen_get_buf (g, &out, &unused_out_len);
+  sstrncpy (buffer, (void *) out, buffer_size);
+
+  yajl_gen_clear (g);
+  yajl_gen_free (g);
+  return 0;
+} /* }}} format_json_notification */
+#else
+int format_json_notification (char *buffer, size_t buffer_size, /* {{{ */
+                              notification_t const *n)
+{
+  ERROR ("format_json_notification: Not available (requires libyajl).");
+  return ENOTSUP;
+} /* }}} int format_json_notification */
+#endif
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

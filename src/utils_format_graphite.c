@@ -22,6 +22,7 @@
  **/
 
 #include "collectd.h"
+
 #include "plugin.h"
 #include "common.h"
 
@@ -82,16 +83,14 @@ static int gr_format_values (char *ret, size_t ret_len,
 }
 
 static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
-    char escape_char)
+    char escape_char, _Bool preserve_separator)
 {
-    size_t i;
-
     memset (dst, 0, dst_len);
 
     if (src == NULL)
         return;
 
-    for (i = 0; i < dst_len; i++)
+    for (size_t i = 0; i < dst_len; i++)
     {
         if (src[i] == 0)
         {
@@ -99,7 +98,7 @@ static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
             break;
         }
 
-        if ((src[i] == '.')
+        if ((!preserve_separator && (src[i] == '.'))
                 || isspace ((int) src[i])
                 || iscntrl ((int) src[i]))
             dst[i] = escape_char;
@@ -131,16 +130,18 @@ static int gr_format_name (char *ret, int ret_len,
     if (postfix == NULL)
         postfix = "";
 
+    _Bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR) ? 1 : 0;
+
     gr_copy_escape_part (n_host, vl->host,
-            sizeof (n_host), escape_char);
+            sizeof (n_host), escape_char, preserve_separator);
     gr_copy_escape_part (n_plugin, vl->plugin,
-            sizeof (n_plugin), escape_char);
+            sizeof (n_plugin), escape_char, preserve_separator);
     gr_copy_escape_part (n_plugin_instance, vl->plugin_instance,
-            sizeof (n_plugin_instance), escape_char);
+            sizeof (n_plugin_instance), escape_char, preserve_separator);
     gr_copy_escape_part (n_type, vl->type,
-            sizeof (n_type), escape_char);
+            sizeof (n_type), escape_char, preserve_separator);
     gr_copy_escape_part (n_type_instance, vl->type_instance,
-            sizeof (n_type_instance), escape_char);
+            sizeof (n_type_instance), escape_char, preserve_separator);
 
     if (n_plugin_instance[0] != '\0')
         ssnprintf (tmp_plugin, sizeof (tmp_plugin), "%s%c%s",
@@ -151,18 +152,29 @@ static int gr_format_name (char *ret, int ret_len,
         sstrncpy (tmp_plugin, n_plugin, sizeof (tmp_plugin));
 
     if (n_type_instance[0] != '\0')
-        ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
-            n_type,
-            (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-            n_type_instance);
+    {
+        if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
+            sstrncpy (tmp_type, n_type_instance, sizeof (tmp_type));
+        else
+            ssnprintf (tmp_type, sizeof (tmp_type), "%s%c%s",
+                n_type,
+                (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+                n_type_instance);
+    }
     else
         sstrncpy (tmp_type, n_type, sizeof (tmp_type));
 
     /* Assert always_append_ds -> ds_name */
     assert (!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
     if (ds_name != NULL)
-        ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
-            prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
+    {
+        if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(tmp_plugin, tmp_type) == 0)
+            ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
+                prefix, n_host, postfix, tmp_plugin, ds_name);
+        else
+            ssnprintf (ret, ret_len, "%s%s%s.%s.%s.%s",
+                prefix, n_host, postfix, tmp_plugin, tmp_type, ds_name);
+    }
     else
         ssnprintf (ret, ret_len, "%s%s%s.%s.%s",
             prefix, n_host, postfix, tmp_plugin, tmp_type);
@@ -172,11 +184,9 @@ static int gr_format_name (char *ret, int ret_len,
 
 static void escape_graphite_string (char *buffer, char escape_char)
 {
-	char *head;
-
 	assert (strchr(GRAPHITE_FORBIDDEN, escape_char) == NULL);
 
-	for (head = buffer + strcspn(buffer, GRAPHITE_FORBIDDEN);
+	for (char *head = buffer + strcspn(buffer, GRAPHITE_FORBIDDEN);
 	     *head != '\0';
 	     head += strcspn(head, GRAPHITE_FORBIDDEN))
 		*head = escape_char;
@@ -188,14 +198,13 @@ int format_graphite (char *buffer, size_t buffer_size,
     unsigned int flags)
 {
     int status = 0;
-    size_t i;
     int buffer_pos = 0;
 
     gauge_t *rates = NULL;
     if (flags & GRAPHITE_STORE_RATES)
       rates = uc_get_rate (ds, vl);
 
-    for (i = 0; i < ds->ds_num; i++)
+    for (size_t i = 0; i < ds->ds_num; i++)
     {
         char const *ds_name = NULL;
         char        key[10*DATA_MAX_NAME_LEN];
@@ -250,6 +259,7 @@ int format_graphite (char *buffer, size_t buffer_size,
         }
         memcpy((void *) (buffer + buffer_pos), message, message_len);
         buffer_pos += message_len;
+        buffer[buffer_pos] = '\0';
     }
     sfree (rates);
     return (status);

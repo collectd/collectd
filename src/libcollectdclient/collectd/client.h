@@ -29,6 +29,13 @@
 
 #include "lcc_features.h"
 
+/* COLLECTD_TRACE is the environment variable used to control trace output. When
+ * set to something non-zero, all lines sent to / received from the daemon are
+ * printed to STDOUT. */
+#ifndef LCC_TRACE_ENV
+# define LCC_TRACE_ENV "COLLECTD_TRACE"
+#endif
+
 /*
  * Includes (for data types)
  */

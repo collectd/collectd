@@ -26,6 +26,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -98,14 +99,10 @@ static int openvpn_strsplit (char *string, char **fields, size_t size)
 static void numusers_submit (const char *pinst, const char *tinst,
 		gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+	vl.values = &(value_t) { .gauge = value };
+	vl.values_len = 1;
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.type, "users", sizeof (vl.type));
 	if (pinst != NULL)
@@ -121,11 +118,11 @@ static void numusers_submit (const char *pinst, const char *tinst,
 static void iostats_submit (const char *pinst, const char *tinst,
 		derive_t rx, derive_t tx)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = rx;
-	values[1].derive = tx;
+	value_t values[] = {
+    { .derive = rx },
+    { .derive = tx },
+  };
 
 	/* NOTE ON THE NEW NAMING SCHEMA:
 	 *       using plugin_instance to identify each vpn config (and
@@ -135,7 +132,6 @@ static void iostats_submit (const char *pinst, const char *tinst,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	if (pinst != NULL)
 		sstrncpy (vl.plugin_instance, pinst,
@@ -151,15 +147,14 @@ static void iostats_submit (const char *pinst, const char *tinst,
 static void compression_submit (const char *pinst, const char *tinst,
 		derive_t uncompressed, derive_t compressed)
 {
-	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = uncompressed;
-	values[1].derive = compressed;
+	value_t values[] = {
+    { .derive = uncompressed },
+    { .derive = compressed },
+  };
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	if (pinst != NULL)
 		sstrncpy (vl.plugin_instance, pinst,
@@ -521,12 +516,15 @@ static int multi4_read (const char *name, FILE *fh)
 static int openvpn_read (void)
 {
 	FILE *fh;
-	int  i, read;
+	int  read;
 
 	read = 0;
+	
+	if (vpn_num == 0)
+		return (0);
 
 	/* call the right read function for every status entry in the list */
-	for (i = 0; i < vpn_num; i++)
+	for (int i = 0; i < vpn_num; i++)
 	{
 		int vpn_read = 0;
 
@@ -650,7 +648,7 @@ static int openvpn_config (const char *key, const char *value)
 	if (strcasecmp ("StatusFile", key) == 0)
 	{
 		char    *status_file, *status_name, *filename;
-		int     status_version, i;
+		int     status_version;
 		vpn_status_t *temp;
 
 		/* try to detect the status file format */
@@ -658,8 +656,8 @@ static int openvpn_config (const char *key, const char *value)
 
 		if (status_version == 0)
 		{
-			WARNING ("openvpn plugin: unable to detect status version, \
-					discarding status file \"%s\".", value);
+			WARNING ("openvpn plugin: unable to detect status version, "
+					"discarding status file \"%s\".", value);
 			return (1);
 		}
 
@@ -686,7 +684,7 @@ static int openvpn_config (const char *key, const char *value)
 		}
 
 		/* scan the list looking for a clone */
-		for (i = 0; i < vpn_num; i++)
+		for (int i = 0; i < vpn_num; i++)
 		{
 			if (strcasecmp (vpn_list[i]->name, status_name) == 0)
 			{
@@ -777,9 +775,7 @@ static int openvpn_config (const char *key, const char *value)
 /* shutdown callback */
 static int openvpn_shutdown (void)
 {
-	int i;
-
-	for (i = 0; i < vpn_num; i++)
+	for (int i = 0; i < vpn_num; i++)
 	{
 		sfree (vpn_list[i]->file);
 		sfree (vpn_list[i]);

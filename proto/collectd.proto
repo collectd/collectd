@@ -25,36 +25,38 @@
 syntax = "proto3";
 
 package collectd;
+option go_package = "collectd.org/rpc/proto";
 
 import "types.proto";
-import "google/protobuf/timestamp.proto";
 
 service Collectd {
-	// Dispatch collected values to collectd.
-	rpc DispatchValues(DispatchValuesRequest) returns (DispatchValuesReply);
+  // PutValues reads the value lists from the PutValuesRequest stream.
+  // The gRPC server embedded into collectd will inject them into the system
+  // just like the network plugin.
+  rpc PutValues(stream PutValuesRequest)
+      returns (PutValuesResponse);
 
-	// Query a list of values available from collectd's value cache.
-	rpc QueryValues(QueryValuesRequest) returns (QueryValuesReply);
+  // QueryValues returns a stream of matching value lists from collectd's
+  // internal cache.
+  rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
 }
 
-// The arguments to DispatchValues.
-message DispatchValuesRequest {
-	collectd.types.ValueList values = 1;
+// The arguments to PutValues.
+message PutValuesRequest {
+  // value_list is the metric to be sent to the server.
+  collectd.types.ValueList value_list = 1;
 }
 
-// The response from DispatchValues.
-message DispatchValuesReply {
-}
+// The response from PutValues.
+message PutValuesResponse {}
 
 // The arguments to QueryValues.
 message QueryValuesRequest {
-	// Query by the fields of the identifier. Only return values matching the
-	// specified shell wildcard patterns (see fnmatch(3)). Use '*' to match
-	// any value.
-	collectd.types.Identifier identifier = 1;
+  // Query by the fields of the identifier. Only return values matching the
+  // specified shell wildcard patterns (see fnmatch(3)). Use '*' to match
+  // any value.
+  collectd.types.Identifier identifier = 1;
 }
 
 // The response from QueryValues.
-message QueryValuesReply {
-	repeated collectd.types.ValueList values = 1;
-}
+message QueryValuesResponse { collectd.types.ValueList value_list = 1; }

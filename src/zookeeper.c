@@ -25,6 +25,7 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
 
@@ -65,16 +66,12 @@ static int zookeeper_config(const char *key, const char *value)
 	return 0;
 }
 
-static void zookeeper_submit_gauge (const char * type, const char * type_inst, gauge_t val)
+static void zookeeper_submit_gauge (const char * type, const char * type_inst, gauge_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zookeeper", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
@@ -83,16 +80,12 @@ static void zookeeper_submit_gauge (const char * type, const char * type_inst, g
 	plugin_dispatch_values (&vl);
 } /* zookeeper_submit_gauge */
 
-static void zookeeper_submit_derive (const char * type, const char * type_inst, derive_t val)
+static void zookeeper_submit_derive (const char * type, const char * type_inst, derive_t value)
 {
-	value_t values[1];
 	value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].derive = val;
-
-	vl.values = values;
+	vl.values = &(value_t) { .derive = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zookeeper", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_inst != NULL)
@@ -105,18 +98,18 @@ static int zookeeper_connect (void)
 {
 	int sk = -1;
 	int status;
-	struct addrinfo ai_hints;
-	struct addrinfo *ai;
 	struct addrinfo *ai_list;
 	const char *host;
 	const char *port;
 
-	memset (&ai_hints, '\0', sizeof (ai_hints));
-	ai_hints.ai_family   = AF_UNSPEC;
-	ai_hints.ai_socktype = SOCK_STREAM;
-
 	host = (zk_host != NULL) ? zk_host : ZOOKEEPER_DEF_HOST;
 	port = (zk_port != NULL) ? zk_port : ZOOKEEPER_DEF_PORT;
+
+	struct addrinfo ai_hints = {
+		.ai_family   = AF_UNSPEC,
+		.ai_socktype = SOCK_STREAM
+	};
+
 	status = getaddrinfo (host, port, &ai_hints, &ai_list);
 	if (status != 0)
 	{
@@ -128,7 +121,7 @@ static int zookeeper_connect (void)
 		return (-1);
 	}
 
-	for (ai = ai_list; ai != NULL; ai = ai->ai_next)
+	for (struct addrinfo *ai = ai_list; ai != NULL; ai = ai->ai_next)
 	{
 		sk = socket (ai->ai_family, SOCK_STREAM, 0);
 		if (sk < 0)
