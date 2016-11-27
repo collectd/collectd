@@ -8509,6 +8509,7 @@ more than one DS.
 If set to B<false> (the default) the C<.> (dot) character is replaced with
 I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
 is preserved, i.e. passed through.
+
 =item B<StoreRates> B<true>|B<false>
 
 If set to B<true> (the default), convert counter values to rates. If set to
