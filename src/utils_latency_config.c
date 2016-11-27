@@ -85,10 +85,10 @@ static int latency_config_add_bucket(latency_config_t *conf, oconfig_item_t *ci,
     return ENOMEM;
   }
   conf->buckets = tmp;
-  conf->buckets[conf->buckets_num] = (latency_bucket_t){
-      .lower_bound = DOUBLE_TO_CDTIME_T(ci->values[0].value.number),
-      .upper_bound = DOUBLE_TO_CDTIME_T(ci->values[1].value.number),
-  };
+  conf->buckets[conf->buckets_num].lower_bound =
+      DOUBLE_TO_CDTIME_T(ci->values[0].value.number);
+  conf->buckets[conf->buckets_num].upper_bound =
+      DOUBLE_TO_CDTIME_T(ci->values[1].value.number);
   conf->buckets_num++;
 
   return (0);
