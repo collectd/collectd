@@ -51,6 +51,8 @@
  * Global variables
  */
 char hostname_g[DATA_MAX_NAME_LEN];
+bios_info_t bios_info_g;
+
 cdtime_t interval_g;
 int  timeout_g;
 #if HAVE_LIBKSTAT
@@ -146,6 +148,39 @@ static int init_hostname (void)
 	return (0);
 } /* int init_hostname */
 
+static void init_bios_global_variables(void)
+{
+	const int SETTINGS_COUNT = 4;
+	dmi_setting settings[SETTINGS_COUNT];
+	char *bios_var[] = {bios_info_g.vendor, bios_info_g.version,
+			    bios_info_g.release_date, bios_info_g.revision};
+	const char *s_names[] = {"Vendor", "Version", "Release Date",
+				 "BIOS Revision"};
+	dmi_t dmi = {
+		.type = BIOS, .settings = settings, .s_len = STATIC_ARRAY_SIZE(settings)};
+	dmi_reader reader;
+	memset(&bios_info_g, 0, sizeof(bios_info_g));
+
+	for (int i = 0; i < STATIC_ARRAY_SIZE(settings); ++i) {
+		settings[i].name = s_names[i];
+		settings[i].value = bios_var[i];
+	}
+
+	dmidecode_init(&reader);
+	if (reader.get(&reader, &dmi) != STATIC_ARRAY_SIZE(settings))
+		WARNING("Failed to get all BIOS info");
+
+	for (int i = 0; i < STATIC_ARRAY_SIZE(bios_var); ++i) {
+		if (strlen(bios_var[i]) == 0)
+			strncpy(bios_var[i], DMI_SETTING_NOT_AVAILABLE,
+			        (sizeof(char) * DMI_MAX_VAL_LEN));
+
+		DEBUG("BIOS global variable: %s=%s", s_names[i], bios_var[i]);
+	}
+
+	reader.clean(&reader);
+}
+
 static int init_global_variables (void)
 {
 	char const *str;
@@ -169,6 +204,8 @@ static int init_global_variables (void)
 	if (init_hostname () != 0)
 		return (-1);
 	DEBUG ("hostname_g = %s;", hostname_g);
+
+	init_bios_global_variables();
 
 	return (0);
 } /* int init_global_variables */
