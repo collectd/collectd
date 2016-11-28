@@ -79,11 +79,18 @@ struct c_ipmi_sensor_list_s {
   ipmi_sensor_id_t sensor_id;
   char sensor_name[DATA_MAX_NAME_LEN];
   char sensor_type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
   int sensor_not_present;
   c_ipmi_sensor_list_t *next;
   c_ipmi_instance_t *instance;
   unsigned int use;
 };
+
+struct c_ipmi_db_type_map_s {
+  enum ipmi_unit_type_e type;
+  const char *type_name;
+};
+typedef struct c_ipmi_db_type_map_s c_ipmi_db_type_map_t;
 
 /*
  * Module global variables
@@ -190,7 +197,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
         if (st->notify_notpresent) {
           notification_t n = c_ipmi_notification_init(st, NOTIF_WARNING);
 
-          sstrncpy(n.type_instance, list_item->sensor_name,
+          sstrncpy(n.type_instance, list_item->type_instance,
                    sizeof(n.type_instance));
           sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
           snprintf(n.message, sizeof(n.message), "sensor %s not present",
@@ -243,7 +250,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
     if (st->notify_notpresent) {
       notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
 
-      sstrncpy(n.type_instance, list_item->sensor_name,
+      sstrncpy(n.type_instance, list_item->type_instance,
                sizeof(n.type_instance));
       sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
       snprintf(n.message, sizeof(n.message), "sensor %s present",
@@ -285,7 +292,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
     sstrncpy(vl.host, st->host, sizeof(vl.host));
   sstrncpy(vl.plugin, "ipmi", sizeof(vl.plugin));
   sstrncpy(vl.type, list_item->sensor_type, sizeof(vl.type));
-  sstrncpy(vl.type_instance, list_item->sensor_name, sizeof(vl.type_instance));
+  sstrncpy(vl.type_instance, list_item->type_instance,
+           sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 } /* void sensor_read_handler */
@@ -338,6 +346,24 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
   sstrncpy(buffer, sensor_name, buf_len);
 }
 
+static const char *sensor_unit_to_type(ipmi_sensor_t *sensor) {
+  static const c_ipmi_db_type_map_t ipmi_db_type_map[] = {
+      {IPMI_UNIT_TYPE_WATTS, "power"}, {IPMI_UNIT_TYPE_CFM, "flow"}};
+
+  /* check the modifier and rate of the sensor value */
+  if ((ipmi_sensor_get_modifier_unit_use(sensor) != IPMI_MODIFIER_UNIT_NONE) ||
+      (ipmi_sensor_get_rate_unit(sensor) != IPMI_RATE_UNIT_NONE))
+    return NULL;
+
+  /* find the db type by using sensor base unit type */
+  enum ipmi_unit_type_e ipmi_type = ipmi_sensor_get_base_unit(sensor);
+  for (int i = 0; i < STATIC_ARRAY_SIZE(ipmi_db_type_map); i++)
+    if (ipmi_db_type_map[i].type == ipmi_type)
+      return ipmi_db_type_map[i].type_name;
+
+  return NULL;
+} /* const char* sensor_unit_to_type */
+
 static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   ipmi_sensor_id_t sensor_id;
   c_ipmi_sensor_list_t *list_item;
@@ -377,10 +403,10 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
    *
    * ipmi_sensor_id_get_reading() supports only 'Threshold' sensors.
    * See lib/sensor.c:4842, stand_ipmi_sensor_get_reading() for details.
-  */
+   */
   if (!ipmi_sensor_get_is_readable(sensor)) {
     INFO("ipmi plugin: sensor_list_add: Ignore sensor `%s` of `%s`, "
-         "because it don't readable! Its type: (%#x, %s). ",
+         "because it isn't readable! Its type: (%#x, %s). ",
          sensor_name_ptr, st->name, sensor_type,
          ipmi_sensor_get_sensor_type_string(sensor));
     return -1;
@@ -413,7 +439,15 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
     type = "fanspeed";
     break;
 
+  case IPMI_SENSOR_TYPE_MEMORY:
+    type = "memory";
+    break;
+
   default: {
+    /* try to get collectd DB type based on sensor base unit type */
+    if ((type = sensor_unit_to_type(sensor)) != NULL)
+      break;
+
     INFO("ipmi plugin: sensor_list_add: Ignore sensor `%s` of `%s`, "
          "because I don't know how to handle its type (%#x, %s). "
          "If you need this sensor, please file a bug report.",
@@ -452,6 +486,18 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   else
     st->sensor_list = list_item;
 
+  /* if sensor provides the percentage value, use "percent" collectd type
+     and add the `percent` to the type instance of the reported value */
+  if (ipmi_sensor_get_percentage(sensor)) {
+    snprintf(list_item->type_instance, sizeof(list_item->type_instance),
+             "percent-%s", sensor_name_ptr);
+    type = "percent";
+  } else {
+    /* use type instance as a name of the sensor */
+    sstrncpy(list_item->type_instance, sensor_name_ptr,
+             sizeof(list_item->type_instance));
+  }
+
   sstrncpy(list_item->sensor_name, sensor_name_ptr,
            sizeof(list_item->sensor_name));
   sstrncpy(list_item->sensor_type, type, sizeof(list_item->sensor_type));
@@ -461,7 +507,8 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   if (st->notify_add && (st->init_in_progress == 0)) {
     notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
 
-    sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
+    sstrncpy(n.type_instance, list_item->type_instance,
+             sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     snprintf(n.message, sizeof(n.message), "sensor %s added",
              list_item->sensor_name);
@@ -507,7 +554,8 @@ static int sensor_list_remove(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   if (st->notify_remove && st->active) {
     notification_t n = c_ipmi_notification_init(st, NOTIF_WARNING);
 
-    sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
+    sstrncpy(n.type_instance, list_item->type_instance,
+             sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     snprintf(n.message, sizeof(n.message), "sensor %s removed",
              list_item->sensor_name);
