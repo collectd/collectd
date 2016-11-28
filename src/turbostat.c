@@ -65,6 +65,11 @@
 static _Bool aperf_mperf_unstable;
 
 /*
+ * If set, use kernel logical core numbering for all "per core" metrics.
+ */
+static _Bool config_lcn;
+
+/*
  * Bitmask of the list of core C states supported by the processor.
  * Currently supported C-states (by this plugin): 3, 6, 7
  */
@@ -225,6 +230,7 @@ static const char *config_keys[] =
 	"PackageThermalManagement",
 	"TCCActivationTemp",
 	"RunningAveragePowerLimit",
+	"LogicalCoreNames",
 };
 static const int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -551,6 +557,9 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	interval_float = CDTIME_T_TO_DOUBLE(time_delta);
 
+	DEBUG("turbostat plugin: submit stats for cpu: %d, core: %d, pkg: %d",
+		t->cpu_id, c->core_id, p->package_id);
+
 	ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
 
 	if (!aperf_mperf_unstable)
@@ -574,7 +583,10 @@ submit_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	ssnprintf(name, sizeof(name), "core%02d", c->core_id);
+	/* If not using logical core numbering, set core id */
+	if (!config_lcn) {
+		ssnprintf(name, sizeof(name), "core%02d", c->core_id);
+	}
 
 	if (do_core_cstate & (1 << 3))
 		turbostat_submit(name, "percent", "c3", 100.0 * c->c3/t->tsc);
@@ -1566,6 +1578,8 @@ turbostat_config(const char *key, const char *value)
 	} else if (strcasecmp("PackageThermalManagement", key) == 0) {
 		config_ptm = IS_TRUE(value);
 		apply_config_ptm = 1;
+	} else if (strcasecmp("LogicalCoreNames", key) == 0) {
+		config_lcn = IS_TRUE(value);
 	} else if (strcasecmp("RunningAveragePowerLimit", key) == 0) {
 		tmp_val = strtoul(value, &end, 0);
 		if (*end != '\0' || tmp_val > UINT_MAX) {
