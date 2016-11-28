@@ -7515,9 +7515,10 @@ by this plugin are:
 =item B<LogicalCoreNames> I<true>|I<false>
 
 Boolean enabling the use of logical core numbering for per core 
-statistics. This mirrors the in-kernel per core numbering. On
-multi-socket systems, the original per-cpu numbering behavior
-stomps on values on subsequent sockets.
+statistics. When enabled, cpu<n> is used as plugin instance, where n
+is a sequential number assigned by the kernel. Otherwise, core<n> is
+used where n is the n-th core of the socket, causing name conflicts
+when there is more than one socket.
 
 =over 4
 

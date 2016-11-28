@@ -1579,7 +1579,7 @@ turbostat_config(const char *key, const char *value)
 		config_ptm = IS_TRUE(value);
 		apply_config_ptm = 1;
 	} else if (strcasecmp("LogicalCoreNames", key) == 0) {
-		config_lcn = 1;
+		config_lcn = IS_TRUE(value);
 	} else if (strcasecmp("RunningAveragePowerLimit", key) == 0) {
 		tmp_val = strtoul(value, &end, 0);
 		if (*end != '\0' || tmp_val > UINT_MAX) {
