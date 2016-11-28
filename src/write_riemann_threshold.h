@@ -31,6 +31,6 @@
  * Returns zero on success and if no threshold has been configured. Returns
  * less than zero on failure. */
 int write_riemann_threshold_check(const data_set_t *ds, const value_list_t *vl,
-    int *statuses);
+                                  int *statuses);
 
 #endif /* WRITE_RIEMANN_THRESHOLD_H */

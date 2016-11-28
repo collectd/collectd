@@ -47,7 +47,7 @@ typedef int tailfunc_t(void *data, char *buf, int buflen);
  * PARAMETERS
  *   `file'       The name of the file to be tailed.
  */
-cu_tail_t *cu_tail_create (const char *file);
+cu_tail_t *cu_tail_create(const char *file);
 
 /*
  * cu_tail_destroy
@@ -57,7 +57,7 @@ cu_tail_t *cu_tail_create (const char *file);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
-int cu_tail_destroy (cu_tail_t *obj);
+int cu_tail_destroy(cu_tail_t *obj);
 
 /*
  * cu_tail_readline
@@ -73,7 +73,7 @@ int cu_tail_destroy (cu_tail_t *obj);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
-int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen);
+int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen);
 
 /*
  * cu_tail_readline
@@ -82,7 +82,7 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
-int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
-		void *data);
+int cu_tail_read(cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
+                 void *data);
 
 #endif /* UTILS_TAIL_H */

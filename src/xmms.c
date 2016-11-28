@@ -26,52 +26,49 @@
 
 #include "collectd.h"
 
-#include "plugin.h"
 #include "common.h"
+#include "plugin.h"
 
 #include <xmms/xmmsctrl.h>
 
 static gint xmms_session;
 
-static void cxmms_submit (const char *type, gauge_t value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+static void cxmms_submit(const char *type, gauge_t value) {
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+  values[0].gauge = value;
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "xmms", sizeof (vl.plugin));
-	sstrncpy (vl.type, type, sizeof (vl.type));
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.plugin, "xmms", sizeof(vl.plugin));
+  sstrncpy(vl.type, type, sizeof(vl.type));
 
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 } /* void cxmms_submit */
 
-static int cxmms_read (void)
-{
+static int cxmms_read(void) {
   gint rate;
   gint freq;
   gint nch;
 
-  if (!xmms_remote_is_running (xmms_session))
+  if (!xmms_remote_is_running(xmms_session))
     return (0);
 
-  xmms_remote_get_info (xmms_session, &rate, &freq, &nch);
+  xmms_remote_get_info(xmms_session, &rate, &freq, &nch);
 
   if ((freq == 0) || (nch == 0))
     return (-1);
 
-  cxmms_submit ("bitrate", rate);
-  cxmms_submit ("frequency", freq);
+  cxmms_submit("bitrate", rate);
+  cxmms_submit("frequency", freq);
 
   return (0);
 } /* int read */
 
-void module_register (void)
-{
-  plugin_register_read ("xmms", cxmms_read);
+void module_register(void) {
+  plugin_register_read("xmms", cxmms_read);
 } /* void module_register */
 
 /*

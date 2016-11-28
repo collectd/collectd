@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 
-int handle_putnotif (FILE *fh, char *buffer);
+int handle_putnotif(FILE *fh, char *buffer);
 
 /* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */
 

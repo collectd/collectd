@@ -28,23 +28,23 @@
 
 #include "collectd.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
 #include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #if HAVE_NETINET_IN_H
-# include <netinet/in.h>
+#include <netinet/in.h>
 #endif
 
 #if HAVE_NET_IF_H
-# include <net/if.h>
+#include <net/if.h>
 #endif
 
 #include "collectd/network.h"
@@ -53,13 +53,11 @@
 /*
  * Private data types
  */
-struct lcc_network_s
-{
+struct lcc_network_s {
   lcc_server_t *servers;
 };
 
-struct lcc_server_s
-{
+struct lcc_server_s {
   char *node;
   char *service;
 
@@ -80,7 +78,7 @@ struct lcc_server_s
 /*
  * Private functions
  */
-static int server_close_socket (lcc_server_t *srv) /* {{{ */
+static int server_close_socket(lcc_server_t *srv) /* {{{ */
 {
   if (srv == NULL)
     return (EINVAL);
@@ -88,36 +86,36 @@ static int server_close_socket (lcc_server_t *srv) /* {{{ */
   if (srv->fd < 0)
     return (0);
 
-  close (srv->fd);
+  close(srv->fd);
   srv->fd = -1;
-  free (srv->sa);
+  free(srv->sa);
   srv->sa = NULL;
   srv->sa_len = 0;
 
   return (0);
 } /* }}} int server_close_socket */
 
-static void int_server_destroy (lcc_server_t *srv) /* {{{ */
+static void int_server_destroy(lcc_server_t *srv) /* {{{ */
 {
   lcc_server_t *next;
 
   if (srv == NULL)
     return;
 
-  server_close_socket (srv);
+  server_close_socket(srv);
 
   next = srv->next;
 
-  free (srv->node);
-  free (srv->service);
-  free (srv->username);
-  free (srv->password);
-  free (srv);
+  free(srv->node);
+  free(srv->service);
+  free(srv->username);
+  free(srv->password);
+  free(srv);
 
-  int_server_destroy (next);
+  int_server_destroy(next);
 } /* }}} void int_server_destroy */
 
-static int server_open_socket (lcc_server_t *srv) /* {{{ */
+static int server_open_socket(lcc_server_t *srv) /* {{{ */
 {
   struct addrinfo *ai_list;
   int status;
@@ -126,117 +124,109 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
     return (EINVAL);
 
   if (srv->fd >= 0)
-    server_close_socket (srv);
+    server_close_socket(srv);
 
-  struct addrinfo ai_hints = {
-    .ai_family = AF_UNSPEC,
-    .ai_flags = AI_ADDRCONFIG,
-    .ai_socktype = SOCK_DGRAM
-  };
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_socktype = SOCK_DGRAM};
 
-  status = getaddrinfo (srv->node, srv->service, &ai_hints, &ai_list);
+  status = getaddrinfo(srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)
     return (status);
-  assert (ai_list != NULL);
+  assert(ai_list != NULL);
 
-  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
-  {
-    srv->fd = socket (ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
+       ai_ptr = ai_ptr->ai_next) {
+    srv->fd =
+        socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (srv->fd < 0)
       continue;
 
-    if (ai_ptr->ai_family == AF_INET)
-    {
-      struct sockaddr_in *addr = (struct sockaddr_in *) ai_ptr->ai_addr;
+    if (ai_ptr->ai_family == AF_INET) {
+      struct sockaddr_in *addr = (struct sockaddr_in *)ai_ptr->ai_addr;
       int optname;
 
-      if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
+      if (IN_MULTICAST(ntohl(addr->sin_addr.s_addr)))
         optname = IP_MULTICAST_TTL;
       else
         optname = IP_TTL;
 
-      status = setsockopt (srv->fd, IPPROTO_IP, optname,
-          &srv->ttl, sizeof (srv->ttl));
-    }
-    else if (ai_ptr->ai_family == AF_INET6)
-    {
-      /* Useful example: http://gsyc.escet.urjc.es/~eva/IPv6-web/examples/mcast.html */
-      struct sockaddr_in6 *addr = (struct sockaddr_in6 *) ai_ptr->ai_addr;
+      status =
+          setsockopt(srv->fd, IPPROTO_IP, optname, &srv->ttl, sizeof(srv->ttl));
+    } else if (ai_ptr->ai_family == AF_INET6) {
+      /* Useful example:
+       * http://gsyc.escet.urjc.es/~eva/IPv6-web/examples/mcast.html */
+      struct sockaddr_in6 *addr = (struct sockaddr_in6 *)ai_ptr->ai_addr;
       int optname;
 
-      if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
+      if (IN6_IS_ADDR_MULTICAST(&addr->sin6_addr))
         optname = IPV6_MULTICAST_HOPS;
       else
         optname = IPV6_UNICAST_HOPS;
 
-      status = setsockopt (srv->fd, IPPROTO_IPV6, optname,
-          &srv->ttl, sizeof (srv->ttl));
+      status = setsockopt(srv->fd, IPPROTO_IPV6, optname, &srv->ttl,
+                          sizeof(srv->ttl));
     }
-    if (status != 0)
-    {
+    if (status != 0) {
       /* setsockopt failed. */
-      close (srv->fd);
+      close(srv->fd);
       srv->fd = -1;
       continue;
     }
 
-    srv->sa = malloc (ai_ptr->ai_addrlen);
-    if (srv->sa == NULL)
-    {
-      close (srv->fd);
+    srv->sa = malloc(ai_ptr->ai_addrlen);
+    if (srv->sa == NULL) {
+      close(srv->fd);
       srv->fd = -1;
       continue;
     }
 
-    memcpy (srv->sa, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+    memcpy(srv->sa, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     srv->sa_len = ai_ptr->ai_addrlen;
     break;
   }
 
-  freeaddrinfo (ai_list);
+  freeaddrinfo(ai_list);
 
   if (srv->fd < 0)
     return (-1);
   return (0);
 } /* }}} int server_open_socket */
 
-static int server_send_buffer (lcc_server_t *srv) /* {{{ */
+static int server_send_buffer(lcc_server_t *srv) /* {{{ */
 {
-  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT] = { 0 };
+  char buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT] = {0};
   size_t buffer_size;
   int status;
 
-  if (srv->fd < 0)
-  {
-    status = server_open_socket (srv);
+  if (srv->fd < 0) {
+    status = server_open_socket(srv);
     if (status != 0)
       return (status);
   }
 
-  buffer_size = sizeof (buffer);
+  buffer_size = sizeof(buffer);
 
-  status = lcc_network_buffer_finalize (srv->buffer);
-  if (status != 0)
-  {
-    lcc_network_buffer_initialize (srv->buffer);
+  status = lcc_network_buffer_finalize(srv->buffer);
+  if (status != 0) {
+    lcc_network_buffer_initialize(srv->buffer);
     return (status);
   }
 
-  status = lcc_network_buffer_get (srv->buffer, buffer, &buffer_size);
-  lcc_network_buffer_initialize (srv->buffer);
+  status = lcc_network_buffer_get(srv->buffer, buffer, &buffer_size);
+  lcc_network_buffer_initialize(srv->buffer);
 
   if (status != 0)
     return (status);
 
-  if (buffer_size > sizeof (buffer))
-    buffer_size = sizeof (buffer);
+  if (buffer_size > sizeof(buffer))
+    buffer_size = sizeof(buffer);
 
-  while (42)
-  {
-    assert (srv->fd >= 0);
-    assert (srv->sa != NULL);
-    status = (int) sendto (srv->fd, buffer, buffer_size, /* flags = */ 0,
-        srv->sa, srv->sa_len);
+  while (42) {
+    assert(srv->fd >= 0);
+    assert(srv->sa != NULL);
+    status = (int)sendto(srv->fd, buffer, buffer_size, /* flags = */ 0, srv->sa,
+                         srv->sa_len);
     if ((status < 0) && ((errno == EINTR) || (errno == EAGAIN)))
       continue;
 
@@ -248,27 +238,26 @@ static int server_send_buffer (lcc_server_t *srv) /* {{{ */
   return (0);
 } /* }}} int server_send_buffer */
 
-static int server_value_add (lcc_server_t *srv, /* {{{ */
-    const lcc_value_list_t *vl)
-{
+static int server_value_add(lcc_server_t *srv, /* {{{ */
+                            const lcc_value_list_t *vl) {
   int status;
 
-  status = lcc_network_buffer_add_value (srv->buffer, vl);
+  status = lcc_network_buffer_add_value(srv->buffer, vl);
   if (status == 0)
     return (0);
 
-  server_send_buffer (srv);
-  return (lcc_network_buffer_add_value (srv->buffer, vl));
+  server_send_buffer(srv);
+  return (lcc_network_buffer_add_value(srv->buffer, vl));
 } /* }}} int server_value_add */
 
 /*
  * Public functions
  */
-lcc_network_t *lcc_network_create (void) /* {{{ */
+lcc_network_t *lcc_network_create(void) /* {{{ */
 {
   lcc_network_t *net;
 
-  net = calloc (1, sizeof (*net));
+  net = calloc(1, sizeof(*net));
   if (net == NULL)
     return (NULL);
 
@@ -277,17 +266,16 @@ lcc_network_t *lcc_network_create (void) /* {{{ */
   return (net);
 } /* }}} lcc_network_t *lcc_network_create */
 
-void lcc_network_destroy (lcc_network_t *net) /* {{{ */
+void lcc_network_destroy(lcc_network_t *net) /* {{{ */
 {
   if (net == NULL)
     return;
-  int_server_destroy (net->servers);
-  free (net);
+  int_server_destroy(net->servers);
+  free(net);
 } /* }}} void lcc_network_destroy */
 
-lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
-    const char *node, const char *service)
-{
+lcc_server_t *lcc_server_create(lcc_network_t *net, /* {{{ */
+                                const char *node, const char *service) {
   lcc_server_t *srv;
 
   if ((net == NULL) || (node == NULL))
@@ -295,7 +283,7 @@ lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
   if (service == NULL)
     service = NET_DEFAULT_PORT;
 
-  srv = calloc (1, sizeof (*srv));
+  srv = calloc(1, sizeof(*srv));
   if (srv == NULL)
     return (NULL);
 
@@ -305,36 +293,30 @@ lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
   srv->password = NULL;
   srv->next = NULL;
 
-  srv->node = strdup (node);
-  if (srv->node == NULL)
-  {
-    free (srv);
+  srv->node = strdup(node);
+  if (srv->node == NULL) {
+    free(srv);
     return (NULL);
   }
 
-  srv->service = strdup (service);
-  if (srv->service == NULL)
-  {
-    free (srv->node);
-    free (srv);
+  srv->service = strdup(service);
+  if (srv->service == NULL) {
+    free(srv->node);
+    free(srv);
     return (NULL);
   }
 
-  srv->buffer = lcc_network_buffer_create (/* size = */ 0);
-  if (srv->buffer == NULL)
-  {
-    free (srv->service);
-    free (srv->node);
-    free (srv);
+  srv->buffer = lcc_network_buffer_create(/* size = */ 0);
+  if (srv->buffer == NULL) {
+    free(srv->service);
+    free(srv->node);
+    free(srv);
     return (NULL);
   }
 
-  if (net->servers == NULL)
-  {
+  if (net->servers == NULL) {
     net->servers = srv;
-  }
-  else
-  {
+  } else {
     lcc_server_t *last = net->servers;
 
     while (last->next != NULL)
@@ -346,18 +328,15 @@ lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
   return (srv);
 } /* }}} lcc_server_t *lcc_server_create */
 
-int lcc_server_destroy (lcc_network_t *net, lcc_server_t *srv) /* {{{ */
+int lcc_server_destroy(lcc_network_t *net, lcc_server_t *srv) /* {{{ */
 {
   if ((net == NULL) || (srv == NULL))
     return (EINVAL);
 
-  if (net->servers == srv)
-  {
+  if (net->servers == srv) {
     net->servers = srv->next;
     srv->next = NULL;
-  }
-  else
-  {
+  } else {
     lcc_server_t *prev = net->servers;
 
     while ((prev != NULL) && (prev->next != srv))
@@ -370,22 +349,22 @@ int lcc_server_destroy (lcc_network_t *net, lcc_server_t *srv) /* {{{ */
     srv->next = NULL;
   }
 
-  int_server_destroy (srv);
+  int_server_destroy(srv);
 
   return (0);
 } /* }}} int lcc_server_destroy */
 
-int lcc_server_set_ttl (lcc_server_t *srv, uint8_t ttl) /* {{{ */
+int lcc_server_set_ttl(lcc_server_t *srv, uint8_t ttl) /* {{{ */
 {
   if (srv == NULL)
     return (EINVAL);
 
-  srv->ttl = (int) ttl;
+  srv->ttl = (int)ttl;
 
   return (0);
 } /* }}} int lcc_server_set_ttl */
 
-int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ */
+int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
 {
   unsigned int if_index;
   int status;
@@ -393,37 +372,31 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
   if ((srv == NULL) || (interface == NULL))
     return (EINVAL);
 
-  if_index = if_nametoindex (interface);
+  if_index = if_nametoindex(interface);
   if (if_index == 0)
     return (ENOENT);
 
   /* IPv4 multicast */
-  if (srv->sa->sa_family == AF_INET)
-  {
-    struct sockaddr_in *addr = (struct sockaddr_in *) srv->sa;
+  if (srv->sa->sa_family == AF_INET) {
+    struct sockaddr_in *addr = (struct sockaddr_in *)srv->sa;
 
-    if (IN_MULTICAST (ntohl (addr->sin_addr.s_addr)))
-    {
+    if (IN_MULTICAST(ntohl(addr->sin_addr.s_addr))) {
 #if HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
       /* If possible, use the "ip_mreqn" structure which has
        * an "interface index" member. Using the interface
        * index is preferred here, because of its similarity
        * to the way IPv6 handles this. Unfortunately, it
        * appears not to be portable. */
-      struct ip_mreqn mreq = {
-        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
-        .imr_address.s_addr = ntohl (INADDR_ANY),
-        .imr_ifindex = (int) if_index
-      };
+      struct ip_mreqn mreq = {.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+                              .imr_address.s_addr = ntohl(INADDR_ANY),
+                              .imr_ifindex = (int)if_index};
 #else
-      struct ip_mreq mreq = {
-        .imr_multiaddr.s_addr = addr->sin_addr.s_addr,
-        .imr_interface.s_addr = ntohl (INADDR_ANY)
-      };
+      struct ip_mreq mreq = {.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
+                             .imr_interface.s_addr = ntohl(INADDR_ANY)};
 #endif
 
-      status = setsockopt (srv->fd, IPPROTO_IP, IP_MULTICAST_IF,
-          &mreq, sizeof (mreq));
+      status =
+          setsockopt(srv->fd, IPPROTO_IP, IP_MULTICAST_IF, &mreq, sizeof(mreq));
       if (status != 0)
         return (status);
 
@@ -432,14 +405,12 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
   }
 
   /* IPv6 multicast */
-  if (srv->sa->sa_family == AF_INET6)
-  {
-    struct sockaddr_in6 *addr = (struct sockaddr_in6 *) srv->sa;
+  if (srv->sa->sa_family == AF_INET6) {
+    struct sockaddr_in6 *addr = (struct sockaddr_in6 *)srv->sa;
 
-    if (IN6_IS_ADDR_MULTICAST (&addr->sin6_addr))
-    {
-      status = setsockopt (srv->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-          &if_index, sizeof (if_index));
+    if (IN6_IS_ADDR_MULTICAST(&addr->sin6_addr)) {
+      status = setsockopt(srv->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &if_index,
+                          sizeof(if_index));
       if (status != 0)
         return (status);
 
@@ -447,10 +418,10 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
     }
   }
 
-  /* else: Not a multicast interface. */
+/* else: Not a multicast interface. */
 #if defined(SO_BINDTODEVICE)
-  status = setsockopt (srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
-      (socklen_t) (strlen (interface) + 1));
+  status = setsockopt(srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
+                      (socklen_t)(strlen(interface) + 1));
   if (status != 0)
     return (-1);
 #endif
@@ -458,22 +429,20 @@ int lcc_server_set_interface (lcc_server_t *srv, char const *interface) /* {{{ *
   return (0);
 } /* }}} int lcc_server_set_interface */
 
-int lcc_server_set_security_level (lcc_server_t *srv, /* {{{ */
-    lcc_security_level_t level,
-    const char *username, const char *password)
-{
-  return (lcc_network_buffer_set_security_level (srv->buffer,
-        level, username, password));
+int lcc_server_set_security_level(lcc_server_t *srv, /* {{{ */
+                                  lcc_security_level_t level,
+                                  const char *username, const char *password) {
+  return (lcc_network_buffer_set_security_level(srv->buffer, level, username,
+                                                password));
 } /* }}} int lcc_server_set_security_level */
 
-int lcc_network_values_send (lcc_network_t *net, /* {{{ */
-    const lcc_value_list_t *vl)
-{
+int lcc_network_values_send(lcc_network_t *net, /* {{{ */
+                            const lcc_value_list_t *vl) {
   if ((net == NULL) || (vl == NULL))
     return (EINVAL);
 
   for (lcc_server_t *srv = net->servers; srv != NULL; srv = srv->next)
-    server_value_add (srv, vl);
+    server_value_add(srv, vl);
 
   return (0);
 } /* }}} int lcc_network_values_send */

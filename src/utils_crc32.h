@@ -27,6 +27,6 @@
 #ifndef UTILS_CRC32_H
 #define UTILS_CRC32_H 1
 
-uint32_t               crc32_buffer(const unsigned char *, size_t);
+uint32_t crc32_buffer(const unsigned char *, size_t);
 
 #endif

@@ -48,7 +48,7 @@ typedef struct c_heap_s c_heap_t;
  * RETURN VALUE
  *   A c_heap_t-pointer upon success or NULL upon failure.
  */
-c_heap_t *c_heap_create (int (*compare) (const void *, const void *));
+c_heap_t *c_heap_create(int (*compare)(const void *, const void *));
 
 /*
  * NAME
@@ -58,7 +58,7 @@ c_heap_t *c_heap_create (int (*compare) (const void *, const void *));
  *   Deallocates a heap. Stored value- and key-pointer are lost, but of course
  *   not freed.
  */
-void c_heap_destroy (c_heap_t *h);
+void c_heap_destroy(c_heap_t *h);
 
 /*
  * NAME
@@ -78,7 +78,7 @@ void c_heap_destroy (c_heap_t *h);
  *   Zero upon success, non-zero otherwise. It's less than zero if an error
  *   occurred or greater than zero if the key is already stored in the tree.
  */
-int c_heap_insert (c_heap_t *h, void *ptr);
+int c_heap_insert(c_heap_t *h, void *ptr);
 
 /*
  * NAME
@@ -94,7 +94,7 @@ int c_heap_insert (c_heap_t *h, void *ptr);
  *   The pointer passed to `c_heap_insert' or NULL if there are no more
  *   elements in the heap (or an error occurred).
  */
-void *c_heap_get_root (c_heap_t *h);
+void *c_heap_get_root(c_heap_t *h);
 
 #endif /* UTILS_HEAP_H */
 /* vim: set sw=2 sts=2 et : */

@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 
-int handle_getval (FILE *fh, char *buffer);
+int handle_getval(FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_GETVAL_H */
 

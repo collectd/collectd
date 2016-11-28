@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 
-int handle_listval (FILE *fh, char *buffer);
+int handle_listval(FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_LISTVAL_H */
 

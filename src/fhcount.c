@@ -22,16 +22,11 @@
 #include "common.h"
 #include "plugin.h"
 
-
-static const char *config_keys[] = {
-  "ValuesAbsolute",
-  "ValuesPercentage"
-};
+static const char *config_keys[] = {"ValuesAbsolute", "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static _Bool values_absolute = 1;
 static _Bool values_percentage = 0;
-
 
 static int fhcount_config(const char *key, const char *value) {
   int ret = -1;
@@ -54,12 +49,11 @@ static int fhcount_config(const char *key, const char *value) {
     ret = 0;
   }
 
-  return(ret);
+  return (ret);
 }
 
-
-static void fhcount_submit(
-    const char *type, const char *type_instance, gauge_t value) {
+static void fhcount_submit(const char *type, const char *type_instance,
+                           gauge_t value) {
 
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
@@ -79,7 +73,6 @@ static void fhcount_submit(
   plugin_dispatch_values(&vl);
 }
 
-
 static int fhcount_read(void) {
   int numfields = 0;
   int buffer_len = 60;
@@ -91,15 +84,15 @@ static int fhcount_read(void) {
   FILE *fp;
 
   // Open file
-  fp = fopen("/proc/sys/fs/file-nr" , "r");
+  fp = fopen("/proc/sys/fs/file-nr", "r");
   if (fp == NULL) {
     ERROR("fhcount: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return(EXIT_FAILURE);
+    return (EXIT_FAILURE);
   }
   if (fgets(buffer, buffer_len, fp) == NULL) {
     ERROR("fhcount: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     fclose(fp);
-    return(EXIT_FAILURE);
+    return (EXIT_FAILURE);
   }
   fclose(fp);
 
@@ -108,33 +101,32 @@ static int fhcount_read(void) {
 
   if (numfields != 3) {
     ERROR("fhcount: Line doesn't contain 3 fields");
-    return(EXIT_FAILURE);
+    return (EXIT_FAILURE);
   }
 
   // Define the values
   strtogauge(fields[0], &used);
   strtogauge(fields[1], &unused);
   strtogauge(fields[2], &max);
-  prc_used = (gauge_t) used/max*100;
-  prc_unused = (gauge_t) unused/max*100;
+  prc_used = (gauge_t)used / max * 100;
+  prc_unused = (gauge_t)unused / max * 100;
 
   // Submit values
   if (values_absolute) {
-    fhcount_submit("file_handles", "used", (gauge_t) used);
-    fhcount_submit("file_handles", "unused", (gauge_t) unused);
-    fhcount_submit("file_handles", "max", (gauge_t) max);
+    fhcount_submit("file_handles", "used", (gauge_t)used);
+    fhcount_submit("file_handles", "unused", (gauge_t)unused);
+    fhcount_submit("file_handles", "max", (gauge_t)max);
   }
   if (values_percentage) {
-    fhcount_submit("percent", "used", (gauge_t) prc_used);
-    fhcount_submit("percent", "unused", (gauge_t) prc_unused);
+    fhcount_submit("percent", "used", (gauge_t)prc_used);
+    fhcount_submit("percent", "unused", (gauge_t)prc_unused);
   }
 
-  return(0);
+  return (0);
 }
 
-
 void module_register(void) {
-  plugin_register_config(
-    "fhcount", fhcount_config, config_keys, config_keys_num);
+  plugin_register_config("fhcount", fhcount_config, config_keys,
+                         config_keys_num);
   plugin_register_read("fhcount", fhcount_read);
 }

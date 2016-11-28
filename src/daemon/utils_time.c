@@ -26,64 +26,60 @@
 
 #include "collectd.h"
 
-#include "utils_time.h"
-#include "plugin.h"
 #include "common.h"
+#include "plugin.h"
+#include "utils_time.h"
 
 #ifndef DEFAULT_MOCK_TIME
-# define DEFAULT_MOCK_TIME 1542455354518929408ULL
+#define DEFAULT_MOCK_TIME 1542455354518929408ULL
 #endif
 
 #ifdef MOCK_TIME
-cdtime_t cdtime_mock = (cdtime_t) MOCK_TIME;
+cdtime_t cdtime_mock = (cdtime_t)MOCK_TIME;
 
-cdtime_t cdtime (void)
-{
-  return cdtime_mock;
-}
+cdtime_t cdtime(void) { return cdtime_mock; }
 #else /* !MOCK_TIME */
-# if HAVE_CLOCK_GETTIME
-cdtime_t cdtime (void) /* {{{ */
+#if HAVE_CLOCK_GETTIME
+cdtime_t cdtime(void) /* {{{ */
 {
   int status;
-  struct timespec ts = { 0, 0 };
+  struct timespec ts = {0, 0};
 
-  status = clock_gettime (CLOCK_REALTIME, &ts);
-  if (status != 0)
-  {
+  status = clock_gettime(CLOCK_REALTIME, &ts);
+  if (status != 0) {
     char errbuf[1024];
-    ERROR ("cdtime: clock_gettime failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("cdtime: clock_gettime failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (0);
   }
 
-  return (TIMESPEC_TO_CDTIME_T (&ts));
+  return (TIMESPEC_TO_CDTIME_T(&ts));
 } /* }}} cdtime_t cdtime */
-# else /* !HAVE_CLOCK_GETTIME */
+#else /* !HAVE_CLOCK_GETTIME */
 /* Work around for Mac OS X which doesn't have clock_gettime(2). *sigh* */
-cdtime_t cdtime (void) /* {{{ */
+cdtime_t cdtime(void) /* {{{ */
 {
   int status;
-  struct timeval tv = { 0, 0 };
+  struct timeval tv = {0, 0};
 
-  status = gettimeofday (&tv, /* struct timezone = */ NULL);
-  if (status != 0)
-  {
+  status = gettimeofday(&tv, /* struct timezone = */ NULL);
+  if (status != 0) {
     char errbuf[1024];
-    ERROR ("cdtime: gettimeofday failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("cdtime: gettimeofday failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (0);
   }
 
-  return (TIMEVAL_TO_CDTIME_T (&tv));
+  return (TIMEVAL_TO_CDTIME_T(&tv));
 } /* }}} cdtime_t cdtime */
-# endif
+#endif
 #endif
 
 /* format_zone reads time zone information from "extern long timezone", exported
  * by <time.h>, and formats it according to RFC 3339. This differs from
  * strftime()'s "%z" format by including a colon between hour and minute. */
-static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /* {{{ */
+static int format_zone(char *buffer, size_t buffer_size,
+                       struct tm const *tm) /* {{{ */
 {
   char tmp[7];
   size_t sz;
@@ -91,13 +87,12 @@ static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /
   if ((buffer == NULL) || (buffer_size < 7))
     return EINVAL;
 
-  sz = strftime (tmp, sizeof (tmp), "%z", tm);
+  sz = strftime(tmp, sizeof(tmp), "%z", tm);
   if (sz == 0)
     return ENOMEM;
-  if (sz != 5)
-  {
-    DEBUG ("format_zone: strftime(\"%%z\") = \"%s\", want \"+hhmm\"", tmp);
-    sstrncpy (buffer, tmp, buffer_size);
+  if (sz != 5) {
+    DEBUG("format_zone: strftime(\"%%z\") = \"%s\", want \"+hhmm\"", tmp);
+    sstrncpy(buffer, tmp, buffer_size);
     return 0;
   }
 
@@ -112,7 +107,8 @@ static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /
   return 0;
 } /* }}} int format_zone */
 
-static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
+static int format_rfc3339(char *buffer, size_t buffer_size, cdtime_t t,
+                          _Bool print_nano) /* {{{ */
 {
   struct timespec t_spec;
   struct tm t_tm;
@@ -123,49 +119,49 @@ static int format_rfc3339 (char *buffer, size_t buffer_size, cdtime_t t, _Bool p
   size_t len;
   int status;
 
-  CDTIME_T_TO_TIMESPEC (t, &t_spec);
-  NORMALIZE_TIMESPEC (t_spec);
+  CDTIME_T_TO_TIMESPEC(t, &t_spec);
+  NORMALIZE_TIMESPEC(t_spec);
 
-  if (localtime_r (&t_spec.tv_sec, &t_tm) == NULL) {
+  if (localtime_r(&t_spec.tv_sec, &t_tm) == NULL) {
     char errbuf[1024];
     status = errno;
-    ERROR ("format_rfc3339: localtime_r failed: %s",
-        sstrerror (status, errbuf, sizeof (errbuf)));
+    ERROR("format_rfc3339: localtime_r failed: %s",
+          sstrerror(status, errbuf, sizeof(errbuf)));
     return (status);
   }
 
-  len = strftime (base, sizeof (base), "%Y-%m-%dT%H:%M:%S", &t_tm);
+  len = strftime(base, sizeof(base), "%Y-%m-%dT%H:%M:%S", &t_tm);
   if (len == 0)
     return ENOMEM;
 
   if (print_nano)
-    ssnprintf (nano, sizeof (nano), ".%09ld", (long) t_spec.tv_nsec);
+    ssnprintf(nano, sizeof(nano), ".%09ld", (long)t_spec.tv_nsec);
   else
-    sstrncpy (nano, "", sizeof (nano));
+    sstrncpy(nano, "", sizeof(nano));
 
-  status = format_zone (zone, sizeof (zone), &t_tm);
+  status = format_zone(zone, sizeof(zone), &t_tm);
   if (status != 0)
     return status;
 
-  if (strjoin (buffer, buffer_size, fields, STATIC_ARRAY_SIZE (fields), "") < 0)
+  if (strjoin(buffer, buffer_size, fields, STATIC_ARRAY_SIZE(fields), "") < 0)
     return ENOMEM;
   return 0;
 } /* }}} int format_rfc3339 */
 
-int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+int rfc3339(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
   if (buffer_size < RFC3339_SIZE)
     return ENOMEM;
 
-  return format_rfc3339 (buffer, buffer_size, t, 0);
+  return format_rfc3339(buffer, buffer_size, t, 0);
 } /* }}} size_t cdtime_to_rfc3339 */
 
-int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+int rfc3339nano(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
   if (buffer_size < RFC3339NANO_SIZE)
     return ENOMEM;
 
-  return format_rfc3339 (buffer, buffer_size, t, 1);
+  return format_rfc3339(buffer, buffer_size, t, 1);
 } /* }}} size_t cdtime_to_rfc3339nano */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
