@@ -1414,12 +1414,9 @@
 #      CollectFetch false
 #      CollectHCB false
 #      CollectObjects false
-#      CollectPurge false         # Varnish 2 only
 #      CollectSession false
 #      CollectSHM true
-#      CollectSMA false           # Varnish 2 only
 #      CollectSMS false
-#      CollectSM false            # Varnish 2 only
 #      CollectStruct false
 #      CollectTotals false
 #      CollectUptime false        # Varnish 3 and above
