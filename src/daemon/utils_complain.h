@@ -31,24 +31,25 @@
 
 #include "utils_time.h"
 
-typedef struct
-{
-	/* time of the last report */
-	cdtime_t last;
+typedef struct {
+  /* time of the last report */
+  cdtime_t last;
 
-	/* How long to wait until reporting again.
-	 * 0 indicates that the complaint is no longer valid. */
-	cdtime_t interval;
+  /* How long to wait until reporting again.
+   * 0 indicates that the complaint is no longer valid. */
+  cdtime_t interval;
 
-	_Bool complained_once;
+  _Bool complained_once;
 } c_complain_t;
 
-#define C_COMPLAIN_INIT_STATIC { 0, 0, 0 }
-#define C_COMPLAIN_INIT(c) do { \
-	(c)->last = 0; \
-	(c)->interval = 0; \
-	(c)->complained_once = 0; \
-} while (0)
+#define C_COMPLAIN_INIT_STATIC                                                 \
+  { 0, 0, 0 }
+#define C_COMPLAIN_INIT(c)                                                     \
+  do {                                                                         \
+    (c)->last = 0;                                                             \
+    (c)->interval = 0;                                                         \
+    (c)->complained_once = 0;                                                  \
+  } while (0)
 
 /*
  * NAME
@@ -66,8 +67,8 @@ typedef struct
  *   `c'      Identifier for the complaint.
  *   `format' Message format - see the documentation of printf(3).
  */
-__attribute__ ((format(printf,3,4)))
-void c_complain (int level, c_complain_t *c, const char *format, ...);
+__attribute__((format(printf, 3, 4))) void
+c_complain(int level, c_complain_t *c, const char *format, ...);
 
 /*
  * NAME
@@ -81,8 +82,8 @@ void c_complain (int level, c_complain_t *c, const char *format, ...);
  *
  *   See `c_complain' for further details and a description of the parameters.
  */
-__attribute__ ((format(printf,3,4)))
-void c_complain_once (int level, c_complain_t *c, const char *format, ...);
+__attribute__((format(printf, 3, 4))) void
+c_complain_once(int level, c_complain_t *c, const char *format, ...);
 
 /*
  * NAME
@@ -103,15 +104,14 @@ void c_complain_once (int level, c_complain_t *c, const char *format, ...);
  *
  *   See `c_complain' for a description of the parameters.
  */
-__attribute__ ((format(printf,3,4)))
-void c_do_release (int level, c_complain_t *c, const char *format, ...);
-#define c_release(level, c, ...) \
-	do { \
-		if (c_would_release (c)) \
-			c_do_release(level, c, __VA_ARGS__); \
-	} while (0)
+__attribute__((format(printf, 3, 4))) void
+c_do_release(int level, c_complain_t *c, const char *format, ...);
+#define c_release(level, c, ...)                                               \
+  do {                                                                         \
+    if (c_would_release(c))                                                    \
+      c_do_release(level, c, __VA_ARGS__);                                     \
+  } while (0)
 
 #endif /* UTILS_COMPLAIN_H */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-

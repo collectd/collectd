@@ -27,13 +27,12 @@
 #ifndef UTILS_THRESHOLD_H
 #define UTILS_THRESHOLD_H 1
 
-#define UT_FLAG_INVERT  0x01
+#define UT_FLAG_INVERT 0x01
 #define UT_FLAG_PERSIST 0x02
 #define UT_FLAG_PERCENTAGE 0x04
 #define UT_FLAG_INTERESTING 0x08
 #define UT_FLAG_PERSIST_OK 0x10
-typedef struct threshold_s
-{
+typedef struct threshold_s {
   char host[DATA_MAX_NAME_LEN];
   char plugin[DATA_MAX_NAME_LEN];
   char plugin_instance[DATA_MAX_NAME_LEN];
@@ -50,17 +49,16 @@ typedef struct threshold_s
   struct threshold_s *next;
 } threshold_t;
 
-extern c_avl_tree_t   *threshold_tree;
+extern c_avl_tree_t *threshold_tree;
 extern pthread_mutex_t threshold_lock;
 
-threshold_t *threshold_get (const char *hostname,
-    const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance);
+threshold_t *threshold_get(const char *hostname, const char *plugin,
+                           const char *plugin_instance, const char *type,
+                           const char *type_instance);
 
-threshold_t *threshold_search (const value_list_t *vl);
+threshold_t *threshold_search(const value_list_t *vl);
 
-int ut_search_threshold (const value_list_t *vl,
-  threshold_t *ret_threshold);
+int ut_search_threshold(const value_list_t *vl, threshold_t *ret_threshold);
 
 #endif /* UTILS_THRESHOLD_H */
 

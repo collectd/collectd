@@ -26,74 +26,69 @@
 
 #include "collectd.h"
 
-#include "utils_time.h"
-#include "plugin.h"
 #include "common.h"
+#include "plugin.h"
+#include "utils_time.h"
 
 #ifndef DEFAULT_MOCK_TIME
-# define DEFAULT_MOCK_TIME 1542455354518929408ULL
+#define DEFAULT_MOCK_TIME 1542455354518929408ULL
 #endif
 
 #ifdef MOCK_TIME
-cdtime_t cdtime_mock = (cdtime_t) MOCK_TIME;
+cdtime_t cdtime_mock = (cdtime_t)MOCK_TIME;
 
-cdtime_t cdtime (void)
-{
-  return cdtime_mock;
-}
+cdtime_t cdtime(void) { return cdtime_mock; }
 #else /* !MOCK_TIME */
-# if HAVE_CLOCK_GETTIME
-cdtime_t cdtime (void) /* {{{ */
+#if HAVE_CLOCK_GETTIME
+cdtime_t cdtime(void) /* {{{ */
 {
   int status;
-  struct timespec ts = { 0, 0 };
+  struct timespec ts = {0, 0};
 
-  status = clock_gettime (CLOCK_REALTIME, &ts);
-  if (status != 0)
-  {
+  status = clock_gettime(CLOCK_REALTIME, &ts);
+  if (status != 0) {
     char errbuf[1024];
-    ERROR ("cdtime: clock_gettime failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("cdtime: clock_gettime failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return 0;
   }
 
-  return TIMESPEC_TO_CDTIME_T (&ts);
+  return TIMESPEC_TO_CDTIME_T(&ts);
 } /* }}} cdtime_t cdtime */
-# else /* !HAVE_CLOCK_GETTIME */
+#else /* !HAVE_CLOCK_GETTIME */
 /* Work around for Mac OS X which doesn't have clock_gettime(2). *sigh* */
-cdtime_t cdtime (void) /* {{{ */
+cdtime_t cdtime(void) /* {{{ */
 {
   int status;
-  struct timeval tv = { 0, 0 };
+  struct timeval tv = {0, 0};
 
-  status = gettimeofday (&tv, /* struct timezone = */ NULL);
-  if (status != 0)
-  {
+  status = gettimeofday(&tv, /* struct timezone = */ NULL);
+  if (status != 0) {
     char errbuf[1024];
-    ERROR ("cdtime: gettimeofday failed: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("cdtime: gettimeofday failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return 0;
   }
 
-  return TIMEVAL_TO_CDTIME_T (&tv);
+  return TIMEVAL_TO_CDTIME_T(&tv);
 } /* }}} cdtime_t cdtime */
-# endif
+#endif
 #endif
 
 /**********************************************************************
  Time retrieval functions
 ***********************************************************************/
 
-static int get_utc_time (cdtime_t t, struct tm *t_tm, long *nsec) /* {{{ */
+static int get_utc_time(cdtime_t t, struct tm *t_tm, long *nsec) /* {{{ */
 {
-  struct timespec t_spec = CDTIME_T_TO_TIMESPEC (t);
-  NORMALIZE_TIMESPEC (t_spec);
+  struct timespec t_spec = CDTIME_T_TO_TIMESPEC(t);
+  NORMALIZE_TIMESPEC(t_spec);
 
-  if (gmtime_r (&t_spec.tv_sec, t_tm) == NULL) {
+  if (gmtime_r(&t_spec.tv_sec, t_tm) == NULL) {
     char errbuf[1024];
     int status = errno;
-    ERROR ("get_utc_time: gmtime_r failed: %s",
-        sstrerror (status, errbuf, sizeof (errbuf)));
+    ERROR("get_utc_time: gmtime_r failed: %s",
+          sstrerror(status, errbuf, sizeof(errbuf)));
     return status;
   }
 
@@ -101,16 +96,16 @@ static int get_utc_time (cdtime_t t, struct tm *t_tm, long *nsec) /* {{{ */
   return 0;
 } /* }}} int get_utc_time */
 
-static int get_local_time (cdtime_t t, struct tm *t_tm, long *nsec) /* {{{ */
+static int get_local_time(cdtime_t t, struct tm *t_tm, long *nsec) /* {{{ */
 {
-  struct timespec t_spec = CDTIME_T_TO_TIMESPEC (t);
-  NORMALIZE_TIMESPEC (t_spec);
+  struct timespec t_spec = CDTIME_T_TO_TIMESPEC(t);
+  NORMALIZE_TIMESPEC(t_spec);
 
-  if (localtime_r (&t_spec.tv_sec, t_tm) == NULL) {
+  if (localtime_r(&t_spec.tv_sec, t_tm) == NULL) {
     char errbuf[1024];
     int status = errno;
-    ERROR ("get_local_time: localtime_r failed: %s",
-        sstrerror (status, errbuf, sizeof (errbuf)));
+    ERROR("get_local_time: localtime_r failed: %s",
+          sstrerror(status, errbuf, sizeof(errbuf)));
     return status;
   }
 
@@ -127,7 +122,8 @@ static const char zulu_zone[] = "Z";
 /* format_zone reads time zone information from "extern long timezone", exported
  * by <time.h>, and formats it according to RFC 3339. This differs from
  * strftime()'s "%z" format by including a colon between hour and minute. */
-static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /* {{{ */
+static int format_zone(char *buffer, size_t buffer_size,
+                       struct tm const *tm) /* {{{ */
 {
   char tmp[7];
   size_t sz;
@@ -135,13 +131,12 @@ static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /
   if ((buffer == NULL) || (buffer_size < 7))
     return EINVAL;
 
-  sz = strftime (tmp, sizeof (tmp), "%z", tm);
+  sz = strftime(tmp, sizeof(tmp), "%z", tm);
   if (sz == 0)
     return ENOMEM;
-  if (sz != 5)
-  {
-    DEBUG ("format_zone: strftime(\"%%z\") = \"%s\", want \"+hhmm\"", tmp);
-    sstrncpy (buffer, tmp, buffer_size);
+  if (sz != 5) {
+    DEBUG("format_zone: strftime(\"%%z\") = \"%s\", want \"+hhmm\"", tmp);
+    sstrncpy(buffer, tmp, buffer_size);
     return 0;
   }
 
@@ -156,90 +151,94 @@ static int format_zone (char *buffer, size_t buffer_size, struct tm const *tm) /
   return 0;
 } /* }}} int format_zone */
 
-int format_rfc3339 (char *buffer, size_t buffer_size, struct tm const *t_tm, long nsec, _Bool print_nano, char const *zone) /* {{{ */
+int format_rfc3339(char *buffer, size_t buffer_size, struct tm const *t_tm,
+                   long nsec, _Bool print_nano, char const *zone) /* {{{ */
 {
   int len;
   char *pos = buffer;
   size_t size_left = buffer_size;
 
-  if ((len = strftime (pos, size_left, "%Y-%m-%dT%H:%M:%S", t_tm)) == 0)
+  if ((len = strftime(pos, size_left, "%Y-%m-%dT%H:%M:%S", t_tm)) == 0)
     return ENOMEM;
   pos += len;
   size_left -= len;
 
   if (print_nano) {
-    if ((len = ssnprintf (pos, size_left, ".%09ld", nsec)) == 0)
+    if ((len = ssnprintf(pos, size_left, ".%09ld", nsec)) == 0)
       return ENOMEM;
     pos += len;
     size_left -= len;
   }
 
-  sstrncpy (pos, zone, size_left);
+  sstrncpy(pos, zone, size_left);
   return 0;
 } /* }}} int format_rfc3339 */
 
-int format_rfc3339_utc (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
+int format_rfc3339_utc(char *buffer, size_t buffer_size, cdtime_t t,
+                       _Bool print_nano) /* {{{ */
 {
   struct tm t_tm;
   long nsec = 0;
   int status;
 
-  if ((status = get_utc_time (t, &t_tm, &nsec)) != 0)
-    return status;  /* The error should have already be reported. */
+  if ((status = get_utc_time(t, &t_tm, &nsec)) != 0)
+    return status; /* The error should have already be reported. */
 
-  return format_rfc3339 (buffer, buffer_size, &t_tm, nsec, print_nano, zulu_zone);
+  return format_rfc3339(buffer, buffer_size, &t_tm, nsec, print_nano,
+                        zulu_zone);
 } /* }}} int format_rfc3339_utc */
 
-int format_rfc3339_local (char *buffer, size_t buffer_size, cdtime_t t, _Bool print_nano) /* {{{ */
+int format_rfc3339_local(char *buffer, size_t buffer_size, cdtime_t t,
+                         _Bool print_nano) /* {{{ */
 {
   struct tm t_tm;
   long nsec = 0;
   int status;
-  char zone[7];  /* +00:00 */
+  char zone[7]; /* +00:00 */
 
-  if ((status = get_local_time (t, &t_tm, &nsec)) != 0)
-    return status;  /* The error should have already be reported. */
+  if ((status = get_local_time(t, &t_tm, &nsec)) != 0)
+    return status; /* The error should have already be reported. */
 
-  if ((status = format_zone (zone, sizeof (zone), &t_tm)) != 0)
+  if ((status = format_zone(zone, sizeof(zone), &t_tm)) != 0)
     return status;
 
-  return format_rfc3339 (buffer, buffer_size, &t_tm, nsec, print_nano, zone);
+  return format_rfc3339(buffer, buffer_size, &t_tm, nsec, print_nano, zone);
 } /* }}} int format_rfc3339_local */
 
 /**********************************************************************
  Public functions
 ***********************************************************************/
 
-int rfc3339 (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+int rfc3339(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
   if (buffer_size < RFC3339_SIZE)
     return ENOMEM;
 
-  return format_rfc3339_utc (buffer, buffer_size, t, 0);
+  return format_rfc3339_utc(buffer, buffer_size, t, 0);
 } /* }}} int rfc3339 */
 
-int rfc3339nano (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+int rfc3339nano(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
   if (buffer_size < RFC3339NANO_SIZE)
     return ENOMEM;
 
-  return format_rfc3339_utc (buffer, buffer_size, t, 1);
+  return format_rfc3339_utc(buffer, buffer_size, t, 1);
 } /* }}} int rfc3339nano */
 
-int rfc3339_local (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+int rfc3339_local(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
   if (buffer_size < RFC3339_SIZE)
     return ENOMEM;
 
-  return format_rfc3339_local (buffer, buffer_size, t, 0);
+  return format_rfc3339_local(buffer, buffer_size, t, 0);
 } /* }}} int rfc3339 */
 
-int rfc3339nano_local (char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
+int rfc3339nano_local(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 {
   if (buffer_size < RFC3339NANO_SIZE)
     return ENOMEM;
 
-  return format_rfc3339_local (buffer, buffer_size, t, 1);
+  return format_rfc3339_local(buffer, buffer_size, t, 1);
 } /* }}} int rfc3339nano */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

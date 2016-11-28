@@ -32,17 +32,15 @@
 /*
  * Types
  */
-#define OCONFIG_TYPE_STRING  0
-#define OCONFIG_TYPE_NUMBER  1
+#define OCONFIG_TYPE_STRING 0
+#define OCONFIG_TYPE_NUMBER 1
 #define OCONFIG_TYPE_BOOLEAN 2
 
-struct oconfig_value_s
-{
-  union
-  {
-    char  *string;
+struct oconfig_value_s {
+  union {
+    char *string;
     double number;
-    int    boolean;
+    int boolean;
   } value;
   int type;
 };
@@ -50,25 +48,24 @@ typedef struct oconfig_value_s oconfig_value_t;
 
 struct oconfig_item_s;
 typedef struct oconfig_item_s oconfig_item_t;
-struct oconfig_item_s
-{
-  char            *key;
+struct oconfig_item_s {
+  char *key;
   oconfig_value_t *values;
-  int              values_num;
+  int values_num;
 
-  oconfig_item_t  *parent;
-  oconfig_item_t  *children;
-  int              children_num;
+  oconfig_item_t *parent;
+  oconfig_item_t *children;
+  int children_num;
 };
 
 /*
  * Functions
  */
-oconfig_item_t *oconfig_parse_file (const char *file);
+oconfig_item_t *oconfig_parse_file(const char *file);
 
-oconfig_item_t *oconfig_clone (const oconfig_item_t *ci);
+oconfig_item_t *oconfig_clone(const oconfig_item_t *ci);
 
-void oconfig_free (oconfig_item_t *ci);
+void oconfig_free(oconfig_item_t *ci);
 
 /*
  * vim: shiftwidth=2:tabstop=8:softtabstop=2

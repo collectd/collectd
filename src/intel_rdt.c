@@ -25,8 +25,8 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "collectd.h"
 #include "common.h"
+#include "collectd.h"
 
 #include <pqos.h>
 

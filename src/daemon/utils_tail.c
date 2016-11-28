@@ -35,48 +35,42 @@
 #include "common.h"
 #include "utils_tail.h"
 
-struct cu_tail_s
-{
-	char  *file;
-	FILE  *fh;
-	struct stat stat;
+struct cu_tail_s {
+  char *file;
+  FILE *fh;
+  struct stat stat;
 };
 
-static int cu_tail_reopen (cu_tail_t *obj)
-{
+static int cu_tail_reopen(cu_tail_t *obj) {
   int seek_end = 0;
   FILE *fh;
-  struct stat stat_buf = { 0 };
+  struct stat stat_buf = {0};
   int status;
 
-  status = stat (obj->file, &stat_buf);
-  if (status != 0)
-  {
+  status = stat(obj->file, &stat_buf);
+  if (status != 0) {
     char errbuf[1024];
-    ERROR ("utils_tail: stat (%s) failed: %s", obj->file,
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("utils_tail: stat (%s) failed: %s", obj->file,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
 
   /* The file is already open.. */
-  if ((obj->fh != NULL) && (stat_buf.st_ino == obj->stat.st_ino))
-  {
+  if ((obj->fh != NULL) && (stat_buf.st_ino == obj->stat.st_ino)) {
     /* Seek to the beginning if file was truncated */
-    if (stat_buf.st_size < obj->stat.st_size)
-    {
-      INFO ("utils_tail: File `%s' was truncated.", obj->file);
-      status = fseek (obj->fh, 0, SEEK_SET);
-      if (status != 0)
-      {
-	char errbuf[1024];
-	ERROR ("utils_tail: fseek (%s) failed: %s", obj->file,
-	    sstrerror (errno, errbuf, sizeof (errbuf)));
-	fclose (obj->fh);
-	obj->fh = NULL;
-	return (-1);
+    if (stat_buf.st_size < obj->stat.st_size) {
+      INFO("utils_tail: File `%s' was truncated.", obj->file);
+      status = fseek(obj->fh, 0, SEEK_SET);
+      if (status != 0) {
+        char errbuf[1024];
+        ERROR("utils_tail: fseek (%s) failed: %s", obj->file,
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+        fclose(obj->fh);
+        obj->fh = NULL;
+        return (-1);
       }
     }
-    memcpy (&obj->stat, &stat_buf, sizeof (struct stat));
+    memcpy(&obj->stat, &stat_buf, sizeof(struct stat));
     return (1);
   }
 
@@ -85,129 +79,114 @@ static int cu_tail_reopen (cu_tail_t *obj)
   if ((obj->stat.st_ino == 0) || (obj->stat.st_ino == stat_buf.st_ino))
     seek_end = 1;
 
-  fh = fopen (obj->file, "r");
-  if (fh == NULL)
-  {
+  fh = fopen(obj->file, "r");
+  if (fh == NULL) {
     char errbuf[1024];
-    ERROR ("utils_tail: fopen (%s) failed: %s", obj->file,
-	sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("utils_tail: fopen (%s) failed: %s", obj->file,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
 
-  if (seek_end != 0)
-  {
-    status = fseek (fh, 0, SEEK_END);
-    if (status != 0)
-    {
+  if (seek_end != 0) {
+    status = fseek(fh, 0, SEEK_END);
+    if (status != 0) {
       char errbuf[1024];
-      ERROR ("utils_tail: fseek (%s) failed: %s", obj->file,
-	  sstrerror (errno, errbuf, sizeof (errbuf)));
-      fclose (fh);
+      ERROR("utils_tail: fseek (%s) failed: %s", obj->file,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      fclose(fh);
       return (-1);
     }
   }
 
   if (obj->fh != NULL)
-    fclose (obj->fh);
+    fclose(obj->fh);
   obj->fh = fh;
-  memcpy (&obj->stat, &stat_buf, sizeof (struct stat));
+  memcpy(&obj->stat, &stat_buf, sizeof(struct stat));
 
   return (0);
 } /* int cu_tail_reopen */
 
-cu_tail_t *cu_tail_create (const char *file)
-{
-	cu_tail_t *obj;
+cu_tail_t *cu_tail_create(const char *file) {
+  cu_tail_t *obj;
 
-	obj = calloc (1, sizeof (*obj));
-	if (obj == NULL)
-		return (NULL);
+  obj = calloc(1, sizeof(*obj));
+  if (obj == NULL)
+    return (NULL);
 
-	obj->file = strdup (file);
-	if (obj->file == NULL)
-	{
-		free (obj);
-		return (NULL);
-	}
+  obj->file = strdup(file);
+  if (obj->file == NULL) {
+    free(obj);
+    return (NULL);
+  }
 
-	obj->fh = NULL;
+  obj->fh = NULL;
 
-	return (obj);
+  return (obj);
 } /* cu_tail_t *cu_tail_create */
 
-int cu_tail_destroy (cu_tail_t *obj)
-{
-	if (obj->fh != NULL)
-		fclose (obj->fh);
-	free (obj->file);
-	free (obj);
+int cu_tail_destroy(cu_tail_t *obj) {
+  if (obj->fh != NULL)
+    fclose(obj->fh);
+  free(obj->file);
+  free(obj);
 
-	return (0);
+  return (0);
 } /* int cu_tail_destroy */
 
-int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
-{
+int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
   int status;
 
-  if (buflen < 1)
-  {
-    ERROR ("utils_tail: cu_tail_readline: buflen too small: %i bytes.",
-	buflen);
+  if (buflen < 1) {
+    ERROR("utils_tail: cu_tail_readline: buflen too small: %i bytes.", buflen);
     return (-1);
   }
 
-  if (obj->fh == NULL)
-  {
-    status = cu_tail_reopen (obj);
+  if (obj->fh == NULL) {
+    status = cu_tail_reopen(obj);
     if (status < 0)
       return (status);
   }
-  assert (obj->fh != NULL);
+  assert(obj->fh != NULL);
 
   /* Try to read from the filehandle. If that succeeds, everything appears to
    * be fine and we can return. */
-  clearerr (obj->fh);
-  if (fgets (buf, buflen, obj->fh) != NULL)
-  {
+  clearerr(obj->fh);
+  if (fgets(buf, buflen, obj->fh) != NULL) {
     buf[buflen - 1] = 0;
     return (0);
   }
 
   /* Check if we encountered an error */
-  if (ferror (obj->fh) != 0)
-  {
+  if (ferror(obj->fh) != 0) {
     /* Jupp, error. Force `cu_tail_reopen' to reopen the file.. */
-    fclose (obj->fh);
+    fclose(obj->fh);
     obj->fh = NULL;
   }
   /* else: eof -> check if the file was moved away and reopen the new file if
    * so.. */
 
-  status = cu_tail_reopen (obj);
+  status = cu_tail_reopen(obj);
   /* error -> return with error */
   if (status < 0)
     return (status);
   /* file end reached and file not reopened -> nothing more to read */
-  else if (status > 0)
-  {
+  else if (status > 0) {
     buf[0] = 0;
     return (0);
   }
 
   /* If we get here: file was re-opened and there may be more to read.. Let's
    * try again. */
-  if (fgets (buf, buflen, obj->fh) != NULL)
-  {
+  if (fgets(buf, buflen, obj->fh) != NULL) {
     buf[buflen - 1] = 0;
     return (0);
   }
 
-  if (ferror (obj->fh) != 0)
-  {
+  if (ferror(obj->fh) != 0) {
     char errbuf[1024];
-    WARNING ("utils_tail: fgets (%s) returned an error: %s", obj->file,
-	sstrerror (errno, errbuf, sizeof (errbuf)));
-    fclose (obj->fh);
+    WARNING("utils_tail: fgets (%s) returned an error: %s", obj->file,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+    fclose(obj->fh);
     obj->fh = NULL;
     return (-1);
   }
@@ -217,43 +196,40 @@ int cu_tail_readline (cu_tail_t *obj, char *buf, int buflen)
   return (0);
 } /* int cu_tail_readline */
 
-int cu_tail_read (cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
-		void *data)
-{
-	int status;
+int cu_tail_read(cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
+                 void *data) {
+  int status;
 
-	while (42)
-	{
-		size_t len;
+  while (42) {
+    size_t len;
 
-		status = cu_tail_readline (obj, buf, buflen);
-		if (status != 0)
-		{
-			ERROR ("utils_tail: cu_tail_read: cu_tail_readline "
-					"failed.");
-			break;
-		}
+    status = cu_tail_readline(obj, buf, buflen);
+    if (status != 0) {
+      ERROR("utils_tail: cu_tail_read: cu_tail_readline "
+            "failed.");
+      break;
+    }
 
-		/* check for EOF */
-		if (buf[0] == 0)
-			break;
+    /* check for EOF */
+    if (buf[0] == 0)
+      break;
 
-		len = strlen (buf);
-		while (len > 0) {
-			if (buf[len - 1] != '\n')
-				break;
-			buf[len - 1] = '\0';
-			len--;
-		}
+    len = strlen(buf);
+    while (len > 0) {
+      if (buf[len - 1] != '\n')
+        break;
+      buf[len - 1] = '\0';
+      len--;
+    }
 
-		status = callback (data, buf, buflen);
-		if (status != 0)
-		{
-			ERROR ("utils_tail: cu_tail_read: callback returned "
-					"status %i.", status);
-			break;
-		}
-	}
+    status = callback(data, buf, buflen);
+    if (status != 0) {
+      ERROR("utils_tail: cu_tail_read: callback returned "
+            "status %i.",
+            status);
+      break;
+    }
+  }
 
-	return status;
+  return status;
 } /* int cu_tail_read */

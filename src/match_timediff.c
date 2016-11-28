@@ -37,8 +37,7 @@
  */
 struct mt_match_s;
 typedef struct mt_match_s mt_match_t;
-struct mt_match_s
-{
+struct mt_match_s {
   cdtime_t future;
   cdtime_t past;
 };
@@ -46,15 +45,14 @@ struct mt_match_s
 /*
  * internal helper functions
  */
-static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
+static int mt_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   mt_match_t *m;
   int status;
 
-  m = calloc (1, sizeof (*m));
-  if (m == NULL)
-  {
-    ERROR ("mt_create: calloc failed.");
+  m = calloc(1, sizeof(*m));
+  if (m == NULL) {
+    ERROR("mt_create: calloc failed.");
     return (-ENOMEM);
   }
 
@@ -62,18 +60,17 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   m->past = 0;
 
   status = 0;
-  for (int i = 0; i < ci->children_num; i++)
-  {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("Future", child->key) == 0)
-      status = cf_util_get_cdtime (child, &m->future);
-    else if (strcasecmp ("Past", child->key) == 0)
-      status = cf_util_get_cdtime (child, &m->past);
-    else
-    {
-      ERROR ("timediff match: The `%s' configuration option is not "
-          "understood and will be ignored.", child->key);
+    if (strcasecmp("Future", child->key) == 0)
+      status = cf_util_get_cdtime(child, &m->future);
+    else if (strcasecmp("Past", child->key) == 0)
+      status = cf_util_get_cdtime(child, &m->past);
+    else {
+      ERROR("timediff match: The `%s' configuration option is not "
+            "understood and will be ignored.",
+            child->key);
       status = 0;
     }
 
@@ -82,21 +79,18 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   }
 
   /* Additional sanity-checking */
-  while (status == 0)
-  {
-    if ((m->future == 0) && (m->past == 0))
-    {
-      ERROR ("timediff match: Either `Future' or `Past' must be configured. "
-          "This match will be ignored.");
+  while (status == 0) {
+    if ((m->future == 0) && (m->past == 0)) {
+      ERROR("timediff match: Either `Future' or `Past' must be configured. "
+            "This match will be ignored.");
       status = -1;
     }
 
     break;
   }
 
-  if (status != 0)
-  {
-    free (m);
+  if (status != 0) {
+    free(m);
     return (status);
   }
 
@@ -104,20 +98,19 @@ static int mt_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   return (0);
 } /* }}} int mt_create */
 
-static int mt_destroy (void **user_data) /* {{{ */
+static int mt_destroy(void **user_data) /* {{{ */
 {
-  if (user_data != NULL)
-  {
-    sfree (*user_data);
+  if (user_data != NULL) {
+    sfree(*user_data);
   }
 
   return (0);
 } /* }}} int mt_destroy */
 
-static int mt_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
-    const value_list_t *vl,
-    notification_meta_t __attribute__((unused)) **meta, void **user_data)
-{
+static int mt_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
+                    const value_list_t *vl,
+                    notification_meta_t __attribute__((unused)) * *meta,
+                    void **user_data) {
   mt_match_t *m;
   cdtime_t now;
 
@@ -125,16 +118,14 @@ static int mt_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
     return (-1);
 
   m = *user_data;
-  now = cdtime ();
+  now = cdtime();
 
-  if (m->future != 0)
-  {
+  if (m->future != 0) {
     if (vl->time >= (now + m->future))
       return (FC_MATCH_MATCHES);
   }
 
-  if (m->past != 0)
-  {
+  if (m->past != 0) {
     if (vl->time <= (now - m->past))
       return (FC_MATCH_MATCHES);
   }
@@ -142,14 +133,13 @@ static int mt_match (const data_set_t __attribute__((unused)) *ds, /* {{{ */
   return (FC_MATCH_NO_MATCH);
 } /* }}} int mt_match */
 
-void module_register (void)
-{
-  match_proc_t mproc = { 0 };
+void module_register(void) {
+  match_proc_t mproc = {0};
 
-  mproc.create  = mt_create;
+  mproc.create = mt_create;
   mproc.destroy = mt_destroy;
-  mproc.match   = mt_match;
-  fc_register_match ("timediff", mproc);
+  mproc.match = mt_match;
+  fc_register_match("timediff", mproc);
 } /* module_register */
 
 /* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

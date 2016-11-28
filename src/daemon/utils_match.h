@@ -36,31 +36,31 @@
  *          ^             <- Type bit
  *           ^^^^^^^^^^^^ <- Subtype bits
  */
-#define UTILS_MATCH_DS_TYPE_GAUGE    0x1000
-#define UTILS_MATCH_DS_TYPE_COUNTER  0x2000
-#define UTILS_MATCH_DS_TYPE_DERIVE   0x4000
+#define UTILS_MATCH_DS_TYPE_GAUGE 0x1000
+#define UTILS_MATCH_DS_TYPE_COUNTER 0x2000
+#define UTILS_MATCH_DS_TYPE_DERIVE 0x4000
 #define UTILS_MATCH_DS_TYPE_ABSOLUTE 0x8000
 
 #define UTILS_MATCH_CF_GAUGE_AVERAGE 0x01
-#define UTILS_MATCH_CF_GAUGE_MIN     0x02
-#define UTILS_MATCH_CF_GAUGE_MAX     0x04
-#define UTILS_MATCH_CF_GAUGE_LAST    0x08
-#define UTILS_MATCH_CF_GAUGE_INC     0x10
-#define UTILS_MATCH_CF_GAUGE_ADD     0x20
+#define UTILS_MATCH_CF_GAUGE_MIN 0x02
+#define UTILS_MATCH_CF_GAUGE_MAX 0x04
+#define UTILS_MATCH_CF_GAUGE_LAST 0x08
+#define UTILS_MATCH_CF_GAUGE_INC 0x10
+#define UTILS_MATCH_CF_GAUGE_ADD 0x20
 #define UTILS_MATCH_CF_GAUGE_PERSIST 0x40
-#define UTILS_MATCH_CF_GAUGE_DIST    0x80
+#define UTILS_MATCH_CF_GAUGE_DIST 0x80
 
-#define UTILS_MATCH_CF_COUNTER_SET   0x01
-#define UTILS_MATCH_CF_COUNTER_ADD   0x02
-#define UTILS_MATCH_CF_COUNTER_INC   0x04
+#define UTILS_MATCH_CF_COUNTER_SET 0x01
+#define UTILS_MATCH_CF_COUNTER_ADD 0x02
+#define UTILS_MATCH_CF_COUNTER_INC 0x04
 
-#define UTILS_MATCH_CF_DERIVE_SET   0x01
-#define UTILS_MATCH_CF_DERIVE_ADD   0x02
-#define UTILS_MATCH_CF_DERIVE_INC   0x04
+#define UTILS_MATCH_CF_DERIVE_SET 0x01
+#define UTILS_MATCH_CF_DERIVE_ADD 0x02
+#define UTILS_MATCH_CF_DERIVE_INC 0x04
 
-#define UTILS_MATCH_CF_ABSOLUTE_SET   0x01
-#define UTILS_MATCH_CF_ABSOLUTE_ADD   0x02
-#define UTILS_MATCH_CF_ABSOLUTE_INC   0x04
+#define UTILS_MATCH_CF_ABSOLUTE_SET 0x01
+#define UTILS_MATCH_CF_ABSOLUTE_ADD 0x02
+#define UTILS_MATCH_CF_ABSOLUTE_INC 0x04
 
 /*
  * Data types
@@ -68,8 +68,7 @@
 struct cu_match_s;
 typedef struct cu_match_s cu_match_t;
 
-struct cu_match_value_s
-{
+struct cu_match_value_s {
   int ds_type;
   value_t value;
   unsigned int values_num;
@@ -100,10 +99,11 @@ typedef struct cu_match_value_s cu_match_value_t;
  *  When `match_destroy' is called the `user_data' pointer is freed using
  *  the `free_user_data' callback - if it is not NULL.
  */
-cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
-		int (*callback) (const char *str,
-		  char * const *matches, size_t matches_num, void *user_data),
-		void *user_data, void (*free_user_data) (void *user_data));
+cu_match_t *
+match_create_callback(const char *regex, const char *excluderegex,
+                      int (*callback)(const char *str, char *const *matches,
+                                      size_t matches_num, void *user_data),
+                      void *user_data, void (*free_user_data)(void *user_data));
 
 /*
  * NAME
@@ -129,8 +129,8 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
  *    The function will not search for anything in the string and increase
  *    value.counter by one.
  */
-cu_match_t *match_create_simple (const char *regex,
-				 const char *excluderegex, int ds_type);
+cu_match_t *match_create_simple(const char *regex, const char *excluderegex,
+                                int ds_type);
 
 /*
  * NAME
@@ -141,7 +141,7 @@ cu_match_t *match_create_simple (const char *regex,
  *   after each iteration for "simple" matches, usually after dispatching the
  *   metrics.
  */
-void match_value_reset (cu_match_value_t *mv);
+void match_value_reset(cu_match_value_t *mv);
 
 /*
  * NAME
@@ -150,7 +150,7 @@ void match_value_reset (cu_match_value_t *mv);
  * DESCRIPTION
  *  Destroys the object and frees all internal resources.
  */
-void match_destroy (cu_match_t *obj);
+void match_destroy(cu_match_t *obj);
 
 /*
  * NAME
@@ -164,7 +164,7 @@ void match_destroy (cu_match_t *obj);
  *  automatically. The `cu_match_value_t' structure allocated by
  *  `match_create_callback' is freed automatically.
  */
-int match_apply (cu_match_t *obj, const char *str);
+int match_apply(cu_match_t *obj, const char *str);
 
 /*
  * NAME
@@ -174,7 +174,7 @@ int match_apply (cu_match_t *obj, const char *str);
  *  Returns the pointer passed to `match_create_callback' or a pointer to the
  *  `cu_match_value_t' structure allocated by `match_create_simple'.
  */
-void *match_get_user_data (cu_match_t *obj);
+void *match_get_user_data(cu_match_t *obj);
 
 #endif /* UTILS_MATCH_H */
 

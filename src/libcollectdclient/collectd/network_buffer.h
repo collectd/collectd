@@ -37,21 +37,22 @@
 struct lcc_network_buffer_s;
 typedef struct lcc_network_buffer_s lcc_network_buffer_t;
 
-lcc_network_buffer_t *lcc_network_buffer_create (size_t size);
-void lcc_network_buffer_destroy (lcc_network_buffer_t *nb);
+lcc_network_buffer_t *lcc_network_buffer_create(size_t size);
+void lcc_network_buffer_destroy(lcc_network_buffer_t *nb);
 
-int lcc_network_buffer_set_security_level (lcc_network_buffer_t *nb,
-    lcc_security_level_t level,
-    const char *user, const char *password);
+int lcc_network_buffer_set_security_level(lcc_network_buffer_t *nb,
+                                          lcc_security_level_t level,
+                                          const char *user,
+                                          const char *password);
 
-int lcc_network_buffer_initialize (lcc_network_buffer_t *nb);
-int lcc_network_buffer_finalize (lcc_network_buffer_t *nb);
+int lcc_network_buffer_initialize(lcc_network_buffer_t *nb);
+int lcc_network_buffer_finalize(lcc_network_buffer_t *nb);
 
-int lcc_network_buffer_add_value (lcc_network_buffer_t *nb,
-    const lcc_value_list_t *vl);
+int lcc_network_buffer_add_value(lcc_network_buffer_t *nb,
+                                 const lcc_value_list_t *vl);
 
-int lcc_network_buffer_get (lcc_network_buffer_t *nb,
-    void *buffer, size_t *buffer_size);
+int lcc_network_buffer_get(lcc_network_buffer_t *nb, void *buffer,
+                           size_t *buffer_size);
 
 #endif /* LIBCOLLECTDCLIENT_NETWORK_BUFFER_H */
 /* vim: set sw=2 sts=2 et : */

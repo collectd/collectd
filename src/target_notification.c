@@ -31,80 +31,73 @@
 #include "utils_cache.h"
 #include "utils_subst.h"
 
-struct tn_data_s
-{
+struct tn_data_s {
   int severity;
   char *message;
 };
 typedef struct tn_data_s tn_data_t;
 
-static int tn_config_add_severity (tn_data_t *data, /* {{{ */
-    const oconfig_item_t *ci)
-{
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    ERROR ("Target `notification': The `%s' option requires exactly one string "
-        "argument.", ci->key);
+static int tn_config_add_severity(tn_data_t *data, /* {{{ */
+                                  const oconfig_item_t *ci) {
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    ERROR("Target `notification': The `%s' option requires exactly one string "
+          "argument.",
+          ci->key);
     return (-1);
   }
 
-  if ((strcasecmp ("FAILURE", ci->values[0].value.string) == 0)
-      || (strcasecmp ("CRITICAL", ci->values[0].value.string) == 0))
+  if ((strcasecmp("FAILURE", ci->values[0].value.string) == 0) ||
+      (strcasecmp("CRITICAL", ci->values[0].value.string) == 0))
     data->severity = NOTIF_FAILURE;
-  else if ((strcasecmp ("WARNING", ci->values[0].value.string) == 0)
-      || (strcasecmp ("WARN", ci->values[0].value.string) == 0))
+  else if ((strcasecmp("WARNING", ci->values[0].value.string) == 0) ||
+           (strcasecmp("WARN", ci->values[0].value.string) == 0))
     data->severity = NOTIF_WARNING;
-  else if (strcasecmp ("OKAY", ci->values[0].value.string) == 0)
+  else if (strcasecmp("OKAY", ci->values[0].value.string) == 0)
     data->severity = NOTIF_OKAY;
-  else
-  {
-    WARNING ("Target `notification': Unknown severity `%s'. "
-        "Will use `FAILURE' instead.",
-        ci->values[0].value.string);
+  else {
+    WARNING("Target `notification': Unknown severity `%s'. "
+            "Will use `FAILURE' instead.",
+            ci->values[0].value.string);
     data->severity = NOTIF_FAILURE;
   }
 
   return (0);
 } /* }}} int tn_config_add_severity */
 
-static int tn_config_add_string (char **dest, /* {{{ */
-    const oconfig_item_t *ci)
-{
+static int tn_config_add_string(char **dest, /* {{{ */
+                                const oconfig_item_t *ci) {
   char *temp;
 
   if (dest == NULL)
     return (-EINVAL);
 
-  if ((ci->values_num != 1)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING))
-  {
-    ERROR ("Target `notification': The `%s' option requires exactly one string "
-        "argument.", ci->key);
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
+    ERROR("Target `notification': The `%s' option requires exactly one string "
+          "argument.",
+          ci->key);
     return (-1);
   }
 
-  if (ci->values[0].value.string[0] == 0)
-  {
-    ERROR ("Target `notification': The `%s' option does not accept empty strings.",
+  if (ci->values[0].value.string[0] == 0) {
+    ERROR(
+        "Target `notification': The `%s' option does not accept empty strings.",
         ci->key);
     return (-1);
   }
 
-  temp = sstrdup (ci->values[0].value.string);
-  if (temp == NULL)
-  {
-    ERROR ("tn_config_add_string: sstrdup failed.");
+  temp = sstrdup(ci->values[0].value.string);
+  if (temp == NULL) {
+    ERROR("tn_config_add_string: sstrdup failed.");
     return (-1);
   }
 
-  free (*dest);
+  free(*dest);
   *dest = temp;
 
   return (0);
 } /* }}} int tn_config_add_string */
 
-static int tn_destroy (void **user_data) /* {{{ */
+static int tn_destroy(void **user_data) /* {{{ */
 {
   tn_data_t *data;
 
@@ -115,21 +108,20 @@ static int tn_destroy (void **user_data) /* {{{ */
   if (data == NULL)
     return (0);
 
-  sfree (data->message);
-  sfree (data);
+  sfree(data->message);
+  sfree(data);
 
   return (0);
 } /* }}} int tn_destroy */
 
-static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
+static int tn_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   tn_data_t *data;
   int status;
 
-  data = calloc (1, sizeof (*data));
-  if (data == NULL)
-  {
-    ERROR ("tn_create: calloc failed.");
+  data = calloc(1, sizeof(*data));
+  if (data == NULL) {
+    ERROR("tn_create: calloc failed.");
     return (-ENOMEM);
   }
 
@@ -137,18 +129,18 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   data->severity = 0;
 
   status = 0;
-  for (int i = 0; i < ci->children_num; i++)
-  {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("Message", child->key) == 0)
-      status = tn_config_add_string (&data->message, child);
-    else if (strcasecmp ("Severity", child->key) == 0)
-      status = tn_config_add_severity (data, child);
-    else
-    {
-      ERROR ("Target `notification': The `%s' configuration option is not understood "
-          "and will be ignored.", child->key);
+    if (strcasecmp("Message", child->key) == 0)
+      status = tn_config_add_string(&data->message, child);
+    else if (strcasecmp("Severity", child->key) == 0)
+      status = tn_config_add_severity(data, child);
+    else {
+      ERROR("Target `notification': The `%s' configuration option is not "
+            "understood "
+            "and will be ignored.",
+            child->key);
       status = 0;
     }
 
@@ -157,30 +149,25 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   }
 
   /* Additional sanity-checking */
-  while (status == 0)
-  {
-    if ((data->severity != NOTIF_FAILURE)
-        && (data->severity != NOTIF_WARNING)
-        && (data->severity != NOTIF_OKAY))
-    {
-      DEBUG ("Target `notification': Setting "
-          "the default severity `WARNING'.");
+  while (status == 0) {
+    if ((data->severity != NOTIF_FAILURE) &&
+        (data->severity != NOTIF_WARNING) && (data->severity != NOTIF_OKAY)) {
+      DEBUG("Target `notification': Setting "
+            "the default severity `WARNING'.");
       data->severity = NOTIF_WARNING;
     }
 
-    if (data->message == NULL)
-    {
-      ERROR ("Target `notification': No `Message' option has been specified. "
-          "Without it, the `Notification' target is useless.");
+    if (data->message == NULL) {
+      ERROR("Target `notification': No `Message' option has been specified. "
+            "Without it, the `Notification' target is useless.");
       status = -1;
     }
 
     break;
   }
 
-  if (status != 0)
-  {
-    tn_destroy ((void *) &data);
+  if (status != 0) {
+    tn_destroy((void *)&data);
     return (status);
   }
 
@@ -188,11 +175,11 @@ static int tn_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
   return (0);
 } /* }}} int tn_create */
 
-static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
-    notification_meta_t __attribute__((unused)) **meta, void **user_data)
-{
+static int tn_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
+                     notification_meta_t __attribute__((unused)) * *meta,
+                     void **user_data) {
   tn_data_t *data;
-  notification_t n = { 0 };
+  notification_t n = {0};
   char temp[NOTIF_MAX_MSG_LEN];
 
   gauge_t *rates;
@@ -202,49 +189,43 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
     return (-EINVAL);
 
   data = *user_data;
-  if (data == NULL)
-  {
-    ERROR ("Target `notification': Invoke: `data' is NULL.");
+  if (data == NULL) {
+    ERROR("Target `notification': Invoke: `data' is NULL.");
     return (-EINVAL);
   }
 
   /* Initialize the structure. */
   n.severity = data->severity;
-  n.time = cdtime ();
-  sstrncpy (n.message, data->message, sizeof (n.message));
-  sstrncpy (n.host, vl->host, sizeof (n.host));
-  sstrncpy (n.plugin, vl->plugin, sizeof (n.plugin));
-  sstrncpy (n.plugin_instance, vl->plugin_instance,
-      sizeof (n.plugin_instance));
-  sstrncpy (n.type, vl->type, sizeof (n.type));
-  sstrncpy (n.type_instance, vl->type_instance,
-      sizeof (n.type_instance));
+  n.time = cdtime();
+  sstrncpy(n.message, data->message, sizeof(n.message));
+  sstrncpy(n.host, vl->host, sizeof(n.host));
+  sstrncpy(n.plugin, vl->plugin, sizeof(n.plugin));
+  sstrncpy(n.plugin_instance, vl->plugin_instance, sizeof(n.plugin_instance));
+  sstrncpy(n.type, vl->type, sizeof(n.type));
+  sstrncpy(n.type_instance, vl->type_instance, sizeof(n.type_instance));
   n.meta = NULL;
 
-#define REPLACE_FIELD(t,v) \
-  if (subst_string (temp, sizeof (temp), n.message, t, v) != NULL) \
-    sstrncpy (n.message, temp, sizeof (n.message));
-  REPLACE_FIELD ("%{host}", n.host);
-  REPLACE_FIELD ("%{plugin}", n.plugin);
-  REPLACE_FIELD ("%{plugin_instance}", n.plugin_instance);
-  REPLACE_FIELD ("%{type}", n.type);
-  REPLACE_FIELD ("%{type_instance}", n.type_instance);
+#define REPLACE_FIELD(t, v)                                                    \
+  if (subst_string(temp, sizeof(temp), n.message, t, v) != NULL)               \
+    sstrncpy(n.message, temp, sizeof(n.message));
+  REPLACE_FIELD("%{host}", n.host);
+  REPLACE_FIELD("%{plugin}", n.plugin);
+  REPLACE_FIELD("%{plugin_instance}", n.plugin_instance);
+  REPLACE_FIELD("%{type}", n.type);
+  REPLACE_FIELD("%{type_instance}", n.type_instance);
 
   rates_failed = 0;
   rates = NULL;
 
-  for (size_t i = 0; i < ds->ds_num; i++)
-  {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char template[DATA_MAX_NAME_LEN];
     char value_str[DATA_MAX_NAME_LEN];
 
-    ssnprintf (template, sizeof (template), "%%{ds:%s}", ds->ds[i].name);
+    ssnprintf(template, sizeof(template), "%%{ds:%s}", ds->ds[i].name);
 
-    if (ds->ds[i].type != DS_TYPE_GAUGE)
-    {
-      if ((rates == NULL) && (rates_failed == 0))
-      {
-        rates = uc_get_rate (ds, vl);
+    if (ds->ds[i].type != DS_TYPE_GAUGE) {
+      if ((rates == NULL) && (rates_failed == 0)) {
+        rates = uc_get_rate(ds, vl);
         if (rates == NULL)
           rates_failed = 1;
       }
@@ -252,35 +233,32 @@ static int tn_invoke (const data_set_t *ds, value_list_t *vl, /* {{{ */
 
     /* If this is a gauge value, use the current value. */
     if (ds->ds[i].type == DS_TYPE_GAUGE)
-      ssnprintf (value_str, sizeof (value_str),
-          GAUGE_FORMAT, (double) vl->values[i].gauge);
+      ssnprintf(value_str, sizeof(value_str), GAUGE_FORMAT,
+                (double)vl->values[i].gauge);
     /* If it's a counter, try to use the current rate. This may fail, if the
      * value has been renamed. */
     else if (rates != NULL)
-      ssnprintf (value_str, sizeof (value_str),
-          GAUGE_FORMAT, (double) rates[i]);
+      ssnprintf(value_str, sizeof(value_str), GAUGE_FORMAT, (double)rates[i]);
     /* Since we don't know any better, use the string `unknown'. */
     else
-      sstrncpy (value_str, "unknown", sizeof (value_str));
+      sstrncpy(value_str, "unknown", sizeof(value_str));
 
-    REPLACE_FIELD (template, value_str);
+    REPLACE_FIELD(template, value_str);
   }
-  sfree (rates);
+  sfree(rates);
 
-  plugin_dispatch_notification (&n);
+  plugin_dispatch_notification(&n);
 
   return (FC_TARGET_CONTINUE);
 } /* }}} int tn_invoke */
 
-void module_register (void)
-{
-	target_proc_t tproc = { 0 };
+void module_register(void) {
+  target_proc_t tproc = {0};
 
-	tproc.create  = tn_create;
-	tproc.destroy = tn_destroy;
-	tproc.invoke  = tn_invoke;
-	fc_register_target ("notification", tproc);
+  tproc.create = tn_create;
+  tproc.destroy = tn_destroy;
+  tproc.invoke = tn_invoke;
+  fc_register_target("notification", tproc);
 } /* module_register */
 
 /* vim: set sw=2 sts=2 tw=78 et fdm=marker : */
-

@@ -27,8 +27,8 @@
 #ifndef UTILS_LUA_H
 #define UTILS_LUA_H 1
 
-#include "collectd.h"
 #include "plugin.h"
+#include "collectd.h"
 
 #ifndef DONT_POISON_SPRINTF_YET
 #error "Files including utils_lua.h need to define DONT_POISON_SPRINTF_YET."

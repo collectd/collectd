@@ -24,31 +24,25 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#include <stdlib.h>
-#include <errno.h>
 #include <assert.h>
+#include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include "utils_heap.h"
 
-struct c_heap_s
-{
+struct c_heap_s {
   pthread_mutex_t lock;
-  int (*compare) (const void *, const void *);
+  int (*compare)(const void *, const void *);
 
   void **list;
-  size_t list_len; /* # entries used */
+  size_t list_len;  /* # entries used */
   size_t list_size; /* # entries allocated */
 };
 
-enum reheap_direction
-{
-  DIR_UP,
-  DIR_DOWN
-};
+enum reheap_direction { DIR_UP, DIR_DOWN };
 
-static void reheap (c_heap_t *h, size_t root, enum reheap_direction dir)
-{
+static void reheap(c_heap_t *h, size_t root, enum reheap_direction dir) {
   size_t left;
   size_t right;
   size_t min;
@@ -70,23 +64,20 @@ static void reheap (c_heap_t *h, size_t root, enum reheap_direction dir)
     min = right;
   else if (right == 0)
     min = left;
-  else
-  {
-    status = h->compare (h->list[left], h->list[right]);
+  else {
+    status = h->compare(h->list[left], h->list[right]);
     if (status > 0)
       min = right;
     else
       min = left;
   }
 
-  status = h->compare (h->list[root], h->list[min]);
-  if (status <= 0)
-  {
+  status = h->compare(h->list[root], h->list[min]);
+  if (status <= 0) {
     /* We didn't need to change anything, so the rest of the tree should be
      * okay now. */
     return;
-  }
-  else /* if (status > 0) */
+  } else /* if (status > 0) */
   {
     void *tmp;
 
@@ -99,23 +90,22 @@ static void reheap (c_heap_t *h, size_t root, enum reheap_direction dir)
     return;
 
   if (dir == DIR_UP)
-    reheap (h, (root - 1) / 2, dir);
+    reheap(h, (root - 1) / 2, dir);
   else if (dir == DIR_DOWN)
-    reheap (h, min, dir);
+    reheap(h, min, dir);
 } /* void reheap */
 
-c_heap_t *c_heap_create (int (*compare) (const void *, const void *))
-{
+c_heap_t *c_heap_create(int (*compare)(const void *, const void *)) {
   c_heap_t *h;
 
   if (compare == NULL)
     return (NULL);
 
-  h = calloc (1, sizeof (*h));
+  h = calloc(1, sizeof(*h));
   if (h == NULL)
     return (NULL);
 
-  pthread_mutex_init (&h->lock, /* attr = */ NULL);
+  pthread_mutex_init(&h->lock, /* attr = */ NULL);
   h->compare = compare;
 
   h->list = NULL;
@@ -125,39 +115,35 @@ c_heap_t *c_heap_create (int (*compare) (const void *, const void *))
   return (h);
 } /* c_heap_t *c_heap_create */
 
-void c_heap_destroy (c_heap_t *h)
-{
+void c_heap_destroy(c_heap_t *h) {
   if (h == NULL)
     return;
 
   h->list_len = 0;
   h->list_size = 0;
-  free (h->list);
+  free(h->list);
   h->list = NULL;
 
-  pthread_mutex_destroy (&h->lock);
+  pthread_mutex_destroy(&h->lock);
 
-  free (h);
+  free(h);
 } /* void c_heap_destroy */
 
-int c_heap_insert (c_heap_t *h, void *ptr)
-{
+int c_heap_insert(c_heap_t *h, void *ptr) {
   size_t index;
 
   if ((h == NULL) || (ptr == NULL))
     return (-EINVAL);
 
-  pthread_mutex_lock (&h->lock);
+  pthread_mutex_lock(&h->lock);
 
-  assert (h->list_len <= h->list_size);
-  if (h->list_len == h->list_size)
-  {
+  assert(h->list_len <= h->list_size);
+  if (h->list_len == h->list_size) {
     void **tmp;
 
-    tmp = realloc (h->list, (h->list_size + 16) * sizeof (*h->list));
-    if (tmp == NULL)
-    {
-      pthread_mutex_unlock (&h->lock);
+    tmp = realloc(h->list, (h->list_size + 16) * sizeof(*h->list));
+    if (tmp == NULL) {
+      pthread_mutex_unlock(&h->lock);
       return (-ENOMEM);
     }
 
@@ -171,56 +157,49 @@ int c_heap_insert (c_heap_t *h, void *ptr)
   h->list_len++;
 
   /* Reorganize the heap from bottom up. */
-  reheap (h, /* parent of this node = */ (index - 1) / 2, DIR_UP);
+  reheap(h, /* parent of this node = */ (index - 1) / 2, DIR_UP);
 
-  pthread_mutex_unlock (&h->lock);
+  pthread_mutex_unlock(&h->lock);
   return (0);
 } /* int c_heap_insert */
 
-void *c_heap_get_root (c_heap_t *h)
-{
+void *c_heap_get_root(c_heap_t *h) {
   void *ret = NULL;
 
   if (h == NULL)
     return (NULL);
 
-  pthread_mutex_lock (&h->lock);
+  pthread_mutex_lock(&h->lock);
 
-  if (h->list_len == 0)
-  {
-    pthread_mutex_unlock (&h->lock);
+  if (h->list_len == 0) {
+    pthread_mutex_unlock(&h->lock);
     return (NULL);
-  }
-  else if (h->list_len == 1)
-  {
+  } else if (h->list_len == 1) {
     ret = h->list[0];
     h->list[0] = NULL;
     h->list_len = 0;
-  }
-  else /* if (h->list_len > 1) */
+  } else /* if (h->list_len > 1) */
   {
     ret = h->list[0];
     h->list[0] = h->list[h->list_len - 1];
     h->list[h->list_len - 1] = NULL;
     h->list_len--;
 
-    reheap (h, /* root = */ 0, DIR_DOWN);
+    reheap(h, /* root = */ 0, DIR_DOWN);
   }
 
   /* free some memory */
-  if ((h->list_len + 32) < h->list_size)
-  {
+  if ((h->list_len + 32) < h->list_size) {
     void **tmp;
 
-    tmp = realloc (h->list, (h->list_len + 16) * sizeof (*h->list));
-    if (tmp != NULL)
-    {
+    tmp = realloc(h->list, (h->list_len + 16) * sizeof(*h->list));
+    if (tmp != NULL) {
       h->list = tmp;
       h->list_size = h->list_len + 16;
     }
   }
 
-  pthread_mutex_unlock (&h->lock);
+  pthread_mutex_unlock(&h->lock);
 
   return (ret);
 } /* void *c_heap_get_root */

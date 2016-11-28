@@ -30,7 +30,7 @@
 #include "collectd.h"
 
 #if HAVE_REGEX_H
-# include <regex.h>
+#include <regex.h>
 #endif
 
 /* public prototypes */
@@ -42,28 +42,28 @@ typedef struct ignorelist_s ignorelist_t;
  * create the ignorelist_t with known ignore state
  * return pointer to ignorelist_t
  */
-ignorelist_t *ignorelist_create (int invert);
+ignorelist_t *ignorelist_create(int invert);
 
 /*
  * free memory used by ignorelist_t
  */
-void ignorelist_free (ignorelist_t *il);
+void ignorelist_free(ignorelist_t *il);
 
 /*
  * set ignore state of the ignorelist_t
  */
-void ignorelist_set_invert (ignorelist_t *il, int invert);
+void ignorelist_set_invert(ignorelist_t *il, int invert);
 
 /*
  * append entry to ignorelist_t
  * returns zero on success, non-zero upon failure.
  */
-int ignorelist_add (ignorelist_t *il, const char *entry);
+int ignorelist_add(ignorelist_t *il, const char *entry);
 
 /*
  * check list for entry
  * return 1 for ignored entry
  */
-int ignorelist_match (ignorelist_t *il, const char *entry);
+int ignorelist_match(ignorelist_t *il, const char *entry);
 
 #endif /* UTILS_IGNORELIST_H */

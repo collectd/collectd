@@ -25,9 +25,9 @@
  *   Pavel Rochnyack <pavel2000 at ngs.ru>
  */
 
+#include "common.h"
 #include "utils_latency_config.h"
 #include "collectd.h"
-#include "common.h"
 
 static int latency_config_add_percentile(latency_config_t *conf,
                                          oconfig_item_t *ci,

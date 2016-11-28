@@ -32,61 +32,49 @@ kstat_ctl_t *kc = NULL;
 
 char hostname_g[] = "example.com";
 
-int plugin_register_complex_config (const char *type, int (*callback) (oconfig_item_t *))
-{
+int plugin_register_complex_config(const char *type,
+                                   int (*callback)(oconfig_item_t *)) {
   return ENOTSUP;
 }
 
-int plugin_register_init (const char *name, plugin_init_cb callback)
-{
+int plugin_register_init(const char *name, plugin_init_cb callback) {
   return ENOTSUP;
 }
 
-int plugin_register_read (const char *name, int (*callback) (void))
-{
+int plugin_register_read(const char *name, int (*callback)(void)) {
   return ENOTSUP;
 }
 
-int plugin_register_shutdown (const char *name, int (*callback) (void))
-{
+int plugin_register_shutdown(const char *name, int (*callback)(void)) {
   return ENOTSUP;
 }
 
-int plugin_dispatch_values (value_list_t const *vl)
-{
+int plugin_dispatch_values(value_list_t const *vl) { return ENOTSUP; }
+
+int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier) {
   return ENOTSUP;
 }
 
-int plugin_flush (const char *plugin, cdtime_t timeout, const char *identifier)
-{
-  return ENOTSUP;
-}
-
-static data_source_t magic_ds[] = {{ "value", DS_TYPE_DERIVE, 0.0, NAN }};
-static data_set_t magic = { "MAGIC", 1, magic_ds };
-const data_set_t *plugin_get_ds (const char *name)
-{
-  if (strcmp (name, "MAGIC"))
+static data_source_t magic_ds[] = {{"value", DS_TYPE_DERIVE, 0.0, NAN}};
+static data_set_t magic = {"MAGIC", 1, magic_ds};
+const data_set_t *plugin_get_ds(const char *name) {
+  if (strcmp(name, "MAGIC"))
     return NULL;
 
   return &magic;
 }
 
-void plugin_log (int level, char const *format, ...)
-{
+void plugin_log(int level, char const *format, ...) {
   char buffer[1024];
   va_list ap;
 
-  va_start (ap, format);
-  vsnprintf (buffer, sizeof (buffer), format, ap);
-  va_end (ap);
+  va_start(ap, format);
+  vsnprintf(buffer, sizeof(buffer), format, ap);
+  va_end(ap);
 
-  printf ("plugin_log (%i, \"%s\");\n", level, buffer);
+  printf("plugin_log (%i, \"%s\");\n", level, buffer);
 }
 
-cdtime_t plugin_get_interval (void)
-{
-  return TIME_T_TO_CDTIME_T (10);
-}
+cdtime_t plugin_get_interval(void) { return TIME_T_TO_CDTIME_T(10); }
 
 /* vim: set sw=2 sts=2 et : */
