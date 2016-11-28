@@ -743,6 +743,18 @@ int cu_rrd_create_file (const char *filename, /* {{{ */
       }
       unlock_file (filename);
     }
+
+    if (cfg->file_uid != -1 || cfg->file_gid != -1)
+    {
+      status = chown(filename, cfg->file_uid, cfg->file_gid);
+      if (status != 0)
+      {
+        char errbuf[1024];
+        WARNING ("cu_rrd_create_file: cannot chown (%s) to %i:%i: %s.",
+            filename, cfg->file_uid, cfg->file_gid,
+            sstrerror( errno, errbuf, sizeof (errbuf)));
+      }
+    }
   }
 
   free (argv);
