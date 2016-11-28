@@ -2522,8 +2522,10 @@ static int init_pi (int argc, char **argv)
 	log_info ("Initializing Perl interpreter...");
 #if COLLECT_DEBUG
 	{
+		int i = 0;
+
 		for (int i = 0; i < argc; ++i)
-			log_debug ("argv[%i] = \"%s\"", i, argv[i]);
+			/*log_debug ("argv[%i] = \"%s\"", i, argv[i]);*/
 	}
 #endif /* COLLECT_DEBUG */
 
