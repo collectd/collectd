@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
+#include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "testing.h"
 #include "utils_format_graphite.h"
-#include "common.h" /* for STATIC_ARRAY_SIZE */
 
 static data_set_t ds_single = {
     .type = "single",
@@ -47,8 +47,7 @@ static data_set_t ds_double = {
 };
 */
 
-DEF_TEST(metric_name)
-{
+DEF_TEST(metric_name) {
   struct {
     char *plugin_instance;
     char *type_instance;
@@ -57,105 +56,108 @@ DEF_TEST(metric_name)
     unsigned int flags;
     char *want_name;
   } cases[] = {
-    {
-      .want_name = "example@com.test.single",
-    },
-    /* plugin and type instances */
-    {
-      .plugin_instance = "foo",
-      .type_instance = "bar",
-      .want_name = "example@com.test-foo.single-bar",
-    },
-    {
-      .plugin_instance = NULL,
-      .type_instance = "bar",
-      .want_name = "example@com.test.single-bar",
-    },
-    {
-      .plugin_instance = "foo",
-      .type_instance = NULL,
-      .want_name = "example@com.test-foo.single",
-    },
-    /* special chars */
-    {
-      .plugin_instance = "foo (test)",
-      .type_instance = "test: \"hello\"",
-      .want_name = "example@com.test-foo@@test@.single-test@@@hello@",
-    },
-    /* flag GRAPHITE_SEPARATE_INSTANCES */
-    {
-      .plugin_instance = "foo",
-      .type_instance = "bar",
-      .flags = GRAPHITE_SEPARATE_INSTANCES,
-      .want_name = "example@com.test.foo.single.bar",
-    },
-    /* flag GRAPHITE_ALWAYS_APPEND_DS */
-    {
-      .plugin_instance = "foo",
-      .type_instance = "bar",
-      .flags = GRAPHITE_ALWAYS_APPEND_DS,
-      .want_name = "example@com.test-foo.single-bar.value",
-    },
-    /* flag GRAPHITE_PRESERVE_SEPARATOR */
-    {
-      .plugin_instance = "f.o.o",
-      .type_instance = "b.a.r",
-      .flags = 0,
-      .want_name = "example@com.test-f@o@o.single-b@a@r",
-    },
-    {
-      .plugin_instance = "f.o.o",
-      .type_instance = "b.a.r",
-      .flags = GRAPHITE_PRESERVE_SEPARATOR,
-      .want_name = "example.com.test-f.o.o.single-b.a.r",
-    },
-    /* prefix and suffix */
-    {
-      .prefix = "foo.",
-      .suffix = ".bar",
-      .want_name = "foo.example@com.bar.test.single",
-    },
-    {
-      .prefix = NULL,
-      .suffix = ".bar",
-      .want_name = "example@com.bar.test.single",
-    },
-    {
-      .prefix = "foo.",
-      .suffix = NULL,
-      .want_name = "foo.example@com.test.single",
-    },
+      {
+          .want_name = "example@com.test.single",
+      },
+      /* plugin and type instances */
+      {
+          .plugin_instance = "foo",
+          .type_instance = "bar",
+          .want_name = "example@com.test-foo.single-bar",
+      },
+      {
+          .plugin_instance = NULL,
+          .type_instance = "bar",
+          .want_name = "example@com.test.single-bar",
+      },
+      {
+          .plugin_instance = "foo",
+          .type_instance = NULL,
+          .want_name = "example@com.test-foo.single",
+      },
+      /* special chars */
+      {
+          .plugin_instance = "foo (test)",
+          .type_instance = "test: \"hello\"",
+          .want_name = "example@com.test-foo@@test@.single-test@@@hello@",
+      },
+      /* flag GRAPHITE_SEPARATE_INSTANCES */
+      {
+          .plugin_instance = "foo",
+          .type_instance = "bar",
+          .flags = GRAPHITE_SEPARATE_INSTANCES,
+          .want_name = "example@com.test.foo.single.bar",
+      },
+      /* flag GRAPHITE_ALWAYS_APPEND_DS */
+      {
+          .plugin_instance = "foo",
+          .type_instance = "bar",
+          .flags = GRAPHITE_ALWAYS_APPEND_DS,
+          .want_name = "example@com.test-foo.single-bar.value",
+      },
+      /* flag GRAPHITE_PRESERVE_SEPARATOR */
+      {
+          .plugin_instance = "f.o.o",
+          .type_instance = "b.a.r",
+          .flags = 0,
+          .want_name = "example@com.test-f@o@o.single-b@a@r",
+      },
+      {
+          .plugin_instance = "f.o.o",
+          .type_instance = "b.a.r",
+          .flags = GRAPHITE_PRESERVE_SEPARATOR,
+          .want_name = "example.com.test-f.o.o.single-b.a.r",
+      },
+      /* prefix and suffix */
+      {
+          .prefix = "foo.",
+          .suffix = ".bar",
+          .want_name = "foo.example@com.bar.test.single",
+      },
+      {
+          .prefix = NULL,
+          .suffix = ".bar",
+          .want_name = "example@com.bar.test.single",
+      },
+      {
+          .prefix = "foo.",
+          .suffix = NULL,
+          .want_name = "foo.example@com.test.single",
+      },
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     value_list_t vl = {
-      .values = &(value_t){.gauge = 42},
-      .values_len = 1,
-      .time = TIME_T_TO_CDTIME_T_STATIC(1480063672),
-      .interval = TIME_T_TO_CDTIME_T_STATIC(10),
-      .host = "example.com",
-      .plugin = "test",
-      .type = "single",
+        .values = &(value_t){.gauge = 42},
+        .values_len = 1,
+        .time = TIME_T_TO_CDTIME_T_STATIC(1480063672),
+        .interval = TIME_T_TO_CDTIME_T_STATIC(10),
+        .host = "example.com",
+        .plugin = "test",
+        .type = "single",
     };
 
     char want[1024];
     snprintf(want, sizeof(want), "%s 42 1480063672\r\n", cases[i].want_name);
 
     if (cases[i].plugin_instance != NULL)
-      sstrncpy (vl.plugin_instance, cases[i].plugin_instance, sizeof (vl.plugin_instance));
+      sstrncpy(vl.plugin_instance, cases[i].plugin_instance,
+               sizeof(vl.plugin_instance));
     if (cases[i].type_instance != NULL)
-      sstrncpy (vl.type_instance, cases[i].type_instance, sizeof (vl.type_instance));
+      sstrncpy(vl.type_instance, cases[i].type_instance,
+               sizeof(vl.type_instance));
 
     char got[1024];
-    EXPECT_EQ_INT(0, format_graphite(got, sizeof(got), &ds_single, &vl, cases[i].prefix, cases[i].suffix, '@', cases[i].flags));
+    EXPECT_EQ_INT(0, format_graphite(got, sizeof(got), &ds_single, &vl,
+                                     cases[i].prefix, cases[i].suffix, '@',
+                                     cases[i].flags));
     EXPECT_EQ_STR(want, got);
   }
 
   return 0;
 }
 
-int main (void)
-{
+int main(void) {
   RUN_TEST(metric_name);
 
   END_TEST;

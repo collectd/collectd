@@ -32,44 +32,46 @@
 #include <stdarg.h>
 
 typedef enum {
-	CMD_UNKNOWN = 0,
-	CMD_FLUSH   = 1,
-	CMD_GETVAL  = 2,
-	CMD_LISTVAL = 3,
-	CMD_PUTVAL  = 4,
+  CMD_UNKNOWN = 0,
+  CMD_FLUSH = 1,
+  CMD_GETVAL = 2,
+  CMD_LISTVAL = 3,
+  CMD_PUTVAL = 4,
 } cmd_type_t;
-#define CMD_TO_STRING(type) \
-	((type) == CMD_FLUSH) ? "FLUSH" \
-		: ((type) == CMD_GETVAL) ? "GETVAL" \
-		: ((type) == CMD_LISTVAL) ? "LISTVAL" \
-		: ((type) == CMD_PUTVAL) ? "PUTVAL" \
-		: "UNKNOWN"
+#define CMD_TO_STRING(type)                                                    \
+  ((type) == CMD_FLUSH) ? "FLUSH" : ((type) == CMD_GETVAL)                     \
+                                        ? "GETVAL"                             \
+                                        : ((type) == CMD_LISTVAL)              \
+                                              ? "LISTVAL"                      \
+                                              : ((type) == CMD_PUTVAL)         \
+                                                    ? "PUTVAL"                 \
+                                                    : "UNKNOWN"
 
 typedef struct {
-	double timeout;
+  double timeout;
 
-	char **plugins;
-	size_t plugins_num;
-	identifier_t *identifiers;
-	size_t identifiers_num;
+  char **plugins;
+  size_t plugins_num;
+  identifier_t *identifiers;
+  size_t identifiers_num;
 } cmd_flush_t;
 
 typedef struct {
-	char *raw_identifier;
-	identifier_t identifier;
+  char *raw_identifier;
+  identifier_t identifier;
 } cmd_getval_t;
 
 typedef struct {
 } cmd_listval_t;
 
 typedef struct {
-	/* The raw identifier as provided by the user. */
-	char *raw_identifier;
+  /* The raw identifier as provided by the user. */
+  char *raw_identifier;
 
-	/* An array of the fully parsed identifier and all value lists, and their
-	 * options as provided by the user. */
-	value_list_t *vl;
-	size_t vl_num;
+  /* An array of the fully parsed identifier and all value lists, and their
+   * options as provided by the user. */
+  value_list_t *vl;
+  size_t vl_num;
 } cmd_putval_t;
 
 /*
@@ -80,13 +82,13 @@ typedef struct {
  *   The representation of a fully parsed command.
  */
 typedef struct {
-	cmd_type_t type;
-	union {
-		cmd_flush_t flush;
-		cmd_getval_t getval;
-		cmd_listval_t listval;
-		cmd_putval_t putval;
-	} cmd;
+  cmd_type_t type;
+  union {
+    cmd_flush_t flush;
+    cmd_getval_t getval;
+    cmd_listval_t listval;
+    cmd_putval_t putval;
+  } cmd;
 } cmd_t;
 
 /*
@@ -97,9 +99,9 @@ typedef struct {
  *   Optional settings for tuning the parser behavior.
  */
 typedef struct {
-	/* identifier_default_host: If non-NULL, the hostname is optional and will
-	 * default to the specified value. */
-	char *identifier_default_host;
+  /* identifier_default_host: If non-NULL, the hostname is optional and will
+   * default to the specified value. */
+  char *identifier_default_host;
 } cmd_options_t;
 
 /*
@@ -110,13 +112,13 @@ typedef struct {
  *   Status codes describing the parse result.
  */
 typedef enum {
-	CMD_OK              =  0,
-	CMD_ERROR           = -1,
-	CMD_PARSE_ERROR     = -2,
-	CMD_UNKNOWN_COMMAND = -3,
+  CMD_OK = 0,
+  CMD_ERROR = -1,
+  CMD_PARSE_ERROR = -2,
+  CMD_UNKNOWN_COMMAND = -3,
 
-	/* Not necessarily fatal errors. */
-	CMD_NO_OPTION       =  1,
+  /* Not necessarily fatal errors. */
+  CMD_NO_OPTION = 1,
 } cmd_status_t;
 
 /*
@@ -129,8 +131,8 @@ typedef enum {
  *   as the first argument.
  */
 typedef struct {
-	void (*cb) (void *, cmd_status_t, const char *, va_list);
-	void *ud;
+  void (*cb)(void *, cmd_status_t, const char *, va_list);
+  void *ud;
 } cmd_error_handler_t;
 
 /*
@@ -140,8 +142,8 @@ typedef struct {
  * DESCRIPTION
  *   Reports an error via the specified error handler (if set).
  */
-void cmd_error (cmd_status_t status, cmd_error_handler_t *err,
-		const char *format, ...);
+void cmd_error(cmd_status_t status, cmd_error_handler_t *err,
+               const char *format, ...);
 
 /*
  * NAME
@@ -159,13 +161,13 @@ void cmd_error (cmd_status_t status, cmd_error_handler_t *err,
  * RETURN VALUE
  *   CMD_OK on success or the respective error code otherwise.
  */
-cmd_status_t cmd_parse (char *buffer, cmd_t *ret_cmd,
-		const cmd_options_t *opts, cmd_error_handler_t *err);
+cmd_status_t cmd_parse(char *buffer, cmd_t *ret_cmd, const cmd_options_t *opts,
+                       cmd_error_handler_t *err);
 
-cmd_status_t cmd_parsev (size_t argc, char **argv, cmd_t *ret_cmd,
-		const cmd_options_t *opts, cmd_error_handler_t *err);
+cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
+                        const cmd_options_t *opts, cmd_error_handler_t *err);
 
-void cmd_destroy (cmd_t *cmd);
+void cmd_destroy(cmd_t *cmd);
 
 /*
  * NAME
@@ -186,8 +188,8 @@ void cmd_destroy (cmd_t *cmd);
  *   CMD_NO_OPTION if `field' does not represent an option at all (missing
  *   equal sign).
  */
-cmd_status_t cmd_parse_option (char *field,
-		char **ret_key, char **ret_value, cmd_error_handler_t *err);
+cmd_status_t cmd_parse_option(char *field, char **ret_key, char **ret_value,
+                              cmd_error_handler_t *err);
 
 /*
  * NAME
@@ -205,7 +207,7 @@ cmd_status_t cmd_parse_option (char *field,
  *   `ap'     Variable argument list providing the arguments for the format
  *            string.
  */
-void cmd_error_fh (void *ud, cmd_status_t status,
-		const char *format, va_list ap);
+void cmd_error_fh(void *ud, cmd_status_t status, const char *format,
+                  va_list ap);
 
 #endif /* UTILS_CMDS_H */
