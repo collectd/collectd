@@ -673,7 +673,26 @@ then
 		CFLAGS="$SAVE_CFLAGS"
 	fi
 fi
+
 AM_CONDITIONAL(IP_VS_H_NEEDS_KERNEL_CFLAGS, test "x$ip_vs_h_needs_kernel_cflags" = "xyes")
+PKG_CHECK_MODULES(LIBNL_GENL3, libnl-genl-3.0, [have_libnl_genl3=yes], [have_libnl_genl3=no])
+PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1, [have_libnl3=yes],
+	[PKG_CHECK_MODULES(LIBNL2, libnl-2.0 >= 2.0, [have_libnl2=yes],
+		[PKG_CHECK_MODULES(LIBNL1, libnl-1 >= 1, [have_libnl1=yes], [have_libnl1=no])
+ 		])
+	])
+
+if ((test "${have_libnl3}" = "yes") &&(test "${have_libnl_genl3}" == yes)); then
+        CFLAGS+=" $LIBNL3_CFLAGS $LIBNL_GENL3_CFLAGS -DLIBIPVS_USE_NL"
+        LIBS+=" $LIBNL3_LIBS $LIBNL_GENL3_LIBS"
+#	LIBS+=" $"
+elif (test "${have_libnl2}" = "yes"); then
+	CFLAGS+="$LIBNL2_CFLAGS -DLIBIPVS_USE_NL -DFALLBACK_LIBNL1"
+	LIBS+="$LIBNL2_LIBS"
+elif  (test "${have_libnl1}" = "yes"); then
+        CFLAGS+="$LIBNL1_CFLAGS -DLIBIPVS_USE_NL -DFALLBACK_LIBNL1"
+	LIBS+="$LIBNL1_LIBS"
+fi
 
 # For quota module
 AC_CHECK_HEADERS(sys/ucred.h, [], [],
@@ -6008,7 +6027,7 @@ then
 	then
 		plugin_turbostat="yes"
 	fi
-	
+
 	if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"
 	then
 		plugin_cpusleep="yes"
