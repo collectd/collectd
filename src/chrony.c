@@ -786,10 +786,9 @@ static int chrony_request_daemon_stats(void) {
   chrony_push_data("time_ref", DAEMON_NAME, time_ref); /* unit: s */
   chrony_push_data(
       "time_offset_ntp", DAEMON_NAME,
-      ntohf(
-          chrony_resp.body.tracking.f_current_correction)); /* Offset between
-                                                               system time and
-                                                               NTP, unit: s */
+      ntohf(chrony_resp.body.tracking.f_current_correction)); /* Offset between
+                                                                 system time and
+                                                                 NTP, unit: s */
   chrony_push_data(
       "time_offset", DAEMON_NAME,
       ntohf(
@@ -807,10 +806,9 @@ static int chrony_request_daemon_stats(void) {
                    ntohf(chrony_resp.body.tracking.f_skew_ppm));
   chrony_push_data(
       "root_delay", DAEMON_NAME,
-      ntohf(
-          chrony_resp.body.tracking.f_root_delay)); /* Network latency between
-                                                       local daemon and the
-                                                       current source */
+      ntohf(chrony_resp.body.tracking.f_root_delay)); /* Network latency between
+                                                         local daemon and the
+                                                         current source */
   chrony_push_data("root_dispersion", DAEMON_NAME,
                    ntohf(chrony_resp.body.tracking.f_root_dispersion));
   chrony_push_data("clock_last_update", DAEMON_NAME,

@@ -718,9 +718,9 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
   else if (kn->data_type == KSTAT_DATA_UINT32)
     retval = (long long)kn->value.ui32;
   else if (kn->data_type == KSTAT_DATA_INT64)
-    retval = (long long)
-                 kn->value.i64; /* According to ANSI C99 `long long' must hold
-                                   at least 64 bits */
+    retval =
+        (long long)kn->value.i64; /* According to ANSI C99 `long long' must hold
+                                     at least 64 bits */
   else if (kn->data_type == KSTAT_DATA_UINT64)
     retval = (long long)kn->value.ui64; /* XXX: Might overflow! */
   else
