@@ -804,7 +804,7 @@ The Varnish plugin collects information about Varnish, an HTTP accelerator.
 Summary:	Virt plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libvirt-devel
+BuildRequires:	libvirt-devel, glib2-devel, libxml2-devel
 %description virt
 This plugin collects information from virtualized guests.
 %endif
@@ -2393,7 +2393,6 @@ fi
 %if %{with_virt}
 %files virt
 %{_libdir}/%{name}/virt.so
-%endif
 
 %if %{with_log_logstash}
 %files log_logstash
