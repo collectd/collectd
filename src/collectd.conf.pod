@@ -5455,15 +5455,15 @@ refer to them from.
 
 =head2 Plugin C<ovs_events>
 
-The I<ovs_events> plugin monitors the link status of OVS connected interfaces,
-dispatches the values to collectd and sends the notification whenever the link
-state change occurs. This plugin uses OVS DB to get a link state change
-notification.
+The I<ovs_events> plugin monitors the link status of I<Open vSwitch> (OVS)
+connected interfaces, dispatches the values to collectd and sends the
+notification whenever the link state change occurs. This plugin uses OVS
+database to get a link state change notification.
 
 B<Synopsis:>
 
  <Plugin "ovs_events">
-   Port "6640"
+   Port 6640
    Address "127.0.0.1"
    Socket "/var/run/openvswitch/db.sock"
    Interfaces "br0" "veth0"
@@ -5477,22 +5477,21 @@ The plugin provides the following configuration options:
 =item B<Address> I<node>
 
 The address of the OVS DB server JSON-RPC interface used by the plugin. To
-enable the interface, OVS DB daemon should be running with '--remote=ptcp:'
+enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
 option. See L<ovsdb-server(1)> for more details. The option may be either
 network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
-format. Defaults to 'localhost'.
+format. Defaults to B<'localhost'>.
 
 =item B<Port> I<service>
 
 TCP-port to connect to. Either a service name or a port number may be given.
-Please note that numerical port numbers must be given as a string. Defaults
-to "6640".
+Defaults to B<6640>.
 
 =item B<Socket> I<path>
 
 The UNIX domain socket path of OVS DB server JSON-RPC interface used by the
 plugin. To enable the interface, the OVS DB daemon should be running with
-'--remote=punix:' option. See L<ovsdb-server(1)> for more details. If this
+C<--remote=punix:> option. See L<ovsdb-server(1)> for more details. If this
 option is set, B<Address> and B<Port> options are ignored.
 
 =item B<Interfaces> [I<ifname> ...]

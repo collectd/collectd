@@ -38,11 +38,6 @@
 #define OVS_EVENTS_PLUGIN "ovs_events"
 #define OVS_EVENTS_CTX_LOCK                                                    \
   for (int __i = ovs_events_ctx_lock(); __i != 0; __i = ovs_events_ctx_unlock())
-#define OVS_EVENTS_CONFIG_ERROR(option)                                        \
-  do {                                                                         \
-    ERROR(OVS_EVENTS_PLUGIN ": read '%s' config option failed", option);       \
-    goto failure;                                                              \
-  } while (0)
 
 /* Link status type */
 enum ovs_events_link_status_e { DOWN, UP };
@@ -171,7 +166,7 @@ static char *ovs_events_get_select_params() {
 
   /* allocate memory for OVS DB select params */
   size_t params_size = sizeof(params_fmt) + strlen(opt_buff);
-  char *params_buff = malloc(params_size);
+  char *params_buff = calloc(1, params_size);
   if (params_buff == NULL) {
     sfree(opt_buff);
     return NULL;
@@ -196,66 +191,82 @@ static void ovs_events_config_free() {
   }
 }
 
+/* Parse/process "Interfaces" configuration option. Returns 0 if success
+ * otherwise -1 (error)
+ */
+static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
+  for (int j = 0; j < ci->values_num; j++) {
+    /* check interface name type */
+    if (ci->values[j].type != OCONFIG_TYPE_STRING) {
+      ERROR(OVS_EVENTS_PLUGIN
+            ": given interface name is not a string [idx=%d]", j);
+      return (-1);
+    }
+    /* allocate memory for configured interface */
+    ovs_events_iface_list_t *new_iface = calloc(1, sizeof(*new_iface));
+    if (new_iface == NULL) {
+      ERROR(OVS_EVENTS_PLUGIN ": calloc () copy interface name fail");
+      return (-1);
+    } else {
+      /* store interface name */
+      sstrncpy(new_iface->name, ci->values[j].value.string,
+               sizeof(new_iface->name));
+      new_iface->next = ovs_events_ctx.config.ifaces;
+      ovs_events_ctx.config.ifaces = new_iface;
+      DEBUG(OVS_EVENTS_PLUGIN ": found monitored interface \"%s\"",
+            new_iface->name);
+    }
+  }
+  return (0);
+}
+
 /* Parse plugin configuration file and store the config
  * in allocated memory. Returns negative value in case of error.
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
-  ovs_events_iface_list_t *new_iface;
-
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
       if (cf_util_get_boolean(child,
-                              &ovs_events_ctx.config.send_notification) != 0)
-        OVS_EVENTS_CONFIG_ERROR(child->key);
+                              &ovs_events_ctx.config.send_notification) != 0) {
+        ovs_events_config_free();
+        return (-1);
+      }
     } else if (strcasecmp("Address", child->key) == 0) {
       if (cf_util_get_string_buffer(
               child, ovs_events_ctx.config.ovs_db_node,
-              sizeof(ovs_events_ctx.config.ovs_db_node)) != 0)
-        OVS_EVENTS_CONFIG_ERROR(child->key);
+              sizeof(ovs_events_ctx.config.ovs_db_node)) != 0) {
+        ovs_events_config_free();
+        return (-1);
+      }
     } else if (strcasecmp("Port", child->key) == 0) {
-      if (cf_util_get_string_buffer(
-              child, ovs_events_ctx.config.ovs_db_serv,
-              sizeof(ovs_events_ctx.config.ovs_db_serv)) != 0)
-        OVS_EVENTS_CONFIG_ERROR(child->key);
+      char *service = NULL;
+      if (cf_util_get_service(child, &service) != 0) {
+        ovs_events_config_free();
+        return (-1);
+      }
+      strncpy(ovs_events_ctx.config.ovs_db_serv, service,
+              sizeof(ovs_events_ctx.config.ovs_db_serv));
+      sfree(service);
     } else if (strcasecmp("Socket", child->key) == 0) {
       if (cf_util_get_string_buffer(
               child, ovs_events_ctx.config.ovs_db_unix,
-              sizeof(ovs_events_ctx.config.ovs_db_unix)) != 0)
-        OVS_EVENTS_CONFIG_ERROR(child->key);
+              sizeof(ovs_events_ctx.config.ovs_db_unix)) != 0) {
+        ovs_events_config_free();
+        return (-1);
+      }
     } else if (strcasecmp("Interfaces", child->key) == 0) {
-      for (int j = 0; j < child->values_num; j++) {
-        /* check value type */
-        if (child->values[j].type != OCONFIG_TYPE_STRING) {
-          ERROR(OVS_EVENTS_PLUGIN
-                ": given interface name is not a string [idx=%d]",
-                j);
-          goto failure;
-        }
-        /* allocate memory for configured interface */
-        if ((new_iface = malloc(sizeof(*new_iface))) == NULL) {
-          ERROR(OVS_EVENTS_PLUGIN ": malloc () copy interface name fail");
-          goto failure;
-        } else {
-          /* store interface name */
-          sstrncpy(new_iface->name, child->values[j].value.string,
-                   sizeof(new_iface->name));
-          new_iface->next = ovs_events_ctx.config.ifaces;
-          ovs_events_ctx.config.ifaces = new_iface;
-          DEBUG(OVS_EVENTS_PLUGIN ": found monitored interface \"%s\"",
-                new_iface->name);
-        }
+      if (ovs_events_config_get_interfaces(child) != 0) {
+        ovs_events_config_free();
+        return (-1);
       }
     } else {
       ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here", child->key);
-      goto failure;
+      ovs_events_config_free();
+      return (-1);
     }
   }
   return (0);
-
-failure:
-  ovs_events_config_free();
-  return (-1);
 }
 
 /* Dispatch OVS interface link status event to collectd */
@@ -285,19 +296,21 @@ static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifin
     return;
   }
 
-  if (strlen(ifinfo->ext_vm_uuid) > 0)
+  if (strlen(ifinfo->ext_vm_uuid) > 0) {
     if (plugin_notification_meta_add_string(&n, "vm-uuid",
                                             ifinfo->ext_vm_uuid) < 0) {
       ERROR(OVS_EVENTS_PLUGIN ": add interface vm-uuid meta data failed");
       return;
     }
+  }
 
-  if (strlen(ifinfo->ext_iface_id) > 0)
+  if (strlen(ifinfo->ext_iface_id) > 0) {
     if (plugin_notification_meta_add_string(&n, "iface-id",
                                             ifinfo->ext_iface_id) < 0) {
       ERROR(OVS_EVENTS_PLUGIN ": add interface iface-id meta data failed");
       return;
     }
+  }
 
   /* fill the notification data */
   ssnprintf(n.message, sizeof(n.message),
