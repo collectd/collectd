@@ -180,6 +180,58 @@
 	* Zone plugin: This new plugin reads per-zone CPU usage on Solaris.
 	  Thanks to Mathijs Mohlmann and Dagobert Michelsen.
 
+2016-11-28, Version 5.5.3
+	* collectd: Write threads are stopped before shutdown callbacks are
+	  called. Thanks to Florian Forster. #1110
+	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not
+	  available on AIX. Thanks to Chao Yang.
+	* libcollectdclient: Lines printed to "STDERR" are now guarded by the
+	  environment variable "COLLECTD_TRACE". Thanks to Florian Forster. #105
+	* collectd.conf(5): Various typos have been fixed. Thanks to Marc
+	  Fournier.
+	* Build system: Detection of the Java environment has been made
+	  deterministic to allow for reproducible builds. Thanks to Marc
+	  Fournier. #1523
+	* APC UPS plugin: Unavailable metrics are now skipped instead of
+	  reported as 0 (zero). Thanks to Florian Forster. #2025
+	* Battery plugin: The minimum value has been removed from the power type
+	  to allow the plugin to report discharging batteries as negative power.
+	  Thanks to Florian Forster.
+	* DBI, Oracle and PostgreSQL plugins: An error message when the type
+	  instance is truncated has been added. Thanks to Florian Forster. #4
+	* cURL-JSON plugin: A possible segmentation fault when parsing
+	  unexpected JSON has been fixed. Thanks to Florian Forster. #1896
+	* DF plugin: Compilation with xfsprogs ≥ 4.7.0 has been fixed. Thanks
+	  to Thomas Deutschmann. #1877
+	* Modbus plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Florian Forster.
+	* Network plugin: An error message has been corrected. Thanks to Florian
+	  Forster.
+	* Network plugin: Handling of errors form secure memory initialization
+	  has been improved: the plugin fails gracefully now instead of calling
+	  "abort()". Thanks to Sebastian Harl.
+	* Network plugin: The gcrypt library is only initialized when it is
+	  actually required due to the network plugin's configuration. Thanks to
+	  Florian Forster. #1902
+	* Ping plugin: The init callback has been changed to be idempotent,
+	  fixing errors being reported on Solaris. Thanks to Florian Forster.
+	  #869
+	* PostgreSQL plugin: The query_plans and query_plans_by_table queries
+	  have been improved to return 0 (zero) instead of "NULL" when not
+	  available. Thanks to Bernd Zeimetz. #1905
+	* PowerDNS plugin: The "recursor command" has been fixed so PowerDNS can
+	  correctly parse all requested fields. Thanks to Ruben Kerkhof.
+	* Python plugin: Handling of data sets with multiple data sources of
+	  different type has been fixed. Thanks to Sebastian Harl.
+	* RRDCacheD plugin: Reconnection behavior after failed operations has
+	  been added. Thanks to Sebastian Harl. Debian#657877
+	* Write Graphite and AMQP plugins: A bug that could lead to a missing
+	  null-termination has been fixed. Thanks to Markus Linnala.
+	* Write Kafka plugin: Support for librdkafka 0.9.0 has been added.
+	  Thanks to Florian Forster.
+	* Write Riemann plugin: Build issues on Solaris have been fixed. Thanks
+	  to Florian Forster.
+
 2016-07-25, Version 5.5.2
 	* collectd: A division by zero has been fixed in the
 	  "plugin_dispatch_multivalue()" function. Thanks to Corey Kosak.
