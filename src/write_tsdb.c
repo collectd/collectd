@@ -645,9 +645,9 @@ static int wt_config(oconfig_item_t *ci) {
 
     if (strcasecmp("Node", child->key) == 0)
       wt_config_tsd(child);
-    else if (strcasecmp("DNS_Cache_TTL", child->key) == 0)
+    else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &dnsttl);
-    else if (strcasecmp("DNS_Random_Cache_TTL", child->key) == 0) {
+    else if (strcasecmp("ResolveJitter", child->key) == 0) {
       config_random_ttl = 1;
       cf_util_get_cdtime(child, &dnsrandomttl);
     } else {
