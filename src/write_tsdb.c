@@ -85,8 +85,8 @@
  * Private variables
  */
 struct wt_callback {
-  struct addrinfo *sock_info;
-  cdtime_t sock_info_last_update;
+  struct addrinfo *ai;
+  cdtime_t ai_last_update;
   int sock_fd;
 
   char *node;
@@ -109,8 +109,7 @@ struct wt_callback {
 };
 
 static cdtime_t dnsttl = TIME_T_TO_CDTIME_T_STATIC(WRITE_TSDB_DEFAULT_DNS_TTL);
-static double dnsrandomttl = .0;
-static _Bool use_dnsrandomttl = 0;
+static cdtime_t dnsrandomttl = 0;
 
 /*
  * Functions
@@ -169,11 +168,11 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb) {
 }
 
 static cdtime_t new_random_ttl() {
-  time_t ttl = 0;
-  if (use_dnsrandomttl) {
-    ttl = (time_t)(dnsrandomttl * ((double)random()) /
-                   (((double)RAND_MAX) + 1.0));
-  }
+  if (dnsrandomttl == 0)
+    return 0;
+
+  time_t ttl = (time_t)(CDTIME_T_TO_DOUBLE(dnsrandomttl) * ((double)random()) /
+                        (((double)RAND_MAX) + 1.0));
   return TIME_T_TO_CDTIME_T(ttl);
 }
 
@@ -188,51 +187,51 @@ static int wt_callback_init(struct wt_callback *cb) {
     return 0;
 
   now = cdtime();
-  if (cb->sock_info) {
+  if (cb->ai) {
     /* When we are here, we still have the IP in cache.
      * If we have remaining attempts without calling the DNS, we update the
      * last_update date so we keep the info until next time.
      * If there is no more attempts, we need to flush the cache.
      */
 
-    if ((cb->sock_info_last_update + dnsttl + cb->next_random_ttl) < now) {
+    if ((cb->ai_last_update + dnsttl + cb->next_random_ttl) < now) {
       cb->next_random_ttl = new_random_ttl();
       if (cb->connect_dns_failed_attempts_remaining > 0) {
         /* Warning : this is run under send_lock mutex.
          * This is why we do not use another mutex here.
          * */
-        cb->sock_info_last_update = now;
+        cb->ai_last_update = now;
         cb->connect_dns_failed_attempts_remaining--;
       } else {
-        freeaddrinfo(cb->sock_info);
-        cb->sock_info = NULL;
+        freeaddrinfo(cb->ai);
+        cb->ai = NULL;
       }
     }
   }
 
-  if (NULL == cb->sock_info) {
+  if (cb->ai == NULL) {
+    if ((cb->ai_last_update + dnsttl + cb->next_random_ttl) >= now) {
+      DEBUG("write_tsdb plugin: too many getaddrinfo(%s, %s) failures", node,
+            service);
+      return (-1);
+    }
+    cb->ai_last_update = now;
+    cb->next_random_ttl = new_random_ttl();
+
     struct addrinfo ai_hints = {
         .ai_family = AF_UNSPEC,
         .ai_flags = AI_ADDRCONFIG,
         .ai_socktype = SOCK_STREAM,
     };
 
-    if ((cb->sock_info_last_update + dnsttl + cb->next_random_ttl) >= now) {
-      DEBUG("write_tsdb plugin: too many getaddrinfo (%s, %s) failures", node,
-            service);
-      return (-1);
-    }
-
-    cb->sock_info_last_update = now;
-    cb->next_random_ttl = new_random_ttl();
-    status = getaddrinfo(node, service, &ai_hints, &(cb->sock_info));
+    status = getaddrinfo(node, service, &ai_hints, &cb->ai);
     if (status != 0) {
-      if (cb->sock_info) {
-        freeaddrinfo(cb->sock_info);
-        cb->sock_info = NULL;
+      if (cb->ai) {
+        freeaddrinfo(cb->ai);
+        cb->ai = NULL;
       }
       if (cb->connect_failed_log_enabled) {
-        ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s", node,
+        ERROR("write_tsdb plugin: getaddrinfo(%s, %s) failed: %s", node,
               service, gai_strerror(status));
         cb->connect_failed_log_enabled = 0;
       }
@@ -240,17 +239,15 @@ static int wt_callback_init(struct wt_callback *cb) {
     }
   }
 
-  assert(cb->sock_info != NULL);
-  for (struct addrinfo *ai_ptr = cb->sock_info; ai_ptr != NULL;
-       ai_ptr = ai_ptr->ai_next) {
-    cb->sock_fd =
-        socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+  assert(cb->ai != NULL);
+  for (struct addrinfo *ai = cb->ai; ai != NULL; ai = ai->ai_next) {
+    cb->sock_fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (cb->sock_fd < 0)
       continue;
 
     set_sock_opts(cb->sock_fd);
 
-    status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+    status = connect(cb->sock_fd, ai->ai_addr, ai->ai_addrlen);
     if (status != 0) {
       close(cb->sock_fd);
       cb->sock_fd = -1;
@@ -648,20 +645,11 @@ static int wt_config(oconfig_item_t *ci) {
 
     if (strcasecmp("Node", child->key) == 0)
       wt_config_tsd(child);
-    else if (strcasecmp("DNS_Cache_TTL", child->key) == 0) {
-      int ttl;
-      cf_util_get_int(child, &ttl);
-      dnsttl = TIME_T_TO_CDTIME_T(ttl);
-    } else if (strcasecmp("DNS_Random_Cache_TTL", child->key) == 0) {
-      int ttl;
-      cf_util_get_int(child, &ttl);
+    else if (strcasecmp("DNS_Cache_TTL", child->key) == 0)
+      cf_util_get_cdtime(child, &dnsttl);
+    else if (strcasecmp("DNS_Random_Cache_TTL", child->key) == 0) {
       config_random_ttl = 1;
-      if (ttl) {
-        dnsrandomttl = (double)ttl;
-        use_dnsrandomttl = 1;
-      } else {
-        use_dnsrandomttl = 0;
-      }
+      cf_util_get_cdtime(child, &dnsrandomttl);
     } else {
       ERROR("write_tsdb plugin: Invalid configuration "
             "option: %s.",
@@ -669,11 +657,9 @@ static int wt_config(oconfig_item_t *ci) {
     }
   }
 
-  if (!config_random_ttl) {
-    use_dnsrandomttl = 1;
+  if (!config_random_ttl)
     dnsrandomttl = CDTIME_T_TO_DOUBLE(WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL *
                                       plugin_get_interval());
-  }
 
   return 0;
 }
