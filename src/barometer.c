@@ -368,19 +368,14 @@ static void temp_list_delete(temperature_list_t **list) {
  * Get reference temperature value
  *
  * First initially uc_get_rate_by_name is tried. At the startup due to
- * nondeterministic
- * order the temperature may not be read yet (then it fails and first measurment
- * gives
- * only absolute air pressure reading which is acceptable). Once it succedes
- * (should be
- * second measurement at the latest) we use average of few last readings from
- * uc_get_history_by_name. It may take few readings to start filling so again we
- * use
- * uc_get_rate_by_name as a fallback.
+ * nondeterministic order the temperature may not be read yet (then it fails and
+ * first measurment gives only absolute air pressure reading which is
+ * acceptable). Once it succedes (should be second measurement at the latest) we
+ * use average of few last readings from uc_get_history_by_name. It may take few
+ * readings to start filling so again we use uc_get_rate_by_name as a fallback.
  * The idea is to use basic "noise" filtering (history averaging) across all the
- * values
- * which given sensor provides (up to given depth). Then we get minimum among
- * the sensors.
+ * values which given sensor provides (up to given depth). Then we get minimum
+ * among the sensors.
  *
  * @param result where the result is stored. When not available NAN is stored.
  *
@@ -405,9 +400,9 @@ static int get_reference_temperature(double *result) {
     avg_num = 0;
 
     /* First time need to read current rate to learn how many values are
-       there (typically for temperature it would be just one).
-       We do not expect dynamic changing of number of temperarure values
-       in runtime yet (are there any such cases?). */
+       there (typically for temperature it would be just one). We do not expect
+       dynamic changing of number of temperarure values in runtime yet (are
+       there any such cases?). */
     if (!list->initialized) {
       if (uc_get_rate_by_name(list->sensor_name, &values, &values_num)) {
         DEBUG(

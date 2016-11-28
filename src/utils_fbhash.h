@@ -40,12 +40,12 @@
 struct fbhash_s;
 typedef struct fbhash_s fbhash_t;
 
-fbhash_t *fbh_create (const char *file);
-void fbh_destroy (fbhash_t *h);
+fbhash_t *fbh_create(const char *file);
+void fbh_destroy(fbhash_t *h);
 
 /* Returns the value as a newly allocated `char *'. It's the caller's
  * responsibility to free this memory. */
-char *fbh_get (fbhash_t *h, const char *key);
+char *fbh_get(fbhash_t *h, const char *key);
 
 #endif /* UTILS_FBHASH_H */
 

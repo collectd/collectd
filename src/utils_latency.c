@@ -26,24 +26,23 @@
 
 #include "collectd.h"
 
+#include "common.h"
 #include "plugin.h"
 #include "utils_latency.h"
-#include "common.h"
 
-#include <math.h>
 #include <limits.h>
+#include <math.h>
 
 #ifndef LLONG_MAX
-# define LLONG_MAX 9223372036854775807LL
+#define LLONG_MAX 9223372036854775807LL
 #endif
 
 #ifndef HISTOGRAM_DEFAULT_BIN_WIDTH
 /* 1048576 = 2^20 ^= 1/1024 s */
-# define HISTOGRAM_DEFAULT_BIN_WIDTH 1048576
+#define HISTOGRAM_DEFAULT_BIN_WIDTH 1048576
 #endif
 
-struct latency_counter_s
-{
+struct latency_counter_s {
   cdtime_t start_time;
 
   cdtime_t sum;
@@ -73,7 +72,7 @@ struct latency_counter_s
 * So, if the required bin width is 300, then new bin width will be 512 as it is
 * the next nearest power of 2.
 */
-static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
+static void change_bin_width(latency_counter_t *lc, cdtime_t latency) /* {{{ */
 {
   /* This function is called because the new value is above histogram's range.
    * First find the required bin width:
@@ -81,9 +80,11 @@ static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
    * then get the next nearest power of 2
    *           newBinWidth = 2^(ceil(log2(requiredBinWidth)))
    */
-  double required_bin_width = ((double) (latency + 1)) / ((double) HISTOGRAM_NUM_BINS);
-  double required_bin_width_logbase2 = log (required_bin_width) / log (2.0);
-  cdtime_t new_bin_width = (cdtime_t) (pow (2.0, ceil (required_bin_width_logbase2)) + .5);
+  double required_bin_width =
+      ((double)(latency + 1)) / ((double)HISTOGRAM_NUM_BINS);
+  double required_bin_width_logbase2 = log(required_bin_width) / log(2.0);
+  cdtime_t new_bin_width =
+      (cdtime_t)(pow(2.0, ceil(required_bin_width_logbase2)) + .5);
   cdtime_t old_bin_width = lc->bin_width;
 
   lc->bin_width = new_bin_width;
@@ -92,50 +93,49 @@ static void change_bin_width (latency_counter_t *lc, cdtime_t latency) /* {{{ */
    * old bin's count to new bin. */
   if (lc->num > 0) // if the histogram has data then iterate else skip
   {
-      double width_change_ratio = ((double) old_bin_width) / ((double) new_bin_width);
+    double width_change_ratio =
+        ((double)old_bin_width) / ((double)new_bin_width);
 
-      for (size_t i = 0; i < HISTOGRAM_NUM_BINS; i++)
-      {
-         size_t new_bin = (size_t) (((double) i) * width_change_ratio);
-         if (i == new_bin)
-             continue;
-         assert (new_bin < i);
+    for (size_t i = 0; i < HISTOGRAM_NUM_BINS; i++) {
+      size_t new_bin = (size_t)(((double)i) * width_change_ratio);
+      if (i == new_bin)
+        continue;
+      assert(new_bin < i);
 
-         lc->histogram[new_bin] += lc->histogram[i];
-         lc->histogram[i] = 0;
-      }
+      lc->histogram[new_bin] += lc->histogram[i];
+      lc->histogram[i] = 0;
+    }
   }
 
   DEBUG("utils_latency: change_bin_width: latency = %.3f; "
-      "old_bin_width = %.3f; new_bin_width = %.3f;",
-      CDTIME_T_TO_DOUBLE (latency),
-      CDTIME_T_TO_DOUBLE (old_bin_width),
-      CDTIME_T_TO_DOUBLE (new_bin_width));
+        "old_bin_width = %.3f; new_bin_width = %.3f;",
+        CDTIME_T_TO_DOUBLE(latency), CDTIME_T_TO_DOUBLE(old_bin_width),
+        CDTIME_T_TO_DOUBLE(new_bin_width));
 } /* }}} void change_bin_width */
 
-latency_counter_t *latency_counter_create (void) /* {{{ */
+latency_counter_t *latency_counter_create(void) /* {{{ */
 {
   latency_counter_t *lc;
 
-  lc = calloc (1, sizeof (*lc));
+  lc = calloc(1, sizeof(*lc));
   if (lc == NULL)
     return (NULL);
 
   lc->bin_width = HISTOGRAM_DEFAULT_BIN_WIDTH;
-  latency_counter_reset (lc);
+  latency_counter_reset(lc);
   return (lc);
 } /* }}} latency_counter_t *latency_counter_create */
 
-void latency_counter_destroy (latency_counter_t *lc) /* {{{ */
+void latency_counter_destroy(latency_counter_t *lc) /* {{{ */
 {
-  sfree (lc);
+  sfree(lc);
 } /* }}} void latency_counter_destroy */
 
-void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
+void latency_counter_add(latency_counter_t *lc, cdtime_t latency) /* {{{ */
 {
   cdtime_t bin;
 
-  if ((lc == NULL) || (latency == 0) || (latency > ((cdtime_t) LLONG_MAX)))
+  if ((lc == NULL) || (latency == 0) || (latency > ((cdtime_t)LLONG_MAX)))
     return;
 
   lc->sum += latency;
@@ -152,20 +152,18 @@ void latency_counter_add (latency_counter_t *lc, cdtime_t latency) /* {{{ */
    * subtract one from the cdtime_t value so that exactly 1.0 ms get sorted
    * accordingly. */
   bin = (latency - 1) / lc->bin_width;
-  if (bin >= HISTOGRAM_NUM_BINS)
-  {
-      change_bin_width (lc, latency);
-      bin = (latency - 1) / lc->bin_width;
-      if (bin >= HISTOGRAM_NUM_BINS)
-      {
-          ERROR ("utils_latency: latency_counter_add: Invalid bin: %"PRIu64, bin);
-          return;
-      }
+  if (bin >= HISTOGRAM_NUM_BINS) {
+    change_bin_width(lc, latency);
+    bin = (latency - 1) / lc->bin_width;
+    if (bin >= HISTOGRAM_NUM_BINS) {
+      ERROR("utils_latency: latency_counter_add: Invalid bin: %" PRIu64, bin);
+      return;
+    }
   }
   lc->histogram[bin]++;
 } /* }}} void latency_counter_add */
 
-void latency_counter_reset (latency_counter_t *lc) /* {{{ */
+void latency_counter_reset(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
     return;
@@ -179,69 +177,65 @@ void latency_counter_reset (latency_counter_t *lc) /* {{{ */
   Value of 4 is selected to reduce frequent changes of bin width.
 */
 #define REDUCE_THRESHOLD 4
-  if ((lc->num > 0) && (lc->bin_width >= HISTOGRAM_DEFAULT_BIN_WIDTH * 2)
-     && (max_bin < HISTOGRAM_NUM_BINS / REDUCE_THRESHOLD))
-  {
+  if ((lc->num > 0) && (lc->bin_width >= HISTOGRAM_DEFAULT_BIN_WIDTH * 2) &&
+      (max_bin < HISTOGRAM_NUM_BINS / REDUCE_THRESHOLD)) {
     /* new bin width will be the previous power of 2 */
     bin_width = bin_width / 2;
 
     DEBUG("utils_latency: latency_counter_reset: max_latency = %.3f; "
-          "max_bin = %"PRIu64"; old_bin_width = %.3f; new_bin_width = %.3f;",
-        CDTIME_T_TO_DOUBLE (lc->max),
-        max_bin,
-        CDTIME_T_TO_DOUBLE (lc->bin_width),
-        CDTIME_T_TO_DOUBLE (bin_width));
+          "max_bin = %" PRIu64 "; old_bin_width = %.3f; new_bin_width = %.3f;",
+          CDTIME_T_TO_DOUBLE(lc->max), max_bin,
+          CDTIME_T_TO_DOUBLE(lc->bin_width), CDTIME_T_TO_DOUBLE(bin_width));
   }
 
-  memset (lc, 0, sizeof (*lc));
+  memset(lc, 0, sizeof(*lc));
 
   /* preserve bin width */
   lc->bin_width = bin_width;
-  lc->start_time = cdtime ();
+  lc->start_time = cdtime();
 } /* }}} void latency_counter_reset */
 
-cdtime_t latency_counter_get_min (latency_counter_t *lc) /* {{{ */
+cdtime_t latency_counter_get_min(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
     return (0);
   return (lc->min);
 } /* }}} cdtime_t latency_counter_get_min */
 
-cdtime_t latency_counter_get_max (latency_counter_t *lc) /* {{{ */
+cdtime_t latency_counter_get_max(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
     return (0);
   return (lc->max);
 } /* }}} cdtime_t latency_counter_get_max */
 
-cdtime_t latency_counter_get_sum (latency_counter_t *lc) /* {{{ */
+cdtime_t latency_counter_get_sum(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
     return (0);
   return (lc->sum);
 } /* }}} cdtime_t latency_counter_get_sum */
 
-size_t latency_counter_get_num (latency_counter_t *lc) /* {{{ */
+size_t latency_counter_get_num(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
     return (0);
   return (lc->num);
 } /* }}} size_t latency_counter_get_num */
 
-cdtime_t latency_counter_get_average (latency_counter_t *lc) /* {{{ */
+cdtime_t latency_counter_get_average(latency_counter_t *lc) /* {{{ */
 {
   double average;
 
   if ((lc == NULL) || (lc->num == 0))
     return (0);
 
-  average = CDTIME_T_TO_DOUBLE (lc->sum) / ((double) lc->num);
-  return (DOUBLE_TO_CDTIME_T (average));
+  average = CDTIME_T_TO_DOUBLE(lc->sum) / ((double)lc->num);
+  return (DOUBLE_TO_CDTIME_T(average));
 } /* }}} cdtime_t latency_counter_get_average */
 
-cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
-    double percent)
-{
+cdtime_t latency_counter_get_percentile(latency_counter_t *lc, /* {{{ */
+                                        double percent) {
   double percent_upper;
   double percent_lower;
   double p;
@@ -257,14 +251,13 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
   percent_upper = 0.0;
   percent_lower = 0.0;
   sum = 0;
-  for (i = 0; i < HISTOGRAM_NUM_BINS; i++)
-  {
+  for (i = 0; i < HISTOGRAM_NUM_BINS; i++) {
     percent_lower = percent_upper;
     sum += lc->histogram[i];
     if (sum == 0)
       percent_upper = 0.0;
     else
-      percent_upper = 100.0 * ((double) sum) / ((double) lc->num);
+      percent_upper = 100.0 * ((double)sum) / ((double)lc->num);
 
     if (percent_upper >= percent)
       break;
@@ -273,20 +266,20 @@ cdtime_t latency_counter_get_percentile (latency_counter_t *lc, /* {{{ */
   if (i >= HISTOGRAM_NUM_BINS)
     return (0);
 
-  assert (percent_upper >= percent);
-  assert (percent_lower < percent);
+  assert(percent_upper >= percent);
+  assert(percent_lower < percent);
 
   if (i == 0)
     return (lc->bin_width);
 
-  latency_lower = ((cdtime_t) i) * lc->bin_width;
+  latency_lower = ((cdtime_t)i) * lc->bin_width;
   p = (percent - percent_lower) / (percent_upper - percent_lower);
 
-  latency_interpolated = latency_lower
-    + DOUBLE_TO_CDTIME_T (p * CDTIME_T_TO_DOUBLE (lc->bin_width));
+  latency_interpolated =
+      latency_lower + DOUBLE_TO_CDTIME_T(p * CDTIME_T_TO_DOUBLE(lc->bin_width));
 
-  DEBUG ("latency_counter_get_percentile: latency_interpolated = %.3f",
-      CDTIME_T_TO_DOUBLE (latency_interpolated));
+  DEBUG("latency_counter_get_percentile: latency_interpolated = %.3f",
+        CDTIME_T_TO_DOUBLE(latency_interpolated));
   return (latency_interpolated);
 } /* }}} cdtime_t latency_counter_get_percentile */
 

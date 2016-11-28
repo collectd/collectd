@@ -388,11 +388,11 @@ int main(int argc, char **argv) /* {{{ */
       double now = dtime();
 
       while (now < vl->time) {
-        /* 1 / 100 second */
-        struct timespec ts = {0, 10000000};
-
-        ts.tv_sec = (time_t)now;
-        ts.tv_nsec = (long)((now - ((double)ts.tv_sec)) * 1e9);
+        double diff = vl->time - now;
+        struct timespec ts = {
+            .tv_sec = (time_t)diff,
+        };
+        ts.tv_nsec = (long)((diff - ((double)ts.tv_sec)) * 1e9);
 
         nanosleep(&ts, /* remaining = */ NULL);
         now = dtime();

@@ -2919,15 +2919,15 @@ fi
 
 if test "x$with_liblua" = "xyes"
 then
-  SAVE_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS $LUA_CFLAGS"
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $LUA_CFLAGS"
 
   AC_CHECK_HEADERS([lua.h lauxlib.h lualib.h],
     [with_liblua="yes"],
     [with_liblua="no (header not found)"]
   )
 
-  CFLAGS="$SAVE_CFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_liblua" = "xyes"
