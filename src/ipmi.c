@@ -302,6 +302,10 @@ static int sensor_list_add (ipmi_sensor_t *sensor)
       type = "fanspeed";
       break;
 
+    case IPMI_SENSOR_TYPE_POWER_SUPPLY:
+      type = "presence";
+      break;
+
     default:
       {
         const char *sensor_type_str;
