@@ -748,7 +748,7 @@ using HTTP POST requests.
 Summary:       Write-kafka plugin for collectd
 Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
-BuildRequires: rdkafka-devel
+BuildRequires: librdkafka-devel
 %description write_kafka
 The write_kafka plugin sends values to kafka, a distributed messaging system.
 %endif
