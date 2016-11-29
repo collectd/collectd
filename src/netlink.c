@@ -539,7 +539,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
         submit_one(dev, "ipt_packets", type_instance, bs->packets);
       }
       if (qs != NULL) {
-        submit_one(dev, "if_tx_errors", type_instance, qs->drops);
+        submit_one(dev, "if_tx_dropped", type_instance, qs->drops);
       }
     }
 
