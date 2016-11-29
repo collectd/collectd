@@ -481,7 +481,8 @@ static void *open_connection (void __attribute__((unused)) *arg)
 			collectors[i]->socket = NULL;
 
 			if (plugin_thread_create (&collectors[i]->thread,
-							&ptattr, collect, collectors[i]) != 0) {
+							&ptattr, collect, collectors[i],
+							"email collector") != 0) {
 				char errbuf[1024];
 				log_err ("plugin_thread_create() failed: %s",
 						sstrerror (errno, errbuf, sizeof (errbuf)));
@@ -568,7 +569,7 @@ static void *open_connection (void __attribute__((unused)) *arg)
 static int email_init (void)
 {
 	if (plugin_thread_create (&connector, NULL,
-				open_connection, NULL) != 0) {
+				open_connection, NULL, "email listener") != 0) {
 		char errbuf[1024];
 		disabled = 1;
 		log_err ("plugin_thread_create() failed: %s",
@@ -657,7 +658,6 @@ static void email_submit (const char *type, const char *type_instance, gauge_t v
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "email", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

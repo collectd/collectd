@@ -599,9 +599,9 @@ static int camqp_read_body (camqp_config_t *conf, /* {{{ */
 
     if (strcasecmp ("text/collectd", content_type) == 0)
     {
-        status = handle_putval (stderr, body);
+        status = cmd_handle_putval (stderr, body);
         if (status != 0)
-            ERROR ("amqp plugin: handle_putval failed with status %i.",
+            ERROR ("amqp plugin: cmd_handle_putval failed with status %i.",
                     status);
         return (status);
     }
@@ -677,25 +677,21 @@ static void *camqp_subscribe_thread (void *user_data) /* {{{ */
         status = camqp_connect (conf);
         if (status != 0)
         {
-            struct timespec ts_interval;
             ERROR ("amqp plugin: camqp_connect failed. "
                     "Will sleep for %.3f seconds.",
                     CDTIME_T_TO_DOUBLE (interval));
-            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
-            nanosleep (&ts_interval, /* remaining = */ NULL);
+            nanosleep (&CDTIME_T_TO_TIMESPEC (interval), /* remaining = */ NULL);
             continue;
         }
 
         status = amqp_simple_wait_frame (conf->connection, &frame);
         if (status < 0)
         {
-            struct timespec ts_interval;
             ERROR ("amqp plugin: amqp_simple_wait_frame failed. "
                     "Will sleep for %.3f seconds.",
                     CDTIME_T_TO_DOUBLE (interval));
             camqp_close_connection (conf);
-            CDTIME_T_TO_TIMESPEC (interval, &ts_interval);
-            nanosleep (&ts_interval, /* remaining = */ NULL);
+            nanosleep (&CDTIME_T_TO_TIMESPEC (interval), /* remaining = */ NULL);
             continue;
         }
 
@@ -741,7 +737,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     memset (tmp, 0, sizeof (*tmp));
 
     status = plugin_thread_create (tmp, /* attr = */ NULL,
-            camqp_subscribe_thread, conf);
+            camqp_subscribe_thread, conf, "amqp subscribe");
     if (status != 0)
     {
         char errbuf[1024];
@@ -838,10 +834,10 @@ static int camqp_write (const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
     if (conf->format == CAMQP_FORMAT_COMMAND)
     {
-        status = create_putval (buffer, sizeof (buffer), ds, vl);
+        status = cmd_create_putval (buffer, sizeof (buffer), ds, vl);
         if (status != 0)
         {
-            ERROR ("amqp plugin: create_putval failed with status %i.",
+            ERROR ("amqp plugin: cmd_create_putval failed with status %i.",
                     status);
             return (status);
         }

@@ -160,7 +160,6 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance, U32 
 	vl.values = &(value_t) { .gauge = ((gauge_t)value) * 1024.0 };
 	vl.values_len = 1;
 
-	strncpy (vl.host, hostname_g, sizeof (vl.host));
 	strncpy (vl.plugin, "mic", sizeof (vl.plugin));
 	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance), "%i", micnumber);
 	strncpy (vl.type, "memory", sizeof (vl.type));

@@ -88,7 +88,6 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
 
   vl.values = values;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, data->plugin_instance,
       sizeof (vl.plugin_instance));
@@ -99,12 +98,7 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   vl.interval = data->interval;
   plugin_dispatch_values (&vl);
 
-  if (match_value->ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
-  {
-    match_value->value.gauge = NAN;
-    match_value->values_num = 0;
-  }
-
+  match_value_reset (match_value);
   return (0);
 } /* int simple_submit_match */
 

@@ -61,7 +61,6 @@ static void conntrack_submit (const char *type, const char *type_instance,
 
 	vl.values = &conntrack;
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "conntrack", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	if (type_instance != NULL)

@@ -320,7 +320,8 @@ int format_values (char *ret, size_t ret_len,
 
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
-		char **ret_type, char **ret_type_instance);
+		char **ret_type, char **ret_type_instance,
+		char *default_host);
 int parse_identifier_vl (const char *str, value_list_t *vl);
 int parse_value (const char *value, value_t *ret_value, int ds_type);
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);

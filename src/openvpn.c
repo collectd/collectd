@@ -103,7 +103,6 @@ static void numusers_submit (const char *pinst, const char *tinst,
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	sstrncpy (vl.type, "users", sizeof (vl.type));
 	if (pinst != NULL)
@@ -133,7 +132,6 @@ static void iostats_submit (const char *pinst, const char *tinst,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	if (pinst != NULL)
 		sstrncpy (vl.plugin_instance, pinst,
@@ -157,7 +155,6 @@ static void compression_submit (const char *pinst, const char *tinst,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "openvpn", sizeof (vl.plugin));
 	if (pinst != NULL)
 		sstrncpy (vl.plugin_instance, pinst,
@@ -522,6 +519,9 @@ static int openvpn_read (void)
 	int  read;
 
 	read = 0;
+	
+	if (vpn_num == 0)
+		return (0);
 
 	/* call the right read function for every status entry in the list */
 	for (int i = 0; i < vpn_num; i++)
@@ -656,8 +656,8 @@ static int openvpn_config (const char *key, const char *value)
 
 		if (status_version == 0)
 		{
-			WARNING ("openvpn plugin: unable to detect status version, \
-					discarding status file \"%s\".", value);
+			WARNING ("openvpn plugin: unable to detect status version, "
+					"discarding status file \"%s\".", value);
 			return (1);
 		}
 

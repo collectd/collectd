@@ -204,9 +204,9 @@ This value is not applied to counter-values.
 
 =item B<Ignore> I<Value> [, I<Value> ...]
 
-The ignore values allows to ignore Instances based on their name and the patterns
-specified by the various values you've entered. The match is a glob-type shell
-matching.
+The ignore values allows one to ignore Instances based on their name and the
+patterns specified by the various values you've entered. The match is a
+glob-type shell matching.
 
 =item B<InvertMatch> I<true|false(default)>
 

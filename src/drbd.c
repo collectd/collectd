@@ -101,7 +101,6 @@ static int drbd_submit_fields (long int resource,
 	}
 
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "drbd", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));

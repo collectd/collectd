@@ -169,11 +169,7 @@ static void cldap_submit_value (const char *type, const char *type_instance, /* 
 	vl.values     = &value;
 	vl.values_len = 1;
 
-	if ((st->host == NULL)
-			|| (strcmp ("", st->host) == 0)
-			|| (strcmp ("localhost", st->host) == 0))
-		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	else
+	if ((st->host != NULL) && (strcmp ("localhost", st->host) != 0))
 		sstrncpy (vl.host, st->host, sizeof (vl.host));
 
 	sstrncpy (vl.plugin, "openldap", sizeof (vl.plugin));
@@ -571,7 +567,7 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	}
 
 	st->starttls = 0;
-	st->timeout = (long) (CDTIME_T_TO_MS(plugin_get_interval()) / 1000);
+	st->timeout = (long) CDTIME_T_TO_TIME_T(plugin_get_interval());
 	st->verifyhost = 1;
 	st->version = LDAP_VERSION3;
 

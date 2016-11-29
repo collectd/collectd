@@ -65,7 +65,6 @@ static void uptime_submit (gauge_t value)
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "uptime", sizeof (vl.plugin));
 	sstrncpy (vl.type, "uptime", sizeof (vl.type));
 

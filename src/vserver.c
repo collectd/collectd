@@ -64,7 +64,6 @@ static void traffic_submit (const char *plugin_instance,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "if_octets", sizeof (vl.type));
@@ -85,7 +84,6 @@ static void load_submit (const char *plugin_instance,
 
 	vl.values = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "load", sizeof (vl.type));
@@ -101,7 +99,6 @@ static void submit_gauge (const char *plugin_instance, const char *type,
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "vserver", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -129,15 +126,7 @@ static derive_t vserver_get_sock_bytes(const char *s)
 
 static int vserver_read (void)
 {
-#if NAME_MAX < 1024
-# define DIRENT_BUFFER_SIZE (sizeof (struct dirent) + 1024 + 1)
-#else
-# define DIRENT_BUFFER_SIZE (sizeof (struct dirent) + NAME_MAX + 1)
-#endif
-
-	DIR 			*proc;
-	struct dirent 	*dent; /* 42 */
-	char dirent_buffer[DIRENT_BUFFER_SIZE];
+	DIR *proc;
 
 	errno = 0;
 	proc = opendir (PROCDIR);
@@ -151,6 +140,7 @@ static int vserver_read (void)
 
 	while (42)
 	{
+		struct dirent *dent;
 		int len;
 		char file[BUFSIZE];
 
@@ -162,19 +152,19 @@ static int vserver_read (void)
 
 		int status;
 
-		status = readdir_r (proc, (struct dirent *) dirent_buffer, &dent);
-		if (status != 0)
+		errno = 0;
+		dent = readdir (proc);
+		if (dent == NULL)
 		{
 			char errbuf[4096];
-			ERROR ("vserver plugin: readdir_r failed: %s",
-					sstrerror (errno, errbuf, sizeof (errbuf)));
+
+			if (errno == 0) /* end of directory */
+				break;
+
+			ERROR ("vserver plugin: failed to read directory %s: %s",
+					PROCDIR, sstrerror (errno, errbuf, sizeof (errbuf)));
 			closedir (proc);
 			return (-1);
-		}
-		else if (dent == NULL)
-		{
-			/* end of directory */
-			break;
 		}
 
 		if (dent->d_name[0] == '.')

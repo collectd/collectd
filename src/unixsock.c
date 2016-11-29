@@ -289,7 +289,7 @@ static void *us_handle_client (void *arg)
 
 		if (strcasecmp (fields[0], "getval") == 0)
 		{
-			handle_getval (fhout, buffer);
+			cmd_handle_getval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "getthreshold") == 0)
 		{
@@ -297,11 +297,11 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "putval") == 0)
 		{
-			handle_putval (fhout, buffer);
+			cmd_handle_putval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "listval") == 0)
 		{
-			handle_listval (fhout, buffer);
+			cmd_handle_listval (fhout, buffer);
 		}
 		else if (strcasecmp (fields[0], "putnotif") == 0)
 		{
@@ -309,7 +309,7 @@ static void *us_handle_client (void *arg)
 		}
 		else if (strcasecmp (fields[0], "flush") == 0)
 		{
-			handle_flush (fhout, buffer);
+			cmd_handle_flush (fhout, buffer);
 		}
 		else
 		{
@@ -378,7 +378,7 @@ static void *us_server_thread (void __attribute__((unused)) *arg)
 		DEBUG ("Spawning child to handle connection on fd #%i", *remote_fd);
 
 		status = plugin_thread_create (&th, &th_attr,
-				us_handle_client, (void *) remote_fd);
+				us_handle_client, (void *) remote_fd, "unixsock conn");
 		if (status != 0)
 		{
 			char errbuf[1024];
@@ -459,7 +459,7 @@ static int us_init (void)
 	loop = 1;
 
 	status = plugin_thread_create (&listen_thread, NULL,
-			us_server_thread, NULL);
+			us_server_thread, NULL, "unixsock listen");
 	if (status != 0)
 	{
 		char errbuf[1024];

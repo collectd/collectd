@@ -60,12 +60,17 @@
 # include <arpa/inet.h>
 #endif
 
-#ifdef HAVE_SYS_CAPABILITY_H
+#if HAVE_CAPABILITY
 # include <sys/capability.h>
 #endif
 
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
+#endif
+
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#  define MSG_DONTWAIT MSG_NONBLOCK
 #endif
 
 #if !HAVE_GETPWNAM_R
@@ -1011,7 +1016,8 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 
 int parse_identifier (char *str, char **ret_host,
 		char **ret_plugin, char **ret_plugin_instance,
-		char **ret_type, char **ret_type_instance)
+		char **ret_type, char **ret_type_instance,
+		char *default_host)
 {
 	char *hostname = NULL;
 	char *plugin = NULL;
@@ -1030,8 +1036,19 @@ int parse_identifier (char *str, char **ret_host,
 
 	type = strchr (plugin, '/');
 	if (type == NULL)
-		return (-1);
-	*type = '\0'; type++;
+	{
+		if (default_host == NULL)
+			return (-1);
+		/* else: no host specified; use default */
+		type = plugin;
+		plugin = hostname;
+		hostname = default_host;
+	}
+	else
+	{
+		*type = '\0';
+		type++;
+	}
 
 	plugin_instance = strchr (plugin, '-');
 	if (plugin_instance != NULL)
@@ -1072,7 +1089,8 @@ int parse_identifier_vl (const char *str, value_list_t *vl) /* {{{ */
 
 	status = parse_identifier (str_copy, &host,
 			&plugin, &plugin_instance,
-			&type, &type_instance);
+			&type, &type_instance,
+			/* default_host = */ NULL);
 	if (status != 0)
 		return (status);
 
@@ -1134,7 +1152,7 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
   }
 
   if (value == endptr) {
-    ERROR ("parse_value: Failed to parse string as %s: %s.",
+    ERROR ("parse_value: Failed to parse string as %s: \"%s\".",
         DS_TYPE_TO_STRING (ds_type), value);
     sfree (value);
     return -1;
@@ -1211,10 +1229,20 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 
 int parse_value_file (char const *path, value_t *ret_value, int ds_type)
 {
+	FILE *fh;
 	char buffer[256];
 
-	if (read_file_contents (path, buffer, sizeof (buffer)) < 0)
-		return errno;
+	fh = fopen (path, "r");
+	if (fh == NULL)
+		return (-1);
+
+	if (fgets (buffer, sizeof (buffer), fh) == NULL)
+	{
+		fclose (fh);
+		return (-1);
+	}
+
+	fclose (fh);
 
 	strstripnewline (buffer);
 
@@ -1592,10 +1620,8 @@ void set_sock_opts (int sockfd) /* {{{ */
 	int status;
 	int socktype;
 
-	socklen_t socklen = sizeof (socklen_t);
-	int so_keepalive = 1;
-
-	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE, &socktype, &socklen);
+	status = getsockopt (sockfd, SOL_SOCKET, SO_TYPE,
+			&socktype, &(socklen_t) { sizeof (socktype) });
 	if (status != 0)
 	{
 		WARNING ("set_sock_opts: failed to determine socket type");
@@ -1605,7 +1631,7 @@ void set_sock_opts (int sockfd) /* {{{ */
 	if (socktype == SOCK_STREAM)
 	{
 		status = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE,
-				&so_keepalive, sizeof (so_keepalive));
+				&(int) {1}, sizeof (int));
 		if (status != 0)
 			WARNING ("set_sock_opts: failed to set socket keepalive flag");
 
@@ -1695,51 +1721,25 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 	sfree (array);
 } /* }}} void strarray_free */
 
-#ifdef HAVE_SYS_CAPABILITY_H
-int check_capability (int capability) /* {{{ */
+#if HAVE_CAPABILITY
+int check_capability (int arg) /* {{{ */
 {
-#ifdef _LINUX_CAPABILITY_VERSION_3
-	cap_user_header_t cap_header = calloc(1, sizeof (*cap_header));
-	if (cap_header == NULL)
-	{
-		ERROR("check_capability: calloc failed");
-		return (-1);
-	}
+	cap_value_t cap = (cap_value_t) arg;
 
-	cap_user_data_t cap_data = calloc(1, sizeof (*cap_data));
-	if (cap_data == NULL)
-	{
-		ERROR("check_capability: calloc failed");
-		sfree(cap_header);
+	if (!CAP_IS_SUPPORTED (cap))
 		return (-1);
-	}
 
-	cap_header->pid = getpid();
-	cap_header->version = _LINUX_CAPABILITY_VERSION;
-	if (capget(cap_header, cap_data) < 0)
-	{
-		ERROR("check_capability: capget failed");
-		sfree(cap_header);
-		sfree(cap_data);
+	int have_cap = cap_get_bound (cap);
+	if (have_cap != 1)
 		return (-1);
-	}
 
-	if ((cap_data->effective & (1 << capability)) == 0)
-	{
-		sfree(cap_header);
-		sfree(cap_data);
-		return (-1);
-	}
-	else
-	{
-		sfree(cap_header);
-		sfree(cap_data);
-		return (0);
-	}
-#else
-	WARNING ("check_capability: unsupported capability implementation. "
-	    "Some plugin(s) may require elevated privileges to work properly.");
 	return (0);
-#endif /* _LINUX_CAPABILITY_VERSION_3 */
 } /* }}} int check_capability */
-#endif /* HAVE_SYS_CAPABILITY_H */
+#else
+int check_capability (__attribute__((unused)) int arg) /* {{{ */
+{
+	WARNING ("check_capability: unsupported capability implementation. "
+		 "Some plugin(s) may require elevated privileges to work properly.");
+	return (0);
+} /* }}} int check_capability */
+#endif /* HAVE_CAPABILITY */

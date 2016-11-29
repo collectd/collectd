@@ -222,7 +222,6 @@ static void mbmon_submit (const char *type, const char *type_instance,
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "mbmon", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));

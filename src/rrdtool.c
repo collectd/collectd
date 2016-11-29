@@ -110,7 +110,7 @@ static rrdcreate_config_t rrdcreate_config =
  * ALWAYS lock `cache_lock' first! */
 static cdtime_t    cache_timeout = 0;
 static cdtime_t    cache_flush_timeout = 0;
-static cdtime_t    random_timeout = TIME_T_TO_CDTIME_T (1);
+static cdtime_t    random_timeout = TIME_T_TO_CDTIME_T_STATIC (1);
 static cdtime_t    cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -1229,7 +1229,7 @@ static int rrd_init (void)
 	pthread_mutex_unlock (&cache_lock);
 
 	status = plugin_thread_create (&queue_thread, /* attr = */ NULL,
-			rrd_queue_thread, /* args = */ NULL);
+			rrd_queue_thread, /* args = */ NULL, "rrdtool queue");
 	if (status != 0)
 	{
 		ERROR ("rrdtool plugin: Cannot create queue-thread.");

@@ -633,8 +633,6 @@ static int submit_values (const char *host, /* {{{ */
 
 	if (host != NULL)
 		sstrncpy (vl.host, host, sizeof (vl.host));
-	else
-		sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "netapp", sizeof (vl.plugin));
 	if (plugin_inst != NULL)
 		sstrncpy (vl.plugin_instance, plugin_inst, sizeof (vl.plugin_instance));

@@ -1162,7 +1162,6 @@ cconn_process_data(struct cconn *io, yajl_struct *yajl, yajl_handle hand)
     }
 
     vtmp->vlist = (value_list_t)VALUE_LIST_INIT;
-    sstrncpy(vtmp->vlist.host, hostname_g, sizeof(vtmp->vlist.host));
     sstrncpy(vtmp->vlist.plugin, "ceph", sizeof(vtmp->vlist.plugin));
     sstrncpy(vtmp->vlist.plugin_instance, io->d->name, sizeof(vtmp->vlist.plugin_instance));
 

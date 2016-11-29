@@ -94,13 +94,10 @@ static int varnish_submit (const char *plugin_instance, /* {{{ */
 	vl.values = &value;
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-
 	sstrncpy (vl.plugin, "varnish", sizeof (vl.plugin));
 
 	if (plugin_instance == NULL)
 		plugin_instance = "default";
-
 	ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
 		"%s-%s", plugin_instance, category);
 

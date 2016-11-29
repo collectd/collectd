@@ -274,7 +274,7 @@ static void set_environment (void) /* {{{ */
       CDTIME_T_TO_DOUBLE (plugin_get_interval ()));
   setenv ("COLLECTD_INTERVAL", buffer, /* overwrite = */ 1);
 
-  ssnprintf (buffer, sizeof (buffer), "%s", hostname_g);
+  sstrncpy (buffer, hostname_g, sizeof (buffer));
   setenv ("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
 #else
   ssnprintf (buffer, sizeof (buffer), "COLLECTD_INTERVAL=%.3f",
@@ -547,7 +547,7 @@ failed:
 static int parse_line (char *buffer) /* {{{ */
 {
   if (strncasecmp ("PUTVAL", buffer, strlen ("PUTVAL")) == 0)
-    return (handle_putval (stdout, buffer));
+    return (cmd_handle_putval (stdout, buffer));
   else if (strncasecmp ("PUTNOTIF", buffer, strlen ("PUTNOTIF")) == 0)
     return (handle_putnotif (stdout, buffer));
   else
@@ -852,7 +852,7 @@ static int exec_read (void) /* {{{ */
 
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    plugin_thread_create (&t, &attr, exec_read_one, (void *) pl);
+    plugin_thread_create (&t, &attr, exec_read_one, (void *) pl, "exec read");
     pthread_attr_destroy (&attr);
   } /* for (pl) */
 
@@ -894,7 +894,8 @@ static int exec_notification (const notification_t *n, /* {{{ */
 
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    plugin_thread_create (&t, &attr, exec_notification_one, (void *) pln);
+    plugin_thread_create (&t, &attr, exec_notification_one, (void *) pln,
+      "exec notify");
     pthread_attr_destroy (&attr);
   } /* for (pl) */
 

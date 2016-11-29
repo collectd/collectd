@@ -214,7 +214,54 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_HEADER_STDBOOL
 
-AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h)
+AC_CHECK_HEADERS([ \
+  arpa/inet.h \
+  assert.h \
+  ctype.h \
+  endian.h \
+  errno.h \
+  fcntl.h \
+  fnmatch.h \
+  fs_info.h \
+  fshelp.h \
+  grp.h \
+  kstat.h \
+  kvm.h \
+  libgen.h \
+  limits.h \
+  locale.h \
+  math.h \
+  mntent.h \
+  mnttab.h \
+  netdb.h \
+  paths.h \
+  poll.h \
+  pthread_np.h \
+  pwd.h \
+  regex.h \
+  signal.h \
+  stdarg.h \
+  stdio.h \
+  sys/fs_types.h \
+  sys/fstyp.h \
+  sys/ioctl.h \
+  sys/isa_defs.h \
+  sys/mntent.h \
+  sys/mnttab.h \
+  sys/param.h \
+  sys/resource.h \
+  sys/select.h \
+  sys/socket.h \
+  sys/statfs.h \
+  sys/statvfs.h \
+  sys/types.h \
+  sys/un.h \
+  sys/vfs.h \
+  sys/vfstab.h \
+  sys/vmmeter.h \
+  syslog.h \
+  wordexp.h \
+])
 
 # For entropy plugin on newer NetBSD
 AC_CHECK_HEADERS(sys/rndio.h, [], [],
@@ -658,31 +705,6 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #endif
 ])
 
-AC_CHECK_HEADERS([ \
-  ctype.h \
-  fs_info.h \
-  fshelp.h \
-  grp.h \
-  kvm.h \
-  limits.h \
-  locale.h \
-  mntent.h \
-  mnttab.h \
-  paths.h \
-  pwd.h \
-  sys/fs_types.h \
-  sys/fstyp.h \
-  sys/mntent.h \
-  sys/mnttab.h \
-  sys/statfs.h \
-  sys/statvfs.h \
-  sys/un.h \
-  sys/vfs.h \
-  sys/vfstab.h \
-  sys/vmmeter.h \
-  wordexp.h \
-])
-
 # --enable-xfs {{{
 AC_ARG_ENABLE([xfs],
   [AS_HELP_STRING([--enable-xfs], [xfs support in df plugin @<:@default=yes@:>@])],
@@ -808,7 +830,20 @@ fi
 have_cpuid_h="no"
 AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
 
-AC_CHECK_HEADERS(sys/capability.h)
+have_capability="yes"
+AC_CHECK_HEADERS(sys/capability.h,
+                 [have_capability="yes"],
+                 [have_capability="no (<sys/capability.h> not found)"])
+if test "x$have_capability" = "xyes"; then
+AC_CHECK_LIB(cap, cap_get_bound,
+                 [have_capability="yes"],
+                 [have_capability="no (cap_get_bound() not found)"])
+fi
+if test "x$have_capability" = "xyes"; then
+  AC_DEFINE(HAVE_CAPABILITY, 1, [Define to 1 if you have cap_get_bound() (-lcap).])
+fi
+AM_CONDITIONAL(BUILD_WITH_CAPABILITY, test "x$have_capability" = "xyes")
+
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #
@@ -1648,6 +1683,45 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 # include <kstat.h>
 #endif
 	])
+
+# check for pthread_setname_np
+SAVE_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -lpthread"
+
+AC_MSG_CHECKING([for pthread_setname_np])
+	have_pthread_setname_np="no"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#define _GNU_SOURCE
+#include <pthread.h>
+]],
+[[
+        pthread_setname_np((pthread_t) {0}, "conftest");
+]]
+	)], [
+		have_pthread_setname_np="yes"
+		AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [pthread_setname_np() is available.])
+	])
+
+AC_MSG_RESULT([$have_pthread_setname_np])
+
+# check for pthread_set_name_np(3) (FreeBSD)
+AC_MSG_CHECKING([for pthread_set_name_np])
+	have_pthread_set_name_np="no"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <pthread_np.h>
+]],
+[[
+        pthread_set_name_np((pthread_t) {0}, "conftest");
+]]
+	)], [
+		have_pthread_set_name_np="yes"
+		AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [pthread_set_name_np() is available.])
+	])
+AC_MSG_RESULT([$have_pthread_set_name_np])
+
+LDFLAGS="$SAVE_LDFLAGS"
 
 #
 # Checks for libraries begin here
@@ -2531,6 +2605,38 @@ then
 fi
 # }}}
 
+# --with-libdpdk {{{
+LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+LIBDPDK_LDFLAGS=""
+AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
+
+AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
+
+if test "x$with_libdpdk" != "xno"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+	AC_CHECK_HEADERS([rte_config.h],
+		[with_libdpdk="yes"],
+		[with_libdpdk="no (rte_config.h not found)"]
+	)
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libdpdk" = "xyes"
+then
+	SAVE_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+	AC_CHECK_LIB([dpdk], [rte_eal_init],
+		[with_libdpkd="yes"],
+		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+	)
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+# }}}
+
 # --with-java {{{
 with_java_home="$JAVA_HOME"
 if test "x$with_java_home" = "x"
@@ -2558,7 +2664,7 @@ then
 	if test -d "$with_java_home"
 	then
 		AC_MSG_CHECKING([for jni.h])
-		TMPVAR=`find -L "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name jni.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | LC_ALL=C sort | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2568,7 +2674,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for jni_md.h])
-		TMPVAR=`find -L "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -name jni_md.h -type f -exec 'dirname' '{}' ';' 2>/dev/null | LC_ALL=C sort | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2578,7 +2684,7 @@ then
 		fi
 
 		AC_MSG_CHECKING([for libjvm.so])
-		TMPVAR=`find -L "$with_java_home" -type f \( -name libjvm.so -o -name libjvm.dylib \) -exec 'dirname' '{}' ';' 2>/dev/null | head -n 1`
+		TMPVAR=`find -L "$with_java_home" -type f \( -name libjvm.so -o -name libjvm.dylib \) -exec 'dirname' '{}' ';' 2>/dev/null | LC_ALL=C sort | head -n 1`
 		if test "x$TMPVAR" != "x"
 		then
 			AC_MSG_RESULT([found in $TMPVAR])
@@ -2590,7 +2696,7 @@ then
 		if test "x$JAVAC" = "x"
 		then
 			AC_MSG_CHECKING([for javac])
-			TMPVAR=`find -L "$with_java_home" -name javac -type f 2>/dev/null | head -n 1`
+			TMPVAR=`find -L "$with_java_home" -name javac -type f 2>/dev/null | LC_ALL=C sort | head -n 1`
 			if test "x$TMPVAR" != "x"
 			then
 				JAVAC="$TMPVAR"
@@ -2602,7 +2708,7 @@ then
 		if test "x$JAR" = "x"
 		then
 			AC_MSG_CHECKING([for jar])
-			TMPVAR=`find -L "$with_java_home" -name jar -type f 2>/dev/null | head -n 1`
+			TMPVAR=`find -L "$with_java_home" -name jar -type f 2>/dev/null | LC_ALL=C sort | head -n 1`
 			if test "x$TMPVAR" != "x"
 			then
 				JAR="$TMPVAR"
@@ -2955,6 +3061,70 @@ then
 	AC_DEFINE(HAVE_LIBMEMCACHED, 1, [Define if libmemcached is present and usable.])
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBMEMCACHED, test "x$with_libmemcached" = "xyes")
+# }}}
+
+# --with-libmicrohttpd {{{
+with_libmicrohttpd_cppflags=""
+with_libmicrohttpd_ldflags=""
+AC_ARG_WITH([libmicrohttpd], [AS_HELP_STRING([--with-libmicrohttpd@<:@=PREFIX@:>@], [Path to libmicrohttpd.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"
+    then
+      with_libmicrohttpd_cppflags="-I$withval/include"
+      with_libmicrohttpd_ldflags="-L$withval/lib"
+      with_libmicrohttpd="yes"
+    fi
+    if test "x$withval" = "xno"
+    then
+      with_libmicrohttpd="no (disabled on command line)"
+    fi
+  ],
+  [withval="yes"]
+)
+if test "x$withval" = "xyes"
+then
+PKG_CHECK_MODULES([MICROHTTPD], [libmicrohttpd],
+  [with_libmicrohttpd="yes"],
+  [with_libmicrohttpd="no (pkg-config could not find libmicrohttpd)"]
+)
+fi
+
+if test "x$MICROHTTPD_LIBS" = "x"
+then
+  MICROHTTPD_LIBS="-lmicrohttpd"
+fi
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+SAVE_LIBS="$LIBS"
+CPPFLAGS="$with_libmicrohttpd_cppflags $MICROHTTPD_CFLAGS"
+LDFLAGS="$with_libmicrohttpd_ldflags $LDFLAGS"
+LIBS="$LIBS $MICROHTTPD_LIBS"
+
+if test "x$with_libmicrohttpd" = "xyes"
+then
+  AC_CHECK_HEADERS([microhttpd.h],
+                   [with_libmicrohttpd="yes"],
+                   [with_libmicrohttpd="no (<microhttpd.h> not found)"])
+fi
+
+if test "x$with_libmicrohttpd" = "xyes"
+then
+  AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
+               [with_libmicrohttpd="yes"],
+               [with_libmicrohttpd="no (libmicrohttpd not found)"])
+fi
+
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+LIBS="$SAVE_LIBS"
+
+BUILD_WITH_LIBMICROHTTPD_CPPFLAGS="$with_libmicrohttpd_cppflags $MICROHTTPD_CFLAGS"
+BUILD_WITH_LIBMICROHTTPD_LDFLAGS="$with_libmicrohttpd_ldflags"
+BUILD_WITH_LIBMICROHTTPD_LIBS="$MICROHTTPD_LIBS"
+AC_SUBST([BUILD_WITH_LIBMICROHTTPD_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBMICROHTTPD_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBMICROHTTPD_LIBS])
 # }}}
 
 # --with-libmodbus {{{
@@ -4023,6 +4193,55 @@ fi
 AM_CONDITIONAL(BUILD_WITH_LIBPQ, test "x$with_libpq" = "xyes")
 # }}}
 
+# --with-libpqos {{{
+with_libpqos_cppflags=""
+with_libpqos_ldflags=""
+AC_ARG_WITH(libpqos, [AS_HELP_STRING([--with-libpqos@<:@=PREFIX@:>@], [Path to libpqos.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"
+	then
+		with_libpqos_cppflags="-I$withval/include"
+		with_libpqos_ldflags="-L$withval/lib"
+		with_libpqos="yes"
+	else
+		with_libpqos="$withval"
+	fi
+],
+[
+	with_libpqos="yes"
+])
+if test "x$with_libpqos" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+
+	AC_CHECK_HEADERS(pqos.h, [with_libpqos="yes"], [with_libpqos="no (pqos.h not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+	LDFLAGS="$LDFLAGS $with_libpqos_ldflags"
+
+	AC_CHECK_LIB(pqos, pqos_init, [with_libpqos="yes"], [with_libpqos="no (Can't find libpqos)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
+	BUILD_WITH_LIBPQOS_CPPFLAGS="$with_libpqos_cppflags"
+	BUILD_WITH_LIBPQOS_LDFLAGS="$with_libpqos_ldflags"
+	BUILD_WITH_LIBPQOS_LIBS="-lpqos"
+	AC_SUBST(BUILD_WITH_LIBPQOS_CPPFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQOS_LDFLAGS)
+	AC_SUBST(BUILD_WITH_LIBPQOS_LIBS)
+fi
+# }}}
+
 # --with-libprotobuf {{{
 with_libprotobuf_cppflags=""
 with_libprotobuf_ldflags=""
@@ -4366,11 +4585,10 @@ then
   if test "x$with_librdkafka_log_cb" = "xyes"
   then
         AC_DEFINE(HAVE_LIBRDKAFKA_LOG_CB, 1, [Define if librdkafka log facility is present and usable.])
-  fi
-  if test "x$with_librdkafka_logger" = "xyes"
+  else if test "x$with_librdkafka_logger" = "xyes"
   then
         AC_DEFINE(HAVE_LIBRDKAFKA_LOGGER, 1, [Define if librdkafka log facility is present and usable.])
-  fi
+  fi; fi
 fi
 CPPFLAGS="$SAVE_CPPFLAGS"
 LDFLAGS="$SAVE_LDFLAGS"
@@ -5703,6 +5921,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_drbd="no"
+plugin_dpdkstat="no"
 plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
@@ -5710,6 +5929,7 @@ plugin_fscache="no"
 plugin_gps="no"
 plugin_grpc="no"
 plugin_hugepages="no"
+plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
@@ -5739,6 +5959,7 @@ plugin_virt="no"
 plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
+plugin_write_prometheus="no"
 plugin_xencpu="no"
 plugin_zfs_arc="no"
 plugin_zone="no"
@@ -6026,6 +6247,10 @@ fi
 if test "x$have_protoc_c" = "xyes" && test "x$with_libprotobuf_c" = "xyes"
 then
 	plugin_pinba="yes"
+	if test "x$with_libmicrohttpd" = "xyes"
+	then
+		plugin_write_prometheus="yes"
+	fi
 fi
 
 # Mac OS X memory interface
@@ -6107,6 +6332,11 @@ then
   plugin_xencpu="yes"
 fi
 
+if test "x$with_libdpkd" = "xyes"
+then
+  plugin_dpdkstat="yes"
+fi
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
@@ -6153,6 +6383,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
+AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats & Status from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
@@ -6166,6 +6397,7 @@ AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
+AC_PLUGIN([intel_rdt],           [$with_libpqos],           [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
 AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])
@@ -6263,6 +6495,7 @@ AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin]
 AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
 AC_PLUGIN([write_log],           [yes],                     [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$with_libmongoc],         [MongoDB output plugin])
+AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus], [Prometheus write plugin])
 AC_PLUGIN([write_redis],         [$with_libhiredis],        [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$with_libriemann_client], [Riemann output plugin])
 AC_PLUGIN([write_sensu],         [yes],                     [Sensu output plugin])
@@ -6493,6 +6726,7 @@ AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
 AC_MSG_RESULT([    libcurl . . . . . . . $with_libcurl])
 AC_MSG_RESULT([    libdbi  . . . . . . . $with_libdbi])
+AC_MSG_RESULT([    libdpdk . . . . . . . $with_libdpdk])
 AC_MSG_RESULT([    libesmtp  . . . . . . $with_libesmtp])
 AC_MSG_RESULT([    libganglia  . . . . . $with_libganglia])
 AC_MSG_RESULT([    libgcrypt . . . . . . $with_libgcrypt])
@@ -6510,6 +6744,7 @@ AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
 AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
 AC_MSG_RESULT([    liblvm2app  . . . . . $with_liblvm2app])
 AC_MSG_RESULT([    libmemcached  . . . . $with_libmemcached])
+AC_MSG_RESULT([    libmicrohttpd . . . . $with_libmicrohttpd])
 AC_MSG_RESULT([    libmnl  . . . . . . . $with_libmnl])
 AC_MSG_RESULT([    libmodbus . . . . . . $with_libmodbus])
 AC_MSG_RESULT([    libmongoc . . . . . . $with_libmongoc])
@@ -6526,6 +6761,7 @@ AC_MSG_RESULT([    libpcap . . . . . . . $with_libpcap])
 AC_MSG_RESULT([    libperfstat . . . . . $with_perfstat])
 AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
+AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
@@ -6584,6 +6820,7 @@ AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
+AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
 AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])
@@ -6597,6 +6834,7 @@ AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
+AC_MSG_RESULT([    intel_rdt. . . . .  . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])
 AC_MSG_RESULT([    ipmi  . . . . . . . . $enable_ipmi])
@@ -6693,6 +6931,7 @@ AC_MSG_RESULT([    write_http  . . . . . $enable_write_http])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
+AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])
 AC_MSG_RESULT([    write_sensu . . . . . $enable_write_sensu])

@@ -1,6 +1,7 @@
 /**
  * collectd - src/grpc.cc
  * Copyright (C) 2015-2016 Sebastian Harl
+ * Copyright (C) 2016      Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +23,7 @@
  *
  * Authors:
  *   Sebastian Harl <sh at tokkee.org>
+ *   Florian octo Forster <octo at collectd.org>
  **/
 
 #include <grpc++/grpc++.h>
@@ -289,7 +291,7 @@ public:
 		PutValuesRequest req;
 
 		while (reader->Read(&req)) {
-			value_list_t vl = VALUE_LIST_INIT;
+			value_list_t vl = {0};
 			auto status = unmarshal_value_list(req.value_list(), &vl);
 			if (!status.ok())
 				return status;

@@ -125,7 +125,6 @@ static void tss2_submit_gauge (const char *plugin_instance,
 
 	vl.values     = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "teamspeak2", sizeof (vl.plugin));
 
 	if (plugin_instance != NULL)
@@ -155,7 +154,6 @@ static void tss2_submit_io (const char *plugin_instance, const char *type,
 
 	vl.values     = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "teamspeak2", sizeof (vl.plugin));
 
 	if (plugin_instance != NULL)

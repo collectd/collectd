@@ -256,7 +256,6 @@ static void redis_submit (char *plugin_instance,
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "redis", sizeof (vl.plugin));
   if (plugin_instance != NULL)
     sstrncpy (vl.plugin_instance, plugin_instance,

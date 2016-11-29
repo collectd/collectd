@@ -81,6 +81,16 @@
 /*
  * Public data types
  */
+struct identifier_s
+{
+	char *host;
+	char *plugin;
+	char *plugin_instance;
+	char *type;
+	char *type_instance;
+};
+typedef struct identifier_s identifier_t;
+
 typedef unsigned long long counter_t;
 typedef double gauge_t;
 typedef int64_t derive_t;
@@ -110,9 +120,7 @@ struct value_list_s
 };
 typedef struct value_list_s value_list_t;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, plugin_get_interval (), \
-	"localhost", "", "", "", "", NULL }
-#define VALUE_LIST_STATIC { NULL, 0, 0, 0, "localhost", "", "", "", "", NULL }
+#define VALUE_LIST_INIT { .values = NULL, .meta = NULL }
 
 struct data_source_s
 {
@@ -296,20 +304,20 @@ int plugin_register_read (const char *name,
 int plugin_register_complex_read (const char *group, const char *name,
 		plugin_read_cb callback,
 		cdtime_t interval,
-		user_data_t *user_data);
+		user_data_t const *user_data);
 int plugin_register_write (const char *name,
-		plugin_write_cb callback, user_data_t *user_data);
+		plugin_write_cb callback, user_data_t const *user_data);
 int plugin_register_flush (const char *name,
-		plugin_flush_cb callback, user_data_t *user_data);
+		plugin_flush_cb callback, user_data_t const *user_data);
 int plugin_register_missing (const char *name,
-		plugin_missing_cb callback, user_data_t *user_data);
+		plugin_missing_cb callback, user_data_t const *user_data);
 int plugin_register_shutdown (const char *name,
 		plugin_shutdown_cb callback);
 int plugin_register_data_set (const data_set_t *ds);
 int plugin_register_log (const char *name,
-		plugin_log_cb callback, user_data_t *user_data);
+		plugin_log_cb callback, user_data_t const *user_data);
 int plugin_register_notification (const char *name,
-		plugin_notification_cb callback, user_data_t *user_data);
+		plugin_notification_cb callback, user_data_t const *user_data);
 
 int plugin_unregister_config (const char *name);
 int plugin_unregister_complex_config (const char *name);
@@ -457,7 +465,7 @@ cdtime_t plugin_get_interval (void);
  */
 
 int plugin_thread_create (pthread_t *thread, const pthread_attr_t *attr,
-		void *(*start_routine) (void *), void *arg);
+		void *(*start_routine) (void *), void *arg, char const *name);
 
 /*
  * Plugins need to implement this

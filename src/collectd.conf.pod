@@ -960,7 +960,7 @@ support the SM Bus command subset).
 
 The reduction or normalization to mean sea level pressure requires (depending
 on selected method/approximation) also altitude and reference to temperature
-sensor(s).  When multiple temperature sensors are configured the minumum of
+sensor(s).  When multiple temperature sensors are configured the minimum of
 their values is always used (expecting that the warmer ones are affected by
 e.g. direct sun light at that moment).
 
@@ -1072,7 +1072,7 @@ The altitude (in meters) of the location where you meassure the pressure.
 
 Temperature sensor(s) which should be used as a reference when normalizing the
 pressure using C<Normalization> method 2.
-When specified more sensors a minumum is found and used each time.  The
+When specified more sensors a minimum is found and used each time.  The
 temperature reading directly from this pressure sensor/plugin is typically not
 suitable as the pressure sensor will be probably inside while we want outside
 temperature.  The collectd reference name is something like
@@ -2279,7 +2279,7 @@ is passed to them, so invalid settings here may go unnoticed. This is not the
 plugin's fault, it will report errors if it gets them from the libraryE<nbsp>/
 the driver. If a driver complains about an option, the plugin will dump a
 complete list of all options understood by that driver to the log. There is no
-way to programatically find out if an option expects a string or a numeric
+way to programmatically find out if an option expects a string or a numeric
 argument, so you will have to refer to the appropriate DBD's documentation to
 find this out. Sorry.
 
@@ -2423,6 +2423,67 @@ Ignore packets that originate from this address.
 =item B<SelectNumericQueryTypes> B<true>|B<false>
 
 Enabled by default, collects unknown (and thus presented as numeric only) query types.
+
+=back
+
+=head2 Plugin C<dpdkstat>
+
+The I<dpdkstat plugin> collects information about DPDK interfaces using the
+extended NIC stats API in DPDK.
+
+B<Synopsis:>
+
+ <Plugin "dpdkstat">
+    Coremask "0x4"
+    MemoryChannels "4"
+    ProcessType "secondary"
+    FilePrefix "rte"
+    EnabledPortMask 0xffff
+    PortName "interface1"
+    PortName "interface2"
+ </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Coremask> I<Mask>
+
+A string containing an hexadecimal bit mask of the cores to run on. Note that
+core numbering can change between platforms and should be determined beforehand.
+
+=item B<Memorychannels> I<Channels>
+
+A string containing a number of memory channels per processor socket.
+
+=item B<ProcessType> I<type>
+
+A string containing the type of DPDK process instance.
+
+=item B<FilePrefix> I<File>
+
+The prefix text used for hugepage filenames. The filename will be set to
+/var/run/.<prefix>_config where prefix is what is passed in by the user.
+
+=item B<SocketMemory> I<MB>
+
+A string containing amount of Memory to allocate from hugepages on specific
+sockets in MB
+
+=item B<EnabledPortMask> I<Mask>
+
+A hexidecimal bit mask of the DPDK ports which should be enabled. A mask
+of 0x0 means that all ports will be disabled. A bitmask of all Fs means
+that all ports will be enabled. This is an optional argument - default
+is all ports enabled.
+
+=item B<PortName> I<Name>
+
+A string containing an optional name for the enabled DPDK ports. Each PortName
+option should contain only one port name; specify as many PortName options as
+desired. Default naming convention will be used if PortName is blank. If there
+are less PortName options than there are enabled ports, the default naming
+convention will be used for the additional ports.
 
 =back
 
@@ -2917,6 +2978,60 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<intel_rdt>
+
+The I<intel_rdt> plugin collects information provided by monitoring features of
+Intel Resource Director Technology (Intel(R) RDT) like Cache Monitoring
+Technology (CMT), Memory Bandwidth Monitoring (MBM). These features provide
+information about utilization of shared resources. CMT monitors last level cache
+occupancy (LLC). MBM supports two types of events reporting local and remote
+memory bandwidth. Local memory bandwidth (MBL) reports the bandwidth of
+accessing memory associated with the local socket. Remote memory bandwidth (MBR)
+reports the bandwidth of accessing the remote socket. Also this technology
+allows to monitor instructions per clock (IPC).
+Monitor events are hardware dependant. Monitoring capabilities are detected on
+plugin initialization and only supported events are monitored.
+
+B<Synopsis:>
+
+  <Plugin "intel_rdt">
+    Cores "0-2" "3,4,6" "8-10,15"
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Interval> I<seconds>
+
+The interval within which to retrieve statistics on monitored events in seconds.
+For milliseconds divide the time by 1000 for example if the desired interval
+is 50ms, set interval to 0.05. Due to limited capacity of counters it is not
+recommended to set interval higher than 1 sec.
+
+=item B<Cores> I<cores groups>
+
+All events are reported on a per core basis. Monitoring of the events can be
+configured for group of cores (aggregated statistics). This field defines groups
+of cores on which to monitor supported events. The field is represented as list
+of strings with core group values. Each string represents a list of cores in a
+group. Allowed formats are:
+    0,1,2,3
+    0-10,20-18
+    1,3,5-8,10,0x10-12
+
+If an empty string is provided as value for this field default cores
+configuration is applied - a separate group is created for each core.
+
+=back
+
+B<Note:> By default global interval is used to retrieve statistics on monitored
+events. To configure a plugin specific interval use B<Interval> option of the
+intel_rdt <LoadPlugin> block. For milliseconds divide the time by 1000 for
+example if the desired interval is 50ms, set interval to 0.05.
+Due to limited capacity of counters it is not recommended to set interval higher
+than 1 sec.
+
 =head2 Plugin C<interface>
 
 =over 4
@@ -3330,11 +3445,12 @@ interpreted. For a description of match blocks, please see L<"Plugin tail">.
 
 The B<memcached plugin> connects to a memcached server and queries statistics
 about cache utilization, memory and bandwidth used.
-L<http://www.danga.com/memcached/>
+L<http://memcached.org/>
 
  <Plugin "memcached">
    <Instance "name">
-     Host "memcache.example.com"
+     #Host "memcache.example.com"
+     Address "127.0.0.1"
      Port 11211
    </Instance>
  </Plugin>
@@ -3347,16 +3463,25 @@ following options are allowed:
 
 =item B<Host> I<Hostname>
 
-Hostname to connect to. Defaults to B<127.0.0.1>.
+Sets the B<host> field of dispatched values. Defaults to the global hostname
+setting.
+For backwards compatibility, values are also dispatched with the global
+hostname when B<Host> is set to B<127.0.0.1> or B<localhost> and B<Address> is
+not set.
+
+=item B<Address> I<Address>
+
+Hostname or IP to connect to. For backwards compatibility, defaults to the
+value of B<Host> or B<127.0.0.1> if B<Host> is unset.
 
 =item B<Port> I<Port>
 
-TCP-Port to connect to. Defaults to B<11211>.
+TCP port to connect to. Defaults to B<11211>.
 
 =item B<Socket> I<Path>
 
 Connect to I<memcached> using the UNIX domain socket at I<Path>. If this
-setting is given, the B<Host> and B<Port> settings are ignored.
+setting is given, the B<Address> and B<Port> settings are ignored.
 
 =back
 
@@ -5883,7 +6008,7 @@ transaction fails or if the database server crashes.
 
 Specify the plugin instance name that should be used instead of the database
 name (which is the default, if this option has not been specified). This
-allows to query multiple databases of the same name on the same host (e.g.
+allows one to query multiple databases of the same name on the same host (e.g.
 when running multiple database server versions in parallel).
 The plugin instance name can also be set from the query result using
 the B<PluginInstanceFrom> option in B<Query> block.
@@ -5946,7 +6071,7 @@ Use SSL only.
 
 Specify the plugin instance name that should be used instead of the database
 name (which is the default, if this option has not been specified). This
-allows to query multiple databases of the same name on the same host (e.g.
+allows one to query multiple databases of the same name on the same host (e.g.
 when running multiple database server versions in parallel).
 
 =item B<KRBSrvName> I<kerberos_service_name>
@@ -6146,11 +6271,11 @@ below this limit.
 
 =item B<ProcessMatch> I<name> I<regex>
 
-Similar to the B<Process> option this allows to select more detailed
+Similar to the B<Process> option this allows one to select more detailed
 statistics of processes matching the specified I<regex> (see L<regex(7)> for
 details). The statistics of all matching processes are summed up and
 dispatched to the daemon using the specified I<name> as an identifier. This
-allows to "group" several processes together. I<name> must not contain
+allows one to "group" several processes together. I<name> must not contain
 slashes.
 
 =item B<CollectContextSwitch> I<Boolean>
@@ -6365,8 +6490,8 @@ C<collectd> anymore, it does not need to be flushed when C<collectd> is to be
 restarted. This results in much shorter (if any) gaps in graphs, especially
 under heavy load. Also, the C<rrdtool> command line utility is aware of the
 daemon so that it can flush values to disk automatically when needed. This
-allows to integrate automated flushing of values into graphing solutions much
-more easily.
+allows one to integrate automated flushing of values into graphing solutions
+much more easily.
 
 There are disadvantages, though: The daemon may reside on a different host, so
 it may not be possible for C<collectd> to create the appropriate RRD files
@@ -7069,6 +7194,13 @@ Use the greatest number only.
 
 Use the last number found.
 
+=item B<GaugePersist>
+
+Use the last number found. The number is not reset at the end of an interval.
+It is continously reported until another number is matched. This is intended
+for cases in which only state changes are reported, for example a thermometer
+that only reports the temperature when it changes.
+
 =item B<CounterSet>
 
 =item B<DeriveSet>
@@ -7360,7 +7492,7 @@ couple metrics: number of records, and database size on disk.
 
 =item B<Host> I<Hostname/IP>
 
-The hostname or ip which identifies the server.
+The hostname or IP which identifies the server.
 Default: B<127.0.0.1>
 
 =item B<Port> I<Service/Port>
@@ -7374,61 +7506,60 @@ Default: B<1978>
 =head2 Plugin C<turbostat>
 
 The I<Turbostat plugin> reads CPU frequency and C-state residency on modern
-Intel processors by using the new Model Specific Registers.
+Intel processors by using I<Model Specific Registers>.
 
 =over 4
 
 =item B<CoreCstates> I<Bitmask(Integer)>
 
-Bitmask of the list of core C states supported by the processor.
+Bit mask of the list of core C-states supported by the processor.
 This option should only be used if the automated detection fails.
-Default value extracted from the cpu model and family.
+Default value extracted from the CPU model and family.
 
 Currently supported C-states (by this plugin): 3, 6, 7
 
-Example: (1<<3)+(1<<6)+(1<<7) = 392 for all states
+B<Example:>
+
+  All states (3, 6 and 7):
+  (1<<3) + (1<<6) + (1<<7) = 392
 
 =item B<PackageCstates> I<Bitmask(Integer)>
 
-Bitmask of the list of pacages C states supported by the processor.
-This option should only be used if the automated detection fails.
-Default value extracted from the cpu model and family.
+Bit mask of the list of packages C-states supported by the processor. This
+option should only be used if the automated detection fails. Default value
+extracted from the CPU model and family.
 
 Currently supported C-states (by this plugin): 2, 3, 6, 7, 8, 9, 10
 
-Example: (1<<2)+(1<<3)+(1<<6)+(1<<7) = 396 for states 2, 3, 6 and 7
+B<Example:>
+
+  States 2, 3, 6 and 7:
+  (1<<2) + (1<<3) + (1<<6) + (1<<7) = 396
 
 =item B<SystemManagementInterrupt> I<true>|I<false>
 
-Boolean enabling the collection of the I/O System-Management Interrupt
-counter'. This option should only be used if the automated detection
-fails or if you want to disable this feature.
+Boolean enabling the collection of the I/O System-Management Interrupt counter.
+This option should only be used if the automated detection fails or if you want
+to disable this feature.
 
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
-Boolean enabling the collection of the temperature of each core.
-This option should only be used if the automated detectionfails or
-if you want to disable this feature.
-
-=item B<DigitalTemperatureSensor> I<true>|I<false>
-
-Boolean enabling the collection of the temperature of each package.
-This option should only be used if the automated detectionfails or
-if you want to disable this feature.
+Boolean enabling the collection of the temperature of each core. This option
+should only be used if the automated detection fails or if you want to disable
+this feature.
 
 =item B<TCCActivationTemp> I<Temperature>
 
-Thermal Control Circuit Activation Temperature of the installed
-CPU. This temperature is used when collecting the temperature of
-cores or packages. This option should only be used if the automated
-detection fails. Default value extracted from B<MSR_IA32_TEMPERATURE_TARGET>
+I<Thermal Control Circuit Activation Temperature> of the installed CPU. This
+temperature is used when collecting the temperature of cores or packages. This
+option should only be used if the automated detection fails. Default value
+extracted from B<MSR_IA32_TEMPERATURE_TARGET>.
 
 =item B<RunningAveragePowerLimit> I<Bitmask(Integer)>
 
-Bitmask of the list of elements to be thermally monitored. This option
-should only be used if the automated detection fails or if you want to
-disable some collections. The different bits of this bitmask accepted
-by this plugin are:
+Bit mask of the list of elements to be thermally monitored. This option should
+only be used if the automated detection fails or if you want to disable some
+collections. The different bits of this bit mask accepted by this plugin are:
 
 =over 4
 
@@ -7441,6 +7572,14 @@ by this plugin are:
 =item 3 ('8'): Embedded graphic device
 
 =back
+
+=item B<LogicalCoreNames> I<true>|I<false>
+
+Boolean enabling the use of logical core numbering for per core statistics.
+When enabled, C<cpuE<lt>nE<gt>> is used as plugin instance, where I<n> is a
+sequential number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
+where I<n> is the n-th core of the socket, causing name conflicts when there is
+more than one socket.
 
 =back
 
@@ -7722,6 +7861,49 @@ Example:
 
 Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
 will be collected.
+
+=item B<BlockDeviceFormat> B<target>|B<source>
+
+If I<BlockDeviceFormat> is set to B<target>, the default, then the device name
+seen by the guest will be used for reporting metrics. 
+This corresponds to the C<E<lt>targetE<gt>> node in the XML definition of the
+domain.
+
+If I<BlockDeviceFormat> is set to B<source>, then metrics will be reported
+using the path of the source, e.g. an image file.
+This corresponds to the C<E<lt>sourceE<gt>> node in the XML definition of the
+domain.
+
+B<Example:>
+
+If the domain XML have the following device defined:
+
+  <disk type='block' device='disk'>
+    <driver name='qemu' type='raw' cache='none' io='native' discard='unmap'/>
+    <source dev='/var/lib/libvirt/images/image1.qcow2'/>
+    <target dev='sda' bus='scsi'/>
+    <boot order='2'/>
+    <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+  </disk>
+
+Setting C<BlockDeviceFormat target> will cause the I<type instance> to be set
+to C<sda>.
+Setting C<BlockDeviceFormat source> will cause the I<type instance> to be set
+to C<var_lib_libvirt_images_image1.qcow2>.
+
+=item B<BlockDeviceFormatBasename> B<false>|B<true>
+
+The B<BlockDeviceFormatBasename> controls whether the full path or the
+L<basename(1)> of the source is being used as the I<type instance> when
+B<BlockDeviceFormat> is set to B<source>. Defaults to B<false>.
+
+B<Example:>
+
+Assume the device path (source tag) is C</var/lib/libvirt/images/image1.qcow2>.
+Setting C<BlockDeviceFormatBasename false> will cause the I<type instance> to
+be set to C<var_lib_libvirt_images_image1.qcow2>.
+Setting C<BlockDeviceFormatBasename true> will cause the I<type instance> to be
+set to C<image1.qcow2>.
 
 =item B<HostnameFormat> B<name|uuid|hostname|...>
 
@@ -8023,6 +8205,41 @@ want to use authentication all three fields must be set.
 
 =back
 
+=head2 Plugin C<write_prometheus>
+
+The I<write_prometheus plugin> implements a tiny webserver that can be scraped
+using I<Prometheus>.
+
+B<Options:>
+
+=over 4
+
+=item B<Port> I<Port>
+
+Port the embedded webserver should listen on. Defaults to B<9103>.
+
+=item B<StalenessDelta> I<Seconds>
+
+Time in seconds after which I<Prometheus> considers a metric "stale" if it
+hasn't seen any update for it. This value must match the setting in Prometheus.
+It defaults to B<300> seconds (5 minutes), same as Prometheus.
+
+B<Background:>
+
+I<Prometheus> has a global setting, C<StalenessDelta>, which controls after
+which time a metric without updates is considered "stale". This setting
+effectively puts an upper limit on the interval in which metrics are reported.
+
+When the I<write_prometheus plugin> encounters a metric with an interval
+exceeding this limit, it will inform you, the user, and provide the metric to
+I<Prometheus> B<without> a timestamp. That causes I<Prometheus> to consider the
+metric "fresh" each time it is scraped, with the time of the scrape being
+considered the time of the update. The result is that there appear more
+datapoints in I<Prometheus> than were actually created, but at least the metric
+doesn't disappear periodically.
+
+=back
+
 =head2 Plugin C<write_http>
 
 This output plugin submits values to an HTTP server using POST requests and
@@ -8200,7 +8417,7 @@ forwarded to the kafka producer library B<librdkafka>.
 
 =item B<Key> I<String>
 
-Use the specified string as a partioning key for the topic. Kafka breaks
+Use the specified string as a partitioning key for the topic. Kafka breaks
 topic into partitions and guarantees that for a given topology, the same
 consumer will be used for a specific key. The special (case insensitive)
 string B<Random> can be used to specify that an arbitrary partition should

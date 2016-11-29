@@ -69,7 +69,6 @@ static int tcsv_submit (instance_definition_t *id,
     vl.values_len = 1;
     vl.values = &v;
 
-    sstrncpy(vl.host, hostname_g, sizeof (vl.host));
     sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
     if (id->instance != NULL)
         sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
@@ -535,7 +534,7 @@ static int tcsv_init(void) { /* {{{ */
         else if (ds->ds_num != 1)
         {
             ERROR ("tail_csv plugin: The type \"%s\" has %zu data sources. "
-                    "Only types with a single data soure are supported.",
+                    "Only types with a single data source are supported.",
                     ds->type, ds->ds_num);
             continue;
         }

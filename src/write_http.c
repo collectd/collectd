@@ -366,7 +366,7 @@ static int wh_write_command (const data_set_t *ds, const value_list_t *vl, /* {{
         if ((cb == NULL) || (cb->send_buffer == NULL))
                 return -1;
 
-        if (strcmp (ds->type, vl->type) == 0) {
+        if (strcmp (ds->type, vl->type) != 0) {
                 ERROR ("write_http plugin: DS type does not match "
                                 "value list type");
                 return -1;
@@ -820,12 +820,9 @@ static int wh_config_node (oconfig_item_t *ci) /* {{{ */
                         callback_name, cb->location);
 
         user_data_t user_data = {
-                .data = cb
+                .data = cb,
+                .free_func = wh_callback_free,
         };
-
-        plugin_register_flush (callback_name, wh_flush, &user_data);
-
-        user_data.free_func = wh_callback_free;
 
         if (cb->send_metrics)
         {

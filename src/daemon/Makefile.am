@@ -11,6 +11,9 @@ AM_CPPFLAGS += -DPKGDATADIR='"${pkgdatadir}"'
 
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
+if BUILD_WITH_CAPABILITY
+COMMON_LIBS += -lcap
+endif
 if BUILD_WITH_LIBRT
 COMMON_LIBS += -lrt
 endif

@@ -303,7 +303,7 @@ static char            *send_buffer;
 static char            *send_buffer_ptr;
 static int              send_buffer_fill;
 static cdtime_t         send_buffer_last_update;
-static value_list_t     send_buffer_vl = VALUE_LIST_STATIC;
+static value_list_t     send_buffer_vl = VALUE_LIST_INIT;
 static pthread_mutex_t  send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* XXX: These counters are incremented from one place only. The spot in which
@@ -3386,7 +3386,6 @@ static int network_stats_read (void) /* {{{ */
 	vl.values = values;
 	vl.values_len = 2;
 	vl.time = 0;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "network", sizeof (vl.plugin));
 
 	/* Octets received / sent */
@@ -3478,7 +3477,7 @@ static int network_init (void)
 		status = plugin_thread_create (&dispatch_thread_id,
 				NULL /* no attributes */,
 				dispatch_thread,
-				NULL /* no argument */);
+				NULL /* no argument */, "network disp");
 		if (status != 0)
 		{
 			char errbuf[1024];
@@ -3498,7 +3497,7 @@ static int network_init (void)
 		status = plugin_thread_create (&receive_thread_id,
 				NULL /* no attributes */,
 				receive_thread,
-				NULL /* no argument */);
+				NULL /* no argument */, "network recv");
 		if (status != 0)
 		{
 			char errbuf[1024];

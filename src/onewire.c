@@ -346,7 +346,6 @@ static int cow_read_values (const char *path, const char *name,
       return 0;
   }
 
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, name, sizeof (vl.plugin_instance));
 
@@ -505,7 +504,6 @@ static int cow_simple_read (void)
   /* traverse list and check entries */
   for (traverse = direct_list; traverse != NULL; traverse = traverse->next)
   {
-      sstrncpy (vl.host, hostname_g, sizeof (vl.host));
       sstrncpy (vl.plugin, "onewire", sizeof (vl.plugin));
       sstrncpy (vl.plugin_instance, traverse->address, sizeof (vl.plugin_instance));
 

@@ -90,7 +90,6 @@ static void smart_submit (const char *dev, const char *type,
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "smart", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -117,7 +116,6 @@ static void smart_handle_disk_attribute(SkDisk *d, const SkSmartAttributeParsedD
 
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE (values);
-  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "smart", sizeof (vl.plugin));
   sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
   sstrncpy (vl.type, "smart_attribute", sizeof (vl.type));

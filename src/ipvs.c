@@ -233,7 +233,6 @@ static void cipvs_submit_connections (const char *pi, const char *ti,
 	vl.values     = &(value_t) { .derive = value };
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, "connections", sizeof (vl.type));
@@ -256,7 +255,6 @@ static void cipvs_submit_if (const char *pi, const char *t, const char *ti,
 	vl.values     = values;
 	vl.values_len = STATIC_ARRAY_SIZE (values);
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "ipvs", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, pi, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, t, sizeof (vl.type));

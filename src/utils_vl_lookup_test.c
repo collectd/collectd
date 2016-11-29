@@ -32,8 +32,8 @@
 static _Bool expect_new_obj = 0;
 static _Bool have_new_obj = 0;
 
-static identifier_t last_class_ident;
-static identifier_t last_obj_ident;
+static lookup_identifier_t last_class_ident;
+static lookup_identifier_t last_obj_ident;
 
 static data_source_t dsrc_test = { "value", DS_TYPE_DERIVE, 0.0, NAN };
 static data_set_t const ds_test = { "test", 1, &dsrc_test };
@@ -45,8 +45,8 @@ static int lookup_obj_callback (data_set_t const *ds,
     value_list_t const *vl,
     void *user_class, void *user_obj)
 {
-  identifier_t *class = user_class;
-  identifier_t *obj = user_obj;
+  lookup_identifier_t *class = user_class;
+  lookup_identifier_t *obj = user_obj;
 
   OK1(expect_new_obj == have_new_obj,
       (expect_new_obj ? "New obj is created." : "Updating existing obj."));
@@ -63,8 +63,8 @@ static int lookup_obj_callback (data_set_t const *ds,
 static void *lookup_class_callback (data_set_t const *ds,
     value_list_t const *vl, void *user_class)
 {
-  identifier_t *class = user_class;
-  identifier_t *obj;
+  lookup_identifier_t *class = user_class;
+  lookup_identifier_t *obj;
 
   assert (expect_new_obj);
 
@@ -88,7 +88,7 @@ static int checked_lookup_add (lookup_t *obj, /* {{{ */
     char const *type, char const *type_instance,
     unsigned int group_by)
 {
-  identifier_t ident;
+  lookup_identifier_t ident;
   void *user_class;
 
   strncpy (ident.host, host, sizeof (ident.host));
@@ -111,7 +111,7 @@ static int checked_lookup_search (lookup_t *obj,
     _Bool expect_new)
 {
   int status;
-  value_list_t vl = VALUE_LIST_STATIC;
+  value_list_t vl = VALUE_LIST_INIT;
   data_set_t const *ds = &ds_unknown;
 
   strncpy (vl.host, host, sizeof (vl.host));

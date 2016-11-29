@@ -82,7 +82,6 @@ static void battery_submit2 (char const *plugin_instance, /* {{{ */
 
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "battery", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
 	sstrncpy (vl.type, type, sizeof (vl.type));
@@ -769,7 +768,7 @@ static int battery_read (void) /* {{{ */
 	if (status == 0)
 		return (0);
 
-	ERROR ("battery plugin: Add available input methods failed.");
+	ERROR ("battery plugin: All available input methods failed.");
 	return (-1);
 } /* }}} int battery_read */
 #endif /* KERNEL_LINUX */

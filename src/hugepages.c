@@ -85,7 +85,6 @@ static void submit_hp(const struct entry_info *info) {
   vl.values = &(value_t) { .gauge = NAN };
   vl.values_len = 1;
 
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));
   if (info->node) {
     ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%zuKb",

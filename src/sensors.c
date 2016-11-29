@@ -503,7 +503,6 @@ static void sensors_submit (const char *plugin_instance,
 	vl.values = &(value_t) { .gauge = value };
 	vl.values_len = 1;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "sensors", sizeof (vl.plugin));
 	sstrncpy (vl.plugin_instance, plugin_instance,
 			sizeof (vl.plugin_instance));

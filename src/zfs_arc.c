@@ -145,7 +145,6 @@ static void za_submit (const char* type, const char* type_instance, value_t* val
 	vl.values = values;
 	vl.values_len = values_len;
 
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
 	sstrncpy (vl.plugin, "zfs_arc", sizeof (vl.plugin));
 	sstrncpy (vl.type, type, sizeof (vl.type));
 	sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
@@ -307,7 +306,6 @@ static int za_read (void)
 	za_read_derive (ksp, "mfu_ghost_hits",           "cache_result", "mfu_ghost-hit");
 	za_read_derive (ksp, "mru_hits",                 "cache_result", "mru-hit");
 	za_read_derive (ksp, "mru_ghost_hits",           "cache_result", "mru_ghost-hit");
-	za_read_derive (ksp, "prefetch_metadata_misses", "cache_result", "prefetch_metadata-miss");
 
 	/* Ratios */
 	arc_hits   = (gauge_t) get_zfs_value(ksp, "hits");
