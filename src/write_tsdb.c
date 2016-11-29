@@ -45,8 +45,8 @@
 
 #include "common.h"
 #include "plugin.h"
-
 #include "utils_cache.h"
+#include "utils_random.h"
 
 #include <netdb.h>
 
@@ -108,8 +108,9 @@ struct wt_callback {
   cdtime_t next_random_ttl;
 };
 
-static cdtime_t dnsttl = TIME_T_TO_CDTIME_T_STATIC(WRITE_TSDB_DEFAULT_DNS_TTL);
-static cdtime_t dnsrandomttl = 0;
+static cdtime_t resolve_interval =
+    TIME_T_TO_CDTIME_T_STATIC(WRITE_TSDB_DEFAULT_DNS_TTL);
+static cdtime_t resolve_jitter = 0;
 
 /*
  * Functions
@@ -168,12 +169,10 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb) {
 }
 
 static cdtime_t new_random_ttl() {
-  if (dnsrandomttl == 0)
+  if (resolve_jitter == 0)
     return 0;
 
-  time_t ttl = (time_t)(CDTIME_T_TO_DOUBLE(dnsrandomttl) * ((double)random()) /
-                        (((double)RAND_MAX) + 1.0));
-  return TIME_T_TO_CDTIME_T(ttl);
+  return (cdtime_t)cdrand_range(0, (long)resolve_jitter);
 }
 
 static int wt_callback_init(struct wt_callback *cb) {
@@ -194,7 +193,7 @@ static int wt_callback_init(struct wt_callback *cb) {
      * If there is no more attempts, we need to flush the cache.
      */
 
-    if ((cb->ai_last_update + dnsttl + cb->next_random_ttl) < now) {
+    if ((cb->ai_last_update + resolve_interval + cb->next_random_ttl) < now) {
       cb->next_random_ttl = new_random_ttl();
       if (cb->connect_dns_failed_attempts_remaining > 0) {
         /* Warning : this is run under send_lock mutex.
@@ -210,7 +209,7 @@ static int wt_callback_init(struct wt_callback *cb) {
   }
 
   if (cb->ai == NULL) {
-    if ((cb->ai_last_update + dnsttl + cb->next_random_ttl) >= now) {
+    if ((cb->ai_last_update + resolve_interval + cb->next_random_ttl) >= now) {
       DEBUG("write_tsdb plugin: too many getaddrinfo(%s, %s) failures", node,
             service);
       return (-1);
@@ -646,10 +645,10 @@ static int wt_config(oconfig_item_t *ci) {
     if (strcasecmp("Node", child->key) == 0)
       wt_config_tsd(child);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
-      cf_util_get_cdtime(child, &dnsttl);
+      cf_util_get_cdtime(child, &resolve_interval);
     else if (strcasecmp("ResolveJitter", child->key) == 0) {
       config_random_ttl = 1;
-      cf_util_get_cdtime(child, &dnsrandomttl);
+      cf_util_get_cdtime(child, &resolve_jitter);
     } else {
       ERROR("write_tsdb plugin: Invalid configuration "
             "option: %s.",
@@ -658,8 +657,8 @@ static int wt_config(oconfig_item_t *ci) {
   }
 
   if (!config_random_ttl)
-    dnsrandomttl = CDTIME_T_TO_DOUBLE(WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL *
-                                      plugin_get_interval());
+    resolve_jitter = CDTIME_T_TO_DOUBLE(WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL *
+                                        plugin_get_interval());
 
   return 0;
 }
