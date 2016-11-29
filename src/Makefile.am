@@ -334,7 +334,8 @@ endif
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c \
-		  utils_curl_stats.c utils_curl_stats.h
+		  utils_curl_stats.c utils_curl_stats.h \
+		  utils_match.c utils_match.h
 curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
@@ -686,7 +687,7 @@ endif
 
 if BUILD_PLUGIN_MEMCACHEC
 pkglib_LTLIBRARIES += memcachec.la
-memcachec_la_SOURCES = memcachec.c
+memcachec_la_SOURCES = memcachec.c utils_match.c utils_match.h
 memcachec_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
 memcachec_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMEMCACHED_CPPFLAGS)
 memcachec_la_LIBADD = $(BUILD_WITH_LIBMEMCACHED_LIBS)
@@ -1114,14 +1115,14 @@ endif
 
 if BUILD_PLUGIN_TAIL
 pkglib_LTLIBRARIES += tail.la
-tail_la_SOURCES = tail.c
+tail_la_SOURCES = tail.c utils_tail_match.c utils_tail_match.h
 tail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 tail_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_TAIL_CSV
 pkglib_LTLIBRARIES += tail_csv.la
-tail_csv_la_SOURCES = tail_csv.c
+tail_csv_la_SOURCES = tail_csv.c utils_tail.c utils_tail.h
 tail_csv_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
