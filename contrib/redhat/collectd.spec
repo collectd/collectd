@@ -222,6 +222,7 @@
 %define with_mqtt 0
 %define with_redis 0
 %define with_rrdcached 0
+%define with_write_redis 0
 %define with_xmms 0
 %endif
 
