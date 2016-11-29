@@ -86,8 +86,8 @@ typedef struct ir_ignorelist_s {
 } ir_ignorelist_t;
 
 struct qos_stats {
-  struct gnet_stats_basic **bs;
-  struct gnet_stats_queue **qs;
+  struct gnet_stats_basic *bs;
+  struct gnet_stats_queue *qs;
 };
 
 static int ir_ignorelist_invert = 1;
@@ -393,30 +393,30 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
 #if HAVE_TCA_STATS2
 static int qos_attr_cb(const struct nlattr *attr, void *data) {
   struct qos_stats *qdisc = (struct qos_stats *)data;
-  struct gnet_stats_basic **bs = qdisc->bs;
-  struct gnet_stats_queue **qs = qdisc->qs;
+  struct gnet_stats_basic *bs = qdisc->bs;
+  struct gnet_stats_queue *qs = qdisc->qs;
 
   /* skip unsupported attribute in user-space */
   if (mnl_attr_type_valid(attr, TCA_STATS_MAX) < 0)
     return MNL_CB_OK;
 
   if (mnl_attr_get_type(attr) == TCA_STATS_BASIC) {
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(**bs)) < 0) {
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*bs)) < 0) {
       ERROR("netlink plugin: qos_attr_cb: TCA_STATS_BASIC mnl_attr_validate2 "
             "failed.");
       return MNL_CB_ERROR;
     }
-    *bs = mnl_attr_get_payload(attr);
+    bs = mnl_attr_get_payload(attr);
     return MNL_CB_OK;
   }
 
   if (mnl_attr_get_type(attr) == TCA_STATS_QUEUE) {
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(**qs)) < 0) {
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*qs)) < 0) {
       ERROR("netlink plugin: qos_attr_cb: TCA_STATS_QUEUE mnl_attr_validate2 "
             "failed.");
       return MNL_CB_ERROR;
     }
-    *qs = mnl_attr_get_payload(attr);
+    qs = mnl_attr_get_payload(attr);
     return MNL_CB_OK;
   }
 
@@ -512,8 +512,8 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     struct gnet_stats_basic *bs = NULL;
     struct gnet_stats_queue *qs = NULL;
     struct qos_stats q_stats;
-    q_stats.bs = &bs;
-    q_stats.qs = &qs;
+    q_stats.bs = bs;
+    q_stats.qs = qs;
 
     if (mnl_attr_get_type(attr) != TCA_STATS2)
       continue;
