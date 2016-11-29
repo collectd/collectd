@@ -38,105 +38,92 @@
 #endif
 
 #define UUID_RAW_LENGTH 16
-#define UUID_PRINTABLE_COMPACT_LENGTH  (UUID_RAW_LENGTH * 2)
-#define UUID_PRINTABLE_NORMAL_LENGTH  (UUID_PRINTABLE_COMPACT_LENGTH + 4)
+#define UUID_PRINTABLE_COMPACT_LENGTH (UUID_RAW_LENGTH * 2)
+#define UUID_PRINTABLE_NORMAL_LENGTH (UUID_PRINTABLE_COMPACT_LENGTH + 4)
 
 static char *uuidfile = NULL;
 
-static const char *config_keys[] = {
-    "UUIDFile"
-};
+static const char *config_keys[] = {"UUIDFile"};
 
-static int
-looks_like_a_uuid (const char *uuid)
-{
-    int len;
+static int looks_like_a_uuid(const char *uuid) {
+  int len;
 
-    if (!uuid)
-        return (0);
+  if (!uuid)
+    return (0);
 
-    len = strlen (uuid);
+  len = strlen(uuid);
 
-    if (len < UUID_PRINTABLE_COMPACT_LENGTH)
-        return (0);
+  if (len < UUID_PRINTABLE_COMPACT_LENGTH)
+    return (0);
 
-    while (*uuid) {
-        if (!isxdigit ((int)*uuid) && *uuid != '-')
-            return (0);
-        uuid++;
-    }
-    return (1);
+  while (*uuid) {
+    if (!isxdigit((int)*uuid) && *uuid != '-')
+      return (0);
+    uuid++;
+  }
+  return (1);
 }
 
-static char *
-uuid_parse_dmidecode(FILE *file)
-{
-    char line[1024];
+static char *uuid_parse_dmidecode(FILE *file) {
+  char line[1024];
 
-    while (fgets (line, sizeof (line), file) != NULL)
-    {
-        char *fields[4];
-        int fields_num;
+  while (fgets(line, sizeof(line), file) != NULL) {
+    char *fields[4];
+    int fields_num;
 
-        strstripnewline (line);
+    strstripnewline(line);
 
-        /* Look for a line reading:
-         *   UUID: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-         */
-        fields_num = strsplit (line, fields, STATIC_ARRAY_SIZE (fields));
-        if (fields_num != 2)
-            continue;
+    /* Look for a line reading:
+     *   UUID: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+     */
+    fields_num = strsplit(line, fields, STATIC_ARRAY_SIZE(fields));
+    if (fields_num != 2)
+      continue;
 
-        if (strcmp("UUID:", fields[0]) != 0)
-            continue;
+    if (strcmp("UUID:", fields[0]) != 0)
+      continue;
 
-        if (!looks_like_a_uuid (fields[1]))
-            continue;
+    if (!looks_like_a_uuid(fields[1]))
+      continue;
 
-        return (strdup (fields[1]));
-    }
+    return (strdup(fields[1]));
+  }
+  return (NULL);
+}
+
+static char *uuid_get_from_dmidecode(void) {
+  FILE *dmidecode = popen("dmidecode -t system 2>/dev/null", "r");
+  char *uuid;
+
+  if (!dmidecode)
     return (NULL);
-}
 
-static char *
-uuid_get_from_dmidecode(void)
-{
-    FILE *dmidecode = popen("dmidecode -t system 2>/dev/null", "r");
-    char *uuid;
+  uuid = uuid_parse_dmidecode(dmidecode);
 
-    if (!dmidecode)
-        return (NULL);
-
-    uuid = uuid_parse_dmidecode(dmidecode);
-
-    pclose(dmidecode);
-    return (uuid);
+  pclose(dmidecode);
+  return (uuid);
 }
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
-static char *
-uuid_get_from_sysctlbyname(const char *name)
-{
-    char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1];
-    size_t len = sizeof (uuid);
-    if (sysctlbyname(name, &uuid, &len, NULL, 0) == -1)
-        return NULL;
-    return (strdup (uuid));
+static char *uuid_get_from_sysctlbyname(const char *name) {
+  char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1];
+  size_t len = sizeof(uuid);
+  if (sysctlbyname(name, &uuid, &len, NULL, 0) == -1)
+    return NULL;
+  return (strdup(uuid));
 }
 #elif defined(__OpenBSD__)
-static char *
-uuid_get_from_sysctl(void)
-{
-    char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1];
-    size_t len = sizeof (uuid);
-    int mib[2];
+static char *uuid_get_from_sysctl(void) {
+  char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1];
+  size_t len = sizeof(uuid);
+  int mib[2];
 
-    mib[0] = CTL_HW;
-    mib[1] = HW_UUID;
+  mib[0] = CTL_HW;
+  mib[1] = HW_UUID;
 
-    if (sysctl(mib, 2, uuid, &len, NULL, 0) == -1)
-        return NULL;
-    return (strdup (uuid));
+  if (sysctl(mib, 2, uuid, &len, NULL, 0) == -1)
+    return NULL;
+  return (strdup(uuid));
 }
 #endif
 
@@ -145,152 +132,135 @@ uuid_get_from_sysctl(void)
 #define UUID_PATH "/org/freedesktop/Hal/devices/computer"
 #define UUID_PROPERTY "smbios.system.uuid"
 
-static char *
-uuid_get_from_hal(void)
-{
-    LibHalContext *ctx;
+static char *uuid_get_from_hal(void) {
+  LibHalContext *ctx;
 
-    DBusError error;
-    DBusConnection *con;
+  DBusError error;
+  DBusConnection *con;
 
-    dbus_error_init(&error);
+  dbus_error_init(&error);
 
-    if (!(con = dbus_bus_get(DBUS_BUS_SYSTEM, &error)))
-        goto bailout_nobus;
+  if (!(con = dbus_bus_get(DBUS_BUS_SYSTEM, &error)))
+    goto bailout_nobus;
 
-    ctx = libhal_ctx_new();
-    libhal_ctx_set_dbus_connection(ctx, con);
+  ctx = libhal_ctx_new();
+  libhal_ctx_set_dbus_connection(ctx, con);
 
-    if (!libhal_ctx_init(ctx, &error))
-        goto bailout;
+  if (!libhal_ctx_init(ctx, &error))
+    goto bailout;
 
-    if (!libhal_device_property_exists(ctx,
-                                       UUID_PATH,
-                                       UUID_PROPERTY,
-                                       &error))
-        goto bailout;
+  if (!libhal_device_property_exists(ctx, UUID_PATH, UUID_PROPERTY, &error))
+    goto bailout;
 
-    char *uuid  = libhal_device_get_property_string(ctx,
-                                                    UUID_PATH,
-                                                    UUID_PROPERTY,
-                                                    &error);
-    if (looks_like_a_uuid (uuid))
-        return (uuid);
+  char *uuid =
+      libhal_device_get_property_string(ctx, UUID_PATH, UUID_PROPERTY, &error);
+  if (looks_like_a_uuid(uuid))
+    return (uuid);
 
- bailout:
-    {
-        DBusError ctxerror;
-        dbus_error_init(&ctxerror);
-        if (!(libhal_ctx_shutdown(ctx, &ctxerror)))
-            dbus_error_free(&ctxerror);
-    }
+bailout : {
+  DBusError ctxerror;
+  dbus_error_init(&ctxerror);
+  if (!(libhal_ctx_shutdown(ctx, &ctxerror)))
+    dbus_error_free(&ctxerror);
+}
 
-    libhal_ctx_free(ctx);
+  libhal_ctx_free(ctx);
 
- bailout_nobus:
-    if (dbus_error_is_set(&error))
-        dbus_error_free(&error);
-    return (NULL);
+bailout_nobus:
+  if (dbus_error_is_set(&error))
+    dbus_error_free(&error);
+  return (NULL);
 }
 #endif
 
-static char *
-uuid_get_from_file(const char *path)
-{
-    FILE *file;
-    char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1] = "";
+static char *uuid_get_from_file(const char *path) {
+  FILE *file;
+  char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1] = "";
 
-    file = fopen (path, "r");
-    if (file == NULL)
-        return (NULL);
+  file = fopen(path, "r");
+  if (file == NULL)
+    return (NULL);
 
-    if (!fgets(uuid, sizeof(uuid), file)) {
-        fclose(file);
-        return (NULL);
-    }
+  if (!fgets(uuid, sizeof(uuid), file)) {
     fclose(file);
-    strstripnewline (uuid);
+    return (NULL);
+  }
+  fclose(file);
+  strstripnewline(uuid);
 
-    return (strdup (uuid));
+  return (strdup(uuid));
 }
 
-static char *
-uuid_get_local(void)
-{
-    char *uuid;
+static char *uuid_get_local(void) {
+  char *uuid;
 
-    /* Check /etc/uuid / UUIDFile before any other method. */
-    if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL)
-        return (uuid);
+  /* Check /etc/uuid / UUIDFile before any other method. */
+  if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL)
+    return (uuid);
 
 #if defined(__APPLE__)
-    if ((uuid = uuid_get_from_sysctlbyname("kern.uuid")) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_sysctlbyname("kern.uuid")) != NULL)
+    return (uuid);
 #elif defined(__FreeBSD__)
-    if ((uuid = uuid_get_from_sysctlbyname("kern.hostuuid")) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_sysctlbyname("kern.hostuuid")) != NULL)
+    return (uuid);
 #elif defined(__NetBSD__)
-    if ((uuid = uuid_get_from_sysctlbyname("machdep.dmi.system-uuid")) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_sysctlbyname("machdep.dmi.system-uuid")) != NULL)
+    return (uuid);
 #elif defined(__OpenBSD__)
-    if ((uuid = uuid_get_from_sysctl()) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_sysctl()) != NULL)
+    return (uuid);
 #elif defined(__linux__)
-    if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
+    return (uuid);
 #endif
 
 #if HAVE_LIBHAL_H
-    if ((uuid = uuid_get_from_hal()) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_hal()) != NULL)
+    return (uuid);
 #endif
 
-    if ((uuid = uuid_get_from_dmidecode()) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_dmidecode()) != NULL)
+    return (uuid);
 
 #if defined(__linux__)
-    if ((uuid = uuid_get_from_file("/sys/hypervisor/uuid")) != NULL)
-        return (uuid);
+  if ((uuid = uuid_get_from_file("/sys/hypervisor/uuid")) != NULL)
+    return (uuid);
 #endif
 
-    return (NULL);
+  return (NULL);
 }
 
-static int
-uuid_config (const char *key, const char *value)
-{
-    if (strcasecmp (key, "UUIDFile") == 0) {
-        char *tmp = strdup (value);
-        if (tmp == NULL)
-            return (-1);
-        sfree (uuidfile);
-        uuidfile = tmp;
-        return (0);
-    }
-
-    return (1);
-}
-
-static int
-uuid_init (void)
-{
-    char *uuid = uuid_get_local ();
-
-    if (uuid) {
-        sstrncpy (hostname_g, uuid, DATA_MAX_NAME_LEN);
-        sfree (uuid);
-        return (0);
-    }
-
-    WARNING ("uuid: could not read UUID using any known method");
+static int uuid_config(const char *key, const char *value) {
+  if (strcasecmp(key, "UUIDFile") == 0) {
+    char *tmp = strdup(value);
+    if (tmp == NULL)
+      return (-1);
+    sfree(uuidfile);
+    uuidfile = tmp;
     return (0);
+  }
+
+  return (1);
 }
 
-void module_register (void)
-{
-    plugin_register_config ("uuid", uuid_config,
-            config_keys, STATIC_ARRAY_SIZE (config_keys));
-    plugin_register_init ("uuid", uuid_init);
+static int uuid_init(void) {
+  char *uuid = uuid_get_local();
+
+  if (uuid) {
+    sstrncpy(hostname_g, uuid, DATA_MAX_NAME_LEN);
+    sfree(uuid);
+    return (0);
+  }
+
+  WARNING("uuid: could not read UUID using any known method");
+  return (0);
+}
+
+void module_register(void) {
+  plugin_register_config("uuid", uuid_config, config_keys,
+                         STATIC_ARRAY_SIZE(config_keys));
+  plugin_register_init("uuid", uuid_init);
 }
 
 /*

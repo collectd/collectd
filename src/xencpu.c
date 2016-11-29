@@ -28,13 +28,13 @@
 
 #ifdef XENCTRL_HAS_XC_INTERFACE
 
-//Xen-4.1+
-#define XC_INTERFACE_INIT_ARGS NULL,NULL,0
+// Xen-4.1+
+#define XC_INTERFACE_INIT_ARGS NULL, NULL, 0
 xc_interface *xc_handle;
 
 #else /* XENCTRL_HAS_XC_INTERFACE */
 
-//For xen-3.4/xen-4.0
+// For xen-3.4/xen-4.0
 #include <string.h>
 #define xc_strerror(xc_interface, errcode) strerror(errcode)
 #define XC_INTERFACE_INIT_ARGS
@@ -47,115 +47,104 @@ uint32_t num_cpus = 0;
 xc_cpuinfo_t *cpu_info;
 static value_to_rate_state_t *cpu_states;
 
-static int xencpu_init (void)
-{
-    xc_handle = xc_interface_open(XC_INTERFACE_INIT_ARGS);
-    if (!xc_handle)
-    {
-        ERROR ("xencpu: xc_interface_open() failed");
-        return (-1);
-    }
+static int xencpu_init(void) {
+  xc_handle = xc_interface_open(XC_INTERFACE_INIT_ARGS);
+  if (!xc_handle) {
+    ERROR("xencpu: xc_interface_open() failed");
+    return (-1);
+  }
 
-    xc_physinfo_t *physinfo;
+  xc_physinfo_t *physinfo;
 
-    physinfo = calloc(1, sizeof(xc_physinfo_t));
-    if (physinfo == NULL)
-    {
-        ERROR ("xencpu plugin: calloc() for physinfo failed.");
-        xc_interface_close(xc_handle);
-        return (ENOMEM);
-    }
+  physinfo = calloc(1, sizeof(xc_physinfo_t));
+  if (physinfo == NULL) {
+    ERROR("xencpu plugin: calloc() for physinfo failed.");
+    xc_interface_close(xc_handle);
+    return (ENOMEM);
+  }
 
-    if (xc_physinfo(xc_handle, physinfo) < 0)
-    {
-        ERROR ("xencpu plugin: xc_physinfo() failed");
-        xc_interface_close(xc_handle);
-        free(physinfo);
-        return (-1);
-    }
-
-    num_cpus = physinfo->nr_cpus;
+  if (xc_physinfo(xc_handle, physinfo) < 0) {
+    ERROR("xencpu plugin: xc_physinfo() failed");
+    xc_interface_close(xc_handle);
     free(physinfo);
+    return (-1);
+  }
 
-    INFO ("xencpu plugin: Found %"PRIu32" processors.", num_cpus);
+  num_cpus = physinfo->nr_cpus;
+  free(physinfo);
 
-    cpu_info = calloc(num_cpus, sizeof(xc_cpuinfo_t));
-    if (cpu_info == NULL)
-    {
-        ERROR ("xencpu plugin: calloc() for num_cpus failed.");
-        xc_interface_close(xc_handle);
-        return (ENOMEM);
-    }
+  INFO("xencpu plugin: Found %" PRIu32 " processors.", num_cpus);
 
-    cpu_states = calloc (num_cpus, sizeof (value_to_rate_state_t));
-    if (cpu_states == NULL)
-    {
-        ERROR ("xencpu plugin: calloc() for cpu_states failed.");
-        xc_interface_close(xc_handle);
-        free(cpu_info);
-        return (ENOMEM);
-    }
+  cpu_info = calloc(num_cpus, sizeof(xc_cpuinfo_t));
+  if (cpu_info == NULL) {
+    ERROR("xencpu plugin: calloc() for num_cpus failed.");
+    xc_interface_close(xc_handle);
+    return (ENOMEM);
+  }
 
-    return (0);
+  cpu_states = calloc(num_cpus, sizeof(value_to_rate_state_t));
+  if (cpu_states == NULL) {
+    ERROR("xencpu plugin: calloc() for cpu_states failed.");
+    xc_interface_close(xc_handle);
+    free(cpu_info);
+    return (ENOMEM);
+  }
+
+  return (0);
 } /* static int xencpu_init */
 
-static int xencpu_shutdown (void)
-{
-    free(cpu_states);
-    free(cpu_info);
-    xc_interface_close(xc_handle);
+static int xencpu_shutdown(void) {
+  free(cpu_states);
+  free(cpu_info);
+  xc_interface_close(xc_handle);
 
-    return 0;
+  return 0;
 } /* static int xencpu_shutdown */
 
-static void submit_value (int cpu_num, gauge_t value)
-{
-    value_list_t vl = VALUE_LIST_INIT;
+static void submit_value(int cpu_num, gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-    vl.values = &(value_t) { .gauge = value };
-    vl.values_len = 1;
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
 
-    sstrncpy (vl.plugin, "xencpu", sizeof (vl.plugin));
-    sstrncpy (vl.type, "percent", sizeof (vl.type));
-    sstrncpy (vl.type_instance, "load", sizeof (vl.type_instance));
+  sstrncpy(vl.plugin, "xencpu", sizeof(vl.plugin));
+  sstrncpy(vl.type, "percent", sizeof(vl.type));
+  sstrncpy(vl.type_instance, "load", sizeof(vl.type_instance));
 
-    if (cpu_num >= 0) {
-        ssnprintf (vl.plugin_instance, sizeof (vl.plugin_instance),
-                "%i", cpu_num);
-    }
-    plugin_dispatch_values (&vl);
+  if (cpu_num >= 0) {
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
+  }
+  plugin_dispatch_values(&vl);
 } /* static void submit_value */
 
-static int xencpu_read (void)
-{
-    cdtime_t now = cdtime ();
+static int xencpu_read(void) {
+  cdtime_t now = cdtime();
 
-    int rc, nr_cpus;
+  int rc, nr_cpus;
 
-    rc = xc_getcpuinfo(xc_handle, num_cpus, cpu_info, &nr_cpus);
-    if (rc < 0) {
-        ERROR ("xencpu: xc_getcpuinfo() Failed: %d %s\n", rc, xc_strerror(xc_handle,errno));
-        return (-1);
+  rc = xc_getcpuinfo(xc_handle, num_cpus, cpu_info, &nr_cpus);
+  if (rc < 0) {
+    ERROR("xencpu: xc_getcpuinfo() Failed: %d %s\n", rc,
+          xc_strerror(xc_handle, errno));
+    return (-1);
+  }
+
+  int status;
+  for (int cpu = 0; cpu < nr_cpus; cpu++) {
+    gauge_t rate = NAN;
+
+    status = value_to_rate(&rate, (value_t){.derive = cpu_info[cpu].idletime},
+                           DS_TYPE_DERIVE, now, &cpu_states[cpu]);
+    if (status == 0) {
+      submit_value(cpu, 100 - rate / 10000000);
     }
+  }
 
-    int status;
-    for (int cpu = 0; cpu < nr_cpus; cpu++) {
-        gauge_t rate = NAN;
-
-        status = value_to_rate (&rate,
-                                (value_t) { .derive = cpu_info[cpu].idletime }, DS_TYPE_DERIVE,
-                                now, &cpu_states[cpu]);
-        if (status == 0) {
-            submit_value(cpu, 100 - rate/10000000);
-        }
-    }
-
-    return (0);
+  return (0);
 } /* static int xencpu_read */
 
-void module_register (void)
-{
-    plugin_register_init ("xencpu", xencpu_init);
-    plugin_register_read ("xencpu", xencpu_read);
-    plugin_register_shutdown ("xencpu", xencpu_shutdown);
+void module_register(void) {
+  plugin_register_init("xencpu", xencpu_init);
+  plugin_register_read("xencpu", xencpu_read);
+  plugin_register_shutdown("xencpu", xencpu_shutdown);
 } /* void module_register */

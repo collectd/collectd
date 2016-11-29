@@ -3,34 +3,15 @@ AC_PREREQ([2.60])
 AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/target_set.c)
 AC_CONFIG_HEADERS(src/config.h)
-AC_CONFIG_AUX_DIR([libltdl/config])
+AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl older automake's default of ARFLAGS=cru is noisy on newer binutils;
 dnl we don't really need the 'u' even in older toolchains.  Then there is
 dnl older libtool, which spelled it AR_FLAGS
 m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
 
-m4_ifdef([LT_PACKAGE_VERSION],
-	# libtool >= 2.2
-	[
-	 LT_CONFIG_LTDL_DIR([libltdl])
-	 LT_INIT([dlopen])
-	 LTDL_INIT([convenience])
-	 AC_DEFINE(LIBTOOL_VERSION, 2, [Define to used libtool version.])
-	]
-,
-	# libtool <= 1.5
-	[
-	 AC_LIBLTDL_CONVENIENCE
-	 AC_SUBST(LTDLINCL)
-	 AC_SUBST(LIBLTDL)
-	 AC_LIBTOOL_DLOPEN
-	 AC_CONFIG_SUBDIRS(libltdl)
-	 AC_DEFINE(LIBTOOL_VERSION, 1, [Define to used libtool version.])
-	]
-)
-
-AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
+LT_INIT([dlopen])
 
 AM_INIT_AUTOMAKE([subdir-objects tar-pax dist-bzip2 no-dist-gzip foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
@@ -56,7 +37,6 @@ AM_PROG_CC_C_O
 AM_CONDITIONAL(COMPILER_IS_GCC, test "x$GCC" = "xyes")
 
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
 
@@ -78,6 +58,12 @@ if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfi
 then
 	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
+
+AS_IF([test "x$lt_cv_dlopen" = "xno"],
+  [AC_MSG_ERROR([Your system does not support dlopen])]
+)
+
+AC_SUBST([DLOPEN_LIBS], [$lt_cv_dlopen_libs])
 
 AC_ARG_VAR([PROTOC], [path to the protoc binary])
 AC_PATH_PROG([PROTOC], [protoc])
@@ -2919,15 +2905,15 @@ fi
 
 if test "x$with_liblua" = "xyes"
 then
-  SAVE_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS $LUA_CFLAGS"
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $LUA_CFLAGS"
 
   AC_CHECK_HEADERS([lua.h lauxlib.h lualib.h],
     [with_liblua="yes"],
     [with_liblua="no (header not found)"]
   )
 
-  CFLAGS="$SAVE_CFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_liblua" = "xyes"

@@ -61,19 +61,15 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_random.c utils_random.h \
-		   utils_tail_match.c utils_tail_match.h \
-		   utils_match.c utils_match.h \
 		   utils_subst.c utils_subst.h \
-		   utils_tail.c utils_tail.h \
 		   utils_time.c utils_time.h \
 		   types_list.c types_list.h \
 		   utils_threshold.c utils_threshold.h
 
 
-collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS)
+collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS) $(DLOPEN_LIBS)
 collectd_DEPENDENCIES = libavltree.la libcommon.la libheap.la libmetadata.la
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
@@ -84,7 +80,7 @@ collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
 if BUILD_WITH_OWN_LIBOCONFIG
-collectd_LDADD += $(LIBLTDL) $(top_builddir)/src/liboconfig/liboconfig.la
+collectd_LDADD += $(top_builddir)/src/liboconfig/liboconfig.la
 collectd_DEPENDENCIES += $(top_builddir)/src/liboconfig/liboconfig.la
 else
 collectd_LDADD += -loconfig

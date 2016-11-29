@@ -88,8 +88,9 @@ extern cdtime_t cdtime_mock;
 
 #define CDTIME_T_TO_DOUBLE(t)                                                  \
   (double) { ((double)(t)) / 1073741824.0 }
+#define DOUBLE_TO_CDTIME_T_STATIC(d) ((cdtime_t)((d)*1073741824.0))
 #define DOUBLE_TO_CDTIME_T(d)                                                  \
-  (cdtime_t) { (cdtime_t)((d)*1073741824.0) }
+  (cdtime_t) { DOUBLE_TO_CDTIME_T_STATIC(d) }
 
 #define CDTIME_T_TO_TIMEVAL(t)                                                 \
   (struct timeval) {                                                           \

@@ -31,11 +31,10 @@
 
 #include <stddef.h>
 
-struct rrdcreate_config_s
-{
+struct rrdcreate_config_s {
   unsigned long stepsize;
-  int    heartbeat;
-  int    rrarows;
+  int heartbeat;
+  int rrarows;
   double xff;
 
   int *timespans;
@@ -48,9 +47,8 @@ struct rrdcreate_config_s
 };
 typedef struct rrdcreate_config_s rrdcreate_config_t;
 
-int cu_rrd_create_file (const char *filename,
-    const data_set_t *ds, const value_list_t *vl,
-    const rrdcreate_config_t *cfg);
+int cu_rrd_create_file(const char *filename, const data_set_t *ds,
+                       const value_list_t *vl, const rrdcreate_config_t *cfg);
 
 #endif /* UTILS_RRDCREATE_H */
 

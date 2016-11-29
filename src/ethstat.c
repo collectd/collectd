@@ -30,20 +30,19 @@
 #include "utils_complain.h"
 
 #if HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
+#include <sys/ioctl.h>
 #endif
 #if HAVE_NET_IF_H
-# include <net/if.h>
+#include <net/if.h>
 #endif
 #if HAVE_LINUX_SOCKIOS_H
-# include <linux/sockios.h>
+#include <linux/sockios.h>
 #endif
 #if HAVE_LINUX_ETHTOOL_H
-# include <linux/ethtool.h>
+#include <linux/ethtool.h>
 #endif
 
-struct value_map_s
-{
+struct value_map_s {
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
 };
@@ -56,160 +55,145 @@ static c_avl_tree_t *value_map = NULL;
 
 static _Bool collect_mapped_only = 0;
 
-static int ethstat_add_interface (const oconfig_item_t *ci) /* {{{ */
+static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
 {
   char **tmp;
   int status;
 
-  tmp = realloc (interfaces,
-      sizeof (*interfaces) * (interfaces_num + 1));
+  tmp = realloc(interfaces, sizeof(*interfaces) * (interfaces_num + 1));
   if (tmp == NULL)
     return (-1);
   interfaces = tmp;
   interfaces[interfaces_num] = NULL;
 
-  status = cf_util_get_string (ci, interfaces + interfaces_num);
+  status = cf_util_get_string(ci, interfaces + interfaces_num);
   if (status != 0)
     return (status);
 
   interfaces_num++;
   INFO("ethstat plugin: Registered interface %s",
-      interfaces[interfaces_num - 1]);
+       interfaces[interfaces_num - 1]);
 
   return (0);
 } /* }}} int ethstat_add_interface */
 
-static int ethstat_add_map (const oconfig_item_t *ci) /* {{{ */
+static int ethstat_add_map(const oconfig_item_t *ci) /* {{{ */
 {
   value_map_t *map;
   int status;
   char *key;
 
-  if ((ci->values_num < 2)
-      || (ci->values_num > 3)
-      || (ci->values[0].type != OCONFIG_TYPE_STRING)
-      || (ci->values[1].type != OCONFIG_TYPE_STRING)
-      || ((ci->values_num == 3)
-        && (ci->values[2].type != OCONFIG_TYPE_STRING)))
-  {
-    ERROR ("ethstat plugin: The %s option requires "
-        "two or three string arguments.", ci->key);
+  if ((ci->values_num < 2) || (ci->values_num > 3) ||
+      (ci->values[0].type != OCONFIG_TYPE_STRING) ||
+      (ci->values[1].type != OCONFIG_TYPE_STRING) ||
+      ((ci->values_num == 3) && (ci->values[2].type != OCONFIG_TYPE_STRING))) {
+    ERROR("ethstat plugin: The %s option requires "
+          "two or three string arguments.",
+          ci->key);
     return (-1);
   }
 
-  key = strdup (ci->values[0].value.string);
-  if (key == NULL)
-  {
-    ERROR ("ethstat plugin: strdup(3) failed.");
+  key = strdup(ci->values[0].value.string);
+  if (key == NULL) {
+    ERROR("ethstat plugin: strdup(3) failed.");
     return (ENOMEM);
   }
 
-  map = calloc (1, sizeof (*map));
-  if (map == NULL)
-  {
-    sfree (key);
-    ERROR ("ethstat plugin: calloc failed.");
+  map = calloc(1, sizeof(*map));
+  if (map == NULL) {
+    sfree(key);
+    ERROR("ethstat plugin: calloc failed.");
     return (ENOMEM);
   }
 
-  sstrncpy (map->type, ci->values[1].value.string, sizeof (map->type));
+  sstrncpy(map->type, ci->values[1].value.string, sizeof(map->type));
   if (ci->values_num == 3)
-    sstrncpy (map->type_instance, ci->values[2].value.string,
-        sizeof (map->type_instance));
+    sstrncpy(map->type_instance, ci->values[2].value.string,
+             sizeof(map->type_instance));
 
-  if (value_map == NULL)
-  {
-    value_map = c_avl_create ((int (*) (const void *, const void *)) strcmp);
-    if (value_map == NULL)
-    {
-      sfree (map);
-      sfree (key);
-      ERROR ("ethstat plugin: c_avl_create() failed.");
+  if (value_map == NULL) {
+    value_map = c_avl_create((int (*)(const void *, const void *))strcmp);
+    if (value_map == NULL) {
+      sfree(map);
+      sfree(key);
+      ERROR("ethstat plugin: c_avl_create() failed.");
       return (-1);
     }
   }
 
-  status = c_avl_insert (value_map,
-      /* key = */ key,
-      /* value = */ map);
-  if (status != 0)
-  {
+  status = c_avl_insert(value_map,
+                        /* key = */ key,
+                        /* value = */ map);
+  if (status != 0) {
     if (status > 0)
-      ERROR ("ethstat plugin: Multiple mappings for \"%s\".", key);
+      ERROR("ethstat plugin: Multiple mappings for \"%s\".", key);
     else
-      ERROR ("ethstat plugin: c_avl_insert(\"%s\") failed.", key);
+      ERROR("ethstat plugin: c_avl_insert(\"%s\") failed.", key);
 
-    sfree (map);
-    sfree (key);
+    sfree(map);
+    sfree(key);
     return (-1);
   }
 
   return (0);
 } /* }}} int ethstat_add_map */
 
-static int ethstat_config (oconfig_item_t *ci) /* {{{ */
+static int ethstat_config(oconfig_item_t *ci) /* {{{ */
 {
-  for (int i = 0; i < ci->children_num; i++)
-  {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp ("Interface", child->key) == 0)
-      ethstat_add_interface (child);
-    else if (strcasecmp ("Map", child->key) == 0)
-      ethstat_add_map (child);
-    else if (strcasecmp ("MappedOnly", child->key) == 0)
-      (void) cf_util_get_boolean (child, &collect_mapped_only);
+    if (strcasecmp("Interface", child->key) == 0)
+      ethstat_add_interface(child);
+    else if (strcasecmp("Map", child->key) == 0)
+      ethstat_add_map(child);
+    else if (strcasecmp("MappedOnly", child->key) == 0)
+      (void)cf_util_get_boolean(child, &collect_mapped_only);
     else
-      WARNING ("ethstat plugin: The config option \"%s\" is unknown.",
-          child->key);
+      WARNING("ethstat plugin: The config option \"%s\" is unknown.",
+              child->key);
   }
 
   return (0);
 } /* }}} */
 
-static void ethstat_submit_value (const char *device,
-    const char *type_instance, derive_t value)
-{
+static void ethstat_submit_value(const char *device, const char *type_instance,
+                                 derive_t value) {
   static c_complain_t complain_no_map = C_COMPLAIN_INIT_STATIC;
 
   value_list_t vl = VALUE_LIST_INIT;
   value_map_t *map = NULL;
 
   if (value_map != NULL)
-    c_avl_get (value_map, type_instance, (void *) &map);
+    c_avl_get(value_map, type_instance, (void *)&map);
 
   /* If the "MappedOnly" option is specified, ignore unmapped values. */
-  if (collect_mapped_only && (map == NULL))
-  {
+  if (collect_mapped_only && (map == NULL)) {
     if (value_map == NULL)
-      c_complain (LOG_WARNING, &complain_no_map,
+      c_complain(
+          LOG_WARNING, &complain_no_map,
           "ethstat plugin: The \"MappedOnly\" option has been set to true, "
           "but no mapping has been configured. All values will be ignored!");
     return;
   }
 
-  vl.values = &(value_t) { .derive = value };
+  vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
 
-  sstrncpy (vl.plugin, "ethstat", sizeof (vl.plugin));
-  sstrncpy (vl.plugin_instance, device, sizeof (vl.plugin_instance));
-  if (map != NULL)
-  {
-    sstrncpy (vl.type, map->type, sizeof (vl.type));
-    sstrncpy (vl.type_instance, map->type_instance,
-        sizeof (vl.type_instance));
-  }
-  else
-  {
-    sstrncpy (vl.type, "derive", sizeof (vl.type));
-    sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
+  sstrncpy(vl.plugin, "ethstat", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, device, sizeof(vl.plugin_instance));
+  if (map != NULL) {
+    sstrncpy(vl.type, map->type, sizeof(vl.type));
+    sstrncpy(vl.type_instance, map->type_instance, sizeof(vl.type_instance));
+  } else {
+    sstrncpy(vl.type, "derive", sizeof(vl.type));
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   }
 
-  plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 }
 
-static int ethstat_read_interface (char *device)
-{
+static int ethstat_read_interface(char *device) {
   int fd;
   struct ethtool_gstrings *strings;
   struct ethtool_stats *stats;
@@ -219,55 +203,45 @@ static int ethstat_read_interface (char *device)
   int status;
 
   fd = socket(AF_INET, SOCK_DGRAM, /* protocol = */ 0);
-  if (fd < 0)
-  {
+  if (fd < 0) {
     char errbuf[1024];
     ERROR("ethstat plugin: Failed to open control socket: %s",
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return 1;
   }
 
-  struct ethtool_drvinfo drvinfo = {
-    .cmd = ETHTOOL_GDRVINFO
-  };
+  struct ethtool_drvinfo drvinfo = {.cmd = ETHTOOL_GDRVINFO};
 
-  struct ifreq req = {
-    .ifr_data = (void *) &drvinfo
-  };
+  struct ifreq req = {.ifr_data = (void *)&drvinfo};
 
-  sstrncpy(req.ifr_name, device, sizeof (req.ifr_name));
+  sstrncpy(req.ifr_name, device, sizeof(req.ifr_name));
 
-  status = ioctl (fd, SIOCETHTOOL, &req);
-  if (status < 0)
-  {
+  status = ioctl(fd, SIOCETHTOOL, &req);
+  if (status < 0) {
     char errbuf[1024];
-    close (fd);
-    ERROR ("ethstat plugin: Failed to get driver information "
-        "from %s: %s", device,
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    close(fd);
+    ERROR("ethstat plugin: Failed to get driver information "
+          "from %s: %s",
+          device, sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
 
-  n_stats = (size_t) drvinfo.n_stats;
-  if (n_stats < 1)
-  {
-    close (fd);
+  n_stats = (size_t)drvinfo.n_stats;
+  if (n_stats < 1) {
+    close(fd);
     ERROR("ethstat plugin: No stats available for %s", device);
     return (-1);
   }
 
-  strings_size = sizeof (struct ethtool_gstrings)
-    + (n_stats * ETH_GSTRING_LEN);
-  stats_size = sizeof (struct ethtool_stats)
-    + (n_stats * sizeof (uint64_t));
+  strings_size = sizeof(struct ethtool_gstrings) + (n_stats * ETH_GSTRING_LEN);
+  stats_size = sizeof(struct ethtool_stats) + (n_stats * sizeof(uint64_t));
 
-  strings = malloc (strings_size);
-  stats = malloc (stats_size);
-  if ((strings == NULL) || (stats == NULL))
-  {
-    close (fd);
-    sfree (strings);
-    sfree (stats);
+  strings = malloc(strings_size);
+  stats = malloc(stats_size);
+  if ((strings == NULL) || (stats == NULL)) {
+    close(fd);
+    sfree(strings);
+    sfree(stats);
     ERROR("ethstat plugin: malloc failed.");
     return (-1);
   }
@@ -275,91 +249,81 @@ static int ethstat_read_interface (char *device)
   strings->cmd = ETHTOOL_GSTRINGS;
   strings->string_set = ETH_SS_STATS;
   strings->len = n_stats;
-  req.ifr_data = (void *) strings;
-  status = ioctl (fd, SIOCETHTOOL, &req);
-  if (status < 0)
-  {
+  req.ifr_data = (void *)strings;
+  status = ioctl(fd, SIOCETHTOOL, &req);
+  if (status < 0) {
     char errbuf[1024];
-    close (fd);
-    free (strings);
-    free (stats);
-    ERROR ("ethstat plugin: Cannot get strings from %s: %s",
-        device,
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    close(fd);
+    free(strings);
+    free(stats);
+    ERROR("ethstat plugin: Cannot get strings from %s: %s", device,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
 
   stats->cmd = ETHTOOL_GSTATS;
   stats->n_stats = n_stats;
-  req.ifr_data = (void *) stats;
-  status = ioctl (fd, SIOCETHTOOL, &req);
-  if (status < 0)
-  {
+  req.ifr_data = (void *)stats;
+  status = ioctl(fd, SIOCETHTOOL, &req);
+  if (status < 0) {
     char errbuf[1024];
-    close (fd);
+    close(fd);
     free(strings);
     free(stats);
-    ERROR("ethstat plugin: Reading statistics from %s failed: %s",
-        device,
-        sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR("ethstat plugin: Reading statistics from %s failed: %s", device,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
 
-  for (size_t i = 0; i < n_stats; i++)
-  {
+  for (size_t i = 0; i < n_stats; i++) {
     char *stat_name;
 
-    stat_name = (void *) &strings->data[i * ETH_GSTRING_LEN];
+    stat_name = (void *)&strings->data[i * ETH_GSTRING_LEN];
     /* Remove leading spaces in key name */
-    while (isspace ((int) *stat_name))
-        stat_name++;
+    while (isspace((int)*stat_name))
+      stat_name++;
 
-    DEBUG("ethstat plugin: device = \"%s\": %s = %"PRIu64,
-        device, stat_name, (uint64_t) stats->data[i]);
-    ethstat_submit_value (device,
-        stat_name, (derive_t) stats->data[i]);
+    DEBUG("ethstat plugin: device = \"%s\": %s = %" PRIu64, device, stat_name,
+          (uint64_t)stats->data[i]);
+    ethstat_submit_value(device, stat_name, (derive_t)stats->data[i]);
   }
 
-  close (fd);
-  sfree (strings);
-  sfree (stats);
+  close(fd);
+  sfree(strings);
+  sfree(stats);
 
   return (0);
 } /* }}} ethstat_read_interface */
 
-static int ethstat_read(void)
-{
+static int ethstat_read(void) {
   for (size_t i = 0; i < interfaces_num; i++)
-    ethstat_read_interface (interfaces[i]);
+    ethstat_read_interface(interfaces[i]);
 
   return 0;
 }
 
-static int ethstat_shutdown (void)
-{
+static int ethstat_shutdown(void) {
   void *key = NULL;
   void *value = NULL;
 
   if (value_map == NULL)
     return (0);
 
-  while (c_avl_pick (value_map, &key, &value) == 0)
-  {
-    sfree (key);
-    sfree (value);
+  while (c_avl_pick(value_map, &key, &value) == 0) {
+    sfree(key);
+    sfree(value);
   }
 
-  c_avl_destroy (value_map);
+  c_avl_destroy(value_map);
   value_map = NULL;
 
   return (0);
 }
 
-void module_register (void)
-{
-  plugin_register_complex_config ("ethstat", ethstat_config);
-  plugin_register_read ("ethstat", ethstat_read);
-  plugin_register_shutdown ("ethstat", ethstat_shutdown);
+void module_register(void) {
+  plugin_register_complex_config("ethstat", ethstat_config);
+  plugin_register_read("ethstat", ethstat_read);
+  plugin_register_shutdown("ethstat", ethstat_shutdown);
 }
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

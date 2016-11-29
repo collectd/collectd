@@ -32,15 +32,15 @@
  * GCC will complain about the macro definition. */
 #define DONT_POISON_SPRINTF_YET
 
-#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
+#include "collectd.h"
 
 /* Include the Lua API header files. */
-#include "utils_lua.h"
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
+#include "utils_lua.h"
 
 #include <pthread.h>
 
@@ -306,10 +306,9 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   int status = plugin_register_complex_read(/* group = */ "lua",
                                             /* name      = */ function_name,
                                             /* callback  = */ clua_read,
-                                            /* interval  = */ 0,
-                                            &(user_data_t) {
-                                              .data = cb,
-                                            });
+                                            /* interval  = */ 0, &(user_data_t){
+                                                                     .data = cb,
+                                                                 });
 
   if (status != 0)
     return luaL_error(L, "%s", "plugin_register_complex_read failed");
@@ -347,11 +346,11 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   cb->lua_function_name = strdup(function_name);
   pthread_mutex_init(&cb->lock, NULL);
 
-  int status = plugin_register_write(/* name = */ function_name,
-                                    /* callback  = */ clua_write,
-                                    &(user_data_t) {
-                                      .data = cb,
-                                    });
+  int status =
+      plugin_register_write(/* name = */ function_name,
+                            /* callback  = */ clua_write, &(user_data_t){
+                                                              .data = cb,
+                                                          });
 
   if (status != 0)
     return luaL_error(L, "%s", "plugin_register_write failed");
@@ -367,8 +366,7 @@ static const luaL_Reg collectdlib[] = {
     {"dispatch_values", lua_cb_dispatch_values},
     {"register_read", lua_cb_register_read},
     {"register_write", lua_cb_register_write},
-    {NULL, NULL}
-};
+    {NULL, NULL}};
 
 static int open_collectd(lua_State *L) /* {{{ */
 {
@@ -412,7 +410,7 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
   /* Open up all the standard Lua libraries. */
   luaL_openlibs(script->lua_state);
 
-  /* Load the 'collectd' library */
+/* Load the 'collectd' library */
 #if LUA_VERSION_NUM < 502
   lua_pushcfunction(script->lua_state, open_collectd);
   lua_pushstring(script->lua_state, "collectd");

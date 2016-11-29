@@ -26,18 +26,16 @@
 
 #include "collectd.h"
 
-#include "utils_time.h"
 #include "utils_random.h"
+#include "utils_time.h"
 
 #include <pthread.h>
-
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static _Bool have_seed = 0;
 static unsigned short seed[3];
 
-static void cdrand_seed (void)
-{
+static void cdrand_seed(void) {
   cdtime_t t;
 
   if (have_seed)
@@ -45,33 +43,31 @@ static void cdrand_seed (void)
 
   t = cdtime();
 
-  seed[0] = (unsigned short) t;
-  seed[1] = (unsigned short) (t >> 16);
-  seed[2] = (unsigned short) (t >> 32);
+  seed[0] = (unsigned short)t;
+  seed[1] = (unsigned short)(t >> 16);
+  seed[2] = (unsigned short)(t >> 32);
 
   have_seed = 1;
 }
 
-double cdrand_d (void)
-{
+double cdrand_d(void) {
   double r;
 
-  pthread_mutex_lock (&lock);
-  cdrand_seed ();
-  r = erand48 (seed);
-  pthread_mutex_unlock (&lock);
+  pthread_mutex_lock(&lock);
+  cdrand_seed();
+  r = erand48(seed);
+  pthread_mutex_unlock(&lock);
 
   return (r);
 }
 
-long cdrand_range (long min, long max)
-{
+long cdrand_range(long min, long max) {
   long range;
   long r;
 
   range = 1 + max - min;
 
-  r = (long) (0.5 + (cdrand_d () * range));
+  r = (long)(0.5 + (cdrand_d() * range));
   r += min;
 
   return (r);

@@ -31,43 +31,41 @@
 
 #include "plugin.h"
 
-#define FC_MATCH_NO_MATCH  0
-#define FC_MATCH_MATCHES   1
+#define FC_MATCH_NO_MATCH 0
+#define FC_MATCH_MATCHES 1
 
 #define FC_TARGET_CONTINUE 0
-#define FC_TARGET_STOP     1
-#define FC_TARGET_RETURN   2
+#define FC_TARGET_STOP 1
+#define FC_TARGET_RETURN 2
 
 /*
  * Match functions
  */
-struct match_proc_s
-{
-  int (*create) (const oconfig_item_t *ci, void **user_data);
-  int (*destroy) (void **user_data);
-  int (*match) (const data_set_t *ds, const value_list_t *vl,
-      notification_meta_t **meta, void **user_data);
+struct match_proc_s {
+  int (*create)(const oconfig_item_t *ci, void **user_data);
+  int (*destroy)(void **user_data);
+  int (*match)(const data_set_t *ds, const value_list_t *vl,
+               notification_meta_t **meta, void **user_data);
 };
 typedef struct match_proc_s match_proc_t;
 
-int fc_register_match (const char *name, match_proc_t proc);
+int fc_register_match(const char *name, match_proc_t proc);
 
 /*
  * Target functions
  */
-struct target_proc_s
-{
-  int (*create) (const oconfig_item_t *ci, void **user_data);
-  int (*destroy) (void **user_data);
-  int (*invoke) (const data_set_t *ds, value_list_t *vl,
-      notification_meta_t **meta, void **user_data);
+struct target_proc_s {
+  int (*create)(const oconfig_item_t *ci, void **user_data);
+  int (*destroy)(void **user_data);
+  int (*invoke)(const data_set_t *ds, value_list_t *vl,
+                notification_meta_t **meta, void **user_data);
 };
 typedef struct target_proc_s target_proc_t;
 
 struct fc_chain_s;
 typedef struct fc_chain_s fc_chain_t;
 
-int fc_register_target (const char *name, target_proc_t proc);
+int fc_register_target(const char *name, target_proc_t proc);
 
 /*
  * TODO: Chain management
@@ -91,17 +89,16 @@ int fc_rule_delete (const char *chain_name, int position);
 /*
  * Processing function
  */
-fc_chain_t *fc_chain_get_by_name (const char *chain_name);
+fc_chain_t *fc_chain_get_by_name(const char *chain_name);
 
-int fc_process_chain (const data_set_t *ds, value_list_t *vl,
-    fc_chain_t *chain);
+int fc_process_chain(const data_set_t *ds, value_list_t *vl, fc_chain_t *chain);
 
-int fc_default_action (const data_set_t *ds, value_list_t *vl);
+int fc_default_action(const data_set_t *ds, value_list_t *vl);
 
 /*
  * Shortcut for global configuration
  */
-int fc_configure (const oconfig_item_t *ci);
+int fc_configure(const oconfig_item_t *ci);
 
 #endif /* FILTER_CHAIN_H */
 /* vim: set sw=2 sts=2 et : */

@@ -28,8 +28,7 @@
 
 #include "utils_parse_option.h"
 
-int parse_string (char **ret_buffer, char **ret_string)
-{
+int parse_string(char **ret_buffer, char **ret_string) {
   char *buffer;
   char *string;
 
@@ -37,14 +36,13 @@ int parse_string (char **ret_buffer, char **ret_string)
 
   /* Eat up leading spaces. */
   string = buffer;
-  while (isspace ((int) *string))
+  while (isspace((int)*string))
     string++;
   if (*string == 0)
     return (1);
 
   /* A quoted string */
-  if (*string == '"')
-  {
+  if (*string == '"') {
     char *dst;
 
     string++;
@@ -53,11 +51,9 @@ int parse_string (char **ret_buffer, char **ret_string)
 
     dst = string;
     buffer = string;
-    while ((*buffer != '"') && (*buffer != 0))
-    {
+    while ((*buffer != '"') && (*buffer != 0)) {
       /* Un-escape backslashes */
-      if (*buffer == '\\')
-      {
+      if (*buffer == '\\') {
         buffer++;
         /* Catch a backslash at the end of buffer */
         if (*buffer == 0)
@@ -77,23 +73,21 @@ int parse_string (char **ret_buffer, char **ret_string)
     buffer++;
 
     /* Check for trailing spaces. */
-    if ((*buffer != 0) && !isspace ((int) *buffer))
+    if ((*buffer != 0) && !isspace((int)*buffer))
       return (-1);
-  }
-  else /* an unquoted string */
+  } else /* an unquoted string */
   {
     buffer = string;
-    while ((*buffer != 0) && !isspace ((int) *buffer))
+    while ((*buffer != 0) && !isspace((int)*buffer))
       buffer++;
-    if (*buffer != 0)
-    {
+    if (*buffer != 0) {
       *buffer = 0;
       buffer++;
     }
   }
 
   /* Eat up trailing spaces */
-  while (isspace ((int) *buffer))
+  while (isspace((int)*buffer))
     buffer++;
 
   *ret_buffer = buffer;
@@ -113,8 +107,7 @@ int parse_string (char **ret_buffer, char **ret_string)
  *  However, if the value does *not* contain a space character, you can skip
  *  the quotes.
  */
-int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
-{
+int parse_option(char **ret_buffer, char **ret_key, char **ret_value) {
   char *buffer;
   char *key;
   char *value;
@@ -124,24 +117,24 @@ int parse_option (char **ret_buffer, char **ret_key, char **ret_value)
 
   /* Eat up leading spaces */
   key = buffer;
-  while (isspace ((int) *key))
+  while (isspace((int)*key))
     key++;
   if (*key == 0)
     return (1);
 
   /* Look for the equal sign */
   buffer = key;
-  while (isalnum ((int) *buffer) || *buffer == '_' || *buffer == ':')
+  while (isalnum((int)*buffer) || *buffer == '_' || *buffer == ':')
     buffer++;
   if ((*buffer != '=') || (buffer == key))
     return (1);
   *buffer = 0;
   buffer++;
   /* Empty values must be written as "" */
-  if (isspace ((int) *buffer) || (*buffer == 0))
+  if (isspace((int)*buffer) || (*buffer == 0))
     return (-1);
 
-  status = parse_string (&buffer, &value);
+  status = parse_string(&buffer, &value);
   if (status != 0)
     return (-1);
 

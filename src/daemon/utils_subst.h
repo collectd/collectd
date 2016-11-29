@@ -66,8 +66,8 @@
  *
  * The function returns 'buf' on success, NULL else.
  */
-char *subst (char *buf, size_t buflen, const char *string, size_t off1, size_t off2,
-		const char *replacement);
+char *subst(char *buf, size_t buflen, const char *string, size_t off1,
+            size_t off2, const char *replacement);
 
 /*
  * asubst:
@@ -78,7 +78,7 @@ char *subst (char *buf, size_t buflen, const char *string, size_t off1, size_t o
  *
  * Returns the newly allocated result string on success, NULL else.
  */
-char *asubst (const char *string, int off1, int off2, const char *replacement);
+char *asubst(const char *string, int off1, int off2, const char *replacement);
 
 /*
  * subst_string:
@@ -96,10 +96,9 @@ char *asubst (const char *string, int off1, int off2, const char *replacement);
  * and the loop is broken. A warning is printed and the function returns
  * success.
  */
-char *subst_string (char *buf, size_t buflen, const char *string,
-		const char *needle, const char *replacement);
+char *subst_string(char *buf, size_t buflen, const char *string,
+                   const char *needle, const char *replacement);
 
 #endif /* UTILS_SUBST_H */
 
 /* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-

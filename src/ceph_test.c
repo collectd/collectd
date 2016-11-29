@@ -22,22 +22,19 @@
 #include "ceph.c" /* sic */
 #include "testing.h"
 
-struct case_s
-{
+struct case_s {
   const char *key;
   const char *value;
 };
 typedef struct case_s case_t;
 
-struct test_s
-{
+struct test_s {
   case_t *cases;
-  size_t  cases_num;
+  size_t cases_num;
 };
 typedef struct test_s test_t;
 
-static int test_handler(void *user, char const *val, char const *key)
-{
+static int test_handler(void *user, char const *val, char const *key) {
   test_t *t = user;
   size_t i;
 
@@ -45,25 +42,26 @@ static int test_handler(void *user, char const *val, char const *key)
   _Bool ok;
 
   /* special case for latency metrics. */
-  if (strcmp ("filestore.example_latency", key) == 0)
+  if (strcmp("filestore.example_latency", key) == 0)
     return RETRY_AVGCOUNT;
 
-  snprintf (status, sizeof (status), "unexpected call: test_handler(\"%s\") = \"%s\"", key, val);
+  snprintf(status, sizeof(status),
+           "unexpected call: test_handler(\"%s\") = \"%s\"", key, val);
   ok = 0;
 
-  for (i = 0; i < t->cases_num; i++)
-  {
-    if (strcmp (key, t->cases[i].key) != 0)
+  for (i = 0; i < t->cases_num; i++) {
+    if (strcmp(key, t->cases[i].key) != 0)
       continue;
 
-    if (strcmp (val, t->cases[i].value) != 0)
-    {
-      snprintf (status, sizeof (status), "test_handler(\"%s\") = \"%s\", want \"%s\"", key, val, t->cases[i].value);
+    if (strcmp(val, t->cases[i].value) != 0) {
+      snprintf(status, sizeof(status),
+               "test_handler(\"%s\") = \"%s\", want \"%s\"", key, val,
+               t->cases[i].value);
       ok = 0;
       break;
     }
 
-    snprintf (status, sizeof (status), "test_handler(\"%s\") = \"%s\"", key, val);
+    snprintf(status, sizeof(status), "test_handler(\"%s\") = \"%s\"", key, val);
     ok = 1;
     break;
   }
@@ -72,9 +70,9 @@ static int test_handler(void *user, char const *val, char const *key)
   return ok ? 0 : -1;
 }
 
-DEF_TEST(traverse_json)
-{
-  char const *json = "{\n"
+DEF_TEST(traverse_json) {
+  char const *json =
+      "{\n"
       "    \"WBThrottle\": {\n"
       "        \"bytes_dirtied\": {\n"
       "            \"type\": 2,\n"
@@ -119,67 +117,71 @@ DEF_TEST(traverse_json)
       "    }\n"
       "}\n";
   case_t cases[] = {
-    {"WBThrottle.bytes_dirtied.type", "2"},
-    {"WBThrottle.bytes_wb.type", "2"},
-    {"WBThrottle.ios_dirtied.type", "2"},
-    {"WBThrottle.ios_wb.type", "2"},
-    {"WBThrottle.inodes_dirtied.type", "2"},
-    {"WBThrottle.inodes_wb.type", "10"},
-    {"filestore.journal_wr_bytes", "3117"},
-    {"filestore.example_latency.avgcount", "42"},
-    {"filestore.example_latency.sum", "4711"},
+      {"WBThrottle.bytes_dirtied.type", "2"},
+      {"WBThrottle.bytes_wb.type", "2"},
+      {"WBThrottle.ios_dirtied.type", "2"},
+      {"WBThrottle.ios_wb.type", "2"},
+      {"WBThrottle.inodes_dirtied.type", "2"},
+      {"WBThrottle.inodes_wb.type", "10"},
+      {"filestore.journal_wr_bytes", "3117"},
+      {"filestore.example_latency.avgcount", "42"},
+      {"filestore.example_latency.sum", "4711"},
   };
-  test_t t = {cases, STATIC_ARRAY_SIZE (cases)};
+  test_t t = {cases, STATIC_ARRAY_SIZE(cases)};
 
   yajl_struct ctx = {test_handler, &t};
 
   yajl_handle hndl;
 #if HAVE_YAJL_V2
-  hndl = yajl_alloc (&callbacks, NULL, &ctx);
-  CHECK_ZERO (traverse_json ((const unsigned char *) json, (uint32_t) strlen (json), hndl));
-  CHECK_ZERO (yajl_complete_parse (hndl));
+  hndl = yajl_alloc(&callbacks, NULL, &ctx);
+  CHECK_ZERO(
+      traverse_json((const unsigned char *)json, (uint32_t)strlen(json), hndl));
+  CHECK_ZERO(yajl_complete_parse(hndl));
 #else
-  hndl = yajl_alloc (&callbacks, NULL, NULL, &ctx);
-  CHECK_ZERO (traverse_json ((const unsigned char *) json, (uint32_t) strlen (json), hndl));
-  CHECK_ZERO (yajl_parse_complete (hndl));
+  hndl = yajl_alloc(&callbacks, NULL, NULL, &ctx);
+  CHECK_ZERO(
+      traverse_json((const unsigned char *)json, (uint32_t)strlen(json), hndl));
+  CHECK_ZERO(yajl_parse_complete(hndl));
 #endif
 
-  yajl_free (hndl);
+  yajl_free(hndl);
   return 0;
 }
 
-DEF_TEST(parse_keys)
-{
+DEF_TEST(parse_keys) {
   struct {
     const char *str;
     const char *want;
   } cases[] = {
-    {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied.description.ios_wb.type", "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirt"},
-    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-    {"foo:bar", "FooBar"},
-    {"foo:bar+", "FooBarPlus"},
-    {"foo:bar-", "FooBarMinus"},
-    {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+", "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaPlus"},
-    {"aa.bb.cc.dd.ee.ff", "Aa.bb.cc.dd.ee.ff"},
-    {"aa.bb.cc.dd.ee.ff.type", "Aa.bb.cc.dd.ee.ff"},
-    {"aa.type", "Aa.type"},
-    {"WBThrottle.bytes_dirtied.type", "WBThrottle.bytesDirtied"},
+      {"WBThrottle.bytes_dirtied.description.bytes_wb.description.ios_dirtied."
+       "description.ios_wb.type",
+       "WBThrottle.bytesDirtied.description.bytesWb.description.iosDirt"},
+      {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:"
+       "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+       "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      {"foo:bar", "FooBar"},
+      {"foo:bar+", "FooBarPlus"},
+      {"foo:bar-", "FooBarMinus"},
+      {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+",
+       "AaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaPlus"},
+      {"aa.bb.cc.dd.ee.ff", "Aa.bb.cc.dd.ee.ff"},
+      {"aa.bb.cc.dd.ee.ff.type", "Aa.bb.cc.dd.ee.ff"},
+      {"aa.type", "Aa.type"},
+      {"WBThrottle.bytes_dirtied.type", "WBThrottle.bytesDirtied"},
   };
   size_t i;
 
-  for (i = 0; i < STATIC_ARRAY_SIZE (cases); i++)
-  {
+  for (i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     char got[64];
 
-    CHECK_ZERO (parse_keys (got, sizeof (got), cases[i].str));
-    EXPECT_EQ_STR (cases[i].want, got);
+    CHECK_ZERO(parse_keys(got, sizeof(got), cases[i].str));
+    EXPECT_EQ_STR(cases[i].want, got);
   }
 
   return 0;
 }
 
-int main (void)
-{
+int main(void) {
   RUN_TEST(traverse_json);
   RUN_TEST(parse_keys);
 

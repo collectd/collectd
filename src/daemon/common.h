@@ -33,50 +33,48 @@
 #include "plugin.h"
 
 #if HAVE_PWD_H
-# include <pwd.h>
+#include <pwd.h>
 #endif
 
-#define sfree(ptr) \
-	do { \
-		free(ptr); \
-		(ptr) = NULL; \
-	} while (0)
+#define sfree(ptr)                                                             \
+  do {                                                                         \
+    free(ptr);                                                                 \
+    (ptr) = NULL;                                                              \
+  } while (0)
 
-#define STATIC_ARRAY_SIZE(a) (sizeof (a) / sizeof (*(a)))
+#define STATIC_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
-#define IS_TRUE(s) ((strcasecmp ("true", (s)) == 0) \
-		|| (strcasecmp ("yes", (s)) == 0) \
-		|| (strcasecmp ("on", (s)) == 0))
-#define IS_FALSE(s) ((strcasecmp ("false", (s)) == 0) \
-		|| (strcasecmp ("no", (s)) == 0) \
-		|| (strcasecmp ("off", (s)) == 0))
+#define IS_TRUE(s)                                                             \
+  ((strcasecmp("true", (s)) == 0) || (strcasecmp("yes", (s)) == 0) ||          \
+   (strcasecmp("on", (s)) == 0))
+#define IS_FALSE(s)                                                            \
+  ((strcasecmp("false", (s)) == 0) || (strcasecmp("no", (s)) == 0) ||          \
+   (strcasecmp("off", (s)) == 0))
 
-struct rate_to_value_state_s
-{
+struct rate_to_value_state_s {
   value_t last_value;
   cdtime_t last_time;
   gauge_t residual;
 };
 typedef struct rate_to_value_state_s rate_to_value_state_t;
 
-struct value_to_rate_state_s
-{
+struct value_to_rate_state_s {
   value_t last_value;
   cdtime_t last_time;
 };
 typedef struct value_to_rate_state_s value_to_rate_state_t;
 
-char *sstrncpy (char *dest, const char *src, size_t n);
+char *sstrncpy(char *dest, const char *src, size_t n);
 
-__attribute__ ((format(printf,3,4)))
-int ssnprintf (char *dest, size_t n, const char *format, ...);
+__attribute__((format(printf, 3, 4))) int ssnprintf(char *dest, size_t n,
+                                                    const char *format, ...);
 
-__attribute__ ((format(printf,1,2)))
-char *ssnprintf_alloc (char const *format, ...);
+__attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
+                                                            ...);
 
 char *sstrdup(const char *s);
 void *smalloc(size_t size);
-char *sstrerror (int errnum, char *buf, size_t buflen);
+char *sstrerror(int errnum, char *buf, size_t buflen);
 
 /*
  * NAME
@@ -96,7 +94,7 @@ char *sstrerror (int errnum, char *buf, size_t buflen);
  *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
-ssize_t sread (int fd, void *buf, size_t count);
+ssize_t sread(int fd, void *buf, size_t count);
 
 /*
  * NAME
@@ -115,7 +113,7 @@ ssize_t sread (int fd, void *buf, size_t count);
  *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
-ssize_t swrite (int fd, const void *buf, size_t count);
+ssize_t swrite(int fd, const void *buf, size_t count);
 
 /*
  * NAME
@@ -136,7 +134,7 @@ ssize_t swrite (int fd, const void *buf, size_t count);
  * RETURN VALUE
  *    Returns the number of parts stored in `fields'.
  */
-int strsplit (char *string, char **fields, size_t size);
+int strsplit(char *string, char **fields, size_t size);
 
 /*
  * NAME
@@ -165,7 +163,8 @@ int strsplit (char *string, char **fields, size_t size);
  *   result in "dst" is truncated (but still null terminated). On error a
  *   negative value is returned.
  */
-int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const char *sep);
+int strjoin(char *dst, size_t dst_len, char **fields, size_t fields_num,
+            const char *sep);
 
 /*
  * NAME
@@ -186,7 +185,7 @@ int strjoin (char *dst, size_t dst_len, char **fields, size_t fields_num, const 
  * RETURN VALUE
  *   Returns zero upon success and a value smaller than zero upon failure.
  */
-int escape_slashes (char *buffer, size_t buffer_size);
+int escape_slashes(char *buffer, size_t buffer_size);
 
 /**
  * NAME
@@ -207,7 +206,7 @@ int escape_slashes (char *buffer, size_t buffer_size);
  *   Returns zero on success, even if the string was truncated. Non-zero on
  *   failure.
  */
-int escape_string (char *buffer, size_t buffer_size);
+int escape_string(char *buffer, size_t buffer_size);
 
 /*
  * NAME
@@ -224,7 +223,7 @@ int escape_string (char *buffer, size_t buffer_size);
  *   `buffer_size' Length of the string. The function returns after
  *                 encountering a null-byte or reading this many bytes.
  */
-void replace_special (char *buffer, size_t buffer_size);
+void replace_special(char *buffer, size_t buffer_size);
 
 /*
  * NAME
@@ -247,14 +246,13 @@ void replace_special (char *buffer, size_t buffer_size);
  * RETURN VALUE
  *   Returns zero upon success, a value less than zero else.
  */
-int strunescape (char *buf, size_t buf_len);
+int strunescape(char *buf, size_t buf_len);
 
 /**
  * Removed trailing newline characters (CR and LF) from buffer, which must be
  * null terminated. Returns the length of the resulting string.
  */
-__attribute__((nonnull (1)))
-size_t strstripnewline (char *buffer);
+__attribute__((nonnull(1))) size_t strstripnewline(char *buffer);
 
 /*
  * NAME
@@ -269,90 +267,88 @@ size_t strstripnewline (char *buffer);
  *   Returns an integer less than, equal to, or greater than zero if `tv0' is
  *   less than, equal to, or greater than `tv1' respectively.
  */
-int timeval_cmp (struct timeval tv0, struct timeval tv1, struct timeval *delta);
+int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta);
 
 /* make sure tv_usec stores less than a second */
-#define NORMALIZE_TIMEVAL(tv) \
-	do { \
-		(tv).tv_sec += (tv).tv_usec / 1000000; \
-		(tv).tv_usec = (tv).tv_usec % 1000000; \
-	} while (0)
+#define NORMALIZE_TIMEVAL(tv)                                                  \
+  do {                                                                         \
+    (tv).tv_sec += (tv).tv_usec / 1000000;                                     \
+    (tv).tv_usec = (tv).tv_usec % 1000000;                                     \
+  } while (0)
 
 /* make sure tv_sec stores less than a second */
-#define NORMALIZE_TIMESPEC(tv) \
-	do { \
-		(tv).tv_sec += (tv).tv_nsec / 1000000000; \
-		(tv).tv_nsec = (tv).tv_nsec % 1000000000; \
-	} while (0)
+#define NORMALIZE_TIMESPEC(tv)                                                 \
+  do {                                                                         \
+    (tv).tv_sec += (tv).tv_nsec / 1000000000;                                  \
+    (tv).tv_nsec = (tv).tv_nsec % 1000000000;                                  \
+  } while (0)
 
-int check_create_dir (const char *file_orig);
+int check_create_dir(const char *file_orig);
 
 #ifdef HAVE_LIBKSTAT
-int get_kstat (kstat_t **ksp_ptr, char *module, int instance, char *name);
-long long get_kstat_value (kstat_t *ksp, char *name);
+int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name);
+long long get_kstat_value(kstat_t *ksp, char *name);
 #endif
 
 #ifndef HAVE_HTONLL
-unsigned long long ntohll (unsigned long long n);
-unsigned long long htonll (unsigned long long n);
+unsigned long long ntohll(unsigned long long n);
+unsigned long long htonll(unsigned long long n);
 #endif
 
 #if FP_LAYOUT_NEED_NOTHING
-# define ntohd(d) (d)
-# define htond(d) (d)
+#define ntohd(d) (d)
+#define htond(d) (d)
 #elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
-double ntohd (double d);
-double htond (double d);
+double ntohd(double d);
+double htond(double d);
 #else
-# error "Don't know how to convert between host and network representation of doubles."
+#error                                                                         \
+    "Don't know how to convert between host and network representation of doubles."
 #endif
 
-int format_name (char *ret, int ret_len,
-		const char *hostname,
-		const char *plugin, const char *plugin_instance,
-		const char *type, const char *type_instance);
-#define FORMAT_VL(ret, ret_len, vl) \
-	format_name (ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance, \
-			(vl)->type, (vl)->type_instance)
-int format_values (char *ret, size_t ret_len,
-		const data_set_t *ds, const value_list_t *vl,
-		_Bool store_rates);
+int format_name(char *ret, int ret_len, const char *hostname,
+                const char *plugin, const char *plugin_instance,
+                const char *type, const char *type_instance);
+#define FORMAT_VL(ret, ret_len, vl)                                            \
+  format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
+              (vl)->type, (vl)->type_instance)
+int format_values(char *ret, size_t ret_len, const data_set_t *ds,
+                  const value_list_t *vl, _Bool store_rates);
 
-int parse_identifier (char *str, char **ret_host,
-		char **ret_plugin, char **ret_plugin_instance,
-		char **ret_type, char **ret_type_instance,
-		char *default_host);
-int parse_identifier_vl (const char *str, value_list_t *vl);
-int parse_value (const char *value, value_t *ret_value, int ds_type);
-int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds);
+int parse_identifier(char *str, char **ret_host, char **ret_plugin,
+                     char **ret_plugin_instance, char **ret_type,
+                     char **ret_type_instance, char *default_host);
+int parse_identifier_vl(const char *str, value_list_t *vl);
+int parse_value(const char *value, value_t *ret_value, int ds_type);
+int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 
 /* parse_value_file reads "path" and parses its content as an integer or
  * floating point, depending on "ds_type". On success, the value is stored in
- * "ret_value" and zero is returned. On failure, a non-zero value is returned. */
-int parse_value_file (char const *path, value_t *ret_value, int ds_type);
+ * "ret_value" and zero is returned. On failure, a non-zero value is returned.
+ */
+int parse_value_file(char const *path, value_t *ret_value, int ds_type);
 
 #if !HAVE_GETPWNAM_R
-int getpwnam_r (const char *name, struct passwd *pwbuf, char *buf,
-		size_t buflen, struct passwd **pwbufp);
+int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
+               struct passwd **pwbufp);
 #endif
 
-int notification_init (notification_t *n, int severity, const char *message,
-		const char *host,
-		const char *plugin, const char *plugin_instance,
-		const char *type, const char *type_instance);
-#define NOTIFICATION_INIT_VL(n, vl) \
-	notification_init (n, NOTIF_FAILURE, NULL, \
-			(vl)->host, (vl)->plugin, (vl)->plugin_instance, \
-			(vl)->type, (vl)->type_instance)
+int notification_init(notification_t *n, int severity, const char *message,
+                      const char *host, const char *plugin,
+                      const char *plugin_instance, const char *type,
+                      const char *type_instance);
+#define NOTIFICATION_INIT_VL(n, vl)                                            \
+  notification_init(n, NOTIF_FAILURE, NULL, (vl)->host, (vl)->plugin,          \
+                    (vl)->plugin_instance, (vl)->type, (vl)->type_instance)
 
 typedef int (*dirwalk_callback_f)(const char *dirname, const char *filename,
-		void *user_data);
-int walk_directory (const char *dir, dirwalk_callback_f callback,
-		void *user_data, int hidden);
+                                  void *user_data);
+int walk_directory(const char *dir, dirwalk_callback_f callback,
+                   void *user_data, int hidden);
 /* Returns the number of bytes read or negative on error. */
-ssize_t read_file_contents (char const *filename, char *buf, size_t bufsize);
+ssize_t read_file_contents(char const *filename, char *buf, size_t bufsize);
 
-counter_t counter_diff (counter_t old_value, counter_t new_value);
+counter_t counter_diff(counter_t old_value, counter_t new_value);
 
 /* Convert a rate back to a value_t. When converting to a derive_t, counter_t
  * or absoltue_t, take fractional residuals into account. This is important
@@ -360,36 +356,36 @@ counter_t counter_diff (counter_t old_value, counter_t new_value);
  * Returns zero on success. Returns EAGAIN when called for the first time; in
  * this case the value_t is invalid and the next call should succeed. Other
  * return values indicate an error. */
-int rate_to_value (value_t *ret_value, gauge_t rate,
-		rate_to_value_state_t *state, int ds_type, cdtime_t t);
+int rate_to_value(value_t *ret_value, gauge_t rate,
+                  rate_to_value_state_t *state, int ds_type, cdtime_t t);
 
-int value_to_rate (gauge_t *ret_rate, value_t value, int ds_type, cdtime_t t,
-		value_to_rate_state_t *state);
+int value_to_rate(gauge_t *ret_rate, value_t value, int ds_type, cdtime_t t,
+                  value_to_rate_state_t *state);
 
 /* Converts a service name (a string) to a port number
  * (in the range [1-65535]). Returns less than zero on error. */
-int service_name_to_port_number (const char *service_name);
+int service_name_to_port_number(const char *service_name);
 
 /* Sets various, non-default, socket options */
-void set_sock_opts (int sockfd);
+void set_sock_opts(int sockfd);
 
 /** Parse a string to a derive_t value. Returns zero on success or non-zero on
  * failure. If failure is returned, ret_value is not touched. */
-int strtoderive (const char *string, derive_t *ret_value);
+int strtoderive(const char *string, derive_t *ret_value);
 
 /** Parse a string to a gauge_t value. Returns zero on success or non-zero on
  * failure. If failure is returned, ret_value is not touched. */
-int strtogauge (const char *string, gauge_t *ret_value);
+int strtogauge(const char *string, gauge_t *ret_value);
 
-int strarray_add (char ***ret_array, size_t *ret_array_len, char const *str);
-void strarray_free (char **array, size_t array_len);
+int strarray_add(char ***ret_array, size_t *ret_array_len, char const *str);
+void strarray_free(char **array, size_t array_len);
 
 #ifdef HAVE_SYS_CAPABILITY_H
 /** Check if the current process benefits from the capability passed in
  * argument. Returns zero if it does, less than zero if it doesn't or on error.
  * See capabilities(7) for the list of possible capabilities.
  * */
-int check_capability (int capability);
+int check_capability(int capability);
 #endif /* HAVE_SYS_CAPABILITY_H */
 
 #endif /* COMMON_H */

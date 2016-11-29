@@ -28,8 +28,8 @@
  * GCC will complain about the macro definition. */
 #define DONT_POISON_SPRINTF_YET
 
-#include "utils_lua.h"
 #include "common.h"
+#include "utils_lua.h"
 
 static int ltoc_values(lua_State *L, /* {{{ */
                        const data_set_t *ds, value_t *ret_values) {
@@ -166,7 +166,7 @@ int luaC_tostringbuffer(lua_State *L, int idx, /* {{{ */
 
 value_t luaC_tovalue(lua_State *L, int idx, int ds_type) /* {{{ */
 {
-  value_t v = { 0 };
+  value_t v = {0};
 
   if (!lua_isnumber(L, idx))
     return (v);
@@ -223,8 +223,7 @@ value_list_t *luaC_tovaluelist(lua_State *L, int idx) /* {{{ */
     else if (strcasecmp("type", key) == 0)
       luaC_tostringbuffer(L, -1, vl->type, sizeof(vl->type));
     else if (strcasecmp("type_instance", key) == 0)
-      luaC_tostringbuffer(L, -1, vl->type_instance,
-                          sizeof(vl->type_instance));
+      luaC_tostringbuffer(L, -1, vl->type_instance, sizeof(vl->type_instance));
     else if (strcasecmp("time", key) == 0)
       vl->time = luaC_tocdtime(L, -1);
     else if (strcasecmp("interval", key) == 0)

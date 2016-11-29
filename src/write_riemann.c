@@ -685,7 +685,8 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
       if (status != 0)
         break;
 #else
-      WARNING("write_riemann plugin: The Timeout option is not supported. Please upgrade the Riemann client to at least 1.8.0.");
+      WARNING("write_riemann plugin: The Timeout option is not supported. "
+              "Please upgrade the Riemann client to at least 1.8.0.");
 #endif
     } else if (strcasecmp("Port", child->key) == 0) {
       host->port = cf_util_get_port_number(child);
@@ -794,10 +795,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   ssnprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
             host->name);
 
-  user_data_t ud = {
-    .data = host,
-    .free_func = wrr_free
-  };
+  user_data_t ud = {.data = host, .free_func = wrr_free};
 
   pthread_mutex_lock(&host->lock);
 

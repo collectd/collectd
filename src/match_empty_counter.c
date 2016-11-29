@@ -32,40 +32,37 @@
 /*
  * internal helper functions
  */
-static int mec_create (const oconfig_item_t *ci, void **user_data) /* {{{ */
+static int mec_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
-  if (ci->children_num != 0)
-  {
-    ERROR ("empty_counter match: This match does not take any additional "
-        "configuration.");
+  if (ci->children_num != 0) {
+    ERROR("empty_counter match: This match does not take any additional "
+          "configuration.");
   }
 
   *user_data = NULL;
   return (0);
 } /* }}} int mec_create */
 
-static int mec_destroy (__attribute__((unused)) void **user_data) /* {{{ */
+static int mec_destroy(__attribute__((unused)) void **user_data) /* {{{ */
 {
   return (0);
 } /* }}} int mec_destroy */
 
-static int mec_match (__attribute__((unused)) const data_set_t *ds, /* {{{ */
-    const value_list_t *vl,
-    __attribute__((unused)) notification_meta_t **meta,
-    __attribute__((unused)) void **user_data)
-{
+static int mec_match(__attribute__((unused)) const data_set_t *ds, /* {{{ */
+                     const value_list_t *vl,
+                     __attribute__((unused)) notification_meta_t **meta,
+                     __attribute__((unused)) void **user_data) {
   int num_counters = 0;
   int num_empty = 0;
 
-  for (size_t i = 0; i < ds->ds_num; i++)
-  {
-    if ((ds->ds[i].type != DS_TYPE_DERIVE)
-        && (ds->ds[i].type != DS_TYPE_COUNTER))
+  for (size_t i = 0; i < ds->ds_num; i++) {
+    if ((ds->ds[i].type != DS_TYPE_DERIVE) &&
+        (ds->ds[i].type != DS_TYPE_COUNTER))
       continue;
 
     num_counters++;
-    if (((ds->ds[i].type == DS_TYPE_DERIVE) && (vl->values[i].derive == 0))
-        || ((ds->ds[i].type == DS_TYPE_COUNTER) && (vl->values[i].counter == 0)))
+    if (((ds->ds[i].type == DS_TYPE_DERIVE) && (vl->values[i].derive == 0)) ||
+        ((ds->ds[i].type == DS_TYPE_COUNTER) && (vl->values[i].counter == 0)))
       num_empty++;
   }
 
@@ -75,13 +72,12 @@ static int mec_match (__attribute__((unused)) const data_set_t *ds, /* {{{ */
   return (FC_MATCH_NO_MATCH);
 } /* }}} int mec_match */
 
-void module_register (void)
-{
-  fc_register_match ("empty_counter", (match_proc_t) {
-    .create  = mec_create,
-    .destroy = mec_destroy,
-    .match   = mec_match,
-  });
+void module_register(void) {
+  fc_register_match(
+      "empty_counter",
+      (match_proc_t){
+          .create = mec_create, .destroy = mec_destroy, .match = mec_match,
+      });
 } /* module_register */
 
 /* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

@@ -27,6 +27,6 @@
 #ifndef TYPES_LIST_H
 #define TYPES_LIST_H 1
 
-int read_types_list (const char *file);
+int read_types_list(const char *file);
 
 #endif /* TYPES_LIST_H */
