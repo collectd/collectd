@@ -51,7 +51,6 @@
 %{?el6:%global _has_libudev 1}
 %{?el6:%global _has_iproute 1}
 %{?el6:%global _has_atasmart 1}
-%{?el6:%global _has_hiredis 1}
 %{?el6:%global _has_asm_msr_index 1}
 
 %{?el7:%global _has_libyajl 1}
@@ -216,7 +215,7 @@
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.2
+Version:	5.5.3
 Release:	1%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -2349,6 +2348,10 @@ fi
 %doc contrib/
 
 %changelog
+* Tue Nov 29 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.3-1
+- New upstream version
+- Disable redis plugin on EL6
+
 * Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
 - New upstream version
 - Contains fix for CVE-2016-6254
