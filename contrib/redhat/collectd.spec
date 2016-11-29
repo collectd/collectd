@@ -227,14 +227,16 @@
 %define with_cpusleep 0
 %define with_gps 0
 %define with_mqtt 0
+%define with_redis 0
 %define with_rrdcached 0
+%define with_write_redis 0
 %define with_xmms 0
 %endif
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -2585,6 +2587,9 @@ fi
 %doc contrib/
 
 %changelog
+* Tue Nov 29 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-2
+- Disable redis plugin on RHEL 6, hiredis has been retired from EPEL6
+
 * Mon Oct 10 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
 - New PRE-RELEASE version
 - New plugins enabled by default: hugepages, write_prometheus
