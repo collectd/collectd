@@ -67,20 +67,6 @@
 #define WT_SEND_BUF_SIZE 1428
 #endif
 
-/* Default configuration */
-
-/* WRITE_TSDB_DEFAULT_DNS_TTL is the time we keep the dns cached info
- * (seconds)
- */
-#define WRITE_TSDB_DEFAULT_DNS_TTL 600
-
-/* WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL helps define the max random
- * time we keep the dns cached info :
- * min = 0
- * max = WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL * get_plugin_interval()
- */
-#define WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL 15
-
 /*
  * Private variables
  */
@@ -108,8 +94,7 @@ struct wt_callback {
   cdtime_t next_random_ttl;
 };
 
-static cdtime_t resolve_interval =
-    TIME_T_TO_CDTIME_T_STATIC(WRITE_TSDB_DEFAULT_DNS_TTL);
+static cdtime_t resolve_interval = 0;
 static cdtime_t resolve_jitter = 0;
 
 /*
@@ -637,7 +622,8 @@ static int wt_config_tsd(oconfig_item_t *ci) {
 }
 
 static int wt_config(oconfig_item_t *ci) {
-  _Bool config_random_ttl = 0;
+  if ((resolve_interval == 0) && (resolve_jitter == 0))
+    resolve_interval = resolve_jitter = plugin_get_interval();
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -646,19 +632,14 @@ static int wt_config(oconfig_item_t *ci) {
       wt_config_tsd(child);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &resolve_interval);
-    else if (strcasecmp("ResolveJitter", child->key) == 0) {
-      config_random_ttl = 1;
+    else if (strcasecmp("ResolveJitter", child->key) == 0)
       cf_util_get_cdtime(child, &resolve_jitter);
-    } else {
+    else {
       ERROR("write_tsdb plugin: Invalid configuration "
             "option: %s.",
             child->key);
     }
   }
-
-  if (!config_random_ttl)
-    resolve_jitter = CDTIME_T_TO_DOUBLE(WRITE_TSDB_DEFAULT_DNS_RANDOM_TTL *
-                                        plugin_get_interval());
 
   return 0;
 }

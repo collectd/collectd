@@ -8167,12 +8167,13 @@ When I<collectd> connects to a TSDB node, it will request the hostname from
 DNS. This can become a problem if the TSDB node is unavailable or badly
 configured because collectd will request DNS in order to reconnect for every
 metric, which can flood your DNS. So you can cache the last value for
-I<ResolveInterval> seconds (default: B<600>, i.e. 10 minutes).
+I<ResolveInterval> seconds.
+Defaults to the I<Interval> of the I<write_tsdb plugin>, e.g. 10E<nbsp>seconds.
 
 You can also define a jitter, a random interval to wait in addition to
 I<ResolveInterval>. This prevents all your collectd servers to resolve the
-hostname at the same time when the connection fails. Default value is 15 * the
-interval of the I<write_tsdb plugin> (defaults to 10 seconds).
+hostname at the same time when the connection fails.
+Defaults to the I<Interval> of the I<write_tsdb plugin>, e.g. 10E<nbsp>seconds.
 
 B<Note:> If the DNS resolution has already been successful when the socket
 closes, the plugin will try to reconnect immediately with the cached
