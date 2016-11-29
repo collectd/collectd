@@ -8163,11 +8163,11 @@ Global directives are:
 
 =item B<ResolveJitter> I<seconds>
 
-When I<collectd> connects to a TSDB node, it will request the DNS. This can
-become a problem if the TSDN node is unavailable or badly configured because
-collectd will request DNS in order to reconnect for every metric, which can
-flood your DNS. So you can cache the last value for I<ResolveInterval> seconds
-(default: B<600>, i.e. 10 minutes).
+When I<collectd> connects to a TSDB node, it will request the hostname from
+DNS. This can become a problem if the TSDB node is unavailable or badly
+configured because collectd will request DNS in order to reconnect for every
+metric, which can flood your DNS. So you can cache the last value for
+I<ResolveInterval> seconds (default: B<600>, i.e. 10 minutes).
 
 You can also define a jitter, a random interval to wait in addition to
 I<ResolveInterval>. This prevents all your collectd servers to resolve the
