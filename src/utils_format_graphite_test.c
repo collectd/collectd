@@ -157,8 +157,35 @@ DEF_TEST(metric_name) {
   return 0;
 }
 
+DEF_TEST(null_termination) {
+  value_list_t vl = {
+      .values = &(value_t){.gauge = 1337},
+      .values_len = 1,
+      .time = TIME_T_TO_CDTIME_T_STATIC(1480063672),
+      .interval = TIME_T_TO_CDTIME_T_STATIC(10),
+      .host = "example.com",
+      .plugin = "test",
+      .type = "single",
+  };
+  char const *want = "example_com.test.single 1337 1480063672\r\n";
+
+  char buffer[128];
+  for (size_t i = 0; i < sizeof(buffer); i++)
+    buffer[i] = (char)i;
+
+  EXPECT_EQ_INT(0, format_graphite(buffer, sizeof(buffer), &ds_single, &vl,
+                                   NULL, NULL, '_', 0));
+  EXPECT_EQ_STR(want, buffer);
+  EXPECT_EQ_INT(0, buffer[strlen(want)]);
+  for (size_t i = strlen(want) + 1; i < sizeof(buffer); i++)
+    EXPECT_EQ_INT((int)i, (int)buffer[i]);
+
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(metric_name);
+  RUN_TEST(null_termination);
 
   END_TEST;
 }
