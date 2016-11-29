@@ -4,6 +4,7 @@ Makefile.in
 /aclocal.m4
 /autom4te.cache
 /autom4te.cache
+/build-aux/
 /compile
 /config.guess
 /config.sub
@@ -12,8 +13,15 @@ Makefile.in
 /install-sh
 /libltdl/
 /ltmain.sh
+/m4/libtool.m4
+/m4/ltargz.m4
+/m4/ltdl.m4
+/m4/lt~obsolete.m4
+/m4/ltoptions.m4
+/m4/ltsugar.m4
+/m4/ltversion.m4
 /missing
-src/config.h.in
+/src/config.h.in
 
 # configure stuff:
 Makefile

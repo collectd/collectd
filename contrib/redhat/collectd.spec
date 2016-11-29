@@ -242,7 +242,7 @@ Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, which
+BuildRequires:	libgcrypt-devel, kernel-headers, libcap-devel, which
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?fedora} || 0%{?rhel} >= 7
@@ -1767,7 +1767,6 @@ Collectd utilities
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	%{?_python_config} \
 	--disable-static \
-	--without-included-ltdl \
 	--enable-all-plugins=yes \
 	--enable-match_empty_counter \
 	--enable-match_hashed \
