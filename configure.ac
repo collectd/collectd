@@ -2606,8 +2606,6 @@ fi
 # }}}
 
 # --with-libdpdk {{{
-LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-LIBDPDK_LDFLAGS=""
 AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
@@ -2615,6 +2613,10 @@ AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])]
 
 if test "x$with_libdpdk" != "xno"
 then
+	if test "x$LIBDPDK_CPPFLAGS" = "x"
+	then
+		LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+	fi
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
 	AC_CHECK_HEADERS([rte_config.h],
@@ -2629,7 +2631,7 @@ then
 	SAVE_LDFLAGS="$LDFLAGS"
 	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
 	AC_CHECK_LIB([dpdk], [rte_eal_init],
-		[with_libdpkd="yes"],
+		[with_libdpdk="yes"],
 		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
 	)
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -6332,7 +6334,7 @@ then
   plugin_xencpu="yes"
 fi
 
-if test "x$with_libdpkd" = "xyes"
+if test "x$with_libdpdk" = "xyes"
 then
   plugin_dpdkstat="yes"
 fi
