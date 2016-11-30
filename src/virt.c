@@ -478,20 +478,25 @@ static int lv_config(const char *key, const char *value) {
 
   if (strcasecmp(key, "Instances") == 0) {
     char *eptr = NULL;
-    long val = strtol(value, &eptr, 10);
-    if (eptr == NULL || *eptr != '\0')
+    double val = strtod(value, &eptr);
+
+    if (*eptr != '\0') {
+      ERROR(PLUGIN_NAME " plugin: Invalid value for Instances = '%s'", value);
       return 1;
+    }
     if (val <= 0) {
       ERROR(PLUGIN_NAME " plugin: Instances <= 0 makes no sense.");
       return 1;
     }
     if (val > NR_INSTANCES_MAX) {
-      ERROR(PLUGIN_NAME " plugin: Instances=%li > NR_INSTANCES_MAX=%i"
+      ERROR(PLUGIN_NAME " plugin: Instances=%f > NR_INSTANCES_MAX=%i"
                         " use a lower setting or recompile the plugin.",
             val, NR_INSTANCES_MAX);
       return 1;
     }
+
     nr_instances = (int)val;
+    DEBUG(PLUGIN_NAME " plugin: configured %i instances", nr_instances);
     return 0;
   }
 
@@ -503,6 +508,7 @@ static int lv_read(user_data_t *ud) {
   time_t t;
   struct lv_read_instance *inst = NULL;
   struct lv_read_state *state = NULL;
+
   if (ud->data == NULL) {
     ERROR(PLUGIN_NAME " plugin: NULL userdata");
     return -1;
@@ -693,24 +699,40 @@ static int lv_read(user_data_t *ud) {
 
 static int lv_init_instance(size_t i, plugin_read_cb callback) {
   struct lv_user_data *lv_ud = &(lv_read_user_data[i]);
-  struct lv_read_instance *inst = &lv_ud->inst;
+  struct lv_read_instance *inst = &(lv_ud->inst);
 
   memset(lv_ud, 0, sizeof(*lv_ud));
 
   ssnprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
   inst->id = i;
 
-  user_data_t *ud = &lv_ud->ud;
+  user_data_t *ud = &(lv_ud->ud);
   ud->data = inst;
   ud->free_func = NULL;
 
-  INFO(PLUGIN_NAME "plugin: reader %s initialized", inst->tag);
+  INFO(PLUGIN_NAME " plugin: reader %s initialized", inst->tag);
   return plugin_register_complex_read(NULL, inst->tag, callback, 0, ud);
+}
+
+static void lv_clean_read_state(struct lv_read_state *state) {
+  free_block_devices(state);
+  free_interface_devices(state);
+  free_domains(state);
+}
+
+static void lv_fini_instance(size_t i) {
+  struct lv_read_instance *inst = &(lv_read_user_data[i].inst);
+  struct lv_read_state *state = &(inst->read_state);
+
+  lv_clean_read_state(state);
+  INFO(PLUGIN_NAME " plugin: reader %s finalized", inst->tag);
 }
 
 static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
+
+  DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
   for (int i = 0; i < nr_instances; ++i)
     lv_init_instance(i, lv_read);
@@ -768,6 +790,10 @@ static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
   }
 
 done:
+  /* deregister to clean up */
+  err = xmlXPathRegisterNs(xpath_ctx,
+                           (const xmlChar *)METADATA_VM_PARTITION_PREFIX, NULL);
+
   if (xpath_obj)
     xmlXPathFreeObject(xpath_obj);
 
@@ -790,7 +816,7 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
   /* instance#0 will always be there, so it is in charge of extra duties */
   if (inst->id == 0) {
     if (dom_tag[0] == '\0' || !is_known_tag(dom_tag)) {
-      DEBUG(PLUGIN_NAME " plugin#%s: adopted domain %s "
+      DEBUG(PLUGIN_NAME " plugin#%s: refreshing domain %s "
                         "with unknown tag '%s'",
             inst->tag, dom_name, dom_tag);
       return 1;
@@ -801,6 +827,7 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
 }
 
 static int refresh_lists(struct lv_read_instance *inst) {
+  struct lv_read_state *state = &inst->read_state;
   int n;
 
   n = virConnectNumOfDomains(conn);
@@ -810,7 +837,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
   }
 
   if (n > 0) {
-    struct lv_read_state *state = &inst->read_state;
     int *domids;
 
     /* Get list of domains. */
@@ -827,9 +853,7 @@ static int refresh_lists(struct lv_read_instance *inst) {
       return -1;
     }
 
-    free_block_devices(state);
-    free_interface_devices(state);
-    free_domains(state);
+    lv_clean_read_state(state);
 
     /* Fetch each domain and add it to the list, unless ignore. */
     for (int i = 0; i < n; ++i) {
@@ -839,7 +863,7 @@ static int refresh_lists(struct lv_read_instance *inst) {
       xmlDocPtr xml_doc = NULL;
       xmlXPathContextPtr xpath_ctx = NULL;
       xmlXPathObjectPtr xpath_obj = NULL;
-      char tag[PARTITION_TAG_MAX_LEN];
+      char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
 
       dom = virDomainLookupByID(conn, domids[i]);
       if (dom == NULL) {
@@ -977,6 +1001,11 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
     sfree(domids);
   }
+
+  DEBUG(PLUGIN_NAME " plugin#%s: refreshing"
+                    " domains=%i block_devices=%i iface_devices=%i",
+        inst->tag, state->nr_domains, state->nr_block_devices,
+        state->nr_interface_devices);
 
   return 0;
 }
@@ -1121,10 +1150,7 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
 
 static int lv_shutdown(void) {
   for (int i = 0; i < nr_instances; ++i) {
-    struct lv_read_state *state = &(lv_read_user_data[i].inst.read_state);
-    free_block_devices(state);
-    free_interface_devices(state);
-    free_domains(state);
+    lv_fini_instance(i);
   }
 
   if (conn != NULL)
@@ -1144,7 +1170,6 @@ static int lv_shutdown(void) {
 void module_register(void) {
   plugin_register_config(PLUGIN_NAME, lv_config, config_keys, NR_CONFIG_KEYS);
   plugin_register_init(PLUGIN_NAME, lv_init);
-  plugin_register_complex_read(NULL, PLUGIN_NAME, lv_read, 0, NULL);
   plugin_register_shutdown(PLUGIN_NAME, lv_shutdown);
 }
 
