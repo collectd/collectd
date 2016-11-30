@@ -73,24 +73,11 @@ static ignorelist_t *il_interface_devices = NULL;
 static int ignore_device_match(ignorelist_t *, const char *domname,
                                const char *devpath);
 
-/* Actual list of domains found on last refresh. */
-static virDomainPtr *domains = NULL;
-static int nr_domains = 0;
-
-static void free_domains(void);
-static int add_domain(virDomainPtr dom);
-
 /* Actual list of block devices found on last refresh. */
 struct block_device {
   virDomainPtr dom; /* domain */
   char *path;       /* name of block device */
 };
-
-static struct block_device *block_devices = NULL;
-static int nr_block_devices = 0;
-
-static void free_block_devices(void);
-static int add_block_device(virDomainPtr dom, const char *path);
 
 /* Actual list of network interfaces found on last refresh. */
 struct interface_device {
@@ -100,12 +87,33 @@ struct interface_device {
   char *number;     /* interface device number */
 };
 
-static struct interface_device *interface_devices = NULL;
-static int nr_interface_devices = 0;
+struct lv_read_state {
+  /* Actual list of domains found on last refresh. */
+  virDomainPtr *domains;
+  int nr_domains;
 
-static void free_interface_devices(void);
-static int add_interface_device(virDomainPtr dom, const char *path,
-                                const char *address, unsigned int number);
+  struct block_device *block_devices;
+  int nr_block_devices;
+
+  struct interface_device *interface_devices;
+  int nr_interface_devices;
+};
+
+static struct lv_read_state read_state = {
+    NULL, 0, NULL, 0, NULL, 0,
+};
+
+static void free_domains(struct lv_read_state *state);
+static int add_domain(struct lv_read_state *state, virDomainPtr dom);
+
+static void free_block_devices(struct lv_read_state *state);
+static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
+                            const char *path);
+
+static void free_interface_devices(struct lv_read_state *state);
+static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
+                                const char *path, const char *address,
+                                unsigned int number);
 
 /* HostnameFormat. */
 #define HF_MAX_FIELDS 3
@@ -136,7 +144,7 @@ static enum if_field interface_format = if_name;
 /* Time that we last refreshed. */
 static time_t last_refresh = (time_t)0;
 
-static int refresh_lists(void);
+static int refresh_lists(struct lv_read_state *state);
 
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn, s)                                                    \
@@ -459,6 +467,7 @@ static int lv_config(const char *key, const char *value) {
 
 static int lv_read(void) {
   time_t t;
+  struct lv_read_state *state = &read_state;
 
   if (conn == NULL) {
     /* `conn_string == NULL' is acceptable. */
@@ -478,7 +487,7 @@ static int lv_read(void) {
   /* Need to refresh domain or device lists? */
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
-    if (refresh_lists() != 0) {
+    if (refresh_lists(state) != 0) {
       if (conn != NULL)
         virConnectClose(conn);
       conn = NULL;
@@ -501,13 +510,13 @@ static int lv_read(void) {
 #endif
 
   /* Get CPU usage, memory, VCPU usage for each domain. */
-  for (int i = 0; i < nr_domains; ++i) {
+  for (int i = 0; i < state->nr_domains; ++i) {
     virDomainInfo info;
     virVcpuInfoPtr vinfo = NULL;
     virDomainMemoryStatPtr minfo = NULL;
     int status;
 
-    status = virDomainGetInfo(domains[i], &info);
+    status = virDomainGetInfo(state->domains[i], &info);
     if (status != 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
             status);
@@ -519,8 +528,8 @@ static int lv_read(void) {
       continue;
     }
 
-    cpu_submit(info.cpuTime, domains[i], "virt_cpu_total");
-    memory_submit((gauge_t)info.memory * 1024, domains[i]);
+    cpu_submit(info.cpuTime, state->domains[i], "virt_cpu_total");
+    memory_submit((gauge_t)info.memory * 1024, state->domains[i]);
 
     vinfo = malloc(info.nrVirtCpu * sizeof(vinfo[0]));
     if (vinfo == NULL) {
@@ -528,7 +537,7 @@ static int lv_read(void) {
       continue;
     }
 
-    status = virDomainGetVcpus(domains[i], vinfo, info.nrVirtCpu,
+    status = virDomainGetVcpus(state->domains[i], vinfo, info.nrVirtCpu,
                                /* cpu map = */ NULL, /* cpu map length = */ 0);
     if (status < 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
@@ -538,7 +547,8 @@ static int lv_read(void) {
     }
 
     for (int j = 0; j < info.nrVirtCpu; ++j)
-      vcpu_submit(vinfo[j].cpuTime, domains[i], vinfo[j].number, "virt_vcpu");
+      vcpu_submit(vinfo[j].cpuTime, state->domains[i], vinfo[j].number,
+                  "virt_vcpu");
 
     sfree(vinfo);
 
@@ -549,8 +559,8 @@ static int lv_read(void) {
       continue;
     }
 
-    status =
-        virDomainMemoryStats(domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
+    status = virDomainMemoryStats(state->domains[i], minfo,
+                                  VIR_DOMAIN_MEMORY_STAT_NR, 0);
 
     if (status < 0) {
       ERROR("virt plugin: virDomainMemoryStats failed with status %i.", status);
@@ -559,7 +569,7 @@ static int lv_read(void) {
     }
 
     for (int j = 0; j < status; j++) {
-      memory_stats_submit((gauge_t)minfo[j].val * 1024, domains[i],
+      memory_stats_submit((gauge_t)minfo[j].val * 1024, state->domains[i],
                           minfo[j].tag);
     }
 
@@ -567,78 +577,79 @@ static int lv_read(void) {
   }
 
   /* Get block device stats for each domain. */
-  for (int i = 0; i < nr_block_devices; ++i) {
+  for (int i = 0; i < state->nr_block_devices; ++i) {
     struct _virDomainBlockStats stats;
 
-    if (virDomainBlockStats(block_devices[i].dom, block_devices[i].path, &stats,
+    if (virDomainBlockStats(state->block_devices[i].dom,
+                            state->block_devices[i].path, &stats,
                             sizeof stats) != 0)
       continue;
 
     char *type_instance = NULL;
     if (blockdevice_format_basename && blockdevice_format == source)
-      type_instance = strdup(basename(block_devices[i].path));
+      type_instance = strdup(basename(state->block_devices[i].path));
     else
-      type_instance = strdup(block_devices[i].path);
+      type_instance = strdup(state->block_devices[i].path);
 
     if ((stats.rd_req != -1) && (stats.wr_req != -1))
       submit_derive2("disk_ops", (derive_t)stats.rd_req, (derive_t)stats.wr_req,
-                     block_devices[i].dom, type_instance);
+                     state->block_devices[i].dom, type_instance);
 
     if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
       submit_derive2("disk_octets", (derive_t)stats.rd_bytes,
-                     (derive_t)stats.wr_bytes, block_devices[i].dom,
+                     (derive_t)stats.wr_bytes, state->block_devices[i].dom,
                      type_instance);
 
     sfree(type_instance);
   } /* for (nr_block_devices) */
 
   /* Get interface stats for each domain. */
-  for (int i = 0; i < nr_interface_devices; ++i) {
+  for (int i = 0; i < state->nr_interface_devices; ++i) {
     struct _virDomainInterfaceStats stats;
     char *display_name = NULL;
 
     switch (interface_format) {
     case if_address:
-      display_name = interface_devices[i].address;
+      display_name = state->interface_devices[i].address;
       break;
     case if_number:
-      display_name = interface_devices[i].number;
+      display_name = state->interface_devices[i].number;
       break;
     case if_name:
     default:
-      display_name = interface_devices[i].path;
+      display_name = state->interface_devices[i].path;
     }
 
-    if (virDomainInterfaceStats(interface_devices[i].dom,
-                                interface_devices[i].path, &stats,
+    if (virDomainInterfaceStats(state->interface_devices[i].dom,
+                                state->interface_devices[i].path, &stats,
                                 sizeof stats) != 0)
       continue;
 
     if ((stats.rx_bytes != -1) && (stats.tx_bytes != -1))
       submit_derive2("if_octets", (derive_t)stats.rx_bytes,
-                     (derive_t)stats.tx_bytes, interface_devices[i].dom,
+                     (derive_t)stats.tx_bytes, state->interface_devices[i].dom,
                      display_name);
 
     if ((stats.rx_packets != -1) && (stats.tx_packets != -1))
       submit_derive2("if_packets", (derive_t)stats.rx_packets,
-                     (derive_t)stats.tx_packets, interface_devices[i].dom,
-                     display_name);
+                     (derive_t)stats.tx_packets,
+                     state->interface_devices[i].dom, display_name);
 
     if ((stats.rx_errs != -1) && (stats.tx_errs != -1))
       submit_derive2("if_errors", (derive_t)stats.rx_errs,
-                     (derive_t)stats.tx_errs, interface_devices[i].dom,
+                     (derive_t)stats.tx_errs, state->interface_devices[i].dom,
                      display_name);
 
     if ((stats.rx_drop != -1) && (stats.tx_drop != -1))
       submit_derive2("if_dropped", (derive_t)stats.rx_drop,
-                     (derive_t)stats.tx_drop, interface_devices[i].dom,
+                     (derive_t)stats.tx_drop, state->interface_devices[i].dom,
                      display_name);
   } /* for (nr_interface_devices) */
 
   return 0;
 }
 
-static int refresh_lists(void) {
+static int refresh_lists(struct lv_read_state *state) {
   int n;
 
   n = virConnectNumOfDomains(conn);
@@ -664,9 +675,9 @@ static int refresh_lists(void) {
       return -1;
     }
 
-    free_block_devices();
-    free_interface_devices();
-    free_domains();
+    free_block_devices(state);
+    free_interface_devices(state);
+    free_domains(state);
 
     /* Fetch each domain and add it to the list, unless ignore. */
     for (int i = 0; i < n; ++i) {
@@ -693,7 +704,7 @@ static int refresh_lists(void) {
       if (il_domains && ignorelist_match(il_domains, name) != 0)
         goto cont;
 
-      if (add_domain(dom) < 0) {
+      if (add_domain(state, dom) < 0) {
         ERROR(PLUGIN_NAME " plugin: malloc failed.");
         goto cont;
       }
@@ -739,7 +750,7 @@ static int refresh_lists(void) {
             ignore_device_match(il_block_devices, name, path) != 0)
           goto cont2;
 
-        add_block_device(dom, path);
+        add_block_device(state, dom, path);
       cont2:
         if (path)
           xmlFree(path);
@@ -785,7 +796,7 @@ static int refresh_lists(void) {
              ignore_device_match(il_interface_devices, name, address) != 0))
           goto cont3;
 
-        add_interface_device(dom, path, address, j + 1);
+        add_interface_device(state, dom, path, address, j + 1);
       cont3:
         if (path)
           xmlFree(path);
@@ -809,54 +820,56 @@ static int refresh_lists(void) {
   return 0;
 }
 
-static void free_domains(void) {
-  if (domains) {
-    for (int i = 0; i < nr_domains; ++i)
-      virDomainFree(domains[i]);
-    sfree(domains);
+static void free_domains(struct lv_read_state *state) {
+  if (state->domains) {
+    for (int i = 0; i < state->nr_domains; ++i)
+      virDomainFree(state->domains[i]);
+    sfree(state->domains);
   }
-  domains = NULL;
-  nr_domains = 0;
+  state->domains = NULL;
+  state->nr_domains = 0;
 }
 
-static int add_domain(virDomainPtr dom) {
+static int add_domain(struct lv_read_state *state, virDomainPtr dom) {
   virDomainPtr *new_ptr;
-  int new_size = sizeof(domains[0]) * (nr_domains + 1);
+  int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
-  if (domains)
-    new_ptr = realloc(domains, new_size);
+  if (state->domains)
+    new_ptr = realloc(state->domains, new_size);
   else
     new_ptr = malloc(new_size);
 
   if (new_ptr == NULL)
     return -1;
 
-  domains = new_ptr;
-  domains[nr_domains] = dom;
-  return nr_domains++;
+  state->domains = new_ptr;
+  state->domains[state->nr_domains] = dom;
+  return state->nr_domains++;
 }
 
-static void free_block_devices(void) {
-  if (block_devices) {
-    for (int i = 0; i < nr_block_devices; ++i)
-      sfree(block_devices[i].path);
-    sfree(block_devices);
+static void free_block_devices(struct lv_read_state *state) {
+  if (state->block_devices) {
+    for (int i = 0; i < state->nr_block_devices; ++i)
+      sfree(state->block_devices[i].path);
+    sfree(state->block_devices);
   }
-  block_devices = NULL;
-  nr_block_devices = 0;
+  state->block_devices = NULL;
+  state->nr_block_devices = 0;
 }
 
-static int add_block_device(virDomainPtr dom, const char *path) {
+static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
+                            const char *path) {
   struct block_device *new_ptr;
-  int new_size = sizeof(block_devices[0]) * (nr_block_devices + 1);
+  int new_size =
+      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
   char *path_copy;
 
   path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  if (block_devices)
-    new_ptr = realloc(block_devices, new_size);
+  if (state->block_devices)
+    new_ptr = realloc(state->block_devices, new_size);
   else
     new_ptr = malloc(new_size);
 
@@ -864,29 +877,31 @@ static int add_block_device(virDomainPtr dom, const char *path) {
     sfree(path_copy);
     return -1;
   }
-  block_devices = new_ptr;
-  block_devices[nr_block_devices].dom = dom;
-  block_devices[nr_block_devices].path = path_copy;
-  return nr_block_devices++;
+  state->block_devices = new_ptr;
+  state->block_devices[state->nr_block_devices].dom = dom;
+  state->block_devices[state->nr_block_devices].path = path_copy;
+  return state->nr_block_devices++;
 }
 
-static void free_interface_devices(void) {
-  if (interface_devices) {
-    for (int i = 0; i < nr_interface_devices; ++i) {
-      sfree(interface_devices[i].path);
-      sfree(interface_devices[i].address);
-      sfree(interface_devices[i].number);
+static void free_interface_devices(struct lv_read_state *state) {
+  if (state->interface_devices) {
+    for (int i = 0; i < state->nr_interface_devices; ++i) {
+      sfree(state->interface_devices[i].path);
+      sfree(state->interface_devices[i].address);
+      sfree(state->interface_devices[i].number);
     }
-    sfree(interface_devices);
+    sfree(state->interface_devices);
   }
-  interface_devices = NULL;
-  nr_interface_devices = 0;
+  state->interface_devices = NULL;
+  state->nr_interface_devices = 0;
 }
 
-static int add_interface_device(virDomainPtr dom, const char *path,
-                                const char *address, unsigned int number) {
+static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
+                                const char *path, const char *address,
+                                unsigned int number) {
   struct interface_device *new_ptr;
-  int new_size = sizeof(interface_devices[0]) * (nr_interface_devices + 1);
+  int new_size =
+      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
   char *path_copy, *address_copy, number_string[15];
 
   if ((path == NULL) || (address == NULL))
@@ -904,8 +919,8 @@ static int add_interface_device(virDomainPtr dom, const char *path,
 
   snprintf(number_string, sizeof(number_string), "interface-%u", number);
 
-  if (interface_devices)
-    new_ptr = realloc(interface_devices, new_size);
+  if (state->interface_devices)
+    new_ptr = realloc(state->interface_devices, new_size);
   else
     new_ptr = malloc(new_size);
 
@@ -914,12 +929,13 @@ static int add_interface_device(virDomainPtr dom, const char *path,
     sfree(address_copy);
     return -1;
   }
-  interface_devices = new_ptr;
-  interface_devices[nr_interface_devices].dom = dom;
-  interface_devices[nr_interface_devices].path = path_copy;
-  interface_devices[nr_interface_devices].address = address_copy;
-  interface_devices[nr_interface_devices].number = strdup(number_string);
-  return nr_interface_devices++;
+  state->interface_devices = new_ptr;
+  state->interface_devices[state->nr_interface_devices].dom = dom;
+  state->interface_devices[state->nr_interface_devices].path = path_copy;
+  state->interface_devices[state->nr_interface_devices].address = address_copy;
+  state->interface_devices[state->nr_interface_devices].number =
+      strdup(number_string);
+  return state->nr_interface_devices++;
 }
 
 static int ignore_device_match(ignorelist_t *il, const char *domname,
@@ -943,9 +959,10 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
 }
 
 static int lv_shutdown(void) {
-  free_block_devices();
-  free_interface_devices();
-  free_domains();
+  struct lv_read_state *state = &read_state;
+  free_block_devices(state);
+  free_interface_devices(state);
+  free_domains(state);
 
   if (conn != NULL)
     virConnectClose(conn);
