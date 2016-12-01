@@ -297,6 +297,8 @@ static int memcached_read(user_data_t *user_data) {
   gauge_t bytes_total = NAN;
   gauge_t hits = NAN;
   gauge_t gets = NAN;
+  gauge_t delete_hits = NAN;
+  gauge_t delete_misses = NAN;
   gauge_t incr_hits = NAN;
   derive_t incr = 0;
   gauge_t decr_hits = NAN;
@@ -412,8 +414,10 @@ static int memcached_read(user_data_t *user_data) {
     }
 
     /*
-     * Operations on the cache, i. e. cache hits, cache misses and evictions of
-     * items
+     * Operations on the cache:
+     * - get hits/misses
+     * - delete hits/misses
+     * - evictions
      */
     else if (FIELD_IS("get_hits")) {
       submit_derive("memcached_ops", "hits", atoll(fields[2]), st);
@@ -422,6 +426,12 @@ static int memcached_read(user_data_t *user_data) {
       submit_derive("memcached_ops", "misses", atoll(fields[2]), st);
     } else if (FIELD_IS("evictions")) {
       submit_derive("memcached_ops", "evictions", atoll(fields[2]), st);
+    } else if (FIELD_IS("delete_hits")) {
+      submit_derive("memcached_ops", "del_hits", atoll(fields[2]), st);
+      delete_hits = atof(fields[2]);
+    } else if (FIELD_IS("delete_misses")) {
+      submit_derive("memcached_ops", "del_misses", atoll(fields[2]), st);
+      delete_misses = atof(fields[2]);
     }
 
     /*
