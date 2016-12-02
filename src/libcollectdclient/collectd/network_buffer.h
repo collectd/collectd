@@ -55,4 +55,3 @@ int lcc_network_buffer_get(lcc_network_buffer_t *nb, void *buffer,
                            size_t *buffer_size);
 
 #endif /* LIBCOLLECTDCLIENT_NETWORK_BUFFER_H */
-/* vim: set sw=2 sts=2 et : */

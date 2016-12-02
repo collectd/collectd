@@ -108,5 +108,3 @@ cmd_status_t cmd_handle_listval(FILE *fh, char *buffer) {
 void cmd_destroy_listval(cmd_listval_t *listval __attribute__((unused))) {
   /* nothing to do */
 } /* void cmd_destroy_listval */
-
-/* vim: set sw=2 sts=2 ts=8 : */

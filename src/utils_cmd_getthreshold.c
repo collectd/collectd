@@ -198,5 +198,3 @@ int handle_getthreshold(FILE *fh, char *buffer) {
 
                                             return (0);
 } /* int handle_getthreshold */
-
-/* vim: set sw=2 sts=2 ts=8 et : */

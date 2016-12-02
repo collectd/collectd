@@ -208,5 +208,3 @@ void module_register(void) {
   plugin_register_notification("logfile", logfile_notification,
                                /* user_data = */ NULL);
 } /* void module_register (void) */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

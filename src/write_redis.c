@@ -252,5 +252,3 @@ static int wr_config(oconfig_item_t *ci) /* {{{ */
 void module_register(void) {
   plugin_register_complex_config("write_redis", wr_config);
 }
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

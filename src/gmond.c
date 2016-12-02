@@ -1030,5 +1030,3 @@ void module_register(void) {
   plugin_register_init("gmond", gmond_init);
   plugin_register_shutdown("gmond", gmond_shutdown);
 }
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

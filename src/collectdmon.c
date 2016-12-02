@@ -386,5 +386,3 @@ int main(int argc, char **argv) {
   free(collectd_argv);
   return 0;
 } /* main */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

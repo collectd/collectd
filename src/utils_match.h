@@ -177,5 +177,3 @@ int match_apply(cu_match_t *obj, const char *str);
 void *match_get_user_data(cu_match_t *obj);
 
 #endif /* UTILS_MATCH_H */
-
-/* vim: set sw=2 sts=2 ts=8 : */

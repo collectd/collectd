@@ -415,5 +415,3 @@ void module_register(void) {
   tproc.invoke = ts_invoke;
   fc_register_target("set", tproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

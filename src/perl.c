@@ -2711,5 +2711,3 @@ void module_register(void) {
   plugin_register_complex_config("perl", perl_config);
   return;
 } /* void module_register (void) */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

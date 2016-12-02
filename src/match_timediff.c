@@ -141,5 +141,3 @@ void module_register(void) {
   mproc.match = mt_match;
   fc_register_match("timediff", mproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

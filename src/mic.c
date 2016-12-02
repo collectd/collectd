@@ -366,7 +366,3 @@ void module_register(void) {
   plugin_register_read("mic", mic_read);
   plugin_register_config("mic", mic_config, config_keys, config_keys_num);
 } /* void module_register */
-
-/*
- * vim: set shiftwidth=8 softtabstop=8 noet textwidth=78 :
- */

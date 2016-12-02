@@ -41,5 +41,3 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer);
 void cmd_destroy_getval(cmd_getval_t *getval);
 
 #endif /* UTILS_CMD_GETVAL_H */
-
-/* vim: set sw=2 sts=2 ts=8 : */

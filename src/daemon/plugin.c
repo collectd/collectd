@@ -2578,5 +2578,3 @@ int plugin_thread_create(pthread_t *thread, const pthread_attr_t *attr,
 
   return 0;
 } /* int plugin_thread_create */
-
-/* vim: set sw=8 ts=8 noet fdm=marker : */

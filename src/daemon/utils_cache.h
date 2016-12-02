@@ -133,5 +133,4 @@ int uc_meta_data_get_double(const value_list_t *vl, const char *key,
 int uc_meta_data_get_boolean(const value_list_t *vl, const char *key,
                              _Bool *value);
 
-/* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */
 #endif /* !UTILS_CACHE_H */

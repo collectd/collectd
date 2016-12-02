@@ -336,5 +336,3 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
       buffer, ret_buffer_fill, ret_buffer_free, ds, vl, store_rates,
       (*ret_buffer_free) - 2));
 } /* }}} int format_kairosdb_value_list */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

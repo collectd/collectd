@@ -61,5 +61,3 @@ cdtime_t latency_counter_get_percentile(latency_counter_t *lc, double percent);
  */
 double latency_counter_get_rate(const latency_counter_t *lc, cdtime_t lower,
                                 cdtime_t upper, const cdtime_t now);
-
-/* vim: set sw=2 sts=2 et : */

@@ -746,5 +746,3 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
 
   return (0);
 } /* }}} int meta_data_as_string */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

@@ -1695,7 +1695,3 @@ void module_register(void) {
   plugin_register_init("snmp", csnmp_init);
   plugin_register_shutdown("snmp", csnmp_shutdown);
 } /* void module_register */
-
-/*
- * vim: shiftwidth=2 softtabstop=2 tabstop=8 fdm=marker
- */

@@ -736,7 +736,3 @@ void module_register(void) {
   plugin_register_read("netlink", ir_read);
   plugin_register_shutdown("netlink", ir_shutdown);
 } /* void module_register */
-
-/*
- * vim: set shiftwidth=2 softtabstop=2 tabstop=8 :
- */

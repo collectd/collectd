@@ -719,5 +719,3 @@ void module_register(void) {
   plugin_register_read("email", email_read);
   plugin_register_shutdown("email", email_shutdown);
 } /* void module_register */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

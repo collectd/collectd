@@ -240,5 +240,3 @@ int rfc3339nano_local(char *buffer, size_t buffer_size, cdtime_t t) /* {{{ */
 
   return format_rfc3339_local(buffer, buffer_size, t, 1);
 } /* }}} int rfc3339nano */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

@@ -868,5 +868,3 @@ void module_register() {
                           /* user data = */ NULL);
   plugin_register_shutdown("write_prometheus", prom_shutdown);
 }
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

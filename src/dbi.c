@@ -780,7 +780,3 @@ void module_register(void) /* {{{ */
   plugin_register_init("dbi", cdbi_init);
   plugin_register_shutdown("dbi", cdbi_shutdown);
 } /* }}} void module_register */
-
-/*
- * vim: shiftwidth=2 softtabstop=2 et fdm=marker
- */

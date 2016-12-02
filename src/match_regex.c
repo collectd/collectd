@@ -364,5 +364,3 @@ void module_register(void) {
   mproc.match = mr_match;
   fc_register_match("regex", mproc);
 } /* module_register */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab fdm=marker : */

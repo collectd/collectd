@@ -1446,4 +1446,3 @@ void module_register(void) {
   plugin_register_read("ceph", ceph_read);
   plugin_register_shutdown("ceph", ceph_shutdown);
 }
-/* vim: set sw=4 sts=4 et : */

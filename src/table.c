@@ -520,5 +520,3 @@ void module_register(void) {
   plugin_register_complex_config("table", tbl_config);
   plugin_register_init("table", tbl_init);
 } /* module_register */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

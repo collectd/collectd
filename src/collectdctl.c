@@ -585,5 +585,3 @@ int main(int argc, char **argv) {
     return (status);
   return (0);
 } /* main */
-
-/* vim: set sw=2 ts=2 tw=78 expandtab : */

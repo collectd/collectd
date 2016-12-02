@@ -153,5 +153,3 @@ void module_register(void) {
   plugin_register_complex_config("notify_nagios", nagios_config);
   plugin_register_notification("notify_nagios", nagios_notify, NULL);
 } /* void module_register (void) */
-
-/* vim: set sw=2 sts=2 ts=8 et : */

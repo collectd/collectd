@@ -97,5 +97,3 @@ void c_do_release(int level, c_complain_t *c, const char *format, ...) {
 
   plugin_log(level, "%s", message);
 } /* c_release */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

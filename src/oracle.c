@@ -706,7 +706,3 @@ void module_register(void) /* {{{ */
   plugin_register_read("oracle", o_read);
   plugin_register_shutdown("oracle", o_shutdown);
 } /* }}} void module_register */
-
-/*
- * vim: shiftwidth=2 softtabstop=2 et fdm=marker
- */

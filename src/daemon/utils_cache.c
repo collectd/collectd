@@ -938,5 +938,3 @@ int uc_meta_data_exists(const value_list_t *vl,
                                                 const char *key, _Bool *value)
                                                 UC_WRAP(meta_data_get_boolean)
 #undef UC_WRAP
-
-    /* vim: set sw=2 ts=8 sts=2 tw=78 : */

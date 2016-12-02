@@ -309,5 +309,3 @@ void cmd_error_fh(void *ud, cmd_status_t status, const char *format,
 
   fflush(fh);
 } /* void cmd_error_fh */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

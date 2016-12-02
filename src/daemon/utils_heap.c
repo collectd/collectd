@@ -203,5 +203,3 @@ void *c_heap_get_root(c_heap_t *h) {
 
   return (ret);
 } /* void *c_heap_get_root */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

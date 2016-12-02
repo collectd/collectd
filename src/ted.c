@@ -299,5 +299,3 @@ void module_register(void) {
   plugin_register_read("ted", ted_read);
   plugin_register_shutdown("ted", ted_shutdown);
 } /* void module_register */
-
-/* vim: set sw=4 et : */

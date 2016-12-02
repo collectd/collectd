@@ -67,7 +67,4 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci);
 
 void oconfig_free(oconfig_item_t *ci);
 
-/*
- * vim: shiftwidth=2:tabstop=8:softtabstop=2
- */
 #endif /* OCONFIG_H */

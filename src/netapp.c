@@ -3111,5 +3111,3 @@ void module_register(void) {
   plugin_register_init("netapp", cna_init);
   plugin_register_shutdown("netapp", cna_shutdown);
 }
-
-/* vim: set sw=2 ts=2 noet fdm=marker : */

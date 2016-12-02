@@ -551,5 +551,3 @@ void module_register(void) {
   plugin_register_init("tail_csv", tcsv_init);
   plugin_register_shutdown("tail_csv", tcsv_shutdown);
 }
-
-/* vim: set sw=4 sts=4 et : */

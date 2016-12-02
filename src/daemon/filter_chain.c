@@ -942,5 +942,3 @@ int fc_configure(const oconfig_item_t *ci) /* {{{ */
 
   return (-1);
 } /* }}} int fc_configure */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

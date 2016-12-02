@@ -1021,5 +1021,3 @@ int lcc_sort_identifiers(lcc_connection_t *c, /* {{{ */
   qsort(idents, idents_num, sizeof(*idents), lcc_identifier_compare);
   return (0);
 } /* }}} int lcc_sort_identifiers */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

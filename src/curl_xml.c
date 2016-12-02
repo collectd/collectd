@@ -1026,5 +1026,3 @@ void module_register(void) {
   plugin_register_complex_config("curl_xml", cx_config);
   plugin_register_init("curl_xml", cx_init);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

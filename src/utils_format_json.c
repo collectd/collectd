@@ -685,5 +685,3 @@ int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
   return ENOTSUP;
 } /* }}} int format_json_notification */
 #endif
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

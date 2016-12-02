@@ -321,5 +321,3 @@ void module_register(void) {
   plugin_register_shutdown("ipvs", cipvs_shutdown);
   return;
 } /* module_register */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

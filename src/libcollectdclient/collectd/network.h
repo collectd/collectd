@@ -73,5 +73,4 @@ int lcc_network_notification_send (lcc_network_t *net,
     const lcc_notification_t *notif);
 #endif
 
-/* vim: set sw=2 sts=2 et : */
 #endif /* LIBCOLLECTDCLIENT_NETWORK_H */

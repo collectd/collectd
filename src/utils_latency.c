@@ -342,5 +342,3 @@ double latency_counter_get_rate(const latency_counter_t *lc, /* {{{ */
 
   return sum / (CDTIME_T_TO_DOUBLE(now - lc->start_time));
 } /* }}} double latency_counter_get_rate */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

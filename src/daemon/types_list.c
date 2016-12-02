@@ -191,7 +191,3 @@ int read_types_list(const char *file) {
 
   return (0);
 } /* int read_types_list */
-
-/*
- * vim: shiftwidth=2:softtabstop=2:tabstop=8
- */

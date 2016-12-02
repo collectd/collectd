@@ -511,7 +511,3 @@ void module_register(void) {
   plugin_register_init("filecount", fc_init);
   plugin_register_read("filecount", fc_read);
 } /* void module_register */
-
-/*
- * vim: set sw=2 sts=2 et :
- */

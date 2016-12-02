@@ -631,5 +631,3 @@ void module_register(void) {
   plugin_register_read("olsrd", olsrd_read);
   plugin_register_shutdown("olsrd", olsrd_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

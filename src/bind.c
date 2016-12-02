@@ -1613,5 +1613,3 @@ void module_register(void) {
   plugin_register_read("bind", bind_read);
   plugin_register_shutdown("bind", bind_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 ts=8 et fdm=marker : */

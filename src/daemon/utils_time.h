@@ -130,4 +130,3 @@ int rfc3339_local(char *buffer, size_t buffer_size, cdtime_t t);
 int rfc3339nano_local(char *buffer, size_t buffer_size, cdtime_t t);
 
 #endif /* UTILS_TIME_H */
-/* vim: set sw=2 sts=2 et : */

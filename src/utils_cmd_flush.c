@@ -178,5 +178,3 @@ void cmd_destroy_flush(cmd_flush_t *flush) {
   sfree(flush->identifiers);
   flush->identifiers_num = 0;
 } /* void cmd_destroy_flush */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

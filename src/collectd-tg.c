@@ -423,5 +423,3 @@ int main(int argc, char **argv) /* {{{ */
   lcc_network_destroy(net);
   exit(EXIT_SUCCESS);
 } /* }}} int main */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

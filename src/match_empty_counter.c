@@ -79,5 +79,3 @@ void module_register(void) {
           .create = mec_create, .destroy = mec_destroy, .match = mec_match,
       });
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

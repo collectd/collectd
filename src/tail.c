@@ -337,5 +337,3 @@ void module_register(void) {
   plugin_register_init("tail", ctail_init);
   plugin_register_shutdown("tail", ctail_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 ts=8 : */

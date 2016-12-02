@@ -336,5 +336,3 @@ int tail_match_read(cu_tail_match_t *obj) {
 
   return (0);
 } /* int tail_match_read */
-
-/* vim: set sw=2 sts=2 ts=8 : */

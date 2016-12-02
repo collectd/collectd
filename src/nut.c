@@ -255,5 +255,3 @@ void module_register(void) {
   plugin_register_read("nut", nut_read);
   plugin_register_shutdown("nut", nut_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 ts=8 sts=2 tw=78 : */

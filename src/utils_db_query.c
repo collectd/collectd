@@ -1059,5 +1059,3 @@ void udb_query_delete_preparation_area(
 
   free(q_area);
 } /* }}} void udb_query_delete_preparation_area */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

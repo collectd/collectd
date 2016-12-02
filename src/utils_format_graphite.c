@@ -237,5 +237,3 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
   sfree(rates);
   return (status);
 } /* int format_graphite */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

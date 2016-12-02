@@ -53,4 +53,3 @@ int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
                        const value_list_t *vl);
 
 #endif /* UTILS_LUA_H */
-/* vim: set sw=2 sts=2 et fdm=marker : */

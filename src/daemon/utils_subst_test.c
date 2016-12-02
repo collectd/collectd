@@ -132,5 +132,3 @@ int main(void) {
 
   END_TEST;
 }
-
-/* vim: set sw=2 sts=2 et : */

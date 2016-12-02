@@ -213,5 +213,3 @@ void module_register(void) {
                          config_keys_num);
   plugin_register_read("protocols", protocols_read);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 et : */

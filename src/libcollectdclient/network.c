@@ -446,5 +446,3 @@ int lcc_network_values_send(lcc_network_t *net, /* {{{ */
 
   return (0);
 } /* }}} int lcc_network_values_send */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

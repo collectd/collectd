@@ -451,5 +451,3 @@ void module_register(void) {
   tproc.invoke = v5_invoke;
   fc_register_target("v5upgrade", tproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

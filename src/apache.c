@@ -573,5 +573,3 @@ void module_register(void) {
   plugin_register_complex_config("apache", config);
   plugin_register_init("apache", apache_init);
 } /* void module_register */
-
-/* vim: set sw=8 noet fdm=marker : */

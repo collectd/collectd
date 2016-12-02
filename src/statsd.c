@@ -914,5 +914,3 @@ void module_register(void) {
   plugin_register_read("statsd", statsd_read);
   plugin_register_shutdown("statsd", statsd_shutdown);
 }
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

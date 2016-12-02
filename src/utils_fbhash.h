@@ -48,5 +48,3 @@ void fbh_destroy(fbhash_t *h);
 char *fbh_get(fbhash_t *h, const char *key);
 
 #endif /* UTILS_FBHASH_H */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

@@ -243,5 +243,3 @@ void module_register(void) {
   plugin_register_init("lpar", lpar_init);
   plugin_register_read("lpar", lpar_read);
 } /* void module_register */
-
-/* vim: set sw=8 noet : */

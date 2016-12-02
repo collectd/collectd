@@ -2841,5 +2841,3 @@ void module_register(void) {
   plugin_register_init("java", cjni_init);
   plugin_register_shutdown("java", cjni_shutdown);
 } /* void module_register (void) */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

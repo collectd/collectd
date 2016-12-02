@@ -136,5 +136,3 @@ void module_register(void) {
   /* If config is supplied, the global wl_format will be set. */
   plugin_register_write("write_log", wl_write, NULL);
 }
-
-/* vim: set sw=4 ts=4 sts=4 tw=78 et : */

@@ -150,5 +150,3 @@ void module_register(void) {
   plugin_register_read("tokyotyrant", tt_read);
   plugin_register_shutdown("tokyotyrant", tt_shutdown);
 }
-
-/* vim: set sw=8 ts=8 tw=78 : */

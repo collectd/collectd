@@ -146,5 +146,3 @@ int parse_option(char **ret_buffer, char **ret_key, char **ret_value) {
 
   return (0);
 } /* int parse_option */
-
-/* vim: set sw=2 ts=8 tw=78 et : */

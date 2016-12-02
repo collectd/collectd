@@ -89,5 +89,3 @@ void plugin_log(int level, char const *format, ...) {
 }
 
 cdtime_t plugin_get_interval(void) { return TIME_T_TO_CDTIME_T(10); }
-
-/* vim: set sw=2 sts=2 et : */

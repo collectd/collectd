@@ -344,5 +344,3 @@ static int wm_config(oconfig_item_t *ci) /* {{{ */
 void module_register(void) {
   plugin_register_complex_config("write_mongodb", wm_config);
 }
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

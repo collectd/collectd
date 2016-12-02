@@ -321,5 +321,3 @@ void module_register(void) {
   plugin_register_init("vserver", vserver_init);
   plugin_register_read("vserver", vserver_read);
 } /* void module_register(void) */
-
-/* vim: set ts=4 sw=4 noexpandtab : */

@@ -290,5 +290,3 @@ void module_register(void) {
   plugin_register_notification("notify_email", notify_email_notification,
                                /* user_data = */ NULL);
 } /* void module_register (void) */
-
-/* vim: set sw=2 sts=2 ts=8 et : */

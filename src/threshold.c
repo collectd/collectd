@@ -834,5 +834,3 @@ static int ut_config(oconfig_item_t *ci) { /* {{{ */
 void module_register(void) {
   plugin_register_complex_config("threshold", ut_config);
 }
-
-/* vim: set sw=2 ts=8 sts=2 tw=78 et fdm=marker : */

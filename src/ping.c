@@ -679,5 +679,3 @@ void module_register(void) {
   plugin_register_read("ping", ping_read);
   plugin_register_shutdown("ping", ping_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

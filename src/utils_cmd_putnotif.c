@@ -180,5 +180,3 @@ int handle_putnotif(FILE *fh, char *buffer) {
 
   return (0);
 } /* int handle_putnotif */
-
-/* vim: set shiftwidth=2 softtabstop=2 tabstop=8 : */

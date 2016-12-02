@@ -457,5 +457,3 @@ void module_register(void) {
   tproc.invoke = ts_invoke;
   fc_register_target("scale", tproc);
 } /* module_register */
-
-/* vim: set sw=2 ts=2 tw=78 fdm=marker : */

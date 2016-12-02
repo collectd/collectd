@@ -51,5 +51,3 @@ int cu_rrd_create_file(const char *filename, const data_set_t *ds,
                        const value_list_t *vl, const rrdcreate_config_t *cfg);
 
 #endif /* UTILS_RRDCREATE_H */
-
-/* vim: set sw=2 sts=2 et : */

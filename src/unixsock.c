@@ -429,5 +429,3 @@ void module_register(void) {
   plugin_register_init("unixsock", us_init);
   plugin_register_shutdown("unixsock", us_shutdown);
 } /* void module_register (void) */
-
-/* vim: set sw=4 ts=4 sts=4 tw=78 : */

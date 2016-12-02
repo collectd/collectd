@@ -260,5 +260,3 @@ void module_register(void) {
   tproc.invoke = tn_invoke;
   fc_register_target("notification", tproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

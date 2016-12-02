@@ -343,5 +343,3 @@ void module_register(void) {
   plugin_register_notification("log_logstash", log_logstash_notification,
                                /* user_data = */ NULL);
 } /* void module_register (void) */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

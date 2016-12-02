@@ -316,5 +316,3 @@ void module_register(void) {
   mproc.match = mv_match;
   fc_register_match("value", mproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

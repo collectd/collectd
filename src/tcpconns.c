@@ -958,7 +958,3 @@ void module_register(void) {
 #endif
   plugin_register_read("tcpconns", conn_read);
 } /* void module_register */
-
-/*
- * vim: set shiftwidth=2 softtabstop=2 tabstop=8 fdm=marker :
- */

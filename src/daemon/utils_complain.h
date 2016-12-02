@@ -113,5 +113,3 @@ c_do_release(int level, c_complain_t *c, const char *format, ...);
   } while (0)
 
 #endif /* UTILS_COMPLAIN_H */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

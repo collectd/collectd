@@ -779,5 +779,3 @@ int lcc_network_buffer_get(lcc_network_buffer_t *nb, /* {{{ */
 
   return (0);
 } /* }}} int lcc_network_buffer_get */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

@@ -40,5 +40,3 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer);
 void cmd_destroy_flush(cmd_flush_t *flush);
 
 #endif /* UTILS_CMD_FLUSH_H */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

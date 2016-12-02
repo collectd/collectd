@@ -664,5 +664,3 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
 
   return (status);
 } /* }}} int cu_rrd_create_file */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

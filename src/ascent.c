@@ -571,5 +571,3 @@ void module_register(void) {
   plugin_register_init("ascent", ascent_init);
   plugin_register_read("ascent", ascent_read);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 ts=8 et fdm=marker : */

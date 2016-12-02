@@ -895,5 +895,3 @@ static int wrr_config(oconfig_item_t *ci) /* {{{ */
 void module_register(void) {
   plugin_register_complex_config("write_riemann", wrr_config);
 }
-
-/* vim: set sw=8 sts=8 ts=8 noet : */

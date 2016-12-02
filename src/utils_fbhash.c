@@ -255,5 +255,3 @@ char *fbh_get(fbhash_t *h, const char *key) /* {{{ */
 
   return (value_copy);
 } /* }}} char *fbh_get */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

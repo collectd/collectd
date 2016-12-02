@@ -325,5 +325,3 @@ void module_register(void) {
   plugin_register_read("ethstat", ethstat_read);
   plugin_register_shutdown("ethstat", ethstat_shutdown);
 }
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

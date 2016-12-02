@@ -161,5 +161,3 @@ void module_register(void) {
   plugin_register_read("aquaero", aquaero_read);
   plugin_register_shutdown("aquaero", aquaero_shutdown);
 } /* void module_register */
-
-/* vim: set sw=8 sts=8 noet : */

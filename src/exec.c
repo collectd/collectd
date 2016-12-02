@@ -866,7 +866,3 @@ void module_register(void) {
                                /* user_data = */ NULL);
   plugin_register_shutdown("exec", exec_shutdown);
 } /* void module_register */
-
-/*
- * vim:shiftwidth=2:softtabstop=2:tabstop=8:fdm=marker
- */

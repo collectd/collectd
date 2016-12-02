@@ -715,5 +715,3 @@ void module_register(void) {
                          config_keys_num);
   plugin_register_init("openvpn", openvpn_init);
 } /* void module_register */
-
-/* vim: set sw=2 ts=2 : */

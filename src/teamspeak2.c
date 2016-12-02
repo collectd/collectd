@@ -728,5 +728,3 @@ void module_register(void) {
   plugin_register_read("teamspeak2", tss2_read);
   plugin_register_shutdown("teamspeak2", tss2_shutdown);
 } /* void module_register */
-
-/* vim: set sw=4 ts=4 : */

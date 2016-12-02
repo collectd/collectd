@@ -862,5 +862,3 @@ void module_register(void) {
   plugin_register_config("cpu", cpu_config, config_keys, config_keys_num);
   plugin_register_read("cpu", cpu_read);
 } /* void module_register */
-
-/* vim: set sw=8 sts=8 noet fdm=marker : */

@@ -225,5 +225,3 @@ int write_riemann_threshold_check(const data_set_t *ds, const value_list_t *vl,
 
   return (0);
 } /* }}} int ut_check_threshold */
-
-/* vim: set sw=2 ts=8 sts=2 tw=78 et fdm=marker : */

@@ -561,5 +561,3 @@ void module_register(void) {
   tproc.invoke = tr_invoke;
   fc_register_target("replace", tproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

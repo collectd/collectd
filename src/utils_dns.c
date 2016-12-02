@@ -1169,6 +1169,3 @@ main(int argc, char *argv[])
     return 0;
 } /* static int main(int argc, char *argv[]) */
 #endif
-/*
- * vim:shiftwidth=4:tabstop=8:softtabstop=4
- */

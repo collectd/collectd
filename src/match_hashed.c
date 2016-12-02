@@ -166,5 +166,3 @@ void module_register(void) {
   mproc.match = mh_match;
   fc_register_match("hashed", mproc);
 } /* module_register */
-
-/* vim: set sw=2 sts=2 tw=78 et fdm=marker : */

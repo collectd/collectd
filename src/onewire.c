@@ -534,5 +534,3 @@ void module_register(void) {
   plugin_register_config("onewire", cow_load_config, config_keys,
                          config_keys_num);
 }
-
-/* vim: set sw=2 sts=2 ts=8 et fdm=marker cindent : */

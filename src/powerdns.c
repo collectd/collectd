@@ -960,5 +960,3 @@ void module_register(void) {
   plugin_register_read("powerdns", powerdns_read);
   plugin_register_shutdown("powerdns", powerdns_shutdown);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 ts=8 fdm=marker : */

@@ -317,5 +317,3 @@ int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
 
   return (0);
 } /* }}} int luaC_pushvaluelist */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

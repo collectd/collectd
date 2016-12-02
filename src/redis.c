@@ -451,5 +451,3 @@ void module_register(void) /* {{{ */
    * X elements */
 }
 /* }}} */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

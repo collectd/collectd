@@ -583,5 +583,3 @@ void module_register(void) {
   plugin_register_complex_config("lua", lua_config);
   plugin_register_shutdown("lua", lua_shutdown);
 }
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

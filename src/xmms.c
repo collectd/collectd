@@ -66,7 +66,3 @@ static int cxmms_read(void) {
 void module_register(void) {
   plugin_register_read("xmms", cxmms_read);
 } /* void module_register */
-
-/*
- * vim: shiftwidth=2:softtabstop=2:textwidth=78
- */

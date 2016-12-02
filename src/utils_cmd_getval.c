@@ -164,5 +164,3 @@ void cmd_destroy_getval(cmd_getval_t *getval) {
 
   sfree(getval->raw_identifier);
 } /* void cmd_destroy_getval */
-
-/* vim: set sw=2 sts=2 ts=8 : */

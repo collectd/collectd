@@ -368,5 +368,3 @@ void *match_get_user_data(cu_match_t *obj) {
     return (NULL);
   return (obj->user_data);
 } /* void *match_get_user_data */
-
-/* vim: set sw=2 sts=2 ts=8 : */

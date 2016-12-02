@@ -217,5 +217,3 @@ static int fscache_read(void) {
 void module_register(void) {
   plugin_register_read("fscache", fscache_read);
 } /* void module_register */
-
-/* vim: set sw=4 sts=4 et : */

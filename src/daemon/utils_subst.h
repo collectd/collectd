@@ -100,5 +100,3 @@ char *subst_string(char *buf, size_t buflen, const char *string,
                    const char *needle, const char *replacement);
 
 #endif /* UTILS_SUBST_H */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

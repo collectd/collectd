@@ -159,5 +159,3 @@ char *subst_string(char *buf, size_t buflen, const char *string,
 
   return (buf);
 } /* char *subst_string */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

@@ -676,5 +676,3 @@ extern "C" {
 		plugin_register_shutdown("grpc", c_grpc_shutdown);
 	} /* module_register() */
 } /* extern "C" */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */

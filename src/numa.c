@@ -152,5 +152,3 @@ void module_register(void) {
   plugin_register_init("numa", numa_init);
   plugin_register_read("numa", numa_read);
 } /* void module_register */
-
-/* vim: set sw=2 sts=2 et : */

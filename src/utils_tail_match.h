@@ -137,5 +137,3 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
  *   Zero on success, nonzero on failure.
 */
 int tail_match_read(cu_tail_match_t *obj);
-
-/* vim: set sw=2 sts=2 ts=8 : */

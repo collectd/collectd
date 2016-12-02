@@ -1172,7 +1172,3 @@ void module_register(void) {
   plugin_register_init(PLUGIN_NAME, lv_init);
   plugin_register_shutdown(PLUGIN_NAME, lv_shutdown);
 }
-
-/*
- * vim: shiftwidth=4 tabstop=8 softtabstop=4 expandtab fdm=marker
- */

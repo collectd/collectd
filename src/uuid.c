@@ -262,17 +262,3 @@ void module_register(void) {
                          STATIC_ARRAY_SIZE(config_keys));
   plugin_register_init("uuid", uuid_init);
 }
-
-/*
- * vim: set tabstop=4:
- * vim: set shiftwidth=4:
- * vim: set expandtab:
- */
-/*
- * Local variables:
- *  indent-tabs-mode: nil
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 4
- * End:
- */

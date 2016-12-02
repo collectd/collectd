@@ -267,7 +267,3 @@ void module_register(void) {
   plugin_register_init("nginx", init);
   plugin_register_read("nginx", nginx_read);
 } /* void module_register */
-
-/*
- * vim: set shiftwidth=2 softtabstop=2 tabstop=8 :
- */
