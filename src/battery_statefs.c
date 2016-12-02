@@ -87,9 +87,9 @@ int battery_read_statefs(void) {
   }
 
   struct {
-    char *path;
-    char *type;
-    char *type_instance;
+    const char *path;
+    const char *type;
+    const char *type_instance;
     gauge_t factor;
   } metrics[] = {
       {STATEFS_ROOT "Current", "current", NULL, 1e-6},        // from uA to A
