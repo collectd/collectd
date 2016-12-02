@@ -690,7 +690,7 @@ int meta_data_get_boolean(meta_data_t *md, /* {{{ */
 int meta_data_as_string(meta_data_t *md, /* {{{ */
                         const char *key, char **value) {
   meta_entry_t *e;
-  char *actual;
+  const char *actual;
   char buffer[MD_MAX_NONSTRING_CHARS]; /* For non-string types. */
   char *temp;
   int type;
