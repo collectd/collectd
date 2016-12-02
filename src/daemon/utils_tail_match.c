@@ -43,6 +43,8 @@ struct cu_tail_match_simple_s
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
   cdtime_t interval;
+  double *percentile;
+  size_t percentile_num;
 };
 typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
 
@@ -107,6 +109,44 @@ static int simple_submit_match (cu_match_t *match, void *user_data)
   return (0);
 } /* int simple_submit_match */
 
+static int simple_submit_latency (cu_match_t *match, void *user_data)
+{
+  cu_tail_match_simple_t *data = (cu_tail_match_simple_t *) user_data;
+  cu_match_value_t *match_value;
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[1];
+
+  match_value = (cu_match_value_t *) match_get_user_data (match);
+  if (match_value == NULL)
+    return (-1);
+
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+  sstrncpy (vl.plugin, data->plugin, sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, data->plugin_instance,
+      sizeof (vl.plugin_instance));
+  sstrncpy (vl.type, data->type, sizeof (vl.type));
+  vl.interval = data->interval;
+
+  size_t i;
+  for (i = 0; i < data->percentile_num; i++)
+  {
+    ssnprintf (vl.type_instance, sizeof (vl.type_instance),
+        "percentile-%.0f",  data->percentile[i]);
+    values[0].gauge = (match_value->values_num != 0)
+      ? CDTIME_T_TO_DOUBLE (latency_counter_get_percentile (match_value->latency, data->percentile[i]))
+      : NAN;
+    plugin_dispatch_values (&vl);
+  }
+  latency_counter_reset (match_value->latency);
+
+  match_value->value.gauge = NAN;
+  match_value->values_num = 0;
+
+  return (0);
+} /* int simple_submit_latency */
+
 static int tail_callback (void *data, char *buf,
     int __attribute__((unused)) buflen)
 {
@@ -118,6 +158,13 @@ static int tail_callback (void *data, char *buf,
 
   return (0);
 } /* int tail_callback */
+
+static void tail_match_simple_free (void *data)
+{
+  cu_tail_match_simple_t *user_data = (cu_tail_match_simple_t *) data;
+  sfree (user_data->percentile);
+  sfree (user_data);
+} /* void tail_match_simple_free */
 
 /*
  * Public functions
@@ -163,8 +210,7 @@ void tail_match_destroy (cu_tail_match_t *obj)
       match->match = NULL;
     }
 
-    if ((match->user_data != NULL)
-	&& (match->free != NULL))
+    if ((match->user_data != NULL) && (match->free != NULL))
       (*match->free) (match->user_data);
     match->user_data = NULL;
   }
@@ -202,7 +248,9 @@ int tail_match_add_match (cu_tail_match_t *obj, cu_match_t *match,
 int tail_match_add_match_simple (cu_tail_match_t *obj,
     const char *regex, const char *excluderegex, int ds_type,
     const char *plugin, const char *plugin_instance,
-    const char *type, const char *type_instance, const cdtime_t interval)
+    const char *type, const char *type_instance,
+    const double *percentile, const size_t percentile_num,
+    const cdtime_t interval)
 {
   cu_match_t *match;
   cu_tail_match_simple_t *user_data;
@@ -232,13 +280,34 @@ int tail_match_add_match_simple (cu_tail_match_t *obj,
 
   user_data->interval = interval;
 
-  status = tail_match_add_match (obj, match, simple_submit_match,
-      user_data, free);
+  if ((ds_type & UTILS_MATCH_DS_TYPE_GAUGE)
+      && (ds_type & UTILS_MATCH_CF_GAUGE_LATENCY))
+  {
+    user_data->percentile_num = percentile_num;
+    user_data->percentile = malloc(sizeof (*user_data->percentile) *
+                                    (user_data->percentile_num));
 
+    if (user_data->percentile == NULL)
+    {
+      ERROR ("tail_match_add_match_simple: malloc failed.");
+      status = -1;
+      goto out;
+    }
+    memcpy (user_data->percentile, percentile,
+            (sizeof (*user_data->percentile) * (user_data->percentile_num)));
+
+    status = tail_match_add_match (obj, match, simple_submit_latency,
+      user_data, tail_match_simple_free);
+  } else {
+    status = tail_match_add_match (obj, match, simple_submit_match,
+      user_data, free);
+  }
+
+out:
   if (status != 0)
   {
+    tail_match_simple_free(user_data);
     match_destroy (match);
-    sfree (user_data);
   }
 
   return (status);

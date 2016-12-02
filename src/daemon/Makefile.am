@@ -69,7 +69,8 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_tail.c utils_tail.h \
 		   utils_time.c utils_time.h \
 		   types_list.c types_list.h \
-		   utils_threshold.c utils_threshold.h
+		   utils_threshold.c utils_threshold.h \
+		   ../utils_latency.h ../utils_latency.c
 
 
 collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)

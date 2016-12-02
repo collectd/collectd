@@ -31,6 +31,9 @@ libmount_la_LIBADD = daemon/libcommon.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
 liblookup_la_LIBADD = daemon/libavltree.la daemon/libcommon.la
 
+liblatency_la_SOURCES = utils_latency.c utils_latency.h
+liblatency_la_LIBADD = daemon/libcommon.la
+
 sbin_PROGRAMS = collectdmon
 bin_PROGRAMS = collectd-nagios collectdctl collectd-tg
 
@@ -988,6 +991,7 @@ if BUILD_PLUGIN_TAIL
 pkglib_LTLIBRARIES += tail.la
 tail_la_SOURCES = tail.c
 tail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+tail_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_TAIL_CSV

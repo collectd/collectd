@@ -53,6 +53,8 @@ struct ctail_config_match_s
   char *type;
   char *type_instance;
   cdtime_t interval;
+  double *percentile;
+  size_t percentile_num;
 };
 typedef struct ctail_config_match_s ctail_config_match_t;
 
@@ -86,6 +88,11 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
       cm->flags |= UTILS_MATCH_CF_GAUGE_ADD;
     else
       cm->flags = 0;
+  }
+  else if (strcasecmp ("Latency", ci->values[0].value.string) == 0)
+  {
+    cm->flags = UTILS_MATCH_DS_TYPE_GAUGE;
+    cm->flags |= UTILS_MATCH_CF_GAUGE_LATENCY;
   }
   else if (strncasecmp ("Counter", ci->values[0].value.string, strlen ("Counter")) == 0)
   {
@@ -133,6 +140,44 @@ static int ctail_config_add_match_dstype (ctail_config_match_t *cm,
 
   return (0);
 } /* int ctail_config_add_match_dstype */
+    
+static int ctail_config_add_match_latency_percentile (ctail_config_match_t *cm,
+    oconfig_item_t *ci)
+{
+  if (ci->values_num != 1)
+  {
+    WARNING ("tail plugin: `LatencyPercentile' needs exactly one argument.");
+    return (-1);
+  }
+  
+  double percent = NAN;
+  double *tmp;
+  int status;
+
+  status = cf_util_get_double (ci, &percent);
+  if (status != 0)
+    return (status);
+
+  if ((percent <= 0.0) || (percent >= 100))
+  {
+    ERROR ("tail plugin: The value for \"%s\" must be between 0 and 100, "
+        "exclusively.", ci->key);
+    return (ERANGE);
+  }
+  
+  tmp = realloc (cm->percentile,
+      sizeof (*cm->percentile) * (cm->percentile_num + 1));
+  if (tmp == NULL)
+  {
+    ERROR ("tail plugin: realloc failed.");
+    return (ENOMEM);
+  }
+  cm->percentile = tmp;
+  cm->percentile[cm->percentile_num] = percent;
+  cm->percentile_num++;
+
+  return (0);
+} /* int ctail_config_add_match_latency_percentile */
 
 static int ctail_config_add_match (cu_tail_match_t *tm,
     const char *plugin_instance, oconfig_item_t *ci, cdtime_t interval)
@@ -163,6 +208,8 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       status = cf_util_get_string (option, &cm.type);
     else if (strcasecmp ("Instance", option->key) == 0)
       status = cf_util_get_string (option, &cm.type_instance);
+    else if (strcasecmp ("LatencyPercentile", option->key) == 0)
+      status = ctail_config_add_match_latency_percentile (&cm, option);
     else
     {
       WARNING ("tail plugin: Option `%s' not allowed here.", option->key);
@@ -196,13 +243,26 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
       break;
     }
 
+    if ((cm.flags & UTILS_MATCH_CF_GAUGE_LATENCY) && (cm.type_instance != NULL))
+    {
+      WARNING ("tail plugin: `DSType Latency' and 'Instance %s' in `Match' block could not be used together.",cm.type_instance);
+      status = -1;
+      break;
+    }
+    
+    if ((cm.flags & UTILS_MATCH_CF_GAUGE_LATENCY) && (cm.percentile_num == 0))
+    {
+      WARNING ("tail plugin: `Match' with `DSType Latency' has no 'LatencyPercentile' options.");
+      status = -1;
+      break;
+    }
     break;
   } /* while (status == 0) */
 
   if (status == 0)
   {
     status = tail_match_add_match_simple (tm, cm.regex, cm.excluderegex,
-	cm.flags, "tail", plugin_instance, cm.type, cm.type_instance, interval);
+	cm.flags, "tail", plugin_instance, cm.type, cm.type_instance, cm.percentile, cm.percentile_num, interval);
 
     if (status != 0)
     {
@@ -214,6 +274,7 @@ static int ctail_config_add_match (cu_tail_match_t *tm,
   sfree (cm.excluderegex);
   sfree (cm.type);
   sfree (cm.type_instance);
+  sfree (cm.percentile);
 
   return (status);
 } /* int ctail_config_add_match */
