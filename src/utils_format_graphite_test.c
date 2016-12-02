@@ -49,12 +49,12 @@ static data_set_t ds_double = {
 
 DEF_TEST(metric_name) {
   struct {
-    char *plugin_instance;
-    char *type_instance;
-    char *prefix;
-    char *suffix;
+    const char *plugin_instance;
+    const char *type_instance;
+    const char *prefix;
+    const char *suffix;
     unsigned int flags;
-    char *want_name;
+    const char *want_name;
   } cases[] = {
       {
           .want_name = "example@com.test.single",
