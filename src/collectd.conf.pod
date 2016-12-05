@@ -4051,11 +4051,11 @@ If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
- 
+
  Enable the collection of wsrep plugin statistics, used in Master-Master
  replication setups like in MySQL Galera/Percona XtraDB Cluster.
  User needs only privileges to execute 'SHOW GLOBAL STATUS'
- 
+
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
@@ -7891,7 +7891,7 @@ will be collected.
 =item B<BlockDeviceFormat> B<target>|B<source>
 
 If I<BlockDeviceFormat> is set to B<target>, the default, then the device name
-seen by the guest will be used for reporting metrics. 
+seen by the guest will be used for reporting metrics.
 This corresponds to the C<E<lt>targetE<gt>> node in the XML definition of the
 domain.
 
@@ -8013,9 +8013,10 @@ iptables to feed data for the guest IPs into the iptables plugin.
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
 storage and graphing project. The plugin connects to I<Carbon>, the data layer
-of I<Graphite>, via I<TCP> or I<UDP> and sends data via the "line based"
-protocol (per default using portE<nbsp>2003). The data will be sent in blocks
-of at most 1428 bytes to minimize the number of network packets.
+of I<Graphite>, via I<TCP>(optionally using SSL/TLS) or I<UDP> and sends data
+via the "line based" protocol (per default using portE<nbsp>2003). The data
+will be sent in blocks of at most 1428 bytes to minimize the number of network
+packets.
 
 Synopsis:
 
@@ -8026,6 +8027,19 @@ Synopsis:
      Protocol "tcp"
      LogSendErrors true
      Prefix "collectd"
+   </Node>
+ </Plugin>
+
+Using TLS:
+
+ <Plugin write_graphite>
+   <Node "example_tls">
+     Host "localhost"
+     Port "2345"
+     Protocol "tls"
+     CAFile "./ca_file.pem"
+     KeyFile "./key_file.pem"
+     CertFile "./cert_file.pem"
    </Node>
  </Plugin>
 
@@ -8044,7 +8058,8 @@ Service name or port number to connect to. Defaults to C<2003>.
 
 =item B<Protocol> I<String>
 
-Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>.
+Protocol to use when connecting to I<Graphite>. Defaults to C<tcp>. Use C<tls>
+as protocol name to enable TLS.
 
 =item B<ReconnectInterval> I<Seconds>
 
@@ -8108,6 +8123,22 @@ is preserved, i.e. passed through.
 If set to B<true>, detect and remove duplicate components in Graphite metric
 names. For example, the metric name  C<host.load.load.shortterm> will
 be shortened to C<host.load.shortterm>.
+
+=item B<CAFile> I<String>
+
+Path to PEM file with CA certificates. If B<Protocol> is C<tls>, this option
+must be present.
+
+=item B<CertFile> I<String>
+
+Path to PEM formatted file with certificate for client authentification. In
+case B<Protocol> is C<tls>, this option must be present.
+
+=item B<KeyFile> I<String>
+
+Path to PEM formatted file with private key for client authentification. Key
+must match certificate in B<CertFile>. In case B<Protocol> is C<tls>, this
+option must be present.
 
 =back
 

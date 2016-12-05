@@ -1367,7 +1367,7 @@
 #	SystemManagementInterrupt true
 #	DigitalTemperatureSensor true
 #	PackageThermalManagement true
-#	RunningAveragePowerLimit "7"	
+#	RunningAveragePowerLimit "7"
 #</Plugin>
 
 #<Plugin unixsock>
@@ -1462,6 +1462,9 @@
 #    SeparateInstances false
 #    PreserveSeparator false
 #    DropDuplicateFields false
+#    CAFile "./ca_file.pem"
+#    KeyFile "./key_file.pem"
+#    CertFile "./cert_file.pem"
 #  </Node>
 #</Plugin>
 
