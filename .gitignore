@@ -37,12 +37,13 @@ src/stamp-h1
 *.la
 *.lo
 *.o
+.dirstamp
 .libs/
 .deps/
-src/collectd-nagios
-src/collectd-tg
-src/collectdctl
-src/collectdmon
+/collectd-nagios
+/collectd-tg
+/collectdctl
+/collectdmon
 src/*.1
 src/*.5
 src/.pod2man.tmp.*
@@ -59,26 +60,28 @@ src/liboconfig/parser.h
 src/liboconfig/scanner.c
 
 # protobuf stuff:
-src/*.pb-c.[ch]
-src/*.grpc.pb.cc
-src/*.pb.cc
-src/*.pb.h
+*.pb-c.[ch]
+*.grpc.pb.cc
+*.pb.cc
+*.pb.h
 
 # make dist stuff:
 /collectd-*.tar.gz
 /collectd-*.tar.bz2
 
 # perl stuff:
-bindings/.perl-directory-stamp
+/.perl-directory-stamp
 bindings/perl/Collectd/pm_to_blib
 bindings/perl/blib/
 bindings/perl/pm_to_blib
-bindings/buildperl
+/buildperl
 
 # java stuff
-bindings/java/java-build-stamp
-bindings/java/org/collectd/api/*.class
-bindings/java/org/collectd/java/*.class
+*.jar
+/org/collectd/api/*.class
+/org/collectd/java/*.class
+/bindings/java/java-build-stamp
+/classnoinst.stamp
 
 # python stuff
 *.pyc
@@ -102,4 +105,4 @@ src/test-suite.log
 test_*
 
 # src/daemon/...
-src/daemon/collectd
+/collectd
