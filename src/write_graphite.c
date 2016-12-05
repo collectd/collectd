@@ -1,5 +1,6 @@
 /**
  * collectd - src/write_graphite.c
+ * Copyright (C) 2016       Alexey Starkov
  * Copyright (C) 2012       Pierre-Yves Ritschard
  * Copyright (C) 2011       Scott Sanders
  * Copyright (C) 2009       Paul Sadauskas
@@ -25,6 +26,7 @@
  *   Paul Sadauskas <psadauskas at gmail.com>
  *   Scott Sanders <scott at jssjr.com>
  *   Pierre-Yves Ritschard <pyr at spootnik.org>
+ *   Alexey Starkov <ipdmrd at mail.ru>
  *
  * Based on the write_http plugin.
  **/
@@ -42,6 +44,20 @@
  * </Plugin>
  */
 
+/* write_graphite plugin configuation example with TLS
+ *
+ * <Plugin write_graphite>
+ *   <Carbon>
+ *     Host "localhost"
+ *     Port "2003"
+ *     Protocol "tls"
+ *     CAFile "./ca_file.pem"
+ *     KeyFile "./key_file.pem"
+ *     CertFile "./cert_file.pem"
+ *   </Carbon>
+ * </Plugin>
+ */
+
 #include "collectd.h"
 
 #include "common.h"
@@ -51,6 +67,8 @@
 #include "utils_format_graphite.h"
 
 #include <netdb.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #ifndef WG_DEFAULT_NODE
 #define WG_DEFAULT_NODE "localhost"
@@ -86,12 +104,19 @@
  */
 struct wg_callback {
   int sock_fd;
+  SSL_CTX *ssl_context;
+  SSL *ssl;
 
   char *name;
 
   char *node;
   char *service;
   char *protocol;
+
+  char *ca_file_path;
+  char *cert_file_path;
+  char *key_file_path;
+
   _Bool log_send_errors;
   char *prefix;
   char *postfix;
@@ -114,6 +139,73 @@ struct wg_callback {
   _Bool reconnect_interval_reached;
 };
 
+static int wg_init_ssl(struct wg_callback *cb) {
+  if (strcasecmp("tls", cb->protocol) != 0)
+    return (0);
+
+  if (cb->ssl_context != NULL)
+    return (0);
+
+  SSL_library_init();
+  SSL_load_error_strings();
+
+  cb->ssl_context = SSL_CTX_new(SSLv23_client_method());
+
+  if (!SSL_CTX_load_verify_locations(cb->ssl_context, cb->ca_file_path, NULL)) {
+    ERROR("write_graphite plugin: failed to load CA from \"%s\" (%s).",
+          cb->ca_file_path, ERR_reason_error_string(ERR_get_error()));
+    return (-1);
+  }
+
+  if (!SSL_CTX_use_certificate_file(cb->ssl_context, cb->cert_file_path,
+                                    SSL_FILETYPE_PEM)) {
+    ERROR("write_graphite plugin: failed to load cert from \"%s\" (%s).",
+          cb->cert_file_path, ERR_reason_error_string(ERR_get_error()));
+    return (-1);
+  }
+
+  if (!SSL_CTX_use_PrivateKey_file(cb->ssl_context, cb->key_file_path,
+                                   SSL_FILETYPE_PEM)) {
+    ERROR("write_graphite plugin: failed to load key from \"%s\" (%s).",
+          cb->key_file_path, ERR_reason_error_string(ERR_get_error()));
+    return (-1);
+  }
+
+  SSL_CTX_set_mode(cb->ssl_context, SSL_MODE_AUTO_RETRY);
+  return (0);
+}
+
+static int wg_ssl_wrap_socket(struct wg_callback *cb) {
+  if (strcasecmp("tls", cb->protocol) != 0)
+    return (0);
+
+  if (cb->ssl != NULL)
+    SSL_free(cb->ssl);
+
+  cb->ssl = SSL_new(cb->ssl_context);
+
+  SSL_set_connect_state(cb->ssl);
+  SSL_set_fd(cb->ssl, cb->sock_fd);
+
+  if (!SSL_do_handshake(cb->ssl)) {
+    ERROR("write_graphite plugin: TLS handshake failed (%s).",
+          ERR_reason_error_string(ERR_get_error()));
+    return (-1);
+  }
+  return (0);
+}
+
+static void wg_close_connection(struct wg_callback *cb) {
+  if (cb->ssl != NULL) {
+    SSL_shutdown(cb->ssl);
+    SSL_free(cb->ssl);
+    cb->ssl = NULL;
+  }
+
+  close(cb->sock_fd);
+  cb->sock_fd = -1;
+}
+
 /* wg_force_reconnect_check closes cb->sock_fd when it was open for longer
  * than cb->reconnect_interval. Must hold cb->send_lock when calling. */
 static void wg_force_reconnect_check(struct wg_callback *cb) {
@@ -128,8 +220,8 @@ static void wg_force_reconnect_check(struct wg_callback *cb) {
     return;
 
   /* here we should close connection on next */
-  close(cb->sock_fd);
-  cb->sock_fd = -1;
+  wg_close_connection(cb);
+
   cb->last_reconnect_time = now;
   cb->reconnect_interval_reached = 1;
 
@@ -153,21 +245,133 @@ static int wg_send_buffer(struct wg_callback *cb) {
   if (cb->sock_fd < 0)
     return (-1);
 
-  status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
-  if (status != 0) {
-    if (cb->log_send_errors) {
-      char errbuf[1024];
-      ERROR("write_graphite plugin: send to %s:%s (%s) failed with status %zi "
-            "(%s)",
-            cb->node, cb->service, cb->protocol, status,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+  if (cb->ssl != NULL) {
+    status = SSL_write(cb->ssl, cb->send_buf, strlen(cb->send_buf));
+    if (status <= 0) {
+      if (cb->log_send_errors) {
+        ERROR("write_graphite plugin: SSL_write to %s:%s (%s) failed with "
+              "status %zi (%s)",
+              cb->node, cb->service, cb->protocol, status,
+              ERR_reason_error_string(ERR_get_error()));
+      }
+
+      wg_close_connection(cb);
+
+      return (-1);
     }
+  } else {
+    status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
+    if (status != 0) {
+      if (cb->log_send_errors) {
+        char errbuf[1024];
+        ERROR("write_graphite plugin: send to %s:%s (%s) failed with status "
+              "%zi (%s)",
+              cb->node, cb->service, cb->protocol, status,
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+      }
 
-    close(cb->sock_fd);
-    cb->sock_fd = -1;
+      wg_close_connection(cb);
 
+      return (-1);
+    }
+  }
+
+  return (0);
+}
+
+static int wg_callback_init(struct wg_callback *cb) {
+  struct addrinfo *ai_list;
+  cdtime_t now;
+  int status;
+
+  char connerr[1024] = "";
+
+  if (cb->sock_fd > 0)
+    return (0);
+
+  if (wg_init_ssl(cb) != 0)
+    return (-1);
+
+  /* Don't try to reconnect too often. By default, one reconnection attempt
+   * is made per second. */
+  now = cdtime();
+  if ((now - cb->last_connect_time) < WG_MIN_RECONNECT_INTERVAL)
+    return (EAGAIN);
+  cb->last_connect_time = now;
+
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_ADDRCONFIG};
+
+  if (0 == strcasecmp("udp", cb->protocol))
+    ai_hints.ai_socktype = SOCK_DGRAM;
+  else
+    ai_hints.ai_socktype = SOCK_STREAM;
+
+  status = getaddrinfo(cb->node, cb->service, &ai_hints, &ai_list);
+  if (status != 0) {
+    ERROR("write_graphite plugin: getaddrinfo (%s, %s, %s) failed: %s",
+          cb->node, cb->service, cb->protocol, gai_strerror(status));
     return (-1);
   }
+
+  assert(ai_list != NULL);
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
+       ai_ptr = ai_ptr->ai_next) {
+    cb->sock_fd =
+        socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+    if (cb->sock_fd < 0) {
+      char errbuf[1024];
+      snprintf(connerr, sizeof(connerr), "failed to open socket: %s",
+               sstrerror(errno, errbuf, sizeof(errbuf)));
+      continue;
+    }
+
+    set_sock_opts(cb->sock_fd);
+
+    status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+    if (status != 0) {
+      char errbuf[1024];
+      snprintf(connerr, sizeof(connerr), "failed to connect to remote "
+                                         "host: %s",
+               sstrerror(errno, errbuf, sizeof(errbuf)));
+
+      wg_close_connection(cb);
+
+      continue;
+    }
+
+    break;
+  }
+
+  freeaddrinfo(ai_list);
+
+  if (cb->sock_fd >= 0) {
+    if (wg_ssl_wrap_socket(cb) != 0)
+      wg_close_connection(cb);
+  }
+
+  if (cb->sock_fd < 0) {
+    if (connerr[0] == '\0')
+      /* this should not happen but try to get a message anyway */
+      sstrerror(errno, connerr, sizeof(connerr));
+    c_complain(LOG_ERR, &cb->init_complaint,
+               "write_graphite plugin: Connecting to %s:%s via %s failed. "
+               "The last error was: %s",
+               cb->node, cb->service, cb->protocol, connerr);
+    return (-1);
+  } else {
+    c_release(LOG_INFO, &cb->init_complaint,
+              "write_graphite plugin: Successfully connected to %s:%s via %s.",
+              cb->node, cb->service, cb->protocol);
+  }
+
+  /* wg_force_reconnect_check does not flush the buffer before closing a
+   * sending socket, so only call wg_reset_buffer() if the socket was closed
+   * for a different reason (tracked in cb->reconnect_interval_reached). */
+  if (!cb->reconnect_interval_reached || (cb->send_buf_free == 0))
+    wg_reset_buffer(cb);
+  else
+    cb->reconnect_interval_reached = 0;
 
   return (0);
 }
@@ -200,94 +404,6 @@ static int wg_flush_nolock(cdtime_t timeout, struct wg_callback *cb) {
   return (status);
 }
 
-static int wg_callback_init(struct wg_callback *cb) {
-  struct addrinfo *ai_list;
-  cdtime_t now;
-  int status;
-
-  char connerr[1024] = "";
-
-  if (cb->sock_fd > 0)
-    return (0);
-
-  /* Don't try to reconnect too often. By default, one reconnection attempt
-   * is made per second. */
-  now = cdtime();
-  if ((now - cb->last_connect_time) < WG_MIN_RECONNECT_INTERVAL)
-    return (EAGAIN);
-  cb->last_connect_time = now;
-
-  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG};
-
-  if (0 == strcasecmp("tcp", cb->protocol))
-    ai_hints.ai_socktype = SOCK_STREAM;
-  else
-    ai_hints.ai_socktype = SOCK_DGRAM;
-
-  status = getaddrinfo(cb->node, cb->service, &ai_hints, &ai_list);
-  if (status != 0) {
-    ERROR("write_graphite plugin: getaddrinfo (%s, %s, %s) failed: %s",
-          cb->node, cb->service, cb->protocol, gai_strerror(status));
-    return (-1);
-  }
-
-  assert(ai_list != NULL);
-  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
-       ai_ptr = ai_ptr->ai_next) {
-    cb->sock_fd =
-        socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
-    if (cb->sock_fd < 0) {
-      char errbuf[1024];
-      snprintf(connerr, sizeof(connerr), "failed to open socket: %s",
-               sstrerror(errno, errbuf, sizeof(errbuf)));
-      continue;
-    }
-
-    set_sock_opts(cb->sock_fd);
-
-    status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
-    if (status != 0) {
-      char errbuf[1024];
-      snprintf(connerr, sizeof(connerr), "failed to connect to remote "
-                                         "host: %s",
-               sstrerror(errno, errbuf, sizeof(errbuf)));
-      close(cb->sock_fd);
-      cb->sock_fd = -1;
-      continue;
-    }
-
-    break;
-  }
-
-  freeaddrinfo(ai_list);
-
-  if (cb->sock_fd < 0) {
-    if (connerr[0] == '\0')
-      /* this should not happen but try to get a message anyway */
-      sstrerror(errno, connerr, sizeof(connerr));
-    c_complain(LOG_ERR, &cb->init_complaint,
-               "write_graphite plugin: Connecting to %s:%s via %s failed. "
-               "The last error was: %s",
-               cb->node, cb->service, cb->protocol, connerr);
-    return (-1);
-  } else {
-    c_release(LOG_INFO, &cb->init_complaint,
-              "write_graphite plugin: Successfully connected to %s:%s via %s.",
-              cb->node, cb->service, cb->protocol);
-  }
-
-  /* wg_force_reconnect_check does not flush the buffer before closing a
-   * sending socket, so only call wg_reset_buffer() if the socket was closed
-   * for a different reason (tracked in cb->reconnect_interval_reached). */
-  if (!cb->reconnect_interval_reached || (cb->send_buf_free == 0))
-    wg_reset_buffer(cb);
-  else
-    cb->reconnect_interval_reached = 0;
-
-  return (0);
-}
-
 static void wg_callback_free(void *data) {
   struct wg_callback *cb;
 
@@ -301,9 +417,21 @@ static void wg_callback_free(void *data) {
   wg_flush_nolock(/* timeout = */ 0, cb);
 
   if (cb->sock_fd >= 0) {
-    close(cb->sock_fd);
-    cb->sock_fd = -1;
+    wg_close_connection(cb);
   }
+
+  sfree(cb->name);
+  sfree(cb->node);
+  sfree(cb->protocol);
+  sfree(cb->service);
+  sfree(cb->prefix);
+  sfree(cb->postfix);
+  sfree(cb->ca_file_path);
+  sfree(cb->cert_file_path);
+  sfree(cb->key_file_path);
+
+  if (cb->ssl_context != NULL)
+    SSL_CTX_free(cb->ssl_context);
 
   sfree(cb->name);
   sfree(cb->node);
@@ -467,10 +595,19 @@ static int wg_config_node(oconfig_item_t *ci) {
     return (-1);
   }
   cb->sock_fd = -1;
+
+  cb->ssl_context = NULL;
+  cb->ssl = NULL;
+
   cb->name = NULL;
   cb->node = strdup(WG_DEFAULT_NODE);
   cb->service = strdup(WG_DEFAULT_SERVICE);
   cb->protocol = strdup(WG_DEFAULT_PROTOCOL);
+
+  cb->ca_file_path = NULL;
+  cb->cert_file_path = NULL;
+  cb->key_file_path = NULL;
+
   cb->last_reconnect_time = cdtime();
   cb->reconnect_interval = 0;
   cb->reconnect_interval_reached = 0;
@@ -503,7 +640,8 @@ static int wg_config_node(oconfig_item_t *ci) {
       cf_util_get_string(child, &cb->protocol);
 
       if (strcasecmp("UDP", cb->protocol) != 0 &&
-          strcasecmp("TCP", cb->protocol) != 0) {
+          strcasecmp("TCP", cb->protocol) != 0 &&
+          strcasecmp("TLS", cb->protocol) != 0) {
         ERROR("write_graphite plugin: Unknown protocol (%s)", cb->protocol);
         status = -1;
       }
@@ -527,6 +665,12 @@ static int wg_config_node(oconfig_item_t *ci) {
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_DROP_DUPE_FIELDS);
     else if (strcasecmp("EscapeCharacter", child->key) == 0)
       config_set_char(&cb->escape_char, child);
+    else if (strcasecmp("CAFile", child->key) == 0)
+      cf_util_get_string(child, &cb->ca_file_path);
+    else if (strcasecmp("CertFile", child->key) == 0)
+      cf_util_get_string(child, &cb->cert_file_path);
+    else if (strcasecmp("KeyFile", child->key) == 0)
+      cf_util_get_string(child, &cb->key_file_path);
     else {
       ERROR("write_graphite plugin: Invalid configuration "
             "option: %s.",
