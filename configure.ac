@@ -4809,6 +4809,16 @@ PKG_CHECK_MODULES([LIBSIGROK], [libsigrok < 0.4],
 )
 # }}}
 
+# libssl {{{
+AC_SUBST([LIBSSL_CFLAGS])
+AC_SUBST([LIBSSL_LIBS])
+PKG_CHECK_MODULES([LIBSSL], [libssl],
+  [with_libssl="yes"],
+  [with_libssl="no (pkg-config could not find libssl)"]
+)
+AM_CONDITIONAL(BUILD_WITH_LIBSSL, test "x$with_libssl" = "xyes")
+# }}}
+
 # --with-libstatgrab {{{
 with_libstatgrab_cflags=""
 with_libstatgrab_ldflags=""
@@ -5994,7 +6004,7 @@ then
 	then
 		plugin_turbostat="yes"
 	fi
-	
+
 	if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"
 	then
 		plugin_cpusleep="yes"
@@ -6476,7 +6486,7 @@ AC_PLUGIN([virt],                [$plugin_virt],            [Virtual machine sta
 AC_PLUGIN([vmem],                [$plugin_vmem],            [Virtual memory statistics])
 AC_PLUGIN([vserver],             [$plugin_vserver],         [Linux VServer statistics])
 AC_PLUGIN([wireless],            [$plugin_wireless],        [Wireless statistics])
-AC_PLUGIN([write_graphite],      [yes],                     [Graphite / Carbon output plugin])
+AC_PLUGIN([write_graphite],      [$with_libssl],            [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin])
 AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
 AC_PLUGIN([write_log],           [yes],                     [Log output plugin])
@@ -6758,6 +6768,7 @@ AC_MSG_RESULT([    librouteros . . . . . $with_librouteros])
 AC_MSG_RESULT([    librrd  . . . . . . . $with_librrd])
 AC_MSG_RESULT([    libsensors  . . . . . $with_libsensors])
 AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
+AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])

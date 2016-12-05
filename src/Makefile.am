@@ -1301,7 +1301,7 @@ if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = write_graphite.c
 write_graphite_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_graphite_la_LIBADD = libformat_graphite.la
+write_graphite_la_LIBADD = libformat_graphite.la -lssl -lcrypto
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP
