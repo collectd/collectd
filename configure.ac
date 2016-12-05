@@ -5984,7 +5984,7 @@ if test "x$ac_system" = "xLinux"; then
     plugin_ipvs="yes"
   fi
 
-  if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes" && test "x$have_capability" = "xyes"; then
+  if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"; then
     plugin_turbostat="yes"
   fi
   
