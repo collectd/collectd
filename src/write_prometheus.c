@@ -665,8 +665,7 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
 
   /* Prometheus best practices:
    * cumulative metrics should have a "total" suffix. */
-  if ((ds->ds[ds_index].type == DS_TYPE_COUNTER) ||
-      (ds->ds[ds_index].type == DS_TYPE_DERIVE)) {
+  if (ds->ds[ds_index].type == DS_TYPE_COUNTER) {
     fields[fields_num] = "total";
     fields_num++;
   }
