@@ -32,6 +32,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
@@ -51,6 +52,8 @@ static const char *config_keys[] = {"Connection",
                                     "InterfaceFormat",
 
                                     "PluginInstanceFormat",
+
+                                    "Instances",
 
                                     NULL};
 #define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
@@ -73,24 +76,11 @@ static ignorelist_t *il_interface_devices = NULL;
 static int ignore_device_match(ignorelist_t *, const char *domname,
                                const char *devpath);
 
-/* Actual list of domains found on last refresh. */
-static virDomainPtr *domains = NULL;
-static int nr_domains = 0;
-
-static void free_domains(void);
-static int add_domain(virDomainPtr dom);
-
 /* Actual list of block devices found on last refresh. */
 struct block_device {
   virDomainPtr dom; /* domain */
   char *path;       /* name of block device */
 };
-
-static struct block_device *block_devices = NULL;
-static int nr_block_devices = 0;
-
-static void free_block_devices(void);
-static int add_block_device(virDomainPtr dom, const char *path);
 
 /* Actual list of network interfaces found on last refresh. */
 struct interface_device {
@@ -100,12 +90,52 @@ struct interface_device {
   char *number;     /* interface device number */
 };
 
-static struct interface_device *interface_devices = NULL;
-static int nr_interface_devices = 0;
+struct lv_read_state {
+  /* Actual list of domains found on last refresh. */
+  virDomainPtr *domains;
+  int nr_domains;
 
-static void free_interface_devices(void);
-static int add_interface_device(virDomainPtr dom, const char *path,
-                                const char *address, unsigned int number);
+  struct block_device *block_devices;
+  int nr_block_devices;
+
+  struct interface_device *interface_devices;
+  int nr_interface_devices;
+};
+
+static void free_domains(struct lv_read_state *state);
+static int add_domain(struct lv_read_state *state, virDomainPtr dom);
+
+static void free_block_devices(struct lv_read_state *state);
+static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
+                            const char *path);
+
+static void free_interface_devices(struct lv_read_state *state);
+static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
+                                const char *path, const char *address,
+                                unsigned int number);
+
+#define METADATA_VM_PARTITION_URI "http://ovirt.org/ovirtmap/tag/1.0"
+#define METADATA_VM_PARTITION_ELEMENT "tag"
+#define METADATA_VM_PARTITION_PREFIX "ovirtmap"
+
+#define BUFFER_MAX_LEN 256
+#define PARTITION_TAG_MAX_LEN 32
+
+struct lv_read_instance {
+  struct lv_read_state read_state;
+  char tag[PARTITION_TAG_MAX_LEN];
+  size_t id;
+};
+
+struct lv_user_data {
+  struct lv_read_instance inst;
+  user_data_t ud;
+};
+
+#define NR_INSTANCES_DEFAULT 1
+#define NR_INSTANCES_MAX 128
+static int nr_instances = NR_INSTANCES_DEFAULT;
+static struct lv_user_data lv_read_user_data[NR_INSTANCES_MAX];
 
 /* HostnameFormat. */
 #define HF_MAX_FIELDS 3
@@ -136,7 +166,7 @@ static enum if_field interface_format = if_name;
 /* Time that we last refreshed. */
 static time_t last_refresh = (time_t)0;
 
-static int refresh_lists(void);
+static int refresh_lists(struct lv_read_instance *inst);
 
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn, s)                                                    \
@@ -275,13 +305,6 @@ static void submit_derive2(const char *type, derive_t v0, derive_t v1,
 
   submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
 } /* void submit_derive2 */
-
-static int lv_init(void) {
-  if (virInitialize() != 0)
-    return -1;
-  else
-    return 0;
-}
 
 static int lv_config(const char *key, const char *value) {
   if (virInitialize() != 0)
@@ -453,14 +476,48 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
 
+  if (strcasecmp(key, "Instances") == 0) {
+    char *eptr = NULL;
+    double val = strtod(value, &eptr);
+
+    if (*eptr != '\0') {
+      ERROR(PLUGIN_NAME " plugin: Invalid value for Instances = '%s'", value);
+      return 1;
+    }
+    if (val <= 0) {
+      ERROR(PLUGIN_NAME " plugin: Instances <= 0 makes no sense.");
+      return 1;
+    }
+    if (val > NR_INSTANCES_MAX) {
+      ERROR(PLUGIN_NAME " plugin: Instances=%f > NR_INSTANCES_MAX=%i"
+                        " use a lower setting or recompile the plugin.",
+            val, NR_INSTANCES_MAX);
+      return 1;
+    }
+
+    nr_instances = (int)val;
+    DEBUG(PLUGIN_NAME " plugin: configured %i instances", nr_instances);
+    return 0;
+  }
+
   /* Unrecognised option. */
   return -1;
 }
 
-static int lv_read(void) {
+static int lv_read(user_data_t *ud) {
   time_t t;
+  struct lv_read_instance *inst = NULL;
+  struct lv_read_state *state = NULL;
 
-  if (conn == NULL) {
+  if (ud->data == NULL) {
+    ERROR(PLUGIN_NAME " plugin: NULL userdata");
+    return -1;
+  }
+
+  inst = ud->data;
+  state = &inst->read_state;
+
+  if (inst->id == 0 && conn == NULL) {
     /* `conn_string == NULL' is acceptable. */
     conn = virConnectOpenReadOnly(conn_string);
     if (conn == NULL) {
@@ -478,7 +535,7 @@ static int lv_read(void) {
   /* Need to refresh domain or device lists? */
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
-    if (refresh_lists() != 0) {
+    if (refresh_lists(inst) != 0) {
       if (conn != NULL)
         virConnectClose(conn);
       conn = NULL;
@@ -501,13 +558,13 @@ static int lv_read(void) {
 #endif
 
   /* Get CPU usage, memory, VCPU usage for each domain. */
-  for (int i = 0; i < nr_domains; ++i) {
+  for (int i = 0; i < state->nr_domains; ++i) {
     virDomainInfo info;
     virVcpuInfoPtr vinfo = NULL;
     virDomainMemoryStatPtr minfo = NULL;
     int status;
 
-    status = virDomainGetInfo(domains[i], &info);
+    status = virDomainGetInfo(state->domains[i], &info);
     if (status != 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
             status);
@@ -519,8 +576,8 @@ static int lv_read(void) {
       continue;
     }
 
-    cpu_submit(info.cpuTime, domains[i], "virt_cpu_total");
-    memory_submit((gauge_t)info.memory * 1024, domains[i]);
+    cpu_submit(info.cpuTime, state->domains[i], "virt_cpu_total");
+    memory_submit((gauge_t)info.memory * 1024, state->domains[i]);
 
     vinfo = malloc(info.nrVirtCpu * sizeof(vinfo[0]));
     if (vinfo == NULL) {
@@ -528,7 +585,7 @@ static int lv_read(void) {
       continue;
     }
 
-    status = virDomainGetVcpus(domains[i], vinfo, info.nrVirtCpu,
+    status = virDomainGetVcpus(state->domains[i], vinfo, info.nrVirtCpu,
                                /* cpu map = */ NULL, /* cpu map length = */ 0);
     if (status < 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
@@ -538,7 +595,8 @@ static int lv_read(void) {
     }
 
     for (int j = 0; j < info.nrVirtCpu; ++j)
-      vcpu_submit(vinfo[j].cpuTime, domains[i], vinfo[j].number, "virt_vcpu");
+      vcpu_submit(vinfo[j].cpuTime, state->domains[i], vinfo[j].number,
+                  "virt_vcpu");
 
     sfree(vinfo);
 
@@ -549,8 +607,8 @@ static int lv_read(void) {
       continue;
     }
 
-    status =
-        virDomainMemoryStats(domains[i], minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
+    status = virDomainMemoryStats(state->domains[i], minfo,
+                                  VIR_DOMAIN_MEMORY_STAT_NR, 0);
 
     if (status < 0) {
       ERROR("virt plugin: virDomainMemoryStats failed with status %i.", status);
@@ -559,7 +617,7 @@ static int lv_read(void) {
     }
 
     for (int j = 0; j < status; j++) {
-      memory_stats_submit((gauge_t)minfo[j].val * 1024, domains[i],
+      memory_stats_submit((gauge_t)minfo[j].val * 1024, state->domains[i],
                           minfo[j].tag);
     }
 
@@ -567,78 +625,209 @@ static int lv_read(void) {
   }
 
   /* Get block device stats for each domain. */
-  for (int i = 0; i < nr_block_devices; ++i) {
+  for (int i = 0; i < state->nr_block_devices; ++i) {
     struct _virDomainBlockStats stats;
 
-    if (virDomainBlockStats(block_devices[i].dom, block_devices[i].path, &stats,
+    if (virDomainBlockStats(state->block_devices[i].dom,
+                            state->block_devices[i].path, &stats,
                             sizeof stats) != 0)
       continue;
 
     char *type_instance = NULL;
     if (blockdevice_format_basename && blockdevice_format == source)
-      type_instance = strdup(basename(block_devices[i].path));
+      type_instance = strdup(basename(state->block_devices[i].path));
     else
-      type_instance = strdup(block_devices[i].path);
+      type_instance = strdup(state->block_devices[i].path);
 
     if ((stats.rd_req != -1) && (stats.wr_req != -1))
       submit_derive2("disk_ops", (derive_t)stats.rd_req, (derive_t)stats.wr_req,
-                     block_devices[i].dom, type_instance);
+                     state->block_devices[i].dom, type_instance);
 
     if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
       submit_derive2("disk_octets", (derive_t)stats.rd_bytes,
-                     (derive_t)stats.wr_bytes, block_devices[i].dom,
+                     (derive_t)stats.wr_bytes, state->block_devices[i].dom,
                      type_instance);
 
     sfree(type_instance);
   } /* for (nr_block_devices) */
 
   /* Get interface stats for each domain. */
-  for (int i = 0; i < nr_interface_devices; ++i) {
+  for (int i = 0; i < state->nr_interface_devices; ++i) {
     struct _virDomainInterfaceStats stats;
     char *display_name = NULL;
 
     switch (interface_format) {
     case if_address:
-      display_name = interface_devices[i].address;
+      display_name = state->interface_devices[i].address;
       break;
     case if_number:
-      display_name = interface_devices[i].number;
+      display_name = state->interface_devices[i].number;
       break;
     case if_name:
     default:
-      display_name = interface_devices[i].path;
+      display_name = state->interface_devices[i].path;
     }
 
-    if (virDomainInterfaceStats(interface_devices[i].dom,
-                                interface_devices[i].path, &stats,
+    if (virDomainInterfaceStats(state->interface_devices[i].dom,
+                                state->interface_devices[i].path, &stats,
                                 sizeof stats) != 0)
       continue;
 
     if ((stats.rx_bytes != -1) && (stats.tx_bytes != -1))
       submit_derive2("if_octets", (derive_t)stats.rx_bytes,
-                     (derive_t)stats.tx_bytes, interface_devices[i].dom,
+                     (derive_t)stats.tx_bytes, state->interface_devices[i].dom,
                      display_name);
 
     if ((stats.rx_packets != -1) && (stats.tx_packets != -1))
       submit_derive2("if_packets", (derive_t)stats.rx_packets,
-                     (derive_t)stats.tx_packets, interface_devices[i].dom,
-                     display_name);
+                     (derive_t)stats.tx_packets,
+                     state->interface_devices[i].dom, display_name);
 
     if ((stats.rx_errs != -1) && (stats.tx_errs != -1))
       submit_derive2("if_errors", (derive_t)stats.rx_errs,
-                     (derive_t)stats.tx_errs, interface_devices[i].dom,
+                     (derive_t)stats.tx_errs, state->interface_devices[i].dom,
                      display_name);
 
     if ((stats.rx_drop != -1) && (stats.tx_drop != -1))
       submit_derive2("if_dropped", (derive_t)stats.rx_drop,
-                     (derive_t)stats.tx_drop, interface_devices[i].dom,
+                     (derive_t)stats.tx_drop, state->interface_devices[i].dom,
                      display_name);
   } /* for (nr_interface_devices) */
 
   return 0;
 }
 
-static int refresh_lists(void) {
+static int lv_init_instance(size_t i, plugin_read_cb callback) {
+  struct lv_user_data *lv_ud = &(lv_read_user_data[i]);
+  struct lv_read_instance *inst = &(lv_ud->inst);
+
+  memset(lv_ud, 0, sizeof(*lv_ud));
+
+  ssnprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
+  inst->id = i;
+
+  user_data_t *ud = &(lv_ud->ud);
+  ud->data = inst;
+  ud->free_func = NULL;
+
+  INFO(PLUGIN_NAME " plugin: reader %s initialized", inst->tag);
+  return plugin_register_complex_read(NULL, inst->tag, callback, 0, ud);
+}
+
+static void lv_clean_read_state(struct lv_read_state *state) {
+  free_block_devices(state);
+  free_interface_devices(state);
+  free_domains(state);
+}
+
+static void lv_fini_instance(size_t i) {
+  struct lv_read_instance *inst = &(lv_read_user_data[i].inst);
+  struct lv_read_state *state = &(inst->read_state);
+
+  lv_clean_read_state(state);
+  INFO(PLUGIN_NAME " plugin: reader %s finalized", inst->tag);
+}
+
+static int lv_init(void) {
+  if (virInitialize() != 0)
+    return -1;
+
+  DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
+
+  for (int i = 0; i < nr_instances; ++i)
+    lv_init_instance(i, lv_read);
+
+  return 0;
+}
+
+static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
+                             char *dom_tag) {
+  char xpath_str[BUFFER_MAX_LEN] = {'\0'};
+  xmlXPathObjectPtr xpath_obj = NULL;
+  xmlNodePtr xml_node = NULL;
+  int err = -1;
+
+  err = xmlXPathRegisterNs(xpath_ctx,
+                           (const xmlChar *)METADATA_VM_PARTITION_PREFIX,
+                           (const xmlChar *)METADATA_VM_PARTITION_URI);
+  if (err) {
+    ERROR(PLUGIN_NAME " plugin: xmlXpathRegisterNs(%s, %s) failed on domain %s",
+          METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_URI, dom_name);
+    goto done;
+  }
+
+  ssnprintf(xpath_str, sizeof(xpath_str), "/domain/metadata/%s:%s/text()",
+            METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_ELEMENT);
+  xpath_obj = xmlXPathEvalExpression((xmlChar *)xpath_str, xpath_ctx);
+  if (xpath_obj == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed on domain %s",
+          xpath_str, dom_name);
+    goto done;
+  }
+
+  if (xpath_obj->type != XPATH_NODESET) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unexpected return type %d "
+                      "(wanted %d) on domain %s",
+          xpath_str, xpath_obj->type, XPATH_NODESET, dom_name);
+    goto done;
+  }
+
+  /*
+   * from now on there is no real error, it's ok if a domain
+   * doesn't have the metadata partition tag.
+   */
+  err = 0;
+
+  if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
+    DEBUG(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
+                      "expected=1 on domain %s",
+          xpath_str,
+          (xpath_obj->nodesetval == NULL) ? 0 : xpath_obj->nodesetval->nodeNr,
+          dom_name);
+  } else {
+    xml_node = xpath_obj->nodesetval->nodeTab[0];
+    sstrncpy(dom_tag, (const char *)xml_node->content, PARTITION_TAG_MAX_LEN);
+  }
+
+done:
+  /* deregister to clean up */
+  err = xmlXPathRegisterNs(xpath_ctx,
+                           (const xmlChar *)METADATA_VM_PARTITION_PREFIX, NULL);
+
+  if (xpath_obj)
+    xmlXPathFreeObject(xpath_obj);
+
+  return err;
+}
+
+static int is_known_tag(const char *dom_tag) {
+  for (int i = 0; i < nr_instances; ++i)
+    if (!strcmp(dom_tag, lv_read_user_data[i].inst.tag))
+      return 1;
+  return 0;
+}
+
+static int lv_instance_include_domain(struct lv_read_instance *inst,
+                                      const char *dom_name,
+                                      const char *dom_tag) {
+  if ((dom_tag[0] != '\0') && (strcmp(dom_tag, inst->tag) == 0))
+    return 1;
+
+  /* instance#0 will always be there, so it is in charge of extra duties */
+  if (inst->id == 0) {
+    if (dom_tag[0] == '\0' || !is_known_tag(dom_tag)) {
+      DEBUG(PLUGIN_NAME " plugin#%s: refreshing domain %s "
+                        "with unknown tag '%s'",
+            inst->tag, dom_name, dom_tag);
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+static int refresh_lists(struct lv_read_instance *inst) {
+  struct lv_read_state *state = &inst->read_state;
   int n;
 
   n = virConnectNumOfDomains(conn);
@@ -646,6 +835,8 @@ static int refresh_lists(void) {
     VIRT_ERROR(conn, "reading number of domains");
     return -1;
   }
+
+  lv_clean_read_state(state);
 
   if (n > 0) {
     int *domids;
@@ -664,10 +855,6 @@ static int refresh_lists(void) {
       return -1;
     }
 
-    free_block_devices();
-    free_interface_devices();
-    free_domains();
-
     /* Fetch each domain and add it to the list, unless ignore. */
     for (int i = 0; i < n; ++i) {
       virDomainPtr dom = NULL;
@@ -676,6 +863,7 @@ static int refresh_lists(void) {
       xmlDocPtr xml_doc = NULL;
       xmlXPathContextPtr xpath_ctx = NULL;
       xmlXPathObjectPtr xpath_obj = NULL;
+      char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
 
       dom = virDomainLookupByID(conn, domids[i]);
       if (dom == NULL) {
@@ -693,11 +881,6 @@ static int refresh_lists(void) {
       if (il_domains && ignorelist_match(il_domains, name) != 0)
         goto cont;
 
-      if (add_domain(dom) < 0) {
-        ERROR(PLUGIN_NAME " plugin: malloc failed.");
-        goto cont;
-      }
-
       /* Get a list of devices for this domain. */
       xml = virDomainGetXMLDesc(dom, 0);
       if (!xml) {
@@ -713,6 +896,19 @@ static int refresh_lists(void) {
       }
 
       xpath_ctx = xmlXPathNewContext(xml_doc);
+
+      if (lv_domain_get_tag(xpath_ctx, name, tag) < 0) {
+        ERROR(PLUGIN_NAME " plugin: lv_domain_get_tag failed.");
+        goto cont;
+      }
+
+      if (!lv_instance_include_domain(inst, name, tag))
+        goto cont;
+
+      if (add_domain(state, dom) < 0) {
+        ERROR(PLUGIN_NAME " plugin: malloc failed.");
+        goto cont;
+      }
 
       /* Block devices. */
       char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
@@ -739,7 +935,7 @@ static int refresh_lists(void) {
             ignore_device_match(il_block_devices, name, path) != 0)
           goto cont2;
 
-        add_block_device(dom, path);
+        add_block_device(state, dom, path);
       cont2:
         if (path)
           xmlFree(path);
@@ -785,7 +981,7 @@ static int refresh_lists(void) {
              ignore_device_match(il_interface_devices, name, address) != 0))
           goto cont3;
 
-        add_interface_device(dom, path, address, j + 1);
+        add_interface_device(state, dom, path, address, j + 1);
       cont3:
         if (path)
           xmlFree(path);
@@ -806,57 +1002,64 @@ static int refresh_lists(void) {
     sfree(domids);
   }
 
+  DEBUG(PLUGIN_NAME " plugin#%s: refreshing"
+                    " domains=%i block_devices=%i iface_devices=%i",
+        inst->tag, state->nr_domains, state->nr_block_devices,
+        state->nr_interface_devices);
+
   return 0;
 }
 
-static void free_domains(void) {
-  if (domains) {
-    for (int i = 0; i < nr_domains; ++i)
-      virDomainFree(domains[i]);
-    sfree(domains);
+static void free_domains(struct lv_read_state *state) {
+  if (state->domains) {
+    for (int i = 0; i < state->nr_domains; ++i)
+      virDomainFree(state->domains[i]);
+    sfree(state->domains);
   }
-  domains = NULL;
-  nr_domains = 0;
+  state->domains = NULL;
+  state->nr_domains = 0;
 }
 
-static int add_domain(virDomainPtr dom) {
+static int add_domain(struct lv_read_state *state, virDomainPtr dom) {
   virDomainPtr *new_ptr;
-  int new_size = sizeof(domains[0]) * (nr_domains + 1);
+  int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
-  if (domains)
-    new_ptr = realloc(domains, new_size);
+  if (state->domains)
+    new_ptr = realloc(state->domains, new_size);
   else
     new_ptr = malloc(new_size);
 
   if (new_ptr == NULL)
     return -1;
 
-  domains = new_ptr;
-  domains[nr_domains] = dom;
-  return nr_domains++;
+  state->domains = new_ptr;
+  state->domains[state->nr_domains] = dom;
+  return state->nr_domains++;
 }
 
-static void free_block_devices(void) {
-  if (block_devices) {
-    for (int i = 0; i < nr_block_devices; ++i)
-      sfree(block_devices[i].path);
-    sfree(block_devices);
+static void free_block_devices(struct lv_read_state *state) {
+  if (state->block_devices) {
+    for (int i = 0; i < state->nr_block_devices; ++i)
+      sfree(state->block_devices[i].path);
+    sfree(state->block_devices);
   }
-  block_devices = NULL;
-  nr_block_devices = 0;
+  state->block_devices = NULL;
+  state->nr_block_devices = 0;
 }
 
-static int add_block_device(virDomainPtr dom, const char *path) {
+static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
+                            const char *path) {
   struct block_device *new_ptr;
-  int new_size = sizeof(block_devices[0]) * (nr_block_devices + 1);
+  int new_size =
+      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
   char *path_copy;
 
   path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  if (block_devices)
-    new_ptr = realloc(block_devices, new_size);
+  if (state->block_devices)
+    new_ptr = realloc(state->block_devices, new_size);
   else
     new_ptr = malloc(new_size);
 
@@ -864,29 +1067,31 @@ static int add_block_device(virDomainPtr dom, const char *path) {
     sfree(path_copy);
     return -1;
   }
-  block_devices = new_ptr;
-  block_devices[nr_block_devices].dom = dom;
-  block_devices[nr_block_devices].path = path_copy;
-  return nr_block_devices++;
+  state->block_devices = new_ptr;
+  state->block_devices[state->nr_block_devices].dom = dom;
+  state->block_devices[state->nr_block_devices].path = path_copy;
+  return state->nr_block_devices++;
 }
 
-static void free_interface_devices(void) {
-  if (interface_devices) {
-    for (int i = 0; i < nr_interface_devices; ++i) {
-      sfree(interface_devices[i].path);
-      sfree(interface_devices[i].address);
-      sfree(interface_devices[i].number);
+static void free_interface_devices(struct lv_read_state *state) {
+  if (state->interface_devices) {
+    for (int i = 0; i < state->nr_interface_devices; ++i) {
+      sfree(state->interface_devices[i].path);
+      sfree(state->interface_devices[i].address);
+      sfree(state->interface_devices[i].number);
     }
-    sfree(interface_devices);
+    sfree(state->interface_devices);
   }
-  interface_devices = NULL;
-  nr_interface_devices = 0;
+  state->interface_devices = NULL;
+  state->nr_interface_devices = 0;
 }
 
-static int add_interface_device(virDomainPtr dom, const char *path,
-                                const char *address, unsigned int number) {
+static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
+                                const char *path, const char *address,
+                                unsigned int number) {
   struct interface_device *new_ptr;
-  int new_size = sizeof(interface_devices[0]) * (nr_interface_devices + 1);
+  int new_size =
+      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
   char *path_copy, *address_copy, number_string[15];
 
   if ((path == NULL) || (address == NULL))
@@ -904,8 +1109,8 @@ static int add_interface_device(virDomainPtr dom, const char *path,
 
   snprintf(number_string, sizeof(number_string), "interface-%u", number);
 
-  if (interface_devices)
-    new_ptr = realloc(interface_devices, new_size);
+  if (state->interface_devices)
+    new_ptr = realloc(state->interface_devices, new_size);
   else
     new_ptr = malloc(new_size);
 
@@ -914,12 +1119,13 @@ static int add_interface_device(virDomainPtr dom, const char *path,
     sfree(address_copy);
     return -1;
   }
-  interface_devices = new_ptr;
-  interface_devices[nr_interface_devices].dom = dom;
-  interface_devices[nr_interface_devices].path = path_copy;
-  interface_devices[nr_interface_devices].address = address_copy;
-  interface_devices[nr_interface_devices].number = strdup(number_string);
-  return nr_interface_devices++;
+  state->interface_devices = new_ptr;
+  state->interface_devices[state->nr_interface_devices].dom = dom;
+  state->interface_devices[state->nr_interface_devices].path = path_copy;
+  state->interface_devices[state->nr_interface_devices].address = address_copy;
+  state->interface_devices[state->nr_interface_devices].number =
+      strdup(number_string);
+  return state->nr_interface_devices++;
 }
 
 static int ignore_device_match(ignorelist_t *il, const char *domname,
@@ -943,9 +1149,9 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
 }
 
 static int lv_shutdown(void) {
-  free_block_devices();
-  free_interface_devices();
-  free_domains();
+  for (int i = 0; i < nr_instances; ++i) {
+    lv_fini_instance(i);
+  }
 
   if (conn != NULL)
     virConnectClose(conn);
@@ -964,7 +1170,6 @@ static int lv_shutdown(void) {
 void module_register(void) {
   plugin_register_config(PLUGIN_NAME, lv_config, config_keys, NR_CONFIG_KEYS);
   plugin_register_init(PLUGIN_NAME, lv_init);
-  plugin_register_read(PLUGIN_NAME, lv_read);
   plugin_register_shutdown(PLUGIN_NAME, lv_shutdown);
 }
 

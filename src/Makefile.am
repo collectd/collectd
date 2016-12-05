@@ -1282,6 +1282,19 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_virt_SOURCES = virt_test.c
+test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
+		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_virt_LDADD = daemon/libplugin_mock.la \
+		$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+# TODO: enable once we support only modern libvirts which depends on libnl-3
+# the libvirt on wheezy is linked in libnl v1, and there is a small leak here,
+# triggered by the library initialization. There are no means to avoid it,
+# and libvirt switched to libnl3 anyway
+#check_PROGRAMS += test_plugin_virt
+#TESTS += test_plugin_virt
 endif
 
 if BUILD_PLUGIN_VMEM

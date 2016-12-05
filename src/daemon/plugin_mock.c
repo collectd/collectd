@@ -32,6 +32,12 @@ kstat_ctl_t *kc = NULL;
 
 char hostname_g[] = "example.com";
 
+int plugin_register_config(const char *name,
+                           int (*callback)(const char *key, const char *val),
+                           const char **keys, int keys_num) {
+  return ENOTSUP;
+}
+
 int plugin_register_complex_config(const char *type,
                                    int (*callback)(oconfig_item_t *)) {
   return ENOTSUP;
@@ -42,6 +48,13 @@ int plugin_register_init(const char *name, plugin_init_cb callback) {
 }
 
 int plugin_register_read(const char *name, int (*callback)(void)) {
+  return ENOTSUP;
+}
+
+int plugin_register_complex_read(const char *group, const char *name,
+                                 int (*callback)(user_data_t *),
+                                 cdtime_t interval,
+                                 user_data_t const *user_data) {
   return ENOTSUP;
 }
 
