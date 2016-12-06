@@ -38,9 +38,7 @@
 
 #undef DONT_POISON_SPRINTF_YET
 
-#if HAVE_STDBOOL_H
 #include <stdbool.h>
-#endif
 
 #include <EXTERN.h>
 #include <perl.h>
