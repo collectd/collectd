@@ -61,18 +61,19 @@ test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
 noinst_LTLIBRARIES += libcmds.la
 libcmds_la_SOURCES = utils_cmds.c utils_cmds.h \
-		utils_cmd_flush.c utils_cmd_flush.h \
-		utils_cmd_getval.c utils_cmd_getval.h \
-		utils_cmd_listval.c utils_cmd_listval.h \
-		utils_cmd_putval.c utils_cmd_putval.h \
-		utils_parse_option.c
-libcmds_la_LIBADD = daemon/libcommon.la daemon/libmetadata.la \
-		daemon/libplugin_mock.la -lm
+                     utils_cmd_flush.c utils_cmd_flush.h \
+                     utils_cmd_getthreshold.c utils_cmd_getthreshold.h \
+                     utils_cmd_getval.c utils_cmd_getval.h \
+                     utils_cmd_listval.c utils_cmd_listval.h \
+                     utils_cmd_putnotif.c utils_cmd_putnotif.h \
+                     utils_cmd_putval.c utils_cmd_putval.h \
+                     utils_parse_option.c utils_parse_option.h
+libcmds_la_LIBADD = daemon/libcommon.la daemon/libmetadata.la -lm
 check_PROGRAMS += test_utils_cmds
 TESTS += test_utils_cmds
 test_utils_cmds_SOURCES = utils_cmds_test.c testing.h
 test_utils_cmds_LDADD = libcmds.la \
-		daemon/libplugin_mock.la daemon/libmetadata.la
+                        daemon/libplugin_mock.la
 
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
@@ -178,13 +179,11 @@ endif
 
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
-amqp_la_SOURCES = amqp.c \
-		  utils_cmds.c utils_cmds.h \
-		  utils_cmd_putval.c utils_cmd_putval.h \
-		  utils_parse_option.c utils_parse_option.h
+amqp_la_SOURCES = amqp.c
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
-amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_graphite.la libformat_json.la
+amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) \
+                 libcmds.la libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_APACHE
@@ -444,12 +443,8 @@ endif
 
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
-exec_la_SOURCES = exec.c \
-		  utils_cmds.c utils_cmds.h \
-		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
-		  utils_cmd_putval.c utils_cmd_putval.h \
-		  utils_parse_option.h utils_parse_option.c
-exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+exec_la_SOURCES = exec.c
+exec_la_LDFLAGS = $(PLUGIN_LDFLAGS) libcmds.la
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -1221,16 +1216,8 @@ endif
 
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
-unixsock_la_SOURCES = unixsock.c \
-		      utils_cmds.c utils_cmds.h \
-		      utils_cmd_flush.h utils_cmd_flush.c \
-		      utils_cmd_getval.h utils_cmd_getval.c \
-		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
-		      utils_cmd_listval.h utils_cmd_listval.c \
-		      utils_cmd_putval.h utils_cmd_putval.c \
-		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
-		      utils_parse_option.h utils_parse_option.c
-unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+unixsock_la_SOURCES = unixsock.c
+unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS) libcmds.la
 endif
 
 if BUILD_PLUGIN_UPTIME
@@ -1321,12 +1308,11 @@ endif
 if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
-                        utils_cmds.c utils_cmds.h \
-                        utils_cmd_putval.c utils_cmd_putval.h \
-                        utils_crc32.c utils_crc32.h
+                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
-write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_graphite.la libformat_json.la
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) \
+                        libcmds.la libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_LOG
