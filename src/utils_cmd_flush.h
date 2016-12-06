@@ -27,9 +27,9 @@
 #ifndef UTILS_CMD_FLUSH_H
 #define UTILS_CMD_FLUSH_H 1
 
-#include <stdio.h>
-
 #include "utils_cmds.h"
+
+#include <stdio.h>
 
 cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
                              const cmd_options_t *opts,

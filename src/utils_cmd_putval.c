@@ -29,12 +29,7 @@
 #include "collectd.h"
 
 #include "common.h"
-#include "plugin.h"
-
 #include "utils_cmd_putval.h"
-#include "utils_cmd_putval.h"
-#include "utils_cmds.h"
-#include "utils_parse_option.h"
 
 /*
  * private helper functions
