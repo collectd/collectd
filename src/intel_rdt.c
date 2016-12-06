@@ -478,10 +478,6 @@ static int rdt_preinit(void) {
     return (-ENOMEM);
   }
 
-  /* In case previous instance of the application was not closed properly
-   * call fini and ignore return code. */
-  pqos_fini();
-
   struct pqos_config pqos = {.fd_log = -1,
                              .callback_log = rdt_pqos_log,
                              .context_log = NULL,
@@ -511,6 +507,9 @@ static int rdt_preinit(void) {
         ": Monitoring capability not detected. Nothing to do for the plugin.");
     goto rdt_preinit_error2;
   }
+
+  /* Reset pqos monitoring groups registers */
+  pqos_mon_reset();
 
   return (0);
 
