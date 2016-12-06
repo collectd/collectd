@@ -86,10 +86,9 @@ static void smart_submit(const char *dev, const char *type,
   plugin_dispatch_values(&vl);
 }
 
-static void smart_handle_disk_attribute(SkDisk *d,
-                                        const SkSmartAttributeParsedData *a,
-                                        void *userdata) {
-  const char *dev = userdata;
+static void handle_attribute(SkDisk *d, const SkSmartAttributeParsedData *a,
+                             void *userdata) {
+  char const *name = userdata;
   value_t values[4];
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -104,7 +103,7 @@ static void smart_handle_disk_attribute(SkDisk *d,
   vl.values_len = 4;
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "smart", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, dev, sizeof(vl.plugin_instance));
+  sstrncpy(vl.plugin_instance, name, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "smart_attribute", sizeof(vl.type));
   sstrncpy(vl.type_instance, a->name, sizeof(vl.type_instance));
 
@@ -114,7 +113,7 @@ static void smart_handle_disk_attribute(SkDisk *d,
     notification_t notif = {NOTIF_WARNING,     cdtime(), "",  "", "smart", "",
                             "smart_attribute", "",       NULL};
     sstrncpy(notif.host, hostname_g, sizeof(notif.host));
-    sstrncpy(notif.plugin_instance, dev, sizeof(notif.plugin_instance));
+    sstrncpy(notif.plugin_instance, name, sizeof(notif.plugin_instance));
     sstrncpy(notif.type_instance, a->name, sizeof(notif.type_instance));
     ssnprintf(notif.message, sizeof(notif.message),
               "attribute %s is below allowed threshold (%d < %d)", a->name,
@@ -123,86 +122,87 @@ static void smart_handle_disk_attribute(SkDisk *d,
   }
 }
 
+static void smart_read_disk(SkDisk *d, char const *name) {
+  SkBool available = FALSE;
+  if (sk_disk_identify_is_available(d, &available) < 0 || !available) {
+    DEBUG("smart plugin: disk %s cannot be identified.", name);
+    return;
+  }
+  if (sk_disk_smart_is_available(d, &available) < 0 || !available) {
+    DEBUG("smart plugin: disk %s has no SMART support.", name);
+    return;
+  }
+  if (!ignore_sleep_mode) {
+    SkBool awake = FALSE;
+    if (sk_disk_check_sleep_mode(d, &awake) < 0 || !awake) {
+      DEBUG("smart plugin: disk %s is sleeping.", name);
+      return;
+    }
+  }
+  if (sk_disk_smart_read_data(d) < 0) {
+    ERROR("smart plugin: unable to get SMART data for disk %s.", name);
+    return;
+  }
+
+  if (sk_disk_smart_parse(d, &(SkSmartParsedData const *){NULL}) < 0) {
+    ERROR("smart plugin: unable to parse SMART data for disk %s.", name);
+    return;
+  }
+
+  /* Get some specific values */
+  uint64_t value;
+  if (sk_disk_smart_get_power_on(d, &value) >= 0)
+    smart_submit(name, "smart_poweron", "", ((gauge_t)value) / 1000.);
+  else
+    DEBUG("smart plugin: unable to get milliseconds since power on for %s.",
+          name);
+
+  if (sk_disk_smart_get_power_cycle(d, &value) >= 0)
+    smart_submit(name, "smart_powercycles", "", (gauge_t)value);
+  else
+    DEBUG("smart plugin: unable to get number of power cycles for %s.", name);
+
+  if (sk_disk_smart_get_bad(d, &value) >= 0)
+    smart_submit(name, "smart_badsectors", "", (gauge_t)value);
+  else
+    DEBUG("smart plugin: unable to get number of bad sectors for %s.", name);
+
+  if (sk_disk_smart_get_temperature(d, &value) >= 0)
+    smart_submit(name, "smart_temperature", "",
+                 ((gauge_t)value) / 1000. - 273.15);
+  else
+    DEBUG("smart plugin: unable to get temperature for %s.", name);
+
+  /* Grab all attributes */
+  if (sk_disk_smart_parse_attributes(d, handle_attribute, (void *)name) < 0) {
+    ERROR("smart plugin: unable to handle SMART attributes for %s.", name);
+  }
+}
+
 static void smart_handle_disk(const char *dev, const char *serial) {
   SkDisk *d = NULL;
-  SkBool awake = FALSE;
-  SkBool available = FALSE;
-  const char *shortname;
-  const SkSmartParsedData *spd;
-  uint64_t poweron, powercycles, badsectors, temperature;
+  const char *name;
 
   if (use_serial && serial) {
-    shortname = serial;
+    name = serial;
   } else {
-    shortname = strrchr(dev, '/');
-    if (!shortname)
+    name = strrchr(dev, '/');
+    if (!name)
       return;
-    shortname++;
+    name++;
   }
-  if (ignorelist_match(ignorelist, shortname) != 0) {
+  if (ignorelist_match(ignorelist, name) != 0) {
     DEBUG("smart plugin: ignoring %s.", dev);
     return;
   }
 
   DEBUG("smart plugin: checking SMART status of %s.", dev);
-
   if (sk_disk_open(dev, &d) < 0) {
     ERROR("smart plugin: unable to open %s.", dev);
     return;
   }
-  if (sk_disk_identify_is_available(d, &available) < 0 || !available) {
-    DEBUG("smart plugin: disk %s cannot be identified.", dev);
-    goto end;
-  }
-  if (sk_disk_smart_is_available(d, &available) < 0 || !available) {
-    DEBUG("smart plugin: disk %s has no SMART support.", dev);
-    goto end;
-  }
-  if (!ignore_sleep_mode) {
-    if (sk_disk_check_sleep_mode(d, &awake) < 0 || !awake) {
-      DEBUG("smart plugin: disk %s is sleeping.", dev);
-      goto end;
-    }
-  }
-  if (sk_disk_smart_read_data(d) < 0) {
-    ERROR("smart plugin: unable to get SMART data for disk %s.", dev);
-    goto end;
-  }
-  if (sk_disk_smart_parse(d, &spd) < 0) {
-    ERROR("smart plugin: unable to parse SMART data for disk %s.", dev);
-    goto end;
-  }
 
-  /* Get some specific values */
-  if (sk_disk_smart_get_power_on(d, &poweron) < 0) {
-    WARNING("smart plugin: unable to get milliseconds since power on for %s.",
-            dev);
-  } else
-    smart_submit(shortname, "smart_poweron", "", poweron / 1000.);
-
-  if (sk_disk_smart_get_power_cycle(d, &powercycles) < 0) {
-    WARNING("smart plugin: unable to get number of power cycles for %s.", dev);
-  } else
-    smart_submit(shortname, "smart_powercycles", "", powercycles);
-
-  if (sk_disk_smart_get_bad(d, &badsectors) < 0) {
-    WARNING("smart plugin: unable to get number of bad sectors for %s.", dev);
-  } else
-    smart_submit(shortname, "smart_badsectors", "", badsectors);
-
-  if (sk_disk_smart_get_temperature(d, &temperature) < 0) {
-    WARNING("smart plugin: unable to get temperature for %s.", dev);
-  } else
-    smart_submit(shortname, "smart_temperature", "",
-                 temperature / 1000. - 273.15);
-
-  /* Grab all attributes */
-  if (sk_disk_smart_parse_attributes(d, smart_handle_disk_attribute,
-                                     (char *)shortname) < 0) {
-    ERROR("smart plugin: unable to handle SMART attributes for %s.", dev);
-  }
-
-end:
+  smart_read_disk(d, name);
   sk_disk_free(d);
 }
 
