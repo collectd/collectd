@@ -1861,33 +1861,6 @@ fi
 # Checks for libraries begin here
 #
 
-# Check for HAL (hardware abstraction library)
-PKG_CHECK_MODULES([HAL], [hal],
-  [
-    SAVE_LIBS="$LIBS"
-    LIBS="$HAL_LIBS $LIBS"
-    AC_CHECK_LIB([hal], [libhal_device_property_exists],
-      [
-        SAVE_CPPFLAGS="$CPPFLAGS"
-        CPPFLAGS="$HAL_CFLAGS $CPPFLAGS"
-        AC_CHECK_HEADERS([libhal.h],
-        [
-          with_libhal="yes"
-          BUILD_WITH_LIBHAL_CFLAGS="$HAL_CFLAGS"
-          BUILD_WITH_LIBHAL_LIBS="$HAL_LIBS"
-        ])
-        CPPFLAGS="$SAVE_CPPFLAGS"
-      ],
-      [with_libhal="no"]
-    )
-    LIBS="$SAVE_LIBS"
-  ],
-  [with_libhal="no"]
-)
-AC_SUBST(BUILD_WITH_LIBHAL_CFLAGS)
-AC_SUBST(BUILD_WITH_LIBHAL_LIBS)
-
-
 # Check for libpthread
 SAVE_LIBS="$LIBS"
 AC_CHECK_LIB([pthread],
@@ -6634,7 +6607,6 @@ AC_MSG_RESULT([    libganglia  . . . . . $with_libganglia])
 AC_MSG_RESULT([    libgcrypt . . . . . . $with_libgcrypt])
 AC_MSG_RESULT([    libgps  . . . . . . . $with_libgps])
 AC_MSG_RESULT([    libgrpc++ . . . . . . $with_libgrpcpp])
-AC_MSG_RESULT([    libhal  . . . . . . . $with_libhal])
 AC_MSG_RESULT([    libhiredis  . . . . . $with_libhiredis])
 AC_MSG_RESULT([    libi2c-dev  . . . . . $with_libi2c])
 AC_MSG_RESULT([    libiokit  . . . . . . $with_libiokit])

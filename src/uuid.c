@@ -33,10 +33,6 @@
 #include <sys/sysctl.h>
 #endif
 
-#if HAVE_LIBHAL_H
-#include <libhal.h>
-#endif
-
 #define UUID_RAW_LENGTH 16
 #define UUID_PRINTABLE_COMPACT_LENGTH (UUID_RAW_LENGTH * 2)
 #define UUID_PRINTABLE_NORMAL_LENGTH (UUID_PRINTABLE_COMPACT_LENGTH + 4)
@@ -127,52 +123,6 @@ static char *uuid_get_from_sysctl(void) {
 }
 #endif
 
-#if HAVE_LIBHAL_H
-
-#define UUID_PATH "/org/freedesktop/Hal/devices/computer"
-#define UUID_PROPERTY "smbios.system.uuid"
-
-static char *uuid_get_from_hal(void) {
-  LibHalContext *ctx;
-
-  DBusError error;
-  DBusConnection *con;
-
-  dbus_error_init(&error);
-
-  if (!(con = dbus_bus_get(DBUS_BUS_SYSTEM, &error)))
-    goto bailout_nobus;
-
-  ctx = libhal_ctx_new();
-  libhal_ctx_set_dbus_connection(ctx, con);
-
-  if (!libhal_ctx_init(ctx, &error))
-    goto bailout;
-
-  if (!libhal_device_property_exists(ctx, UUID_PATH, UUID_PROPERTY, &error))
-    goto bailout;
-
-  char *uuid =
-      libhal_device_get_property_string(ctx, UUID_PATH, UUID_PROPERTY, &error);
-  if (looks_like_a_uuid(uuid))
-    return (uuid);
-
-bailout : {
-  DBusError ctxerror;
-  dbus_error_init(&ctxerror);
-  if (!(libhal_ctx_shutdown(ctx, &ctxerror)))
-    dbus_error_free(&ctxerror);
-}
-
-  libhal_ctx_free(ctx);
-
-bailout_nobus:
-  if (dbus_error_is_set(&error))
-    dbus_error_free(&error);
-  return (NULL);
-}
-#endif
-
 static char *uuid_get_from_file(const char *path) {
   FILE *file;
   char uuid[UUID_PRINTABLE_NORMAL_LENGTH + 1] = "";
@@ -212,11 +162,6 @@ static char *uuid_get_local(void) {
     return (uuid);
 #elif defined(__linux__)
   if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
-    return (uuid);
-#endif
-
-#if HAVE_LIBHAL_H
-  if ((uuid = uuid_get_from_hal()) != NULL)
     return (uuid);
 #endif
 

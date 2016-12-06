@@ -746,10 +746,6 @@ Prerequisites
     Used by the `gps' plugin.
     <http://developer.berlios.de/projects/gpsd/>
 
-  * libhal (optional)
-    If present, the `uuid' plugin will check for UUID from HAL.
-    <http://hal.freedesktop.org/>
-
   * libi2c-dev (optional)
     Used for the plugin `barometer', provides just the i2c-dev.h header file
     for user space i2c development.
