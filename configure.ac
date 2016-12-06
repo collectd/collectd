@@ -1984,7 +1984,7 @@ AM_CONDITIONAL([BUILD_WITH_LIBIOKIT], [test "x$with_libiokit" = "xyes"])
 with_libkvm="no"
 AC_CHECK_LIB([kvm], [kvm_getprocs],
   [with_kvm_getprocs="yes"],
-  []
+  [with_kvm_getprocs="no"]
 )
 
 if test "x$with_kvm_getprocs" = "xyes"; then
@@ -1998,7 +1998,7 @@ AM_CONDITIONAL([BUILD_WITH_LIBKVM_GETPROCS], [test "x$with_kvm_getprocs" = "xyes
 
 AC_CHECK_LIB([kvm], [kvm_getswapinfo],
   [with_kvm_getswapinfo="yes"],
-  []
+  [with_kvm_getswapinfo="no"]
 )
 
 if test "x$with_kvm_getswapinfo" = "xyes"; then
@@ -2012,7 +2012,7 @@ AM_CONDITIONAL([BUILD_WITH_LIBKVM_GETSWAPINFO], [test "x$with_kvm_getswapinfo" =
 
 AC_CHECK_LIB([kvm], [kvm_nlist],
   [with_kvm_nlist="yes"],
-  []
+  [with_kvm_nlist="no"]
 )
 
 if test "x$with_kvm_nlist" = "xyes"; then
@@ -2027,7 +2027,7 @@ AM_CONDITIONAL([BUILD_WITH_LIBKVM_NLIST], [test "x$with_kvm_nlist" = "xyes"])
 
 AC_CHECK_LIB([kvm], [kvm_openfiles],
   [with_kvm_openfiles="yes"],
-  []
+  [with_kvm_openfiles="no"]
 )
 
 if test "x$with_kvm_openfiles" = "xyes"; then
@@ -3455,7 +3455,7 @@ if test "x$with_libmysql" = "xyes"; then
 
     AC_CHECK_HEADERS([mysql.h],
       [have_mysql_h="yes"],
-      []
+      [have_mysql_h="no"]
     )
 
     if test "x$have_mysql_h" != "xyes"; then
@@ -4560,8 +4560,7 @@ if test "x$with_librabbitmq" = "xyes"; then
     [
       AC_DEFINE([HAVE_AMQP_TCP_SOCKET], [1],
         [Define if librabbitmq provides the new TCP socket interface.])
-    ],
-    []
+    ]
   )
 
   AC_CHECK_DECLS([amqp_socket_close],
