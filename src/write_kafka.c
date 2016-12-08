@@ -31,6 +31,7 @@
 #include "utils_cmd_putval.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
+#include "utils_random.h"
 
 #include <errno.h>
 #include <librdkafka/rdkafka.h>
@@ -88,7 +89,7 @@ static uint32_t kafka_hash(const char *keydata, size_t keylen) {
 #define KAFKA_RANDOM_KEY_BUFFER                                                \
   (char[KAFKA_RANDOM_KEY_SIZE]) { "" }
 static char *kafka_random_key(char buffer[static KAFKA_RANDOM_KEY_SIZE]) {
-  ssnprintf(buffer, KAFKA_RANDOM_KEY_SIZE, "%08lX", (unsigned long)mrand48());
+  ssnprintf(buffer, KAFKA_RANDOM_KEY_SIZE, "%08" PRIX32, cdrand_u());
   return buffer;
 }
 
