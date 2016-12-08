@@ -50,7 +50,7 @@ static void cdrand_seed(void) {
   have_seed = 1;
 }
 
-double cdrand_d(void) {
+double cdrand_d() {
   double r;
 
   pthread_mutex_lock(&lock);
@@ -59,6 +59,17 @@ double cdrand_d(void) {
   pthread_mutex_unlock(&lock);
 
   return (r);
+}
+
+uint32_t cdrand_u() {
+  long r;
+
+  pthread_mutex_lock(&lock);
+  cdrand_seed();
+  r = jrand48(seed);
+  pthread_mutex_unlock(&lock);
+
+  return (uint32_t)r;
 }
 
 long cdrand_range(long min, long max) {

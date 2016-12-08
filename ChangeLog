@@ -1,3 +1,39 @@
+2016-11-30, Version 5.6.2
+	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not
+	  available on AIX. Thanks to Chao Yang.
+	* collectd: The capability checking has been rewritten to be more
+	  portable. Thanks to Florian Forster. #2009
+	* collectd.conf(5): Various typos have been fixed. Thanks to Marc
+	  Fournier.
+	* collectd-tg: Incorrect usage of "nanosleep()" has been fixed which
+	  caused the tool to sleep (almost) indefinitely. Thanks to Florian
+	  Forster.
+	* Build system: Detection of the Java environment has been made
+	  deterministic to allow for reproducible builds. Thanks to Marc
+	  Fournier. #1523
+	* Build system: Detection of the Lua headers has been improved. Thanks
+	  to Ruben Kerkhof.
+	* APC UPS plugin: Unavailable metrics are now skipped instead of
+	  reported as 0 (zero). Thanks to Florian Forster. #2025
+	* Modbus plugin: Build issues on FreeBSD have been fixed. Thanks to
+	  Florian Forster.
+	* OpenVPN plugin: Gracefully handle empty configurations. Thanks to
+	  Pavel Rochnyack. #1932
+	* PowerDNS plugin: The "recursor command" has been fixed so PowerDNS can
+	  correctly parse all requested fields. Thanks to Ruben Kerkhof.
+	* Write Graphite and AMQP plugins: A bug that could lead to a missing
+	  null-termination has been fixed. Thanks to Markus Linnala.
+	* Write HTTP plugin: A logic error when checking the correctness of the
+	  data set has been fixed. Thanks to Pavel Rochnyack. #1996
+	* Write Kafka plugin: The "Key Random" config option has been fixed.
+	  Thanks to Florian Forster. #1977
+	* Write Kafka plugin: Support for librdkafka 0.9.0 has been added.
+	  Thanks to Florian Forster.
+	* Write Riemann plugin: Build issues on Solaris have been fixed. Thanks
+	  to Florian Forster.
+	* ZFS ARC plugin: A duplicate metric has been removed. Thanks to Ruben
+	  Kerkhof. #1963
+
 2016-10-07, Version 5.6.1
 	* Build system: Unnecessary linking of the Write Graphite plugin with
 	  libyajl has been removed. Thanks to Marc Fournier.
