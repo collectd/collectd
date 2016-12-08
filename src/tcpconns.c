@@ -62,11 +62,15 @@
 #include "common.h"
 #include "plugin.h"
 
-#if defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(__OpenBSD__)
+#define HAVE_KVM_GETFILES 1
+#endif
+
+#if defined(__NetBSD__)
 #undef HAVE_SYSCTLBYNAME /* force HAVE_LIBKVM_NLIST path */
 #endif
 
-#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_LIBKVM_NLIST && !KERNEL_AIX
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_KVM_GETFILES && !HAVE_LIBKVM_NLIST && !KERNEL_AIX
 #error "No applicable input method."
 #endif
 
@@ -105,15 +109,27 @@
 #include <netinet/tcpip.h>
 /* #endif HAVE_SYSCTLBYNAME */
 
-/* This is for OpenBSD and NetBSD. */
+#elif HAVE_KVM_GETFILES
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#define _KERNEL /* for DTYPE_SOCKET */
+#include <sys/file.h>
+#undef _KERNEL
+
+#include <netinet/in.h>
+
+#include <kvm.h>
+/* #endif HAVE_KVM_GETFILES */
+
+/* This is for NetBSD. */
 #elif HAVE_LIBKVM_NLIST
 #include <arpa/inet.h>
 #include <net/route.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
@@ -168,6 +184,19 @@ static const char *tcp_state[] = {"CLOSED",    "LISTEN",      "SYN_SENT",
 #define TCP_STATE_MIN 0
 #define TCP_STATE_MAX 10
 /* #endif HAVE_SYSCTLBYNAME */
+
+#elif HAVE_KVM_GETFILES
+static const char *tcp_state[] = {"CLOSED",    "LISTEN",      "SYN_SENT",
+                                  "SYN_RECV",  "ESTABLISHED", "CLOSE_WAIT",
+                                  "FIN_WAIT1", "CLOSING",     "LAST_ACK",
+                                  "FIN_WAIT2", "TIME_WAIT"};
+
+#define TCP_STATE_LISTEN 1
+#define TCP_STATE_MIN 0
+#define TCP_STATE_MAX 10
+
+static kvm_t *kvmd;
+/* #endif HAVE_KVM_GETFILES */
 
 #elif HAVE_LIBKVM_NLIST
 static const char *tcp_state[] = {"CLOSED",    "LISTEN",      "SYN_SENT",
@@ -774,6 +803,49 @@ static int conn_read(void) {
   return (0);
 } /* int conn_read */
   /* #endif HAVE_SYSCTLBYNAME */
+
+#elif HAVE_KVM_GETFILES
+
+static int conn_init(void) {
+  char buf[_POSIX2_LINE_MAX];
+
+  kvmd = kvm_openfiles(NULL, NULL, NULL, KVM_NO_FILES, buf);
+  if (kvmd == NULL) {
+    ERROR("tcpconns plugin: kvm_openfiles failed: %s", buf);
+    return (-1);
+  }
+
+  return (0);
+} /* int conn_init */
+
+static int conn_read(void) {
+  struct kinfo_file *kf;
+  int i, fcnt;
+
+  conn_reset_port_entry();
+
+  kf = kvm_getfiles(kvmd, KERN_FILE_BYFILE, DTYPE_SOCKET,
+		    sizeof(*kf), &fcnt);
+  if (kf == NULL) {
+    ERROR("tcpconns plugin: kvm_getfiles failed.");
+    return (-1);
+  }
+
+  for (i = 0; i < fcnt; i++) {
+    if (kf[i].so_protocol != IPPROTO_TCP)
+      continue;
+    if (kf[i].inp_fport == 0)
+      continue;
+    conn_handle_ports(ntohs(kf[i].inp_lport), ntohs(kf[i].inp_fport),
+                      kf[i].t_state);
+  }
+
+  conn_submit_all();
+
+  return (0);
+}
+/* int conn_read */
+/* #endif HAVE_KVM_GETFILES */
 
 #elif HAVE_LIBKVM_NLIST
 static int kread(u_long addr, void *buf, int size) {
