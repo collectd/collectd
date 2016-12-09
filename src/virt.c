@@ -380,6 +380,10 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
   if ((binfo->bi.rd_bytes != -1) && (binfo->bi.wr_bytes != -1))
     submit_derive2("disk_octets", (derive_t)binfo->bi.rd_bytes,
                    (derive_t)binfo->bi.wr_bytes, dom, type_instance);
+
+  if ((binfo->rd_total_times != -1) && (binfo->wr_total_times != -1))
+    submit_derive2("disk_time", (derive_t)binfo->rd_total_times,
+                   (derive_t)binfo->wr_total_times, dom, type_instance);
 }
 
 static int lv_config(const char *key, const char *value) {
