@@ -358,6 +358,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
         ERROR("Target `set': Unable to get replacement metadata value `%s'.",
               key);
         strarray_free(meta_toc, (size_t)meta_entries);
+        meta_data_destroy(new_meta);
         return (status);
       }
 
@@ -373,6 +374,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
       if (status) {
         ERROR("Target `set': Unable to set metadata value `%s'.", key);
         strarray_free(meta_toc, (size_t)meta_entries);
+        meta_data_destroy(new_meta);
         return (status);
       }
     }
