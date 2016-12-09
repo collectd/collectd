@@ -20,6 +20,7 @@ before_install:
       libi2c-dev
       libldap2-dev
       libltdl-dev
+      liblua5.2-dev
       liblvm2-dev
       libmemcached-dev
       libmnl-dev
