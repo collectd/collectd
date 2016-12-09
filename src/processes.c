@@ -2127,7 +2127,6 @@ static int ps_read(void) {
       pse.cpu_user_counter = procentry[i].pi_ru.ru_utime.tv_sec * 1000000 +
                              procentry[i].pi_ru.ru_utime.tv_usec / 1000;
 
-      pse.cpu_system = 0;
       /* tv_usec is nanosec ??? */
       pse.cpu_system_counter = procentry[i].pi_ru.ru_stime.tv_sec * 1000000 +
                                procentry[i].pi_ru.ru_stime.tv_usec / 1000;
