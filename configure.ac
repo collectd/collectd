@@ -6536,11 +6536,13 @@ AC_SUBST([LCC_VERSION_STRING])
 
 AC_CONFIG_FILES([src/libcollectdclient/collectd/lcc_features.h])
 
-AM_CFLAGS="-Wall"
-AM_CXXFLAGS="-Wall"
-if test "x$enable_werror" != "xno"; then
-  AM_CFLAGS="$AM_CFLAGS -Werror"
-  AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
+if test "x$GCC" = "xyes"; then
+  AM_CFLAGS="-Wall"
+  AM_CXXFLAGS="-Wall"
+  if test "x$enable_werror" != "xno"; then
+    AM_CFLAGS="$AM_CFLAGS -Werror"
+    AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
+  fi
 fi
 
 AC_SUBST([AM_CFLAGS])
