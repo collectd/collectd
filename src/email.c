@@ -361,8 +361,6 @@ static void *collect(void *arg) {
 } /* static void *collect (void *) */
 
 static void *open_connection(void __attribute__((unused)) * arg) {
-  struct sockaddr_un addr;
-
   const char *path = (NULL == sock_file) ? SOCK_PATH : sock_file;
   const char *group = (NULL == sock_group) ? COLLECTD_GRP_NAME : sock_group;
 
@@ -375,7 +373,9 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     pthread_exit((void *)1);
   }
 
-  addr.sun_family = AF_UNIX;
+  struct sockaddr_un addr = {
+    .sun_family = AF_UNIX
+  };
   sstrncpy(addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
 
   errno = 0;
