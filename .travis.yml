@@ -16,6 +16,7 @@ before_install:
       libganglia1-dev
       libgcrypt11-dev
       libglib2.0-dev
+      libgps-dev
       libhiredis-dev
       libi2c-dev
       libldap2-dev
