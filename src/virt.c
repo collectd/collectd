@@ -740,12 +740,16 @@ static int lv_init(void) {
   return 0;
 }
 
+/*
+ * returns 0 on success and <0 on error
+ */
 static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
                              char *dom_tag) {
   char xpath_str[BUFFER_MAX_LEN] = {'\0'};
   xmlXPathObjectPtr xpath_obj = NULL;
   xmlNodePtr xml_node = NULL;
-  int err = -1;
+  int ret = -1;
+  int err;
 
   err = xmlXPathRegisterNs(xpath_ctx,
                            (const xmlChar *)METADATA_VM_PARTITION_PREFIX,
@@ -776,8 +780,7 @@ static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
    * from now on there is no real error, it's ok if a domain
    * doesn't have the metadata partition tag.
    */
-  err = 0;
-
+  ret = 0;
   if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
     DEBUG(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
                       "expected=1 on domain %s",
@@ -793,11 +796,16 @@ done:
   /* deregister to clean up */
   err = xmlXPathRegisterNs(xpath_ctx,
                            (const xmlChar *)METADATA_VM_PARTITION_PREFIX, NULL);
-
+  if (err) {
+    /* we can't really recover here */
+    ERROR(PLUGIN_NAME
+          " plugin: deregistration of namespace %s failed for domain %s",
+          METADATA_VM_PARTITION_PREFIX, dom_name);
+  }
   if (xpath_obj)
     xmlXPathFreeObject(xpath_obj);
 
-  return err;
+  return ret;
 }
 
 static int is_known_tag(const char *dom_tag) {
