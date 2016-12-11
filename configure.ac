@@ -2969,7 +2969,7 @@ else
       PKG_CHECK_MODULES([LUA], [lua-5.3],
         [with_liblua="yes"],
         [
-	  PKG_CHECK_MODULES([LUA], [lua5.3],
+          PKG_CHECK_MODULES([LUA], [lua5.3],
             [with_liblua="yes"],
             [
               PKG_CHECK_MODULES([LUA], [lua-5.2],
