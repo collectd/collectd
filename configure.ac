@@ -357,8 +357,7 @@ AC_CHECK_HEADERS([netinet/udp.h], [], [],
 
 # For cpu modules
 AC_CHECK_HEADERS([sys/dkstat.h])
-if test "x$ac_system" = "xDarwin"
-then
+if test "x$ac_system" = "xDarwin"; then
   AC_CHECK_HEADERS(
     [[ \
       mach/mach_init.h \
@@ -424,8 +423,7 @@ AC_CHECK_HEADERS([net/if.h], [], [],
   ]]
 )
 
-if test "x$ac_system" = "xLinux"
-then
+if test "x$ac_system" = "xLinux"; then
   # For hddtemp module
   AC_CHECK_HEADERS([linux/major.h])
 
@@ -911,8 +909,7 @@ AC_CHECK_FUNCS([clock_gettime],
   [have_clock_gettime="no"]
 )
 
-if test "x$have_clock_gettime" = "xno"
-then
+if test "x$have_clock_gettime" = "xno"; then
   AC_CHECK_LIB([rt], [clock_gettime],
     [
       clock_gettime_needs_rt="yes"
@@ -921,8 +918,7 @@ then
   )
 fi
 
-if test "x$have_clock_gettime" = "xno"
-then
+if test "x$have_clock_gettime" = "xno"; then
   AC_CHECK_LIB([posix4], [clock_gettime],
     [
       clock_gettime_needs_posix4="yes"
@@ -931,8 +927,7 @@ then
   )
 fi
 
-if test "x$have_clock_gettime" = "xyes"
-then
+if test "x$have_clock_gettime" = "xyes"; then
   AC_DEFINE([HAVE_CLOCK_GETTIME], [1], [Define if the clock_gettime(2) function is available.])
 fi
 
@@ -965,15 +960,13 @@ AC_CHECK_FUNCS([syslog], [have_syslog="yes"], [have_syslog="no"])
 AC_CHECK_FUNCS([thread_info], [have_thread_info="yes"], [have_thread_info="no"])
 
 # Check for strptime {{{
-if test "x$GCC" = "xyes"
-then
+if test "x$GCC" = "xyes"; then
   SAVE_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -Wall -Wextra -Werror"
 fi
 
 AC_CHECK_FUNCS([strptime], [have_strptime="yes"], [have_strptime="no"])
-if test "x$have_strptime" = "xyes"
-then
+if test "x$have_strptime" = "xyes"; then
   AC_CACHE_CHECK([whether strptime is exported by default],
     [c_cv_have_strptime_default],
     [
@@ -993,8 +986,7 @@ then
   )
 fi
 
-if test "x$have_strptime" = "xyes" && test "x$c_cv_have_strptime_default" = "xno"
-then
+if test "x$have_strptime" = "xyes" && test "x$c_cv_have_strptime_default" = "xno"; then
   AC_CACHE_CHECK([whether strptime needs standards mode],
     [c_cv_have_strptime_standards],
     [
@@ -1034,15 +1026,13 @@ then
   fi
 fi
 
-if test "x$GCC" = "xyes"
-then
+if test "x$GCC" = "xyes"; then
   CFLAGS="$SAVE_CFLAGS"
 fi
 # }}} Check for strptime
 
 AC_MSG_CHECKING([for sysctl kern.cp_times])
-if test -x /sbin/sysctl
-then
+if test -x /sbin/sysctl; then
   /sbin/sysctl kern.cp_times >/dev/null 2>&1
   if test $? -eq 0; then
     AC_MSG_RESULT([yes])
@@ -1055,8 +1045,7 @@ else
 fi
 
 AC_MSG_CHECKING([for sysctl kern.cp_time])
-if test -x /sbin/sysctl
-then
+if test -x /sbin/sysctl; then
   /sbin/sysctl kern.cp_time >/dev/null 2>&1
   if test $? -eq 0
   then
@@ -1286,46 +1275,46 @@ AC_ARG_WITH([fp-layout],
 )
 
 if test "x$fp_layout_type" = "xunknown"; then
-AC_CACHE_CHECK([if doubles are stored in x86 representation],
-  [c_cv_fp_layout_need_nothing],
-  [
-    AC_RUN_IFELSE(
-      [
-        AC_LANG_PROGRAM(
-          [[
-            #include <stdlib.h>
-            #include <stdio.h>
-            #include <string.h>
-            #include <stdint.h>
-            #include <inttypes.h>
-            #include <stdbool.h>
-          ]],
-          [[
-            uint64_t i0;
-            uint64_t i1;
-            uint8_t c[8];
-            double d;
+  AC_CACHE_CHECK([if doubles are stored in x86 representation],
+    [c_cv_fp_layout_need_nothing],
+    [
+      AC_RUN_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[
+              #include <stdlib.h>
+              #include <stdio.h>
+              #include <string.h>
+              #include <stdint.h>
+              #include <inttypes.h>
+              #include <stdbool.h>
+            ]],
+            [[
+              uint64_t i0;
+              uint64_t i1;
+              uint8_t c[8];
+              double d;
 
-            d = 8.642135e130;
-            memcpy ((void *) &i0, (void *) &d, 8);
+              d = 8.642135e130;
+              memcpy ((void *) &i0, (void *) &d, 8);
 
-            i1 = i0;
-            memcpy ((void *) c, (void *) &i1, 8);
+              i1 = i0;
+              memcpy ((void *) c, (void *) &i1, 8);
 
-            if ((c[0] == 0x2f) && (c[1] == 0x25)
-                && (c[2] == 0xc0) && (c[3] == 0xc7)
-                && (c[4] == 0x43) && (c[5] == 0x2b)
-                && (c[6] == 0x1f) && (c[7] == 0x5b))
-              return (0);
-            return (1);
-          ]]
-        )
-      ],
-      [c_cv_fp_layout_need_nothing="yes"],
-      [c_cv_fp_layout_need_nothing="no"]
-    )
-  ]
-)
+              if ((c[0] == 0x2f) && (c[1] == 0x25)
+                  && (c[2] == 0xc0) && (c[3] == 0xc7)
+                  && (c[4] == 0x43) && (c[5] == 0x2b)
+                  && (c[6] == 0x1f) && (c[7] == 0x5b))
+                return (0);
+              return (1);
+            ]]
+          )
+        ],
+        [c_cv_fp_layout_need_nothing="yes"],
+        [c_cv_fp_layout_need_nothing="no"]
+      )
+    ]
+  )
 fi
 
 if test "x$c_cv_fp_layout_need_nothing" = "xyes"; then
@@ -1762,36 +1751,40 @@ SAVE_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS -lpthread"
 
 AC_MSG_CHECKING([for pthread_setname_np])
-	have_pthread_setname_np="no"
-	AC_LINK_IFELSE([AC_LANG_PROGRAM(
-[[
-#define _GNU_SOURCE
-#include <pthread.h>
-]],
-[[
-        pthread_setname_np((pthread_t) {0}, "conftest");
-]]
-	)], [
-		have_pthread_setname_np="yes"
-		AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [pthread_setname_np() is available.])
-	])
+have_pthread_setname_np="no"
+AC_LINK_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [[
+        #define _GNU_SOURCE
+        #include <pthread.h>
+      ]],
+      [[pthread_setname_np((pthread_t) {0}, "conftest");]]
+    )
+  ],
+  [
+    have_pthread_setname_np="yes"
+    AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [pthread_setname_np() is available.])
+  ]
+)
 
 AC_MSG_RESULT([$have_pthread_setname_np])
 
 # check for pthread_set_name_np(3) (FreeBSD)
 AC_MSG_CHECKING([for pthread_set_name_np])
-	have_pthread_set_name_np="no"
-	AC_LINK_IFELSE([AC_LANG_PROGRAM(
-[[
-#include <pthread_np.h>
-]],
-[[
-        pthread_set_name_np((pthread_t) {0}, "conftest");
-]]
-	)], [
-		have_pthread_set_name_np="yes"
-		AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [pthread_set_name_np() is available.])
-	])
+have_pthread_set_name_np="no"
+AC_LINK_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [[#include <pthread_np.h>]],
+      [[pthread_set_name_np((pthread_t) {0}, "conftest");]]
+    )
+   ],
+  [
+    have_pthread_set_name_np="yes"
+    AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [pthread_set_name_np() is available.])
+  ]
+)
 AC_MSG_RESULT([$have_pthread_set_name_np])
 
 LDFLAGS="$SAVE_LDFLAGS"
@@ -3153,29 +3146,25 @@ with_libmicrohttpd_cppflags=""
 with_libmicrohttpd_ldflags=""
 AC_ARG_WITH([libmicrohttpd], [AS_HELP_STRING([--with-libmicrohttpd@<:@=PREFIX@:>@], [Path to libmicrohttpd.])],
   [
-    if test "x$withval" != "xno" && test "x$withval" != "xyes"
-    then
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_libmicrohttpd_cppflags="-I$withval/include"
       with_libmicrohttpd_ldflags="-L$withval/lib"
       with_libmicrohttpd="yes"
     fi
-    if test "x$withval" = "xno"
-    then
+    if test "x$withval" = "xno"; then
       with_libmicrohttpd="no (disabled on command line)"
     fi
   ],
   [withval="yes"]
 )
-if test "x$withval" = "xyes"
-then
-PKG_CHECK_MODULES([MICROHTTPD], [libmicrohttpd],
-  [with_libmicrohttpd="yes"],
-  [with_libmicrohttpd="no (pkg-config could not find libmicrohttpd)"]
-)
+if test "x$withval" = "xyes"; then
+  PKG_CHECK_MODULES([MICROHTTPD], [libmicrohttpd],
+    [with_libmicrohttpd="yes"],
+    [with_libmicrohttpd="no (pkg-config could not find libmicrohttpd)"]
+  )
 fi
 
-if test "x$MICROHTTPD_LIBS" = "x"
-then
+if test "x$MICROHTTPD_LIBS" = "x"; then
   MICROHTTPD_LIBS="-lmicrohttpd"
 fi
 
@@ -3186,18 +3175,18 @@ CPPFLAGS="$with_libmicrohttpd_cppflags $MICROHTTPD_CFLAGS"
 LDFLAGS="$with_libmicrohttpd_ldflags $LDFLAGS"
 LIBS="$LIBS $MICROHTTPD_LIBS"
 
-if test "x$with_libmicrohttpd" = "xyes"
-then
+if test "x$with_libmicrohttpd" = "xyes"; then
   AC_CHECK_HEADERS([microhttpd.h],
-                   [with_libmicrohttpd="yes"],
-                   [with_libmicrohttpd="no (<microhttpd.h> not found)"])
+   [with_libmicrohttpd="yes"],
+   [with_libmicrohttpd="no (<microhttpd.h> not found)"]
+  )
 fi
 
-if test "x$with_libmicrohttpd" = "xyes"
-then
+if test "x$with_libmicrohttpd" = "xyes"; then
   AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
-               [with_libmicrohttpd="yes"],
-               [with_libmicrohttpd="no (libmicrohttpd not found)"])
+    [with_libmicrohttpd="yes"],
+    [with_libmicrohttpd="no (libmicrohttpd not found)"]
+  )
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3246,8 +3235,7 @@ if test "x$with_libmodbus" = "xuse_pkgconfig"; then
   fi
 
   with_libmodbus_libs="`$PKG_CONFIG --libs 'libmodbus'`"
-  if test $? -ne 0
-  then
+  if test $? -ne 0; then
     with_libmodbus="no ($PKG_CONFIG failed)"
   fi
 fi
