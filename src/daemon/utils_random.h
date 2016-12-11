@@ -29,7 +29,7 @@
  *
  * This function is thread- and reentrant-safe.
  */
-double cdrand_d();
+double cdrand_d(void);
 
 /**
  * cdrand_u returns a random uint32_t value uniformly distributed in the range
@@ -37,7 +37,7 @@ double cdrand_d();
  *
  * This function is thread- and reentrant-safe.
  */
-uint32_t cdrand_u();
+uint32_t cdrand_u(void);
 
 /**
  * Returns a random long between min and max, inclusively.
