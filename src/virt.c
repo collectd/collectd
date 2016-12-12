@@ -520,6 +520,13 @@ static int lv_connect(void) {
   return 0;
 }
 
+static void lv_disconnect(void) {
+  if (conn != NULL)
+    virConnectClose(conn);
+  conn = NULL;
+  WARNING(PLUGIN_NAME " plugin: closed connection to libvirt");
+}
+
 static int lv_read(user_data_t *ud) {
   time_t t;
   struct lv_read_instance *inst = NULL;
@@ -544,9 +551,8 @@ static int lv_read(user_data_t *ud) {
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
     if (refresh_lists(inst) != 0) {
-      if (conn != NULL)
-        virConnectClose(conn);
-      conn = NULL;
+      if (inst->id == 0)
+        lv_disconnect();
       return -1;
     }
     last_refresh = t;
