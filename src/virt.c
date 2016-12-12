@@ -740,7 +740,8 @@ static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
 
-  lv_connect();
+  if (lv_connect() != 0)
+    return -1;
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
