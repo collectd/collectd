@@ -504,6 +504,22 @@ static int lv_config(const char *key, const char *value) {
   return -1;
 }
 
+static int lv_connect(void) {
+  if (conn == NULL) {
+    /* `conn_string == NULL' is acceptable. */
+    conn = virConnectOpenReadOnly(conn_string);
+    if (conn == NULL) {
+      c_complain(LOG_ERR, &conn_complain,
+                 PLUGIN_NAME " plugin: Unable to connect: "
+                             "virConnectOpenReadOnly failed.");
+      return -1;
+    }
+  }
+  c_release(LOG_NOTICE, &conn_complain,
+            PLUGIN_NAME " plugin: Connection established.");
+  return 0;
+}
+
 static int lv_read(user_data_t *ud) {
   time_t t;
   struct lv_read_instance *inst = NULL;
@@ -517,18 +533,10 @@ static int lv_read(user_data_t *ud) {
   inst = ud->data;
   state = &inst->read_state;
 
-  if (inst->id == 0 && conn == NULL) {
-    /* `conn_string == NULL' is acceptable. */
-    conn = virConnectOpenReadOnly(conn_string);
-    if (conn == NULL) {
-      c_complain(LOG_ERR, &conn_complain,
-                 PLUGIN_NAME " plugin: Unable to connect: "
-                             "virConnectOpenReadOnly failed.");
+  if (inst->id == 0) {
+    if (lv_connect() < 0)
       return -1;
-    }
   }
-  c_release(LOG_NOTICE, &conn_complain,
-            PLUGIN_NAME " plugin: Connection established.");
 
   time(&t);
 
@@ -731,6 +739,8 @@ static void lv_fini_instance(size_t i) {
 static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
+
+  lv_connect();
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
