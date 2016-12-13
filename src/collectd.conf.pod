@@ -8140,11 +8140,11 @@ Collect statistics about worker threads. False by default.
 
 =head2 Plugin C<virt>
 
-This plugin allows CPU, disk and network load to be collected for virtualized
-guests on the machine. This means that these metrics can be collected for guest
-systems without installing any software on them - I<collectd> only runs on the
-host system. The statistics are collected through libvirt
-(L<http://libvirt.org/>).
+This plugin allows CPU, disk, network load and other metrics to be collected for
+virtualized guests on the machine. The statistics are collected through libvirt
+API (L<http://libvirt.org/>). Majority of metrics can be gathered without
+installing any additional software on guests, especially I<collectd>, which runs
+only on the host system.
 
 Only I<Connection> is required.
 
@@ -8294,10 +8294,48 @@ Report additional extra statistics. The default is no extra statistics, preservi
 the previous behaviour of the plugin. If unsure, leave the default. If enabled,
 allows the plugin to reported more detailed statistics about the behaviour of
 Virtual Machines. The argument is a space-separated list of selectors.
+
 Currently supported selectors are:
-B<disk> report extra statistics like number of flush operations and total
-service time for read, write and flush operations.
-B<pcpu> report the physical user/system cpu time consumed by the hypervisor, per-vm.
+
+=over 4
+
+=item B<cpu_util>: report CPU utilization per domain in percentage.
+
+=item B<disk>: report extra statistics like number of flush operations and total
+service time for read, write and flush operations. Requires libvirt API version
+I<0.9.5> or later.
+
+=item B<disk_err>: report disk errors if any occured. Requires libvirt API version
+I<0.9.10> or later.
+
+=item B<domain_state>: report domain state and reason in human-readable format as
+a notification. If libvirt API version I<0.9.2> or later is available, domain
+reason will be included in notification.
+
+=item B<fs_info>: report file system information as a notification. Requires
+libvirt API version I<1.2.11> or later. Can be collected only if I<Guest Agent>
+is installed and configured inside VM. Make sure that installed I<Guest Agent>
+version supports retrieving  file system information.
+
+=item B<job_stats_background>: report statistics about progress of a background
+job on a domain. Only one type of job statistics can be collected at the same time.
+Requires libvirt API version I<1.2.9> or later.
+
+=item B<job_stats_completed>: report statistics about a recently completed job on
+a domain. Only one type of job statistics can be collected at the same time.
+Requires libvirt API version I<1.2.9> or later.
+
+=item B<pcpu>: report the physical user/system cpu time consumed by the hypervisor, per-vm.
+Requires libvirt API version I<0.9.11> or later.
+
+=item B<perf>: report performance monitoring events. To collect performance
+metrics they must be enabled for domain and supported by the platform. Requires
+libvirt API version I<1.3.3> or later.
+B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
+
+=item B<vcpupin>: report pinning of domain VCPUs to host physical CPUs.
+
+=back
 
 =back
 
