@@ -1178,9 +1178,7 @@ static int lv_shutdown(void) {
     lv_fini_instance(i);
   }
 
-  if (conn != NULL)
-    virConnectClose(conn);
-  conn = NULL;
+  lv_disconnect();
 
   ignorelist_free(il_domains);
   il_domains = NULL;
