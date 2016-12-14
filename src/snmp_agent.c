@@ -40,6 +40,10 @@
 #define ERR_BUF_SIZE 1024
 #define TYPE_STRING -1
 
+#ifndef MIN
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#endif
+
 struct oid_s {
   oid oid[MAX_OID_LEN];
   size_t oid_len;
