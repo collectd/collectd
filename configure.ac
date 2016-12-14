@@ -3643,6 +3643,7 @@ AC_SUBST([LIBNETAPP_LIBS])
 # }}}
 
 # --with-libnetsnmp {{{
+with_libnetsnmpagent="no"
 AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
 [
 	if test "x$withval" = "xno"
@@ -3655,6 +3656,7 @@ AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Pat
 		with_libnetsnmp_cppflags="-I$withval/include"
 		with_libnetsnmp_ldflags="-I$withval/lib"
 		with_libnetsnmp="yes"
+		with_libnetsnmpagent="yes"
 	fi; fi
 ],
 [with_libnetsnmp="yes"])
@@ -3666,6 +3668,10 @@ then
     AC_CHECK_HEADERS([net-snmp/net-snmp-config.h],
       [with_libnetsnmp="yes"],
       [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"]
+    )
+    AC_CHECK_HEADERS(net-snmp/agent/agent_module_config.h,
+      [],
+      [with_libnetsnmpagent="no (net-snmp/agent/agent_module_config.h not found)"]
     )
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3680,6 +3686,11 @@ then
 		[with_libnetsnmp="no (libnetsnmp not found)"],
 		[$with_snmp_libs])
 
+	AC_CHECK_LIB(netsnmpagent, init_agent,
+		[with_libnetsnmpagent="yes"],
+		[with_libnetsnmpagent="no (libnetsnmpagent not found)"],
+		[$with_snmp_libs])
+
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
 if test "x$with_libnetsnmp" = "xyes"
@@ -3687,6 +3698,10 @@ then
 	BUILD_WITH_LIBNETSNMP_CPPFLAGS="$with_libnetsnmp_cppflags"
 	BUILD_WITH_LIBNETSNMP_LDFLAGS="$with_libnetsnmp_ldflags"
 	BUILD_WITH_LIBNETSNMP_LIBS="-lnetsnmp"
+fi
+if test "x$with_libnetsnmpagent" = "xyes"
+then
+	BUILD_WITH_LIBNETSNMP_LIBS+=" -lnetsnmpagent"
 fi
 AC_SUBST(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
 AC_SUBST(BUILD_WITH_LIBNETSNMP_LDFLAGS)
@@ -5899,6 +5914,7 @@ plugin_processes="no"
 plugin_protocols="no"
 plugin_python="no"
 plugin_serial="no"
+plugin_snmp_agent="no"
 plugin_smart="no"
 plugin_swap="no"
 plugin_tape="no"
@@ -6191,6 +6207,10 @@ if test "x$with_kvm_getswapinfo" = "xyes"; then
   plugin_swap="yes"
 fi
 
+if test "x$with_libnetsnmp" = "xyes" && test "x$with_libnetsnmpagent" = "xyes"; then
+  plugin_snmp_agent="yes"
+fi
+
 if test "x$have_swapctl" = "xyes" && test "x$c_cv_have_swapctl_two_args" = "xyes"; then
   plugin_swap="yes"
 fi
@@ -6350,6 +6370,7 @@ AC_PLUGIN([serial],              [$plugin_serial],          [serial port traffic
 AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition sources])
 AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
+AC_PLUGIN([snmp_agent],          [$plugin_snmp_agent],      [SNMP agent plugin])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
@@ -6774,6 +6795,7 @@ AC_MSG_RESULT([    serial  . . . . . . . $enable_serial])
 AC_MSG_RESULT([    sigrok  . . . . . . . $enable_sigrok])
 AC_MSG_RESULT([    smart . . . . . . . . $enable_smart])
 AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
+AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
