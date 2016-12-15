@@ -500,6 +500,10 @@ Features
     - write_mongodb
       Sends data to MongoDB, a NoSQL database.
 
+    - write_prometheus
+      Publish values using an embedded HTTP server, in a format compatible
+      with Prometheus' collectd_exporter.
+
     - write_redis
       Sends the values to a Redis key-value database server.
 
@@ -779,6 +783,10 @@ Prerequisites
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
+
+  * libmicrohttpd (optional)
+    Used by the write_prometheus plugin to run an http daemon.
+    <http://www.gnu.org/software/libmicrohttpd/>
 
   * libmnl (optional)
     Used by the `netlink' plugin.
