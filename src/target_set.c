@@ -183,8 +183,11 @@ static void ts_subst(char *dest, size_t size, const char *string, /* {{{ */
   REPLACE_FIELD("%{type_instance}", vl->type_instance);
 
   if (vl->meta != NULL) {
-    char **meta_toc;
+    char **meta_toc = NULL;
     int meta_entries = meta_data_toc(vl->meta, &meta_toc);
+    if (meta_entries <= 0)
+      return;
+
     for (int i = 0; i < meta_entries; i++) {
       char meta_name[DATA_MAX_NAME_LEN];
       char *value_str;
