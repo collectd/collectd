@@ -2541,6 +2541,20 @@ expected from them. This is documented in great detail in L<collectd-exec(5)>.
 
 =back
 
+=head2 Plugin C<fastpath>
+
+The C<fastpath> plugin monitors CPU usage for cores running a fast path process.
+
+The following elements are collected:
+
+=over 4
+
+=item B<busy_cpu>
+
+The occupancy percentage of a each CPU core running packet processing.
+
+=back
+
 =head2 Plugin C<fhcount>
 
 The C<fhcount> plugin provides statistics about used, unused and total number of

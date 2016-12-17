@@ -452,6 +452,13 @@ ethstat_la_SOURCES = ethstat.c
 ethstat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_FASTPATH
+pkglib_LTLIBRARIES += fastpath.la
+fastpath_la_SOURCES = fastpath.c
+fastpath_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+fastpath_la_LIBADD = -ljansson
+endif
+
 if BUILD_PLUGIN_FHCOUNT
 pkglib_LTLIBRARIES += fhcount.la
 fhcount_la_SOURCES = fhcount.c

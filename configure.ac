@@ -5864,6 +5864,7 @@ plugin_drbd="no"
 plugin_dpdkstat="no"
 plugin_entropy="no"
 plugin_ethstat="no"
+plugin_fastpath="yes"
 plugin_fhcount="no"
 plugin_fscache="no"
 plugin_gps="no"
@@ -6257,6 +6258,7 @@ AC_PLUGIN([email],               [yes],                     [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
 AC_PLUGIN([ethstat],             [$plugin_ethstat],         [Stats from NIC driver])
 AC_PLUGIN([exec],                [yes],                     [Execution of external programs])
+AC_PLUGIN([fastpath],            [yes],                     [Dataplane fast path statistics])
 AC_PLUGIN([fhcount],             [$plugin_fhcount],         [File handles statistics])
 AC_PLUGIN([filecount],           [yes],                     [Count files in directories])
 AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics])
@@ -6687,6 +6689,7 @@ AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])
 AC_MSG_RESULT([    ethstat . . . . . . . $enable_ethstat])
 AC_MSG_RESULT([    exec  . . . . . . . . $enable_exec])
+AC_MSG_RESULT([    fastpath  . . . . . . $enable_fastpath])
 AC_MSG_RESULT([    fhcount . . . . . . . $enable_fhcount])
 AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])
 AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
