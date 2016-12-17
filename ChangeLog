@@ -1,3 +1,73 @@
+2016-12-12, Version 5.7.0
+	* Documentation: The Turbostat plugin section has been improved. Thanks
+	  to Florian Forster
+	* Documentation: The semantics of the "TypesDB" option have been
+	  improved. Thanks to Florian Forster.
+	* collectd: A generic interface for parsing the text protocol has been
+	  added. Thanks to Sebastian Harl. #1749
+	* collectd: Threads now get named, making them easier to track using
+	  tools such as top, ps, etc. Thanks to Manuel Luis Sanmartín Rozada
+	  and Marc Fournier. #547
+	* AMQP plugin, Write Graphite plugin, Write Kafka plugin: The new
+	  "[Graphite]PreserveSeparator" option allows retaining the default dot
+	  separator rather than escaping it. Thanks to Florian Forster. #419
+	* Battery plugin: A StateFS backend for gathering statistics has been
+	  added. Thanks to Rinigus. #1795
+	* CPU plugin: CPU aggregation on AIX was fixed. Thanks to Chao Yang.
+	  #1957
+	* Collectd::Unixsock: Fractional seconds support has been made more
+	  robust. Thanks to Matthias Bethke. #2052
+	* DPDKStat plugin: This new plugin collects DPDK interface statistics.
+	  Thanks to Maryam Tahhan, Harry van Haaren, Taras Chornyi and Kim
+	  Jones. #1649
+	* gRPC plugin: The "DispatchValues" option has been renamed to
+	  "PutValues". Thanks to Florian Forster.
+	* HDDTemp plugin: The 32 devices limit has been removed. Thanks to
+	  Benjamin Gilbert. #631
+	* Hugepages plugin: This new plugin reports the number of used and free
+	  hugepages on Linux. Thanks to Jaroslav Safka, Maryam Tahhan, Kim Jones
+	  and Florian Forster. #1799
+	* Intel RDT plugin: This new plugin collects statistics exposed by
+	  Intel's Resource Director Technology . Thanks to SerhiyX. #1970
+	* memcached plugin: The new "Address" option allows connecting to a
+	  different server than specified by the "Host" option. Thanks to Pavel
+	  Rochnyack. #1975
+	* nginx plugin: Support for reporting failed connections has been added.
+	  Thanks to Pavel Rochnyack. #1609
+	* Perl plugin: Significant internal reworking has been made. The new
+	  "RegisterLegacyFlush" option has been added. Thanks to Pavel
+	  Rochnyack. #1731
+	* PostgreSQL plugin: Timestamps are now RFC 3339-formatted local time.
+	  Thanks to Igor Peshansky and Dave Cunningham. #1918
+	* Processes plugin: Internal performance improvements have been made.
+	  Thanks to Pavel Rochnyack. #1980, #1981
+	* RRDCacheD plugin: The plugin now tries to reconnect upon failed
+	  operations. Thanks to Sebastian Harl. #1959
+	* SpamAssassin: The plugin can now run in Perl's "tainted mode" ("-T").
+	  Thanks to Akos Vandra. #1962
+	* Tail plugin: Support for calculating latency distribution of matching
+	  values has been added. Thanks to Pavel Rochnyack and Florian Forster.
+	  #1700
+	* Tail plugin: The new "GaugePersist" option has been added. Thanks to
+	  Florian Forster. #2015
+	* Target:Set, Target:Replace, Match:RegEx: MetaData support has been
+	  added . Thanks to Igor Peshansky. #1922, #1923, #1930
+	* turbostat plugin: The new "LogicalCoreNames" option allows switching
+	  to per-core naming rather than per-CPU. Thanks to Brock Johnson. #2056
+	* virt plugin: The new "BlockDeviceFormat" and
+	  "BlockDeviceFormatBasename" options help controlling the names
+	  reported for block-device metrics. Thanks to Deyan Chepishev. #2004
+	* Write Graphite plugin: A new "DropDuplicateFields" option has been
+	  added. Thanks to Michael Leinartas. #1915
+	* Write Kafka plugin: The "Key Random" setting has been reintroduced.
+	  Thanks to Florian Forster. #1977
+	* Write Log plugin: Support for formatting output in JSON has been
+	  added, using the new "Format" configuration option. Thanks to Igor
+	  Peshansky. #1924
+	* Write Prometheus plugin: This new plugin publishes values using an
+	  embedded HTTP server, in a format compatible with Prometheus'
+	  collectd_exporter. Thanks to Florian Forster. #1967
+
 2016-11-30, Version 5.6.2
 	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not
 	  available on AIX. Thanks to Chao Yang.

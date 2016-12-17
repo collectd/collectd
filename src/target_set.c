@@ -183,8 +183,11 @@ static void ts_subst(char *dest, size_t size, const char *string, /* {{{ */
   REPLACE_FIELD("%{type_instance}", vl->type_instance);
 
   if (vl->meta != NULL) {
-    char **meta_toc;
+    char **meta_toc = NULL;
     int meta_entries = meta_data_toc(vl->meta, &meta_toc);
+    if (meta_entries <= 0)
+      return;
+
     for (int i = 0; i < meta_entries; i++) {
       char meta_name[DATA_MAX_NAME_LEN];
       char *value_str;
@@ -358,6 +361,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
         ERROR("Target `set': Unable to get replacement metadata value `%s'.",
               key);
         strarray_free(meta_toc, (size_t)meta_entries);
+        meta_data_destroy(new_meta);
         return (status);
       }
 
@@ -373,6 +377,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
       if (status) {
         ERROR("Target `set': Unable to set metadata value `%s'.", key);
         strarray_free(meta_toc, (size_t)meta_entries);
+        meta_data_destroy(new_meta);
         return (status);
       }
     }

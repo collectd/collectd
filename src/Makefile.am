@@ -442,7 +442,8 @@ endif
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
 exec_la_SOURCES = exec.c
-exec_la_LDFLAGS = $(PLUGIN_LDFLAGS) libcmds.la
+exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+exec_la_LIBADD = libcmds.la
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -1211,7 +1212,8 @@ endif
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = unixsock.c
-unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS) libcmds.la
+unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+unixsock_la_LIBADD =  libcmds.la
 endif
 
 if BUILD_PLUGIN_UPTIME
