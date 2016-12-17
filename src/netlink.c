@@ -536,6 +536,10 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
       }
       if (q_stats.qs != NULL) {
         submit_one(dev, "if_tx_dropped", type_instance, q_stats.qs->drops);
+        submit_one(dev, "queue_length", type_instance, q_stats.qs->qlen);
+        submit_one(dev, "ipt_backlog", type_instance, q_stats.qs->backlog);
+        submit_one(dev, "ipt_requeues", type_instance, q_stats.qs->requeues);
+        submit_one(dev, "ipt_overlimits", type_instance, q_stats.qs->overlimits);
       }
     }
 
@@ -563,8 +567,10 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
       ssnprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
                 tc_inst);
 
+      submit_one(dev, "if_tx_dropped", type_instance, ts->drops);
       submit_one(dev, "ipt_bytes", type_instance, ts->bytes);
       submit_one(dev, "ipt_packets", type_instance, ts->packets);
+      submit_one(dev, "ipt_overlimits", type_instance, ts->overlimits);
     }
 
     break;
