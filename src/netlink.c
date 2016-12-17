@@ -85,6 +85,11 @@ typedef struct ir_ignorelist_s {
   struct ir_ignorelist_s *next;
 } ir_ignorelist_t;
 
+struct qos_stats {
+  struct gnet_stats_basic *bs;
+  struct gnet_stats_queue *qs;
+};
+
 static int ir_ignorelist_invert = 1;
 static ir_ignorelist_t *ir_ignorelist_head = NULL;
 
@@ -387,20 +392,30 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
 
 #if HAVE_TCA_STATS2
 static int qos_attr_cb(const struct nlattr *attr, void *data) {
-  struct gnet_stats_basic **bs = (struct gnet_stats_basic **)data;
+  struct qos_stats *q_stats = (struct qos_stats *)data;
 
   /* skip unsupported attribute in user-space */
   if (mnl_attr_type_valid(attr, TCA_STATS_MAX) < 0)
     return MNL_CB_OK;
 
   if (mnl_attr_get_type(attr) == TCA_STATS_BASIC) {
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(**bs)) < 0) {
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*q_stats->bs)) < 0) {
       ERROR("netlink plugin: qos_attr_cb: TCA_STATS_BASIC mnl_attr_validate2 "
             "failed.");
       return MNL_CB_ERROR;
     }
-    *bs = mnl_attr_get_payload(attr);
-    return MNL_CB_STOP;
+    q_stats->bs = mnl_attr_get_payload(attr);
+    return MNL_CB_OK;
+  }
+
+  if (mnl_attr_get_type(attr) == TCA_STATS_QUEUE) {
+    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*q_stats->qs)) < 0) {
+      ERROR("netlink plugin: qos_attr_cb: TCA_STATS_QUEUE mnl_attr_validate2 "
+            "failed.");
+      return MNL_CB_ERROR;
+    }
+    q_stats->qs = mnl_attr_get_payload(attr);
+    return MNL_CB_OK;
   }
 
   return MNL_CB_OK;
@@ -492,7 +507,9 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
 #if HAVE_TCA_STATS2
   mnl_attr_for_each(attr, nlh, sizeof(*tm)) {
-    struct gnet_stats_basic *bs = NULL;
+    struct qos_stats q_stats;
+
+    memset(&q_stats, 0x0, sizeof(q_stats));
 
     if (mnl_attr_get_type(attr) != TCA_STATS2)
       continue;
@@ -503,9 +520,9 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
       return MNL_CB_ERROR;
     }
 
-    mnl_attr_parse_nested(attr, qos_attr_cb, &bs);
+    mnl_attr_parse_nested(attr, qos_attr_cb, &q_stats);
 
-    if (bs != NULL) {
+    if (q_stats.bs != NULL || q_stats.qs != NULL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
       stats_submitted = 1;
@@ -513,8 +530,13 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
       ssnprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
                 tc_inst);
 
-      submit_one(dev, "ipt_bytes", type_instance, bs->bytes);
-      submit_one(dev, "ipt_packets", type_instance, bs->packets);
+      if (q_stats.bs != NULL) {
+        submit_one(dev, "ipt_bytes", type_instance, q_stats.bs->bytes);
+        submit_one(dev, "ipt_packets", type_instance, q_stats.bs->packets);
+      }
+      if (q_stats.qs != NULL) {
+        submit_one(dev, "if_tx_dropped", type_instance, q_stats.qs->drops);
+      }
     }
 
     break;
