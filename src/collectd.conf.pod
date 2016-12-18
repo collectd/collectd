@@ -4937,6 +4937,104 @@ timeout.
 
 =back
 
+=head2 Plugin C<nginx_multihost>
+
+This plugin collects the number of connections and requests handled by the
+C<nginx daemon> (speak: engineE<nbsp>X), a HTTP and mail server/proxy. It
+queries the page provided by the C<ngx_http_stub_status_module> module, which
+isn't compiled by default. Please refer to
+L<http://wiki.codemongers.com/NginxStubStatusModule> for more information on
+how to compile and configure nginx and this module.
+
+Synopsis:
+
+  <Plugin nginx_multihost>
+    <Host productionServer>
+      URL "http://productionServerUrl/nginx_status"
+      User "stats"
+      Password "password"
+    </Host>
+
+    <Host deployServer>
+      URL "http://deployServerUrl/nginx_status"
+    </Host>
+  </Plugin>
+
+A B<Host> block defines one connection to a nginx server. It accepts a
+single argument which specifies the name of the host. None of the other
+options are required.
+
+The following options are accepted by the C<nginx_multihost plugin>
+inside B<Host> block:
+
+=over 4
+
+=item B<URL> I<http://host/nginx_status>
+
+Sets the URL of the C<ngx_http_stub_status_module> output.
+
+=item B<User> I<Username>
+
+Optional user name needed for authentication.
+
+=item B<Password> I<Password>
+
+Optional password needed for authentication.
+
+=item B<VerifyPeer> B<true|false>
+
+Enable or disable peer SSL certificate verification. See
+L<http://curl.haxx.se/docs/sslcerts.html> for details. Enabled by default.
+
+=item B<VerifyHost> B<true|false>
+
+Enable or disable peer host name verification. If enabled, the plugin checks
+if the C<Common Name> or a C<Subject Alternate Name> field of the SSL
+certificate matches the host name provided by the B<URL> option. If this
+identity check fails, the connection is aborted. Obviously, only works when
+connecting to a SSL enabled server. Enabled by default.
+
+=item B<CACert> I<File>
+
+File that holds one or more SSL certificates. If you want to use HTTPS you will
+possibly need this option. What CA certificates come bundled with C<libcurl>
+and are checked by default depends on the distribution you use.
+
+=item B<Timeout> I<Milliseconds>
+
+The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
+milliseconds. By default, the configured B<Interval> is used to set the
+timeout.
+
+=back
+
+=head2 Plugin C<notify_desktop>
+
+This plugin sends a desktop notification to a notification daemon, as defined
+in the Desktop Notification Specification. To actually display the
+notifications, B<notification-daemon> is required and B<collectd> has to be
+able to access the X server (i.E<nbsp>e., the C<DISPLAY> and C<XAUTHORITY>
+environment variables have to be set correctly) and the D-Bus message bus.
+
+The Desktop Notification Specification can be found at
+L<http://www.galago-project.org/specs/notification/>.
+
+=over 4
+
+=item B<OkayTimeout> I<timeout>
+
+=item B<WarningTimeout> I<timeout>
+
+=item B<FailureTimeout> I<timeout>
+
+Set the I<timeout>, in milliseconds, after which to expire the notification
+for C<OKAY>, C<WARNING> and C<FAILURE> severities respectively. If zero has
+been specified, the displayed notification will not be closed at all - the
+user has to do so herself. These options default to 5000. If a negative number
+has been specified, the default is used as well.
+
+=back
+
 =head2 Plugin C<notify_desktop>
 
 This plugin sends a desktop notification to a notification daemon, as defined
