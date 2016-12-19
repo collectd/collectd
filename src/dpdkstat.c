@@ -289,13 +289,13 @@ static int dpdk_shm_init(size_t size) {
   if (err) {
     ERROR("dpdkstat semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail_close;
+    goto close;
   }
   err = sem_init(&g_configuration->sema_stats_in_shm, 1, 0);
   if (err) {
     ERROR("dpdkstat semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail_close;
+    goto close;
   }
 
   g_configuration->xstats = NULL;
