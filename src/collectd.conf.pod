@@ -2383,26 +2383,31 @@ Enabled by default, collects unknown (and thus presented as numeric only) query 
 
 =back
 
-=head2 Plugin C<dpdkstat>
+=head2 Plugin C<dpdkstats>
 
-The I<dpdkstat plugin> collects information about DPDK interfaces using the
+The I<dpdkstats plugin> collects information about DPDK interfaces using the
 extended NIC stats API in DPDK.
 
 B<Synopsis:>
 
- <Plugin "dpdkstat">
-    Coremask "0x4"
-    MemoryChannels "4"
-    ProcessType "secondary"
-    FilePrefix "rte"
-    EnabledPortMask 0xffff
-    PortName "interface1"
-    PortName "interface2"
+ <Plugin "dpdkstats">
+   <EAL>
+     Coremask "0x4"
+     MemoryChannels "4"
+     ProcessType "secondary"
+     FilePrefix "rte"
+     SocketMemory "1024"
+   </EAL>
+   EnabledPortMask 0xffff
+   PortName "interface1"
+   PortName "interface2"
  </Plugin>
 
 B<Options:>
 
-=over 4
+=head3 The EAL block
+
+=over 5
 
 =item B<Coremask> I<Mask>
 
@@ -2425,7 +2430,11 @@ The prefix text used for hugepage filenames. The filename will be set to
 =item B<SocketMemory> I<MB>
 
 A string containing amount of Memory to allocate from hugepages on specific
-sockets in MB
+sockets in MB. This is an optional value.
+
+=back
+
+=over 4
 
 =item B<EnabledPortMask> I<Mask>
 

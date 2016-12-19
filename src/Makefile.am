@@ -413,12 +413,12 @@ dns_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
 dns_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
 endif
 
-if BUILD_PLUGIN_DPDKSTAT
-pkglib_LTLIBRARIES += dpdkstat.la
-dpdkstat_la_SOURCES = dpdkstat.c
-dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
-dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
-dpdkstat_la_LIBADD = -ldpdk
+if BUILD_PLUGIN_DPDKSTATS
+pkglib_LTLIBRARIES += dpdkstats.la
+dpdkstats_la_SOURCES = dpdk_stats.c utils_dpdk.c utils_dpdk.h
+dpdkstats_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkstats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
+dpdkstats_la_LIBADD = -ldpdk
 endif
 
 if BUILD_PLUGIN_DRBD
