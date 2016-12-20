@@ -773,6 +773,14 @@ netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 endif
 
+if BUILD_PLUGIN_NETLINK_NAMESPACE
+pkglib_LTLIBRARIES += netlink_namespace.la
+netlink_namespace_la_SOURCES = netlink_namespace.c
+netlink_namespace_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+netlink_namespace_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+netlink_namespace_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
+endif
+
 if BUILD_PLUGIN_NETWORK
 pkglib_LTLIBRARIES += network.la
 network_la_SOURCES = network.c network.h \
