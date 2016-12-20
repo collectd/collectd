@@ -1,8 +1,4 @@
-SUBDIRS = libcollectdclient
-if BUILD_WITH_OWN_LIBOCONFIG
-SUBDIRS += liboconfig
-endif
-SUBDIRS += daemon
+SUBDIRS = libcollectdclient liboconfig daemon
 
 PLUGIN_LDFLAGS = -module -avoid-version -export-symbols-regex '\<module_register\>'
 
@@ -61,18 +57,19 @@ test_utils_latency_LDADD = liblatency.la daemon/libplugin_mock.la -lm
 
 noinst_LTLIBRARIES += libcmds.la
 libcmds_la_SOURCES = utils_cmds.c utils_cmds.h \
-		utils_cmd_flush.c utils_cmd_flush.h \
-		utils_cmd_getval.c utils_cmd_getval.h \
-		utils_cmd_listval.c utils_cmd_listval.h \
-		utils_cmd_putval.c utils_cmd_putval.h \
-		utils_parse_option.c
-libcmds_la_LIBADD = daemon/libcommon.la daemon/libmetadata.la \
-		daemon/libplugin_mock.la -lm
+                     utils_cmd_flush.c utils_cmd_flush.h \
+                     utils_cmd_getthreshold.c utils_cmd_getthreshold.h \
+                     utils_cmd_getval.c utils_cmd_getval.h \
+                     utils_cmd_listval.c utils_cmd_listval.h \
+                     utils_cmd_putnotif.c utils_cmd_putnotif.h \
+                     utils_cmd_putval.c utils_cmd_putval.h \
+                     utils_parse_option.c utils_parse_option.h
+libcmds_la_LIBADD = daemon/libcommon.la daemon/libmetadata.la -lm
 check_PROGRAMS += test_utils_cmds
 TESTS += test_utils_cmds
 test_utils_cmds_SOURCES = utils_cmds_test.c testing.h
 test_utils_cmds_LDADD = libcmds.la \
-		daemon/libplugin_mock.la daemon/libmetadata.la
+                        daemon/libplugin_mock.la
 
 noinst_LTLIBRARIES += liblookup.la
 liblookup_la_SOURCES = utils_vl_lookup.c utils_vl_lookup.h
@@ -178,13 +175,11 @@ endif
 
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
-amqp_la_SOURCES = amqp.c \
-		  utils_cmds.c utils_cmds.h \
-		  utils_cmd_putval.c utils_cmd_putval.h \
-		  utils_parse_option.c utils_parse_option.h
+amqp_la_SOURCES = amqp.c
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
-amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_graphite.la libformat_json.la
+amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) \
+                 libcmds.la libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_APACHE
@@ -381,6 +376,7 @@ if BUILD_PLUGIN_DISK
 pkglib_LTLIBRARIES += disk.la
 disk_la_SOURCES = disk.c
 disk_la_CFLAGS = $(AM_CFLAGS)
+disk_la_CPPFLAGS = $(AM_CPPFLAGS)
 disk_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 disk_la_LIBADD =
 if BUILD_WITH_LIBKSTAT
@@ -397,7 +393,7 @@ disk_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 disk_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 if BUILD_WITH_LIBUDEV
-disk_la_CFLAGS += $(BUILD_WITH_LIBUDEV_CFLAGS)
+disk_la_CPPFLAGS += $(BUILD_WITH_LIBUDEV_CPPFLAGS)
 disk_la_LDFLAGS += $(BUILD_WITH_LIBUDEV_LDFLAGS)
 disk_la_LIBADD += $(BUILD_WITH_LIBUDEV_LIBS)
 endif
@@ -412,8 +408,9 @@ endif
 if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = dns.c utils_dns.c utils_dns.h
-dns_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-dns_la_LIBADD = -lpcap
+dns_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPCAP_CPPFLAGS)
+dns_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
+dns_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
 endif
 
 if BUILD_PLUGIN_DPDKSTAT
@@ -444,12 +441,9 @@ endif
 
 if BUILD_PLUGIN_EXEC
 pkglib_LTLIBRARIES += exec.la
-exec_la_SOURCES = exec.c \
-		  utils_cmds.c utils_cmds.h \
-		  utils_cmd_putnotif.c utils_cmd_putnotif.h \
-		  utils_cmd_putval.c utils_cmd_putval.h \
-		  utils_parse_option.h utils_parse_option.c
+exec_la_SOURCES = exec.c
 exec_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+exec_la_LIBADD = libcmds.la
 endif
 
 if BUILD_PLUGIN_ETHSTAT
@@ -728,9 +722,9 @@ endif
 if BUILD_PLUGIN_MIC
 pkglib_LTLIBRARIES += mic.la
 mic_la_SOURCES = mic.c
-mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LIBPATH)
-mic_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
-mic_la_LIBADD = $(BUILD_WITH_MIC_LDADD)
+mic_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
+mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LDFLAGS)
+mic_la_LIBADD = $(BUILD_WITH_MIC_LIBS)
 endif
 
 if BUILD_PLUGIN_MODBUS
@@ -835,8 +829,9 @@ endif
 if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
-notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto
+notify_email_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBESMTP_CPPFLAGS)
+notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBESMTP_LDFLAGS)
+notify_email_la_LIBADD = $(BUILD_WITH_LIBESMTP_LIBS)
 endif
 
 if BUILD_PLUGIN_NOTIFY_NAGIOS
@@ -923,11 +918,6 @@ perl_la_CPPFLAGS += -D_GNU_SOURCE
 perl_la_CFLAGS  = $(AM_CFLAGS) \
 		$(PERL_CFLAGS) \
 		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
-# Work-around for issues #41 and #42 - Perl 5.10 incorrectly introduced
-# __attribute__nonnull__(3) for Perl_load_module().
-if HAVE_BROKEN_PERL_LOAD_MODULE
-perl_la_CFLAGS += -Wno-nonnull
-endif
 perl_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 		$(PERL_LDFLAGS)
 perl_la_LIBADD = $(PERL_LIBS)
@@ -963,7 +953,7 @@ postgresql_la_SOURCES = postgresql.c \
 postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 		$(BUILD_WITH_LIBPQ_LDFLAGS)
-postgresql_la_LIBADD = -lpq
+postgresql_la_LIBADD = $(BUILD_WITH_LIBPQ_LIBS)
 endif
 
 if BUILD_PLUGIN_POWERDNS
@@ -1041,9 +1031,9 @@ endif
 if BUILD_PLUGIN_SENSORS
 pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = sensors.c
-sensors_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBSENSORS_CFLAGS)
+sensors_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBSENSORS_CPPFLAGS)
 sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSENSORS_LDFLAGS)
-sensors_la_LIBADD = -lsensors
+sensors_la_LIBADD = $(BUILD_WITH_LIBSENSORS_LIBS)
 endif
 
 if BUILD_PLUGIN_SERIAL
@@ -1064,7 +1054,7 @@ if BUILD_PLUGIN_SMART
 if BUILD_WITH_LIBUDEV
 pkglib_LTLIBRARIES += smart.la
 smart_la_SOURCES = smart.c
-smart_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CFLAGS)
+smart_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CPPFLAGS)
 smart_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBATASMART_LDFLAGS) $(BUILD_WITH_LIBUDEV_LDFLAGS)
 smart_la_LIBADD = $(BUILD_WITH_LIBATASMART_LIBS) $(BUILD_WITH_LIBUDEV_LIBS)
 endif
@@ -1229,16 +1219,9 @@ endif
 
 if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
-unixsock_la_SOURCES = unixsock.c \
-		      utils_cmds.c utils_cmds.h \
-		      utils_cmd_flush.h utils_cmd_flush.c \
-		      utils_cmd_getval.h utils_cmd_getval.c \
-		      utils_cmd_getthreshold.h utils_cmd_getthreshold.c \
-		      utils_cmd_listval.h utils_cmd_listval.c \
-		      utils_cmd_putval.h utils_cmd_putval.c \
-		      utils_cmd_putnotif.h utils_cmd_putnotif.c \
-		      utils_parse_option.h utils_parse_option.c
+unixsock_la_SOURCES = unixsock.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+unixsock_la_LIBADD =  libcmds.la
 endif
 
 if BUILD_PLUGIN_UPTIME
@@ -1270,8 +1253,6 @@ endif
 if BUILD_PLUGIN_UUID
 pkglib_LTLIBRARIES += uuid.la
 uuid_la_SOURCES = uuid.c
-uuid_la_CFLAGS  = $(AM_CFLAGS) $(BUILD_WITH_LIBHAL_CFLAGS)
-uuid_la_LIBADD  = $(BUILD_WITH_LIBHAL_LIBS)
 uuid_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1290,6 +1271,19 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+# TODO: enable once we support only modern libvirts which depends on libnl-3
+# the libvirt on wheezy is linked in libnl v1, and there is a small leak here,
+# triggered by the library initialization. There are no means to avoid it,
+# and libvirt switched to libnl3 anyway
+#test_plugin_virt_SOURCES = virt_test.c
+#test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
+#		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+#test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
+#test_plugin_virt_LDADD = daemon/libplugin_mock.la \
+#		$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+#check_PROGRAMS += test_plugin_virt
+#TESTS += test_plugin_virt
 endif
 
 if BUILD_PLUGIN_VMEM
@@ -1329,12 +1323,11 @@ endif
 if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
-                        utils_cmds.c utils_cmds.h \
-                        utils_cmd_putval.c utils_cmd_putval.h \
-                        utils_crc32.c utils_crc32.h
+                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
-write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_graphite.la libformat_json.la
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) \
+                        libcmds.la libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_LOG

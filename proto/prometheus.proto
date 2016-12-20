@@ -17,45 +17,36 @@ package io.prometheus.client;
 option java_package = "io.prometheus.client";
 
 message LabelPair {
-  optional string name  = 1;
+  optional string name = 1;
   optional string value = 2;
 }
 
 enum MetricType {
-  COUNTER    = 0;
-  GAUGE      = 1;
-  SUMMARY    = 2;
-  UNTYPED    = 3;
-  HISTOGRAM  = 4;
+  COUNTER = 0; GAUGE = 1; SUMMARY = 2; UNTYPED = 3; HISTOGRAM = 4;
 }
 
-message Gauge {
-  optional double value = 1;
-}
+message Gauge { optional double value = 1; }
 
-message Counter {
-  optional double value = 1;
-}
+message Counter { optional double value = 1; }
 
 message Quantile {
   optional double quantile = 1;
-  optional double value    = 2;
+  optional double value = 2;
 }
 
 message Summary {
-  optional uint64   sample_count = 1;
-  optional double   sample_sum   = 2;
-  repeated Quantile quantile     = 3;
+  optional uint64 sample_count = 1;
+  optional double sample_sum = 2;
+  repeated Quantile quantile = 3;
 }
 
-message Untyped {
-  optional double value = 1;
-}
+message Untyped { optional double value = 1; }
 
 message Histogram {
   optional uint64 sample_count = 1;
-  optional double sample_sum   = 2;
-  repeated Bucket bucket       = 3; // Ordered in increasing order of upper_bound, +Inf bucket is optional.
+  optional double sample_sum = 2;
+  repeated Bucket bucket =
+      3; // Ordered in increasing order of upper_bound, +Inf bucket is optional.
 }
 
 message Bucket {
@@ -64,18 +55,18 @@ message Bucket {
 }
 
 message Metric {
-  repeated LabelPair label        = 1;
-  optional Gauge     gauge        = 2;
-  optional Counter   counter      = 3;
-  optional Summary   summary      = 4;
-  optional Untyped   untyped      = 5;
-  optional Histogram histogram    = 7;
-  optional int64     timestamp_ms = 6;
+  repeated LabelPair label = 1;
+  optional Gauge gauge = 2;
+  optional Counter counter = 3;
+  optional Summary summary = 4;
+  optional Untyped untyped = 5;
+  optional Histogram histogram = 7;
+  optional int64 timestamp_ms = 6;
 }
 
 message MetricFamily {
-  optional string     name   = 1;
-  optional string     help   = 2;
-  optional MetricType type   = 3;
-  repeated Metric     metric = 4;
+  optional string name = 1;
+  optional string help = 2;
+  optional MetricType type = 3;
+  repeated Metric metric = 4;
 }

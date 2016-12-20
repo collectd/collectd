@@ -36,25 +36,25 @@ struct lookup_s;
 typedef struct lookup_s lookup_t;
 
 /* Given a user_class, constructs a new user_obj. */
-typedef void *(*lookup_class_callback_t) (data_set_t const *ds,
-    value_list_t const *vl, void *user_class);
+typedef void *(*lookup_class_callback_t)(data_set_t const *ds,
+                                         value_list_t const *vl,
+                                         void *user_class);
 
 /* Given a user_class and a ds/vl combination, does stuff with the data.
  * This is the main working horse of the module. */
-typedef int (*lookup_obj_callback_t) (data_set_t const *ds,
-    value_list_t const *vl,
-    void *user_class, void *user_obj);
+typedef int (*lookup_obj_callback_t)(data_set_t const *ds,
+                                     value_list_t const *vl, void *user_class,
+                                     void *user_obj);
 
 /* Used to free user_class pointers. May be NULL in which case nothing is
  * freed. */
-typedef void (*lookup_free_class_callback_t) (void *user_class);
+typedef void (*lookup_free_class_callback_t)(void *user_class);
 
 /* Used to free user_obj pointers. May be NULL in which case nothing is
  * freed. */
-typedef void (*lookup_free_obj_callback_t) (void *user_obj);
+typedef void (*lookup_free_obj_callback_t)(void *user_obj);
 
-struct lookup_identifier_s
-{
+struct lookup_identifier_s {
   char host[DATA_MAX_NAME_LEN];
   char plugin[DATA_MAX_NAME_LEN];
   char plugin_instance[DATA_MAX_NAME_LEN];
@@ -63,27 +63,25 @@ struct lookup_identifier_s
 };
 typedef struct lookup_identifier_s lookup_identifier_t;
 
-#define LU_GROUP_BY_HOST            0x01
-#define LU_GROUP_BY_PLUGIN          0x02
+#define LU_GROUP_BY_HOST 0x01
+#define LU_GROUP_BY_PLUGIN 0x02
 #define LU_GROUP_BY_PLUGIN_INSTANCE 0x04
 /* #define LU_GROUP_BY_TYPE            0x00 */
-#define LU_GROUP_BY_TYPE_INSTANCE   0x10
+#define LU_GROUP_BY_TYPE_INSTANCE 0x10
 
 /*
  * Functions
  */
-__attribute__((nonnull(1,2)))
-lookup_t *lookup_create (lookup_class_callback_t,
-    lookup_obj_callback_t,
-    lookup_free_class_callback_t,
-    lookup_free_obj_callback_t);
-void lookup_destroy (lookup_t *obj);
+__attribute__((nonnull(1, 2)))
+lookup_t *lookup_create(lookup_class_callback_t, lookup_obj_callback_t,
+                        lookup_free_class_callback_t,
+                        lookup_free_obj_callback_t);
+void lookup_destroy(lookup_t *obj);
 
-int lookup_add (lookup_t *obj,
-    lookup_identifier_t const *ident, unsigned int group_by, void *user_class);
+int lookup_add(lookup_t *obj, lookup_identifier_t const *ident,
+               unsigned int group_by, void *user_class);
 
 /* TODO(octo): Pass lookup_obj_callback_t to lookup_search()? */
-int lookup_search (lookup_t *obj,
-    data_set_t const *ds, value_list_t const *vl);
+int lookup_search(lookup_t *obj, data_set_t const *ds, value_list_t const *vl);
 
 #endif /* UTILS_VL_LOOKUP_H */

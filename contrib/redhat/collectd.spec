@@ -148,6 +148,7 @@
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
+%define with_write_prometheus 0%{!?_without_write_prometheus:1}
 %define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
@@ -217,6 +218,7 @@
 %define with_redis 0
 %define with_smart 0
 %define with_turbostat 0
+%define with_write_prometheus 0
 %define with_write_redis 0
 %endif
 
@@ -225,20 +227,22 @@
 %define with_cpusleep 0
 %define with_gps 0
 %define with_mqtt 0
+%define with_redis 0
 %define with_rrdcached 0
+%define with_write_redis 0
 %define with_xmms 0
 %endif
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, which
+BuildRequires:	libgcrypt-devel, kernel-headers, libcap-devel, which
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?fedora} || 0%{?rhel} >= 7
@@ -826,6 +830,17 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: librdkafka-devel
 %description write_kafka
 The write_kafka plugin sends values to kafka, a distributed messaging system.
+%endif
+
+%if %{with_write_prometheus}
+%package write_prometheus
+Summary:	Write-prometheus plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libmicrohttpd-devel
+%description write_prometheus
+The Write Prometheus plugin exposes collected values using an embedded HTTP
+server, turning the collectd daemon into a Prometheus exporter.
 %endif
 
 %if %{with_write_redis}
@@ -1689,6 +1704,12 @@ Collectd utilities
 %define _with_write_mongodb --disable-write_mongodb
 %endif
 
+%if %{with_write_prometheus}
+%define _with_write_prometheus --enable-write_prometheus
+%else
+%define _with_write_prometheus --disable-write_prometheus
+%endif
+
 %if %{with_write_redis}
 %define _with_write_redis --enable-write_redis
 %else
@@ -1746,7 +1767,6 @@ Collectd utilities
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	%{?_python_config} \
 	--disable-static \
-	--without-included-ltdl \
 	--enable-all-plugins=yes \
 	--enable-match_empty_counter \
 	--enable-match_hashed \
@@ -1886,6 +1906,7 @@ Collectd utilities
 	%{?_with_write_kafka} \
 	%{?_with_write_log} \
 	%{?_with_write_mongodb} \
+	%{?_with_write_prometheus} \
 	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
 	%{?_with_write_sensu} \
@@ -2528,6 +2549,11 @@ fi
 %{_libdir}/%{name}/write_kafka.so
 %endif
 
+%if %{with_write_prometheus}
+%files write_prometheus
+%{_libdir}/%{name}/write_prometheus.so
+%endif
+
 %if %{with_write_redis}
 %files write_redis
 %{_libdir}/%{name}/write_redis.so
@@ -2560,9 +2586,12 @@ fi
 %doc contrib/
 
 %changelog
+* Tue Nov 29 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-2
+- Disable redis plugin on RHEL 6, hiredis has been retired from EPEL6
+
 * Mon Oct 10 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
 - New PRE-RELEASE version
-- New plugins enabled by default: hugepages
+- New plugins enabled by default: hugepages, write_prometheus
 - New plugins disabled by default: dpdkstat, intel_rdt
 
 * Mon Oct 10 2016 Victor Demonchy <v.demonchy@criteo.com> - 5.6.1-1

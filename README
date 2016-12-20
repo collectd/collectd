@@ -500,6 +500,10 @@ Features
     - write_mongodb
       Sends data to MongoDB, a NoSQL database.
 
+    - write_prometheus
+      Publish values using an embedded HTTP server, in a format compatible
+      with Prometheus' collectd_exporter.
+
     - write_redis
       Sends the values to a Redis key-value database server.
 
@@ -746,10 +750,6 @@ Prerequisites
     Used by the `gps' plugin.
     <http://developer.berlios.de/projects/gpsd/>
 
-  * libhal (optional)
-    If present, the `uuid' plugin will check for UUID from HAL.
-    <http://hal.freedesktop.org/>
-
   * libi2c-dev (optional)
     Used for the plugin `barometer', provides just the i2c-dev.h header file
     for user space i2c development.
@@ -779,6 +779,10 @@ Prerequisites
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
+
+  * libmicrohttpd (optional)
+    Used by the write_prometheus plugin to run an http daemon.
+    <http://www.gnu.org/software/libmicrohttpd/>
 
   * libmnl (optional)
     Used by the `netlink' plugin.
@@ -973,7 +977,6 @@ To generate the `configure` script, you'll need the following dependencies:
 - flex
 - bison
 - libtool
-- libtool-ltdl
 - pkg-config
 
 The `build.sh' script takes no arguments.

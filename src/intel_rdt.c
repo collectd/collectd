@@ -25,8 +25,8 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "collectd.h"
 #include "common.h"
+#include "collectd.h"
 
 #include <pqos.h>
 
@@ -460,6 +460,10 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   return (0);
 }
 
+static void rdt_pqos_log(void *context, const size_t size, const char *msg) {
+  DEBUG(RDT_PLUGIN ": %s", msg);
+}
+
 static int rdt_preinit(void) {
   int ret;
 
@@ -474,15 +478,12 @@ static int rdt_preinit(void) {
     return (-ENOMEM);
   }
 
-  /* In case previous instance of the application was not closed properly
-   * call fini and ignore return code. */
-  pqos_fini();
+  struct pqos_config pqos = {.fd_log = -1,
+                             .callback_log = rdt_pqos_log,
+                             .context_log = NULL,
+                             .verbose = 0};
 
-  /* TODO:
-   * stdout should not be used here. Will be reworked when support of log
-   * callback is added to PQoS library.
-  */
-  ret = pqos_init(&(struct pqos_config){.fd_log = STDOUT_FILENO});
+  ret = pqos_init(&pqos);
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDT_PLUGIN ": Error initializing PQoS library!");
     goto rdt_preinit_error1;
@@ -506,6 +507,9 @@ static int rdt_preinit(void) {
         ": Monitoring capability not detected. Nothing to do for the plugin.");
     goto rdt_preinit_error2;
   }
+
+  /* Reset pqos monitoring groups registers */
+  pqos_mon_reset();
 
   return (0);
 

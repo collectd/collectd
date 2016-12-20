@@ -555,6 +555,7 @@ B<Synopsis:>
  #   GraphiteEscapeChar "_"
  #   GraphiteSeparateInstances false
  #   GraphiteAlwaysAppendDS false
+ #   GraphitePreserveSeparator false
    </Publish>
 
    # Receive values from an AMQP broker
@@ -728,6 +729,12 @@ instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
+
+=item B<GraphitePreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
 
 =back
 
@@ -4871,7 +4878,7 @@ so the values will not loop.
 =item B<ReportStats> B<true>|B<false>
 
 The network plugin cannot only receive and send statistics, it can also create
-statistics about itself. Collected data included the number of received and
+statistics about itself. Collectd data included the number of received and
 sent octets and packets, the length of the receive queue and the number of
 values handled. When set to B<true>, the I<Network plugin> will make these
 statistics available. Defaults to B<false>.
@@ -7082,6 +7089,15 @@ user using (extended) regular expressions, as described in L<regex(7)>.
         Type "counter"
         Instance "local_user"
       </Match>
+      <Match>
+        Regex "l=([0-9]*\\.[0-9]*)"
+        <DSType "Distribution">
+          Percentile 99
+          Bucket 0 100
+        </DSType>
+        Type "latency"
+        Instance "foo"
+      </Match>
     </File>
   </Plugin>
 
@@ -7180,14 +7196,74 @@ Increase the internal counter by one. These B<DSType> are the only ones that do
 not use the matched subexpression, but simply count the number of matched
 lines. Thus, you may use a regular expression without submatch in this case.
 
+=item B<Distribution>
+
+Type to do calculations based on the distribution of values, primarily
+calculating percentiles. This is primarily geared towards latency, but can be
+used for other metrics as well. The range of values tracked with this setting
+must be in the range (0–2^34) and can be fractional. Please note that neither
+zero nor 2^34 are inclusive bounds, i.e. zero I<cannot> be handled by a
+distribution.
+
+This option must be used together with the B<Percentile> and/or B<Bucket>
+options.
+
+B<Synopsis:>
+
+  <DSType "Distribution">
+    Percentile 99
+    Bucket 0 100
+  </DSType>
+
+=over 4
+
+=item B<Percentile> I<Percent>
+
+Calculate and dispatch the configured percentile, i.e. compute the value, so
+that I<Percent> of all matched values are smaller than or equal to the computed
+latency.
+
+Metrics are reported with the I<type> B<Type> (the value of the above option)
+and the I<type instance> C<[E<lt>InstanceE<gt>-]E<lt>PercentE<gt>>.
+
+This option may be repeated to calculate more than one percentile.
+
+=item B<Bucket> I<lower_bound> I<upper_bound>
+
+Export the number of values (a C<DERIVE>) falling within the given range. Both,
+I<lower_bound> and I<upper_bound> may be a fractional number, such as B<0.5>.
+Each B<Bucket> option specifies an interval C<(I<lower_bound>,
+I<upper_bound>]>, i.e. the range I<excludes> the lower bound and I<includes>
+the upper bound. I<lower_bound> and I<upper_bound> may be zero, meaning no
+lower/upper bound.
+
+To export the entire (0–inf) range without overlap, use the upper bound of the
+previous range as the lower bound of the following range. In other words, use
+the following schema:
+
+  Bucket   0   1
+  Bucket   1   2
+  Bucket   2   5
+  Bucket   5  10
+  Bucket  10  20
+  Bucket  20  50
+  Bucket  50   0
+
+Metrics are reported with the I<type> C<bucket> and the I<type instance>
+C<E<lt>TypeE<gt>[-E<lt>InstanceE<gt>]-E<lt>lower_boundE<gt>_E<lt>upper_boundE<gt>>.
+
+This option may be repeated to calculate more than one rate.
+
 =back
 
-As you'd expect the B<Gauge*> types interpret the submatch as a floating point
-number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types interpret
-the submatch as an unsigned integer using L<strtoull(3)>. The B<Derive*> types
-interpret the submatch as a signed integer using L<strtoll(3)>. B<CounterInc>
-and B<DeriveInc> do not use the submatch at all and it may be omitted in this
-case.
+=back
+
+The B<Gauge*> and B<Distribution> types interpret the submatch as a floating
+point number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types
+interpret the submatch as an unsigned integer using L<strtoull(3)>. The
+B<Derive*> types interpret the submatch as a signed integer using
+L<strtoll(3)>. B<CounterInc> and B<DeriveInc> do not use the submatch at all
+and it may be omitted in this case.
 
 =item B<Type> I<Type>
 
@@ -7442,7 +7518,7 @@ couple metrics: number of records, and database size on disk.
 
 =item B<Host> I<Hostname/IP>
 
-The hostname or ip which identifies the server.
+The hostname or IP which identifies the server.
 Default: B<127.0.0.1>
 
 =item B<Port> I<Service/Port>
@@ -7456,61 +7532,60 @@ Default: B<1978>
 =head2 Plugin C<turbostat>
 
 The I<Turbostat plugin> reads CPU frequency and C-state residency on modern
-Intel processors by using the new Model Specific Registers.
+Intel processors by using I<Model Specific Registers>.
 
 =over 4
 
 =item B<CoreCstates> I<Bitmask(Integer)>
 
-Bitmask of the list of core C states supported by the processor.
+Bit mask of the list of core C-states supported by the processor.
 This option should only be used if the automated detection fails.
-Default value extracted from the cpu model and family.
+Default value extracted from the CPU model and family.
 
 Currently supported C-states (by this plugin): 3, 6, 7
 
-Example: (1<<3)+(1<<6)+(1<<7) = 392 for all states
+B<Example:>
+
+  All states (3, 6 and 7):
+  (1<<3) + (1<<6) + (1<<7) = 392
 
 =item B<PackageCstates> I<Bitmask(Integer)>
 
-Bitmask of the list of pacages C states supported by the processor.
-This option should only be used if the automated detection fails.
-Default value extracted from the cpu model and family.
+Bit mask of the list of packages C-states supported by the processor. This
+option should only be used if the automated detection fails. Default value
+extracted from the CPU model and family.
 
 Currently supported C-states (by this plugin): 2, 3, 6, 7, 8, 9, 10
 
-Example: (1<<2)+(1<<3)+(1<<6)+(1<<7) = 396 for states 2, 3, 6 and 7
+B<Example:>
+
+  States 2, 3, 6 and 7:
+  (1<<2) + (1<<3) + (1<<6) + (1<<7) = 396
 
 =item B<SystemManagementInterrupt> I<true>|I<false>
 
-Boolean enabling the collection of the I/O System-Management Interrupt
-counter'. This option should only be used if the automated detection
-fails or if you want to disable this feature.
+Boolean enabling the collection of the I/O System-Management Interrupt counter.
+This option should only be used if the automated detection fails or if you want
+to disable this feature.
 
 =item B<DigitalTemperatureSensor> I<true>|I<false>
 
-Boolean enabling the collection of the temperature of each core.
-This option should only be used if the automated detectionfails or
-if you want to disable this feature.
-
-=item B<DigitalTemperatureSensor> I<true>|I<false>
-
-Boolean enabling the collection of the temperature of each package.
-This option should only be used if the automated detectionfails or
-if you want to disable this feature.
+Boolean enabling the collection of the temperature of each core. This option
+should only be used if the automated detection fails or if you want to disable
+this feature.
 
 =item B<TCCActivationTemp> I<Temperature>
 
-Thermal Control Circuit Activation Temperature of the installed
-CPU. This temperature is used when collecting the temperature of
-cores or packages. This option should only be used if the automated
-detection fails. Default value extracted from B<MSR_IA32_TEMPERATURE_TARGET>
+I<Thermal Control Circuit Activation Temperature> of the installed CPU. This
+temperature is used when collecting the temperature of cores or packages. This
+option should only be used if the automated detection fails. Default value
+extracted from B<MSR_IA32_TEMPERATURE_TARGET>.
 
 =item B<RunningAveragePowerLimit> I<Bitmask(Integer)>
 
-Bitmask of the list of elements to be thermally monitored. This option
-should only be used if the automated detection fails or if you want to
-disable some collections. The different bits of this bitmask accepted
-by this plugin are:
+Bit mask of the list of elements to be thermally monitored. This option should
+only be used if the automated detection fails or if you want to disable some
+collections. The different bits of this bit mask accepted by this plugin are:
 
 =over 4
 
@@ -7523,6 +7598,14 @@ by this plugin are:
 =item 3 ('8'): Embedded graphic device
 
 =back
+
+=item B<LogicalCoreNames> I<true>|I<false>
+
+Boolean enabling the use of logical core numbering for per core statistics.
+When enabled, C<cpuE<lt>nE<gt>> is used as plugin instance, where I<n> is a
+sequential number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
+where I<n> is the n-th core of the socket, causing name conflicts when there is
+more than one socket.
 
 =back
 
@@ -7890,6 +7973,12 @@ You can also specify combinations of the B<name> and B<uuid> fields.
 For example B<name uuid> means to concatenate the guest name and UUID
 (with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
+=item B<Instances> B<integer>
+
+How many read instances you want to use for this plugin. The default is one,
+and the sensible setting is a multiple of the B<ReadThreads> value.
+If you are not sure, just use the default setting.
+
 =back
 
 =head2 Plugin C<vmem>
@@ -8013,6 +8102,12 @@ instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
 identifier. If set to B<false> (the default), this is only done when there is
 more than one DS.
+
+=item B<PreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<EscapeCharacter>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
 
 =item B<DropDuplicateFields> B<false>|B<true>
 
@@ -8415,6 +8510,18 @@ If set to B<true>, the plugin instance and type instance will be in their own
 path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
 default), the plugin and plugin instance (and likewise the type and type
 instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
+
+=item B<GraphiteAlwaysAppendDS> B<true>|B<false>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=item B<GraphitePreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
 
 =item B<StoreRates> B<true>|B<false>
 

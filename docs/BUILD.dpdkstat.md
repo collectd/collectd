@@ -51,14 +51,18 @@ instruction set manually:
         mount -t hugetlbfs nodev /mnt/huge
         echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 
- *  To configure the DPDK build for the combined shared library modify
-    `config/common_base` in your DPDK as follows
+ *  To configure the DPDK build for the combined shared library and enable autoload
+    of pmd drivers modify `config/common_base` in your DPDK as follows
 
         #
         # Compile to share library
         #
         -CONFIG_RTE_BUILD_SHARED_LIB=n
         +CONFIG_RTE_BUILD_SHARED_LIB=y
+
+        # Default driver path (or "" to disable)
+        -CONFIG_RTE_EAL_PMD_PATH=""
+        +CONFIG_RTE_EAL_PMD_PATH="/usr/lib/dpdk-pmd/"
 
  *  Prepare the configuration for the appropriate target as specified at:
     http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
@@ -75,6 +79,14 @@ instruction set manually:
 
         sudo make install prefix=/usr
 
+ *  Create dpdk-pmd folder
+
+        mkdir -p /usr/lib/dpdk-pmd
+
+ *  Create symlinks to pmd drivers
+
+        find /usr/lib -type f -name 'librte_pmd*' | while read path ; do ln -s $path /usr/lib/dpdk-pmd/`echo $path | grep -o 'librte_.*so'` ;  done
+
     **Note 1:** You must run make install as the configuration of collectd with
     DPDK expects DPDK to be installed somewhere.
 
@@ -83,6 +95,9 @@ instruction set manually:
 
     **Note 3:** If you are not root then use sudo to make install DPDK to the
     appropriate location.
+
+    **Note 4:** You **MUST** create symlink to a NIC driver lib. This way collectd
+    will be able to work with device bound to dpdk.
 
  *  Check that the DPDK library has been installed in `/usr/lib` or `/lib`:
 

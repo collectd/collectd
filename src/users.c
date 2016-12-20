@@ -31,96 +31,93 @@
 #include "plugin.h"
 
 #if HAVE_STATGRAB_H
-# include <statgrab.h>
+#include <statgrab.h>
 #endif /* HAVE_STATGRAB_H */
 
 #if HAVE_UTMPX_H
-# include <utmpx.h>
+#include <utmpx.h>
 /* #endif HAVE_UTMPX_H */
 
 #elif HAVE_UTMP_H
-# include <utmp.h>
+#include <utmp.h>
 /* #endif HAVE_UTMP_H */
 #endif
 
-static void users_submit (gauge_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
+static void users_submit(gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	vl.values = &(value_t) { .gauge = value };
-	vl.values_len = 1;
-	sstrncpy (vl.plugin, "users", sizeof (vl.plugin));
-	sstrncpy (vl.type, "users", sizeof (vl.plugin));
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "users", sizeof(vl.plugin));
+  sstrncpy(vl.type, "users", sizeof(vl.plugin));
 
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 } /* void users_submit */
 
-static int users_read (void)
-{
+static int users_read(void) {
 #if HAVE_GETUTXENT
-	unsigned int users = 0;
-	struct utmpx *entry = NULL;
+  unsigned int users = 0;
+  struct utmpx *entry = NULL;
 
-	/* according to the *utent(3) man page none of the functions sets errno
-	   in case of an error, so we cannot do any error-checking here */
-	setutxent();
+  /* according to the *utent(3) man page none of the functions sets errno
+     in case of an error, so we cannot do any error-checking here */
+  setutxent();
 
-	while (NULL != (entry = getutxent())) {
-		if (USER_PROCESS == entry->ut_type) {
-			++users;
-		}
-	}
-	endutxent();
+  while (NULL != (entry = getutxent())) {
+    if (USER_PROCESS == entry->ut_type) {
+      ++users;
+    }
+  }
+  endutxent();
 
-	users_submit (users);
+  users_submit(users);
 /* #endif HAVE_GETUTXENT */
 
 #elif HAVE_GETUTENT
-	unsigned int users = 0;
-	struct utmp *entry = NULL;
+  unsigned int users = 0;
+  struct utmp *entry = NULL;
 
-	/* according to the *utent(3) man page none of the functions sets errno
-	   in case of an error, so we cannot do any error-checking here */
-	setutent();
+  /* according to the *utent(3) man page none of the functions sets errno
+     in case of an error, so we cannot do any error-checking here */
+  setutent();
 
-	while (NULL != (entry = getutent())) {
-		if (USER_PROCESS == entry->ut_type) {
-			++users;
-		}
-	}
-	endutent();
+  while (NULL != (entry = getutent())) {
+    if (USER_PROCESS == entry->ut_type) {
+      ++users;
+    }
+  }
+  endutent();
 
-	users_submit (users);
+  users_submit(users);
 /* #endif HAVE_GETUTENT */
 
 #elif HAVE_LIBSTATGRAB
-	sg_user_stats *us;
+  sg_user_stats *us;
 
-# if HAVE_LIBSTATGRAB_0_90
-	size_t num_entries;
-	us = sg_get_user_stats (&num_entries);
-# else
-	us = sg_get_user_stats ();
-# endif
-	if (us == NULL)
-		return (-1);
+#if HAVE_LIBSTATGRAB_0_90
+  size_t num_entries;
+  us = sg_get_user_stats(&num_entries);
+#else
+  us = sg_get_user_stats();
+#endif
+  if (us == NULL)
+    return (-1);
 
-	users_submit ((gauge_t)
-# if HAVE_LIBSTATGRAB_0_90
-		      num_entries);
-# else
-		      us->num_entries);
-# endif
+  users_submit((gauge_t)
+#if HAVE_LIBSTATGRAB_0_90
+                   num_entries);
+#else
+                   us->num_entries);
+#endif
 /* #endif HAVE_LIBSTATGRAB */
 
 #else
-# error "No applicable input method."
+#error "No applicable input method."
 #endif
 
-	return (0);
+  return (0);
 } /* int users_read */
 
-void module_register (void)
-{
-	plugin_register_read ("users", users_read);
+void module_register(void) {
+  plugin_register_read("users", users_read);
 } /* void module_register(void) */

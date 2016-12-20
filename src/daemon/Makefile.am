@@ -23,9 +23,6 @@ endif
 if BUILD_WITH_LIBSOCKET
 COMMON_LIBS += -lsocket
 endif
-if BUILD_WITH_LIBRESOLV
-COMMON_LIBS += -lresolv
-endif
 if BUILD_WITH_LIBKSTAT
 COMMON_LIBS += -lkstat
 endif
@@ -47,6 +44,8 @@ libheap_la_SOURCES = utils_heap.c utils_heap.h
 libmetadata_la_SOURCES = meta_data.c meta_data.h
 
 libplugin_mock_la_SOURCES = plugin_mock.c utils_cache_mock.c \
+			    utils_complain.c utils_complain.h \
+			    utils_ignorelist.c utils_ignorelist.h \
 			    utils_time.c utils_time.h
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = $(COMMON_LIBS) libcommon.la
@@ -61,19 +60,15 @@ collectd_SOURCES = collectd.c collectd.h \
 		   utils_ignorelist.c utils_ignorelist.h \
 		   utils_llist.c utils_llist.h \
 		   utils_random.c utils_random.h \
-		   utils_tail_match.c utils_tail_match.h \
-		   utils_match.c utils_match.h \
 		   utils_subst.c utils_subst.h \
-		   utils_tail.c utils_tail.h \
 		   utils_time.c utils_time.h \
 		   types_list.c types_list.h \
 		   utils_threshold.c utils_threshold.h
 
 
-collectd_CPPFLAGS =  $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS)
+collectd_LDADD = libavltree.la libcommon.la libheap.la -lm $(COMMON_LIBS) $(DLOPEN_LIBS)
 collectd_DEPENDENCIES = libavltree.la libcommon.la libheap.la libmetadata.la
 
 # The daemon needs to call sg_init, so we need to link it against libstatgrab,
@@ -83,12 +78,8 @@ collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
-if BUILD_WITH_OWN_LIBOCONFIG
-collectd_LDADD += $(LIBLTDL) $(top_builddir)/src/liboconfig/liboconfig.la
+collectd_LDADD += $(top_builddir)/src/liboconfig/liboconfig.la
 collectd_DEPENDENCIES += $(top_builddir)/src/liboconfig/liboconfig.la
-else
-collectd_LDADD += -loconfig
-endif
 
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_top_srcdir)/testwrapper.sh
 

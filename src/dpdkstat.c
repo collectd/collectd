@@ -25,6 +25,7 @@
  * Authors:
  *   Maryam Tahhan <maryam.tahhan@intel.com>
  *   Harry van Haaren <harry.van.haaren@intel.com>
+ *   Taras Chornyi <tarasx.chornyi@intel.com>
  */
 
 #include "collectd.h"
@@ -34,28 +35,29 @@
 #include "utils_time.h"
 
 #include <getopt.h>
+#include <poll.h>
 #include <semaphore.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
-#include <poll.h>
 
+#include <rte_atomic.h>
+#include <rte_branch_prediction.h>
+#include <rte_common.h>
 #include <rte_config.h>
+#include <rte_debug.h>
+#include <rte_debug.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
-#include <rte_common.h>
-#include <rte_debug.h>
+#include <rte_launch.h>
+#include <rte_lcore.h>
+#include <rte_log.h>
 #include <rte_malloc.h>
 #include <rte_memory.h>
 #include <rte_memzone.h>
-#include <rte_launch.h>
-#include <rte_tailq.h>
-#include <rte_lcore.h>
 #include <rte_per_lcore.h>
-#include <rte_debug.h>
-#include <rte_log.h>
-#include <rte_atomic.h>
-#include <rte_branch_prediction.h>
 #include <rte_string_fns.h>
+#include <rte_tailq.h>
+#include <rte_version.h>
 
 #define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
 #define DPDK_MAX_ARGC 8
@@ -65,6 +67,30 @@
 #define REINIT_SHM 1
 #define RESET 1
 #define NO_RESET 0
+
+#define RTE_VERSION_16_07 RTE_VERSION_NUM(16, 7, 0, 16)
+
+#if RTE_VERSION < RTE_VERSION_16_07
+#define DPDK_STATS_XSTAT_GET_VALUE(ctx, index) ctx->xstats[index].value
+#define DPDK_STATS_XSTAT_GET_NAME(ctx, index) ctx->xstats[index].name
+#define DPDK_STATS_CTX_GET_XSTAT_SIZE sizeof(struct rte_eth_xstats)
+#define DPDK_STATS_CTX_INIT(ctx)                                               \
+  do {                                                                         \
+    ctx->xstats = (struct rte_eth_xstats *)&ctx->raw_data[0];                  \
+  } while (0)
+#else
+#define DPDK_STATS_XSTAT_GET_VALUE(ctx, index) ctx->xstats[index].value
+#define DPDK_STATS_XSTAT_GET_NAME(ctx, index) ctx->xnames[index].name
+#define DPDK_STATS_CTX_GET_XSTAT_SIZE                                          \
+  (sizeof(struct rte_eth_xstat) + sizeof(struct rte_eth_xstat_name))
+#define DPDK_STATS_CTX_INIT(ctx)                                               \
+  do {                                                                         \
+    ctx->xstats = (struct rte_eth_xstat *)&ctx->raw_data[0];                   \
+    ctx->xnames =                                                              \
+        (struct rte_eth_xstat_name *)&ctx                                      \
+            ->raw_data[ctx->num_xstats * sizeof(struct rte_eth_xstat)];        \
+  } while (0)
+#endif
 
 enum DPDK_HELPER_ACTION {
   DPDK_HELPER_ACTION_COUNT_STATS,
@@ -105,7 +131,13 @@ struct dpdk_config_s {
   cdtime_t port_read_time[RTE_MAX_ETHPORTS];
   uint32_t num_stats_in_port[RTE_MAX_ETHPORTS];
   struct rte_eth_link link_status[RTE_MAX_ETHPORTS];
+#if RTE_VERSION < RTE_VERSION_16_07
   struct rte_eth_xstats *xstats;
+#else
+  struct rte_eth_xstat *xstats;
+  struct rte_eth_xstat_name *xnames;
+#endif
+  char *raw_data;
   /* rte_eth_xstats from here on until the end of the SHM */
 };
 typedef struct dpdk_config_s dpdk_config_t;
@@ -288,7 +320,7 @@ static int dpdk_re_init_shm() {
 
   size_t shm_xstats_size =
       sizeof(dpdk_config_t) +
-      (sizeof(struct rte_eth_xstats) * g_configuration->num_xstats);
+      (DPDK_STATS_CTX_GET_XSTAT_SIZE * g_configuration->num_xstats);
   DEBUG("=== SHM new size for %" PRIu32 " xstats", g_configuration->num_xstats);
 
   int err = dpdk_shm_cleanup();
@@ -307,7 +339,8 @@ static int dpdk_re_init_shm() {
 
   memcpy(g_configuration, &temp_config, sizeof(dpdk_config_t));
   g_configuration->collectd_reinit_shm = 0;
-  g_configuration->xstats = (struct rte_eth_xstats *)(g_configuration + 1);
+  g_configuration->raw_data = (char *)(g_configuration + 1);
+  DPDK_STATS_CTX_INIT(g_configuration);
   return 0;
 }
 
@@ -504,7 +537,11 @@ static int dpdk_helper_run(void) {
         continue;
 
       if (g_configuration->helper_action == DPDK_HELPER_ACTION_COUNT_STATS) {
+#if RTE_VERSION >= RTE_VERSION_16_07
+        len = rte_eth_xstats_get_names(i, NULL, 0);
+#else
         len = rte_eth_xstats_get(i, NULL, 0);
+#endif
         if (len < 0) {
           ERROR("dpdkstat-helper: Cannot get xstats count on port %" PRIu8, i);
           break;
@@ -525,6 +562,15 @@ static int dpdk_helper_run(void) {
                 i, len);
           break;
         }
+#if RTE_VERSION >= RTE_VERSION_16_07
+        ret = rte_eth_xstats_get_names(i, g_configuration->xnames + num_xstats,
+                                       len);
+        if (ret < 0 || ret != len) {
+          ERROR("dpdkstat-helper: Error reading xstat names (port=%d; len=%d)",
+                i, len);
+          break;
+        }
+#endif
         num_xstats += g_configuration->num_stats_in_port[enabled_port_count];
         enabled_port_count++;
       }
@@ -551,23 +597,29 @@ static int dpdk_helper_run(void) {
   return 0;
 }
 
-static void dpdk_submit_xstats(const char *dev_name,
-                               const struct rte_eth_xstats *xstats,
+static void dpdk_submit_xstats(const char *dev_name, int count,
                                uint32_t counters, cdtime_t port_read_time) {
   for (uint32_t j = 0; j < counters; j++) {
     value_list_t vl = VALUE_LIST_INIT;
+    char *counter_name;
     char *type_end;
 
-    vl.values = &(value_t){.derive = (derive_t)xstats[j].value};
+    vl.values = &(value_t){.derive = (derive_t)DPDK_STATS_XSTAT_GET_VALUE(
+                               g_configuration, count + j)};
     vl.values_len = 1; /* Submit stats one at a time */
     vl.time = port_read_time;
     sstrncpy(vl.plugin, "dpdkstat", sizeof(vl.plugin));
     sstrncpy(vl.plugin_instance, dev_name, sizeof(vl.plugin_instance));
+    counter_name = DPDK_STATS_XSTAT_GET_NAME(g_configuration, count + j);
+    if (counter_name == NULL) {
+      WARNING("dpdkstat: Failed to get counter name.");
+      return;
+    }
 
-    type_end = strrchr(xstats[j].name, '_');
+    type_end = strrchr(counter_name, '_');
 
     if ((type_end != NULL) &&
-        (strncmp(xstats[j].name, "rx_", strlen("rx_")) == 0)) {
+        (strncmp(counter_name, "rx_", strlen("rx_")) == 0)) {
       if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
         sstrncpy(vl.type, "if_rx_errors", sizeof(vl.type));
       } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
@@ -586,7 +638,7 @@ static void dpdk_submit_xstats(const char *dev_name,
       }
 
     } else if ((type_end != NULL) &&
-               (strncmp(xstats[j].name, "tx_", strlen("tx_"))) == 0) {
+               (strncmp(counter_name, "tx_", strlen("tx_"))) == 0) {
       if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
         sstrncpy(vl.type, "if_tx_errors", sizeof(vl.type));
       } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
@@ -600,7 +652,7 @@ static void dpdk_submit_xstats(const char *dev_name,
         sstrncpy(vl.type, "derive", sizeof(vl.type));
       }
     } else if ((type_end != NULL) &&
-               (strncmp(xstats[j].name, "flow_", strlen("flow_"))) == 0) {
+               (strncmp(counter_name, "flow_", strlen("flow_"))) == 0) {
 
       if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
         sstrncpy(vl.type, "operations", sizeof(vl.type));
@@ -610,7 +662,7 @@ static void dpdk_submit_xstats(const char *dev_name,
         sstrncpy(vl.type, "filter_result", sizeof(vl.type));
       }
     } else if ((type_end != NULL) &&
-               (strncmp(xstats[j].name, "mac_", strlen("mac_"))) == 0) {
+               (strncmp(counter_name, "mac_", strlen("mac_"))) == 0) {
       if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
         sstrncpy(vl.type, "errors", sizeof(vl.type));
       }
@@ -620,7 +672,7 @@ static void dpdk_submit_xstats(const char *dev_name,
       sstrncpy(vl.type, "derive", sizeof(vl.type));
     }
 
-    sstrncpy(vl.type_instance, xstats[j].name, sizeof(vl.type_instance));
+    sstrncpy(vl.type_instance, counter_name, sizeof(vl.type_instance));
     plugin_dispatch_values(&vl);
   }
 }
@@ -727,9 +779,7 @@ static int dpdk_read(user_data_t *ud) {
                 g_configuration->port_name[i]);
     else
       ssnprintf(dev_name, sizeof(dev_name), "port.%" PRIu32, port_num);
-    struct rte_eth_xstats *xstats = g_configuration->xstats + count;
-
-    dpdk_submit_xstats(dev_name, xstats, counters_num, port_read_time);
+    dpdk_submit_xstats(dev_name, count, counters_num, port_read_time);
     count += counters_num;
     port_num++;
   } /* for each port */

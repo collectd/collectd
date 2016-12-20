@@ -29,8 +29,6 @@
 
 #include <stdio.h>
 
-int handle_getthreshold (FILE *fh, char *buffer);
+int handle_getthreshold(FILE *fh, char *buffer);
 
 #endif /* UTILS_CMD_GETTHRESHOLD_H */
-
-/* vim: set sw=2 sts=2 ts=8 : */

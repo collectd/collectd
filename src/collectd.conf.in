@@ -1272,6 +1272,27 @@
 #      Instance "local_user"
 #    </Match>
 #  </File>
+#  <File "/var/log/nginx/apache-time.log">
+#    #Use the following log format in nginx:
+#    #log_format response_time '[$host] "$upstream_response_time" ...'
+#    Instance "apache"
+#    <Match>
+#      Regex "^\\S+ \"([0-9.]+)\""
+#      <DSType Distribution>
+#        Percentile 80    # -> latency-foo-80
+#        Percentile 95    # -> latency-foo-95
+#        Percentile 99    # -> latency-foo-99
+#        Bucket 0   0.1   # -> bucket-latency-foo-0_0.1
+#        Bucket 0.1 0.2   # -> bucket-latency-foo-0.1_0.2
+#        Bucket 0.2 0.5   # -> bucket-latency-foo-0.2_0.5
+#        Bucket 0.5 1.0   # -> bucket-latency-foo-0.5_1
+#        Bucket 1.0 2.0   # -> bucket-latency-foo-1_2
+#        Bucket 2.0 0     # -> bucket-latency-foo-2_inf
+#      </DSType>
+#      Type "latency"
+#      Instance "foo"
+#    </Match>
+#  </File>
 #</Plugin>
 
 #<Plugin tail_csv>
@@ -1420,6 +1441,7 @@
 #	HostnameFormat name
 #	InterfaceFormat name
 #	PluginInstanceFormat name
+#	Instances 1
 #</Plugin>
 
 #<Plugin vmem>
@@ -1439,6 +1461,7 @@
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
 #    SeparateInstances false
+#    PreserveSeparator false
 #    DropDuplicateFields false
 #  </Node>
 #</Plugin>
