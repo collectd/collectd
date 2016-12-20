@@ -171,6 +171,7 @@
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
 #@BUILD_PLUGIN_OVS_STATS_TRUE@LoadPlugin ovs_stats
+#@BUILD_PLUGIN_PCIE_TRUE@LoadPlugin pcie
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
@@ -1036,6 +1037,13 @@
 #  Address "127.0.0.1"
 #  Socket "/var/run/openvswitch/db.sock"
 #  Bridges "br0" "br_ext"
+#</Plugin>
+
+#<Plugin pcie>
+#	Source "sysfs"
+#	AccessDir "/sys/bus/pci"
+#	ReportMasked false
+#	Persistent false
 #</Plugin>
 
 #<Plugin perl>

@@ -304,6 +304,11 @@ Features
       OVS documentation.
       <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
 
+    - pcie
+      Read errors from PCI Express Device Status and AER extended
+      capabilities.
+      <https://www.design-reuse.com/articles/38374/pcie-error-logging-and-handling-on-a-typical-soc.html>
+
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
       write your own plugins in Perl and return arbitrary values using this

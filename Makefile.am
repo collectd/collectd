@@ -1308,6 +1308,13 @@ ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
+if BUILD_PLUGIN_PCIE
+pkglib_LTLIBRARIES += pcie.la
+pcie_la_SOURCES = src/pcie.c
+pcie_la_CPPFLAGS = $(AM_CPPFLAGS)
+pcie_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = src/perl.c

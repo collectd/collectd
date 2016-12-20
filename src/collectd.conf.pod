@@ -5740,6 +5740,52 @@ Default: empty (monitor all bridges)
 
 =back
 
+=head2 Plugin C<pcie>
+
+The I<pcie> plugin collects PCI Express errors from Device Status in Capability
+structure and from Advanced Error Reporting Extended Capability where available.
+At every read it polls config space of PCI Express devices and dispatches
+notification for every error that is set. The device is indicated in
+plugin_instance according to format "domain:bus:dev.fn". Errors are divided
+into categories indicated by type: "Correctable" and "Uncorrectable" and
+type_instance: "Fatal" and "Non-Fatal". All correctable errors are non-fatal.
+Fatal errros are reported as I<NOTIF_FAILURE> and all others as I<NOTIF_WARNING>.
+
+B<Synopsis:>
+
+  <Plugin "pcie">
+    Source "sysfs"
+    AccessDir "/sys/bus/pci"
+    ReportMasked false
+    Persistent false
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Source> B<sysfs>|B<proc>
+
+Use sysfs or proc for reading data from registers.
+
+=item B<AccessDir> I<dir>
+
+Directory used to access device config space. It is optional and defaults to
+/sys/bus/pci for B<sysfs> and to /proc/bus/pci for B<proc>.
+
+=item B<ReportMasked> B<false>|B<true>
+
+If true plugin will notify errors that are set to masked in
+Error Mask register. Such errors are not reported to the PCI
+Express Root Complex. Defaults to B<false>.
+
+=item B<Persistent> B<false>|B<true>
+
+If false plugin will dispatch notfication only on set/clear of error.
+The ones already reported will be ignored. Defaults to B<false>.
+
+=back
+
 =head2 Plugin C<perl>
 
 This plugin embeds a Perl-interpreter into collectd and provides an interface
