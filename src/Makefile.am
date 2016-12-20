@@ -27,6 +27,15 @@ noinst_LTLIBRARIES =
 check_PROGRAMS =
 TESTS =
 
+noinst_LTLIBRARIES += libformat_graphite.la
+libformat_graphite_la_SOURCES  = utils_format_graphite.c utils_format_graphite.h
+libformat_graphite_la_CPPFLAGS = $(AM_CPPFLAGS)
+libformat_graphite_la_LDFLAGS  = $(AM_LDFLAGS)
+check_PROGRAMS += test_format_graphite
+TESTS += test_format_graphite
+test_format_graphite_SOURCES = utils_format_graphite_test.c testing.h
+test_format_graphite_LDADD = libformat_graphite.la daemon/libmetadata.la daemon/libplugin_mock.la -lm
+
 noinst_LTLIBRARIES += libformat_json.la
 libformat_json_la_SOURCES   = utils_format_json.c utils_format_json.h
 libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
@@ -43,7 +52,8 @@ test_format_json_LDADD = libformat_json.la daemon/libmetadata.la daemon/libplugi
 endif
 
 noinst_LTLIBRARIES += liblatency.la
-liblatency_la_SOURCES = utils_latency.c utils_latency.h
+liblatency_la_SOURCES = utils_latency.c utils_latency.h utils_latency_config.c utils_latency_config.h
+liblatency_la_LIBADD = daemon/libcommon.la -lm
 check_PROGRAMS += test_utils_latency
 TESTS += test_utils_latency
 test_utils_latency_SOURCES = utils_latency_test.c testing.h
@@ -171,11 +181,10 @@ pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = amqp.c \
 		  utils_cmds.c utils_cmds.h \
 		  utils_cmd_putval.c utils_cmd_putval.h \
-		  utils_parse_option.c utils_parse_option.h \
-		  utils_format_graphite.c utils_format_graphite.h
+		  utils_parse_option.c utils_parse_option.h
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
-amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_json.la
+amqp_la_LIBADD = $(BUILD_WITH_LIBRABBITMQ_LIBS) libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_APACHE
@@ -325,10 +334,11 @@ endif
 if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = curl.c \
-		  utils_curl_stats.c utils_curl_stats.h
+                  utils_curl_stats.c utils_curl_stats.h \
+                  utils_match.c utils_match.h
 curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
-curl_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
+curl_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) liblatency.la
 endif
 
 if BUILD_PLUGIN_CURL_JSON
@@ -409,9 +419,9 @@ endif
 if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = dpdkstat.c
-dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_DPDK_CFLAGS)
-dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_DPDK_LDFLAGS)
-dpdkstat_la_LIBADD = $(BUILD_WITH_DPDK_LIBS) 
+dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
+dpdkstat_la_LIBADD = -ldpdk
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -677,10 +687,11 @@ endif
 
 if BUILD_PLUGIN_MEMCACHEC
 pkglib_LTLIBRARIES += memcachec.la
-memcachec_la_SOURCES = memcachec.c
+memcachec_la_SOURCES = memcachec.c \
+                       utils_match.c utils_match.h
 memcachec_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
 memcachec_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMEMCACHED_CPPFLAGS)
-memcachec_la_LIBADD = $(BUILD_WITH_LIBMEMCACHED_LIBS)
+memcachec_la_LIBADD = $(BUILD_WITH_LIBMEMCACHED_LIBS) liblatency.la
 endif
 
 if BUILD_PLUGIN_MEMCACHED
@@ -766,6 +777,14 @@ netlink_la_SOURCES = netlink.c
 netlink_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
+endif
+
+if BUILD_PLUGIN_NETLINK_NAMESPACE
+pkglib_LTLIBRARIES += netlink_namespace.la
+netlink_namespace_la_SOURCES = netlink_namespace.c
+netlink_namespace_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+netlink_namespace_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+netlink_namespace_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 endif
 
 if BUILD_PLUGIN_NETWORK
@@ -1063,7 +1082,7 @@ if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = statsd.c
 statsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-statsd_la_LIBADD = liblatency.la -lm
+statsd_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_SWAP
@@ -1105,13 +1124,18 @@ endif
 
 if BUILD_PLUGIN_TAIL
 pkglib_LTLIBRARIES += tail.la
-tail_la_SOURCES = tail.c
+tail_la_SOURCES = tail.c \
+                  utils_match.c utils_match.h \
+                  utils_tail.c utils_tail.h \
+                  utils_tail_match.c utils_tail_match.h
 tail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+tail_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_TAIL_CSV
 pkglib_LTLIBRARIES += tail_csv.la
-tail_csv_la_SOURCES = tail_csv.c
+tail_csv_la_SOURCES = tail_csv.c \
+                      utils_tail.c utils_tail.h
 tail_csv_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1288,9 +1312,9 @@ endif
 
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
-write_graphite_la_SOURCES = write_graphite.c \
-                        utils_format_graphite.c utils_format_graphite.h
+write_graphite_la_SOURCES = write_graphite.c
 write_graphite_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_graphite_la_LIBADD = libformat_graphite.la
 endif
 
 if BUILD_PLUGIN_WRITE_HTTP
@@ -1305,21 +1329,19 @@ endif
 if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = write_kafka.c \
-                        utils_format_graphite.c utils_format_graphite.h \
                         utils_cmds.c utils_cmds.h \
                         utils_cmd_putval.c utils_cmd_putval.h \
                         utils_crc32.c utils_crc32.h
 write_kafka_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRDKAFKA_CPPFLAGS)
 write_kafka_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRDKAFKA_LDFLAGS)
-write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_json.la
+write_kafka_la_LIBADD = $(BUILD_WITH_LIBRDKAFKA_LIBS) libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_LOG
 pkglib_LTLIBRARIES += write_log.la
-write_log_la_SOURCES = write_log.c \
-                        utils_format_graphite.c utils_format_graphite.h
+write_log_la_SOURCES = write_log.c
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_log_la_LIBADD = libformat_json.la
+write_log_la_LIBADD = libformat_graphite.la libformat_json.la
 endif
 
 if BUILD_PLUGIN_WRITE_MONGODB

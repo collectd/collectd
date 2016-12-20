@@ -3,34 +3,15 @@ AC_PREREQ([2.60])
 AC_INIT([collectd],[m4_esyscmd(./version-gen.sh)])
 AC_CONFIG_SRCDIR(src/target_set.c)
 AC_CONFIG_HEADERS(src/config.h)
-AC_CONFIG_AUX_DIR([libltdl/config])
+AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl older automake's default of ARFLAGS=cru is noisy on newer binutils;
 dnl we don't really need the 'u' even in older toolchains.  Then there is
 dnl older libtool, which spelled it AR_FLAGS
 m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
 
-m4_ifdef([LT_PACKAGE_VERSION],
-	# libtool >= 2.2
-	[
-	 LT_CONFIG_LTDL_DIR([libltdl])
-	 LT_INIT([dlopen])
-	 LTDL_INIT([convenience])
-	 AC_DEFINE(LIBTOOL_VERSION, 2, [Define to used libtool version.])
-	]
-,
-	# libtool <= 1.5
-	[
-	 AC_LIBLTDL_CONVENIENCE
-	 AC_SUBST(LTDLINCL)
-	 AC_SUBST(LIBLTDL)
-	 AC_LIBTOOL_DLOPEN
-	 AC_CONFIG_SUBDIRS(libltdl)
-	 AC_DEFINE(LIBTOOL_VERSION, 1, [Define to used libtool version.])
-	]
-)
-
-AM_CONDITIONAL([BUILD_INCLUDED_LTDL], [test "x$LTDLDEPS" != "x"])
+LT_INIT([dlopen])
 
 AM_INIT_AUTOMAKE([subdir-objects tar-pax dist-bzip2 no-dist-gzip foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
@@ -56,7 +37,6 @@ AM_PROG_CC_C_O
 AM_CONDITIONAL(COMPILER_IS_GCC, test "x$GCC" = "xyes")
 
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
 AC_PROG_LEX
 AC_PROG_YACC
 
@@ -78,6 +58,12 @@ if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfi
 then
 	AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
+
+AS_IF([test "x$lt_cv_dlopen" = "xno"],
+  [AC_MSG_ERROR([Your system does not support dlopen])]
+)
+
+AC_SUBST([DLOPEN_LIBS], [$lt_cv_dlopen_libs])
 
 AC_ARG_VAR([PROTOC], [path to the protoc binary])
 AC_PATH_PROG([PROTOC], [protoc])
@@ -214,7 +200,54 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 AC_HEADER_STDBOOL
 
-AC_CHECK_HEADERS(stdio.h errno.h math.h stdarg.h syslog.h fcntl.h signal.h assert.h sys/types.h sys/socket.h sys/select.h poll.h netdb.h arpa/inet.h sys/resource.h sys/param.h kstat.h regex.h sys/ioctl.h endian.h sys/isa_defs.h fnmatch.h libgen.h)
+AC_CHECK_HEADERS([ \
+  arpa/inet.h \
+  assert.h \
+  ctype.h \
+  endian.h \
+  errno.h \
+  fcntl.h \
+  fnmatch.h \
+  fs_info.h \
+  fshelp.h \
+  grp.h \
+  kstat.h \
+  kvm.h \
+  libgen.h \
+  limits.h \
+  locale.h \
+  math.h \
+  mntent.h \
+  mnttab.h \
+  netdb.h \
+  paths.h \
+  poll.h \
+  pthread_np.h \
+  pwd.h \
+  regex.h \
+  signal.h \
+  stdarg.h \
+  stdio.h \
+  sys/fs_types.h \
+  sys/fstyp.h \
+  sys/ioctl.h \
+  sys/isa_defs.h \
+  sys/mntent.h \
+  sys/mnttab.h \
+  sys/param.h \
+  sys/resource.h \
+  sys/select.h \
+  sys/socket.h \
+  sys/statfs.h \
+  sys/statvfs.h \
+  sys/types.h \
+  sys/un.h \
+  sys/vfs.h \
+  sys/vfstab.h \
+  sys/vmmeter.h \
+  syslog.h \
+  wordexp.h \
+])
 
 # For entropy plugin on newer NetBSD
 AC_CHECK_HEADERS(sys/rndio.h, [], [],
@@ -656,31 +689,6 @@ AC_CHECK_HEADERS(linux/un.h, [], [],
 #if HAVE_SYS_SOCKET_H
 #	include <sys/socket.h>
 #endif
-])
-
-AC_CHECK_HEADERS([ \
-  ctype.h \
-  fs_info.h \
-  fshelp.h \
-  grp.h \
-  kvm.h \
-  limits.h \
-  locale.h \
-  mntent.h \
-  mnttab.h \
-  paths.h \
-  pwd.h \
-  sys/fs_types.h \
-  sys/fstyp.h \
-  sys/mntent.h \
-  sys/mnttab.h \
-  sys/statfs.h \
-  sys/statvfs.h \
-  sys/un.h \
-  sys/vfs.h \
-  sys/vfstab.h \
-  sys/vmmeter.h \
-  wordexp.h \
 ])
 
 # --enable-xfs {{{
@@ -1662,6 +1670,45 @@ AC_CHECK_MEMBERS([kstat_io_t.nwritten, kstat_io_t.writes, kstat_io_t.nwrites, ks
 #endif
 	])
 
+# check for pthread_setname_np
+SAVE_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -lpthread"
+
+AC_MSG_CHECKING([for pthread_setname_np])
+	have_pthread_setname_np="no"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#define _GNU_SOURCE
+#include <pthread.h>
+]],
+[[
+        pthread_setname_np((pthread_t) {0}, "conftest");
+]]
+	)], [
+		have_pthread_setname_np="yes"
+		AC_DEFINE(HAVE_PTHREAD_SETNAME_NP, 1, [pthread_setname_np() is available.])
+	])
+
+AC_MSG_RESULT([$have_pthread_setname_np])
+
+# check for pthread_set_name_np(3) (FreeBSD)
+AC_MSG_CHECKING([for pthread_set_name_np])
+	have_pthread_set_name_np="no"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <pthread_np.h>
+]],
+[[
+        pthread_set_name_np((pthread_t) {0}, "conftest");
+]]
+	)], [
+		have_pthread_set_name_np="yes"
+		AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, 1, [pthread_set_name_np() is available.])
+	])
+AC_MSG_RESULT([$have_pthread_set_name_np])
+
+LDFLAGS="$SAVE_LDFLAGS"
+
 #
 # Checks for libraries begin here
 #
@@ -2545,78 +2592,35 @@ fi
 # }}}
 
 # --with-libdpdk {{{
-AC_ARG_WITH(libdpdk, [AS_HELP_STRING([--with-libdpdk@<:@=PREFIX@:>@], [Path to the DPDK build directory.])],
-[
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		RTE_BUILD="$withval"
-		with_libdpdk="yes"
-	else
-		RTE_BUILD="/usr"
-		with_libdpdk="$withval"
-	fi
-	DPDK_INCLUDE="$RTE_BUILD/include"
-	DPDK_LIB_DIR="$RTE_BUILD/lib"
-	FOUND_DPDK=yes
-], [with_libdpdk="no"])
+LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+LIBDPDK_LDFLAGS=""
+AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
-if test "x$with_libdpdk" = "xyes"
+AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
+
+if test "x$with_libdpdk" != "xno"
 then
-	LOCAL_DPDK_INSTALL="no"
-	AC_CHECK_HEADER([$DPDK_INCLUDE/rte_config.h], [LOCAL_DPDK_INSTALL=yes],
-		[AC_CHECK_HEADER([$DPDK_INCLUDE/dpdk/rte_config.h],
-		[],
-		[FOUND_DPDK=no], [])], [])
-
-	if test "x$LOCAL_DPDK_INSTALL" = "xno"
-	then
-		DPDK_INCLUDE=$DPDK_INCLUDE/dpdk
-	fi
-
-	if test "x$FOUND_DPDK" = "xno"
-	then
-		AC_MSG_ERROR([libdpdk error: rte_config.h not found])
-	fi
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+	AC_CHECK_HEADERS([rte_config.h],
+		[with_libdpdk="yes"],
+		[with_libdpdk="no (rte_config.h not found)"]
+	)
+	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_libdpdk" = "xyes"
 then
 	SAVE_LDFLAGS="$LDFLAGS"
-
-	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
-	then
-		LDFLAGS="$LDFLAGS -L$DPDK_LIB_DIR"
-        fi
-
-	AC_CHECK_LIB(dpdk, rte_eal_init,
-                     [BUILD_WITH_DPDK_LIBS="-Wl,-ldpdk"],
-                     [FOUND_DPDK=no])
-
+	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+	AC_CHECK_LIB([dpdk], [rte_eal_init],
+		[with_libdpkd="yes"],
+		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+	)
 	LDFLAGS="$SAVE_LDFLAGS"
-	if test "x$FOUND_DPDK" = "xno"
-	then
-		AC_MSG_ERROR([libdpdk error: cannot link with dpdk in $DPDK_LIB_DIR])
-	fi
 fi
 
-#
-# Note: An issue on Ubuntu 14.04 necessitates the use of -Wl,--no-as-needed:
-# If you try compile with the older linker, the dpdk symbols will be undefined.
-# This workaround should be removed when no longer necessary.
-#
-if test "x$with_libdpdk" = "xyes"
-then
-	BUILD_WITH_DPDK_CFLAGS+="-I$DPDK_INCLUDE"
-	if test "x$LOCAL_DPDK_INSTALL" != "xyes"
-	then
-		BUILD_WITH_DPDK_LDFLAGS="-Wl,--no-as-needed"
-	else
-		BUILD_WITH_DPDK_LDFLAGS="-L$DPDK_LIB_DIR -Wl,--no-as-needed"
-        fi
-	AC_SUBST(BUILD_WITH_DPDK_CFLAGS)
-	AC_SUBST(BUILD_WITH_DPDK_LDFLAGS)
-	AC_SUBST(BUILD_WITH_DPDK_LIBS)
-fi
 # }}}
 
 # --with-java {{{
@@ -2901,15 +2905,15 @@ fi
 
 if test "x$with_liblua" = "xyes"
 then
-  SAVE_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS $LUA_CFLAGS"
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $LUA_CFLAGS"
 
   AC_CHECK_HEADERS([lua.h lauxlib.h lualib.h],
     [with_liblua="yes"],
     [with_liblua="no (header not found)"]
   )
 
-  CFLAGS="$SAVE_CFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_liblua" = "xyes"
@@ -5903,7 +5907,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_drbd="no"
-plugin_dpdk="no"
+plugin_dpdkstat="no"
 plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
@@ -6314,6 +6318,11 @@ then
   plugin_xencpu="yes"
 fi
 
+if test "x$with_libdpkd" = "xyes"
+then
+  plugin_dpdkstat="yes"
+fi
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
@@ -6360,7 +6369,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
-AC_PLUGIN([dpdkstat],            [$with_libdpdk],           [Stats & Status from DPDK])
+AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats & Status from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
@@ -6406,6 +6415,7 @@ AC_PLUGIN([multimeter],          [$plugin_multimeter],      [Read multimeter val
 AC_PLUGIN([mysql],               [$with_libmysql],          [MySQL statistics])
 AC_PLUGIN([netapp],              [$with_libnetapp],         [NetApp plugin])
 AC_PLUGIN([netlink],             [$with_libmnl],            [Enhanced Linux network statistics])
+AC_PLUGIN([netlink_namespace],   [$with_libmnl],            [Enhanced Linux network statistics])
 AC_PLUGIN([network],             [yes],                     [Network communication plugin])
 AC_PLUGIN([nfs],                 [$plugin_nfs],             [NFS statistics])
 AC_PLUGIN([nginx],               [$with_libcurl],           [nginx statistics])
@@ -6797,7 +6807,7 @@ AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
-AC_MSG_RESULT([    dpdkstat . . . . . . .$enable_dpdkstat])
+AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
 AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])
@@ -6843,6 +6853,7 @@ AC_MSG_RESULT([    multimeter  . . . . . $enable_multimeter])
 AC_MSG_RESULT([    mysql . . . . . . . . $enable_mysql])
 AC_MSG_RESULT([    netapp  . . . . . . . $enable_netapp])
 AC_MSG_RESULT([    netlink . . . . . . . $enable_netlink])
+AC_MSG_RESULT([    netlink_namespace . . $enable_netlink_namespace])
 AC_MSG_RESULT([    network . . . . . . . $enable_network])
 AC_MSG_RESULT([    nfs . . . . . . . . . $enable_nfs])
 AC_MSG_RESULT([    nginx . . . . . . . . $enable_nginx])
