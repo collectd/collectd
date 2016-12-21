@@ -6536,15 +6536,7 @@ AC_SUBST([AM_CXXFLAGS])
 
 AC_CONFIG_FILES([ \
   Makefile \
-  bindings/Makefile \
-  bindings/java/Makefile \
-  proto/Makefile \
-  src/Makefile \
-  src/collectd.conf \
-  src/daemon/Makefile \
-  src/libcollectdclient/Makefile \
   src/libcollectdclient/libcollectdclient.pc \
-  src/liboconfig/Makefile \
 ])
 
 AC_OUTPUT
