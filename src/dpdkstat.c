@@ -159,8 +159,8 @@ static int dpdk_shm_init(size_t size);
 static void dpdk_config_init_default(void) {
   g_configuration->interval = plugin_get_interval();
   if (g_configuration->interval == cf_get_default_interval())
-    WARNING("dpdkstat: No time interval was configured, default value %lu ms "
-            "is set",
+    WARNING("dpdkstat: No time interval was configured, default value %" PRIu64
+            " ms is set",
             CDTIME_T_TO_MS(g_configuration->interval));
   /* Default is all ports enabled */
   g_configuration->enabled_port_mask = ~0;
@@ -289,13 +289,13 @@ static int dpdk_shm_init(size_t size) {
   if (err) {
     ERROR("dpdkstat semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail_close;
+    goto close;
   }
   err = sem_init(&g_configuration->sema_stats_in_shm, 1, 0);
   if (err) {
     ERROR("dpdkstat semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail_close;
+    goto close;
   }
 
   g_configuration->xstats = NULL;
@@ -413,7 +413,7 @@ static int dpdk_helper_spawn(enum DPDK_HELPER_ACTION action) {
   if (pid > 0) {
     close(g_configuration->helper_pipes[1]);
     g_configuration->helper_pid = pid;
-    DEBUG("dpdkstat: helper pid %lu", (long)g_configuration->helper_pid);
+    DEBUG("dpdkstat: helper pid %li", (long)g_configuration->helper_pid);
     /* Kick helper once its alive to have it start processing */
     sem_post(&g_configuration->sema_helper_get_stats);
   } else if (pid == 0) {
