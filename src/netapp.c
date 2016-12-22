@@ -674,7 +674,7 @@ static int submit_double(const char *host, const char *plugin_inst, /* {{{ */
                          const char *type, const char *type_inst, double d,
                          cdtime_t timestamp, cdtime_t interval) {
   return (submit_values(host, plugin_inst, type, type_inst,
-                        &(value_t){.gauge = counter}, 1, timestamp, interval));
+                        &(value_t){.gauge = d}, 1, timestamp, interval));
 } /* }}} int submit_uint64 */
 
 /* Calculate hit ratio from old and new counters and submit the resulting
@@ -1910,15 +1910,13 @@ static int cna_query_quota(host_config_t *host) /* {{{ */
 static int cna_handle_snapvault_data(const char *hostname, /* {{{ */
                                      cfg_snapvault_t *cfg_snapvault,
                                      na_elem_t *data, cdtime_t interval) {
-  na_elem_iter_t status_iter;
-
-  status = na_elem_child(data, "status-list");
-  if (!status) {
+  na_elem_t *status_list = na_elem_child(data, "status-list");
+  if (status_list == NULL) {
     ERROR("netapp plugin: SnapVault status record missing status-list");
     return (0);
   }
 
-  status_iter = na_child_iterator(status);
+  na_elem_iter_t status_iter = na_child_iterator(status_list);
   for (na_elem_t *status = na_iterator_next(&status_iter); status != NULL;
        status = na_iterator_next(&status_iter)) {
     const char *dest_sys, *dest_path, *src_sys, *src_path;
