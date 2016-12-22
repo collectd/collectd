@@ -8149,6 +8149,8 @@ packets.
 Synopsis:
 
  <Plugin write_tsdb>
+   ResolveInterval 60
+   ResolveJitter 60
    <Node "example">
      Host "tsd-1.my.domain"
      Port "4242"
@@ -8157,7 +8159,36 @@ Synopsis:
  </Plugin>
 
 The configuration consists of one or more E<lt>B<Node>E<nbsp>I<Name>E<gt>
-blocks. Inside the B<Node> blocks, the following options are recognized:
+blocks and global directives.
+
+Global directives are:
+
+=over 4
+
+=item B<ResolveInterval> I<seconds>
+
+=item B<ResolveJitter> I<seconds>
+
+When I<collectd> connects to a TSDB node, it will request the hostname from
+DNS. This can become a problem if the TSDB node is unavailable or badly
+configured because collectd will request DNS in order to reconnect for every
+metric, which can flood your DNS. So you can cache the last value for
+I<ResolveInterval> seconds.
+Defaults to the I<Interval> of the I<write_tsdb plugin>, e.g. 10E<nbsp>seconds.
+
+You can also define a jitter, a random interval to wait in addition to
+I<ResolveInterval>. This prevents all your collectd servers to resolve the
+hostname at the same time when the connection fails.
+Defaults to the I<Interval> of the I<write_tsdb plugin>, e.g. 10E<nbsp>seconds.
+
+B<Note:> If the DNS resolution has already been successful when the socket
+closes, the plugin will try to reconnect immediately with the cached
+information. DNS is queried only when the socket is closed for a longer than
+I<ResolveInterval> + I<ResolveJitter> seconds.
+
+=back
+
+Inside the B<Node> blocks, the following options are recognized:
 
 =over 4
 

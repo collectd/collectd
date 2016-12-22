@@ -45,8 +45,8 @@
 
 #include "common.h"
 #include "plugin.h"
-
 #include "utils_cache.h"
+#include "utils_random.h"
 
 #include <netdb.h>
 
@@ -71,6 +71,8 @@
  * Private variables
  */
 struct wt_callback {
+  struct addrinfo *ai;
+  cdtime_t ai_last_update;
   int sock_fd;
 
   char *node;
@@ -86,7 +88,14 @@ struct wt_callback {
   cdtime_t send_buf_init_time;
 
   pthread_mutex_t send_lock;
+
+  _Bool connect_failed_log_enabled;
+  int connect_dns_failed_attempts_remaining;
+  cdtime_t next_random_ttl;
 };
+
+static cdtime_t resolve_interval = 0;
+static cdtime_t resolve_jitter = 0;
 
 /*
  * Functions
@@ -144,9 +153,16 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb) {
   return status;
 }
 
+static cdtime_t new_random_ttl() {
+  if (resolve_jitter == 0)
+    return 0;
+
+  return (cdtime_t)cdrand_range(0, (long)resolve_jitter);
+}
+
 static int wt_callback_init(struct wt_callback *cb) {
-  struct addrinfo *ai_list;
   int status;
+  cdtime_t now;
 
   const char *node = cb->node ? cb->node : WT_DEFAULT_NODE;
   const char *service = cb->service ? cb->service : WT_DEFAULT_SERVICE;
@@ -154,28 +170,68 @@ static int wt_callback_init(struct wt_callback *cb) {
   if (cb->sock_fd > 0)
     return 0;
 
-  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG,
-                              .ai_socktype = SOCK_STREAM};
+  now = cdtime();
+  if (cb->ai) {
+    /* When we are here, we still have the IP in cache.
+     * If we have remaining attempts without calling the DNS, we update the
+     * last_update date so we keep the info until next time.
+     * If there is no more attempts, we need to flush the cache.
+     */
 
-  status = getaddrinfo(node, service, &ai_hints, &ai_list);
-  if (status != 0) {
-    ERROR("write_tsdb plugin: getaddrinfo (%s, %s) failed: %s", node, service,
-          gai_strerror(status));
-    return -1;
+    if ((cb->ai_last_update + resolve_interval + cb->next_random_ttl) < now) {
+      cb->next_random_ttl = new_random_ttl();
+      if (cb->connect_dns_failed_attempts_remaining > 0) {
+        /* Warning : this is run under send_lock mutex.
+         * This is why we do not use another mutex here.
+         * */
+        cb->ai_last_update = now;
+        cb->connect_dns_failed_attempts_remaining--;
+      } else {
+        freeaddrinfo(cb->ai);
+        cb->ai = NULL;
+      }
+    }
   }
 
-  assert(ai_list != NULL);
-  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
-       ai_ptr = ai_ptr->ai_next) {
-    cb->sock_fd =
-        socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
+  if (cb->ai == NULL) {
+    if ((cb->ai_last_update + resolve_interval + cb->next_random_ttl) >= now) {
+      DEBUG("write_tsdb plugin: too many getaddrinfo(%s, %s) failures", node,
+            service);
+      return (-1);
+    }
+    cb->ai_last_update = now;
+    cb->next_random_ttl = new_random_ttl();
+
+    struct addrinfo ai_hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_flags = AI_ADDRCONFIG,
+        .ai_socktype = SOCK_STREAM,
+    };
+
+    status = getaddrinfo(node, service, &ai_hints, &cb->ai);
+    if (status != 0) {
+      if (cb->ai) {
+        freeaddrinfo(cb->ai);
+        cb->ai = NULL;
+      }
+      if (cb->connect_failed_log_enabled) {
+        ERROR("write_tsdb plugin: getaddrinfo(%s, %s) failed: %s", node,
+              service, gai_strerror(status));
+        cb->connect_failed_log_enabled = 0;
+      }
+      return -1;
+    }
+  }
+
+  assert(cb->ai != NULL);
+  for (struct addrinfo *ai = cb->ai; ai != NULL; ai = ai->ai_next) {
+    cb->sock_fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (cb->sock_fd < 0)
       continue;
 
     set_sock_opts(cb->sock_fd);
 
-    status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
+    status = connect(cb->sock_fd, ai->ai_addr, ai->ai_addrlen);
     if (status != 0) {
       close(cb->sock_fd);
       cb->sock_fd = -1;
@@ -185,8 +241,6 @@ static int wt_callback_init(struct wt_callback *cb) {
     break;
   }
 
-  freeaddrinfo(ai_list);
-
   if (cb->sock_fd < 0) {
     char errbuf[1024];
     ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
@@ -194,6 +248,12 @@ static int wt_callback_init(struct wt_callback *cb) {
           node, service, sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
+
+  if (0 == cb->connect_failed_log_enabled) {
+    WARNING("write_tsdb plugin: Connecting to %s:%s succeeded.", node, service);
+    cb->connect_failed_log_enabled = 1;
+  }
+  cb->connect_dns_failed_attempts_remaining = 1;
 
   wt_reset_buffer(cb);
 
@@ -522,10 +582,8 @@ static int wt_config_tsd(oconfig_item_t *ci) {
     return -1;
   }
   cb->sock_fd = -1;
-  cb->node = NULL;
-  cb->service = NULL;
-  cb->host_tags = NULL;
-  cb->store_rates = 0;
+  cb->connect_failed_log_enabled = 1;
+  cb->next_random_ttl = new_random_ttl();
 
   pthread_mutex_init(&cb->send_lock, NULL);
 
@@ -564,11 +622,18 @@ static int wt_config_tsd(oconfig_item_t *ci) {
 }
 
 static int wt_config(oconfig_item_t *ci) {
+  if ((resolve_interval == 0) && (resolve_jitter == 0))
+    resolve_interval = resolve_jitter = plugin_get_interval();
+
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Node", child->key) == 0)
       wt_config_tsd(child);
+    else if (strcasecmp("ResolveInterval", child->key) == 0)
+      cf_util_get_cdtime(child, &resolve_interval);
+    else if (strcasecmp("ResolveJitter", child->key) == 0)
+      cf_util_get_cdtime(child, &resolve_jitter);
     else {
       ERROR("write_tsdb plugin: Invalid configuration "
             "option: %s.",
