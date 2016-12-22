@@ -37,15 +37,6 @@
 
 #define ERR_BUF_SIZE 1024
 
-#if RTE_VER_RELEASE == 16 && RTE_VER_MINOR == 0
-#if RTE_VER_MONTH == 4
-#define DPDK_VER_16_04 RTE_VERSION_NUM(16, 4, 0, 16)
-#endif
-#if RTE_VER_MONTH == 7
-#define DPDK_VER_16_07 RTE_VERSION_NUM(16, 7, 0, 16)
-#endif
-#endif
-
 enum DPDK_CMD {
   DPDK_CMD_NONE = 0,
   DPDK_CMD_QUIT,

@@ -57,9 +57,7 @@ enum DPDK_HELPER_STATUS {
 };
 
 #define DPDK_HELPER_TRACE(_name)                                               \
-  DEBUG("%s:%s:%d pid=%lu", _name, __FUNCTION__, __LINE__, (long)getpid())
-
-#define DPDK_HELPER_USE_PIPES
+  DEBUG("%s:%s:%d pid=%ld", _name, __FUNCTION__, __LINE__, (long)getpid())
 
 struct dpdk_helper_ctx_s {
 
@@ -74,9 +72,7 @@ struct dpdk_helper_ctx_s {
   cdtime_t cmd_wait_time;
 
   pid_t pid;
-#ifdef DPDK_HELPER_USE_PIPES
   int pipes[2];
-#endif /* DPDK_HELPER_USE_PIPES */
   int status;
 
   int cmd;
@@ -86,7 +82,7 @@ struct dpdk_helper_ctx_s {
 };
 
 static int dpdk_shm_init(const char *name, size_t size, void **map);
-static int dpdk_shm_cleanup(const char *name, size_t size, void *map);
+static void dpdk_shm_cleanup(const char *name, size_t size, void *map);
 
 static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc);
 static int dpdk_helper_worker(dpdk_helper_ctx_t *phc);
@@ -126,7 +122,7 @@ int dpdk_helper_eal_config_set(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec) {
     return -EINVAL;
   }
 
-  memcpy(&phc->eal_config, ec, sizeof(dpdk_eal_config_t));
+  memcpy(&phc->eal_config, ec, sizeof(phc->eal_config));
 
   return 0;
 }
@@ -144,7 +140,7 @@ int dpdk_helper_eal_config_get(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec) {
     return -EINVAL;
   }
 
-  memcpy(ec, &phc->eal_config, sizeof(dpdk_eal_config_t));
+  memcpy(ec, &phc->eal_config, sizeof(*ec));
 
   return 0;
 }
@@ -162,34 +158,44 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
     return -EINVAL;
   }
 
+  int status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("Coremask", child->key) == 0) {
-      cf_util_get_string_buffer(child, phc->eal_config.coremask,
-                                sizeof(phc->eal_config.coremask));
+      status = cf_util_get_string_buffer(child, phc->eal_config.coremask,
+                                         sizeof(phc->eal_config.coremask));
       DEBUG("dpdk_common: EAL:Coremask %s", phc->eal_config.coremask);
     } else if (strcasecmp("MemoryChannels", child->key) == 0) {
-      cf_util_get_string_buffer(child, phc->eal_config.memory_channels,
-                                sizeof(phc->eal_config.memory_channels));
+      status =
+          cf_util_get_string_buffer(child, phc->eal_config.memory_channels,
+                                    sizeof(phc->eal_config.memory_channels));
       DEBUG("dpdk_common: EAL:Memory Channels %s",
             phc->eal_config.memory_channels);
     } else if (strcasecmp("SocketMemory", child->key) == 0) {
-      cf_util_get_string_buffer(child, phc->eal_config.socket_memory,
-                                sizeof(phc->eal_config.socket_memory));
+      status = cf_util_get_string_buffer(child, phc->eal_config.socket_memory,
+                                         sizeof(phc->eal_config.socket_memory));
       DEBUG("dpdk_common: EAL:Socket memory %s", phc->eal_config.socket_memory);
     } else if (strcasecmp("ProcessType", child->key) == 0) {
-      cf_util_get_string_buffer(child, phc->eal_config.process_type,
-                                sizeof(phc->eal_config.process_type));
+      status = cf_util_get_string_buffer(child, phc->eal_config.process_type,
+                                         sizeof(phc->eal_config.process_type));
       DEBUG("dpdk_common: EAL:Process type %s", phc->eal_config.process_type);
     } else if ((strcasecmp("FilePrefix", child->key) == 0) &&
                (child->values[0].type == OCONFIG_TYPE_STRING)) {
       ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
                 "/var/run/.%s_config", child->values[0].value.string);
       DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
+    } else {
+      ERROR("dpdk_common: Invalid '%s' configuration option", child->key);
+      status = -EINVAL;
+    }
+
+    if (status != 0) {
+      ERROR("dpdk_common: Parsing EAL configuration failed");
+      break;
     }
   }
 
-  return 0;
+  return status;
 }
 
 static int dpdk_shm_init(const char *name, size_t size, void **map) {
@@ -199,60 +205,54 @@ static int dpdk_shm_init(const char *name, size_t size, void **map) {
 
   int fd = shm_open(name, O_CREAT | O_TRUNC | O_RDWR, 0666);
   if (fd < 0) {
-    WARNING("dpdk_shm_init: Failed to open %s as SHM:%s\n", name,
+    WARNING("dpdk_shm_init: Failed to open %s as SHM:%s", name,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail;
+    *map = NULL;
+    return -1;
   }
 
   int ret = ftruncate(fd, size);
   if (ret != 0) {
-    WARNING("dpdk_shm_init: Failed to resize SHM:%s\n",
+    WARNING("dpdk_shm_init: Failed to resize SHM:%s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail_close;
+    close(fd);
+    *map = NULL;
+    dpdk_shm_cleanup(name, size, NULL);
+    return -1;
   }
 
   *map = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (*map == MAP_FAILED) {
-    WARNING("dpdk_shm_init:Failed to mmap SHM:%s\n",
+    WARNING("dpdk_shm_init:Failed to mmap SHM:%s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    goto fail_close;
+    close(fd);
+    *map = NULL;
+    dpdk_shm_cleanup(name, size, NULL);
+    return -1;
   }
-  /*
-   * Close the file descriptor, the shared memory object still exists
-   * and can only be removed by calling shm_unlink().
-   */
+  /* File descriptor no longer needed for shared memory operations */
   close(fd);
-
   memset(*map, 0, size);
 
   return 0;
-
-fail_close:
-  close(fd);
-fail:
-  *map = NULL;
-  return -1;
 }
 
-static int dpdk_shm_cleanup(const char *name, size_t size, void *map) {
+static void dpdk_shm_cleanup(const char *name, size_t size, void *map) {
   DPDK_HELPER_TRACE(name);
+  char errbuf[ERR_BUF_SIZE];
 
-  int ret = munmap(map, size);
-  if (ret) {
-    ERROR("munmap returned %d\n", ret);
+  if (map != NULL) {
+    if (munmap(map, size))
+      ERROR("munmap failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
   }
 
-  ret = shm_unlink(name);
-  if (ret) {
-    ERROR("shm_unlink returned %d\n", ret);
-  }
-
-  return 0;
+  if (shm_unlink(name))
+    ERROR("shm_unlink failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
 }
 
-inline void *dpdk_helper_priv_get(dpdk_helper_ctx_t *phc) {
+void *dpdk_helper_priv_get(dpdk_helper_ctx_t *phc) {
   if (phc)
-    return (void *)phc->priv_data;
+    return phc->priv_data;
 
   return NULL;
 }
@@ -268,7 +268,6 @@ int dpdk_helper_data_size_get(dpdk_helper_ctx_t *phc) {
 
 int dpdk_helper_init(const char *name, size_t data_size,
                      dpdk_helper_ctx_t **pphc) {
-  int err = 0;
   dpdk_helper_ctx_t *phc = NULL;
   size_t shm_size = sizeof(dpdk_helper_ctx_t) + data_size;
   char errbuf[ERR_BUF_SIZE];
@@ -288,26 +287,28 @@ int dpdk_helper_init(const char *name, size_t data_size,
   /* Allocate dpdk_helper_ctx_t and
   * initialize a POSIX SHared Memory (SHM) object.
   */
-  err = dpdk_shm_init(name, shm_size, (void **)&phc);
+  int err = dpdk_shm_init(name, shm_size, (void **)&phc);
   if (err != 0) {
     return -errno;
   }
 
   err = sem_init(&phc->sema_cmd_start, 1, 0);
   if (err != 0) {
-    ERROR("sema_cmd_start semaphore init failed: %s\n",
+    ERROR("sema_cmd_start semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
+    int errno_m = errno;
     dpdk_shm_cleanup(name, shm_size, (void *)phc);
-    return -errno;
+    return -errno_m;
   }
 
   err = sem_init(&phc->sema_cmd_complete, 1, 0);
   if (err != 0) {
-    ERROR("sema_cmd_complete semaphore init failed: %s\n",
+    ERROR("sema_cmd_complete semaphore init failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     sem_destroy(&phc->sema_cmd_start);
+    int errno_m = errno;
     dpdk_shm_cleanup(name, shm_size, (void *)phc);
-    return -errno;
+    return -errno_m;
   }
 
   phc->shm_size = shm_size;
@@ -328,9 +329,7 @@ int dpdk_helper_shutdown(dpdk_helper_ctx_t *phc) {
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
-#ifdef DPDK_HELPER_USE_PIPES
   close(phc->pipes[1]);
-#endif
 
   if (phc->status != DPDK_HELPER_NOT_INITIALIZED) {
     dpdk_helper_exit_command(phc, DPDK_HELPER_GRACEFUL_QUIT);
@@ -355,7 +354,6 @@ static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
   phc->eal_initialized = 0;
   phc->cmd_wait_time = MS_TO_CDTIME_T(DPDK_CDM_DEFAULT_TIMEOUT);
 
-#ifdef DPDK_HELPER_USE_PIPES
   /*
    * Create a pipe for helper stdout back to collectd. This is necessary for
    * logging EAL failures, as rte_eal_init() calls rte_panic().
@@ -368,7 +366,7 @@ static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
   }
 
   if (pipe(phc->pipes) != 0) {
-    DEBUG("dpdk_helper_spawn: Could not create helper pipe: %s\n",
+    DEBUG("dpdk_helper_spawn: Could not create helper pipe: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
@@ -385,28 +383,23 @@ static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
     WARNING("dpdk_helper_spawn: error setting up pipes: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
   }
-#endif /* DPDK_HELPER_USE_PIPES */
 
   pid_t pid = fork();
   if (pid > 0) {
     phc->pid = pid;
-#ifdef DPDK_HELPER_USE_PIPES
     close(phc->pipes[1]);
-#endif /* DPDK_HELPER_USE_PIPES */
     DEBUG("%s:dpdk_helper_spawn: helper pid %lu", phc->shm_name,
           (long)phc->pid);
   } else if (pid == 0) {
-#ifdef DPDK_HELPER_USE_PIPES
     /* Replace stdout with a pipe to collectd. */
     close(phc->pipes[0]);
     close(STDOUT_FILENO);
     dup2(phc->pipes[1], STDOUT_FILENO);
-#endif /* DPDK_HELPER_USE_PIPES */
     DPDK_CHILD_TRACE(phc->shm_name);
     dpdk_helper_worker(phc);
     exit(0);
   } else {
-    ERROR("dpdk_helper_start: Failed to fork helper process: %s\n",
+    ERROR("dpdk_helper_start: Failed to fork helper process: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
@@ -419,9 +412,7 @@ static int dpdk_helper_exit(dpdk_helper_ctx_t *phc,
   DPDK_CHILD_LOG("%s:%s:%d %s\n", phc->shm_name, __FUNCTION__, __LINE__,
                  dpdk_helper_status_str(status));
 
-#ifdef DPDK_HELPER_USE_PIPES
   close(phc->pipes[1]);
-#endif /* DPDK_HELPER_USE_PIPES */
 
   phc->status = status;
 
@@ -435,9 +426,7 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
   char errbuf[ERR_BUF_SIZE];
   DPDK_HELPER_TRACE(phc->shm_name);
 
-#ifdef DPDK_HELPER_USE_PIPES
   close(phc->pipes[1]);
-#endif /* DPDK_HELPER_USE_PIPES */
 
   if (phc->status == DPDK_HELPER_ALIVE_SENDING_EVENTS) {
     phc->status = status;
@@ -451,7 +440,7 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
 
       int err = kill(phc->pid, SIGKILL);
       if (err) {
-        ERROR("%s error sending kill to helper: %s\n", __FUNCTION__,
+        ERROR("%s error sending kill to helper: %s", __FUNCTION__,
               sstrerror(errno, errbuf, sizeof(errbuf)));
       }
     }
@@ -462,7 +451,7 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
 
     int err = kill(phc->pid, SIGKILL);
     if (err) {
-      ERROR("%s error sending kill to helper: %s\n", __FUNCTION__,
+      ERROR("%s error sending kill to helper: %s", __FUNCTION__,
             sstrerror(errno, errbuf, sizeof(errbuf)));
     }
   }
@@ -700,7 +689,6 @@ static int dpdk_helper_status_check(dpdk_helper_ctx_t *phc) {
   return 0;
 }
 
-#ifdef DPDK_HELPER_USE_PIPES
 static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
   char buf[DPDK_MAX_BUFFER_SIZE];
   char out[DPDK_MAX_BUFFER_SIZE];
@@ -725,7 +713,6 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
     DEBUG("%s: helper process:\n%s", phc->shm_name, out);
   }
 }
-#endif /* DPDK_HELPER_USE_PIPES */
 
 int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
                         cdtime_t cmd_wait_time) {
@@ -739,13 +726,9 @@ int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
 
   phc->cmd_wait_time = cmd_wait_time;
 
-  int ret = 0;
+  int ret = dpdk_helper_status_check(phc);
 
-  ret = dpdk_helper_status_check(phc);
-
-#ifdef DPDK_HELPER_USE_PIPES
   dpdk_helper_check_pipe(phc);
-#endif /* DPDK_HELPER_USE_PIPES */
 
   if (ret != 0) {
     return ret;
@@ -760,7 +743,7 @@ int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
   int err = sem_post(&phc->sema_cmd_start);
   if (err) {
     char errbuf[ERR_BUF_SIZE];
-    ERROR("dpdk_helper_worker: error posting sema_cmd_start semaphore (%s)\n",
+    ERROR("dpdk_helper_worker: error posting sema_cmd_start semaphore (%s)",
           sstrerror(errno, errbuf, sizeof(errbuf)));
   }
 
@@ -803,9 +786,7 @@ int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
     }
   }
 
-#ifdef DPDK_HELPER_USE_PIPES
   dpdk_helper_check_pipe(phc);
-#endif /* DPDK_HELPER_USE_PIPES */
 
   DEBUG("%s: DPDK command complete (cmd=%d, result=%d)", phc->shm_name,
         phc->cmd, phc->cmd_result);
@@ -833,18 +814,20 @@ uint128_t str_to_uint128(const char *str, int len) {
   uint128_t lcore_mask;
   int err = 0;
 
-  memset(&lcore_mask, 0, sizeof(uint128_t));
+  memset(&lcore_mask, 0, sizeof(lcore_mask));
 
   if (len <= 2 || strncmp(str, "0x", 2) != 0) {
     ERROR("%s Value %s should be represened in hexadecimal format",
           __FUNCTION__, str);
     return lcore_mask;
   }
-
+  /* If str is <= 64 bit long ('0x' + 16 chars = 18 chars) then
+   * conversion is straightforward. Otherwise str is splitted into 64b long
+   * blocks */
   if (len <= 18) {
     lcore_mask.low = strtoull_safe(str, &err);
     if (err)
-      goto parse_out;
+      return lcore_mask;
   } else {
     char low_str[DATA_MAX_NAME_LEN];
     char high_str[DATA_MAX_NAME_LEN];
@@ -857,15 +840,13 @@ uint128_t str_to_uint128(const char *str, int len) {
 
     lcore_mask.low = strtoull_safe(low_str, &err);
     if (err)
-      goto parse_out;
+      return lcore_mask;
 
     lcore_mask.high = strtoull_safe(high_str, &err);
     if (err) {
       lcore_mask.low = 0;
-      goto parse_out;
+      return lcore_mask;
     }
   }
-
-parse_out:
   return lcore_mask;
 }
