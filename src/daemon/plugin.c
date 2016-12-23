@@ -153,13 +153,11 @@ static const char *plugin_get_dir(void) {
     return (plugindir);
 }
 
-static void plugin_update_internal_statistics(void) { /* {{{ */
-
+static int plugin_update_internal_statistics() { /* {{{ */
   gauge_t copy_write_queue_length = (gauge_t)write_queue_length;
 
   /* Initialize `vl' */
   value_list_t vl = VALUE_LIST_INIT;
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "collectd", sizeof(vl.plugin));
 
   /* Write queue */
@@ -189,8 +187,8 @@ static void plugin_update_internal_statistics(void) { /* {{{ */
   vl.type_instance[0] = 0;
   plugin_dispatch_values(&vl);
 
-  return;
-} /* }}} void plugin_update_internal_statistics */
+  return 0;
+} /* }}} int plugin_update_internal_statistics */
 
 static void destroy_callback(callback_func_t *cf) /* {{{ */
 {
@@ -1572,8 +1570,10 @@ int plugin_init_all(void) {
   /* Init the value cache */
   uc_init();
 
-  if (IS_TRUE(global_option_get("CollectInternalStats")))
+  if (IS_TRUE(global_option_get("CollectInternalStats"))) {
     record_statistics = 1;
+    plugin_register_read("collectd", plugin_update_internal_statistics);
+  }
 
   chain_name = global_option_get("PreCacheChain");
   pre_cache_chain = fc_chain_get_by_name(chain_name);
@@ -1661,9 +1661,6 @@ int plugin_init_all(void) {
 
 /* TODO: Rename this function. */
 void plugin_read_all(void) {
-  if (record_statistics) {
-    plugin_update_internal_statistics();
-  }
   uc_check_timeout();
 
   return;
