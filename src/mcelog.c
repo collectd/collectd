@@ -154,14 +154,13 @@ static int socket_write(socket_adapter_t *self, const char *msg,
 
 static int socket_reinit(socket_adapter_t *self) {
   char errbuff[MCELOG_BUFF_SIZE];
-  int flags;
   int ret = -1;
   cdtime_t interval = plugin_get_interval();
   struct timeval socket_timeout = CDTIME_T_TO_TIMEVAL(interval);
 
   /* synchronization via write lock since sock_fd may be changed here */
   pthread_rwlock_wrlock(&self->lock);
-  self->sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+  self->sock_fd = socket(PF_UNIX, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
   if (self->sock_fd < 0) {
     ERROR("%s: Could not create a socket. %s", MCELOG_PLUGIN,
           sstrerror(errno, errbuff, sizeof(errbuff)));
@@ -169,13 +168,9 @@ static int socket_reinit(socket_adapter_t *self) {
     return ret;
   }
 
-  flags = fcntl(self->sock_fd, F_GETFL, 0);
-  flags |= O_NONBLOCK;
-  fcntl(self->sock_fd, F_SETFL, flags);
-
   /* Set socket timeout option */
   if (setsockopt(self->sock_fd, SOL_SOCKET, SO_SNDTIMEO,
-                 (char *)&socket_timeout, sizeof(socket_timeout)) < 0)
+                 &socket_timeout, sizeof(socket_timeout)) < 0)
     ERROR("%s: Failed to set the socket timeout option.", MCELOG_PLUGIN);
 
   /* downgrading to read lock due to possible recursive read locks
@@ -411,7 +406,7 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
 static void *poll_worker(__attribute__((unused)) void *arg) {
   char errbuf[MCELOG_BUFF_SIZE];
   mcelog_thread_running = 1;
-  FILE **pp_file = calloc(1, sizeof(FILE *));
+  FILE **pp_file = calloc(1, sizeof(*pp_file));
   if (pp_file == NULL) {
     ERROR("mcelog: memory allocation failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -439,8 +434,7 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
     if (*pp_file == NULL)
       continue;
 
-    mcelog_memory_rec_t memory_record;
-    memset(&memory_record, 0, sizeof(memory_record));
+    mcelog_memory_rec_t memory_record = {0};
     while (parse_memory_info(*pp_file, &memory_record)) {
       notification_t n = {NOTIF_OKAY, cdtime(), "", "",  MCELOG_PLUGIN,
                           "",         "",       "", NULL};

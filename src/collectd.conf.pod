@@ -3324,23 +3324,23 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =head2 Plugin C<mcelog>
 
-The C<mcelog plugin> uses mcelog to retrieve machine check exceptions, etc.
+The C<mcelog plugin> uses mcelog to retrieve machine check exceptions.
 
 By default the plugin connects to B<"/var/run/mcelog-client"> to check if the
 mcelog server is running. When the server is running, the plugin will tail the
 specified logfile to retrieve machine check exception information and send a
 notification with the details from the logfile. The plugin will use the mcelog
-client protocol to retrieve memory errors.
+client protocol to retrieve memory related machine check exceptions.
 
 =over 4
 
 =item B<McelogClientSocket> I<Path>
-Connect to mcelog client socket using the UNIX domain socket at I<Path>.
+Connect to the mcelog client socket using the UNIX domain socket at I<Path>.
 Defaults to B<"/var/run/mcelog-client">.
 
 =item B<McelogLogfile> I<Path>
 
-mcelog file to parse. Defaults to B<"/var/log/mcelog">.
+The mcelog file to parse. Defaults to B<"/var/log/mcelog">.
 
 =back
 
