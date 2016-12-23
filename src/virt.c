@@ -936,10 +936,10 @@ static int refresh_lists(struct lv_read_instance *inst) {
       }
 
       /* Block devices. */
-      char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
+      const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
       if (blockdevice_format == source)
         bd_xmlpath = "/domain/devices/disk/source[@dev]";
-      xpath_obj = xmlXPathEval((xmlChar *)bd_xmlpath, xpath_ctx);
+      xpath_obj = xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
 
       if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
           xpath_obj->nodesetval == NULL)
