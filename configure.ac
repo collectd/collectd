@@ -6536,6 +6536,7 @@ AC_SUBST([AM_CXXFLAGS])
 
 AC_CONFIG_FILES([ \
   Makefile \
+  src/collectd.conf \
   src/libcollectdclient/libcollectdclient.pc \
 ])
 
