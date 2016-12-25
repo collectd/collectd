@@ -75,7 +75,6 @@ static long long get_zfs_value(kstat_t *ksp, const char *key) {
 
   e = llist_search(ksp, key);
   if (e == NULL) {
-    ERROR("zfs_arc plugin: `llist_search` failed for key: '%s'.", key);
     return (-1);
   }
 
@@ -152,7 +151,7 @@ static int za_read_derive(kstat_t *ksp, const char *kstat_value,
                           const char *type, const char *type_instance) {
   long long tmp = get_zfs_value(ksp, (char *)kstat_value);
   if (tmp == -1LL) {
-    WARNING("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    DEBUG("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
@@ -165,7 +164,7 @@ static int za_read_gauge(kstat_t *ksp, const char *kstat_value,
                          const char *type, const char *type_instance) {
   long long tmp = get_zfs_value(ksp, (char *)kstat_value);
   if (tmp == -1LL) {
-    WARNING("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
+    DEBUG("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
     return (-1);
   }
 
