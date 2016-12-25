@@ -1043,7 +1043,7 @@ endif
 
 if BUILD_PLUGIN_MCELOG
 pkglib_LTLIBRARIES += mcelog.la
-mcelog_la_SOURCES = mcelog.c
+mcelog_la_SOURCES = src/mcelog.c
 mcelog_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
