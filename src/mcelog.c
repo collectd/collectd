@@ -64,14 +64,14 @@ struct socket_adapter_s {
 };
 
 typedef struct mcelog_memory_rec_s {
-  char location[DATA_MAX_NAME_LEN];  /* SOCKET x CHANNEL x DIMM x*/
-  char dimm_name[DATA_MAX_NAME_LEN]; /* DMI_NAME "DIMM_F1" */
   int corrected_err_total;           /* x total*/
   int corrected_err_timed;           /* x in 24h*/
   char corrected_err_timed_period[DATA_MAX_NAME_LEN];
   int uncorrected_err_total; /* x total*/
   int uncorrected_err_timed; /* x in 24h*/
   char uncorrected_err_timed_period[DATA_MAX_NAME_LEN];
+  char location[DATA_MAX_NAME_LEN];  /* SOCKET x CHANNEL x DIMM x*/
+  char dimm_name[DATA_MAX_NAME_LEN]; /* DMI_NAME "DIMM_F1" */
 } mcelog_memory_rec_t;
 
 static int socket_close(socket_adapter_t *self);
