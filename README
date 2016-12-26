@@ -198,13 +198,18 @@ Features
       Queries very detailed usage statistics from wireless LAN adapters and
       interfaces that use the Atheros chipset and the MadWifi driver.
 
-    - md
-      Linux software-RAID device information (number of active, failed, spare
-      and missing disks).
-
     - mbmon
       Motherboard sensors: temperature, fan speed and voltage information,
       using mbmon(1).
+
+    - mcelog
+      Monitor machine check exceptions (hardware errors detected by hardware
+      and reported to software) reported by mcelog and generate appropriate
+      notifications when machine check exceptions are detected.
+
+    - md
+      Linux software-RAID device information (number of active, failed, spare
+      and missing disks).
 
     - memcachec
       Query and parse data from a memcache daemon (memcached).
