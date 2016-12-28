@@ -61,7 +61,8 @@ static pthread_t thread_id = (pthread_t)0;
 
 static const char *config_keys[] = {"Sensor", "IgnoreSelected",
                                     "NotifySensorAdd", "NotifySensorRemove",
-                                    "NotifySensorNotPresent", "SELEnabled"};
+                                    "NotifySensorNotPresent", "SELEnabled",
+                                    "SELClearEvent"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist = NULL;
@@ -70,6 +71,7 @@ static int c_ipmi_notify_add = 0;
 static int c_ipmi_notify_remove = 0;
 static int c_ipmi_notify_notpresent = 0;
 static int c_ipmi_sel_enabled = 0;
+static int c_ipmi_sel_clear_event = 0;
 
 /*
  * Misc private functions
@@ -533,9 +535,12 @@ static int sensor_threshold_event_handler(
   plugin_dispatch_notification(&n);
 
   /* Delete handled ipmi event from the list */
-  ipmi_event_delete(event, NULL, NULL);
+  if (c_ipmi_sel_clear_event) {
+    ipmi_event_delete(event, NULL, NULL);
+    return (IPMI_EVENT_HANDLED);
+  }
 
-  return (IPMI_EVENT_HANDLED);
+  return (IPMI_EVENT_NOT_HANDLED);
 } /* int sensor_threshold_event_handler */
 
 static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
@@ -581,9 +586,12 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   plugin_dispatch_notification(&n);
 
   /* Delete handled ipmi event from the list */
-  ipmi_event_delete(event, NULL, NULL);
+  if (c_ipmi_sel_clear_event) {
+    ipmi_event_delete(event, NULL, NULL);
+    return (IPMI_EVENT_HANDLED);
+  }
 
-  return (IPMI_EVENT_HANDLED);
+  return (IPMI_EVENT_NOT_HANDLED);
 } /* int sensor_discrete_event_handler */
 
 /*
@@ -759,6 +767,9 @@ static int c_ipmi_config(const char *key, const char *value) {
   } else if (strcasecmp("SELEnabled", key) == 0) {
     if (IS_TRUE(value))
       c_ipmi_sel_enabled = 1;
+  } else if (strcasecmp("SELClearEvent", key) == 0) {
+    if (IS_TRUE(value))
+      c_ipmi_sel_clear_event = 1;
   } else {
     return (-1);
   }

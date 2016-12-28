@@ -636,6 +636,7 @@
 #	NotifySensorRemove true
 #	NotifySensorNotPresent false
 #	SELEnabled false
+#	SELClearEvent false
 #</Plugin>
 
 #<Plugin iptables>
