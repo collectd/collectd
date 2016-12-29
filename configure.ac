@@ -4235,6 +4235,16 @@ then
 fi
 if test "x$with_libpqos" = "xyes"
 then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+  AC_RUN_IFELSE([AC_LANG_PROGRAM(
+    [[#include <pqos.h>]],
+    [[return !(PQOS_VERSION >= 106)]])],
+    [with_libpqos="yes"], [with_libpqos="no (pqos library version 1.06 or higher is required)"])
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libpqos" = "xyes"
+then
 	BUILD_WITH_LIBPQOS_CPPFLAGS="$with_libpqos_cppflags"
 	BUILD_WITH_LIBPQOS_LDFLAGS="$with_libpqos_ldflags"
 	BUILD_WITH_LIBPQOS_LIBS="-lpqos"
