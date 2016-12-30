@@ -432,24 +432,24 @@ static void snmp_agent_free_table(table_definition_t **td) {
 static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
                                  data_definition_t *dd, char *instance,
                                  int oid_index) {
-  char buf[DATA_MAX_NAME_LEN];
-  format_name(buf, sizeof(buf), hostname_g, dd->plugin,
+  char name[DATA_MAX_NAME_LEN];
+  format_name(name, sizeof(name), hostname_g, dd->plugin,
               instance ? instance : dd->plugin_instance, dd->type,
               dd->type_instance);
-  DEBUG(PLUGIN_NAME ": Identifier '%s'", buf);
+  DEBUG(PLUGIN_NAME ": Identifier '%s'", name);
 
   value_t *values;
   size_t values_num;
   const data_set_t *ds = plugin_get_ds(dd->type);
   if (ds == NULL) {
-    DEBUG(PLUGIN_NAME ": Data set not found for '%s' type", dd->type);
+    ERROR(PLUGIN_NAME ": Data set not found for '%s' type", dd->type);
     return SNMP_NOSUCHINSTANCE;
   }
 
-  int ret = uc_get_value_by_name(buf, &values, &values_num);
+  int ret = uc_get_value_by_name(name, &values, &values_num);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to get value for '%s'", buf);
+    ERROR(PLUGIN_NAME ": Failed to get value for '%s'", name);
     return SNMP_NOSUCHINSTANCE;
   }
 
@@ -465,7 +465,7 @@ static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
   sfree(values);
 
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to convert '%s' value to snmp data", buf);
+    ERROR(PLUGIN_NAME ": Failed to convert '%s' value to snmp data", name);
     return SNMP_NOSUCHINSTANCE;
   }
 
@@ -503,6 +503,11 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
 
+    if (!td->index_oid.oid_len) {
+      DEBUG(PLUGIN_NAME ": %s:%d NOT IMPLEMENTED", __FUNCTION__, __LINE__);
+      continue;
+    }
+
     for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
       data_definition_t *dd = de->value;
 
@@ -512,11 +517,6 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
                                     MIN(oid.oid_len, dd->oids[i].oid_len));
         if (ret != 0)
           continue;
-
-        if (!td->index_oid.oid_len) {
-          DEBUG(PLUGIN_NAME ": %s:%d NOT IMPLEMENTED", __FUNCTION__, __LINE__);
-          continue;
-        }
 
         int index = oid.oid[oid.oid_len - 1];
         char *instance;
@@ -1015,6 +1015,12 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
       snmp_agent_free_table(&td);
       return (-ENOMEM);
     }
+  }
+
+  if (td->index_oid.oid_len == 0) {
+    ERROR(PLUGIN_NAME ": Table %s Index OID is not specified", td->name);
+    snmp_agent_free_table(&td);
+    return (-1);
   }
 
   llentry_t *entry = llentry_create(td->name, td);
