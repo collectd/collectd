@@ -1285,7 +1285,7 @@ ovs_events_la_SOURCES = \
 	src/utils_ovs.c \
 	src/utils_ovs.h
 ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
-ovs_events_la_CFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_events_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
