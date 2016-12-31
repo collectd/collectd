@@ -110,6 +110,7 @@
 %define with_olsrd 0%{!?_without_olsrd:1}
 %define with_openldap 0%{!?_without_openldap:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
+%define with_ovs_events 0%{!?_without_ovs_events:1}
 %define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
@@ -228,6 +229,7 @@
 %define with_cpusleep 0
 %define with_gps 0
 %define with_mqtt 0
+%define with_ovs_events 0
 %define with_redis 0
 %define with_rrdcached 0
 %define with_write_redis 0
@@ -237,7 +239,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.0
-Release:	3%{?dist}
+Release:	4%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -662,6 +664,18 @@ Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: openldap-devel
 %description openldap
 This plugin reads monitoring information from OpenLDAP's cn=Monitor subtree.
+%endif
+
+%if %{with_ovs_events}
+%package ovs_events
+Summary:       Open vSwitch events plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ovs_events
+This plugin monitors the link status of Open vSwitch (OVS) connected
+interfaces, dispatches the values to collectd and sends notifications
+whenever a link state change occurs in the OVS database.
 %endif
 
 %if %{with_perl}
@@ -1446,6 +1460,12 @@ Collectd utilities
 %define _with_oracle --disable-oracle
 %endif
 
+%if %{with_ovs_events}
+%define _with_ovs_events --enable-ovs_events
+%else
+%define _with_ovs_events --disable-ovs_events
+%endif
+
 %if %{with_perl}
 %define _with_perl --enable-perl --with-perl-bindings="INSTALLDIRS=vendor"
 %else
@@ -1877,6 +1897,7 @@ Collectd utilities
 	%{?_with_openldap} \
 	%{?_with_openvpn} \
 	%{?_with_oracle} \
+	%{?_with_ovs_events} \
 	%{?_with_perl} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
@@ -2186,6 +2207,9 @@ fi
 %endif
 %if %{with_olsrd}
 %{_libdir}/%{name}/olsrd.so
+%endif
+%if %{with_ovs_events}
+%{_libdir}/%{name}/ovs_events.so
 %endif
 %if %{with_powerdns}
 %{_libdir}/%{name}/powerdns.so
@@ -2607,6 +2631,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sat Dec 31 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-4
+- Add new ovs_events plugin
+
 * Sat Dec 31 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-3
 - Add new mcelog plugin
 
