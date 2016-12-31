@@ -6082,11 +6082,6 @@ if test "x$have_sysctl" = "xyes"; then
   fi
 fi
 
-if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"
-then
-  plugin_ovs_events="yes"
-fi
-
 if test "x$have_sysctlbyname" = "xyes"; then
   plugin_contextswitch="yes"
   plugin_cpu="yes"
@@ -6143,6 +6138,10 @@ fi
 
 if test "x$with_libyajl" = "xyes"; then
   plugin_log_logstash="yes"
+fi
+
+if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
+  plugin_ovs_events="yes"
 fi
 
 if test "x$with_libperl" = "xyes" && test "x$c_cv_have_perl_ithreads" = "xyes"; then
