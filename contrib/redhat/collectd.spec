@@ -88,6 +88,7 @@
 %define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
+%define with_mcelog 0%{!?_without_mcelog:1}
 %define with_md 0%{!?_without_md:1}
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
@@ -236,7 +237,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.0
-Release:	2%{?dist}
+Release:	3%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -536,6 +537,16 @@ BuildRequires:	lvm2-devel
 %description lvm
 This plugin collects size of “Logical Volumes” (LV) and “Volume Groups” (VG)
 of Linux' “Logical Volume Manager” (LVM).
+%endif
+
+%if %{with_mcelog}
+%package mcelog
+Summary:	Mcelog plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description mcelog
+This plugin monitors machine check exceptions reported by mcelog and generates
+appropriate notifications when machine check exceptions are detected.
 %endif
 
 %if %{with_memcachec}
@@ -1279,6 +1290,12 @@ Collectd utilities
 %define _with_mbmon --disable-mbmon
 %endif
 
+%if %{with_mcelog}
+%define _with_mcelog --enable-mcelog
+%else
+%define _with_mbmon --disable-mcelog
+%endif
+
 %if %{with_md}
 %define _with_md --enable-md
 %else
@@ -1834,6 +1851,7 @@ Collectd utilities
 	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
+	%{?_with_mcelog} \
 	%{?_with_md} \
 	%{?_with_memcachec} \
 	%{?_with_memcached} \
@@ -2132,6 +2150,9 @@ fi
 %endif
 %if %{with_mbmon}
 %{_libdir}/%{name}/mbmon.so
+%endif
+%if %{with_mcelog}
+%{_libdir}/%{name}/mcelog.so
 %endif
 %if %{with_md}
 %{_libdir}/%{name}/md.so
@@ -2586,6 +2607,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sat Dec 31 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-3
+- Add new mcelog plugin
+
 * Tue Nov 29 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-2
 - Disable redis plugin on RHEL 6, hiredis has been retired from EPEL6
 
