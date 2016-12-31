@@ -816,6 +816,12 @@ filecount_la_SOURCES = src/filecount.c
 filecount_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_FSCACHE
+pkglib_LTLIBRARIES += fscache.la
+fscache_la_SOURCES = src/fscache.c
+fscache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_GMOND
 pkglib_LTLIBRARIES += gmond.la
 gmond_la_SOURCES = src/gmond.c
@@ -1172,12 +1178,6 @@ if BUILD_PLUGIN_NFS
 pkglib_LTLIBRARIES += nfs.la
 nfs_la_SOURCES = src/nfs.c
 nfs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-endif
-
-if BUILD_PLUGIN_FSCACHE
-pkglib_LTLIBRARIES += fscache.la
-fscache_la_SOURCES = src/fscache.c
-fscache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_NGINX
