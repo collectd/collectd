@@ -328,7 +328,7 @@ static yajl_gen_status ovs_yajl_gen_val(yajl_gen jgen, yajl_val jval) {
   yajl_val jobj_value = NULL;
   const char *obj_key = NULL;
   size_t obj_len = 0;
-  yajl_gen_status yajl_gen_ret;
+  yajl_gen_status yajl_gen_ret = yajl_gen_status_ok;
 
   if (YAJL_IS_STRING(jval))
     OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, YAJL_GET_STRING(jval));
@@ -459,9 +459,6 @@ static int ovs_db_table_update_cb(ovs_db_t *pdb, yajl_val jnode) {
   yajl_val jvalue;
   yajl_val jparams;
   yajl_val jtable_updates;
-  yajl_val jtable_update;
-  size_t obj_len = 0;
-  const char *table_name = NULL;
   const char *params_path[] = {"params", NULL};
   const char *id_path[] = {"id", NULL};
 
@@ -707,10 +704,8 @@ static void ovs_json_reader_free(ovs_json_reader_t *jreader) {
  * if connection has been established.
  */
 static void ovs_db_reconnect(ovs_db_t *pdb) {
-  const char unix_prefix[] = "unix:";
   const char *node_info = pdb->node;
   struct addrinfo *result;
-  struct sockaddr_un saunix;
 
   if (pdb->unix_path[0] != '\0') {
     /* use UNIX socket instead of INET address */
