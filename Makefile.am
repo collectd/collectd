@@ -585,7 +585,7 @@ if BUILD_PLUGIN_BIND
 pkglib_LTLIBRARIES += bind.la
 bind_la_SOURCES = src/bind.c
 bind_la_CFLAGS = $(AM_CFLAGS) \
-		 $(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+	$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 bind_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
@@ -1298,11 +1298,10 @@ perl_la_CPPFLAGS = $(AM_CPPFLAGS) -DHAS_BOOL=1
 # off64_t which is only exposed when _LARGEFILE64_SOURCE is defined... *sigh*
 # On older platforms we also need _REENTRANT. _GNU_SOURCE sets both of these.
 perl_la_CPPFLAGS += -D_GNU_SOURCE
-perl_la_CFLAGS  = $(AM_CFLAGS) \
-		$(PERL_CFLAGS) \
-		-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
-perl_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
-		$(PERL_LDFLAGS)
+perl_la_CFLAGS = $(AM_CFLAGS) \
+	$(PERL_CFLAGS) \
+	-DXS_VERSION=\"$(VERSION)\" -DVERSION=\"$(VERSION)\"
+perl_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(PERL_LDFLAGS)
 perl_la_LIBADD = $(PERL_LIBS)
 endif
 
@@ -1339,7 +1338,7 @@ postgresql_la_SOURCES = \
 	src/utils_db_query.h
 postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
-		$(BUILD_WITH_LIBPQ_LDFLAGS)
+	$(BUILD_WITH_LIBPQ_LDFLAGS)
 postgresql_la_LIBADD = $(BUILD_WITH_LIBPQ_LIBS)
 endif
 
@@ -1663,7 +1662,7 @@ if BUILD_PLUGIN_VIRT
 pkglib_LTLIBRARIES += virt.la
 virt_la_SOURCES = src/virt.c
 virt_la_CFLAGS = $(AM_CFLAGS) \
-		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 
@@ -1673,10 +1672,10 @@ virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 # and libvirt switched to libnl3 anyway
 #test_plugin_virt_SOURCES = src/virt_test.c
 #test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
-#		$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+#	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 #test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
 #test_plugin_virt_LDADD = libplugin_mock.la \
-#		$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+#	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 #check_PROGRAMS += test_plugin_virt
 #TESTS += test_plugin_virt
 endif
