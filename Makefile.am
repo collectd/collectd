@@ -1278,6 +1278,17 @@ oracle_la_LIBADD = $(BUILD_WITH_ORACLE_LIBS)
 oracle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_OVS_EVENTS
+pkglib_LTLIBRARIES += ovs_events.la
+ovs_events_la_SOURCES = \
+	src/ovs_events.c \
+	src/utils_ovs.c \
+	src/utils_ovs.h
+ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ovs_events_la_CFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = src/perl.c
