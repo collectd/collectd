@@ -486,13 +486,13 @@ libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
 
-liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 liboconfig_la_SOURCES = \
 	src/liboconfig/oconfig.c \
 	src/liboconfig/oconfig.h \
 	src/liboconfig/aux_types.h \
 	src/liboconfig/scanner.l \
 	src/liboconfig/parser.y
+liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
 
 if BUILD_PLUGIN_AGGREGATION
@@ -508,8 +508,8 @@ endif
 if BUILD_PLUGIN_AMQP
 pkglib_LTLIBRARIES += amqp.la
 amqp_la_SOURCES = src/amqp.c
-amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
+amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_LIBADD = \
 	$(BUILD_WITH_LIBRABBITMQ_LIBS) \
 	libcmds.la \
@@ -520,8 +520,8 @@ endif
 if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = src/apache.c
-apache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 apache_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+apache_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 apache_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
@@ -553,11 +553,11 @@ endif
 if BUILD_PLUGIN_ASCENT
 pkglib_LTLIBRARIES += ascent.la
 ascent_la_SOURCES = src/ascent.c
-ascent_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ascent_la_CFLAGS = \
 	$(AM_CFLAGS) \
 	$(BUILD_WITH_LIBCURL_CFLAGS) \
 	$(BUILD_WITH_LIBXML2_CFLAGS)
+ascent_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 ascent_la_LIBADD = \
 	$(BUILD_WITH_LIBCURL_LIBS) \
 	$(BUILD_WITH_LIBXML2_LIBS)
@@ -584,17 +584,17 @@ endif
 if BUILD_PLUGIN_BIND
 pkglib_LTLIBRARIES += bind.la
 bind_la_SOURCES = src/bind.c
-bind_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 bind_la_CFLAGS = $(AM_CFLAGS) \
 		 $(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+bind_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
 
 if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = src/ceph.c
-ceph_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ceph_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ceph_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ceph_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
@@ -674,8 +674,8 @@ curl_la_SOURCES = \
 	src/utils_curl_stats.h \
 	src/utils_match.c \
 	src/utils_match.h
-curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_la_LIBADD = liblatency.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
@@ -697,9 +697,9 @@ curl_xml_la_SOURCES = \
 	src/curl_xml.c \
 	src/utils_curl_stats.c \
 	src/utils_curl_stats.h
-curl_xml_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_xml_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+curl_xml_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_xml_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
 
@@ -863,8 +863,8 @@ endif
 if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
 intel_rdt_la_SOURCES = src/intel_rdt.c
-intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
+intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
 endif
 
@@ -961,8 +961,8 @@ endif
 if BUILD_PLUGIN_LOG_LOGSTASH
 pkglib_LTLIBRARIES += log_logstash.la
 log_logstash_la_SOURCES = src/log_logstash.c
-log_logstash_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 log_logstash_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+log_logstash_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 log_logstash_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
@@ -1058,8 +1058,8 @@ memcachec_la_SOURCES = \
 	src/memcachec.c \
 	src/utils_match.c \
 	src/utils_match.h
-memcachec_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
 memcachec_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMEMCACHED_CPPFLAGS)
+memcachec_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
 memcachec_la_LIBADD = liblatency.la $(BUILD_WITH_LIBMEMCACHED_LIBS)
 endif
 
@@ -1105,8 +1105,8 @@ endif
 if BUILD_PLUGIN_MODBUS
 pkglib_LTLIBRARIES += modbus.la
 modbus_la_SOURCES = src/modbus.c
-modbus_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 modbus_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMODBUS_CFLAGS)
+modbus_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 modbus_la_LIBADD = $(BUILD_WITH_LIBMODBUS_LIBS)
 endif
 
@@ -1143,8 +1143,8 @@ endif
 if BUILD_PLUGIN_NETLINK
 pkglib_LTLIBRARIES += netlink.la
 netlink_la_SOURCES = src/netlink.c
-netlink_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 netlink_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+netlink_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 netlink_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 endif
 
@@ -1283,8 +1283,8 @@ ovs_events_la_SOURCES = \
 	src/ovs_events.c \
 	src/utils_ovs.c \
 	src/utils_ovs.h
-ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_CPPFLAGS = $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
@@ -1382,8 +1382,8 @@ endif
 if BUILD_PLUGIN_REDIS
 pkglib_LTLIBRARIES += redis.la
 redis_la_SOURCES = src/redis.c
-redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 redis_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 redis_la_LIBADD = -lhiredis
 endif
 
@@ -1401,8 +1401,8 @@ rrdcached_la_SOURCES = \
 	src/rrdcached.c \
 	src/utils_rrdcreate.c \
 	src/utils_rrdcreate.h
-rrdcached_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdcached_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
+rrdcached_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdcached_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
 endif
 
@@ -1412,8 +1412,8 @@ rrdtool_la_SOURCES = \
 	src/rrdtool.c \
 	src/utils_rrdcreate.c \
 	src/utils_rrdcreate.h
-rrdtool_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdtool_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
+rrdtool_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
 endif
 
@@ -1654,8 +1654,8 @@ endif
 if BUILD_PLUGIN_VARNISH
 pkglib_LTLIBRARIES += varnish.la
 varnish_la_SOURCES = src/varnish.c
-varnish_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 varnish_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBVARNISH_CFLAGS)
+varnish_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 varnish_la_LIBADD = $(BUILD_WITH_LIBVARNISH_LIBS)
 endif
 
@@ -1712,8 +1712,8 @@ write_http_la_SOURCES = \
 	src/write_http.c \
 	src/utils_format_kairosdb.c \
 	src/utils_format_kairosdb.h
-write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
@@ -1758,8 +1758,8 @@ endif
 if BUILD_PLUGIN_WRITE_REDIS
 pkglib_LTLIBRARIES += write_redis.la
 write_redis_la_SOURCES = src/write_redis.c
-write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 write_redis_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBHIREDIS_CPPFLAGS)
+write_redis_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBHIREDIS_LDFLAGS)
 write_redis_la_LIBADD = -lhiredis
 endif
 
@@ -1769,8 +1769,8 @@ write_riemann_la_SOURCES = \
 	src/write_riemann.c \
 	src/write_riemann_threshold.c \
 	src/write_riemann_threshold.h
-write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBRIEMANN_CLIENT_LIBS)
 write_riemann_la_CFLAGS = $(AM_CFLAGS) $(LIBRIEMANN_CLIENT_CFLAGS)
+write_riemann_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBRIEMANN_CLIENT_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_SENSU
