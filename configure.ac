@@ -6269,7 +6269,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
-AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats & Status from DPDK])
+AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
