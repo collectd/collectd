@@ -347,14 +347,14 @@ static yajl_gen_status ovs_yajl_gen_val(yajl_gen jgen, yajl_val jval) {
     array_len = YAJL_GET_ARRAY(jval)->len;
     jvalues = YAJL_GET_ARRAY(jval)->values;
     OVS_YAJL_CALL(yajl_gen_array_open, jgen);
-    for (int i = 0; i < array_len; i++)
+    for (size_t i = 0; i < array_len; i++)
       OVS_YAJL_CALL(ovs_yajl_gen_val, jgen, jvalues[i]);
     OVS_YAJL_CALL(yajl_gen_array_close, jgen);
   } else if (YAJL_IS_OBJECT(jval)) {
     /* create new object and add all elements into the object */
     OVS_YAJL_CALL(yajl_gen_map_open, jgen);
     obj_len = YAJL_GET_OBJECT(jval)->len;
-    for (int i = 0; i < obj_len; i++) {
+    for (size_t i = 0; i < obj_len; i++) {
       obj_key = YAJL_GET_OBJECT(jval)->keys[i];
       jobj_value = YAJL_GET_OBJECT(jval)->values[i];
       OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, obj_key);
@@ -644,7 +644,7 @@ static int ovs_json_reader_pop(ovs_json_reader_t *jreader,
   char *json = NULL;
 
   /* search open/close brace */
-  for (int i = jreader->json_offset; i < jreader->buff_offset; i++) {
+  for (size_t i = jreader->json_offset; i < jreader->buff_offset; i++) {
     if (jreader->buff_ptr[i] == '{') {
       nbraces++;
     } else if (jreader->buff_ptr[i] == '}')
@@ -668,7 +668,7 @@ static int ovs_json_reader_pop(ovs_json_reader_t *jreader,
        * and zero rest of the buffer data */
       json = &jreader->buff_ptr[jreader->json_offset];
       json_len = jreader->buff_offset - jreader->json_offset;
-      for (int i = 0; i < jreader->buff_size; i++)
+      for (size_t i = 0; i < jreader->buff_size; i++)
         jreader->buff_ptr[i] = ((i < json_len) ? (json[i]) : (0));
       jreader->buff_offset = json_len;
     } else
@@ -892,7 +892,7 @@ static void *ovs_event_worker(void *arg) {
 
 /* Initialize EVENT thread */
 static int ovs_db_event_thread_init(ovs_db_t *pdb) {
-  pdb->event_thread.tid = -1;
+  pdb->event_thread.tid = (pthread_t)-1;
   /* init event thread condition variable */
   if (pthread_cond_init(&pdb->event_thread.cond, NULL)) {
     return (-1);
@@ -926,7 +926,7 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
 
 /* Destroy EVENT thread */
 static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->event_thread.tid < 0)
+  if (pdb->event_thread.tid == (pthread_t)-1)
     /* already destroyed */
     return (0);
   ovs_db_event_post(pdb, OVS_DB_EVENT_TERMINATE);
@@ -939,13 +939,13 @@ static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
   pthread_mutex_unlock(&pdb->event_thread.mutex);
   pthread_mutex_destroy(&pdb->event_thread.mutex);
   pthread_cond_destroy(&pdb->event_thread.cond);
-  pdb->event_thread.tid = -1;
+  pdb->event_thread.tid = (pthread_t)-1;
   return (0);
 }
 
 /* Initialize POLL thread */
 static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
-  pdb->poll_thread.tid = -1;
+  pdb->poll_thread.tid = (pthread_t)-1;
   /* init event thread mutex */
   if (pthread_mutex_init(&pdb->poll_thread.mutex, NULL)) {
     return (-1);
@@ -964,7 +964,7 @@ static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
 
 /* Destroy POLL thread */
 static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->poll_thread.tid < 0)
+  if (pdb->poll_thread.tid == (pthread_t)-1)
     /* already destroyed */
     return (0);
   /* change thread state */
@@ -975,7 +975,7 @@ static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
   if (pthread_join(pdb->poll_thread.tid, NULL) != 0)
     return (-1);
   pthread_mutex_destroy(&pdb->poll_thread.mutex);
-  pdb->poll_thread.tid = -1;
+  pdb->poll_thread.tid = (pthread_t)-1;
   return (0);
 }
 
@@ -1292,7 +1292,7 @@ yajl_val ovs_utils_get_value_by_key(yajl_val jval, const char *key) {
     return NULL;
 
   /* find a value by key */
-  for (int i = 0; i < YAJL_GET_OBJECT(jval)->len; i++) {
+  for (size_t i = 0; i < YAJL_GET_OBJECT(jval)->len; i++) {
     obj_key = YAJL_GET_OBJECT(jval)->keys[i];
     if (strcmp(obj_key, key) == 0)
       return YAJL_GET_OBJECT(jval)->values[i];
@@ -1350,7 +1350,7 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
   /* try to find map value by map key */
   map_len = YAJL_GET_ARRAY(array_values[1])->len;
   map_values = YAJL_GET_ARRAY(array_values[1])->values;
-  for (int i = 0; i < map_len; i++) {
+  for (size_t i = 0; i < map_len; i++) {
     /* check YAJL array */
     if (!YAJL_IS_ARRAY(map_values[i]))
       break;

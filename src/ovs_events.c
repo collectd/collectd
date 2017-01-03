@@ -465,7 +465,7 @@ static void ovs_events_table_update_cb(yajl_val jupdates) {
     return;
   }
   /* go through all row updates  */
-  for (int row_index = 0; row_index < YAJL_GET_OBJECT(jupdate)->len;
+  for (size_t row_index = 0; row_index < YAJL_GET_OBJECT(jupdate)->len;
        ++row_index) {
     jrow_update = YAJL_GET_OBJECT(jupdate)->values[row_index];
 
@@ -512,14 +512,14 @@ static void ovs_events_poll_result_cb(yajl_val jresult, yajl_val jerror) {
 
   /* go through all rows and get interface info */
   jvalues = YAJL_GET_ARRAY(jresult)->values;
-  for (int i = 0; i < YAJL_GET_ARRAY(jresult)->len; i++) {
+  for (size_t i = 0; i < YAJL_GET_ARRAY(jresult)->len; i++) {
     jvalue = ovs_utils_get_value_by_key(jvalues[i], "rows");
     if (jvalue == NULL || !YAJL_IS_ARRAY(jvalue)) {
       ERROR(OVS_EVENTS_PLUGIN "invalid data (array of rows is expected)");
       return;
     }
     /* get interfaces info */
-    for (int j = 0; j < YAJL_GET_ARRAY(jvalue)->len; j++) {
+    for (size_t j = 0; j < YAJL_GET_ARRAY(jvalue)->len; j++) {
       if (ovs_events_get_iface_info(YAJL_GET_ARRAY(jvalue)->values[j],
                                     &ifinfo) < 0) {
         ERROR(OVS_EVENTS_PLUGIN
