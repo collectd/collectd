@@ -416,14 +416,13 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
   pthread_cleanup_push(poll_worker_cleanup, pp_file);
 
   while (1) {
-    int res = 0;
     /* blocking call */
-    res = socket_adapter.receive(&socket_adapter, pp_file);
+    int res = socket_adapter.receive(&socket_adapter, pp_file);
     if (res < 0) {
       socket_adapter.close(&socket_adapter);
-      if (socket_adapter.reinit(&socket_adapter) != 0) {
-        socket_adapter.close(&socket_adapter);
-        usleep(MCELOG_POLL_TIMEOUT);
+      while (socket_adapter.reinit(&socket_adapter) != 0) {
+        nanosleep(&CDTIME_T_TO_TIMESPEC(MS_TO_CDTIME_T(MCELOG_POLL_TIMEOUT)),
+                  NULL);
       }
       continue;
     }
