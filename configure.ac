@@ -5893,6 +5893,7 @@ plugin_multimeter="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
+plugin_ovs_stats="no"
 plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
@@ -6142,6 +6143,7 @@ fi
 
 if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
   plugin_ovs_events="yes"
+  plugin_ovs_stats="yes"
 fi
 
 if test "x$with_libperl" = "xyes" && test "x$c_cv_have_perl_ithreads" = "xyes"; then
@@ -6331,6 +6333,7 @@ AC_PLUGIN([openldap],            [$with_libldap],           [OpenLDAP statistics
 AC_PLUGIN([openvpn],             [yes],                     [OpenVPN client statistics])
 AC_PLUGIN([oracle],              [$with_oracle],            [Oracle plugin])
 AC_PLUGIN([ovs_events],          [$plugin_ovs_events],      [OVS events plugin])
+AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],       [OVS statistics plugin])
 AC_PLUGIN([perl],                [$plugin_perl],            [Embed a Perl interpreter])
 AC_PLUGIN([pf],                  [$have_net_pfvar_h],       [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
@@ -6756,6 +6759,7 @@ AC_MSG_RESULT([    openldap  . . . . . . $enable_openldap])
 AC_MSG_RESULT([    openvpn . . . . . . . $enable_openvpn])
 AC_MSG_RESULT([    oracle  . . . . . . . $enable_oracle])
 AC_MSG_RESULT([    ovs_events  . . . . . $enable_ovs_events])
+AC_MSG_RESULT([    ovs_stats . . . . . . $enable_ovs_stats])
 AC_MSG_RESULT([    perl  . . . . . . . . $enable_perl])
 AC_MSG_RESULT([    pf  . . . . . . . . . $enable_pf])
 AC_MSG_RESULT([    pinba . . . . . . . . $enable_pinba])
