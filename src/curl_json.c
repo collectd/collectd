@@ -600,7 +600,7 @@ static int cj_init_curl(cj_t *db) /* {{{ */
     curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS, (long)db->timeout);
   else if (db->interval > 0)
     curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS,
-                     (long)CDTIME_T_TO_MS(db->timeout));
+                     (long)CDTIME_T_TO_MS(db->interval));
   else
     curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS,
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
