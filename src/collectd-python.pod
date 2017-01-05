@@ -475,7 +475,7 @@ Methods defined here:
 
 =over 4
 
-=item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.
+=item B<dispatch>([type][, message][, plugin_instance][, type_instance][, plugin][, host][, time][, severity]) -> None.  Dispatch a notification.
 
 Dispatch this instance to the collectd process. The object has members for each
 of the possible arguments for this method. For a detailed explanation of these
