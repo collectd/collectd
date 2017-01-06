@@ -448,6 +448,7 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
      * measure; we will try to reconnect the next time we have to publish a
      * message */
     conf->connected = 0;
+    mosquitto_disconnect(conf->mosq);
 
     pthread_mutex_unlock(&conf->lock);
     return (-1);
