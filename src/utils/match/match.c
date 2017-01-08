@@ -33,6 +33,7 @@
 
 #include <regex.h>
 
+#define UTILS_MATCH_FLAGS_REGEX 0x04
 #define UTILS_MATCH_FLAGS_EXCLUDE_REGEX 0x02
 #define UTILS_MATCH_FLAGS_REGEX 0x04
 

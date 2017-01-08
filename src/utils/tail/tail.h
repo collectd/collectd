@@ -73,7 +73,7 @@ int cu_tail_destroy(cu_tail_t *obj);
  *
  * Returns 0 when successful and non-zero otherwise.
  */
-int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen);
+int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen, _Bool force_rewind);
 
 /*
  * cu_tail_readline
@@ -83,6 +83,6 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen);
  * Returns 0 when successful and non-zero otherwise.
  */
 int cu_tail_read(cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
-                 void *data);
+                 void *data, _Bool force_rewind);
 
 #endif /* UTILS_TAIL_H */
