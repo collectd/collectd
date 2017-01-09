@@ -373,6 +373,11 @@ static void submit_derive2(const char *type, derive_t v0, derive_t v1,
 
 static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
                         const char *type_instance) {
+  char flush_type_instance[DATA_MAX_NAME_LEN];
+
+  ssnprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
+            type_instance);
+
   if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
     submit_derive2("disk_ops", (derive_t)binfo->bi.rd_req,
                    (derive_t)binfo->bi.wr_req, dom, type_instance);
@@ -384,6 +389,15 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
   if ((binfo->rd_total_times != -1) && (binfo->wr_total_times != -1))
     submit_derive2("disk_time", (derive_t)binfo->rd_total_times,
                    (derive_t)binfo->wr_total_times, dom, type_instance);
+
+  if (binfo->fl_req != -1)
+    submit(dom, "total_requests", flush_type_instance,
+           &(value_t){.derive = (derive_t)binfo->fl_req}, 1);
+  if (binfo->fl_total_times != -1) {
+    derive_t value = binfo->fl_total_times / 1000; // ns -> ms
+    submit(dom, "total_time_in_ms", flush_type_instance,
+           &(value_t){.derive = value}, 1);
+  }
 }
 
 static int lv_config(const char *key, const char *value) {
