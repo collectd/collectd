@@ -1459,7 +1459,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
-#	ExtraStats "disk"
+#	ExtraStats "disk pcpu"
 #</Plugin>
 
 #<Plugin vmem>
