@@ -189,8 +189,6 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_riemann disabled, requires a new enough riemann_c_client
-%define with_write_riemann 0%{!?_without_write_riemann:0}
 # plugin xencpu disabled, requires xen-devel from non-default repo
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
@@ -213,6 +211,7 @@
 %define with_smart 0
 %define with_turbostat 0
 %define with_write_redis 0
+%define with_write_riemann 0
 %endif
 
 # Plugins not buildable on RHEL < 7
