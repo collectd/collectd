@@ -153,7 +153,7 @@ static const char *plugin_get_dir(void) {
     return (plugindir);
 }
 
-static int plugin_update_internal_statistics() { /* {{{ */
+static int plugin_update_internal_statistics(void) { /* {{{ */
   gauge_t copy_write_queue_length = (gauge_t)write_queue_length;
 
   /* Initialize `vl' */
