@@ -150,6 +150,7 @@
 %define with_write_log 0%{!?_without_write_log:1}
 %define with_write_prometheus 0%{!?_without_write_prometheus:1}
 %define with_write_redis 0%{!?_without_write_redis:1}
+%define with_write_riemann 0%{!?_without_write_riemann:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
@@ -195,8 +196,6 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_riemann disabled, requires a new enough riemann_c_client
-%define with_write_riemann 0%{!?_without_write_riemann:0}
 # plugin xencpu disabled, requires xen-devel from non-default repo
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
@@ -220,6 +219,7 @@
 %define with_turbostat 0
 %define with_write_prometheus 0
 %define with_write_redis 0
+%define with_write_riemann 0
 %endif
 
 # Plugins not buildable on RHEL < 7
@@ -230,6 +230,7 @@
 %define with_redis 0
 %define with_rrdcached 0
 %define with_write_redis 0
+%define with_write_riemann 0
 %define with_xmms 0
 %endif
 
@@ -858,7 +859,7 @@ The Write Redis plugin stores values in Redis, a “data structures server”.
 Summary:	riemann plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	protobuf-c-devel
+BuildRequires:	riemann-c-client-devel >= 1.6
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
 %endif
