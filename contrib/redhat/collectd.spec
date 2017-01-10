@@ -830,7 +830,7 @@ The Write Redis plugin stores values in Redis, a “data structures server”.
 Summary:	riemann plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	protobuf-c-devel
+BuildRequires:	riemann-c-client-devel >= 1.6
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
 %endif
