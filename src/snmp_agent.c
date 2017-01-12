@@ -1,7 +1,7 @@
 /**
  * collectd - src/snmp_agent.c
  *
- * Copyright(c) 2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -416,12 +416,14 @@ static void snmp_agent_free_table(table_definition_t **td) {
   c_avl_destroy((*td)->index_instance);
   (*td)->index_instance = NULL;
 
-  while (c_avl_pick((*td)->instance_index, &key, &value) == 0) {
-    sfree(key);
-    sfree(value);
+  if ((*td)->instance_index != NULL) {
+    while (c_avl_pick((*td)->instance_index, &key, &value) == 0) {
+      sfree(key);
+      sfree(value);
+    }
+    c_avl_destroy((*td)->instance_index);
+    (*td)->instance_index = NULL;
   }
-  c_avl_destroy((*td)->instance_index);
-  (*td)->instance_index = NULL;
 
   sfree((*td)->name);
   sfree(*td);
