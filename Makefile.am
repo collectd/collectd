@@ -1616,7 +1616,7 @@ if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = src/unixsock.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBS = libcmds.la
+unixsock_la_LIBADD = libcmds.la
 endif
 
 if BUILD_PLUGIN_UPTIME
