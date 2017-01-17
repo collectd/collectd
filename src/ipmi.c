@@ -665,6 +665,24 @@ static void domain_entity_update_handler(
   }
 } /* void domain_entity_update_handler */
 
+static void smi_event_handler(ipmi_con_t __attribute__((unused)) *ipmi,
+                              const ipmi_addr_t __attribute__((unused)) *addr,
+                              unsigned int __attribute__((unused)) addr_len,
+                              ipmi_event_t *event,
+                              void *cb_data) {
+  unsigned int type = ipmi_event_get_type(event);
+  ipmi_domain_t *domain = cb_data;
+
+  DEBUG("%s: Event received: type %u", __FUNCTION__, type);
+
+  if (type != 0x02)
+    /* It's not a standard IPMI event. */
+    return;
+
+  /* force domain to reread SELs */
+  ipmi_domain_reread_sels(domain, NULL, NULL);
+}
+
 static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
                                              unsigned int conn_num,
                                              unsigned int port_num,
@@ -682,6 +700,13 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
   if (status != 0) {
     c_ipmi_error("ipmi_domain_add_entity_update_handler", status);
   }
+
+  ipmi_con_t *smi_connection = user_data;
+  status = smi_connection->add_event_handler(smi_connection, smi_event_handler,
+                                             (void*) domain);
+
+  if (status != 0)
+    c_ipmi_error("Failed to register smi event handler", status);
 } /* void domain_connection_change_handler */
 
 static int thread_init(os_handler_t **ret_os_handler) {
@@ -710,7 +735,8 @@ static int thread_init(os_handler_t **ret_os_handler) {
 
   status = ipmi_open_domain(
       "mydomain", &smi_connection, /* num_con = */ 1,
-      domain_connection_change_handler, /* user data = */ NULL,
+      domain_connection_change_handler,
+      /* user data = */ (void*) smi_connection,
       /* domain_fully_up_handler = */ NULL, /* user data = */ NULL, open_option,
       sizeof(open_option) / sizeof(open_option[0]), &domain_id);
   if (status != 0) {
