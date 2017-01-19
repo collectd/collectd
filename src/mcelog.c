@@ -152,6 +152,17 @@ static int socket_write(socket_adapter_t *self, const char *msg,
   return ret;
 }
 
+static void mcelog_dispatch_notification(notification_t *n) {
+  if (!n) {
+    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __FUNCTION__);
+    return;
+  }
+
+  sstrncpy(n->host, hostname_g, sizeof(n->host));
+  sstrncpy(n->type, "gauge", sizeof(n->type));
+  plugin_dispatch_notification(n);
+}
+
 static int socket_reinit(socket_adapter_t *self) {
   char errbuff[MCELOG_BUFF_SIZE];
   int ret = -1;
@@ -183,17 +194,17 @@ static int socket_reinit(socket_adapter_t *self) {
           sstrerror(errno, errbuff, sizeof(errbuff)));
     self->close(self);
     ret = -1;
-  } else
+  } else {
     ret = 0;
-
+    mcelog_dispatch_notification(
+        &(notification_t){.severity = NOTIF_OKAY,
+                          .time = cdtime(),
+                          .message = "Connected to mcelog server",
+                          .plugin = MCELOG_PLUGIN,
+                          .type_instance = "mcelog_status"});
+  }
   pthread_rwlock_unlock(&self->lock);
   return ret;
-}
-
-static void mcelog_dispatch_notification(notification_t n) {
-  sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.type, "gauge", sizeof(n.type));
-  plugin_dispatch_notification(&n);
 }
 
 static int mcelog_prepare_notification(notification_t *n,
@@ -379,12 +390,12 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
     /* connection is broken */
     ERROR("%s: Connection to socket is broken", MCELOG_PLUGIN);
     if (poll_fd.revents & (POLLERR | POLLHUP)) {
-      notification_t n = {
-          NOTIF_FAILURE, cdtime(), "", "", MCELOG_PLUGIN, "", "", "", NULL};
-      ssnprintf(n.message, sizeof(n.message),
-                "Connection to mcelog socket is broken.");
-      sstrncpy(n.type_instance, "mcelog_status", sizeof(n.type_instance));
-      mcelog_dispatch_notification(n);
+      mcelog_dispatch_notification(
+          &(notification_t){.severity = NOTIF_FAILURE,
+                            .time = cdtime(),
+                            .message = "Connection to mcelog socket is broken.",
+                            .plugin = MCELOG_PLUGIN,
+                            .type_instance = "mcelog_status"});
     }
     pthread_rwlock_unlock(&self->lock);
     return -1;
@@ -440,12 +451,15 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
         memset(&memory_record, 0, sizeof(memory_record));
         continue;
       }
-      notification_t n = {NOTIF_OKAY, cdtime(), "", "",  MCELOG_PLUGIN,
-                          "",         "",       "", NULL};
-      ssnprintf(n.message, sizeof(n.message), "Got memory errors info.");
-      sstrncpy(n.type_instance, "memory_erros", sizeof(n.type_instance));
+
+      notification_t n = {.severity = NOTIF_OKAY,
+                          .time = cdtime(),
+                          .message = "Got memory errors info.",
+                          .plugin = MCELOG_PLUGIN,
+                          .type_instance = "memory_erros"};
+
       if (mcelog_prepare_notification(&n, memory_record) == 0)
-        mcelog_dispatch_notification(n);
+        mcelog_dispatch_notification(&n);
       if (mcelog_submit(memory_record) != 0)
         ERROR("%s: Failed to submit memory errors", MCELOG_PLUGIN);
       memset(&memory_record, 0, sizeof(memory_record));
