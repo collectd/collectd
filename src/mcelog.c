@@ -42,8 +42,8 @@
 #define MCELOG_POLL_TIMEOUT 1000 /* ms */
 #define MCELOG_SOCKET_STR "SOCKET"
 #define MCELOG_DIMM_NAME "DMI_NAME"
-#define MCELOG_CORRECTED_ERR "corrected memory errors:"
-#define MCELOG_UNCORRECTED_ERR "uncorrected memory errors:"
+#define MCELOG_CORRECTED_ERR "corrected memory errors"
+#define MCELOG_UNCORRECTED_ERR "uncorrected memory errors"
 
 typedef struct mcelog_config_s {
   char logfile[PATH_MAX]; /* mcelog logfile */
@@ -64,8 +64,8 @@ struct socket_adapter_s {
 };
 
 typedef struct mcelog_memory_rec_s {
-  int corrected_err_total;           /* x total*/
-  int corrected_err_timed;           /* x in 24h*/
+  int corrected_err_total; /* x total*/
+  int corrected_err_timed; /* x in 24h*/
   char corrected_err_timed_period[DATA_MAX_NAME_LEN];
   int uncorrected_err_total; /* x total*/
   int uncorrected_err_timed; /* x in 24h*/
@@ -80,9 +80,7 @@ static int socket_write(socket_adapter_t *self, const char *msg,
 static int socket_reinit(socket_adapter_t *self);
 static int socket_receive(socket_adapter_t *self, FILE **p_file);
 
-static mcelog_config_t g_mcelog_config = {
-    .logfile = "/var/log/mcelog", .tid = 0,
-};
+static mcelog_config_t g_mcelog_config = {.logfile = "/var/log/mcelog"};
 
 static socket_adapter_t socket_adapter = {
     .sock_fd = -1,
@@ -97,7 +95,7 @@ static socket_adapter_t socket_adapter = {
     .receive = socket_receive,
 };
 
-static _Bool mcelog_thread_running = 0;
+static _Bool mcelog_thread_running;
 
 static int mcelog_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
@@ -106,21 +104,21 @@ static int mcelog_config(oconfig_item_t *ci) {
       if (cf_util_get_string_buffer(child, socket_adapter.unix_sock.sun_path,
                                     sizeof(socket_adapter.unix_sock.sun_path)) <
           0) {
-        ERROR("%s: Invalid configuration option: \"%s\".", MCELOG_PLUGIN,
+        ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
               child->key);
-        return -1;
+        return (-1);
       }
     } else if (strcasecmp("McelogLogfile", child->key) == 0) {
       if (cf_util_get_string_buffer(child, g_mcelog_config.logfile,
                                     sizeof(g_mcelog_config.logfile)) < 0) {
-        ERROR("%s: Invalid configuration option: \"%s\".", MCELOG_PLUGIN,
+        ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
               child->key);
-        return -1;
+        return (-1);
       }
     } else {
-      ERROR("%s: Invalid configuration option: \"%s\".", MCELOG_PLUGIN,
+      ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
             child->key);
-      return -1;
+      return (-1);
     }
   }
   return (0);
@@ -130,16 +128,20 @@ static int socket_close(socket_adapter_t *self) {
   int ret = 0;
   pthread_rwlock_rdlock(&self->lock);
   if (fcntl(self->sock_fd, F_GETFL) != -1) {
+    char errbuf[MCELOG_BUFF_SIZE];
     if (shutdown(self->sock_fd, SHUT_RDWR) != 0) {
-      char errbuf[MCELOG_BUFF_SIZE];
-      ERROR("%s: Socket shutdown failed: %s", MCELOG_PLUGIN,
+      ERROR(MCELOG_PLUGIN ": Socket shutdown failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       ret = -1;
     }
-    close(self->sock_fd);
+    if (close(self->sock_fd) != 0) {
+      ERROR(MCELOG_PLUGIN ": Socket close failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ret = -1;
+    }
   }
   pthread_rwlock_unlock(&self->lock);
-  return ret;
+  return (ret);
 }
 
 static int socket_write(socket_adapter_t *self, const char *msg,
@@ -149,7 +151,20 @@ static int socket_write(socket_adapter_t *self, const char *msg,
   if (swrite(self->sock_fd, msg, len) < 0)
     ret = -1;
   pthread_rwlock_unlock(&self->lock);
-  return ret;
+  return (ret);
+}
+
+static void mcelog_dispatch_notification(notification_t *n) {
+  if (!n) {
+    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __FUNCTION__);
+    return;
+  }
+
+  sstrncpy(n->host, hostname_g, sizeof(n->host));
+  sstrncpy(n->type, "gauge", sizeof(n->type));
+  plugin_dispatch_notification(n);
+  if (n->meta)
+    plugin_notification_meta_free(n->meta);
 }
 
 static int socket_reinit(socket_adapter_t *self) {
@@ -160,18 +175,19 @@ static int socket_reinit(socket_adapter_t *self) {
 
   /* synchronization via write lock since sock_fd may be changed here */
   pthread_rwlock_wrlock(&self->lock);
-  self->sock_fd = socket(PF_UNIX, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
+  self->sock_fd =
+      socket(PF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
   if (self->sock_fd < 0) {
-    ERROR("%s: Could not create a socket. %s", MCELOG_PLUGIN,
+    ERROR(MCELOG_PLUGIN ": Could not create a socket. %s",
           sstrerror(errno, errbuff, sizeof(errbuff)));
     pthread_rwlock_unlock(&self->lock);
-    return ret;
+    return (ret);
   }
 
   /* Set socket timeout option */
-  if (setsockopt(self->sock_fd, SOL_SOCKET, SO_SNDTIMEO,
-                 &socket_timeout, sizeof(socket_timeout)) < 0)
-    ERROR("%s: Failed to set the socket timeout option.", MCELOG_PLUGIN);
+  if (setsockopt(self->sock_fd, SOL_SOCKET, SO_SNDTIMEO, &socket_timeout,
+                 sizeof(socket_timeout)) < 0)
+    ERROR(MCELOG_PLUGIN ": Failed to set the socket timeout option.");
 
   /* downgrading to read lock due to possible recursive read locks
    * in self->close(self) call */
@@ -179,109 +195,126 @@ static int socket_reinit(socket_adapter_t *self) {
   pthread_rwlock_rdlock(&self->lock);
   if (connect(self->sock_fd, (struct sockaddr *)&(self->unix_sock),
               sizeof(self->unix_sock)) < 0) {
-    ERROR("%s: Failed to connect to mcelog server. %s", MCELOG_PLUGIN,
+    ERROR(MCELOG_PLUGIN ": Failed to connect to mcelog server. %s",
           sstrerror(errno, errbuff, sizeof(errbuff)));
     self->close(self);
     ret = -1;
-  } else
+  } else {
     ret = 0;
-
+    mcelog_dispatch_notification(
+        &(notification_t){.severity = NOTIF_OKAY,
+                          .time = cdtime(),
+                          .message = "Connected to mcelog server",
+                          .plugin = MCELOG_PLUGIN,
+                          .type_instance = "mcelog_status"});
+  }
   pthread_rwlock_unlock(&self->lock);
-  return ret;
-}
-
-static void mcelog_dispatch_notification(notification_t n) {
-  sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.type, "gauge", sizeof(n.type));
-  plugin_dispatch_notification(&n);
+  return (ret);
 }
 
 static int mcelog_prepare_notification(notification_t *n,
-                                       mcelog_memory_rec_t mr) {
-  if (n == NULL)
+                                       const mcelog_memory_rec_t *mr) {
+  if (n == NULL || mr == NULL)
     return (-1);
 
-  if (plugin_notification_meta_add_string(n, MCELOG_SOCKET_STR, mr.location) <
-      0) {
-    ERROR("%s: add memory location meta data failed", MCELOG_PLUGIN);
+  if ((mr->location[0] != '\0') &&
+      (plugin_notification_meta_add_string(n, MCELOG_SOCKET_STR, mr->location) <
+       0)) {
+    ERROR(MCELOG_PLUGIN ": add memory location meta data failed");
     return (-1);
   }
-  if (strlen(mr.dimm_name) > 0)
-    if (plugin_notification_meta_add_string(n, MCELOG_DIMM_NAME, mr.dimm_name) <
-        0) {
-      ERROR("%s: add DIMM name meta data failed", MCELOG_PLUGIN);
-      return (-1);
-    }
+  if ((mr->dimm_name[0] != '\0') &&
+      (plugin_notification_meta_add_string(n, MCELOG_DIMM_NAME, mr->dimm_name) <
+       0)) {
+    ERROR(MCELOG_PLUGIN ": add DIMM name meta data failed");
+    plugin_notification_meta_free(n->meta);
+    return (-1);
+  }
   if (plugin_notification_meta_add_signed_int(n, MCELOG_CORRECTED_ERR,
-                                              mr.corrected_err_total) < 0) {
-    ERROR("%s: add corrected errors meta data failed", MCELOG_PLUGIN);
+                                              mr->corrected_err_total) < 0) {
+    ERROR(MCELOG_PLUGIN ": add corrected errors meta data failed");
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_signed_int(
-          n, "corrected memory timed errors", mr.corrected_err_timed) < 0) {
-    ERROR("%s: add corrected timed errors meta data failed", MCELOG_PLUGIN);
+          n, "corrected memory timed errors", mr->corrected_err_timed) < 0) {
+    ERROR(MCELOG_PLUGIN ": add corrected timed errors meta data failed");
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
-  if (plugin_notification_meta_add_string(n, "corrected errors time period",
-                                          mr.corrected_err_timed_period) < 0) {
-    ERROR("%s: add corrected errors period meta data failed", MCELOG_PLUGIN);
+  if ((mr->corrected_err_timed_period[0] != '\0') &&
+      (plugin_notification_meta_add_string(n, "corrected errors time period",
+                                           mr->corrected_err_timed_period) <
+       0)) {
+    ERROR(MCELOG_PLUGIN ": add corrected errors period meta data failed");
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_signed_int(n, MCELOG_UNCORRECTED_ERR,
-                                              mr.uncorrected_err_total) < 0) {
-    ERROR("%s: add corrected errors meta data failed", MCELOG_PLUGIN);
+                                              mr->uncorrected_err_total) < 0) {
+    ERROR(MCELOG_PLUGIN ": add corrected errors meta data failed");
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
-  if (plugin_notification_meta_add_signed_int(
-          n, "uncorrected memory timed errors", mr.uncorrected_err_timed) < 0) {
-    ERROR("%s: add corrected timed errors meta data failed", MCELOG_PLUGIN);
+  if (plugin_notification_meta_add_signed_int(n,
+                                              "uncorrected memory timed errors",
+                                              mr->uncorrected_err_timed) < 0) {
+    ERROR(MCELOG_PLUGIN ": add corrected timed errors meta data failed");
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
-  if (plugin_notification_meta_add_string(n, "uncorrected errors time period",
-                                          mr.uncorrected_err_timed_period) <
-      0) {
-    ERROR("%s: add corrected errors period meta data failed", MCELOG_PLUGIN);
+  if ((mr->uncorrected_err_timed_period[0] != '\0') &&
+      (plugin_notification_meta_add_string(n, "uncorrected errors time period",
+                                           mr->uncorrected_err_timed_period) <
+       0)) {
+    ERROR(MCELOG_PLUGIN ": add corrected errors period meta data failed");
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
 
   return (0);
 }
 
-static int mcelog_submit(mcelog_memory_rec_t mr) {
+static int mcelog_submit(const mcelog_memory_rec_t *mr) {
 
-  value_list_t vl = VALUE_LIST_INIT;
-  vl.values_len = 1;
-  vl.time = cdtime();
+  if (!mr) {
+    ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __FUNCTION__);
+    return (-1);
+  }
 
-  sstrncpy(vl.plugin, MCELOG_PLUGIN, sizeof(vl.plugin));
-  sstrncpy(vl.type, "errors", sizeof(vl.type));
-  if (strlen(mr.dimm_name) > 0) {
+  value_list_t vl = {
+      .values_len = 1,
+      .values = &(value_t){.derive = (derive_t)mr->corrected_err_total},
+      .time = cdtime(),
+      .plugin = MCELOG_PLUGIN,
+      .type = "errors",
+      .type_instance = "corrected_memory_errors"};
+
+  if (mr->dimm_name[0] != '\0')
     ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s_%s",
-              mr.location, mr.dimm_name);
-  } else
-    sstrncpy(vl.plugin_instance, mr.location, sizeof(vl.plugin_instance));
+              mr->location, mr->dimm_name);
+  else
+    sstrncpy(vl.plugin_instance, mr->location, sizeof(vl.plugin_instance));
 
-  sstrncpy(vl.type_instance, "corrected_memory_errors",
-           sizeof(vl.type_instance));
-  vl.values = &(value_t){.derive = (derive_t)mr.corrected_err_total};
   plugin_dispatch_values(&vl);
 
   ssnprintf(vl.type_instance, sizeof(vl.type_instance),
-            "corrected_memory_errors_in_%s", mr.corrected_err_timed_period);
-  vl.values = &(value_t){.derive = (derive_t)mr.corrected_err_timed};
+            "corrected_memory_errors_in_%s", mr->corrected_err_timed_period);
+  vl.values = &(value_t){.derive = (derive_t)mr->corrected_err_timed};
   plugin_dispatch_values(&vl);
 
   sstrncpy(vl.type_instance, "uncorrected_memory_errors",
            sizeof(vl.type_instance));
-  vl.values = &(value_t){.derive = (derive_t)mr.uncorrected_err_total};
+  vl.values = &(value_t){.derive = (derive_t)mr->uncorrected_err_total};
   plugin_dispatch_values(&vl);
 
   ssnprintf(vl.type_instance, sizeof(vl.type_instance),
-            "uncorrected_memory_errors_in_%s", mr.uncorrected_err_timed_period);
-  vl.values = &(value_t){.derive = (derive_t)mr.uncorrected_err_timed};
+            "uncorrected_memory_errors_in_%s",
+            mr->uncorrected_err_timed_period);
+  vl.values = &(value_t){.derive = (derive_t)mr->uncorrected_err_timed};
   plugin_dispatch_values(&vl);
 
-  return 0;
+  return (0);
 }
 
 static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
@@ -290,7 +323,7 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
     /* Got empty line or "done" */
     if ((!strncmp("\n", buf, strlen(buf))) ||
         (!strncmp(buf, "done\n", strlen(buf))))
-      return 1;
+      return (1);
     if (strlen(buf) < 5)
       continue;
     if (!strncmp(buf, MCELOG_SOCKET_STR, strlen(MCELOG_SOCKET_STR))) {
@@ -299,7 +332,7 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
       for (size_t i = 0; i < strlen(memory_record->location); i++)
         if (memory_record->location[i] == ' ')
           memory_record->location[i] = '_';
-      DEBUG("%s: Got SOCKET INFO %s", MCELOG_PLUGIN, memory_record->location);
+      DEBUG(MCELOG_PLUGIN ": Got SOCKET INFO %s", memory_record->location);
     }
     if (!strncmp(buf, MCELOG_DIMM_NAME, strlen(MCELOG_DIMM_NAME))) {
       char *name = NULL;
@@ -310,8 +343,7 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
         if (name != NULL) {
           sstrncpy(memory_record->dimm_name, name,
                    sizeof(memory_record->dimm_name));
-          DEBUG("%s: Got DIMM NAME %s", MCELOG_PLUGIN,
-                memory_record->dimm_name);
+          DEBUG(MCELOG_PLUGIN ": Got DIMM NAME %s", memory_record->dimm_name);
         }
       }
     }
@@ -319,13 +351,13 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
       /* Get next line*/
       if (fgets(buf, sizeof(buf), p_file) != NULL) {
         sscanf(buf, "\t%d total", &(memory_record->corrected_err_total));
-        DEBUG("%s: Got corrected error total %d", MCELOG_PLUGIN,
+        DEBUG(MCELOG_PLUGIN ": Got corrected error total %d",
               memory_record->corrected_err_total);
       }
       if (fgets(buf, sizeof(buf), p_file) != NULL) {
         sscanf(buf, "\t%d in %s", &(memory_record->corrected_err_timed),
                memory_record->corrected_err_timed_period);
-        DEBUG("%s: Got timed corrected errors %d in %s", MCELOG_PLUGIN,
+        DEBUG(MCELOG_PLUGIN ": Got timed corrected errors %d in %s",
               memory_record->corrected_err_total,
               memory_record->corrected_err_timed_period);
       }
@@ -333,13 +365,13 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
     if (!strncmp(buf, MCELOG_UNCORRECTED_ERR, strlen(MCELOG_UNCORRECTED_ERR))) {
       if (fgets(buf, sizeof(buf), p_file) != NULL) {
         sscanf(buf, "\t%d total", &(memory_record->uncorrected_err_total));
-        DEBUG("%s: Got uncorrected error total %d", MCELOG_PLUGIN,
+        DEBUG(MCELOG_PLUGIN ": Got uncorrected error total %d",
               memory_record->uncorrected_err_total);
       }
       if (fgets(buf, sizeof(buf), p_file) != NULL) {
         sscanf(buf, "\t%d in %s", &(memory_record->uncorrected_err_timed),
                memory_record->uncorrected_err_timed_period);
-        DEBUG("%s: Got timed uncorrected errors %d in %s", MCELOG_PLUGIN,
+        DEBUG(MCELOG_PLUGIN ": Got timed uncorrected errors %d in %s",
               memory_record->uncorrected_err_total,
               memory_record->uncorrected_err_timed_period);
       }
@@ -347,7 +379,7 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
     memset(buf, 0, sizeof(buf));
   }
   /* parsing definitely finished */
-  return 0;
+  return (0);
 }
 
 static void poll_worker_cleanup(void *arg) {
@@ -372,35 +404,35 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
             sstrerror(errno, errbuf, sizeof(errbuf)));
     }
     pthread_rwlock_unlock(&self->lock);
-    return res;
+    return (res);
   }
 
   if (poll_fd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
     /* connection is broken */
-    ERROR("%s: Connection to socket is broken", MCELOG_PLUGIN);
+    ERROR(MCELOG_PLUGIN ": Connection to socket is broken");
     if (poll_fd.revents & (POLLERR | POLLHUP)) {
-      notification_t n = {
-          NOTIF_FAILURE, cdtime(), "", "", MCELOG_PLUGIN, "", "", "", NULL};
-      ssnprintf(n.message, sizeof(n.message),
-                "Connection to mcelog socket is broken.");
-      sstrncpy(n.type_instance, "mcelog_status", sizeof(n.type_instance));
-      mcelog_dispatch_notification(n);
+      mcelog_dispatch_notification(
+          &(notification_t){.severity = NOTIF_FAILURE,
+                            .time = cdtime(),
+                            .message = "Connection to mcelog socket is broken.",
+                            .plugin = MCELOG_PLUGIN,
+                            .type_instance = "mcelog_status"});
     }
     pthread_rwlock_unlock(&self->lock);
-    return -1;
+    return (-1);
   }
 
   if (!(poll_fd.revents & (POLLIN | POLLPRI))) {
-    INFO("%s: No data to read", MCELOG_PLUGIN);
+    INFO(MCELOG_PLUGIN ": No data to read");
     pthread_rwlock_unlock(&self->lock);
-    return 0;
+    return (0);
   }
 
   if ((*pp_file = fdopen(dup(self->sock_fd), "r")) == NULL)
     res = -1;
 
   pthread_rwlock_unlock(&self->lock);
-  return res;
+  return (res);
 }
 
 static void *poll_worker(__attribute__((unused)) void *arg) {
@@ -416,14 +448,13 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
   pthread_cleanup_push(poll_worker_cleanup, pp_file);
 
   while (1) {
-    int res = 0;
     /* blocking call */
-    res = socket_adapter.receive(&socket_adapter, pp_file);
+    int res = socket_adapter.receive(&socket_adapter, pp_file);
     if (res < 0) {
       socket_adapter.close(&socket_adapter);
-      if (socket_adapter.reinit(&socket_adapter) != 0) {
-        socket_adapter.close(&socket_adapter);
-        usleep(MCELOG_POLL_TIMEOUT);
+      while (socket_adapter.reinit(&socket_adapter) != 0) {
+        nanosleep(&CDTIME_T_TO_TIMESPEC(MS_TO_CDTIME_T(MCELOG_POLL_TIMEOUT)),
+                  NULL);
       }
       continue;
     }
@@ -436,14 +467,22 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
 
     mcelog_memory_rec_t memory_record = {0};
     while (parse_memory_info(*pp_file, &memory_record)) {
-      notification_t n = {NOTIF_OKAY, cdtime(), "", "",  MCELOG_PLUGIN,
-                          "",         "",       "", NULL};
-      ssnprintf(n.message, sizeof(n.message), "Got memory errors info.");
-      sstrncpy(n.type_instance, "memory_erros", sizeof(n.type_instance));
-      if (mcelog_prepare_notification(&n, memory_record) == 0)
-        mcelog_dispatch_notification(n);
-      if (mcelog_submit(memory_record) != 0)
-        ERROR("%s: Failed to submit memory errors", MCELOG_PLUGIN);
+      /* Check if location was successfully parsed */
+      if (memory_record.location[0] == '\0') {
+        memset(&memory_record, 0, sizeof(memory_record));
+        continue;
+      }
+
+      notification_t n = {.severity = NOTIF_OKAY,
+                          .time = cdtime(),
+                          .message = "Got memory errors info.",
+                          .plugin = MCELOG_PLUGIN,
+                          .type_instance = "memory_erros"};
+
+      if (mcelog_prepare_notification(&n, &memory_record) == 0)
+        mcelog_dispatch_notification(&n);
+      if (mcelog_submit(&memory_record) != 0)
+        ERROR(MCELOG_PLUGIN ": Failed to submit memory errors");
       memset(&memory_record, 0, sizeof(memory_record));
     }
 
@@ -453,40 +492,40 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
 
   mcelog_thread_running = 0;
   pthread_cleanup_pop(1);
-  return NULL;
+  return (NULL);
 }
 
 static int mcelog_init(void) {
   if (socket_adapter.reinit(&socket_adapter) != 0) {
-    ERROR("%s: Cannot connect to client socket", MCELOG_PLUGIN);
-    return -1;
+    ERROR(MCELOG_PLUGIN ": Cannot connect to client socket");
+    return (-1);
   }
 
   if (plugin_thread_create(&g_mcelog_config.tid, NULL, poll_worker, NULL,
                            NULL) != 0) {
-    ERROR("%s: Error creating poll thread.", MCELOG_PLUGIN);
-    return -1;
+    ERROR(MCELOG_PLUGIN ": Error creating poll thread.");
+    return (-1);
   }
-  return 0;
+  return (0);
 }
 
 static int get_memory_machine_checks(void) {
   static const char dump[] = "dump all bios\n";
   int ret = socket_adapter.write(&socket_adapter, dump, sizeof(dump));
   if (ret != 0)
-    ERROR("%s: SENT DUMP REQUEST FAILED", MCELOG_PLUGIN);
+    ERROR(MCELOG_PLUGIN ": SENT DUMP REQUEST FAILED");
   else
-    DEBUG("%s: SENT DUMP REQUEST OK", MCELOG_PLUGIN);
-  return ret;
+    DEBUG(MCELOG_PLUGIN ": SENT DUMP REQUEST OK");
+  return (ret);
 }
 
 static int mcelog_read(__attribute__((unused)) user_data_t *ud) {
-  DEBUG("%s: %s", MCELOG_PLUGIN, __FUNCTION__);
+  DEBUG(MCELOG_PLUGIN ": %s", __FUNCTION__);
 
   if (get_memory_machine_checks() != 0)
-    ERROR("%s: MACHINE CHECK INFO NOT AVAILABLE", MCELOG_PLUGIN);
+    ERROR(MCELOG_PLUGIN ": MACHINE CHECK INFO NOT AVAILABLE");
 
-  return 0;
+  return (0);
 }
 
 static int mcelog_shutdown(void) {
@@ -494,14 +533,14 @@ static int mcelog_shutdown(void) {
   if (mcelog_thread_running) {
     pthread_cancel(g_mcelog_config.tid);
     if (pthread_join(g_mcelog_config.tid, NULL) != 0) {
-      ERROR("%s: Stopping thread failed.", MCELOG_PLUGIN);
+      ERROR(MCELOG_PLUGIN ": Stopping thread failed.");
       ret = -1;
     }
   }
 
   ret = socket_adapter.close(&socket_adapter) || ret;
   pthread_rwlock_destroy(&(socket_adapter.lock));
-  return -ret;
+  return (-ret);
 }
 
 void module_register(void) {
