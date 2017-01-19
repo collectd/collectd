@@ -435,6 +435,11 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
 
     mcelog_memory_rec_t memory_record = {0};
     while (parse_memory_info(*pp_file, &memory_record)) {
+      /* Check if location was successfully parsed */
+      if (memory_record.location[0] == '\0') {
+        memset(&memory_record, 0, sizeof(memory_record));
+        continue;
+      }
       notification_t n = {NOTIF_OKAY, cdtime(), "", "",  MCELOG_PLUGIN,
                           "",         "",       "", NULL};
       ssnprintf(n.message, sizeof(n.message), "Got memory errors info.");
