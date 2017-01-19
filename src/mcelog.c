@@ -161,6 +161,8 @@ static void mcelog_dispatch_notification(notification_t *n) {
   sstrncpy(n->host, hostname_g, sizeof(n->host));
   sstrncpy(n->type, "gauge", sizeof(n->type));
   plugin_dispatch_notification(n);
+  if (n->meta)
+    plugin_notification_meta_free(n->meta);
 }
 
 static int socket_reinit(socket_adapter_t *self) {
@@ -221,37 +223,44 @@ static int mcelog_prepare_notification(notification_t *n,
     if (plugin_notification_meta_add_string(n, MCELOG_DIMM_NAME, mr.dimm_name) <
         0) {
       ERROR("%s: add DIMM name meta data failed", MCELOG_PLUGIN);
+      plugin_notification_meta_free(n->meta);
       return (-1);
     }
   if (plugin_notification_meta_add_signed_int(n, MCELOG_CORRECTED_ERR,
                                               mr.corrected_err_total) < 0) {
     ERROR("%s: add corrected errors meta data failed", MCELOG_PLUGIN);
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_signed_int(
           n, "corrected memory timed errors", mr.corrected_err_timed) < 0) {
     ERROR("%s: add corrected timed errors meta data failed", MCELOG_PLUGIN);
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_string(n, "corrected errors time period",
                                           mr.corrected_err_timed_period) < 0) {
     ERROR("%s: add corrected errors period meta data failed", MCELOG_PLUGIN);
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_signed_int(n, MCELOG_UNCORRECTED_ERR,
                                               mr.uncorrected_err_total) < 0) {
     ERROR("%s: add corrected errors meta data failed", MCELOG_PLUGIN);
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_signed_int(
           n, "uncorrected memory timed errors", mr.uncorrected_err_timed) < 0) {
     ERROR("%s: add corrected timed errors meta data failed", MCELOG_PLUGIN);
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
   if (plugin_notification_meta_add_string(n, "uncorrected errors time period",
                                           mr.uncorrected_err_timed_period) <
       0) {
     ERROR("%s: add corrected errors period meta data failed", MCELOG_PLUGIN);
+    plugin_notification_meta_free(n->meta);
     return (-1);
   }
 
