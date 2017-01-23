@@ -1,3 +1,22 @@
+2017-01-23, Version 5.7.1
+	* collectd: Handling of boolean configuration options has been unified.
+	  Thanks to Sebastian Harl. #2083, #2098
+	* collectd: Reporting of internal statistics has been fixed. Thanks to
+	  Florian Forster. #2108
+	* collectd, various plugins: Bugs and issues reported by scan-build and
+	  coverity-scan have been fixed. Thanks to Ruben Kerkhof and Florian
+	  Forster.
+	* Build system: Parallel build have been fixed. Thanks to Ruben Kerkhof.
+	  #2110
+	* DPDKStat plugin: Portability issues and a double-close bug have been
+	  fixed. Thanks to Ruben Kerkhof and Marc Fournier.
+	* Intel RDT plugin: A check for the libpqos library version has been
+	  added. Thanks to Serhiy Pshyk.
+	* NetApp plugin: Compilation problems have been corrected. Thanks to
+	  Florian Forster. #2120
+	* Write Prometheus plugin: A memory leak has been fixed. Thanks to Ruben
+	  Kerkhof.
+
 2016-12-12, Version 5.7.0
 	* Documentation: The Turbostat plugin section has been improved. Thanks
 	  to Florian Forster
