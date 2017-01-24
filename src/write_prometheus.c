@@ -40,6 +40,10 @@
 #define PROMETHEUS_DEFAULT_STALENESS_DELTA TIME_T_TO_CDTIME_T_STATIC(300)
 #endif
 
+#ifndef PROMETHEUS_DEFAULT_ENABLE_IPV6
+#define PROMETHEUS_DEFAULT_ENABLE_IPV6 0
+#endif
+
 #define VARINT_UINT32_BYTES 5
 
 #define CONTENT_TYPE_PROTO                                                     \
@@ -54,6 +58,8 @@ static unsigned short httpd_port = 9103;
 static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
+
+static _Bool enable_ipv6 = PROMETHEUS_DEFAULT_ENABLE_IPV6;
 
 /* Unfortunately, protoc-c doesn't export it's implementation of varint, so we
  * need to implement our own. */
@@ -735,6 +741,8 @@ static int prom_config(oconfig_item_t *ci) {
         httpd_port = (unsigned short)status;
     } else if (strcasecmp("StalenessDelta", child->key) == 0) {
       cf_util_get_cdtime(child, &staleness_delta);
+    } else if (strcasecmp("EnableIPv6", child->key) == 0) {
+      cf_util_get_boolean(child, &enable_ipv6);
     } else {
       WARNING("write_prometheus plugin: Ignoring unknown configuration option "
               "\"%s\".",
@@ -756,9 +764,9 @@ static int prom_init() {
 
   if (httpd == NULL) {
     unsigned int flags = MHD_USE_THREAD_PER_CONNECTION;
-#if MHD_VERSION >= 0x00093300
-    flags |= MHD_USE_DUAL_STACK;
-#endif
+    if (enable_ipv6) {
+      flags |= MHD_USE_DUAL_STACK;
+    }
 
     httpd = MHD_start_daemon(flags, httpd_port,
                              /* MHD_AcceptPolicyCallback = */ NULL,

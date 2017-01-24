@@ -1528,6 +1528,7 @@
 
 #<Plugin write_prometheus>
 #	Port "9103"
+#	EnableIPv6 false
 #</Plugin>
 
 #<Plugin write_redis>
