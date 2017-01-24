@@ -314,17 +314,17 @@ static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
   type_end = strrchr(cnt_name, '_');
 
   if ((type_end != NULL) && (strncmp(cnt_name, "rx_", strlen("rx_")) == 0)) {
-    if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-      sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
-    } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
-      sstrncpy(cnt_type, "if_rx_dropped", cnt_type_len);
-    } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
+    if (strstr(type_end, "bytes") != NULL) {
       sstrncpy(cnt_type, "if_rx_octets", cnt_type_len);
-    } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
-      sstrncpy(cnt_type, "if_rx_packets", cnt_type_len);
-    } else if (strncmp(type_end, "_placement", strlen("_placement")) == 0) {
+    } else if (strstr(type_end, "error") != NULL) {
       sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
-    } else if (strncmp(type_end, "_buff", strlen("_buff")) == 0) {
+    } else if (strstr(type_end, "dropped") != NULL) {
+      sstrncpy(cnt_type, "if_rx_dropped", cnt_type_len);
+    } else if (strstr(type_end, "packets") != NULL) {
+      sstrncpy(cnt_type, "if_rx_packets", cnt_type_len);
+    } else if (strstr(type_end, "_placement") != NULL) {
+      sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
+    } else if (strstr(type_end, "_buff") != NULL) {
       sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
     } else {
       /* Does not fit obvious type: use a more generic one */
@@ -333,13 +333,13 @@ static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
 
   } else if ((type_end != NULL) &&
              (strncmp(cnt_name, "tx_", strlen("tx_"))) == 0) {
-    if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-      sstrncpy(cnt_type, "if_tx_errors", cnt_type_len);
-    } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
-      sstrncpy(cnt_type, "if_tx_dropped", cnt_type_len);
-    } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
+    if (strstr(type_end, "bytes") != NULL) {
       sstrncpy(cnt_type, "if_tx_octets", cnt_type_len);
-    } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
+    } else if (strstr(type_end, "error") != NULL) {
+      sstrncpy(cnt_type, "if_tx_errors", cnt_type_len);
+    } else if (strstr(type_end, "dropped") != NULL) {
+      sstrncpy(cnt_type, "if_tx_dropped", cnt_type_len);
+    } else if (strstr(type_end, "packets") != NULL) {
       sstrncpy(cnt_type, "if_tx_packets", cnt_type_len);
     } else {
       /* Does not fit obvious type: use a more generic one */
@@ -348,16 +348,14 @@ static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
   } else if ((type_end != NULL) &&
              (strncmp(cnt_name, "flow_", strlen("flow_"))) == 0) {
 
-    if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
+    if (strstr(type_end, "_filters") != NULL) {
       sstrncpy(cnt_type, "operations", cnt_type_len);
-    } else if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
+    } else if (strstr(type_end, "error") != NULL)
       sstrncpy(cnt_type, "errors", cnt_type_len);
-    } else if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
-      sstrncpy(cnt_type, "filter_result", cnt_type_len);
-    }
+
   } else if ((type_end != NULL) &&
              (strncmp(cnt_name, "mac_", strlen("mac_"))) == 0) {
-    if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
+    if (strstr(type_end, "error") != NULL) {
       sstrncpy(cnt_type, "errors", cnt_type_len);
     }
   } else {
