@@ -2383,6 +2383,128 @@ Enabled by default, collects unknown (and thus presented as numeric only) query 
 
 =back
 
+=head2 Plugin C<dpdkevents>
+
+The I<dpdkevents plugin> collects events from DPDK such as link status of
+network ports and Keep Alive status of DPDK logical cores.
+In order to get Keep Alive events following requirements must be met:
+- DPDK >= 16.07
+- support for Keep Alive implemented in DPDK application. More details can
+be found here: http://dpdk.org/doc/guides/sample_app_ug/keep_alive.html
+
+B<Synopsis:>
+
+ <Plugin "dpdkevents">
+   <EAL>
+     Coremask "0x1"
+     MemoryChannels "4"
+     ProcessType "secondary"
+     FilePrefix "rte"
+   </EAL>
+   <Event "link_status">
+     SendEventsOnUpdate true
+     EnabledPortMask 0xffff
+     PortName "interface1"
+     PortName "interface2"
+     SendNotification false
+   </Event>
+   <Event "keep_alive">
+     SendEventsOnUpdate true
+     LCoreMask "0xf"
+     KeepAliveShmName "/dpdk_keepalive_shm_name"
+     SendNotification false
+   </Event>
+ </Plugin>
+
+B<Options:>
+
+
+=head3 The EAL block
+
+=over 5
+
+=item B<Coremask> I<Mask>
+
+=item B<Memorychannels> I<Channels>
+
+Number of memory channels per processor socket.
+
+=item B<ProcessType> I<type>
+
+The type of DPDK process instance.
+
+=item B<FilePrefix> I<File>
+
+The prefix text used for hugepage filenames. The filename will be set to
+/var/run/.<prefix>_config where prefix is what is passed in by the user.
+
+=back
+
+=head3 The Event block
+
+The B<Event> block defines configuration for specific event. It accepts a
+single argument which specifies the name of the event.
+
+=head4 Link Status event
+
+=over 5
+
+=item B<SendEventOnUpdate> I<true|false>
+
+If set to true link status value will be dispatched only when it is
+different from previously read value. This is an optional argument - default
+value is true.
+
+=item B<EnabledPortMask> I<Mask>
+
+A hexidecimal bit mask of the DPDK ports which should be enabled. A mask
+of 0x0 means that all ports will be disabled. A bitmask of all Fs means
+that all ports will be enabled. This is an optional argument - default
+is all ports enabled.
+
+=item B<PortName> I<Name>
+
+A string containing an optional name for the enabled DPDK ports. Each PortName
+option should contain only one port name; specify as many PortName options as
+desired. Default naming convention will be used if PortName is blank. If there
+are less PortName options than there are enabled ports, the default naming
+convention will be used for the additional ports.
+
+=item B<SendNotification> I<true|false>
+
+If set to true, link status notifications will be sent, instead of link
+status being collected as a statistic. This is an optional argument - default
+value is false.
+
+=back
+
+=head4 Keep Alive event
+
+=over 5
+
+=item B<SendEventOnUpdate> I<true|false>
+
+If set to true keep alive value will be dispatched only when it is
+different from previously read value. This is an optional argument - default
+value is true.
+
+=item B<LCoreMask> I<Mask>
+
+An hexadecimal bit mask of the logical cores to monitor keep alive state.
+
+=item B<KeepAliveShmName> I<Name>
+
+Shared memory name identifier that is used by secondary process to monitor
+the keep alive cores state.
+
+=item B<SendNotification> I<true|false>
+
+If set to true, keep alive notifications will be sent, instead of keep
+alive information being collected as a statistic. This is an optional
+argument - default value is false.
+
+=back
+
 =head2 Plugin C<dpdkstat>
 
 The I<dpdkstat plugin> collects information about DPDK interfaces using the
