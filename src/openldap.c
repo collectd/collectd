@@ -36,6 +36,11 @@
 #pragma clang diagnostic warning "-Wdeprecated-declarations"
 #endif
 
+#if defined(__APPLE__)
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wdeprecated-declarations"
+#endif
+
 #include <lber.h>
 #include <ldap.h>
 
