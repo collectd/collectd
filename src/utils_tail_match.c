@@ -245,8 +245,6 @@ int tail_match_add_match(cu_tail_match_t *obj, cu_match_t *match,
   obj->matches = temp;
   obj->matches_num++;
 
-  DEBUG("tail_match_add_match interval %lf",
-        CDTIME_T_TO_DOUBLE(((cu_tail_match_simple_t *)user_data)->interval));
   temp = obj->matches + (obj->matches_num - 1);
 
   temp->match = match;
@@ -314,12 +312,12 @@ out:
   return (status);
 } /* int tail_match_add_match_simple */
 
-int tail_match_read(cu_tail_match_t *obj) {
+int tail_match_read(cu_tail_match_t *obj, _Bool force_rewind) {
   char buffer[4096];
   int status;
 
   status = cu_tail_read(obj->tail, buffer, sizeof(buffer), tail_callback,
-                        (void *)obj);
+                        (void *)obj, force_rewind);
   if (status != 0) {
     ERROR("tail_match: cu_tail_read failed.");
     return (status);
