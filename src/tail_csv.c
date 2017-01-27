@@ -221,7 +221,7 @@ static int tcsv_read(user_data_t *ud) {
     size_t buffer_len;
     int status;
 
-    status = cu_tail_readline(id->tail, buffer, (int)sizeof(buffer));
+    status = cu_tail_readline(id->tail, buffer, (int)sizeof(buffer), 0);
     if (status != 0) {
       ERROR("tail_csv plugin: File \"%s\": cu_tail_readline failed "
             "with status %i.",
