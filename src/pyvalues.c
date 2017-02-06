@@ -576,7 +576,10 @@ CPY_BUILD_META_HANDLER(plugin_notification_meta, notification_t);
 
 static meta_data_t *cpy_build_value_meta(PyObject *meta) {
   meta_data_t *m = meta_data_create();
-  cpy_build_meta(meta, &cpy_meta_data, (void *)m);
+  if (cpy_build_meta(meta, &cpy_meta_data, (void *)m) < 0) {
+    meta_data_destroy(m);
+    return NULL;
+  }
   return m;
 }
 

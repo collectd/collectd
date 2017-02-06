@@ -423,7 +423,7 @@ static int cpy_write_callback(const data_set_t *ds,
   }
   dict = PyDict_New(); /* New reference. */
   if (value_list->meta) {
-    char **table;
+    char **table = NULL;
     meta_data_t *meta = value_list->meta;
 
     int num = meta_data_toc(meta, &table);
