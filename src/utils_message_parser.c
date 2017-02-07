@@ -174,9 +174,11 @@ static int message_assembler(const char *row, char *const *matches,
     if (parser_job->start_message_assembly(parser_job) != 0)
       return -1;
   }
-  /* Ignoring message items without corresponding start item */
+  /* Ignoring message items without corresponding start item or
+   * after completion */
   if (parser_job->message_idx < 0 ||
-      parser_job->messages_storage[parser_job->message_idx].started == 0) {
+      parser_job->messages_storage[parser_job->message_idx].started == 0 ||
+      parser_job->messages_storage[parser_job->message_idx].completed == 1) {
     DEBUG(UTIL_NAME ": Dropping item with no corresponding start element");
     return 0;
   }
