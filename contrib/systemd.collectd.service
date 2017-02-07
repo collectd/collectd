@@ -18,6 +18,7 @@ ProtectHome=true
 #   ceph            CAP_DAC_OVERRIDE
 #   dns             CAP_NET_RAW
 #   exec            CAP_SETUID CAP_SETGID
+#   intel_rdt       CAP_SYS_RAWIO
 #   iptables        CAP_NET_ADMIN
 #   ping            CAP_NET_RAW
 #   turbostat       CAP_SYS_RAWIO

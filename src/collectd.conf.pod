@@ -2958,6 +2958,10 @@ allows to monitor instructions per clock (IPC).
 Monitor events are hardware dependant. Monitoring capabilities are detected on
 plugin initialization and only supported events are monitored.
 
+B<Note:> I<intel_rdt> plugin is using model-specific registers (MSRs), which
+require an additional capability to be enabled if collectd is run as a service.
+Please refer to I<contrib/systemd.collectd.service> file for more details.
+
 B<Synopsis:>
 
   <Plugin "intel_rdt">
