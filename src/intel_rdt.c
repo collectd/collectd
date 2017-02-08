@@ -36,6 +36,11 @@
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
 
+typedef enum {
+  UNKNOWN = 0,
+  CONFIGURATION_ERROR,
+} rdt_config_status;
+
 struct rdt_core_group_s {
   char *desc;
   size_t num_cores;
@@ -55,6 +60,8 @@ struct rdt_ctx_s {
 typedef struct rdt_ctx_s rdt_ctx_t;
 
 static rdt_ctx_t *g_rdt = NULL;
+
+static rdt_config_status g_state = UNKNOWN;
 
 static int isdup(const uint64_t *nums, size_t size, uint64_t val) {
   for (size_t i = 0; i < size; i++)
@@ -523,8 +530,14 @@ static int rdt_config(oconfig_item_t *ci) {
   int ret = 0;
 
   ret = rdt_preinit();
-  if (ret != 0)
-    return ret;
+  if (ret != 0) {
+    g_state = CONFIGURATION_ERROR;
+    /* if we return -1 at this point collectd
+      reports a failure in configuration and
+      aborts
+    */
+    goto exit;
+  }
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -532,8 +545,14 @@ static int rdt_config(oconfig_item_t *ci) {
     if (strcasecmp("Cores", child->key) == 0) {
 
       ret = rdt_config_cgroups(child);
-      if (ret != 0)
-        return ret;
+      if (ret != 0) {
+        g_state = CONFIGURATION_ERROR;
+        /* if we return -1 at this point collectd
+           reports a failure in configuration and
+           aborts
+         */
+        goto exit;
+      }
 
 #if COLLECT_DEBUG
       rdt_dump_cgroups();
@@ -544,6 +563,7 @@ static int rdt_config(oconfig_item_t *ci) {
     }
   }
 
+exit:
   return (0);
 }
 
@@ -625,6 +645,9 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
 
 static int rdt_init(void) {
   int ret;
+
+  if(g_state == CONFIGURATION_ERROR)
+    return (-1);
 
   ret = rdt_preinit();
   if (ret != 0)
