@@ -8076,6 +8076,12 @@ How many read instances you want to use for this plugin. The default is one,
 and the sensible setting is a multiple of the B<ReadThreads> value.
 If you are not sure, just use the default setting.
 
+=item B<ExtraStats> B<string>
+
+Enable extra statistics. This allows the plugin to reported more detailed
+statistics about the behaviour of Virtual Machines. The argument is a
+space-separated list of selectors. Currently only B<disk> is supported.
+
 =back
 
 =head2 Plugin C<vmem>

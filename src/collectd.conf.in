@@ -1459,6 +1459,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
+#	ExtraStats "disk"
 #</Plugin>
 
 #<Plugin vmem>
