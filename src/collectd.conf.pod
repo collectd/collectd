@@ -8078,9 +8078,13 @@ If you are not sure, just use the default setting.
 
 =item B<ExtraStats> B<string>
 
-Enable extra statistics. This allows the plugin to reported more detailed
-statistics about the behaviour of Virtual Machines. The argument is a
-space-separated list of selectors. Currently only B<disk> is supported.
+Report additional extra statistics. The default is no extra statistics, preserving
+the previous behaviour of the plugin. If unsure, leave the default. If enabled,
+allows the plugin to reported more detailed statistics about the behaviour of
+Virtual Machines. The argument is a space-separated list of selectors.
+Currently supported selectors are:
+B<disk> report extra statistics like number of flush operations and total
+service time for read, write and flush operations.
 
 =back
 

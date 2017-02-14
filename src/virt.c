@@ -607,9 +607,8 @@ static int lv_config(const char *key, const char *value) {
     char *localvalue = sstrdup(value);
     if (localvalue != NULL) {
       char *exstats[EX_STATS_MAX_FIELDS];
-      int numexstats;
-
-      numexstats = strsplit(localvalue, exstats, STATIC_ARRAY_SIZE(exstats));
+      int numexstats =
+          strsplit(localvalue, exstats, STATIC_ARRAY_SIZE(exstats));
       for (int i = 0; i < numexstats; i++) {
         if (strcasecmp(exstats[i], EX_STATS_DISK) == 0) {
           DEBUG(PLUGIN_NAME " plugin: enabling extra stats for '%s'",
@@ -654,9 +653,7 @@ static int lv_domain_block_info(virDomainPtr dom, const char *path,
   virTypedParameterPtr params = NULL;
   int nparams = 0;
   int rc = -1;
-  int ret;
-
-  ret = virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0);
+  int ret = virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0);
   if (ret < 0 || nparams == 0) {
     VIRT_ERROR(conn, "getting the disk params count");
     return -1;
@@ -804,15 +801,22 @@ static int lv_read(user_data_t *ud) {
     if (lv_domain_block_info(bdev->dom, bdev->path, &binfo) < 0)
       continue;
 
-    char *type_instance = NULL;
-    if (blockdevice_format_basename && blockdevice_format == source)
-      type_instance = strdup(basename(bdev->path));
-    else
-      type_instance = strdup(bdev->path);
+    char *type_instance = bdev->path;
+    char *path = NULL;
+    if (blockdevice_format_basename && blockdevice_format == source) {
+      path = strdup(bdev->path);
+      if (path == NULL) {
+        WARNING(PLUGIN_NAME
+                " plugin: error extracting the basename for '%s', skipped",
+                bdev->path);
+        continue;
+      }
+      type_instance = basename(path);
+    }
 
     disk_submit(&binfo, bdev->dom, type_instance);
 
-    sfree(type_instance);
+    sfree(path);
   } /* for (nr_block_devices) */
 
   /* Get interface stats for each domain. */
