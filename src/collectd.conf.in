@@ -1004,6 +1004,7 @@
 #  Socket "/var/run/openvswitch/db.sock"
 #  Interfaces "br0" "veth0"
 #  SendNotification false
+#  DispatchValues true
 #</Plugin>
 
 #<Plugin perl>

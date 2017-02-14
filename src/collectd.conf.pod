@@ -5516,6 +5516,7 @@ B<Synopsis:>
    Socket "/var/run/openvswitch/db.sock"
    Interfaces "br0" "veth0"
    SendNotification false
+   DispatchValues true
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -5554,6 +5555,12 @@ Default: empty (all interfaces on all bridges are monitored)
 
 If set to true, OVS link notifications (interface status and OVS DB connection
 terminate) are sent to collectd. Default value is false.
+
+=item B<DispatchValues> I<true|false>
+
+Dispatch the OVS DB interface link status value with configured plugin interval.
+Defaults to true. Please note, if B<SendNotification> and B<DispatchValues>
+options are false, no OVS information will be provided by the plugin.
 
 =back
 
