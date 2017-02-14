@@ -2398,6 +2398,7 @@ B<Synopsis:>
      FilePrefix "rte"
      SocketMemory "1024"
    </EAL>
+   SharedMemObj "dpdk_collectd_stats_0"
    EnabledPortMask 0xffff
    PortName "interface1"
    PortName "interface2"
@@ -2434,7 +2435,12 @@ sockets in MB. This is an optional value.
 
 =back
 
-=over 4
+=over 3
+
+=item B<SharedMemObj> I<Mask>
+A string containing the name of the shared memory object that should be used to
+share stats from the DPDK secondary process to the collectd dpdkstat plugin.
+Defaults to dpdk_collectd_stats if no other value is configured.
 
 =item B<EnabledPortMask> I<Mask>
 
