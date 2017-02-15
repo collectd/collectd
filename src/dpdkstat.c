@@ -94,12 +94,12 @@ typedef struct dpdk_stats_ctx_s dpdk_stats_ctx_t;
 #define DPDK_STATS_CTX_GET(a) ((dpdk_stats_ctx_t *)dpdk_helper_priv_get(a))
 
 dpdk_helper_ctx_t *g_hc = NULL;
-
+static char g_shm_name[DATA_MAX_NAME_LEN] = DPDK_STATS_NAME;
+static int dpdk_stats_reinit_helper();
 static void dpdk_stats_default_config(void) {
   dpdk_stats_ctx_t *ec = DPDK_STATS_CTX_GET(g_hc);
 
   ec->config.interval = plugin_get_interval();
-
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
     ec->config.port_name[i][0] = 0;
   }
@@ -114,16 +114,15 @@ static int dpdk_stats_preinit(void) {
     return 0;
   }
 
-  int ret = dpdk_helper_init(DPDK_STATS_NAME, sizeof(dpdk_stats_ctx_t), &g_hc);
+  int ret = dpdk_helper_init(g_shm_name, sizeof(dpdk_stats_ctx_t), &g_hc);
   if (ret != 0) {
     char errbuf[ERR_BUF_SIZE];
     ERROR("%s: failed to initialize %s helper(error: %s)", DPDK_STATS_PLUGIN,
-          DPDK_STATS_NAME, sstrerror(errno, errbuf, sizeof(errbuf)));
+         g_shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return ret;
   }
 
   dpdk_stats_default_config();
-
   return ret;
 }
 
@@ -144,6 +143,12 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
       ctx->config.enabled_port_mask = child->values[0].value.number;
       DEBUG("%s: Enabled Port Mask 0x%X", DPDK_STATS_PLUGIN,
             ctx->config.enabled_port_mask);
+    } else  if (strcasecmp("SharedMemObj", child->key) == 0) {
+      cf_util_get_string_buffer(child, g_shm_name,
+                                sizeof(g_shm_name));
+      DEBUG("%s: Shared memory object %s", DPDK_STATS_PLUGIN,
+            g_shm_name);
+      dpdk_stats_reinit_helper();
     } else if (strcasecmp("EAL", child->key) == 0) {
       ret = dpdk_helper_eal_config_parse(g_hc, child);
       if (ret)
@@ -444,11 +449,11 @@ static int dpdk_stats_reinit_helper() {
   g_hc = NULL;
 
   int ret;
-  ret = dpdk_helper_init(DPDK_STATS_NAME, data_size, &g_hc);
+  ret = dpdk_helper_init(g_shm_name, data_size, &g_hc);
   if (ret != 0) {
     char errbuf[ERR_BUF_SIZE];
     ERROR("%s: failed to initialize %s helper(error: %s)", DPDK_STATS_PLUGIN,
-          DPDK_STATS_NAME, sstrerror(errno, errbuf, sizeof(errbuf)));
+          g_shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return ret;
   }
 
@@ -492,7 +497,6 @@ static int dpdk_stats_read(user_data_t *ud) {
 
 static int dpdk_stats_init(void) {
   DPDK_STATS_TRACE();
-
   int ret = 0;
 
   ret = dpdk_stats_preinit();
@@ -512,7 +516,7 @@ static int dpdk_stats_shutdown(void) {
   g_hc = NULL;
   if (ret != 0) {
     ERROR("%s: failed to cleanup %s helper", DPDK_STATS_PLUGIN,
-          DPDK_STATS_NAME);
+          g_shm_name);
     return ret;
   }
 

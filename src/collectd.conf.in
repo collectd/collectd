@@ -532,6 +532,7 @@
 #    ProcessType "secondary"
 #    FilePrefix "rte"
 #  </EAL>
+#  SharedMemObj "dpdk_collectd_stats_0"
 #  EnabledPortMask 0xffff
 #  PortName "interface1"
 #  PortName "interface2"
