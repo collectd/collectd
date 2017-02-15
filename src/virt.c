@@ -485,18 +485,18 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
 }
 
 static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
-  int extra_stats = ex_stats_none;
+  unsigned int ex_stats_flags = ex_stats_none;
   for (int i = 0; i < numexstats; i++) {
     for (int j = 0; ex_stats_table[j].name != NULL; j++) {
       if (strcasecmp(exstats[i], ex_stats_table[j].name) == 0) {
         DEBUG(PLUGIN_NAME " plugin: enabling extra stats for '%s'",
               ex_stats_table[j].name);
-        extra_stats |= ex_stats_table[j].flag;
+        ex_stats_flags |= ex_stats_table[j].flag;
         break;
       }
     }
   }
-  return extra_stats;
+  return ex_stats_flags;
 }
 
 static int lv_config(const char *key, const char *value) {
