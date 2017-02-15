@@ -8091,6 +8091,7 @@ Virtual Machines. The argument is a space-separated list of selectors.
 Currently supported selectors are:
 B<disk> report extra statistics like number of flush operations and total
 service time for read, write and flush operations.
+B<pcpu> report the physical user/system cpu time consumed by the hypervisor, per-vm.
 
 =back
 
