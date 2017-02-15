@@ -484,7 +484,7 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
   }
 }
 
-static unsigned int parse_ex_stats_flags(const char *exstats, int numexstats) {
+static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
   int extra_stats = ex_stats_none;
   for (int i = 0; i < numexstats; i++) {
     for (int j = 0; ex_stats_table[j].name != NULL; j++) {
