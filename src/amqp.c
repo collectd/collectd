@@ -62,6 +62,7 @@ int amqp_socket_close(amqp_socket_t *);
 
 #define CAMQP_CHANNEL 1
 
+#define CAMQP_SEND_BUF_SIZE 1024
 /*
  * Data types
  */
@@ -90,6 +91,8 @@ struct camqp_config_s {
   char *postfix;
   char escape_char;
   unsigned int graphite_flags;
+  char send_buf[CAMQP_SEND_BUF_SIZE];
+  int send_buf_free;
 
   /* subscribe only */
   char *exchange_type;
@@ -708,8 +711,8 @@ static int camqp_subscribe_init(camqp_config_t *conf) /* {{{ */
  * Publishing code
  */
 /* XXX: You must hold "conf->lock" when calling this function! */
-static int camqp_write_locked(camqp_config_t *conf, /* {{{ */
-                              const char *buffer, const char *routing_key) {
+static int camqp_send_raw_locked(const char *buffer, /* {{{ */
+                              const char *routing_key, camqp_config_t *conf)  {
   int status;
 
   status = camqp_connect(conf);
@@ -743,7 +746,21 @@ static int camqp_write_locked(camqp_config_t *conf, /* {{{ */
   }
 
   return (status);
-} /* }}} int camqp_write_locked */
+} /* }}} int camqp_send_raw_locked */
+
+
+/* XXX: You must hold "conf->lock" when calling this function! */
+static int camqp_send_buffer_locked(camqp_config_t *conf) { /* {{{ */
+  int status;
+  assert(conf->send_buf_free != 0);
+  conf->send_buf[CAMQP_SEND_BUF_SIZE - conf->send_buf_free] = 0;
+  status = camqp_send_raw_locked(conf->send_buf, conf->routing_key, conf);
+  if (status == 0) {
+    conf->send_buf_free = CAMQP_SEND_BUF_SIZE;
+    conf->send_buf[0] = 0;
+  }
+  return (status);
+} /* }}} int camqp_send_buffer_locked */
 
 static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
                        user_data_t *user_data) {
@@ -751,26 +768,10 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   char routing_key[6 * DATA_MAX_NAME_LEN];
   char buffer[8192];
   int status;
+  const char *actual_routing_key = conf->routing_key;
 
   if ((ds == NULL) || (vl == NULL) || (conf == NULL))
     return (EINVAL);
-
-  if (conf->routing_key != NULL) {
-    sstrncpy(routing_key, conf->routing_key, sizeof(routing_key));
-  } else {
-    ssnprintf(routing_key, sizeof(routing_key), "collectd/%s/%s/%s/%s/%s",
-              vl->host, vl->plugin, vl->plugin_instance, vl->type,
-              vl->type_instance);
-
-    /* Switch slashes (the only character forbidden by collectd) and dots
-     * (the separation character used by AMQP). */
-    for (size_t i = 0; routing_key[i] != 0; i++) {
-      if (routing_key[i] == '.')
-        routing_key[i] = '/';
-      else if (routing_key[i] == '/')
-        routing_key[i] = '.';
-    }
-  }
 
   if (conf->format == CAMQP_FORMAT_COMMAND) {
     status = cmd_create_putval(buffer, sizeof(buffer), ds, vl);
@@ -798,12 +799,63 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return (-1);
   }
 
+  int message_len = strlen(buffer);
+  /* The buffer needs to have space for the terminating null byte, so test with >= */
   pthread_mutex_lock(&conf->lock);
-  status = camqp_write_locked(conf, buffer, routing_key);
+  if (conf->format != CAMQP_FORMAT_GRAPHITE || actual_routing_key == NULL || message_len >= CAMQP_SEND_BUF_SIZE) {
+    /* Immediately send data, we can't buffer */
+    if (actual_routing_key == NULL) {
+      ssnprintf(routing_key, sizeof(routing_key), "collectd/%s/%s/%s/%s/%s",
+                vl->host, vl->plugin, vl->plugin_instance, vl->type,
+                vl->type_instance);
+
+      /* Switch slashes (the only character forbidden by collectd) and dots
+       * (the separation character used by AMQP). */
+      for (size_t i = 0; routing_key[i] != 0; i++) {
+        if (routing_key[i] == '.')
+          routing_key[i] = '/';
+        else if (routing_key[i] == '/')
+          routing_key[i] = '.';
+      }
+      actual_routing_key = routing_key;
+    }
+    status = camqp_send_raw_locked(buffer, actual_routing_key, conf);
+    pthread_mutex_unlock(&conf->lock);
+    return (status);
+  }
+
+  if (message_len >= conf->send_buf_free) { /* too much data, must flush the buffer before continuing */
+    status = camqp_send_buffer_locked(conf);
+    if (status != 0) {
+      pthread_mutex_unlock(&conf->lock);
+      return (status);
+    }
+  }
+
+  /* We should now have enough space to defer a send */
+  int fill = CAMQP_SEND_BUF_SIZE - conf->send_buf_free;
+  strncpy(conf->send_buf + fill, buffer, conf->send_buf_free);
+  conf->send_buf_free = conf->send_buf_free - message_len;
+
+  status = 0;
   pthread_mutex_unlock(&conf->lock);
 
   return (status);
 } /* }}} int camqp_write */
+
+static int camqp_flush(cdtime_t timeout, /* {{{ */
+        const char *identifier __attribute__((unused)), user_data_t *user_data) {
+  camqp_config_t *conf = user_data->data;
+  int status = 0;
+  pthread_mutex_lock(&conf->lock);
+  /* we only need to flush if the buffer actually contains some data, ie. if the first character is not null */
+  if (*conf->send_buf) {
+    DEBUG("amqp plugin: flushing send buffer");
+    status = camqp_send_buffer_locked(conf);
+  }
+  pthread_mutex_unlock(&conf->lock);
+  return (status);
+} /* }}} int camqp_flush */
 
 /*
  * Config handling
@@ -871,6 +923,8 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   conf->queue = NULL;
   conf->queue_durable = 0;
   conf->queue_auto_delete = 1;
+  conf->send_buf_free = CAMQP_SEND_BUF_SIZE;
+  memset(conf->send_buf, 0, CAMQP_SEND_BUF_SIZE);
   /* general */
   conf->connection = NULL;
   pthread_mutex_init(&conf->lock, /* attr = */ NULL);
@@ -986,19 +1040,22 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
         cbname, camqp_write, &(user_data_t){
                                  .data = conf, .free_func = camqp_config_free,
                              });
-    if (status != 0) {
-      camqp_config_free(conf);
-      return (status);
+    if (status == 0) {
+      status = plugin_register_flush(
+        cbname, camqp_flush, &(user_data_t){
+                                 .data = conf,
+                             });
     }
   } else {
     status = camqp_subscribe_init(conf);
-    if (status != 0) {
-      camqp_config_free(conf);
-      return (status);
-    }
   }
 
-  return (0);
+  if (status != 0) {
+    camqp_config_free(conf);
+  }
+
+  return (status);
+
 } /* }}} int camqp_config_connection */
 
 static int camqp_config(oconfig_item_t *ci) /* {{{ */
