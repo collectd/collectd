@@ -943,6 +943,9 @@
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#	ForceSSL true
+#	VerifyPeer true
+#	CAPath "/path/to/folder"
 #</Plugin>
 
 #<Plugin olsrd>

@@ -5127,6 +5127,35 @@ making it through.
 Add a UPS to collect data from. The format is identical to the one accepted by
 L<upsc(8)>.
 
+=item B<ForceSSL> B<true>|B<false>
+
+Stops connections from falling back to unsecured if an SSL connection
+cannot be established. Defaults to false if undeclared.
+
+=item B<VerifyPeer> I<true>|I<false>
+
+If set to true, requires a CAPath be provided. Will use the CAPath to find
+certificates to use as Trusted Certificates to validate a upsd server certificate.
+If validation of the upsd server certificate fails, the connection will not be
+established. If ForceSSL is undeclared or set to false, setting VerifyPeer to true
+will override and set ForceSSL to true.
+
+=item B<CAPath> I/path/to/certs/folder
+
+If VerifyPeer is set to true, this is required. Otherwise this is ignored.
+The folder pointed at must contain certificate(s) named according to their hash.
+Ex: XXXXXXXX.Y where X is the hash value of a cert and Y is 0. If name collisions
+occur because two different certs have the same hash value, Y can be  incremented
+in order to avoid conflict. To create a symbolic link to a certificate the following
+command can be used from within the directory where the cert resides:
+
+C<ln -s some.crt ./$(openssl x509 -hash -noout -in some.crt).0>
+
+Alternatively, the package openssl-perl provides a command C<c_rehash> that will
+generate links like the one described above for ALL certs in a given folder.
+Example usage:
+C<c_rehash /path/to/certs/folder>
+
 =back
 
 =head2 Plugin C<olsrd>
