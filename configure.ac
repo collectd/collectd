@@ -5186,6 +5186,11 @@ if test "x$with_libupsclient" = "xyes"; then
     [with_libupsclient="no (symbol upscli_connect not found)"]
   )
 
+  AC_CHECK_LIB([upsclient], [upscli_init],
+    [AC_DEFINE([WITH_UPSCLIENT_27], [1], [At least version 2-7])],
+    []
+  )
+
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 
