@@ -825,7 +825,7 @@ if BUILD_PLUGIN_NOTIFY_EMAIL
 pkglib_LTLIBRARIES += notify_email.la
 notify_email_la_SOURCES = notify_email.c
 notify_email_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-notify_email_la_LIBADD = -lesmtp -lssl -lcrypto
+notify_email_la_LIBADD = -lesmtp
 endif
 
 if BUILD_PLUGIN_NOTIFY_NAGIOS
