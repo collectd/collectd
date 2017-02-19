@@ -942,6 +942,7 @@
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#	ForceSSL true
 #</Plugin>
 
 #<Plugin olsrd>

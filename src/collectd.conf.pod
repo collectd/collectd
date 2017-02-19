@@ -5117,6 +5117,11 @@ making it through.
 Add a UPS to collect data from. The format is identical to the one accepted by
 L<upsc(8)>.
 
+=item B<ForceSSL> B<true>|B<false>
+
+Stops connections from falling back to unsecured if an SSL connection
+cannot be established. Defaults to false if undeclared.
+
 =back
 
 =head2 Plugin C<olsrd>

@@ -54,8 +54,9 @@ static nut_ups_t *upslist_head = NULL;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static int read_busy = 0;
 
-static const char *config_keys[] = {"UPS"};
+static const char *config_keys[] = {"UPS", "FORCESSL"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+static int force_ssl = 0;   // Initialized to default of 0 (false)
 
 static void free_nut_ups_t(nut_ups_t *ups) {
   if (ups->conn != NULL) {
@@ -98,9 +99,24 @@ static int nut_add_ups(const char *name) {
   return (0);
 } /* int nut_add_ups */
 
+static int nut_force_ssl(const char *value) {
+  if (strcasecmp(value, "true") == 0)
+    force_ssl = 1;
+  else if (strcasecmp(value, "false") == 0)
+    force_ssl = 0; // Should already be set to 0 from initialization
+  else {
+    force_ssl = 0;
+    WARNING("nut plugin: nut_force_ssl: invalid FORCESSL value "
+            "found. Defaulting to false.");
+  }
+  return (0);
+} /* int nut_parse_force_ssl */
+
 static int nut_config(const char *key, const char *value) {
   if (strcasecmp(key, "UPS") == 0)
     return (nut_add_ups(value));
+  else if (strcasecmp(key, "FORCESSL") == 0)
+    return (nut_force_ssl(value));
   else
     return (-1);
 } /* int nut_config */
@@ -129,6 +145,8 @@ static int nut_read_one(nut_ups_t *ups) {
   char **answer;
   unsigned int answer_num;
   int status;
+  int ssl_status;
+  int ssl_flags;
 
   /* (Re-)Connect if we have no connection */
   if (ups->conn == NULL) {
@@ -138,17 +156,37 @@ static int nut_read_one(nut_ups_t *ups) {
       return (-1);
     }
 
-    status =
-        upscli_connect(ups->conn, ups->hostname, ups->port, UPSCLI_CONN_TRYSSL);
+    if (force_ssl == 1)
+      ssl_flags = UPSCLI_CONN_REQSSL;
+    else
+      ssl_flags = UPSCLI_CONN_TRYSSL;
+
+    status = upscli_connect(ups->conn, ups->hostname, ups->port, ssl_flags);
+
     if (status != 0) {
       ERROR("nut plugin: nut_read_one: upscli_connect (%s, %i) failed: %s",
             ups->hostname, ups->port, upscli_strerror(ups->conn));
       sfree(ups->conn);
       return (-1);
-    }
+    } /* if (status != 0) */
 
     INFO("nut plugin: Connection to (%s, %i) established.", ups->hostname,
          ups->port);
+
+    // Output INFO or WARNING based on SSL and VERIFICATION
+    ssl_status =  upscli_ssl(ups->conn); // 1 for SSL, 0 for not, -1 for error
+    if (ssl_status == 1){
+      INFO("nut plugin: Connection is secured with SSL.");
+    }
+    else if (ssl_status == 0){
+      WARNING("nut plugin: Connection is unsecured (no SSL).");
+    }else{
+      ERROR("nut plugin: nut_read_one: upscli_ssl failed: %s",
+            upscli_strerror(ups->conn));
+      sfree(ups->conn);
+      return (-1);
+    } /* if (ssl_status == 1 && verify_peer == 1) */
+
   } /* if (ups->conn == NULL) */
 
   /* nut plugin: nut_read_one: upscli_list_start (adpos) failed: Protocol
