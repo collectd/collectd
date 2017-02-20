@@ -117,6 +117,22 @@ ssize_t swrite(int fd, const void *buf, size_t count);
 
 /*
  * NAME
+ *   strstartswith
+ *
+ * DESCRIPTION
+ *   Checks if a string starts with a substring.
+ *
+ * PARAMETERS
+ *   `pre'         The prefix to look for.
+ *   `str'         The string that will be examined for a prefix.
+ *
+ * RETURN VALUE
+ *    Returns 1 if str starts with pre. 0 otherwise.
+*/
+int strstartswith(const char *pre, const char *str);
+
+/*
+ * NAME
  *   strsplit
  *
  * DESCRIPTION

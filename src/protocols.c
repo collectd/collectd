@@ -35,7 +35,14 @@
 #endif
 
 #define SNMP_FILE "/proc/net/snmp"
+#define SNMP6_FILE "/proc/net/snmp6"
 #define NETSTAT_FILE "/proc/net/netstat"
+
+#define LITERAL_STRLEN(literal) (sizeof(literal) - 1)
+#define IP6 "Ip6"
+#define ICMP6 "Icmp6"
+#define UDP6 "Udp6"
+#define UDPLITE6 "UdpLite6"
 
 /*
  * Global variables
@@ -172,11 +179,105 @@ static int read_file(const char *path) {
   return (status);
 } /* int read_file */
 
+static int read_snmp6_file(const char *path){
+  FILE *fh;
+  char kv_buffer[4096];
+  char *kv_ptr;
+  char *kv_fields[2];
+  int kv_fields_num;
+  char *key_ptr;
+  char *value_ptr;
+  char protocol_buffer[32];
+  int status;
+
+  fh = fopen (path, "r");
+  if (fh == NULL)
+  {
+    ERROR ("protocols plugin: fopen (%s) failed: %s.",
+        path, sstrerror (errno, kv_buffer, sizeof (kv_buffer)));
+    return (-1);
+  }
+
+  status = -1;
+  while (42)
+  {
+    clearerr (fh);
+    kv_ptr = fgets (kv_buffer, sizeof (kv_buffer), fh);
+    if (kv_ptr == NULL)
+    {
+      if (feof (fh) != 0)
+      {
+        status = 0;
+        break;
+      }
+      else if (ferror (fh) != 0)
+      {
+        ERROR ("protocols plugin: Reading from %s failed.", path);
+        break;
+      }
+      else
+      {
+        ERROR ("protocols plugin: fgets failed for an unknown reason.");
+        break;
+      }
+    } /* if (kv_ptr == NULL) */
+
+    /* split kv_buffer into array */
+    kv_fields_num = strsplit(kv_ptr, kv_fields, STATIC_ARRAY_SIZE(kv_fields));
+    if (kv_fields_num != 2) {
+      ERROR("protocols plugin: Line in %s does not contain a key and value exclusively: %s",
+            path, kv_ptr);
+      break;
+    }
+    key_ptr = kv_fields[0];
+    value_ptr = kv_fields[1];
+
+    /* set protocol and offset the key string to exclude the protocol */
+    if (strstartswith(IP6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(IP6)) {
+      strcpy(protocol_buffer, IP6);
+      key_ptr = key_ptr + LITERAL_STRLEN(IP6);
+    } else if (strstartswith(ICMP6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(ICMP6)) {
+      strcpy(protocol_buffer, ICMP6);
+      key_ptr = key_ptr + LITERAL_STRLEN(ICMP6);
+    } else if (strstartswith(UDP6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(UDP6)) {
+      strcpy(protocol_buffer, UDP6);
+      key_ptr = key_ptr + LITERAL_STRLEN(UDP6);
+    } else if (strstartswith(UDPLITE6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(UDPLITE6)) {
+      strcpy(protocol_buffer, UDPLITE6);
+      key_ptr = key_ptr + LITERAL_STRLEN(UDPLITE6);
+    } else { /* skip unknown protocols or known protocols with no key after it */
+      continue;
+    }
+
+    if (values_list != NULL)
+    {
+      char match_name[2 * DATA_MAX_NAME_LEN];
+
+      ssnprintf (match_name, sizeof (match_name), "%s:%s",
+          protocol_buffer, key_ptr);
+
+      if (ignorelist_match (values_list, match_name))
+        continue;
+    } /* if (values_list != NULL) */
+
+    submit(protocol_buffer, key_ptr, value_ptr);
+
+  } /* while (42) */
+
+  fclose(fh);
+
+  return (status);
+} /* int read_snmp6_file */
+
 static int protocols_read(void) {
   int status;
   int success = 0;
 
   status = read_file(SNMP_FILE);
+  if (status == 0)
+    success++;
+
+  status = read_snmp6_file(SNMP6_FILE);
   if (status == 0)
     success++;
 

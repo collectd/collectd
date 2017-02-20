@@ -301,6 +301,11 @@ ssize_t swrite(int fd, const void *buf, size_t count) {
   return (0);
 }
 
+int strstartswith(const char *pre, const char *str){   
+    size_t lenpre = strlen(pre);
+    return strncmp(pre, str, lenpre) == 0;
+}
+
 int strsplit(char *string, char **fields, size_t size) {
   size_t i;
   char *ptr;
