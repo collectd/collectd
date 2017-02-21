@@ -171,13 +171,6 @@ static const iface_counter ovs_stats_counter_name_to_type(const char *counter) {
   return index;
 }
 
-static const char *ovs_stats_counter_name_from_type(iface_counter type) {
-  if (type <= IFACE_COUNTER_MAX)
-    return iface_counter_table[type];
-
-  return NULL;
-}
-
 static void ovs_stats_submit_one(const char *dev, const char *type,
                                  const char *type_instance, derive_t value,
                                  meta_data_t *meta) {
