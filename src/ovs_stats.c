@@ -33,7 +33,7 @@
 static const char plugin_name[] = "ovs_stats";
 
 typedef enum iface_counter {
-  not_supportred = -1,
+  not_supported = -1,
   collisions,
   rx_bytes,
   rx_crc_err,
@@ -128,19 +128,19 @@ static const char *const iface_counter_table[IFACE_COUNTER_COUNT] = {
 };
 
 /* Entry into the list of network bridges */
-static bridge_list_t *g_bridge_list_head = NULL;
+static bridge_list_t *g_bridge_list_head;
 
 /* Entry into the list of monitored network bridges */
-static bridge_list_t *g_monitored_bridge_list_head = NULL;
+static bridge_list_t *g_monitored_bridge_list_head;
 
 /* entry into the list of network bridges */
-static port_list_t *g_port_list_head = NULL;
+static port_list_t *g_port_list_head;
 
 /* lock for statistics cache */
 static pthread_mutex_t g_stats_lock;
 
 /* OvS DB socket */
-static ovs_db_t *ovs_db = NULL;
+static ovs_db_t *g_ovs_db;
 
 /* OVS stats configuration data */
 struct ovs_stats_config_s {
@@ -156,10 +156,10 @@ static ovs_stats_config_t ovs_stats_cfg = {
 };
 
 static const iface_counter ovs_stats_counter_name_to_type(const char *counter) {
-  iface_counter index = not_supportred;
+  iface_counter index = not_supported;
 
   if (counter == NULL)
-    return not_supportred;
+    return not_supported;
 
   for (int i = 0; i < IFACE_COUNTER_COUNT; i++) {
     if (strncmp(iface_counter_table[i], counter,
@@ -169,6 +169,13 @@ static const iface_counter ovs_stats_counter_name_to_type(const char *counter) {
     }
   }
   return index;
+}
+
+static const char *ovs_stats_counter_name_from_type(iface_counter type) {
+  if (type <= IFACE_COUNTER_MAX)
+    return iface_counter_table[type];
+
+  return NULL;
 }
 
 static void ovs_stats_submit_one(const char *dev, const char *type,
@@ -540,7 +547,7 @@ static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
       counter_name = YAJL_GET_STRING(YAJL_GET_ARRAY(stat)->values[0]);
       counter_index = ovs_stats_counter_name_to_type(counter_name);
       counter_value = YAJL_GET_INTEGER(YAJL_GET_ARRAY(stat)->values[1]);
-      if (counter_index == not_supportred)
+      if (counter_index == not_supported)
         continue;
       port->stats[counter_index] = counter_value;
     }
@@ -737,19 +744,21 @@ static void ovs_stats_initialize(ovs_db_t *pdb) {
 
 /* Check if bridge is configured to be monitored in config file */
 static int ovs_stats_is_monitored_bridge(const char *br_name) {
-  int rc = 0;
   /* if no bridges are configured, return true */
-  if (!(rc = (g_monitored_bridge_list_head == NULL)))
-    rc = (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL);
-  return rc;
+  if (g_monitored_bridge_list_head == NULL)
+    return (1);
+
+  /* check if given bridge exists */
+  if (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL)
+    return (1);
+
+  return 0;
 }
 
 /* Delete all ports from port list */
 static void ovs_stats_free_port_list(port_list_t *head) {
-  port_list_t *i, *del;
-
-  for (i = head; i != NULL;) {
-    del = i;
+  for (port_list_t *i = head; i != NULL;) {
+    port_list_t *del = i;
     i = i->next;
     sfree(del);
   }
@@ -757,10 +766,8 @@ static void ovs_stats_free_port_list(port_list_t *head) {
 
 /* Delete all bridges from bridge list */
 static void ovs_stats_free_bridge_list(bridge_list_t *head) {
-  bridge_list_t *i, *del;
-
-  for (i = head; i != NULL;) {
-    del = i;
+  for (bridge_list_t *i = head; i != NULL;) {
+    bridge_list_t *del = i;
     i = i->next;
     sfree(del->name);
     sfree(del);
@@ -769,7 +776,6 @@ static void ovs_stats_free_bridge_list(bridge_list_t *head) {
 
 /* Handle OVSDB lost connection callback */
 static void ovs_stats_conn_terminate() {
-
   WARNING("Lost connection to OVSDB server");
   pthread_mutex_lock(&g_stats_lock);
   ovs_stats_free_bridge_list(g_bridge_list_head);
@@ -857,7 +863,7 @@ static int ovs_stats_plugin_init(void) {
        plugin_name, ovs_stats_cfg.ovs_db_node, ovs_stats_cfg.ovs_db_serv,
        ovs_stats_cfg.ovs_db_unix);
   /* connect to OvS DB */
-  if ((ovs_db = ovs_db_init (ovs_stats_cfg.ovs_db_node,
+  if ((g_ovs_db = ovs_db_init (ovs_stats_cfg.ovs_db_node,
                              ovs_stats_cfg.ovs_db_serv,
                        ovs_stats_cfg.ovs_db_unix, &cb)) == NULL) {
     ERROR("%s: plugin: failed to connect to OvS DB server", plugin_name);
@@ -866,7 +872,7 @@ static int ovs_stats_plugin_init(void) {
   int err = pthread_mutex_init(&g_stats_lock, NULL);
   if (err < 0) {
     ERROR("%s: plugin: failed to initialize cache lock", plugin_name);
-    ovs_db_destroy(ovs_db);
+    ovs_db_destroy(g_ovs_db);
     return (-1);
   }
   return (0);
@@ -927,6 +933,9 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
           ovs_stats_submit_two(devname, "if_packets", "128_to_255_packets",
                                port->stats[rx_128_to_255_packets],
                                port->stats[tx_128_to_255_packets], meta);
+          ovs_stats_submit_two(devname, "if_packets", "256_to_511_packets",
+                               port->stats[rx_256_to_511_packets],
+                               port->stats[tx_256_to_511_packets], meta);
           ovs_stats_submit_two(devname, "if_packets", "512_to_1023_packets",
                                port->stats[rx_512_to_1023_packets],
                                port->stats[tx_512_to_1023_packets], meta);
@@ -963,7 +972,7 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
 static int ovs_stats_plugin_shutdown(void) {
   pthread_mutex_lock(&g_stats_lock);
   DEBUG("OvS Statistics plugin shutting down");
-  ovs_db_destroy(ovs_db);
+  ovs_db_destroy(g_ovs_db);
   ovs_stats_free_bridge_list(g_bridge_list_head);
   ovs_stats_free_bridge_list(g_monitored_bridge_list_head);
   ovs_stats_free_port_list(g_port_list_head);

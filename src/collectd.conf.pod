@@ -5526,7 +5526,7 @@ interval to 0.05.
 
 =head2 Plugin C<ovs_stats>
 
-The I<ovs_stats> plugin collects a statistics of OVS connected interfaces.
+The I<ovs_stats> plugin collects statistics of OVS connected interfaces.
 This plugin uses OVSDB management protocol (RFC7047) monitor mechanism to get
 statistics from OVSDB
 
