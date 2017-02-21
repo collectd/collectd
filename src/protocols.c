@@ -191,32 +191,26 @@ static int read_snmp6_file(const char *path){
   int status;
 
   fh = fopen (path, "r");
-  if (fh == NULL)
-  {
+  if (fh == NULL) {
     ERROR ("protocols plugin: fopen (%s) failed: %s.",
         path, sstrerror (errno, kv_buffer, sizeof (kv_buffer)));
     return (-1);
   }
 
   status = -1;
-  while (42)
-  {
+  while (42) {
     clearerr (fh);
     kv_ptr = fgets (kv_buffer, sizeof (kv_buffer), fh);
-    if (kv_ptr == NULL)
-    {
-      if (feof (fh) != 0)
-      {
+    if (kv_ptr == NULL) {
+      if (feof (fh) != 0) {
         status = 0;
         break;
       }
-      else if (ferror (fh) != 0)
-      {
+      else if (ferror (fh) != 0) {
         ERROR ("protocols plugin: Reading from %s failed.", path);
         break;
       }
-      else
-      {
+      else {
         ERROR ("protocols plugin: fgets failed for an unknown reason.");
         break;
       }
@@ -234,23 +228,22 @@ static int read_snmp6_file(const char *path){
 
     /* set protocol and offset the key string to exclude the protocol */
     if (strstartswith(IP6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(IP6)) {
-      strcpy(protocol_buffer, IP6);
+      sstrcpy(protocol_buffer, IP6);
       key_ptr = key_ptr + LITERAL_STRLEN(IP6);
     } else if (strstartswith(ICMP6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(ICMP6)) {
-      strcpy(protocol_buffer, ICMP6);
+      sstrcpy(protocol_buffer, ICMP6);
       key_ptr = key_ptr + LITERAL_STRLEN(ICMP6);
     } else if (strstartswith(UDP6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(UDP6)) {
-      strcpy(protocol_buffer, UDP6);
+      sstrcpy(protocol_buffer, UDP6);
       key_ptr = key_ptr + LITERAL_STRLEN(UDP6);
     } else if (strstartswith(UDPLITE6, key_ptr) && strnlen(key_ptr, 32) > LITERAL_STRLEN(UDPLITE6)) {
-      strcpy(protocol_buffer, UDPLITE6);
+      sstrcpy(protocol_buffer, UDPLITE6);
       key_ptr = key_ptr + LITERAL_STRLEN(UDPLITE6);
     } else { /* skip unknown protocols or known protocols with no key after it */
       continue;
     }
 
-    if (values_list != NULL)
-    {
+    if (values_list != NULL) {
       char match_name[2 * DATA_MAX_NAME_LEN];
 
       ssnprintf (match_name, sizeof (match_name), "%s:%s",
