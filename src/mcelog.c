@@ -29,8 +29,8 @@
  *   Krzysztof Matczak <krzysztofx.matczak@intel.com>
  */
 
-#include "common.h"
 #include "collectd.h"
+#include "common.h"
 
 #include <poll.h>
 #include <sys/socket.h>
@@ -44,6 +44,8 @@
 #define MCELOG_DIMM_NAME "DMI_NAME"
 #define MCELOG_CORRECTED_ERR "corrected memory errors"
 #define MCELOG_UNCORRECTED_ERR "uncorrected memory errors"
+#define MCELOG_CORRECTED_ERR_TYPE_INS "corrected_memory_errors"
+#define MCELOG_UNCORRECTED_ERR_TYPE_INS "uncorrected_memory_errors"
 
 typedef struct mcelog_config_s {
   char logfile[PATH_MAX]; /* mcelog logfile */
@@ -80,7 +82,9 @@ static int socket_write(socket_adapter_t *self, const char *msg,
 static int socket_reinit(socket_adapter_t *self);
 static int socket_receive(socket_adapter_t *self, FILE **p_file);
 
-static mcelog_config_t g_mcelog_config = {.logfile = "/var/log/mcelog"};
+static mcelog_config_t g_mcelog_config = {
+    .logfile = "/var/log/mcelog",
+};
 
 static socket_adapter_t socket_adapter = {
     .sock_fd = -1,
@@ -212,64 +216,70 @@ static int socket_reinit(socket_adapter_t *self) {
   return (ret);
 }
 
-static int mcelog_prepare_notification(notification_t *n,
-                                       const mcelog_memory_rec_t *mr) {
-  if (n == NULL || mr == NULL)
+static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
+  notification_t n = {
+      .severity = NOTIF_WARNING,
+      .time = cdtime(),
+      .plugin = MCELOG_PLUGIN,
+      .type = "errors"};
+
+  if (mr == NULL)
     return (-1);
 
-  if ((mr->location[0] != '\0') &&
-      (plugin_notification_meta_add_string(n, MCELOG_SOCKET_STR, mr->location) <
-       0)) {
-    ERROR(MCELOG_PLUGIN ": add memory location meta data failed");
-    return (-1);
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
+
+  if (mr->dimm_name[0] != '\0')
+    ssnprintf(n.plugin_instance, sizeof(n.plugin_instance), "%s_%s",
+              mr->location, mr->dimm_name);
+  else
+    sstrncpy(n.plugin_instance, mr->location, sizeof(n.plugin_instance));
+
+  /* Corrected Error Notifications */
+  if (mr->corrected_err_total > 0 || mr->corrected_err_timed > 0) {
+    if (plugin_notification_meta_add_signed_int(&n, MCELOG_CORRECTED_ERR,
+                                                mr->corrected_err_total) < 0) {
+      ERROR(MCELOG_PLUGIN ": add corrected errors meta data failed");
+      plugin_notification_meta_free(n.meta);
+      return (-1);
+    }
+    if (plugin_notification_meta_add_signed_int(
+            &n, "corrected memory timed errors", mr->corrected_err_timed) < 0) {
+      ERROR(MCELOG_PLUGIN ": add corrected timed errors meta data failed");
+      plugin_notification_meta_free(n.meta);
+      return (-1);
+    }
+    ssnprintf(n.message, sizeof(n.message), "Corrected Memory Errors");
+    sstrncpy(n.type_instance, MCELOG_CORRECTED_ERR_TYPE_INS,
+             sizeof(n.type_instance));
+    plugin_dispatch_notification(&n);
+
+    if (n.meta)
+     plugin_notification_meta_free(n.meta);
   }
-  if ((mr->dimm_name[0] != '\0') &&
-      (plugin_notification_meta_add_string(n, MCELOG_DIMM_NAME, mr->dimm_name) <
-       0)) {
-    ERROR(MCELOG_PLUGIN ": add DIMM name meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
-  }
-  if (plugin_notification_meta_add_signed_int(n, MCELOG_CORRECTED_ERR,
-                                              mr->corrected_err_total) < 0) {
-    ERROR(MCELOG_PLUGIN ": add corrected errors meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
-  }
-  if (plugin_notification_meta_add_signed_int(
-          n, "corrected memory timed errors", mr->corrected_err_timed) < 0) {
-    ERROR(MCELOG_PLUGIN ": add corrected timed errors meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
-  }
-  if ((mr->corrected_err_timed_period[0] != '\0') &&
-      (plugin_notification_meta_add_string(n, "corrected errors time period",
-                                           mr->corrected_err_timed_period) <
-       0)) {
-    ERROR(MCELOG_PLUGIN ": add corrected errors period meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
-  }
-  if (plugin_notification_meta_add_signed_int(n, MCELOG_UNCORRECTED_ERR,
-                                              mr->uncorrected_err_total) < 0) {
-    ERROR(MCELOG_PLUGIN ": add corrected errors meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
-  }
-  if (plugin_notification_meta_add_signed_int(n,
-                                              "uncorrected memory timed errors",
-                                              mr->uncorrected_err_timed) < 0) {
-    ERROR(MCELOG_PLUGIN ": add corrected timed errors meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
-  }
-  if ((mr->uncorrected_err_timed_period[0] != '\0') &&
-      (plugin_notification_meta_add_string(n, "uncorrected errors time period",
-                                           mr->uncorrected_err_timed_period) <
-       0)) {
-    ERROR(MCELOG_PLUGIN ": add corrected errors period meta data failed");
-    plugin_notification_meta_free(n->meta);
-    return (-1);
+
+  /* Uncorrected Error Notifications */
+  if (mr->uncorrected_err_total > 0 || mr->uncorrected_err_timed > 0) {
+    if (plugin_notification_meta_add_signed_int(
+            &n, MCELOG_UNCORRECTED_ERR, mr->uncorrected_err_total) < 0) {
+      ERROR(MCELOG_PLUGIN ": add uncorrected errors meta data failed");
+      plugin_notification_meta_free(n.meta);
+      return (-1);
+    }
+    if (plugin_notification_meta_add_signed_int(
+            &n, "uncorrected memory timed errors", mr->uncorrected_err_timed) <
+        0) {
+      ERROR(MCELOG_PLUGIN ": add uncorrected timed errors meta data failed");
+      plugin_notification_meta_free(n.meta);
+      return (-1);
+    }
+    ssnprintf(n.message, sizeof(n.message), "Uncorrected Memory Errors");
+    sstrncpy(n.type_instance, MCELOG_UNCORRECTED_ERR_TYPE_INS,
+             sizeof(n.type_instance));
+    n.severity = NOTIF_FAILURE;
+    plugin_dispatch_notification(&n);
+
+   if (n.meta)
+     plugin_notification_meta_free(n.meta);
   }
 
   return (0);
@@ -288,7 +298,7 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
       .time = cdtime(),
       .plugin = MCELOG_PLUGIN,
       .type = "errors",
-      .type_instance = "corrected_memory_errors"};
+      .type_instance = MCELOG_CORRECTED_ERR_TYPE_INS};
 
   if (mr->dimm_name[0] != '\0')
     ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s_%s",
@@ -303,7 +313,7 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
   vl.values = &(value_t){.derive = (derive_t)mr->corrected_err_timed};
   plugin_dispatch_values(&vl);
 
-  sstrncpy(vl.type_instance, "uncorrected_memory_errors",
+  sstrncpy(vl.type_instance, MCELOG_UNCORRECTED_ERR_TYPE_INS,
            sizeof(vl.type_instance));
   vl.values = &(value_t){.derive = (derive_t)mr->uncorrected_err_total};
   plugin_dispatch_values(&vl);
@@ -473,14 +483,8 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
         continue;
       }
 
-      notification_t n = {.severity = NOTIF_OKAY,
-                          .time = cdtime(),
-                          .message = "Got memory errors info.",
-                          .plugin = MCELOG_PLUGIN,
-                          .type_instance = "memory_erros"};
-
-      if (mcelog_prepare_notification(&n, &memory_record) == 0)
-        mcelog_dispatch_notification(&n);
+      if (mcelog_dispatch_mem_notifications(&memory_record) != 0)
+        ERROR(MCELOG_PLUGIN ": Failed to submit memory errors notification");
       if (mcelog_submit(&memory_record) != 0)
         ERROR(MCELOG_PLUGIN ": Failed to submit memory errors");
       memset(&memory_record, 0, sizeof(memory_record));
