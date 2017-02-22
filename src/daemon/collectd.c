@@ -521,7 +521,7 @@ int main(int argc, char **argv) {
    */
   if (cf_read(configfile)) {
     fprintf(stderr, "Error: Reading the config file failed!\n"
-                    "Read the syslog for details.\n");
+                    "Read the logs for details.\n");
     return (1);
   }
 
