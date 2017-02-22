@@ -230,13 +230,13 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.6.1
-Release:	2%{?dist}
+Release:	3%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, which
+BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, which, xfsprogs-devel
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?fedora} || 0%{?rhel} >= 7
@@ -2515,6 +2515,9 @@ fi
 %doc contrib/
 
 %changelog
+* Wed Feb 22 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.1-3
+- Enable XFS support in df plugin
+
 * Tue Nov 29 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.1-2
 - Disable redis plugin on RHEL < 7, hiredis has been retired from EPEL6
 
