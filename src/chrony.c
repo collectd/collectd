@@ -584,9 +584,10 @@ static double ntohf(tFloat p_float) {
   uint32_t uval;
 
   uval = ntohl(p_float.value);
-  exp = (uval >> FLOAT_COEF_BITS) - FLOAT_COEF_BITS;
+  exp = (uval >> FLOAT_COEF_BITS);
   if (exp >= 1 << (FLOAT_EXP_BITS - 1))
     exp -= 1 << FLOAT_EXP_BITS;
+  exp -= FLOAT_COEF_BITS;
 
   /* coef = (x << FLOAT_EXP_BITS) >> FLOAT_EXP_BITS; */
   coef = uval % (1U << FLOAT_COEF_BITS);
