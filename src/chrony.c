@@ -833,14 +833,13 @@ static int chrony_request_sources_count(unsigned int *p_count) {
   return CHRONY_RC_OK;
 }
 
-static int chrony_request_source_data(int p_src_idx, int *p_is_reachable) {
+static int chrony_request_source_data(int p_src_idx, char *src_addr,
+                                      size_t addr_size, int *p_is_reachable) {
   /* Perform Source data request for source #p_src_idx */
   int rc;
   size_t chrony_resp_size;
   tChrony_Request chrony_req;
   tChrony_Response chrony_resp;
-
-  char src_addr[IPV6_STR_MAX_SIZE] = {0};
 
   chrony_init_req(&chrony_req);
   chrony_req.body.source_data.f_index = htonl(p_src_idx);
@@ -852,7 +851,7 @@ static int chrony_request_source_data(int p_src_idx, int *p_is_reachable) {
     return rc;
   }
 
-  niptoha(&chrony_resp.body.source_data.addr, src_addr, sizeof(src_addr));
+  niptoha(&chrony_resp.body.source_data.addr, src_addr, addr_size);
   DEBUG(PLUGIN_NAME ": Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, "
                     ".state = %u, .mode = %u, .flags = %u, .reach = %u, "
                     ".latest_meas_ago = %u, .orig_latest_meas = %f, "
@@ -887,7 +886,7 @@ static int chrony_request_source_data(int p_src_idx, int *p_is_reachable) {
   return CHRONY_RC_OK;
 }
 
-static int chrony_request_source_stats(int p_src_idx,
+static int chrony_request_source_stats(int p_src_idx, const char *src_addr,
                                        const int *p_is_reachable) {
   /* Perform Source stats request for source #p_src_idx */
   int rc;
@@ -895,8 +894,6 @@ static int chrony_request_source_stats(int p_src_idx,
   tChrony_Request chrony_req;
   tChrony_Response chrony_resp;
   double skew_ppm, frequency_error, time_offset;
-
-  char src_addr[IPV6_STR_MAX_SIZE] = {0};
 
   if (*p_is_reachable == 0) {
     skew_ppm = 0;
@@ -918,7 +915,6 @@ static int chrony_request_source_stats(int p_src_idx,
     frequency_error = ntohf(chrony_resp.body.source_stats.f_rtc_gain_rate_ppm);
     time_offset = ntohf(chrony_resp.body.source_stats.f_est_offset);
 
-    niptoha(&chrony_resp.body.source_stats.addr, src_addr, sizeof(src_addr));
     DEBUG(PLUGIN_NAME
           ": Source[%d] stat: .addr = %s, .ref_id= %u, .n_samples = %u, "
           ".n_runs = %u, .span_seconds = %u, .rtc_seconds_fast = %f, "
@@ -969,12 +965,14 @@ static int chrony_read(void) {
     return rc;
 
   for (unsigned int now_src = 0; now_src < n_sources; ++now_src) {
+    char src_addr[IPV6_STR_MAX_SIZE] = {0};
     int is_reachable;
-    rc = chrony_request_source_data(now_src, &is_reachable);
+    rc = chrony_request_source_data(now_src, src_addr, sizeof(src_addr),
+                                    &is_reachable);
     if (rc != CHRONY_RC_OK)
       return rc;
 
-    rc = chrony_request_source_stats(now_src, &is_reachable);
+    rc = chrony_request_source_stats(now_src, src_addr, &is_reachable);
     if (rc != CHRONY_RC_OK)
       return rc;
   }
