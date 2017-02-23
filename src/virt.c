@@ -824,11 +824,6 @@ static int lv_read(user_data_t *ud) {
       continue;
     }
 
-    if (info.di.state != VIR_DOMAIN_RUNNING) {
-      /* only gather stats for running domains */
-      continue;
-    }
-
     pcpu_submit(state->domains[i], &info);
     cpu_submit(info.di.cpuTime, state->domains[i], "virt_cpu_total");
     memory_submit((gauge_t)info.di.memory * 1024, state->domains[i]);
@@ -1129,6 +1124,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
       xmlXPathContextPtr xpath_ctx = NULL;
       xmlXPathObjectPtr xpath_obj = NULL;
       char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
+      virDomainInfo info;
+      int status;
 
       dom = virDomainLookupByID(conn, domids[i]);
       if (dom == NULL) {
@@ -1141,6 +1138,18 @@ static int refresh_lists(struct lv_read_instance *inst) {
       if (name == NULL) {
         VIRT_ERROR(conn, "virDomainGetName");
         goto cont;
+      }
+
+      status = virDomainGetInfo(dom, &info);
+      if (status != 0) {
+        ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
+              status);
+        continue;
+      }
+
+      if (info.state != VIR_DOMAIN_RUNNING) {
+        DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", name);
+        continue;
       }
 
       if (il_domains && ignorelist_match(il_domains, name) != 0)
