@@ -186,13 +186,11 @@ typedef struct ATTRIB_PACKED {
     uint8_t ip6[16];
   } addr;
   uint16_t f_family;
+  uint16_t padding;
 } tChrony_IPAddr;
 
 typedef struct ATTRIB_PACKED {
   tChrony_IPAddr addr;
-  uint16_t
-      dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3/clang 3.4.1 on
-                x86_64 */
   int16_t f_poll;     /* 2^f_poll = Time between polls (s) */
   uint16_t f_stratum; /* Remote clock stratum */
   uint16_t f_state;   /* 0 = RPY_SD_ST_SYNC,    1 = RPY_SD_ST_UNREACH,   2 =
@@ -213,9 +211,6 @@ typedef struct ATTRIB_PACKED {
 typedef struct ATTRIB_PACKED {
   uint32_t f_ref_id;
   tChrony_IPAddr addr;
-  uint16_t
-      dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3/clang 3.4.1 on
-                x86_64 */
   uint32_t f_n_samples;       /* Number of measurements done   */
   uint32_t f_n_runs;          /* How many measurements to come */
   uint32_t f_span_seconds;    /* For how long we're measuring  */
@@ -230,9 +225,6 @@ typedef struct ATTRIB_PACKED {
 typedef struct ATTRIB_PACKED {
   uint32_t f_ref_id;
   tChrony_IPAddr addr;
-  uint16_t
-      dummy; /* FIXME: Strange dummy space. Needed on gcc 4.8.3/clang 3.4.1 on
-                x86_64 */
   uint16_t f_stratum;
   uint16_t f_leap_status;
   tTimeval f_ref_time;
