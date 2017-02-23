@@ -77,6 +77,7 @@ static uint32_t g_chrony_seq_is_initialized;
 #define IPADDR_INET4 1
 #define IPADDR_INET6 2
 #define IPV6_STR_MAX_SIZE (8 * 4 + 7 + 1)
+#define MODE_REFCLOCK 2
 
 typedef enum { PKT_TYPE_CMD_REQUEST = 1, PKT_TYPE_CMD_REPLY = 2 } ePacketType;
 
@@ -352,6 +353,19 @@ static char *niptoha(const tChrony_IPAddr *addr, char *p_buf,
   }
   assert(rc > 0);
   return p_buf;
+}
+
+static void nreftostr(uint32_t nrefid, char *p_buf, size_t p_buf_size) {
+  int i, j, c;
+
+  for (i = j = 0; i < 4; i++) {
+    c = ntohl(nrefid) << i * 8 >> 24;
+    if (!isalnum(c) || j + 1 >= p_buf_size)
+      continue;
+    p_buf[j++] = c;
+  }
+  if (j < p_buf_size)
+    p_buf[j] = '\0';
 }
 
 static int chrony_set_timeout(void) {
@@ -851,7 +865,11 @@ static int chrony_request_source_data(int p_src_idx, char *src_addr,
     return rc;
   }
 
-  niptoha(&chrony_resp.body.source_data.addr, src_addr, addr_size);
+  if (ntohs(chrony_resp.body.source_data.f_mode) == MODE_REFCLOCK)
+    nreftostr(chrony_resp.body.source_data.addr.addr.ip4, src_addr, addr_size);
+  else
+    niptoha(&chrony_resp.body.source_data.addr, src_addr, addr_size);
+
   DEBUG(PLUGIN_NAME ": Source[%d] data: .addr = %s, .poll = %u, .stratum = %u, "
                     ".state = %u, .mode = %u, .flags = %u, .reach = %u, "
                     ".latest_meas_ago = %u, .orig_latest_meas = %f, "
