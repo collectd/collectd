@@ -33,6 +33,10 @@
 #include <atasmart.h>
 #include <libudev.h>
 
+#ifdef HAVE_SYS_CAPABILITY_H
+#include <sys/capability.h>
+#endif
+
 static const char *config_keys[] = {"Disk", "IgnoreSelected", "IgnoreSleepMode",
                                     "UseSerial"};
 
@@ -238,7 +242,25 @@ static int smart_read(void) {
   return (0);
 } /* int smart_read */
 
+static int smart_init(void) {
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_SYS_RAWIO)
+  if (check_capability(CAP_SYS_RAWIO) != 0) {
+    if (getuid() == 0)
+      WARNING("smart plugin: Running collectd as root, but the "
+              "CAP_SYS_RAWIO capability is missing. The plugin's read "
+              "function will probably fail. Is your init system dropping "
+              "capabilities?");
+    else
+      WARNING("smart plugin: collectd doesn't have the CAP_SYS_RAWIO "
+              "capability. If you don't want to run collectd as root, try "
+              "running \"setcap cap_sys_rawio=ep\" on the collectd binary.");
+  }
+#endif
+  return (0);
+} /* int smart_init */
+
 void module_register(void) {
   plugin_register_config("smart", smart_config, config_keys, config_keys_num);
+  plugin_register_init("smart", smart_init);
   plugin_register_read("smart", smart_read);
 } /* void module_register */
