@@ -5745,10 +5745,11 @@ Default: empty (monitor all bridges)
 The I<pcie> plugin collects PCI Express errors from Device Status in Capability
 structure and from Advanced Error Reporting Extended Capability where available.
 At every read it polls config space of PCI Express devices and dispatches
-notification for every error that is set. The device is indicated in
-plugin_instance according to format "domain:bus:dev.fn". Errors are divided
-into categories indicated by type: "Correctable" and "Uncorrectable" and
-type_instance: "Fatal" and "Non-Fatal". All correctable errors are non-fatal.
+notification for every error that is set. It can be configured to parse log file
+for system reported AER errors. It checks for new errors at every read.
+The device is indicated in plugin_instance according to format "domain:bus:dev.fn".
+Errors are divided into categories indicated by type_instance: "correctable", and
+for uncorrectable errors "non_fatal" or "fatal".
 Fatal errros are reported as I<NOTIF_FAILURE> and all others as I<NOTIF_WARNING>.
 
 B<Synopsis:>
@@ -5757,16 +5758,29 @@ B<Synopsis:>
     Source "sysfs"
     AccessDir "/sys/bus/pci"
     ReportMasked false
-    Persistent false
+    PersistentNotifications false
+    ReadLog false
+    FirstFullRead false
+    LogFile "/var/log/syslog"
+    <MsgPattern "correctable">
+      <Match>
+        Name "root port"
+        Regex "pcieport (.*): AER: Corrected"
+        SubmatchIdx 1
+        Excluderegex "collectd"
+        IsMandatory true
+      </Match>
+    </MsgPattern>
   </Plugin>
 
 B<Options:>
 
 =over 4
 
-=item B<Source> B<sysfs>|B<proc>
+=item B<Source> B<sysfs>|B<proc>|B<off>
 
-Use sysfs or proc for reading data from registers.
+Use sysfs or proc for reading data from registers. If set to "off" or option
+is not provided, no data is being read from devices.
 
 =item B<AccessDir> I<dir>
 
@@ -5779,10 +5793,64 @@ If true plugin will notify errors that are set to masked in
 Error Mask register. Such errors are not reported to the PCI
 Express Root Complex. Defaults to B<false>.
 
-=item B<Persistent> B<false>|B<true>
+=item B<PersistentNotifications> B<false>|B<true>
 
 If false plugin will dispatch notfication only on set/clear of error.
 The ones already reported will be ignored. Defaults to B<false>.
+
+=item B<ReadLog> B<false>|B<true>
+
+If set to true, LogFile is parsed for reported AER errors and corresponding
+notifications are sent. Default value is B<false>.
+
+=item B<FirstFullRead> B<false>|B<true>
+
+If set to true, the full scan of existing log file is done during first read.
+Otherwise only new incoming entries will be parsed. Default value is B<false>.
+
+=item B<LogFile> I<dir>
+
+Log file name to use when ReadLog is true. Default value is "/var/log/syslog".
+
+=item B<MsgPattern> I<name>
+
+Optional definition of regular expressions used to parse the error messages
+in I<LogFile>. I<Name> is the type instance of message. Multiple definitions are
+allowed to parse different messages. Contains several I<Match> subsections
+described bellow. If not specified the default configuration is used.
+
+=item B<Match>
+
+Multiple I<Match> blocks define regular expression patterns for extracting or
+excluding specific string patterns from parsing. First and last I<Match> items
+set boundaries of multiline AER message and are mandatory.
+
+=item B<Name> I<name>
+
+Name of regular expression, used in AER error notification.
+
+=item B<Regex> I<regex>
+
+Regular expression with pattern matching string. It may contain subexpressions,
+so next option B<SubmatchIdx> specifies which subexpression should be stored.
+
+=item B<SubmatchIdx> I<index>
+
+Index of subexpression to be used for AER error notification. Multiple
+subexpressions are allowed. Index value 0 takes whole regular expression match
+as a result. Can be ommited, default value is 1.
+
+=item B<Excluderegex> I<regex>
+
+Regular expression for excluding lines containing specific matching strings.
+This is processed before checking I<Regex> pattern. It is optional and can
+be omitted.
+
+=item B<IsMandatory>  I<true>|I<false>
+
+Flag specifying if message item string described by above parameters is
+mandatory for whole I<MsgPattern> validation. If set to 1, whole message is
+discarded if it's missing. For 0 its presence is optional.
 
 =back
 

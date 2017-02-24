@@ -1310,9 +1310,13 @@ endif
 
 if BUILD_PLUGIN_PCIE
 pkglib_LTLIBRARIES += pcie.la
-pcie_la_SOURCES = src/pcie.c
+pcie_la_SOURCES = src/pcie.c src/utils_message_parser.c src/utils_message_parser.h \
+                  src/utils_tail_match.c src/utils_tail_match.h \
+                  src/utils_tail.c src/utils_tail.h \
+                  src/utils_match.c src/utils_match.h
 pcie_la_CPPFLAGS = $(AM_CPPFLAGS)
 pcie_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+pcie_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_PERL

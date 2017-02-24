@@ -1043,7 +1043,37 @@
 #	Source "sysfs"
 #	AccessDir "/sys/bus/pci"
 #	ReportMasked false
-#	Persistent false
+#	PersistentNotifications false
+#	ReadLog false
+#	FirstFullRead false
+#	LogFile "/var/log/syslog"
+#	<MsgPattern "aer syslog">
+#		<Match>
+#			Name "root port"
+#			Regex "pcieport (.*): AER:"
+#			IsMandatory true
+#		</Match>
+#		<Match>
+#			Name "device"
+#			Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
+#			IsMandatory true
+#		</Match>
+#		<Match>
+#			Name "severity"
+#			Regex "severity=([^,]*)"
+#			IsMandatory true
+#		</Match>
+#		<Match>
+#			Name "error type"
+#			Regex "type=(.*),"
+#			IsMandatory false
+#		</Match>
+#		<Match>
+#			Name "id"
+#			Regex ", id=(.*)"
+#			IsMandatory true
+#		</Match>
+#	</MsgPattern>
 #</Plugin>
 
 #<Plugin perl>
