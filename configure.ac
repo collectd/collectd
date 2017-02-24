@@ -835,12 +835,12 @@ AC_CHECK_HEADERS(sys/capability.h,
                  [have_capability="yes"],
                  [have_capability="no (<sys/capability.h> not found)"])
 if test "x$have_capability" = "xyes"; then
-AC_CHECK_LIB(cap, cap_get_bound,
+AC_CHECK_LIB(cap, cap_get_proc,
                  [have_capability="yes"],
-                 [have_capability="no (cap_get_bound() not found)"])
+                 [have_capability="no (cap_get_proc() not found)"])
 fi
 if test "x$have_capability" = "xyes"; then
-  AC_DEFINE(HAVE_CAPABILITY, 1, [Define to 1 if you have cap_get_bound() (-lcap).])
+  AC_DEFINE(HAVE_CAPABILITY, 1, [Define to 1 if you have cap_get_proc() (-lcap).])
 fi
 AM_CONDITIONAL(BUILD_WITH_CAPABILITY, test "x$have_capability" = "xyes")
 
