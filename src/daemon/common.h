@@ -385,7 +385,7 @@ void strarray_free(char **array, size_t array_len);
  * argument. Returns zero if it does, less than zero if it doesn't or on error.
  * See capabilities(7) for the list of possible capabilities.
  * */
-int check_capability(int capability);
+int check_capability(int arg);
 #endif /* HAVE_SYS_CAPABILITY_H */
 
 #endif /* COMMON_H */
