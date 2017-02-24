@@ -30,13 +30,15 @@
  *   Krzysztof Matczak <krzysztofx@intel.com>
  */
 
+#include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
+
 #include "semaphore.h"
 #include "sys/mman.h"
 #include "utils_dpdk.h"
 #include "utils_time.h"
-#include "collectd.h"
 
 #include <rte_config.h>
 #include <rte_eal.h>
@@ -50,8 +52,6 @@
 #define INT64_BIT_SIZE 64
 #define KEEPALIVE_PLUGIN_INSTANCE "keepalive"
 #define RTE_KEEPALIVE_SHM_NAME "/dpdk_keepalive_shm_name"
-
-#define RTE_VERSION_16_07 RTE_VERSION_NUM(16, 7, 0, 16)
 
 typedef struct dpdk_keepalive_shm_s {
   sem_t core_died;
@@ -304,6 +304,12 @@ static int dpdk_events_config(oconfig_item_t *ci) {
     }
   }
 
+  if (!ec->config.keep_alive.enabled && !ec->config.link_status.enabled) {
+    ERROR(DPDK_EVENTS_PLUGIN ": At least one type of events should be "
+                             "configured for collecting. Plugin misconfigured");
+    return -1;
+  }
+
   return ret;
 }
 
@@ -350,28 +356,27 @@ int dpdk_helper_command_handler(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd) {
   }
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(phc);
-
+  int ret = 0;
   if (ec->config.link_status.enabled)
-    dpdk_helper_link_status_get(phc);
+    ret = dpdk_helper_link_status_get(phc);
 
-  return 0;
+  return ret;
 }
 
 static void dpdk_events_notification_dispatch(int severity,
-                                              char *plugin_instance,
-                                              cdtime_t time, char *msg) {
-  notification_t n = {0};
-  n.severity = severity;
-  n.time = time;
+                                              const char *plugin_instance,
+                                              cdtime_t time, const char *msg) {
+  notification_t n = {
+      .severity = severity, .time = time, .plugin = DPDK_EVENTS_PLUGIN};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.plugin, DPDK_EVENTS_PLUGIN, sizeof(n.plugin));
   sstrncpy(n.plugin_instance, plugin_instance, sizeof(n.plugin_instance));
   sstrncpy(n.message, msg, sizeof(n.message));
   plugin_dispatch_notification(&n);
 }
 
-static void dpdk_events_gauge_submit(char *plugin_instance, char *type,
-                                     gauge_t value, cdtime_t time) {
+static void dpdk_events_gauge_submit(const char *plugin_instance,
+                                     const char *type_instance, gauge_t value,
+                                     cdtime_t time) {
   value_list_t vl = {.values = &(value_t){.gauge = value},
                      .values_len = 1,
                      .time = time,
@@ -380,7 +385,7 @@ static void dpdk_events_gauge_submit(char *plugin_instance, char *type,
                      .meta = NULL};
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type_instance, type, sizeof(vl.type_instance));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   plugin_dispatch_values(&vl);
 }
 
@@ -426,7 +431,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
   return 0;
 }
 
-static int dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
+static void dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(phc);
 
   /* dispatch Keep Alive values to collectd */
@@ -454,7 +459,6 @@ static int dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
       ec->core_info[i].lcore_state = ec->config.keep_alive.shm->core_state[i];
       ec->core_info[i].read_time = cdtime();
 
-#if RTE_VERSION >= RTE_VERSION_16_07
       if (ec->config.keep_alive.notify) {
         char msg[DATA_MAX_NAME_LEN];
         int sev;
@@ -500,15 +504,8 @@ static int dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
                                  ec->config.keep_alive.shm->core_state[i],
                                  ec->core_info[i].read_time);
       }
-#else
-      dpdk_events_gauge_submit(KEEPALIVE_PLUGIN_INSTANCE, core_name,
-                               ec->config.keep_alive.shm->core_state[i],
-                               ec->core_info[i].read_time);
-#endif /* #if RTE_VERSION >= RTE_VERSION_16_07 */
     }
   }
-
-  return 0;
 }
 
 static int dpdk_events_read(user_data_t *ud) {
@@ -516,15 +513,10 @@ static int dpdk_events_read(user_data_t *ud) {
 
   if (g_hc == NULL) {
     ERROR(DPDK_EVENTS_PLUGIN ": plugin not initialized.");
-    return -EINVAL;
+    return -1;
   }
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
-
-  if (!ec->config.keep_alive.enabled && !ec->config.link_status.enabled) {
-    /* nothing to do */
-    return 0;
-  }
 
   if (ec->config.link_status.enabled) {
     int cmd_res = 0;
@@ -564,7 +556,7 @@ static int dpdk_events_init(void) {
 
 static int dpdk_events_shutdown(void) {
   DPDK_EVENTS_TRACE();
-  int ret = 0;
+  int ret;
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
   if (ec->config.keep_alive.enabled) {

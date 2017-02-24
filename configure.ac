@@ -2700,62 +2700,46 @@ AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
 AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
 
-rte_version_major=""
-rte_version_minor=""
-if test "x$with_libdpdk" != "xno"
-then
-	if test "x$LIBDPDK_CPPFLAGS" = "x"
-	then
-		LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-	fi
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
-	AC_CHECK_HEADERS([rte_config.h],
-		[
+if test "x$with_libdpdk" != "xno"; then
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  AC_CHECK_HEADERS([rte_config.h],
+    [
       with_libdpdk="yes"
-      AC_RUN_IFELSE(
+      AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
             [[
               #include <rte_version.h>
+              #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+              #error "required DPDK >= 16.07"
+              #endif
             ]],
             [[
-              return (RTE_VER_YEAR & 0xFF)
+              return 0;
             ]]
           )
         ],
-        [rte_version_major=0],
-        [rte_version_major=$?]
-      )
-      AC_RUN_IFELSE(
-        [
-          AC_LANG_PROGRAM(
-            [[
-              #include <rte_version.h>
-            ]],
-            [[
-              return (RTE_VER_MONTH & 0xFF)
-            ]]
-          )
-        ],
-        [rte_version_minor=0],
-        [rte_version_minor=$?]
+        [dpdk_keepalive="yes"],
+        [dpdk_keepalive="no (DPDK version < 16.07)"]
       )
     ],
-		[with_libdpdk="no (rte_config.h not found)"]
-	)
-	CPPFLAGS="$SAVE_CPPFLAGS"
+    [with_libdpdk="no (rte_config.h not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
-if test "x$with_libdpdk" = "xyes"
-then
-	SAVE_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-	AC_CHECK_LIB([dpdk], [rte_eal_init],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
-	)
-	LDFLAGS="$SAVE_LDFLAGS"
+if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+  AC_CHECK_LIB([dpdk], [rte_eal_init],
+    [with_libdpdk="yes"],
+    [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
 # }}}
@@ -6264,14 +6248,7 @@ fi
 
 if test "x$with_libdpdk" = "xyes"
 then
-  plugin_dpdkevents="no (DPDK version < 16.07)"
-  if test $rte_version_major -eq 16
-  then
-    if test $rte_version_minor -ge 7
-    then
-    plugin_dpdkevents="yes"
-    fi
-  fi
+  plugin_dpdkevents="$dpdk_keepalive"
   plugin_dpdkstat="yes"
 fi
 

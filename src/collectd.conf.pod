@@ -2458,9 +2458,9 @@ value is true.
 =item B<EnabledPortMask> I<Mask>
 
 A hexidecimal bit mask of the DPDK ports which should be enabled. A mask
-of 0x0 means that all ports will be disabled. A bitmask of all Fs means
-that all ports will be enabled. This is an optional argument - default
-is all ports enabled.
+of 0x0 means that all ports will be disabled. A bitmask of all F's means
+that all ports will be enabled. This is an optional argument - by default
+all ports are enabled.
 
 =item B<PortName> I<Name>
 
@@ -2472,8 +2472,8 @@ convention will be used for the additional ports.
 
 =item B<SendNotification> I<true|false>
 
-If set to true, link status notifications will be sent, instead of link
-status being collected as a statistic. This is an optional argument - default
+If set to true, link status notifications are sent, instead of link status
+being collected as a statistic. This is an optional argument - default
 value is false.
 
 =back
@@ -2499,8 +2499,8 @@ the keep alive cores state.
 
 =item B<SendNotification> I<true|false>
 
-If set to true, keep alive notifications will be sent, instead of keep
-alive information being collected as a statistic. This is an optional
+If set to true, keep alive notifications are sent, instead of keep alive
+information being collected as a statistic. This is an optional
 argument - default value is false.
 
 =back

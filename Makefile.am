@@ -770,7 +770,6 @@ if BUILD_PLUGIN_DPDKEVENTS
 pkglib_LTLIBRARIES += dpdkevents.la
 dpdkevents_la_SOURCES = src/dpdkevents.c src/utils_dpdk.c src/utils_dpdk.h
 dpdkevents_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
-#dpdkevents_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_DPDK_CFLAGS)
 dpdkevents_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
 dpdkevents_la_LIBADD = -ldpdk
 endif
