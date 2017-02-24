@@ -2700,30 +2700,46 @@ AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
 AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
 
-if test "x$with_libdpdk" != "xno"
-then
-	if test "x$LIBDPDK_CPPFLAGS" = "x"
-	then
-		LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-	fi
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
-	AC_CHECK_HEADERS([rte_config.h],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (rte_config.h not found)"]
-	)
-	CPPFLAGS="$SAVE_CPPFLAGS"
+if test "x$with_libdpdk" != "xno"; then
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  AC_CHECK_HEADERS([rte_config.h],
+    [
+      with_libdpdk="yes"
+      AC_COMPILE_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[
+              #include <rte_version.h>
+              #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+              #error "required DPDK >= 16.07"
+              #endif
+            ]],
+            [[
+              return 0;
+            ]]
+          )
+        ],
+        [dpdk_keepalive="yes"],
+        [dpdk_keepalive="no (DPDK version < 16.07)"]
+      )
+    ],
+    [with_libdpdk="no (rte_config.h not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
-if test "x$with_libdpdk" = "xyes"
-then
-	SAVE_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-	AC_CHECK_LIB([dpdk], [rte_eal_init],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
-	)
-	LDFLAGS="$SAVE_LDFLAGS"
+if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+  AC_CHECK_LIB([dpdk], [rte_eal_init],
+    [with_libdpdk="yes"],
+    [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
 # }}}
@@ -5886,6 +5902,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_drbd="no"
+plugin_dpdkevents="no"
 plugin_dpdkstat="no"
 plugin_entropy="no"
 plugin_ethstat="no"
@@ -6236,6 +6253,7 @@ fi
 
 if test "x$with_libdpdk" = "xyes"
 then
+  plugin_dpdkevents="$dpdk_keepalive"
   plugin_dpdkstat="yes"
 fi
 
@@ -6284,6 +6302,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
+AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],      [Events from DPDK])
 AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
@@ -6709,6 +6728,7 @@ AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
+AC_MSG_RESULT([    dpdkevents. . . . . . $enable_dpdkevents])
 AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
 AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
