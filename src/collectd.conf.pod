@@ -3471,7 +3471,9 @@ By default the plugin connects to B<"/var/run/mcelog-client"> to check if the
 mcelog server is running. When the server is running, the plugin will tail the
 specified logfile to retrieve machine check exception information and send a
 notification with the details from the logfile. The plugin will use the mcelog
-client protocol to retrieve memory related machine check exceptions.
+client protocol to retrieve memory related machine check exceptions. Note that
+for memory exceptions, notifications are only sent when there is a change in
+the number of corrected/uncorrected memory errors.
 
 =over 4
 
