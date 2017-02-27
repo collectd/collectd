@@ -2,7 +2,7 @@
  * collectd - src/mcelog.c
  * MIT License
  *
- * Copyright(c) 2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016-2017 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -54,6 +54,7 @@ typedef struct mcelog_config_s {
   pthread_t tid;          /* poll thread id */
   llist_t *dimms_list;    /* DIMMs list */
   /* lock for dimms cache */
+  _Bool persist;
   pthread_mutex_t dimms_lock;
 } mcelog_config_t;
 
@@ -88,7 +89,7 @@ static int socket_reinit(socket_adapter_t *self);
 static int socket_receive(socket_adapter_t *self, FILE **p_file);
 
 static mcelog_config_t g_mcelog_config = {
-    .logfile = "/var/log/mcelog",
+    .logfile = "/var/log/mcelog", .persist = 0,
 };
 
 static socket_adapter_t socket_adapter = {
@@ -112,7 +113,6 @@ static void mcelog_free_dimms_list_records(llist_t *dimms_list) {
     sfree(e->key);
     sfree(e->value);
   }
-
 }
 
 /* Create or get dimm by dimm name/location */
@@ -161,26 +161,41 @@ static void mcelog_update_dimm_stats(llentry_t *dimm,
   pthread_mutex_lock(&g_mcelog_config.dimms_lock);
   memcpy(dimm->value, rec, sizeof(mcelog_memory_rec_t));
   pthread_mutex_unlock(&g_mcelog_config.dimms_lock);
-
 }
 
 static int mcelog_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-    if (strcasecmp("McelogClientSocket", child->key) == 0) {
-      if (cf_util_get_string_buffer(child, socket_adapter.unix_sock.sun_path,
-                                    sizeof(socket_adapter.unix_sock.sun_path)) <
-          0) {
-        ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
-              child->key);
-        return (-1);
-      }
-    } else if (strcasecmp("McelogLogfile", child->key) == 0) {
+    if (strcasecmp("McelogLogfile", child->key) == 0) {
       if (cf_util_get_string_buffer(child, g_mcelog_config.logfile,
                                     sizeof(g_mcelog_config.logfile)) < 0) {
         ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
               child->key);
         return (-1);
+      }
+    } else if (strcasecmp("Memory", child->key) == 0) {
+      oconfig_item_t *mem_child = child->children;
+      for (int j = 0; j < child->children_num; j++) {
+        mem_child += j;
+        if (strcasecmp("McelogClientSocket", mem_child->key) == 0) {
+          if (cf_util_get_string_buffer(
+                  mem_child, socket_adapter.unix_sock.sun_path,
+                  sizeof(socket_adapter.unix_sock.sun_path)) < 0) {
+            ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
+                  mem_child->key);
+            return (-1);
+          }
+        } else if (strcasecmp("PersistentNotification", mem_child->key) == 0) {
+          if (cf_util_get_boolean(mem_child, &g_mcelog_config.persist) < 0) {
+            ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
+                  mem_child->key);
+            return (-1);
+          }
+        } else {
+          ERROR(MCELOG_PLUGIN ": Invalid Memory configuration option: \"%s\".",
+                mem_child->key);
+          return (-1);
+        }
       }
     } else {
       ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
@@ -292,23 +307,28 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
 
   llentry_t *dimm = mcelog_dimm(mr, g_mcelog_config.dimms_list);
   if (dimm == NULL) {
-      ERROR(MCELOG_PLUGIN ": Error adding/getting dimm memory item to/from cache");
-      return -1;
+    ERROR(MCELOG_PLUGIN
+          ": Error adding/getting dimm memory item to/from cache");
+    return (-1);
   }
-
   mcelog_memory_rec_t *mr_old = dimm->value;
+  if (!g_mcelog_config.persist) {
 
-  if (mr_old->corrected_err_total != mr->corrected_err_total ||
-      mr_old->corrected_err_timed != mr->corrected_err_timed)
+    if (mr_old->corrected_err_total != mr->corrected_err_total ||
+        mr_old->corrected_err_timed != mr->corrected_err_timed)
+      dispatch_corrected_notifs = 1;
+
+    if (mr_old->uncorrected_err_total != mr->uncorrected_err_total ||
+        mr_old->uncorrected_err_timed != mr->uncorrected_err_timed)
+      dispatch_uncorrected_notifs = 1;
+
+    if (!dispatch_corrected_notifs && !dispatch_uncorrected_notifs) {
+      DEBUG("%s: No new notifications to dispatch", MCELOG_PLUGIN);
+      return (0);
+    }
+  } else {
     dispatch_corrected_notifs = 1;
-
-  if (mr_old->uncorrected_err_total != mr->uncorrected_err_total ||
-      mr_old->uncorrected_err_timed != mr->uncorrected_err_timed)
     dispatch_uncorrected_notifs = 1;
-
-  if (!dispatch_corrected_notifs && !dispatch_uncorrected_notifs) {
-    DEBUG("%s: No new notifications to dispatch", MCELOG_PLUGIN);
-    return (0);
   }
 
   sstrncpy(n.host, hostname_g, sizeof(n.host));
@@ -384,8 +404,9 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
 
   llentry_t *dimm = mcelog_dimm(mr, g_mcelog_config.dimms_list);
   if (dimm == NULL) {
-      ERROR(MCELOG_PLUGIN ": Error adding/getting dimm memory item to/from cache");
-      return -1;
+    ERROR(MCELOG_PLUGIN
+          ": Error adding/getting dimm memory item to/from cache");
+    return (-1);
   }
 
   value_list_t vl = {

@@ -3475,11 +3475,23 @@ client protocol to retrieve memory related machine check exceptions. Note that
 for memory exceptions, notifications are only sent when there is a change in
 the number of corrected/uncorrected memory errors.
 
-=over 4
+=head3 The Memory block
+
+=over 3
 
 =item B<McelogClientSocket> I<Path>
 Connect to the mcelog client socket using the UNIX domain socket at I<Path>.
 Defaults to B<"/var/run/mcelog-client">.
+
+=item B<PersistentNotification> B<true>|B<false>
+Override default configuration to only send notifications when sent when there
+is a change in the number of corrected/uncorrected memory errors. When set to
+true notifications will be sent for every read cycle. Default is false. Does
+not affect the stats being dispatched.
+
+=back
+
+=over 4
 
 =item B<McelogLogfile> I<Path>
 

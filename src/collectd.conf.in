@@ -720,8 +720,11 @@
 #</Plugin>
 
 #<Plugin mcelog>
-#	McelogClientSocket "/var/run/mcelog-client"
-#	McelogLogfile "/var/log/mcelog"
+#  <Memory>
+#    McelogClientSocket "/var/run/mcelog-client"
+#    PersistentNotification false
+#  </Memory>
+#  McelogLogfile "/var/log/mcelog"
 #</Plugin>
 
 #<Plugin md>
