@@ -25,8 +25,8 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "collectd.h"
 #include "common.h"
+#include "collectd.h"
 
 #include <pqos.h>
 
@@ -35,6 +35,11 @@
 #define RDT_MAX_SOCKETS 8
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
+
+typedef enum {
+  UNKNOWN = 0,
+  CONFIGURATION_ERROR,
+} rdt_config_status;
 
 struct rdt_core_group_s {
   char *desc;
@@ -55,6 +60,8 @@ struct rdt_ctx_s {
 typedef struct rdt_ctx_s rdt_ctx_t;
 
 static rdt_ctx_t *g_rdt = NULL;
+
+static rdt_config_status g_state = UNKNOWN;
 
 static int isdup(const uint64_t *nums, size_t size, uint64_t val) {
   for (size_t i = 0; i < size; i++)
@@ -460,6 +467,10 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   return (0);
 }
 
+static void rdt_pqos_log(void *context, const size_t size, const char *msg) {
+  DEBUG(RDT_PLUGIN ": %s", msg);
+}
+
 static int rdt_preinit(void) {
   int ret;
 
@@ -474,15 +485,12 @@ static int rdt_preinit(void) {
     return (-ENOMEM);
   }
 
-  /* In case previous instance of the application was not closed properly
-   * call fini and ignore return code. */
-  pqos_fini();
+  struct pqos_config pqos = {.fd_log = -1,
+                             .callback_log = rdt_pqos_log,
+                             .context_log = NULL,
+                             .verbose = 0};
 
-  /* TODO:
-   * stdout should not be used here. Will be reworked when support of log
-   * callback is added to PQoS library.
-  */
-  ret = pqos_init(&(struct pqos_config){.fd_log = STDOUT_FILENO});
+  ret = pqos_init(&pqos);
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDT_PLUGIN ": Error initializing PQoS library!");
     goto rdt_preinit_error1;
@@ -507,6 +515,9 @@ static int rdt_preinit(void) {
     goto rdt_preinit_error2;
   }
 
+  /* Reset pqos monitoring groups registers */
+  pqos_mon_reset();
+
   return (0);
 
 rdt_preinit_error2:
@@ -523,8 +534,14 @@ static int rdt_config(oconfig_item_t *ci) {
   int ret = 0;
 
   ret = rdt_preinit();
-  if (ret != 0)
-    return ret;
+  if (ret != 0) {
+    g_state = CONFIGURATION_ERROR;
+    /* if we return -1 at this point collectd
+      reports a failure in configuration and
+      aborts
+    */
+    goto exit;
+  }
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -532,8 +549,14 @@ static int rdt_config(oconfig_item_t *ci) {
     if (strcasecmp("Cores", child->key) == 0) {
 
       ret = rdt_config_cgroups(child);
-      if (ret != 0)
-        return ret;
+      if (ret != 0) {
+        g_state = CONFIGURATION_ERROR;
+        /* if we return -1 at this point collectd
+           reports a failure in configuration and
+           aborts
+         */
+        goto exit;
+      }
 
 #if COLLECT_DEBUG
       rdt_dump_cgroups();
@@ -544,6 +567,7 @@ static int rdt_config(oconfig_item_t *ci) {
     }
   }
 
+exit:
   return (0);
 }
 
@@ -625,6 +649,9 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
 
 static int rdt_init(void) {
   int ret;
+
+  if(g_state == CONFIGURATION_ERROR)
+    return (-1);
 
   ret = rdt_preinit();
   if (ret != 0)

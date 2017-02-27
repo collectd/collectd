@@ -27,19 +27,16 @@
 #ifndef UTILS_CMD_FLUSH_H
 #define UTILS_CMD_FLUSH_H 1
 
-#include <stdio.h>
-
 #include "utils_cmds.h"
 
-cmd_status_t cmd_parse_flush (size_t argc, char **argv,
-		cmd_flush_t *ret_flush, const cmd_options_t *opts,
-		cmd_error_handler_t *err);
+#include <stdio.h>
 
-cmd_status_t cmd_handle_flush (FILE *fh, char *buffer);
+cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
+                             const cmd_options_t *opts,
+                             cmd_error_handler_t *err);
 
-void cmd_destroy_flush (cmd_flush_t *flush);
+cmd_status_t cmd_handle_flush(FILE *fh, char *buffer);
+
+void cmd_destroy_flush(cmd_flush_t *flush);
 
 #endif /* UTILS_CMD_FLUSH_H */
-
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-

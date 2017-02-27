@@ -29,8 +29,8 @@
 
 #include "collectd.h"
 
-#include "utils_time.h"
 #include "liboconfig/oconfig.h"
+#include "utils_time.h"
 
 /*
  * DESCRIPTION
@@ -40,8 +40,8 @@
  *  `type'      Name of the plugin (must be the same as passed to
  *              `plugin_register'
  */
-void cf_unregister (const char *type);
-void cf_unregister_complex (const char *type);
+void cf_unregister(const char *type);
+void cf_unregister_complex(const char *type);
 
 /*
  * DESCRIPTION
@@ -67,11 +67,10 @@ void cf_unregister_complex (const char *type);
  *  exists for each `type' at any time. This means that `cf_register' may be
  *  called multiple times, but only the last call will have an effect.
  */
-void cf_register (const char *type,
-		int (*callback) (const char *, const char *),
-		const char **keys, int keys_num);
+void cf_register(const char *type, int (*callback)(const char *, const char *),
+                 const char **keys, int keys_num);
 
-int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *));
+int cf_register_complex(const char *type, int (*callback)(oconfig_item_t *));
 
 /*
  * DESCRIPTION
@@ -88,54 +87,54 @@ int cf_register_complex (const char *type, int (*callback) (oconfig_item_t *));
  *  Returns zero upon success and non-zero otherwise. A error-message will have
  *  been printed in this case.
  */
-int cf_read (const char *filename);
+int cf_read(const char *filename);
 
-int global_option_set (const char *option, const char *value, _Bool from_cli);
-const char *global_option_get (const char *option);
-long global_option_get_long (const char *option, long default_value);
+int global_option_set(const char *option, const char *value, _Bool from_cli);
+const char *global_option_get(const char *option);
+long global_option_get_long(const char *option, long default_value);
 
-cdtime_t global_option_get_time (char const *option, cdtime_t default_value);
+cdtime_t global_option_get_time(char const *option, cdtime_t default_value);
 
-cdtime_t cf_get_default_interval (void);
+cdtime_t cf_get_default_interval(void);
 
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
  * success. */
-int cf_util_get_string (const oconfig_item_t *ci, char **ret_string);
+int cf_util_get_string(const oconfig_item_t *ci, char **ret_string);
 
 /* Assures the config option is a string and copies it to the provided buffer.
  * Assures null-termination. */
-int cf_util_get_string_buffer (const oconfig_item_t *ci, char *buffer,
-		size_t buffer_size);
+int cf_util_get_string_buffer(const oconfig_item_t *ci, char *buffer,
+                              size_t buffer_size);
 
 /* Assures the config option is a number and returns it as an int. */
-int cf_util_get_int (const oconfig_item_t *ci, int *ret_value);
+int cf_util_get_int(const oconfig_item_t *ci, int *ret_value);
 
 /* Assures the config option is a number and returns it as a double. */
-int cf_util_get_double (const oconfig_item_t *ci, double *ret_value);
+int cf_util_get_double(const oconfig_item_t *ci, double *ret_value);
 
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */
-int cf_util_get_boolean (const oconfig_item_t *ci, _Bool *ret_bool);
+int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool);
 
 /* Assures the config option is a boolean and set or unset the given flag in
  * `ret_value' as appropriate. Returns non-zero on error. */
-int cf_util_get_flag (const oconfig_item_t *ci,
-		unsigned int *ret_value, unsigned int flag);
+int cf_util_get_flag(const oconfig_item_t *ci, unsigned int *ret_value,
+                     unsigned int flag);
 
 /* Assures that the config option is a string or a number if the correct range
  * of 1-65535. The string is then converted to a port number using
  * `service_name_to_port_number' and returned.
  * Returns the port number in the range [1-65535] or less than zero upon
  * failure. */
-int cf_util_get_port_number (const oconfig_item_t *ci);
+int cf_util_get_port_number(const oconfig_item_t *ci);
 
 /* Assures that the config option is either a service name (a string) or a port
  * number (an integer in the appropriate range) and returns a newly allocated
  * string. If ret_string points to a non-NULL pointer, it is freed before
  * assigning a new value. */
-int cf_util_get_service (const oconfig_item_t *ci, char **ret_string);
+int cf_util_get_service(const oconfig_item_t *ci, char **ret_string);
 
-int cf_util_get_cdtime (const oconfig_item_t *ci, cdtime_t *ret_value);
+int cf_util_get_cdtime(const oconfig_item_t *ci, cdtime_t *ret_value);
 
 #endif /* defined(CONFIGFILE_H) */

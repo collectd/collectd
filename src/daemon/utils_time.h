@@ -88,8 +88,9 @@ extern cdtime_t cdtime_mock;
 
 #define CDTIME_T_TO_DOUBLE(t)                                                  \
   (double) { ((double)(t)) / 1073741824.0 }
+#define DOUBLE_TO_CDTIME_T_STATIC(d) ((cdtime_t)((d)*1073741824.0))
 #define DOUBLE_TO_CDTIME_T(d)                                                  \
-  (cdtime_t) { (cdtime_t)((d)*1073741824.0) }
+  (cdtime_t) { DOUBLE_TO_CDTIME_T_STATIC(d) }
 
 #define CDTIME_T_TO_TIMEVAL(t)                                                 \
   (struct timeval) {                                                           \
@@ -129,4 +130,3 @@ int rfc3339_local(char *buffer, size_t buffer_size, cdtime_t t);
 int rfc3339nano_local(char *buffer, size_t buffer_size, cdtime_t t);
 
 #endif /* UTILS_TIME_H */
-/* vim: set sw=2 sts=2 et : */

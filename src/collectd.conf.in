@@ -114,6 +114,7 @@
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
+#@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
@@ -142,6 +143,7 @@
 #@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
+#@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
 #@BUILD_PLUGIN_MD_TRUE@LoadPlugin md
 #@BUILD_PLUGIN_MEMCACHEC_TRUE@LoadPlugin memcachec
 #@BUILD_PLUGIN_MEMCACHED_TRUE@LoadPlugin memcached
@@ -167,6 +169,7 @@
 #@BUILD_PLUGIN_OPENLDAP_TRUE@LoadPlugin openldap
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
+#@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
@@ -210,6 +213,7 @@
 #@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_LOG_TRUE@LoadPlugin write_log
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
+#@BUILD_PLUGIN_WRITE_PROMETHEUS_TRUE@LoadPlugin write_prometheus
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_WRITE_SENSU_TRUE@LoadPlugin write_sensu
@@ -522,14 +526,39 @@
 #	SelectNumericQueryTypes true
 #</Plugin>
 
+#<Plugin "dpdkevents">
+#  <EAL>
+#    Coremask "0x1"
+#    MemoryChannels "4"
+#    ProcessType "secondary"
+#    FilePrefix "rte"
+#  </EAL>
+#  <Event "link_status">
+#    SendEventsOnUpdate true
+#    EnabledPortMask 0xffff
+#    PortName "interface1"
+#    PortName "interface2"
+#    SendNotification false
+#  </Event>
+#  <Event "keep_alive">
+#    SendEventsOnUpdate true
+#    LCoreMask "0xf"
+#    KeepAliveShmName "/dpdk_keepalive_shm_name"
+#    SendNotification false
+#  </Event>
+#</Plugin>
+
 #<Plugin dpdkstat>
-#       Interval 1
-#       Coremask "0xf"
-#       ProcessType "secondary"
-#       FilePrefix "rte"
-#       EnabledPortMask 0xffff
-#       PortName "interface1"
-#       PortName "interface2"
+#  <EAL>
+#    Coremask "0x2"
+#    MemoryChannels "4"
+#    ProcessType "secondary"
+#    FilePrefix "rte"
+#  </EAL>
+#  SharedMemObj "dpdk_collectd_stats_0"
+#  EnabledPortMask 0xffff
+#  PortName "interface1"
+#  PortName "interface2"
 #</Plugin>
 
 #<Plugin email>
@@ -687,6 +716,11 @@
 #<Plugin mbmon>
 #	Host "127.0.0.1"
 #	Port "411"
+#</Plugin>
+
+#<Plugin mcelog>
+#	McelogClientSocket "/var/run/mcelog-client"
+#	McelogLogfile "/var/log/mcelog"
 #</Plugin>
 
 #<Plugin md>
@@ -932,6 +966,9 @@
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#	ForceSSL true
+#	VerifyPeer true
+#	CAPath "/path/to/folder"
 #</Plugin>
 
 #<Plugin olsrd>
@@ -982,6 +1019,15 @@
 #    Password "secret"
 #    Query "out_of_stock"
 #  </Database>
+#</Plugin>
+
+#<Plugin ovs_events>
+#  Port "6640"
+#  Address "127.0.0.1"
+#  Socket "/var/run/openvswitch/db.sock"
+#  Interfaces "br0" "veth0"
+#  SendNotification false
+#  DispatchValues true
 #</Plugin>
 
 #<Plugin perl>
@@ -1271,6 +1317,27 @@
 #      Instance "local_user"
 #    </Match>
 #  </File>
+#  <File "/var/log/nginx/apache-time.log">
+#    #Use the following log format in nginx:
+#    #log_format response_time '[$host] "$upstream_response_time" ...'
+#    Instance "apache"
+#    <Match>
+#      Regex "^\\S+ \"([0-9.]+)\""
+#      <DSType Distribution>
+#        Percentile 80    # -> latency-foo-80
+#        Percentile 95    # -> latency-foo-95
+#        Percentile 99    # -> latency-foo-99
+#        Bucket 0   0.1   # -> bucket-latency-foo-0_0.1
+#        Bucket 0.1 0.2   # -> bucket-latency-foo-0.1_0.2
+#        Bucket 0.2 0.5   # -> bucket-latency-foo-0.2_0.5
+#        Bucket 0.5 1.0   # -> bucket-latency-foo-0.5_1
+#        Bucket 1.0 2.0   # -> bucket-latency-foo-1_2
+#        Bucket 2.0 0     # -> bucket-latency-foo-2_inf
+#      </DSType>
+#      Type "latency"
+#      Instance "foo"
+#    </Match>
+#  </File>
 #</Plugin>
 
 #<Plugin tail_csv>
@@ -1419,6 +1486,8 @@
 #	HostnameFormat name
 #	InterfaceFormat name
 #	PluginInstanceFormat name
+#	Instances 1
+#	ExtraStats "disk pcpu"
 #</Plugin>
 
 #<Plugin vmem>
@@ -1438,6 +1507,7 @@
 #    AlwaysAppendDS false
 #    EscapeCharacter "_"
 #    SeparateInstances false
+#    PreserveSeparator false
 #    DropDuplicateFields false
 #  </Node>
 #</Plugin>
@@ -1484,6 +1554,10 @@
 #		User "auth_user"
 #		Password "auth_passwd"
 #	</Node>
+#</Plugin>
+
+#<Plugin write_prometheus>
+#	Port "9103"
 #</Plugin>
 
 #<Plugin write_redis>

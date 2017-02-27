@@ -21,116 +21,107 @@
 
 #include "collectd.h"
 
-#include "plugin.h"
 #include "common.h"
+#include "plugin.h"
 
 #if HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
+#include <sys/ioctl.h>
 #endif
 #if HAVE_NET_IF_H
-# include <net/if.h>
+#include <net/if.h>
 #endif
 #if HAVE_NETINET_IN_H
-# include <netinet/in.h>
+#include <netinet/in.h>
 #endif
 
 #include <net/pfvar.h>
 
 #ifndef FCNT_NAMES
-# if FCNT_MAX != 3
-#  error "Unexpected value for FCNT_MAX"
-# endif
-# define FCNT_NAMES {"search", "insert", "removals", NULL};
+#if FCNT_MAX != 3
+#error "Unexpected value for FCNT_MAX"
+#endif
+#define FCNT_NAMES {"search", "insert", "removals", NULL};
 #endif
 
 #ifndef SCNT_NAMES
-# if SCNT_MAX != 3
-#  error "Unexpected value for SCNT_MAX"
-# endif
-# define SCNT_NAMES {"search", "insert", "removals", NULL};
+#if SCNT_MAX != 3
+#error "Unexpected value for SCNT_MAX"
+#endif
+#define SCNT_NAMES {"search", "insert", "removals", NULL};
 #endif
 
-static char const *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-static char const *pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
-static char const *pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-static char const *pf_scounters[SCNT_MAX+1] = SCNT_NAMES;
+static char const *pf_reasons[PFRES_MAX + 1] = PFRES_NAMES;
+static char const *pf_lcounters[LCNT_MAX + 1] = LCNT_NAMES;
+static char const *pf_fcounters[FCNT_MAX + 1] = FCNT_NAMES;
+static char const *pf_scounters[SCNT_MAX + 1] = SCNT_NAMES;
 
 static char const *pf_device = "/dev/pf";
 
-static void pf_submit (char const *type, char const *type_instance,
-		uint64_t val, _Bool is_gauge)
-{
-	value_t		values[1];
-	value_list_t	vl = VALUE_LIST_INIT;
+static void pf_submit(char const *type, char const *type_instance, uint64_t val,
+                      _Bool is_gauge) {
+  value_t values[1];
+  value_list_t vl = VALUE_LIST_INIT;
 
-	if (is_gauge)
-		values[0].gauge = (gauge_t) val;
-	else
-		values[0].derive = (derive_t) val;
+  if (is_gauge)
+    values[0].gauge = (gauge_t)val;
+  else
+    values[0].derive = (derive_t)val;
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.plugin, "pf", sizeof (vl.plugin));
-	sstrncpy (vl.type, type, sizeof(vl.type));
-	sstrncpy (vl.type_instance, type_instance, sizeof(vl.type_instance));
+  vl.values = values;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "pf", sizeof(vl.plugin));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-	plugin_dispatch_values(&vl);
+  plugin_dispatch_values(&vl);
 } /* void pf_submit */
 
-static int pf_read (void)
-{
-	struct pf_status state;
-	int fd;
-	int status;
+static int pf_read(void) {
+  struct pf_status state;
+  int fd;
+  int status;
 
-	fd = open (pf_device, O_RDONLY);
-	if (fd < 0)
-	{
-		char errbuf[1024];
-		ERROR("pf plugin: Unable to open %s: %s",
-				pf_device,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+  fd = open(pf_device, O_RDONLY);
+  if (fd < 0) {
+    char errbuf[1024];
+    ERROR("pf plugin: Unable to open %s: %s", pf_device,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return (-1);
+  }
 
-	status = ioctl (fd, DIOCGETSTATUS, &state);
-	if (status != 0)
-	{
-		char errbuf[1024];
-		ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		close(fd);
-		return (-1);
-	}
+  status = ioctl(fd, DIOCGETSTATUS, &state);
+  if (status != 0) {
+    char errbuf[1024];
+    ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    close(fd);
+    return (-1);
+  }
 
-	close (fd);
+  close(fd);
 
-	if (!state.running)
-	{
-		WARNING ("pf plugin: PF is not running.");
-		return (-1);
-	}
+  if (!state.running) {
+    WARNING("pf plugin: PF is not running.");
+    return (-1);
+  }
 
-	for (int i = 0; i < PFRES_MAX; i++)
-		pf_submit ("pf_counters", pf_reasons[i], state.counters[i],
-				/* is gauge = */ 0);
-	for (int i = 0; i < LCNT_MAX; i++)
-		pf_submit ("pf_limits", pf_lcounters[i], state.lcounters[i],
-				/* is gauge = */ 0);
-	for (int i = 0; i < FCNT_MAX; i++)
-		pf_submit ("pf_state", pf_fcounters[i], state.fcounters[i],
-				/* is gauge = */ 0);
-	for (int i = 0; i < SCNT_MAX; i++)
-		pf_submit ("pf_source", pf_scounters[i], state.scounters[i],
-				/* is gauge = */ 0);
+  for (int i = 0; i < PFRES_MAX; i++)
+    pf_submit("pf_counters", pf_reasons[i], state.counters[i],
+              /* is gauge = */ 0);
+  for (int i = 0; i < LCNT_MAX; i++)
+    pf_submit("pf_limits", pf_lcounters[i], state.lcounters[i],
+              /* is gauge = */ 0);
+  for (int i = 0; i < FCNT_MAX; i++)
+    pf_submit("pf_state", pf_fcounters[i], state.fcounters[i],
+              /* is gauge = */ 0);
+  for (int i = 0; i < SCNT_MAX; i++)
+    pf_submit("pf_source", pf_scounters[i], state.scounters[i],
+              /* is gauge = */ 0);
 
-	pf_submit ("pf_states", "current", (uint32_t) state.states,
-			/* is gauge = */ 1);
+  pf_submit("pf_states", "current", (uint32_t)state.states,
+            /* is gauge = */ 1);
 
-	return (0);
+  return (0);
 } /* int pf_read */
 
-void module_register (void)
-{
-	plugin_register_read ("pf", pf_read);
-}
+void module_register(void) { plugin_register_read("pf", pf_read); }

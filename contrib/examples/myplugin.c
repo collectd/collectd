@@ -18,20 +18,20 @@
  *   is optional
  */
 
-#if ! HAVE_CONFIG_H
+#if !HAVE_CONFIG_H
 
 #include <stdlib.h>
 
 #include <string.h>
 
 #ifndef __USE_ISOC99 /* required for NAN */
-# define DISABLE_ISOC99 1
-# define __USE_ISOC99 1
+#define DISABLE_ISOC99 1
+#define __USE_ISOC99 1
 #endif /* !defined(__USE_ISOC99) */
 #include <math.h>
 #if DISABLE_ISOC99
-# undef DISABLE_ISOC99
-# undef __USE_ISOC99
+#undef DISABLE_ISOC99
+#undef __USE_ISOC99
 #endif /* DISABLE_ISOC99 */
 
 #include <time.h>
@@ -50,10 +50,7 @@
  * - minimum allowed value
  * - maximum allowed value
  */
-static data_source_t dsrc[1] =
-{
-	{ "my_ds", DS_TYPE_GAUGE, 0, NAN }
-};
+static data_source_t dsrc[1] = {{"my_ds", DS_TYPE_GAUGE, 0, NAN}};
 
 /*
  * data set definition:
@@ -67,174 +64,163 @@ static data_source_t dsrc[1] =
  * It is strongly recommended to use one of the types and data-sets
  * pre-defined in the types.db file.
  */
-static data_set_t ds =
-{
-	"myplugin", STATIC_ARRAY_SIZE (dsrc), dsrc
-};
+static data_set_t ds = {"myplugin", STATIC_ARRAY_SIZE(dsrc), dsrc};
 
 /*
  * This function is called once upon startup to initialize the plugin.
  */
-static int my_init (void)
-{
-	/* open sockets, initialize data structures, ... */
+static int my_init(void) {
+  /* open sockets, initialize data structures, ... */
 
-	/* A return value != 0 indicates an error and causes the plugin to be
-	   disabled. */
-    return 0;
+  /* A return value != 0 indicates an error and causes the plugin to be
+     disabled. */
+  return 0;
 } /* static int my_init (void) */
 
 /*
  * This is a utility function used by the read callback to populate a
  * value_list_t and pass it to plugin_dispatch_values.
  */
-static int my_submit (gauge_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
+static int my_submit(gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	/* Convert the gauge_t to a value_t and add it to the value_list_t. */
-	vl.values = &(value_t) { .gauge = value };
-	vl.values_len = 1;
+  /* Convert the gauge_t to a value_t and add it to the value_list_t. */
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
 
-	/* Only set vl.time yourself if you update multiple metrics (i.e. you
-	 * have multiple calls to plugin_dispatch_values()) and they need to all
-	 * have the same timestamp. */
-	/* vl.time = cdtime(); */
+  /* Only set vl.time yourself if you update multiple metrics (i.e. you
+   * have multiple calls to plugin_dispatch_values()) and they need to all
+   * have the same timestamp. */
+  /* vl.time = cdtime(); */
 
-	sstrncpy (vl.plugin, "myplugin", sizeof (vl.plugin));
+  sstrncpy(vl.plugin, "myplugin", sizeof(vl.plugin));
 
-	/* it is strongly recommended to use a type defined in the types.db file
-	 * instead of a custom type */
-	sstrncpy (vl.type, "myplugin", sizeof (vl.type));
-	/* optionally set vl.plugin_instance and vl.type_instance to reasonable
-	 * values (default: "") */
+  /* it is strongly recommended to use a type defined in the types.db file
+   * instead of a custom type */
+  sstrncpy(vl.type, "myplugin", sizeof(vl.type));
+  /* optionally set vl.plugin_instance and vl.type_instance to reasonable
+   * values (default: "") */
 
-	/* dispatch the values to collectd which passes them on to all registered
-	 * write functions */
-	return plugin_dispatch_values (&vl);
+  /* dispatch the values to collectd which passes them on to all registered
+   * write functions */
+  return plugin_dispatch_values(&vl);
 }
 
 /*
  * This function is called in regular intervalls to collect the data.
  */
-static int my_read (void)
-{
-	/* do the magic to read the data */
-	gauge_t value = random ();
+static int my_read(void) {
+  /* do the magic to read the data */
+  gauge_t value = random();
 
-	if (my_submit (value) != 0)
-		WARNING ("myplugin plugin: Dispatching a random value failed.");
+  if (my_submit(value) != 0)
+    WARNING("myplugin plugin: Dispatching a random value failed.");
 
-	/* A return value != 0 indicates an error and the plugin will be skipped
-	 * for an increasing amount of time. */
-	return 0;
+  /* A return value != 0 indicates an error and the plugin will be skipped
+   * for an increasing amount of time. */
+  return 0;
 } /* static int my_read (void) */
 
 /*
  * This function is called after values have been dispatched to collectd.
  */
-static int my_write (const data_set_t *ds, const value_list_t *vl,
-		user_data_t *ud)
-{
-	char name[1024] = "";
-	int i = 0;
+static int my_write(const data_set_t *ds, const value_list_t *vl,
+                    user_data_t *ud) {
+  char name[1024] = "";
+  int i = 0;
 
-	if (ds->ds_num != vl->values_len) {
-		plugin_log (LOG_WARNING, "DS number does not match values length");
-		return -1;
-	}
+  if (ds->ds_num != vl->values_len) {
+    plugin_log(LOG_WARNING, "DS number does not match values length");
+    return -1;
+  }
 
-	/* get the default base filename for the output file - depending on the
-	 * provided values this will be something like
-	 * <host>/<plugin>[-<plugin_type>]/<instance>[-<instance_type>] */
-	if (0 != format_name (name, 1024, vl->host, vl->plugin,
-			vl->plugin_instance, ds->type, vl->type_instance))
-		return -1;
+  /* get the default base filename for the output file - depending on the
+   * provided values this will be something like
+   * <host>/<plugin>[-<plugin_type>]/<instance>[-<instance_type>] */
+  if (0 != format_name(name, 1024, vl->host, vl->plugin, vl->plugin_instance,
+                       ds->type, vl->type_instance))
+    return -1;
 
-	for (i = 0; i < ds->ds_num; ++i) {
-		/* do the magic to output the data */
-		printf ("%s (%s) at %i: ", name,
-				(ds->ds->type == DS_TYPE_GAUGE) ? "GAUGE" : "COUNTER",
-				(int)vl->time);
+  for (i = 0; i < ds->ds_num; ++i) {
+    /* do the magic to output the data */
+    printf("%s (%s) at %i: ", name,
+           (ds->ds->type == DS_TYPE_GAUGE) ? "GAUGE" : "COUNTER",
+           (int)vl->time);
 
-		if (ds->ds->type == DS_TYPE_GAUGE)
-			printf ("%f\n", vl->values[i].gauge);
-		else
-			printf ("%lld\n", vl->values[i].counter);
-	}
-	return 0;
+    if (ds->ds->type == DS_TYPE_GAUGE)
+      printf("%f\n", vl->values[i].gauge);
+    else
+      printf("%lld\n", vl->values[i].counter);
+  }
+  return 0;
 } /* static int my_write (data_set_t *, value_list_t *) */
 
 /*
  * This function is called when plugin_log () has been used.
  */
-static void my_log (int severity, const char *msg, user_data_t *ud)
-{
-	printf ("LOG: %i - %s\n", severity, msg);
-	return;
+static void my_log(int severity, const char *msg, user_data_t *ud) {
+  printf("LOG: %i - %s\n", severity, msg);
+  return;
 } /* static void my_log (int, const char *) */
 
 /*
  * This function is called when plugin_dispatch_notification () has been used.
  */
-static int my_notify (const notification_t *notif, user_data_t *ud)
-{
-	char time_str[32] = "";
-	struct tm *tm = NULL;
+static int my_notify(const notification_t *notif, user_data_t *ud) {
+  char time_str[32] = "";
+  struct tm *tm = NULL;
 
-	int n = 0;
+  int n = 0;
 
-	if (NULL == (tm = localtime (&notif->time)))
-		time_str[0] = '\0';
+  if (NULL == (tm = localtime(&notif->time)))
+    time_str[0] = '\0';
 
-	n = strftime (time_str, 32, "%F %T", tm);
-	if (n >= 32) n = 31;
-	time_str[n] = '\0';
+  n = strftime(time_str, 32, "%F %T", tm);
+  if (n >= 32)
+    n = 31;
+  time_str[n] = '\0';
 
-	printf ("NOTIF (%s): %i - ", time_str, notif->severity);
+  printf("NOTIF (%s): %i - ", time_str, notif->severity);
 
-	if ('\0' != *notif->host)
-		printf ("%s: ", notif->host);
+  if ('\0' != *notif->host)
+    printf("%s: ", notif->host);
 
-	if ('\0' != *notif->plugin)
-		printf ("%s: ", notif->plugin);
+  if ('\0' != *notif->plugin)
+    printf("%s: ", notif->plugin);
 
-	if ('\0' != *notif->plugin_instance)
-		printf ("%s: ", notif->plugin_instance);
+  if ('\0' != *notif->plugin_instance)
+    printf("%s: ", notif->plugin_instance);
 
-	if ('\0' != *notif->type)
-		printf ("%s: ", notif->type);
+  if ('\0' != *notif->type)
+    printf("%s: ", notif->type);
 
-	if ('\0' != *notif->type_instance)
-		printf ("%s: ", notif->type_instance);
+  if ('\0' != *notif->type_instance)
+    printf("%s: ", notif->type_instance);
 
-	printf ("%s\n", notif->message);
-	return 0;
+  printf("%s\n", notif->message);
+  return 0;
 } /* static int my_notify (notification_t *) */
 
 /*
  * This function is called before shutting down collectd.
  */
-static int my_shutdown (void)
-{
-	/* close sockets, free data structures, ... */
-	return 0;
+static int my_shutdown(void) {
+  /* close sockets, free data structures, ... */
+  return 0;
 } /* static int my_shutdown (void) */
 
 /*
  * This function is called after loading the plugin to register it with
  * collectd.
  */
-void module_register (void)
-{
-	plugin_register_log ("myplugin", my_log, /* user data */ NULL);
-	plugin_register_notification ("myplugin", my_notify,
-			/* user data */ NULL);
-	plugin_register_data_set (&ds);
-	plugin_register_read ("myplugin", my_read);
-	plugin_register_init ("myplugin", my_init);
-	plugin_register_write ("myplugin", my_write, /* user data */ NULL);
-	plugin_register_shutdown ("myplugin", my_shutdown);
-    return;
+void module_register(void) {
+  plugin_register_log("myplugin", my_log, /* user data */ NULL);
+  plugin_register_notification("myplugin", my_notify,
+                               /* user data */ NULL);
+  plugin_register_data_set(&ds);
+  plugin_register_read("myplugin", my_read);
+  plugin_register_init("myplugin", my_init);
+  plugin_register_write("myplugin", my_write, /* user data */ NULL);
+  plugin_register_shutdown("myplugin", my_shutdown);
+  return;
 } /* void module_register (void) */
-

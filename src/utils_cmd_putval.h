@@ -27,20 +27,21 @@
 #ifndef UTILS_CMD_PUTVAL_H
 #define UTILS_CMD_PUTVAL_H 1
 
-#include <stdio.h>
-
 #include "plugin.h"
 #include "utils_cmds.h"
 
-cmd_status_t cmd_parse_putval (size_t argc, char **argv,
-		cmd_putval_t *ret_putval, const cmd_options_t *opts,
-		cmd_error_handler_t *err);
+#include <stdio.h>
 
-cmd_status_t cmd_handle_putval (FILE *fh, char *buffer);
+cmd_status_t cmd_parse_putval(size_t argc, char **argv,
+                              cmd_putval_t *ret_putval,
+                              const cmd_options_t *opts,
+                              cmd_error_handler_t *err);
 
-void cmd_destroy_putval (cmd_putval_t *putval);
+cmd_status_t cmd_handle_putval(FILE *fh, char *buffer);
 
-int cmd_create_putval (char *ret, size_t ret_len,
-		const data_set_t *ds, const value_list_t *vl);
+void cmd_destroy_putval(cmd_putval_t *putval);
+
+int cmd_create_putval(char *ret, size_t ret_len, const data_set_t *ds,
+                      const value_list_t *vl);
 
 #endif /* UTILS_CMD_PUTVAL_H */

@@ -198,13 +198,18 @@ Features
       Queries very detailed usage statistics from wireless LAN adapters and
       interfaces that use the Atheros chipset and the MadWifi driver.
 
-    - md
-      Linux software-RAID device information (number of active, failed, spare
-      and missing disks).
-
     - mbmon
       Motherboard sensors: temperature, fan speed and voltage information,
       using mbmon(1).
+
+    - mcelog
+      Monitor machine check exceptions (hardware errors detected by hardware
+      and reported to software) reported by mcelog and generate appropriate
+      notifications when machine check exceptions are detected.
+
+    - md
+      Linux software-RAID device information (number of active, failed, spare
+      and missing disks).
 
     - memcachec
       Query and parse data from a memcache daemon (memcached).
@@ -282,6 +287,15 @@ Features
 
     - oracle
       Query data from an Oracle database.
+
+    - ovs_events
+      The plugin monitors the link status of Open vSwitch (OVS) connected
+      interfaces, dispatches the values to collectd and sends the notification
+      whenever the link state change occurs in the OVS database. It requires
+      YAJL library to be installed.
+      Detailed instructions for installing and setting up Open vSwitch, see
+      OVS documentation.
+      <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
 
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
@@ -499,6 +513,10 @@ Features
 
     - write_mongodb
       Sends data to MongoDB, a NoSQL database.
+
+    - write_prometheus
+      Publish values using an embedded HTTP server, in a format compatible
+      with Prometheus' collectd_exporter.
 
     - write_redis
       Sends the values to a Redis key-value database server.
@@ -746,10 +764,6 @@ Prerequisites
     Used by the `gps' plugin.
     <http://developer.berlios.de/projects/gpsd/>
 
-  * libhal (optional)
-    If present, the `uuid' plugin will check for UUID from HAL.
-    <http://hal.freedesktop.org/>
-
   * libi2c-dev (optional)
     Used for the plugin `barometer', provides just the i2c-dev.h header file
     for user space i2c development.
@@ -779,6 +793,10 @@ Prerequisites
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
     <http://tangent.org/552/libmemcached.html>
+
+  * libmicrohttpd (optional)
+    Used by the write_prometheus plugin to run an http daemon.
+    <http://www.gnu.org/software/libmicrohttpd/>
 
   * libmnl (optional)
     Used by the `netlink' plugin.
@@ -917,8 +935,8 @@ Prerequisites
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `ceph', `curl_json' and
-    `log_logstash' plugins.
+    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_events'
+    and `log_logstash' plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)
@@ -973,7 +991,6 @@ To generate the `configure` script, you'll need the following dependencies:
 - flex
 - bison
 - libtool
-- libtool-ltdl
 - pkg-config
 
 The `build.sh' script takes no arguments.

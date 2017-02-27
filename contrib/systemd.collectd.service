@@ -18,8 +18,10 @@ ProtectHome=true
 #   ceph            CAP_DAC_OVERRIDE
 #   dns             CAP_NET_RAW
 #   exec            CAP_SETUID CAP_SETGID
+#   intel_rdt       CAP_SYS_RAWIO
 #   iptables        CAP_NET_ADMIN
 #   ping            CAP_NET_RAW
+#   smart           CAP_SYS_RAWIO
 #   turbostat       CAP_SYS_RAWIO
 #
 # Example, if you use the iptables plugin alongside the dns or ping plugin:
