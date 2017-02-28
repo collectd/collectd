@@ -114,7 +114,6 @@
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
-#@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
@@ -524,28 +523,6 @@
 #	Interface "eth0"
 #	IgnoreSource "192.168.0.1"
 #	SelectNumericQueryTypes true
-#</Plugin>
-
-#<Plugin "dpdkevents">
-#  <EAL>
-#    Coremask "0x1"
-#    MemoryChannels "4"
-#    ProcessType "secondary"
-#    FilePrefix "rte"
-#  </EAL>
-#  <Event "link_status">
-#    SendEventsOnUpdate true
-#    EnabledPortMask 0xffff
-#    PortName "interface1"
-#    PortName "interface2"
-#    SendNotification false
-#  </Event>
-#  <Event "keep_alive">
-#    SendEventsOnUpdate true
-#    LCoreMask "0xf"
-#    KeepAliveShmName "/dpdk_keepalive_shm_name"
-#    SendNotification false
-#  </Event>
 #</Plugin>
 
 #<Plugin dpdkstat>
@@ -1527,7 +1504,7 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
-#		Attribute "key" "value"     # only available for KAIRODB format
+#		Attribute "key" "value"     # only available for KAIROSDB format
 #		Metrics true
 #		Notifications false
 #		StoreRates false
