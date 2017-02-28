@@ -297,6 +297,13 @@ Features
       OVS documentation.
       <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
 
+    - ovs_stats
+      The plugin collects the statistics of OVS connected bridges and
+      interfaces. It requires YAJL library to be installed.
+      Detailed instructions for installing and setting up Open vSwitch, see
+      OVS documentation.
+      <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
+
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
       write your own plugins in Perl and return arbitrary values using this
@@ -935,8 +942,8 @@ Prerequisites
     <http://www.xmms.org/>
 
   * libyajl (optional)
-    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_events'
-    and `log_logstash' plugins.
+    Parse JSON data. This is needed for the `ceph', `curl_json', 'ovs_events',
+    'ovs_stats' and `log_logstash' plugins.
     <http://github.com/lloyd/yajl>
 
   * libvarnish (optional)
