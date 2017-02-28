@@ -1297,6 +1297,17 @@ ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
+if BUILD_PLUGIN_OVS_STATS
+pkglib_LTLIBRARIES += ovs_stats.la
+ovs_stats_la_SOURCES = \
+	src/ovs_stats.c \
+	src/utils_ovs.c \
+	src/utils_ovs.h
+ovs_stats_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = src/perl.c

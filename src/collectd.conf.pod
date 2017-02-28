@@ -5692,6 +5692,54 @@ use B<Interval> option of the OVS B<LoadPlugin> block settings. For milliseconds
 simple divide the time by 1000 for example if the desired interval is 50ms, set
 interval to 0.05.
 
+=head2 Plugin C<ovs_stats>
+
+The I<ovs_stats> plugin collects statistics of OVS connected interfaces.
+This plugin uses OVSDB management protocol (RFC7047) monitor mechanism to get
+statistics from OVSDB
+
+B<Synopsis:>
+
+ <Plugin "ovs_stats">
+   Port 6640
+   Address "127.0.0.1"
+   Socket "/var/run/openvswitch/db.sock"
+   Bridges "br0" "br_ext"
+ </Plugin>
+
+The plugin provides the following configuration options:
+
+=over 4
+
+=item B<Address> I<node>
+
+The address of the OVS DB server JSON-RPC interface used by the plugin. To
+enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
+option. See L<ovsdb-server(1)> for more details. The option may be either
+network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
+format. Defaults to B<'localhost'>.
+
+=item B<Port> I<service>
+
+TCP-port to connect to. Either a service name or a port number may be given.
+Defaults to B<6640>.
+
+=item B<Socket> I<path>
+
+The UNIX domain socket path of OVS DB server JSON-RPC interface used by the
+plugin. To enable the interface, the OVS DB daemon should be running with
+C<--remote=punix:> option. See L<ovsdb-server(1)> for more details. If this
+option is set, B<Address> and B<Port> options are ignored.
+
+=item B<Bridges> [I<brname> ...]
+
+List of OVS bridge names to be monitored by this plugin. If this option is
+omitted or is empty then all OVS bridges will be monitored.
+
+Default: empty (monitor all bridges)
+
+=back
+
 =head2 Plugin C<perl>
 
 This plugin embeds a Perl-interpreter into collectd and provides an interface
