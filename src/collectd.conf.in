@@ -1027,8 +1027,8 @@
 #  Address "127.0.0.1"
 #  Socket "/var/run/openvswitch/db.sock"
 #  Interfaces "br0" "veth0"
-#  SendNotification false
-#  DispatchValues true
+#  SendNotification true
+#  DispatchValues false
 #</Plugin>
 
 #<Plugin ovs_stats>
