@@ -181,8 +181,8 @@ static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
 
 static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
                                   const data_set_t *ds, const value_list_t *vl,
-                                  int store_rates, char * const *http_attrs,
-                                  const size_t http_attrs_num) {
+                                  int store_rates, char const *const *http_attrs,
+                                  const int http_attrs_num) {
   char temp[512];
   size_t offset = 0;
   int status;
@@ -232,7 +232,7 @@ static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
     BUFFER_ADD(", \"tags\":\{");
 
     BUFFER_ADD("\"host\": \"%s\"", vl->host);
-    for (size_t j = 0; j < http_attrs_num; j+=2) {
+    for (int j = 0; j < http_attrs_num; j+=2) {
       BUFFER_ADD (", \"%s\":", http_attrs[j]);
       BUFFER_ADD (" \"%s\"", http_attrs[j+1]);
     }
@@ -259,7 +259,7 @@ static int format_kairosdb_value_list_nocheck(
     char *buffer, /* {{{ */
     size_t *ret_buffer_fill, size_t *ret_buffer_free, const data_set_t *ds,
     const value_list_t *vl, int store_rates, size_t temp_size,
-    char * const *http_attrs, const size_t http_attrs_num) {
+    char const *const *http_attrs, const int http_attrs_num) {
   char temp[temp_size];
   int status;
 
@@ -332,8 +332,8 @@ int format_kairosdb_finalize(char *buffer, /* {{{ */
 int format_kairosdb_value_list(char *buffer, /* {{{ */
                                size_t *ret_buffer_fill, size_t *ret_buffer_free,
                                const data_set_t *ds, const value_list_t *vl,
-                               int store_rates, char * const *http_attrs,
-                               const size_t http_attrs_num) {
+                               int store_rates, char const *const *http_attrs,
+                               const int http_attrs_num) {
   if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
       (ret_buffer_free == NULL) || (ds == NULL) || (vl == NULL))
     return (-EINVAL);

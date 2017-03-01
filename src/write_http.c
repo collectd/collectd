@@ -473,7 +473,7 @@ static int wh_write_kairosdb(const data_set_t *ds,
 
   status = format_kairosdb_value_list(cb->send_buffer, &cb->send_buffer_fill,
                                       &cb->send_buffer_free, ds, vl,
-                                      cb->store_rates, http_attrs,
+                                      cb->store_rates, (char const * const *)http_attrs,
                                       http_attrs_num);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
@@ -485,7 +485,7 @@ static int wh_write_kairosdb(const data_set_t *ds,
 
     status = format_kairosdb_value_list(cb->send_buffer, &cb->send_buffer_fill,
                                         &cb->send_buffer_free, ds, vl,
-                                        cb->store_rates, http_attrs,
+                                        cb->store_rates, (char const * const *)http_attrs,
                                         http_attrs_num);
   }
   if (status != 0) {

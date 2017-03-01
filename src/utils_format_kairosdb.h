@@ -41,7 +41,7 @@ int format_kairosdb_initialize(char *buffer, size_t *ret_buffer_fill,
 int format_kairosdb_value_list(char *buffer, size_t *ret_buffer_fill,
                                size_t *ret_buffer_free, const data_set_t *ds,
                                const value_list_t *vl, int store_rates,
-                               char * const *http_attrs, const size_t http_attrs_num);
+                               char const *const *http_attrs, const int http_attrs_num);
 int format_kairosdb_finalize(char *buffer, size_t *ret_buffer_fill,
                              size_t *ret_buffer_free);
 
