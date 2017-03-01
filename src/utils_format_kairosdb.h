@@ -35,7 +35,6 @@
 #define JSON_GAUGE_FORMAT GAUGE_FORMAT
 #endif
 
-
 int format_kairosdb_initialize(char *buffer, size_t *ret_buffer_fill,
                                size_t *ret_buffer_free);
 int format_kairosdb_value_list(char *buffer, size_t *ret_buffer_fill,
