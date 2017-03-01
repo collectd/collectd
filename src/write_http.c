@@ -471,10 +471,9 @@ static int wh_write_kairosdb(const data_set_t *ds,
     }
   }
 
-  status = format_kairosdb_value_list(cb->send_buffer, &cb->send_buffer_fill,
-                                      &cb->send_buffer_free, ds, vl,
-                                      cb->store_rates, (char const * const *)http_attrs,
-                                      http_attrs_num);
+  status = format_kairosdb_value_list(
+      cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
+      cb->store_rates, (char const *const *)http_attrs, http_attrs_num);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -483,10 +482,9 @@ static int wh_write_kairosdb(const data_set_t *ds,
       return (status);
     }
 
-    status = format_kairosdb_value_list(cb->send_buffer, &cb->send_buffer_fill,
-                                        &cb->send_buffer_free, ds, vl,
-                                        cb->store_rates, (char const * const *)http_attrs,
-                                        http_attrs_num);
+    status = format_kairosdb_value_list(
+        cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
+        cb->store_rates, (char const *const *)http_attrs, http_attrs_num);
   }
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
@@ -708,7 +706,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean(child, &cb->log_http_error);
     else if (strcasecmp("Header", child->key) == 0)
       status = wh_config_append_string("Header", &cb->headers, child);
-    else if (strcasecmp ("Attribute", child->key) == 0) {
+    else if (strcasecmp("Attribute", child->key) == 0) {
       char *key = NULL;
       char *val = NULL;
 
@@ -735,8 +733,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       DEBUG("write_http plugins: got attribute: %s => %s", key, val);
       sfree(key);
       sfree(val);
-    }
-    else {
+    } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",
             child->key);

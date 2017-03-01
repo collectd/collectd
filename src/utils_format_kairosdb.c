@@ -181,7 +181,8 @@ static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
 
 static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
                                   const data_set_t *ds, const value_list_t *vl,
-                                  int store_rates, char const *const *http_attrs,
+                                  int store_rates,
+                                  char const *const *http_attrs,
                                   const int http_attrs_num) {
   char temp[512];
   size_t offset = 0;
@@ -232,9 +233,9 @@ static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
     BUFFER_ADD(", \"tags\":\{");
 
     BUFFER_ADD("\"host\": \"%s\"", vl->host);
-    for (int j = 0; j < http_attrs_num; j+=2) {
-      BUFFER_ADD (", \"%s\":", http_attrs[j]);
-      BUFFER_ADD (" \"%s\"", http_attrs[j+1]);
+    for (int j = 0; j < http_attrs_num; j += 2) {
+      BUFFER_ADD(", \"%s\":", http_attrs[j]);
+      BUFFER_ADD(" \"%s\"", http_attrs[j + 1]);
     }
 
     if (strlen(vl->plugin_instance))
