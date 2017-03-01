@@ -742,7 +742,11 @@ static int prom_config(oconfig_item_t *ci) {
     } else if (strcasecmp("StalenessDelta", child->key) == 0) {
       cf_util_get_cdtime(child, &staleness_delta);
     } else if (strcasecmp("EnableIPv6", child->key) == 0) {
-      cf_util_get_boolean(child, &enable_ipv6);
+        #if MHD_VERSION >= 0x00093300
+          cf_util_get_boolean(child, &enable_ipv6);
+        #else
+          WARNING("write_prometheus plugin: Сonfiguration option EnableIPv6 is not supported for XXX versions < 9.33"
+        #endif
     } else {
       WARNING("write_prometheus plugin: Ignoring unknown configuration option "
               "\"%s\".",
