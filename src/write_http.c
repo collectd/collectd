@@ -730,7 +730,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       }
       strarray_add(&http_attrs, &http_attrs_num, key);
       strarray_add(&http_attrs, &http_attrs_num, val);
-      DEBUG("write_http plugins: got attribute: %s => %s", key, val);
+      DEBUG("write_http plugin: got attribute: %s => %s", key, val);
       sfree(key);
       sfree(val);
     } else {
