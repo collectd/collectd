@@ -585,14 +585,14 @@ if test "x$ac_system" = "xLinux"; then
   )
 
   if test "x$have_capability" = "xyes"; then
-    AC_CHECK_LIB([cap], [cap_get_bound],
+    AC_CHECK_LIB([cap], [cap_get_proc],
       [have_capability="yes"],
-      [have_capability="no (cap_get_bound() not found)"]
+      [have_capability="no (cap_get_proc() not found)"]
     )
   fi
 
   if test "x$have_capability" = "xyes"; then
-    AC_DEFINE([HAVE_CAPABILITY], [1], [Define to 1 if you have cap_get_bound() (-lcap).])
+    AC_DEFINE([HAVE_CAPABILITY], [1], [Define to 1 if you have cap_get_proc() (-lcap).])
   fi
 
 else
@@ -2700,30 +2700,46 @@ AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
 AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
 
-if test "x$with_libdpdk" != "xno"
-then
-	if test "x$LIBDPDK_CPPFLAGS" = "x"
-	then
-		LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-	fi
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
-	AC_CHECK_HEADERS([rte_config.h],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (rte_config.h not found)"]
-	)
-	CPPFLAGS="$SAVE_CPPFLAGS"
+if test "x$with_libdpdk" != "xno"; then
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  AC_CHECK_HEADERS([rte_config.h],
+    [
+      with_libdpdk="yes"
+      AC_COMPILE_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[
+              #include <rte_version.h>
+              #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+              #error "required DPDK >= 16.07"
+              #endif
+            ]],
+            [[
+              return 0;
+            ]]
+          )
+        ],
+        [dpdk_keepalive="yes"],
+        [dpdk_keepalive="no (DPDK version < 16.07)"]
+      )
+    ],
+    [with_libdpdk="no (rte_config.h not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
-if test "x$with_libdpdk" = "xyes"
-then
-	SAVE_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-	AC_CHECK_LIB([dpdk], [rte_eal_init],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
-	)
-	LDFLAGS="$SAVE_LDFLAGS"
+if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+  AC_CHECK_LIB([dpdk], [rte_eal_init],
+    [with_libdpdk="yes"],
+    [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
 # }}}
@@ -5186,6 +5202,11 @@ if test "x$with_libupsclient" = "xyes"; then
     [with_libupsclient="no (symbol upscli_connect not found)"]
   )
 
+  AC_CHECK_LIB([upsclient], [upscli_init],
+    [AC_DEFINE([WITH_UPSCLIENT_27], [1], [At least version 2-7])],
+    []
+  )
+
   LDFLAGS="$SAVE_LDFLAGS"
 fi
 
@@ -5881,6 +5902,7 @@ plugin_curl_xml="no"
 plugin_df="no"
 plugin_disk="no"
 plugin_drbd="no"
+plugin_dpdkevents="no"
 plugin_dpdkstat="no"
 plugin_entropy="no"
 plugin_ethstat="no"
@@ -5903,6 +5925,7 @@ plugin_multimeter="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
+plugin_ovs_stats="no"
 plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
@@ -6152,6 +6175,7 @@ fi
 
 if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
   plugin_ovs_events="yes"
+  plugin_ovs_stats="yes"
 fi
 
 if test "x$with_libperl" = "xyes" && test "x$c_cv_have_perl_ithreads" = "xyes"; then
@@ -6231,6 +6255,7 @@ fi
 
 if test "x$with_libdpdk" = "xyes"
 then
+  plugin_dpdkevents="$dpdk_keepalive"
   plugin_dpdkstat="yes"
 fi
 
@@ -6279,6 +6304,7 @@ AC_PLUGIN([dbi],                 [$with_libdbi],            [General database st
 AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
+AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],      [Events from DPDK])
 AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats from DPDK])
 AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
 AC_PLUGIN([email],               [yes],                     [EMail statistics])
@@ -6341,6 +6367,7 @@ AC_PLUGIN([openldap],            [$with_libldap],           [OpenLDAP statistics
 AC_PLUGIN([openvpn],             [yes],                     [OpenVPN client statistics])
 AC_PLUGIN([oracle],              [$with_oracle],            [Oracle plugin])
 AC_PLUGIN([ovs_events],          [$plugin_ovs_events],      [OVS events plugin])
+AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],       [OVS statistics plugin])
 AC_PLUGIN([perl],                [$plugin_perl],            [Embed a Perl interpreter])
 AC_PLUGIN([pf],                  [$have_net_pfvar_h],       [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
@@ -6704,6 +6731,7 @@ AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
+AC_MSG_RESULT([    dpdkevents. . . . . . $enable_dpdkevents])
 AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
 AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
@@ -6766,6 +6794,7 @@ AC_MSG_RESULT([    openldap  . . . . . . $enable_openldap])
 AC_MSG_RESULT([    openvpn . . . . . . . $enable_openvpn])
 AC_MSG_RESULT([    oracle  . . . . . . . $enable_oracle])
 AC_MSG_RESULT([    ovs_events  . . . . . $enable_ovs_events])
+AC_MSG_RESULT([    ovs_stats . . . . . . $enable_ovs_stats])
 AC_MSG_RESULT([    perl  . . . . . . . . $enable_perl])
 AC_MSG_RESULT([    pf  . . . . . . . . . $enable_pf])
 AC_MSG_RESULT([    pinba . . . . . . . . $enable_pinba])

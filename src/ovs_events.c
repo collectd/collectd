@@ -90,6 +90,9 @@ static ovs_events_ctx_t ovs_events_ctx = {
                .ovs_db_serv = "6640"}      /* use default OVS DB service */
 };
 
+/* Forward declaration */
+static int ovs_events_plugin_read(user_data_t *u);
+
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 1 when context is locked.
  */
@@ -224,6 +227,7 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
  * in allocated memory. Returns negative value in case of error.
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
+  _Bool dispatch_values = 1;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
@@ -260,12 +264,28 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
         ovs_events_config_free();
         return (-1);
       }
+    } else if (strcasecmp("DispatchValues", child->key) == 0) {
+      if (cf_util_get_boolean(child, &dispatch_values) != 0) {
+        ovs_events_config_free();
+        return (-1);
+      }
     } else {
       ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here", child->key);
       ovs_events_config_free();
       return (-1);
     }
   }
+  /* Check and warn about invalid configuration */
+  if (!ovs_events_ctx.config.send_notification && !dispatch_values) {
+      WARNING(OVS_EVENTS_PLUGIN ": send notification and dispatch values "
+              "options are disabled. No information will be dispatched by the "
+              "plugin. Please check your configuration");
+  }
+  /* Dispatch link status values if configured */
+  if (dispatch_values)
+    return plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN,
+                                        ovs_events_plugin_read, 0, NULL);
+
   return (0);
 }
 
@@ -633,7 +653,5 @@ static int ovs_events_plugin_shutdown(void) {
 void module_register(void) {
   plugin_register_complex_config(OVS_EVENTS_PLUGIN, ovs_events_plugin_config);
   plugin_register_init(OVS_EVENTS_PLUGIN, ovs_events_plugin_init);
-  plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN, ovs_events_plugin_read,
-                               0, NULL);
   plugin_register_shutdown(OVS_EVENTS_PLUGIN, ovs_events_plugin_shutdown);
 }

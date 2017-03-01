@@ -766,6 +766,14 @@ dns_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
 dns_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
 endif
 
+if BUILD_PLUGIN_DPDKEVENTS
+pkglib_LTLIBRARIES += dpdkevents.la
+dpdkevents_la_SOURCES = src/dpdkevents.c src/utils_dpdk.c src/utils_dpdk.h
+dpdkevents_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkevents_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
+dpdkevents_la_LIBADD = -ldpdk
+endif
+
 if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = src/dpdkstat.c src/utils_dpdk.c src/utils_dpdk.h
@@ -1287,6 +1295,17 @@ ovs_events_la_SOURCES = \
 ovs_events_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
+if BUILD_PLUGIN_OVS_STATS
+pkglib_LTLIBRARIES += ovs_stats.la
+ovs_stats_la_SOURCES = \
+	src/ovs_stats.c \
+	src/utils_ovs.c \
+	src/utils_ovs.h
+ovs_stats_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
 if BUILD_PLUGIN_PERL

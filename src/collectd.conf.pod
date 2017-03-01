@@ -2383,6 +2383,128 @@ Enabled by default, collects unknown (and thus presented as numeric only) query 
 
 =back
 
+=head2 Plugin C<dpdkevents>
+
+The I<dpdkevents plugin> collects events from DPDK such as link status of
+network ports and Keep Alive status of DPDK logical cores.
+In order to get Keep Alive events following requirements must be met:
+- DPDK >= 16.07
+- support for Keep Alive implemented in DPDK application. More details can
+be found here: http://dpdk.org/doc/guides/sample_app_ug/keep_alive.html
+
+B<Synopsis:>
+
+ <Plugin "dpdkevents">
+   <EAL>
+     Coremask "0x1"
+     MemoryChannels "4"
+     ProcessType "secondary"
+     FilePrefix "rte"
+   </EAL>
+   <Event "link_status">
+     SendEventsOnUpdate true
+     EnabledPortMask 0xffff
+     PortName "interface1"
+     PortName "interface2"
+     SendNotification false
+   </Event>
+   <Event "keep_alive">
+     SendEventsOnUpdate true
+     LCoreMask "0xf"
+     KeepAliveShmName "/dpdk_keepalive_shm_name"
+     SendNotification false
+   </Event>
+ </Plugin>
+
+B<Options:>
+
+
+=head3 The EAL block
+
+=over 5
+
+=item B<Coremask> I<Mask>
+
+=item B<Memorychannels> I<Channels>
+
+Number of memory channels per processor socket.
+
+=item B<ProcessType> I<type>
+
+The type of DPDK process instance.
+
+=item B<FilePrefix> I<File>
+
+The prefix text used for hugepage filenames. The filename will be set to
+/var/run/.<prefix>_config where prefix is what is passed in by the user.
+
+=back
+
+=head3 The Event block
+
+The B<Event> block defines configuration for specific event. It accepts a
+single argument which specifies the name of the event.
+
+=head4 Link Status event
+
+=over 5
+
+=item B<SendEventOnUpdate> I<true|false>
+
+If set to true link status value will be dispatched only when it is
+different from previously read value. This is an optional argument - default
+value is true.
+
+=item B<EnabledPortMask> I<Mask>
+
+A hexidecimal bit mask of the DPDK ports which should be enabled. A mask
+of 0x0 means that all ports will be disabled. A bitmask of all F's means
+that all ports will be enabled. This is an optional argument - by default
+all ports are enabled.
+
+=item B<PortName> I<Name>
+
+A string containing an optional name for the enabled DPDK ports. Each PortName
+option should contain only one port name; specify as many PortName options as
+desired. Default naming convention will be used if PortName is blank. If there
+are less PortName options than there are enabled ports, the default naming
+convention will be used for the additional ports.
+
+=item B<SendNotification> I<true|false>
+
+If set to true, link status notifications are sent, instead of link status
+being collected as a statistic. This is an optional argument - default
+value is false.
+
+=back
+
+=head4 Keep Alive event
+
+=over 5
+
+=item B<SendEventOnUpdate> I<true|false>
+
+If set to true keep alive value will be dispatched only when it is
+different from previously read value. This is an optional argument - default
+value is true.
+
+=item B<LCoreMask> I<Mask>
+
+An hexadecimal bit mask of the logical cores to monitor keep alive state.
+
+=item B<KeepAliveShmName> I<Name>
+
+Shared memory name identifier that is used by secondary process to monitor
+the keep alive cores state.
+
+=item B<SendNotification> I<true|false>
+
+If set to true, keep alive notifications are sent, instead of keep alive
+information being collected as a statistic. This is an optional
+argument - default value is false.
+
+=back
+
 =head2 Plugin C<dpdkstat>
 
 The I<dpdkstat plugin> collects information about DPDK interfaces using the
@@ -2398,6 +2520,7 @@ B<Synopsis:>
      FilePrefix "rte"
      SocketMemory "1024"
    </EAL>
+   SharedMemObj "dpdk_collectd_stats_0"
    EnabledPortMask 0xffff
    PortName "interface1"
    PortName "interface2"
@@ -2434,7 +2557,12 @@ sockets in MB. This is an optional value.
 
 =back
 
-=over 4
+=over 3
+
+=item B<SharedMemObj> I<Mask>
+A string containing the name of the shared memory object that should be used to
+share stats from the DPDK secondary process to the collectd dpdkstat plugin.
+Defaults to dpdk_collectd_stats if no other value is configured.
 
 =item B<EnabledPortMask> I<Mask>
 
@@ -2957,6 +3085,10 @@ reports the bandwidth of accessing the remote socket. Also this technology
 allows to monitor instructions per clock (IPC).
 Monitor events are hardware dependant. Monitoring capabilities are detected on
 plugin initialization and only supported events are monitored.
+
+B<Note:> I<intel_rdt> plugin is using model-specific registers (MSRs), which
+require an additional capability to be enabled if collectd is run as a service.
+Please refer to I<contrib/systemd.collectd.service> file for more details.
 
 B<Synopsis:>
 
@@ -5117,6 +5249,35 @@ making it through.
 Add a UPS to collect data from. The format is identical to the one accepted by
 L<upsc(8)>.
 
+=item B<ForceSSL> B<true>|B<false>
+
+Stops connections from falling back to unsecured if an SSL connection
+cannot be established. Defaults to false if undeclared.
+
+=item B<VerifyPeer> I<true>|I<false>
+
+If set to true, requires a CAPath be provided. Will use the CAPath to find
+certificates to use as Trusted Certificates to validate a upsd server certificate.
+If validation of the upsd server certificate fails, the connection will not be
+established. If ForceSSL is undeclared or set to false, setting VerifyPeer to true
+will override and set ForceSSL to true.
+
+=item B<CAPath> I/path/to/certs/folder
+
+If VerifyPeer is set to true, this is required. Otherwise this is ignored.
+The folder pointed at must contain certificate(s) named according to their hash.
+Ex: XXXXXXXX.Y where X is the hash value of a cert and Y is 0. If name collisions
+occur because two different certs have the same hash value, Y can be  incremented
+in order to avoid conflict. To create a symbolic link to a certificate the following
+command can be used from within the directory where the cert resides:
+
+C<ln -s some.crt ./$(openssl x509 -hash -noout -in some.crt).0>
+
+Alternatively, the package openssl-perl provides a command C<c_rehash> that will
+generate links like the one described above for ALL certs in a given folder.
+Example usage:
+C<c_rehash /path/to/certs/folder>
+
 =back
 
 =head2 Plugin C<olsrd>
@@ -5477,6 +5638,7 @@ B<Synopsis:>
    Socket "/var/run/openvswitch/db.sock"
    Interfaces "br0" "veth0"
    SendNotification false
+   DispatchValues true
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -5516,6 +5678,12 @@ Default: empty (all interfaces on all bridges are monitored)
 If set to true, OVS link notifications (interface status and OVS DB connection
 terminate) are sent to collectd. Default value is false.
 
+=item B<DispatchValues> I<true|false>
+
+Dispatch the OVS DB interface link status value with configured plugin interval.
+Defaults to true. Please note, if B<SendNotification> and B<DispatchValues>
+options are false, no OVS information will be provided by the plugin.
+
 =back
 
 B<Note:> By default, the global interval setting is used within which to
@@ -5523,6 +5691,54 @@ retrieve the OVS link status. To configure a plugin-specific interval, please
 use B<Interval> option of the OVS B<LoadPlugin> block settings. For milliseconds
 simple divide the time by 1000 for example if the desired interval is 50ms, set
 interval to 0.05.
+
+=head2 Plugin C<ovs_stats>
+
+The I<ovs_stats> plugin collects statistics of OVS connected interfaces.
+This plugin uses OVSDB management protocol (RFC7047) monitor mechanism to get
+statistics from OVSDB
+
+B<Synopsis:>
+
+ <Plugin "ovs_stats">
+   Port 6640
+   Address "127.0.0.1"
+   Socket "/var/run/openvswitch/db.sock"
+   Bridges "br0" "br_ext"
+ </Plugin>
+
+The plugin provides the following configuration options:
+
+=over 4
+
+=item B<Address> I<node>
+
+The address of the OVS DB server JSON-RPC interface used by the plugin. To
+enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
+option. See L<ovsdb-server(1)> for more details. The option may be either
+network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
+format. Defaults to B<'localhost'>.
+
+=item B<Port> I<service>
+
+TCP-port to connect to. Either a service name or a port number may be given.
+Defaults to B<6640>.
+
+=item B<Socket> I<path>
+
+The UNIX domain socket path of OVS DB server JSON-RPC interface used by the
+plugin. To enable the interface, the OVS DB daemon should be running with
+C<--remote=punix:> option. See L<ovsdb-server(1)> for more details. If this
+option is set, B<Address> and B<Port> options are ignored.
+
+=item B<Bridges> [I<brname> ...]
+
+List of OVS bridge names to be monitored by this plugin. If this option is
+omitted or is empty then all OVS bridges will be monitored.
+
+Default: empty (monitor all bridges)
+
+=back
 
 =head2 Plugin C<perl>
 
@@ -8071,6 +8287,17 @@ For example B<name uuid> means to concatenate the guest name and UUID
 How many read instances you want to use for this plugin. The default is one,
 and the sensible setting is a multiple of the B<ReadThreads> value.
 If you are not sure, just use the default setting.
+
+=item B<ExtraStats> B<string>
+
+Report additional extra statistics. The default is no extra statistics, preserving
+the previous behaviour of the plugin. If unsure, leave the default. If enabled,
+allows the plugin to reported more detailed statistics about the behaviour of
+Virtual Machines. The argument is a space-separated list of selectors.
+Currently supported selectors are:
+B<disk> report extra statistics like number of flush operations and total
+service time for read, write and flush operations.
+B<pcpu> report the physical user/system cpu time consumed by the hypervisor, per-vm.
 
 =back
 

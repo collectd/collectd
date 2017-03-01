@@ -41,8 +41,6 @@
 #define HAVE_YAJL_V2 1
 #endif
 
-#define DEFAULT_LOGFILE LOCALSTATEDIR "/log/" PACKAGE_NAME ".json.log"
-
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
 #else
@@ -149,8 +147,7 @@ static void log_logstash_print(yajl_gen g, int severity,
   pthread_mutex_lock(&file_lock);
 
   if (log_file == NULL) {
-    fh = fopen(DEFAULT_LOGFILE, "a");
-    do_close = 1;
+    fh = stderr;
   } else if (strcasecmp(log_file, "stdout") == 0) {
     fh = stdout;
     do_close = 0;
@@ -164,8 +161,7 @@ static void log_logstash_print(yajl_gen g, int severity,
 
   if (fh == NULL) {
     char errbuf[1024];
-    fprintf(stderr, "log_logstash plugin: fopen (%s) failed: %s\n",
-            (log_file == NULL) ? DEFAULT_LOGFILE : log_file,
+    fprintf(stderr, "log_logstash plugin: fopen (%s) failed: %s\n", log_file,
             sstrerror(errno, errbuf, sizeof(errbuf)));
   } else {
     fprintf(fh, "%s\n", buf);

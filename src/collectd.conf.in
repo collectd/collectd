@@ -114,6 +114,7 @@
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
+#@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
@@ -169,6 +170,7 @@
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
+#@BUILD_PLUGIN_OVS_STATS_TRUE@LoadPlugin ovs_stats
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
@@ -525,6 +527,28 @@
 #	SelectNumericQueryTypes true
 #</Plugin>
 
+#<Plugin "dpdkevents">
+#  <EAL>
+#    Coremask "0x1"
+#    MemoryChannels "4"
+#    ProcessType "secondary"
+#    FilePrefix "rte"
+#  </EAL>
+#  <Event "link_status">
+#    SendEventsOnUpdate true
+#    EnabledPortMask 0xffff
+#    PortName "interface1"
+#    PortName "interface2"
+#    SendNotification false
+#  </Event>
+#  <Event "keep_alive">
+#    SendEventsOnUpdate true
+#    LCoreMask "0xf"
+#    KeepAliveShmName "/dpdk_keepalive_shm_name"
+#    SendNotification false
+#  </Event>
+#</Plugin>
+
 #<Plugin dpdkstat>
 #  <EAL>
 #    Coremask "0x2"
@@ -532,6 +556,7 @@
 #    ProcessType "secondary"
 #    FilePrefix "rte"
 #  </EAL>
+#  SharedMemObj "dpdk_collectd_stats_0"
 #  EnabledPortMask 0xffff
 #  PortName "interface1"
 #  PortName "interface2"
@@ -942,6 +967,9 @@
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#	ForceSSL true
+#	VerifyPeer true
+#	CAPath "/path/to/folder"
 #</Plugin>
 
 #<Plugin olsrd>
@@ -1000,6 +1028,14 @@
 #  Socket "/var/run/openvswitch/db.sock"
 #  Interfaces "br0" "veth0"
 #  SendNotification false
+#  DispatchValues true
+#</Plugin>
+
+#<Plugin ovs_stats>
+#  Port "6640"
+#  Address "127.0.0.1"
+#  Socket "/var/run/openvswitch/db.sock"
+#  Bridges "br0" "br_ext"
 #</Plugin>
 
 #<Plugin perl>
@@ -1459,6 +1495,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
+#	ExtraStats "disk pcpu"
 #</Plugin>
 
 #<Plugin vmem>

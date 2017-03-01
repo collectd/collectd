@@ -37,6 +37,18 @@
 /* Plugin name */
 #define PLUGIN_NAME "virt"
 
+#ifdef LIBVIR_CHECK_VERSION
+
+#if LIBVIR_CHECK_VERSION(0, 9, 5)
+#define HAVE_BLOCK_STATS_FLAGS 1
+#endif
+
+#if LIBVIR_CHECK_VERSION(0, 9, 11)
+#define HAVE_CPU_STATS 1
+#endif
+
+#endif /* LIBVIR_CHECK_VERSION */
+
 static const char *config_keys[] = {"Connection",
 
                                     "RefreshInterval",
@@ -54,6 +66,7 @@ static const char *config_keys[] = {"Connection",
                                     "PluginInstanceFormat",
 
                                     "Instances",
+                                    "ExtraStats",
 
                                     NULL};
 #define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
@@ -158,6 +171,19 @@ enum bd_field { target, source };
 /* InterfaceFormat. */
 enum if_field { if_address, if_name, if_number };
 
+/* ExtraStats */
+#define EX_STATS_MAX_FIELDS 8
+enum ex_stats { ex_stats_none = 0, ex_stats_disk = 1, ex_stats_pcpu = 2 };
+static unsigned int extra_stats = ex_stats_none;
+
+struct ex_stats_item {
+  const char *name;
+  enum ex_stats flag;
+};
+static const struct ex_stats_item ex_stats_table[] = {
+    {"disk", ex_stats_disk}, {"pcpu", ex_stats_pcpu}, {NULL, ex_stats_none},
+};
+
 /* BlockDeviceFormatBasename */
 _Bool blockdevice_format_basename = 0;
 static enum bd_field blockdevice_format = target;
@@ -168,6 +194,71 @@ static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
 
+struct lv_info {
+  virDomainInfo di;
+  unsigned long long total_user_cpu_time;
+  unsigned long long total_syst_cpu_time;
+};
+
+struct lv_block_info {
+  virDomainBlockStatsStruct bi;
+
+  long long rd_total_times;
+  long long wr_total_times;
+
+  long long fl_req;
+  long long fl_total_times;
+};
+
+static void init_block_info(struct lv_block_info *binfo) {
+  if (binfo == NULL)
+    return;
+
+  binfo->bi.rd_req = -1;
+  binfo->bi.wr_req = -1;
+  binfo->bi.rd_bytes = -1;
+  binfo->bi.wr_bytes = -1;
+
+  binfo->rd_total_times = -1;
+  binfo->wr_total_times = -1;
+  binfo->fl_req = -1;
+  binfo->fl_total_times = -1;
+}
+
+#ifdef HAVE_BLOCK_STATS_FLAGS
+
+#define GET_BLOCK_INFO_VALUE(NAME, FIELD)                                      \
+  do {                                                                         \
+    if (!strcmp(param[i].field, NAME)) {                                       \
+      binfo->FIELD = param[i].value.l;                                         \
+      continue;                                                                \
+    }                                                                          \
+  } while (0)
+
+static int get_block_info(struct lv_block_info *binfo,
+                          virTypedParameterPtr param, int nparams) {
+  if (binfo == NULL || param == NULL)
+    return -1;
+
+  for (int i = 0; i < nparams; ++i) {
+    /* ignore type. Everything must be LLONG anyway. */
+    GET_BLOCK_INFO_VALUE("rd_operations", bi.rd_req);
+    GET_BLOCK_INFO_VALUE("wr_operations", bi.wr_req);
+    GET_BLOCK_INFO_VALUE("rd_bytes", bi.rd_bytes);
+    GET_BLOCK_INFO_VALUE("wr_bytes", bi.wr_bytes);
+    GET_BLOCK_INFO_VALUE("rd_total_times", rd_total_times);
+    GET_BLOCK_INFO_VALUE("wr_total_times", wr_total_times);
+    GET_BLOCK_INFO_VALUE("flush_operations", fl_req);
+    GET_BLOCK_INFO_VALUE("flush_total_times", fl_total_times);
+  }
+
+  return 0;
+}
+
+#undef GET_BLOCK_INFO_VALUE
+
+#endif /* HAVE_BLOCK_STATS_FLAGS */
+
 /* ERROR(...) macro for virterrors. */
 #define VIRT_ERROR(conn, s)                                                    \
   do {                                                                         \
@@ -176,6 +267,54 @@ static int refresh_lists(struct lv_read_instance *inst);
     if (err)                                                                   \
       ERROR("%s: %s", (s), err->message);                                      \
   } while (0)
+
+static void init_lv_info(struct lv_info *info) {
+  if (info != NULL)
+    memset(info, 0, sizeof(*info));
+}
+
+static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
+#ifdef HAVE_CPU_STATS
+  virTypedParameterPtr param = NULL;
+  int nparams = 0;
+#endif /* HAVE_CPU_STATS */
+  int ret = virDomainGetInfo(dom, &(info->di));
+  if (ret != 0) {
+    return ret;
+  }
+
+#ifdef HAVE_CPU_STATS
+  nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
+  if (nparams < 0) {
+    VIRT_ERROR(conn, "getting the CPU params count");
+    return -1;
+  }
+
+  param = calloc(nparams, sizeof(virTypedParameter));
+  if (param == NULL) {
+    ERROR("virt plugin: alloc(%i) for cpu parameters failed.", nparams);
+    return -1;
+  }
+
+  ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
+  if (ret < 0) {
+    virTypedParamsFree(param, nparams);
+    VIRT_ERROR(conn, "getting the disk params values");
+    return -1;
+  }
+
+  for (int i = 0; i < nparams; ++i) {
+    if (!strcmp(param[i].field, "user_time"))
+      info->total_user_cpu_time = param[i].value.ul;
+    else if (!strcmp(param[i].field, "system_time"))
+      info->total_syst_cpu_time = param[i].value.ul;
+  }
+
+  virTypedParamsFree(param, nparams);
+#endif /* HAVE_CPU_STATS */
+
+  return 0;
+}
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
   int n;
@@ -283,6 +422,23 @@ static void memory_stats_submit(gauge_t value, virDomainPtr dom,
   submit(dom, "memory", tags[tag_index], &(value_t){.gauge = value}, 1);
 }
 
+static void submit_derive2(const char *type, derive_t v0, derive_t v1,
+                           virDomainPtr dom, const char *devname) {
+  value_t values[] = {
+      {.derive = v0}, {.derive = v1},
+  };
+
+  submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
+} /* void submit_derive2 */
+
+static void pcpu_submit(virDomainPtr dom, struct lv_info *info) {
+#ifdef HAVE_CPU_STATS
+  if (extra_stats & ex_stats_pcpu)
+    submit_derive2("ps_cputime", info->total_user_cpu_time,
+                   info->total_syst_cpu_time, dom, NULL);
+#endif /* HAVE_CPU_STATS */
+}
+
 static void cpu_submit(unsigned long long value, virDomainPtr dom,
                        const char *type) {
   submit(dom, type, NULL, &(value_t){.derive = (derive_t)value}, 1);
@@ -297,14 +453,51 @@ static void vcpu_submit(derive_t value, virDomainPtr dom, int vcpu_nr,
   submit(dom, type, type_instance, &(value_t){.derive = value}, 1);
 }
 
-static void submit_derive2(const char *type, derive_t v0, derive_t v1,
-                           virDomainPtr dom, const char *devname) {
-  value_t values[] = {
-      {.derive = v0}, {.derive = v1},
-  };
+static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
+                        const char *type_instance) {
+  char flush_type_instance[DATA_MAX_NAME_LEN];
 
-  submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
-} /* void submit_derive2 */
+  ssnprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
+            type_instance);
+
+  if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
+    submit_derive2("disk_ops", (derive_t)binfo->bi.rd_req,
+                   (derive_t)binfo->bi.wr_req, dom, type_instance);
+
+  if ((binfo->bi.rd_bytes != -1) && (binfo->bi.wr_bytes != -1))
+    submit_derive2("disk_octets", (derive_t)binfo->bi.rd_bytes,
+                   (derive_t)binfo->bi.wr_bytes, dom, type_instance);
+
+  if (extra_stats & ex_stats_disk) {
+    if ((binfo->rd_total_times != -1) && (binfo->wr_total_times != -1))
+      submit_derive2("disk_time", (derive_t)binfo->rd_total_times,
+                     (derive_t)binfo->wr_total_times, dom, type_instance);
+
+    if (binfo->fl_req != -1)
+      submit(dom, "total_requests", flush_type_instance,
+             &(value_t){.derive = (derive_t)binfo->fl_req}, 1);
+    if (binfo->fl_total_times != -1) {
+      derive_t value = binfo->fl_total_times / 1000; // ns -> ms
+      submit(dom, "total_time_in_ms", flush_type_instance,
+             &(value_t){.derive = value}, 1);
+    }
+  }
+}
+
+static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
+  unsigned int ex_stats_flags = ex_stats_none;
+  for (int i = 0; i < numexstats; i++) {
+    for (int j = 0; ex_stats_table[j].name != NULL; j++) {
+      if (strcasecmp(exstats[i], ex_stats_table[j].name) == 0) {
+        DEBUG(PLUGIN_NAME " plugin: enabling extra stats for '%s'",
+              ex_stats_table[j].name);
+        ex_stats_flags |= ex_stats_table[j].flag;
+        break;
+      }
+    }
+  }
+  return ex_stats_flags;
+}
 
 static int lv_config(const char *key, const char *value) {
   if (virInitialize() != 0)
@@ -500,6 +693,17 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
 
+  if (strcasecmp(key, "ExtraStats") == 0) {
+    char *localvalue = strdup(value);
+    if (localvalue != NULL) {
+      char *exstats[EX_STATS_MAX_FIELDS];
+      int numexstats =
+          strsplit(localvalue, exstats, STATIC_ARRAY_SIZE(exstats));
+      extra_stats = parse_ex_stats_flags(exstats, numexstats);
+      sfree(localvalue);
+    }
+  }
+
   /* Unrecognised option. */
   return -1;
 }
@@ -525,6 +729,40 @@ static void lv_disconnect(void) {
     virConnectClose(conn);
   conn = NULL;
   WARNING(PLUGIN_NAME " plugin: closed connection to libvirt");
+}
+
+static int lv_domain_block_info(virDomainPtr dom, const char *path,
+                                struct lv_block_info *binfo) {
+#ifdef HAVE_BLOCK_STATS_FLAGS
+  virTypedParameterPtr params = NULL;
+  int nparams = 0;
+  int rc = -1;
+  int ret = virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0);
+  if (ret < 0 || nparams == 0) {
+    VIRT_ERROR(conn, "getting the disk params count");
+    return -1;
+  }
+
+  params = calloc(nparams, sizeof(virTypedParameter));
+  if (params == NULL) {
+    ERROR("virt plugin: alloc(%i) for block=%s parameters failed.", nparams,
+          path);
+    return -1;
+  }
+  ret = virDomainBlockStatsFlags(dom, path, params, &nparams, 0);
+  if (ret < 0) {
+    VIRT_ERROR(conn, "getting the disk params values");
+    goto done;
+  }
+
+  rc = get_block_info(binfo, params, nparams);
+
+done:
+  virTypedParamsFree(params, nparams);
+  return rc;
+#else
+  return virDomainBlockStats(dom, path, &(binfo->bi), sizeof(binfo->bi));
+#endif /* HAVE_BLOCK_STATS_FLAGS */
 }
 
 static int lv_read(user_data_t *ud) {
@@ -573,33 +811,30 @@ static int lv_read(user_data_t *ud) {
 
   /* Get CPU usage, memory, VCPU usage for each domain. */
   for (int i = 0; i < state->nr_domains; ++i) {
-    virDomainInfo info;
+    struct lv_info info;
     virVcpuInfoPtr vinfo = NULL;
     virDomainMemoryStatPtr minfo = NULL;
     int status;
 
-    status = virDomainGetInfo(state->domains[i], &info);
+    init_lv_info(&info);
+    status = lv_domain_info(state->domains[i], &info);
     if (status != 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
             status);
       continue;
     }
 
-    if (info.state != VIR_DOMAIN_RUNNING) {
-      /* only gather stats for running domains */
-      continue;
-    }
+    pcpu_submit(state->domains[i], &info);
+    cpu_submit(info.di.cpuTime, state->domains[i], "virt_cpu_total");
+    memory_submit((gauge_t)info.di.memory * 1024, state->domains[i]);
 
-    cpu_submit(info.cpuTime, state->domains[i], "virt_cpu_total");
-    memory_submit((gauge_t)info.memory * 1024, state->domains[i]);
-
-    vinfo = malloc(info.nrVirtCpu * sizeof(vinfo[0]));
+    vinfo = malloc(info.di.nrVirtCpu * sizeof(vinfo[0]));
     if (vinfo == NULL) {
       ERROR(PLUGIN_NAME " plugin: malloc failed.");
       continue;
     }
 
-    status = virDomainGetVcpus(state->domains[i], vinfo, info.nrVirtCpu,
+    status = virDomainGetVcpus(state->domains[i], vinfo, info.di.nrVirtCpu,
                                /* cpu map = */ NULL, /* cpu map length = */ 0);
     if (status < 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
@@ -608,7 +843,7 @@ static int lv_read(user_data_t *ud) {
       continue;
     }
 
-    for (int j = 0; j < info.nrVirtCpu; ++j)
+    for (int j = 0; j < info.di.nrVirtCpu; ++j)
       vcpu_submit(vinfo[j].cpuTime, state->domains[i], vinfo[j].number,
                   "virt_vcpu");
 
@@ -640,29 +875,29 @@ static int lv_read(user_data_t *ud) {
 
   /* Get block device stats for each domain. */
   for (int i = 0; i < state->nr_block_devices; ++i) {
-    struct _virDomainBlockStats stats;
+    struct block_device *bdev = &(state->block_devices[i]);
+    struct lv_block_info binfo;
+    init_block_info(&binfo);
 
-    if (virDomainBlockStats(state->block_devices[i].dom,
-                            state->block_devices[i].path, &stats,
-                            sizeof stats) != 0)
+    if (lv_domain_block_info(bdev->dom, bdev->path, &binfo) < 0)
       continue;
 
-    char *type_instance = NULL;
-    if (blockdevice_format_basename && blockdevice_format == source)
-      type_instance = strdup(basename(state->block_devices[i].path));
-    else
-      type_instance = strdup(state->block_devices[i].path);
+    char *type_instance = bdev->path;
+    char *path = NULL;
+    if (blockdevice_format_basename && blockdevice_format == source) {
+      path = strdup(bdev->path);
+      if (path == NULL) {
+        WARNING(PLUGIN_NAME
+                " plugin: error extracting the basename for '%s', skipped",
+                bdev->path);
+        continue;
+      }
+      type_instance = basename(path);
+    }
 
-    if ((stats.rd_req != -1) && (stats.wr_req != -1))
-      submit_derive2("disk_ops", (derive_t)stats.rd_req, (derive_t)stats.wr_req,
-                     state->block_devices[i].dom, type_instance);
+    disk_submit(&binfo, bdev->dom, type_instance);
 
-    if ((stats.rd_bytes != -1) && (stats.wr_bytes != -1))
-      submit_derive2("disk_octets", (derive_t)stats.rd_bytes,
-                     (derive_t)stats.wr_bytes, state->block_devices[i].dom,
-                     type_instance);
-
-    sfree(type_instance);
+    sfree(path);
   } /* for (nr_block_devices) */
 
   /* Get interface stats for each domain. */
@@ -889,6 +1124,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
       xmlXPathContextPtr xpath_ctx = NULL;
       xmlXPathObjectPtr xpath_obj = NULL;
       char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
+      virDomainInfo info;
+      int status;
 
       dom = virDomainLookupByID(conn, domids[i]);
       if (dom == NULL) {
@@ -901,6 +1138,18 @@ static int refresh_lists(struct lv_read_instance *inst) {
       if (name == NULL) {
         VIRT_ERROR(conn, "virDomainGetName");
         goto cont;
+      }
+
+      status = virDomainGetInfo(dom, &info);
+      if (status != 0) {
+        ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
+              status);
+        continue;
+      }
+
+      if (info.state != VIR_DOMAIN_RUNNING) {
+        DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", name);
+        continue;
       }
 
       if (il_domains && ignorelist_match(il_domains, name) != 0)

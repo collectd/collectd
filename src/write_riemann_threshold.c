@@ -34,8 +34,6 @@
 #include "utils_threshold.h"
 #include "write_riemann_threshold.h"
 
-#include <ltdl.h>
-
 /*
  * Threshold management
  * ====================
