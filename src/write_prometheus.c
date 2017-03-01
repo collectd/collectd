@@ -745,7 +745,7 @@ static int prom_config(oconfig_item_t *ci) {
         #if MHD_VERSION >= 0x00093300
           cf_util_get_boolean(child, &enable_ipv6);
         #else
-          WARNING("write_prometheus plugin: Сonfiguration option EnableIPv6 is not supported for MHD versions < 9.33"
+          WARNING("write_prometheus plugin: Сonfiguration option EnableIPv6 is not supported for MHD versions < 9.33");
         #endif
     } else {
       WARNING("write_prometheus plugin: Ignoring unknown configuration option "
