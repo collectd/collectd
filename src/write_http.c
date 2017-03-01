@@ -711,12 +711,12 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       char *val = NULL;
 
       if (child->values_num != 2) {
-        WARNING("write_http plugins: Attribute need both a key and a value.");
+        WARNING("write_http plugin: Attribute need both a key and a value.");
         break;
       }
       if (child->values[0].type != OCONFIG_TYPE_STRING ||
           child->values[1].type != OCONFIG_TYPE_STRING) {
-        WARNING("write_http plugins: Attribute needs string arguments.");
+        WARNING("write_http plugin: Attribute needs string arguments.");
         break;
       }
       if ((key = strdup(child->values[0].value.string)) == NULL) {
