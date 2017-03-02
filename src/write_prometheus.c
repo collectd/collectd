@@ -768,9 +768,10 @@ static int prom_init() {
 
   if (httpd == NULL) {
     unsigned int flags = MHD_USE_THREAD_PER_CONNECTION;
-    if (enable_ipv6) {
-      flags |= MHD_USE_DUAL_STACK;
-    }
+    #if MHD_VERSION >= 0x00093300
+      if (enable_ipv6)
+        flags |= MHD_USE_DUAL_STACK;
+    #endif
 
     httpd = MHD_start_daemon(flags, httpd_port,
                              /* MHD_AcceptPolicyCallback = */ NULL,
