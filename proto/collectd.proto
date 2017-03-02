@@ -33,12 +33,11 @@ service Collectd {
   // PutValues reads the value lists from the PutValuesRequest stream.
   // The gRPC server embedded into collectd will inject them into the system
   // just like the network plugin.
-  rpc PutValues(stream PutValuesRequest)
-      returns (PutValuesResponse);
+  rpc PutValues(stream PutValuesRequest) returns(PutValuesResponse);
 
   // QueryValues returns a stream of matching value lists from collectd's
   // internal cache.
-  rpc QueryValues(QueryValuesRequest) returns (stream QueryValuesResponse);
+  rpc QueryValues(QueryValuesRequest) returns(stream QueryValuesResponse);
 }
 
 // The arguments to PutValues.

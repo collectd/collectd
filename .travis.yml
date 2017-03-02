@@ -16,12 +16,15 @@ before_install:
       libganglia1-dev
       libgcrypt11-dev
       libglib2.0-dev
+      libgps-dev
       libhiredis-dev
       libi2c-dev
       libldap2-dev
       libltdl-dev
+      liblua5.2-dev
       liblvm2-dev
       libmemcached-dev
+      libmicrohttpd-dev
       libmnl-dev
       libmodbus-dev
       libmosquitto0-dev
@@ -53,4 +56,4 @@ before_install:
       perl
       protobuf-c-compiler
       python-dev
-script: sh build.sh && ./configure --with-python=/usr/bin/python && make distcheck DISTCHECK_CONFIGURE_FLAGS="--with-python=/usr/bin/python"
+script: sh build.sh && ./configure && make distcheck

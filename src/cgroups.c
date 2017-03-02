@@ -25,120 +25,106 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "utils_mount.h"
 #include "utils_ignorelist.h"
+#include "utils_mount.h"
 
-static char const *config_keys[] =
-{
-	"CGroup",
-	"IgnoreSelected"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+static char const *config_keys[] = {"CGroup", "IgnoreSelected"};
+static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *il_cgroup = NULL;
 
-__attribute__ ((nonnull(1)))
-__attribute__ ((nonnull(2)))
-static void cgroups_submit_one (char const *plugin_instance,
-		char const *type_instance, value_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
+__attribute__((nonnull(1))) __attribute__((nonnull(2))) static void
+cgroups_submit_one(char const *plugin_instance, char const *type_instance,
+                   value_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	vl.values = &value;
-	vl.values_len = 1;
-	sstrncpy (vl.plugin, "cgroups", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, plugin_instance,
-			sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "cpu", sizeof (vl.type));
-	sstrncpy (vl.type_instance, type_instance,
-			sizeof (vl.type_instance));
+  vl.values = &value;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "cgroups", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "cpu", sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 } /* void cgroups_submit_one */
 
 /*
  * This callback reads the user/system CPU time for each cgroup.
  */
-static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
-    void *user_data)
-{
-	char abs_path[PATH_MAX];
-	struct stat statbuf;
-	char buf[1024];
-	int status;
+static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
+                              void *user_data) {
+  char abs_path[PATH_MAX];
+  struct stat statbuf;
+  char buf[1024];
+  int status;
 
-	FILE *fh;
+  FILE *fh;
 
-	if (ignorelist_match (il_cgroup, cgroup_name))
-		return (0);
+  if (ignorelist_match(il_cgroup, cgroup_name))
+    return (0);
 
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, cgroup_name);
+  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, cgroup_name);
 
-	status = lstat (abs_path, &statbuf);
-	if (status != 0)
-	{
-		ERROR ("cgroups plugin: stat (\"%s\") failed.",
-				abs_path);
-		return (-1);
-	}
+  status = lstat(abs_path, &statbuf);
+  if (status != 0) {
+    ERROR("cgroups plugin: stat (\"%s\") failed.", abs_path);
+    return (-1);
+  }
 
-	/* We are only interested in directories, so skip everything else. */
-	if (!S_ISDIR (statbuf.st_mode))
-		return (0);
+  /* We are only interested in directories, so skip everything else. */
+  if (!S_ISDIR(statbuf.st_mode))
+    return (0);
 
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s/cpuacct.stat",
-			dirname, cgroup_name);
-	fh = fopen (abs_path, "r");
-	if (fh == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("cgroups plugin: fopen (\"%s\") failed: %s",
-				abs_path,
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+  ssnprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
+            cgroup_name);
+  fh = fopen(abs_path, "r");
+  if (fh == NULL) {
+    char errbuf[1024];
+    ERROR("cgroups plugin: fopen (\"%s\") failed: %s", abs_path,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return (-1);
+  }
 
-	while (fgets (buf, sizeof (buf), fh) != NULL)
-	{
-		char *fields[8];
-		int numfields = 0;
-		char *key;
-		size_t key_len;
-		value_t value;
+  while (fgets(buf, sizeof(buf), fh) != NULL) {
+    char *fields[8];
+    int numfields = 0;
+    char *key;
+    size_t key_len;
+    value_t value;
 
-		/* Expected format:
-		 *
-		 *   user: 12345
-		 *   system: 23456
-		 *
-		 * Or:
-		 *
-		 *   user 12345
-		 *   system 23456
-		 */
-		strstripnewline (buf);
-		numfields = strsplit (buf, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 2)
-			continue;
+    /* Expected format:
+     *
+     *   user: 12345
+     *   system: 23456
+     *
+     * Or:
+     *
+     *   user 12345
+     *   system 23456
+     */
+    strstripnewline(buf);
+    numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
+    if (numfields != 2)
+      continue;
 
-		key = fields[0];
-		key_len = strlen (key);
-		if (key_len < 2)
-			continue;
+    key = fields[0];
+    key_len = strlen(key);
+    if (key_len < 2)
+      continue;
 
-		/* Strip colon off the first column, if found */
-		if (key[key_len - 1] == ':')
-			key[key_len - 1] = 0;
+    /* Strip colon off the first column, if found */
+    if (key[key_len - 1] == ':')
+      key[key_len - 1] = 0;
 
-		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
-		if (status != 0)
-			continue;
+    status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
+    if (status != 0)
+      continue;
 
-		cgroups_submit_one (cgroup_name, key, value);
-	}
+    cgroups_submit_one(cgroup_name, key, value);
+  }
 
-	fclose (fh);
-	return (0);
+  fclose(fh);
+  return (0);
 } /* int read_cpuacct_procs */
 
 /*
@@ -146,108 +132,95 @@ static int read_cpuacct_procs (const char *dirname, char const *cgroup_name,
  * wherever cpuacct is mounted on the system). Calls walk_directory with the
  * read_cpuacct_procs callback on every folder it finds, such as "system".
  */
-static int read_cpuacct_root (const char *dirname, const char *filename,
-		void *user_data)
-{
-	char abs_path[PATH_MAX];
-	struct stat statbuf;
-	int status;
+static int read_cpuacct_root(const char *dirname, const char *filename,
+                             void *user_data) {
+  char abs_path[PATH_MAX];
+  struct stat statbuf;
+  int status;
 
-	ssnprintf (abs_path, sizeof (abs_path), "%s/%s", dirname, filename);
+  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
 
-	status = lstat (abs_path, &statbuf);
-	if (status != 0)
-	{
-		ERROR ("cgroups plugin: stat (%s) failed.", abs_path);
-		return (-1);
-	}
+  status = lstat(abs_path, &statbuf);
+  if (status != 0) {
+    ERROR("cgroups plugin: stat (%s) failed.", abs_path);
+    return (-1);
+  }
 
-	if (S_ISDIR (statbuf.st_mode))
-	{
-		status = walk_directory (abs_path, read_cpuacct_procs,
-				/* user_data = */ NULL,
-				/* include_hidden = */ 0);
-		return (status);
-	}
+  if (S_ISDIR(statbuf.st_mode)) {
+    status = walk_directory(abs_path, read_cpuacct_procs,
+                            /* user_data = */ NULL,
+                            /* include_hidden = */ 0);
+    return (status);
+  }
 
-	return (0);
+  return (0);
 }
 
-static int cgroups_init (void)
-{
-	if (il_cgroup == NULL)
-		il_cgroup = ignorelist_create (1);
+static int cgroups_init(void) {
+  if (il_cgroup == NULL)
+    il_cgroup = ignorelist_create(1);
 
-	return (0);
+  return (0);
 }
 
-static int cgroups_config (const char *key, const char *value)
-{
-	cgroups_init ();
+static int cgroups_config(const char *key, const char *value) {
+  cgroups_init();
 
-	if (strcasecmp (key, "CGroup") == 0)
-	{
-		if (ignorelist_add (il_cgroup, value))
-			return (1);
-		return (0);
-	}
-	else if (strcasecmp (key, "IgnoreSelected") == 0)
-	{
-		if (IS_TRUE (value))
-			ignorelist_set_invert (il_cgroup, 0);
-		else
-			ignorelist_set_invert (il_cgroup, 1);
-		return (0);
-	}
+  if (strcasecmp(key, "CGroup") == 0) {
+    if (ignorelist_add(il_cgroup, value))
+      return (1);
+    return (0);
+  } else if (strcasecmp(key, "IgnoreSelected") == 0) {
+    if (IS_TRUE(value))
+      ignorelist_set_invert(il_cgroup, 0);
+    else
+      ignorelist_set_invert(il_cgroup, 1);
+    return (0);
+  }
 
-	return (-1);
+  return (-1);
 }
 
-static int cgroups_read (void)
-{
-	cu_mount_t *mnt_list = NULL;
-	_Bool cgroup_found = 0;
+static int cgroups_read(void) {
+  cu_mount_t *mnt_list = NULL;
+  _Bool cgroup_found = 0;
 
-	if (cu_mount_getlist (&mnt_list) == NULL)
-	{
-		ERROR ("cgroups plugin: cu_mount_getlist failed.");
-		return (-1);
-	}
+  if (cu_mount_getlist(&mnt_list) == NULL) {
+    ERROR("cgroups plugin: cu_mount_getlist failed.");
+    return (-1);
+  }
 
-	for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL; mnt_ptr = mnt_ptr->next)
-	{
-		/* Find the cgroup mountpoint which contains the cpuacct
-		 * controller. */
-		if ((strcmp(mnt_ptr->type, "cgroup") != 0)
-				|| !cu_mount_checkoption(mnt_ptr->options,
-					"cpuacct", /* full = */ 1))
-			continue;
+  for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL;
+       mnt_ptr = mnt_ptr->next) {
+    /* Find the cgroup mountpoint which contains the cpuacct
+     * controller. */
+    if ((strcmp(mnt_ptr->type, "cgroup") != 0) ||
+        !cu_mount_checkoption(mnt_ptr->options, "cpuacct", /* full = */ 1))
+      continue;
 
-		walk_directory (mnt_ptr->dir, read_cpuacct_root,
-				/* user_data = */ NULL,
-				/* include_hidden = */ 0);
-		cgroup_found = 1;
-		/* It doesn't make sense to check other cpuacct mount-points
-		 * (if any), they contain the same data. */
-		break;
-	}
+    walk_directory(mnt_ptr->dir, read_cpuacct_root,
+                   /* user_data = */ NULL,
+                   /* include_hidden = */ 0);
+    cgroup_found = 1;
+    /* It doesn't make sense to check other cpuacct mount-points
+     * (if any), they contain the same data. */
+    break;
+  }
 
-	cu_mount_freelist (mnt_list);
+  cu_mount_freelist(mnt_list);
 
-	if (!cgroup_found)
-	{
-		WARNING ("cgroups plugin: Unable to find cgroup "
-				"mount-point with the \"cpuacct\" option.");
-		return (-1);
-	}
+  if (!cgroup_found) {
+    WARNING("cgroups plugin: Unable to find cgroup "
+            "mount-point with the \"cpuacct\" option.");
+    return (-1);
+  }
 
-	return (0);
+  return (0);
 } /* int cgroup_read */
 
-void module_register (void)
-{
-	plugin_register_config ("cgroups", cgroups_config,
-			config_keys, config_keys_num);
-	plugin_register_init ("cgroups", cgroups_init);
-	plugin_register_read ("cgroups", cgroups_read);
+void module_register(void) {
+  plugin_register_config("cgroups", cgroups_config, config_keys,
+                         config_keys_num);
+  plugin_register_init("cgroups", cgroups_init);
+  plugin_register_read("cgroups", cgroups_read);
 } /* void module_register */

@@ -148,34 +148,6 @@ instruction set manually:
 
      *  Run `ldconfig` to update the shared library cache.
 
-### Static library
-
-To build static DPDK library for use with collectd:
-
- *  To configure DPDK to build the combined static library `libdpdk.a` ensure
-    that `CONFIG_RTE_BUILD_SHARED_LIB` is set to “n” in `config/common_base` in
-    your DPDK as follows:
-
-        #
-        # Compile to share library
-        #
-        CONFIG_RTE_BUILD_SHARED_LIB=n
-
- *  Prepare the configuration for the appropriate target as specified at:
-    http://dpdk.org/doc/guides/linux_gsg/build_dpdk.html.
-
-    For example:
-
-        make config T=x86_64-native-linuxapp-gcc
-
- *  Build the target using `-fPIC`:
-
-        make EXTRA_CFLAGS=-fPIC -j
-
- *  Install DPDK to `/usr`:
-
-        sudo make install prefix=/usr
-
 ## Build collectd with DPDK
 
 **Note:** DPDK 16.04 is the minimum version and currently supported version of
@@ -199,33 +171,32 @@ implications.
 See also: http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
 
  *  Generate the build script as specified below. (i.e. run `build.sh`).
- *  Configure collectd with the DPDK shared library:
+ *  Configure collectd with the DPDK shared library. If DPDK is installed in
+    custom installation path you can specify headers include path using
+    LIBDPDK_CPPFLAGS variable and libraries path with LIBDPDK_LDFLAGS.
+    Example:
 
-        ./configure --with-libdpdk=/usr
+        ./configure
 
-### Build with the static DPDK library
+        or for custom DPKD installation:
 
-To configure collectd with the DPDK static library:
+        ./configure LIBDPDK_CPPFLAGS="-I/home/joe/include/dpdk" LIBDPDK_LDFLAGS="-L/home/joe/usr/lib"
 
- *  Run *configure* with the following CFLAGS:
-
-        ./configure --with-libdpdk=/usr CFLAGS=" -lpthread -Wl,--whole-archive -Wl,-ldpdk -Wl,-lm -Wl,-lrt -Wl,-lpcap -Wl,-ldl -Wl,--no-whole-archive"
-
- *  Make sure that dpdk and dpdkstat are enabled in the *configure* output.
+ *  Make sure that libdpdk and dpdkstat are enabled in the *configure* output.
 
     Expected output:
 
         Libraries:
         ...
         libdpdk  . . . . . . . . yes
-        
+
         Modules:
         ...
         dpdkstat . . . . . . .yes
 
  *  Build collectd:
 
-        make -j && make -j install.
+    make -j && make -j install
 
     **Note:** As mentioned above, if you are building on Ubuntu 14.04 with
     GCC <= 4.8.X, you need to use:

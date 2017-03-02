@@ -82,7 +82,7 @@ static int hp_config(oconfig_item_t *ci) {
 static void submit_hp(const struct entry_info *info) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t) { .gauge = NAN };
+  vl.values = &(value_t){.gauge = NAN};
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));

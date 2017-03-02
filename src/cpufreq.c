@@ -27,75 +27,68 @@
 
 static int num_cpu = 0;
 
-static int cpufreq_init (void)
-{
-        int status;
-	char filename[256];
+static int cpufreq_init(void) {
+  int status;
+  char filename[256];
 
-	num_cpu = 0;
+  num_cpu = 0;
 
-	while (1)
-	{
-		status = ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/"
-				"scaling_cur_freq", num_cpu);
-		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
-			break;
+  while (1) {
+    status = ssnprintf(filename, sizeof(filename),
+                       "/sys/devices/system/cpu/cpu%d/cpufreq/"
+                       "scaling_cur_freq",
+                       num_cpu);
+    if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
+      break;
 
-		if (access (filename, R_OK))
-			break;
+    if (access(filename, R_OK))
+      break;
 
-		num_cpu++;
-	}
+    num_cpu++;
+  }
 
-	INFO ("cpufreq plugin: Found %d CPU%s", num_cpu,
-			(num_cpu == 1) ? "" : "s");
+  INFO("cpufreq plugin: Found %d CPU%s", num_cpu, (num_cpu == 1) ? "" : "s");
 
-	if (num_cpu == 0)
-		plugin_unregister_read ("cpufreq");
+  if (num_cpu == 0)
+    plugin_unregister_read("cpufreq");
 
-	return (0);
+  return (0);
 } /* int cpufreq_init */
 
-static void cpufreq_submit (int cpu_num, value_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
+static void cpufreq_submit(int cpu_num, value_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	vl.values = &value;
-	vl.values_len = 1;
-	sstrncpy (vl.plugin, "cpufreq", sizeof (vl.plugin));
-	sstrncpy (vl.type, "cpufreq", sizeof (vl.type));
-	ssnprintf (vl.type_instance, sizeof (vl.type_instance), "%i", cpu_num);
+  vl.values = &value;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "cpufreq", sizeof(vl.plugin));
+  sstrncpy(vl.type, "cpufreq", sizeof(vl.type));
+  ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i", cpu_num);
 
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 }
 
-static int cpufreq_read (void)
-{
-	for (int i = 0; i < num_cpu; i++)
-	{
-		char filename[PATH_MAX];
-		ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+static int cpufreq_read(void) {
+  for (int i = 0; i < num_cpu; i++) {
+    char filename[PATH_MAX];
+    ssnprintf(filename, sizeof(filename),
+              "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
 
-		value_t v;
-		if (parse_value_file (filename, &v, DS_TYPE_GAUGE) != 0)
-		{
-			WARNING ("cpufreq plugin: Reading \"%s\" failed.", filename);
-			continue;
-		}
+    value_t v;
+    if (parse_value_file(filename, &v, DS_TYPE_GAUGE) != 0) {
+      WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
+      continue;
+    }
 
-		/* convert kHz to Hz */
-		v.gauge *= 1000.0;
+    /* convert kHz to Hz */
+    v.gauge *= 1000.0;
 
-		cpufreq_submit (i, v);
-	}
+    cpufreq_submit(i, v);
+  }
 
-	return (0);
+  return (0);
 } /* int cpufreq_read */
 
-void module_register (void)
-{
-	plugin_register_init ("cpufreq", cpufreq_init);
-	plugin_register_read ("cpufreq", cpufreq_read);
+void module_register(void) {
+  plugin_register_init("cpufreq", cpufreq_init);
+  plugin_register_read("cpufreq", cpufreq_read);
 }

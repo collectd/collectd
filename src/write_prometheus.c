@@ -694,8 +694,10 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
     return fam;
   }
 
-  if (!allocate)
+  if (!allocate) {
+    sfree(name);
     return NULL;
+  }
 
   fam = metric_family_create(name, ds, vl, ds_index);
   if (fam == NULL) {
@@ -868,5 +870,3 @@ void module_register() {
                           /* user data = */ NULL);
   plugin_register_shutdown("write_prometheus", prom_shutdown);
 }
-
-/* vim: set sw=2 sts=2 et fdm=marker : */
