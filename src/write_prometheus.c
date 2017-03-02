@@ -59,7 +59,9 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
-static _Bool enable_ipv6 = PROMETHEUS_DEFAULT_ENABLE_IPV6;
+#if MHD_VERSION >= 0x00093300
+  static _Bool enable_ipv6 = PROMETHEUS_DEFAULT_ENABLE_IPV6;
+#endif
 
 /* Unfortunately, protoc-c doesn't export it's implementation of varint, so we
  * need to implement our own. */
