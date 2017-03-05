@@ -137,7 +137,6 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
     for (size_t j = 0; (j == 0) || (j < cmd.cmd.flush.identifiers_num); j++) {
       char *identifier = NULL;
       char buf[1024];
-      int status;
 
       if (cmd.cmd.flush.identifiers_num != 0) {
         identifier_t *id = cmd.cmd.flush.identifiers + j;
@@ -150,9 +149,8 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
         identifier = buf;
       }
 
-      status = plugin_flush(plugin, DOUBLE_TO_CDTIME_T(cmd.cmd.flush.timeout),
-                            identifier);
-      if (status == 0)
+      if (plugin_flush(plugin, DOUBLE_TO_CDTIME_T(cmd.cmd.flush.timeout),
+                       identifier) == 0)
         success++;
       else
         error++;
