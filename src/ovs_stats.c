@@ -353,7 +353,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
               YAJL_GET_ARRAY(br_ports->u.array.values[1])->values;
           size_t ports_num = YAJL_GET_ARRAY(br_ports->u.array.values[1])->len;
 
-          for (int i = 0; i < ports_num; i++)
+          for (size_t i = 0; i < ports_num; i++)
             ovs_stats_new_port(
                 br, YAJL_GET_STRING(ports_arr[i]->u.array.values[1]));
         } else
@@ -398,7 +398,7 @@ static void ovs_stats_bridge_table_change_cb(yajl_val jupdates) {
   yajl_val bridges = yajl_tree_get(jupdates, path, yajl_t_object);
 
   if (bridges && YAJL_IS_OBJECT(bridges)) {
-    for (int i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
       yajl_val bridge = YAJL_GET_OBJECT(bridges)->values[i];
       ovs_stats_update_bridge(bridge);
     }
@@ -412,7 +412,7 @@ static void ovs_stats_bridge_table_delete_cb(yajl_val jupdates) {
   yajl_val bridge;
   if (bridges && YAJL_IS_OBJECT(bridges)) {
     pthread_mutex_lock(&g_stats_lock);
-    for (int i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
       bridge = YAJL_GET_OBJECT(bridges)->values[i];
       ovs_stats_del_bridge(bridge);
     }
@@ -498,7 +498,7 @@ static void ovs_stats_port_table_change_cb(yajl_val jupdates) {
   yajl_val ports = yajl_tree_get(jupdates, path, yajl_t_object);
   yajl_val port;
   if (ports && YAJL_IS_OBJECT(ports)) {
-    for (int i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
       port = YAJL_GET_OBJECT(ports)->values[i];
       ovs_stats_update_port(YAJL_GET_OBJECT(ports)->keys[i], port);
     }
@@ -521,7 +521,7 @@ static void ovs_stats_port_table_delete_cb(yajl_val jupdates) {
   yajl_val ports = yajl_tree_get(jupdates, path, yajl_t_object);
   pthread_mutex_lock(&g_stats_lock);
   if (ports && YAJL_IS_OBJECT(ports))
-    for (int i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
       ovs_stats_del_port(YAJL_GET_OBJECT(ports)->keys[i]);
     }
   pthread_mutex_unlock(&g_stats_lock);
@@ -535,7 +535,7 @@ static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
   char *counter_name = NULL;
   int64_t counter_value = 0;
   if (stats && YAJL_IS_ARRAY(stats))
-    for (int i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
       stat = YAJL_GET_ARRAY(stats)->values[i];
       counter_name = YAJL_GET_STRING(YAJL_GET_ARRAY(stat)->values[0]);
       counter_index = ovs_stats_counter_name_to_type(counter_name);
@@ -555,7 +555,7 @@ static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
   char *value;
 
   if (ext_ids && YAJL_IS_ARRAY(ext_ids))
-    for (int i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
       ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
       key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
       value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
@@ -681,7 +681,7 @@ static void ovs_stats_interface_table_change_cb(yajl_val jupdates) {
   yajl_val ports = yajl_tree_get(jupdates, path, yajl_t_object);
   pthread_mutex_lock(&g_stats_lock);
   if (ports && YAJL_IS_OBJECT(ports))
-    for (int i = 0; i < YAJL_GET_OBJECT(ports)->len; i++)
+    for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++)
       ovs_stats_update_iface(YAJL_GET_OBJECT(ports)->values[i]);
   pthread_mutex_unlock(&g_stats_lock);
   return;
