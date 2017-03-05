@@ -111,6 +111,7 @@
 %define with_openldap 0%{!?_without_openldap:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
 %define with_ovs_events 0%{!?_without_ovs_events:1}
+%define with_ovs_stats 0%{!?_without_ovs_stats:1}
 %define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
@@ -232,6 +233,7 @@
 %define with_gps 0
 %define with_mqtt 0
 %define with_ovs_events 0
+%define with_ovs_stats 0
 %define with_redis 0
 %define with_rrdcached 0
 %define with_write_redis 0
@@ -242,7 +244,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	4%{?dist}
+Release:	5%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -680,6 +682,17 @@ BuildRequires: yajl-devel
 This plugin monitors the link status of Open vSwitch (OVS) connected
 interfaces, dispatches the values to collectd and sends notifications
 whenever a link state change occurs in the OVS database.
+%endif
+
+%if %{with_ovs_stats}
+%package ovs_stats
+Summary:       Open vSwitch statistics plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ovs_stats
+This plugin collects statictics of OVS connected bridges and
+interfaces.
 %endif
 
 %if %{with_perl}
@@ -1476,6 +1489,12 @@ Collectd utilities
 %define _with_ovs_events --disable-ovs_events
 %endif
 
+%if %{with_ovs_stats}
+%define _with_ovs_stats --enable-ovs_stats
+%else
+%define _with_ovs_stats --disable-ovs_stats
+%endif
+
 %if %{with_perl}
 %define _with_perl --enable-perl --with-perl-bindings="INSTALLDIRS=vendor"
 %else
@@ -1909,6 +1928,7 @@ Collectd utilities
 	%{?_with_openvpn} \
 	%{?_with_oracle} \
 	%{?_with_ovs_events} \
+	%{?_with_ovs_stats} \
 	%{?_with_perl} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
@@ -2224,6 +2244,9 @@ fi
 %endif
 %if %{with_ovs_events}
 %{_libdir}/%{name}/ovs_events.so
+%endif
+%if %{with_ovs_stats}
+%{_libdir}/%{name}/ovs_stats.so
 %endif
 %if %{with_powerdns}
 %{_libdir}/%{name}/powerdns.so
@@ -2645,6 +2668,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-5
+- Add new ovs_stats plugin
+
 * Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-4
 - Don't enable XFS support on RHEL6, it is missing for i386
 
