@@ -155,7 +155,7 @@ static ovs_stats_config_t ovs_stats_cfg = {
     .ovs_db_serv = "6640",      /* use default OVS DB service */
 };
 
-static const iface_counter ovs_stats_counter_name_to_type(const char *counter) {
+static iface_counter ovs_stats_counter_name_to_type(const char *counter) {
   iface_counter index = not_supported;
 
   if (counter == NULL)
