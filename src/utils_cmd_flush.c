@@ -136,18 +136,18 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
 
     for (size_t j = 0; (j == 0) || (j < cmd.cmd.flush.identifiers_num); j++) {
       char *identifier = NULL;
-      char buffer[1024];
+      char buf[1024];
       int status;
 
       if (cmd.cmd.flush.identifiers_num != 0) {
         identifier_t *id = cmd.cmd.flush.identifiers + j;
-        if (format_name(buffer, sizeof(buffer), id->host, id->plugin,
+        if (format_name(buf, sizeof(buf), id->host, id->plugin,
                         id->plugin_instance, id->type,
                         id->type_instance) != 0) {
           error++;
           continue;
         }
-        identifier = buffer;
+        identifier = buf;
       }
 
       status = plugin_flush(plugin, DOUBLE_TO_CDTIME_T(cmd.cmd.flush.timeout),
