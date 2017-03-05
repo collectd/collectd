@@ -242,16 +242,17 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	3%{?dist}
+Release:	4%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers, libcap-devel, which, xfsprogs-devel
+BuildRequires:	libgcrypt-devel, kernel-headers, libcap-devel, which
 Vendor:		collectd development team <collectd@verplant.org>
 
 %if 0%{?fedora} || 0%{?rhel} >= 7
+BuildRequires:		xfsprogs-devel
 %{?systemd_requires}
 BuildRequires:		systemd
 %else
@@ -2644,6 +2645,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-4
+- Don't enable XFS support on RHEL6, it is missing for i386
+
 * Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-3
 - Add dpdkevents plugin, disabled by default
 
