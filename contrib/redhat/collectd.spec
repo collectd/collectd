@@ -168,10 +168,12 @@
 %define with_aquaero 0%{!?_without_aquaero:0}
 # plugin barometer disabled, requires a libi2c
 %define with_barometer 0%{!?_without_barometer:0}
-# plugin grpc disabled, requires protobuf-compiler >= 3.0
-%define with_grpc 0%{!?_without_grpc:0}
+# plugin dpdkevents disabled, requires libdpdk
+%define with_dpdkevents 0%{!?_without_dpdkevents:0}
 # plugin dpdkstat disabled, requires libdpdk
 %define with_dpdkstat 0%{!?_without_dpdkstat:0}
+# plugin grpc disabled, requires protobuf-compiler >= 3.0
+%define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin intel_rdt disabled, requires intel-cmt-cat
@@ -240,7 +242,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	2%{?dist}
+Release:	3%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -1125,6 +1127,12 @@ Collectd utilities
 %define _with_drbd --disable-drbd
 %endif
 
+%if %{with_dpdkevents}
+%define _with_dpdkevents --enable-dpdkevents
+%else
+%define _with_dpdkevents --disable-dpdkevents
+%endif
+
 %if %{with_dpdkstat}
 %define _with_dpdkstat --enable-dpdkstat
 %else
@@ -1843,6 +1851,7 @@ Collectd utilities
 	%{?_with_disk} \
 	%{?_with_dns} \
 	%{?_with_drbd} \
+	%{?_with_dpdkevents} \
 	%{?_with_dpdkstat} \
 	%{?_with_email} \
 	%{?_with_entropy} \
@@ -2124,6 +2133,9 @@ fi
 %endif
 %if %{with_drbd}
 %{_libdir}/%{name}/drbd.so
+%endif
+%if %{with_dpdkevents}
+%{_libdir}/%{name}/dpdkevents.so
 %endif
 %if %{with_dpdkstat}
 %{_libdir}/%{name}/dpdkstat.so
@@ -2632,6 +2644,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-3
+- Add dpdkevents plugin, disabled by default
+
 * Wed Feb 22 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-2
 - Enable XFS support in df plugin
 - Fix bogus date in changelog
