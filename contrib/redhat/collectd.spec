@@ -244,7 +244,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	5%{?dist}
+Release:	6%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -2155,12 +2155,6 @@ fi
 %if %{with_drbd}
 %{_libdir}/%{name}/drbd.so
 %endif
-%if %{with_dpdkevents}
-%{_libdir}/%{name}/dpdkevents.so
-%endif
-%if %{with_dpdkstat}
-%{_libdir}/%{name}/dpdkstat.so
-%endif
 %if %{with_ethstat}
 %{_libdir}/%{name}/ethstat.so
 %endif
@@ -2241,12 +2235,6 @@ fi
 %endif
 %if %{with_olsrd}
 %{_libdir}/%{name}/olsrd.so
-%endif
-%if %{with_ovs_events}
-%{_libdir}/%{name}/ovs_events.so
-%endif
-%if %{with_ovs_stats}
-%{_libdir}/%{name}/ovs_stats.so
 %endif
 %if %{with_powerdns}
 %{_libdir}/%{name}/powerdns.so
@@ -2425,6 +2413,16 @@ fi
 %{_libdir}/%{name}/dbi.so
 %endif
 
+%if %{with_dpdkevents}
+%files dpdkevents
+%{_libdir}/%{name}/dpdkevents.so
+%endif
+
+%if %{with_dpdkstat}
+%files dpdkstat
+%{_libdir}/%{name}/dpdkstat.so
+%endif
+
 %if %{with_email}
 %files email
 %{_libdir}/%{name}/email.so
@@ -2549,6 +2547,16 @@ fi
 %{_libdir}/%{name}/openldap.so
 %endif
 
+%if %{with_ovs_events}
+%files ovs_events
+%{_libdir}/%{name}/ovs_events.so
+%endif
+
+%if %{with_ovs_stats}
+%files ovs_stats
+%{_libdir}/%{name}/ovs_stats.so
+%endif
+
 %if %{with_perl}
 %files perl
 %{perl_vendorlib}/Collectd.pm
@@ -2668,6 +2676,9 @@ fi
 %doc contrib/
 
 %changelog
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-6
+- Move recently added plugins to subpackages
+
 * Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-5
 - Add new ovs_stats plugin
 
