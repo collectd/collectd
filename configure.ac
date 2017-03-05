@@ -818,6 +818,12 @@ AC_CHECK_LIB(cap, cap_get_proc,
                  [have_capability="no (cap_get_proc() not found)"])
 fi
 if test "x$have_capability" = "xyes"; then
+AC_CHECK_DECL([CAP_IS_SUPPORTED],
+                 [have_capability="yes"],
+                 [have_capability="no (CAP_IS_SUPPORTED not found)"],
+                 [[#include <sys/capability.h>]])
+fi
+if test "x$have_capability" = "xyes"; then
   AC_DEFINE(HAVE_CAPABILITY, 1, [Define to 1 if you have cap_get_proc() (-lcap).])
 fi
 AM_CONDITIONAL(BUILD_WITH_CAPABILITY, test "x$have_capability" = "xyes")
