@@ -875,7 +875,7 @@ static int ovs_stats_plugin_init(void) {
 static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
   bridge_list_t *bridge;
   port_list_t *port;
-  char devname[PORT_NAME_SIZE_MAX];
+  char devname[PORT_NAME_SIZE_MAX * 2];
 
   pthread_mutex_lock(&g_stats_lock);
   for (bridge = g_bridge_list_head; bridge != NULL; bridge = bridge->next) {
