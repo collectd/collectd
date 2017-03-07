@@ -6005,6 +6005,11 @@ if test "x$ac_system" = "xLinux"; then
   if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"; then
     plugin_cpusleep="yes"
   fi
+
+  if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
+    plugin_ovs_events="yes"
+    plugin_ovs_stats="yes"
+  fi
 fi
 
 if test "x$ac_system" = "xOpenBSD"; then
@@ -6179,11 +6184,6 @@ fi
 
 if test "x$with_libyajl" = "xyes"; then
   plugin_log_logstash="yes"
-fi
-
-if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
-  plugin_ovs_events="yes"
-  plugin_ovs_stats="yes"
 fi
 
 if test "x$with_libperl" = "xyes" && test "x$c_cv_have_perl_ithreads" = "xyes"; then
