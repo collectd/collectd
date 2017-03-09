@@ -5764,6 +5764,7 @@ B<Synopsis:>
    Interfaces "br0" "veth0"
    SendNotification true
    DispatchValues false
+   NotifyInterfaceAdd true
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -5808,6 +5809,13 @@ terminate) are sent to collectd. Default value is true.
 Dispatch the OVS DB interface link status value with configured plugin interval.
 Defaults to false. Please note, if B<SendNotification> and B<DispatchValues>
 options are false, no OVS information will be provided by the plugin.
+
+=item B<NotifyInterfaceAdd> I<true|false>
+
+When a new interface is added, its status typically changes from unset to down.
+This leads to an event called a first notification. The severity of this first
+notification is a warning. If NotifyInterfaceAdd is set to false, this first
+notification will be skipped. Defaults to true.
 
 =back
 

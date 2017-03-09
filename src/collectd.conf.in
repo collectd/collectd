@@ -1041,6 +1041,7 @@
 #  Interfaces "br0" "veth0"
 #  SendNotification true
 #  DispatchValues false
+#  NotifyInterfaceAdd true
 #</Plugin>
 
 #<Plugin ovs_stats>

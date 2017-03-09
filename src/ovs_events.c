@@ -81,6 +81,7 @@ struct ovs_events_ctx_s {
   ovs_events_config_t config; /* plugin config */
   char *ovs_db_select_params; /* OVS DB select parameter request */
   _Bool is_db_available;      /* specify whether OVS DB is available */
+  _Bool notify_interface_add;
 };
 typedef struct ovs_events_ctx_s ovs_events_ctx_t;
 
@@ -91,7 +92,8 @@ static ovs_events_ctx_t ovs_events_ctx = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
     .config = {.send_notification = 1,     /* send notification by default */
                .ovs_db_node = "localhost", /* use default OVS DB node */
-               .ovs_db_serv = "6640"}      /* use default OVS DB service */
+               .ovs_db_serv = "6640"},     /* use default OVS DB service */
+    .notify_interface_add = 1              /* send interface add notification by default */
 };
 
 /* Forward declaration */
@@ -128,6 +130,21 @@ static int ovs_events_config_iface_exists(const char *ifname) {
       return 1;
 
   return 0;
+}
+
+static int ovs_events_is_first_update(yajl_val jrow_update) {
+  /* check for new bridge added */
+  yajl_val jnew_val = ovs_utils_get_value_by_key(jrow_update, "old");
+  if (jnew_val == NULL) {
+    ERROR(OVS_EVENTS_PLUGIN ": unexpected row update received");
+    return (-1);
+  }
+  yajl_val  jvalue = ovs_utils_get_value_by_key(jnew_val, "link_state");
+  if (jvalue != NULL && YAJL_IS_STRING(jvalue))
+    return (0);
+  if (jvalue != NULL && YAJL_IS_ARRAY(jvalue))
+    return (1);
+  return (-1);
 }
 
 /* Get OVS DB select parameter request based on rfc7047,
@@ -273,6 +290,11 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
         ovs_events_config_free();
         return -1;
       }
+    } else if (strcasecmp("NotifyInterfaceAdd", child->key) == 0) {
+      if (cf_util_get_boolean(child, &ovs_events_ctx.notify_interface_add) != 0) {
+        ovs_events_config_free();
+        return (-1);
+       }
     } else {
       ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here", child->key);
       ovs_events_config_free();
@@ -495,7 +517,11 @@ static void ovs_events_table_update_cb(yajl_val jupdates) {
   for (size_t row_index = 0; row_index < YAJL_GET_OBJECT(jupdate)->len;
        ++row_index) {
     jrow_update = YAJL_GET_OBJECT(jupdate)->values[row_index];
-
+    /* checking to see if a new interface has been added */
+    if (!ovs_events_ctx.notify_interface_add && ovs_events_is_first_update(jrow_update)) {
+      /* skip first notification if notify_interface_add is false */
+      return;
+    }
     /* check row update */
     jnew_val = ovs_utils_get_value_by_key(jrow_update, "new");
     if (jnew_val == NULL) {
