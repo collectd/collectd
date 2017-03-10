@@ -330,6 +330,9 @@ static yajl_gen_status ovs_yajl_gen_val(yajl_gen jgen, yajl_val jval) {
   size_t obj_len = 0;
   yajl_gen_status yajl_gen_ret = yajl_gen_status_ok;
 
+  if (jval == NULL)
+    return yajl_gen_generation_complete;
+
   if (YAJL_IS_STRING(jval))
     OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, YAJL_GET_STRING(jval));
   else if (YAJL_IS_DOUBLE(jval))
@@ -566,7 +569,11 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
 
   /* get method name */
   if ((jval = yajl_tree_get(jnode, method_path, yajl_t_string)) != NULL) {
-    method = YAJL_GET_STRING(jval);
+    if ((method = YAJL_GET_STRING(jval)) == NULL) {
+      yajl_tree_free(jnode);
+      sfree(sjson);
+      return (-1);
+    }
     if (strcmp("echo", method) == 0) {
       /* echo request from the server */
       if (ovs_db_table_echo_cb(pdb, jnode) < 0)

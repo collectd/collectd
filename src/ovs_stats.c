@@ -349,13 +349,15 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
       if (br_ports && YAJL_IS_ARRAY(br_ports)) {
         char *tmp = YAJL_GET_STRING(br_ports->u.array.values[0]);
         if (tmp != NULL && strcmp("set", tmp) == 0) {
-          yajl_val *ports_arr =
-              YAJL_GET_ARRAY(br_ports->u.array.values[1])->values;
-          size_t ports_num = YAJL_GET_ARRAY(br_ports->u.array.values[1])->len;
-
-          for (size_t i = 0; i < ports_num; i++)
-            ovs_stats_new_port(
-                br, YAJL_GET_STRING(ports_arr[i]->u.array.values[1]));
+          yajl_val *array = YAJL_GET_ARRAY(br_ports)->values;
+          size_t array_len = YAJL_GET_ARRAY(br_ports)->len;
+          if (array != NULL && array_len > 0 && YAJL_IS_ARRAY(array[1])) {
+            yajl_val *ports_arr = YAJL_GET_ARRAY(array[1])->values;
+            size_t ports_num = YAJL_GET_ARRAY(array[1])->len;
+            for (size_t i = 0; i < ports_num && ports_arr != NULL; i++)
+              ovs_stats_new_port(
+                  br, YAJL_GET_STRING(ports_arr[i]->u.array.values[1]));
+          }
         } else
           ovs_stats_new_port(br, YAJL_GET_STRING(br_ports->u.array.values[1]));
       }
@@ -537,6 +539,8 @@ static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
   if (stats && YAJL_IS_ARRAY(stats))
     for (size_t i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
       stat = YAJL_GET_ARRAY(stats)->values[i];
+      if (!YAJL_IS_ARRAY(stat))
+        return (-1);
       counter_name = YAJL_GET_STRING(YAJL_GET_ARRAY(stat)->values[0]);
       counter_index = ovs_stats_counter_name_to_type(counter_name);
       counter_value = YAJL_GET_INTEGER(YAJL_GET_ARRAY(stat)->values[1]);
@@ -557,6 +561,8 @@ static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
   if (ext_ids && YAJL_IS_ARRAY(ext_ids))
     for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
       ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
+      if (!YAJL_IS_ARRAY(ext_id))
+        return (-1);
       key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
       value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
       if (key && value) {
