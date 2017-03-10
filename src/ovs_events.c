@@ -86,7 +86,8 @@ typedef struct ovs_events_ctx_s ovs_events_ctx_t;
  */
 static ovs_events_ctx_t ovs_events_ctx = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .config = {.ovs_db_node = "localhost", /* use default OVS DB node */
+    .config = {.send_notification = 1,     /* send notification by default */
+               .ovs_db_node = "localhost", /* use default OVS DB node */
                .ovs_db_serv = "6640"}      /* use default OVS DB service */
 };
 
@@ -227,7 +228,7 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
  * in allocated memory. Returns negative value in case of error.
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
-  _Bool dispatch_values = 1;
+  _Bool dispatch_values = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
