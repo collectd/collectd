@@ -317,8 +317,7 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
 }
 
 /* Dispatch OVS interface link status event to collectd */
-static void
-ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
+static void ovs_events_dispatch_notification(int first_event, const ovs_events_iface_info_t *ifinfo) {
   const char *msg_link_status = NULL;
   notification_t n = {
       NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
@@ -331,7 +330,8 @@ ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
     break;
   case DOWN:
     msg_link_status = "DOWN";
-    n.severity = NOTIF_WARNING;
+    /* if this is a first event sent an notify_okay */
+    n.severity = first_event ? NOTIF_OKAY: NOTIF_WARNING;
     break;
   default:
     ERROR(OVS_EVENTS_PLUGIN ": unknown interface link status");
@@ -518,10 +518,15 @@ static void ovs_events_table_update_cb(yajl_val jupdates) {
        ++row_index) {
     jrow_update = YAJL_GET_OBJECT(jupdate)->values[row_index];
     /* checking to see if a new interface has been added */
-    if (!ovs_events_ctx.notify_interface_add && ovs_events_is_first_update(jrow_update)) {
-      /* skip first notification if notify_interface_add is false */
+    int ovs_events_first_event = ovs_events_is_first_update(jrow_update);
+    if (ovs_events_first_event < 0) {
+      ERROR(OVS_EVENTS_PLUGIN ": unexpected row update received");
       return;
     }
+    /* skip first notification if notify_interface_add is false */
+    if (!ovs_events_ctx.notify_interface_add && ovs_events_first_event)
+      return;
+
     /* check row update */
     jnew_val = ovs_utils_get_value_by_key(jrow_update, "new");
     if (jnew_val == NULL) {
@@ -538,7 +543,7 @@ static void ovs_events_table_update_cb(yajl_val jupdates) {
       DEBUG("name=%s, uuid=%s, ext_iface_id=%s, ext_vm_uuid=%s", ifinfo.name,
             ifinfo.uuid, ifinfo.ext_iface_id, ifinfo.ext_vm_uuid);
       /* dispatch notification */
-      ovs_events_dispatch_notification(&ifinfo);
+      ovs_events_dispatch_notification(ovs_events_first_event, &ifinfo);
     }
   }
 }
