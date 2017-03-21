@@ -252,14 +252,13 @@ static int cgroup_set(rdt_core_group_t *cg, char *desc, uint64_t *cores,
  *   `item'        Config option containing core groups.
  *   `groups'      Table of core groups to set values in.
  *   `max_groups'  Maximum number of core groups allowed.
- *   `max_core'    Maximum allowed core value.
  *
  * RETURN VALUE
  *   On success, the number of core groups set up. On error, appropriate
  *   negative error value.
  */
 static int oconfig_to_cgroups(oconfig_item_t *item, rdt_core_group_t *groups,
-                              size_t max_groups, uint64_t max_core) {
+                              size_t max_groups) {
   int index = 0;
 
   assert(groups != NULL);
@@ -283,14 +282,6 @@ static int oconfig_to_cgroups(oconfig_item_t *item, rdt_core_group_t *groups,
       ERROR(RDT_PLUGIN ": Error parsing core group (%s)",
             item->values[j].value.string);
       return (-EINVAL);
-    }
-
-    for (int i = 0; i < n; i++) {
-      if (cores[i] > max_core) {
-        ERROR(RDT_PLUGIN ": Core group (%s) contains invalid core id (%d)",
-              item->values[j].value.string, (int)cores[i]);
-        return (-EINVAL);
-      }
     }
 
     /* set core group info */
@@ -395,6 +386,15 @@ static int rdt_default_cgroups(void) {
   return g_rdt->pqos_cpu->num_cores;
 }
 
+static int rdt_is_core_id_valid(int core_id) {
+
+  for (int i = 0; i < g_rdt->pqos_cpu->num_cores; i++)
+    if (core_id == g_rdt->pqos_cpu->cores[i].lcore)
+      return 1;
+
+  return 0;
+}
+
 static int rdt_config_cgroups(oconfig_item_t *item) {
   int n = 0;
   enum pqos_mon_event events = 0;
@@ -413,12 +413,25 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     DEBUG(RDT_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
   }
 
-  n = oconfig_to_cgroups(item, g_rdt->cgroups, RDT_MAX_CORES,
-                         g_rdt->pqos_cpu->num_cores - 1);
+  n = oconfig_to_cgroups(item, g_rdt->cgroups, g_rdt->pqos_cpu->num_cores);
   if (n < 0) {
     rdt_free_cgroups();
     ERROR(RDT_PLUGIN ": Error parsing core groups configuration.");
     return (-EINVAL);
+  }
+
+  /* validate configured core id values */
+  for (int group_idx = 0; group_idx < n; group_idx++) {
+    for (int core_idx = 0; core_idx < g_rdt->cgroups[group_idx].num_cores;
+         core_idx++) {
+      if (!rdt_is_core_id_valid(g_rdt->cgroups[group_idx].cores[core_idx])) {
+        ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%d'",
+                g_rdt->cgroups[group_idx].desc,
+                (int)g_rdt->cgroups[group_idx].cores[core_idx]);
+        rdt_free_cgroups();
+        return (-EINVAL);
+      }
+    }
   }
 
   if (n == 0) {
