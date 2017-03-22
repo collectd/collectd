@@ -1,5 +1,5 @@
 /**
- * collectd - src/pcie.c
+ * collectd - src/pcie_errors.c
  *
  * Copyright(c) 2017 Intel Corporation. All rights reserved.
  *
@@ -34,7 +34,7 @@
 #include <fnmatch.h>
 #include <linux/pci_regs.h>
 
-#define PCIE_PLUGIN "pcie"
+#define PCIE_ERRORS_PLUGIN "pcie_errors"
 #define PCIE_DEFAULT_PROCDIR "/proc/bus/pci"
 #define PCIE_DEFAULT_SYSFSDIR "/sys/bus/pci"
 #define PCIE_NAME_LEN 512
@@ -179,7 +179,7 @@ static int pcie_add_device(llist_t *list, int domain, uint8_t bus,
   llentry_t *entry;
   pcie_device_t *dev = calloc(1, sizeof(*dev));
   if (dev == NULL) {
-    ERROR(PCIE_PLUGIN ": Failed to allocate device");
+    ERROR(PCIE_ERRORS_PLUGIN ": Failed to allocate device");
     return -ENOMEM;
   }
 
@@ -192,8 +192,8 @@ static int pcie_add_device(llist_t *list, int domain, uint8_t bus,
   entry = llentry_create(NULL, dev);
   llist_append(list, entry);
 
-  DEBUG(PCIE_PLUGIN ": pci device added to list: %04x:%02x:%02x.%d", domain,
-        bus, device, fn);
+  DEBUG(PCIE_ERRORS_PLUGIN ": pci device added to list: %04x:%02x:%02x.%d",
+        domain, bus, device, fn);
   return 0;
 }
 
@@ -222,7 +222,7 @@ static int pcie_list_devices_proc(llist_t *dev_list) {
   fd = fopen(file_name, "r");
   if (!fd) {
     char errbuf[PCIE_BUFF_SIZE];
-    ERROR(PCIE_PLUGIN ": Cannot open file %s to get devices list: %s",
+    ERROR(PCIE_ERRORS_PLUGIN ": Cannot open file %s to get devices list: %s",
           file_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return -ENOENT;
   }
@@ -232,7 +232,8 @@ static int pcie_list_devices_proc(llist_t *dev_list) {
     uint8_t bus, dev, fn;
 
     if (sscanf(buf, "%x", &slot) != 1) {
-      ERROR(PCIE_PLUGIN ": Failed to read line %u from %s", i + 1, file_name);
+      ERROR(PCIE_ERRORS_PLUGIN ": Failed to read line %u from %s", i + 1,
+            file_name);
       continue;
     }
 
@@ -263,8 +264,8 @@ static int pcie_list_devices_sysfs(llist_t *dev_list) {
   dir = opendir(dir_name);
   if (!dir) {
     char errbuf[PCIE_BUFF_SIZE];
-    ERROR(PCIE_PLUGIN ": Cannot open dir %s to get devices list: %s", dir_name,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR(PCIE_ERRORS_PLUGIN ": Cannot open dir %s to get devices list: %s",
+          dir_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return -ENOENT;
   }
 
@@ -276,7 +277,7 @@ static int pcie_list_devices_sysfs(llist_t *dev_list) {
       continue;
 
     if (sscanf(item->d_name, "%x:%x:%x.%d", &dom, &bus, &dev, &fn) != 4) {
-      ERROR(PCIE_PLUGIN ": Failed to parse entry %s", item->d_name);
+      ERROR(PCIE_ERRORS_PLUGIN ": Failed to parse entry %s", item->d_name);
       continue;
     }
 
@@ -292,7 +293,7 @@ static int pcie_list_devices_sysfs(llist_t *dev_list) {
 static void pcie_close(pcie_device_t *dev) {
   if (close(dev->fd) == -1) {
     char errbuf[PCIE_BUFF_SIZE];
-    ERROR(PCIE_PLUGIN ": Failed to close %04x:%02x:%02x.%d, fd=%d: %s",
+    ERROR(PCIE_ERRORS_PLUGIN ": Failed to close %04x:%02x:%02x.%d, fd=%d: %s",
           dev->domain, dev->bus, dev->device, dev->function, dev->fd,
           sstrerror(errno, errbuf, sizeof(errbuf)));
   }
@@ -304,7 +305,7 @@ static int pcie_open(pcie_device_t *dev, const char *name) {
   dev->fd = open(name, O_RDWR);
   if (dev->fd == -1) {
     char errbuf[PCIE_BUFF_SIZE];
-    ERROR(PCIE_PLUGIN ": Failed to open file %s: %s", name,
+    ERROR(PCIE_ERRORS_PLUGIN ": Failed to open file %s: %s", name,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -ENOENT;
   }
@@ -338,11 +339,12 @@ static int pcie_read(pcie_device_t *dev, void *buff, int size, int pos) {
 
   if (len == -1) {
     char errbuf[PCIE_BUFF_SIZE];
-    ERROR(PCIE_PLUGIN ": Failed to read %04x:%02x:%02x.%d at pos %d: %s",
+    ERROR(PCIE_ERRORS_PLUGIN ": Failed to read %04x:%02x:%02x.%d at pos %d: %s",
           dev->domain, dev->bus, dev->device, dev->function, pos,
           sstrerror(errno, errbuf, sizeof(errbuf)));
   } else {
-    ERROR(PCIE_PLUGIN ": %04x:%02x:%02x.%d Read only %d bytes, should be %d",
+    ERROR(PCIE_ERRORS_PLUGIN
+          ": %04x:%02x:%02x.%d Read only %d bytes, should be %d",
           dev->domain, dev->bus, dev->device, dev->function, len, size);
   }
   return -1;
@@ -395,7 +397,7 @@ static void pcie_dispatch_correctable_errors(pcie_device_t *dev,
     pcie_error_t *err = pcie_aer_ces + i;
     notification_t n = {.severity = NOTIF_WARNING,
                         .time = cdtime(),
-                        .plugin = PCIE_PLUGIN,
+                        .plugin = PCIE_ERRORS_PLUGIN,
                         .meta = NULL};
 
     /* If not specifically set by config option omit masked errors */
@@ -407,14 +409,14 @@ static void pcie_dispatch_correctable_errors(pcie_device_t *dev,
       if (!pcie_config.persistent && (err->mask & dev->correctable_errors))
         continue;
 
-      DEBUG(PCIE_PLUGIN ": %04x:%02x:%02x.%d: %s set", dev->domain, dev->bus,
-            dev->device, dev->function, err->desc);
+      DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s set", dev->domain,
+            dev->bus, dev->device, dev->function, err->desc);
       ssnprintf(n.message, sizeof(n.message), "Correctable Error set: %s",
                 err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, PCIE_SEV_CE);
 
     } else if (err->mask & dev->correctable_errors) {
-      DEBUG(PCIE_PLUGIN ": %04x:%02x:%02x.%d: %s cleared", dev->domain,
+      DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s cleared", dev->domain,
             dev->bus, dev->device, dev->function, err->desc);
 
       n.severity = NOTIF_OKAY;
@@ -433,7 +435,8 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
     pcie_error_t *err = pcie_aer_ues + i;
     const char *type_instance =
         (severity & err->mask) ? PCIE_SEV_FATAL : PCIE_SEV_NOFATAL;
-    notification_t n = {.time = cdtime(), .plugin = PCIE_PLUGIN, .meta = NULL};
+    notification_t n = {
+        .time = cdtime(), .plugin = PCIE_ERRORS_PLUGIN, .meta = NULL};
 
     /* If not specifically set by config option omit masked errors */
     if (!pcie_config.notif_masked && (err->mask & masked))
@@ -444,7 +447,7 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
       if (!pcie_config.persistent && (err->mask & dev->uncorrectable_errors))
         continue;
 
-      DEBUG(PCIE_PLUGIN ": %04x:%02x:%02x.%d: %s(%s) set", dev->domain,
+      DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s(%s) set", dev->domain,
             dev->bus, dev->device, dev->function, err->desc, type_instance);
 
       n.severity = (severity & err->mask) ? NOTIF_FAILURE : NOTIF_WARNING;
@@ -453,8 +456,9 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, type_instance);
 
     } else if (err->mask & dev->uncorrectable_errors) {
-      DEBUG(PCIE_PLUGIN ": %04x:%02x:%02x.%d: %s(%s) cleared", dev->domain,
-            dev->bus, dev->device, dev->function, err->desc, type_instance);
+      DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s(%s) cleared",
+            dev->domain, dev->bus, dev->device, dev->function, err->desc,
+            type_instance);
 
       n.severity = NOTIF_OKAY;
       ssnprintf(n.message, sizeof(n.message),
@@ -483,8 +487,8 @@ static int pcie_find_cap_exp(pcie_device_t *dev) {
     pos = pcie_read8(dev, pos + PCI_CAP_LIST_NEXT) & ~3;
   }
 
-  DEBUG(PCIE_PLUGIN ": Cannot find CAP EXP for %04x:%02x:%02x.%d", dev->domain,
-        dev->bus, dev->device, dev->function);
+  DEBUG(PCIE_ERRORS_PLUGIN ": Cannot find CAP EXP for %04x:%02x:%02x.%d",
+        dev->domain, dev->bus, dev->device, dev->function);
 
   return -1;
 }
@@ -541,7 +545,7 @@ static void pcie_check_dev_status(pcie_device_t *dev, int pos) {
         (err->mask == PCI_EXP_DEVSTA_FED) ? NOTIF_FAILURE : NOTIF_WARNING;
     notification_t n = {.severity = severity,
                         .time = cdtime(),
-                        .plugin = PCIE_PLUGIN,
+                        .plugin = PCIE_ERRORS_PLUGIN,
                         .meta = NULL};
 
     if (err->mask & new_status) {
@@ -549,14 +553,14 @@ static void pcie_check_dev_status(pcie_device_t *dev, int pos) {
       if (!pcie_config.persistent && (err->mask & dev->device_status))
         continue;
 
-      DEBUG(PCIE_PLUGIN ": %04x:%02x:%02x.%d: %s set", dev->domain, dev->bus,
-            dev->device, dev->function, err->desc);
+      DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s set", dev->domain,
+            dev->bus, dev->device, dev->function, err->desc);
       ssnprintf(n.message, sizeof(n.message), "Device Status Error set: %s",
                 err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, type_instance);
 
     } else if (err->mask & dev->device_status) {
-      DEBUG(PCIE_PLUGIN ": %04x:%02x:%02x.%d: %s cleared", dev->domain,
+      DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s cleared", dev->domain,
             dev->bus, dev->device, dev->function, err->desc);
       n.severity = NOTIF_OKAY;
       ssnprintf(n.message, sizeof(n.message), "Device Status Error cleared: %s",
@@ -600,7 +604,7 @@ static void pcie_process_device_with_aer(pcie_device_t *dev) {
     notification_t n = {.severity = NOTIF_OKAY,
                         .time = cdtime(),
                         .message = "Device is not AER capable",
-                        .plugin = PCIE_PLUGIN,
+                        .plugin = PCIE_ERRORS_PLUGIN,
                         .meta = NULL};
     pcie_dispatch_notification(dev, &n, "", "");
     dev->aer_not_found = 1;
@@ -610,7 +614,7 @@ static void pcie_process_device_with_aer(pcie_device_t *dev) {
 static void pcie_process_device(pcie_device_t *dev) {
   uint16_t status = pcie_read16(dev, PCI_STATUS);
   if (!(status & PCI_STATUS_CAP_LIST)) {
-    DEBUG(PCIE_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
+    DEBUG(PCIE_ERRORS_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
           dev->domain, dev->bus, dev->device, dev->function);
     /* Exclude non PCIe devices, do not check them again */
     dev->excluded = 1;
@@ -624,7 +628,7 @@ static void pcie_process_device(pcie_device_t *dev) {
   if (dev->cap_exp != -1) {
     pcie_check_dev_status(dev, dev->cap_exp);
   } else {
-    DEBUG(PCIE_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
+    DEBUG(PCIE_ERRORS_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
           dev->domain, dev->bus, dev->device, dev->function);
     dev->excluded = 1;
     return;
@@ -652,7 +656,7 @@ static int pcie_process_devices(llist_t *devs) {
       notification_t n = {.severity = NOTIF_FAILURE,
                           .time = cdtime(),
                           .message = "Failed to read device status",
-                          .plugin = PCIE_PLUGIN,
+                          .plugin = PCIE_ERRORS_PLUGIN,
                           .meta = NULL};
       pcie_dispatch_notification(dev, &n, "", "");
       ret = -1;
@@ -665,7 +669,7 @@ static int pcie_process_devices(llist_t *devs) {
 static void pcie_parse_msg(message *msg, unsigned int max_items) {
   notification_t n = {.severity = NOTIF_WARNING,
                       .time = cdtime(),
-                      .plugin = PCIE_PLUGIN,
+                      .plugin = PCIE_ERRORS_PLUGIN,
                       .meta = NULL};
 
   for (int i = 0; i < max_items; i++) {
@@ -673,7 +677,7 @@ static void pcie_parse_msg(message *msg, unsigned int max_items) {
     if (!item->value[0])
       break;
 
-    DEBUG(PCIE_PLUGIN "[%02d] %s:%s", i, item->name, item->value);
+    DEBUG(PCIE_ERRORS_PLUGIN "[%02d] %s:%s", i, item->name, item->value);
 
     if (strncmp(item->name, PCIE_LOG_SEVERITY, strlen(PCIE_LOG_SEVERITY)) ==
         0) {
@@ -689,7 +693,7 @@ static void pcie_parse_msg(message *msg, unsigned int max_items) {
       sstrncpy(n.plugin_instance, item->value, sizeof(n.plugin_instance));
     } else {
       if (plugin_notification_meta_add_string(&n, item->name, item->value))
-        ERROR(PCIE_PLUGIN ": Failed to add notification meta data %s:%s",
+        ERROR(PCIE_ERRORS_PLUGIN ": Failed to add notification meta data %s:%s",
               item->name, item->value);
     }
   }
@@ -708,7 +712,7 @@ static int pcie_logfile_read(parser_job_data *job, const char *name) {
     notification_t n = {.severity = NOTIF_FAILURE,
                         .time = cdtime(),
                         .message = "Failed to read from log file",
-                        .plugin = PCIE_PLUGIN,
+                        .plugin = PCIE_ERRORS_PLUGIN,
                         .meta = NULL};
     pcie_do_dispatch_notification(&n, "");
     return -1;
@@ -716,7 +720,7 @@ static int pcie_logfile_read(parser_job_data *job, const char *name) {
 
   max_item_num = STATIC_ARRAY_SIZE(messages_storage[0].message_items);
 
-  DEBUG(PCIE_PLUGIN ": read %d messages, %s", msg_num, name);
+  DEBUG(PCIE_ERRORS_PLUGIN ": read %d messages, %s", msg_num, name);
 
   for (int i = 0; i < msg_num; i++) {
     message *msg = messages_storage + i;
@@ -731,7 +735,7 @@ static int pcie_plugin_read(__attribute__((unused)) user_data_t *ud) {
   if (pcie_config.read_devices) {
     ret = pcie_process_devices(pcie_dev_list);
     if (ret < 0) {
-      ERROR(PCIE_PLUGIN ": Failed to read devices state");
+      ERROR(PCIE_ERRORS_PLUGIN ": Failed to read devices state");
       return -1;
     }
   }
@@ -742,7 +746,7 @@ static int pcie_plugin_read(__attribute__((unused)) user_data_t *ud) {
   for (int i = 0; i < pcie_parsers_len; i++) {
     ret = pcie_logfile_read(pcie_parsers[i].job, pcie_parsers[i].name);
     if (ret < 0) {
-      ERROR(PCIE_PLUGIN ": Failed to parse %s messages from %s",
+      ERROR(PCIE_ERRORS_PLUGIN ": Failed to parse %s messages from %s",
             pcie_parsers[i].name, pcie_config.logfile);
       break;
     }
@@ -797,17 +801,18 @@ static int pcie_patterns_config(message_pattern *patterns,
         else if (strcasecmp("IsMandatory", regex_opt->key) == 0)
           status = cf_util_get_boolean(regex_opt, &(patterns[i].is_mandatory));
         else {
-          ERROR(PCIE_PLUGIN ": Invalid configuration option \"%s\".",
+          ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration option \"%s\".",
                 regex_opt->key);
           return -1;
         }
 
         if (status) {
-          ERROR(PCIE_PLUGIN ": Error setting regex option %s", regex_opt->key);
+          ERROR(PCIE_ERRORS_PLUGIN ": Error setting regex option %s",
+                regex_opt->key);
         }
       }
     } else {
-      ERROR(PCIE_PLUGIN ": option \"%s\" is not allowed here.",
+      ERROR(PCIE_ERRORS_PLUGIN ": option \"%s\" is not allowed here.",
             match_opt[i].key);
       return -1;
     }
@@ -857,14 +862,14 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
       if (!pcie_parsers) {
         pcie_parsers = calloc(pcie_parsers_len, sizeof(*pcie_parsers));
         if (pcie_parsers == NULL) {
-          ERROR(PCIE_PLUGIN ": Error allocating message parsers");
+          ERROR(PCIE_ERRORS_PLUGIN ": Error allocating message parsers");
           pcie_config.config_error = 1;
           break;
         }
       }
       if (cf_util_get_string_buffer(child, pcie_parsers[parser_idx].name,
                                     sizeof(pcie_parsers[parser_idx].name))) {
-        ERROR(PCIE_PLUGIN ": Invalid configuration parameter \"%s\".",
+        ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration parameter \"%s\".",
               child->key);
         pcie_config.config_error = 1;
         break;
@@ -874,25 +879,27 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
           calloc(pcie_parsers[parser_idx].patterns_len,
                  sizeof(*(pcie_parsers[parser_idx].patterns)));
       if (pcie_parsers[parser_idx].patterns == NULL) {
-        ERROR(PCIE_PLUGIN ": Error allocating message_patterns");
+        ERROR(PCIE_ERRORS_PLUGIN ": Error allocating message_patterns");
         pcie_config.config_error = 1;
         break;
       }
       if (pcie_patterns_config(pcie_parsers[parser_idx].patterns,
                                child->children, child->children_num)) {
-        ERROR(PCIE_PLUGIN ": Failed to parse patterns for \"%s\".", child->key);
+        ERROR(PCIE_ERRORS_PLUGIN ": Failed to parse patterns for \"%s\".",
+              child->key);
         pcie_config.config_error = 1;
         break;
       }
       parser_idx++;
     } else {
-      ERROR(PCIE_PLUGIN ": Invalid configuration option \"%s\".", child->key);
+      ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration option \"%s\".",
+            child->key);
       pcie_config.config_error = 1;
       break;
     }
 
     if (status) {
-      ERROR(PCIE_PLUGIN ": Invalid configuration parameter \"%s\".",
+      ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration parameter \"%s\".",
             child->key);
       pcie_config.config_error = 1;
       break;
@@ -921,12 +928,14 @@ static int pcie_shutdown(void) {
 
 static int pcie_init(void) {
   if (pcie_config.config_error) {
-    ERROR(PCIE_PLUGIN ": Error in configuration, failed to init plugin.");
+    ERROR(PCIE_ERRORS_PLUGIN
+          ": Error in configuration, failed to init plugin.");
     return -1;
   }
 
   if (!pcie_config.read_devices && !pcie_config.read_log) {
-    ERROR(PCIE_PLUGIN ": Plugin is not configured for any source of data.");
+    ERROR(PCIE_ERRORS_PLUGIN
+          ": Plugin is not configured for any source of data.");
     return -1;
   }
 
@@ -934,7 +943,7 @@ static int pcie_init(void) {
     pcie_access_config();
     pcie_dev_list = llist_create();
     if (pcie_fops.list_devices(pcie_dev_list) != 0) {
-      ERROR(PCIE_PLUGIN ": Failed to find devices.");
+      ERROR(PCIE_ERRORS_PLUGIN ": Failed to find devices.");
       pcie_shutdown();
       return -1;
     }
@@ -945,11 +954,11 @@ static int pcie_init(void) {
 
   if (pcie_parsers == NULL) {
     /* Set default patterns if no config is provided */
-    INFO(PCIE_PLUGIN ": Using default message parser");
+    INFO(PCIE_ERRORS_PLUGIN ": Using default message parser");
     pcie_config.default_patterns = 1;
     pcie_parsers = calloc(1, sizeof(*pcie_parsers));
     if (pcie_parsers == NULL) {
-      ERROR(PCIE_PLUGIN ": Error allocating default message parser");
+      ERROR(PCIE_ERRORS_PLUGIN ": Error allocating default message parser");
       pcie_shutdown();
       return -1;
     }
@@ -964,7 +973,7 @@ static int pcie_init(void) {
         pcie_config.logfile, 0, pcie_parsers[i].patterns_len - 1,
         pcie_parsers[i].patterns, pcie_parsers[i].patterns_len);
     if (pcie_parsers[i].job == NULL) {
-      ERROR(PCIE_PLUGIN ": Failed to initialize %s parser.",
+      ERROR(PCIE_ERRORS_PLUGIN ": Failed to initialize %s parser.",
             pcie_parsers[i].name);
       pcie_shutdown();
       return -1;
@@ -975,8 +984,9 @@ static int pcie_init(void) {
 }
 
 void module_register(void) {
-  plugin_register_init(PCIE_PLUGIN, pcie_init);
-  plugin_register_complex_config(PCIE_PLUGIN, pcie_plugin_config);
-  plugin_register_complex_read(NULL, PCIE_PLUGIN, pcie_plugin_read, 0, NULL);
-  plugin_register_shutdown(PCIE_PLUGIN, pcie_shutdown);
+  plugin_register_init(PCIE_ERRORS_PLUGIN, pcie_init);
+  plugin_register_complex_config(PCIE_ERRORS_PLUGIN, pcie_plugin_config);
+  plugin_register_complex_read(NULL, PCIE_ERRORS_PLUGIN, pcie_plugin_read, 0,
+                               NULL);
+  plugin_register_shutdown(PCIE_ERRORS_PLUGIN, pcie_shutdown);
 }

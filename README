@@ -304,7 +304,7 @@ Features
       OVS documentation.
       <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
 
-    - pcie
+    - pcie_errors
       Read errors from PCI Express Device Status and AER extended
       capabilities.
       <https://www.design-reuse.com/articles/38374/pcie-error-logging-and-handling-on-a-typical-soc.html>

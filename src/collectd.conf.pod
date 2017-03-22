@@ -5740,9 +5740,9 @@ Default: empty (monitor all bridges)
 
 =back
 
-=head2 Plugin C<pcie>
+=head2 Plugin C<pcie_errors>
 
-The I<pcie> plugin collects PCI Express errors from Device Status in Capability
+The I<pcie_errors> plugin collects PCI Express errors from Device Status in Capability
 structure and from Advanced Error Reporting Extended Capability where available.
 At every read it polls config space of PCI Express devices and dispatches
 notification for every error that is set. It can be configured to parse log file
@@ -5754,7 +5754,7 @@ Fatal errros are reported as I<NOTIF_FAILURE> and all others as I<NOTIF_WARNING>
 
 B<Synopsis:>
 
-  <Plugin "pcie">
+  <Plugin "pcie_errors">
     Source "sysfs"
     AccessDir "/sys/bus/pci"
     ReportMasked false

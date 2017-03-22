@@ -1308,15 +1308,15 @@ ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
-if BUILD_PLUGIN_PCIE
-pkglib_LTLIBRARIES += pcie.la
-pcie_la_SOURCES = src/pcie.c src/utils_message_parser.c src/utils_message_parser.h \
+if BUILD_PLUGIN_PCIE_ERRORS
+pkglib_LTLIBRARIES += pcie_errors.la
+pcie_errors_la_SOURCES = src/pcie_errors.c src/utils_message_parser.c src/utils_message_parser.h \
                   src/utils_tail_match.c src/utils_tail_match.h \
                   src/utils_tail.c src/utils_tail.h \
                   src/utils_match.c src/utils_match.h
-pcie_la_CPPFLAGS = $(AM_CPPFLAGS)
-pcie_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-pcie_la_LIBADD = liblatency.la
+pcie_errors_la_CPPFLAGS = $(AM_CPPFLAGS)
+pcie_errors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+pcie_errors_la_LIBADD = liblatency.la
 endif
 
 if BUILD_PLUGIN_PERL
