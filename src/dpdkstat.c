@@ -103,6 +103,8 @@ static void dpdk_stats_default_config(void) {
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
     ec->config.port_name[i][0] = 0;
   }
+  /* Enable all ports by default */
+  ec->config.enabled_port_mask = ~0;
 }
 
 static int dpdk_stats_preinit(void) {
