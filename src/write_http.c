@@ -81,6 +81,9 @@ struct wh_callback_s {
 };
 typedef struct wh_callback_s wh_callback_t;
 
+static char **http_attrs;
+static size_t http_attrs_num;
+
 static void wh_log_http_error(wh_callback_t *cb) {
   if (!cb->log_http_error)
     return;
@@ -468,9 +471,9 @@ static int wh_write_kairosdb(const data_set_t *ds,
     }
   }
 
-  status = format_kairosdb_value_list(cb->send_buffer, &cb->send_buffer_fill,
-                                      &cb->send_buffer_free, ds, vl,
-                                      cb->store_rates);
+  status = format_kairosdb_value_list(
+      cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
+      cb->store_rates, (char const *const *)http_attrs, http_attrs_num);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -479,9 +482,9 @@ static int wh_write_kairosdb(const data_set_t *ds,
       return (status);
     }
 
-    status = format_kairosdb_value_list(cb->send_buffer, &cb->send_buffer_fill,
-                                        &cb->send_buffer_free, ds, vl,
-                                        cb->store_rates);
+    status = format_kairosdb_value_list(
+        cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
+        cb->store_rates, (char const *const *)http_attrs, http_attrs_num);
   }
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
@@ -703,7 +706,34 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean(child, &cb->log_http_error);
     else if (strcasecmp("Header", child->key) == 0)
       status = wh_config_append_string("Header", &cb->headers, child);
-    else {
+    else if (strcasecmp("Attribute", child->key) == 0) {
+      char *key = NULL;
+      char *val = NULL;
+
+      if (child->values_num != 2) {
+        WARNING("write_http plugin: Attribute need both a key and a value.");
+        break;
+      }
+      if (child->values[0].type != OCONFIG_TYPE_STRING ||
+          child->values[1].type != OCONFIG_TYPE_STRING) {
+        WARNING("write_http plugin: Attribute needs string arguments.");
+        break;
+      }
+      if ((key = strdup(child->values[0].value.string)) == NULL) {
+        WARNING("cannot allocate memory for attribute key.");
+        break;
+      }
+      if ((val = strdup(child->values[1].value.string)) == NULL) {
+        WARNING("cannot allocate memory for attribute value.");
+        sfree(key);
+        break;
+      }
+      strarray_add(&http_attrs, &http_attrs_num, key);
+      strarray_add(&http_attrs, &http_attrs_num, val);
+      DEBUG("write_http plugin: got attribute: %s => %s", key, val);
+      sfree(key);
+      sfree(val);
+    } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",
             child->key);

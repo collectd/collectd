@@ -1535,6 +1535,7 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Attribute "key" "value"     # only available for KAIROSDB format
 #		Metrics true
 #		Notifications false
 #		StoreRates false
