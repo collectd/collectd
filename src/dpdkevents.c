@@ -79,6 +79,7 @@ typedef struct dpdk_keep_alive_config_s {
   dpdk_keepalive_shm_t *shm;
   char shm_name[DATA_MAX_NAME_LEN];
   int notify;
+  int fd;
 } dpdk_keep_alive_config_t;
 
 typedef struct dpdk_events_config_s {
@@ -107,7 +108,7 @@ typedef struct dpdk_events_ctx_s {
 
 static dpdk_helper_ctx_t *g_hc;
 
-static int dpdk_event_keep_alive_shm_create(void) {
+static int dpdk_event_keep_alive_shm_open(void) {
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
   char *shm_name;
 
@@ -121,23 +122,48 @@ static int dpdk_event_keep_alive_shm_create(void) {
   }
 
   char errbuf[ERR_BUF_SIZE];
-  int fd = shm_open(shm_name, O_RDWR, 0);
+  int fd = shm_open(shm_name, O_RDONLY, 0);
   if (fd < 0) {
     ERROR(DPDK_EVENTS_PLUGIN ": Failed to open %s as SHM:%s. Is DPDK KA "
                              "primary application running?",
           shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return errno;
-  } else {
-    ec->config.keep_alive.shm =
-        (dpdk_keepalive_shm_t *)mmap(0, sizeof(*(ec->config.keep_alive.shm)),
-                                     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    close(fd);
-    if (ec->config.keep_alive.shm == MAP_FAILED) {
-      ERROR(DPDK_EVENTS_PLUGIN ": Failed to mmap KA SHM:%s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-      return errno;
-    }
   }
+
+  if (ec->config.keep_alive.fd != -1) {
+    struct stat stat_old, stat_new;
+
+    if (fstat(ec->config.keep_alive.fd, &stat_old) || fstat(fd, &stat_new)) {
+      ERROR(DPDK_EVENTS_PLUGIN ": failed to get information about a file");
+      close(fd);
+      return -1;
+    }
+
+    /* Check if inode number has changed. If yes, then create a new mapping */
+    if (stat_old.st_ino == stat_new.st_ino) {
+      close(fd);
+      return 0;
+    }
+
+    if (munmap(ec->config.keep_alive.shm, sizeof(dpdk_keepalive_shm_t)) != 0) {
+      ERROR(DPDK_EVENTS_PLUGIN ": munmap KA monitor failed");
+      close(fd);
+      return -1;
+    }
+
+    close(ec->config.keep_alive.fd);
+    ec->config.keep_alive.fd = -1;
+  }
+
+  ec->config.keep_alive.shm = (dpdk_keepalive_shm_t *)mmap(
+      0, sizeof(*(ec->config.keep_alive.shm)), PROT_READ, MAP_SHARED, fd, 0);
+  if (ec->config.keep_alive.shm == MAP_FAILED) {
+    ERROR(DPDK_EVENTS_PLUGIN ": Failed to mmap KA SHM:%s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    close(fd);
+    return errno;
+  }
+  ec->config.keep_alive.fd = fd;
 
   return 0;
 }
@@ -165,6 +191,8 @@ static void dpdk_events_default_config(void) {
          sizeof(ec->config.keep_alive.lcore_mask));
   memset(&ec->config.keep_alive.shm_name, 0,
          sizeof(ec->config.keep_alive.shm_name));
+  ec->config.keep_alive.shm = MAP_FAILED;
+  ec->config.keep_alive.fd = -1;
 }
 
 static int dpdk_events_preinit(void) {
@@ -528,6 +556,13 @@ static int dpdk_events_read(user_data_t *ud) {
   }
 
   if (ec->config.keep_alive.enabled) {
+    int ret = dpdk_event_keep_alive_shm_open();
+    if (ret) {
+      ERROR(DPDK_EVENTS_PLUGIN
+            ": %s : error %d in dpdk_event_keep_alive_shm_open()",
+            __FUNCTION__, ret);
+      return ret;
+    }
     dpdk_events_keep_alive_dispatch(g_hc);
   }
 
@@ -541,16 +576,6 @@ static int dpdk_events_init(void) {
   if (ret)
     return ret;
 
-  dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
-
-  if (ec->config.keep_alive.enabled) {
-    ret = dpdk_event_keep_alive_shm_create();
-    if (ret) {
-      ERROR(DPDK_EVENTS_PLUGIN ": %s : error %d in ka_shm_create()",
-            __FUNCTION__, ret);
-      return ret;
-    }
-  }
   return 0;
 }
 
@@ -560,10 +585,17 @@ static int dpdk_events_shutdown(void) {
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
   if (ec->config.keep_alive.enabled) {
-    ret = munmap(ec->config.keep_alive.shm, sizeof(dpdk_keepalive_shm_t));
-    if (ret) {
-      ERROR(DPDK_EVENTS_PLUGIN ": munmap KA monitor returned %d", ret);
-      return ret;
+    if (ec->config.keep_alive.fd != -1) {
+      close(ec->config.keep_alive.fd);
+      ec->config.keep_alive.fd = -1;
+    }
+
+    if (ec->config.keep_alive.shm != MAP_FAILED) {
+      if (munmap(ec->config.keep_alive.shm, sizeof(dpdk_keepalive_shm_t))) {
+        ERROR(DPDK_EVENTS_PLUGIN ": munmap KA monitor failed");
+        return -1;
+      }
+      ec->config.keep_alive.shm = MAP_FAILED;
     }
   }
 
