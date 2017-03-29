@@ -1086,6 +1086,18 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
   return 0;
 }
 
+/*
+  virConnectListAllDomains() appeared in 0.10.2
+  Note that LIBVIR_CHECK_VERSION appeared a year later, so
+  in some systems which actually have virConnectListAllDomains()
+  we can't detect this.
+ */
+#ifdef LIBVIR_CHECK_VERSION
+# if LIBVIR_CHECK_VERSION(0,10,2)
+#  define HAVE_LIST_ALL_DOMAINS 1
+# endif
+#endif
+
 static int refresh_lists(struct lv_read_instance *inst) {
   struct lv_read_state *state = &inst->read_state;
   int n;
@@ -1099,6 +1111,10 @@ static int refresh_lists(struct lv_read_instance *inst) {
   lv_clean_read_state(state);
 
   if (n > 0) {
+#ifdef HAVE_LIST_ALL_DOMAINS
+    virDomainPtr *domains;
+    n = virConnectListAllDomains (conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
+#else
     int *domids;
 
     /* Get list of domains. */
@@ -1109,15 +1125,18 @@ static int refresh_lists(struct lv_read_instance *inst) {
     }
 
     n = virConnectListDomains(conn, domids, n);
+#endif
+
     if (n < 0) {
       VIRT_ERROR(conn, "reading list of domains");
+#ifndef HAVE_LIST_ALL_DOMAINS
       sfree(domids);
+#endif
       return -1;
     }
 
     /* Fetch each domain and add it to the list, unless ignore. */
     for (int i = 0; i < n; ++i) {
-      virDomainPtr dom = NULL;
       const char *name;
       char *xml = NULL;
       xmlDocPtr xml_doc = NULL;
@@ -1127,12 +1146,17 @@ static int refresh_lists(struct lv_read_instance *inst) {
       virDomainInfo info;
       int status;
 
+#ifdef HAVE_LIST_ALL_DOMAINS
+      virDomainPtr dom = domains[i];
+#else
+      virDomainPtr dom = NULL;
       dom = virDomainLookupByID(conn, domids[i]);
       if (dom == NULL) {
         VIRT_ERROR(conn, "virDomainLookupByID");
         /* Could be that the domain went away -- ignore it anyway. */
         continue;
       }
+#endif
 
       name = virDomainGetName(dom);
       if (name == NULL) {
@@ -1273,7 +1297,11 @@ static int refresh_lists(struct lv_read_instance *inst) {
       sfree(xml);
     }
 
+#ifdef HAVE_LIST_ALL_DOMAINS
+    sfree (domains);
+#else
     sfree(domids);
+#endif
   }
 
   DEBUG(PLUGIN_NAME " plugin#%s: refreshing"
