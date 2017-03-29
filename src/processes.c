@@ -200,6 +200,15 @@ typedef struct procstat_entry_s {
   derive_t cpu_user_counter;
   derive_t cpu_system_counter;
 
+  /* io data */
+  derive_t io_rchar;
+  derive_t io_wchar;
+  derive_t io_syscr;
+  derive_t io_syscw;
+
+  derive_t cswitch_vol;
+  derive_t cswitch_invol;
+
   struct procstat_entry_s *next;
 } procstat_entry_t;
 
@@ -287,6 +296,13 @@ static void ps_list_register(const char *name, const char *regexp) {
     return;
   }
   sstrncpy(new->name, name, sizeof(new->name));
+
+  new->io_rchar = -1;
+  new->io_wchar = -1;
+  new->io_syscr = -1;
+  new->io_syscw = -1;
+  new->cswitch_vol = -1;
+  new->cswitch_invol = -1;
 
 #if HAVE_REGEX_H
   if (regexp != NULL) {
@@ -386,6 +402,9 @@ static void ps_update_counter(derive_t *group_counter, derive_t *curr_counter,
   else
     curr_value = new_counter - *curr_counter;
 
+  if (*group_counter == -1)
+    *group_counter = 0;
+
   *curr_counter = new_counter;
   *group_counter += curr_value;
 }
@@ -436,14 +455,22 @@ static void ps_list_add(const char *name, const char *cmdline,
     ps->vmem_code += entry->vmem_code;
     ps->stack_size += entry->stack_size;
 
-    ps->io_rchar += ((entry->io_rchar == -1) ? 0 : entry->io_rchar);
-    ps->io_wchar += ((entry->io_wchar == -1) ? 0 : entry->io_wchar);
-    ps->io_syscr += ((entry->io_syscr == -1) ? 0 : entry->io_syscr);
-    ps->io_syscw += ((entry->io_syscw == -1) ? 0 : entry->io_syscw);
+    if ((entry->io_rchar != -1) && (entry->io_wchar != -1)) {
+      ps_update_counter(&ps->io_rchar, &pse->io_rchar, entry->io_rchar);
+      ps_update_counter(&ps->io_wchar, &pse->io_wchar, entry->io_wchar);
+    }
 
-    ps->cswitch_vol += ((entry->cswitch_vol == -1) ? 0 : entry->cswitch_vol);
-    ps->cswitch_invol +=
-        ((entry->cswitch_invol == -1) ? 0 : entry->cswitch_invol);
+    if ((entry->io_syscr != -1) && (entry->io_syscw != -1)) {
+      ps_update_counter(&ps->io_syscr, &pse->io_syscr, entry->io_syscr);
+      ps_update_counter(&ps->io_syscw, &pse->io_syscw, entry->io_syscw);
+    }
+
+    if ((entry->cswitch_vol != -1) && (entry->cswitch_vol != -1)) {
+      ps_update_counter(&ps->cswitch_vol, &pse->cswitch_vol,
+                        entry->cswitch_vol);
+      ps_update_counter(&ps->cswitch_invol, &pse->cswitch_invol,
+                        entry->cswitch_invol);
+    }
 
     ps_update_counter(&ps->vmem_minflt_counter, &pse->vmem_minflt_counter,
                       entry->vmem_minflt_counter);
@@ -470,12 +497,6 @@ static void ps_list_reset(void) {
     ps->vmem_data = 0;
     ps->vmem_code = 0;
     ps->stack_size = 0;
-    ps->io_rchar = -1;
-    ps->io_wchar = -1;
-    ps->io_syscr = -1;
-    ps->io_syscw = -1;
-    ps->cswitch_vol = -1;
-    ps->cswitch_invol = -1;
 
     pse_prev = NULL;
     pse = ps->instances;
@@ -694,7 +715,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
     plugin_dispatch_values(&vl);
   }
 
-  if (report_ctx_switch) {
+  if ((ps->cswitch_vol != -1) && (ps->cswitch_invol != -1)) {
     sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
     sstrncpy(vl.type_instance, "voluntary", sizeof(vl.type_instance));
     vl.values[0].derive = ps->cswitch_vol;
