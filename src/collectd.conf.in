@@ -1138,7 +1138,18 @@
 #</Plugin>
 
 #<Plugin processes>
+#	CollectFileDescriptor true
+#	CollectContextSwitch true
 #	Process "name"
+#	ProcessMatch "name" "regex"
+#	<Process "collectd">
+#		CollectFileDescriptor false
+#		CollectContextSwitch false
+#	</Process>
+#	<ProcessMatch "name" "regex">
+#		CollectFileDescriptor false
+#		CollectContextSwitch true
+#	</Process>
 #</Plugin>
 
 #<Plugin protocols>
