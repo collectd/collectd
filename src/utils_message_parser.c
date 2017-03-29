@@ -88,7 +88,8 @@ static int start_message_assembly(parser_job_data *self) {
 
   /* Resize messages buffer if needed */
   if (self->message_idx >= self->messages_max_len) {
-    INFO(UTIL_NAME ": Exceeded message buffer size: %lu", self->messages_max_len);
+    INFO(UTIL_NAME ": Exceeded message buffer size: %lu",
+         self->messages_max_len);
     if (self->resize_message_buffer(self, self->messages_max_len +
                                               MSG_STOR_INC_STEP) != 0) {
       ERROR(UTIL_NAME ": Insufficient message buffer size: %lu. Remaining "
@@ -116,8 +117,9 @@ static int resize_message_buffer(parser_job_data *self, size_t new_size) {
   self->messages_storage = new_storage;
   self->messages_max_len = new_size;
   /* Fill unused memory with 0 */
-  memset(self->messages_storage + self->message_idx, 0,
-         (self->messages_max_len - self->message_idx) *
+  unsigned int unused_idx = self->message_idx < 0 ? 0 : self->message_idx;
+  memset(self->messages_storage + unused_idx, 0,
+         (self->messages_max_len - unused_idx) *
              sizeof(*(self->messages_storage)));
   return 0;
 }
@@ -140,6 +142,7 @@ static void end_message_assembly(parser_job_data *self) {
     }
   }
   self->messages_storage[self->message_idx].completed = 1;
+  ++self->messages_completed;
   self->message_item_idx = 0;
 }
 
@@ -213,6 +216,7 @@ parser_job_data *message_parser_init(const char *filename,
   parser_job->start_idx = start_idx;
   parser_job->stop_idx = stop_idx;
   parser_job->message_idx = -1;
+  parser_job->messages_completed = 0;
   parser_job->message_patterns =
       calloc(message_patterns_len, sizeof(*(parser_job->message_patterns)));
   if (parser_job->message_patterns == NULL) {
@@ -270,12 +274,14 @@ int message_parser_read(parser_job_data *parser_job, message **messages_storage,
     ERROR(UTIL_NAME ": Invalid parser_job pointer");
     return -1;
   }
-
+  parser_job->messages_completed = 0;
+  _Bool incomplete_msg_found = 0;
   /* Finish incomplete message assembly in this read */
   if (parser_job->message_idx >= 0 &&
       parser_job->messages_storage[parser_job->message_idx].started &&
       !(parser_job->messages_storage[parser_job->message_idx].completed)) {
     INFO(UTIL_NAME ": Found incomplete message from previous read.");
+    incomplete_msg_found = 1;
     message tmp_message = parser_job->messages_storage[parser_job->message_idx];
     int tmp_message_item_idx = parser_job->message_item_idx;
     memset(parser_job->messages_storage, 0,
@@ -285,7 +291,9 @@ int message_parser_read(parser_job_data *parser_job, message **messages_storage,
            sizeof(*(parser_job->messages_storage)));
     parser_job->message_item_idx = tmp_message_item_idx;
     parser_job->message_idx = 0;
-  } else {
+  }
+  /* Reset message buffer after non empty read */
+  else if (parser_job->message_idx >= 0) {
     memset(parser_job->messages_storage, 0,
            parser_job->messages_max_len *
                sizeof(*(parser_job->messages_storage)));
@@ -299,14 +307,13 @@ int message_parser_read(parser_job_data *parser_job, message **messages_storage,
     return -1;
   }
 
-  /* Get no of messagess completed in this read */
-  int messages_completed = 0;
-  for (size_t i = 0; i < parser_job->messages_max_len; i++) {
-    if (parser_job->messages_storage[i].completed)
-      ++messages_completed;
-  }
+  /* Restore initial message buffer size if there's nothing to parse */
+  if (parser_job->messages_completed == 0 &&
+      parser_job->messages_max_len > MSG_STOR_INIT_LEN && !incomplete_msg_found)
+    parser_job->resize_message_buffer(parser_job, MSG_STOR_INIT_LEN);
+
   *messages_storage = parser_job->messages_storage;
-  return messages_completed;
+  return parser_job->messages_completed;
 }
 
 void message_parser_cleanup(parser_job_data *parser_job) {
