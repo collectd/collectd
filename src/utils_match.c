@@ -29,6 +29,7 @@
 #include <regex.h>
 
 #define UTILS_MATCH_FLAGS_FREE_USER_DATA 0x01
+#define UTILS_MATCH_FLAGS_REGEX 0x04
 #define UTILS_MATCH_FLAGS_EXCLUDE_REGEX 0x02
 
 struct cu_match_s
@@ -235,6 +236,7 @@ cu_match_t *match_create_callback (const char *regex, const char *excluderegex,
     sfree (obj);
     return (NULL);
   }
+  obj->flags |= UTILS_MATCH_FLAGS_REGEX;
 
   if (excluderegex && strcmp(excluderegex, "") != 0) {
     status = regcomp (&obj->excluderegex, excluderegex, REG_EXTENDED);
@@ -285,9 +287,11 @@ void match_destroy (cu_match_t *obj)
     return;
 
   if (obj->flags & UTILS_MATCH_FLAGS_FREE_USER_DATA)
-  {
     sfree (obj->user_data);
-  }
+  if (obj->flags & UTILS_MATCH_FLAGS_REGEX)
+    regfree(&obj->regex);
+  if (obj->flags & UTILS_MATCH_FLAGS_EXCLUDE_REGEX)
+    regfree(&obj->excluderegex);
 
   sfree (obj);
 } /* void match_destroy */
