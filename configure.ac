@@ -3321,6 +3321,15 @@ AC_ARG_WITH([libmongoc],
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 
+if test "x$with_libmongoc" = "xyes"
+then
+	if test "x$PKG_CONFIG" != "x"
+	then
+		LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS `$PKG_CONFIG --cflags libmongoc-1.0`"
+		LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS `$PKG_CONFIG --libs libmongoc-1.0`"
+	fi
+fi
+
 CPPFLAGS="$CPPFLAGS $LIBMONGOC_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
 
@@ -3329,9 +3338,9 @@ if test "x$with_libmongoc" = "xyes"; then
     AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CPPFLAGS])
   fi
 
-  AC_CHECK_HEADERS([mongo.h],
+  AC_CHECK_HEADERS([mongoc.h],
     [with_libmongoc="yes"],
-    [with_libmongoc="no ('mongo.h' not found)"],
+    [with_libmongoc="no ('mongoc.h' not found)"],
     [[#define MONGO_HAVE_STDINT 1]]
   )
 fi
@@ -3341,9 +3350,9 @@ if test "x$with_libmongoc" = "xyes"; then
     AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
   fi
 
-  AC_CHECK_LIB([mongoc], [mongo_run_command],
+  AC_CHECK_LIB([mongoc-1.0], [mongoc_init],
     [with_libmongoc="yes"],
-    [with_libmongoc="no (symbol 'mongo_run_command' not found)"]
+    [with_libmongoc="no (symbol 'mongoc_init' not found)"]
   )
 fi
 

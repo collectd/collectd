@@ -1760,7 +1760,6 @@ pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = src/write_mongodb.c
 write_mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
 write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
-write_mongodb_la_LIBADD = -lmongoc
 endif
 
 if BUILD_PLUGIN_WRITE_PROMETHEUS
