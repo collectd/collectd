@@ -173,8 +173,11 @@ static void dpdk_events_default_config(void) {
 
   ec->config.interval = plugin_get_interval();
 
+  /* In configless mode when no <Plugin/> section is defined in config file
+   * both link_status and keep_alive should be enabled */
+
   /* Link Status */
-  ec->config.link_status.enabled = 0;
+  ec->config.link_status.enabled = 1;
   ec->config.link_status.enabled_port_mask = ~0;
   ec->config.link_status.send_updated = 1;
   ec->config.link_status.notify = 0;
@@ -184,10 +187,11 @@ static void dpdk_events_default_config(void) {
   }
 
   /* Keep Alive */
-  ec->config.keep_alive.enabled = 0;
+  ec->config.keep_alive.enabled = 1;
   ec->config.keep_alive.send_updated = 1;
   ec->config.keep_alive.notify = 0;
-  memset(&ec->config.keep_alive.lcore_mask, 0,
+  /* by default enable 128 cores */
+  memset(&ec->config.keep_alive.lcore_mask, 1,
          sizeof(ec->config.keep_alive.lcore_mask));
   memset(&ec->config.keep_alive.shm_name, 0,
          sizeof(ec->config.keep_alive.shm_name));
@@ -309,12 +313,17 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
 
 static int dpdk_events_config(oconfig_item_t *ci) {
   DPDK_EVENTS_TRACE();
-
   int ret = dpdk_events_preinit();
   if (ret)
     return ret;
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
+
+  /* Disabling link_status and keep_alive since <Plugin/> config section
+   * specifies if those should be enabled */
+  ec->config.keep_alive.enabled = ec->config.link_status.enabled = 0;
+  memset(&ec->config.keep_alive.lcore_mask, 0,
+         sizeof(ec->config.keep_alive.lcore_mask));
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -545,25 +554,30 @@ static int dpdk_events_read(user_data_t *ud) {
   }
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
+  int ls_ret = -1, ka_ret = -1;
 
+  int cmd_res = 0;
   if (ec->config.link_status.enabled) {
-    int cmd_res = 0;
-    int ret = dpdk_helper_command(g_hc, DPDK_CMD_GET_EVENTS, &cmd_res,
-                                  ec->config.interval);
-    if (cmd_res == 0 && ret == 0) {
+    ls_ret = dpdk_helper_command(g_hc, DPDK_CMD_GET_EVENTS, &cmd_res,
+                                 ec->config.interval);
+    if (cmd_res == 0 && ls_ret == 0) {
       dpdk_events_link_status_dispatch(g_hc);
     }
   }
 
   if (ec->config.keep_alive.enabled) {
-    int ret = dpdk_event_keep_alive_shm_open();
-    if (ret) {
+    ka_ret = dpdk_event_keep_alive_shm_open();
+    if (ka_ret) {
       ERROR(DPDK_EVENTS_PLUGIN
             ": %s : error %d in dpdk_event_keep_alive_shm_open()",
-            __FUNCTION__, ret);
-      return ret;
-    }
-    dpdk_events_keep_alive_dispatch(g_hc);
+            __FUNCTION__, ka_ret);
+    } else
+      dpdk_events_keep_alive_dispatch(g_hc);
+  }
+
+  if (!((cmd_res || ls_ret) == 0 || ka_ret == 0)) {
+    ERROR(DPDK_EVENTS_PLUGIN ": Read failure for all enabled event types");
+    return -1;
   }
 
   return 0;
