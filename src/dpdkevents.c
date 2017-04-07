@@ -66,19 +66,19 @@ typedef struct dpdk_ka_monitor_s {
 
 typedef struct dpdk_link_status_config_s {
   int enabled;
-  int send_updated;
+  _Bool send_updated;
   uint32_t enabled_port_mask;
   char port_name[RTE_MAX_ETHPORTS][DATA_MAX_NAME_LEN];
-  int notify;
+  _Bool notify;
 } dpdk_link_status_config_t;
 
 typedef struct dpdk_keep_alive_config_s {
   int enabled;
-  int send_updated;
+  _Bool send_updated;
   uint128_t lcore_mask;
   dpdk_keepalive_shm_t *shm;
   char shm_name[DATA_MAX_NAME_LEN];
-  int notify;
+  _Bool notify;
   int fd;
 } dpdk_keep_alive_config_t;
 
@@ -101,12 +101,20 @@ typedef struct dpdk_events_ctx_s {
   dpdk_ka_monitor_t core_info[RTE_KEEPALIVE_MAXCORES];
 } dpdk_events_ctx_t;
 
+typedef enum {
+  DPDK_EVENTS_STATE_CFG_ERR = 1 << 0,
+  DPDK_EVENTS_STATE_KA_CFG_ERR = 1 << 1,
+  DPDK_EVENTS_STATE_LS_CFG_ERR = 1 << 2,
+
+} dpdk_events_cfg_status;
+
 #define DPDK_EVENTS_CTX_GET(a) ((dpdk_events_ctx_t *)dpdk_helper_priv_get(a))
 
 #define DPDK_EVENTS_TRACE()                                                    \
   DEBUG("%s:%s:%d pid=%u", DPDK_EVENTS_PLUGIN, __FUNCTION__, __LINE__, getpid())
 
 static dpdk_helper_ctx_t *g_hc;
+static dpdk_events_cfg_status g_state;
 
 static int dpdk_event_keep_alive_shm_open(void) {
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
@@ -240,18 +248,26 @@ static int dpdk_events_link_status_config(dpdk_events_ctx_t *ec,
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("EnabledPortMask", child->key) == 0) {
-      ec->config.link_status.enabled_port_mask =
-          (uint32_t)child->values[0].value.number;
+      if (cf_util_get_int(child,
+                          (int *)&ec->config.link_status.enabled_port_mask))
+        return -1;
       DEBUG(DPDK_EVENTS_PLUGIN ": LinkStatus:Enabled Port Mask 0x%X",
             ec->config.link_status.enabled_port_mask);
     } else if (strcasecmp("SendEventsOnUpdate", child->key) == 0) {
-      ec->config.link_status.send_updated = child->values[0].value.boolean;
+      if (cf_util_get_boolean(child, &ec->config.link_status.send_updated))
+        return -1;
       DEBUG(DPDK_EVENTS_PLUGIN ": LinkStatus:SendEventsOnUpdate %d",
-            (int)child->values[0].value.boolean);
+            ec->config.link_status.send_updated);
     } else if (strcasecmp("SendNotification", child->key) == 0) {
-      ec->config.link_status.notify = child->values[0].value.boolean;
+      if (cf_util_get_boolean(child, &ec->config.link_status.notify))
+        return -1;
+
       DEBUG(DPDK_EVENTS_PLUGIN ": LinkStatus:SendNotification %d",
-            (int)child->values[0].value.boolean);
+            ec->config.link_status.notify);
+    } else if (strcasecmp("PortName", child->key) != 0) {
+      ERROR(DPDK_EVENTS_PLUGIN ": unrecognized configuration option %s.",
+            child->key);
+      return -1;
     }
   }
 
@@ -263,8 +279,12 @@ static int dpdk_events_link_status_config(dpdk_events_ctx_t *ec,
     if (strcasecmp("PortName", child->key) == 0) {
       while (!(ec->config.link_status.enabled_port_mask & (1 << port_num)))
         port_num++;
-      ssnprintf(ec->config.link_status.port_name[port_num], DATA_MAX_NAME_LEN,
-                "%s", child->values[0].value.string);
+
+      if (cf_util_get_string_buffer(
+              child, ec->config.link_status.port_name[port_num],
+              sizeof(ec->config.link_status.port_name[port_num]))) {
+        return -1;
+      }
       DEBUG(DPDK_EVENTS_PLUGIN ": LinkStatus:Port %d Name: %s", port_num,
             ec->config.link_status.port_name[port_num]);
       port_num++;
@@ -283,28 +303,38 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("SendEventsOnUpdate", child->key) == 0) {
-      ec->config.keep_alive.send_updated = child->values[0].value.boolean;
+      if (cf_util_get_boolean(child, &ec->config.keep_alive.send_updated))
+        return -1;
+
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:SendEventsOnUpdate %d",
-            (int)child->values[0].value.boolean);
+            ec->config.keep_alive.send_updated);
     } else if (strcasecmp("LCoreMask", child->key) == 0) {
       char lcore_mask[DATA_MAX_NAME_LEN];
-      ssnprintf(lcore_mask, sizeof(lcore_mask), "%s",
-                child->values[0].value.string);
+
+      if (cf_util_get_string_buffer(child, lcore_mask, sizeof(lcore_mask)))
+        return -1;
       ec->config.keep_alive.lcore_mask =
           str_to_uint128(lcore_mask, strlen(lcore_mask));
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:LCoreMask 0x%" PRIX64 "%" PRIX64 "",
             ec->config.keep_alive.lcore_mask.high,
             ec->config.keep_alive.lcore_mask.low);
     } else if (strcasecmp("KeepAliveShmName", child->key) == 0) {
-      ssnprintf(ec->config.keep_alive.shm_name,
-                sizeof(ec->config.keep_alive.shm_name), "%s",
-                child->values[0].value.string);
+      if (cf_util_get_string_buffer(child, ec->config.keep_alive.shm_name,
+                                    sizeof(ec->config.keep_alive.shm_name)))
+        return -1;
+
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:KeepAliveShmName %s",
             ec->config.keep_alive.shm_name);
     } else if (strcasecmp("SendNotification", child->key) == 0) {
-      ec->config.keep_alive.notify = child->values[0].value.boolean;
+      if (cf_util_get_boolean(child, &ec->config.keep_alive.notify))
+        return -1;
+
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:SendNotification %d",
-            (int)child->values[0].value.boolean);
+            ec->config.keep_alive.notify);
+    } else {
+      ERROR(DPDK_EVENTS_PLUGIN ": unrecognized configuration option %s.",
+            child->key);
+      return -1;
     }
   }
 
@@ -314,8 +344,10 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
 static int dpdk_events_config(oconfig_item_t *ci) {
   DPDK_EVENTS_TRACE();
   int ret = dpdk_events_preinit();
-  if (ret)
-    return ret;
+  if (ret) {
+    g_state |= DPDK_EVENTS_STATE_CFG_ERR;
+    return 0;
+  }
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
 
@@ -327,27 +359,63 @@ static int dpdk_events_config(oconfig_item_t *ci) {
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-    if (strcasecmp("EAL", child->key) == 0) {
-      dpdk_helper_eal_config_parse(g_hc, child);
-    } else if (strcasecmp("Event", child->key) == 0) {
-      if (strcasecmp(child->values[0].value.string, "link_status") == 0) {
-        dpdk_events_link_status_config(ec, child);
-      } else if (strcasecmp(child->values[0].value.string, "keep_alive") == 0) {
-        dpdk_events_keep_alive_config(ec, child);
+
+    if (strcasecmp("EAL", child->key) == 0)
+      ret = dpdk_helper_eal_config_parse(g_hc, child);
+    else if (strcasecmp("Event", child->key) == 0) {
+      char event_type[DATA_MAX_NAME_LEN];
+
+      if (cf_util_get_string_buffer(child, event_type, sizeof(event_type)))
+        ret = -1;
+      else if (strcasecmp(event_type, "link_status") == 0) {
+        ret = dpdk_events_link_status_config(ec, child);
+        if (ret) {
+          g_state |= DPDK_EVENTS_STATE_LS_CFG_ERR;
+          continue;
+        }
+      } else if (strcasecmp(event_type, "keep_alive") == 0) {
+        ret = dpdk_events_keep_alive_config(ec, child);
+        if (ret) {
+          g_state |= DPDK_EVENTS_STATE_KA_CFG_ERR;
+          continue;
+        }
       } else {
         ERROR(DPDK_EVENTS_PLUGIN ": The selected event \"%s\" is unknown.",
-              child->values[0].value.string);
+              event_type);
+        ret = -1;
       }
+    } else {
+      ERROR(DPDK_EVENTS_PLUGIN ": unrecognized configuration option %s.",
+            child->key);
+      ret = -1;
     }
+
+    if (ret != 0) {
+      g_state |= DPDK_EVENTS_STATE_CFG_ERR;
+      return 0;
+    }
+  }
+
+  if (g_state & DPDK_EVENTS_STATE_KA_CFG_ERR) {
+    ERROR(DPDK_EVENTS_PLUGIN
+          ": Invalid keep alive configuration. Event disabled.");
+    ec->config.keep_alive.enabled = 0;
+  }
+
+  if (g_state & DPDK_EVENTS_STATE_LS_CFG_ERR) {
+    ERROR(DPDK_EVENTS_PLUGIN
+          ": Invalid link status configuration. Event disabled.");
+    ec->config.link_status.enabled = 0;
   }
 
   if (!ec->config.keep_alive.enabled && !ec->config.link_status.enabled) {
     ERROR(DPDK_EVENTS_PLUGIN ": At least one type of events should be "
                              "configured for collecting. Plugin misconfigured");
-    return -1;
+    g_state |= DPDK_EVENTS_STATE_CFG_ERR;
+    return 0;
   }
 
-  return ret;
+  return 0;
 }
 
 static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
@@ -583,19 +651,11 @@ static int dpdk_events_read(user_data_t *ud) {
   return 0;
 }
 
-static int dpdk_events_init(void) {
-  DPDK_EVENTS_TRACE();
-
-  int ret = dpdk_events_preinit();
-  if (ret)
-    return ret;
-
-  return 0;
-}
-
 static int dpdk_events_shutdown(void) {
   DPDK_EVENTS_TRACE();
-  int ret;
+
+  if (g_hc == NULL)
+    return 0;
 
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(g_hc);
   if (ec->config.keep_alive.enabled) {
@@ -613,12 +673,25 @@ static int dpdk_events_shutdown(void) {
     }
   }
 
-  ret = dpdk_helper_shutdown(g_hc);
+  dpdk_helper_shutdown(g_hc);
   g_hc = NULL;
-  if (ret)
-    ERROR(DPDK_EVENTS_PLUGIN ": failed to cleanup %s helper", DPDK_EVENTS_NAME);
 
-  return ret;
+  return 0;
+}
+
+static int dpdk_events_init(void) {
+  DPDK_EVENTS_TRACE();
+
+  if (g_state & DPDK_EVENTS_STATE_CFG_ERR) {
+    dpdk_events_shutdown();
+    return -1;
+  }
+
+  int ret = dpdk_events_preinit();
+  if (ret)
+    return ret;
+
+  return 0;
 }
 
 void module_register(void) {

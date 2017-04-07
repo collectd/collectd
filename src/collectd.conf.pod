@@ -2408,7 +2408,6 @@ B<Synopsis:>
    <EAL>
      Coremask "0x1"
      MemoryChannels "4"
-     ProcessType "secondary"
      FilePrefix "rte"
    </EAL>
    <Event "link_status">
@@ -2431,17 +2430,13 @@ B<Options:>
 
 =head3 The EAL block
 
-=over 5
+=over 4
 
 =item B<Coremask> I<Mask>
 
 =item B<Memorychannels> I<Channels>
 
 Number of memory channels per processor socket.
-
-=item B<ProcessType> I<type>
-
-The type of DPDK process instance.
 
 =item B<FilePrefix> I<File>
 
@@ -2457,7 +2452,7 @@ single argument which specifies the name of the event.
 
 =head4 Link Status event
 
-=over 5
+=over 4
 
 =item B<SendEventOnUpdate> I<true|false>
 
@@ -2490,7 +2485,7 @@ value is false.
 
 =head4 Keep Alive event
 
-=over 5
+=over 4
 
 =item B<SendEventOnUpdate> I<true|false>
 
@@ -2526,7 +2521,6 @@ B<Synopsis:>
    <EAL>
      Coremask "0x4"
      MemoryChannels "4"
-     ProcessType "secondary"
      FilePrefix "rte"
      SocketMemory "1024"
    </EAL>
@@ -2540,7 +2534,7 @@ B<Options:>
 
 =head3 The EAL block
 
-=over 5
+=over 4
 
 =item B<Coremask> I<Mask>
 
@@ -2550,10 +2544,6 @@ core numbering can change between platforms and should be determined beforehand.
 =item B<Memorychannels> I<Channels>
 
 A string containing a number of memory channels per processor socket.
-
-=item B<ProcessType> I<type>
-
-A string containing the type of DPDK process instance.
 
 =item B<FilePrefix> I<File>
 
@@ -2570,6 +2560,7 @@ sockets in MB. This is an optional value.
 =over 3
 
 =item B<SharedMemObj> I<Mask>
+
 A string containing the name of the shared memory object that should be used to
 share stats from the DPDK secondary process to the collectd dpdkstat plugin.
 Defaults to dpdk_collectd_stats if no other value is configured.
