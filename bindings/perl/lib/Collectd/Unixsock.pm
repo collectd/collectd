@@ -316,7 +316,6 @@ sub putval
 	my %args = @_;
 
 	my ($status, $msg, $identifier, $values);
-	my $fh = $self->{sock} or confess;
 
 	my $interval = defined $args{interval} ?
 	' interval=' . _escape_argument ($args{interval}) : '';
@@ -493,7 +492,6 @@ sub putnotif
 	my %args = @_;
 
 	my $status;
-	my $fh = $self->{sock} or confess;
 
 	my $msg; # message sent to the socket
 	
@@ -551,8 +549,6 @@ sub flush
 {
 	my $self  = shift;
 	my %args = @_;
-
-	my $fh = $self->{sock} or confess;
 
 	my $msg = "FLUSH";
 
