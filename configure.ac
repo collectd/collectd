@@ -3311,41 +3311,44 @@ AC_ARG_WITH([libmongoc],
       with_libmongoc="no"
     else
       with_libmongoc="yes"
-      LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -I$withval/include"
-      LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -L$withval/lib"
+      libmongoc_cppflags="-I$withval/include"
+      libmongoc_ldflags="-L$withval/lib"
     fi; fi
   ],
   [with_libmongoc="yes"]
 )
 
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-
-if test "x$with_libmongoc" = "xyes"
-then
-	if test "x$PKG_CONFIG" != "x"
-	then
-		LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS `$PKG_CONFIG --cflags libmongoc-1.0`"
-		LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS `$PKG_CONFIG --libs libmongoc-1.0`"
-	fi
-fi
-
-CPPFLAGS="$CPPFLAGS $LIBMONGOC_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
-
 if test "x$with_libmongoc" = "xyes"; then
-  if test "x$LIBMONGOC_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CPPFLAGS])
-  fi
-
-  AC_CHECK_HEADERS([mongoc.h],
+  PKG_CHECK_MODULES([LIBMONGOC], [libmongoc-1.0],
     [with_libmongoc="yes"],
-    [with_libmongoc="no ('mongoc.h' not found)"],
-    [[#define MONGO_HAVE_STDINT 1]]
+    [with_libmongoc="no (pkg-config could not find libmongoc)"]
   )
 fi
 
 if test "x$with_libmongoc" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+
+  CPPFLAGS="$CPPFLAGS $libmongoc_cppflags $LIBMONGOC_CFLAGS"
+
+  if test "x$CPPFLAGS" != "x"; then
+    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CFLAGS])
+  fi
+
+  AC_CHECK_HEADERS([mongoc.h],
+    [with_libmongoc="yes"],
+    [with_libmongoc="no ('mongoc.h' not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libmongoc" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CPPFLAGS="$CPPFLAGS $libmongoc_cppflags $LIBMONGOC_CFLAGS"
+  LDFLAGS="$LDFLAGS $libmongoc_ldflags $LIBMONGOC_LDFLAGS"
+
   if test "x$LIBMONGOC_LDFLAGS" != "x"; then
     AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
   fi
@@ -3354,14 +3357,14 @@ if test "x$with_libmongoc" = "xyes"; then
     [with_libmongoc="yes"],
     [with_libmongoc="no (symbol 'mongoc_init' not found)"]
   )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
-
 if test "x$with_libmongoc" = "xyes"; then
-  BUILD_WITH_LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS"
-  BUILD_WITH_LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS"
+  BUILD_WITH_LIBMONGOC_CPPFLAGS="$libmongoc_cppflags $LIBMONGOC_CFLAGS"
+  BUILD_WITH_LIBMONGOC_LDFLAGS="$libmongoc_ldflags $LIBMONGOC_LDFLAGS"
 fi
 
 AC_SUBST([BUILD_WITH_LIBMONGOC_CPPFLAGS])

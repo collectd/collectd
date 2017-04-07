@@ -36,7 +36,6 @@
 #include "plugin.h"
 #include "utils_cache.h"
 
-#define MONGO_HAVE_STDINT 1
 #include <mongoc.h>
 
 struct wm_node_s {
