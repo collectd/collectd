@@ -168,7 +168,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       mongoc_client_destroy(node->client);
       node->client = NULL;
       node->connected = 0;
-      pthread_mutex_unlock(&node->lock);
       return -1;
     }
     ssnprintf(uri, uri_length, format_string, node->user, node->passwd,
@@ -184,7 +183,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       node->connected = 0;
       free(uri);
       uri = NULL;
-      pthread_mutex_unlock(&node->lock);
       return -1;
     }
   } else {
@@ -196,7 +194,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       mongoc_client_destroy(node->client);
       node->client = NULL;
       node->connected = 0;
-      pthread_mutex_unlock(&node->lock);
       return -1;
     }
     snprintf(uri, uri_length, format_string, node->host, node->port);
@@ -209,7 +206,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       node->connected = 0;
       free(uri);
       uri = NULL;
-      pthread_mutex_unlock(&node->lock);
       return -1;
     }
   }
@@ -221,7 +217,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
     mongoc_client_destroy(node->client);
     node->client = NULL;
     node->connected = 0;
-    pthread_mutex_unlock(&node->lock);
     return -1;
   }
 
@@ -244,7 +239,12 @@ static int wm_write(const data_set_t *ds, /* {{{ */
   }
 
   pthread_mutex_lock(&node->lock);
-  wm_initialize(node);
+  if (wm_initialize(node) < 0) {
+    ERROR("write_mongodb plugin: error making connection to server");
+    pthread_mutex_unlock(&node->lock);
+    bson_free(bson_record);
+    return -1;
+  }
 
   collection =
       mongoc_client_get_collection(node->client, "collectd", vl->plugin);
