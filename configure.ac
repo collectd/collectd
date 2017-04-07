@@ -3310,9 +3310,7 @@ AC_ARG_WITH([libmongoc],
     else if test "x$withval" = "xno"; then
       with_libmongoc="no"
     else
-      with_libmongoc="yes"
-      libmongoc_cppflags="-I$withval/include"
-      libmongoc_ldflags="-L$withval/lib"
+      with_libmongoc="no"
     fi; fi
   ],
   [with_libmongoc="yes"]
@@ -3328,7 +3326,7 @@ fi
 if test "x$with_libmongoc" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
 
-  CPPFLAGS="$CPPFLAGS $libmongoc_cppflags $LIBMONGOC_CFLAGS"
+  CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
 
   if test "x$CPPFLAGS" != "x"; then
     AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CFLAGS])
@@ -3346,8 +3344,8 @@ if test "x$with_libmongoc" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
 
-  CPPFLAGS="$CPPFLAGS $libmongoc_cppflags $LIBMONGOC_CFLAGS"
-  LDFLAGS="$LDFLAGS $libmongoc_ldflags $LIBMONGOC_LDFLAGS"
+  CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
+  LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
 
   if test "x$LIBMONGOC_LDFLAGS" != "x"; then
     AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
@@ -3363,8 +3361,8 @@ if test "x$with_libmongoc" = "xyes"; then
 fi
 
 if test "x$with_libmongoc" = "xyes"; then
-  BUILD_WITH_LIBMONGOC_CPPFLAGS="$libmongoc_cppflags $LIBMONGOC_CFLAGS"
-  BUILD_WITH_LIBMONGOC_LDFLAGS="$libmongoc_ldflags $LIBMONGOC_LDFLAGS"
+  BUILD_WITH_LIBMONGOC_CPPFLAGS="$LIBMONGOC_CFLAGS"
+  BUILD_WITH_LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS"
 fi
 
 AC_SUBST([BUILD_WITH_LIBMONGOC_CPPFLAGS])
