@@ -51,7 +51,7 @@ struct wm_node_s {
   char *passwd;
 
   _Bool store_rates;
-  bool connected;
+  _Bool connected;
 
   mongoc_client_t *client;
   mongoc_database_t *database;
@@ -140,6 +140,15 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   bson_append_array_end(ret, &subarray); /* }}} dsnames */
 
   sfree(rates);
+
+  size_t error_location;
+  if (!bson_validate(ret, BSON_VALIDATE_UTF8, &error_location)) {
+    ERROR("write_mongodb plugin: Error in generated BSON document "
+        "at byte %zu", error_location);
+    bson_free(ret);
+    return NULL;
+  }
+
   return ret;
 } /* }}} bson *wm_create_bson */
 
@@ -147,7 +156,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
 {
   char *uri;
   int uri_length;
-  char *format_string;
+  char const *format_string;
 
   if (node->connected) {
     return 0;
@@ -162,7 +171,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
     uri_length = strlen(format_string) + strlen(node->user) +
                  strlen(node->passwd) + strlen(node->host) + 5 +
                  strlen(node->db) + 1;
-    if ((uri = malloc(sizeof(char) * uri_length)) == NULL) {
+    if ((uri = calloc(uri_length, sizeof(char))) == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -181,14 +190,13 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
             (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT, node->db,
             node->user);
       node->connected = 0;
-      free(uri);
-      uri = NULL;
+      sfree(uri);
       return -1;
     }
   } else {
     format_string = "mongodb://%s:%d";
     uri_length = strlen(format_string) + strlen(node->host) + 5 + 1;
-    if ((uri = malloc(sizeof(char) * uri_length)) == NULL) {
+    if ((uri = calloc(uri_length, sizeof(char))) == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -204,12 +212,11 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
             (node->host != NULL) ? node->host : "localhost",
             (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT);
       node->connected = 0;
-      free(uri);
-      uri = NULL;
+      sfree(uri);
       return -1;
     }
   }
-  free(uri);
+  sfree(uri);
 
   node->database = mongoc_client_get_database(node->client, "collectd");
   if (!node->database) {
