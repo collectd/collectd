@@ -3310,52 +3310,62 @@ AC_ARG_WITH([libmongoc],
     else if test "x$withval" = "xno"; then
       with_libmongoc="no"
     else
-      with_libmongoc="yes"
-      LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS -I$withval/include"
-      LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS -L$withval/lib"
+      with_libmongoc="no"
     fi; fi
   ],
   [with_libmongoc="yes"]
 )
 
-SAVE_CPPFLAGS="$CPPFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-
-CPPFLAGS="$CPPFLAGS $LIBMONGOC_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
-
 if test "x$with_libmongoc" = "xyes"; then
-  if test "x$LIBMONGOC_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CPPFLAGS])
-  fi
-
-  AC_CHECK_HEADERS([mongo.h],
+  PKG_CHECK_MODULES([LIBMONGOC], [libmongoc-1.0],
     [with_libmongoc="yes"],
-    [with_libmongoc="no ('mongo.h' not found)"],
-    [[#define MONGO_HAVE_STDINT 1]]
+    [with_libmongoc="no (pkg-config could not find libmongoc)"]
   )
 fi
 
 if test "x$with_libmongoc" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+
+  CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
+
+  if test "x$CPPFLAGS" != "x"; then
+    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CFLAGS])
+  fi
+
+  AC_CHECK_HEADERS([mongoc.h],
+    [with_libmongoc="yes"],
+    [with_libmongoc="no ('mongoc.h' not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libmongoc" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+
+  CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
+  LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
+
   if test "x$LIBMONGOC_LDFLAGS" != "x"; then
     AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
   fi
 
-  AC_CHECK_LIB([mongoc], [mongo_run_command],
+  AC_CHECK_LIB([mongoc-1.0], [mongoc_init],
     [with_libmongoc="yes"],
-    [with_libmongoc="no (symbol 'mongo_run_command' not found)"]
+    [with_libmongoc="no (symbol 'mongoc_init' not found)"]
   )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
-CPPFLAGS="$SAVE_CPPFLAGS"
-LDFLAGS="$SAVE_LDFLAGS"
-
 if test "x$with_libmongoc" = "xyes"; then
-  BUILD_WITH_LIBMONGOC_CPPFLAGS="$LIBMONGOC_CPPFLAGS"
+  BUILD_WITH_LIBMONGOC_CFLAGS="$LIBMONGOC_CFLAGS"
   BUILD_WITH_LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS"
 fi
 
-AC_SUBST([BUILD_WITH_LIBMONGOC_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBMONGOC_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMONGOC_LDFLAGS])
 # }}}
 

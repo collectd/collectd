@@ -18,12 +18,7 @@ EOF
 	done
 }
 
-check_for_application lex bison autoheader aclocal automake autoconf
-
-# Actually we don't need the pkg-config executable, but we need the M4 macros.
-# We check for `pkg-config' here and hope that M4 macros will then be
-# available, too.
-check_for_application pkg-config
+check_for_application lex bison autoheader aclocal automake autoconf pkg-config
 
 libtoolize=""
 libtoolize --version >/dev/null 2>/dev/null
