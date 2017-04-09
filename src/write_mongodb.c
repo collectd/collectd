@@ -155,7 +155,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
 static int wm_initialize(wm_node_t *node) /* {{{ */
 {
   char *uri;
-  int uri_length;
+  size_t uri_length;
   char const *format_string;
 
   if (node->connected) {
@@ -171,7 +171,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
     uri_length = strlen(format_string) + strlen(node->user) +
                  strlen(node->passwd) + strlen(node->host) + 5 +
                  strlen(node->db) + 1;
-    if ((uri = calloc(uri_length, sizeof(char))) == NULL) {
+    if ((uri = calloc(sizeof(char), uri_length)) == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -196,7 +196,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
   } else {
     format_string = "mongodb://%s:%d";
     uri_length = strlen(format_string) + strlen(node->host) + 5 + 1;
-    if ((uri = calloc(uri_length, sizeof(char))) == NULL) {
+    if ((uri = calloc(sizeof(char), uri_length)) == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
