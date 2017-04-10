@@ -28,6 +28,7 @@
 #define LIBCOLLECTD_COLLECTDCLIENT_H 1
 
 #include "lcc_features.h"
+#include "types.h"
 
 /* COLLECTD_TRACE is the environment variable used to control trace output. When
  * set to something non-zero, all lines sent to / received from the daemon are
@@ -43,57 +44,7 @@
 #include <inttypes.h>
 #include <time.h>
 
-/*
- * Defines
- */
-#define LCC_NAME_LEN 64
-#define LCC_DEFAULT_PORT "25826"
-
-/*
- * Types
- */
-#define LCC_TYPE_COUNTER 0
-#define LCC_TYPE_GAUGE 1
-#define LCC_TYPE_DERIVE 2
-#define LCC_TYPE_ABSOLUTE 3
-
 LCC_BEGIN_DECLS
-
-typedef uint64_t counter_t;
-typedef double gauge_t;
-typedef uint64_t derive_t;
-typedef uint64_t absolute_t;
-
-union value_u {
-  counter_t counter;
-  gauge_t gauge;
-  derive_t derive;
-  absolute_t absolute;
-};
-typedef union value_u value_t;
-
-struct lcc_identifier_s {
-  char host[LCC_NAME_LEN];
-  char plugin[LCC_NAME_LEN];
-  char plugin_instance[LCC_NAME_LEN];
-  char type[LCC_NAME_LEN];
-  char type_instance[LCC_NAME_LEN];
-};
-typedef struct lcc_identifier_s lcc_identifier_t;
-#define LCC_IDENTIFIER_INIT                                                    \
-  { "localhost", "", "", "", "" }
-
-struct lcc_value_list_s {
-  value_t *values;
-  int *values_types;
-  size_t values_len;
-  double time;
-  double interval;
-  lcc_identifier_t identifier;
-};
-typedef struct lcc_value_list_s lcc_value_list_t;
-#define LCC_VALUE_LIST_INIT                                                    \
-  { NULL, NULL, 0, 0, 0, LCC_IDENTIFIER_INIT }
 
 struct lcc_connection_s;
 typedef struct lcc_connection_s lcc_connection_t;
