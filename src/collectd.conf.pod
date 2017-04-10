@@ -5779,8 +5779,8 @@ B<Options:>
 
 =item B<Source> B<sysfs>|B<proc>|B<off>
 
-Use sysfs or proc for reading data from registers. If set to "off" or option
-is not provided, no data is being read from devices.
+Use sysfs or proc for reading data from registers. If set to B<off> no data is
+being read from devices. The default value is B<sysfs>.
 
 =item B<AccessDir> I<dir>
 
@@ -5789,14 +5789,15 @@ Directory used to access device config space. It is optional and defaults to
 
 =item B<ReportMasked> B<false>|B<true>
 
-If true plugin will notify errors that are set to masked in
-Error Mask register. Such errors are not reported to the PCI
-Express Root Complex. Defaults to B<false>.
+If true plugin will notify errors that are set to masked in Error Mask register.
+Such errors are not reported to the PCI Express Root Complex. Defaults to
+B<false>. This parameter takes effect only if B<Source> is set.
 
 =item B<PersistentNotifications> B<false>|B<true>
 
 If false plugin will dispatch notfication only on set/clear of error.
 The ones already reported will be ignored. Defaults to B<false>.
+This parameter takes effect only if B<Source> is set.
 
 =item B<ReadLog> B<false>|B<true>
 

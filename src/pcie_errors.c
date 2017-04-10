@@ -77,8 +77,6 @@ typedef struct pcie_device_s {
   uint8_t function;
   int cap_exp;
   int ecap_aer;
-  _Bool excluded;
-  _Bool aer_not_found;
   uint16_t device_status;
   uint32_t correctable_errors;
   uint32_t uncorrectable_errors;
@@ -105,7 +103,9 @@ typedef struct pcie_msg_parser_s {
 
 static llist_t *pcie_dev_list;
 static pcie_config_t pcie_config = {.access_dir = "",
-                                    .logfile = "/var/log/syslog"};
+                                    .logfile = "/var/log/syslog",
+                                    .use_sysfs = 1,
+                                    .read_devices = 1};
 static pcie_fops_t pcie_fops;
 
 /* Device Error Status */
@@ -594,50 +594,6 @@ static void pcie_check_aer(pcie_device_t *dev, int pos) {
   dev->correctable_errors = errors;
 }
 
-static void pcie_process_device_with_aer(pcie_device_t *dev) {
-  if (dev->ecap_aer == -1)
-    dev->ecap_aer = pcie_find_ecap_aer(dev);
-
-  if (dev->ecap_aer != -1)
-    pcie_check_aer(dev, dev->ecap_aer);
-  else {
-    notification_t n = {.severity = NOTIF_OKAY,
-                        .time = cdtime(),
-                        .message = "Device is not AER capable",
-                        .plugin = PCIE_ERRORS_PLUGIN,
-                        .meta = NULL};
-    pcie_dispatch_notification(dev, &n, "", "");
-    dev->aer_not_found = 1;
-  }
-}
-
-static void pcie_process_device(pcie_device_t *dev) {
-  uint16_t status = pcie_read16(dev, PCI_STATUS);
-  if (!(status & PCI_STATUS_CAP_LIST)) {
-    DEBUG(PCIE_ERRORS_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
-          dev->domain, dev->bus, dev->device, dev->function);
-    /* Exclude non PCIe devices, do not check them again */
-    dev->excluded = 1;
-    return;
-  }
-
-  /* Every PCIe device must have Capability Structure */
-  if (dev->cap_exp == -1)
-    dev->cap_exp = pcie_find_cap_exp(dev);
-
-  if (dev->cap_exp != -1) {
-    pcie_check_dev_status(dev, dev->cap_exp);
-  } else {
-    DEBUG(PCIE_ERRORS_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
-          dev->domain, dev->bus, dev->device, dev->function);
-    dev->excluded = 1;
-    return;
-  }
-
-  if (dev->aer_not_found == 0)
-    pcie_process_device_with_aer(dev);
-}
-
 static int pcie_process_devices(llist_t *devs) {
   int ret = 0;
   if (devs == NULL)
@@ -646,11 +602,11 @@ static int pcie_process_devices(llist_t *devs) {
   for (llentry_t *e = llist_head(devs); e != NULL; e = e->next) {
     pcie_device_t *dev = e->value;
 
-    if (dev->excluded)
-      continue;
-
     if (pcie_fops.open(dev) == 0) {
-      pcie_process_device(dev);
+      pcie_check_dev_status(dev, dev->cap_exp);
+      if (dev->ecap_aer != -1)
+        pcie_check_aer(dev, dev->ecap_aer);
+
       pcie_fops.close(dev);
     } else {
       notification_t n = {.severity = NOTIF_FAILURE,
@@ -664,6 +620,50 @@ static int pcie_process_devices(llist_t *devs) {
   }
 
   return ret;
+}
+
+/* This function is to be called during init to filter out not pcie devices */
+static void pcie_preprocess_devices(llist_t *devs) {
+  llentry_t *e_next;
+
+  if (devs == NULL)
+    return;
+
+  for (llentry_t *e = llist_head(devs); e != NULL; e = e_next) {
+    pcie_device_t *dev = e->value;
+    _Bool del = 0;
+
+    if (pcie_fops.open(dev) == 0) {
+      uint16_t status = pcie_read16(dev, PCI_STATUS);
+      if (status & PCI_STATUS_CAP_LIST)
+        dev->cap_exp = pcie_find_cap_exp(dev);
+
+      /* Every PCIe device must have Capability Structure */
+      if (dev->cap_exp == -1) {
+        DEBUG(PCIE_ERRORS_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
+              dev->domain, dev->bus, dev->device, dev->function);
+        del = 1;
+      } else {
+        dev->ecap_aer = pcie_find_ecap_aer(dev);
+        if (dev->ecap_aer == -1)
+          INFO(PCIE_ERRORS_PLUGIN ": Device is not AER capable: %04x:%02x:%02x.%d",
+                dev->domain, dev->bus, dev->device, dev->function);
+      }
+
+      pcie_fops.close(dev);
+    } else {
+      ERROR(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: failed to open",
+            dev->domain, dev->bus, dev->device, dev->function);
+      del = 1;
+    }
+
+    e_next = e->next;
+    if (del) {
+      sfree(dev);
+      llist_remove(devs, e);
+      llentry_destroy(e);
+    }
+  }
 }
 
 static void pcie_parse_msg(message *msg, unsigned int max_items) {
@@ -838,11 +838,11 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
       if ((child->values_num != 1) ||
           (child->values[0].type != OCONFIG_TYPE_STRING)) {
         status = -1;
-      } else if (strcasecmp("sysfs", child->values[0].value.string) == 0) {
-        pcie_config.use_sysfs = 1;
-        pcie_config.read_devices = 1;
       } else if (strcasecmp("proc", child->values[0].value.string) == 0) {
-        pcie_config.read_devices = 1;
+        pcie_config.use_sysfs = 0;
+      } else if (strcasecmp("sysfs", child->values[0].value.string) != 0) {
+        pcie_config.use_sysfs = 0;
+        pcie_config.read_devices = 0;
       }
     } else if (strcasecmp("AccessDir", child->key) == 0) {
       status = cf_util_get_string_buffer(child, pcie_config.access_dir,
@@ -944,6 +944,14 @@ static int pcie_init(void) {
     pcie_dev_list = llist_create();
     if (pcie_fops.list_devices(pcie_dev_list) != 0) {
       ERROR(PCIE_ERRORS_PLUGIN ": Failed to find devices.");
+      pcie_shutdown();
+      return -1;
+    }
+    pcie_preprocess_devices(pcie_dev_list);
+    if (llist_size(pcie_dev_list) == 0) {
+      /* No any PCI Express devices were found on the system */
+      ERROR(PCIE_ERRORS_PLUGIN ": No PCIe devices found in %s",
+      pcie_config.access_dir);
       pcie_shutdown();
       return -1;
     }
