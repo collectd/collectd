@@ -1506,7 +1506,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
-#	ExtraStats "disk pcpu"
+#	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin"
 #</Plugin>
 
 #<Plugin vmem>
