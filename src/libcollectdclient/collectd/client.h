@@ -40,8 +40,8 @@
 /*
  * Includes (for data types)
  */
-#include <stdint.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <time.h>
 
 LCC_BEGIN_DECLS

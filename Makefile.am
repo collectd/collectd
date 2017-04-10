@@ -89,6 +89,7 @@ nodist_pkgconfig_DATA = \
 
 pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/client.h \
+	src/libcollectdclient/collectd/server.h \
 	src/libcollectdclient/collectd/network.h \
 	src/libcollectdclient/collectd/network_buffer.h \
 	src/libcollectdclient/collectd/lcc_features.h
@@ -133,7 +134,8 @@ check_PROGRAMS = \
 	test_utils_mount \
 	test_utils_subst \
 	test_utils_time \
-	test_utils_vl_lookup
+	test_utils_vl_lookup \
+	test_lib_server
 
 
 TESTS = $(check_PROGRAMS)
@@ -471,20 +473,28 @@ endif
 libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/client.c \
 	src/libcollectdclient/network.c \
-	src/libcollectdclient/network_buffer.c
+	src/libcollectdclient/network_buffer.c \
+	src/libcollectdclient/server.c
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient \
 	-I$(srcdir)/src/daemon
 libcollectdclient_la_LDFLAGS = -version-info 1:0:0
-libcollectdclient_la_LIBADD = 
+libcollectdclient_la_LIBADD = -lm
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
+# server_test.c includes server.c, so no need to link with
+# libcollectdclient.so.
+test_lib_server_SOURCES = src/libcollectdclient/server_test.c
+test_lib_server_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 
 liboconfig_la_SOURCES = \
 	src/liboconfig/oconfig.c \
