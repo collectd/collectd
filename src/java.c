@@ -95,6 +95,8 @@ static pthread_mutex_t       java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static oconfig_item_t       *config_block = NULL;
 
+static int cjni_shutdown (void);
+
 /*
  * Prototypes
  *
@@ -2387,6 +2389,8 @@ static int cjni_config_callback (oconfig_item_t *ci) /* {{{ */
   oconfig_item_t *ci_copy;
   oconfig_item_t *tmp;
 
+  DEBUG("java plugin: cjni_config_callback");
+
   assert (ci != NULL);
   if (ci->children_num == 0)
     return (0); /* nothing to do */
@@ -2400,32 +2404,55 @@ static int cjni_config_callback (oconfig_item_t *ci) /* {{{ */
 
   if (config_block == NULL)
   {
+    DEBUG("java plugin: Setting initial config block");
+
     config_block = ci_copy;
-    return (0);
+  }
+  else
+  {
+    DEBUG("java plugin: Appending config...");
+
+    tmp = realloc (config_block->children,
+        (config_block->children_num + ci_copy->children_num) * sizeof (*tmp));
+    if (tmp == NULL)
+    {
+      ERROR ("java plugin: realloc failed.");
+      oconfig_free (ci_copy);
+      return (-1);
+    }
+    config_block->children = tmp;
+
+    /* Copy the pointers */
+    memcpy (config_block->children + config_block->children_num,
+        ci_copy->children,
+        ci_copy->children_num * sizeof (*ci_copy->children));
+    config_block->children_num += ci_copy->children_num;
+
+    /* Delete the pointers from the copy, so `oconfig_free' can't free them. */
+    memset (ci_copy->children, 0,
+        ci_copy->children_num * sizeof (*ci_copy->children));
+    ci_copy->children_num = 0;
+
+    oconfig_free (ci_copy);
   }
 
-  tmp = realloc (config_block->children,
-      (config_block->children_num + ci_copy->children_num) * sizeof (*tmp));
-  if (tmp == NULL)
+  DEBUG("java plugin: Shutting down any running jvm...");
+  cjni_shutdown();
+
+  DEBUG("java plugin: Eagerly starting a jvm...");
+  if ((config_block == NULL) && (jvm == NULL))
   {
-    ERROR ("java plugin: realloc failed.");
-    oconfig_free (ci_copy);
+    ERROR ("java plugin: cjni_config_callback: No configuration block for "
+        "the java plugin was found.");
     return (-1);
   }
-  config_block->children = tmp;
 
-  /* Copy the pointers */
-  memcpy (config_block->children + config_block->children_num,
-      ci_copy->children,
-      ci_copy->children_num * sizeof (*ci_copy->children));
-  config_block->children_num += ci_copy->children_num;
-
-  /* Delete the pointers from the copy, so `oconfig_free' can't free them. */
-  memset (ci_copy->children, 0,
-      ci_copy->children_num * sizeof (*ci_copy->children));
-  ci_copy->children_num = 0;
-
-  oconfig_free (ci_copy);
+  if (config_block != NULL)
+  {
+    cjni_config_perform (config_block);
+    oconfig_free (config_block);
+    config_block = NULL;
+  }
 
   return (0);
 } /* }}} int cjni_config_callback */
@@ -3047,19 +3074,6 @@ static int cjni_shutdown (void) /* {{{ */
 static int cjni_init (void) /* {{{ */
 {
   JNIEnv *jvm_env;
-
-  if ((config_block == NULL) && (jvm == NULL))
-  {
-    ERROR ("java plugin: cjni_init: No configuration block for "
-        "the java plugin was found.");
-    return (-1);
-  }
-
-  if (config_block != NULL)
-  {
-    cjni_config_perform (config_block);
-    oconfig_free (config_block);
-  }
 
   if (jvm == NULL)
   {
