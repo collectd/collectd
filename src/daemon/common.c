@@ -150,7 +150,7 @@ char *sstrdup(const char *s) {
     ERROR("sstrdup: Out of memory.");
     exit(3);
   }
-  memcpy(r, s, sizeof(char) * sz);
+  memcpy(r, s, sz);
 
   return (r);
 } /* char *sstrdup */
