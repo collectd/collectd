@@ -41,14 +41,25 @@
 #include <math.h>
 #include <net/if.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#define GCRYPT_NO_DEPRECATED
+#include <gcrypt.h>
+
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
+
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
+
+/* forward declaration because parse_sign_sha256()/parse_encrypt_aes256() and
+ * network_parse() need to call each other. */
+static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
+                         lcc_network_parse_options_t const *opts);
 
 static _Bool is_multicast(struct addrinfo const *ai) {
   if (ai->ai_family == AF_INET) {
@@ -179,8 +190,44 @@ static int server_open(lcc_listener_t *srv) {
   return status != 0 ? status : -1;
 }
 
+static int init_gcrypt() {
+  /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
+   * Because you can't know in a library whether another library has
+   * already initialized the library */
+  if (gcry_control(GCRYCTL_ANY_INITIALIZATION_P))
+    return (0);
+
+/* http://www.gnupg.org/documentation/manuals/gcrypt/Multi_002dThreading.html
+ * To ensure thread-safety, it's important to set GCRYCTL_SET_THREAD_CBS
+ * *before* initalizing Libgcrypt with gcry_check_version(), which itself must
+ * be called before any other gcry_* function. GCRYCTL_ANY_INITIALIZATION_P
+ * above doesn't count, as it doesn't implicitly initalize Libgcrypt.
+ *
+ * tl;dr: keep all these gry_* statements in this exact order please. */
+#if GCRYPT_VERSION_NUMBER < 0x010600
+  if (gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread)) {
+    return -1;
+  }
+#endif
+
+  gcry_check_version(NULL);
+
+  if (gcry_control(GCRYCTL_INIT_SECMEM, 32768)) {
+    return -1;
+  }
+
+  gcry_control(GCRYCTL_INITIALIZATION_FINISHED);
+  return 0;
+}
+
 int lcc_listen_and_write(lcc_listener_t srv) {
   _Bool close_socket = 0;
+
+  if (srv.password_lookup) {
+    int status = init_gcrypt();
+    if (status)
+      return status;
+  }
 
   if (srv.conn < 0) {
     int status = server_open(&srv);
@@ -205,7 +252,12 @@ int lcc_listen_and_write(lcc_listener_t srv) {
     }
 
     /* TODO(octo): implement parse(). */
-    (void)lcc_network_parse(buffer, (size_t)len, srv.writer);
+    (void)lcc_network_parse(buffer, (size_t)len,
+                            (lcc_network_parse_options_t){
+                                .writer = srv.writer,
+                                .password_lookup = srv.password_lookup,
+                                .security_level = srv.security_level,
+                            });
   }
 
   if (close_socket) {
@@ -252,6 +304,8 @@ static int buffer_uint16(buffer_t *b, uint16_t *out) {
 #define TYPE_VALUES 0x0006
 #define TYPE_INTERVAL 0x0007
 #define TYPE_INTERVAL_HR 0x0009
+#define TYPE_SIGN_SHA256 0x0200
+#define TYPE_ENCR_AES256 0x0210
 
 static int parse_int(void *payload, size_t payload_size, uint64_t *out) {
   uint64_t tmp;
@@ -465,7 +519,147 @@ static int parse_values(void *payload, size_t payload_size,
   return 0;
 }
 
-int lcc_network_parse(void *data, size_t data_size, lcc_value_list_writer_t w) {
+static int verify_sha256(void *payload, size_t payload_size,
+                         char const *username, char const *password,
+                         uint8_t hash_provided[32]) {
+  gcry_md_hd_t hd = NULL;
+
+  gcry_error_t err = gcry_md_open(&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
+  if (err != 0) {
+    /* TODO(octo): use gcry_strerror(err) to create an error string. */
+    return -1;
+  }
+
+  err = gcry_md_setkey(hd, password, strlen(password));
+  if (err != 0) {
+    gcry_md_close(hd);
+    return -1;
+  }
+
+  gcry_md_write(hd, username, strlen(username));
+  gcry_md_write(hd, payload, payload_size);
+
+  unsigned char *hash_calculated = gcry_md_read(hd, GCRY_MD_SHA256);
+  if (!hash_calculated) {
+    gcry_md_close(hd);
+    return -1;
+  }
+
+  int ret = memcmp(hash_provided, hash_calculated, 32);
+
+  gcry_md_close(hd);
+  hash_calculated = NULL;
+
+  return !!ret;
+}
+
+static int parse_sign_sha256(void *signature, size_t signature_len,
+                             void *payload, size_t payload_size,
+                             lcc_network_parse_options_t const *opts) {
+  if (opts->password_lookup == NULL) {
+    /* TODO(octo): print warning */
+    return network_parse(payload, payload_size, NONE, opts);
+  }
+
+  buffer_t *b = &(buffer_t){
+      .data = signature, .len = signature_len,
+  };
+
+  uint8_t hash[32];
+  if (buffer_next(b, hash, sizeof(hash)))
+    return EINVAL;
+
+  char username[b->len + 1];
+  memset(username, 0, sizeof(username));
+  if (buffer_next(b, username, sizeof(username) - 1)) {
+    return EINVAL;
+  }
+
+  char const *password = opts->password_lookup(username);
+  if (!password)
+    return network_parse(payload, payload_size, NONE, opts);
+
+  int status = verify_sha256(payload, payload_size, username, password, hash);
+  if (status != 0)
+    return status;
+
+  return network_parse(payload, payload_size, SIGN, opts);
+}
+
+static int decrypt_aes256(buffer_t *b, void *iv, size_t iv_size,
+                          char const *password) {
+  gcry_cipher_hd_t cipher = NULL;
+
+  if (gcry_cipher_open(&cipher, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_OFB,
+                       /* flags = */ 0))
+    return -1;
+
+  uint8_t pwhash[32] = {0};
+  gcry_md_hash_buffer(GCRY_MD_SHA256, pwhash, password, strlen(password));
+
+  fprintf(stderr, "sizeof(iv) = %zu\n", sizeof(iv));
+  if (gcry_cipher_setkey(cipher, pwhash, sizeof(pwhash)) ||
+      gcry_cipher_setiv(cipher, iv, iv_size) ||
+      gcry_cipher_decrypt(cipher, b->data, b->len, /* in = */ NULL,
+                          /* in_size = */ 0)) {
+    gcry_cipher_close(cipher);
+    return -1;
+  }
+
+  gcry_cipher_close(cipher);
+  return 0;
+}
+
+static int parse_encrypt_aes256(void *data, size_t data_size,
+                                lcc_network_parse_options_t const *opts) {
+  if (opts->password_lookup == NULL) {
+    /* TODO(octo): print warning */
+    return ENOENT;
+  }
+
+  buffer_t *b = &(buffer_t){
+      .data = data, .len = data_size,
+  };
+
+  uint16_t username_len;
+  if (buffer_uint16(b, &username_len))
+    return EINVAL;
+  if ((size_t)username_len > data_size)
+    return ENOMEM;
+  char username[((size_t)username_len) + 1];
+  memset(username, 0, sizeof(username));
+  if (buffer_next(b, username, sizeof(username)))
+    return EINVAL;
+
+  char const *password = opts->password_lookup(username);
+  if (!password)
+    return ENOENT;
+
+  uint8_t iv[16];
+  if (buffer_next(b, iv, sizeof(iv)))
+    return EINVAL;
+
+  int status = decrypt_aes256(b, iv, sizeof(iv), password);
+  if (status != 0)
+    return status;
+
+  uint8_t hash_provided[20];
+  if (buffer_next(b, hash_provided, sizeof(hash_provided))) {
+    return -1;
+  }
+
+  uint8_t hash_calculated[20];
+  gcry_md_hash_buffer(GCRY_MD_SHA1, hash_calculated, b->data, b->len);
+
+  if (memcmp(hash_provided, hash_calculated, sizeof(hash_provided)) != 0) {
+    return -1;
+  }
+
+  return network_parse(b->data, b->len, ENCRYPT, opts);
+}
+
+static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
+                         lcc_network_parse_options_t const *opts) {
   buffer_t *b = &(buffer_t){
       .data = data, .len = data_size,
   };
@@ -524,13 +718,35 @@ int lcc_network_parse(void *data, size_t data_size, lcc_value_list_writer_t w) {
 
       /* TODO(octo): skip if current_security_level < required_security_level */
 
-      int status = w(&vl);
+      int status = opts->writer(&vl);
 
       free(vl.values);
       free(vl.values_types);
 
       if (status != 0)
         return status;
+      break;
+    }
+
+    case TYPE_SIGN_SHA256: {
+      int status =
+          parse_sign_sha256(payload, sizeof(payload), b->data, b->len, opts);
+      if (status != 0) {
+        DEBUG("lcc_network_parse(): parse_sign_sha256() = %d\n", status);
+        return -1;
+      }
+      /* parse_sign_sha256, if successful, consumes all remaining data. */
+      b->data = NULL;
+      b->len = 0;
+      break;
+    }
+
+    case TYPE_ENCR_AES256: {
+      int status = parse_encrypt_aes256(payload, sizeof(payload), opts);
+      if (status != 0) {
+        DEBUG("lcc_network_parse(): parse_encrypt_aes256() = %d\n", status);
+        return -1;
+      }
       break;
     }
 
@@ -542,4 +758,16 @@ int lcc_network_parse(void *data, size_t data_size, lcc_value_list_writer_t w) {
   }
 
   return 0;
+}
+
+int lcc_network_parse(void *data, size_t data_size,
+                      lcc_network_parse_options_t opts) {
+  if (opts.password_lookup) {
+    int status;
+    if ((status = init_gcrypt())) {
+      return status;
+    }
+  }
+
+  return network_parse(data, data_size, NONE, &opts);
 }

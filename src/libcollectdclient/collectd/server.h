@@ -29,6 +29,7 @@
 #include "collectd/lcc_features.h"
 
 #include "collectd/types.h"
+#include "collectd/network.h" /* for lcc_security_level_t */
 
 #include <stdint.h>
 
@@ -37,6 +38,10 @@ LCC_BEGIN_DECLS
 /* lcc_value_list_writer_t is a write callback to which value lists are
  * dispatched. */
 typedef int (*lcc_value_list_writer_t)(lcc_value_list_t const *);
+
+/* lcc_password_lookup_t is a callback for looking up the password for a given
+ * user. Must return NULL if the user is not known. */
+typedef char const *(*lcc_password_lookup_t)(char const *);
 
 /* lcc_listener_t holds parameters for running a collectd server. */
 typedef struct {
@@ -57,11 +62,11 @@ typedef struct {
   /* buffer_size determines the maximum packet size to accept. */
   uint16_t buffer_size;
 
-  /* TODO(octo): User to password lookup. */
-  /* char const * (*password_lookup) (char const *); */
+  /* password_lookup is used to look up the password for a given username. */
+  lcc_password_lookup_t password_lookup;
 
-  /* TODO(octo): Minimal required security level. */
-  /* int security_level; */
+  /* security_level is the minimal required security level. */
+  lcc_security_level_t security_level;
 
   /* interface is the name of the interface to use when subscribing to a
    * multicast group. Has no effect when using unicast. */
@@ -74,14 +79,24 @@ typedef struct {
  * failure and does not return otherwise. */
 int lcc_listen_and_write(lcc_listener_t srv);
 
+typedef struct {
+  /* writer is the callback used to send incoming lcc_value_list_t to. */
+  lcc_value_list_writer_t writer;
+
+  /* password_lookup is used to look up the password for a given username. */
+  lcc_password_lookup_t password_lookup;
+
+  /* security_level is the minimal required security level. */
+  lcc_security_level_t security_level;
+} lcc_network_parse_options_t;
+
 /* lcc_network_parse parses data received from the network and calls "w" with
  * the parsed lcc_value_list_ts. */
 /* TODO(octo): the Go code returns a []api.ValueList. Should we return a
  * value_list_t** here? */
 int lcc_network_parse(void *buffer, size_t buffer_size,
-                      lcc_value_list_writer_t w);
+                      lcc_network_parse_options_t opts);
 
 LCC_END_DECLS
 
-/* vim: set sw=2 sts=2 et : */
 #endif /* LIBCOLLECTD_SERVER_H */

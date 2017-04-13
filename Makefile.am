@@ -495,6 +495,11 @@ test_lib_server_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
+if BUILD_WITH_LIBGCRYPT
+test_lib_server_CPPFLAGS += $(GCRYPT_CPPFLAGS)
+test_lib_server_LDFLAGS = $(GCRYPT_LDFLAGS)
+test_lib_server_LDADD = $(GCRYPT_LIBS)
+endif
 
 liboconfig_la_SOURCES = \
 	src/liboconfig/oconfig.c \
