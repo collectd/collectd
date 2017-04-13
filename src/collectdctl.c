@@ -65,7 +65,7 @@
 #endif
 #endif /* NAN_ZERO_ZERO */
 
-#include "libcollectdclient/collectd/client.h"
+#include "collectd/client.h"
 
 #ifndef PREFIX
 #define PREFIX "/opt/" PACKAGE_NAME

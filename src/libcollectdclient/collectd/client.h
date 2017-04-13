@@ -27,8 +27,8 @@
 #ifndef LIBCOLLECTD_COLLECTDCLIENT_H
 #define LIBCOLLECTD_COLLECTDCLIENT_H 1
 
-#include "lcc_features.h"
-#include "types.h"
+#include "collectd/lcc_features.h"
+#include "collectd/types.h"
 
 /* COLLECTD_TRACE is the environment variable used to control trace output. When
  * set to something non-zero, all lines sent to / received from the daemon are

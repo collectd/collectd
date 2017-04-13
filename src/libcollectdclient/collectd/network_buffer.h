@@ -28,8 +28,8 @@
 #define LIBCOLLECTDCLIENT_NETWORK_BUFFER_H 1
 
 /* FIXME */
-#include "client.h"
-#include "network.h"
+#include "collectd/client.h"
+#include "collectd/network.h"
 
 /* Ethernet frame - (IPv6 header + UDP header) */
 #define LCC_NETWORK_BUFFER_SIZE_DEFAULT 1452

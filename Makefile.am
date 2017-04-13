@@ -244,8 +244,8 @@ collectdmon_SOURCES = src/collectdmon.c
 
 collectd_nagios_SOURCES = src/collectd-nagios.c
 collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectd_nagios_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -257,8 +257,8 @@ endif
 
 collectdctl_SOURCES = src/collectdctl.c
 collectdctl_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectdctl_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -270,8 +270,8 @@ endif
 
 collectd_tg_SOURCES = src/collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectd_tg_LDADD = \
 	$(PTHREAD_LIBS) \
 	libheap.la \
@@ -474,8 +474,8 @@ libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/network_buffer.c
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd \
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient \
 	-I$(srcdir)/src/daemon
 libcollectdclient_la_LDFLAGS = -version-info 1:0:0
 libcollectdclient_la_LIBADD = 

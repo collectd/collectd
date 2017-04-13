@@ -27,7 +27,7 @@
 #ifndef LIBCOLLECTD_COLLECTD_TYPES_H
 #define LIBCOLLECTD_COLLECTD_TYPES_H 1
 
-#include "lcc_features.h"
+#include "collectd/lcc_features.h"
 
 #include <stdint.h>    /* for uint64_t */
 #include <sys/types.h> /* for size_t */
