@@ -25,15 +25,11 @@
 
 #include "collectd/lcc_features.h"
 
-#include "collectd/network_buffer.h"
+#include "collectd/network_buffer.h" /* for LCC_NETWORK_BUFFER_SIZE_DEFAULT */
 
 #include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include "server.c" /* sic */
+#include "network_parse.c" /* sic */
 
 char *raw_packet_data[] = {
     "0000000e6c6f63616c686f7374000008000c1513676ac3a6e0970009000c00000002800000"

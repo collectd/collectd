@@ -84,6 +84,14 @@ typedef struct lcc_value_list_s lcc_value_list_t;
 #define LCC_VALUE_LIST_INIT                                                    \
   { NULL, NULL, 0, 0, 0, LCC_IDENTIFIER_INIT }
 
+/* lcc_value_list_writer_t is a write callback to which value lists are
+ * dispatched. */
+typedef int (*lcc_value_list_writer_t)(lcc_value_list_t const *);
+
+/* lcc_password_lookup_t is a callback for looking up the password for a given
+ * user. Must return NULL if the user is not known. */
+typedef char const *(*lcc_password_lookup_t)(char const *);
+
 LCC_END_DECLS
 
 #endif /* LIBCOLLECTD_COLLECTD_TYPES_H */

@@ -23,8 +23,8 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#ifndef LIBCOLLECTD_SERVER_H
-#define LIBCOLLECTD_SERVER_H 1
+#ifndef LIBCOLLECTD_NETWORK_PARSE_H
+#define LIBCOLLECTD_NETWORK_PARSE_H 1
 
 #include "collectd/lcc_features.h"
 
@@ -35,42 +35,24 @@
 
 LCC_BEGIN_DECLS
 
-/* lcc_listener_t holds parameters for running a collectd server. */
 typedef struct {
-  /* conn is a UDP socket for the server to listen on. */
-  int conn;
-
-  /* node is the local address to listen on if conn is <0. Defaults to "::" (any
-   * address). */
-  char *node;
-
-  /* service is the local address to listen on if conn is <0. Defaults to
-   * LCC_DEFAULT_PORT. */
-  char *service;
-
   /* writer is the callback used to send incoming lcc_value_list_t to. */
   lcc_value_list_writer_t writer;
-
-  /* buffer_size determines the maximum packet size to accept. */
-  uint16_t buffer_size;
 
   /* password_lookup is used to look up the password for a given username. */
   lcc_password_lookup_t password_lookup;
 
   /* security_level is the minimal required security level. */
   lcc_security_level_t security_level;
+} lcc_network_parse_options_t;
 
-  /* interface is the name of the interface to use when subscribing to a
-   * multicast group. Has no effect when using unicast. */
-  char *interface;
-} lcc_listener_t;
-
-/* lcc_listen_and_write listens on the provided UDP socket (or opens one using
- * srv.addr if srv.conn is less than zero), parses the received packets and
- * writes them to the provided lcc_value_list_writer_t. Returns non-zero on
- * failure and does not return otherwise. */
-int lcc_listen_and_write(lcc_listener_t srv);
+/* lcc_network_parse parses data received from the network and calls "w" with
+ * the parsed lcc_value_list_ts. */
+/* TODO(octo): the Go code returns a []api.ValueList. Should we return a
+ * value_list_t** here? */
+int lcc_network_parse(void *buffer, size_t buffer_size,
+                      lcc_network_parse_options_t opts);
 
 LCC_END_DECLS
 
-#endif /* LIBCOLLECTD_SERVER_H */
+#endif /* LIBCOLLECTD_NETWORK_PARSE_H */

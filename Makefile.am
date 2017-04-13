@@ -92,6 +92,7 @@ pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/server.h \
 	src/libcollectdclient/collectd/network.h \
 	src/libcollectdclient/collectd/network_buffer.h \
+	src/libcollectdclient/collectd/network_parse.h \
 	src/libcollectdclient/collectd/lcc_features.h
 
 lib_LTLIBRARIES = libcollectdclient.la
@@ -135,7 +136,7 @@ check_PROGRAMS = \
 	test_utils_subst \
 	test_utils_time \
 	test_utils_vl_lookup \
-	test_lib_server
+	test_libcollectd_network_parse
 
 
 TESTS = $(check_PROGRAMS)
@@ -474,13 +475,14 @@ libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/client.c \
 	src/libcollectdclient/network.c \
 	src/libcollectdclient/network_buffer.c \
+	src/libcollectdclient/network_parse.c \
 	src/libcollectdclient/server.c
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient \
 	-I$(srcdir)/src/daemon
-libcollectdclient_la_LDFLAGS = -version-info 1:0:0
+libcollectdclient_la_LDFLAGS = -version-info 2:0:1
 libcollectdclient_la_LIBADD = -lm
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
@@ -488,17 +490,17 @@ libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
-# server_test.c includes server.c, so no need to link with
+# network_parse_test.c includes network_parse.c, so no need to link with
 # libcollectdclient.so.
-test_lib_server_SOURCES = src/libcollectdclient/server_test.c
-test_lib_server_CPPFLAGS = \
+test_libcollectd_network_parse_SOURCES = src/libcollectdclient/network_parse_test.c
+test_libcollectd_network_parse_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
 if BUILD_WITH_LIBGCRYPT
-test_lib_server_CPPFLAGS += $(GCRYPT_CPPFLAGS)
-test_lib_server_LDFLAGS = $(GCRYPT_LDFLAGS)
-test_lib_server_LDADD = $(GCRYPT_LIBS)
+test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CPPFLAGS)
+test_libcollectd_network_parse_LDFLAGS = $(GCRYPT_LDFLAGS)
+test_libcollectd_network_parse_LDADD = $(GCRYPT_LIBS)
 endif
 
 liboconfig_la_SOURCES = \
