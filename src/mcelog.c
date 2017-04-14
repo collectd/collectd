@@ -141,9 +141,8 @@ static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
   llentry_t *dimm_le = mcelog_get_dimm(dimm_name, dimms_list);
 
   if (dimm_le == NULL) {
-    mcelog_memory_rec_t *dimm_mr =
-        (mcelog_memory_rec_t *)calloc(1, sizeof(mcelog_memory_rec_t));
-    if (!dimm_mr) {
+    mcelog_memory_rec_t *dimm_mr = calloc(1, sizeof(*dimm_mr));
+    if (dimm_mr == NULL) {
       ERROR(MCELOG_PLUGIN ": Error allocating dimm memory item");
       return NULL;
     }
@@ -157,6 +156,7 @@ static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
     dimm_le = llentry_create(p_name, dimm_mr);
     if (dimm_le == NULL) {
       ERROR(MCELOG_PLUGIN ": llentry_create(): error");
+      free(dimm_mr);
       return NULL;
     }
     pthread_mutex_lock(&g_mcelog_config.dimms_lock);
@@ -302,12 +302,12 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
     return (-1);
 
   llentry_t *dimm = mcelog_dimm(mr, g_mcelog_config.dimms_list);
-  if (!dimm) {
+  if (dimm == NULL) {
       ERROR(MCELOG_PLUGIN ": Error adding/getting dimm memory item to/from cache");
       return -1;
   }
 
-  mcelog_memory_rec_t *mr_old = (mcelog_memory_rec_t *)dimm->value;
+  mcelog_memory_rec_t *mr_old = dimm->value;
 
   if (mr_old->corrected_err_total != mr->corrected_err_total ||
       mr_old->corrected_err_timed != mr->corrected_err_timed)
@@ -394,7 +394,7 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
   }
 
   llentry_t *dimm = mcelog_dimm(mr, g_mcelog_config.dimms_list);
-  if (!dimm) {
+  if (dimm == NULL) {
       ERROR(MCELOG_PLUGIN ": Error adding/getting dimm memory item to/from cache");
       return -1;
   }
