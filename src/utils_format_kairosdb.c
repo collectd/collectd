@@ -183,7 +183,7 @@ static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
                                   const data_set_t *ds, const value_list_t *vl,
                                   int store_rates,
                                   char const *const *http_attrs,
-                                  size_t http_attrs_num) {
+                                  size_t http_attrs_num, int data_ttl) {
   char temp[512];
   size_t offset = 0;
   int status;
@@ -230,6 +230,9 @@ static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
 
     memset(temp, 0, sizeof(temp));
 
+    if (data_ttl != 0)
+      BUFFER_ADD(", \"ttl\": %i", data_ttl);
+
     BUFFER_ADD(", \"tags\":\{");
 
     BUFFER_ADD("\"host\": \"%s\"", vl->host);
@@ -260,12 +263,12 @@ static int format_kairosdb_value_list_nocheck(
     char *buffer, /* {{{ */
     size_t *ret_buffer_fill, size_t *ret_buffer_free, const data_set_t *ds,
     const value_list_t *vl, int store_rates, size_t temp_size,
-    char const *const *http_attrs, size_t http_attrs_num) {
+    char const *const *http_attrs, size_t http_attrs_num, int data_ttl) {
   char temp[temp_size];
   int status;
 
   status = value_list_to_kairosdb(temp, sizeof(temp), ds, vl, store_rates,
-                                  http_attrs, http_attrs_num);
+                                  http_attrs, http_attrs_num, data_ttl);
   if (status != 0)
     return (status);
   temp_size = strlen(temp);
@@ -334,7 +337,7 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
                                size_t *ret_buffer_fill, size_t *ret_buffer_free,
                                const data_set_t *ds, const value_list_t *vl,
                                int store_rates, char const *const *http_attrs,
-                               size_t http_attrs_num) {
+                               size_t http_attrs_num, int data_ttl) {
   if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
       (ret_buffer_free == NULL) || (ds == NULL) || (vl == NULL))
     return (-EINVAL);
@@ -344,7 +347,7 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
 
   return (format_kairosdb_value_list_nocheck(
       buffer, ret_buffer_fill, ret_buffer_free, ds, vl, store_rates,
-      (*ret_buffer_free) - 2, http_attrs, http_attrs_num));
+      (*ret_buffer_free) - 2, http_attrs, http_attrs_num, data_ttl));
 } /* }}} int format_kairosdb_value_list */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
