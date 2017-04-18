@@ -78,6 +78,8 @@ struct wh_callback_s {
   cdtime_t send_buffer_init_time;
 
   pthread_mutex_t send_lock;
+
+  int data_ttl;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -473,7 +475,8 @@ static int wh_write_kairosdb(const data_set_t *ds,
 
   status = format_kairosdb_value_list(
       cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
-      cb->store_rates, (char const *const *)http_attrs, http_attrs_num);
+      cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
+      cb->data_ttl);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -484,7 +487,8 @@ static int wh_write_kairosdb(const data_set_t *ds,
 
     status = format_kairosdb_value_list(
         cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
-        cb->store_rates, (char const *const *)http_attrs, http_attrs_num);
+        cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
+        cb->data_ttl);
   }
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
@@ -624,6 +628,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   cb->headers = NULL;
   cb->send_metrics = 1;
   cb->send_notifications = 0;
+  cb->data_ttl = 0;
 
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
 
@@ -733,6 +738,8 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       DEBUG("write_http plugin: got attribute: %s => %s", key, val);
       sfree(key);
       sfree(val);
+    } else if (strcasecmp("TTL", child->key) == 0) {
+      status = cf_util_get_int(child, &cb->data_ttl);
     } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",
