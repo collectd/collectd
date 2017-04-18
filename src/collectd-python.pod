@@ -717,7 +717,7 @@ dispatched by the python plugin after upgrades.
 =item *
 
 Not all aspects of the collectd API are accessible from Python. This includes
-but is not limited to filters and data sets.
+but is not limited to filters.
 
 =back
 
