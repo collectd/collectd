@@ -8771,7 +8771,7 @@ Defaults to B<Command>.
 
 =item B<Attribute> I<String> I<String>
 
-Only available for KAIROSDB output format.
+Only available for the KAIROSDB output format.
 
 Consider the two given strings to be the key and value of an additional tag for
 each metric being sent out.

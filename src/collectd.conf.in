@@ -1547,7 +1547,7 @@
 #		SSLVersion "TLSv1"
 #		Format "Command"
 #		Attribute "key" "value"     # only available for KAIROSDB format
-#		TTL 0   # data ttl, only available for KAIRODB format
+#		TTL 0   # data ttl, only available for KAIROSDB format
 #		Metrics true
 #		Notifications false
 #		StoreRates false
