@@ -8780,7 +8780,7 @@ You can add multiple B<Attribute>.
 
 =item B<TTL> I<Int>
 
-Only available for KAIROSDB output format.
+Only available for the KAIROSDB output format.
 
 Sets the Cassandra ttl for the data points.
 
