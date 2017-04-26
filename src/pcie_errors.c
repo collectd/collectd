@@ -844,6 +844,9 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
         pcie_config.use_sysfs = 0;
         pcie_config.read_devices = 0;
       }
+      if (strcasecmp("logfile", child->values[0].value.string) == 0) {
+        pcie_config.read_log = 1;
+      }
     } else if (strcasecmp("AccessDir", child->key) == 0) {
       status = cf_util_get_string_buffer(child, pcie_config.access_dir,
                                          sizeof(pcie_config.access_dir));
@@ -854,8 +857,6 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
     } else if (strcasecmp("LogFile", child->key) == 0) {
       status = cf_util_get_string_buffer(child, pcie_config.logfile,
                                          sizeof(pcie_config.logfile));
-    } else if (strcasecmp("ReadLog", child->key) == 0) {
-      status = cf_util_get_boolean(child, &pcie_config.read_log);
     } else if (strcasecmp("FirstFullRead", child->key) == 0) {
       status = cf_util_get_boolean(child, &pcie_config.first_read);
     } else if (strcasecmp("MsgPattern", child->key) == 0) {

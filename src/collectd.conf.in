@@ -1044,7 +1044,6 @@
 #	AccessDir "/sys/bus/pci"
 #	ReportMasked false
 #	PersistentNotifications false
-#	ReadLog false
 #	FirstFullRead false
 #	LogFile "/var/log/syslog"
 #	<MsgPattern "aer syslog">

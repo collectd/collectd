@@ -5759,7 +5759,6 @@ B<Synopsis:>
     AccessDir "/sys/bus/pci"
     ReportMasked false
     PersistentNotifications false
-    ReadLog false
     FirstFullRead false
     LogFile "/var/log/syslog"
     <MsgPattern "correctable">
@@ -5777,10 +5776,11 @@ B<Options:>
 
 =over 4
 
-=item B<Source> B<sysfs>|B<proc>|B<off>
+=item B<Source> B<sysfs>|B<proc>|B<logfile>
 
-Use sysfs or proc for reading data from registers. If set to B<off> no data is
-being read from devices. The default value is B<sysfs>.
+Use B<sysfs> or B<proc> for reading data from registers. If set to B<logfile> the
+file is parsed for reported AER errors and corresponding notifications are sent.
+The default value is B<sysfs>.
 
 =item B<AccessDir> I<dir>
 
@@ -5791,34 +5791,36 @@ Directory used to access device config space. It is optional and defaults to
 
 If true plugin will notify errors that are set to masked in Error Mask register.
 Such errors are not reported to the PCI Express Root Complex. Defaults to
-B<false>. This parameter takes effect only if B<Source> is set.
+B<false>. This parameter takes effect only if B<Source> is set to B<sysfs>
+or B<proc>.
 
 =item B<PersistentNotifications> B<false>|B<true>
 
 If false plugin will dispatch notfication only on set/clear of error.
 The ones already reported will be ignored. Defaults to B<false>.
-This parameter takes effect only if B<Source> is set.
-
-=item B<ReadLog> B<false>|B<true>
-
-If set to true, LogFile is parsed for reported AER errors and corresponding
-notifications are sent. Default value is B<false>.
+This parameter takes effect only if B<Source> is set to B<sysfs> or B<proc>.
 
 =item B<FirstFullRead> B<false>|B<true>
 
 If set to true, the full scan of existing log file is done during first read.
-Otherwise only new incoming entries will be parsed. Default value is B<false>.
+Otherwise only new incoming entries will be parsed. This parameter only affects
+the plugin if B<Source> is set to B<logfile>. Default value is B<false>.
 
 =item B<LogFile> I<dir>
 
-Log file name to use when ReadLog is true. Default value is "/var/log/syslog".
+Log file name to use when B<Source> is set to B<logfile>. Default value
+is "/var/log/syslog".
 
 =item B<MsgPattern> I<name>
 
 Optional definition of regular expressions used to parse the error messages
-in I<LogFile>. I<Name> is the type instance of message. Multiple definitions are
-allowed to parse different messages. Contains several I<Match> subsections
-described bellow. If not specified the default configuration is used.
+in a log file when B<Source> is set to B<logfile>. I<Name> is the type instance
+of message. Multiple definitions are allowed to parse different messages.
+Contains several I<Match> subsections described bellow. There are two special
+match names that should be present in the message pattern definition: "device"
+and "severity". They are used to set plugin instance, severity and type instance
+for notification. If B<MsgPattern> is not specified the default configuration
+is used.
 
 =item B<Match>
 
