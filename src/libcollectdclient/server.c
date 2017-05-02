@@ -203,12 +203,7 @@ int lcc_listen_and_write(lcc_listener_t srv) {
       break;
     }
 
-    (void)srv.parser(buffer, (size_t)len,
-                     (lcc_network_parse_options_t){
-                         .writer = srv.writer,
-                         .password_lookup = srv.password_lookup,
-                         .security_level = srv.security_level,
-                     });
+    (void)srv.parser(buffer, (size_t)len, srv.parse_options);
   }
 
   if (close_socket) {

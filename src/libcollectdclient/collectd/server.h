@@ -59,17 +59,11 @@ typedef struct {
    * lcc_network_parse() if set to NULL. */
   lcc_network_parser_t parser;
 
-  /* writer is the callback used to send incoming lcc_value_list_t to. */
-  lcc_value_list_writer_t writer;
+  /* parse_options contains options for parser and is passed on verbatimely. */
+  lcc_network_parse_options_t parse_options;
 
   /* buffer_size determines the maximum packet size to accept. */
   uint16_t buffer_size;
-
-  /* password_lookup is used to look up the password for a given username. */
-  lcc_password_lookup_t password_lookup;
-
-  /* security_level is the minimal required security level. */
-  lcc_security_level_t security_level;
 
   /* interface is the name of the interface to use when subscribing to a
    * multicast group. Has no effect when using unicast. */
