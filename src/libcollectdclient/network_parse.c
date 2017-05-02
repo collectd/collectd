@@ -339,14 +339,13 @@ static int verify_sha256(void *payload, size_t payload_size,
 
   gcry_error_t err = gcry_md_open(&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
   if (err != 0) {
-    /* TODO(octo): use gcry_strerror(err) to create an error string. */
-    return -1;
+    return (int)err;
   }
 
   err = gcry_md_setkey(hd, password, strlen(password));
   if (err != 0) {
     gcry_md_close(hd);
-    return -1;
+    return (int)err;
   }
 
   gcry_md_write(hd, username, strlen(username));
@@ -370,7 +369,8 @@ static int parse_sign_sha256(void *signature, size_t signature_len,
                              void *payload, size_t payload_size,
                              lcc_network_parse_options_t const *opts) {
   if (opts->password_lookup == NULL) {
-    /* TODO(octo): print warning */
+    /* The sender signed the packet but we can't verify it. Handle it as if it
+     * were unsigned, i.e. security level NONE. */
     return network_parse(payload, payload_size, NONE, opts);
   }
 
@@ -426,7 +426,8 @@ static int decrypt_aes256(buffer_t *b, void *iv, size_t iv_size,
 static int parse_encrypt_aes256(void *data, size_t data_size,
                                 lcc_network_parse_options_t const *opts) {
   if (opts->password_lookup == NULL) {
-    /* TODO(octo): print warning */
+    /* Without a password source it's (hopefully) impossible to decrypt the
+     * network packet. */
     return ENOENT;
   }
 
