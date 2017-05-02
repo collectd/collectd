@@ -48,7 +48,9 @@ typedef int (*lcc_network_parser_t)(void *payload, size_t payload_size,
 
 /* lcc_listener_t holds parameters for running a collectd server. */
 typedef struct {
-  /* conn is a UDP socket for the server to listen on. */
+  /* conn is a UDP socket for the server to listen on. If set to <0 node and
+   * service will be used to open a new UDP socket. If >=0, it is the caller's
+   * job to clean up the socket. */
   int conn;
 
   /* node is the local address to listen on if conn is <0. Defaults to "::" (any
