@@ -28,8 +28,8 @@
 
 #include "collectd/lcc_features.h"
 
-#include "collectd/types.h"
 #include "collectd/network.h" /* for lcc_security_level_t */
+#include "collectd/types.h"
 
 #include <stdint.h>
 
@@ -48,8 +48,6 @@ typedef struct {
 
 /* lcc_network_parse parses data received from the network and calls "w" with
  * the parsed lcc_value_list_ts. */
-/* TODO(octo): the Go code returns a []api.ValueList. Should we return a
- * value_list_t** here? */
 int lcc_network_parse(void *buffer, size_t buffer_size,
                       lcc_network_parse_options_t opts);
 
