@@ -529,9 +529,11 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
         return EINVAL;
       }
 
-      /* TODO(octo): skip if current_security_level < required_security_level */
+      int status = 0;
 
-      int status = opts->writer(&vl);
+      /* Write metrics if they have the required security level. */
+      if (sl >= opts->security_level)
+        status = opts->writer(&vl);
 
       free(vl.values);
       free(vl.values_types);
