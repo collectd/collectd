@@ -441,7 +441,7 @@ static int parse_encrypt_aes256(void *data, size_t data_size,
     return ENOMEM;
   char username[((size_t)username_len) + 1];
   memset(username, 0, sizeof(username));
-  if (buffer_next(b, username, sizeof(username)))
+  if (buffer_next(b, username, (size_t)username_len))
     return EINVAL;
 
   char const *password = opts->password_lookup(username);
