@@ -34,6 +34,10 @@
 
 #include <stdint.h>
 
+#ifndef LCC_NETWORK_BUFFER_SIZE
+#define LCC_NETWORK_BUFFER_SIZE 1452
+#endif
+
 LCC_BEGIN_DECLS
 
 /* lcc_network_parser_t is a callback that parses received network packets. It
@@ -62,7 +66,8 @@ typedef struct {
   /* parse_options contains options for parser and is passed on verbatimely. */
   lcc_network_parse_options_t parse_options;
 
-  /* buffer_size determines the maximum packet size to accept. */
+  /* buffer_size determines the maximum packet size to accept. Defaults to
+   * LCC_NETWORK_BUFFER_SIZE if set to zero. */
   uint16_t buffer_size;
 
   /* interface is the name of the interface to use when subscribing to a

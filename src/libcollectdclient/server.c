@@ -186,8 +186,7 @@ int lcc_listen_and_write(lcc_listener_t srv) {
   }
 
   if (srv.buffer_size == 0)
-    /* TODO(octo): this should be a define. */
-    srv.buffer_size = 1452;
+    srv.buffer_size = LCC_NETWORK_BUFFER_SIZE;
 
   if (srv.parser == NULL)
     srv.parser = lcc_network_parse;
