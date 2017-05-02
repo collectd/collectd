@@ -189,6 +189,9 @@ int lcc_listen_and_write(lcc_listener_t srv) {
     /* TODO(octo): this should be a define. */
     srv.buffer_size = 1452;
 
+  if (srv.parser == NULL)
+    srv.parser = lcc_network_parse;
+
   int ret = 0;
   while (42) {
     char buffer[srv.buffer_size];
@@ -200,13 +203,12 @@ int lcc_listen_and_write(lcc_listener_t srv) {
       break;
     }
 
-    /* TODO(octo): implement parse(). */
-    (void)lcc_network_parse(buffer, (size_t)len,
-                            (lcc_network_parse_options_t){
-                                .writer = srv.writer,
-                                .password_lookup = srv.password_lookup,
-                                .security_level = srv.security_level,
-                            });
+    (void)srv.parser(buffer, (size_t)len,
+                     (lcc_network_parse_options_t){
+                         .writer = srv.writer,
+                         .password_lookup = srv.password_lookup,
+                         .security_level = srv.security_level,
+                     });
   }
 
   if (close_socket) {

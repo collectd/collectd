@@ -28,12 +28,19 @@
 
 #include "collectd/lcc_features.h"
 
+#include "collectd/network.h"       /* for lcc_security_level_t */
+#include "collectd/network_parse.h" /* for lcc_network_parse_options_t */
 #include "collectd/types.h"
-#include "collectd/network.h" /* for lcc_security_level_t */
 
 #include <stdint.h>
 
 LCC_BEGIN_DECLS
+
+/* lcc_network_parser_t is a callback that parses received network packets. It
+ * is expected to call lcc_network_parse_options_t.writer with each
+ * lcc_value_list_t it parses that has the required security level. */
+typedef int (*lcc_network_parser_t)(void *payload, size_t payload_size,
+                                    lcc_network_parse_options_t opts);
 
 /* lcc_listener_t holds parameters for running a collectd server. */
 typedef struct {
@@ -47,6 +54,10 @@ typedef struct {
   /* service is the local address to listen on if conn is <0. Defaults to
    * LCC_DEFAULT_PORT. */
   char *service;
+
+  /* parser is the callback used to parse incoming network packets. Defaults to
+   * lcc_network_parse() if set to NULL. */
+  lcc_network_parser_t parser;
 
   /* writer is the callback used to send incoming lcc_value_list_t to. */
   lcc_value_list_writer_t writer;
