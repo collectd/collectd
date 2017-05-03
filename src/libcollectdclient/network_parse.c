@@ -44,7 +44,9 @@
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
 
+#if GCRYPT_VERSION_NUMBER < 0x010600
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
+#endif
 
 /* forward declaration because parse_sign_sha256()/parse_encrypt_aes256() and
  * network_parse() need to call each other. */
