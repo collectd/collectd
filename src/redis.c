@@ -365,24 +365,24 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
   int i;
 
   for (db = 0; db < max_db; db++) {
-      sprintf(field_name, "db%d:keys", db);
+	ssnprintf(field_name, sizeof(field_name), "db%d:keys", db);
 
-      str = strstr(info_line, field_name);
-      if (str) {
-		  str += strlen(field_name) + 1; /* also skip the '=' */
-		  for (i = 0; (*str && (isdigit((unsigned char)*str) || *str == '.')); i++, str++)
-			buf[i] = *str;
-		  buf[i] = '\0';
+	str = strstr(info_line, field_name);
+	if (str) {
+	  str += strlen(field_name) + 1; /* also skip the '=' */
+	  for (i = 0; (*str && (isdigit((unsigned char)*str) || *str == '.')); i++, str++)
+		buf[i] = *str;
+	  buf[i] = '\0';
 
-		  if (parse_value(buf, &val, DS_TYPE_GAUGE) == -1) {
-			  WARNING("redis plugin: Unable to parse field `%s'.", field_name);
-			  return (-1);
-		  }
-
-		  sprintf(db_id, "%d", db);
-		  redis_submit (node, "records", db_id, val);
+	  if (parse_value(buf, &val, DS_TYPE_GAUGE) == -1) {
+		WARNING("redis plugin: Unable to parse field `%s'.", field_name);
+		return (-1);
 	  }
-    }
+
+	  ssnprintf(db_id, sizeof(db_id), "%d", db);
+	  redis_submit (node, "records", db_id, val);
+	}
+  }
   return (0);
 
 } /* }}} int redis_db_stats */
