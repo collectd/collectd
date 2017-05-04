@@ -38,6 +38,13 @@
 #include <math.h>
 #include <pthread.h>
 
+/* for be{16,64}toh */
+#if HAVE_ENDIAN_H
+#include <endian.h>
+#elif HAVE_SYS_ENDIAN_H
+#include <sys/endian.h>
+#endif
+
 #define GCRYPT_NO_DEPRECATED
 #include <gcrypt.h>
 
