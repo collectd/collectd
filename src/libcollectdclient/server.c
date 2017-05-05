@@ -109,7 +109,7 @@ static int server_multicast_join(lcc_listener_t *srv,
     };
     memmove(&mreq6.ipv6mr_multiaddr, &sa->sin6_addr, sizeof(struct in6_addr));
 
-    status = setsockopt(srv->conn, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq6,
+    status = setsockopt(srv->conn, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq6,
                         sizeof(mreq6));
     if (status == -1)
       return errno;
