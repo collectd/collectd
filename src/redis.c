@@ -36,6 +36,7 @@
 #define REDIS_DEF_PASSWD ""
 #define REDIS_DEF_PORT 6379
 #define REDIS_DEF_TIMEOUT 2000
+#define REDIS_DEF_DB_COUNT 16
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
 #define MAX_REDIS_VAL_SIZE 256
@@ -355,38 +356,36 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
 
 static int redis_db_stats(char *node, char const *info_line) /* {{{ */
 {
-  unsigned char db;
-  unsigned char max_db = 16;
-  static char field_name[10];
-  static char db_id[3];
-  char *str;
-  static char buf[MAX_REDIS_VAL_SIZE];
-  value_t val;
-  int i;
+  for (int db = 0; db < REDIS_DEF_DB_COUNT; db++) {
+    static char buf[MAX_REDIS_VAL_SIZE];
+    static char field_name[10];
+    static char db_id[3];
+    value_t val;
+    char *str;
+    int i;
 
-  for (db = 0; db < max_db; db++) {
-	ssnprintf(field_name, sizeof(field_name), "db%d:keys", db);
+    ssnprintf(field_name, sizeof(field_name), "db%d:keys", db);
 
-	str = strstr(info_line, field_name);
-	if (str) {
-	  str += strlen(field_name) + 1; /* also skip the '=' */
-	  for (i = 0; (*str && (isdigit((unsigned char)*str) || *str == '.')); i++, str++)
-		buf[i] = *str;
-	  buf[i] = '\0';
+    str = strstr(info_line, field_name);
+    if (!str)
+      continue;
 
-	  if (parse_value(buf, &val, DS_TYPE_GAUGE) == -1) {
-		WARNING("redis plugin: Unable to parse field `%s'.", field_name);
-		return (-1);
-	  }
+    str += strlen(field_name) + 1; /* also skip the '=' */
+    for (i = 0; (*str && (isdigit((int)*str) || *str == '.')); i++, str++)
+      buf[i] = *str;
+    buf[i] = '\0';
 
-	  ssnprintf(db_id, sizeof(db_id), "%d", db);
-	  redis_submit (node, "records", db_id, val);
-	}
+    if (parse_value(buf, &val, DS_TYPE_GAUGE) != 0) {
+      WARNING("redis plugin: Unable to parse field `%s'.", field_name);
+      return (-1);
+    }
+
+    ssnprintf(db_id, sizeof(db_id), "%d", db);
+    redis_submit(node, "records", db_id, val);
   }
   return (0);
 
 } /* }}} int redis_db_stats */
-
 
 static int redis_read(void) /* {{{ */
 {
@@ -464,7 +463,7 @@ static int redis_read(void) /* {{{ */
     redis_handle_info(rn->name, rr->str, "total_bytes", "output",
                       "total_net_output_bytes", DS_TYPE_DERIVE);
 
-	redis_db_stats (rn->name, rr->str);
+    redis_db_stats(rn->name, rr->str);
 
     for (redis_query_t *rq = rn->queries; rq != NULL; rq = rq->next)
       redis_handle_query(rh, rn, rq);
