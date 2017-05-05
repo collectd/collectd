@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <net/if.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
