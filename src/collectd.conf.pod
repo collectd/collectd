@@ -8671,6 +8671,10 @@ considered the time of the update. The result is that there appear more
 datapoints in I<Prometheus> than were actually created, but at least the metric
 doesn't disappear periodically.
 
+=item B<EnableIPv6> I<true|false>
+Enables the the embedded webserver to bind to both IPv4 and IPv6 stacks. 
+Defaults to C<false>.
+
 =back
 
 =head2 Plugin C<write_http>
