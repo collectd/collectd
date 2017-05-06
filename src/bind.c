@@ -429,7 +429,8 @@ static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
     return (-1);
   }
 
-  *ret_value = mktime(&tm);
+  tzset();
+  *ret_value = mktime(&tm) - timezone;  /* fix strptime() misinterpretation */
 
   xmlXPathFreeObject(xpathObj);
   return (0);
