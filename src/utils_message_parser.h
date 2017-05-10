@@ -43,7 +43,7 @@ typedef struct message_item_pattern_t {
    */
   char *regex;
   /* Index of regex submatch that is stored as result. Value 0 takes whole
-   * match result */
+   * match result. Value -1 does not add result to message item. */
   int submatch_idx;
   /* Regular expression that excludes string from further processing */
   char *excluderegex;
