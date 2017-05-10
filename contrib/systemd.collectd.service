@@ -11,6 +11,20 @@ EnvironmentFile=-/etc/default/collectd
 ProtectSystem=full
 ProtectHome=true
 
+# Some plugins require access to data located in a specified folder, to access
+# this data you'll have to specify the path by using the Environment directive
+# below.
+#
+# Here's a (incomplete) list of the plugins known environment requirements:
+#   intel_pmu       XDG_CACHE_HOME
+#
+# Example, if you use the intel_pmu plugin and cache is located in the /opt
+# directory:
+# Environment=XDG_CACHE_HOME=/opt
+#
+# By default, the HOME directory is chosen:
+Environment=
+
 # A few plugins won't work without some privileges, which you'll have to
 # specify using the CapabilityBoundingSet directive below.
 #
@@ -19,6 +33,7 @@ ProtectHome=true
 #   dns             CAP_NET_RAW
 #   exec            CAP_SETUID CAP_SETGID
 #   intel_rdt       CAP_SYS_RAWIO
+#   intel_pmu       CAP_SYS_ADMIN
 #   iptables        CAP_NET_ADMIN
 #   ping            CAP_NET_RAW
 #   smart           CAP_SYS_RAWIO

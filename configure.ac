@@ -4364,6 +4364,77 @@ then
 fi
 # }}}
 
+# --with-libjevents {{{
+with_libjevents_cppflags=""
+with_libjevents_ldflags=""
+AC_ARG_WITH(libjevents, [AS_HELP_STRING([--with-libjevents@<:@=PREFIX@:>@], [Path to libjevents.])],
+[
+  if test "x$withval" != "xno" && test "x$withval" != "xyes"
+  then
+    with_libjevents_cppflags="-I$withval/include"
+    with_libjevents_ldflags="-L$withval/lib"
+    with_libjevents="yes"
+  else
+    with_libjevents="$withval"
+  fi
+],
+[
+  with_libjevents="yes"
+])
+if test "x$with_libjevents" = "xyes"
+then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libjevents_cppflags"
+
+  AC_CHECK_HEADERS(jevents.h, [with_libjevents="yes"], [with_libjevents="no (jevents.h not found)"])
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libjevents" = "xyes"
+then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libjevents_cppflags"
+  LDFLAGS="$LDFLAGS $with_libjevents_ldflags"
+
+  AC_CHECK_LIB(jevents, json_events, [with_libjevents="yes"], [with_libjevents="no (Can't find libjevents)"])
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libjevents" = "xyes"
+then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="$CPPFLAGS -fPIC"
+  LDFLAGS="$LDFLAGS -shared"
+  LIBS="-ljevents"
+  AC_LINK_IFELSE([AC_LANG_SOURCE(
+    [[
+      #include <stdio.h>
+      #include "jevents.h"
+      void print_cpu(void){
+        printf("%s", get_cpu_str());
+      }
+    ]]
+  )],
+  [with_libjevents="yes"], [with_libjevents="no (could not link to libjevents. Check jevents is compiled with -fPIC.)"])
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
+fi
+if test "x$with_libjevents" = "xyes"
+then
+  BUILD_WITH_LIBJEVENTS_CPPFLAGS="$with_libjevents_cppflags"
+  BUILD_WITH_LIBJEVENTS_LDFLAGS="$with_libjevents_ldflags"
+  BUILD_WITH_LIBJEVENTS_LIBS="-ljevents"
+  AC_SUBST(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
+  AC_SUBST(BUILD_WITH_LIBJEVENTS_LDFLAGS)
+  AC_SUBST(BUILD_WITH_LIBJEVENTS_LIBS)
+fi
+# }}}
+
 # --with-libprotobuf {{{
 with_libprotobuf_cppflags=""
 with_libprotobuf_ldflags=""
@@ -6014,6 +6085,7 @@ plugin_fscache="no"
 plugin_gps="no"
 plugin_grpc="no"
 plugin_hugepages="no"
+plugin_intel_pmu="no"
 plugin_intel_rdt="no"
 plugin_interface="no"
 plugin_ipc="no"
@@ -6422,6 +6494,7 @@ AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
+AC_PLUGIN([intel_pmu],           [$with_libjevents],        [Intel performance monitor plugin])
 AC_PLUGIN([intel_rdt],           [$with_libpqos],           [Intel RDT monitor plugin])
 AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
 AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
@@ -6752,6 +6825,7 @@ AC_MSG_RESULT([    libhiredis  . . . . . $with_libhiredis])
 AC_MSG_RESULT([    libi2c-dev  . . . . . $with_libi2c])
 AC_MSG_RESULT([    libiokit  . . . . . . $with_libiokit])
 AC_MSG_RESULT([    libiptc . . . . . . . $with_libiptc])
+AC_MSG_RESULT([    libjevents  . . . . . $with_libjevents])
 AC_MSG_RESULT([    libjvm  . . . . . . . $with_java])
 AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
 AC_MSG_RESULT([    libkvm  . . . . . . . $with_libkvm])
@@ -6849,6 +6923,7 @@ AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
+AC_MSG_RESULT([    intel_pmu . . . . . . $enable_intel_pmu])
 AC_MSG_RESULT([    intel_rdt . . . . . . $enable_intel_rdt])
 AC_MSG_RESULT([    interface . . . . . . $enable_interface])
 AC_MSG_RESULT([    ipc . . . . . . . . . $enable_ipc])

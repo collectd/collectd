@@ -876,6 +876,14 @@ hugepages_la_SOURCES = src/hugepages.c
 hugepages_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_INTEL_PMU
+pkglib_LTLIBRARIES += intel_pmu.la
+intel_pmu_la_SOURCES = src/intel_pmu.c
+intel_pmu_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
+intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
+intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
+endif
+
 if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
 intel_rdt_la_SOURCES = src/intel_rdt.c
