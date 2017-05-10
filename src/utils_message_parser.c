@@ -70,8 +70,6 @@ static void message_item_assembly(parser_job_data *self, checked_match *cm,
   sstrncpy(msg_it->name, (cm->msg_pattern).name, sizeof(msg_it->name));
   sstrncpy(msg_it->value, matches[cm->msg_pattern.submatch_idx],
            sizeof(msg_it->value));
-  self->messages_storage[self->message_idx]
-      .matched_patterns_check[cm->msg_pattern_idx] = 1;
   ++(self->message_item_idx);
 }
 
@@ -155,8 +153,8 @@ static int message_assembler(const char *row, char *const *matches,
   checked_match *cm = (checked_match *)user_data;
   parser_job_data *parser_job = cm->parser_job;
 
-  if (cm->msg_pattern.submatch_idx < 0 ||
-      cm->msg_pattern.submatch_idx >= matches_num) {
+  if (cm->msg_pattern.submatch_idx < -1 ||
+      cm->msg_pattern.submatch_idx >= (int) matches_num) {
     ERROR(UTIL_NAME ": Invalid target submatch index: %d",
           cm->msg_pattern.submatch_idx);
     return -1;
@@ -186,7 +184,12 @@ static int message_assembler(const char *row, char *const *matches,
     return 0;
   }
   /* Populate message items */
-  parser_job->message_item_assembly(parser_job, cm, matches);
+  if (cm->msg_pattern.submatch_idx >= 0)
+    parser_job->message_item_assembly(parser_job, cm, matches);
+
+  /* Mark pattern as checked */
+  parser_job->messages_storage[parser_job->message_idx]
+      .matched_patterns_check[cm->msg_pattern_idx] = 1;
 
   /* Handle message ending */
   if (strcmp((cm->msg_pattern).regex,
