@@ -5307,8 +5307,7 @@ if test "x$with_libupsclient" = "xyes"; then
   )
 
   AC_CHECK_LIB([upsclient], [upscli_init],
-    [AC_DEFINE([WITH_UPSCLIENT_27], [1], [At least version 2-7])],
-    []
+    [AC_DEFINE([HAVE_UPSCLI_INIT], [1], [Define when upscli_init() (since version 2-7) is available.])]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"

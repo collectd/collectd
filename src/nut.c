@@ -169,7 +169,7 @@ static void nut_submit(nut_ups_t *ups, const char *type,
 } /* void nut_submit */
 
 static int nut_connect(nut_ups_t *ups) {
-#ifdef WITH_UPSCLIENT_27
+#if HAVE_UPSCLI_INIT
   int status;
   int ssl_status;
   int ssl_flags;
@@ -236,7 +236,7 @@ static int nut_connect(nut_ups_t *ups) {
   } /* if (ssl_status == 1 && verify_peer == 1) */
   return (0);
 
-#else /* #ifdef WITH_UPSCLIENT_27 */
+#else /* #if HAVE_UPSCLI_INIT */
   int status;
   int ssl_status;
   int ssl_flags;
@@ -310,7 +310,7 @@ static int nut_read_one(nut_ups_t *ups) {
           ups->upsname, upscli_strerror(ups->conn));
     upscli_disconnect(ups->conn);
     sfree(ups->conn);
-#ifdef WITH_UPSCLIENT_27
+#if HAVE_UPSCLI_INIT
     upscli_cleanup();
 #endif
     return (-1);
@@ -400,7 +400,7 @@ static int nut_shutdown(void) {
     free_nut_ups_t(this);
     this = next;
   }
-#ifdef WITH_UPSCLIENT_27
+#if HAVE_UPSCLI_INIT
   upscli_cleanup();
 #endif
 
