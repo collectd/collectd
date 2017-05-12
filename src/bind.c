@@ -35,10 +35,18 @@
 #endif
 #endif /* STRPTIME_NEEDS_STANDARDS */
 
+#if TIMEGM_NEEDS_BSD
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE 1
+#endif
+#endif /* TIMEGM_NEEDS_BSD */
+
 #include "collectd.h"
 
 #include "common.h"
 #include "plugin.h"
+
+#include <time.h>
 
 /* Some versions of libcurl don't include this themselves and then don't have
  * fd_set available. */
@@ -429,7 +437,28 @@ static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
     return (-1);
   }
 
-  *ret_value = mktime(&tm);
+#if HAVE_TIMEGM
+  time_t t = timegm(&tm);
+  if (t == ((time_t)-1)) {
+    char errbuf[1024];
+    ERROR("bind plugin: timegm() failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return (-1);
+  }
+  *ret_value = t;
+#else
+  time_t t = mktime(&tm);
+  if (t == ((time_t)-1)) {
+    char errbuf[1024];
+    ERROR("bind plugin: mktime() failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return (-1);
+  }
+  /* mktime assumes that tm is local time. Luckily, it also sets timezone to
+   * the offset used for the conversion, and we undo the conversion to convert
+   * back to UTC. */
+  *ret_value = t - timezone;
+#endif
 
   xmlXPathFreeObject(xpathObj);
   return (0);
