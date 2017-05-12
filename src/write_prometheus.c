@@ -546,9 +546,14 @@ metric_family_delete_metric(Io__Prometheus__Client__MetricFamily *fam,
             ((fam->n_metric - 1) - i) * sizeof(fam->metric[i]));
   fam->n_metric--;
 
+  if (fam->n_metric == 0) {
+    sfree(fam->metric);
+    return 0;
+  }
+
   Io__Prometheus__Client__Metric **tmp =
       realloc(fam->metric, fam->n_metric * sizeof(*fam->metric));
-  if ((tmp != NULL) || (fam->n_metric == 0))
+  if (tmp != NULL)
     fam->metric = tmp;
 
   return 0;
