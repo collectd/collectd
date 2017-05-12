@@ -33,27 +33,33 @@
 
 #define PMU_PLUGIN "intel_pmu"
 
-#define HW_CACHE_READ_ACCESS (((PERF_COUNT_HW_CACHE_OP_READ) << 8) | \
-                                ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
+#define HW_CACHE_READ_ACCESS                                                   \
+  (((PERF_COUNT_HW_CACHE_OP_READ) << 8) |                                      \
+   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
 
-#define HW_CACHE_WRITE_ACCESS (((PERF_COUNT_HW_CACHE_OP_WRITE) << 8) | \
-                                ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
+#define HW_CACHE_WRITE_ACCESS                                                  \
+  (((PERF_COUNT_HW_CACHE_OP_WRITE) << 8) |                                     \
+   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
 
-#define HW_CACHE_PREFETCH_ACCESS (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) | \
-                                   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
+#define HW_CACHE_PREFETCH_ACCESS                                               \
+  (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) |                                  \
+   ((PERF_COUNT_HW_CACHE_RESULT_ACCESS) << 16))
 
-#define HW_CACHE_READ_MISS (((PERF_COUNT_HW_CACHE_OP_READ) << 8) | \
-                                ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
+#define HW_CACHE_READ_MISS                                                     \
+  (((PERF_COUNT_HW_CACHE_OP_READ) << 8) |                                      \
+   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
 
-#define HW_CACHE_WRITE_MISS (((PERF_COUNT_HW_CACHE_OP_WRITE) << 8) | \
-                                ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
+#define HW_CACHE_WRITE_MISS                                                    \
+  (((PERF_COUNT_HW_CACHE_OP_WRITE) << 8) |                                     \
+   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
 
-#define HW_CACHE_PREFETCH_MISS (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) | \
-                                   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
+#define HW_CACHE_PREFETCH_MISS                                                 \
+  (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) |                                  \
+   ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
 
 struct event_info {
-  char      *name;
-  uint64_t  config;
+  char *name;
+  uint64_t config;
 };
 typedef struct event_info event_info_t;
 
@@ -61,116 +67,100 @@ struct intel_pmu_ctx_s {
   _Bool hw_cache_events;
   _Bool kernel_pmu_events;
   _Bool sw_events;
-  char* hw_specific_events;
+  char *hw_specific_events;
   struct eventlist *event_list;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
 
 event_info_t g_kernel_pmu_events[] = {
-  { .name = "cpu-cycles",
-    .config = PERF_COUNT_HW_CPU_CYCLES           },
-  { .name = "instructions",
-    .config = PERF_COUNT_HW_INSTRUCTIONS         },
-  { .name = "cache-references",
-    .config = PERF_COUNT_HW_CACHE_REFERENCES     },
-  { .name = "cache-misses",
-    .config = PERF_COUNT_HW_CACHE_MISSES         },
-  { .name = "branches",
-    .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS  },
-  { .name = "branch-misses",
-    .config = PERF_COUNT_HW_BRANCH_MISSES        },
-  { .name = "bus-cycles",
-    .config = PERF_COUNT_HW_BUS_CYCLES           },
+    {.name = "cpu-cycles", .config = PERF_COUNT_HW_CPU_CYCLES},
+    {.name = "instructions", .config = PERF_COUNT_HW_INSTRUCTIONS},
+    {.name = "cache-references", .config = PERF_COUNT_HW_CACHE_REFERENCES},
+    {.name = "cache-misses", .config = PERF_COUNT_HW_CACHE_MISSES},
+    {.name = "branches", .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+    {.name = "branch-misses", .config = PERF_COUNT_HW_BRANCH_MISSES},
+    {.name = "bus-cycles", .config = PERF_COUNT_HW_BUS_CYCLES},
 };
 
 event_info_t g_hw_cache_events[] = {
 
-  { .name = "L1-dcache-loads",
-    .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_READ_ACCESS)      },
-  { .name = "L1-dcache-load-misses",
-    .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_READ_MISS)        },
-  { .name = "L1-dcache-stores",
-    .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_WRITE_ACCESS)     },
-  { .name = "L1-dcache-store-misses",
-    .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_WRITE_MISS)       },
-  { .name = "L1-dcache-prefetches",
-    .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_PREFETCH_ACCESS)  },
-  { .name = "L1-dcache-prefetch-misses",
-    .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_PREFETCH_MISS)    },
+    {.name = "L1-dcache-loads",
+     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_READ_ACCESS)},
+    {.name = "L1-dcache-load-misses",
+     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_READ_MISS)},
+    {.name = "L1-dcache-stores",
+     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_WRITE_ACCESS)},
+    {.name = "L1-dcache-store-misses",
+     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_WRITE_MISS)},
+    {.name = "L1-dcache-prefetches",
+     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_PREFETCH_ACCESS)},
+    {.name = "L1-dcache-prefetch-misses",
+     .config = (PERF_COUNT_HW_CACHE_L1D | HW_CACHE_PREFETCH_MISS)},
 
-  { .name = "L1-icache-loads",
-    .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_READ_ACCESS)      },
-  { .name = "L1-icache-load-misses",
-    .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_READ_MISS)        },
-  { .name = "L1-icache-prefetches",
-    .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_PREFETCH_ACCESS)  },
-  { .name = "L1-icache-prefetch-misses",
-    .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_PREFETCH_MISS)    },
+    {.name = "L1-icache-loads",
+     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_READ_ACCESS)},
+    {.name = "L1-icache-load-misses",
+     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_READ_MISS)},
+    {.name = "L1-icache-prefetches",
+     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_PREFETCH_ACCESS)},
+    {.name = "L1-icache-prefetch-misses",
+     .config = (PERF_COUNT_HW_CACHE_L1I | HW_CACHE_PREFETCH_MISS)},
 
-  { .name = "LLC-loads",
-    .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_READ_ACCESS)       },
-  { .name = "LLC-load-misses",
-    .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_READ_MISS)         },
-  { .name = "LLC-stores",
-    .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_WRITE_ACCESS)      },
-  { .name = "LLC-store-misses",
-    .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_WRITE_MISS)        },
-  { .name = "LLC-prefetches",
-    .config =  (PERF_COUNT_HW_CACHE_LL | HW_CACHE_PREFETCH_ACCESS)  },
-  { .name = "LLC-prefetch-misses",
-    .config =  (PERF_COUNT_HW_CACHE_LL | HW_CACHE_PREFETCH_MISS)    },
+    {.name = "LLC-loads",
+     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_READ_ACCESS)},
+    {.name = "LLC-load-misses",
+     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_READ_MISS)},
+    {.name = "LLC-stores",
+     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_WRITE_ACCESS)},
+    {.name = "LLC-store-misses",
+     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_WRITE_MISS)},
+    {.name = "LLC-prefetches",
+     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_PREFETCH_ACCESS)},
+    {.name = "LLC-prefetch-misses",
+     .config = (PERF_COUNT_HW_CACHE_LL | HW_CACHE_PREFETCH_MISS)},
 
-  { .name = "dTLB-loads",
-    .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_READ_ACCESS)     },
-  { .name = "dTLB-load-misses",
-    .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_READ_MISS)       },
-  { .name = "dTLB-stores",
-    .config =  (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_WRITE_ACCESS)   },
-  { .name = "dTLB-store-misses",
-    .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_WRITE_MISS)      },
-  { .name = "dTLB-prefetches",
-    .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_PREFETCH_ACCESS) },
-  { .name = "dTLB-prefetch-misses",
-    .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_PREFETCH_MISS)   },
+    {.name = "dTLB-loads",
+     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_READ_ACCESS)},
+    {.name = "dTLB-load-misses",
+     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_READ_MISS)},
+    {.name = "dTLB-stores",
+     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_WRITE_ACCESS)},
+    {.name = "dTLB-store-misses",
+     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_WRITE_MISS)},
+    {.name = "dTLB-prefetches",
+     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_PREFETCH_ACCESS)},
+    {.name = "dTLB-prefetch-misses",
+     .config = (PERF_COUNT_HW_CACHE_DTLB | HW_CACHE_PREFETCH_MISS)},
 
-  { .name = "iTLB-loads",
-    .config = (PERF_COUNT_HW_CACHE_ITLB | HW_CACHE_READ_ACCESS)     },
-  { .name = "iTLB-load-misses",
-    .config = (PERF_COUNT_HW_CACHE_ITLB | HW_CACHE_READ_MISS)       },
+    {.name = "iTLB-loads",
+     .config = (PERF_COUNT_HW_CACHE_ITLB | HW_CACHE_READ_ACCESS)},
+    {.name = "iTLB-load-misses",
+     .config = (PERF_COUNT_HW_CACHE_ITLB | HW_CACHE_READ_MISS)},
 
-  { .name = "branch-loads",
-    .config = (PERF_COUNT_HW_CACHE_BPU | HW_CACHE_READ_ACCESS)      },
-  { .name = "branch-load-misses",
-    .config = (PERF_COUNT_HW_CACHE_BPU | HW_CACHE_READ_MISS)        },
+    {.name = "branch-loads",
+     .config = (PERF_COUNT_HW_CACHE_BPU | HW_CACHE_READ_ACCESS)},
+    {.name = "branch-load-misses",
+     .config = (PERF_COUNT_HW_CACHE_BPU | HW_CACHE_READ_MISS)},
 };
 
 event_info_t g_sw_events[] = {
-  { .name = "cpu-clock",
-    .config = PERF_COUNT_SW_CPU_CLOCK        },
+    {.name = "cpu-clock", .config = PERF_COUNT_SW_CPU_CLOCK},
 
-  { .name = "task-clock",
-    .config = PERF_COUNT_SW_TASK_CLOCK       },
+    {.name = "task-clock", .config = PERF_COUNT_SW_TASK_CLOCK},
 
-  { .name = "context-switches",
-    .config = PERF_COUNT_SW_CONTEXT_SWITCHES },
+    {.name = "context-switches", .config = PERF_COUNT_SW_CONTEXT_SWITCHES},
 
-  { .name = "cpu-migrations",
-    .config = PERF_COUNT_SW_CPU_MIGRATIONS   },
+    {.name = "cpu-migrations", .config = PERF_COUNT_SW_CPU_MIGRATIONS},
 
-  { .name = "page-faults",
-    .config = PERF_COUNT_SW_PAGE_FAULTS      },
+    {.name = "page-faults", .config = PERF_COUNT_SW_PAGE_FAULTS},
 
-  { .name = "minor-faults",
-    .config = PERF_COUNT_SW_PAGE_FAULTS_MIN  },
+    {.name = "minor-faults", .config = PERF_COUNT_SW_PAGE_FAULTS_MIN},
 
-  { .name = "major-faults",
-    .config = PERF_COUNT_SW_PAGE_FAULTS_MAJ  },
+    {.name = "major-faults", .config = PERF_COUNT_SW_PAGE_FAULTS_MAJ},
 
-  { .name = "alignment-faults",
-    .config = PERF_COUNT_SW_ALIGNMENT_FAULTS },
+    {.name = "alignment-faults", .config = PERF_COUNT_SW_ALIGNMENT_FAULTS},
 
-  { .name = "emulation-faults",
-    .config = PERF_COUNT_SW_EMULATION_FAULTS },
+    {.name = "emulation-faults", .config = PERF_COUNT_SW_EMULATION_FAULTS},
 };
 
 static intel_pmu_ctx_t g_ctx;
@@ -223,7 +213,7 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = cf_util_get_string(child, &g_ctx.hw_specific_events);
     } else if (strcasecmp("SWEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.sw_events);
-    }else {
+    } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
       ret = (-1);
     }
@@ -314,8 +304,8 @@ static int pmu_add_events(struct eventlist *el, uint32_t type,
                           event_info_t *events, int count) {
 
   for (int i = 0; i < count; i++) {
-    struct event *e = calloc(sizeof(struct event) +
-           sizeof(struct efd) * el->num_cpus, 1);
+    struct event *e =
+        calloc(sizeof(struct event) + sizeof(struct efd) * el->num_cpus, 1);
     if (e == NULL) {
       ERROR(PMU_PLUGIN ": Failed to allocate event structure");
       return (-ENOMEM);
@@ -345,9 +335,7 @@ static int pmu_parse_events(struct eventlist *el, char *events) {
   if (!events)
     return -1;
 
-  for (s = strtok_r(events, ",", &tmp);
-       s;
-       s = strtok_r(NULL, ",", &tmp)) {
+  for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
     bool group_leader = false, end_group = false;
     int len;
 
@@ -359,8 +347,8 @@ static int pmu_parse_events(struct eventlist *el, char *events) {
       end_group = true;
     }
 
-    struct event *e = calloc(sizeof(struct event) +
-           sizeof(struct efd) * el->num_cpus, 1);
+    struct event *e =
+        calloc(sizeof(struct event) + sizeof(struct efd) * el->num_cpus, 1);
     if (e == NULL) {
       free(events);
       return (-ENOMEM);
@@ -441,8 +429,9 @@ static int pmu_init(void) {
   }
 
   if (g_ctx.hw_cache_events) {
-    ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_HW_CACHE,
-                       g_hw_cache_events, STATIC_ARRAY_SIZE(g_hw_cache_events));
+    ret =
+        pmu_add_events(g_ctx.event_list, PERF_TYPE_HW_CACHE, g_hw_cache_events,
+                       STATIC_ARRAY_SIZE(g_hw_cache_events));
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add hw cache events.");
       goto init_error;
@@ -451,7 +440,8 @@ static int pmu_init(void) {
 
   if (g_ctx.kernel_pmu_events) {
     ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_HARDWARE,
-                   g_kernel_pmu_events, STATIC_ARRAY_SIZE(g_kernel_pmu_events));
+                         g_kernel_pmu_events,
+                         STATIC_ARRAY_SIZE(g_kernel_pmu_events));
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to parse kernel PMU events.");
       goto init_error;
@@ -468,8 +458,8 @@ static int pmu_init(void) {
   }
 
   if (g_ctx.sw_events) {
-    ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_SOFTWARE,
-                       g_sw_events, STATIC_ARRAY_SIZE(g_sw_events));
+    ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_SOFTWARE, g_sw_events,
+                         STATIC_ARRAY_SIZE(g_sw_events));
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add software events.");
       goto init_error;
