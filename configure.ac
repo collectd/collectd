@@ -1039,6 +1039,92 @@ if test "x$GCC" = "xyes"; then
 fi
 # }}} Check for strptime
 
+# Check for timegm {{{
+
+# These checks need -Werror because implicit function declarations are only a
+# warning ...
+SAVE_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror"
+
+AC_CACHE_CHECK([for timegm],
+  [c_cv_have_timegm],
+  AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM(
+[[[
+#if STRPTIME_NEEDS_STANDARDS
+# ifndef _ISOC99_SOURCE
+#  define _ISOC99_SOURCE 1
+# endif
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE 200112L
+# endif
+# ifndef _XOPEN_SOURCE
+#  define _XOPEN_SOURCE 500
+# endif
+#endif
+#include <time.h>
+]]],
+[[[
+ time_t t = timegm(&(struct tm){0});
+ if (t == ((time_t) -1)) {
+   return 1;
+ }
+]]]
+    )],
+    [c_cv_have_timegm="yes"],
+    [c_cv_have_timegm="no"]
+  )
+)
+
+if test "x$c_cv_have_timegm" != "xyes"
+then
+  AC_CACHE_CHECK([for timegm with _BSD_SOURCE],
+    [c_cv_have_timegm_bsd],
+    AC_LINK_IFELSE(
+      [AC_LANG_PROGRAM(
+[[[
+#if STRPTIME_NEEDS_STANDARDS
+# ifndef _ISOC99_SOURCE
+#  define _ISOC99_SOURCE 1
+# endif
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE 200112L
+# endif
+# ifndef _XOPEN_SOURCE
+#  define _XOPEN_SOURCE 500
+# endif
+#endif
+#ifndef _BSD_SOURCE
+# define _BSD_SOURCE 1
+#endif
+#include <time.h>
+]]],
+[[[
+ time_t t = timegm(&(struct tm){0});
+ if (t == ((time_t) -1)) {
+   return 1;
+ }
+]]]
+      )],
+      [c_cv_have_timegm_bsd="yes"
+       c_cv_have_timegm="yes"],
+      [c_cv_have_timegm_bsd="no"]
+    )
+  )
+fi
+
+if test "x$c_cv_have_timegm" = "xyes"
+then
+  AC_DEFINE(HAVE_TIMEGM, 1, [Define if the timegm(3) function is available.])
+  if test "x$c_cv_have_timegm_bsd" = "xyes"
+  then
+    AC_DEFINE(TIMEGM_NEEDS_BSD, 1, [Set to true if timegm is only exported in BSD mode.])
+  fi
+fi
+
+CFLAGS="$SAVE_CFLAGS"
+# }}} Check for timegm
+
 AC_MSG_CHECKING([for sysctl kern.cp_times])
 if test -x /sbin/sysctl; then
   /sbin/sysctl kern.cp_times >/dev/null 2>&1

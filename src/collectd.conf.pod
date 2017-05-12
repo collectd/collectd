@@ -338,7 +338,7 @@ is enabled by default.
 =item B<PostCacheChain> I<ChainName>
 
 Configure the name of the "pre-cache chain" and the "post-cache chain". Please
-see L<FILTER CONFIGURATION> below on information on chains and how these
+see L</"FILTER CONFIGURATION"> below on information on chains and how these
 setting change the daemon's behavior.
 
 =back
@@ -1372,6 +1372,8 @@ Select I<cgroup> based on the name. Whether only matching I<cgroups> are
 collected or if they are ignored is controlled by the B<IgnoreSelected> option;
 see below.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> B<true>|B<false>
 
 Invert the selection: If set to true, all cgroups I<except> the ones that
@@ -2268,13 +2270,19 @@ values. Defaults to the global hostname setting.
 
 Select partitions based on the devicename.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<MountPoint> I<Directory>
 
 Select partitions based on the mountpoint.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<FSType> I<FSType>
 
 Select partitions based on the filesystem type.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> B<true>|B<false>
 
@@ -2336,6 +2344,8 @@ is interpreted as a regular expression. Examples:
 
   Disk "sdd"
   Disk "/hda[34]/"
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> B<true>|B<false>
 
@@ -3139,6 +3149,8 @@ than 1 sec.
 Select this interface. By default these interfaces will then be collected. For
 a more detailed description see B<IgnoreSelected> below.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 If no configuration if given, the B<interface>-plugin will collect data from
@@ -3200,6 +3212,8 @@ This option is only available on Solaris.
 
 Selects sensors to collect or to ignore, depending on B<IgnoreSelected>.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 If no configuration if given, the B<ipmi> plugin will collect data from all
@@ -3255,6 +3269,8 @@ comment or the number.
 
 Select this irq. By default these irqs will then be collected. For a more
 detailed description see B<IgnoreSelected> below.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
@@ -3500,6 +3516,8 @@ I<missing> (physically absent) disks.
 Select md devices based on device name. The I<device name> is the basename of
 the device, i.e. the name of the block device without the leading C</dev/>.
 See B<IgnoreSelected> for more details.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> B<true>|B<false>
 
@@ -4664,6 +4682,8 @@ regular and exact matching are case sensitive.
 If no volume was specified at all for either of the three options, that data
 will be collected for all available volumes.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelectedIO> B<true>|B<false>
 
 =item B<IgnoreSelectedOps> B<true>|B<false>
@@ -4848,6 +4868,8 @@ Here are some examples to help you understand the above text more easily:
     Class "ppp0" "htb-1:10"
     Filter "ppp0" "u32-1:0"
   </Plugin>
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected>
 
@@ -5399,6 +5421,8 @@ C</10.F10FCA000800/temperature>). B<IgnoreSelected> is not used.
 
 As there can be multiple devices on the bus you can list multiple sensor (use
 multiple B<Sensor> elements).
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
@@ -6582,6 +6606,8 @@ Whether only matched values are selected or all matched values are ignored
 depends on the B<IgnoreSelected>. By default, only matched values are selected.
 If no value is configured at all, all values will be selected.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> B<true>|B<false>
 
 If set to B<true>, inverts the selection made by B<Value>, i.E<nbsp>e. all
@@ -7010,6 +7036,8 @@ on the B<IgnoreSelected> below. For example, the option "B<Sensor>
 I<it8712-isa-0290/voltage-in1>" will cause collectd to gather data for the
 voltage sensor I<in1> of the I<it8712> on the isa bus at the address 0290.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 If no configuration if given, the B<sensors>-plugin will collect data from all
@@ -7118,6 +7146,8 @@ is interpreted as a regular expression. Examples:
 
   Disk "sdd"
   Disk "/hda[34]/"
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> B<true>|B<false>
 
@@ -7805,6 +7835,8 @@ plugin to use the latter. This option defaults to I<false>.
 Selects the name of the thermal device that you want to collect or ignore,
 depending on the value of the B<IgnoreSelected> option. This option may be
 used multiple times to specify a list of devices.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
@@ -10272,6 +10304,48 @@ be an FQDN.
    </Rule>
    Target "write"
  </Chain>
+
+=head1 IGNORELISTS
+
+B<Ignorelists> are a generic framework to either ignore some metrics or report
+specific metircs only. Plugins usually provide one or more options to specify
+the items (mounts points, devices, ...) and the boolean option
+C<IgnoreSelected>.
+
+=over 4
+
+=item B<Select> I<String>
+
+Selects the item I<String>. This option often has a plugin specific name, e.g.
+B<Sensor> in the C<sensors> plugin. It is also plugin specific what this string
+is compared to. For example, the C<df> plugin's B<MountPoint> compares it to a
+mount point and the C<sensors> plugin's B<Sensor> compares it to a sensor name.
+
+By default, this option is doing a case-sensitive full-string match. The
+following config will match C<foo>, but not C<Foo>:
+
+  Select "foo"
+
+If I<String> starts and ends with C</> (a slash), the string is compiled as a
+I<regular expression>. For example, so match all item starting with C<foo>, use
+could use the following syntax:
+
+  Select "/^foo/"
+
+The regular expression is I<not> anchored, i.e. the following config will match
+C<foobar>, C<barfoo> and C<AfooZ>:
+
+  Select "/foo/"
+
+The B<Select> option may be repeated to select multiple items.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+If set to B<true>, matching metrics are I<ignored> and all other metrics are
+collected. If set to B<false>, matching metrics are I<collected> and all other
+metrics are ignored.
+
+=back
 
 =head1 SEE ALSO
 
