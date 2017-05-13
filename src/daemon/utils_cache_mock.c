@@ -30,14 +30,14 @@
 gauge_t *uc_get_rate(__attribute__((unused)) data_set_t const *ds,
                      __attribute__((unused)) value_list_t const *vl) {
   errno = ENOTSUP;
-  return (NULL);
+  return NULL;
 }
 
 int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
                         size_t *ret_values_num) {
-  return (ENOTSUP);
+  return ENOTSUP;
 }
 
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
-  return (ENOTSUP);
+  return ENOTSUP;
 }

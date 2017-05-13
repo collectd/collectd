@@ -52,7 +52,7 @@ static int cpufreq_init(void) {
   if (num_cpu == 0)
     plugin_unregister_read("cpufreq");
 
-  return (0);
+  return 0;
 } /* int cpufreq_init */
 
 static void cpufreq_submit(int cpu_num, value_t value) {
@@ -85,7 +85,7 @@ static int cpufreq_read(void) {
     cpufreq_submit(i, v);
   }
 
-  return (0);
+  return 0;
 } /* int cpufreq_read */
 
 void module_register(void) {

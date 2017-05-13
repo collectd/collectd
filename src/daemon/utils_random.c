@@ -58,7 +58,7 @@ double cdrand_d(void) {
   r = erand48(seed);
   pthread_mutex_unlock(&lock);
 
-  return (r);
+  return r;
 }
 
 uint32_t cdrand_u(void) {
@@ -81,5 +81,5 @@ long cdrand_range(long min, long max) {
   r = (long)(0.5 + (cdrand_d() * range));
   r += min;
 
-  return (r);
+  return r;
 }

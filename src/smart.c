@@ -50,7 +50,7 @@ static int smart_config(const char *key, const char *value) {
   if (ignorelist == NULL)
     ignorelist = ignorelist_create(/* invert = */ 1);
   if (ignorelist == NULL)
-    return (1);
+    return 1;
 
   if (strcasecmp("Disk", key) == 0) {
     ignorelist_add(ignorelist, value);
@@ -66,10 +66,10 @@ static int smart_config(const char *key, const char *value) {
     if (IS_TRUE(value))
       use_serial = 1;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int smart_config */
 
 static void smart_submit(const char *dev, const char *type,
@@ -217,7 +217,7 @@ static int smart_read(void) {
   handle_udev = udev_new();
   if (!handle_udev) {
     ERROR("smart plugin: unable to initialize udev.");
-    return (-1);
+    return -1;
   }
   enumerate = udev_enumerate_new(handle_udev);
   udev_enumerate_add_match_subsystem(enumerate, "block");
@@ -239,7 +239,7 @@ static int smart_read(void) {
   udev_enumerate_unref(enumerate);
   udev_unref(handle_udev);
 
-  return (0);
+  return 0;
 } /* int smart_read */
 
 static int smart_init(void) {
@@ -256,7 +256,7 @@ static int smart_init(void) {
               "running \"setcap cap_sys_rawio=ep\" on the collectd binary.");
   }
 #endif
-  return (0);
+  return 0;
 } /* int smart_init */
 
 void module_register(void) {

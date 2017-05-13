@@ -69,7 +69,7 @@ static int load_config(const char *key, const char *value) {
             "is not available, because I can't determine the "
             "number of CPUS on this system. Sorry.");
 #endif
-  return (-1);
+  return -1;
 }
 static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
   int cores = 0;
@@ -131,14 +131,14 @@ static int load_read(void) {
   if ((loadavg = fopen("/proc/loadavg", "r")) == NULL) {
     char errbuf[1024];
     WARNING("load: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   if (fgets(buffer, 16, loadavg) == NULL) {
     char errbuf[1024];
     WARNING("load: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     fclose(loadavg);
-    return (-1);
+    return -1;
   }
 
   if (fclose(loadavg)) {
@@ -149,7 +149,7 @@ static int load_read(void) {
   numfields = strsplit(buffer, fields, 8);
 
   if (numfields < 3)
-    return (-1);
+    return -1;
 
   snum = atof(fields[0]);
   mnum = atof(fields[1]);
@@ -180,7 +180,7 @@ static int load_read(void) {
     char errbuf[1024];
     WARNING("load: perfstat_cpu : %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   snum = (float)cputotal.loadavg[0] / (float)(1 << SBITS);
@@ -193,7 +193,7 @@ static int load_read(void) {
 #error "No applicable input method."
 #endif
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

@@ -51,9 +51,9 @@ static int set_option_severity(notification_t *n, const char *value) {
   else if (strcasecmp(value, "Okay") == 0)
     n->severity = NOTIF_OKAY;
   else
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 } /* int set_option_severity */
 
 static int set_option_time(notification_t *n, const char *value) {
@@ -66,17 +66,17 @@ static int set_option_time(notification_t *n, const char *value) {
       || (endptr == value) /* Invalid string */
       || (endptr == NULL)  /* This should not happen */
       || (*endptr != 0))   /* Trailing chars */
-    return (-1);
+    return -1;
 
   n->time = DOUBLE_TO_CDTIME_T(tmp);
 
-  return (0);
+  return 0;
 } /* int set_option_time */
 
 static int set_option(notification_t *n, const char *option,
                       const char *value) {
   if ((n == NULL) || (option == NULL) || (value == NULL))
-    return (-1);
+    return -1;
 
   DEBUG("utils_cmd_putnotif: set_option (option = %s, value = %s);", option,
         value);
@@ -85,18 +85,18 @@ static int set_option(notification_t *n, const char *option,
   if (option[0] != '\0' && option[1] == ':') {
     /* Refuse empty key */
     if (option[2] == '\0')
-      return (1);
+      return 1;
 
     if (option[0] == 's')
       return plugin_notification_meta_add_string(n, option + 2, value);
     else
-      return (1);
+      return 1;
   }
 
   if (strcasecmp("severity", option) == 0)
-    return (set_option_severity(n, value));
+    return set_option_severity(n, value);
   else if (strcasecmp("time", option) == 0)
-    return (set_option_time(n, value));
+    return set_option_time(n, value);
   else if (strcasecmp("message", option) == 0)
     sstrncpy(n->message, value, sizeof(n->message));
   else if (strcasecmp("host", option) == 0)
@@ -110,9 +110,9 @@ static int set_option(notification_t *n, const char *option,
   else if (strcasecmp("type_instance", option) == 0)
     sstrncpy(n->type_instance, value, sizeof(n->type_instance));
   else
-    return (1);
+    return 1;
 
-  return (0);
+  return 0;
 } /* int set_option */
 
 int handle_putnotif(FILE *fh, char *buffer) {
@@ -121,7 +121,7 @@ int handle_putnotif(FILE *fh, char *buffer) {
   int status;
 
   if ((fh == NULL) || (buffer == NULL))
-    return (-1);
+    return -1;
 
   DEBUG("utils_cmd_putnotif: handle_putnotif (fh = %p, buffer = %s);",
         (void *)fh, buffer);
@@ -130,13 +130,13 @@ int handle_putnotif(FILE *fh, char *buffer) {
   status = parse_string(&buffer, &command);
   if (status != 0) {
     print_to_socket(fh, "-1 Cannot parse command.\n");
-    return (-1);
+    return -1;
   }
   assert(command != NULL);
 
   if (strcasecmp("PUTNOTIF", command) != 0) {
     print_to_socket(fh, "-1 Unexpected command: `%s'.\n", command);
-    return (-1);
+    return -1;
   }
 
   status = 0;
@@ -178,5 +178,5 @@ int handle_putnotif(FILE *fh, char *buffer) {
     print_to_socket(fh, "0 Success\n");
   }
 
-  return (0);
+  return 0;
 } /* int handle_putnotif */

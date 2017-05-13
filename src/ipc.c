@@ -123,13 +123,13 @@ static int ipc_read_sem(void) /* {{{ */
     ERROR("ipc plugin: semctl(2) failed: %s. "
           "Maybe the kernel is not configured for semaphores?",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   ipc_submit_g("sem", "count", "arrays", seminfo.semusz);
   ipc_submit_g("sem", "count", "total", seminfo.semaem);
 
-  return (0);
+  return 0;
 } /* }}} int ipc_read_sem */
 
 static int ipc_read_shm(void) /* {{{ */
@@ -143,14 +143,14 @@ static int ipc_read_shm(void) /* {{{ */
     ERROR("ipc plugin: shmctl(2) failed: %s. "
           "Maybe the kernel is not configured for shared memory?",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   ipc_submit_g("shm", "segments", NULL, shm_info.used_ids);
   ipc_submit_g("shm", "bytes", "total", shm_info.shm_tot * pagesize_g);
   ipc_submit_g("shm", "bytes", "rss", shm_info.shm_rss * pagesize_g);
   ipc_submit_g("shm", "bytes", "swapped", shm_info.shm_swp * pagesize_g);
-  return (0);
+  return 0;
 }
 /* }}} int ipc_read_shm */
 
@@ -160,20 +160,20 @@ static int ipc_read_msg(void) /* {{{ */
 
   if (msgctl(0, MSG_INFO, (struct msqid_ds *)(void *)&msginfo) < 0) {
     ERROR("Kernel is not configured for message queues");
-    return (-1);
+    return -1;
   }
   ipc_submit_g("msg", "count", "queues", msginfo.msgmni);
   ipc_submit_g("msg", "count", "headers", msginfo.msgmap);
   ipc_submit_g("msg", "count", "space", msginfo.msgtql);
 
-  return (0);
+  return 0;
 }
 /* }}} int ipc_read_msg */
 
 static int ipc_init(void) /* {{{ */
 {
   pagesize_g = sysconf(_SC_PAGESIZE);
-  return (0);
+  return 0;
 }
 /* }}} */
 /* #endif KERNEL_LINUX */
@@ -190,7 +190,7 @@ static caddr_t ipc_get_info(cid_t cid, int cmd, int version, int stsize,
       char errbuf[1024];
       WARNING("ipc plugin: get_ipc_info: %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (NULL);
+      return NULL;
     }
   }
 
@@ -199,7 +199,7 @@ static caddr_t ipc_get_info(cid_t cid, int cmd, int version, int stsize,
 
   if (size % stsize) {
     ERROR("ipc plugin: ipc_get_info: missmatch struct size and buffer size");
-    return (NULL);
+    return NULL;
   }
 
   *nmemb = size / stsize;
@@ -207,7 +207,7 @@ static caddr_t ipc_get_info(cid_t cid, int cmd, int version, int stsize,
   buff = malloc(size);
   if (buff == NULL) {
     ERROR("ipc plugin: ipc_get_info malloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   if (get_ipc_info(cid, cmd, version, buff, &size) < 0) {
@@ -215,7 +215,7 @@ static caddr_t ipc_get_info(cid_t cid, int cmd, int version, int stsize,
     WARNING("ipc plugin: get_ipc_info: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
     free(buff);
-    return (NULL);
+    return NULL;
   }
 
   return buff;
@@ -242,7 +242,7 @@ static int ipc_read_sem(void) /* {{{ */
   ipc_submit_g("sem", "count", "arrays", sem_nsems);
   ipc_submit_g("sem", "count", "total", sems);
 
-  return (0);
+  return 0;
 } /* }}} int ipc_read_sem */
 
 static int ipc_read_shm(void) /* {{{ */
@@ -267,7 +267,7 @@ static int ipc_read_shm(void) /* {{{ */
   ipc_submit_g("shm", "segments", NULL, shm_segments);
   ipc_submit_g("shm", "bytes", "total", shm_bytes);
 
-  return (0);
+  return 0;
 }
 /* }}} int ipc_read_shm */
 
@@ -295,7 +295,7 @@ static int ipc_read_msg(void) /* {{{ */
   ipc_submit_g("msg", "count", "headers", msg_qnum);
   ipc_submit_g("msg", "count", "space", msg_used_space);
 
-  return (0);
+  return 0;
 }
 /* }}} */
 #endif /* KERNEL_AIX */
@@ -307,7 +307,7 @@ static int ipc_read(void) /* {{{ */
   x |= ipc_read_sem();
   x |= ipc_read_msg();
 
-  return (x);
+  return x;
 }
 /* }}} */
 

@@ -118,18 +118,18 @@ static size_t cj_curl_callback(void *buf, /* {{{ */
   len = size * nmemb;
 
   if (len == 0)
-    return (len);
+    return len;
 
   db = user_data;
   if (db == NULL)
-    return (0);
+    return 0;
 
   status = yajl_parse(db->yajl, (unsigned char *)buf, len);
   if (status == yajl_status_ok)
-    return (len);
+    return len;
 #if !HAVE_YAJL_V2
   else if (status == yajl_status_insufficient_data)
-    return (len);
+    return len;
 #endif
 
   unsigned char *msg =
@@ -137,7 +137,7 @@ static size_t cj_curl_callback(void *buf, /* {{{ */
                      /* jsonText = */ (unsigned char *)buf, (unsigned int)len);
   ERROR("curl_json plugin: yajl_parse failed: %s", msg);
   yajl_free_error(db->yajl, msg);
-  return (0); /* abort write callback */
+  return 0; /* abort write callback */
 } /* }}} size_t cj_curl_callback */
 
 static int cj_get_type(cj_key_t *key) {
@@ -196,12 +196,12 @@ static void cj_cb_inc_array_index(void *ctx, _Bool update_key) {
 
 static int cj_cb_boolean(void *ctx, int boolVal) {
   cj_cb_inc_array_index(ctx, /* update_key = */ 0);
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_null(void *ctx) {
   cj_cb_inc_array_index(ctx, /* update_key = */ 0);
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
@@ -223,13 +223,13 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
       NOTICE("curl_json plugin: Found \"%s\", but the configuration expects"
              " a map.",
              buffer);
-      return (CJ_CB_CONTINUE);
+      return CJ_CB_CONTINUE;
     }
 
     cj_cb_inc_array_index(ctx, /* update_key = */ 1);
     key = db->state[db->depth].key;
     if ((key == NULL) || !CJ_IS_KEY(key)) {
-      return (CJ_CB_CONTINUE);
+      return CJ_CB_CONTINUE;
     }
   } else {
     cj_cb_inc_array_index(ctx, /* update_key = */ 1);
@@ -239,11 +239,11 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
   status = parse_value(buffer, &vt, type);
   if (status != 0) {
     NOTICE("curl_json plugin: Unable to parse number: \"%s\"", buffer);
-    return (CJ_CB_CONTINUE);
+    return CJ_CB_CONTINUE;
   }
 
   cj_submit(db, key, &vt);
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 } /* int cj_cb_number */
 
 /* Queries the key-tree of the parent context for "in_name" and, if found,
@@ -284,12 +284,12 @@ static int cj_cb_map_key(void *ctx, unsigned char const *in_name,
       db->state[db->depth].key = NULL;
   }
 
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
   /* Handle the string as if it was a number. */
-  return (cj_cb_number(ctx, (const char *)val, len));
+  return cj_cb_number(ctx, (const char *)val, len);
 } /* int cj_cb_string */
 
 static int cj_cb_start(void *ctx) {
@@ -297,16 +297,16 @@ static int cj_cb_start(void *ctx) {
   if (++db->depth >= YAJL_MAX_DEPTH) {
     ERROR("curl_json plugin: %s depth exceeds max, aborting.",
           db->url ? db->url : db->sock);
-    return (CJ_CB_ABORT);
+    return CJ_CB_ABORT;
   }
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_end(void *ctx) {
   cj_t *db = (cj_t *)ctx;
   db->state[db->depth].tree = NULL;
   --db->depth;
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_start_map(void *ctx) {
@@ -412,7 +412,7 @@ static void cj_free(void *arg) /* {{{ */
 /* Configuration handling functions {{{ */
 
 static c_avl_tree_t *cj_avl_create(void) {
-  return c_avl_create((int (*)(const void *, const void *))strcmp);
+  return c_avl_create((int(*)(const void *, const void *))strcmp);
 }
 
 static int cj_config_append_string(const char *name,
@@ -421,16 +421,16 @@ static int cj_config_append_string(const char *name,
   struct curl_slist *temp = NULL;
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("curl_json plugin: `%s' needs exactly one string argument.", name);
-    return (-1);
+    return -1;
   }
 
   temp = curl_slist_append(*dest, ci->values[0].value.string);
   if (temp == NULL)
-    return (-1);
+    return -1;
 
   *dest = temp;
 
-  return (0);
+  return 0;
 } /* }}} int cj_config_append_string */
 
 static int cj_config_add_key(cj_t *db, /* {{{ */
@@ -441,13 +441,13 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("curl_json plugin: The `Key' block "
             "needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   key = calloc(1, sizeof(*key));
   if (key == NULL) {
     ERROR("curl_json plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
   key->magic = CJ_KEY_MAGIC;
 
@@ -455,14 +455,14 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
     status = cf_util_get_string(ci, &key->path);
     if (status != 0) {
       sfree(key);
-      return (status);
+      return status;
     }
   } else {
     ERROR("curl_json plugin: cj_config: "
           "Invalid key: %s",
           ci->key);
     cj_key_free(key);
-    return (-1);
+    return -1;
   }
 
   status = 0;
@@ -484,13 +484,13 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
 
   if (status != 0) {
     cj_key_free(key);
-    return (-1);
+    return -1;
   }
 
   if (key->type == NULL) {
     WARNING("curl_json plugin: `Type' missing in `Key' block.");
     cj_key_free(key);
-    return (-1);
+    return -1;
   }
 
   /* store path in a tree that will match the json map structure, example:
@@ -535,11 +535,11 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
   if (strlen(name) == 0) {
     ERROR("curl_json plugin: invalid key: %s", key->path);
     cj_key_free(key);
-    return (-1);
+    return -1;
   }
 
   c_avl_insert(tree, strdup(name), key);
-  return (status);
+  return status;
 } /* }}} int cj_config_add_key */
 
 static int cj_init_curl(cj_t *db) /* {{{ */
@@ -547,7 +547,7 @@ static int cj_init_curl(cj_t *db) /* {{{ */
   db->curl = curl_easy_init();
   if (db->curl == NULL) {
     ERROR("curl_json plugin: curl_easy_init failed.");
-    return (-1);
+    return -1;
   }
 
   curl_easy_setopt(db->curl, CURLOPT_NOSIGNAL, 1L);
@@ -574,7 +574,7 @@ static int cj_init_curl(cj_t *db) /* {{{ */
     db->credentials = malloc(credentials_size);
     if (db->credentials == NULL) {
       ERROR("curl_json plugin: malloc failed.");
-      return (-1);
+      return -1;
     }
 
     ssnprintf(db->credentials, credentials_size, "%s:%s", db->user,
@@ -606,7 +606,7 @@ static int cj_init_curl(cj_t *db) /* {{{ */
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int cj_init_curl */
 
 static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
@@ -617,13 +617,13 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("curl_json plugin: The `URL' block "
             "needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   db = calloc(1, sizeof(*db));
   if (db == NULL) {
     ERROR("curl_json plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   db->timeout = -1;
@@ -637,11 +637,11 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
           "Invalid key: %s",
           ci->key);
     cj_free(db);
-    return (-1);
+    return -1;
   }
   if (status != 0) {
     sfree(db);
-    return (status);
+    return status;
   }
 
   /* Fill the `cj_t' structure.. */
@@ -717,10 +717,10 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
     sfree(cb_name);
   } else {
     cj_free(db);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 /* }}} int cj_config_add_database */
 
@@ -751,10 +751,10 @@ static int cj_config(oconfig_item_t *ci) /* {{{ */
 
   if ((success == 0) && (errors > 0)) {
     ERROR("curl_json plugin: All statements failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cj_config */
 
 /* }}} End of configuration handling functions */
@@ -802,13 +802,13 @@ static int cj_sock_perform(cj_t *db) /* {{{ */
 
   int fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd < 0)
-    return (-1);
+    return -1;
   if (connect(fd, (struct sockaddr *)&sa_unix, sizeof(sa_unix)) < 0) {
     ERROR("curl_json plugin: connect(%s) failed: %s",
           (db->sock != NULL) ? db->sock : "<null>",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     close(fd);
-    return (-1);
+    return -1;
   }
 
   ssize_t red;
@@ -820,13 +820,13 @@ static int cj_sock_perform(cj_t *db) /* {{{ */
             (db->sock != NULL) ? db->sock : "<null>",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       close(fd);
-      return (-1);
+      return -1;
     }
     if (!cj_curl_callback(buffer, red, 1, db))
       break;
   } while (red > 0);
   close(fd);
-  return (0);
+  return 0;
 } /* }}} int cj_sock_perform */
 
 static int cj_curl_perform(cj_t *db) /* {{{ */
@@ -840,7 +840,7 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   if (status != CURLE_OK) {
     ERROR("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
           status, db->curl_errbuf, url);
-    return (-1);
+    return -1;
   }
   if (db->stats != NULL)
     curl_stats_dispatch(db->stats, db->curl, cj_host(db), "curl_json",
@@ -854,9 +854,9 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
     ERROR("curl_json plugin: curl_easy_perform failed with "
           "response code %ld (%s)",
           rc, url);
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 } /* }}} int cj_curl_perform */
 
 static int cj_perform(cj_t *db) /* {{{ */
@@ -874,7 +874,7 @@ static int cj_perform(cj_t *db) /* {{{ */
   if (db->yajl == NULL) {
     ERROR("curl_json plugin: yajl_alloc failed.");
     db->yajl = yprev;
-    return (-1);
+    return -1;
   }
 
   if (db->url)
@@ -884,7 +884,7 @@ static int cj_perform(cj_t *db) /* {{{ */
   if (status < 0) {
     yajl_free(db->yajl);
     db->yajl = yprev;
-    return (-1);
+    return -1;
   }
 
 #if HAVE_YAJL_V2
@@ -901,12 +901,12 @@ static int cj_perform(cj_t *db) /* {{{ */
     yajl_free_error(db->yajl, errmsg);
     yajl_free(db->yajl);
     db->yajl = yprev;
-    return (-1);
+    return -1;
   }
 
   yajl_free(db->yajl);
   db->yajl = yprev;
-  return (0);
+  return 0;
 } /* }}} int cj_perform */
 
 static int cj_read(user_data_t *ud) /* {{{ */
@@ -915,7 +915,7 @@ static int cj_read(user_data_t *ud) /* {{{ */
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("curl_json plugin: cj_read: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   db = (cj_t *)ud->data;
@@ -933,7 +933,7 @@ static int cj_init(void) /* {{{ */
   /* Call this while collectd is still single-threaded to avoid
    * initialization issues in libgcrypt. */
   curl_global_init(CURL_GLOBAL_SSL);
-  return (0);
+  return 0;
 } /* }}} int cj_init */
 
 void module_register(void) {

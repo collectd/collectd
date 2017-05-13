@@ -103,7 +103,7 @@ static int zookeeper_connect(void) {
     INFO("getaddrinfo failed: %s",
          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                 : gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   for (struct addrinfo *ai = ai_list; ai != NULL; ai = ai->ai_next) {
@@ -129,7 +129,7 @@ static int zookeeper_connect(void) {
   }
 
   freeaddrinfo(ai_list);
-  return (sk);
+  return sk;
 } /* int zookeeper_connect */
 
 static int zookeeper_query(char *buffer, size_t buffer_size) {
@@ -139,7 +139,7 @@ static int zookeeper_query(char *buffer, size_t buffer_size) {
   sk = zookeeper_connect();
   if (sk < 0) {
     ERROR("zookeeper: Could not connect to daemon");
-    return (-1);
+    return -1;
   }
 
   status = (int)swrite(sk, "mntr\r\n", strlen("mntr\r\n"));
@@ -148,7 +148,7 @@ static int zookeeper_query(char *buffer, size_t buffer_size) {
     ERROR("zookeeper: write(2) failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     close(sk);
-    return (-1);
+    return -1;
   }
 
   memset(buffer, 0, buffer_size);
@@ -164,7 +164,7 @@ static int zookeeper_query(char *buffer, size_t buffer_size) {
       ERROR("zookeeper: Error reading from socket: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       close(sk);
-      return (-1);
+      return -1;
     }
 
     buffer_fill += (size_t)status;
@@ -177,7 +177,7 @@ static int zookeeper_query(char *buffer, size_t buffer_size) {
   }
 
   close(sk);
-  return (status);
+  return status;
 } /* int zookeeper_query */
 
 static int zookeeper_read(void) {
@@ -188,7 +188,7 @@ static int zookeeper_read(void) {
   char *fields[2];
 
   if (zookeeper_query(buf, sizeof(buf)) < 0) {
-    return (-1);
+    return -1;
   }
 
   ptr = buf;
@@ -238,7 +238,7 @@ static int zookeeper_read(void) {
     }
   }
 
-  return (0);
+  return 0;
 } /* zookeeper_read */
 
 void module_register(void) {

@@ -253,7 +253,7 @@ static int dpdk_helper_stats_count_get(dpdk_helper_ctx_t *phc) {
 }
 
 static int dpdk_stats_get_size(dpdk_helper_ctx_t *phc) {
-  return (dpdk_helper_data_size_get(phc) - sizeof(dpdk_stats_ctx_t));
+  return dpdk_helper_data_size_get(phc) - sizeof(dpdk_stats_ctx_t);
 }
 
 int dpdk_helper_command_handler(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd) {

@@ -40,12 +40,12 @@ static int mec_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   }
 
   *user_data = NULL;
-  return (0);
+  return 0;
 } /* }}} int mec_create */
 
 static int mec_destroy(__attribute__((unused)) void **user_data) /* {{{ */
 {
-  return (0);
+  return 0;
 } /* }}} int mec_destroy */
 
 static int mec_match(__attribute__((unused)) const data_set_t *ds, /* {{{ */
@@ -67,9 +67,9 @@ static int mec_match(__attribute__((unused)) const data_set_t *ds, /* {{{ */
   }
 
   if ((num_counters != 0) && (num_counters == num_empty))
-    return (FC_MATCH_MATCHES);
+    return FC_MATCH_MATCHES;
 
-  return (FC_MATCH_NO_MATCH);
+  return FC_MATCH_NO_MATCH;
 } /* }}} int mec_match */
 
 void module_register(void) {

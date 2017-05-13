@@ -156,7 +156,7 @@ static int disk_config(const char *key, const char *value) {
   if (ignorelist == NULL)
     ignorelist = ignorelist_create(/* invert = */ 1);
   if (ignorelist == NULL)
-    return (1);
+    return 1;
 
   if (strcasecmp("Disk", key) == 0) {
     ignorelist_add(ignorelist, value);
@@ -179,16 +179,16 @@ static int disk_config(const char *key, const char *value) {
       conf_udev_name_attr = NULL;
     }
     if ((conf_udev_name_attr = strdup(value)) == NULL)
-      return (1);
+      return 1;
 #else
     WARNING("disk plugin: The \"UdevNameAttr\" option is only supported "
             "if collectd is built with libudev support");
 #endif
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int disk_config */
 
 static int disk_init(void) {
@@ -204,7 +204,7 @@ static int disk_init(void) {
   if (status != kIOReturnSuccess) {
     ERROR("IOMasterPort failed: %s", mach_error_string(status));
     io_master_port = MACH_PORT_NULL;
-    return (-1);
+    return -1;
   }
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
@@ -214,7 +214,7 @@ static int disk_init(void) {
     handle_udev = udev_new();
     if (handle_udev == NULL) {
       ERROR("disk plugin: udev_new() failed!");
-      return (-1);
+      return -1;
     }
   }
 #endif /* HAVE_UDEV_H */
@@ -226,12 +226,12 @@ static int disk_init(void) {
   rv = geom_gettree(&geom_tree);
   if (rv != 0) {
     ERROR("geom_gettree() failed, returned %d", rv);
-    return (-1);
+    return -1;
   }
   rv = geom_stats_open();
   if (rv != 0) {
     ERROR("geom_stats_open() failed, returned %d", rv);
-    return (-1);
+    return -1;
   }
 /* #endif KERNEL_FREEBSD */
 
@@ -241,7 +241,7 @@ static int disk_init(void) {
   numdisk = 0;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (numdisk = 0, ksp_chain = kc->kc_chain;
        (numdisk < MAX_NUMDISK) && (ksp_chain != NULL);
@@ -255,7 +255,7 @@ static int disk_init(void) {
   }
 #endif /* HAVE_LIBKSTAT */
 
-  return (0);
+  return 0;
 } /* int disk_init */
 
 static int disk_shutdown(void) {
@@ -265,7 +265,7 @@ static int disk_shutdown(void) {
     udev_unref(handle_udev);
 #endif /* HAVE_UDEV_H */
 #endif /* KERNEL_LINUX */
-  return (0);
+  return 0;
 } /* int disk_shutdown */
 
 static void disk_submit(const char *plugin_instance, const char *type,
@@ -321,7 +321,7 @@ static counter_t disk_calc_time_incr(counter_t delta_time,
   double avg_time = ((double)delta_time) / ((double)delta_ops);
   double avg_time_incr = interval * avg_time;
 
-  return ((counter_t)(avg_time_incr + .5));
+  return (counter_t)(avg_time_incr + .5);
 }
 #endif
 
@@ -363,7 +363,7 @@ static signed long long dict_get_value(CFDictionaryRef dict, const char *key) {
                                       kCFStringEncodingASCII);
   if (key_obj == NULL) {
     DEBUG("CFStringCreateWithCString (%s) failed.", key);
-    return (-1LL);
+    return -1LL;
   }
 
   /* get => we don't need to release (== free) the object */
@@ -373,15 +373,15 @@ static signed long long dict_get_value(CFDictionaryRef dict, const char *key) {
 
   if (val_obj == NULL) {
     DEBUG("CFDictionaryGetValue (%s) failed.", key);
-    return (-1LL);
+    return -1LL;
   }
 
   if (!CFNumberGetValue(val_obj, kCFNumberSInt64Type, &val_int)) {
     DEBUG("CFNumberGetValue (%s) failed.", key);
-    return (-1LL);
+    return -1LL;
   }
 
-  return (val_int);
+  return val_int;
 }
 #endif /* HAVE_IOKIT_IOKITLIB_H */
 
@@ -405,10 +405,10 @@ static int disk_read(void) {
 
   /* Get the list of all disk objects. */
   if (IOServiceGetMatchingServices(
-          io_master_port, IOServiceMatching(kIOBlockStorageDriverClass),
-          &disk_list) != kIOReturnSuccess) {
+                                   io_master_port, IOServiceMatching(kIOBlockStorageDriverClass),
+                                   &disk_list) != kIOReturnSuccess) {
     ERROR("disk plugin: IOServiceGetMatchingServices failed.");
-    return (-1);
+    return -1;
   }
 
   while ((disk = IOIteratorNext(disk_list)) != 0) {
@@ -551,7 +551,7 @@ static int disk_read(void) {
     snap = geom_stats_snapshot_get();
     if (snap == NULL) {
       ERROR("disk plugin: geom_stats_snapshot_get() failed.");
-      return (-1);
+      return -1;
     }
 
     /* Check if we have dirty read from this snapshot */
@@ -568,7 +568,7 @@ static int disk_read(void) {
         if (geom_gettree(&geom_tree) != 0) {
           ERROR("disk plugin: geom_gettree() failed");
           geom_stats_snapshot_free(snap);
-          return (-1);
+          return -1;
         }
         geom_id = geom_lookupid(&geom_tree, snap_iter->id);
       }
@@ -682,7 +682,7 @@ static int disk_read(void) {
     fh = fopen("/proc/partitions", "r");
     if (fh == NULL) {
       ERROR("disk plugin: fopen (/proc/{diskstats,partitions}) failed.");
-      return (-1);
+      return -1;
     }
 
     /* Kernel is 2.4.* */
@@ -910,7 +910,7 @@ static int disk_read(void) {
   static kstat_io_t kio;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (int i = 0; i < numdisk; i++) {
     if (kstat_read(kc, ksp[i], &kio) == -1)
@@ -946,7 +946,7 @@ static int disk_read(void) {
   char name[DATA_MAX_NAME_LEN];
 
   if ((ds = sg_get_disk_io_stats(&disks)) == NULL)
-    return (0);
+    return 0;
 
   for (int counter = 0; counter < disks; counter++) {
     strncpy(name, ds->disk_name, sizeof(name));
@@ -977,7 +977,7 @@ static int disk_read(void) {
     char errbuf[1024];
     WARNING("disk plugin: perfstat_disk: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   if (numdisk != pnumdisk || stat_disk == NULL) {
@@ -993,7 +993,7 @@ static int disk_read(void) {
     char errbuf[1024];
     WARNING("disk plugin: perfstat_disk : %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < rnumdisk; i++) {
@@ -1020,7 +1020,7 @@ static int disk_read(void) {
   }
 #endif /* defined(HAVE_PERFSTAT) */
 
-  return (0);
+  return 0;
 } /* int disk_read */
 
 void module_register(void) {

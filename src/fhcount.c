@@ -49,7 +49,7 @@ static int fhcount_config(const char *key, const char *value) {
     ret = 0;
   }
 
-  return (ret);
+  return ret;
 }
 
 static void fhcount_submit(const char *type, const char *type_instance,
@@ -82,12 +82,12 @@ static int fhcount_read(void) {
   fp = fopen("/proc/sys/fs/file-nr", "r");
   if (fp == NULL) {
     ERROR("fhcount: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
   if (fgets(buffer, buffer_len, fp) == NULL) {
     ERROR("fhcount: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     fclose(fp);
-    return (EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
   fclose(fp);
 
@@ -96,7 +96,7 @@ static int fhcount_read(void) {
 
   if (numfields != 3) {
     ERROR("fhcount: Line doesn't contain 3 fields");
-    return (EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   // Define the values
@@ -117,7 +117,7 @@ static int fhcount_read(void) {
     fhcount_submit("percent", "unused", (gauge_t)prc_unused);
   }
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

@@ -39,7 +39,7 @@ cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
   if ((ret_flush == NULL) || (opts == NULL)) {
     errno = EINVAL;
     cmd_error(CMD_ERROR, err, "Invalid arguments to cmd_parse_flush.");
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
   for (size_t i = 0; i < argc; i++) {
@@ -54,7 +54,7 @@ cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
       if (status == CMD_NO_OPTION)
         cmd_error(CMD_PARSE_ERROR, err, "Invalid option string `%s'.", argv[i]);
       cmd_destroy_flush(ret_flush);
-      return (CMD_PARSE_ERROR);
+      return CMD_PARSE_ERROR;
     }
 
     if (strcasecmp("plugin", opt_key) == 0) {
@@ -66,7 +66,7 @@ cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
       if (id == NULL) {
         cmd_error(CMD_ERROR, err, "realloc failed.");
         cmd_destroy_flush(ret_flush);
-        return (CMD_ERROR);
+        return CMD_ERROR;
       }
 
       ret_flush->identifiers = id;
@@ -77,7 +77,7 @@ cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
                            opts->identifier_default_host) != 0) {
         cmd_error(CMD_PARSE_ERROR, err, "Invalid identifier `%s'.", opt_value);
         cmd_destroy_flush(ret_flush);
-        return (CMD_PARSE_ERROR);
+        return CMD_PARSE_ERROR;
       }
     } else if (strcasecmp("timeout", opt_key) == 0) {
       char *endptr;
@@ -91,18 +91,18 @@ cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
         cmd_error(CMD_PARSE_ERROR, err,
                   "Invalid value for option `timeout': %s", opt_value);
         cmd_destroy_flush(ret_flush);
-        return (CMD_PARSE_ERROR);
+        return CMD_PARSE_ERROR;
       } else if (ret_flush->timeout < 0.0) {
         ret_flush->timeout = 0.0;
       }
     } else {
       cmd_error(CMD_PARSE_ERROR, err, "Cannot parse option `%s'.", opt_key);
       cmd_destroy_flush(ret_flush);
-      return (CMD_PARSE_ERROR);
+      return CMD_PARSE_ERROR;
     }
   }
 
-  return (CMD_OK);
+  return CMD_OK;
 } /* cmd_status_t cmd_parse_flush */
 
 cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
@@ -114,18 +114,18 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
   int status;
 
   if ((fh == NULL) || (buffer == NULL))
-    return (-1);
+    return -1;
 
   DEBUG("utils_cmd_flush: cmd_handle_flush (fh = %p, buffer = %s);", (void *)fh,
         buffer);
 
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
-    return (status);
+    return status;
   if (cmd.type != CMD_FLUSH) {
     cmd_error(CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
               CMD_TO_STRING(cmd.type));
     cmd_destroy(&cmd);
-    return (CMD_UNKNOWN_COMMAND);
+    return CMD_UNKNOWN_COMMAND;
   }
 
   for (size_t i = 0; (i == 0) || (i < cmd.cmd.flush.plugins_num); i++) {
@@ -160,7 +160,7 @@ cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
   cmd_error(CMD_OK, &err, "Done: %i successful, %i errors", success, error);
 
   cmd_destroy(&cmd);
-  return (0);
+  return 0;
 #undef PRINT_TO_SOCK
 } /* cmd_status_t cmd_handle_flush */
 

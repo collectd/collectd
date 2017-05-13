@@ -151,7 +151,7 @@ static int wg_send_buffer(struct wg_callback *cb) {
   ssize_t status;
 
   if (cb->sock_fd < 0)
-    return (-1);
+    return -1;
 
   status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
   if (status != 0) {
@@ -166,10 +166,10 @@ static int wg_send_buffer(struct wg_callback *cb) {
     close(cb->sock_fd);
     cb->sock_fd = -1;
 
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 /* NOTE: You must hold cb->send_lock when calling this function! */
@@ -186,18 +186,18 @@ static int wg_flush_nolock(cdtime_t timeout, struct wg_callback *cb) {
 
     now = cdtime();
     if ((cb->send_buf_init_time + timeout) > now)
-      return (0);
+      return 0;
   }
 
   if (cb->send_buf_fill == 0) {
     cb->send_buf_init_time = cdtime();
-    return (0);
+    return 0;
   }
 
   status = wg_send_buffer(cb);
   wg_reset_buffer(cb);
 
-  return (status);
+  return status;
 }
 
 static int wg_callback_init(struct wg_callback *cb) {
@@ -208,13 +208,13 @@ static int wg_callback_init(struct wg_callback *cb) {
   char connerr[1024] = "";
 
   if (cb->sock_fd > 0)
-    return (0);
+    return 0;
 
   /* Don't try to reconnect too often. By default, one reconnection attempt
    * is made per second. */
   now = cdtime();
   if ((now - cb->last_connect_time) < WG_MIN_RECONNECT_INTERVAL)
-    return (EAGAIN);
+    return EAGAIN;
   cb->last_connect_time = now;
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
@@ -229,7 +229,7 @@ static int wg_callback_init(struct wg_callback *cb) {
   if (status != 0) {
     ERROR("write_graphite plugin: getaddrinfo (%s, %s, %s) failed: %s",
           cb->node, cb->service, cb->protocol, gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   assert(ai_list != NULL);
@@ -270,7 +270,7 @@ static int wg_callback_init(struct wg_callback *cb) {
                "write_graphite plugin: Connecting to %s:%s via %s failed. "
                "The last error was: %s",
                cb->node, cb->service, cb->protocol, connerr);
-    return (-1);
+    return -1;
   } else {
     c_release(LOG_INFO, &cb->init_complaint,
               "write_graphite plugin: Successfully connected to %s:%s via %s.",
@@ -285,7 +285,7 @@ static int wg_callback_init(struct wg_callback *cb) {
   else
     cb->reconnect_interval_reached = 0;
 
-  return (0);
+  return 0;
 }
 
 static void wg_callback_free(void *data) {
@@ -324,7 +324,7 @@ static int wg_flush(cdtime_t timeout,
   int status;
 
   if (user_data == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   cb = user_data->data;
 
@@ -335,14 +335,14 @@ static int wg_flush(cdtime_t timeout,
     if (status != 0) {
       /* An error message has already been printed. */
       pthread_mutex_unlock(&cb->send_lock);
-      return (-1);
+      return -1;
     }
   }
 
   status = wg_flush_nolock(timeout, cb);
   pthread_mutex_unlock(&cb->send_lock);
 
-  return (status);
+  return status;
 }
 
 static int wg_send_message(char const *message, struct wg_callback *cb) {
@@ -360,7 +360,7 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
     if (status != 0) {
       /* An error message has already been printed. */
       pthread_mutex_unlock(&cb->send_lock);
-      return (-1);
+      return -1;
     }
   }
 
@@ -368,7 +368,7 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
     status = wg_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
       pthread_mutex_unlock(&cb->send_lock);
-      return (status);
+      return status;
     }
   }
 
@@ -389,7 +389,7 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
 
   pthread_mutex_unlock(&cb->send_lock);
 
-  return (0);
+  return 0;
 }
 
 static int wg_write_messages(const data_set_t *ds, const value_list_t *vl,
@@ -406,14 +406,14 @@ static int wg_write_messages(const data_set_t *ds, const value_list_t *vl,
   status = format_graphite(buffer, sizeof(buffer), ds, vl, cb->prefix,
                            cb->postfix, cb->escape_char, cb->format_flags);
   if (status != 0) /* error message has been printed already. */
-    return (status);
+    return status;
 
   /* Send the message to graphite */
   status = wg_send_message(buffer, cb);
   if (status != 0) /* error message has been printed already. */
-    return (status);
+    return status;
 
-  return (0);
+  return 0;
 } /* int wg_write_messages */
 
 static int wg_write(const data_set_t *ds, const value_list_t *vl,
@@ -422,13 +422,13 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl,
   int status;
 
   if (user_data == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   cb = user_data->data;
 
   status = wg_write_messages(ds, vl, cb);
 
-  return (status);
+  return status;
 }
 
 static int config_set_char(char *dest, oconfig_item_t *ci) {
@@ -437,12 +437,12 @@ static int config_set_char(char *dest, oconfig_item_t *ci) {
 
   status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
   if (status != 0)
-    return (status);
+    return status;
 
   if (buffer[0] == 0) {
     ERROR("write_graphite plugin: Cannot use an empty string for the "
           "\"EscapeCharacter\" option.");
-    return (-1);
+    return -1;
   }
 
   if (buffer[1] != 0) {
@@ -453,7 +453,7 @@ static int config_set_char(char *dest, oconfig_item_t *ci) {
 
   *dest = buffer[0];
 
-  return (0);
+  return 0;
 }
 
 static int wg_config_node(oconfig_item_t *ci) {
@@ -464,7 +464,7 @@ static int wg_config_node(oconfig_item_t *ci) {
   cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("write_graphite plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
   cb->sock_fd = -1;
   cb->name = NULL;
@@ -485,7 +485,7 @@ static int wg_config_node(oconfig_item_t *ci) {
     status = cf_util_get_string(ci, &cb->name);
     if (status != 0) {
       wg_callback_free(cb);
-      return (status);
+      return status;
     }
   }
 
@@ -540,7 +540,7 @@ static int wg_config_node(oconfig_item_t *ci) {
 
   if (status != 0) {
     wg_callback_free(cb);
-    return (status);
+    return status;
   }
 
   /* FIXME: Legacy configuration syntax. */
@@ -558,7 +558,7 @@ static int wg_config_node(oconfig_item_t *ci) {
 
   plugin_register_flush(callback_name, wg_flush, &(user_data_t){.data = cb});
 
-  return (0);
+  return 0;
 }
 
 static int wg_config(oconfig_item_t *ci) {
@@ -577,7 +577,7 @@ static int wg_config(oconfig_item_t *ci) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

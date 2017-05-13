@@ -128,13 +128,13 @@ static cf_callback_t *cf_search(const char *type) {
   cf_callback_t *cf_cb;
 
   if (type == NULL)
-    return (NULL);
+    return NULL;
 
   for (cf_cb = first_callback; cf_cb != NULL; cf_cb = cf_cb->next)
     if (strcasecmp(cf_cb->type, type) == 0)
       break;
 
-  return (cf_cb);
+  return cf_cb;
 }
 
 static int cf_dispatch(const char *type, const char *orig_key,
@@ -147,7 +147,7 @@ static int cf_dispatch(const char *type, const char *orig_key,
   int i = 0;
 
   if (orig_key == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   DEBUG("type = %s, key = %s, value = %s", ESCAPE_NULL(type), orig_key,
         ESCAPE_NULL(orig_value));
@@ -157,14 +157,14 @@ static int cf_dispatch(const char *type, const char *orig_key,
             "the plugin isn't loaded or didn't register "
             "a configuration callback.",
             type);
-    return (-1);
+    return -1;
   }
 
   if ((key = strdup(orig_key)) == NULL)
-    return (1);
+    return 1;
   if ((value = strdup(orig_value)) == NULL) {
     free(key);
-    return (2);
+    return 2;
   }
 
   ret = -1;
@@ -186,26 +186,26 @@ static int cf_dispatch(const char *type, const char *orig_key,
   free(key);
   free(value);
 
-  return (ret);
+  return ret;
 } /* int cf_dispatch */
 
 static int dispatch_global_option(const oconfig_item_t *ci) {
   if (ci->values_num != 1)
-    return (-1);
+    return -1;
   if (ci->values[0].type == OCONFIG_TYPE_STRING)
-    return (global_option_set(ci->key, ci->values[0].value.string, 0));
+    return global_option_set(ci->key, ci->values[0].value.string, 0);
   else if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
     char tmp[128];
     ssnprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
-    return (global_option_set(ci->key, tmp, 0));
+    return global_option_set(ci->key, tmp, 0);
   } else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN) {
     if (ci->values[0].value.boolean)
-      return (global_option_set(ci->key, "true", 0));
+      return global_option_set(ci->key, "true", 0);
     else
-      return (global_option_set(ci->key, "false", 0));
+      return global_option_set(ci->key, "false", 0);
   }
 
-  return (-1);
+  return -1;
 } /* int dispatch_global_option */
 
 static int dispatch_value_typesdb(oconfig_item_t *ci) {
@@ -215,7 +215,7 @@ static int dispatch_value_typesdb(oconfig_item_t *ci) {
 
   if (ci->values_num < 1) {
     ERROR("configfile: `TypesDB' needs at least one argument.");
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ci->values_num; ++i) {
@@ -228,19 +228,19 @@ static int dispatch_value_typesdb(oconfig_item_t *ci) {
 
     read_types_list(ci->values[i].value.string);
   }
-  return (0);
+  return 0;
 } /* int dispatch_value_typesdb */
 
 static int dispatch_value_plugindir(oconfig_item_t *ci) {
   assert(strcasecmp(ci->key, "PluginDir") == 0);
 
   if (ci->values_num != 1)
-    return (-1);
+    return -1;
   if (ci->values[0].type != OCONFIG_TYPE_STRING)
-    return (-1);
+    return -1;
 
   plugin_set_dir(ci->values[0].value.string);
-  return (0);
+  return 0;
 }
 
 static int dispatch_loadplugin(oconfig_item_t *ci) {
@@ -253,9 +253,9 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
   assert(strcasecmp(ci->key, "LoadPlugin") == 0);
 
   if (ci->values_num != 1)
-    return (-1);
+    return -1;
   if (ci->values[0].type != OCONFIG_TYPE_STRING)
-    return (-1);
+    return -1;
 
   name = ci->values[0].value.string;
   if (strcmp("libvirt", name) == 0)
@@ -289,7 +289,7 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
   /* reset to the "global" context */
   plugin_set_ctx(old_ctx);
 
-  return (ret_val);
+  return ret_val;
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
@@ -314,14 +314,14 @@ static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
                          ci->values[i].value.boolean ? "true" : "false");
 
     if ((status < 0) || (status >= buffer_free))
-      return (-1);
+      return -1;
     buffer_free -= status;
     buffer_ptr += status;
   }
   /* skip the initial space */
   buffer_ptr = buffer + 1;
 
-  return (cf_dispatch(plugin, ci->key, buffer_ptr));
+  return cf_dispatch(plugin, ci->key, buffer_ptr);
 } /* int dispatch_value_plugin */
 
 static int dispatch_value(oconfig_item_t *ci) {
@@ -339,18 +339,18 @@ static int dispatch_value(oconfig_item_t *ci) {
       break;
     }
 
-  return (ret);
+  return ret;
 } /* int dispatch_value */
 
 static int dispatch_block_plugin(oconfig_item_t *ci) {
   const char *name;
 
   if (strcasecmp(ci->key, "Plugin") != 0)
-    return (-1);
+    return -1;
   if (ci->values_num < 1)
-    return (-1);
+    return -1;
   if (ci->values[0].type != OCONFIG_TYPE_STRING)
-    return (-1);
+    return -1;
 
   name = ci->values[0].value.string;
   if (strcmp("libvirt", name) == 0) {
@@ -380,7 +380,7 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
       ERROR("Automatically loading plugin \"%s\" failed "
             "with status %i.",
             name, status);
-      return (status);
+      return status;
     }
   }
 
@@ -394,7 +394,7 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
       old_ctx = plugin_set_ctx(cb->ctx);
       ret_val = (cb->callback(ci));
       plugin_set_ctx(old_ctx);
-      return (ret_val);
+      return ret_val;
     }
   }
 
@@ -413,18 +413,18 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int dispatch_block(oconfig_item_t *ci) {
   if (strcasecmp(ci->key, "LoadPlugin") == 0)
-    return (dispatch_loadplugin(ci));
+    return dispatch_loadplugin(ci);
   else if (strcasecmp(ci->key, "Plugin") == 0)
-    return (dispatch_block_plugin(ci));
+    return dispatch_block_plugin(ci);
   else if (strcasecmp(ci->key, "Chain") == 0)
-    return (fc_configure(ci));
+    return fc_configure(ci);
 
-  return (0);
+  return 0;
 }
 
 static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
@@ -458,7 +458,7 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
    * all children. */
   if (dst->children_num + src->children_num - 1 == 0) {
     dst->children_num = 0;
-    return (0);
+    return 0;
   }
 
   temp =
@@ -466,7 +466,7 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
                                  (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
-    return (-1);
+    return -1;
   }
   dst->children = temp;
 
@@ -493,20 +493,20 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
   /* Update the number of children. */
   dst->children_num += (src->children_num - 1);
 
-  return (0);
+  return 0;
 } /* int cf_ci_replace_child */
 
 static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   oconfig_item_t *temp;
 
   if ((src == NULL) || (src->children_num == 0))
-    return (0);
+    return 0;
 
   temp = realloc(dst->children, sizeof(oconfig_item_t) *
                                     (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
-    return (-1);
+    return -1;
   }
   dst->children = temp;
 
@@ -514,7 +514,7 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
          sizeof(oconfig_item_t) * src->children_num);
   dst->children_num += src->children_num;
 
-  return (0);
+  return 0;
 } /* int cf_ci_append_children */
 
 #define CF_MAX_DEPTH 8
@@ -553,13 +553,13 @@ static int cf_include_all(oconfig_item_t *root, int depth) {
     sfree(pattern);
 
     if (new == NULL)
-      return (-1);
+      return -1;
 
     /* Now replace the i'th child in `root' with `new'. */
     if (cf_ci_replace_child(root, new, i) < 0) {
       sfree(new->values);
       sfree(new);
-      return (-1);
+      return -1;
     }
 
     /* ... and go back to the new i'th child. */
@@ -569,7 +569,7 @@ static int cf_include_all(oconfig_item_t *root, int depth) {
     sfree(new);
   } /* for (i = 0; i < root->children_num; i++) */
 
-  return (0);
+  return 0;
 } /* int cf_include_all */
 
 static oconfig_item_t *cf_read_file(const char *file, const char *pattern,
@@ -589,7 +589,7 @@ static oconfig_item_t *cf_read_file(const char *file, const char *pattern,
             "does not match pattern `%s'.",
             filename, pattern);
       free(tmp);
-      return (NULL);
+      return NULL;
     }
 
     free(tmp);
@@ -604,16 +604,16 @@ static oconfig_item_t *cf_read_file(const char *file, const char *pattern,
   root = oconfig_parse_file(file);
   if (root == NULL) {
     ERROR("configfile: Cannot read file `%s'.", file);
-    return (NULL);
+    return NULL;
   }
 
   status = cf_include_all(root, depth);
   if (status != 0) {
     oconfig_free(root);
-    return (NULL);
+    return NULL;
   }
 
-  return (root);
+  return root;
 } /* oconfig_item_t *cf_read_file */
 
 static int cf_compare_string(const void *p1, const void *p2) {
@@ -636,14 +636,14 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
     char errbuf[1024];
     ERROR("configfile: opendir failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (NULL);
+    return NULL;
   }
 
   root = calloc(1, sizeof(*root));
   if (root == NULL) {
     ERROR("configfile: calloc failed.");
     closedir(dh);
-    return (NULL);
+    return NULL;
   }
 
   while ((de = readdir(dh)) != NULL) {
@@ -663,7 +663,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
         free(filenames[i]);
       free(filenames);
       free(root);
-      return (NULL);
+      return NULL;
     }
 
     ++filenames_num;
@@ -675,7 +675,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
         free(filenames[i]);
       free(filenames);
       free(root);
-      return (NULL);
+      return NULL;
     }
     filenames = tmp;
 
@@ -684,7 +684,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
 
   if (filenames == NULL) {
     closedir(dh);
-    return (root);
+    return root;
   }
 
   qsort((void *)filenames, filenames_num, sizeof(*filenames),
@@ -710,7 +710,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
 
   closedir(dh);
   free(filenames);
-  return (root);
+  return root;
 } /* oconfig_item_t *cf_read_dir */
 
 /*
@@ -736,19 +736,19 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
     ERROR("configfile: Not including `%s' because the maximum "
           "nesting depth has been reached.",
           path);
-    return (NULL);
+    return NULL;
   }
 
   status = wordexp(path, &we, WRDE_NOCMD);
   if (status != 0) {
     ERROR("configfile: wordexp (%s) failed.", path);
-    return (NULL);
+    return NULL;
   }
 
   root = calloc(1, sizeof(*root));
   if (root == NULL) {
     ERROR("configfile: calloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* wordexp() might return a sorted list already. That's not
@@ -783,7 +783,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
     if (temp == NULL) {
       oconfig_free(root);
-      return (NULL);
+      return NULL;
     }
 
     cf_ci_append_children(root, temp);
@@ -793,7 +793,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   wordfree(&we);
 
-  return (root);
+  return root;
 } /* oconfig_item_t *cf_read_generic */
 /* #endif HAVE_WORDEXP_H */
 
@@ -807,7 +807,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
     ERROR("configfile: Not including `%s' because the maximum "
           "nesting depth has been reached.",
           path);
-    return (NULL);
+    return NULL;
   }
 
   status = stat(path, &statbuf);
@@ -815,16 +815,16 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
     char errbuf[1024];
     ERROR("configfile: stat (%s) failed: %s", path,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (NULL);
+    return NULL;
   }
 
   if (S_ISREG(statbuf.st_mode))
-    return (cf_read_file(path, pattern, depth));
+    return cf_read_file(path, pattern, depth);
   else if (S_ISDIR(statbuf.st_mode))
-    return (cf_read_dir(path, pattern, depth));
+    return cf_read_dir(path, pattern, depth);
 
   ERROR("configfile: %s is neither a file nor a directory.", path);
-  return (NULL);
+  return NULL;
 } /* oconfig_item_t *cf_read_generic */
 #endif /* !HAVE_WORDEXP_H */
 
@@ -841,14 +841,14 @@ int global_option_set(const char *option, const char *value, _Bool from_cli) {
 
   if (i >= cf_global_options_num) {
     ERROR("configfile: Cannot set unknown global option `%s'.", option);
-    return (-1);
+    return -1;
   }
 
   if (cf_global_options[i].from_cli && (!from_cli)) {
     DEBUG("configfile: Ignoring %s `%s' option because "
           "it was overriden by a command-line option.",
           option, value);
-    return (0);
+    return 0;
   }
 
   sfree(cf_global_options[i].value);
@@ -860,7 +860,7 @@ int global_option_set(const char *option, const char *value, _Bool from_cli) {
 
   cf_global_options[i].from_cli = from_cli;
 
-  return (0);
+  return 0;
 }
 
 const char *global_option_get(const char *option) {
@@ -871,11 +871,10 @@ const char *global_option_get(const char *option) {
 
   if (i >= cf_global_options_num) {
     ERROR("configfile: Cannot get unknown global option `%s'.", option);
-    return (NULL);
+    return NULL;
   }
 
-  return ((cf_global_options[i].value != NULL) ? cf_global_options[i].value
-                                               : cf_global_options[i].def);
+  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value : cf_global_options[i].def;
 } /* char *global_option_get */
 
 long global_option_get_long(const char *option, long default_value) {
@@ -884,14 +883,14 @@ long global_option_get_long(const char *option, long default_value) {
 
   str = global_option_get(option);
   if (NULL == str)
-    return (default_value);
+    return default_value;
 
   errno = 0;
   value = strtol(str, /* endptr = */ NULL, /* base = */ 0);
   if (errno != 0)
-    return (default_value);
+    return default_value;
 
-  return (value);
+  return value;
 } /* char *global_option_get_long */
 
 cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
@@ -902,21 +901,21 @@ cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
 
   optstr = global_option_get(name);
   if (optstr == NULL)
-    return (def);
+    return def;
 
   errno = 0;
   v = strtod(optstr, &endptr);
   if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
-    return (def);
+    return def;
   else if (v <= 0.0)
-    return (def);
+    return def;
 
-  return (DOUBLE_TO_CDTIME_T(v));
+  return DOUBLE_TO_CDTIME_T(v);
 } /* }}} cdtime_t global_option_get_time */
 
 cdtime_t cf_get_default_interval(void) {
-  return (global_option_get_time(
-      "Interval", DOUBLE_TO_CDTIME_T(COLLECTD_DEFAULT_INTERVAL)));
+  return global_option_get_time("Interval",
+                                DOUBLE_TO_CDTIME_T(COLLECTD_DEFAULT_INTERVAL));
 }
 
 void cf_unregister(const char *type) {
@@ -974,12 +973,12 @@ int cf_register_complex(const char *type, int (*callback)(oconfig_item_t *)) {
 
   new = malloc(sizeof(*new));
   if (new == NULL)
-    return (-1);
+    return -1;
 
   new->type = strdup(type);
   if (new->type == NULL) {
     sfree(new);
-    return (-1);
+    return -1;
   }
 
   new->callback = callback;
@@ -996,7 +995,7 @@ int cf_register_complex(const char *type, int (*callback)(oconfig_item_t *)) {
     last->next = new;
   }
 
-  return (0);
+  return 0;
 } /* int cf_register_complex */
 
 int cf_read(const char *filename) {
@@ -1006,11 +1005,11 @@ int cf_read(const char *filename) {
   conf = cf_read_generic(filename, /* pattern = */ NULL, /* depth = */ 0);
   if (conf == NULL) {
     ERROR("Unable to read config file %s.", filename);
-    return (-1);
+    return -1;
   } else if (conf->children_num == 0) {
     ERROR("Configuration file %s is empty.", filename);
     oconfig_free(conf);
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < conf->children_num; i++) {
@@ -1045,18 +1044,18 @@ int cf_util_get_string(const oconfig_item_t *ci, char **ret_string) /* {{{ */
     ERROR("cf_util_get_string: The %s option requires "
           "exactly one string argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   string = strdup(ci->values[0].value.string);
   if (string == NULL)
-    return (-1);
+    return -1;
 
   if (*ret_string != NULL)
     sfree(*ret_string);
   *ret_string = string;
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_string */
 
 /* Assures the config option is a string and copies it to the provided buffer.
@@ -1064,67 +1063,67 @@ int cf_util_get_string(const oconfig_item_t *ci, char **ret_string) /* {{{ */
 int cf_util_get_string_buffer(const oconfig_item_t *ci, char *buffer, /* {{{ */
                               size_t buffer_size) {
   if ((ci == NULL) || (buffer == NULL) || (buffer_size < 1))
-    return (EINVAL);
+    return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     ERROR("cf_util_get_string_buffer: The %s option requires "
           "exactly one string argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   strncpy(buffer, ci->values[0].value.string, buffer_size);
   buffer[buffer_size - 1] = 0;
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_string_buffer */
 
 /* Assures the config option is a number and returns it as an int. */
 int cf_util_get_int(const oconfig_item_t *ci, int *ret_value) /* {{{ */
 {
   if ((ci == NULL) || (ret_value == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     ERROR("cf_util_get_int: The %s option requires "
           "exactly one numeric argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   *ret_value = (int)ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_int */
 
 int cf_util_get_double(const oconfig_item_t *ci, double *ret_value) /* {{{ */
 {
   if ((ci == NULL) || (ret_value == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     ERROR("cf_util_get_double: The %s option requires "
           "exactly one numeric argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   *ret_value = ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_double */
 
 int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 {
   if ((ci == NULL) || (ret_bool == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if ((ci->values_num != 1) || ((ci->values[0].type != OCONFIG_TYPE_BOOLEAN) &&
                                 (ci->values[0].type != OCONFIG_TYPE_STRING))) {
     ERROR("cf_util_get_boolean: The %s option requires "
           "exactly one boolean argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   switch (ci->values[0].type) {
@@ -1145,12 +1144,12 @@ int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
       ERROR("cf_util_get_boolean: Cannot parse string value `%s' of the `%s' "
             "option as a boolean value.",
             ci->values[0].value.string, ci->key);
-      return (-1);
+      return -1;
     }
     break;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_boolean */
 
 int cf_util_get_flag(const oconfig_item_t *ci, /* {{{ */
@@ -1159,12 +1158,12 @@ int cf_util_get_flag(const oconfig_item_t *ci, /* {{{ */
   _Bool b;
 
   if (ret_value == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   b = 0;
   status = cf_util_get_boolean(ci, &b);
   if (status != 0)
-    return (status);
+    return status;
 
   if (b) {
     *ret_value |= flag;
@@ -1172,7 +1171,7 @@ int cf_util_get_flag(const oconfig_item_t *ci, /* {{{ */
     *ret_value &= ~flag;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_flag */
 
 /* Assures that the config option is a string or a number if the correct range
@@ -1189,11 +1188,11 @@ int cf_util_get_port_number(const oconfig_item_t *ci) /* {{{ */
     ERROR("cf_util_get_port_number: The \"%s\" option requires "
           "exactly one string argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].type == OCONFIG_TYPE_STRING)
-    return (service_name_to_port_number(ci->values[0].value.string));
+    return service_name_to_port_number(ci->values[0].value.string);
 
   assert(ci->values[0].type == OCONFIG_TYPE_NUMBER);
   tmp = (int)(ci->values[0].value.number + 0.5);
@@ -1203,10 +1202,10 @@ int cf_util_get_port_number(const oconfig_item_t *ci) /* {{{ */
           "you specified, %i, is not in the valid "
           "range of 1-65535.",
           ci->key, tmp);
-    return (-1);
+    return -1;
   }
 
-  return (tmp);
+  return tmp;
 } /* }}} int cf_util_get_port_number */
 
 int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
@@ -1219,11 +1218,11 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
     ERROR("cf_util_get_service: The %s option requires exactly "
           "one argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].type == OCONFIG_TYPE_STRING)
-    return (cf_util_get_string(ci, ret_string));
+    return cf_util_get_string(ci, ret_string);
   if (ci->values[0].type != OCONFIG_TYPE_NUMBER) {
     ERROR("cf_util_get_service: The %s option requires "
           "exactly one string or numeric argument.",
@@ -1233,48 +1232,48 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
   port = 0;
   status = cf_util_get_int(ci, &port);
   if (status != 0)
-    return (status);
+    return status;
   else if ((port < 1) || (port > 65535)) {
     ERROR("cf_util_get_service: The port number given "
           "for the %s option is out of "
           "range (%i).",
           ci->key, port);
-    return (-1);
+    return -1;
   }
 
   service = malloc(6);
   if (service == NULL) {
     ERROR("cf_util_get_service: Out of memory.");
-    return (-1);
+    return -1;
   }
   ssnprintf(service, 6, "%i", port);
 
   sfree(*ret_string);
   *ret_string = service;
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_service */
 
 int cf_util_get_cdtime(const oconfig_item_t *ci, cdtime_t *ret_value) /* {{{ */
 {
   if ((ci == NULL) || (ret_value == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     ERROR("cf_util_get_cdtime: The %s option requires "
           "exactly one numeric argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].value.number < 0.0) {
     ERROR("cf_util_get_cdtime: The numeric argument of the %s "
           "option must not be negative.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   *ret_value = DOUBLE_TO_CDTIME_T(ci->values[0].value.number);
 
-  return (0);
+  return 0;
 } /* }}} int cf_util_get_cdtime */

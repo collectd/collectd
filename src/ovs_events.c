@@ -99,7 +99,7 @@ static int ovs_events_plugin_read(user_data_t *u);
  */
 static int ovs_events_ctx_lock() {
   pthread_mutex_lock(&ovs_events_ctx.mutex);
-  return (1);
+  return 1;
 }
 
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
@@ -107,7 +107,7 @@ static int ovs_events_ctx_lock() {
  */
 static int ovs_events_ctx_unlock() {
   pthread_mutex_unlock(&ovs_events_ctx.mutex);
-  return (0);
+  return 0;
 }
 
 /* Check if given interface name exists in configuration file. It
@@ -116,15 +116,15 @@ static int ovs_events_ctx_unlock() {
  */
 static int ovs_events_config_iface_exists(const char *ifname) {
   if (ovs_events_ctx.config.ifaces == NULL)
-    return (-1);
+    return -1;
 
   /* check if given interface exists */
   for (ovs_events_iface_list_t *iface = ovs_events_ctx.config.ifaces; iface;
        iface = iface->next)
     if (strcmp(ifname, iface->name) == 0)
-      return (1);
+      return 1;
 
-  return (0);
+  return 0;
 }
 
 /* Get OVS DB select parameter request based on rfc7047,
@@ -204,13 +204,13 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
     if (ci->values[j].type != OCONFIG_TYPE_STRING) {
       ERROR(OVS_EVENTS_PLUGIN
             ": given interface name is not a string [idx=%d]", j);
-      return (-1);
+      return -1;
     }
     /* allocate memory for configured interface */
     ovs_events_iface_list_t *new_iface = calloc(1, sizeof(*new_iface));
     if (new_iface == NULL) {
       ERROR(OVS_EVENTS_PLUGIN ": calloc () copy interface name fail");
-      return (-1);
+      return -1;
     } else {
       /* store interface name */
       sstrncpy(new_iface->name, ci->values[j].value.string,
@@ -221,7 +221,7 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
             new_iface->name);
     }
   }
-  return (0);
+  return 0;
 }
 
 /* Parse plugin configuration file and store the config
@@ -235,20 +235,20 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
       if (cf_util_get_boolean(child,
                               &ovs_events_ctx.config.send_notification) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Address", child->key) == 0) {
       if (cf_util_get_string_buffer(
               child, ovs_events_ctx.config.ovs_db_node,
               sizeof(ovs_events_ctx.config.ovs_db_node)) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Port", child->key) == 0) {
       char *service = NULL;
       if (cf_util_get_service(child, &service) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
       strncpy(ovs_events_ctx.config.ovs_db_serv, service,
               sizeof(ovs_events_ctx.config.ovs_db_serv));
@@ -258,22 +258,22 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
               child, ovs_events_ctx.config.ovs_db_unix,
               sizeof(ovs_events_ctx.config.ovs_db_unix)) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Interfaces", child->key) == 0) {
       if (ovs_events_config_get_interfaces(child) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("DispatchValues", child->key) == 0) {
       if (cf_util_get_boolean(child, &dispatch_values) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else {
       ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here", child->key);
       ovs_events_config_free();
-      return (-1);
+      return -1;
     }
   }
   /* Check and warn about invalid configuration */
@@ -287,7 +287,7 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
     return plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN,
                                         ovs_events_plugin_read, 0, NULL);
 
-  return (0);
+  return 0;
 }
 
 /* Dispatch OVS interface link status event to collectd */
@@ -396,7 +396,7 @@ static int ovs_events_get_iface_info(yajl_val jobject,
 
   /* check YAJL type */
   if (!YAJL_IS_OBJECT(jobject))
-    return (-1);
+    return -1;
 
   /* zero the interface info structure */
   memset(ifinfo, 0, sizeof(*ifinfo));
@@ -404,7 +404,7 @@ static int ovs_events_get_iface_info(yajl_val jobject,
   /* try to find external_ids, name and link_state fields */
   jexternal_ids = ovs_utils_get_value_by_key(jobject, "external_ids");
   if (jexternal_ids == NULL || ifinfo == NULL)
-    return (-1);
+    return -1;
 
   /* get iface-id from external_ids field */
   jvalue = ovs_utils_get_map_value(jexternal_ids, "iface-id");
@@ -422,16 +422,16 @@ static int ovs_events_get_iface_info(yajl_val jobject,
   jvalue = ovs_utils_get_value_by_key(jobject, "_uuid");
   if (jvalue == NULL || !YAJL_IS_ARRAY(jvalue) ||
       YAJL_GET_ARRAY(jvalue)->len != 2)
-    return (-1);
+    return -1;
   juuid = YAJL_GET_ARRAY(jvalue)->values[1];
   if (juuid == NULL || !YAJL_IS_STRING(juuid))
-    return (-1);
+    return -1;
   sstrncpy(ifinfo->uuid, YAJL_GET_STRING(juuid), sizeof(ifinfo->uuid));
 
   /* get interface name */
   jvalue = ovs_utils_get_value_by_key(jobject, "name");
   if (jvalue == NULL || !YAJL_IS_STRING(jvalue))
-    return (-1);
+    return -1;
   sstrncpy(ifinfo->name, YAJL_GET_STRING(jvalue), sizeof(ifinfo->name));
 
   /* get OVS DB interface link status */
@@ -443,7 +443,7 @@ static int ovs_events_get_iface_info(yajl_val jobject,
     else if (strcmp(state, "down") == 0)
       ifinfo->link_status = DOWN;
   }
-  return (0);
+  return 0;
 }
 
 /* Process OVS DB update table event. It handles link status update event(s)
@@ -593,9 +593,9 @@ static int ovs_events_plugin_read(__attribute__((unused)) user_data_t *u) {
                             ovs_events_ctx.ovs_db_select_params,
                             ovs_events_poll_result_cb) < 0) {
       ERROR(OVS_EVENTS_PLUGIN ": get interface info failed");
-      return (-1);
+      return -1;
     }
-  return (0);
+  return 0;
 }
 
 /* Initialize OVS plugin */
@@ -628,13 +628,13 @@ static int ovs_events_plugin_init(void) {
   OVS_EVENTS_CTX_LOCK { ovs_events_ctx.ovs_db = ovs_db; }
 
   DEBUG(OVS_EVENTS_PLUGIN ": plugin has been initialized");
-  return (0);
+  return 0;
 
 ovs_events_failure:
   ERROR(OVS_EVENTS_PLUGIN ": plugin initialize failed");
   /* release allocated memory */
   ovs_events_config_free();
-  return (-1);
+  return -1;
 }
 
 /* Shutdown OVS plugin */
@@ -647,7 +647,7 @@ static int ovs_events_plugin_shutdown(void) {
   ovs_events_config_free();
 
   DEBUG(OVS_EVENTS_PLUGIN ": plugin has been destroyed");
-  return (0);
+  return 0;
 }
 
 /* Register OVS plugin callbacks */

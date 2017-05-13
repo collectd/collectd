@@ -226,7 +226,7 @@ static int cgps_read(void) {
   cgps_submit("satellites", data_copy.sats_used, "used");
   cgps_submit("satellites", data_copy.sats_visible, "visible");
 
-  return (0);
+  return 0;
 }
 
 /**
@@ -262,7 +262,7 @@ static int cgps_config(oconfig_item_t *ci) {
     cgps_config_data.timeout = CGPS_DEFAULT_TIMEOUT;
   }
 
-  return (0);
+  return 0;
 }
 
 /**
@@ -286,10 +286,10 @@ static int cgps_init(void) {
       plugin_thread_create(&cgps_thread_id, NULL, cgps_thread, NULL, "gps");
   if (status != 0) {
     ERROR("gps plugin: pthread_create() failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 /**
@@ -315,7 +315,7 @@ static int cgps_shutdown(void) {
   sfree(cgps_config_data.port);
   sfree(cgps_config_data.host);
 
-  return (0);
+  return 0;
 }
 
 /**

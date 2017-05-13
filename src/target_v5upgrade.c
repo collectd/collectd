@@ -56,7 +56,7 @@ static int v5_df(const data_set_t *ds, value_list_t *vl) /* {{{ */
 
   /* Can't upgrade if both instances have been set. */
   if ((vl->plugin_instance[0] != 0) && (vl->type_instance[0] != 0))
-    return (FC_TARGET_CONTINUE);
+    return FC_TARGET_CONTINUE;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -83,7 +83,7 @@ static int v5_df(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_df */
 
 /*
@@ -96,10 +96,10 @@ static int v5_df(const data_set_t *ds, value_list_t *vl) /* {{{ */
 static int v5_interface(const data_set_t *ds, value_list_t *vl) /* {{{ */
 {
   if ((vl->plugin_instance[0] != 0) || (vl->type_instance[0] == 0))
-    return (FC_TARGET_CONTINUE);
+    return FC_TARGET_CONTINUE;
 
   v5_swap_instances(vl);
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int v5_interface */
 
 /*
@@ -113,7 +113,7 @@ static int v5_mysql_qcache(const data_set_t *ds, value_list_t *vl) /* {{{ */
   value_list_t new_vl;
 
   if (vl->values_len != 5)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -153,7 +153,7 @@ static int v5_mysql_qcache(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_mysql_qcache */
 
 /*
@@ -167,7 +167,7 @@ static int v5_mysql_threads(const data_set_t *ds, value_list_t *vl) /* {{{ */
   value_list_t new_vl;
 
   if (vl->values_len != 4)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -201,7 +201,7 @@ static int v5_mysql_threads(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_mysql_threads */
 
 /*
@@ -216,14 +216,14 @@ static int v5_zfs_arc_counts(const data_set_t *ds, value_list_t *vl) /* {{{ */
   _Bool is_hits;
 
   if (vl->values_len != 4)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   if (strcmp("hits", vl->type_instance) == 0)
     is_hits = 1;
   else if (strcmp("misses", vl->type_instance) == 0)
     is_hits = 0;
   else
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -258,7 +258,7 @@ static int v5_zfs_arc_counts(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_zfs_arc_counts */
 
 /*
@@ -271,7 +271,7 @@ static int v5_zfs_arc_l2_bytes(const data_set_t *ds, value_list_t *vl) /* {{{ */
   value_list_t new_vl;
 
   if (vl->values_len != 2)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -295,7 +295,7 @@ static int v5_zfs_arc_l2_bytes(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_zfs_arc_l2_bytes */
 
 /*
@@ -309,7 +309,7 @@ static int v5_zfs_arc_l2_size(const data_set_t *ds, value_list_t *vl) /* {{{ */
   value_list_t new_vl;
 
   if (vl->values_len != 1)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -331,7 +331,7 @@ static int v5_zfs_arc_l2_size(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_zfs_arc_l2_size */
 
 /*
@@ -345,7 +345,7 @@ static int v5_zfs_arc_ratio(const data_set_t *ds, value_list_t *vl) /* {{{ */
   value_list_t new_vl;
 
   if (vl->values_len != 1)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -368,7 +368,7 @@ static int v5_zfs_arc_ratio(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_zfs_arc_ratio */
 
 /*
@@ -382,7 +382,7 @@ static int v5_zfs_arc_size(const data_set_t *ds, value_list_t *vl) /* {{{ */
   value_list_t new_vl;
 
   if (vl->values_len != 4)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
 
   /* Copy everything: Time, interval, host, ... */
   memcpy(&new_vl, vl, sizeof(new_vl));
@@ -401,46 +401,46 @@ static int v5_zfs_arc_size(const data_set_t *ds, value_list_t *vl) /* {{{ */
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int v5_zfs_arc_size */
 
 static int v5_destroy(void **user_data) /* {{{ */
 {
-  return (0);
+  return 0;
 } /* }}} int v5_destroy */
 
 static int v5_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 {
   *user_data = NULL;
-  return (0);
+  return 0;
 } /* }}} int v5_create */
 
 static int v5_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
                      notification_meta_t __attribute__((unused)) * *meta,
                      void __attribute__((unused)) * *user_data) {
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (strcmp("df", vl->type) == 0)
-    return (v5_df(ds, vl));
+    return v5_df(ds, vl);
   else if (strcmp("interface", vl->plugin) == 0)
-    return (v5_interface(ds, vl));
+    return v5_interface(ds, vl);
   else if (strcmp("mysql_qcache", vl->type) == 0)
-    return (v5_mysql_qcache(ds, vl));
+    return v5_mysql_qcache(ds, vl);
   else if (strcmp("mysql_threads", vl->type) == 0)
-    return (v5_mysql_threads(ds, vl));
+    return v5_mysql_threads(ds, vl);
   else if (strcmp("arc_counts", vl->type) == 0)
-    return (v5_zfs_arc_counts(ds, vl));
+    return v5_zfs_arc_counts(ds, vl);
   else if (strcmp("arc_l2_bytes", vl->type) == 0)
-    return (v5_zfs_arc_l2_bytes(ds, vl));
+    return v5_zfs_arc_l2_bytes(ds, vl);
   else if (strcmp("arc_l2_size", vl->type) == 0)
-    return (v5_zfs_arc_l2_size(ds, vl));
+    return v5_zfs_arc_l2_size(ds, vl);
   else if (strcmp("arc_ratio", vl->type) == 0)
-    return (v5_zfs_arc_ratio(ds, vl));
+    return v5_zfs_arc_ratio(ds, vl);
   else if (strcmp("arc_size", vl->type) == 0)
-    return (v5_zfs_arc_size(ds, vl));
+    return v5_zfs_arc_size(ds, vl);
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int v5_invoke */
 
 void module_register(void) {

@@ -51,10 +51,10 @@ typedef struct zone_stats {
 
 static int zone_compare(const void *a, const void *b) {
   if (*(const zoneid_t *)a == *(const zoneid_t *)b)
-    return (0);
+    return 0;
   if (*(const zoneid_t *)a < *(const zoneid_t *)b)
-    return (-1);
-  return (1);
+    return -1;
+  return 1;
 }
 
 static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
@@ -64,7 +64,7 @@ static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
   char procfile[MAX_PROCFS_PATH];
   (void)snprintf(procfile, sizeof(procfile), "/proc/%s/%s", pidstr, name);
   if ((fd = open(procfile, O_RDONLY)) == -1) {
-    return (1);
+    return 1;
   }
 
   if (sread(fd, buf, bufsize) != 0) {
@@ -72,11 +72,11 @@ static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
     ERROR("zone plugin: Reading \"%s\" failed: %s", procfile,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     close(fd);
-    return (1);
+    return 1;
   }
 
   close(fd);
-  return (0);
+  return 0;
 }
 
 static int zone_submit_value(char *zone, gauge_t value) {
@@ -91,7 +91,7 @@ static int zone_submit_value(char *zone, gauge_t value) {
   sstrncpy(vl.type, "percent", sizeof(vl.type));
   sstrncpy(vl.type_instance, zone, sizeof(vl.type_instance));
 
-  return (plugin_dispatch_values(&vl));
+  return plugin_dispatch_values(&vl);
 }
 
 static zone_stats_t *zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid) {
@@ -101,20 +101,20 @@ static zone_stats_t *zone_find_stats(c_avl_tree_t *tree, zoneid_t zoneid) {
   if (c_avl_get(tree, (void **)&zoneid, (void **)&ret)) {
     if (!(ret = malloc(sizeof(*ret)))) {
       WARNING("zone plugin: no memory");
-      return (NULL);
+      return NULL;
     }
     if (!(key = malloc(sizeof(*key)))) {
       WARNING("zone plugin: no memory");
       free(ret);
-      return (NULL);
+      return NULL;
     }
     *key = zoneid;
     if (c_avl_insert(tree, key, ret)) {
       WARNING("zone plugin: error inserting into tree");
-      return (NULL);
+      return NULL;
     }
   }
-  return (ret);
+  return ret;
 }
 
 static void zone_submit_values(c_avl_tree_t *tree) {
@@ -143,7 +143,7 @@ static c_avl_tree_t *zone_scandir(DIR *procdir) {
 
   if (!(tree = c_avl_create(zone_compare))) {
     WARNING("zone plugin: Failed to create tree");
-    return (NULL);
+    return NULL;
   }
 
   rewinddir(procdir);
@@ -165,7 +165,7 @@ static c_avl_tree_t *zone_scandir(DIR *procdir) {
       stats->pctmem += psinfo.pr_pctmem;
     }
   }
-  return (tree);
+  return tree;
 }
 
 static int zone_read(void) {
@@ -174,16 +174,16 @@ static int zone_read(void) {
 
   if ((procdir = opendir("/proc")) == NULL) {
     ERROR("zone plugin: cannot open /proc directory\n");
-    return (-1);
+    return -1;
   }
 
   tree = zone_scandir(procdir);
   closedir(procdir);
   if (tree == NULL) {
-    return (-1);
+    return -1;
   }
   zone_submit_values(tree); /* this also frees tree */
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

@@ -108,13 +108,13 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
 
   entry = calloc(1, sizeof(*entry));
   if (entry == NULL)
-    return (-1);
+    return -1;
 
   if (strcasecmp(dev, "All") != 0) {
     entry->device = strdup(dev);
     if (entry->device == NULL) {
       sfree(entry);
-      return (-1);
+      return -1;
     }
   }
 
@@ -122,7 +122,7 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
   if (entry->type == NULL) {
     sfree(entry->device);
     sfree(entry);
-    return (-1);
+    return -1;
   }
 
   if (inst != NULL) {
@@ -131,14 +131,14 @@ static int add_ignorelist(const char *dev, const char *type, const char *inst) {
       sfree(entry->type);
       sfree(entry->device);
       sfree(entry);
-      return (-1);
+      return -1;
     }
   }
 
   entry->next = ir_ignorelist_head;
   ir_ignorelist_head = entry;
 
-  return (0);
+  return 0;
 } /* int add_ignorelist */
 
 /*
@@ -150,7 +150,7 @@ static int check_ignorelist(const char *dev, const char *type,
   assert((dev != NULL) && (type != NULL));
 
   if (ir_ignorelist_head == NULL)
-    return (ir_ignorelist_invert ? 0 : 1);
+    return ir_ignorelist_invert ? 0 : 1;
 
   for (ir_ignorelist_t *i = ir_ignorelist_head; i != NULL; i = i->next) {
     /* i->device == NULL  =>  match all devices */
@@ -171,10 +171,10 @@ static int check_ignorelist(const char *dev, const char *type,
           i->device == NULL ? "(nil)" : i->device, i->type,
           i->inst == NULL ? "(nil)" : i->inst);
 
-    return (ir_ignorelist_invert ? 0 : 1);
+    return ir_ignorelist_invert ? 0 : 1;
   } /* for i */
 
-  return (ir_ignorelist_invert);
+  return ir_ignorelist_invert;
 } /* int check_ignorelist */
 
 static void submit_one(const char *dev, const char *type,
@@ -221,7 +221,7 @@ static int update_iflist(struct ifinfomsg *msg, const char *dev) {
     temp = realloc(iflist, (msg->ifi_index + 1) * sizeof(char *));
     if (temp == NULL) {
       ERROR("netlink plugin: update_iflist: realloc failed.");
-      return (-1);
+      return -1;
     }
 
     memset(temp + iflist_len, '\0',
@@ -235,7 +235,7 @@ static int update_iflist(struct ifinfomsg *msg, const char *dev) {
     iflist[msg->ifi_index] = strdup(dev);
   }
 
-  return (0);
+  return 0;
 } /* int update_iflist */
 
 static void check_ignorelist_and_submit(const char *dev,
@@ -485,7 +485,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
   if (kind == NULL) {
     ERROR("netlink plugin: qos_filter_cb: kind == NULL");
-    return (-1);
+    return -1;
   }
 
   { /* The ID */
@@ -588,12 +588,12 @@ static int ir_config(const char *key, const char *value) {
 
   new_val = strdup(value);
   if (new_val == NULL)
-    return (-1);
+    return -1;
 
   fields_num = strsplit(new_val, fields, STATIC_ARRAY_SIZE(fields));
   if ((fields_num < 1) || (fields_num > 8)) {
     sfree(new_val);
-    return (-1);
+    return -1;
   }
 
   if ((strcasecmp(key, "Interface") == 0) ||
@@ -616,7 +616,7 @@ static int ir_config(const char *key, const char *value) {
       ERROR("netlink plugin: Invalid number of fields for option "
             "`%s'. Got %i, expected 1 or 2.",
             key, fields_num);
-      return (-1);
+      return -1;
     } else {
       add_ignorelist(fields[0], key, (fields_num == 2) ? fields[1] : NULL);
       status = 0;
@@ -638,22 +638,22 @@ static int ir_config(const char *key, const char *value) {
 
   sfree(new_val);
 
-  return (status);
+  return status;
 } /* int ir_config */
 
 static int ir_init(void) {
   nl = mnl_socket_open(NETLINK_ROUTE);
   if (nl == NULL) {
     ERROR("netlink plugin: ir_init: mnl_socket_open failed.");
-    return (-1);
+    return -1;
   }
 
   if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
     ERROR("netlink plugin: ir_init: mnl_socket_bind failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int ir_init */
 
 static int ir_read(void) {
@@ -677,7 +677,7 @@ static int ir_read(void) {
 
   if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
     ERROR("netlink plugin: ir_read: rtnl_wilddump_request failed.");
-    return (-1);
+    return -1;
   }
 
   ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
@@ -689,7 +689,7 @@ static int ir_read(void) {
   }
   if (ret < 0) {
     ERROR("netlink plugin: ir_read: mnl_socket_recvfrom failed.");
-    return (-1);
+    return -1;
   }
 
   /* `link_filter_cb' will update `iflist' which is used here to iterate
@@ -740,7 +740,7 @@ static int ir_read(void) {
     } /* for (type_index) */
   }   /* for (if_index) */
 
-  return (0);
+  return 0;
 } /* int ir_read */
 
 static int ir_shutdown(void) {
@@ -749,7 +749,7 @@ static int ir_shutdown(void) {
     nl = NULL;
   }
 
-  return (0);
+  return 0;
 } /* int ir_shutdown */
 
 void module_register(void) {

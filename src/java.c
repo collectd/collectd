@@ -137,7 +137,7 @@ static int ctoj_string(JNIEnv *jvm_env, /* {{{ */
   o_string = (*jvm_env)->NewStringUTF(jvm_env, (string != NULL) ? string : "");
   if (o_string == NULL) {
     ERROR("java plugin: ctoj_string: NewStringUTF failed.");
-    return (-1);
+    return -1;
   }
 
   /* Search for the `void setFoo (String s)' method. */
@@ -147,7 +147,7 @@ static int ctoj_string(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_string: Cannot find method `void %s (String)'.",
           method_name);
     (*jvm_env)->DeleteLocalRef(jvm_env, o_string);
-    return (-1);
+    return -1;
   }
 
   /* Call the method. */
@@ -156,7 +156,7 @@ static int ctoj_string(JNIEnv *jvm_env, /* {{{ */
   /* Decrease reference counter on the java.lang.String object. */
   (*jvm_env)->DeleteLocalRef(jvm_env, o_string);
 
-  return (0);
+  return 0;
 } /* }}} int ctoj_string */
 
 static jstring ctoj_output_string(JNIEnv *jvm_env, /* {{{ */
@@ -170,7 +170,7 @@ static jstring ctoj_output_string(JNIEnv *jvm_env, /* {{{ */
     return NULL;
   }
 
-  return (o_string);
+  return o_string;
 } /* }}} int ctoj_output_string */
 
 static int ctoj_int(JNIEnv *jvm_env, /* {{{ */
@@ -183,12 +183,12 @@ static int ctoj_int(JNIEnv *jvm_env, /* {{{ */
   if (m_set == NULL) {
     ERROR("java plugin: ctoj_int: Cannot find method `void %s (int)'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   (*jvm_env)->CallVoidMethod(jvm_env, object_ptr, m_set, value);
 
-  return (0);
+  return 0;
 } /* }}} int ctoj_int */
 
 static int ctoj_long(JNIEnv *jvm_env, /* {{{ */
@@ -201,12 +201,12 @@ static int ctoj_long(JNIEnv *jvm_env, /* {{{ */
   if (m_set == NULL) {
     ERROR("java plugin: ctoj_long: Cannot find method `void %s (long)'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   (*jvm_env)->CallVoidMethod(jvm_env, object_ptr, m_set, value);
 
-  return (0);
+  return 0;
 } /* }}} int ctoj_long */
 
 static int ctoj_double(JNIEnv *jvm_env, /* {{{ */
@@ -219,12 +219,12 @@ static int ctoj_double(JNIEnv *jvm_env, /* {{{ */
   if (m_set == NULL) {
     ERROR("java plugin: ctoj_double: Cannot find method `void %s (double)'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   (*jvm_env)->CallVoidMethod(jvm_env, object_ptr, m_set, value);
 
-  return (0);
+  return 0;
 } /* }}} int ctoj_double */
 
 /* Convert a jlong to a java.lang.Number */
@@ -238,7 +238,7 @@ static jobject ctoj_jlong_to_number(JNIEnv *jvm_env, jlong value) /* {{{ */
   if (c_long == NULL) {
     ERROR("java plugin: ctoj_jlong_to_number: Looking up the "
           "java.lang.Long class failed.");
-    return (NULL);
+    return NULL;
   }
 
   m_long_constructor =
@@ -246,10 +246,10 @@ static jobject ctoj_jlong_to_number(JNIEnv *jvm_env, jlong value) /* {{{ */
   if (m_long_constructor == NULL) {
     ERROR("java plugin: ctoj_jlong_to_number: Looking up the "
           "`Long (long)' constructor failed.");
-    return (NULL);
+    return NULL;
   }
 
-  return ((*jvm_env)->NewObject(jvm_env, c_long, m_long_constructor, value));
+  return (*jvm_env)->NewObject(jvm_env, c_long, m_long_constructor, value);
 } /* }}} jobject ctoj_jlong_to_number */
 
 /* Convert a jdouble to a java.lang.Number */
@@ -263,7 +263,7 @@ static jobject ctoj_jdouble_to_number(JNIEnv *jvm_env, jdouble value) /* {{{ */
   if (c_double == NULL) {
     ERROR("java plugin: ctoj_jdouble_to_number: Looking up the "
           "java.lang.Double class failed.");
-    return (NULL);
+    return NULL;
   }
 
   m_double_constructor =
@@ -271,26 +271,25 @@ static jobject ctoj_jdouble_to_number(JNIEnv *jvm_env, jdouble value) /* {{{ */
   if (m_double_constructor == NULL) {
     ERROR("java plugin: ctoj_jdouble_to_number: Looking up the "
           "`Double (double)' constructor failed.");
-    return (NULL);
+    return NULL;
   }
 
-  return (
-      (*jvm_env)->NewObject(jvm_env, c_double, m_double_constructor, value));
+  return (*jvm_env)->NewObject(jvm_env, c_double, m_double_constructor, value);
 } /* }}} jobject ctoj_jdouble_to_number */
 
 /* Convert a value_t to a java.lang.Number */
 static jobject ctoj_value_to_number(JNIEnv *jvm_env, /* {{{ */
                                     value_t value, int ds_type) {
   if (ds_type == DS_TYPE_COUNTER)
-    return (ctoj_jlong_to_number(jvm_env, (jlong)value.counter));
+    return ctoj_jlong_to_number(jvm_env, (jlong)value.counter);
   else if (ds_type == DS_TYPE_GAUGE)
-    return (ctoj_jdouble_to_number(jvm_env, (jdouble)value.gauge));
+    return ctoj_jdouble_to_number(jvm_env, (jdouble)value.gauge);
   if (ds_type == DS_TYPE_DERIVE)
-    return (ctoj_jlong_to_number(jvm_env, (jlong)value.derive));
+    return ctoj_jlong_to_number(jvm_env, (jlong)value.derive);
   if (ds_type == DS_TYPE_ABSOLUTE)
-    return (ctoj_jlong_to_number(jvm_env, (jlong)value.absolute));
+    return ctoj_jlong_to_number(jvm_env, (jlong)value.absolute);
   else
-    return (NULL);
+    return NULL;
 } /* }}} jobject ctoj_value_to_number */
 
 /* Convert a data_source_t to a org/collectd/api/DataSource */
@@ -306,7 +305,7 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
   if (c_datasource == NULL) {
     ERROR("java plugin: ctoj_data_source: "
           "FindClass (org/collectd/api/DataSource) failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Lookup the `ValueList ()' constructor. */
@@ -315,7 +314,7 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
   if (m_datasource_constructor == NULL) {
     ERROR("java plugin: ctoj_data_source: Cannot find the "
           "`DataSource ()' constructor.");
-    return (NULL);
+    return NULL;
   }
 
   /* Create a new instance. */
@@ -324,7 +323,7 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
   if (o_datasource == NULL) {
     ERROR("java plugin: ctoj_data_source: "
           "Creating a new DataSource instance failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Set name via `void setName (String name)' */
@@ -334,7 +333,7 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_data_source: "
           "ctoj_string (setName) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_datasource);
-    return (NULL);
+    return NULL;
   }
 
   /* Set type via `void setType (int type)' */
@@ -343,7 +342,7 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_data_source: "
           "ctoj_int (setType) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_datasource);
-    return (NULL);
+    return NULL;
   }
 
   /* Set min via `void setMin (double min)' */
@@ -353,7 +352,7 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_data_source: "
           "ctoj_double (setMin) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_datasource);
-    return (NULL);
+    return NULL;
   }
 
   /* Set max via `void setMax (double max)' */
@@ -363,10 +362,10 @@ static jobject ctoj_data_source(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_data_source: "
           "ctoj_double (setMax) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_datasource);
-    return (NULL);
+    return NULL;
   }
 
-  return (o_datasource);
+  return o_datasource;
 } /* }}} jobject ctoj_data_source */
 
 /* Convert a oconfig_value_t to a org/collectd/api/OConfigValue */
@@ -384,7 +383,7 @@ static jobject ctoj_oconfig_value(JNIEnv *jvm_env, /* {{{ */
   if (c_ocvalue == NULL) {
     ERROR("java plugin: ctoj_oconfig_value: "
           "FindClass (org/collectd/api/OConfigValue) failed.");
-    return (NULL);
+    return NULL;
   }
 
   if (ocvalue.type == OCONFIG_TYPE_BOOLEAN) {
@@ -397,11 +396,11 @@ static jobject ctoj_oconfig_value(JNIEnv *jvm_env, /* {{{ */
     if (m_ocvalue_constructor == NULL) {
       ERROR("java plugin: ctoj_oconfig_value: Cannot find the "
             "`OConfigValue (boolean)' constructor.");
-      return (NULL);
+      return NULL;
     }
 
-    return ((*jvm_env)->NewObject(jvm_env, c_ocvalue, m_ocvalue_constructor,
-                                  tmp_boolean));
+    return (*jvm_env)->NewObject(jvm_env, c_ocvalue, m_ocvalue_constructor,
+                                 tmp_boolean);
   } /* if (ocvalue.type == OCONFIG_TYPE_BOOLEAN) */
   else if (ocvalue.type == OCONFIG_TYPE_STRING) {
     m_ocvalue_constructor = (*jvm_env)->GetMethodID(
@@ -409,14 +408,14 @@ static jobject ctoj_oconfig_value(JNIEnv *jvm_env, /* {{{ */
     if (m_ocvalue_constructor == NULL) {
       ERROR("java plugin: ctoj_oconfig_value: Cannot find the "
             "`OConfigValue (String)' constructor.");
-      return (NULL);
+      return NULL;
     }
 
     o_argument = (*jvm_env)->NewStringUTF(jvm_env, ocvalue.value.string);
     if (o_argument == NULL) {
       ERROR("java plugin: ctoj_oconfig_value: "
             "Creating a String object failed.");
-      return (NULL);
+      return NULL;
     }
   } else if (ocvalue.type == OCONFIG_TYPE_NUMBER) {
     m_ocvalue_constructor = (*jvm_env)->GetMethodID(
@@ -424,17 +423,17 @@ static jobject ctoj_oconfig_value(JNIEnv *jvm_env, /* {{{ */
     if (m_ocvalue_constructor == NULL) {
       ERROR("java plugin: ctoj_oconfig_value: Cannot find the "
             "`OConfigValue (Number)' constructor.");
-      return (NULL);
+      return NULL;
     }
 
     o_argument = ctoj_jdouble_to_number(jvm_env, (jdouble)ocvalue.value.number);
     if (o_argument == NULL) {
       ERROR("java plugin: ctoj_oconfig_value: "
             "Creating a Number object failed.");
-      return (NULL);
+      return NULL;
     }
   } else {
-    return (NULL);
+    return NULL;
   }
 
   assert(m_ocvalue_constructor != NULL);
@@ -446,11 +445,11 @@ static jobject ctoj_oconfig_value(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_oconfig_value: "
           "Creating an OConfigValue object failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_argument);
-    return (NULL);
+    return NULL;
   }
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_argument);
-  return (o_ocvalue);
+  return o_ocvalue;
 } /* }}} jobject ctoj_oconfig_value */
 
 /* Convert a oconfig_item_t to a org/collectd/api/OConfigItem */
@@ -467,7 +466,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
   if (c_ocitem == NULL) {
     ERROR("java plugin: ctoj_oconfig_item: "
           "FindClass (org/collectd/api/OConfigItem) failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Get the required methods: m_ocitem_constructor, m_addvalue, and m_addchild
@@ -477,7 +476,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
   if (m_ocitem_constructor == NULL) {
     ERROR("java plugin: ctoj_oconfig_item: Cannot find the "
           "`OConfigItem (String)' constructor.");
-    return (NULL);
+    return NULL;
   }
 
   m_addvalue = (*jvm_env)->GetMethodID(jvm_env, c_ocitem, "addValue",
@@ -485,7 +484,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
   if (m_addvalue == NULL) {
     ERROR("java plugin: ctoj_oconfig_item: Cannot find the "
           "`addValue (OConfigValue)' method.");
-    return (NULL);
+    return NULL;
   }
 
   m_addchild = (*jvm_env)->GetMethodID(jvm_env, c_ocitem, "addChild",
@@ -493,7 +492,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
   if (m_addchild == NULL) {
     ERROR("java plugin: ctoj_oconfig_item: Cannot find the "
           "`addChild (OConfigItem)' method.");
-    return (NULL);
+    return NULL;
   }
   /* }}} */
 
@@ -503,7 +502,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
   if (o_key == NULL) {
     ERROR("java plugin: ctoj_oconfig_item: "
           "Creating String object failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Create an OConfigItem object */
@@ -513,7 +512,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_oconfig_item: "
           "Creating an OConfigItem object failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_key);
-    return (NULL);
+    return NULL;
   }
 
   /* We don't need the String object any longer.. */
@@ -529,7 +528,7 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
       ERROR("java plugin: ctoj_oconfig_item: "
             "Creating an OConfigValue object failed.");
       (*jvm_env)->DeleteLocalRef(jvm_env, o_ocitem);
-      return (NULL);
+      return NULL;
     }
 
     (*jvm_env)->CallVoidMethod(jvm_env, o_ocitem, m_addvalue, o_value);
@@ -546,14 +545,14 @@ static jobject ctoj_oconfig_item(JNIEnv *jvm_env, /* {{{ */
       ERROR("java plugin: ctoj_oconfig_item: "
             "Creating an OConfigItem object failed.");
       (*jvm_env)->DeleteLocalRef(jvm_env, o_ocitem);
-      return (NULL);
+      return NULL;
     }
 
     (*jvm_env)->CallVoidMethod(jvm_env, o_ocitem, m_addchild, o_child);
     (*jvm_env)->DeleteLocalRef(jvm_env, o_child);
   } /* }}} for (i = 0; i < ci->children_num; i++) */
 
-  return (o_ocitem);
+  return o_ocitem;
 } /* }}} jobject ctoj_oconfig_item */
 
 /* Convert a data_set_t to a org/collectd/api/DataSet */
@@ -570,7 +569,7 @@ static jobject ctoj_data_set(JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   if (c_dataset == NULL) {
     ERROR("java plugin: ctoj_data_set: Looking up the "
           "org/collectd/api/DataSet class failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Search for the `DataSet (String type)' constructor. */
@@ -579,7 +578,7 @@ static jobject ctoj_data_set(JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   if (m_constructor == NULL) {
     ERROR("java plugin: ctoj_data_set: Looking up the "
           "`DataSet (String)' constructor failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Search for the `void addDataSource (DataSource)' method. */
@@ -588,20 +587,20 @@ static jobject ctoj_data_set(JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
   if (m_add == NULL) {
     ERROR("java plugin: ctoj_data_set: Looking up the "
           "`addDataSource (DataSource)' method failed.");
-    return (NULL);
+    return NULL;
   }
 
   o_type = (*jvm_env)->NewStringUTF(jvm_env, ds->type);
   if (o_type == NULL) {
     ERROR("java plugin: ctoj_data_set: Creating a String object failed.");
-    return (NULL);
+    return NULL;
   }
 
   o_dataset = (*jvm_env)->NewObject(jvm_env, c_dataset, m_constructor, o_type);
   if (o_dataset == NULL) {
     ERROR("java plugin: ctoj_data_set: Creating a DataSet object failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_type);
-    return (NULL);
+    return NULL;
   }
 
   /* Decrease reference counter on the java.lang.String object. */
@@ -615,7 +614,7 @@ static jobject ctoj_data_set(JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
       ERROR("java plugin: ctoj_data_set: ctoj_data_source (%s.%s) failed",
             ds->type, ds->ds[i].name);
       (*jvm_env)->DeleteLocalRef(jvm_env, o_dataset);
-      return (NULL);
+      return NULL;
     }
 
     (*jvm_env)->CallVoidMethod(jvm_env, o_dataset, m_add, o_datasource);
@@ -623,7 +622,7 @@ static jobject ctoj_data_set(JNIEnv *jvm_env, const data_set_t *ds) /* {{{ */
     (*jvm_env)->DeleteLocalRef(jvm_env, o_datasource);
   } /* for (i = 0; i < ds->ds_num; i++) */
 
-  return (o_dataset);
+  return o_dataset;
 } /* }}} jobject ctoj_data_set */
 
 static int ctoj_value_list_add_value(JNIEnv *jvm_env, /* {{{ */
@@ -637,21 +636,21 @@ static int ctoj_value_list_add_value(JNIEnv *jvm_env, /* {{{ */
   if (m_addvalue == NULL) {
     ERROR("java plugin: ctoj_value_list_add_value: "
           "Cannot find method `void addValue (Number)'.");
-    return (-1);
+    return -1;
   }
 
   o_number = ctoj_value_to_number(jvm_env, value, ds_type);
   if (o_number == NULL) {
     ERROR("java plugin: ctoj_value_list_add_value: "
           "ctoj_value_to_number failed.");
-    return (-1);
+    return -1;
   }
 
   (*jvm_env)->CallVoidMethod(jvm_env, object_ptr, m_addvalue, o_number);
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_number);
 
-  return (0);
+  return 0;
 } /* }}} int ctoj_value_list_add_value */
 
 static int ctoj_value_list_add_data_set(JNIEnv *jvm_env, /* {{{ */
@@ -666,7 +665,7 @@ static int ctoj_value_list_add_data_set(JNIEnv *jvm_env, /* {{{ */
   if (m_setdataset == NULL) {
     ERROR("java plugin: ctoj_value_list_add_data_set: "
           "Cannot find the `void setDataSet (DataSet)' method.");
-    return (-1);
+    return -1;
   }
 
   /* Create a DataSet object. */
@@ -675,7 +674,7 @@ static int ctoj_value_list_add_data_set(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_value_list_add_data_set: "
           "ctoj_data_set (%s) failed.",
           ds->type);
-    return (-1);
+    return -1;
   }
 
   /* Actually call the method. */
@@ -684,7 +683,7 @@ static int ctoj_value_list_add_data_set(JNIEnv *jvm_env, /* {{{ */
   /* Decrease reference counter on the List<DataSource> object. */
   (*jvm_env)->DeleteLocalRef(jvm_env, o_dataset);
 
-  return (0);
+  return 0;
 } /* }}} int ctoj_value_list_add_data_set */
 
 /* Convert a value_list_t (and data_set_t) to a org/collectd/api/ValueList */
@@ -701,7 +700,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
   if (c_valuelist == NULL) {
     ERROR("java plugin: ctoj_value_list: "
           "FindClass (org/collectd/api/ValueList) failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Lookup the `ValueList ()' constructor. */
@@ -710,7 +709,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
   if (m_valuelist_constructor == NULL) {
     ERROR("java plugin: ctoj_value_list: Cannot find the "
           "`ValueList ()' constructor.");
-    return (NULL);
+    return NULL;
   }
 
   /* Create a new instance. */
@@ -719,7 +718,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
   if (o_valuelist == NULL) {
     ERROR("java plugin: ctoj_value_list: Creating a new ValueList instance "
           "failed.");
-    return (NULL);
+    return NULL;
   }
 
   status = ctoj_value_list_add_data_set(jvm_env, c_valuelist, o_valuelist, ds);
@@ -727,7 +726,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: ctoj_value_list: "
           "ctoj_value_list_add_data_set failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_valuelist);
-    return (NULL);
+    return NULL;
   }
 
 /* Set the strings.. */
@@ -738,7 +737,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
       ERROR("java plugin: ctoj_value_list: ctoj_string (%s) failed.",          \
             method_name);                                                      \
       (*jvm_env)->DeleteLocalRef(jvm_env, o_valuelist);                        \
-      return (NULL);                                                           \
+      return NULL;                                                             \
     }                                                                          \
   } while (0)
 
@@ -756,7 +755,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
   if (status != 0) {
     ERROR("java plugin: ctoj_value_list: ctoj_long (setTime) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_valuelist);
-    return (NULL);
+    return NULL;
   }
 
   /* Set the `interval' member.. */
@@ -765,7 +764,7 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
   if (status != 0) {
     ERROR("java plugin: ctoj_value_list: ctoj_long (setInterval) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_valuelist);
-    return (NULL);
+    return NULL;
   }
 
   for (size_t i = 0; i < vl->values_len; i++) {
@@ -775,11 +774,11 @@ static jobject ctoj_value_list(JNIEnv *jvm_env, /* {{{ */
       ERROR("java plugin: ctoj_value_list: "
             "ctoj_value_list_add_value failed.");
       (*jvm_env)->DeleteLocalRef(jvm_env, o_valuelist);
-      return (NULL);
+      return NULL;
     }
   }
 
-  return (o_valuelist);
+  return o_valuelist;
 } /* }}} jobject ctoj_value_list */
 
 /* Convert a notification_t to a org/collectd/api/Notification */
@@ -797,7 +796,7 @@ static jobject ctoj_notification(JNIEnv *jvm_env, /* {{{ */
   if (c_notification == NULL) {
     ERROR("java plugin: ctoj_notification: "
           "FindClass (org/collectd/api/Notification) failed.");
-    return (NULL);
+    return NULL;
   }
 
   /* Lookup the `Notification ()' constructor. */
@@ -806,7 +805,7 @@ static jobject ctoj_notification(JNIEnv *jvm_env, /* {{{ */
   if (m_constructor == NULL) {
     ERROR("java plugin: ctoj_notification: Cannot find the "
           "`Notification ()' constructor.");
-    return (NULL);
+    return NULL;
   }
 
   /* Create a new instance. */
@@ -815,7 +814,7 @@ static jobject ctoj_notification(JNIEnv *jvm_env, /* {{{ */
   if (o_notification == NULL) {
     ERROR("java plugin: ctoj_notification: Creating a new Notification "
           "instance failed.");
-    return (NULL);
+    return NULL;
   }
 
 /* Set the strings.. */
@@ -827,7 +826,7 @@ static jobject ctoj_notification(JNIEnv *jvm_env, /* {{{ */
       ERROR("java plugin: ctoj_notification: ctoj_string (%s) failed.",        \
             method_name);                                                      \
       (*jvm_env)->DeleteLocalRef(jvm_env, o_notification);                     \
-      return (NULL);                                                           \
+      return NULL;                                                             \
     }                                                                          \
   } while (0)
 
@@ -846,7 +845,7 @@ static jobject ctoj_notification(JNIEnv *jvm_env, /* {{{ */
   if (status != 0) {
     ERROR("java plugin: ctoj_notification: ctoj_long (setTime) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_notification);
-    return (NULL);
+    return NULL;
   }
 
   /* Set the `severity' member.. */
@@ -855,10 +854,10 @@ static jobject ctoj_notification(JNIEnv *jvm_env, /* {{{ */
   if (status != 0) {
     ERROR("java plugin: ctoj_notification: ctoj_int (setSeverity) failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, o_notification);
-    return (NULL);
+    return NULL;
   }
 
-  return (o_notification);
+  return o_notification;
 } /* }}} jobject ctoj_notification */
 
 /*
@@ -878,24 +877,24 @@ static int jtoc_string(JNIEnv *jvm_env, /* {{{ */
   if (method_id == NULL) {
     ERROR("java plugin: jtoc_string: Cannot find method `String %s ()'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   string_obj = (*jvm_env)->CallObjectMethod(jvm_env, object_ptr, method_id);
   if ((string_obj == NULL) && (empty_okay == 0)) {
     ERROR("java plugin: jtoc_string: CallObjectMethod (%s) failed.",
           method_name);
-    return (-1);
+    return -1;
   } else if ((string_obj == NULL) && (empty_okay != 0)) {
     memset(buffer, 0, buffer_size);
-    return (0);
+    return 0;
   }
 
   c_str = (*jvm_env)->GetStringUTFChars(jvm_env, string_obj, 0);
   if (c_str == NULL) {
     ERROR("java plugin: jtoc_string: GetStringUTFChars failed.");
     (*jvm_env)->DeleteLocalRef(jvm_env, string_obj);
-    return (-1);
+    return -1;
   }
 
   sstrncpy(buffer, c_str, buffer_size);
@@ -903,7 +902,7 @@ static int jtoc_string(JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->ReleaseStringUTFChars(jvm_env, string_obj, c_str);
   (*jvm_env)->DeleteLocalRef(jvm_env, string_obj);
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_string */
 
 /* Call an `int <method> ()' method. */
@@ -916,12 +915,12 @@ static int jtoc_int(JNIEnv *jvm_env, /* {{{ */
   if (method_id == NULL) {
     ERROR("java plugin: jtoc_int: Cannot find method `int %s ()'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   *ret_value = (*jvm_env)->CallIntMethod(jvm_env, object_ptr, method_id);
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_int */
 
 /* Call a `long <method> ()' method. */
@@ -934,12 +933,12 @@ static int jtoc_long(JNIEnv *jvm_env, /* {{{ */
   if (method_id == NULL) {
     ERROR("java plugin: jtoc_long: Cannot find method `long %s ()'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   *ret_value = (*jvm_env)->CallLongMethod(jvm_env, object_ptr, method_id);
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_long */
 
 /* Call a `double <method> ()' method. */
@@ -952,12 +951,12 @@ static int jtoc_double(JNIEnv *jvm_env, /* {{{ */
   if (method_id == NULL) {
     ERROR("java plugin: jtoc_double: Cannot find method `double %s ()'.",
           method_name);
-    return (-1);
+    return -1;
   }
 
   *ret_value = (*jvm_env)->CallDoubleMethod(jvm_env, object_ptr, method_id);
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_double */
 
 static int jtoc_value(JNIEnv *jvm_env, /* {{{ */
@@ -975,7 +974,7 @@ static int jtoc_value(JNIEnv *jvm_env, /* {{{ */
     if (status != 0) {
       ERROR("java plugin: jtoc_value: "
             "jtoc_double failed.");
-      return (-1);
+      return -1;
     }
     (*ret_value).gauge = (gauge_t)tmp_double;
   } else {
@@ -985,7 +984,7 @@ static int jtoc_value(JNIEnv *jvm_env, /* {{{ */
     if (status != 0) {
       ERROR("java plugin: jtoc_value: "
             "jtoc_long failed.");
-      return (-1);
+      return -1;
     }
 
     if (ds_type == DS_TYPE_DERIVE)
@@ -996,7 +995,7 @@ static int jtoc_value(JNIEnv *jvm_env, /* {{{ */
       (*ret_value).counter = (counter_t)tmp_long;
   }
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_value */
 
 /* Read a List<Number>, convert it to `value_t' and add it to the given
@@ -1024,7 +1023,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
     (*jvm_env)->DeleteLocalRef(jvm_env, o_number_array);                       \
   if (o_list != NULL)                                                          \
     (*jvm_env)->DeleteLocalRef(jvm_env, o_list);                               \
-  return (status);
+  return status;
 
   /* Call: List<Number> ValueList.getValues () */
   m_getvalues = (*jvm_env)->GetMethodID(jvm_env, class_ptr, "getValues",
@@ -1093,7 +1092,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
 #undef BAIL_OUT
   (*jvm_env)->DeleteLocalRef(jvm_env, o_number_array);
   (*jvm_env)->DeleteLocalRef(jvm_env, o_list);
-  return (0);
+  return 0;
 } /* }}} int jtoc_values_array */
 
 /* Convert a org/collectd/api/ValueList to a value_list_t. */
@@ -1107,7 +1106,7 @@ static int jtoc_value_list(JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
   class_ptr = (*jvm_env)->GetObjectClass(jvm_env, object_ptr);
   if (class_ptr == NULL) {
     ERROR("java plugin: jtoc_value_list: GetObjectClass failed.");
-    return (-1);
+    return -1;
   }
 
 /* eo == empty okay */
@@ -1117,7 +1116,7 @@ static int jtoc_value_list(JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
                          object_ptr, method);                                  \
     if (status != 0) {                                                         \
       ERROR("java plugin: jtoc_value_list: jtoc_string (%s) failed.", method); \
-      return (-1);                                                             \
+      return -1;                                                               \
     }                                                                          \
   } while (0)
 
@@ -1128,7 +1127,7 @@ static int jtoc_value_list(JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
     ERROR("java plugin: jtoc_value_list: Data-set `%s' is not defined. "
           "Please consult the types.db(5) manpage for mor information.",
           vl->type);
-    return (-1);
+    return -1;
   }
 
   SET_STRING(vl->host, "getHost", /* empty = */ 0);
@@ -1141,7 +1140,7 @@ static int jtoc_value_list(JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
   status = jtoc_long(jvm_env, &tmp_long, class_ptr, object_ptr, "getTime");
   if (status != 0) {
     ERROR("java plugin: jtoc_value_list: jtoc_long (getTime) failed.");
-    return (-1);
+    return -1;
   }
   /* Java measures time in milliseconds. */
   vl->time = MS_TO_CDTIME_T(tmp_long);
@@ -1149,17 +1148,17 @@ static int jtoc_value_list(JNIEnv *jvm_env, value_list_t *vl, /* {{{ */
   status = jtoc_long(jvm_env, &tmp_long, class_ptr, object_ptr, "getInterval");
   if (status != 0) {
     ERROR("java plugin: jtoc_value_list: jtoc_long (getInterval) failed.");
-    return (-1);
+    return -1;
   }
   vl->interval = MS_TO_CDTIME_T(tmp_long);
 
   status = jtoc_values_array(jvm_env, ds, vl, class_ptr, object_ptr);
   if (status != 0) {
     ERROR("java plugin: jtoc_value_list: jtoc_values_array failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_value_list */
 
 /* Convert a org/collectd/api/Notification to a notification_t. */
@@ -1173,7 +1172,7 @@ static int jtoc_notification(JNIEnv *jvm_env, notification_t *n, /* {{{ */
   class_ptr = (*jvm_env)->GetObjectClass(jvm_env, object_ptr);
   if (class_ptr == NULL) {
     ERROR("java plugin: jtoc_notification: GetObjectClass failed.");
-    return (-1);
+    return -1;
   }
 
 /* eo == empty okay */
@@ -1184,7 +1183,7 @@ static int jtoc_notification(JNIEnv *jvm_env, notification_t *n, /* {{{ */
     if (status != 0) {                                                         \
       ERROR("java plugin: jtoc_notification: jtoc_string (%s) failed.",        \
             method);                                                           \
-      return (-1);                                                             \
+      return -1;                                                               \
     }                                                                          \
   } while (0)
 
@@ -1200,7 +1199,7 @@ static int jtoc_notification(JNIEnv *jvm_env, notification_t *n, /* {{{ */
   status = jtoc_long(jvm_env, &tmp_long, class_ptr, object_ptr, "getTime");
   if (status != 0) {
     ERROR("java plugin: jtoc_notification: jtoc_long (getTime) failed.");
-    return (-1);
+    return -1;
   }
   /* Java measures time in milliseconds. */
   n->time = MS_TO_CDTIME_T(tmp_long);
@@ -1208,11 +1207,11 @@ static int jtoc_notification(JNIEnv *jvm_env, notification_t *n, /* {{{ */
   status = jtoc_int(jvm_env, &tmp_int, class_ptr, object_ptr, "getSeverity");
   if (status != 0) {
     ERROR("java plugin: jtoc_notification: jtoc_int (getSeverity) failed.");
-    return (-1);
+    return -1;
   }
   n->severity = (int)tmp_int;
 
-  return (0);
+  return 0;
 } /* }}} int jtoc_notification */
   /*
    * Functions accessible from Java
@@ -1227,14 +1226,14 @@ static jint JNICALL cjni_api_dispatch_values(JNIEnv *jvm_env, /* {{{ */
   status = jtoc_value_list(jvm_env, &vl, java_vl);
   if (status != 0) {
     ERROR("java plugin: cjni_api_dispatch_values: jtoc_value_list failed.");
-    return (-1);
+    return -1;
   }
 
   status = plugin_dispatch_values(&vl);
 
   sfree(vl.values);
 
-  return (status);
+  return status;
 } /* }}} jint cjni_api_dispatch_values */
 
 static jint JNICALL cjni_api_dispatch_notification(JNIEnv *jvm_env, /* {{{ */
@@ -1247,12 +1246,12 @@ static jint JNICALL cjni_api_dispatch_notification(JNIEnv *jvm_env, /* {{{ */
   if (status != 0) {
     ERROR("java plugin: cjni_api_dispatch_notification: jtoc_notification "
           "failed.");
-    return (-1);
+    return -1;
   }
 
   status = plugin_dispatch_notification(&n);
 
-  return (status);
+  return status;
 } /* }}} jint cjni_api_dispatch_notification */
 
 static jobject JNICALL cjni_api_get_ds(JNIEnv *jvm_env, /* {{{ */
@@ -1264,7 +1263,7 @@ static jobject JNICALL cjni_api_get_ds(JNIEnv *jvm_env, /* {{{ */
   ds_name = (*jvm_env)->GetStringUTFChars(jvm_env, o_string_type, 0);
   if (ds_name == NULL) {
     ERROR("java plugin: cjni_api_get_ds: GetStringUTFChars failed.");
-    return (NULL);
+    return NULL;
   }
 
   ds = plugin_get_ds(ds_name);
@@ -1275,22 +1274,22 @@ static jobject JNICALL cjni_api_get_ds(JNIEnv *jvm_env, /* {{{ */
   (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_string_type, ds_name);
 
   if (ds == NULL)
-    return (NULL);
+    return NULL;
 
   o_dataset = ctoj_data_set(jvm_env, ds);
-  return (o_dataset);
+  return o_dataset;
 } /* }}} jint cjni_api_get_ds */
 
 static jint JNICALL cjni_api_register_config(JNIEnv *jvm_env, /* {{{ */
                                              jobject this, jobject o_name,
                                              jobject o_config) {
-  return (cjni_callback_register(jvm_env, o_name, o_config, CB_TYPE_CONFIG));
+  return cjni_callback_register(jvm_env, o_name, o_config, CB_TYPE_CONFIG);
 } /* }}} jint cjni_api_register_config */
 
 static jint JNICALL cjni_api_register_init(JNIEnv *jvm_env, /* {{{ */
                                            jobject this, jobject o_name,
                                            jobject o_config) {
-  return (cjni_callback_register(jvm_env, o_name, o_config, CB_TYPE_INIT));
+  return cjni_callback_register(jvm_env, o_name, o_config, CB_TYPE_INIT);
 } /* }}} jint cjni_api_register_init */
 
 static jint JNICALL cjni_api_register_read(JNIEnv *jvm_env, /* {{{ */
@@ -1300,7 +1299,7 @@ static jint JNICALL cjni_api_register_read(JNIEnv *jvm_env, /* {{{ */
 
   cbi = cjni_callback_info_create(jvm_env, o_name, o_read, CB_TYPE_READ);
   if (cbi == NULL)
-    return (-1);
+    return -1;
 
   DEBUG("java plugin: Registering new read callback: %s", cbi->name);
 
@@ -1313,7 +1312,7 @@ static jint JNICALL cjni_api_register_read(JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_read);
 
-  return (0);
+  return 0;
 } /* }}} jint cjni_api_register_read */
 
 static jint JNICALL cjni_api_register_write(JNIEnv *jvm_env, /* {{{ */
@@ -1323,7 +1322,7 @@ static jint JNICALL cjni_api_register_write(JNIEnv *jvm_env, /* {{{ */
 
   cbi = cjni_callback_info_create(jvm_env, o_name, o_write, CB_TYPE_WRITE);
   if (cbi == NULL)
-    return (-1);
+    return -1;
 
   DEBUG("java plugin: Registering new write callback: %s", cbi->name);
 
@@ -1335,7 +1334,7 @@ static jint JNICALL cjni_api_register_write(JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_write);
 
-  return (0);
+  return 0;
 } /* }}} jint cjni_api_register_write */
 
 static jint JNICALL cjni_api_register_flush(JNIEnv *jvm_env, /* {{{ */
@@ -1345,7 +1344,7 @@ static jint JNICALL cjni_api_register_flush(JNIEnv *jvm_env, /* {{{ */
 
   cbi = cjni_callback_info_create(jvm_env, o_name, o_flush, CB_TYPE_FLUSH);
   if (cbi == NULL)
-    return (-1);
+    return -1;
 
   DEBUG("java plugin: Registering new flush callback: %s", cbi->name);
 
@@ -1357,14 +1356,13 @@ static jint JNICALL cjni_api_register_flush(JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_flush);
 
-  return (0);
+  return 0;
 } /* }}} jint cjni_api_register_flush */
 
 static jint JNICALL cjni_api_register_shutdown(JNIEnv *jvm_env, /* {{{ */
                                                jobject this, jobject o_name,
                                                jobject o_shutdown) {
-  return (
-      cjni_callback_register(jvm_env, o_name, o_shutdown, CB_TYPE_SHUTDOWN));
+  return cjni_callback_register(jvm_env, o_name, o_shutdown, CB_TYPE_SHUTDOWN);
 } /* }}} jint cjni_api_register_shutdown */
 
 static jint JNICALL cjni_api_register_log(JNIEnv *jvm_env, /* {{{ */
@@ -1374,7 +1372,7 @@ static jint JNICALL cjni_api_register_log(JNIEnv *jvm_env, /* {{{ */
 
   cbi = cjni_callback_info_create(jvm_env, o_name, o_log, CB_TYPE_LOG);
   if (cbi == NULL)
-    return (-1);
+    return -1;
 
   DEBUG("java plugin: Registering new log callback: %s", cbi->name);
 
@@ -1385,7 +1383,7 @@ static jint JNICALL cjni_api_register_log(JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_log);
 
-  return (0);
+  return 0;
 } /* }}} jint cjni_api_register_log */
 
 static jint JNICALL cjni_api_register_notification(JNIEnv *jvm_env, /* {{{ */
@@ -1396,7 +1394,7 @@ static jint JNICALL cjni_api_register_notification(JNIEnv *jvm_env, /* {{{ */
   cbi = cjni_callback_info_create(jvm_env, o_name, o_notification,
                                   CB_TYPE_NOTIFICATION);
   if (cbi == NULL)
-    return (-1);
+    return -1;
 
   DEBUG("java plugin: Registering new notification callback: %s", cbi->name);
 
@@ -1408,7 +1406,7 @@ static jint JNICALL cjni_api_register_notification(JNIEnv *jvm_env, /* {{{ */
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_notification);
 
-  return (0);
+  return 0;
 } /* }}} jint cjni_api_register_notification */
 
 static jint JNICALL cjni_api_register_match_target(JNIEnv *jvm_env, /* {{{ */
@@ -1421,13 +1419,13 @@ static jint JNICALL cjni_api_register_match_target(JNIEnv *jvm_env, /* {{{ */
   if (c_name == NULL) {
     ERROR("java plugin: cjni_api_register_match_target: "
           "GetStringUTFChars failed.");
-    return (-1);
+    return -1;
   }
 
   status = cjni_callback_register(jvm_env, o_name, o_match, type);
   if (status != 0) {
     (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
-    return (-1);
+    return -1;
   }
 
   if (type == CB_TYPE_MATCH) {
@@ -1450,7 +1448,7 @@ static jint JNICALL cjni_api_register_match_target(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: cjni_api_register_match_target: "
           "Don't know whether to create a match or a target.");
     (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
-    return (-1);
+    return -1;
   }
 
   if (status != 0) {
@@ -1458,26 +1456,26 @@ static jint JNICALL cjni_api_register_match_target(JNIEnv *jvm_env, /* {{{ */
           "%s failed.",
           (type == CB_TYPE_MATCH) ? "fc_register_match" : "fc_register_target");
     (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
-    return (-1);
+    return -1;
   }
 
   (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
 
-  return (0);
+  return 0;
 } /* }}} jint cjni_api_register_match_target */
 
 static jint JNICALL cjni_api_register_match(JNIEnv *jvm_env, /* {{{ */
                                             jobject this, jobject o_name,
                                             jobject o_match) {
-  return (cjni_api_register_match_target(jvm_env, this, o_name, o_match,
-                                         CB_TYPE_MATCH));
+  return cjni_api_register_match_target(jvm_env, this, o_name, o_match,
+                                        CB_TYPE_MATCH);
 } /* }}} jint cjni_api_register_match */
 
 static jint JNICALL cjni_api_register_target(JNIEnv *jvm_env, /* {{{ */
                                              jobject this, jobject o_name,
                                              jobject o_target) {
-  return (cjni_api_register_match_target(jvm_env, this, o_name, o_target,
-                                         CB_TYPE_TARGET));
+  return cjni_api_register_match_target(jvm_env, this, o_name, o_target,
+                                        CB_TYPE_TARGET);
 } /* }}} jint cjni_api_register_target */
 
 static void JNICALL cjni_api_log(JNIEnv *jvm_env, /* {{{ */
@@ -1635,21 +1633,21 @@ cjni_callback_info_create(JNIEnv *jvm_env, /* {{{ */
 
   default:
     ERROR("java plugin: cjni_callback_info_create: Unknown type: %#x", type);
-    return (NULL);
+    return NULL;
   }
 
   c_name = (*jvm_env)->GetStringUTFChars(jvm_env, o_name, 0);
   if (c_name == NULL) {
     ERROR("java plugin: cjni_callback_info_create: "
           "GetStringUTFChars failed.");
-    return (NULL);
+    return NULL;
   }
 
   cbi = calloc(1, sizeof(*cbi));
   if (cbi == NULL) {
     ERROR("java plugin: cjni_callback_info_create: calloc failed.");
     (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
-    return (NULL);
+    return NULL;
   }
   cbi->type = type;
 
@@ -1659,7 +1657,7 @@ cjni_callback_info_create(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: cjni_callback_info_create: strdup failed.");
     (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
     sfree(cbi);
-    return (NULL);
+    return NULL;
   }
 
   (*jvm_env)->ReleaseStringUTFChars(jvm_env, o_name, c_name);
@@ -1669,7 +1667,7 @@ cjni_callback_info_create(JNIEnv *jvm_env, /* {{{ */
     ERROR("java plugin: cjni_callback_info_create: NewGlobalRef failed.");
     sfree(cbi->name);
     sfree(cbi);
-    return (NULL);
+    return NULL;
   }
 
   cbi->class = (*jvm_env)->GetObjectClass(jvm_env, cbi->object);
@@ -1678,7 +1676,7 @@ cjni_callback_info_create(JNIEnv *jvm_env, /* {{{ */
     (*jvm_env)->DeleteGlobalRef(jvm_env, cbi->object);
     sfree(cbi->name);
     sfree(cbi);
-    return (NULL);
+    return NULL;
   }
 
   cbi->method = (*jvm_env)->GetMethodID(jvm_env, cbi->class, method_name,
@@ -1690,10 +1688,10 @@ cjni_callback_info_create(JNIEnv *jvm_env, /* {{{ */
     (*jvm_env)->DeleteGlobalRef(jvm_env, cbi->object);
     sfree(cbi->name);
     sfree(cbi);
-    return (NULL);
+    return NULL;
   }
 
-  return (cbi);
+  return cbi;
 } /* }}} cjni_callback_info_t cjni_callback_info_create */
 
 /* Allocate a `cjni_callback_info_t' via `cjni_callback_info_create' and add it
@@ -1710,7 +1708,7 @@ static int cjni_callback_register(JNIEnv *jvm_env, /* {{{ */
 
   cbi = cjni_callback_info_create(jvm_env, o_name, o_callback, type);
   if (cbi == NULL)
-    return (-1);
+    return -1;
 
 #if COLLECT_DEBUG
   switch (type) {
@@ -1751,7 +1749,7 @@ static int cjni_callback_register(JNIEnv *jvm_env, /* {{{ */
     (*jvm_env)->DeleteGlobalRef(jvm_env, cbi->object);
     free(cbi);
 
-    return (-1);
+    return -1;
   }
   java_callbacks = tmp;
   java_callbacks[java_callbacks_num] = *cbi;
@@ -1760,7 +1758,7 @@ static int cjni_callback_register(JNIEnv *jvm_env, /* {{{ */
   pthread_mutex_unlock(&java_callbacks_lock);
 
   free(cbi);
-  return (0);
+  return 0;
 } /* }}} int cjni_callback_register */
 
 /* Callback for `pthread_key_create'. It frees the data contained in
@@ -1801,17 +1799,17 @@ static int cjni_init_native(JNIEnv *jvm_env) /* {{{ */
     ERROR("cjni_init_native: Cannot find the API class \"org.collectd.api"
           ".Collectd\". Please set the correct class path "
           "using 'JVMArg \"-Djava.class.path=...\"'.");
-    return (-1);
+    return -1;
   }
 
   status = (*jvm_env)->RegisterNatives(
       jvm_env, api_class_ptr, jni_api_functions, (jint)jni_api_functions_num);
   if (status != 0) {
     ERROR("cjni_init_native: RegisterNatives failed with status %i.", status);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cjni_init_native */
 
 /* Create the JVM. This is called when the first thread tries to access the JVM
@@ -1825,14 +1823,14 @@ static int cjni_create_jvm(void) /* {{{ */
   int status;
 
   if (jvm != NULL)
-    return (0);
+    return 0;
 
   status = pthread_key_create(&jvm_env_key, cjni_jvm_env_destroy);
   if (status != 0) {
     ERROR("java plugin: cjni_create_jvm: pthread_key_create failed "
           "with status %i.",
           status);
-    return (-1);
+    return -1;
   }
 
   jvm_env = NULL;
@@ -1851,7 +1849,7 @@ static int cjni_create_jvm(void) /* {{{ */
     ERROR("java plugin: cjni_create_jvm: "
           "JNI_CreateJavaVM failed with status %i.",
           status);
-    return (-1);
+    return -1;
   }
   assert(jvm != NULL);
   assert(jvm_env != NULL);
@@ -1860,11 +1858,11 @@ static int cjni_create_jvm(void) /* {{{ */
   status = cjni_init_native(jvm_env);
   if (status != 0) {
     ERROR("java plugin: cjni_create_jvm: cjni_init_native failed.");
-    return (-1);
+    return -1;
   }
 
   DEBUG("java plugin: The JVM has been created.");
-  return (0);
+  return 0;
 } /* }}} int cjni_create_jvm */
 
 /* Increase the reference counter to the JVM for this thread. If it was zero,
@@ -1882,7 +1880,7 @@ static JNIEnv *cjni_thread_attach(void) /* {{{ */
     status = cjni_create_jvm();
     if (status != 0) {
       ERROR("java plugin: cjni_thread_attach: cjni_create_jvm failed.");
-      return (NULL);
+      return NULL;
     }
   }
   assert(jvm != NULL);
@@ -1893,7 +1891,7 @@ static JNIEnv *cjni_thread_attach(void) /* {{{ */
     cjni_env = calloc(1, sizeof(*cjni_env));
     if (cjni_env == NULL) {
       ERROR("java plugin: cjni_thread_attach: calloc failed.");
-      return (NULL);
+      return NULL;
     }
     cjni_env->reference_counter = 0;
     cjni_env->jvm_env = NULL;
@@ -1917,7 +1915,7 @@ static JNIEnv *cjni_thread_attach(void) /* {{{ */
       ERROR("java plugin: cjni_thread_attach: AttachCurrentThread failed "
             "with status %i.",
             status);
-      return (NULL);
+      return NULL;
     }
 
     cjni_env->reference_counter = 1;
@@ -1927,7 +1925,7 @@ static JNIEnv *cjni_thread_attach(void) /* {{{ */
   DEBUG("java plugin: cjni_thread_attach: cjni_env->reference_counter = %i",
         cjni_env->reference_counter);
   assert(jvm_env != NULL);
-  return (jvm_env);
+  return jvm_env;
 } /* }}} JNIEnv *cjni_thread_attach */
 
 /* Decrease the reference counter of this thread. If it reaches zero, detach
@@ -1940,7 +1938,7 @@ static int cjni_thread_detach(void) /* {{{ */
   cjni_env = pthread_getspecific(jvm_env_key);
   if (cjni_env == NULL) {
     ERROR("java plugin: cjni_thread_detach: pthread_getspecific failed.");
-    return (-1);
+    return -1;
   }
 
   assert(cjni_env->reference_counter > 0);
@@ -1951,7 +1949,7 @@ static int cjni_thread_detach(void) /* {{{ */
         cjni_env->reference_counter);
 
   if (cjni_env->reference_counter > 0)
-    return (0);
+    return 0;
 
   status = (*jvm)->DetachCurrentThread(jvm);
   if (status != 0) {
@@ -1963,7 +1961,7 @@ static int cjni_thread_detach(void) /* {{{ */
   cjni_env->reference_counter = 0;
   cjni_env->jvm_env = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int cjni_thread_detach */
 
 static int cjni_config_add_jvm_arg(oconfig_item_t *ci) /* {{{ */
@@ -1972,7 +1970,7 @@ static int cjni_config_add_jvm_arg(oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("java plugin: `JVMArg' needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   if (jvm != NULL) {
@@ -1980,24 +1978,24 @@ static int cjni_config_add_jvm_arg(oconfig_item_t *ci) /* {{{ */
           "`LoadPlugin' options! The JVM is already started and I have to "
           "ignore this argument: %s",
           ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
   tmp = realloc(jvm_argv, sizeof(char *) * (jvm_argc + 1));
   if (tmp == NULL) {
     ERROR("java plugin: realloc failed.");
-    return (-1);
+    return -1;
   }
   jvm_argv = tmp;
 
   jvm_argv[jvm_argc] = strdup(ci->values[0].value.string);
   if (jvm_argv[jvm_argc] == NULL) {
     ERROR("java plugin: strdup failed.");
-    return (-1);
+    return -1;
   }
   jvm_argc++;
 
-  return (0);
+  return 0;
 } /* }}} int cjni_config_add_jvm_arg */
 
 static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
@@ -2009,19 +2007,19 @@ static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("java plugin: `LoadPlugin' needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   class = realloc(java_classes_list,
                   (java_classes_list_len + 1) * sizeof(*java_classes_list));
   if (class == NULL) {
     ERROR("java plugin: realloc failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
   java_classes_list = class;
   class = java_classes_list + java_classes_list_len;
@@ -2031,7 +2029,7 @@ static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
   if (class->name == NULL) {
     ERROR("java plugin: strdup failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
   class->class = NULL;
   class->object = NULL;
@@ -2052,7 +2050,7 @@ static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
           class->name);
     cjni_thread_detach();
     free(class->name);
-    return (-1);
+    return -1;
   }
 
   constructor_id =
@@ -2063,7 +2061,7 @@ static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
           class->name);
     cjni_thread_detach();
     free(class->name);
-    return (-1);
+    return -1;
   }
 
   tmp_object = (*jvm_env)->NewObject(jvm_env, class->class, constructor_id);
@@ -2077,14 +2075,14 @@ static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
           class->name);
     cjni_thread_detach();
     free(class->name);
-    return (-1);
+    return -1;
   }
 
   cjni_thread_detach();
 
   java_classes_list_len++;
 
-  return (0);
+  return 0;
 } /* }}} int cjni_config_load_plugin */
 
 static int cjni_config_plugin_block(oconfig_item_t *ci) /* {{{ */
@@ -2100,7 +2098,7 @@ static int cjni_config_plugin_block(oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("java plugin: `Plugin' blocks "
             "need exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   name = ci->values[0].value.string;
@@ -2122,20 +2120,20 @@ static int cjni_config_plugin_block(oconfig_item_t *ci) /* {{{ */
            "configuration callback has been registered. Please make sure, the "
            "`LoadPlugin' lines precede the `Plugin' blocks.",
            name);
-    return (0);
+    return 0;
   }
 
   DEBUG("java plugin: Configuring %s", name);
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   o_ocitem = ctoj_oconfig_item(jvm_env, ci);
   if (o_ocitem == NULL) {
     ERROR("java plugin: cjni_config_plugin_block: ctoj_oconfig_item failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
 
   class = (*jvm_env)->GetObjectClass(jvm_env, cbi->object);
@@ -2146,7 +2144,7 @@ static int cjni_config_plugin_block(oconfig_item_t *ci) /* {{{ */
 
   (*jvm_env)->DeleteLocalRef(jvm_env, o_ocitem);
   cjni_thread_detach();
-  return (0);
+  return 0;
 } /* }}} int cjni_config_plugin_block */
 
 static int cjni_config_perform(oconfig_item_t *ci) /* {{{ */
@@ -2190,10 +2188,10 @@ static int cjni_config_perform(oconfig_item_t *ci) /* {{{ */
 
   if ((success == 0) && (errors > 0)) {
     ERROR("java plugin: All statements failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cjni_config_perform */
 
 /* Copy the children of `ci' to the global `config_block' variable. */
@@ -2204,17 +2202,17 @@ static int cjni_config_callback(oconfig_item_t *ci) /* {{{ */
 
   assert(ci != NULL);
   if (ci->children_num == 0)
-    return (0); /* nothing to do */
+    return 0; /* nothing to do */
 
   ci_copy = oconfig_clone(ci);
   if (ci_copy == NULL) {
     ERROR("java plugin: oconfig_clone failed.");
-    return (-1);
+    return -1;
   }
 
   if (config_block == NULL) {
     config_block = ci_copy;
-    return (0);
+    return 0;
   }
 
   tmp = realloc(config_block->children,
@@ -2223,7 +2221,7 @@ static int cjni_config_callback(oconfig_item_t *ci) /* {{{ */
   if (tmp == NULL) {
     ERROR("java plugin: realloc failed.");
     oconfig_free(ci_copy);
-    return (-1);
+    return -1;
   }
   config_block->children = tmp;
 
@@ -2239,7 +2237,7 @@ static int cjni_config_callback(oconfig_item_t *ci) /* {{{ */
 
   oconfig_free(ci_copy);
 
-  return (0);
+  return 0;
 } /* }}} int cjni_config_callback */
 
 /* Free the data contained in the `user_data_t' pointer passed to `cjni_read'
@@ -2289,24 +2287,24 @@ static int cjni_read(user_data_t *ud) /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_read: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("java plugin: cjni_read: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   cbi = (cjni_callback_info_t *)ud->data;
 
   ret_status = (*jvm_env)->CallIntMethod(jvm_env, cbi->object, cbi->method);
 
   cjni_thread_detach();
-  return (ret_status);
+  return ret_status;
 } /* }}} int cjni_read */
 
 /* Call the CB_TYPE_WRITE callback pointed to by the `user_data_t' pointer. */
@@ -2319,17 +2317,17 @@ static int cjni_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_write: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("java plugin: cjni_write: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   cbi = (cjni_callback_info_t *)ud->data;
 
@@ -2337,7 +2335,7 @@ static int cjni_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (vl_java == NULL) {
     ERROR("java plugin: cjni_write: ctoj_value_list failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
 
   ret_status =
@@ -2346,7 +2344,7 @@ static int cjni_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   (*jvm_env)->DeleteLocalRef(jvm_env, vl_java);
 
   cjni_thread_detach();
-  return (ret_status);
+  return ret_status;
 } /* }}} int cjni_write */
 
 /* Call the CB_TYPE_FLUSH callback pointed to by the `user_data_t' pointer. */
@@ -2360,17 +2358,17 @@ static int cjni_flush(cdtime_t timeout, const char *identifier, /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_flush: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("java plugin: cjni_flush: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   cbi = (cjni_callback_info_t *)ud->data;
 
@@ -2380,7 +2378,7 @@ static int cjni_flush(cdtime_t timeout, const char *identifier, /* {{{ */
     ERROR("java plugin: cjni_flush: Converting double "
           "to Number object failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
 
   o_identifier = NULL;
@@ -2390,7 +2388,7 @@ static int cjni_flush(cdtime_t timeout, const char *identifier, /* {{{ */
       (*jvm_env)->DeleteLocalRef(jvm_env, o_timeout);
       ERROR("java plugin: cjni_flush: NewStringUTF failed.");
       cjni_thread_detach();
-      return (-1);
+      return -1;
     }
   }
 
@@ -2401,7 +2399,7 @@ static int cjni_flush(cdtime_t timeout, const char *identifier, /* {{{ */
   (*jvm_env)->DeleteLocalRef(jvm_env, o_timeout);
 
   cjni_thread_detach();
-  return (ret_status);
+  return ret_status;
 } /* }}} int cjni_flush */
 
 /* Call the CB_TYPE_LOG callback pointed to by the `user_data_t' pointer. */
@@ -2448,17 +2446,17 @@ static int cjni_notification(const notification_t *n, /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_read: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("java plugin: cjni_read: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   cbi = (cjni_callback_info_t *)ud->data;
 
@@ -2466,7 +2464,7 @@ static int cjni_notification(const notification_t *n, /* {{{ */
   if (o_notification == NULL) {
     ERROR("java plugin: cjni_notification: ctoj_notification failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
 
   ret_status = (*jvm_env)->CallIntMethod(jvm_env, cbi->object, cbi->method,
@@ -2475,7 +2473,7 @@ static int cjni_notification(const notification_t *n, /* {{{ */
   (*jvm_env)->DeleteLocalRef(jvm_env, o_notification);
 
   cjni_thread_detach();
-  return (ret_status);
+  return ret_status;
 } /* }}} int cjni_notification */
 
 /* Callbacks for matches implemented in Java */
@@ -2507,12 +2505,12 @@ static int cjni_match_target_create(const oconfig_item_t *ci, /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_read: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   /* Find out whether to create a match or a target. */
   if (strcasecmp("Match", ci->key) == 0)
@@ -2617,7 +2615,7 @@ static int cjni_match_target_create(const oconfig_item_t *ci, /* {{{ */
         cbi_ret->name, (type == CB_TYPE_MATCH) ? "match" : "target");
 
   /* Success! */
-  return (0);
+  return 0;
 #undef BAIL_OUT
 } /* }}} int cjni_match_target_create */
 
@@ -2626,7 +2624,7 @@ static int cjni_match_target_destroy(void **user_data) /* {{{ */
   cjni_callback_info_destroy(*user_data);
   *user_data = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int cjni_match_target_destroy */
 
 static int cjni_match_target_invoke(const data_set_t *ds, /* {{{ */
@@ -2642,12 +2640,12 @@ static int cjni_match_target_invoke(const data_set_t *ds, /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_match_target_invoke: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   cbi = (cjni_callback_info_t *)*user_data;
 
@@ -2655,14 +2653,14 @@ static int cjni_match_target_invoke(const data_set_t *ds, /* {{{ */
   if (o_vl == NULL) {
     ERROR("java plugin: cjni_match_target_invoke: ctoj_value_list failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
 
   o_ds = ctoj_data_set(jvm_env, ds);
   if (o_ds == NULL) {
     ERROR("java plugin: cjni_match_target_invoke: ctoj_value_list failed.");
     cjni_thread_detach();
-    return (-1);
+    return -1;
   }
 
   ret_status =
@@ -2693,7 +2691,7 @@ static int cjni_match_target_invoke(const data_set_t *ds, /* {{{ */
   } /* if (cbi->type == CB_TYPE_TARGET) */
 
   cjni_thread_detach();
-  return (ret_status);
+  return ret_status;
 } /* }}} int cjni_match_target_invoke */
 
 /* Iterate over `java_callbacks' and call all CB_TYPE_INIT callbacks. */
@@ -2717,7 +2715,7 @@ static int cjni_init_plugins(JNIEnv *jvm_env) /* {{{ */
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int cjni_init_plugins */
 
 /* Iterate over `java_callbacks' and call all CB_TYPE_SHUTDOWN callbacks. */
@@ -2739,7 +2737,7 @@ static int cjni_shutdown_plugins(JNIEnv *jvm_env) /* {{{ */
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int cjni_shutdown_plugins */
 
 static int cjni_shutdown(void) /* {{{ */
@@ -2749,7 +2747,7 @@ static int cjni_shutdown(void) /* {{{ */
   int status;
 
   if (jvm == NULL)
-    return (0);
+    return 0;
 
   jvm_env = NULL;
   args.version = JNI_VERSION_1_2;
@@ -2759,7 +2757,7 @@ static int cjni_shutdown(void) /* {{{ */
     ERROR("java plugin: cjni_shutdown: AttachCurrentThread failed with status "
           "%i.",
           status);
-    return (-1);
+    return -1;
   }
 
   /* Execute all the shutdown functions registered by plugins. */
@@ -2801,7 +2799,7 @@ static int cjni_shutdown(void) /* {{{ */
   jvm_argc = 0;
   sfree(jvm_argv);
 
-  return (0);
+  return 0;
 } /* }}} int cjni_shutdown */
 
 /* Initialization: Create a JVM, load all configured classes and call their
@@ -2813,7 +2811,7 @@ static int cjni_init(void) /* {{{ */
   if ((config_block == NULL) && (jvm == NULL)) {
     ERROR("java plugin: cjni_init: No configuration block for "
           "the java plugin was found.");
-    return (-1);
+    return -1;
   }
 
   if (config_block != NULL) {
@@ -2823,17 +2821,17 @@ static int cjni_init(void) /* {{{ */
 
   if (jvm == NULL) {
     ERROR("java plugin: cjni_init: jvm == NULL");
-    return (-1);
+    return -1;
   }
 
   jvm_env = cjni_thread_attach();
   if (jvm_env == NULL)
-    return (-1);
+    return -1;
 
   cjni_init_plugins(jvm_env);
 
   cjni_thread_detach();
-  return (0);
+  return 0;
 } /* }}} int cjni_init */
 
 void module_register(void) {

@@ -62,13 +62,13 @@ static size_t nginx_curl_callback(void *buf, size_t size, size_t nmemb,
   }
 
   if (len == 0)
-    return (len);
+    return len;
 
   memcpy(&nginx_buffer[nginx_buffer_len], buf, len);
   nginx_buffer_len += len;
   nginx_buffer[nginx_buffer_len] = 0;
 
-  return (len);
+  return len;
 }
 
 static int config_set(char **var, const char *value) {
@@ -78,28 +78,28 @@ static int config_set(char **var, const char *value) {
   }
 
   if ((*var = strdup(value)) == NULL)
-    return (1);
+    return 1;
   else
-    return (0);
+    return 0;
 }
 
 static int config(const char *key, const char *value) {
   if (strcasecmp(key, "url") == 0)
-    return (config_set(&url, value));
+    return config_set(&url, value);
   else if (strcasecmp(key, "user") == 0)
-    return (config_set(&user, value));
+    return config_set(&user, value);
   else if (strcasecmp(key, "password") == 0)
-    return (config_set(&pass, value));
+    return config_set(&pass, value);
   else if (strcasecmp(key, "verifypeer") == 0)
-    return (config_set(&verify_peer, value));
+    return config_set(&verify_peer, value);
   else if (strcasecmp(key, "verifyhost") == 0)
-    return (config_set(&verify_host, value));
+    return config_set(&verify_host, value);
   else if (strcasecmp(key, "cacert") == 0)
-    return (config_set(&cacert, value));
+    return config_set(&cacert, value);
   else if (strcasecmp(key, "timeout") == 0)
-    return (config_set(&timeout, value));
+    return config_set(&timeout, value);
   else
-    return (-1);
+    return -1;
 } /* int config */
 
 static int init(void) {
@@ -108,7 +108,7 @@ static int init(void) {
 
   if ((curl = curl_easy_init()) == NULL) {
     ERROR("nginx plugin: curl_easy_init failed.");
-    return (-1);
+    return -1;
   }
 
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
@@ -126,7 +126,7 @@ static int init(void) {
                            pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("nginx plugin: Credentials would have been truncated.");
-      return (-1);
+      return -1;
     }
 
     curl_easy_setopt(curl, CURLOPT_USERPWD, credentials);
@@ -165,7 +165,7 @@ static int init(void) {
   }
 #endif
 
-  return (0);
+  return 0;
 } /* void init */
 
 static void submit(const char *type, const char *inst, long long value) {
@@ -202,14 +202,14 @@ static int nginx_read(void) {
   int fields_num;
 
   if (curl == NULL)
-    return (-1);
+    return -1;
   if (url == NULL)
-    return (-1);
+    return -1;
 
   nginx_buffer_len = 0;
   if (curl_easy_perform(curl) != CURLE_OK) {
     WARNING("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
-    return (-1);
+    return -1;
   }
 
   ptr = nginx_buffer;
@@ -259,7 +259,7 @@ static int nginx_read(void) {
 
   nginx_buffer_len = 0;
 
-  return (0);
+  return 0;
 } /* int nginx_read */
 
 void module_register(void) {

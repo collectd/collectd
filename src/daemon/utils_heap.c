@@ -99,11 +99,11 @@ c_heap_t *c_heap_create(int (*compare)(const void *, const void *)) {
   c_heap_t *h;
 
   if (compare == NULL)
-    return (NULL);
+    return NULL;
 
   h = calloc(1, sizeof(*h));
   if (h == NULL)
-    return (NULL);
+    return NULL;
 
   pthread_mutex_init(&h->lock, /* attr = */ NULL);
   h->compare = compare;
@@ -112,7 +112,7 @@ c_heap_t *c_heap_create(int (*compare)(const void *, const void *)) {
   h->list_len = 0;
   h->list_size = 0;
 
-  return (h);
+  return h;
 } /* c_heap_t *c_heap_create */
 
 void c_heap_destroy(c_heap_t *h) {
@@ -133,7 +133,7 @@ int c_heap_insert(c_heap_t *h, void *ptr) {
   size_t index;
 
   if ((h == NULL) || (ptr == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&h->lock);
 
@@ -144,7 +144,7 @@ int c_heap_insert(c_heap_t *h, void *ptr) {
     tmp = realloc(h->list, (h->list_size + 16) * sizeof(*h->list));
     if (tmp == NULL) {
       pthread_mutex_unlock(&h->lock);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     h->list = tmp;
@@ -160,20 +160,20 @@ int c_heap_insert(c_heap_t *h, void *ptr) {
   reheap(h, /* parent of this node = */ (index - 1) / 2, DIR_UP);
 
   pthread_mutex_unlock(&h->lock);
-  return (0);
+  return 0;
 } /* int c_heap_insert */
 
 void *c_heap_get_root(c_heap_t *h) {
   void *ret = NULL;
 
   if (h == NULL)
-    return (NULL);
+    return NULL;
 
   pthread_mutex_lock(&h->lock);
 
   if (h->list_len == 0) {
     pthread_mutex_unlock(&h->lock);
-    return (NULL);
+    return NULL;
   } else if (h->list_len == 1) {
     ret = h->list[0];
     h->list[0] = NULL;
@@ -201,5 +201,5 @@ void *c_heap_get_root(c_heap_t *h) {
 
   pthread_mutex_unlock(&h->lock);
 
-  return (ret);
+  return ret;
 } /* void *c_heap_get_root */

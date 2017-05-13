@@ -40,7 +40,7 @@ static int tape_init(void) {
   numtape = 0;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (numtape = 0, ksp_chain = kc->kc_chain;
        (numtape < MAX_NUMTAPE) && (ksp_chain != NULL);
@@ -52,7 +52,7 @@ static int tape_init(void) {
     ksp[numtape++] = ksp_chain;
   }
 
-  return (0);
+  return 0;
 } /* int tape_init */
 
 static void tape_submit(const char *plugin_instance, const char *type,
@@ -94,10 +94,10 @@ static int tape_read(void) {
   static kstat_io_t kio;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   if (numtape <= 0)
-    return (-1);
+    return -1;
 
   for (int i = 0; i < numtape; i++) {
     if (kstat_read(kc, ksp[i], &kio) == -1)
@@ -112,7 +112,7 @@ static int tape_read(void) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

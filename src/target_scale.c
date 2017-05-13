@@ -120,7 +120,7 @@ static int ts_invoke_counter(const data_set_t *ds, value_list_t *vl, /* {{{ */
   uc_meta_data_add_unsigned_int(vl, key_int_counter, int_counter);
   uc_meta_data_add_double(vl, key_int_fraction, int_fraction);
 
-  return (0);
+  return 0;
 } /* }}} int ts_invoke_counter */
 
 static int ts_invoke_gauge(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -130,7 +130,7 @@ static int ts_invoke_gauge(const data_set_t *ds, value_list_t *vl, /* {{{ */
   if (!isnan(data->offset))
     vl->values[dsrc_index].gauge += data->offset;
 
-  return (0);
+  return 0;
 } /* }}} int ts_invoke_gauge */
 
 static int ts_invoke_derive(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -217,7 +217,7 @@ static int ts_invoke_derive(const data_set_t *ds, value_list_t *vl, /* {{{ */
   uc_meta_data_add_signed_int(vl, key_int_derive, int_derive);
   uc_meta_data_add_double(vl, key_int_fraction, int_fraction);
 
-  return (0);
+  return 0;
 } /* }}} int ts_invoke_derive */
 
 static int ts_invoke_absolute(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -260,7 +260,7 @@ static int ts_invoke_absolute(const data_set_t *ds, value_list_t *vl, /* {{{ */
   /* Update to the new absolute value */
   uc_meta_data_add_double(vl, key_int_fraction, int_fraction);
 
-  return (0);
+  return 0;
 } /* }}} int ts_invoke_absolute */
 
 static int ts_config_set_double(double *ret, oconfig_item_t *ci) /* {{{ */
@@ -269,13 +269,13 @@ static int ts_config_set_double(double *ret, oconfig_item_t *ci) /* {{{ */
     WARNING("scale target: The `%s' config option needs "
             "exactly one numeric argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   *ret = ci->values[0].value.number;
   DEBUG("ts_config_set_double: *ret = %g", *ret);
 
-  return (0);
+  return 0;
 } /* }}} int ts_config_set_double */
 
 static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
@@ -286,7 +286,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
   /* Check number of arbuments. */
   if (ci->values_num < 1) {
     ERROR("`value' match: `%s' needs at least one argument.", ci->key);
-    return (-1);
+    return -1;
   }
 
   /* Check type of arguments */
@@ -299,7 +299,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
           ci->key, i + 1,
           (ci->values[i].type == OCONFIG_TYPE_BOOLEAN) ? "truth value"
                                                        : "number");
-    return (-1);
+    return -1;
   }
 
   /* Allocate space for the char pointers */
@@ -307,7 +307,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
   temp = realloc(data->data_sources, new_data_sources_num * sizeof(char *));
   if (temp == NULL) {
     ERROR("`value' match: realloc failed.");
-    return (-1);
+    return -1;
   }
   data->data_sources = temp;
 
@@ -327,7 +327,7 @@ static int ts_config_add_data_source(ts_data_t *data, /* {{{ */
     data->data_sources_num++;
   }
 
-  return (0);
+  return 0;
 } /* }}} int ts_config_add_data_source */
 
 static int ts_destroy(void **user_data) /* {{{ */
@@ -335,7 +335,7 @@ static int ts_destroy(void **user_data) /* {{{ */
   ts_data_t *data;
 
   if (user_data == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   data = (ts_data_t *)*user_data;
 
@@ -348,7 +348,7 @@ static int ts_destroy(void **user_data) /* {{{ */
   sfree(data);
   *user_data = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int ts_destroy */
 
 static int ts_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
@@ -359,7 +359,7 @@ static int ts_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   data = calloc(1, sizeof(*data));
   if (data == NULL) {
     ERROR("ts_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   data->factor = NAN;
@@ -399,11 +399,11 @@ static int ts_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     ts_destroy((void *)&data);
-    return (status);
+    return status;
   }
 
   *user_data = data;
-  return (0);
+  return 0;
 } /* }}} int ts_create */
 
 static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -412,12 +412,12 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
   ts_data_t *data;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL) {
     ERROR("Target `scale': Invoke: `data' is NULL.");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   for (size_t i = 0; i < ds->ds_num; i++) {
@@ -446,7 +446,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
             ds->ds[i].type);
   }
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int ts_invoke */
 
 void module_register(void) {

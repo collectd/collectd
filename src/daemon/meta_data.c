@@ -67,16 +67,16 @@ static char *md_strdup(const char *orig) /* {{{ */
   char *dest;
 
   if (orig == NULL)
-    return (NULL);
+    return NULL;
 
   sz = strlen(orig) + 1;
   dest = malloc(sz);
   if (dest == NULL)
-    return (NULL);
+    return NULL;
 
   memcpy(dest, orig, sz);
 
-  return (dest);
+  return dest;
 } /* }}} char *md_strdup */
 
 static meta_entry_t *md_entry_alloc(const char *key) /* {{{ */
@@ -86,20 +86,20 @@ static meta_entry_t *md_entry_alloc(const char *key) /* {{{ */
   e = calloc(1, sizeof(*e));
   if (e == NULL) {
     ERROR("md_entry_alloc: calloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   e->key = md_strdup(key);
   if (e->key == NULL) {
     free(e);
     ERROR("md_entry_alloc: md_strdup failed.");
-    return (NULL);
+    return NULL;
   }
 
   e->type = 0;
   e->next = NULL;
 
-  return (e);
+  return e;
 } /* }}} meta_entry_t *md_entry_alloc */
 
 /* XXX: The lock on md must be held while calling this function! */
@@ -115,14 +115,14 @@ static meta_entry_t *md_entry_clone_contents(const meta_entry_t *orig) /* {{{ */
 
   copy = md_entry_alloc(orig->key);
   if (copy == NULL)
-    return (NULL);
+    return NULL;
   copy->type = orig->type;
   if (copy->type == MD_TYPE_STRING)
     copy->value.mv_string = strdup(orig->value.mv_string);
   else
     copy->value = orig->value;
 
-  return (copy);
+  return copy;
 } /* }}} meta_entry_t *md_entry_clone_contents */
 
 static meta_entry_t *md_entry_clone(const meta_entry_t *orig) /* {{{ */
@@ -130,12 +130,12 @@ static meta_entry_t *md_entry_clone(const meta_entry_t *orig) /* {{{ */
   meta_entry_t *copy;
 
   if (orig == NULL)
-    return (NULL);
+    return NULL;
 
   copy = md_entry_clone_contents(orig);
 
   copy->next = md_entry_clone(orig->next);
-  return (copy);
+  return copy;
 } /* }}} meta_entry_t *md_entry_clone */
 
 static void md_entry_free(meta_entry_t *e) /* {{{ */
@@ -160,7 +160,7 @@ static int md_entry_insert(meta_data_t *md, meta_entry_t *e) /* {{{ */
   meta_entry_t *prev;
 
   if ((md == NULL) || (e == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -201,7 +201,7 @@ static int md_entry_insert(meta_data_t *md, meta_entry_t *e) /* {{{ */
     md_entry_free(this);
   }
 
-  return (0);
+  return 0;
 } /* }}} int md_entry_insert */
 
 /* XXX: The lock on md must be held while calling this function! */
@@ -254,7 +254,7 @@ static int md_entry_insert_clone(meta_data_t *md, meta_entry_t *orig) /* {{{ */
     md_entry_free(this);
   }
 
-  return (0);
+  return 0;
 } /* }}} int md_entry_insert_clone */
 
 /* XXX: The lock on md must be held while calling this function! */
@@ -263,13 +263,13 @@ static meta_entry_t *md_entry_lookup(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return (NULL);
+    return NULL;
 
   for (e = md->head; e != NULL; e = e->next)
     if (strcasecmp(key, e->key) == 0)
       break;
 
-  return (e);
+  return e;
 } /* }}} meta_entry_t *md_entry_lookup */
 
 /*
@@ -293,12 +293,12 @@ meta_data_t *meta_data_create(void) /* {{{ */
   md = calloc(1, sizeof(*md));
   if (md == NULL) {
     ERROR("meta_data_create: calloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   pthread_mutex_init(&md->lock, /* attr = */ NULL);
 
-  return (md);
+  return md;
 } /* }}} meta_data_t *meta_data_create */
 
 meta_data_t *meta_data_clone(meta_data_t *orig) /* {{{ */
@@ -306,27 +306,27 @@ meta_data_t *meta_data_clone(meta_data_t *orig) /* {{{ */
   meta_data_t *copy;
 
   if (orig == NULL)
-    return (NULL);
+    return NULL;
 
   copy = meta_data_create();
   if (copy == NULL)
-    return (NULL);
+    return NULL;
 
   pthread_mutex_lock(&orig->lock);
   copy->head = md_entry_clone(orig->head);
   pthread_mutex_unlock(&orig->lock);
 
-  return (copy);
+  return copy;
 } /* }}} meta_data_t *meta_data_clone */
 
 int meta_data_clone_merge(meta_data_t **dest, meta_data_t *orig) /* {{{ */
 {
   if (orig == NULL)
-    return (0);
+    return 0;
 
   if (*dest == NULL) {
     *dest = meta_data_clone(orig);
-    return (0);
+    return 0;
   }
 
   pthread_mutex_lock(&orig->lock);
@@ -335,7 +335,7 @@ int meta_data_clone_merge(meta_data_t **dest, meta_data_t *orig) /* {{{ */
   }
   pthread_mutex_unlock(&orig->lock);
 
-  return (0);
+  return 0;
 } /* }}} int meta_data_clone_merge */
 
 void meta_data_destroy(meta_data_t *md) /* {{{ */
@@ -351,19 +351,19 @@ void meta_data_destroy(meta_data_t *md) /* {{{ */
 int meta_data_exists(meta_data_t *md, const char *key) /* {{{ */
 {
   if ((md == NULL) || (key == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   for (meta_entry_t *e = md->head; e != NULL; e = e->next) {
     if (strcasecmp(key, e->key) == 0) {
       pthread_mutex_unlock(&md->lock);
-      return (1);
+      return 1;
     }
   }
 
   pthread_mutex_unlock(&md->lock);
-  return (0);
+  return 0;
 } /* }}} int meta_data_exists */
 
 int meta_data_type(meta_data_t *md, const char *key) /* {{{ */
@@ -398,7 +398,7 @@ int meta_data_toc(meta_data_t *md, char ***toc) /* {{{ */
 
   if (count == 0) {
     pthread_mutex_unlock(&md->lock);
-    return (count);
+    return count;
   }
 
   *toc = calloc(count, sizeof(**toc));
@@ -415,7 +415,7 @@ int meta_data_delete(meta_data_t *md, const char *key) /* {{{ */
   meta_entry_t *prev;
 
   if ((md == NULL) || (key == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
@@ -431,7 +431,7 @@ int meta_data_delete(meta_data_t *md, const char *key) /* {{{ */
 
   if (this == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (prev == NULL)
@@ -444,7 +444,7 @@ int meta_data_delete(meta_data_t *md, const char *key) /* {{{ */
   this->next = NULL;
   md_entry_free(this);
 
-  return (0);
+  return 0;
 } /* }}} int meta_data_delete */
 
 /*
@@ -455,21 +455,21 @@ int meta_data_add_string(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   e->value.mv_string = md_strdup(value);
   if (e->value.mv_string == NULL) {
     ERROR("meta_data_add_string: md_strdup failed.");
     md_entry_free(e);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
   e->type = MD_TYPE_STRING;
 
-  return (md_entry_insert(md, e));
+  return md_entry_insert(md, e);
 } /* }}} int meta_data_add_string */
 
 int meta_data_add_signed_int(meta_data_t *md, /* {{{ */
@@ -477,16 +477,16 @@ int meta_data_add_signed_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   e->value.mv_signed_int = value;
   e->type = MD_TYPE_SIGNED_INT;
 
-  return (md_entry_insert(md, e));
+  return md_entry_insert(md, e);
 } /* }}} int meta_data_add_signed_int */
 
 int meta_data_add_unsigned_int(meta_data_t *md, /* {{{ */
@@ -494,16 +494,16 @@ int meta_data_add_unsigned_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   e->value.mv_unsigned_int = value;
   e->type = MD_TYPE_UNSIGNED_INT;
 
-  return (md_entry_insert(md, e));
+  return md_entry_insert(md, e);
 } /* }}} int meta_data_add_unsigned_int */
 
 int meta_data_add_double(meta_data_t *md, /* {{{ */
@@ -511,16 +511,16 @@ int meta_data_add_double(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   e->value.mv_double = value;
   e->type = MD_TYPE_DOUBLE;
 
-  return (md_entry_insert(md, e));
+  return md_entry_insert(md, e);
 } /* }}} int meta_data_add_double */
 
 int meta_data_add_boolean(meta_data_t *md, /* {{{ */
@@ -528,16 +528,16 @@ int meta_data_add_boolean(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   e = md_entry_alloc(key);
   if (e == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   e->value.mv_boolean = value;
   e->type = MD_TYPE_BOOLEAN;
 
-  return (md_entry_insert(md, e));
+  return md_entry_insert(md, e);
 } /* }}} int meta_data_add_boolean */
 
 /*
@@ -549,34 +549,34 @@ int meta_data_get_string(meta_data_t *md, /* {{{ */
   char *temp;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (e->type != MD_TYPE_STRING) {
     ERROR("meta_data_get_string: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   temp = md_strdup(e->value.mv_string);
   if (temp == NULL) {
     pthread_mutex_unlock(&md->lock);
     ERROR("meta_data_get_string: md_strdup failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   pthread_mutex_unlock(&md->lock);
 
   *value = temp;
 
-  return (0);
+  return 0;
 } /* }}} int meta_data_get_string */
 
 int meta_data_get_signed_int(meta_data_t *md, /* {{{ */
@@ -584,26 +584,26 @@ int meta_data_get_signed_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (e->type != MD_TYPE_SIGNED_INT) {
     ERROR("meta_data_get_signed_int: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   *value = e->value.mv_signed_int;
 
   pthread_mutex_unlock(&md->lock);
-  return (0);
+  return 0;
 } /* }}} int meta_data_get_signed_int */
 
 int meta_data_get_unsigned_int(meta_data_t *md, /* {{{ */
@@ -611,26 +611,26 @@ int meta_data_get_unsigned_int(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (e->type != MD_TYPE_UNSIGNED_INT) {
     ERROR("meta_data_get_unsigned_int: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   *value = e->value.mv_unsigned_int;
 
   pthread_mutex_unlock(&md->lock);
-  return (0);
+  return 0;
 } /* }}} int meta_data_get_unsigned_int */
 
 int meta_data_get_double(meta_data_t *md, /* {{{ */
@@ -638,26 +638,26 @@ int meta_data_get_double(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (e->type != MD_TYPE_DOUBLE) {
     ERROR("meta_data_get_double: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   *value = e->value.mv_double;
 
   pthread_mutex_unlock(&md->lock);
-  return (0);
+  return 0;
 } /* }}} int meta_data_get_double */
 
 int meta_data_get_boolean(meta_data_t *md, /* {{{ */
@@ -665,26 +665,26 @@ int meta_data_get_boolean(meta_data_t *md, /* {{{ */
   meta_entry_t *e;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (e->type != MD_TYPE_BOOLEAN) {
     ERROR("meta_data_get_boolean: Type mismatch for key `%s'", e->key);
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   *value = e->value.mv_boolean;
 
   pthread_mutex_unlock(&md->lock);
-  return (0);
+  return 0;
 } /* }}} int meta_data_get_boolean */
 
 int meta_data_as_string(meta_data_t *md, /* {{{ */
@@ -696,14 +696,14 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
   int type;
 
   if ((md == NULL) || (key == NULL) || (value == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   pthread_mutex_lock(&md->lock);
 
   e = md_entry_lookup(md, key);
   if (e == NULL) {
     pthread_mutex_unlock(&md->lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   type = e->type;
@@ -730,7 +730,7 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
   default:
     pthread_mutex_unlock(&md->lock);
     ERROR("meta_data_as_string: unknown type %d for key `%s'", type, key);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   pthread_mutex_unlock(&md->lock);
@@ -739,10 +739,10 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
   if (temp == NULL) {
     pthread_mutex_unlock(&md->lock);
     ERROR("meta_data_as_string: md_strdup failed for key `%s'.", key);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   *value = temp;
 
-  return (0);
+  return 0;
 } /* }}} int meta_data_as_string */

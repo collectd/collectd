@@ -70,13 +70,13 @@ static int ts_util_get_key_and_string_wo_strdup(const oconfig_item_t *ci,
     ERROR("ts_util_get_key_and_string_wo_strdup: The %s option requires "
           "exactly two string arguments.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   *ret_key = ci->values[0].value.string;
   *ret_string = ci->values[1].value.string;
 
-  return (0);
+  return 0;
 } /* }}} int ts_util_get_key_and_string_wo_strdup */
 
 static int ts_config_add_string(char **dest, /* {{{ */
@@ -86,17 +86,17 @@ static int ts_config_add_string(char **dest, /* {{{ */
 
   status = cf_util_get_string(ci, &tmp);
   if (status != 0)
-    return (status);
+    return status;
 
   if (!may_be_empty && (strlen(tmp) == 0)) {
     ERROR("Target `set': The `%s' option does not accept empty strings.",
           ci->key);
     sfree(tmp);
-    return (-1);
+    return -1;
   }
 
   *dest = tmp;
-  return (0);
+  return 0;
 } /* }}} int ts_config_add_string */
 
 static int ts_config_add_meta(meta_data_t **dest, /* {{{ */
@@ -107,31 +107,31 @@ static int ts_config_add_meta(meta_data_t **dest, /* {{{ */
 
   status = ts_util_get_key_and_string_wo_strdup(ci, &key, &string);
   if (status != 0)
-    return (status);
+    return status;
 
   if (strlen(key) == 0) {
     ERROR("Target `set': The `%s' option does not accept empty string as "
           "first argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if (!may_be_empty && (strlen(string) == 0)) {
     ERROR("Target `set': The `%s' option does not accept empty string as "
           "second argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if ((*dest) == NULL) {
     /* Create a new meta_data_t */
     if ((*dest = meta_data_create()) == NULL) {
       ERROR("Target `set': failed to create a meta data for `%s'.", ci->key);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
   }
 
-  return (meta_data_add_string(*dest, key, string));
+  return meta_data_add_string(*dest, key, string);
 } /* }}} int ts_config_add_meta */
 
 static int ts_config_add_meta_delete(ts_key_list_t **dest, /* {{{ */
@@ -141,12 +141,12 @@ static int ts_config_add_meta_delete(ts_key_list_t **dest, /* {{{ */
   entry = calloc(1, sizeof(*entry));
   if (entry == NULL) {
     ERROR("ts_config_add_meta_delete: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   if (cf_util_get_string(ci, &entry->key) != 0) {
     ts_key_list_free(entry);
-    return (-1); /* An error has already been reported. */
+    return -1; /* An error has already been reported. */
   }
 
   if (strlen(entry->key) == 0) {
@@ -154,13 +154,13 @@ static int ts_config_add_meta_delete(ts_key_list_t **dest, /* {{{ */
           "first argument.",
           ci->key);
     ts_key_list_free(entry);
-    return (-1);
+    return -1;
   }
 
   entry->next = *dest;
   *dest = entry;
 
-  return (0);
+  return 0;
 } /* }}} int ts_config_add_meta_delete */
 
 static void ts_subst(char *dest, size_t size, const char *string, /* {{{ */
@@ -210,11 +210,11 @@ static int ts_destroy(void **user_data) /* {{{ */
   ts_data_t *data;
 
   if (user_data == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL)
-    return (0);
+    return 0;
 
   free(data->host);
   free(data->plugin);
@@ -225,7 +225,7 @@ static int ts_destroy(void **user_data) /* {{{ */
   ts_key_list_free(data->meta_delete);
   free(data);
 
-  return (0);
+  return 0;
 } /* }}} int ts_destroy */
 
 static int ts_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
@@ -236,7 +236,7 @@ static int ts_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   data = calloc(1, sizeof(*data));
   if (data == NULL) {
     ERROR("ts_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   data->host = NULL;
@@ -315,11 +315,11 @@ static int ts_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     ts_destroy((void *)&data);
-    return (status);
+    return status;
   }
 
   *user_data = data;
-  return (0);
+  return 0;
 } /* }}} int ts_create */
 
 static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -330,12 +330,12 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
   meta_data_t *new_meta = NULL;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL) {
     ERROR("Target `set': Invoke: `data' is NULL.");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   orig = *vl;
@@ -347,7 +347,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
 
     if ((new_meta = meta_data_create()) == NULL) {
       ERROR("Target `set': failed to create replacement metadata.");
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     meta_entries = meta_data_toc(data->meta, &meta_toc);
@@ -362,7 +362,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
               key);
         strarray_free(meta_toc, (size_t)meta_entries);
         meta_data_destroy(new_meta);
-        return (status);
+        return status;
       }
 
       ts_subst(temp, sizeof(temp), string, &orig);
@@ -378,7 +378,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
         ERROR("Target `set': Unable to set metadata value `%s'.", key);
         strarray_free(meta_toc, (size_t)meta_entries);
         meta_data_destroy(new_meta);
-        return (status);
+        return status;
       }
     }
 
@@ -409,7 +409,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
     meta_data_delete(vl->meta, l->key);
   }
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int ts_invoke */
 
 void module_register(void) {

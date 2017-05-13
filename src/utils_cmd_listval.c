@@ -42,10 +42,10 @@ cmd_status_t cmd_parse_listval(size_t argc, char **argv,
   if (argc != 0) {
     cmd_error(CMD_PARSE_ERROR, err, "Garbage after end of command: `%s'.",
               argv[0]);
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
-  return (CMD_OK);
+  return CMD_OK;
 } /* cmd_status_t cmd_parse_listval */
 
 #define free_everything_and_return(status)                                     \
@@ -56,7 +56,7 @@ cmd_status_t cmd_parse_listval(size_t argc, char **argv,
     }                                                                          \
     sfree(names);                                                              \
     sfree(times);                                                              \
-    return (status);                                                           \
+    return status;                                                             \
   } while (0)
 
 #define print_to_socket(fh, ...)                                               \
@@ -83,7 +83,7 @@ cmd_status_t cmd_handle_listval(FILE *fh, char *buffer) {
         buffer);
 
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
-    return (status);
+    return status;
   if (cmd.type != CMD_LISTVAL) {
     cmd_error(CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
               CMD_TO_STRING(cmd.type));

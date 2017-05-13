@@ -46,9 +46,9 @@ llist_t *llist_create(void) {
 
   ret = calloc(1, sizeof(*ret));
   if (ret == NULL)
-    return (NULL);
+    return NULL;
 
-  return (ret);
+  return ret;
 }
 
 void llist_destroy(llist_t *l) {
@@ -76,7 +76,7 @@ llentry_t *llentry_create(char *key, void *value) {
     e->next = NULL;
   }
 
-  return (e);
+  return e;
 }
 
 void llentry_destroy(llentry_t *e) { free(e); }
@@ -124,16 +124,16 @@ void llist_remove(llist_t *l, llentry_t *e) {
   --(l->size);
 }
 
-int llist_size(llist_t *l) { return (l ? l->size : 0); }
+int llist_size(llist_t *l) { return l ? l->size : 0; }
 
 static int llist_strcmp(llentry_t *e, void *ud) {
   if ((e == NULL) || (ud == NULL))
-    return (-1);
-  return (strcmp(e->key, (const char *)ud));
+    return -1;
+  return strcmp(e->key, (const char *)ud);
 }
 
 llentry_t *llist_search(llist_t *l, const char *key) {
-  return (llist_search_custom(l, llist_strcmp, (void *)key));
+  return llist_search_custom(l, llist_strcmp, (void *)key);
 }
 
 llentry_t *llist_search_custom(llist_t *l, int (*compare)(llentry_t *, void *),
@@ -141,7 +141,7 @@ llentry_t *llist_search_custom(llist_t *l, int (*compare)(llentry_t *, void *),
   llentry_t *e;
 
   if (l == NULL)
-    return (NULL);
+    return NULL;
 
   e = l->head;
   while (e != NULL) {
@@ -153,17 +153,17 @@ llentry_t *llist_search_custom(llist_t *l, int (*compare)(llentry_t *, void *),
     e = next;
   }
 
-  return (e);
+  return e;
 }
 
 llentry_t *llist_head(llist_t *l) {
   if (l == NULL)
-    return (NULL);
-  return (l->head);
+    return NULL;
+  return l->head;
 }
 
 llentry_t *llist_tail(llist_t *l) {
   if (l == NULL)
-    return (NULL);
-  return (l->tail);
+    return NULL;
+  return l->tail;
 }

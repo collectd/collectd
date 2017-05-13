@@ -395,7 +395,7 @@ static int powerdns_get_data_dgram(list_item_t *item, /* {{{ */
   sd = socket(PF_UNIX, item->socktype, 0);
   if (sd < 0) {
     FUNC_ERROR("socket");
-    return (-1);
+    return -1;
   }
 
   sa_unix.sun_family = AF_UNIX;
@@ -407,7 +407,7 @@ static int powerdns_get_data_dgram(list_item_t *item, /* {{{ */
   if ((status != 0) && (errno != ENOENT)) {
     SOCK_ERROR("unlink", sa_unix.sun_path);
     close(sd);
-    return (-1);
+    return -1;
   }
 
   do /* while (0) */
@@ -465,13 +465,13 @@ static int powerdns_get_data_dgram(list_item_t *item, /* {{{ */
   unlink(sa_unix.sun_path);
 
   if (status != 0)
-    return (-1);
+    return -1;
 
   assert(buffer_size > 0);
   buffer = malloc(buffer_size);
   if (buffer == NULL) {
     FUNC_ERROR("malloc");
-    return (-1);
+    return -1;
   }
 
   memcpy(buffer, temp, buffer_size - 1);
@@ -480,7 +480,7 @@ static int powerdns_get_data_dgram(list_item_t *item, /* {{{ */
   *ret_buffer = buffer;
   *ret_buffer_size = buffer_size;
 
-  return (0);
+  return 0;
 } /* }}} int powerdns_get_data_dgram */
 
 static int powerdns_get_data_stream(list_item_t *item, /* {{{ */
@@ -496,7 +496,7 @@ static int powerdns_get_data_stream(list_item_t *item, /* {{{ */
   sd = socket(PF_UNIX, item->socktype, 0);
   if (sd < 0) {
     FUNC_ERROR("socket");
-    return (-1);
+    return -1;
   }
 
   struct timeval timeout;
@@ -506,7 +506,7 @@ static int powerdns_get_data_stream(list_item_t *item, /* {{{ */
   if (status != 0) {
     FUNC_ERROR("setsockopt");
     close(sd);
-    return (-1);
+    return -1;
   }
 
   status =
@@ -514,7 +514,7 @@ static int powerdns_get_data_stream(list_item_t *item, /* {{{ */
   if (status != 0) {
     SOCK_ERROR("connect", item->sockaddr.sun_path);
     close(sd);
-    return (-1);
+    return -1;
   }
 
   /* strlen + 1, because we need to send the terminating NULL byte, too. */
@@ -523,7 +523,7 @@ static int powerdns_get_data_stream(list_item_t *item, /* {{{ */
   if (status < 0) {
     SOCK_ERROR("send", item->sockaddr.sun_path);
     close(sd);
-    return (-1);
+    return -1;
   }
 
   while (42) {
@@ -558,18 +558,18 @@ static int powerdns_get_data_stream(list_item_t *item, /* {{{ */
     *ret_buffer_size = buffer_size;
   }
 
-  return (status);
+  return status;
 } /* }}} int powerdns_get_data_stream */
 
 static int powerdns_get_data(list_item_t *item, char **ret_buffer,
                              size_t *ret_buffer_size) {
   if (item->socktype == SOCK_DGRAM)
-    return (powerdns_get_data_dgram(item, ret_buffer, ret_buffer_size));
+    return powerdns_get_data_dgram(item, ret_buffer, ret_buffer_size);
   else if (item->socktype == SOCK_STREAM)
-    return (powerdns_get_data_stream(item, ret_buffer, ret_buffer_size));
+    return powerdns_get_data_stream(item, ret_buffer, ret_buffer_size);
   else {
     ERROR("powerdns plugin: Unknown socket type: %i", (int)item->socktype);
-    return (-1);
+    return -1;
   }
 } /* int powerdns_get_data */
 
@@ -592,12 +592,12 @@ static int powerdns_read_server(list_item_t *item) /* {{{ */
     item->command = strdup(SERVER_COMMAND);
   if (item->command == NULL) {
     ERROR("powerdns plugin: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   status = powerdns_get_data(item, &buffer, &buffer_size);
   if (status != 0)
-    return (-1);
+    return -1;
 
   if (item->fields_num != 0) {
     fields = (const char *const *)item->fields;
@@ -640,7 +640,7 @@ static int powerdns_read_server(list_item_t *item) /* {{{ */
 
   sfree(buffer);
 
-  return (0);
+  return 0;
 } /* }}} int powerdns_read_server */
 
 /*
@@ -656,7 +656,7 @@ static int powerdns_update_recursor_command(list_item_t *li) /* {{{ */
   int status;
 
   if (li == NULL)
-    return (0);
+    return 0;
 
   if (li->fields_num < 1) {
     sstrncpy(buffer, RECURSOR_COMMAND, sizeof(buffer));
@@ -667,7 +667,7 @@ static int powerdns_update_recursor_command(list_item_t *li) /* {{{ */
                      /* seperator = */ " ");
     if (status < 0) {
       ERROR("powerdns plugin: strjoin failed.");
-      return (-1);
+      return -1;
     }
     buffer[sizeof(buffer) - 1] = 0;
     size_t len = strlen(buffer);
@@ -682,10 +682,10 @@ static int powerdns_update_recursor_command(list_item_t *li) /* {{{ */
   li->command = strdup(buffer);
   if (li->command == NULL) {
     ERROR("powerdns plugin: strdup failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int powerdns_update_recursor_command */
 
 static int powerdns_read_recursor(list_item_t *item) /* {{{ */
@@ -706,7 +706,7 @@ static int powerdns_read_recursor(list_item_t *item) /* {{{ */
     status = powerdns_update_recursor_command(item);
     if (status != 0) {
       ERROR("powerdns plugin: powerdns_update_recursor_command failed.");
-      return (-1);
+      return -1;
     }
 
     DEBUG("powerdns plugin: powerdns_read_recursor: item->command = %s;",
@@ -717,14 +717,14 @@ static int powerdns_read_recursor(list_item_t *item) /* {{{ */
   status = powerdns_get_data(item, &buffer, &buffer_size);
   if (status != 0) {
     ERROR("powerdns plugin: powerdns_get_data failed.");
-    return (-1);
+    return -1;
   }
 
   keys_list = strdup(item->command);
   if (keys_list == NULL) {
     FUNC_ERROR("strdup");
     sfree(buffer);
-    return (-1);
+    return -1;
   }
 
   key_saveptr = NULL;
@@ -747,7 +747,7 @@ static int powerdns_read_recursor(list_item_t *item) /* {{{ */
   sfree(buffer);
   sfree(keys_list);
 
-  return (0);
+  return 0;
 } /* }}} int powerdns_read_recursor */
 
 static int powerdns_config_add_collect(list_item_t *li, /* {{{ */
@@ -757,21 +757,21 @@ static int powerdns_config_add_collect(list_item_t *li, /* {{{ */
   if (ci->values_num < 1) {
     WARNING("powerdns plugin: The `Collect' option needs "
             "at least one argument.");
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING) {
       WARNING("powerdns plugin: Only string arguments are allowed to "
               "the `Collect' option.");
-      return (-1);
+      return -1;
     }
 
   temp =
       realloc(li->fields, sizeof(char *) * (li->fields_num + ci->values_num));
   if (temp == NULL) {
     WARNING("powerdns plugin: realloc failed.");
-    return (-1);
+    return -1;
   }
   li->fields = temp;
 
@@ -787,7 +787,7 @@ static int powerdns_config_add_collect(list_item_t *li, /* {{{ */
   /* Invalidate a previously computed command */
   sfree(li->command);
 
-  return (0);
+  return 0;
 } /* }}} int powerdns_config_add_collect */
 
 static int powerdns_config_add_server(oconfig_item_t *ci) /* {{{ */
@@ -800,20 +800,20 @@ static int powerdns_config_add_server(oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("powerdns plugin: `%s' needs exactly one string argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   item = calloc(1, sizeof(*item));
   if (item == NULL) {
     ERROR("powerdns plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   item->instance = strdup(ci->values[0].value.string);
   if (item->instance == NULL) {
     ERROR("powerdns plugin: strdup failed.");
     sfree(item);
-    return (-1);
+    return -1;
   }
 
   /*
@@ -832,7 +832,7 @@ static int powerdns_config_add_server(oconfig_item_t *ci) /* {{{ */
   } else {
     /* We must never get here.. */
     assert(0);
-    return (-1);
+    return -1;
   }
 
   status = 0;
@@ -879,13 +879,13 @@ static int powerdns_config_add_server(oconfig_item_t *ci) /* {{{ */
   if (status != 0) {
     sfree(socket_temp);
     sfree(item);
-    return (-1);
+    return -1;
   }
 
   DEBUG("powerdns plugin: Add server: instance = %s;", item->instance);
 
   sfree(socket_temp);
-  return (0);
+  return 0;
 } /* }}} int powerdns_config_add_server */
 
 static int powerdns_config(oconfig_item_t *ci) /* {{{ */
@@ -897,7 +897,7 @@ static int powerdns_config(oconfig_item_t *ci) /* {{{ */
 
     if (list == NULL) {
       ERROR("powerdns plugin: `llist_create' failed.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -915,7 +915,7 @@ static int powerdns_config(oconfig_item_t *ci) /* {{{ */
       } else {
         char *temp = strdup(option->values[0].value.string);
         if (temp == NULL)
-          return (1);
+          return 1;
         sfree(local_sockpath);
         local_sockpath = temp;
       }
@@ -924,7 +924,7 @@ static int powerdns_config(oconfig_item_t *ci) /* {{{ */
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  return (0);
+  return 0;
 } /* }}} int powerdns_config */
 
 static int powerdns_read(void) {
@@ -933,12 +933,12 @@ static int powerdns_read(void) {
     item->func(item);
   }
 
-  return (0);
+  return 0;
 } /* static int powerdns_read */
 
 static int powerdns_shutdown(void) {
   if (list == NULL)
-    return (0);
+    return 0;
 
   for (llentry_t *e = llist_head(list); e != NULL; e = e->next) {
     list_item_t *item = (list_item_t *)e->value;
@@ -952,7 +952,7 @@ static int powerdns_shutdown(void) {
   llist_destroy(list);
   list = NULL;
 
-  return (0);
+  return 0;
 } /* static int powerdns_shutdown */
 
 void module_register(void) {

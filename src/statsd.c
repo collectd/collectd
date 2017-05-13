@@ -107,7 +107,7 @@ static statsd_metric_t *statsd_metric_lookup_unsafe(char const *name, /* {{{ */
     key[0] = 's';
     break;
   default:
-    return (NULL);
+    return NULL;
   }
 
   key[1] = ':';
@@ -115,19 +115,19 @@ static statsd_metric_t *statsd_metric_lookup_unsafe(char const *name, /* {{{ */
 
   status = c_avl_get(metrics_tree, key, (void *)&metric);
   if (status == 0)
-    return (metric);
+    return metric;
 
   key_copy = strdup(key);
   if (key_copy == NULL) {
     ERROR("statsd plugin: strdup failed.");
-    return (NULL);
+    return NULL;
   }
 
   metric = calloc(1, sizeof(*metric));
   if (metric == NULL) {
     ERROR("statsd plugin: calloc failed.");
     sfree(key_copy);
-    return (NULL);
+    return NULL;
   }
 
   metric->type = type;
@@ -139,10 +139,10 @@ static statsd_metric_t *statsd_metric_lookup_unsafe(char const *name, /* {{{ */
     ERROR("statsd plugin: c_avl_insert failed.");
     sfree(key_copy);
     sfree(metric);
-    return (NULL);
+    return NULL;
   }
 
-  return (metric);
+  return metric;
 } /* }}} statsd_metric_lookup_unsafe */
 
 static int statsd_metric_set(char const *name, double value, /* {{{ */
@@ -154,7 +154,7 @@ static int statsd_metric_set(char const *name, double value, /* {{{ */
   metric = statsd_metric_lookup_unsafe(name, type);
   if (metric == NULL) {
     pthread_mutex_unlock(&metrics_lock);
-    return (-1);
+    return -1;
   }
 
   metric->value = value;
@@ -162,7 +162,7 @@ static int statsd_metric_set(char const *name, double value, /* {{{ */
 
   pthread_mutex_unlock(&metrics_lock);
 
-  return (0);
+  return 0;
 } /* }}} int statsd_metric_set */
 
 static int statsd_metric_add(char const *name, double delta, /* {{{ */
@@ -174,7 +174,7 @@ static int statsd_metric_add(char const *name, double delta, /* {{{ */
   metric = statsd_metric_lookup_unsafe(name, type);
   if (metric == NULL) {
     pthread_mutex_unlock(&metrics_lock);
-    return (-1);
+    return -1;
   }
 
   metric->value += delta;
@@ -182,7 +182,7 @@ static int statsd_metric_add(char const *name, double delta, /* {{{ */
 
   pthread_mutex_unlock(&metrics_lock);
 
-  return (0);
+  return 0;
 } /* }}} int statsd_metric_add */
 
 static void statsd_metric_free(statsd_metric_t *metric) /* {{{ */
@@ -217,9 +217,9 @@ static int statsd_parse_value(char const *str, value_t *ret_value) /* {{{ */
 
   ret_value->gauge = (gauge_t)strtod(str, &endptr);
   if ((str == endptr) || ((endptr != NULL) && (*endptr != 0)))
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 } /* }}} int statsd_parse_value */
 
 static int statsd_handle_counter(char const *name, /* {{{ */
@@ -229,27 +229,27 @@ static int statsd_handle_counter(char const *name, /* {{{ */
   int status;
 
   if ((extra != NULL) && (extra[0] != '@'))
-    return (-1);
+    return -1;
 
   scale.gauge = 1.0;
   if (extra != NULL) {
     status = statsd_parse_value(extra + 1, &scale);
     if (status != 0)
-      return (status);
+      return status;
 
     if (!isfinite(scale.gauge) || (scale.gauge <= 0.0) || (scale.gauge > 1.0))
-      return (-1);
+      return -1;
   }
 
   value.gauge = 1.0;
   status = statsd_parse_value(value_str, &value);
   if (status != 0)
-    return (status);
+    return status;
 
   /* Changes to the counter are added to (statsd_metric_t*)->value. ->counter is
    * only updated in statsd_metric_submit_unsafe(). */
-  return (statsd_metric_add(name, (double)(value.gauge / scale.gauge),
-                            STATSD_COUNTER));
+  return statsd_metric_add(name, (double)(value.gauge / scale.gauge),
+                           STATSD_COUNTER);
 } /* }}} int statsd_handle_counter */
 
 static int statsd_handle_gauge(char const *name, /* {{{ */
@@ -260,12 +260,12 @@ static int statsd_handle_gauge(char const *name, /* {{{ */
   value.gauge = 0;
   status = statsd_parse_value(value_str, &value);
   if (status != 0)
-    return (status);
+    return status;
 
   if ((value_str[0] == '+') || (value_str[0] == '-'))
-    return (statsd_metric_add(name, (double)value.gauge, STATSD_GAUGE));
+    return statsd_metric_add(name, (double)value.gauge, STATSD_GAUGE);
   else
-    return (statsd_metric_set(name, (double)value.gauge, STATSD_GAUGE));
+    return statsd_metric_set(name, (double)value.gauge, STATSD_GAUGE);
 } /* }}} int statsd_handle_gauge */
 
 static int statsd_handle_timer(char const *name, /* {{{ */
@@ -277,22 +277,22 @@ static int statsd_handle_timer(char const *name, /* {{{ */
   int status;
 
   if ((extra != NULL) && (extra[0] != '@'))
-    return (-1);
+    return -1;
 
   scale.gauge = 1.0;
   if (extra != NULL) {
     status = statsd_parse_value(extra + 1, &scale);
     if (status != 0)
-      return (status);
+      return status;
 
     if (!isfinite(scale.gauge) || (scale.gauge <= 0.0) || (scale.gauge > 1.0))
-      return (-1);
+      return -1;
   }
 
   value_ms.derive = 0;
   status = statsd_parse_value(value_str, &value_ms);
   if (status != 0)
-    return (status);
+    return status;
 
   value = MS_TO_CDTIME_T(value_ms.gauge / scale.gauge);
 
@@ -301,21 +301,21 @@ static int statsd_handle_timer(char const *name, /* {{{ */
   metric = statsd_metric_lookup_unsafe(name, STATSD_TIMER);
   if (metric == NULL) {
     pthread_mutex_unlock(&metrics_lock);
-    return (-1);
+    return -1;
   }
 
   if (metric->latency == NULL)
     metric->latency = latency_counter_create();
   if (metric->latency == NULL) {
     pthread_mutex_unlock(&metrics_lock);
-    return (-1);
+    return -1;
   }
 
   latency_counter_add(metric->latency, value);
   metric->updates_num++;
 
   pthread_mutex_unlock(&metrics_lock);
-  return (0);
+  return 0;
 } /* }}} int statsd_handle_timer */
 
 static int statsd_handle_set(char const *name, /* {{{ */
@@ -329,7 +329,7 @@ static int statsd_handle_set(char const *name, /* {{{ */
   metric = statsd_metric_lookup_unsafe(name, STATSD_SET);
   if (metric == NULL) {
     pthread_mutex_unlock(&metrics_lock);
-    return (-1);
+    return -1;
   }
 
   /* Make sure metric->set exists. */
@@ -339,14 +339,14 @@ static int statsd_handle_set(char const *name, /* {{{ */
   if (metric->set == NULL) {
     pthread_mutex_unlock(&metrics_lock);
     ERROR("statsd plugin: c_avl_create failed.");
-    return (-1);
+    return -1;
   }
 
   set_key = strdup(set_key_orig);
   if (set_key == NULL) {
     pthread_mutex_unlock(&metrics_lock);
     ERROR("statsd plugin: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   status = c_avl_insert(metric->set, set_key, /* value = */ NULL);
@@ -356,7 +356,7 @@ static int statsd_handle_set(char const *name, /* {{{ */
       ERROR("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
             set_key, status);
     sfree(set_key);
-    return (-1);
+    return -1;
   } else if (status > 0) /* key already exists */
   {
     sfree(set_key);
@@ -365,7 +365,7 @@ static int statsd_handle_set(char const *name, /* {{{ */
   metric->updates_num++;
 
   pthread_mutex_unlock(&metrics_lock);
-  return (0);
+  return 0;
 } /* }}} int statsd_handle_set */
 
 static int statsd_parse_line(char *buffer) /* {{{ */
@@ -377,13 +377,13 @@ static int statsd_parse_line(char *buffer) /* {{{ */
 
   type = strchr(name, '|');
   if (type == NULL)
-    return (-1);
+    return -1;
   *type = 0;
   type++;
 
   value = strrchr(name, ':');
   if (value == NULL)
-    return (-1);
+    return -1;
   *value = 0;
   value++;
 
@@ -394,20 +394,20 @@ static int statsd_parse_line(char *buffer) /* {{{ */
   }
 
   if (strcmp("c", type) == 0)
-    return (statsd_handle_counter(name, value, extra));
+    return statsd_handle_counter(name, value, extra);
   else if (strcmp("ms", type) == 0)
-    return (statsd_handle_timer(name, value, extra));
+    return statsd_handle_timer(name, value, extra);
 
   /* extra is only valid for counters and timers */
   if (extra != NULL)
-    return (-1);
+    return -1;
 
   if (strcmp("g", type) == 0)
-    return (statsd_handle_gauge(name, value));
+    return statsd_handle_gauge(name, value);
   else if (strcmp("s", type) == 0)
-    return (statsd_handle_set(name, value));
+    return statsd_handle_set(name, value);
   else
-    return (-1);
+    return -1;
 } /* }}} void statsd_parse_line */
 
 static void statsd_parse_buffer(char *buffer) /* {{{ */
@@ -484,7 +484,7 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
   if (status != 0) {
     ERROR("statsd plugin: getaddrinfo (\"%s\", \"%s\") failed: %s", node,
           service, gai_strerror(status));
-    return (status);
+    return status;
   }
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -538,12 +538,12 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
   if (fds_num == 0) {
     ERROR("statsd plugin: Unable to create listening socket for [%s]:%s.",
           (node != NULL) ? node : "::", service);
-    return (ENOENT);
+    return ENOENT;
   }
 
   *ret_fds = fds;
   *ret_fds_num = fds_num;
-  return (0);
+  return 0;
 } /* }}} int statsd_network_init */
 
 static void *statsd_network_thread(void *args) /* {{{ */
@@ -585,7 +585,7 @@ static void *statsd_network_thread(void *args) /* {{{ */
     close(fds[i].fd);
   sfree(fds);
 
-  return ((void *)0);
+  return (void *)0;
 } /* }}} void *statsd_network_thread */
 
 static int statsd_config_timer_percentile(oconfig_item_t *ci) /* {{{ */
@@ -596,26 +596,26 @@ static int statsd_config_timer_percentile(oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_double(ci, &percent);
   if (status != 0)
-    return (status);
+    return status;
 
   if ((percent <= 0.0) || (percent >= 100)) {
     ERROR("statsd plugin: The value for \"%s\" must be between 0 and 100, "
           "exclusively.",
           ci->key);
-    return (ERANGE);
+    return ERANGE;
   }
 
   tmp = realloc(conf_timer_percentile, sizeof(*conf_timer_percentile) *
                                            (conf_timer_percentile_num + 1));
   if (tmp == NULL) {
     ERROR("statsd plugin: realloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
   conf_timer_percentile = tmp;
   conf_timer_percentile[conf_timer_percentile_num] = percent;
   conf_timer_percentile_num++;
 
-  return (0);
+  return 0;
 } /* }}} int statsd_config_timer_percentile */
 
 static int statsd_config(oconfig_item_t *ci) /* {{{ */
@@ -652,7 +652,7 @@ static int statsd_config(oconfig_item_t *ci) /* {{{ */
             child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int statsd_config */
 
 static int statsd_init(void) /* {{{ */
@@ -672,14 +672,14 @@ static int statsd_init(void) /* {{{ */
       pthread_mutex_unlock(&metrics_lock);
       ERROR("statsd plugin: pthread_create failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (status);
+      return status;
     }
   }
   network_thread_running = 1;
 
   pthread_mutex_unlock(&metrics_lock);
 
-  return (0);
+  return 0;
 } /* }}} int statsd_init */
 
 /* Must hold metrics_lock when calling this function. */
@@ -689,17 +689,17 @@ static int statsd_metric_clear_set_unsafe(statsd_metric_t *metric) /* {{{ */
   void *value;
 
   if ((metric == NULL) || (metric->type != STATSD_SET))
-    return (EINVAL);
+    return EINVAL;
 
   if (metric->set == NULL)
-    return (0);
+    return 0;
 
   while (c_avl_pick(metric->set, &key, &value) == 0) {
     sfree(key);
     sfree(value);
   }
 
-  return (0);
+  return 0;
 } /* }}} int statsd_metric_clear_set_unsafe */
 
 /* Must hold metrics_lock when calling this function. */
@@ -785,7 +785,7 @@ static int statsd_metric_submit_unsafe(char const *name,
     }
 
     latency_counter_reset(metric->latency);
-    return (0);
+    return 0;
   } else if (metric->type == STATSD_SET) {
     if (metric->set == NULL)
       vl.values[0].gauge = 0.0;
@@ -815,7 +815,7 @@ static int statsd_metric_submit_unsafe(char const *name,
     vl.values[0].derive = metric->counter;
   }
 
-  return (plugin_dispatch_values(&vl));
+  return plugin_dispatch_values(&vl);
 } /* }}} int statsd_metric_submit_unsafe */
 
 static int statsd_read(void) /* {{{ */
@@ -831,7 +831,7 @@ static int statsd_read(void) /* {{{ */
 
   if (metrics_tree == NULL) {
     pthread_mutex_unlock(&metrics_lock);
-    return (0);
+    return 0;
   }
 
   iter = c_avl_get_iterator(metrics_tree);
@@ -876,7 +876,7 @@ static int statsd_read(void) /* {{{ */
 
   strarray_free(to_be_deleted, to_be_deleted_num);
 
-  return (0);
+  return 0;
 } /* }}} int statsd_read */
 
 static int statsd_shutdown(void) /* {{{ */
@@ -905,7 +905,7 @@ static int statsd_shutdown(void) /* {{{ */
 
   pthread_mutex_unlock(&metrics_lock);
 
-  return (0);
+  return 0;
 } /* }}} int statsd_shutdown */
 
 void module_register(void) {

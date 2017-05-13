@@ -236,7 +236,7 @@ static int log_logstash_notification(const notification_t *n,
 
   if (g == NULL) {
     fprintf(stderr, "Could not allocate JSON generator.\n");
-    return (0);
+    return 0;
   }
 
   if (yajl_gen_map_open(g) != yajl_gen_status_ok)
@@ -323,12 +323,12 @@ static int log_logstash_notification(const notification_t *n,
   }
 
   log_logstash_print(g, LOG_INFO, (n->time != 0) ? n->time : cdtime());
-  return (0);
+  return 0;
 
 err:
   yajl_gen_free(g);
   fprintf(stderr, "Could not correctly generate JSON notification\n");
-  return (0);
+  return 0;
 } /* int log_logstash_notification */
 
 void module_register(void) {

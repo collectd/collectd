@@ -78,7 +78,7 @@ static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
     success = 1;
   }
 
-  return (success ? 0 : -1);
+  return success ? 0 : -1;
 }
 
 static int thermal_procfs_device_read(const char __attribute__((unused)) * dir,
@@ -168,13 +168,11 @@ static int thermal_config(const char *key, const char *value) {
 }
 
 static int thermal_sysfs_read(void) {
-  return walk_directory(dirname_sysfs, thermal_sysfs_device_read,
-                        /* user_data = */ NULL, /* include hidden */ 0);
+  return walk_directory(dirname_sysfs, thermal_sysfs_device_read, NULL, 0);
 }
 
 static int thermal_procfs_read(void) {
-  return walk_directory(dirname_procfs, thermal_procfs_device_read,
-                        /* user_data = */ NULL, /* include hidden */ 0);
+  return walk_directory(dirname_procfs, thermal_procfs_device_read, NULL, 0);
 }
 
 static int thermal_init(void) {

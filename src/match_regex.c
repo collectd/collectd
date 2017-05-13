@@ -107,7 +107,7 @@ static void mr_free_match(mr_match_t *m) /* {{{ */
 static int mr_match_regexen(mr_regex_t *re_head, /* {{{ */
                             const char *string) {
   if (re_head == NULL)
-    return (FC_MATCH_MATCHES);
+    return FC_MATCH_MATCHES;
 
   for (mr_regex_t *re = re_head; re != NULL; re = re->next) {
     int status;
@@ -121,11 +121,11 @@ static int mr_match_regexen(mr_regex_t *re_head, /* {{{ */
     } else {
       DEBUG("regex match: Regular expression `%s' does not match `%s'.",
             re->re_str, string);
-      return (FC_MATCH_NO_MATCH);
+      return FC_MATCH_NO_MATCH;
     }
   }
 
-  return (FC_MATCH_MATCHES);
+  return FC_MATCH_MATCHES;
 } /* }}} int mr_match_regexen */
 
 static int mr_add_regex(mr_regex_t **re_head, const char *re_str, /* {{{ */
@@ -136,7 +136,7 @@ static int mr_add_regex(mr_regex_t **re_head, const char *re_str, /* {{{ */
   re = calloc(1, sizeof(*re));
   if (re == NULL) {
     log_err("mr_add_regex: calloc failed.");
-    return (-1);
+    return -1;
   }
   re->next = NULL;
 
@@ -144,7 +144,7 @@ static int mr_add_regex(mr_regex_t **re_head, const char *re_str, /* {{{ */
   if (re->re_str == NULL) {
     sfree(re);
     log_err("mr_add_regex: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   status = regcomp(&re->re, re->re_str, REG_EXTENDED | REG_NOSUB);
@@ -156,7 +156,7 @@ static int mr_add_regex(mr_regex_t **re_head, const char *re_str, /* {{{ */
             errmsg);
     sfree(re->re_str);
     sfree(re);
-    return (-1);
+    return -1;
   }
 
   if (*re_head == NULL) {
@@ -171,14 +171,14 @@ static int mr_add_regex(mr_regex_t **re_head, const char *re_str, /* {{{ */
     ptr->next = re;
   }
 
-  return (0);
+  return 0;
 } /* }}} int mr_add_regex */
 
 static int mr_config_add_regex(mr_regex_t **re_head, /* {{{ */
                                oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     log_warn("`%s' needs exactly one string argument.", ci->key);
-    return (-1);
+    return -1;
   }
 
   return mr_add_regex(re_head, ci->values[0].value.string, ci->key);
@@ -195,14 +195,14 @@ static int mr_config_add_meta_regex(llist_t **meta, /* {{{ */
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
       (ci->values[1].type != OCONFIG_TYPE_STRING)) {
     log_warn("`%s' needs exactly two string arguments.", ci->key);
-    return (-1);
+    return -1;
   }
 
   if (*meta == NULL) {
     *meta = llist_create();
     if (*meta == NULL) {
       log_err("mr_config_add_meta_regex: llist_create failed.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -212,13 +212,13 @@ static int mr_config_add_meta_regex(llist_t **meta, /* {{{ */
     meta_key = strdup(meta_key);
     if (meta_key == NULL) {
       log_err("mr_config_add_meta_regex: strdup failed.");
-      return (-1);
+      return -1;
     }
     entry = llentry_create(meta_key, NULL);
     if (entry == NULL) {
       log_err("mr_config_add_meta_regex: llentry_create failed.");
       sfree(meta_key);
-      return (-1);
+      return -1;
     }
     /* meta_key and entry will now be freed by mr_free_match(). */
     llist_append(*meta, entry);
@@ -242,7 +242,7 @@ static int mr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   m = calloc(1, sizeof(*m));
   if (m == NULL) {
     log_err("mr_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   m->invert = 0;
@@ -292,18 +292,18 @@ static int mr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     mr_free_match(m);
-    return (status);
+    return status;
   }
 
   *user_data = m;
-  return (0);
+  return 0;
 } /* }}} int mr_create */
 
 static int mr_destroy(void **user_data) /* {{{ */
 {
   if ((user_data != NULL) && (*user_data != NULL))
     mr_free_match(*user_data);
-  return (0);
+  return 0;
 } /* }}} int mr_destroy */
 
 static int mr_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
@@ -315,7 +315,7 @@ static int mr_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
   int nomatch_value = FC_MATCH_NO_MATCH;
 
   if ((user_data == NULL) || (*user_data == NULL))
-    return (-1);
+    return -1;
 
   m = *user_data;
 
@@ -325,35 +325,35 @@ static int mr_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
   }
 
   if (mr_match_regexen(m->host, vl->host) == FC_MATCH_NO_MATCH)
-    return (nomatch_value);
+    return nomatch_value;
   if (mr_match_regexen(m->plugin, vl->plugin) == FC_MATCH_NO_MATCH)
-    return (nomatch_value);
+    return nomatch_value;
   if (mr_match_regexen(m->plugin_instance, vl->plugin_instance) ==
       FC_MATCH_NO_MATCH)
-    return (nomatch_value);
+    return nomatch_value;
   if (mr_match_regexen(m->type, vl->type) == FC_MATCH_NO_MATCH)
-    return (nomatch_value);
+    return nomatch_value;
   if (mr_match_regexen(m->type_instance, vl->type_instance) ==
       FC_MATCH_NO_MATCH)
-    return (nomatch_value);
+    return nomatch_value;
   if (vl->meta != NULL) {
     for (llentry_t *e = llist_head(m->meta); e != NULL; e = e->next) {
       mr_regex_t *meta_re = (mr_regex_t *)e->value;
       char *value;
       int status = meta_data_get_string(vl->meta, e->key, &value);
       if (status == (-ENOENT)) /* key is not present */
-        return (nomatch_value);
+        return nomatch_value;
       if (status != 0) /* some other problem */
         continue;      /* error will have already been printed. */
       if (mr_match_regexen(meta_re, value) == FC_MATCH_NO_MATCH) {
         sfree(value);
-        return (nomatch_value);
+        return nomatch_value;
       }
       sfree(value);
     }
   }
 
-  return (match_value);
+  return match_value;
 } /* }}} int mr_match */
 
 void module_register(void) {

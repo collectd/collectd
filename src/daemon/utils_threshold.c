@@ -58,9 +58,9 @@ threshold_t *threshold_get(const char *hostname, const char *plugin,
   name[sizeof(name) - 1] = '\0';
 
   if (c_avl_get(threshold_tree, name, (void *)&th) == 0)
-    return (th);
+    return th;
   else
-    return (NULL);
+    return NULL;
 } /* }}} threshold_t *threshold_get */
 
 /*
@@ -76,39 +76,39 @@ threshold_t *threshold_search(const value_list_t *vl) { /* {{{ */
 
   if ((th = threshold_get(vl->host, vl->plugin, vl->plugin_instance, vl->type,
                           vl->type_instance)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get(vl->host, vl->plugin, vl->plugin_instance,
                                vl->type, NULL)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get(vl->host, vl->plugin, NULL, vl->type,
                                vl->type_instance)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get(vl->host, vl->plugin, NULL, vl->type, NULL)) !=
            NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get(vl->host, "", NULL, vl->type,
                                vl->type_instance)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get(vl->host, "", NULL, vl->type, NULL)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get("", vl->plugin, vl->plugin_instance, vl->type,
                                vl->type_instance)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get("", vl->plugin, vl->plugin_instance, vl->type,
                                NULL)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get("", vl->plugin, NULL, vl->type,
                                vl->type_instance)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get("", vl->plugin, NULL, vl->type, NULL)) != NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get("", "", NULL, vl->type, vl->type_instance)) !=
            NULL)
-    return (th);
+    return th;
   else if ((th = threshold_get("", "", NULL, vl->type, NULL)) != NULL)
-    return (th);
+    return th;
 
-  return (NULL);
+  return NULL;
 } /* }}} threshold_t *threshold_search */
 
 int ut_search_threshold(const value_list_t *vl, /* {{{ */
@@ -116,14 +116,14 @@ int ut_search_threshold(const value_list_t *vl, /* {{{ */
   threshold_t *t;
 
   if (vl == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* Is this lock really necessary? */
   pthread_mutex_lock(&threshold_lock);
   t = threshold_search(vl);
   if (t == NULL) {
     pthread_mutex_unlock(&threshold_lock);
-    return (ENOENT);
+    return ENOENT;
   }
 
   memcpy(ret_threshold, t, sizeof(*ret_threshold));
@@ -131,5 +131,5 @@ int ut_search_threshold(const value_list_t *vl, /* {{{ */
 
   ret_threshold->next = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int ut_search_threshold */

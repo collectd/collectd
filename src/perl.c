@@ -877,8 +877,8 @@ static char *get_module_name(char *buf, size_t buf_len, const char *module) {
   else
     status = ssnprintf(buf, buf_len, "%s::%s", base_name, module);
   if ((status < 0) || ((unsigned int)status >= buf_len))
-    return (NULL);
-  return (buf);
+    return NULL;
+  return buf;
 } /* char *get_module_name */
 
 /*
@@ -2489,7 +2489,7 @@ static int perl_config_loadplugin(pTHX_ oconfig_item_t *ci) {
 
   if (NULL == get_module_name(module_name, sizeof(module_name), value)) {
     log_err("Invalid module name %s", value);
-    return (1);
+    return 1;
   }
 
   if (0 != init_pi(perl_argc, perl_argv))

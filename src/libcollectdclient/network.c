@@ -81,10 +81,10 @@ struct lcc_server_s {
 static int server_close_socket(lcc_server_t *srv) /* {{{ */
 {
   if (srv == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (srv->fd < 0)
-    return (0);
+    return 0;
 
   close(srv->fd);
   srv->fd = -1;
@@ -92,7 +92,7 @@ static int server_close_socket(lcc_server_t *srv) /* {{{ */
   srv->sa = NULL;
   srv->sa_len = 0;
 
-  return (0);
+  return 0;
 } /* }}} int server_close_socket */
 
 static void int_server_destroy(lcc_server_t *srv) /* {{{ */
@@ -121,7 +121,7 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
   int status;
 
   if (srv == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (srv->fd >= 0)
     server_close_socket(srv);
@@ -132,7 +132,7 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
 
   status = getaddrinfo(srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)
-    return (status);
+    return status;
   assert(ai_list != NULL);
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -189,8 +189,8 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
   freeaddrinfo(ai_list);
 
   if (srv->fd < 0)
-    return (-1);
-  return (0);
+    return -1;
+  return 0;
 } /* }}} int server_open_socket */
 
 static int server_send_buffer(lcc_server_t *srv) /* {{{ */
@@ -202,7 +202,7 @@ static int server_send_buffer(lcc_server_t *srv) /* {{{ */
   if (srv->fd < 0) {
     status = server_open_socket(srv);
     if (status != 0)
-      return (status);
+      return status;
   }
 
   buffer_size = sizeof(buffer);
@@ -210,14 +210,14 @@ static int server_send_buffer(lcc_server_t *srv) /* {{{ */
   status = lcc_network_buffer_finalize(srv->buffer);
   if (status != 0) {
     lcc_network_buffer_initialize(srv->buffer);
-    return (status);
+    return status;
   }
 
   status = lcc_network_buffer_get(srv->buffer, buffer, &buffer_size);
   lcc_network_buffer_initialize(srv->buffer);
 
   if (status != 0)
-    return (status);
+    return status;
 
   if (buffer_size > sizeof(buffer))
     buffer_size = sizeof(buffer);
@@ -234,8 +234,8 @@ static int server_send_buffer(lcc_server_t *srv) /* {{{ */
   }
 
   if (status < 0)
-    return (status);
-  return (0);
+    return status;
+  return 0;
 } /* }}} int server_send_buffer */
 
 static int server_value_add(lcc_server_t *srv, /* {{{ */
@@ -244,10 +244,10 @@ static int server_value_add(lcc_server_t *srv, /* {{{ */
 
   status = lcc_network_buffer_add_value(srv->buffer, vl);
   if (status == 0)
-    return (0);
+    return 0;
 
   server_send_buffer(srv);
-  return (lcc_network_buffer_add_value(srv->buffer, vl));
+  return lcc_network_buffer_add_value(srv->buffer, vl);
 } /* }}} int server_value_add */
 
 /*
@@ -259,11 +259,11 @@ lcc_network_t *lcc_network_create(void) /* {{{ */
 
   net = calloc(1, sizeof(*net));
   if (net == NULL)
-    return (NULL);
+    return NULL;
 
   net->servers = NULL;
 
-  return (net);
+  return net;
 } /* }}} lcc_network_t *lcc_network_create */
 
 void lcc_network_destroy(lcc_network_t *net) /* {{{ */
@@ -279,13 +279,13 @@ lcc_server_t *lcc_server_create(lcc_network_t *net, /* {{{ */
   lcc_server_t *srv;
 
   if ((net == NULL) || (node == NULL))
-    return (NULL);
+    return NULL;
   if (service == NULL)
     service = NET_DEFAULT_PORT;
 
   srv = calloc(1, sizeof(*srv));
   if (srv == NULL)
-    return (NULL);
+    return NULL;
 
   srv->fd = -1;
   srv->security_level = NONE;
@@ -296,14 +296,14 @@ lcc_server_t *lcc_server_create(lcc_network_t *net, /* {{{ */
   srv->node = strdup(node);
   if (srv->node == NULL) {
     free(srv);
-    return (NULL);
+    return NULL;
   }
 
   srv->service = strdup(service);
   if (srv->service == NULL) {
     free(srv->node);
     free(srv);
-    return (NULL);
+    return NULL;
   }
 
   srv->buffer = lcc_network_buffer_create(/* size = */ 0);
@@ -311,7 +311,7 @@ lcc_server_t *lcc_server_create(lcc_network_t *net, /* {{{ */
     free(srv->service);
     free(srv->node);
     free(srv);
-    return (NULL);
+    return NULL;
   }
 
   if (net->servers == NULL) {
@@ -325,13 +325,13 @@ lcc_server_t *lcc_server_create(lcc_network_t *net, /* {{{ */
     last->next = srv;
   }
 
-  return (srv);
+  return srv;
 } /* }}} lcc_server_t *lcc_server_create */
 
 int lcc_server_destroy(lcc_network_t *net, lcc_server_t *srv) /* {{{ */
 {
   if ((net == NULL) || (srv == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (net->servers == srv) {
     net->servers = srv->next;
@@ -343,7 +343,7 @@ int lcc_server_destroy(lcc_network_t *net, lcc_server_t *srv) /* {{{ */
       prev = prev->next;
 
     if (prev == NULL)
-      return (ENOENT);
+      return ENOENT;
 
     prev->next = srv->next;
     srv->next = NULL;
@@ -351,17 +351,17 @@ int lcc_server_destroy(lcc_network_t *net, lcc_server_t *srv) /* {{{ */
 
   int_server_destroy(srv);
 
-  return (0);
+  return 0;
 } /* }}} int lcc_server_destroy */
 
 int lcc_server_set_ttl(lcc_server_t *srv, uint8_t ttl) /* {{{ */
 {
   if (srv == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   srv->ttl = (int)ttl;
 
-  return (0);
+  return 0;
 } /* }}} int lcc_server_set_ttl */
 
 int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
@@ -370,11 +370,11 @@ int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
   int status;
 
   if ((srv == NULL) || (interface == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if_index = if_nametoindex(interface);
   if (if_index == 0)
-    return (ENOENT);
+    return ENOENT;
 
   /* IPv4 multicast */
   if (srv->sa->sa_family == AF_INET) {
@@ -398,9 +398,9 @@ int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
       status =
           setsockopt(srv->fd, IPPROTO_IP, IP_MULTICAST_IF, &mreq, sizeof(mreq));
       if (status != 0)
-        return (status);
+        return status;
 
-      return (0);
+      return 0;
     }
   }
 
@@ -412,9 +412,9 @@ int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
       status = setsockopt(srv->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &if_index,
                           sizeof(if_index));
       if (status != 0)
-        return (status);
+        return status;
 
-      return (0);
+      return 0;
     }
   }
 
@@ -423,26 +423,26 @@ int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
   status = setsockopt(srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
                       (socklen_t)(strlen(interface) + 1));
   if (status != 0)
-    return (-1);
+    return -1;
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int lcc_server_set_interface */
 
 int lcc_server_set_security_level(lcc_server_t *srv, /* {{{ */
                                   lcc_security_level_t level,
                                   const char *username, const char *password) {
-  return (lcc_network_buffer_set_security_level(srv->buffer, level, username,
-                                                password));
+  return lcc_network_buffer_set_security_level(srv->buffer, level, username,
+                                               password);
 } /* }}} int lcc_server_set_security_level */
 
 int lcc_network_values_send(lcc_network_t *net, /* {{{ */
                             const lcc_value_list_t *vl) {
   if ((net == NULL) || (vl == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   for (lcc_server_t *srv = net->servers; srv != NULL; srv = srv->next)
     server_value_add(srv, vl);
 
-  return (0);
+  return 0;
 } /* }}} int lcc_network_values_send */

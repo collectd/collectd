@@ -113,12 +113,12 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
   rd_kafka_topic_conf_t *topic_conf;
 
   if (ctx->kafka != NULL && ctx->topic != NULL)
-    return (0);
+    return 0;
 
   if (ctx->kafka == NULL) {
     if ((conf = rd_kafka_conf_dup(ctx->kafka_conf)) == NULL) {
       ERROR("write_kafka plugin: cannot duplicate kafka config");
-      return (1);
+      return 1;
     }
 
     if ((ctx->kafka = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errbuf,
@@ -158,7 +158,7 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
          rd_kafka_topic_name(ctx->topic));
   }
 
-  return (0);
+  return 0;
 
 } /* }}} int kafka_handle */
 
@@ -481,7 +481,7 @@ static int kafka_config(oconfig_item_t *ci) /* {{{ */
   }
   if (conf != NULL)
     rd_kafka_conf_destroy(conf);
-  return (0);
+  return 0;
 errout:
   if (conf != NULL)
     rd_kafka_conf_destroy(conf);

@@ -61,10 +61,10 @@ static int lpar_config(const char *key, const char *value) {
     else
       report_by_serial = 0;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int lpar_config */
 
 static int lpar_init(void) {
@@ -79,7 +79,7 @@ static int lpar_init(void) {
     char errbuf[1024];
     ERROR("lpar plugin: perfstat_partition_total failed: %s (%i)",
           sstrerror(errno, errbuf, sizeof(errbuf)), status);
-    return (-1);
+    return -1;
   }
 
 #if PERFSTAT_SUPPORTS_DONATION
@@ -95,7 +95,7 @@ static int lpar_init(void) {
     pool_stats = 0;
   }
 
-  return (0);
+  return 0;
 } /* int lpar_init */
 
 static void lpar_submit(const char *type_instance, double value) {
@@ -128,7 +128,7 @@ static int lpar_read(void) {
      from chassis to chassis through Live Partition Mobility (LPM). */
   if (uname(&name) != 0) {
     ERROR("lpar plugin: uname failed.");
-    return (-1);
+    return -1;
   }
   sstrncpy(serial, name.machine, sizeof(serial));
 
@@ -141,7 +141,7 @@ static int lpar_read(void) {
     char errbuf[1024];
     ERROR("lpar plugin: perfstat_partition_total failed: %s (%i)",
           sstrerror(errno, errbuf, sizeof(errbuf)), status);
-    return (-1);
+    return -1;
   }
 
   /* Number of ticks since we last run. */
@@ -149,7 +149,7 @@ static int lpar_read(void) {
   if (ticks == 0) {
     /* The stats have not been updated. Return now to avoid
      * dividing by zero */
-    return (0);
+    return 0;
   }
 
   /*
@@ -235,7 +235,7 @@ static int lpar_read(void) {
 
   memcpy(&lparstats_old, &lparstats, sizeof(lparstats_old));
 
-  return (0);
+  return 0;
 } /* int lpar_read */
 
 void module_register(void) {

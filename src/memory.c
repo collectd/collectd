@@ -111,7 +111,7 @@ static int memory_config(oconfig_item_t *ci) /* {{{ */
             child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int memory_config */
 
 static int memory_init(void) {
@@ -133,11 +133,11 @@ static int memory_init(void) {
   pagesize = getpagesize();
   if (get_kstat(&ksp, "unix", 0, "system_pages") != 0) {
     ksp = NULL;
-    return (-1);
+    return -1;
   }
   if (get_kstat(&ksz, "zfs", 0, "arcstats") != 0) {
     ksz = NULL;
-    return (-1);
+    return -1;
   }
 
 /* #endif HAVE_LIBKSTAT */
@@ -146,7 +146,7 @@ static int memory_init(void) {
   pagesize = getpagesize();
   if (pagesize <= 0) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
-    return (-1);
+    return -1;
   }
 /* #endif HAVE_SYSCTL */
 
@@ -157,7 +157,7 @@ static int memory_init(void) {
 #elif HAVE_PERFSTAT
   pagesize = getpagesize();
 #endif /* HAVE_PERFSTAT */
-  return (0);
+  return 0;
 } /* int memory_init */
 
 #define MEMORY_SUBMIT(...)                                                     \
@@ -180,14 +180,14 @@ static int memory_read_internal(value_list_t *vl) {
   gauge_t free;
 
   if (!port_host || !pagesize)
-    return (-1);
+    return -1;
 
   vm_data_len = sizeof(vm_data) / sizeof(natural_t);
   if ((status = host_statistics(port_host, HOST_VM_INFO, (host_info_t)&vm_data,
                                 &vm_data_len)) != KERN_SUCCESS) {
     ERROR("memory-plugin: host_statistics failed and returned the value %i",
           (int)status);
-    return (-1);
+    return -1;
   }
 
   /*
@@ -282,7 +282,7 @@ static int memory_read_internal(value_list_t *vl) {
   if ((fh = fopen("/proc/meminfo", "r")) == NULL) {
     char errbuf[1024];
     WARNING("memory: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -320,7 +320,7 @@ static int memory_read_internal(value_list_t *vl) {
   }
 
   if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_total))
-    return (-1);
+    return -1;
 
   mem_used =
       mem_total - (mem_free + mem_buffered + mem_cached + mem_slab_total);
@@ -353,9 +353,9 @@ static int memory_read_internal(value_list_t *vl) {
   long long availrmem;
 
   if (ksp == NULL)
-    return (-1);
+    return -1;
   if (ksz == NULL)
-    return (-1);
+    return -1;
 
   mem_used = get_kstat_value(ksp, "pagestotal");
   mem_free = get_kstat_value(ksp, "pagesfree");
@@ -370,7 +370,7 @@ static int memory_read_internal(value_list_t *vl) {
 
   if ((mem_used < 0LL) || (mem_free < 0LL) || (mem_lock < 0LL)) {
     WARNING("memory plugin: one of used, free or locked is negative.");
-    return (-1);
+    return -1;
   }
 
   mem_unus = physmem - mem_used;
@@ -424,7 +424,7 @@ static int memory_read_internal(value_list_t *vl) {
     char errbuf[1024];
     WARNING("memory plugin: sysctl failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   assert(pagesize > 0);
@@ -441,7 +441,7 @@ static int memory_read_internal(value_list_t *vl) {
 
   ios = sg_get_mem_stats();
   if (ios == NULL)
-    return (-1);
+    return -1;
 
   MEMORY_SUBMIT("used", (gauge_t)ios->used, "cached", (gauge_t)ios->cache,
                 "free", (gauge_t)ios->free);
@@ -454,7 +454,7 @@ static int memory_read_internal(value_list_t *vl) {
     char errbuf[1024];
     WARNING("memory plugin: perfstat_memory_total failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   /* Unfortunately, the AIX documentation is not very clear on how these
@@ -473,7 +473,7 @@ static int memory_read_internal(value_list_t *vl) {
                 (gauge_t)(pmemory.real_process * pagesize));
 #endif /* HAVE_PERFSTAT */
 
-  return (0);
+  return 0;
 } /* }}} int memory_read_internal */
 
 static int memory_read(void) /* {{{ */
@@ -487,7 +487,7 @@ static int memory_read(void) /* {{{ */
   sstrncpy(vl.type, "memory", sizeof(vl.type));
   vl.time = cdtime();
 
-  return (memory_read_internal(&vl));
+  return memory_read_internal(&vl);
 } /* }}} int memory_read */
 
 void module_register(void) {

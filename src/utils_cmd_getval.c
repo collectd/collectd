@@ -43,7 +43,7 @@ cmd_status_t cmd_parse_getval(size_t argc, char **argv,
   if ((ret_getval == NULL) || (opts == NULL)) {
     errno = EINVAL;
     cmd_error(CMD_ERROR, err, "Invalid arguments to cmd_parse_getval.");
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
   if (argc != 1) {
@@ -52,7 +52,7 @@ cmd_status_t cmd_parse_getval(size_t argc, char **argv,
     else
       cmd_error(CMD_PARSE_ERROR, err, "Garbage after identifier: `%s'.",
                 argv[1]);
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
   /* parse_identifier() modifies its first argument,
@@ -68,11 +68,11 @@ cmd_status_t cmd_parse_getval(size_t argc, char **argv,
     cmd_error(CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
               identifier_copy);
     sfree(identifier_copy);
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
   ret_getval->raw_identifier = identifier_copy;
-  return (CMD_OK);
+  return CMD_OK;
 } /* cmd_status_t cmd_parse_getval */
 
 #define print_to_socket(fh, ...)                                               \
@@ -97,18 +97,18 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
   const data_set_t *ds;
 
   if ((fh == NULL) || (buffer == NULL))
-    return (-1);
+    return -1;
 
   DEBUG("utils_cmd_getval: cmd_handle_getval (fh = %p, buffer = %s);",
         (void *)fh, buffer);
 
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
-    return (status);
+    return status;
   if (cmd.type != CMD_GETVAL) {
     cmd_error(CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
               CMD_TO_STRING(cmd.type));
     cmd_destroy(&cmd);
-    return (CMD_UNKNOWN_COMMAND);
+    return CMD_UNKNOWN_COMMAND;
   }
 
   ds = plugin_get_ds(cmd.cmd.getval.identifier.type);
@@ -118,7 +118,7 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
     cmd_error(CMD_ERROR, &err, "Type `%s' is unknown.\n",
               cmd.cmd.getval.identifier.type);
     cmd_destroy(&cmd);
-    return (-1);
+    return -1;
   }
 
   values = NULL;
@@ -128,7 +128,7 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
   if (status != 0) {
     cmd_error(CMD_ERROR, &err, "No such value.");
     cmd_destroy(&cmd);
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
   if (ds->ds_num != values_num) {
@@ -138,7 +138,7 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
     cmd_error(CMD_ERROR, &err, "Error reading value from cache.");
     sfree(values);
     cmd_destroy(&cmd);
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
   print_to_socket(fh, "%zu Value%s found\n", values_num,
@@ -155,7 +155,7 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
   sfree(values);
   cmd_destroy(&cmd);
 
-  return (CMD_OK);
+  return CMD_OK;
 } /* cmd_status_t cmd_handle_getval */
 
 void cmd_destroy_getval(cmd_getval_t *getval) {

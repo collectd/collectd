@@ -165,18 +165,18 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
 
   buf[buflen - 1] = 0;
 
-  return (buf);
+  return buf;
 } /* char *sstrerror */
 
 static int lcc_set_errno(lcc_connection_t *c, int err) /* {{{ */
 {
   if (c == NULL)
-    return (-1);
+    return -1;
 
   sstrerror(err, c->errbuf, sizeof(c->errbuf));
   c->errbuf[sizeof(c->errbuf) - 1] = 0;
 
-  return (0);
+  return 0;
 } /* }}} int lcc_set_errno */
 
 static char *lcc_strescape(char *dest, const char *src,
@@ -186,7 +186,7 @@ static char *lcc_strescape(char *dest, const char *src,
   size_t src_pos;
 
   if ((dest == NULL) || (src == NULL))
-    return (NULL);
+    return NULL;
 
   dest_pos = 0;
   src_pos = 0;
@@ -223,7 +223,7 @@ static char *lcc_strescape(char *dest, const char *src,
   dest_pos++;
   src_pos++;
 
-  return (dest);
+  return dest;
 } /* }}} char *lcc_strescape */
 
 /* lcc_chomp: Removes all control-characters at the end of a string. */
@@ -260,11 +260,11 @@ static int lcc_send(lcc_connection_t *c, const char *command) /* {{{ */
   status = fprintf(c->fh, "%s\r\n", command);
   if (status < 0) {
     lcc_set_errno(c, errno);
-    return (-1);
+    return -1;
   }
   fflush(c->fh);
 
-  return (0);
+  return 0;
 } /* }}} int lcc_send */
 
 static int lcc_receive(lcc_connection_t *c, /* {{{ */
@@ -278,7 +278,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
   ptr = fgets(buffer, sizeof(buffer), c->fh);
   if (ptr == NULL) {
     lcc_set_errno(c, errno);
-    return (-1);
+    return -1;
   }
   lcc_chomp(buffer);
   lcc_tracef("receive: <-- %s\n", buffer);
@@ -290,7 +290,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
   res.status = (int)strtol(buffer, &ptr, 0);
   if ((errno != 0) || (ptr == &buffer[0])) {
     lcc_set_errno(c, errno);
-    return (-1);
+    return -1;
   }
 
   /* Skip white spaces after the status number */
@@ -304,7 +304,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
   /* Error or no lines follow: We're done. */
   if (res.status <= 0) {
     memcpy(ret_res, &res, sizeof(res));
-    return (0);
+    return 0;
   }
 
   /* Allocate space for the char-pointers */
@@ -313,7 +313,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
   res.lines = malloc(res.lines_num * sizeof(*res.lines));
   if (res.lines == NULL) {
     lcc_set_errno(c, ENOMEM);
-    return (-1);
+    return -1;
   }
 
   /* Now receive all the lines */
@@ -340,11 +340,11 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
       free(res.lines[i]);
     }
     free(res.lines);
-    return (-1);
+    return -1;
   }
 
   memcpy(ret_res, &res, sizeof(res));
-  return (0);
+  return 0;
 } /* }}} int lcc_receive */
 
 static int lcc_sendreceive(lcc_connection_t *c, /* {{{ */
@@ -354,18 +354,18 @@ static int lcc_sendreceive(lcc_connection_t *c, /* {{{ */
 
   if (c->fh == NULL) {
     lcc_set_errno(c, EBADF);
-    return (-1);
+    return -1;
   }
 
   status = lcc_send(c, command);
   if (status != 0)
-    return (status);
+    return status;
 
   status = lcc_receive(c, &res);
   if (status == 0)
     memcpy(ret_res, &res, sizeof(*ret_res));
 
-  return (status);
+  return status;
 } /* }}} int lcc_sendreceive */
 
 static int lcc_open_unixsocket(lcc_connection_t *c, const char *path) /* {{{ */
@@ -383,7 +383,7 @@ static int lcc_open_unixsocket(lcc_connection_t *c, const char *path) /* {{{ */
   fd = socket(AF_UNIX, SOCK_STREAM, /* protocol = */ 0);
   if (fd < 0) {
     lcc_set_errno(c, errno);
-    return (-1);
+    return -1;
   }
 
   sa.sun_family = AF_UNIX;
@@ -393,17 +393,17 @@ static int lcc_open_unixsocket(lcc_connection_t *c, const char *path) /* {{{ */
   if (status != 0) {
     lcc_set_errno(c, errno);
     close(fd);
-    return (-1);
+    return -1;
   }
 
   c->fh = fdopen(fd, "r+");
   if (c->fh == NULL) {
     lcc_set_errno(c, errno);
     close(fd);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int lcc_open_unixsocket */
 
 static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
@@ -432,7 +432,7 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
     port = strchr(addr, ']');
     if (port == NULL) {
       LCC_SET_ERRSTR(c, "malformed address: %s", addr_orig);
-      return (-1);
+      return -1;
     }
     *port = 0;
     port++;
@@ -443,7 +443,7 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
       port = NULL;
     else {
       LCC_SET_ERRSTR(c, "garbage after address: %s", port);
-      return (-1);
+      return -1;
     }
   }                                   /* if (*addr = ']') */
   else if (strchr(addr, '.') != NULL) /* Hostname or IPv4 */
@@ -463,7 +463,7 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
                        &ai_res);
   if (status != 0) {
     LCC_SET_ERRSTR(c, "getaddrinfo: %s", gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   for (struct addrinfo *ai_ptr = ai_res; ai_ptr != NULL;
@@ -495,11 +495,11 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
   if (status != 0) {
     lcc_set_errno(c, status);
     freeaddrinfo(ai_res);
-    return (-1);
+    return -1;
   }
 
   freeaddrinfo(ai_res);
-  return (0);
+  return 0;
 } /* }}} int lcc_open_netsocket */
 
 static int lcc_open_socket(lcc_connection_t *c, const char *addr) /* {{{ */
@@ -507,7 +507,7 @@ static int lcc_open_socket(lcc_connection_t *c, const char *addr) /* {{{ */
   int status = 0;
 
   if (addr == NULL)
-    return (-1);
+    return -1;
 
   assert(c != NULL);
   assert(c->fh == NULL);
@@ -520,7 +520,7 @@ static int lcc_open_socket(lcc_connection_t *c, const char *addr) /* {{{ */
   else
     status = lcc_open_netsocket(c, addr);
 
-  return (status);
+  return status;
 } /* }}} int lcc_open_socket */
 
 /*
@@ -528,17 +528,17 @@ static int lcc_open_socket(lcc_connection_t *c, const char *addr) /* {{{ */
  */
 unsigned int lcc_version(void) /* {{{ */
 {
-  return (LCC_VERSION);
+  return LCC_VERSION;
 } /* }}} unsigned int lcc_version */
 
 const char *lcc_version_string(void) /* {{{ */
 {
-  return (LCC_VERSION_STRING);
+  return LCC_VERSION_STRING;
 } /* }}} const char *lcc_version_string */
 
 const char *lcc_version_extra(void) /* {{{ */
 {
-  return (LCC_VERSION_EXTRA);
+  return LCC_VERSION_EXTRA;
 } /* }}} const char *lcc_version_extra */
 
 int lcc_connect(const char *address, lcc_connection_t **ret_con) /* {{{ */
@@ -547,29 +547,29 @@ int lcc_connect(const char *address, lcc_connection_t **ret_con) /* {{{ */
   int status;
 
   if (address == NULL)
-    return (-1);
+    return -1;
 
   if (ret_con == NULL)
-    return (-1);
+    return -1;
 
   c = calloc(1, sizeof(*c));
   if (c == NULL)
-    return (-1);
+    return -1;
 
   status = lcc_open_socket(c, address);
   if (status != 0) {
     lcc_disconnect(c);
-    return (status);
+    return status;
   }
 
   *ret_con = c;
-  return (0);
+  return 0;
 } /* }}} int lcc_connect */
 
 int lcc_disconnect(lcc_connection_t *c) /* {{{ */
 {
   if (c == NULL)
-    return (-1);
+    return -1;
 
   if (c->fh != NULL) {
     fclose(c->fh);
@@ -577,7 +577,7 @@ int lcc_disconnect(lcc_connection_t *c) /* {{{ */
   }
 
   free(c);
-  return (0);
+  return 0;
 } /* }}} int lcc_disconnect */
 
 int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
@@ -596,17 +596,17 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   int status;
 
   if (c == NULL)
-    return (-1);
+    return -1;
 
   if (ident == NULL) {
     lcc_set_errno(c, EINVAL);
-    return (-1);
+    return -1;
   }
 
   /* Build a commend with an escaped version of the identifier string. */
   status = lcc_identifier_to_string(c, ident_str, sizeof(ident_str), ident);
   if (status != 0)
-    return (status);
+    return status;
 
   snprintf(command, sizeof(command), "GETVAL %s",
            lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
@@ -615,12 +615,12 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   /* Send talk to the daemon.. */
   status = lcc_sendreceive(c, command, &res);
   if (status != 0)
-    return (status);
+    return status;
 
   if (res.status != 0) {
     LCC_SET_ERRSTR(c, "Server error: %s", res.message);
     lcc_response_free(&res);
-    return (-1);
+    return -1;
   }
 
   values_num = res.lines_num;
@@ -636,7 +636,7 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
     }                                                                          \
     free(values_names);                                                        \
     lcc_response_free(&res);                                                   \
-    return (-1);                                                               \
+    return -1;                                                                 \
   } while (0)
 
   /* If neither the values nor the names are requested, return here.. */
@@ -644,7 +644,7 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
     if (ret_values_num != NULL)
       *ret_values_num = values_num;
     lcc_response_free(&res);
-    return (0);
+    return 0;
   }
 
   /* Allocate space for the values */
@@ -698,7 +698,7 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
 
   lcc_response_free(&res);
 
-  return (0);
+  return 0;
 } /* }}} int lcc_getval */
 
 int lcc_putval(lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
@@ -712,13 +712,13 @@ int lcc_putval(lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
   if ((c == NULL) || (vl == NULL) || (vl->values_len < 1) ||
       (vl->values == NULL) || (vl->values_types == NULL)) {
     lcc_set_errno(c, EINVAL);
-    return (-1);
+    return -1;
   }
 
   status = lcc_identifier_to_string(c, ident_str, sizeof(ident_str),
                                     &vl->identifier);
   if (status != 0)
-    return (status);
+    return status;
 
   SSTRCATF(command, "PUTVAL %s",
            lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
@@ -748,16 +748,16 @@ int lcc_putval(lcc_connection_t *c, const lcc_value_list_t *vl) /* {{{ */
 
   status = lcc_sendreceive(c, command, &res);
   if (status != 0)
-    return (status);
+    return status;
 
   if (res.status != 0) {
     LCC_SET_ERRSTR(c, "Server error: %s", res.message);
     lcc_response_free(&res);
-    return (-1);
+    return -1;
   }
 
   lcc_response_free(&res);
-  return (0);
+  return 0;
 } /* }}} int lcc_putval */
 
 int lcc_flush(lcc_connection_t *c, const char *plugin, /* {{{ */
@@ -768,7 +768,7 @@ int lcc_flush(lcc_connection_t *c, const char *plugin, /* {{{ */
 
   if (c == NULL) {
     lcc_set_errno(c, EINVAL);
-    return (-1);
+    return -1;
   }
 
   SSTRCPY(command, "FLUSH");
@@ -788,7 +788,7 @@ int lcc_flush(lcc_connection_t *c, const char *plugin, /* {{{ */
 
     status = lcc_identifier_to_string(c, ident_str, sizeof(ident_str), ident);
     if (status != 0)
-      return (status);
+      return status;
 
     SSTRCATF(command, " identifier=%s",
              lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
@@ -796,16 +796,16 @@ int lcc_flush(lcc_connection_t *c, const char *plugin, /* {{{ */
 
   status = lcc_sendreceive(c, command, &res);
   if (status != 0)
-    return (status);
+    return status;
 
   if (res.status != 0) {
     LCC_SET_ERRSTR(c, "Server error: %s", res.message);
     lcc_response_free(&res);
-    return (-1);
+    return -1;
   }
 
   lcc_response_free(&res);
-  return (0);
+  return 0;
 } /* }}} int lcc_flush */
 
 /* TODO: Implement lcc_putnotif */
@@ -819,21 +819,21 @@ int lcc_listval(lcc_connection_t *c, /* {{{ */
   size_t ident_num;
 
   if (c == NULL)
-    return (-1);
+    return -1;
 
   if ((ret_ident == NULL) || (ret_ident_num == NULL)) {
     lcc_set_errno(c, EINVAL);
-    return (-1);
+    return -1;
   }
 
   status = lcc_sendreceive(c, "LISTVAL", &res);
   if (status != 0)
-    return (status);
+    return status;
 
   if (res.status != 0) {
     LCC_SET_ERRSTR(c, "Server error: %s", res.message);
     lcc_response_free(&res);
-    return (-1);
+    return -1;
   }
 
   ident_num = res.lines_num;
@@ -841,7 +841,7 @@ int lcc_listval(lcc_connection_t *c, /* {{{ */
   if (ident == NULL) {
     lcc_response_free(&res);
     lcc_set_errno(c, ENOMEM);
-    return (-1);
+    return -1;
   }
 
   for (size_t i = 0; i < res.lines_num; i++) {
@@ -875,20 +875,20 @@ int lcc_listval(lcc_connection_t *c, /* {{{ */
 
   if (status != 0) {
     free(ident);
-    return (-1);
+    return -1;
   }
 
   *ret_ident = ident;
   *ret_ident_num = ident_num;
 
-  return (0);
+  return 0;
 } /* }}} int lcc_listval */
 
 const char *lcc_strerror(lcc_connection_t *c) /* {{{ */
 {
   if (c == NULL)
-    return ("Invalid object");
-  return (c->errbuf);
+    return "Invalid object";
+  return c->errbuf;
 } /* }}} const char *lcc_strerror */
 
 int lcc_identifier_to_string(lcc_connection_t *c, /* {{{ */
@@ -896,7 +896,7 @@ int lcc_identifier_to_string(lcc_connection_t *c, /* {{{ */
                              const lcc_identifier_t *ident) {
   if ((string == NULL) || (string_size < 6) || (ident == NULL)) {
     lcc_set_errno(c, EINVAL);
-    return (-1);
+    return -1;
   }
 
   if (ident->plugin_instance[0] == 0) {
@@ -917,7 +917,7 @@ int lcc_identifier_to_string(lcc_connection_t *c, /* {{{ */
   }
 
   string[string_size - 1] = 0;
-  return (0);
+  return 0;
 } /* }}} int lcc_identifier_to_string */
 
 int lcc_string_to_identifier(lcc_connection_t *c, /* {{{ */
@@ -932,7 +932,7 @@ int lcc_string_to_identifier(lcc_connection_t *c, /* {{{ */
   string_copy = strdup(string);
   if (string_copy == NULL) {
     lcc_set_errno(c, ENOMEM);
-    return (-1);
+    return -1;
   }
 
   host = string_copy;
@@ -940,7 +940,7 @@ int lcc_string_to_identifier(lcc_connection_t *c, /* {{{ */
   if (plugin == NULL) {
     LCC_SET_ERRSTR(c, "Malformed identifier string: %s", string);
     free(string_copy);
-    return (-1);
+    return -1;
   }
   *plugin = 0;
   plugin++;
@@ -949,7 +949,7 @@ int lcc_string_to_identifier(lcc_connection_t *c, /* {{{ */
   if (type == NULL) {
     LCC_SET_ERRSTR(c, "Malformed identifier string: %s", string);
     free(string_copy);
-    return (-1);
+    return -1;
   }
   *type = 0;
   type++;
@@ -977,7 +977,7 @@ int lcc_string_to_identifier(lcc_connection_t *c, /* {{{ */
     SSTRCPY(ident->type_instance, type_instance);
 
   free(string_copy);
-  return (0);
+  return 0;
 } /* }}} int lcc_string_to_identifier */
 
 int lcc_identifier_compare(const void *a, /* {{{ */
@@ -987,17 +987,17 @@ int lcc_identifier_compare(const void *a, /* {{{ */
   int status;
 
   if ((i0 == NULL) && (i1 == NULL))
-    return (0);
+    return 0;
   else if (i0 == NULL)
-    return (-1);
+    return -1;
   else if (i1 == NULL)
-    return (1);
+    return 1;
 
 #define CMP_FIELD(f)                                                           \
   do {                                                                         \
     status = strcmp(i0->f, i1->f);                                             \
     if (status != 0)                                                           \
-      return (status);                                                         \
+      return status;                                                           \
   } while (0);
 
   CMP_FIELD(host);
@@ -1008,16 +1008,16 @@ int lcc_identifier_compare(const void *a, /* {{{ */
 
 #undef CMP_FIELD
 
-  return (0);
+  return 0;
 } /* }}} int lcc_identifier_compare */
 
 int lcc_sort_identifiers(lcc_connection_t *c, /* {{{ */
                          lcc_identifier_t *idents, size_t idents_num) {
   if (idents == NULL) {
     lcc_set_errno(c, EINVAL);
-    return (-1);
+    return -1;
   }
 
   qsort(idents, idents_num, sizeof(*idents), lcc_identifier_compare);
-  return (0);
+  return 0;
 } /* }}} int lcc_sort_identifiers */

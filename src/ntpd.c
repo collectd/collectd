@@ -263,7 +263,7 @@ static int ntpd_config(const char *key, const char *value) {
     if (ntpd_host != NULL)
       free(ntpd_host);
     if ((ntpd_host = strdup(value)) == NULL)
-      return (1);
+      return 1;
   } else if (strcasecmp(key, "Port") == 0) {
     int port = (int)(atof(value));
     if ((port > 0) && (port <= 65535))
@@ -281,10 +281,10 @@ static int ntpd_config(const char *key, const char *value) {
     else
       include_unit_id = 0;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void ntpd_submit(const char *type, const char *type_inst,
@@ -319,7 +319,7 @@ static int ntpd_connect(void) {
   int status;
 
   if (sock_descr >= 0)
-    return (sock_descr);
+    return sock_descr;
 
   DEBUG("Opening a new socket");
 
@@ -341,7 +341,7 @@ static int ntpd_connect(void) {
     ERROR("ntpd plugin: getaddrinfo (%s, %s): %s", host, port,
           (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                  : gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -367,7 +367,7 @@ static int ntpd_connect(void) {
     ERROR("ntpd plugin: Unable to connect to server.");
   }
 
-  return (sock_descr);
+  return sock_descr;
 }
 
 /* For a description of the arguments see `ntpd_do_query' below. */
@@ -396,7 +396,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
   ssize_t pkt_padding; /* Padding in this packet */
 
   if ((sd = ntpd_connect()) < 0)
-    return (-1);
+    return -1;
 
   items = NULL;
   items_num = 0;
@@ -412,7 +412,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
     char errbuf[1024];
     ERROR("ntpd plugin: gettimeofday failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
   time_end.tv_sec++; /* wait for a most one second */
 
@@ -424,7 +424,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       char errbuf[1024];
       ERROR("ntpd plugin: gettimeofday failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
 
     if (timeval_cmp(time_end, time_now, &time_left) <= 0)
@@ -450,7 +450,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       char errbuf[1024];
       ERROR("ntpd plugin: poll failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
 
     if (status == 0) /* timeout */
@@ -471,7 +471,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       DEBUG("Closing socket #%i", sd);
       close(sd);
       sock_descr = sd = -1;
-      return (-1);
+      return -1;
     }
 
     DEBUG("recv'd %i bytes", status);
@@ -513,7 +513,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
     if (INFO_ERR(res.err_nitems) != 0) {
       ERROR("ntpd plugin: Received error code %i",
             (int)INFO_ERR(res.err_nitems));
-      return ((int)INFO_ERR(res.err_nitems));
+      return (int)INFO_ERR(res.err_nitems);
     }
 
     /* extract number of items in this packet and the size of these items */
@@ -632,7 +632,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       done = 1;
   } /* while (done == 0) */
 
-  return (0);
+  return 0;
 } /* int ntpd_receive_response */
 
 /* For a description of the arguments see `ntpd_do_query' below. */
@@ -647,7 +647,7 @@ static int ntpd_send_request(int req_code, int req_items, int req_size,
   assert(req_size >= 0);
 
   if ((sd = ntpd_connect()) < 0)
-    return (-1);
+    return -1;
 
   req.rm_vn_mode = RM_VN_MODE(0, 0, 0);
   req.auth_seq = AUTH_SEQ(0, 0);
@@ -673,10 +673,10 @@ static int ntpd_send_request(int req_code, int req_items, int req_size,
     DEBUG("`swrite' failed. Closing socket #%i", sd);
     close(sd);
     sock_descr = sd = -1;
-    return (status);
+    return status;
   }
 
-  return (0);
+  return 0;
 }
 
 /*
@@ -701,10 +701,10 @@ static int ntpd_do_query(int req_code, int req_items, int req_size,
 
   status = ntpd_send_request(req_code, req_items, req_size, req_data);
   if (status != 0)
-    return (status);
+    return status;
 
   status = ntpd_receive_response(res_items, res_size, res_data, res_item_size);
-  return (status);
+  return status;
 }
 
 static double ntpd_read_fp(int32_t val_int) {
@@ -713,7 +713,7 @@ static double ntpd_read_fp(int32_t val_int) {
   val_int = ntohl(val_int);
   val_double = ((double)val_int) / FP_FRAC;
 
-  return (val_double);
+  return val_double;
 }
 
 static uint32_t
@@ -721,7 +721,7 @@ ntpd_get_refclock_id(struct info_peer_summary const *peer_info) {
   uint32_t addr = ntohl(peer_info->srcadr);
   uint32_t refclock_id = (addr >> 8) & 0x00FF;
 
-  return (refclock_id);
+  return refclock_id;
 }
 
 static int ntpd_get_name_from_address(char *buffer, size_t buffer_size,
@@ -767,10 +767,10 @@ static int ntpd_get_name_from_address(char *buffer, size_t buffer_size,
     ERROR("ntpd plugin: getnameinfo failed: %s",
           (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                  : gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* ntpd_get_name_from_address */
 
 static int ntpd_get_name_refclock(char *buffer, size_t buffer_size,
@@ -779,8 +779,7 @@ static int ntpd_get_name_refclock(char *buffer, size_t buffer_size,
   uint32_t unit_id = ntohl(peer_info->srcadr) & 0x00FF;
 
   if (((size_t)refclock_id) >= refclock_names_num)
-    return (ntpd_get_name_from_address(buffer, buffer_size, peer_info,
-                                       /* do_reverse_lookup = */ 0));
+    return ntpd_get_name_from_address(buffer, buffer_size, peer_info, 0);
 
   if (include_unit_id)
     ssnprintf(buffer, buffer_size, "%s-%" PRIu32, refclock_names[refclock_id],
@@ -788,7 +787,7 @@ static int ntpd_get_name_refclock(char *buffer, size_t buffer_size,
   else
     sstrncpy(buffer, refclock_names[refclock_id], buffer_size);
 
-  return (0);
+  return 0;
 } /* int ntpd_get_name_refclock */
 
 static int ntpd_get_name(char *buffer, size_t buffer_size,
@@ -796,10 +795,10 @@ static int ntpd_get_name(char *buffer, size_t buffer_size,
   uint32_t addr = ntohl(peer_info->srcadr);
 
   if (!peer_info->v6_flag && ((addr & REFCLOCK_MASK) == REFCLOCK_ADDR))
-    return (ntpd_get_name_refclock(buffer, buffer_size, peer_info));
+    return ntpd_get_name_refclock(buffer, buffer_size, peer_info);
   else
-    return (ntpd_get_name_from_address(buffer, buffer_size, peer_info,
-                                       do_reverse_lookups));
+    return ntpd_get_name_from_address(buffer, buffer_size, peer_info,
+                                      do_reverse_lookups);
 } /* int ntpd_addr_to_name */
 
 static int ntpd_read(void) {
@@ -833,12 +832,12 @@ static int ntpd_read(void) {
   if (status != 0) {
     ERROR("ntpd plugin: ntpd_do_query (REQ_GET_KERNEL) failed with status %i",
           status);
-    return (status);
+    return status;
   } else if ((ik == NULL) || (ik_num == 0) || (ik_size == 0)) {
     ERROR("ntpd plugin: ntpd_do_query returned unexpected data. "
           "(ik = %p; ik_num = %i; ik_size = %i)",
           (void *)ik, ik_num, ik_size);
-    return (-1);
+    return -1;
   }
 
   if (ntohs(ik->status) & STA_NANO) {
@@ -872,12 +871,12 @@ static int ntpd_read(void) {
     ERROR(
         "ntpd plugin: ntpd_do_query (REQ_PEER_LIST_SUM) failed with status %i",
         status);
-    return (status);
+    return status;
   } else if ((ps == NULL) || (ps_num == 0) || (ps_size == 0)) {
     ERROR("ntpd plugin: ntpd_do_query returned unexpected data. "
           "(ps = %p; ps_num = %i; ps_size = %i)",
           (void *)ps, ps_num, ps_size);
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ps_num; i++) {
@@ -926,7 +925,7 @@ static int ntpd_read(void) {
   free(ps);
   ps = NULL;
 
-  return (0);
+  return 0;
 } /* int ntpd_read */
 
 void module_register(void) {

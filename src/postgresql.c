@@ -407,7 +407,7 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
   char interval[64];
 
   if ((data == NULL) || (data->params_num == 0))
-    return (c_psql_exec_query_noparams(db, q));
+    return c_psql_exec_query_noparams(db, q);
 
   assert(db->max_params_num >= data->params_num);
 
@@ -438,8 +438,7 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
   }
 
   return PQexecParams(db->conn, udb_query_get_statement(q), data->params_num,
-                      NULL, (const char *const *)params, NULL, NULL,
-                      /* return text data */ 0);
+                      NULL, (const char *const*)params, NULL, NULL, 0);
 } /* c_psql_exec_query_params */
 
 /* db->db_lock must be locked when calling this function */
@@ -1009,7 +1008,7 @@ static int config_query_param_add(udb_query_t *q, oconfig_item_t *ci) {
   }
 
   data->params_num++;
-  return (0);
+  return 0;
 } /* config_query_param_add */
 
 static int config_query_callback(udb_query_t *q, oconfig_item_t *ci) {
@@ -1018,7 +1017,7 @@ static int config_query_callback(udb_query_t *q, oconfig_item_t *ci) {
 
   log_err("Option not allowed within a Query block: `%s'", ci->key);
 
-  return (-1);
+  return -1;
 } /* config_query_callback */
 
 static int config_add_writer(oconfig_item_t *ci, c_psql_writer_t *src_writers,
