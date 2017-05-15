@@ -106,7 +106,11 @@ typedef unsigned int yajl_len_t;
 #endif
 
 static int cj_read(user_data_t *ud);
-static void cj_submit(cj_t *db, cj_key_t *key, value_t *value);
+static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value);
+
+/* cj_submit is a function pointer to cj_submit_impl, allowing the unit-test to
+ * overwrite which function is called. */
+static void (*cj_submit)(cj_t *, cj_key_t *, value_t *) = cj_submit_impl;
 
 static size_t cj_curl_callback(void *buf, /* {{{ */
                                size_t size, size_t nmemb, void *user_data) {
@@ -773,7 +777,7 @@ static const char *cj_host(cj_t *db) /* {{{ */
   return db->host;
 } /* }}} cj_host */
 
-static void cj_submit(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
+static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -797,7 +801,7 @@ static void cj_submit(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
     vl.interval = db->interval;
 
   plugin_dispatch_values(&vl);
-} /* }}} int cj_submit */
+} /* }}} int cj_submit_impl */
 
 static int cj_sock_perform(cj_t *db) /* {{{ */
 {

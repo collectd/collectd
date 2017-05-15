@@ -691,6 +691,15 @@ curl_json_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_json_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+
+test_plugin_curl_json_SOURCES = src/curl_json_test.c \
+				src/utils_curl_stats.c \
+				src/daemon/configfile.c \
+				src/daemon/types_list.c
+test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+test_plugin_curl_json_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+test_plugin_curl_json_LDADD = libavltree.la liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+check_PROGRAMS += test_plugin_curl_json
 endif
 
 if BUILD_PLUGIN_CURL_XML
