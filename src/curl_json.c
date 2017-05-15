@@ -86,7 +86,6 @@ struct cj_s /* {{{ */
 
   yajl_handle yajl;
   c_avl_tree_t *tree;
-  cj_key_t *key;
   int depth;
   struct {
     union {
@@ -923,7 +922,6 @@ static int cj_read(user_data_t *ud) /* {{{ */
   db->depth = 0;
   memset(&db->state, 0, sizeof(db->state));
   db->state[db->depth].tree = db->tree;
-  db->key = NULL;
 
   return cj_perform(db);
 } /* }}} int cj_read */
