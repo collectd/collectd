@@ -104,7 +104,8 @@ static int check_count__ = 0;
   do {                                                                         \
     double want__ = (double)expect;                                            \
     double got__ = (double)actual;                                             \
-    if (isnan(want__) && !isnan(got__)) {                                      \
+    if ((isnan(want__) && !isnan(got__)) ||                                    \
+        (!isnan(want__) && isnan(got__))) {                                    \
       printf("not ok %i - %s = %.15g, want %.15g\n", ++check_count__, #actual, \
              got__, want__);                                                   \
       return (-1);                                                             \
