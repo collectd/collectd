@@ -432,6 +432,53 @@ static int cj_config_append_string(const char *name,
   return (0);
 } /* }}} int cj_config_append_string */
 
+/* cj_append_key adds key to the configuration stored in db.
+ *
+ * For example:
+ * "httpd/requests/count",
+ * "httpd/requests/current" ->
+ * { "httpd": { "requests": { "count": $key, "current": $key } } }
+ */
+static int cj_append_key(cj_t *db, cj_key_t *key) { /* {{{ */
+  if (db->tree == NULL)
+    db->tree = cj_avl_create();
+
+  c_avl_tree_t *tree = db->tree;
+
+  char const *start = key->path;
+  if (*start == '/')
+    ++start;
+
+  char const *end;
+  while ((end = strchr(start, '/')) != NULL) {
+    char name[PATH_MAX];
+
+    size_t len = end - start;
+    if (len == 0)
+      break;
+
+    len = COUCH_MIN(len, sizeof(name) - 1);
+    sstrncpy(name, start, len + 1);
+
+    c_avl_tree_t *value;
+    if (c_avl_get(tree, name, (void *)&value) != 0) {
+      value = cj_avl_create();
+      c_avl_insert(tree, strdup(name), value);
+    }
+
+    tree = value;
+    start = end + 1;
+  }
+
+  if (strlen(start) == 0) {
+    ERROR("curl_json plugin: invalid key: %s", key->path);
+    return -1;
+  }
+
+  c_avl_insert(tree, strdup(start), key);
+  return 0;
+} /* }}} int cj_append_key */
+
 static int cj_config_add_key(cj_t *db, /* {{{ */
                              oconfig_item_t *ci) {
   cj_key_t *key;
@@ -492,53 +539,13 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
     return (-1);
   }
 
-  /* store path in a tree that will match the json map structure, example:
-   * "httpd/requests/count",
-   * "httpd/requests/current" ->
-   * { "httpd": { "requests": { "count": $key, "current": $key } } }
-   */
-  char *ptr;
-  char *name;
-  c_avl_tree_t *tree;
-
-  if (db->tree == NULL)
-    db->tree = cj_avl_create();
-
-  tree = db->tree;
-  ptr = key->path;
-  if (*ptr == '/')
-    ++ptr;
-
-  name = ptr;
-  while ((ptr = strchr(name, '/')) != NULL) {
-    char ent[PATH_MAX];
-    c_avl_tree_t *value;
-    size_t len;
-
-    len = ptr - name;
-    if (len == 0)
-      break;
-
-    len = COUCH_MIN(len, sizeof(ent) - 1);
-    sstrncpy(ent, name, len + 1);
-
-    if (c_avl_get(tree, ent, (void *)&value) != 0) {
-      value = cj_avl_create();
-      c_avl_insert(tree, strdup(ent), value);
-    }
-
-    tree = value;
-    name = ptr + 1;
-  }
-
-  if (strlen(name) == 0) {
-    ERROR("curl_json plugin: invalid key: %s", key->path);
+  status = cj_append_key(db, key);
+  if (status != 0) {
     cj_key_free(key);
-    return (-1);
+    return -1;
   }
 
-  c_avl_insert(tree, strdup(name), key);
-  return (status);
+  return 0;
 } /* }}} int cj_config_add_key */
 
 static int cj_init_curl(cj_t *db) /* {{{ */
