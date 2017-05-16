@@ -171,23 +171,53 @@ static int cj_get_type(cj_key_t *key) {
   return ds->ds[0].type;
 }
 
-static int cj_cb_map_key(void *ctx, const unsigned char *val, yajl_len_t len);
+/* cj_load_key loads the configuration for "key" from the parent context and
+ * sets either .key or .tree in the current context. */
+static int cj_load_key(cj_t *db, char const *key) {
+  if (db == NULL || key == NULL || db->depth <= 0)
+    return EINVAL;
 
-static void cj_cb_inc_array_index(void *ctx, _Bool update_key) {
-  cj_t *db = (cj_t *)ctx;
+  sstrncpy(db->state[db->depth].name, key, sizeof(db->state[db->depth].name));
 
+  c_avl_tree_t *tree = db->state[db->depth - 1].tree;
+  if (tree == NULL) {
+    return 0;
+  }
+
+  /* the parent has a key, so the tree pointer is invalid. */
+  if (CJ_IS_KEY(db->state[db->depth - 1].key)) {
+    return 0;
+  }
+
+  void *value = NULL;
+  if (c_avl_get(tree, key, (void *)&value) == 0) {
+    if (CJ_IS_KEY((cj_key_t *)value)) {
+      db->state[db->depth].key = value;
+    } else {
+      db->state[db->depth].tree = value;
+    }
+  } else if (c_avl_get(tree, CJ_ANY, (void *)&value) == 0) {
+    if (CJ_IS_KEY((cj_key_t *)value)) {
+      db->state[db->depth].key = value;
+    } else {
+      db->state[db->depth].tree = value;
+    }
+  } else {
+    db->state[db->depth].key = NULL;
+  }
+
+  return 0;
+}
+
+static void cj_advance_array(cj_t *db) {
   if (!db->state[db->depth].in_array)
     return;
 
   db->state[db->depth].index++;
 
-  if (update_key) {
-    char name[DATA_MAX_NAME_LEN];
-
-    ssnprintf(name, sizeof(name), "%d", db->state[db->depth].index - 1);
-
-    cj_cb_map_key(ctx, (unsigned char *)name, (yajl_len_t)strlen(name));
-  }
+  char name[DATA_MAX_NAME_LEN];
+  ssnprintf(name, sizeof(name), "%d", db->state[db->depth].index);
+  cj_load_key(db, name);
 }
 
 /* yajl callbacks */
@@ -195,12 +225,12 @@ static void cj_cb_inc_array_index(void *ctx, _Bool update_key) {
 #define CJ_CB_CONTINUE 1
 
 static int cj_cb_boolean(void *ctx, int boolVal) {
-  cj_cb_inc_array_index(ctx, /* update_key = */ 0);
+  cj_advance_array(ctx);
   return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_null(void *ctx) {
-  cj_cb_inc_array_index(ctx, /* update_key = */ 0);
+  cj_advance_array(ctx);
   return (CJ_CB_CONTINUE);
 }
 
@@ -209,40 +239,37 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
 
   cj_t *db = (cj_t *)ctx;
   cj_key_t *key = db->state[db->depth].key;
-  value_t vt;
-  int type;
-  int status;
 
   /* Create a null-terminated version of the string. */
   memcpy(buffer, number, number_len);
   buffer[sizeof(buffer) - 1] = 0;
 
-  if ((key == NULL) || !CJ_IS_KEY(key)) {
-    if (key != NULL &&
-        !db->state[db->depth].in_array /*can be inhomogeneous*/) {
-      NOTICE("curl_json plugin: Found \"%s\", but the configuration expects"
-             " a map.",
-             buffer);
-      return (CJ_CB_CONTINUE);
-    }
 
-    cj_cb_inc_array_index(ctx, /* update_key = */ 1);
-    key = db->state[db->depth].key;
-    if ((key == NULL) || !CJ_IS_KEY(key)) {
-      return (CJ_CB_CONTINUE);
-    }
-  } else {
-    cj_cb_inc_array_index(ctx, /* update_key = */ 1);
+
+  if (key == NULL) {
+    /* no config for this element. */
+    cj_advance_array(ctx);
+    return CJ_CB_CONTINUE;
+  } else if (!CJ_IS_KEY(key)) {
+    /* the config expects a map or an array. */
+    NOTICE(
+        "curl_json plugin: Found \"%s\", but the configuration expects a map.",
+        buffer);
+    cj_advance_array(ctx);
+    return CJ_CB_CONTINUE;
   }
 
-  type = cj_get_type(key);
-  status = parse_value(buffer, &vt, type);
+  int type = cj_get_type(key);
+  value_t vt;
+  int status = parse_value(buffer, &vt, type);
   if (status != 0) {
     NOTICE("curl_json plugin: Unable to parse number: \"%s\"", buffer);
+    cj_advance_array(ctx);
     return (CJ_CB_CONTINUE);
   }
 
   cj_submit(db, key, &vt);
+  cj_advance_array(ctx);
   return (CJ_CB_CONTINUE);
 } /* int cj_cb_number */
 
@@ -251,40 +278,15 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
  * NULL. */
 static int cj_cb_map_key(void *ctx, unsigned char const *in_name,
                          yajl_len_t in_name_len) {
-  cj_t *db = (cj_t *)ctx;
-  c_avl_tree_t *tree;
+  char name[in_name_len + 1];
 
-  tree = db->state[db->depth - 1].tree;
+  memmove(name, in_name, in_name_len);
+  name[sizeof(name) - 1] = 0;
 
-  if (tree != NULL) {
-    cj_key_t *value = NULL;
-    char *name;
-    size_t name_len;
+  if (cj_load_key(ctx, name) != 0)
+    return CJ_CB_ABORT;
 
-    /* Create a null-terminated version of the name. */
-    name = db->state[db->depth].name;
-    name_len =
-        COUCH_MIN((size_t)in_name_len, sizeof(db->state[db->depth].name) - 1);
-    memcpy(name, in_name, name_len);
-    name[name_len] = 0;
-
-    if (c_avl_get(tree, name, (void *)&value) == 0) {
-      if (CJ_IS_KEY((cj_key_t *)value)) {
-        db->state[db->depth].key = value;
-      } else {
-        db->state[db->depth].tree = (c_avl_tree_t *)value;
-      }
-    } else if (c_avl_get(tree, CJ_ANY, (void *)&value) == 0)
-      if (CJ_IS_KEY((cj_key_t *)value)) {
-        db->state[db->depth].key = value;
-      } else {
-        db->state[db->depth].tree = (c_avl_tree_t *)value;
-      }
-    else
-      db->state[db->depth].key = NULL;
-  }
-
-  return (CJ_CB_CONTINUE);
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
@@ -292,38 +294,43 @@ static int cj_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
   return (cj_cb_number(ctx, (const char *)val, len));
 } /* int cj_cb_string */
 
-static int cj_cb_start(void *ctx) {
-  cj_t *db = (cj_t *)ctx;
-  if (++db->depth >= YAJL_MAX_DEPTH) {
-    ERROR("curl_json plugin: %s depth exceeds max, aborting.",
-          db->url ? db->url : db->sock);
-    return (CJ_CB_ABORT);
-  }
-  return (CJ_CB_CONTINUE);
-}
-
 static int cj_cb_end(void *ctx) {
   cj_t *db = (cj_t *)ctx;
   db->state[db->depth].tree = NULL;
-  --db->depth;
+  db->depth--;
+  cj_advance_array(ctx);
   return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_start_map(void *ctx) {
-  cj_cb_inc_array_index(ctx, /* update_key = */ 1);
-  return cj_cb_start(ctx);
+  cj_t *db = (cj_t *)ctx;
+
+  if ((db->depth + 1) >= YAJL_MAX_DEPTH) {
+    ERROR("curl_json plugin: %s depth exceeds max, aborting.",
+          db->url ? db->url : db->sock);
+    return (CJ_CB_ABORT);
+  }
+  db->depth++;
+  return (CJ_CB_CONTINUE);
 }
 
 static int cj_cb_end_map(void *ctx) { return cj_cb_end(ctx); }
 
 static int cj_cb_start_array(void *ctx) {
   cj_t *db = (cj_t *)ctx;
-  cj_cb_inc_array_index(ctx, /* update_key = */ 1);
-  if (db->depth + 1 < YAJL_MAX_DEPTH) {
-    db->state[db->depth + 1].in_array = 1;
-    db->state[db->depth + 1].index = 0;
+
+  if ((db->depth + 1) >= YAJL_MAX_DEPTH) {
+    ERROR("curl_json plugin: %s depth exceeds max, aborting.",
+          db->url ? db->url : db->sock);
+    return CJ_CB_ABORT;
   }
-  return cj_cb_start(ctx);
+  db->depth++;
+  db->state[db->depth].in_array = 1;
+  db->state[db->depth].index = 0;
+
+  cj_load_key(db, "0");
+
+  return CJ_CB_CONTINUE;
 }
 
 static int cj_cb_end_array(void *ctx) {
