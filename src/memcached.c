@@ -412,8 +412,10 @@ static int memcached_read(user_data_t *user_data) {
     }
 
     /*
-     * Operations on the cache, i. e. cache hits, cache misses and evictions of
-     * items
+     * Operations on the cache:
+     * - get hits/misses
+     * - delete hits/misses
+     * - evictions
      */
     else if (FIELD_IS("get_hits")) {
       submit_derive("memcached_ops", "hits", atoll(fields[2]), st);
@@ -422,6 +424,10 @@ static int memcached_read(user_data_t *user_data) {
       submit_derive("memcached_ops", "misses", atoll(fields[2]), st);
     } else if (FIELD_IS("evictions")) {
       submit_derive("memcached_ops", "evictions", atoll(fields[2]), st);
+    } else if (FIELD_IS("delete_hits")) {
+      submit_derive("memcached_ops", "del_hits", atoll(fields[2]), st);
+    } else if (FIELD_IS("delete_misses")) {
+      submit_derive("memcached_ops", "del_misses", atoll(fields[2]), st);
     }
 
     /*
