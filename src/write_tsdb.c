@@ -197,7 +197,7 @@ static int wt_callback_init(struct wt_callback *cb) {
     if ((cb->ai_last_update + resolve_interval + cb->next_random_ttl) >= now) {
       DEBUG("write_tsdb plugin: too many getaddrinfo(%s, %s) failures", node,
             service);
-      return (-1);
+      return -1;
     }
     cb->ai_last_update = now;
     cb->next_random_ttl = new_random_ttl();

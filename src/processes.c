@@ -302,7 +302,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   new = calloc(1, sizeof(*new));
   if (new == NULL) {
     ERROR("processes plugin: ps_list_register: calloc failed.");
-    return (NULL);
+    return NULL;
   }
   sstrncpy(new->name, name, sizeof(new->name));
 
@@ -324,7 +324,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
     if (new->re == NULL) {
       ERROR("processes plugin: ps_list_register: malloc failed.");
       sfree(new);
-      return (NULL);
+      return NULL;
     }
 
     status = regcomp(new->re, regexp, REG_EXTENDED | REG_NOSUB);
@@ -333,7 +333,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
             regexp);
       sfree(new->re);
       sfree(new);
-      return (NULL);
+      return NULL;
     }
   }
 #else
@@ -344,7 +344,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
           "has been disabled at compile time.",
           regexp);
     sfree(new);
-    return (NULL);
+    return NULL;
   }
 #endif
 
@@ -359,7 +359,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
       sfree(new->re);
 #endif
       sfree(new);
-      return (NULL);
+      return NULL;
     }
 
     if (ptr->next == NULL)
@@ -371,7 +371,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   else
     ptr->next = new;
 
-  return (new);
+  return new;
 } /* void ps_list_register */
 
 /* try to match name against entry, returns 1 if success */
@@ -393,13 +393,13 @@ static int ps_list_match(const char *name, const char *cmdline,
                      /* pmatch = */ NULL,
                      /* eflags = */ 0);
     if (status == 0)
-      return (1);
+      return 1;
   } else
 #endif
       if (strcmp(ps->name, name) == 0)
-    return (1);
+    return 1;
 
-  return (0);
+  return 0;
 } /* int ps_list_match */
 
 static void ps_update_counter(derive_t *group_counter, derive_t *curr_counter,
@@ -614,7 +614,7 @@ static int ps_config(oconfig_item_t *ci) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int ps_init(void) {
@@ -636,7 +636,7 @@ static int ps_init(void) {
     ERROR("host_processor_sets failed: %s\n", mach_error_string(status));
     pset_list = NULL;
     pset_list_len = 0;
-    return (-1);
+    return -1;
   }
 /* #endif HAVE_THREAD_INFO */
 
@@ -655,7 +655,7 @@ static int ps_init(void) {
   pagesize = getpagesize();
 #endif /* HAVE_PROCINFO_H */
 
-  return (0);
+  return 0;
 } /* int ps_init */
 
 /* submit global state (e.g.: qty of zombies, running, etc..) */
@@ -809,7 +809,7 @@ static int ps_read_tasks_status(process_entry_t *ps) {
 
   if ((dh = opendir(dirname)) == NULL) {
     DEBUG("Failed to open directory `%s'", dirname);
-    return (-1);
+    return -1;
   }
 
   while ((ent = readdir(dh)) != NULL) {
@@ -863,7 +863,7 @@ static int ps_read_tasks_status(process_entry_t *ps) {
   ps->cswitch_vol = cswitch_vol;
   ps->cswitch_invol = cswitch_invol;
 
-  return (0);
+  return 0;
 } /* int *ps_read_tasks_status */
 
 /* Read data from /proc/pid/status */
@@ -880,7 +880,7 @@ static int ps_read_status(long pid, process_entry_t *ps) {
 
   ssnprintf(filename, sizeof(filename), "/proc/%li/status", pid);
   if ((fh = fopen(filename, "r")) == NULL)
-    return (-1);
+    return -1;
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     unsigned long tmp;
@@ -920,7 +920,7 @@ static int ps_read_status(long pid, process_entry_t *ps) {
   if (threads != 0)
     ps->num_lwp = threads;
 
-  return (0);
+  return 0;
 } /* int *ps_read_status */
 
 static int ps_read_io(process_entry_t *ps) {
@@ -934,7 +934,7 @@ static int ps_read_io(process_entry_t *ps) {
   ssnprintf(filename, sizeof(filename), "/proc/%li/io", ps->id);
   if ((fh = fopen(filename, "r")) == NULL) {
     DEBUG("ps_read_io: Failed to open file `%s'", filename);
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -971,7 +971,7 @@ static int ps_read_io(process_entry_t *ps) {
     char errbuf[1024];
     WARNING("processes: fclose: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
   }
-  return (0);
+  return 0;
 } /* int ps_read_io (...) */
 
 static int ps_count_fd(int pid) {
@@ -984,7 +984,7 @@ static int ps_count_fd(int pid) {
 
   if ((dh = opendir(dirname)) == NULL) {
     DEBUG("Failed to open directory `%s'", dirname);
-    return (-1);
+    return -1;
   }
   while ((ent = readdir(dh)) != NULL) {
     if (!isdigit((int)ent->d_name[0]))
@@ -994,7 +994,7 @@ static int ps_count_fd(int pid) {
   }
   closedir(dh);
 
-  return ((count >= 1) ? count : 1);
+  return (count >= 1) ? count : 1;
 } /* int ps_count_fd (pid) */
 
 static void ps_fill_details(const procstat_t *ps, process_entry_t *entry) {
@@ -1045,7 +1045,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   status = read_file_contents(filename, buffer, sizeof(buffer) - 1);
   if (status <= 0)
-    return (-1);
+    return -1;
   buffer_len = (size_t)status;
   buffer[buffer_len] = 0;
 
@@ -1067,7 +1067,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   if (name_start_pos >= name_end_pos) {
     ERROR("processes plugin: name_start_pos = %zu >= name_end_pos = %zu",
           name_start_pos, name_end_pos);
-    return (-1);
+    return -1;
   }
 
   name_len = (name_end_pos - name_start_pos) - 1;
@@ -1077,7 +1077,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   sstrncpy(ps->name, &buffer[name_start_pos + 1], name_len + 1);
 
   if ((buffer_len - name_end_pos) < 2)
-    return (-1);
+    return -1;
   buffer_ptr = &buffer[name_end_pos + 2];
 
   fields_len = strsplit(buffer_ptr, fields, STATIC_ARRAY_SIZE(fields));
@@ -1085,7 +1085,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
     DEBUG("processes plugin: ps_read_process (pid = %li):"
           " `%s' has only %i fields..",
           pid, filename, fields_len);
-    return (-1);
+    return -1;
   }
 
   *state = fields[0][0];
@@ -1111,7 +1111,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
     DEBUG("processes plugin: This is only a zombie: pid = %li; "
           "name = %s;",
           pid, ps->name);
-    return (0);
+    return 0;
   }
 
   cpu_user_counter = atoll(fields[11]);
@@ -1150,7 +1150,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   ps->cswitch_invol = -1;
 
   /* success */
-  return (0);
+  return 0;
 } /* int ps_read_process (...) */
 
 static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
@@ -1257,7 +1257,7 @@ static int read_fork_rate(void) {
     char errbuf[1024];
     ERROR("processes plugin: fopen (/proc/stat) failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), proc_stat) != NULL) {
@@ -1281,10 +1281,10 @@ static int read_fork_rate(void) {
   fclose(proc_stat);
 
   if (!value_valid)
-    return (-1);
+    return -1;
 
   ps_submit_fork_rate(value.derive);
-  return (0);
+  return 0;
 }
 #endif /*KERNEL_LINUX */
 
@@ -1304,13 +1304,13 @@ static char *ps_get_cmdline(long pid,
           "while reading \"%s\": "
           "Returned %zd but expected %zu.",
           path, status, buffer_size);
-    return (NULL);
+    return NULL;
   }
 
   info.pr_psargs[sizeof(info.pr_psargs) - 1] = 0;
   sstrncpy(buffer, info.pr_psargs, buffer_size);
 
-  return (buffer);
+  return buffer;
 } /* }}} int ps_get_cmdline */
 
 /*
@@ -1355,7 +1355,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
     sfree(myStatus);
     sfree(myInfo);
     sfree(myUsage);
-    return (0);
+    return 0;
   } else {
     ps->num_proc = 1;
     ps->num_lwp = myInfo->pr_nlwp;
@@ -1432,7 +1432,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   sfree(myInfo);
   sfree(myUsage);
 
-  return (0);
+  return 0;
 }
 
 /*
@@ -1445,7 +1445,7 @@ static int read_fork_rate(void) {
   derive_t result = 0;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (kstat_t *ksp_chain = kc->kc_chain; ksp_chain != NULL;
        ksp_chain = ksp_chain->ks_next) {
@@ -1463,7 +1463,7 @@ static int read_fork_rate(void) {
   }
 
   ps_submit_fork_rate(result);
-  return (0);
+  return 0;
 }
 #endif /* KERNEL_SOLARIS */
 
@@ -1480,12 +1480,12 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
   mib[2] = KERN_PROC_PID;
 
   if (pid_for_task(t, pid) != KERN_SUCCESS)
-    return (-1);
+    return -1;
   mib[3] = *pid;
 
   kp_size = sizeof(kp);
   if (sysctl(mib, 4, &kp, &kp_size, NULL, 0) != 0)
-    return (-1);
+    return -1;
 
   if (name_max_len > (MAXCOMLEN + 1))
     name_max_len = MAXCOMLEN + 1;
@@ -1499,7 +1499,7 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
    * `top' does it, because it is a lot of work and only used when
    * debugging. -octo */
 
-  return (0);
+  return 0;
 }
 #endif /* HAVE_THREAD_INFO */
 /* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO -------
@@ -1760,7 +1760,7 @@ static int ps_read(void) {
   if ((proc = opendir("/proc")) == NULL) {
     char errbuf[1024];
     ERROR("Cannot open `/proc': %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while ((ent = readdir(proc)) != NULL) {
@@ -1842,7 +1842,7 @@ static int ps_read(void) {
   kd = kvm_openfiles(NULL, "/dev/null", NULL, 0, errbuf);
   if (kd == NULL) {
     ERROR("processes plugin: Cannot open kvm interface: %s", errbuf);
-    return (0);
+    return 0;
   }
 
   /* Get the list of processes. */
@@ -1851,7 +1851,7 @@ static int ps_read(void) {
     ERROR("processes plugin: Cannot get kvm processes list: %s",
           kvm_geterr(kd));
     kvm_close(kd);
-    return (0);
+    return 0;
   }
 
   /* Iterate through the processes in kinfo_proc */
@@ -1992,7 +1992,7 @@ static int ps_read(void) {
   kd = kvm_openfiles(NULL, NULL, NULL, KVM_NO_FILES, errbuf);
   if (kd == NULL) {
     ERROR("processes plugin: Cannot open kvm interface: %s", errbuf);
-    return (0);
+    return 0;
   }
 
   /* Get the list of processes. */
@@ -2001,7 +2001,7 @@ static int ps_read(void) {
     ERROR("processes plugin: Cannot get kvm processes list: %s",
           kvm_geterr(kd));
     kvm_close(kd);
-    return (0);
+    return 0;
   }
 
   /* Iterate through the processes in kinfo_proc */
@@ -2272,7 +2272,7 @@ static int ps_read(void) {
 
   proc = opendir("/proc");
   if (proc == NULL)
-    return (-1);
+    return -1;
 
   while ((ent = readdir(proc)) != NULL) {
     long pid;
@@ -2344,7 +2344,7 @@ static int ps_read(void) {
 
   want_init = 0;
 
-  return (0);
+  return 0;
 } /* int ps_read */
 
 void module_register(void) {

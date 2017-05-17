@@ -90,13 +90,13 @@ static int redis_node_add(const redis_node_t *rn) /* {{{ */
 
   if (rn_ptr != NULL) {
     ERROR("redis plugin: A node with the name `%s' already exists.", rn->name);
-    return (-1);
+    return -1;
   }
 
   rn_copy = malloc(sizeof(*rn_copy));
   if (rn_copy == NULL) {
     ERROR("redis plugin: malloc failed adding redis_node to the tree.");
-    return (-1);
+    return -1;
   }
 
   memcpy(rn_copy, rn, sizeof(*rn_copy));
@@ -113,7 +113,7 @@ static int redis_node_add(const redis_node_t *rn) /* {{{ */
     rn_ptr->next = rn_copy;
   }
 
-  return (0);
+  return 0;
 } /* }}} */
 
 static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
@@ -171,7 +171,7 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_string_buffer(ci, rn.name, sizeof(rn.name));
   if (status != 0)
-    return (status);
+    return status;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
@@ -208,9 +208,9 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
   }
 
   if (status != 0)
-    return (status);
+    return status;
 
-  return (redis_node_add(&rn));
+  return redis_node_add(&rn);
 } /* }}} int redis_config_node */
 
 static int redis_config(oconfig_item_t *ci) /* {{{ */
@@ -228,10 +228,10 @@ static int redis_config(oconfig_item_t *ci) /* {{{ */
 
   if (nodes_head == NULL) {
     ERROR("redis plugin: No valid node configuration could be found.");
-    return (ENOENT);
+    return ENOENT;
   }
 
-  return (0);
+  return 0;
 } /* }}} */
 
 __attribute__((nonnull(2))) static void
@@ -264,7 +264,7 @@ static int redis_init(void) /* {{{ */
   if (nodes_head == NULL)
     redis_node_add(&rn);
 
-  return (0);
+  return 0;
 } /* }}} int redis_init */
 
 static int redis_handle_info(char *node, char const *info_line,
@@ -285,13 +285,13 @@ static int redis_handle_info(char *node, char const *info_line,
 
     if (parse_value(buf, &val, ds_type) == -1) {
       WARNING("redis plugin: Unable to parse field `%s'.", field_name);
-      return (-1);
+      return -1;
     }
 
     redis_submit(node, type, type_instance, val);
-    return (0);
+    return 0;
   }
-  return (-1);
+  return -1;
 
 } /* }}} int redis_handle_info */
 
@@ -305,17 +305,17 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
   ds = plugin_get_ds(rq->type);
   if (!ds) {
     ERROR("redis plugin: DataSet `%s' not defined.", rq->type);
-    return (-1);
+    return -1;
   }
 
   if (ds->ds_num != 1) {
     ERROR("redis plugin: DS `%s' has too many types.", rq->type);
-    return (-1);
+    return -1;
   }
 
   if ((rr = redisCommand(rh, rq->query)) == NULL) {
     WARNING("redis plugin: unable to carry out query `%s'.", rq->query);
-    return (-1);
+    return -1;
   }
 
   switch (rr->type) {
@@ -339,13 +339,13 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
     if (parse_value(rr->str, &val, ds->ds[0].type) == -1) {
       WARNING("redis plugin: Unable to parse field `%s'.", rq->type);
       freeReplyObject(rr);
-      return (-1);
+      return -1;
     }
     break;
   default:
     WARNING("redis plugin: Cannot coerce redis type.");
     freeReplyObject(rr);
-    return (-1);
+    return -1;
   }
 
   redis_submit(rn->name, rq->type,
@@ -383,13 +383,13 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
 
     if (parse_value(buf, &val, DS_TYPE_GAUGE) != 0) {
       WARNING("redis plugin: Unable to parse field `%s'.", field_name);
-      return (-1);
+      return -1;
     }
 
     ssnprintf(db_id, sizeof(db_id), "%d", db);
     redis_submit(node, "records", db_id, val);
   }
-  return (0);
+  return 0;
 
 } /* }}} int redis_db_stats */
 

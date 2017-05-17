@@ -39,7 +39,7 @@ int parse_string(char **ret_buffer, char **ret_string) {
   while (isspace((int)*string))
     string++;
   if (*string == 0)
-    return (1);
+    return 1;
 
   /* A quoted string */
   if (*string == '"') {
@@ -47,7 +47,7 @@ int parse_string(char **ret_buffer, char **ret_string) {
 
     string++;
     if (*string == 0)
-      return (1);
+      return 1;
 
     dst = string;
     buffer = string;
@@ -57,7 +57,7 @@ int parse_string(char **ret_buffer, char **ret_string) {
         buffer++;
         /* Catch a backslash at the end of buffer */
         if (*buffer == 0)
-          return (-1);
+          return -1;
       }
       *dst = *buffer;
       buffer++;
@@ -65,7 +65,7 @@ int parse_string(char **ret_buffer, char **ret_string) {
     }
     /* No quote sign has been found */
     if (*buffer == 0)
-      return (-1);
+      return -1;
 
     *dst = 0;
     dst++;
@@ -74,7 +74,7 @@ int parse_string(char **ret_buffer, char **ret_string) {
 
     /* Check for trailing spaces. */
     if ((*buffer != 0) && !isspace((int)*buffer))
-      return (-1);
+      return -1;
   } else /* an unquoted string */
   {
     buffer = string;
@@ -93,7 +93,7 @@ int parse_string(char **ret_buffer, char **ret_string) {
   *ret_buffer = buffer;
   *ret_string = string;
 
-  return (0);
+  return 0;
 } /* int parse_string */
 
 /*
@@ -120,23 +120,23 @@ int parse_option(char **ret_buffer, char **ret_key, char **ret_value) {
   while (isspace((int)*key))
     key++;
   if (*key == 0)
-    return (1);
+    return 1;
 
   /* Look for the equal sign */
   buffer = key;
   while (isalnum((int)*buffer) || *buffer == '_' || *buffer == ':')
     buffer++;
   if ((*buffer != '=') || (buffer == key))
-    return (1);
+    return 1;
   *buffer = 0;
   buffer++;
   /* Empty values must be written as "" */
   if (isspace((int)*buffer) || (*buffer == 0))
-    return (-1);
+    return -1;
 
   status = parse_string(&buffer, &value);
   if (status != 0)
-    return (-1);
+    return -1;
 
   /* NB: parse_string will have eaten up all trailing spaces. */
 
@@ -144,5 +144,5 @@ int parse_option(char **ret_buffer, char **ret_key, char **ret_value) {
   *ret_key = key;
   *ret_value = value;
 
-  return (0);
+  return 0;
 } /* int parse_option */

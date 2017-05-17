@@ -101,7 +101,7 @@ static int users_read(void) {
   us = sg_get_user_stats();
 #endif
   if (us == NULL)
-    return (-1);
+    return -1;
 
   users_submit((gauge_t)
 #if HAVE_LIBSTATGRAB_0_90
@@ -115,7 +115,7 @@ static int users_read(void) {
 #error "No applicable input method."
 #endif
 
-  return (0);
+  return 0;
 } /* int users_read */
 
 void module_register(void) {

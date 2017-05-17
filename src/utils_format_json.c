@@ -48,10 +48,10 @@ static int json_escape_string(char *buffer, size_t buffer_size, /* {{{ */
   size_t dst_pos;
 
   if ((buffer == NULL) || (string == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (buffer_size < 3)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   dst_pos = 0;
 
@@ -59,7 +59,7 @@ static int json_escape_string(char *buffer, size_t buffer_size, /* {{{ */
   do {                                                                         \
     if (dst_pos >= (buffer_size - 1)) {                                        \
       buffer[buffer_size - 1] = 0;                                             \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     }                                                                          \
     buffer[dst_pos] = (c);                                                     \
     dst_pos++;                                                                 \
@@ -81,7 +81,7 @@ static int json_escape_string(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD
 
-  return (0);
+  return 0;
 } /* }}} int json_escape_string */
 
 static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
@@ -98,10 +98,10 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
     status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else if (((size_t)status) >= (buffer_size - offset)) {                   \
       sfree(rates);                                                            \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     } else                                                                     \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -122,7 +122,7 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
       if (rates == NULL) {
         WARNING("utils_format_json: uc_get_rate failed.");
         sfree(rates);
-        return (-1);
+        return -1;
       }
 
       if (isfinite(rates[i]))
@@ -138,7 +138,7 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
     else {
       ERROR("format_json: Unknown data source type: %i", ds->ds[i].type);
       sfree(rates);
-      return (-1);
+      return -1;
     }
   } /* for ds->ds_num */
   BUFFER_ADD("]");
@@ -147,7 +147,7 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
   DEBUG("format_json: values_to_json: buffer = %s;", buffer);
   sfree(rates);
-  return (0);
+  return 0;
 } /* }}} int values_to_json */
 
 static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
@@ -161,9 +161,9 @@ static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
     int status;                                                                \
     status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
     if (status < 1)                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     else                                                                       \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -181,7 +181,7 @@ static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
   DEBUG("format_json: dstypes_to_json: buffer = %s;", buffer);
 
-  return (0);
+  return 0;
 } /* }}} int dstypes_to_json */
 
 static int dsnames_to_json(char *buffer, size_t buffer_size, /* {{{ */
@@ -195,9 +195,9 @@ static int dsnames_to_json(char *buffer, size_t buffer_size, /* {{{ */
     int status;                                                                \
     status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
     if (status < 1)                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     else                                                                       \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -215,7 +215,7 @@ static int dsnames_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
   DEBUG("format_json: dsnames_to_json: buffer = %s;", buffer);
 
-  return (0);
+  return 0;
 } /* }}} int dsnames_to_json */
 
 static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
@@ -230,9 +230,9 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
   do {                                                                         \
     status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
     if (status < 1)                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     else                                                                       \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -274,14 +274,14 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
   } /* for (keys) */
 
   if (offset == 0)
-    return (ENOENT);
+    return ENOENT;
 
   buffer[0] = '{'; /* replace leading ',' */
   BUFFER_ADD("}");
 
 #undef BUFFER_ADD
 
-  return (0);
+  return 0;
 } /* }}} int meta_data_keys_to_json */
 
 static int meta_data_to_json(char *buffer, size_t buffer_size, /* {{{ */
@@ -291,11 +291,11 @@ static int meta_data_to_json(char *buffer, size_t buffer_size, /* {{{ */
   int status;
 
   if ((buffer == NULL) || (buffer_size == 0) || (meta == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   status = meta_data_toc(meta, &keys);
   if (status <= 0)
-    return (status);
+    return status;
   keys_num = (size_t)status;
 
   status = meta_data_keys_to_json(buffer, buffer_size, meta, keys, keys_num);
@@ -320,9 +320,9 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
   do {                                                                         \
     status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
     if (status < 1)                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     else                                                                       \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -333,17 +333,17 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
   status = values_to_json(temp, sizeof(temp), ds, vl, store_rates);
   if (status != 0)
-    return (status);
+    return status;
   BUFFER_ADD("\"values\":%s", temp);
 
   status = dstypes_to_json(temp, sizeof(temp), ds);
   if (status != 0)
-    return (status);
+    return status;
   BUFFER_ADD(",\"dstypes\":%s", temp);
 
   status = dsnames_to_json(temp, sizeof(temp), ds);
   if (status != 0)
-    return (status);
+    return status;
   BUFFER_ADD(",\"dsnames\":%s", temp);
 
   BUFFER_ADD(",\"time\":%.3f", CDTIME_T_TO_DOUBLE(vl->time));
@@ -353,7 +353,7 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
   do {                                                                         \
     status = json_escape_string(temp, sizeof(temp), (value));                  \
     if (status != 0)                                                           \
-      return (status);                                                         \
+      return status;                                                           \
     BUFFER_ADD(",\"%s\":%s", (key), temp);                                     \
   } while (0)
 
@@ -368,7 +368,7 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
     memset(meta_buffer, 0, sizeof(meta_buffer));
     status = meta_data_to_json(meta_buffer, sizeof(meta_buffer), vl->meta);
     if (status != 0)
-      return (status);
+      return status;
 
     BUFFER_ADD(",\"meta\":%s", meta_buffer);
   } /* if (vl->meta != NULL) */
@@ -380,7 +380,7 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
   DEBUG("format_json: value_list_to_json: buffer = %s;", buffer);
 
-  return (0);
+  return 0;
 } /* }}} int value_list_to_json */
 
 static int format_json_value_list_nocheck(char *buffer, /* {{{ */
@@ -394,14 +394,14 @@ static int format_json_value_list_nocheck(char *buffer, /* {{{ */
 
   status = value_list_to_json(temp, sizeof(temp), ds, vl, store_rates);
   if (status != 0)
-    return (status);
+    return status;
   temp_size = strlen(temp);
 
   memcpy(buffer + (*ret_buffer_fill), temp, temp_size + 1);
   (*ret_buffer_fill) += temp_size;
   (*ret_buffer_free) -= temp_size;
 
-  return (0);
+  return 0;
 } /* }}} int format_json_value_list_nocheck */
 
 int format_json_initialize(char *buffer, /* {{{ */
@@ -411,7 +411,7 @@ int format_json_initialize(char *buffer, /* {{{ */
 
   if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
       (ret_buffer_free == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   buffer_fill = *ret_buffer_fill;
   buffer_free = *ret_buffer_free;
@@ -420,13 +420,13 @@ int format_json_initialize(char *buffer, /* {{{ */
   buffer_fill = 0;
 
   if (buffer_free < 3)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   memset(buffer, 0, buffer_free);
   *ret_buffer_fill = buffer_fill;
   *ret_buffer_free = buffer_free;
 
-  return (0);
+  return 0;
 } /* }}} int format_json_initialize */
 
 int format_json_finalize(char *buffer, /* {{{ */
@@ -435,15 +435,15 @@ int format_json_finalize(char *buffer, /* {{{ */
 
   if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
       (ret_buffer_free == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (*ret_buffer_free < 2)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   /* Replace the leading comma added in `value_list_to_json' with a square
    * bracket. */
   if (buffer[0] != ',')
-    return (-EINVAL);
+    return -EINVAL;
   buffer[0] = '[';
 
   pos = *ret_buffer_fill;
@@ -453,7 +453,7 @@ int format_json_finalize(char *buffer, /* {{{ */
   (*ret_buffer_fill)++;
   (*ret_buffer_free)--;
 
-  return (0);
+  return 0;
 } /* }}} int format_json_finalize */
 
 int format_json_value_list(char *buffer, /* {{{ */
@@ -462,14 +462,14 @@ int format_json_value_list(char *buffer, /* {{{ */
                            int store_rates) {
   if ((buffer == NULL) || (ret_buffer_fill == NULL) ||
       (ret_buffer_free == NULL) || (ds == NULL) || (vl == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (*ret_buffer_free < 3)
-    return (-ENOMEM);
+    return -ENOMEM;
 
-  return (format_json_value_list_nocheck(buffer, ret_buffer_fill,
-                                         ret_buffer_free, ds, vl, store_rates,
-                                         (*ret_buffer_free) - 2));
+  return format_json_value_list_nocheck(buffer, ret_buffer_fill,
+                                        ret_buffer_free, ds, vl, store_rates,
+                                        (*ret_buffer_free) - 2);
 } /* }}} int format_json_value_list */
 
 #if HAVE_LIBYAJL
@@ -478,7 +478,7 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
   if (str == NULL)
     return (int)yajl_gen_null(g);
 
-  return (int)yajl_gen_string(g, (unsigned char const *)str,
+  return (int)yajl_gen_string(g, (const unsigned char *)str,
                               (unsigned int)strlen(str));
 } /* }}} int json_add_string */
 

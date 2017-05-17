@@ -97,7 +97,7 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
   args = calloc(1, sizeof(*args));
   if (args == NULL) {
     ERROR("srrd_create_args_create: calloc failed.");
-    return (NULL);
+    return NULL;
   }
   args->filename = NULL;
   args->pdp_step = pdp_step;
@@ -108,14 +108,14 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
   if (args->filename == NULL) {
     ERROR("srrd_create_args_create: strdup failed.");
     srrd_create_args_destroy(args);
-    return (NULL);
+    return NULL;
   }
 
   args->argv = calloc((size_t)(argc + 1), sizeof(*args->argv));
   if (args->argv == NULL) {
     ERROR("srrd_create_args_create: calloc failed.");
     srrd_create_args_destroy(args);
-    return (NULL);
+    return NULL;
   }
 
   for (args->argc = 0; args->argc < argc; args->argc++) {
@@ -123,13 +123,13 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
     if (args->argv[args->argc] == NULL) {
       ERROR("srrd_create_args_create: strdup failed.");
       srrd_create_args_destroy(args);
-      return (NULL);
+      return NULL;
     }
   }
   assert(args->argc == argc);
   args->argv[args->argc] = NULL;
 
-  return (args);
+  return args;
 } /* srrd_create_args_t *srrd_create_args_create */
 
 /* * * * * * * * * *
@@ -154,12 +154,12 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
 
   if (cfg->rrarows <= 0) {
     *ret = NULL;
-    return (-1);
+    return -1;
   }
 
   if ((cfg->xff < 0) || (cfg->xff >= 1.0)) {
     *ret = NULL;
-    return (-1);
+    return -1;
   }
 
   if (cfg->stepsize > 0)
@@ -168,7 +168,7 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
     ss = (int)CDTIME_T_TO_TIME_T(vl->interval);
   if (ss <= 0) {
     *ret = NULL;
-    return (-1);
+    return -1;
   }
 
   /* Use the configured timespans or fall back to the built-in defaults */
@@ -184,7 +184,7 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
   assert(rra_max > 0);
 
   if ((rra_def = calloc(rra_max + 1, sizeof(*rra_def))) == NULL)
-    return (-1);
+    return -1;
   rra_num = 0;
 
   cdp_len = 0;
@@ -222,11 +222,11 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
 
   if (rra_num <= 0) {
     sfree(rra_def);
-    return (0);
+    return 0;
   }
 
   *ret = rra_def;
-  return (rra_num);
+  return rra_num;
 } /* }}} int rra_get */
 
 static void ds_free(int ds_num, char **ds_def) /* {{{ */
@@ -254,7 +254,7 @@ static int ds_get(char ***ret, /* {{{ */
     char errbuf[1024];
     ERROR("rrdtool plugin: calloc failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   for (ds_num = 0; ds_num < ds->ds_num; ds_num++) {
@@ -300,16 +300,16 @@ static int ds_get(char ***ret, /* {{{ */
 
   if (ds_num != ds->ds_num) {
     ds_free(ds_num, ds_def);
-    return (-1);
+    return -1;
   }
 
   if (ds_num == 0) {
     sfree(ds_def);
-    return (0);
+    return 0;
   }
 
   *ret = ds_def;
-  return (ds_num);
+  return ds_num;
 } /* }}} int ds_get */
 
 #if HAVE_THREADSAFE_LIBRRD
@@ -320,7 +320,7 @@ static int srrd_create(const char *filename, /* {{{ */
   char *filename_copy;
 
   if ((filename == NULL) || (argv == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   /* Some versions of librrd don't have the `const' qualifier for the first
    * argument, so we have to copy the pointer here to avoid warnings. It sucks,
@@ -328,7 +328,7 @@ static int srrd_create(const char *filename, /* {{{ */
   filename_copy = strdup(filename);
   if (filename_copy == NULL) {
     ERROR("srrd_create: strdup failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   optind = 0; /* bug in librrd? */
@@ -343,7 +343,7 @@ static int srrd_create(const char *filename, /* {{{ */
 
   sfree(filename_copy);
 
-  return (status);
+  return status;
 } /* }}} int srrd_create */
 /* #endif HAVE_THREADSAFE_LIBRRD */
 
@@ -363,7 +363,7 @@ static int srrd_create(const char *filename, /* {{{ */
   new_argv = malloc((new_argc + 1) * sizeof(*new_argv));
   if (new_argv == NULL) {
     ERROR("rrdtool plugin: malloc failed.");
-    return (-1);
+    return -1;
   }
 
   if (last_up == 0)
@@ -396,7 +396,7 @@ static int srrd_create(const char *filename, /* {{{ */
 
   sfree(new_argv);
 
-  return (status);
+  return status;
 } /* }}} int srrd_create */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
@@ -414,26 +414,26 @@ static int lock_file(char const *filename) /* {{{ */
 
   if (ptr != NULL) {
     pthread_mutex_unlock(&async_creation_lock);
-    return (EEXIST);
+    return EEXIST;
   }
 
   status = stat(filename, &sb);
   if ((status == 0) || (errno != ENOENT)) {
     pthread_mutex_unlock(&async_creation_lock);
-    return (EEXIST);
+    return EEXIST;
   }
 
   ptr = malloc(sizeof(*ptr));
   if (ptr == NULL) {
     pthread_mutex_unlock(&async_creation_lock);
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   ptr->filename = strdup(filename);
   if (ptr->filename == NULL) {
     pthread_mutex_unlock(&async_creation_lock);
     sfree(ptr);
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   ptr->next = async_creation_list;
@@ -441,7 +441,7 @@ static int lock_file(char const *filename) /* {{{ */
 
   pthread_mutex_unlock(&async_creation_lock);
 
-  return (0);
+  return 0;
 } /* }}} int lock_file */
 
 static int unlock_file(char const *filename) /* {{{ */
@@ -460,7 +460,7 @@ static int unlock_file(char const *filename) /* {{{ */
 
   if (this == NULL) {
     pthread_mutex_unlock(&async_creation_lock);
-    return (ENOENT);
+    return ENOENT;
   }
 
   if (prev == NULL) {
@@ -477,7 +477,7 @@ static int unlock_file(char const *filename) /* {{{ */
   sfree(this->filename);
   sfree(this);
 
-  return (0);
+  return 0;
 } /* }}} int unlock_file */
 
 static void *srrd_create_thread(void *targs) /* {{{ */
@@ -494,7 +494,7 @@ static void *srrd_create_thread(void *targs) /* {{{ */
     else
       ERROR("srrd_create_thread: Unable to lock file \"%s\".", args->filename);
     srrd_create_args_destroy(args);
-    return (0);
+    return 0;
   }
 
   ssnprintf(tmpfile, sizeof(tmpfile), "%s.async", args->filename);
@@ -507,7 +507,7 @@ static void *srrd_create_thread(void *targs) /* {{{ */
     unlink(tmpfile);
     unlock_file(args->filename);
     srrd_create_args_destroy(args);
-    return (0);
+    return 0;
   }
 
   status = rename(tmpfile, args->filename);
@@ -518,7 +518,7 @@ static void *srrd_create_thread(void *targs) /* {{{ */
     unlink(tmpfile);
     unlock_file(args->filename);
     srrd_create_args_destroy(args);
-    return (0);
+    return 0;
   }
 
   DEBUG("srrd_create_thread: Successfully created RRD file \"%s\".",
@@ -527,7 +527,7 @@ static void *srrd_create_thread(void *targs) /* {{{ */
   unlock_file(args->filename);
   srrd_create_args_destroy(args);
 
-  return (0);
+  return 0;
 } /* }}} void *srrd_create_thread */
 
 static int srrd_create_async(const char *filename, /* {{{ */
@@ -542,19 +542,19 @@ static int srrd_create_async(const char *filename, /* {{{ */
 
   args = srrd_create_args_create(filename, pdp_step, last_up, argc, argv);
   if (args == NULL)
-    return (-1);
+    return -1;
 
   status = pthread_attr_init(&attr);
   if (status != 0) {
     srrd_create_args_destroy(args);
-    return (-1);
+    return -1;
   }
 
   status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   if (status != 0) {
     pthread_attr_destroy(&attr);
     srrd_create_args_destroy(args);
-    return (-1);
+    return -1;
   }
 
   status = pthread_create(&thread, &attr, srrd_create_thread, args);
@@ -564,12 +564,12 @@ static int srrd_create_async(const char *filename, /* {{{ */
           sstrerror(status, errbuf, sizeof(errbuf)));
     pthread_attr_destroy(&attr);
     srrd_create_args_destroy(args);
-    return (status);
+    return status;
   }
 
   pthread_attr_destroy(&attr);
   /* args is freed in srrd_create_thread(). */
-  return (0);
+  return 0;
 } /* }}} int srrd_create_async */
 
 /*
@@ -589,17 +589,17 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   unsigned long stepsize;
 
   if (check_create_dir(filename))
-    return (-1);
+    return -1;
 
   if ((rra_num = rra_get(&rra_def, vl, cfg)) < 1) {
     ERROR("cu_rrd_create_file failed: Could not calculate RRAs");
-    return (-1);
+    return -1;
   }
 
   if ((ds_num = ds_get(&ds_def, ds, vl, cfg)) < 1) {
     ERROR("cu_rrd_create_file failed: Could not calculate DSes");
     rra_free(rra_num, rra_def);
-    return (-1);
+    return -1;
   }
 
   argc = ds_num + rra_num;
@@ -610,7 +610,7 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
           sstrerror(errno, errbuf, sizeof(errbuf)));
     rra_free(rra_num, rra_def);
     ds_free(ds_num, ds_def);
-    return (-1);
+    return -1;
   }
 
   memcpy(argv, ds_def, ds_num * sizeof(char *));
@@ -662,5 +662,5 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   ds_free(ds_num, ds_def);
   rra_free(rra_num, rra_def);
 
-  return (status);
+  return status;
 } /* }}} int cu_rrd_create_file */

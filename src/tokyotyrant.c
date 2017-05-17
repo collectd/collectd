@@ -45,7 +45,7 @@ static int tt_config(const char *key, const char *value) {
     temp = strdup(value);
     if (temp == NULL) {
       ERROR("tokyotyrant plugin: Host strdup failed.");
-      return (1);
+      return 1;
     }
     sfree(config_host);
     config_host = temp;
@@ -55,16 +55,16 @@ static int tt_config(const char *key, const char *value) {
     temp = strdup(value);
     if (temp == NULL) {
       ERROR("tokyotyrant plugin: Port strdup failed.");
-      return (1);
+      return 1;
     }
     sfree(config_port);
     config_port = temp;
   } else {
     ERROR("tokyotyrant plugin: error: unrecognized configuration key %s", key);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void printerr(void) {
@@ -116,7 +116,7 @@ static int tt_read(void) {
 
   tt_open_db();
   if (rdb == NULL)
-    return (-1);
+    return -1;
 
   rnum = tcrdbrnum(rdb);
   tt_submit(rnum, "records");
@@ -124,7 +124,7 @@ static int tt_read(void) {
   size = tcrdbsize(rdb);
   tt_submit(size, "file_size");
 
-  return (0);
+  return 0;
 }
 
 static int tt_shutdown(void) {
@@ -135,13 +135,13 @@ static int tt_shutdown(void) {
     if (!tcrdbclose(rdb)) {
       printerr();
       tcrdbdel(rdb);
-      return (1);
+      return 1;
     }
     tcrdbdel(rdb);
     rdb = NULL;
   }
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

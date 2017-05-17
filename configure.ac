@@ -1399,8 +1399,8 @@ if test "x$fp_layout_type" = "xunknown"; then
                   && (c[2] == 0xc0) && (c[3] == 0xc7)
                   && (c[4] == 0x43) && (c[5] == 0x2b)
                   && (c[6] == 0x1f) && (c[7] == 0x5b))
-                return (0);
-              return (1);
+                return 0;
+              return 1;
             ]]
           )
         ],
@@ -1454,8 +1454,8 @@ if test "x$fp_layout_type" = "xunknown"; then
                   && (c[2] == 0xc0) && (c[3] == 0xc7)
                   && (c[4] == 0x43) && (c[5] == 0x2b)
                   && (c[6] == 0x1f) && (c[7] == 0x5b))
-                return (0);
-              return (1);
+                return 0;
+              return 1;
             ]]
           )
         ],
@@ -1503,8 +1503,8 @@ if test "x$fp_layout_type" = "xunknown"; then
                   && (c[2] == 0xc0) && (c[3] == 0xc7)
                   && (c[4] == 0x43) && (c[5] == 0x2b)
                   && (c[6] == 0x1f) && (c[7] == 0x5b))
-                return (0);
-              return (1);
+                return 0;
+              return 1;
             ]]
           )
         ],
@@ -3653,7 +3653,7 @@ if test "x$with_libmnl" = "xyes"; then
         ]],
         [[
           int retval = TCA_STATS2;
-          return (retval);
+          return retval;
         ]]
       )
     ],
@@ -3673,7 +3673,7 @@ if test "x$with_libmnl" = "xyes"; then
         ]],
         [[
           int retval = TCA_STATS;
-          return (retval);
+          return retval;
         ]]
       )
     ],

@@ -108,26 +108,26 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
 
   if (ci->children_num != 0) {
     WARNING("exec plugin: The config option `%s' may not be a block.", ci->key);
-    return (-1);
+    return -1;
   }
   if (ci->values_num < 2) {
     WARNING("exec plugin: The config option `%s' needs at least two "
             "arguments.",
             ci->key);
-    return (-1);
+    return -1;
   }
   if ((ci->values[0].type != OCONFIG_TYPE_STRING) ||
       (ci->values[1].type != OCONFIG_TYPE_STRING)) {
     WARNING("exec plugin: The first two arguments to the `%s' option must "
             "be string arguments.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   pl = calloc(1, sizeof(*pl));
   if (pl == NULL) {
     ERROR("exec plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   if (strcasecmp("NotificationExec", ci->key) == 0)
@@ -139,7 +139,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
   if (pl->user == NULL) {
     ERROR("exec plugin: strdup failed.");
     sfree(pl);
-    return (-1);
+    return -1;
   }
 
   pl->group = strchr(pl->user, ':');
@@ -153,7 +153,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
     ERROR("exec plugin: strdup failed.");
     sfree(pl->user);
     sfree(pl);
-    return (-1);
+    return -1;
   }
 
   pl->argv = calloc(ci->values_num, sizeof(*pl->argv));
@@ -162,7 +162,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
     sfree(pl->exec);
     sfree(pl->user);
     sfree(pl);
-    return (-1);
+    return -1;
   }
 
   {
@@ -179,7 +179,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
     sfree(pl->exec);
     sfree(pl->user);
     sfree(pl);
-    return (-1);
+    return -1;
   }
 
   for (i = 1; i < (ci->values_num - 1); i++) {
@@ -213,7 +213,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
     sfree(pl->exec);
     sfree(pl->user);
     sfree(pl);
-    return (-1);
+    return -1;
   }
 
   for (i = 0; pl->argv[i] != NULL; i++) {
@@ -223,7 +223,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
   pl->next = pl_head;
   pl_head = pl;
 
-  return (0);
+  return 0;
 } /* int exec_config_exec }}} */
 
 static int exec_config(oconfig_item_t *ci) /* {{{ */
@@ -238,7 +238,7 @@ static int exec_config(oconfig_item_t *ci) /* {{{ */
     }
   } /* for (i) */
 
-  return (0);
+  return 0;
 } /* int exec_config }}} */
 
 static void set_environment(void) /* {{{ */
@@ -332,7 +332,7 @@ static int create_pipe(int fd_pipe[2]) /* {{{ */
   if (status != 0) {
     ERROR("exec plugin: pipe failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   return 0;
@@ -372,7 +372,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   char nambuf[2048];
 
   if (pl->pid != 0)
-    return (-1);
+    return -1;
 
   if ((create_pipe(fd_pipe_in) == -1) || (create_pipe(fd_pipe_out) == -1) ||
       (create_pipe(fd_pipe_err) == -1))
@@ -487,26 +487,26 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   else
     close(fd_pipe_err[0]);
 
-  return (pid);
+  return pid;
 
 failed:
   close_pipe(fd_pipe_in);
   close_pipe(fd_pipe_out);
   close_pipe(fd_pipe_err);
 
-  return (-1);
+  return -1;
 } /* int fork_child }}} */
 
 static int parse_line(char *buffer) /* {{{ */
 {
   if (strncasecmp("PUTVAL", buffer, strlen("PUTVAL")) == 0)
-    return (cmd_handle_putval(stdout, buffer));
+    return cmd_handle_putval(stdout, buffer);
   else if (strncasecmp("PUTNOTIF", buffer, strlen("PUTNOTIF")) == 0)
-    return (handle_putnotif(stdout, buffer));
+    return handle_putnotif(stdout, buffer);
   else {
     ERROR("exec plugin: Unable to parse command, ignoring line: \"%s\"",
           buffer);
-    return (-1);
+    return -1;
   }
 } /* int parse_line }}} */
 
@@ -655,7 +655,7 @@ static void *exec_read_one(void *arg) /* {{{ */
     close(fd_err);
 
   pthread_exit((void *)0);
-  return (NULL);
+  return NULL;
 } /* void *exec_read_one }}} */
 
 static void *exec_notification_one(void *arg) /* {{{ */
@@ -737,7 +737,7 @@ static void *exec_notification_one(void *arg) /* {{{ */
   n->meta = NULL;
   sfree(arg);
   pthread_exit((void *)0);
-  return (NULL);
+  return NULL;
 } /* void *exec_notification_one }}} */
 
 static int exec_init(void) /* {{{ */
@@ -763,7 +763,7 @@ static int exec_init(void) /* {{{ */
   }
 #endif
 
-  return (0);
+  return 0;
 } /* int exec_init }}} */
 
 static int exec_read(void) /* {{{ */
@@ -791,7 +791,7 @@ static int exec_read(void) /* {{{ */
     pthread_attr_destroy(&attr);
   } /* for (pl) */
 
-  return (0);
+  return 0;
 } /* int exec_read }}} */
 
 static int exec_notification(const notification_t *n, /* {{{ */
@@ -831,7 +831,7 @@ static int exec_notification(const notification_t *n, /* {{{ */
     pthread_attr_destroy(&attr);
   } /* for (pl) */
 
-  return (0);
+  return 0;
 } /* }}} int exec_notification */
 
 static int exec_shutdown(void) /* {{{ */
@@ -855,7 +855,7 @@ static int exec_shutdown(void) /* {{{ */
   } /* while (pl) */
   pl_head = NULL;
 
-  return (0);
+  return 0;
 } /* int exec_shutdown }}} */
 
 void module_register(void) {

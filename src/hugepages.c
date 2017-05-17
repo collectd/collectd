@@ -76,7 +76,7 @@ static int hp_config(oconfig_item_t *ci) {
             child->key);
   }
 
-  return (0);
+  return 0;
 }
 
 static void submit_hp(const struct entry_info *info) {

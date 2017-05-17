@@ -68,7 +68,7 @@ DEF_TEST(simple) {
   }
 
   c_heap_destroy(h);
-  return (0);
+  return 0;
 }
 
 int main(void) {

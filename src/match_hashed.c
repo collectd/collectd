@@ -56,19 +56,19 @@ static int mh_config_match(const oconfig_item_t *ci, /* {{{ */
       (ci->values[1].type != OCONFIG_TYPE_NUMBER)) {
     ERROR("hashed match: The `Match' option requires "
           "exactly two numeric arguments.");
-    return (-1);
+    return -1;
   }
 
   if ((ci->values[0].value.number < 0) || (ci->values[1].value.number < 0)) {
     ERROR("hashed match: The arguments of the `Match' "
           "option must be positive.");
-    return (-1);
+    return -1;
   }
 
   tmp = realloc(m->matches, sizeof(*tmp) * (m->matches_num + 1));
   if (tmp == NULL) {
     ERROR("hashed match: realloc failed.");
-    return (-1);
+    return -1;
   }
   m->matches = tmp;
   tmp = m->matches + m->matches_num;
@@ -79,12 +79,12 @@ static int mh_config_match(const oconfig_item_t *ci, /* {{{ */
   if (tmp->match >= tmp->total) {
     ERROR("hashed match: The first argument of the `Match' option "
           "must be smaller than the second argument.");
-    return (-1);
+    return -1;
   }
   assert(tmp->total != 0);
 
   m->matches_num++;
-  return (0);
+  return 0;
 } /* }}} int mh_config_match */
 
 static int mh_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
@@ -94,7 +94,7 @@ static int mh_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   m = calloc(1, sizeof(*m));
   if (m == NULL) {
     ERROR("mh_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -110,11 +110,11 @@ static int mh_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
     sfree(m->matches);
     sfree(m);
     ERROR("hashed match: No matches were configured. Not creating match.");
-    return (-1);
+    return -1;
   }
 
   *user_data = m;
-  return (0);
+  return 0;
 } /* }}} int mh_create */
 
 static int mh_destroy(void **user_data) /* {{{ */
@@ -122,13 +122,13 @@ static int mh_destroy(void **user_data) /* {{{ */
   mh_match_t *mh;
 
   if ((user_data == NULL) || (*user_data == NULL))
-    return (0);
+    return 0;
 
   mh = *user_data;
   sfree(mh->matches);
   sfree(mh);
 
-  return (0);
+  return 0;
 } /* }}} int mh_destroy */
 
 static int mh_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
@@ -139,7 +139,7 @@ static int mh_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
   uint32_t hash_val;
 
   if ((user_data == NULL) || (*user_data == NULL))
-    return (-1);
+    return -1;
 
   m = *user_data;
 
@@ -153,9 +153,9 @@ static int mh_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
 
   for (size_t i = 0; i < m->matches_num; i++)
     if ((hash_val % m->matches[i].total) == m->matches[i].match)
-      return (FC_MATCH_MATCHES);
+      return FC_MATCH_MATCHES;
 
-  return (FC_MATCH_NO_MATCH);
+  return FC_MATCH_NO_MATCH;
 } /* }}} int mh_match */
 
 void module_register(void) {

@@ -35,7 +35,7 @@ static int ltoc_values(lua_State *L, /* {{{ */
                        const data_set_t *ds, value_t *ret_values) {
   if (!lua_istable(L, -1)) {
     WARNING("ltoc_values: not a table");
-    return (-1);
+    return -1;
   }
 
   /* Push initial key */
@@ -60,10 +60,10 @@ static int ltoc_values(lua_State *L, /* {{{ */
     WARNING("ltoc_values: invalid size for datasource \"%s\": expected %zu, "
             "got %zu",
             ds->type, ds->ds_num, i);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int ltoc_values */
 
 static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
@@ -78,7 +78,7 @@ static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
             "value, not a table.",
             lua_typename(L, lua_type(L, -1)));
     lua_pop(L, 1);
-    return (-1);
+    return -1;
   }
 
   vl->values_len = ds->ds_num;
@@ -87,7 +87,7 @@ static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
     ERROR("utils_lua: calloc failed.");
     vl->values_len = 0;
     lua_pop(L, 1);
-    return (-1);
+    return -1;
   }
 
   int status = ltoc_values(L, ds, vl->values);
@@ -99,7 +99,7 @@ static int ltoc_table_values(lua_State *L, int idx, /* {{{ */
     sfree(vl->values);
   }
 
-  return (status);
+  return status;
 } /* }}} int ltoc_table_values */
 
 static int luaC_pushvalues(lua_State *L, const data_set_t *ds,
@@ -114,7 +114,7 @@ static int luaC_pushvalues(lua_State *L, const data_set_t *ds,
     lua_settable(L, -3);
   }
 
-  return (0);
+  return 0;
 } /* }}} int luaC_pushvalues */
 
 static int luaC_pushdstypes(lua_State *L, const data_set_t *ds) /* {{{ */
@@ -126,7 +126,7 @@ static int luaC_pushdstypes(lua_State *L, const data_set_t *ds) /* {{{ */
     lua_settable(L, -3);
   }
 
-  return (0);
+  return 0;
 } /* }}} int luaC_pushdstypes */
 
 static int luaC_pushdsnames(lua_State *L, const data_set_t *ds) /* {{{ */
@@ -138,7 +138,7 @@ static int luaC_pushdsnames(lua_State *L, const data_set_t *ds) /* {{{ */
     lua_settable(L, -3);
   }
 
-  return (0);
+  return 0;
 } /* }}} int luaC_pushdsnames */
 
 /*
@@ -147,21 +147,21 @@ static int luaC_pushdsnames(lua_State *L, const data_set_t *ds) /* {{{ */
 cdtime_t luaC_tocdtime(lua_State *L, int idx) /* {{{ */
 {
   if (!lua_isnumber(L, /* stack pos = */ idx))
-    return (0);
+    return 0;
 
   double d = lua_tonumber(L, idx);
 
-  return (DOUBLE_TO_CDTIME_T(d));
+  return DOUBLE_TO_CDTIME_T(d);
 } /* }}} int ltoc_table_cdtime */
 
 int luaC_tostringbuffer(lua_State *L, int idx, /* {{{ */
                         char *buffer, size_t buffer_size) {
   const char *str = lua_tostring(L, idx);
   if (str == NULL)
-    return (-1);
+    return -1;
 
   sstrncpy(buffer, str, buffer_size);
-  return (0);
+  return 0;
 } /* }}} int luaC_tostringbuffer */
 
 value_t luaC_tovalue(lua_State *L, int idx, int ds_type) /* {{{ */
@@ -169,7 +169,7 @@ value_t luaC_tovalue(lua_State *L, int idx, int ds_type) /* {{{ */
   value_t v = {0};
 
   if (!lua_isnumber(L, idx))
-    return (v);
+    return v;
 
   if (ds_type == DS_TYPE_GAUGE)
     v.gauge = (gauge_t)lua_tonumber(L, /* stack pos = */ -1);
@@ -180,7 +180,7 @@ value_t luaC_tovalue(lua_State *L, int idx, int ds_type) /* {{{ */
   else if (ds_type == DS_TYPE_ABSOLUTE)
     v.absolute = (absolute_t)lua_tointeger(L, /* stack pos = */ -1);
 
-  return (v);
+  return v;
 } /* }}} value_t luaC_tovalue */
 
 value_list_t *luaC_tovaluelist(lua_State *L, int idx) /* {{{ */
@@ -197,13 +197,13 @@ value_list_t *luaC_tovaluelist(lua_State *L, int idx) /* {{{ */
   /* Check that idx is in the valid range */
   if ((idx < 1) || (idx > lua_gettop(L))) {
     DEBUG("luaC_tovaluelist: idx(%d), top(%d)", idx, stack_top_before);
-    return (NULL);
+    return NULL;
   }
 
   value_list_t *vl = calloc(1, sizeof(*vl));
   if (vl == NULL) {
     DEBUG("luaC_tovaluelist: calloc failed");
-    return (NULL);
+    return NULL;
   }
 
   /* Push initial key */
@@ -243,20 +243,20 @@ value_list_t *luaC_tovaluelist(lua_State *L, int idx) /* {{{ */
   if (ds == NULL) {
     INFO("utils_lua: Unable to lookup type \"%s\".", vl->type);
     sfree(vl);
-    return (NULL);
+    return NULL;
   }
 
   int status = ltoc_table_values(L, idx, ds, vl);
   if (status != 0) {
     WARNING("utils_lua: ltoc_table_values failed.");
     sfree(vl);
-    return (NULL);
+    return NULL;
   }
 
 #if COLLECT_DEBUG
   assert(stack_top_before == lua_gettop(L));
 #endif
-  return (vl);
+  return vl;
 } /* }}} value_list_t *luaC_tovaluelist */
 
 int luaC_pushcdtime(lua_State *L, cdtime_t t) /* {{{ */
@@ -264,7 +264,7 @@ int luaC_pushcdtime(lua_State *L, cdtime_t t) /* {{{ */
   double d = CDTIME_T_TO_DOUBLE(t);
 
   lua_pushnumber(L, (lua_Number)d);
-  return (0);
+  return 0;
 } /* }}} int luaC_pushcdtime */
 
 int luaC_pushvalue(lua_State *L, value_t v, int ds_type) /* {{{ */
@@ -278,8 +278,8 @@ int luaC_pushvalue(lua_State *L, value_t v, int ds_type) /* {{{ */
   else if (ds_type == DS_TYPE_ABSOLUTE)
     lua_pushinteger(L, (lua_Integer)v.absolute);
   else
-    return (-1);
-  return (0);
+    return -1;
+  return 0;
 } /* }}} int luaC_pushvalue */
 
 int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
@@ -315,5 +315,5 @@ int luaC_pushvaluelist(lua_State *L, const data_set_t *ds,
   luaC_pushcdtime(L, vl->interval);
   lua_setfield(L, -2, "interval");
 
-  return (0);
+  return 0;
 } /* }}} int luaC_pushvaluelist */

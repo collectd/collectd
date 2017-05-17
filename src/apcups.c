@@ -85,22 +85,22 @@ static int net_shutdown(int *fd) {
   uint16_t packet_size = 0;
 
   if ((fd == NULL) || (*fd < 0))
-    return (EINVAL);
+    return EINVAL;
 
   (void)swrite(*fd, (void *)&packet_size, sizeof(packet_size));
   close(*fd);
   *fd = -1;
 
-  return (0);
+  return 0;
 } /* int net_shutdown */
 
 /* Close the network connection */
 static int apcups_shutdown(void) {
   if (global_sockfd < 0)
-    return (0);
+    return 0;
 
   net_shutdown(&global_sockfd);
-  return (0);
+  return 0;
 } /* int apcups_shutdown */
 
 /*
@@ -123,7 +123,7 @@ static int net_open(char const *node, char const *service) {
     INFO("apcups plugin: getaddrinfo failed: %s",
          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                 : gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   /* Create socket */
@@ -138,7 +138,7 @@ static int net_open(char const *node, char const *service) {
   if (sd < 0) {
     DEBUG("apcups plugin: Unable to open a socket");
     freeaddrinfo(ai_return);
-    return (-1);
+    return -1;
   }
 
   status = connect(sd, ai_list->ai_addr, ai_list->ai_addrlen);
@@ -151,12 +151,12 @@ static int net_open(char const *node, char const *service) {
     INFO("apcups plugin: connect failed: %s",
          sstrerror(errno, errbuf, sizeof(errbuf)));
     close(sd);
-    return (-1);
+    return -1;
   }
 
   DEBUG("apcups plugin: Done opening a socket %i", sd);
 
-  return (sd);
+  return sd;
 } /* int net_open */
 
 /*
@@ -175,7 +175,7 @@ static int net_recv(int *sockfd, char *buf, int buflen) {
   if (sread(*sockfd, (void *)&packet_size, sizeof(packet_size)) != 0) {
     close(*sockfd);
     *sockfd = -1;
-    return (-1);
+    return -1;
   }
 
   packet_size = ntohs(packet_size);
@@ -185,20 +185,20 @@ static int net_recv(int *sockfd, char *buf, int buflen) {
           packet_size, buflen);
     close(*sockfd);
     *sockfd = -1;
-    return (-2);
+    return -2;
   }
 
   if (packet_size == 0)
-    return (0);
+    return 0;
 
   /* now read the actual data */
   if (sread(*sockfd, (void *)buf, packet_size) != 0) {
     close(*sockfd);
     *sockfd = -1;
-    return (-1);
+    return -1;
   }
 
-  return ((int)packet_size);
+  return (int)packet_size;
 } /* static int net_recv (int *sockfd, char *buf, int buflen) */
 
 /*
@@ -220,17 +220,17 @@ static int net_send(int *sockfd, const char *buff, int len) {
   if (swrite(*sockfd, (void *)&packet_size, sizeof(packet_size)) != 0) {
     close(*sockfd);
     *sockfd = -1;
-    return (-1);
+    return -1;
   }
 
   /* send data packet */
   if (swrite(*sockfd, (void *)buff, len) != 0) {
     close(*sockfd);
     *sockfd = -1;
-    return (-2);
+    return -2;
   }
 
-  return (0);
+  return 0;
 }
 
 /* Get and print status from apcupsd NIS server */
@@ -256,7 +256,7 @@ static int apc_query_server(char const *node, char const *service,
       if (global_sockfd < 0) {
         ERROR("apcups plugin: Connecting to the "
               "apcupsd failed.");
-        return (-1);
+        return -1;
       }
     }
 
@@ -271,7 +271,7 @@ static int apc_query_server(char const *node, char const *service,
       }
 
       ERROR("apcups plugin: Writing to the socket failed.");
-      return (-1);
+      return -1;
     }
 
     break;
@@ -344,10 +344,10 @@ static int apc_query_server(char const *node, char const *service,
     char errbuf[1024];
     ERROR("apcups plugin: Reading from socket failed: %s",
           sstrerror(status, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static int apcups_config(oconfig_item_t *ci) {
@@ -380,7 +380,7 @@ static int apcups_config(oconfig_item_t *ci) {
     }
   }
 
-  return (0);
+  return 0;
 } /* int apcups_config */
 
 static void apc_submit_generic(const char *type, const char *type_inst,
@@ -428,12 +428,12 @@ static int apcups_read(void) {
     DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
           conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node, conf_service,
           status);
-    return (status);
+    return status;
   }
 
   apc_submit(&apcups_detail);
 
-  return (0);
+  return 0;
 } /* apcups_read */
 
 void module_register(void) {

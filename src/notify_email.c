@@ -115,7 +115,7 @@ static int notify_email_init(void) {
   if (session == NULL) {
     pthread_mutex_unlock(&session_lock);
     ERROR("notify_email plugin: cannot create SMTP session");
-    return (-1);
+    return -1;
   }
 
   smtp_set_monitorcb(session, monitor_cb, NULL, 1);
@@ -131,11 +131,11 @@ static int notify_email_init(void) {
   if (!smtp_auth_set_context(session, authctx)) {
     pthread_mutex_unlock(&session_lock);
     ERROR("notify_email plugin: cannot set SMTP auth context");
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&session_lock);
-  return (0);
+  return 0;
 } /* int notify_email_init */
 
 static int notify_email_shutdown(void) {
@@ -152,7 +152,7 @@ static int notify_email_shutdown(void) {
   auth_client_exit();
 
   pthread_mutex_unlock(&session_lock);
-  return (0);
+  return 0;
 } /* int notify_email_shutdown */
 
 static int notify_email_config(const char *key, const char *value) {
@@ -162,14 +162,14 @@ static int notify_email_config(const char *key, const char *value) {
     tmp = realloc(recipients, (recipients_len + 1) * sizeof(char *));
     if (tmp == NULL) {
       ERROR("notify_email: realloc failed.");
-      return (-1);
+      return -1;
     }
 
     recipients = tmp;
     recipients[recipients_len] = strdup(value);
     if (recipients[recipients_len] == NULL) {
       ERROR("notify_email: strdup failed.");
-      return (-1);
+      return -1;
     }
     recipients_len++;
   } else if (0 == strcasecmp(key, "SMTPServer")) {
@@ -179,7 +179,7 @@ static int notify_email_config(const char *key, const char *value) {
     int port_tmp = atoi(value);
     if (port_tmp < 1 || port_tmp > 65535) {
       WARNING("notify_email plugin: Invalid SMTP port: %i", port_tmp);
-      return (1);
+      return 1;
     }
     smtp_port = port_tmp;
   } else if (0 == strcasecmp(key, "SMTPUser")) {
@@ -246,13 +246,13 @@ static int notify_email_notification(const notification_t *n,
   if (session == NULL) {
     /* Initialization failed or we're in the process of shutting down. */
     pthread_mutex_unlock(&session_lock);
-    return (-1);
+    return -1;
   }
 
   if (!(message = smtp_add_message(session))) {
     pthread_mutex_unlock(&session_lock);
     ERROR("notify_email plugin: cannot set SMTP message");
-    return (-1);
+    return -1;
   }
   smtp_set_reverse_path(message, email_from);
   smtp_set_header(message, "To", NULL, NULL);
@@ -266,7 +266,7 @@ static int notify_email_notification(const notification_t *n,
     ERROR("notify_email plugin: SMTP server problem: %s",
           smtp_strerror(smtp_errno(), buf, sizeof buf));
     pthread_mutex_unlock(&session_lock);
-    return (-1);
+    return -1;
   } else {
 #if COLLECT_DEBUG
     const smtp_status_t *status;
@@ -279,7 +279,7 @@ static int notify_email_notification(const notification_t *n,
   }
 
   pthread_mutex_unlock(&session_lock);
-  return (0);
+  return 0;
 } /* int notify_email_notification */
 
 void module_register(void) {

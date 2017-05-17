@@ -278,7 +278,7 @@ static int sensu_format_name2(char *ret, int ret_len, const char *hostname,
   do {                                                                         \
     size_t l = strlen(str);                                                    \
     if (l >= buffer_size)                                                      \
-      return (ENOBUFS);                                                        \
+      return ENOBUFS;                                                          \
     memcpy(buffer, (str), l);                                                  \
     buffer += l;                                                               \
     buffer_size -= l;                                                          \
@@ -304,7 +304,7 @@ static int sensu_format_name2(char *ret, int ret_len, const char *hostname,
   buffer[0] = 0;
 
 #undef APPEND
-  return (0);
+  return 0;
 } /* int sensu_format_name2 */
 
 static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */

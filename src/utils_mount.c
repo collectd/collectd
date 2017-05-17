@@ -270,11 +270,11 @@ static void uuidcache_init(void) {
 
 static unsigned char fromhex(char c) {
   if (isdigit((int)c)) {
-    return (c - '0');
+    return c - '0';
   } else if (islower((int)c)) {
-    return (c - 'a' + 10);
+    return c - 'a' + 10;
   } else {
-    return (c - 'A' + 10);
+    return c - 'A' + 10;
   }
 }
 
@@ -335,7 +335,7 @@ static char *get_device_name(const char *optstr) {
   char *rc;
 
   if (optstr == NULL) {
-    return (NULL);
+    return NULL;
   } else if (strncmp(optstr, "UUID=", 5) == 0) {
     DEBUG("utils_mount: TODO: check UUID= code!");
     rc = get_spec_by_uuid(optstr + 5);
@@ -401,7 +401,7 @@ static cu_mount_t *cu_mount_listmntent(void) {
     last->next = NULL;
   } /* for(p = mntlist; p; p = p->next) */
 
-  return (last);
+  return last;
 } /* cu_mount_t *cu_mount_listmntent(void) */
 /* #endif HAVE_LISTMNTENT */
 
@@ -435,11 +435,11 @@ static cu_mount_t *cu_mount_getfsstat(void) {
     DEBUG("utils_mount: getv?fsstat failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
 #endif /* COLLECT_DEBUG */
-    return (NULL);
+    return NULL;
   }
 
   if ((buf = calloc(bufsize, sizeof(*buf))) == NULL)
-    return (NULL);
+    return NULL;
 
   /* The bufsize needs to be passed in bytes. Really. This is not in the
    * manpage.. -octo */
@@ -451,7 +451,7 @@ static cu_mount_t *cu_mount_getfsstat(void) {
           sstrerror(errno, errbuf, sizeof(errbuf)));
 #endif /* COLLECT_DEBUG */
     free(buf);
-    return (NULL);
+    return NULL;
   }
 
   for (int i = 0; i < num; i++) {
@@ -478,7 +478,7 @@ static cu_mount_t *cu_mount_getfsstat(void) {
 
   free(buf);
 
-  return (first);
+  return first;
 }
 /* #endif HAVE_GETVFSSTAT || HAVE_GETFSSTAT */
 
@@ -498,7 +498,7 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
     char errbuf[1024];
     ERROR("fopen (%s): %s", COLLECTD_MNTTAB,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (NULL);
+    return NULL;
   }
 
   while (getmntent(fp, &mt) == 0) {
@@ -525,7 +525,7 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
 
   fclose(fp);
 
-  return (first);
+  return first;
 } /* static cu_mount_t *cu_mount_gen_getmntent (void) */
 /* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
 
@@ -549,7 +549,7 @@ static cu_mount_t *cu_mount_getmntent(void) {
     char errbuf[1024];
     ERROR("setmntent (%s): %s", COLLECTD_MNTTAB,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (NULL);
+    return NULL;
   }
 
   while (getmntent_r(fp, &me, mntbuf, sizeof(mntbuf))) {
@@ -580,9 +580,9 @@ static cu_mount_t *cu_mount_getmntent(void) {
 
   endmntent(fp);
 
-  DEBUG("utils_mount: return (0x%p)", (void *)first);
+  DEBUG("utils_mount: return 0x%p", (void *)first);
 
-  return (first);
+  return first;
 } /* HAVE_GETMNTENT_R */
 
 #elif HAVE_ONE_GETMNTENT
@@ -600,7 +600,7 @@ static cu_mount_t *cu_mount_getmntent(void) {
     char errbuf[1024];
     ERROR("setmntent (%s): %s", COLLECTD_MNTTAB,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (NULL);
+    return NULL;
   }
 
   while ((me = getmntent(fp)) != NULL) {
@@ -631,9 +631,9 @@ static cu_mount_t *cu_mount_getmntent(void) {
 
   endmntent(fp);
 
-  DEBUG("utils_mount: return (0x%p)", (void *)first);
+  DEBUG("utils_mount: return 0x%p", (void *)first);
 
-  return (first);
+  return first;
 }
 #endif /* HAVE_ONE_GETMNTENT */
 
@@ -647,7 +647,7 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list) {
   cu_mount_t *last = NULL;
 
   if (list == NULL)
-    return (NULL);
+    return NULL;
 
   if (*list != NULL) {
     first = *list;
@@ -681,7 +681,7 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list) {
   while ((last != NULL) && (last->next != NULL))
     last = last->next;
 
-  return (last);
+  return last;
 } /* cu_mount_t *cu_mount_getlist(cu_mount_t **list) */
 
 void cu_mount_freelist(cu_mount_t *list) {

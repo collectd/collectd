@@ -296,7 +296,7 @@ static kstat_t *nfs4_ksp_server;
 #endif
 
 #if KERNEL_LINUX
-static int nfs_init(void) { return (0); }
+static int nfs_init(void) { return 0; }
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
@@ -309,7 +309,7 @@ static int nfs_init(void) {
   nfs4_ksp_server = NULL;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (kstat_t *ksp_chain = kc->kc_chain; ksp_chain != NULL;
        ksp_chain = ksp_chain->ks_next) {
@@ -329,7 +329,7 @@ static int nfs_init(void) {
       nfs4_ksp_client = ksp_chain;
   }
 
-  return (0);
+  return 0;
 } /* int nfs_init */
 #endif
 
@@ -374,12 +374,12 @@ static int nfs_submit_fields_safe(int nfs_version, const char *instance,
     WARNING("nfs plugin: Wrong number of fields for "
             "NFSv%i %s statistics. Expected %zu, got %zu.",
             nfs_version, instance, proc_names_num, fields_num);
-    return (EINVAL);
+    return EINVAL;
   }
 
   nfs_submit_fields(nfs_version, instance, fields, fields_num, proc_names);
 
-  return (0);
+  return 0;
 }
 
 static int nfs_submit_nfs4_server(const char *instance, char **fields,
@@ -398,7 +398,7 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
       fields_num = NFS4_SERVER_MAX_PROC;
       suppress_warning = 1;
     } else {
-      return (EINVAL);
+      return EINVAL;
     }
   }
 
@@ -412,7 +412,7 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
                       nfs4_server41_procedures_names);
   }
 
-  return (0);
+  return 0;
 }
 
 static int nfs_submit_nfs4_client(const char *instance, char **fields,
@@ -462,7 +462,7 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
 
       suppress_warning = 1;
     } else {
-      return (EINVAL);
+      return EINVAL;
     }
   }
 
@@ -477,7 +477,7 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
                       nfs4_client41_procedures_names);
   }
 
-  return (0);
+  return 0;
 }
 
 static void nfs_read_linux(FILE *fh, const char *inst) {
@@ -521,7 +521,7 @@ static int nfs_read_kstat(kstat_t *ksp, int nfs_version, const char *inst,
   value_t values[proc_names_num];
 
   if (ksp == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   ssnprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
             inst);
@@ -537,7 +537,7 @@ static int nfs_read_kstat(kstat_t *ksp, int nfs_version, const char *inst,
   }
 
   nfs_procedures_submit(plugin_instance, proc_names, values, proc_names_num);
-  return (0);
+  return 0;
 }
 #endif
 
@@ -555,7 +555,7 @@ static int nfs_read(void) {
     fclose(fh);
   }
 
-  return (0);
+  return 0;
 }
 /* #endif KERNEL_LINUX */
 
@@ -574,7 +574,7 @@ static int nfs_read(void) {
   nfs_read_kstat(nfs4_ksp_server, /* version = */ 4, "server",
                  nfs4_procedures_names, nfs4_procedures_names_num);
 
-  return (0);
+  return 0;
 }
 #endif /* HAVE_LIBKSTAT */
 

@@ -125,12 +125,12 @@ static int wrr_connect(struct riemann_host *host) /* {{{ */
 static int wrr_disconnect(struct riemann_host *host) /* {{{ */
 {
   if (!host->client)
-    return (0);
+    return 0;
 
   riemann_client_free(host->client);
   host->client = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int wrr_disconnect */
 
 /**
@@ -259,13 +259,13 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
   if (msg == NULL) {
     ERROR("write_riemann plugin: riemann_message_create_with_events() failed.");
     riemann_event_free(event);
-    return (NULL);
+    return NULL;
   }
 
   DEBUG("write_riemann plugin: Successfully created message for notification: "
         "host = \"%s\", service = \"%s\", state = \"%s\"",
         event->host, event->service, event->state);
-  return (msg);
+  return msg;
 } /* }}} riemann_message_t *wrr_notification_to_message */
 
 static riemann_event_t *
@@ -280,7 +280,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   event = riemann_event_new();
   if (event == NULL) {
     ERROR("write_riemann plugin: riemann_event_new() failed.");
-    return (NULL);
+    return NULL;
   }
 
   format_name(name_buffer, sizeof(name_buffer),
@@ -388,7 +388,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   DEBUG("write_riemann plugin: Successfully created message for metric: "
         "host = \"%s\", service = \"%s\"",
         event->host, event->service);
-  return (event);
+  return event;
 } /* }}} riemann_event_t *wrr_value_to_event */
 
 static riemann_message_t *
@@ -403,7 +403,7 @@ wrr_value_list_to_message(struct riemann_host const *host, /* {{{ */
   msg = riemann_message_new();
   if (msg == NULL) {
     ERROR("write_riemann plugin: riemann_message_new failed.");
-    return (NULL);
+    return NULL;
   }
 
   if (host->store_rates) {
@@ -411,7 +411,7 @@ wrr_value_list_to_message(struct riemann_host const *host, /* {{{ */
     if (rates == NULL) {
       ERROR("write_riemann plugin: uc_get_rate failed.");
       riemann_message_free(msg);
-      return (NULL);
+      return NULL;
     }
   }
 
@@ -422,13 +422,13 @@ wrr_value_list_to_message(struct riemann_host const *host, /* {{{ */
     if (event == NULL) {
       riemann_message_free(msg);
       sfree(rates);
-      return (NULL);
+      return NULL;
     }
     riemann_message_append_events(msg, event, NULL);
   }
 
   sfree(rates);
-  return (msg);
+  return msg;
 } /* }}} riemann_message_t *wrr_value_list_to_message */
 
 /*
@@ -459,7 +459,7 @@ static int wrr_batch_flush(cdtime_t timeout,
   int status;
 
   if (user_data == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   host = user_data->data;
   pthread_mutex_lock(&host->lock);
@@ -539,7 +539,7 @@ static int wrr_notification(const notification_t *n, user_data_t *ud) /* {{{ */
    */
   msg = wrr_notification_to_message(host, n);
   if (msg == NULL)
-    return (-1);
+    return -1;
 
   status = wrr_send(host, msg);
   if (status != 0)
@@ -552,7 +552,7 @@ static int wrr_notification(const notification_t *n, user_data_t *ud) /* {{{ */
               "write_riemann plugin: riemann_client_send succeeded");
 
   riemann_message_free(msg);
-  return (status);
+  return status;
 } /* }}} int wrr_notification */
 
 static int wrr_write(const data_set_t *ds, /* {{{ */
@@ -575,7 +575,7 @@ static int wrr_write(const data_set_t *ds, /* {{{ */
   } else {
     msg = wrr_value_list_to_message(host, ds, vl, statuses);
     if (msg == NULL)
-      return (-1);
+      return -1;
 
     status = wrr_send(host, msg);
 
@@ -827,7 +827,7 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
      * holding a reference. */
     pthread_mutex_unlock(&host->lock);
     wrr_free(host);
-    return (-1);
+    return -1;
   }
 
   host->reference_count--;
@@ -853,21 +853,21 @@ static int wrr_config(oconfig_item_t *ci) /* {{{ */
 
       if (child->values_num != 2) {
         WARNING("riemann attributes need both a key and a value.");
-        return (-1);
+        return -1;
       }
       if (child->values[0].type != OCONFIG_TYPE_STRING ||
           child->values[1].type != OCONFIG_TYPE_STRING) {
         WARNING("riemann attribute needs string arguments.");
-        return (-1);
+        return -1;
       }
       if ((key = strdup(child->values[0].value.string)) == NULL) {
         WARNING("cannot allocate memory for attribute key.");
-        return (-1);
+        return -1;
       }
       if ((val = strdup(child->values[1].value.string)) == NULL) {
         WARNING("cannot allocate memory for attribute value.");
         sfree(key);
-        return (-1);
+        return -1;
       }
       strarray_add(&riemann_attrs, &riemann_attrs_num, key);
       strarray_add(&riemann_attrs, &riemann_attrs_num, val);
@@ -889,7 +889,7 @@ static int wrr_config(oconfig_item_t *ci) /* {{{ */
               child->key);
     }
   }
-  return (0);
+  return 0;
 } /* }}} int wrr_config */
 
 void module_register(void) {

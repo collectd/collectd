@@ -55,21 +55,21 @@ static char *match_substr(const char *str, int begin, int end) {
   size_t ret_len;
 
   if ((begin < 0) || (end < 0) || (begin >= end))
-    return (NULL);
+    return NULL;
   if ((size_t)end > (strlen(str) + 1)) {
     ERROR("utils_match: match_substr: `end' points after end of string.");
-    return (NULL);
+    return NULL;
   }
 
   ret_len = end - begin;
   ret = malloc(ret_len + 1);
   if (ret == NULL) {
     ERROR("utils_match: match_substr: malloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   sstrncpy(ret, str + begin, ret_len + 1);
-  return (ret);
+  return ret;
 } /* char *match_substr */
 
 static int default_callback(const char __attribute__((unused)) * str,
@@ -84,20 +84,20 @@ static int default_callback(const char __attribute__((unused)) * str,
     if (data->ds_type & UTILS_MATCH_CF_GAUGE_INC) {
       data->value.gauge = isnan(data->value.gauge) ? 1 : data->value.gauge + 1;
       data->values_num++;
-      return (0);
+      return 0;
     }
 
     if (matches_num < 2)
-      return (-1);
+      return -1;
 
     value = (gauge_t)strtod(matches[1], &endptr);
     if (matches[1] == endptr)
-      return (-1);
+      return -1;
 
     if (data->ds_type & UTILS_MATCH_CF_GAUGE_DIST) {
       latency_counter_add(data->latency, DOUBLE_TO_CDTIME_T(value));
       data->values_num++;
-      return (0);
+      return 0;
     }
 
     if ((data->values_num == 0) ||
@@ -117,7 +117,7 @@ static int default_callback(const char __attribute__((unused)) * str,
       data->value.gauge += value;
     } else {
       ERROR("utils_match: default_callback: obj->ds_type is invalid!");
-      return (-1);
+      return -1;
     }
 
     data->values_num++;
@@ -128,15 +128,15 @@ static int default_callback(const char __attribute__((unused)) * str,
     if (data->ds_type & UTILS_MATCH_CF_COUNTER_INC) {
       data->value.counter++;
       data->values_num++;
-      return (0);
+      return 0;
     }
 
     if (matches_num < 2)
-      return (-1);
+      return -1;
 
     value = (counter_t)strtoull(matches[1], &endptr, 0);
     if (matches[1] == endptr)
-      return (-1);
+      return -1;
 
     if (data->ds_type & UTILS_MATCH_CF_COUNTER_SET)
       data->value.counter = value;
@@ -144,7 +144,7 @@ static int default_callback(const char __attribute__((unused)) * str,
       data->value.counter += value;
     else {
       ERROR("utils_match: default_callback: obj->ds_type is invalid!");
-      return (-1);
+      return -1;
     }
 
     data->values_num++;
@@ -155,15 +155,15 @@ static int default_callback(const char __attribute__((unused)) * str,
     if (data->ds_type & UTILS_MATCH_CF_DERIVE_INC) {
       data->value.derive++;
       data->values_num++;
-      return (0);
+      return 0;
     }
 
     if (matches_num < 2)
-      return (-1);
+      return -1;
 
     value = (derive_t)strtoll(matches[1], &endptr, 0);
     if (matches[1] == endptr)
-      return (-1);
+      return -1;
 
     if (data->ds_type & UTILS_MATCH_CF_DERIVE_SET)
       data->value.derive = value;
@@ -171,7 +171,7 @@ static int default_callback(const char __attribute__((unused)) * str,
       data->value.derive += value;
     else {
       ERROR("utils_match: default_callback: obj->ds_type is invalid!");
-      return (-1);
+      return -1;
     }
 
     data->values_num++;
@@ -180,26 +180,26 @@ static int default_callback(const char __attribute__((unused)) * str,
     char *endptr = NULL;
 
     if (matches_num < 2)
-      return (-1);
+      return -1;
 
     value = (absolute_t)strtoull(matches[1], &endptr, 0);
     if (matches[1] == endptr)
-      return (-1);
+      return -1;
 
     if (data->ds_type & UTILS_MATCH_CF_ABSOLUTE_SET)
       data->value.absolute = value;
     else {
       ERROR("utils_match: default_callback: obj->ds_type is invalid!");
-      return (-1);
+      return -1;
     }
 
     data->values_num++;
   } else {
     ERROR("utils_match: default_callback: obj->ds_type is invalid!");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int default_callback */
 
 static void match_simple_free(void *data) {
@@ -227,13 +227,13 @@ match_create_callback(const char *regex, const char *excluderegex,
 
   obj = calloc(1, sizeof(*obj));
   if (obj == NULL)
-    return (NULL);
+    return NULL;
 
   status = regcomp(&obj->regex, regex, REG_EXTENDED | REG_NEWLINE);
   if (status != 0) {
     ERROR("Compiling the regular expression \"%s\" failed.", regex);
     sfree(obj);
-    return (NULL);
+    return NULL;
   }
   obj->flags |= UTILS_MATCH_FLAGS_REGEX;
 
@@ -243,7 +243,7 @@ match_create_callback(const char *regex, const char *excluderegex,
       ERROR("Compiling the excluding regular expression \"%s\" failed.",
             excluderegex);
       sfree(obj);
-      return (NULL);
+      return NULL;
     }
     obj->flags |= UTILS_MATCH_FLAGS_EXCLUDE_REGEX;
   }
@@ -252,7 +252,7 @@ match_create_callback(const char *regex, const char *excluderegex,
   obj->user_data = user_data;
   obj->free = free_user_data;
 
-  return (obj);
+  return obj;
 } /* cu_match_t *match_create_callback */
 
 cu_match_t *match_create_simple(const char *regex, const char *excluderegex,
@@ -262,7 +262,7 @@ cu_match_t *match_create_simple(const char *regex, const char *excluderegex,
 
   user_data = calloc(1, sizeof(*user_data));
   if (user_data == NULL)
-    return (NULL);
+    return NULL;
   user_data->ds_type = match_ds_type;
 
   if ((match_ds_type & UTILS_MATCH_DS_TYPE_GAUGE) &&
@@ -271,7 +271,7 @@ cu_match_t *match_create_simple(const char *regex, const char *excluderegex,
     if (user_data->latency == NULL) {
       ERROR("match_create_simple(): latency_counter_create() failed.");
       free(user_data);
-      return (NULL);
+      return NULL;
     }
   }
 
@@ -282,9 +282,9 @@ cu_match_t *match_create_simple(const char *regex, const char *excluderegex,
       latency_counter_destroy(user_data->latency);
 
     sfree(user_data);
-    return (NULL);
+    return NULL;
   }
-  return (obj);
+  return obj;
 } /* cu_match_t *match_create_simple */
 
 void match_value_reset(cu_match_value_t *mv) {
@@ -320,7 +320,7 @@ int match_apply(cu_match_t *obj, const char *str) {
   size_t matches_num;
 
   if ((obj == NULL) || (str == NULL))
-    return (-1);
+    return -1;
 
   if (obj->flags & UTILS_MATCH_FLAGS_EXCLUDE_REGEX) {
     status =
@@ -329,7 +329,7 @@ int match_apply(cu_match_t *obj, const char *str) {
     /* Regex did match, so exclude this line */
     if (status == 0) {
       DEBUG("ExludeRegex matched, don't count that line\n");
-      return (0);
+      return 0;
     }
   }
 
@@ -338,7 +338,7 @@ int match_apply(cu_match_t *obj, const char *str) {
 
   /* Regex did not match */
   if (status != 0)
-    return (0);
+    return 0;
 
   for (matches_num = 0; matches_num < STATIC_ARRAY_SIZE(matches);
        matches_num++) {
@@ -366,11 +366,11 @@ int match_apply(cu_match_t *obj, const char *str) {
     sfree(matches[i]);
   }
 
-  return (status);
+  return status;
 } /* int match_apply */
 
 void *match_get_user_data(cu_match_t *obj) {
   if (obj == NULL)
-    return (NULL);
-  return (obj->user_data);
+    return NULL;
+  return obj->user_data;
 } /* void *match_get_user_data */

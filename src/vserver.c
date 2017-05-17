@@ -49,7 +49,7 @@ static int vserver_init(void) {
    * What's the right thing to do, if there is no getpagesize ()? */
   pagesize = getpagesize();
 
-  return (0);
+  return 0;
 } /* static void vserver_init(void) */
 
 static void traffic_submit(const char *plugin_instance,
@@ -114,8 +114,8 @@ static derive_t vserver_get_sock_bytes(const char *s) {
 
   status = parse_value(s, &v, DS_TYPE_DERIVE);
   if (status != 0)
-    return (-1);
-  return (v.derive);
+    return -1;
+  return v.derive;
 }
 
 static int vserver_read(void) {
@@ -127,7 +127,7 @@ static int vserver_read(void) {
     char errbuf[1024];
     ERROR("vserver plugin: fopen (%s): %s", PROCDIR,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (42) {
@@ -154,7 +154,7 @@ static int vserver_read(void) {
       ERROR("vserver plugin: failed to read directory %s: %s", PROCDIR,
             sstrerror(errno, errbuf, sizeof(errbuf)));
       closedir(proc);
-      return (-1);
+      return -1;
     }
 
     if (dent->d_name[0] == '.')
@@ -314,7 +314,7 @@ static int vserver_read(void) {
 
   closedir(proc);
 
-  return (0);
+  return 0;
 } /* int vserver_read */
 
 void module_register(void) {

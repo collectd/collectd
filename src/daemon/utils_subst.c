@@ -119,7 +119,7 @@ char *subst_string(char *buf, size_t buflen, const char *string,
 
   if ((buf == NULL) || (string == NULL) || (needle == NULL) ||
       (replacement == NULL))
-    return (NULL);
+    return NULL;
 
   needle_len = strlen(needle);
   sstrncpy(buf, string, buflen);
@@ -157,5 +157,5 @@ char *subst_string(char *buf, size_t buflen, const char *string,
             i, string, needle, replacement);
   }
 
-  return (buf);
+  return buf;
 } /* char *subst_string */

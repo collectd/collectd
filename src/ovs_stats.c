@@ -308,7 +308,7 @@ static int ovs_stats_del_bridge(yajl_val bridge) {
     }
   } else
     WARNING("%s: Incorrect data for deleting bridge", plugin_name);
-  return (0);
+  return 0;
 }
 
 /* Update Bridge. Create bridge ports*/
@@ -330,7 +330,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
           br = (bridge_list_t *)calloc(1, sizeof(bridge_list_t));
           if (!br) {
             ERROR("%s: Error allocating memory for bridge", plugin_name);
-            return (-1);
+            return -1;
           }
           char *tmp = YAJL_GET_STRING(br_name);
 
@@ -339,7 +339,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
           if (br->name == NULL) {
             sfree(br);
             pthread_mutex_unlock(&g_stats_lock);
-            return (-1);
+            return -1;
           }
           br->next = g_bridge_list_head;
           g_bridge_list_head = br;
@@ -364,9 +364,9 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
     }
   } else {
     ERROR("Incorrect JSON Bridge data");
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 }
 
 /* Handle JSON with Bridge Table change event */
@@ -457,9 +457,9 @@ static int ovs_stats_update_port(const char *uuid, yajl_val port) {
     }
   } else {
     ERROR("Incorrect JSON Port data");
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 }
 
 /* Delete port from global port list */
@@ -476,7 +476,7 @@ static int ovs_stats_del_port(const char *uuid) {
       break;
     }
   }
-  return (0);
+  return 0;
 }
 
 /* Handle JSON with Port Table change event */
@@ -540,7 +540,7 @@ static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
     for (size_t i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
       stat = YAJL_GET_ARRAY(stats)->values[i];
       if (!YAJL_IS_ARRAY(stat))
-        return (-1);
+        return -1;
       counter_name = YAJL_GET_STRING(YAJL_GET_ARRAY(stat)->values[0]);
       counter_index = ovs_stats_counter_name_to_type(counter_name);
       counter_value = YAJL_GET_INTEGER(YAJL_GET_ARRAY(stat)->values[1]);
@@ -549,7 +549,7 @@ static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
       port->stats[counter_index] = counter_value;
     }
 
-  return (0);
+  return 0;
 }
 
 /* Update interface external_ids */
@@ -562,7 +562,7 @@ static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
     for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
       ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
       if (!YAJL_IS_ARRAY(ext_id))
-        return (-1);
+        return -1;
       key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
       value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
       if (key && value) {
@@ -573,7 +573,7 @@ static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
       }
     }
 
-  return (0);
+  return 0;
 }
 
 /* Get interface statistic and external_ids */
@@ -590,7 +590,7 @@ static int ovs_stats_update_iface(yajl_val iface) {
       if (iface_name && YAJL_IS_STRING(iface_name)) {
         port = ovs_stats_get_port_by_name(YAJL_GET_STRING(iface_name));
         if (port == NULL)
-          return (0);
+          return 0;
       }
       /*
        * {
@@ -626,9 +626,9 @@ static int ovs_stats_update_iface(yajl_val iface) {
     }
   } else {
     ERROR("Incorrect JSON Port data");
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 }
 
 /* Handle JSON with Interface Table change event */
@@ -745,11 +745,11 @@ static void ovs_stats_initialize(ovs_db_t *pdb) {
 static int ovs_stats_is_monitored_bridge(const char *br_name) {
   /* if no bridges are configured, return true */
   if (g_monitored_bridge_list_head == NULL)
-    return (1);
+    return 1;
 
   /* check if given bridge exists */
   if (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL)
-    return (1);
+    return 1;
 
   return 0;
 }
@@ -797,19 +797,19 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
       if (cf_util_get_string_buffer(child, ovs_stats_cfg.ovs_db_node,
                                     OVS_DB_ADDR_NODE_SIZE) != 0) {
         ERROR("%s: parse '%s' option failed", plugin_name, child->key);
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Port", child->key) == 0) {
       if (cf_util_get_string_buffer(child, ovs_stats_cfg.ovs_db_serv,
                                     OVS_DB_ADDR_SERVICE_SIZE) != 0) {
         ERROR("%s: parse '%s' option failed", plugin_name, child->key);
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Socket", child->key) == 0) {
       if (cf_util_get_string_buffer(child, ovs_stats_cfg.ovs_db_unix,
                                     OVS_DB_ADDR_UNIX_SIZE) != 0) {
         ERROR("%s: parse '%s' option failed", plugin_name, child->key);
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Bridges", child->key) == 0) {
       for (int j = 0; j < child->values_num; j++) {
@@ -846,11 +846,11 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
       goto cleanup_fail;
     }
   }
-  return (0);
+  return 0;
 
 cleanup_fail:
   ovs_stats_free_bridge_list(g_monitored_bridge_list_head);
-  return (-1);
+  return -1;
 }
 
 /* Initialize OvS Stats plugin*/
@@ -866,15 +866,15 @@ static int ovs_stats_plugin_init(void) {
                              ovs_stats_cfg.ovs_db_serv,
                        ovs_stats_cfg.ovs_db_unix, &cb)) == NULL) {
     ERROR("%s: plugin: failed to connect to OvS DB server", plugin_name);
-    return (-1);
+    return -1;
   }
   int err = pthread_mutex_init(&g_stats_lock, NULL);
   if (err < 0) {
     ERROR("%s: plugin: failed to initialize cache lock", plugin_name);
     ovs_db_destroy(g_ovs_db);
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 }
 
 /* OvS stats read callback. Read bridge/port information and submit it*/
@@ -964,7 +964,7 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
       continue;
   }
   pthread_mutex_unlock(&g_stats_lock);
-  return (0);
+  return 0;
 }
 
 /* Shutdown OvS Stats plugin */
@@ -977,7 +977,7 @@ static int ovs_stats_plugin_shutdown(void) {
   ovs_stats_free_port_list(g_port_list_head);
   pthread_mutex_unlock(&g_stats_lock);
   pthread_mutex_destroy(&g_stats_lock);
-  return (0);
+  return 0;
 }
 
 /* Register OvS Stats plugin callbacks */

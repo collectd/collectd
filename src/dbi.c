@@ -101,7 +101,7 @@ static const char *cdbi_strerror(dbi_conn conn, /* {{{ */
 
   if (conn == NULL) {
     sstrncpy(buffer, "connection is NULL", buffer_size);
-    return (buffer);
+    return buffer;
   }
 
   msg = NULL;
@@ -112,7 +112,7 @@ static const char *cdbi_strerror(dbi_conn conn, /* {{{ */
     ssnprintf(buffer, buffer_size, "dbi_conn_error failed with status %i",
               status);
 
-  return (buffer);
+  return buffer;
 } /* }}} const char *cdbi_conn_error */
 
 static int cdbi_result_get_field(dbi_result res, /* {{{ */
@@ -124,7 +124,7 @@ static int cdbi_result_get_field(dbi_result res, /* {{{ */
   if (src_type == DBI_TYPE_ERROR) {
     ERROR("dbi plugin: cdbi_result_get: "
           "dbi_result_get_field_type_idx failed.");
-    return (-1);
+    return -1;
   }
 
   if (src_type == DBI_TYPE_INTEGER) {
@@ -144,7 +144,7 @@ static int cdbi_result_get_field(dbi_result res, /* {{{ */
     if (value == NULL)
       sstrncpy(buffer, "", buffer_size);
     else if (strcmp("ERROR", value) == 0)
-      return (-1);
+      return -1;
     else
       sstrncpy(buffer, value, buffer_size);
   }
@@ -160,10 +160,10 @@ static int cdbi_result_get_field(dbi_result res, /* {{{ */
     ERROR("dbi plugin: Column `%s': Don't know how to handle "
           "source type %hu.",
           field_name, src_type);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cdbi_result_get_field */
 
 static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
@@ -221,14 +221,14 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
        (ci->values[1].type != OCONFIG_TYPE_NUMBER))) {
     WARNING("dbi plugin: The `DriverOption' config option "
             "needs exactly two arguments.");
-    return (-1);
+    return -1;
   }
 
   option = realloc(db->driver_options,
                    sizeof(*option) * (db->driver_options_num + 1));
   if (option == NULL) {
     ERROR("dbi plugin: realloc failed");
-    return (-1);
+    return -1;
   }
 
   db->driver_options = option;
@@ -238,7 +238,7 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
   option->key = strdup(ci->values[0].value.string);
   if (option->key == NULL) {
     ERROR("dbi plugin: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   if (ci->values[1].type == OCONFIG_TYPE_STRING) {
@@ -246,7 +246,7 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
     if (option->value.string == NULL) {
       ERROR("dbi plugin: strdup failed.");
       sfree(option->key);
-      return (-1);
+      return -1;
     }
   } else {
     assert(ci->values[1].type == OCONFIG_TYPE_NUMBER);
@@ -255,7 +255,7 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
   }
 
   db->driver_options_num++;
-  return (0);
+  return 0;
 } /* }}} int cdbi_config_add_database_driver_option */
 
 static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
@@ -266,19 +266,19 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("dbi plugin: The `Database' block "
             "needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   db = calloc(1, sizeof(*db));
   if (db == NULL) {
     ERROR("dbi plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   status = cf_util_get_string(ci, &db->name);
   if (status != 0) {
     sfree(db);
-    return (status);
+    return status;
   }
 
   /* Fill the `cdbi_database_t' structure.. */
@@ -371,10 +371,10 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
 
   if (status != 0) {
     cdbi_database_free(db);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cdbi_config_add_database */
 
 static int cdbi_config(oconfig_item_t *ci) /* {{{ */
@@ -391,7 +391,7 @@ static int cdbi_config(oconfig_item_t *ci) /* {{{ */
     }
   } /* for (ci->children) */
 
-  return (0);
+  return 0;
 } /* }}} int cdbi_config */
 
 /* }}} End of configuration handling functions */
@@ -402,34 +402,34 @@ static int cdbi_init(void) /* {{{ */
   int status;
 
   if (did_init != 0)
-    return (0);
+    return 0;
 
   if (queries_num == 0) {
     ERROR("dbi plugin: No <Query> blocks have been found. Without them, "
           "this plugin can't do anything useful, so we will return an error.");
-    return (-1);
+    return -1;
   }
 
   if (databases_num == 0) {
     ERROR("dbi plugin: No <Database> blocks have been found. Without them, "
           "this plugin can't do anything useful, so we will return an error.");
-    return (-1);
+    return -1;
   }
 
   status = dbi_initialize_r(/* driverdir = */ NULL, &dbi_instance);
   if (status < 0) {
     ERROR("dbi plugin: cdbi_init: dbi_initialize_r failed with status %i.",
           status);
-    return (-1);
+    return -1;
   } else if (status == 0) {
     ERROR("dbi plugin: `dbi_initialize_r' could not load any drivers. Please "
           "install at least one `DBD' or check your installation.");
-    return (-1);
+    return -1;
   }
   DEBUG("dbi plugin: cdbi_init: dbi_initialize_r reports %i driver%s.", status,
         (status == 1) ? "" : "s");
 
-  return (0);
+  return 0;
 } /* }}} int cdbi_init */
 
 static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
@@ -619,7 +619,7 @@ static int cdbi_connect_database(cdbi_database_t *db) /* {{{ */
   if (db->connection != NULL) {
     status = dbi_conn_ping(db->connection);
     if (status != 0) /* connection is alive */
-      return (0);
+      return 0;
 
     dbi_conn_close(db->connection);
     db->connection = NULL;
@@ -635,14 +635,14 @@ static int cdbi_connect_database(cdbi_database_t *db) /* {{{ */
          driver = dbi_driver_list_r(driver, dbi_instance)) {
       INFO("dbi plugin: * %s", dbi_driver_get_name(driver));
     }
-    return (-1);
+    return -1;
   }
 
   connection = dbi_conn_open(driver);
   if (connection == NULL) {
     ERROR("dbi plugin: cdbi_connect_database: dbi_conn_open (%s) failed.",
           db->driver);
-    return (-1);
+    return -1;
   }
 
   /* Set all the driver options. Because this is a very very very generic
@@ -686,7 +686,7 @@ static int cdbi_connect_database(cdbi_database_t *db) /* {{{ */
       }
 
       dbi_conn_close(connection);
-      return (-1);
+      return -1;
     }
   } /* for (i = 0; i < db->driver_options_num; i++) */
 
@@ -697,7 +697,7 @@ static int cdbi_connect_database(cdbi_database_t *db) /* {{{ */
           "dbi_conn_connect failed: %s",
           db->name, cdbi_strerror(connection, errbuf, sizeof(errbuf)));
     dbi_conn_close(connection);
-    return (-1);
+    return -1;
   }
 
   if (db->select_db != NULL) {
@@ -710,12 +710,12 @@ static int cdbi_connect_database(cdbi_database_t *db) /* {{{ */
           db->name, db->select_db,
           cdbi_strerror(connection, errbuf, sizeof(errbuf)));
       dbi_conn_close(connection);
-      return (-1);
+      return -1;
     }
   }
 
   db->connection = connection;
-  return (0);
+  return 0;
 } /* }}} int cdbi_connect_database */
 
 static int cdbi_read_database(user_data_t *ud) /* {{{ */
@@ -728,7 +728,7 @@ static int cdbi_read_database(user_data_t *ud) /* {{{ */
 
   status = cdbi_connect_database(db);
   if (status != 0)
-    return (status);
+    return status;
   assert(db->connection != NULL);
 
   db_version = dbi_conn_get_engine_version(db->connection);
@@ -749,10 +749,10 @@ static int cdbi_read_database(user_data_t *ud) /* {{{ */
 
   if (success == 0) {
     ERROR("dbi plugin: All queries failed for database `%s'.", db->name);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cdbi_read_database */
 
 static int cdbi_shutdown(void) /* {{{ */
@@ -771,7 +771,7 @@ static int cdbi_shutdown(void) /* {{{ */
   queries = NULL;
   queries_num = 0;
 
-  return (0);
+  return 0;
 } /* }}} int cdbi_shutdown */
 
 void module_register(void) /* {{{ */

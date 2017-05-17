@@ -37,7 +37,7 @@
 
 static int set_option(value_list_t *vl, const char *key, const char *value) {
   if ((vl == NULL) || (key == NULL) || (value == NULL))
-    return (-1);
+    return -1;
 
   if (strcasecmp("interval", key) == 0) {
     double tmp;
@@ -50,9 +50,9 @@ static int set_option(value_list_t *vl, const char *key, const char *value) {
     if ((errno == 0) && (endptr != NULL) && (endptr != value) && (tmp > 0.0))
       vl->interval = DOUBLE_TO_CDTIME_T(tmp);
   } else
-    return (1);
+    return 1;
 
-  return (0);
+  return 0;
 } /* int set_option */
 
 /*
@@ -81,12 +81,12 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   if ((ret_putval == NULL) || (opts == NULL)) {
     errno = EINVAL;
     cmd_error(CMD_ERROR, err, "Invalid arguments to cmd_parse_putval.");
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
   if (argc < 2) {
     cmd_error(CMD_PARSE_ERROR, err, "Missing identifier and/or value-list.");
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
   identifier = argv[0];
@@ -103,7 +103,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     cmd_error(CMD_PARSE_ERROR, err, "Cannot parse identifier `%s'.",
               identifier_copy);
     sfree(identifier_copy);
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
   if ((strlen(hostname) >= sizeof(vl.host)) ||
@@ -114,7 +114,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
        (strlen(type_instance) >= sizeof(vl.type_instance)))) {
     cmd_error(CMD_PARSE_ERROR, err, "Identifier too long.");
     sfree(identifier_copy);
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
   sstrncpy(vl.host, hostname, sizeof(vl.host));
@@ -129,7 +129,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   if (ds == NULL) {
     cmd_error(CMD_PARSE_ERROR, err, "1 Type `%s' isn't defined.", type);
     sfree(identifier_copy);
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
   hostname = NULL;
@@ -143,7 +143,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
     cmd_error(CMD_ERROR, err, "malloc failed.");
     cmd_destroy_putval(ret_putval);
     sfree(vl.values);
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
   /* All the remaining fields are part of the option list. */
@@ -210,7 +210,7 @@ cmd_status_t cmd_parse_putval(size_t argc, char **argv,
   if (result != CMD_OK)
     cmd_destroy_putval(ret_putval);
 
-  return (result);
+  return result;
 } /* cmd_status_t cmd_parse_putval */
 
 void cmd_destroy_putval(cmd_putval_t *putval) {
@@ -239,12 +239,12 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
         (void *)fh, buffer);
 
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
-    return (status);
+    return status;
   if (cmd.type != CMD_PUTVAL) {
     cmd_error(CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
               CMD_TO_STRING(cmd.type));
     cmd_destroy(&cmd);
-    return (CMD_UNKNOWN_COMMAND);
+    return CMD_UNKNOWN_COMMAND;
   }
 
   for (size_t i = 0; i < cmd.cmd.putval.vl_num; ++i)
@@ -256,7 +256,7 @@ cmd_status_t cmd_handle_putval(FILE *fh, char *buffer) {
               (cmd.cmd.putval.vl_num == 1) ? "value has" : "values have");
 
   cmd_destroy(&cmd);
-  return (CMD_OK);
+  return CMD_OK;
 } /* int cmd_handle_putval */
 
 int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
@@ -267,13 +267,13 @@ int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
 
   status = FORMAT_VL(buffer_ident, sizeof(buffer_ident), vl);
   if (status != 0)
-    return (status);
+    return status;
   escape_string(buffer_ident, sizeof(buffer_ident));
 
   status = format_values(buffer_values, sizeof(buffer_values), ds, vl,
                          /* store rates = */ 0);
   if (status != 0)
-    return (status);
+    return status;
   escape_string(buffer_values, sizeof(buffer_values));
 
   ssnprintf(ret, ret_len, "PUTVAL %s interval=%.3f %s", buffer_ident,
@@ -281,5 +281,5 @@ int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
                                : CDTIME_T_TO_DOUBLE(plugin_get_interval()),
             buffer_values);
 
-  return (0);
+  return 0;
 } /* }}} int cmd_create_putval */

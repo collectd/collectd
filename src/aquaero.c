@@ -43,12 +43,12 @@ static int aquaero_config(oconfig_item_t *ci) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int aquaero_shutdown(void) {
   libaquaero5_exit();
-  return (0);
+  return 0;
 } /* int aquaero_shutdown */
 
 static void aquaero_submit(const char *type, const char *type_instance,
@@ -98,7 +98,7 @@ static int aquaero_read(void) {
     ERROR("aquaero plugin: Failed to poll device \"%s\": %s (%s)",
           conf_device ? conf_device : "default", err_msg,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   if (libaquaero5_getsettings(conf_device, &aq_sett, &err_msg) < 0) {
@@ -107,7 +107,7 @@ static int aquaero_read(void) {
           "for device \"%s\": %s (%s)",
           conf_device ? conf_device : "default", err_msg,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   /* CPU Temperature sensor */
@@ -153,7 +153,7 @@ static int aquaero_read(void) {
   /* Liquid level */
   aquaero_submit_array("percent", "waterlevel", aq_data.level, AQ5_NUM_LEVEL);
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

@@ -77,7 +77,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
   t = CDTIME_T_TO_TIME_T(vl->time);
   status = ssnprintf(buffer, buffer_len, "%lu", (unsigned long)t);
   if ((status < 1) || (status >= buffer_len))
-    return (-1);
+    return -1;
   offset = status;
 
   for (size_t i = 0; i < ds->ds_num; i++) {
@@ -85,7 +85,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
         (ds->ds[i].type != DS_TYPE_GAUGE) &&
         (ds->ds[i].type != DS_TYPE_DERIVE) &&
         (ds->ds[i].type != DS_TYPE_ABSOLUTE))
-      return (-1);
+      return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%llu",
@@ -102,12 +102,12 @@ static int value_list_to_string(char *buffer, int buffer_len,
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))
-      return (-1);
+      return -1;
 
     offset += status;
   } /* for ds->ds_num */
 
-  return (0);
+  return 0;
 } /* int value_list_to_string */
 
 static int value_list_to_filename(char *buffer, size_t buffer_size,
@@ -120,7 +120,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
     size_t datadir_len = strlen(datadir) + 1;
 
     if (datadir_len >= buffer_size)
-      return (ENOMEM);
+      return ENOMEM;
 
     sstrncpy(buffer, datadir, buffer_size);
     buffer[datadir_len - 1] = '/';
@@ -132,7 +132,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
 
   status = FORMAT_VL(buffer, buffer_size, vl);
   if (status != 0)
-    return (status);
+    return status;
 
   len = strlen(buffer);
   assert(len < buffer_size);
@@ -140,10 +140,10 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   buffer_size -= len;
 
   if (buffer_size <= sizeof(suffix))
-    return (ENOMEM);
+    return ENOMEM;
 
   memcpy(buffer, suffix, sizeof(suffix));
-  return (0);
+  return 0;
 } /* int value_list_to_filename */
 
 static int rc_config_get_int_positive(oconfig_item_t const *ci, int *ret) {
@@ -152,12 +152,12 @@ static int rc_config_get_int_positive(oconfig_item_t const *ci, int *ret) {
 
   status = cf_util_get_int(ci, &tmp);
   if (status != 0)
-    return (status);
+    return status;
   if (tmp < 0)
-    return (EINVAL);
+    return EINVAL;
 
   *ret = tmp;
-  return (0);
+  return 0;
 } /* int rc_config_get_int_positive */
 
 static int rc_config_get_xff(oconfig_item_t const *ci, double *ret) {
@@ -167,38 +167,38 @@ static int rc_config_get_xff(oconfig_item_t const *ci, double *ret) {
     ERROR("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
           "in the range [0.0, 1.0)",
           ci->key);
-    return (EINVAL);
+    return EINVAL;
   }
 
   value = ci->values[0].value.number;
   if ((value >= 0.0) && (value < 1.0)) {
     *ret = value;
-    return (0);
+    return 0;
   }
 
   ERROR("rrdcached plugin: The \"%s\" needs exactly one numeric argument "
         "in the range [0.0, 1.0)",
         ci->key);
-  return (EINVAL);
+  return EINVAL;
 } /* int rc_config_get_xff */
 
 static int rc_config_add_timespan(int timespan) {
   int *tmp;
 
   if (timespan <= 0)
-    return (EINVAL);
+    return EINVAL;
 
   tmp = realloc(rrdcreate_config.timespans,
                 sizeof(*rrdcreate_config.timespans) *
                     (rrdcreate_config.timespans_num + 1));
   if (tmp == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   rrdcreate_config.timespans = tmp;
 
   rrdcreate_config.timespans[rrdcreate_config.timespans_num] = timespan;
   rrdcreate_config.timespans_num++;
 
-  return (0);
+  return 0;
 } /* int rc_config_add_timespan */
 
 static int rc_config(oconfig_item_t *ci) {
@@ -258,7 +258,7 @@ static int rc_config(oconfig_item_t *ci) {
     plugin_register_write("rrdcached", rc_write, /* user_data = */ NULL);
     plugin_register_flush("rrdcached", rc_flush, /* user_data = */ NULL);
   }
-  return (0);
+  return 0;
 } /* int rc_config */
 
 static int try_reconnect(void) {
@@ -272,13 +272,13 @@ static int try_reconnect(void) {
     ERROR("rrdcached plugin: Failed to reconnect to RRDCacheD "
           "at %s: %s (status=%d)",
           daemon_address, rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
 
   INFO("rrdcached plugin: Successfully reconnected to RRDCacheD "
        "at %s",
        daemon_address);
-  return (0);
+  return 0;
 } /* int try_reconnect */
 
 static int rc_read(void) {
@@ -291,10 +291,10 @@ static int rc_read(void) {
   vl.values_len = 1;
 
   if (daemon_address == NULL)
-    return (-1);
+    return -1;
 
   if (!config_collect_stats)
-    return (-1);
+    return -1;
 
   if ((strncmp("unix:", daemon_address, strlen("unix:")) != 0) &&
       (daemon_address[0] != '/'))
@@ -307,7 +307,7 @@ static int rc_read(void) {
     ERROR("rrdcached plugin: Failed to connect to RRDCacheD "
           "at %s: %s (status=%d)",
           daemon_address, rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
 
   while (42) {
@@ -328,7 +328,7 @@ static int rc_read(void) {
 
     ERROR("rrdcached plugin: rrdc_stats_get failed: %s (status=%i).",
           rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
 
   for (rrdc_stats_t *ptr = head; ptr != NULL; ptr = ptr->next) {
@@ -376,14 +376,14 @@ static int rc_read(void) {
 
   rrdc_stats_free(head);
 
-  return (0);
+  return 0;
 } /* int rc_read */
 
 static int rc_init(void) {
   if (config_collect_stats)
     plugin_register_read("rrdcached", rc_read);
 
-  return (0);
+  return 0;
 } /* int rc_init */
 
 static int rc_write(const data_set_t *ds, const value_list_t *vl,
@@ -397,22 +397,22 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
   if (daemon_address == NULL) {
     ERROR("rrdcached plugin: daemon_address == NULL.");
     plugin_unregister_write("rrdcached");
-    return (-1);
+    return -1;
   }
 
   if (strcmp(ds->type, vl->type) != 0) {
     ERROR("rrdcached plugin: DS type does not match value list type");
-    return (-1);
+    return -1;
   }
 
   if (value_list_to_filename(filename, sizeof(filename), vl) != 0) {
     ERROR("rrdcached plugin: value_list_to_filename failed.");
-    return (-1);
+    return -1;
   }
 
   if (value_list_to_string(values, sizeof(values), ds, vl) != 0) {
     ERROR("rrdcached plugin: value_list_to_string failed.");
-    return (-1);
+    return -1;
   }
 
   values_array[0] = values;
@@ -427,15 +427,15 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
         char errbuf[1024];
         ERROR("rrdcached plugin: stat (%s) failed: %s", filename,
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
       status = cu_rrd_create_file(filename, ds, vl, &rrdcreate_config);
       if (status != 0) {
         ERROR("rrdcached plugin: cu_rrd_create_file (%s) failed.", filename);
-        return (-1);
+        return -1;
       } else if (rrdcreate_config.async)
-        return (0);
+        return 0;
     }
   }
 
@@ -445,7 +445,7 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
     ERROR("rrdcached plugin: Failed to connect to RRDCacheD "
           "at %s: %s (status=%d)",
           daemon_address, rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
 
   while (42) {
@@ -465,10 +465,10 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
 
     ERROR("rrdcached plugin: rrdc_update (%s, [%s], 1) failed: %s (status=%i)",
           filename, values_array[0], rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int rc_write */
 
 static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
@@ -479,7 +479,7 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
   _Bool retried = 0;
 
   if (identifier == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (datadir != NULL)
     ssnprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
@@ -492,7 +492,7 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
     ERROR("rrdcached plugin: Failed to connect to RRDCacheD "
           "at %s: %s (status=%d)",
           daemon_address, rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
 
   while (42) {
@@ -512,16 +512,16 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
 
     ERROR("rrdcached plugin: rrdc_flush (%s) failed: %s (status=%i).", filename,
           rrd_get_error(), status);
-    return (-1);
+    return -1;
   }
   DEBUG("rrdcached plugin: rrdc_flush (%s): Success.", filename);
 
-  return (0);
+  return 0;
 } /* }}} int rc_flush */
 
 static int rc_shutdown(void) {
   rrdc_disconnect();
-  return (0);
+  return 0;
 } /* int rc_shutdown */
 
 void module_register(void) {

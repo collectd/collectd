@@ -94,7 +94,7 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *re_str) {
   re = calloc(1, sizeof(*re));
   if (re == NULL) {
     ERROR("ignorelist_append_regex: calloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   status = regcomp(re, re_str, REG_EXTENDED);
@@ -106,7 +106,7 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *re_str) {
           "failed: %s",
           re_str, errbuf);
     sfree(re);
-    return (status);
+    return status;
   }
 
   entry = calloc(1, sizeof(*entry));
@@ -114,12 +114,12 @@ static int ignorelist_append_regex(ignorelist_t *il, const char *re_str) {
     ERROR("ignorelist_append_regex: calloc failed.");
     regfree(re);
     sfree(re);
-    return (ENOMEM);
+    return ENOMEM;
   }
   entry->rmatch = re;
 
   ignorelist_append(il, entry);
-  return (0);
+  return 0;
 } /* int ignorelist_append_regex */
 #endif
 
@@ -129,14 +129,14 @@ static int ignorelist_append_string(ignorelist_t *il, const char *entry) {
   /* create new entry */
   if ((new = calloc(1, sizeof(*new))) == NULL) {
     ERROR("cannot allocate new entry");
-    return (1);
+    return 1;
   }
   new->smatch = sstrdup(entry);
 
   /* append new entry */
   ignorelist_append(il, new);
 
-  return (0);
+  return 0;
 } /* int ignorelist_append_string(ignorelist_t *il, const char *entry) */
 
 #if HAVE_REGEX_H
@@ -150,9 +150,9 @@ static int ignorelist_match_regex(ignorelist_item_t *item, const char *entry) {
 
   /* match regex */
   if (regexec(item->rmatch, entry, 0, NULL, 0) == 0)
-    return (1);
+    return 1;
 
-  return (0);
+  return 0;
 } /* int ignorelist_match_regex (ignorelist_item_t *item, const char *entry) */
 #endif
 
@@ -165,9 +165,9 @@ static int ignorelist_match_string(ignorelist_item_t *item, const char *entry) {
          (strlen(entry) > 0));
 
   if (strcmp(entry, item->smatch) == 0)
-    return (1);
+    return 1;
 
-  return (0);
+  return 0;
 } /* int ignorelist_match_string (ignorelist_item_t *item, const char *entry) */
 
 /* *** *** *** ******************************************** *** *** *** */
@@ -191,7 +191,7 @@ ignorelist_t *ignorelist_create(int invert) {
    */
   il->ignore = invert ? 0 : 1;
 
-  return (il);
+  return il;
 } /* ignorelist_t *ignorelist_create (int ignore) */
 
 /*
@@ -244,7 +244,7 @@ int ignorelist_add(ignorelist_t *il, const char *entry) {
 
   if (il == NULL) {
     DEBUG("add called with ignorelist_t == NULL");
-    return (1);
+    return 1;
   }
 
   len = strlen(entry);
@@ -252,7 +252,7 @@ int ignorelist_add(ignorelist_t *il, const char *entry) {
   /* append nothing */
   if (len == 0) {
     DEBUG("not appending: empty entry");
-    return (1);
+    return 1;
   }
 
 #if HAVE_REGEX_H
@@ -285,10 +285,10 @@ int ignorelist_add(ignorelist_t *il, const char *entry) {
 int ignorelist_match(ignorelist_t *il, const char *entry) {
   /* if no entries, collect all */
   if ((il == NULL) || (il->head == NULL))
-    return (0);
+    return 0;
 
   if ((entry == NULL) || (strlen(entry) == 0))
-    return (0);
+    return 0;
 
   /* traverse list and check entries */
   for (ignorelist_item_t *traverse = il->head; traverse != NULL;
@@ -296,14 +296,14 @@ int ignorelist_match(ignorelist_t *il, const char *entry) {
 #if HAVE_REGEX_H
     if (traverse->rmatch != NULL) {
       if (ignorelist_match_regex(traverse, entry))
-        return (il->ignore);
+        return il->ignore;
     } else
 #endif
     {
       if (ignorelist_match_string(traverse, entry))
-        return (il->ignore);
+        return il->ignore;
     }
   } /* for traverse */
 
-  return (1 - il->ignore);
+  return 1 - il->ignore;
 } /* int ignorelist_match (ignorelist_t *il, const char *entry) */

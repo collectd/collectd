@@ -53,7 +53,7 @@ static int mt_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   m = calloc(1, sizeof(*m));
   if (m == NULL) {
     ERROR("mt_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   m->future = 0;
@@ -91,11 +91,11 @@ static int mt_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     free(m);
-    return (status);
+    return status;
   }
 
   *user_data = m;
-  return (0);
+  return 0;
 } /* }}} int mt_create */
 
 static int mt_destroy(void **user_data) /* {{{ */
@@ -104,7 +104,7 @@ static int mt_destroy(void **user_data) /* {{{ */
     sfree(*user_data);
   }
 
-  return (0);
+  return 0;
 } /* }}} int mt_destroy */
 
 static int mt_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
@@ -115,22 +115,22 @@ static int mt_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
   cdtime_t now;
 
   if ((user_data == NULL) || (*user_data == NULL))
-    return (-1);
+    return -1;
 
   m = *user_data;
   now = cdtime();
 
   if (m->future != 0) {
     if (vl->time >= (now + m->future))
-      return (FC_MATCH_MATCHES);
+      return FC_MATCH_MATCHES;
   }
 
   if (m->past != 0) {
     if (vl->time <= (now - m->past))
-      return (FC_MATCH_MATCHES);
+      return FC_MATCH_MATCHES;
   }
 
-  return (FC_MATCH_NO_MATCH);
+  return FC_MATCH_NO_MATCH;
 } /* }}} int mt_match */
 
 void module_register(void) {

@@ -1118,7 +1118,7 @@ for_all_proc_cpus(int(func)(unsigned int)) {
     retval = func(cpu_num);
     if (retval) {
       fclose(fp);
-      return (retval);
+      return retval;
     }
   }
   fclose(fp);

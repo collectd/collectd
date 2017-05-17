@@ -47,7 +47,7 @@ static double wireless_dbm_to_watt (double dbm)
 
 	watt = pow (10.0, (dbm / 10.0)) / 1000.0;
 
-	return (watt);
+	return watt;
 }
 #endif
 
@@ -69,7 +69,7 @@ static void wireless_submit(const char *plugin_instance, const char *type,
 static double wireless_percent_to_power(double quality) {
   assert((quality >= 0.0) && (quality <= 100.0));
 
-  return ((quality * (POWER_MAX - POWER_MIN)) + POWER_MIN);
+  return (quality * (POWER_MAX - POWER_MIN)) + POWER_MIN;
 } /* double wireless_percent_to_power */
 
 static int wireless_read(void) {
@@ -92,7 +92,7 @@ static int wireless_read(void) {
   if ((fh = fopen(WIRELESS_PROC_FILE, "r")) == NULL) {
     char errbuf[1024];
     WARNING("wireless: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   devices_found = 0;
@@ -151,10 +151,10 @@ static int wireless_read(void) {
   /* If no wireless devices are present return an error, so the plugin
    * code delays our read function. */
   if (devices_found == 0)
-    return (-1);
+    return -1;
 #endif /* KERNEL_LINUX */
 
-  return (0);
+  return 0;
 } /* int wireless_read */
 
 void module_register(void) {

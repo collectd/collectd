@@ -138,12 +138,12 @@ static int array_grow(void **array, size_t *array_len, size_t elem_size) {
   tmp = realloc(*array, (*array_len + 1) * elem_size);
   if (tmp == NULL) {
     fprintf(stderr, "ERROR: Failed to allocate memory.\n");
-    return (-1);
+    return -1;
   }
 
   *array = tmp;
   ++(*array_len);
-  return (0);
+  return 0;
 } /* array_grow */
 
 static int parse_identifier(lcc_connection_t *c, const char *value,
@@ -162,7 +162,7 @@ static int parse_identifier(lcc_connection_t *c, const char *value,
     if (gethostname(hostname, sizeof(hostname)) != 0) {
       fprintf(stderr, "ERROR: Failed to get local hostname: %s",
               strerror(errno));
-      return (-1);
+      return -1;
     }
     hostname[sizeof(hostname) - 1] = '\0';
 
@@ -177,9 +177,9 @@ static int parse_identifier(lcc_connection_t *c, const char *value,
   if (status != 0) {
     fprintf(stderr, "ERROR: Failed to parse identifier ``%s'': %s.\n",
             ident_str, lcc_strerror(c));
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 } /* parse_identifier */
 
 static int getval(lcc_connection_t *c, int argc, char **argv) {
@@ -195,12 +195,12 @@ static int getval(lcc_connection_t *c, int argc, char **argv) {
 
   if (argc != 2) {
     fprintf(stderr, "ERROR: getval: Missing identifier.\n");
-    return (-1);
+    return -1;
   }
 
   status = parse_identifier(c, argv[1], &ident);
   if (status != 0)
-    return (status);
+    return status;
 
 #define BAIL_OUT(s)                                                            \
   do {                                                                         \
@@ -212,7 +212,7 @@ static int getval(lcc_connection_t *c, int argc, char **argv) {
       free(ret_values_names);                                                  \
     }                                                                          \
     ret_values_num = 0;                                                        \
-    return (s);                                                                \
+    return s;                                                                  \
   } while (0)
 
   status =
@@ -249,7 +249,7 @@ static int flush(lcc_connection_t *c, int argc, char **argv) {
     if (plugins != NULL)                                                       \
       free(plugins);                                                           \
     plugins_num = 0;                                                           \
-    return (s);                                                                \
+    return s;                                                                  \
   } while (0)
 
   for (int i = 1; i < argc; ++i) {
@@ -347,7 +347,7 @@ static int listval(lcc_connection_t *c, int argc, char **argv) {
 
   if (argc != 1) {
     fprintf(stderr, "ERROR: listval: Does not accept any arguments.\n");
-    return (-1);
+    return -1;
   }
 
 #define BAIL_OUT(s)                                                            \
@@ -355,7 +355,7 @@ static int listval(lcc_connection_t *c, int argc, char **argv) {
     if (ret_ident != NULL)                                                     \
       free(ret_ident);                                                         \
     ret_ident_num = 0;                                                         \
-    return (s);                                                                \
+    return s;                                                                  \
   } while (0)
 
   status = lcc_listval(c, &ret_ident, &ret_ident_num);
@@ -396,7 +396,7 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "ERROR: putval: Missing identifier "
                     "and/or value list.\n");
-    return (-1);
+    return -1;
   }
 
   vl.values = values;
@@ -404,7 +404,7 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
 
   status = parse_identifier(c, argv[1], &vl.identifier);
   if (status != 0)
-    return (status);
+    return status;
 
   for (int i = 2; i < argc; ++i) {
     char *tmp;
@@ -426,7 +426,7 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
         if (endptr == value) {
           fprintf(stderr, "ERROR: Failed to parse interval as number: %s.\n",
                   value);
-          return (-1);
+          return -1;
         } else if ((endptr != NULL) && (*endptr != '\0')) {
           fprintf(stderr, "WARNING: Ignoring trailing garbage after "
                           "interval: %s.\n",
@@ -434,7 +434,7 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
         }
       } else {
         fprintf(stderr, "ERROR: putval: Unknown option `%s'.\n", key);
-        return (-1);
+        return -1;
       }
     } else { /* value list */
       char *value;
@@ -443,7 +443,7 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
 
       if (tmp == NULL) {
         fprintf(stderr, "ERROR: putval: Invalid value list: %s.\n", argv[i]);
-        return (-1);
+        return -1;
       }
 
       *tmp = '\0';
@@ -459,10 +459,10 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
         if (endptr == argv[i]) {
           fprintf(stderr, "ERROR: Failed to parse time as number: %s.\n",
                   argv[i]);
-          return (-1);
+          return -1;
         } else if ((endptr != NULL) && (*endptr != '\0')) {
           fprintf(stderr, "ERROR: Garbage after time: %s.\n", endptr);
-          return (-1);
+          return -1;
         }
       }
 
@@ -499,10 +499,10 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
         if (endptr == value) {
           fprintf(stderr, "ERROR: Failed to parse value as number: %s.\n",
                   argv[i]);
-          return (-1);
+          return -1;
         } else if ((endptr != NULL) && (*endptr != '\0')) {
           fprintf(stderr, "ERROR: Garbage after value: %s.\n", endptr);
-          return (-1);
+          return -1;
         }
 
         value = tmp;
@@ -514,16 +514,16 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
       status = lcc_putval(c, &vl);
       if (status != 0) {
         fprintf(stderr, "ERROR: %s\n", lcc_strerror(c));
-        return (-1);
+        return -1;
       }
     }
   }
 
   if (values_len == 0) {
     fprintf(stderr, "ERROR: putval: Missing value list(s).\n");
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 } /* putval */
 
 int main(int argc, char **argv) {
@@ -563,7 +563,7 @@ int main(int argc, char **argv) {
   if (status != 0) {
     fprintf(stderr, "ERROR: Failed to connect to daemon at %s: %s.\n", address,
             strerror(errno));
-    return (1);
+    return 1;
   }
 
   if (strcasecmp(argv[optind], "getval") == 0)
@@ -576,12 +576,12 @@ int main(int argc, char **argv) {
     status = putval(c, argc - optind, argv + optind);
   else {
     fprintf(stderr, "%s: invalid command: %s\n", argv[0], argv[optind]);
-    return (1);
+    return 1;
   }
 
   LCC_DESTROY(c);
 
   if (status != 0)
-    return (status);
-  return (0);
+    return status;
+  return 0;
 } /* main */

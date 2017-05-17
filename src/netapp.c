@@ -459,7 +459,7 @@ static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
   disk_t *d;
 
   if ((cd == NULL) || (name == NULL))
-    return (NULL);
+    return NULL;
 
   for (d = cd->disks; d != NULL; d = d->next) {
     if (strcmp(d->name, name) == 0)
@@ -468,13 +468,13 @@ static disk_t *get_disk(cfg_disk_t *cd, const char *name) /* {{{ */
 
   d = calloc(1, sizeof(*d));
   if (d == NULL)
-    return (NULL);
+    return NULL;
   d->next = NULL;
 
   d->name = strdup(name);
   if (d->name == NULL) {
     sfree(d);
-    return (NULL);
+    return NULL;
   }
 
   d->next = cd->disks;
@@ -492,12 +492,12 @@ static data_volume_usage_t *get_volume_usage(cfg_volume_usage_t *cvu, /* {{{ */
   int ignore_snapshot = 0;
 
   if ((cvu == NULL) || (name == NULL))
-    return (NULL);
+    return NULL;
 
   last = cvu->volumes;
   while (last != NULL) {
     if (strcmp(last->name, name) == 0)
-      return (last);
+      return last;
 
     if (last->next == NULL)
       break;
@@ -510,18 +510,18 @@ static data_volume_usage_t *get_volume_usage(cfg_volume_usage_t *cvu, /* {{{ */
   ignore_capacity = ignorelist_match(cvu->il_capacity, name);
   ignore_snapshot = ignorelist_match(cvu->il_snapshot, name);
   if ((ignore_capacity != 0) && (ignore_snapshot != 0))
-    return (NULL);
+    return NULL;
 
   /* Not found: allocate. */
   new = calloc(1, sizeof(*new));
   if (new == NULL)
-    return (NULL);
+    return NULL;
   new->next = NULL;
 
   new->name = strdup(name);
   if (new->name == NULL) {
     sfree(new);
-    return (NULL);
+    return NULL;
   }
 
   if (ignore_capacity == 0)
@@ -541,7 +541,7 @@ static data_volume_usage_t *get_volume_usage(cfg_volume_usage_t *cvu, /* {{{ */
   else
     last->next = new;
 
-  return (new);
+  return new;
 } /* }}} data_volume_usage_t *get_volume_usage */
 
 static data_volume_perf_t *get_volume_perf(cfg_volume_perf_t *cvp, /* {{{ */
@@ -554,12 +554,12 @@ static data_volume_perf_t *get_volume_perf(cfg_volume_perf_t *cvp, /* {{{ */
   int ignore_latency = 0;
 
   if ((cvp == NULL) || (name == NULL))
-    return (NULL);
+    return NULL;
 
   last = cvp->volumes;
   while (last != NULL) {
     if (strcmp(last->name, name) == 0)
-      return (last);
+      return last;
 
     if (last->next == NULL)
       break;
@@ -573,18 +573,18 @@ static data_volume_perf_t *get_volume_perf(cfg_volume_perf_t *cvp, /* {{{ */
   ignore_operations = ignorelist_match(cvp->il_operations, name);
   ignore_latency = ignorelist_match(cvp->il_latency, name);
   if ((ignore_octets != 0) || (ignore_operations != 0) || (ignore_latency != 0))
-    return (NULL);
+    return NULL;
 
   /* Not found: allocate. */
   new = calloc(1, sizeof(*new));
   if (new == NULL)
-    return (NULL);
+    return NULL;
   new->next = NULL;
 
   new->name = strdup(name);
   if (new->name == NULL) {
     sfree(new);
-    return (NULL);
+    return NULL;
   }
 
   if (ignore_octets == 0)
@@ -600,7 +600,7 @@ static data_volume_perf_t *get_volume_perf(cfg_volume_perf_t *cvp, /* {{{ */
   else
     last->next = new;
 
-  return (new);
+  return new;
 } /* }}} data_volume_perf_t *get_volume_perf */
 
 /*
@@ -634,7 +634,7 @@ static int submit_values(const char *host, /* {{{ */
   if (type_inst != NULL)
     sstrncpy(vl.type_instance, type_inst, sizeof(vl.type_instance));
 
-  return (plugin_dispatch_values(&vl));
+  return plugin_dispatch_values(&vl);
 } /* }}} int submit_uint64 */
 
 static int submit_two_derive(const char *host,
@@ -646,16 +646,17 @@ static int submit_two_derive(const char *host,
       {.derive = val0}, {.derive = val1},
   };
 
-  return (submit_values(host, plugin_inst, type, type_inst, values,
-                        STATIC_ARRAY_SIZE(values), timestamp, interval));
+  return submit_values(host, plugin_inst, type, type_inst, values,
+                       STATIC_ARRAY_SIZE(values), timestamp, interval);
 } /* }}} int submit_two_derive */
 
 static int submit_derive(const char *host, const char *plugin_inst, /* {{{ */
                          const char *type, const char *type_inst,
                          derive_t counter, cdtime_t timestamp,
                          cdtime_t interval) {
-  return (submit_values(host, plugin_inst, type, type_inst,
-                        &(value_t){.derive = counter}, 1, timestamp, interval));
+  return submit_values(host, plugin_inst, type, type_inst, &(value_t){
+      .derive=counter,
+    }, 1, timestamp, interval);
 } /* }}} int submit_derive */
 
 static int submit_two_gauge(const char *host, const char *plugin_inst, /* {{{ */
@@ -666,15 +667,16 @@ static int submit_two_gauge(const char *host, const char *plugin_inst, /* {{{ */
       {.gauge = val0}, {.gauge = val1},
   };
 
-  return (submit_values(host, plugin_inst, type, type_inst, values,
-                        STATIC_ARRAY_SIZE(values), timestamp, interval));
+  return submit_values(host, plugin_inst, type, type_inst, values,
+                       STATIC_ARRAY_SIZE(values), timestamp, interval);
 } /* }}} int submit_two_gauge */
 
 static int submit_double(const char *host, const char *plugin_inst, /* {{{ */
                          const char *type, const char *type_inst, double d,
                          cdtime_t timestamp, cdtime_t interval) {
-  return (submit_values(host, plugin_inst, type, type_inst,
-                        &(value_t){.gauge = d}, 1, timestamp, interval));
+  return submit_values(host, plugin_inst, type, type_inst, &(value_t){
+      .gauge=d,
+    }, 1, timestamp, interval);
 } /* }}} int submit_uint64 */
 
 /* Calculate hit ratio from old and new counters and submit the resulting
@@ -696,8 +698,8 @@ static int submit_cache_ratio(const char *host, /* {{{ */
     v.gauge = 100.0 * ((gauge_t)hits) / ((gauge_t)(hits + misses));
   }
 
-  return (submit_values(host, plugin_inst, "cache_ratio", type_inst, &v, 1,
-                        timestamp, interval));
+  return submit_values(host, plugin_inst, "cache_ratio", type_inst, &v, 1,
+                       timestamp, interval);
 } /* }}} int submit_cache_ratio */
 
 /* Submits all the caches used by WAFL. Uses "submit_cache_ratio". */
@@ -753,7 +755,7 @@ static int submit_wafl_data(const char *hostname,
   /* Copy HAVE_* flags */
   old_data->flags |= (new_data->flags & HAVE_WAFL_ALL);
 
-  return (0);
+  return 0;
 } /* }}} int submit_wafl_data */
 
 /* Submits volume performance data to the daemon, taking care to honor and
@@ -765,7 +767,7 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
   char plugin_instance[DATA_MAX_NAME_LEN];
 
   if ((hostname == NULL) || (old_data == NULL) || (new_data == NULL))
-    return (-1);
+    return -1;
 
   ssnprintf(plugin_instance, sizeof(plugin_instance), "volume-%s",
             old_data->name);
@@ -853,7 +855,7 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
   /* Copy the HAVE_* flags */
   old_data->flags |= (new_data->flags & HAVE_VOLUME_PERF_ALL);
 
-  return (0);
+  return 0;
 } /* }}} int submit_volume_perf_data */
 
 static cdtime_t cna_child_get_cdtime(na_elem_t *data) /* {{{ */
@@ -862,7 +864,7 @@ static cdtime_t cna_child_get_cdtime(na_elem_t *data) /* {{{ */
 
   t = (time_t)na_child_get_uint64(data, "timestamp", /* default = */ 0);
 
-  return (TIME_T_TO_CDTIME_T(t));
+  return TIME_T_TO_CDTIME_T(t);
 } /* }}} cdtime_t cna_child_get_cdtime */
 
 /*
@@ -889,7 +891,7 @@ static int cna_handle_wafl_data(const char *hostname,
           "na_elem_child (\"instances\") failed "
           "for host %s.",
           hostname);
-    return (-1);
+    return -1;
   }
 
   plugin_inst = na_child_get_string(instances, "name");
@@ -898,7 +900,7 @@ static int cna_handle_wafl_data(const char *hostname,
           "na_child_get_string (\"name\") failed "
           "for host %s.",
           hostname);
-    return (-1);
+    return -1;
   }
 
   /* Iterate over all counters */
@@ -948,8 +950,8 @@ static int cna_handle_wafl_data(const char *hostname,
     }
   }
 
-  return (
-      submit_wafl_data(hostname, plugin_inst, cfg_wafl, &perf_data, interval));
+  return submit_wafl_data(hostname, plugin_inst, cfg_wafl, &perf_data,
+                          interval);
 } /* }}} void cna_handle_wafl_data */
 
 static int cna_setup_wafl(cfg_wafl_t *cw) /* {{{ */
@@ -957,15 +959,15 @@ static int cna_setup_wafl(cfg_wafl_t *cw) /* {{{ */
   na_elem_t *e;
 
   if (cw == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (cw->query != NULL)
-    return (0);
+    return 0;
 
   cw->query = na_elem_new("perf-object-get-instances");
   if (cw->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(cw->query, "objectname", "wafl");
 
@@ -974,7 +976,7 @@ static int cna_setup_wafl(cfg_wafl_t *cw) /* {{{ */
     na_elem_free(cw->query);
     cw->query = NULL;
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(e, "counter", "name_cache_hit");
   na_child_add_string(e, "counter", "name_cache_miss");
@@ -987,7 +989,7 @@ static int cna_setup_wafl(cfg_wafl_t *cw) /* {{{ */
 
   na_child_add(cw->query, e);
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_wafl */
 
 static int cna_query_wafl(host_config_t *host) /* {{{ */
@@ -997,20 +999,20 @@ static int cna_query_wafl(host_config_t *host) /* {{{ */
   cdtime_t now;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* If WAFL was not configured, return without doing anything. */
   if (host->cfg_wafl == NULL)
-    return (0);
+    return 0;
 
   now = cdtime();
   if ((host->cfg_wafl->interval.interval + host->cfg_wafl->interval.last_read) >
       now)
-    return (0);
+    return 0;
 
   status = cna_setup_wafl(host->cfg_wafl);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_wafl->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_wafl->query);
@@ -1019,7 +1021,7 @@ static int cna_query_wafl(host_config_t *host) /* {{{ */
           "host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status = cna_handle_wafl_data(host->name, host->cfg_wafl, data,
@@ -1029,7 +1031,7 @@ static int cna_query_wafl(host_config_t *host) /* {{{ */
     host->cfg_wafl->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_wafl */
 
 /* Data corresponding to <Disks /> */
@@ -1042,7 +1044,7 @@ static int cna_handle_disk_data(const char *hostname, /* {{{ */
   disk_t *worst_disk = NULL;
 
   if ((cfg_disk == NULL) || (data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   timestamp = cna_child_get_cdtime(data);
 
@@ -1052,7 +1054,7 @@ static int cna_handle_disk_data(const char *hostname, /* {{{ */
           "na_elem_child (\"instances\") failed "
           "for host %s.",
           hostname);
-    return (-1);
+    return -1;
   }
 
   /* Iterate over all children */
@@ -1137,7 +1139,7 @@ static int cna_handle_disk_data(const char *hostname, /* {{{ */
     submit_double(hostname, "system", "percent", "disk_busy",
                   worst_disk->disk_busy_percent, timestamp, interval);
 
-  return (0);
+  return 0;
 } /* }}} int cna_handle_disk_data */
 
 static int cna_setup_disk(cfg_disk_t *cd) /* {{{ */
@@ -1145,15 +1147,15 @@ static int cna_setup_disk(cfg_disk_t *cd) /* {{{ */
   na_elem_t *e;
 
   if (cd == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (cd->query != NULL)
-    return (0);
+    return 0;
 
   cd->query = na_elem_new("perf-object-get-instances");
   if (cd->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(cd->query, "objectname", "disk");
 
@@ -1162,13 +1164,13 @@ static int cna_setup_disk(cfg_disk_t *cd) /* {{{ */
     na_elem_free(cd->query);
     cd->query = NULL;
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(e, "counter", "disk_busy");
   na_child_add_string(e, "counter", "base_for_disk_busy");
   na_child_add(cd->query, e);
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_disk */
 
 static int cna_query_disk(host_config_t *host) /* {{{ */
@@ -1178,21 +1180,21 @@ static int cna_query_disk(host_config_t *host) /* {{{ */
   cdtime_t now;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* If the user did not configure disk statistics, return without doing
    * anything. */
   if (host->cfg_disk == NULL)
-    return (0);
+    return 0;
 
   now = cdtime();
   if ((host->cfg_disk->interval.interval + host->cfg_disk->interval.last_read) >
       now)
-    return (0);
+    return 0;
 
   status = cna_setup_disk(host->cfg_disk);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_disk->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_disk->query);
@@ -1201,7 +1203,7 @@ static int cna_query_disk(host_config_t *host) /* {{{ */
           "host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status = cna_handle_disk_data(host->name, host->cfg_disk, data,
@@ -1211,7 +1213,7 @@ static int cna_query_disk(host_config_t *host) /* {{{ */
     host->cfg_disk->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_disk */
 
 /* Data corresponding to <VolumePerf /> */
@@ -1230,7 +1232,7 @@ static int cna_handle_volume_perf_data(const char *hostname, /* {{{ */
           "na_elem_child (\"instances\") failed "
           "for host %s.",
           hostname);
-    return (-1);
+    return -1;
   }
 
   iter_instances = na_child_iterator(elem_instances);
@@ -1299,7 +1301,7 @@ static int cna_handle_volume_perf_data(const char *hostname, /* {{{ */
     submit_volume_perf_data(hostname, v, &perf_data, interval);
   } /* for (volume) */
 
-  return (0);
+  return 0;
 } /* }}} int cna_handle_volume_perf_data */
 
 static int cna_setup_volume_perf(cfg_volume_perf_t *cd) /* {{{ */
@@ -1307,15 +1309,15 @@ static int cna_setup_volume_perf(cfg_volume_perf_t *cd) /* {{{ */
   na_elem_t *e;
 
   if (cd == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (cd->query != NULL)
-    return (0);
+    return 0;
 
   cd->query = na_elem_new("perf-object-get-instances");
   if (cd->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(cd->query, "objectname", "volume");
 
@@ -1324,7 +1326,7 @@ static int cna_setup_volume_perf(cfg_volume_perf_t *cd) /* {{{ */
     na_elem_free(cd->query);
     cd->query = NULL;
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(e, "counter", "read_ops");
   na_child_add_string(e, "counter", "write_ops");
@@ -1334,7 +1336,7 @@ static int cna_setup_volume_perf(cfg_volume_perf_t *cd) /* {{{ */
   na_child_add_string(e, "counter", "write_latency");
   na_child_add(cd->query, e);
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_volume_perf */
 
 static int cna_query_volume_perf(host_config_t *host) /* {{{ */
@@ -1344,21 +1346,21 @@ static int cna_query_volume_perf(host_config_t *host) /* {{{ */
   cdtime_t now;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* If the user did not configure volume performance statistics, return
    * without doing anything. */
   if (host->cfg_volume_perf == NULL)
-    return (0);
+    return 0;
 
   now = cdtime();
   if ((host->cfg_volume_perf->interval.interval +
        host->cfg_volume_perf->interval.last_read) > now)
-    return (0);
+    return 0;
 
   status = cna_setup_volume_perf(host->cfg_volume_perf);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_volume_perf->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_volume_perf->query);
@@ -1367,7 +1369,7 @@ static int cna_query_volume_perf(host_config_t *host) /* {{{ */
           "for host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status =
@@ -1378,7 +1380,7 @@ static int cna_query_volume_perf(host_config_t *host) /* {{{ */
     host->cfg_volume_perf->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_volume_perf */
 
 /* Data corresponding to <VolumeUsage /> */
@@ -1472,7 +1474,7 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
     v->flags &= ~HAVE_VOLUME_USAGE_ALL;
   } /* for (v = cfg_volume->volumes) */
 
-  return (0);
+  return 0;
 } /* }}} int cna_submit_volume_usage_data */
 
 /* Switch the state of a volume between online and offline and send out a
@@ -1498,7 +1500,7 @@ static int cna_change_volume_status(const char *hostname, /* {{{ */
     v->flags |= IS_VOLUME_USAGE_OFFLINE;
   }
 
-  return (plugin_dispatch_notification(&n));
+  return plugin_dispatch_notification(&n);
 } /* }}} int cna_change_volume_status */
 
 static void cna_handle_volume_snap_usage(const host_config_t *host, /* {{{ */
@@ -1661,7 +1663,7 @@ static int cna_handle_volume_usage_data(const host_config_t *host, /* {{{ */
           "na_elem_child (\"volumes\") failed "
           "for host %s.",
           host->name);
-    return (-1);
+    return -1;
   }
 
   iter_volume = na_child_iterator(elem_volumes);
@@ -1721,25 +1723,25 @@ static int cna_handle_volume_usage_data(const host_config_t *host, /* {{{ */
     }
   } /* for (elem_volume) */
 
-  return (cna_submit_volume_usage_data(
-      host->name, cfg_volume, host->cfg_volume_usage->interval.interval));
+  return cna_submit_volume_usage_data(host->name, cfg_volume,
+                                      host->cfg_volume_usage->interval.interval);
 } /* }}} int cna_handle_volume_usage_data */
 
 static int cna_setup_volume_usage(cfg_volume_usage_t *cvu) /* {{{ */
 {
   if (cvu == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (cvu->query != NULL)
-    return (0);
+    return 0;
 
   cvu->query = na_elem_new("volume-list-info");
   if (cvu->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_volume_usage */
 
 static int cna_query_volume_usage(host_config_t *host) /* {{{ */
@@ -1749,21 +1751,21 @@ static int cna_query_volume_usage(host_config_t *host) /* {{{ */
   cdtime_t now;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* If the user did not configure volume_usage statistics, return without
    * doing anything. */
   if (host->cfg_volume_usage == NULL)
-    return (0);
+    return 0;
 
   now = cdtime();
   if ((host->cfg_volume_usage->interval.interval +
        host->cfg_volume_usage->interval.last_read) > now)
-    return (0);
+    return 0;
 
   status = cna_setup_volume_usage(host->cfg_volume_usage);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_volume_usage->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_volume_usage->query);
@@ -1772,7 +1774,7 @@ static int cna_query_volume_usage(host_config_t *host) /* {{{ */
           "for host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status = cna_handle_volume_usage_data(host, host->cfg_volume_usage, data);
@@ -1781,7 +1783,7 @@ static int cna_query_volume_usage(host_config_t *host) /* {{{ */
     host->cfg_volume_usage->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_volume_usage */
 
 /* Data corresponding to <Quota /> */
@@ -1796,7 +1798,7 @@ static int cna_handle_quota_data(const host_config_t *host, /* {{{ */
           "na_elem_child (\"quotas\") failed "
           "for host %s.",
           host->name);
-    return (-1);
+    return -1;
   }
 
   iter_quota = na_child_iterator(elem_quotas);
@@ -1844,24 +1846,24 @@ static int cna_handle_quota_data(const host_config_t *host, /* {{{ */
     }
   } /* for (elem_quota) */
 
-  return (0);
+  return 0;
 } /* }}} int cna_handle_volume_usage_data */
 
 static int cna_setup_quota(cfg_quota_t *cq) /* {{{ */
 {
   if (cq == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (cq->query != NULL)
-    return (0);
+    return 0;
 
   cq->query = na_elem_new("quota-report");
   if (cq->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_quota */
 
 static int cna_query_quota(host_config_t *host) /* {{{ */
@@ -1871,21 +1873,21 @@ static int cna_query_quota(host_config_t *host) /* {{{ */
   cdtime_t now;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* If the user did not configure quota statistics, return without
    * doing anything. */
   if (host->cfg_quota == NULL)
-    return (0);
+    return 0;
 
   now = cdtime();
   if ((host->cfg_quota->interval.interval +
        host->cfg_quota->interval.last_read) > now)
-    return (0);
+    return 0;
 
   status = cna_setup_quota(host->cfg_quota);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_quota->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_quota->query);
@@ -1894,7 +1896,7 @@ static int cna_query_quota(host_config_t *host) /* {{{ */
           "host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status = cna_handle_quota_data(host, host->cfg_quota, data);
@@ -1903,7 +1905,7 @@ static int cna_query_quota(host_config_t *host) /* {{{ */
     host->cfg_quota->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_quota */
 
 /* Data corresponding to <SnapVault /> */
@@ -1913,7 +1915,7 @@ static int cna_handle_snapvault_data(const char *hostname, /* {{{ */
   na_elem_t *status_list = na_elem_child(data, "status-list");
   if (status_list == NULL) {
     ERROR("netapp plugin: SnapVault status record missing status-list");
-    return (0);
+    return 0;
   }
 
   na_elem_iter_t status_iter = na_child_iterator(status_list);
@@ -1957,7 +1959,7 @@ static int cna_handle_snapvault_data(const char *hostname, /* {{{ */
     }
   } /* for (status) */
 
-  return (0);
+  return 0;
 } /* }}} int cna_handle_snapvault_data */
 
 static int cna_handle_snapvault_iter(host_config_t *host, /* {{{ */
@@ -1989,7 +1991,7 @@ static int cna_handle_snapvault_iter(host_config_t *host, /* {{{ */
             "na_server_invoke failed for host %s: %s",
             host->name, na_results_reason(data));
       na_elem_free(elem);
-      return (-1);
+      return -1;
     }
 
     cna_handle_snapvault_data(host->name, host->cfg_snapvault, elem,
@@ -2000,25 +2002,25 @@ static int cna_handle_snapvault_iter(host_config_t *host, /* {{{ */
   na_elem_free(na_server_invoke(
       host->srv, "snapvault-secondary-relationship-status-list-iter-end", "tag",
       tag, NULL));
-  return (0);
+  return 0;
 } /* }}} int cna_handle_snapvault_iter */
 
 static int cna_setup_snapvault(cfg_snapvault_t *sv) /* {{{ */
 {
   if (sv == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (sv->query != NULL)
-    return (0);
+    return 0;
 
   sv->query =
       na_elem_new("snapvault-secondary-relationship-status-list-iter-start");
   if (sv->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_snapvault */
 
 static int cna_query_snapvault(host_config_t *host) /* {{{ */
@@ -2036,11 +2038,11 @@ static int cna_query_snapvault(host_config_t *host) /* {{{ */
   now = cdtime();
   if ((host->cfg_snapvault->interval.interval +
        host->cfg_snapvault->interval.last_read) > now)
-    return (0);
+    return 0;
 
   status = cna_setup_snapvault(host->cfg_snapvault);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_snapvault->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_snapvault->query);
@@ -2049,7 +2051,7 @@ static int cna_query_snapvault(host_config_t *host) /* {{{ */
           "for host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status = cna_handle_snapvault_iter(host, data);
@@ -2058,7 +2060,7 @@ static int cna_query_snapvault(host_config_t *host) /* {{{ */
     host->cfg_snapvault->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_snapvault */
 
 /* Data corresponding to <System /> */
@@ -2084,7 +2086,7 @@ static int cna_handle_system_data(const char *hostname, /* {{{ */
           "na_elem_child (\"instances\") failed "
           "for host %s.",
           hostname);
-    return (-1);
+    return -1;
   }
 
   instance = na_child_get_string(instances, "name");
@@ -2093,7 +2095,7 @@ static int cna_handle_system_data(const char *hostname, /* {{{ */
           "na_child_get_string (\"name\") failed "
           "for host %s.",
           hostname);
-    return (-1);
+    return -1;
   }
 
   counter_iter = na_child_iterator(na_elem_child(instances, "counters"));
@@ -2154,25 +2156,25 @@ static int cna_handle_system_data(const char *hostname, /* {{{ */
                   timestamp, interval);
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_handle_system_data */
 
 static int cna_setup_system(cfg_system_t *cs) /* {{{ */
 {
   if (cs == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (cs->query != NULL)
-    return (0);
+    return 0;
 
   cs->query = na_elem_new("perf-object-get-instances");
   if (cs->query == NULL) {
     ERROR("netapp plugin: na_elem_new failed.");
-    return (-1);
+    return -1;
   }
   na_child_add_string(cs->query, "objectname", "system");
 
-  return (0);
+  return 0;
 } /* }}} int cna_setup_system */
 
 static int cna_query_system(host_config_t *host) /* {{{ */
@@ -2182,20 +2184,20 @@ static int cna_query_system(host_config_t *host) /* {{{ */
   cdtime_t now;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* If system statistics were not configured, return without doing anything. */
   if (host->cfg_system == NULL)
-    return (0);
+    return 0;
 
   now = cdtime();
   if ((host->cfg_system->interval.interval +
        host->cfg_system->interval.last_read) > now)
-    return (0);
+    return 0;
 
   status = cna_setup_system(host->cfg_system);
   if (status != 0)
-    return (status);
+    return status;
   assert(host->cfg_system->query != NULL);
 
   data = na_server_invoke_elem(host->srv, host->cfg_system->query);
@@ -2204,7 +2206,7 @@ static int cna_query_system(host_config_t *host) /* {{{ */
           "host %s: %s",
           host->name, na_results_reason(data));
     na_elem_free(data);
-    return (-1);
+    return -1;
   }
 
   status = cna_handle_system_data(host->name, host->cfg_system, data,
@@ -2214,7 +2216,7 @@ static int cna_query_system(host_config_t *host) /* {{{ */
     host->cfg_system->interval.last_read = now;
 
   na_elem_free(data);
-  return (status);
+  return status;
 } /* }}} int cna_query_system */
 
 /*
@@ -2225,12 +2227,12 @@ static int cna_query_system(host_config_t *host) /* {{{ */
 static int cna_config_bool_to_flag(const oconfig_item_t *ci, /* {{{ */
                                    uint32_t *flags, uint32_t flag) {
   if ((ci == NULL) || (flags == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
     WARNING("netapp plugin: The %s option needs exactly one boolean argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].value.boolean)
@@ -2238,7 +2240,7 @@ static int cna_config_bool_to_flag(const oconfig_item_t *ci, /* {{{ */
   else
     *flags &= ~flag;
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_bool_to_flag */
 
 /* Handling of the "Interval" option which is allowed in every block. */
@@ -2249,12 +2251,12 @@ static int cna_config_get_interval(const oconfig_item_t *ci, /* {{{ */
 
   status = cf_util_get_cdtime(ci, &tmp);
   if (status != 0)
-    return (status);
+    return status;
 
   out_interval->interval = tmp;
   out_interval->last_read = 0;
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_get_interval */
 
 /* Handling of the "GetIO", "GetOps" and "GetLatency" options within a
@@ -2335,12 +2337,12 @@ static int cna_config_volume_performance(host_config_t *host, /* {{{ */
   cfg_volume_perf_t *cfg_volume_perf;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->cfg_volume_perf == NULL) {
     cfg_volume_perf = calloc(1, sizeof(*cfg_volume_perf));
     if (cfg_volume_perf == NULL)
-      return (ENOMEM);
+      return ENOMEM;
 
     /* Set default flags */
     cfg_volume_perf->query = NULL;
@@ -2349,14 +2351,14 @@ static int cna_config_volume_performance(host_config_t *host, /* {{{ */
     cfg_volume_perf->il_octets = ignorelist_create(/* invert = */ 1);
     if (cfg_volume_perf->il_octets == NULL) {
       sfree(cfg_volume_perf);
-      return (ENOMEM);
+      return ENOMEM;
     }
 
     cfg_volume_perf->il_operations = ignorelist_create(/* invert = */ 1);
     if (cfg_volume_perf->il_operations == NULL) {
       ignorelist_free(cfg_volume_perf->il_octets);
       sfree(cfg_volume_perf);
-      return (ENOMEM);
+      return ENOMEM;
     }
 
     cfg_volume_perf->il_latency = ignorelist_create(/* invert = */ 1);
@@ -2364,7 +2366,7 @@ static int cna_config_volume_performance(host_config_t *host, /* {{{ */
       ignorelist_free(cfg_volume_perf->il_octets);
       ignorelist_free(cfg_volume_perf->il_operations);
       sfree(cfg_volume_perf);
-      return (ENOMEM);
+      return ENOMEM;
     }
 
     host->cfg_volume_perf = cfg_volume_perf;
@@ -2395,7 +2397,7 @@ static int cna_config_volume_performance(host_config_t *host, /* {{{ */
               item->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_volume_performance */
 
 /* Handling of the "GetCapacity" and "GetSnapshot" options within a
@@ -2456,12 +2458,12 @@ static int cna_config_quota(host_config_t *host, oconfig_item_t *ci) /* {{{ */
   cfg_quota_t *cfg_quota;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->cfg_quota == NULL) {
     cfg_quota = calloc(1, sizeof(*cfg_quota));
     if (cfg_quota == NULL)
-      return (ENOMEM);
+      return ENOMEM;
     cfg_quota->query = NULL;
 
     host->cfg_quota = cfg_quota;
@@ -2479,7 +2481,7 @@ static int cna_config_quota(host_config_t *host, oconfig_item_t *ci) /* {{{ */
               item->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_quota */
 
 /* Corresponds to a <Disks /> block */
@@ -2487,12 +2489,12 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
   cfg_disk_t *cfg_disk;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->cfg_disk == NULL) {
     cfg_disk = calloc(1, sizeof(*cfg_disk));
     if (cfg_disk == NULL)
-      return (ENOMEM);
+      return ENOMEM;
 
     /* Set default flags */
     cfg_disk->flags = CFG_DISK_ALL;
@@ -2520,7 +2522,7 @@ static int cna_config_disk(host_config_t *host, oconfig_item_t *ci) { /* {{{ */
     host->cfg_disk = NULL;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_disk */
 
 /* Corresponds to a <WAFL /> block */
@@ -2529,12 +2531,12 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
   cfg_wafl_t *cfg_wafl;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->cfg_wafl == NULL) {
     cfg_wafl = calloc(1, sizeof(*cfg_wafl));
     if (cfg_wafl == NULL)
-      return (ENOMEM);
+      return ENOMEM;
 
     /* Set default flags */
     cfg_wafl->flags = CFG_WAFL_ALL;
@@ -2569,7 +2571,7 @@ static int cna_config_wafl(host_config_t *host, oconfig_item_t *ci) /* {{{ */
     host->cfg_wafl = NULL;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_wafl */
 
 /*
@@ -2594,12 +2596,12 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
   cfg_volume_usage_t *cfg_volume_usage;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->cfg_volume_usage == NULL) {
     cfg_volume_usage = calloc(1, sizeof(*cfg_volume_usage));
     if (cfg_volume_usage == NULL)
-      return (ENOMEM);
+      return ENOMEM;
 
     /* Set default flags */
     cfg_volume_usage->query = NULL;
@@ -2608,14 +2610,14 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
     cfg_volume_usage->il_capacity = ignorelist_create(/* invert = */ 1);
     if (cfg_volume_usage->il_capacity == NULL) {
       sfree(cfg_volume_usage);
-      return (ENOMEM);
+      return ENOMEM;
     }
 
     cfg_volume_usage->il_snapshot = ignorelist_create(/* invert = */ 1);
     if (cfg_volume_usage->il_snapshot == NULL) {
       ignorelist_free(cfg_volume_usage->il_capacity);
       sfree(cfg_volume_usage);
-      return (ENOMEM);
+      return ENOMEM;
     }
 
     host->cfg_volume_usage = cfg_volume_usage;
@@ -2642,7 +2644,7 @@ static int cna_config_volume_usage(host_config_t *host, /* {{{ */
               item->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_volume_usage */
 
 /* Corresponds to a <SnapVault /> block */
@@ -2684,12 +2686,12 @@ static int cna_config_system(host_config_t *host, /* {{{ */
   cfg_system_t *cfg_system;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->cfg_system == NULL) {
     cfg_system = calloc(1, sizeof(*cfg_system));
     if (cfg_system == NULL)
-      return (ENOMEM);
+      return ENOMEM;
 
     /* Set default flags */
     cfg_system->flags = CFG_SYSTEM_ALL;
@@ -2726,7 +2728,7 @@ static int cna_config_system(host_config_t *host, /* {{{ */
     host->cfg_system = NULL;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_config_system */
 
 /* Corresponds to a <Host /> block. */
@@ -2736,7 +2738,7 @@ static host_config_t *cna_alloc_host(void) /* {{{ */
 
   host = calloc(1, sizeof(*host));
   if (host == NULL)
-    return (NULL);
+    return NULL;
 
   host->name = NULL;
   host->protocol = NA_SERVER_TRANSPORT_HTTPS;
@@ -2753,7 +2755,7 @@ static host_config_t *cna_alloc_host(void) /* {{{ */
   host->cfg_snapvault = NULL;
   host->cfg_system = NULL;
 
-  return (host);
+  return host;
 } /* }}} host_config_t *cna_alloc_host */
 
 static host_config_t *cna_shallow_clone_host(host_config_t *host) /* {{{ */
@@ -2761,11 +2763,11 @@ static host_config_t *cna_shallow_clone_host(host_config_t *host) /* {{{ */
   host_config_t *clone;
 
   if (host == NULL)
-    return (NULL);
+    return NULL;
 
   clone = cna_alloc_host();
   if (clone == NULL)
-    return (NULL);
+    return NULL;
 
   if (host->name != NULL) {
     clone->name = strdup(host->name);
@@ -2804,7 +2806,7 @@ static host_config_t *cna_shallow_clone_host(host_config_t *host) /* {{{ */
 
   clone->interval = host->interval;
 
-  return (clone);
+  return clone;
 } /* }}} host_config_t *cna_shallow_clone_host */
 
 static int cna_read(user_data_t *ud);
@@ -2827,7 +2829,7 @@ static int cna_register_host(host_config_t *host) /* {{{ */
           .data = host, .free_func = (void *)free_host_config,
       });
 
-  return (0);
+  return 0;
 } /* }}} int cna_register_host */
 
 static int cna_config_host(host_config_t *host, /* {{{ */
@@ -2843,12 +2845,12 @@ static int cna_config_host(host_config_t *host, /* {{{ */
     WARNING("netapp plugin: \"%s\" needs exactly one string argument. Ignoring "
             "host block.",
             ci->key);
-    return (1);
+    return 1;
   }
 
   status = cf_util_get_string(ci, &host->name);
   if (status != 0)
-    return (1);
+    return 1;
 
   for (int i = 0; i < ci->children_num; ++i) {
     item = ci->children + i;
@@ -2871,7 +2873,7 @@ static int cna_config_host(host_config_t *host, /* {{{ */
         WARNING("netapp plugin: \"Protocol\" needs to be either \"http\" or "
                 "\"https\". Ignoring host block \"%s\".",
                 ci->values[0].value.string);
-        return (1);
+        return 1;
       }
       if (!strcasecmp(item->values[0].value.string, "http"))
         host->protocol = NA_SERVER_TRANSPORT_HTTP;
@@ -2947,7 +2949,7 @@ static int cna_config_host(host_config_t *host, /* {{{ */
   if (status != 0)
     return status;
 
-  return (0);
+  return 0;
 } /* }}} host_config_t *cna_config_host */
 
 /*
@@ -2961,10 +2963,10 @@ static int cna_init_host(host_config_t *host) /* {{{ */
   int major_version = 1, minor_version = 1;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (host->srv != NULL)
-    return (0);
+    return 0;
 
   if (host->vfiler != NULL) /* Request version 1.7 of the ONTAP API */
     minor_version = 7;
@@ -2972,7 +2974,7 @@ static int cna_init_host(host_config_t *host) /* {{{ */
   host->srv = na_server_open(host->host, major_version, minor_version);
   if (host->srv == NULL) {
     ERROR("netapp plugin: na_server_open (%s) failed.", host->host);
-    return (-1);
+    return -1;
   }
 
   na_server_set_transport_type(host->srv, host->protocol,
@@ -2986,14 +2988,14 @@ static int cna_init_host(host_config_t *host) /* {{{ */
     if (!na_server_set_vfiler(host->srv, host->vfiler)) {
       ERROR("netapp plugin: Failed to connect to VFiler '%s' on host '%s'.",
             host->vfiler, host->host);
-      return (-1);
+      return -1;
     } else {
       INFO("netapp plugin: Connected to VFiler '%s' on host '%s'.",
            host->vfiler, host->host);
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int cna_init_host */
 
 static int cna_init(void) /* {{{ */
@@ -3006,7 +3008,7 @@ static int cna_init(void) /* {{{ */
     return 1;
   }
 
-  return (0);
+  return 0;
 } /* }}} cna_init */
 
 static int cna_read_internal(host_config_t *host) { /* {{{ */
@@ -3014,31 +3016,31 @@ static int cna_read_internal(host_config_t *host) { /* {{{ */
 
   status = cna_query_wafl(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_query_disk(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_query_volume_perf(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_query_volume_usage(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_query_quota(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_query_snapvault(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_query_system(host);
   if (status != 0)
-    return (status);
+    return status;
 
   return 0;
 } /* }}} int cna_read_internal */
@@ -3048,13 +3050,13 @@ static int cna_read(user_data_t *ud) { /* {{{ */
   int status;
 
   if ((ud == NULL) || (ud->data == NULL))
-    return (-1);
+    return -1;
 
   host = ud->data;
 
   status = cna_init_host(host);
   if (status != 0)
-    return (status);
+    return status;
 
   status = cna_read_internal(host);
   if (status != 0) {
@@ -3101,7 +3103,7 @@ static int cna_shutdown(void) /* {{{ */
   /* Clean up system resources and stuff. */
   na_shutdown();
 
-  return (0);
+  return 0;
 } /* }}} int cna_shutdown */
 
 void module_register(void) {

@@ -125,7 +125,7 @@ static int ascent_submit_gauge(const char *plugin_instance, /* {{{ */
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
-  return (0);
+  return 0;
 } /* }}} int ascent_submit_gauge */
 
 static size_t ascent_curl_callback(void *buf, size_t size,
@@ -134,7 +134,7 @@ static size_t ascent_curl_callback(void *buf, size_t size,
   size_t len = size * nmemb;
 
   if (len == 0)
-    return (len);
+    return len;
 
   if ((ascent_buffer_fill + len) >= ascent_buffer_size) {
     char *temp;
@@ -142,7 +142,7 @@ static size_t ascent_curl_callback(void *buf, size_t size,
     temp = realloc(ascent_buffer, ascent_buffer_fill + len + 1);
     if (temp == NULL) {
       ERROR("ascent plugin: realloc failed.");
-      return (0);
+      return 0;
     }
     ascent_buffer = temp;
     ascent_buffer_size = ascent_buffer_fill + len + 1;
@@ -152,7 +152,7 @@ static size_t ascent_curl_callback(void *buf, size_t size,
   ascent_buffer_fill += len;
   ascent_buffer[ascent_buffer_fill] = 0;
 
-  return (len);
+  return len;
 } /* }}} size_t ascent_curl_callback */
 
 static int ascent_submit_players(player_stats_t *ps) /* {{{ */
@@ -187,7 +187,7 @@ static int ascent_submit_players(player_stats_t *ps) /* {{{ */
     value = ((double)ps->latency_sum) / (1000.0 * ((double)ps->latency_num));
   ascent_submit_gauge(NULL, "latency", "average", value);
 
-  return (0);
+  return 0;
 } /* }}} int ascent_submit_players */
 
 static int ascent_account_player(player_stats_t *ps, /* {{{ */
@@ -226,7 +226,7 @@ static int ascent_account_player(player_stats_t *ps, /* {{{ */
     ps->latency_num++;
   }
 
-  return (0);
+  return 0;
 } /* }}} int ascent_account_player */
 
 static int ascent_xml_submit_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
@@ -240,7 +240,7 @@ static int ascent_xml_submit_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
   if (str_ptr == NULL) {
     ERROR(
         "ascent plugin: ascent_xml_submit_gauge: xmlNodeListGetString failed.");
-    return (-1);
+    return -1;
   }
 
   if (strcasecmp("N/A", str_ptr) == 0)
@@ -251,12 +251,12 @@ static int ascent_xml_submit_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
     if (str_ptr == end_ptr) {
       xmlFree(str_ptr);
       ERROR("ascent plugin: ascent_xml_submit_gauge: strtod failed.");
-      return (-1);
+      return -1;
     }
   }
   xmlFree(str_ptr);
 
-  return (ascent_submit_gauge(plugin_instance, type, type_instance, value));
+  return ascent_submit_gauge(plugin_instance, type, type_instance, value);
 } /* }}} int ascent_xml_submit_gauge */
 
 static int ascent_xml_read_int(xmlDoc *doc, xmlNode *node, /* {{{ */
@@ -267,7 +267,7 @@ static int ascent_xml_read_int(xmlDoc *doc, xmlNode *node, /* {{{ */
   str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL) {
     ERROR("ascent plugin: ascent_xml_read_int: xmlNodeListGetString failed.");
-    return (-1);
+    return -1;
   }
 
   if (strcasecmp("N/A", str_ptr) == 0)
@@ -278,13 +278,13 @@ static int ascent_xml_read_int(xmlDoc *doc, xmlNode *node, /* {{{ */
     if (str_ptr == end_ptr) {
       xmlFree(str_ptr);
       ERROR("ascent plugin: ascent_xml_read_int: strtol failed.");
-      return (-1);
+      return -1;
     }
   }
   xmlFree(str_ptr);
 
   *ret_value = value;
-  return (0);
+  return 0;
 } /* }}} int ascent_xml_read_int */
 
 static int ascent_xml_sessions_plr(xmlDoc *doc, xmlNode *node, /* {{{ */
@@ -317,7 +317,7 @@ static int ascent_xml_sessions_plr(xmlDoc *doc, xmlNode *node, /* {{{ */
     }
   } /* for (child) */
 
-  return (0);
+  return 0;
 } /* }}} int ascent_xml_sessions_plr */
 
 static int ascent_xml_sessions(xmlDoc *doc, xmlNode *node) /* {{{ */
@@ -343,7 +343,7 @@ static int ascent_xml_sessions(xmlDoc *doc, xmlNode *node) /* {{{ */
 
   ascent_submit_players(&ps);
 
-  return (0);
+  return 0;
 } /* }}} int ascent_xml_sessions */
 
 static int ascent_xml_status(xmlDoc *doc, xmlNode *node) /* {{{ */
@@ -380,7 +380,7 @@ static int ascent_xml_status(xmlDoc *doc, xmlNode *node) /* {{{ */
     }
   } /* for (child) */
 
-  return (0);
+  return 0;
 } /* }}} int ascent_xml_status */
 
 static int ascent_xml(const char *data) /* {{{ */
@@ -398,20 +398,20 @@ static int ascent_xml(const char *data) /* {{{ */
 #endif
   if (doc == NULL) {
     ERROR("ascent plugin: xmlParseMemory failed.");
-    return (-1);
+    return -1;
   }
 
   cur = xmlDocGetRootElement(doc);
   if (cur == NULL) {
     ERROR("ascent plugin: XML document is empty.");
     xmlFreeDoc(doc);
-    return (-1);
+    return -1;
   }
 
   if (xmlStrcmp((const xmlChar *)"serverpage", cur->name) != 0) {
     ERROR("ascent plugin: XML root element is not \"serverpage\".");
     xmlFreeDoc(doc);
-    return (-1);
+    return -1;
   }
 
   for (xmlNode *child = cur->xmlChildrenNode; child != NULL;
@@ -433,7 +433,7 @@ static int ascent_xml(const char *data) /* {{{ */
   } /* for (child) */
 
   xmlFreeDoc(doc);
-  return (0);
+  return 0;
 } /* }}} int ascent_xml */
 
 static int config_set(char **var, const char *value) /* {{{ */
@@ -444,29 +444,29 @@ static int config_set(char **var, const char *value) /* {{{ */
   }
 
   if ((*var = strdup(value)) == NULL)
-    return (1);
+    return 1;
   else
-    return (0);
+    return 0;
 } /* }}} int config_set */
 
 static int ascent_config(const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp(key, "URL") == 0)
-    return (config_set(&url, value));
+    return config_set(&url, value);
   else if (strcasecmp(key, "User") == 0)
-    return (config_set(&user, value));
+    return config_set(&user, value);
   else if (strcasecmp(key, "Password") == 0)
-    return (config_set(&pass, value));
+    return config_set(&pass, value);
   else if (strcasecmp(key, "VerifyPeer") == 0)
-    return (config_set(&verify_peer, value));
+    return config_set(&verify_peer, value);
   else if (strcasecmp(key, "VerifyHost") == 0)
-    return (config_set(&verify_host, value));
+    return config_set(&verify_host, value);
   else if (strcasecmp(key, "CACert") == 0)
-    return (config_set(&cacert, value));
+    return config_set(&cacert, value);
   else if (strcasecmp(key, "Timeout") == 0)
-    return (config_set(&timeout, value));
+    return config_set(&timeout, value);
   else
-    return (-1);
+    return -1;
 } /* }}} int ascent_config */
 
 static int ascent_init(void) /* {{{ */
@@ -474,7 +474,7 @@ static int ascent_init(void) /* {{{ */
   if (url == NULL) {
     WARNING("ascent plugin: ascent_init: No URL configured, "
             "returning an error.");
-    return (-1);
+    return -1;
   }
 
   if (curl != NULL) {
@@ -483,7 +483,7 @@ static int ascent_init(void) /* {{{ */
 
   if ((curl = curl_easy_init()) == NULL) {
     ERROR("ascent plugin: ascent_init: curl_easy_init failed.");
-    return (-1);
+    return -1;
   }
 
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
@@ -504,7 +504,7 @@ static int ascent_init(void) /* {{{ */
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("ascent plugin: ascent_init: Returning an error because the "
             "credentials have been truncated.");
-      return (-1);
+      return -1;
     }
 
     curl_easy_setopt(curl, CURLOPT_USERPWD, credentials);
@@ -536,7 +536,7 @@ static int ascent_init(void) /* {{{ */
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int ascent_init */
 
 static int ascent_read(void) /* {{{ */
@@ -545,25 +545,25 @@ static int ascent_read(void) /* {{{ */
 
   if (curl == NULL) {
     ERROR("ascent plugin: I don't have a CURL object.");
-    return (-1);
+    return -1;
   }
 
   if (url == NULL) {
     ERROR("ascent plugin: No URL has been configured.");
-    return (-1);
+    return -1;
   }
 
   ascent_buffer_fill = 0;
   if (curl_easy_perform(curl) != CURLE_OK) {
     ERROR("ascent plugin: curl_easy_perform failed: %s", ascent_curl_error);
-    return (-1);
+    return -1;
   }
 
   status = ascent_xml(ascent_buffer);
   if (status != 0)
-    return (-1);
+    return -1;
   else
-    return (0);
+    return 0;
 } /* }}} int ascent_read */
 
 void module_register(void) {

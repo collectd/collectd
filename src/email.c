@@ -357,7 +357,7 @@ static void *collect(void *arg) {
   } /* while (1) */
 
   pthread_exit((void *)0);
-  return ((void *)0);
+  return (void *)0;
 } /* static void *collect (void *) */
 
 static void *open_connection(void __attribute__((unused)) * arg) {
@@ -527,7 +527,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   }
 
   pthread_exit((void *)0);
-  return ((void *)0);
+  return (void *)0;
 } /* static void *open_connection (void *) */
 
 static int email_init(void) {
@@ -537,10 +537,10 @@ static int email_init(void) {
     disabled = 1;
     log_err("plugin_thread_create() failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int email_init */
 
 static void type_list_free(type_list_t *t) {
@@ -609,7 +609,7 @@ static int email_shutdown(void) {
 
   sfree(sock_file);
   sfree(sock_group);
-  return (0);
+  return 0;
 } /* static void email_shutdown (void) */
 
 static void email_submit(const char *type, const char *type_instance,
@@ -663,7 +663,7 @@ static int email_read(void) {
   int score_count_old;
 
   if (disabled)
-    return (-1);
+    return -1;
 
   /* email count */
   pthread_mutex_lock(&count_mutex);
@@ -710,7 +710,7 @@ static int email_read(void) {
   for (type_t *ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next)
     email_submit("spam_check", ptr->name, ptr->value);
 
-  return (0);
+  return 0;
 } /* int email_read */
 
 void module_register(void) {

@@ -59,7 +59,7 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   size_t i;
 
   if ((fh == NULL) || (buffer == NULL))
-    return (-1);
+    return -1;
 
   DEBUG("utils_cmd_getthreshold: handle_getthreshold (fh = %p, buffer = %s);",
         (void *)fh, buffer);
@@ -68,26 +68,26 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   status = parse_string(&buffer, &command);
   if (status != 0) {
     print_to_socket(fh, "-1 Cannot parse command.\n");
-    return (-1);
+    return -1;
   }
   assert(command != NULL);
 
   if (strcasecmp("GETTHRESHOLD", command) != 0) {
     print_to_socket(fh, "-1 Unexpected command: `%s'.\n", command);
-    return (-1);
+    return -1;
   }
 
   identifier = NULL;
   status = parse_string(&buffer, &identifier);
   if (status != 0) {
     print_to_socket(fh, "-1 Cannot parse identifier.\n");
-    return (-1);
+    return -1;
   }
   assert(identifier != NULL);
 
   if (*buffer != 0) {
     print_to_socket(fh, "-1 Garbage after end of command: %s\n", buffer);
-    return (-1);
+    return -1;
   }
 
   /* parse_identifier() modifies its first argument,
@@ -101,7 +101,7 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     DEBUG("handle_getthreshold: Cannot parse identifier `%s'.", identifier);
     print_to_socket(fh, "-1 Cannot parse identifier `%s'.\n", identifier);
     sfree(identifier_copy);
-    return (-1);
+    return -1;
   }
 
   value_list_t vl = {.values = NULL};
@@ -118,10 +118,10 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   if (status == ENOENT) {
     print_to_socket(fh, "-1 No threshold found for identifier %s\n",
                     identifier);
-    return (0);
+    return 0;
   } else if (status != 0) {
     print_to_socket(fh, "-1 Error while looking up threshold: %i\n", status);
-    return (-1);
+    return -1;
   }
 
   /* Lets count the number of lines we'll return. */
@@ -179,5 +179,5 @@ int handle_getthreshold(FILE *fh, char *buffer) {
   if (threshold.hits > 1)
     print_to_socket(fh, "Hits: %i\n", threshold.hits);
 
-  return (0);
+  return 0;
 } /* int handle_getthreshold */

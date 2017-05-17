@@ -89,11 +89,11 @@ static size_t apache_curl_callback(void *buf, size_t size, size_t nmemb,
   if (st == NULL) {
     ERROR("apache plugin: apache_curl_callback: "
           "user_data pointer is NULL.");
-    return (0);
+    return 0;
   }
 
   if (len == 0)
-    return (len);
+    return len;
 
   if ((st->apache_buffer_fill + len) >= st->apache_buffer_size) {
     char *temp;
@@ -101,7 +101,7 @@ static size_t apache_curl_callback(void *buf, size_t size, size_t nmemb,
     temp = realloc(st->apache_buffer, st->apache_buffer_fill + len + 1);
     if (temp == NULL) {
       ERROR("apache plugin: realloc failed.");
-      return (0);
+      return 0;
     }
     st->apache_buffer = temp;
     st->apache_buffer_size = st->apache_buffer_fill + len + 1;
@@ -111,7 +111,7 @@ static size_t apache_curl_callback(void *buf, size_t size, size_t nmemb,
   st->apache_buffer_fill += len;
   st->apache_buffer[st->apache_buffer_fill] = 0;
 
-  return (len);
+  return len;
 } /* int apache_curl_callback */
 
 static size_t apache_header_callback(void *buf, size_t size, size_t nmemb,
@@ -123,15 +123,15 @@ static size_t apache_header_callback(void *buf, size_t size, size_t nmemb,
   if (st == NULL) {
     ERROR("apache plugin: apache_header_callback: "
           "user_data pointer is NULL.");
-    return (0);
+    return 0;
   }
 
   if (len == 0)
-    return (len);
+    return len;
 
   /* look for the Server header */
   if (strncasecmp(buf, "Server: ", strlen("Server: ")) != 0)
-    return (len);
+    return len;
 
   if (strstr(buf, "Apache") != NULL)
     st->server_type = APACHE;
@@ -146,7 +146,7 @@ static size_t apache_header_callback(void *buf, size_t size, size_t nmemb,
     NOTICE("apache plugin: Unknown server software: %s", hdr);
   }
 
-  return (len);
+  return len;
 } /* apache_header_callback */
 
 /* Configuration handling functiions
@@ -164,7 +164,7 @@ static int config_add(oconfig_item_t *ci) {
   st = calloc(1, sizeof(*st));
   if (st == NULL) {
     ERROR("apache plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   st->timeout = -1;
@@ -172,7 +172,7 @@ static int config_add(oconfig_item_t *ci) {
   status = cf_util_get_string(ci, &st->name);
   if (status != 0) {
     sfree(st);
-    return (status);
+    return status;
   }
   assert(st->name != NULL);
 
@@ -234,10 +234,10 @@ static int config_add(oconfig_item_t *ci) {
 
   if (status != 0) {
     apache_free(st);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int config_add */
 
 static int config(oconfig_item_t *ci) {
@@ -256,7 +256,7 @@ static int config(oconfig_item_t *ci) {
               child->key);
   } /* for (ci->children) */
 
-  return (status);
+  return status;
 } /* int config */
 
 /* initialize curl for each host */
@@ -272,7 +272,7 @@ static int init_host(apache_t *st) /* {{{ */
 
   if ((st->curl = curl_easy_init()) == NULL) {
     ERROR("apache plugin: init_host: `curl_easy_init' failed.");
-    return (-1);
+    return -1;
   }
 
   curl_easy_setopt(st->curl, CURLOPT_NOSIGNAL, 1L);
@@ -321,7 +321,7 @@ static int init_host(apache_t *st) /* {{{ */
             "truncated.");
       curl_easy_cleanup(st->curl);
       st->curl = NULL;
-      return (-1);
+      return -1;
     }
 
     curl_easy_setopt(st->curl, CURLOPT_USERPWD, credentials);
@@ -347,7 +347,7 @@ static int init_host(apache_t *st) /* {{{ */
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int init_host */
 
 static void submit_value(const char *type, const char *type_instance,
@@ -505,14 +505,14 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
   if (st->curl == NULL) {
     status = init_host(st);
     if (status != 0)
-      return (-1);
+      return -1;
   }
   assert(st->curl != NULL);
 
   st->apache_buffer_fill = 0;
   if (curl_easy_perform(st->curl) != CURLE_OK) {
     ERROR("apache: curl_easy_perform failed: %s", st->apache_curl_error);
-    return (-1);
+    return -1;
   }
 
   /* fallback - server_type to apache if not set at this time */
@@ -558,7 +558,7 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
 
   st->apache_buffer_fill = 0;
 
-  return (0);
+  return 0;
 } /* }}} int apache_read_host */
 
 static int apache_init(void) /* {{{ */
@@ -566,7 +566,7 @@ static int apache_init(void) /* {{{ */
   /* Call this while collectd is still single-threaded to avoid
    * initialization issues in libgcrypt. */
   curl_global_init(CURL_GLOBAL_SSL);
-  return (0);
+  return 0;
 } /* }}} int apache_init */
 
 void module_register(void) {

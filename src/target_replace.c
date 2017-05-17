@@ -68,16 +68,16 @@ static char *tr_strdup(const char *orig) /* {{{ */
   char *dest;
 
   if (orig == NULL)
-    return (NULL);
+    return NULL;
 
   sz = strlen(orig) + 1;
   dest = malloc(sz);
   if (dest == NULL)
-    return (NULL);
+    return NULL;
 
   memcpy(dest, orig, sz);
 
-  return (dest);
+  return dest;
 } /* }}} char *tr_strdup */
 
 static void tr_action_destroy(tr_action_t *act) /* {{{ */
@@ -115,20 +115,20 @@ static int tr_config_add_action(tr_action_t **dest, /* {{{ */
   int status;
 
   if (dest == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
       (ci->values[1].type != OCONFIG_TYPE_STRING)) {
     ERROR("Target `replace': The `%s' option requires exactly two string "
           "arguments.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   act = calloc(1, sizeof(*act));
   if (act == NULL) {
     ERROR("tr_config_add_action: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   act->replacement = NULL;
@@ -144,14 +144,14 @@ static int tr_config_add_action(tr_action_t **dest, /* {{{ */
           "failed: %s.",
           ci->values[0].value.string, errbuf);
     sfree(act);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   act->replacement = tr_strdup(ci->values[1].value.string);
   if (act->replacement == NULL) {
     ERROR("tr_config_add_action: tr_strdup failed.");
     tr_action_destroy(act);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   /* Insert action at end of list. */
@@ -167,7 +167,7 @@ static int tr_config_add_action(tr_action_t **dest, /* {{{ */
     prev->next = act;
   }
 
-  return (0);
+  return 0;
 } /* }}} int tr_config_add_action */
 
 static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
@@ -177,7 +177,7 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
   int status;
 
   if (dest == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   if (should_delete) {
     if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
@@ -185,7 +185,7 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
       ERROR("Target `replace': The `%s' option requires exactly two string "
             "arguments.",
             ci->key);
-      return (-1);
+      return -1;
     }
   } else {
     if ((ci->values_num != 3) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
@@ -194,7 +194,7 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
       ERROR("Target `replace': The `%s' option requires exactly three string "
             "arguments.",
             ci->key);
-      return (-1);
+      return -1;
     }
   }
 
@@ -202,13 +202,13 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
     ERROR("Target `replace': The `%s' option does not accept empty string as "
           "first argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   act = calloc(1, sizeof(*act));
   if (act == NULL) {
     ERROR("tr_config_add_meta_action: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   act->key = NULL;
@@ -225,14 +225,14 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
           ci->values[1].value.string, errbuf);
     sfree(act->key);
     sfree(act);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   act->key = tr_strdup(ci->values[0].value.string);
   if (act->key == NULL) {
     ERROR("tr_config_add_meta_action: tr_strdup failed.");
     tr_meta_data_action_destroy(act);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   if (!should_delete) {
@@ -240,7 +240,7 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
     if (act->replacement == NULL) {
       ERROR("tr_config_add_meta_action: tr_strdup failed.");
       tr_meta_data_action_destroy(act);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
   }
 
@@ -257,7 +257,7 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
     prev->next = act;
   }
 
-  return (0);
+  return 0;
 } /* }}} int tr_config_add_meta_action */
 
 static int tr_action_invoke(tr_action_t *act_head, /* {{{ */
@@ -268,7 +268,7 @@ static int tr_action_invoke(tr_action_t *act_head, /* {{{ */
   regmatch_t matches[8] = {[0] = {0}};
 
   if (act_head == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   sstrncpy(buffer, buffer_in, sizeof(buffer));
 
@@ -308,13 +308,13 @@ static int tr_action_invoke(tr_action_t *act_head, /* {{{ */
   if ((may_be_empty == 0) && (buffer[0] == 0)) {
     WARNING("Target `replace': Replacement resulted in an empty string, "
             "which is not allowed for this buffer (`host' or `plugin').");
-    return (0);
+    return 0;
   }
 
   DEBUG("target_replace plugin: tr_action_invoke: -> buffer = %s;", buffer);
   sstrncpy(buffer_in, buffer, buffer_in_size);
 
-  return (0);
+  return 0;
 } /* }}} int tr_action_invoke */
 
 static int tr_meta_data_action_invoke(/* {{{ */
@@ -324,10 +324,10 @@ static int tr_meta_data_action_invoke(/* {{{ */
   regmatch_t matches[8] = {[0] = {0}};
 
   if (act_head == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   if ((*dest) == NULL) /* nothing to do */
-    return (0);
+    return 0;
 
   for (tr_meta_data_action_t *act = act_head; act != NULL; act = act->next) {
     char temp[DATA_MAX_NAME_LEN];
@@ -351,7 +351,7 @@ static int tr_meta_data_action_invoke(/* {{{ */
     if (meta_data_status != 0) {
       ERROR("Target `replace': Unable to retrieve metadata value for `%s'.",
             act->key);
-      return (meta_data_status);
+      return meta_data_status;
     }
 
     DEBUG("target_replace plugin: tr_meta_data_action_invoke: `%s' "
@@ -401,7 +401,7 @@ static int tr_meta_data_action_invoke(/* {{{ */
     if ((result = meta_data_create()) == NULL) {
       ERROR("Target `replace': failed to create metadata for `%s'.", act->key);
       sfree(value);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     meta_data_status = meta_data_add_string(result, act->key, temp);
@@ -410,7 +410,7 @@ static int tr_meta_data_action_invoke(/* {{{ */
             act->key);
       meta_data_destroy(result);
       sfree(value);
-      return (meta_data_status);
+      return meta_data_status;
     }
 
     meta_data_clone_merge(dest, result);
@@ -418,7 +418,7 @@ static int tr_meta_data_action_invoke(/* {{{ */
     sfree(value);
   } /* for (act = act_head; act != NULL; act = act->next) */
 
-  return (0);
+  return 0;
 } /* }}} int tr_meta_data_action_invoke */
 
 static int tr_destroy(void **user_data) /* {{{ */
@@ -426,11 +426,11 @@ static int tr_destroy(void **user_data) /* {{{ */
   tr_data_t *data;
 
   if (user_data == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL)
-    return (0);
+    return 0;
 
   tr_action_destroy(data->host);
   tr_action_destroy(data->plugin);
@@ -440,7 +440,7 @@ static int tr_destroy(void **user_data) /* {{{ */
   tr_meta_data_action_destroy(data->meta);
   sfree(data);
 
-  return (0);
+  return 0;
 } /* }}} int tr_destroy */
 
 static int tr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
@@ -451,7 +451,7 @@ static int tr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   data = calloc(1, sizeof(*data));
   if (data == NULL) {
     ERROR("tr_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   data->host = NULL;
@@ -516,11 +516,11 @@ static int tr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     tr_destroy((void *)&data);
-    return (status);
+    return status;
   }
 
   *user_data = data;
-  return (0);
+  return 0;
 } /* }}} int tr_create */
 
 static int tr_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -529,12 +529,12 @@ static int tr_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
   tr_data_t *data;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL) {
     ERROR("Target `replace': Invoke: `data' is NULL.");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   if (data->meta != NULL) {
@@ -550,7 +550,7 @@ static int tr_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
   /* HANDLE_FIELD (type, 0); */
   HANDLE_FIELD(type_instance, 1);
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int tr_invoke */
 
 void module_register(void) {

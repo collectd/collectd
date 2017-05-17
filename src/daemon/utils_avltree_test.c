@@ -41,7 +41,7 @@ static int compare_callback(void const *v0, void const *v1) {
   assert(v1 != NULL);
 
   compare_total_count++;
-  return (strcmp(v0, v1));
+  return strcmp(v0, v1);
 }
 
 DEF_TEST(success) {
@@ -127,7 +127,7 @@ DEF_TEST(success) {
 
   c_avl_destroy(t);
 
-  return (0);
+  return 0;
 }
 
 int main(void) {

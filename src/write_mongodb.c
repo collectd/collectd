@@ -317,7 +317,7 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
 
   node = calloc(1, sizeof(*node));
   if (node == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   mongoc_init();
   node->host = NULL;
   node->store_rates = 1;
@@ -327,7 +327,7 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
 
   if (status != 0) {
     sfree(node);
-    return (status);
+    return status;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -388,7 +388,7 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
   if (status != 0)
     wm_config_free(node);
 
-  return (status);
+  return status;
 } /* }}} int wm_config_node */
 
 static int wm_config(oconfig_item_t *ci) /* {{{ */
@@ -404,7 +404,7 @@ static int wm_config(oconfig_item_t *ci) /* {{{ */
               child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int wm_config */
 
 void module_register(void) {

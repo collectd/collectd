@@ -75,7 +75,7 @@ DEF_TEST(cu_mount_checkoption) {
   OK(NULL == cu_mount_checkoption(line_bool, "tw", 1));
   OK(NULL == cu_mount_checkoption(line_bool, "thr", 1));
 
-  return (0);
+  return 0;
 }
 DEF_TEST(cu_mount_getoptionvalue) {
   char line_opts[] = "foo=one,bar=two,qux=three";
@@ -100,7 +100,7 @@ DEF_TEST(cu_mount_getoptionvalue) {
   OK(NULL == (v = cu_mount_getoptionvalue(line_bool, "four")));
   sfree(v);
 
-  return (0);
+  return 0;
 }
 
 int main(void) {

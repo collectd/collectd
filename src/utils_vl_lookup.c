@@ -115,19 +115,19 @@ static _Bool lu_part_matches(part_match_t const *match, /* {{{ */
   if (match->is_regex) {
     /* Short cut popular catch-all regex. */
     if (strcmp(".*", match->str) == 0)
-      return (1);
+      return 1;
 
     int status = regexec(&match->regex, str,
                          /* nmatch = */ 0, /* pmatch = */ NULL,
                          /* flags = */ 0);
     if (status == 0)
-      return (1);
+      return 1;
     else
-      return (0);
+      return 0;
   } else if (strcmp(match->str, str) == 0)
-    return (1);
+    return 1;
   else
-    return (0);
+    return 0;
 } /* }}} _Bool lu_part_matches */
 
 static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
@@ -138,7 +138,7 @@ static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
   if ((len < 3) || (ident_part[0] != '/') || (ident_part[len - 1] != '/')) {
     sstrncpy(match_part->str, ident_part, sizeof(match_part->str));
     match_part->is_regex = 0;
-    return (0);
+    return 0;
   }
 
   /* Copy string without the leading slash. */
@@ -154,11 +154,11 @@ static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
     regerror(status, &match_part->regex, errbuf, sizeof(errbuf));
     ERROR("utils_vl_lookup: Compiling regular expression \"%s\" failed: %s",
           match_part->str, errbuf);
-    return (EINVAL);
+    return EINVAL;
   }
   match_part->is_regex = 1;
 
-  return (0);
+  return 0;
 } /* }}} int lu_copy_ident_to_match_part */
 
 static int lu_copy_ident_to_match(identifier_match_t *match, /* {{{ */
@@ -172,7 +172,7 @@ static int lu_copy_ident_to_match(identifier_match_t *match, /* {{{ */
   do {                                                                         \
     int status = lu_copy_ident_to_match_part(&match->field, ident->field);     \
     if (status != 0)                                                           \
-      return (status);                                                         \
+      return status;                                                           \
   } while (0)
 
   COPY_FIELD(host);
@@ -183,7 +183,7 @@ static int lu_copy_ident_to_match(identifier_match_t *match, /* {{{ */
 
 #undef COPY_FIELD
 
-  return (0);
+  return 0;
 } /* }}} int lu_copy_ident_to_match */
 
 /* user_class->lock must be held when calling this function */
@@ -195,7 +195,7 @@ static void *lu_create_user_obj(lookup_t *obj, /* {{{ */
   user_obj = calloc(1, sizeof(*user_obj));
   if (user_obj == NULL) {
     ERROR("utils_vl_lookup: calloc failed.");
-    return (NULL);
+    return NULL;
   }
   user_obj->next = NULL;
 
@@ -203,7 +203,7 @@ static void *lu_create_user_obj(lookup_t *obj, /* {{{ */
   if (user_obj->user_obj == NULL) {
     sfree(user_obj);
     WARNING("utils_vl_lookup: User-provided constructor failed.");
-    return (NULL);
+    return NULL;
   }
 
 #define COPY_FIELD(field, group_mask)                                          \
@@ -233,7 +233,7 @@ static void *lu_create_user_obj(lookup_t *obj, /* {{{ */
     last->next = user_obj;
   }
 
-  return (user_obj);
+  return user_obj;
 } /* }}} void *lu_create_user_obj */
 
 /* user_class->lock must be held when calling this function */
@@ -259,10 +259,10 @@ static user_obj_t *lu_find_user_obj(user_class_t *user_class, /* {{{ */
         (strcmp(vl->type_instance, ptr->ident.type_instance) != 0))
       continue;
 
-    return (ptr);
+    return ptr;
   }
 
-  return (NULL);
+  return NULL;
 } /* }}} user_obj_t *lu_find_user_obj */
 
 static int lu_handle_user_class(lookup_t *obj, /* {{{ */
@@ -280,7 +280,7 @@ static int lu_handle_user_class(lookup_t *obj, /* {{{ */
                        vl->plugin_instance) ||
       !lu_part_matches(&user_class->match.plugin, vl->plugin) ||
       !lu_part_matches(&user_class->match.host, vl->host))
-    return (1);
+    return 1;
 
   pthread_mutex_lock(&user_class->lock);
   user_obj = lu_find_user_obj(user_class, vl);
@@ -290,7 +290,7 @@ static int lu_handle_user_class(lookup_t *obj, /* {{{ */
     user_obj = lu_create_user_obj(obj, ds, vl, user_class);
     if (user_obj == NULL) {
       pthread_mutex_unlock(&user_class->lock);
-      return (-1);
+      return -1;
     }
   }
   pthread_mutex_unlock(&user_class->lock);
@@ -301,12 +301,12 @@ static int lu_handle_user_class(lookup_t *obj, /* {{{ */
           status);
     /* Returning a negative value means: abort! */
     if (status < 0)
-      return (status);
+      return status;
     else
-      return (1);
+      return 1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int lu_handle_user_class */
 
 static int lu_handle_user_class_list(lookup_t *obj, /* {{{ */
@@ -321,12 +321,12 @@ static int lu_handle_user_class_list(lookup_t *obj, /* {{{ */
 
     status = lu_handle_user_class(obj, ds, vl, &ptr->entry);
     if (status < 0)
-      return (status);
+      return status;
     else if (status == 0)
       retval++;
   }
 
-  return (retval);
+  return retval;
 } /* }}} int lu_handle_user_class_list */
 
 static by_type_entry_t *lu_search_by_type(lookup_t *obj, /* {{{ */
@@ -338,22 +338,22 @@ static by_type_entry_t *lu_search_by_type(lookup_t *obj, /* {{{ */
 
   status = c_avl_get(obj->by_type_tree, type, (void *)&by_type);
   if (status == 0)
-    return (by_type);
+    return by_type;
 
   if (!allocate_if_missing)
-    return (NULL);
+    return NULL;
 
   type_copy = strdup(type);
   if (type_copy == NULL) {
     ERROR("utils_vl_lookup: strdup failed.");
-    return (NULL);
+    return NULL;
   }
 
   by_type = calloc(1, sizeof(*by_type));
   if (by_type == NULL) {
     ERROR("utils_vl_lookup: calloc failed.");
     sfree(type_copy);
-    return (NULL);
+    return NULL;
   }
   by_type->wildcard_plugin_list = NULL;
 
@@ -363,7 +363,7 @@ static by_type_entry_t *lu_search_by_type(lookup_t *obj, /* {{{ */
     ERROR("utils_vl_lookup: c_avl_create failed.");
     sfree(by_type);
     sfree(type_copy);
-    return (NULL);
+    return NULL;
   }
 
   status = c_avl_insert(obj->by_type_tree,
@@ -374,10 +374,10 @@ static by_type_entry_t *lu_search_by_type(lookup_t *obj, /* {{{ */
     c_avl_destroy(by_type->by_plugin_tree);
     sfree(by_type);
     sfree(type_copy);
-    return (NULL);
+    return NULL;
   }
 
-  return (by_type);
+  return by_type;
 } /* }}} by_type_entry_t *lu_search_by_type */
 
 static int lu_add_by_plugin(by_type_entry_t *by_type, /* {{{ */
@@ -391,7 +391,7 @@ static int lu_add_by_plugin(by_type_entry_t *by_type, /* {{{ */
   if (match->plugin.is_regex) {
     if (by_type->wildcard_plugin_list == NULL) {
       by_type->wildcard_plugin_list = user_class_list;
-      return (0);
+      return 0;
     }
 
     ptr = by_type->wildcard_plugin_list;
@@ -410,7 +410,7 @@ static int lu_add_by_plugin(by_type_entry_t *by_type, /* {{{ */
       if (plugin_copy == NULL) {
         ERROR("utils_vl_lookup: strdup failed.");
         sfree(user_class_list);
-        return (ENOMEM);
+        return ENOMEM;
       }
 
       status =
@@ -420,9 +420,9 @@ static int lu_add_by_plugin(by_type_entry_t *by_type, /* {{{ */
               plugin_copy, status);
         sfree(plugin_copy);
         sfree(user_class_list);
-        return (status);
+        return status;
       } else {
-        return (0);
+        return 0;
       }
     } /* if (plugin not yet in tree) */
   }   /* if (plugin is not wildcard) */
@@ -433,7 +433,7 @@ static int lu_add_by_plugin(by_type_entry_t *by_type, /* {{{ */
     ptr = ptr->next;
   ptr->next = user_class_list;
 
-  return (0);
+  return 0;
 } /* }}} int lu_add_by_plugin */
 
 static void lu_destroy_user_obj(lookup_t *obj, /* {{{ */
@@ -522,14 +522,14 @@ lookup_t *lookup_create(lookup_class_callback_t cb_user_class, /* {{{ */
   lookup_t *obj = calloc(1, sizeof(*obj));
   if (obj == NULL) {
     ERROR("utils_vl_lookup: calloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   obj->by_type_tree = c_avl_create((int (*)(const void *, const void *))strcmp);
   if (obj->by_type_tree == NULL) {
     ERROR("utils_vl_lookup: c_avl_create failed.");
     sfree(obj);
-    return (NULL);
+    return NULL;
   }
 
   obj->cb_user_class = cb_user_class;
@@ -537,7 +537,7 @@ lookup_t *lookup_create(lookup_class_callback_t cb_user_class, /* {{{ */
   obj->cb_free_class = cb_free_class;
   obj->cb_free_obj = cb_free_obj;
 
-  return (obj);
+  return obj;
 } /* }}} lookup_t *lookup_create */
 
 void lookup_destroy(lookup_t *obj) /* {{{ */
@@ -574,12 +574,12 @@ int lookup_add(lookup_t *obj, /* {{{ */
 
   by_type = lu_search_by_type(obj, ident->type, /* allocate = */ 1);
   if (by_type == NULL)
-    return (-1);
+    return -1;
 
   user_class_obj = calloc(1, sizeof(*user_class_obj));
   if (user_class_obj == NULL) {
     ERROR("utils_vl_lookup: calloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
   pthread_mutex_init(&user_class_obj->entry.lock, /* attr = */ NULL);
   user_class_obj->entry.user_class = user_class;
@@ -587,7 +587,7 @@ int lookup_add(lookup_t *obj, /* {{{ */
   user_class_obj->entry.user_obj_list = NULL;
   user_class_obj->next = NULL;
 
-  return (lu_add_by_plugin(by_type, user_class_obj));
+  return lu_add_by_plugin(by_type, user_class_obj);
 } /* }}} int lookup_add */
 
 /* returns the number of successful calls to the callback function */
@@ -599,18 +599,18 @@ int lookup_search(lookup_t *obj, /* {{{ */
   int status;
 
   if ((obj == NULL) || (ds == NULL) || (vl == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   by_type = lu_search_by_type(obj, vl->type, /* allocate = */ 0);
   if (by_type == NULL)
-    return (0);
+    return 0;
 
   status =
       c_avl_get(by_type->by_plugin_tree, vl->plugin, (void *)&user_class_list);
   if (status == 0) {
     status = lu_handle_user_class_list(obj, ds, vl, user_class_list);
     if (status < 0)
-      return (status);
+      return status;
     retval += status;
   }
 
@@ -618,9 +618,9 @@ int lookup_search(lookup_t *obj, /* {{{ */
     status =
         lu_handle_user_class_list(obj, ds, vl, by_type->wildcard_plugin_list);
     if (status < 0)
-      return (status);
+      return status;
     retval += status;
   }
 
-  return (retval);
+  return retval;
 } /* }}} lookup_search */
