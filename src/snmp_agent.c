@@ -108,13 +108,13 @@ static int snmp_agent_unregister_oid_index(oid_t *oid, int index);
 static u_char snmp_agent_get_asn_type(oid *oid, size_t oid_len) {
   struct tree *node = get_tree(oid, oid_len, g_agent->tp);
 
-  return (node != NULL ? mib_to_asn_type(node->type) : 0);
+  return (node != NULL) ? mib_to_asn_type(node->type) : 0;
 }
 
 static char *snmp_agent_get_oid_name(oid *oid, size_t oid_len) {
   struct tree *node = get_tree(oid, oid_len, g_agent->tp);
 
-  return (node != NULL ? node->label : NULL);
+  return (node != NULL) ? node->label : NULL;
 }
 
 static int snmp_agent_oid_to_string(char *buf, size_t buf_size,
@@ -127,7 +127,7 @@ static int snmp_agent_oid_to_string(char *buf, size_t buf_size,
     oid_str_ptr[i] = oid_str[i];
   }
 
-  return (strjoin(buf, buf_size, oid_str_ptr, o->oid_len, "."));
+  return strjoin(buf, buf_size, oid_str_ptr, o->oid_len, ".");
 }
 
 static void snmp_agent_dump_data(void) {
@@ -210,20 +210,20 @@ static int snmp_agent_validate_data(void) {
       if (!dd->plugin) {
         ERROR(PLUGIN_NAME ": Plugin not defined for '%s'.'%s'", td->name,
               dd->name);
-        return (-EINVAL);
+        return -EINVAL;
       }
 
       if (dd->plugin_instance) {
         ERROR(PLUGIN_NAME ": PluginInstance should not be defined for table "
                           "data type '%s'.'%s'",
               td->name, dd->name);
-        return (-EINVAL);
+        return -EINVAL;
       }
 
       if (dd->oids_len == 0) {
         ERROR(PLUGIN_NAME ": No OIDs defined for '%s'.'%s'", td->name,
               dd->name);
-        return (-EINVAL);
+        return -EINVAL;
       }
 
       if (dd->is_instance) {
@@ -232,7 +232,7 @@ static int snmp_agent_validate_data(void) {
           ERROR(PLUGIN_NAME ": Type and TypeInstance are not valid for "
                             "instance data '%s'.'%s'",
                 td->name, dd->name);
-          return (-EINVAL);
+          return -EINVAL;
         }
 
         if (dd->oids_len > 1) {
@@ -240,14 +240,14 @@ static int snmp_agent_validate_data(void) {
               PLUGIN_NAME
               ": Only one OID should be specified for instance data '%s'.'%s'",
               td->name, dd->name);
-          return (-EINVAL);
+          return -EINVAL;
         }
       } else {
 
         if (!dd->type) {
           ERROR(PLUGIN_NAME ": Type not defined for data '%s'.'%s'", td->name,
                 dd->name);
-          return (-EINVAL);
+          return -EINVAL;
         }
       }
     }
@@ -258,28 +258,28 @@ static int snmp_agent_validate_data(void) {
 
     if (!dd->plugin) {
       ERROR(PLUGIN_NAME ": Plugin not defined for '%s'", dd->name);
-      return (-EINVAL);
+      return -EINVAL;
     }
 
     if (dd->oids_len == 0) {
       ERROR(PLUGIN_NAME ": No OIDs defined for '%s'", dd->name);
-      return (-EINVAL);
+      return -EINVAL;
     }
 
     if (dd->is_instance) {
       ERROR(PLUGIN_NAME
             ": Instance flag can't be specified for scalar data '%s'",
             dd->name);
-      return (-EINVAL);
+      return -EINVAL;
     }
 
     if (!dd->type) {
       ERROR(PLUGIN_NAME ": Type not defined for data '%s'", dd->name);
-      return (-EINVAL);
+      return -EINVAL;
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static void snmp_agent_generate_oid2string(oid_t *oid, int offset, char *key) {
@@ -300,7 +300,7 @@ static int snmp_agent_generate_string2oid(oid_t *oid, const char *key) {
     oid->oid[oid->oid_len++] = key[i];
     if (oid->oid_len >= MAX_OID_LEN) {
       ERROR(PLUGIN_NAME ": Conversion key string %s to OID failed", key);
-      return (-EINVAL);
+      return -EINVAL;
     }
   }
 
@@ -338,10 +338,10 @@ static int snmp_agent_table_row_remove(table_definition_t *td,
   if (td->index_oid.oid_len) {
     if ((c_avl_get(td->instance_index, instance, (void **)&index) != 0) ||
         (c_avl_get(td->index_instance, index, (void **)&ins) != 0))
-      return (0);
+      return 0;
   } else {
     if (c_avl_get(td->instance_index, instance, (void **)&ins) != 0)
-      return (0);
+      return 0;
   }
 
   pthread_mutex_lock(&g_agent->agentx_lock);
@@ -383,13 +383,13 @@ static int snmp_agent_table_row_remove(table_definition_t *td,
     sfree(ins);
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_clear_missing(const value_list_t *vl,
                                     __attribute__((unused)) user_data_t *ud) {
   if (vl == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
@@ -401,13 +401,13 @@ static int snmp_agent_clear_missing(const value_list_t *vl,
         if (CHECK_DD_TYPE(dd, vl->plugin, vl->plugin_instance, vl->type,
                           vl->type_instance)) {
           snmp_agent_table_row_remove(td, vl->plugin_instance);
-          return (0);
+          return 0;
         }
       }
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static void snmp_agent_free_data(data_definition_t **dd) {
@@ -810,7 +810,7 @@ static int snmp_agent_register_table_oids(void) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_register_scalar_oids(void) {
@@ -830,20 +830,20 @@ static int snmp_agent_register_scalar_oids(void) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_config_data_oids(data_definition_t *dd,
                                        oconfig_item_t *ci) {
   if (ci->values_num < 1) {
     WARNING(PLUGIN_NAME ": `OIDs' needs at least one argument");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING) {
       WARNING(PLUGIN_NAME ": `OIDs' needs only string argument");
-      return (-EINVAL);
+      return -EINVAL;
     }
 
   if (dd->oids != NULL)
@@ -851,7 +851,7 @@ static int snmp_agent_config_data_oids(data_definition_t *dd,
   dd->oids_len = 0;
   dd->oids = calloc(ci->values_num, sizeof(*dd->oids));
   if (dd->oids == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
   dd->oids_len = (size_t)ci->values_num;
 
   for (int i = 0; i < ci->values_num; i++) {
@@ -863,23 +863,23 @@ static int snmp_agent_config_data_oids(data_definition_t *dd,
             ci->values[i].value.string);
       sfree(dd->oids);
       dd->oids_len = 0;
-      return (-1);
+      return -1;
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_config_table_size_oid(table_definition_t *td,
                                             oconfig_item_t *ci) {
   if (ci->values_num < 1) {
     WARNING(PLUGIN_NAME ": `TableSizeOID' is empty");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   if (ci->values[0].type != OCONFIG_TYPE_STRING) {
     WARNING(PLUGIN_NAME ": `TableSizeOID' needs only string argument");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   td->size_oid.oid_len = MAX_OID_LEN;
@@ -889,10 +889,10 @@ static int snmp_agent_config_table_size_oid(table_definition_t *td,
     ERROR(PLUGIN_NAME ": Failed to parse table size OID (%s)",
           ci->values[0].value.string);
     td->size_oid.oid_len = 0;
-    return (-EINVAL);
+    return -EINVAL;
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_config_table_index_oid(table_definition_t *td,
@@ -900,12 +900,12 @@ static int snmp_agent_config_table_index_oid(table_definition_t *td,
 
   if (ci->values_num < 1) {
     WARNING(PLUGIN_NAME ": `IndexOID' is empty");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   if (ci->values[0].type != OCONFIG_TYPE_STRING) {
     WARNING(PLUGIN_NAME ": `IndexOID' needs only string argument");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   td->index_oid.oid_len = MAX_OID_LEN;
@@ -915,10 +915,10 @@ static int snmp_agent_config_table_index_oid(table_definition_t *td,
     ERROR(PLUGIN_NAME ": Failed to parse table index OID (%s)",
           ci->values[0].value.string);
     td->index_oid.oid_len = 0;
-    return (-EINVAL);
+    return -EINVAL;
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_config_table_data(table_definition_t *td,
@@ -931,13 +931,13 @@ static int snmp_agent_config_table_data(table_definition_t *td,
   dd = calloc(1, sizeof(*dd));
   if (dd == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for table data definition");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   ret = cf_util_get_string(ci, &dd->name);
   if (ret != 0) {
     sfree(dd);
-    return (-1);
+    return -1;
   }
 
   dd->scale = 1.0;
@@ -971,19 +971,19 @@ static int snmp_agent_config_table_data(table_definition_t *td,
 
     if (ret != 0) {
       snmp_agent_free_data(&dd);
-      return (-1);
+      return -1;
     }
   }
 
   llentry_t *entry = llentry_create(dd->name, dd);
   if (entry == NULL) {
     snmp_agent_free_data(&dd);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   llist_append(td->columns, entry);
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_config_data(oconfig_item_t *ci) {
@@ -995,13 +995,13 @@ static int snmp_agent_config_data(oconfig_item_t *ci) {
   dd = calloc(1, sizeof(*dd));
   if (dd == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for data definition");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   ret = cf_util_get_string(ci, &dd->name);
   if (ret != 0) {
     free(dd);
-    return (-1);
+    return -1;
   }
 
   dd->scale = 1.0;
@@ -1033,29 +1033,29 @@ static int snmp_agent_config_data(oconfig_item_t *ci) {
 
     if (ret != 0) {
       snmp_agent_free_data(&dd);
-      return (-1);
+      return -1;
     }
   }
 
   llentry_t *entry = llentry_create(dd->name, dd);
   if (entry == NULL) {
     snmp_agent_free_data(&dd);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   llist_append(g_agent->scalars, entry);
 
-  return (0);
+  return 0;
 }
 
 static int num_compare(const int *a, const int *b) {
   assert((a != NULL) && (b != NULL));
   if (*a < *b)
-    return (-1);
+    return -1;
   else if (*a > *b)
-    return (1);
+    return 1;
   else
-    return (0);
+    return 0;
 }
 
 static int snmp_agent_config_table(oconfig_item_t *ci) {
@@ -1067,20 +1067,20 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
   td = calloc(1, sizeof(*td));
   if (td == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for table definition");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   ret = cf_util_get_string(ci, &td->name);
   if (ret != 0) {
     sfree(td);
-    return (-1);
+    return -1;
   }
 
   td->columns = llist_create();
   if (td->columns == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for columns list");
     snmp_agent_free_table(&td);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -1099,33 +1099,33 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
 
     if (ret != 0) {
       snmp_agent_free_table(&td);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
   }
 
   llentry_t *entry = llentry_create(td->name, td);
   if (entry == NULL) {
     snmp_agent_free_table(&td);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   td->instance_index =
       c_avl_create((int (*)(const void *, const void *))strcmp);
   if (td->instance_index == NULL) {
     snmp_agent_free_table(&td);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   td->index_instance =
       c_avl_create((int (*)(const void *, const void *))num_compare);
   if (td->index_instance == NULL) {
     snmp_agent_free_table(&td);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   llist_append(g_agent->tables, entry);
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_get_value_from_ds_type(const value_t *val, int type,
@@ -1148,10 +1148,10 @@ static int snmp_agent_get_value_from_ds_type(const value_t *val, int type,
     break;
   default:
     ERROR(PLUGIN_NAME ": Unknown data source type: %i", type);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_set_vardata(void *data, size_t *data_len, u_char asn_type,
@@ -1177,13 +1177,13 @@ static int snmp_agent_set_vardata(void *data, size_t *data_len, u_char asn_type,
   case ASN_TIMETICKS:
   case ASN_GAUGE:
     if (*data_len < sizeof(*var.integer))
-      return (-EINVAL);
+      return -EINVAL;
     *var.integer = new_value;
     *data_len = sizeof(*var.integer);
     break;
   case ASN_COUNTER64:
     if (*data_len < sizeof(*var.counter64))
-      return (-EINVAL);
+      return -EINVAL;
     var.counter64->high = (u_long)((int64_t)new_value >> 32);
     var.counter64->low = (u_long)((int64_t)new_value & 0xFFFFFFFF);
     *data_len = sizeof(*var.counter64);
@@ -1193,22 +1193,22 @@ static int snmp_agent_set_vardata(void *data, size_t *data_len, u_char asn_type,
       char buf[DATA_MAX_NAME_LEN];
       snprintf(buf, sizeof(buf), "%.2f", val->gauge);
       if (*data_len < strlen(buf))
-        return (-EINVAL);
+        return -EINVAL;
       *data_len = strlen(buf);
       memcpy(var.string, buf, *data_len);
     } else {
       ERROR(PLUGIN_NAME ": Failed to convert %d ds type to %d asn type", type,
             asn_type);
-      return (-EINVAL);
+      return -EINVAL;
     }
     break;
   default:
     ERROR(PLUGIN_NAME ": Failed to convert %d ds type to %d asn type", type,
           asn_type);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_register_oid_index(oid_t *oid, int index,
@@ -1230,7 +1230,7 @@ static int snmp_agent_update_index(table_definition_t *td,
                                    const char *instance) {
 
   if (c_avl_get(td->instance_index, instance, NULL) == 0)
-    return (0);
+    return 0;
 
   int ret;
   int *index = NULL;
@@ -1238,14 +1238,14 @@ static int snmp_agent_update_index(table_definition_t *td,
 
   ins = strdup(instance);
   if (ins == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   /* need to generate index for the table */
   if (td->index_oid.oid_len) {
     index = calloc(1, sizeof(*index));
     if (index == NULL) {
       sfree(ins);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     *index = c_avl_size(td->instance_index) + 1;
@@ -1310,13 +1310,13 @@ static int snmp_agent_update_index(table_definition_t *td,
             (index != NULL) ? *index : -1);
   plugin_dispatch_notification(&n);
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_write(value_list_t const *vl) {
 
   if (vl == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
@@ -1328,13 +1328,13 @@ static int snmp_agent_write(value_list_t const *vl) {
         if (CHECK_DD_TYPE(dd, vl->plugin, vl->plugin_instance, vl->type,
                           vl->type_instance)) {
           snmp_agent_update_index(td, vl->plugin_instance);
-          return (0);
+          return 0;
         }
       }
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_collect(const data_set_t *ds, const value_list_t *vl,
@@ -1346,19 +1346,19 @@ static int snmp_agent_collect(const data_set_t *ds, const value_list_t *vl,
 
   pthread_mutex_unlock(&g_agent->lock);
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_preinit(void) {
   if (g_agent != NULL) {
     /* already initialized if config callback was called before init callback */
-    return (0);
+    return 0;
   }
 
   g_agent = calloc(1, sizeof(*g_agent));
   if (g_agent == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for snmp agent context");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   g_agent->tables = llist_create();
@@ -1370,7 +1370,7 @@ static int snmp_agent_preinit(void) {
                                1);
   if (err != 0) {
     ERROR(PLUGIN_NAME ": Failed to set agent role (%d)", err);
-    return (-1);
+    return -1;
   }
 
   /*
@@ -1381,14 +1381,14 @@ static int snmp_agent_preinit(void) {
   err = init_agent(PLUGIN_NAME);
   if (err != 0) {
     ERROR(PLUGIN_NAME ": Failed to initialize the agent library (%d)", err);
-    return (-1);
+    return -1;
   }
 
   init_snmp(PLUGIN_NAME);
 
   g_agent->tp = read_all_mibs();
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_init(void) {
@@ -1425,7 +1425,7 @@ static int snmp_agent_init(void) {
     return ret;
   }
 
-  return (0);
+  return 0;
 }
 
 static void *snmp_agent_thread_run(void __attribute__((unused)) * arg) {
@@ -1456,7 +1456,7 @@ static int snmp_agent_register_oid(oid_t *oid, Netsnmp_Node_Handler *handler) {
     WARNING(PLUGIN_NAME
             ": Skipped registration: OID (%s) is not found in main tree",
             oid_str);
-    return (0);
+    return 0;
   }
 
   reg = netsnmp_create_handler_registration(oid_name, handler, oid->oid,
@@ -1464,7 +1464,7 @@ static int snmp_agent_register_oid(oid_t *oid, Netsnmp_Node_Handler *handler) {
   if (reg == NULL) {
     ERROR(PLUGIN_NAME ": Failed to create handler registration for OID (%s)",
           oid_str);
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_lock(&g_agent->agentx_lock);
@@ -1472,20 +1472,20 @@ static int snmp_agent_register_oid(oid_t *oid, Netsnmp_Node_Handler *handler) {
   if (netsnmp_register_instance(reg) != MIB_REGISTERED_OK) {
     ERROR(PLUGIN_NAME ": Failed to register handler for OID (%s)", oid_str);
     pthread_mutex_unlock(&g_agent->agentx_lock);
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&g_agent->agentx_lock);
 
   DEBUG(PLUGIN_NAME ": Registered handler for OID (%s)", oid_str);
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_free_config(void) {
 
   if (g_agent == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next)
     snmp_agent_free_table((table_definition_t **)&te->value);
@@ -1495,7 +1495,7 @@ static int snmp_agent_free_config(void) {
     snmp_agent_free_data((data_definition_t **)&de->value);
   llist_destroy(g_agent->scalars);
 
-  return (0);
+  return 0;
 }
 
 static int snmp_agent_shutdown(void) {
@@ -1505,7 +1505,7 @@ static int snmp_agent_shutdown(void) {
 
   if (g_agent == NULL) {
     ERROR(PLUGIN_NAME ": snmp_agent_shutdown: plugin not initialized");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   if (pthread_cancel(g_agent->thread) != 0)
@@ -1532,7 +1532,7 @@ static int snmp_agent_config(oconfig_item_t *ci) {
 
   if (ret != 0) {
     sfree(g_agent);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -1551,7 +1551,7 @@ static int snmp_agent_config(oconfig_item_t *ci) {
       snmp_agent_free_config();
       snmp_shutdown(PLUGIN_NAME);
       sfree(g_agent);
-      return (-EINVAL);
+      return -EINVAL;
     }
   }
 
@@ -1561,10 +1561,10 @@ static int snmp_agent_config(oconfig_item_t *ci) {
     snmp_agent_free_config();
     snmp_shutdown(PLUGIN_NAME);
     sfree(g_agent);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {
