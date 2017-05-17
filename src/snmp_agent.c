@@ -3,15 +3,15 @@
  *
  * Copyright(c) 2017 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -34,7 +34,9 @@
 #include "utils_llist.h"
 
 #include <net-snmp/net-snmp-config.h>
+
 #include <net-snmp/net-snmp-includes.h>
+
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #define PLUGIN_NAME "snmp_agent"
@@ -363,15 +365,12 @@ static int snmp_agent_table_row_remove(table_definition_t *td,
         (index != NULL) ? *index : -1, ins);
 
   notification_t n = {
-    .severity = NOTIF_WARNING,
-    .time = cdtime(),
-    .plugin = PLUGIN_NAME
-  };
+      .severity = NOTIF_WARNING, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, ins, sizeof(n.plugin_instance));
   ssnprintf(n.message, sizeof(n.message),
             "Removed data row from table %s instance %s index %d", td->name,
-            ins,  (index != NULL) ? *index : -1);
+            ins, (index != NULL) ? *index : -1);
   plugin_dispatch_notification(&n);
 
   if (td->index_oid.oid_len) {
@@ -425,7 +424,8 @@ static void snmp_agent_free_data(data_definition_t **dd) {
     char *instance;
 
     c_avl_iterator_t *iter = c_avl_get_iterator((*dd)->table->instance_index);
-    while (c_avl_iterator_next(iter, (void *)&instance, (void *)&instance) == 0) {
+    while (c_avl_iterator_next(iter, (void *)&instance, (void *)&instance) ==
+           0) {
       for (int i = 0; i < (*dd)->oids_len; i++)
         snmp_agent_unregister_oid_string(&(*dd)->oids[i], instance);
     }
@@ -594,13 +594,12 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
           char key[MAX_OID_LEN];
 
           memset(key, 0, sizeof(key));
-          snmp_agent_generate_oid2string(&oid, MIN(oid.oid_len,
-                                         dd->oids[i].oid_len), key);
+          snmp_agent_generate_oid2string(
+              &oid, MIN(oid.oid_len, dd->oids[i].oid_len), key);
 
           ret = c_avl_get(td->instance_index, key, (void **)&instance);
           if (ret != 0) {
-            DEBUG(PLUGIN_NAME ": Nonexisting index string '%s' requested",
-                  key);
+            DEBUG(PLUGIN_NAME ": Nonexisting index string '%s' requested", key);
             pthread_mutex_unlock(&g_agent->lock);
             return SNMP_NOSUCHINSTANCE;
           }
@@ -1291,7 +1290,7 @@ static int snmp_agent_update_index(table_definition_t *td,
                                             snmp_agent_table_oid_handler);
       } else {
         ret = snmp_agent_register_oid_string(&dd->oids[i], ins,
-                                            snmp_agent_table_oid_handler);
+                                             snmp_agent_table_oid_handler);
       }
 
       if (ret != 0)
@@ -1303,10 +1302,7 @@ static int snmp_agent_update_index(table_definition_t *td,
         (index != NULL) ? *index : -1, ins);
 
   notification_t n = {
-    .severity = NOTIF_OKAY,
-    .time = cdtime(),
-    .plugin = PLUGIN_NAME
-  };
+      .severity = NOTIF_OKAY, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, ins, sizeof(n.plugin_instance));
   ssnprintf(n.message, sizeof(n.message),
