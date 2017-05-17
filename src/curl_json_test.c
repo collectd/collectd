@@ -52,9 +52,10 @@ static cj_t *test_setup(char *json, char *key_path) {
 
   assert(cj_append_key(db, key) == 0);
 
-  db->state[0].entry = &(cj_tree_entry_t){
-      .type = TREE, .tree = db->tree,
-  };
+  cj_tree_entry_t root = {0};
+  root.type = TREE;
+  root.tree = db->tree;
+  db->state[0].entry = &root;
 
   cj_curl_callback(json, strlen(json), 1, db);
 #if HAVE_YAJL_V2

@@ -946,9 +946,13 @@ static int cj_read(user_data_t *ud) /* {{{ */
 
   db->depth = 0;
   memset(&db->state, 0, sizeof(db->state));
-  db->state[0].entry = &(cj_tree_entry_t){
-      .type = TREE, .tree = db->tree,
-  };
+
+  /* This is not a compound literal because EPEL6's GCC is not cool enough to
+   * handle anonymous unions within compound literals. */
+  cj_tree_entry_t root = {0};
+  root.type = TREE;
+  root.tree = db->tree;
+  db->state[0].entry = &root;
 
   int status = cj_perform(db);
 
