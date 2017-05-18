@@ -497,6 +497,13 @@ Features
       updates to the files and write a bunch of updates at once, which lessens
       system load a lot.
 
+    - snmp_agent
+      Receives and handles queries from SNMP master agent and returns the data
+      collected by read plugins. Handles requests only for OIDs specified in
+      configuration file. To handle SNMP queries the plugin gets data from
+      collectd and translates requested values from collectd's internal format
+      to SNMP format.
+
     - unixsock
       One can query the values from the unixsock plugin whenever they're
       needed. Please read collectd-unixsock(5) for a description on how that's
@@ -824,7 +831,11 @@ Prerequisites
     This library is part of the “Manage ONTAP SDK” published by NetApp.
 
   * libnetsnmp (optional)
-    For the `snmp' plugin.
+    For the `snmp' and 'snmp_agent' plugins.
+    <http://www.net-snmp.org/>
+
+  * libnetsnmpagent (optional)
+    Required for the 'snmp_agent' plugin.
     <http://www.net-snmp.org/>
 
   * libnotify (optional)

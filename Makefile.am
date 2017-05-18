@@ -1490,6 +1490,14 @@ snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
 snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
 endif
 
+if BUILD_PLUGIN_SNMP_AGENT
+pkglib_LTLIBRARIES += snmp_agent.la
+snmp_agent_la_SOURCES = src/snmp_agent.c
+snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
+snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
+snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+endif
+
 if BUILD_PLUGIN_STATSD
 pkglib_LTLIBRARIES += statsd.la
 statsd_la_SOURCES = src/statsd.c

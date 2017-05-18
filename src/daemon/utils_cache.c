@@ -477,6 +477,75 @@ gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
   return ret;
 } /* gauge_t *uc_get_rate */
 
+int uc_get_value_by_name(const char *name, value_t **ret_values,
+                         size_t *ret_values_num) {
+  value_t *ret = NULL;
+  size_t ret_num = 0;
+  cache_entry_t *ce = NULL;
+  int status = 0;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *) &ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      status = -1;
+    } else {
+      ret_num = ce->values_num;
+      ret = malloc(ret_num * sizeof(*ret));
+      if (ret == NULL) {
+        ERROR("utils_cache: uc_get_value_by_name: malloc failed.");
+        status = -1;
+      } else {
+        memcpy(ret, ce->values_raw, ret_num * sizeof(value_t));
+      }
+    }
+  }
+  else {
+    DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
+    status = -1;
+  }
+
+  pthread_mutex_unlock(&cache_lock);
+
+  if (status == 0) {
+    *ret_values = ret;
+    *ret_values_num = ret_num;
+  }
+
+  return (status);
+} /* int uc_get_value_by_name */
+
+value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl) {
+  char name[6 * DATA_MAX_NAME_LEN];
+  value_t *ret = NULL;
+  size_t ret_num = 0;
+  int status;
+
+  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
+    ERROR("utils_cache: uc_get_value: FORMAT_VL failed.");
+    return (NULL);
+  }
+
+  status = uc_get_value_by_name(name, &ret, &ret_num);
+  if (status != 0)
+    return (NULL);
+
+  /* This is important - the caller has no other way of knowing how many
+   * values are returned. */
+  if (ret_num != (size_t) ds->ds_num) {
+    ERROR("utils_cache: uc_get_value: ds[%s] has %zu values, "
+          "but uc_get_value_by_name returned %zu.", ds->type, ds->ds_num,
+          ret_num);
+    sfree(ret);
+    return (NULL);
+  }
+
+  return (ret);
+} /* value_t *uc_get_value */
+
 size_t uc_get_size(void) {
   size_t size_arrays = 0;
 

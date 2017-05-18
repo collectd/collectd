@@ -188,6 +188,7 @@
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
+#@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
@@ -1273,6 +1274,30 @@
 #       Collect "powerplus_voltge_input"
 #       Interval 300
 #   </Host>
+#</Plugin>
+
+#<Plugin snmp_agent>
+#  <Data "memAvailReal">
+#    Plugin "memory"
+#    Type "memory"
+#    TypeInstance "free"
+#    OIDs "1.3.6.1.4.1.2021.4.6.0"
+#  </Data>
+#  <Table "ifTable">
+#    IndexOID "IF-MIB::ifIndex"
+#    SizeOID "IF-MIB::ifNumber"
+#    <Data "ifDescr">
+#      Instance true
+#      Plugin "interface"
+#      OIDs "IF-MIB::ifDescr"
+#    </Data>
+#    <Data "ifOctets">
+#      Plugin "interface"
+#      Type "if_octets"
+#      TypeInstance ""
+#      OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+#    </Data>
+#  </Table>
 #</Plugin>
 
 #<Plugin statsd>
