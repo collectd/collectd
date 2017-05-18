@@ -222,8 +222,6 @@ int uc_init(void) {
 } /* int uc_init */
 
 int uc_check_timeout(void) {
-  cdtime_t now = cdtime();
-
   struct {
     char *key;
     cdtime_t time;
@@ -232,6 +230,7 @@ int uc_check_timeout(void) {
   size_t expired_num = 0;
 
   pthread_mutex_lock(&cache_lock);
+  cdtime_t now = cdtime();
 
   /* Build a list of entries to be flushed */
   c_avl_iterator_t *iter = c_avl_get_iterator(cache_tree);
