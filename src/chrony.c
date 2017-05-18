@@ -892,8 +892,9 @@ static int chrony_request_source_data(int p_src_idx, char *src_addr,
                          ntohs(chrony_resp.body.source_data.f_reachability));
   chrony_push_data_valid("clock_last_meas", src_addr, is_reachable,
                          ntohl(chrony_resp.body.source_data.f_since_sample));
-  chrony_push_data_valid("time_offset", src_addr, is_reachable,
-                  ntohf(chrony_resp.body.source_data.f_origin_latest_meas));
+  chrony_push_data_valid(
+      "time_offset", src_addr, is_reachable,
+      ntohf(chrony_resp.body.source_data.f_origin_latest_meas));
 
   return CHRONY_RC_OK;
 }
