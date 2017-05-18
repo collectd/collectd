@@ -11,6 +11,8 @@ dnl we don't really need the 'u' even in older toolchains.  Then there is
 dnl older libtool, which spelled it AR_FLAGS
 m4_divert_text([DEFAULTS], [: "${ARFLAGS=cr} ${AR_FLAGS=cr}"])
 
+m4_include([m4/ax_compare_version.m4])
+
 LT_INIT([dlopen disable-static])
 
 AM_INIT_AUTOMAKE([subdir-objects tar-pax dist-bzip2 no-dist-gzip foreign])
@@ -2861,6 +2863,9 @@ AC_ARG_WITH([java],
   [with_java="yes"]
 )
 
+AX_COMPARE_VERSION([$am__api_version],[lt],[1.12],
+  [JAVA_TIMESTAMP_FILE="classdist_noinst.stamp"],
+  [JAVA_TIMESTAMP_FILE="classnoinst.stamp"])
 if test "x$with_java" = "xyes"; then
   if test -d "$with_java_home"; then
     AC_MSG_CHECKING([for jni.h])
@@ -2997,6 +3002,7 @@ AC_SUBST([JAVA_CPPFLAGS])
 AC_SUBST([JAVA_CFLAGS])
 AC_SUBST([JAVA_LDFLAGS])
 AC_SUBST([JAVA_LIBS])
+AC_SUBST([JAVA_TIMESTAMP_FILE])
 AM_CONDITIONAL([BUILD_WITH_JAVA], [test "x$with_java" = "xyes"])
 # }}}
 

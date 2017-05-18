@@ -2019,10 +2019,10 @@ dist_noinst_JAVA = \
 	bindings/java/org/collectd/java/GenericJMXConfValue.java \
 	bindings/java/org/collectd/java/JMXMemory.java
 
-collectd-api.jar: classnoinst.stamp
+collectd-api.jar: $(JAVA_TIMESTAMP_FILE)
 	$(JAR) cf $(JARFLAGS) $@ org/collectd/api/*.class
 
-generic-jmx.jar: classnoinst.stamp
+generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 	$(JAR) cf $(JARFLAGS) $@ org/collectd/java/*.class
 
 jar_DATA = collectd-api.jar generic-jmx.jar
