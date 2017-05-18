@@ -307,6 +307,8 @@ static int ctail_init(void) {
     WARNING("tail plugin: File list is empty. Returning an error.");
     return -1;
   }
+  
+  memset(&ud, '\0', sizeof(ud));
 
   for (size_t i = 0; i < tail_match_list_num; i++) {
     ssnprintf(str, sizeof(str), "tail-%zu", i);
