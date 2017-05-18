@@ -425,9 +425,9 @@ static int memcached_read(user_data_t *user_data) {
     } else if (FIELD_IS("evictions")) {
       submit_derive("memcached_ops", "evictions", atoll(fields[2]), st);
     } else if (FIELD_IS("delete_hits")) {
-      submit_derive("memcached_ops", "del_hits", atoll(fields[2]), st);
+      submit_derive("memcached_ops", "delete_hits", atoll(fields[2]), st);
     } else if (FIELD_IS("delete_misses")) {
-      submit_derive("memcached_ops", "del_misses", atoll(fields[2]), st);
+      submit_derive("memcached_ops", "delete_misses", atoll(fields[2]), st);
     }
 
     /*
