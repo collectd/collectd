@@ -47,13 +47,15 @@ static cj_t *test_setup(char *json, char *key_path) {
   db->curl = (void *)cj_avl_create();
 
   cj_key_t *key = calloc(1, sizeof(*key));
-  key->magic = CJ_KEY_MAGIC;
   key->path = strdup(key_path);
   key->type = strdup("MAGIC");
 
   assert(cj_append_key(db, key) == 0);
 
-  db->state[0].tree = db->tree;
+  cj_tree_entry_t root = {0};
+  root.type = TREE;
+  root.tree = db->tree;
+  db->state[0].entry = &root;
 
   cj_curl_callback(json, strlen(json), 1, db);
 #if HAVE_YAJL_V2
@@ -61,6 +63,8 @@ static cj_t *test_setup(char *json, char *key_path) {
 #else
   yajl_parse_complete(db->yajl);
 #endif
+
+  db->state[0].entry = NULL;
 
   return db;
 }
