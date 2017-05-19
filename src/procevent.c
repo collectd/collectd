@@ -49,7 +49,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define MYPROTO NETLINK_ROUTE
+#define PROCEVENT_EXITED 0
+#define PROCEVENT_FIELDS 3
 
 /*
  * Private data types
@@ -131,7 +132,7 @@ static int set_proc_ev_listen(bool enable)
 
     rc = send(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
     if (rc == -1) {
-        ERROR("procevent plugin: netlink process event subscribe failed.");
+        ERROR("procevent plugin: subscribing to netlink process events failed.");
         return -1;
     }
 
@@ -143,6 +144,8 @@ static int read_event()
     int status;
     int ret = 0;
     int proc_status = -1;
+    int proc_id = -1;
+    int proc_extra = -1;
     struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
         struct nlmsghdr nl_hdr;
         struct __attribute__ ((__packed__)) {
@@ -201,6 +204,11 @@ static int read_event()
                   nlcn_msg.proc_ev.event_data.exit.process_pid,
                   nlcn_msg.proc_ev.event_data.exit.process_tgid,
                   nlcn_msg.proc_ev.event_data.exit.exit_code);
+
+          proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
+          proc_status = PROCEVENT_EXITED;
+          proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
+
           break;
       default:
           printf("unhandled proc event\n");
@@ -222,8 +230,6 @@ static int read_event()
         WARNING("procevent plugin: ring buffer full");
       } else {
 
-        // TODO: put data in buffer
-
         struct timeval tv;
 
         gettimeofday(&tv, NULL);
@@ -232,10 +238,12 @@ static int read_event()
         (unsigned long long)(tv.tv_sec) * 1000 +
         (unsigned long long)(tv.tv_usec) / 1000;
         
-        INFO("procevent plugin (%llu): Process %d status is now %s", millisecondsSinceEpoch, nlcn_msg.proc_ev.event_data.id.process_tgid, "DEAD");
+        INFO("procevent plugin (%llu): Process %d status is now %s", millisecondsSinceEpoch, proc_id, (proc_status == PROCEVENT_EXITED ? "EXITED" : "NON-EXITED"));
 
-        // TODO
-        //strncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
+        ring.buffer[ring.head][0] = proc_id;
+        ring.buffer[ring.head][1] = proc_status;
+        ring.buffer[ring.head][2] = proc_extra;
+
         ring.head = next;
       }
 
@@ -254,6 +262,8 @@ static void *procevent_thread(void *arg) /* {{{ */
     int status;
 
     pthread_mutex_unlock(&procevent_lock);
+
+    usleep(1000);
 
     status = read_event();
     
@@ -285,6 +295,20 @@ static int start_thread(void) /* {{{ */
     return (0);
   }
 
+  if (nl_sock == -1)
+  {
+    status = nl_connect();
+
+    if (status != 0)
+      return status;
+
+    status = set_proc_ev_listen(true);
+    if (status == -1) 
+        return status;
+  }
+
+  INFO("procevent plugin: socket created and bound");
+
   procevent_thread_loop = 1;
   procevent_thread_error = 0;
 
@@ -304,6 +328,17 @@ static int start_thread(void) /* {{{ */
 static int stop_thread(int shutdown) /* {{{ */
 {
   int status;
+
+  if (nl_sock != -1)
+  {
+    status = close(nl_sock);
+    if (status != 0)
+    {
+      ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock, status, strerror(errno));
+      return (-1);
+    } else
+      nl_sock = -1;
+  }
 
   pthread_mutex_lock(&procevent_lock);
 
@@ -351,7 +386,7 @@ static int stop_thread(int shutdown) /* {{{ */
 
 static int procevent_init(void) /* {{{ */
 {
-  int status;
+  //int status;
 
   ring.head = 0;
   ring.tail = 0;
@@ -360,22 +395,8 @@ static int procevent_init(void) /* {{{ */
 
   for (int i = 0; i < buffer_length; i ++)
   {
-    ring.buffer[i] = (int*) malloc(buffer_length * sizeof(int));
+    ring.buffer[i] = (int*) malloc(PROCEVENT_FIELDS * sizeof(int));
   }
-
-  if (nl_sock == -1)
-  {
-    status = nl_connect();
-
-    if (status != 0)
-      return status;
-
-    status = set_proc_ev_listen(true);
-    if (status == -1) 
-        return status;
-  }
-
-  INFO("procevent plugin: socket created and bound");
 
   return (start_thread());
 } /* }}} int procevent_init */
@@ -453,22 +474,11 @@ static int procevent_read(void) /* {{{ */
 
 static int procevent_shutdown(void) /* {{{ */
 {
-  int status = 0;
+  //int status = 0;
 
   INFO("procevent plugin: Shutting down thread.");
   if (stop_thread(1) < 0)
     return (-1);
-
-  if (nl_sock != -1)
-  {
-    status = close(nl_sock);
-    if (status != 0)
-    {
-      ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock, status, strerror(errno));
-      return (-1);
-    } else
-      nl_sock = -1;
-  }
 
   for (int i = 0; i < buffer_length; i ++)
   {
