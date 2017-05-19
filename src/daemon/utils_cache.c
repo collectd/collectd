@@ -422,6 +422,9 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
 
     /* remove missing values from getval */
     if (ce->state == STATE_MISSING) {
+      DEBUG("utils_cache: uc_get_rate_by_name: requested metric \"%s\" is in "
+            "state \"missing\".",
+            name);
       status = -1;
     } else {
       ret_num = ce->values_num;
