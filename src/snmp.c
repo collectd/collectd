@@ -1114,7 +1114,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
   value_list_t vl = VALUE_LIST_INIT;
 
   csnmp_list_instances_t *instance_list_ptr;
-  csnmp_table_values_t **value_table_ptr;
+  csnmp_table_values_t *value_table_ptr[data->values_len];
 
   size_t i;
   _Bool have_more;
@@ -1130,19 +1130,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = calloc(data->values_len, sizeof(*value_table_ptr));
-  if (value_table_ptr == NULL)
-    return -1;
   for (i = 0; i < data->values_len; i++)
     value_table_ptr[i] = value_table[i];
-
-  vl.values_len = data->values_len;
-  vl.values = malloc(sizeof(*vl.values) * vl.values_len);
-  if (vl.values == NULL) {
-    ERROR("snmp plugin: malloc failed.");
-    sfree(value_table_ptr);
-    return -1;
-  }
 
   sstrncpy(vl.host, host->name, sizeof(vl.host));
   sstrncpy(vl.plugin, "snmp", sizeof(vl.plugin));
@@ -1162,8 +1151,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
       memcpy(&current_suffix, &instance_list_ptr->suffix,
              sizeof(current_suffix));
-    } else /* no instance configured */
-    {
+    } else {
+      /* no instance configured */
       csnmp_table_values_t *ptr = value_table_ptr[0];
       if (ptr == NULL) {
         have_more = 0;
@@ -1237,6 +1226,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
                   data->instance_prefix, temp);
     }
 
+    vl.values_len = data->values_len;
+    value_t values[vl.values_len];
+    vl.values = values;
+
     for (i = 0; i < data->values_len; i++)
       vl.values[i] = value_table_ptr[i]->value;
 
@@ -1247,16 +1240,17 @@ static int csnmp_dispatch_table(host_definition_t *host,
     if (vl.type_instance[0] != '\0')
       plugin_dispatch_values(&vl);
 
+    /* prevent leakage of pointer to local variable. */
+    vl.values_len = 0;
+    vl.values = NULL;
+
     if (instance_list != NULL)
       instance_list_ptr = instance_list_ptr->next;
     else
       value_table_ptr[0] = value_table_ptr[0]->next;
   } /* while (have_more) */
 
-  sfree(vl.values);
-  sfree(value_table_ptr);
-
-  return 0;
+  return (0);
 } /* int csnmp_dispatch_table */
 
 static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
