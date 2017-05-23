@@ -115,17 +115,6 @@ static void mcelog_free_dimms_list_records(llist_t *dimms_list) {
 
 }
 
-static llentry_t *mcelog_get_dimm(const char *name, llist_t *dimms_list) {
-  if (dimms_list == NULL)
-    return NULL;
-
-  llentry_t *le = llist_search(g_mcelog_config.dimms_list, name);
-  if (le != NULL)
-    return le;
-
-  return NULL;
-}
-
 /* Create or get dimm by dimm name/location */
 static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
                               llist_t *dimms_list) {
@@ -138,7 +127,7 @@ static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
   } else
     sstrncpy(dimm_name, rec->location, sizeof(dimm_name));
 
-  llentry_t *dimm_le = mcelog_get_dimm(dimm_name, dimms_list);
+  llentry_t *dimm_le = llist_search(g_mcelog_config.dimms_list, dimm_name);
 
   if (dimm_le == NULL) {
     mcelog_memory_rec_t *dimm_mr = calloc(1, sizeof(*dimm_mr));
