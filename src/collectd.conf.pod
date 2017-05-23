@@ -3090,17 +3090,17 @@ Linux perf interface. All events are reported on a per core basis.
 B<Synopsis:>
 
   <Plugin intel_pmu>
-    HWCacheEvents true
-    KernelPMUEvents true
-    SWEvents true
-    HWSpecificEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS"
+    ReportHardwareCacheEvents true
+    ReportKernelPMUEvents true
+    ReportSoftwareEvents true
+    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
   </Plugin>
 
 B<Options:>
 
 =over 4
 
-=item B<HWCacheEvents> B<false>|B<true>
+=item B<ReportHardwareCacheEvents> B<false>|B<true>
 
 Enable or disable measuring of hardware CPU cache events:
   - L1-dcache-loads
@@ -3130,7 +3130,7 @@ Enable or disable measuring of hardware CPU cache events:
   - branch-loads
   - branch-load-misses
 
-=item B<KernelPMUEvents> B<false>|B<true>
+=item B<ReportKernelPMUEvents> B<false>|B<true>
 
 Enable or disable measuring of the following events:
   - cpu-cycles
@@ -3141,7 +3141,7 @@ Enable or disable measuring of the following events:
   - branch-misses
   - bus-cycles
 
-=item B<SWEvents> B<false>|B<true>
+=item B<ReportSoftwareEvents> B<false>|B<true>
 
 Enable or disable measuring of software events provided by kernel:
   - cpu-clock
@@ -3154,11 +3154,11 @@ Enable or disable measuring of software events provided by kernel:
   - alignment-faults
   - emulation-faults
 
-=item B<HWSpecificEvents> I<events>
+=item B<HardwareEvents> I<events>
 
-This field is a list of comma separated event names. To be able to monitor all
-Intel CPU specific events JSON event list file should be downloaded.
-Use the pmu-tools event_download.py script for this.
+This field is a list of event names or groups of comma separated event names.
+To be able to monitor all Intel CPU specific events JSON event list file should
+be downloaded. Use the pmu-tools event_download.py script for this.
 
 =back
 

@@ -648,10 +648,10 @@
 #</Plugin>
 
 #<Plugin intel_pmu>
-#    HWCacheEvents true
-#    KernelPMUEvents true
-#    SWEvents true
-#    HWSpecificEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS"
+#    ReportHardwareCacheEvents true
+#    ReportKernelPMUEvents true
+#    ReportSoftwareEvents true
+#    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
 #</Plugin>
 
 #<Plugin "intel_rdt">

@@ -28,8 +28,8 @@
 #include "collectd.h"
 #include "common.h"
 
-#include "jevents.h"
-#include "jsession.h"
+#include <jevents.h>
+#include <jsession.h>
 
 #define PMU_PLUGIN "intel_pmu"
 
@@ -67,7 +67,8 @@ struct intel_pmu_ctx_s {
   _Bool hw_cache_events;
   _Bool kernel_pmu_events;
   _Bool sw_events;
-  char *hw_specific_events;
+  char **hw_events;
+  size_t hw_events_count;
   struct eventlist *event_list;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
@@ -176,8 +177,8 @@ static void pmu_dump_events() {
     DEBUG(PMU_PLUGIN ":   event       : %s", e->event);
     DEBUG(PMU_PLUGIN ":     group_lead: %d", e->group_leader);
     DEBUG(PMU_PLUGIN ":     end_group : %d", e->end_group);
-    DEBUG(PMU_PLUGIN ":     type      : 0x%X", e->attr.type);
-    DEBUG(PMU_PLUGIN ":     config    : 0x%X", (int)e->attr.config);
+    DEBUG(PMU_PLUGIN ":     type      : %#x", e->attr.type);
+    DEBUG(PMU_PLUGIN ":     config    : %#x", (unsigned)e->attr.config);
     DEBUG(PMU_PLUGIN ":     size      : %d", e->attr.size);
   }
 
@@ -189,13 +190,46 @@ static void pmu_dump_config(void) {
   DEBUG(PMU_PLUGIN ": Config:");
   DEBUG(PMU_PLUGIN ":   hw_cache_events   : %d", g_ctx.hw_cache_events);
   DEBUG(PMU_PLUGIN ":   kernel_pmu_events : %d", g_ctx.kernel_pmu_events);
-  DEBUG(PMU_PLUGIN ":   sw_events         : %d", g_ctx.sw_events);
-  DEBUG(PMU_PLUGIN ":   hw_specific_events: %s", g_ctx.hw_specific_events);
+  DEBUG(PMU_PLUGIN ":   software_events   : %d", g_ctx.sw_events);
+
+  for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
+    DEBUG(PMU_PLUGIN ":   hardware_events[%zu]: %s", i, g_ctx.hw_events[i]);
+  }
 
   return;
 }
 
 #endif /* COLLECT_DEBUG */
+
+static int pmu_config_hw_events(oconfig_item_t *ci) {
+
+  if (strcasecmp("HardwareEvents", ci->key) != 0) {
+    return -EINVAL;
+  }
+
+  g_ctx.hw_events = calloc(ci->values_num, sizeof(char *));
+  if (g_ctx.hw_events == NULL) {
+    ERROR(PMU_PLUGIN ": Failed to allocate hw events.");
+    return -ENOMEM;
+  }
+
+  for (int i = 0; i < ci->values_num; i++) {
+    if (ci->values[i].type != OCONFIG_TYPE_STRING) {
+      WARNING(PMU_PLUGIN ": The %s option requires string arguments.", ci->key);
+      continue;
+    }
+
+    g_ctx.hw_events[g_ctx.hw_events_count] = strdup(ci->values[i].value.string);
+    if (g_ctx.hw_events[g_ctx.hw_events_count] == NULL) {
+      ERROR(PMU_PLUGIN ": Failed to allocate hw events entry.");
+      return -ENOMEM;
+    }
+
+    g_ctx.hw_events_count++;
+  }
+
+  return 0;
+}
 
 static int pmu_config(oconfig_item_t *ci) {
   int ret = 0;
@@ -205,13 +239,13 @@ static int pmu_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("HWCacheEvents", child->key) == 0) {
+    if (strcasecmp("ReportHardwareCacheEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.hw_cache_events);
-    } else if (strcasecmp("KernelPMUEvents", child->key) == 0) {
+    } else if (strcasecmp("ReportKernelPMUEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.kernel_pmu_events);
-    } else if (strcasecmp("HWSpecificEvents", child->key) == 0) {
-      ret = cf_util_get_string(child, &g_ctx.hw_specific_events);
-    } else if (strcasecmp("SWEvents", child->key) == 0) {
+    } else if (strcasecmp("HardwareEvents", child->key) == 0) {
+      ret = pmu_config_hw_events(child);
+    } else if (strcasecmp("ReportSoftwareEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.sw_events);
     } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
@@ -228,7 +262,7 @@ static int pmu_config(oconfig_item_t *ci) {
   pmu_dump_config();
 #endif
 
-  return (0);
+  return 0;
 }
 
 static void pmu_submit_counter(int cpu, char *event, counter_t value) {
@@ -239,9 +273,9 @@ static void pmu_submit_counter(int cpu, char *event, counter_t value) {
 
   sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
   if (cpu == -1) {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
   } else {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
   }
   sstrncpy(vl.type, "counter", sizeof(vl.type));
   sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
@@ -277,7 +311,7 @@ static int pmu_dispatch_data(void) {
     }
   }
 
-  return (0);
+  return 0;
 }
 
 static int pmu_read(__attribute__((unused)) user_data_t *ud) {
@@ -287,35 +321,35 @@ static int pmu_read(__attribute__((unused)) user_data_t *ud) {
 
   ret = read_all_events(g_ctx.event_list);
   if (ret != 0) {
-    DEBUG(PMU_PLUGIN ": Failed to read values of all events.");
-    return (0);
+    ERROR(PMU_PLUGIN ": Failed to read values of all events.");
+    return 0;
   }
 
   ret = pmu_dispatch_data();
   if (ret != 0) {
-    DEBUG(PMU_PLUGIN ": Failed to dispatch event values.");
-    return (0);
+    ERROR(PMU_PLUGIN ": Failed to dispatch event values.");
+    return 0;
   }
 
-  return (0);
+  return 0;
 }
 
 static int pmu_add_events(struct eventlist *el, uint32_t type,
                           event_info_t *events, int count) {
 
   for (int i = 0; i < count; i++) {
+    /* Allocate memory for event struct that contains array of efd structs
+       for all cores */
     struct event *e =
         calloc(sizeof(struct event) + sizeof(struct efd) * el->num_cpus, 1);
     if (e == NULL) {
       ERROR(PMU_PLUGIN ": Failed to allocate event structure");
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     e->attr.type = type;
     e->attr.config = events[i].config;
     e->attr.size = PERF_ATTR_SIZE_VER0;
-    e->group_leader = false;
-    e->end_group = false;
     e->next = NULL;
     if (!el->eventlist)
       el->eventlist = e;
@@ -325,54 +359,63 @@ static int pmu_add_events(struct eventlist *el, uint32_t type,
     e->event = strdup(events[i].name);
   }
 
-  return (0);
+  return 0;
 }
 
-static int pmu_parse_events(struct eventlist *el, char *events) {
-  char *s, *tmp;
+static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
 
-  events = strdup(events);
-  if (!events)
-    return -1;
+  for (size_t i = 0; i < count; i++) {
 
-  for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
-    bool group_leader = false, end_group = false;
-    int len;
+    size_t group_events_count = 0;
 
-    if (s[0] == '{') {
-      s++;
-      group_leader = true;
-    } else if (len = strlen(s), len > 0 && s[len - 1] == '}') {
-      s[len - 1] = 0;
-      end_group = true;
+    char *events = strdup(e[i]);
+    if (!events)
+      return -1;
+
+    char *s, *tmp;
+    for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
+
+      /* Multiple events parsed in one entry */
+      if (group_events_count == 1) {
+        /* Mark previously added event as group leader */
+        el->eventlist_last->group_leader = 1;
+      }
+
+      /* Allocate memory for event struct that contains array of efd structs
+         for all cores */
+      struct event *e =
+          calloc(sizeof(struct event) + sizeof(struct efd) * el->num_cpus, 1);
+      if (e == NULL) {
+        free(events);
+        return -ENOMEM;
+      }
+
+      if (resolve_event(s, &e->attr) == 0) {
+        e->next = NULL;
+        if (!el->eventlist)
+          el->eventlist = e;
+        if (el->eventlist_last)
+          el->eventlist_last->next = e;
+        el->eventlist_last = e;
+        e->event = strdup(s);
+      } else {
+        DEBUG(PMU_PLUGIN ": Cannot resolve %s", s);
+        sfree(e);
+      }
+
+      group_events_count++;
     }
 
-    struct event *e =
-        calloc(sizeof(struct event) + sizeof(struct efd) * el->num_cpus, 1);
-    if (e == NULL) {
-      free(events);
-      return (-ENOMEM);
+    /* Multiple events parsed in one entry */
+    if (group_events_count > 1) {
+      /* Mark last added event as group end */
+      el->eventlist_last->end_group = 1;
     }
 
-    if (resolve_event(s, &e->attr) == 0) {
-      e->group_leader = group_leader;
-      e->end_group = end_group;
-      e->next = NULL;
-      if (!el->eventlist)
-        el->eventlist = e;
-      if (el->eventlist_last)
-        el->eventlist_last->next = e;
-      el->eventlist_last = e;
-      e->event = strdup(s);
-    } else {
-      DEBUG(PMU_PLUGIN ": Cannot resolve %s", s);
-      sfree(e);
-    }
+    free(events);
   }
 
-  free(events);
-
-  return (0);
+  return 0;
 }
 
 static void pmu_free_events(struct eventlist *el) {
@@ -425,7 +468,7 @@ static int pmu_init(void) {
   g_ctx.event_list = alloc_eventlist();
   if (g_ctx.event_list == NULL) {
     ERROR(PMU_PLUGIN ": Failed to allocate event list.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   if (g_ctx.hw_cache_events) {
@@ -443,16 +486,17 @@ static int pmu_init(void) {
                          g_kernel_pmu_events,
                          STATIC_ARRAY_SIZE(g_kernel_pmu_events));
     if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to parse kernel PMU events.");
+      ERROR(PMU_PLUGIN ": Failed to add kernel PMU events.");
       goto init_error;
     }
   }
 
   /* parse events names if config option is present and is not empty */
-  if (g_ctx.hw_specific_events && (strlen(g_ctx.hw_specific_events) != 0)) {
-    ret = pmu_parse_events(g_ctx.event_list, g_ctx.hw_specific_events);
+  if (g_ctx.hw_events_count) {
+    ret = pmu_add_hw_events(g_ctx.event_list, g_ctx.hw_events,
+                            g_ctx.hw_events_count);
     if (ret != 0) {
-      ERROR(PMU_PLUGIN ": Failed to parse hw specific events.");
+      ERROR(PMU_PLUGIN ": Failed to add hardware events.");
       goto init_error;
     }
   }
@@ -482,13 +526,18 @@ static int pmu_init(void) {
             ": Events list is empty. No events were setup for monitoring.");
   }
 
-  return (0);
+  return 0;
 
 init_error:
 
   pmu_free_events(g_ctx.event_list);
   sfree(g_ctx.event_list);
-  sfree(g_ctx.hw_specific_events);
+  for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
+    sfree(g_ctx.hw_events[i]);
+  }
+  sfree(g_ctx.hw_events);
+  g_ctx.hw_events_count = 0;
+
 
   return ret;
 }
@@ -499,9 +548,13 @@ static int pmu_shutdown(void) {
 
   pmu_free_events(g_ctx.event_list);
   sfree(g_ctx.event_list);
-  sfree(g_ctx.hw_specific_events);
+  for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
+    sfree(g_ctx.hw_events[i]);
+  }
+  sfree(g_ctx.hw_events);
+  g_ctx.hw_events_count = 0;
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {
