@@ -1048,19 +1048,20 @@
 #	LogFile "/var/log/syslog"
 #	<MsgPattern "aer syslog">
 #		<Match>
+#			Name "incident time"
+#			Regex "(... .. ..:..:..) .* pcieport.*AER"
+#		</Match>
+#		<Match>
 #			Name "root port"
 #			Regex "pcieport (.*): AER:"
-#			IsMandatory true
 #		</Match>
 #		<Match>
 #			Name "device"
 #			Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
-#			IsMandatory true
 #		</Match>
 #		<Match>
 #			Name "severity"
 #			Regex "severity=([^,]*)"
-#			IsMandatory true
 #		</Match>
 #		<Match>
 #			Name "error type"
@@ -1070,7 +1071,6 @@
 #		<Match>
 #			Name "id"
 #			Regex ", id=(.*)"
-#			IsMandatory true
 #		</Match>
 #	</MsgPattern>
 #</Plugin>

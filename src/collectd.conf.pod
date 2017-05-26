@@ -5852,8 +5852,9 @@ be omitted.
 =item B<IsMandatory>  I<true>|I<false>
 
 Flag specifying if message item string described by above parameters is
-mandatory for whole I<MsgPattern> validation. If set to 1, whole message is
-discarded if it's missing. For 0 its presence is optional.
+mandatory for whole I<MsgPattern> validation. If set to true, whole message
+is discarded if it's missing. For false its presence is optional. Default
+value is set to true.
 
 =back
 

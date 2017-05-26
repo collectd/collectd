@@ -50,6 +50,7 @@
 
 #define PCIE_ECAP_OFFSET 0x100 /* ECAP always begin at offset 0x100 */
 
+#define PCIE_LOG_TIME "incident time"
 #define PCIE_LOG_PORT "root port"
 #define PCIE_LOG_SEVERITY "severity"
 #define PCIE_LOG_DEV "device"
@@ -153,6 +154,10 @@ static size_t pcie_parsers_len = 0;
 
 /* Default patterns for AER errors in syslog */
 static message_pattern pcie_default_patterns[] = {
+    {.name = PCIE_LOG_TIME,
+     .regex = "(... .. ..:..:..) .* pcieport.*AER",
+     .submatch_idx = 1,
+     .is_mandatory = 1},
     {.name = PCIE_LOG_PORT,
      .regex = "pcieport (.*): AER:",
      .submatch_idx = 1,
@@ -787,6 +792,8 @@ static int pcie_patterns_config(message_pattern *patterns,
       /* set default submatch index to 1 since single submatch is the most
        * common use case */
       patterns[i].submatch_idx = 1;
+      /* Mandatory pattern is the most common use case */
+      patterns[i].is_mandatory = 1;
       for (int j = 0; j < match_opt[i].children_num; j++) {
         int status = 0;
         oconfig_item_t *regex_opt = match_opt[i].children + j;
