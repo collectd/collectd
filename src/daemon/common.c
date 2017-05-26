@@ -230,10 +230,7 @@ ssize_t sread(int fd, void *buf, size_t count) {
       return status;
 
     if (status == 0) {
-      DEBUG("Received EOF from fd %i. "
-            "Closing fd and returning error.",
-            fd);
-      close(fd);
+      DEBUG("Received EOF from fd %i. ", fd);
       return -1;
     }
 

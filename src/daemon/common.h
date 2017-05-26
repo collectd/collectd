@@ -79,8 +79,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen);
  *
  * DESCRIPTION
  *   Reads exactly `n' bytes or fails. Syntax and other behavior is analogous
- *   to `read(2)'. If EOF is received the file descriptor is closed and an
- *   error is returned.
+ *   to `read(2)'.
  *
  * PARAMETERS
  *   `fd'          File descriptor to write to.
