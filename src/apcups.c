@@ -240,7 +240,7 @@ static int apc_query_server(char const *node, char const *service,
   char recvline[1024];
   char *tokptr;
   char *toksaveptr;
-  _Bool retry = 1;
+  int try = 0;
   int status;
 
 #if APCMAIN
@@ -250,7 +250,7 @@ static int apc_query_server(char const *node, char const *service,
 #define PRINT_VALUE(name, val) /**/
 #endif
 
-  while (retry) {
+  while (1) {
     if (global_sockfd < 0) {
       global_sockfd = net_open(node, service);
       if (global_sockfd < 0) {
@@ -262,10 +262,10 @@ static int apc_query_server(char const *node, char const *service,
 
     status = net_send(&global_sockfd, "status", strlen("status"));
     if (status != 0) {
-      /* net_send is closing the socket on error. */
+      /* net_send closes the socket on error. */
       assert(global_sockfd < 0);
-      if (retry) {
-        retry = 0;
+      if (try == 0) {
+        try++;
         count_retries++;
         continue;
       }
@@ -275,7 +275,7 @@ static int apc_query_server(char const *node, char const *service,
     }
 
     break;
-  } /* while (retry) */
+  } /* while (1) */
 
   /* When collectd's collection interval is larger than apcupsd's
    * timeout, we would have to retry / re-connect each iteration. Try to
