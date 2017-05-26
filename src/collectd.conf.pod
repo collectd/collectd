@@ -3093,6 +3093,7 @@ B<Synopsis:>
     ReportHardwareCacheEvents true
     ReportKernelPMUEvents true
     ReportSoftwareEvents true
+    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
   </Plugin>
 
@@ -3154,11 +3155,16 @@ Enable or disable measuring of software events provided by kernel:
   - alignment-faults
   - emulation-faults
 
+=item B<EventList> I<filename>
+
+JSON performance counter event list file name. To be able to monitor all Intel
+CPU specific events JSON event list file should be downloaded. Use the pmu-tools
+event_download.py script to download event list for current CPU.
+
 =item B<HardwareEvents> I<events>
 
 This field is a list of event names or groups of comma separated event names.
-To be able to monitor all Intel CPU specific events JSON event list file should
-be downloaded. Use the pmu-tools event_download.py script for this.
+This option requires B<EventList> option to be configured.
 
 =back
 

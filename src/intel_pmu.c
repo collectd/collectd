@@ -67,6 +67,7 @@ struct intel_pmu_ctx_s {
   _Bool hw_cache_events;
   _Bool kernel_pmu_events;
   _Bool sw_events;
+  char  event_list_fn[PATH_MAX];
   char **hw_events;
   size_t hw_events_count;
   struct eventlist *event_list;
@@ -243,6 +244,9 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = cf_util_get_boolean(child, &g_ctx.hw_cache_events);
     } else if (strcasecmp("ReportKernelPMUEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.kernel_pmu_events);
+    } else if (strcasecmp("EventList", child->key) == 0) {
+      ret = cf_util_get_string_buffer(child, g_ctx.event_list_fn,
+                                      sizeof(g_ctx.event_list_fn));
     } else if (strcasecmp("HardwareEvents", child->key) == 0) {
       ret = pmu_config_hw_events(child);
     } else if (strcasecmp("ReportSoftwareEvents", child->key) == 0) {
@@ -493,6 +497,14 @@ static int pmu_init(void) {
 
   /* parse events names if config option is present and is not empty */
   if (g_ctx.hw_events_count) {
+
+    ret = read_events(g_ctx.event_list_fn);
+    if (ret != 0) {
+      ERROR(PMU_PLUGIN ": Failed to read event list file '%s'.",
+            g_ctx.event_list_fn);
+      return ret;
+    }
+
     ret = pmu_add_hw_events(g_ctx.event_list, g_ctx.hw_events,
                             g_ctx.hw_events_count);
     if (ret != 0) {
