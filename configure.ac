@@ -2379,6 +2379,53 @@ AC_SUBST(BUILD_WITH_LIBDBI_LDFLAGS)
 AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
 # }}}
 
+# --with-libdpdk {{{
+AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
+
+AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
+
+if test "x$with_libdpdk" != "xno"; then
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  AC_CHECK_HEADERS([rte_config.h],
+    [
+      with_libdpdk="yes"
+      AC_PREPROC_IFELSE(
+        [
+          AC_LANG_SOURCE(
+            [[
+              #include <rte_version.h>
+              #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+              #error "required DPDK >= 16.07"
+              #endif
+            ]]
+          )
+        ],
+        [dpdk_keepalive="yes"],
+        [dpdk_keepalive="no (DPDK version < 16.07)"]
+      )
+    ],
+    [with_libdpdk="no (rte_config.h not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+  AC_CHECK_LIB([dpdk], [rte_eal_init],
+    [with_libdpdk="yes"],
+    [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+# }}}
+
 # --with-libesmtp {{{
 AC_ARG_WITH([libesmtp],
   [AS_HELP_STRING([--with-libesmtp@<:@=PREFIX@:>@], [Path to libesmtp.])],
@@ -2789,53 +2836,6 @@ if test "x$with_libiptc" = "xyes"; then
 fi
 AC_SUBST([BUILD_WITH_LIBIPTC_CPPFLAGS])
 AC_SUBST([BUILD_WITH_LIBIPTC_LDFLAGS])
-# }}}
-
-# --with-libdpdk {{{
-AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
-AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
-
-AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
-
-if test "x$with_libdpdk" != "xno"; then
-  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
-    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-  fi
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
-  AC_CHECK_HEADERS([rte_config.h],
-    [
-      with_libdpdk="yes"
-      AC_PREPROC_IFELSE(
-        [
-          AC_LANG_SOURCE(
-            [[
-              #include <rte_version.h>
-              #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
-              #error "required DPDK >= 16.07"
-              #endif
-            ]]
-          )
-        ],
-        [dpdk_keepalive="yes"],
-        [dpdk_keepalive="no (DPDK version < 16.07)"]
-      )
-    ],
-    [with_libdpdk="no (rte_config.h not found)"]
-  )
-  CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-if test "x$with_libdpdk" = "xyes"; then
-  SAVE_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-  AC_CHECK_LIB([dpdk], [rte_eal_init],
-    [with_libdpdk="yes"],
-    [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
-  )
-  LDFLAGS="$SAVE_LDFLAGS"
-fi
-
 # }}}
 
 # --with-java {{{
