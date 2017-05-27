@@ -1389,9 +1389,6 @@ python_la_SOURCES = \
 	src/pyvalues.c \
 	src/cpython.h
 python_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBPYTHON_CPPFLAGS)
-if COMPILER_IS_GCC
-python_la_CPPFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
-endif
 python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
