@@ -27,6 +27,9 @@ AC_SYS_LARGEFILE
 AC_PROG_CC_C99([],
   [AC_MSG_ERROR([No compiler found that supports C99])]
 )
+
+AX_COMPILER_VENDOR
+
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_EGREP
@@ -6814,6 +6817,7 @@ AC_MSG_RESULT()
 AC_MSG_RESULT([Configuration:])
 AC_MSG_RESULT([  Build:])
 AC_MSG_RESULT([    Platform  . . . . . . $ac_system])
+AC_MSG_RESULT([    Compiler vendor . . . $ax_cv_c_compiler_vendor])
 AC_MSG_RESULT([    CC  . . . . . . . . . $CC])
 AC_MSG_RESULT([    CFLAGS  . . . . . . . $AM_CFLAGS $CFLAGS])
 AC_MSG_RESULT([    CXXFLAGS  . . . . . . $AM_CXXFLAGS $CXXFLAGS])
