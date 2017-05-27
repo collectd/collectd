@@ -3796,9 +3796,9 @@ if test "x$with_libnetsnmp" = "xyes"; then
     [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"]
   )
 
-  AC_CHECK_HEADERS([net-snmp/agent/agent_module_config.h],
+  AC_CHECK_HEADERS([net-snmp/agent/net-snmp-agent-includes.h],
     [],
-    [with_libnetsnmpagent="no (net-snmp/agent/agent_module_config.h not found)"]
+    [with_libnetsnmpagent="no (net-snmp/agent/net-snmp-agent-includes.h not found)"]
   )
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
