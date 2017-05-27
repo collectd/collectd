@@ -4428,14 +4428,14 @@ fi
 if test "x$with_libpqos" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
-  AC_RUN_IFELSE(
+  AC_PREPROC_IFELSE(
     [
-      AC_LANG_PROGRAM(
+      AC_LANG_SOURCE(
         [[
           #include <pqos.h>
-        ]],
-        [[
-          return !(PQOS_VERSION >= 106)
+          #if PQOS_VERSION < 106
+          #error "required PQOS version >= 1.06"
+          #endif
         ]]
       )
     ],
