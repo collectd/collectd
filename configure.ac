@@ -3769,7 +3769,6 @@ AC_SUBST([LIBNETAPP_LIBS])
 # }}}
 
 # --with-libnetsnmp {{{
-with_libnetsnmpagent="no"
 AC_ARG_WITH([libnetsnmp],
   [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to libnetsnmp.])],
   [
@@ -3781,7 +3780,6 @@ AC_ARG_WITH([libnetsnmp],
 		  with_libnetsnmp_cppflags="-I$withval/include"
 		  with_libnetsnmp_ldflags="-I$withval/lib"
 		  with_libnetsnmp="yes"
-		  with_libnetsnmpagent="yes"
 	  fi; fi
   ],
   [with_libnetsnmp="yes"]
@@ -3796,9 +3794,14 @@ if test "x$with_libnetsnmp" = "xyes"; then
     [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"]
   )
 
-  AC_CHECK_HEADERS([net-snmp/agent/net-snmp-agent-includes.h],
-    [],
-    [with_libnetsnmpagent="no (net-snmp/agent/net-snmp-agent-includes.h not found)"]
+  AC_CHECK_HEADERS([net-snmp/net-snmp-includes.h],
+    [with_libnetsnmp="yes"],
+    [with_libnetsnmp="no (net-snmp/net-snmp-includes.h not found)"],
+    [[
+      #if HAVE_NET_SNMP_NET_SNMP_CONFIG_H
+      # include <net-snmp/net-snmp-config.h>
+      #endif
+    ]]
   )
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3809,15 +3812,8 @@ if test "x$with_libnetsnmp" = "xyes"; then
 	LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
 
 	AC_CHECK_LIB([netsnmp], [init_snmp],
-		[with_libnetsnmp="yes"],
-		[with_libnetsnmp="no (libnetsnmp not found)"],
-		[$with_snmp_libs]
-  )
-
-	AC_CHECK_LIB([netsnmpagent], [init_agent],
-		[with_libnetsnmpagent="yes"],
-		[with_libnetsnmpagent="no (libnetsnmpagent not found)"],
-		[$with_snmp_libs]
+		[],
+		[with_libnetsnmp="no (libnetsnmp not found)"]
   )
 
 	LDFLAGS="$SAVE_LDFLAGS"
@@ -3829,13 +3825,67 @@ if test "x$with_libnetsnmp" = "xyes"; then
 	BUILD_WITH_LIBNETSNMP_LIBS="-lnetsnmp"
 fi
 
-if test "x$with_libnetsnmpagent" = "xyes"; then
-	BUILD_WITH_LIBNETSNMP_LIBS+=" -lnetsnmpagent"
-fi
-
 AC_SUBST([BUILD_WITH_LIBNETSNMP_CPPFLAGS])
 AC_SUBST([BUILD_WITH_LIBNETSNMP_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBNETSNMP_LIBS])
+# }}}
+
+# --with-libnetsmpagent {{{
+AC_ARG_WITH([libnetsnmpagent],
+  [AS_HELP_STRING([--with-libnetsnmpagent@<:@=PREFIX@:>@], [Path to libnetsnmpagent.])],
+  [
+	  if test "x$withval" = "xno"; then
+		  with_libnetsnmpagent="no"
+	  else if test "x$withval" = "xyes"; then
+		  with_libnetsnmpagent="yes"
+	  else
+		  with_libnetsnmpagent_cppflags="-I$withval/include"
+		  with_libnetsnmpagent_ldflags="-I$withval/lib"
+		  with_libnetsnmpagent="yes"
+	  fi; fi
+  ],
+  [with_libnetsnmpagent="yes"]
+)
+
+if test "x$with_libnetsnmpagent" = "xyes"; then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libnetsnmpagent_cppflags"
+
+  AC_CHECK_HEADERS([net-snmp/agent/net-snmp-agent-includes.h],
+    [],
+    [with_libnetsnmpagent="no (net-snmp/agent/net-snmp-agent-includes.h not found)"],
+    [[
+      #if HAVE_NET_SNMP_NET_SNMP_CONFIG_H
+      # include <net-snmp/net-snmp-config.h>
+      #endif
+      #if HAVE_NET_SNMP_NET_SNMP_INCLUDES_H
+      # include <net-snmp/net-snmp-includes.h>
+      #endif
+    ]]
+  )
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libnetsnmpagent" = "xyes"; then
+	SAVE_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS $with_libnetsnmpagent_ldflags"
+
+	AC_CHECK_LIB([netsnmpagent], [init_agent],
+		[],
+		[with_libnetsnmpagent="no (libnetsnmpagent not found)"]
+  )
+
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmpagent" = "xyes"; then
+	BUILD_WITH_LIBNETSNMPAGENT_LIBS="-lnetsnmpagent"
+fi
+
+AC_SUBST([BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBNETSNMPAGENT_LIBS])
 # }}}
 
 # --with-liboping {{{
@@ -6060,7 +6110,6 @@ plugin_processes="no"
 plugin_protocols="no"
 plugin_python="no"
 plugin_serial="no"
-plugin_snmp_agent="no"
 plugin_smart="no"
 plugin_swap="no"
 plugin_tape="no"
@@ -6354,10 +6403,6 @@ if test "x$with_kvm_getswapinfo" = "xyes"; then
   plugin_swap="yes"
 fi
 
-if test "x$with_libnetsnmp" = "xyes" && test "x$with_libnetsnmpagent" = "xyes"; then
-  plugin_snmp_agent="yes"
-fi
-
 if test "x$have_swapctl" = "xyes" && test "x$c_cv_have_swapctl_two_args" = "xyes"; then
   plugin_swap="yes"
 fi
@@ -6520,7 +6565,7 @@ AC_PLUGIN([serial],              [$plugin_serial],          [serial port traffic
 AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition sources])
 AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
 AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
-AC_PLUGIN([snmp_agent],          [$plugin_snmp_agent],      [SNMP agent plugin])
+AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],   [SNMP agent plugin])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
@@ -6798,6 +6843,7 @@ AC_MSG_RESULT([    libmosquitto  . . . . $with_libmosquitto])
 AC_MSG_RESULT([    libmysql  . . . . . . $with_libmysql])
 AC_MSG_RESULT([    libnetapp . . . . . . $with_libnetapp])
 AC_MSG_RESULT([    libnetsnmp  . . . . . $with_libnetsnmp])
+AC_MSG_RESULT([    libnetsnmpagent . . . $with_libnetsnmpagent])
 AC_MSG_RESULT([    libnotify . . . . . . $with_libnotify])
 AC_MSG_RESULT([    libopenipmi . . . . . $with_libopenipmipthread])
 AC_MSG_RESULT([    liboping  . . . . . . $with_liboping])
