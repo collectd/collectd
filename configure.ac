@@ -2803,7 +2803,7 @@ if test "x$with_libdpdk" != "xno"; then
   AC_CHECK_HEADERS([rte_config.h],
     [
       with_libdpdk="yes"
-      AC_COMPILE_IFELSE(
+      AC_PREPROC_IFELSE(
         [
           AC_LANG_PROGRAM(
             [[
