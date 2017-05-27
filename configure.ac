@@ -361,7 +361,7 @@ AC_CHECK_HEADERS([netinet/udp.h], [], [],
 AC_CHECK_HEADERS([sys/dkstat.h])
 if test "x$ac_system" = "xDarwin"; then
   AC_CHECK_HEADERS(
-    [[ \
+    [ \
       mach/mach_init.h \
       mach/host_priv.h \
       mach/mach_error.h \
@@ -385,7 +385,7 @@ if test "x$ac_system" = "xDarwin"; then
       IOKit/ps/IOPSKeys.h \
       IOKit/IOBSD.h \
       IOKit/storage/IOBlockStorageDriver.h
-    ]]
+    ]
   )
 
   # For the battery plugin
