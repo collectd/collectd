@@ -2805,15 +2805,12 @@ if test "x$with_libdpdk" != "xno"; then
       with_libdpdk="yes"
       AC_PREPROC_IFELSE(
         [
-          AC_LANG_PROGRAM(
+          AC_LANG_SOURCE(
             [[
               #include <rte_version.h>
               #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
               #error "required DPDK >= 16.07"
               #endif
-            ]],
-            [[
-              return 0;
             ]]
           )
         ],
