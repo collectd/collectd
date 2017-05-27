@@ -3770,68 +3770,72 @@ AC_SUBST([LIBNETAPP_LIBS])
 
 # --with-libnetsnmp {{{
 with_libnetsnmpagent="no"
-AC_ARG_WITH(libnetsnmp, [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to the Net-SNMPD library.])],
-[
-	if test "x$withval" = "xno"
-	then
-		with_libnetsnmp="no"
-	else if test "x$withval" = "xyes"
-	then
-		with_libnetsnmp="yes"
-	else
-		with_libnetsnmp_cppflags="-I$withval/include"
-		with_libnetsnmp_ldflags="-I$withval/lib"
-		with_libnetsnmp="yes"
-		with_libnetsnmpagent="yes"
-	fi; fi
-],
-[with_libnetsnmp="yes"])
-if test "x$with_libnetsnmp" = "xyes"
-then
+AC_ARG_WITH([libnetsnmp],
+  [AS_HELP_STRING([--with-libnetsnmp@<:@=PREFIX@:>@], [Path to libnetsnmp.])],
+  [
+	  if test "x$withval" = "xno"; then
+		  with_libnetsnmp="no"
+	  else if test "x$withval" = "xyes"; then
+		  with_libnetsnmp="yes"
+	  else
+		  with_libnetsnmp_cppflags="-I$withval/include"
+		  with_libnetsnmp_ldflags="-I$withval/lib"
+		  with_libnetsnmp="yes"
+		  with_libnetsnmpagent="yes"
+	  fi; fi
+  ],
+  [with_libnetsnmp="yes"]
+)
+
+if test "x$with_libnetsnmp" = "xyes"; then
 	SAVE_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $with_libnetsnmp_cppflags"
 
-    AC_CHECK_HEADERS([net-snmp/net-snmp-config.h],
-      [with_libnetsnmp="yes"],
-      [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"]
-    )
-    AC_CHECK_HEADERS(net-snmp/agent/agent_module_config.h,
-      [],
-      [with_libnetsnmpagent="no (net-snmp/agent/agent_module_config.h not found)"]
-    )
+  AC_CHECK_HEADERS([net-snmp/net-snmp-config.h],
+    [with_libnetsnmp="yes"],
+    [with_libnetsnmp="no (net-snmp/net-snmp-config.h not found)"]
+  )
+
+  AC_CHECK_HEADERS([net-snmp/agent/agent_module_config.h],
+    [],
+    [with_libnetsnmpagent="no (net-snmp/agent/agent_module_config.h not found)"]
+  )
 
 	CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-if test "x$with_libnetsnmp" = "xyes"
-then
+
+if test "x$with_libnetsnmp" = "xyes"; then
 	SAVE_LDFLAGS="$LDFLAGS"
 	LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
 
-	AC_CHECK_LIB(netsnmp, init_snmp,
+	AC_CHECK_LIB([netsnmp], [init_snmp],
 		[with_libnetsnmp="yes"],
 		[with_libnetsnmp="no (libnetsnmp not found)"],
-		[$with_snmp_libs])
+		[$with_snmp_libs]
+  )
 
-	AC_CHECK_LIB(netsnmpagent, init_agent,
+	AC_CHECK_LIB([netsnmpagent], [init_agent],
 		[with_libnetsnmpagent="yes"],
 		[with_libnetsnmpagent="no (libnetsnmpagent not found)"],
-		[$with_snmp_libs])
+		[$with_snmp_libs]
+  )
 
 	LDFLAGS="$SAVE_LDFLAGS"
 fi
-if test "x$with_libnetsnmp" = "xyes"
-then
+
+if test "x$with_libnetsnmp" = "xyes"; then
 	BUILD_WITH_LIBNETSNMP_CPPFLAGS="$with_libnetsnmp_cppflags"
 	BUILD_WITH_LIBNETSNMP_LDFLAGS="$with_libnetsnmp_ldflags"
 	BUILD_WITH_LIBNETSNMP_LIBS="-lnetsnmp"
 fi
-if test "x$with_libnetsnmpagent" = "xyes"
-then
+
+if test "x$with_libnetsnmpagent" = "xyes"; then
 	BUILD_WITH_LIBNETSNMP_LIBS+=" -lnetsnmpagent"
 fi
-AC_SUBST(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
-AC_SUBST(BUILD_WITH_LIBNETSNMP_LDFLAGS)
-AC_SUBST(BUILD_WITH_LIBNETSNMP_LIBS)
+
+AC_SUBST([BUILD_WITH_LIBNETSNMP_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBNETSNMP_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBNETSNMP_LIBS])
 # }}}
 
 # --with-liboping {{{
