@@ -4387,62 +4387,74 @@ AC_SUBST([BUILD_WITH_LIBPQ_LIBS])
 # }}}
 
 # --with-libpqos {{{
-with_libpqos_cppflags=""
-with_libpqos_ldflags=""
-AC_ARG_WITH(libpqos, [AS_HELP_STRING([--with-libpqos@<:@=PREFIX@:>@], [Path to libpqos.])],
-[
-	if test "x$withval" != "xno" && test "x$withval" != "xyes"
-	then
-		with_libpqos_cppflags="-I$withval/include"
-		with_libpqos_ldflags="-L$withval/lib"
-		with_libpqos="yes"
-	else
-		with_libpqos="$withval"
-	fi
-],
-[
-	with_libpqos="yes"
-])
-if test "x$with_libpqos" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+AC_ARG_WITH([libpqos],
+  [AS_HELP_STRING([--with-libpqos@<:@=PREFIX@:>@], [Path to libpqos.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libpqos_cppflags="-I$withval/include"
+      with_libpqos_ldflags="-L$withval/lib"
+      with_libpqos="yes"
+    else
+      with_libpqos="$withval"
+    fi
+  ],
+  [with_libpqos="yes"]
+)
 
-	AC_CHECK_HEADERS(pqos.h, [with_libpqos="yes"], [with_libpqos="no (pqos.h not found)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-if test "x$with_libpqos" = "xyes"
-then
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	SAVE_LDFLAGS="$LDFLAGS"
-	CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
-	LDFLAGS="$LDFLAGS $with_libpqos_ldflags"
-
-	AC_CHECK_LIB(pqos, pqos_init, [with_libpqos="yes"], [with_libpqos="no (Can't find libpqos)"])
-
-	CPPFLAGS="$SAVE_CPPFLAGS"
-	LDFLAGS="$SAVE_LDFLAGS"
-fi
-if test "x$with_libpqos" = "xyes"
-then
+if test "x$with_libpqos" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
-  AC_RUN_IFELSE([AC_LANG_PROGRAM(
-    [[#include <pqos.h>]],
-    [[return !(PQOS_VERSION >= 106)]])],
-    [with_libpqos="yes"], [with_libpqos="no (pqos library version 1.06 or higher is required)"])
+
+  AC_CHECK_HEADERS([pqos.h],
+    [with_libpqos="yes"],
+    [with_libpqos="no (pqos.h not found)"]
+  )
+
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-if test "x$with_libpqos" = "xyes"
-then
-	BUILD_WITH_LIBPQOS_CPPFLAGS="$with_libpqos_cppflags"
-	BUILD_WITH_LIBPQOS_LDFLAGS="$with_libpqos_ldflags"
-	BUILD_WITH_LIBPQOS_LIBS="-lpqos"
-	AC_SUBST(BUILD_WITH_LIBPQOS_CPPFLAGS)
-	AC_SUBST(BUILD_WITH_LIBPQOS_LDFLAGS)
-	AC_SUBST(BUILD_WITH_LIBPQOS_LIBS)
+
+if test "x$with_libpqos" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libpqos_ldflags"
+
+  AC_CHECK_LIB([pqos], [pqos_init],
+    [with_libpqos="yes"],
+    [with_libpqos="no (Can't find libpqos)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
+
+if test "x$with_libpqos" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libpqos_cppflags"
+  AC_RUN_IFELSE(
+    [
+      AC_LANG_PROGRAM(
+        [[
+          #include <pqos.h>
+        ]],
+        [[
+          return !(PQOS_VERSION >= 106)
+        ]]
+      )
+    ],
+    [with_libpqos="yes"],
+    [with_libpqos="no (pqos library version 1.06 or higher is required)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libpqos" = "xyes"; then
+  BUILD_WITH_LIBPQOS_CPPFLAGS="$with_libpqos_cppflags"
+  BUILD_WITH_LIBPQOS_LDFLAGS="$with_libpqos_ldflags"
+  BUILD_WITH_LIBPQOS_LIBS="-lpqos"
+fi
+
+AC_SUBST([BUILD_WITH_LIBPQOS_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBPQOS_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBPQOS_LIBS])
 # }}}
 
 # --with-libprotobuf {{{
