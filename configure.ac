@@ -2383,7 +2383,11 @@ AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
 AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 
-AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
+AC_ARG_WITH([libdpdk],
+  [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])],
+  [with_libdpdk="$withval"],
+  [with_libdpdk="yes"]
+)
 
 if test "x$with_libdpdk" != "xno"; then
   if test "x$LIBDPDK_CPPFLAGS" = "x"; then
