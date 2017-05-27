@@ -60,9 +60,9 @@ if test "x$collectd_cv_prog_bison" = "xno" && test ! -f "${srcdir}/src/liboconfi
   AC_MSG_ERROR([bison is missing and you do not have ${srcdir}/src/liboconfig/parser.c. Please install bison])
 fi
 
-AS_IF([test "x$lt_cv_dlopen" = "xno"],
-  [AC_MSG_ERROR([Your system does not support dlopen])]
-)
+if test "x$lt_cv_dlopen" = "xno"; then
+  AC_MSG_ERROR([Your system does not support dlopen])
+fi
 
 AC_SUBST([DLOPEN_LIBS], [$lt_cv_dlopen_libs])
 
