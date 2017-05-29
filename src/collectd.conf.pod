@@ -3477,6 +3477,9 @@ the number of corrected/uncorrected memory errors.
 
 =head3 The Memory block
 
+Note: these options cannot be used in conjunction with the logfile options, they are mutually
+exclusive.
+
 =over 3
 
 =item B<McelogClientSocket> I<Path>
@@ -3495,7 +3498,9 @@ not affect the stats being dispatched.
 
 =item B<McelogLogfile> I<Path>
 
-The mcelog file to parse. Defaults to B<"/var/log/mcelog">.
+The mcelog file to parse. Defaults to B<"/var/log/mcelog">. Note: this option
+cannot be used in conjunction with the memory block options, they are mutually
+exclusive.
 
 =back
 

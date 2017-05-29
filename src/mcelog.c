@@ -164,16 +164,33 @@ static void mcelog_update_dimm_stats(llentry_t *dimm,
 }
 
 static int mcelog_config(oconfig_item_t *ci) {
+  int use_logfile = 0, use_memory = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("McelogLogfile", child->key) == 0) {
+      use_logfile = 1;
+      if (use_memory) {
+        ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\", Memory "
+                            "option is already configured.",
+              child->key);
+        return (-1);
+      }
       if (cf_util_get_string_buffer(child, g_mcelog_config.logfile,
                                     sizeof(g_mcelog_config.logfile)) < 0) {
         ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
               child->key);
         return (-1);
       }
+      memset(socket_adapter.unix_sock.sun_path, 0,
+             sizeof(socket_adapter.unix_sock.sun_path));
     } else if (strcasecmp("Memory", child->key) == 0) {
+      if (use_logfile) {
+        ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\", Logfile "
+                            "option is already configured.",
+              child->key);
+        return (-1);
+      }
+      use_memory = 1;
       oconfig_item_t *mem_child = child->children;
       for (int j = 0; j < child->children_num; j++) {
         mem_child += j;
@@ -197,6 +214,7 @@ static int mcelog_config(oconfig_item_t *ci) {
           return (-1);
         }
       }
+      memset(g_mcelog_config.logfile, 0, sizeof(g_mcelog_config.logfile));
     } else {
       ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
             child->key);
@@ -619,6 +637,12 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
 }
 
 static int mcelog_init(void) {
+  if (g_mcelog_config.logfile != NULL &&
+      socket_adapter.unix_sock.sun_path != NULL) {
+    INFO(MCELOG_PLUGIN
+         ": No configuration selected defaulting to memory errors.");
+    memset(g_mcelog_config.logfile, 0, sizeof(g_mcelog_config.logfile));
+  }
   g_mcelog_config.dimms_list = llist_create();
   int err = pthread_mutex_init(&g_mcelog_config.dimms_lock, NULL);
   if (err < 0) {
@@ -631,10 +655,12 @@ static int mcelog_init(void) {
     return (-1);
   }
 
-  if (plugin_thread_create(&g_mcelog_config.tid, NULL, poll_worker, NULL,
-                           NULL) != 0) {
-    ERROR(MCELOG_PLUGIN ": Error creating poll thread.");
-    return (-1);
+  if (socket_adapter.unix_sock.sun_path != NULL) {
+    if (plugin_thread_create(&g_mcelog_config.tid, NULL, poll_worker, NULL,
+                             NULL) != 0) {
+      ERROR(MCELOG_PLUGIN ": Error creating poll thread.");
+      return (-1);
+    }
   }
   return (0);
 }
