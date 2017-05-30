@@ -526,8 +526,10 @@ static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
         status = bind_xml_read_gauge(doc, counter, &value.gauge);
       else
         status = bind_xml_read_derive(doc, counter, &value.derive);
-      if (status != 0)
+      if (status != 0) {
+        xmlFree(name);
         continue;
+      }
 
       status = (*list_callback)(name, value, current_time, user_data);
       if (status == 0)
@@ -659,12 +661,16 @@ static int bind_parse_generic_name_attr_value_list(
         status = bind_xml_read_gauge(doc, child, &value.gauge);
       else
         status = bind_xml_read_derive(doc, child, &value.derive);
-      if (status != 0)
+      if (status != 0) {
+        xmlFree(attr_name);
         continue;
+      }
 
       status = (*list_callback)(attr_name, value, current_time, user_data);
       if (status == 0)
         num_entries++;
+
+      xmlFree(attr_name);
     }
   }
 
