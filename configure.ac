@@ -4370,8 +4370,7 @@ with_libjevents_ldflags=""
 AC_ARG_WITH([libjevents],
   [AS_HELP_STRING([--with-libjevents@<:@=PREFIX@:>@], [Path to libjevents.])],
   [
-    if test "x$withval" != "xno" && test "x$withval" != "xyes"
-    then
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_libjevents_cppflags="-I$withval/include"
       with_libjevents_ldflags="-L$withval/lib"
       with_libjevents="yes"
@@ -4382,33 +4381,30 @@ AC_ARG_WITH([libjevents],
   [with_libjevents="yes"]
 )
 
-if test "x$with_libjevents" = "xyes"
-then
+if test "x$with_libjevents" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libjevents_cppflags"
 
-  AC_CHECK_HEADERS(jevents.h, [with_libjevents="yes"], [with_libjevents="no (jevents.h not found)"])
+  AC_CHECK_HEADERS([jevents.h], [with_libjevents="yes"], [with_libjevents="no (jevents.h not found)"])
 
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
-if test "x$with_libjevents" = "xyes"
-then
+if test "x$with_libjevents" = "xyes"; then
   SAVE_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $with_libjevents_ldflags"
 
-  AC_CHECK_LIB(jevents, json_events, [with_libjevents="yes"], [with_libjevents="no (Can't find libjevents)"])
+  AC_CHECK_LIB([jevents], [json_events], [with_libjevents="yes"], [with_libjevents="no (Can't find libjevents)"])
 
   LDFLAGS="$SAVE_LDFLAGS"
 fi
-if test "x$with_libjevents" = "xyes"
-then
+if test "x$with_libjevents" = "xyes"; then
   BUILD_WITH_LIBJEVENTS_CPPFLAGS="$with_libjevents_cppflags"
   BUILD_WITH_LIBJEVENTS_LDFLAGS="$with_libjevents_ldflags"
   BUILD_WITH_LIBJEVENTS_LIBS="-ljevents"
 fi
-AC_SUBST(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
-AC_SUBST(BUILD_WITH_LIBJEVENTS_LDFLAGS)
-AC_SUBST(BUILD_WITH_LIBJEVENTS_LIBS)
+AC_SUBST([BUILD_WITH_LIBJEVENTS_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBJEVENTS_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBJEVENTS_LIBS])
 # }}}
 
 # --with-libprotobuf {{{
