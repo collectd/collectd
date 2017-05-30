@@ -62,37 +62,66 @@ typedef struct wm_node_s wm_node_t;
 /*
  * Functions
  */
-static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
-                              const value_list_t *vl, _Bool store_rates) {
-  bson_t *ret;
+static int wm_create_bson(const data_set_t *ds, /* {{{ */
+                          const value_list_t *vl, _Bool store_rates,
+                          bson_t *filter_bson, bson_t *update_bson) {
+  bson_t set_subdocument;
   bson_t subarray;
   gauge_t *rates;
+  char subdocument_path[32];
 
-  ret = bson_new();
-  if (!ret) {
-    ERROR("write_mongodb plugin: bson_new failed.");
-    return NULL;
+  if (!filter_bson || !update_bson) {
+    return -1;
   }
 
   if (store_rates) {
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
       ERROR("write_mongodb plugin: uc_get_rate() failed.");
-      bson_free(ret);
-      return NULL;
+      return -1;
     }
   } else {
     rates = NULL;
   }
 
-  BSON_APPEND_DATE_TIME(ret, "timestamp", CDTIME_T_TO_MS(vl->time));
-  BSON_APPEND_UTF8(ret, "host", vl->host);
-  BSON_APPEND_UTF8(ret, "plugin", vl->plugin);
-  BSON_APPEND_UTF8(ret, "plugin_instance", vl->plugin_instance);
-  BSON_APPEND_UTF8(ret, "type", vl->type);
-  BSON_APPEND_UTF8(ret, "type_instance", vl->type_instance);
+  BSON_APPEND_DATE_TIME(filter_bson, "timestamp_hour",
+                        CDTIME_T_TO_MS(vl->time) -
+                            (CDTIME_T_TO_MS(vl->time) % 3600000));
+  BSON_APPEND_UTF8(filter_bson, "host", vl->host);
+  BSON_APPEND_UTF8(filter_bson, "plugin", vl->plugin);
+  BSON_APPEND_UTF8(filter_bson, "plugin_instance", vl->plugin_instance);
+  BSON_APPEND_UTF8(filter_bson, "type", vl->type);
+  BSON_APPEND_UTF8(filter_bson, "type_instance", vl->type_instance);
 
-  BSON_APPEND_ARRAY_BEGIN(ret, "values", &subarray); /* {{{ */
+  BSON_APPEND_ARRAY_BEGIN(filter_bson, "dstypes", &subarray); /* {{{ */
+  for (int i = 0; i < ds->ds_num; i++) {
+    char key[16];
+
+    ssnprintf(key, sizeof(key), "%i", i);
+
+    if (store_rates)
+      BSON_APPEND_UTF8(&subarray, key, "gauge");
+    else
+      BSON_APPEND_UTF8(&subarray, key, DS_TYPE_TO_STRING(ds->ds[i].type));
+  }
+  bson_append_array_end(filter_bson, &subarray); /* }}} dstypes */
+
+  BSON_APPEND_ARRAY_BEGIN(filter_bson, "dsnames", &subarray); /* {{{ */
+  for (int i = 0; i < ds->ds_num; i++) {
+    char key[16];
+
+    ssnprintf(key, sizeof(key), "%i", i);
+    BSON_APPEND_UTF8(&subarray, key, ds->ds[i].name);
+  }
+  bson_append_array_end(filter_bson, &subarray); /* }}} dsnames */
+
+  BSON_APPEND_DOCUMENT_BEGIN(update_bson, "$set", &set_subdocument);
+
+  ssnprintf(subdocument_path, sizeof(subdocument_path), "values.%ld.%ld",
+            (CDTIME_T_TO_TIME_T(vl->time) % 3600) / 60,
+            CDTIME_T_TO_TIME_T(vl->time) % 60);
+  BSON_APPEND_ARRAY_BEGIN(&set_subdocument, subdocument_path, /* {{{ */
+                          &subarray);
   for (int i = 0; i < ds->ds_num; i++) {
     char key[16];
 
@@ -111,45 +140,28 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
     else {
       ERROR("write_mongodb plugin: Unknown ds_type %d for index %d",
             ds->ds[i].type, i);
-      bson_free(ret);
-      return NULL;
+      return -1;
     }
   }
-  bson_append_array_end(ret, &subarray); /* }}} values */
+  bson_append_array_end(&set_subdocument, &subarray); /* }}} values */
 
-  BSON_APPEND_ARRAY_BEGIN(ret, "dstypes", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
-    char key[16];
-
-    ssnprintf(key, sizeof(key), "%i", i);
-
-    if (store_rates)
-      BSON_APPEND_UTF8(&subarray, key, "gauge");
-    else
-      BSON_APPEND_UTF8(&subarray, key, DS_TYPE_TO_STRING(ds->ds[i].type));
-  }
-  bson_append_array_end(ret, &subarray); /* }}} dstypes */
-
-  BSON_APPEND_ARRAY_BEGIN(ret, "dsnames", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
-    char key[16];
-
-    ssnprintf(key, sizeof(key), "%i", i);
-    BSON_APPEND_UTF8(&subarray, key, ds->ds[i].name);
-  }
-  bson_append_array_end(ret, &subarray); /* }}} dsnames */
+  bson_append_document_end(update_bson, &set_subdocument);
 
   sfree(rates);
 
   size_t error_location;
-  if (!bson_validate(ret, BSON_VALIDATE_UTF8, &error_location)) {
-    ERROR("write_mongodb plugin: Error in generated BSON document "
-        "at byte %zu", error_location);
-    bson_free(ret);
-    return NULL;
+  if (!bson_validate(filter_bson, BSON_VALIDATE_UTF8, &error_location)) {
+    ERROR("write_mongodb plugin: Error in filter_bson document at byte %zu",
+          error_location);
+    return -1;
+  }
+  if (!bson_validate(update_bson, BSON_VALIDATE_UTF8, &error_location)) {
+    ERROR("write_mongodb plugin: Error in update_bson document at byte %zu",
+          error_location);
+    return -1;
   }
 
-  return ret;
+  return 0;
 } /* }}} bson *wm_create_bson */
 
 static int wm_initialize(wm_node_t *node) /* {{{ */
@@ -235,13 +247,15 @@ static int wm_write(const data_set_t *ds, /* {{{ */
                     const value_list_t *vl, user_data_t *ud) {
   wm_node_t *node = ud->data;
   mongoc_collection_t *collection = NULL;
-  bson_t *bson_record;
+  bson_t filter_bson = BSON_INITIALIZER;
+  bson_t update_bson = BSON_INITIALIZER;
   bson_error_t error;
   int status;
 
-  bson_record = wm_create_bson(ds, vl, node->store_rates);
-  if (!bson_record) {
-    ERROR("write_mongodb plugin: error making insert bson");
+  if (wm_create_bson(ds, vl, node->store_rates, &filter_bson, &update_bson)) {
+    ERROR("write_mongodb plugin: making filter/update bson");
+    bson_destroy(&filter_bson);
+    bson_destroy(&update_bson);
     return -1;
   }
 
@@ -249,7 +263,8 @@ static int wm_write(const data_set_t *ds, /* {{{ */
   if (wm_initialize(node) < 0) {
     ERROR("write_mongodb plugin: error making connection to server");
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(&filter_bson);
+    bson_destroy(&update_bson);
     return -1;
   }
 
@@ -263,22 +278,25 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     node->client = NULL;
     node->connected = 0;
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(&filter_bson);
+    bson_destroy(&update_bson);
     return -1;
   }
 
-  status = mongoc_collection_insert(collection, MONGOC_INSERT_NONE, bson_record,
-                                    NULL, &error);
+  status = mongoc_collection_update(collection, MONGOC_UPDATE_UPSERT,
+                                    &filter_bson, &update_bson, NULL, &error);
 
   if (!status) {
-    ERROR("write_mongodb plugin: error inserting record: %s", error.message);
+    ERROR("write_mongodb plugin: error inserting/updating record: %s",
+          error.message);
     mongoc_database_destroy(node->database);
     mongoc_client_destroy(node->client);
     node->database = NULL;
     node->client = NULL;
     node->connected = 0;
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(&filter_bson);
+    bson_destroy(&update_bson);
     mongoc_collection_destroy(collection);
     return -1;
   }
@@ -288,7 +306,8 @@ static int wm_write(const data_set_t *ds, /* {{{ */
 
   pthread_mutex_unlock(&node->lock);
 
-  bson_free(bson_record);
+  bson_destroy(&filter_bson);
+  bson_destroy(&update_bson);
 
   return 0;
 } /* }}} int wm_write */
