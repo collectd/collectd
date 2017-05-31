@@ -1357,11 +1357,13 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     if (oid_list_todo_num == 0) {
       /* The request is still empty - so we are finished */
       DEBUG("snmp plugin: all variables have left their subtree");
+      snmp_free_pdu(req);
       status = 0;
       break;
     }
 
     res = NULL;
+    /* snmp_sess_synch_response always frees our req PDU */
     status = snmp_sess_synch_response(host->sess_handle, req, &res);
     if ((status != STAT_SUCCESS) || (res == NULL)) {
       char *errstr = NULL;
@@ -1376,8 +1378,6 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         snmp_free_pdu(res);
       res = NULL;
 
-      /* snmp_synch_response already freed our PDU */
-      req = NULL;
       sfree(errstr);
       csnmp_host_close_session(host);
 
@@ -1492,9 +1492,6 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     snmp_free_pdu(res);
   res = NULL;
 
-  if (req != NULL)
-    snmp_free_pdu(req);
-  req = NULL;
 
   if (status == 0)
     csnmp_dispatch_table(host, data, instance_list_head, value_list_head);
