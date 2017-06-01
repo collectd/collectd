@@ -180,8 +180,13 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
   int buffer_pos = 0;
 
   gauge_t *rates = NULL;
-  if (flags & GRAPHITE_STORE_RATES)
+  if (flags & GRAPHITE_STORE_RATES) {
     rates = uc_get_rate(ds, vl);
+    if (rates == NULL) {
+      ERROR("format_graphite: error with uc_get_rate");
+      return -1;
+    }
+  }
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     char const *ds_name = NULL;

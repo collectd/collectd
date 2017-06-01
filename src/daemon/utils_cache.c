@@ -222,8 +222,6 @@ int uc_init(void) {
 } /* int uc_init */
 
 int uc_check_timeout(void) {
-  cdtime_t now = cdtime();
-
   struct {
     char *key;
     cdtime_t time;
@@ -232,6 +230,7 @@ int uc_check_timeout(void) {
   size_t expired_num = 0;
 
   pthread_mutex_lock(&cache_lock);
+  cdtime_t now = cdtime();
 
   /* Build a list of entries to be flushed */
   c_avl_iterator_t *iter = c_avl_get_iterator(cache_tree);
@@ -423,6 +422,9 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
 
     /* remove missing values from getval */
     if (ce->state == STATE_MISSING) {
+      DEBUG("utils_cache: uc_get_rate_by_name: requested metric \"%s\" is in "
+            "state \"missing\".",
+            name);
       status = -1;
     } else {
       ret_num = ce->values_num;
@@ -466,7 +468,7 @@ gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
 
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
-  if (ret_num != (size_t)ds->ds_num) {
+  if (ret_num != ds->ds_num) {
     ERROR("utils_cache: uc_get_rate: ds[%s] has %zu values, "
           "but uc_get_rate_by_name returned %zu.",
           ds->type, ds->ds_num, ret_num);

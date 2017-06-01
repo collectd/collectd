@@ -901,7 +901,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
       status = cf_util_get_string(child, &conf->password);
     else if (strcasecmp("Exchange", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange);
-    else if ((strcasecmp("ExchangeType", child->key) == 0) && !publish)
+    else if (strcasecmp("ExchangeType", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange_type);
     else if ((strcasecmp("Queue", child->key) == 0) && !publish)
       status = cf_util_get_string(child, &conf->queue);
