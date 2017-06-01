@@ -78,7 +78,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
       ERROR("write_mongodb plugin: uc_get_rate() failed.");
-      bson_free(ret);
+      bson_destroy(ret);
       return NULL;
     }
   } else {
@@ -111,7 +111,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
     else {
       ERROR("write_mongodb plugin: Unknown ds_type %d for index %d",
             ds->ds[i].type, i);
-      bson_free(ret);
+      bson_destroy(ret);
       return NULL;
     }
   }
@@ -145,7 +145,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   if (!bson_validate(ret, BSON_VALIDATE_UTF8, &error_location)) {
     ERROR("write_mongodb plugin: Error in generated BSON document "
         "at byte %zu", error_location);
-    bson_free(ret);
+    bson_destroy(ret);
     return NULL;
   }
 
@@ -249,7 +249,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
   if (wm_initialize(node) < 0) {
     ERROR("write_mongodb plugin: error making connection to server");
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(bson_record);
     return -1;
   }
 
@@ -263,7 +263,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     node->client = NULL;
     node->connected = 0;
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(bson_record);
     return -1;
   }
 
@@ -278,7 +278,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     node->client = NULL;
     node->connected = 0;
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(bson_record);
     mongoc_collection_destroy(collection);
     return -1;
   }
@@ -288,7 +288,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
 
   pthread_mutex_unlock(&node->lock);
 
-  bson_free(bson_record);
+  bson_destroy(bson_record);
 
   return 0;
 } /* }}} int wm_write */
