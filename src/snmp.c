@@ -1388,6 +1388,38 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       break;
     }
 
+    if (res->errstat != SNMP_ERR_NOERROR) {
+      if (res->errindex != 0 && res->errindex < oid_list_len) {
+        /* Find the OID which caused error */
+        for (i = 1, vb = res->variables; vb != NULL && i != res->errindex;
+             vb = vb->next_variable, i++)
+          /* do nothing */;
+
+        char oid_buffer[1024] = {0};
+        snprint_objid(oid_buffer, sizeof(oid_buffer) - 1, vb->name,
+                      vb->name_length);
+        NOTICE("snmp plugin: host %s; data %s: OID `%s` failed: %s",
+               host->name, data->name, oid_buffer,
+               snmp_errstring(res->errstat));
+
+        /* Skip that OID */
+        i = res->errindex - 1;
+        while ((i < oid_list_len) && !oid_list_todo[i])
+          i++;
+
+        oid_list_todo[i] = 0;
+
+        snmp_free_pdu(res);
+        res = NULL;
+        continue;
+      }
+
+      ERROR("snmp plugin: host %s; data %s: response error: %s (%li) ",
+            host->name, data->name, snmp_errstring(res->errstat), res->errstat);
+      status = -1;
+      break;
+    }
+
     for (vb = res->variables, i = 0; (vb != NULL);
          vb = vb->next_variable, i++) {
       /* Calculate value index from todo list */
