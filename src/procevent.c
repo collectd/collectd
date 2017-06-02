@@ -30,14 +30,11 @@
 #include "utils_complain.h"
 
 #include <pthread.h>
-#include <asm/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <net/if.h>
-#include <netinet/in.h>
 
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -48,9 +45,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+#include <dirent.h>
 
 #define PROCEVENT_EXITED 0
-#define PROCEVENT_FIELDS 3
+#define PROCEVENT_FIELDS 3  // pid, status, extra
+#define BUFSIZE 512
+#define PROCDIR "/proc"
 
 /*
  * Private data types
@@ -63,6 +63,15 @@ typedef struct {
     int ** buffer;
 } circbuf_t;
 
+struct processlist_s {
+  char *process;
+
+  uint32_t pid;
+
+  struct processlist_s *next;
+};
+typedef struct processlist_s processlist_t;
+
 /*
  * Private variables
  */
@@ -72,16 +81,215 @@ static int procevent_thread_error = 0;
 static pthread_t procevent_thread_id;
 static pthread_mutex_t procevent_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t procevent_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t procevent_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static int nl_sock = -1;
 static int buffer_length;
+static _Bool fuzzy_names = 0;
 static circbuf_t ring;
+static processlist_t *processlist_head = NULL;
 
-static const char *config_keys[] = { "BufferLength" };
+static const char *config_keys[] = { "BufferLength", "Process", "FuzzyNames" };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /*
  * Private functions
  */
+
+static processlist_t * process_map_check(int pid, char * process)
+{
+  processlist_t *pl;
+
+  pthread_mutex_lock(&procevent_list_lock);
+
+  for (pl = processlist_head; pl != NULL; pl = pl->next)
+  {
+    int match_pid = 0;
+    int match_process = 0;
+    int match = 0;
+
+    if (pid > 0)
+    {
+      if (pl->pid == pid)
+        match_pid = 1;
+    }
+
+    if (process != NULL)
+    {
+      if (strcmp(pl->process, process) == 0)
+        match_process = 1;
+    }
+
+    if (pid > 0 && process == NULL && match_pid == 1)
+      match = 1;
+    else if (pid < 0 && process != NULL && match_process == 1)
+      match = 1;
+    else if (pid > 0 && process != NULL && match_pid == 1 && match_process == 1)
+      match = 1;
+
+    if (match == 1)
+    {
+      pthread_mutex_unlock(&procevent_list_lock);
+      return pl;
+    }
+  }
+
+  pthread_mutex_unlock(&procevent_list_lock);
+
+  return NULL;
+}
+
+static int process_map_refresh(void)
+{
+  DIR *proc;
+
+  errno = 0;
+  proc = opendir(PROCDIR);
+  if (proc == NULL) {
+    char errbuf[1024];
+    ERROR("procevent plugin: fopen (%s): %s", PROCDIR,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return -1;
+  }
+
+  while (42) {
+    struct dirent *dent;
+    int len;
+    char file[BUFSIZE];
+
+    FILE *fh;
+    char buffer[BUFSIZE];
+
+    struct stat statbuf;
+
+    int status;
+
+    errno = 0;
+    dent = readdir(proc);
+    if (dent == NULL) {
+      char errbuf[4096];
+
+      if (errno == 0) /* end of directory */
+        break;
+
+      ERROR("procevent plugin: failed to read directory %s: %s", PROCDIR,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      closedir(proc);
+      return -1;
+    }
+
+    if (dent->d_name[0] == '.')
+      continue;
+
+    len = ssnprintf(file, sizeof(file), PROCDIR "/%s", dent->d_name);
+    if ((len < 0) || (len >= BUFSIZE))
+      continue;
+
+    status = stat(file, &statbuf);
+    if (status != 0) {
+      char errbuf[4096];
+      WARNING("procevent plugin: stat (%s) failed: %s", file,
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+      continue;
+    }
+
+    if (!S_ISDIR(statbuf.st_mode))
+      continue;
+
+    len = ssnprintf(file, sizeof(file), PROCDIR "/%s/comm", dent->d_name);
+    if ((len < 0) || (len >= BUFSIZE))
+      continue;
+
+    int not_number = 0;
+
+    for (int i = 0; i < strlen(dent->d_name); i++)
+    {
+        if (!isdigit(dent->d_name[i]))
+        {
+          not_number = 1;
+          break;
+        }
+    }
+
+    if (not_number != 0)
+      continue;
+
+    if (NULL == (fh = fopen(file, "r"))) {
+      char errbuf[1024];
+      ERROR("procevent: cannot open '%s': %s", file,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      return (-1);
+    }
+
+    fscanf(fh, "%[^\n]", buffer);
+        
+    //
+    // Go through the processlist linked list and look for each process name
+    // in /proc/<pid>/comm.  If found:
+    // 1. If pl->pid is -1, then set pl->pid to <pid>
+    // 2. If pl->pid is not -1, then another <process name> process was already
+    //    found.  If <pid> == pl->pid, this is an old match, so just continue.
+    //    If the <pid> is different, however,  make a new processlist_t and 
+    //    associate <pid> with it (with the same process name as the existing).
+    //
+
+    pthread_mutex_lock(&procevent_list_lock);
+
+    int this_pid = atoi(dent->d_name);
+    processlist_t *pl;
+
+    for (pl = processlist_head; pl != NULL; pl = pl->next)
+    {
+      if (strcmp(buffer, pl->process) == 0)
+      {
+        INFO("procevent plugin: process %d name match for %s", this_pid, pl->process);
+
+        if (pl->pid == -1)
+          pl->pid = this_pid;
+        else if (pl->pid != this_pid) {
+          processlist_t *pl;
+          char *process;
+
+          pl = malloc(sizeof(*pl));
+          if (pl == NULL) {
+            char errbuf[1024];
+            ERROR("procevent plugin: malloc failed during process_map_refresh: %s",
+                  sstrerror(errno, errbuf, sizeof(errbuf)));
+            return (1);
+          }
+
+          process = strdup(pl->process);
+          if (process == NULL) {
+            char errbuf[1024];
+            sfree(pl);
+            ERROR("procevent plugin: strdup failed process_map_refresh: %s",
+                  sstrerror(errno, errbuf, sizeof(errbuf)));
+            return (1);
+          }
+
+          pl->process = process;
+          pl->pid = this_pid;
+          pl->next = processlist_head;
+          processlist_head = pl;
+        }
+
+        // if this_pid is equal to pl->pid, then we've already
+        // mapped this process
+        break;
+      }
+    }
+
+    pthread_mutex_unlock(&procevent_list_lock);
+
+    if (fh != NULL) {
+      fclose(fh);
+      fh = NULL;
+    }
+  }
+
+  closedir(proc);
+
+  return 0;
+}
 
 static int nl_connect()
 {
@@ -143,8 +351,8 @@ static int read_event()
 {
     int status;
     int ret = 0;
+    processlist_t * pl = NULL;
     int proc_status = -1;
-    int proc_id = -1;
     int proc_extra = -1;
     struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
         struct nlmsghdr nl_hdr;
@@ -174,50 +382,54 @@ static int read_event()
           //printf("set mcast listen ok\n");
           break;
       case PROC_EVENT_FORK:
-          printf("fork: parent tid=%d pid=%d -> child tid=%d pid=%d\n",
-                  nlcn_msg.proc_ev.event_data.fork.parent_pid,
-                  nlcn_msg.proc_ev.event_data.fork.parent_tgid,
-                  nlcn_msg.proc_ev.event_data.fork.child_pid,
-                  nlcn_msg.proc_ev.event_data.fork.child_tgid);
+          // printf("fork: parent tid=%d pid=%d -> child tid=%d pid=%d\n",
+          //         nlcn_msg.proc_ev.event_data.fork.parent_pid,
+          //         nlcn_msg.proc_ev.event_data.fork.parent_tgid,
+          //         nlcn_msg.proc_ev.event_data.fork.child_pid,
+          //         nlcn_msg.proc_ev.event_data.fork.child_tgid);
           break;
       case PROC_EVENT_EXEC:
-          printf("exec: tid=%d pid=%d\n",
-                  nlcn_msg.proc_ev.event_data.exec.process_pid,
-                  nlcn_msg.proc_ev.event_data.exec.process_tgid);
+          // printf("exec: tid=%d pid=%d\n",
+          //         nlcn_msg.proc_ev.event_data.exec.process_pid,
+          //         nlcn_msg.proc_ev.event_data.exec.process_tgid);
           break;
       case PROC_EVENT_UID:
-          printf("uid change: tid=%d pid=%d from %d to %d\n",
-                  nlcn_msg.proc_ev.event_data.id.process_pid,
-                  nlcn_msg.proc_ev.event_data.id.process_tgid,
-                  nlcn_msg.proc_ev.event_data.id.r.ruid,
-                  nlcn_msg.proc_ev.event_data.id.e.euid);
+          // printf("uid change: tid=%d pid=%d from %d to %d\n",
+          //         nlcn_msg.proc_ev.event_data.id.process_pid,
+          //         nlcn_msg.proc_ev.event_data.id.process_tgid,
+          //         nlcn_msg.proc_ev.event_data.id.r.ruid,
+          //         nlcn_msg.proc_ev.event_data.id.e.euid);
           break;
       case PROC_EVENT_GID:
-          printf("gid change: tid=%d pid=%d from %d to %d\n",
-                  nlcn_msg.proc_ev.event_data.id.process_pid,
-                  nlcn_msg.proc_ev.event_data.id.process_tgid,
-                  nlcn_msg.proc_ev.event_data.id.r.rgid,
-                  nlcn_msg.proc_ev.event_data.id.e.egid);
+          // printf("gid change: tid=%d pid=%d from %d to %d\n",
+          //         nlcn_msg.proc_ev.event_data.id.process_pid,
+          //         nlcn_msg.proc_ev.event_data.id.process_tgid,
+          //         nlcn_msg.proc_ev.event_data.id.r.rgid,
+          //         nlcn_msg.proc_ev.event_data.id.e.egid);
           break;
       case PROC_EVENT_EXIT:
-          printf("exit: tid=%d pid=%d exit_code=%d\n",
-                  nlcn_msg.proc_ev.event_data.exit.process_pid,
-                  nlcn_msg.proc_ev.event_data.exit.process_tgid,
-                  nlcn_msg.proc_ev.event_data.exit.exit_code);
+          // 
+          // Check whether we are interested in this process. 
+          //
 
-          proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
-          proc_status = PROCEVENT_EXITED;
-          proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
+          pl = process_map_check(nlcn_msg.proc_ev.event_data.exit.process_pid, NULL);
 
+          if (pl != NULL)
+          {
+            INFO("procevent plugin: pid %d EXIT event match for process %s", pl->pid, pl->process);
+
+            proc_status = PROCEVENT_EXITED;
+            proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
+          }
           break;
       default:
-          printf("unhandled proc event\n");
           break;
     }
 
-    // If we're interested in this event...
+    // If we're interested in this event, then place the event in 
+    // the ring buffer for consumption by the main polling thread.
 
-    if (proc_status != -1)
+    if (proc_status != -1 && pl != NULL)
     {
       pthread_mutex_unlock(&procevent_lock);
 
@@ -238,9 +450,9 @@ static int read_event()
         (unsigned long long)(tv.tv_sec) * 1000 +
         (unsigned long long)(tv.tv_usec) / 1000;
         
-        INFO("procevent plugin (%llu): Process %d status is now %s", millisecondsSinceEpoch, proc_id, (proc_status == PROCEVENT_EXITED ? "EXITED" : "NON-EXITED"));
+        INFO("procevent plugin (%llu): Process %d (%s) status is now %s", millisecondsSinceEpoch, pl->pid, pl->process, (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"));
 
-        ring.buffer[ring.head][0] = proc_id;
+        ring.buffer[ring.head][0] = pl->pid;
         ring.buffer[ring.head][1] = proc_status;
         ring.buffer[ring.head][2] = proc_extra;
 
@@ -386,7 +598,12 @@ static int stop_thread(int shutdown) /* {{{ */
 
 static int procevent_init(void) /* {{{ */
 {
-  //int status;
+  int status;
+
+  if (processlist_head == NULL) {
+    NOTICE("procevent plugin: No processes have been configured.");
+    return (-1);
+  }
 
   ring.head = 0;
   ring.tail = 0;
@@ -398,6 +615,14 @@ static int procevent_init(void) /* {{{ */
     ring.buffer[i] = (int*) malloc(PROCEVENT_FIELDS * sizeof(int));
   }
 
+  status = process_map_refresh();
+
+  if (status == -1)
+  {
+    ERROR("procevent plugin: Initial process mapping failed.");
+    return (-1);
+  }
+
   return (start_thread());
 } /* }}} int procevent_init */
 
@@ -405,6 +630,34 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp(key, "BufferLength") == 0) {
     buffer_length = atoi(value);
+  } else if (strcasecmp(key, "Process") == 0) {
+
+    processlist_t *pl;
+    char *process;
+
+    pl = malloc(sizeof(*pl));
+    if (pl == NULL) {
+      char errbuf[1024];
+      ERROR("procevent plugin: malloc failed during procevent_config: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      return (1);
+    }
+
+    process = strdup(value);
+    if (process == NULL) {
+      char errbuf[1024];
+      sfree(pl);
+      ERROR("procevent plugin: strdup failed procevent_config: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      return (1);
+    }
+
+    pl->process = process;
+    pl->pid = -1;
+    pl->next = processlist_head;
+    processlist_head = pl;
+  } else if (strcasecmp(key, "FuzzyNames") == 0) {
+    fuzzy_names = 1;
   } else {
     return (-1);
   }
@@ -475,6 +728,7 @@ static int procevent_read(void) /* {{{ */
 static int procevent_shutdown(void) /* {{{ */
 {
   //int status = 0;
+  processlist_t *pl;
 
   INFO("procevent plugin: Shutting down thread.");
   if (stop_thread(1) < 0)
@@ -486,6 +740,18 @@ static int procevent_shutdown(void) /* {{{ */
   }
 
   free(ring.buffer);
+
+  pl = processlist_head;
+  while (pl != NULL) {
+    processlist_t *pl_next;
+
+    pl_next = pl->next;
+
+    sfree(pl->process);
+    sfree(pl);
+
+    pl = pl_next;
+  }
 
   return (0);
 } /* }}} int procevent_shutdown */
