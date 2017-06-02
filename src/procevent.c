@@ -666,7 +666,7 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 } /* }}} int procevent_config */
 
 static void submit(int pid, const char *type, /* {{{ */
-                   gauge_t value) {
+                   gauge_t value, const char *process) {
   char pid_str[10];
 
   snprintf(pid_str, 10, "%d", pid);
@@ -676,6 +676,7 @@ static void submit(int pid, const char *type, /* {{{ */
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "procevent", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, process, sizeof(vl.plugin_instance));
   sstrncpy(vl.type_instance, pid_str, sizeof(vl.type_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
 
@@ -687,7 +688,7 @@ static void submit(int pid, const char *type, /* {{{ */
   (unsigned long long)(tv.tv_sec) * 1000 +
   (unsigned long long)(tv.tv_usec) / 1000;
 
-  INFO("procevent plugin (%llu): dispatching state %d for PID %d", millisecondsSinceEpoch, (int) value, pid);
+  INFO("procevent plugin (%llu): dispatching state %d for PID %d (%s)", millisecondsSinceEpoch, (int) value, pid, process);
 
   plugin_dispatch_values(&vl);
 } /* }}} void interface_submit */
@@ -713,9 +714,9 @@ static int procevent_read(void) /* {{{ */
     if (next >= ring.maxLen)
       next = 0;
 
-    INFO("procevent plugin: reading %d - %d", ring.buffer[ring.tail][0], ring.buffer[ring.tail][1]);
+    processlist_t * pl = process_map_check(ring.buffer[ring.tail][0], NULL);
 
-    submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1]);
+    submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1], (pl != NULL ? pl->process : NULL));
 
     ring.tail = next;
   }
