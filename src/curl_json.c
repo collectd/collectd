@@ -51,6 +51,7 @@ struct cj_key_s;
 typedef struct cj_key_s cj_key_t;
 struct cj_key_s /* {{{ */
 {
+  unsigned long magic;
   char *path;
   char *type;
   char *instance;
