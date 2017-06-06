@@ -1,3 +1,50 @@
+2017-06-06, Version 5.7.2
+	* Build system: The Notify Email plugin is no longer linked with
+	  indirect dependencies. Thanks to Marc Fournier.
+	* collectd: A race condition when calculating a metric's rate has been
+	  fixed. Thanks to Florian Forster. #1193
+	* AMQP, Exec, UnixSock, Write Kafka plugins: Parsing of the PUTVAL
+	  command with multiple values has been fixed. Thanks to Florian
+	  Forster. #2274
+	* AMQP plugin: The "ExchangeType" option is now also valid for
+	  publishers. Thanks to Florian Forster. #2286
+	* BIND plugin: Fix parsing of the sample time provided by BIND.
+	  Previously, the time was assumed to be in the local timezone when in
+	  fact it was in UTC. Thanks to Ed Ravin. #1268
+	* BIND plugin: Memory leaks have been fixed. Thanks to Ruben Kerkhof.
+	  #2303
+	* cURL-JSON plugin: Handling of arrays has been fixed. Thanks to Florian
+	  Forster. #2266
+	* DPDKStat plugin: Error handling during initialization has been
+	  improved. Thanks to Ruben Kerkhof.
+	* DPDKStat plugin: Handling of a number of metrics has been improved,
+	  for example "rx_q0bytes". Thanks to Przemyslaw Szczerbik. #2167
+	* Intel RDT plugin: Configuration handling has been changed to be more
+	  graceful. Thanks to Maryam Tahhan. #2165
+	* Log Logstash plugin: If writing the log entry fails, print it to
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* LogFile plugin: If writing to the file fails, print log messages on
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* memcachec, Tail plugins: A resource leak in the matching
+	  infrastructure has been fixed. Thanks to Krzysztof Matczak. #2192
+	* MQTT plugin: Invalid symbols in topic names are now replaced and a
+	  resource leak has been fixed. Thanks to Denys Fedoryshchenko. #2123
+	* Network plugin: A potential endless-loop has been fixed. This can be
+	  triggered remotely by sending a signed network packet to a server
+	  which is not set up to check signatures. Thanks to Marcin Kozlowski
+	  and Pavel Rochnyack. #2174, #2233, CVE-2017-7401
+	* Perl plugin: A potential double-free has been fixed. Thanks to Florian
+	  Forster. #2278
+	* Processes plugin: A compilation error on AIX has been fixed. Thanks to
+	  Pavel Rochnyack. #2210
+	* SMART plugin: A check for the "CAP_SYS_RAWIO" capability has been
+	  added. Thanks to Marc Fournier.
+	* Write Graphite plugin: Error handling in the case that calculating a
+	  metric's rate fails has been improved. Previously, the raw counter
+	  values were sent to Graphite. Thanks to Iain Buclaw. #2209
+	* Write Prometheus plugin: An incorrect use of "realloc(3)" has been
+	  fixed. Thanks to Florian Forster. #2275
+
 2017-01-23, Version 5.7.1
 	* collectd: Handling of boolean configuration options has been unified.
 	  Thanks to Sebastian Harl. #2083, #2098
