@@ -182,8 +182,6 @@ static void pmu_dump_events() {
     DEBUG(PMU_PLUGIN ":     config    : %#x", (unsigned)e->attr.config);
     DEBUG(PMU_PLUGIN ":     size      : %d", e->attr.size);
   }
-
-  return;
 }
 
 static void pmu_dump_config(void) {
@@ -196,8 +194,6 @@ static void pmu_dump_config(void) {
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     DEBUG(PMU_PLUGIN ":   hardware_events[%zu]: %s", i, g_ctx.hw_events[i]);
   }
-
-  return;
 }
 
 #endif /* COLLECT_DEBUG */
@@ -233,11 +229,11 @@ static int pmu_config_hw_events(oconfig_item_t *ci) {
 }
 
 static int pmu_config(oconfig_item_t *ci) {
-  int ret = 0;
 
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
   for (int i = 0; i < ci->children_num; i++) {
+    int ret = 0;
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("ReportHardwareCacheEvents", child->key) == 0) {
@@ -253,7 +249,7 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = cf_util_get_boolean(child, &g_ctx.sw_events);
     } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
-      ret = (-1);
+      ret = -1;
     }
 
     if (ret != 0) {
@@ -287,7 +283,7 @@ static void pmu_submit_counter(int cpu, char *event, counter_t value) {
   plugin_dispatch_values(&vl);
 }
 
-static int pmu_dispatch_data(void) {
+static void pmu_dispatch_data(void) {
 
   struct event *e;
 
@@ -314,8 +310,6 @@ static int pmu_dispatch_data(void) {
       pmu_submit_counter(-1, e->event, all_value);
     }
   }
-
-  return 0;
 }
 
 static int pmu_read(__attribute__((unused)) user_data_t *ud) {
@@ -326,22 +320,18 @@ static int pmu_read(__attribute__((unused)) user_data_t *ud) {
   ret = read_all_events(g_ctx.event_list);
   if (ret != 0) {
     ERROR(PMU_PLUGIN ": Failed to read values of all events.");
-    return 0;
+    return ret;
   }
 
-  ret = pmu_dispatch_data();
-  if (ret != 0) {
-    ERROR(PMU_PLUGIN ": Failed to dispatch event values.");
-    return 0;
-  }
+  pmu_dispatch_data();
 
   return 0;
 }
 
 static int pmu_add_events(struct eventlist *el, uint32_t type,
-                          event_info_t *events, int count) {
+                          event_info_t *events, size_t count) {
 
-  for (int i = 0; i < count; i++) {
+  for (size_t i = 0; i < count; i++) {
     /* Allocate memory for event struct that contains array of efd structs
        for all cores */
     struct event *e =
@@ -354,7 +344,6 @@ static int pmu_add_events(struct eventlist *el, uint32_t type,
     e->attr.type = type;
     e->attr.config = events[i].config;
     e->attr.size = PERF_ATTR_SIZE_VER0;
-    e->next = NULL;
     if (!el->eventlist)
       el->eventlist = e;
     if (el->eventlist_last)
