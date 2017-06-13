@@ -12,9 +12,6 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 #include <netlink/netlink.h>
-//#include <libnl3/netlink/netlink.h>
-//#include <libnl3/netlink/genl/genl.h>
-//#include <libnl3/netlink/genl/ctrl.h>
 
 #endif
 
@@ -460,16 +457,13 @@ enum {
 
 #define IPVS_INFO_ATTR_MAX (__IPVS_INFO_ATTR_MAX - 1)
 
-#ifdef LIBIPVS_USE_NL
 extern struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1];
 extern struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1];
 extern struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1];
 extern struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1];
 extern struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1];
 extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
-#endif
-// todo sort out the nla_policy and associated structs
-#ifdef LIBIPVS_USE_NL
+
 /* Policy definitions */
 struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
         [IPVS_CMD_ATTR_SERVICE] = {.type = NLA_NESTED},
@@ -528,7 +522,5 @@ struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
         [IPVS_INFO_ATTR_VERSION] = {.type = NLA_U32},
         [IPVS_INFO_ATTR_CONN_TAB_SIZE] = {.type = NLA_U32},
 };
-#endif
-/* End of Generic Netlink interface definitions */
 
-//#endif /* _IP_VS_H */
+/* End of Generic Netlink interface definitions */
