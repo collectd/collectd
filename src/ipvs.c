@@ -42,11 +42,13 @@
 #include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
-/* this can probably only be found in the kernel sources */
+
 #ifdef LIBIPVS_USE_NL
-//Include our own version of ip_vs.h
+/* Include our own structures as the IPV6 structuress required are
+  not included in the standard kernel source */
 #include <ipvs.h>
 #else
+/* this can probably only be found in the kernel sources */
 #if HAVE_LINUX_IP_VS_H
 #include <linux/ip_vs.h>
 #elif HAVE_NET_IP_VS_H
@@ -62,7 +64,6 @@
 # include <netlink/genl/genl.h>
 # include <netlink/genl/ctrl.h>
 # include <netlink/msg.h>
-//#define ip_vs_service_entry ip_vs_service_entry_kern
 #endif
 
 #ifdef LIBIPVS_USE_NL

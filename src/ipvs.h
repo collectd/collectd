@@ -3,9 +3,6 @@
  *      data structure and functionality definitions
  */
 
-#ifndef _IP_VS_H
-#define _IP_VS_H
-
 #include <arpa/inet.h>
 #include <linux/types.h> /* For __beXX types in userland */
 #include <netinet/in.h>
@@ -26,47 +23,9 @@
   (version >> 16) & 0xFF, (version >> 8) & 0xFF, version & 0xFF
 
 /*
- *      Virtual Service Flags
- */
-#define IP_VS_SVC_F_PERSISTENT 0x0001 /* persistent port */
-#define IP_VS_SVC_F_HASHED 0x0002     /* hashed entry */
-#define IP_VS_SVC_F_ONEPACKET 0x0004  /* one-packet scheduling */
-#define IP_VS_SVC_F_SCHED1 0x0008     /* scheduler flag 1 */
-#define IP_VS_SVC_F_SCHED2 0x0010     /* scheduler flag 2 */
-#define IP_VS_SVC_F_SCHED3 0x0020     /* scheduler flag 3 */
-
-#define IP_VS_SVC_F_SCHED_SH_FALLBACK IP_VS_SVC_F_SCHED1 /* SH fallback */
-#define IP_VS_SVC_F_SCHED_SH_PORT IP_VS_SVC_F_SCHED2     /* SH use port */
-
-/*
- *      IPVS sync daemon states
- */
-#define IP_VS_STATE_NONE 0x0000   /* daemon is stopped */
-#define IP_VS_STATE_MASTER 0x0001 /* started as master */
-#define IP_VS_STATE_BACKUP 0x0002 /* started as backup */
-
-/*
  *      IPVS socket options
  */
 #define IP_VS_BASE_CTL (64 + 1024 + 64) /* base */
-
-#define IP_VS_SO_SET_NONE IP_VS_BASE_CTL /* just peek */
-#define IP_VS_SO_SET_INSERT (IP_VS_BASE_CTL + 1)
-#define IP_VS_SO_SET_ADD (IP_VS_BASE_CTL + 2)
-#define IP_VS_SO_SET_EDIT (IP_VS_BASE_CTL + 3)
-#define IP_VS_SO_SET_DEL (IP_VS_BASE_CTL + 4)
-#define IP_VS_SO_SET_FLUSH (IP_VS_BASE_CTL + 5)
-#define IP_VS_SO_SET_LIST (IP_VS_BASE_CTL + 6)
-#define IP_VS_SO_SET_ADDDEST (IP_VS_BASE_CTL + 7)
-#define IP_VS_SO_SET_DELDEST (IP_VS_BASE_CTL + 8)
-#define IP_VS_SO_SET_EDITDEST (IP_VS_BASE_CTL + 9)
-#define IP_VS_SO_SET_TIMEOUT (IP_VS_BASE_CTL + 10)
-#define IP_VS_SO_SET_STARTDAEMON (IP_VS_BASE_CTL + 11)
-#define IP_VS_SO_SET_STOPDAEMON (IP_VS_BASE_CTL + 12)
-#define IP_VS_SO_SET_RESTORE (IP_VS_BASE_CTL + 13)
-#define IP_VS_SO_SET_SAVE (IP_VS_BASE_CTL + 14)
-#define IP_VS_SO_SET_ZERO (IP_VS_BASE_CTL + 15)
-#define IP_VS_SO_SET_MAX IP_VS_SO_SET_ZERO
 
 #define IP_VS_SO_GET_VERSION IP_VS_BASE_CTL
 #define IP_VS_SO_GET_INFO (IP_VS_BASE_CTL + 1)
@@ -77,26 +36,6 @@
 #define IP_VS_SO_GET_TIMEOUT (IP_VS_BASE_CTL + 6)
 #define IP_VS_SO_GET_DAEMON (IP_VS_BASE_CTL + 7)
 #define IP_VS_SO_GET_MAX IP_VS_SO_GET_DAEMON
-
-/*
- *      IPVS Connection Flags
- */
-#define IP_VS_CONN_F_FWD_MASK 0x0007   /* mask for the fwd methods */
-#define IP_VS_CONN_F_MASQ 0x0000       /* masquerading/NAT */
-#define IP_VS_CONN_F_LOCALNODE 0x0001  /* local node */
-#define IP_VS_CONN_F_TUNNEL 0x0002     /* tunneling */
-#define IP_VS_CONN_F_DROUTE 0x0003     /* direct routing */
-#define IP_VS_CONN_F_BYPASS 0x0004     /* cache bypass */
-#define IP_VS_CONN_F_SYNC 0x0020       /* entry created by sync */
-#define IP_VS_CONN_F_HASHED 0x0040     /* hashed entry */
-#define IP_VS_CONN_F_NOOUTPUT 0x0080   /* no output packets */
-#define IP_VS_CONN_F_INACTIVE 0x0100   /* not established */
-#define IP_VS_CONN_F_OUT_SEQ 0x0200    /* must do output seq adjust */
-#define IP_VS_CONN_F_IN_SEQ 0x0400     /* must do input seq adjust */
-#define IP_VS_CONN_F_SEQ_MASK 0x0600   /* in/out sequence mask */
-#define IP_VS_CONN_F_NO_CPORT 0x0800   /* no client port set yet */
-#define IP_VS_CONN_F_TEMPLATE 0x1000   /* template, not connection */
-#define IP_VS_CONN_F_ONE_PACKET 0x2000 /* forward only one packet */
 
 #define IP_VS_SCHEDNAME_MAXLEN 16
 #define IP_VS_PENAME_MAXLEN 16
@@ -365,44 +304,6 @@ struct ip_vs_timeout_user {
   int udp_timeout;
 };
 
-/* The argument to IP_VS_SO_GET_DAEMON */
-// struct ip_vs_daemon_kern {
-/* sync daemon state (master/backup) */
-//  int			state;
-
-/* multicast interface name */
-// char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-/* SyncID we belong to */
-// int			syncid;
-//};
-
-// struct ip_vs_daemon_user {
-/* sync daemon state (master/backup) */
-//  int			state;
-
-/* multicast interface name */
-// char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-/* SyncID we belong to */
-// int			syncid;
-
-/* UDP Payload Size */
-// int			sync_maxlen;
-
-/* Multicast Port (base) */
-// u_int16_t		mcast_port;
-
-/* Multicast TTL */
-// u_int16_t		mcast_ttl;
-
-/* Multicast Address Family */
-// u_int16_t		mcast_af;
-
-/* Multicast Address */
-// union nf_inet_addr	mcast_group;
-//};
-
 /*
  *
  * IPVS Generic Netlink interface definitions
@@ -526,26 +427,6 @@ enum {
 #define IPVS_DEST_ATTR_MAX (__IPVS_DEST_ATTR_MAX - 1)
 
 /*
- * Attributes describing a sync daemon
- *
- * Used inside nested attribute IPVS_CMD_ATTR_DAEMON
- */
-enum {
-  IPVS_DAEMON_ATTR_UNSPEC = 0,
-  IPVS_DAEMON_ATTR_STATE,        /* sync daemon state (master/backup) */
-  IPVS_DAEMON_ATTR_MCAST_IFN,    /* multicast interface name */
-  IPVS_DAEMON_ATTR_SYNC_ID,      /* SyncID we belong to */
-  IPVS_DAEMON_ATTR_SYNC_MAXLEN,  /* UDP Payload Size */
-  IPVS_DAEMON_ATTR_MCAST_GROUP,  /* IPv4 Multicast Address */
-  IPVS_DAEMON_ATTR_MCAST_GROUP6, /* IPv6 Multicast Address */
-  IPVS_DAEMON_ATTR_MCAST_PORT,   /* Multicast Port (base) */
-  IPVS_DAEMON_ATTR_MCAST_TTL,    /* Multicast TTL */
-  __IPVS_DAEMON_ATTR_MAX,
-};
-
-#define IPVS_DAEMON_ATTR_MAX (__IPVS_DAEMON_ATTR_MAX - 1)
-
-/*
  * Attributes used to describe service or destination entry statistics
  *
  * Used inside nested attributes IPVS_SVC_ATTR_STATS, IPVS_DEST_ATTR_STATS,
@@ -650,4 +531,4 @@ struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
 #endif
 /* End of Generic Netlink interface definitions */
 
-#endif /* _IP_VS_H */
+//#endif /* _IP_VS_H */
