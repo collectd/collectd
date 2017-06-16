@@ -48,6 +48,7 @@
 #include <dirent.h>
 
 #define PROCEVENT_EXITED 0
+#define PROCEVENT_STARTED 1
 #define PROCEVENT_FIELDS 3  // pid, status, extra
 #define BUFSIZE 512
 #define PROCDIR "/proc"
@@ -95,6 +96,118 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
  * Private functions
  */
 
+// Does /proc/<pid>/comm contain a process name we are interested in?
+static processlist_t * process_check(int pid)
+{
+  int len;
+  char file[BUFSIZE];
+  FILE *fh;
+  char buffer[BUFSIZE];
+
+  len = ssnprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
+
+  if ((len < 0) || (len >= BUFSIZE))
+  {
+    WARNING("procevent process_check: process name too large");
+    return NULL;
+  }
+
+  if (NULL == (fh = fopen(file, "r"))) {
+      // No /proc/<pid>/comm for this pid, just ignore
+      INFO("procevent plugin: no comm file available for pid %d", pid);
+      return NULL;
+  }
+
+  fscanf(fh, "%[^\n]", buffer);
+        
+  //
+  // Go through the processlist linked list and look for the process name
+  // in /proc/<pid>/comm.  If found:
+  // 1. If pl->pid is -1, then set pl->pid to <pid>
+  // 2. If pl->pid is not -1, then another <process name> process was already
+  //    found.  If <pid> == pl->pid, this is an old match, so do nothing.
+  //    If the <pid> is different, however,  make a new processlist_t and 
+  //    associate <pid> with it (with the same process name as the existing).
+  //
+
+  pthread_mutex_lock(&procevent_list_lock);
+
+  processlist_t *pl;
+  processlist_t *match = NULL;
+
+  for (pl = processlist_head; pl != NULL; pl = pl->next)
+  {
+    if (strcmp(buffer, pl->process) == 0)
+    {
+      INFO("procevent plugin: process %d name match for %s", pid, pl->process);
+
+      if (pl->pid == pid)
+      {
+        // this is a match, and we've already stored the exact pid/name combo
+        match = pl;  
+        break;
+      } else if (pl->pid == -1) {
+        // this is a match, and we've found a candidate processlist_t to store this new pid/name combo
+        pl->pid = pid;
+        match = pl;  
+        break;
+      } else if (pl->pid != -1) {
+        // this is a match, but another instance of this process has already claimed this pid/name combo,
+        // so keep looking
+        match = pl;
+        continue;
+      }
+    }
+  }
+
+  if (match != NULL && match->pid != -1 && match->pid != pid)
+  {
+    // if there was a match but the associated processlist_t object already contained a pid/name combo,
+    // then make a new one and add it to the linked list
+
+    INFO("procevent plugin: allocating new processlist_t object for PID %d (%s)", pid, match->process);
+
+    processlist_t *pl2;
+    char *process;
+
+    pl2 = malloc(sizeof(*pl2));
+    if (pl2 == NULL) {
+      char errbuf[1024];
+      ERROR("procevent plugin: malloc failed during process_check: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      pthread_mutex_unlock(&procevent_list_lock);
+      return NULL;
+    }
+
+    process = strdup(match->process);
+    if (process == NULL) {
+      char errbuf[1024];
+      sfree(pl2);
+      ERROR("procevent plugin: strdup failed process_check: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      pthread_mutex_unlock(&procevent_list_lock);
+      return NULL;
+    }
+
+    pl2->process = process;
+    pl2->pid = pid;
+    pl2->next = processlist_head;
+    processlist_head = pl2;
+
+    match = pl2;
+  }
+
+  pthread_mutex_unlock(&procevent_list_lock);
+
+  if (fh != NULL) {
+    fclose(fh);
+    fh = NULL;
+  }
+
+  return match;
+}
+
+// Does our map have this PID or name?
 static processlist_t * process_map_check(int pid, char * process)
 {
   processlist_t *pl;
@@ -151,13 +264,11 @@ static int process_map_refresh(void)
     return -1;
   }
 
-  while (42) {
+  while (42) 
+  {
     struct dirent *dent;
     int len;
     char file[BUFSIZE];
-
-    FILE *fh;
-    char buffer[BUFSIZE];
 
     struct stat statbuf;
 
@@ -213,77 +324,12 @@ static int process_map_refresh(void)
     if (not_number != 0)
       continue;
 
-    if (NULL == (fh = fopen(file, "r"))) {
-      char errbuf[1024];
-      ERROR("procevent: cannot open '%s': %s", file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
-    }
-
-    fscanf(fh, "%[^\n]", buffer);
-        
-    //
-    // Go through the processlist linked list and look for each process name
-    // in /proc/<pid>/comm.  If found:
-    // 1. If pl->pid is -1, then set pl->pid to <pid>
-    // 2. If pl->pid is not -1, then another <process name> process was already
-    //    found.  If <pid> == pl->pid, this is an old match, so just continue.
-    //    If the <pid> is different, however,  make a new processlist_t and 
-    //    associate <pid> with it (with the same process name as the existing).
-    //
-
-    pthread_mutex_lock(&procevent_list_lock);
-
+    // Check if we need to store this pid/name combo in our processlist_t linked list
     int this_pid = atoi(dent->d_name);
-    processlist_t *pl;
+    processlist_t *pl = process_check(this_pid);
 
-    for (pl = processlist_head; pl != NULL; pl = pl->next)
-    {
-      if (strcmp(buffer, pl->process) == 0)
-      {
-        INFO("procevent plugin: process %d name match for %s", this_pid, pl->process);
-
-        if (pl->pid == -1)
-          pl->pid = this_pid;
-        else if (pl->pid != this_pid) {
-          processlist_t *pl;
-          char *process;
-
-          pl = malloc(sizeof(*pl));
-          if (pl == NULL) {
-            char errbuf[1024];
-            ERROR("procevent plugin: malloc failed during process_map_refresh: %s",
-                  sstrerror(errno, errbuf, sizeof(errbuf)));
-            return (1);
-          }
-
-          process = strdup(pl->process);
-          if (process == NULL) {
-            char errbuf[1024];
-            sfree(pl);
-            ERROR("procevent plugin: strdup failed process_map_refresh: %s",
-                  sstrerror(errno, errbuf, sizeof(errbuf)));
-            return (1);
-          }
-
-          pl->process = process;
-          pl->pid = this_pid;
-          pl->next = processlist_head;
-          processlist_head = pl;
-        }
-
-        // if this_pid is equal to pl->pid, then we've already
-        // mapped this process
-        break;
-      }
-    }
-
-    pthread_mutex_unlock(&procevent_list_lock);
-
-    if (fh != NULL) {
-      fclose(fh);
-      fh = NULL;
-    }
+    if (pl != NULL)
+      INFO("procevent plugin: process map refreshed for PID %d and name %s", this_pid, pl->process);
   }
 
   closedir(proc);
@@ -351,7 +397,7 @@ static int read_event()
 {
     int status;
     int ret = 0;
-    processlist_t * pl = NULL;
+    int proc_id = -1;
     int proc_status = -1;
     int proc_extra = -1;
     struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
@@ -387,11 +433,15 @@ static int read_event()
           //         nlcn_msg.proc_ev.event_data.fork.parent_tgid,
           //         nlcn_msg.proc_ev.event_data.fork.child_pid,
           //         nlcn_msg.proc_ev.event_data.fork.child_tgid);
+          //proc_status = PROCEVENT_STARTED;
+          //proc_id = nlcn_msg.proc_ev.event_data.fork.child_pid;
           break;
       case PROC_EVENT_EXEC:
           // printf("exec: tid=%d pid=%d\n",
           //         nlcn_msg.proc_ev.event_data.exec.process_pid,
           //         nlcn_msg.proc_ev.event_data.exec.process_tgid);
+          proc_status = PROCEVENT_STARTED;
+          proc_id = nlcn_msg.proc_ev.event_data.exec.process_pid;
           break;
       case PROC_EVENT_UID:
           // printf("uid change: tid=%d pid=%d from %d to %d\n",
@@ -408,28 +458,18 @@ static int read_event()
           //         nlcn_msg.proc_ev.event_data.id.e.egid);
           break;
       case PROC_EVENT_EXIT:
-          // 
-          // Check whether we are interested in this process. 
-          //
-
-          pl = process_map_check(nlcn_msg.proc_ev.event_data.exit.process_pid, NULL);
-
-          if (pl != NULL)
-          {
-            INFO("procevent plugin: pid %d EXIT event match for process %s", pl->pid, pl->process);
-
+            proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
             proc_status = PROCEVENT_EXITED;
             proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
-          }
           break;
       default:
           break;
     }
 
-    // If we're interested in this event, then place the event in 
-    // the ring buffer for consumption by the main polling thread.
+    // If we're interested in this process status event, place the event 
+    // in the ring buffer for consumption by the main polling thread.
 
-    if (proc_status != -1 && pl != NULL)
+    if (proc_status != -1)
     {
       pthread_mutex_unlock(&procevent_lock);
 
@@ -450,11 +490,20 @@ static int read_event()
         (unsigned long long)(tv.tv_sec) * 1000 +
         (unsigned long long)(tv.tv_usec) / 1000;
         
-        INFO("procevent plugin (%llu): Process %d (%s) status is now %s", millisecondsSinceEpoch, pl->pid, pl->process, (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"));
+        if (proc_status == PROCEVENT_EXITED)
+        {
+          INFO("procevent plugin (%llu): Process %d status is now EXITED", millisecondsSinceEpoch, proc_id);
 
-        ring.buffer[ring.head][0] = pl->pid;
-        ring.buffer[ring.head][1] = proc_status;
-        ring.buffer[ring.head][2] = proc_extra;
+          ring.buffer[ring.head][0] = proc_id;
+          ring.buffer[ring.head][1] = proc_status;
+          ring.buffer[ring.head][2] = proc_extra;
+        } else {
+          INFO("procevent plugin (%llu): Process %d status is now STARTED", millisecondsSinceEpoch, proc_id);
+
+          ring.buffer[ring.head][0] = proc_id;
+          ring.buffer[ring.head][1] = proc_status;
+          ring.buffer[ring.head][2] = 0;
+        }
 
         ring.head = next;
       }
@@ -714,9 +763,28 @@ static int procevent_read(void) /* {{{ */
     if (next >= ring.maxLen)
       next = 0;
 
-    processlist_t * pl = process_map_check(ring.buffer[ring.tail][0], NULL);
+    if (ring.buffer[ring.tail][1] == PROCEVENT_EXITED)
+    {
+      processlist_t * pl = process_map_check(ring.buffer[ring.tail][0], NULL);
 
-    submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1], (pl != NULL ? pl->process : NULL));
+      if (pl != NULL)
+      {
+        // This process is of interest to us, so publish its EXITED status
+        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1], pl->process);
+        INFO("procevent plugin: PID %d (%s) EXITED, removing PID from process list", pl->pid, pl->process);
+        pl->pid = -1;
+      }
+    } else if (ring.buffer[ring.tail][1] == PROCEVENT_STARTED) {
+      // a new process has started, so check if we should monitor it
+      processlist_t * pl = process_check(ring.buffer[ring.tail][0]);
+
+      if (pl != NULL)
+      {
+        // This process is of interest to us, so publish its STARTED status
+        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1], pl->process);
+        INFO("procevent plugin: PID %d (%s) STARTED, adding PID to process list", pl->pid, pl->process);
+      }
+    }
 
     ring.tail = next;
   }
