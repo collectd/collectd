@@ -69,11 +69,18 @@
 #include <yajl/yajl_tree.h>
 
 /* Forward declaration */
+typedef struct ovs_s ovs_t;
 typedef struct ovs_db_s ovs_db_t;
 
 /* OVS DB callback type declaration */
-typedef void (*ovs_db_table_cb_t)(yajl_val jupdates);
-typedef void (*ovs_db_result_cb_t)(yajl_val jresult, yajl_val jerror);
+typedef void (*ovs_db_table_cb_t)(yajl_val jupdates, void *user_data);
+typedef void (*ovs_db_result_cb_t)(yajl_val jresult, yajl_val jerror,
+                                   void *user_data);
+
+/* OVS DB defines */
+#define OVS_DB_ADDR_NODE_SIZE 256
+#define OVS_DB_ADDR_SERVICE_SIZE 128
+#define OVS_DB_ADDR_UNIX_SIZE 108
 
 /* OVS DB structures */
 struct ovs_db_callback_s {
@@ -84,56 +91,65 @@ struct ovs_db_callback_s {
    * to subscribe to table update notification or poll
    * some OVS DB data. This field can be NULL.
    */
-  void (*post_conn_init)(ovs_db_t *pdb);
+  void (*post_conn_init)(ovs_db_t *pdb, void *user_data);
   /*
    * This callback is called when OVS DB connection
    * has been lost. This field can be NULL.
    */
-  void (*post_conn_terminate)(void);
+  void (*post_conn_terminate)(ovs_db_t *pdb, void *user_data);
 };
 typedef struct ovs_db_callback_s ovs_db_callback_t;
 
-/* OVS DB defines */
-#define OVS_DB_ADDR_NODE_SIZE 256
-#define OVS_DB_ADDR_SERVICE_SIZE 128
-#define OVS_DB_ADDR_UNIX_SIZE 108
+struct ovs_user_data_s {
+  void *data;                /* Pointer to OVS DB user data */
+  void (*free_func)(void *); /* If not set to NULL, it's called by
+                              * ovs_db_destroy() function to release the
+                              * user data */
+};
+typedef struct ovs_user_data_s ovs_user_data_t;
+
+struct ovs_db_inst_s {
+  char service[OVS_DB_ADDR_SERVICE_SIZE]; /* The OVS DB service name */
+  char node[OVS_DB_ADDR_NODE_SIZE];       /* The OVS DB node name */
+  char unix_path[OVS_DB_ADDR_NODE_SIZE];  /* The OVS DB unix path */
+  ovs_db_callback_t cb;                   /* The OVS DB callbacks */
+  ovs_user_data_t user_data;              /* The OVS DB user data */
+};
+typedef struct ovs_db_inst_s ovs_db_inst_t;
 
 /* OVS DB prototypes */
 
 /*
  * NAME
- *   ovs_db_init
+ *   ovs_init
  *
  * DESCRIPTION
- *   Initialize OVS DB internal data. The `ovs_db_destroy' function
- *   shall destroy the returned object.
+ *   Initialize OVS internal data. The `ovs_destroy' function
+ *   shall destroy the allocated data.
  *
  * PARAMETERS
- *   `node'        OVS DB Address.
- *   `service'     OVS DB service name.
- *   `unix'        OVS DB unix socket path.
- *   `cb'          OVS DB callbacks.
+ *   `instances'   OVS DB instances pointer.
+ *   `num'         Number of given OVS DB instances.
  *
  * RETURN VALUE
- *   New ovs_db_t object upon success or NULL if an error occurred.
+ *   New ovs_t object upon success or NULL if an error occurred.
  */
-ovs_db_t *ovs_db_init(const char *node, const char *service,
-                      const char *unix_path, ovs_db_callback_t *cb);
+ovs_t *ovs_init(const ovs_db_inst_t *instances, size_t num);
 
 /*
  * NAME
- *   ovs_db_destroy
+ *   ovs_destroy
  *
  * DESCRIPTION
- *   Destroy OVS DB object referenced by `pdb'.
+ *   Destroy OVS API internal data.
  *
  * PARAMETERS
- *   `pdb'         Pointer to OVS DB object.
+ *   `ovs'         Pointer to OVS object.
  *
  * RETURN VALUE
  *   Zero upon success or non-zero if an error occurred.
  */
-int ovs_db_destroy(ovs_db_t *pdb);
+int ovs_destroy(ovs_t *ovs);
 
 /*
  * NAME

@@ -5657,17 +5657,25 @@ database to get a link state change notification.
 B<Synopsis:>
 
  <Plugin "ovs_events">
-   Port 6640
-   Address "127.0.0.1"
-   Socket "/var/run/openvswitch/db.sock"
-   Interfaces "br0" "veth0"
+   <Instance hostname>
+     Port 6640
+     Address "127.0.0.1"
+     Socket "/var/run/openvswitch/db.sock"
+     Interfaces "br0" "veth0"
+     DispatchValues false
+   </Instance>
    SendNotification true
-   DispatchValues false
  </Plugin>
 
 The plugin provides the following configuration options:
 
-=over 4
+=head3 The Instance block
+
+This block describes the OVS DB server configuration. The name of the instance
+must be provided by the user. If no instance is configured, the default
+configuration with collectd hostname as a instance name is used.
+
+=over 5
 
 =item B<Address> I<node>
 
@@ -5697,16 +5705,20 @@ monitored.
 
 Default: empty (all interfaces on all bridges are monitored)
 
-=item B<SendNotification> I<true|false>
-
-If set to true, OVS link notifications (interface status and OVS DB connection
-terminate) are sent to collectd. Default value is true.
-
 =item B<DispatchValues> I<true|false>
 
 Dispatch the OVS DB interface link status value with configured plugin interval.
 Defaults to false. Please note, if B<SendNotification> and B<DispatchValues>
 options are false, no OVS information will be provided by the plugin.
+
+=back
+
+=over 4
+
+=item B<SendNotification> I<true|false>
+
+If set to true, OVS link notifications (interface status and OVS DB connection
+terminate) are sent to collectd. Default value is true.
 
 =back
 
@@ -5725,13 +5737,21 @@ statistics from OVSDB
 B<Synopsis:>
 
  <Plugin "ovs_stats">
-   Port 6640
-   Address "127.0.0.1"
-   Socket "/var/run/openvswitch/db.sock"
-   Bridges "br0" "br_ext"
+   <Instance hostname>
+     Port 6640
+     Address "127.0.0.1"
+     Socket "/var/run/openvswitch/db.sock"
+     Bridges "br0" "br_ext"
+   </Instance>
  </Plugin>
 
 The plugin provides the following configuration options:
+
+=head3 The Instance block
+
+This block describes the OVS DB server configuration. The name of the instance
+must be provided by the user. If no instance is configured, the default
+configuration with collectd hostname as a instance name is used.
 
 =over 4
 

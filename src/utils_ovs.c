@@ -102,10 +102,9 @@
 #define OVS_DB_POLL_READ_BLOCK_SIZE 512 /* read block size (bytes) */
 #define OVS_DB_DEFAULT_DB_NAME "Open_vSwitch"
 
-#define OVS_DB_EVENT_TIMEOUT 5 /* event thread timeout (sec) */
-#define OVS_DB_EVENT_TERMINATE 1
-#define OVS_DB_EVENT_CONN_ESTABLISHED 2
-#define OVS_DB_EVENT_CONN_TERMINATED 3
+#define OVS_DB_EVENT_TERMINATE 0
+#define OVS_DB_EVENT_CONN_ESTABLISHED 1
+#define OVS_DB_EVENT_CONN_TERMINATED 2
 
 #define OVS_DB_POLL_STATE_RUNNING 1
 #define OVS_DB_POLL_STATE_EXITING 2
@@ -121,6 +120,7 @@
 #define OVS_YAJL_ERROR_BUFFER_SIZE 1024
 #define OVS_ERROR_BUFF_SIZE 512
 #define OVS_UID_STR_SIZE 17 /* 64-bit HEX string len + '\0' */
+#define OVS_QUEUE_LEN 128   /* OvS queue length */
 
 /* JSON reader internal data */
 struct ovs_json_reader_s {
@@ -156,12 +156,28 @@ struct ovs_callback_s {
 };
 typedef struct ovs_callback_s ovs_callback_t;
 
+/* OVS DB event */
+struct ovs_db_event_s {
+  int id;        /* Event ID */
+  ovs_db_t *pdb; /* OVS DB pointer */
+};
+typedef struct ovs_db_event_s ovs_db_event_t;
+
+/* OVS event queue */
+struct ovs_equeue_s {
+  size_t size;
+  size_t head;
+  size_t tail;
+  pthread_mutex_t lock;
+  pthread_cond_t wait_event;
+  ovs_db_event_t *queue;
+};
+typedef struct ovs_equeue_s ovs_equeue_t;
+
 /* Event thread data declaration */
 struct ovs_event_thread_s {
   pthread_t tid;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-  int value;
+  ovs_equeue_t ev_queue;
 };
 typedef struct ovs_event_thread_s ovs_event_thread_t;
 
@@ -173,43 +189,102 @@ struct ovs_poll_thread_s {
 };
 typedef struct ovs_poll_thread_s ovs_poll_thread_t;
 
-/* OVS DB internal data declaration */
+/* OVS DB internal data */
 struct ovs_db_s {
+  int sock;                   /* OVS DB socket */
+  ovs_json_reader_t *jreader; /* JSON reader instance */
+  ovs_db_inst_t inst;         /* Instance data */
+  pthread_mutex_t mutex;      /* OVS DB lock */
+  ovs_callback_t *remote_cb;  /* Remote OVS DB callbacks */
+  struct ovs_db_s *next;      /* Pointer to the next OVS DB */
+};
+
+/* OVS internal data */
+struct ovs_s {
+  pthread_mutex_t mutex;
   ovs_poll_thread_t poll_thread;
   ovs_event_thread_t event_thread;
-  pthread_mutex_t mutex;
-  ovs_callback_t *remote_cb;
-  ovs_db_callback_t cb;
-  char service[OVS_DB_ADDR_SERVICE_SIZE];
-  char node[OVS_DB_ADDR_NODE_SIZE];
-  char unix_path[OVS_DB_ADDR_NODE_SIZE];
-  int sock;
+  ovs_db_t *db_list;
+  size_t db_num;
 };
 
 /* Global variables */
 static uint64_t ovs_uid = 0;
 static pthread_mutex_t ovs_uid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-/* Post an event to event thread.
+#if COLLECT_DEBUG
+/* Convert event ID to string */
+static const char *ovs_db_event_id_to_str(int event_id) {
+  const char *event_id_map[] = {"OVS_DB_EVENT_TERMINATE",
+                                "OVS_DB_EVENT_CONN_ESTABLISHED",
+                                "OVS_DB_EVENT_CONN_TERMINATED"};
+  if (event_id < 0 || event_id >= STATIC_ARRAY_SIZE(event_id_map))
+    return "UNKNOWN";
+
+  /* return event id string */
+  return event_id_map[event_id];
+}
+#endif
+
+/* Post an event to the OvS event queue. Returns zero on success and return
+ * positive value if the queue is full.
+ *
  * Possible events are:
  *  OVS_DB_EVENT_TERMINATE
  *  OVS_DB_EVENT_CONN_ESTABLISHED
  *  OVS_DB_EVENT_CONN_TERMINATED
  */
-static void ovs_db_event_post(ovs_db_t *pdb, int event) {
-  pthread_mutex_lock(&pdb->event_thread.mutex);
-  pdb->event_thread.value = event;
-  pthread_mutex_unlock(&pdb->event_thread.mutex);
-  pthread_cond_signal(&pdb->event_thread.cond);
+static int ovs_event_post(ovs_t *ovs, ovs_db_t *pdb, int event_id) {
+  OVS_DEBUG("Sending event %s ...", ovs_db_event_id_to_str(event_id));
+  ovs_equeue_t *ev_queue = &ovs->event_thread.ev_queue;
+
+  pthread_mutex_lock(&ev_queue->lock);
+  if ((ev_queue->head + 1) % ev_queue->size == ev_queue->tail) {
+    /* the queue is full, so return a positive value to
+     * inform caller about this */
+    pthread_mutex_unlock(&ev_queue->lock);
+    return 1;
+  }
+  /* post the event into OvS event queue */
+  ev_queue->queue[ev_queue->head] =
+      (ovs_db_event_t){.id = event_id, .pdb = pdb};
+  ev_queue->head = (ev_queue->head + 1) % ev_queue->size;
+
+  /* unlock the ovs_event_get() call and return success */
+  pthread_cond_signal(&ev_queue->wait_event);
+  pthread_mutex_unlock(&ev_queue->lock);
+  return 0;
+}
+
+/* Get an event from the OvS event queue. If the event queue is empty, then
+ * this call blocks until a new event becomes available */
+static ovs_db_event_t ovs_event_get(ovs_t *ovs) {
+  ovs_equeue_t *ev_queue = &ovs->event_thread.ev_queue;
+  ovs_db_event_t event = {0};
+
+  /* wait for incoming events */
+  pthread_mutex_lock(&ev_queue->lock);
+  while (ev_queue->head == ev_queue->tail)
+    pthread_cond_wait(&ev_queue->wait_event, &ev_queue->lock);
+
+  /* get event from the queue and zero it */
+  event = ev_queue->queue[ev_queue->tail];
+  ev_queue->queue[ev_queue->tail].pdb = NULL;
+  ev_queue->queue[ev_queue->tail].id = 0;
+
+  /* point to the next event in the queue */
+  ev_queue->tail = (ev_queue->tail + 1) % ev_queue->size;
+  pthread_mutex_unlock(&ev_queue->lock);
+  return event;
 }
 
 /* Check if POLL thread is still running. Returns
  * 1 if running otherwise 0 is returned */
-static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
+static _Bool ovs_db_poll_is_running(ovs_t *ovs) {
   int state = 0;
-  pthread_mutex_lock(&pdb->poll_thread.mutex);
-  state = pdb->poll_thread.state;
-  pthread_mutex_unlock(&pdb->poll_thread.mutex);
+  pthread_mutex_lock(&ovs->poll_thread.mutex);
+  state = ovs->poll_thread.state;
+  pthread_mutex_unlock(&ovs->poll_thread.mutex);
   return state == OVS_DB_POLL_STATE_RUNNING;
 }
 
@@ -314,8 +389,7 @@ static int ovs_db_data_send(const ovs_db_t *pdb, const char *data, size_t len) {
  */
 static yajl_gen_status ovs_yajl_gen_tstring(yajl_gen hander,
                                             const char *string) {
-  return yajl_gen_string(hander, (const unsigned char *)string,
-                         strlen(string));
+  return yajl_gen_string(hander, (const unsigned char *)string, strlen(string));
 }
 
 /* Add YAJL value into YAJL generator handle (JSON object)
@@ -497,7 +571,7 @@ static int ovs_db_table_update_cb(ovs_db_t *pdb, yajl_val jnode) {
   }
 
   /* call registered callback */
-  cb->table.call(jtable_updates);
+  cb->table.call(jtable_updates, pdb->inst.user_data.data);
   pthread_mutex_unlock(&pdb->mutex);
   return 0;
 }
@@ -529,7 +603,7 @@ static int ovs_db_result_cb(ovs_db_t *pdb, yajl_val jnode) {
   cb = ovs_db_table_callback_get(pdb, jid);
   if (cb != NULL && cb->result.call != NULL) {
     /* call registered callback */
-    cb->result.call(jresult, jerror);
+    cb->result.call(jresult, jerror, pdb->inst.user_data.data);
     /* unlock owner of the reply */
     sem_post(&cb->result.sync);
   }
@@ -589,7 +663,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
     if (ovs_db_result_cb(pdb, jnode) < 0)
       OVS_ERROR("handle result reply failed");
   } else
-    OVS_ERROR("connot find method or result failed");
+    OVS_ERROR("cannot find method or result failed");
 
   /* release memory */
   yajl_tree_free(jnode);
@@ -711,13 +785,13 @@ static void ovs_json_reader_free(ovs_json_reader_t *jreader) {
 /* Reconnect to OVS DB and call the OVS DB post connection init callback
  * if connection has been established.
  */
-static void ovs_db_reconnect(ovs_db_t *pdb) {
-  const char *node_info = pdb->node;
+static void ovs_db_reconnect(ovs_t *ovs, ovs_db_t *pdb) {
+  const char *node_info = pdb->inst.node;
   struct addrinfo *result;
 
-  if (pdb->unix_path[0] != '\0') {
+  if (pdb->inst.unix_path[0] != '\0') {
     /* use UNIX socket instead of INET address */
-    node_info = pdb->unix_path;
+    node_info = pdb->inst.unix_path;
     result = calloc(1, sizeof(struct addrinfo));
     struct sockaddr_un *sa_unix = calloc(1, sizeof(struct sockaddr_un));
     if (result == NULL || sa_unix == NULL) {
@@ -730,7 +804,7 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
     result->ai_addrlen = sizeof(*sa_unix);
     result->ai_addr = (struct sockaddr *)sa_unix;
     sa_unix->sun_family = result->ai_family;
-    sstrncpy(sa_unix->sun_path, pdb->unix_path, sizeof(sa_unix->sun_path));
+    sstrncpy(sa_unix->sun_path, pdb->inst.unix_path, sizeof(sa_unix->sun_path));
   } else {
     /* inet socket address */
     struct addrinfo hints;
@@ -741,7 +815,7 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
     hints.ai_socktype = SOCK_STREAM;
 
     /* get socket addresses */
-    int ret = getaddrinfo(pdb->node, pdb->service, &hints, &result);
+    int ret = getaddrinfo(pdb->inst.node, pdb->inst.service, &hints, &result);
     if (ret != 0) {
       OVS_ERROR("getaddrinfo(): %s", gai_strerror(ret));
       return;
@@ -762,8 +836,10 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
       OVS_DEBUG("connect(): %s [family=%d]", errbuff, rp->ai_family);
     } else {
       /* send notification to event thread */
-      ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
       pdb->sock = sock;
+      if (ovs_event_post(ovs, pdb, OVS_DB_EVENT_CONN_ESTABLISHED) > 0)
+        OVS_ERROR("Cannot send OVS_DB_EVENT_CONN_ESTABLISHED event."
+                  "Event queue is full");
       break;
     }
   }
@@ -774,81 +850,100 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
   freeaddrinfo(result);
 }
 
+/* Handle poll() event */
+static void ovs_db_process_poll_event(ovs_t *ovs, ovs_db_t *pdb, int events) {
+  if (events & POLLNVAL) {
+    /* invalid file descriptor, clean-up */
+    ovs_db_callback_remove_all(pdb);
+    ovs_json_reader_reset(pdb->jreader);
+    /* setting poll FD to -1 tells poll() call to ignore this FD.
+     * In that case poll() call will return timeout all the time */
+    pdb->sock = (-1);
+  } else if ((events & POLLERR) || (events & POLLHUP)) {
+    /* connection is broken */
+    close(pdb->sock);
+    if (ovs_event_post(ovs, pdb, OVS_DB_EVENT_CONN_TERMINATED) > 0)
+      OVS_ERROR("Cannot send OVS_DB_EVENT_CONN_TERMINATED event."
+                "Event queue is full");
+    OVS_ERROR("poll() peer closed its end of the channel");
+  } else if ((events & POLLIN) || (events & POLLPRI)) {
+    /* read incoming data */
+    char buff[OVS_DB_POLL_READ_BLOCK_SIZE];
+    ssize_t nbytes = recv(pdb->sock, buff, sizeof(buff), 0);
+    if (nbytes < 0) {
+      char errbuff[OVS_ERROR_BUFF_SIZE];
+      sstrerror(errno, errbuff, sizeof(errbuff));
+      OVS_ERROR("recv(): %s", errbuff);
+      /* read error? Try to reconnect */
+      close(pdb->sock);
+      return;
+    } else if (nbytes == 0) {
+      close(pdb->sock);
+      if (ovs_event_post(ovs, pdb, OVS_DB_EVENT_CONN_TERMINATED) > 0)
+        OVS_ERROR("Cannot send OVS_DB_EVENT_CONN_TERMINATED event."
+                  "Event queue is full");
+      OVS_ERROR("recv() peer has performed an orderly shutdown");
+      return;
+    }
+    /* read incoming data */
+    size_t json_len = 0;
+    const char *json = NULL;
+    OVS_DEBUG("recv(): received %zd bytes of data", nbytes);
+    ovs_json_reader_push_data(pdb->jreader, buff, nbytes);
+    while (!ovs_json_reader_pop(pdb->jreader, &json, &json_len))
+      /* process JSON data */
+      ovs_db_json_data_process(pdb, json, json_len);
+  }
+}
+
 /* POLL worker thread.
  * It listens on OVS DB connection for incoming
  * requests/reply/events etc. Also, it reconnects to OVS DB
  * if connection has been lost.
  */
 static void *ovs_poll_worker(void *arg) {
-  ovs_db_t *pdb = (ovs_db_t *)arg; /* pointer to OVS DB */
-  ovs_json_reader_t *jreader = NULL;
-  struct pollfd poll_fd = {
-      .fd = pdb->sock, .events = POLLIN | POLLPRI, .revents = 0,
-  };
+  ovs_t *ovs = (ovs_t *)arg; /* pointer to OVS object */
+  struct pollfd poll_fd[ovs->db_num];
+  ovs_db_t *poll_fd_map[ovs->db_num];
 
-  /* create JSON reader instance */
-  if ((jreader = ovs_json_reader_alloc()) == NULL) {
-    OVS_ERROR("initialize json reader failed");
-    return NULL;
+  /* init OVS DB poll() structures and create a [poll fd <-> ovs db] map */
+  ovs_db_t *pdb = ovs->db_list;
+  for (size_t i = 0; i < ovs->db_num; i++, pdb = pdb->next) {
+    poll_fd[i].events = POLLIN | POLLPRI;
+    poll_fd[i].fd = pdb->sock;
+    poll_fd[i].revents = 0;
+    poll_fd_map[i] = pdb;
   }
-
-  /* poll data */
-  while (ovs_db_poll_is_running(pdb)) {
-    char errbuff[OVS_ERROR_BUFF_SIZE];
-    poll_fd.fd = pdb->sock;
-    int poll_ret = poll(&poll_fd, 1, /* ms */ OVS_DB_POLL_TIMEOUT * 1000);
+  while (ovs_db_poll_is_running(ovs)) {
+    /* update poll() FDs */
+    for (size_t i = 0; i < ovs->db_num; i++) {
+      poll_fd[i].fd = poll_fd_map[i]->sock;
+    }
+    /* poll data from all instances */
+    int poll_ret = poll(poll_fd, ovs->db_num, /* ms */
+                        OVS_DB_POLL_TIMEOUT * 1000);
     if (poll_ret < 0) {
+      char errbuff[OVS_ERROR_BUFF_SIZE];
       sstrerror(errno, errbuff, sizeof(errbuff));
       OVS_ERROR("poll(): %s", errbuff);
       break;
     } else if (poll_ret == 0) {
       OVS_DEBUG("poll(): timeout");
-      if (pdb->sock < 0)
-        /* invalid fd, so try to reconnect */
-        ovs_db_reconnect(pdb);
+      /* try to restart OVS DB connections */
+      for (ovs_db_t *pdb = ovs->db_list; pdb != NULL; pdb = pdb->next) {
+        if (pdb->sock < 0)
+          /* invalid fd, so try to reconnect */
+          ovs_db_reconnect(ovs, pdb);
+      }
       continue;
     }
-    if (poll_fd.revents & POLLNVAL) {
-      /* invalid file descriptor, clean-up */
-      ovs_db_callback_remove_all(pdb);
-      ovs_json_reader_reset(jreader);
-      /* setting poll FD to -1 tells poll() call to ignore this FD.
-       * In that case poll() call will return timeout all the time */
-      pdb->sock = (-1);
-    } else if ((poll_fd.revents & POLLERR) || (poll_fd.revents & POLLHUP)) {
-      /* connection is broken */
-      close(poll_fd.fd);
-      ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_TERMINATED);
-      OVS_ERROR("poll() peer closed its end of the channel");
-    } else if ((poll_fd.revents & POLLIN) || (poll_fd.revents & POLLPRI)) {
-      /* read incoming data */
-      char buff[OVS_DB_POLL_READ_BLOCK_SIZE];
-      ssize_t nbytes = recv(poll_fd.fd, buff, sizeof(buff), 0);
-      if (nbytes < 0) {
-        sstrerror(errno, errbuff, sizeof(errbuff));
-        OVS_ERROR("recv(): %s", errbuff);
-        /* read error? Try to reconnect */
-        close(poll_fd.fd);
-        continue;
-      } else if (nbytes == 0) {
-        close(poll_fd.fd);
-        ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_TERMINATED);
-        OVS_ERROR("recv() peer has performed an orderly shutdown");
-        continue;
-      }
-      /* read incoming data */
-      size_t json_len = 0;
-      const char *json = NULL;
-      OVS_DEBUG("recv(): received %zd bytes of data", nbytes);
-      ovs_json_reader_push_data(jreader, buff, nbytes);
-      while (!ovs_json_reader_pop(jreader, &json, &json_len))
-        /* process JSON data */
-        ovs_db_json_data_process(pdb, json, json_len);
+    /* process poll event for each OVS DB */
+    for (size_t i = 0; i < ovs->db_num; i++) {
+      if (poll_fd[i].revents)
+        ovs_db_process_poll_event(ovs, poll_fd_map[i], poll_fd[i].revents);
     }
   }
-
   OVS_DEBUG("poll thread has been completed");
-  ovs_json_reader_free(jreader);
   return NULL;
 }
 
@@ -858,39 +953,34 @@ static void *ovs_poll_worker(void *arg) {
  * handle OVS DB callback like 'init_cb'.
  */
 static void *ovs_event_worker(void *arg) {
-  ovs_db_t *pdb = (ovs_db_t *)arg;
+  ovs_t *ovs = (ovs_t *)arg;
+  ovs_db_event_t event;
 
-  while (pdb->event_thread.value != OVS_DB_EVENT_TERMINATE) {
-    /* wait for an event */
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += (OVS_DB_EVENT_TIMEOUT);
-    int ret = pthread_cond_timedwait(&pdb->event_thread.cond,
-                                     &pdb->event_thread.mutex, &ts);
-    if (!ret) {
-      /* handle the event */
-      OVS_DEBUG("handle event %d", pdb->event_thread.value);
-      switch (pdb->event_thread.value) {
-      case OVS_DB_EVENT_CONN_ESTABLISHED:
-        if (pdb->cb.post_conn_init)
-          pdb->cb.post_conn_init(pdb);
-        break;
-      case OVS_DB_EVENT_CONN_TERMINATED:
-        if (pdb->cb.post_conn_terminate)
-          pdb->cb.post_conn_terminate();
-        break;
-      default:
-        OVS_DEBUG("unknown event received");
-        break;
-      }
-    } else if (ret == ETIMEDOUT) {
-      /* wait timeout */
-      OVS_DEBUG("no event received (timeout)");
-      continue;
-    } else {
-      /* unexpected error */
-      OVS_ERROR("pthread_cond_timedwait() failed");
+  /* unlock the event queue lock, previously locked on
+   * the thread initialization */
+  pthread_mutex_unlock(&ovs->event_thread.ev_queue.lock);
+  while (1) {
+    /* wait for incoming event */
+    event = ovs_event_get(ovs);
+
+    /* handle the event */
+    OVS_DEBUG("Handling event %s", ovs_db_event_id_to_str(event.id));
+    ovs_db_t *pdb = event.pdb;
+    switch (event.id) {
+    case OVS_DB_EVENT_CONN_ESTABLISHED:
+      if (pdb->inst.cb.post_conn_init)
+        pdb->inst.cb.post_conn_init(pdb, pdb->inst.user_data.data);
       break;
+    case OVS_DB_EVENT_CONN_TERMINATED:
+      if (pdb->inst.cb.post_conn_terminate)
+        pdb->inst.cb.post_conn_terminate(pdb, pdb->inst.user_data.data);
+      break;
+    case OVS_DB_EVENT_TERMINATE:
+      OVS_DEBUG("event thread has been terminated");
+      return NULL;
+    default:
+      OVS_ERROR("unknown event received");
+      return (void *)-1;
     }
   }
 
@@ -899,155 +989,218 @@ static void *ovs_event_worker(void *arg) {
 }
 
 /* Initialize EVENT thread */
-static int ovs_db_event_thread_init(ovs_db_t *pdb) {
-  pdb->event_thread.tid = (pthread_t)-1;
-  /* init event thread condition variable */
-  if (pthread_cond_init(&pdb->event_thread.cond, NULL)) {
+static int ovs_db_event_thread_init(ovs_t *ovs) {
+  ovs->event_thread.tid = (pthread_t)-1;
+
+  /* init the OvS event queue */
+  ovs_equeue_t *ev_queue = &ovs->event_thread.ev_queue;
+  memset(ev_queue, 0, sizeof(*ev_queue));
+  ev_queue->size = OVS_QUEUE_LEN + 1;
+  ev_queue->queue = calloc(ev_queue->size, sizeof(*ev_queue->queue));
+  if (ev_queue->queue == NULL)
+    return -1;
+
+  /* init event queue condition variable */
+  if (pthread_cond_init(&ev_queue->wait_event, NULL)) {
+    sfree(ev_queue->queue);
     return -1;
   }
-  /* init event thread mutex */
-  if (pthread_mutex_init(&pdb->event_thread.mutex, NULL)) {
-    pthread_cond_destroy(&pdb->event_thread.cond);
+  /* init event queue lock */
+  if (pthread_mutex_init(&ev_queue->lock, NULL)) {
+    pthread_cond_destroy(&ev_queue->wait_event);
+    sfree(ev_queue->queue);
     return -1;
   }
   /* Hold the event thread mutex. It ensures that no events
    * will be lost while thread is still starting. Once event
    * thread is started and ready to accept events, it will release
    * the mutex */
-  if (pthread_mutex_lock(&pdb->event_thread.mutex)) {
-    pthread_mutex_destroy(&pdb->event_thread.mutex);
-    pthread_cond_destroy(&pdb->event_thread.cond);
+  if (pthread_mutex_lock(&ev_queue->lock)) {
+    pthread_mutex_destroy(&ev_queue->lock);
+    pthread_cond_destroy(&ev_queue->wait_event);
+    sfree(ev_queue->queue);
     return -1;
   }
   /* start event thread */
   pthread_t tid;
-  if (plugin_thread_create(&tid, NULL, ovs_event_worker, pdb,
+  if (plugin_thread_create(&tid, NULL, ovs_event_worker, ovs,
                            "utils_ovs:event") != 0) {
-    pthread_mutex_unlock(&pdb->event_thread.mutex);
-    pthread_mutex_destroy(&pdb->event_thread.mutex);
-    pthread_cond_destroy(&pdb->event_thread.cond);
+    pthread_mutex_unlock(&ev_queue->lock);
+    pthread_mutex_destroy(&ev_queue->lock);
+    pthread_cond_destroy(&ev_queue->wait_event);
+    sfree(ev_queue->queue);
     return -1;
   }
-  pdb->event_thread.tid = tid;
+  ovs->event_thread.tid = tid;
   return 0;
 }
 
 /* Destroy EVENT thread */
-static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->event_thread.tid == (pthread_t)-1)
+static int ovs_db_event_thread_destroy(ovs_t *ovs) {
+  if (ovs->event_thread.tid == (pthread_t)-1)
     /* already destroyed */
     return 0;
-  ovs_db_event_post(pdb, OVS_DB_EVENT_TERMINATE);
-  if (pthread_join(pdb->event_thread.tid, NULL) != 0)
+
+  /* terminate the thread */
+  if (ovs_event_post(ovs, NULL, OVS_DB_EVENT_TERMINATE) != 0) {
+    OVS_ERROR("Send OVS_DB_EVENT_TERMINATE event failed");
     return -1;
-  /* Event thread always holds the thread mutex when
-   * performs some task (handles event) and releases it when
-   * while sleeping. Thus, if event thread exits, the mutex
-   * remains locked */
-  pthread_mutex_unlock(&pdb->event_thread.mutex);
-  pthread_mutex_destroy(&pdb->event_thread.mutex);
-  pthread_cond_destroy(&pdb->event_thread.cond);
-  pdb->event_thread.tid = (pthread_t)-1;
+  }
+  if (pthread_join(ovs->event_thread.tid, NULL) != 0)
+    return -1;
+
+  /* destroy the OvS event queue */
+  ovs_equeue_t *ev_queue = &ovs->event_thread.ev_queue;
+  pthread_mutex_destroy(&ev_queue->lock);
+  pthread_cond_destroy(&ev_queue->wait_event);
+  ovs->event_thread.tid = (pthread_t)-1;
+  sfree(ev_queue->queue);
   return 0;
 }
 
 /* Initialize POLL thread */
-static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
-  pdb->poll_thread.tid = (pthread_t)-1;
+static int ovs_db_poll_thread_init(ovs_t *ovs) {
+  ovs->poll_thread.tid = (pthread_t)-1;
   /* init event thread mutex */
-  if (pthread_mutex_init(&pdb->poll_thread.mutex, NULL)) {
+  if (pthread_mutex_init(&ovs->poll_thread.mutex, NULL)) {
     return -1;
   }
   /* start poll thread */
   pthread_t tid;
-  pdb->poll_thread.state = OVS_DB_POLL_STATE_RUNNING;
-  if (plugin_thread_create(&tid, NULL, ovs_poll_worker, pdb,
+  ovs->poll_thread.state = OVS_DB_POLL_STATE_RUNNING;
+  if (plugin_thread_create(&tid, NULL, ovs_poll_worker, ovs,
                            "utils_ovs:poll") != 0) {
-    pthread_mutex_destroy(&pdb->poll_thread.mutex);
+    pthread_mutex_destroy(&ovs->poll_thread.mutex);
     return -1;
   }
-  pdb->poll_thread.tid = tid;
+  ovs->poll_thread.tid = tid;
   return 0;
 }
 
 /* Destroy POLL thread */
-static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->poll_thread.tid == (pthread_t)-1)
+static int ovs_db_poll_thread_destroy(ovs_t *ovs) {
+  if (ovs->poll_thread.tid == (pthread_t)-1)
     /* already destroyed */
     return 0;
   /* change thread state */
-  pthread_mutex_lock(&pdb->poll_thread.mutex);
-  pdb->poll_thread.state = OVS_DB_POLL_STATE_EXITING;
-  pthread_mutex_unlock(&pdb->poll_thread.mutex);
+  pthread_mutex_lock(&ovs->poll_thread.mutex);
+  ovs->poll_thread.state = OVS_DB_POLL_STATE_EXITING;
+  pthread_mutex_unlock(&ovs->poll_thread.mutex);
   /* join the thread */
-  if (pthread_join(pdb->poll_thread.tid, NULL) != 0)
+  if (pthread_join(ovs->poll_thread.tid, NULL) != 0)
     return -1;
-  pthread_mutex_destroy(&pdb->poll_thread.mutex);
-  pdb->poll_thread.tid = (pthread_t)-1;
+  pthread_mutex_destroy(&ovs->poll_thread.mutex);
+  ovs->poll_thread.tid = (pthread_t)-1;
   return 0;
+}
+
+/* create a new OVS DB */
+static ovs_db_t *ovs_db_create_new() {
+  ovs_db_t *new_db = calloc(sizeof(*new_db), 1);
+  if (new_db == NULL)
+    return NULL;
+
+  /* init OVS DB mutex attributes */
+  pthread_mutexattr_t mutex_attr;
+  if (pthread_mutexattr_init(&mutex_attr)) {
+    sfree(new_db);
+    return NULL;
+  }
+  /* set OVS DB mutex as recursive */
+  if (pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE)) {
+    pthread_mutexattr_destroy(&mutex_attr);
+    sfree(new_db);
+    return NULL;
+  }
+  /* init OVS DB mutex */
+  if (pthread_mutex_init(&new_db->mutex, &mutex_attr)) {
+    pthread_mutexattr_destroy(&mutex_attr);
+    sfree(new_db);
+    return NULL;
+  }
+  /* destroy mutex attributes */
+  pthread_mutexattr_destroy(&mutex_attr);
+
+  /* create JSON reader instance */
+  if ((new_db->jreader = ovs_json_reader_alloc()) == NULL) {
+    pthread_mutex_destroy(&new_db->mutex);
+    sfree(new_db);
+    return NULL;
+  }
+  new_db->sock = -1;
+  return new_db;
+}
+
+/* Destroy OVS DB */
+static void ovs_db_destroy(ovs_db_t *pdb) {
+  /* lock the structure */
+  pthread_mutex_lock(&pdb->mutex);
+
+  /* unsubscribe callbacks */
+  ovs_db_callback_remove_all(pdb);
+
+  /* close connection */
+  if (pdb->sock >= 0)
+    close(pdb->sock);
+
+  /* release DB handler */
+  pthread_mutex_unlock(&pdb->mutex);
+  pthread_mutex_destroy(&pdb->mutex);
+
+  /* release memory */
+  if (pdb->inst.user_data.data != NULL &&
+      pdb->inst.user_data.free_func != NULL) {
+    pdb->inst.user_data.free_func(pdb->inst.user_data.data);
+  }
+  ovs_json_reader_free(pdb->jreader);
+  sfree(pdb);
 }
 
 /*
  * Public OVS DB API implementation
  */
 
-ovs_db_t *ovs_db_init(const char *node, const char *service,
-                      const char *unix_path, ovs_db_callback_t *cb) {
+ovs_t *ovs_init(const ovs_db_inst_t *instances, size_t num) {
   /* sanity check */
-  if (node == NULL || service == NULL || unix_path == NULL)
+  if (instances == NULL || !num)
     return NULL;
 
-  /* allocate db data & fill it */
-  ovs_db_t *pdb = pdb = calloc(1, sizeof(*pdb));
-  if (pdb == NULL)
-    return NULL;
-
-  /* store the OVS DB address */
-  sstrncpy(pdb->node, node, sizeof(pdb->node));
-  sstrncpy(pdb->service, service, sizeof(pdb->service));
-  sstrncpy(pdb->unix_path, unix_path, sizeof(pdb->unix_path));
-
-  /* setup OVS DB callbacks */
-  if (cb)
-    pdb->cb = *cb;
-
-  /* init OVS DB mutex attributes */
-  pthread_mutexattr_t mutex_attr;
-  if (pthread_mutexattr_init(&mutex_attr)) {
-    OVS_ERROR("OVS DB mutex attribute init failed");
-    sfree(pdb);
+  /* allocate new OVS instance that will be returned to the caller */
+  ovs_t *ovs = calloc(sizeof(*ovs), 1);
+  if (ovs == NULL) {
+    ovs_destroy(ovs);
     return NULL;
   }
-  /* set OVS DB mutex as recursive */
-  if (pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE)) {
-    OVS_ERROR("Failed to set OVS DB mutex as recursive");
-    pthread_mutexattr_destroy(&mutex_attr);
-    sfree(pdb);
+  /* init OVS mutex */
+  if (pthread_mutex_init(&ovs->mutex, NULL)) {
+    OVS_ERROR("init OVS mutex failed");
     return NULL;
   }
-  /* init OVS DB mutex */
-  if (pthread_mutex_init(&pdb->mutex, &mutex_attr)) {
-    OVS_ERROR("OVS DB mutex init failed");
-    pthread_mutexattr_destroy(&mutex_attr);
-    sfree(pdb);
-    return NULL;
+  /* create OVS DB instances */
+  for (size_t i = 0; i < num; i++, instances++) {
+    ovs_db_t *new_db = ovs_db_create_new();
+    if (new_db == NULL) {
+      OVS_ERROR("create new OVS DB failed");
+      ovs_destroy(ovs);
+      return NULL;
+    }
+    /* add new OVS DB to the OVS object */
+    new_db->inst = *instances;
+    new_db->next = ovs->db_list;
+    ovs->db_list = new_db;
   }
-  /* destroy mutex attributes */
-  pthread_mutexattr_destroy(&mutex_attr);
-
+  ovs->db_num = num;
   /* init event thread */
-  if (ovs_db_event_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
+  if (ovs_db_event_thread_init(ovs) < 0) {
+    ovs_destroy(ovs);
     return NULL;
   }
-
   /* init polling thread */
-  pdb->sock = -1;
-  if (ovs_db_poll_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
+  if (ovs_db_poll_thread_init(ovs) < 0) {
+    ovs_destroy(ovs);
     return NULL;
   }
-  return pdb;
+  return ovs;
 }
 
 int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
@@ -1240,43 +1393,42 @@ yajl_gen_failure:
   return ovs_db_ret;
 }
 
-int ovs_db_destroy(ovs_db_t *pdb) {
+int ovs_destroy(ovs_t *ovs) {
   int ovs_db_ret = 0;
   int ret = 0;
 
   /* sanity check */
-  if (pdb == NULL)
+  if (ovs == NULL)
     return -1;
 
   /* try to lock the structure before releasing */
-  if ((ret = pthread_mutex_lock(&pdb->mutex))) {
-    OVS_ERROR("pthread_mutex_lock() DB mutex lock failed (%d)", ret);
+  if ((ret = pthread_mutex_lock(&ovs->mutex))) {
+    OVS_ERROR("pthread_mutex_lock() OVS mutex lock failed (%d)", ret);
     return -1;
   }
-
   /* stop poll thread */
-  if (ovs_db_event_thread_destroy(pdb) < 0) {
+  if (ovs_db_event_thread_destroy(ovs) < 0) {
     OVS_ERROR("destroy poll thread failed");
     ovs_db_ret = (-1);
   }
-
   /* stop event thread */
-  if (ovs_db_poll_thread_destroy(pdb) < 0) {
+  if (ovs_db_poll_thread_destroy(ovs) < 0) {
     OVS_ERROR("stop event thread failed");
     ovs_db_ret = (-1);
   }
+  /* destroy list of OVS DB instances */
+  for (ovs_db_t *del_db = ovs->db_list; del_db != NULL; del_db = ovs->db_list) {
+    ovs->db_list = del_db->next;
+    ovs_db_destroy(del_db);
+  }
+  ovs->db_list = NULL;
 
-  /* unsubscribe callbacks */
-  ovs_db_callback_remove_all(pdb);
-
-  /* close connection */
-  if (pdb->sock >= 0)
-    close(pdb->sock);
-
-  /* release DB handler */
-  pthread_mutex_unlock(&pdb->mutex);
-  pthread_mutex_destroy(&pdb->mutex);
-  sfree(pdb);
+  /* unlock and destroy the mutex */
+  if ((ret = pthread_mutex_unlock(&ovs->mutex))) {
+    OVS_ERROR("pthread_mutex_unlock() OVS mutex unlock failed (%d)", ret);
+    ovs_db_ret = (-1);
+  }
+  pthread_mutex_destroy(&ovs->mutex);
   return ovs_db_ret;
 }
 
