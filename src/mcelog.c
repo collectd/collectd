@@ -380,6 +380,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
 
       if (n.meta)
         plugin_notification_meta_free(n.meta);
+        n.meta = NULL;
     }
   }
 
@@ -404,9 +405,9 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
                sizeof(n.type_instance));
       n.severity = NOTIF_FAILURE;
       plugin_dispatch_notification(&n);
-
       if (n.meta)
         plugin_notification_meta_free(n.meta);
+        n.meta = NULL;
     }
   }
 
