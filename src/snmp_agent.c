@@ -545,8 +545,8 @@ static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
   }
 
   requests->requestvb->type = dd->oids[oid_index].type;
-  snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type, data,
-                           data_len);
+  snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
+                           (const u_char *)data, data_len);
 
   return SNMP_ERR_NOERROR;
 }
@@ -617,7 +617,7 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
         if (dd->is_instance) {
           requests->requestvb->type = ASN_OCTET_STR;
           snmp_set_var_typed_value(requests->requestvb,
-                                   requests->requestvb->type, instance,
+                                   requests->requestvb->type, (const u_char *)instance,
                                    strlen((instance)));
 
           pthread_mutex_unlock(&g_agent->lock);
@@ -678,7 +678,7 @@ static int snmp_agent_table_index_oid_handler(
 
       requests->requestvb->type = ASN_INTEGER;
       snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
-                               &index, sizeof(index));
+                               (const u_char *)&index, sizeof(index));
 
       pthread_mutex_unlock(&g_agent->lock);
 
@@ -724,7 +724,7 @@ static int snmp_agent_table_size_oid_handler(
 
       requests->requestvb->type = td->size_oid.type;
       snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
-                               &size, sizeof(size));
+                               (const u_char *)&size, sizeof(size));
 
       pthread_mutex_unlock(&g_agent->lock);
 
