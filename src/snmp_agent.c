@@ -43,10 +43,6 @@
 #define ERR_BUF_SIZE 1024
 #define TYPE_STRING -1
 
-#ifndef MIN
-#define MIN(x, y) ((x) < (y) ? (x) : (y))
-#endif
-
 struct oid_s {
   oid oid[MAX_OID_LEN];
   size_t oid_len;
@@ -131,10 +127,44 @@ static int snmp_agent_oid_to_string(char *buf, size_t buf_size,
   return strjoin(buf, buf_size, oid_str_ptr, o->oid_len, ".");
 }
 
-static void snmp_agent_dump_data(void) {
+/* Prints a configuration storing list. It handles both table columns list
+   and scalars list */
 #if COLLECT_DEBUG
+static void snmp_agent_dump_data(llist_t *list) {
+  char oid_str[DATA_MAX_NAME_LEN];
+  for (llentry_t *de = llist_head(list); de != NULL; de = de->next) {
+    data_definition_t *dd = de->value;
+
+    if (dd->table != NULL)
+      DEBUG(PLUGIN_NAME ":   Column:");
+    else
+      DEBUG(PLUGIN_NAME ": Scalar:");
+
+    DEBUG(PLUGIN_NAME ":     Name: %s", dd->name);
+    if (dd->plugin)
+      DEBUG(PLUGIN_NAME ":     Plugin: %s", dd->plugin);
+    if (dd->plugin_instance)
+      DEBUG(PLUGIN_NAME ":     PluginInstance: %s", dd->plugin_instance);
+    if (dd->is_instance)
+      DEBUG(PLUGIN_NAME ":     Instance: true");
+    if (dd->type)
+      DEBUG(PLUGIN_NAME ":     Type: %s", dd->type);
+    if (dd->type_instance)
+      DEBUG(PLUGIN_NAME ":     TypeInstance: %s", dd->type_instance);
+    for (size_t i = 0; i < dd->oids_len; i++) {
+      snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
+      DEBUG(PLUGIN_NAME ":     OID[%" PRIsz "]: %s", i, oid_str);
+    }
+    DEBUG(PLUGIN_NAME ":   Scale: %g", dd->scale);
+    DEBUG(PLUGIN_NAME ":   Shift: %g", dd->shift);
+  }
+}
+
+/* Prints parsed configuration */
+static void snmp_agent_dump_config(void) {
   char oid_str[DATA_MAX_NAME_LEN];
 
+  /* Printing tables */
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
 
@@ -149,58 +179,19 @@ static void snmp_agent_dump_data(void) {
       DEBUG(PLUGIN_NAME ":   SizeOID: %s", oid_str);
     }
 
-    for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
-      data_definition_t *dd = de->value;
-
-      DEBUG(PLUGIN_NAME ":   Column:");
-      DEBUG(PLUGIN_NAME ":     Name: %s", dd->name);
-      if (dd->plugin)
-        DEBUG(PLUGIN_NAME ":     Plugin: %s", dd->plugin);
-      if (dd->plugin_instance)
-        DEBUG(PLUGIN_NAME ":     PluginInstance: %s", dd->plugin_instance);
-      if (dd->is_instance)
-        DEBUG(PLUGIN_NAME ":     Instance: true");
-      if (dd->type)
-        DEBUG(PLUGIN_NAME ":     Type: %s", dd->type);
-      if (dd->type_instance)
-        DEBUG(PLUGIN_NAME ":     TypeInstance: %s", dd->type_instance);
-      for (size_t i = 0; i < dd->oids_len; i++) {
-        snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
-        DEBUG(PLUGIN_NAME ":     OID[%" PRIsz "]: %s", i, oid_str);
-      }
-      DEBUG(PLUGIN_NAME ":   Scale: %g", dd->scale);
-      DEBUG(PLUGIN_NAME ":   Shift: %g", dd->shift);
-    }
+    snmp_agent_dump_data(td->columns);
   }
 
-  for (llentry_t *e = llist_head(g_agent->scalars); e != NULL; e = e->next) {
-    data_definition_t *dd = e->value;
-
-    DEBUG(PLUGIN_NAME ": Scalar:");
-    DEBUG(PLUGIN_NAME ":   Name: %s", dd->name);
-    if (dd->plugin)
-      DEBUG(PLUGIN_NAME ":   Plugin: %s", dd->plugin);
-    if (dd->plugin_instance)
-      DEBUG(PLUGIN_NAME ":   PluginInstance: %s", dd->plugin_instance);
-    if (dd->is_instance)
-      DEBUG(PLUGIN_NAME ":   Instance: true");
-    if (dd->type)
-      DEBUG(PLUGIN_NAME ":   Type: %s", dd->type);
-    if (dd->type_instance)
-      DEBUG(PLUGIN_NAME ":   TypeInstance: %s", dd->type_instance);
-    for (size_t i = 0; i < dd->oids_len; i++) {
-      snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
-      DEBUG(PLUGIN_NAME ":   OID[%" PRIsz "]: %s", i, oid_str);
-    }
-    DEBUG(PLUGIN_NAME ":   Scale: %g", dd->scale);
-    DEBUG(PLUGIN_NAME ":   Shift: %g", dd->shift);
-  }
-#endif /* COLLECT_DEBUG */
+  /* Printing scalars */
+  snmp_agent_dump_data(g_agent->scalars);
 }
+#endif /* COLLECT_DEBUG */
 
-static int snmp_agent_validate_data(void) {
+static int snmp_agent_validate_config(void) {
 
-  snmp_agent_dump_data();
+#if COLLECT_DEBUG
+  snmp_agent_dump_config();
+#endif
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
@@ -598,7 +589,7 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
       for (size_t i = 0; i < dd->oids_len; i++) {
         int ret = snmp_oid_ncompare(oid.oid, oid.oid_len, dd->oids[i].oid,
                                     dd->oids[i].oid_len,
-                                    MIN(oid.oid_len, dd->oids[i].oid_len));
+                                    SNMP_MIN(oid.oid_len, dd->oids[i].oid_len));
         if (ret != 0)
           continue;
 
@@ -609,7 +600,7 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
 
           memset(key, 0, sizeof(key));
           snmp_agent_generate_oid2string(
-              &oid, MIN(oid.oid_len, dd->oids[i].oid_len), key);
+              &oid, SNMP_MIN(oid.oid_len, dd->oids[i].oid_len), key);
 
           ret = c_avl_get(td->instance_index, key, (void **)&instance);
           if (ret != 0) {
@@ -675,9 +666,9 @@ static int snmp_agent_table_index_oid_handler(
     table_definition_t *td = te->value;
 
     if (td->index_oid.oid_len &&
-        (snmp_oid_ncompare(oid.oid, oid.oid_len, td->index_oid.oid,
-                           td->index_oid.oid_len,
-                           MIN(oid.oid_len, td->index_oid.oid_len)) == 0)) {
+        (snmp_oid_ncompare(
+             oid.oid, oid.oid_len, td->index_oid.oid, td->index_oid.oid_len,
+             SNMP_MIN(oid.oid_len, td->index_oid.oid_len)) == 0)) {
 
       DEBUG(PLUGIN_NAME ": Handle '%s' table index OID", td->name);
 
@@ -731,12 +722,12 @@ static int snmp_agent_table_size_oid_handler(
     if (td->size_oid.oid_len &&
         (snmp_oid_ncompare(oid.oid, oid.oid_len, td->size_oid.oid,
                            td->size_oid.oid_len,
-                           MIN(oid.oid_len, td->size_oid.oid_len)) == 0)) {
+                           SNMP_MIN(oid.oid_len, td->size_oid.oid_len)) == 0)) {
       DEBUG(PLUGIN_NAME ": Handle '%s' table size OID", td->name);
 
       long size = c_avl_size(td->index_instance);
 
-      requests->requestvb->type = td->size_oid.type;
+      requests->requestvb->type = ASN_INTEGER;
       snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
                                (const u_char *)&size, sizeof(size));
 
@@ -935,8 +926,10 @@ static int snmp_agent_config_table_index_oid(table_definition_t *td,
   return 0;
 }
 
-static int snmp_agent_config_table_data(table_definition_t *td,
-                                        oconfig_item_t *ci) {
+/* This function parses configuration of both scalar and table column
+ * because they have nearly the same structure */
+static int snmp_agent_config_table_column(table_definition_t *td,
+                                          oconfig_item_t *ci) {
   data_definition_t *dd;
   int ret = 0;
 
@@ -956,13 +949,14 @@ static int snmp_agent_config_table_data(table_definition_t *td,
 
   dd->scale = 1.0;
   dd->shift = 0.0;
-
+  /* NULL if it's a scalar */
   dd->table = td;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
-    if (strcasecmp("Instance", option->key) == 0)
+    /* Instance option is reserved for table entry only */
+    if (strcasecmp("Instance", option->key) == 0 && td != NULL)
       ret = cf_util_get_boolean(option, &dd->is_instance);
     else if (strcasecmp("Plugin", option->key) == 0)
       ret = cf_util_get_string(option, &dd->plugin);
@@ -995,71 +989,16 @@ static int snmp_agent_config_table_data(table_definition_t *td,
     return -ENOMEM;
   }
 
-  llist_append(td->columns, entry);
+  /* Append to column list in parent table */
+  if (td != NULL)
+    llist_append(td->columns, entry);
 
   return 0;
 }
 
-static int snmp_agent_config_data(oconfig_item_t *ci) {
-  data_definition_t *dd;
-  int ret = 0;
-
-  assert(ci != NULL);
-
-  dd = calloc(1, sizeof(*dd));
-  if (dd == NULL) {
-    ERROR(PLUGIN_NAME ": Failed to allocate memory for data definition");
-    return -ENOMEM;
-  }
-
-  ret = cf_util_get_string(ci, &dd->name);
-  if (ret != 0) {
-    free(dd);
-    return -1;
-  }
-
-  dd->scale = 1.0;
-  dd->shift = 0.0;
-
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *option = ci->children + i;
-
-    if (strcasecmp("Instance", option->key) == 0)
-      ret = cf_util_get_boolean(option, &dd->is_instance);
-    else if (strcasecmp("Plugin", option->key) == 0)
-      ret = cf_util_get_string(option, &dd->plugin);
-    else if (strcasecmp("PluginInstance", option->key) == 0)
-      ret = cf_util_get_string(option, &dd->plugin_instance);
-    else if (strcasecmp("Type", option->key) == 0)
-      ret = cf_util_get_string(option, &dd->type);
-    else if (strcasecmp("TypeInstance", option->key) == 0)
-      ret = cf_util_get_string(option, &dd->type_instance);
-    else if (strcasecmp("Shift", option->key) == 0)
-      ret = cf_util_get_double(option, &dd->shift);
-    else if (strcasecmp("Scale", option->key) == 0)
-      ret = cf_util_get_double(option, &dd->scale);
-    else if (strcasecmp("OIDs", option->key) == 0)
-      ret = snmp_agent_config_data_oids(dd, option);
-    else {
-      WARNING(PLUGIN_NAME ": Option `%s' not allowed here", option->key);
-      ret = -1;
-    }
-
-    if (ret != 0) {
-      snmp_agent_free_data(&dd);
-      return -1;
-    }
-  }
-
-  llentry_t *entry = llentry_create(dd->name, dd);
-  if (entry == NULL) {
-    snmp_agent_free_data(&dd);
-    return -ENOMEM;
-  }
-
-  llist_append(g_agent->scalars, entry);
-
-  return 0;
+/* Parses scalar configuration entry */
+static int snmp_agent_config_scalar(oconfig_item_t *ci) {
+  return snmp_agent_config_table_column(NULL, ci);
 }
 
 static int num_compare(const int *a, const int *b) {
@@ -1105,7 +1044,7 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
     else if (strcasecmp("SizeOID", option->key) == 0)
       ret = snmp_agent_config_table_size_oid(td, option);
     else if (strcasecmp("Data", option->key) == 0)
-      ret = snmp_agent_config_table_data(td, option);
+      ret = snmp_agent_config_table_column(td, option);
     else {
       WARNING(PLUGIN_NAME ": Option `%s' not allowed here", option->key);
       ret = -1;
@@ -1363,10 +1302,6 @@ static int snmp_agent_collect(const data_set_t *ds, const value_list_t *vl,
 }
 
 static int snmp_agent_preinit(void) {
-  if (g_agent != NULL) {
-    /* already initialized if config callback was called before init callback */
-    return 0;
-  }
 
   g_agent = calloc(1, sizeof(*g_agent));
   if (g_agent == NULL) {
@@ -1385,7 +1320,7 @@ static int snmp_agent_preinit(void) {
   }
 
   int err;
-  /* make us a agentx client. */
+  /* make us an agentx client. */
   err = netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE,
                                1);
   if (err != 0) {
@@ -1571,7 +1506,7 @@ static int snmp_agent_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("Data", child->key) == 0) {
-      ret = snmp_agent_config_data(child);
+      ret = snmp_agent_config_scalar(child);
     } else if (strcasecmp("Table", child->key) == 0) {
       ret = snmp_agent_config_table(child);
     } else {
@@ -1588,7 +1523,7 @@ static int snmp_agent_config(oconfig_item_t *ci) {
     }
   }
 
-  ret = snmp_agent_validate_data();
+  ret = snmp_agent_validate_config();
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Invalid configuration provided");
     snmp_agent_free_config();
