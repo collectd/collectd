@@ -143,7 +143,7 @@ static int us_open_socket(void) {
     if (status != 0) {
       char errbuf[1024];
       WARNING("unixsock plugin: getgrnam_r (%s) failed: %s", grpname,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+              sstrerror(status, errbuf, sizeof(errbuf)));
       break;
     }
     if (g == NULL) {
