@@ -134,7 +134,7 @@ static int us_open_socket(void) {
     const char *grpname;
     struct group *g;
     struct group sg;
-    char grbuf[2048];
+    char grbuf[4096];
 
     grpname = (sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME;
     g = NULL;

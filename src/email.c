@@ -403,7 +403,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   {
     struct group sg;
     struct group *grp;
-    char grbuf[2048];
+    char grbuf[4096];
     int status;
 
     grp = NULL;

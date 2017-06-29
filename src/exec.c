@@ -369,7 +369,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
 
   struct passwd *sp_ptr;
   struct passwd sp;
-  char nambuf[2048];
+  char nambuf[4096];
 
   if (pl->pid != 0)
     return -1;
