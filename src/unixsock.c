@@ -134,7 +134,7 @@ static int us_open_socket(void) {
     const char *grpname;
     struct group *g;
     struct group sg;
-    char grbuf[2048];
+    char grbuf[4096];
 
     grpname = (sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME;
     g = NULL;
@@ -143,7 +143,7 @@ static int us_open_socket(void) {
     if (status != 0) {
       char errbuf[1024];
       WARNING("unixsock plugin: getgrnam_r (%s) failed: %s", grpname,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+              sstrerror(status, errbuf, sizeof(errbuf)));
       break;
     }
     if (g == NULL) {

@@ -403,7 +403,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   {
     struct group sg;
     struct group *grp;
-    char grbuf[2048];
+    char grbuf[4096];
     int status;
 
     grp = NULL;
@@ -411,7 +411,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     if (status != 0) {
       char errbuf[1024];
       log_warn("getgrnam_r (%s) failed: %s", group,
-               sstrerror(errno, errbuf, sizeof(errbuf)));
+               sstrerror(status, errbuf, sizeof(errbuf)));
     } else if (grp == NULL) {
       log_warn("No such group: `%s'", group);
     } else {
