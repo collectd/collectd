@@ -401,19 +401,19 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   /* The group configured in the configfile is set as effective group, because
    * this way the forked process can (re-)gain the user's primary group. */
   egid = -1;
-  if (NULL != pl->group) {
-    if ('\0' != *pl->group) {
+  if (pl->group != NULL) {
+    if (*pl->group != '\0') {
       struct group *gr_ptr = NULL;
       struct group gr;
 
       status = getgrnam_r(pl->group, &gr, nambuf, sizeof(nambuf), &gr_ptr);
-      if (0 != status) {
+      if (status != 0) {
         ERROR("exec plugin: Failed to get group information "
               "for group ``%s'': %s",
               pl->group, sstrerror(status, errbuf, sizeof(errbuf)));
         goto failed;
       }
-      if (NULL == gr_ptr) {
+      if (gr_ptr == NULL) {
         ERROR("exec plugin: No such group: `%s'", pl->group);
         goto failed;
       }
