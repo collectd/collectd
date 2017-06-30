@@ -369,7 +369,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
 
   struct passwd *sp_ptr;
   struct passwd sp;
-  char nambuf[2048];
+  char nambuf[4096];
 
   if (pl->pid != 0)
     return (-1);
@@ -382,7 +382,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   status = getpwnam_r(pl->user, &sp, nambuf, sizeof(nambuf), &sp_ptr);
   if (status != 0) {
     ERROR("exec plugin: Failed to get user information for user ``%s'': %s",
-          pl->user, sstrerror(errno, errbuf, sizeof(errbuf)));
+          pl->user, sstrerror(status, errbuf, sizeof(errbuf)));
     goto failed;
   }
 
@@ -410,7 +410,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
       if (0 != status) {
         ERROR("exec plugin: Failed to get group information "
               "for group ``%s'': %s",
-              pl->group, sstrerror(errno, errbuf, sizeof(errbuf)));
+              pl->group, sstrerror(status, errbuf, sizeof(errbuf)));
         goto failed;
       }
       if (NULL == gr_ptr) {

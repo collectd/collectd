@@ -92,7 +92,8 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
   if (rc != LDAP_SUCCESS) {
     ERROR("openldap plugin: ldap_initialize failed: %s", ldap_err2string(rc));
     st->state = 0;
-    ldap_unbind_ext_s(ld, NULL, NULL);
+    if (ld != NULL)
+      ldap_unbind_ext_s(ld, NULL, NULL);
     return (-1);
   }
 
@@ -119,7 +120,8 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
       ERROR("openldap plugin: Failed to start tls on %s: %s", st->url,
             ldap_err2string(rc));
       st->state = 0;
-      ldap_unbind_ext_s(st->ld, NULL, NULL);
+      if (st->ld != NULL)
+        ldap_unbind_ext_s(st->ld, NULL, NULL);
       return (-1);
     }
   }
@@ -139,7 +141,8 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
     ERROR("openldap plugin: Failed to bind to %s: %s", st->url,
           ldap_err2string(rc));
     st->state = 0;
-    ldap_unbind_ext_s(st->ld, NULL, NULL);
+    if (st->ld != NULL)
+      ldap_unbind_ext_s(st->ld, NULL, NULL);
     return (-1);
   } else {
     DEBUG("openldap plugin: Successfully connected to %s", st->url);
@@ -214,7 +217,8 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
     ERROR("openldap plugin: Failed to execute search: %s", ldap_err2string(rc));
     ldap_msgfree(result);
     st->state = 0;
-    ldap_unbind_ext_s(st->ld, NULL, NULL);
+    if (st->ld != NULL)
+      ldap_unbind_ext_s(st->ld, NULL, NULL);
     return (-1);
   }
 
