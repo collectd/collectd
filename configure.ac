@@ -461,7 +461,7 @@ if test "x$ac_system" = "xLinux"; then
       #endif
     ]]
   )
-  
+
   AC_CHECK_HEADERS([linux/inet_diag.h], [], [],
     [[
       #if HAVE_SYS_TYPES_H
@@ -472,7 +472,7 @@ if test "x$ac_system" = "xLinux"; then
       #endif
     ]]
   )
-  
+
   AC_CHECK_HEADERS([linux/netdevice.h], [], [],
     [[
       #if HAVE_SYS_TYPES_H
@@ -486,7 +486,7 @@ if test "x$ac_system" = "xLinux"; then
       #endif
     ]]
   )
-  
+
   # For ethstat module
   AC_CHECK_HEADERS([linux/sockios.h],
     [have_linux_sockios_h="yes"],
@@ -500,7 +500,7 @@ if test "x$ac_system" = "xLinux"; then
       #endif
     ]]
   )
-  
+
   AC_CHECK_HEADERS([linux/ethtool.h],
     [have_linux_ethtool_h="yes"],
     [have_linux_ethtool_h="no"],
@@ -523,21 +523,21 @@ if test "x$ac_system" = "xLinux"; then
   AC_CHECK_HEADERS([ip_vs.h], [have_ip_vs_h="yes"], [have_ip_vs_h="no"])
 
   ip_vs_h_needs_kernel_cflags="no"
-  
+
   if test "x$have_linux_ip_vs_h$have_net_ip_vs_h$have_ip_vs_h" = "xnonono" && test -d "$KERNEL_DIR"; then
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $KERNEL_CFLAGS"
-    
+
     AC_MSG_NOTICE([Did not find ip_vs.h. Trying again using headers from $KERNEL_DIR.])
-    
+
     AC_CHECK_HEADERS([linux/ip_vs.h], [have_linux_ip_vs_h="yes"])
     AC_CHECK_HEADERS([net/ip_vs.h], [have_net_ip_vs_h="yes"])
     AC_CHECK_HEADERS([ip_vs.h], [have_ip_vs_h="yes"])
-    
+
     if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"; then
       ip_vs_h_needs_kernel_cflags="yes"
     fi
-    
+
     CFLAGS="$SAVE_CFLAGS"
   fi
 
@@ -554,7 +554,7 @@ if test "x$ac_system" = "xLinux"; then
     [have_asm_msrindex_h="yes"],
     [have_asm_msrindex_h="no"]
   )
-  
+
   if test "x$have_asm_msrindex_h" = "xyes"; then
     AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
       [c_cv_have_usable_asm_msrindex_h],
@@ -575,12 +575,12 @@ if test "x$ac_system" = "xLinux"; then
       ]
     )
   fi
-  
+
   AC_CHECK_HEADERS([cpuid.h],
     [have_cpuid_h="yes"],
     [have_cpuid_h="no (cpuid.h not found)"]
   )
-  
+
   AC_CHECK_HEADERS([sys/capability.h],
     [have_capability="yes"],
     [have_capability="no (<sys/capability.h> not found)"]
@@ -1445,13 +1445,13 @@ if test "x$fp_layout_type" = "xunknown"; then
               uint64_t i1;
               uint8_t c[8];
               double d;
-              
+
               d = 8.642135e130;
               memcpy ((void *) &i0, (void *) &d, 8);
-              
+
               i1 = endianflip (i0);
               memcpy ((void *) c, (void *) &i1, 8);
-              
+
               if ((c[0] == 0x2f) && (c[1] == 0x25)
                   && (c[2] == 0xc0) && (c[3] == 0xc7)
                   && (c[4] == 0x43) && (c[5] == 0x2b)
@@ -1494,13 +1494,13 @@ if test "x$fp_layout_type" = "xunknown"; then
               uint64_t i1;
               uint8_t c[8];
               double d;
-              
+
               d = 8.642135e130;
               memcpy ((void *) &i0, (void *) &d, 8);
-              
+
               i1 = intswap (i0);
               memcpy ((void *) c, (void *) &i1, 8);
-              
+
               if ((c[0] == 0x2f) && (c[1] == 0x25)
                   && (c[2] == 0xc0) && (c[3] == 0xc7)
                   && (c[4] == 0x43) && (c[5] == 0x2b)
@@ -6192,7 +6192,7 @@ if test "x$ac_system" = "xLinux"; then
   if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"; then
     plugin_turbostat="yes"
   fi
-  
+
   if test "x$c_cv_have_clock_boottime_monotonic" = "xyes"; then
     plugin_cpusleep="yes"
   fi
