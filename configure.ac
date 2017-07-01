@@ -112,15 +112,6 @@ AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
 AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
 
-if test "x$ac_system" = "xLinux"; then
-  AC_ARG_VAR([KERNEL_DIR], [path to Linux kernel sources])
-  if test "x$KERNEL_DIR" = "x"; then
-    KERNEL_DIR="/lib/modules/`uname -r`/source"
-  fi
-  KERNEL_CFLAGS="-I$KERNEL_DIR/include"
-  AC_SUBST([KERNEL_CFLAGS])
-fi
-
 if test "x$ac_system" = "xSolaris"; then
   AC_DEFINE([_POSIX_PTHREAD_SEMANTICS], [1], [Define to enforce POSIX thread semantics under Solaris.])
   AC_DEFINE([_REENTRANT], [1], [Define to enable reentrancy interfaces.])
@@ -518,28 +509,7 @@ if test "x$ac_system" = "xLinux"; then
   )
 
   # For ipvs module
-  AC_CHECK_HEADERS([linux/ip_vs.h], [have_linux_ip_vs_h="yes"], [have_linux_ip_vs="no"])
-  AC_CHECK_HEADERS([net/ip_vs.h], [have_net_ip_vs_h="yes"], [have_net_ip_vs_h="no"])
-  AC_CHECK_HEADERS([ip_vs.h], [have_ip_vs_h="yes"], [have_ip_vs_h="no"])
-
-  ip_vs_h_needs_kernel_cflags="no"
-
-  if test "x$have_linux_ip_vs_h$have_net_ip_vs_h$have_ip_vs_h" = "xnonono" && test -d "$KERNEL_DIR"; then
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS $KERNEL_CFLAGS"
-
-    AC_MSG_NOTICE([Did not find ip_vs.h. Trying again using headers from $KERNEL_DIR.])
-
-    AC_CHECK_HEADERS([linux/ip_vs.h], [have_linux_ip_vs_h="yes"])
-    AC_CHECK_HEADERS([net/ip_vs.h], [have_net_ip_vs_h="yes"])
-    AC_CHECK_HEADERS([ip_vs.h], [have_ip_vs_h="yes"])
-
-    if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"; then
-      ip_vs_h_needs_kernel_cflags="yes"
-    fi
-
-    CFLAGS="$SAVE_CFLAGS"
-  fi
+  AC_CHECK_HEADERS_ONCE([linux/ip_vs.h])
 
   # For the email plugin
   AC_CHECK_HEADERS([linux/un.h], [], [],
@@ -610,7 +580,6 @@ else
   have_linux_wireless_h="no"
 fi
 
-AM_CONDITIONAL([IP_VS_H_NEEDS_KERNEL_CFLAGS], [test "x$ip_vs_h_needs_kernel_cflags" = "xyes"])
 AM_CONDITIONAL([BUILD_WITH_CAPABILITY], [test "x$have_capability" = "xyes"])
 
 # For the swap module
@@ -6185,7 +6154,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_wireless="yes"
   plugin_zfs_arc="yes"
 
-  if test "x$have_linux_ip_vs_h" = "xyes" || test "x$have_net_ip_vs_h" = "xyes" || test "x$have_ip_vs_h" = "xyes"; then
+  if test "x$ac_cv_header_linux_ip_vs_h" = "xyes"; then
     plugin_ipvs="yes"
   fi
 
@@ -6711,15 +6680,6 @@ AC_MSG_RESULT([$default_write_plugin])
 AC_SUBST([LOAD_PLUGIN_RRDTOOL])
 AC_SUBST([LOAD_PLUGIN_NETWORK])
 AC_SUBST([LOAD_PLUGIN_CSV])
-
-dnl ip_vs.h
-if test "x$ac_system" = "xLinux" && test "x$have_linux_ip_vs_h" = "xno" && "x$have_net_ip_vs_h" = "xno" && "x$have_ip_vs_h" = "xno"; then
-  enable_ipvs="$enable_ipvs (ip_vs.h not found)"
-fi
-
-if test "x$ip_vs_h_needs_kernel_cflags" = "xyes"; then
-  enable_ipvs="$enable_ipvs (needs $KERNEL_CFLAGS)"
-fi
 
 dnl Perl bindings
 PERL_BINDINGS_OPTIONS="PREFIX=${prefix}"
