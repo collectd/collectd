@@ -6667,8 +6667,7 @@ AC_SUBST([LOAD_PLUGIN_SYSLOG])
 AC_SUBST([LOAD_PLUGIN_LOGFILE])
 AC_SUBST([LOAD_PLUGIN_LOG_LOGSTASH])
 
-if test "x$enable_debug" = "xyes"
-then
+if test "x$enable_debug" = "xyes"; then
   DEFAULT_LOG_LEVEL="debug"
 else
   DEFAULT_LOG_LEVEL="info"
@@ -6726,8 +6725,7 @@ dnl Perl bindings
 PERL_BINDINGS_OPTIONS="PREFIX=${prefix}"
 AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@], [Options passed to "perl Makefile.PL".])],
 [
-  if test "x$withval" != "xno" && test "x$withval" != "xyes"
-  then
+  if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
     PERL_BINDINGS_OPTIONS="$withval"
     with_perl_bindings="yes"
   else
@@ -6735,8 +6733,7 @@ AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@
   fi
 ],
 [
-  if test "x$PERL" != "x"
-  then
+  if test "x$PERL" != "x"; then
     with_perl_bindings="yes"
   else
     with_perl_bindings="no (no perl interpreter found)"
@@ -6753,8 +6750,7 @@ if test "x$with_perl_bindings" = "xyes"; then
   fi
 fi
 
-if test "x$with_perl_bindings" = "xyes"
-then
+if test "x$with_perl_bindings" = "xyes"; then
   PERL_BINDINGS="perl"
 else
   PERL_BINDINGS=""
