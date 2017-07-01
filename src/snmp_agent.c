@@ -163,7 +163,7 @@ static void snmp_agent_dump_data(void) {
         DEBUG(PLUGIN_NAME ":     Type: %s", dd->type);
       if (dd->type_instance)
         DEBUG(PLUGIN_NAME ":     TypeInstance: %s", dd->type_instance);
-      for (int i = 0; i < dd->oids_len; i++) {
+      for (size_t i = 0; i < dd->oids_len; i++) {
         snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
         DEBUG(PLUGIN_NAME ":     OID[%d]: %s", i, oid_str);
       }
@@ -187,7 +187,7 @@ static void snmp_agent_dump_data(void) {
       DEBUG(PLUGIN_NAME ":   Type: %s", dd->type);
     if (dd->type_instance)
       DEBUG(PLUGIN_NAME ":   TypeInstance: %s", dd->type_instance);
-    for (int i = 0; i < dd->oids_len; i++) {
+    for (size_t i = 0; i < dd->oids_len; i++) {
       snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
       DEBUG(PLUGIN_NAME ":   OID[%d]: %s", i, oid_str);
     }
@@ -282,7 +282,7 @@ static int snmp_agent_validate_data(void) {
   return 0;
 }
 
-static void snmp_agent_generate_oid2string(oid_t *oid, int offset, char *key) {
+static void snmp_agent_generate_oid2string(oid_t *oid, size_t offset, char *key) {
   int key_len = oid->oid[offset];
   int i;
 
@@ -352,7 +352,7 @@ static int snmp_agent_table_row_remove(table_definition_t *td,
   for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
     data_definition_t *dd = de->value;
 
-    for (int i = 0; i < dd->oids_len; i++)
+    for (size_t i = 0; i < dd->oids_len; i++)
       if (td->index_oid.oid_len)
         snmp_agent_unregister_oid_index(&dd->oids[i], *index);
       else
@@ -417,7 +417,7 @@ static void snmp_agent_free_data(data_definition_t **dd) {
 
   /* unregister scalar type OID */
   if ((*dd)->table == NULL) {
-    for (int i = 0; i < (*dd)->oids_len; i++)
+    for (size_t i = 0; i < (*dd)->oids_len; i++)
       unregister_mib((*dd)->oids[i].oid, (*dd)->oids[i].oid_len);
   }
   if (!(*dd)->table->index_oid.oid_len) {
@@ -426,7 +426,7 @@ static void snmp_agent_free_data(data_definition_t **dd) {
     c_avl_iterator_t *iter = c_avl_get_iterator((*dd)->table->instance_index);
     while (c_avl_iterator_next(iter, (void *)&instance, (void *)&instance) ==
            0) {
-      for (int i = 0; i < (*dd)->oids_len; i++)
+      for (size_t i = 0; i < (*dd)->oids_len; i++)
         snmp_agent_unregister_oid_string(&(*dd)->oids[i], instance);
     }
     c_avl_iterator_destroy(iter);
@@ -437,7 +437,7 @@ static void snmp_agent_free_data(data_definition_t **dd) {
 
     c_avl_iterator_t *iter = c_avl_get_iterator((*dd)->table->index_instance);
     while (c_avl_iterator_next(iter, (void *)&index, (void *)&value) == 0) {
-      for (int i = 0; i < (*dd)->oids_len; i++)
+      for (size_t i = 0; i < (*dd)->oids_len; i++)
         snmp_agent_unregister_oid_index(&(*dd)->oids[i], *index);
     }
     c_avl_iterator_destroy(iter);
@@ -529,7 +529,7 @@ static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
   }
 
   assert(ds->ds_num == values_num);
-  assert(oid_index < values_num);
+  assert(oid_index < (int)values_num);
 
   char data[DATA_MAX_NAME_LEN];
   size_t data_len = sizeof(data);
@@ -581,7 +581,7 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
     for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
       data_definition_t *dd = de->value;
 
-      for (int i = 0; i < dd->oids_len; i++) {
+      for (size_t i = 0; i < dd->oids_len; i++) {
         int ret = snmp_oid_ncompare(oid.oid, oid.oid_len, dd->oids[i].oid,
                                     dd->oids[i].oid_len,
                                     MIN(oid.oid_len, dd->oids[i].oid_len));
@@ -765,7 +765,7 @@ snmp_agent_scalar_oid_handler(struct netsnmp_mib_handler_s *handler,
        de = de->next) {
     data_definition_t *dd = de->value;
 
-    for (int i = 0; i < dd->oids_len; i++) {
+    for (size_t i = 0; i < dd->oids_len; i++) {
 
       int ret = snmp_oid_compare(oid.oid, oid.oid_len, dd->oids[i].oid,
                                  dd->oids[i].oid_len);
@@ -803,7 +803,7 @@ static int snmp_agent_register_table_oids(void) {
     for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
       data_definition_t *dd = de->value;
 
-      for (int i = 0; i < dd->oids_len; i++) {
+      for (size_t i = 0; i < dd->oids_len; i++) {
         dd->oids[i].type =
             snmp_agent_get_asn_type(dd->oids[i].oid, dd->oids[i].oid_len);
       }
@@ -818,7 +818,7 @@ static int snmp_agent_register_scalar_oids(void) {
   for (llentry_t *e = llist_head(g_agent->scalars); e != NULL; e = e->next) {
     data_definition_t *dd = e->value;
 
-    for (int i = 0; i < dd->oids_len; i++) {
+    for (size_t i = 0; i < dd->oids_len; i++) {
 
       dd->oids[i].type =
           snmp_agent_get_asn_type(dd->oids[i].oid, dd->oids[i].oid_len);
@@ -1284,7 +1284,7 @@ static int snmp_agent_update_index(table_definition_t *td,
   for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
     data_definition_t *dd = de->value;
 
-    for (int i = 0; i < dd->oids_len; i++) {
+    for (size_t i = 0; i < dd->oids_len; i++) {
       if (td->index_oid.oid_len) {
         ret = snmp_agent_register_oid_index(&dd->oids[i], *index,
                                             snmp_agent_table_oid_handler);
