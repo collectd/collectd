@@ -296,7 +296,7 @@ static int interface_read(void) {
       continue;
 
     if (unique_name)
-      ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
+      snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
                 ksp[i]->ks_instance, ksp[i]->ks_name);
     else
       sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));

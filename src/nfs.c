@@ -357,7 +357,7 @@ static void nfs_submit_fields(int nfs_version, const char *instance,
   char plugin_instance[DATA_MAX_NAME_LEN];
   value_t values[fields_num];
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
+  snprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
             instance);
 
   for (size_t i = 0; i < fields_num; i++)
@@ -523,7 +523,7 @@ static int nfs_read_kstat(kstat_t *ksp, int nfs_version, const char *inst,
   if (ksp == NULL)
     return EINVAL;
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
+  snprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
             inst);
 
   kstat_read(kc, ksp, NULL);

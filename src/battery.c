@@ -347,7 +347,7 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
   char filename[PATH_MAX];
   int status;
 
-  ssnprintf(filename, sizeof(filename), "%s/%s/%s", dir, power_supply,
+  snprintf(filename, sizeof(filename), "%s/%s/%s", dir, power_supply,
             basename);
 
   status = (int)read_file_contents(filename, buffer, buffer_size - 1);
@@ -479,7 +479,7 @@ static int read_acpi_full_capacity(char const *dir, /* {{{ */
 
   FILE *fh;
 
-  ssnprintf(filename, sizeof(filename), "%s/%s/info", dir, power_supply);
+  snprintf(filename, sizeof(filename), "%s/%s/info", dir, power_supply);
   fh = fopen(filename, "r");
   if (fh == NULL)
     return errno;
@@ -532,7 +532,7 @@ static int read_acpi_callback(char const *dir, /* {{{ */
 
   FILE *fh;
 
-  ssnprintf(filename, sizeof(filename), "%s/%s/state", dir, power_supply);
+  snprintf(filename, sizeof(filename), "%s/%s/state", dir, power_supply);
   fh = fopen(filename, "r");
   if (fh == NULL) {
     if ((errno == EAGAIN) || (errno == EINTR) || (errno == ENOENT))
@@ -641,11 +641,11 @@ static int read_pmu(void) /* {{{ */
     gauge_t voltage = NAN;
     gauge_t charge = NAN;
 
-    ssnprintf(filename, sizeof(filename), PROC_PMU_PATH_FORMAT, i);
+    snprintf(filename, sizeof(filename), PROC_PMU_PATH_FORMAT, i);
     if (access(filename, R_OK) != 0)
       break;
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%i", i);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%i", i);
 
     fh = fopen(filename, "r");
     if (fh == NULL) {

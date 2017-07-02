@@ -737,7 +737,7 @@ static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
                                          nsstats_translation_table_length,
                                          plugin_instance};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-zone-%s",
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-zone-%s",
               view->name, zone_name);
 
     if (version == 3) {
@@ -868,7 +868,7 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info = {plugin_instance,
                                  /* type = */ "dns_qtype"};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-qtypes",
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-qtypes",
               view->name);
     if (version == 3) {
       bind_parse_generic_name_attr_value_list(
@@ -891,7 +891,7 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
                                          resstats_translation_table_length,
                                          plugin_instance};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-resolver_stats",
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-resolver_stats",
               view->name);
     if (version == 3) {
       bind_parse_generic_name_attr_value_list(
@@ -914,7 +914,7 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info = {plugin_instance,
                                  /* type = */ "dns_qtype_cached"};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-cache_rr_sets",
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-cache_rr_sets",
               view->name);
 
     bind_parse_generic_name_value(/* xpath = */ "cache/rrset",

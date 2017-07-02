@@ -93,7 +93,7 @@ static int c_notify(const notification_t *n,
     timeout = fail_timeout;
   }
 
-  ssnprintf(summary, sizeof(summary), "collectd %s notification",
+  snprintf(summary, sizeof(summary), "collectd %s notification",
             (NOTIF_FAILURE == n->severity)
                 ? "FAILURE"
                 : (NOTIF_WARNING == n->severity)

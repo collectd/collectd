@@ -103,10 +103,10 @@ static void dpdk_helper_config_default(dpdk_helper_ctx_t *phc) {
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
-  ssnprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
-  ssnprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
-  ssnprintf(phc->eal_config.process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
-  ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
+  snprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
+  snprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
+  snprintf(phc->eal_config.process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
+  snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
             DPDK_DEFAULT_RTE_CONFIG);
 }
 
@@ -182,7 +182,7 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
       DEBUG("dpdk_common: EAL:Process type %s", phc->eal_config.process_type);
     } else if ((strcasecmp("FilePrefix", child->key) == 0) &&
                (child->values[0].type == OCONFIG_TYPE_STRING)) {
-      ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+      snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
                 "/var/run/.%s_config", child->values[0].value.string);
       DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
     } else {

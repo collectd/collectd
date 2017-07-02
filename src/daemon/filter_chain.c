@@ -343,7 +343,7 @@ static int fc_config_add_rule(fc_chain_t *chain, /* {{{ */
 
   if (ci->values_num == 1) {
     sstrncpy(rule->name, ci->values[0].value.string, sizeof(rule->name));
-    ssnprintf(rule_name, sizeof(rule_name), "Rule \"%s\"",
+    snprintf(rule_name, sizeof(rule_name), "Rule \"%s\"",
               ci->values[0].value.string);
   }
 

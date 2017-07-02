@@ -231,7 +231,7 @@ static int dpdk_events_link_status_config(dpdk_events_ctx_t *ec,
     if (strcasecmp("PortName", child->key) == 0) {
       while (!(ec->config.link_status.enabled_port_mask & (1 << port_num)))
         port_num++;
-      ssnprintf(ec->config.link_status.port_name[port_num], DATA_MAX_NAME_LEN,
+      snprintf(ec->config.link_status.port_name[port_num], DATA_MAX_NAME_LEN,
                 "%s", child->values[0].value.string);
       DEBUG(DPDK_EVENTS_PLUGIN ": LinkStatus:Port %d Name: %s", port_num,
             ec->config.link_status.port_name[port_num]);
@@ -256,7 +256,7 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
             (int)child->values[0].value.boolean);
     } else if (strcasecmp("LCoreMask", child->key) == 0) {
       char lcore_mask[DATA_MAX_NAME_LEN];
-      ssnprintf(lcore_mask, sizeof(lcore_mask), "%s",
+      snprintf(lcore_mask, sizeof(lcore_mask), "%s",
                 child->values[0].value.string);
       ec->config.keep_alive.lcore_mask =
           str_to_uint128(lcore_mask, strlen(lcore_mask));
@@ -264,7 +264,7 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
             ec->config.keep_alive.lcore_mask.high,
             ec->config.keep_alive.lcore_mask.low);
     } else if (strcasecmp("KeepAliveShmName", child->key) == 0) {
-      ssnprintf(ec->config.keep_alive.shm_name,
+      snprintf(ec->config.keep_alive.shm_name,
                 sizeof(ec->config.keep_alive.shm_name), "%s",
                 child->values[0].value.string);
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:KeepAliveShmName %s",
@@ -405,16 +405,16 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
 
         char dev_name[DATA_MAX_NAME_LEN];
         if (ec->config.link_status.port_name[i][0] != 0) {
-          ssnprintf(dev_name, sizeof(dev_name), "%s",
+          snprintf(dev_name, sizeof(dev_name), "%s",
                     ec->config.link_status.port_name[i]);
         } else {
-          ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
+          snprintf(dev_name, sizeof(dev_name), "port.%d", i);
         }
 
         if (ec->config.link_status.notify) {
           int sev = ec->link_info[i].link_status ? NOTIF_OKAY : NOTIF_WARNING;
           char msg[DATA_MAX_NAME_LEN];
-          ssnprintf(msg, sizeof(msg), "Link Status: %s",
+          snprintf(msg, sizeof(msg), "Link Status: %s",
                     ec->link_info[i].link_status ? "UP" : "DOWN");
           dpdk_events_notification_dispatch(sev, dev_name,
                                             ec->link_info[i].read_time, msg);
@@ -451,7 +451,7 @@ static void dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
     }
 
     char core_name[DATA_MAX_NAME_LEN];
-    ssnprintf(core_name, sizeof(core_name), "lcore%u", i);
+    snprintf(core_name, sizeof(core_name), "lcore%u", i);
 
     if (!ec->config.keep_alive.send_updated ||
         (ec->core_info[i].lcore_state !=
@@ -466,34 +466,34 @@ static void dpdk_events_keep_alive_dispatch(dpdk_helper_ctx_t *phc) {
         switch (ec->config.keep_alive.shm->core_state[i]) {
         case RTE_KA_STATE_ALIVE:
           sev = NOTIF_OKAY;
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: ALIVE", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: ALIVE", i);
           break;
         case RTE_KA_STATE_MISSING:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: MISSING", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: MISSING", i);
           sev = NOTIF_WARNING;
           break;
         case RTE_KA_STATE_DEAD:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: DEAD", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: DEAD", i);
           sev = NOTIF_FAILURE;
           break;
         case RTE_KA_STATE_UNUSED:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: UNUSED", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: UNUSED", i);
           sev = NOTIF_OKAY;
           break;
         case RTE_KA_STATE_GONE:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: GONE", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: GONE", i);
           sev = NOTIF_FAILURE;
           break;
         case RTE_KA_STATE_DOZING:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: DOZING", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: DOZING", i);
           sev = NOTIF_OKAY;
           break;
         case RTE_KA_STATE_SLEEP:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: SLEEP", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: SLEEP", i);
           sev = NOTIF_OKAY;
           break;
         default:
-          ssnprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: UNKNOWN", i);
+          snprintf(msg, sizeof(msg), "lcore %u Keep Alive Status: UNKNOWN", i);
           sev = NOTIF_FAILURE;
         }
 

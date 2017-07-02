@@ -190,7 +190,7 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
       return -1;
     }
 
-    ssnprintf(cb->credentials, credentials_size, "%s:%s", cb->user,
+    snprintf(cb->credentials, credentials_size, "%s:%s", cb->user,
               (cb->pass == NULL) ? "" : cb->pass);
     curl_easy_setopt(cb->curl, CURLOPT_USERPWD, cb->credentials);
 #endif
@@ -369,7 +369,7 @@ static int wh_write_command(const data_set_t *ds,
     return status;
   }
 
-  command_len = (size_t)ssnprintf(command, sizeof(command),
+  command_len = (size_t)snprintf(command, sizeof(command),
                                   "PUTVAL %s interval=%.3f %s\r\n", key,
                                   CDTIME_T_TO_DOUBLE(vl->interval), values);
   if (command_len >= sizeof(command)) {
@@ -791,7 +791,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   /* Nulls the buffer and sets ..._free and ..._fill. */
   wh_reset_buffer(cb);
 
-  ssnprintf(callback_name, sizeof(callback_name), "write_http/%s", cb->name);
+  snprintf(callback_name, sizeof(callback_name), "write_http/%s", cb->name);
   DEBUG("write_http: Registering write callback '%s' with URL '%s'",
         callback_name, cb->location);
 

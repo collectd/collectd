@@ -731,7 +731,7 @@ static void vcpu_submit(derive_t value, virDomainPtr dom, int vcpu_nr,
                         const char *type) {
   char type_instance[DATA_MAX_NAME_LEN];
 
-  ssnprintf(type_instance, sizeof(type_instance), "%d", vcpu_nr);
+  snprintf(type_instance, sizeof(type_instance), "%d", vcpu_nr);
   submit(dom, type, type_instance, &(value_t){.derive = value}, 1);
 }
 
@@ -752,7 +752,7 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
   }
 
   char flush_type_instance[DATA_MAX_NAME_LEN];
-  ssnprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
+  snprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
             type_instance);
 
   if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
@@ -828,7 +828,7 @@ static void domain_state_submit(virDomainPtr dom, int state, int reason) {
   const char *reason_str = "N/A";
 #endif
 
-  ssnprintf(msg, sizeof(msg), "Domain state: %s. Reason: %s", state_str,
+  snprintf(msg, sizeof(msg), "Domain state: %s. Reason: %s", state_str,
             reason_str);
 
   int severity;
@@ -1180,7 +1180,7 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
     char type_instance[DATA_MAX_NAME_LEN];
     _Bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu) ? 1 : 0;
 
-    ssnprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu,
+    snprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu,
               cpu);
     submit(dom, "cpu_affinity", type_instance, &(value_t){.gauge = is_set}, 1);
   }
@@ -1661,7 +1661,7 @@ static int lv_init_instance(size_t i, plugin_read_cb callback) {
 
   memset(lv_ud, 0, sizeof(*lv_ud));
 
-  ssnprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
+  snprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
   inst->id = i;
 
   user_data_t *ud = &(lv_ud->ud);
@@ -1721,7 +1721,7 @@ static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
     goto done;
   }
 
-  ssnprintf(xpath_str, sizeof(xpath_str), "/domain/metadata/%s:%s/text()",
+  snprintf(xpath_str, sizeof(xpath_str), "/domain/metadata/%s:%s/text()",
             METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_ELEMENT);
   xpath_obj = xmlXPathEvalExpression((xmlChar *)xpath_str, xpath_ctx);
   if (xpath_obj == NULL) {
@@ -2157,7 +2157,7 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
     ERROR(PLUGIN_NAME " plugin: malloc failed.");
     return 0;
   }
-  ssnprintf(name, n, "%s:%s", domname, devpath);
+  snprintf(name, n, "%s:%s", domname, devpath);
   r = ignorelist_match(il, name);
   sfree(name);
   return r;

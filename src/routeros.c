@@ -142,7 +142,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
     return;
 
   /*** RX ***/
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
+  snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
             r->radio_name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
@@ -151,7 +151,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->rx_ccq);
 
   /*** TX ***/
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
+  snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
             r->radio_name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
@@ -160,7 +160,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->tx_ccq);
 
   /*** RX / TX ***/
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
+  snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
             r->radio_name);
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
@@ -378,7 +378,7 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  ssnprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
+  snprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
   if (status == 0)
     status = plugin_register_complex_read(
         /* group = */ NULL, read_name, cr_read, /* interval = */ 0,

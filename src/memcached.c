@@ -477,7 +477,7 @@ static int memcached_add_read_callback(memcached_t *st) {
   char callback_name[3 * DATA_MAX_NAME_LEN];
   int status;
 
-  ssnprintf(callback_name, sizeof(callback_name), "memcached/%s",
+  snprintf(callback_name, sizeof(callback_name), "memcached/%s",
             (st->name != NULL) ? st->name : "__legacy__");
 
   /* If no <Address> used then:

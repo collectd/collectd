@@ -104,7 +104,7 @@ static void monitor_cb(const char *buf, int buflen, int writing,
 static int notify_email_init(void) {
   char server[MAXSTRING];
 
-  ssnprintf(server, sizeof(server), "%s:%i",
+  snprintf(server, sizeof(server), "%s:%i",
             (smtp_host == NULL) ? DEFAULT_SMTP_HOST : smtp_host, smtp_port);
 
   pthread_mutex_lock(&session_lock);
@@ -214,14 +214,14 @@ static int notify_email_notification(const notification_t *n,
   int buf_len = sizeof(buf);
   int i;
 
-  ssnprintf(severity, sizeof(severity), "%s",
+  snprintf(severity, sizeof(severity), "%s",
             (n->severity == NOTIF_FAILURE)
                 ? "FAILURE"
                 : ((n->severity == NOTIF_WARNING)
                        ? "WARNING"
                        : ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
 
-  ssnprintf(subject, sizeof(subject),
+  snprintf(subject, sizeof(subject),
             (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
             severity, n->host);
 
@@ -231,7 +231,7 @@ static int notify_email_notification(const notification_t *n,
   timestamp_str[sizeof(timestamp_str) - 1] = '\0';
 
   /* Let's make RFC822 message text with \r\n EOLs */
-  ssnprintf(buf, buf_len, "MIME-Version: 1.0\r\n"
+  snprintf(buf, buf_len, "MIME-Version: 1.0\r\n"
                           "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
                           "Content-Transfer-Encoding: 8bit\r\n"
                           "Subject: %s\r\n"

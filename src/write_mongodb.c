@@ -96,7 +96,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   for (int i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    snprintf(key, sizeof(key), "%i", i);
 
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       BSON_APPEND_DOUBLE(&subarray, key, vl->values[i].gauge);
@@ -121,7 +121,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   for (int i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    snprintf(key, sizeof(key), "%i", i);
 
     if (store_rates)
       BSON_APPEND_UTF8(&subarray, key, "gauge");
@@ -134,7 +134,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   for (int i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    snprintf(key, sizeof(key), "%i", i);
     BSON_APPEND_UTF8(&subarray, key, ds->ds[i].name);
   }
   bson_append_array_end(ret, &subarray); /* }}} dsnames */
@@ -368,7 +368,7 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
   if (status == 0) {
     char cb_name[DATA_MAX_NAME_LEN];
 
-    ssnprintf(cb_name, sizeof(cb_name), "write_mongodb/%s", node->name);
+    snprintf(cb_name, sizeof(cb_name), "write_mongodb/%s", node->name);
 
     status =
         plugin_register_write(cb_name, wm_write,

@@ -107,7 +107,7 @@ static int sl_notification(const notification_t *n,
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = ssnprintf(&buf[offset], sizeof(buf) - offset, __VA_ARGS__);       \
+    status = snprintf(&buf[offset], sizeof(buf) - offset, __VA_ARGS__);       \
     if (status < 1)                                                            \
       return -1;                                                               \
     else if (((size_t)status) >= (sizeof(buf) - offset))                       \

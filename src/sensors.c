@@ -176,7 +176,7 @@ static int sensors_snprintf_chip_name(char *buf, size_t buf_size,
   int status = -1;
 
   if (chip->bus == SENSORS_CHIP_NAME_BUS_ISA) {
-    status = ssnprintf(buf, buf_size, "%s-isa-%04x", chip->prefix, chip->addr);
+    status = snprintf(buf, buf_size, "%s-isa-%04x", chip->prefix, chip->addr);
   } else if (chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY) {
     status = snprintf(buf, buf_size, "%s-%s-%04x", chip->prefix, chip->busname,
                       chip->addr);
@@ -436,7 +436,7 @@ static void sensors_submit(const char *plugin_instance, const char *type,
 
   value_list_t vl = VALUE_LIST_INIT;
 
-  status = ssnprintf(match_key, sizeof(match_key), "%s/%s-%s", plugin_instance,
+  status = snprintf(match_key, sizeof(match_key), "%s/%s-%s", plugin_instance,
                      type, type_instance);
   if (status < 1)
     return;

@@ -314,7 +314,7 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
         if ((olmbdb_list =
                  ldap_get_values_len(st->ld, e, "olmBDBEntryCache")) != NULL) {
           olmbdb_data = *olmbdb_list[0];
-          ssnprintf(typeinst, sizeof(typeinst), "bdbentrycache-%s",
+          snprintf(typeinst, sizeof(typeinst), "bdbentrycache-%s",
                     nc_data.bv_val);
           cldap_submit_gauge("cache_size", typeinst, atoll(olmbdb_data.bv_val),
                              st);
@@ -324,7 +324,7 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
         if ((olmbdb_list = ldap_get_values_len(st->ld, e, "olmBDBDNCache")) !=
             NULL) {
           olmbdb_data = *olmbdb_list[0];
-          ssnprintf(typeinst, sizeof(typeinst), "bdbdncache-%s",
+          snprintf(typeinst, sizeof(typeinst), "bdbdncache-%s",
                     nc_data.bv_val);
           cldap_submit_gauge("cache_size", typeinst, atoll(olmbdb_data.bv_val),
                              st);
@@ -334,7 +334,7 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
         if ((olmbdb_list = ldap_get_values_len(st->ld, e, "olmBDBIDLCache")) !=
             NULL) {
           olmbdb_data = *olmbdb_list[0];
-          ssnprintf(typeinst, sizeof(typeinst), "bdbidlcache-%s",
+          snprintf(typeinst, sizeof(typeinst), "bdbidlcache-%s",
                     nc_data.bv_val);
           cldap_submit_gauge("cache_size", typeinst, atoll(olmbdb_data.bv_val),
                              st);
@@ -480,7 +480,7 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
       databases[databases_num] = st;
       databases_num++;
 
-      ssnprintf(callback_name, sizeof(callback_name), "openldap/%s/%s",
+      snprintf(callback_name, sizeof(callback_name), "openldap/%s/%s",
                 (st->host != NULL) ? st->host : hostname_g,
                 (st->name != NULL) ? st->name : "default");
 

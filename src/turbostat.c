@@ -266,7 +266,7 @@ open_msr(unsigned int cpu, _Bool multiple_read) {
     }
   }
 
-  ssnprintf(pathname, sizeof(pathname), "/dev/cpu/%d/msr", cpu);
+  snprintf(pathname, sizeof(pathname), "/dev/cpu/%d/msr", cpu);
   fd = open(pathname, O_RDONLY);
   if (fd < 0) {
     ERROR("turbostat plugin: failed to open %s", pathname);
@@ -556,7 +556,7 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
   DEBUG("turbostat plugin: submit stats for cpu: %d, core: %d, pkg: %d",
         t->cpu_id, c->core_id, p->package_id);
 
-  ssnprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
+  snprintf(name, sizeof(name), "cpu%02d", t->cpu_id);
 
   if (!aperf_mperf_unstable)
     turbostat_submit(name, "percent", "c0", 100.0 * t->mperf / t->tsc);
@@ -585,7 +585,7 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
 
   /* If not using logical core numbering, set core id */
   if (!config_lcn) {
-    ssnprintf(name, sizeof(name), "core%02d", c->core_id);
+    snprintf(name, sizeof(name), "core%02d", c->core_id);
   }
 
   if (do_core_cstate & (1 << 3))
@@ -602,7 +602,7 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
   if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
     goto done;
 
-  ssnprintf(name, sizeof(name), "pkg%02d", p->package_id);
+  snprintf(name, sizeof(name), "pkg%02d", p->package_id);
 
   if (do_ptm)
     turbostat_submit(name, "temperature", NULL, p->pkg_temp_c);
@@ -1064,7 +1064,7 @@ static int get_threads_on_core(unsigned int cpu) {
   int matches;
   char character;
 
-  ssnprintf(path, sizeof(path),
+  snprintf(path, sizeof(path),
             "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
   filep = fopen(path, "r");
   if (!filep) {

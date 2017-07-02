@@ -75,7 +75,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
   memset(buffer, '\0', buffer_len);
 
   t = CDTIME_T_TO_TIME_T(vl->time);
-  status = ssnprintf(buffer, buffer_len, "%lu", (unsigned long)t);
+  status = snprintf(buffer, buffer_len, "%lu", (unsigned long)t);
   if ((status < 1) || (status >= buffer_len))
     return -1;
   offset = status;
@@ -88,16 +88,16 @@ static int value_list_to_string(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%llu",
+      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
                          vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%f",
+      status = snprintf(buffer + offset, buffer_len - offset, ":%f",
                          vl->values[i].gauge);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
                          vl->values[i].derive);
     } else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
                          vl->values[i].absolute);
     }
 
@@ -482,9 +482,9 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
     return EINVAL;
 
   if (datadir != NULL)
-    ssnprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
+    snprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
   else
-    ssnprintf(filename, sizeof(filename), "%s.rrd", identifier);
+    snprintf(filename, sizeof(filename), "%s.rrd", identifier);
 
   rrd_clear_error();
   status = rrdc_connect(daemon_address);

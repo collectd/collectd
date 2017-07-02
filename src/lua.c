@@ -282,7 +282,7 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   luaL_checktype(L, 1, LUA_TFUNCTION);
 
   char function_name[DATA_MAX_NAME_LEN];
-  ssnprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
+  snprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
 
   int callback_id = clua_store_callback(L, 1);
   if (callback_id < 0)
@@ -325,7 +325,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   luaL_checktype(L, 1, LUA_TFUNCTION);
 
   char function_name[DATA_MAX_NAME_LEN] = "";
-  ssnprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
+  snprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
 
   int callback_id = clua_store_callback(L, 1);
   if (callback_id < 0)
@@ -533,7 +533,7 @@ static int lua_config_script(const oconfig_item_t *ci) /* {{{ */
   if (base_path[0] == '\0')
     sstrncpy(abs_path, rel_path, sizeof(abs_path));
   else
-    ssnprintf(abs_path, sizeof(abs_path), "%s/%s", base_path, rel_path);
+    snprintf(abs_path, sizeof(abs_path), "%s/%s", base_path, rel_path);
 
   DEBUG("Lua plugin: abs_path = \"%s\";", abs_path);
 

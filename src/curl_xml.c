@@ -441,7 +441,7 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
   if (xpath->instance_prefix != NULL) {
     if (instance_node != NULL) {
       char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
-      ssnprintf(vl->type_instance, sizeof(vl->type_instance), "%s%s",
+      snprintf(vl->type_instance, sizeof(vl->type_instance), "%s%s",
                 xpath->instance_prefix, node_value);
       sfree(node_value);
     } else
@@ -839,7 +839,7 @@ static int cx_init_curl(cx_t *db) /* {{{ */
       return -1;
     }
 
-    ssnprintf(db->credentials, credentials_size, "%s:%s", db->user,
+    snprintf(db->credentials, credentials_size, "%s:%s", db->user,
               (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt(db->curl, CURLOPT_USERPWD, db->credentials);
 #endif

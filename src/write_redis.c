@@ -70,10 +70,10 @@ static int wr_write(const data_set_t *ds, /* {{{ */
   status = FORMAT_VL(ident, sizeof(ident), vl);
   if (status != 0)
     return status;
-  ssnprintf(key, sizeof(key), "%s%s",
+  snprintf(key, sizeof(key), "%s%s",
             (node->prefix != NULL) ? node->prefix : REDIS_DEFAULT_PREFIX,
             ident);
-  ssnprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
+  snprintf(time, sizeof(time), "%.9f", CDTIME_T_TO_DOUBLE(vl->time));
 
   value_size = sizeof(value);
   value_ptr = &value[0];
@@ -219,7 +219,7 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
   if (status == 0) {
     char cb_name[DATA_MAX_NAME_LEN];
 
-    ssnprintf(cb_name, sizeof(cb_name), "write_redis/%s", node->name);
+    snprintf(cb_name, sizeof(cb_name), "write_redis/%s", node->name);
 
     status = plugin_register_write(
         cb_name, wr_write, &(user_data_t){

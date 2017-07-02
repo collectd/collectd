@@ -58,27 +58,6 @@ DEF_TEST(sstrncpy) {
   return 0;
 }
 
-DEF_TEST(ssnprintf) {
-  char buffer[16] = "";
-  char *ptr = &buffer[4];
-  int status;
-
-  buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;
-  buffer[12] = buffer[13] = buffer[14] = buffer[15] = 0xff;
-
-  status = ssnprintf(ptr, 8, "%i", 1337);
-  OK(status == 4);
-  EXPECT_EQ_STR("1337", ptr);
-
-  status = ssnprintf(ptr, 8, "%s", "collectd");
-  OK(status == 8);
-  OK(ptr[7] == 0);
-  EXPECT_EQ_STR("collect", ptr);
-  OK(buffer[3] == buffer[12]);
-
-  return 0;
-}
-
 DEF_TEST(sstrdup) {
   char *ptr;
 

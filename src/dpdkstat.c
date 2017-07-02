@@ -376,9 +376,9 @@ static int dpdk_stats_counters_dispatch(dpdk_helper_ctx_t *phc) {
 
     char dev_name[64];
     if (ctx->config.port_name[i][0] != 0) {
-      ssnprintf(dev_name, sizeof(dev_name), "%s", ctx->config.port_name[i]);
+      snprintf(dev_name, sizeof(dev_name), "%s", ctx->config.port_name[i]);
     } else {
-      ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
+      snprintf(dev_name, sizeof(dev_name), "port.%d", i);
     }
 
     DEBUG(" === Dispatch stats for port %d (name=%s; stats_count=%d)", i,

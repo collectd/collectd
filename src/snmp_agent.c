@@ -123,7 +123,7 @@ static int snmp_agent_oid_to_string(char *buf, size_t buf_size,
   char *oid_str_ptr[MAX_OID_LEN];
 
   for (size_t i = 0; i < o->oid_len; i++) {
-    ssnprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
+    snprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
   }
 
@@ -368,7 +368,7 @@ static int snmp_agent_table_row_remove(table_definition_t *td,
       .severity = NOTIF_WARNING, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, ins, sizeof(n.plugin_instance));
-  ssnprintf(n.message, sizeof(n.message),
+  snprintf(n.message, sizeof(n.message),
             "Removed data row from table %s instance %s index %d", td->name,
             ins, (index != NULL) ? *index : -1);
   plugin_dispatch_notification(&n);
@@ -1305,7 +1305,7 @@ static int snmp_agent_update_index(table_definition_t *td,
       .severity = NOTIF_OKAY, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, ins, sizeof(n.plugin_instance));
-  ssnprintf(n.message, sizeof(n.message),
+  snprintf(n.message, sizeof(n.message),
             "Data row added to table %s instance %s index %d", td->name, ins,
             (index != NULL) ? *index : -1);
   plugin_dispatch_notification(&n);

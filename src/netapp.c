@@ -769,7 +769,7 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
   if ((hostname == NULL) || (old_data == NULL) || (new_data == NULL))
     return -1;
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "volume-%s",
+  snprintf(plugin_instance, sizeof(plugin_instance), "volume-%s",
             old_data->name);
 
   /* Check for and submit disk-octet values */
@@ -1399,7 +1399,7 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
     uint64_t snap_reserve_free = v->snap_reserved;
     uint64_t snap_norm_used = v->snap_used;
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "volume-%s", v->name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "volume-%s", v->name);
 
     if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_SNAP_USED |
                                     HAVE_VOLUME_USAGE_SNAP_RSVD)) {
@@ -1490,12 +1490,12 @@ static int cna_change_volume_status(const char *hostname, /* {{{ */
 
   if ((v->flags & IS_VOLUME_USAGE_OFFLINE) != 0) {
     n.severity = NOTIF_OKAY;
-    ssnprintf(n.message, sizeof(n.message), "Volume %s is now online.",
+    snprintf(n.message, sizeof(n.message), "Volume %s is now online.",
               v->name);
     v->flags &= ~IS_VOLUME_USAGE_OFFLINE;
   } else {
     n.severity = NOTIF_WARNING;
-    ssnprintf(n.message, sizeof(n.message), "Volume %s is now offline.",
+    snprintf(n.message, sizeof(n.message), "Volume %s is now offline.",
               v->name);
     v->flags |= IS_VOLUME_USAGE_OFFLINE;
   }
@@ -1825,7 +1825,7 @@ static int cna_handle_quota_data(const host_config_t *host, /* {{{ */
     if (volume_name == NULL)
       continue;
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "quota-%s-%s",
+    snprintf(plugin_instance, sizeof(plugin_instance), "quota-%s-%s",
               volume_name, tree_name);
 
     value = na_child_get_uint64(elem_quota, "disk-used", UINT64_MAX);
@@ -1938,7 +1938,7 @@ static int cna_handle_snapvault_data(const char *hostname, /* {{{ */
       continue;
 
     /* possible TODO: make plugin instance configurable */
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "snapvault-%s",
+    snprintf(plugin_instance, sizeof(plugin_instance), "snapvault-%s",
               dest_path);
     submit_double(hostname, plugin_instance, /* type = */ "delay", NULL,
                   (double)value, /* timestamp = */ 0, interval);
@@ -2816,10 +2816,10 @@ static int cna_register_host(host_config_t *host) /* {{{ */
   char cb_name[256];
 
   if (host->vfiler)
-    ssnprintf(cb_name, sizeof(cb_name), "netapp-%s-%s", host->name,
+    snprintf(cb_name, sizeof(cb_name), "netapp-%s-%s", host->name,
               host->vfiler);
   else
-    ssnprintf(cb_name, sizeof(cb_name), "netapp-%s", host->name);
+    snprintf(cb_name, sizeof(cb_name), "netapp-%s", host->name);
 
   plugin_register_complex_read(
       /* group = */ NULL, cb_name,

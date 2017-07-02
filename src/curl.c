@@ -369,7 +369,7 @@ static int cc_page_init_curl(web_page_t *wp) /* {{{ */
       return -1;
     }
 
-    ssnprintf(wp->credentials, credentials_size, "%s:%s", wp->user,
+    snprintf(wp->credentials, credentials_size, "%s:%s", wp->user,
               (wp->pass == NULL) ? "" : wp->pass);
     curl_easy_setopt(wp->curl, CURLOPT_USERPWD, wp->credentials);
 #endif
