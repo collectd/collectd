@@ -163,9 +163,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
     return 0;
   }
 
-  INFO("write_mongodb plugin: Connecting to [%s]:%i",
-       (node->host != NULL) ? node->host : "localhost",
-       (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT);
+  INFO("write_mongodb plugin: Connecting to [%s]:%d", node->host, node->port);
 
   if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL)) {
     format_string = "mongodb://%s:%s@%s:%d/?authSource=%s";
@@ -185,11 +183,9 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
 
     node->client = mongoc_client_new(uri);
     if (!node->client) {
-      ERROR("write_mongodb plugin: Authenticating to [%s]%i for database "
+      ERROR("write_mongodb plugin: Authenticating to [%s]:%d for database "
             "\"%s\" as user \"%s\" failed.",
-            (node->host != NULL) ? node->host : "localhost",
-            (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT, node->db,
-            node->user);
+            node->host, node->port, node->db, node->user);
       node->connected = 0;
       sfree(uri);
       return -1;
@@ -209,9 +205,8 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
 
     node->client = mongoc_client_new(uri);
     if (!node->client) {
-      ERROR("write_mongodb plugin: Connecting to [%s]:%i failed.",
-            (node->host != NULL) ? node->host : "localhost",
-            (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT);
+      ERROR("write_mongodb plugin: Connecting to [%s]:%d failed.", node->host,
+            node->port);
       node->connected = 0;
       sfree(uri);
       return -1;
@@ -320,13 +315,19 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
   if (node == NULL)
     return ENOMEM;
   mongoc_init();
-  node->host = NULL;
+  node->host = strdup("localhost");
+  if (node->host == NULL) {
+    sfree(node);
+    return ENOMEM;
+  }
+  node->port = MONGOC_DEFAULT_PORT;
   node->store_rates = 1;
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));
 
   if (status != 0) {
+    sfree(node->host);
     sfree(node);
     return status;
   }
