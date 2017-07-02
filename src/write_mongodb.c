@@ -366,7 +366,7 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
   }
 
   if (status == 0) {
-    char cb_name[DATA_MAX_NAME_LEN];
+    char cb_name[sizeof("write_mongodb/") + DATA_MAX_NAME_LEN];
 
     snprintf(cb_name, sizeof(cb_name), "write_mongodb/%s", node->name);
 
