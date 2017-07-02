@@ -119,7 +119,10 @@ noinst_LTLIBRARIES = \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
-	liboconfig.la \
+	liboconfig.la
+
+
+check_LTLIBRARIES = \
 	libplugin_mock.la
 
 
