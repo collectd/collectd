@@ -217,7 +217,7 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
   } /* for (i = 0; i < ci->children_num; i++) */
 
   if (status == 0) {
-    char cb_name[DATA_MAX_NAME_LEN];
+    char cb_name[sizeof("write_redis/") + DATA_MAX_NAME_LEN];
 
     snprintf(cb_name, sizeof(cb_name), "write_redis/%s", node->name);
 
