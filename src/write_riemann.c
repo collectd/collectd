@@ -214,6 +214,11 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
       RIEMANN_EVENT_FIELD_SERVICE, &service_buffer[1],
       RIEMANN_EVENT_FIELD_NONE);
 
+#if RCC_VERSION_NUMBER >= 0x010A00
+  riemann_event_set(event, RIEMANN_EVENT_FIELD_TIME_MICROS,
+                    (int64_t)CDTIME_T_TO_US(n->time));
+#endif
+
   if (n->host[0] != 0)
     riemann_event_string_attribute_add(event, "host", n->host);
   if (n->plugin[0] != 0)
@@ -309,6 +314,11 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
       RIEMANN_EVENT_FIELD_STRING_ATTRIBUTES, "plugin", vl->plugin, "type",
       vl->type, "ds_name", ds->ds[index].name, NULL,
       RIEMANN_EVENT_FIELD_SERVICE, service_buffer, RIEMANN_EVENT_FIELD_NONE);
+
+#if RCC_VERSION_NUMBER >= 0x010A00
+  riemann_event_set(event, RIEMANN_EVENT_FIELD_TIME_MICROS,
+                    (int64_t)CDTIME_T_TO_US(vl->time));
+#endif
 
   if (host->check_thresholds) {
     const char *state = NULL;
