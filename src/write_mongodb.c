@@ -156,21 +156,16 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
 static int wm_initialize(wm_node_t *node) /* {{{ */
 {
   char *uri;
-  size_t uri_length;
-  char const *format_string;
 
-  if (node->connected) {
+  if (node->connected)
     return 0;
-  }
 
   INFO("write_mongodb plugin: Connecting to [%s]:%d", node->host, node->port);
 
   if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL)) {
-    format_string = "mongodb://%s:%s@%s:%d/?authSource=%s";
-    uri_length = strlen(format_string) + strlen(node->user) +
-                 strlen(node->passwd) + strlen(node->host) + 5 +
-                 strlen(node->db) + 1;
-    if ((uri = calloc(1, uri_length)) == NULL) {
+    uri = ssnprintf_alloc("mongodb://%s:%s@%s:%d/?authSource=%s", node->user,
+                          node->passwd, node->host, node->port, node->db);
+    if (uri == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -178,8 +173,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       node->connected = 0;
       return -1;
     }
-    ssnprintf(uri, uri_length, format_string, node->user, node->passwd,
-              node->host, node->port, node->db);
 
     node->client = mongoc_client_new(uri);
     if (!node->client) {
@@ -191,9 +184,8 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       return -1;
     }
   } else {
-    format_string = "mongodb://%s:%d";
-    uri_length = strlen(format_string) + strlen(node->host) + 5 + 1;
-    if ((uri = calloc(1, uri_length)) == NULL) {
+    uri = ssnprintf_alloc("mongodb://%s:%d", node->host, node->port);
+    if (uri == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -201,7 +193,6 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       node->connected = 0;
       return -1;
     }
-    snprintf(uri, uri_length, format_string, node->host, node->port);
 
     node->client = mongoc_client_new(uri);
     if (!node->client) {
@@ -211,8 +202,8 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       sfree(uri);
       return -1;
     }
+    sfree(uri);
   }
-  sfree(uri);
 
   node->database = mongoc_client_get_database(node->client, "collectd");
   if (!node->database) {
