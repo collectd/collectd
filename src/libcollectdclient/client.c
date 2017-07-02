@@ -98,7 +98,7 @@
 struct lcc_connection_s
 {
   FILE *fh;
-  char errbuf[1024];
+  char errbuf[2048];
 };
 
 struct lcc_response_s
