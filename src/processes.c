@@ -820,8 +820,12 @@ static int ps_read_tasks_status(process_entry_t *ps) {
 
     tpid = ent->d_name;
 
-    snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
-              tpid);
+    if (snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
+                 tpid) >= sizeof(filename)) {
+      DEBUG("Filename too long: `%s'", filename);
+      continue;
+    }
+
     if ((fh = fopen(filename, "r")) == NULL) {
       DEBUG("Failed to open file `%s'", filename);
       continue;
