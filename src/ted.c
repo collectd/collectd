@@ -88,7 +88,7 @@ static int ted_read_value(double *ret_power, double *ret_voltage) {
 
   status = write(fd, pkt_request, sizeof(pkt_request));
   if (status <= 0) {
-    ERROR("ted plugin: swrite failed.");
+    ERROR("ted plugin: write failed.");
     return -1;
   }
 

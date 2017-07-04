@@ -669,7 +669,7 @@ static int ntpd_send_request(int req_code, int req_items, int req_size,
         (void *)req_data);
 
   status = swrite(sd, (const char *)&req, REQ_LEN_NOMAC);
-  if (status < 0) {
+  if (status != 0) {
     DEBUG("`swrite' failed. Closing socket #%i", sd);
     close(sd);
     sock_descr = sd = -1;
