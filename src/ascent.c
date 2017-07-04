@@ -515,7 +515,6 @@ static int ascent_init(void) /* {{{ */
 #endif
   }
 
-  curl_easy_setopt(curl, CURLOPT_URL, url);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -558,6 +557,9 @@ static int ascent_read(void) /* {{{ */
   }
 
   ascent_buffer_fill = 0;
+
+  curl_easy_setopt(curl, CURLOPT_URL, url);
+
   if (curl_easy_perform(curl) != CURLE_OK) {
     ERROR("ascent plugin: curl_easy_perform failed: %s", ascent_curl_error);
     return (-1);
