@@ -602,13 +602,15 @@ static int cx_curl_perform(cx_t *db, CURL *curl) /* {{{ */
   long rc;
   char *ptr;
   char *url;
-  url = db->url;
 
   db->buffer_fill = 0;
+
+  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
+
   status = curl_easy_perform(curl);
   if (status != CURLE_OK) {
     ERROR("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
-          status, db->curl_errbuf, url);
+          status, db->curl_errbuf, db->url);
     return (-1);
   }
   if (db->stats != NULL)
@@ -817,7 +819,6 @@ static int cx_init_curl(cx_t *db) /* {{{ */
   curl_easy_setopt(db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt(db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
-  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
   curl_easy_setopt(db->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(db->curl, CURLOPT_MAXREDIRS, 50L);
 
