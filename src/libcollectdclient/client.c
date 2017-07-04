@@ -24,9 +24,7 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#if HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #if !defined(__GNUC__) || !__GNUC__
 #define __attribute__(x) /**/
