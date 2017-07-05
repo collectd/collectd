@@ -145,7 +145,7 @@ void cpy_log_exception(const char *context);
 
 typedef struct {
   PyObject_HEAD         /* No semicolon! */
-      PyObject *parent; /* Config */
+  PyObject *parent; /* Config */
   PyObject *key;        /* String */
   PyObject *values;     /* Sequence */
   PyObject *children;   /* Sequence */
@@ -154,7 +154,7 @@ extern PyTypeObject ConfigType;
 
 typedef struct {
   PyObject_HEAD /* No semicolon! */
-      double time;
+  double time;
   char host[DATA_MAX_NAME_LEN];
   char plugin[DATA_MAX_NAME_LEN];
   char plugin_instance[DATA_MAX_NAME_LEN];
