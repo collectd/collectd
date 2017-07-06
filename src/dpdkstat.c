@@ -91,10 +91,17 @@ struct dpdk_stats_ctx_s {
 };
 typedef struct dpdk_stats_ctx_s dpdk_stats_ctx_t;
 
+typedef enum {
+  DPDK_STAT_STATE_OKAY = 0,
+  DPDK_STAT_STATE_CFG_ERR,
+} dpdk_stat_cfg_status;
+
 #define DPDK_STATS_CTX_GET(a) ((dpdk_stats_ctx_t *)dpdk_helper_priv_get(a))
 
 dpdk_helper_ctx_t *g_hc = NULL;
 static char g_shm_name[DATA_MAX_NAME_LEN] = DPDK_STATS_NAME;
+static dpdk_stat_cfg_status g_state = DPDK_STAT_STATE_OKAY;
+
 static int dpdk_stats_reinit_helper();
 static void dpdk_stats_default_config(void) {
   dpdk_stats_ctx_t *ec = DPDK_STATS_CTX_GET(g_hc);
@@ -132,29 +139,39 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
   DPDK_STATS_TRACE();
 
   int ret = dpdk_stats_preinit();
-  if (ret)
-    return ret;
+  if (ret) {
+    g_state = DPDK_STAT_STATE_CFG_ERR;
+    return 0;
+  }
 
   dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(g_hc);
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if ((strcasecmp("EnabledPortMask", child->key) == 0) &&
-        (child->values[0].type == OCONFIG_TYPE_NUMBER)) {
-      ctx->config.enabled_port_mask = child->values[0].value.number;
-      DEBUG("%s: Enabled Port Mask 0x%X", DPDK_STATS_PLUGIN,
-            ctx->config.enabled_port_mask);
-    } else if (strcasecmp("SharedMemObj", child->key) == 0) {
-      cf_util_get_string_buffer(child, g_shm_name, sizeof(g_shm_name));
-      DEBUG("%s: Shared memory object %s", DPDK_STATS_PLUGIN, g_shm_name);
-      dpdk_stats_reinit_helper();
-    } else if (strcasecmp("EAL", child->key) == 0) {
+    if (strcasecmp("EnabledPortMask", child->key) == 0)
+      ret = cf_util_get_int(child, (int *)&ctx->config.enabled_port_mask);
+    else if (strcasecmp("SharedMemObj", child->key) == 0) {
+      ret = cf_util_get_string_buffer(child, g_shm_name, sizeof(g_shm_name));
+      if (ret == 0)
+        ret = dpdk_stats_reinit_helper();
+    } else if (strcasecmp("EAL", child->key) == 0)
       ret = dpdk_helper_eal_config_parse(g_hc, child);
-      if (ret)
-        return ret;
+    else if (strcasecmp("PortName", child->key) != 0) {
+      ERROR(DPDK_STATS_PLUGIN ": unrecognized configuration option %s",
+            child->key);
+      ret = -1;
+    }
+
+    if (ret != 0) {
+      g_state = DPDK_STAT_STATE_CFG_ERR;
+      return 0;
     }
   }
+
+  DEBUG(DPDK_STATS_PLUGIN ": Enabled Port Mask 0x%X",
+        ctx->config.enabled_port_mask);
+  DEBUG(DPDK_STATS_PLUGIN ": Shared memory object %s", g_shm_name);
 
   int port_num = 0;
 
@@ -167,16 +184,20 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
       while (!(ctx->config.enabled_port_mask & (1 << port_num)))
         port_num++;
 
-      cf_util_get_string_buffer(child, ctx->config.port_name[port_num],
-                                sizeof(ctx->config.port_name[port_num]));
-      DEBUG("%s: Port %d Name: %s", DPDK_STATS_PLUGIN, port_num,
+      if (cf_util_get_string_buffer(child, ctx->config.port_name[port_num],
+                                    sizeof(ctx->config.port_name[port_num]))) {
+        g_state = DPDK_STAT_STATE_CFG_ERR;
+        return 0;
+      }
+
+      DEBUG(DPDK_STATS_PLUGIN ": Port %d Name: %s", port_num,
             ctx->config.port_name[port_num]);
 
       port_num++;
     }
   }
 
-  return ret;
+  return 0;
 }
 
 static int dpdk_helper_stats_get(dpdk_helper_ctx_t *phc) {
@@ -470,9 +491,23 @@ static int dpdk_stats_read(user_data_t *ud) {
   return 0;
 }
 
+static int dpdk_stats_shutdown(void) {
+  DPDK_STATS_TRACE();
+
+  dpdk_helper_shutdown(g_hc);
+  g_hc = NULL;
+
+  return 0;
+}
+
 static int dpdk_stats_init(void) {
   DPDK_STATS_TRACE();
   int ret = 0;
+
+  if (g_state != DPDK_STAT_STATE_OKAY) {
+    dpdk_stats_shutdown();
+    return -1;
+  }
 
   ret = dpdk_stats_preinit();
   if (ret != 0) {
@@ -480,21 +515,6 @@ static int dpdk_stats_init(void) {
   }
 
   return 0;
-}
-
-static int dpdk_stats_shutdown(void) {
-  DPDK_STATS_TRACE();
-
-  int ret = 0;
-
-  ret = dpdk_helper_shutdown(g_hc);
-  g_hc = NULL;
-  if (ret != 0) {
-    ERROR("%s: failed to cleanup %s helper", DPDK_STATS_PLUGIN, g_shm_name);
-    return ret;
-  }
-
-  return ret;
 }
 
 void module_register(void) {

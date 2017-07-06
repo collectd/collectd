@@ -532,7 +532,6 @@
 #  <EAL>
 #    Coremask "0x1"
 #    MemoryChannels "4"
-#    ProcessType "secondary"
 #    FilePrefix "rte"
 #  </EAL>
 #  <Event "link_status">
@@ -554,7 +553,6 @@
 #  <EAL>
 #    Coremask "0x2"
 #    MemoryChannels "4"
-#    ProcessType "secondary"
 #    FilePrefix "rte"
 #  </EAL>
 #  SharedMemObj "dpdk_collectd_stats_0"
