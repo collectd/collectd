@@ -423,10 +423,12 @@ static int apcups_read(void) {
 
   int status =
       apc_query_server(conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node,
-                       conf_service, &apcups_detail);
+                       conf_service == NULL ? APCUPS_DEFAULT_SERVICE : conf_service,
+                       &apcups_detail);
   if (status != 0) {
     DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
-          conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node, conf_service,
+          conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node,
+          conf_service == NULL ? APCUPS_DEFAULT_SERVICE : conf_service,
           status);
     return status;
   }
