@@ -711,7 +711,6 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       });
   if (status != 0) {
     ERROR("snmp plugin: Registering complex read function failed.");
-    csnmp_host_definition_destroy(hd);
     return -1;
   }
 

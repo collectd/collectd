@@ -1626,18 +1626,19 @@ static void _plugin_register_generic_userdata(pTHX, int type,
       ret = plugin_register_flush("perl", perl_flush, /* user_data = */ NULL);
     }
 
-    if (0 == ret)
+    if (0 == ret) {
       ret = plugin_register_flush(pluginname, perl_flush, &userdata);
+    } else {
+      free(userdata.data);
+    }
   } else {
     ret = -1;
   }
 
   if (0 == ret)
     XSRETURN_YES;
-  else {
-    free(userdata.data);
+  else
     XSRETURN_EMPTY;
-  }
 } /* static void _plugin_register_generic_userdata ( ... ) */
 
 /*

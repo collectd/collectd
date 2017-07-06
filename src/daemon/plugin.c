@@ -191,16 +191,21 @@ static int plugin_update_internal_statistics(void) { /* {{{ */
   return 0;
 } /* }}} int plugin_update_internal_statistics */
 
+static void free_userdata(user_data_t const *ud) /* {{{ */
+{
+  if (ud == NULL)
+    return;
+
+  if ((ud->data != NULL) && (ud->free_func != NULL)) {
+    ud->free_func(ud->data);
+  }
+} /* }}} void free_userdata */
+
 static void destroy_callback(callback_func_t *cf) /* {{{ */
 {
   if (cf == NULL)
     return;
-
-  if ((cf->cf_udata.data != NULL) && (cf->cf_udata.free_func != NULL)) {
-    cf->cf_udata.free_func(cf->cf_udata.data);
-    cf->cf_udata.data = NULL;
-    cf->cf_udata.free_func = NULL;
-  }
+  free_userdata(&cf->cf_udata);
   sfree(cf);
 } /* }}} void destroy_callback */
 
@@ -345,6 +350,7 @@ static int create_register_callback(llist_t **list, /* {{{ */
 
   cf = calloc(1, sizeof(*cf));
   if (cf == NULL) {
+    free_userdata(ud);
     ERROR("plugin: create_register_callback: calloc failed.");
     return -1;
   }
@@ -1186,6 +1192,7 @@ int plugin_register_complex_read(const char *group, const char *name,
 
   rf = calloc(1, sizeof(*rf));
   if (rf == NULL) {
+    free_userdata(user_data);
     ERROR("plugin_register_complex_read: calloc failed.");
     return ENOMEM;
   }
@@ -1211,6 +1218,7 @@ int plugin_register_complex_read(const char *group, const char *name,
 
   status = plugin_insert_read(rf);
   if (status != 0) {
+    free_userdata(&rf->rf_udata);
     sfree(rf->rf_name);
     sfree(rf);
   }
@@ -1303,11 +1311,7 @@ int plugin_register_flush(const char *name, plugin_flush_cb callback,
         });
 
     sfree(flush_name);
-    if (status != 0) {
-      sfree(cb->name);
-      sfree(cb);
-      return status;
-    }
+    return status;
   }
 
   return 0;
