@@ -1126,8 +1126,7 @@ static int plugin_insert_read(read_func_t *rf) {
   if (le != NULL) {
     pthread_mutex_unlock(&read_lock);
     WARNING("The read function \"%s\" is already registered. "
-            "Check for duplicate \"LoadPlugin\" lines "
-            "in your configuration!",
+            "Check for duplicates in your configuration!",
             rf->rf_name);
     return EINVAL;
   }
