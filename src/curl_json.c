@@ -578,7 +578,6 @@ static int cj_init_curl(cj_t *db) /* {{{ */
   curl_easy_setopt(db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt(db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
-  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
   curl_easy_setopt(db->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(db->curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -858,12 +857,13 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   int status;
   long rc;
   char *url;
-  url = db->url;
+
+  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
 
   status = curl_easy_perform(db->curl);
   if (status != CURLE_OK) {
     ERROR("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-          status, db->curl_errbuf, url);
+          status, db->curl_errbuf, db->url);
     return -1;
   }
   if (db->stats != NULL)

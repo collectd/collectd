@@ -347,7 +347,6 @@ static int cc_page_init_curl(web_page_t *wp) /* {{{ */
   curl_easy_setopt(wp->curl, CURLOPT_WRITEDATA, wp);
   curl_easy_setopt(wp->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
-  curl_easy_setopt(wp->curl, CURLOPT_URL, wp->url);
   curl_easy_setopt(wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(wp->curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -611,6 +610,9 @@ static int cc_read_page(web_page_t *wp) /* {{{ */
     start = cdtime();
 
   wp->buffer_fill = 0;
+
+  curl_easy_setopt(wp->curl, CURLOPT_URL, wp->url);
+
   status = curl_easy_perform(wp->curl);
   if (status != CURLE_OK) {
     ERROR("curl plugin: curl_easy_perform failed with status %i: %s", status,
