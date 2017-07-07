@@ -1598,7 +1598,6 @@ static int bind_init(void) /* {{{ */
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bind_curl_callback);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, bind_curl_error);
-  curl_easy_setopt(curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
@@ -1620,6 +1619,9 @@ static int bind_read(void) /* {{{ */
   }
 
   bind_buffer_fill = 0;
+
+  curl_easy_setopt(curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
+
   if (curl_easy_perform(curl) != CURLE_OK) {
     ERROR("bind plugin: curl_easy_perform failed: %s", bind_curl_error);
     return (-1);

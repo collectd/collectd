@@ -114,6 +114,7 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
 {
   int status = 0;
 
+  curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   status = curl_easy_perform(cb->curl);
 
@@ -163,7 +164,6 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
   curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, cb->headers);
 
   curl_easy_setopt(cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
-  curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(cb->curl, CURLOPT_MAXREDIRS, 50L);
 
