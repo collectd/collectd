@@ -348,11 +348,10 @@ static char *niptoha(const tChrony_IPAddr *addr, char *p_buf,
 }
 
 static void nreftostr(uint32_t nrefid, char *p_buf, size_t p_buf_size) {
-  int i, c;
   size_t j = 0;
 
-  for (i = 0; i < 4; i++) {
-    c = ntohl(nrefid) << i * 8 >> 24;
+  for (int i = 0; i < 4; i++) {
+    int c = ntohl(nrefid) << i * 8 >> 24;
     if (!isalnum(c) || j + 1 >= p_buf_size)
       continue;
     p_buf[j++] = c;
