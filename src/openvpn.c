@@ -23,6 +23,7 @@
  *   Florian octo Forster <octo at collectd.org>
  *   Marco Chiappero <marco at absence.it>
  *   Fabian Schuh <mail at xeroc.org>
+ *   Pavel Rochnyak <pavel2000 ngs.ru>
  **/
 
 #include "collectd.h"
@@ -30,34 +31,54 @@
 #include "common.h"
 #include "plugin.h"
 
-#define V1STRING                                                               \
+/**
+ * There is two main kinds of OpenVPN status file:
+ * - for 'single' mode (point-to-point or client mode)
+ * - for 'multi' mode  (server with multiple clients)
+ *
+ * For 'multi' there is 3 versions of status file format:
+ * - version 1 - First version of status file: without line type tokens,
+ *   comma delimited for easy machine parsing. Currently used by default.
+ *   Added in openvpn-2.0-beta3.
+ * - version 2 - with line type tokens, with 'HEADER' line type, uses comma
+ *   as a delimiter.
+ *   Added in openvpn-2.0-beta15.
+ * - version 3 - The only difference from version 2 is delimiter: in version 3
+ *   tabs are used instead of commas. Set of fields is the same.
+ *   Added in openvpn-2.1_rc14.
+ *
+ * For versions 2/3 there may be different sets of fields in different
+ * OpenVPN versions.
+ *
+ * Versions 2.0, 2.1, 2.2:
+ * Common Name,Real Address,Virtual Address,
+ * Bytes Received,Bytes Sent,Connected Since,Connected Since (time_t)
+ *
+ * Version 2.3:
+ * Common Name,Real Address,Virtual Address,
+ * Bytes Received,Bytes Sent,Connected Since,Connected Since (time_t),Username
+ *
+ * Version 2.4:
+ * Common Name,Real Address,Virtual Address,Virtual IPv6 Address,
+ * Bytes Received,Bytes Sent,Connected Since,Connected Since (time_t),Username,
+ * Client ID,Peer ID
+ *
+ * Current Collectd code tries to handle changes in this field set,
+ * if they are backward-compatible.
+ **/
+
+#define TITLE_SINGLE "OpenVPN STATISTICS\n"
+#define TITLE_V1     "OpenVPN CLIENT LIST\n"
+#define TITLE_V2     "TITLE"
+
+#define V1HEADER                                                               \
   "Common Name,Real Address,Bytes Received,Bytes Sent,Connected Since\n"
-#define V2STRING                                                               \
-  "HEADER,CLIENT_LIST,Common Name,Real Address,Virtual Address,Bytes "         \
-  "Received,Bytes Sent,Connected Since,Connected Since (time_t)\n"
-#define V3STRING                                                               \
-  "HEADER CLIENT_LIST Common Name Real Address Virtual Address Bytes "         \
-  "Received Bytes Sent Connected Since Connected Since (time_t)\n"
-#define V4STRING                                                               \
-  "HEADER,CLIENT_LIST,Common Name,Real Address,Virtual Address,Bytes "         \
-  "Received,Bytes Sent,Connected Since,Connected Since (time_t),Username\n"
-#define VSSTRING "OpenVPN STATISTICS\n"
 
 struct vpn_status_s {
   char *file;
-  enum {
-    MULTI1 = 1, /* status-version 1 */
-    MULTI2,     /* status-version 2 */
-    MULTI3,     /* status-version 3 */
-    MULTI4,     /* status-version 4 */
-    SINGLE = 10 /* currently no versions for single mode, maybe in the future */
-  } version;
   char *name;
 };
 typedef struct vpn_status_s vpn_status_t;
-
-static vpn_status_t **vpn_list = NULL;
-static int vpn_num = 0;
 
 static _Bool new_naming_schema = 0;
 static _Bool collect_compression = 1;
@@ -71,7 +92,7 @@ static const char *config_keys[] = {
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /* Helper function
- * copy-n-pasted from common.c - changed delim to ","  */
+ * copy-n-pasted from common.c - changed delim to ",\t"  */
 static int openvpn_strsplit(char *string, char **fields, size_t size) {
   size_t i;
   char *ptr;
@@ -80,7 +101,7 @@ static int openvpn_strsplit(char *string, char **fields, size_t size) {
   i = 0;
   ptr = string;
   saveptr = NULL;
-  while ((fields[i] = strtok_r(ptr, ",", &saveptr)) != NULL) {
+  while ((fields[i] = strtok_r(ptr, ",\t", &saveptr)) != NULL) {
     ptr = NULL;
     i++;
 
@@ -90,6 +111,13 @@ static int openvpn_strsplit(char *string, char **fields, size_t size) {
 
   return i;
 } /* int openvpn_strsplit */
+
+static void openvpn_free(void *arg) {
+  vpn_status_t *st = arg;
+  
+  sfree(st->file);
+  sfree(st);
+} /* void openvpn_free */
 
 /* dispatches number of users */
 static void numusers_submit(const char *pinst, const char *tinst,
@@ -159,7 +187,7 @@ static int single_read(const char *name, FILE *fh) {
   char buffer[1024];
   char *fields[4];
   const int max_fields = STATIC_ARRAY_SIZE(fields);
-  int fields_num, read = 0;
+  int fields_num;
 
   derive_t link_rx, link_tx;
   derive_t tun_rx, tun_tx;
@@ -223,9 +251,7 @@ static int single_read(const char *name, FILE *fh) {
     compression_submit(name, "data_out", pre_compress, post_compress);
   }
 
-  read = 1;
-
-  return read;
+  return 0;
 } /* int single_read */
 
 /* for reading status version 1 */
@@ -241,7 +267,7 @@ static int multi1_read(const char *name, FILE *fh) {
     if (strcmp(buffer, "ROUTING TABLE\n") == 0)
       break;
 
-    if (strcmp(buffer, V1STRING) == 0) {
+    if (strcmp(buffer, V1HEADER) == 0) {
       found_header = 1;
       continue;
     }
@@ -276,319 +302,198 @@ static int multi1_read(const char *name, FILE *fh) {
   }
 
   if (ferror(fh))
-    return 0;
+    return -1;
+
+  if (found_header == 0) {
+    NOTICE("openvpn plugin: Unknown file format in instance %s, please "
+           "report this as bug. Make sure to include "
+           "your status file, so the plugin can "
+           "be adapted.",
+           name);
+    return -1;
+  }
 
   if (collect_user_count)
     numusers_submit(name, name, sum_users);
 
-  return 1;
+  return 0;
 } /* int multi1_read */
 
-/* for reading status version 2 */
+/* for reading status version 2 / version 3
+ * status file is generated by openvpn/multi.c:multi_print_status()
+ * http://svn.openvpn.net/projects/openvpn/trunk/openvpn/multi.c
+ */
 static int multi2_read(const char *name, FILE *fh) {
   char buffer[1024];
-  char *fields[10];
+  /* OpenVPN-2.4 has 11 fields of data + 2 fields for "HEADER" and "CLIENT_LIST"
+   * So, set array size to 20 elements, to support future extensions.
+   */
+  char *fields[20];
   const int max_fields = STATIC_ARRAY_SIZE(fields);
-  int fields_num, read = 0;
+  int fields_num;
   long long sum_users = 0;
+  
+  int found_header = 0;
+  int idx_cname = 0;
+  int idx_bytes_recv = 0;
+  int idx_bytes_sent = 0;
+  int columns = 0;
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     fields_num = openvpn_strsplit(buffer, fields, max_fields);
 
-    /* status file is generated by openvpn/multi.c:multi_print_status()
-     * http://svn.openvpn.net/projects/openvpn/trunk/openvpn/multi.c
-     *
-     * The line we're expecting has 8 fields. We ignore all lines
-     *  with more or less fields.
-     */
-    if (fields_num != 8)
-      continue;
-
-    if (strcmp(fields[0], "CLIENT_LIST") != 0)
-      continue;
-
-    if (collect_user_count)
-    /* If so, sum all users, ignore the individuals*/
-    {
-      sum_users += 1;
-    }
-    if (collect_individual_users) {
-      if (new_naming_schema) {
-        /* plugin inst = file name, type inst = fields[1] */
-        iostats_submit(name,              /* vpn instance */
-                       fields[1],         /* "Common Name" */
-                       atoll(fields[4]),  /* "Bytes Received" */
-                       atoll(fields[5])); /* "Bytes Sent" */
-      } else {
-        /* plugin inst = fields[1], type inst = "" */
-        iostats_submit(fields[1],         /* "Common Name" */
-                       NULL,              /* unused when in multimode */
-                       atoll(fields[4]),  /* "Bytes Received" */
-                       atoll(fields[5])); /* "Bytes Sent" */
-      }
-    }
-
-    read = 1;
-  }
-
-  if (collect_user_count) {
-    numusers_submit(name, name, sum_users);
-    read = 1;
-  }
-
-  return read;
-} /* int multi2_read */
-
-/* for reading status version 3 */
-static int multi3_read(const char *name, FILE *fh) {
-  char buffer[1024];
-  char *fields[15];
-  const int max_fields = STATIC_ARRAY_SIZE(fields);
-  int fields_num, read = 0;
-  long long sum_users = 0;
-
-  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    fields_num = strsplit(buffer, fields, max_fields);
-
-    /* status file is generated by openvpn/multi.c:multi_print_status()
-     * http://svn.openvpn.net/projects/openvpn/trunk/openvpn/multi.c
-     *
-     * The line we're expecting has 12 fields. We ignore all lines
-     *  with more or less fields.
-     */
-    if (fields_num != 12) {
-      continue;
-    } else {
-      if (strcmp(fields[0], "CLIENT_LIST") != 0)
+    /* Try to find section header */
+    if (found_header == 0) {
+      if (fields_num < 2)
+        continue;
+      if (strcmp(fields[0], "HEADER") != 0)
+        continue;
+      if (strcmp(fields[1], "CLIENT_LIST") != 0)
         continue;
 
-      if (collect_user_count)
-      /* If so, sum all users, ignore the individuals*/
-      {
-        sum_users += 1;
-      }
-
-      if (collect_individual_users) {
-        if (new_naming_schema) {
-          iostats_submit(name,              /* vpn instance */
-                         fields[1],         /* "Common Name" */
-                         atoll(fields[4]),  /* "Bytes Received" */
-                         atoll(fields[5])); /* "Bytes Sent" */
-        } else {
-          iostats_submit(fields[1],         /* "Common Name" */
-                         NULL,              /* unused when in multimode */
-                         atoll(fields[4]),  /* "Bytes Received" */
-                         atoll(fields[5])); /* "Bytes Sent" */
+      for (int i = 2; i < fields_num; i++) {
+        if (strcmp(fields[i], "Common Name") == 0) {
+          idx_cname = i - 1;
+        }
+        else if (strcmp(fields[i], "Bytes Received") == 0) {
+          idx_bytes_recv = i - 1;
+        }
+        else if (strcmp(fields[i], "Bytes Sent") == 0) {
+          idx_bytes_sent = i - 1;
         }
       }
 
-      read = 1;
+      DEBUG("openvpn plugin: found MULTI v2/v3 HEADER. "
+            "Column idx: cname: %d, bytes_recv: %d, bytes_sent: %d",
+            idx_cname, idx_bytes_recv, idx_bytes_sent);
+
+      if (idx_cname == 0 || idx_bytes_recv == 0 || idx_bytes_sent == 0)
+        break;
+
+      /* Data row has 1 field ("HEADER") less than header row */
+      columns = fields_num - 1;
+
+      found_header = 1;
+      continue;
     }
-  }
 
-  if (collect_user_count) {
-    numusers_submit(name, name, sum_users);
-    read = 1;
-  }
-
-  return read;
-} /* int multi3_read */
-
-/* for reading status version 4 */
-static int multi4_read(const char *name, FILE *fh) {
-  char buffer[1024];
-  char *fields[11];
-  const int max_fields = STATIC_ARRAY_SIZE(fields);
-  int fields_num, read = 0;
-  long long sum_users = 0;
-
-  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    fields_num = openvpn_strsplit(buffer, fields, max_fields);
-
-    /* status file is generated by openvpn/multi.c:multi_print_status()
-     * http://svn.openvpn.net/projects/openvpn/trunk/openvpn/multi.c
-     *
-     * The line we're expecting has 9 fields. We ignore all lines
-     *  with more or less fields.
+    /* Header already found. Check if the line is the section data.
+     * If no match, then section was finished and there is no more data.
+     * Empty section is OK too.
      */
-    if (fields_num != 9)
-      continue;
+    if (fields_num == 0 || strcmp(fields[0], "CLIENT_LIST") != 0)
+      break;
 
-    if (strcmp(fields[0], "CLIENT_LIST") != 0)
-      continue;
+    /* Check if the data line fields count matches header line. */
+    if (fields_num != columns) {
+      ERROR("openvpn plugin: File format error in instance %s: Fields count "
+            "mismatch.", name);
+      return -1;
+    }
+
+    DEBUG("openvpn plugin: found MULTI v2/v3 CLIENT_LIST. "
+          "Columns: cname: %s, bytes_recv: %s, bytes_sent: %s",
+          fields[idx_cname], fields[idx_bytes_recv], fields[idx_bytes_sent]);
 
     if (collect_user_count)
-    /* If so, sum all users, ignore the individuals*/
-    {
       sum_users += 1;
-    }
+
     if (collect_individual_users) {
       if (new_naming_schema) {
         /* plugin inst = file name, type inst = fields[1] */
-        iostats_submit(name,              /* vpn instance */
-                       fields[1],         /* "Common Name" */
-                       atoll(fields[4]),  /* "Bytes Received" */
-                       atoll(fields[5])); /* "Bytes Sent" */
+        iostats_submit(name,                           /* vpn instance     */
+                       fields[idx_cname],              /* "Common Name"    */
+                       atoll(fields[idx_bytes_recv]),  /* "Bytes Received" */
+                       atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
       } else {
-        /* plugin inst = fields[1], type inst = "" */
-        iostats_submit(fields[1],         /* "Common Name" */
-                       NULL,              /* unused when in multimode */
-                       atoll(fields[4]),  /* "Bytes Received" */
-                       atoll(fields[5])); /* "Bytes Sent" */
+        /* plugin inst = fields[idx_cname], type inst = "" */
+        iostats_submit(fields[idx_cname],              /* "Common Name"    */
+                       NULL,              /* unused when in multimode      */
+                       atoll(fields[idx_bytes_recv]),  /* "Bytes Received" */
+                       atoll(fields[idx_bytes_sent])); /* "Bytes Sent"     */
       }
     }
+  }
 
-    read = 1;
+  if (ferror(fh))
+    return -1;
+
+  if (found_header == 0) {
+    NOTICE("openvpn plugin: Unknown file format in instance %s, please "
+           "report this as bug. Make sure to include "
+           "your status file, so the plugin can "
+           "be adapted.",
+           name);
+    return -1;
   }
 
   if (collect_user_count) {
     numusers_submit(name, name, sum_users);
-    read = 1;
   }
 
-  return read;
-} /* int multi4_read */
+  return 0;
+} /* int multi2_read */
 
 /* read callback */
-static int openvpn_read(void) {
-  FILE *fh;
-  int read;
-
-  read = 0;
-
-  if (vpn_num == 0)
-    return 0;
-
-  /* call the right read function for every status entry in the list */
-  for (int i = 0; i < vpn_num; i++) {
-    int vpn_read = 0;
-
-    fh = fopen(vpn_list[i]->file, "r");
-    if (fh == NULL) {
-      char errbuf[1024];
-      WARNING("openvpn plugin: fopen(%s) failed: %s", vpn_list[i]->file,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
-
-      continue;
-    }
-
-    switch (vpn_list[i]->version) {
-    case SINGLE:
-      vpn_read = single_read(vpn_list[i]->name, fh);
-      break;
-
-    case MULTI1:
-      vpn_read = multi1_read(vpn_list[i]->name, fh);
-      break;
-
-    case MULTI2:
-      vpn_read = multi2_read(vpn_list[i]->name, fh);
-      break;
-
-    case MULTI3:
-      vpn_read = multi3_read(vpn_list[i]->name, fh);
-      break;
-
-    case MULTI4:
-      vpn_read = multi4_read(vpn_list[i]->name, fh);
-      break;
-    }
-
-    fclose(fh);
-    read += vpn_read;
-  }
-
-  return read ? 0 : -1;
-} /* int openvpn_read */
-
-static int version_detect(const char *filename) {
+static int openvpn_read(user_data_t *user_data) {
   FILE *fh;
   char buffer[1024];
-  int version = 0;
+  int read = 0;
 
-  /* Sanity checking. We're called from the config handling routine, so
-   * better play it save. */
-  if ((filename == NULL) || (*filename == 0))
-    return 0;
+  vpn_status_t *st;
+  st = user_data->data;
 
-  fh = fopen(filename, "r");
+  fh = fopen(st->file, "r");
   if (fh == NULL) {
     char errbuf[1024];
-    WARNING("openvpn plugin: Unable to read \"%s\": %s", filename,
+    WARNING("openvpn plugin: fopen(%s) failed: %s", st->file,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return 0;
+
+    return -1;
   }
 
-  /* now search for the specific multimode data format */
-  while ((fgets(buffer, sizeof(buffer), fh)) != NULL) {
-    /* we look at the first line searching for SINGLE mode configuration */
-    if (strcmp(buffer, VSSTRING) == 0) {
-      DEBUG("openvpn plugin: found status file version SINGLE");
-      version = SINGLE;
-      break;
-    }
-    /* searching for multi version 1 */
-    else if (strcmp(buffer, V1STRING) == 0) {
-      DEBUG("openvpn plugin: found status file version MULTI1");
-      version = MULTI1;
-      break;
-    }
-    /* searching for multi version 2 */
-    else if (strcmp(buffer, V2STRING) == 0) {
-      DEBUG("openvpn plugin: found status file version MULTI2");
-      version = MULTI2;
-      break;
-    }
-    /* searching for multi version 3 */
-    else if (strcmp(buffer, V3STRING) == 0) {
-      DEBUG("openvpn plugin: found status file version MULTI3");
-      version = MULTI3;
-      break;
-    }
-    /* searching for multi version 4 */
-    else if (strcmp(buffer, V4STRING) == 0) {
-      DEBUG("openvpn plugin: found status file version MULTI4");
-      version = MULTI4;
-      break;
-    }
+  //Try to detect file format by its first line
+  if ((fgets(buffer, sizeof(buffer), fh)) == NULL) {
+    WARNING("openvpn plugin: failed to get data from: %s", st->file);
+    fclose(fh);
+    return -1;
   }
 
-  if (version == 0) {
-    /* This is only reached during configuration, so complaining to
-     * the user is in order. */
+  if (strcmp(buffer, TITLE_SINGLE) == 0) { //OpenVPN STATISTICS
+    DEBUG("openvpn plugin: found status file SINGLE");
+    read = single_read(st->name, fh);
+  }
+  else if (strcmp(buffer, TITLE_V1) == 0) { //OpenVPN CLIENT LIST
+    DEBUG("openvpn plugin: found status file MULTI version 1");
+    read = multi1_read(st->name, fh);
+  }
+  else if (strncmp(buffer, TITLE_V2, strlen(TITLE_V2)) == 0) { //TITLE
+    DEBUG("openvpn plugin: found status file MULTI version 2/3");
+    read = multi2_read(st->name, fh);
+  }
+  else {
     NOTICE("openvpn plugin: %s: Unknown file format, please "
            "report this as bug. Make sure to include "
            "your status file, so the plugin can "
-           "be adapted.",
-           filename);
+           "be adapted. BUF %s",
+           st->file, buffer);
+    read = -1;
   }
-
   fclose(fh);
-
-  return version;
-} /* int version_detect */
+  return read;
+} /* int openvpn_read */
 
 static int openvpn_config(const char *key, const char *value) {
   if (strcasecmp("StatusFile", key) == 0) {
+    char callback_name[3 * DATA_MAX_NAME_LEN];
     char *status_file, *status_name, *filename;
-    int status_version;
-    vpn_status_t *temp;
-
-    /* try to detect the status file format */
-    status_version = version_detect(value);
-
-    if (status_version == 0) {
-      WARNING("openvpn plugin: unable to detect status version, "
-              "discarding status file \"%s\".",
-              value);
-      return 1;
-    }
+    vpn_status_t *instance;
 
     status_file = sstrdup(value);
     if (status_file == NULL) {
       char errbuf[1024];
-      WARNING("openvpn plugin: sstrdup failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("openvpn plugin: sstrdup failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
       return 1;
     }
 
@@ -603,50 +508,39 @@ static int openvpn_config(const char *key, const char *value) {
       status_name = filename + 1;
     }
 
-    /* scan the list looking for a clone */
-    for (int i = 0; i < vpn_num; i++) {
-      if (strcasecmp(vpn_list[i]->name, status_name) == 0) {
-        WARNING("openvpn plugin: status filename \"%s\" "
-                "already used, please choose a "
-                "different one.",
-                status_name);
-        sfree(status_file);
-        return 1;
-      }
-    }
-
-    /* create a new vpn element since file, version and name are ok */
-    temp = malloc(sizeof(*temp));
-    if (temp == NULL) {
+    /* create a new vpn element */
+    instance = malloc(sizeof(*instance));
+    if (instance == NULL) {
       char errbuf[1024];
       ERROR("openvpn plugin: malloc failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       sfree(status_file);
       return 1;
     }
-    temp->file = status_file;
-    temp->version = status_version;
-    temp->name = status_name;
+    instance->file = status_file;
+    instance->name = status_name;
 
-    vpn_status_t **tmp_list =
-        realloc(vpn_list, (vpn_num + 1) * sizeof(*vpn_list));
-    if (tmp_list == NULL) {
-      char errbuf[1024];
-      ERROR("openvpn plugin: realloc failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    int status;
 
-      sfree(vpn_list);
-      sfree(temp->file);
-      sfree(temp);
-      return 1;
+    ssnprintf(callback_name, sizeof(callback_name), "openvpn/%s", status_name);
+
+    status = plugin_register_complex_read(
+      /* group = */ "openvpn",
+      /* name      = */ callback_name,
+      /* callback  = */ openvpn_read,
+      /* interval  = */ 0, &(user_data_t){
+                               .data = instance, .free_func = openvpn_free,
+                           });
+
+    if (status == EINVAL) {
+      WARNING("openvpn plugin: status filename \"%s\" "
+              "already used, please choose a "
+              "different one.",
+              status_name);
+      return -1;
     }
-    vpn_list = tmp_list;
 
-    vpn_list[vpn_num] = temp;
-    vpn_num++;
-
-    DEBUG("openvpn plugin: status file \"%s\" added", temp->file);
-
+    DEBUG("openvpn plugin: status file \"%s\" added", instance->file);
   } /* if (strcasecmp ("StatusFile", key) == 0) */
   else if ((strcasecmp("CollectCompression", key) == 0) ||
            (strcasecmp("Compression", key) == 0)) /* old, deprecated name */
@@ -683,18 +577,6 @@ static int openvpn_config(const char *key, const char *value) {
   return 0;
 } /* int openvpn_config */
 
-/* shutdown callback */
-static int openvpn_shutdown(void) {
-  for (int i = 0; i < vpn_num; i++) {
-    sfree(vpn_list[i]->file);
-    sfree(vpn_list[i]);
-  }
-
-  sfree(vpn_list);
-
-  return 0;
-} /* int openvpn_shutdown */
-
 static int openvpn_init(void) {
   if (!collect_individual_users && !collect_compression &&
       !collect_user_count) {
@@ -703,9 +585,6 @@ static int openvpn_init(void) {
             "data left to collect.");
     return -1;
   }
-
-  plugin_register_read("openvpn", openvpn_read);
-  plugin_register_shutdown("openvpn", openvpn_shutdown);
 
   return 0;
 } /* int openvpn_init */

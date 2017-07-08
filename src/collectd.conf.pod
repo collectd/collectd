@@ -5655,15 +5655,12 @@ The OpenVPN plugin reads a status file maintained by OpenVPN and gathers
 traffic statistics about connected clients.
 
 To set up OpenVPN to write to the status file periodically, use the
-B<--status> option of OpenVPN. Since OpenVPN can write two different formats,
-you need to set the required format, too. This is done by setting
-B<--status-version> to B<2>.
+B<--status> option of OpenVPN.
 
 So, in a nutshell you need:
 
   openvpn $OTHER_OPTIONS \
-    --status "/var/run/openvpn-status" 10 \
-    --status-version 2
+    --status "/var/run/openvpn-status" 10
 
 Available options:
 
