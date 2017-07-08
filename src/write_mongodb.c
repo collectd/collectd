@@ -93,10 +93,10 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   BSON_APPEND_UTF8(ret, "type_instance", vl->type_instance);
 
   BSON_APPEND_ARRAY_BEGIN(ret, "values", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    ssnprintf(key, sizeof(key), "%zu", i);
 
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       BSON_APPEND_DOUBLE(&subarray, key, vl->values[i].gauge);
@@ -109,7 +109,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
       BSON_APPEND_INT64(&subarray, key, vl->values[i].absolute);
     else {
-      ERROR("write_mongodb plugin: Unknown ds_type %d for index %d",
+      ERROR("write_mongodb plugin: Unknown ds_type %d for index %zu",
             ds->ds[i].type, i);
       bson_destroy(ret);
       return NULL;
@@ -118,10 +118,10 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   bson_append_array_end(ret, &subarray); /* }}} values */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "dstypes", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    ssnprintf(key, sizeof(key), "%zu", i);
 
     if (store_rates)
       BSON_APPEND_UTF8(&subarray, key, "gauge");
@@ -131,10 +131,10 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   bson_append_array_end(ret, &subarray); /* }}} dstypes */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "dsnames", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    ssnprintf(key, sizeof(key), "%zu", i);
     BSON_APPEND_UTF8(&subarray, key, ds->ds[i].name);
   }
   bson_append_array_end(ret, &subarray); /* }}} dsnames */
