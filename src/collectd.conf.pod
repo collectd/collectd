@@ -5291,6 +5291,11 @@ generate links like the one described above for ALL certs in a given folder.
 Example usage:
 C<c_rehash /path/to/certs/folder>
 
+=item B<ConnectTimeout> I<Milliseconds>
+
+The B<ConnectTimeout> option sets the connect timeout, in milliseconds.
+By default, the configured B<Interval> is used to set the timeout.
+
 =back
 
 =head2 Plugin C<olsrd>

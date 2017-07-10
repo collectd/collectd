@@ -969,6 +969,7 @@
 #	ForceSSL true
 #	VerifyPeer true
 #	CAPath "/path/to/folder"
+#	#ConnectTimeout 5000
 #</Plugin>
 
 #<Plugin olsrd>
