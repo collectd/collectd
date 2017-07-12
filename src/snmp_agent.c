@@ -1364,12 +1364,21 @@ static int snmp_agent_preinit(void) {
   g_agent->tables = llist_create();
   g_agent->scalars = llist_create();
 
+  if (g_agent->tables == NULL || g_agent->scalars == NULL) {
+    ERROR(PLUGIN_NAME ": llist_create() failed");
+    llist_destroy(g_agent->scalars);
+    llist_destroy(g_agent->tables);
+    return -ENOMEM;
+  }
+
   int err;
   /* make us a agentx client. */
   err = netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE,
                                1);
   if (err != 0) {
     ERROR(PLUGIN_NAME ": Failed to set agent role (%d)", err);
+    llist_destroy(g_agent->scalars);
+    llist_destroy(g_agent->tables);
     return -1;
   }
 
@@ -1381,6 +1390,8 @@ static int snmp_agent_preinit(void) {
   err = init_agent(PLUGIN_NAME);
   if (err != 0) {
     ERROR(PLUGIN_NAME ": Failed to initialize the agent library (%d)", err);
+    llist_destroy(g_agent->scalars);
+    llist_destroy(g_agent->tables);
     return -1;
   }
 
