@@ -1406,13 +1406,6 @@ static int snmp_agent_init(void) {
   if (ret != 0)
     return ret;
 
-  /* create a second thread to listen for requests from AgentX*/
-  ret = pthread_create(&g_agent->thread, NULL, &snmp_agent_thread_run, NULL);
-  if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to create a separate thread, err %u", ret);
-    return ret;
-  }
-
   ret = pthread_mutex_init(&g_agent->lock, NULL);
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Failed to initialize mutex, err %u", ret);
@@ -1422,6 +1415,13 @@ static int snmp_agent_init(void) {
   ret = pthread_mutex_init(&g_agent->agentx_lock, NULL);
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Failed to initialize AgentX mutex, err %u", ret);
+    return ret;
+  }
+
+  /* create a second thread to listen for requests from AgentX*/
+  ret = pthread_create(&g_agent->thread, NULL, &snmp_agent_thread_run, NULL);
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME ": Failed to create a separate thread, err %u", ret);
     return ret;
   }
 
