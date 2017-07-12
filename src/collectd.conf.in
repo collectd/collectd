@@ -1046,10 +1046,16 @@
 #	PersistentNotifications false
 #	FirstFullRead false
 #	LogFile "/var/log/syslog"
-#	<MsgPattern "aer syslog">
+#	<MsgPattern "AER">
+#		<Match>
+#			Name "aer error"
+#			Regex "AER:.*error received"
+#			SubmatchIdx -1
+#		</Match>
 #		<Match>
 #			Name "incident time"
 #			Regex "(... .. ..:..:..) .* pcieport.*AER"
+#			IsMandatory false
 #		</Match>
 #		<Match>
 #			Name "root port"

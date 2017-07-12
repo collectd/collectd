@@ -5841,7 +5841,8 @@ so next option B<SubmatchIdx> specifies which subexpression should be stored.
 
 Index of subexpression to be used for AER error notification. Multiple
 subexpressions are allowed. Index value 0 takes whole regular expression match
-as a result. Can be ommited, default value is 1.
+as a result. Index value -1 does not add result to message item. Can be omitted,
+default value is 1.
 
 =item B<Excluderegex> I<regex>
 

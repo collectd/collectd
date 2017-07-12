@@ -50,6 +50,7 @@
 
 #define PCIE_ECAP_OFFSET 0x100 /* ECAP always begin at offset 0x100 */
 
+#define PCIE_LOG_BEGIN "aer error"
 #define PCIE_LOG_TIME "incident time"
 #define PCIE_LOG_PORT "root port"
 #define PCIE_LOG_SEVERITY "severity"
@@ -154,10 +155,14 @@ static size_t pcie_parsers_len = 0;
 
 /* Default patterns for AER errors in syslog */
 static message_pattern pcie_default_patterns[] = {
+    {.name = PCIE_LOG_BEGIN,
+     .regex = "AER:.*error received",
+     .submatch_idx = -1,
+     .is_mandatory = 1},
     {.name = PCIE_LOG_TIME,
      .regex = "(... .. ..:..:..) .* pcieport.*AER",
      .submatch_idx = 1,
-     .is_mandatory = 1},
+     .is_mandatory = 0},
     {.name = PCIE_LOG_PORT,
      .regex = "pcieport (.*): AER:",
      .submatch_idx = 1,
@@ -651,8 +656,9 @@ static void pcie_preprocess_devices(llist_t *devs) {
       } else {
         dev->ecap_aer = pcie_find_ecap_aer(dev);
         if (dev->ecap_aer == -1)
-          INFO(PCIE_ERRORS_PLUGIN ": Device is not AER capable: %04x:%02x:%02x.%d",
-                dev->domain, dev->bus, dev->device, dev->function);
+          INFO(PCIE_ERRORS_PLUGIN
+               ": Device is not AER capable: %04x:%02x:%02x.%d",
+               dev->domain, dev->bus, dev->device, dev->function);
       }
 
       pcie_fops.close(dev);
@@ -671,7 +677,8 @@ static void pcie_preprocess_devices(llist_t *devs) {
   }
 }
 
-static void pcie_parse_msg(message *msg, unsigned int max_items) {
+static void pcie_parse_msg(message *msg, const char *name,
+                           unsigned int max_items) {
   notification_t n = {.severity = NOTIF_WARNING,
                       .time = cdtime(),
                       .plugin = PCIE_ERRORS_PLUGIN,
@@ -702,7 +709,7 @@ static void pcie_parse_msg(message *msg, unsigned int max_items) {
               item->name, item->value);
     }
   }
-  ssnprintf(n.message, sizeof(n.message), "AER %s error reported in log",
+  ssnprintf(n.message, sizeof(n.message), "%s %s error reported in log", name,
             n.type_instance);
 
   pcie_do_dispatch_notification(&n, PCIE_ERROR);
@@ -729,7 +736,7 @@ static int pcie_logfile_read(parser_job_data *job, const char *name) {
 
   for (int i = 0; i < msg_num; i++) {
     message *msg = messages_storage + i;
-    pcie_parse_msg(msg, max_item_num);
+    pcie_parse_msg(msg, name, max_item_num);
   }
   return 0;
 }
@@ -959,7 +966,7 @@ static int pcie_init(void) {
     if (llist_size(pcie_dev_list) == 0) {
       /* No any PCI Express devices were found on the system */
       ERROR(PCIE_ERRORS_PLUGIN ": No PCIe devices found in %s",
-      pcie_config.access_dir);
+            pcie_config.access_dir);
       pcie_shutdown();
       return -1;
     }
@@ -979,7 +986,7 @@ static int pcie_init(void) {
       return -1;
     }
     pcie_parsers_len = 1;
-    sstrncpy(pcie_parsers[0].name, "default", sizeof(pcie_parsers[0].name));
+    sstrncpy(pcie_parsers[0].name, "AER", sizeof(pcie_parsers[0].name));
     pcie_parsers[0].patterns = pcie_default_patterns;
     pcie_parsers[0].patterns_len = STATIC_ARRAY_SIZE(pcie_default_patterns);
   }
