@@ -98,6 +98,7 @@ static snmp_agent_ctx_t *g_agent = NULL;
       (_dd->type ? !strcmp(_dd->type, _t) : 0) &&                              \
       (_dd->type_instance ? !strcmp(_dd->type_instance, _ti) : 1)
 
+static int snmp_agent_shutdown(void);
 static void *snmp_agent_thread_run(void *arg);
 static int snmp_agent_register_oid(oid_t *oid, Netsnmp_Node_Handler *handler);
 static int snmp_agent_set_vardata(void *dst_buf, size_t *dst_buf_len,
@@ -1417,9 +1418,13 @@ static int snmp_agent_preinit(void) {
 static int snmp_agent_init(void) {
   int ret;
 
-  ret = snmp_agent_preinit();
-  if (ret != 0)
-    return ret;
+  if (g_agent == NULL || ((llist_head(g_agent->scalars) == NULL) &&
+                          (llist_head(g_agent->tables) == NULL))) {
+    ERROR(PLUGIN_NAME ": snmp_agent_init: plugin not configured");
+    return -EINVAL;
+  }
+
+  plugin_register_shutdown(PLUGIN_NAME, snmp_agent_shutdown);
 
   ret = snmp_agent_register_scalar_oids();
   if (ret != 0)
@@ -1446,6 +1451,11 @@ static int snmp_agent_init(void) {
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Failed to create a separate thread, err %u", ret);
     return ret;
+  }
+
+  if (llist_head(g_agent->tables) != NULL) {
+    plugin_register_write(PLUGIN_NAME, snmp_agent_collect, NULL);
+    plugin_register_missing(PLUGIN_NAME, snmp_agent_clear_missing, NULL);
   }
 
   return 0;
@@ -1593,7 +1603,4 @@ static int snmp_agent_config(oconfig_item_t *ci) {
 void module_register(void) {
   plugin_register_init(PLUGIN_NAME, snmp_agent_init);
   plugin_register_complex_config(PLUGIN_NAME, snmp_agent_config);
-  plugin_register_write(PLUGIN_NAME, snmp_agent_collect, NULL);
-  plugin_register_missing(PLUGIN_NAME, snmp_agent_clear_missing, NULL);
-  plugin_register_shutdown(PLUGIN_NAME, snmp_agent_shutdown);
 }
