@@ -54,6 +54,8 @@ struct interfacelist_s {
   uint32_t status;
   uint32_t prev_status;
   uint32_t sent;
+  uint32_t sec;
+  uint32_t usec;
 
   struct interfacelist_s *next;
 };
@@ -127,7 +129,8 @@ static int connectivity_link_state(struct nlmsghdr *msg)
 
         prev_status = il->status;
         il->status = ((ifi->ifi_flags & IFF_RUNNING) ? 1 : 0);
-
+        il->sec=tv.tv_sec;
+        il->usec=tv.tv_usec;
         // If the new status is different than the previous status,
         // store the previous status and set sent to zero
         if (il->status != prev_status)
@@ -416,24 +419,57 @@ static int connectivity_config(const char *key, const char *value) /* {{{ */
 } /* }}} int connectivity_config */
 
 static void submit(const char *interface, const char *type, /* {{{ */
-                   gauge_t value) {
+                   gauge_t value,uint32_t sec,uint32_t usec) {
   value_list_t vl = VALUE_LIST_INIT;
-
+  char hostname[1024];
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "connectivity", sizeof(vl.plugin));
   sstrncpy(vl.type_instance, interface, sizeof(vl.type_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
 
+  // Create metadata to store JSON key-values
+  meta_data_t * meta = meta_data_create();
+
+ // meta_data_add_string(meta,"condition",
+ // meta_data_add_string(meta, "message", "if_status:down;interface:eno2;resource:interface;action:vip_del;vip:192.168.1.100::if_status:up;interface:eno2:resource:interface;action:vip_add;vip:192.168.1.100");
+  vl.meta=meta;
   struct timeval tv;
 
   gettimeofday(&tv, NULL);
 
-  unsigned long long millisecondsSinceEpoch =
+/*  unsigned long long millisecondsSinceEpoch =
   (unsigned long long)(tv.tv_sec) * 1000 +
   (unsigned long long)(tv.tv_usec) / 1000;
+*/
+//   char strMillisecondsSinceEpoch[256];
+   //sprintf(strMillisecondsSinceEpoch, "%llu",time);
 
-  INFO("connectivity plugin (%llu): dispatching state %d for interface %s", millisecondsSinceEpoch, (int) value, interface);
+   gethostname(hostname, sizeof(hostname));
+    char strSec[11];
+    char struSec[11];
+   snprintf(strSec, sizeof strSec, "%" PRIu32, sec);
+   snprintf(struSec, sizeof struSec, "%" PRIu32, usec);
+  if(value==1){
+   meta_data_add_string(meta,"condition","interface_up");
+   meta_data_add_string(meta,"entity",interface);
+   meta_data_add_string(meta,"source",hostname);
+   meta_data_add_string(meta,"sec",strSec);
+   meta_data_add_string(meta,"usec",struSec);
+
+   meta_data_add_string(meta,"dest","interface_down");
+  }else{
+   meta_data_add_string(meta,"condition","interface_down");
+   meta_data_add_string(meta,"entity",interface);
+   meta_data_add_string(meta,"source", hostname);
+//   meta_data_add_string(meta,"clock",strMillisecondsSinceEpoch);
+   meta_data_add_string(meta,"sec",strSec);
+   meta_data_add_string(meta,"usec",struSec);
+   meta_data_add_string(meta,"dest","interface_up");
+  }
+
+   
+  //INFO("connectivity plugin (%llu): dispatching state %d for interface %s", time, (int) value, interface);
 
   plugin_dispatch_values(&vl);
 } /* }}} void interface_submit */
@@ -473,7 +509,7 @@ static int connectivity_read(void) /* {{{ */
 
     if (status != prev_status && sent == 0)
     {
-      submit(il->interface, "gauge", status);
+      submit(il->interface, "gauge", status,il->sec,il->usec);
 
       il->sent = 1;
     }
