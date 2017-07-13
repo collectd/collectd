@@ -7189,6 +7189,7 @@ B<Synopsis:>
   <Plugin snmp_agent>
     <Data "memAvailReal">
       Plugin "memory"
+      #PluginInstance "some"
       Type "memory"
       TypeInstance "free"
       OIDs "1.3.6.1.4.1.2021.4.6.0"
@@ -7232,6 +7233,12 @@ scalar data type B<Instance> has no effect and can be omitted.
 
 Read plugin name whose collected data will be mapped to specified OIDs.
 
+=item B<PluginInstance> I<String>
+
+Read plugin instance whose collected data will be mapped to specified OIDs.
+The field is optional and by default there is no plugin instance check.
+Allowed only if B<Data> block defines scalar data type.
+
 =item B<Type> I<String>
 
 Collectd's type that is to be used for specified OID, e.E<nbsp>g. "if_octets"
@@ -7244,9 +7251,9 @@ Collectd's type-instance that is to be used for specified OID.
 =item B<OIDs> I<OID> [I<OID> ...]
 
 Configures the OIDs to be handled by I<snmp_agent> plugin. Values for these OIDs
-are taken from collectd data type specified by B<Plugin>, B<Type>,
-B<TypeInstance> fields of this B<Data> block. Number of the OIDs configured
-should correspond to number of values in specified B<Type>.
+are taken from collectd data type specified by B<Plugin>, B<PluginInstance>,
+B<Type>, B<TypeInstance> fields of this B<Data> block. Number of the OIDs
+configured should correspond to number of values in specified B<Type>.
 For example two OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets" can be mapped to
 "rx" and "tx" values of "if_octets" type.
 
