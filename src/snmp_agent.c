@@ -98,6 +98,7 @@ static snmp_agent_ctx_t *g_agent = NULL;
       (_dd->type ? !strcmp(_dd->type, _t) : 0) &&                              \
       (_dd->type_instance ? !strcmp(_dd->type_instance, _ti) : 1)
 
+static int snmp_agent_shutdown(void);
 static void *snmp_agent_thread_run(void *arg);
 static int snmp_agent_register_oid(oid_t *oid, Netsnmp_Node_Handler *handler);
 static int snmp_agent_set_vardata(void *dst_buf, size_t *dst_buf_len,
@@ -420,28 +421,6 @@ static void snmp_agent_free_data(data_definition_t **dd) {
     for (size_t i = 0; i < (*dd)->oids_len; i++)
       unregister_mib((*dd)->oids[i].oid, (*dd)->oids[i].oid_len);
   }
-  if (!(*dd)->table->index_oid.oid_len) {
-    char *instance;
-
-    c_avl_iterator_t *iter = c_avl_get_iterator((*dd)->table->instance_index);
-    while (c_avl_iterator_next(iter, (void *)&instance, (void *)&instance) ==
-           0) {
-      for (size_t i = 0; i < (*dd)->oids_len; i++)
-        snmp_agent_unregister_oid_string(&(*dd)->oids[i], instance);
-    }
-    c_avl_iterator_destroy(iter);
-  } else {
-    /* unregister all table OIDs */
-    int *index;
-    char *value;
-
-    c_avl_iterator_t *iter = c_avl_get_iterator((*dd)->table->index_instance);
-    while (c_avl_iterator_next(iter, (void *)&index, (void *)&value) == 0) {
-      for (size_t i = 0; i < (*dd)->oids_len; i++)
-        snmp_agent_unregister_oid_index(&(*dd)->oids[i], *index);
-    }
-    c_avl_iterator_destroy(iter);
-  }
 
   sfree((*dd)->name);
   sfree((*dd)->plugin);
@@ -455,6 +434,43 @@ static void snmp_agent_free_data(data_definition_t **dd) {
   return;
 }
 
+static void snmp_agent_free_table_columns(table_definition_t *td) {
+  if (td->columns == NULL)
+    return;
+
+  for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
+    data_definition_t *dd = de->value;
+
+    if (td->index_oid.oid_len) {
+      int *index;
+      char *instance;
+
+      c_avl_iterator_t *iter = c_avl_get_iterator(td->index_instance);
+      while (c_avl_iterator_next(iter, (void *)&index, (void *)&instance) ==
+             0) {
+        for (size_t i = 0; i < dd->oids_len; i++)
+          snmp_agent_unregister_oid_index(&dd->oids[i], *index);
+      }
+      c_avl_iterator_destroy(iter);
+    } else {
+      char *instance;
+
+      c_avl_iterator_t *iter = c_avl_get_iterator(dd->table->instance_index);
+      while (c_avl_iterator_next(iter, (void *)&instance, (void *)&instance) ==
+             0) {
+        for (size_t i = 0; i < dd->oids_len; i++)
+          snmp_agent_unregister_oid_string(&dd->oids[i], instance);
+      }
+      c_avl_iterator_destroy(iter);
+    }
+
+    snmp_agent_free_data(&dd);
+  }
+
+  llist_destroy(td->columns);
+  td->columns = NULL;
+} /* void snmp_agent_free_table_columns */
+
 static void snmp_agent_free_table(table_definition_t **td) {
 
   if (td == NULL || *td == NULL)
@@ -463,23 +479,20 @@ static void snmp_agent_free_table(table_definition_t **td) {
   if ((*td)->size_oid.oid_len)
     unregister_mib((*td)->size_oid.oid, (*td)->size_oid.oid_len);
 
+  /* Unregister Index OIDs */
   if ((*td)->index_oid.oid_len) {
     int *index;
-    char *value;
+    char *instance;
 
     c_avl_iterator_t *iter = c_avl_get_iterator((*td)->index_instance);
-    while (c_avl_iterator_next(iter, (void *)&index, (void *)&value) == 0)
+    while (c_avl_iterator_next(iter, (void *)&index, (void *)&instance) == 0)
       snmp_agent_unregister_oid_index(&(*td)->index_oid, *index);
 
     c_avl_iterator_destroy(iter);
   }
 
-  for (llentry_t *de = llist_head((*td)->columns); de != NULL; de = de->next) {
-    data_definition_t *dd = de->value;
-    snmp_agent_free_data(&dd);
-  }
-
-  llist_destroy((*td)->columns);
+  /* Unregister all table columns and their registered OIDs */
+  snmp_agent_free_table_columns(*td);
 
   void *key = NULL;
   void *value = NULL;
@@ -1364,12 +1377,21 @@ static int snmp_agent_preinit(void) {
   g_agent->tables = llist_create();
   g_agent->scalars = llist_create();
 
+  if (g_agent->tables == NULL || g_agent->scalars == NULL) {
+    ERROR(PLUGIN_NAME ": llist_create() failed");
+    llist_destroy(g_agent->scalars);
+    llist_destroy(g_agent->tables);
+    return -ENOMEM;
+  }
+
   int err;
   /* make us a agentx client. */
   err = netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE,
                                1);
   if (err != 0) {
     ERROR(PLUGIN_NAME ": Failed to set agent role (%d)", err);
+    llist_destroy(g_agent->scalars);
+    llist_destroy(g_agent->tables);
     return -1;
   }
 
@@ -1381,6 +1403,8 @@ static int snmp_agent_preinit(void) {
   err = init_agent(PLUGIN_NAME);
   if (err != 0) {
     ERROR(PLUGIN_NAME ": Failed to initialize the agent library (%d)", err);
+    llist_destroy(g_agent->scalars);
+    llist_destroy(g_agent->tables);
     return -1;
   }
 
@@ -1394,9 +1418,13 @@ static int snmp_agent_preinit(void) {
 static int snmp_agent_init(void) {
   int ret;
 
-  ret = snmp_agent_preinit();
-  if (ret != 0)
-    return ret;
+  if (g_agent == NULL || ((llist_head(g_agent->scalars) == NULL) &&
+                          (llist_head(g_agent->tables) == NULL))) {
+    ERROR(PLUGIN_NAME ": snmp_agent_init: plugin not configured");
+    return -EINVAL;
+  }
+
+  plugin_register_shutdown(PLUGIN_NAME, snmp_agent_shutdown);
 
   ret = snmp_agent_register_scalar_oids();
   if (ret != 0)
@@ -1405,13 +1433,6 @@ static int snmp_agent_init(void) {
   ret = snmp_agent_register_table_oids();
   if (ret != 0)
     return ret;
-
-  /* create a second thread to listen for requests from AgentX*/
-  ret = pthread_create(&g_agent->thread, NULL, &snmp_agent_thread_run, NULL);
-  if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to create a separate thread, err %u", ret);
-    return ret;
-  }
 
   ret = pthread_mutex_init(&g_agent->lock, NULL);
   if (ret != 0) {
@@ -1423,6 +1444,18 @@ static int snmp_agent_init(void) {
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Failed to initialize AgentX mutex, err %u", ret);
     return ret;
+  }
+
+  /* create a second thread to listen for requests from AgentX*/
+  ret = pthread_create(&g_agent->thread, NULL, &snmp_agent_thread_run, NULL);
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME ": Failed to create a separate thread, err %u", ret);
+    return ret;
+  }
+
+  if (llist_head(g_agent->tables) != NULL) {
+    plugin_register_write(PLUGIN_NAME, snmp_agent_collect, NULL);
+    plugin_register_missing(PLUGIN_NAME, snmp_agent_clear_missing, NULL);
   }
 
   return 0;
@@ -1570,7 +1603,4 @@ static int snmp_agent_config(oconfig_item_t *ci) {
 void module_register(void) {
   plugin_register_init(PLUGIN_NAME, snmp_agent_init);
   plugin_register_complex_config(PLUGIN_NAME, snmp_agent_config);
-  plugin_register_write(PLUGIN_NAME, snmp_agent_collect, NULL);
-  plugin_register_missing(PLUGIN_NAME, snmp_agent_clear_missing, NULL);
-  plugin_register_shutdown(PLUGIN_NAME, snmp_agent_shutdown);
 }
