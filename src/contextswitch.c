@@ -69,7 +69,7 @@ static int cs_read(void) {
   if (status != 0) {
     ERROR("contextswitch plugin: sysctlbyname "
           "(vm.stats.sys.v_swtch) failed");
-    return (-1);
+    return -1;
   }
 
   cs_submit(value);
@@ -87,7 +87,7 @@ static int cs_read(void) {
   if (fh == NULL) {
     ERROR("contextswitch plugin: unable to open /proc/stat: %s",
           sstrerror(errno, buffer, sizeof(buffer)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -129,7 +129,7 @@ static int cs_read(void) {
     char errbuf[1024];
     ERROR("contextswitch plugin: perfstat_cpu_total: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   cs_submit(perfcputotal.pswitch);

@@ -156,14 +156,14 @@ static int lvm_read(void) {
   lvm = lvm_init(NULL);
   if (!lvm) {
     ERROR("lvm plugin: lvm_init failed.");
-    return (-1);
+    return -1;
   }
 
   vg_names = lvm_list_vg_names(lvm);
   if (!vg_names) {
     ERROR("lvm plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
     lvm_quit(lvm);
-    return (-1);
+    return -1;
   }
 
   dm_list_iterate_items(name_list, vg_names) {
@@ -181,7 +181,7 @@ static int lvm_read(void) {
   }
 
   lvm_quit(lvm);
-  return (0);
+  return 0;
 } /*lvm_read */
 
 void module_register(void) {

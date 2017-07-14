@@ -209,9 +209,9 @@ static int fscache_read(void) {
 
   } else {
     printf("cant open file\n");
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

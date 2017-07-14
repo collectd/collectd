@@ -115,8 +115,8 @@ int battery_read_statefs(void) {
   if (success == 0) {
     ERROR("battery plugin: statefs backend: none of the statistics are "
           "available");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }

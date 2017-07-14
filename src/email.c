@@ -159,18 +159,18 @@ static type_list_t list_check_copy;
  * Private functions
  */
 static int email_config(const char *key, const char *value) {
-  if (0 == strcasecmp(key, "SocketFile")) {
-    if (NULL != sock_file)
+  if (strcasecmp(key, "SocketFile") == 0) {
+    if (sock_file != NULL)
       free(sock_file);
     sock_file = sstrdup(value);
-  } else if (0 == strcasecmp(key, "SocketGroup")) {
-    if (NULL != sock_group)
+  } else if (strcasecmp(key, "SocketGroup") == 0) {
+    if (sock_group != NULL)
       free(sock_group);
     sock_group = sstrdup(value);
-  } else if (0 == strcasecmp(key, "SocketPerms")) {
+  } else if (strcasecmp(key, "SocketPerms") == 0) {
     /* the user is responsible for providing reasonable values */
     sock_perms = (int)strtol(value, NULL, 8);
-  } else if (0 == strcasecmp(key, "MaxConns")) {
+  } else if (strcasecmp(key, "MaxConns") == 0) {
     long int tmp = strtol(value, NULL, 0);
 
     if (tmp < 1) {
@@ -200,7 +200,7 @@ static int email_config(const char *key, const char *value) {
 
 /* Increment the value of the given name in the given list by incr. */
 static void type_list_incr(type_list_t *list, char *name, int incr) {
-  if (NULL == list->head) {
+  if (list->head == NULL) {
     list->head = smalloc(sizeof(*list->head));
 
     list->head->name = sstrdup(name);
@@ -212,11 +212,11 @@ static void type_list_incr(type_list_t *list, char *name, int incr) {
     type_t *ptr;
 
     for (ptr = list->head; NULL != ptr; ptr = ptr->next) {
-      if (0 == strcmp(name, ptr->name))
+      if (strcmp(name, ptr->name) == 0)
         break;
     }
 
-    if (NULL == ptr) {
+    if (ptr == NULL) {
       list->tail->next = smalloc(sizeof(*list->tail->next));
       list->tail = list->tail->next;
 
@@ -238,14 +238,14 @@ static void *collect(void *arg) {
 
     pthread_mutex_lock(&conns_mutex);
 
-    while (NULL == conns.head) {
+    while (conns.head == NULL) {
       pthread_cond_wait(&conn_available, &conns_mutex);
     }
 
     connection = conns.head;
     conns.head = conns.head->next;
 
-    if (NULL == conns.head) {
+    if (conns.head == NULL) {
       conns.tail = NULL;
     }
 
@@ -263,8 +263,8 @@ static void *collect(void *arg) {
       int len = 0;
 
       errno = 0;
-      if (NULL == fgets(line, sizeof(line), this->socket)) {
-        if (0 != errno) {
+      if (fgets(line, sizeof(line), this->socket) == NULL) {
+        if (errno != 0) {
           char errbuf[1024];
           log_err("collect: reading from socket (fd #%i) "
                   "failed: %s",
@@ -275,13 +275,13 @@ static void *collect(void *arg) {
       }
 
       len = strlen(line);
-      if (('\n' != line[len - 1]) && ('\r' != line[len - 1])) {
+      if ((line[len - 1] != '\n') && (line[len - 1] != '\r')) {
         log_warn("collect: line too long (> %zu characters): "
                  "'%s' (truncated)",
                  sizeof(line) - 1, line);
 
-        while (NULL != fgets(line, sizeof(line), this->socket))
-          if (('\n' == line[len - 1]) || ('\r' == line[len - 1]))
+        while (fgets(line, sizeof(line), this->socket) != NULL)
+          if ((line[len - 1] == '\n') || (line[len - 1] == '\r'))
             break;
         continue;
       }
@@ -293,18 +293,18 @@ static void *collect(void *arg) {
 
       log_debug("collect: line = '%s'", line);
 
-      if (':' != line[1]) {
+      if (line[1] != ':') {
         log_err("collect: syntax error in line '%s'", line);
         continue;
       }
 
-      if ('e' == line[0]) { /* e:<type>:<bytes> */
+      if (line[0] == 'e') { /* e:<type>:<bytes> */
         char *ptr = NULL;
         char *type = strtok_r(line + 2, ":", &ptr);
         char *tmp = strtok_r(NULL, ":", &ptr);
         int bytes = 0;
 
-        if (NULL == tmp) {
+        if (tmp == NULL) {
           log_err("collect: syntax error in line '%s'", line);
           continue;
         }
@@ -320,13 +320,13 @@ static void *collect(void *arg) {
           type_list_incr(&list_size, type, /* increment = */ bytes);
           pthread_mutex_unlock(&size_mutex);
         }
-      } else if ('s' == line[0]) { /* s:<value> */
+      } else if (line[0] == 's') { /* s:<value> */
         pthread_mutex_lock(&score_mutex);
         score = (score * (double)score_count + atof(line + 2)) /
                 (double)(score_count + 1);
         ++score_count;
         pthread_mutex_unlock(&score_mutex);
-      } else if ('c' == line[0]) { /* c:<type1>[,<type2>,...] */
+      } else if (line[0] == 'c') { /* c:<type1>[,<type2>,...] */
         char *dummy = line + 2;
         char *endptr = NULL;
         char *type;
@@ -357,7 +357,7 @@ static void *collect(void *arg) {
   } /* while (1) */
 
   pthread_exit((void *)0);
-  return ((void *)0);
+  return (void *)0;
 } /* static void *collect (void *) */
 
 static void *open_connection(void __attribute__((unused)) * arg) {
@@ -366,7 +366,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 
   /* create UNIX socket */
   errno = 0;
-  if (-1 == (connector_socket = socket(PF_UNIX, SOCK_STREAM, 0))) {
+  if ((connector_socket = socket(PF_UNIX, SOCK_STREAM, 0)) == -1) {
     char errbuf[1024];
     disabled = 1;
     log_err("socket() failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -379,9 +379,8 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   sstrncpy(addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
 
   errno = 0;
-  if (-1 ==
-      bind(connector_socket, (struct sockaddr *)&addr,
-           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path))) {
+  if (bind(connector_socket, (struct sockaddr *)&addr,
+           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) == -1) {
     char errbuf[1024];
     disabled = 1;
     close(connector_socket);
@@ -391,7 +390,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   }
 
   errno = 0;
-  if (-1 == listen(connector_socket, 5)) {
+  if (listen(connector_socket, 5) == -1) {
     char errbuf[1024];
     disabled = 1;
     close(connector_socket);
@@ -403,7 +402,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   {
     struct group sg;
     struct group *grp;
-    char grbuf[2048];
+    char grbuf[4096];
     int status;
 
     grp = NULL;
@@ -411,7 +410,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     if (status != 0) {
       char errbuf[1024];
       log_warn("getgrnam_r (%s) failed: %s", group,
-               sstrerror(errno, errbuf, sizeof(errbuf)));
+               sstrerror(status, errbuf, sizeof(errbuf)));
     } else if (grp == NULL) {
       log_warn("No such group: `%s'", group);
     } else {
@@ -425,7 +424,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   }
 
   errno = 0;
-  if (0 != chmod(path, sock_perms)) {
+  if (chmod(path, sock_perms) != 0) {
     char errbuf[1024];
     log_warn("chmod() failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
   }
@@ -466,7 +465,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 
     pthread_mutex_lock(&available_mutex);
 
-    while (0 == available_collectors) {
+    while (available_collectors == 0) {
       pthread_cond_wait(&collector_available, &available_mutex);
     }
 
@@ -505,7 +504,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     connection->socket = fdopen(remote, "r");
     connection->next = NULL;
 
-    if (NULL == connection->socket) {
+    if (connection->socket == NULL) {
       close(remote);
       sfree(connection);
       continue;
@@ -513,7 +512,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 
     pthread_mutex_lock(&conns_mutex);
 
-    if (NULL == conns.head) {
+    if (conns.head == NULL) {
       conns.head = connection;
       conns.tail = connection;
     } else {
@@ -527,7 +526,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   }
 
   pthread_exit((void *)0);
-  return ((void *)0);
+  return (void *)0;
 } /* static void *open_connection (void *) */
 
 static int email_init(void) {
@@ -537,10 +536,10 @@ static int email_init(void) {
     disabled = 1;
     log_err("plugin_thread_create() failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int email_init */
 
 static void type_list_free(type_list_t *t) {
@@ -605,11 +604,11 @@ static int email_shutdown(void) {
   type_list_free(&list_check);
   type_list_free(&list_check_copy);
 
-  unlink((NULL == sock_file) ? SOCK_PATH : sock_file);
+  unlink((sock_file == NULL) ? SOCK_PATH : sock_file);
 
   sfree(sock_file);
   sfree(sock_group);
-  return (0);
+  return 0;
 } /* static void email_shutdown (void) */
 
 static void email_submit(const char *type, const char *type_instance,
@@ -632,14 +631,14 @@ static void email_submit(const char *type, const char *type_instance,
 static void copy_type_list(type_list_t *l1, type_list_t *l2) {
   type_t *last = NULL;
 
-  for (type_t *ptr1 = l1->head, *ptr2 = l2->head; NULL != ptr1;
+  for (type_t *ptr1 = l1->head, *ptr2 = l2->head; ptr1 != NULL;
        ptr1 = ptr1->next, last = ptr2, ptr2 = ptr2->next) {
-    if (NULL == ptr2) {
+    if (ptr2 == NULL) {
       ptr2 = smalloc(sizeof(*ptr2));
       ptr2->name = NULL;
       ptr2->next = NULL;
 
-      if (NULL == last) {
+      if (last == NULL) {
         l2->head = ptr2;
       } else {
         last->next = ptr2;
@@ -648,7 +647,7 @@ static void copy_type_list(type_list_t *l1, type_list_t *l2) {
       l2->tail = ptr2;
     }
 
-    if (NULL == ptr2->name) {
+    if (ptr2->name == NULL) {
       ptr2->name = sstrdup(ptr1->name);
     }
 
@@ -663,7 +662,7 @@ static int email_read(void) {
   int score_count_old;
 
   if (disabled)
-    return (-1);
+    return -1;
 
   /* email count */
   pthread_mutex_lock(&count_mutex);
@@ -672,7 +671,7 @@ static int email_read(void) {
 
   pthread_mutex_unlock(&count_mutex);
 
-  for (type_t *ptr = list_count_copy.head; NULL != ptr; ptr = ptr->next) {
+  for (type_t *ptr = list_count_copy.head; ptr != NULL; ptr = ptr->next) {
     email_submit("email_count", ptr->name, ptr->value);
   }
 
@@ -683,7 +682,7 @@ static int email_read(void) {
 
   pthread_mutex_unlock(&size_mutex);
 
-  for (type_t *ptr = list_size_copy.head; NULL != ptr; ptr = ptr->next) {
+  for (type_t *ptr = list_size_copy.head; ptr != NULL; ptr = ptr->next) {
     email_submit("email_size", ptr->name, ptr->value);
   }
 
@@ -707,10 +706,10 @@ static int email_read(void) {
 
   pthread_mutex_unlock(&check_mutex);
 
-  for (type_t *ptr = list_check_copy.head; NULL != ptr; ptr = ptr->next)
+  for (type_t *ptr = list_check_copy.head; ptr != NULL; ptr = ptr->next)
     email_submit("spam_check", ptr->name, ptr->value);
 
-  return (0);
+  return 0;
 } /* int email_read */
 
 void module_register(void) {

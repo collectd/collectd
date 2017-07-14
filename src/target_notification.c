@@ -43,7 +43,7 @@ static int tn_config_add_severity(tn_data_t *data, /* {{{ */
     ERROR("Target `notification': The `%s' option requires exactly one string "
           "argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if ((strcasecmp("FAILURE", ci->values[0].value.string) == 0) ||
@@ -61,7 +61,7 @@ static int tn_config_add_severity(tn_data_t *data, /* {{{ */
     data->severity = NOTIF_FAILURE;
   }
 
-  return (0);
+  return 0;
 } /* }}} int tn_config_add_severity */
 
 static int tn_config_add_string(char **dest, /* {{{ */
@@ -69,32 +69,32 @@ static int tn_config_add_string(char **dest, /* {{{ */
   char *temp;
 
   if (dest == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     ERROR("Target `notification': The `%s' option requires exactly one string "
           "argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].value.string[0] == 0) {
     ERROR(
         "Target `notification': The `%s' option does not accept empty strings.",
         ci->key);
-    return (-1);
+    return -1;
   }
 
   temp = sstrdup(ci->values[0].value.string);
   if (temp == NULL) {
     ERROR("tn_config_add_string: sstrdup failed.");
-    return (-1);
+    return -1;
   }
 
   free(*dest);
   *dest = temp;
 
-  return (0);
+  return 0;
 } /* }}} int tn_config_add_string */
 
 static int tn_destroy(void **user_data) /* {{{ */
@@ -102,16 +102,16 @@ static int tn_destroy(void **user_data) /* {{{ */
   tn_data_t *data;
 
   if (user_data == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL)
-    return (0);
+    return 0;
 
   sfree(data->message);
   sfree(data);
 
-  return (0);
+  return 0;
 } /* }}} int tn_destroy */
 
 static int tn_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
@@ -122,7 +122,7 @@ static int tn_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   data = calloc(1, sizeof(*data));
   if (data == NULL) {
     ERROR("tn_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   data->message = NULL;
@@ -168,11 +168,11 @@ static int tn_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     tn_destroy((void *)&data);
-    return (status);
+    return status;
   }
 
   *user_data = data;
-  return (0);
+  return 0;
 } /* }}} int tn_create */
 
 static int tn_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -186,12 +186,12 @@ static int tn_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
   int rates_failed;
 
   if ((ds == NULL) || (vl == NULL) || (user_data == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   data = *user_data;
   if (data == NULL) {
     ERROR("Target `notification': Invoke: `data' is NULL.");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   /* Initialize the structure. */
@@ -249,7 +249,7 @@ static int tn_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   plugin_dispatch_notification(&n);
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int tn_invoke */
 
 void module_register(void) {

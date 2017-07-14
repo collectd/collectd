@@ -514,7 +514,8 @@ static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
 
   ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
   if (ret < 0) {
-    virTypedParamsFree(param, nparams);
+    virTypedParamsClear(param, nparams);
+    sfree(param);
     VIRT_ERROR(conn, "getting the disk params values");
     return -1;
   }
@@ -526,7 +527,8 @@ static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
       info->total_syst_cpu_time = param[i].value.ul;
   }
 
-  virTypedParamsFree(param, nparams);
+  virTypedParamsClear(param, nparams);
+  sfree(param);
 #endif /* HAVE_CPU_STATS */
 
   return 0;
@@ -1110,31 +1112,29 @@ static void lv_disconnect(void) {
 static int lv_domain_block_info(virDomainPtr dom, const char *path,
                                 struct lv_block_info *binfo) {
 #ifdef HAVE_BLOCK_STATS_FLAGS
-  virTypedParameterPtr params = NULL;
   int nparams = 0;
-  int rc = -1;
-  int ret = virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0);
-  if (ret < 0 || nparams == 0) {
+  if (virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0) < 0 ||
+      nparams <= 0) {
     VIRT_ERROR(conn, "getting the disk params count");
     return -1;
   }
 
-  params = calloc(nparams, sizeof(virTypedParameter));
+  virTypedParameterPtr params = calloc((size_t)nparams, sizeof(*params));
   if (params == NULL) {
     ERROR("virt plugin: alloc(%i) for block=%s parameters failed.", nparams,
           path);
     return -1;
   }
-  ret = virDomainBlockStatsFlags(dom, path, params, &nparams, 0);
-  if (ret < 0) {
+
+  int rc = -1;
+  if (virDomainBlockStatsFlags(dom, path, params, &nparams, 0) < 0) {
     VIRT_ERROR(conn, "getting the disk params values");
-    goto done;
+  } else {
+    rc = get_block_info(binfo, params, nparams);
   }
 
-  rc = get_block_info(binfo, params, nparams);
-
-done:
-  virTypedParamsFree(params, nparams);
+  virTypedParamsClear(params, nparams);
+  sfree(params);
   return rc;
 #else
   return virDomainBlockStats(dom, path, &(binfo->bi), sizeof(binfo->bi));
@@ -1802,9 +1802,9 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
   we can't detect this.
  */
 #ifdef LIBVIR_CHECK_VERSION
-# if LIBVIR_CHECK_VERSION(0,10,2)
-#  define HAVE_LIST_ALL_DOMAINS 1
-# endif
+#if LIBVIR_CHECK_VERSION(0, 10, 2)
+#define HAVE_LIST_ALL_DOMAINS 1
+#endif
 #endif
 
 static int refresh_lists(struct lv_read_instance *inst) {
@@ -1822,7 +1822,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
   if (n > 0) {
 #ifdef HAVE_LIST_ALL_DOMAINS
     virDomainPtr *domains;
-    n = virConnectListAllDomains (conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
+    n = virConnectListAllDomains(conn, &domains,
+                                 VIR_CONNECT_LIST_DOMAINS_ACTIVE);
 #else
     int *domids;
 
@@ -2007,7 +2008,7 @@ static int refresh_lists(struct lv_read_instance *inst) {
     }
 
 #ifdef HAVE_LIST_ALL_DOMAINS
-    sfree (domains);
+    sfree(domains);
 #else
     sfree(domids);
 #endif
@@ -2150,7 +2151,7 @@ static int ignore_device_match(ignorelist_t *il, const char *domname,
   if ((domname == NULL) || (devpath == NULL))
     return 0;
 
-  n = sizeof(char) * (strlen(domname) + strlen(devpath) + 2);
+  n = strlen(domname) + strlen(devpath) + 2;
   name = malloc(n);
   if (name == NULL) {
     ERROR(PLUGIN_NAME " plugin: malloc failed.");

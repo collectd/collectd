@@ -85,14 +85,15 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
 
   if (st->state && st->ld) {
     DEBUG("openldap plugin: Already connected to %s", st->url);
-    return (0);
+    return 0;
   }
 
   rc = ldap_initialize(&ld, st->url);
   if (rc != LDAP_SUCCESS) {
     ERROR("openldap plugin: ldap_initialize failed: %s", ldap_err2string(rc));
     st->state = 0;
-    ldap_unbind_ext_s(ld, NULL, NULL);
+    if (ld != NULL)
+      ldap_unbind_ext_s(ld, NULL, NULL);
     return (-1);
   }
 
@@ -119,7 +120,8 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
       ERROR("openldap plugin: Failed to start tls on %s: %s", st->url,
             ldap_err2string(rc));
       st->state = 0;
-      ldap_unbind_ext_s(st->ld, NULL, NULL);
+      if (st->ld != NULL)
+        ldap_unbind_ext_s(st->ld, NULL, NULL);
       return (-1);
     }
   }
@@ -139,12 +141,13 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
     ERROR("openldap plugin: Failed to bind to %s: %s", st->url,
           ldap_err2string(rc));
     st->state = 0;
-    ldap_unbind_ext_s(st->ld, NULL, NULL);
+    if (st->ld != NULL)
+      ldap_unbind_ext_s(st->ld, NULL, NULL);
     return (-1);
   } else {
     DEBUG("openldap plugin: Successfully connected to %s", st->url);
     st->state = 1;
-    return (0);
+    return 0;
   }
 } /* }}} static cldap_init_host */
 
@@ -197,14 +200,14 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("openldap plugin: cldap_read_host: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   st = (cldap_t *)ud->data;
 
   status = cldap_init_host(st);
   if (status != 0)
-    return (-1);
+    return -1;
 
   rc = ldap_search_ext_s(st->ld, "cn=Monitor", LDAP_SCOPE_SUBTREE,
                          "(|(!(cn=* *))(cn=Database*))", attrs, 0, NULL, NULL,
@@ -214,7 +217,8 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
     ERROR("openldap plugin: Failed to execute search: %s", ldap_err2string(rc));
     ldap_msgfree(result);
     st->state = 0;
-    ldap_unbind_ext_s(st->ld, NULL, NULL);
+    if (st->ld != NULL)
+      ldap_unbind_ext_s(st->ld, NULL, NULL);
     return (-1);
   }
 
@@ -372,7 +376,7 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
   }
 
   ldap_msgfree(result);
-  return (0);
+  return 0;
 } /* }}} int cldap_read_host */
 
 /* Configuration handling functions {{{
@@ -393,13 +397,13 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
   st = calloc(1, sizeof(*st));
   if (st == NULL) {
     ERROR("openldap plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   status = cf_util_get_string(ci, &st->name);
   if (status != 0) {
     sfree(st);
-    return (status);
+    return status;
   }
 
   st->starttls = 0;
@@ -491,10 +495,10 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
 
   if (status != 0) {
     cldap_free(st);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int cldap_config_add */
 
 static int cldap_config(oconfig_item_t *ci) /* {{{ */
@@ -514,7 +518,7 @@ static int cldap_config(oconfig_item_t *ci) /* {{{ */
               child->key);
   } /* for (ci->children) */
 
-  return (status);
+  return status;
 } /* }}} int cldap_config */
 
 /* }}} End of configuration handling functions */
@@ -525,7 +529,7 @@ static int cldap_init(void) /* {{{ */
    * ldap_initialize(3) */
   int debug_level;
   ldap_get_option(NULL, LDAP_OPT_DEBUG_LEVEL, &debug_level);
-  return (0);
+  return 0;
 } /* }}} int cldap_init */
 
 static int cldap_shutdown(void) /* {{{ */
@@ -536,7 +540,7 @@ static int cldap_shutdown(void) /* {{{ */
   sfree(databases);
   databases_num = 0;
 
-  return (0);
+  return 0;
 } /* }}} int cldap_shutdown */
 
 void module_register(void) /* {{{ */

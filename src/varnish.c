@@ -106,23 +106,25 @@ static int varnish_submit(const char *plugin_instance, /* {{{ */
   if (type_instance != NULL)
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-  return (plugin_dispatch_values(&vl));
+  return plugin_dispatch_values(&vl);
 } /* }}} int varnish_submit */
 
 static int varnish_submit_gauge(const char *plugin_instance, /* {{{ */
                                 const char *category, const char *type,
                                 const char *type_instance,
                                 uint64_t gauge_value) {
-  return (varnish_submit(plugin_instance, category, type, type_instance,
-                         (value_t){.gauge = (gauge_t)gauge_value}));
+  return varnish_submit(plugin_instance, category, type, type_instance, (value_t){
+      .gauge=(gauge_t)gauge_value,
+    });
 } /* }}} int varnish_submit_gauge */
 
 static int varnish_submit_derive(const char *plugin_instance, /* {{{ */
                                  const char *category, const char *type,
                                  const char *type_instance,
                                  uint64_t derive_value) {
-  return (varnish_submit(plugin_instance, category, type, type_instance,
-                         (value_t){.derive = (derive_t)derive_value}));
+  return varnish_submit(plugin_instance, category, type, type_instance, (value_t){
+      .derive=(derive_t)derive_value,
+    });
 } /* }}} int varnish_submit_derive */
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
@@ -135,7 +137,7 @@ static int varnish_monitor(void *priv,
   const char *name;
 
   if (pt == NULL)
-    return (0);
+    return 0;
 
   conf = priv;
 
@@ -144,14 +146,14 @@ static int varnish_monitor(void *priv,
   name = pt->desc->name;
 
   if (strcmp(class, "MAIN") != 0)
-    return (0);
+    return 0;
 
 #elif HAVE_VARNISH_V3
   class = pt->class;
   name = pt->name;
 
   if (strcmp(class, "") != 0)
-    return (0);
+    return 0;
 #endif
 
   val = *(const volatile uint64_t *)pt->ptr;
@@ -170,21 +172,21 @@ static int varnish_monitor(void *priv,
 
   if (conf->collect_connections) {
     if (strcmp(name, "client_conn") == 0)
-      return varnish_submit_derive(conf->instance, "connections", "connections",
-                                   "accepted", val);
+      return varnish_submit_derive(conf->instance, "connections",
+                                   "connections", "accepted", val);
     else if (strcmp(name, "client_drop") == 0)
-      return varnish_submit_derive(conf->instance, "connections", "connections",
-                                   "dropped", val);
+      return varnish_submit_derive(conf->instance, "connections",
+                                   "connections", "dropped", val);
     else if (strcmp(name, "client_req") == 0)
-      return varnish_submit_derive(conf->instance, "connections", "connections",
-                                   "received", val);
+      return varnish_submit_derive(conf->instance, "connections",
+                                   "connections", "received", val);
   }
 
 #ifdef HAVE_VARNISH_V3
   if (conf->collect_dirdns) {
     if (strcmp(name, "dir_dns_lookups") == 0)
-      return varnish_submit_derive(conf->instance, "dirdns", "cache_operation",
-                                   "lookups", val);
+      return varnish_submit_derive(conf->instance, "dirdns",
+                                   "cache_operation", "lookups", val);
     else if (strcmp(name, "dir_dns_failed") == 0)
       return varnish_submit_derive(conf->instance, "dirdns", "cache_result",
                                    "failed", val);
@@ -439,26 +441,26 @@ static int varnish_monitor(void *priv,
       return varnish_submit_gauge(conf->instance, "sms", "requests",
                                   "outstanding", val);
     else if (strcmp(name, "sms_nbytes") == 0)
-      return varnish_submit_gauge(conf->instance, "sms", "bytes", "outstanding",
-                                  val);
+      return varnish_submit_gauge(conf->instance, "sms", "bytes",
+                                  "outstanding", val);
     else if (strcmp(name, "sms_balloc") == 0)
       return varnish_submit_derive(conf->instance, "sms", "total_bytes",
                                    "allocated", val);
     else if (strcmp(name, "sms_bfree") == 0)
-      return varnish_submit_derive(conf->instance, "sms", "total_bytes", "free",
-                                   val);
+      return varnish_submit_derive(conf->instance, "sms", "total_bytes",
+                                   "free", val);
   }
 
   if (conf->collect_struct) {
     if (strcmp(name, "n_sess_mem") == 0)
-      return varnish_submit_gauge(conf->instance, "struct", "current_sessions",
-                                  "sess_mem", val);
+      return varnish_submit_gauge(conf->instance, "struct",
+                                  "current_sessions", "sess_mem", val);
     else if (strcmp(name, "n_sess") == 0)
-      return varnish_submit_gauge(conf->instance, "struct", "current_sessions",
-                                  "sess", val);
+      return varnish_submit_gauge(conf->instance, "struct",
+                                  "current_sessions", "sess", val);
     else if (strcmp(name, "n_object") == 0)
-      return varnish_submit_gauge(conf->instance, "struct", "objects", "object",
-                                  val);
+      return varnish_submit_gauge(conf->instance, "struct", "objects",
+                                  "object", val);
     else if (strcmp(name, "n_vampireobject") == 0)
       return varnish_submit_gauge(conf->instance, "struct", "objects",
                                   "vampireobject", val);
@@ -493,14 +495,14 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "totals", "total_requests",
                                    "requests", val);
     else if (strcmp(name, "s_pipe") == 0)
-      return varnish_submit_derive(conf->instance, "totals", "total_operations",
-                                   "pipe", val);
+      return varnish_submit_derive(conf->instance, "totals",
+                                   "total_operations", "pipe", val);
     else if (strcmp(name, "s_pass") == 0)
-      return varnish_submit_derive(conf->instance, "totals", "total_operations",
-                                   "pass", val);
+      return varnish_submit_derive(conf->instance, "totals",
+                                   "total_operations", "pass", val);
     else if (strcmp(name, "s_fetch") == 0)
-      return varnish_submit_derive(conf->instance, "totals", "total_operations",
-                                   "fetches", val);
+      return varnish_submit_derive(conf->instance, "totals",
+                                   "total_operations", "fetches", val);
     else if (strcmp(name, "s_synth") == 0)
       return varnish_submit_derive(conf->instance, "totals", "total_bytes",
                                    "synth", val);
@@ -526,8 +528,8 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "totals", "total_bytes",
                                    "pipe_out", val);
     else if (strcmp(name, "n_purges") == 0)
-      return varnish_submit_derive(conf->instance, "totals", "total_operations",
-                                   "purges", val);
+      return varnish_submit_derive(conf->instance, "totals",
+                                   "total_operations", "purges", val);
     else if (strcmp(name, "s_hdrbytes") == 0)
       return varnish_submit_derive(conf->instance, "totals", "total_bytes",
                                    "header-bytes", val);
@@ -535,11 +537,11 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "totals", "total_bytes",
                                    "body-bytes", val);
     else if (strcmp(name, "n_gzip") == 0)
-      return varnish_submit_derive(conf->instance, "totals", "total_operations",
-                                   "gzip", val);
+      return varnish_submit_derive(conf->instance, "totals",
+                                   "total_operations", "gzip", val);
     else if (strcmp(name, "n_gunzip") == 0)
-      return varnish_submit_derive(conf->instance, "totals", "total_operations",
-                                   "gunzip", val);
+      return varnish_submit_derive(conf->instance, "totals",
+                                   "total_operations", "gunzip", val);
   }
 
   if (conf->collect_uptime) {
@@ -556,8 +558,8 @@ static int varnish_monitor(void *priv,
       return varnish_submit_gauge(conf->instance, "vcl", "vcl", "avail_vcl",
                                   val);
     else if (strcmp(name, "n_vcl_discard") == 0)
-      return varnish_submit_gauge(conf->instance, "vcl", "vcl", "discarded_vcl",
-                                  val);
+      return varnish_submit_gauge(conf->instance, "vcl", "vcl",
+                                  "discarded_vcl", val);
     else if (strcmp(name, "vmods") == 0)
       return varnish_submit_gauge(conf->instance, "vcl", "objects", "vmod",
                                   val);
@@ -598,17 +600,17 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "workers", "total_threads",
                                    "dropped", val);
     else if (strcmp(name, "n_wrk_queue") == 0)
-      return varnish_submit_derive(conf->instance, "workers", "total_requests",
-                                   "queued", val);
+      return varnish_submit_derive(conf->instance, "workers",
+                                   "total_requests", "queued", val);
     else if (strcmp(name, "n_wrk_overflow") == 0)
-      return varnish_submit_derive(conf->instance, "workers", "total_requests",
-                                   "overflowed", val);
+      return varnish_submit_derive(conf->instance, "workers",
+                                   "total_requests", "overflowed", val);
     else if (strcmp(name, "n_wrk_queued") == 0)
-      return varnish_submit_derive(conf->instance, "workers", "total_requests",
-                                   "queued", val);
+      return varnish_submit_derive(conf->instance, "workers",
+                                   "total_requests", "queued", val);
     else if (strcmp(name, "n_wrk_lqueue") == 0)
-      return varnish_submit_derive(conf->instance, "workers", "total_requests",
-                                   "queue_length", val);
+      return varnish_submit_derive(conf->instance, "workers",
+                                   "total_requests", "queue_length", val);
   }
 
 #if HAVE_VARNISH_V4
@@ -629,7 +631,7 @@ static int varnish_monitor(void *priv,
   }
 #endif
 
-  return (0);
+  return 0;
 
 } /* }}} static int varnish_monitor */
 #else /* if HAVE_VARNISH_V2 */
@@ -981,7 +983,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   user_config_t *conf;
 
   if ((ud == NULL) || (ud->data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   conf = ud->data;
 
@@ -999,7 +1001,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
       ERROR("varnish plugin: VSM_n_Arg (\"%s\") failed "
             "with status %i.",
             conf->instance, status);
-      return (-1);
+      return -1;
     }
   }
 
@@ -1012,7 +1014,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
     VSM_Delete(vd);
     ERROR("varnish plugin: Unable to open connection.");
 
-    return (-1);
+    return -1;
   }
 
 #if HAVE_VARNISH_V3
@@ -1024,7 +1026,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
     VSM_Delete(vd);
     ERROR("varnish plugin: Unable to get statistics.");
 
-    return (-1);
+    return -1;
   }
 
 #if HAVE_VARNISH_V3
@@ -1034,7 +1036,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 #endif
   VSM_Delete(vd);
 
-  return (0);
+  return 0;
 } /* }}} */
 #else /* if HAVE_VARNISH_V2 */
 static int varnish_read(user_data_t *ud) /* {{{ */
@@ -1044,7 +1046,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   user_config_t *conf;
 
   if ((ud == NULL) || (ud->data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   conf = ud->data;
 
@@ -1052,12 +1054,12 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   if (stats == NULL) {
     ERROR("Varnish plugin : unable to load statistics");
 
-    return (-1);
+    return -1;
   }
 
   varnish_monitor(conf, stats);
 
-  return (0);
+  return 0;
 } /* }}} */
 #endif
 
@@ -1075,7 +1077,7 @@ static void varnish_config_free(void *ptr) /* {{{ */
 static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
 {
   if (conf == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   conf->collect_backend = 1;
   conf->collect_cache = 1;
@@ -1110,7 +1112,7 @@ static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
   conf->collect_vsm = 0;
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int varnish_config_apply_default */
 
 static int varnish_init(void) /* {{{ */
@@ -1118,11 +1120,11 @@ static int varnish_init(void) /* {{{ */
   user_config_t *conf;
 
   if (have_instance)
-    return (0);
+    return 0;
 
   conf = calloc(1, sizeof(*conf));
   if (conf == NULL)
-    return (ENOMEM);
+    return ENOMEM;
 
   /* Default settings: */
   conf->instance = NULL;
@@ -1137,7 +1139,7 @@ static int varnish_init(void) /* {{{ */
                                .data = conf, .free_func = varnish_config_free,
                            });
 
-  return (0);
+  return 0;
 } /* }}} int varnish_init */
 
 static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
@@ -1147,7 +1149,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
 
   conf = calloc(1, sizeof(*conf));
   if (conf == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   conf->instance = NULL;
 
   varnish_config_apply_default(conf);
@@ -1158,7 +1160,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     status = cf_util_get_string(ci, &conf->instance);
     if (status != 0) {
       sfree(conf);
-      return (status);
+      return status;
     }
     assert(conf->instance != NULL);
 
@@ -1170,7 +1172,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     WARNING("Varnish plugin: \"Instance\" blocks accept only "
             "one argument.");
     sfree(conf);
-    return (EINVAL);
+    return EINVAL;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -1290,7 +1292,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
             "instance \"%s\". Disabling this instance.",
             (conf->instance == NULL) ? "localhost" : conf->instance);
     sfree(conf);
-    return (EINVAL);
+    return EINVAL;
   }
 
   ssnprintf(callback_name, sizeof(callback_name), "varnish/%s",
@@ -1306,7 +1308,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
 
   have_instance = 1;
 
-  return (0);
+  return 0;
 } /* }}} int varnish_config_instance */
 
 static int varnish_config(oconfig_item_t *ci) /* {{{ */
@@ -1323,7 +1325,7 @@ static int varnish_config(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int varnish_config */
 
 void module_register(void) /* {{{ */

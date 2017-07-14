@@ -784,8 +784,8 @@ static PyObject *cpy_register_write(PyObject *self, PyObject *args,
 static PyObject *cpy_register_notification(PyObject *self, PyObject *args,
                                            PyObject *kwds) {
   return cpy_register_generic_userdata((void *)plugin_register_notification,
-                                       (void *)cpy_notification_callback, args,
-                                       kwds);
+                                       (void *)cpy_notification_callback,
+                                       args, kwds);
 }
 
 static PyObject *cpy_register_flush(PyObject *self, PyObject *args,
@@ -944,7 +944,8 @@ static PyObject *cpy_unregister_read(PyObject *self, PyObject *arg) {
 }
 
 static PyObject *cpy_unregister_write(PyObject *self, PyObject *arg) {
-  return cpy_unregister_generic_userdata(plugin_unregister_write, arg, "write");
+  return cpy_unregister_generic_userdata(plugin_unregister_write, arg,
+                                         "write");
 }
 
 static PyObject *cpy_unregister_notification(PyObject *self, PyObject *arg) {
@@ -953,7 +954,8 @@ static PyObject *cpy_unregister_notification(PyObject *self, PyObject *arg) {
 }
 
 static PyObject *cpy_unregister_flush(PyObject *self, PyObject *arg) {
-  return cpy_unregister_generic_userdata(plugin_unregister_flush, arg, "flush");
+  return cpy_unregister_generic_userdata(plugin_unregister_flush, arg,
+                                         "flush");
 }
 
 static PyObject *cpy_unregister_shutdown(PyObject *self, PyObject *arg) {
@@ -1397,7 +1399,7 @@ static int cpy_config(oconfig_item_t *ci) {
       status = 1;
     }
   }
-  return (status);
+  return status;
 }
 
 void module_register(void) {

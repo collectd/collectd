@@ -53,9 +53,9 @@ static int lookup_obj_callback(data_set_t const *ds, value_list_t const *vl,
   memcpy(&last_obj_ident, obj, sizeof(last_obj_ident));
 
   if (strcmp(obj->plugin_instance, "failure") == 0)
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 }
 
 static void *lookup_class_callback(data_set_t const *ds, value_list_t const *vl,
@@ -77,7 +77,7 @@ static void *lookup_class_callback(data_set_t const *ds, value_list_t const *vl,
 
   have_new_obj = 1;
 
-  return ((void *)obj);
+  return (void *)obj;
 }
 
 static int checked_lookup_add(lookup_t *obj, /* {{{ */
@@ -123,7 +123,7 @@ static int checked_lookup_search(lookup_t *obj, char const *host,
   have_new_obj = 0;
 
   status = lookup_search(obj, ds, &vl);
-  return (status);
+  return status;
 }
 
 DEF_TEST(group_by_specific_host) {
@@ -142,7 +142,7 @@ DEF_TEST(group_by_specific_host) {
                         /* expect new = */ 0);
 
   lookup_destroy(obj);
-  return (0);
+  return 0;
 }
 
 DEF_TEST(group_by_any_host) {
@@ -170,7 +170,7 @@ DEF_TEST(group_by_any_host) {
                         /* expect new = */ 0);
 
   lookup_destroy(obj);
-  return (0);
+  return 0;
 }
 
 DEF_TEST(multiple_lookups) {
@@ -198,7 +198,7 @@ DEF_TEST(multiple_lookups) {
   assert(status == 2);
 
   lookup_destroy(obj);
-  return (0);
+  return 0;
 }
 
 DEF_TEST(regex) {
@@ -228,7 +228,7 @@ DEF_TEST(regex) {
                         /* expect new = */ 1);
 
   lookup_destroy(obj);
-  return (0);
+  return 0;
 }
 
 int main(int argc, char **argv) /* {{{ */

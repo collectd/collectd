@@ -634,7 +634,7 @@ static int cc_add_daemon_config(oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("ceph plugin: `Daemon' blocks need exactly one string "
             "argument.");
-    return (-1);
+    return -1;
   }
 
   ret = cc_handle_str(ci, cd.name, DATA_MAX_NAME_LEN);

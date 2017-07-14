@@ -48,9 +48,9 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
   do {                                                                         \
     status = ssnprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
     if (status < 1) {                                                          \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else if (((size_t)status) >= (ret_len - offset)) {                       \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else                                                                     \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -68,12 +68,12 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
   else {
     ERROR("gr_format_values plugin: Unknown data source type: %i",
           ds->ds[ds_num].type);
-    return (-1);
+    return -1;
   }
 
 #undef BUFFER_ADD
 
-  return (0);
+  return 0;
 }
 
 static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
@@ -161,7 +161,7 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
     ssnprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
               tmp_type);
 
-  return (0);
+  return 0;
 }
 
 static void escape_graphite_string(char *buffer, char escape_char) {
@@ -180,8 +180,13 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
   int buffer_pos = 0;
 
   gauge_t *rates = NULL;
-  if (flags & GRAPHITE_STORE_RATES)
+  if (flags & GRAPHITE_STORE_RATES) {
     rates = uc_get_rate(ds, vl);
+    if (rates == NULL) {
+      ERROR("format_graphite: error with uc_get_rate");
+      return -1;
+    }
+  }
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     char const *ds_name = NULL;
@@ -199,7 +204,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
     if (status != 0) {
       ERROR("format_graphite: error with gr_format_name");
       sfree(rates);
-      return (status);
+      return status;
     }
 
     escape_graphite_string(key, escape_char);
@@ -209,7 +214,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
     if (status != 0) {
       ERROR("format_graphite: error with gr_format_values");
       sfree(rates);
-      return (status);
+      return status;
     }
 
     /* Compute the graphite command */
@@ -221,19 +226,19 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
             "Need %zu bytes.",
             message_len + 1);
       sfree(rates);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     /* Append it in case we got multiple data set */
     if ((buffer_pos + message_len) >= buffer_size) {
       ERROR("format_graphite: target buffer too small");
       sfree(rates);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
     memcpy((void *)(buffer + buffer_pos), message, message_len);
     buffer_pos += message_len;
     buffer[buffer_pos] = '\0';
   }
   sfree(rates);
-  return (status);
+  return status;
 } /* int format_graphite */

@@ -338,7 +338,7 @@ is enabled by default.
 =item B<PostCacheChain> I<ChainName>
 
 Configure the name of the "pre-cache chain" and the "post-cache chain". Please
-see L<FILTER CONFIGURATION> below on information on chains and how these
+see L</"FILTER CONFIGURATION"> below on information on chains and how these
 setting change the daemon's behavior.
 
 =back
@@ -1372,6 +1372,8 @@ Select I<cgroup> based on the name. Whether only matching I<cgroups> are
 collected or if they are ignored is controlled by the B<IgnoreSelected> option;
 see below.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> B<true>|B<false>
 
 Invert the selection: If set to true, all cgroups I<except> the ones that
@@ -2268,13 +2270,19 @@ values. Defaults to the global hostname setting.
 
 Select partitions based on the devicename.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<MountPoint> I<Directory>
 
 Select partitions based on the mountpoint.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<FSType> I<FSType>
 
 Select partitions based on the filesystem type.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> B<true>|B<false>
 
@@ -2337,6 +2345,8 @@ is interpreted as a regular expression. Examples:
   Disk "sdd"
   Disk "/hda[34]/"
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> B<true>|B<false>
 
 Sets whether selected disks, i.E<nbsp>e. the ones matches by any of the B<Disk>
@@ -2398,7 +2408,6 @@ B<Synopsis:>
    <EAL>
      Coremask "0x1"
      MemoryChannels "4"
-     ProcessType "secondary"
      FilePrefix "rte"
    </EAL>
    <Event "link_status">
@@ -2421,17 +2430,13 @@ B<Options:>
 
 =head3 The EAL block
 
-=over 5
+=over 4
 
 =item B<Coremask> I<Mask>
 
 =item B<Memorychannels> I<Channels>
 
 Number of memory channels per processor socket.
-
-=item B<ProcessType> I<type>
-
-The type of DPDK process instance.
 
 =item B<FilePrefix> I<File>
 
@@ -2447,7 +2452,7 @@ single argument which specifies the name of the event.
 
 =head4 Link Status event
 
-=over 5
+=over 4
 
 =item B<SendEventOnUpdate> I<true|false>
 
@@ -2480,7 +2485,7 @@ value is false.
 
 =head4 Keep Alive event
 
-=over 5
+=over 4
 
 =item B<SendEventOnUpdate> I<true|false>
 
@@ -2516,7 +2521,6 @@ B<Synopsis:>
    <EAL>
      Coremask "0x4"
      MemoryChannels "4"
-     ProcessType "secondary"
      FilePrefix "rte"
      SocketMemory "1024"
    </EAL>
@@ -2530,7 +2534,7 @@ B<Options:>
 
 =head3 The EAL block
 
-=over 5
+=over 4
 
 =item B<Coremask> I<Mask>
 
@@ -2540,10 +2544,6 @@ core numbering can change between platforms and should be determined beforehand.
 =item B<Memorychannels> I<Channels>
 
 A string containing a number of memory channels per processor socket.
-
-=item B<ProcessType> I<type>
-
-A string containing the type of DPDK process instance.
 
 =item B<FilePrefix> I<File>
 
@@ -2560,6 +2560,7 @@ sockets in MB. This is an optional value.
 =over 3
 
 =item B<SharedMemObj> I<Mask>
+
 A string containing the name of the shared memory object that should be used to
 share stats from the DPDK secondary process to the collectd dpdkstat plugin.
 Defaults to dpdk_collectd_stats if no other value is configured.
@@ -3139,9 +3140,11 @@ than 1 sec.
 Select this interface. By default these interfaces will then be collected. For
 a more detailed description see B<IgnoreSelected> below.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
-If no configuration if given, the B<interface>-plugin will collect data from
+If no configuration is given, the B<interface>-plugin will collect data from
 all interfaces. This may not be practical, especially for loopback- and
 similar interfaces. Thus, you can use the B<Interface>-option to pick the
 interfaces you're interested in. Sometimes, however, it's easier/preferred
@@ -3200,6 +3203,8 @@ This option is only available on Solaris.
 
 Selects sensors to collect or to ignore, depending on B<IgnoreSelected>.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 If no configuration if given, the B<ipmi> plugin will collect data from all
@@ -3255,6 +3260,8 @@ comment or the number.
 
 Select this irq. By default these irqs will then be collected. For a more
 detailed description see B<IgnoreSelected> below.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
@@ -3519,6 +3526,8 @@ I<missing> (physically absent) disks.
 Select md devices based on device name. The I<device name> is the basename of
 the device, i.e. the name of the block device without the leading C</dev/>.
 See B<IgnoreSelected> for more details.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> B<true>|B<false>
 
@@ -4683,6 +4692,8 @@ regular and exact matching are case sensitive.
 If no volume was specified at all for either of the three options, that data
 will be collected for all available volumes.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelectedIO> B<true>|B<false>
 
 =item B<IgnoreSelectedOps> B<true>|B<false>
@@ -4867,6 +4878,8 @@ Here are some examples to help you understand the above text more easily:
     Class "ppp0" "htb-1:10"
     Filter "ppp0" "u32-1:0"
   </Plugin>
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected>
 
@@ -5419,6 +5432,8 @@ C</10.F10FCA000800/temperature>). B<IgnoreSelected> is not used.
 As there can be multiple devices on the bus you can list multiple sensor (use
 multiple B<Sensor> elements).
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 If no configuration is given, the B<onewire> plugin will collect data from all
@@ -5860,10 +5875,10 @@ multiple hosts.
 =item B<Interval> I<Seconds>
 
 Sets the interval in which to send ICMP echo packets to the configured hosts.
-This is B<not> the interval in which statistics are queries from the plugin but
-the interval in which the hosts are "pinged". Therefore, the setting here
-should be smaller than or equal to the global B<Interval> setting. Fractional
-times, such as "1.24" are allowed.
+This is B<not> the interval in which metrics are read from the plugin but the
+interval in which the hosts are "pinged". Therefore, the setting here should be
+smaller than or equal to the global B<Interval> setting. Fractional times, such
+as "1.24" are allowed.
 
 Default: B<1.0>
 
@@ -6601,6 +6616,8 @@ Whether only matched values are selected or all matched values are ignored
 depends on the B<IgnoreSelected>. By default, only matched values are selected.
 If no value is configured at all, all values will be selected.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> B<true>|B<false>
 
 If set to B<true>, inverts the selection made by B<Value>, i.E<nbsp>e. all
@@ -7029,6 +7046,8 @@ on the B<IgnoreSelected> below. For example, the option "B<Sensor>
 I<it8712-isa-0290/voltage-in1>" will cause collectd to gather data for the
 voltage sensor I<in1> of the I<it8712> on the isa bus at the address 0290.
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> I<true>|I<false>
 
 If no configuration if given, the B<sensors>-plugin will collect data from all
@@ -7138,6 +7157,8 @@ is interpreted as a regular expression. Examples:
   Disk "sdd"
   Disk "/hda[34]/"
 
+See F</"IGNORELISTS"> for details.
+
 =item B<IgnoreSelected> B<true>|B<false>
 
 Sets whether selected disks, i.E<nbsp>e. the ones matches by any of the B<Disk>
@@ -7170,6 +7191,122 @@ even if the kernel name changes.
 Since the configuration of the C<snmp plugin> is a little more complicated than
 other plugins, its documentation has been moved to an own manpage,
 L<collectd-snmp(5)>. Please see there for details.
+
+=head2 Plugin C<snmp_agent>
+
+The I<snmp_agent> plugin is an AgentX subagent that receives and handles queries
+from SNMP master agent and returns the data collected by read plugins.
+The I<snmp_agent> plugin handles requests only for OIDs specified in
+configuration file. To handle SNMP queries the plugin gets data from collectd
+and translates requested values from collectd's internal format to SNMP format.
+This plugin is a generic plugin and cannot work without configuration.
+For more details on AgentX subagent see
+<http://www.net-snmp.org/tutorial/tutorial-5/toolkit/demon/>
+
+B<Synopsis:>
+
+  <Plugin snmp_agent>
+    <Data "memAvailReal">
+      Plugin "memory"
+      #PluginInstance "some"
+      Type "memory"
+      TypeInstance "free"
+      OIDs "1.3.6.1.4.1.2021.4.6.0"
+    </Data>
+    <Table "ifTable">
+      IndexOID "IF-MIB::ifIndex"
+      SizeOID "IF-MIB::ifNumber"
+      <Data "ifDescr">
+        Instance true
+        Plugin "interface"
+        OIDs "IF-MIB::ifDescr"
+      </Data>
+      <Data "ifOctets">
+        Plugin "interface"
+        Type "if_octets"
+        TypeInstance ""
+        OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+      </Data>
+    </Table>
+  </Plugin>
+
+There are two types of blocks that can be contained in the
+C<E<lt>PluginE<nbsp> snmp_agentE<gt>> block: B<Data> and B<Table>:
+
+=head3 The B<Data> block
+
+The B<Data> block defines a list OIDs that are to be handled. This block can
+define scalar or table OIDs. If B<Data> block is defined inside of B<Table>
+block it reperesents table OIDs.
+The following options can be set:
+
+=over 4
+
+=item B<Instance> I<true|false>
+
+When B<Instance> is set to B<true>, the value for requested OID is copied from
+plugin instance field of corresponding collectd value. If B<Data> block defines
+scalar data type B<Instance> has no effect and can be omitted.
+
+=item B<Plugin> I<String>
+
+Read plugin name whose collected data will be mapped to specified OIDs.
+
+=item B<PluginInstance> I<String>
+
+Read plugin instance whose collected data will be mapped to specified OIDs.
+The field is optional and by default there is no plugin instance check.
+Allowed only if B<Data> block defines scalar data type.
+
+=item B<Type> I<String>
+
+Collectd's type that is to be used for specified OID, e.E<nbsp>g. "if_octets"
+for example. The types are read from the B<TypesDB> (see L<collectd.conf(5)>).
+
+=item B<TypeInstance> I<String>
+
+Collectd's type-instance that is to be used for specified OID.
+
+=item B<OIDs> I<OID> [I<OID> ...]
+
+Configures the OIDs to be handled by I<snmp_agent> plugin. Values for these OIDs
+are taken from collectd data type specified by B<Plugin>, B<PluginInstance>,
+B<Type>, B<TypeInstance> fields of this B<Data> block. Number of the OIDs
+configured should correspond to number of values in specified B<Type>.
+For example two OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets" can be mapped to
+"rx" and "tx" values of "if_octets" type.
+
+=item B<Scale> I<Value>
+
+The values taken from collectd are multiplied by I<Value>. The field is optional
+and the default is B<1.0>.
+
+=item B<Shift> I<Value>
+
+I<Value> is added to values from collectd after they have been multiplied by
+B<Scale> value. The field is optional and the default value is B<0.0>.
+
+=back
+
+=head3 The B<Table> block
+
+The B<Table> block defines a collection of B<Data> blocks that belong to one
+snmp table. In addition to multiple B<Data> blocks the following options can be
+set:
+
+=over 4
+
+=item B<IndexOID> I<OID>
+
+OID that is handled by the plugin and is mapped to numerical index value that is
+generated by the plugin for each table record.
+
+=item B<SizeOID> I<OID>
+
+OID that is handled by the plugin. Returned value is the number of records in
+the table. The field is optional.
+
+=back
 
 =head2 Plugin C<statsd>
 
@@ -7824,6 +7961,8 @@ plugin to use the latter. This option defaults to I<false>.
 Selects the name of the thermal device that you want to collect or ignore,
 depending on the value of the B<IgnoreSelected> option. This option may be
 used multiple times to specify a list of devices.
+
+See F</"IGNORELISTS"> for details.
 
 =item B<IgnoreSelected> I<true>|I<false>
 
@@ -8790,12 +8929,20 @@ Defaults to B<Command>.
 
 =item B<Attribute> I<String> I<String>
 
-Only available for KAIROSDB output format.
+Only available for the KAIROSDB output format.
 
 Consider the two given strings to be the key and value of an additional tag for
 each metric being sent out.
 
 You can add multiple B<Attribute>.
+
+=item B<TTL> I<Int>
+
+Only available for the KAIROSDB output format.
+
+Sets the Cassandra ttl for the data points.
+
+Please refer to L<http://kairosdb.github.io/docs/build/html/restapi/AddDataPoints.html?highlight=ttl>
 
 =item B<Metrics> B<true>|B<false>
 
@@ -10283,6 +10430,48 @@ be an FQDN.
    </Rule>
    Target "write"
  </Chain>
+
+=head1 IGNORELISTS
+
+B<Ignorelists> are a generic framework to either ignore some metrics or report
+specific metircs only. Plugins usually provide one or more options to specify
+the items (mounts points, devices, ...) and the boolean option
+C<IgnoreSelected>.
+
+=over 4
+
+=item B<Select> I<String>
+
+Selects the item I<String>. This option often has a plugin specific name, e.g.
+B<Sensor> in the C<sensors> plugin. It is also plugin specific what this string
+is compared to. For example, the C<df> plugin's B<MountPoint> compares it to a
+mount point and the C<sensors> plugin's B<Sensor> compares it to a sensor name.
+
+By default, this option is doing a case-sensitive full-string match. The
+following config will match C<foo>, but not C<Foo>:
+
+  Select "foo"
+
+If I<String> starts and ends with C</> (a slash), the string is compiled as a
+I<regular expression>. For example, so match all item starting with C<foo>, use
+could use the following syntax:
+
+  Select "/^foo/"
+
+The regular expression is I<not> anchored, i.e. the following config will match
+C<foobar>, C<barfoo> and C<AfooZ>:
+
+  Select "/foo/"
+
+The B<Select> option may be repeated to select multiple items.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+If set to B<true>, matching metrics are I<ignored> and all other metrics are
+collected. If set to B<false>, matching metrics are I<collected> and all other
+metrics are ignored.
+
+=back
 
 =head1 SEE ALSO
 

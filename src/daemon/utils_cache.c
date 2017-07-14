@@ -83,7 +83,7 @@ static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
 #if COLLECT_DEBUG
   assert((a != NULL) && (b != NULL));
 #endif
-  return (strcmp(a->name, b->name));
+  return strcmp(a->name, b->name);
 } /* int cache_compare */
 
 static cache_entry_t *cache_alloc(size_t values_num) {
@@ -92,7 +92,7 @@ static cache_entry_t *cache_alloc(size_t values_num) {
   ce = calloc(1, sizeof(*ce));
   if (ce == NULL) {
     ERROR("utils_cache: cache_alloc: calloc failed.");
-    return (NULL);
+    return NULL;
   }
   ce->values_num = values_num;
 
@@ -103,14 +103,14 @@ static cache_entry_t *cache_alloc(size_t values_num) {
     sfree(ce->values_raw);
     sfree(ce);
     ERROR("utils_cache: cache_alloc: calloc failed.");
-    return (NULL);
+    return NULL;
   }
 
   ce->history = NULL;
   ce->history_length = 0;
   ce->meta = NULL;
 
-  return (ce);
+  return ce;
 } /* cache_entry_t *cache_alloc */
 
 static void cache_free(cache_entry_t *ce) {
@@ -148,14 +148,14 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
   key_copy = strdup(key);
   if (key_copy == NULL) {
     ERROR("uc_insert: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   ce = cache_alloc(ds->ds_num);
   if (ce == NULL) {
     sfree(key_copy);
     ERROR("uc_insert: cache_alloc (%zu) failed.", ds->ds_num);
-    return (-1);
+    return -1;
   }
 
   sstrncpy(ce->name, key, sizeof(ce->name));
@@ -191,7 +191,7 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
             ds->ds[i].type);
       sfree(key_copy);
       cache_free(ce);
-      return (-1);
+      return -1;
     } /* switch (ds->ds[i].type) */
   }   /* for (i) */
 
@@ -206,11 +206,11 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
     sfree(key_copy);
     ERROR("uc_insert: c_avl_insert failed.");
-    return (-1);
+    return -1;
   }
 
   DEBUG("uc_insert: Added %s to the cache.", key);
-  return (0);
+  return 0;
 } /* int uc_insert */
 
 int uc_init(void) {
@@ -218,12 +218,10 @@ int uc_init(void) {
     cache_tree =
         c_avl_create((int (*)(const void *, const void *))cache_compare);
 
-  return (0);
+  return 0;
 } /* int uc_init */
 
 int uc_check_timeout(void) {
-  cdtime_t now = cdtime();
-
   struct {
     char *key;
     cdtime_t time;
@@ -232,6 +230,7 @@ int uc_check_timeout(void) {
   size_t expired_num = 0;
 
   pthread_mutex_lock(&cache_lock);
+  cdtime_t now = cdtime();
 
   /* Build a list of entries to be flushed */
   c_avl_iterator_t *iter = c_avl_get_iterator(cache_tree);
@@ -266,7 +265,7 @@ int uc_check_timeout(void) {
 
   if (expired_num == 0) {
     sfree(expired);
-    return (0);
+    return 0;
   }
 
   /* Call the "missing" callback for each value. Do this before removing the
@@ -310,7 +309,7 @@ int uc_check_timeout(void) {
   pthread_mutex_unlock(&cache_lock);
 
   sfree(expired);
-  return (0);
+  return 0;
 } /* int uc_check_timeout */
 
 int uc_update(const data_set_t *ds, const value_list_t *vl) {
@@ -320,7 +319,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("uc_update: FORMAT_VL failed.");
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -330,7 +329,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
   {
     status = uc_insert(ds, vl, name);
     pthread_mutex_unlock(&cache_lock);
-    return (status);
+    return status;
   }
 
   assert(ce != NULL);
@@ -342,7 +341,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
            "last cache update = %.3f;",
            name, CDTIME_T_TO_DOUBLE(vl->time),
            CDTIME_T_TO_DOUBLE(ce->last_time));
-    return (-1);
+    return -1;
   }
 
   for (size_t i = 0; i < ds->ds_num; i++) {
@@ -379,7 +378,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
       pthread_mutex_unlock(&cache_lock);
       ERROR("uc_update: Don't know how to handle data source type %i.",
             ds->ds[i].type);
-      return (-1);
+      return -1;
     } /* switch (ds->ds[i].type) */
 
     DEBUG("uc_update: %s: ds[%zu] = %lf", name, i, ce->values_gauge[i]);
@@ -406,7 +405,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (0);
+  return 0;
 } /* int uc_update */
 
 int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
@@ -423,6 +422,9 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
 
     /* remove missing values from getval */
     if (ce->state == STATE_MISSING) {
+      DEBUG("utils_cache: uc_get_rate_by_name: requested metric \"%s\" is in "
+            "state \"missing\".",
+            name);
       status = -1;
     } else {
       ret_num = ce->values_num;
@@ -446,7 +448,7 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
     *ret_values_num = ret_num;
   }
 
-  return (status);
+  return status;
 } /* gauge_t *uc_get_rate_by_name */
 
 gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
@@ -457,25 +459,94 @@ gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("utils_cache: uc_get_rate: FORMAT_VL failed.");
-    return (NULL);
+    return NULL;
   }
 
   status = uc_get_rate_by_name(name, &ret, &ret_num);
+  if (status != 0)
+    return NULL;
+
+  /* This is important - the caller has no other way of knowing how many
+   * values are returned. */
+  if (ret_num != ds->ds_num) {
+    ERROR("utils_cache: uc_get_rate: ds[%s] has %zu values, "
+          "but uc_get_rate_by_name returned %zu.",
+          ds->type, ds->ds_num, ret_num);
+    sfree(ret);
+    return NULL;
+  }
+
+  return ret;
+} /* gauge_t *uc_get_rate */
+
+int uc_get_value_by_name(const char *name, value_t **ret_values,
+                         size_t *ret_values_num) {
+  value_t *ret = NULL;
+  size_t ret_num = 0;
+  cache_entry_t *ce = NULL;
+  int status = 0;
+
+  pthread_mutex_lock(&cache_lock);
+
+  if (c_avl_get(cache_tree, name, (void *) &ce) == 0) {
+    assert(ce != NULL);
+
+    /* remove missing values from getval */
+    if (ce->state == STATE_MISSING) {
+      status = -1;
+    } else {
+      ret_num = ce->values_num;
+      ret = malloc(ret_num * sizeof(*ret));
+      if (ret == NULL) {
+        ERROR("utils_cache: uc_get_value_by_name: malloc failed.");
+        status = -1;
+      } else {
+        memcpy(ret, ce->values_raw, ret_num * sizeof(value_t));
+      }
+    }
+  }
+  else {
+    DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
+    status = -1;
+  }
+
+  pthread_mutex_unlock(&cache_lock);
+
+  if (status == 0) {
+    *ret_values = ret;
+    *ret_values_num = ret_num;
+  }
+
+  return (status);
+} /* int uc_get_value_by_name */
+
+value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl) {
+  char name[6 * DATA_MAX_NAME_LEN];
+  value_t *ret = NULL;
+  size_t ret_num = 0;
+  int status;
+
+  if (FORMAT_VL(name, sizeof(name), vl) != 0) {
+    ERROR("utils_cache: uc_get_value: FORMAT_VL failed.");
+    return (NULL);
+  }
+
+  status = uc_get_value_by_name(name, &ret, &ret_num);
   if (status != 0)
     return (NULL);
 
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
-  if (ret_num != (size_t)ds->ds_num) {
-    ERROR("utils_cache: uc_get_rate: ds[%s] has %zu values, "
-          "but uc_get_rate_by_name returned %zu.",
-          ds->type, ds->ds_num, ret_num);
+  if (ret_num != (size_t) ds->ds_num) {
+    ERROR("utils_cache: uc_get_value: ds[%s] has %zu values, "
+          "but uc_get_value_by_name returned %zu.", ds->type, ds->ds_num,
+          ret_num);
     sfree(ret);
     return (NULL);
   }
 
   return (ret);
-} /* gauge_t *uc_get_rate */
+} /* value_t *uc_get_value */
 
 size_t uc_get_size(void) {
   size_t size_arrays = 0;
@@ -484,7 +555,7 @@ size_t uc_get_size(void) {
   size_arrays = (size_t)c_avl_size(cache_tree);
   pthread_mutex_unlock(&cache_lock);
 
-  return (size_arrays);
+  return size_arrays;
 }
 
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
@@ -500,7 +571,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   int status = 0;
 
   if ((ret_names == NULL) || (ret_number == NULL))
-    return (-1);
+    return -1;
 
   pthread_mutex_lock(&cache_lock);
 
@@ -509,7 +580,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     /* Handle the "no values" case here, to avoid the error message when
      * calloc() returns NULL. */
     pthread_mutex_unlock(&cache_lock);
-    return (0);
+    return 0;
   }
 
   names = calloc(size_arrays, sizeof(*names));
@@ -519,7 +590,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     sfree(names);
     sfree(times);
     pthread_mutex_unlock(&cache_lock);
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   iter = c_avl_get_iterator(cache_tree);
@@ -554,7 +625,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     sfree(names);
     sfree(times);
 
-    return (-1);
+    return -1;
   }
 
   *ret_names = names;
@@ -564,7 +635,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     sfree(times);
   *ret_number = number;
 
-  return (0);
+  return 0;
 } /* int uc_get_names */
 
 int uc_get_state(const data_set_t *ds, const value_list_t *vl) {
@@ -574,7 +645,7 @@ int uc_get_state(const data_set_t *ds, const value_list_t *vl) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("uc_get_state: FORMAT_VL failed.");
-    return (STATE_ERROR);
+    return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -586,7 +657,7 @@ int uc_get_state(const data_set_t *ds, const value_list_t *vl) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (ret);
+  return ret;
 } /* int uc_get_state */
 
 int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state) {
@@ -596,7 +667,7 @@ int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("uc_set_state: FORMAT_VL failed.");
-    return (STATE_ERROR);
+    return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -609,7 +680,7 @@ int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (ret);
+  return ret;
 } /* int uc_set_state */
 
 int uc_get_history_by_name(const char *name, gauge_t *ret_history,
@@ -622,12 +693,12 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
   status = c_avl_get(cache_tree, name, (void *)&ce);
   if (status != 0) {
     pthread_mutex_unlock(&cache_lock);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   if (((size_t)ce->values_num) != num_ds) {
     pthread_mutex_unlock(&cache_lock);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   /* Check if there are enough values available. If not, increase the buffer
@@ -639,7 +710,7 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
         realloc(ce->history, sizeof(*ce->history) * num_steps * ce->values_num);
     if (tmp == NULL) {
       pthread_mutex_unlock(&cache_lock);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     for (size_t i = ce->history_length * ce->values_num;
@@ -669,7 +740,7 @@ int uc_get_history_by_name(const char *name, gauge_t *ret_history,
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (0);
+  return 0;
 } /* int uc_get_history_by_name */
 
 int uc_get_history(const data_set_t *ds, const value_list_t *vl,
@@ -678,10 +749,10 @@ int uc_get_history(const data_set_t *ds, const value_list_t *vl,
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("utils_cache: uc_get_history: FORMAT_VL failed.");
-    return (-1);
+    return -1;
   }
 
-  return (uc_get_history_by_name(name, ret_history, num_steps, num_ds));
+  return uc_get_history_by_name(name, ret_history, num_steps, num_ds);
 } /* int uc_get_history */
 
 int uc_get_hits(const data_set_t *ds, const value_list_t *vl) {
@@ -691,7 +762,7 @@ int uc_get_hits(const data_set_t *ds, const value_list_t *vl) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("uc_get_hits: FORMAT_VL failed.");
-    return (STATE_ERROR);
+    return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -703,7 +774,7 @@ int uc_get_hits(const data_set_t *ds, const value_list_t *vl) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (ret);
+  return ret;
 } /* int uc_get_hits */
 
 int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits) {
@@ -713,7 +784,7 @@ int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("uc_set_hits: FORMAT_VL failed.");
-    return (STATE_ERROR);
+    return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -726,7 +797,7 @@ int uc_set_hits(const data_set_t *ds, const value_list_t *vl, int hits) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (ret);
+  return ret;
 } /* int uc_set_hits */
 
 int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step) {
@@ -736,7 +807,7 @@ int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step) {
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("uc_inc_hits: FORMAT_VL failed.");
-    return (STATE_ERROR);
+    return STATE_ERROR;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -749,7 +820,7 @@ int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step) {
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (ret);
+  return ret;
 } /* int uc_inc_hits */
 
 /*
@@ -760,24 +831,24 @@ uc_iter_t *uc_get_iterator(void) {
 
   iter = (uc_iter_t *)calloc(1, sizeof(*iter));
   if (iter == NULL)
-    return (NULL);
+    return NULL;
 
   pthread_mutex_lock(&cache_lock);
 
   iter->iter = c_avl_get_iterator(cache_tree);
   if (iter->iter == NULL) {
     free(iter);
-    return (NULL);
+    return NULL;
   }
 
-  return (iter);
+  return iter;
 } /* uc_iter_t *uc_get_iterator */
 
 int uc_iterator_next(uc_iter_t *iter, char **ret_name) {
   int status;
 
   if (iter == NULL)
-    return (-1);
+    return -1;
 
   while ((status = c_avl_iterator_next(iter->iter, (void *)&iter->name,
                                        (void *)&iter->entry)) == 0) {
@@ -789,13 +860,13 @@ int uc_iterator_next(uc_iter_t *iter, char **ret_name) {
   if (status != 0) {
     iter->name = NULL;
     iter->entry = NULL;
-    return (-1);
+    return -1;
   }
 
   if (ret_name != NULL)
     *ret_name = iter->name;
 
-  return (0);
+  return 0;
 } /* int uc_iterator_next */
 
 void uc_iterator_destroy(uc_iter_t *iter) {
@@ -810,36 +881,36 @@ void uc_iterator_destroy(uc_iter_t *iter) {
 
 int uc_iterator_get_time(uc_iter_t *iter, cdtime_t *ret_time) {
   if ((iter == NULL) || (iter->entry == NULL) || (ret_time == NULL))
-    return (-1);
+    return -1;
 
   *ret_time = iter->entry->last_time;
-  return (0);
+  return 0;
 } /* int uc_iterator_get_name */
 
 int uc_iterator_get_values(uc_iter_t *iter, value_t **ret_values,
                            size_t *ret_num) {
   if ((iter == NULL) || (iter->entry == NULL) || (ret_values == NULL) ||
       (ret_num == NULL))
-    return (-1);
+    return -1;
 
   *ret_values =
       calloc(iter->entry->values_num, sizeof(*iter->entry->values_raw));
   if (*ret_values == NULL)
-    return (-1);
+    return -1;
   for (size_t i = 0; i < iter->entry->values_num; ++i)
     *ret_values[i] = iter->entry->values_raw[i];
 
   *ret_num = iter->entry->values_num;
 
-  return (0);
+  return 0;
 } /* int uc_iterator_get_values */
 
 int uc_iterator_get_interval(uc_iter_t *iter, cdtime_t *ret_interval) {
   if ((iter == NULL) || (iter->entry == NULL) || (ret_interval == NULL))
-    return (-1);
+    return -1;
 
   *ret_interval = iter->entry->interval;
-  return (0);
+  return 0;
 } /* int uc_iterator_get_name */
 
 /*
@@ -855,7 +926,7 @@ static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
   status = FORMAT_VL(name, sizeof(name), vl);
   if (status != 0) {
     ERROR("utils_cache: uc_get_meta: FORMAT_VL failed.");
-    return (NULL);
+    return NULL;
   }
 
   pthread_mutex_lock(&cache_lock);
@@ -863,7 +934,7 @@ static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
   status = c_avl_get(cache_tree, name, (void *)&ce);
   if (status != 0) {
     pthread_mutex_unlock(&cache_lock);
-    return (NULL);
+    return NULL;
   }
   assert(ce != NULL);
 
@@ -873,7 +944,7 @@ static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
   if (ce->meta == NULL)
     pthread_mutex_unlock(&cache_lock);
 
-  return (ce->meta);
+  return ce->meta;
 } /* }}} meta_data_t *uc_get_meta */
 
 /* Sorry about this preprocessor magic, but it really makes this file much
@@ -884,10 +955,10 @@ static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
     int status;                                                                \
     meta = uc_get_meta(vl);                                                    \
     if (meta == NULL)                                                          \
-      return (-1);                                                             \
+      return -1;                                                               \
     status = wrap_function(meta, key);                                         \
     pthread_mutex_unlock(&cache_lock);                                         \
-    return (status);                                                           \
+    return status;                                                             \
   }
 int uc_meta_data_exists(const value_list_t *vl,
                         const char *key) UC_WRAP(meta_data_exists)
@@ -904,10 +975,10 @@ int uc_meta_data_exists(const value_list_t *vl,
     int status;                                                                \
     meta = uc_get_meta(vl);                                                    \
     if (meta == NULL)                                                          \
-      return (-1);                                                             \
+      return -1;                                                               \
     status = wrap_function(meta, key, value);                                  \
     pthread_mutex_unlock(&cache_lock);                                         \
-    return (status);                                                           \
+    return status;                                                             \
   }
         int uc_meta_data_add_string(const value_list_t *vl, const char *key,
                                     const char *value)

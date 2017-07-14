@@ -30,9 +30,7 @@ ProtectHome=true
 # By default, drop all capabilities:
 CapabilityBoundingSet=
 
-NoNewPrivileges=true
-
-# Tell systemd it will receive a notification from collectd over it's control
+# Tell systemd it will receive a notification from collectd over its control
 # socket once the daemon is ready. See systemd.service(5) for more details.
 Type=notify
 

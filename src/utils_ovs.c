@@ -210,7 +210,7 @@ static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   state = pdb->poll_thread.state;
   pthread_mutex_unlock(&pdb->poll_thread.mutex);
-  return (state == OVS_DB_POLL_STATE_RUNNING);
+  return state == OVS_DB_POLL_STATE_RUNNING;
 }
 
 /* Generate unique identifier (UID). It is used by OVS DB API
@@ -293,11 +293,11 @@ static int ovs_db_data_send(const ovs_db_t *pdb, const char *data, size_t len) {
 
   while (rem > 0) {
     if ((nbytes = send(pdb->sock, data + off, rem, 0)) <= 0)
-      return (-1);
+      return -1;
     rem -= (size_t)nbytes;
     off += (size_t)nbytes;
   }
-  return (0);
+  return 0;
 }
 
 /*
@@ -314,7 +314,8 @@ static int ovs_db_data_send(const ovs_db_t *pdb, const char *data, size_t len) {
  */
 static yajl_gen_status ovs_yajl_gen_tstring(yajl_gen hander,
                                             const char *string) {
-  return yajl_gen_string(hander, (const unsigned char *)string, strlen(string));
+  return yajl_gen_string(hander, (const unsigned char *)string,
+                         strlen(string));
 }
 
 /* Add YAJL value into YAJL generator handle (JSON object)
@@ -391,7 +392,7 @@ static int ovs_db_table_echo_cb(const ovs_db_t *pdb, yajl_val jnode) {
   yajl_gen_status yajl_gen_ret;
 
   if ((jgen = yajl_gen_alloc(NULL)) == NULL)
-    return (-1);
+    return -1;
 
   /* check & get request attributes */
   if ((jparams = yajl_tree_get(jnode, params_path, yajl_t_array)) == NULL ||
@@ -424,12 +425,12 @@ static int ovs_db_table_echo_cb(const ovs_db_t *pdb, yajl_val jnode) {
   }
   /* clean up and return success */
   yajl_gen_clear(jgen);
-  return (0);
+  return 0;
 
 yajl_gen_failure:
   /* release memory */
   yajl_gen_clear(jgen);
-  return (-1);
+  return -1;
 }
 
 /* Get OVS DB registered callback by YAJL val. The YAJL
@@ -469,21 +470,21 @@ static int ovs_db_table_update_cb(ovs_db_t *pdb, yajl_val jnode) {
   if ((jparams = yajl_tree_get(jnode, params_path, yajl_t_array)) == NULL ||
       (yajl_tree_get(jnode, id_path, yajl_t_null) == NULL)) {
     OVS_ERROR("invalid OVS DB request received");
-    return (-1);
+    return -1;
   }
 
   /* check array length: [<json-value>, <table-updates>] */
   if ((YAJL_GET_ARRAY(jparams) == NULL) ||
       (YAJL_GET_ARRAY(jparams)->len != 2)) {
     OVS_ERROR("invalid OVS DB request received");
-    return (-1);
+    return -1;
   }
 
   jvalue = YAJL_GET_ARRAY(jparams)->values[0];
   jtable_updates = YAJL_GET_ARRAY(jparams)->values[1];
   if ((!YAJL_IS_OBJECT(jtable_updates)) || (!YAJL_IS_STRING(jvalue))) {
     OVS_ERROR("invalid OVS DB request id or table update received");
-    return (-1);
+    return -1;
   }
 
   /* find registered callback based on <json-value> */
@@ -492,7 +493,7 @@ static int ovs_db_table_update_cb(ovs_db_t *pdb, yajl_val jnode) {
   if (cb == NULL || cb->table.call == NULL) {
     OVS_ERROR("No OVS DB table update callback found");
     pthread_mutex_unlock(&pdb->mutex);
-    return (-1);
+    return -1;
   }
 
   /* call registered callback */
@@ -521,7 +522,7 @@ static int ovs_db_result_cb(ovs_db_t *pdb, yajl_val jnode) {
 
   /* check & get result attributes */
   if (!jresult || !jerror || !jid)
-    return (-1);
+    return -1;
 
   /* try to find registered callback */
   pthread_mutex_lock(&pdb->mutex);
@@ -534,7 +535,7 @@ static int ovs_db_result_cb(ovs_db_t *pdb, yajl_val jnode) {
   }
 
   pthread_mutex_unlock(&pdb->mutex);
-  return (0);
+  return 0;
 }
 
 /* Handle JSON data (one request) and call
@@ -554,7 +555,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
   /* duplicate the data to make null-terminated string
    * required for yajl_tree_parse() */
   if ((sjson = calloc(1, len + 1)) == NULL)
-    return (-1);
+    return -1;
 
   sstrncpy(sjson, data, len + 1);
   OVS_DEBUG("[len=%zu] %s", len, sjson);
@@ -564,7 +565,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
   if (jnode == NULL) {
     OVS_ERROR("yajl_tree_parse() %s", yajl_errbuf);
     sfree(sjson);
-    return (-1);
+    return -1;
   }
 
   /* get method name */
@@ -572,7 +573,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
     if ((method = YAJL_GET_STRING(jval)) == NULL) {
       yajl_tree_free(jnode);
       sfree(sjson);
-      return (-1);
+      return -1;
     }
     if (strcmp("echo", method) == 0) {
       /* echo request from the server */
@@ -593,7 +594,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
   /* release memory */
   yajl_tree_free(jnode);
   sfree(sjson);
-  return (0);
+  return 0;
 }
 
 /*
@@ -628,7 +629,7 @@ static int ovs_json_reader_push_data(ovs_json_reader_t *jreader,
     /* allocate new chunk of memory */
     new_buff = realloc(jreader->buff_ptr, (jreader->buff_size + data_len));
     if (new_buff == NULL)
-      return (-1);
+      return -1;
 
     /* point to new allocated memory */
     jreader->buff_ptr = new_buff;
@@ -638,7 +639,7 @@ static int ovs_json_reader_push_data(ovs_json_reader_t *jreader,
   /* store input data */
   memcpy(jreader->buff_ptr + jreader->buff_offset, data, data_len);
   jreader->buff_offset += data_len;
-  return (0);
+  return 0;
 }
 
 /* Pop one fully-fledged JSON if already exists. Returns 0 if
@@ -661,7 +662,7 @@ static int ovs_json_reader_pop(ovs_json_reader_t *jreader,
           *json_ptr = jreader->buff_ptr + jreader->json_offset;
           *json_len_ptr = json_len + 1;
           jreader->json_offset = i + 1;
-          return (0);
+          return 0;
         }
 
     /* increase JSON data length */
@@ -686,7 +687,7 @@ static int ovs_json_reader_pop(ovs_json_reader_t *jreader,
     jreader->json_offset = 0;
   }
 
-  return (-1);
+  return -1;
 }
 
 /* Reset JSON reader. It is useful when start processing
@@ -788,7 +789,7 @@ static void *ovs_poll_worker(void *arg) {
   /* create JSON reader instance */
   if ((jreader = ovs_json_reader_alloc()) == NULL) {
     OVS_ERROR("initialize json reader failed");
-    return (NULL);
+    return NULL;
   }
 
   /* poll data */
@@ -848,7 +849,7 @@ static void *ovs_poll_worker(void *arg) {
 
   OVS_DEBUG("poll thread has been completed");
   ovs_json_reader_free(jreader);
-  return (NULL);
+  return NULL;
 }
 
 /* EVENT worker thread.
@@ -894,7 +895,7 @@ static void *ovs_event_worker(void *arg) {
   }
 
   OVS_DEBUG("event thread has been completed");
-  return (NULL);
+  return NULL;
 }
 
 /* Initialize EVENT thread */
@@ -902,12 +903,12 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
   pdb->event_thread.tid = (pthread_t)-1;
   /* init event thread condition variable */
   if (pthread_cond_init(&pdb->event_thread.cond, NULL)) {
-    return (-1);
+    return -1;
   }
   /* init event thread mutex */
   if (pthread_mutex_init(&pdb->event_thread.mutex, NULL)) {
     pthread_cond_destroy(&pdb->event_thread.cond);
-    return (-1);
+    return -1;
   }
   /* Hold the event thread mutex. It ensures that no events
    * will be lost while thread is still starting. Once event
@@ -916,7 +917,7 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
   if (pthread_mutex_lock(&pdb->event_thread.mutex)) {
     pthread_mutex_destroy(&pdb->event_thread.mutex);
     pthread_cond_destroy(&pdb->event_thread.cond);
-    return (-1);
+    return -1;
   }
   /* start event thread */
   pthread_t tid;
@@ -925,20 +926,20 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
     pthread_mutex_unlock(&pdb->event_thread.mutex);
     pthread_mutex_destroy(&pdb->event_thread.mutex);
     pthread_cond_destroy(&pdb->event_thread.cond);
-    return (-1);
+    return -1;
   }
   pdb->event_thread.tid = tid;
-  return (0);
+  return 0;
 }
 
 /* Destroy EVENT thread */
 static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
   if (pdb->event_thread.tid == (pthread_t)-1)
     /* already destroyed */
-    return (0);
+    return 0;
   ovs_db_event_post(pdb, OVS_DB_EVENT_TERMINATE);
   if (pthread_join(pdb->event_thread.tid, NULL) != 0)
-    return (-1);
+    return -1;
   /* Event thread always holds the thread mutex when
    * performs some task (handles event) and releases it when
    * while sleeping. Thus, if event thread exits, the mutex
@@ -947,7 +948,7 @@ static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
   pthread_mutex_destroy(&pdb->event_thread.mutex);
   pthread_cond_destroy(&pdb->event_thread.cond);
   pdb->event_thread.tid = (pthread_t)-1;
-  return (0);
+  return 0;
 }
 
 /* Initialize POLL thread */
@@ -955,7 +956,7 @@ static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
   pdb->poll_thread.tid = (pthread_t)-1;
   /* init event thread mutex */
   if (pthread_mutex_init(&pdb->poll_thread.mutex, NULL)) {
-    return (-1);
+    return -1;
   }
   /* start poll thread */
   pthread_t tid;
@@ -963,27 +964,27 @@ static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
   if (plugin_thread_create(&tid, NULL, ovs_poll_worker, pdb,
                            "utils_ovs:poll") != 0) {
     pthread_mutex_destroy(&pdb->poll_thread.mutex);
-    return (-1);
+    return -1;
   }
   pdb->poll_thread.tid = tid;
-  return (0);
+  return 0;
 }
 
 /* Destroy POLL thread */
 static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
   if (pdb->poll_thread.tid == (pthread_t)-1)
     /* already destroyed */
-    return (0);
+    return 0;
   /* change thread state */
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   pdb->poll_thread.state = OVS_DB_POLL_STATE_EXITING;
   pthread_mutex_unlock(&pdb->poll_thread.mutex);
   /* join the thread */
   if (pthread_join(pdb->poll_thread.tid, NULL) != 0)
-    return (-1);
+    return -1;
   pthread_mutex_destroy(&pdb->poll_thread.mutex);
   pdb->poll_thread.tid = (pthread_t)-1;
-  return (0);
+  return 0;
 }
 
 /*
@@ -994,12 +995,12 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
                       const char *unix_path, ovs_db_callback_t *cb) {
   /* sanity check */
   if (node == NULL || service == NULL || unix_path == NULL)
-    return (NULL);
+    return NULL;
 
   /* allocate db data & fill it */
   ovs_db_t *pdb = pdb = calloc(1, sizeof(*pdb));
   if (pdb == NULL)
-    return (NULL);
+    return NULL;
 
   /* store the OVS DB address */
   sstrncpy(pdb->node, node, sizeof(pdb->node));
@@ -1015,21 +1016,21 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
   if (pthread_mutexattr_init(&mutex_attr)) {
     OVS_ERROR("OVS DB mutex attribute init failed");
     sfree(pdb);
-    return (NULL);
+    return NULL;
   }
   /* set OVS DB mutex as recursive */
   if (pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE)) {
     OVS_ERROR("Failed to set OVS DB mutex as recursive");
     pthread_mutexattr_destroy(&mutex_attr);
     sfree(pdb);
-    return (NULL);
+    return NULL;
   }
   /* init OVS DB mutex */
   if (pthread_mutex_init(&pdb->mutex, &mutex_attr)) {
     OVS_ERROR("OVS DB mutex init failed");
     pthread_mutexattr_destroy(&mutex_attr);
     sfree(pdb);
-    return (NULL);
+    return NULL;
   }
   /* destroy mutex attributes */
   pthread_mutexattr_destroy(&mutex_attr);
@@ -1037,14 +1038,14 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
   /* init event thread */
   if (ovs_db_event_thread_init(pdb) < 0) {
     ovs_db_destroy(pdb);
-    return (NULL);
+    return NULL;
   }
 
   /* init polling thread */
   pdb->sock = -1;
   if (ovs_db_poll_thread_init(pdb) < 0) {
     ovs_db_destroy(pdb);
-    return (NULL);
+    return NULL;
   }
   return pdb;
 }
@@ -1064,16 +1065,16 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
 
   /* sanity check */
   if (!pdb || !method || !params)
-    return (-1);
+    return -1;
 
   if ((jgen = yajl_gen_alloc(NULL)) == NULL)
-    return (-1);
+    return -1;
 
   /* try to parse params */
   if ((jparams = yajl_tree_parse(params, NULL, 0)) == NULL) {
     OVS_ERROR("params is not a JSON string");
     yajl_gen_clear(jgen);
-    return (-1);
+    return -1;
   }
 
   /* generate method field */
@@ -1152,16 +1153,16 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
 
   /* sanity check */
   if (pdb == NULL || tb_name == NULL || update_cb == NULL)
-    return (-1);
+    return -1;
 
   /* allocate new update callback */
   if ((new_cb = calloc(1, sizeof(ovs_callback_t))) == NULL)
-    return (-1);
+    return -1;
 
   /* init YAJL generator */
   if ((jgen = yajl_gen_alloc(NULL)) == NULL) {
     sfree(new_cb);
-    return (-1);
+    return -1;
   }
 
   /* add new callback to front */
@@ -1245,12 +1246,12 @@ int ovs_db_destroy(ovs_db_t *pdb) {
 
   /* sanity check */
   if (pdb == NULL)
-    return (-1);
+    return -1;
 
   /* try to lock the structure before releasing */
   if ((ret = pthread_mutex_lock(&pdb->mutex))) {
     OVS_ERROR("pthread_mutex_lock() DB mutex lock failed (%d)", ret);
-    return (-1);
+    return -1;
   }
 
   /* stop poll thread */

@@ -74,7 +74,7 @@ static int fbh_read_file(fbhash_t *h) /* {{{ */
 
   fh = fopen(h->filename, "r");
   if (fh == NULL)
-    return (-1);
+    return -1;
 
   fl.l_type = F_RDLCK;
   fl.l_whence = SEEK_SET;
@@ -83,13 +83,13 @@ static int fbh_read_file(fbhash_t *h) /* {{{ */
   status = fcntl(fileno(fh), F_SETLK, &fl);
   if (status != 0) {
     fclose(fh);
-    return (-1);
+    return -1;
   }
 
   tree = c_avl_create((int (*)(const void *, const void *))strcmp);
   if (tree == NULL) {
     fclose(fh);
-    return (-1);
+    return -1;
   }
 
   /* Read `fh' into `tree' */
@@ -162,7 +162,7 @@ static int fbh_read_file(fbhash_t *h) /* {{{ */
   fbh_free_tree(h->tree);
   h->tree = tree;
 
-  return (0);
+  return 0;
 } /* }}} int fbh_read_file */
 
 static int fbh_check_file(fbhash_t *h) /* {{{ */
@@ -172,16 +172,16 @@ static int fbh_check_file(fbhash_t *h) /* {{{ */
 
   status = stat(h->filename, &statbuf);
   if (status != 0)
-    return (-1);
+    return -1;
 
   if (h->mtime >= statbuf.st_mtime)
-    return (0);
+    return 0;
 
   status = fbh_read_file(h);
   if (status == 0)
     h->mtime = statbuf.st_mtime;
 
-  return (status);
+  return status;
 } /* }}} int fbh_check_file */
 
 /*
@@ -193,16 +193,16 @@ fbhash_t *fbh_create(const char *file) /* {{{ */
   int status;
 
   if (file == NULL)
-    return (NULL);
+    return NULL;
 
   h = calloc(1, sizeof(*h));
   if (h == NULL)
-    return (NULL);
+    return NULL;
 
   h->filename = strdup(file);
   if (h->filename == NULL) {
     free(h);
-    return (NULL);
+    return NULL;
   }
 
   h->mtime = 0;
@@ -212,10 +212,10 @@ fbhash_t *fbh_create(const char *file) /* {{{ */
   if (status != 0) {
     fbh_destroy(h);
     free(h);
-    return (NULL);
+    return NULL;
   }
 
-  return (h);
+  return h;
 } /* }}} fbhash_t *fbh_create */
 
 void fbh_destroy(fbhash_t *h) /* {{{ */
@@ -235,7 +235,7 @@ char *fbh_get(fbhash_t *h, const char *key) /* {{{ */
   int status;
 
   if ((h == NULL) || (key == NULL))
-    return (NULL);
+    return NULL;
 
   value = NULL;
   value_copy = NULL;
@@ -253,5 +253,5 @@ char *fbh_get(fbhash_t *h, const char *key) /* {{{ */
 
   pthread_mutex_unlock(&h->lock);
 
-  return (value_copy);
+  return value_copy;
 } /* }}} char *fbh_get */

@@ -119,11 +119,11 @@ latency_counter_t *latency_counter_create(void) /* {{{ */
 
   lc = calloc(1, sizeof(*lc));
   if (lc == NULL)
-    return (NULL);
+    return NULL;
 
   lc->bin_width = HISTOGRAM_DEFAULT_BIN_WIDTH;
   latency_counter_reset(lc);
-  return (lc);
+  return lc;
 } /* }}} latency_counter_t *latency_counter_create */
 
 void latency_counter_destroy(latency_counter_t *lc) /* {{{ */
@@ -198,29 +198,29 @@ void latency_counter_reset(latency_counter_t *lc) /* {{{ */
 cdtime_t latency_counter_get_min(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
-    return (0);
-  return (lc->min);
+    return 0;
+  return lc->min;
 } /* }}} cdtime_t latency_counter_get_min */
 
 cdtime_t latency_counter_get_max(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
-    return (0);
-  return (lc->max);
+    return 0;
+  return lc->max;
 } /* }}} cdtime_t latency_counter_get_max */
 
 cdtime_t latency_counter_get_sum(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
-    return (0);
-  return (lc->sum);
+    return 0;
+  return lc->sum;
 } /* }}} cdtime_t latency_counter_get_sum */
 
 size_t latency_counter_get_num(latency_counter_t *lc) /* {{{ */
 {
   if (lc == NULL)
-    return (0);
-  return (lc->num);
+    return 0;
+  return lc->num;
 } /* }}} size_t latency_counter_get_num */
 
 cdtime_t latency_counter_get_average(latency_counter_t *lc) /* {{{ */
@@ -228,10 +228,10 @@ cdtime_t latency_counter_get_average(latency_counter_t *lc) /* {{{ */
   double average;
 
   if ((lc == NULL) || (lc->num == 0))
-    return (0);
+    return 0;
 
   average = CDTIME_T_TO_DOUBLE(lc->sum) / ((double)lc->num);
-  return (DOUBLE_TO_CDTIME_T(average));
+  return DOUBLE_TO_CDTIME_T(average);
 } /* }}} cdtime_t latency_counter_get_average */
 
 cdtime_t latency_counter_get_percentile(latency_counter_t *lc, /* {{{ */
@@ -245,7 +245,7 @@ cdtime_t latency_counter_get_percentile(latency_counter_t *lc, /* {{{ */
   size_t i;
 
   if ((lc == NULL) || (lc->num == 0) || !((percent > 0.0) && (percent < 100.0)))
-    return (0);
+    return 0;
 
   /* Find index i so that at least "percent" events are within i+1 ms. */
   percent_upper = 0.0;
@@ -264,13 +264,13 @@ cdtime_t latency_counter_get_percentile(latency_counter_t *lc, /* {{{ */
   }
 
   if (i >= HISTOGRAM_NUM_BINS)
-    return (0);
+    return 0;
 
   assert(percent_upper >= percent);
   assert(percent_lower < percent);
 
   if (i == 0)
-    return (lc->bin_width);
+    return lc->bin_width;
 
   latency_lower = ((cdtime_t)i) * lc->bin_width;
   p = (percent - percent_lower) / (percent_upper - percent_lower);
@@ -280,19 +280,19 @@ cdtime_t latency_counter_get_percentile(latency_counter_t *lc, /* {{{ */
 
   DEBUG("latency_counter_get_percentile: latency_interpolated = %.3f",
         CDTIME_T_TO_DOUBLE(latency_interpolated));
-  return (latency_interpolated);
+  return latency_interpolated;
 } /* }}} cdtime_t latency_counter_get_percentile */
 
 double latency_counter_get_rate(const latency_counter_t *lc, /* {{{ */
                                 cdtime_t lower, cdtime_t upper,
                                 const cdtime_t now) {
   if ((lc == NULL) || (lc->num == 0))
-    return (NAN);
+    return NAN;
 
   if (upper && (upper < lower))
-    return (NAN);
+    return NAN;
   if (lower == upper)
-    return (0);
+    return 0;
 
   /* Buckets have an exclusive lower bound and an inclusive upper bound. That
    * means that the first bucket, index 0, represents (0-bin_width]. That means
@@ -305,7 +305,7 @@ double latency_counter_get_rate(const latency_counter_t *lc, /* {{{ */
 
   /* lower is greater than the longest latency observed => rate is zero. */
   if (lower_bin >= HISTOGRAM_NUM_BINS)
-    return (0);
+    return 0;
 
   cdtime_t upper_bin = HISTOGRAM_NUM_BINS - 1;
   if (upper)

@@ -178,13 +178,13 @@ static int mcelog_config(oconfig_item_t *ci) {
         ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\", Memory "
                             "option is already configured.",
               child->key);
-        return (-1);
+        return -1;
       }
       if (cf_util_get_string_buffer(child, g_mcelog_config.logfile,
                                     sizeof(g_mcelog_config.logfile)) < 0) {
         ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
               child->key);
-        return (-1);
+        return -1;
       }
       memset(socket_adapter.unix_sock.sun_path, 0,
              sizeof(socket_adapter.unix_sock.sun_path));
@@ -223,7 +223,7 @@ static int mcelog_config(oconfig_item_t *ci) {
     } else {
       ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
             child->key);
-      return (-1);
+      return -1;
     }
   }
 
@@ -250,7 +250,7 @@ static int socket_close(socket_adapter_t *self) {
     }
   }
   pthread_rwlock_unlock(&self->lock);
-  return (ret);
+  return ret;
 }
 
 static int socket_write(socket_adapter_t *self, const char *msg,
@@ -260,7 +260,7 @@ static int socket_write(socket_adapter_t *self, const char *msg,
   if (swrite(self->sock_fd, msg, len) < 0)
     ret = -1;
   pthread_rwlock_unlock(&self->lock);
-  return (ret);
+  return ret;
 }
 
 static void mcelog_dispatch_notification(notification_t *n) {
@@ -290,7 +290,7 @@ static int socket_reinit(socket_adapter_t *self) {
     ERROR(MCELOG_PLUGIN ": Could not create a socket. %s",
           sstrerror(errno, errbuff, sizeof(errbuff)));
     pthread_rwlock_unlock(&self->lock);
-    return (ret);
+    return ret;
   }
 
   /* Set socket timeout option */
@@ -318,7 +318,7 @@ static int socket_reinit(socket_adapter_t *self) {
                           .type_instance = "mcelog_status"});
   }
   pthread_rwlock_unlock(&self->lock);
-  return (ret);
+  return ret;
 }
 
 static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
@@ -399,14 +399,14 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
     n.meta = NULL;
   }
 
-  return (0);
+  return 0;
 }
 
 static int mcelog_submit(const mcelog_memory_rec_t *mr) {
 
   if (!mr) {
     ERROR(MCELOG_PLUGIN ": %s: NULL pointer", __FUNCTION__);
-    return (-1);
+    return -1;
   }
 
   llentry_t *dimm = mcelog_dimm(mr, g_mcelog_config.dimms_list);
@@ -450,7 +450,7 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
   vl.values = &(value_t){.derive = (derive_t)mr->uncorrected_err_timed};
   plugin_dispatch_values(&vl);
 
-  return (0);
+  return 0;
 }
 
 static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
@@ -459,7 +459,7 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
     /* Got empty line or "done" */
     if ((!strncmp("\n", buf, strlen(buf))) ||
         (!strncmp(buf, "done\n", strlen(buf))))
-      return (1);
+      return 1;
     if (strlen(buf) < 5)
       continue;
     if (!strncmp(buf, MCELOG_SOCKET_STR, strlen(MCELOG_SOCKET_STR))) {
@@ -515,7 +515,7 @@ static int parse_memory_info(FILE *p_file, mcelog_memory_rec_t *memory_record) {
     memset(buf, 0, sizeof(buf));
   }
   /* parsing definitely finished */
-  return (0);
+  return 0;
 }
 
 static void poll_worker_cleanup(void *arg) {
@@ -540,7 +540,7 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
             sstrerror(errno, errbuf, sizeof(errbuf)));
     }
     pthread_rwlock_unlock(&self->lock);
-    return (res);
+    return res;
   }
 
   if (poll_fd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
@@ -555,20 +555,20 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
                             .type_instance = "mcelog_status"});
     }
     pthread_rwlock_unlock(&self->lock);
-    return (-1);
+    return -1;
   }
 
   if (!(poll_fd.revents & (POLLIN | POLLPRI))) {
     INFO(MCELOG_PLUGIN ": No data to read");
     pthread_rwlock_unlock(&self->lock);
-    return (0);
+    return 0;
   }
 
   if ((*pp_file = fdopen(dup(self->sock_fd), "r")) == NULL)
     res = -1;
 
   pthread_rwlock_unlock(&self->lock);
-  return (res);
+  return res;
 }
 
 static void *poll_worker(__attribute__((unused)) void *arg) {
@@ -622,7 +622,7 @@ static void *poll_worker(__attribute__((unused)) void *arg) {
 
   mcelog_thread_running = 0;
   pthread_cleanup_pop(1);
-  return (NULL);
+  return NULL;
 }
 
 static int mcelog_init(void) {
@@ -640,7 +640,7 @@ static int mcelog_init(void) {
 
   if (socket_adapter.reinit(&socket_adapter) != 0) {
     ERROR(MCELOG_PLUGIN ": Cannot connect to client socket");
-    return (-1);
+    return -1;
   }
 
   if (strlen(socket_adapter.unix_sock.sun_path)) {
@@ -650,7 +650,7 @@ static int mcelog_init(void) {
       return (-1);
     }
   }
-  return (0);
+  return 0;
 }
 
 static int get_memory_machine_checks(void) {
@@ -660,7 +660,7 @@ static int get_memory_machine_checks(void) {
     ERROR(MCELOG_PLUGIN ": SENT DUMP REQUEST FAILED");
   else
     DEBUG(MCELOG_PLUGIN ": SENT DUMP REQUEST OK");
-  return (ret);
+  return ret;
 }
 
 static int mcelog_read(__attribute__((unused)) user_data_t *ud) {
@@ -669,7 +669,7 @@ static int mcelog_read(__attribute__((unused)) user_data_t *ud) {
   if (get_memory_machine_checks() != 0)
     ERROR(MCELOG_PLUGIN ": MACHINE CHECK INFO NOT AVAILABLE");
 
-  return (0);
+  return 0;
 }
 
 static int mcelog_shutdown(void) {
@@ -689,7 +689,7 @@ static int mcelog_shutdown(void) {
   pthread_mutex_destroy(&g_mcelog_config.dimms_lock);
   ret = socket_adapter.close(&socket_adapter) || ret;
   pthread_rwlock_destroy(&(socket_adapter.lock));
-  return (-ret);
+  return -ret;
 }
 
 void module_register(void) {

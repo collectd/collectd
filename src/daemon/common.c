@@ -81,7 +81,7 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
   strncpy(dest, src, n);
   dest[n - 1] = '\0';
 
-  return (dest);
+  return dest;
 } /* char *sstrncpy */
 
 int ssnprintf(char *dest, size_t n, const char *format, ...) {
@@ -93,7 +93,7 @@ int ssnprintf(char *dest, size_t n, const char *format, ...) {
   dest[n - 1] = '\0';
   va_end(ap);
 
-  return (ret);
+  return ret;
 } /* int ssnprintf */
 
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
@@ -111,17 +111,17 @@ char *ssnprintf_alloc(char const *format, ...) /* {{{ */
   status = vsnprintf(static_buffer, sizeof(static_buffer), format, ap);
   va_end(ap);
   if (status < 0)
-    return (NULL);
+    return NULL;
 
   /* "status" does not include the null byte. */
   alloc_buffer_size = (size_t)(status + 1);
   if (alloc_buffer_size <= sizeof(static_buffer))
-    return (strdup(static_buffer));
+    return strdup(static_buffer);
 
   /* Allocate a buffer large enough to hold the string. */
   alloc_buffer = calloc(1, alloc_buffer_size);
   if (alloc_buffer == NULL)
-    return (NULL);
+    return NULL;
 
   /* Print again into this new buffer. */
   va_start(ap, format);
@@ -129,10 +129,10 @@ char *ssnprintf_alloc(char const *format, ...) /* {{{ */
   va_end(ap);
   if (status < 0) {
     sfree(alloc_buffer);
-    return (NULL);
+    return NULL;
   }
 
-  return (alloc_buffer);
+  return alloc_buffer;
 } /* }}} char *ssnprintf_alloc */
 
 char *sstrdup(const char *s) {
@@ -140,7 +140,7 @@ char *sstrdup(const char *s) {
   size_t sz;
 
   if (s == NULL)
-    return (NULL);
+    return NULL;
 
   /* Do not use `strdup' here, because it's not specified in POSIX. It's
    * ``only'' an XSI extension. */
@@ -150,9 +150,9 @@ char *sstrdup(const char *s) {
     ERROR("sstrdup: Out of memory.");
     exit(3);
   }
-  memcpy(r, s, sizeof(char) * sz);
+  memcpy(r, s, sz);
 
-  return (r);
+  return r;
 } /* char *sstrdup */
 
 /* Even though Posix requires "strerror_r" to return an "int",
@@ -197,7 +197,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
   }
 #endif /* STRERROR_R_CHAR_P */
 
-  return (buf);
+  return buf;
 } /* char *sstrerror */
 
 void *smalloc(size_t size) {
@@ -208,7 +208,7 @@ void *smalloc(size_t size) {
     exit(3);
   }
 
-  return (r);
+  return r;
 } /* void *smalloc */
 
 #if 0
@@ -239,14 +239,14 @@ ssize_t sread(int fd, void *buf, size_t count) {
       continue;
 
     if (status < 0)
-      return (status);
+      return status;
 
     if (status == 0) {
       DEBUG("Received EOF from fd %i. "
             "Closing fd and returning error.",
             fd);
       close(fd);
-      return (-1);
+      return -1;
     }
 
     assert((0 > status) || (nleft >= (size_t)status));
@@ -255,7 +255,7 @@ ssize_t sread(int fd, void *buf, size_t count) {
     ptr = ptr + ((size_t)status);
   }
 
-  return (0);
+  return 0;
 }
 
 ssize_t swrite(int fd, const void *buf, size_t count) {
@@ -298,7 +298,7 @@ ssize_t swrite(int fd, const void *buf, size_t count) {
     ptr = ptr + ((size_t)status);
   }
 
-  return (0);
+  return 0;
 }
 
 int strsplit(char *string, char **fields, size_t size) {
@@ -317,7 +317,7 @@ int strsplit(char *string, char **fields, size_t size) {
       break;
   }
 
-  return ((int)i);
+  return (int)i;
 }
 
 int strjoin(char *buffer, size_t buffer_size, char **fields, size_t fields_num,
@@ -330,7 +330,7 @@ int strjoin(char *buffer, size_t buffer_size, char **fields, size_t fields_num,
 
   if (((fields_num != 0) && (fields == NULL)) ||
       ((buffer_size != 0) && (buffer == NULL)))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (buffer != NULL)
     buffer[0] = 0;
@@ -383,14 +383,14 @@ int escape_string(char *buffer, size_t buffer_size) {
   /* Check if we need to escape at all first */
   temp = strpbrk(buffer, " \t\"\\");
   if (temp == NULL)
-    return (0);
+    return 0;
 
   if (buffer_size < 3)
-    return (EINVAL);
+    return EINVAL;
 
   temp = calloc(1, buffer_size);
   if (temp == NULL)
-    return (ENOMEM);
+    return ENOMEM;
 
   temp[0] = '"';
   j = 1;
@@ -418,7 +418,7 @@ int escape_string(char *buffer, size_t buffer_size) {
 
   sstrncpy(buffer, temp, buffer_size);
   sfree(temp);
-  return (0);
+  return 0;
 } /* int escape_string */
 
 int strunescape(char *buf, size_t buf_len) {
@@ -430,7 +430,7 @@ int strunescape(char *buf, size_t buf_len) {
       ERROR("string unescape: backslash found at end of string.");
       /* Ensure null-byte at the end of the buffer. */
       buf[i] = 0;
-      return (-1);
+      return -1;
     }
 
     switch (buf[i + 1]) {
@@ -453,7 +453,7 @@ int strunescape(char *buf, size_t buf_len) {
     memmove(buf + i + 1, buf + i + 2, buf_len - i - 2);
     buf[buf_len - 1] = 0;
   }
-  return (0);
+  return 0;
 } /* int strunescape */
 
 size_t strstripnewline(char *buffer) {
@@ -466,7 +466,7 @@ size_t strstripnewline(char *buffer) {
     buffer[buffer_len] = 0;
   }
 
-  return (buffer_len);
+  return buffer_len;
 } /* size_t strstripnewline */
 
 int escape_slashes(char *buffer, size_t buffer_size) {
@@ -477,10 +477,10 @@ int escape_slashes(char *buffer, size_t buffer_size) {
   if (buffer_len <= 1) {
     if (strcmp("/", buffer) == 0) {
       if (buffer_size < 5)
-        return (-1);
+        return -1;
       sstrncpy(buffer, "root", buffer_size);
     }
-    return (0);
+    return 0;
   }
 
   /* Move one to the left */
@@ -494,7 +494,7 @@ int escape_slashes(char *buffer, size_t buffer_size) {
       buffer[i] = '_';
   }
 
-  return (0);
+  return 0;
 } /* int escape_slashes */
 
 void replace_special(char *buffer, size_t buffer_size) {
@@ -520,7 +520,7 @@ int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta) {
       delta->tv_sec = 0;
       delta->tv_usec = 0;
     }
-    return (0);
+    return 0;
   }
 
   if ((tv0.tv_sec < tv1.tv_sec) ||
@@ -548,7 +548,7 @@ int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta) {
   assert((delta == NULL) ||
          ((0 <= delta->tv_usec) && (delta->tv_usec < 1000000)));
 
-  return (status);
+  return status;
 } /* int timeval_cmp */
 
 int check_create_dir(const char *file_orig) {
@@ -569,12 +569,12 @@ int check_create_dir(const char *file_orig) {
    * Sanity checks first
    */
   if (file_orig == NULL)
-    return (-1);
+    return -1;
 
   if ((len = strlen(file_orig)) < 1)
-    return (-1);
+    return -1;
   else if (len >= sizeof(file_copy))
-    return (-1);
+    return -1;
 
   /*
    * If `file_orig' ends in a slash the last component is a directory,
@@ -618,7 +618,7 @@ int check_create_dir(const char *file_orig) {
       ERROR("Cowardly refusing to create a directory that "
             "begins with a `.' (dot): `%s'",
             file_orig);
-      return (-2);
+      return -2;
     }
 
     /*
@@ -628,7 +628,7 @@ int check_create_dir(const char *file_orig) {
     if (strjoin(dir + path_is_absolute, (size_t)(dir_len - path_is_absolute),
                 fields, (size_t)(i + 1), "/") < 0) {
       ERROR("strjoin failed: `%s', component #%i", file_orig, i);
-      return (-1);
+      return -1;
     }
 
     while (42) {
@@ -646,24 +646,24 @@ int check_create_dir(const char *file_orig) {
           char errbuf[1024];
           ERROR("check_create_dir: mkdir (%s): %s", dir,
                 sstrerror(errno, errbuf, sizeof(errbuf)));
-          return (-1);
+          return -1;
         } else {
           char errbuf[1024];
           ERROR("check_create_dir: stat (%s): %s", dir,
                 sstrerror(errno, errbuf, sizeof(errbuf)));
-          return (-1);
+          return -1;
         }
       } else if (!S_ISDIR(statbuf.st_mode)) {
         ERROR("check_create_dir: `%s' exists but is not "
               "a directory!",
               dir);
-        return (-1);
+        return -1;
       }
       break;
     }
   }
 
-  return (0);
+  return 0;
 } /* check_create_dir */
 
 #ifdef HAVE_LIBKSTAT
@@ -673,20 +673,20 @@ int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name) {
   *ksp_ptr = NULL;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   ssnprintf(ident, sizeof(ident), "%s,%i,%s", module, instance, name);
 
   *ksp_ptr = kstat_lookup(kc, module, instance, name);
   if (*ksp_ptr == NULL) {
     ERROR("get_kstat: Cound not find kstat %s", ident);
-    return (-1);
+    return -1;
   }
 
   if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED) {
     ERROR("get_kstat: kstat %s has wrong type", ident);
     *ksp_ptr = NULL;
-    return (-1);
+    return -1;
   }
 
 #ifdef assert
@@ -696,15 +696,15 @@ int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name) {
 
   if (kstat_read(kc, *ksp_ptr, NULL) == -1) {
     ERROR("get_kstat: kstat %s could not be read", ident);
-    return (-1);
+    return -1;
   }
 
   if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED) {
     ERROR("get_kstat: kstat %s has wrong type", ident);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 long long get_kstat_value(kstat_t *ksp, char *name) {
@@ -713,16 +713,16 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
 
   if (ksp == NULL) {
     ERROR("get_kstat_value (\"%s\"): ksp is NULL.", name);
-    return (-1LL);
+    return -1LL;
   } else if (ksp->ks_type != KSTAT_TYPE_NAMED) {
     ERROR("get_kstat_value (\"%s\"): ksp->ks_type (%#x) "
           "is not KSTAT_TYPE_NAMED (%#x).",
           name, (unsigned int)ksp->ks_type, (unsigned int)KSTAT_TYPE_NAMED);
-    return (-1LL);
+    return -1LL;
   }
 
   if ((kn = (kstat_named_t *)kstat_data_lookup(ksp, name)) == NULL)
-    return (-1LL);
+    return -1LL;
 
   if (kn->data_type == KSTAT_DATA_INT32)
     retval = (long long)kn->value.i32;
@@ -737,14 +737,14 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
   else
     WARNING("get_kstat_value: Not a numeric value: %s", name);
 
-  return (retval);
+  return retval;
 }
 #endif /* HAVE_LIBKSTAT */
 
 #ifndef HAVE_HTONLL
 unsigned long long ntohll(unsigned long long n) {
 #if BYTE_ORDER == BIG_ENDIAN
-  return (n);
+  return n;
 #else
   return (((unsigned long long)ntohl(n)) << 32) + ntohl(n >> 32);
 #endif
@@ -752,7 +752,7 @@ unsigned long long ntohll(unsigned long long n) {
 
 unsigned long long htonll(unsigned long long n) {
 #if BYTE_ORDER == BIG_ENDIAN
-  return (n);
+  return n;
 #else
   return (((unsigned long long)htonl(n)) << 32) + htonl(n >> 32);
 #endif
@@ -793,13 +793,13 @@ double ntohd(double d) {
   if ((ret.byte[0] == 0x00) && (ret.byte[1] == 0x00) && (ret.byte[2] == 0x00) &&
       (ret.byte[3] == 0x00) && (ret.byte[4] == 0x00) && (ret.byte[5] == 0x00) &&
       (ret.byte[6] == 0xf8) && (ret.byte[7] == 0x7f)) {
-    return (NAN);
+    return NAN;
   } else {
     uint64_t tmp;
 
     tmp = ret.integer;
     ret.integer = FP_CONVERT(tmp);
-    return (ret.floating);
+    return ret.floating;
   }
 } /* double ntohd */
 
@@ -815,14 +815,14 @@ double htond(double d) {
     ret.byte[4] = ret.byte[5] = 0x00;
     ret.byte[6] = 0xf8;
     ret.byte[7] = 0x7f;
-    return (ret.floating);
+    return ret.floating;
   } else {
     uint64_t tmp;
 
     ret.floating = d;
     tmp = FP_CONVERT(ret.integer);
     ret.integer = tmp;
-    return (ret.floating);
+    return ret.floating;
   }
 } /* double htond */
 #endif /* FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP */
@@ -840,7 +840,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
   do {                                                                         \
     size_t l = strlen(str);                                                    \
     if (l >= buffer_size)                                                      \
-      return (ENOBUFS);                                                        \
+      return ENOBUFS;                                                          \
     memcpy(buffer, (str), l);                                                  \
     buffer += l;                                                               \
     buffer_size -= l;                                                          \
@@ -866,7 +866,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
   buffer[0] = 0;
 
 #undef APPEND
-  return (0);
+  return 0;
 } /* int format_name */
 
 int format_values(char *ret, size_t ret_len, /* {{{ */
@@ -885,10 +885,10 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
     status = ssnprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else if (((size_t)status) >= (ret_len - offset)) {                       \
       sfree(rates);                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else                                                                     \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -903,7 +903,7 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
         rates = uc_get_rate(ds, vl);
       if (rates == NULL) {
         WARNING("format_values: uc_get_rate failed.");
-        return (-1);
+        return -1;
       }
       BUFFER_ADD(":" GAUGE_FORMAT, rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
@@ -915,14 +915,14 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
     else {
       ERROR("format_values: Unknown data source type: %i", ds->ds[i].type);
       sfree(rates);
-      return (-1);
+      return -1;
     }
   } /* for ds->ds_num */
 
 #undef BUFFER_ADD
 
   sfree(rates);
-  return (0);
+  return 0;
 } /* }}} int format_values */
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
@@ -936,18 +936,18 @@ int parse_identifier(char *str, char **ret_host, char **ret_plugin,
 
   hostname = str;
   if (hostname == NULL)
-    return (-1);
+    return -1;
 
   plugin = strchr(hostname, '/');
   if (plugin == NULL)
-    return (-1);
+    return -1;
   *plugin = '\0';
   plugin++;
 
   type = strchr(plugin, '/');
   if (type == NULL) {
     if (default_host == NULL)
-      return (-1);
+      return -1;
     /* else: no host specified; use default */
     type = plugin;
     plugin = hostname;
@@ -974,7 +974,7 @@ int parse_identifier(char *str, char **ret_host, char **ret_plugin,
   *ret_plugin_instance = plugin_instance;
   *ret_type = type;
   *ret_type_instance = type_instance;
-  return (0);
+  return 0;
 } /* int parse_identifier */
 
 int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
@@ -988,7 +988,7 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
   int status;
 
   if ((str == NULL) || (vl == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   sstrncpy(str_copy, str, sizeof(str_copy));
 
@@ -996,7 +996,7 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
                             &type_instance,
                             /* default_host = */ NULL);
   if (status != 0)
-    return (status);
+    return status;
 
   sstrncpy(vl->host, host, sizeof(vl->host));
   sstrncpy(vl->plugin, plugin, sizeof(vl->plugin));
@@ -1007,7 +1007,7 @@ int parse_identifier_vl(const char *str, value_list_t *vl) /* {{{ */
   sstrncpy(vl->type_instance, (type_instance != NULL) ? type_instance : "",
            sizeof(vl->type_instance));
 
-  return (0);
+  return 0;
 } /* }}} int parse_identifier_vl */
 
 int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
@@ -1016,11 +1016,11 @@ int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
   size_t value_len;
 
   if (value_orig == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   value = strdup(value_orig);
   if (value == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   value_len = strlen(value);
 
   while ((value_len > 0) && isspace((int)value[value_len - 1])) {
@@ -1100,7 +1100,7 @@ int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds) {
             || (endptr == ptr)  /* Invalid string */
             || (endptr == NULL) /* This should not happen */
             || (*endptr != 0))  /* Trailing chars */
-          return (-1);
+          return -1;
 
         vl->time = DOUBLE_TO_CDTIME_T(tmp);
       }
@@ -1117,8 +1117,8 @@ int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds) {
   } /* while (strtok_r) */
 
   if ((ptr != NULL) || (i == 0))
-    return (-1);
-  return (0);
+    return -1;
+  return 0;
 } /* int parse_values */
 
 int parse_value_file(char const *path, value_t *ret_value, int ds_type) {
@@ -1127,11 +1127,11 @@ int parse_value_file(char const *path, value_t *ret_value, int ds_type) {
 
   fh = fopen(path, "r");
   if (fh == NULL)
-    return (-1);
+    return -1;
 
   if (fgets(buffer, sizeof(buffer), fh) == NULL) {
     fclose(fh);
-    return (-1);
+    return -1;
   }
 
   fclose(fh);
@@ -1185,7 +1185,7 @@ int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
 
   pthread_mutex_unlock(&getpwnam_r_lock);
 
-  return (status);
+  return status;
 } /* int getpwnam_r */
 #endif /* !HAVE_GETPWNAM_R */
 
@@ -1210,7 +1210,7 @@ int notification_init(notification_t *n, int severity, const char *message,
   if (type_instance != NULL)
     sstrncpy(n->type_instance, type_instance, sizeof(n->type_instance));
 
-  return (0);
+  return 0;
 } /* int notification_init */
 
 int walk_directory(const char *dir, dirwalk_callback_f callback,
@@ -1252,8 +1252,8 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   closedir(dh);
 
   if ((success == 0) && (failure > 0))
-    return (-1);
-  return (0);
+    return -1;
+  return 0;
 }
 
 ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
@@ -1262,7 +1262,7 @@ ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
 
   fh = fopen(filename, "r");
   if (fh == NULL)
-    return (-1);
+    return -1;
 
   ret = (ssize_t)fread(buf, 1, bufsize, fh);
   if ((ret == 0) && (ferror(fh) != 0)) {
@@ -1271,7 +1271,7 @@ ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
   }
 
   fclose(fh);
-  return (ret);
+  return ret;
 }
 
 counter_t counter_diff(counter_t old_value, counter_t new_value) {
@@ -1286,7 +1286,7 @@ counter_t counter_diff(counter_t old_value, counter_t new_value) {
     diff = new_value - old_value;
   }
 
-  return (diff);
+  return diff;
 } /* counter_t counter_diff */
 
 int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
@@ -1299,7 +1299,7 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     state->last_time = t;
 
     *ret_value = state->last_value;
-    return (0);
+    return 0;
   }
 
   /* Counter and absolute can't handle negative rates. Reset "last time"
@@ -1308,13 +1308,13 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
   if ((rate < 0.0) &&
       ((ds_type == DS_TYPE_COUNTER) || (ds_type == DS_TYPE_ABSOLUTE))) {
     memset(state, 0, sizeof(*state));
-    return (EINVAL);
+    return EINVAL;
   }
 
   /* Another invalid state: The time is not increasing. */
   if (t <= state->last_time) {
     memset(state, 0, sizeof(*state));
-    return (EINVAL);
+    return EINVAL;
   }
 
   delta_t = t - state->last_time;
@@ -1337,7 +1337,7 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
     }
 
     state->last_time = t;
-    return (EAGAIN);
+    return EAGAIN;
   } /* }}} */
 
   if (ds_type == DS_TYPE_DERIVE) {
@@ -1361,7 +1361,7 @@ int rate_to_value(value_t *ret_value, gauge_t rate, /* {{{ */
 
   state->last_time = t;
   *ret_value = state->last_value;
-  return (0);
+  return 0;
 } /* }}} value_t rate_to_value */
 
 int value_to_rate(gauge_t *ret_rate, /* {{{ */
@@ -1372,7 +1372,7 @@ int value_to_rate(gauge_t *ret_rate, /* {{{ */
   /* Another invalid state: The time is not increasing. */
   if (t <= state->last_time) {
     memset(state, 0, sizeof(*state));
-    return (EINVAL);
+    return EINVAL;
   }
 
   interval = CDTIME_T_TO_DOUBLE(t - state->last_time);
@@ -1381,7 +1381,7 @@ int value_to_rate(gauge_t *ret_rate, /* {{{ */
   if (state->last_time == 0) {
     state->last_value = value;
     state->last_time = t;
-    return (EAGAIN);
+    return EAGAIN;
   }
 
   switch (ds_type) {
@@ -1410,7 +1410,7 @@ int value_to_rate(gauge_t *ret_rate, /* {{{ */
 
   state->last_value = value;
   state->last_time = t;
-  return (0);
+  return 0;
 } /* }}} value_t rate_to_value */
 
 int service_name_to_port_number(const char *service_name) {
@@ -1419,7 +1419,7 @@ int service_name_to_port_number(const char *service_name) {
   int service_number;
 
   if (service_name == NULL)
-    return (-1);
+    return -1;
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC};
 
@@ -1427,7 +1427,7 @@ int service_name_to_port_number(const char *service_name) {
   if (status != 0) {
     ERROR("service_name_to_port_number: getaddrinfo failed: %s",
           gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   service_number = -1;
@@ -1452,8 +1452,8 @@ int service_name_to_port_number(const char *service_name) {
   freeaddrinfo(ai_list);
 
   if ((service_number > 0) && (service_number <= 65535))
-    return (service_number);
-  return (-1);
+    return service_number;
+  return -1;
 } /* int service_name_to_port_number */
 
 void set_sock_opts(int sockfd) /* {{{ */
@@ -1499,16 +1499,16 @@ int strtoderive(const char *string, derive_t *ret_value) /* {{{ */
   char *endptr;
 
   if ((string == NULL) || (ret_value == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   errno = 0;
   endptr = NULL;
   tmp = (derive_t)strtoll(string, &endptr, /* base = */ 0);
   if ((endptr == string) || (errno != 0))
-    return (-1);
+    return -1;
 
   *ret_value = tmp;
-  return (0);
+  return 0;
 } /* }}} int strtoderive */
 
 int strtogauge(const char *string, gauge_t *ret_value) /* {{{ */
@@ -1517,18 +1517,18 @@ int strtogauge(const char *string, gauge_t *ret_value) /* {{{ */
   char *endptr = NULL;
 
   if ((string == NULL) || (ret_value == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   errno = 0;
   endptr = NULL;
   tmp = (gauge_t)strtod(string, &endptr);
   if (errno != 0)
-    return (errno);
+    return errno;
   else if ((endptr == NULL) || (*endptr != 0))
-    return (EINVAL);
+    return EINVAL;
 
   *ret_value = tmp;
-  return (0);
+  return 0;
 } /* }}} int strtogauge */
 
 int strarray_add(char ***ret_array, size_t *ret_array_len,
@@ -1538,20 +1538,20 @@ int strarray_add(char ***ret_array, size_t *ret_array_len,
   size_t array_len = *ret_array_len;
 
   if (str == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   array = realloc(*ret_array, (array_len + 1) * sizeof(*array));
   if (array == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   *ret_array = array;
 
   array[array_len] = strdup(str);
   if (array[array_len] == NULL)
-    return (ENOMEM);
+    return ENOMEM;
 
   array_len++;
   *ret_array_len = array_len;
-  return (0);
+  return 0;
 } /* }}} int strarray_add */
 
 void strarray_free(char **array, size_t array_len) /* {{{ */
@@ -1569,27 +1569,27 @@ int check_capability(int arg) /* {{{ */
   cap_flag_value_t cap_flag_value;
 
   if (!CAP_IS_SUPPORTED(cap_value))
-    return (-1);
+    return -1;
 
   if (!(cap = cap_get_proc())) {
     ERROR("check_capability: cap_get_proc failed.");
-    return (-1);
+    return -1;
   }
 
   if (cap_get_flag(cap, cap_value, CAP_EFFECTIVE, &cap_flag_value) < 0) {
     ERROR("check_capability: cap_get_flag failed.");
     cap_free(cap);
-    return (-1);
+    return -1;
   }
   cap_free(cap);
 
-  return (cap_flag_value != CAP_SET);
+  return cap_flag_value != CAP_SET;
 } /* }}} int check_capability */
 #else
 int check_capability(__attribute__((unused)) int arg) /* {{{ */
 {
   WARNING("check_capability: unsupported capability implementation. "
           "Some plugin(s) may require elevated privileges to work properly.");
-  return (0);
+  return 0;
 } /* }}} int check_capability */
 #endif /* HAVE_CAPABILITY */

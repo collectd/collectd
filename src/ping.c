@@ -219,7 +219,7 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
     } /* }}} ping_max_missed */
   }   /* }}} for (iter) */
 
-  return (0);
+  return 0;
 } /* }}} int ping_dispatch_all */
 
 static void *ping_thread(void *arg) /* {{{ */
@@ -242,7 +242,7 @@ static void *ping_thread(void *arg) /* {{{ */
     ERROR("ping plugin: ping_construct failed.");
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
-    return ((void *)-1);
+    return (void *)-1;
   }
 
   if (ping_source != NULL)
@@ -278,7 +278,7 @@ static void *ping_thread(void *arg) /* {{{ */
     ERROR("ping plugin: No host could be added to ping object. Giving up.");
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
-    return ((void *)-1);
+    return (void *)-1;
   }
 
   /* Set up `ts_int' */
@@ -342,7 +342,7 @@ static void *ping_thread(void *arg) /* {{{ */
   pthread_mutex_unlock(&ping_lock);
   ping_destroy(pingobj);
 
-  return ((void *)0);
+  return (void *)0;
 } /* }}} void *ping_thread */
 
 static int start_thread(void) /* {{{ */
@@ -353,7 +353,7 @@ static int start_thread(void) /* {{{ */
 
   if (ping_thread_loop != 0) {
     pthread_mutex_unlock(&ping_lock);
-    return (0);
+    return 0;
   }
 
   ping_thread_loop = 1;
@@ -364,11 +364,11 @@ static int start_thread(void) /* {{{ */
     ping_thread_loop = 0;
     ERROR("ping plugin: Starting thread failed.");
     pthread_mutex_unlock(&ping_lock);
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&ping_lock);
-  return (0);
+  return 0;
 } /* }}} int start_thread */
 
 static int stop_thread(void) /* {{{ */
@@ -379,7 +379,7 @@ static int stop_thread(void) /* {{{ */
 
   if (ping_thread_loop == 0) {
     pthread_mutex_unlock(&ping_lock);
-    return (-1);
+    return -1;
   }
 
   ping_thread_loop = 0;
@@ -397,14 +397,14 @@ static int stop_thread(void) /* {{{ */
   ping_thread_error = 0;
   pthread_mutex_unlock(&ping_lock);
 
-  return (status);
+  return status;
 } /* }}} int stop_thread */
 
 static int ping_init(void) /* {{{ */
 {
   if (hostlist_head == NULL) {
     NOTICE("ping plugin: No hosts have been configured.");
-    return (-1);
+    return -1;
   }
 
   if (ping_timeout > ping_interval) {
@@ -427,7 +427,7 @@ static int ping_init(void) /* {{{ */
   }
 #endif
 
-  return (start_thread());
+  return start_thread();
 } /* }}} int ping_init */
 
 static int config_set_string(const char *name, /* {{{ */
@@ -439,13 +439,13 @@ static int config_set_string(const char *name, /* {{{ */
     char errbuf[1024];
     ERROR("ping plugin: Setting `%s' to `%s' failed: strdup failed: %s", name,
           value, sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (1);
+    return 1;
   }
 
   if (*var != NULL)
     free(*var);
   *var = tmp;
-  return (0);
+  return 0;
 } /* }}} int config_set_string */
 
 static int ping_config(const char *key, const char *value) /* {{{ */
@@ -459,7 +459,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
       char errbuf[1024];
       ERROR("ping plugin: malloc failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (1);
+      return 1;
     }
 
     host = strdup(value);
@@ -468,7 +468,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
       sfree(hl);
       ERROR("ping plugin: strdup failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (1);
+      return 1;
     }
 
     hl->host = host;
@@ -482,13 +482,13 @@ static int ping_config(const char *key, const char *value) /* {{{ */
   } else if (strcasecmp(key, "SourceAddress") == 0) {
     int status = config_set_string(key, &ping_source, value);
     if (status != 0)
-      return (status);
+      return status;
   }
 #ifdef HAVE_OPING_1_3
   else if (strcasecmp(key, "Device") == 0) {
     int status = config_set_string(key, &ping_device, value);
     if (status != 0)
-      return (status);
+      return status;
   }
 #endif
   else if (strcasecmp(key, "TTL") == 0) {
@@ -514,7 +514,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
       ping_data = malloc(size + 1);
       if (ping_data == NULL) {
         ERROR("ping plugin: malloc failed.");
-        return (1);
+        return 1;
       }
 
       /* Note: By default oping is using constant string
@@ -546,10 +546,10 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     if (ping_max_missed < 0)
       INFO("ping plugin: MaxMissed < 0, disabled re-resolving of hosts");
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int ping_config */
 
 static void submit(const char *host, const char *type, /* {{{ */
@@ -581,7 +581,7 @@ static int ping_read(void) /* {{{ */
 
     start_thread();
 
-    return (-1);
+    return -1;
   } /* if (ping_thread_error != 0) */
 
   for (hostlist_t *hl = hostlist_head; hl != NULL; hl = hl->next) /* {{{ */
@@ -642,7 +642,7 @@ static int ping_read(void) /* {{{ */
     submit(hl->host, "ping_droprate", droprate);
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
 
-  return (0);
+  return 0;
 } /* }}} int ping_read */
 
 static int ping_shutdown(void) /* {{{ */
@@ -651,7 +651,7 @@ static int ping_shutdown(void) /* {{{ */
 
   INFO("ping plugin: Shutting down thread.");
   if (stop_thread() < 0)
-    return (-1);
+    return -1;
 
   hl = hostlist_head;
   while (hl != NULL) {
@@ -670,7 +670,7 @@ static int ping_shutdown(void) /* {{{ */
     ping_data = NULL;
   }
 
-  return (0);
+  return 0;
 } /* }}} int ping_shutdown */
 
 void module_register(void) {

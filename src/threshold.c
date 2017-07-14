@@ -55,20 +55,20 @@ static int ut_threshold_add(const threshold_t *th) { /* {{{ */
   if (format_name(name, sizeof(name), th->host, th->plugin, th->plugin_instance,
                   th->type, th->type_instance) != 0) {
     ERROR("ut_threshold_add: format_name failed.");
-    return (-1);
+    return -1;
   }
 
   name_copy = strdup(name);
   if (name_copy == NULL) {
     ERROR("ut_threshold_add: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   th_copy = malloc(sizeof(*th_copy));
   if (th_copy == NULL) {
     sfree(name_copy);
     ERROR("ut_threshold_add: malloc failed.");
-    return (-1);
+    return -1;
   }
   memcpy(th_copy, th, sizeof(threshold_t));
 
@@ -100,7 +100,7 @@ static int ut_threshold_add(const threshold_t *th) { /* {{{ */
     sfree(th_copy);
   }
 
-  return (status);
+  return status;
 } /* }}} int ut_threshold_add */
 
 /*
@@ -113,26 +113,26 @@ static int ut_config_type_datasource(threshold_t *th, oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("threshold values: The `DataSource' option needs exactly one "
             "string argument.");
-    return (-1);
+    return -1;
   }
 
   sstrncpy(th->data_source, ci->values[0].value.string,
            sizeof(th->data_source));
 
-  return (0);
+  return 0;
 } /* int ut_config_type_datasource */
 
 static int ut_config_type_instance(threshold_t *th, oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("threshold values: The `Instance' option needs exactly one "
             "string argument.");
-    return (-1);
+    return -1;
   }
 
   sstrncpy(th->type_instance, ci->values[0].value.string,
            sizeof(th->type_instance));
 
-  return (0);
+  return 0;
 } /* int ut_config_type_instance */
 
 static int ut_config_type_max(threshold_t *th, oconfig_item_t *ci) {
@@ -140,7 +140,7 @@ static int ut_config_type_max(threshold_t *th, oconfig_item_t *ci) {
     WARNING("threshold values: The `%s' option needs exactly one "
             "number argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   if (strcasecmp(ci->key, "WarningMax") == 0)
@@ -148,7 +148,7 @@ static int ut_config_type_max(threshold_t *th, oconfig_item_t *ci) {
   else
     th->failure_max = ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* int ut_config_type_max */
 
 static int ut_config_type_min(threshold_t *th, oconfig_item_t *ci) {
@@ -156,7 +156,7 @@ static int ut_config_type_min(threshold_t *th, oconfig_item_t *ci) {
     WARNING("threshold values: The `%s' option needs exactly one "
             "number argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   if (strcasecmp(ci->key, "WarningMin") == 0)
@@ -164,7 +164,7 @@ static int ut_config_type_min(threshold_t *th, oconfig_item_t *ci) {
   else
     th->failure_min = ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* int ut_config_type_min */
 
 static int ut_config_type_hits(threshold_t *th, oconfig_item_t *ci) {
@@ -172,12 +172,12 @@ static int ut_config_type_hits(threshold_t *th, oconfig_item_t *ci) {
     WARNING("threshold values: The `%s' option needs exactly one "
             "number argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   th->hits = ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* int ut_config_type_hits */
 
 static int ut_config_type_hysteresis(threshold_t *th, oconfig_item_t *ci) {
@@ -185,12 +185,12 @@ static int ut_config_type_hysteresis(threshold_t *th, oconfig_item_t *ci) {
     WARNING("threshold values: The `%s' option needs exactly one "
             "number argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   th->hysteresis = ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* int ut_config_type_hysteresis */
 
 static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
@@ -200,12 +200,12 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("threshold values: The `Type' block needs exactly one string "
             "argument.");
-    return (-1);
+    return -1;
   }
 
   if (ci->children_num < 1) {
     WARNING("threshold values: The `Type' block needs at least one option.");
-    return (-1);
+    return -1;
   }
 
   memcpy(&th, th_orig, sizeof(th));
@@ -261,20 +261,20 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
     status = ut_threshold_add(&th);
   }
 
-  return (status);
+  return status;
 } /* int ut_config_type */
 
 static int ut_config_plugin_instance(threshold_t *th, oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("threshold values: The `Instance' option needs exactly one "
             "string argument.");
-    return (-1);
+    return -1;
   }
 
   sstrncpy(th->plugin_instance, ci->values[0].value.string,
            sizeof(th->plugin_instance));
 
-  return (0);
+  return 0;
 } /* int ut_config_plugin_instance */
 
 static int ut_config_plugin(const threshold_t *th_orig, oconfig_item_t *ci) {
@@ -284,13 +284,13 @@ static int ut_config_plugin(const threshold_t *th_orig, oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("threshold values: The `Plugin' block needs exactly one string "
             "argument.");
-    return (-1);
+    return -1;
   }
 
   if (ci->children_num < 1) {
     WARNING("threshold values: The `Plugin' block needs at least one nested "
             "block.");
-    return (-1);
+    return -1;
   }
 
   memcpy(&th, th_orig, sizeof(th));
@@ -314,7 +314,7 @@ static int ut_config_plugin(const threshold_t *th_orig, oconfig_item_t *ci) {
       break;
   }
 
-  return (status);
+  return status;
 } /* int ut_config_plugin */
 
 static int ut_config_host(const threshold_t *th_orig, oconfig_item_t *ci) {
@@ -324,13 +324,13 @@ static int ut_config_host(const threshold_t *th_orig, oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("threshold values: The `Host' block needs exactly one string "
             "argument.");
-    return (-1);
+    return -1;
   }
 
   if (ci->children_num < 1) {
     WARNING("threshold values: The `Host' block needs at least one nested "
             "block.");
-    return (-1);
+    return -1;
   }
 
   memcpy(&th, th_orig, sizeof(th));
@@ -354,7 +354,7 @@ static int ut_config_host(const threshold_t *th_orig, oconfig_item_t *ci) {
       break;
   }
 
-  return (status);
+  return status;
 } /* int ut_config_host */
   /*
    * End of the functions used to configure threshold values.
@@ -392,7 +392,7 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       DEBUG("ut_report_state: th->hits = %d, uc_get_hits = %d", th->hits,
             uc_get_hits(ds, vl));
       (void)uc_inc_hits(ds, vl, 1); /* increase hit counter */
-      return (0);
+      return 0;
     }
   } /* end check hits */
 
@@ -402,9 +402,9 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
    * state is `okay', then only report if `persist_ok` flag is set. */
   if (state == state_old) {
     if ((th->flags & UT_FLAG_PERSIST) == 0)
-      return (0);
+      return 0;
     else if ((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0))
-      return (0);
+      return 0;
   }
 
   if (state != state_old)
@@ -522,7 +522,7 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   plugin_dispatch_notification(&n);
 
   plugin_notification_meta_free(n.meta);
-  return (0);
+  return 0;
 } /* }}} int ut_report_state */
 
 /*
@@ -547,7 +547,7 @@ static int ut_check_one_data_source(
   if (ds != NULL) {
     ds_name = ds->ds[ds_index].name;
     if ((th->data_source[0] != 0) && (strcmp(ds_name, th->data_source) != 0))
-      return (STATE_OKAY);
+      return STATE_OKAY;
   }
 
   if ((th->flags & UT_FLAG_INVERT) != 0) {
@@ -604,12 +604,12 @@ static int ut_check_one_data_source(
   }
 
   if (is_failure != 0)
-    return (STATE_ERROR);
+    return STATE_ERROR;
 
   if (is_warning != 0)
-    return (STATE_WARNING);
+    return STATE_WARNING;
 
-  return (STATE_OKAY);
+  return STATE_OKAY;
 } /* }}} int ut_check_one_data_source */
 
 /*
@@ -674,7 +674,7 @@ static int ut_check_one_threshold(const data_set_t *ds, const value_list_t *vl,
   if (ret_ds_index != NULL)
     *ret_ds_index = ds_index;
 
-  return (ret);
+  return ret;
 } /* }}} int ut_check_one_threshold */
 
 /*
@@ -698,7 +698,7 @@ static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
   int worst_ds_index = -1;
 
   if (threshold_tree == NULL)
-    return (0);
+    return 0;
 
   /* Is this lock really necessary? So far, thresholds are only inserted at
    * startup. -octo */
@@ -706,13 +706,13 @@ static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
   th = threshold_search(vl);
   pthread_mutex_unlock(&threshold_lock);
   if (th == NULL)
-    return (0);
+    return 0;
 
   DEBUG("ut_check_threshold: Found matching threshold(s)");
 
   values = uc_get_rate(ds, vl);
   if (values == NULL)
-    return (0);
+    return 0;
 
   while (th != NULL) {
     int ds_index = -1;
@@ -721,7 +721,7 @@ static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
     if (status < 0) {
       ERROR("ut_check_threshold: ut_check_one_threshold failed.");
       sfree(values);
-      return (-1);
+      return -1;
     }
 
     if (worst_state < status) {
@@ -738,12 +738,12 @@ static int ut_check_threshold(const data_set_t *ds, const value_list_t *vl,
   if (status != 0) {
     ERROR("ut_check_threshold: ut_report_state failed.");
     sfree(values);
-    return (-1);
+    return -1;
   }
 
   sfree(values);
 
-  return (0);
+  return 0;
 } /* }}} int ut_check_threshold */
 
 /*
@@ -760,12 +760,12 @@ static int ut_missing(const value_list_t *vl,
   cdtime_t now;
 
   if (threshold_tree == NULL)
-    return (0);
+    return 0;
 
   th = threshold_search(vl);
   /* dispatch notifications for "interesting" values only */
   if ((th == NULL) || ((th->flags & UT_FLAG_INTERESTING) == 0))
-    return (0);
+    return 0;
 
   now = cdtime();
   missing_time = now - vl->time;
@@ -779,7 +779,7 @@ static int ut_missing(const value_list_t *vl,
 
   plugin_dispatch_notification(&n);
 
-  return (0);
+  return 0;
 } /* }}} int ut_missing */
 
 static int ut_config(oconfig_item_t *ci) { /* {{{ */
@@ -790,7 +790,7 @@ static int ut_config(oconfig_item_t *ci) { /* {{{ */
     threshold_tree = c_avl_create((int (*)(const void *, const void *))strcmp);
     if (threshold_tree == NULL) {
       ERROR("ut_config: c_avl_create failed.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -828,7 +828,7 @@ static int ut_config(oconfig_item_t *ci) { /* {{{ */
                           /* user data = */ NULL);
   }
 
-  return (status);
+  return status;
 } /* }}} int um_config */
 
 void module_register(void) {

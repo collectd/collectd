@@ -72,7 +72,7 @@ static cmd_status_t cmd_split(char *buffer, size_t *ret_len, char ***ret_fields,
   fields = malloc((estimate + 1) * sizeof(*fields));
   if (fields == NULL) {
     cmd_error(CMD_ERROR, err, "malloc failed.");
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
 
 #define END_FIELD()                                                            \
@@ -130,7 +130,7 @@ static cmd_status_t cmd_split(char *buffer, size_t *ret_len, char ***ret_fields,
       if (string[1] == '\0') {
         free(fields);
         cmd_error(CMD_PARSE_ERROR, err, "Backslash at end of string.");
-        return (CMD_PARSE_ERROR);
+        return CMD_PARSE_ERROR;
       }
 
       /* un-escape the next character; skip backslash */
@@ -148,7 +148,7 @@ static cmd_status_t cmd_split(char *buffer, size_t *ret_len, char ***ret_fields,
   if (in_quotes) {
     free(fields);
     cmd_error(CMD_PARSE_ERROR, err, "Unterminated quoted string.");
-    return (CMD_PARSE_ERROR);
+    return CMD_PARSE_ERROR;
   }
 
 #undef NEW_FIELD
@@ -161,7 +161,7 @@ static cmd_status_t cmd_split(char *buffer, size_t *ret_len, char ***ret_fields,
     *ret_fields = fields;
   else
     free(fields);
-  return (CMD_OK);
+  return CMD_OK;
 } /* int cmd_split */
 
 /*
@@ -215,12 +215,12 @@ cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
   } else {
     ret_cmd->type = CMD_UNKNOWN;
     cmd_error(CMD_UNKNOWN_COMMAND, err, "Unknown command `%s'.", command);
-    return (CMD_UNKNOWN_COMMAND);
+    return CMD_UNKNOWN_COMMAND;
   }
 
   if (status != CMD_OK)
     ret_cmd->type = CMD_UNKNOWN;
-  return (status);
+  return status;
 } /* cmd_status_t cmd_parsev */
 
 cmd_status_t cmd_parse(char *buffer, cmd_t *ret_cmd, const cmd_options_t *opts,
@@ -234,7 +234,7 @@ cmd_status_t cmd_parse(char *buffer, cmd_t *ret_cmd, const cmd_options_t *opts,
 
   status = cmd_parsev(fields_num, fields, ret_cmd, opts, err);
   free(fields);
-  return (status);
+  return status;
 } /* cmd_status_t cmd_parse */
 
 void cmd_destroy(cmd_t *cmd) {
@@ -267,7 +267,7 @@ cmd_status_t cmd_parse_option(char *field, char **ret_key, char **ret_value,
   if (field == NULL) {
     errno = EINVAL;
     cmd_error(CMD_ERROR, err, "Invalid argument to cmd_parse_option.");
-    return (CMD_ERROR);
+    return CMD_ERROR;
   }
   key = value = field;
 
@@ -276,7 +276,7 @@ cmd_status_t cmd_parse_option(char *field, char **ret_key, char **ret_value,
     value++;
   if ((value[0] != '=') || (value == key)) {
     /* Whether this is a fatal error is up to the caller. */
-    return (CMD_NO_OPTION);
+    return CMD_NO_OPTION;
   }
   *value = '\0';
   value++;
@@ -286,7 +286,7 @@ cmd_status_t cmd_parse_option(char *field, char **ret_key, char **ret_value,
   if (ret_value != NULL)
     *ret_value = value;
 
-  return (CMD_OK);
+  return CMD_OK;
 } /* cmd_status_t cmd_parse_option */
 
 void cmd_error_fh(void *ud, cmd_status_t status, const char *format,

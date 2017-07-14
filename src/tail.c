@@ -66,7 +66,7 @@ static int ctail_config_add_match_dstype(ctail_config_match_t *cm,
                                          oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("tail plugin: `DSType' needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   char const *ds_type = ci->values[0].value.string;
@@ -93,7 +93,7 @@ static int ctail_config_add_match_dstype(ctail_config_match_t *cm,
 
     int status = latency_config(&cm->latency, ci, "tail");
     if (status != 0)
-      return (status);
+      return status;
   } else if (strncasecmp("Counter", ds_type, strlen("Counter")) == 0) {
     cm->flags = UTILS_MATCH_DS_TYPE_COUNTER;
     if (strcasecmp("CounterSet", ds_type) == 0)
@@ -127,10 +127,10 @@ static int ctail_config_add_match_dstype(ctail_config_match_t *cm,
   if (cm->flags == 0) {
     WARNING("tail plugin: `%s' is not a valid argument to `DSType'.",
             ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int ctail_config_add_match_dstype */
 
 static int ctail_config_add_match(cu_tail_match_t *tm,
@@ -204,7 +204,7 @@ static int ctail_config_add_match(cu_tail_match_t *tm,
   sfree(cm.type_instance);
   latency_config_free(cm.latency);
 
-  return (status);
+  return status;
 } /* int ctail_config_add_match */
 
 static int ctail_config_add_file(oconfig_item_t *ci) {
@@ -215,14 +215,14 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("tail plugin: `File' needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   tm = tail_match_create(ci->values[0].value.string);
   if (tm == NULL) {
     ERROR("tail plugin: tail_match_create (%s) failed.",
           ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -253,7 +253,7 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
     ERROR("tail plugin: No (valid) matches found for file `%s'.",
           ci->values[0].value.string);
     tail_match_destroy(tm);
-    return (-1);
+    return -1;
   } else {
     cu_tail_match_t **temp;
 
@@ -262,7 +262,7 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
     if (temp == NULL) {
       ERROR("tail plugin: realloc failed.");
       tail_match_destroy(tm);
-      return (-1);
+      return -1;
     }
 
     tail_match_list = temp;
@@ -271,7 +271,7 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
     tail_match_list_num++;
   }
 
-  return (0);
+  return 0;
 } /* int ctail_config_add_file */
 
 static int ctail_config(oconfig_item_t *ci) {
@@ -285,7 +285,7 @@ static int ctail_config(oconfig_item_t *ci) {
     }
   } /* for (i = 0; i < ci->children_num; i++) */
 
-  return (0);
+  return 0;
 } /* int ctail_config */
 
 static int ctail_read(user_data_t *ud) {
@@ -294,10 +294,10 @@ static int ctail_read(user_data_t *ud) {
   status = tail_match_read((cu_tail_match_t *)ud->data);
   if (status != 0) {
     ERROR("tail plugin: tail_match_read failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int ctail_read */
 
 static int ctail_init(void) {
@@ -305,7 +305,7 @@ static int ctail_init(void) {
 
   if (tail_match_list_num == 0) {
     WARNING("tail plugin: File list is empty. Returning an error.");
-    return (-1);
+    return -1;
   }
 
   for (size_t i = 0; i < tail_match_list_num; i++) {
@@ -318,7 +318,7 @@ static int ctail_init(void) {
                                  });
   }
 
-  return (0);
+  return 0;
 } /* int ctail_init */
 
 static int ctail_shutdown(void) {
@@ -329,7 +329,7 @@ static int ctail_shutdown(void) {
   sfree(tail_match_list);
   tail_match_list_num = 0;
 
-  return (0);
+  return 0;
 } /* int ctail_shutdown */
 
 void module_register(void) {

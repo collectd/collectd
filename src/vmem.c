@@ -79,10 +79,10 @@ static int vmem_config(const char *key, const char *value) {
     else
       verbose_output = 0;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int vmem_config */
 
 static int vmem_read(void) {
@@ -107,7 +107,7 @@ static int vmem_read(void) {
     char errbuf[1024];
     ERROR("vmem plugin: fopen (/proc/vmstat) failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -253,7 +253,7 @@ static int vmem_read(void) {
     submit_two(NULL, "vmpage_io", "swap", pswpin, pswpout);
 #endif /* KERNEL_LINUX */
 
-  return (0);
+  return 0;
 } /* int vmem_read */
 
 void module_register(void) {

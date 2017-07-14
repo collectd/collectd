@@ -166,16 +166,16 @@ static char *fc_strdup(const char *orig) /* {{{ */
   char *dest;
 
   if (orig == NULL)
-    return (NULL);
+    return NULL;
 
   sz = strlen(orig) + 1;
   dest = malloc(sz);
   if (dest == NULL)
-    return (NULL);
+    return NULL;
 
   memcpy(dest, orig, sz);
 
-  return (dest);
+  return dest;
 } /* }}} char *fc_strdup */
 
 /*
@@ -208,7 +208,7 @@ static int fc_config_add_match(fc_match_t **matches_head, /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("Filter subsystem: `Match' blocks require "
             "exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   ptr = match_list_head;
@@ -222,13 +222,13 @@ static int fc_config_add_match(fc_match_t **matches_head, /* {{{ */
     WARNING("Filter subsystem: Cannot find a \"%s\" match. "
             "Did you load the appropriate plugin?",
             ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
   m = calloc(1, sizeof(*m));
   if (m == NULL) {
     ERROR("fc_config_add_match: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   sstrncpy(m->name, ptr->name, sizeof(m->name));
@@ -241,7 +241,7 @@ static int fc_config_add_match(fc_match_t **matches_head, /* {{{ */
     if (status != 0) {
       WARNING("Filter subsystem: Failed to create a %s match.", m->name);
       fc_free_matches(m);
-      return (-1);
+      return -1;
     }
   }
 
@@ -255,7 +255,7 @@ static int fc_config_add_match(fc_match_t **matches_head, /* {{{ */
     *matches_head = m;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_config_add_match */
 
 static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
@@ -267,7 +267,7 @@ static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("Filter subsystem: `Target' blocks require "
             "exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   ptr = target_list_head;
@@ -281,13 +281,13 @@ static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
     WARNING("Filter subsystem: Cannot find a \"%s\" target. "
             "Did you load the appropriate plugin?",
             ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
   t = calloc(1, sizeof(*t));
   if (t == NULL) {
     ERROR("fc_config_add_target: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   sstrncpy(t->name, ptr->name, sizeof(t->name));
@@ -300,7 +300,7 @@ static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
     if (status != 0) {
       WARNING("Filter subsystem: Failed to create a %s target.", t->name);
       fc_free_targets(t);
-      return (-1);
+      return -1;
     }
   } else {
     t->user_data = NULL;
@@ -316,7 +316,7 @@ static int fc_config_add_target(fc_target_t **targets_head, /* {{{ */
     *targets_head = t;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_config_add_target */
 
 static int fc_config_add_rule(fc_chain_t *chain, /* {{{ */
@@ -327,18 +327,18 @@ static int fc_config_add_rule(fc_chain_t *chain, /* {{{ */
 
   if (ci->values_num > 1) {
     WARNING("Filter subsystem: `Rule' blocks have at most one argument.");
-    return (-1);
+    return -1;
   } else if ((ci->values_num == 1) &&
              (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("Filter subsystem: `Rule' blocks expect one string argument "
             "or no argument at all.");
-    return (-1);
+    return -1;
   }
 
   rule = calloc(1, sizeof(*rule));
   if (rule == NULL) {
     ERROR("fc_config_add_rule: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   if (ci->values_num == 1) {
@@ -378,7 +378,7 @@ static int fc_config_add_rule(fc_chain_t *chain, /* {{{ */
 
   if (status != 0) {
     fc_free_rules(rule);
-    return (-1);
+    return -1;
   }
 
   if (chain->rules != NULL) {
@@ -393,7 +393,7 @@ static int fc_config_add_rule(fc_chain_t *chain, /* {{{ */
     chain->rules = rule;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_config_add_rule */
 
 static int fc_config_add_chain(const oconfig_item_t *ci) /* {{{ */
@@ -405,7 +405,7 @@ static int fc_config_add_chain(const oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("Filter subsystem: <Chain> blocks require exactly one "
             "string argument.");
-    return (-1);
+    return -1;
   }
 
   if (chain_list_head != NULL) {
@@ -417,7 +417,7 @@ static int fc_config_add_chain(const oconfig_item_t *ci) /* {{{ */
     chain = calloc(1, sizeof(*chain));
     if (chain == NULL) {
       ERROR("fc_config_add_chain: calloc failed.");
-      return (-1);
+      return -1;
     }
     sstrncpy(chain->name, ci->values[0].value.string, sizeof(chain->name));
   }
@@ -442,12 +442,12 @@ static int fc_config_add_chain(const oconfig_item_t *ci) /* {{{ */
 
   if (status != 0) {
     fc_free_chains(chain);
-    return (-1);
+    return -1;
   }
 
   if (chain_list_head != NULL) {
     if (!new_chain)
-      return (0);
+      return 0;
 
     fc_chain_t *ptr;
 
@@ -460,7 +460,7 @@ static int fc_config_add_chain(const oconfig_item_t *ci) /* {{{ */
     chain_list_head = chain;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_config_add_chain */
 
 /*
@@ -475,7 +475,7 @@ static int fc_bit_jump_create(const oconfig_item_t *ci, /* {{{ */
   if (ci->children_num != 1) {
     ERROR("Filter subsystem: The built-in target `jump' needs exactly "
           "one `Chain' argument!");
-    return (-1);
+    return -1;
   }
 
   ci_chain = ci->children;
@@ -483,23 +483,23 @@ static int fc_bit_jump_create(const oconfig_item_t *ci, /* {{{ */
     ERROR("Filter subsystem: The built-in target `jump' does not "
           "support the configuration option `%s'.",
           ci_chain->key);
-    return (-1);
+    return -1;
   }
 
   if ((ci_chain->values_num != 1) ||
       (ci_chain->values[0].type != OCONFIG_TYPE_STRING)) {
     ERROR("Filter subsystem: Built-in target `jump': The `Chain' option "
           "needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   *user_data = fc_strdup(ci_chain->values[0].value.string);
   if (*user_data == NULL) {
     ERROR("fc_bit_jump_create: fc_strdup failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_bit_jump_create */
 
 static int fc_bit_jump_destroy(void **user_data) /* {{{ */
@@ -509,7 +509,7 @@ static int fc_bit_jump_destroy(void **user_data) /* {{{ */
     *user_data = NULL;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_bit_jump_destroy */
 
 static int fc_bit_jump_invoke(const data_set_t *ds, /* {{{ */
@@ -531,16 +531,16 @@ static int fc_bit_jump_invoke(const data_set_t *ds, /* {{{ */
     ERROR("Filter subsystem: Built-in target `jump': There is no chain "
           "named `%s'.",
           chain_name);
-    return (-1);
+    return -1;
   }
 
   status = fc_process_chain(ds, vl, chain);
   if (status < 0)
-    return (status);
+    return status;
   else if (status == FC_TARGET_STOP)
-    return (FC_TARGET_STOP);
+    return FC_TARGET_STOP;
   else
-    return (FC_TARGET_CONTINUE);
+    return FC_TARGET_CONTINUE;
 } /* }}} int fc_bit_jump_invoke */
 
 static int
@@ -548,7 +548,7 @@ fc_bit_stop_invoke(const data_set_t __attribute__((unused)) * ds, /* {{{ */
                    value_list_t __attribute__((unused)) * vl,
                    notification_meta_t __attribute__((unused)) * *meta,
                    void __attribute__((unused)) * *user_data) {
-  return (FC_TARGET_STOP);
+  return FC_TARGET_STOP;
 } /* }}} int fc_bit_stop_invoke */
 
 static int
@@ -556,7 +556,7 @@ fc_bit_return_invoke(const data_set_t __attribute__((unused)) * ds, /* {{{ */
                      value_list_t __attribute__((unused)) * vl,
                      notification_meta_t __attribute__((unused)) * *meta,
                      void __attribute__((unused)) * *user_data) {
-  return (FC_TARGET_RETURN);
+  return FC_TARGET_RETURN;
 } /* }}} int fc_bit_return_invoke */
 
 static int fc_bit_write_create(const oconfig_item_t *ci, /* {{{ */
@@ -606,7 +606,7 @@ static int fc_bit_write_create(const oconfig_item_t *ci, /* {{{ */
 
   *user_data = plugin_list;
 
-  return (0);
+  return 0;
 } /* }}} int fc_bit_write_create */
 
 static int fc_bit_write_destroy(void **user_data) /* {{{ */
@@ -614,7 +614,7 @@ static int fc_bit_write_destroy(void **user_data) /* {{{ */
   fc_writer_t *plugin_list;
 
   if ((user_data == NULL) || (*user_data == NULL))
-    return (0);
+    return 0;
 
   plugin_list = *user_data;
 
@@ -622,7 +622,7 @@ static int fc_bit_write_destroy(void **user_data) /* {{{ */
     free(plugin_list[i].plugin);
   free(plugin_list);
 
-  return (0);
+  return 0;
 } /* }}} int fc_bit_write_destroy */
 
 static int fc_bit_write_invoke(const data_set_t *ds, /* {{{ */
@@ -688,7 +688,7 @@ static int fc_bit_write_invoke(const data_set_t *ds, /* {{{ */
     } /* for (i = 0; plugin_list[i] != NULL; i++) */
   }
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int fc_bit_write_invoke */
 
 static int fc_init_once(void) /* {{{ */
@@ -697,7 +697,7 @@ static int fc_init_once(void) /* {{{ */
   target_proc_t tproc = {0};
 
   if (done != 0)
-    return (0);
+    return 0;
 
   tproc.create = fc_bit_jump_create;
   tproc.destroy = fc_bit_jump_destroy;
@@ -723,7 +723,7 @@ static int fc_init_once(void) /* {{{ */
   fc_register_target("write", tproc);
 
   done++;
-  return (0);
+  return 0;
 } /* }}} int fc_init_once */
 
 /*
@@ -738,7 +738,7 @@ int fc_register_match(const char *name, match_proc_t proc) /* {{{ */
 
   m = calloc(1, sizeof(*m));
   if (m == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   sstrncpy(m->name, name, sizeof(m->name));
   memcpy(&m->proc, &proc, sizeof(m->proc));
@@ -755,7 +755,7 @@ int fc_register_match(const char *name, match_proc_t proc) /* {{{ */
     ptr->next = m;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_register_match */
 
 /* Add a target to list of available targets. */
@@ -767,7 +767,7 @@ int fc_register_target(const char *name, target_proc_t proc) /* {{{ */
 
   t = calloc(1, sizeof(*t));
   if (t == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   sstrncpy(t->name, name, sizeof(t->name));
   memcpy(&t->proc, &proc, sizeof(t->proc));
@@ -784,19 +784,19 @@ int fc_register_target(const char *name, target_proc_t proc) /* {{{ */
     ptr->next = t;
   }
 
-  return (0);
+  return 0;
 } /* }}} int fc_register_target */
 
 fc_chain_t *fc_chain_get_by_name(const char *chain_name) /* {{{ */
 {
   if (chain_name == NULL)
-    return (NULL);
+    return NULL;
 
   for (fc_chain_t *chain = chain_list_head; chain != NULL; chain = chain->next)
     if (strcasecmp(chain_name, chain->name) == 0)
-      return (chain);
+      return chain;
 
-  return (NULL);
+  return NULL;
 } /* }}} int fc_chain_get_by_name */
 
 int fc_process_chain(const data_set_t *ds, value_list_t *vl, /* {{{ */
@@ -805,7 +805,7 @@ int fc_process_chain(const data_set_t *ds, value_list_t *vl, /* {{{ */
   int status = FC_TARGET_CONTINUE;
 
   if (chain == NULL)
-    return (-1);
+    return -1;
 
   DEBUG("fc_process_chain (chain = %s);", chain->name);
 
@@ -875,7 +875,7 @@ int fc_process_chain(const data_set_t *ds, value_list_t *vl, /* {{{ */
   } /* for (rule) */
 
   if ((status == FC_TARGET_STOP) || (status == FC_TARGET_RETURN))
-    return (status);
+    return status;
 
   DEBUG("fc_process_chain (%s): Executing the default targets.", chain->name);
 
@@ -908,15 +908,15 @@ int fc_process_chain(const data_set_t *ds, value_list_t *vl, /* {{{ */
           chain->name, target->name,
           (status == FC_TARGET_STOP) ? "stop" : "return");
     if (status == FC_TARGET_STOP)
-      return (FC_TARGET_STOP);
+      return FC_TARGET_STOP;
     else
-      return (FC_TARGET_CONTINUE);
+      return FC_TARGET_CONTINUE;
   }
 
   DEBUG("fc_process_chain (%s): Signaling `continue' at end of chain.",
         chain->name);
 
-  return (FC_TARGET_CONTINUE);
+  return FC_TARGET_CONTINUE;
 } /* }}} int fc_process_chain */
 
 /* Iterate over all rules in the chain and execute all targets for which all
@@ -924,8 +924,7 @@ int fc_process_chain(const data_set_t *ds, value_list_t *vl, /* {{{ */
 int fc_default_action(const data_set_t *ds, value_list_t *vl) /* {{{ */
 {
   /* FIXME: Pass the meta-data to match targets here (when implemented). */
-  return (fc_bit_write_invoke(ds, vl,
-                              /* meta = */ NULL, /* user_data = */ NULL));
+  return fc_bit_write_invoke(ds, vl, NULL, NULL);
 } /* }}} int fc_default_action */
 
 int fc_configure(const oconfig_item_t *ci) /* {{{ */
@@ -933,12 +932,12 @@ int fc_configure(const oconfig_item_t *ci) /* {{{ */
   fc_init_once();
 
   if (ci == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   if (strcasecmp("Chain", ci->key) == 0)
-    return (fc_config_add_chain(ci));
+    return fc_config_add_chain(ci);
 
   WARNING("Filter subsystem: Unknown top level config option `%s'.", ci->key);
 
-  return (-1);
+  return -1;
 } /* }}} int fc_configure */

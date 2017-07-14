@@ -130,23 +130,23 @@ static void csnmp_oid_init(oid_t *dst, oid const *src, size_t n) {
 }
 
 static int csnmp_oid_compare(oid_t const *left, oid_t const *right) {
-  return (
-      snmp_oid_compare(left->oid, left->oid_len, right->oid, right->oid_len));
+  return snmp_oid_compare(left->oid, left->oid_len, right->oid,
+                          right->oid_len);
 }
 
 static int csnmp_oid_suffix(oid_t *dst, oid_t const *src, oid_t const *root) {
   /* Make sure "src" is in "root"s subtree. */
   if (src->oid_len <= root->oid_len)
-    return (EINVAL);
+    return EINVAL;
   if (snmp_oid_ncompare(root->oid, root->oid_len, src->oid, src->oid_len,
                         /* n = */ root->oid_len) != 0)
-    return (EINVAL);
+    return EINVAL;
 
   memset(dst, 0, sizeof(*dst));
   dst->oid_len = src->oid_len - root->oid_len;
   memcpy(dst->oid, &src->oid[root->oid_len],
          dst->oid_len * sizeof(dst->oid[0]));
-  return (0);
+  return 0;
 }
 
 static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
@@ -159,8 +159,7 @@ static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
     oid_str_ptr[i] = oid_str[i];
   }
 
-  return (strjoin(buffer, buffer_size, oid_str_ptr, o->oid_len,
-                  /* separator = */ "."));
+  return strjoin(buffer, buffer_size, oid_str_ptr, o->oid_len, ".");
 }
 
 static void csnmp_host_close_session(host_definition_t *host) /* {{{ */
@@ -241,14 +240,14 @@ static int csnmp_config_add_data_instance(data_definition_t *dd,
 
     if (!read_objid(buffer, dd->instance.oid.oid, &dd->instance.oid.oid_len)) {
       ERROR("snmp plugin: read_objid (%s) failed.", buffer);
-      return (-1);
+      return -1;
     }
   } else {
     /* Instance is a simple string */
     sstrncpy(dd->instance.string, buffer, sizeof(dd->instance.string));
   }
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_data_instance */
 
 static int csnmp_config_add_data_instance_prefix(data_definition_t *dd,
@@ -259,7 +258,7 @@ static int csnmp_config_add_data_instance_prefix(data_definition_t *dd,
     WARNING("snmp plugin: data %s: InstancePrefix is ignored when `Table' "
             "is set to `false'.",
             dd->name);
-    return (-1);
+    return -1;
   }
 
   status = cf_util_get_string(ci, &dd->instance_prefix);
@@ -270,20 +269,20 @@ static int csnmp_config_add_data_values(data_definition_t *dd,
                                         oconfig_item_t *ci) {
   if (ci->values_num < 1) {
     WARNING("snmp plugin: `Values' needs at least one argument.");
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING) {
       WARNING("snmp plugin: `Values' needs only string argument.");
-      return (-1);
+      return -1;
     }
 
   sfree(dd->values);
   dd->values_len = 0;
   dd->values = malloc(sizeof(*dd->values) * ci->values_num);
   if (dd->values == NULL)
-    return (-1);
+    return -1;
   dd->values_len = (size_t)ci->values_num;
 
   for (int i = 0; i < ci->values_num; i++) {
@@ -296,22 +295,22 @@ static int csnmp_config_add_data_values(data_definition_t *dd,
       free(dd->values);
       dd->values = NULL;
       dd->values_len = 0;
-      return (-1);
+      return -1;
     }
   }
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_data_instance */
 
 static int csnmp_config_add_data_blacklist(data_definition_t *dd,
                                            oconfig_item_t *ci) {
   if (ci->values_num < 1)
-    return (0);
+    return 0;
 
   for (int i = 0; i < ci->values_num; i++) {
     if (ci->values[i].type != OCONFIG_TYPE_STRING) {
       WARNING("snmp plugin: `Ignore' needs only string argument.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -323,7 +322,7 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd,
                      ci->values[i].value.string) != 0) {
       ERROR("snmp plugin: Can't allocate memory");
       strarray_free(dd->ignores, dd->ignores_len);
-      return (ENOMEM);
+      return ENOMEM;
     }
   }
   return 0;
@@ -333,12 +332,12 @@ static int csnmp_config_add_data_blacklist_match_inverted(data_definition_t *dd,
                                                           oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
     WARNING("snmp plugin: `InvertMatch' needs exactly one boolean argument.");
-    return (-1);
+    return -1;
   }
 
   dd->invert_match = ci->values[0].value.boolean ? 1 : 0;
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_data_blacklist_match_inverted */
 
 static int csnmp_config_add_data(oconfig_item_t *ci) {
@@ -347,12 +346,12 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
 
   dd = calloc(1, sizeof(*dd));
   if (dd == NULL)
-    return (-1);
+    return -1;
 
   status = cf_util_get_string(ci, &dd->name);
   if (status != 0) {
     free(dd);
-    return (-1);
+    return -1;
   }
 
   dd->scale = 1.0;
@@ -409,7 +408,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
     sfree(dd->values);
     sfree(dd->ignores);
     sfree(dd);
-    return (-1);
+    return -1;
   }
 
   DEBUG("snmp plugin: dd = { name = %s, type = %s, is_table = %s, values_len = "
@@ -427,7 +426,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
     last->next = dd;
   }
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_data */
 
 static int csnmp_config_add_host_version(host_definition_t *hd,
@@ -437,18 +436,18 @@ static int csnmp_config_add_host_version(host_definition_t *hd,
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     WARNING("snmp plugin: The `Version' config option needs exactly one number "
             "argument.");
-    return (-1);
+    return -1;
   }
 
   version = (int)ci->values[0].value.number;
   if ((version < 1) || (version > 3)) {
     WARNING("snmp plugin: `Version' must either be `1', `2', or `3'.");
-    return (-1);
+    return -1;
   }
 
   hd->version = version;
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_host_address */
 
 static int csnmp_config_add_host_collect(host_definition_t *host,
@@ -459,20 +458,20 @@ static int csnmp_config_add_host_collect(host_definition_t *host,
 
   if (ci->values_num < 1) {
     WARNING("snmp plugin: `Collect' needs at least one argument.");
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ci->values_num; i++)
     if (ci->values[i].type != OCONFIG_TYPE_STRING) {
       WARNING("snmp plugin: All arguments to `Collect' must be strings.");
-      return (-1);
+      return -1;
     }
 
   data_list_len = host->data_list_len + ci->values_num;
   data_list =
       realloc(host->data_list, sizeof(data_definition_t *) * data_list_len);
   if (data_list == NULL)
-    return (-1);
+    return -1;
   host->data_list = data_list;
 
   for (int i = 0; i < ci->values_num; i++) {
@@ -493,7 +492,7 @@ static int csnmp_config_add_host_collect(host_definition_t *host,
     host->data_list_len++;
   } /* for (values_num) */
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_host_collect */
 
 static int csnmp_config_add_host_auth_protocol(host_definition_t *hd,
@@ -514,13 +513,13 @@ static int csnmp_config_add_host_auth_protocol(host_definition_t *hd,
   } else {
     WARNING("snmp plugin: The `AuthProtocol' config option must be `MD5' or "
             "`SHA'.");
-    return (-1);
+    return -1;
   }
 
   DEBUG("snmp plugin: host = %s; host->auth_protocol = %s;", hd->name,
         hd->auth_protocol == usmHMACMD5AuthProtocol ? "MD5" : "SHA");
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_host_auth_protocol */
 
 static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
@@ -541,13 +540,13 @@ static int csnmp_config_add_host_priv_protocol(host_definition_t *hd,
   } else {
     WARNING("snmp plugin: The `PrivProtocol' config option must be `AES' or "
             "`DES'.");
-    return (-1);
+    return -1;
   }
 
   DEBUG("snmp plugin: host = %s; host->priv_protocol = %s;", hd->name,
         hd->priv_protocol == usmAESPrivProtocol ? "AES" : "DES");
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_host_priv_protocol */
 
 static int csnmp_config_add_host_security_level(host_definition_t *hd,
@@ -568,13 +567,13 @@ static int csnmp_config_add_host_security_level(host_definition_t *hd,
   else {
     WARNING("snmp plugin: The `SecurityLevel' config option must be "
             "`noAuthNoPriv', `authNoPriv', or `authPriv'.");
-    return (-1);
+    return -1;
   }
 
   DEBUG("snmp plugin: host = %s; host->security_level = %d;", hd->name,
         hd->security_level);
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_host_security_level */
 
 static int csnmp_config_add_host(oconfig_item_t *ci) {
@@ -586,7 +585,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
 
   hd = calloc(1, sizeof(*hd));
   if (hd == NULL)
-    return (-1);
+    return -1;
   hd->version = 2;
   C_COMPLAIN_INIT(&hd->complaint);
 
@@ -697,7 +696,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
 
   if (status != 0) {
     csnmp_host_definition_destroy(hd);
-    return (-1);
+    return -1;
   }
 
   DEBUG("snmp plugin: hd = { name = %s, address = %s, community = %s, version "
@@ -714,10 +713,10 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   if (status != 0) {
     ERROR("snmp plugin: Registering complex read function failed.");
     csnmp_host_definition_destroy(hd);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int csnmp_config_add_host */
 
 static int csnmp_config(oconfig_item_t *ci) {
@@ -734,7 +733,7 @@ static int csnmp_config(oconfig_item_t *ci) {
     }
   } /* for (ci->children) */
 
-  return (0);
+  return 0;
 } /* int csnmp_config */
 
 /* }}} End of the config stuff. Now the interesting part begins */
@@ -944,7 +943,7 @@ static value_t csnmp_value_list_to_value(struct variable_list *vl, int type,
     ret.gauge = NAN;
   }
 
-  return (ret);
+  return ret;
 } /* value_t csnmp_value_list_to_value */
 
 /* csnmp_strvbcopy_hexstring converts the bit string contained in "vb" to a hex
@@ -1004,7 +1003,7 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
                      (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
-    return (EINVAL);
+    return EINVAL;
   }
 
   num_chars = dst_size - 1;
@@ -1014,7 +1013,7 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   for (size_t i = 0; i < num_chars; i++) {
     /* Check for control characters. */
     if ((unsigned char)src[i] < 32)
-      return (csnmp_strvbcopy_hexstring(dst, vb, dst_size));
+      return csnmp_strvbcopy_hexstring(dst, vb, dst_size);
     dst[i] = src[i];
   }
   dst[num_chars] = 0;
@@ -1042,21 +1041,21 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
        vb = vb->next_variable)
     /* do nothing */;
   if (vb == NULL)
-    return (-1);
+    return -1;
 
   csnmp_oid_init(&vb_name, vb->name, vb->name_length);
 
   il = calloc(1, sizeof(*il));
   if (il == NULL) {
     ERROR("snmp plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
   il->next = NULL;
 
   status = csnmp_oid_suffix(&il->suffix, &vb_name, &dd->instance.oid);
   if (status != 0) {
     sfree(il);
-    return (status);
+    return status;
   }
 
   /* Get instance name */
@@ -1104,7 +1103,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     (*tail)->next = il;
   *tail = il;
 
-  return (0);
+  return 0;
 } /* int csnmp_instance_list_add */
 
 static int csnmp_dispatch_table(host_definition_t *host,
@@ -1115,7 +1114,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
   value_list_t vl = VALUE_LIST_INIT;
 
   csnmp_list_instances_t *instance_list_ptr;
-  csnmp_table_values_t **value_table_ptr;
+  csnmp_table_values_t *value_table_ptr[data->values_len];
 
   size_t i;
   _Bool have_more;
@@ -1124,26 +1123,15 @@ static int csnmp_dispatch_table(host_definition_t *host,
   ds = plugin_get_ds(data->type);
   if (!ds) {
     ERROR("snmp plugin: DataSet `%s' not defined.", data->type);
-    return (-1);
+    return -1;
   }
   assert(ds->ds_num == data->values_len);
   assert(data->values_len > 0);
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = calloc(data->values_len, sizeof(*value_table_ptr));
-  if (value_table_ptr == NULL)
-    return (-1);
   for (i = 0; i < data->values_len; i++)
     value_table_ptr[i] = value_table[i];
-
-  vl.values_len = data->values_len;
-  vl.values = malloc(sizeof(*vl.values) * vl.values_len);
-  if (vl.values == NULL) {
-    ERROR("snmp plugin: malloc failed.");
-    sfree(value_table_ptr);
-    return (-1);
-  }
 
   sstrncpy(vl.host, host->name, sizeof(vl.host));
   sstrncpy(vl.plugin, "snmp", sizeof(vl.plugin));
@@ -1163,8 +1151,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
       memcpy(&current_suffix, &instance_list_ptr->suffix,
              sizeof(current_suffix));
-    } else /* no instance configured */
-    {
+    } else {
+      /* no instance configured */
       csnmp_table_values_t *ptr = value_table_ptr[0];
       if (ptr == NULL) {
         have_more = 0;
@@ -1238,6 +1226,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
                   data->instance_prefix, temp);
     }
 
+    vl.values_len = data->values_len;
+    value_t values[vl.values_len];
+    vl.values = values;
+
     for (i = 0; i < data->values_len; i++)
       vl.values[i] = value_table_ptr[i]->value;
 
@@ -1248,14 +1240,15 @@ static int csnmp_dispatch_table(host_definition_t *host,
     if (vl.type_instance[0] != '\0')
       plugin_dispatch_values(&vl);
 
+    /* prevent leakage of pointer to local variable. */
+    vl.values_len = 0;
+    vl.values = NULL;
+
     if (instance_list != NULL)
       instance_list_ptr = instance_list_ptr->next;
     else
       value_table_ptr[0] = value_table_ptr[0]->next;
   } /* while (have_more) */
-
-  sfree(vl.values);
-  sfree(value_table_ptr);
 
   return (0);
 } /* int csnmp_dispatch_table */
@@ -1292,20 +1285,20 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
   if (host->sess_handle == NULL) {
     DEBUG("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
-    return (-1);
+    return -1;
   }
 
   ds = plugin_get_ds(data->type);
   if (!ds) {
     ERROR("snmp plugin: DataSet `%s' not defined.", data->type);
-    return (-1);
+    return -1;
   }
 
   if (ds->ds_num != data->values_len) {
     ERROR("snmp plugin: DataSet `%s' requires %zu values, but config talks "
           "about %zu",
           data->type, ds->ds_num, data->values_len);
-    return (-1);
+    return -1;
   }
   assert(data->values_len > 0);
 
@@ -1328,7 +1321,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     ERROR("snmp plugin: csnmp_read_table: calloc failed.");
     sfree(value_list_head);
     sfree(value_list_tail);
-    return (-1);
+    return -1;
   }
 
   instance_list_head = NULL;
@@ -1517,7 +1510,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   sfree(value_list_head);
   sfree(value_list_tail);
 
-  return (0);
+  return 0;
 } /* int csnmp_read_table */
 
 static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
@@ -1536,26 +1529,26 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
 
   if (host->sess_handle == NULL) {
     DEBUG("snmp plugin: csnmp_read_value: host->sess_handle == NULL");
-    return (-1);
+    return -1;
   }
 
   ds = plugin_get_ds(data->type);
   if (!ds) {
     ERROR("snmp plugin: DataSet `%s' not defined.", data->type);
-    return (-1);
+    return -1;
   }
 
   if (ds->ds_num != data->values_len) {
     ERROR("snmp plugin: DataSet `%s' requires %zu values, but config talks "
           "about %zu",
           data->type, ds->ds_num, data->values_len);
-    return (-1);
+    return -1;
   }
 
   vl.values_len = ds->ds_num;
   vl.values = malloc(sizeof(*vl.values) * vl.values_len);
   if (vl.values == NULL)
-    return (-1);
+    return -1;
   for (i = 0; i < vl.values_len; i++) {
     if (ds->ds[i].type == DS_TYPE_COUNTER)
       vl.values[i].counter = 0;
@@ -1574,7 +1567,7 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
   if (req == NULL) {
     ERROR("snmp plugin: snmp_pdu_create failed.");
     sfree(vl.values);
-    return (-1);
+    return -1;
   }
 
   for (i = 0; i < data->values_len; i++)
@@ -1596,7 +1589,7 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
     sfree(vl.values);
     csnmp_host_close_session(host);
 
-    return (-1);
+    return -1;
   }
 
   for (vb = res->variables; vb != NULL; vb = vb->next_variable) {
@@ -1620,7 +1613,7 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
   plugin_dispatch_values(&vl);
   sfree(vl.values);
 
-  return (0);
+  return 0;
 } /* int csnmp_read_value */
 
 static int csnmp_read_host(user_data_t *ud) {
@@ -1638,7 +1631,7 @@ static int csnmp_read_host(user_data_t *ud) {
     csnmp_host_open_session(host);
 
   if (host->sess_handle == NULL)
-    return (-1);
+    return -1;
 
   success = 0;
   for (i = 0; i < host->data_list_len; i++) {
@@ -1654,15 +1647,15 @@ static int csnmp_read_host(user_data_t *ud) {
   }
 
   if (success == 0)
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 } /* int csnmp_read_host */
 
 static int csnmp_init(void) {
   call_snmp_init_once();
 
-  return (0);
+  return 0;
 } /* int csnmp_init */
 
 static int csnmp_shutdown(void) {
@@ -1687,7 +1680,7 @@ static int csnmp_shutdown(void) {
     data_this = data_next;
   }
 
-  return (0);
+  return 0;
 } /* int csnmp_shutdown */
 
 void module_register(void) {

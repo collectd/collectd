@@ -69,7 +69,7 @@ static int numa_read_node(int node) /* {{{ */
     char errbuf[1024];
     ERROR("numa plugin: Reading node %i failed: open(%s): %s", node, path,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   success = 0;
@@ -95,7 +95,7 @@ static int numa_read_node(int node) /* {{{ */
   }
 
   fclose(fh);
-  return (success ? 0 : -1);
+  return success ? 0 : -1;
 } /* }}} int numa_read_node */
 
 static int numa_read(void) /* {{{ */
@@ -106,7 +106,7 @@ static int numa_read(void) /* {{{ */
 
   if (max_node < 0) {
     WARNING("numa plugin: No NUMA nodes were detected.");
-    return (-1);
+    return -1;
   }
 
   success = 0;
@@ -116,7 +116,7 @@ static int numa_read(void) /* {{{ */
       success++;
   }
 
-  return (success ? 0 : -1);
+  return success ? 0 : -1;
 } /* }}} int numa_read */
 
 static int numa_init(void) /* {{{ */
@@ -140,12 +140,12 @@ static int numa_init(void) /* {{{ */
       char errbuf[1024];
       ERROR("numa plugin: stat(%s) failed: %s", path,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   }
 
   DEBUG("numa plugin: Found %i nodes.", max_node + 1);
-  return (0);
+  return 0;
 } /* }}} int numa_init */
 
 void module_register(void) {

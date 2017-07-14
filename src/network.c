@@ -324,9 +324,9 @@ static _Bool check_receive_okay(const value_list_t *vl) /* {{{ */
   /* This is a value we already sent. Don't allow it to be received again in
    * order to avoid looping. */
   if ((status == 0) && (time_sent >= ((uint64_t)vl->time)))
-    return (0);
+    return 0;
 
-  return (1);
+  return 1;
 } /* }}} _Bool check_receive_okay */
 
 static _Bool check_send_okay(const value_list_t *vl) /* {{{ */
@@ -335,24 +335,24 @@ static _Bool check_send_okay(const value_list_t *vl) /* {{{ */
   int status;
 
   if (network_config_forward)
-    return (1);
+    return 1;
 
   if (vl->meta == NULL)
-    return (1);
+    return 1;
 
   status = meta_data_get_boolean(vl->meta, "network:received", &received);
   if (status == -ENOENT)
-    return (1);
+    return 1;
   else if (status != 0) {
     ERROR("network plugin: check_send_okay: meta_data_get_boolean failed "
           "with status %i.",
           status);
-    return (1);
+    return 1;
   }
 
   /* By default, only *send* value lists that were not *received* by the
    * network plugin. */
-  return (!received);
+  return !received;
 } /* }}} _Bool check_send_okay */
 
 static _Bool check_notify_received(const notification_t *n) /* {{{ */
@@ -360,9 +360,9 @@ static _Bool check_notify_received(const notification_t *n) /* {{{ */
   for (notification_meta_t *ptr = n->meta; ptr != NULL; ptr = ptr->next)
     if ((strcmp("network:received", ptr->name) == 0) &&
         (ptr->type == NM_TYPE_BOOLEAN))
-      return ((_Bool)ptr->nm_value.nm_boolean);
+      return (_Bool)ptr->nm_value.nm_boolean;
 
-  return (0);
+  return 0;
 } /* }}} _Bool check_notify_received */
 
 static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
@@ -371,7 +371,7 @@ static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
   _Bool received = 0;
 
   if (n->meta == NULL)
-    return (1);
+    return 1;
 
   received = check_notify_received(n);
 
@@ -387,7 +387,7 @@ static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
 
   /* By default, only *send* value lists that were not *received* by the
    * network plugin. */
-  return (!received);
+  return !received;
 } /* }}} _Bool check_send_notify_okay */
 
 static int network_dispatch_values(value_list_t *vl, /* {{{ */
@@ -396,7 +396,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 
   if ((vl->time == 0) || (strlen(vl->host) == 0) || (strlen(vl->plugin) == 0) ||
       (strlen(vl->type) == 0))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (!check_receive_okay(vl)) {
 #if COLLECT_DEBUG
@@ -408,7 +408,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
           name);
 #endif
     stats_values_not_dispatched++;
-    return (0);
+    return 0;
   }
 
   assert(vl->meta == NULL);
@@ -416,7 +416,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
   vl->meta = meta_data_create();
   if (vl->meta == NULL) {
     ERROR("network plugin: meta_data_create failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   status = meta_data_add_boolean(vl->meta, "network:received", 1);
@@ -424,7 +424,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
     ERROR("network plugin: meta_data_add_boolean failed.");
     meta_data_destroy(vl->meta);
     vl->meta = NULL;
-    return (status);
+    return status;
   }
 
   if (username != NULL) {
@@ -433,7 +433,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
       ERROR("network plugin: meta_data_add_string failed.");
       meta_data_destroy(vl->meta);
       vl->meta = NULL;
-      return (status);
+      return status;
     }
   }
 
@@ -443,7 +443,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
   meta_data_destroy(vl->meta);
   vl->meta = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int network_dispatch_values */
 
 static int network_dispatch_notification(notification_t *n) /* {{{ */
@@ -457,7 +457,7 @@ static int network_dispatch_notification(notification_t *n) /* {{{ */
     ERROR("network plugin: plugin_notification_meta_add_boolean failed.");
     plugin_notification_meta_free(n->meta);
     n->meta = NULL;
-    return (status);
+    return status;
   }
 
   status = plugin_dispatch_notification(n);
@@ -465,7 +465,7 @@ static int network_dispatch_notification(notification_t *n) /* {{{ */
   plugin_notification_meta_free(n->meta);
   n->meta = NULL;
 
-  return (status);
+  return status;
 } /* }}} int network_dispatch_notification */
 
 #if HAVE_GCRYPT_H
@@ -477,7 +477,7 @@ static int network_init_gcrypt(void) /* {{{ */
    * Because you can't know in a library whether another library has
    * already initialized the library */
   if (gcry_control(GCRYCTL_ANY_INITIALIZATION_P))
-    return (0);
+    return 0;
 
 /* http://www.gnupg.org/documentation/manuals/gcrypt/Multi_002dThreading.html
  * To ensure thread-safety, it's important to set GCRYCTL_SET_THREAD_CBS
@@ -491,7 +491,7 @@ static int network_init_gcrypt(void) /* {{{ */
   if (err) {
     ERROR("network plugin: gcry_control (GCRYCTL_SET_THREAD_CBS) failed: %s",
           gcry_strerror(err));
-    return (-1);
+    return -1;
   }
 #endif
 
@@ -501,11 +501,11 @@ static int network_init_gcrypt(void) /* {{{ */
   if (err) {
     ERROR("network plugin: gcry_control (GCRYCTL_INIT_SECMEM) failed: %s",
           gcry_strerror(err));
-    return (-1);
+    return -1;
   }
 
   gcry_control(GCRYCTL_INITIALIZATION_FINISHED);
-  return (0);
+  return 0;
 } /* }}} int network_init_gcrypt */
 
 static gcry_cipher_hd_t network_get_aes256_cypher(sockent_t *se, /* {{{ */
@@ -525,11 +525,11 @@ static gcry_cipher_hd_t network_get_aes256_cypher(sockent_t *se, /* {{{ */
     cyper_ptr = &se->data.server.cypher;
 
     if (username == NULL)
-      return (NULL);
+      return NULL;
 
     secret = fbh_get(se->data.server.userdb, username);
     if (secret == NULL)
-      return (NULL);
+      return NULL;
 
     gcry_md_hash_buffer(GCRY_MD_SHA256, password_hash, secret, strlen(secret));
 
@@ -543,7 +543,7 @@ static gcry_cipher_hd_t network_get_aes256_cypher(sockent_t *se, /* {{{ */
       ERROR("network plugin: gcry_cipher_open returned: %s",
             gcry_strerror(err));
       *cyper_ptr = NULL;
-      return (NULL);
+      return NULL;
     }
   } else {
     gcry_cipher_reset(*cyper_ptr);
@@ -556,7 +556,7 @@ static gcry_cipher_hd_t network_get_aes256_cypher(sockent_t *se, /* {{{ */
           gcry_strerror(err));
     gcry_cipher_close(*cyper_ptr);
     *cyper_ptr = NULL;
-    return (NULL);
+    return NULL;
   }
 
   err = gcry_cipher_setiv(*cyper_ptr, iv, iv_size);
@@ -565,10 +565,10 @@ static gcry_cipher_hd_t network_get_aes256_cypher(sockent_t *se, /* {{{ */
           gcry_strerror(err));
     gcry_cipher_close(*cyper_ptr);
     *cyper_ptr = NULL;
-    return (NULL);
+    return NULL;
   }
 
-  return (*cyper_ptr);
+  return *cyper_ptr;
 } /* }}} int network_get_aes256_cypher */
 #endif /* HAVE_GCRYPT_H */
 
@@ -590,19 +590,19 @@ static int write_part_values(char **ret_buffer, size_t *ret_buffer_len,
                (num_values * sizeof(uint8_t)) + (num_values * sizeof(value_t));
 
   if (*ret_buffer_len < packet_len)
-    return (-1);
+    return -1;
 
   pkg_values_types = malloc(num_values * sizeof(*pkg_values_types));
   if (pkg_values_types == NULL) {
     ERROR("network plugin: write_part_values: malloc failed.");
-    return (-1);
+    return -1;
   }
 
   pkg_values = malloc(num_values * sizeof(*pkg_values));
   if (pkg_values == NULL) {
     free(pkg_values_types);
     ERROR("network plugin: write_part_values: malloc failed.");
-    return (-1);
+    return -1;
   }
 
   pkg_ph.type = htons(TYPE_VALUES);
@@ -635,7 +635,7 @@ static int write_part_values(char **ret_buffer, size_t *ret_buffer_len,
       ERROR("network plugin: write_part_values: "
             "Unknown data source type: %i",
             ds->ds[i].type);
-      return (-1);
+      return -1;
     } /* switch (ds->ds[i].type) */
   }   /* for (num_values) */
 
@@ -663,7 +663,7 @@ static int write_part_values(char **ret_buffer, size_t *ret_buffer_len,
   free(pkg_values_types);
   free(pkg_values);
 
-  return (0);
+  return 0;
 } /* int write_part_values */
 
 static int write_part_number(char **ret_buffer, size_t *ret_buffer_len,
@@ -679,7 +679,7 @@ static int write_part_number(char **ret_buffer, size_t *ret_buffer_len,
   packet_len = sizeof(pkg_head) + sizeof(pkg_value);
 
   if (*ret_buffer_len < packet_len)
-    return (-1);
+    return -1;
 
   pkg_head.type = htons(type);
   pkg_head.length = htons(packet_len);
@@ -697,7 +697,7 @@ static int write_part_number(char **ret_buffer, size_t *ret_buffer_len,
   *ret_buffer = packet_ptr + packet_len;
   *ret_buffer_len -= packet_len;
 
-  return (0);
+  return 0;
 } /* int write_part_number */
 
 static int write_part_string(char **ret_buffer, size_t *ret_buffer_len,
@@ -712,7 +712,7 @@ static int write_part_string(char **ret_buffer, size_t *ret_buffer_len,
 
   buffer_len = 2 * sizeof(uint16_t) + str_len + 1;
   if (*ret_buffer_len < buffer_len)
-    return (-1);
+    return -1;
 
   pkg_type = htons(type);
   pkg_length = htons(buffer_len);
@@ -733,7 +733,7 @@ static int write_part_string(char **ret_buffer, size_t *ret_buffer_len,
   *ret_buffer = buffer + buffer_len;
   *ret_buffer_len -= buffer_len;
 
-  return (0);
+  return 0;
 } /* int write_part_string */
 
 static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
@@ -755,7 +755,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
     NOTICE("network plugin: packet is too short: "
            "buffer_len = %zu",
            buffer_len);
-    return (-1);
+    return -1;
   }
 
   memcpy((void *)&tmp16, buffer, sizeof(tmp16));
@@ -780,7 +780,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
             "Chunk of size %zu expected, "
             "but buffer has only %zu bytes left.",
             exp_size, buffer_len);
-    return (-1);
+    return -1;
   }
   assert(pkg_numval <= ((buffer_len - 6) / 9));
 
@@ -788,7 +788,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
     WARNING("network plugin: parse_part_values: "
             "Length and number of values "
             "in the packet don't match.");
-    return (-1);
+    return -1;
   }
 
   pkg_types = calloc(pkg_numval, sizeof(*pkg_types));
@@ -797,7 +797,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
     sfree(pkg_types);
     sfree(pkg_values);
     ERROR("network plugin: parse_part_values: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   memcpy(pkg_types, buffer, pkg_numval * sizeof(*pkg_types));
@@ -829,7 +829,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
              pkg_types[i]);
       sfree(pkg_types);
       sfree(pkg_values);
-      return (-1);
+      return -1;
     } /* switch (pkg_types[i]) */
   }
 
@@ -840,7 +840,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
 
   sfree(pkg_types);
 
-  return (0);
+  return 0;
 } /* int parse_part_values */
 
 static int parse_part_number(void **ret_buffer, size_t *ret_buffer_len,
@@ -860,7 +860,7 @@ static int parse_part_number(void **ret_buffer, size_t *ret_buffer_len,
             "Chunk of size %zu expected, "
             "but buffer has only %zu bytes left.",
             exp_size, buffer_len);
-    return (-1);
+    return -1;
   }
 
   memcpy((void *)&tmp16, buffer, sizeof(tmp16));
@@ -878,7 +878,7 @@ static int parse_part_number(void **ret_buffer, size_t *ret_buffer_len,
   *ret_buffer = buffer;
   *ret_buffer_len = buffer_len - pkg_length;
 
-  return (0);
+  return 0;
 } /* int parse_part_number */
 
 static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
@@ -893,7 +893,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
   size_t payload_size;
 
   if (output_len == 0)
-    return (EINVAL);
+    return EINVAL;
 
   if (buffer_len < header_size) {
     WARNING("network plugin: parse_part_string: "
@@ -901,7 +901,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
             "Chunk of at least size %zu expected, "
             "but buffer has only %zu bytes left.",
             header_size, buffer_len);
-    return (-1);
+    return -1;
   }
 
   memcpy((void *)&tmp16, buffer, sizeof(tmp16));
@@ -920,7 +920,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
             "Chunk of size %" PRIu16 " received, "
             "but buffer has only %zu bytes left.",
             pkg_length, buffer_len);
-    return (-1);
+    return -1;
   }
 
   /* Check that pkg_length is in the valid range */
@@ -930,7 +930,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
             "Header claims this packet is only %hu "
             "bytes long.",
             pkg_length);
-    return (-1);
+    return -1;
   }
 
   /* Check that the package data fits into the output buffer.
@@ -943,7 +943,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
             "which is too small to hold the received "
             "%zu byte string.",
             output_len, payload_size);
-    return (-1);
+    return -1;
   }
 
   /* All sanity checks successfull, let's copy the data over */
@@ -956,13 +956,13 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
     WARNING("network plugin: parse_part_string: "
             "Received string does not end "
             "with a NULL-byte.");
-    return (-1);
+    return -1;
   }
 
   *ret_buffer = buffer;
   *ret_buffer_len = buffer_len - pkg_length;
 
-  return (0);
+  return 0;
 } /* int parse_part_string */
 
 /* Forward declaration: parse_part_sign_sha256 and parse_part_encr_aes256 call
@@ -1003,17 +1003,9 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   buffer_len = *ret_buffer_len;
   buffer_offset = 0;
 
-  if (se->data.server.userdb == NULL) {
-    c_complain(
-        LOG_NOTICE, &complain_no_users,
-        "network plugin: Received signed network packet but can't verify it "
-        "because no user DB has been configured. Will accept it.");
-    return (0);
-  }
-
   /* Check if the buffer has enough data for this structure. */
   if (buffer_len <= PART_SIGNATURE_SHA256_SIZE)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   /* Read type and length header */
   BUFFER_READ(&pss.head.type, sizeof(pss.head.type));
@@ -1024,7 +1016,19 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   if ((pss_head_length <= PART_SIGNATURE_SHA256_SIZE) ||
       (pss_head_length > buffer_len)) {
     ERROR("network plugin: HMAC-SHA-256 with invalid length received.");
-    return (-1);
+    return -1;
+  }
+
+  if (se->data.server.userdb == NULL) {
+    c_complain(
+        LOG_NOTICE, &complain_no_users,
+        "network plugin: Received signed network packet but can't verify it "
+        "because no user DB has been configured. Will accept it.");
+
+    *ret_buffer = buffer + pss_head_length;
+    *ret_buffer_len -= pss_head_length;
+
+    return 0;
   }
 
   /* Copy the hash. */
@@ -1034,7 +1038,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   username_len = pss_head_length - PART_SIGNATURE_SHA256_SIZE;
   pss.username = malloc(username_len + 1);
   if (pss.username == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   /* Read the username */
   BUFFER_READ(pss.username, username_len);
@@ -1047,7 +1051,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   if (secret == NULL) {
     ERROR("network plugin: Unknown user: %s", pss.username);
     sfree(pss.username);
-    return (-ENOENT);
+    return -ENOENT;
   }
 
   /* Create a hash device and check the HMAC */
@@ -1058,7 +1062,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
           gcry_strerror(err));
     sfree(secret);
     sfree(pss.username);
-    return (-1);
+    return -1;
   }
 
   err = gcry_md_setkey(hd, secret, strlen(secret));
@@ -1067,7 +1071,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
     gcry_md_close(hd);
     sfree(secret);
     sfree(pss.username);
-    return (-1);
+    return -1;
   }
 
   gcry_md_write(hd, buffer + PART_SIGNATURE_SHA256_SIZE,
@@ -1078,7 +1082,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
     gcry_md_close(hd);
     sfree(secret);
     sfree(pss.username);
-    return (-1);
+    return -1;
   }
   memcpy(hash, hash_ptr, sizeof(hash));
 
@@ -1101,7 +1105,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   *ret_buffer = buffer + buffer_len;
   *ret_buffer_len = 0;
 
-  return (0);
+  return 0;
 } /* }}} int parse_part_sign_sha256 */
 /* #endif HAVE_GCRYPT_H */
 
@@ -1123,14 +1127,14 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   buffer_offset = 0;
 
   if (buffer_size <= PART_SIGNATURE_SHA256_SIZE)
-    return (-ENOMEM);
+    return -ENOMEM;
 
   BUFFER_READ(&pss.head.type, sizeof(pss.head.type));
   BUFFER_READ(&pss.head.length, sizeof(pss.head.length));
   part_len = ntohs(pss.head.length);
 
   if ((part_len <= PART_SIGNATURE_SHA256_SIZE) || (part_len > buffer_size))
-    return (-EINVAL);
+    return -EINVAL;
 
   if (warning_has_been_printed == 0) {
     WARNING("network plugin: Received signed packet, but the network "
@@ -1145,7 +1149,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   *ret_buffer = buffer + buffer_size;
   *ret_buffer_size = 0;
 
-  return (0);
+  return 0;
 } /* }}} int parse_part_sign_sha256 */
 #endif /* !HAVE_GCRYPT_H */
 
@@ -1169,7 +1173,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   if (buffer_len <= PART_ENCRYPTION_AES256_SIZE) {
     NOTICE("network plugin: parse_part_encr_aes256: "
            "Discarding short packet.");
-    return (-1);
+    return -1;
   }
 
   buffer_offset = 0;
@@ -1183,7 +1187,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   if ((part_size <= PART_ENCRYPTION_AES256_SIZE) || (part_size > buffer_len)) {
     NOTICE("network plugin: parse_part_encr_aes256: "
            "Discarding part with invalid size.");
-    return (-1);
+    return -1;
   }
 
   /* Read the username */
@@ -1194,13 +1198,13 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
       (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1)))) {
     NOTICE("network plugin: parse_part_encr_aes256: "
            "Discarding part with invalid username length.");
-    return (-1);
+    return -1;
   }
 
   assert(username_len > 0);
   pea.username = malloc(username_len + 1);
   if (pea.username == NULL)
-    return (-ENOMEM);
+    return -ENOMEM;
   BUFFER_READ(pea.username, username_len);
   pea.username[username_len] = 0;
 
@@ -1215,7 +1219,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   if (cypher == NULL) {
     ERROR("network plugin: Failed to get cypher. Username: %s", pea.username);
     sfree(pea.username);
-    return (-1);
+    return -1;
   }
 
   payload_len = part_size - (PART_ENCRYPTION_AES256_SIZE + username_len);
@@ -1229,7 +1233,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
     sfree(pea.username);
     ERROR("network plugin: gcry_cipher_decrypt returned: %s. Username: %s",
           gcry_strerror(err), pea.username);
-    return (-1);
+    return -1;
   }
 
   /* Read the hash */
@@ -1244,7 +1248,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   if (memcmp(hash, pea.hash, sizeof(hash)) != 0) {
     ERROR("network plugin: Checksum mismatch. Username: %s", pea.username);
     sfree(pea.username);
-    return (-1);
+    return -1;
   }
 
   parse_packet(se, buffer + buffer_offset, payload_len, flags | PP_ENCRYPTED,
@@ -1258,7 +1262,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   sfree(pea.username);
 
-  return (0);
+  return 0;
 } /* }}} int parse_part_encr_aes256 */
 /* #endif HAVE_GCRYPT_H */
 
@@ -1289,7 +1293,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   if ((ph_length <= PART_ENCRYPTION_AES256_SIZE) || (ph_length > buffer_size)) {
     ERROR("network plugin: AES-256 encrypted part "
           "with invalid length received.");
-    return (-1);
+    return -1;
   }
 
   if (warning_has_been_printed == 0) {
@@ -1302,7 +1306,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   *ret_buffer = (void *)(((char *)*ret_buffer) + ph_length);
   *ret_buffer_size -= ph_length;
 
-  return (0);
+  return 0;
 } /* }}} int parse_part_encr_aes256 */
 #endif /* !HAVE_GCRYPT_H */
 
@@ -1489,7 +1493,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
     WARNING("network plugin: parse_packet: Received truncated "
             "packet, try increasing `MaxPacketSize'");
 
-  return (status);
+  return status;
 } /* }}} int parse_packet */
 
 static void free_sockent_client(struct sockent_client *sec) /* {{{ */
@@ -1563,7 +1567,7 @@ static int network_set_ttl(const sockent_t *se, const struct addrinfo *ai) {
   assert(se->type == SOCKENT_TYPE_CLIENT);
 
   if ((network_config_ttl < 1) || (network_config_ttl > 255))
-    return (-1);
+    return -1;
 
   if (ai->ai_family == AF_INET) {
     struct sockaddr_in *addr = (struct sockaddr_in *)ai->ai_addr;
@@ -1579,7 +1583,7 @@ static int network_set_ttl(const sockent_t *se, const struct addrinfo *ai) {
       char errbuf[1024];
       ERROR("network plugin: setsockopt (ipv4-ttl): %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   } else if (ai->ai_family == AF_INET6) {
     /* Useful example:
@@ -1597,11 +1601,11 @@ static int network_set_ttl(const sockent_t *se, const struct addrinfo *ai) {
       char errbuf[1024];
       ERROR("network plugin: setsockopt(ipv6-ttl): %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   }
 
-  return (0);
+  return 0;
 } /* int network_set_ttl */
 
 static int network_set_interface(const sockent_t *se,
@@ -1635,10 +1639,10 @@ static int network_set_interface(const sockent_t *se,
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv4-multicast-if): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
-      return (0);
+      return 0;
     }
   } else if (ai->ai_family == AF_INET6) {
     struct sockaddr_in6 *addr = (struct sockaddr_in6 *)ai->ai_addr;
@@ -1649,10 +1653,10 @@ static int network_set_interface(const sockent_t *se,
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv6-multicast-if): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
-      return (0);
+      return 0;
     }
   }
 
@@ -1663,7 +1667,7 @@ static int network_set_interface(const sockent_t *se,
     char interface_name[IFNAMSIZ];
 
     if (if_indextoname(se->interface, interface_name) == NULL)
-      return (-1);
+      return -1;
 
     DEBUG("network plugin: Binding socket to interface %s", interface_name);
 
@@ -1672,7 +1676,7 @@ static int network_set_interface(const sockent_t *se,
       char errbuf[1024];
       ERROR("network plugin: setsockopt (bind-if): %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
 /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
@@ -1688,7 +1692,7 @@ static int network_set_interface(const sockent_t *se,
 #endif
   }
 
-  return (0);
+  return 0;
 } /* }}} network_set_interface */
 
 static int network_bind_socket(int fd, const struct addrinfo *ai,
@@ -1705,7 +1709,7 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
     char errbuf[1024];
     ERROR("network plugin: setsockopt (reuseaddr): %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   DEBUG("fd = %i; calling `bind'", fd);
@@ -1713,7 +1717,7 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
   if (bind(fd, ai->ai_addr, ai->ai_addrlen) == -1) {
     char errbuf[1024];
     ERROR("bind: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   if (ai->ai_family == AF_INET) {
@@ -1743,7 +1747,7 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
         char errbuf[1024];
         ERROR("network plugin: setsockopt (multicast-loop): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
       if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) ==
@@ -1751,10 +1755,10 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
         char errbuf[1024];
         ERROR("network plugin: setsockopt (add-membership): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
-      return (0);
+      return 0;
     }
   } else if (ai->ai_family == AF_INET6) {
     /* Useful example:
@@ -1783,7 +1787,7 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv6-multicast-loop): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
       if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq,
@@ -1791,10 +1795,10 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv6-add-membership): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
 
-      return (0);
+      return 0;
     }
   }
 
@@ -1807,7 +1811,7 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
     char interface_name[IFNAMSIZ];
 
     if (if_indextoname(interface_idx, interface_name) == NULL)
-      return (-1);
+      return -1;
 
     DEBUG("fd = %i; Binding socket to interface %s", fd, interface_name);
 
@@ -1816,12 +1820,12 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
       char errbuf[1024];
       ERROR("network plugin: setsockopt (bind-if): %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   }
 #endif /* HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
-  return (0);
+  return 0;
 } /* int network_bind_socket */
 
 /* Initialize a sockent structure. `type' must be either `SOCKENT_TYPE_CLIENT'
@@ -1831,11 +1835,11 @@ static sockent_t *sockent_create(int type) /* {{{ */
   sockent_t *se;
 
   if ((type != SOCKENT_TYPE_CLIENT) && (type != SOCKENT_TYPE_SERVER))
-    return (NULL);
+    return NULL;
 
   se = calloc(1, sizeof(*se));
   if (se == NULL)
-    return (NULL);
+    return NULL;
 
   se->type = type;
   se->node = NULL;
@@ -1865,7 +1869,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
 #endif
   }
 
-  return (se);
+  return se;
 } /* }}} sockent_t *sockent_create */
 
 static int sockent_init_crypto(sockent_t *se) /* {{{ */
@@ -1876,7 +1880,7 @@ static int sockent_init_crypto(sockent_t *se) /* {{{ */
       if (network_init_gcrypt() < 0) {
         ERROR("network plugin: Cannot configure client socket with "
               "security: Failed to initialize crypto library.");
-        return (-1);
+        return -1;
       }
 
       if ((se->data.client.username == NULL) ||
@@ -1884,7 +1888,7 @@ static int sockent_init_crypto(sockent_t *se) /* {{{ */
         ERROR("network plugin: Client socket with "
               "security requested, but no "
               "credentials are configured.");
-        return (-1);
+        return -1;
       }
       gcry_md_hash_buffer(GCRY_MD_SHA256, se->data.client.password_hash,
                           se->data.client.password,
@@ -1896,26 +1900,26 @@ static int sockent_init_crypto(sockent_t *se) /* {{{ */
         (se->data.server.auth_file == NULL)) {
       ERROR("network plugin: Server socket with security requested, "
             "but no \"AuthFile\" is configured.");
-      return (-1);
+      return -1;
     }
     if (se->data.server.auth_file != NULL) {
       if (network_init_gcrypt() < 0) {
         ERROR("network plugin: Cannot configure server socket with security: "
               "Failed to initialize crypto library.");
-        return (-1);
+        return -1;
       }
 
       se->data.server.userdb = fbh_create(se->data.server.auth_file);
       if (se->data.server.userdb == NULL) {
         ERROR("network plugin: Reading password file \"%s\" failed.",
               se->data.server.auth_file);
-        return (-1);
+        return -1;
       }
     }
   }
 #endif /* }}} HAVE_GCRYPT_H */
 
-  return (0);
+  return 0;
 } /* }}} int sockent_init_crypto */
 
 static int sockent_client_disconnect(sockent_t *se) /* {{{ */
@@ -1923,7 +1927,7 @@ static int sockent_client_disconnect(sockent_t *se) /* {{{ */
   struct sockent_client *client;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
-    return (EINVAL);
+    return EINVAL;
 
   client = &se->data.client;
   if (client->fd >= 0) /* connected */
@@ -1935,7 +1939,7 @@ static int sockent_client_disconnect(sockent_t *se) /* {{{ */
   sfree(client->addr);
   client->addrlen = 0;
 
-  return (0);
+  return 0;
 } /* }}} int sockent_client_disconnect */
 
 static int sockent_client_connect(sockent_t *se) /* {{{ */
@@ -1949,7 +1953,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
   cdtime_t now;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
-    return (EINVAL);
+    return EINVAL;
 
   client = &se->data.client;
 
@@ -1963,7 +1967,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
   }
 
   if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
-    return (0);
+    return 0;
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
                               .ai_flags = AI_ADDRCONFIG,
@@ -1978,7 +1982,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
         LOG_ERR, &complaint, "network plugin: getaddrinfo (%s, %s) failed: %s",
         (se->node == NULL) ? "(null)" : se->node,
         (se->service == NULL) ? "(null)" : se->service, gai_strerror(status));
-    return (-1);
+    return -1;
   } else {
     c_release(LOG_NOTICE, &complaint,
               "network plugin: Successfully resolved \"%s\".", se->node);
@@ -2020,11 +2024,11 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
 
   freeaddrinfo(ai_list);
   if (client->fd < 0)
-    return (-1);
+    return -1;
 
   if (client->resolve_interval > 0)
     client->next_resolve_reconnect = now + client->resolve_interval;
-  return (0);
+  return 0;
 } /* }}} int sockent_client_connect */
 
 /* Open the file descriptors for a initialized sockent structure. */
@@ -2037,7 +2041,7 @@ static int sockent_server_listen(sockent_t *se) /* {{{ */
   const char *service;
 
   if (se == NULL)
-    return (-1);
+    return -1;
 
   assert(se->data.server.fd == NULL);
   assert(se->data.server.fd_num == 0);
@@ -2061,7 +2065,7 @@ static int sockent_server_listen(sockent_t *se) /* {{{ */
     ERROR("network plugin: getaddrinfo (%s, %s) failed: %s",
           (se->node == NULL) ? "(null)" : se->node,
           (se->service == NULL) ? "(null)" : se->service, gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -2099,8 +2103,8 @@ static int sockent_server_listen(sockent_t *se) /* {{{ */
   freeaddrinfo(ai_list);
 
   if (se->data.server.fd_num == 0)
-    return (-1);
-  return (0);
+    return -1;
+  return 0;
 } /* }}} int sockent_server_listen */
 
 /* Add a sockent to the global list of sockets */
@@ -2109,7 +2113,7 @@ static int sockent_add(sockent_t *se) /* {{{ */
   sockent_t *last_ptr;
 
   if (se == NULL)
-    return (-1);
+    return -1;
 
   if (se->type == SOCKENT_TYPE_SERVER) {
     struct pollfd *tmp;
@@ -2118,7 +2122,7 @@ static int sockent_add(sockent_t *se) /* {{{ */
                   sizeof(*tmp) * (listen_sockets_num + se->data.server.fd_num));
     if (tmp == NULL) {
       ERROR("network plugin: realloc failed.");
-      return (-1);
+      return -1;
     }
     listen_sockets_pollfd = tmp;
     tmp = listen_sockets_pollfd + listen_sockets_num;
@@ -2134,14 +2138,14 @@ static int sockent_add(sockent_t *se) /* {{{ */
 
     if (listen_sockets == NULL) {
       listen_sockets = se;
-      return (0);
+      return 0;
     }
     last_ptr = listen_sockets;
   } else /* if (se->type == SOCKENT_TYPE_CLIENT) */
   {
     if (sending_sockets == NULL) {
       sending_sockets = se;
-      return (0);
+      return 0;
     }
     last_ptr = sending_sockets;
   }
@@ -2150,7 +2154,7 @@ static int sockent_add(sockent_t *se) /* {{{ */
     last_ptr = last_ptr->next;
   last_ptr->next = se;
 
-  return (0);
+  return 0;
 } /* }}} int sockent_add */
 
 static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
@@ -2206,7 +2210,7 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
     sfree(ent);
   } /* while (42) */
 
-  return (NULL);
+  return NULL;
 } /* }}} void *dispatch_thread */
 
 static int network_receive(void) /* {{{ */
@@ -2331,11 +2335,11 @@ static int network_receive(void) /* {{{ */
     pthread_mutex_unlock(&receive_list_lock);
   }
 
-  return (status);
+  return status;
 } /* }}} int network_receive */
 
 static void *receive_thread(void __attribute__((unused)) * arg) {
-  return (network_receive() ? (void *)1 : (void *)0);
+  return network_receive() ? (void *)1 : (void *)0;
 } /* void *receive_thread */
 
 static void network_init_buffer(void) {
@@ -2551,28 +2555,28 @@ static int add_to_buffer(char *buffer, size_t buffer_size, /* {{{ */
   if (strcmp(vl_def->host, vl->host) != 0) {
     if (write_part_string(&buffer, &buffer_size, TYPE_HOST, vl->host,
                           strlen(vl->host)) != 0)
-      return (-1);
+      return -1;
     sstrncpy(vl_def->host, vl->host, sizeof(vl_def->host));
   }
 
   if (vl_def->time != vl->time) {
     if (write_part_number(&buffer, &buffer_size, TYPE_TIME_HR,
                           (uint64_t)vl->time))
-      return (-1);
+      return -1;
     vl_def->time = vl->time;
   }
 
   if (vl_def->interval != vl->interval) {
     if (write_part_number(&buffer, &buffer_size, TYPE_INTERVAL_HR,
                           (uint64_t)vl->interval))
-      return (-1);
+      return -1;
     vl_def->interval = vl->interval;
   }
 
   if (strcmp(vl_def->plugin, vl->plugin) != 0) {
     if (write_part_string(&buffer, &buffer_size, TYPE_PLUGIN, vl->plugin,
                           strlen(vl->plugin)) != 0)
-      return (-1);
+      return -1;
     sstrncpy(vl_def->plugin, vl->plugin, sizeof(vl_def->plugin));
   }
 
@@ -2580,7 +2584,7 @@ static int add_to_buffer(char *buffer, size_t buffer_size, /* {{{ */
     if (write_part_string(&buffer, &buffer_size, TYPE_PLUGIN_INSTANCE,
                           vl->plugin_instance,
                           strlen(vl->plugin_instance)) != 0)
-      return (-1);
+      return -1;
     sstrncpy(vl_def->plugin_instance, vl->plugin_instance,
              sizeof(vl_def->plugin_instance));
   }
@@ -2588,22 +2592,22 @@ static int add_to_buffer(char *buffer, size_t buffer_size, /* {{{ */
   if (strcmp(vl_def->type, vl->type) != 0) {
     if (write_part_string(&buffer, &buffer_size, TYPE_TYPE, vl->type,
                           strlen(vl->type)) != 0)
-      return (-1);
+      return -1;
     sstrncpy(vl_def->type, ds->type, sizeof(vl_def->type));
   }
 
   if (strcmp(vl_def->type_instance, vl->type_instance) != 0) {
     if (write_part_string(&buffer, &buffer_size, TYPE_TYPE_INSTANCE,
                           vl->type_instance, strlen(vl->type_instance)) != 0)
-      return (-1);
+      return -1;
     sstrncpy(vl_def->type_instance, vl->type_instance,
              sizeof(vl_def->type_instance));
   }
 
   if (write_part_values(&buffer, &buffer_size, ds, vl) != 0)
-    return (-1);
+    return -1;
 
-  return (buffer - buffer_orig);
+  return buffer - buffer_orig;
 } /* }}} int add_to_buffer */
 
 static void flush_buffer(void) {
@@ -2641,7 +2645,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
     pthread_mutex_lock(&stats_lock);
     stats_values_not_sent++;
     pthread_mutex_unlock(&stats_lock);
-    return (0);
+    return 0;
   }
 
   uc_meta_data_add_unsigned_int(vl, "network:time_sent", (uint64_t)vl->time);
@@ -2684,7 +2688,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 
   pthread_mutex_unlock(&send_buffer_lock);
 
-  return ((status < 0) ? -1 : 0);
+  return (status < 0) ? -1 : 0;
 } /* int network_write */
 
 static int network_config_set_ttl(const oconfig_item_t *ci) /* {{{ */
@@ -2692,15 +2696,15 @@ static int network_config_set_ttl(const oconfig_item_t *ci) /* {{{ */
   int tmp = 0;
 
   if (cf_util_get_int(ci, &tmp) != 0)
-    return (-1);
+    return -1;
   else if ((tmp > 0) && (tmp <= 255))
     network_config_ttl = tmp;
   else {
     WARNING("network plugin: The `TimeToLive' must be between 1 and 255.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int network_config_set_ttl */
 
 static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
@@ -2708,10 +2712,10 @@ static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
   char if_name[256];
 
   if (cf_util_get_string_buffer(ci, if_name, sizeof(if_name)) != 0)
-    return (-1);
+    return -1;
 
   *interface = if_nametoindex(if_name);
-  return (0);
+  return 0;
 } /* }}} int network_config_set_interface */
 
 static int network_config_set_buffer_size(const oconfig_item_t *ci) /* {{{ */
@@ -2719,16 +2723,16 @@ static int network_config_set_buffer_size(const oconfig_item_t *ci) /* {{{ */
   int tmp = 0;
 
   if (cf_util_get_int(ci, &tmp) != 0)
-    return (-1);
+    return -1;
   else if ((tmp >= 1024) && (tmp <= 65535))
     network_config_packet_size = tmp;
   else {
     WARNING(
         "network plugin: The `MaxPacketSize' must be between 1024 and 65535.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int network_config_set_buffer_size */
 
 #if HAVE_GCRYPT_H
@@ -2738,7 +2742,7 @@ static int network_config_set_security_level(oconfig_item_t *ci, /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("network plugin: The `SecurityLevel' config option needs exactly "
             "one string argument.");
-    return (-1);
+    return -1;
   }
 
   str = ci->values[0].value.string;
@@ -2750,10 +2754,10 @@ static int network_config_set_security_level(oconfig_item_t *ci, /* {{{ */
     *retval = SECURITY_LEVEL_NONE;
   else {
     WARNING("network plugin: Unknown security level: %s.", str);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int network_config_set_security_level */
 #endif /* HAVE_GCRYPT_H */
 
@@ -2768,13 +2772,13 @@ static int network_config_add_listen(const oconfig_item_t *ci) /* {{{ */
     ERROR("network plugin: The `%s' config option needs "
           "one or two string arguments.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   se = sockent_create(SOCKENT_TYPE_SERVER);
   if (se == NULL) {
     ERROR("network plugin: sockent_create failed.");
-    return (-1);
+    return -1;
   }
 
   se->node = strdup(ci->values[0].value.string);
@@ -2805,7 +2809,7 @@ static int network_config_add_listen(const oconfig_item_t *ci) /* {{{ */
           "requested, but no AuthFile option was given. Cowardly refusing to "
           "open this socket!");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 #endif /* HAVE_GCRYPT_H */
 
@@ -2814,7 +2818,7 @@ static int network_config_add_listen(const oconfig_item_t *ci) /* {{{ */
     ERROR("network plugin: network_config_add_listen: sockent_init_crypto() "
           "failed.");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 
   status = sockent_server_listen(se);
@@ -2822,17 +2826,17 @@ static int network_config_add_listen(const oconfig_item_t *ci) /* {{{ */
     ERROR("network plugin: network_config_add_listen: sockent_server_listen "
           "failed.");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 
   status = sockent_add(se);
   if (status != 0) {
     ERROR("network plugin: network_config_add_listen: sockent_add failed.");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int network_config_add_listen */
 
 static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
@@ -2846,13 +2850,13 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
     ERROR("network plugin: The `%s' config option needs "
           "one or two string arguments.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   se = sockent_create(SOCKENT_TYPE_CLIENT);
   if (se == NULL) {
     ERROR("network plugin: sockent_create failed.");
-    return (-1);
+    return -1;
   }
 
   se->node = strdup(ci->values[0].value.string);
@@ -2888,7 +2892,7 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
           "requested, but no Username or Password option was given. "
           "Cowardly refusing to open this socket!");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 #endif /* HAVE_GCRYPT_H */
 
@@ -2897,7 +2901,7 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
     ERROR("network plugin: network_config_add_server: sockent_init_crypto() "
           "failed.");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 
   /* No call to sockent_client_connect() here -- it is called from
@@ -2907,10 +2911,10 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
   if (status != 0) {
     ERROR("network plugin: network_config_add_server: sockent_add failed.");
     sockent_destroy(se);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int network_config_add_server */
 
 static int network_config(oconfig_item_t *ci) /* {{{ */
@@ -2942,7 +2946,7 @@ static int network_config(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int network_config */
 
 static int network_notification(const notification_t *n,
@@ -2954,63 +2958,63 @@ static int network_notification(const notification_t *n,
   int status;
 
   if (!check_send_notify_okay(n))
-    return (0);
+    return 0;
 
   memset(buffer, 0, sizeof(buffer));
 
   status = write_part_number(&buffer_ptr, &buffer_free, TYPE_TIME_HR,
                              (uint64_t)n->time);
   if (status != 0)
-    return (-1);
+    return -1;
 
   status = write_part_number(&buffer_ptr, &buffer_free, TYPE_SEVERITY,
                              (uint64_t)n->severity);
   if (status != 0)
-    return (-1);
+    return -1;
 
   if (strlen(n->host) > 0) {
     status = write_part_string(&buffer_ptr, &buffer_free, TYPE_HOST, n->host,
                                strlen(n->host));
     if (status != 0)
-      return (-1);
+      return -1;
   }
 
   if (strlen(n->plugin) > 0) {
     status = write_part_string(&buffer_ptr, &buffer_free, TYPE_PLUGIN,
                                n->plugin, strlen(n->plugin));
     if (status != 0)
-      return (-1);
+      return -1;
   }
 
   if (strlen(n->plugin_instance) > 0) {
     status = write_part_string(&buffer_ptr, &buffer_free, TYPE_PLUGIN_INSTANCE,
                                n->plugin_instance, strlen(n->plugin_instance));
     if (status != 0)
-      return (-1);
+      return -1;
   }
 
   if (strlen(n->type) > 0) {
     status = write_part_string(&buffer_ptr, &buffer_free, TYPE_TYPE, n->type,
                                strlen(n->type));
     if (status != 0)
-      return (-1);
+      return -1;
   }
 
   if (strlen(n->type_instance) > 0) {
     status = write_part_string(&buffer_ptr, &buffer_free, TYPE_TYPE_INSTANCE,
                                n->type_instance, strlen(n->type_instance));
     if (status != 0)
-      return (-1);
+      return -1;
   }
 
   status = write_part_string(&buffer_ptr, &buffer_free, TYPE_MESSAGE,
                              n->message, strlen(n->message));
   if (status != 0)
-    return (-1);
+    return -1;
 
   network_send_buffer(buffer, sizeof(buffer) - buffer_free);
 
-  return (0);
+  return 0;
 } /* int network_notification */
 
 static int network_shutdown(void) {
@@ -3051,7 +3055,7 @@ static int network_shutdown(void) {
   plugin_unregister_write("network");
   plugin_unregister_shutdown("network");
 
-  return (0);
+  return 0;
 } /* int network_shutdown */
 
 static int network_stats_read(void) /* {{{ */
@@ -3122,7 +3126,7 @@ static int network_stats_read(void) /* {{{ */
   vl.type_instance[0] = 0;
   plugin_dispatch_values(&vl);
 
-  return (0);
+  return 0;
 } /* }}} int network_stats_read */
 
 static int network_init(void) {
@@ -3131,7 +3135,7 @@ static int network_init(void) {
   /* Check if we were already initialized. If so, just return - there's
    * nothing more to do (for now, that is). */
   if (have_init)
-    return (0);
+    return 0;
   have_init = 1;
 
   if (network_config_stats)
@@ -3142,7 +3146,7 @@ static int network_init(void) {
   send_buffer = malloc(network_config_packet_size);
   if (send_buffer == NULL) {
     ERROR("network plugin: malloc failed.");
-    return (-1);
+    return -1;
   }
   network_init_buffer();
 
@@ -3157,7 +3161,7 @@ static int network_init(void) {
   /* If no threads need to be started, return here. */
   if ((listen_sockets_num == 0) ||
       ((dispatch_thread_running != 0) && (receive_thread_running != 0)))
-    return (0);
+    return 0;
 
   if (dispatch_thread_running == 0) {
     int status;
@@ -3187,7 +3191,7 @@ static int network_init(void) {
     }
   }
 
-  return (0);
+  return 0;
 } /* int network_init */
 
 /*
@@ -3207,14 +3211,14 @@ static int network_flush(cdtime_t timeout,
       cdtime_t now = cdtime();
       if ((send_buffer_last_update + timeout) > now) {
         pthread_mutex_unlock(&send_buffer_lock);
-        return (0);
+        return 0;
       }
     }
     flush_buffer();
   }
   pthread_mutex_unlock(&send_buffer_lock);
 
-  return (0);
+  return 0;
 } /* int network_flush */
 
 void module_register(void) {

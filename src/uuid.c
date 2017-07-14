@@ -45,19 +45,19 @@ static int looks_like_a_uuid(const char *uuid) {
   int len;
 
   if (!uuid)
-    return (0);
+    return 0;
 
   len = strlen(uuid);
 
   if (len < UUID_PRINTABLE_COMPACT_LENGTH)
-    return (0);
+    return 0;
 
   while (*uuid) {
     if (!isxdigit((int)*uuid) && *uuid != '-')
-      return (0);
+      return 0;
     uuid++;
   }
-  return (1);
+  return 1;
 }
 
 static char *uuid_parse_dmidecode(FILE *file) {
@@ -82,9 +82,9 @@ static char *uuid_parse_dmidecode(FILE *file) {
     if (!looks_like_a_uuid(fields[1]))
       continue;
 
-    return (strdup(fields[1]));
+    return strdup(fields[1]);
   }
-  return (NULL);
+  return NULL;
 }
 
 static char *uuid_get_from_dmidecode(void) {
@@ -92,12 +92,12 @@ static char *uuid_get_from_dmidecode(void) {
   char *uuid;
 
   if (!dmidecode)
-    return (NULL);
+    return NULL;
 
   uuid = uuid_parse_dmidecode(dmidecode);
 
   pclose(dmidecode);
-  return (uuid);
+  return uuid;
 }
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
@@ -106,7 +106,7 @@ static char *uuid_get_from_sysctlbyname(const char *name) {
   size_t len = sizeof(uuid);
   if (sysctlbyname(name, &uuid, &len, NULL, 0) == -1)
     return NULL;
-  return (strdup(uuid));
+  return strdup(uuid);
 }
 #elif defined(__OpenBSD__)
 static char *uuid_get_from_sysctl(void) {
@@ -119,7 +119,7 @@ static char *uuid_get_from_sysctl(void) {
 
   if (sysctl(mib, 2, uuid, &len, NULL, 0) == -1)
     return NULL;
-  return (strdup(uuid));
+  return strdup(uuid);
 }
 #endif
 
@@ -129,16 +129,16 @@ static char *uuid_get_from_file(const char *path) {
 
   file = fopen(path, "r");
   if (file == NULL)
-    return (NULL);
+    return NULL;
 
   if (!fgets(uuid, sizeof(uuid), file)) {
     fclose(file);
-    return (NULL);
+    return NULL;
   }
   fclose(file);
   strstripnewline(uuid);
 
-  return (strdup(uuid));
+  return strdup(uuid);
 }
 
 static char *uuid_get_local(void) {
@@ -146,47 +146,47 @@ static char *uuid_get_local(void) {
 
   /* Check /etc/uuid / UUIDFile before any other method. */
   if ((uuid = uuid_get_from_file(uuidfile ? uuidfile : "/etc/uuid")) != NULL)
-    return (uuid);
+    return uuid;
 
 #if defined(__APPLE__)
   if ((uuid = uuid_get_from_sysctlbyname("kern.uuid")) != NULL)
-    return (uuid);
+    return uuid;
 #elif defined(__FreeBSD__)
   if ((uuid = uuid_get_from_sysctlbyname("kern.hostuuid")) != NULL)
-    return (uuid);
+    return uuid;
 #elif defined(__NetBSD__)
   if ((uuid = uuid_get_from_sysctlbyname("machdep.dmi.system-uuid")) != NULL)
-    return (uuid);
+    return uuid;
 #elif defined(__OpenBSD__)
   if ((uuid = uuid_get_from_sysctl()) != NULL)
-    return (uuid);
+    return uuid;
 #elif defined(__linux__)
   if ((uuid = uuid_get_from_file("/sys/class/dmi/id/product_uuid")) != NULL)
-    return (uuid);
+    return uuid;
 #endif
 
   if ((uuid = uuid_get_from_dmidecode()) != NULL)
-    return (uuid);
+    return uuid;
 
 #if defined(__linux__)
   if ((uuid = uuid_get_from_file("/sys/hypervisor/uuid")) != NULL)
-    return (uuid);
+    return uuid;
 #endif
 
-  return (NULL);
+  return NULL;
 }
 
 static int uuid_config(const char *key, const char *value) {
   if (strcasecmp(key, "UUIDFile") == 0) {
     char *tmp = strdup(value);
     if (tmp == NULL)
-      return (-1);
+      return -1;
     sfree(uuidfile);
     uuidfile = tmp;
-    return (0);
+    return 0;
   }
 
-  return (1);
+  return 1;
 }
 
 static int uuid_init(void) {
@@ -195,11 +195,11 @@ static int uuid_init(void) {
   if (uuid) {
     sstrncpy(hostname_g, uuid, DATA_MAX_NAME_LEN);
     sfree(uuid);
-    return (0);
+    return 0;
   }
 
   WARNING("uuid: could not read UUID using any known method");
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

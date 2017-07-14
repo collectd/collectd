@@ -93,16 +93,16 @@ static _Bool agg_is_regex(char const *str) /* {{{ */
   size_t len;
 
   if (str == NULL)
-    return (0);
+    return 0;
 
   len = strlen(str);
   if (len < 3)
-    return (0);
+    return 0;
 
   if ((str[0] == '/') && (str[len - 1] == '/'))
-    return (1);
+    return 1;
   else
-    return (0);
+    return 0;
 } /* }}} _Bool agg_is_regex */
 
 static void agg_destroy(aggregation_t *agg) /* {{{ */
@@ -222,7 +222,7 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
 
 #undef COPY_FIELD
 
-  return (0);
+  return 0;
 } /* }}} int agg_instance_create_name */
 
 /* Create a new aggregation instance. */
@@ -236,7 +236,7 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
   inst = calloc(1, sizeof(*inst));
   if (inst == NULL) {
     ERROR("aggregation plugin: calloc() failed.");
-    return (NULL);
+    return NULL;
   }
   pthread_mutex_init(&inst->lock, /* attr = */ NULL);
 
@@ -256,7 +256,7 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
         agg_instance_destroy(inst);                                            \
         free(inst);                                                            \
         ERROR("aggregation plugin: calloc() failed.");                         \
-        return (NULL);                                                         \
+        return NULL;                                                           \
       }                                                                        \
     }                                                                          \
   } while (0)
@@ -275,7 +275,7 @@ static agg_instance_t *agg_instance_create(data_set_t const *ds, /* {{{ */
   agg_instance_list_head = inst;
   pthread_mutex_unlock(&agg_instance_list_lock);
 
-  return (inst);
+  return inst;
 } /* }}} agg_instance_t *agg_instance_create */
 
 /* Update the num, sum, min, max, ... fields of the aggregation instance, if
@@ -291,7 +291,7 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
           "data source. This is currently not supported by this plugin. "
           "Sorry.",
           ds->type);
-    return (EINVAL);
+    return EINVAL;
   }
 
   rate = uc_get_rate(ds, vl);
@@ -300,12 +300,12 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
     FORMAT_VL(ident, sizeof(ident), vl);
     ERROR("aggregation plugin: Unable to read the current rate of \"%s\".",
           ident);
-    return (ENOENT);
+    return ENOENT;
   }
 
   if (isnan(rate[0])) {
     sfree(rate);
-    return (0);
+    return 0;
   }
 
   pthread_mutex_lock(&inst->lock);
@@ -322,7 +322,7 @@ static int agg_instance_update(agg_instance_t *inst, /* {{{ */
   pthread_mutex_unlock(&inst->lock);
 
   sfree(rate);
-  return (0);
+  return 0;
 } /* }}} int agg_instance_update */
 
 static int agg_instance_read_func(agg_instance_t *inst, /* {{{ */
@@ -345,10 +345,10 @@ static int agg_instance_read_func(agg_instance_t *inst, /* {{{ */
      * COUNTER or a DERIVE, it will return EAGAIN. Catch this and handle
      * gracefully. */
     if (status == EAGAIN)
-      return (0);
+      return 0;
 
     WARNING("aggregation plugin: rate_to_value failed with status %i.", status);
-    return (-1);
+    return -1;
   }
 
   vl->values = &v;
@@ -359,7 +359,7 @@ static int agg_instance_read_func(agg_instance_t *inst, /* {{{ */
   vl->values = NULL;
   vl->values_len = 0;
 
-  return (0);
+  return 0;
 } /* }}} int agg_instance_read_func */
 
 static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
@@ -376,7 +376,7 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
   vl.meta = meta_data_create();
   if (vl.meta == NULL) {
     ERROR("aggregation plugin: meta_data_create failed.");
-    return (-1);
+    return -1;
   }
   meta_data_add_boolean(vl.meta, "aggregation:created", 1);
 
@@ -422,7 +422,7 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
   meta_data_destroy(vl.meta);
   vl.meta = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int agg_instance_read */
 
 /* lookup_class_callback_t for utils_vl_lookup */
@@ -430,7 +430,7 @@ static void *agg_lookup_class_callback(/* {{{ */
                                        data_set_t const *ds,
                                        value_list_t const *vl,
                                        void *user_class) {
-  return (agg_instance_create(ds, vl, (aggregation_t *)user_class));
+  return agg_instance_create(ds, vl, (aggregation_t *)user_class);
 } /* }}} void *agg_class_callback */
 
 /* lookup_obj_callback_t for utils_vl_lookup */
@@ -438,7 +438,7 @@ static int agg_lookup_obj_callback(data_set_t const *ds, /* {{{ */
                                    value_list_t const *vl,
                                    __attribute__((unused)) void *user_class,
                                    void *user_obj) {
-  return (agg_instance_update((agg_instance_t *)user_obj, ds, vl));
+  return agg_instance_update((agg_instance_t *)user_obj, ds, vl);
 } /* }}} int agg_lookup_obj_callback */
 
 /* lookup_free_class_callback_t for utils_vl_lookup */
@@ -501,7 +501,7 @@ static int agg_config_handle_group_by(oconfig_item_t const *ci, /* {{{ */
               value);
   } /* for (ci->values) */
 
-  return (0);
+  return 0;
 } /* }}} int agg_config_handle_group_by */
 
 static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
@@ -513,7 +513,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
   agg = calloc(1, sizeof(*agg));
   if (agg == NULL) {
     ERROR("aggregation plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   sstrncpy(agg->ident.host, "/.*/", sizeof(agg->ident.host));
@@ -636,14 +636,14 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
   if (!is_valid) /* {{{ */
   {
     sfree(agg);
-    return (-1);
+    return -1;
   } /* }}} */
 
   status = lookup_add(lookup, &agg->ident, agg->group_by, agg);
   if (status != 0) {
     ERROR("aggregation plugin: lookup_add failed with status %i.", status);
     sfree(agg);
-    return (-1);
+    return -1;
   }
 
   DEBUG("aggregation plugin: Successfully added aggregation: "
@@ -651,7 +651,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
         "Type \"%s\", TypeInstance \"%s\")",
         agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
         agg->ident.type, agg->ident.type_instance);
-  return (0);
+  return 0;
 } /* }}} int agg_config_aggregation */
 
 static int agg_config(oconfig_item_t *ci) /* {{{ */
@@ -665,7 +665,7 @@ static int agg_config(oconfig_item_t *ci) /* {{{ */
     if (lookup == NULL) {
       pthread_mutex_unlock(&agg_instance_list_lock);
       ERROR("aggregation plugin: lookup_create failed.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -682,7 +682,7 @@ static int agg_config(oconfig_item_t *ci) /* {{{ */
 
   pthread_mutex_unlock(&agg_instance_list_lock);
 
-  return (0);
+  return 0;
 } /* }}} int agg_config */
 
 static int agg_read(void) /* {{{ */
@@ -703,7 +703,7 @@ static int agg_read(void) /* {{{ */
    * Therefore we need to handle this case separately. */
   if (agg_instance_list_head == NULL) {
     pthread_mutex_unlock(&agg_instance_list_lock);
-    return (0);
+    return 0;
   }
 
   for (agg_instance_t *this = agg_instance_list_head; this != NULL;
@@ -721,7 +721,7 @@ static int agg_read(void) /* {{{ */
 
   pthread_mutex_unlock(&agg_instance_list_lock);
 
-  return ((success > 0) ? 0 : -1);
+  return (success > 0) ? 0 : -1;
 } /* }}} int agg_read */
 
 static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
@@ -734,7 +734,7 @@ static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
   (void)meta_data_get_boolean(vl->meta, "aggregation:created",
                               &created_by_aggregation);
   if (created_by_aggregation)
-    return (0);
+    return 0;
 
   if (lookup == NULL)
     status = ENOENT;
@@ -744,7 +744,7 @@ static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
       status = 0;
   }
 
-  return (status);
+  return status;
 } /* }}} int agg_write */
 
 void module_register(void) {

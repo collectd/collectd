@@ -94,12 +94,12 @@ static int calc_height(c_avl_node_t *n) {
   int height_right;
 
   if (n == NULL)
-    return (0);
+    return 0;
 
   height_left = (n->left == NULL) ? 0 : n->left->height;
   height_right = (n->right == NULL) ? 0 : n->right->height;
 
-  return (((height_left > height_right) ? height_left : height_right) + 1);
+  return ((height_left > height_right) ? height_left : height_right) + 1;
 } /* int calc_height */
 
 static c_avl_node_t *search(c_avl_tree_t *t, const void *key) {
@@ -110,14 +110,14 @@ static c_avl_node_t *search(c_avl_tree_t *t, const void *key) {
   while (n != NULL) {
     cmp = t->compare(key, n->key);
     if (cmp == 0)
-      return (n);
+      return n;
     else if (cmp < 0)
       n = n->left;
     else
       n = n->right;
   }
 
-  return (NULL);
+  return NULL;
 }
 
 /*         (x)             (y)
@@ -159,7 +159,7 @@ static c_avl_node_t *rotate_right(c_avl_tree_t *t, c_avl_node_t *x) {
   x->height = calc_height(x);
   y->height = calc_height(y);
 
-  return (y);
+  return y;
 } /* void rotate_right */
 
 /*
@@ -202,17 +202,17 @@ static c_avl_node_t *rotate_left(c_avl_tree_t *t, c_avl_node_t *x) {
   x->height = calc_height(x);
   y->height = calc_height(y);
 
-  return (y);
+  return y;
 } /* void rotate_left */
 
 static c_avl_node_t *rotate_left_right(c_avl_tree_t *t, c_avl_node_t *x) {
   rotate_left(t, x->left);
-  return (rotate_right(t, x));
+  return rotate_right(t, x);
 } /* void rotate_left_right */
 
 static c_avl_node_t *rotate_right_left(c_avl_tree_t *t, c_avl_node_t *x) {
   rotate_right(t, x->right);
-  return (rotate_left(t, x));
+  return rotate_left(t, x);
 } /* void rotate_right_left */
 
 static void rebalance(c_avl_tree_t *t, c_avl_node_t *n) {
@@ -256,7 +256,7 @@ static c_avl_node_t *c_avl_node_next(c_avl_node_t *n) {
   c_avl_node_t *r; /* return node */
 
   if (n == NULL) {
-    return (NULL);
+    return NULL;
   }
 
   /* If we can't descent any further, we have to backtrack to the first
@@ -274,10 +274,10 @@ static c_avl_node_t *c_avl_node_next(c_avl_node_t *n) {
      * r->left != n => r->right = n => r->parent == NULL */
     if ((r == NULL) || (r->left != n)) {
       assert((r == NULL) || (r->parent == NULL));
-      return (NULL);
+      return NULL;
     } else {
       assert(r->left == n);
-      return (r);
+      return r;
     }
   } else {
     r = n->right;
@@ -285,14 +285,14 @@ static c_avl_node_t *c_avl_node_next(c_avl_node_t *n) {
       r = r->left;
   }
 
-  return (r);
+  return r;
 } /* c_avl_node_t *c_avl_node_next */
 
 static c_avl_node_t *c_avl_node_prev(c_avl_node_t *n) {
   c_avl_node_t *r; /* return node */
 
   if (n == NULL) {
-    return (NULL);
+    return NULL;
   }
 
   /* If we can't descent any further, we have to backtrack to the first
@@ -310,10 +310,10 @@ static c_avl_node_t *c_avl_node_prev(c_avl_node_t *n) {
      * r->right != n => r->left = n => r->parent == NULL */
     if ((r == NULL) || (r->right != n)) {
       assert((r == NULL) || (r->parent == NULL));
-      return (NULL);
+      return NULL;
     } else {
       assert(r->right == n);
-      return (r);
+      return r;
     }
   } else {
     r = n->left;
@@ -321,7 +321,7 @@ static c_avl_node_t *c_avl_node_prev(c_avl_node_t *n) {
       r = r->right;
   }
 
-  return (r);
+  return r;
 } /* c_avl_node_t *c_avl_node_prev */
 
 static int _remove(c_avl_tree_t *t, c_avl_node_t *n) {
@@ -409,7 +409,7 @@ static int _remove(c_avl_tree_t *t, c_avl_node_t *n) {
     assert(0);
   }
 
-  return (0);
+  return 0;
 } /* void *_remove */
 
 /*
@@ -419,16 +419,16 @@ c_avl_tree_t *c_avl_create(int (*compare)(const void *, const void *)) {
   c_avl_tree_t *t;
 
   if (compare == NULL)
-    return (NULL);
+    return NULL;
 
   if ((t = malloc(sizeof(*t))) == NULL)
-    return (NULL);
+    return NULL;
 
   t->root = NULL;
   t->compare = compare;
   t->size = 0;
 
-  return (t);
+  return t;
 }
 
 void c_avl_destroy(c_avl_tree_t *t) {
@@ -444,7 +444,7 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
   int cmp;
 
   if ((new = malloc(sizeof(*new))) == NULL)
-    return (-1);
+    return -1;
 
   new->key = key;
   new->value = value;
@@ -456,7 +456,7 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
     new->parent = NULL;
     t->root = new;
     t->size = 1;
-    return (0);
+    return 0;
   }
 
   nptr = t->root;
@@ -464,7 +464,7 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
     cmp = t->compare(nptr->key, new->key);
     if (cmp == 0) {
       free_node(new);
-      return (1);
+      return 1;
     } else if (cmp < 0) {
       /* nptr < new */
       if (nptr->right == NULL) {
@@ -491,7 +491,7 @@ int c_avl_insert(c_avl_tree_t *t, void *key, void *value) {
 
   verify_tree(t->root);
   ++t->size;
-  return (0);
+  return 0;
 } /* int c_avl_insert */
 
 int c_avl_remove(c_avl_tree_t *t, const void *key, void **rkey, void **rvalue) {
@@ -502,7 +502,7 @@ int c_avl_remove(c_avl_tree_t *t, const void *key, void **rkey, void **rvalue) {
 
   n = search(t, key);
   if (n == NULL)
-    return (-1);
+    return -1;
 
   if (rkey != NULL)
     *rkey = n->key;
@@ -512,7 +512,7 @@ int c_avl_remove(c_avl_tree_t *t, const void *key, void **rkey, void **rvalue) {
   status = _remove(t, n);
   verify_tree(t->root);
   --t->size;
-  return (status);
+  return status;
 } /* void *c_avl_remove */
 
 int c_avl_get(c_avl_tree_t *t, const void *key, void **value) {
@@ -522,22 +522,24 @@ int c_avl_get(c_avl_tree_t *t, const void *key, void **value) {
 
   n = search(t, key);
   if (n == NULL)
-    return (-1);
+    return -1;
 
   if (value != NULL)
     *value = n->value;
 
-  return (0);
+  return 0;
 }
 
 int c_avl_pick(c_avl_tree_t *t, void **key, void **value) {
   c_avl_node_t *n;
   c_avl_node_t *p;
 
+  assert(t != NULL);
+
   if ((key == NULL) || (value == NULL))
-    return (-1);
+    return -1;
   if (t->root == NULL)
-    return (-1);
+    return -1;
 
   n = t->root;
   while ((n->left != NULL) || (n->right != NULL)) {
@@ -570,28 +572,28 @@ int c_avl_pick(c_avl_tree_t *t, void **key, void **value) {
   --t->size;
   rebalance(t, p);
 
-  return (0);
+  return 0;
 } /* int c_avl_pick */
 
 c_avl_iterator_t *c_avl_get_iterator(c_avl_tree_t *t) {
   c_avl_iterator_t *iter;
 
   if (t == NULL)
-    return (NULL);
+    return NULL;
 
   iter = calloc(1, sizeof(*iter));
   if (iter == NULL)
-    return (NULL);
+    return NULL;
   iter->tree = t;
 
-  return (iter);
+  return iter;
 } /* c_avl_iterator_t *c_avl_get_iterator */
 
 int c_avl_iterator_next(c_avl_iterator_t *iter, void **key, void **value) {
   c_avl_node_t *n;
 
   if ((iter == NULL) || (key == NULL) || (value == NULL))
-    return (-1);
+    return -1;
 
   if (iter->node == NULL) {
     for (n = iter->tree->root; n != NULL; n = n->left)
@@ -603,20 +605,20 @@ int c_avl_iterator_next(c_avl_iterator_t *iter, void **key, void **value) {
   }
 
   if (n == NULL)
-    return (-1);
+    return -1;
 
   iter->node = n;
   *key = n->key;
   *value = n->value;
 
-  return (0);
+  return 0;
 } /* int c_avl_iterator_next */
 
 int c_avl_iterator_prev(c_avl_iterator_t *iter, void **key, void **value) {
   c_avl_node_t *n;
 
   if ((iter == NULL) || (key == NULL) || (value == NULL))
-    return (-1);
+    return -1;
 
   if (iter->node == NULL) {
     for (n = iter->tree->root; n != NULL; n = n->left)
@@ -628,19 +630,19 @@ int c_avl_iterator_prev(c_avl_iterator_t *iter, void **key, void **value) {
   }
 
   if (n == NULL)
-    return (-1);
+    return -1;
 
   iter->node = n;
   *key = n->key;
   *value = n->value;
 
-  return (0);
+  return 0;
 } /* int c_avl_iterator_prev */
 
 void c_avl_iterator_destroy(c_avl_iterator_t *iter) { free(iter); }
 
 int c_avl_size(c_avl_tree_t *t) {
   if (t == NULL)
-    return (0);
-  return (t->size);
+    return 0;
+  return t->size;
 }

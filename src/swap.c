@@ -140,7 +140,7 @@ static int swap_config(oconfig_item_t *ci) /* {{{ */
       WARNING("swap plugin: Unknown config option: \"%s\"", child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int swap_config */
 
 static int swap_init(void) /* {{{ */
@@ -172,7 +172,7 @@ static int swap_init(void) /* {{{ */
 
   if (kvm_obj == NULL) {
     ERROR("swap plugin: kvm_openfiles failed, %s", errbuf);
-    return (-1);
+    return -1;
   }
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
@@ -184,7 +184,7 @@ static int swap_init(void) /* {{{ */
   pagesize = getpagesize();
 #endif /* HAVE_PERFSTAT */
 
-  return (0);
+  return 0;
 } /* }}} int swap_init */
 
 static void swap_submit_usage(char const *plugin_instance, /* {{{ */
@@ -234,7 +234,7 @@ static int swap_read_separate(void) /* {{{ */
     char errbuf[1024];
     WARNING("swap plugin: fopen (/proc/swaps) failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -273,7 +273,7 @@ static int swap_read_separate(void) /* {{{ */
 
   fclose(fh);
 
-  return (0);
+  return 0;
 } /* }}} int swap_read_separate */
 
 static int swap_read_combined(void) /* {{{ */
@@ -291,7 +291,7 @@ static int swap_read_combined(void) /* {{{ */
     char errbuf[1024];
     WARNING("swap plugin: fopen (/proc/meminfo) failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -313,7 +313,7 @@ static int swap_read_combined(void) /* {{{ */
   fclose(fh);
 
   if (isnan(swap_total) || isnan(swap_free))
-    return (ENOENT);
+    return ENOENT;
 
   /* Some systems, OpenVZ for example, don't provide SwapCached. */
   if (isnan(swap_cached))
@@ -323,12 +323,12 @@ static int swap_read_combined(void) /* {{{ */
   assert(!isnan(swap_used));
 
   if (swap_used < 0.0)
-    return (EINVAL);
+    return EINVAL;
 
   swap_submit_usage(NULL, swap_used * 1024.0, swap_free * 1024.0,
                     isnan(swap_cached) ? NULL : "cached",
                     isnan(swap_cached) ? NAN : swap_cached * 1024.0);
-  return (0);
+  return 0;
 } /* }}} int swap_read_combined */
 
 static int swap_read_io(void) /* {{{ */
@@ -349,7 +349,7 @@ static int swap_read_io(void) /* {{{ */
     if (fh == NULL) {
       char errbuf[1024];
       WARNING("swap: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     } else
       old_kernel = 1;
   }
@@ -386,7 +386,7 @@ static int swap_read_io(void) /* {{{ */
   fclose(fh);
 
   if (have_data != 0x03)
-    return (ENOENT);
+    return ENOENT;
 
   if (report_bytes) {
     swap_in = swap_in * pagesize;
@@ -396,7 +396,7 @@ static int swap_read_io(void) /* {{{ */
   swap_submit_derive("in", swap_in);
   swap_submit_derive("out", swap_out);
 
-  return (0);
+  return 0;
 } /* }}} int swap_read_io */
 
 static int swap_read(void) /* {{{ */
@@ -408,7 +408,7 @@ static int swap_read(void) /* {{{ */
 
   swap_read_io();
 
-  return (0);
+  return 0;
 } /* }}} int swap_read */
   /* #endif KERNEL_LINUX */
 
@@ -435,7 +435,7 @@ static int swap_read_kstat(void) /* {{{ */
     char errbuf[1024];
     ERROR("swap plugin: swapctl failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   /*
@@ -464,7 +464,7 @@ static int swap_read_kstat(void) /* {{{ */
   swap_avail = (gauge_t)((ai.ani_max - ai.ani_resv) * pagesize);
 
   swap_submit_usage(NULL, swap_alloc, swap_avail, "reserved", swap_resv);
-  return (0);
+  return 0;
 } /* }}} int swap_read_kstat */
   /* #endif 0 && HAVE_LIBKSTAT */
 
@@ -483,15 +483,15 @@ static int swap_read(void) /* {{{ */
   swap_num = swapctl(SC_GETNSWP, NULL);
   if (swap_num < 0) {
     ERROR("swap plugin: swapctl (SC_GETNSWP) failed with status %i.", swap_num);
-    return (-1);
+    return -1;
   } else if (swap_num == 0)
-    return (0);
+    return 0;
 
   /* Allocate and initialize the swaptbl_t structure */
   s = malloc(swap_num * sizeof(swapent_t) + sizeof(struct swaptable));
   if (s == NULL) {
     ERROR("swap plugin: malloc failed.");
-    return (-1);
+    return -1;
   }
 
   /* Memory to store the path names. We only use these paths when the
@@ -501,7 +501,7 @@ static int swap_read(void) /* {{{ */
   if (s_paths == NULL) {
     ERROR("swap plugin: calloc failed.");
     sfree(s);
-    return (-1);
+    return -1;
   }
   for (int i = 0; i < swap_num; i++)
     s->swt_ent[i].ste_path = s_paths + (i * PATH_MAX);
@@ -514,7 +514,7 @@ static int swap_read(void) /* {{{ */
           sstrerror(errno, errbuf, sizeof(errbuf)));
     sfree(s_paths);
     sfree(s);
-    return (-1);
+    return -1;
   } else if (swap_num < status) {
     /* more elements returned than requested */
     ERROR("swap plugin: I allocated memory for %i structure%s, "
@@ -523,7 +523,7 @@ static int swap_read(void) /* {{{ */
           swap_num, (swap_num == 1) ? "" : "s", status);
     sfree(s_paths);
     sfree(s);
-    return (-1);
+    return -1;
   } else if (swap_num > status)
     /* less elements returned than requested */
     swap_num = status;
@@ -558,7 +558,7 @@ static int swap_read(void) /* {{{ */
         total, avail);
     sfree(s_paths);
     sfree(s);
-    return (-1);
+    return -1;
   }
 
   /* If the "separate" option was specified (report_by_device == 1), all
@@ -568,7 +568,7 @@ static int swap_read(void) /* {{{ */
 
   sfree(s_paths);
   sfree(s);
-  return (0);
+  return 0;
 } /* }}} int swap_read */
   /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
@@ -585,21 +585,21 @@ static int swap_read(void) /* {{{ */
   swap_num = swapctl(SWAP_NSWAP, NULL, 0);
   if (swap_num < 0) {
     ERROR("swap plugin: swapctl (SWAP_NSWAP) failed with status %i.", swap_num);
-    return (-1);
+    return -1;
   } else if (swap_num == 0)
-    return (0);
+    return 0;
 
   swap_entries = calloc(swap_num, sizeof(*swap_entries));
   if (swap_entries == NULL) {
     ERROR("swap plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   status = swapctl(SWAP_STATS, swap_entries, swap_num);
   if (status != swap_num) {
     ERROR("swap plugin: swapctl (SWAP_STATS) failed with status %i.", status);
     sfree(swap_entries);
-    return (-1);
+    return -1;
   }
 
 #if defined(DEV_BSIZE) && (DEV_BSIZE > 0)
@@ -623,13 +623,13 @@ static int swap_read(void) /* {{{ */
         "swap plugin: Total swap space (%g) is less than used swap space (%g).",
         total, used);
     sfree(swap_entries);
-    return (-1);
+    return -1;
   }
 
   swap_submit_usage(NULL, used, total - used, NULL, NAN);
 
   sfree(swap_entries);
-  return (0);
+  return 0;
 } /* }}} int swap_read */
   /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
 
@@ -648,13 +648,13 @@ static int swap_read(void) /* {{{ */
   sw_usage_len = sizeof(struct xsw_usage);
 
   if (sysctl(mib, mib_len, &sw_usage, &sw_usage_len, NULL, 0) != 0)
-    return (-1);
+    return -1;
 
   /* The returned values are bytes. */
   swap_submit_usage(NULL, (gauge_t)sw_usage.xsu_used,
                     (gauge_t)sw_usage.xsu_avail, NULL, NAN);
 
-  return (0);
+  return 0;
 } /* }}} int swap_read */
   /* #endif VM_SWAPUSAGE */
 
@@ -668,12 +668,12 @@ static int swap_read(void) /* {{{ */
   gauge_t total;
 
   if (kvm_obj == NULL)
-    return (-1);
+    return -1;
 
   /* only one structure => only get the grand total, no details */
   status = kvm_getswapinfo(kvm_obj, &data_s, 1, 0);
   if (status == -1)
-    return (-1);
+    return -1;
 
   total = (gauge_t)data_s.ksw_total;
   used = (gauge_t)data_s.ksw_used;
@@ -683,7 +683,7 @@ static int swap_read(void) /* {{{ */
 
   swap_submit_usage(NULL, used, total - used, NULL, NAN);
 
-  return (0);
+  return 0;
 } /* }}} int swap_read */
   /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
@@ -694,11 +694,11 @@ static int swap_read(void) /* {{{ */
 
   swap = sg_get_swap_stats();
   if (swap == NULL)
-    return (-1);
+    return -1;
 
   swap_submit_usage(NULL, (gauge_t)swap->used, (gauge_t)swap->free, NULL, NAN);
 
-  return (0);
+  return 0;
 } /* }}} int swap_read */
   /* #endif  HAVE_LIBSTATGRAB */
 
@@ -718,7 +718,7 @@ static int swap_read(void) /* {{{ */
     char errbuf[1024];
     WARNING("swap plugin: perfstat_memory_total failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   total = (gauge_t)(pmemory.pgsp_total * pagesize);
@@ -729,7 +729,7 @@ static int swap_read(void) /* {{{ */
   swap_submit_derive("in", (derive_t)pmemory.pgspins * pagesize);
   swap_submit_derive("out", (derive_t)pmemory.pgspouts * pagesize);
 
-  return (0);
+  return 0;
 } /* }}} int swap_read */
 #endif /* HAVE_PERFSTAT */
 

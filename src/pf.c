@@ -86,7 +86,7 @@ static int pf_read(void) {
     char errbuf[1024];
     ERROR("pf plugin: Unable to open %s: %s", pf_device,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   status = ioctl(fd, DIOCGETSTATUS, &state);
@@ -95,14 +95,14 @@ static int pf_read(void) {
     ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     close(fd);
-    return (-1);
+    return -1;
   }
 
   close(fd);
 
   if (!state.running) {
     WARNING("pf plugin: PF is not running.");
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < PFRES_MAX; i++)
@@ -121,7 +121,7 @@ static int pf_read(void) {
   pf_submit("pf_states", "current", (uint32_t)state.states,
             /* is gauge = */ 1);
 
-  return (0);
+  return 0;
 } /* int pf_read */
 
 void module_register(void) { plugin_register_read("pf", pf_read); }

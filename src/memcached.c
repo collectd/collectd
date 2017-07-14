@@ -78,7 +78,7 @@ static int memcached_connect_unix(memcached_t *st) {
     char errbuf[1024];
     ERROR("memcached plugin: memcached_connect_unix: socket(2) failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   /* connect to the memcached daemon */
@@ -89,7 +89,7 @@ static int memcached_connect_unix(memcached_t *st) {
     fd = -1;
   }
 
-  return (fd);
+  return fd;
 } /* int memcached_connect_unix */
 
 static int memcached_connect_inet(memcached_t *st) {
@@ -109,7 +109,7 @@ static int memcached_connect_inet(memcached_t *st) {
           st->connhost, st->connport,
           (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                  : gai_strerror(status));
-    return (-1);
+    return -1;
   }
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -138,14 +138,14 @@ static int memcached_connect_inet(memcached_t *st) {
   }
 
   freeaddrinfo(ai_list);
-  return (fd);
+  return fd;
 } /* int memcached_connect_inet */
 
 static int memcached_connect(memcached_t *st) {
   if (st->socket != NULL)
-    return (memcached_connect_unix(st));
+    return memcached_connect_unix(st);
   else
-    return (memcached_connect_inet(st));
+    return memcached_connect_inet(st);
 }
 
 static int memcached_query_daemon(char *buffer, size_t buffer_size,
@@ -167,7 +167,7 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     shutdown(fd, SHUT_RDWR);
     close(fd);
-    return (-1);
+    return -1;
   }
 
   /* receive data from the memcached daemon */
@@ -188,7 +188,7 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
             sstrerror(errno, errbuf, sizeof(errbuf)));
       shutdown(fd, SHUT_RDWR);
       close(fd);
-      return (-1);
+      return -1;
     }
 
     buffer_fill += (size_t)status;
@@ -212,7 +212,7 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
 
   shutdown(fd, SHUT_RDWR);
   close(fd);
-  return (status);
+  return status;
 } /* int memcached_query_daemon */
 
 static void memcached_init_vl(value_list_t *vl, memcached_t const *st) {
@@ -412,8 +412,10 @@ static int memcached_read(user_data_t *user_data) {
     }
 
     /*
-     * Operations on the cache, i. e. cache hits, cache misses and evictions of
-     * items
+     * Operations on the cache:
+     * - get hits/misses
+     * - delete hits/misses
+     * - evictions
      */
     else if (FIELD_IS("get_hits")) {
       submit_derive("memcached_ops", "hits", atoll(fields[2]), st);
@@ -422,6 +424,10 @@ static int memcached_read(user_data_t *user_data) {
       submit_derive("memcached_ops", "misses", atoll(fields[2]), st);
     } else if (FIELD_IS("evictions")) {
       submit_derive("memcached_ops", "evictions", atoll(fields[2]), st);
+    } else if (FIELD_IS("delete_hits")) {
+      submit_derive("memcached_ops", "delete_hits", atoll(fields[2]), st);
+    } else if (FIELD_IS("delete_misses")) {
+      submit_derive("memcached_ops", "delete_misses", atoll(fields[2]), st);
     }
 
     /*
@@ -489,7 +495,7 @@ static int memcached_add_read_callback(memcached_t *st) {
     if (st->host) {
       st->connhost = strdup(st->host);
       if (st->connhost == NULL)
-        return (ENOMEM);
+        return ENOMEM;
 
       if ((strcmp("127.0.0.1", st->host) == 0) ||
           (strcmp("localhost", st->host) == 0))
@@ -497,14 +503,14 @@ static int memcached_add_read_callback(memcached_t *st) {
     } else {
       st->connhost = strdup(MEMCACHED_DEF_HOST);
       if (st->connhost == NULL)
-        return (ENOMEM);
+        return ENOMEM;
     }
   }
 
   if (st->connport == NULL) {
     st->connport = strdup(MEMCACHED_DEF_PORT);
     if (st->connport == NULL)
-      return (ENOMEM);
+      return ENOMEM;
   }
 
   assert(st->connhost != NULL);
@@ -518,7 +524,7 @@ static int memcached_add_read_callback(memcached_t *st) {
                                .data = st, .free_func = memcached_free,
                            });
 
-  return (status);
+  return status;
 } /* int memcached_add_read_callback */
 
 /* Configuration handling functiions
@@ -540,7 +546,7 @@ static int config_add_instance(oconfig_item_t *ci) {
   st = calloc(1, sizeof(*st));
   if (st == NULL) {
     ERROR("memcached plugin: calloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   st->name = NULL;
@@ -554,7 +560,7 @@ static int config_add_instance(oconfig_item_t *ci) {
 
   if (status != 0) {
     sfree(st);
-    return (status);
+    return status;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -582,10 +588,10 @@ static int config_add_instance(oconfig_item_t *ci) {
 
   if (status != 0) {
     memcached_free(st);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static int memcached_config(oconfig_item_t *ci) {
@@ -601,7 +607,7 @@ static int memcached_config(oconfig_item_t *ci) {
     } else if (!have_instance_block) {
       /* Non-instance option: Assume legacy configuration (without <Instance />
        * blocks) and call config_add_instance() with the <Plugin /> block. */
-      return (config_add_instance(ci));
+      return config_add_instance(ci);
     } else
       WARNING("memcached plugin: The configuration option "
               "\"%s\" is not allowed here. Did you "
@@ -610,7 +616,7 @@ static int memcached_config(oconfig_item_t *ci) {
               child->key);
   } /* for (ci->children) */
 
-  return (status);
+  return status;
 }
 
 static int memcached_init(void) {
@@ -618,12 +624,12 @@ static int memcached_init(void) {
   int status;
 
   if (memcached_have_instances)
-    return (0);
+    return 0;
 
   /* No instances were configured, lets start a default instance. */
   st = calloc(1, sizeof(*st));
   if (st == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   st->name = NULL;
   st->host = NULL;
   st->socket = NULL;
@@ -636,7 +642,7 @@ static int memcached_init(void) {
   else
     memcached_free(st);
 
-  return (status);
+  return status;
 } /* int memcached_init */
 
 void module_register(void) {

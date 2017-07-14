@@ -164,16 +164,16 @@ static char *camqp_bytes_cstring(amqp_bytes_t *in) /* {{{ */
   char *ret;
 
   if ((in == NULL) || (in->bytes == NULL))
-    return (NULL);
+    return NULL;
 
   ret = malloc(in->len + 1);
   if (ret == NULL)
-    return (NULL);
+    return NULL;
 
   memcpy(ret, in->bytes, in->len);
   ret[in->len] = 0;
 
-  return (ret);
+  return ret;
 } /* }}} char *camqp_bytes_cstring */
 
 static _Bool camqp_is_error(camqp_config_t *conf) /* {{{ */
@@ -182,9 +182,9 @@ static _Bool camqp_is_error(camqp_config_t *conf) /* {{{ */
 
   r = amqp_get_rpc_reply(conf->connection);
   if (r.reply_type == AMQP_RESPONSE_NORMAL)
-    return (0);
+    return 0;
 
-  return (1);
+  return 1;
 } /* }}} _Bool camqp_is_error */
 
 static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
@@ -204,10 +204,10 @@ static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
   case AMQP_RESPONSE_LIBRARY_EXCEPTION:
 #if HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO
     if (r.library_errno)
-      return (sstrerror(r.library_errno, buffer, buffer_size));
+      return sstrerror(r.library_errno, buffer, buffer_size);
 #else
     if (r.library_error)
-      return (sstrerror(r.library_error, buffer, buffer_size));
+      return sstrerror(r.library_error, buffer, buffer_size);
 #endif
     else
       sstrncpy(buffer, "End of stream", buffer_size);
@@ -236,7 +236,7 @@ static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
     ssnprintf(buffer, buffer_size, "Unknown reply type %i", (int)r.reply_type);
   }
 
-  return (buffer);
+  return buffer;
 } /* }}} char *camqp_strerror */
 
 #if HAVE_AMQP_RPC_REPLY_T_LIBRARY_ERRNO
@@ -245,7 +245,7 @@ static int camqp_create_exchange(camqp_config_t *conf) /* {{{ */
   amqp_exchange_declare_ok_t *ed_ret;
 
   if (conf->exchange_type == NULL)
-    return (0);
+    return 0;
 
   ed_ret = amqp_exchange_declare(
       conf->connection,
@@ -261,14 +261,14 @@ static int camqp_create_exchange(camqp_config_t *conf) /* {{{ */
     ERROR("amqp plugin: amqp_exchange_declare failed: %s",
           camqp_strerror(conf, errbuf, sizeof(errbuf)));
     camqp_close_connection(conf);
-    return (-1);
+    return -1;
   }
 
   INFO("amqp plugin: Successfully created exchange \"%s\" "
        "with type \"%s\".",
        conf->exchange, conf->exchange_type);
 
-  return (0);
+  return 0;
 } /* }}} int camqp_create_exchange */
 #else
 static int camqp_create_exchange(camqp_config_t *conf) /* {{{ */
@@ -278,7 +278,7 @@ static int camqp_create_exchange(camqp_config_t *conf) /* {{{ */
   struct amqp_table_entry_t_ argument_table_entries[1];
 
   if (conf->exchange_type == NULL)
-    return (0);
+    return 0;
 
   /* Valid arguments: "auto_delete", "internal" */
   argument_table.num_entries = STATIC_ARRAY_SIZE(argument_table_entries);
@@ -304,14 +304,14 @@ static int camqp_create_exchange(camqp_config_t *conf) /* {{{ */
     ERROR("amqp plugin: amqp_exchange_declare failed: %s",
           camqp_strerror(conf, errbuf, sizeof(errbuf)));
     camqp_close_connection(conf);
-    return (-1);
+    return -1;
   }
 
   INFO("amqp plugin: Successfully created exchange \"%s\" "
        "with type \"%s\".",
        conf->exchange, conf->exchange_type);
 
-  return (0);
+  return 0;
 } /* }}} int camqp_create_exchange */
 #endif
 
@@ -333,7 +333,7 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
   if (qd_ret == NULL) {
     ERROR("amqp plugin: amqp_queue_declare failed.");
     camqp_close_connection(conf);
-    return (-1);
+    return -1;
   }
 
   if (conf->queue == NULL) {
@@ -341,7 +341,7 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
     if (conf->queue == NULL) {
       ERROR("amqp plugin: camqp_bytes_cstring failed.");
       camqp_close_connection(conf);
-      return (-1);
+      return -1;
     }
 
     INFO("amqp plugin: Created queue \"%s\".", conf->queue);
@@ -367,7 +367,7 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
       ERROR("amqp plugin: amqp_queue_bind failed: %s",
             camqp_strerror(conf, errbuf, sizeof(errbuf)));
       camqp_close_connection(conf);
-      return (-1);
+      return -1;
     }
 
     DEBUG("amqp plugin: Successfully bound queue \"%s\" to exchange \"%s\".",
@@ -388,10 +388,10 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
     ERROR("amqp plugin: amqp_basic_consume failed: %s",
           camqp_strerror(conf, errbuf, sizeof(errbuf)));
     camqp_close_connection(conf);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int camqp_setup_queue */
 
 static int camqp_connect(camqp_config_t *conf) /* {{{ */
@@ -407,14 +407,14 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 #endif
 
   if (conf->connection != NULL)
-    return (0);
+    return 0;
 
   time_t now = time(NULL);
   if (now < (last_connect_time + conf->connection_retry_delay)) {
     DEBUG("amqp plugin: skipping connection retry, "
           "ConnectionRetryDelay: %d",
           conf->connection_retry_delay);
-    return (1);
+    return 1;
   } else {
     DEBUG("amqp plugin: retrying connection");
     last_connect_time = now;
@@ -423,7 +423,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
   conf->connection = amqp_new_connection();
   if (conf->connection == NULL) {
     ERROR("amqp plugin: amqp_new_connection failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
 #ifdef HAVE_AMQP_TCP_SOCKET
@@ -436,7 +436,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
     ERROR("amqp plugin: amqp_tcp_socket_new failed.");
     amqp_destroy_connection(conf->connection);
     conf->connection = NULL;
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   status = amqp_socket_open(socket, CONF(conf, host), conf->port);
@@ -447,7 +447,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
           sstrerror(status, errbuf, sizeof(errbuf)));
     amqp_destroy_connection(conf->connection);
     conf->connection = NULL;
-    return (status);
+    return status;
   }
 #else /* HAVE_AMQP_TCP_SOCKET */
 #define CLOSE_SOCKET() close(sockfd)
@@ -460,7 +460,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
           sstrerror(status, errbuf, sizeof(errbuf)));
     amqp_destroy_connection(conf->connection);
     conf->connection = NULL;
-    return (status);
+    return status;
   }
   amqp_set_sockfd(conf->connection, sockfd);
 #endif
@@ -477,7 +477,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
     amqp_destroy_connection(conf->connection);
     CLOSE_SOCKET();
     conf->connection = NULL;
-    return (1);
+    return 1;
   }
 
   amqp_channel_open(conf->connection, /* channel = */ 1);
@@ -489,7 +489,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
     amqp_destroy_connection(conf->connection);
     CLOSE_SOCKET();
     conf->connection = NULL;
-    return (1);
+    return 1;
   }
 
   INFO("amqp plugin: Successfully opened connection to vhost \"%s\" "
@@ -498,11 +498,11 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 
   status = camqp_create_exchange(conf);
   if (status != 0)
-    return (status);
+    return status;
 
   if (!conf->publish)
-    return (camqp_setup_queue(conf));
-  return (0);
+    return camqp_setup_queue(conf);
+  return 0;
 } /* }}} int camqp_connect */
 
 static int camqp_shutdown(void) /* {{{ */
@@ -524,7 +524,7 @@ static int camqp_shutdown(void) /* {{{ */
 
   DEBUG("amqp plugin: All subscriber threads exited.");
 
-  return (0);
+  return 0;
 } /* }}} int camqp_shutdown */
 
 /*
@@ -550,17 +550,17 @@ static int camqp_read_body(camqp_config_t *conf, /* {{{ */
       ERROR("amqp plugin: amqp_simple_wait_frame failed: %s",
             sstrerror(status, errbuf, sizeof(errbuf)));
       camqp_close_connection(conf);
-      return (status);
+      return status;
     }
 
     if (frame.frame_type != AMQP_FRAME_BODY) {
       NOTICE("amqp plugin: Unexpected frame type: %#" PRIx8, frame.frame_type);
-      return (-1);
+      return -1;
     }
 
     if ((body_size - received) < frame.payload.body_fragment.len) {
       WARNING("amqp plugin: Body is larger than indicated by header.");
-      return (-1);
+      return -1;
     }
 
     memcpy(body_ptr, frame.payload.body_fragment.bytes,
@@ -573,19 +573,19 @@ static int camqp_read_body(camqp_config_t *conf, /* {{{ */
     status = cmd_handle_putval(stderr, body);
     if (status != 0)
       ERROR("amqp plugin: cmd_handle_putval failed with status %i.", status);
-    return (status);
+    return status;
   } else if (strcasecmp("application/json", content_type) == 0) {
     ERROR("amqp plugin: camqp_read_body: Parsing JSON data has not "
           "been implemented yet. FIXME!");
-    return (0);
+    return 0;
   } else {
     ERROR("amqp plugin: camqp_read_body: Unknown content type \"%s\".",
           content_type);
-    return (EINVAL);
+    return EINVAL;
   }
 
   /* not reached */
-  return (0);
+  return 0;
 } /* }}} int camqp_read_body */
 
 static int camqp_read_header(camqp_config_t *conf) /* {{{ */
@@ -602,26 +602,26 @@ static int camqp_read_header(camqp_config_t *conf) /* {{{ */
     ERROR("amqp plugin: amqp_simple_wait_frame failed: %s",
           sstrerror(status, errbuf, sizeof(errbuf)));
     camqp_close_connection(conf);
-    return (status);
+    return status;
   }
 
   if (frame.frame_type != AMQP_FRAME_HEADER) {
     NOTICE("amqp plugin: Unexpected frame type: %#" PRIx8, frame.frame_type);
-    return (-1);
+    return -1;
   }
 
   properties = frame.payload.properties.decoded;
   content_type = camqp_bytes_cstring(&properties->content_type);
   if (content_type == NULL) {
     ERROR("amqp plugin: Unable to determine content type.");
-    return (-1);
+    return -1;
   }
 
   status = camqp_read_body(conf, (size_t)frame.payload.properties.body_size,
                            content_type);
 
   sfree(content_type);
-  return (status);
+  return status;
 } /* }}} int camqp_read_header */
 
 static void *camqp_subscribe_thread(void *user_data) /* {{{ */
@@ -671,7 +671,7 @@ static void *camqp_subscribe_thread(void *user_data) /* {{{ */
 
   camqp_config_free(conf);
   pthread_exit(NULL);
-  return (NULL);
+  return NULL;
 } /* }}} void *camqp_subscribe_thread */
 
 static int camqp_subscribe_init(camqp_config_t *conf) /* {{{ */
@@ -684,7 +684,7 @@ static int camqp_subscribe_init(camqp_config_t *conf) /* {{{ */
   if (tmp == NULL) {
     ERROR("amqp plugin: realloc failed.");
     sfree(subscriber_threads);
-    return (ENOMEM);
+    return ENOMEM;
   }
   subscriber_threads = tmp;
   tmp = subscriber_threads + subscriber_threads_num;
@@ -696,12 +696,12 @@ static int camqp_subscribe_init(camqp_config_t *conf) /* {{{ */
     char errbuf[1024];
     ERROR("amqp plugin: pthread_create failed: %s",
           sstrerror(status, errbuf, sizeof(errbuf)));
-    return (status);
+    return status;
   }
 
   subscriber_threads_num++;
 
-  return (0);
+  return 0;
 } /* }}} int camqp_subscribe_init */
 
 /*
@@ -714,7 +714,7 @@ static int camqp_write_locked(camqp_config_t *conf, /* {{{ */
 
   status = camqp_connect(conf);
   if (status != 0)
-    return (status);
+    return status;
 
   amqp_basic_properties_t props = {._flags = AMQP_BASIC_CONTENT_TYPE_FLAG |
                                              AMQP_BASIC_DELIVERY_MODE_FLAG |
@@ -742,7 +742,7 @@ static int camqp_write_locked(camqp_config_t *conf, /* {{{ */
     camqp_close_connection(conf);
   }
 
-  return (status);
+  return status;
 } /* }}} int camqp_write_locked */
 
 static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
@@ -753,7 +753,7 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   int status;
 
   if ((ds == NULL) || (vl == NULL) || (conf == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (conf->routing_key != NULL) {
     sstrncpy(routing_key, conf->routing_key, sizeof(routing_key));
@@ -776,7 +776,7 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     status = cmd_create_putval(buffer, sizeof(buffer), ds, vl);
     if (status != 0) {
       ERROR("amqp plugin: cmd_create_putval failed with status %i.", status);
-      return (status);
+      return status;
     }
   } else if (conf->format == CAMQP_FORMAT_JSON) {
     size_t bfree = sizeof(buffer);
@@ -791,18 +791,18 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
                         conf->postfix, conf->escape_char, conf->graphite_flags);
     if (status != 0) {
       ERROR("amqp plugin: format_graphite failed with status %i.", status);
-      return (status);
+      return status;
     }
   } else {
     ERROR("amqp plugin: Invalid format (%i).", conf->format);
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_lock(&conf->lock);
   status = camqp_write_locked(conf, buffer, routing_key);
   pthread_mutex_unlock(&conf->lock);
 
-  return (status);
+  return status;
 } /* }}} int camqp_write */
 
 /*
@@ -816,7 +816,7 @@ static int camqp_config_set_format(oconfig_item_t *ci, /* {{{ */
   string = NULL;
   status = cf_util_get_string(ci, &string);
   if (status != 0)
-    return (status);
+    return status;
 
   assert(string != NULL);
   if (strcasecmp("Command", string) == 0)
@@ -831,7 +831,7 @@ static int camqp_config_set_format(oconfig_item_t *ci, /* {{{ */
 
   free(string);
 
-  return (0);
+  return 0;
 } /* }}} int config_set_string */
 
 static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
@@ -842,7 +842,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   conf = calloc(1, sizeof(*conf));
   if (conf == NULL) {
     ERROR("amqp plugin: calloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   /* Initialize "conf" {{{ */
@@ -879,7 +879,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   status = cf_util_get_string(ci, &conf->name);
   if (status != 0) {
     sfree(conf);
-    return (status);
+    return status;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -901,7 +901,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
       status = cf_util_get_string(child, &conf->password);
     else if (strcasecmp("Exchange", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange);
-    else if ((strcasecmp("ExchangeType", child->key) == 0) && !publish)
+    else if (strcasecmp("ExchangeType", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange_type);
     else if ((strcasecmp("Queue", child->key) == 0) && !publish)
       status = cf_util_get_string(child, &conf->queue);
@@ -970,7 +970,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
 
   if (status != 0) {
     camqp_config_free(conf);
-    return (status);
+    return status;
   }
 
   if (conf->exchange != NULL) {
@@ -988,17 +988,17 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
                              });
     if (status != 0) {
       camqp_config_free(conf);
-      return (status);
+      return status;
     }
   } else {
     status = camqp_subscribe_init(conf);
     if (status != 0) {
       camqp_config_free(conf);
-      return (status);
+      return status;
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int camqp_config_connection */
 
 static int camqp_config(oconfig_item_t *ci) /* {{{ */
@@ -1015,7 +1015,7 @@ static int camqp_config(oconfig_item_t *ci) /* {{{ */
               child->key);
   } /* for (ci->children_num) */
 
-  return (0);
+  return 0;
 } /* }}} int camqp_config */
 
 void module_register(void) {

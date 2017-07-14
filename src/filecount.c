@@ -105,16 +105,16 @@ static int fc_config_set_instance(fc_directory_conf_t *dir, const char *str) {
     /* do nothing */;
 
   if (*ptr == 0)
-    return (-1);
+    return -1;
 
   copy = strdup(ptr);
   if (copy == NULL)
-    return (-1);
+    return -1;
 
   sfree(dir->instance);
   dir->instance = copy;
 
-  return (0);
+  return 0;
 } /* int fc_config_set_instance */
 
 static int fc_config_add_dir_instance(fc_directory_conf_t *dir,
@@ -122,10 +122,10 @@ static int fc_config_add_dir_instance(fc_directory_conf_t *dir,
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("filecount plugin: The `Instance' config option needs exactly "
             "one string argument.");
-    return (-1);
+    return -1;
   }
 
-  return (fc_config_set_instance(dir, ci->values[0].value.string));
+  return fc_config_set_instance(dir, ci->values[0].value.string);
 } /* int fc_config_add_dir_instance */
 
 static int fc_config_add_dir_name(fc_directory_conf_t *dir,
@@ -135,19 +135,19 @@ static int fc_config_add_dir_name(fc_directory_conf_t *dir,
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("filecount plugin: The `Name' config option needs exactly one "
             "string argument.");
-    return (-1);
+    return -1;
   }
 
   temp = strdup(ci->values[0].value.string);
   if (temp == NULL) {
     ERROR("filecount plugin: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   sfree(dir->name);
   dir->name = temp;
 
-  return (0);
+  return 0;
 } /* int fc_config_add_dir_name */
 
 static int fc_config_add_dir_mtime(fc_directory_conf_t *dir,
@@ -159,12 +159,12 @@ static int fc_config_add_dir_mtime(fc_directory_conf_t *dir,
                                 (ci->values[0].type != OCONFIG_TYPE_NUMBER))) {
     WARNING("filecount plugin: The `MTime' config option needs exactly one "
             "string or numeric argument.");
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
     dir->mtime = (int64_t)ci->values[0].value.number;
-    return (0);
+    return 0;
   }
 
   errno = 0;
@@ -174,7 +174,7 @@ static int fc_config_add_dir_mtime(fc_directory_conf_t *dir,
       (endptr == ci->values[0].value.string)) {
     WARNING("filecount plugin: Converting `%s' to a number failed.",
             ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
   switch (*endptr) {
@@ -210,12 +210,12 @@ static int fc_config_add_dir_mtime(fc_directory_conf_t *dir,
 
   default:
     WARNING("filecount plugin: Invalid suffix for `MTime': `%c'", *endptr);
-    return (-1);
+    return -1;
   } /* switch (*endptr) */
 
   dir->mtime = (int64_t)temp;
 
-  return (0);
+  return 0;
 } /* int fc_config_add_dir_mtime */
 
 static int fc_config_add_dir_size(fc_directory_conf_t *dir,
@@ -227,12 +227,12 @@ static int fc_config_add_dir_size(fc_directory_conf_t *dir,
                                 (ci->values[0].type != OCONFIG_TYPE_NUMBER))) {
     WARNING("filecount plugin: The `Size' config option needs exactly one "
             "string or numeric argument.");
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
     dir->size = (int64_t)ci->values[0].value.number;
-    return (0);
+    return 0;
   }
 
   errno = 0;
@@ -242,7 +242,7 @@ static int fc_config_add_dir_size(fc_directory_conf_t *dir,
       (endptr == ci->values[0].value.string)) {
     WARNING("filecount plugin: Converting `%s' to a number failed.",
             ci->values[0].value.string);
-    return (-1);
+    return -1;
   }
 
   switch (*endptr) {
@@ -278,12 +278,12 @@ static int fc_config_add_dir_size(fc_directory_conf_t *dir,
 
   default:
     WARNING("filecount plugin: Invalid suffix for `Size': `%c'", *endptr);
-    return (-1);
+    return -1;
   } /* switch (*endptr) */
 
   dir->size = (int64_t)temp;
 
-  return (0);
+  return 0;
 } /* int fc_config_add_dir_size */
 
 static int fc_config_add_dir_option(fc_directory_conf_t *dir,
@@ -291,7 +291,7 @@ static int fc_config_add_dir_option(fc_directory_conf_t *dir,
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
     WARNING("filecount plugin: The `Recursive' config options needs exactly "
             "one boolean argument.");
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].value.boolean)
@@ -299,7 +299,7 @@ static int fc_config_add_dir_option(fc_directory_conf_t *dir,
   else
     dir->options &= ~bit;
 
-  return (0);
+  return 0;
 } /* int fc_config_add_dir_option */
 
 static int fc_config_add_dir(oconfig_item_t *ci) {
@@ -309,21 +309,21 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("filecount plugin: `Directory' needs exactly one string "
             "argument.");
-    return (-1);
+    return -1;
   }
 
   /* Initialize `dir' */
   dir = calloc(1, sizeof(*dir));
   if (dir == NULL) {
     ERROR("filecount plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   dir->path = strdup(ci->values[0].value.string);
   if (dir->path == NULL) {
     ERROR("filecount plugin: strdup failed.");
     sfree(dir);
-    return (-1);
+    return -1;
   }
 
   fc_config_set_instance(dir, dir->path);
@@ -380,10 +380,10 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
     sfree(dir->instance);
     sfree(dir->path);
     sfree(dir);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int fc_config_add_dir */
 
 static int fc_config(oconfig_item_t *ci) {
@@ -397,16 +397,16 @@ static int fc_config(oconfig_item_t *ci) {
     }
   } /* for (ci->children) */
 
-  return (0);
+  return 0;
 } /* int fc_config */
 
 static int fc_init(void) {
   if (directories_num < 1) {
     WARNING("filecount plugin: No directories have been configured.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int fc_init */
 
 static int fc_read_dir_callback(const char *dirname, const char *filename,
@@ -417,29 +417,29 @@ static int fc_read_dir_callback(const char *dirname, const char *filename,
   int status;
 
   if (dir == NULL)
-    return (-1);
+    return -1;
 
   ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
 
   status = lstat(abs_path, &statbuf);
   if (status != 0) {
     ERROR("filecount plugin: stat (%s) failed.", abs_path);
-    return (-1);
+    return -1;
   }
 
   if (S_ISDIR(statbuf.st_mode) && (dir->options & FC_RECURSIVE)) {
     status = walk_directory(
         abs_path, fc_read_dir_callback, dir,
         /* include hidden = */ (dir->options & FC_HIDDEN) ? 1 : 0);
-    return (status);
+    return status;
   } else if (!S_ISREG(statbuf.st_mode)) {
-    return (0);
+    return 0;
   }
 
   if (dir->name != NULL) {
     status = fnmatch(dir->name, filename, /* flags = */ 0);
     if (status != 0)
-      return (0);
+      return 0;
   }
 
   if (dir->mtime != 0) {
@@ -455,7 +455,7 @@ static int fc_read_dir_callback(const char *dirname, const char *filename,
 
     if (((dir->mtime < 0) && (statbuf.st_mtime < mtime)) ||
         ((dir->mtime > 0) && (statbuf.st_mtime > mtime)))
-      return (0);
+      return 0;
   }
 
   if (dir->size != 0) {
@@ -468,13 +468,13 @@ static int fc_read_dir_callback(const char *dirname, const char *filename,
 
     if (((dir->size < 0) && (statbuf.st_size > size)) ||
         ((dir->size > 0) && (statbuf.st_size < size)))
-      return (0);
+      return 0;
   }
 
   dir->files_num++;
   dir->files_size += (uint64_t)statbuf.st_size;
 
-  return (0);
+  return 0;
 } /* int fc_read_dir_callback */
 
 static int fc_read_dir(fc_directory_conf_t *dir) {
@@ -491,19 +491,19 @@ static int fc_read_dir(fc_directory_conf_t *dir) {
                      /* include hidden */ (dir->options & FC_HIDDEN) ? 1 : 0);
   if (status != 0) {
     WARNING("filecount plugin: walk_directory (%s) failed.", dir->path);
-    return (-1);
+    return -1;
   }
 
   fc_submit_dir(dir);
 
-  return (0);
+  return 0;
 } /* int fc_read_dir */
 
 static int fc_read(void) {
   for (size_t i = 0; i < directories_num; i++)
     fc_read_dir(directories[i]);
 
-  return (0);
+  return 0;
 } /* int fc_read */
 
 void module_register(void) {

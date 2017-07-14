@@ -99,7 +99,7 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
     ERROR("mbmon: getaddrinfo (%s, %s): %s", host, port,
           (ai_return == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                     : gai_strerror(ai_return));
-    return (-1);
+    return -1;
   }
 
   fd = -1;
@@ -132,7 +132,7 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
 
   if (fd < 0) {
     ERROR("mbmon: Could not connect to daemon.");
-    return (-1);
+    return -1;
   }
 
   /* receive data from the mbmon daemon */
@@ -150,7 +150,7 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
       ERROR("mbmon: Error reading from socket: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       close(fd);
-      return (-1);
+      return -1;
     }
     buffer_fill += status;
 
@@ -166,11 +166,11 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
             "Buffer: `%s'",
             buffer);
     close(fd);
-    return (-1);
+    return -1;
   }
 
   close(fd);
-  return (0);
+  return 0;
 }
 
 static int mbmon_config(const char *key, const char *value) {
@@ -183,10 +183,10 @@ static int mbmon_config(const char *key, const char *value) {
       free(mbmon_port);
     mbmon_port = strdup(value);
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void mbmon_submit(const char *type, const char *type_instance,
@@ -214,7 +214,7 @@ static int mbmon_read(void) {
 
   /* get data from daemon */
   if (mbmon_query_daemon(buf, sizeof(buf)) < 0)
-    return (-1);
+    return -1;
 
   s = buf;
   while ((t = strchr(s, ':')) != NULL) {
@@ -254,7 +254,7 @@ static int mbmon_read(void) {
     s = nextc + 1;
   }
 
-  return (0);
+  return 0;
 } /* void mbmon_read */
 
 /* module_register

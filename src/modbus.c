@@ -156,13 +156,13 @@ static mb_data_t *data_definitions = NULL;
 static mb_data_t *data_get_by_name(mb_data_t *src, /* {{{ */
                                    const char *name) {
   if (name == NULL)
-    return (NULL);
+    return NULL;
 
   for (mb_data_t *ptr = src; ptr != NULL; ptr = ptr->next)
     if (strcasecmp(ptr->name, name) == 0)
-      return (ptr);
+      return ptr;
 
-  return (NULL);
+  return NULL;
 } /* }}} mb_data_t *data_get_by_name */
 
 static int data_append(mb_data_t **dst, mb_data_t *src) /* {{{ */
@@ -170,13 +170,13 @@ static int data_append(mb_data_t **dst, mb_data_t *src) /* {{{ */
   mb_data_t *ptr;
 
   if ((dst == NULL) || (src == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   ptr = *dst;
 
   if (ptr == NULL) {
     *dst = src;
-    return (0);
+    return 0;
   }
 
   while (ptr->next != NULL)
@@ -184,7 +184,7 @@ static int data_append(mb_data_t **dst, mb_data_t *src) /* {{{ */
 
   ptr->next = src;
 
-  return (0);
+  return 0;
 } /* }}} int data_append */
 
 /* Copy a single mb_data_t and append it to another list. */
@@ -194,11 +194,11 @@ static int data_copy(mb_data_t **dst, const mb_data_t *src) /* {{{ */
   int status;
 
   if ((dst == NULL) || (src == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   tmp = malloc(sizeof(*tmp));
   if (tmp == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   memcpy(tmp, src, sizeof(*tmp));
   tmp->name = NULL;
   tmp->next = NULL;
@@ -206,17 +206,17 @@ static int data_copy(mb_data_t **dst, const mb_data_t *src) /* {{{ */
   tmp->name = strdup(src->name);
   if (tmp->name == NULL) {
     sfree(tmp);
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   status = data_append(dst, tmp);
   if (status != 0) {
     sfree(tmp->name);
     sfree(tmp);
-    return (status);
+    return status;
   }
 
-  return (0);
+  return 0;
 } /* }}} int data_copy */
 
 /* Lookup a single mb_data_t instance, copy it and append the copy to another
@@ -226,13 +226,13 @@ static int data_copy_by_name(mb_data_t **dst, mb_data_t *src, /* {{{ */
   mb_data_t *ptr;
 
   if ((dst == NULL) || (src == NULL) || (name == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   ptr = data_get_by_name(src, name);
   if (ptr == NULL)
-    return (ENOENT);
+    return ENOENT;
 
-  return (data_copy(dst, ptr));
+  return data_copy(dst, ptr);
 } /* }}} int data_copy_by_name */
 
 /* Read functions */
@@ -242,7 +242,7 @@ static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   value_list_t vl = VALUE_LIST_INIT;
 
   if ((host == NULL) || (slave == NULL) || (data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   if (host->interval == 0)
     host->interval = plugin_get_interval();
@@ -259,7 +259,7 @@ static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   sstrncpy(vl.type, data->type, sizeof(vl.type));
   sstrncpy(vl.type_instance, data->instance, sizeof(vl.type_instance));
 
-  return (plugin_dispatch_values(&vl));
+  return plugin_dispatch_values(&vl);
 } /* }}} int mb_submit */
 
 static float mb_register_to_float(uint16_t hi, uint16_t lo) /* {{{ */
@@ -283,7 +283,7 @@ static float mb_register_to_float(uint16_t hi, uint16_t lo) /* {{{ */
   conv.b[0] = (hi >> 8) & 0x00ff;
 #endif
 
-  return (conv.f);
+  return conv.f;
 } /* }}} float mb_register_to_float */
 
 #if LEGACY_LIBMODBUS
@@ -293,7 +293,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   int status;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
 #if COLLECT_DEBUG
   modbus_set_debug(&host->connection, 1);
@@ -325,11 +325,11 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   if (status != 0) {
     ERROR("Modbus plugin: modbus_connect (%s, %i) failed with status %i.",
           host->node, host->port ? host->port : host->baudrate, status);
-    return (status);
+    return status;
   }
 
   host->is_connected = 1;
-  return (0);
+  return 0;
 } /* }}} int mb_init_connection */
 /* #endif LEGACY_LIBMODBUS */
 
@@ -340,10 +340,10 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   int status;
 
   if (host == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (host->connection != NULL)
-    return (0);
+    return 0;
 
   if (host->conntype == MBCONN_TCP) {
     if ((host->port < 1) || (host->port > 65535))
@@ -355,7 +355,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
     host->connection = modbus_new_tcp(host->node, host->port);
     if (host->connection == NULL) {
       ERROR("Modbus plugin: Creating new Modbus/TCP object failed.");
-      return (-1);
+      return -1;
     }
   } else {
     DEBUG("Modbus plugin: Trying to connect to \"%s\", baudrate %i.",
@@ -364,7 +364,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
     host->connection = modbus_new_rtu(host->node, host->baudrate, 'N', 8, 1);
     if (host->connection == NULL) {
       ERROR("Modbus plugin: Creating new Modbus/RTU object failed.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -381,10 +381,10 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
           host->node, host->port ? host->port : host->baudrate, status);
     modbus_free(host->connection);
     host->connection = NULL;
-    return (status);
+    return status;
   }
 
-  return (0);
+  return 0;
 } /* }}} int mb_init_connection */
 #endif /* !LEGACY_LIBMODBUS */
 
@@ -408,19 +408,19 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   int status = 0;
 
   if ((host == NULL) || (slave == NULL) || (data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   ds = plugin_get_ds(data->type);
   if (ds == NULL) {
     ERROR("Modbus plugin: Type \"%s\" is not defined.", data->type);
-    return (-1);
+    return -1;
   }
 
   if (ds->ds_num != 1) {
     ERROR("Modbus plugin: The type \"%s\" has %zu data sources. "
           "I can only handle data sets with only one data source.",
           data->type, ds->ds_num);
-    return (-1);
+    return -1;
   }
 
   if ((ds->ds[0].type != DS_TYPE_GAUGE) &&
@@ -458,7 +458,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
             host->node);
       host->is_connected = 0;
       host->connection = NULL;
-      return (-1);
+      return -1;
     }
   } else if (status != 0) {
 #if LEGACY_LIBMODBUS
@@ -480,7 +480,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   if (status != 0) {
     ERROR("Modbus plugin: modbus_set_slave (%i) failed with status %i.",
           slave->id, status);
-    return (-1);
+    return -1;
   }
 #endif
   if (data->modbus_register_type == MREG_INPUT) {
@@ -505,7 +505,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     modbus_free(host->connection);
 #endif
     host->connection = NULL;
-    return (-1);
+    return -1;
   }
 
   DEBUG("Modbus plugin: mb_read_data: Success! "
@@ -575,7 +575,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     mb_submit(host, slave, data, vt);
   }
 
-  return (0);
+  return 0;
 } /* }}} int mb_read_data */
 
 static int mb_read_slave(mb_host_t *host, mb_slave_t *slave) /* {{{ */
@@ -584,7 +584,7 @@ static int mb_read_slave(mb_host_t *host, mb_slave_t *slave) /* {{{ */
   int status;
 
   if ((host == NULL) || (slave == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   success = 0;
   for (mb_data_t *data = slave->collect; data != NULL; data = data->next) {
@@ -594,9 +594,9 @@ static int mb_read_slave(mb_host_t *host, mb_slave_t *slave) /* {{{ */
   }
 
   if (success == 0)
-    return (-1);
+    return -1;
   else
-    return (0);
+    return 0;
 } /* }}} int mb_read_slave */
 
 static int mb_read(user_data_t *user_data) /* {{{ */
@@ -606,7 +606,7 @@ static int mb_read(user_data_t *user_data) /* {{{ */
   int status;
 
   if ((user_data == NULL) || (user_data->data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   host = user_data->data;
 
@@ -618,9 +618,9 @@ static int mb_read(user_data_t *user_data) /* {{{ */
   }
 
   if (success == 0)
-    return (-1);
+    return -1;
   else
-    return (0);
+    return 0;
 } /* }}} int mb_read */
 
 /* Free functions */
@@ -681,7 +681,7 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_string(ci, &data.name);
   if (status != 0)
-    return (status);
+    return status;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -752,7 +752,7 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
 
   sfree(data.name);
 
-  return (status);
+  return status;
 } /* }}} int mb_config_add_data */
 
 static int mb_config_set_host_address(mb_host_t *host, /* {{{ */
@@ -761,7 +761,7 @@ static int mb_config_set_host_address(mb_host_t *host, /* {{{ */
   int status;
 
   if ((host == NULL) || (address == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   struct addrinfo ai_hints = {
       /* XXX: libmodbus can only handle IPv4 addresses. */
@@ -774,7 +774,7 @@ static int mb_config_set_host_address(mb_host_t *host, /* {{{ */
     ERROR("Modbus plugin: getaddrinfo failed: %s",
           (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                  : gai_strerror(status));
-    return (status);
+    return status;
   }
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -797,7 +797,7 @@ static int mb_config_set_host_address(mb_host_t *host, /* {{{ */
           host->node);
   }
 
-  return (status);
+  return status;
 } /* }}} int mb_config_set_host_address */
 
 static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
@@ -806,11 +806,11 @@ static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
   int status;
 
   if ((host == NULL) || (ci == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   slave = realloc(host->slaves, sizeof(*slave) * (host->slaves_num + 1));
   if (slave == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   host->slaves = slave;
   slave = host->slaves + host->slaves_num;
   memset(slave, 0, sizeof(*slave));
@@ -818,7 +818,7 @@ static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
 
   status = cf_util_get_int(ci, &slave->id);
   if (status != 0)
-    return (status);
+    return status;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -852,7 +852,7 @@ static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
   else /* if (status != 0) */
     data_free_all(slave->collect);
 
-  return (status);
+  return status;
 } /* }}} int mb_config_add_slave */
 
 static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
@@ -862,17 +862,17 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
 
   host = calloc(1, sizeof(*host));
   if (host == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   host->slaves = NULL;
 
   status = cf_util_get_string_buffer(ci, host->host, sizeof(host->host));
   if (status != 0) {
     sfree(host);
-    return (status);
+    return status;
   }
   if (host->host[0] == 0) {
     sfree(host);
-    return (EINVAL);
+    return EINVAL;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -946,13 +946,13 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
     host_free(host);
   }
 
-  return (status);
+  return status;
 } /* }}} int mb_config_add_host */
 
 static int mb_config(oconfig_item_t *ci) /* {{{ */
 {
   if (ci == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -965,7 +965,7 @@ static int mb_config(oconfig_item_t *ci) /* {{{ */
       ERROR("Modbus plugin: Unknown configuration option: %s", child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int mb_config */
 
 /* ========= */
@@ -975,7 +975,7 @@ static int mb_shutdown(void) /* {{{ */
   data_free_all(data_definitions);
   data_definitions = NULL;
 
-  return (0);
+  return 0;
 } /* }}} int mb_shutdown */
 
 void module_register(void) {

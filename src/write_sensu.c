@@ -132,7 +132,7 @@ static int add_str_to_list(struct str_list *strs,
     ERROR("write_sensu plugin: Unable to alloc memory");
     return -1;
   }
-  strs->strs = realloc(strs->strs, sizeof(char *) * (strs->nb_strs + 1));
+  strs->strs = realloc(strs->strs, strs->nb_strs + 1);
   if (strs->strs == NULL) {
     strs->strs = old_strs_ptr;
     free(newstr);
@@ -231,7 +231,7 @@ static char *build_json_str_list(const char *tag,
   char *ret_str = NULL;
   char *temp_str;
   if (list->nb_strs == 0) {
-    ret_str = malloc(sizeof(char));
+    ret_str = malloc(1);
     if (ret_str == NULL) {
       ERROR("write_sensu plugin: Unable to alloc memory");
       return NULL;
@@ -278,7 +278,7 @@ static int sensu_format_name2(char *ret, int ret_len, const char *hostname,
   do {                                                                         \
     size_t l = strlen(str);                                                    \
     if (l >= buffer_size)                                                      \
-      return (ENOBUFS);                                                        \
+      return ENOBUFS;                                                          \
     memcpy(buffer, (str), l);                                                  \
     buffer += l;                                                               \
     buffer_size -= l;                                                          \
@@ -304,7 +304,7 @@ static int sensu_format_name2(char *ret, int ret_len, const char *hostname,
   buffer[0] = 0;
 
 #undef APPEND
-  return (0);
+  return 0;
 } /* int sensu_format_name2 */
 
 static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */

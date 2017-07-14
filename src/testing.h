@@ -71,7 +71,7 @@ static int check_count__ = 0;
     if (strcmp(expect, got__) != 0) {                                          \
       printf("not ok %i - %s = \"%s\", want \"%s\"\n", ++check_count__,        \
              #actual, got__, expect);                                          \
-      return (-1);                                                             \
+      return -1;                                                               \
     }                                                                          \
     printf("ok %i - %s = \"%s\"\n", ++check_count__, #actual, got__);          \
   } while (0)
@@ -83,7 +83,7 @@ static int check_count__ = 0;
     if (got__ != want__) {                                                     \
       printf("not ok %i - %s = %d, want %d\n", ++check_count__, #actual,       \
              got__, want__);                                                   \
-      return (-1);                                                             \
+      return -1;                                                               \
     }                                                                          \
     printf("ok %i - %s = %d\n", ++check_count__, #actual, got__);              \
   } while (0)
@@ -95,7 +95,7 @@ static int check_count__ = 0;
     if (got__ != want__) {                                                     \
       printf("not ok %i - %s = %" PRIu64 ", want %" PRIu64 "\n",               \
              ++check_count__, #actual, got__, want__);                         \
-      return (-1);                                                             \
+      return -1;                                                               \
     }                                                                          \
     printf("ok %i - %s = %" PRIu64 "\n", ++check_count__, #actual, got__);     \
   } while (0)
@@ -104,15 +104,16 @@ static int check_count__ = 0;
   do {                                                                         \
     double want__ = (double)expect;                                            \
     double got__ = (double)actual;                                             \
-    if (isnan(want__) && !isnan(got__)) {                                      \
+    if ((isnan(want__) && !isnan(got__)) ||                                    \
+        (!isnan(want__) && isnan(got__))) {                                    \
       printf("not ok %i - %s = %.15g, want %.15g\n", ++check_count__, #actual, \
              got__, want__);                                                   \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else if (!isnan(want__) && (((want__ - got__) < -DBL_PRECISION) ||       \
                                   ((want__ - got__) > DBL_PRECISION))) {       \
       printf("not ok %i - %s = %.15g, want %.15g\n", ++check_count__, #actual, \
              got__, want__);                                                   \
-      return (-1);                                                             \
+      return -1;                                                               \
     }                                                                          \
     printf("ok %i - %s = %.15g\n", ++check_count__, #actual, got__);           \
   } while (0)

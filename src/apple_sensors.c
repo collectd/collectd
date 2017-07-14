@@ -65,10 +65,10 @@ static int as_init(void) {
   if (status != kIOReturnSuccess) {
     ERROR("IOMasterPort failed: %s", mach_error_string(status));
     io_master_port = MACH_PORT_NULL;
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void as_submit(const char *type, const char *type_instance, double val) {
@@ -95,13 +95,13 @@ static int as_read(void) {
   int value_int;
   double value_double;
   if (!io_master_port || (io_master_port == MACH_PORT_NULL))
-    return (-1);
+    return -1;
 
   status = IOServiceGetMatchingServices(
       io_master_port, IOServiceNameMatching("IOHWSensor"), &iterator);
   if (status != kIOReturnSuccess) {
     ERROR("IOServiceGetMatchingServices failed: %s", mach_error_string(status));
-    return (-1);
+    return -1;
   }
 
   while ((io_obj = IOIteratorNext(iterator))) {
@@ -184,7 +184,7 @@ static int as_read(void) {
 
   IOObjectRelease(iterator);
 
-  return (0);
+  return 0;
 } /* int as_read */
 
 void module_register(void) {

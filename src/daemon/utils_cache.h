@@ -42,6 +42,8 @@ int uc_update(const data_set_t *ds, const value_list_t *vl);
 int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
                         size_t *ret_values_num);
 gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl);
+int uc_get_value_by_name(const char *name, value_t **ret_values, size_t *ret_values_num);
+value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl);
 
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
