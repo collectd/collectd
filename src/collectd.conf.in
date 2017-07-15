@@ -1023,19 +1023,23 @@
 #</Plugin>
 
 #<Plugin ovs_events>
-#  Port "6640"
-#  Address "127.0.0.1"
-#  Socket "/var/run/openvswitch/db.sock"
-#  Interfaces "br0" "veth0"
+#  <Instance hostname>
+#    Port "6640"
+#    Address "127.0.0.1"
+#    Socket "/var/run/openvswitch/db.sock"
+#    Interfaces "br0" "veth0"
+#    DispatchValues false
+#  </Instance>
 #  SendNotification true
-#  DispatchValues false
 #</Plugin>
 
 #<Plugin ovs_stats>
-#  Port "6640"
-#  Address "127.0.0.1"
-#  Socket "/var/run/openvswitch/db.sock"
-#  Bridges "br0" "br_ext"
+#  <Instance hostname>
+#    Port "6640"
+#    Address "127.0.0.1"
+#    Socket "/var/run/openvswitch/db.sock"
+#    Bridges "br0" "br_ext"
+#  </Instance>
 #</Plugin>
 
 #<Plugin perl>
