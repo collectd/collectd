@@ -656,7 +656,7 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
 static int rdt_init(void) {
   int ret;
 
-  if(g_state == CONFIGURATION_ERROR)
+  if (g_state == CONFIGURATION_ERROR)
     return -1;
 
   ret = rdt_preinit();
