@@ -437,7 +437,7 @@ static void sensors_submit(const char *plugin_instance, const char *type,
   value_list_t vl = VALUE_LIST_INIT;
 
   status = snprintf(match_key, sizeof(match_key), "%s/%s-%s", plugin_instance,
-                     type, type_instance);
+                    type, type_instance);
   if (status < 1)
     return;
 

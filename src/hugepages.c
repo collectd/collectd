@@ -88,10 +88,10 @@ static void submit_hp(const struct entry_info *info) {
   sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));
   if (info->node) {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%zuKb",
-              info->node, info->page_size_kb);
+             info->node, info->page_size_kb);
   } else {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%zuKb",
-              info->page_size_kb);
+             info->page_size_kb);
   }
 
   /* ensure all metrics have the same timestamp */

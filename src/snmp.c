@@ -130,8 +130,7 @@ static void csnmp_oid_init(oid_t *dst, oid const *src, size_t n) {
 }
 
 static int csnmp_oid_compare(oid_t const *left, oid_t const *right) {
-  return snmp_oid_compare(left->oid, left->oid_len, right->oid,
-                          right->oid_len);
+  return snmp_oid_compare(left->oid, left->oid_len, right->oid, right->oid_len);
 }
 
 static int csnmp_oid_suffix(oid_t *dst, oid_t const *src, oid_t const *root) {
@@ -998,9 +997,9 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
     src = (char *)vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS) {
     return snprintf(dst, dst_size,
-                     "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
-                     (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
-                     (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
+                    "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
+                    (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
+                    (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
     return EINVAL;
@@ -1223,7 +1222,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
         sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
       else
         snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                  data->instance_prefix, temp);
+                 data->instance_prefix, temp);
     }
 
     vl.values_len = data->values_len;

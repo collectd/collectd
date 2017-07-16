@@ -191,7 +191,7 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
     }
 
     snprintf(cb->credentials, credentials_size, "%s:%s", cb->user,
-              (cb->pass == NULL) ? "" : cb->pass);
+             (cb->pass == NULL) ? "" : cb->pass);
     curl_easy_setopt(cb->curl, CURLOPT_USERPWD, cb->credentials);
 #endif
     curl_easy_setopt(cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
@@ -370,8 +370,8 @@ static int wh_write_command(const data_set_t *ds,
   }
 
   command_len = (size_t)snprintf(command, sizeof(command),
-                                  "PUTVAL %s interval=%.3f %s\r\n", key,
-                                  CDTIME_T_TO_DOUBLE(vl->interval), values);
+                                 "PUTVAL %s interval=%.3f %s\r\n", key,
+                                 CDTIME_T_TO_DOUBLE(vl->interval), values);
   if (command_len >= sizeof(command)) {
     ERROR("write_http plugin: Command buffer too small: "
           "Need %zu bytes.",

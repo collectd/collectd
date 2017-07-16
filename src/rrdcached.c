@@ -89,16 +89,16 @@ static int value_list_to_string(char *buffer, int buffer_len,
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
       status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
-                         vl->values[i].counter);
+                        vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
       status = snprintf(buffer + offset, buffer_len - offset, ":%f",
-                         vl->values[i].gauge);
+                        vl->values[i].gauge);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
       status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
-                         vl->values[i].derive);
+                        vl->values[i].derive);
     } else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
       status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                         vl->values[i].absolute);
+                        vl->values[i].absolute);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))

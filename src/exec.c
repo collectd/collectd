@@ -187,8 +187,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
       pl->argv[i] = strdup(ci->values[i + 1].value.string);
     } else {
       if (ci->values[i + 1].type == OCONFIG_TYPE_NUMBER) {
-        snprintf(buffer, sizeof(buffer), "%lf",
-                  ci->values[i + 1].value.number);
+        snprintf(buffer, sizeof(buffer), "%lf", ci->values[i + 1].value.number);
       } else {
         if (ci->values[i + 1].value.boolean)
           sstrncpy(buffer, "true", sizeof(buffer));
@@ -247,14 +246,14 @@ static void set_environment(void) /* {{{ */
 
 #ifdef HAVE_SETENV
   snprintf(buffer, sizeof(buffer), "%.3f",
-            CDTIME_T_TO_DOUBLE(plugin_get_interval()));
+           CDTIME_T_TO_DOUBLE(plugin_get_interval()));
   setenv("COLLECTD_INTERVAL", buffer, /* overwrite = */ 1);
 
   sstrncpy(buffer, hostname_g, sizeof(buffer));
   setenv("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
 #else
   snprintf(buffer, sizeof(buffer), "COLLECTD_INTERVAL=%.3f",
-            CDTIME_T_TO_DOUBLE(plugin_get_interval()));
+           CDTIME_T_TO_DOUBLE(plugin_get_interval()));
   putenv(buffer);
 
   snprintf(buffer, sizeof(buffer), "COLLECTD_HOSTNAME=%s", hostname_g);

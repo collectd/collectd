@@ -358,7 +358,7 @@ static void nfs_submit_fields(int nfs_version, const char *instance,
   value_t values[fields_num];
 
   snprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
-            instance);
+           instance);
 
   for (size_t i = 0; i < fields_num; i++)
     (void)parse_value(fields[i], &values[i], DS_TYPE_DERIVE);
@@ -524,7 +524,7 @@ static int nfs_read_kstat(kstat_t *ksp, int nfs_version, const char *inst,
     return EINVAL;
 
   snprintf(plugin_instance, sizeof(plugin_instance), "v%i%s", nfs_version,
-            inst);
+           inst);
 
   kstat_read(kc, ksp, NULL);
   for (size_t i = 0; i < proc_names_num; i++) {

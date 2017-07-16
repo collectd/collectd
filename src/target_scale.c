@@ -57,11 +57,11 @@ static int ts_invoke_counter(const data_set_t *ds, value_list_t *vl, /* {{{ */
   curr_counter = (uint64_t)vl->values[dsrc_index].counter;
 
   snprintf(key_prev_counter, sizeof(key_prev_counter),
-            "target_scale[%p,%i]:prev_counter", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:prev_counter", (void *)data, dsrc_index);
   snprintf(key_int_counter, sizeof(key_int_counter),
-            "target_scale[%p,%i]:int_counter", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:int_counter", (void *)data, dsrc_index);
   snprintf(key_int_fraction, sizeof(key_int_fraction),
-            "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
 
   prev_counter = curr_counter;
   int_counter = 0;
@@ -150,11 +150,11 @@ static int ts_invoke_derive(const data_set_t *ds, value_list_t *vl, /* {{{ */
   curr_derive = (int64_t)vl->values[dsrc_index].derive;
 
   snprintf(key_prev_derive, sizeof(key_prev_derive),
-            "target_scale[%p,%i]:prev_derive", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:prev_derive", (void *)data, dsrc_index);
   snprintf(key_int_derive, sizeof(key_int_derive),
-            "target_scale[%p,%i]:int_derive", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:int_derive", (void *)data, dsrc_index);
   snprintf(key_int_fraction, sizeof(key_int_fraction),
-            "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
 
   prev_derive = curr_derive;
   int_derive = 0;
@@ -233,7 +233,7 @@ static int ts_invoke_absolute(const data_set_t *ds, value_list_t *vl, /* {{{ */
   curr_absolute = (uint64_t)vl->values[dsrc_index].absolute;
 
   snprintf(key_int_fraction, sizeof(key_int_fraction),
-            "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
+           "target_scale[%p,%i]:int_fraction", (void *)data, dsrc_index);
 
   int_fraction = 0.0;
 

@@ -601,7 +601,7 @@ static int cj_init_curl(cj_t *db) /* {{{ */
     }
 
     snprintf(db->credentials, credentials_size, "%s:%s", db->user,
-              (db->pass == NULL) ? "" : db->pass);
+             (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt(db->curl, CURLOPT_USERPWD, db->credentials);
 #endif
 
@@ -801,7 +801,7 @@ static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
     int len = 0;
     for (int i = 0; i < db->depth; i++)
       len += snprintf(vl.type_instance + len, sizeof(vl.type_instance) - len,
-                       i ? "-%s" : "%s", db->state[i + 1].name);
+                      i ? "-%s" : "%s", db->state[i + 1].name);
   } else
     sstrncpy(vl.type_instance, key->instance, sizeof(vl.type_instance));
 

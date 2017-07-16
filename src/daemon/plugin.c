@@ -401,12 +401,12 @@ static int plugin_load_file(const char *file, _Bool global) {
     char errbuf[1024] = "";
 
     snprintf(errbuf, sizeof(errbuf),
-              "dlopen (\"%s\") failed: %s. "
-              "The most common cause for this problem is "
-              "missing dependencies. Use ldd(1) to check "
-              "the dependencies of the plugin "
-              "/ shared object.",
-              file, dlerror());
+             "dlopen (\"%s\") failed: %s. "
+             "The most common cause for this problem is "
+             "missing dependencies. Use ldd(1) to check "
+             "the dependencies of the plugin "
+             "/ shared object.",
+             file, dlerror());
 
     ERROR("%s", errbuf);
     /* Make sure this is printed to STDERR in any case, but also

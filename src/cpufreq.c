@@ -35,9 +35,9 @@ static int cpufreq_init(void) {
 
   while (1) {
     status = snprintf(filename, sizeof(filename),
-                       "/sys/devices/system/cpu/cpu%d/cpufreq/"
-                       "scaling_cur_freq",
-                       num_cpu);
+                      "/sys/devices/system/cpu/cpu%d/cpufreq/"
+                      "scaling_cur_freq",
+                      num_cpu);
     if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
       break;
 
@@ -71,7 +71,7 @@ static int cpufreq_read(void) {
   for (int i = 0; i < num_cpu; i++) {
     char filename[PATH_MAX];
     snprintf(filename, sizeof(filename),
-              "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
 
     value_t v;
     if (parse_value_file(filename, &v, DS_TYPE_GAUGE) != 0) {

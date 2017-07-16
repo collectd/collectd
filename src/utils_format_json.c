@@ -95,7 +95,7 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
     int status;                                                                \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
       return -1;                                                               \
@@ -159,7 +159,7 @@ static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
     int status;                                                                \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1)                                                            \
       return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
@@ -193,7 +193,7 @@ static int dsnames_to_json(char *buffer, size_t buffer_size, /* {{{ */
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
     int status;                                                                \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1)                                                            \
       return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
@@ -228,7 +228,7 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1)                                                            \
       return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
@@ -318,7 +318,7 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1)                                                            \
       return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
@@ -577,11 +577,12 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   }
 
   JSON_ADD(g, "severity");
-  JSON_ADD(g, (n->severity == NOTIF_FAILURE)
-                  ? "FAILURE"
-                  : (n->severity == NOTIF_WARNING)
-                        ? "WARNING"
-                        : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN");
+  JSON_ADD(g,
+           (n->severity == NOTIF_FAILURE)
+               ? "FAILURE"
+               : (n->severity == NOTIF_WARNING)
+                     ? "WARNING"
+                     : (n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN");
 
   JSON_ADD(g, "service");
   JSON_ADD(g, "collectd");

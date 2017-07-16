@@ -142,9 +142,9 @@ static int nagios_notify(const notification_t *n, /* {{{ */
   }
 
   snprintf(buffer, sizeof(buffer),
-            "[%.0f] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n",
-            CDTIME_T_TO_DOUBLE(n->time), n->host, &svc_description[1], code,
-            n->message);
+           "[%.0f] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n",
+           CDTIME_T_TO_DOUBLE(n->time), n->host, &svc_description[1], code,
+           n->message);
 
   return nagios_print(buffer);
 } /* }}} int nagios_notify */

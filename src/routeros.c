@@ -89,8 +89,7 @@ static void submit_interface(cr_data_t *rd, /* {{{ */
 
 static int handle_interface(__attribute__((unused))
                             ros_connection_t *c, /* {{{ */
-                            const ros_interface_t *i,
-                            void *user_data) {
+                            const ros_interface_t *i, void *user_data) {
   if ((i == NULL) || (user_data == NULL))
     return EINVAL;
 
@@ -143,7 +142,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** RX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
-            r->radio_name);
+           r->radio_name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -152,7 +151,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
-            r->radio_name);
+           r->radio_name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -161,7 +160,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** RX / TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
-            r->radio_name);
+           r->radio_name);
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
   cr_submit_gauge(rd, "snr", type_instance, (gauge_t)r->signal_to_noise);
@@ -171,8 +170,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
 static int handle_regtable(__attribute__((unused))
                            ros_connection_t *c, /* {{{ */
-                           const ros_registration_table_t *r,
-                           void *user_data) {
+                           const ros_registration_table_t *r, void *user_data) {
   if ((r == NULL) || (user_data == NULL))
     return EINVAL;
 

@@ -177,7 +177,7 @@ static int logfile_notification(const notification_t *n,
 
 #define APPEND(bufptr, buflen, key, value)                                     \
   if ((buflen > 0) && (strlen(value) > 0)) {                                   \
-    status = snprintf(bufptr, buflen, ", %s = %s", key, value);               \
+    status = snprintf(bufptr, buflen, ", %s = %s", key, value);                \
     if (status > 0) {                                                          \
       bufptr += status;                                                        \
       buflen -= status;                                                        \

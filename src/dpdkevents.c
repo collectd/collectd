@@ -232,7 +232,7 @@ static int dpdk_events_link_status_config(dpdk_events_ctx_t *ec,
       while (!(ec->config.link_status.enabled_port_mask & (1 << port_num)))
         port_num++;
       snprintf(ec->config.link_status.port_name[port_num], DATA_MAX_NAME_LEN,
-                "%s", child->values[0].value.string);
+               "%s", child->values[0].value.string);
       DEBUG(DPDK_EVENTS_PLUGIN ": LinkStatus:Port %d Name: %s", port_num,
             ec->config.link_status.port_name[port_num]);
       port_num++;
@@ -257,7 +257,7 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
     } else if (strcasecmp("LCoreMask", child->key) == 0) {
       char lcore_mask[DATA_MAX_NAME_LEN];
       snprintf(lcore_mask, sizeof(lcore_mask), "%s",
-                child->values[0].value.string);
+               child->values[0].value.string);
       ec->config.keep_alive.lcore_mask =
           str_to_uint128(lcore_mask, strlen(lcore_mask));
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:LCoreMask 0x%" PRIX64 "%" PRIX64 "",
@@ -265,8 +265,8 @@ static int dpdk_events_keep_alive_config(dpdk_events_ctx_t *ec,
             ec->config.keep_alive.lcore_mask.low);
     } else if (strcasecmp("KeepAliveShmName", child->key) == 0) {
       snprintf(ec->config.keep_alive.shm_name,
-                sizeof(ec->config.keep_alive.shm_name), "%s",
-                child->values[0].value.string);
+               sizeof(ec->config.keep_alive.shm_name), "%s",
+               child->values[0].value.string);
       DEBUG(DPDK_EVENTS_PLUGIN ": KeepAlive:KeepAliveShmName %s",
             ec->config.keep_alive.shm_name);
     } else if (strcasecmp("SendNotification", child->key) == 0) {
@@ -406,7 +406,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
         char dev_name[DATA_MAX_NAME_LEN];
         if (ec->config.link_status.port_name[i][0] != 0) {
           snprintf(dev_name, sizeof(dev_name), "%s",
-                    ec->config.link_status.port_name[i]);
+                   ec->config.link_status.port_name[i]);
         } else {
           snprintf(dev_name, sizeof(dev_name), "port.%d", i);
         }
@@ -415,7 +415,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
           int sev = ec->link_info[i].link_status ? NOTIF_OKAY : NOTIF_WARNING;
           char msg[DATA_MAX_NAME_LEN];
           snprintf(msg, sizeof(msg), "Link Status: %s",
-                    ec->link_info[i].link_status ? "UP" : "DOWN");
+                   ec->link_info[i].link_status ? "UP" : "DOWN");
           dpdk_events_notification_dispatch(sev, dev_name,
                                             ec->link_info[i].read_time, msg);
         } else {

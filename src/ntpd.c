@@ -783,7 +783,7 @@ static int ntpd_get_name_refclock(char *buffer, size_t buffer_size,
 
   if (include_unit_id)
     snprintf(buffer, buffer_size, "%s-%" PRIu32, refclock_names[refclock_id],
-              unit_id);
+             unit_id);
   else
     sstrncpy(buffer, refclock_names[refclock_id], buffer_size);
 

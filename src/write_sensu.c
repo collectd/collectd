@@ -421,7 +421,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL)) {
     char ds_type[DATA_MAX_NAME_LEN];
     snprintf(ds_type, sizeof(ds_type), "%s:rate",
-              DS_TYPE_TO_STRING(ds->ds[index].type));
+             DS_TYPE_TO_STRING(ds->ds[index].type));
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_type\": \"%s\"",
                       ret_str, ds_type);
     free(ret_str);
@@ -535,16 +535,16 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   if (host->always_append_ds || (ds->ds_num > 1)) {
     if (host->event_service_prefix == NULL)
       snprintf(service_buffer, sizeof(service_buffer), "%s.%s", name_buffer,
-                ds->ds[index].name);
+               ds->ds[index].name);
     else
       snprintf(service_buffer, sizeof(service_buffer), "%s%s.%s",
-                host->event_service_prefix, name_buffer, ds->ds[index].name);
+               host->event_service_prefix, name_buffer, ds->ds[index].name);
   } else {
     if (host->event_service_prefix == NULL)
       sstrncpy(service_buffer, name_buffer, sizeof(service_buffer));
     else
       snprintf(service_buffer, sizeof(service_buffer), "%s%s",
-                host->event_service_prefix, name_buffer);
+               host->event_service_prefix, name_buffer);
   }
 
   // Replace collectd sensor name reserved characters so that time series DB is

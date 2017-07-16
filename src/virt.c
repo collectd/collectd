@@ -753,7 +753,7 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
 
   char flush_type_instance[DATA_MAX_NAME_LEN];
   snprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
-            type_instance);
+           type_instance);
 
   if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
     submit_derive2("disk_ops", (derive_t)binfo->bi.rd_req,
@@ -829,7 +829,7 @@ static void domain_state_submit(virDomainPtr dom, int state, int reason) {
 #endif
 
   snprintf(msg, sizeof(msg), "Domain state: %s. Reason: %s", state_str,
-            reason_str);
+           reason_str);
 
   int severity;
   switch (state) {
@@ -1180,8 +1180,7 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
     char type_instance[DATA_MAX_NAME_LEN];
     _Bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu) ? 1 : 0;
 
-    snprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu,
-              cpu);
+    snprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu, cpu);
     submit(dom, "cpu_affinity", type_instance, &(value_t){.gauge = is_set}, 1);
   }
 }
@@ -1722,7 +1721,7 @@ static int lv_domain_get_tag(xmlXPathContextPtr xpath_ctx, const char *dom_name,
   }
 
   snprintf(xpath_str, sizeof(xpath_str), "/domain/metadata/%s:%s/text()",
-            METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_ELEMENT);
+           METADATA_VM_PARTITION_PREFIX, METADATA_VM_PARTITION_ELEMENT);
   xpath_obj = xmlXPathEvalExpression((xmlChar *)xpath_str, xpath_ctx);
   if (xpath_obj == NULL) {
     ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed on domain %s",

@@ -220,16 +220,17 @@ static int config_add(oconfig_item_t *ci) {
     char callback_name[3 * DATA_MAX_NAME_LEN];
 
     snprintf(callback_name, sizeof(callback_name), "apache/%s/%s",
-              (st->host != NULL) ? st->host : hostname_g,
-              (st->name != NULL) ? st->name : "default");
+             (st->host != NULL) ? st->host : hostname_g,
+             (st->name != NULL) ? st->name : "default");
 
     status = plugin_register_complex_read(
         /* group = */ NULL,
         /* name      = */ callback_name,
         /* callback  = */ apache_read_host,
-        /* interval  = */ 0, &(user_data_t){
-                                 .data = st, .free_func = apache_free,
-                             });
+        /* interval  = */ 0,
+        &(user_data_t){
+            .data = st, .free_func = apache_free,
+        });
   }
 
   if (status != 0) {
@@ -314,7 +315,7 @@ static int init_host(apache_t *st) /* {{{ */
     int status;
 
     status = snprintf(credentials, sizeof(credentials), "%s:%s", st->user,
-                       (st->pass == NULL) ? "" : st->pass);
+                      (st->pass == NULL) ? "" : st->pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("apache plugin: init_host: Returning an error "
             "because the credentials have been "

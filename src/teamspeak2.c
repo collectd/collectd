@@ -464,7 +464,7 @@ static int tss2_read_vserver(vserver_list_t *vserver) {
   } else {
     /* Request server information */
     snprintf(plugin_instance, sizeof(plugin_instance), "vserver%i",
-              vserver->port);
+             vserver->port);
 
     /* Select the server */
     status = tss2_select_vserver(read_fh, write_fh, vserver);

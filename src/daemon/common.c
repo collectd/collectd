@@ -180,8 +180,8 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
     snprintf(buf, buflen, "Error #%i; "
-                           "Additionally, strerror_r failed.",
-              errnum);
+                          "Additionally, strerror_r failed.",
+             errnum);
   }
 #endif /* STRERROR_R_CHAR_P */
 

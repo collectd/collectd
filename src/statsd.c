@@ -605,8 +605,9 @@ static int statsd_config_timer_percentile(oconfig_item_t *ci) /* {{{ */
     return ERANGE;
   }
 
-  tmp = realloc(conf_timer_percentile, sizeof(*conf_timer_percentile) *
-                                           (conf_timer_percentile_num + 1));
+  tmp =
+      realloc(conf_timer_percentile,
+              sizeof(*conf_timer_percentile) * (conf_timer_percentile_num + 1));
   if (tmp == NULL) {
     ERROR("statsd plugin: realloc failed.");
     return ENOMEM;
@@ -766,8 +767,8 @@ static int statsd_metric_submit_unsafe(char const *name,
     }
 
     for (size_t i = 0; i < conf_timer_percentile_num; i++) {
-      snprintf(vl.type_instance, sizeof(vl.type_instance),
-                "%s-percentile-%.0f", name, conf_timer_percentile[i]);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-percentile-%.0f",
+               name, conf_timer_percentile[i]);
       vl.values[0].gauge =
           have_events ? CDTIME_T_TO_DOUBLE(latency_counter_get_percentile(
                             metric->latency, conf_timer_percentile[i]))

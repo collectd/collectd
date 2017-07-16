@@ -218,17 +218,17 @@ static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
       amqp_connection_close_t *m = r.reply.decoded;
       char *tmp = camqp_bytes_cstring(&m->reply_text);
       snprintf(buffer, buffer_size, "Server connection error %d: %s",
-                m->reply_code, tmp);
+               m->reply_code, tmp);
       sfree(tmp);
     } else if (r.reply.id == AMQP_CHANNEL_CLOSE_METHOD) {
       amqp_channel_close_t *m = r.reply.decoded;
       char *tmp = camqp_bytes_cstring(&m->reply_text);
       snprintf(buffer, buffer_size, "Server channel error %d: %s",
-                m->reply_code, tmp);
+               m->reply_code, tmp);
       sfree(tmp);
     } else {
       snprintf(buffer, buffer_size, "Server error method %#" PRIx32,
-                r.reply.id);
+               r.reply.id);
     }
     break;
 
@@ -759,8 +759,8 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     sstrncpy(routing_key, conf->routing_key, sizeof(routing_key));
   } else {
     snprintf(routing_key, sizeof(routing_key), "collectd/%s/%s/%s/%s/%s",
-              vl->host, vl->plugin, vl->plugin_instance, vl->type,
-              vl->type_instance);
+             vl->host, vl->plugin, vl->plugin_instance, vl->type,
+             vl->type_instance);
 
     /* Switch slashes (the only character forbidden by collectd) and dots
      * (the separation character used by AMQP). */

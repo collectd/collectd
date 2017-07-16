@@ -110,7 +110,7 @@ static const char *cdbi_strerror(dbi_conn conn, /* {{{ */
     snprintf(buffer, buffer_size, "%s (status %i)", msg, status);
   else
     snprintf(buffer, buffer_size, "dbi_conn_error failed with status %i",
-              status);
+             status);
 
   return buffer;
 } /* }}} const char *cdbi_conn_error */

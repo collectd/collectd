@@ -124,7 +124,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
                    sizeof(n.type_instance));
           sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
           snprintf(n.message, sizeof(n.message), "sensor %s not present",
-                    list_item->sensor_name);
+                   list_item->sensor_name);
 
           plugin_dispatch_notification(&n);
         }
@@ -173,7 +173,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
                sizeof(n.type_instance));
       sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
       snprintf(n.message, sizeof(n.message), "sensor %s present",
-                list_item->sensor_name);
+               list_item->sensor_name);
 
       plugin_dispatch_notification(&n);
     }
@@ -224,7 +224,7 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
     sstrncpy(sensor_name, buffer, sizeof(sensor_name));
   else
     snprintf(sensor_name, sizeof(sensor_name), "%s %s", buffer,
-              entity_id_string);
+             entity_id_string);
 
   sstrncpy(buffer, sensor_name, sizeof(buffer));
   sensor_name_ptr = strstr(buffer, ").");
@@ -245,7 +245,7 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
     if (sensor_id_ptr != NULL) {
       /* `sensor_id_ptr' now points to "(123)". */
       snprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
-                sensor_id_ptr);
+               sensor_id_ptr);
     }
     /* else: don't touch sensor_name. */
   }
@@ -328,7 +328,7 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     snprintf(n.message, sizeof(n.message), "sensor %s added",
-              list_item->sensor_name);
+             list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
   }
@@ -376,7 +376,7 @@ static int sensor_list_remove(ipmi_sensor_t *sensor) {
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     snprintf(n.message, sizeof(n.message), "sensor %s removed",
-              list_item->sensor_name);
+             list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
   }

@@ -356,9 +356,9 @@ static int ut_config_host(const threshold_t *th_orig, oconfig_item_t *ci) {
 
   return status;
 } /* int ut_config_host */
-  /*
-   * End of the functions used to configure threshold values.
-   */
+/*
+ * End of the functions used to configure threshold values.
+ */
 /* }}} */
 
 /*
@@ -457,8 +457,8 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       snprintf(buf, bufsize, ": Value is no longer missing.");
     else
       snprintf(buf, bufsize, ": All data sources are within range again. "
-                              "Current value of \"%s\" is %f.",
-                ds->ds[ds_index].name, values[ds_index]);
+                             "Current value of \"%s\" is %f.",
+               ds->ds[ds_index].name, values[ds_index]);
   } else {
     double min;
     double max;
@@ -469,20 +469,20 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
     if (th->flags & UT_FLAG_INVERT) {
       if (!isnan(min) && !isnan(max)) {
         snprintf(buf, bufsize,
-                  ": Data source \"%s\" is currently "
-                  "%f. That is within the %s region of %f%s and %f%s.",
-                  ds->ds[ds_index].name, values[ds_index],
-                  (state == STATE_ERROR) ? "failure" : "warning", min,
-                  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
-                  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
+                 ": Data source \"%s\" is currently "
+                 "%f. That is within the %s region of %f%s and %f%s.",
+                 ds->ds[ds_index].name, values[ds_index],
+                 (state == STATE_ERROR) ? "failure" : "warning", min,
+                 ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
+                 ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       } else {
         snprintf(buf, bufsize, ": Data source \"%s\" is currently "
-                                "%f. That is %s the %s threshold of %f%s.",
-                  ds->ds[ds_index].name, values[ds_index],
-                  isnan(min) ? "below" : "above",
-                  (state == STATE_ERROR) ? "failure" : "warning",
-                  isnan(min) ? max : min,
-                  ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
+                               "%f. That is %s the %s threshold of %f%s.",
+                 ds->ds[ds_index].name, values[ds_index],
+                 isnan(min) ? "below" : "above",
+                 (state == STATE_ERROR) ? "failure" : "warning",
+                 isnan(min) ? max : min,
+                 ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       }
     } else if (th->flags & UT_FLAG_PERCENTAGE) {
       gauge_t value;
@@ -502,20 +502,20 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
         value = 100.0 * values[ds_index] / sum;
 
       snprintf(buf, bufsize,
-                ": Data source \"%s\" is currently "
-                "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
-                ds->ds[ds_index].name, values[ds_index], value,
-                (value < min) ? "below" : "above",
-                (state == STATE_ERROR) ? "failure" : "warning",
-                (value < min) ? min : max);
+               ": Data source \"%s\" is currently "
+               "%g (%.2f%%). That is %s the %s threshold of %.2f%%.",
+               ds->ds[ds_index].name, values[ds_index], value,
+               (value < min) ? "below" : "above",
+               (state == STATE_ERROR) ? "failure" : "warning",
+               (value < min) ? min : max);
     } else /* is not inverted */
     {
       snprintf(buf, bufsize, ": Data source \"%s\" is currently "
-                              "%f. That is %s the %s threshold of %f.",
-                ds->ds[ds_index].name, values[ds_index],
-                (values[ds_index] < min) ? "below" : "above",
-                (state == STATE_ERROR) ? "failure" : "warning",
-                (values[ds_index] < min) ? min : max);
+                             "%f. That is %s the %s threshold of %f.",
+               ds->ds[ds_index].name, values[ds_index],
+               (values[ds_index] < min) ? "below" : "above",
+               (state == STATE_ERROR) ? "failure" : "warning",
+               (values[ds_index] < min) ? min : max);
     }
   }
 
@@ -773,8 +773,8 @@ static int ut_missing(const value_list_t *vl,
 
   NOTIFICATION_INIT_VL(&n, vl);
   snprintf(n.message, sizeof(n.message),
-            "%s has not been updated for %.3f seconds.", identifier,
-            CDTIME_T_TO_DOUBLE(missing_time));
+           "%s has not been updated for %.3f seconds.", identifier,
+           CDTIME_T_TO_DOUBLE(missing_time));
   n.time = now;
 
   plugin_dispatch_notification(&n);

@@ -99,7 +99,7 @@ static int thermal_procfs_device_read(const char __attribute__((unused)) * dir,
    */
 
   len = snprintf(filename, sizeof(filename), "%s/%s/temperature",
-                  dirname_procfs, name);
+                 dirname_procfs, name);
   if ((len < 0) || ((size_t)len >= sizeof(filename)))
     return -1;
 

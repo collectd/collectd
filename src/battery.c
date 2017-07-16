@@ -347,8 +347,7 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
   char filename[PATH_MAX];
   int status;
 
-  snprintf(filename, sizeof(filename), "%s/%s/%s", dir, power_supply,
-            basename);
+  snprintf(filename, sizeof(filename), "%s/%s/%s", dir, power_supply, basename);
 
   status = (int)read_file_contents(filename, buffer, buffer_size - 1);
   if (status < 0)

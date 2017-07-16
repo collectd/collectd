@@ -234,7 +234,7 @@ static int tn_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
     /* If this is a gauge value, use the current value. */
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       snprintf(value_str, sizeof(value_str), GAUGE_FORMAT,
-                (double)vl->values[i].gauge);
+               (double)vl->values[i].gauge);
     /* If it's a counter, try to use the current rate. This may fail, if the
      * value has been renamed. */
     else if (rates != NULL)

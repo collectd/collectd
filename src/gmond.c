@@ -418,7 +418,7 @@ static staging_entry_t *staging_entry_get(const char *host, /* {{{ */
     return NULL;
 
   snprintf(key, sizeof(key), "%s/%s/%s", host, type,
-            (type_instance != NULL) ? type_instance : "");
+           (type_instance != NULL) ? type_instance : "");
 
   se = NULL;
   status = c_avl_get(staging_tree, key, (void *)&se);

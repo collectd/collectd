@@ -476,8 +476,7 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     column_names[i] = column_names[i - 1] + DATA_MAX_NAME_LEN;
 
   ALLOC_OR_FAIL(column_values, column_num * sizeof(char *));
-  ALLOC_OR_FAIL(column_values[0],
-                column_num * DATA_MAX_NAME_LEN);
+  ALLOC_OR_FAIL(column_values[0], column_num * DATA_MAX_NAME_LEN);
   for (size_t i = 1; i < column_num; i++)
     column_values[i] = column_values[i - 1] + DATA_MAX_NAME_LEN;
 

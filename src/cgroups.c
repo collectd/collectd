@@ -76,7 +76,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
     return 0;
 
   snprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
-            cgroup_name);
+           cgroup_name);
   fh = fopen(abs_path, "r");
   if (fh == NULL) {
     char errbuf[1024];

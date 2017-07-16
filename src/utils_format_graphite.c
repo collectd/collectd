@@ -46,7 +46,7 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
+    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
     if (status < 1) {                                                          \
       return -1;                                                               \
     } else if (((size_t)status) >= (ret_len - offset)) {                       \
@@ -132,8 +132,8 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
 
   if (n_plugin_instance[0] != '\0')
     snprintf(tmp_plugin, sizeof(tmp_plugin), "%s%c%s", n_plugin,
-              (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-              n_plugin_instance);
+             (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+             n_plugin_instance);
   else
     sstrncpy(tmp_plugin, n_plugin, sizeof(tmp_plugin));
 
@@ -142,8 +142,8 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
       sstrncpy(tmp_type, n_type_instance, sizeof(tmp_type));
     else
       snprintf(tmp_type, sizeof(tmp_type), "%s%c%s", n_type,
-                (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-                n_type_instance);
+               (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+               n_type_instance);
   } else
     sstrncpy(tmp_type, n_type, sizeof(tmp_type));
 
@@ -153,13 +153,13 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) &&
         strcmp(tmp_plugin, tmp_type) == 0)
       snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix,
-                tmp_plugin, ds_name);
+               tmp_plugin, ds_name);
     else
       snprintf(ret, ret_len, "%s%s%s.%s.%s.%s", prefix, n_host, postfix,
-                tmp_plugin, tmp_type, ds_name);
+               tmp_plugin, tmp_type, ds_name);
   } else
     snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
-              tmp_type);
+             tmp_type);
 
   return 0;
 }
@@ -220,7 +220,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
     /* Compute the graphite command */
     message_len =
         (size_t)snprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
-                          (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
+                         (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
     if (message_len >= sizeof(message)) {
       ERROR("format_graphite: message buffer too small: "
             "Need %zu bytes.",

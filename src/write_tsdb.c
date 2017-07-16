@@ -325,7 +325,7 @@ static int wt_format_values(char *ret, size_t ret_len, int ds_num,
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
+    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
       return -1;                                                               \
@@ -389,18 +389,18 @@ static int wt_format_name(char *ret, int ret_len, const value_list_t *vl,
     if (vl->plugin_instance[0] == '\0') {
       if (vl->type_instance[0] == '\0') {
         snprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin, vl->type,
-                  ds_name);
+                 ds_name);
       } else {
         snprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin, vl->type,
-                  vl->type_instance, ds_name);
+                 vl->type_instance, ds_name);
       }
     } else { /* vl->plugin_instance != "" */
       if (vl->type_instance[0] == '\0') {
         snprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type, ds_name);
+                 vl->plugin_instance, vl->type, ds_name);
       } else {
         snprintf(ret, ret_len, "%s%s.%s.%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type, vl->type_instance, ds_name);
+                 vl->plugin_instance, vl->type, vl->type_instance, ds_name);
       }
     }
   } else { /* ds_name == NULL */
@@ -409,15 +409,15 @@ static int wt_format_name(char *ret, int ret_len, const value_list_t *vl,
         snprintf(ret, ret_len, "%s%s.%s", prefix, vl->plugin, vl->type);
       } else {
         snprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
-                  vl->type_instance, vl->type);
+                 vl->type_instance, vl->type);
       }
     } else { /* vl->plugin_instance != "" */
       if (vl->type_instance[0] == '\0') {
         snprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type);
+                 vl->plugin_instance, vl->type);
       } else {
         snprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type, vl->type_instance);
+                 vl->plugin_instance, vl->type, vl->type_instance);
       }
     }
   }
@@ -457,7 +457,7 @@ static int wt_send_message(const char *key, const char *value, cdtime_t time,
 
   status =
       snprintf(message, sizeof(message), "put %s %.0f %s fqdn=%s %s %s\r\n",
-                key, CDTIME_T_TO_DOUBLE(time), value, host, tags, host_tags);
+               key, CDTIME_T_TO_DOUBLE(time), value, host, tags, host_tags);
   sfree(temp);
   if (status < 0)
     return -1;
@@ -608,8 +608,8 @@ static int wt_config_tsd(oconfig_item_t *ci) {
   }
 
   snprintf(callback_name, sizeof(callback_name), "write_tsdb/%s/%s",
-            cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
-            cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
+           cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
+           cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
 
   user_data_t user_data = {.data = cb, .free_func = wt_callback_free};
 

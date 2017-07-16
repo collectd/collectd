@@ -3,14 +3,17 @@
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ *of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
+ * of the Software, and to permit persons to whom the Software is furnished to
+ *do
  * so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
+ * The above copyright notice and this permission notice shall be included in
+ *all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -156,7 +159,7 @@ static char *ovs_events_get_select_params() {
     }
     opt_buff = new_buff;
     int ret = snprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
-                        iface->name);
+                       iface->name);
     if (ret < 0) {
       sfree(opt_buff);
       return NULL;
@@ -202,8 +205,8 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
   for (int j = 0; j < ci->values_num; j++) {
     /* check interface name type */
     if (ci->values[j].type != OCONFIG_TYPE_STRING) {
-      ERROR(OVS_EVENTS_PLUGIN
-            ": given interface name is not a string [idx=%d]", j);
+      ERROR(OVS_EVENTS_PLUGIN ": given interface name is not a string [idx=%d]",
+            j);
       return -1;
     }
     /* allocate memory for configured interface */
@@ -278,9 +281,10 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
   }
   /* Check and warn about invalid configuration */
   if (!ovs_events_ctx.config.send_notification && !dispatch_values) {
-      WARNING(OVS_EVENTS_PLUGIN ": send notification and dispatch values "
-              "options are disabled. No information will be dispatched by the "
-              "plugin. Please check your configuration");
+    WARNING(OVS_EVENTS_PLUGIN
+            ": send notification and dispatch values "
+            "options are disabled. No information will be dispatched by the "
+            "plugin. Please check your configuration");
   }
   /* Dispatch link status values if configured */
   if (dispatch_values)
@@ -291,7 +295,8 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
 }
 
 /* Dispatch OVS interface link status event to collectd */
-static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
+static void
+ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
   const char *msg_link_status = NULL;
   notification_t n = {
       NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
@@ -335,8 +340,8 @@ static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifin
 
   /* fill the notification data */
   snprintf(n.message, sizeof(n.message),
-            "link state of \"%s\" interface has been changed to \"%s\"",
-            ifinfo->name, msg_link_status);
+           "link state of \"%s\" interface has been changed to \"%s\"",
+           ifinfo->name, msg_link_status);
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, ifinfo->name, sizeof(n.plugin_instance));
   sstrncpy(n.type, "gauge", sizeof(n.type));
@@ -345,7 +350,8 @@ static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifin
 }
 
 /* Dispatch OVS interface link status value to collectd */
-static void ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
+static void
+ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
   value_list_t vl = VALUE_LIST_INIT;
   meta_data_t *meta = NULL;
 

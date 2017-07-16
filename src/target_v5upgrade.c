@@ -238,23 +238,23 @@ static int v5_zfs_arc_counts(const data_set_t *ds, value_list_t *vl) /* {{{ */
 
   /* Dispatch new value lists instead of this one */
   new_vl.values[0].derive = (derive_t)vl->values[0].counter;
-  snprintf(new_vl.type_instance, sizeof(new_vl.type_instance),
-            "demand_data-%s", is_hits ? "hit" : "miss");
+  snprintf(new_vl.type_instance, sizeof(new_vl.type_instance), "demand_data-%s",
+           is_hits ? "hit" : "miss");
   plugin_dispatch_values(&new_vl);
 
   new_vl.values[0].derive = (derive_t)vl->values[1].counter;
   snprintf(new_vl.type_instance, sizeof(new_vl.type_instance),
-            "demand_metadata-%s", is_hits ? "hit" : "miss");
+           "demand_metadata-%s", is_hits ? "hit" : "miss");
   plugin_dispatch_values(&new_vl);
 
   new_vl.values[0].derive = (derive_t)vl->values[2].counter;
   snprintf(new_vl.type_instance, sizeof(new_vl.type_instance),
-            "prefetch_data-%s", is_hits ? "hit" : "miss");
+           "prefetch_data-%s", is_hits ? "hit" : "miss");
   plugin_dispatch_values(&new_vl);
 
   new_vl.values[0].derive = (derive_t)vl->values[3].counter;
   snprintf(new_vl.type_instance, sizeof(new_vl.type_instance),
-            "prefetch_metadata-%s", is_hits ? "hit" : "miss");
+           "prefetch_metadata-%s", is_hits ? "hit" : "miss");
   plugin_dispatch_values(&new_vl);
 
   /* Abort processing */

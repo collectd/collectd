@@ -497,14 +497,14 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
         (db->slave_io_running)) {
       n.severity = NOTIF_WARNING;
       snprintf(n.message, sizeof(n.message),
-                "slave I/O thread not started or not connected to master");
+               "slave I/O thread not started or not connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = 0;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                (!db->slave_io_running)) {
       n.severity = NOTIF_OKAY;
       snprintf(n.message, sizeof(n.message),
-                "slave I/O thread started and connected to master");
+               "slave I/O thread started and connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = 1;
     }

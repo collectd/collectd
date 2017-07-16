@@ -173,7 +173,7 @@ static int get_pi(struct ip_vs_service_entry *se, char *pi, size_t size) {
 
   int len =
       snprintf(pi, size, "%s_%s%u", inet_ntoa(addr),
-                (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
+               (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
 
   if ((len < 0) || (size <= ((size_t)len))) {
     log_err("plugin instance truncated: %s", pi);
