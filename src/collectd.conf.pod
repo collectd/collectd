@@ -2408,7 +2408,6 @@ B<Synopsis:>
    <EAL>
      Coremask "0x1"
      MemoryChannels "4"
-     ProcessType "secondary"
      FilePrefix "rte"
    </EAL>
    <Event "link_status">
@@ -2431,17 +2430,13 @@ B<Options:>
 
 =head3 The EAL block
 
-=over 5
+=over 4
 
 =item B<Coremask> I<Mask>
 
 =item B<Memorychannels> I<Channels>
 
 Number of memory channels per processor socket.
-
-=item B<ProcessType> I<type>
-
-The type of DPDK process instance.
 
 =item B<FilePrefix> I<File>
 
@@ -2457,7 +2452,7 @@ single argument which specifies the name of the event.
 
 =head4 Link Status event
 
-=over 5
+=over 4
 
 =item B<SendEventOnUpdate> I<true|false>
 
@@ -2490,7 +2485,7 @@ value is false.
 
 =head4 Keep Alive event
 
-=over 5
+=over 4
 
 =item B<SendEventOnUpdate> I<true|false>
 
@@ -2526,7 +2521,6 @@ B<Synopsis:>
    <EAL>
      Coremask "0x4"
      MemoryChannels "4"
-     ProcessType "secondary"
      FilePrefix "rte"
      SocketMemory "1024"
    </EAL>
@@ -2540,7 +2534,7 @@ B<Options:>
 
 =head3 The EAL block
 
-=over 5
+=over 4
 
 =item B<Coremask> I<Mask>
 
@@ -2550,10 +2544,6 @@ core numbering can change between platforms and should be determined beforehand.
 =item B<Memorychannels> I<Channels>
 
 A string containing a number of memory channels per processor socket.
-
-=item B<ProcessType> I<type>
-
-A string containing the type of DPDK process instance.
 
 =item B<FilePrefix> I<File>
 
@@ -2570,6 +2560,7 @@ sockets in MB. This is an optional value.
 =over 3
 
 =item B<SharedMemObj> I<Mask>
+
 A string containing the name of the shared memory object that should be used to
 share stats from the DPDK secondary process to the collectd dpdkstat plugin.
 Defaults to dpdk_collectd_stats if no other value is configured.
@@ -5300,6 +5291,11 @@ generate links like the one described above for ALL certs in a given folder.
 Example usage:
 C<c_rehash /path/to/certs/folder>
 
+=item B<ConnectTimeout> I<Milliseconds>
+
+The B<ConnectTimeout> option sets the connect timeout, in milliseconds.
+By default, the configured B<Interval> is used to set the timeout.
+
 =back
 
 =head2 Plugin C<olsrd>
@@ -7198,6 +7194,7 @@ B<Synopsis:>
   <Plugin snmp_agent>
     <Data "memAvailReal">
       Plugin "memory"
+      #PluginInstance "some"
       Type "memory"
       TypeInstance "free"
       OIDs "1.3.6.1.4.1.2021.4.6.0"
@@ -7241,6 +7238,12 @@ scalar data type B<Instance> has no effect and can be omitted.
 
 Read plugin name whose collected data will be mapped to specified OIDs.
 
+=item B<PluginInstance> I<String>
+
+Read plugin instance whose collected data will be mapped to specified OIDs.
+The field is optional and by default there is no plugin instance check.
+Allowed only if B<Data> block defines scalar data type.
+
 =item B<Type> I<String>
 
 Collectd's type that is to be used for specified OID, e.E<nbsp>g. "if_octets"
@@ -7253,9 +7256,9 @@ Collectd's type-instance that is to be used for specified OID.
 =item B<OIDs> I<OID> [I<OID> ...]
 
 Configures the OIDs to be handled by I<snmp_agent> plugin. Values for these OIDs
-are taken from collectd data type specified by B<Plugin>, B<Type>,
-B<TypeInstance> fields of this B<Data> block. Number of the OIDs configured
-should correspond to number of values in specified B<Type>.
+are taken from collectd data type specified by B<Plugin>, B<PluginInstance>,
+B<Type>, B<TypeInstance> fields of this B<Data> block. Number of the OIDs
+configured should correspond to number of values in specified B<Type>.
 For example two OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets" can be mapped to
 "rx" and "tx" values of "if_octets" type.
 

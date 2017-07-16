@@ -3,14 +3,17 @@
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
+ * of the Software, and to permit persons to whom the Software is furnished to
+ * do
  * so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
+ * The above copyright notice and this permission notice shall be included in
+ * all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -711,33 +714,30 @@ static void ovs_stats_initialize(ovs_db_t *pdb) {
                                      "external_ids", NULL};
 
   /* subscribe to a tables */
-  ovs_db_table_cb_register(pdb, "Bridge", bridge_columns,
-                           ovs_stats_bridge_table_change_cb,
+  ovs_db_table_cb_register(
+      pdb, "Bridge", bridge_columns, ovs_stats_bridge_table_change_cb,
       ovs_stats_bridge_table_result_cb,
-                           OVS_DB_TABLE_CB_FLAG_INITIAL |
-                           OVS_DB_TABLE_CB_FLAG_INSERT |
+      OVS_DB_TABLE_CB_FLAG_INITIAL | OVS_DB_TABLE_CB_FLAG_INSERT |
           OVS_DB_TABLE_CB_FLAG_MODIFY);
 
   ovs_db_table_cb_register(pdb, "Bridge", bridge_columns,
                            ovs_stats_bridge_table_delete_cb, NULL,
                            OVS_DB_TABLE_CB_FLAG_DELETE);
 
-  ovs_db_table_cb_register(pdb, "Port", port_columns,
-                           ovs_stats_port_table_change_cb,
+  ovs_db_table_cb_register(
+      pdb, "Port", port_columns, ovs_stats_port_table_change_cb,
       ovs_stats_port_table_result_cb,
-                           OVS_DB_TABLE_CB_FLAG_INITIAL |
-                           OVS_DB_TABLE_CB_FLAG_INSERT |
+      OVS_DB_TABLE_CB_FLAG_INITIAL | OVS_DB_TABLE_CB_FLAG_INSERT |
           OVS_DB_TABLE_CB_FLAG_MODIFY);
 
   ovs_db_table_cb_register(pdb, "Port", port_columns,
                            ovs_stats_port_table_delete_cb, NULL,
                            OVS_DB_TABLE_CB_FLAG_DELETE);
 
-  ovs_db_table_cb_register(pdb, "Interface", interface_columns,
-                           ovs_stats_interface_table_change_cb,
+  ovs_db_table_cb_register(
+      pdb, "Interface", interface_columns, ovs_stats_interface_table_change_cb,
       ovs_stats_interface_table_result_cb,
-                           OVS_DB_TABLE_CB_FLAG_INITIAL |
-                           OVS_DB_TABLE_CB_FLAG_INSERT |
+      OVS_DB_TABLE_CB_FLAG_INITIAL | OVS_DB_TABLE_CB_FLAG_INSERT |
           OVS_DB_TABLE_CB_FLAG_MODIFY);
 }
 
@@ -862,8 +862,8 @@ static int ovs_stats_plugin_init(void) {
        plugin_name, ovs_stats_cfg.ovs_db_node, ovs_stats_cfg.ovs_db_serv,
        ovs_stats_cfg.ovs_db_unix);
   /* connect to OvS DB */
-  if ((g_ovs_db = ovs_db_init (ovs_stats_cfg.ovs_db_node,
-                             ovs_stats_cfg.ovs_db_serv,
+  if ((g_ovs_db =
+           ovs_db_init(ovs_stats_cfg.ovs_db_node, ovs_stats_cfg.ovs_db_serv,
                        ovs_stats_cfg.ovs_db_unix, &cb)) == NULL) {
     ERROR("%s: plugin: failed to connect to OvS DB server", plugin_name);
     return -1;

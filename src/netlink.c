@@ -495,8 +495,8 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (strcmp(tc_type, "filter") == 0)
       numberic_id = tm->tcm_parent;
 
-    ssnprintf(tc_inst, sizeof(tc_inst), "%s-%x:%x", kind, numberic_id >> 16,
-              numberic_id & 0x0000FFFF);
+    snprintf(tc_inst, sizeof(tc_inst), "%s-%x:%x", kind, numberic_id >> 16,
+             numberic_id & 0x0000FFFF);
   }
 
   DEBUG("netlink plugin: qos_filter_cb: got %s for %s (%i).", tc_type, dev,
@@ -527,8 +527,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
       stats_submitted = 1;
 
-      ssnprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
-                tc_inst);
+      snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type, tc_inst);
 
       if (q_stats.bs != NULL) {
         submit_one(dev, "ipt_bytes", type_instance, q_stats.bs->bytes);
@@ -560,8 +559,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (!stats_submitted && ts != NULL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      ssnprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
-                tc_inst);
+      snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type, tc_inst);
 
       submit_one(dev, "ipt_bytes", type_instance, ts->bytes);
       submit_one(dev, "ipt_packets", type_instance, ts->packets);

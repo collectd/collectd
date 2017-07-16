@@ -421,13 +421,11 @@ static int apcups_read(void) {
       .linefreq = NAN,
   };
 
-  int status =
-      apc_query_server(conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node,
-                       conf_service, &apcups_detail);
+  int status = apc_query_server(conf_node, conf_service, &apcups_detail);
+
   if (status != 0) {
     DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
-          conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node, conf_service,
-          status);
+          conf_node, conf_service, status);
     return status;
   }
 
@@ -436,8 +434,19 @@ static int apcups_read(void) {
   return 0;
 } /* apcups_read */
 
+static int apcups_init(void) {
+  if (conf_node == NULL)
+    conf_node = APCUPS_DEFAULT_NODE;
+
+  if (conf_service == NULL)
+    conf_service = APCUPS_DEFAULT_SERVICE;
+
+  return 0;
+} /* apcups_init */
+
 void module_register(void) {
   plugin_register_complex_config("apcups", apcups_config);
+  plugin_register_init("apcups", apcups_init);
   plugin_register_read("apcups", apcups_read);
   plugin_register_shutdown("apcups", apcups_shutdown);
 } /* void module_register */

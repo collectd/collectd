@@ -494,7 +494,8 @@ static int av2data_set(pTHX_ AV *array, char *name, data_set_t *ds) {
  *   meta     => [ { name => <name>, value => <value> }, ... ]
  * }
  */
-static int av2notification_meta(pTHX_ AV *array, notification_meta_t **ret_meta) {
+static int av2notification_meta(pTHX_ AV *array,
+                                notification_meta_t **ret_meta) {
   notification_meta_t *tail = NULL;
 
   int len = av_len(array);
@@ -881,9 +882,9 @@ static int oconfig_item2hv(pTHX_ oconfig_item_t *ci, HV *hash) {
 static char *get_module_name(char *buf, size_t buf_len, const char *module) {
   int status = 0;
   if (base_name[0] == '\0')
-    status = ssnprintf(buf, buf_len, "%s", module);
+    status = snprintf(buf, buf_len, "%s", module);
   else
-    status = ssnprintf(buf, buf_len, "%s::%s", base_name, module);
+    status = snprintf(buf, buf_len, "%s::%s", base_name, module);
   if ((status < 0) || ((unsigned int)status >= buf_len))
     return NULL;
   return buf;
@@ -2349,14 +2350,25 @@ static int g_interval_set(pTHX_ SV *var, MAGIC *mg) {
   return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
-static MGVTBL g_pv_vtbl = {g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
+static MGVTBL g_pv_vtbl = {g_pv_get,
+                           g_pv_set,
+                           NULL,
+                           NULL,
+                           NULL,
+                           NULL,
+                           NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                            ,
                            NULL
 #endif
 };
-static MGVTBL g_interval_vtbl = {g_interval_get, g_interval_set, NULL, NULL,
-                                 NULL, NULL, NULL
+static MGVTBL g_interval_vtbl = {g_interval_get,
+                                 g_interval_set,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                                  ,
                                  NULL

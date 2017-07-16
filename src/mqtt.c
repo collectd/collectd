@@ -471,12 +471,12 @@ static int format_topic(char *buf, size_t buf_len, data_set_t const *ds,
   if (status != 0)
     return status;
 
-  status = ssnprintf(buf, buf_len, "%s/%s", conf->topic_prefix, name);
+  status = snprintf(buf, buf_len, "%s/%s", conf->topic_prefix, name);
   if ((status < 0) || (((size_t)status) >= buf_len))
     return ENOMEM;
 
-  while((c = strchr(buf, '#')) || (c = strchr(buf, '+'))) {
-       *c = '_';
+  while ((c = strchr(buf, '#')) || (c = strchr(buf, '+'))) {
+    *c = '_';
   }
 
   return 0;
@@ -608,10 +608,11 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       ERROR("mqtt plugin: Unknown config option: %s", child->key);
   }
 
-  ssnprintf(cb_name, sizeof(cb_name), "mqtt/%s", conf->name);
-  plugin_register_write(cb_name, mqtt_write, &(user_data_t){
-                                                 .data = conf,
-                                             });
+  snprintf(cb_name, sizeof(cb_name), "mqtt/%s", conf->name);
+  plugin_register_write(cb_name, mqtt_write,
+                        &(user_data_t){
+                            .data = conf,
+                        });
   return 0;
 } /* mqtt_config_publisher */
 

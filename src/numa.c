@@ -47,7 +47,7 @@ static void numa_dispatch_value(int node, /* {{{ */
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, "numa", sizeof(vl.plugin));
-  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "node%i", node);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "node%i", node);
   sstrncpy(vl.type, "vmpage_action", sizeof(vl.type));
   sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -62,7 +62,7 @@ static int numa_read_node(int node) /* {{{ */
   int status;
   int success;
 
-  ssnprintf(path, sizeof(path), NUMA_ROOT_DIR "/node%i/numastat", node);
+  snprintf(path, sizeof(path), NUMA_ROOT_DIR "/node%i/numastat", node);
 
   fh = fopen(path, "r");
   if (fh == NULL) {
@@ -127,7 +127,7 @@ static int numa_init(void) /* {{{ */
     struct stat statbuf = {0};
     int status;
 
-    ssnprintf(path, sizeof(path), NUMA_ROOT_DIR "/node%i", max_node + 1);
+    snprintf(path, sizeof(path), NUMA_ROOT_DIR "/node%i", max_node + 1);
 
     status = stat(path, &statbuf);
     if (status == 0) {

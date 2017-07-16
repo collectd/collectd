@@ -28,8 +28,8 @@
  * GCC will complain about the macro definition. */
 #define DONT_POISON_SPRINTF_YET
 
-#include "common.h"
 #include "utils_lua.h"
+#include "common.h"
 
 static int ltoc_values(lua_State *L, /* {{{ */
                        const data_set_t *ds, value_t *ret_values) {

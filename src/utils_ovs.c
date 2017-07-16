@@ -3,14 +3,17 @@
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ *of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
+ * of the Software, and to permit persons to whom the Software is furnished to
+ *do
  * so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
+ * The above copyright notice and this permission notice shall be included in
+ *all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -314,8 +317,7 @@ static int ovs_db_data_send(const ovs_db_t *pdb, const char *data, size_t len) {
  */
 static yajl_gen_status ovs_yajl_gen_tstring(yajl_gen hander,
                                             const char *string) {
-  return yajl_gen_string(hander, (const unsigned char *)string,
-                         strlen(string));
+  return yajl_gen_string(hander, (const unsigned char *)string, strlen(string));
 }
 
 /* Add YAJL value into YAJL generator handle (JSON object)
@@ -1091,7 +1093,7 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
   /* generate id field */
   OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, "id");
   uid = ovs_uid_generate();
-  ssnprintf(uid_buff, sizeof(uid_buff), "%" PRIX64, uid);
+  snprintf(uid_buff, sizeof(uid_buff), "%" PRIX64, uid);
   OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, uid_buff);
 
   OVS_YAJL_CALL(yajl_gen_map_close, jgen);
@@ -1177,7 +1179,7 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
     OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, OVS_DB_DEFAULT_DB_NAME);
 
     /* uid string <json-value> */
-    ssnprintf(uid_str, sizeof(uid_str), "%" PRIX64, new_cb->uid);
+    snprintf(uid_str, sizeof(uid_str), "%" PRIX64, new_cb->uid);
     OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, uid_str);
 
     /* <monitor-requests> */

@@ -226,10 +226,10 @@ static int lpar_read(void) {
     if (pool_busy_cpus < 0.0)
       pool_busy_cpus = 0.0;
 
-    ssnprintf(typinst, sizeof(typinst), "pool-%X-busy", lparstats.pool_id);
+    snprintf(typinst, sizeof(typinst), "pool-%X-busy", lparstats.pool_id);
     lpar_submit(typinst, pool_busy_cpus);
 
-    ssnprintf(typinst, sizeof(typinst), "pool-%X-idle", lparstats.pool_id);
+    snprintf(typinst, sizeof(typinst), "pool-%X-idle", lparstats.pool_id);
     lpar_submit(typinst, pool_idle_cpus);
   }
 

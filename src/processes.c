@@ -805,7 +805,7 @@ static int ps_read_tasks_status(process_entry_t *ps) {
   char *fields[8];
   int numfields;
 
-  ssnprintf(dirname, sizeof(dirname), "/proc/%li/task", ps->id);
+  snprintf(dirname, sizeof(dirname), "/proc/%li/task", ps->id);
 
   if ((dh = opendir(dirname)) == NULL) {
     DEBUG("Failed to open directory `%s'", dirname);
@@ -820,8 +820,12 @@ static int ps_read_tasks_status(process_entry_t *ps) {
 
     tpid = ent->d_name;
 
-    ssnprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
-              tpid);
+    if (snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
+                 tpid) >= sizeof(filename)) {
+      DEBUG("Filename too long: `%s'", filename);
+      continue;
+    }
+
     if ((fh = fopen(filename, "r")) == NULL) {
       DEBUG("Failed to open file `%s'", filename);
       continue;
@@ -878,7 +882,7 @@ static int ps_read_status(long pid, process_entry_t *ps) {
   char *fields[8];
   int numfields;
 
-  ssnprintf(filename, sizeof(filename), "/proc/%li/status", pid);
+  snprintf(filename, sizeof(filename), "/proc/%li/status", pid);
   if ((fh = fopen(filename, "r")) == NULL)
     return -1;
 
@@ -931,7 +935,7 @@ static int ps_read_io(process_entry_t *ps) {
   char *fields[8];
   int numfields;
 
-  ssnprintf(filename, sizeof(filename), "/proc/%li/io", ps->id);
+  snprintf(filename, sizeof(filename), "/proc/%li/io", ps->id);
   if ((fh = fopen(filename, "r")) == NULL) {
     DEBUG("ps_read_io: Failed to open file `%s'", filename);
     return -1;
@@ -980,7 +984,7 @@ static int ps_count_fd(int pid) {
   struct dirent *ent;
   int count = 0;
 
-  ssnprintf(dirname, sizeof(dirname), "/proc/%i/fd", pid);
+  snprintf(dirname, sizeof(dirname), "/proc/%i/fd", pid);
 
   if ((dh = opendir(dirname)) == NULL) {
     DEBUG("Failed to open directory `%s'", dirname);
@@ -1041,7 +1045,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   ssize_t status;
 
-  ssnprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
+  snprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
 
   status = read_file_contents(filename, buffer, sizeof(buffer) - 1);
   if (status <= 0)
@@ -1165,7 +1169,7 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   if ((pid < 1) || (NULL == buf) || (buf_len < 2))
     return NULL;
 
-  ssnprintf(file, sizeof(file), "/proc/%li/cmdline", pid);
+  snprintf(file, sizeof(file), "/proc/%li/cmdline", pid);
 
   errno = 0;
   fd = open(file, O_RDONLY);
@@ -1220,7 +1224,7 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
     if (NULL == name)
       return NULL;
 
-    ssnprintf(buf, buf_len, "[%s]", name);
+    snprintf(buf, buf_len, "[%s]", name);
     return buf;
   }
 

@@ -375,7 +375,7 @@ static int rdt_default_cgroups(void) {
     char desc[DATA_MAX_NAME_LEN];
     uint64_t core = i;
 
-    ssnprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
+    snprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
 
     /* set core group info */
     ret = cgroup_set(&g_rdt->cgroups[i], desc, &core, 1);
@@ -656,7 +656,7 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
 static int rdt_init(void) {
   int ret;
 
-  if(g_state == CONFIGURATION_ERROR)
+  if (g_state == CONFIGURATION_ERROR)
     return -1;
 
   ret = rdt_preinit();

@@ -247,10 +247,10 @@ static int sigrok_init_driver(struct config_device *cfdev,
   }
   cfdev->sdi = devlist->data;
   g_slist_free(devlist);
-  ssnprintf(hwident, sizeof(hwident), "%s %s %s",
-            cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
-            cfdev->sdi->model ? cfdev->sdi->model : "",
-            cfdev->sdi->version ? cfdev->sdi->version : "");
+  snprintf(hwident, sizeof(hwident), "%s %s %s",
+           cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
+           cfdev->sdi->model ? cfdev->sdi->model : "",
+           cfdev->sdi->version ? cfdev->sdi->version : "");
   INFO("sigrok plugin: Device \"%s\" is a %s", cfdev->name, hwident);
 
   if (sr_dev_open(cfdev->sdi) != SR_OK)

@@ -293,18 +293,17 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
               vl->type_instance);
   if (host->always_append_ds || (ds->ds_num > 1)) {
     if (host->event_service_prefix == NULL)
-      ssnprintf(service_buffer, sizeof(service_buffer), "%s/%s",
-                &name_buffer[1], ds->ds[index].name);
+      snprintf(service_buffer, sizeof(service_buffer), "%s/%s", &name_buffer[1],
+               ds->ds[index].name);
     else
-      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s/%s",
-                host->event_service_prefix, &name_buffer[1],
-                ds->ds[index].name);
+      snprintf(service_buffer, sizeof(service_buffer), "%s%s/%s",
+               host->event_service_prefix, &name_buffer[1], ds->ds[index].name);
   } else {
     if (host->event_service_prefix == NULL)
       sstrncpy(service_buffer, &name_buffer[1], sizeof(service_buffer));
     else
-      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s",
-                host->event_service_prefix, &name_buffer[1]);
+      snprintf(service_buffer, sizeof(service_buffer), "%s%s",
+               host->event_service_prefix, &name_buffer[1]);
   }
 
   riemann_event_set(
@@ -352,8 +351,8 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL)) {
     char ds_type[DATA_MAX_NAME_LEN];
 
-    ssnprintf(ds_type, sizeof(ds_type), "%s:rate",
-              DS_TYPE_TO_STRING(ds->ds[index].type));
+    snprintf(ds_type, sizeof(ds_type), "%s:rate",
+             DS_TYPE_TO_STRING(ds->ds[index].type));
     riemann_event_string_attribute_add(event, "ds_type", ds_type);
   } else {
     riemann_event_string_attribute_add(event, "ds_type",
@@ -363,7 +362,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   {
     char ds_index[DATA_MAX_NAME_LEN];
 
-    ssnprintf(ds_index, sizeof(ds_index), "%zu", index);
+    snprintf(ds_index, sizeof(ds_index), "%zu", index);
     riemann_event_string_attribute_add(event, "ds_index", ds_index);
   }
 
@@ -802,8 +801,8 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
-  ssnprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
-            host->name);
+  snprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
+           host->name);
 
   user_data_t ud = {.data = host, .free_func = wrr_free};
 

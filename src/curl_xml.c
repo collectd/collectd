@@ -369,7 +369,7 @@ static int cx_handle_all_value_xpaths(xmlXPathContextPtr xpath_ctx, /* {{{ */
     status = cx_handle_single_value_xpath(xpath_ctx, xpath, ds, vl, i);
     if (status != 0)
       return -1; /* An error has been printed. */
-  }                /* for (i = 0; i < xpath->values_len; i++) */
+  }              /* for (i = 0; i < xpath->values_len; i++) */
 
   plugin_dispatch_values(vl);
   vl->values = NULL;
@@ -441,8 +441,8 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
   if (xpath->instance_prefix != NULL) {
     if (instance_node != NULL) {
       char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
-      ssnprintf(vl->type_instance, sizeof(vl->type_instance), "%s%s",
-                xpath->instance_prefix, node_value);
+      snprintf(vl->type_instance, sizeof(vl->type_instance), "%s%s",
+               xpath->instance_prefix, node_value);
       sfree(node_value);
     } else
       sstrncpy(vl->type_instance, xpath->instance_prefix,
@@ -602,13 +602,15 @@ static int cx_curl_perform(cx_t *db, CURL *curl) /* {{{ */
   long rc;
   char *ptr;
   char *url;
-  url = db->url;
 
   db->buffer_fill = 0;
+
+  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
+
   status = curl_easy_perform(curl);
   if (status != CURLE_OK) {
     ERROR("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
-          status, db->curl_errbuf, url);
+          status, db->curl_errbuf, db->url);
     return -1;
   }
   if (db->stats != NULL)
@@ -817,7 +819,6 @@ static int cx_init_curl(cx_t *db) /* {{{ */
   curl_easy_setopt(db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt(db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
-  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
   curl_easy_setopt(db->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(db->curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -839,8 +840,8 @@ static int cx_init_curl(cx_t *db) /* {{{ */
       return -1;
     }
 
-    ssnprintf(db->credentials, credentials_size, "%s:%s", db->user,
-              (db->pass == NULL) ? "" : db->pass);
+    snprintf(db->credentials, credentials_size, "%s:%s", db->user,
+             (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt(db->curl, CURLOPT_USERPWD, db->credentials);
 #endif
 

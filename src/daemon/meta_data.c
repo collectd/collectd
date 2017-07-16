@@ -713,15 +713,15 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
     actual = e->value.mv_string;
     break;
   case MD_TYPE_SIGNED_INT:
-    ssnprintf(buffer, sizeof(buffer), "%" PRIi64, e->value.mv_signed_int);
+    snprintf(buffer, sizeof(buffer), "%" PRIi64, e->value.mv_signed_int);
     actual = buffer;
     break;
   case MD_TYPE_UNSIGNED_INT:
-    ssnprintf(buffer, sizeof(buffer), "%" PRIu64, e->value.mv_unsigned_int);
+    snprintf(buffer, sizeof(buffer), "%" PRIu64, e->value.mv_unsigned_int);
     actual = buffer;
     break;
   case MD_TYPE_DOUBLE:
-    ssnprintf(buffer, sizeof(buffer), GAUGE_FORMAT, e->value.mv_double);
+    snprintf(buffer, sizeof(buffer), GAUGE_FORMAT, e->value.mv_double);
     actual = buffer;
     break;
   case MD_TYPE_BOOLEAN:
