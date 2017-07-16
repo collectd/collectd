@@ -505,7 +505,6 @@ static void rrd_cache_flush(cdtime_t timeout) {
         CDTIME_T_TO_DOUBLE(timeout));
 
   now = cdtime();
-  timeout = TIME_T_TO_CDTIME_T(timeout);
 
   /* Build a list of entries to be flushed */
   iter = c_avl_get_iterator(cache);
@@ -740,7 +739,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
 
   if ((cache_timeout > 0) &&
       ((cdtime() - cache_flush_last) > cache_flush_timeout))
-    rrd_cache_flush(cache_flush_timeout);
+    rrd_cache_flush(cache_timeout);
 
   pthread_mutex_unlock(&cache_lock);
 
@@ -885,7 +884,7 @@ static int rrd_config(const char *key, const char *value) {
             "be greater than 0.\n");
       return 1;
     }
-    cache_flush_timeout = tmp;
+    cache_flush_timeout = TIME_T_TO_CDTIME_T(tmp);
   } else if (strcasecmp("DataDir", key) == 0) {
     char *tmp;
     size_t len;
@@ -1066,8 +1065,14 @@ static int rrd_init(void) {
   cache_flush_last = cdtime();
   if (cache_timeout == 0) {
     cache_flush_timeout = 0;
-  } else if (cache_flush_timeout < cache_timeout)
+  } else if (cache_flush_timeout < cache_timeout) {
+    INFO("rrdtool plugin: \"CacheFlush %u\" is less than \"CacheTimeout %u\". "
+         "Ajusting \"CacheFlush\" to %u seconds.",
+         (unsigned int)CDTIME_T_TO_TIME_T(cache_flush_timeout),
+         (unsigned int)CDTIME_T_TO_TIME_T(cache_timeout),
+         (unsigned int)CDTIME_T_TO_TIME_T(cache_timeout * 10));
     cache_flush_timeout = 10 * cache_timeout;
+  }
 
   pthread_mutex_unlock(&cache_lock);
 
