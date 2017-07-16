@@ -58,7 +58,7 @@
  * is ignored. */
 #define C_PSQL_PAR_APPEND(buf, buf_len, parameter, value)                      \
   if ((0 < (buf_len)) && (NULL != (value)) && ('\0' != *(value))) {            \
-    int s = ssnprintf(buf, buf_len, " %s = '%s'", parameter, value);           \
+    int s = snprintf(buf, buf_len, " %s = '%s'", parameter, value);            \
     if (0 < s) {                                                               \
       buf += s;                                                                \
       buf_len -= s;                                                            \
@@ -322,7 +322,7 @@ static int c_psql_connect(c_psql_database_t *db) {
   if ((!db) || (!db->database))
     return -1;
 
-  status = ssnprintf(buf, buf_len, "dbname = '%s'", db->database);
+  status = snprintf(buf, buf_len, "dbname = '%s'", db->database);
   if (0 < status) {
     buf += status;
     buf_len -= status;
@@ -424,9 +424,9 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
       params[i] = db->user;
       break;
     case C_PSQL_PARAM_INTERVAL:
-      ssnprintf(interval, sizeof(interval), "%.3f",
-                (db->interval > 0) ? CDTIME_T_TO_DOUBLE(db->interval)
-                                   : plugin_get_interval());
+      snprintf(interval, sizeof(interval), "%.3f",
+               (db->interval > 0) ? CDTIME_T_TO_DOUBLE(db->interval)
+                                  : plugin_get_interval());
       params[i] = interval;
       break;
     case C_PSQL_PARAM_INSTANCE:
@@ -438,7 +438,7 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
   }
 
   return PQexecParams(db->conn, udb_query_get_statement(q), data->params_num,
-                      NULL, (const char *const*)params, NULL, NULL, 0);
+                      NULL, (const char *const *)params, NULL, NULL, 0);
 } /* c_psql_exec_query_params */
 
 /* db->db_lock must be locked when calling this function */
@@ -629,7 +629,7 @@ static char *values_name_to_sqlarray(const data_set_t *ds, char *string,
   str_len = string_len;
 
   for (size_t i = 0; i < ds->ds_num; ++i) {
-    int status = ssnprintf(str_ptr, str_len, ",'%s'", ds->ds[i].name);
+    int status = snprintf(str_ptr, str_len, ",'%s'", ds->ds[i].name);
 
     if (status < 1)
       return NULL;
@@ -667,10 +667,10 @@ static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
     int status;
 
     if (store_rates)
-      status = ssnprintf(str_ptr, str_len, ",'gauge'");
+      status = snprintf(str_ptr, str_len, ",'gauge'");
     else
-      status = ssnprintf(str_ptr, str_len, ",'%s'",
-                         DS_TYPE_TO_STRING(ds->ds[i].type));
+      status = snprintf(str_ptr, str_len, ",'%s'",
+                        DS_TYPE_TO_STRING(ds->ds[i].type));
 
     if (status < 1) {
       str_len = 0;
@@ -722,7 +722,7 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
 
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       status =
-          ssnprintf(str_ptr, str_len, "," GAUGE_FORMAT, vl->values[i].gauge);
+          snprintf(str_ptr, str_len, "," GAUGE_FORMAT, vl->values[i].gauge);
     else if (store_rates) {
       if (rates == NULL)
         rates = uc_get_rate(ds, vl);
@@ -732,13 +732,13 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
         return NULL;
       }
 
-      status = ssnprintf(str_ptr, str_len, ",%lf", rates[i]);
+      status = snprintf(str_ptr, str_len, ",%lf", rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = ssnprintf(str_ptr, str_len, ",%llu", vl->values[i].counter);
+      status = snprintf(str_ptr, str_len, ",%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      status = ssnprintf(str_ptr, str_len, ",%" PRIi64, vl->values[i].derive);
+      status = snprintf(str_ptr, str_len, ",%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      status = ssnprintf(str_ptr, str_len, ",%" PRIu64, vl->values[i].absolute);
+      status = snprintf(str_ptr, str_len, ",%" PRIu64, vl->values[i].absolute);
 
     if (status < 1) {
       str_len = 0;
@@ -936,7 +936,7 @@ static int c_psql_shutdown(void) {
 
     if (db->writers_num > 0) {
       char cb_name[DATA_MAX_NAME_LEN];
-      ssnprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->database);
+      snprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->database);
 
       if (!had_flush) {
         plugin_unregister_flush("postgresql");
@@ -1194,7 +1194,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
     }
   }
 
-  ssnprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->instance);
+  snprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->instance);
 
   user_data_t ud = {.data = db, .free_func = c_psql_database_delete};
 

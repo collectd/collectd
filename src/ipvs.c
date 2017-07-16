@@ -172,8 +172,8 @@ static int get_pi(struct ip_vs_service_entry *se, char *pi, size_t size) {
   struct in_addr addr = {.s_addr = se->addr};
 
   int len =
-      ssnprintf(pi, size, "%s_%s%u", inet_ntoa(addr),
-                (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
+      snprintf(pi, size, "%s_%s%u", inet_ntoa(addr),
+               (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
 
   if ((len < 0) || (size <= ((size_t)len))) {
     log_err("plugin instance truncated: %s", pi);
@@ -189,7 +189,7 @@ static int get_ti(struct ip_vs_dest_entry *de, char *ti, size_t size) {
 
   struct in_addr addr = {.s_addr = de->addr};
 
-  int len = ssnprintf(ti, size, "%s_%u", inet_ntoa(addr), ntohs(de->port));
+  int len = snprintf(ti, size, "%s_%u", inet_ntoa(addr), ntohs(de->port));
 
   if ((len < 0) || (size <= ((size_t)len))) {
     log_err("type instance truncated: %s", ti);

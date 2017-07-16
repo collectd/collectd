@@ -476,8 +476,7 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     column_names[i] = column_names[i - 1] + DATA_MAX_NAME_LEN;
 
   ALLOC_OR_FAIL(column_values, column_num * sizeof(char *));
-  ALLOC_OR_FAIL(column_values[0],
-                column_num * DATA_MAX_NAME_LEN);
+  ALLOC_OR_FAIL(column_values[0], column_num * DATA_MAX_NAME_LEN);
   for (size_t i = 1; i < column_num; i++)
     column_values[i] = column_values[i - 1] + DATA_MAX_NAME_LEN;
 
@@ -636,7 +635,7 @@ static int o_read_database(o_database_t *db) /* {{{ */
     if ((status != OCI_SUCCESS) && (status != OCI_SUCCESS_WITH_INFO)) {
       char errfunc[256];
 
-      ssnprintf(errfunc, sizeof(errfunc), "OCILogon(\"%s\")", db->connect_id);
+      snprintf(errfunc, sizeof(errfunc), "OCILogon(\"%s\")", db->connect_id);
 
       o_report_error("o_read_database", db->name, NULL, errfunc, oci_error);
       DEBUG("oracle plugin: OCILogon (%s): db->oci_service_context = %p;",

@@ -103,10 +103,10 @@ static void dpdk_helper_config_default(dpdk_helper_ctx_t *phc) {
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
-  ssnprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
-  ssnprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
-  ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
-            DPDK_DEFAULT_RTE_CONFIG);
+  snprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
+  snprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
+  snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
+           DPDK_DEFAULT_RTE_CONFIG);
 }
 
 int dpdk_helper_eal_config_set(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec) {
@@ -181,7 +181,7 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
 
       status = cf_util_get_string_buffer(child, prefix, sizeof(prefix));
       if (status == 0) {
-        ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+        snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
                   "/var/run/.%s_config", prefix);
         DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
       }

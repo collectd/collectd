@@ -130,8 +130,7 @@ static void csnmp_oid_init(oid_t *dst, oid const *src, size_t n) {
 }
 
 static int csnmp_oid_compare(oid_t const *left, oid_t const *right) {
-  return snmp_oid_compare(left->oid, left->oid_len, right->oid,
-                          right->oid_len);
+  return snmp_oid_compare(left->oid, left->oid_len, right->oid, right->oid_len);
 }
 
 static int csnmp_oid_suffix(oid_t *dst, oid_t const *src, oid_t const *root) {
@@ -155,7 +154,7 @@ static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
   char *oid_str_ptr[MAX_OID_LEN];
 
   for (size_t i = 0; i < o->oid_len; i++) {
-    ssnprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
+    snprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
   }
 
@@ -703,7 +702,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
         "= %i }",
         hd->name, hd->address, hd->community, hd->version);
 
-  ssnprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
+  snprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
 
   status = plugin_register_complex_read(
       /* group = */ NULL, cb_name, csnmp_read_host, hd->interval,
@@ -997,10 +996,10 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   else if (vb->type == ASN_BIT_STR)
     src = (char *)vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS) {
-    return ssnprintf(dst, dst_size,
-                     "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
-                     (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
-                     (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
+    return snprintf(dst, dst_size,
+                    "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
+                    (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
+                    (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
     return EINVAL;
@@ -1092,7 +1091,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    ssnprintf(il->instance, sizeof(il->instance), "%llu", val.counter);
+    snprintf(il->instance, sizeof(il->instance), "%llu", val.counter);
   }
 
   /* TODO: Debugging output */
@@ -1222,8 +1221,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->instance_prefix == NULL)
         sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
       else
-        ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                  data->instance_prefix, temp);
+        snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
+                 data->instance_prefix, temp);
     }
 
     vl.values_len = data->values_len;

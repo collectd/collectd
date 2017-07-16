@@ -156,8 +156,8 @@ static int read_file(const char *path) {
       if (values_list != NULL) {
         char match_name[2 * DATA_MAX_NAME_LEN];
 
-        ssnprintf(match_name, sizeof(match_name), "%s:%s", key_buffer,
-                  key_fields[i]);
+        snprintf(match_name, sizeof(match_name), "%s:%s", key_buffer,
+                 key_fields[i]);
 
         if (ignorelist_match(values_list, match_name))
           continue;

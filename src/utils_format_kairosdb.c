@@ -103,7 +103,7 @@ static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
     int status;                                                                \
-    status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
       return -1;                                                               \
@@ -192,7 +192,7 @@ static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = ssnprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);    \
+    status = snprintf(buffer + offset, buffer_size - offset, __VA_ARGS__);     \
     if (status < 1)                                                            \
       return -1;                                                               \
     else if (((size_t)status) >= (buffer_size - offset))                       \
@@ -345,12 +345,9 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
   if (*ret_buffer_free < 3)
     return -ENOMEM;
 
-  return format_kairosdb_value_list_nocheck(buffer, ret_buffer_fill,
-                                            ret_buffer_free, ds, vl,
-                                            store_rates,
-                                            (*ret_buffer_free) - 2,
-                                            http_attrs, http_attrs_num,
-                                            data_ttl);
+  return format_kairosdb_value_list_nocheck(
+      buffer, ret_buffer_fill, ret_buffer_free, ds, vl, store_rates,
+      (*ret_buffer_free) - 2, http_attrs, http_attrs_num, data_ttl);
 } /* }}} int format_kairosdb_value_list */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

@@ -1213,9 +1213,9 @@ static int jtoc_notification(JNIEnv *jvm_env, notification_t *n, /* {{{ */
 
   return 0;
 } /* }}} int jtoc_notification */
-  /*
-   * Functions accessible from Java
-   */
+/*
+ * Functions accessible from Java
+ */
 static jint JNICALL cjni_api_dispatch_values(JNIEnv *jvm_env, /* {{{ */
                                              jobject this, jobject java_vl) {
   value_list_t vl = VALUE_LIST_INIT;

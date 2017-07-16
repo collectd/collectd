@@ -654,9 +654,11 @@ static int submit_derive(const char *host, const char *plugin_inst, /* {{{ */
                          const char *type, const char *type_inst,
                          derive_t counter, cdtime_t timestamp,
                          cdtime_t interval) {
-  return submit_values(host, plugin_inst, type, type_inst, &(value_t){
-      .derive=counter,
-    }, 1, timestamp, interval);
+  return submit_values(host, plugin_inst, type, type_inst,
+                       &(value_t){
+                           .derive = counter,
+                       },
+                       1, timestamp, interval);
 } /* }}} int submit_derive */
 
 static int submit_two_gauge(const char *host, const char *plugin_inst, /* {{{ */
@@ -674,9 +676,11 @@ static int submit_two_gauge(const char *host, const char *plugin_inst, /* {{{ */
 static int submit_double(const char *host, const char *plugin_inst, /* {{{ */
                          const char *type, const char *type_inst, double d,
                          cdtime_t timestamp, cdtime_t interval) {
-  return submit_values(host, plugin_inst, type, type_inst, &(value_t){
-      .gauge=d,
-    }, 1, timestamp, interval);
+  return submit_values(host, plugin_inst, type, type_inst,
+                       &(value_t){
+                           .gauge = d,
+                       },
+                       1, timestamp, interval);
 } /* }}} int submit_uint64 */
 
 /* Calculate hit ratio from old and new counters and submit the resulting
@@ -769,13 +773,14 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
   if ((hostname == NULL) || (old_data == NULL) || (new_data == NULL))
     return -1;
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "volume-%s",
-            old_data->name);
+  snprintf(plugin_instance, sizeof(plugin_instance), "volume-%s",
+           old_data->name);
 
   /* Check for and submit disk-octet values */
   if (HAS_ALL_FLAGS(old_data->flags, CFG_VOLUME_PERF_IO) &&
-      HAS_ALL_FLAGS(new_data->flags, HAVE_VOLUME_PERF_BYTES_READ |
-                                         HAVE_VOLUME_PERF_BYTES_WRITE)) {
+      HAS_ALL_FLAGS(new_data->flags,
+                    HAVE_VOLUME_PERF_BYTES_READ |
+                        HAVE_VOLUME_PERF_BYTES_WRITE)) {
     submit_two_derive(
         hostname, plugin_instance, "disk_octets", /* type instance = */ NULL,
         (derive_t)new_data->read_bytes, (derive_t)new_data->write_bytes,
@@ -793,15 +798,15 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
   }
 
   /* Check for, calculate and submit disk-latency values */
-  if (HAS_ALL_FLAGS(old_data->flags, CFG_VOLUME_PERF_LATENCY |
-                                         HAVE_VOLUME_PERF_OPS_READ |
-                                         HAVE_VOLUME_PERF_OPS_WRITE |
-                                         HAVE_VOLUME_PERF_LATENCY_READ |
-                                         HAVE_VOLUME_PERF_LATENCY_WRITE) &&
-      HAS_ALL_FLAGS(new_data->flags, HAVE_VOLUME_PERF_OPS_READ |
-                                         HAVE_VOLUME_PERF_OPS_WRITE |
-                                         HAVE_VOLUME_PERF_LATENCY_READ |
-                                         HAVE_VOLUME_PERF_LATENCY_WRITE)) {
+  if (HAS_ALL_FLAGS(old_data->flags,
+                    CFG_VOLUME_PERF_LATENCY | HAVE_VOLUME_PERF_OPS_READ |
+                        HAVE_VOLUME_PERF_OPS_WRITE |
+                        HAVE_VOLUME_PERF_LATENCY_READ |
+                        HAVE_VOLUME_PERF_LATENCY_WRITE) &&
+      HAS_ALL_FLAGS(new_data->flags,
+                    HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE |
+                        HAVE_VOLUME_PERF_LATENCY_READ |
+                        HAVE_VOLUME_PERF_LATENCY_WRITE)) {
     gauge_t latency_per_op_read;
     gauge_t latency_per_op_write;
 
@@ -1399,10 +1404,11 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
     uint64_t snap_reserve_free = v->snap_reserved;
     uint64_t snap_norm_used = v->snap_used;
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "volume-%s", v->name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "volume-%s", v->name);
 
-    if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_SNAP_USED |
-                                    HAVE_VOLUME_USAGE_SNAP_RSVD)) {
+    if (HAS_ALL_FLAGS(v->flags,
+                      HAVE_VOLUME_USAGE_SNAP_USED |
+                          HAVE_VOLUME_USAGE_SNAP_RSVD)) {
       if (v->snap_reserved > v->snap_used) {
         snap_reserve_free = v->snap_reserved - v->snap_used;
         snap_reserve_used = v->snap_used;
@@ -1416,8 +1422,9 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
 
     /* The space used by snapshots but not reserved for them is included in
      * both, norm_used and snap_norm_used. If possible, subtract this here. */
-    if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_NORM_USED |
-                                    HAVE_VOLUME_USAGE_SNAP_USED)) {
+    if (HAS_ALL_FLAGS(v->flags,
+                      HAVE_VOLUME_USAGE_NORM_USED |
+                          HAVE_VOLUME_USAGE_SNAP_USED)) {
       if (norm_used >= snap_norm_used)
         norm_used -= snap_norm_used;
       else {
@@ -1459,8 +1466,9 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
                     "df_complex", "snap_reserved", (double)snap_reserve_free,
                     /* timestamp = */ 0, interval);
 
-    if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_SNAP_USED |
-                                    HAVE_VOLUME_USAGE_SNAP_RSVD))
+    if (HAS_ALL_FLAGS(v->flags,
+                      HAVE_VOLUME_USAGE_SNAP_USED |
+                          HAVE_VOLUME_USAGE_SNAP_RSVD))
       submit_double(hostname, /* plugin instance = */ plugin_instance,
                     "df_complex", "snap_reserve_used",
                     (double)snap_reserve_used, /* timestamp = */ 0, interval);
@@ -1490,13 +1498,12 @@ static int cna_change_volume_status(const char *hostname, /* {{{ */
 
   if ((v->flags & IS_VOLUME_USAGE_OFFLINE) != 0) {
     n.severity = NOTIF_OKAY;
-    ssnprintf(n.message, sizeof(n.message), "Volume %s is now online.",
-              v->name);
+    snprintf(n.message, sizeof(n.message), "Volume %s is now online.", v->name);
     v->flags &= ~IS_VOLUME_USAGE_OFFLINE;
   } else {
     n.severity = NOTIF_WARNING;
-    ssnprintf(n.message, sizeof(n.message), "Volume %s is now offline.",
-              v->name);
+    snprintf(n.message, sizeof(n.message), "Volume %s is now offline.",
+             v->name);
     v->flags |= IS_VOLUME_USAGE_OFFLINE;
   }
 
@@ -1723,8 +1730,8 @@ static int cna_handle_volume_usage_data(const host_config_t *host, /* {{{ */
     }
   } /* for (elem_volume) */
 
-  return cna_submit_volume_usage_data(host->name, cfg_volume,
-                                      host->cfg_volume_usage->interval.interval);
+  return cna_submit_volume_usage_data(
+      host->name, cfg_volume, host->cfg_volume_usage->interval.interval);
 } /* }}} int cna_handle_volume_usage_data */
 
 static int cna_setup_volume_usage(cfg_volume_usage_t *cvu) /* {{{ */
@@ -1825,8 +1832,8 @@ static int cna_handle_quota_data(const host_config_t *host, /* {{{ */
     if (volume_name == NULL)
       continue;
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "quota-%s-%s",
-              volume_name, tree_name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "quota-%s-%s",
+             volume_name, tree_name);
 
     value = na_child_get_uint64(elem_quota, "disk-used", UINT64_MAX);
     if (value != UINT64_MAX) {
@@ -1938,8 +1945,8 @@ static int cna_handle_snapvault_data(const char *hostname, /* {{{ */
       continue;
 
     /* possible TODO: make plugin instance configurable */
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "snapvault-%s",
-              dest_path);
+    snprintf(plugin_instance, sizeof(plugin_instance), "snapvault-%s",
+             dest_path);
     submit_double(hostname, plugin_instance, /* type = */ "delay", NULL,
                   (double)value, /* timestamp = */ 0, interval);
 
@@ -2816,10 +2823,10 @@ static int cna_register_host(host_config_t *host) /* {{{ */
   char cb_name[256];
 
   if (host->vfiler)
-    ssnprintf(cb_name, sizeof(cb_name), "netapp-%s-%s", host->name,
-              host->vfiler);
+    snprintf(cb_name, sizeof(cb_name), "netapp-%s-%s", host->name,
+             host->vfiler);
   else
-    ssnprintf(cb_name, sizeof(cb_name), "netapp-%s", host->name);
+    snprintf(cb_name, sizeof(cb_name), "netapp-%s", host->name);
 
   plugin_register_complex_read(
       /* group = */ NULL, cb_name,

@@ -84,18 +84,6 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
   return dest;
 } /* char *sstrncpy */
 
-int ssnprintf(char *dest, size_t n, const char *format, ...) {
-  int ret = 0;
-  va_list ap;
-
-  va_start(ap, format);
-  ret = vsnprintf(dest, n, format, ap);
-  dest[n - 1] = '\0';
-  va_end(ap);
-
-  return ret;
-} /* int ssnprintf */
-
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
 {
   char static_buffer[1024] = "";
@@ -191,9 +179,9 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
-    ssnprintf(buf, buflen, "Error #%i; "
-                           "Additionally, strerror_r failed.",
-              errnum);
+    snprintf(buf, buflen, "Error #%i; "
+                          "Additionally, strerror_r failed.",
+             errnum);
   }
 #endif /* STRERROR_R_CHAR_P */
 
@@ -675,7 +663,7 @@ int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name) {
   if (kc == NULL)
     return -1;
 
-  ssnprintf(ident, sizeof(ident), "%s,%i,%s", module, instance, name);
+  snprintf(ident, sizeof(ident), "%s,%i,%s", module, instance, name);
 
   *ksp_ptr = kstat_lookup(kc, module, instance, name);
   if (*ksp_ptr == NULL) {
@@ -882,7 +870,7 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = ssnprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
+    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
       return -1;                                                               \

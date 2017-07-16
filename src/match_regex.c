@@ -224,7 +224,7 @@ static int mr_config_add_meta_regex(llist_t **meta, /* {{{ */
     llist_append(*meta, entry);
   }
 
-  ssnprintf(buffer, sizeof(buffer), "%s `%s'", ci->key, meta_key);
+  snprintf(buffer, sizeof(buffer), "%s `%s'", ci->key, meta_key);
   /* Can't pass &entry->value into mr_add_regex, so copy in/out. */
   re_head = entry->value;
   status = mr_add_regex(&re_head, ci->values[1].value.string, buffer);

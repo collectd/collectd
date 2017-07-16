@@ -605,8 +605,9 @@ static int statsd_config_timer_percentile(oconfig_item_t *ci) /* {{{ */
     return ERANGE;
   }
 
-  tmp = realloc(conf_timer_percentile, sizeof(*conf_timer_percentile) *
-                                           (conf_timer_percentile_num + 1));
+  tmp =
+      realloc(conf_timer_percentile,
+              sizeof(*conf_timer_percentile) * (conf_timer_percentile_num + 1));
   if (tmp == NULL) {
     ERROR("statsd plugin: realloc failed.");
     return ENOMEM;
@@ -731,7 +732,7 @@ static int statsd_metric_submit_unsafe(char const *name,
     /* Make sure all timer metrics share the *same* timestamp. */
     vl.time = cdtime();
 
-    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-average", name);
+    snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-average", name);
     vl.values[0].gauge =
         have_events
             ? CDTIME_T_TO_DOUBLE(latency_counter_get_average(metric->latency))
@@ -739,7 +740,7 @@ static int statsd_metric_submit_unsafe(char const *name,
     plugin_dispatch_values(&vl);
 
     if (conf_timer_lower) {
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-lower", name);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-lower", name);
       vl.values[0].gauge =
           have_events
               ? CDTIME_T_TO_DOUBLE(latency_counter_get_min(metric->latency))
@@ -748,7 +749,7 @@ static int statsd_metric_submit_unsafe(char const *name,
     }
 
     if (conf_timer_upper) {
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-upper", name);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-upper", name);
       vl.values[0].gauge =
           have_events
               ? CDTIME_T_TO_DOUBLE(latency_counter_get_max(metric->latency))
@@ -757,7 +758,7 @@ static int statsd_metric_submit_unsafe(char const *name,
     }
 
     if (conf_timer_sum) {
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-sum", name);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-sum", name);
       vl.values[0].gauge =
           have_events
               ? CDTIME_T_TO_DOUBLE(latency_counter_get_sum(metric->latency))
@@ -766,8 +767,8 @@ static int statsd_metric_submit_unsafe(char const *name,
     }
 
     for (size_t i = 0; i < conf_timer_percentile_num; i++) {
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance),
-                "%s-percentile-%.0f", name, conf_timer_percentile[i]);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-percentile-%.0f",
+               name, conf_timer_percentile[i]);
       vl.values[0].gauge =
           have_events ? CDTIME_T_TO_DOUBLE(latency_counter_get_percentile(
                             metric->latency, conf_timer_percentile[i]))
@@ -779,7 +780,7 @@ static int statsd_metric_submit_unsafe(char const *name,
      * vl.type's above are implicitly set to "latency". */
     if (conf_timer_count) {
       sstrncpy(vl.type, "gauge", sizeof(vl.type));
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-count", name);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-count", name);
       vl.values[0].gauge = latency_counter_get_num(metric->latency);
       plugin_dispatch_values(&vl);
     }

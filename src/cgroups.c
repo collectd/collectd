@@ -63,7 +63,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
   if (ignorelist_match(il_cgroup, cgroup_name))
     return 0;
 
-  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, cgroup_name);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, cgroup_name);
 
   status = lstat(abs_path, &statbuf);
   if (status != 0) {
@@ -75,8 +75,8 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
   if (!S_ISDIR(statbuf.st_mode))
     return 0;
 
-  ssnprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
-            cgroup_name);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
+           cgroup_name);
   fh = fopen(abs_path, "r");
   if (fh == NULL) {
     char errbuf[1024];
@@ -138,7 +138,7 @@ static int read_cpuacct_root(const char *dirname, const char *filename,
   struct stat statbuf;
   int status;
 
-  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
 
   status = lstat(abs_path, &statbuf);
   if (status != 0) {

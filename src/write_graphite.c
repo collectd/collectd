@@ -545,11 +545,11 @@ static int wg_config_node(oconfig_item_t *ci) {
 
   /* FIXME: Legacy configuration syntax. */
   if (cb->name == NULL)
-    ssnprintf(callback_name, sizeof(callback_name), "write_graphite/%s/%s/%s",
-              cb->node, cb->service, cb->protocol);
+    snprintf(callback_name, sizeof(callback_name), "write_graphite/%s/%s/%s",
+             cb->node, cb->service, cb->protocol);
   else
-    ssnprintf(callback_name, sizeof(callback_name), "write_graphite/%s",
-              cb->name);
+    snprintf(callback_name, sizeof(callback_name), "write_graphite/%s",
+             cb->name);
 
   plugin_register_write(callback_name, wg_write,
                         &(user_data_t){

@@ -77,7 +77,7 @@ static int drbd_submit_fields(long int resource, char **fields,
     return EINVAL;
   }
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "r%ld", resource);
+  snprintf(plugin_instance, sizeof(plugin_instance), "r%ld", resource);
 
   for (size_t i = 0; i < drbd_names_num; i++) {
     char *data;

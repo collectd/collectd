@@ -66,9 +66,6 @@ typedef struct value_to_rate_state_s value_to_rate_state_t;
 
 char *sstrncpy(char *dest, const char *src, size_t n);
 
-__attribute__((format(printf, 3, 4))) int ssnprintf(char *dest, size_t n,
-                                                    const char *format, ...);
-
 __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
                                                             ...);
 

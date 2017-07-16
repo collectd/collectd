@@ -519,7 +519,7 @@ static void submit(const char *dev, const char *type, const char *ti1,
   sstrncpy(vl.type, type, sizeof(vl.type));
 
   if ((ti1 != NULL) && (ti2 != NULL))
-    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s", ti1, ti2);
+    snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s", ti1, ti2);
   else if ((ti1 != NULL) && (ti2 == NULL))
     sstrncpy(vl.type_instance, ti1, sizeof(vl.type_instance));
 
@@ -553,15 +553,15 @@ static void submit_antx(const char *dev, const char *name, u_int32_t *vals,
     if (vals[i] == 0)
       continue;
 
-    ssnprintf(ti2, sizeof(ti2), "%i", i);
+    snprintf(ti2, sizeof(ti2), "%i", i);
     submit_derive(dev, "ath_stat", name, ti2, (derive_t)vals[i]);
   }
 }
 
 static inline void macaddr_to_str(char *buf, size_t bufsize,
                                   const uint8_t mac[IEEE80211_ADDR_LEN]) {
-  ssnprintf(buf, bufsize, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1],
-            mac[2], mac[3], mac[4], mac[5]);
+  snprintf(buf, bufsize, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1],
+           mac[2], mac[3], mac[4], mac[5]);
 }
 
 static void process_stat_struct(int which, const void *ptr, const char *dev,
@@ -753,7 +753,7 @@ static int check_devname(const char *dev) {
   if (dev[0] == '.')
     return 0;
 
-  ssnprintf(buf, sizeof(buf), "/sys/class/net/%s/device/driver", dev);
+  snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/driver", dev);
   buf[sizeof(buf) - 1] = '\0';
 
   i = readlink(buf, buf2, sizeof(buf2) - 1);
