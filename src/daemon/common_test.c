@@ -359,7 +359,7 @@ DEF_TEST(value_to_rate) {
 
 int main(void) {
   RUN_TEST(sstrncpy);
-  RUN_TEST(ssnprintf);
+  RUN_TEST(snprintf);
   RUN_TEST(sstrdup);
   RUN_TEST(strsplit);
   RUN_TEST(strjoin);
