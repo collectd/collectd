@@ -726,7 +726,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
 
   if ((cache_timeout > 0) &&
       ((cdtime() - cache_flush_last) > cache_flush_timeout))
-    rrd_cache_flush(cache_timeout);
+    rrd_cache_flush(cache_timeout + random_timeout);
 
   pthread_mutex_unlock(&cache_lock);
 
