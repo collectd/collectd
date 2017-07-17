@@ -608,13 +608,6 @@ static int64_t rrd_get_random_variation(void) {
   if (random_timeout == 0)
     return 0;
 
-  /* Assure that "cache_timeout + random_variation" is never negative. */
-  if (random_timeout > cache_timeout) {
-    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
-         CDTIME_T_TO_DOUBLE(cache_timeout));
-    random_timeout = cache_timeout;
-  }
-
   return (int64_t)cdrand_range(-random_timeout, random_timeout);
 } /* int64_t rrd_get_random_variation */
 
@@ -1058,6 +1051,7 @@ static int rrd_init(void) {
 
   cache_flush_last = cdtime();
   if (cache_timeout == 0) {
+    random_timeout = 0;
     cache_flush_timeout = 0;
   } else if (cache_flush_timeout < cache_timeout) {
     INFO("rrdtool plugin: \"CacheFlush %u\" is less than \"CacheTimeout %u\". "
@@ -1066,6 +1060,13 @@ static int rrd_init(void) {
          (unsigned int)CDTIME_T_TO_TIME_T(cache_timeout),
          (unsigned int)CDTIME_T_TO_TIME_T(cache_timeout * 10));
     cache_flush_timeout = 10 * cache_timeout;
+  }
+
+  /* Assure that "cache_timeout + random_variation" is never negative. */
+  if (random_timeout > cache_timeout) {
+    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_timeout));
+    random_timeout = cache_timeout;
   }
 
   pthread_mutex_unlock(&cache_lock);
