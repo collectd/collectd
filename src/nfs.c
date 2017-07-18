@@ -186,7 +186,8 @@ static const char *nfs4_server40_procedures_names[] = {"null",
 static size_t nfs4_server40_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs4_server40_procedures_names);
 
-static const char *nfs4_server41_procedures_names[] = {
+static const char *nfs4_server4x_procedures_names[] = {
+    /* NFS 4.1 */
     "backchannel_ctl",
     "bind_conn_to_session",
     "exchange_id",
@@ -206,19 +207,30 @@ static const char *nfs4_server41_procedures_names[] = {
     "want_delegation",
     "destroy_clientid",
     "reclaim_complete",
+    /* NFS 4.2 */
+    "allocate",		/* 3.18 */
+    "copy",		/* 3.18 */
+    "copy_notify",	/* 3.18 */
+    "deallocate",	/* 3.18 */
+    "ioadvise",		/* 3.18 */
+    "layouterror",	/* 3.18 */
+    "layoutstats",	/* 3.18 */
+    "offloadcancel",	/* 3.18 */
+    "offloadstatus",	/* 3.18 */
+    "readplus",		/* 3.18 */
+    "seek",		/* 3.18 */
+    "write_same",	/* 3.18 */
+    "clone"		/* 4.5 */
 };
-
-static size_t nfs4_server41_procedures_names_num =
-    STATIC_ARRAY_SIZE(nfs4_server41_procedures_names);
 
 #define NFS4_SERVER40_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_server40_procedures_names))
 
-#define NFS4_SERVER41_NUM_PROC                                                 \
+#define NFS4_SERVER4X_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_server40_procedures_names) +                         \
-   STATIC_ARRAY_SIZE(nfs4_server41_procedures_names))
+   STATIC_ARRAY_SIZE(nfs4_server4x_procedures_names))
 
-#define NFS4_SERVER_MAX_PROC (NFS4_SERVER41_NUM_PROC)
+#define NFS4_SERVER_MAX_PROC (NFS4_SERVER4X_NUM_PROC)
 
 static const char *nfs4_client40_procedures_names[] = {
     "null",
@@ -261,7 +273,8 @@ static const char *nfs4_client40_procedures_names[] = {
     "fsid_present"       /* |54| 3.13 */
 };
 
-static const char *nfs4_client41_procedures_names[] = {
+static const char *nfs4_client4x_procedures_names[] = {
+    /* NFS 4.1 */
     "exchange_id",          /* |40| 2.6.30 */
     "create_session",       /* |40| 2.6.30 */
     "destroy_session",      /* |40| 2.6.30 */
@@ -277,17 +290,24 @@ static const char *nfs4_client41_procedures_names[] = {
     "free_stateid",         /* |51| 3.1 */
     "getdevicelist",        /* |51| 3.1 */
     "bind_conn_to_session", /* |53| 3.5 */
-    "destroy_clientid"      /* |53| 3.5 */
+    "destroy_clientid",     /* |53| 3.5 */
+    /* NFS 4.2 */
+    "seek",                 /* |55| 3.18 */
+    "allocate",             /* |57| 3.19 */
+    "deallocate",           /* |57| 3.19 */
+    "layoutstats",          /* |58| 4.2 */
+    "clone",                /* |59| 4.4 */
+    "copy"                  /* |60| 4.7 */
 };
 
 #define NFS4_CLIENT40_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_client40_procedures_names))
 
-#define NFS4_CLIENT41_NUM_PROC                                                 \
+#define NFS4_CLIENT4X_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_client40_procedures_names) +                         \
-   STATIC_ARRAY_SIZE(nfs4_client41_procedures_names))
+   STATIC_ARRAY_SIZE(nfs4_client4x_procedures_names))
 
-#define NFS4_CLIENT_MAX_PROC (NFS4_CLIENT41_NUM_PROC)
+#define NFS4_CLIENT_MAX_PROC (NFS4_CLIENT4X_NUM_PROC)
 
 #endif
 
@@ -404,9 +424,15 @@ static int nfs_submit_fields_safe(int nfs_version, const char *instance,
 static int nfs_submit_nfs4_server(const char *instance, char **fields,
                                   size_t fields_num) {
   static int suppress_warning = 0;
+  size_t proc4x_names_num;
 
-  if (fields_num != NFS4_SERVER40_NUM_PROC &&
-      fields_num != NFS4_SERVER41_NUM_PROC) {
+  switch (fields_num) {
+  case NFS4_SERVER40_NUM_PROC:
+  case NFS4_SERVER40_NUM_PROC + 19: /* NFS 4.1 */
+  case NFS4_SERVER40_NUM_PROC + 31: /* NFS 4.2 */
+  case NFS4_SERVER40_NUM_PROC + 32: /* NFS 4.2 */
+	break;
+  default:
     if (!suppress_warning) {
       WARNING("nfs plugin: Unexpected number of fields for "
               "NFSv4 %s statistics: %zu. ",
@@ -424,11 +450,12 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
   nfs_submit_fields(4, instance, fields, nfs4_server40_procedures_names_num,
                     nfs4_server40_procedures_names);
 
-  if (fields_num >= NFS4_SERVER41_NUM_PROC) {
+  if (fields_num > nfs4_server40_procedures_names_num) {
+    proc4x_names_num = fields_num - nfs4_server40_procedures_names_num;
     fields += nfs4_server40_procedures_names_num;
 
-    nfs_submit_fields(4, instance, fields, nfs4_server41_procedures_names_num,
-                      nfs4_server41_procedures_names);
+    nfs_submit_fields(4, instance, fields, proc4x_names_num,
+                      nfs4_server4x_procedures_names);
   }
 
   return 0;
@@ -436,7 +463,7 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
 
 static int nfs_submit_nfs4_client(const char *instance, char **fields,
                                   size_t fields_num) {
-  size_t proc40_names_num, proc41_names_num;
+  size_t proc40_names_num, proc4x_names_num;
 
   static int suppress_warning = 0;
 
@@ -464,6 +491,11 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
     proc40_names_num = 37;
     break;
   case 54:
+  case 55:
+  case 57:
+  case 58:
+  case 59:
+  case 60:
     proc40_names_num = 38;
     break;
   default:
@@ -489,11 +521,11 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
                     nfs4_client40_procedures_names);
 
   if (fields_num > proc40_names_num) {
-    proc41_names_num = fields_num - proc40_names_num;
+    proc4x_names_num = fields_num - proc40_names_num;
     fields += proc40_names_num;
 
-    nfs_submit_fields(4, instance, fields, proc41_names_num,
-                      nfs4_client41_procedures_names);
+    nfs_submit_fields(4, instance, fields, proc4x_names_num,
+                      nfs4_client4x_procedures_names);
   }
 
   return 0;
