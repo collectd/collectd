@@ -19,6 +19,7 @@ ProtectHome=true
 #   dns             CAP_NET_RAW
 #   exec            CAP_SETUID CAP_SETGID
 #   intel_rdt       CAP_SYS_RAWIO
+#   intel_pmu       CAP_SYS_ADMIN
 #   iptables        CAP_NET_ADMIN
 #   ping            CAP_NET_RAW
 #   smart           CAP_SYS_RAWIO
