@@ -23,6 +23,7 @@
  *
  * Authors:
  *   Taras Chornyi <tarasx.chornyi@intel.com>
+ *   Volodymyr Mytnyk <volodymyrx.mytnyk@intel.com>
  */
 
 #include "common.h"
@@ -268,7 +269,7 @@ static port_list_t *ovs_stats_new_port(ovs_stats_inst_t *inst,
   port_list_t *port = ovs_stats_get_port(inst, uuid);
 
   if (port == NULL) {
-    port = (port_list_t *)calloc(1, sizeof(port_list_t));
+    port = calloc(1, sizeof(*port));
     if (!port) {
       ERROR("%s: Error allocating port", plugin_name);
       return NULL;
@@ -352,7 +353,7 @@ static int ovs_stats_update_bridge(ovs_stats_inst_t *inst, yajl_val bridge) {
                                   YAJL_GET_STRING(br_name));
         pthread_mutex_lock(&inst->stats_lock);
         if (br == NULL) {
-          br = (bridge_list_t *)calloc(1, sizeof(bridge_list_t));
+          br = calloc(1, sizeof(*br));
           if (!br) {
             ERROR("%s: Error allocating memory for bridge", plugin_name);
             return -1;
@@ -847,7 +848,7 @@ static ovs_stats_inst_t *ovs_stats_instance_add(const char *name) {
     return NULL;
 
   /* create new OVS DB instances */
-  ovs_stats_inst_t *inst = calloc(sizeof(*inst), 1);
+  ovs_stats_inst_t *inst = calloc(1, sizeof(*inst));
   if (inst == NULL)
     return NULL;
 
@@ -938,7 +939,7 @@ static int ovs_stats_get_instance_config(oconfig_item_t *ci,
         }
         if ((bridge = ovs_stats_get_bridge(inst_conf.monitored_bridge_list_head,
                                            br_name)) == NULL) {
-          if ((bridge = calloc(1, sizeof(bridge_list_t))) == NULL) {
+          if ((bridge = calloc(1, sizeof(*bridge))) == NULL) {
             ERROR("%s: Error allocating memory for bridge", plugin_name);
             ovs_stats_free_bridge_list(inst_conf.monitored_bridge_list_head);
             return -1;
@@ -1041,7 +1042,6 @@ static int ovs_stats_inst_add_default() {
 
 /* Initialize OvS Stats plugin*/
 static int ovs_stats_plugin_init(void) {
-  size_t index = 0;
   size_t inst_num = llist_size(ovs_stats_ctx.list_inst);
   ovs_db_inst_t insts[inst_num ? inst_num : 1];
 
@@ -1056,6 +1056,7 @@ static int ovs_stats_plugin_init(void) {
     }
   }
   /* fill the OVS DB information */
+  size_t index = 0;
   for (llentry_t *le = llist_head(ovs_stats_ctx.list_inst); le != NULL;
        le = le->next, index++) {
     ovs_stats_inst_t *inst = le->value;

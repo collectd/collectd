@@ -32,8 +32,8 @@
 
 #include "utils_ovs.h" /* OVS helpers */
 
-#define OVS_EVENTS_DEFAULT_NODE "localhost"   /* default OVS DB node */
-#define OVS_EVENTS_DEFAULT_SERVICE "6640"     /* default OVS DB service */
+#define OVS_EVENTS_DEFAULT_NODE "localhost" /* default OVS DB node */
+#define OVS_EVENTS_DEFAULT_SERVICE "6640"   /* default OVS DB service */
 #define OVS_EVENTS_IFACE_NAME_SIZE 128
 #define OVS_EVENTS_IFACE_UUID_SIZE 64
 #define OVS_EVENTS_EXT_IFACE_ID_SIZE 64
@@ -292,7 +292,7 @@ static ovs_events_inst_t *ovs_events_instance_add(const char *name) {
     return NULL;
 
   /* create new OVS DB instances */
-  ovs_events_inst_t *inst = calloc(sizeof(*inst), 1);
+  ovs_events_inst_t *inst = calloc(1, sizeof(*inst));
   if (inst == NULL)
     return NULL;
 
@@ -310,8 +310,7 @@ static ovs_events_inst_t *ovs_events_instance_add(const char *name) {
 static int ovs_events_inst_add_default() {
 
   /* create new instance */
-  ovs_events_inst_t *inst =
-      ovs_events_instance_add(hostname_g);
+  ovs_events_inst_t *inst = ovs_events_instance_add(hostname_g);
   if (inst == NULL)
     return -1;
 
@@ -406,7 +405,7 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
 
 /* Dispatch OVS interface link status event to collectd */
 static void ovs_events_dispatch_notification(const char *hostname,
-                                             const ovs_events_iface_info_t *ifinfo) {
+                                 const ovs_events_iface_info_t *ifinfo) {
   const char *msg_link_status = NULL;
   notification_t n = {
       NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
@@ -461,7 +460,7 @@ static void ovs_events_dispatch_notification(const char *hostname,
 
 /* Dispatch OVS interface link status value to collectd */
 static void ovs_events_link_status_submit(const char *hostname,
-                                          const ovs_events_iface_info_t *ifinfo) {
+                              const ovs_events_iface_info_t *ifinfo) {
   value_list_t vl = VALUE_LIST_INIT;
   meta_data_t *meta = NULL;
 
@@ -719,7 +718,7 @@ static int ovs_events_plugin_read(user_data_t *u) {
                               inst->config.select_params,
                               ovs_events_poll_result_cb) < 0) {
         ERROR(OVS_EVENTS_PLUGIN ": get interface info failed");
-        status = (-1);
+        status = -1;
       }
     }
   }
@@ -728,7 +727,6 @@ static int ovs_events_plugin_read(user_data_t *u) {
 
 /* Initialize OVS plugin */
 static int ovs_events_plugin_init(void) {
-  size_t index = 0;
   size_t inst_num = llist_size(ovs_events_ctx.list_inst);
   ovs_db_inst_t insts[inst_num ? inst_num : 1];
 
@@ -748,6 +746,7 @@ static int ovs_events_plugin_init(void) {
     }
   }
   /* fill the OVS DB information */
+  size_t index = 0;
   for (llentry_t *le = llist_head(ovs_events_ctx.list_inst); le != NULL;
        le = le->next) {
     ovs_events_inst_t *inst = le->value;

@@ -683,7 +683,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
 static ovs_json_reader_t *ovs_json_reader_alloc() {
   ovs_json_reader_t *jreader = NULL;
 
-  if ((jreader = calloc(sizeof(ovs_json_reader_t), 1)) == NULL)
+  if ((jreader = calloc(1, sizeof(*jreader))) == NULL)
     return NULL;
 
   return jreader;
@@ -792,8 +792,8 @@ static void ovs_db_reconnect(ovs_t *ovs, ovs_db_t *pdb) {
   if (pdb->inst.unix_path[0] != '\0') {
     /* use UNIX socket instead of INET address */
     node_info = pdb->inst.unix_path;
-    result = calloc(1, sizeof(struct addrinfo));
-    struct sockaddr_un *sa_unix = calloc(1, sizeof(struct sockaddr_un));
+    result = calloc(1, sizeof(*result));
+    struct sockaddr_un *sa_unix = calloc(1, sizeof(*sa_unix));
     if (result == NULL || sa_unix == NULL) {
       sfree(result);
       sfree(sa_unix);
@@ -858,7 +858,7 @@ static void ovs_db_process_poll_event(ovs_t *ovs, ovs_db_t *pdb, int events) {
     ovs_json_reader_reset(pdb->jreader);
     /* setting poll FD to -1 tells poll() call to ignore this FD.
      * In that case poll() call will return timeout all the time */
-    pdb->sock = (-1);
+    pdb->sock = -1;
   } else if ((events & POLLERR) || (events & POLLHUP)) {
     /* connection is broken */
     close(pdb->sock);
@@ -1096,7 +1096,7 @@ static int ovs_db_poll_thread_destroy(ovs_t *ovs) {
 
 /* create a new OVS DB */
 static ovs_db_t *ovs_db_create_new() {
-  ovs_db_t *new_db = calloc(sizeof(*new_db), 1);
+  ovs_db_t *new_db = calloc(1, sizeof(*new_db));
   if (new_db == NULL)
     return NULL;
 
@@ -1166,14 +1166,14 @@ ovs_t *ovs_init(const ovs_db_inst_t *instances, size_t num) {
     return NULL;
 
   /* allocate new OVS instance that will be returned to the caller */
-  ovs_t *ovs = calloc(sizeof(*ovs), 1);
-  if (ovs == NULL) {
-    ovs_destroy(ovs);
+  ovs_t *ovs = calloc(1, sizeof(*ovs));
+  if (ovs == NULL)
     return NULL;
-  }
+
   /* init OVS mutex */
   if (pthread_mutex_init(&ovs->mutex, NULL)) {
     OVS_ERROR("init OVS mutex failed");
+    sfree(ovs);
     return NULL;
   }
   /* create OVS DB instances */
@@ -1251,7 +1251,7 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
 
   if (cb) {
     /* register result callback */
-    if ((new_cb = calloc(1, sizeof(ovs_callback_t))) == NULL)
+    if ((new_cb = calloc(1, sizeof(*new_cb))) == NULL)
       goto yajl_gen_failure;
 
     /* add new callback to front */
@@ -1272,12 +1272,12 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
       if (sem_timedwait(&new_cb->result.sync, &ts) < 0) {
         OVS_ERROR("%s() no replay received within %d sec", __FUNCTION__,
                   OVS_DB_SEND_REQ_TIMEOUT);
-        ret = (-1);
+        ret = -1;
       }
     }
   } else {
     OVS_ERROR("ovs_db_data_send() failed");
-    ret = (-1);
+    ret = -1;
   }
 
 yajl_gen_failure:
@@ -1309,7 +1309,7 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
     return -1;
 
   /* allocate new update callback */
-  if ((new_cb = calloc(1, sizeof(ovs_callback_t))) == NULL)
+  if ((new_cb = calloc(1, sizeof(*new_cb))) == NULL)
     return -1;
 
   /* init YAJL generator */
@@ -1384,7 +1384,7 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
                 &params_len);
   if (ovs_db_send_request(pdb, "monitor", params, result_cb) < 0) {
     OVS_ERROR("Failed to subscribe to \"%s\" table", tb_name);
-    ovs_db_ret = (-1);
+    ovs_db_ret = -1;
   }
 
 yajl_gen_failure:
@@ -1409,12 +1409,12 @@ int ovs_destroy(ovs_t *ovs) {
   /* stop poll thread */
   if (ovs_db_event_thread_destroy(ovs) < 0) {
     OVS_ERROR("destroy poll thread failed");
-    ovs_db_ret = (-1);
+    ovs_db_ret = -1;
   }
   /* stop event thread */
   if (ovs_db_poll_thread_destroy(ovs) < 0) {
     OVS_ERROR("stop event thread failed");
-    ovs_db_ret = (-1);
+    ovs_db_ret = -1;
   }
   /* destroy list of OVS DB instances */
   for (ovs_db_t *del_db = ovs->db_list; del_db != NULL; del_db = ovs->db_list) {
@@ -1426,7 +1426,7 @@ int ovs_destroy(ovs_t *ovs) {
   /* unlock and destroy the mutex */
   if ((ret = pthread_mutex_unlock(&ovs->mutex))) {
     OVS_ERROR("pthread_mutex_unlock() OVS mutex unlock failed (%d)", ret);
-    ovs_db_ret = (-1);
+    ovs_db_ret = -1;
   }
   pthread_mutex_destroy(&ovs->mutex);
   return ovs_db_ret;
