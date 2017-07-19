@@ -6963,13 +6963,14 @@ anymore for some reason (the computer was shut down, the network is broken,
 etc.) some values may still be in the cache. If B<CacheFlush> is set, then
 every I<Seconds> seconds the entire cache is searched for entries older than
 B<CacheTimeout> + B<RandomTimeout> seconds. The entries found are written to
-disk. Since entire cache scan is kind of expensive and does nothing under normal
-circumstances, this value should not be too small. 900 seconds might be a good
-value, though setting this to 7200 seconds doesn't normally do much harm either.
+disk. Since scanning the entire cache is kind of expensive and does nothing
+under normal circumstances, this value should not be too small. 900 seconds
+might be a good value, though setting this to 7200 seconds doesn't normally
+do much harm either.
 
-Default value for this option is 10x of B<CacheTimeout>.
-If value of B<CacheFlush> less than value of B<CacheTimeout> then default value
-used too.
+Defaults to 10x B<CacheTimeout>.
+B<CacheFlush> must be larger than or equal to B<CacheTimeout>, otherwise the
+above default is used.
 
 =item B<CacheTimeout> I<Seconds>
 

@@ -863,7 +863,7 @@ static int rrd_config(const char *key, const char *value) {
     }
     cache_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("CacheFlush", key) == 0) {
-    int tmp = atoi(value);
+    double tmp = atof(value);
     if (tmp < 0) {
       fprintf(stderr, "rrdtool: `CacheFlush' must "
                       "be greater than 0.\n");
@@ -871,7 +871,7 @@ static int rrd_config(const char *key, const char *value) {
             "be greater than 0.\n");
       return 1;
     }
-    cache_flush_timeout = TIME_T_TO_CDTIME_T(tmp);
+    cache_flush_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("DataDir", key) == 0) {
     char *tmp;
     size_t len;
@@ -1054,11 +1054,11 @@ static int rrd_init(void) {
     random_timeout = 0;
     cache_flush_timeout = 0;
   } else if (cache_flush_timeout < cache_timeout) {
-    INFO("rrdtool plugin: \"CacheFlush %u\" is less than \"CacheTimeout %u\". "
-         "Ajusting \"CacheFlush\" to %u seconds.",
-         (unsigned int)CDTIME_T_TO_TIME_T(cache_flush_timeout),
-         (unsigned int)CDTIME_T_TO_TIME_T(cache_timeout),
-         (unsigned int)CDTIME_T_TO_TIME_T(cache_timeout * 10));
+    INFO("rrdtool plugin: \"CacheFlush %.3f\" is less than \"CacheTimeout %.3f\". "
+         "Ajusting \"CacheFlush\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_flush_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout * 10));
     cache_flush_timeout = 10 * cache_timeout;
   }
 
