@@ -273,9 +273,9 @@ static void pmu_submit_counter(int cpu, char *event, counter_t value) {
 
   sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
   if (cpu == -1) {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
   } else {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
   }
   sstrncpy(vl.type, "counter", sizeof(vl.type));
   sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
