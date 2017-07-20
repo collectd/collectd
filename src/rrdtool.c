@@ -87,7 +87,7 @@ static rrdcreate_config_t rrdcreate_config = {
  * ALWAYS lock `cache_lock' first! */
 static cdtime_t cache_timeout = 0;
 static cdtime_t cache_flush_timeout = 0;
-static cdtime_t random_timeout = TIME_T_TO_CDTIME_T_STATIC(1);
+static cdtime_t random_timeout = 0;
 static cdtime_t cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -505,7 +505,6 @@ static void rrd_cache_flush(cdtime_t timeout) {
         CDTIME_T_TO_DOUBLE(timeout));
 
   now = cdtime();
-  timeout = TIME_T_TO_CDTIME_T(timeout);
 
   /* Build a list of entries to be flushed */
   iter = c_avl_get_iterator(cache);
@@ -606,23 +605,10 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
 } /* int rrd_cache_flush_identifier */
 
 static int64_t rrd_get_random_variation(void) {
-  long min;
-  long max;
-
   if (random_timeout == 0)
     return (0);
 
-  /* Assure that "cache_timeout + random_variation" is never negative. */
-  if (random_timeout > cache_timeout) {
-    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
-         CDTIME_T_TO_DOUBLE(cache_timeout));
-    random_timeout = cache_timeout;
-  }
-
-  max = (long)(random_timeout / 2);
-  min = max - ((long)random_timeout);
-
-  return ((int64_t)cdrand_range(min, max));
+  return (int64_t)cdrand_range(-random_timeout, random_timeout);
 } /* int64_t rrd_get_random_variation */
 
 static int rrd_cache_insert(const char *filename, const char *value,
@@ -740,7 +726,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
 
   if ((cache_timeout > 0) &&
       ((cdtime() - cache_flush_last) > cache_flush_timeout))
-    rrd_cache_flush(cache_flush_timeout);
+    rrd_cache_flush(cache_timeout + random_timeout);
 
   pthread_mutex_unlock(&cache_lock);
 
@@ -877,7 +863,7 @@ static int rrd_config(const char *key, const char *value) {
     }
     cache_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("CacheFlush", key) == 0) {
-    int tmp = atoi(value);
+    double tmp = atof(value);
     if (tmp < 0) {
       fprintf(stderr, "rrdtool: `CacheFlush' must "
                       "be greater than 0.\n");
@@ -885,7 +871,7 @@ static int rrd_config(const char *key, const char *value) {
             "be greater than 0.\n");
       return (1);
     }
-    cache_flush_timeout = tmp;
+    cache_flush_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("DataDir", key) == 0) {
     char *tmp;
     size_t len;
@@ -1065,9 +1051,23 @@ static int rrd_init(void) {
 
   cache_flush_last = cdtime();
   if (cache_timeout == 0) {
+    random_timeout = 0;
     cache_flush_timeout = 0;
-  } else if (cache_flush_timeout < cache_timeout)
+  } else if (cache_flush_timeout < cache_timeout) {
+    INFO("rrdtool plugin: \"CacheFlush %.3f\" is less than \"CacheTimeout %.3f\". "
+         "Ajusting \"CacheFlush\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_flush_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout * 10));
     cache_flush_timeout = 10 * cache_timeout;
+  }
+
+  /* Assure that "cache_timeout + random_variation" is never negative. */
+  if (random_timeout > cache_timeout) {
+    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_timeout));
+    random_timeout = cache_timeout;
+  }
 
   pthread_mutex_unlock(&cache_lock);
 
