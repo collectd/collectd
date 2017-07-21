@@ -55,9 +55,8 @@ typedef struct mcelog_config_s {
   char logfile[PATH_MAX]; /* mcelog logfile */
   pthread_t tid;          /* poll thread id */
   llist_t *dimms_list;    /* DIMMs list */
-  /* lock for dimms cache */
+  pthread_mutex_t dimms_lock; /* lock for dimms cache */
   _Bool persist;
-  pthread_mutex_t dimms_lock;
 } mcelog_config_t;
 
 typedef struct socket_adapter_s socket_adapter_t;
@@ -132,31 +131,33 @@ static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
 
   llentry_t *dimm_le = llist_search(g_mcelog_config.dimms_list, dimm_name);
 
-  if (dimm_le == NULL) {
-    mcelog_memory_rec_t *dimm_mr = calloc(1, sizeof(*dimm_mr));
-    if (dimm_mr == NULL) {
-      ERROR(MCELOG_PLUGIN ": Error allocating dimm memory item");
-      return NULL;
-    }
-    char *p_name = strdup(dimm_name);
-    if (p_name == NULL) {
-      ERROR(MCELOG_PLUGIN ": strdup: error");
-      free(dimm_mr);
-      return NULL;
-    }
+  if (dimm_le != NULL)
+    return dimm_le;
 
-    /* add new dimm */
-    dimm_le = llentry_create(p_name, dimm_mr);
-    if (dimm_le == NULL) {
-      ERROR(MCELOG_PLUGIN ": llentry_create(): error");
-      free(dimm_mr);
-      free(p_name);
-      return NULL;
-    }
-    pthread_mutex_lock(&g_mcelog_config.dimms_lock);
-    llist_append(g_mcelog_config.dimms_list, dimm_le);
-    pthread_mutex_unlock(&g_mcelog_config.dimms_lock);
+  /* allocate new linked list entry */
+  mcelog_memory_rec_t *dimm_mr = calloc(1, sizeof(*dimm_mr));
+  if (dimm_mr == NULL) {
+    ERROR(MCELOG_PLUGIN ": Error allocating dimm memory item");
+    return NULL;
   }
+  char *p_name = strdup(dimm_name);
+  if (p_name == NULL) {
+    ERROR(MCELOG_PLUGIN ": strdup: error");
+    free(dimm_mr);
+    return NULL;
+  }
+
+  /* add new dimm */
+  dimm_le = llentry_create(p_name, dimm_mr);
+  if (dimm_le == NULL) {
+    ERROR(MCELOG_PLUGIN ": llentry_create(): error");
+    free(dimm_mr);
+    free(p_name);
+    return NULL;
+  }
+  pthread_mutex_lock(&g_mcelog_config.dimms_lock);
+  llist_append(g_mcelog_config.dimms_list, dimm_le);
+  pthread_mutex_unlock(&g_mcelog_config.dimms_lock);
 
   return dimm_le;
 }
@@ -193,30 +194,29 @@ static int mcelog_config(oconfig_item_t *ci) {
         ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\", Logfile "
                             "option is already configured.",
               child->key);
-        return (-1);
+        return -1;
       }
       use_memory = 1;
-      oconfig_item_t *mem_child = child->children;
       for (int j = 0; j < child->children_num; j++) {
-        mem_child += j;
+        oconfig_item_t *mem_child = child->children + j;
         if (strcasecmp("McelogClientSocket", mem_child->key) == 0) {
           if (cf_util_get_string_buffer(
                   mem_child, socket_adapter.unix_sock.sun_path,
                   sizeof(socket_adapter.unix_sock.sun_path)) < 0) {
             ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
                   mem_child->key);
-            return (-1);
+            return -1;
           }
         } else if (strcasecmp("PersistentNotification", mem_child->key) == 0) {
           if (cf_util_get_boolean(mem_child, &g_mcelog_config.persist) < 0) {
             ERROR(MCELOG_PLUGIN ": Invalid configuration option: \"%s\".",
                   mem_child->key);
-            return (-1);
+            return -1;
           }
         } else {
           ERROR(MCELOG_PLUGIN ": Invalid Memory configuration option: \"%s\".",
                 mem_child->key);
-          return (-1);
+          return -1;
         }
       }
       memset(g_mcelog_config.logfile, 0, sizeof(g_mcelog_config.logfile));
@@ -230,7 +230,7 @@ static int mcelog_config(oconfig_item_t *ci) {
   if (!use_logfile && !use_memory)
     mcelog_apply_defaults = 1;
 
-  return (0);
+  return 0;
 }
 
 static int socket_close(socket_adapter_t *self) {
@@ -330,13 +330,13 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
   int dispatch_corrected_notifs = 0, dispatch_uncorrected_notifs = 0;
 
   if (mr == NULL)
-    return (-1);
+    return -1;
 
   llentry_t *dimm = mcelog_dimm(mr, g_mcelog_config.dimms_list);
   if (dimm == NULL) {
     ERROR(MCELOG_PLUGIN
           ": Error adding/getting dimm memory item to/from cache");
-    return (-1);
+    return -1;
   }
   mcelog_memory_rec_t *mr_old = dimm->value;
   if (!g_mcelog_config.persist) {
@@ -351,7 +351,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
 
     if (!dispatch_corrected_notifs && !dispatch_uncorrected_notifs) {
       DEBUG("%s: No new notifications to dispatch", MCELOG_PLUGIN);
-      return (0);
+      return 0;
     }
   } else {
     dispatch_corrected_notifs = 1;
@@ -413,7 +413,7 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
   if (dimm == NULL) {
     ERROR(MCELOG_PLUGIN
           ": Error adding/getting dimm memory item to/from cache");
-    return (-1);
+    return -1;
   }
 
   value_list_t vl = {
@@ -635,7 +635,7 @@ static int mcelog_init(void) {
   int err = pthread_mutex_init(&g_mcelog_config.dimms_lock, NULL);
   if (err < 0) {
     ERROR(MCELOG_PLUGIN ": plugin: failed to initialize cache lock");
-    return (-1);
+    return -1;
   }
 
   if (socket_adapter.reinit(&socket_adapter) != 0) {
@@ -647,7 +647,7 @@ static int mcelog_init(void) {
     if (plugin_thread_create(&g_mcelog_config.tid, NULL, poll_worker, NULL,
                              NULL) != 0) {
       ERROR(MCELOG_PLUGIN ": Error creating poll thread.");
-      return (-1);
+      return -1;
     }
   }
   return 0;
