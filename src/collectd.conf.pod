@@ -5816,7 +5816,7 @@ is "/var/log/syslog".
 Optional definition of regular expressions used to parse the error messages
 in a log file when B<Source> is set to B<logfile>. I<Name> is the type instance
 of message. Multiple definitions are allowed to parse different messages.
-Contains several I<Match> subsections described bellow. There are two special
+Contains several I<Match> subsections described below. There are two special
 match names that should be present in the message pattern definition: "device"
 and "severity". They are used to set plugin instance, severity and type instance
 for notification. If B<MsgPattern> is not specified the default configuration
@@ -5826,7 +5826,8 @@ is used.
 
 Multiple I<Match> blocks define regular expression patterns for extracting or
 excluding specific string patterns from parsing. First and last I<Match> items
-set boundaries of multiline AER message and are mandatory.
+in the same I<MsgPattern> set boundaries of multiline AER message and are
+mandatory.
 
 =item B<Name> I<name>
 
@@ -5852,10 +5853,9 @@ be omitted.
 
 =item B<IsMandatory>  I<true>|I<false>
 
-Flag specifying if message item string described by above parameters is
-mandatory for whole I<MsgPattern> validation. If set to true, whole message
-is discarded if it's missing. For false its presence is optional. Default
-value is set to true.
+Flag indicating if I<Match> item is mandatory for message validation. If set to
+true, whole message is discarded if it's missing. For false its presence is
+optional. Default value is set to true.
 
 =back
 
