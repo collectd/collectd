@@ -7791,7 +7791,7 @@ B<Synopsis:>
       IndexOID "IF-MIB::ifIndex"
       SizeOID "IF-MIB::ifNumber"
       <Data "ifDescr">
-        Instance true
+        Index "PluginInstance"
         Plugin "interface"
         OIDs "IF-MIB::ifDescr"
       </Data>
@@ -7816,11 +7816,14 @@ The following options can be set:
 
 =over 4
 
-=item B<Instance> I<true|false>
+=item B<Index> I<String>
 
-When B<Instance> is set to B<true>, the value for requested OID is copied from
-plugin instance field of corresponding collectd value. If B<Data> block defines
-scalar data type B<Instance> has no effect and can be omitted.
+B<Index> can be set to one of the following values: "Hostname", "Plugin",
+"PluginInstance", "Type", "TypeInstance". This value indicates which field of
+corresponding collectd metric is taken as a SNMP table index. In case more than
+one table B<Data> block has B<Index> property set, then multiple key index is
+built. If B<Data> block defines scalar data type B<Index> has no effect and can
+be omitted.
 
 =item B<Plugin> I<String>
 

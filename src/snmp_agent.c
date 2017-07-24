@@ -24,6 +24,7 @@
  * Authors:
  *   Roman Korynkevych <romanx.korynkevych@intel.com>
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
+ *   Marcin Mozejko <marcinx.mozejko@intel.com>
  **/
 
 #include "collectd.h"
@@ -40,8 +41,18 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #define PLUGIN_NAME "snmp_agent"
-#define ERR_BUF_SIZE 1024
 #define TYPE_STRING -1
+#define MAX_INDEX_TYPES 5
+
+/* Identifies index key origin */
+enum index_key_e {
+  INDEX_HOST = 0,
+  INDEX_PLUGIN,
+  INDEX_PLUGIN_INSTANCE,
+  INDEX_TYPE,
+  INDEX_TYPE_INSTANCE
+};
+typedef enum index_key_e index_key_t;
 
 struct oid_s {
   oid oid[MAX_OID_LEN];
@@ -57,6 +68,12 @@ struct table_definition_s {
   llist_t *columns;
   c_avl_tree_t *instance_index;
   c_avl_tree_t *index_instance;
+  index_key_t indexes[MAX_INDEX_TYPES]; /* Stores information about what each
+                                           index key represents */
+  int indexes_len;
+  netsnmp_variable_list *index_list_cont; /* Index key container used for
+                                             generating as well as parsing
+                                             OIDs, not thread-safe */
 };
 typedef struct table_definition_s table_definition_t;
 
@@ -67,7 +84,8 @@ struct data_definition_s {
   char *type;
   char *type_instance;
   const table_definition_t *table;
-  bool is_instance;
+  bool is_index_key; /* indicates if table column is an index key */
+  int index_key_pos; /* position in indexes list */
   oid_t *oids;
   size_t oids_len;
   double scale;
@@ -87,6 +105,8 @@ struct snmp_agent_ctx_s {
 typedef struct snmp_agent_ctx_s snmp_agent_ctx_t;
 
 static snmp_agent_ctx_t *g_agent;
+const char *const index_opts[MAX_INDEX_TYPES] = {
+    "Hostname", "Plugin", "PluginInstance", "Type", "TypeInstance"};
 
 #define CHECK_DD_TYPE(_dd, _p, _pi, _t, _ti)                                   \
   (_dd->plugin ? !strcmp(_dd->plugin, _p) : 0) &&                              \
@@ -145,8 +165,8 @@ static void snmp_agent_dump_data(llist_t *list) {
       DEBUG(PLUGIN_NAME ":     Plugin: %s", dd->plugin);
     if (dd->plugin_instance)
       DEBUG(PLUGIN_NAME ":     PluginInstance: %s", dd->plugin_instance);
-    if (dd->is_instance)
-      DEBUG(PLUGIN_NAME ":     Instance: true");
+    if (dd->is_index_key)
+      DEBUG(PLUGIN_NAME ":     Index: %s", index_opts[dd->index_key_pos]);
     if (dd->type)
       DEBUG(PLUGIN_NAME ":     Type: %s", dd->type);
     if (dd->type_instance)
@@ -196,6 +216,11 @@ static int snmp_agent_validate_config(void) {
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
 
+    if (!td->indexes_len) {
+      ERROR(PLUGIN_NAME ": Index keys not defined for '%s'", td->name);
+      return -EINVAL;
+    }
+
     for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
       data_definition_t *dd = de->value;
 
@@ -218,11 +243,10 @@ static int snmp_agent_validate_config(void) {
         return -EINVAL;
       }
 
-      if (dd->is_instance) {
-
+      if (dd->is_index_key) {
         if (dd->type || dd->type_instance) {
           ERROR(PLUGIN_NAME ": Type and TypeInstance are not valid for "
-                            "instance data '%s'.'%s'",
+                            "index data '%s'.'%s'",
                 td->name, dd->name);
           return -EINVAL;
         }
@@ -258,9 +282,8 @@ static int snmp_agent_validate_config(void) {
       return -EINVAL;
     }
 
-    if (dd->is_instance) {
-      ERROR(PLUGIN_NAME
-            ": Instance flag can't be specified for scalar data '%s'",
+    if (dd->is_index_key) {
+      ERROR(PLUGIN_NAME ": Index field can't be specified for scalar data '%s'",
             dd->name);
       return -EINVAL;
     }
@@ -274,66 +297,141 @@ static int snmp_agent_validate_config(void) {
   return 0;
 }
 
-static void snmp_agent_generate_oid2string(oid_t *oid, size_t offset,
-                                           char *key) {
-  size_t key_len = oid->oid[offset];
-  size_t i;
+static int snmp_agent_fill_index_list(table_definition_t const *td,
+                                      value_list_t const *vl) {
+  int ret;
+  netsnmp_variable_list *key = td->index_list_cont;
 
-  for (i = 0; i < key_len && offset < oid->oid_len; i++)
-    key[i] = oid->oid[++offset];
-
-  key[i] = '\0';
-}
-
-static int snmp_agent_generate_string2oid(oid_t *oid, const char *key) {
-  size_t key_len = strlen(key);
-
-  oid->oid[oid->oid_len++] = key_len;
-  for (size_t i = 0; i < key_len; i++) {
-    oid->oid[oid->oid_len++] = key[i];
-    if (oid->oid_len >= MAX_OID_LEN) {
-      ERROR(PLUGIN_NAME ": Conversion key string %s to OID failed", key);
+  for (int i = 0; i < td->indexes_len; i++) {
+    /* var should never be NULL */
+    assert(key != NULL);
+    /* Generating list filled with all data necessary to generate an OID */
+    switch (td->indexes[i]) {
+    case INDEX_HOST:
+      ret = snmp_set_var_value(key, vl->host, strlen(vl->host));
+      break;
+    case INDEX_PLUGIN:
+      ret = snmp_set_var_value(key, vl->plugin, strlen(vl->plugin));
+      break;
+    case INDEX_PLUGIN_INSTANCE:
+      ret = snmp_set_var_value(key, vl->plugin_instance,
+                               strlen(vl->plugin_instance));
+      break;
+    case INDEX_TYPE:
+      ret = snmp_set_var_value(key, vl->type, strlen(vl->type));
+      break;
+    case INDEX_TYPE_INSTANCE:
+      ret =
+          snmp_set_var_value(key, vl->type_instance, strlen(vl->type_instance));
+      break;
+    default:
+      ERROR(PLUGIN_NAME ": Unknown index key type provided");
       return -EINVAL;
     }
+    if (ret != 0)
+      return -EINVAL;
+    key = key->next_variable;
+  }
+  return 0;
+}
+
+static int snmp_agent_prep_index_list(table_definition_t const *td,
+                                      netsnmp_variable_list **index_list) {
+  /* Generating list having only the structure (with no values) letting us
+   * know how to parse an OID */
+  for (int i = 0; i < td->indexes_len; i++) {
+    switch (td->indexes[i]) {
+    case INDEX_HOST:
+    case INDEX_PLUGIN:
+    case INDEX_PLUGIN_INSTANCE:
+    case INDEX_TYPE:
+    case INDEX_TYPE_INSTANCE:
+      snmp_varlist_add_variable(index_list, NULL, 0, ASN_OCTET_STR, NULL, 0);
+      break;
+    default:
+      ERROR(PLUGIN_NAME ": Unknown index key type provided");
+      return -EINVAL;
+    }
+  }
+  return 0;
+}
+
+static int snmp_agent_generate_index(table_definition_t const *td,
+                                     value_list_t const *vl, oid_t *index_oid) {
+
+  /* According to given information by indexes list
+   * index OID is going to be built
+   */
+  int ret = snmp_agent_fill_index_list(td, vl);
+  if (ret != 0)
+    return -EINVAL;
+
+  /* Building only index part OID (without table prefix OID) */
+  ret = build_oid_noalloc(index_oid->oid, sizeof(index_oid->oid),
+                          &index_oid->oid_len, NULL, 0, td->index_list_cont);
+  if (ret != SNMPERR_SUCCESS) {
+    ERROR(PLUGIN_NAME ": Error building index OID");
+    return -EINVAL;
   }
 
   return 0;
 }
 
-static int snmp_agent_register_oid_string(oid_t *oid, const char *key,
+/* It appends one OID to the end of another */
+static int snmp_agent_append_oid(oid_t *out, const oid_t *in) {
+
+  if (out->oid_len + in->oid_len > MAX_OID_LEN) {
+    ERROR(PLUGIN_NAME ": Cannot create OID. Output length is too long!");
+    return -EINVAL;
+  }
+  memcpy(&out->oid[out->oid_len], in->oid, in->oid_len * sizeof(oid));
+  out->oid_len += in->oid_len;
+
+  return 0;
+}
+
+static int snmp_agent_register_oid_string(const oid_t *oid,
+                                          const oid_t *index_oid,
                                           Netsnmp_Node_Handler *handler) {
   oid_t new_oid;
 
   memcpy(&new_oid, oid, sizeof(*oid));
-  int ret = snmp_agent_generate_string2oid(&new_oid, key);
+  /* Concatenating two string oids */
+  int ret = snmp_agent_append_oid(&new_oid, index_oid);
   if (ret != 0)
     return ret;
 
   return snmp_agent_register_oid(&new_oid, handler);
 }
 
-static int snmp_agent_unregister_oid_string(oid_t *oid, const char *key) {
+static int snmp_agent_unregister_oid_string(oid_t *oid,
+                                            const oid_t *index_oid) {
   oid_t new_oid;
+  char oid_str[DATA_MAX_NAME_LEN];
 
   memcpy(&new_oid, oid, sizeof(*oid));
-  int ret = snmp_agent_generate_string2oid(&new_oid, key);
+  /* Concatenating two string oids */
+  int ret = snmp_agent_append_oid(&new_oid, index_oid);
   if (ret != 0)
     return ret;
+
+  snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &new_oid);
+  DEBUG(PLUGIN_NAME ": Unregistered handler for OID (%s)", oid_str);
 
   return unregister_mib(new_oid.oid, new_oid.oid_len);
 }
 
 static int snmp_agent_table_row_remove(table_definition_t *td,
-                                       const char *instance) {
+                                       oid_t *index_oid) {
   int *index = NULL;
-  char *ins = NULL;
+  oid_t *ind_oid = NULL;
 
   if (td->index_oid.oid_len) {
-    if ((c_avl_get(td->instance_index, instance, (void **)&index) != 0) ||
-        (c_avl_get(td->index_instance, index, (void **)&ins) != 0))
+    if ((c_avl_get(td->instance_index, index_oid, (void **)&index) != 0) ||
+        (c_avl_get(td->index_instance, index, NULL) != 0))
       return 0;
   } else {
-    if (c_avl_get(td->instance_index, instance, (void **)&ins) != 0)
+    if (c_avl_get(td->instance_index, index_oid, NULL) != 0)
       return 0;
   }
 
@@ -349,31 +447,34 @@ static int snmp_agent_table_row_remove(table_definition_t *td,
       if (td->index_oid.oid_len)
         snmp_agent_unregister_oid_index(&dd->oids[i], *index);
       else
-        snmp_agent_unregister_oid_string(&dd->oids[i], ins);
+        snmp_agent_unregister_oid_string(&dd->oids[i], index_oid);
   }
 
   pthread_mutex_unlock(&g_agent->agentx_lock);
 
-  DEBUG(PLUGIN_NAME ": Removed row for '%s' table [%d, %s]", td->name,
-        (index != NULL) ? *index : -1, ins);
+  char index_str[DATA_MAX_NAME_LEN];
+
+  if (index == NULL)
+    snmp_agent_oid_to_string(index_str, sizeof(index_str), index_oid);
+  else
+    snprintf(index_str, sizeof(index_str), "%d", *index);
 
   notification_t n = {
       .severity = NOTIF_WARNING, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.plugin_instance, ins, sizeof(n.plugin_instance));
   snprintf(n.message, sizeof(n.message),
-           "Removed data row from table %s instance %s index %d", td->name, ins,
-           (index != NULL) ? *index : -1);
+           "Removed data row from table %s with index %s", td->name, index_str);
+  DEBUG(PLUGIN_NAME ": %s", n.message);
   plugin_dispatch_notification(&n);
 
   if (td->index_oid.oid_len) {
-    c_avl_remove(td->index_instance, index, NULL, (void **)&ins);
-    c_avl_remove(td->instance_index, instance, NULL, (void **)&index);
+    c_avl_remove(td->index_instance, index, NULL, (void **)&ind_oid);
+    c_avl_remove(td->instance_index, index_oid, NULL, (void **)&index);
     sfree(index);
-    sfree(ins);
+    sfree(ind_oid);
   } else {
-    c_avl_remove(td->instance_index, instance, NULL, (void **)&ins);
-    sfree(ins);
+    c_avl_remove(td->instance_index, index_oid, NULL, NULL);
+    sfree(index_oid);
   }
 
   return 0;
@@ -389,12 +490,17 @@ static int snmp_agent_clear_missing(const value_list_t *vl,
 
     for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
       data_definition_t *dd = de->value;
+      oid_t *index_oid = (oid_t *)calloc(1, sizeof(*index_oid));
+      int ret;
 
-      if (!dd->is_instance) {
+      if (!dd->is_index_key) {
         if (CHECK_DD_TYPE(dd, vl->plugin, vl->plugin_instance, vl->type,
                           vl->type_instance)) {
-          snmp_agent_table_row_remove(td, vl->plugin_instance);
-          return 0;
+          ret = snmp_agent_generate_index(td, vl, index_oid);
+          if (ret == 0)
+            ret = snmp_agent_table_row_remove(td, index_oid);
+
+          return ret;
         }
       }
     }
@@ -435,23 +541,22 @@ static void snmp_agent_free_table_columns(table_definition_t *td) {
 
     if (td->index_oid.oid_len) {
       int *index;
-      char *instance;
+      oid_t *index_oid;
 
       c_avl_iterator_t *iter = c_avl_get_iterator(td->index_instance);
-      while (c_avl_iterator_next(iter, (void *)&index, (void *)&instance) ==
+      while (c_avl_iterator_next(iter, (void *)&index, (void *)&index_oid) ==
              0) {
         for (size_t i = 0; i < dd->oids_len; i++)
           snmp_agent_unregister_oid_index(&dd->oids[i], *index);
       }
       c_avl_iterator_destroy(iter);
     } else {
-      char *instance;
+      oid_t *index_oid;
 
       c_avl_iterator_t *iter = c_avl_get_iterator(dd->table->instance_index);
-      while (c_avl_iterator_next(iter, (void *)&instance, (void *)&instance) ==
-             0) {
+      while (c_avl_iterator_next(iter, (void *)&index_oid, NULL) == 0) {
         for (size_t i = 0; i < dd->oids_len; i++)
-          snmp_agent_unregister_oid_string(&dd->oids[i], instance);
+          snmp_agent_unregister_oid_string(&dd->oids[i], index_oid);
       }
       c_avl_iterator_destroy(iter);
     }
@@ -474,10 +579,10 @@ static void snmp_agent_free_table(table_definition_t **td) {
   /* Unregister Index OIDs */
   if ((*td)->index_oid.oid_len) {
     int *index;
-    char *instance;
+    oid_t *index_oid;
 
     c_avl_iterator_t *iter = c_avl_get_iterator((*td)->index_instance);
-    while (c_avl_iterator_next(iter, (void *)&index, (void *)&instance) == 0)
+    while (c_avl_iterator_next(iter, (void **)&index, (void **)&index_oid) == 0)
       snmp_agent_unregister_oid_index(&(*td)->index_oid, *index);
 
     c_avl_iterator_destroy(iter);
@@ -503,19 +608,108 @@ static void snmp_agent_free_table(table_definition_t **td) {
     (*td)->instance_index = NULL;
   }
 
+  snmp_free_varbind((*td)->index_list_cont);
   sfree((*td)->name);
   sfree(*td);
 
   return;
 }
 
+static int snmp_agent_parse_oid_indexes(const table_definition_t *td,
+                                        oid_t *index_oid) {
+  int ret = parse_oid_indexes(index_oid->oid, index_oid->oid_len,
+                              td->index_list_cont);
+  if (ret != SNMPERR_SUCCESS)
+    ERROR(PLUGIN_NAME ": index OID parse error!");
+  return ret;
+}
+
+static int snmp_agent_format_name(char *name, int name_len,
+                                  data_definition_t *dd, oid_t *index_oid) {
+
+  if (index_oid == NULL) {
+    /* It's a scalar */
+    format_name(name, name_len, hostname_g, dd->plugin, dd->plugin_instance,
+                dd->type, dd->type_instance);
+  } else {
+    /* Need to parse string index OID */
+    const table_definition_t *td = dd->table;
+    int ret = snmp_agent_parse_oid_indexes(td, index_oid);
+    if (ret != 0)
+      return ret;
+
+    int i = 0;
+    netsnmp_variable_list *key = td->index_list_cont;
+    char *host = hostname_g;
+    char *plugin = dd->plugin;
+    char *plugin_instance = dd->plugin_instance;
+    char *type = dd->type;
+    char *type_instance = dd->type_instance;
+    while (key != NULL) {
+      switch (td->indexes[i]) {
+      case INDEX_HOST:
+        host = (char *)key->val.string;
+        break;
+      case INDEX_PLUGIN:
+        plugin = (char *)key->val.string;
+        break;
+      case INDEX_PLUGIN_INSTANCE:
+        plugin_instance = (char *)key->val.string;
+        break;
+      case INDEX_TYPE:
+        type = (char *)key->val.string;
+        break;
+      case INDEX_TYPE_INSTANCE:
+        type_instance = (char *)key->val.string;
+        break;
+      default:
+        ERROR(PLUGIN_NAME ": Unkown index type!");
+        return -EINVAL;
+      }
+      key = key->next_variable;
+      i++;
+    }
+
+    format_name(name, name_len, host, plugin, plugin_instance, type,
+                type_instance);
+  }
+
+  return 0;
+}
+
 static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
-                                 data_definition_t *dd, char *instance,
+                                 data_definition_t *dd, oid_t *index_oid,
                                  int oid_index) {
+  int ret;
+
+  if (dd->is_index_key) {
+    const table_definition_t *td = dd->table;
+    ret = snmp_agent_parse_oid_indexes(td, index_oid);
+
+    if (ret != 0)
+      return ret;
+
+    netsnmp_variable_list *key = td->index_list_cont;
+    /* Searching index key */
+    for (int pos = 0; pos < dd->index_key_pos; pos++)
+      key = key->next_variable;
+
+    requests->requestvb->type = ASN_OCTET_STR;
+    snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
+                             (const u_char *)key->val.string,
+                             strlen((const char *)key->val.string));
+
+    pthread_mutex_unlock(&g_agent->lock);
+
+    return SNMP_ERR_NOERROR;
+  }
+
   char name[DATA_MAX_NAME_LEN];
-  format_name(name, sizeof(name), hostname_g, dd->plugin,
-              instance ? instance : dd->plugin_instance, dd->type,
-              dd->type_instance);
+
+  ret = snmp_agent_format_name(name, sizeof(name), dd, index_oid);
+  if (ret != 0)
+    return ret;
+
   DEBUG(PLUGIN_NAME ": Identifier '%s'", name);
 
   value_t *values;
@@ -526,7 +720,7 @@ static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
     return SNMP_NOSUCHINSTANCE;
   }
 
-  int ret = uc_get_value_by_name(name, &values, &values_num);
+  ret = uc_get_value_by_name(name, &values, &values_num);
 
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Failed to get value for '%s'", name);
@@ -562,14 +756,14 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
                              struct netsnmp_agent_request_info_s *reqinfo,
                              struct netsnmp_request_info_s *requests) {
 
-  if (reqinfo->mode != MODE_GET && reqinfo->mode != MODE_GETNEXT) {
+  if (reqinfo->mode != MODE_GET) {
     DEBUG(PLUGIN_NAME ": Not supported request mode (%d)", reqinfo->mode);
     return SNMP_ERR_NOERROR;
   }
 
   pthread_mutex_lock(&g_agent->lock);
 
-  oid_t oid;
+  oid_t oid; /* Requested OID */
   memcpy(oid.oid, requests->requestvb->name,
          sizeof(oid.oid[0]) * requests->requestvb->name_length);
   oid.oid_len = requests->requestvb->name_length;
@@ -579,6 +773,7 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
   snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &oid);
   DEBUG(PLUGIN_NAME ": Get request received for table OID '%s'", oid_str);
 #endif
+  oid_t index_oid; /* Index part of requested OID */
 
   for (llentry_t *te = llist_head(g_agent->tables); te != NULL; te = te->next) {
     table_definition_t *td = te->value;
@@ -593,45 +788,33 @@ snmp_agent_table_oid_handler(struct netsnmp_mib_handler_s *handler,
         if (ret != 0)
           continue;
 
-        char *instance;
+        /* Calculating OID length for index part */
+        index_oid.oid_len = oid.oid_len - dd->oids[i].oid_len;
+        /* Fetching index part of the OID */
+        memcpy(index_oid.oid, &oid.oid[dd->oids[i].oid_len],
+               index_oid.oid_len * sizeof(*oid.oid));
+
+        char index_str[DATA_MAX_NAME_LEN];
+        snmp_agent_oid_to_string(index_str, sizeof(index_str), &index_oid);
 
         if (!td->index_oid.oid_len) {
-          char key[MAX_OID_LEN];
-
-          memset(key, 0, sizeof(key));
-          snmp_agent_generate_oid2string(
-              &oid, SNMP_MIN(oid.oid_len, dd->oids[i].oid_len), key);
-
-          ret = c_avl_get(td->instance_index, key, (void **)&instance);
-          if (ret != 0) {
-            DEBUG(PLUGIN_NAME ": Nonexisting index string '%s' requested", key);
-            pthread_mutex_unlock(&g_agent->lock);
-            return SNMP_NOSUCHINSTANCE;
-          }
+          ret = c_avl_get(td->instance_index, &index_oid, NULL);
         } else {
-          int index = oid.oid[oid.oid_len - 1];
+          oid_t *temp_oid;
 
-          ret = c_avl_get(td->index_instance, &index, (void **)&instance);
-          if (ret != 0) {
-            DEBUG(PLUGIN_NAME ": Nonexisting index '%d' requested", index);
-            pthread_mutex_unlock(&g_agent->lock);
-            return SNMP_NOSUCHINSTANCE;
-          }
+          assert(index_oid.oid_len == 1);
+          ret = c_avl_get(td->index_instance, (int *)&index_oid.oid[0],
+                          (void **)&temp_oid);
+          memcpy(&index_oid, temp_oid, sizeof(index_oid));
         }
 
-        if (dd->is_instance) {
-          requests->requestvb->type = ASN_OCTET_STR;
-          snmp_set_var_typed_value(
-              requests->requestvb, requests->requestvb->type,
-              (const u_char *)instance, strlen((instance)));
-
+        if (ret != 0) {
+          INFO(PLUGIN_NAME ": Non-existing index (%s) requested", index_str);
           pthread_mutex_unlock(&g_agent->lock);
-
-          return SNMP_ERR_NOERROR;
+          return SNMP_NOSUCHINSTANCE;
         }
 
-        ret = snmp_agent_form_reply(requests, dd, instance, i);
-
+        ret = snmp_agent_form_reply(requests, dd, &index_oid, i);
         pthread_mutex_unlock(&g_agent->lock);
 
         return ret;
@@ -650,7 +833,7 @@ static int snmp_agent_table_index_oid_handler(
     struct netsnmp_agent_request_info_s *reqinfo,
     struct netsnmp_request_info_s *requests) {
 
-  if (reqinfo->mode != MODE_GET && reqinfo->mode != MODE_GETNEXT) {
+  if (reqinfo->mode != MODE_GET) {
     DEBUG(PLUGIN_NAME ": Not supported request mode (%d)", reqinfo->mode);
     return SNMP_ERR_NOERROR;
   }
@@ -674,7 +857,7 @@ static int snmp_agent_table_index_oid_handler(
 
       int index = oid.oid[oid.oid_len - 1];
 
-      int ret = c_avl_get(td->index_instance, &index, &(void *){NULL});
+      int ret = c_avl_get(td->index_instance, &index, NULL);
       if (ret != 0) {
         /* nonexisting index requested */
         pthread_mutex_unlock(&g_agent->lock);
@@ -702,7 +885,7 @@ static int snmp_agent_table_size_oid_handler(
     struct netsnmp_agent_request_info_s *reqinfo,
     struct netsnmp_request_info_s *requests) {
 
-  if (reqinfo->mode != MODE_GET && reqinfo->mode != MODE_GETNEXT) {
+  if (reqinfo->mode != MODE_GET) {
     DEBUG(PLUGIN_NAME ": Not supported request mode (%d)", reqinfo->mode);
     return SNMP_ERR_NOERROR;
   }
@@ -725,7 +908,11 @@ static int snmp_agent_table_size_oid_handler(
                            SNMP_MIN(oid.oid_len, td->size_oid.oid_len)) == 0)) {
       DEBUG(PLUGIN_NAME ": Handle '%s' table size OID", td->name);
 
-      long size = c_avl_size(td->index_instance);
+      long size;
+      if (td->index_oid.oid_len)
+        size = c_avl_size(td->index_instance);
+      else
+        size = c_avl_size(td->instance_index);
 
       requests->requestvb->type = ASN_INTEGER;
       snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
@@ -748,7 +935,7 @@ snmp_agent_scalar_oid_handler(struct netsnmp_mib_handler_s *handler,
                               struct netsnmp_agent_request_info_s *reqinfo,
                               struct netsnmp_request_info_s *requests) {
 
-  if (reqinfo->mode != MODE_GET && reqinfo->mode != MODE_GETNEXT) {
+  if (reqinfo->mode != MODE_GET) {
     DEBUG(PLUGIN_NAME ": Not supported request mode (%d)", reqinfo->mode);
     return SNMP_ERR_NOERROR;
   }
@@ -926,6 +1113,38 @@ static int snmp_agent_config_table_index_oid(table_definition_t *td,
   return 0;
 }
 
+/* Parsing table column representing index key */
+static int snmp_agent_config_index(table_definition_t *td,
+                                   data_definition_t *dd, oconfig_item_t *ci) {
+  char *val = NULL;
+
+  int ret = cf_util_get_string(ci, &val);
+  if (ret != 0)
+    return -1;
+
+  _Bool match = 0;
+
+  for (int i = 0; i < MAX_INDEX_TYPES; i++) {
+    if (strcasecmp(index_opts[i], (const char *)val) == 0) {
+      td->indexes[td->indexes_len] = i;
+      match = 1;
+      break;
+    }
+  }
+
+  if (!match) {
+    ERROR(PLUGIN_NAME ": Failed to parse index key source: '%s'", val);
+    sfree(val);
+    return -EINVAL;
+  }
+
+  sfree(val);
+  dd->index_key_pos = td->indexes_len++;
+  dd->is_index_key = 1;
+
+  return 0;
+}
+
 /* This function parses configuration of both scalar and table column
  * because they have nearly the same structure */
 static int snmp_agent_config_table_column(table_definition_t *td,
@@ -951,13 +1170,14 @@ static int snmp_agent_config_table_column(table_definition_t *td,
   dd->shift = 0.0;
   /* NULL if it's a scalar */
   dd->table = td;
+  dd->is_index_key = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
     /* Instance option is reserved for table entry only */
-    if (strcasecmp("Instance", option->key) == 0 && td != NULL)
-      ret = cf_util_get_boolean(option, &dd->is_instance);
+    if (strcasecmp("Index", option->key) == 0 && td != NULL)
+      ret = snmp_agent_config_index(td, dd, option);
     else if (strcasecmp("Plugin", option->key) == 0)
       ret = cf_util_get_string(option, &dd->plugin);
     else if (strcasecmp("PluginInstance", option->key) == 0)
@@ -1011,6 +1231,10 @@ static int num_compare(const int *a, const int *b) {
     return 0;
 }
 
+static int oid_compare(const oid_t *a, const oid_t *b) {
+  return snmp_oid_compare(a->oid, a->oid_len, b->oid, b->oid_len);
+}
+
 static int snmp_agent_config_table(oconfig_item_t *ci) {
   table_definition_t *td;
   int ret = 0;
@@ -1056,8 +1280,13 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
     }
   }
 
+  /* Preparing index list container */
+  ret = snmp_agent_prep_index_list(td, &td->index_list_cont);
+  if (ret != 0)
+    return -EINVAL;
+
   td->instance_index =
-      c_avl_create((int (*)(const void *, const void *))strcmp);
+      c_avl_create((int (*)(const void *, const void *))oid_compare);
   if (td->instance_index == NULL) {
     snmp_agent_free_table(&td);
     return -ENOMEM;
@@ -1178,43 +1407,37 @@ static int snmp_agent_unregister_oid_index(oid_t *oid, int index) {
   return unregister_mib(new_oid.oid, new_oid.oid_len);
 }
 
-static int snmp_agent_update_index(table_definition_t *td,
-                                   const char *instance) {
+static int snmp_agent_update_index(table_definition_t *td, oid_t *index_oid) {
 
-  if (c_avl_get(td->instance_index, instance, NULL) == 0)
+  if (c_avl_get(td->instance_index, index_oid, NULL) == 0)
     return 0;
 
   int ret;
   int *index = NULL;
-  char *ins;
-
-  ins = strdup(instance);
-  if (ins == NULL)
-    return -ENOMEM;
 
   /* need to generate index for the table */
   if (td->index_oid.oid_len) {
     index = calloc(1, sizeof(*index));
     if (index == NULL) {
-      sfree(ins);
+      sfree(index_oid);
       return -ENOMEM;
     }
 
     *index = c_avl_size(td->instance_index) + 1;
 
-    ret = c_avl_insert(td->instance_index, ins, index);
+    ret = c_avl_insert(td->instance_index, index_oid, index);
     if (ret != 0) {
-      sfree(ins);
+      sfree(index_oid);
       sfree(index);
       return ret;
     }
 
-    ret = c_avl_insert(td->index_instance, index, ins);
+    ret = c_avl_insert(td->index_instance, index, index_oid);
     if (ret < 0) {
       DEBUG(PLUGIN_NAME ": Failed to update index_instance for '%s' table",
             td->name);
-      c_avl_remove(td->instance_index, ins, NULL, (void **)&index);
-      sfree(ins);
+      c_avl_remove(td->instance_index, index_oid, NULL, (void **)&index);
+      sfree(index_oid);
       sfree(index);
       return ret;
     }
@@ -1225,9 +1448,9 @@ static int snmp_agent_update_index(table_definition_t *td,
       return ret;
   } else {
     /* instance as a key is required for any table */
-    ret = c_avl_insert(td->instance_index, ins, ins);
+    ret = c_avl_insert(td->instance_index, index_oid, NULL);
     if (ret != 0) {
-      sfree(ins);
+      sfree(index_oid);
       return ret;
     }
   }
@@ -1237,36 +1460,38 @@ static int snmp_agent_update_index(table_definition_t *td,
     data_definition_t *dd = de->value;
 
     for (size_t i = 0; i < dd->oids_len; i++) {
-      if (td->index_oid.oid_len) {
+      if (td->index_oid.oid_len)
         ret = snmp_agent_register_oid_index(&dd->oids[i], *index,
                                             snmp_agent_table_oid_handler);
-      } else {
-        ret = snmp_agent_register_oid_string(&dd->oids[i], ins,
+      else
+        ret = snmp_agent_register_oid_string(&dd->oids[i], index_oid,
                                              snmp_agent_table_oid_handler);
-      }
 
       if (ret != 0)
         return ret;
     }
   }
 
-  DEBUG(PLUGIN_NAME ": Updated index for '%s' table [%d, %s]", td->name,
-        (index != NULL) ? *index : -1, ins);
+  char index_str[DATA_MAX_NAME_LEN];
+
+  if (index == NULL)
+    snmp_agent_oid_to_string(index_str, sizeof(index_str), index_oid);
+  else
+    snprintf(index_str, sizeof(index_str), "%d", *index);
 
   notification_t n = {
       .severity = NOTIF_OKAY, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.plugin_instance, ins, sizeof(n.plugin_instance));
   snprintf(n.message, sizeof(n.message),
-           "Data row added to table %s instance %s index %d", td->name, ins,
-           (index != NULL) ? *index : -1);
+           "Data row added to table %s with index %s", td->name, index_str);
+  DEBUG(PLUGIN_NAME ": %s", n.message);
+
   plugin_dispatch_notification(&n);
 
   return 0;
 }
 
 static int snmp_agent_write(value_list_t const *vl) {
-
   if (vl == NULL)
     return -EINVAL;
 
@@ -1275,12 +1500,20 @@ static int snmp_agent_write(value_list_t const *vl) {
 
     for (llentry_t *de = llist_head(td->columns); de != NULL; de = de->next) {
       data_definition_t *dd = de->value;
+      oid_t *index_oid = (oid_t *)calloc(1, sizeof(*index_oid));
+      int ret;
 
-      if (!dd->is_instance) {
+      if (index_oid == NULL)
+        return -ENOMEM;
+
+      if (!dd->is_index_key) {
         if (CHECK_DD_TYPE(dd, vl->plugin, vl->plugin_instance, vl->type,
                           vl->type_instance)) {
-          snmp_agent_update_index(td, vl->plugin_instance);
-          return 0;
+          ret = snmp_agent_generate_index(td, vl, index_oid);
+          if (ret == 0)
+            ret = snmp_agent_update_index(td, index_oid);
+
+          return ret;
         }
       }
     }
