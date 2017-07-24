@@ -484,7 +484,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
       });
   if (status != 0) {
     ERROR("tail_csv plugin: Registering complex read function failed.");
-    tcsv_instance_definition_destroy(id);
     return -1;
   }
 

@@ -473,13 +473,7 @@ static int memcached_read(user_data_t *user_data) {
   return 0;
 } /* int memcached_read */
 
-static int memcached_add_read_callback(memcached_t *st) {
-  char callback_name[3 * DATA_MAX_NAME_LEN];
-  int status;
-
-  snprintf(callback_name, sizeof(callback_name), "memcached/%s",
-           (st->name != NULL) ? st->name : "__legacy__");
-
+static int memcached_set_defaults(memcached_t *st) {
   /* If no <Address> used then:
    * - Connect to the destination specified by <Host>, if present.
    *   If not, use the default address.
@@ -516,7 +510,21 @@ static int memcached_add_read_callback(memcached_t *st) {
   assert(st->connhost != NULL);
   assert(st->connport != NULL);
 
-  status = plugin_register_complex_read(
+  return 0;
+} /* int memcached_set_defaults */
+
+static int memcached_add_read_callback(memcached_t *st) {
+  char callback_name[3 * DATA_MAX_NAME_LEN];
+
+  if (memcached_set_defaults(st) != 0) {
+    memcached_free(st);
+    return -1;
+  }
+
+  snprintf(callback_name, sizeof(callback_name), "memcached/%s",
+           (st->name != NULL) ? st->name : "__legacy__");
+
+  return plugin_register_complex_read(
       /* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
@@ -524,8 +532,6 @@ static int memcached_add_read_callback(memcached_t *st) {
       &(user_data_t){
           .data = st, .free_func = memcached_free,
       });
-
-  return status;
 } /* int memcached_add_read_callback */
 
 /* Configuration handling functiions
@@ -584,19 +590,15 @@ static int config_add_instance(oconfig_item_t *ci) {
       break;
   }
 
-  if (status == 0)
-    status = memcached_add_read_callback(st);
-
   if (status != 0) {
     memcached_free(st);
     return -1;
   }
 
-  return 0;
-}
+  return memcached_add_read_callback(st);
+} /* int config_add_instance */
 
 static int memcached_config(oconfig_item_t *ci) {
-  int status = 0;
   _Bool have_instance_block = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -617,8 +619,8 @@ static int memcached_config(oconfig_item_t *ci) {
               child->key);
   } /* for (ci->children) */
 
-  return status;
-}
+  return 0;
+} /* int memcached_config */
 
 static int memcached_init(void) {
   memcached_t *st;
@@ -640,8 +642,6 @@ static int memcached_init(void) {
   status = memcached_add_read_callback(st);
   if (status == 0)
     memcached_have_instances = 1;
-  else
-    memcached_free(st);
 
   return status;
 } /* int memcached_init */

@@ -376,18 +376,17 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  snprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
-  if (status == 0)
-    status = plugin_register_complex_read(
-        /* group = */ NULL, read_name, cr_read, /* interval = */ 0,
-        &(user_data_t){
-            .data = router_data, .free_func = (void *)cr_free_data,
-        });
-
-  if (status != 0)
+  if (status != 0) {
     cr_free_data(router_data);
+    return status;
+  }
 
-  return status;
+  snprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
+  return plugin_register_complex_read(
+      /* group = */ NULL, read_name, cr_read, /* interval = */ 0,
+      &(user_data_t){
+          .data = router_data, .free_func = (void *)cr_free_data,
+      });
 } /* }}} int cr_config_router */
 
 static int cr_config(oconfig_item_t *ci) {
