@@ -286,18 +286,24 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   lua_pop(L, 1);
 
   int callback_id = clua_store_callback(L, 1);
-  if (callback_id < 0)
+  if (callback_id < 0) {
+    sfree(function_name);
     return luaL_error(L, "%s", "Storing callback function failed");
+  }
 
   lua_State *thread = lua_newthread(L);
-  if (thread == NULL)
+  if (thread == NULL) {
+    sfree(function_name);
     return luaL_error(L, "%s", "lua_newthread failed");
+  }
   clua_store_thread(L, -1);
   lua_pop(L, 1);
 
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
-  if (cb == NULL)
+  if (cb == NULL) {
+    sfree(function_name);
     return luaL_error(L, "%s", "calloc failed");
+  }
 
   cb->lua_state = thread;
   cb->callback_id = callback_id;
