@@ -281,8 +281,9 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
 
   luaL_checktype(L, 1, LUA_TFUNCTION);
 
-  char function_name[DATA_MAX_NAME_LEN];
-  snprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
+  lua_getfield(L, LUA_REGISTRYINDEX, "collectd_plugin");
+  char *function_name = strdup(lua_tostring(L, -1));
+  lua_pop(L, 1);
 
   int callback_id = clua_store_callback(L, 1);
   if (callback_id < 0)
@@ -300,7 +301,7 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
 
   cb->lua_state = thread;
   cb->callback_id = callback_id;
-  cb->lua_function_name = strdup(function_name);
+  cb->lua_function_name = function_name;
   pthread_mutex_init(&cb->lock, NULL);
 
   int status = plugin_register_complex_read(/* group = */ "lua",
@@ -325,26 +326,33 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
 
   luaL_checktype(L, 1, LUA_TFUNCTION);
 
-  char function_name[DATA_MAX_NAME_LEN] = "";
-  snprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
+  lua_getfield(L, LUA_REGISTRYINDEX, "collectd_plugin");
+  char *function_name = strdup(lua_tostring(L, -1));
+  lua_pop(L, 1);
 
   int callback_id = clua_store_callback(L, 1);
-  if (callback_id < 0)
+  if (callback_id < 0) {
+    sfree(function_name);
     return luaL_error(L, "%s", "Storing callback function failed");
+  }
 
   lua_State *thread = lua_newthread(L);
-  if (thread == NULL)
+  if (thread == NULL) {
+    sfree(function_name);
     return luaL_error(L, "%s", "lua_newthread failed");
+  }
   clua_store_thread(L, -1);
   lua_pop(L, 1);
 
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
-  if (cb == NULL)
+  if (cb == NULL) {
+    sfree(function_name);
     return luaL_error(L, "%s", "calloc failed");
+  }
 
   cb->lua_state = thread;
   cb->callback_id = callback_id;
-  cb->lua_function_name = strdup(function_name);
+  cb->lua_function_name = function_name;
   pthread_mutex_init(&cb->lock, NULL);
 
   int status = plugin_register_write(/* name = */ function_name,
@@ -397,7 +405,8 @@ static void lua_script_free(lua_script_t *script) /* {{{ */
   lua_script_free(next);
 } /* }}} void lua_script_free */
 
-static int lua_script_init(lua_script_t *script) /* {{{ */
+static int lua_script_init(lua_script_t *script,
+                           const char *script_path) /* {{{ */
 {
   memset(script, 0, sizeof(*script));
 
@@ -407,6 +416,15 @@ static int lua_script_init(lua_script_t *script) /* {{{ */
     ERROR("Lua plugin: luaL_newstate() failed.");
     return -1;
   }
+
+  /* Push "collectd_plugin" to Lua registry. */
+  char plugin_name[DATA_MAX_NAME_LEN];
+  const char *script_name = strrchr(script_path, '/');
+  if (script_name == NULL)
+    script_name = script_path;
+  ssnprintf(plugin_name, sizeof(plugin_name), "lua%s", script_name);
+  lua_pushstring(script->lua_state, plugin_name);
+  lua_setfield(script->lua_state, LUA_REGISTRYINDEX, "collectd_plugin");
 
   /* Open up all the standard Lua libraries. */
   luaL_openlibs(script->lua_state);
@@ -449,7 +467,7 @@ static int lua_script_load(const char *script_path) /* {{{ */
     return -1;
   }
 
-  int status = lua_script_init(script);
+  int status = lua_script_init(script, script_path);
   if (status != 0) {
     lua_script_free(script);
     return status;
