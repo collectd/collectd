@@ -124,8 +124,8 @@ static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
   char dimm_name[DATA_MAX_NAME_LEN];
 
   if (strlen(rec->dimm_name) > 0) {
-    ssnprintf(dimm_name, sizeof(dimm_name), "%s_%s", rec->location,
-              rec->dimm_name);
+    snprintf(dimm_name, sizeof(dimm_name), "%s_%s", rec->location,
+             rec->dimm_name);
   } else
     sstrncpy(dimm_name, rec->location, sizeof(dimm_name));
 
@@ -361,8 +361,8 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
   sstrncpy(n.host, hostname_g, sizeof(n.host));
 
   if (mr->dimm_name[0] != '\0')
-    ssnprintf(n.plugin_instance, sizeof(n.plugin_instance), "%s_%s",
-              mr->location, mr->dimm_name);
+    snprintf(n.plugin_instance, sizeof(n.plugin_instance), "%s_%s",
+             mr->location, mr->dimm_name);
   else
     sstrncpy(n.plugin_instance, mr->location, sizeof(n.plugin_instance));
 
@@ -373,7 +373,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
                                             mr->corrected_err_total);
     plugin_notification_meta_add_signed_int(&n, MCELOG_CORRECTED_ERR_TIMED,
                                             mr->corrected_err_timed);
-    ssnprintf(n.message, sizeof(n.message), MCELOG_CORRECTED_ERR);
+    snprintf(n.message, sizeof(n.message), MCELOG_CORRECTED_ERR);
     sstrncpy(n.type_instance, MCELOG_CORRECTED_ERR_TYPE_INS,
              sizeof(n.type_instance));
     plugin_dispatch_notification(&n);
@@ -389,7 +389,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
                                             mr->uncorrected_err_total);
     plugin_notification_meta_add_signed_int(&n, MCELOG_UNCORRECTED_ERR_TIMED,
                                             mr->uncorrected_err_timed);
-    ssnprintf(n.message, sizeof(n.message), MCELOG_UNCORRECTED_ERR);
+    snprintf(n.message, sizeof(n.message), MCELOG_UNCORRECTED_ERR);
     sstrncpy(n.type_instance, MCELOG_UNCORRECTED_ERR_TYPE_INS,
              sizeof(n.type_instance));
     n.severity = NOTIF_FAILURE;
