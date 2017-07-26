@@ -6,7 +6,7 @@
 #
 
 
-Summary:	statistics collection and monitoring daemon
+Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.5.0.git.2016.09.19
 Release:	1%{?dist}
@@ -31,7 +31,7 @@ system.
 
 %package perl
 Summary:	Perl plugin for collectd
-Group:		System Environment/Daemons
+Group:		System/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 BuildRequires:	perl-ExtUtils-Embed
@@ -41,7 +41,7 @@ application programming interface (API) to Perl-scripts.
 
 # %package python
 # Summary:	Python plugin for collectd
-# Group:		System Environment/Daemons
+# Group:		System/Daemons
 # Requires:	%{name}%{?_isa} = %{version}-%{release}
 # BuildRequires: python-devel
 # %description python
@@ -50,13 +50,13 @@ application programming interface (API) to Perl-scripts.
 
 %package -n libcollectdclient
 Summary:	Collectd client library
-Group:		System Environment/Daemons
+Group:		System/Daemons
 %description -n libcollectdclient
 Collectd client library
 
 %package -n libcollectdclient-devel
 Summary:	Development files for libcollectdclient
-Group:		System Environment/Daemons
+Group:		System/Daemons
 Requires:	pkgconfig
 Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
 %description -n libcollectdclient-devel
@@ -64,7 +64,7 @@ Development files for libcollectdclient
 
 %package -n collectd-utils
 Summary:	Collectd utilities
-Group:		System Environment/Daemons
+Group:		System/Daemons
 Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
 Requires:	collectd%{?_isa} = %{version}-%{release}
 %description -n collectd-utils
@@ -341,8 +341,8 @@ su nemo -c "systemctl --user daemon-reload"
 su nemo -c "systemctl --user daemon-reload"
 
 
-#%post -n libcollectdclient -p /sbin/ldconfig
-#%postun -n libcollectdclient -p /sbin/ldconfig
+%post -n libcollectdclient -p /sbin/ldconfig
+%postun -n libcollectdclient -p /sbin/ldconfig
 
 
 %files
