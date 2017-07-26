@@ -71,9 +71,11 @@ Requires:	collectd%{?_isa} = %{version}-%{release}
 Collectd utilities
 
 %prep
-%setup -q
+%setup -q -n %{name}-%{version}
 
 %build
+
+./build.sh
 
 # %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 # 	--disable-static \
