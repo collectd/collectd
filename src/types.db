@@ -232,6 +232,8 @@ spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
+synproxy_connections    value:DERIVE:0:U
+synproxy_cookies        value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U

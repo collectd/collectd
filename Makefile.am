@@ -1554,6 +1554,12 @@ endif
 
 endif
 
+if BUILD_PLUGIN_SYNPROXY
+pkglib_LTLIBRARIES += synproxy.la
+synproxy_la_SOURCES = synproxy.c
+synproxy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_SYSLOG
 pkglib_LTLIBRARIES += syslog.la
 syslog_la_SOURCES = src/syslog.c
