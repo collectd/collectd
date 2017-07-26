@@ -16,7 +16,7 @@ License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
 BuildRequires:	libgcrypt-devel, kernel-headers, libtool-ltdl-devel, libcap-devel, libxml2-devel, python-devel, perl-devel, perl-ExtUtils-MakeMaker
-BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison
+BuildRequires:	rrdtool-devel, autoconf, automake, libtool, bison, flex
 BuildRequires:  libkeepalive-glib, libkeepalive-glib-devel, dbus-glib-devel
 
 Requires:	systemd, libxml2, rrdtool, libkeepalive-glib, dbus-glib
