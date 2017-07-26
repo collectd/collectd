@@ -79,7 +79,7 @@ static int start_message_assembly(parser_job_data *self) {
       self->messages_storage[self->message_idx].started == 1 &&
       self->messages_storage[self->message_idx].completed == 0) {
     DEBUG(UTIL_NAME ": Removing unfinished assembly of previous message");
-    self->messages_storage[self->message_idx] = (message){0};
+    self->messages_storage[self->message_idx] = (message){{{{0}}}};
     self->message_item_idx = 0;
   } else
     ++(self->message_idx);
@@ -97,7 +97,7 @@ static int start_message_assembly(parser_job_data *self) {
       return -1;
     }
   }
-  self->messages_storage[self->message_idx] = (message){0};
+  self->messages_storage[self->message_idx] = (message){{{{0}}}};
   self->message_item_idx = 0;
   self->messages_storage[self->message_idx].started = 1;
   self->messages_storage[self->message_idx].completed = 0;
@@ -132,7 +132,7 @@ static void end_message_assembly(parser_job_data *self) {
           UTIL_NAME
           ": Mandatory message item pattern %s not found. Message discarded",
           self->message_patterns[i].regex);
-      self->messages_storage[self->message_idx] = (message){0};
+      self->messages_storage[self->message_idx] = (message){{{{0}}}};
       self->message_item_idx = 0;
       if (self->message_idx > 0)
         --(self->message_idx);
