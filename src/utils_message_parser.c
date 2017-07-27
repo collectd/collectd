@@ -86,11 +86,11 @@ static int start_message_assembly(parser_job_data *self) {
 
   /* Resize messages buffer if needed */
   if (self->message_idx >= self->messages_max_len) {
-    INFO(UTIL_NAME ": Exceeded message buffer size: %lu",
+    INFO(UTIL_NAME ": Exceeded message buffer size: %zu",
          self->messages_max_len);
     if (self->resize_message_buffer(self, self->messages_max_len +
                                               MSG_STOR_INC_STEP) != 0) {
-      ERROR(UTIL_NAME ": Insufficient message buffer size: %lu. Remaining "
+      ERROR(UTIL_NAME ": Insufficient message buffer size: %zu. Remaining "
                       "messages for this read will be skipped",
             self->messages_max_len);
       self->message_idx = self->messages_max_len;
@@ -105,7 +105,7 @@ static int start_message_assembly(parser_job_data *self) {
 }
 
 static int resize_message_buffer(parser_job_data *self, size_t new_size) {
-  INFO(UTIL_NAME ": Resizing message buffer size to %lu", new_size);
+  INFO(UTIL_NAME ": Resizing message buffer size to %zu", new_size);
   void *new_storage = realloc(self->messages_storage,
                               new_size * sizeof(*(self->messages_storage)));
   if (new_storage == NULL) {

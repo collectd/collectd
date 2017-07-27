@@ -120,34 +120,84 @@ static const int pcie_base_errors_num = STATIC_ARRAY_SIZE(pcie_base_errors);
 
 /* Uncorrectable Error Status */
 static pcie_error_t pcie_aer_ues[] = {
+#ifdef PCI_ERR_UNC_DLP
     {PCI_ERR_UNC_DLP, "Data Link Protocol"},
+#endif
+#ifdef PCI_ERR_UNC_SURPDN
     {PCI_ERR_UNC_SURPDN, "Surprise Down"},
+#endif
+#ifdef PCI_ERR_UNC_POISON_TLP
     {PCI_ERR_UNC_POISON_TLP, "Poisoned TLP"},
+#endif
+#ifdef PCI_ERR_UNC_FCP
     {PCI_ERR_UNC_FCP, "Flow Control Protocol"},
+#endif
+#ifdef PCI_ERR_UNC_COMP_TIME
     {PCI_ERR_UNC_COMP_TIME, "Completion Timeout"},
+#endif
+#ifdef PCI_ERR_UNC_COMP_ABORT
     {PCI_ERR_UNC_COMP_ABORT, "Completer Abort"},
+#endif
+#ifdef PCI_ERR_UNC_UNX_COMP
     {PCI_ERR_UNC_UNX_COMP, "Unexpected Completion"},
+#endif
+#ifdef PCI_ERR_UNC_RX_OVER
     {PCI_ERR_UNC_RX_OVER, "Receiver Overflow"},
+#endif
+#ifdef PCI_ERR_UNC_MALF_TLP
     {PCI_ERR_UNC_MALF_TLP, "Malformed TLP"},
+#endif
+#ifdef PCI_ERR_UNC_ECRC
     {PCI_ERR_UNC_ECRC, "ECRC Error Status"},
+#endif
+#ifdef PCI_ERR_UNC_UNSUP
     {PCI_ERR_UNC_UNSUP, "Unsupported Request"},
+#endif
+#ifdef PCI_ERR_UNC_ACSV
     {PCI_ERR_UNC_ACSV, "ACS Violation"},
+#endif
+#ifdef PCI_ERR_UNC_INTN
     {PCI_ERR_UNC_INTN, "Internal"},
+#endif
+#ifdef PCI_ERR_UNC_MCBTLP
     {PCI_ERR_UNC_MCBTLP, "MC blocked TLP"},
+#endif
+#ifdef PCI_ERR_UNC_ATOMEG
     {PCI_ERR_UNC_ATOMEG, "Atomic egress blocked"},
-    {PCI_ERR_UNC_TLPPRE, "TLP prefix blocked"}};
+#endif
+#ifdef PCI_ERR_UNC_TLPPRE
+    {PCI_ERR_UNC_TLPPRE, "TLP prefix blocked"},
+#endif
+};
 static const int pcie_aer_ues_num = STATIC_ARRAY_SIZE(pcie_aer_ues);
 
 /* Correctable Error Status */
 static pcie_error_t pcie_aer_ces[] = {
+#ifdef PCI_ERR_COR_RCVR
     {PCI_ERR_COR_RCVR, "Receiver Error Status"},
+#endif
+#ifdef PCI_ERR_COR_BAD_TLP
     {PCI_ERR_COR_BAD_TLP, "Bad TLP Status"},
+#endif
+#ifdef PCI_ERR_COR_BAD_DLLP
     {PCI_ERR_COR_BAD_DLLP, "Bad DLLP Status"},
+#endif
+#ifdef PCI_ERR_COR_REP_ROLL
     {PCI_ERR_COR_REP_ROLL, "REPLAY_NUM Rollover"},
+#endif
+#ifdef PCI_ERR_COR_REP_TIMER
     {PCI_ERR_COR_REP_TIMER, "Replay Timer Timeout"},
+#endif
+#ifdef PCI_ERR_COR_ADV_NFAT
     {PCI_ERR_COR_ADV_NFAT, "Advisory Non-Fatal"},
+#endif
+#ifdef PCI_ERR_COR_INTERNAL
     {PCI_ERR_COR_INTERNAL, "Corrected Internal"},
-    {PCI_ERR_COR_LOG_OVER, "Header Log Overflow"}};
+#endif
+#ifdef PCI_ERR_COR_LOG_OVER
+    {PCI_ERR_COR_LOG_OVER, "Header Log Overflow"},
+#endif
+};
 static const int pcie_aer_ces_num = STATIC_ARRAY_SIZE(pcie_aer_ces);
 
 static pcie_msg_parser_t *pcie_parsers = NULL;
