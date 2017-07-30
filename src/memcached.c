@@ -377,6 +377,13 @@ static int memcached_read(user_data_t *user_data) {
     } else if (FIELD_IS("listen_disabled_num")) {
       submit_derive("connections", "listen_disabled", atof(fields[2]), st);
     }
+    /*
+     * Total number of connections opened since the server started running
+     * Report this as connection rate.
+     */
+    else if (FIELD_IS("total_connections")) {
+      submit_derive("connections", "opened", atof(fields[2]), st);
+    }
 
     /*
      * Commands
