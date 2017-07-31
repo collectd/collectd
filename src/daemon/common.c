@@ -212,7 +212,7 @@ void sfree (void **ptr)
 }
 #endif
 
-ssize_t sread(int fd, void *buf, size_t count) {
+int sread(int fd, void *buf, size_t count) {
   char *ptr;
   size_t nleft;
   ssize_t status;
@@ -243,7 +243,7 @@ ssize_t sread(int fd, void *buf, size_t count) {
   return 0;
 }
 
-ssize_t swrite(int fd, const void *buf, size_t count) {
+int swrite(int fd, const void *buf, size_t count) {
   const char *ptr;
   size_t nleft;
   ssize_t status;

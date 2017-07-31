@@ -90,7 +90,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen);
  *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
-ssize_t sread(int fd, void *buf, size_t count);
+int sread(int fd, void *buf, size_t count);
 
 /*
  * NAME
@@ -109,7 +109,7 @@ ssize_t sread(int fd, void *buf, size_t count);
  *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
-ssize_t swrite(int fd, const void *buf, size_t count);
+int swrite(int fd, const void *buf, size_t count);
 
 /*
  * NAME
