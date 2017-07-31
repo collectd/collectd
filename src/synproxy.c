@@ -28,20 +28,23 @@
 #error "No applicable input method."
 #endif
 
+#define SYNPROXY_FIELDS 6
+
 static const char *synproxy_stat_path = "/proc/net/stat/synproxy";
 
-static const char *column_names[] = {
+static const char *column_names[SYNPROXY_FIELDS] = {
   "entries", "syn_received", "invalid", "valid", "retransmission", "reopened"
 };
-static const char *column_types[] = {
-  "current_connections", "synproxy_connections", "synproxy_cookies", 
-  "synproxy_cookies", "synproxy_cookies", "synproxy_connections"
+static const char *column_types[SYNPROXY_FIELDS] = {
+  "current_connections", "connections", "cookies", "cookies", "cookies", 
+  "connections"
 };
 
 static void synproxy_submit(value_t *results) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  for (unsigned n = 1; n < 6; n++) {
+  /* 1st column (entries) is hardcoded to 0 in kernel code */
+  for (size_t n = 1; n < SYNPROXY_FIELDS; n++) {
     vl.values = &results[n];
     vl.values_len = 1;
 
@@ -54,12 +57,11 @@ static void synproxy_submit(value_t *results) {
 }
 
 static int synproxy_read(void) {
-  FILE *fh;
   char buf[1024];
-  value_t results[6];
+  value_t results[SYNPROXY_FIELDS];
   int is_header = 1, status = 0;
 
-  fh = fopen(synproxy_stat_path, "r");
+  FILE *fh = fopen(synproxy_stat_path, "r");
   if (fh == NULL) {
     ERROR("synproxy plugin: unable to open %s", synproxy_stat_path);
     return -1;
@@ -68,16 +70,15 @@ static int synproxy_read(void) {
   memset(results, 0, sizeof(results));
 
   while (fgets(buf, sizeof(buf), fh) != NULL) {
-    int numfields;
-    char *fields[6], *endprt;
+    char *fields[SYNPROXY_FIELDS], *endprt;
 
     if (is_header) {
       is_header = 0;
       continue;
     }
 
-    numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
-    if (numfields != 6) {
+    int numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
+    if (numfields != SYNPROXY_FIELDS) {
       ERROR("synproxy plugin: unexpected number of columns in %s", 
              synproxy_stat_path);
       status = -1;
@@ -85,20 +86,19 @@ static int synproxy_read(void) {
     }
 
     /* 1st column (entries) is hardcoded to 0 in kernel code */
-    for (unsigned n = 1; n < 6; n++) {
+    for (size_t n = 1; n < SYNPROXY_FIELDS; n++) {
       char *endptr = NULL;
       errno = 0;
 
       results[n].derive += strtoull(fields[n], &endprt, 16);
       if ((endptr == fields[n]) || errno != 0) {
         ERROR("synproxy plugin: unable to parse value: %s", fields[n]);
-        status = -1;
-        goto err_close;
+        fclose(fh);
+        return -1;
       }
     }
   }
 
-err_close:
   fclose(fh);
 
   if (status == 0) {
