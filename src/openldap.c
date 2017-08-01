@@ -92,8 +92,9 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
   if (rc != LDAP_SUCCESS) {
     ERROR("openldap plugin: ldap_initialize failed: %s", ldap_err2string(rc));
     st->state = 0;
-    ldap_unbind_ext_s(ld, NULL, NULL);
-    return -1;
+    if (ld != NULL)
+      ldap_unbind_ext_s(ld, NULL, NULL);
+    return (-1);
   }
 
   st->ld = ld;
@@ -119,8 +120,9 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
       ERROR("openldap plugin: Failed to start tls on %s: %s", st->url,
             ldap_err2string(rc));
       st->state = 0;
-      ldap_unbind_ext_s(st->ld, NULL, NULL);
-      return -1;
+      if (st->ld != NULL)
+        ldap_unbind_ext_s(st->ld, NULL, NULL);
+      return (-1);
     }
   }
 
@@ -139,8 +141,9 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
     ERROR("openldap plugin: Failed to bind to %s: %s", st->url,
           ldap_err2string(rc));
     st->state = 0;
-    ldap_unbind_ext_s(st->ld, NULL, NULL);
-    return -1;
+    if (st->ld != NULL)
+      ldap_unbind_ext_s(st->ld, NULL, NULL);
+    return (-1);
   } else {
     DEBUG("openldap plugin: Successfully connected to %s", st->url);
     st->state = 1;
@@ -214,8 +217,9 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
     ERROR("openldap plugin: Failed to execute search: %s", ldap_err2string(rc));
     ldap_msgfree(result);
     st->state = 0;
-    ldap_unbind_ext_s(st->ld, NULL, NULL);
-    return -1;
+    if (st->ld != NULL)
+      ldap_unbind_ext_s(st->ld, NULL, NULL);
+    return (-1);
   }
 
   for (LDAPMessage *e = ldap_first_entry(st->ld, result); e != NULL;
@@ -310,8 +314,8 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
         if ((olmbdb_list =
                  ldap_get_values_len(st->ld, e, "olmBDBEntryCache")) != NULL) {
           olmbdb_data = *olmbdb_list[0];
-          ssnprintf(typeinst, sizeof(typeinst), "bdbentrycache-%s",
-                    nc_data.bv_val);
+          snprintf(typeinst, sizeof(typeinst), "bdbentrycache-%s",
+                   nc_data.bv_val);
           cldap_submit_gauge("cache_size", typeinst, atoll(olmbdb_data.bv_val),
                              st);
           ldap_value_free_len(olmbdb_list);
@@ -320,8 +324,7 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
         if ((olmbdb_list = ldap_get_values_len(st->ld, e, "olmBDBDNCache")) !=
             NULL) {
           olmbdb_data = *olmbdb_list[0];
-          ssnprintf(typeinst, sizeof(typeinst), "bdbdncache-%s",
-                    nc_data.bv_val);
+          snprintf(typeinst, sizeof(typeinst), "bdbdncache-%s", nc_data.bv_val);
           cldap_submit_gauge("cache_size", typeinst, atoll(olmbdb_data.bv_val),
                              st);
           ldap_value_free_len(olmbdb_list);
@@ -330,8 +333,8 @@ static int cldap_read_host(user_data_t *ud) /* {{{ */
         if ((olmbdb_list = ldap_get_values_len(st->ld, e, "olmBDBIDLCache")) !=
             NULL) {
           olmbdb_data = *olmbdb_list[0];
-          ssnprintf(typeinst, sizeof(typeinst), "bdbidlcache-%s",
-                    nc_data.bv_val);
+          snprintf(typeinst, sizeof(typeinst), "bdbidlcache-%s",
+                   nc_data.bv_val);
           cldap_submit_gauge("cache_size", typeinst, atoll(olmbdb_data.bv_val),
                              st);
           ldap_value_free_len(olmbdb_list);
@@ -476,16 +479,17 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
       databases[databases_num] = st;
       databases_num++;
 
-      ssnprintf(callback_name, sizeof(callback_name), "openldap/%s/%s",
-                (st->host != NULL) ? st->host : hostname_g,
-                (st->name != NULL) ? st->name : "default");
+      snprintf(callback_name, sizeof(callback_name), "openldap/%s/%s",
+               (st->host != NULL) ? st->host : hostname_g,
+               (st->name != NULL) ? st->name : "default");
 
       status = plugin_register_complex_read(/* group = */ NULL,
                                             /* name      = */ callback_name,
                                             /* callback  = */ cldap_read_host,
-                                            /* interval  = */ 0, &(user_data_t){
-                                                                     .data = st,
-                                                                 });
+                                            /* interval  = */ 0,
+                                            &(user_data_t){
+                                                .data = st,
+                                            });
     }
   }
 
@@ -531,7 +535,7 @@ static int cldap_init(void) /* {{{ */
 static int cldap_shutdown(void) /* {{{ */
 {
   for (size_t i = 0; i < databases_num; i++)
-    if (databases[i]->ld != NULL)
+    if (databases[i] != NULL && databases[i]->ld != NULL)
       ldap_unbind_ext_s(databases[i]->ld, NULL, NULL);
   sfree(databases);
   databases_num = 0;

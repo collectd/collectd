@@ -118,7 +118,7 @@ static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
   size_t valuelen = sizeof(value);
   int rv;
 
-  ssnprintf(buffer, sizeof(buffer), "%s%s", zfs_arcstat, name);
+  snprintf(buffer, sizeof(buffer), "%s%s", zfs_arcstat, name);
   rv = sysctlbyname(buffer, (void *)&value, &valuelen,
                     /* new value = */ NULL, /* new length = */ (size_t)0);
   if (rv == 0)
@@ -216,12 +216,14 @@ static int za_read(void) {
   // See kstat_seq_show_headers module/spl/spl-kstat.c of the spl kernel
   // module.
   if (fgets(buffer, sizeof(buffer), fh) == NULL) {
-    ERROR("zfs_arc plugin: \"%s\" does not contain a single line.", ZOL_ARCSTATS_FILE);
+    ERROR("zfs_arc plugin: \"%s\" does not contain a single line.",
+          ZOL_ARCSTATS_FILE);
     fclose(fh);
     return -1;
   }
   if (fgets(buffer, sizeof(buffer), fh) == NULL) {
-    ERROR("zfs_arc plugin: \"%s\" does not contain at least two lines.", ZOL_ARCSTATS_FILE);
+    ERROR("zfs_arc plugin: \"%s\" does not contain at least two lines.",
+          ZOL_ARCSTATS_FILE);
     fclose(fh);
     return -1;
   }

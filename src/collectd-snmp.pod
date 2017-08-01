@@ -44,7 +44,7 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Collect "std_traffic" "hr_users"
     </Host>
     <Host "secure.router.mydomain.org">
-      Address "192.168.0.7"
+      Address "192.168.0.7:165"
       Version 3
       SecurityLevel "authPriv"
       Username "cosmo"
@@ -55,7 +55,7 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Collect "std_traffic"
     </Host>
     <Host "some.ups.mydomain.org">
-      Address "192.168.0.3"
+      Address "tcp:192.168.0.3"
       Version 1
       Community "more_communities"
       Collect "powerplus_voltge_input"
@@ -228,7 +228,8 @@ stored by collectd.
 
 =item B<Address> I<IP-Address>|I<Hostname>
 
-Set the address to connect to.
+Set the address to connect to. Address may include transport specifier and/or
+port number.
 
 =item B<Version> B<1>|B<2>|B<3>
 

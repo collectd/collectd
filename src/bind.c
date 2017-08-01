@@ -522,8 +522,10 @@ static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
         status = bind_xml_read_gauge(doc, counter, &value.gauge);
       else
         status = bind_xml_read_derive(doc, counter, &value.derive);
-      if (status != 0)
+      if (status != 0) {
+        xmlFree(name);
         continue;
+      }
 
       status = (*list_callback)(name, value, current_time, user_data);
       if (status == 0)
@@ -655,12 +657,16 @@ static int bind_parse_generic_name_attr_value_list(
         status = bind_xml_read_gauge(doc, child, &value.gauge);
       else
         status = bind_xml_read_derive(doc, child, &value.derive);
-      if (status != 0)
+      if (status != 0) {
+        xmlFree(attr_name);
         continue;
+      }
 
       status = (*list_callback)(attr_name, value, current_time, user_data);
       if (status == 0)
         num_entries++;
+
+      xmlFree(attr_name);
     }
   }
 
@@ -731,8 +737,8 @@ static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
                                          nsstats_translation_table_length,
                                          plugin_instance};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-zone-%s",
-              view->name, zone_name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-zone-%s", view->name,
+             zone_name);
 
     if (version == 3) {
       list_info_ptr_t list_info = {plugin_instance,
@@ -862,8 +868,7 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info = {plugin_instance,
                                  /* type = */ "dns_qtype"};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-qtypes",
-              view->name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-qtypes", view->name);
     if (version == 3) {
       bind_parse_generic_name_attr_value_list(
           /* xpath = */ "counters[@type='resqtype']",
@@ -885,8 +890,8 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
                                          resstats_translation_table_length,
                                          plugin_instance};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-resolver_stats",
-              view->name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-resolver_stats",
+             view->name);
     if (version == 3) {
       bind_parse_generic_name_attr_value_list(
           "counters[@type='resstats']",
@@ -908,8 +913,8 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
     list_info_ptr_t list_info = {plugin_instance,
                                  /* type = */ "dns_qtype_cached"};
 
-    ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-cache_rr_sets",
-              view->name);
+    snprintf(plugin_instance, sizeof(plugin_instance), "%s-cache_rr_sets",
+             view->name);
 
     bind_parse_generic_name_value(/* xpath = */ "cache/rrset",
                                   /* callback = */ bind_xml_list_callback,
@@ -1592,7 +1597,6 @@ static int bind_init(void) /* {{{ */
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bind_curl_callback);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, bind_curl_error);
-  curl_easy_setopt(curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
@@ -1614,6 +1618,9 @@ static int bind_read(void) /* {{{ */
   }
 
   bind_buffer_fill = 0;
+
+  curl_easy_setopt(curl, CURLOPT_URL, (url != NULL) ? url : BIND_DEFAULT_URL);
+
   if (curl_easy_perform(curl) != CURLE_OK) {
     ERROR("bind plugin: curl_easy_perform failed: %s", bind_curl_error);
     return -1;

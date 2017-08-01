@@ -191,16 +191,21 @@ static int plugin_update_internal_statistics(void) { /* {{{ */
   return 0;
 } /* }}} int plugin_update_internal_statistics */
 
+static void free_userdata(user_data_t const *ud) /* {{{ */
+{
+  if (ud == NULL)
+    return;
+
+  if ((ud->data != NULL) && (ud->free_func != NULL)) {
+    ud->free_func(ud->data);
+  }
+} /* }}} void free_userdata */
+
 static void destroy_callback(callback_func_t *cf) /* {{{ */
 {
   if (cf == NULL)
     return;
-
-  if ((cf->cf_udata.data != NULL) && (cf->cf_udata.free_func != NULL)) {
-    cf->cf_udata.free_func(cf->cf_udata.data);
-    cf->cf_udata.data = NULL;
-    cf->cf_udata.free_func = NULL;
-  }
+  free_userdata(&cf->cf_udata);
   sfree(cf);
 } /* }}} void destroy_callback */
 
@@ -345,6 +350,7 @@ static int create_register_callback(llist_t **list, /* {{{ */
 
   cf = calloc(1, sizeof(*cf));
   if (cf == NULL) {
+    free_userdata(ud);
     ERROR("plugin: create_register_callback: calloc failed.");
     return -1;
   }
@@ -400,13 +406,13 @@ static int plugin_load_file(const char *file, _Bool global) {
   if (dlh == NULL) {
     char errbuf[1024] = "";
 
-    ssnprintf(errbuf, sizeof(errbuf),
-              "dlopen (\"%s\") failed: %s. "
-              "The most common cause for this problem is "
-              "missing dependencies. Use ldd(1) to check "
-              "the dependencies of the plugin "
-              "/ shared object.",
-              file, dlerror());
+    snprintf(errbuf, sizeof(errbuf),
+             "dlopen (\"%s\") failed: %s. "
+             "The most common cause for this problem is "
+             "missing dependencies. Use ldd(1) to check "
+             "the dependencies of the plugin "
+             "/ shared object.",
+             file, dlerror());
 
     ERROR("%s", errbuf);
     /* Make sure this is printed to STDERR in any case, but also
@@ -640,7 +646,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    ssnprintf(name, sizeof(name), "reader#%zu", read_threads_num);
+    snprintf(name, sizeof(name), "reader#%zu", read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -847,7 +853,7 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    ssnprintf(name, sizeof(name), "writer#%zu", write_threads_num);
+    snprintf(name, sizeof(name), "writer#%zu", write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -996,7 +1002,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
 
   /* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
    * type when matching the filename */
-  status = ssnprintf(typename, sizeof(typename), "%s.so", plugin_name);
+  status = snprintf(typename, sizeof(typename), "%s.so", plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
     WARNING("plugin_load: Filename too long: \"%s.so\"", plugin_name);
     return -1;
@@ -1013,7 +1019,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
     if (strcasecmp(de->d_name, typename))
       continue;
 
-    status = ssnprintf(filename, sizeof(filename), "%s/%s", dir, de->d_name);
+    status = snprintf(filename, sizeof(filename), "%s/%s", dir, de->d_name);
     if ((status < 0) || ((size_t)status >= sizeof(filename))) {
       WARNING("plugin_load: Filename too long: \"%s/%s\"", dir, de->d_name);
       continue;
@@ -1120,8 +1126,7 @@ static int plugin_insert_read(read_func_t *rf) {
   if (le != NULL) {
     pthread_mutex_unlock(&read_lock);
     WARNING("The read function \"%s\" is already registered. "
-            "Check for duplicate \"LoadPlugin\" lines "
-            "in your configuration!",
+            "Check for duplicates in your configuration!",
             rf->rf_name);
     return EINVAL;
   }
@@ -1186,6 +1191,7 @@ int plugin_register_complex_read(const char *group, const char *name,
 
   rf = calloc(1, sizeof(*rf));
   if (rf == NULL) {
+    free_userdata(user_data);
     ERROR("plugin_register_complex_read: calloc failed.");
     return ENOMEM;
   }
@@ -1211,6 +1217,7 @@ int plugin_register_complex_read(const char *group, const char *name,
 
   status = plugin_insert_read(rf);
   if (status != 0) {
+    free_userdata(&rf->rf_udata);
     sfree(rf->rf_name);
     sfree(rf);
   }
@@ -1303,11 +1310,7 @@ int plugin_register_flush(const char *name, plugin_flush_cb callback,
         });
 
     sfree(flush_name);
-    if (status != 0) {
-      sfree(cb->name);
-      sfree(cb);
-      return status;
-    }
+    return status;
   }
 
   return 0;

@@ -122,8 +122,8 @@ static int init(void) {
     curl_easy_setopt(curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
 #else
     static char credentials[1024];
-    int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
-                           pass == NULL ? "" : pass);
+    int status = snprintf(credentials, sizeof(credentials), "%s:%s", user,
+                          pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("nginx plugin: Credentials would have been truncated.");
       return -1;
@@ -131,10 +131,6 @@ static int init(void) {
 
     curl_easy_setopt(curl, CURLOPT_USERPWD, credentials);
 #endif
-  }
-
-  if (url != NULL) {
-    curl_easy_setopt(curl, CURLOPT_URL, url);
   }
 
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -207,6 +203,9 @@ static int nginx_read(void) {
     return -1;
 
   nginx_buffer_len = 0;
+
+  curl_easy_setopt(curl, CURLOPT_URL, url);
+
   if (curl_easy_perform(curl) != CURLE_OK) {
     WARNING("nginx plugin: curl_easy_perform failed: %s", nginx_curl_error);
     return -1;

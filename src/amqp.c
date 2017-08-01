@@ -217,23 +217,23 @@ static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
     if (r.reply.id == AMQP_CONNECTION_CLOSE_METHOD) {
       amqp_connection_close_t *m = r.reply.decoded;
       char *tmp = camqp_bytes_cstring(&m->reply_text);
-      ssnprintf(buffer, buffer_size, "Server connection error %d: %s",
-                m->reply_code, tmp);
+      snprintf(buffer, buffer_size, "Server connection error %d: %s",
+               m->reply_code, tmp);
       sfree(tmp);
     } else if (r.reply.id == AMQP_CHANNEL_CLOSE_METHOD) {
       amqp_channel_close_t *m = r.reply.decoded;
       char *tmp = camqp_bytes_cstring(&m->reply_text);
-      ssnprintf(buffer, buffer_size, "Server channel error %d: %s",
-                m->reply_code, tmp);
+      snprintf(buffer, buffer_size, "Server channel error %d: %s",
+               m->reply_code, tmp);
       sfree(tmp);
     } else {
-      ssnprintf(buffer, buffer_size, "Server error method %#" PRIx32,
-                r.reply.id);
+      snprintf(buffer, buffer_size, "Server error method %#" PRIx32,
+               r.reply.id);
     }
     break;
 
   default:
-    ssnprintf(buffer, buffer_size, "Unknown reply type %i", (int)r.reply_type);
+    snprintf(buffer, buffer_size, "Unknown reply type %i", (int)r.reply_type);
   }
 
   return buffer;
@@ -758,9 +758,9 @@ static int camqp_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (conf->routing_key != NULL) {
     sstrncpy(routing_key, conf->routing_key, sizeof(routing_key));
   } else {
-    ssnprintf(routing_key, sizeof(routing_key), "collectd/%s/%s/%s/%s/%s",
-              vl->host, vl->plugin, vl->plugin_instance, vl->type,
-              vl->type_instance);
+    snprintf(routing_key, sizeof(routing_key), "collectd/%s/%s/%s/%s/%s",
+             vl->host, vl->plugin, vl->plugin_instance, vl->type,
+             vl->type_instance);
 
     /* Switch slashes (the only character forbidden by collectd) and dots
      * (the separation character used by AMQP). */
@@ -901,7 +901,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
       status = cf_util_get_string(child, &conf->password);
     else if (strcasecmp("Exchange", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange);
-    else if ((strcasecmp("ExchangeType", child->key) == 0) && !publish)
+    else if (strcasecmp("ExchangeType", child->key) == 0)
       status = cf_util_get_string(child, &conf->exchange_type);
     else if ((strcasecmp("Queue", child->key) == 0) && !publish)
       status = cf_util_get_string(child, &conf->queue);
@@ -980,7 +980,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
 
   if (publish) {
     char cbname[128];
-    ssnprintf(cbname, sizeof(cbname), "amqp/%s", conf->name);
+    snprintf(cbname, sizeof(cbname), "amqp/%s", conf->name);
 
     status = plugin_register_write(
         cbname, camqp_write, &(user_data_t){

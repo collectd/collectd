@@ -44,8 +44,6 @@
 #endif
 
 #define CJ_DEFAULT_HOST "localhost"
-#define CJ_KEY_MAGIC 0x43484b59UL /* CHKY */
-#define CJ_IS_KEY(key) ((key)->magic == CJ_KEY_MAGIC)
 #define CJ_ANY "*"
 #define COUCH_MIN(x, y) ((x) < (y) ? (x) : (y))
 
@@ -53,12 +51,33 @@ struct cj_key_s;
 typedef struct cj_key_s cj_key_t;
 struct cj_key_s /* {{{ */
 {
-  unsigned long magic;
   char *path;
   char *type;
   char *instance;
 };
 /* }}} */
+
+/* cj_tree_entry_t is a union of either a metric configuration ("key") or a tree
+ * mapping array indexes / map keys to a descendant cj_tree_entry_t*. */
+typedef struct {
+  enum { KEY, TREE } type;
+  union {
+    c_avl_tree_t *tree;
+    cj_key_t *key;
+  };
+} cj_tree_entry_t;
+
+/* cj_state_t is a stack providing the configuration relevant for the context
+ * that is currently being parsed. If entry->type == KEY, the parser should
+ * expect a metric (a numeric value). If entry->type == TREE, the parser should
+ * expect an array of map to descent into. If entry == NULL, no configuration
+ * exists for this part of the JSON structure. */
+typedef struct {
+  cj_tree_entry_t *entry;
+  _Bool in_array;
+  int index;
+  char name[DATA_MAX_NAME_LEN];
+} cj_state_t;
 
 struct cj_s /* {{{ */
 {
@@ -87,15 +106,7 @@ struct cj_s /* {{{ */
   yajl_handle yajl;
   c_avl_tree_t *tree;
   int depth;
-  struct {
-    union {
-      c_avl_tree_t *tree;
-      cj_key_t *key;
-    };
-    _Bool in_array;
-    int index;
-    char name[DATA_MAX_NAME_LEN];
-  } state[YAJL_MAX_DEPTH];
+  cj_state_t state[YAJL_MAX_DEPTH];
 };
 typedef struct cj_s cj_t; /* }}} */
 
@@ -144,12 +155,10 @@ static size_t cj_curl_callback(void *buf, /* {{{ */
 } /* }}} size_t cj_curl_callback */
 
 static int cj_get_type(cj_key_t *key) {
-  const data_set_t *ds;
-
-  if ((key == NULL) || !CJ_IS_KEY(key))
+  if (key == NULL)
     return -EINVAL;
 
-  ds = plugin_get_ds(key->type);
+  const data_set_t *ds = plugin_get_ds(key->type);
   if (ds == NULL) {
     static char type[DATA_MAX_NAME_LEN] = "!!!invalid!!!";
 
@@ -182,31 +191,20 @@ static int cj_load_key(cj_t *db, char const *key) {
 
   sstrncpy(db->state[db->depth].name, key, sizeof(db->state[db->depth].name));
 
-  c_avl_tree_t *tree = db->state[db->depth - 1].tree;
-  if (tree == NULL) {
+  if (db->state[db->depth - 1].entry == NULL ||
+      db->state[db->depth - 1].entry->type != TREE) {
     return 0;
   }
 
-  /* the parent has a key, so the tree pointer is invalid. */
-  if (CJ_IS_KEY(db->state[db->depth - 1].key)) {
-    return 0;
-  }
+  c_avl_tree_t *tree = db->state[db->depth - 1].entry->tree;
+  cj_tree_entry_t *e = NULL;
 
-  void *value = NULL;
-  if (c_avl_get(tree, key, (void *)&value) == 0) {
-    if (CJ_IS_KEY((cj_key_t *)value)) {
-      db->state[db->depth].key = value;
-    } else {
-      db->state[db->depth].tree = value;
-    }
-  } else if (c_avl_get(tree, CJ_ANY, (void *)&value) == 0) {
-    if (CJ_IS_KEY((cj_key_t *)value)) {
-      db->state[db->depth].key = value;
-    } else {
-      db->state[db->depth].tree = value;
-    }
+  if (c_avl_get(tree, key, (void *)&e) == 0) {
+    db->state[db->depth].entry = e;
+  } else if (c_avl_get(tree, CJ_ANY, (void *)&e) == 0) {
+    db->state[db->depth].entry = e;
   } else {
-    db->state[db->depth].key = NULL;
+    db->state[db->depth].entry = NULL;
   }
 
   return 0;
@@ -219,7 +217,7 @@ static void cj_advance_array(cj_t *db) {
   db->state[db->depth].index++;
 
   char name[DATA_MAX_NAME_LEN];
-  ssnprintf(name, sizeof(name), "%d", db->state[db->depth].index);
+  snprintf(name, sizeof(name), "%d", db->state[db->depth].index);
   cj_load_key(db, name);
 }
 
@@ -238,27 +236,25 @@ static int cj_cb_null(void *ctx) {
 }
 
 static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
-  char buffer[number_len + 1];
-
   cj_t *db = (cj_t *)ctx;
-  cj_key_t *key = db->state[db->depth].key;
 
   /* Create a null-terminated version of the string. */
+  char buffer[number_len + 1];
   memcpy(buffer, number, number_len);
   buffer[sizeof(buffer) - 1] = 0;
 
-  if (key == NULL) {
-    /* no config for this element. */
-    cj_advance_array(ctx);
-    return CJ_CB_CONTINUE;
-  } else if (!CJ_IS_KEY(key)) {
-    /* the config expects a map or an array. */
-    NOTICE(
-        "curl_json plugin: Found \"%s\", but the configuration expects a map.",
-        buffer);
+  if (db->state[db->depth].entry == NULL ||
+      db->state[db->depth].entry->type != KEY) {
+    if (db->state[db->depth].entry != NULL) {
+      NOTICE("curl_json plugin: Found \"%s\", but the configuration expects a "
+             "map.",
+             buffer);
+    }
     cj_advance_array(ctx);
     return CJ_CB_CONTINUE;
   }
+
+  cj_key_t *key = db->state[db->depth].entry->key;
 
   int type = cj_get_type(key);
   value_t vt;
@@ -297,7 +293,7 @@ static int cj_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
 
 static int cj_cb_end(void *ctx) {
   cj_t *db = (cj_t *)ctx;
-  db->state[db->depth].tree = NULL;
+  memset(&db->state[db->depth], 0, sizeof(db->state[db->depth]));
   db->depth--;
   cj_advance_array(ctx);
   return CJ_CB_CONTINUE;
@@ -365,17 +361,16 @@ static void cj_key_free(cj_key_t *key) /* {{{ */
 static void cj_tree_free(c_avl_tree_t *tree) /* {{{ */
 {
   char *name;
-  void *value;
+  cj_tree_entry_t *e;
 
-  while (c_avl_pick(tree, (void *)&name, (void *)&value) == 0) {
-    cj_key_t *key = (cj_key_t *)value;
-
-    if (CJ_IS_KEY(key))
-      cj_key_free(key);
-    else
-      cj_tree_free((c_avl_tree_t *)value);
-
+  while (c_avl_pick(tree, (void *)&name, (void *)&e) == 0) {
     sfree(name);
+
+    if (e->type == KEY)
+      cj_key_free(e->key);
+    else
+      cj_tree_free(e->tree);
+    sfree(e);
   }
 
   c_avl_destroy(tree);
@@ -469,13 +464,21 @@ static int cj_append_key(cj_t *db, cj_key_t *key) { /* {{{ */
     len = COUCH_MIN(len, sizeof(name) - 1);
     sstrncpy(name, start, len + 1);
 
-    c_avl_tree_t *value;
-    if (c_avl_get(tree, name, (void *)&value) != 0) {
-      value = cj_avl_create();
-      c_avl_insert(tree, strdup(name), value);
+    cj_tree_entry_t *e;
+    if (c_avl_get(tree, name, (void *)&e) != 0) {
+      e = calloc(1, sizeof(*e));
+      if (e == NULL)
+        return ENOMEM;
+      e->type = TREE;
+      e->tree = cj_avl_create();
+
+      c_avl_insert(tree, strdup(name), e);
     }
 
-    tree = value;
+    if (e->type != TREE)
+      return EINVAL;
+
+    tree = e->tree;
     start = end + 1;
   }
 
@@ -484,7 +487,13 @@ static int cj_append_key(cj_t *db, cj_key_t *key) { /* {{{ */
     return -1;
   }
 
-  c_avl_insert(tree, strdup(start), key);
+  cj_tree_entry_t *e = calloc(1, sizeof(*e));
+  if (e == NULL)
+    return ENOMEM;
+  e->type = KEY;
+  e->key = key;
+
+  c_avl_insert(tree, strdup(start), e);
   return 0;
 } /* }}} int cj_append_key */
 
@@ -504,7 +513,6 @@ static int cj_config_add_key(cj_t *db, /* {{{ */
     ERROR("curl_json plugin: calloc failed.");
     return -1;
   }
-  key->magic = CJ_KEY_MAGIC;
 
   if (strcasecmp("Key", ci->key) == 0) {
     status = cf_util_get_string(ci, &key->path);
@@ -570,7 +578,6 @@ static int cj_init_curl(cj_t *db) /* {{{ */
   curl_easy_setopt(db->curl, CURLOPT_WRITEDATA, db);
   curl_easy_setopt(db->curl, CURLOPT_USERAGENT, COLLECTD_USERAGENT);
   curl_easy_setopt(db->curl, CURLOPT_ERRORBUFFER, db->curl_errbuf);
-  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
   curl_easy_setopt(db->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(db->curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -592,8 +599,8 @@ static int cj_init_curl(cj_t *db) /* {{{ */
       return -1;
     }
 
-    ssnprintf(db->credentials, credentials_size, "%s:%s", db->user,
-              (db->pass == NULL) ? "" : db->pass);
+    snprintf(db->credentials, credentials_size, "%s:%s", db->user,
+             (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt(db->curl, CURLOPT_USERPWD, db->credentials);
 #endif
 
@@ -792,8 +799,8 @@ static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
   if (key->instance == NULL) {
     int len = 0;
     for (int i = 0; i < db->depth; i++)
-      len += ssnprintf(vl.type_instance + len, sizeof(vl.type_instance) - len,
-                       i ? "-%s" : "%s", db->state[i + 1].name);
+      len += snprintf(vl.type_instance + len, sizeof(vl.type_instance) - len,
+                      i ? "-%s" : "%s", db->state[i + 1].name);
   } else
     sstrncpy(vl.type_instance, key->instance, sizeof(vl.type_instance));
 
@@ -850,12 +857,13 @@ static int cj_curl_perform(cj_t *db) /* {{{ */
   int status;
   long rc;
   char *url;
-  url = db->url;
+
+  curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
 
   status = curl_easy_perform(db->curl);
   if (status != CURLE_OK) {
     ERROR("curl_json plugin: curl_easy_perform failed with status %i: %s (%s)",
-          status, db->curl_errbuf, url);
+          status, db->curl_errbuf, db->url);
     return -1;
   }
   if (db->stats != NULL)
@@ -938,9 +946,19 @@ static int cj_read(user_data_t *ud) /* {{{ */
 
   db->depth = 0;
   memset(&db->state, 0, sizeof(db->state));
-  db->state[db->depth].tree = db->tree;
 
-  return cj_perform(db);
+  /* This is not a compound literal because EPEL6's GCC is not cool enough to
+   * handle anonymous unions within compound literals. */
+  cj_tree_entry_t root = {0};
+  root.type = TREE;
+  root.tree = db->tree;
+  db->state[0].entry = &root;
+
+  int status = cj_perform(db);
+
+  db->state[0].entry = NULL;
+
+  return status;
 } /* }}} int cj_read */
 
 static int cj_init(void) /* {{{ */

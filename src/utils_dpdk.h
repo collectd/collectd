@@ -50,7 +50,6 @@ struct dpdk_eal_config_s {
   char coremask[DATA_MAX_NAME_LEN];
   char memory_channels[DATA_MAX_NAME_LEN];
   char socket_memory[DATA_MAX_NAME_LEN];
-  char process_type[DATA_MAX_NAME_LEN];
   char file_prefix[DATA_MAX_NAME_LEN];
 };
 typedef struct dpdk_eal_config_s dpdk_eal_config_t;
@@ -65,7 +64,7 @@ typedef struct dpdk_helper_ctx_s dpdk_helper_ctx_t;
 
 int dpdk_helper_init(const char *name, size_t data_size,
                      dpdk_helper_ctx_t **pphc);
-int dpdk_helper_shutdown(dpdk_helper_ctx_t *phc);
+void dpdk_helper_shutdown(dpdk_helper_ctx_t *phc);
 int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci);
 int dpdk_helper_eal_config_set(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec);
 int dpdk_helper_eal_config_get(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec);

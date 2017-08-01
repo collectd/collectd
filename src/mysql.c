@@ -218,7 +218,7 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
           (db->database != NULL) ? db->database : "<default>");
 
     if (db->instance != NULL)
-      ssnprintf(cb_name, sizeof(cb_name), "mysql-%s", db->instance);
+      snprintf(cb_name, sizeof(cb_name), "mysql-%s", db->instance);
     else
       sstrncpy(cb_name, "mysql", sizeof(cb_name));
 
@@ -496,15 +496,15 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
         (db->slave_io_running)) {
       n.severity = NOTIF_WARNING;
-      ssnprintf(n.message, sizeof(n.message),
-                "slave I/O thread not started or not connected to master");
+      snprintf(n.message, sizeof(n.message),
+               "slave I/O thread not started or not connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = 0;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                (!db->slave_io_running)) {
       n.severity = NOTIF_OKAY;
-      ssnprintf(n.message, sizeof(n.message),
-                "slave I/O thread started and connected to master");
+      snprintf(n.message, sizeof(n.message),
+               "slave I/O thread started and connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = 1;
     }
@@ -512,13 +512,13 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
         (db->slave_sql_running)) {
       n.severity = NOTIF_WARNING;
-      ssnprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+      snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
       plugin_dispatch_notification(&n);
       db->slave_sql_running = 0;
     } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
                (!db->slave_sql_running)) {
       n.severity = NOTIF_OKAY;
-      ssnprintf(n.message, sizeof(n.message), "slave SQL thread started");
+      snprintf(n.message, sizeof(n.message), "slave SQL thread started");
       plugin_dispatch_notification(&n);
       db->slave_sql_running = 1;
     }

@@ -119,7 +119,10 @@ noinst_LTLIBRARIES = \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
-	liboconfig.la \
+	liboconfig.la
+
+
+check_LTLIBRARIES = \
 	libplugin_mock.la
 
 
@@ -893,6 +896,14 @@ hugepages_la_SOURCES = src/hugepages.c
 hugepages_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_INTEL_PMU
+pkglib_LTLIBRARIES += intel_pmu.la
+intel_pmu_la_SOURCES = src/intel_pmu.c
+intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
+intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
+intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
+endif
+
 if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
 intel_rdt_la_SOURCES = src/intel_rdt.c
@@ -948,10 +959,6 @@ endif
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = src/ipvs.c
-ipvs_la_CFLAGS = $(AM_CFLAGS)
-if IP_VS_H_NEEDS_KERNEL_CFLAGS
-ipvs_la_CFLAGS += $(KERNEL_CFLAGS)
-endif
 ipvs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1397,9 +1404,6 @@ python_la_SOURCES = \
 	src/pyvalues.c \
 	src/cpython.h
 python_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBPYTHON_CPPFLAGS)
-if COMPILER_IS_GCC
-python_la_CPPFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
-endif
 python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
@@ -1508,9 +1512,9 @@ endif
 if BUILD_PLUGIN_SNMP_AGENT
 pkglib_LTLIBRARIES += snmp_agent.la
 snmp_agent_la_SOURCES = src/snmp_agent.c
-snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
-snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
-snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
+snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
+snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
 endif
 
 if BUILD_PLUGIN_STATSD

@@ -240,7 +240,7 @@ static int apc_query_server(char const *node, char const *service,
   char recvline[1024];
   char *tokptr;
   char *toksaveptr;
-  _Bool retry = 1;
+  int try = 0;
   int status;
 
 #if APCMAIN
@@ -250,7 +250,7 @@ static int apc_query_server(char const *node, char const *service,
 #define PRINT_VALUE(name, val) /**/
 #endif
 
-  while (retry) {
+  while (1) {
     if (global_sockfd < 0) {
       global_sockfd = net_open(node, service);
       if (global_sockfd < 0) {
@@ -262,10 +262,10 @@ static int apc_query_server(char const *node, char const *service,
 
     status = net_send(&global_sockfd, "status", strlen("status"));
     if (status != 0) {
-      /* net_send is closing the socket on error. */
+      /* net_send closes the socket on error. */
       assert(global_sockfd < 0);
-      if (retry) {
-        retry = 0;
+      if (try == 0) {
+        try++;
         count_retries++;
         continue;
       }
@@ -275,7 +275,7 @@ static int apc_query_server(char const *node, char const *service,
     }
 
     break;
-  } /* while (retry) */
+  } /* while (1) */
 
   /* When collectd's collection interval is larger than apcupsd's
    * timeout, we would have to retry / re-connect each iteration. Try to
@@ -421,13 +421,11 @@ static int apcups_read(void) {
       .linefreq = NAN,
   };
 
-  int status =
-      apc_query_server(conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node,
-                       conf_service, &apcups_detail);
+  int status = apc_query_server(conf_node, conf_service, &apcups_detail);
+
   if (status != 0) {
     DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
-          conf_node == NULL ? APCUPS_DEFAULT_NODE : conf_node, conf_service,
-          status);
+          conf_node, conf_service, status);
     return status;
   }
 
@@ -436,8 +434,19 @@ static int apcups_read(void) {
   return 0;
 } /* apcups_read */
 
+static int apcups_init(void) {
+  if (conf_node == NULL)
+    conf_node = APCUPS_DEFAULT_NODE;
+
+  if (conf_service == NULL)
+    conf_service = APCUPS_DEFAULT_SERVICE;
+
+  return 0;
+} /* apcups_init */
+
 void module_register(void) {
   plugin_register_complex_config("apcups", apcups_config);
+  plugin_register_init("apcups", apcups_init);
   plugin_register_read("apcups", apcups_read);
   plugin_register_shutdown("apcups", apcups_shutdown);
 } /* void module_register */

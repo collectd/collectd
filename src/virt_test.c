@@ -22,8 +22,8 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#include "virt.c" /* sic */
 #include "testing.h"
+#include "virt.c" /* sic */
 
 #include <unistd.h>
 

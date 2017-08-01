@@ -309,7 +309,7 @@ static int ctail_init(void) {
   }
 
   for (size_t i = 0; i < tail_match_list_num; i++) {
-    ssnprintf(str, sizeof(str), "tail-%zu", i);
+    snprintf(str, sizeof(str), "tail-%zu", i);
 
     plugin_register_complex_read(NULL, str, ctail_read,
                                  tail_match_list_intervals[i],

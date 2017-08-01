@@ -248,7 +248,7 @@ static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     host->interval = plugin_get_interval();
 
   if (slave->instance[0] == 0)
-    ssnprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
+    snprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
 
   vl.values = &value;
   vl.values_len = 1;
@@ -934,7 +934,7 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
   if (status == 0) {
     char name[1024];
 
-    ssnprintf(name, sizeof(name), "modbus-%s", host->host);
+    snprintf(name, sizeof(name), "modbus-%s", host->host);
 
     plugin_register_complex_read(/* group = */ NULL, name,
                                  /* callback = */ mb_read,

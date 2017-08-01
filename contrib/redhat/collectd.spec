@@ -127,6 +127,7 @@
 %define with_serial 0%{!?_without_serial:1}
 %define with_smart 0%{!?_without_smart:1}
 %define with_snmp 0%{!?_without_snmp:1}
+%define with_snmp_agent 0%{!?_without_snmp_agent:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
 %define with_syslog 0%{!?_without_syslog:1}
@@ -831,6 +832,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	net-snmp-devel
 %description snmp
 This plugin for collectd allows querying of network equipment using SNMP.
+%endif
+
+%if %{with_snmp_agent}
+%package snmp_agent
+Summary:	SNMP AgentX plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	net-snmp-devel
+%description snmp_agent
+This plugin for collectd to support AgentX integration.
 %endif
 
 %if %{with_varnish}
@@ -1608,6 +1619,12 @@ Collectd utilities
 %define _with_snmp --disable-snmp
 %endif
 
+%if %{with_snmp_agent}
+%define _with_snmp_agent --enable-snmp_agent
+%else
+%define _with_snmp_agent --disable-snmp_agent
+%endif
+
 %if %{with_statsd}
 %define _with_statsd --enable-statsd
 %else
@@ -1947,6 +1964,7 @@ Collectd utilities
 	%{?_with_sigrok} \
 	%{?_with_smart} \
 	%{?_with_snmp} \
+	%{?_with_snmp_agent} \
 	%{?_with_statsd} \
 	%{?_with_swap} \
 	%{?_with_syslog} \
@@ -2622,6 +2640,11 @@ fi
 %files snmp
 %{_mandir}/man5/collectd-snmp.5*
 %{_libdir}/%{name}/snmp.so
+%endif
+
+%if %{with_snmp_agent}
+%files snmp_agent
+%{_libdir}/%{name}/snmp_agent.so
 %endif
 
 %if %{with_varnish}

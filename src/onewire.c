@@ -350,11 +350,11 @@ static int cow_read_ds2409(const char *path) {
   char subpath[4096];
   int status;
 
-  status = ssnprintf(subpath, sizeof(subpath), "%s/main", path);
+  status = snprintf(subpath, sizeof(subpath), "%s/main", path);
   if ((status > 0) && (status < (int)sizeof(subpath)))
     cow_read_bus(subpath);
 
-  status = ssnprintf(subpath, sizeof(subpath), "%s/aux", path);
+  status = snprintf(subpath, sizeof(subpath), "%s/aux", path);
   if ((status > 0) && (status < (int)sizeof(subpath)))
     cow_read_bus(subpath);
 
@@ -388,9 +388,9 @@ static int cow_read_bus(const char *path) {
     dummy = NULL;
 
     if (strcmp("/", path) == 0)
-      status = ssnprintf(subpath, sizeof(subpath), "/%s", buffer_ptr);
+      status = snprintf(subpath, sizeof(subpath), "/%s", buffer_ptr);
     else
-      status = ssnprintf(subpath, sizeof(subpath), "%s/%s", path, buffer_ptr);
+      status = snprintf(subpath, sizeof(subpath), "%s/%s", path, buffer_ptr);
     if ((status <= 0) || (status >= (int)sizeof(subpath)))
       continue;
 

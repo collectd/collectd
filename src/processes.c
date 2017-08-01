@@ -185,6 +185,8 @@ typedef struct process_entry_s {
   derive_t io_wchar;
   derive_t io_syscr;
   derive_t io_syscw;
+  derive_t io_diskr;
+  derive_t io_diskw;
   _Bool has_io;
 
   derive_t cswitch_vol;
@@ -209,6 +211,8 @@ typedef struct procstat_entry_s {
   derive_t io_wchar;
   derive_t io_syscr;
   derive_t io_syscw;
+  derive_t io_diskr;
+  derive_t io_diskw;
 
   derive_t cswitch_vol;
   derive_t cswitch_invol;
@@ -242,6 +246,8 @@ typedef struct procstat {
   derive_t io_wchar;
   derive_t io_syscr;
   derive_t io_syscw;
+  derive_t io_diskr;
+  derive_t io_diskw;
 
   derive_t cswitch_vol;
   derive_t cswitch_invol;
@@ -310,6 +316,8 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   new->io_wchar = -1;
   new->io_syscr = -1;
   new->io_syscw = -1;
+  new->io_diskr = -1;
+  new->io_diskw = -1;
   new->cswitch_vol = -1;
   new->cswitch_invol = -1;
 
@@ -478,6 +486,11 @@ static void ps_list_add(const char *name, const char *cmdline,
     if ((entry->io_syscr != -1) && (entry->io_syscw != -1)) {
       ps_update_counter(&ps->io_syscr, &pse->io_syscr, entry->io_syscr);
       ps_update_counter(&ps->io_syscw, &pse->io_syscw, entry->io_syscw);
+    }
+
+    if ((entry->io_diskr != -1) && (entry->io_diskw != -1)) {
+      ps_update_counter(&ps->io_diskr, &pse->io_diskr, entry->io_diskr);
+      ps_update_counter(&ps->io_diskw, &pse->io_diskw, entry->io_diskw);
     }
 
     if ((entry->cswitch_vol != -1) && (entry->cswitch_vol != -1)) {
@@ -725,7 +738,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
   plugin_dispatch_values(&vl);
 
   if ((ps->io_rchar != -1) && (ps->io_wchar != -1)) {
-    sstrncpy(vl.type, "ps_disk_octets", sizeof(vl.type));
+    sstrncpy(vl.type, "io_octets", sizeof(vl.type));
     vl.values[0].derive = ps->io_rchar;
     vl.values[1].derive = ps->io_wchar;
     vl.values_len = 2;
@@ -733,9 +746,17 @@ static void ps_submit_proc_list(procstat_t *ps) {
   }
 
   if ((ps->io_syscr != -1) && (ps->io_syscw != -1)) {
-    sstrncpy(vl.type, "ps_disk_ops", sizeof(vl.type));
+    sstrncpy(vl.type, "io_ops", sizeof(vl.type));
     vl.values[0].derive = ps->io_syscr;
     vl.values[1].derive = ps->io_syscw;
+    vl.values_len = 2;
+    plugin_dispatch_values(&vl);
+  }
+
+  if ((ps->io_diskr != -1) && (ps->io_diskw != -1)) {
+    sstrncpy(vl.type, "disk_octets", sizeof(vl.type));
+    vl.values[0].derive = ps->io_diskr;
+    vl.values[1].derive = ps->io_diskw;
     vl.values_len = 2;
     plugin_dispatch_values(&vl);
   }
@@ -768,12 +789,13 @@ static void ps_submit_proc_list(procstat_t *ps) {
         "cpu_user_counter = %" PRIi64 "; cpu_system_counter = %" PRIi64 "; "
         "io_rchar = %" PRIi64 "; io_wchar = %" PRIi64 "; "
         "io_syscr = %" PRIi64 "; io_syscw = %" PRIi64 "; "
+        "io_diskr = %" PRIi64 "; io_diskw = %" PRIi64 "; "
         "cswitch_vol = %" PRIi64 "; cswitch_invol = %" PRIi64 ";",
         ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->vmem_size,
         ps->vmem_rss, ps->vmem_data, ps->vmem_code, ps->vmem_minflt_counter,
         ps->vmem_majflt_counter, ps->cpu_user_counter, ps->cpu_system_counter,
-        ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw, ps->cswitch_vol,
-        ps->cswitch_invol);
+        ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw, ps->io_diskr,
+        ps->io_diskw, ps->cswitch_vol, ps->cswitch_invol);
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
@@ -805,7 +827,7 @@ static int ps_read_tasks_status(process_entry_t *ps) {
   char *fields[8];
   int numfields;
 
-  ssnprintf(dirname, sizeof(dirname), "/proc/%li/task", ps->id);
+  snprintf(dirname, sizeof(dirname), "/proc/%li/task", ps->id);
 
   if ((dh = opendir(dirname)) == NULL) {
     DEBUG("Failed to open directory `%s'", dirname);
@@ -820,8 +842,12 @@ static int ps_read_tasks_status(process_entry_t *ps) {
 
     tpid = ent->d_name;
 
-    ssnprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
-              tpid);
+    if (snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
+                 tpid) >= sizeof(filename)) {
+      DEBUG("Filename too long: `%s'", filename);
+      continue;
+    }
+
     if ((fh = fopen(filename, "r")) == NULL) {
       DEBUG("Failed to open file `%s'", filename);
       continue;
@@ -878,7 +904,7 @@ static int ps_read_status(long pid, process_entry_t *ps) {
   char *fields[8];
   int numfields;
 
-  ssnprintf(filename, sizeof(filename), "/proc/%li/status", pid);
+  snprintf(filename, sizeof(filename), "/proc/%li/status", pid);
   if ((fh = fopen(filename, "r")) == NULL)
     return -1;
 
@@ -931,7 +957,7 @@ static int ps_read_io(process_entry_t *ps) {
   char *fields[8];
   int numfields;
 
-  ssnprintf(filename, sizeof(filename), "/proc/%li/io", ps->id);
+  snprintf(filename, sizeof(filename), "/proc/%li/io", ps->id);
   if ((fh = fopen(filename, "r")) == NULL) {
     DEBUG("ps_read_io: Failed to open file `%s'", filename);
     return -1;
@@ -950,6 +976,10 @@ static int ps_read_io(process_entry_t *ps) {
       val = &(ps->io_syscr);
     else if (strncasecmp(buffer, "syscw:", 6) == 0)
       val = &(ps->io_syscw);
+    else if (strncasecmp(buffer, "read_bytes:", 11) == 0)
+      val = &(ps->io_diskr);
+    else if (strncasecmp(buffer, "write_bytes:", 12) == 0)
+      val = &(ps->io_diskw);
     else
       continue;
 
@@ -980,7 +1010,7 @@ static int ps_count_fd(int pid) {
   struct dirent *ent;
   int count = 0;
 
-  ssnprintf(dirname, sizeof(dirname), "/proc/%i/fd", pid);
+  snprintf(dirname, sizeof(dirname), "/proc/%i/fd", pid);
 
   if ((dh = opendir(dirname)) == NULL) {
     DEBUG("Failed to open directory `%s'", dirname);
@@ -1041,7 +1071,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   ssize_t status;
 
-  ssnprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
+  snprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
 
   status = read_file_contents(filename, buffer, sizeof(buffer) - 1);
   if (status <= 0)
@@ -1145,6 +1175,8 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   ps->io_wchar = -1;
   ps->io_syscr = -1;
   ps->io_syscw = -1;
+  ps->io_diskr = -1;
+  ps->io_diskw = -1;
 
   ps->cswitch_vol = -1;
   ps->cswitch_invol = -1;
@@ -1165,7 +1197,7 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   if ((pid < 1) || (NULL == buf) || (buf_len < 2))
     return NULL;
 
-  ssnprintf(file, sizeof(file), "/proc/%li/cmdline", pid);
+  snprintf(file, sizeof(file), "/proc/%li/cmdline", pid);
 
   errno = 0;
   fd = open(file, O_RDONLY);
@@ -1220,7 +1252,7 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
     if (NULL == name)
       return NULL;
 
-    ssnprintf(buf, buf_len, "[%s]", name);
+    snprintf(buf, buf_len, "[%s]", name);
     return buf;
   }
 
@@ -1403,6 +1435,8 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   ps->io_wchar = myUsage->pr_oublk * chars_per_block;
   ps->io_syscr = myUsage->pr_sysc;
   ps->io_syscw = myUsage->pr_sysc;
+  ps->io_diskr = -1;
+  ps->io_diskw = -1;
 
   /*
    * TODO: context switch counters for Solaris
@@ -1616,6 +1650,8 @@ static int ps_read(void) {
         pse.io_wchar = -1;
         pse.io_syscr = -1;
         pse.io_syscw = -1;
+        pse.io_diskr = -1;
+        pse.io_diskw = -1;
 
         /* File descriptor count not implemented */
         pse.num_fd = 0;
@@ -1919,6 +1955,8 @@ static int ps_read(void) {
       pse.io_wchar = -1;
       pse.io_syscr = -1;
       pse.io_syscw = -1;
+      pse.io_diskr = -1;
+      pse.io_diskw = -1;
 
       /* file descriptor count not implemented */
       pse.num_fd = 0;
@@ -2058,6 +2096,8 @@ static int ps_read(void) {
       pse.io_wchar = -1;
       pse.io_syscr = -1;
       pse.io_syscw = -1;
+      pse.io_diskr = -1;
+      pse.io_diskw = -1;
 
       /* file descriptor count not implemented */
       pse.num_fd = 0;
@@ -2221,6 +2261,8 @@ static int ps_read(void) {
       pse.io_wchar = -1;
       pse.io_syscr = -1;
       pse.io_syscw = -1;
+      pse.io_diskr = -1;
+      pse.io_diskw = -1;
 
       pse.num_fd = 0;
 

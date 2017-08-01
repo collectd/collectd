@@ -70,7 +70,8 @@
 #undef HAVE_SYSCTLBYNAME /* force HAVE_LIBKVM_NLIST path */
 #endif
 
-#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_KVM_GETFILES && !HAVE_LIBKVM_NLIST && !KERNEL_AIX
+#if !KERNEL_LINUX && !HAVE_SYSCTLBYNAME && !HAVE_KVM_GETFILES &&               \
+    !HAVE_LIBKVM_NLIST && !KERNEL_AIX
 #error "No applicable input method."
 #endif
 
@@ -110,8 +111,8 @@
 /* #endif HAVE_SYSCTLBYNAME */
 
 #elif HAVE_KVM_GETFILES
-#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
 #define _KERNEL /* for DTYPE_SOCKET */
 #include <sys/file.h>
 #undef _KERNEL
@@ -127,9 +128,9 @@
 #include <net/route.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
@@ -292,8 +293,8 @@ static void conn_submit_port_entry(port_entry_t *pe) {
 
   if (((port_collect_listening != 0) && (pe->flags & PORT_IS_LISTENING)) ||
       (pe->flags & PORT_COLLECT_LOCAL)) {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
-              "%" PRIu16 "-local", pe->port);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
+             "%" PRIu16 "-local", pe->port);
 
     for (int i = 1; i <= TCP_STATE_MAX; i++) {
       vl.values[0].gauge = pe->count_local[i];
@@ -305,8 +306,8 @@ static void conn_submit_port_entry(port_entry_t *pe) {
   }
 
   if (pe->flags & PORT_COLLECT_REMOTE) {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
-              "%" PRIu16 "-remote", pe->port);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance),
+             "%" PRIu16 "-remote", pe->port);
 
     for (int i = 1; i <= TCP_STATE_MAX; i++) {
       vl.values[0].gauge = pe->count_remote[i];
@@ -774,9 +775,15 @@ static int conn_read(void) {
   for (in_ptr = (struct xinpgen *)(((char *)in_orig) + in_orig->xig_len);
        in_ptr->xig_len > sizeof(struct xinpgen);
        in_ptr = (struct xinpgen *)(((char *)in_ptr) + in_ptr->xig_len)) {
+#if __FreeBSD_version >= 1200026
+    struct xtcpcb *tp = (struct xtcpcb *)in_ptr;
+    struct xinpcb *inp = &tp->xt_inp;
+    struct xsocket *so = &inp->xi_socket;
+#else
     struct tcpcb *tp = &((struct xtcpcb *)in_ptr)->xt_tp;
     struct inpcb *inp = &((struct xtcpcb *)in_ptr)->xt_inp;
     struct xsocket *so = &((struct xtcpcb *)in_ptr)->xt_socket;
+#endif
 
     /* Ignore non-TCP sockets */
     if (so->xso_protocol != IPPROTO_TCP)
@@ -824,8 +831,7 @@ static int conn_read(void) {
 
   conn_reset_port_entry();
 
-  kf = kvm_getfiles(kvmd, KERN_FILE_BYFILE, DTYPE_SOCKET,
-		    sizeof(*kf), &fcnt);
+  kf = kvm_getfiles(kvmd, KERN_FILE_BYFILE, DTYPE_SOCKET, sizeof(*kf), &fcnt);
   if (kf == NULL) {
     ERROR("tcpconns plugin: kvm_getfiles failed.");
     return -1;

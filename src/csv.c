@@ -47,7 +47,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
 
   memset(buffer, '\0', buffer_len);
 
-  status = ssnprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
+  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
   if ((status < 1) || (status >= buffer_len))
     return -1;
   offset = status;
@@ -62,8 +62,8 @@ static int value_list_to_string(char *buffer, int buffer_len,
     }
 
     if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%lf",
-                         vl->values[i].gauge);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%lf",
+                        vl->values[i].gauge);
     } else if (store_rates != 0) {
       if (rates == NULL)
         rates = uc_get_rate(ds, vl);
@@ -72,17 +72,16 @@ static int value_list_to_string(char *buffer, int buffer_len,
                 "uc_get_rate failed.");
         return -1;
       }
-      status =
-          ssnprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%llu",
-                         vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%llu",
+                        vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
-                         vl->values[i].derive);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
+                        vl->values[i].derive);
     } else if (ds->ds[i].type == DS_TYPE_ABSOLUTE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
-                         vl->values[i].absolute);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
+                        vl->values[i].absolute);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset))) {

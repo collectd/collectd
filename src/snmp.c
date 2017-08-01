@@ -130,8 +130,7 @@ static void csnmp_oid_init(oid_t *dst, oid const *src, size_t n) {
 }
 
 static int csnmp_oid_compare(oid_t const *left, oid_t const *right) {
-  return snmp_oid_compare(left->oid, left->oid_len, right->oid,
-                          right->oid_len);
+  return snmp_oid_compare(left->oid, left->oid_len, right->oid, right->oid_len);
 }
 
 static int csnmp_oid_suffix(oid_t *dst, oid_t const *src, oid_t const *root) {
@@ -155,7 +154,7 @@ static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
   char *oid_str_ptr[MAX_OID_LEN];
 
   for (size_t i = 0; i < o->oid_len; i++) {
-    ssnprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
+    snprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
   }
 
@@ -703,7 +702,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
         "= %i }",
         hd->name, hd->address, hd->community, hd->version);
 
-  ssnprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
+  snprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
 
   status = plugin_register_complex_read(
       /* group = */ NULL, cb_name, csnmp_read_host, hd->interval,
@@ -712,7 +711,6 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       });
   if (status != 0) {
     ERROR("snmp plugin: Registering complex read function failed.");
-    csnmp_host_definition_destroy(hd);
     return -1;
   }
 
@@ -997,10 +995,10 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   else if (vb->type == ASN_BIT_STR)
     src = (char *)vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS) {
-    return ssnprintf(dst, dst_size,
-                     "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
-                     (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
-                     (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
+    return snprintf(dst, dst_size,
+                    "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
+                    (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
+                    (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
     return EINVAL;
@@ -1092,7 +1090,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    ssnprintf(il->instance, sizeof(il->instance), "%llu", val.counter);
+    snprintf(il->instance, sizeof(il->instance), "%llu", val.counter);
   }
 
   /* TODO: Debugging output */
@@ -1114,7 +1112,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
   value_list_t vl = VALUE_LIST_INIT;
 
   csnmp_list_instances_t *instance_list_ptr;
-  csnmp_table_values_t **value_table_ptr;
+  csnmp_table_values_t *value_table_ptr[data->values_len];
 
   size_t i;
   _Bool have_more;
@@ -1130,19 +1128,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
   instance_list_ptr = instance_list;
 
-  value_table_ptr = calloc(data->values_len, sizeof(*value_table_ptr));
-  if (value_table_ptr == NULL)
-    return -1;
   for (i = 0; i < data->values_len; i++)
     value_table_ptr[i] = value_table[i];
-
-  vl.values_len = data->values_len;
-  vl.values = malloc(sizeof(*vl.values) * vl.values_len);
-  if (vl.values == NULL) {
-    ERROR("snmp plugin: malloc failed.");
-    sfree(value_table_ptr);
-    return -1;
-  }
 
   sstrncpy(vl.host, host->name, sizeof(vl.host));
   sstrncpy(vl.plugin, "snmp", sizeof(vl.plugin));
@@ -1162,8 +1149,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
       memcpy(&current_suffix, &instance_list_ptr->suffix,
              sizeof(current_suffix));
-    } else /* no instance configured */
-    {
+    } else {
+      /* no instance configured */
       csnmp_table_values_t *ptr = value_table_ptr[0];
       if (ptr == NULL) {
         have_more = 0;
@@ -1233,9 +1220,13 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->instance_prefix == NULL)
         sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
       else
-        ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                  data->instance_prefix, temp);
+        snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
+                 data->instance_prefix, temp);
     }
+
+    vl.values_len = data->values_len;
+    value_t values[vl.values_len];
+    vl.values = values;
 
     for (i = 0; i < data->values_len; i++)
       vl.values[i] = value_table_ptr[i]->value;
@@ -1247,16 +1238,17 @@ static int csnmp_dispatch_table(host_definition_t *host,
     if (vl.type_instance[0] != '\0')
       plugin_dispatch_values(&vl);
 
+    /* prevent leakage of pointer to local variable. */
+    vl.values_len = 0;
+    vl.values = NULL;
+
     if (instance_list != NULL)
       instance_list_ptr = instance_list_ptr->next;
     else
       value_table_ptr[0] = value_table_ptr[0]->next;
   } /* while (have_more) */
 
-  sfree(vl.values);
-  sfree(value_table_ptr);
-
-  return 0;
+  return (0);
 } /* int csnmp_dispatch_table */
 
 static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {

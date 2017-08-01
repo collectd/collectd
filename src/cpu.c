@@ -326,7 +326,7 @@ static void submit_value(int cpu_num, int cpu_state, const char *type,
            sizeof(vl.type_instance));
 
   if (cpu_num >= 0) {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
   }
   plugin_dispatch_values(&vl);
 }

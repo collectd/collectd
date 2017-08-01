@@ -187,8 +187,7 @@ static int exec_config_exec(oconfig_item_t *ci) /* {{{ */
       pl->argv[i] = strdup(ci->values[i + 1].value.string);
     } else {
       if (ci->values[i + 1].type == OCONFIG_TYPE_NUMBER) {
-        ssnprintf(buffer, sizeof(buffer), "%lf",
-                  ci->values[i + 1].value.number);
+        snprintf(buffer, sizeof(buffer), "%lf", ci->values[i + 1].value.number);
       } else {
         if (ci->values[i + 1].value.boolean)
           sstrncpy(buffer, "true", sizeof(buffer));
@@ -246,18 +245,18 @@ static void set_environment(void) /* {{{ */
   char buffer[1024];
 
 #ifdef HAVE_SETENV
-  ssnprintf(buffer, sizeof(buffer), "%.3f",
-            CDTIME_T_TO_DOUBLE(plugin_get_interval()));
+  snprintf(buffer, sizeof(buffer), "%.3f",
+           CDTIME_T_TO_DOUBLE(plugin_get_interval()));
   setenv("COLLECTD_INTERVAL", buffer, /* overwrite = */ 1);
 
   sstrncpy(buffer, hostname_g, sizeof(buffer));
   setenv("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
 #else
-  ssnprintf(buffer, sizeof(buffer), "COLLECTD_INTERVAL=%.3f",
-            CDTIME_T_TO_DOUBLE(plugin_get_interval()));
+  snprintf(buffer, sizeof(buffer), "COLLECTD_INTERVAL=%.3f",
+           CDTIME_T_TO_DOUBLE(plugin_get_interval()));
   putenv(buffer);
 
-  ssnprintf(buffer, sizeof(buffer), "COLLECTD_HOSTNAME=%s", hostname_g);
+  snprintf(buffer, sizeof(buffer), "COLLECTD_HOSTNAME=%s", hostname_g);
   putenv(buffer);
 #endif
 } /* }}} void set_environment */
@@ -369,7 +368,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
 
   struct passwd *sp_ptr;
   struct passwd sp;
-  char nambuf[2048];
+  char nambuf[4096];
 
   if (pl->pid != 0)
     return -1;
@@ -382,7 +381,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   status = getpwnam_r(pl->user, &sp, nambuf, sizeof(nambuf), &sp_ptr);
   if (status != 0) {
     ERROR("exec plugin: Failed to get user information for user ``%s'': %s",
-          pl->user, sstrerror(errno, errbuf, sizeof(errbuf)));
+          pl->user, sstrerror(status, errbuf, sizeof(errbuf)));
     goto failed;
   }
 
@@ -401,19 +400,19 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   /* The group configured in the configfile is set as effective group, because
    * this way the forked process can (re-)gain the user's primary group. */
   egid = -1;
-  if (NULL != pl->group) {
-    if ('\0' != *pl->group) {
+  if (pl->group != NULL) {
+    if (*pl->group != '\0') {
       struct group *gr_ptr = NULL;
       struct group gr;
 
       status = getgrnam_r(pl->group, &gr, nambuf, sizeof(nambuf), &gr_ptr);
-      if (0 != status) {
+      if (status != 0) {
         ERROR("exec plugin: Failed to get group information "
               "for group ``%s'': %s",
-              pl->group, sstrerror(errno, errbuf, sizeof(errbuf)));
+              pl->group, sstrerror(status, errbuf, sizeof(errbuf)));
         goto failed;
       }
-      if (NULL == gr_ptr) {
+      if (gr_ptr == NULL) {
         ERROR("exec plugin: No such group: `%s'", pl->group);
         goto failed;
       }

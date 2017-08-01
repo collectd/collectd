@@ -370,7 +370,7 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
     char *str;
     int i;
 
-    ssnprintf(field_name, sizeof(field_name), "db%d:keys=", db);
+    snprintf(field_name, sizeof(field_name), "db%d:keys=", db);
 
     str = strstr(info_line, field_name);
     if (!str)
@@ -386,7 +386,7 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
       return -1;
     }
 
-    ssnprintf(db_id, sizeof(db_id), "%d", db);
+    snprintf(db_id, sizeof(db_id), "%d", db);
     redis_submit(node, "records", db_id, val);
   }
   return 0;

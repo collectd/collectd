@@ -193,7 +193,7 @@ static void ts_subst(char *dest, size_t size, const char *string, /* {{{ */
       char *value_str;
       const char *key = meta_toc[i];
 
-      ssnprintf(meta_name, sizeof(meta_name), "%%{meta:%s}", key);
+      snprintf(meta_name, sizeof(meta_name), "%%{meta:%s}", key);
       if (meta_data_as_string(vl->meta, key, &value_str) != 0)
         continue;
 

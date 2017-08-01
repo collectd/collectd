@@ -410,7 +410,7 @@ static int swap_read(void) /* {{{ */
 
   return 0;
 } /* }}} int swap_read */
-  /* #endif KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
 /*
  * Under Solaris, two mechanisms can be used to read swap statistics, swapctl

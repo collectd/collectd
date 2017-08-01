@@ -119,6 +119,7 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
 {
   int status = 0;
 
+  curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   status = curl_easy_perform(cb->curl);
 
@@ -168,7 +169,6 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
   curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, cb->headers);
 
   curl_easy_setopt(cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
-  curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(cb->curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -190,8 +190,8 @@ static int wh_callback_init(wh_callback_t *cb) /* {{{ */
       return -1;
     }
 
-    ssnprintf(cb->credentials, credentials_size, "%s:%s", cb->user,
-              (cb->pass == NULL) ? "" : cb->pass);
+    snprintf(cb->credentials, credentials_size, "%s:%s", cb->user,
+             (cb->pass == NULL) ? "" : cb->pass);
     curl_easy_setopt(cb->curl, CURLOPT_USERPWD, cb->credentials);
 #endif
     curl_easy_setopt(cb->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
@@ -369,9 +369,9 @@ static int wh_write_command(const data_set_t *ds,
     return status;
   }
 
-  command_len = (size_t)ssnprintf(command, sizeof(command),
-                                  "PUTVAL %s interval=%.3f %s\r\n", key,
-                                  CDTIME_T_TO_DOUBLE(vl->interval), values);
+  command_len = (size_t)snprintf(command, sizeof(command),
+                                 "PUTVAL %s interval=%.3f %s\r\n", key,
+                                 CDTIME_T_TO_DOUBLE(vl->interval), values);
   if (command_len >= sizeof(command)) {
     ERROR("write_http plugin: Command buffer too small: "
           "Need %zu bytes.",
@@ -791,7 +791,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   /* Nulls the buffer and sets ..._free and ..._fill. */
   wh_reset_buffer(cb);
 
-  ssnprintf(callback_name, sizeof(callback_name), "write_http/%s", cb->name);
+  snprintf(callback_name, sizeof(callback_name), "write_http/%s", cb->name);
   DEBUG("write_http: Registering write callback '%s' with URL '%s'",
         callback_name, cb->location);
 

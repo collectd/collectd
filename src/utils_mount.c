@@ -258,7 +258,7 @@ static void uuidcache_init(void) {
         * (This is useful, if the cdrom on /dev/hdc must not
         * be accessed.)
         */
-        ssnprintf(device, sizeof(device), "%s/%s", DEVLABELDIR, ptname);
+        snprintf(device, sizeof(device), "%s/%s", DEVLABELDIR, ptname);
         if (!get_label_uuid(device, &label, uuid)) {
           uuidcache_addentry(sstrdup(device), label, uuid);
         }
@@ -527,7 +527,7 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
 
   return first;
 } /* static cu_mount_t *cu_mount_gen_getmntent (void) */
-/* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
+  /* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"

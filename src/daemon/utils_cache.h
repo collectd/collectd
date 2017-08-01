@@ -106,6 +106,8 @@ int uc_iterator_get_values(uc_iter_t *iter, value_t **ret_values,
                            size_t *ret_num);
 /* Return the interval of the value at the current position. */
 int uc_iterator_get_interval(uc_iter_t *iter, cdtime_t *ret_interval);
+/* Return the metadata for the value at the current position. */
+int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta);
 
 /*
  * Meta data interface

@@ -475,7 +475,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
     return -1;
   }
 
-  ssnprintf(cb_name, sizeof(cb_name), "tail_csv/%s", id->path);
+  snprintf(cb_name, sizeof(cb_name), "tail_csv/%s", id->path);
 
   status = plugin_register_complex_read(
       NULL, cb_name, tcsv_read, id->interval,
@@ -484,7 +484,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
       });
   if (status != 0) {
     ERROR("tail_csv plugin: Registering complex read function failed.");
-    tcsv_instance_definition_destroy(id);
     return -1;
   }
 

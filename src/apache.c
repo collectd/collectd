@@ -216,28 +216,25 @@ static int config_add(oconfig_item_t *ci) {
     status = -1;
   }
 
-  if (status == 0) {
-    char callback_name[3 * DATA_MAX_NAME_LEN];
-
-    ssnprintf(callback_name, sizeof(callback_name), "apache/%s/%s",
-              (st->host != NULL) ? st->host : hostname_g,
-              (st->name != NULL) ? st->name : "default");
-
-    status = plugin_register_complex_read(
-        /* group = */ NULL,
-        /* name      = */ callback_name,
-        /* callback  = */ apache_read_host,
-        /* interval  = */ 0, &(user_data_t){
-                                 .data = st, .free_func = apache_free,
-                             });
-  }
-
   if (status != 0) {
     apache_free(st);
     return -1;
   }
 
-  return 0;
+  char callback_name[3 * DATA_MAX_NAME_LEN];
+
+  snprintf(callback_name, sizeof(callback_name), "apache/%s/%s",
+           (st->host != NULL) ? st->host : hostname_g,
+           (st->name != NULL) ? st->name : "default");
+
+  return plugin_register_complex_read(
+      /* group = */ NULL,
+      /* name      = */ callback_name,
+      /* callback  = */ apache_read_host,
+      /* interval  = */ 0,
+      &(user_data_t){
+          .data = st, .free_func = apache_free,
+      });
 } /* int config_add */
 
 static int config(oconfig_item_t *ci) {
@@ -313,8 +310,8 @@ static int init_host(apache_t *st) /* {{{ */
     static char credentials[1024];
     int status;
 
-    status = ssnprintf(credentials, sizeof(credentials), "%s:%s", st->user,
-                       (st->pass == NULL) ? "" : st->pass);
+    status = snprintf(credentials, sizeof(credentials), "%s:%s", st->user,
+                      (st->pass == NULL) ? "" : st->pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("apache plugin: init_host: Returning an error "
             "because the credentials have been "
@@ -328,7 +325,6 @@ static int init_host(apache_t *st) /* {{{ */
 #endif
   }
 
-  curl_easy_setopt(st->curl, CURLOPT_URL, st->url);
   curl_easy_setopt(st->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(st->curl, CURLOPT_MAXREDIRS, 50L);
 
@@ -510,6 +506,9 @@ static int apache_read_host(user_data_t *user_data) /* {{{ */
   assert(st->curl != NULL);
 
   st->apache_buffer_fill = 0;
+
+  curl_easy_setopt(st->curl, CURLOPT_URL, st->url);
+
   if (curl_easy_perform(st->curl) != CURLE_OK) {
     ERROR("apache: curl_easy_perform failed: %s", st->apache_curl_error);
     return -1;

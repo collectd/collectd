@@ -78,7 +78,7 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
       ERROR("write_mongodb plugin: uc_get_rate() failed.");
-      bson_free(ret);
+      bson_destroy(ret);
       return NULL;
     }
   } else {
@@ -93,10 +93,10 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   BSON_APPEND_UTF8(ret, "type_instance", vl->type_instance);
 
   BSON_APPEND_ARRAY_BEGIN(ret, "values", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    snprintf(key, sizeof(key), "%zu", i);
 
     if (ds->ds[i].type == DS_TYPE_GAUGE)
       BSON_APPEND_DOUBLE(&subarray, key, vl->values[i].gauge);
@@ -109,19 +109,19 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
       BSON_APPEND_INT64(&subarray, key, vl->values[i].absolute);
     else {
-      ERROR("write_mongodb plugin: Unknown ds_type %d for index %d",
+      ERROR("write_mongodb plugin: Unknown ds_type %d for index %zu",
             ds->ds[i].type, i);
-      bson_free(ret);
+      bson_destroy(ret);
       return NULL;
     }
   }
   bson_append_array_end(ret, &subarray); /* }}} values */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "dstypes", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    snprintf(key, sizeof(key), "%zu", i);
 
     if (store_rates)
       BSON_APPEND_UTF8(&subarray, key, "gauge");
@@ -131,10 +131,10 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   bson_append_array_end(ret, &subarray); /* }}} dstypes */
 
   BSON_APPEND_ARRAY_BEGIN(ret, "dsnames", &subarray); /* {{{ */
-  for (int i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     char key[16];
 
-    ssnprintf(key, sizeof(key), "%i", i);
+    snprintf(key, sizeof(key), "%zu", i);
     BSON_APPEND_UTF8(&subarray, key, ds->ds[i].name);
   }
   bson_append_array_end(ret, &subarray); /* }}} dsnames */
@@ -144,8 +144,9 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
   size_t error_location;
   if (!bson_validate(ret, BSON_VALIDATE_UTF8, &error_location)) {
     ERROR("write_mongodb plugin: Error in generated BSON document "
-        "at byte %zu", error_location);
-    bson_free(ret);
+          "at byte %zu",
+          error_location);
+    bson_destroy(ret);
     return NULL;
   }
 
@@ -155,23 +156,16 @@ static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
 static int wm_initialize(wm_node_t *node) /* {{{ */
 {
   char *uri;
-  size_t uri_length;
-  char const *format_string;
 
-  if (node->connected) {
+  if (node->connected)
     return 0;
-  }
 
-  INFO("write_mongodb plugin: Connecting to [%s]:%i",
-       (node->host != NULL) ? node->host : "localhost",
-       (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT);
+  INFO("write_mongodb plugin: Connecting to [%s]:%d", node->host, node->port);
 
   if ((node->db != NULL) && (node->user != NULL) && (node->passwd != NULL)) {
-    format_string = "mongodb://%s:%s@%s:%d/?authSource=%s";
-    uri_length = strlen(format_string) + strlen(node->user) +
-                 strlen(node->passwd) + strlen(node->host) + 5 +
-                 strlen(node->db) + 1;
-    if ((uri = calloc(1, uri_length)) == NULL) {
+    uri = ssnprintf_alloc("mongodb://%s:%s@%s:%d/?authSource=%s", node->user,
+                          node->passwd, node->host, node->port, node->db);
+    if (uri == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -179,24 +173,19 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       node->connected = 0;
       return -1;
     }
-    ssnprintf(uri, uri_length, format_string, node->user, node->passwd,
-              node->host, node->port, node->db);
 
     node->client = mongoc_client_new(uri);
     if (!node->client) {
-      ERROR("write_mongodb plugin: Authenticating to [%s]%i for database "
+      ERROR("write_mongodb plugin: Authenticating to [%s]:%d for database "
             "\"%s\" as user \"%s\" failed.",
-            (node->host != NULL) ? node->host : "localhost",
-            (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT, node->db,
-            node->user);
+            node->host, node->port, node->db, node->user);
       node->connected = 0;
       sfree(uri);
       return -1;
     }
   } else {
-    format_string = "mongodb://%s:%d";
-    uri_length = strlen(format_string) + strlen(node->host) + 5 + 1;
-    if ((uri = calloc(1, uri_length)) == NULL) {
+    uri = ssnprintf_alloc("mongodb://%s:%d", node->host, node->port);
+    if (uri == NULL) {
       ERROR("write_mongodb plugin: Not enough memory to assemble "
             "authentication string.");
       mongoc_client_destroy(node->client);
@@ -204,19 +193,17 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       node->connected = 0;
       return -1;
     }
-    snprintf(uri, uri_length, format_string, node->host, node->port);
 
     node->client = mongoc_client_new(uri);
     if (!node->client) {
-      ERROR("write_mongodb plugin: Connecting to [%s]:%i failed.",
-            (node->host != NULL) ? node->host : "localhost",
-            (node->port != 0) ? node->port : MONGOC_DEFAULT_PORT);
+      ERROR("write_mongodb plugin: Connecting to [%s]:%d failed.", node->host,
+            node->port);
       node->connected = 0;
       sfree(uri);
       return -1;
     }
+    sfree(uri);
   }
-  sfree(uri);
 
   node->database = mongoc_client_get_database(node->client, "collectd");
   if (!node->database) {
@@ -249,7 +236,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
   if (wm_initialize(node) < 0) {
     ERROR("write_mongodb plugin: error making connection to server");
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(bson_record);
     return -1;
   }
 
@@ -263,7 +250,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     node->client = NULL;
     node->connected = 0;
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(bson_record);
     return -1;
   }
 
@@ -278,7 +265,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     node->client = NULL;
     node->connected = 0;
     pthread_mutex_unlock(&node->lock);
-    bson_free(bson_record);
+    bson_destroy(bson_record);
     mongoc_collection_destroy(collection);
     return -1;
   }
@@ -288,7 +275,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
 
   pthread_mutex_unlock(&node->lock);
 
-  bson_free(bson_record);
+  bson_destroy(bson_record);
 
   return 0;
 } /* }}} int wm_write */
@@ -319,13 +306,19 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
   if (node == NULL)
     return ENOMEM;
   mongoc_init();
-  node->host = NULL;
+  node->host = strdup("localhost");
+  if (node->host == NULL) {
+    sfree(node);
+    return ENOMEM;
+  }
+  node->port = MONGOC_DEFAULT_PORT;
   node->store_rates = 1;
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));
 
   if (status != 0) {
+    sfree(node->host);
     sfree(node);
     return status;
   }
@@ -373,14 +366,15 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
   }
 
   if (status == 0) {
-    char cb_name[DATA_MAX_NAME_LEN];
+    char cb_name[sizeof("write_mongodb/") + DATA_MAX_NAME_LEN];
 
-    ssnprintf(cb_name, sizeof(cb_name), "write_mongodb/%s", node->name);
+    snprintf(cb_name, sizeof(cb_name), "write_mongodb/%s", node->name);
 
-    status = plugin_register_write(
-        cb_name, wm_write, &(user_data_t){
-                               .data = node, .free_func = wm_config_free,
-                           });
+    status =
+        plugin_register_write(cb_name, wm_write,
+                              &(user_data_t){
+                                  .data = node, .free_func = wm_config_free,
+                              });
     INFO("write_mongodb plugin: registered write plugin %s %d", cb_name,
          status);
   }

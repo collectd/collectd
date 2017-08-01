@@ -87,7 +87,7 @@ static rrdcreate_config_t rrdcreate_config = {
  * ALWAYS lock `cache_lock' first! */
 static cdtime_t cache_timeout = 0;
 static cdtime_t cache_flush_timeout = 0;
-static cdtime_t random_timeout = TIME_T_TO_CDTIME_T_STATIC(1);
+static cdtime_t random_timeout = 0;
 static cdtime_t cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -177,7 +177,7 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
   memset(buffer, '\0', buffer_len);
 
   tt = CDTIME_T_TO_TIME_T(vl->time);
-  status = ssnprintf(buffer, buffer_len, "%u", (unsigned int)tt);
+  status = snprintf(buffer, buffer_len, "%u", (unsigned int)tt);
   if ((status < 1) || (status >= buffer_len))
     return -1;
   offset = status;
@@ -190,17 +190,17 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%llu",
-                         vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
+                        vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
-                         vl->values[i].gauge);
+      status = snprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
+                        vl->values[i].gauge);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
-                         vl->values[i].derive);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
+                        vl->values[i].derive);
     else /*if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                         vl->values[i].absolute);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                        vl->values[i].absolute);
 
     if ((status < 1) || (status >= (buffer_len - offset)))
       return -1;
@@ -222,20 +222,20 @@ static int value_list_to_string(char *buffer, int buffer_len,
   tt = CDTIME_T_TO_TIME_T(vl->time);
   switch (ds->ds[0].type) {
   case DS_TYPE_DERIVE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
-                       vl->values[0].derive);
+    status = snprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
+                      vl->values[0].derive);
     break;
   case DS_TYPE_GAUGE:
-    status = ssnprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
-                       vl->values[0].gauge);
+    status = snprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
+                      vl->values[0].gauge);
     break;
   case DS_TYPE_COUNTER:
-    status = ssnprintf(buffer, buffer_len, "%u:%llu", (unsigned)tt,
-                       vl->values[0].counter);
+    status = snprintf(buffer, buffer_len, "%u:%llu", (unsigned)tt,
+                      vl->values[0].counter);
     break;
   case DS_TYPE_ABSOLUTE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
-                       vl->values[0].absolute);
+    status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
+                      vl->values[0].absolute);
     break;
   default:
     return EINVAL;
@@ -505,7 +505,6 @@ static void rrd_cache_flush(cdtime_t timeout) {
         CDTIME_T_TO_DOUBLE(timeout));
 
   now = cdtime();
-  timeout = TIME_T_TO_CDTIME_T(timeout);
 
   /* Build a list of entries to be flushed */
   iter = c_avl_get_iterator(cache);
@@ -606,23 +605,10 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
 } /* int rrd_cache_flush_identifier */
 
 static int64_t rrd_get_random_variation(void) {
-  long min;
-  long max;
-
   if (random_timeout == 0)
     return 0;
 
-  /* Assure that "cache_timeout + random_variation" is never negative. */
-  if (random_timeout > cache_timeout) {
-    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
-         CDTIME_T_TO_DOUBLE(cache_timeout));
-    random_timeout = cache_timeout;
-  }
-
-  max = (long)(random_timeout / 2);
-  min = max - ((long)random_timeout);
-
-  return (int64_t)cdrand_range(min, max);
+  return (int64_t)cdrand_range(-random_timeout, random_timeout);
 } /* int64_t rrd_get_random_variation */
 
 static int rrd_cache_insert(const char *filename, const char *value,
@@ -740,7 +726,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
 
   if ((cache_timeout > 0) &&
       ((cdtime() - cache_flush_last) > cache_flush_timeout))
-    rrd_cache_flush(cache_flush_timeout);
+    rrd_cache_flush(cache_timeout + random_timeout);
 
   pthread_mutex_unlock(&cache_lock);
 
@@ -877,7 +863,7 @@ static int rrd_config(const char *key, const char *value) {
     }
     cache_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("CacheFlush", key) == 0) {
-    int tmp = atoi(value);
+    double tmp = atof(value);
     if (tmp < 0) {
       fprintf(stderr, "rrdtool: `CacheFlush' must "
                       "be greater than 0.\n");
@@ -885,7 +871,7 @@ static int rrd_config(const char *key, const char *value) {
             "be greater than 0.\n");
       return 1;
     }
-    cache_flush_timeout = tmp;
+    cache_flush_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("DataDir", key) == 0) {
     char *tmp;
     size_t len;
@@ -1065,9 +1051,23 @@ static int rrd_init(void) {
 
   cache_flush_last = cdtime();
   if (cache_timeout == 0) {
+    random_timeout = 0;
     cache_flush_timeout = 0;
-  } else if (cache_flush_timeout < cache_timeout)
+  } else if (cache_flush_timeout < cache_timeout) {
+    INFO("rrdtool plugin: \"CacheFlush %.3f\" is less than \"CacheTimeout %.3f\". "
+         "Ajusting \"CacheFlush\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_flush_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout * 10));
     cache_flush_timeout = 10 * cache_timeout;
+  }
+
+  /* Assure that "cache_timeout + random_variation" is never negative. */
+  if (random_timeout > cache_timeout) {
+    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_timeout));
+    random_timeout = cache_timeout;
+  }
 
   pthread_mutex_unlock(&cache_lock);
 
