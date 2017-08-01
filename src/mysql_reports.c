@@ -27,6 +27,7 @@ struct elt_s {
   enum elt_type_t elt_type;
   char *name; /* Name or prefix */
   char *ignore_prefix;
+  _Bool ignore_zero;
 
   char *type;
   char *type_instance;
@@ -45,6 +46,7 @@ struct metric_s {
   enum elt_type_t elt_type;
   char *name;
   char *ignore_prefix;
+  _Bool ignore_zero;
 
   char *type;
   char *type_instance;
@@ -89,14 +91,26 @@ static void mr_elt_free(elt_t *elt) {
  *     Variable "Sort_scan"         "mysql_sort"       "scan"
  *     Variable "Slow_queries"      "mysql_slow_queries"
  *
- *     #Prefix "PREFIX" "TYPE" ["IGNORE_PREFIX"]
+ *     #<Prefix>
+ *     #  Prefix "PREFIX"
+ *     #  Type   "TYPE"
+ *     #  #IgnorePrefix "IGNORE_PREFIX"
+ *     #  #SkipZeroValues true
+ *     #</Prefix>
  *     #Used to report MySQL status variables, which match PREFIX, as a metric
  *     #with given type. Type instance is set from variable name with prefix
- *     #cut off.With use of IGNORE_PREFIX some variables can be skipped from
- *     #report.
+ *     #cut off.
+ *     #With use of IGNORE_PREFIX some variables can be skipped from report.
+ *     #(Only one prefix can be ignored in this implementation).
+ *     #If SkipZeroValues is set, then variables with value equal to zero are
+ *     #not reported.
  *     #
- *     Prefix "Com_" "mysql_commands" "Com_stmt_"
- *     Prefix "Select_" "mysql_select"
+ *     <Prefix>
+ *        Prefix       "Com_"
+ *        IgnorePrefix "Com_stmt_"
+ *        Type         "mysql_commands"
+ *        SkipZeroValues true
+ *     </Prefix>
  *
  *     #VariablesRatio "VARIABLE_1" "VARIABLE_2" "TYPE" ["TYPE_INSTANCE"]
  *     #The reported value will be calculated as variables ratio.
@@ -186,14 +200,10 @@ static int mr_config_add_variable(const char *reportname, oconfig_item_t *ci,
 
 static int mr_config_add_prefix(const char *reportname, oconfig_item_t *ci,
                                 config_t *config) {
-  if ((ci->values_num < 2) || (ci->values_num > 3) ||
-      (ci->values[0].type != OCONFIG_TYPE_STRING) ||
-      (ci->values[1].type != OCONFIG_TYPE_STRING) ||
-      ((ci->values_num == 3) && (ci->values[2].type != OCONFIG_TYPE_STRING))) {
-    WARNING("mysql plugin: Report \"%s\": The `%s' option "
-            "requires two or three string arguments.",
-            reportname, ci->key);
-    return -1;
+  if (ci->values_num != 0) {
+    WARNING("mysql plugin: Report \"%s\": The `Prefix' block doesn't accept "
+            "any arguments.",
+            reportname);
   }
 
   elt_t *elt = calloc(1, sizeof(*elt));
@@ -204,30 +214,44 @@ static int mr_config_add_prefix(const char *reportname, oconfig_item_t *ci,
 
   elt->elt_type = t_prefix;
 
-  elt->name = strdup(ci->values[0].value.string);
-  if (elt->name == NULL) {
-    ERROR("mysql plugin: mr_config_add_prefix: strdup failed.");
-    sfree(elt);
-    return -1;
-  }
+  int status = 0;
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
 
-  elt->type = strdup(ci->values[1].value.string);
-  if (elt->type == NULL) {
-    ERROR("mysql plugin: mr_config_add_prefix: strdup failed.");
-    sfree(elt->name);
-    sfree(elt);
-    return -1;
-  }
-
-  if (ci->values_num > 2) {
-    elt->ignore_prefix = strdup(ci->values[2].value.string);
-    if (elt->ignore_prefix == NULL) {
-      ERROR("mysql plugin: mr_config_add_prefix: strdup failed.");
-      sfree(elt->type);
-      sfree(elt->name);
-      sfree(elt);
-      return -1;
+    if (strcasecmp("Prefix", child->key) == 0)
+      status = cf_util_get_string(child, &elt->name);
+    else if (strcasecmp("IgnorePrefix", child->key) == 0) {
+      status = cf_util_get_string(child, &elt->ignore_prefix);
+    } else if (strcasecmp("Type", child->key) == 0)
+      status = cf_util_get_string(child, &elt->type);
+    else if (strcasecmp("SkipZeroValues", child->key) == 0)
+      status = cf_util_get_boolean(child, &elt->ignore_zero);
+    else {
+      ERROR("mysql plugin: Report \"%s\", block \"Prefix\": Option `%s' not "
+            "allowed here.",
+            reportname, child->key);
+      status = -1;
     }
+    if (status != 0)
+      break;
+  }
+
+  if (status != 0) {
+    mr_elt_free(elt);
+    return status;
+  }
+
+  if (elt->name == NULL) {
+    ERROR("mysql plugin: Report \"%s\", block \"Prefix\": Option `Prefix' is "
+          "missing.",
+          reportname);
+    return -1;
+  }
+  if (elt->type == NULL) {
+    ERROR("mysql plugin: Report \"%s\", block \"Prefix\": Option `Type' is "
+          "missing.",
+          reportname);
+    return -1;
   }
 
   elt_t **tmp =
@@ -489,6 +513,7 @@ int mysql_reports_db_init(mysql_database_t *db, const llist_t *reports,
       db_config->metrics[j].elt_type = config->elts[i]->elt_type;
       db_config->metrics[j].name = config->elts[i]->name;
       db_config->metrics[j].ignore_prefix = config->elts[i]->ignore_prefix;
+      db_config->metrics[j].ignore_zero = config->elts[i]->ignore_zero;
 
       db_config->metrics[j].type = config->elts[i]->type;
       db_config->metrics[j].type_instance = config->elts[i]->type_instance;
@@ -548,6 +573,9 @@ static int submit_query(mysql_database_t *db, db_config_t *db_config,
 
       if (metric->elt_type == t_prefix) {
         if (strncmp(key, metric->name, strlen(metric->name)) != 0)
+          continue;
+
+        if (metric->ignore_zero != 0 && val == 0)
           continue;
 
         if (metric->ignore_prefix != NULL &&
