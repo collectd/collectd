@@ -104,7 +104,7 @@ static processlist_t * process_check(int pid)
   FILE *fh;
   char buffer[BUFSIZE];
 
-  len = ssnprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
+  len = snprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
 
   if ((len < 0) || (len >= BUFSIZE))
   {
@@ -291,7 +291,7 @@ static int process_map_refresh(void)
     if (dent->d_name[0] == '.')
       continue;
 
-    len = ssnprintf(file, sizeof(file), PROCDIR "/%s", dent->d_name);
+    len = snprintf(file, sizeof(file), PROCDIR "/%s", dent->d_name);
     if ((len < 0) || (len >= BUFSIZE))
       continue;
 
@@ -306,7 +306,7 @@ static int process_map_refresh(void)
     if (!S_ISDIR(statbuf.st_mode))
       continue;
 
-    len = ssnprintf(file, sizeof(file), PROCDIR "/%s/comm", dent->d_name);
+    len = snprintf(file, sizeof(file), PROCDIR "/%s/comm", dent->d_name);
     if ((len < 0) || (len >= BUFSIZE))
       continue;
 
