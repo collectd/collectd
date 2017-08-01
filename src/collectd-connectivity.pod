@@ -1,0 +1,70 @@
+=encoding UTF-8
+
+=head1 NAME
+
+connectivity - Documentation of collectd's C<connectivity plugin>
+
+=head1 SYNOPSIS
+
+  # See collectd.conf(5)
+  LoadPlugin connectivity
+  # ...
+  <Plugin connectivity>
+    Interface eth0
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<connectivity plugin> opens an UNIX-socket over which one can submit email
+statistics, such as the number of "ham", "spam", "virus", etc. mails
+received/handled, spam scores and matched spam checks.
+
+
+=head1 OPERATION
+
+This plugin collects data.
+
+I<Status> 
+
+If I<Status> is greater than or equal to zero the message indicates interface is up,
+if I<Status> is less than zero the message indicates interface is down. 
+
+=over 4
+
+=item *
+
+E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
+
+  e:<type>:<size>
+
+If C<size> is less than or equal to zero, C<size> is ignored.
+
+=item *
+
+Spam score:
+
+  s:<value>
+
+=item *
+
+Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
+
+  c:<type1>[,<type2>,...]
+
+Each line is limited to 256 characters (including the newline character). 
+Longer lines will be ignored.
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>
+
+=head1 AUTHOR
+
+The C<connectivity plugin> has been written by Andrew Bays <lt>abays<nbsp>atE<nbsp>redhat.comE<gt>.
+
+This manpage has been written by Aneesh Puttur E<lt>aputtur<nbsp>atE<nbsp>redhat.comE<gt>.
+
+=cut

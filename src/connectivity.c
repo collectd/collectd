@@ -113,7 +113,6 @@ static int connectivity_link_state(struct nlmsghdr *msg)
       if (il == NULL) 
       {
         INFO("connectivity plugin: Ignoring link state change for unmonitored interface: %s", dev);
-        //printf("connectivity plugin: Ignoring link state change for unmonitored interface: %s\n", dev);
       } else {
         uint32_t prev_status;
         struct timeval tv;
@@ -125,8 +124,6 @@ static int connectivity_link_state(struct nlmsghdr *msg)
         (unsigned long long)(tv.tv_usec) / 1000;
         
         INFO("connectivity plugin (%llu): Interface %s status is now %s", millisecondsSinceEpoch, dev, ((ifi->ifi_flags & IFF_RUNNING) ? "UP" : "DOWN"));
-        printf("connectivity plugin (%llu): Interface %s status is now %s\n", millisecondsSinceEpoch, dev, ((ifi->ifi_flags & IFF_RUNNING) ? "UP" : "DOWN"));
-
         prev_status = il->status;
         il->status = ((ifi->ifi_flags & IFF_RUNNING) ? 1 : 0);
         il->sec=tv.tv_sec;
@@ -431,44 +428,30 @@ static void submit(const char *interface, const char *type, /* {{{ */
   // Create metadata to store JSON key-values
   meta_data_t * meta = meta_data_create();
 
- // meta_data_add_string(meta,"condition",
- // meta_data_add_string(meta, "message", "if_status:down;interface:eno2;resource:interface;action:vip_del;vip:192.168.1.100::if_status:up;interface:eno2:resource:interface;action:vip_add;vip:192.168.1.100");
   vl.meta=meta;
+  //For latency measurement
   struct timeval tv;
-
   gettimeofday(&tv, NULL);
-
-/*  unsigned long long millisecondsSinceEpoch =
-  (unsigned long long)(tv.tv_sec) * 1000 +
-  (unsigned long long)(tv.tv_usec) / 1000;
-*/
-//   char strMillisecondsSinceEpoch[256];
-   //sprintf(strMillisecondsSinceEpoch, "%llu",time);
-
-   gethostname(hostname, sizeof(hostname));
-    char strSec[11];
-    char struSec[11];
-   snprintf(strSec, sizeof strSec, "%" PRIu32, sec);
-   snprintf(struSec, sizeof struSec, "%" PRIu32, usec);
+  gethostname(hostname, sizeof(hostname));
+  char strSec[11];
+  char struSec[11];
+  snprintf(strSec, sizeof strSec, "%" PRIu32, sec);
+  snprintf(struSec, sizeof struSec, "%" PRIu32, usec);
   if(value==1){
    meta_data_add_string(meta,"condition","interface_up");
    meta_data_add_string(meta,"entity",interface);
    meta_data_add_string(meta,"source",hostname);
    meta_data_add_string(meta,"sec",strSec);
    meta_data_add_string(meta,"usec",struSec);
-
    meta_data_add_string(meta,"dest","interface_down");
   }else{
    meta_data_add_string(meta,"condition","interface_down");
    meta_data_add_string(meta,"entity",interface);
    meta_data_add_string(meta,"source", hostname);
-//   meta_data_add_string(meta,"clock",strMillisecondsSinceEpoch);
    meta_data_add_string(meta,"sec",strSec);
    meta_data_add_string(meta,"usec",struSec);
    meta_data_add_string(meta,"dest","interface_up");
   }
-
-   
   //INFO("connectivity plugin (%llu): dispatching state %d for interface %s", time, (int) value, interface);
 
   plugin_dispatch_values(&vl);
