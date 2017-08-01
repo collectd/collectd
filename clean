@@ -32,6 +32,7 @@ true \
 && rm -f src/collectd-tg \
 && rm -f src/collectd-nagios \
 && rm -f src/collectdmon \
+&& rm -f src/connectivity \
 && rm -f src/config.h \
 && rm -f src/config.h.in \
 && rm -f src/config.h.in~ \
