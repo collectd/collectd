@@ -324,7 +324,8 @@ If the I<type> argument is any of the other types (B<TYPE_INIT>, B<TYPE_READ>,
 prefixed with the plugin's package name collectd will add it automatically.
 The interface slightly differs from the C interface (which expects a function
 pointer instead) because Perl does not support to share references to
-subroutines between threads.
+subroutines between threads. The name of the callback-function (I<name>) is
+passed back to that function as last of its arguments.
 
 These functions are called in the various stages of the daemon (see the
 section "WRITING YOUR OWN PLUGINS" above) and are passed the following
@@ -334,8 +335,8 @@ arguments:
 
 =item TYPE_CONFIG
 
-The only argument passed is I<config-item>. See above for the layout of this
-data type.
+The arguments passed are I<config-item> and I<name>.
+See above for the layout of I<config-item> data type.
 
 =item TYPE_INIT
 
@@ -343,31 +344,31 @@ data type.
 
 =item TYPE_SHUTDOWN
 
-No arguments are passed.
+The only argument passed is I<name>.
 
 =item TYPE_WRITE
 
-The arguments passed are I<type>, I<data-set>, and I<value-list>. I<type> is a
-string. For the layout of I<data-set> and I<value-list> see above.
+The arguments passed are I<type>, I<data-set>, I<value-list> and I<name>.
+I<type> is a string. For the layout of I<data-set> and I<value-list> see above.
 
 =item TYPE_FLUSH
 
-The arguments passed are I<timeout> and I<identifier>. I<timeout> indicates
-that only data older than I<timeout> seconds is to be flushed. I<identifier>
-specifies which values are to be flushed.
+The arguments passed are I<timeout>,  I<identifier> and I<name>. I<timeout>
+indicates that only data older than I<timeout> seconds is to be flushed.
+I<identifier> specifies which values are to be flushed.
 
 =item TYPE_LOG
 
-The arguments are I<log-level> and I<message>. The log level is small for
-important messages and high for less important messages. The least important
+The arguments are I<log-level>, I<message> and I<name>. The log level is small
+for important messages and high for less important messages. The least important
 level is B<LOG_DEBUG>, the most important level is B<LOG_ERR>. In between there
 are (from least to most important): B<LOG_INFO>, B<LOG_NOTICE>, and
 B<LOG_WARNING>. I<message> is simply a string B<without> a newline at the end.
 
 =item TYPE_NOTIF
 
-The only argument passed is I<notification>. See above for the layout of this
-data type.
+The arguments passed are I<notification> and I<name>.
+See above for the layout of I<notification> data type.
 
 =back
 
