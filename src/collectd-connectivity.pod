@@ -12,6 +12,8 @@ connectivity - Documentation of collectd's C<connectivity plugin>
   # ...
   <Plugin connectivity>
     Interface eth0
+    ...
+    Interface eno2
   </Plugin>
 
 =head1 DESCRIPTION
