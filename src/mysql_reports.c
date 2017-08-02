@@ -18,8 +18,12 @@ enum elt_type_t {
   t_variable,
   t_ratio,
   t_delta_ratio,
+  t_delta_to_sum_ratio,
+  t_percent,
+  t_delta_percent,
+  t_delta_to_sum_percent,
   t_first_variable,
-  t_next_variable /* Used for t_ratio, t_delta_ratio too */
+  t_next_variable /* Used for t_*_ratio, t_*_percent too */
 };
 
 /* Report configuration */
@@ -126,9 +130,25 @@ static void mr_elt_free(elt_t *elt) {
  *     #
  *     VariablesDeltaRatio "Key_reads" "Key_read_requests" "keycache_misses"
  *
+ *     #VariablesDeltaPercent "VARIABLE_1" "VARIABLE_2" "TYPE" ["TYPE_INSTANCE"]
+ *     #The value will be calculated as a percent ratio of current and previous
+ *     #values delta.  VARIABLE_1_DELTA / VARIABLE_2_DELTA * 100.0
+ *     #
+ *     VariablesDeltaPercent "Key_reads" "Key_read_requests" "keycache_misses"
+ *
+ *     #VariablesDeltaToSumRatio "VARIABLE_1" "VARIABLE_2" "TYPE" ["TYPE_INSTANCE"]
+ *     #The reported value will be calculated as a ratio of first variable
+ *     #change to sum of both variables changes.
+ *     #VARIABLE_1_DELTA / (VARIABLE_1_DELTA + VARIABLE_2_DELTA)
+ *
+ *     #VariablesDeltaToSumPercent "VARIABLE_1" "VARIABLE_2" "TYPE" ["TYPE_INSTANCE"]
+ *     #The reported value will be calculated as a percent ratio of first
+ *     #variable change to sum of both variables changes.
+ *     #VARIABLE_1_DELTA / (VARIABLE_1_DELTA + VARIABLE_2_DELTA) * 100.0
+ *     #
+ *
  *     #TwoVariables "VARIABLE_1" "VARIABLE_2" "TYPE" ["TYPE_INSTANCE"]
  *     #Used to report complex type of two datasources.
- *     #
  *     TwoVariables "Bytes_received" "Bytes_sent" "mysql_octets"
  *     TwoVariables "Innodb_data_read" "Innodb_data_written" "disk_octets" "innodb"
  *   </GlobalStatusReport>
@@ -379,10 +399,24 @@ int mysql_reports_config(oconfig_item_t *ci, llist_t *reports) {
       status = mr_config_add_two_variables(reportname, option, config,
                                            t_first_variable);
     } else if (strcasecmp("VariablesRatio", option->key) == 0) {
-      status = mr_config_add_two_variables(reportname, option, config, t_ratio);
+      status = mr_config_add_two_variables(reportname, option, config,
+                                           t_ratio);
+    } else if (strcasecmp("VariablesPercent", option->key) == 0) {
+      status = mr_config_add_two_variables(reportname, option, config,
+                                           t_percent);
     } else if (strcasecmp("VariablesDeltaRatio", option->key) == 0) {
       status = mr_config_add_two_variables(reportname, option, config,
                                            t_delta_ratio);
+    } else if (strcasecmp("VariablesDeltaPercent", option->key) == 0) {
+      status = mr_config_add_two_variables(reportname, option, config,
+                                           t_delta_percent);
+    } else if (strcasecmp("VariablesDeltaToSumRatio", option->key) == 0) {
+      status = mr_config_add_two_variables(reportname, option, config,
+                                           t_delta_to_sum_ratio);
+    } else if (strcasecmp("VariablesDeltaToSumPercent", option->key) == 0) {
+      status = mr_config_add_two_variables(reportname, option, config,
+                                           t_delta_to_sum_percent);
+
     } else {
       WARNING("mysql plugin: Report \"%s\": Option `%s' not allowed here.",
               reportname, option->key);
@@ -643,14 +677,26 @@ static int submit_query(mysql_database_t *db, db_config_t *db_config,
       }
       submit(metric->type, metric->type_instance, values,
              STATIC_ARRAY_SIZE(values), db);
-    } else if (metric->elt_type == t_ratio) {
+    } else if (metric->elt_type == t_ratio || metric->elt_type == t_percent) {
+      gauge_t k = 1.0;
       gauge_t ratio = NAN;
 
+      if (metric->elt_type == t_percent)
+        k = 100.0;
+
       if (next_metric->value > 0)
-        ratio = metric->value / next_metric->value;
+        ratio = k * (gauge_t)metric->value / (gauge_t)next_metric->value;
 
       gauge_submit(metric->type, metric->type_instance, ratio, db);
-    } else if (metric->elt_type == t_delta_ratio) {
+    } else if (metric->elt_type == t_delta_ratio ||
+               metric->elt_type == t_delta_to_sum_ratio ||
+               metric->elt_type == t_delta_percent ||
+               metric->elt_type == t_delta_to_sum_percent) {
+      // TODO: Remove DEBUG!!
+      ERROR("%s %llu -> %llu ; %s  %llu -> %llu", metric->name,
+            metric->prev_value, metric->value, next_metric->name,
+            next_metric->prev_value, next_metric->value);
+
       /* We expect constantly grown values.
        * Handle statistics reset, MySQL restart, etc.
        * Also handles ULLONG_MAX defaults.
@@ -662,16 +708,46 @@ static int submit_query(mysql_database_t *db, db_config_t *db_config,
         continue;
       };
 
+      // TODO: Remove DEBUG!
       long long d1 = metric->value - metric->prev_value;
       long long d2 = next_metric->value - next_metric->prev_value;
+
+      ERROR("d1-d2 : %llu %llu ", d1, d2);
+
+      gauge_t k = 1.0;
+      gauge_t num = (gauge_t)metric->value - (gauge_t)metric->prev_value;
+      gauge_t denom = 0;
+
+      switch (metric->elt_type) {
+      case t_delta_percent:
+        k = 100.0;
+      /* fallthrough */
+      case t_delta_ratio:
+        denom = (gauge_t)next_metric->value - (gauge_t)next_metric->prev_value;
+        break;
+      case t_delta_to_sum_percent:
+        k = 100.0;
+      /* fallthrough */
+      case t_delta_to_sum_ratio:
+        denom = num + (gauge_t)next_metric->value -
+                (gauge_t)next_metric->prev_value;
+        break;
+      default:
+        ERROR("mysql plugin: Internal error - invalid elt_type.");
+        assert(0);
+        continue;
+      };
 
       metric->prev_value = metric->value;
       next_metric->prev_value = next_metric->value;
 
-      if (d2 == 0) {
-        if (d1 == 0)
+      ERROR("num: %.3f ; denum %.3f", num, denom);
+
+      if (denom == 0) {
+        if (num == 0)
           gauge_submit(metric->type, metric->type_instance, 0, db);
-        else {
+        else if (metric->elt_type == t_delta_ratio) {
+          /* Looks like configuration error - wrong variables are choosed */
           ERROR("mysql plugin: Instance `%s': Delta between `%s' values is "
                 "zero, while non-zero delta of `%s' values!",
                 db->instance, next_metric->name, metric->name);
@@ -680,8 +756,11 @@ static int submit_query(mysql_database_t *db, db_config_t *db_config,
         continue;
       }
 
-      gauge_submit(metric->type, metric->type_instance, (gauge_t)(d1 / d2), db);
+      // TODO: Remove DEBUG!
+      ERROR("d1/d2 : %.3f", num / denom);
+      gauge_submit(metric->type, metric->type_instance, (k * num / denom), db);
     } else {
+      ERROR("mysql plugin: Internal error - invalid elt_type.");
       assert(0);
     };
   }
