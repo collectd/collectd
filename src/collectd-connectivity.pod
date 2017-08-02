@@ -1,7 +1,7 @@
 
 =encoding UTF-8
 
-=head1 NAME
+=head1 Plugin Connectivity
 
 connectivity - Documentation of collectd's C<connectivity plugin>
 
