@@ -2685,7 +2685,7 @@ static int perl_config_plugin(pTHX_ oconfig_item_t *ci) {
   dSP;
 
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
-    log_err("LoadPlugin expects a single string argument.");
+    log_err("The `Plugin' block expects a single string argument.");
     return 1;
   }
 
