@@ -35,7 +35,7 @@ LoadPlugin connectivity
 
 =item B<Interface> I<interface_name>
 
-interface(s) to monitor connect to. 
+interface(s) to monitor. 
 
 =back
 
