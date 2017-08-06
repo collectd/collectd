@@ -716,7 +716,7 @@ endif
 
 if BUILD_PLUGIN_MYSQL
 pkglib_LTLIBRARIES += mysql.la
-mysql_la_SOURCES = mysql.c mysql_reports.c
+mysql_la_SOURCES = mysql.c mysql_reports.c mysql_plugin.h
 mysql_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMYSQL_CFLAGS)
 mysql_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 mysql_la_LIBADD = $(BUILD_WITH_LIBMYSQL_LIBS)

@@ -629,7 +629,8 @@ static int mysql_config(oconfig_item_t *ci) /* {{{ */
       if (source->decl->default_reports) {
         status = source->decl->default_reports(source->reports);
         if (status != 0) {
-          ERROR("mysql plugin: default_reports failed for id %d.", i);
+          //TODO: XXX
+          ERROR("mysql plugin: default_reports failed for id %zu.", i);
           break;
         }
       }
