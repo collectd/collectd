@@ -141,7 +141,8 @@ check_PROGRAMS = \
 	test_utils_subst \
 	test_utils_time \
 	test_utils_vl_lookup \
-	test_libcollectd_network_parse
+	test_libcollectd_network_parse \
+	test_utils_config_cores
 
 
 TESTS = $(check_PROGRAMS)
@@ -325,6 +326,11 @@ test_utils_subst_SOURCES = \
 	src/daemon/utils_subst.c \
 	src/daemon/utils_subst.h
 test_utils_subst_LDADD = libplugin_mock.la
+
+test_utils_config_cores_SOURCES = \
+	src/utils_config_cores_test.c \
+	src/testing.h
+test_utils_config_cores_LDADD = libplugin_mock.la
 
 libavltree_la_SOURCES = \
 	src/daemon/utils_avltree.c \
@@ -913,7 +919,9 @@ endif
 
 if BUILD_PLUGIN_INTEL_PMU
 pkglib_LTLIBRARIES += intel_pmu.la
-intel_pmu_la_SOURCES = src/intel_pmu.c
+intel_pmu_la_SOURCES = src/intel_pmu.c \
+		src/utils_config_cores.h \
+		src/utils_config_cores.c
 intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
 intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
 intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
