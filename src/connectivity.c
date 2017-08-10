@@ -21,6 +21,8 @@
  *
  * Authors:
  *   Red Hat NFVPE
+ *     Andrew Bays <abays at redhat.com>
+ *     Aneesh Puttur <aputtur at redhat.com>
  **/
 
 #include "collectd.h"
@@ -272,7 +274,7 @@ static int start_thread(void) /* {{{ */
   connectivity_thread_error = 0;
 
   if (sock == NULL) {
-    sock = mnl_socket_open(NETLINK_ROUTE); // PF_NETLINK
+    sock = mnl_socket_open(NETLINK_ROUTE);
     if (sock == NULL) {
       ERROR(
           "connectivity plugin: connectivity_thread: mnl_socket_open failed.");
@@ -280,7 +282,6 @@ static int start_thread(void) /* {{{ */
       return (-1);
     }
 
-    // RTMGRP_LINK
     if (mnl_socket_bind(sock, RTMGRP_LINK, MNL_SOCKET_AUTOPID) < 0) {
       ERROR(
           "connectivity plugin: connectivity_thread: mnl_socket_bind failed.");
@@ -444,8 +445,6 @@ static void submit(const char *interface, const char *type, /* {{{ */
     meta_data_add_string(meta, "usec", struSec);
     meta_data_add_string(meta, "dest", "interface_up");
   }
-  // INFO("connectivity plugin (%llu): dispatching state %d for interface %s",
-  // time, (int) value, interface);
 
   plugin_dispatch_values(&vl);
 } /* }}} void interface_submit */
