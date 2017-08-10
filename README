@@ -459,7 +459,11 @@ Features
 
     - amqp
       Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
-      server, such as RabbitMQ.
+      0.9.1 server, such as RabbitMQ.
+
+    - amqp1
+      Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
+      1.0 server, such as Qpid Dispatch Router or Apache Artemis Broker.
 
     - csv
       Write to comma separated values (CSV) files. This needs lots of
@@ -902,8 +906,14 @@ Prerequisites
     are supported.
     <http://www.python.org/>
 
+  * libqpid-proton (optional)
+    Used by the `amqp1' plugin for AMQP 1.0 connections, for example to
+    Qdrouterd.
+    <http://qpid.apache.org/>
+
   * librabbitmq (optional; also called “rabbitmq-c”)
-    Used by the `amqp' plugin for AMQP connections, for example to RabbitMQ.
+    Used by the `amqp' plugin for AMQP 0.9.1 connections, for example to
+    RabbitMQ.
     <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librdkafka (optional; also called “rdkafka”)

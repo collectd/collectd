@@ -4686,6 +4686,47 @@ if test "$with_libpython" != "xno"; then
 fi
 # }}} --with-libpython
 
+# --with-libqpid_proton {{{
+AC_ARG_WITH([libqpid_proton],
+  [AS_HELP_STRING([--with-libqpid_proton@<:@=PREFIX@:>@], [Path to libqpid_proton.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libqpid_proton_cppflags="-I$withval/include"
+      with_libqpid_proton_ldflags="-L$withval/lib"
+      with_libqpid_proton="yes"
+    else
+      with_libqpid_proton="$withval"
+    fi
+  ],
+  [with_libqpid_proton="yes"]
+)
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libqpid_proton_cppflags"
+
+  AC_CHECK_HEADERS([proton/proactor.h],
+    [with_libqpid_proton="yes"],
+    [with_libqpid_proton="no (proton/proactor.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+# add library checks for function calls
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  BUILD_WITH_LIBQPIDPROTON_CPPFLAGS="$with_libqpid_proton_cppflags"
+  BUILD_WITH_LIBQPIDPROTON_LDFLAGS="$with_libqpid_proton_ldflags"
+  BUILD_WITH_LIBQPIDPROTON_LIBS="-lqpid-proton"
+fi
+
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_LIBS)
+
+# }}}
+
 # --with-librabbitmq {{{
 AC_ARG_WITH([librabbitmq],
   [AS_HELP_STRING([--with-librabbitmq@<:@=PREFIX@:>@], [Path to librabbitmq.])],
@@ -6511,6 +6552,7 @@ m4_divert_once([HELP_ENABLE], [])
 
 AC_PLUGIN([aggregation],         [yes],                     [Aggregation plugin])
 AC_PLUGIN([amqp],                [$with_librabbitmq],       [AMQP output plugin])
+AC_PLUGIN([amqp1],               [$with_libqpid_proton],    [AMQP 1.0 output plugin])
 AC_PLUGIN([apache],              [$with_libcurl],           [Apache httpd statistics])
 AC_PLUGIN([apcups],              [yes],                     [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors],       [$with_libiokit],          [Apple hardware sensors])
@@ -6899,6 +6941,7 @@ AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
+AC_MSG_RESULT([    libqpid-proton .  . . $with_libqpid_proton])
 AC_MSG_RESULT([    librabbitmq . . . . . $with_librabbitmq])
 AC_MSG_RESULT([    libriemann-client . . $with_libriemann_client])
 AC_MSG_RESULT([    librdkafka  . . . . . $with_librdkafka])
@@ -6930,6 +6973,7 @@ AC_MSG_RESULT()
 AC_MSG_RESULT([  Modules:])
 AC_MSG_RESULT([    aggregation . . . . . $enable_aggregation])
 AC_MSG_RESULT([    amqp    . . . . . . . $enable_amqp])
+AC_MSG_RESULT([    amqp1   . . . . . . . $enable_amqp1])
 AC_MSG_RESULT([    apache  . . . . . . . $enable_apache])
 AC_MSG_RESULT([    apcups  . . . . . . . $enable_apcups])
 AC_MSG_RESULT([    apple_sensors . . . . $enable_apple_sensors])

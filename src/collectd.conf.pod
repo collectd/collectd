@@ -530,9 +530,9 @@ are disabled by default.
 =head2 Plugin C<amqp>
 
 The I<AMQP plugin> can be used to communicate with other instances of
-I<collectd> or third party applications using an AMQP message broker. Values
-are sent to or received from the broker, which handles routing, queueing and
-possibly filtering out messages.
+I<collectd> or third party applications using an AMQP 0.9.1 message broker.
+Values are sent to or received from the broker, which handles routing,
+queueing and possibly filtering out messages.
 
 B<Synopsis:>
 
@@ -711,6 +711,154 @@ It's added after the I<Host> name.
 Metric name will be "<prefix><host><postfix><plugin><type><name>"
 
 =item B<GraphiteEscapeChar> (Publish and B<Format>=I<Graphite> only)
+
+Specify a character to replace dots (.) in the host part of the metric name.
+In I<Graphite> metric name, dots are used as separators between different
+metric parts (host, plugin, type).
+Default is "_" (I<Underscore>).
+
+=item B<GraphiteSeparateInstances> B<true>|B<false>
+
+If set to B<true>, the plugin instance and type instance will be in their own
+path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
+default), the plugin and plugin instance (and likewise the type and type
+instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
+
+=item B<GraphiteAlwaysAppendDS> B<true>|B<false>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=item B<GraphitePreserveSeparator> B<false>|B<true>
+
+If set to B<false> (the default) the C<.> (dot) character is replaced with
+I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
+is preserved, i.e. passed through.
+
+=back
+
+=head2 Plugin C<amqp1>
+
+The I<AMQP1 plugin> can be used to communicate with other instances of
+I<collectd> or third party applications using an AMQP 1.0 message
+intermediary. Values are sent to the messaging intermediary which
+may handle direct messaging or queue based transfer.
+
+B<Synopsis:>
+
+ <Plugin "amqp1">
+   # Send values to an AMQP 1.0 intermediary
+  <Transport "name">
+    Host "localhost"
+    Port "5672"
+    User "guest"
+    Password "guest"
+    Address "collectd"
+    <Instance "some_name">
+        Format "command"
+        PreSettle false
+ #      StoreRates false
+ #      GraphitePrefix "collectd."
+ #      GraphiteEscapeChar "_"
+ #      GraphiteSeparateInstances false
+ #      GraphiteAlwaysAppendDS false
+ #      GraphitePreserveSeparator false
+    </Instance>
+  </Transport>
+ </Plugin>
+
+The plugin's configuration consists of a I<Transport> that configures
+communications to the AMQP 1.0 messaging bus and one or more I<Instance>
+corresponding to publishers to the messaging system. The address in
+the I<Transport> block concatenated with the name given int the
+I<Instance> block starting tag will be used as the send-to address for
+communications over the messaging link.
+
+The following options are accepted within each I<Transport> block:
+
+=over 4
+
+=item B<Host> I<Host>
+
+Hostname or IP-address of the AMQP 1.0 intermediary. Defaults to the
+default behavior of the underlying communications library,
+I<libqpid-proton>, which is "localhost".
+
+=item B<Port> I<Port>
+
+Service name or port number on which the AMQP 1.0 intermediary accepts
+connections. This argument must be a string, even if the numeric form
+is used. Defaults to "5672".
+
+=item B<User> I<User>
+
+=item B<Password> I<Password>
+
+Credentials used to authenticate to the AMQP 1.0 intermediary. By
+default "guest"/"guest" is used.
+
+=item B<Address> I<Address>
+
+This option specifies the prefix for the send-to value in the message.
+By default, "collectd" will be used.
+
+=back
+
+The following options are accepted within each I<Instance> block:
+
+=over 4
+
+=item B<Format> B<Command>|B<JSON>|B<Graphite>
+
+Selects the format in which messages are sent to the intermediary. If set to
+B<Command> (the default), values are sent as C<PUTVAL> commands which are
+identical to the syntax used by the I<Exec> and I<UnixSock plugins>. In this
+case, the C<Content-Type> header field will be set to C<text/collectd>.
+
+If set to B<JSON>, the values are encoded in the I<JavaScript Object Notation>,
+an easy and straight forward exchange format. The C<Content-Type> header field
+will be set to C<application/json>.
+
+If set to B<Graphite>, values are encoded in the I<Graphite> format, which is
+"<metric> <value> <timestamp>\n". The C<Content-Type> header field will be set to
+C<text/graphite>.
+
+A subscribing client I<should> use the C<Content-Type> header field to
+determine how to decode the values.
+
+=item B<PreSettle> B<true>|B<false>
+
+If set to B<false> (the default), the plugin will wait for a message
+acknowledgement from the messaging bus before sending the next
+message. This indicates transfer of ownership to the messaging
+system. If set to B<true>, the plugin will not wait for a message
+acknowledgement and the message may be dropped prior to transfer of
+ownership.
+
+=item B<StoreRates> B<true>|B<false>
+
+Determines whether or not C<COUNTER>, C<DERIVE> and C<ABSOLUTE> data sources
+are converted to a I<rate> (i.e. a C<GAUGE> value). If set to B<false> (the
+default), no conversion is performed. Otherwise the conversion is performed
+using the internal value cache.
+
+Please note that currently this option is only used if the B<Format> option has
+been set to B<JSON>.
+
+=item B<GraphitePrefix>
+
+A prefix can be added in the metric name when outputting in the I<Graphite> format.
+It's added before the I<Host> name.
+Metric name will be "<prefix><host><postfix><plugin><type><name>"
+
+=item B<GraphitePostfix>
+
+A postfix can be added in the metric name when outputting in the I<Graphite> format.
+It's added after the I<Host> name.
+Metric name will be "<prefix><host><postfix><plugin><type><name>"
+
+=item B<GraphiteEscapeChar>
 
 Specify a character to replace dots (.) in the host part of the metric name.
 In I<Graphite> metric name, dots are used as separators between different
