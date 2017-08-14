@@ -1635,6 +1635,12 @@ thermal_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 thermal_la_LIBADD = libignorelist.la
 endif
 
+if BUILD_PLUGIN_THERMAL_THROTTLE
+pkglib_LTLIBRARIES += thermal_throttle.la
+thermal_throttle_la_SOURCES = src/thermal_throttle.c
+thermal_throttle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_THRESHOLD
 pkglib_LTLIBRARIES += threshold.la
 threshold_la_SOURCES = src/threshold.c

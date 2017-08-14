@@ -235,6 +235,7 @@ swap_io                 value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
+thermal_throttle        core_throttle_count:COUNTER:0:U, package_throttle_count:COUNTER:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
 time_offset             value:GAUGE:-1000000:1000000
 time_offset_ntp         value:GAUGE:-1000000:1000000

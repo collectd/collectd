@@ -6154,6 +6154,7 @@ plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
+plugin_thermal_throttle="no"
 plugin_turbostat="no"
 plugin_uptime="no"
 plugin_users="no"
@@ -6196,6 +6197,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_swap="yes"
   plugin_tcpconns="yes"
   plugin_thermal="yes"
+  plugin_thermal_throttle="yes"
   plugin_uptime="yes"
   plugin_vmem="yes"
   plugin_vserver="yes"
@@ -6621,6 +6623,7 @@ AC_PLUGIN([tcpconns],            [$plugin_tcpconns],        [TCP connection stat
 AC_PLUGIN([teamspeak2],          [yes],                     [TeamSpeak2 server statistics])
 AC_PLUGIN([ted],                 [$plugin_ted],             [Read The Energy Detective values])
 AC_PLUGIN([thermal],             [$plugin_thermal],         [Linux ACPI thermal zone statistics])
+AC_PLUGIN([thermal_throttle],    [$plugin_thermal_throttle],[Thermal Throttling Stats])
 AC_PLUGIN([threshold],           [yes],                     [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant],         [$with_libtokyotyrant],    [TokyoTyrant database statistics])
 AC_PLUGIN([turbostat],           [$plugin_turbostat],       [Advanced statistic on Intel cpu states])
@@ -7038,6 +7041,7 @@ AC_MSG_RESULT([    tcpconns  . . . . . . $enable_tcpconns])
 AC_MSG_RESULT([    teamspeak2  . . . . . $enable_teamspeak2])
 AC_MSG_RESULT([    ted . . . . . . . . . $enable_ted])
 AC_MSG_RESULT([    thermal . . . . . . . $enable_thermal])
+AC_MSG_RESULT([    thermal_throttling. . $enable_thermal_throttle])
 AC_MSG_RESULT([    threshold . . . . . . $enable_threshold])
 AC_MSG_RESULT([    tokyotyrant . . . . . $enable_tokyotyrant])
 AC_MSG_RESULT([    turbostat . . . . . . $enable_turbostat])

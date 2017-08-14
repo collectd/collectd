@@ -408,6 +408,9 @@ Features
     - thermal
       Linux ACPI thermal zone information.
 
+    - thermal_throttle
+      Linux cpu throttle information
+
     - tokyotyrant
       Reads the number of records and file size from a running Tokyo Tyrant
       server.
