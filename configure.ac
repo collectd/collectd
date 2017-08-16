@@ -2350,6 +2350,7 @@ AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
 # --with-libdpdk {{{
 AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LIBS], [Libraries to link for libdpdk])
 
 AC_ARG_WITH([libdpdk],
   [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])],
@@ -2358,8 +2359,20 @@ AC_ARG_WITH([libdpdk],
 )
 
 if test "x$with_libdpdk" != "xno"; then
+  PKG_CHECK_MODULES([DPDK], [libdpdk])
   if test "x$LIBDPDK_CPPFLAGS" = "x"; then
-    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+    if test "x$DPDK_CFLAGS" != "x"; then
+      LIBDPDK_CPPFLAGS="$DPDK_CFLAGS"
+    else
+      LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+    fi
+  fi
+  if test "x$LIBDPDK_LIBS" = "x"; then
+      if test "x$DPDK_LIBS" != "x"; then
+          LIBDPDK_LIBS="$DPDK_LIBS"
+      else
+          LIBDPDK_LIBS="-ldpdk"
+      fi
   fi
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
