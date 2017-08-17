@@ -2361,8 +2361,12 @@ AC_ARG_WITH([libdpdk],
 
 if test "x$with_libdpdk" != "xno"; then
   PKG_CHECK_MODULES([DPDK], [libdpdk])
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
   if test "x$LIBDPDK_CFLAGS" = "x"; then
       LIBDPDK_CFLAGS="$DPDK_CFLAGS"
+      LIBDPDK_CPPFLAGS="$LIBDPDK_CPPFLAGS $DPDK_CFLAGS"
   fi
   if test "x$LIBDPDK_LIBS" = "x"; then
       if test "x$DPDK_LIBS" != "x"; then
@@ -2370,9 +2374,6 @@ if test "x$with_libdpdk" != "xno"; then
       else
           LIBDPDK_LIBS="-ldpdk"
       fi
-  fi
-  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
-    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
   fi
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
