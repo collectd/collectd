@@ -2349,6 +2349,7 @@ AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
 
 # --with-libdpdk {{{
 AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_CFLAGS], [Compiler flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LIBS], [Libraries to link for libdpdk])
 
@@ -2360,12 +2361,8 @@ AC_ARG_WITH([libdpdk],
 
 if test "x$with_libdpdk" != "xno"; then
   PKG_CHECK_MODULES([DPDK], [libdpdk])
-  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
-    if test "x$DPDK_CFLAGS" != "x"; then
-      LIBDPDK_CPPFLAGS="$DPDK_CFLAGS"
-    else
-      LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-    fi
+  if test "x$LIBDPDK_CFLAGS" = "x"; then
+      LIBDPDK_CFLAGS="$DPDK_CFLAGS"
   fi
   if test "x$LIBDPDK_LIBS" = "x"; then
       if test "x$DPDK_LIBS" != "x"; then
@@ -2374,8 +2371,13 @@ if test "x$with_libdpdk" != "xno"; then
           LIBDPDK_LIBS="-ldpdk"
       fi
   fi
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$LIBDPDK_CFLAGS $CFLAGS"
   AC_CHECK_HEADERS([rte_config.h],
     [
       with_libdpdk="yes"
@@ -2397,6 +2399,7 @@ if test "x$with_libdpdk" != "xno"; then
     [with_libdpdk="no (rte_config.h not found)"]
   )
   CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
 if test "x$with_libdpdk" = "xyes"; then
