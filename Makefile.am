@@ -783,16 +783,18 @@ if BUILD_PLUGIN_DPDKEVENTS
 pkglib_LTLIBRARIES += dpdkevents.la
 dpdkevents_la_SOURCES = src/dpdkevents.c src/utils_dpdk.c src/utils_dpdk.h
 dpdkevents_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkevents_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkevents_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
-dpdkevents_la_LIBADD = -ldpdk
+dpdkevents_la_LIBADD = $(LIBDPDK_LIBS)
 endif
 
 if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = src/dpdkstat.c src/utils_dpdk.c src/utils_dpdk.h
 dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
-dpdkstat_la_LIBADD = -ldpdk
+dpdkstat_la_LIBADD = $(LIBDPDK_LIBS)
 endif
 
 if BUILD_PLUGIN_DRBD
