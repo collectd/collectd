@@ -44,18 +44,23 @@
 
 #include <linux/ip_vs.h>
 
+
+
+//add our structures
+#include <ipvs.h>
+
 #define log_err(...) ERROR("ipvs: " __VA_ARGS__)
 #define log_info(...) INFO("ipvs: " __VA_ARGS__)
 
-#define nl_sock nl_handle
-#define nl_socket_alloc nl_handle_alloc
-#define nl_socket_free nl_handle_destroy
+//#define nl_sock nl_handle
+//#define nl_socket_alloc nl_handle_alloc
+//#define nl_socket_free nl_handle_destroy
 
 #include <libnl3/netlink/genl/ctrl.h>
 #include <libnl3/netlink/genl/genl.h>
 #include <libnl3/netlink/msg.h>
 #include <libnl3/netlink/netlink.h>
-#include<libnl3/netlink/socket.h>
+#include <libnl3/netlink/socket.h>
 
 
 
@@ -66,46 +71,8 @@ static int family;
  * private variables
  */
 //static int sockfd = -1;
+struct ip_vs_getinfo ipvs_info;
 
-/*
- * libipvs API
- */
-// static struct ip_vs_get_services *ipvs_get_services(void) {
-//   struct ip_vs_getinfo ipvs_info;
-//   struct ip_vs_get_services *services;
-//
-//   socklen_t len = sizeof(ipvs_info);
-//
-//   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len) ==
-//       -1) {
-//     char errbuf[1024];
-//     log_err("ip_vs_get_services: getsockopt() failed: %s",
-//             sstrerror(errno, errbuf, sizeof(errbuf)));
-//     return NULL;
-//   }
-//
-//   len = sizeof(*services) +
-//         sizeof(struct ip_vs_service_entry) * ipvs_info.num_services;
-//
-//   services = malloc(len);
-//   if (services == NULL) {
-//     log_err("ipvs_get_services: Out of memory.");
-//     return NULL;
-//   }
-//
-//   services->num_services = ipvs_info.num_services;
-//
-//   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES, services, &len) ==
-//       -1) {
-//     char errbuf[1024];
-//     log_err("ipvs_get_services: getsockopt failed: %s",
-//             sstrerror(errno, errbuf, sizeof(errbuf)));
-//
-//     free(services);
-//     return NULL;
-//   }
-//   return services;
-// } /* ipvs_get_services */
 //
 // static struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_entry *se) {
 //   struct ip_vs_get_dests *dests;
@@ -136,6 +103,21 @@ static int family;
 // } /* ip_vs_get_dests */
 //
 
+/*
+ * libipvs API
+ */
+struct nl_msg *ipvs_nl_message(int cmd, int flags) {
+  struct nl_msg *msg;
+
+  msg = nlmsg_alloc();
+  if (!msg)
+    return NULL;
+
+  genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family, 0, flags, cmd,
+              IPVS_GENL_VERSION);
+
+  return msg;
+}
 
 static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func,
                                 void *arg) {
@@ -184,27 +166,160 @@ fail_genl:
   return -1;
 }
 
-// /*
-//  * collectd plugin API and helper functions
-//  */
+static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg) {
+  struct nlmsghdr *nlh = nlmsg_hdr(msg);
+  struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
+
+  if (genlmsg_parse(nlh, 0, attrs, IPVS_INFO_ATTR_MAX, ipvs_info_policy) != 0)
+    return -1;
+
+  if (!(attrs[IPVS_INFO_ATTR_VERSION] && attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]))
+    return -1;
+
+  ipvs_info.version = nla_get_u32(attrs[IPVS_INFO_ATTR_VERSION]);
+  ipvs_info.size = nla_get_u32(attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]);
+
+  return NL_OK;
+}
+
+
+static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
+  struct nlmsghdr *nlh = nlmsg_hdr(msg);
+  struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
+  struct nlattr *svc_attrs[IPVS_SVC_ATTR_MAX + 1];
+  struct ip_vs_get_services_nl **getp = (struct ip_vs_get_services_nl **)arg;
+  struct ip_vs_get_services_nl *get = (struct ip_vs_get_services_nl *)*getp;
+  struct ip_vs_flags flags;
+  int i = get->num_services;
+
+  if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
+    return -1;
+
+  if (!attrs[IPVS_CMD_ATTR_SERVICE])
+    return -1;
+
+  if (nla_parse_nested(svc_attrs, IPVS_SVC_ATTR_MAX,
+                       attrs[IPVS_CMD_ATTR_SERVICE], ipvs_service_policy))
+    return -1;
+
+  memset(&(get->entrytable[i]), 0, sizeof(get->entrytable[i]));
+
+  if (!(svc_attrs[IPVS_SVC_ATTR_AF] &&
+        (svc_attrs[IPVS_SVC_ATTR_FWMARK] ||
+         (svc_attrs[IPVS_SVC_ATTR_PROTOCOL] && svc_attrs[IPVS_SVC_ATTR_ADDR] &&
+          svc_attrs[IPVS_SVC_ATTR_PORT])) &&
+        svc_attrs[IPVS_SVC_ATTR_SCHED_NAME] &&
+        svc_attrs[IPVS_SVC_ATTR_NETMASK] && svc_attrs[IPVS_SVC_ATTR_TIMEOUT] &&
+        svc_attrs[IPVS_SVC_ATTR_FLAGS]))
+    return -1;
+
+  get->entrytable[i].af = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_AF]);
+
+  if (svc_attrs[IPVS_SVC_ATTR_FWMARK])
+    get->entrytable[i].fwmark = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_FWMARK]);
+  else {
+    get->entrytable[i].protocol =
+        nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PROTOCOL]);
+    memcpy(&(get->entrytable[i].addr), nla_data(svc_attrs[IPVS_SVC_ATTR_ADDR]),
+           sizeof(get->entrytable[i].addr));
+    get->entrytable[i].port = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PORT]);
+  }
+
+  strncpy(get->entrytable[i].sched_name,
+          nla_get_string(svc_attrs[IPVS_SVC_ATTR_SCHED_NAME]),
+          IP_VS_SCHEDNAME_MAXLEN);
+
+  if (svc_attrs[IPVS_SVC_ATTR_PE_NAME])
+    strncpy(get->entrytable[i].pe_name,
+            nla_get_string(svc_attrs[IPVS_SVC_ATTR_PE_NAME]),
+       i  IP_VS_PENAME_MAXLEN);
+
+  get->entrytable[i].netmask = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_NETMASK]);
+  get->entrytable[i].timeout = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_TIMEOUT]);
+  nla_memcpy(&flags, svc_attrs[IPVS_SVC_ATTR_FLAGS], sizeof(flags));
+  get->entrytable[i].flags = flags.flags & flags.mask;
+
+  if (svc_attrs[IPVS_SVC_ATTR_STATS64]) {
+    if (ipvs_parse_stats64(&get->entrytable[i].stats64,
+                           svc_attrs[IPVS_SVC_ATTR_STATS64]) != 0)
+      return -1;
+  } else if (svc_attrs[IPVS_SVC_ATTR_STATS]) {
+    if (ipvs_parse_stats(&get->entrytable[i].stats64,
+                         svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
+      return -1;
+  }
+
+  get->entrytable[i].num_dests = 0;
+
+  i++;
+
+  get->num_services = i;
+  get = realloc(get, sizeof(*get) +
+                         sizeof(struct ip_vs_service_entry_nl) *
+                             (get->num_services + 1));
+  *getp = get;
+  
+return 0;
+}
+/*
+ *  * libipvs API
+ *   */
+static struct ip_vs_get_services_nl *ipvs_get_services(void) {
+          // struct ip_vs_getinfo ipvs_info;
+           struct ip_vs_get_services_nl *services;
+
+        socklen_t len;
+
+ struct nl_msg *msg;
+    len = sizeof(*services) + sizeof(struct ip_vs_service_entry_nl);
+    if (!(services = malloc(len)))
+      return NULL;
+
+    services->num_services = 0;
+
+    msg = ipvs_nl_message(IPVS_CMD_GET_SERVICE, NLM_F_DUMP);
+
+    if (msg && (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &services) == 0)) {
+      return services; //todo: check we free this elsewhere
+    }
+    free(services);
+    return NULL;
+} /* ipvs_get_services */
+
+/*
+* collectd plugin API and helper functions
+*/
 static int cipvs_init(void) {
 
   /*Test we can use netlink*/
-  if (ipvs_nl_send_message(NULL, NULL, NULL) == 0)
-   printf("we have nl");
-	// try_nl = 1;
+  if (ipvs_nl_send_message(NULL, NULL, NULL) != 0 ) {
+	log_err("Netlink test failed");
+	return -1;
+  }
     //TODO: error here
-
-/*    struct nl_msg *msg;
+    struct nl_msg *msg;
     msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
     if (msg) {
       ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
     } else {
       return -1;
     }
-*/
+
+/* we need IPVS >= 1.1.4 */
+  if (ipvs_info.version < ((1 << 16) + (1 << 8) + 4)) {
+    log_err("cipvs_init: IPVS version too old (%d.%d.%d < %d.%d.%d)",
+            NVERSION(ipvs_info.version), 1, 1, 4);
+    return -1;
+  } else {
+    log_info("Successfully connected to IPVS %d.%d.%d",
+             NVERSION(ipvs_info.version));
+  }
   return 0;
+
 } /* cipvs_init */
+
+
+
 //
 // /*
 //  * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-total
@@ -219,9 +334,6 @@ static int cipvs_init(void) {
 //   struct in_addr addr = {.s_addr = se->addr};
 //
 //   int len =
-//       snprintf(pi, size, "%s_%s%u", inet_ntoa(addr),
-//                (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
-//
 //   if ((len < 0) || (size <= ((size_t)len))) {
 //     log_err("plugin instance truncated: %s", pi);
 //     return -1;
@@ -316,12 +428,9 @@ static int cipvs_init(void) {
 //} /* cipvs_submit_service */
 
 static int cipvs_read(void) {
-// //  if (sockfd < 0)
-//   //  return -1;
-//
-//   struct ip_vs_get_services *services = ipvs_get_services();
-//   if (services == NULL)
-//     return -1;
+   struct ip_vs_get_services_nl *services = ipvs_get_services();
+   if (services == NULL)
+     return -1;
 //
 //   for (size_t i = 0; i < services->num_services; ++i)
 //     cipvs_submit_service(&services->entrytable[i]);
@@ -331,10 +440,9 @@ static int cipvs_read(void) {
 } /* cipvs_read */
 
 static int cipvs_shutdown(void) {
-  //if (sockfd >= 0)
-    //close(sockfd);
-  //sockfd = -1;
-
+ // if (sock != NULL)
+   // nl_socket_free(sock);
+//  sockfd = -1;
   return 0;
 } /* cipvs_shutdown */
 
