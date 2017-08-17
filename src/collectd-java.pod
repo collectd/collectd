@@ -637,7 +637,12 @@ Sets the name of the attribute from which to read the value. You can access the
 keys of composite types by using a dot to concatenate the key name to the
 attribute name. For example: “attrib0.key42”. If B<Table> is set to B<true>
 I<path> must point to a I<composite type>, otherwise it must point to a numeric
-type. 
+type.
+
+=item B<ForceFlat> B<true>|B<false>
+
+Set this to true if the attribute name contains dots but you wish to treat it
+as a simple name.
 
 =back
 
