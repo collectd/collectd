@@ -2360,7 +2360,8 @@ AC_ARG_WITH([libdpdk],
 )
 
 if test "x$with_libdpdk" != "xno"; then
-  PKG_CHECK_MODULES([DPDK], [libdpdk])
+  PKG_CHECK_MODULES([DPDK], [libdpdk], [],
+    [AC_MSG_NOTICE([no DPDK pkg-config, using defaults])])
   if test "x$LIBDPDK_CPPFLAGS" = "x"; then
     LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
   fi
