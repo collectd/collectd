@@ -77,13 +77,17 @@ struct ip_vs_get_services_nl {
   unsigned int num_services;
 
   /* service table */
-  struct ip_vs_service_entry entrytable[0];
+  struct ip_vs_service_entry_nl entrytable[0];
 };
+
+
+
+
 
 extern struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1];
 extern struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1];
 //extern struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1];
-//extern struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1];
+extern struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1];
 extern struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1];
 //extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
 
@@ -118,4 +122,17 @@ struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
         [IPVS_SVC_ATTR_TIMEOUT] = {.type = NLA_U32},
         [IPVS_SVC_ATTR_NETMASK] = {.type = NLA_U32},
         [IPVS_SVC_ATTR_STATS] = {.type = NLA_NESTED},
+};
+
+struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
+        [IPVS_STATS_ATTR_CONNS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_INPKTS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_OUTPKTS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_INBYTES] = {.type = NLA_U64},
+        [IPVS_STATS_ATTR_OUTBYTES] = {.type = NLA_U64},
+        [IPVS_STATS_ATTR_CPS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_INPPS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_OUTPPS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_INBPS] = {.type = NLA_U32},
+        [IPVS_STATS_ATTR_OUTBPS] = {.type = NLA_U32},
 };

@@ -42,7 +42,7 @@
 #include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
-#include <linux/ip_vs.h>
+#include <ip_vs.h>
 
 
 
@@ -165,7 +165,58 @@ fail_genl:
   errno = err;
   return -1;
 }
+static int ipvs_parse_stats64(struct ip_vs_stats64 *stats, struct nlattr *nla) {
+  struct nlattr *attrs[IPVS_STATS_ATTR_MAX + 1];
 
+  if (nla_parse_nested(attrs, IPVS_STATS_ATTR_MAX, nla, ipvs_stats_policy))
+    return -1;
+
+  if (!(attrs[IPVS_STATS_ATTR_CONNS] && attrs[IPVS_STATS_ATTR_INPKTS] &&
+        attrs[IPVS_STATS_ATTR_OUTPKTS] && attrs[IPVS_STATS_ATTR_INBYTES] &&
+        attrs[IPVS_STATS_ATTR_OUTBYTES] && attrs[IPVS_STATS_ATTR_CPS] &&
+        attrs[IPVS_STATS_ATTR_INPPS] && attrs[IPVS_STATS_ATTR_OUTPPS] &&
+        attrs[IPVS_STATS_ATTR_INBPS] && attrs[IPVS_STATS_ATTR_OUTBPS]))
+    return -1;
+
+  stats->conns = nla_get_u64(attrs[IPVS_STATS_ATTR_CONNS]);
+  stats->inpkts = nla_get_u64(attrs[IPVS_STATS_ATTR_INPKTS]);
+  stats->outpkts = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTPKTS]);
+  stats->inbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_INBYTES]);
+  stats->outbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBYTES]);
+  stats->cps = nla_get_u64(attrs[IPVS_STATS_ATTR_CPS]);
+  stats->inpps = nla_get_u64(attrs[IPVS_STATS_ATTR_INPPS]);
+  stats->outpps = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTPPS]);
+  stats->inbps = nla_get_u64(attrs[IPVS_STATS_ATTR_INBPS]);
+  stats->outbps = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBPS]);
+
+  return 0;
+}
+static int ipvs_parse_stats(struct ip_vs_stats64 *stats, struct nlattr *nla) {
+  struct nlattr *attrs[IPVS_STATS_ATTR_MAX + 1];
+
+  if (nla_parse_nested(attrs, IPVS_STATS_ATTR_MAX, nla, ipvs_stats_policy))
+    return -1;
+
+  if (!(attrs[IPVS_STATS_ATTR_CONNS] && attrs[IPVS_STATS_ATTR_INPKTS] &&
+        attrs[IPVS_STATS_ATTR_OUTPKTS] && attrs[IPVS_STATS_ATTR_INBYTES] &&
+        attrs[IPVS_STATS_ATTR_OUTBYTES] && attrs[IPVS_STATS_ATTR_CPS] &&
+        attrs[IPVS_STATS_ATTR_INPPS] && attrs[IPVS_STATS_ATTR_OUTPPS] &&
+        attrs[IPVS_STATS_ATTR_INBPS] && attrs[IPVS_STATS_ATTR_OUTBPS]))
+    return -1;
+
+  stats->conns = nla_get_u32(attrs[IPVS_STATS_ATTR_CONNS]);
+  stats->inpkts = nla_get_u32(attrs[IPVS_STATS_ATTR_INPKTS]);
+  stats->outpkts = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTPKTS]);
+  stats->inbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_INBYTES]);
+  stats->outbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBYTES]);
+  stats->cps = nla_get_u32(attrs[IPVS_STATS_ATTR_CPS]);
+  stats->inpps = nla_get_u32(attrs[IPVS_STATS_ATTR_INPPS]);
+  stats->outpps = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTPPS]);
+  stats->inbps = nla_get_u32(attrs[IPVS_STATS_ATTR_INBPS]);
+  stats->outbps = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTBPS]);
+
+  return 0;
+}
 static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg) {
   struct nlmsghdr *nlh = nlmsg_hdr(msg);
   struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
@@ -232,7 +283,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
   if (svc_attrs[IPVS_SVC_ATTR_PE_NAME])
     strncpy(get->entrytable[i].pe_name,
             nla_get_string(svc_attrs[IPVS_SVC_ATTR_PE_NAME]),
-       i  IP_VS_PENAME_MAXLEN);
+         IP_VS_PENAME_MAXLEN);
 
   get->entrytable[i].netmask = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_NETMASK]);
   get->entrytable[i].timeout = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_TIMEOUT]);
