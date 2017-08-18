@@ -2366,15 +2366,15 @@ if test "x$with_libdpdk" != "xno"; then
     LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
   fi
   if test "x$LIBDPDK_CFLAGS" = "x"; then
-      LIBDPDK_CFLAGS="$DPDK_CFLAGS"
-      LIBDPDK_CPPFLAGS="$LIBDPDK_CPPFLAGS $DPDK_CFLAGS"
+    LIBDPDK_CFLAGS="$DPDK_CFLAGS"
+    LIBDPDK_CPPFLAGS="$LIBDPDK_CPPFLAGS $DPDK_CFLAGS"
   fi
   if test "x$LIBDPDK_LIBS" = "x"; then
-      if test "x$DPDK_LIBS" != "x"; then
-          LIBDPDK_LIBS="$DPDK_LIBS"
-      else
-          LIBDPDK_LIBS="-ldpdk"
-      fi
+    if test "x$DPDK_LIBS" != "x"; then
+      LIBDPDK_LIBS="$DPDK_LIBS"
+    else
+      LIBDPDK_LIBS="-ldpdk"
+    fi
   fi
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
@@ -6487,8 +6487,7 @@ if test "x$with_libxenctrl" = "xyes"; then
   plugin_xencpu="yes"
 fi
 
-if test "x$with_libdpdk" = "xyes"
-then
+if test "x$with_libdpdk" = "xyes"; then
   plugin_dpdkevents="$dpdk_keepalive"
   plugin_dpdkstat="yes"
 fi
