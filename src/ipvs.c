@@ -73,36 +73,6 @@ static int family;
 //static int sockfd = -1;
 struct ip_vs_getinfo ipvs_info;
 
-//
-// static struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_entry *se) {
-//   struct ip_vs_get_dests *dests;
-//
-//   socklen_t len =
-//       sizeof(*dests) + sizeof(struct ip_vs_dest_entry) * se->num_dests;
-//
-//   dests = malloc(len);
-//   if (dests == NULL) {
-//     log_err("ipvs_get_dests: Out of memory.");
-//     return NULL;
-//   }
-//
-//   dests->fwmark = se->fwmark;
-//   dests->protocol = se->protocol;
-//   dests->addr = se->addr;
-//   dests->port = se->port;
-//   dests->num_dests = se->num_dests;
-//
-//   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS, dests, &len) == -1) {
-//     char errbuf[1024];
-//     log_err("ipvs_get_dests: getsockopt() failed: %s",
-//             sstrerror(errno, errbuf, sizeof(errbuf)));
-//     free(dests);
-//     return NULL;
-//   }
-//   return dests;
-// } /* ip_vs_get_dests */
-//
-
 /*
  * libipvs API
  */
@@ -337,6 +307,132 @@ static struct ip_vs_get_services_nl *ipvs_get_services(void) {
     return NULL;
 } /* ipvs_get_services */
 
+static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
+  struct nlmsghdr *nlh = nlmsg_hdr(msg);
+  struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
+  struct nlattr *dest_attrs[IPVS_DEST_ATTR_MAX + 1];
+  struct nlattr *attr_addr_family = NULL;
+  struct ip_vs_get_dests_nl **dp = (struct ip_vs_get_dests_nl **)arg;
+  struct ip_vs_get_dests_nl *d = (struct ip_vs_get_dests_nl *)*dp;
+  int i = d->num_dests;
+
+  if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
+    return -1;
+
+  if (!attrs[IPVS_CMD_ATTR_DEST])
+    return -1;
+
+  if (nla_parse_nested(dest_attrs, IPVS_DEST_ATTR_MAX,
+                       attrs[IPVS_CMD_ATTR_DEST], ipvs_dest_policy))
+    return -1;
+
+  memset(&(d->entrytable[i]), 0, sizeof(d->entrytable[i]));
+
+  if (!(dest_attrs[IPVS_DEST_ATTR_ADDR] && dest_attrs[IPVS_DEST_ATTR_PORT] &&
+        dest_attrs[IPVS_DEST_ATTR_FWD_METHOD] &&
+        dest_attrs[IPVS_DEST_ATTR_WEIGHT] &&
+        dest_attrs[IPVS_DEST_ATTR_U_THRESH] &&
+        dest_attrs[IPVS_DEST_ATTR_L_THRESH] &&
+        dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS] &&
+        dest_attrs[IPVS_DEST_ATTR_INACT_CONNS] &&
+        dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]))
+    return -1;
+
+  memcpy(&(d->entrytable[i].addr), nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
+         sizeof(d->entrytable[i].addr));
+  d->entrytable[i].port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
+  d->entrytable[i].conn_flags =
+      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
+  d->entrytable[i].weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
+  d->entrytable[i].u_threshold =
+      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
+  d->entrytable[i].l_threshold =
+      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
+  d->entrytable[i].activeconns =
+      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
+  d->entrytable[i].inactconns =
+      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
+  d->entrytable[i].persistconns =
+      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
+  attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
+  if (attr_addr_family)
+    d->entrytable[i].af = nla_get_u16(attr_addr_family);
+  else
+    d->entrytable[i].af = d->af;
+
+  if (dest_attrs[IPVS_DEST_ATTR_STATS64]) {
+    if (ipvs_parse_stats(&d->entrytable[i].stats64,
+                         dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
+      return -1;
+  } else if (dest_attrs[IPVS_DEST_ATTR_STATS]) {
+    if (ipvs_parse_stats(&d->entrytable[i].stats64,
+                         dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
+      return -1;
+  }
+
+  i++;
+
+  d->num_dests = i;
+  d = realloc(d, sizeof(*d) +
+                     sizeof(struct ip_vs_dest_entry) * (d->num_dests + 1));
+  *dp = d;
+  return 0;
+}
+
+static struct ip_vs_get_dests_nl *ipvs_get_dests(struct ip_vs_service_entry_nl *se) {
+  struct ip_vs_get_dests_nl *ret;
+  socklen_t len;
+
+  len = sizeof(*ret) + sizeof(struct ip_vs_dest_entry_nl) * se->num_dests;
+
+  if (NULL == (ret = malloc(len))) {
+    log_err("ipvs_get_dests: Out of memory.");
+    exit(3);
+  }
+
+    struct nl_msg *msg;
+    struct nlattr *nl_service;
+    if (se->num_dests == 0)
+      ret = realloc(ret, sizeof(*ret) + sizeof(struct ip_vs_dest_entry_nl));
+
+    ret->fwmark = se->fwmark;
+    ret->protocol = se->protocol;
+    ret->addr = se->addr;
+    ret->port = se->port;
+    ret->num_dests = se->num_dests;
+    ret->af = se->af;
+
+    msg = ipvs_nl_message(IPVS_CMD_GET_DEST, NLM_F_DUMP);
+    if (!msg)
+      goto ipvs_nl_dest_failure;
+
+    nl_service = nla_nest_start(msg, IPVS_CMD_ATTR_SERVICE);
+    if (!nl_service)
+      goto nla_put_failure;
+
+    NLA_PUT_U16(msg, IPVS_SVC_ATTR_AF, se->af);
+
+    if (se->fwmark) {
+      NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, se->fwmark);
+    } else {
+      NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, se->protocol);
+      NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(se->addr), &se->addr);
+      NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, se->port);
+    }
+
+    nla_nest_end(msg, nl_service);
+    if (ipvs_nl_send_message(msg, ipvs_dests_parse_cb, &ret))
+      goto ipvs_nl_dest_failure;
+
+    return ret;
+
+  nla_put_failure:
+    nlmsg_free(msg);
+  ipvs_nl_dest_failure:
+    free(ret);
+    return NULL;
+} /* ip_vs_get_dests */
+
 /*
 * collectd plugin API and helper functions
 */
@@ -369,124 +465,151 @@ static int cipvs_init(void) {
 
 } /* cipvs_init */
 
+/*
+ *  * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-total
+ *   * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-<real IP>_<port>
+ *    */
+
+/* plugin instance */
+static int get_pi(struct ip_vs_service_entry_nl *se, char *pi, size_t size) {
+  union nf_inet_addr addr;
+  char straddr[INET6_ADDRSTRLEN];
+  int len = 0;
+
+  if ((NULL == se) || (NULL == pi))
+    return 0;
+
+/* inet_ntoa() returns a pointer to a statically allocated buffer
+ *  * I hope non-glibc systems behave the same */
+  addr = se->addr;
+  if (se->af == AF_INET6) {
+    len = snprintf(pi, size, "%s_%s%u",
+                    inet_ntop(AF_INET6, &addr, straddr, sizeof(straddr)),
+                    (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
+                    ntohs(se->port));
+  } else {
+    len = snprintf(pi, size, "%s_%s%u", inet_ntoa(addr.in),
+                    (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
+                    ntohs(se->port));
+  }
+  if ((0 > len) || (size <= ((size_t)len))) {
+    log_err("plugin instance truncated: %s", pi);
+    return -1;
+  }
+  return 0;
+} /* get_pi */
+
+/* type instance */
+static int get_ti(struct ip_vs_dest_entry_nl *de, char *ti, size_t size) {
+  union nf_inet_addr addr;
+  char straddr[INET6_ADDRSTRLEN];
+  int len = 0;
+
+  if ((NULL == de) || (NULL == ti))
+    return 0;
+
+  addr = de->addr;
+  /* inet_ntoa() returns a pointer to a statically allocated buffer
+ *     I hope non-glibc systems behave the same */
+  if (de->af == AF_INET6) {
+    len = snprintf(ti, size, "%s_%u",
+                    inet_ntop(AF_INET6, &addr, straddr, sizeof(straddr)),
+                    ntohs(de->port));
+  } else {
+    len = snprintf(ti, size, "%s_%u", inet_ntoa(addr.in), ntohs(de->port));
+  }
+
+  if ((0 > len) || (size <= ((size_t)len))) {
+    log_err("type instance truncated: %s", ti);
+    return -1;
+  }
+  return 0;
+} /* get_ti */
+
+static void cipvs_submit_connections(const char *pi, const char *ti,
+                                     derive_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.derive = value};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "connections", sizeof(vl.type));
+  sstrncpy(vl.type_instance, (NULL != ti) ? ti : "total",
+           sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+  return;
+} /* cipvs_submit_connections */
+
+static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
+                            derive_t rx, derive_t tx) {
+  value_t values[] = {
+      {.derive = rx}, {.derive = tx},
+  };
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = values;
+  vl.values_len = STATIC_ARRAY_SIZE(values);
+
+  sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, t, sizeof(vl.type));
+  sstrncpy(vl.type_instance, (NULL != ti) ? ti : "total",
+           sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+  return;
+} /* cipvs_submit_if */
+
+static void cipvs_submit_dest(const char *pi, struct ip_vs_dest_entry_nl *de) {
+  struct ip_vs_stats64 stats = de->stats64;
+
+  char ti[DATA_MAX_NAME_LEN];
+
+  if (0 != get_ti(de, ti, sizeof(ti)))
+    return;
+
+  cipvs_submit_connections(pi, ti, stats.conns);
+  cipvs_submit_if(pi, "if_packets", ti, stats.inpkts, stats.outpkts);
+  cipvs_submit_if(pi, "if_octets", ti, stats.inbytes, stats.outbytes);
+  return;
+} /* cipvs_submit_dest */
 
 
-//
-// /*
-//  * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-total
-//  * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-<real IP>_<port>
-//  */
-//
-// /* plugin instance */
-// static int get_pi(struct ip_vs_service_entry *se, char *pi, size_t size) {
-//   if ((se == NULL) || (pi == NULL))
-//     return 0;
-//
-//   struct in_addr addr = {.s_addr = se->addr};
-//
-//   int len =
-//   if ((len < 0) || (size <= ((size_t)len))) {
-//     log_err("plugin instance truncated: %s", pi);
-//     return -1;
-//   }
-//   return 0;
-// } /* get_pi */
-//
-// /* type instance */
-// static int get_ti(struct ip_vs_dest_entry *de, char *ti, size_t size) {
-//   if ((de == NULL) || (ti == NULL))
-//     return 0;
-//
-//   struct in_addr addr = {.s_addr = de->addr};
-//
-//   int len = snprintf(ti, size, "%s_%u", inet_ntoa(addr), ntohs(de->port));
-//
-//   if ((len < 0) || (size <= ((size_t)len))) {
-//     log_err("type instance truncated: %s", ti);
-//     return -1;
-//   }
-//   return 0;
-// } /* get_ti */
-//
-// static void cipvs_submit_connections(const char *pi, const char *ti,
-//                                      derive_t value) {
-//   value_list_t vl = VALUE_LIST_INIT;
-//
-//   vl.values = &(value_t){.derive = value};
-//   vl.values_len = 1;
-//
-//   sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
-//   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
-//   sstrncpy(vl.type, "connections", sizeof(vl.type));
-//   sstrncpy(vl.type_instance, (ti != NULL) ? ti : "total",
-//            sizeof(vl.type_instance));
-//
-//   plugin_dispatch_values(&vl);
-// } /* cipvs_submit_connections */
-//
-// static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
-//                             derive_t rx, derive_t tx) {
-//   value_t values[] = {
-//       {.derive = rx}, {.derive = tx},
-//   };
-//   value_list_t vl = VALUE_LIST_INIT;
-//
-//   vl.values = values;
-//   vl.values_len = STATIC_ARRAY_SIZE(values);
-//
-//   sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
-//   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
-//   sstrncpy(vl.type, t, sizeof(vl.type));
-//   sstrncpy(vl.type_instance, (ti != NULL) ? ti : "total",
-//            sizeof(vl.type_instance));
-//
-//   plugin_dispatch_values(&vl);
-// } /* cipvs_submit_if */
-//
-// static void cipvs_submit_dest(const char *pi, struct ip_vs_dest_entry *de) {
-//   struct ip_vs_stats_user stats = de->stats;
-//
-//   char ti[DATA_MAX_NAME_LEN];
-//
-//   if (get_ti(de, ti, sizeof(ti)) != 0)
-//     return;
-//
-//   cipvs_submit_connections(pi, ti, stats.conns);
-//   cipvs_submit_if(pi, "if_packets", ti, stats.inpkts, stats.outpkts);
-//   cipvs_submit_if(pi, "if_octets", ti, stats.inbytes, stats.outbytes);
-// } /* cipvs_submit_dest */
-//
-// static void cipvs_submit_service(struct ip_vs_service_entry *se) {
-//   struct ip_vs_stats_user stats = se->stats;
-//   struct ip_vs_get_dests *dests = ipvs_get_dests(se);
-//
-//   char pi[DATA_MAX_NAME_LEN];
-//
-//   if (get_pi(se, pi, sizeof(pi)) != 0) {
-//     free(dests);
-//     return;
-//   }
-//
-//   cipvs_submit_connections(pi, NULL, stats.conns);
-//   cipvs_submit_if(pi, "if_packets", NULL, stats.inpkts, stats.outpkts);
-//   cipvs_submit_if(pi, "if_octets", NULL, stats.inbytes, stats.outbytes);
-//
-//   for (size_t i = 0; i < dests->num_dests; ++i)
-//     cipvs_submit_dest(pi, &dests->entrytable[i]);
-//
-//   free(dests);
-//   return;
-//} /* cipvs_submit_service */
+static void cipvs_submit_service(struct ip_vs_service_entry_nl *se) {
+  struct ip_vs_stats64 stats = se->stats64;
+  struct ip_vs_get_dests_nl *dests = ipvs_get_dests(se);
+
+  char pi[DATA_MAX_NAME_LEN];
+
+  if (0 != get_pi(se, pi, sizeof(pi))) {
+    free(dests);
+    return;
+  }
+
+  cipvs_submit_connections(pi, NULL, stats.conns);
+  cipvs_submit_if(pi, "if_packets", NULL, stats.inpkts, stats.outpkts);
+  cipvs_submit_if(pi, "if_octets", NULL, stats.inbytes, stats.outbytes);
+
+  for (size_t i = 0; i < dests->num_dests; ++i)
+    cipvs_submit_dest(pi, &dests->entrytable[i]);
+
+  free(dests);
+
+  return;
+} /* cipvs_submit_service */
 
 static int cipvs_read(void) {
    struct ip_vs_get_services_nl *services = ipvs_get_services();
    if (services == NULL)
      return -1;
-//
-//   for (size_t i = 0; i < services->num_services; ++i)
-//     cipvs_submit_service(&services->entrytable[i]);
-//
-//  free(services);
+
+   for (size_t i = 0; i < services->num_services; ++i)
+     cipvs_submit_service(&services->entrytable[i]);
+
+  free(services);
   return 0;
 } /* cipvs_read */
 

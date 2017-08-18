@@ -21,7 +21,6 @@ union nf_inet_addr {
 };
 
 
-
 /*
  *  *  *   IPVS statistics object (for user space), 64-bit
  *   *   */
@@ -38,6 +37,7 @@ struct ip_vs_stats64 {
   __u64 inbps;  /* current in byte rate */
   __u64 outbps; /* current out byte rate */
 };
+
 
 
 /*
@@ -70,6 +70,43 @@ struct ip_vs_service_entry_nl {
   struct ip_vs_stats64 stats64;
 };
 
+struct ip_vs_dest_entry_nl {
+  __be32 __addr_v4; /* destination address - internal use only */
+  __be16 port;
+  unsigned conn_flags; /* connection flags */
+  int weight;          /* destination weight */
+
+  u_int32_t u_threshold; /* upper threshold */
+  u_int32_t l_threshold; /* lower threshold */
+
+  u_int32_t activeconns;  /* active connections */
+  u_int32_t inactconns;   /* inactive connections */
+  u_int32_t persistconns; /* persistent connections */
+
+  /* statistics */
+  struct ip_vs_stats_user stats;
+  u_int16_t af;
+  union nf_inet_addr addr;
+
+  /* statistics, 64-bit */
+  struct ip_vs_stats64 stats64;
+};
+
+struct ip_vs_get_dests_nl {
+  /* which service: user fills in these */
+  u_int16_t protocol;
+  __be32 __addr_v4; /* virtual address - internal use only */
+  __be16 port;
+  u_int32_t fwmark; /* firwall mark of service */
+
+  /* number of real servers */
+  unsigned int num_dests;
+  u_int16_t af;
+  union nf_inet_addr addr;
+
+  /* the real servers */
+  struct ip_vs_dest_entry_nl entrytable[0];
+};
 
 /* The argument to IP_VS_SO_GET_SERVICES */
 struct ip_vs_get_services_nl {
@@ -86,7 +123,7 @@ struct ip_vs_get_services_nl {
 
 extern struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1];
 extern struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1];
-//extern struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1];
+extern struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1];
 extern struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1];
 extern struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1];
 //extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
@@ -135,4 +172,18 @@ struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
         [IPVS_STATS_ATTR_OUTPPS] = {.type = NLA_U32},
         [IPVS_STATS_ATTR_INBPS] = {.type = NLA_U32},
         [IPVS_STATS_ATTR_OUTBPS] = {.type = NLA_U32},
+};
+
+struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
+        [IPVS_DEST_ATTR_ADDR] = {.type = NLA_UNSPEC,
+                                 .maxlen = sizeof(struct in6_addr)},
+        [IPVS_DEST_ATTR_PORT] = {.type = NLA_U16},
+        [IPVS_DEST_ATTR_FWD_METHOD] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_WEIGHT] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_U_THRESH] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_L_THRESH] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_ACTIVE_CONNS] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_INACT_CONNS] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_PERSIST_CONNS] = {.type = NLA_U32},
+        [IPVS_DEST_ATTR_STATS] = {.type = NLA_NESTED},
 };
