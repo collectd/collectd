@@ -178,6 +178,8 @@
 %define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin intel_pmu disabled, requires jevents library
+%define with_intel_pmu 0%{!?_without_intel_pmu:0}
 # plugin intel_rdt disabled, requires intel-cmt-cat
 %define with_intel_rdt 0%{!?_without_intel_rdt:0}
 # plugin mic disabled, requires Mic
@@ -245,7 +247,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	6%{?dist}
+Release:	7%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -468,6 +470,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+if %{with_intel_pmu}
+%package intel_pmu
+Summary:       Intel PMU for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+%description intel_pmu
+The intel_pmu plugin reads performance counters provided by the Linux
+kernel perf interface.
 %endif
 
 %if %{with_intel_rdt}
@@ -1236,6 +1248,12 @@ Collectd utilities
 %define _with_hugepages --disable-hugepages
 %endif
 
+%if %{with_intel_pmu}
+%define _with_intel_pmu --enable-intel_pmu
+%else
+%define _with_intel_pmu --disable-intel_pmu
+%endif
+
 %if %{with_intel_rdt}
 %define _with_intel_rdt --enable-intel_rdt
 %else
@@ -1902,6 +1920,7 @@ Collectd utilities
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_hugepages} \
+	%{?_with_intel_pmu} \
 	%{?_with_intel_rdt} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
@@ -2466,6 +2485,11 @@ fi
 %{_libdir}/%{name}/hddtemp.so
 %endif
 
+%if %{with_intel_pmu}
+%files intel_pmu
+%{_libdir}/%{name}/intel_pmu.so
+%endif
+
 %if %{with_intel_rdt}
 %files intel_rdt
 %{_libdir}/%{name}/intel_rdt.so
@@ -2699,6 +2723,9 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Jul 27 2017 Taras Chornyi <tarasx.chornyi@intel.com> - 5.7.1-7
+- Add new intel_pmu plugin
+
 * Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-6
 - Move recently added plugins to subpackages
 
