@@ -6321,7 +6321,6 @@ fi
 
 if test "x$with_libyajl" = "xyes"; then
   plugin_ceph="yes"
-  plugin_sysevent="yes"
 fi
 
 if test "x$have_processor_info" = "xyes"; then
@@ -6595,7 +6594,6 @@ AC_PLUGIN([ping],                [$with_liboping],          [Network latency sta
 AC_PLUGIN([postgresql],          [$with_libpq],             [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics])
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
-AC_PLUGIN([procevent],           [yes],                     [Process event statistics])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
@@ -6610,7 +6608,6 @@ AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugi
 AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],   [SNMP agent plugin])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
-AC_PLUGIN([sysevent],            [$with_libyajl],           [Syslog event statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
 AC_PLUGIN([table],               [yes],                     [Parsing of tabular data])
 AC_PLUGIN([tail],                [yes],                     [Parsing of logfiles])
@@ -6637,7 +6634,6 @@ AC_PLUGIN([virt],                [$plugin_virt],            [Virtual machine sta
 AC_PLUGIN([vmem],                [$plugin_vmem],            [Virtual memory statistics])
 AC_PLUGIN([vserver],             [$plugin_vserver],         [Linux VServer statistics])
 AC_PLUGIN([wireless],            [$plugin_wireless],        [Wireless statistics])
-AC_PLUGIN([write_aodh],          [$with_libcurl],           [AODH alarm generation plugin])
 AC_PLUGIN([write_graphite],      [yes],                     [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin])
 AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
@@ -7016,7 +7012,6 @@ AC_MSG_RESULT([    ping  . . . . . . . . $enable_ping])
 AC_MSG_RESULT([    postgresql  . . . . . $enable_postgresql])
 AC_MSG_RESULT([    powerdns  . . . . . . $enable_powerdns])
 AC_MSG_RESULT([    processes . . . . . . $enable_processes])
-AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
@@ -7031,7 +7026,6 @@ AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
 AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
-AC_MSG_RESULT([    sysevent. . . . . . . $enable_sysevent])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
 AC_MSG_RESULT([    table . . . . . . . . $enable_table])
 AC_MSG_RESULT([    tail_csv  . . . . . . $enable_tail_csv])
@@ -7058,7 +7052,6 @@ AC_MSG_RESULT([    virt  . . . . . . . . $enable_virt])
 AC_MSG_RESULT([    vmem  . . . . . . . . $enable_vmem])
 AC_MSG_RESULT([    vserver . . . . . . . $enable_vserver])
 AC_MSG_RESULT([    wireless  . . . . . . $enable_wireless])
-AC_MSG_RESULT([    write_aodh  . . . . . $enable_write_aodh])
 AC_MSG_RESULT([    write_graphite  . . . $enable_write_graphite])
 AC_MSG_RESULT([    write_http  . . . . . $enable_write_http])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
