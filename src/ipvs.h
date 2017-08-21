@@ -67,10 +67,10 @@ struct ip_vs_dest_entry_nl {
 //not used  __be32 __addr_v4; /* destination address - internal use only */
   __be16 port;
   //unsigned conn_flags; /* connection flags */
-  int weight;          /* destination weight */
+ // int weight;          /* destination weight */
 
-  u_int32_t u_threshold; /* upper threshold */
-  u_int32_t l_threshold; /* lower threshold */
+  //u_int32_t u_threshold; /* upper threshold */
+ // u_int32_t l_threshold; /* lower threshold */
 
   u_int32_t activeconns;  /* active connections */
   u_int32_t inactconns;   /* inactive connections */

@@ -334,11 +334,11 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
   d->entrytable[i].port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
   //d->entrytable[i].conn_flags =
     //  nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
-  d->entrytable[i].weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
-  d->entrytable[i].u_threshold =
-      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
-  d->entrytable[i].l_threshold =
-      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
+  //d->entrytable[i].weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
+  //d->entrytable[i].u_threshold =
+    //  nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
+ // d->entrytable[i].l_threshold =
+   //   nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
   d->entrytable[i].activeconns =
       nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
   d->entrytable[i].inactconns =
