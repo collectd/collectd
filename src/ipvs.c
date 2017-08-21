@@ -144,40 +144,10 @@ static int ipvs_parse_stats64(struct ip_vs_stats64 *stats, struct nlattr *nla) {
   stats->outpkts = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTPKTS]);
   stats->inbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_INBYTES]);
   stats->outbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBYTES]);
-  stats->cps = nla_get_u64(attrs[IPVS_STATS_ATTR_CPS]);
-  stats->inpps = nla_get_u64(attrs[IPVS_STATS_ATTR_INPPS]);
-  stats->outpps = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTPPS]);
-  stats->inbps = nla_get_u64(attrs[IPVS_STATS_ATTR_INBPS]);
-  stats->outbps = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBPS]);
 
   return 0;
 }
-static int ipvs_parse_stats(struct ip_vs_stats64 *stats, struct nlattr *nla) {
-  struct nlattr *attrs[IPVS_STATS_ATTR_MAX + 1];
 
-  if (nla_parse_nested(attrs, IPVS_STATS_ATTR_MAX, nla, ipvs_stats_policy))
-    return -1;
-
-  if (!(attrs[IPVS_STATS_ATTR_CONNS] && attrs[IPVS_STATS_ATTR_INPKTS] &&
-        attrs[IPVS_STATS_ATTR_OUTPKTS] && attrs[IPVS_STATS_ATTR_INBYTES] &&
-        attrs[IPVS_STATS_ATTR_OUTBYTES] && attrs[IPVS_STATS_ATTR_CPS] &&
-        attrs[IPVS_STATS_ATTR_INPPS] && attrs[IPVS_STATS_ATTR_OUTPPS] &&
-        attrs[IPVS_STATS_ATTR_INBPS] && attrs[IPVS_STATS_ATTR_OUTBPS]))
-    return -1;
-
-  stats->conns = nla_get_u32(attrs[IPVS_STATS_ATTR_CONNS]);
-  stats->inpkts = nla_get_u32(attrs[IPVS_STATS_ATTR_INPKTS]);
-  stats->outpkts = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTPKTS]);
-  stats->inbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_INBYTES]);
-  stats->outbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBYTES]);
-  stats->cps = nla_get_u32(attrs[IPVS_STATS_ATTR_CPS]);
-  stats->inpps = nla_get_u32(attrs[IPVS_STATS_ATTR_INPPS]);
-  stats->outpps = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTPPS]);
-  stats->inbps = nla_get_u32(attrs[IPVS_STATS_ATTR_INBPS]);
-  stats->outbps = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTBPS]);
-
-  return 0;
-}
 static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg) {
   struct nlmsghdr *nlh = nlmsg_hdr(msg);
   struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
@@ -200,7 +170,6 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
   struct nlattr *svc_attrs[IPVS_SVC_ATTR_MAX + 1];
   struct ip_vs_get_services_nl **getp = (struct ip_vs_get_services_nl **)arg;
   struct ip_vs_get_services_nl *get = (struct ip_vs_get_services_nl *)*getp;
-//  struct ip_vs_flags flags;
   int i = get->num_services;
 
   if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
@@ -245,18 +214,10 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
             nla_get_string(svc_attrs[IPVS_SVC_ATTR_PE_NAME]),
             IP_VS_PENAME_MAXLEN);
 
-//  get->entrytable[i].netmask = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_NETMASK]);
-  //get->entrytable[i].timeout = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_TIMEOUT]);
-//  nla_memcpy(&flags, svc_attrs[IPVS_SVC_ATTR_FLAGS], sizeof(flags));
- // get->entrytable[i].flags = flags.flags & flags.mask;
 
   if (svc_attrs[IPVS_SVC_ATTR_STATS64]) {
     if (ipvs_parse_stats64(&get->entrytable[i].stats64,
                            svc_attrs[IPVS_SVC_ATTR_STATS64]) != 0)
-      return -1;
-  } else if (svc_attrs[IPVS_SVC_ATTR_STATS]) {
-    if (ipvs_parse_stats(&get->entrytable[i].stats64,
-                         svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
       return -1;
   }
 
@@ -276,7 +237,6 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
  * libipvs API
  */
 static struct ip_vs_get_services_nl *ipvs_get_services(void) {
-  // struct ip_vs_getinfo ipvs_info;
   struct ip_vs_get_services_nl *services;
 
   socklen_t len;
@@ -292,7 +252,7 @@ static struct ip_vs_get_services_nl *ipvs_get_services(void) {
 
   if (msg &&
       (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &services) == 0)) {
-    return services; // todo: check we free this elsewhere
+    return services; 
   }
   free(services);
   return NULL;
@@ -332,13 +292,6 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
   memcpy(&(d->entrytable[i].addr), nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
          sizeof(d->entrytable[i].addr));
   d->entrytable[i].port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
-  //d->entrytable[i].conn_flags =
-    //  nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
-  //d->entrytable[i].weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
-  //d->entrytable[i].u_threshold =
-    //  nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
- // d->entrytable[i].l_threshold =
-   //   nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
   d->entrytable[i].activeconns =
       nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
   d->entrytable[i].inactconns =
@@ -352,12 +305,8 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
     d->entrytable[i].af = d->af;
 
   if (dest_attrs[IPVS_DEST_ATTR_STATS64]) {
-    if (ipvs_parse_stats(&d->entrytable[i].stats64,
+    if (ipvs_parse_stats64(&d->entrytable[i].stats64,
                          dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
-      return -1;
-  } else if (dest_attrs[IPVS_DEST_ATTR_STATS]) {
-    if (ipvs_parse_stats(&d->entrytable[i].stats64,
-                         dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
       return -1;
   }
 
@@ -458,9 +407,9 @@ static int cipvs_init(void) {
 } /* cipvs_init */
 
 /*
- *  * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-total
- *   * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-<real IP>_<port>
- *    */
+ * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-total
+ * ipvs-<virtual IP>_{UDP,TCP}<port>/<type>-<real IP>_<port>
+ */
 
 /* plugin instance */
 static int get_pi(struct ip_vs_service_entry_nl *se, char *pi, size_t size) {
