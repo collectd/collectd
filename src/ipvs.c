@@ -215,11 +215,9 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
             IP_VS_PENAME_MAXLEN);
 
 
-  if (svc_attrs[IPVS_SVC_ATTR_STATS64]) {
-    if (ipvs_parse_stats64(&get->entrytable[i].stats64,
+  if (ipvs_parse_stats64(&get->entrytable[i].stats64,
                            svc_attrs[IPVS_SVC_ATTR_STATS64]) != 0)
-      return -1;
-  }
+    return -1;
 
   get->entrytable[i].num_dests = 0;
 
@@ -282,22 +280,18 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
   if (!(dest_attrs[IPVS_DEST_ATTR_ADDR] && dest_attrs[IPVS_DEST_ATTR_PORT] &&
         dest_attrs[IPVS_DEST_ATTR_FWD_METHOD] &&
         dest_attrs[IPVS_DEST_ATTR_WEIGHT] &&
-        dest_attrs[IPVS_DEST_ATTR_U_THRESH] &&
-        dest_attrs[IPVS_DEST_ATTR_L_THRESH] &&
-        dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS] &&
-        dest_attrs[IPVS_DEST_ATTR_INACT_CONNS] &&
-        dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]))
+    //    dest_attrs[IPVS_DEST_ATTR_U_THRESH] &&
+      //  dest_attrs[IPVS_DEST_ATTR_L_THRESH] &&
+        dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS])) 
+       // dest_attrs[IPVS_DEST_ATTR_INACT_CONNS] &&
+//        dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]))
     return -1;
 
   memcpy(&(d->entrytable[i].addr), nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
          sizeof(d->entrytable[i].addr));
   d->entrytable[i].port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
-  d->entrytable[i].activeconns =
-      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
-  d->entrytable[i].inactconns =
-      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
-  d->entrytable[i].persistconns =
-      nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
+ // d->entrytable[i].persistconns =
+  //    nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
   attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
   if (attr_addr_family)
     d->entrytable[i].af = nla_get_u16(attr_addr_family);

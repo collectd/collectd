@@ -55,9 +55,9 @@ struct ip_vs_service_entry_nl {
 struct ip_vs_dest_entry_nl {
   __be16 port;
 
-  u_int32_t activeconns;  /* active connections */
+ // u_int32_t activeconns;  /* active connections */
   u_int32_t inactconns;   /* inactive connections */
-  u_int32_t persistconns; /* persistent connections */
+ // u_int32_t persistconns; /* persistent connections */
 
   /* statistics */
   struct ip_vs_stats_user stats;
