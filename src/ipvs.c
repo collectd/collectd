@@ -56,7 +56,7 @@
 #include <libnl3/netlink/netlink.h>
 #include <libnl3/netlink/socket.h>
 
-static struct nl_sock *sock = NULL;
+//static struct nl_sock *sock = NULL;
 static int family;
 
 /*
@@ -83,6 +83,7 @@ struct nl_msg *ipvs_nl_message(int cmd, int flags) {
 static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func,
                                 void *arg) {
   int err = EINVAL;
+  struct nl_sock *sock = NULL;
 
   sock = nl_socket_alloc();
   if (!sock) {
@@ -94,8 +95,8 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func,
     goto fail_genl;
 
   family = genl_ctrl_resolve(sock, IPVS_GENL_NAME);
-  if (family < 0)
-    goto fail_genl;
+  if (family < 0 )
+   goto fail_genl;
 
   // To test connections and set the family
   if (msg == NULL) {
@@ -114,9 +115,8 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func,
     goto fail_genl;
 
   nlmsg_free(msg);
-
   nl_socket_free(sock);
-
+  sock = NULL;
   return 0;
 
 fail_genl:
@@ -134,9 +134,7 @@ static int ipvs_parse_stats64(struct ip_vs_stats64 *stats, struct nlattr *nla) {
 
   if (!(attrs[IPVS_STATS_ATTR_CONNS] && attrs[IPVS_STATS_ATTR_INPKTS] &&
         attrs[IPVS_STATS_ATTR_OUTPKTS] && attrs[IPVS_STATS_ATTR_INBYTES] &&
-        attrs[IPVS_STATS_ATTR_OUTBYTES] && attrs[IPVS_STATS_ATTR_CPS] &&
-        attrs[IPVS_STATS_ATTR_INPPS] && attrs[IPVS_STATS_ATTR_OUTPPS] &&
-        attrs[IPVS_STATS_ATTR_INBPS] && attrs[IPVS_STATS_ATTR_OUTBPS]))
+        attrs[IPVS_STATS_ATTR_OUTBYTES]))
     return -1;
 
   stats->conns = nla_get_u64(attrs[IPVS_STATS_ATTR_CONNS]);
@@ -280,18 +278,12 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
   if (!(dest_attrs[IPVS_DEST_ATTR_ADDR] && dest_attrs[IPVS_DEST_ATTR_PORT] &&
         dest_attrs[IPVS_DEST_ATTR_FWD_METHOD] &&
         dest_attrs[IPVS_DEST_ATTR_WEIGHT] &&
-    //    dest_attrs[IPVS_DEST_ATTR_U_THRESH] &&
-      //  dest_attrs[IPVS_DEST_ATTR_L_THRESH] &&
         dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS])) 
-       // dest_attrs[IPVS_DEST_ATTR_INACT_CONNS] &&
-//        dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]))
     return -1;
 
   memcpy(&(d->entrytable[i].addr), nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
          sizeof(d->entrytable[i].addr));
   d->entrytable[i].port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
- // d->entrytable[i].persistconns =
-  //    nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
   attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
   if (attr_addr_family)
     d->entrytable[i].af = nla_get_u16(attr_addr_family);

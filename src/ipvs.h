@@ -6,8 +6,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#define IPVS_INFO_ATTR_MAX (__IPVS_INFO_ATTR_MAX - 1)
-
 union nf_inet_addr {
   __u32 all[4];
   __be32 ip;
@@ -55,9 +53,8 @@ struct ip_vs_service_entry_nl {
 struct ip_vs_dest_entry_nl {
   __be16 port;
 
- // u_int32_t activeconns;  /* active connections */
-  u_int32_t inactconns;   /* inactive connections */
- // u_int32_t persistconns; /* persistent connections */
+  /* active connections */
+  u_int32_t activeconns;
 
   /* statistics */
   struct ip_vs_stats_user stats;
