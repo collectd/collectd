@@ -42,19 +42,19 @@
 #include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
-#include <ip_vs.h>
+#include <linux/ip_vs.h>
 
-// add our structures
+// Netlink policy definitions + structures for ipv6 and Netlink use
 #include <ipvs.h>
 
 #define log_err(...) ERROR("ipvs: " __VA_ARGS__)
 #define log_info(...) INFO("ipvs: " __VA_ARGS__)
 
-#include <libnl3/netlink/genl/ctrl.h>
-#include <libnl3/netlink/genl/genl.h>
-#include <libnl3/netlink/msg.h>
-#include <libnl3/netlink/netlink.h>
-#include <libnl3/netlink/socket.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/genl/genl.h>
+#include <netlink/msg.h>
+#include <netlink/netlink.h>
+#include <netlink/socket.h>
 
 //static struct nl_sock *sock = NULL;
 static int family;
@@ -314,7 +314,7 @@ ipvs_get_dests(struct ip_vs_service_entry_nl *se) {
 
   if (NULL == (ret = malloc(len))) {
     log_err("ipvs_get_dests: Out of memory.");
-    exit(3);
+    return NULL;
   }
 
   struct nl_msg *msg;
@@ -361,21 +361,21 @@ ipvs_nl_dest_failure:
 } /* ip_vs_get_dests */
 
 /*
-* collectd plugin API and helper functions
-*/
+ * collectd plugin API and helper functions
+ */
 static int cipvs_init(void) {
-
+  struct nl_msg *msg;
   /*Test we can use netlink*/
   if (ipvs_nl_send_message(NULL, NULL, NULL) != 0) {
-    log_err("Netlink test failed");
+    log_err("cipvs_init: Test for Netlink failed");
     return -1;
   }
-  // TODO: error here
-  struct nl_msg *msg;
+  
   msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
   if (msg) {
     ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
   } else {
+    log_err("cipvs_init: Failed to generate Netlink message");
     return -1;
   }
 
@@ -389,7 +389,6 @@ static int cipvs_init(void) {
              NVERSION(ipvs_info.version));
   }
   return 0;
-
 } /* cipvs_init */
 
 /*
@@ -446,7 +445,7 @@ static int get_ti(struct ip_vs_dest_entry_nl *de, char *ti, size_t size) {
     len = snprintf(ti, size, "%s_%u", inet_ntoa(addr.in), ntohs(de->port));
   }
 
-  if ((0 > len) || (size <= ((size_t)len))) {
+  if ((len < 0) || (size <= ((size_t)len))) {
     log_err("type instance truncated: %s", ti);
     return -1;
   }
@@ -457,17 +456,16 @@ static void cipvs_submit_connections(const char *pi, const char *ti,
                                      derive_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t) { .derive = value };
+  vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "connections", sizeof(vl.type));
-  sstrncpy(vl.type_instance, (NULL != ti) ? ti : "total",
+  sstrncpy(vl.type_instance, (ti != NULL) ? ti : "total",
            sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
-  return;
 } /* cipvs_submit_connections */
 
 static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
@@ -481,11 +479,10 @@ static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
   sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, t, sizeof(vl.type));
-  sstrncpy(vl.type_instance, (NULL != ti) ? ti : "total",
+  sstrncpy(vl.type_instance, (ti != NULL) ? ti : "total",
            sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
-  return;
 } /* cipvs_submit_if */
 
 static void cipvs_submit_dest(const char *pi, struct ip_vs_dest_entry_nl *de) {
@@ -508,7 +505,7 @@ static void cipvs_submit_service(struct ip_vs_service_entry_nl *se) {
 
   char pi[DATA_MAX_NAME_LEN];
 
-  if (0 != get_pi(se, pi, sizeof(pi))) {
+  if (get_pi(se, pi, sizeof(pi)) != 0) {
     free(dests);
     return;
   }
@@ -521,8 +518,6 @@ static void cipvs_submit_service(struct ip_vs_service_entry_nl *se) {
     cipvs_submit_dest(pi, &dests->entrytable[i]);
 
   free(dests);
-
-  return;
 } /* cipvs_submit_service */
 
 static int cipvs_read(void) {
