@@ -56,7 +56,6 @@
 #include <netlink/netlink.h>
 #include <netlink/socket.h>
 
-//static struct nl_sock *sock = NULL;
 static int family;
 
 /*
@@ -95,8 +94,8 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func,
     goto fail_genl;
 
   family = genl_ctrl_resolve(sock, IPVS_GENL_NAME);
-  if (family < 0 )
-   goto fail_genl;
+  if (family < 0)
+    goto fail_genl;
 
   // To test connections and set the family
   if (msg == NULL) {
@@ -212,9 +211,8 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
             nla_get_string(svc_attrs[IPVS_SVC_ATTR_PE_NAME]),
             IP_VS_PENAME_MAXLEN);
 
-
   if (ipvs_parse_stats64(&get->entrytable[i].stats64,
-                           svc_attrs[IPVS_SVC_ATTR_STATS64]) != 0)
+                         svc_attrs[IPVS_SVC_ATTR_STATS64]) != 0)
     return -1;
 
   get->entrytable[i].num_dests = 0;
@@ -222,8 +220,9 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
   i++;
 
   get->num_services = i;
-  get = realloc(get, sizeof(*get) + sizeof(struct ip_vs_service_entry_nl) *
-                                        (get->num_services + 1));
+  get = realloc(get, sizeof(*get) +
+                         sizeof(struct ip_vs_service_entry_nl) *
+                             (get->num_services + 1));
   *getp = get;
 
   return 0;
@@ -234,13 +233,16 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg) {
  */
 static struct ip_vs_get_services_nl *ipvs_get_services(void) {
   struct ip_vs_get_services_nl *services;
+  struct nl_msg *msg;
 
   socklen_t len;
 
-  struct nl_msg *msg;
   len = sizeof(*services) + sizeof(struct ip_vs_service_entry_nl);
-  if (!(services = malloc(len)))
+  services = malloc(len);
+  if (services == NULL) {
+    log_err("ipvs_get_services: Out of memory.");
     return NULL;
+  }
 
   services->num_services = 0;
 
@@ -248,7 +250,7 @@ static struct ip_vs_get_services_nl *ipvs_get_services(void) {
 
   if (msg &&
       (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &services) == 0)) {
-    return services; 
+    return services;
   }
   free(services);
   return NULL;
@@ -278,7 +280,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
   if (!(dest_attrs[IPVS_DEST_ATTR_ADDR] && dest_attrs[IPVS_DEST_ATTR_PORT] &&
         dest_attrs[IPVS_DEST_ATTR_FWD_METHOD] &&
         dest_attrs[IPVS_DEST_ATTR_WEIGHT] &&
-        dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS])) 
+        dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]))
     return -1;
 
   memcpy(&(d->entrytable[i].addr), nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
@@ -292,7 +294,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
 
   if (dest_attrs[IPVS_DEST_ATTR_STATS64]) {
     if (ipvs_parse_stats64(&d->entrytable[i].stats64,
-                         dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
+                           dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
       return -1;
   }
 
@@ -308,11 +310,12 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg) {
 static struct ip_vs_get_dests_nl *
 ipvs_get_dests(struct ip_vs_service_entry_nl *se) {
   struct ip_vs_get_dests_nl *ret;
-  socklen_t len;
 
-  len = sizeof(*ret) + sizeof(struct ip_vs_dest_entry_nl) * se->num_dests;
+  socklen_t len =
+      sizeof(*ret) + sizeof(struct ip_vs_dest_entry_nl) * se->num_dests;
 
-  if (NULL == (ret = malloc(len))) {
+  ret = malloc(len);
+  if (ret == NULL) {
     log_err("ipvs_get_dests: Out of memory.");
     return NULL;
   }
@@ -370,7 +373,7 @@ static int cipvs_init(void) {
     log_err("cipvs_init: Test for Netlink failed");
     return -1;
   }
-  
+
   msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
   if (msg) {
     ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
@@ -402,7 +405,7 @@ static int get_pi(struct ip_vs_service_entry_nl *se, char *pi, size_t size) {
   char straddr[INET6_ADDRSTRLEN];
   int len = 0;
 
-  if ((NULL == se) || (NULL == pi))
+  if ((se == NULL) || (pi == NULL))
     return 0;
 
   /* inet_ntoa() returns a pointer to a statically allocated buffer
@@ -418,7 +421,7 @@ static int get_pi(struct ip_vs_service_entry_nl *se, char *pi, size_t size) {
                    (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
                    ntohs(se->port));
   }
-  if ((0 > len) || (size <= ((size_t)len))) {
+  if ((len < 0) || (size <= ((size_t)len))) {
     log_err("plugin instance truncated: %s", pi);
     return -1;
   }
@@ -431,7 +434,7 @@ static int get_ti(struct ip_vs_dest_entry_nl *de, char *ti, size_t size) {
   char straddr[INET6_ADDRSTRLEN];
   int len = 0;
 
-  if ((NULL == de) || (NULL == ti))
+  if ((de == NULL) || (ti == NULL))
     return 0;
 
   addr = de->addr;
@@ -470,7 +473,9 @@ static void cipvs_submit_connections(const char *pi, const char *ti,
 
 static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
                             derive_t rx, derive_t tx) {
-  value_t values[] = { { .derive = rx }, { .derive = tx }, };
+  value_t values[] = {
+      {.derive = rx}, {.derive = tx},
+  };
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = values;
@@ -532,16 +537,8 @@ static int cipvs_read(void) {
   return 0;
 } /* cipvs_read */
 
-static int cipvs_shutdown(void) {
-  // if (sock != NULL)
-  // nl_socket_free(sock);
-  //  sockfd = -1;
-  return 0;
-} /* cipvs_shutdown */
-
 void module_register(void) {
   plugin_register_init("ipvs", cipvs_init);
   plugin_register_read("ipvs", cipvs_read);
-  plugin_register_shutdown("ipvs", cipvs_shutdown);
   return;
 } /* module_register */
