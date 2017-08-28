@@ -108,7 +108,16 @@ static const char *config_keys[] = {"Connection",
 
                                     "Instances",
                                     "ExtraStats",
+                                    "PersistentNotification",
                                     NULL};
+
+/* PersistentNotification is false by default */
+static _Bool persistent_notification = 0;
+
+/* libvirt event loop */
+static pthread_t event_loop_tid;
+
+static int domain_event_cb_id;
 
 const char *domain_states[] = {
         [VIR_DOMAIN_NOSTATE] = "no state",
@@ -123,6 +132,174 @@ const char *domain_states[] = {
             "the domain is suspended by guest power management",
 #endif
 };
+
+static int map_domain_event_to_state(int event) {
+  int ret;
+  switch (event) {
+  case VIR_DOMAIN_EVENT_STARTED:
+    ret = VIR_DOMAIN_RUNNING;
+    break;
+  case VIR_DOMAIN_EVENT_SUSPENDED:
+    ret = VIR_DOMAIN_PAUSED;
+    break;
+  case VIR_DOMAIN_EVENT_RESUMED:
+    ret = VIR_DOMAIN_RUNNING;
+    break;
+  case VIR_DOMAIN_EVENT_STOPPED:
+    ret = VIR_DOMAIN_SHUTOFF;
+    break;
+  case VIR_DOMAIN_EVENT_SHUTDOWN:
+    ret = VIR_DOMAIN_SHUTDOWN;
+    break;
+  case VIR_DOMAIN_EVENT_PMSUSPENDED:
+    ret = VIR_DOMAIN_PMSUSPENDED;
+    break;
+  case VIR_DOMAIN_EVENT_CRASHED:
+    ret = VIR_DOMAIN_CRASHED;
+    break;
+  default:
+    ret = VIR_DOMAIN_NOSTATE;
+  }
+  return ret;
+}
+
+static int map_domain_event_detail_to_reason(int event, int detail) {
+  int ret;
+  switch (event) {
+  case VIR_DOMAIN_EVENT_STARTED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_STARTED_BOOTED: /* Normal startup from boot */
+      ret = VIR_DOMAIN_RUNNING_BOOTED;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_MIGRATED: /* Incoming migration from another host */
+      ret = VIR_DOMAIN_RUNNING_MIGRATED;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_RESTORED: /* Restored from a state file */
+      ret = VIR_DOMAIN_RUNNING_RESTORED;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_FROM_SNAPSHOT: /* Restored from snapshot */
+      ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_WAKEUP: /* Started due to wakeup event */
+      ret = VIR_DOMAIN_RUNNING_WAKEUP;
+      break;
+    default:
+      ret = VIR_DOMAIN_RUNNING_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_SUSPENDED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_SUSPENDED_PAUSED: /* Normal suspend due to admin pause */
+      ret = VIR_DOMAIN_PAUSED_USER;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_MIGRATED: /* Suspended for offline migration */
+      ret = VIR_DOMAIN_PAUSED_MIGRATION;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_IOERROR: /* Suspended due to a disk I/O error */
+      ret = VIR_DOMAIN_PAUSED_IOERROR;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_WATCHDOG: /* Suspended due to a watchdog firing */
+      ret = VIR_DOMAIN_PAUSED_WATCHDOG;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_RESTORED: /* Restored from paused state file */
+      ret = VIR_DOMAIN_PAUSED_UNKNOWN;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_FROM_SNAPSHOT: /* Restored from paused snapshot */
+      ret = VIR_DOMAIN_PAUSED_FROM_SNAPSHOT;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR: /* Suspended after failure during libvirt API call */
+      ret = VIR_DOMAIN_PAUSED_UNKNOWN;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY: /* Suspended for post-copy migration */
+      ret = VIR_DOMAIN_PAUSED_POSTCOPY;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY_FAILED: /* Suspended after failed post-copy */
+      ret = VIR_DOMAIN_PAUSED_POSTCOPY_FAILED;
+      break;
+    default:
+      ret = VIR_DOMAIN_PAUSED_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_RESUMED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_RESUMED_UNPAUSED: /* Normal resume due to admin unpause */
+      ret = VIR_DOMAIN_RUNNING_UNPAUSED;
+      break;
+    case VIR_DOMAIN_EVENT_RESUMED_MIGRATED: /* Resumed for completion of migration */
+      ret = VIR_DOMAIN_RUNNING_MIGRATED;
+      break;
+    case VIR_DOMAIN_EVENT_RESUMED_FROM_SNAPSHOT: /* Resumed from snapshot */
+      ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
+      break;
+    case VIR_DOMAIN_EVENT_RESUMED_POSTCOPY: /* Resumed, but migration is still running in post-copy mode */
+      ret = VIR_DOMAIN_RUNNING_POSTCOPY;
+      break;
+    default:
+      ret = VIR_DOMAIN_RUNNING_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_STOPPED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_STOPPED_SHUTDOWN: /* Normal shutdown */
+      ret = VIR_DOMAIN_SHUTOFF_SHUTDOWN;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_DESTROYED: /* Forced poweroff from host */
+      ret = VIR_DOMAIN_SHUTOFF_DESTROYED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_CRASHED: /* Guest crashed */
+      ret = VIR_DOMAIN_SHUTOFF_CRASHED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_MIGRATED: /* Migrated off to another host */
+      ret = VIR_DOMAIN_SHUTOFF_MIGRATED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_SAVED: /* Saved to a state file */
+      ret = VIR_DOMAIN_SHUTOFF_SAVED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_FAILED: /* Host emulator/mgmt failed */
+      ret = VIR_DOMAIN_SHUTOFF_FAILED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_FROM_SNAPSHOT: /* Offline snapshot loaded */
+      ret = VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT;
+      break;
+    default:
+      ret = VIR_DOMAIN_SHUTOFF_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_SHUTDOWN:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED: /* Guest finished shutdown sequence */
+      ret = VIR_DOMAIN_SHUTDOWN_USER;
+      break;
+    default:
+      ret = VIR_DOMAIN_SHUTDOWN_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_PMSUSPENDED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_PMSUSPENDED_MEMORY: /* Guest was PM suspended to memory */
+      ret = VIR_DOMAIN_PMSUSPENDED_UNKNOWN;
+      break;
+    case VIR_DOMAIN_EVENT_PMSUSPENDED_DISK: /* Guest was PM suspended to disk */
+      ret = VIR_DOMAIN_PMSUSPENDED_DISK_UNKNOWN;
+      break;
+    default:
+      ret = VIR_DOMAIN_PMSUSPENDED_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_CRASHED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_CRASHED_PANICKED: /* Guest was panicked */
+      ret = VIR_DOMAIN_CRASHED_PANICKED;
+      break;
+    default:
+      ret = VIR_DOMAIN_CRASHED_UNKNOWN;
+    }
+    break;
+  default:
+    ret = VIR_DOMAIN_NOSTATE_UNKNOWN;
+  }
+  return ret;
+}
 
 #ifdef HAVE_DOM_REASON
 #define DOMAIN_STATE_REASON_MAX_SIZE 20
@@ -800,7 +977,6 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
 }
 
 static void domain_state_submit(virDomainPtr dom, int state, int reason) {
-
   if ((state < 0) || (state >= STATIC_ARRAY_SIZE(domain_states))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
     return;
@@ -1070,6 +1246,11 @@ static int lv_config(const char *key, const char *value) {
     }
   }
 
+  if (strcasecmp(key, "PersistentNotification") == 0) {
+    persistent_notification = IS_TRUE(value);
+    return 0;
+  }
+
   /* Unrecognised option. */
   return -1;
 }
@@ -1234,7 +1415,9 @@ static int get_domain_state(virDomainPtr domain) {
     return status;
   }
 
-  domain_state_submit(domain, domain_state, domain_reason);
+  if (persistent_notification)
+    domain_state_submit(domain, domain_state, domain_reason);
+
   return status;
 }
 #endif /* HAVE_DOM_REASON */
@@ -1491,7 +1674,8 @@ static int get_domain_metrics(domain_t *domain) {
 #else
     /* virDomainGetState is not available. Submit 0, which corresponds to
      * unknown reason. */
-    domain_state_submit(domain->ptr, info.di.state, 0);
+    if (persistent_notification)
+      domain_state_submit(domain->ptr, info.di.state, 0);
 #endif
   }
 
@@ -1530,6 +1714,7 @@ static int get_domain_metrics(domain_t *domain) {
 
   /* Update cached virDomainInfo. It has to be done after cpu_submit */
   memcpy(&domain->info, &info.di, sizeof(domain->info));
+
   return 0;
 }
 
@@ -1578,6 +1763,74 @@ static int get_if_dev_stats(struct interface_device *if_dev) {
   return 0;
 }
 
+static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr conn,
+                                     virDomainPtr dom, int event, int detail,
+                                     __attribute__((unused)) void *opaque) {
+  int domain_state = map_domain_event_to_state(event);
+  int domain_reason = map_domain_event_detail_to_reason(event, detail);
+  domain_state_submit(dom, domain_state, domain_reason);
+
+  return 0;
+}
+
+static int register_event_impl(void) {
+  if (virEventRegisterDefaultImpl() < 0) {
+    virErrorPtr err = virGetLastError();
+    ERROR(PLUGIN_NAME
+          " plugin: error while event implementation registering: %s",
+          err && err->message ? err->message : "Unknown error");
+    return -1;
+  }
+
+  return 0;
+}
+
+/* worker function running default event implementation */
+static void *event_loop_worker(__attribute__((unused)) void *arg) {
+  while (1) {
+    if (virEventRunDefaultImpl() < 0) {
+      virErrorPtr err = virGetLastError();
+      ERROR(PLUGIN_NAME " plugin: failed to run event loop: %s\n",
+            err && err->message ? err->message : "Unknown error");
+    }
+  }
+
+  return NULL;
+}
+
+/* register domain event callback and start event loop thread */
+static int start_event_loop(void) {
+  domain_event_cb_id = virConnectDomainEventRegisterAny(
+      conn, NULL, VIR_DOMAIN_EVENT_ID_LIFECYCLE,
+      VIR_DOMAIN_EVENT_CALLBACK(domain_lifecycle_event_cb), NULL, NULL);
+  if (domain_event_cb_id == -1) {
+    ERROR(PLUGIN_NAME " plugin: error while callback registering");
+    return -1;
+  }
+
+  if (pthread_create(&event_loop_tid, NULL, event_loop_worker, NULL)) {
+    ERROR(PLUGIN_NAME " plugin: failed event loop thread creation");
+    virConnectDomainEventDeregisterAny(conn, domain_event_cb_id);
+    return -1;
+  }
+
+  return 0;
+}
+
+/* stop event loop thread and deregister callback */
+static void stop_event_loop(void) {
+  if (pthread_cancel(event_loop_tid) != 0)
+    ERROR(PLUGIN_NAME " plugin: cancelling thread %lu failed",
+          event_loop_tid);
+
+  if (pthread_join(event_loop_tid, NULL) != 0)
+    ERROR(PLUGIN_NAME " plugin: stopping thread %lu failed",
+          event_loop_tid);
+
+  if (conn != NULL && domain_event_cb_id != -1)
+    virConnectDomainEventDeregisterAny(conn, domain_event_cb_id);
+}
+
 static int lv_read(user_data_t *ud) {
   time_t t;
   struct lv_read_instance *inst = NULL;
@@ -1591,9 +1844,19 @@ static int lv_read(user_data_t *ud) {
   inst = ud->data;
   state = &inst->read_state;
 
+  _Bool reconnect = conn == NULL ? 1 : 0;
+  /* event implementation must be registered before connection is opened */
   if (inst->id == 0) {
+    if (!persistent_notification && reconnect)
+      if (register_event_impl() != 0)
+        return -1;
+
     if (lv_connect() < 0)
       return -1;
+
+    if (!persistent_notification && reconnect && conn != NULL)
+      if (start_event_loop() != 0)
+        return -1;
   }
 
   time(&t);
@@ -1602,25 +1865,29 @@ static int lv_read(user_data_t *ud) {
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
     if (refresh_lists(inst) != 0) {
-      if (inst->id == 0)
+      if (inst->id == 0) {
+        if (!persistent_notification)
+          stop_event_loop();
         lv_disconnect();
+      }
       return -1;
     }
     last_refresh = t;
   }
 
-#if 0
-    for (int i = 0; i < nr_domains; ++i)
-        fprintf (stderr, "domain %s\n", virDomainGetName (state->domains[i].ptr));
-    for (int i = 0; i < nr_block_devices; ++i)
-        fprintf  (stderr, "block device %d %s:%s\n",
-                  i, virDomainGetName (block_devices[i].dom),
-                  block_devices[i].path);
-    for (int i = 0; i < nr_interface_devices; ++i)
-        fprintf (stderr, "interface device %d %s:%s\n",
-                 i, virDomainGetName (interface_devices[i].dom),
-                 interface_devices[i].path);
-#endif
+  #if COLLECT_DEBUG
+    for (int i = 0; i < state->nr_domains; ++i)
+        DEBUG(PLUGIN_NAME " plugin: domain %s",
+              virDomainGetName(state->domains[i].ptr));
+    for (int i = 0; i < state->nr_block_devices; ++i)
+        DEBUG(PLUGIN_NAME " plugin: block device %d %s:%s",
+              i, virDomainGetName(state->block_devices[i].dom),
+              state->block_devices[i].path);
+    for (int i = 0; i < state->nr_interface_devices; ++i)
+        DEBUG(PLUGIN_NAME " plugin: interface device %d %s:%s",
+              i, virDomainGetName(state->interface_devices[i].dom),
+              state->interface_devices[i].path);
+  #endif
 
   /* Get domains' metrics */
   for (int i = 0; i < state->nr_domains; ++i) {
@@ -1667,6 +1934,7 @@ static int lv_init_instance(size_t i, plugin_read_cb callback) {
   ud->free_func = NULL;
 
   INFO(PLUGIN_NAME " plugin: reader %s initialized", inst->tag);
+
   return plugin_register_complex_read(NULL, inst->tag, callback, 0, ud);
 }
 
@@ -1681,6 +1949,7 @@ static void lv_fini_instance(size_t i) {
   struct lv_read_state *state = &(inst->read_state);
 
   lv_clean_read_state(state);
+
   INFO(PLUGIN_NAME " plugin: reader %s finalized", inst->tag);
 }
 
@@ -1688,13 +1957,25 @@ static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
 
+  /* event implementation must be registered before connection is opened */
+  if (!persistent_notification)
+    if (register_event_impl() != 0)
+      return -1;
+
   if (lv_connect() != 0)
     return -1;
+
+  DEBUG(PLUGIN_NAME " plugin: starting event loop");
+
+  if (!persistent_notification)
+    if (start_event_loop() != 0)
+      return -1;
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
   for (int i = 0; i < nr_instances; ++i)
-    lv_init_instance(i, lv_read);
+    if (lv_init_instance(i, lv_read) != 0)
+      return -1;
 
   return 0;
 }
@@ -2165,6 +2446,11 @@ static int lv_shutdown(void) {
   for (int i = 0; i < nr_instances; ++i) {
     lv_fini_instance(i);
   }
+
+  DEBUG(PLUGIN_NAME " plugin: stopping event loop");
+
+  if (!persistent_notification)
+    stop_event_loop();
 
   lv_disconnect();
 

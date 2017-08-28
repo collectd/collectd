@@ -8918,6 +8918,12 @@ B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 
 =back
 
+=item B<PersistentNotification> B<true>|B<false>
+Override default configuration to only send notifications when there is a change
+in the lifecycle state of a domain. When set to true notifications will be sent
+for every read cycle. Default is false. Does not affect the stats being
+dispatched.
+
 =back
 
 =head2 Plugin C<vmem>

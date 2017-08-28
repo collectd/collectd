@@ -1607,6 +1607,7 @@
 #	PluginInstanceFormat name
 #	Instances 1
 #	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin"
+#	PersistentNotification false
 #</Plugin>
 
 #<Plugin vmem>
