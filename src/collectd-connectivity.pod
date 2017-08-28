@@ -7,7 +7,6 @@ connectivity - Documentation of collectd's C<connectivity plugin>
 
 =head1 SYNOPSIS
 
-  # See collectd.conf(5)
   LoadPlugin connectivity
   # ...
   <Plugin connectivity>
@@ -24,7 +23,6 @@ The plugin lsitenes to interfaces configured in LoadPlugin(see configuration bel
 =head1 CONFIGURATION
 
 Here this example shows C<connectivity plugin> monitoring 2 interfaces "eth0" and "eth1"
-# See collectd.conf(5)
 LoadPlugin connectivity
 <Plugin connectivity>
   Interface eth01
@@ -44,10 +42,11 @@ interface(s) to monitor.
 If I<Status> is greater than or equal to zero the message indicates interface is up,
 if I<Status> is less than zero the message indicates interface is down. 
 
+=back
+
 =head1 SEE ALSO
 
 L<collectd(1)>,
-L<collectd.conf(5)>
 
 =head1 AUTHOR
 
