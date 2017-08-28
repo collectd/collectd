@@ -83,7 +83,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
  */
 
 static int connectivity_link_state(struct nlmsghdr *msg) {
-  int retval;
+  int retval = 0;
   struct ifinfomsg *ifi = mnl_nlmsg_get_payload(msg);
   struct nlattr *attr;
   const char *dev = NULL;
