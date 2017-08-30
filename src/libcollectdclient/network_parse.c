@@ -35,6 +35,8 @@
 #include <errno.h>
 #include <math.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* for be{16,64}toh */
 #if HAVE_ENDIAN_H
