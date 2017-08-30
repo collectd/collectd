@@ -44,8 +44,8 @@
 
 #include "utils_heap.h"
 
-#include "libcollectdclient/collectd/client.h"
-#include "libcollectdclient/collectd/network.h"
+#include "collectd/client.h"
+#include "collectd/network.h"
 
 #define DEF_NUM_HOSTS 1000
 #define DEF_NUM_PLUGINS 20

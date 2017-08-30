@@ -71,7 +71,7 @@
 #endif
 #endif /* NAN_ZERO_ZERO */
 
-#include "libcollectdclient/collectd/client.h"
+#include "collectd/client.h"
 
 #define RET_OKAY 0
 #define RET_WARNING 1

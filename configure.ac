@@ -168,6 +168,7 @@ AC_CHECK_HEADERS_ONCE([ \
   pthread_np.h \
   pwd.h \
   regex.h \
+  sys/endian.h \
   sys/fs_types.h \
   sys/fstyp.h \
   sys/ioctl.h \

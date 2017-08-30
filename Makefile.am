@@ -89,9 +89,12 @@ nodist_pkgconfig_DATA = \
 
 pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/client.h \
-	src/libcollectdclient/collectd/network.h \
+	src/libcollectdclient/collectd/lcc_features.h \
 	src/libcollectdclient/collectd/network_buffer.h \
-	src/libcollectdclient/collectd/lcc_features.h
+	src/libcollectdclient/collectd/network.h \
+	src/libcollectdclient/collectd/network_parse.h \
+	src/libcollectdclient/collectd/server.h \
+	src/libcollectdclient/collectd/types.h
 
 lib_LTLIBRARIES = libcollectdclient.la
 
@@ -137,7 +140,8 @@ check_PROGRAMS = \
 	test_utils_mount \
 	test_utils_subst \
 	test_utils_time \
-	test_utils_vl_lookup
+	test_utils_vl_lookup \
+	test_libcollectd_network_parse
 
 
 TESTS = $(check_PROGRAMS)
@@ -246,8 +250,8 @@ collectdmon_SOURCES = src/collectdmon.c
 
 collectd_nagios_SOURCES = src/collectd-nagios.c
 collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectd_nagios_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -259,8 +263,8 @@ endif
 
 collectdctl_SOURCES = src/collectdctl.c
 collectdctl_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectdctl_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -272,8 +276,8 @@ endif
 
 collectd_tg_SOURCES = src/collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectd_tg_LDADD = \
 	$(PTHREAD_LIBS) \
 	libheap.la \
@@ -475,20 +479,34 @@ endif
 libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/client.c \
 	src/libcollectdclient/network.c \
-	src/libcollectdclient/network_buffer.c
+	src/libcollectdclient/network_buffer.c \
+	src/libcollectdclient/network_parse.c \
+	src/libcollectdclient/server.c
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd \
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient \
 	-I$(srcdir)/src/daemon
-libcollectdclient_la_LDFLAGS = -version-info 1:0:0
-libcollectdclient_la_LIBADD = 
+libcollectdclient_la_LDFLAGS = -version-info 2:0:1
+libcollectdclient_la_LIBADD = -lm
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
+# network_parse_test.c includes network_parse.c, so no need to link with
+# libcollectdclient.so.
+test_libcollectd_network_parse_SOURCES = src/libcollectdclient/network_parse_test.c
+test_libcollectd_network_parse_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
+if BUILD_WITH_LIBGCRYPT
+test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CPPFLAGS)
+test_libcollectd_network_parse_LDFLAGS = $(GCRYPT_LDFLAGS)
+test_libcollectd_network_parse_LDADD = $(GCRYPT_LIBS)
+endif
 
 liboconfig_la_SOURCES = \
 	src/liboconfig/oconfig.c \
