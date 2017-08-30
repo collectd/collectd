@@ -45,14 +45,18 @@
 #include <sys/endian.h>
 #endif
 
+#if HAVE_GCRYPT_H
 #define GCRYPT_NO_DEPRECATED
 #include <gcrypt.h>
+#endif
 
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
 
+#if HAVE_GCRYPT_H
 #if GCRYPT_VERSION_NUMBER < 0x010600
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
+#endif
 #endif
 
 /* forward declaration because parse_sign_sha256()/parse_encrypt_aes256() and
@@ -60,6 +64,7 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
                          lcc_network_parse_options_t const *opts);
 
+#if HAVE_GCRYPT_H
 static int init_gcrypt() {
   /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
    * Because you can't know in a library whether another library has
@@ -89,6 +94,7 @@ static int init_gcrypt() {
   gcry_control(GCRYCTL_INITIALIZATION_FINISHED);
   return 0;
 }
+#endif
 
 typedef struct {
   uint8_t *data;
@@ -341,6 +347,7 @@ static int parse_values(void *payload, size_t payload_size,
   return 0;
 }
 
+#if HAVE_GCRYPT_H
 static int verify_sha256(void *payload, size_t payload_size,
                          char const *username, char const *password,
                          uint8_t hash_provided[32]) {
@@ -373,6 +380,13 @@ static int verify_sha256(void *payload, size_t payload_size,
 
   return !!ret;
 }
+#else /* !HAVE_GCRYPT_H */
+static int verify_sha256(void *payload, size_t payload_size,
+                         char const *username, char const *password,
+                         uint8_t hash_provided[32]) {
+  return ENOTSUP;
+}
+#endif
 
 static int parse_sign_sha256(void *signature, size_t signature_len,
                              void *payload, size_t payload_size,
@@ -408,6 +422,7 @@ static int parse_sign_sha256(void *signature, size_t signature_len,
   return network_parse(payload, payload_size, SIGN, opts);
 }
 
+#if HAVE_GCRYPT_H
 static int decrypt_aes256(buffer_t *b, void *iv, size_t iv_size,
                           char const *password) {
   gcry_cipher_hd_t cipher = NULL;
@@ -480,6 +495,12 @@ static int parse_encrypt_aes256(void *data, size_t data_size,
 
   return network_parse(b->data, b->len, ENCRYPT, opts);
 }
+#else /* !HAVE_GCRYPT_H */
+static int parse_encrypt_aes256(void *data, size_t data_size,
+                                lcc_network_parse_options_t const *opts) {
+  return ENOTSUP;
+}
+#endif
 
 static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
                          lcc_network_parse_options_t const *opts) {
@@ -588,10 +609,14 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
 int lcc_network_parse(void *data, size_t data_size,
                       lcc_network_parse_options_t opts) {
   if (opts.password_lookup) {
+#if HAVE_GCRYPT_H
     int status;
     if ((status = init_gcrypt())) {
       return status;
     }
+#else
+    return ENOTSUP;
+#endif
   }
 
   return network_parse(data, data_size, NONE, &opts);
