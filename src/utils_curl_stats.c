@@ -218,15 +218,15 @@ int curl_stats_dispatch(curl_stats_t *s, CURL *curl, const char *hostname,
 
   if (s == NULL)
     return 0;
-  if ((curl == NULL) || (hostname == NULL) || (plugin == NULL)) {
+  if ((curl == NULL) || (plugin == NULL)) {
     ERROR("curl stats: dispatch() called with missing arguments "
-          "(curl=%p; hostname=%s; plugin=%s)",
-          curl, hostname == NULL ? "<NULL>" : hostname,
-          plugin == NULL ? "<NULL>" : plugin);
+          "(curl=%p; plugin=%s)",
+          curl, plugin == NULL ? "<NULL>" : plugin);
     return -1;
   }
 
-  sstrncpy(vl.host, hostname, sizeof(vl.host));
+  if (hostname != NULL)
+    sstrncpy(vl.host, hostname, sizeof(vl.host));
   sstrncpy(vl.plugin, plugin, sizeof(vl.plugin));
   if (plugin_instance != NULL)
     sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));

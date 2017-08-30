@@ -373,7 +373,6 @@ static void dpdk_stats_counter_submit(const char *plugin_instance,
   vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
   vl.time = port_read_time;
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, DPDK_STATS_PLUGIN, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
   dpdk_stats_resolve_cnt_type(vl.type, sizeof(vl.type), cnt_name);

@@ -424,8 +424,6 @@ static int hv2value_list(pTHX_ HV *hash, value_list_t *vl) {
 
   if (NULL != (tmp = hv_fetch(hash, "host", 4, 0)))
     sstrncpy(vl->host, SvPV_nolen(*tmp), sizeof(vl->host));
-  else
-    sstrncpy(vl->host, hostname_g, sizeof(vl->host));
 
   if (NULL != (tmp = hv_fetch(hash, "plugin", 6, 0)))
     sstrncpy(vl->plugin, SvPV_nolen(*tmp), sizeof(vl->plugin));
@@ -2351,25 +2349,14 @@ static int g_interval_set(pTHX_ SV *var, MAGIC *mg) {
   return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
-static MGVTBL g_pv_vtbl = {g_pv_get,
-                           g_pv_set,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL
+static MGVTBL g_pv_vtbl = {g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                            ,
                            NULL
 #endif
 };
-static MGVTBL g_interval_vtbl = {g_interval_get,
-                                 g_interval_set,
-                                 NULL,
-                                 NULL,
-                                 NULL,
-                                 NULL,
-                                 NULL
+static MGVTBL g_interval_vtbl = {g_interval_get, g_interval_set, NULL, NULL,
+                                 NULL, NULL, NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                                  ,
                                  NULL

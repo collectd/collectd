@@ -108,7 +108,6 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
   if (match_value == NULL)
     return -1;
 
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, data->plugin, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, data->plugin_instance,
            sizeof(vl.plugin_instance));
