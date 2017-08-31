@@ -510,15 +510,16 @@ if test "x$ac_system" = "xLinux"; then
 
   # For ipvs module
   AC_CHECK_HEADERS_ONCE([linux/ip_vs.h])
-  PKG_CHECK_MODULES(LIBNL_GENL3, libnl-genl-3.0, [have_libnl_genl3=yes], [have_libnl_genl3=no])
-  PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1, [have_libnl3=yes])
-  if ((test "${have_libnl3}" = "yes") &&(test "${have_libnl_genl3}" == yes)); then
-        SAVE_CFLAGS="$CFLAGS"
-	SAVE_LIBS="$LIBS"
-	CFLAGS="$CFLAGS $LIBNL3_CFLAGS $LIBNL_GENL3_CFLAGS"
-        LIBS="$LIBS $LIBNL3_LIBS $LIBNL_GENL3_LIBS"
+  if test "x$ac_cv_header_linux_ip_vs_h" = "xyes"; then
+    PKG_CHECK_MODULES(LIBNL_GENL3, libnl-genl-3.0, [have_libnl_genl3=yes],[have_libnl_genl3=no])
+    PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1, [have_libnl3=yes], [have_libnl3=no])
+    if ((test "${have_libnl3}" = "yes") &&(test "${have_libnl_genl3}" == yes)); then
+          SAVE_CFLAGS="$CFLAGS"
+          SAVE_LIBS="$LIBS"
+          CFLAGS="$CFLAGS $LIBNL3_CFLAGS $LIBNL_GENL3_CFLAGS"
+          LIBS="$LIBS $LIBNL3_LIBS $LIBNL_GENL3_LIBS"
+    fi
   fi
-
   # For the email plugin
   AC_CHECK_HEADERS([linux/un.h], [], [],
     [[
