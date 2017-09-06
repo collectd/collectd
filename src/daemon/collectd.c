@@ -158,7 +158,7 @@ static int init_global_variables(void) {
   return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir) {
+static int change_basedir(const char *orig_dir, int nocreate) {
   char *dir;
   size_t dirlen;
   int status;
@@ -191,13 +191,15 @@ static int change_basedir(const char *orig_dir) {
     return -1;
   }
 
-  status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
-  if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: mkdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
-    free(dir);
-    return -1;
+  if (nocreate == 0) {
+    status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
+    if (status != 0) {
+      char errbuf[1024];
+      ERROR("change_basedir: mkdir (%s): %s", dir,
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      free(dir);
+      return -1;
+    }
   }
 
   status = chdir(dir);
@@ -250,6 +252,7 @@ __attribute__((noreturn)) static void exit_usage(int status) {
 #if COLLECT_DAEMON
          "    -f              Don't fork to the background.\n"
 #endif
+         "    -B              Don't create the BaseDir\n"
          "    -h              Display help (this message)\n"
          "\nBuiltin defaults:\n"
          "  Config file       " CONFIGFILE "\n"
@@ -459,6 +462,7 @@ int main(int argc, char **argv) {
   int test_config = 0;
   int test_readall = 0;
   const char *basedir;
+  int basedir_nocreate = 0;
 #if COLLECT_DAEMON
   pid_t pid;
   int daemonize = 1;
@@ -469,7 +473,7 @@ int main(int argc, char **argv) {
   while (1) {
     int c;
 
-    c = getopt(argc, argv, "htTC:"
+    c = getopt(argc, argv, "BhtTC:"
 #if COLLECT_DAEMON
                            "fP:"
 #endif
@@ -479,6 +483,9 @@ int main(int argc, char **argv) {
       break;
 
     switch (c) {
+    case 'B':
+      basedir_nocreate = 1;
+      break;
     case 'C':
       configfile = optarg;
       break;
@@ -533,7 +540,7 @@ int main(int argc, char **argv) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");
     return 1;
-  } else if (change_basedir(basedir)) {
+  } else if (change_basedir(basedir, basedir_nocreate)) {
     fprintf(stderr, "Error: Unable to change to directory `%s'.\n", basedir);
     return 1;
   }
