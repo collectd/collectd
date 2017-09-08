@@ -441,6 +441,8 @@ static int redis_read(void) /* {{{ */
                       DS_TYPE_GAUGE);
     redis_handle_info(rn->name, rr->str, "memory_lua", NULL, "used_memory_lua",
                       DS_TYPE_GAUGE);
+    redis_handle_info(rn->name, rr->str, "memory_fragmentation_ratio", NULL,
+                      "mem_fragmentation_ratio", DS_TYPE_GAUGE);
     /* changes_since_last_save: Deprecated in redis version 2.6 and above */
     redis_handle_info(rn->name, rr->str, "volatile_changes", NULL,
                       "changes_since_last_save", DS_TYPE_GAUGE);
