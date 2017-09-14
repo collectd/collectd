@@ -59,6 +59,18 @@
 #define HAVE_DOM_REASON_RUNNING_WAKEUP 1
 #endif
 
+/*
+  virConnectListAllDomains() appeared in 0.10.2
+  Note that LIBVIR_CHECK_VERSION appeared a year later, so
+  in some systems which actually have virConnectListAllDomains()
+  we can't detect this.
+ */
+#ifdef LIBVIR_CHECK_VERSION
+#if LIBVIR_CHECK_VERSION(0, 10, 2)
+#define HAVE_LIST_ALL_DOMAINS 1
+#endif
+#endif
+
 #if LIBVIR_CHECK_VERSION(1, 0, 1)
 #define HAVE_DOM_REASON_PAUSED_SNAPSHOT 1
 #endif
@@ -976,7 +988,7 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
   return ex_stats_flags;
 }
 
-static void domain_state_submit(virDomainPtr dom, int state, int reason) {
+static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   if ((state < 0) || (state >= STATIC_ARRAY_SIZE(domain_states))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
     return;
@@ -1415,11 +1427,27 @@ static int get_domain_state(virDomainPtr domain) {
     return status;
   }
 
+  return status;
+}
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+static int get_domain_state_notify(virDomainPtr domain) {
+  int domain_state = 0;
+  int domain_reason = 0;
+
+  int status = virDomainGetState(domain, &domain_state, &domain_reason, 0);
+  if (status != 0) {
+    ERROR(PLUGIN_NAME " plugin: virDomainGetState failed with status %i.",
+          status);
+    return status;
+  }
+
   if (persistent_notification)
-    domain_state_submit(domain, domain_state, domain_reason);
+    domain_state_submit_notif(domain, domain_state, domain_reason);
 
   return status;
 }
+#endif /* HAVE_LIST_ALL_DOMAINS */
 #endif /* HAVE_DOM_REASON */
 
 static int get_memory_stats(virDomainPtr domain) {
@@ -1671,11 +1699,6 @@ static int get_domain_metrics(domain_t *domain) {
      * We need to get it from virDomainGetState.
      */
     GET_STATS(get_domain_state, "domain reason", domain->ptr);
-#else
-    /* virDomainGetState is not available. Submit 0, which corresponds to
-     * unknown reason. */
-    if (persistent_notification)
-      domain_state_submit(domain->ptr, info.di.state, 0);
 #endif
   }
 
@@ -1768,7 +1791,7 @@ static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr conn,
                                      __attribute__((unused)) void *opaque) {
   int domain_state = map_domain_event_to_state(event);
   int domain_reason = map_domain_event_detail_to_reason(event, detail);
-  domain_state_submit(dom, domain_state, domain_reason);
+  domain_state_submit_notif(dom, domain_state, domain_reason);
 
   return 0;
 }
@@ -1831,6 +1854,77 @@ static void stop_event_loop(void) {
     virConnectDomainEventDeregisterAny(conn, domain_event_cb_id);
 }
 
+static int persistent_domains_state_notification(void) {
+  int status = 0;
+  int n;
+#ifdef HAVE_LIST_ALL_DOMAINS
+  virDomainPtr *domains;
+  n = virConnectListAllDomains(conn, &domains,
+                               VIR_CONNECT_GET_ALL_DOMAINS_STATS_PERSISTENT);
+  if (n < 0) {
+    VIRT_ERROR(conn, "reading list of persistent domains");
+    status = -1;
+  }
+  else {
+    DEBUG(PLUGIN_NAME " plugin: getting state of %i persistent domains", n);
+    /* Fetch each persistent domain's state and notify it */
+    int n_notified = n;
+    for (int i = 0; i < n; ++i) {
+      status = get_domain_state_notify(domains[i]);
+      if (status != 0) {
+        n_notified--;
+        ERROR(PLUGIN_NAME " plugin: could not notify state of domain %s",
+              virDomainGetName(domains[i]));
+      }
+    }
+
+    sfree(domains);
+    DEBUG(PLUGIN_NAME " plugin: notified state of %i persistent domains",
+          n_notified);
+  }
+#else
+  n = virConnectNumOfDomains(conn);
+  if (n > 0) {
+    int *domids;
+    /* Get list of domains. */
+    domids = malloc(sizeof(*domids) * n);
+    if (domids == NULL) {
+      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+      return -1;
+    }
+    n = virConnectListDomains(conn, domids, n);
+    if (n < 0) {
+      VIRT_ERROR(conn, "reading list of domains");
+      sfree(domids);
+      return -1;
+    }
+    /* Fetch info of each active domain and notify it */
+    for (int i = 0; i < n; ++i) {
+      virDomainInfo info;
+      virDomainPtr dom = NULL;
+      dom = virDomainLookupByID(conn, domids[i]);
+      if (dom == NULL) {
+        VIRT_ERROR(conn, "virDomainLookupByID");
+        /* Could be that the domain went away -- ignore it anyway. */
+        continue;
+      }
+      status = virDomainGetInfo(dom, &info);
+      if (status != 0) {
+        ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
+              status);
+        continue;
+      }
+      /* virDomainGetState is not available. Submit 0, which corresponds to
+       * unknown reason. */
+      domain_state_submit_notif(domain->ptr, info.di.state, 0);
+    }
+    sfree(domids);
+  }
+#endif
+
+  return status;
+}
+
 static int lv_read(user_data_t *ud) {
   time_t t;
   struct lv_read_instance *inst = NULL;
@@ -1864,6 +1958,12 @@ static int lv_read(user_data_t *ud) {
   /* Need to refresh domain or device lists? */
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
+    if (inst->id == 0 && persistent_notification) {
+      int status = persistent_domains_state_notification();
+      if (status != 0)
+        DEBUG(PLUGIN_NAME " plugin: persistent_domains_state_notifications " \
+              "returned with status %i", status);
+    }
     if (refresh_lists(inst) != 0) {
       if (inst->id == 0) {
         if (!persistent_notification)
@@ -2073,18 +2173,6 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
 
   return 0;
 }
-
-/*
-  virConnectListAllDomains() appeared in 0.10.2
-  Note that LIBVIR_CHECK_VERSION appeared a year later, so
-  in some systems which actually have virConnectListAllDomains()
-  we can't detect this.
- */
-#ifdef LIBVIR_CHECK_VERSION
-#if LIBVIR_CHECK_VERSION(0, 10, 2)
-#define HAVE_LIST_ALL_DOMAINS 1
-#endif
-#endif
 
 static int refresh_lists(struct lv_read_instance *inst) {
   struct lv_read_state *state = &inst->read_state;
