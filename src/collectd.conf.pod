@@ -5166,6 +5166,25 @@ statistics available. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<nfs>
+
+The I<nfs plugin> collects information about the usage of the Network File
+System (NFS). It counts the number of procedure calls for each procedure,
+grouped by version and whether the system runs as server or client.
+
+It is possibly to omit metrics for a specific NFS version by setting one or
+more of the following options to B<true> (all of them default to B<false>). 
+
+=over 4
+
+=item B<IgnoreV2> B<false>|B<true>
+
+=item B<IgnoreV3> B<false>|B<true>
+
+=item B<IgnoreV4> B<false>|B<true>
+
+=back
+
 =head2 Plugin C<nginx>
 
 This plugin collects the number of connections and requests handled by the

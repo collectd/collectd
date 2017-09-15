@@ -31,6 +31,12 @@
 #include <kstat.h>
 #endif
 
+static const char *config_keys[] = {"IgnoreV2", "IgnoreV3", "IgnoreV4"};
+static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+static int ignore_v2 = 0;
+static int ignore_v3 = 0;
+static int ignore_v4 = 0;
+
 /*
 see /proc/net/rpc/nfs
 see http://www.missioncriticallinux.com/orph/NFS-Statistics
@@ -295,6 +301,19 @@ static kstat_t *nfs4_ksp_client;
 static kstat_t *nfs4_ksp_server;
 #endif
 
+static int nfs_config(const char *key, const char *value) {
+  if (strcasecmp(key, "IgnoreV2") == 0 && IS_TRUE(value))
+    ignore_v2 = 1;
+  else if (strcasecmp(key, "IgnoreV3") == 0 && IS_TRUE(value))
+    ignore_v3 = 1;
+  else if (strcasecmp(key, "IgnoreV4") == 0 && IS_TRUE(value))
+    ignore_v4 = 1;
+  else
+    return -1;
+
+  return 0;
+}
+
 #if KERNEL_LINUX
 static int nfs_init(void) { return 0; }
 /* #endif KERNEL_LINUX */
@@ -495,18 +514,18 @@ static void nfs_read_linux(FILE *fh, const char *inst) {
     if (fields_num < 3)
       continue;
 
-    if (strcmp(fields[0], "proc2") == 0) {
+    if (strcmp(fields[0], "proc2") == 0 && ignore_v2 == 0) {
       nfs_submit_fields_safe(/* version = */ 2, inst, fields + 2,
                              (size_t)(fields_num - 2), nfs2_procedures_names,
                              nfs2_procedures_names_num);
-    } else if (strncmp(fields[0], "proc3", 5) == 0) {
+    } else if (strncmp(fields[0], "proc3", 5) == 0 && ignore_v3 == 0) {
       nfs_submit_fields_safe(/* version = */ 3, inst, fields + 2,
                              (size_t)(fields_num - 2), nfs3_procedures_names,
                              nfs3_procedures_names_num);
-    } else if (strcmp(fields[0], "proc4ops") == 0) {
+    } else if (strcmp(fields[0], "proc4ops") == 0 && ignore_v4 == 0) {
       if (inst[0] == 's')
         nfs_submit_nfs4_server(inst, fields + 2, (size_t)(fields_num - 2));
-    } else if (strcmp(fields[0], "proc4") == 0) {
+    } else if (strcmp(fields[0], "proc4") == 0 && ignore_v4 == 0) {
       if (inst[0] == 'c')
         nfs_submit_nfs4_client(inst, fields + 2, (size_t)(fields_num - 2));
     }
@@ -561,24 +580,31 @@ static int nfs_read(void) {
 
 #elif HAVE_LIBKSTAT
 static int nfs_read(void) {
-  nfs_read_kstat(nfs2_ksp_client, /* version = */ 2, "client",
-                 nfs2_procedures_names, nfs2_procedures_names_num);
-  nfs_read_kstat(nfs2_ksp_server, /* version = */ 2, "server",
-                 nfs2_procedures_names, nfs2_procedures_names_num);
-  nfs_read_kstat(nfs3_ksp_client, /* version = */ 3, "client",
-                 nfs3_procedures_names, nfs3_procedures_names_num);
-  nfs_read_kstat(nfs3_ksp_server, /* version = */ 3, "server",
-                 nfs3_procedures_names, nfs3_procedures_names_num);
-  nfs_read_kstat(nfs4_ksp_client, /* version = */ 4, "client",
-                 nfs4_procedures_names, nfs4_procedures_names_num);
-  nfs_read_kstat(nfs4_ksp_server, /* version = */ 4, "server",
-                 nfs4_procedures_names, nfs4_procedures_names_num);
+  if (ignore_v2 == 0) {
+    nfs_read_kstat(nfs2_ksp_client, /* version = */ 2, "client",
+                   nfs2_procedures_names, nfs2_procedures_names_num);
+    nfs_read_kstat(nfs2_ksp_server, /* version = */ 2, "server",
+                   nfs2_procedures_names, nfs2_procedures_names_num);
+  }
+  if (ignore_v3 == 0) {
+    nfs_read_kstat(nfs3_ksp_client, /* version = */ 3, "client",
+                   nfs3_procedures_names, nfs3_procedures_names_num);
+    nfs_read_kstat(nfs3_ksp_server, /* version = */ 3, "server",
+                   nfs3_procedures_names, nfs3_procedures_names_num);
+  }
+  if (ignore_v2 == 0) {
+    nfs_read_kstat(nfs4_ksp_client, /* version = */ 4, "client",
+                   nfs4_procedures_names, nfs4_procedures_names_num);
+    nfs_read_kstat(nfs4_ksp_server, /* version = */ 4, "server",
+                   nfs4_procedures_names, nfs4_procedures_names_num);
+  }
 
   return 0;
 }
 #endif /* HAVE_LIBKSTAT */
 
 void module_register(void) {
+  plugin_register_config("nfs", nfs_config, config_keys, config_keys_num);
   plugin_register_init("nfs", nfs_init);
   plugin_register_read("nfs", nfs_read);
 } /* void module_register */
