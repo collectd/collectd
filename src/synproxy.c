@@ -33,12 +33,11 @@
 static const char *synproxy_stat_path = "/proc/net/stat/synproxy";
 
 static const char *column_names[SYNPROXY_FIELDS] = {
-  "entries", "syn_received", "invalid", "valid", "retransmission", "reopened"
-};
+    "entries", "syn_received",   "invalid",
+    "valid",   "retransmission", "reopened"};
 static const char *column_types[SYNPROXY_FIELDS] = {
-  "current_connections", "connections", "cookies", "cookies", "cookies", 
-  "connections"
-};
+    "current_connections", "connections", "cookies", "cookies", "cookies",
+    "connections"};
 
 static void synproxy_submit(value_t *results) {
   value_list_t vl = VALUE_LIST_INIT;
@@ -53,7 +52,7 @@ static void synproxy_submit(value_t *results) {
     sstrncpy(vl.type_instance, column_names[n], sizeof(vl.type_instance));
 
     plugin_dispatch_values(&vl);
-  } 
+  }
 }
 
 static int synproxy_read(void) {
@@ -79,8 +78,8 @@ static int synproxy_read(void) {
 
     int numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
     if (numfields != SYNPROXY_FIELDS) {
-      ERROR("synproxy plugin: unexpected number of columns in %s", 
-             synproxy_stat_path);
+      ERROR("synproxy plugin: unexpected number of columns in %s",
+            synproxy_stat_path);
       status = -1;
       break;
     }
@@ -105,10 +104,9 @@ static int synproxy_read(void) {
     synproxy_submit(results);
   }
 
-  return status;  
+  return status;
 }
 
 void module_register(void) {
   plugin_register_read("synproxy", synproxy_read);
 } /* void module_register */
-
