@@ -2699,34 +2699,69 @@ fi
 
 # --with-libdpdk {{{
 AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_CFLAGS], [Compiler flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LIBS], [Libraries to link for libdpdk])
 
-AC_ARG_WITH([libdpdk], [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])])
+AC_ARG_WITH([libdpdk],
+  [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])],
+  [with_libdpdk="$withval"],
+  [with_libdpdk="yes"]
+)
 
-if test "x$with_libdpdk" != "xno"
-then
-	if test "x$LIBDPDK_CPPFLAGS" = "x"
-	then
-		LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
-	fi
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
-	AC_CHECK_HEADERS([rte_config.h],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (rte_config.h not found)"]
-	)
-	CPPFLAGS="$SAVE_CPPFLAGS"
+if test "x$with_libdpdk" != "xno"; then
+  PKG_CHECK_MODULES([DPDK], [libdpdk], [],
+		    [AC_MSG_NOTICE([no DPDK pkg-config, using defaults])])
+  if test "x$LIBDPDK_CPPFLAGS" = "x"; then
+    LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
+  fi
+  if test "x$LIBDPDK_CFLAGS" = "x"; then
+      LIBDPDK_CFLAGS="$DPDK_CFLAGS"
+      LIBDPDK_CPPFLAGS="$LIBDPDK_CPPFLAGS $DPDK_CFLAGS"
+  fi
+  if test "x$LIBDPDK_LIBS" = "x"; then
+      if test "x$DPDK_LIBS" != "x"; then
+          LIBDPDK_LIBS="$DPDK_LIBS"
+      else
+          LIBDPDK_LIBS="-ldpdk"
+      fi
+  fi
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$LIBDPDK_CFLAGS $CFLAGS"
+  AC_CHECK_HEADERS([rte_config.h],
+    [
+      with_libdpdk="yes"
+      AC_PREPROC_IFELSE(
+        [
+          AC_LANG_SOURCE(
+            [[
+              #include <rte_version.h>
+              #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+              #error "required DPDK >= 16.07"
+              #endif
+            ]]
+          )
+        ],
+        [dpdk_keepalive="yes"],
+        [dpdk_keepalive="no (DPDK version < 16.07)"]
+      )
+    ],
+    [with_libdpdk="no (rte_config.h not found)"]
+  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
-if test "x$with_libdpdk" = "xyes"
-then
-	SAVE_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-	AC_CHECK_LIB([dpdk], [rte_eal_init],
-		[with_libdpdk="yes"],
-		[with_libdpdk="no (symbol 'rte_eal_init' not found)"]
-	)
-	LDFLAGS="$SAVE_LDFLAGS"
+if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
+  AC_CHECK_LIB([dpdk], [rte_eal_init],
+    [with_libdpdk="yes"],
+    [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
+  )
+  LDFLAGS="$SAVE_LDFLAGS"
 fi
 
 # }}}

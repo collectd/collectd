@@ -420,8 +420,9 @@ if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = dpdkstat.c
 dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
-dpdkstat_la_LIBADD = -ldpdk
+dpdkstat_la_LIBADD = $(LIBDPDK_LIBS)
 endif
 
 if BUILD_PLUGIN_DRBD
