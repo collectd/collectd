@@ -941,9 +941,9 @@
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
 #<Plugin nfs>
-#	IgnoreV2 true
-#	#IgnoreV3 true
-#	#IgnoreV4 true
+#	ReportV2 false
+#	#ReportV3 false
+#	#ReportV4 false
 #</Plugin>
 
 #<Plugin nginx>
