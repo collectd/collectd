@@ -25,7 +25,7 @@
 #include "plugin.h"
 
 #if KERNEL_LINUX
-#define STAT_FILE "/proc/stat"
+#define UPTIME_FILE "/proc/uptime"
 /* Using /proc filesystem to retrieve the boot time, Linux only. */
 /* #endif KERNEL_LINUX */
 
@@ -86,46 +86,38 @@ static int uptime_init(void) /* {{{ */
  */
 
 #if KERNEL_LINUX
-  unsigned long starttime;
-  char buffer[1024];
+  double uptime_seconds;
   int ret;
   FILE *fh;
 
   ret = 0;
 
-  fh = fopen(STAT_FILE, "r");
+  fh = fopen(UPTIME_FILE, "r");
 
   if (fh == NULL) {
     char errbuf[1024];
-    ERROR("uptime plugin: Cannot open " STAT_FILE ": %s",
+    ERROR("uptime plugin: Cannot open " UPTIME_FILE ": %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
 
-  while (fgets(buffer, 1024, fh) != NULL) {
-    /* look for the btime string and read the value */
-    ret = sscanf(buffer, "btime %lu", &starttime);
-    /* avoid further loops if btime has been found and read
-     * correctly (hopefully) */
-    if (ret == 1)
-      break;
-  }
+  ret = fscanf(fh, "%lf", &uptime_seconds);
 
   fclose(fh);
 
   /* loop done, check if no value has been found/read */
   if (ret != 1) {
-    ERROR("uptime plugin: No value read from " STAT_FILE "");
+    ERROR("uptime plugin: No value read from " UPTIME_FILE "");
     return -1;
   }
 
-  boottime = (time_t)starttime;
-
-  if (boottime == 0) {
-    ERROR("uptime plugin: btime read from " STAT_FILE ", "
-          "but `boottime' is zero!");
+  if (uptime_seconds == 0.0) {
+    ERROR("uptime plugin: uptime read from " UPTIME_FILE ", "
+          "but it is zero!");
     return -1;
   }
+
+  boottime = time(NULL) - (long)uptime_seconds;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
