@@ -96,13 +96,13 @@ static int nut_add_ups(const char *name) {
   cb_name = ssnprintf_alloc("nut/%s", name);
 
   status = plugin_register_complex_read(
-    /* group = */ "nut",
-    /* name      = */ cb_name,
-    /* callback  = */ nut_read,
-    /* interval  = */ 0,
-    /* user_data = */ &(user_data_t){
-                        .data = ups, .free_func = free_nut_ups_t,
-                      });
+      /* group     = */ "nut",
+      /* name      = */ cb_name,
+      /* callback  = */ nut_read,
+      /* interval  = */ 0,
+      /* user_data = */ &(user_data_t){
+          .data = ups, .free_func = free_nut_ups_t,
+      });
 
   sfree(cb_name);
 
@@ -191,10 +191,8 @@ static void nut_submit(nut_ups_t *ups, const char *type,
 
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
-  sstrncpy(vl.host,
-           (strcasecmp(ups->hostname, "localhost") == 0) ? hostname_g
-                                                         : ups->hostname,
-           sizeof(vl.host));
+  if (strcasecmp(ups->hostname, "localhost") != 0)
+    sstrncpy(vl.host, ups->hostname, sizeof(vl.host));
   sstrncpy(vl.plugin, "nut", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, ups->upsname, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
@@ -211,8 +209,8 @@ static int nut_connect(nut_ups_t *ups) {
   tv.tv_sec = connect_timeout / 1000;
   tv.tv_usec = connect_timeout % 1000;
 
-  status = upscli_tryconnect(ups->conn, ups->hostname, ups->port, ssl_flags,
-                             &tv);
+  status =
+      upscli_tryconnect(ups->conn, ups->hostname, ups->port, ssl_flags, &tv);
 #else /* #if HAVE_UPSCLI_TRYCONNECT */
   status = upscli_connect(ups->conn, ups->hostname, ups->port, ssl_flags);
 #endif

@@ -623,7 +623,7 @@ static int cc_read_page(web_page_t *wp) /* {{{ */
   if (wp->response_time)
     cc_submit_response_time(wp, CDTIME_T_TO_DOUBLE(cdtime() - start));
   if (wp->stats != NULL)
-    curl_stats_dispatch(wp->stats, wp->curl, hostname_g, "curl", wp->instance);
+    curl_stats_dispatch(wp->stats, wp->curl, NULL, "curl", wp->instance);
 
   if (wp->response_code) {
     long response_code = 0;

@@ -488,7 +488,6 @@ static void dpdk_events_gauge_submit(const char *plugin_instance,
                      .plugin = DPDK_EVENTS_PLUGIN,
                      .type = "gauge",
                      .meta = NULL};
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
   plugin_dispatch_values(&vl);
