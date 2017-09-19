@@ -940,6 +940,12 @@
 #	CacheFlush 1800
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
+#<Plugin nfs>
+#	ReportV2 false
+#	#ReportV3 false
+#	#ReportV4 false
+#</Plugin>
+
 #<Plugin nginx>
 #	URL "http://localhost/status?auto"
 #	User "www-user"
