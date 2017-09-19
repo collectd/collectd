@@ -86,14 +86,7 @@ static int uptime_init(void) /* {{{ */
  */
 
 #if KERNEL_LINUX
-  double uptime_seconds;
-  int ret;
-  FILE *fh;
-
-  ret = 0;
-
-  fh = fopen(UPTIME_FILE, "r");
-
+  FILE *fh = fopen(UPTIME_FILE, "r");
   if (fh == NULL) {
     char errbuf[1024];
     ERROR("uptime plugin: Cannot open " UPTIME_FILE ": %s",
@@ -101,15 +94,14 @@ static int uptime_init(void) /* {{{ */
     return -1;
   }
 
-  ret = fscanf(fh, "%lf", &uptime_seconds);
-
-  fclose(fh);
-
-  /* loop done, check if no value has been found/read */
-  if (ret != 1) {
+  double uptime_seconds = 0.0;
+  if (fscanf(fh, "%lf", &uptime_seconds) != 1) {
     ERROR("uptime plugin: No value read from " UPTIME_FILE "");
+    fclose(fh);
     return -1;
   }
+
+  fclose(fh);
 
   if (uptime_seconds == 0.0) {
     ERROR("uptime plugin: uptime read from " UPTIME_FILE ", "
