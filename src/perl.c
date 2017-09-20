@@ -2399,8 +2399,8 @@ static int perl_config_plugin(pTHX_ oconfig_item_t *ci) {
   HV *config;
 
   if (NULL == perl_threads) {
-    log_err("No plugins was loaded yet! Put your plugin configuration block "
-            "after relevant `LoadPlugin' option.");
+    log_err("A `Plugin' block was encountered but no plugin was loaded yet. "
+            "Put the appropriate `LoadPlugin' option in front of it.");
     return -1;
   }
 
