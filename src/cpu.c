@@ -98,9 +98,11 @@
 #define COLLECTD_CPU_STATE_INTERRUPT 5
 #define COLLECTD_CPU_STATE_SOFTIRQ 6
 #define COLLECTD_CPU_STATE_STEAL 7
-#define COLLECTD_CPU_STATE_IDLE 8
-#define COLLECTD_CPU_STATE_ACTIVE 9 /* sum of (!idle) */
-#define COLLECTD_CPU_STATE_MAX 10   /* #states */
+#define COLLECTD_CPU_STATE_GUEST 8
+#define COLLECTD_CPU_STATE_GUEST_NICE 9
+#define COLLECTD_CPU_STATE_IDLE 10
+#define COLLECTD_CPU_STATE_ACTIVE 11 /* sum of (!idle) */
+#define COLLECTD_CPU_STATE_MAX 12   /* #states */
 
 #if HAVE_STATGRAB_H
 #include <statgrab.h>
@@ -119,7 +121,7 @@
 
 static const char *cpu_state_names[] = {"user", "system",    "wait",    "nice",
                                         "swap", "interrupt", "softirq", "steal",
-                                        "idle", "active"};
+                                        "guest", "guest_nice", "idle", "active"};
 
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
@@ -524,7 +526,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 static void cpu_commit(void) /* {{{ */
 {
   gauge_t global_rates[COLLECTD_CPU_STATE_MAX] = {
-      NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
+      NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
   };
 
   if (report_num_cpu)
@@ -545,7 +547,8 @@ static void cpu_commit(void) /* {{{ */
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
     gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN, NAN, NAN, NAN};
+                                                   NAN, NAN, NAN, NAN, NAN,
+                                                   NAN, NAN };
 
     for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
       if (this_cpu_states[state].has_value)
@@ -632,7 +635,7 @@ static int cpu_read(void) {
   FILE *fh;
   char buf[1024];
 
-  char *fields[9];
+  char *fields[11];
   int numfields;
 
   if ((fh = fopen("/proc/stat", "r")) == NULL) {
@@ -648,7 +651,7 @@ static int cpu_read(void) {
     if ((buf[3] < '0') || (buf[3] > '9'))
       continue;
 
-    numfields = strsplit(buf, fields, 9);
+    numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
     if (numfields < 5)
       continue;
 
@@ -666,9 +669,20 @@ static int cpu_read(void) {
       cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
                 now);
 
-      if (numfields >= 9)
+      if (numfields >= 9) {
         cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]),
                   now);
+
+        if (numfields >= 10) {
+          cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST, (derive_t)atoll(fields[9]),
+                    now);
+
+          if (numfields >= 11) {
+            cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE,
+                      (derive_t)atoll(fields[10]), now);
+          }
+        }
+      }
     }
   }
   fclose(fh);
