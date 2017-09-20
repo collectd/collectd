@@ -2398,6 +2398,12 @@ static int perl_config_plugin(pTHX_ oconfig_item_t *ci) {
   char *plugin;
   HV *config;
 
+  if (NULL == perl_threads) {
+    log_err("No plugins was loaded yet! Put your plugin configuration block "
+            "after relevant `LoadPlugin' option.");
+    return -1;
+  }
+
   dSP;
 
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
