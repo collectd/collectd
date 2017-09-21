@@ -329,13 +329,31 @@ static int memory_read_internal(value_list_t *vl) {
    * They sum up to the value of Slab, which is available on older & newer
    * kernels. So SReclaimable/SUnreclaim are submitted if available, and Slab
    * if not. */
-  if (detailed_slab_info)
-    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
-                  mem_cached, "free", mem_free, "slab_unrecl",
-                  mem_slab_unreclaimable, "slab_recl", mem_slab_reclaimable);
-  else
-    MEMORY_SUBMIT("used", mem_used, "buffered", mem_buffered, "cached",
-                  mem_cached, "free", mem_free, "slab", mem_slab_total);
+  if (detailed_slab_info) {
+    if (values_absolute)
+      plugin_dispatch_multivalue(vl, 0, DS_TYPE_GAUGE, "total", mem_total,
+                                 "used", mem_used, "buffered", mem_buffered,
+                                 "cached", mem_cached, "free", mem_free,
+                                 "slab_unrecl", mem_slab_unreclaimable,
+                                 "slab_recl", mem_slab_reclaimable, NULL);
+    if (values_percentage)
+      plugin_dispatch_multivalue(vl, 1, DS_TYPE_GAUGE, "used", mem_used,
+                                 "buffered", mem_buffered, "cached",
+                                 mem_cached, "free", mem_free, "slab_unrecl",
+                                 mem_slab_unreclaimable, "slab_recl",
+                                 mem_slab_reclaimable, NULL);
+  } else {
+    if (values_absolute)
+      plugin_dispatch_multivalue(vl, 0, DS_TYPE_GAUGE, "total", mem_total,
+                                 "used", mem_used, "buffered", mem_buffered,
+                                 "cached", mem_cached, "free", mem_free,
+                                 "slab", mem_slab_total, NULL);
+    if (values_percentage)
+      plugin_dispatch_multivalue(vl, 1, DS_TYPE_GAUGE, "used", mem_used,
+                                 "buffered", mem_buffered, "cached",
+                                 mem_cached, "free", mem_free, "slab",
+                                 mem_slab_total, NULL);
+  }
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
