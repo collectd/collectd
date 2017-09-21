@@ -1230,9 +1230,9 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                             part_size - buffer_offset,
                             /* in = */ NULL, /* in len = */ 0);
   if (err != 0) {
-    sfree(pea.username);
     ERROR("network plugin: gcry_cipher_decrypt returned: %s. Username: %s",
           gcry_strerror(err), pea.username);
+    sfree(pea.username);
     return -1;
   }
 
@@ -1253,8 +1253,6 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   parse_packet(se, buffer + buffer_offset, payload_len, flags | PP_ENCRYPTED,
                pea.username);
-
-  /* XXX: Free pea.username?!? */
 
   /* Update return values */
   *ret_buffer = buffer + part_size;
@@ -2652,10 +2650,10 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 
   pthread_mutex_lock(&send_buffer_lock);
 
-  status = add_to_buffer(send_buffer_ptr,
-                         network_config_packet_size -
-                             (send_buffer_fill + BUFF_SIG_SIZE),
-                         &send_buffer_vl, ds, vl);
+  status =
+      add_to_buffer(send_buffer_ptr, network_config_packet_size -
+                                         (send_buffer_fill + BUFF_SIG_SIZE),
+                    &send_buffer_vl, ds, vl);
   if (status >= 0) {
     /* status == bytes added to the buffer */
     send_buffer_fill += status;
@@ -2666,10 +2664,10 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
   } else {
     flush_buffer();
 
-    status = add_to_buffer(send_buffer_ptr,
-                           network_config_packet_size -
-                               (send_buffer_fill + BUFF_SIG_SIZE),
-                           &send_buffer_vl, ds, vl);
+    status =
+        add_to_buffer(send_buffer_ptr, network_config_packet_size -
+                                           (send_buffer_fill + BUFF_SIG_SIZE),
+                      &send_buffer_vl, ds, vl);
 
     if (status >= 0) {
       send_buffer_fill += status;
