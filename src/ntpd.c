@@ -850,9 +850,9 @@ static int ntpd_read(void) {
   }
 
   /* kerninfo -> estimated error */
-  offset_loop = scale_loop * ((gauge_t)ntohl(ik->offset));
+  offset_loop = (gauge_t)((int32_t)ntohl(ik->offset) * scale_loop);
   freq_loop = ntpd_read_fp(ik->freq);
-  offset_error = scale_error * ((gauge_t)ntohl(ik->esterror));
+  offset_error = (gauge_t)((int32_t)ntohl(ik->esterror) * scale_error);
 
   DEBUG("info_kernel:\n"
         "  pll offset    = %.8g\n"
