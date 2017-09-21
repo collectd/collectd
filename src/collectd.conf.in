@@ -1343,6 +1343,7 @@
 
 #<Plugin table>
 #	<Table "/proc/slabinfo">
+#		#Plugin "table"
 #		Instance "slabinfo"
 #		Separator " "
 #		<Result>

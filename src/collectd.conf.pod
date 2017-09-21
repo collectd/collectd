@@ -7562,6 +7562,7 @@ filesystem or CSV (comma separated values) files.
 
   <Plugin table>
     <Table "/proc/slabinfo">
+      #Plugin "slab"
       Instance "slabinfo"
       Separator " "
       <Result>
@@ -7588,10 +7589,14 @@ The following options are available inside a B<Table> block:
 
 =over 4
 
+=item B<Plugin> I<Plugin>
+
+If specified, I<Plugin> is used as the plugin name when submitting values.
+Defaults to B<table>.
+
 =item B<Instance> I<instance>
 
-If specified, I<instance> is used as the plugin instance. So, in the above
-example, the plugin name C<table-slabinfo> would be used. If omitted, the
+If specified, I<instance> is used as the plugin instance. If omitted, the
 filename of the table is used instead, with all special characters replaced
 with an underscore (C<_>).
 
