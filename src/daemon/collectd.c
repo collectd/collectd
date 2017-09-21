@@ -158,7 +158,7 @@ static int init_global_variables(void) {
   return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir, int nocreate) {
+static int change_basedir(const char *orig_dir, _Bool create) {
   char *dir;
   size_t dirlen;
   int status;
@@ -183,7 +183,7 @@ static int change_basedir(const char *orig_dir, int nocreate) {
   if (status == 0) {
     free(dir);
     return 0;
-  } else if (errno != ENOENT) {
+  } else if (!create || (errno != ENOENT)) {
     char errbuf[1024];
     ERROR("change_basedir: chdir (%s): %s", dir,
           sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -191,15 +191,13 @@ static int change_basedir(const char *orig_dir, int nocreate) {
     return -1;
   }
 
-  if (nocreate == 0) {
-    status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
-    if (status != 0) {
-      char errbuf[1024];
-      ERROR("change_basedir: mkdir (%s): %s", dir,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-      free(dir);
-      return -1;
-    }
+  status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
+  if (status != 0) {
+    char errbuf[1024];
+    ERROR("change_basedir: mkdir (%s): %s", dir,
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    free(dir);
+    return -1;
   }
 
   status = chdir(dir);
@@ -462,7 +460,7 @@ int main(int argc, char **argv) {
   int test_config = 0;
   int test_readall = 0;
   const char *basedir;
-  int basedir_nocreate = 0;
+  _Bool opt_create_basedir = 1;
 #if COLLECT_DAEMON
   pid_t pid;
   int daemonize = 1;
@@ -484,7 +482,7 @@ int main(int argc, char **argv) {
 
     switch (c) {
     case 'B':
-      basedir_nocreate = 1;
+      opt_create_basedir = 0;
       break;
     case 'C':
       configfile = optarg;
@@ -540,7 +538,7 @@ int main(int argc, char **argv) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");
     return 1;
-  } else if (change_basedir(basedir, basedir_nocreate)) {
+  } else if (change_basedir(basedir, opt_create_basedir)) {
     fprintf(stderr, "Error: Unable to change to directory `%s'.\n", basedir);
     return 1;
   }
