@@ -8355,6 +8355,7 @@ Synopsis:
      CollectManagement  false
      CollectSMF         false
      CollectVBE         false
+     CollectMSE         false
    </Instance>
  </Plugin>
 
@@ -8430,11 +8431,9 @@ log messages which is flushed to disk when full. True by default.
 =item B<CollectSMA> B<true>|B<false>
 
 malloc or umem (umem_alloc(3MALLOC) based) storage statistics. The umem storage
-component is Solaris specific.
-Note: SMA and SMF share counters, enable only the one used by the Varnish
-instance.
-Only available with Varnish 2.x. False by
-default.
+component is Solaris specific. Note: SMA, SMF and MSE share counters, enable
+only the one used by the Varnish instance. Only available with Varnish 2.x.
+False by default.
 
 =item B<CollectSMS> B<true>|B<false>
 
@@ -8482,9 +8481,8 @@ Backend counters. Only available with Varnish 4.x. False by default.
 =item B<CollectSMF> B<true>|B<false>
 
 file (memory mapped file) storage statistics. Only available with Varnish 4.x.
-Note: SMA and SMF share counters, enable only the one used by the Varnish
-instance.
-Used to be called SM in Varnish 2.x. False by default.
+Note: SMA, SMF and MSE share counters, enable only the one used by the Varnish
+instance. Used to be called SM in Varnish 2.x. False by default.
 
 =item B<CollectManagement> B<true>|B<false>
 
@@ -8497,6 +8495,13 @@ Lock counters. Only available with Varnish 4.x. False by default.
 =item B<CollectMempool> B<true>|B<false>
 
 Memory pool counters. Only available with Varnish 4.x. False by default.
+
+=item B<CollectMSE> B<true>|B<false>
+
+Varnish Massive Storage Engine 2.0 (MSE2) is an improved storage backend for
+Varnish, replacing the traditional malloc and file storages. Only available
+with Varnish-Plus 4.x. Note: SMA, SMF and MSE share counters, enable only the
+one used by the Varnish instance. False by default.
 
 =back
 
