@@ -1344,6 +1344,7 @@
 #	ReportBytes true
 #	ValuesAbsolute true
 #	ValuesPercentage false
+#	ReportIO true
 #</Plugin>
 
 #<Plugin table>
@@ -1479,7 +1480,7 @@
 #	SystemManagementInterrupt true
 #	DigitalTemperatureSensor true
 #	PackageThermalManagement true
-#	RunningAveragePowerLimit "7"	
+#	RunningAveragePowerLimit "7"
 #</Plugin>
 
 #<Plugin unixsock>

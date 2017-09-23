@@ -111,6 +111,7 @@ static int pagesize;
 
 static _Bool values_absolute = 1;
 static _Bool values_percentage = 0;
+static _Bool report_io = 1;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -136,6 +137,8 @@ static int swap_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &values_absolute);
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &values_percentage);
+    else if (strcasecmp("ReportIO", child->key) == 0)
+      cf_util_get_boolean(child, &report_io);
     else
       WARNING("swap plugin: Unknown config option: \"%s\"", child->key);
   }
@@ -406,7 +409,8 @@ static int swap_read(void) /* {{{ */
   else
     swap_read_combined();
 
-  swap_read_io();
+  if (report_io)
+    swap_read_io();
 
   return 0;
 } /* }}} int swap_read */
@@ -726,8 +730,11 @@ static int swap_read(void) /* {{{ */
   reserved = (gauge_t)(pmemory.pgsp_rsvd * pagesize);
 
   swap_submit_usage(NULL, total - free, free, "reserved", reserved);
-  swap_submit_derive("in", (derive_t)pmemory.pgspins * pagesize);
-  swap_submit_derive("out", (derive_t)pmemory.pgspouts * pagesize);
+
+  if (report_io) {
+    swap_submit_derive("in", (derive_t)pmemory.pgspins * pagesize);
+    swap_submit_derive("out", (derive_t)pmemory.pgspouts * pagesize);
+  }
 
   return 0;
 } /* }}} int swap_read */

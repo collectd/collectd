@@ -4329,11 +4329,11 @@ If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
- 
+
  Enable the collection of wsrep plugin statistics, used in Master-Master
  replication setups like in MySQL Galera/Percona XtraDB Cluster.
  User needs only privileges to execute 'SHOW GLOBAL STATUS'
- 
+
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
@@ -5174,7 +5174,7 @@ System (NFS). It counts the number of procedure calls for each procedure,
 grouped by version and whether the system runs as server or client.
 
 It is possibly to omit metrics for a specific NFS version by setting one or
-more of the following options to B<false> (all of them default to B<true>). 
+more of the following options to B<false> (all of them default to B<true>).
 
 =over 4
 
@@ -7525,6 +7525,13 @@ available and free. Defaults to B<false>.
 This is useful for deploying I<collectd> in a heterogeneous environment, where
 swap sizes differ and you want to specify generic thresholds or similar.
 
+=item B<ReportIO> B<true>|B<false>
+
+Enables or disables reporting swap IO. Defaults to B<true>.
+
+This is useful for the cases when swap IO is not neccessary, is not available,
+or is not reliable.
+
 =back
 
 =head2 Plugin C<syslog>
@@ -8483,7 +8490,7 @@ will be collected.
 =item B<BlockDeviceFormat> B<target>|B<source>
 
 If I<BlockDeviceFormat> is set to B<target>, the default, then the device name
-seen by the guest will be used for reporting metrics. 
+seen by the guest will be used for reporting metrics.
 This corresponds to the C<E<lt>targetE<gt>> node in the XML definition of the
 domain.
 
