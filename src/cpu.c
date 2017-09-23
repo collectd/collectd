@@ -644,7 +644,6 @@ static int cpu_read(void) {
 
   char *fields[11];
   int numfields;
-  long long user_value, nice_value, value;
 
   if ((fh = fopen("/proc/stat", "r")) == NULL) {
     char errbuf[1024];
@@ -666,8 +665,8 @@ static int cpu_read(void) {
     cpu = atoi(fields[0] + 3);
 
     /* Do not stage User and Nice immediately: we may need to alter them later: */
-    user_value = atoll(fields[1]);
-    nice_value = atoll(fields[2]);
+    long long user_value = atoll(fields[1]);
+    long long nice_value = atoll(fields[2]);
     cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE, (derive_t)atoll(fields[4]), now);
 
@@ -684,7 +683,7 @@ static int cpu_read(void) {
 
         if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
           if (report_guest) {
-            value = atoll(fields[9]);
+            long long value = atoll(fields[9]);
             cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST,
                       (derive_t)value, now);
             /* Guest is included in User; optionally subtract Guest from
@@ -697,7 +696,7 @@ static int cpu_read(void) {
 
           if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
             if (report_guest) {
-              value = atoll(fields[10]);
+              long long value = atoll(fields[10]);
               cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE,
                         (derive_t)value, now);
               /* Guest_nice is included in Nice; optionally subtract
