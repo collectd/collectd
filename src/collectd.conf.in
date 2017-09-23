@@ -364,6 +364,9 @@
 #  ReportByCpu true
 #  ReportByState true
 #  ValuesPercentage false
+#  ReportNumCpu false
+#  ReportGuestState false
+#  SubtractGuestState true
 #</Plugin>
 #
 #<Plugin csv>
