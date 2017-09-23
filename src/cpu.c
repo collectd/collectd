@@ -676,40 +676,37 @@ static int cpu_read(void) {
                 now);
       cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
                 now);
+	}
 
-      if (numfields >= 9) {
-        cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]),
-                  now);
+    if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
+      cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]), now);
+    }
 
-        if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
-          if (report_guest) {
-            long long value = atoll(fields[9]);
-            cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST,
-                      (derive_t)value, now);
-            /* Guest is included in User; optionally subtract Guest from
-               User: */
-            if (subtract_guest) {
-              user_value -= value;
-              if (user_value < 0) user_value = 0;
-            }
-          }
-
-          if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
-            if (report_guest) {
-              long long value = atoll(fields[10]);
-              cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE,
-                        (derive_t)value, now);
-              /* Guest_nice is included in Nice; optionally subtract
-                 Guest_nice from Nice: */
-              if (subtract_guest) {
-                nice_value -= value;
-                if (nice_value < 0) nice_value = 0;
-              }
-            }
-          }
+    if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
+      if (report_guest) {
+        long long value = atoll(fields[9]);
+        cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST, (derive_t)value, now);
+        /* Guest is included in User; optionally subtract Guest from User: */
+        if (subtract_guest) {
+          user_value -= value;
+          if (user_value < 0) user_value = 0;
         }
       }
     }
+
+    if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
+      if (report_guest) {
+        long long value = atoll(fields[10]);
+        cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE, (derive_t)value, now);
+        /* Guest_nice is included in Nice; optionally subtract Guest_nice from
+           Nice: */
+        if (subtract_guest) {
+          nice_value -= value;
+          if (nice_value < 0) nice_value = 0;
+        }
+      }
+    }
+
     /* Eventually stage User and Nice: */
     cpu_stage(cpu, COLLECTD_CPU_STATE_USER, (derive_t)user_value, now);
     cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)nice_value, now);
