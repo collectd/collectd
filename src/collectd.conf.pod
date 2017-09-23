@@ -1474,6 +1474,19 @@ in the un-aggregated (per-CPU, per-state) mode as well.
 When set to B<true>, reports the number of available CPUs.
 Defaults to B<false>.
 
+=item B<ReportGuestState> B<false>|B<true>
+
+When set to B<true>, reports the "guest" and "guest_nice" CPU states.
+Defaults to B<false>.
+
+=item B<SubtractGuestState> B<false>|B<true>
+
+This option is only considered when B<ReportGuestState> is set to B<true>.
+"guest" and "guest_nice" are included in respectively "user" and "nice".
+If set to B<true>, "guest" will be subtracted from "user" and "guest_nice"
+will be subtracted from "nice".
+Defaults to B<true>.
+
 =back
 
 =head2 Plugin C<cpufreq>
