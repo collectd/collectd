@@ -195,9 +195,12 @@ static _Bool report_by_cpu = 1;
 static _Bool report_by_state = 1;
 static _Bool report_percent = 0;
 static _Bool report_num_cpu = 0;
+static _Bool report_guest = 0;
+static _Bool subtract_guest = 1;
 
 static const char *config_keys[] = {"ReportByCpu", "ReportByState",
-                                    "ReportNumCpu", "ValuesPercentage"};
+                                    "ReportNumCpu", "ValuesPercentage",
+                                    "ReportGuestState", "SubtractGuestState"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int cpu_config(char const *key, char const *value) /* {{{ */
@@ -210,6 +213,10 @@ static int cpu_config(char const *key, char const *value) /* {{{ */
     report_by_state = IS_TRUE(value) ? 1 : 0;
   else if (strcasecmp(key, "ReportNumCpu") == 0)
     report_num_cpu = IS_TRUE(value) ? 1 : 0;
+  else if (strcasecmp(key, "ReportGuestState") == 0)
+    report_guest = IS_TRUE(value) ? 1 : 0;
+  else if (strcasecmp(key, "SubtractGuestState") == 0)
+    subtract_guest = IS_TRUE(value) ? 1 : 0;
   else
     return -1;
 
@@ -637,6 +644,7 @@ static int cpu_read(void) {
 
   char *fields[11];
   int numfields;
+  long long user_value, nice_value, value;
 
   if ((fh = fopen("/proc/stat", "r")) == NULL) {
     char errbuf[1024];
@@ -657,8 +665,9 @@ static int cpu_read(void) {
 
     cpu = atoi(fields[0] + 3);
 
-    cpu_stage(cpu, COLLECTD_CPU_STATE_USER, (derive_t)atoll(fields[1]), now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)atoll(fields[2]), now);
+    /* Do not stage User and Nice immediately: we may need to alter them later: */
+    user_value = atoll(fields[1]);
+    nice_value = atoll(fields[2]);
     cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE, (derive_t)atoll(fields[4]), now);
 
@@ -673,17 +682,38 @@ static int cpu_read(void) {
         cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]),
                   now);
 
-        if (numfields >= 10) {
-          cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST, (derive_t)atoll(fields[9]),
-                    now);
+        if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
+          if (report_guest) {
+            value = atoll(fields[9]);
+            cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST,
+                      (derive_t)value, now);
+            /* Guest is included in User; optionally subtract Guest from
+               User: */
+            if (subtract_guest) {
+              user_value -= value;
+              if (user_value < 0) user_value = 0;
+            }
+          }
 
-          if (numfields >= 11) {
-            cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE,
-                      (derive_t)atoll(fields[10]), now);
+          if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
+            if (report_guest) {
+              value = atoll(fields[10]);
+              cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE,
+                        (derive_t)value, now);
+              /* Guest_nice is included in Nice; optionally subtract
+                 Guest_nice from Nice: */
+              if (subtract_guest) {
+                nice_value -= value;
+                if (nice_value < 0) nice_value = 0;
+              }
+            }
           }
         }
       }
     }
+    /* Eventually stage User and Nice: */
+    cpu_stage(cpu, COLLECTD_CPU_STATE_USER, (derive_t)user_value, now);
+    cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)nice_value, now);
   }
   fclose(fh);
 /* }}} #endif defined(KERNEL_LINUX) */
