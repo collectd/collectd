@@ -18,8 +18,11 @@ ProtectHome=true
 #   ceph            CAP_DAC_OVERRIDE
 #   dns             CAP_NET_RAW
 #   exec            CAP_SETUID CAP_SETGID
+#   intel_rdt       CAP_SYS_RAWIO
+#   intel_pmu       CAP_SYS_ADMIN
 #   iptables        CAP_NET_ADMIN
 #   ping            CAP_NET_RAW
+#   smart           CAP_SYS_RAWIO
 #   turbostat       CAP_SYS_RAWIO
 #
 # Example, if you use the iptables plugin alongside the dns or ping plugin:
@@ -28,9 +31,7 @@ ProtectHome=true
 # By default, drop all capabilities:
 CapabilityBoundingSet=
 
-NoNewPrivileges=true
-
-# Tell systemd it will receive a notification from collectd over it's control
+# Tell systemd it will receive a notification from collectd over its control
 # socket once the daemon is ready. See systemd.service(5) for more details.
 Type=notify
 

@@ -100,20 +100,20 @@ static int udb_config_set_string(char **ret_string, /* {{{ */
     WARNING("db query utils: The `%s' config option "
             "needs exactly one string argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   string = strdup(ci->values[0].value.string);
   if (string == NULL) {
     ERROR("db query utils: strdup failed.");
-    return (-1);
+    return -1;
   }
 
   if (*ret_string != NULL)
     free(*ret_string);
   *ret_string = string;
 
-  return (0);
+  return 0;
 } /* }}} int udb_config_set_string */
 
 static int udb_config_add_string(char ***ret_array, /* {{{ */
@@ -125,7 +125,7 @@ static int udb_config_add_string(char ***ret_array, /* {{{ */
     WARNING("db query utils: The `%s' config option "
             "needs at least one argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ci->values_num; i++) {
@@ -133,7 +133,7 @@ static int udb_config_add_string(char ***ret_array, /* {{{ */
       WARNING("db query utils: Argument %i to the `%s' option "
               "is not a string.",
               i + 1, ci->key);
-      return (-1);
+      return -1;
     }
   }
 
@@ -141,7 +141,7 @@ static int udb_config_add_string(char ***ret_array, /* {{{ */
   array = realloc(*ret_array, sizeof(char *) * (array_len + ci->values_num));
   if (array == NULL) {
     ERROR("db query utils: realloc failed.");
-    return (-1);
+    return -1;
   }
   *ret_array = array;
 
@@ -150,13 +150,13 @@ static int udb_config_add_string(char ***ret_array, /* {{{ */
     if (array[array_len] == NULL) {
       ERROR("db query utils: strdup failed.");
       *ret_array_len = array_len;
-      return (-1);
+      return -1;
     }
     array_len++;
   }
 
   *ret_array_len = array_len;
-  return (0);
+  return 0;
 } /* }}} int udb_config_add_string */
 
 static int udb_config_set_uint(unsigned int *ret_value, /* {{{ */
@@ -167,15 +167,15 @@ static int udb_config_set_uint(unsigned int *ret_value, /* {{{ */
     WARNING("db query utils: The `%s' config option "
             "needs exactly one numeric argument.",
             ci->key);
-    return (-1);
+    return -1;
   }
 
   tmp = ci->values[0].value.number;
   if ((tmp < 0.0) || (tmp > ((double)UINT_MAX)))
-    return (-ERANGE);
+    return -ERANGE;
 
   *ret_value = (unsigned int)(tmp + .5);
-  return (0);
+  return 0;
 } /* }}} int udb_config_set_uint */
 
 /*
@@ -195,7 +195,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
   vl.values = calloc(r->values_num, sizeof(*vl.values));
   if (vl.values == NULL) {
     ERROR("db query utils: calloc failed.");
-    return (-1);
+    return -1;
   }
   vl.values_len = r_area->ds->ds_num;
 
@@ -207,7 +207,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
             value_str, DS_TYPE_TO_STRING(r_area->ds->ds[i].type));
       errno = EINVAL;
       free(vl.values);
-      return (-1);
+      return -1;
     }
   }
 
@@ -241,7 +241,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
         ERROR(
             "udb_result_submit: creating type_instance failed with status %d.",
             status);
-        return (status);
+        return status;
       }
     } else {
       char tmp[DATA_MAX_NAME_LEN];
@@ -252,7 +252,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
         ERROR(
             "udb_result_submit: creating type_instance failed with status %d.",
             status);
-        return (status);
+        return status;
       }
       tmp[sizeof(tmp) - 1] = 0;
 
@@ -268,7 +268,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
     vl.meta = meta_data_create();
     if (vl.meta == NULL) {
       ERROR("db query utils:: meta_data_create failed.");
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     for (size_t i = 0; i < r->metadata_num; i++) {
@@ -278,7 +278,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
         ERROR("db query utils:: meta_data_add_string failed.");
         meta_data_destroy(vl.meta);
         vl.meta = NULL;
-        return (status);
+        return status;
       }
     }
   }
@@ -291,7 +291,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
     vl.meta = NULL;
   }
   sfree(vl.values);
-  return (0);
+  return 0;
 } /* }}} void udb_result_submit */
 
 static void udb_result_finish_result(udb_result_t const *r, /* {{{ */
@@ -334,7 +334,7 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
                                      udb_result_preparation_area_t *prep_area,
                                      char **column_names, size_t column_num) {
   if ((r == NULL) || (prep_area == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
 #define BAIL_OUT(status)                                                       \
   prep_area->ds = NULL;                                                        \
@@ -472,7 +472,7 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
   } /* }}} for (i = 0; i < r->metadata_num; i++) */
 
 #undef BAIL_OUT
-  return (0);
+  return 0;
 } /* }}} int udb_result_prepare_result */
 
 static void udb_result_free(udb_result_t *r) /* {{{ */
@@ -514,7 +514,7 @@ static int udb_result_create(const char *query_name, /* {{{ */
   r = calloc(1, sizeof(*r));
   if (r == NULL) {
     ERROR("db query utils: calloc failed.");
-    return (-1);
+    return -1;
   }
   r->type = NULL;
   r->instance_prefix = NULL;
@@ -568,7 +568,7 @@ static int udb_result_create(const char *query_name, /* {{{ */
 
   if (status != 0) {
     udb_result_free(r);
-    return (-1);
+    return -1;
   }
 
   /* If all went well, add this result to the list of results. */
@@ -584,7 +584,7 @@ static int udb_result_create(const char *query_name, /* {{{ */
     last->next = r;
   }
 
-  return (0);
+  return 0;
 } /* }}} int udb_result_create */
 
 /*
@@ -617,20 +617,20 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
   int status;
 
   if ((ret_query_list == NULL) || (ret_query_list_len == NULL))
-    return (-EINVAL);
+    return -EINVAL;
   query_list = *ret_query_list;
   query_list_len = *ret_query_list_len;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("db query utils: The `Query' block "
             "needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   q = calloc(1, sizeof(*q));
   if (q == NULL) {
     ERROR("db query utils: calloc failed.");
-    return (-1);
+    return -1;
   }
   q->min_version = 0;
   q->max_version = UINT_MAX;
@@ -641,7 +641,7 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
   status = udb_config_set_string(&q->name, ci);
   if (status != 0) {
     sfree(q);
-    return (status);
+    return status;
   }
 
   /* Fill the `udb_query_t' structure.. */
@@ -708,13 +708,13 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
 
   if (status != 0) {
     udb_query_free_one(q);
-    return (-1);
+    return -1;
   }
 
   *ret_query_list = query_list;
   *ret_query_list_len = query_list_len;
 
-  return (0);
+  return 0;
 } /* }}} int udb_query_create */
 
 void udb_query_free(udb_query_t **query_list, size_t query_list_len) /* {{{ */
@@ -739,7 +739,7 @@ int udb_query_pick_from_list_by_name(const char *name, /* {{{ */
       (dst_list_len == NULL)) {
     ERROR("db query utils: udb_query_pick_from_list_by_name: "
           "Invalid argument.");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   num_added = 0;
@@ -754,7 +754,7 @@ int udb_query_pick_from_list_by_name(const char *name, /* {{{ */
     tmp_list = realloc(*dst_list, (tmp_list_len + 1) * sizeof(udb_query_t *));
     if (tmp_list == NULL) {
       ERROR("db query utils: realloc failed.");
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     tmp_list[tmp_list_len] = src_list[i];
@@ -770,12 +770,12 @@ int udb_query_pick_from_list_by_name(const char *name, /* {{{ */
     ERROR("db query utils: Cannot find query `%s'. Make sure the <Query> "
           "block is above the database definition!",
           name);
-    return (-ENOENT);
+    return -ENOENT;
   } else {
     DEBUG("db query utils: Added %i versions of query `%s'.", num_added, name);
   }
 
-  return (0);
+  return 0;
 } /* }}} int udb_query_pick_from_list_by_name */
 
 int udb_query_pick_from_list(oconfig_item_t *ci, /* {{{ */
@@ -787,35 +787,35 @@ int udb_query_pick_from_list(oconfig_item_t *ci, /* {{{ */
       (dst_list_len == NULL)) {
     ERROR("db query utils: udb_query_pick_from_list: "
           "Invalid argument.");
-    return (-EINVAL);
+    return -EINVAL;
   }
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     ERROR("db query utils: The `%s' config option "
           "needs exactly one string argument.",
           ci->key);
-    return (-1);
+    return -1;
   }
   name = ci->values[0].value.string;
 
-  return (udb_query_pick_from_list_by_name(name, src_list, src_list_len,
-                                           dst_list, dst_list_len));
+  return udb_query_pick_from_list_by_name(name, src_list, src_list_len,
+                                          dst_list, dst_list_len);
 } /* }}} int udb_query_pick_from_list */
 
 const char *udb_query_get_name(udb_query_t *q) /* {{{ */
 {
   if (q == NULL)
-    return (NULL);
+    return NULL;
 
-  return (q->name);
+  return q->name;
 } /* }}} const char *udb_query_get_name */
 
 const char *udb_query_get_statement(udb_query_t *q) /* {{{ */
 {
   if (q == NULL)
-    return (NULL);
+    return NULL;
 
-  return (q->statement);
+  return q->statement;
 } /* }}} const char *udb_query_get_statement */
 
 void udb_query_set_user_data(udb_query_t *q, void *user_data) /* {{{ */
@@ -829,20 +829,20 @@ void udb_query_set_user_data(udb_query_t *q, void *user_data) /* {{{ */
 void *udb_query_get_user_data(udb_query_t *q) /* {{{ */
 {
   if (q == NULL)
-    return (NULL);
+    return NULL;
 
-  return (q->user_data);
+  return q->user_data;
 } /* }}} void *udb_query_get_user_data */
 
 int udb_query_check_version(udb_query_t *q, unsigned int version) /* {{{ */
 {
   if (q == NULL)
-    return (-EINVAL);
+    return -EINVAL;
 
   if ((version < q->min_version) || (version > q->max_version))
-    return (0);
+    return 0;
 
-  return (1);
+  return 1;
 } /* }}} int udb_query_check_version */
 
 void udb_query_finish_result(udb_query_t const *q, /* {{{ */
@@ -878,14 +878,14 @@ int udb_query_handle_result(udb_query_t const *q, /* {{{ */
   int status;
 
   if ((q == NULL) || (prep_area == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   if ((prep_area->column_num < 1) || (prep_area->host == NULL) ||
       (prep_area->plugin == NULL) || (prep_area->db_name == NULL)) {
     ERROR("db query utils: Query `%s': Query is not prepared; "
           "can't handle result.",
           q->name);
-    return (-EINVAL);
+    return -EINVAL;
   }
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG /* {{{ */
@@ -910,10 +910,10 @@ int udb_query_handle_result(udb_query_t const *q, /* {{{ */
     ERROR("db query utils: udb_query_handle_result (%s, %s): "
           "All results failed.",
           prep_area->db_name, q->name);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int udb_query_handle_result */
 
 int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
@@ -926,7 +926,7 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
   int status;
 
   if ((q == NULL) || (prep_area == NULL))
-    return (-EINVAL);
+    return -EINVAL;
 
   udb_query_finish_result(q, prep_area);
 
@@ -942,7 +942,7 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
     ERROR("db query utils: Query `%s': Prepare failed: Out of memory.",
           q->name);
     udb_query_finish_result(q, prep_area);
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG
@@ -971,7 +971,7 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
             "Column `%s' from `PluginInstanceFrom' could not be found.",
             q->plugin_instance_from);
       udb_query_finish_result(q, prep_area);
-      return (-ENOENT);
+      return -ENOENT;
     }
   }
   /* }}} */
@@ -983,17 +983,17 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
             "preparation areas.",
             q->name);
       udb_query_finish_result(q, prep_area);
-      return (-EINVAL);
+      return -EINVAL;
     }
 
     status = udb_result_prepare_result(r, r_area, column_names, column_num);
     if (status != 0) {
       udb_query_finish_result(q, prep_area);
-      return (status);
+      return status;
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int udb_query_prepare_result */
 
 udb_query_preparation_area_t *
@@ -1029,7 +1029,7 @@ udb_query_allocate_preparation_area(udb_query_t *q) /* {{{ */
     next_r_area = &r_area->next;
   }
 
-  return (q_area);
+  return q_area;
 } /* }}} udb_query_preparation_area_t *udb_query_allocate_preparation_area */
 
 void udb_query_delete_preparation_area(

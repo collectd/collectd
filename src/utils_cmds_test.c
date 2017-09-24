@@ -215,7 +215,7 @@ DEF_TEST(parse) {
     free(input);
   }
 
-  return (test_result);
+  return test_result;
 }
 
 int main(int argc, char **argv) {

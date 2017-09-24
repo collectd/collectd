@@ -54,7 +54,7 @@ static int serial_read(void) {
       (fh = fopen("/proc/tty/driver/ttyS", "r")) == NULL) {
     char errbuf[1024];
     WARNING("serial: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -100,7 +100,7 @@ static int serial_read(void) {
   }
 
   fclose(fh);
-  return (0);
+  return 0;
 } /* int serial_read */
 
 void module_register(void) {

@@ -98,10 +98,10 @@ static int iptables_config(const char *key, const char *value) {
   else if (strcasecmp(key, "Chain6") == 0)
     ip_version = IPV6;
   else
-    return (1);
+    return 1;
 
   ip_chain_t temp = {0};
-  ip_chain_t * final, **list;
+  ip_chain_t *final, **list;
   char *table;
   int table_len;
   char *chain;
@@ -115,7 +115,7 @@ static int iptables_config(const char *key, const char *value) {
   if (value_copy == NULL) {
     char errbuf[1024];
     ERROR("strdup failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (1);
+    return 1;
   }
 
   /*
@@ -131,7 +131,7 @@ static int iptables_config(const char *key, const char *value) {
   fields_num = strsplit(value_copy, fields, 4);
   if (fields_num < 2) {
     free(value_copy);
-    return (1);
+    return 1;
   }
 
   table = fields[0];
@@ -141,7 +141,7 @@ static int iptables_config(const char *key, const char *value) {
   if ((unsigned int)table_len > sizeof(temp.table)) {
     ERROR("Table `%s' too long.", table);
     free(value_copy);
-    return (1);
+    return 1;
   }
   sstrncpy(temp.table, table, table_len);
 
@@ -149,7 +149,7 @@ static int iptables_config(const char *key, const char *value) {
   if ((unsigned int)chain_len > sizeof(temp.chain)) {
     ERROR("Chain `%s' too long.", chain);
     free(value_copy);
-    return (1);
+    return 1;
   }
   sstrncpy(temp.chain, chain, chain_len);
 
@@ -164,7 +164,7 @@ static int iptables_config(const char *key, const char *value) {
       temp.rule.comment = strdup(comment);
       if (temp.rule.comment == NULL) {
         free(value_copy);
-        return (1);
+        return 1;
       }
       temp.rule_type = RTYPE_COMMENT;
     }
@@ -185,16 +185,16 @@ static int iptables_config(const char *key, const char *value) {
     char errbuf[1024];
     ERROR("realloc failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     sfree(temp.rule.comment);
-    return (1);
+    return 1;
   }
 
   chain_list = list;
-  final = malloc(sizeof(* final));
+  final = malloc(sizeof(*final));
   if (final == NULL) {
     char errbuf[1024];
     ERROR("malloc failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
     sfree(temp.rule.comment);
-    return (1);
+    return 1;
   }
   memcpy(final, &temp, sizeof(temp));
   chain_list[chain_num] = final;
@@ -203,7 +203,7 @@ static int iptables_config(const char *key, const char *value) {
   DEBUG("Chain #%i: table = %s; chain = %s;", chain_num, final->table,
         final->chain);
 
-  return (0);
+  return 0;
 } /* int iptables_config */
 
 static int submit6_match(const struct ip6t_entry_match *match,
@@ -215,28 +215,28 @@ static int submit6_match(const struct ip6t_entry_match *match,
   /* Select the rules to collect */
   if (chain->rule_type == RTYPE_NUM) {
     if (chain->rule.num != rule_num)
-      return (0);
+      return 0;
   } else {
     if (strcmp(match->u.user.name, "comment") != 0)
-      return (0);
+      return 0;
     if ((chain->rule_type == RTYPE_COMMENT) &&
         (strcmp(chain->rule.comment, (char *)match->data) != 0))
-      return (0);
+      return 0;
   }
 
   sstrncpy(vl.plugin, "ip6tables", sizeof(vl.plugin));
 
-  status = ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-                     chain->table, chain->chain);
+  status = snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
+                    chain->table, chain->chain);
   if ((status < 1) || ((unsigned int)status >= sizeof(vl.plugin_instance)))
-    return (0);
+    return 0;
 
   if (chain->name[0] != '\0') {
     sstrncpy(vl.type_instance, chain->name, sizeof(vl.type_instance));
   } else {
     if (chain->rule_type == RTYPE_NUM)
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
-                chain->rule.num);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
+               chain->rule.num);
     else
       sstrncpy(vl.type_instance, (char *)match->data, sizeof(vl.type_instance));
   }
@@ -250,7 +250,7 @@ static int submit6_match(const struct ip6t_entry_match *match,
   vl.values = &(value_t){.derive = (derive_t)entry->counters.pcnt};
   plugin_dispatch_values(&vl);
 
-  return (0);
+  return 0;
 } /* int submit6_match */
 
 /* This needs to return `int' for IPT_MATCH_ITERATE to work. */
@@ -263,28 +263,28 @@ static int submit_match(const struct ipt_entry_match *match,
   /* Select the rules to collect */
   if (chain->rule_type == RTYPE_NUM) {
     if (chain->rule.num != rule_num)
-      return (0);
+      return 0;
   } else {
     if (strcmp(match->u.user.name, "comment") != 0)
-      return (0);
+      return 0;
     if ((chain->rule_type == RTYPE_COMMENT) &&
         (strcmp(chain->rule.comment, (char *)match->data) != 0))
-      return (0);
+      return 0;
   }
 
   sstrncpy(vl.plugin, "iptables", sizeof(vl.plugin));
 
-  status = ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-                     chain->table, chain->chain);
+  status = snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
+                    chain->table, chain->chain);
   if ((status < 1) || ((unsigned int)status >= sizeof(vl.plugin_instance)))
-    return (0);
+    return 0;
 
   if (chain->name[0] != '\0') {
     sstrncpy(vl.type_instance, chain->name, sizeof(vl.type_instance));
   } else {
     if (chain->rule_type == RTYPE_NUM)
-      ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
-                chain->rule.num);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
+               chain->rule.num);
     else
       sstrncpy(vl.type_instance, (char *)match->data, sizeof(vl.type_instance));
   }
@@ -298,7 +298,7 @@ static int submit_match(const struct ipt_entry_match *match,
   vl.values = &(value_t){.derive = (derive_t)entry->counters.pcnt};
   plugin_dispatch_values(&vl);
 
-  return (0);
+  return 0;
 } /* int submit_match */
 
 /* ipv6 submit_chain */
@@ -407,7 +407,7 @@ static int iptables_read(void) {
       num_failures++;
   } /* for (i = 0 .. chain_num) */
 
-  return ((num_failures < chain_num) ? 0 : -1);
+  return (num_failures < chain_num) ? 0 : -1;
 } /* int iptables_read */
 
 static int iptables_shutdown(void) {
@@ -418,7 +418,7 @@ static int iptables_shutdown(void) {
   }
   sfree(chain_list);
 
-  return (0);
+  return 0;
 } /* int iptables_shutdown */
 
 static int iptables_init(void) {
@@ -435,7 +435,7 @@ static int iptables_init(void) {
               "running \"setcap cap_net_admin=ep\" on the collectd binary.");
   }
 #endif
-  return (0);
+  return 0;
 } /* int iptables_init */
 
 void module_register(void) {

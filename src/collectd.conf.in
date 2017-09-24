@@ -114,6 +114,7 @@
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
+#@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
@@ -128,6 +129,7 @@
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
 #@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
+#@BUILD_PLUGIN_INTEL_PMU_TRUE@LoadPlugin intel_pmu
 #@BUILD_PLUGIN_INTEL_RDT_TRUE@LoadPlugin intel_rdt
 @BUILD_PLUGIN_INTERFACE_TRUE@@BUILD_PLUGIN_INTERFACE_TRUE@LoadPlugin interface
 #@BUILD_PLUGIN_IPC_TRUE@LoadPlugin ipc
@@ -169,6 +171,7 @@
 #@BUILD_PLUGIN_OPENVPN_TRUE@LoadPlugin openvpn
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
+#@BUILD_PLUGIN_OVS_STATS_TRUE@LoadPlugin ovs_stats
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
@@ -186,6 +189,7 @@
 #@BUILD_PLUGIN_SIGROK_TRUE@LoadPlugin sigrok
 #@BUILD_PLUGIN_SMART_TRUE@LoadPlugin smart
 #@BUILD_PLUGIN_SNMP_TRUE@LoadPlugin snmp
+#@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
@@ -360,6 +364,9 @@
 #  ReportByCpu true
 #  ReportByState true
 #  ValuesPercentage false
+#  ReportNumCpu false
+#  ReportGuestState false
+#  SubtractGuestState true
 #</Plugin>
 #
 #<Plugin csv>
@@ -525,13 +532,34 @@
 #	SelectNumericQueryTypes true
 #</Plugin>
 
+#<Plugin "dpdkevents">
+#  <EAL>
+#    Coremask "0x1"
+#    MemoryChannels "4"
+#    FilePrefix "rte"
+#  </EAL>
+#  <Event "link_status">
+#    SendEventsOnUpdate true
+#    EnabledPortMask 0xffff
+#    PortName "interface1"
+#    PortName "interface2"
+#    SendNotification false
+#  </Event>
+#  <Event "keep_alive">
+#    SendEventsOnUpdate true
+#    LCoreMask "0xf"
+#    KeepAliveShmName "/dpdk_keepalive_shm_name"
+#    SendNotification false
+#  </Event>
+#</Plugin>
+
 #<Plugin dpdkstat>
 #  <EAL>
 #    Coremask "0x2"
 #    MemoryChannels "4"
-#    ProcessType "secondary"
 #    FilePrefix "rte"
 #  </EAL>
+#  SharedMemObj "dpdk_collectd_stats_0"
 #  EnabledPortMask 0xffff
 #  PortName "interface1"
 #  PortName "interface2"
@@ -621,6 +649,14 @@
 #    ValuesPercentage false
 #</Plugin>
 
+#<Plugin intel_pmu>
+#    ReportHardwareCacheEvents true
+#    ReportKernelPMUEvents true
+#    ReportSoftwareEvents true
+#    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
+#    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
+#</Plugin>
+
 #<Plugin "intel_rdt">
 #  Cores "0-2"
 #</Plugin>
@@ -695,8 +731,11 @@
 #</Plugin>
 
 #<Plugin mcelog>
-#	McelogClientSocket "/var/run/mcelog-client"
-#	McelogLogfile "/var/log/mcelog"
+#  <Memory>
+#    McelogClientSocket "/var/run/mcelog-client"
+#    PersistentNotification false
+#  </Memory>
+#  McelogLogfile "/var/log/mcelog"
 #</Plugin>
 
 #<Plugin md>
@@ -778,6 +817,11 @@
 #		QoS 2
 #		Topic "collectd/#"
 #		CleanSession true
+#		CACert "/etc/ssl/ca.crt"
+#		CertificateFile "/etc/ssl/client.crt"
+#		CertificateKeyFile "/etc/ssl/client.pem"
+#		TLSProtocol "tlsv1.2"
+#		CipherSuite "ciphers"
 #	</Subscribe>
 #</Plugin>
 
@@ -904,6 +948,12 @@
 #	CacheFlush 1800
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
+#<Plugin nfs>
+#	ReportV2 false
+#	#ReportV3 false
+#	#ReportV4 false
+#</Plugin>
+
 #<Plugin nginx>
 #	URL "http://localhost/status?auto"
 #	User "www-user"
@@ -942,6 +992,10 @@
 
 #<Plugin nut>
 #	UPS "upsname@hostname:port"
+#	ForceSSL true
+#	VerifyPeer true
+#	CAPath "/path/to/folder"
+#	#ConnectTimeout 5000
 #</Plugin>
 
 #<Plugin olsrd>
@@ -999,7 +1053,15 @@
 #  Address "127.0.0.1"
 #  Socket "/var/run/openvswitch/db.sock"
 #  Interfaces "br0" "veth0"
-#  SendNotification false
+#  SendNotification true
+#  DispatchValues false
+#</Plugin>
+
+#<Plugin ovs_stats>
+#  Port "6640"
+#  Address "127.0.0.1"
+#  Socket "/var/run/openvswitch/db.sock"
+#  Bridges "br0" "br_ext"
 #</Plugin>
 
 #<Plugin perl>
@@ -1102,7 +1164,18 @@
 #</Plugin>
 
 #<Plugin processes>
+#	CollectFileDescriptor true
+#	CollectContextSwitch true
 #	Process "name"
+#	ProcessMatch "name" "regex"
+#	<Process "collectd">
+#		CollectFileDescriptor false
+#		CollectContextSwitch false
+#	</Process>
+#	<ProcessMatch "name" "regex">
+#		CollectFileDescriptor false
+#		CollectContextSwitch true
+#	</Process>
 #</Plugin>
 
 #<Plugin protocols>
@@ -1228,6 +1301,30 @@
 #   </Host>
 #</Plugin>
 
+#<Plugin snmp_agent>
+#  <Data "memAvailReal">
+#    Plugin "memory"
+#    Type "memory"
+#    TypeInstance "free"
+#    OIDs "1.3.6.1.4.1.2021.4.6.0"
+#  </Data>
+#  <Table "ifTable">
+#    IndexOID "IF-MIB::ifIndex"
+#    SizeOID "IF-MIB::ifNumber"
+#    <Data "ifDescr">
+#      Instance true
+#      Plugin "interface"
+#      OIDs "IF-MIB::ifDescr"
+#    </Data>
+#    <Data "ifOctets">
+#      Plugin "interface"
+#      Type "if_octets"
+#      TypeInstance ""
+#      OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+#    </Data>
+#  </Table>
+#</Plugin>
+
 #<Plugin statsd>
 #  Host "::"
 #  Port "8125"
@@ -1250,10 +1347,12 @@
 #	ReportBytes true
 #	ValuesAbsolute true
 #	ValuesPercentage false
+#	ReportIO true
 #</Plugin>
 
 #<Plugin table>
 #	<Table "/proc/slabinfo">
+#		#Plugin "table"
 #		Instance "slabinfo"
 #		Separator " "
 #		<Result>
@@ -1384,7 +1483,7 @@
 #	SystemManagementInterrupt true
 #	DigitalTemperatureSensor true
 #	PackageThermalManagement true
-#	RunningAveragePowerLimit "7"	
+#	RunningAveragePowerLimit "7"
 #</Plugin>
 
 #<Plugin unixsock>
@@ -1459,6 +1558,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
+#	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin"
 #</Plugin>
 
 #<Plugin vmem>
@@ -1498,6 +1598,8 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Attribute "key" "value"     # only available for KAIROSDB format
+#		TTL 0   # data ttl, only available for KAIROSDB format
 #		Metrics true
 #		Notifications false
 #		StoreRates false

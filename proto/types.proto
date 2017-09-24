@@ -38,6 +38,16 @@ message Identifier {
   string type_instance = 5;
 }
 
+message MetadataValue {
+  oneof value {
+    string string_value = 1;
+    int64 int64_value = 2;
+    uint64 uint64_value = 3;
+    double double_value = 4;
+    bool bool_value = 5;
+  };
+}
+
 message Value {
   oneof value {
     uint64 counter = 1;
@@ -56,4 +66,5 @@ message ValueList {
   Identifier identifier = 4;
 
   repeated string ds_names = 5;
+  map<string, MetadataValue> meta_data = 6;
 }

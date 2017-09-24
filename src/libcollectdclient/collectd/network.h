@@ -27,10 +27,10 @@
 #ifndef LIBCOLLECTDCLIENT_NETWORK_H
 #define LIBCOLLECTDCLIENT_NETWORK_H 1
 
+#include "collectd/client.h"
+
 #include <inttypes.h>
 #include <stdint.h>
-
-#include "client.h"
 
 #define NET_DEFAULT_V4_ADDR "239.192.74.66"
 #define NET_DEFAULT_V6_ADDR "ff18::efc0:4a42"

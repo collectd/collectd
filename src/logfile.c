@@ -31,8 +31,6 @@
 #include "common.h"
 #include "plugin.h"
 
-#define DEFAULT_LOGFILE LOCALSTATEDIR "/log/collectd.log"
-
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
 #else
@@ -55,7 +53,7 @@ static int logfile_config(const char *key, const char *value) {
     if (log_level < 0) {
       log_level = LOG_INFO;
       ERROR("logfile: invalid loglevel [%s] defaulting to 'info'", value);
-      return (1);
+      return 1;
     }
   } else if (0 == strcasecmp(key, "File")) {
     sfree(log_file);
@@ -117,8 +115,7 @@ static void logfile_print(const char *msg, int severity,
   pthread_mutex_lock(&file_lock);
 
   if (log_file == NULL) {
-    fh = fopen(DEFAULT_LOGFILE, "a");
-    do_close = 1;
+    fh = stderr;
   } else if (strcasecmp(log_file, "stderr") == 0)
     fh = stderr;
   else if (strcasecmp(log_file, "stdout") == 0)
@@ -130,8 +127,7 @@ static void logfile_print(const char *msg, int severity,
 
   if (fh == NULL) {
     char errbuf[1024];
-    fprintf(stderr, "logfile plugin: fopen (%s) failed: %s\n",
-            (log_file == NULL) ? DEFAULT_LOGFILE : log_file,
+    fprintf(stderr, "logfile plugin: fopen (%s) failed: %s\n", log_file,
             sstrerror(errno, errbuf, sizeof(errbuf)));
   } else {
     if (print_timestamp)
@@ -167,7 +163,7 @@ static int logfile_notification(const notification_t *n,
   int buf_len = sizeof(buf);
   int status;
 
-  status = ssnprintf(
+  status = snprintf(
       buf_ptr, buf_len, "Notification: severity = %s",
       (n->severity == NOTIF_FAILURE)
           ? "FAILURE"
@@ -181,7 +177,7 @@ static int logfile_notification(const notification_t *n,
 
 #define APPEND(bufptr, buflen, key, value)                                     \
   if ((buflen > 0) && (strlen(value) > 0)) {                                   \
-    status = ssnprintf(bufptr, buflen, ", %s = %s", key, value);               \
+    status = snprintf(bufptr, buflen, ", %s = %s", key, value);                \
     if (status > 0) {                                                          \
       bufptr += status;                                                        \
       buflen -= status;                                                        \
@@ -198,7 +194,7 @@ static int logfile_notification(const notification_t *n,
 
   logfile_print(buf, LOG_INFO, (n->time != 0) ? n->time : cdtime());
 
-  return (0);
+  return 0;
 } /* int logfile_notification */
 
 void module_register(void) {

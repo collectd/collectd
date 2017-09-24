@@ -46,11 +46,11 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = ssnprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
+    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
     if (status < 1) {                                                          \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else if (((size_t)status) >= (ret_len - offset)) {                       \
-      return (-1);                                                             \
+      return -1;                                                               \
     } else                                                                     \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -68,12 +68,12 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
   else {
     ERROR("gr_format_values plugin: Unknown data source type: %i",
           ds->ds[ds_num].type);
-    return (-1);
+    return -1;
   }
 
 #undef BUFFER_ADD
 
-  return (0);
+  return 0;
 }
 
 static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
@@ -131,9 +131,9 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
                       sizeof(n_type_instance), escape_char, preserve_separator);
 
   if (n_plugin_instance[0] != '\0')
-    ssnprintf(tmp_plugin, sizeof(tmp_plugin), "%s%c%s", n_plugin,
-              (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-              n_plugin_instance);
+    snprintf(tmp_plugin, sizeof(tmp_plugin), "%s%c%s", n_plugin,
+             (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+             n_plugin_instance);
   else
     sstrncpy(tmp_plugin, n_plugin, sizeof(tmp_plugin));
 
@@ -141,9 +141,9 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
       sstrncpy(tmp_type, n_type_instance, sizeof(tmp_type));
     else
-      ssnprintf(tmp_type, sizeof(tmp_type), "%s%c%s", n_type,
-                (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-                n_type_instance);
+      snprintf(tmp_type, sizeof(tmp_type), "%s%c%s", n_type,
+               (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+               n_type_instance);
   } else
     sstrncpy(tmp_type, n_type, sizeof(tmp_type));
 
@@ -152,16 +152,16 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   if (ds_name != NULL) {
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) &&
         strcmp(tmp_plugin, tmp_type) == 0)
-      ssnprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix,
-                tmp_plugin, ds_name);
+      snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix,
+               tmp_plugin, ds_name);
     else
-      ssnprintf(ret, ret_len, "%s%s%s.%s.%s.%s", prefix, n_host, postfix,
-                tmp_plugin, tmp_type, ds_name);
+      snprintf(ret, ret_len, "%s%s%s.%s.%s.%s", prefix, n_host, postfix,
+               tmp_plugin, tmp_type, ds_name);
   } else
-    ssnprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
-              tmp_type);
+    snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
+             tmp_type);
 
-  return (0);
+  return 0;
 }
 
 static void escape_graphite_string(char *buffer, char escape_char) {
@@ -180,8 +180,13 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
   int buffer_pos = 0;
 
   gauge_t *rates = NULL;
-  if (flags & GRAPHITE_STORE_RATES)
+  if (flags & GRAPHITE_STORE_RATES) {
     rates = uc_get_rate(ds, vl);
+    if (rates == NULL) {
+      ERROR("format_graphite: error with uc_get_rate");
+      return -1;
+    }
+  }
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     char const *ds_name = NULL;
@@ -199,7 +204,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
     if (status != 0) {
       ERROR("format_graphite: error with gr_format_name");
       sfree(rates);
-      return (status);
+      return status;
     }
 
     escape_graphite_string(key, escape_char);
@@ -209,31 +214,31 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
     if (status != 0) {
       ERROR("format_graphite: error with gr_format_values");
       sfree(rates);
-      return (status);
+      return status;
     }
 
     /* Compute the graphite command */
     message_len =
-        (size_t)ssnprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
-                          (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
+        (size_t)snprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
+                         (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
     if (message_len >= sizeof(message)) {
       ERROR("format_graphite: message buffer too small: "
             "Need %zu bytes.",
             message_len + 1);
       sfree(rates);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
 
     /* Append it in case we got multiple data set */
     if ((buffer_pos + message_len) >= buffer_size) {
       ERROR("format_graphite: target buffer too small");
       sfree(rates);
-      return (-ENOMEM);
+      return -ENOMEM;
     }
     memcpy((void *)(buffer + buffer_pos), message, message_len);
     buffer_pos += message_len;
     buffer[buffer_pos] = '\0';
   }
   sfree(rates);
-  return (status);
+  return status;
 } /* int format_graphite */

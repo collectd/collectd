@@ -2,7 +2,6 @@
    strlen_bogus_invalid_read_after_strdup
    Memcheck:Addr4
    fun:parse_value
-   fun:parse_values
    ...
    fun:main
 }

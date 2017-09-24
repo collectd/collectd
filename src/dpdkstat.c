@@ -91,18 +91,27 @@ struct dpdk_stats_ctx_s {
 };
 typedef struct dpdk_stats_ctx_s dpdk_stats_ctx_t;
 
+typedef enum {
+  DPDK_STAT_STATE_OKAY = 0,
+  DPDK_STAT_STATE_CFG_ERR,
+} dpdk_stat_cfg_status;
+
 #define DPDK_STATS_CTX_GET(a) ((dpdk_stats_ctx_t *)dpdk_helper_priv_get(a))
 
 dpdk_helper_ctx_t *g_hc = NULL;
+static char g_shm_name[DATA_MAX_NAME_LEN] = DPDK_STATS_NAME;
+static dpdk_stat_cfg_status g_state = DPDK_STAT_STATE_OKAY;
 
+static int dpdk_stats_reinit_helper();
 static void dpdk_stats_default_config(void) {
   dpdk_stats_ctx_t *ec = DPDK_STATS_CTX_GET(g_hc);
 
   ec->config.interval = plugin_get_interval();
-
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
     ec->config.port_name[i][0] = 0;
   }
+  /* Enable all ports by default */
+  ec->config.enabled_port_mask = ~0;
 }
 
 static int dpdk_stats_preinit(void) {
@@ -114,16 +123,15 @@ static int dpdk_stats_preinit(void) {
     return 0;
   }
 
-  int ret = dpdk_helper_init(DPDK_STATS_NAME, sizeof(dpdk_stats_ctx_t), &g_hc);
+  int ret = dpdk_helper_init(g_shm_name, sizeof(dpdk_stats_ctx_t), &g_hc);
   if (ret != 0) {
     char errbuf[ERR_BUF_SIZE];
     ERROR("%s: failed to initialize %s helper(error: %s)", DPDK_STATS_PLUGIN,
-          DPDK_STATS_NAME, sstrerror(errno, errbuf, sizeof(errbuf)));
+          g_shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return ret;
   }
 
   dpdk_stats_default_config();
-
   return ret;
 }
 
@@ -131,25 +139,39 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
   DPDK_STATS_TRACE();
 
   int ret = dpdk_stats_preinit();
-  if (ret)
-    return ret;
+  if (ret) {
+    g_state = DPDK_STAT_STATE_CFG_ERR;
+    return 0;
+  }
 
   dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(g_hc);
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if ((strcasecmp("EnabledPortMask", child->key) == 0) &&
-        (child->values[0].type == OCONFIG_TYPE_NUMBER)) {
-      ctx->config.enabled_port_mask = child->values[0].value.number;
-      DEBUG("%s: Enabled Port Mask 0x%X", DPDK_STATS_PLUGIN,
-            ctx->config.enabled_port_mask);
-    } else if (strcasecmp("EAL", child->key) == 0) {
+    if (strcasecmp("EnabledPortMask", child->key) == 0)
+      ret = cf_util_get_int(child, (int *)&ctx->config.enabled_port_mask);
+    else if (strcasecmp("SharedMemObj", child->key) == 0) {
+      ret = cf_util_get_string_buffer(child, g_shm_name, sizeof(g_shm_name));
+      if (ret == 0)
+        ret = dpdk_stats_reinit_helper();
+    } else if (strcasecmp("EAL", child->key) == 0)
       ret = dpdk_helper_eal_config_parse(g_hc, child);
-      if (ret)
-        return ret;
+    else if (strcasecmp("PortName", child->key) != 0) {
+      ERROR(DPDK_STATS_PLUGIN ": unrecognized configuration option %s",
+            child->key);
+      ret = -1;
+    }
+
+    if (ret != 0) {
+      g_state = DPDK_STAT_STATE_CFG_ERR;
+      return 0;
     }
   }
+
+  DEBUG(DPDK_STATS_PLUGIN ": Enabled Port Mask 0x%X",
+        ctx->config.enabled_port_mask);
+  DEBUG(DPDK_STATS_PLUGIN ": Shared memory object %s", g_shm_name);
 
   int port_num = 0;
 
@@ -162,86 +184,73 @@ static int dpdk_stats_config(oconfig_item_t *ci) {
       while (!(ctx->config.enabled_port_mask & (1 << port_num)))
         port_num++;
 
-      cf_util_get_string_buffer(child, ctx->config.port_name[port_num],
-                                sizeof(ctx->config.port_name[port_num]));
-      DEBUG("%s: Port %d Name: %s", DPDK_STATS_PLUGIN, port_num,
+      if (cf_util_get_string_buffer(child, ctx->config.port_name[port_num],
+                                    sizeof(ctx->config.port_name[port_num]))) {
+        g_state = DPDK_STAT_STATE_CFG_ERR;
+        return 0;
+      }
+
+      DEBUG(DPDK_STATS_PLUGIN ": Port %d Name: %s", port_num,
             ctx->config.port_name[port_num]);
 
       port_num++;
     }
   }
 
-  return ret;
+  return 0;
 }
 
 static int dpdk_helper_stats_get(dpdk_helper_ctx_t *phc) {
-  dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(phc);
-
-  /* get stats from DPDK */
-
-  uint8_t ports_count = rte_eth_dev_count();
-  if (ports_count == 0) {
-    DPDK_CHILD_LOG("%s: No DPDK ports available. "
-                   "Check bound devices to DPDK driver.\n",
-                   DPDK_STATS_PLUGIN);
-    return -ENODEV;
-  }
-
-  if (ports_count > RTE_MAX_ETHPORTS)
-    ports_count = RTE_MAX_ETHPORTS;
-
-  ctx->ports_count = ports_count;
-
   int len = 0;
   int ret = 0;
   int stats = 0;
+  dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(phc);
 
-  for (uint8_t i = 0; i < ports_count; i++) {
+  /* get stats from DPDK */
+  for (uint8_t i = 0; i < ctx->ports_count; i++) {
     if (!(ctx->config.enabled_port_mask & (1 << i)))
       continue;
+
     ctx->port_read_time[i] = cdtime();
+    /* Store available stats array length for port */
     len = ctx->port_stats_count[i];
+
     ret = rte_eth_xstats_get(i, &ctx->xstats[stats], len);
-    if (ret < 0 || ret != len) {
-      DPDK_CHILD_LOG("%s: Error reading stats (port=%d; len=%d)\n",
-                     DPDK_STATS_PLUGIN, i, len);
+    if (ret < 0 || ret > len) {
+      DPDK_CHILD_LOG(DPDK_STATS_PLUGIN
+                     ": Error reading stats (port=%d; len=%d, ret=%d)\n",
+                     i, len, ret);
+      ctx->port_stats_count[i] = 0;
       return -1;
     }
 #if RTE_VERSION >= RTE_VERSION_16_07
     ret = rte_eth_xstats_get_names(i, &ctx->xnames[stats], len);
-    if (ret < 0 || ret != len) {
-      DPDK_CHILD_LOG("%s: Error reading stat names (port=%d; len=%d)\n",
-                     DPDK_STATS_PLUGIN, i, len);
+    if (ret < 0 || ret > len) {
+      DPDK_CHILD_LOG(DPDK_STATS_PLUGIN
+                     ": Error reading stat names (port=%d; len=%d ret=%d)\n",
+                     i, len, ret);
+      ctx->port_stats_count[i] = 0;
       return -1;
     }
 #endif
-    stats += len;
+    ctx->port_stats_count[i] = ret;
+    stats += ctx->port_stats_count[i];
   }
 
-  assert(stats == ctx->stats_count);
-
+  assert(stats <= ctx->stats_count);
   return 0;
 }
 
 static int dpdk_helper_stats_count_get(dpdk_helper_ctx_t *phc) {
-  dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(phc);
-
-  uint8_t ports = rte_eth_dev_count();
-  if (ports == 0) {
-    DPDK_CHILD_LOG("%s: No DPDK ports available. "
-                   "Check bound devices to DPDK driver.\n",
-                   DPDK_STATS_PLUGIN);
+  uint8_t ports = dpdk_helper_eth_dev_count();
+  if (ports == 0)
     return -ENODEV;
-  }
 
-  if (ports > RTE_MAX_ETHPORTS)
-    ports = RTE_MAX_ETHPORTS;
-
+  dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(phc);
   ctx->ports_count = ports;
 
   int len = 0;
   int stats_count = 0;
-
   for (int i = 0; i < ports; i++) {
     if (!(ctx->config.enabled_port_mask & (1 << i)))
       continue;
@@ -264,9 +273,12 @@ static int dpdk_helper_stats_count_get(dpdk_helper_ctx_t *phc) {
   return stats_count;
 }
 
+static int dpdk_stats_get_size(dpdk_helper_ctx_t *phc) {
+  return dpdk_helper_data_size_get(phc) - sizeof(dpdk_stats_ctx_t);
+}
+
 int dpdk_helper_command_handler(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd) {
   /* this function is called from helper context */
-  int ret = 0;
 
   if (phc == NULL) {
     DPDK_CHILD_LOG("%s: Invalid argument(phc)\n", DPDK_STATS_PLUGIN);
@@ -278,34 +290,23 @@ int dpdk_helper_command_handler(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd) {
     return -EINVAL;
   }
 
-  dpdk_stats_ctx_t *ctx = DPDK_STATS_CTX_GET(phc);
-
-  if (ctx->stats_count == 0) {
-
-    int stats_count = dpdk_helper_stats_count_get(phc);
-
-    if (stats_count < 0) {
-      return stats_count;
-    }
-
-    int stats_size = stats_count * DPDK_STATS_CTX_GET_XSTAT_SIZE;
-    ctx->stats_count = stats_count;
-
-    if ((dpdk_helper_data_size_get(phc) - sizeof(dpdk_stats_ctx_t)) <
-        stats_size) {
-      DPDK_CHILD_LOG(
-          "%s:%s:%d not enough space for stats (available=%d, "
-          "needed=%d)\n",
-          DPDK_STATS_PLUGIN, __FUNCTION__, __LINE__,
-          (int)(dpdk_helper_data_size_get(phc) - sizeof(dpdk_stats_ctx_t)),
-          stats_size);
-      return -ENOBUFS;
-    }
+  int stats_count = dpdk_helper_stats_count_get(phc);
+  if (stats_count < 0) {
+    return stats_count;
   }
 
-  ret = dpdk_helper_stats_get(phc);
+  DPDK_STATS_CTX_GET(phc)->stats_count = stats_count;
+  int stats_size = stats_count * DPDK_STATS_CTX_GET_XSTAT_SIZE;
 
-  return ret;
+  if (dpdk_stats_get_size(phc) < stats_size) {
+    DPDK_CHILD_LOG(
+        DPDK_STATS_PLUGIN
+        ":%s:%d not enough space for stats (available=%d, needed=%d)\n",
+        __FUNCTION__, __LINE__, (int)dpdk_stats_get_size(phc), stats_size);
+    return -ENOBUFS;
+  }
+
+  return dpdk_helper_stats_get(phc);
 }
 
 static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
@@ -314,17 +315,17 @@ static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
   type_end = strrchr(cnt_name, '_');
 
   if ((type_end != NULL) && (strncmp(cnt_name, "rx_", strlen("rx_")) == 0)) {
-    if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-      sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
-    } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
-      sstrncpy(cnt_type, "if_rx_dropped", cnt_type_len);
-    } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
+    if (strstr(type_end, "bytes") != NULL) {
       sstrncpy(cnt_type, "if_rx_octets", cnt_type_len);
-    } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
-      sstrncpy(cnt_type, "if_rx_packets", cnt_type_len);
-    } else if (strncmp(type_end, "_placement", strlen("_placement")) == 0) {
+    } else if (strstr(type_end, "error") != NULL) {
       sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
-    } else if (strncmp(type_end, "_buff", strlen("_buff")) == 0) {
+    } else if (strstr(type_end, "dropped") != NULL) {
+      sstrncpy(cnt_type, "if_rx_dropped", cnt_type_len);
+    } else if (strstr(type_end, "packets") != NULL) {
+      sstrncpy(cnt_type, "if_rx_packets", cnt_type_len);
+    } else if (strstr(type_end, "_placement") != NULL) {
+      sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
+    } else if (strstr(type_end, "_buff") != NULL) {
       sstrncpy(cnt_type, "if_rx_errors", cnt_type_len);
     } else {
       /* Does not fit obvious type: use a more generic one */
@@ -333,13 +334,13 @@ static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
 
   } else if ((type_end != NULL) &&
              (strncmp(cnt_name, "tx_", strlen("tx_"))) == 0) {
-    if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
-      sstrncpy(cnt_type, "if_tx_errors", cnt_type_len);
-    } else if (strncmp(type_end, "_dropped", strlen("_dropped")) == 0) {
-      sstrncpy(cnt_type, "if_tx_dropped", cnt_type_len);
-    } else if (strncmp(type_end, "_bytes", strlen("_bytes")) == 0) {
+    if (strstr(type_end, "bytes") != NULL) {
       sstrncpy(cnt_type, "if_tx_octets", cnt_type_len);
-    } else if (strncmp(type_end, "_packets", strlen("_packets")) == 0) {
+    } else if (strstr(type_end, "error") != NULL) {
+      sstrncpy(cnt_type, "if_tx_errors", cnt_type_len);
+    } else if (strstr(type_end, "dropped") != NULL) {
+      sstrncpy(cnt_type, "if_tx_dropped", cnt_type_len);
+    } else if (strstr(type_end, "packets") != NULL) {
       sstrncpy(cnt_type, "if_tx_packets", cnt_type_len);
     } else {
       /* Does not fit obvious type: use a more generic one */
@@ -348,16 +349,14 @@ static void dpdk_stats_resolve_cnt_type(char *cnt_type, size_t cnt_type_len,
   } else if ((type_end != NULL) &&
              (strncmp(cnt_name, "flow_", strlen("flow_"))) == 0) {
 
-    if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
+    if (strstr(type_end, "_filters") != NULL) {
       sstrncpy(cnt_type, "operations", cnt_type_len);
-    } else if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
+    } else if (strstr(type_end, "error") != NULL)
       sstrncpy(cnt_type, "errors", cnt_type_len);
-    } else if (strncmp(type_end, "_filters", strlen("_filters")) == 0) {
-      sstrncpy(cnt_type, "filter_result", cnt_type_len);
-    }
+
   } else if ((type_end != NULL) &&
              (strncmp(cnt_name, "mac_", strlen("mac_"))) == 0) {
-    if (strncmp(type_end, "_errors", strlen("_errors")) == 0) {
+    if (strstr(type_end, "error") != NULL) {
       sstrncpy(cnt_type, "errors", cnt_type_len);
     }
   } else {
@@ -374,7 +373,6 @@ static void dpdk_stats_counter_submit(const char *plugin_instance,
   vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
   vl.time = port_read_time;
-  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, DPDK_STATS_PLUGIN, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
   dpdk_stats_resolve_cnt_type(vl.type, sizeof(vl.type), cnt_name);
@@ -398,9 +396,9 @@ static int dpdk_stats_counters_dispatch(dpdk_helper_ctx_t *phc) {
 
     char dev_name[64];
     if (ctx->config.port_name[i][0] != 0) {
-      ssnprintf(dev_name, sizeof(dev_name), "%s", ctx->config.port_name[i]);
+      snprintf(dev_name, sizeof(dev_name), "%s", ctx->config.port_name[i]);
     } else {
-      ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
+      snprintf(dev_name, sizeof(dev_name), "port.%d", i);
     }
 
     DEBUG(" === Dispatch stats for port %d (name=%s; stats_count=%d)", i,
@@ -446,11 +444,11 @@ static int dpdk_stats_reinit_helper() {
   g_hc = NULL;
 
   int ret;
-  ret = dpdk_helper_init(DPDK_STATS_NAME, data_size, &g_hc);
+  ret = dpdk_helper_init(g_shm_name, data_size, &g_hc);
   if (ret != 0) {
     char errbuf[ERR_BUF_SIZE];
     ERROR("%s: failed to initialize %s helper(error: %s)", DPDK_STATS_PLUGIN,
-          DPDK_STATS_NAME, sstrerror(errno, errbuf, sizeof(errbuf)));
+          g_shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
     return ret;
   }
 
@@ -492,10 +490,23 @@ static int dpdk_stats_read(user_data_t *ud) {
   return 0;
 }
 
-static int dpdk_stats_init(void) {
+static int dpdk_stats_shutdown(void) {
   DPDK_STATS_TRACE();
 
+  dpdk_helper_shutdown(g_hc);
+  g_hc = NULL;
+
+  return 0;
+}
+
+static int dpdk_stats_init(void) {
+  DPDK_STATS_TRACE();
   int ret = 0;
+
+  if (g_state != DPDK_STAT_STATE_OKAY) {
+    dpdk_stats_shutdown();
+    return -1;
+  }
 
   ret = dpdk_stats_preinit();
   if (ret != 0) {
@@ -503,22 +514,6 @@ static int dpdk_stats_init(void) {
   }
 
   return 0;
-}
-
-static int dpdk_stats_shutdown(void) {
-  DPDK_STATS_TRACE();
-
-  int ret = 0;
-
-  ret = dpdk_helper_shutdown(g_hc);
-  g_hc = NULL;
-  if (ret != 0) {
-    ERROR("%s: failed to cleanup %s helper", DPDK_STATS_PLUGIN,
-          DPDK_STATS_NAME);
-    return ret;
-  }
-
-  return ret;
 }
 
 void module_register(void) {

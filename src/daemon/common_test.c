@@ -55,28 +55,7 @@ DEF_TEST(sstrncpy) {
   EXPECT_EQ_STR("collect", ptr);
   OK(buffer[3] == buffer[12]);
 
-  return (0);
-}
-
-DEF_TEST(ssnprintf) {
-  char buffer[16] = "";
-  char *ptr = &buffer[4];
-  int status;
-
-  buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;
-  buffer[12] = buffer[13] = buffer[14] = buffer[15] = 0xff;
-
-  status = ssnprintf(ptr, 8, "%i", 1337);
-  OK(status == 4);
-  EXPECT_EQ_STR("1337", ptr);
-
-  status = ssnprintf(ptr, 8, "%s", "collectd");
-  OK(status == 8);
-  OK(ptr[7] == 0);
-  EXPECT_EQ_STR("collect", ptr);
-  OK(buffer[3] == buffer[12]);
-
-  return (0);
+  return 0;
 }
 
 DEF_TEST(sstrdup) {
@@ -91,7 +70,7 @@ DEF_TEST(sstrdup) {
   ptr = sstrdup(NULL);
   OK(ptr == NULL);
 
-  return (0);
+  return 0;
 }
 
 DEF_TEST(strsplit) {
@@ -141,7 +120,7 @@ DEF_TEST(strsplit) {
   status = strsplit(buffer, fields, 8);
   OK(status == 0);
 
-  return (0);
+  return 0;
 }
 
 DEF_TEST(strjoin) {
@@ -190,7 +169,7 @@ DEF_TEST(strjoin) {
   /* use (NULL, 0) to determine required buffer size. */
   EXPECT_EQ_INT(3, strjoin(NULL, 0, (char *[]){"a", "b"}, 2, "-"));
 
-  return (0);
+  return 0;
 }
 
 DEF_TEST(escape_slashes) {
@@ -264,7 +243,7 @@ DEF_TEST(strunescape) {
   status = strunescape(buffer, sizeof(buffer));
   OK(status != 0);
   EXPECT_EQ_STR("\tbackslash end", buffer);
-  return (0);
+  return 0;
 
   /* Backslash at buffer end */
   strncpy(buffer, "\\t3\\56", sizeof(buffer));
@@ -278,7 +257,7 @@ DEF_TEST(strunescape) {
   OK(buffer[5] == '6');
   OK(buffer[6] == '7');
 
-  return (0);
+  return 0;
 }
 
 DEF_TEST(parse_values) {
@@ -323,7 +302,7 @@ DEF_TEST(parse_values) {
     EXPECT_EQ_DOUBLE(cases[i].value, vl.values[0].gauge);
   }
 
-  return (0);
+  return 0;
 }
 
 DEF_TEST(value_to_rate) {
@@ -380,7 +359,6 @@ DEF_TEST(value_to_rate) {
 
 int main(void) {
   RUN_TEST(sstrncpy);
-  RUN_TEST(ssnprintf);
   RUN_TEST(sstrdup);
   RUN_TEST(strsplit);
   RUN_TEST(strjoin);

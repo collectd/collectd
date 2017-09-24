@@ -54,10 +54,10 @@ static int irq_config(const char *key, const char *value) {
       invert = 0;
     ignorelist_set_invert(ignorelist, invert);
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void irq_submit(const char *irq_name, derive_t value) {
@@ -93,7 +93,7 @@ static int irq_read(void) {
     char errbuf[1024];
     ERROR("irq plugin: fopen (/proc/interrupts): %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   /* Get CPU count from the first line */
@@ -103,7 +103,7 @@ static int irq_read(void) {
     ERROR("irq plugin: unable to get CPU count from first line "
           "of /proc/interrupts");
     fclose(fh);
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -165,7 +165,7 @@ static int irq_read(void) {
 
   fclose(fh);
 
-  return (0);
+  return 0;
 } /* int irq_read */
 
 void module_register(void) {

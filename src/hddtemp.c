@@ -112,7 +112,7 @@ static char *hddtemp_query_daemon(void) {
     ERROR("hddtemp plugin: getaddrinfo (%s, %s): %s", host, port,
           (ai_return == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
                                     : gai_strerror(ai_return));
-    return (NULL);
+    return NULL;
   }
 
   fd = -1;
@@ -146,7 +146,7 @@ static char *hddtemp_query_daemon(void) {
 
   if (fd < 0) {
     ERROR("hddtemp plugin: Could not connect to daemon.");
-    return (NULL);
+    return NULL;
   }
 
   /* receive data from the hddtemp daemon */
@@ -169,7 +169,7 @@ static char *hddtemp_query_daemon(void) {
         close(fd);
         free(buffer);
         ERROR("hddtemp plugin: Allocation failed.");
-        return (NULL);
+        return NULL;
       }
       buffer = new_buffer;
     }
@@ -186,7 +186,7 @@ static char *hddtemp_query_daemon(void) {
             sstrerror(errno, errbuf, sizeof(errbuf)));
       close(fd);
       free(buffer);
-      return (NULL);
+      return NULL;
     }
     buffer_fill += status;
   }
@@ -197,13 +197,13 @@ static char *hddtemp_query_daemon(void) {
             buffer);
     close(fd);
     free(buffer);
-    return (NULL);
+    return NULL;
   }
 
   assert(buffer_fill < buffer_size);
   buffer[buffer_fill] = '\0';
   close(fd);
-  return (buffer);
+  return buffer;
 }
 
 static int hddtemp_config(const char *key, const char *value) {
@@ -214,14 +214,14 @@ static int hddtemp_config(const char *key, const char *value) {
   } else if (strcasecmp(key, "Port") == 0) {
     int port = (int)(atof(value));
     if ((port > 0) && (port <= 65535))
-      ssnprintf(hddtemp_port, sizeof(hddtemp_port), "%i", port);
+      snprintf(hddtemp_port, sizeof(hddtemp_port), "%i", port);
     else
       sstrncpy(hddtemp_port, value, sizeof(hddtemp_port));
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void hddtemp_submit(char *type_instance, double value) {
@@ -248,7 +248,7 @@ static int hddtemp_read(void) {
   /* get data from daemon */
   buf = hddtemp_query_daemon();
   if (buf == NULL)
-    return (-1);
+    return -1;
 
   /* NB: strtok_r will eat up "||" and leading "|"'s */
   ptr = buf;
@@ -276,7 +276,7 @@ static int hddtemp_read(void) {
   }
 
   free(buf);
-  return (0);
+  return 0;
 } /* int hddtemp_read */
 
 /* module_register

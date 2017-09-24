@@ -89,9 +89,12 @@ nodist_pkgconfig_DATA = \
 
 pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/client.h \
-	src/libcollectdclient/collectd/network.h \
+	src/libcollectdclient/collectd/lcc_features.h \
 	src/libcollectdclient/collectd/network_buffer.h \
-	src/libcollectdclient/collectd/lcc_features.h
+	src/libcollectdclient/collectd/network.h \
+	src/libcollectdclient/collectd/network_parse.h \
+	src/libcollectdclient/collectd/server.h \
+	src/libcollectdclient/collectd/types.h
 
 lib_LTLIBRARIES = libcollectdclient.la
 
@@ -114,11 +117,15 @@ noinst_LTLIBRARIES = \
 	libformat_graphite.la \
 	libformat_json.la \
 	libheap.la \
+	libignorelist.la \
 	liblatency.la \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
-	liboconfig.la \
+	liboconfig.la
+
+
+check_LTLIBRARIES = \
 	libplugin_mock.la
 
 
@@ -133,7 +140,8 @@ check_PROGRAMS = \
 	test_utils_mount \
 	test_utils_subst \
 	test_utils_time \
-	test_utils_vl_lookup
+	test_utils_vl_lookup \
+	test_libcollectd_network_parse
 
 
 TESTS = $(check_PROGRAMS)
@@ -199,8 +207,6 @@ collectd_SOURCES = \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
-	src/daemon/utils_ignorelist.c \
-	src/daemon/utils_ignorelist.h \
 	src/daemon/utils_llist.c \
 	src/daemon/utils_llist.h \
 	src/daemon/utils_random.c \
@@ -244,8 +250,8 @@ collectdmon_SOURCES = src/collectdmon.c
 
 collectd_nagios_SOURCES = src/collectd-nagios.c
 collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectd_nagios_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -257,8 +263,8 @@ endif
 
 collectdctl_SOURCES = src/collectdctl.c
 collectdctl_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectdctl_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -270,8 +276,8 @@ endif
 
 collectd_tg_SOURCES = src/collectd-tg.c
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
 collectd_tg_LDADD = \
 	$(PTHREAD_LIBS) \
 	libheap.la \
@@ -331,6 +337,10 @@ libheap_la_SOURCES = \
 	src/daemon/utils_heap.c \
 	src/daemon/utils_heap.h
 
+libignorelist_la_SOURCES = \
+	src/utils_ignorelist.c \
+	src/utils_ignorelist.h
+
 libmetadata_la_SOURCES = \
 	src/daemon/meta_data.c \
 	src/daemon/meta_data.h
@@ -340,13 +350,11 @@ libplugin_mock_la_SOURCES = \
 	src/daemon/utils_cache_mock.c \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
-	src/daemon/utils_ignorelist.c \
-	src/daemon/utils_ignorelist.h \
 	src/daemon/utils_time.c \
 	src/daemon/utils_time.h
 
 libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
-libplugin_mock_la_LIBADD = libcommon.la $(COMMON_LIBS)
+libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
 	src/utils_format_graphite.c \
@@ -471,20 +479,34 @@ endif
 libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/client.c \
 	src/libcollectdclient/network.c \
-	src/libcollectdclient/network_buffer.c
+	src/libcollectdclient/network_buffer.c \
+	src/libcollectdclient/network_parse.c \
+	src/libcollectdclient/server.c
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-I$(srcdir)/src/libcollectdclient/collectd \
-	-I$(top_builddir)/src/libcollectdclient/collectd \
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient \
 	-I$(srcdir)/src/daemon
-libcollectdclient_la_LDFLAGS = -version-info 1:0:0
-libcollectdclient_la_LIBADD = 
+libcollectdclient_la_LDFLAGS = -version-info 2:0:1
+libcollectdclient_la_LIBADD = -lm
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 libcollectdclient_la_LIBADD += $(GCRYPT_LIBS)
 endif
 
+# network_parse_test.c includes network_parse.c, so no need to link with
+# libcollectdclient.so.
+test_libcollectd_network_parse_SOURCES = src/libcollectdclient/network_parse_test.c
+test_libcollectd_network_parse_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	-I$(srcdir)/src/libcollectdclient \
+	-I$(top_builddir)/src/libcollectdclient
+if BUILD_WITH_LIBGCRYPT
+test_libcollectd_network_parse_CPPFLAGS += $(GCRYPT_CPPFLAGS)
+test_libcollectd_network_parse_LDFLAGS = $(GCRYPT_LDFLAGS)
+test_libcollectd_network_parse_LDADD = $(GCRYPT_LIBS)
+endif
 
 liboconfig_la_SOURCES = \
 	src/liboconfig/oconfig.c \
@@ -602,7 +624,7 @@ if BUILD_PLUGIN_CGROUPS
 pkglib_LTLIBRARIES += cgroups.la
 cgroups_la_SOURCES = src/cgroups.c
 cgroups_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-cgroups_la_LIBADD = libmount.la
+cgroups_la_LIBADD = libignorelist.la libmount.la
 endif
 
 if BUILD_PLUGIN_CHRONY
@@ -690,6 +712,15 @@ curl_json_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_json_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+
+test_plugin_curl_json_SOURCES = src/curl_json_test.c \
+				src/utils_curl_stats.c \
+				src/daemon/configfile.c \
+				src/daemon/types_list.c
+test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+test_plugin_curl_json_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+test_plugin_curl_json_LDADD = libavltree.la liboconfig.la libplugin_mock.la $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+check_PROGRAMS += test_plugin_curl_json
 endif
 
 if BUILD_PLUGIN_CURL_XML
@@ -719,7 +750,7 @@ if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = src/df.c
 df_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-df_la_LIBADD = libmount.la
+df_la_LIBADD = libignorelist.la libmount.la
 endif
 
 if BUILD_PLUGIN_DISK
@@ -728,7 +759,7 @@ disk_la_SOURCES = src/disk.c
 disk_la_CFLAGS = $(AM_CFLAGS)
 disk_la_CPPFLAGS = $(AM_CPPFLAGS)
 disk_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-disk_la_LIBADD =
+disk_la_LIBADD = libignorelist.la
 if BUILD_WITH_LIBKSTAT
 disk_la_LIBADD += -lkstat
 endif
@@ -766,12 +797,22 @@ dns_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
 dns_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
 endif
 
+if BUILD_PLUGIN_DPDKEVENTS
+pkglib_LTLIBRARIES += dpdkevents.la
+dpdkevents_la_SOURCES = src/dpdkevents.c src/utils_dpdk.c src/utils_dpdk.h
+dpdkevents_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkevents_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
+dpdkevents_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
+dpdkevents_la_LIBADD = $(LIBDPDK_LIBS)
+endif
+
 if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = src/dpdkstat.c src/utils_dpdk.c src/utils_dpdk.h
 dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
+dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
-dpdkstat_la_LIBADD = -ldpdk
+dpdkstat_la_LIBADD = $(LIBDPDK_LIBS)
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -867,6 +908,14 @@ hugepages_la_SOURCES = src/hugepages.c
 hugepages_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_INTEL_PMU
+pkglib_LTLIBRARIES += intel_pmu.la
+intel_pmu_la_SOURCES = src/intel_pmu.c
+intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
+intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
+intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
+endif
+
 if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
 intel_rdt_la_SOURCES = src/intel_rdt.c
@@ -880,7 +929,7 @@ pkglib_LTLIBRARIES += interface.la
 interface_la_SOURCES = src/interface.c
 interface_la_CFLAGS = $(AM_CFLAGS)
 interface_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-interface_la_LIBADD =
+interface_la_LIBADD = libignorelist.la
 if BUILD_WITH_LIBSTATGRAB
 interface_la_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 interface_la_LIBADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
@@ -916,16 +965,12 @@ pkglib_LTLIBRARIES += ipmi.la
 ipmi_la_SOURCES = src/ipmi.c
 ipmi_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_OPENIPMI_CFLAGS)
 ipmi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-ipmi_la_LIBADD = $(BUILD_WITH_OPENIPMI_LIBS)
+ipmi_la_LIBADD = libignorelist.la $(BUILD_WITH_OPENIPMI_LIBS)
 endif
 
 if BUILD_PLUGIN_IPVS
 pkglib_LTLIBRARIES += ipvs.la
 ipvs_la_SOURCES = src/ipvs.c
-ipvs_la_CFLAGS = $(AM_CFLAGS)
-if IP_VS_H_NEEDS_KERNEL_CFLAGS
-ipvs_la_CFLAGS += $(KERNEL_CFLAGS)
-endif
 ipvs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -933,6 +978,7 @@ if BUILD_PLUGIN_IRQ
 pkglib_LTLIBRARIES += irq.la
 irq_la_SOURCES = src/irq.c
 irq_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+irq_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_JAVA
@@ -1005,6 +1051,7 @@ madwifi_la_SOURCES = \
 	src/madwifi.c \
 	src/madwifi.h
 madwifi_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+madwifi_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_MATCH_EMPTY_COUNTER
@@ -1057,6 +1104,7 @@ if BUILD_PLUGIN_MD
 pkglib_LTLIBRARIES += md.la
 md_la_SOURCES = src/md.c
 md_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+md_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_MEMCACHEC
@@ -1106,7 +1154,7 @@ pkglib_LTLIBRARIES += mic.la
 mic_la_SOURCES = src/mic.c
 mic_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_MIC_CPPFLAGS)
 mic_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_MIC_LDFLAGS)
-mic_la_LIBADD = $(BUILD_WITH_MIC_LIBS)
+mic_la_LIBADD = libignorelist.la $(BUILD_WITH_MIC_LIBS)
 endif
 
 if BUILD_PLUGIN_MODBUS
@@ -1144,7 +1192,7 @@ pkglib_LTLIBRARIES += netapp.la
 netapp_la_SOURCES = src/netapp.c
 netapp_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBNETAPP_CPPFLAGS)
 netapp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBNETAPP_LDFLAGS)
-netapp_la_LIBADD = $(LIBNETAPP_LIBS)
+netapp_la_LIBADD = libignorelist.la $(LIBNETAPP_LIBS)
 endif
 
 if BUILD_PLUGIN_NETLINK
@@ -1249,8 +1297,8 @@ if BUILD_PLUGIN_ONEWIRE
 pkglib_LTLIBRARIES += onewire.la
 onewire_la_SOURCES = src/onewire.c
 onewire_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBOWCAPI_CPPFLAGS)
-onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
 onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBOWCAPI_LDFLAGS)
+onewire_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBOWCAPI_LIBS)
 endif
 
 if BUILD_PLUGIN_OPENLDAP
@@ -1287,6 +1335,17 @@ ovs_events_la_SOURCES = \
 ovs_events_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
+if BUILD_PLUGIN_OVS_STATS
+pkglib_LTLIBRARIES += ovs_stats.la
+ovs_stats_la_SOURCES = \
+	src/ovs_stats.c \
+	src/utils_ovs.c \
+	src/utils_ovs.h
+ovs_stats_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
 if BUILD_PLUGIN_PERL
@@ -1357,9 +1416,6 @@ python_la_SOURCES = \
 	src/pyvalues.c \
 	src/cpython.h
 python_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBPYTHON_CPPFLAGS)
-if COMPILER_IS_GCC
-python_la_CPPFLAGS += -fno-strict-aliasing -Wno-strict-aliasing
-endif
 python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
@@ -1377,6 +1433,7 @@ if BUILD_PLUGIN_PROTOCOLS
 pkglib_LTLIBRARIES += protocols.la
 protocols_la_SOURCES = src/protocols.c
 protocols_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+protocols_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_REDIS
@@ -1422,7 +1479,7 @@ pkglib_LTLIBRARIES += sensors.la
 sensors_la_SOURCES = src/sensors.c
 sensors_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBSENSORS_CPPFLAGS)
 sensors_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBSENSORS_LDFLAGS)
-sensors_la_LIBADD = $(BUILD_WITH_LIBSENSORS_LIBS)
+sensors_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBSENSORS_LIBS)
 endif
 
 if BUILD_PLUGIN_SERIAL
@@ -1445,7 +1502,7 @@ pkglib_LTLIBRARIES += smart.la
 smart_la_SOURCES = src/smart.c
 smart_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBATASMART_CPPFLAGS) $(BUILD_WITH_LIBUDEV_CPPFLAGS)
 smart_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBATASMART_LDFLAGS) $(BUILD_WITH_LIBUDEV_LDFLAGS)
-smart_la_LIBADD = $(BUILD_WITH_LIBATASMART_LIBS) $(BUILD_WITH_LIBUDEV_LIBS)
+smart_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBATASMART_LIBS) $(BUILD_WITH_LIBUDEV_LIBS)
 endif
 endif
 
@@ -1455,6 +1512,14 @@ snmp_la_SOURCES = src/snmp.c
 snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
 snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
 snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+endif
+
+if BUILD_PLUGIN_SNMP_AGENT
+pkglib_LTLIBRARIES += snmp_agent.la
+snmp_agent_la_SOURCES = src/snmp_agent.c
+snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
+snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
+snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
 endif
 
 if BUILD_PLUGIN_STATSD
@@ -1487,6 +1552,12 @@ if BUILD_WITH_PERFSTAT
 swap_la_LIBADD += -lperfstat
 endif
 
+endif
+
+if BUILD_PLUGIN_SYNPROXY
+pkglib_LTLIBRARIES += synproxy.la
+synproxy_la_SOURCES = src/synproxy.c
+synproxy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_SYSLOG
@@ -1587,6 +1658,7 @@ if BUILD_PLUGIN_THERMAL
 pkglib_LTLIBRARIES += thermal.la
 thermal_la_SOURCES = src/thermal.c
 thermal_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+thermal_la_LIBADD = libignorelist.la
 endif
 
 if BUILD_PLUGIN_THRESHOLD
@@ -1616,7 +1688,7 @@ if BUILD_PLUGIN_UNIXSOCK
 pkglib_LTLIBRARIES += unixsock.la
 unixsock_la_SOURCES = src/unixsock.c
 unixsock_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-unixsock_la_LIBS = libcmds.la
+unixsock_la_LIBADD = libcmds.la
 endif
 
 if BUILD_PLUGIN_UPTIME
@@ -1664,8 +1736,8 @@ pkglib_LTLIBRARIES += virt.la
 virt_la_SOURCES = src/virt.c
 virt_la_CFLAGS = $(AM_CFLAGS) \
 	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
-virt_la_LIBADD = $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 
 # TODO: enable once we support only modern libvirts which depends on libnl-3
 # the libvirt on wheezy is linked in libnl v1, and there is a small leak here,
@@ -1739,9 +1811,8 @@ endif
 if BUILD_PLUGIN_WRITE_MONGODB
 pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = src/write_mongodb.c
-write_mongodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMONGOC_CPPFLAGS)
+write_mongodb_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMONGOC_CFLAGS)
 write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
-write_mongodb_la_LIBADD = -lmongoc
 endif
 
 if BUILD_PLUGIN_WRITE_PROMETHEUS
@@ -1978,10 +2049,10 @@ dist_noinst_JAVA = \
 	bindings/java/org/collectd/java/GenericJMXConfValue.java \
 	bindings/java/org/collectd/java/JMXMemory.java
 
-collectd-api.jar: classnoinst.stamp
+collectd-api.jar: $(JAVA_TIMESTAMP_FILE)
 	$(JAR) cf $(JARFLAGS) $@ org/collectd/api/*.class
 
-generic-jmx.jar: classnoinst.stamp
+generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 	$(JAR) cf $(JARFLAGS) $@ org/collectd/java/*.class
 
 jar_DATA = collectd-api.jar generic-jmx.jar

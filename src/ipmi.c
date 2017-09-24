@@ -83,7 +83,7 @@ static void c_ipmi_error(const char *func, int status) {
   }
 
   if (errbuf[0] == 0) {
-    ssnprintf(errbuf, sizeof(errbuf), "Unknown error %#x", status);
+    snprintf(errbuf, sizeof(errbuf), "Unknown error %#x", status);
   }
   errbuf[sizeof(errbuf) - 1] = 0;
 
@@ -123,8 +123,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
           sstrncpy(n.type_instance, list_item->sensor_name,
                    sizeof(n.type_instance));
           sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-          ssnprintf(n.message, sizeof(n.message), "sensor %s not present",
-                    list_item->sensor_name);
+          snprintf(n.message, sizeof(n.message), "sensor %s not present",
+                   list_item->sensor_name);
 
           plugin_dispatch_notification(&n);
         }
@@ -172,8 +172,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
       sstrncpy(n.type_instance, list_item->sensor_name,
                sizeof(n.type_instance));
       sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-      ssnprintf(n.message, sizeof(n.message), "sensor %s present",
-                list_item->sensor_name);
+      snprintf(n.message, sizeof(n.message), "sensor %s present",
+               list_item->sensor_name);
 
       plugin_dispatch_notification(&n);
     }
@@ -223,8 +223,8 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
   if (entity_id_string == NULL)
     sstrncpy(sensor_name, buffer, sizeof(sensor_name));
   else
-    ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", buffer,
-              entity_id_string);
+    snprintf(sensor_name, sizeof(sensor_name), "%s %s", buffer,
+             entity_id_string);
 
   sstrncpy(buffer, sensor_name, sizeof(buffer));
   sensor_name_ptr = strstr(buffer, ").");
@@ -244,8 +244,8 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
     sensor_id_ptr = strstr(buffer, "(");
     if (sensor_id_ptr != NULL) {
       /* `sensor_id_ptr' now points to "(123)". */
-      ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
-                sensor_id_ptr);
+      snprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
+               sensor_id_ptr);
     }
     /* else: don't touch sensor_name. */
   }
@@ -253,7 +253,7 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
 
   /* Both `ignorelist' and `plugin_instance' may be NULL. */
   if (ignorelist_match(ignorelist, sensor_name_ptr) != 0)
-    return (0);
+    return 0;
 
   /* FIXME: Use rate unit or base unit to scale the value */
 
@@ -283,7 +283,7 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
          "because I don't know how to handle its type (%#x, %s). "
          "If you need this sensor, please file a bug report.",
          sensor_name_ptr, sensor_type, sensor_type_str);
-    return (-1);
+    return -1;
   }
   } /* switch (sensor_type) */
 
@@ -299,13 +299,13 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
 
   if (list_item != NULL) {
     pthread_mutex_unlock(&sensor_list_lock);
-    return (0);
+    return 0;
   }
 
   list_item = (c_ipmi_sensor_list_t *)calloc(1, sizeof(c_ipmi_sensor_list_t));
   if (list_item == NULL) {
     pthread_mutex_unlock(&sensor_list_lock);
-    return (-1);
+    return -1;
   }
 
   list_item->sensor_id = ipmi_sensor_convert_to_id(sensor);
@@ -327,13 +327,13 @@ static int sensor_list_add(ipmi_sensor_t *sensor) {
     sstrncpy(n.host, hostname_g, sizeof(n.host));
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-    ssnprintf(n.message, sizeof(n.message), "sensor %s added",
-              list_item->sensor_name);
+    snprintf(n.message, sizeof(n.message), "sensor %s added",
+             list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
   }
 
-  return (0);
+  return 0;
 } /* int sensor_list_add */
 
 static int sensor_list_remove(ipmi_sensor_t *sensor) {
@@ -355,7 +355,7 @@ static int sensor_list_remove(ipmi_sensor_t *sensor) {
 
   if (list_item == NULL) {
     pthread_mutex_unlock(&sensor_list_lock);
-    return (-1);
+    return -1;
   }
 
   if (list_prev == NULL)
@@ -375,14 +375,14 @@ static int sensor_list_remove(ipmi_sensor_t *sensor) {
     sstrncpy(n.host, hostname_g, sizeof(n.host));
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-    ssnprintf(n.message, sizeof(n.message), "sensor %s removed",
-              list_item->sensor_name);
+    snprintf(n.message, sizeof(n.message), "sensor %s removed",
+             list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
   }
 
   free(list_item);
-  return (0);
+  return 0;
 } /* int sensor_list_remove */
 
 static int sensor_list_read_all(void) {
@@ -396,7 +396,7 @@ static int sensor_list_read_all(void) {
 
   pthread_mutex_unlock(&sensor_list_lock);
 
-  return (0);
+  return 0;
 } /* int sensor_list_read_all */
 
 static int sensor_list_remove_all(void) {
@@ -417,7 +417,7 @@ static int sensor_list_remove_all(void) {
     list_item = list_next;
   } /* while (list_item) */
 
-  return (0);
+  return 0;
 } /* int sensor_list_remove_all */
 
 /*
@@ -487,7 +487,7 @@ static int thread_init(os_handler_t **ret_os_handler) {
   os_handler = ipmi_posix_thread_setup_os_handler(SIGIO);
   if (os_handler == NULL) {
     ERROR("ipmi plugin: ipmi_posix_thread_setup_os_handler failed.");
-    return (-1);
+    return -1;
   }
 
   ipmi_init(os_handler);
@@ -496,7 +496,7 @@ static int thread_init(os_handler_t **ret_os_handler) {
                               /* user data = */ NULL, &smi_connection);
   if (status != 0) {
     c_ipmi_error("ipmi_smi_setup_con", status);
-    return (-1);
+    return -1;
   }
 
   ipmi_open_option_t open_option[1] = {[0] = {.option = IPMI_OPEN_OPTION_ALL,
@@ -509,11 +509,11 @@ static int thread_init(os_handler_t **ret_os_handler) {
       sizeof(open_option) / sizeof(open_option[0]), &domain_id);
   if (status != 0) {
     c_ipmi_error("ipmi_open_domain", status);
-    return (-1);
+    return -1;
   }
 
   *ret_os_handler = os_handler;
-  return (0);
+  return 0;
 } /* int thread_init */
 
 static void *thread_main(void __attribute__((unused)) * user_data) {
@@ -523,7 +523,7 @@ static void *thread_main(void __attribute__((unused)) * user_data) {
   status = thread_init(&os_handler);
   if (status != 0) {
     ERROR("ipmi plugin: thread_init failed.\n");
-    return ((void *)-1);
+    return (void *)-1;
   }
 
   while (c_ipmi_active != 0) {
@@ -533,14 +533,14 @@ static void *thread_main(void __attribute__((unused)) * user_data) {
 
   ipmi_posix_thread_free_os_handler(os_handler);
 
-  return ((void *)0);
+  return (void *)0;
 } /* void *thread_main */
 
 static int c_ipmi_config(const char *key, const char *value) {
   if (ignorelist == NULL)
     ignorelist = ignorelist_create(/* invert = */ 1);
   if (ignorelist == NULL)
-    return (1);
+    return 1;
 
   if (strcasecmp("Sensor", key) == 0) {
     ignorelist_add(ignorelist, value);
@@ -559,10 +559,10 @@ static int c_ipmi_config(const char *key, const char *value) {
     if (IS_TRUE(value))
       c_ipmi_nofiy_notpresent = 1;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int c_ipmi_config */
 
 static int c_ipmi_init(void) {
@@ -580,16 +580,16 @@ static int c_ipmi_init(void) {
     c_ipmi_active = 0;
     thread_id = (pthread_t)0;
     ERROR("ipmi plugin: pthread_create failed.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int c_ipmi_init */
 
 static int c_ipmi_read(void) {
   if ((c_ipmi_active == 0) || (thread_id == (pthread_t)0)) {
     INFO("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
-    return (-1);
+    return -1;
   }
 
   sensor_list_read_all();
@@ -599,7 +599,7 @@ static int c_ipmi_read(void) {
   else
     c_ipmi_init_in_progress = 0;
 
-  return (0);
+  return 0;
 } /* int c_ipmi_read */
 
 static int c_ipmi_shutdown(void) {
@@ -612,7 +612,7 @@ static int c_ipmi_shutdown(void) {
 
   sensor_list_remove_all();
 
-  return (0);
+  return 0;
 } /* int c_ipmi_shutdown */
 
 void module_register(void) {

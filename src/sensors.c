@@ -176,7 +176,7 @@ static int sensors_snprintf_chip_name(char *buf, size_t buf_size,
   int status = -1;
 
   if (chip->bus == SENSORS_CHIP_NAME_BUS_ISA) {
-    status = ssnprintf(buf, buf_size, "%s-isa-%04x", chip->prefix, chip->addr);
+    status = snprintf(buf, buf_size, "%s-isa-%04x", chip->prefix, chip->addr);
   } else if (chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY) {
     status = snprintf(buf, buf_size, "%s-%s-%04x", chip->prefix, chip->busname,
                       chip->addr);
@@ -185,7 +185,7 @@ static int sensors_snprintf_chip_name(char *buf, size_t buf_size,
                       chip->addr);
   }
 
-  return (status);
+  return status;
 } /* int sensors_snprintf_chip_name */
 
 static int sensors_feature_name_to_type(const char *name) {
@@ -193,9 +193,9 @@ static int sensors_feature_name_to_type(const char *name) {
    * it's a one time cost.. */
   for (int i = 0; i < known_features_num; i++)
     if (strcasecmp(known_features[i].label, name) == 0)
-      return (known_features[i].type);
+      return known_features[i].type;
 
-  return (SENSOR_TYPE_UNKNOWN);
+  return SENSOR_TYPE_UNKNOWN;
 } /* int sensors_feature_name_to_type */
 #endif
 
@@ -216,7 +216,7 @@ static int sensors_config(const char *key, const char *value) {
     if (ignorelist_add(sensor_list, value)) {
       ERROR("sensors plugin: "
             "Cannot add value to ignorelist.");
-      return (1);
+      return 1;
     }
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     ignorelist_set_invert(sensor_list, 1);
@@ -229,10 +229,10 @@ static int sensors_config(const char *key, const char *value) {
   }
 #endif
   else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void sensors_free_features(void) {
@@ -272,7 +272,7 @@ static int sensors_load_conf(void) {
       char errbuf[1024];
       ERROR("sensors plugin: fopen(%s) failed: %s", conffile,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   }
 
@@ -283,7 +283,7 @@ static int sensors_load_conf(void) {
   if (status != 0) {
     ERROR("sensors plugin: Cannot initialize sensors. "
           "Data will not be collected.");
-    return (-1);
+    return -1;
   }
 
 #if SENSORS_API_VERSION < 0x400
@@ -367,6 +367,9 @@ static int sensors_load_conf(void) {
       if ((feature->type != SENSORS_FEATURE_IN) &&
           (feature->type != SENSORS_FEATURE_FAN) &&
           (feature->type != SENSORS_FEATURE_TEMP) &&
+#if SENSORS_API_VERSION >= 0x402
+          (feature->type != SENSORS_FEATURE_CURR) &&
+#endif
           (feature->type != SENSORS_FEATURE_POWER)) {
         DEBUG("sensors plugin: sensors_load_conf: "
               "Ignoring feature `%s', "
@@ -383,6 +386,9 @@ static int sensors_load_conf(void) {
         if ((subfeature->type != SENSORS_SUBFEATURE_IN_INPUT) &&
             (subfeature->type != SENSORS_SUBFEATURE_FAN_INPUT) &&
             (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT) &&
+#if SENSORS_API_VERSION >= 0x402
+            (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT) &&
+#endif
             (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
           continue;
 
@@ -410,17 +416,17 @@ static int sensors_load_conf(void) {
     sensors_cleanup();
     INFO("sensors plugin: lm_sensors reports no "
          "features. Data will not be collected.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int sensors_load_conf */
 
 static int sensors_shutdown(void) {
   sensors_free_features();
   ignorelist_free(sensor_list);
 
-  return (0);
+  return 0;
 } /* int sensors_shutdown */
 
 static void sensors_submit(const char *plugin_instance, const char *type,
@@ -430,8 +436,8 @@ static void sensors_submit(const char *plugin_instance, const char *type,
 
   value_list_t vl = VALUE_LIST_INIT;
 
-  status = ssnprintf(match_key, sizeof(match_key), "%s/%s-%s", plugin_instance,
-                     type, type_instance);
+  status = snprintf(match_key, sizeof(match_key), "%s/%s-%s", plugin_instance,
+                    type, type_instance);
   if (status < 1)
     return;
 
@@ -454,7 +460,7 @@ static void sensors_submit(const char *plugin_instance, const char *type,
 
 static int sensors_read(void) {
   if (sensors_load_conf() != 0)
-    return (-1);
+    return -1;
 
 #if SENSORS_API_VERSION < 0x400
   for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {
@@ -513,6 +519,10 @@ static int sensors_read(void) {
       type = "temperature";
     else if (fl->feature->type == SENSORS_FEATURE_POWER)
       type = "power";
+#if SENSORS_API_VERSION >= 0x402
+    else if (fl->feature->type == SENSORS_FEATURE_CURR)
+      type = "current";
+#endif
     else
       continue;
 
@@ -520,7 +530,7 @@ static int sensors_read(void) {
   } /* for fl = first_feature .. NULL */
 #endif /* (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
-  return (0);
+  return 0;
 } /* int sensors_read */
 
 void module_register(void) {

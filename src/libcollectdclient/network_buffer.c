@@ -128,27 +128,27 @@ static _Bool have_gcrypt(void) /* {{{ */
   static _Bool need_init = 1;
 
   if (!need_init)
-    return (result);
+    return result;
   need_init = 0;
 
 #if HAVE_GCRYPT_H
 #if GCRYPT_VERSION_NUMBER < 0x010600
   if (gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread))
-    return (0);
+    return 0;
 #endif
 
   if (!gcry_check_version(GCRYPT_VERSION))
-    return (0);
+    return 0;
 
   if (!gcry_control(GCRYCTL_INIT_SECMEM, 32768, 0))
-    return (0);
+    return 0;
 
   gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 
   result = 1;
-  return (1);
+  return 1;
 #else
-  return (0);
+  return 0;
 #endif
 } /* }}} _Bool have_gcrypt */
 
@@ -171,7 +171,7 @@ static uint64_t htonll(uint64_t val) /* {{{ */
   }
 
   if (config == 1)
-    return (val);
+    return val;
 
   hi = (uint32_t)(val >> 32);
   lo = (uint32_t)(val & 0x00000000FFFFFFFF);
@@ -179,7 +179,7 @@ static uint64_t htonll(uint64_t val) /* {{{ */
   hi = htonl(hi);
   lo = htonl(lo);
 
-  return ((((uint64_t)lo) << 32) | ((uint64_t)hi));
+  return (((uint64_t)lo) << 32) | ((uint64_t)hi);
 } /* }}} uint64_t htonll */
 #endif
 
@@ -222,9 +222,9 @@ static double htond(double val) /* {{{ */
     out.byte[4] = out.byte[5] = 0x00;
     out.byte[6] = 0xf8;
     out.byte[7] = 0x7f;
-    return (out.floating);
+    return out.floating;
   } else if (config == 1)
-    return (val);
+    return val;
   else if (config == 2) {
     in.floating = val;
     out.byte[0] = in.byte[7];
@@ -235,7 +235,7 @@ static double htond(double val) /* {{{ */
     out.byte[5] = in.byte[2];
     out.byte[6] = in.byte[1];
     out.byte[7] = in.byte[0];
-    return (out.floating);
+    return out.floating;
   } else if (config == 3) {
     in.floating = val;
     out.byte[0] = in.byte[4];
@@ -246,10 +246,10 @@ static double htond(double val) /* {{{ */
     out.byte[5] = in.byte[1];
     out.byte[6] = in.byte[2];
     out.byte[7] = in.byte[3];
-    return (out.floating);
+    return out.floating;
   } else {
     /* If in doubt, just copy the value back to the caller. */
-    return (val);
+    return val;
   }
 } /* }}} double htond */
 
@@ -270,7 +270,7 @@ static int nb_add_values(char **ret_buffer, /* {{{ */
                sizeof(pkg_values_types) + sizeof(pkg_values);
 
   if (*ret_buffer_len < packet_len)
-    return (ENOMEM);
+    return ENOMEM;
 
   pkg_type = htons(TYPE_VALUES);
   pkg_length = htons((uint16_t)packet_len);
@@ -296,7 +296,7 @@ static int nb_add_values(char **ret_buffer, /* {{{ */
       break;
 
     default:
-      return (EINVAL);
+      return EINVAL;
     } /* switch (vl->values_types[i]) */
   }   /* for (vl->values_len) */
 
@@ -322,7 +322,7 @@ static int nb_add_values(char **ret_buffer, /* {{{ */
 
   *ret_buffer = packet_ptr + packet_len;
   *ret_buffer_len -= packet_len;
-  return (0);
+  return 0;
 } /* }}} int nb_add_values */
 
 static int nb_add_number(char **ret_buffer, /* {{{ */
@@ -340,7 +340,7 @@ static int nb_add_number(char **ret_buffer, /* {{{ */
   packet_len = sizeof(pkg_type) + sizeof(pkg_length) + sizeof(pkg_value);
 
   if (*ret_buffer_len < packet_len)
-    return (ENOMEM);
+    return ENOMEM;
 
   pkg_type = htons(type);
   pkg_length = htons((uint16_t)packet_len);
@@ -359,14 +359,14 @@ static int nb_add_number(char **ret_buffer, /* {{{ */
 
   *ret_buffer = packet_ptr + packet_len;
   *ret_buffer_len -= packet_len;
-  return (0);
+  return 0;
 } /* }}} int nb_add_number */
 
 static int nb_add_time(char **ret_buffer, /* {{{ */
                        size_t *ret_buffer_len, uint16_t type, double value) {
   /* Convert to collectd's "cdtime" representation. */
   uint64_t cdtime_value = (uint64_t)(value * 1073741824.0);
-  return (nb_add_number(ret_buffer, ret_buffer_len, type, cdtime_value));
+  return nb_add_number(ret_buffer, ret_buffer_len, type, cdtime_value);
 } /* }}} int nb_add_time */
 
 static int nb_add_string(char **ret_buffer, /* {{{ */
@@ -382,7 +382,7 @@ static int nb_add_string(char **ret_buffer, /* {{{ */
 
   packet_len = sizeof(pkg_type) + sizeof(pkg_length) + str_len + 1;
   if (*ret_buffer_len < packet_len)
-    return (ENOMEM);
+    return ENOMEM;
 
   pkg_type = htons(type);
   pkg_length = htons((uint16_t)packet_len);
@@ -402,7 +402,7 @@ static int nb_add_string(char **ret_buffer, /* {{{ */
 
   *ret_buffer = packet_ptr + packet_len;
   *ret_buffer_len -= packet_len;
-  return (0);
+  return 0;
 } /* }}} int nb_add_string */
 
 static int nb_add_value_list(lcc_network_buffer_t *nb, /* {{{ */
@@ -419,14 +419,14 @@ static int nb_add_value_list(lcc_network_buffer_t *nb, /* {{{ */
   if (strcmp(ident_dst->host, ident_src->host) != 0) {
     if (nb_add_string(&buffer, &buffer_size, TYPE_HOST, ident_src->host,
                       strlen(ident_src->host)) != 0)
-      return (-1);
+      return -1;
     SSTRNCPY(ident_dst->host, ident_src->host, sizeof(ident_dst->host));
   }
 
   if (strcmp(ident_dst->plugin, ident_src->plugin) != 0) {
     if (nb_add_string(&buffer, &buffer_size, TYPE_PLUGIN, ident_src->plugin,
                       strlen(ident_src->plugin)) != 0)
-      return (-1);
+      return -1;
     SSTRNCPY(ident_dst->plugin, ident_src->plugin, sizeof(ident_dst->plugin));
   }
 
@@ -434,7 +434,7 @@ static int nb_add_value_list(lcc_network_buffer_t *nb, /* {{{ */
     if (nb_add_string(&buffer, &buffer_size, TYPE_PLUGIN_INSTANCE,
                       ident_src->plugin_instance,
                       strlen(ident_src->plugin_instance)) != 0)
-      return (-1);
+      return -1;
     SSTRNCPY(ident_dst->plugin_instance, ident_src->plugin_instance,
              sizeof(ident_dst->plugin_instance));
   }
@@ -442,7 +442,7 @@ static int nb_add_value_list(lcc_network_buffer_t *nb, /* {{{ */
   if (strcmp(ident_dst->type, ident_src->type) != 0) {
     if (nb_add_string(&buffer, &buffer_size, TYPE_TYPE, ident_src->type,
                       strlen(ident_src->type)) != 0)
-      return (-1);
+      return -1;
     SSTRNCPY(ident_dst->type, ident_src->type, sizeof(ident_dst->type));
   }
 
@@ -450,29 +450,29 @@ static int nb_add_value_list(lcc_network_buffer_t *nb, /* {{{ */
     if (nb_add_string(&buffer, &buffer_size, TYPE_TYPE_INSTANCE,
                       ident_src->type_instance,
                       strlen(ident_src->type_instance)) != 0)
-      return (-1);
+      return -1;
     SSTRNCPY(ident_dst->type_instance, ident_src->type_instance,
              sizeof(ident_dst->type_instance));
   }
 
   if (nb->state.time != vl->time) {
     if (nb_add_time(&buffer, &buffer_size, TYPE_TIME_HR, vl->time))
-      return (-1);
+      return -1;
     nb->state.time = vl->time;
   }
 
   if (nb->state.interval != vl->interval) {
     if (nb_add_time(&buffer, &buffer_size, TYPE_INTERVAL_HR, vl->interval))
-      return (-1);
+      return -1;
     nb->state.interval = vl->interval;
   }
 
   if (nb_add_values(&buffer, &buffer_size, vl) != 0)
-    return (-1);
+    return -1;
 
   nb->ptr = buffer;
   nb->free = buffer_size;
-  return (0);
+  return 0;
 } /* }}} int nb_add_value_list */
 
 #if HAVE_GCRYPT_H
@@ -497,27 +497,27 @@ static int nb_add_signature(lcc_network_buffer_t *nb) /* {{{ */
   hd = NULL;
   err = gcry_md_open(&hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
   if (err != 0)
-    return (-1);
+    return -1;
 
   assert(nb->password != NULL);
   err = gcry_md_setkey(hd, nb->password, strlen(nb->password));
   if (err != 0) {
     gcry_md_close(hd);
-    return (-1);
+    return -1;
   }
 
   gcry_md_write(hd, buffer, buffer_size);
   hash = gcry_md_read(hd, GCRY_MD_SHA256);
   if (hash == NULL) {
     gcry_md_close(hd);
-    return (-1);
+    return -1;
   }
 
   assert(((2 * sizeof(uint16_t)) + hash_length) == PART_SIGNATURE_SHA256_SIZE);
   memcpy(nb->buffer + (2 * sizeof(uint16_t)), hash, hash_length);
 
   gcry_md_close(hd);
-  return (0);
+  return 0;
 } /* }}} int nb_add_signature */
 
 static int nb_add_encryption(lcc_network_buffer_t *nb) /* {{{ */
@@ -556,7 +556,7 @@ static int nb_add_encryption(lcc_network_buffer_t *nb) /* {{{ */
     err = gcry_cipher_open(&nb->encr_cypher, GCRY_CIPHER_AES256,
                            GCRY_CIPHER_MODE_OFB, /* flags = */ 0);
     if (err != 0)
-      return (-1);
+      return -1;
 
     /* Calculate our 256bit key used for AES */
     gcry_md_hash_buffer(GCRY_MD_SHA256, password_hash, nb->password,
@@ -567,7 +567,7 @@ static int nb_add_encryption(lcc_network_buffer_t *nb) /* {{{ */
     if (err != 0) {
       gcry_cipher_close(nb->encr_cypher);
       nb->encr_cypher = NULL;
-      return (-1);
+      return -1;
     }
   } else /* if (nb->encr_cypher != NULL) */
   {
@@ -579,7 +579,7 @@ static int nb_add_encryption(lcc_network_buffer_t *nb) /* {{{ */
   if (err != 0) {
     gcry_cipher_close(nb->encr_cypher);
     nb->encr_cypher = NULL;
-    return (-1);
+    return -1;
   }
 
   /* Encrypt the buffer in-place */
@@ -588,10 +588,10 @@ static int nb_add_encryption(lcc_network_buffer_t *nb) /* {{{ */
   if (err != 0) {
     gcry_cipher_close(nb->encr_cypher);
     nb->encr_cypher = NULL;
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int nb_add_encryption */
 #endif
 
@@ -607,18 +607,18 @@ lcc_network_buffer_t *lcc_network_buffer_create(size_t size) /* {{{ */
 
   if (size < 128) {
     errno = EINVAL;
-    return (NULL);
+    return NULL;
   }
 
   nb = calloc(1, sizeof(*nb));
   if (nb == NULL)
-    return (NULL);
+    return NULL;
 
   nb->size = size;
   nb->buffer = calloc(1, nb->size);
   if (nb->buffer == NULL) {
     free(nb);
-    return (NULL);
+    return NULL;
   }
 
   nb->ptr = nb->buffer;
@@ -628,7 +628,7 @@ lcc_network_buffer_t *lcc_network_buffer_create(size_t size) /* {{{ */
   nb->username = NULL;
   nb->password = NULL;
 
-  return (nb);
+  return nb;
 } /* }}} lcc_network_buffer_t *lcc_network_buffer_create */
 
 void lcc_network_buffer_destroy(lcc_network_buffer_t *nb) /* {{{ */
@@ -654,18 +654,18 @@ int lcc_network_buffer_set_security_level(lcc_network_buffer_t *nb, /* {{{ */
     nb->password = NULL;
     nb->seclevel = NONE;
     lcc_network_buffer_initialize(nb);
-    return (0);
+    return 0;
   }
 
   if (!have_gcrypt())
-    return (ENOTSUP);
+    return ENOTSUP;
 
   username_copy = strdup(username);
   password_copy = strdup(password);
   if ((username_copy == NULL) || (password_copy == NULL)) {
     free(username_copy);
     free(password_copy);
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   free(nb->username);
@@ -675,13 +675,13 @@ int lcc_network_buffer_set_security_level(lcc_network_buffer_t *nb, /* {{{ */
   nb->seclevel = level;
 
   lcc_network_buffer_initialize(nb);
-  return (0);
+  return 0;
 } /* }}} int lcc_network_buffer_set_security_level */
 
 int lcc_network_buffer_initialize(lcc_network_buffer_t *nb) /* {{{ */
 {
   if (nb == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   memset(nb->buffer, 0, nb->size);
   memset(&nb->state, 0, sizeof(nb->state));
@@ -731,13 +731,13 @@ int lcc_network_buffer_initialize(lcc_network_buffer_t *nb) /* {{{ */
   }
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int lcc_network_buffer_initialize */
 
 int lcc_network_buffer_finalize(lcc_network_buffer_t *nb) /* {{{ */
 {
   if (nb == NULL)
-    return (EINVAL);
+    return EINVAL;
 
 #if HAVE_GCRYPT_H
   if (nb->seclevel == SIGN)
@@ -746,7 +746,7 @@ int lcc_network_buffer_finalize(lcc_network_buffer_t *nb) /* {{{ */
     return nb_add_encryption(nb);
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int lcc_network_buffer_finalize */
 
 int lcc_network_buffer_add_value(lcc_network_buffer_t *nb, /* {{{ */
@@ -754,10 +754,10 @@ int lcc_network_buffer_add_value(lcc_network_buffer_t *nb, /* {{{ */
   int status;
 
   if ((nb == NULL) || (vl == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   status = nb_add_value_list(nb, vl);
-  return (status);
+  return status;
 } /* }}} int lcc_network_buffer_add_value */
 
 int lcc_network_buffer_get(lcc_network_buffer_t *nb, /* {{{ */
@@ -766,7 +766,7 @@ int lcc_network_buffer_get(lcc_network_buffer_t *nb, /* {{{ */
   size_t sz_available;
 
   if ((nb == NULL) || (buffer_size == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   assert(nb->size >= nb->free);
   sz_required = nb->size - nb->free;
@@ -777,5 +777,5 @@ int lcc_network_buffer_get(lcc_network_buffer_t *nb, /* {{{ */
     memcpy(buffer, nb->buffer,
            (sz_available < sz_required) ? sz_available : sz_required);
 
-  return (0);
+  return 0;
 } /* }}} int lcc_network_buffer_get */

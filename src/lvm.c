@@ -77,8 +77,7 @@ static void report_lv_utilization(lv_t lv, char const *vg_name,
     return;
   used_bytes = lv_size * (used_percent_unscaled * PERCENT_SCALE_FACTOR);
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "%s-%s", vg_name,
-            lv_name);
+  snprintf(plugin_instance, sizeof(plugin_instance), "%s-%s", vg_name, lv_name);
   lvm_submit(plugin_instance, "used", used_bytes);
   lvm_submit(plugin_instance, "free", lv_size - used_bytes);
 }
@@ -156,14 +155,14 @@ static int lvm_read(void) {
   lvm = lvm_init(NULL);
   if (!lvm) {
     ERROR("lvm plugin: lvm_init failed.");
-    return (-1);
+    return -1;
   }
 
   vg_names = lvm_list_vg_names(lvm);
   if (!vg_names) {
     ERROR("lvm plugin lvm_list_vg_name failed %s", lvm_errmsg(lvm));
     lvm_quit(lvm);
-    return (-1);
+    return -1;
   }
 
   dm_list_iterate_items(name_list, vg_names) {
@@ -181,7 +180,7 @@ static int lvm_read(void) {
   }
 
   lvm_quit(lvm);
-  return (0);
+  return 0;
 } /*lvm_read */
 
 void module_register(void) {

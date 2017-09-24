@@ -51,15 +51,15 @@ static int sl_config(const char *key, const char *value) {
     if (log_level < 0) {
       log_level = LOG_INFO;
       ERROR("syslog: invalid loglevel [%s] defaulting to 'info'", value);
-      return (1);
+      return 1;
     }
   } else if (strcasecmp(key, "NotifyLevel") == 0) {
     notif_severity = parse_notif_severity(value);
     if (notif_severity < 0)
-      return (1);
+      return 1;
   }
 
-  return (0);
+  return 0;
 } /* int sl_config */
 
 static void sl_log(int severity, const char *msg,
@@ -73,7 +73,7 @@ static void sl_log(int severity, const char *msg,
 static int sl_shutdown(void) {
   closelog();
 
-  return (0);
+  return 0;
 }
 
 static int sl_notification(const notification_t *n,
@@ -85,7 +85,7 @@ static int sl_notification(const notification_t *n,
   int status;
 
   if (n->severity > notif_severity)
-    return (0);
+    return 0;
 
   switch (n->severity) {
   case NOTIF_FAILURE:
@@ -107,11 +107,11 @@ static int sl_notification(const notification_t *n,
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = ssnprintf(&buf[offset], sizeof(buf) - offset, __VA_ARGS__);       \
+    status = snprintf(&buf[offset], sizeof(buf) - offset, __VA_ARGS__);        \
     if (status < 1)                                                            \
-      return (-1);                                                             \
+      return -1;                                                               \
     else if (((size_t)status) >= (sizeof(buf) - offset))                       \
-      return (-ENOMEM);                                                        \
+      return -ENOMEM;                                                          \
     else                                                                       \
       offset += ((size_t)status);                                              \
   } while (0)
@@ -137,7 +137,7 @@ static int sl_notification(const notification_t *n,
 
   sl_log(log_severity, buf, NULL);
 
-  return (0);
+  return 0;
 } /* int sl_notification */
 
 void module_register(void) {

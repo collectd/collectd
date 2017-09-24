@@ -38,6 +38,7 @@
 
 #include <rte_config.h>
 #include <rte_eal.h>
+#include <rte_ethdev.h>
 
 #include "common.h"
 #include "utils_dpdk.h"
@@ -65,7 +66,7 @@ struct dpdk_helper_ctx_s {
   int eal_initialized;
 
   size_t shm_size;
-  const char *shm_name;
+  char shm_name[DATA_MAX_NAME_LEN];
 
   sem_t sema_cmd_start;
   sem_t sema_cmd_complete;
@@ -102,11 +103,10 @@ static void dpdk_helper_config_default(dpdk_helper_ctx_t *phc) {
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
-  ssnprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
-  ssnprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
-  ssnprintf(phc->eal_config.process_type, DATA_MAX_NAME_LEN, "%s", "secondary");
-  ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
-            DPDK_DEFAULT_RTE_CONFIG);
+  snprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
+  snprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
+  snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
+           DPDK_DEFAULT_RTE_CONFIG);
 }
 
 int dpdk_helper_eal_config_set(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec) {
@@ -161,6 +161,7 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
   int status = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
+
     if (strcasecmp("Coremask", child->key) == 0) {
       status = cf_util_get_string_buffer(child, phc->eal_config.coremask,
                                          sizeof(phc->eal_config.coremask));
@@ -175,15 +176,15 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
       status = cf_util_get_string_buffer(child, phc->eal_config.socket_memory,
                                          sizeof(phc->eal_config.socket_memory));
       DEBUG("dpdk_common: EAL:Socket memory %s", phc->eal_config.socket_memory);
-    } else if (strcasecmp("ProcessType", child->key) == 0) {
-      status = cf_util_get_string_buffer(child, phc->eal_config.process_type,
-                                         sizeof(phc->eal_config.process_type));
-      DEBUG("dpdk_common: EAL:Process type %s", phc->eal_config.process_type);
-    } else if ((strcasecmp("FilePrefix", child->key) == 0) &&
-               (child->values[0].type == OCONFIG_TYPE_STRING)) {
-      ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
-                "/var/run/.%s_config", child->values[0].value.string);
-      DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
+    } else if (strcasecmp("FilePrefix", child->key) == 0) {
+      char prefix[DATA_MAX_NAME_LEN];
+
+      status = cf_util_get_string_buffer(child, prefix, sizeof(prefix));
+      if (status == 0) {
+        snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+                  "/var/run/.%s_config", prefix);
+        DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
+      }
     } else {
       ERROR("dpdk_common: Invalid '%s' configuration option", child->key);
       status = -EINVAL;
@@ -241,13 +242,16 @@ static void dpdk_shm_cleanup(const char *name, size_t size, void *map) {
   DPDK_HELPER_TRACE(name);
   char errbuf[ERR_BUF_SIZE];
 
+  /*
+   * Call shm_unlink first, as 'name' might be no longer accessible after munmap
+   */
+  if (shm_unlink(name))
+    ERROR("shm_unlink failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+
   if (map != NULL) {
     if (munmap(map, size))
       ERROR("munmap failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
   }
-
-  if (shm_unlink(name))
-    ERROR("shm_unlink failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
 }
 
 void *dpdk_helper_priv_get(dpdk_helper_ctx_t *phc) {
@@ -263,7 +267,7 @@ int dpdk_helper_data_size_get(dpdk_helper_ctx_t *phc) {
     return -EINVAL;
   }
 
-  return (phc->shm_size - sizeof(dpdk_helper_ctx_t));
+  return phc->shm_size - sizeof(dpdk_helper_ctx_t);
 }
 
 int dpdk_helper_init(const char *name, size_t data_size,
@@ -312,7 +316,7 @@ int dpdk_helper_init(const char *name, size_t data_size,
   }
 
   phc->shm_size = shm_size;
-  phc->shm_name = name;
+  sstrncpy(phc->shm_name, name, sizeof(phc->shm_name));
 
   dpdk_helper_config_default(phc);
 
@@ -321,11 +325,9 @@ int dpdk_helper_init(const char *name, size_t data_size,
   return 0;
 }
 
-int dpdk_helper_shutdown(dpdk_helper_ctx_t *phc) {
-  if (phc == NULL) {
-    ERROR("%s:Invalid argument(phc)", __FUNCTION__);
-    return -EINVAL;
-  }
+void dpdk_helper_shutdown(dpdk_helper_ctx_t *phc) {
+  if (phc == NULL)
+    return;
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
@@ -338,8 +340,6 @@ int dpdk_helper_shutdown(dpdk_helper_ctx_t *phc) {
   sem_destroy(&phc->sema_cmd_start);
   sem_destroy(&phc->sema_cmd_complete);
   dpdk_shm_cleanup(phc->shm_name, phc->shm_size, (void *)phc);
-
-  return 0;
 }
 
 static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
@@ -470,7 +470,6 @@ static int dpdk_helper_eal_init(dpdk_helper_ctx_t *phc) {
   /* EAL config must be initialized */
   assert(phc->eal_config.coremask[0] != 0);
   assert(phc->eal_config.memory_channels[0] != 0);
-  assert(phc->eal_config.process_type[0] != 0);
   assert(phc->eal_config.file_prefix[0] != 0);
 
   argp[argc++] = "collectd-dpdk";
@@ -492,7 +491,7 @@ static int dpdk_helper_eal_init(dpdk_helper_ctx_t *phc) {
   }
 
   argp[argc++] = "--proc-type";
-  argp[argc++] = phc->eal_config.process_type;
+  argp[argc++] = "secondary";
 
   assert(argc <= (DPDK_EAL_ARGC * 2 + 1));
 
@@ -849,4 +848,23 @@ uint128_t str_to_uint128(const char *str, int len) {
     }
   }
   return lcore_mask;
+}
+
+uint8_t dpdk_helper_eth_dev_count() {
+  uint8_t ports = rte_eth_dev_count();
+  if (ports == 0) {
+    ERROR(
+        "%s:%d: No DPDK ports available. Check bound devices to DPDK driver.\n",
+        __FUNCTION__, __LINE__);
+    return ports;
+  }
+
+  if (ports > RTE_MAX_ETHPORTS) {
+    ERROR("%s:%d: Number of DPDK ports (%u) is greater than "
+          "RTE_MAX_ETHPORTS=%d. Ignoring extra ports\n",
+          __FUNCTION__, __LINE__, ports, RTE_MAX_ETHPORTS);
+    ports = RTE_MAX_ETHPORTS;
+  }
+
+  return ports;
 }

@@ -132,7 +132,7 @@ static int add_str_to_list(struct str_list *strs,
     ERROR("write_sensu plugin: Unable to alloc memory");
     return -1;
   }
-  strs->strs = realloc(strs->strs, sizeof(char *) * (strs->nb_strs + 1));
+  strs->strs = realloc(strs->strs, strs->nb_strs + 1);
   if (strs->strs == NULL) {
     strs->strs = old_strs_ptr;
     free(newstr);
@@ -231,7 +231,7 @@ static char *build_json_str_list(const char *tag,
   char *ret_str = NULL;
   char *temp_str;
   if (list->nb_strs == 0) {
-    ret_str = malloc(sizeof(char));
+    ret_str = malloc(1);
     if (ret_str == NULL) {
       ERROR("write_sensu plugin: Unable to alloc memory");
       return NULL;
@@ -278,7 +278,7 @@ static int sensu_format_name2(char *ret, int ret_len, const char *hostname,
   do {                                                                         \
     size_t l = strlen(str);                                                    \
     if (l >= buffer_size)                                                      \
-      return (ENOBUFS);                                                        \
+      return ENOBUFS;                                                          \
     memcpy(buffer, (str), l);                                                  \
     buffer += l;                                                               \
     buffer_size -= l;                                                          \
@@ -304,7 +304,7 @@ static int sensu_format_name2(char *ret, int ret_len, const char *hostname,
   buffer[0] = 0;
 
 #undef APPEND
-  return (0);
+  return 0;
 } /* int sensu_format_name2 */
 
 static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */
@@ -420,8 +420,8 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   // incorporate the data source type
   if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL)) {
     char ds_type[DATA_MAX_NAME_LEN];
-    ssnprintf(ds_type, sizeof(ds_type), "%s:rate",
-              DS_TYPE_TO_STRING(ds->ds[index].type));
+    snprintf(ds_type, sizeof(ds_type), "%s:rate",
+             DS_TYPE_TO_STRING(ds->ds[index].type));
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_type\": \"%s\"",
                       ret_str, ds_type);
     free(ret_str);
@@ -454,7 +454,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   // incorporate the data source index
   {
     char ds_index[DATA_MAX_NAME_LEN];
-    ssnprintf(ds_index, sizeof(ds_index), "%zu", index);
+    snprintf(ds_index, sizeof(ds_index), "%zu", index);
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_index\": %s",
                       ret_str, ds_index);
     free(ret_str);
@@ -534,17 +534,17 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
                      host->separator);
   if (host->always_append_ds || (ds->ds_num > 1)) {
     if (host->event_service_prefix == NULL)
-      ssnprintf(service_buffer, sizeof(service_buffer), "%s.%s", name_buffer,
-                ds->ds[index].name);
+      snprintf(service_buffer, sizeof(service_buffer), "%s.%s", name_buffer,
+               ds->ds[index].name);
     else
-      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s.%s",
-                host->event_service_prefix, name_buffer, ds->ds[index].name);
+      snprintf(service_buffer, sizeof(service_buffer), "%s%s.%s",
+               host->event_service_prefix, name_buffer, ds->ds[index].name);
   } else {
     if (host->event_service_prefix == NULL)
       sstrncpy(service_buffer, name_buffer, sizeof(service_buffer));
     else
-      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s",
-                host->event_service_prefix, name_buffer);
+      snprintf(service_buffer, sizeof(service_buffer), "%s%s",
+               host->event_service_prefix, name_buffer);
   }
 
   // Replace collectd sensor name reserved characters so that time series DB is
@@ -1141,7 +1141,7 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  ssnprintf(callback_name, sizeof(callback_name), "write_sensu/%s", host->name);
+  snprintf(callback_name, sizeof(callback_name), "write_sensu/%s", host->name);
 
   user_data_t ud = {.data = host, .free_func = sensu_free};
 

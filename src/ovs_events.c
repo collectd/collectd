@@ -3,14 +3,17 @@
  *
  * Copyright(c) 2016 Intel Corporation. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ *of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
+ * of the Software, and to permit persons to whom the Software is furnished to
+ *do
  * so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
+ * The above copyright notice and this permission notice shall be included in
+ *all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,16 +89,20 @@ typedef struct ovs_events_ctx_s ovs_events_ctx_t;
  */
 static ovs_events_ctx_t ovs_events_ctx = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .config = {.ovs_db_node = "localhost", /* use default OVS DB node */
+    .config = {.send_notification = 1,     /* send notification by default */
+               .ovs_db_node = "localhost", /* use default OVS DB node */
                .ovs_db_serv = "6640"}      /* use default OVS DB service */
 };
+
+/* Forward declaration */
+static int ovs_events_plugin_read(user_data_t *u);
 
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
  * It always returns 1 when context is locked.
  */
 static int ovs_events_ctx_lock() {
   pthread_mutex_lock(&ovs_events_ctx.mutex);
-  return (1);
+  return 1;
 }
 
 /* This function is used only by "OVS_EVENTS_CTX_LOCK" define (see above).
@@ -103,7 +110,7 @@ static int ovs_events_ctx_lock() {
  */
 static int ovs_events_ctx_unlock() {
   pthread_mutex_unlock(&ovs_events_ctx.mutex);
-  return (0);
+  return 0;
 }
 
 /* Check if given interface name exists in configuration file. It
@@ -112,15 +119,15 @@ static int ovs_events_ctx_unlock() {
  */
 static int ovs_events_config_iface_exists(const char *ifname) {
   if (ovs_events_ctx.config.ifaces == NULL)
-    return (-1);
+    return -1;
 
   /* check if given interface exists */
   for (ovs_events_iface_list_t *iface = ovs_events_ctx.config.ifaces; iface;
        iface = iface->next)
     if (strcmp(ifname, iface->name) == 0)
-      return (1);
+      return 1;
 
-  return (0);
+  return 0;
 }
 
 /* Get OVS DB select parameter request based on rfc7047,
@@ -151,8 +158,8 @@ static char *ovs_events_get_select_params() {
       return NULL;
     }
     opt_buff = new_buff;
-    int ret = ssnprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
-                        iface->name);
+    int ret = snprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
+                       iface->name);
     if (ret < 0) {
       sfree(opt_buff);
       return NULL;
@@ -173,7 +180,7 @@ static char *ovs_events_get_select_params() {
   }
 
   /* create OVS DB select params */
-  if (ssnprintf(params_buff, params_size, params_fmt, opt_buff) < 0)
+  if (snprintf(params_buff, params_size, params_fmt, opt_buff) < 0)
     sfree(params_buff);
 
   sfree(opt_buff);
@@ -198,15 +205,15 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
   for (int j = 0; j < ci->values_num; j++) {
     /* check interface name type */
     if (ci->values[j].type != OCONFIG_TYPE_STRING) {
-      ERROR(OVS_EVENTS_PLUGIN
-            ": given interface name is not a string [idx=%d]", j);
-      return (-1);
+      ERROR(OVS_EVENTS_PLUGIN ": given interface name is not a string [idx=%d]",
+            j);
+      return -1;
     }
     /* allocate memory for configured interface */
     ovs_events_iface_list_t *new_iface = calloc(1, sizeof(*new_iface));
     if (new_iface == NULL) {
       ERROR(OVS_EVENTS_PLUGIN ": calloc () copy interface name fail");
-      return (-1);
+      return -1;
     } else {
       /* store interface name */
       sstrncpy(new_iface->name, ci->values[j].value.string,
@@ -217,33 +224,34 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
             new_iface->name);
     }
   }
-  return (0);
+  return 0;
 }
 
 /* Parse plugin configuration file and store the config
  * in allocated memory. Returns negative value in case of error.
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
+  _Bool dispatch_values = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
       if (cf_util_get_boolean(child,
                               &ovs_events_ctx.config.send_notification) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Address", child->key) == 0) {
       if (cf_util_get_string_buffer(
               child, ovs_events_ctx.config.ovs_db_node,
               sizeof(ovs_events_ctx.config.ovs_db_node)) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Port", child->key) == 0) {
       char *service = NULL;
       if (cf_util_get_service(child, &service) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
       strncpy(ovs_events_ctx.config.ovs_db_serv, service,
               sizeof(ovs_events_ctx.config.ovs_db_serv));
@@ -253,24 +261,42 @@ static int ovs_events_plugin_config(oconfig_item_t *ci) {
               child, ovs_events_ctx.config.ovs_db_unix,
               sizeof(ovs_events_ctx.config.ovs_db_unix)) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
       }
     } else if (strcasecmp("Interfaces", child->key) == 0) {
       if (ovs_events_config_get_interfaces(child) != 0) {
         ovs_events_config_free();
-        return (-1);
+        return -1;
+      }
+    } else if (strcasecmp("DispatchValues", child->key) == 0) {
+      if (cf_util_get_boolean(child, &dispatch_values) != 0) {
+        ovs_events_config_free();
+        return -1;
       }
     } else {
       ERROR(OVS_EVENTS_PLUGIN ": option '%s' is not allowed here", child->key);
       ovs_events_config_free();
-      return (-1);
+      return -1;
     }
   }
-  return (0);
+  /* Check and warn about invalid configuration */
+  if (!ovs_events_ctx.config.send_notification && !dispatch_values) {
+    WARNING(OVS_EVENTS_PLUGIN
+            ": send notification and dispatch values "
+            "options are disabled. No information will be dispatched by the "
+            "plugin. Please check your configuration");
+  }
+  /* Dispatch link status values if configured */
+  if (dispatch_values)
+    return plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN,
+                                        ovs_events_plugin_read, 0, NULL);
+
+  return 0;
 }
 
 /* Dispatch OVS interface link status event to collectd */
-static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
+static void
+ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
   const char *msg_link_status = NULL;
   notification_t n = {
       NOTIF_FAILURE, cdtime(), "", "", OVS_EVENTS_PLUGIN, "", "", "", NULL};
@@ -313,9 +339,9 @@ static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifin
   }
 
   /* fill the notification data */
-  ssnprintf(n.message, sizeof(n.message),
-            "link state of \"%s\" interface has been changed to \"%s\"",
-            ifinfo->name, msg_link_status);
+  snprintf(n.message, sizeof(n.message),
+           "link state of \"%s\" interface has been changed to \"%s\"",
+           ifinfo->name, msg_link_status);
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, ifinfo->name, sizeof(n.plugin_instance));
   sstrncpy(n.type, "gauge", sizeof(n.type));
@@ -324,7 +350,8 @@ static void ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifin
 }
 
 /* Dispatch OVS interface link status value to collectd */
-static void ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
+static void
+ovs_events_link_status_submit(const ovs_events_iface_info_t *ifinfo) {
   value_list_t vl = VALUE_LIST_INIT;
   meta_data_t *meta = NULL;
 
@@ -375,7 +402,7 @@ static int ovs_events_get_iface_info(yajl_val jobject,
 
   /* check YAJL type */
   if (!YAJL_IS_OBJECT(jobject))
-    return (-1);
+    return -1;
 
   /* zero the interface info structure */
   memset(ifinfo, 0, sizeof(*ifinfo));
@@ -383,7 +410,7 @@ static int ovs_events_get_iface_info(yajl_val jobject,
   /* try to find external_ids, name and link_state fields */
   jexternal_ids = ovs_utils_get_value_by_key(jobject, "external_ids");
   if (jexternal_ids == NULL || ifinfo == NULL)
-    return (-1);
+    return -1;
 
   /* get iface-id from external_ids field */
   jvalue = ovs_utils_get_map_value(jexternal_ids, "iface-id");
@@ -401,16 +428,16 @@ static int ovs_events_get_iface_info(yajl_val jobject,
   jvalue = ovs_utils_get_value_by_key(jobject, "_uuid");
   if (jvalue == NULL || !YAJL_IS_ARRAY(jvalue) ||
       YAJL_GET_ARRAY(jvalue)->len != 2)
-    return (-1);
+    return -1;
   juuid = YAJL_GET_ARRAY(jvalue)->values[1];
   if (juuid == NULL || !YAJL_IS_STRING(juuid))
-    return (-1);
+    return -1;
   sstrncpy(ifinfo->uuid, YAJL_GET_STRING(juuid), sizeof(ifinfo->uuid));
 
   /* get interface name */
   jvalue = ovs_utils_get_value_by_key(jobject, "name");
   if (jvalue == NULL || !YAJL_IS_STRING(jvalue))
-    return (-1);
+    return -1;
   sstrncpy(ifinfo->name, YAJL_GET_STRING(jvalue), sizeof(ifinfo->name));
 
   /* get OVS DB interface link status */
@@ -422,7 +449,7 @@ static int ovs_events_get_iface_info(yajl_val jobject,
     else if (strcmp(state, "down") == 0)
       ifinfo->link_status = DOWN;
   }
-  return (0);
+  return 0;
 }
 
 /* Process OVS DB update table event. It handles link status update event(s)
@@ -572,9 +599,9 @@ static int ovs_events_plugin_read(__attribute__((unused)) user_data_t *u) {
                             ovs_events_ctx.ovs_db_select_params,
                             ovs_events_poll_result_cb) < 0) {
       ERROR(OVS_EVENTS_PLUGIN ": get interface info failed");
-      return (-1);
+      return -1;
     }
-  return (0);
+  return 0;
 }
 
 /* Initialize OVS plugin */
@@ -607,13 +634,13 @@ static int ovs_events_plugin_init(void) {
   OVS_EVENTS_CTX_LOCK { ovs_events_ctx.ovs_db = ovs_db; }
 
   DEBUG(OVS_EVENTS_PLUGIN ": plugin has been initialized");
-  return (0);
+  return 0;
 
 ovs_events_failure:
   ERROR(OVS_EVENTS_PLUGIN ": plugin initialize failed");
   /* release allocated memory */
   ovs_events_config_free();
-  return (-1);
+  return -1;
 }
 
 /* Shutdown OVS plugin */
@@ -626,14 +653,12 @@ static int ovs_events_plugin_shutdown(void) {
   ovs_events_config_free();
 
   DEBUG(OVS_EVENTS_PLUGIN ": plugin has been destroyed");
-  return (0);
+  return 0;
 }
 
 /* Register OVS plugin callbacks */
 void module_register(void) {
   plugin_register_complex_config(OVS_EVENTS_PLUGIN, ovs_events_plugin_config);
   plugin_register_init(OVS_EVENTS_PLUGIN, ovs_events_plugin_init);
-  plugin_register_complex_read(NULL, OVS_EVENTS_PLUGIN, ovs_events_plugin_read,
-                               0, NULL);
   plugin_register_shutdown(OVS_EVENTS_PLUGIN, ovs_events_plugin_shutdown);
 }

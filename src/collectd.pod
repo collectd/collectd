@@ -40,10 +40,16 @@ the read callbacks once. A return code not equal to zero indicates an error.
 
 =item B<-P> I<E<lt>pid-fileE<gt>>
 
-Specify an alternative pid file. This overwrites any settings in the config 
+Specify an alternative pid file. This overwrites any settings in the config
 file. This is thought for init-scripts that require the PID-file in a certain
 directory to work correctly. For everyday-usage use the B<PIDFile>
 config-option.
+
+=item B<-B>
+
+If set, collectd will I<not> try to create its base directory. If the base
+directory does not exist, it will exit rather than trying to create the
+directory.
 
 =item B<-f>
 

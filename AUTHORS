@@ -285,6 +285,11 @@ Scott Sanders <scott at jssjr.com>
 Sebastien Pahl <sebastien.pahl at dotcloud.com>
  - AMQP plugin.
 
+Serhiy Pshyk <serhiyx.pshyk at intel.com>
+ - intel_pmu plugin
+ - intel_rdt plugin
+ - snmp_agent plugin
+
 Simon Kuhnle <simon at blarzwurst.de>
  - OpenBSD code for the cpu and memory plugins.
 
@@ -293,6 +298,9 @@ Sjoerd van der Berg <harekiet at gmail.com>
 
 Stefan Hacker <stefan.hacker at web.de>
  - teamspeak2 plugin.
+
+Steven Bell <stv.bell07 at gmail.com>
+ - nut plugin.
 
 Sven Trenkel <collectd at semidefinite.de>
  - netapp plugin.

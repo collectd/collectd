@@ -94,18 +94,18 @@ static int init_hostname(void) {
   str = global_option_get("Hostname");
   if ((str != NULL) && (str[0] != 0)) {
     sstrncpy(hostname_g, str, sizeof(hostname_g));
-    return (0);
+    return 0;
   }
 
   if (gethostname(hostname_g, sizeof(hostname_g)) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
-    return (-1);
+    return -1;
   }
 
   str = global_option_get("FQDNLookup");
   if (IS_FALSE(str))
-    return (0);
+    return 0;
 
   struct addrinfo ai_hints = {.ai_flags = AI_CANONNAME};
 
@@ -117,7 +117,7 @@ static int init_hostname(void) {
           "name. Please fix the network "
           "configuration.",
           hostname_g);
-    return (-1);
+    return -1;
   }
 
   for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
@@ -130,7 +130,7 @@ static int init_hostname(void) {
   }
 
   freeaddrinfo(ai_list);
-  return (0);
+  return 0;
 } /* int init_hostname */
 
 static int init_global_variables(void) {
@@ -147,18 +147,18 @@ static int init_global_variables(void) {
   if (timeout_g <= 1) {
     fprintf(stderr, "Cannot set the timeout to a correct value.\n"
                     "Please check your settings.\n");
-    return (-1);
+    return -1;
   }
   DEBUG("timeout_g = %i;", timeout_g);
 
   if (init_hostname() != 0)
-    return (-1);
+    return -1;
   DEBUG("hostname_g = %s;", hostname_g);
 
-  return (0);
+  return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir) {
+static int change_basedir(const char *orig_dir, _Bool create) {
   char *dir;
   size_t dirlen;
   int status;
@@ -167,7 +167,7 @@ static int change_basedir(const char *orig_dir) {
   if (dir == NULL) {
     char errbuf[1024];
     ERROR("strdup failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   dirlen = strlen(dir);
@@ -176,19 +176,19 @@ static int change_basedir(const char *orig_dir) {
 
   if (dirlen == 0) {
     free(dir);
-    return (-1);
+    return -1;
   }
 
   status = chdir(dir);
   if (status == 0) {
     free(dir);
-    return (0);
-  } else if (errno != ENOENT) {
+    return 0;
+  } else if (!create || (errno != ENOENT)) {
     char errbuf[1024];
     ERROR("change_basedir: chdir (%s): %s", dir,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     free(dir);
-    return (-1);
+    return -1;
   }
 
   status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -197,7 +197,7 @@ static int change_basedir(const char *orig_dir) {
     ERROR("change_basedir: mkdir (%s): %s", dir,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     free(dir);
-    return (-1);
+    return -1;
   }
 
   status = chdir(dir);
@@ -206,11 +206,11 @@ static int change_basedir(const char *orig_dir) {
     ERROR("change_basedir: chdir (%s): %s", dir,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     free(dir);
-    return (-1);
+    return -1;
   }
 
   free(dir);
-  return (0);
+  return 0;
 } /* static int change_basedir (char *dir) */
 
 #if HAVE_LIBKSTAT
@@ -250,6 +250,7 @@ __attribute__((noreturn)) static void exit_usage(int status) {
 #if COLLECT_DAEMON
          "    -f              Don't fork to the background.\n"
 #endif
+         "    -B              Don't create the BaseDir\n"
          "    -h              Display help (this message)\n"
          "\nBuiltin defaults:\n"
          "  Config file       " CONFIGFILE "\n"
@@ -285,12 +286,12 @@ static int do_init(void) {
 #endif
           )) {
     ERROR("sg_init: %s", sg_str_error(sg_get_error()));
-    return (-1);
+    return -1;
   }
 
   if (sg_drop_privileges()) {
     ERROR("sg_drop_privileges: %s", sg_str_error(sg_get_error()));
-    return (-1);
+    return -1;
   }
 #endif
 
@@ -329,12 +330,12 @@ static int do_loop(void) {
       if (errno != EINTR) {
         char errbuf[1024];
         ERROR("nanosleep failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
     }
   } /* while (loop == 0) */
 
-  return (0);
+  return 0;
 } /* int do_loop */
 
 static int do_shutdown(void) {
@@ -349,13 +350,13 @@ static int pidfile_create(void) {
   if ((fh = fopen(file, "w")) == NULL) {
     char errbuf[1024];
     ERROR("fopen (%s): %s", file, sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (1);
+    return 1;
   }
 
   fprintf(fh, "%i\n", (int)getpid());
   fclose(fh);
 
-  return (0);
+  return 0;
 } /* static int pidfile_create (const char *file) */
 
 static int pidfile_remove(void) {
@@ -363,7 +364,7 @@ static int pidfile_remove(void) {
   if (file == NULL)
     return 0;
 
-  return (unlink(file));
+  return unlink(file);
 } /* static int pidfile_remove (const char *file) */
 #endif /* COLLECT_DAEMON */
 
@@ -459,6 +460,7 @@ int main(int argc, char **argv) {
   int test_config = 0;
   int test_readall = 0;
   const char *basedir;
+  _Bool opt_create_basedir = 1;
 #if COLLECT_DAEMON
   pid_t pid;
   int daemonize = 1;
@@ -469,7 +471,7 @@ int main(int argc, char **argv) {
   while (1) {
     int c;
 
-    c = getopt(argc, argv, "htTC:"
+    c = getopt(argc, argv, "BhtTC:"
 #if COLLECT_DAEMON
                            "fP:"
 #endif
@@ -479,6 +481,9 @@ int main(int argc, char **argv) {
       break;
 
     switch (c) {
+    case 'B':
+      opt_create_basedir = 0;
+      break;
     case 'C':
       configfile = optarg;
       break;
@@ -521,8 +526,8 @@ int main(int argc, char **argv) {
    */
   if (cf_read(configfile)) {
     fprintf(stderr, "Error: Reading the config file failed!\n"
-                    "Read the syslog for details.\n");
-    return (1);
+                    "Read the logs for details.\n");
+    return 1;
   }
 
   /*
@@ -532,10 +537,10 @@ int main(int argc, char **argv) {
   if ((basedir = global_option_get("BaseDir")) == NULL) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");
-    return (1);
-  } else if (change_basedir(basedir)) {
+    return 1;
+  } else if (change_basedir(basedir, opt_create_basedir)) {
     fprintf(stderr, "Error: Unable to change to directory `%s'.\n", basedir);
-    return (1);
+    return 1;
   }
 
   /*
@@ -548,7 +553,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
 
   if (test_config)
-    return (0);
+    return 0;
 
 #if COLLECT_DAEMON
   /*
@@ -573,11 +578,11 @@ int main(int argc, char **argv) {
       /* error */
       char errbuf[1024];
       fprintf(stderr, "fork: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (1);
+      return 1;
     } else if (pid != 0) {
       /* parent */
       /* printf ("Running (PID %i)\n", pid); */
-      return (0);
+      return 0;
     }
 
     /* Detach from session */
@@ -596,21 +601,21 @@ int main(int argc, char **argv) {
     if (status != 0) {
       ERROR("Error: Could not connect `STDIN' to `/dev/null' (status %d)",
             status);
-      return (1);
+      return 1;
     }
 
     status = dup(0);
     if (status != 1) {
       ERROR("Error: Could not connect `STDOUT' to `/dev/null' (status %d)",
             status);
-      return (1);
+      return 1;
     }
 
     status = dup(0);
     if (status != 2) {
       ERROR("Error: Could not connect `STDERR' to `/dev/null', (status %d)",
             status);
-      return (1);
+      return 1;
     }
   }    /* if (daemonize) */
 #endif /* COLLECT_DAEMON */
@@ -628,7 +633,7 @@ int main(int argc, char **argv) {
     char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal INT: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (1);
+    return 1;
   }
 
   struct sigaction sig_term_action = {.sa_handler = sig_term_handler};
@@ -637,7 +642,7 @@ int main(int argc, char **argv) {
     char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal TERM: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (1);
+    return 1;
   }
 
   struct sigaction sig_usr1_action = {.sa_handler = sig_usr1_handler};
@@ -646,7 +651,7 @@ int main(int argc, char **argv) {
     char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal USR1: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (1);
+    return 1;
   }
 
   /*
@@ -680,5 +685,5 @@ int main(int argc, char **argv) {
     pidfile_remove();
 #endif /* COLLECT_DAEMON */
 
-  return (exit_status);
+  return exit_status;
 } /* int main */

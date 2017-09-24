@@ -66,9 +66,6 @@ typedef struct value_to_rate_state_s value_to_rate_state_t;
 
 char *sstrncpy(char *dest, const char *src, size_t n);
 
-__attribute__((format(printf, 3, 4))) int ssnprintf(char *dest, size_t n,
-                                                    const char *format, ...);
-
 __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
                                                             ...);
 
@@ -385,7 +382,7 @@ void strarray_free(char **array, size_t array_len);
  * argument. Returns zero if it does, less than zero if it doesn't or on error.
  * See capabilities(7) for the list of possible capabilities.
  * */
-int check_capability(int capability);
+int check_capability(int arg);
 #endif /* HAVE_SYS_CAPABILITY_H */
 
 #endif /* COMMON_H */

@@ -75,11 +75,11 @@ static long long get_zfs_value(kstat_t *ksp, const char *key) {
 
   e = llist_search(ksp, key);
   if (e == NULL) {
-    return (-1);
+    return -1;
   }
 
   v = e->value;
-  return ((long long)v->derive);
+  return (long long)v->derive;
 }
 
 static void free_zfs_values(kstat_t *ksp) {
@@ -99,7 +99,7 @@ extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name) {
 
-  return (get_kstat_value(ksp, name));
+  return get_kstat_value(ksp, name);
 }
 #elif defined(KERNEL_FREEBSD)
 #include <sys/sysctl.h>
@@ -118,13 +118,13 @@ static long long get_zfs_value(kstat_t *dummy __attribute__((unused)),
   size_t valuelen = sizeof(value);
   int rv;
 
-  ssnprintf(buffer, sizeof(buffer), "%s%s", zfs_arcstat, name);
+  snprintf(buffer, sizeof(buffer), "%s%s", zfs_arcstat, name);
   rv = sysctlbyname(buffer, (void *)&value, &valuelen,
                     /* new value = */ NULL, /* new length = */ (size_t)0);
   if (rv == 0)
-    return (value);
+    return value;
 
-  return (-1);
+  return -1;
 }
 #endif
 
@@ -152,12 +152,12 @@ static int za_read_derive(kstat_t *ksp, const char *kstat_value,
   long long tmp = get_zfs_value(ksp, (char *)kstat_value);
   if (tmp == -1LL) {
     DEBUG("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
-    return (-1);
+    return -1;
   }
 
   za_submit(type, type_instance, &(value_t){.derive = (derive_t)tmp},
             /* values_num = */ 1);
-  return (0);
+  return 0;
 }
 
 static int za_read_gauge(kstat_t *ksp, const char *kstat_value,
@@ -165,12 +165,12 @@ static int za_read_gauge(kstat_t *ksp, const char *kstat_value,
   long long tmp = get_zfs_value(ksp, (char *)kstat_value);
   if (tmp == -1LL) {
     DEBUG("zfs_arc plugin: Reading kstat value \"%s\" failed.", kstat_value);
-    return (-1);
+    return -1;
   }
 
   za_submit(type, type_instance, &(value_t){.gauge = (gauge_t)tmp},
             /* values_num = */ 1);
-  return (0);
+  return 0;
 }
 
 static void za_submit_ratio(const char *type_instance, gauge_t hits,
@@ -203,14 +203,14 @@ static int za_read(void) {
     char errbuf[1024];
     ERROR("zfs_arc plugin: Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   ksp = llist_create();
   if (ksp == NULL) {
     ERROR("zfs_arc plugin: `llist_create' failed.");
     fclose(fh);
-    return (-1);
+    return -1;
   }
 
   // Ignore the first two lines because they contain information about
@@ -218,14 +218,16 @@ static int za_read(void) {
   // See kstat_seq_show_headers module/spl/spl-kstat.c of the spl kernel
   // module.
   if (fgets(buffer, sizeof(buffer), fh) == NULL) {
-    ERROR("zfs_arc plugin: \"%s\" does not contain a single line.", ZOL_ARCSTATS_FILE);
+    ERROR("zfs_arc plugin: \"%s\" does not contain a single line.",
+          ZOL_ARCSTATS_FILE);
     fclose(fh);
-    return (-1);
+    return -1;
   }
   if (fgets(buffer, sizeof(buffer), fh) == NULL) {
-    ERROR("zfs_arc plugin: \"%s\" does not contain at least two lines.", ZOL_ARCSTATS_FILE);
+    ERROR("zfs_arc plugin: \"%s\" does not contain at least two lines.",
+          ZOL_ARCSTATS_FILE);
     fclose(fh);
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -250,7 +252,7 @@ static int za_read(void) {
   get_kstat(&ksp, "zfs", 0, "arcstats");
   if (ksp == NULL) {
     ERROR("zfs_arc plugin: Cannot find zfs:0:arcstats kstat.");
-    return (-1);
+    return -1;
   }
 #endif
 
@@ -337,7 +339,7 @@ static int za_read(void) {
   free_zfs_values(ksp);
 #endif
 
-  return (0);
+  return 0;
 } /* int za_read */
 
 static int za_init(void) /* {{{ */
@@ -347,7 +349,7 @@ static int za_init(void) /* {{{ */
    * went fine. */
   if (kc == NULL) {
     ERROR("zfs_arc plugin: kstat chain control structure not available.");
-    return (-1);
+    return -1;
   }
 #endif
 
@@ -356,7 +358,7 @@ static int za_init(void) /* {{{ */
   memset(&l2_hits_state, 0, sizeof(l2_hits_state));
   memset(&l2_misses_state, 0, sizeof(l2_misses_state));
 
-  return (0);
+  return 0;
 } /* }}} int za_init */
 
 void module_register(void) {

@@ -74,7 +74,7 @@ static int mv_config_add_satisfy(mv_match_t *m, /* {{{ */
                                  oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     ERROR("`value' match: `%s' needs exactly one string argument.", ci->key);
-    return (-1);
+    return -1;
   }
 
   if (strcasecmp("All", ci->values[0].value.string) == 0)
@@ -85,10 +85,10 @@ static int mv_config_add_satisfy(mv_match_t *m, /* {{{ */
     ERROR("`value' match: Passing `%s' to the `%s' option is invalid. "
           "The argument must either be `All' or `Any'.",
           ci->values[0].value.string, ci->key);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int mv_config_add_satisfy */
 
 static int mv_config_add_data_source(mv_match_t *m, /* {{{ */
@@ -99,7 +99,7 @@ static int mv_config_add_data_source(mv_match_t *m, /* {{{ */
   /* Check number of arbuments. */
   if (ci->values_num < 1) {
     ERROR("`value' match: `%s' needs at least one argument.", ci->key);
-    return (-1);
+    return -1;
   }
 
   /* Check type of arguments */
@@ -112,7 +112,7 @@ static int mv_config_add_data_source(mv_match_t *m, /* {{{ */
           ci->key, i + 1,
           (ci->values[i].type == OCONFIG_TYPE_BOOLEAN) ? "truth value"
                                                        : "number");
-    return (-1);
+    return -1;
   }
 
   /* Allocate space for the char pointers */
@@ -120,7 +120,7 @@ static int mv_config_add_data_source(mv_match_t *m, /* {{{ */
   temp = realloc(m->data_sources, new_data_sources_num * sizeof(char *));
   if (temp == NULL) {
     ERROR("`value' match: realloc failed.");
-    return (-1);
+    return -1;
   }
   m->data_sources = temp;
 
@@ -138,7 +138,7 @@ static int mv_config_add_data_source(mv_match_t *m, /* {{{ */
     m->data_sources_num++;
   }
 
-  return (0);
+  return 0;
 } /* }}} int mv_config_add_data_source */
 
 static int mv_config_add_gauge(gauge_t *ret_value, /* {{{ */
@@ -146,12 +146,12 @@ static int mv_config_add_gauge(gauge_t *ret_value, /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     ERROR("`value' match: `%s' needs exactly one numeric argument.", ci->key);
-    return (-1);
+    return -1;
   }
 
   *ret_value = ci->values[0].value.number;
 
-  return (0);
+  return 0;
 } /* }}} int mv_config_add_gauge */
 
 static int mv_config_add_boolean(int *ret_value, /* {{{ */
@@ -159,7 +159,7 @@ static int mv_config_add_boolean(int *ret_value, /* {{{ */
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
     ERROR("`value' match: `%s' needs exactly one boolean argument.", ci->key);
-    return (-1);
+    return -1;
   }
 
   if (ci->values[0].value.boolean)
@@ -167,7 +167,7 @@ static int mv_config_add_boolean(int *ret_value, /* {{{ */
   else
     *ret_value = 0;
 
-  return (0);
+  return 0;
 } /* }}} int mv_config_add_boolean */
 
 static int mv_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
@@ -178,7 +178,7 @@ static int mv_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
   m = calloc(1, sizeof(*m));
   if (m == NULL) {
     ERROR("mv_create: calloc failed.");
-    return (-ENOMEM);
+    return -ENOMEM;
   }
 
   m->min = NAN;
@@ -226,18 +226,18 @@ static int mv_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 
   if (status != 0) {
     mv_free_match(m);
-    return (status);
+    return status;
   }
 
   *user_data = m;
-  return (0);
+  return 0;
 } /* }}} int mv_create */
 
 static int mv_destroy(void **user_data) /* {{{ */
 {
   if ((user_data != NULL) && (*user_data != NULL))
     mv_free_match(*user_data);
-  return (0);
+  return 0;
 } /* }}} int mv_destroy */
 
 static int mv_match(const data_set_t *ds, const value_list_t *vl, /* {{{ */
@@ -248,7 +248,7 @@ static int mv_match(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   int status;
 
   if ((user_data == NULL) || (*user_data == NULL))
-    return (-1);
+    return -1;
 
   m = *user_data;
 
@@ -256,7 +256,7 @@ static int mv_match(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (values == NULL) {
     ERROR("`value' match: Retrieving the current rate from the cache "
           "failed.");
-    return (-1);
+    return -1;
   }
 
   status = FC_MATCH_NO_MATCH;
@@ -305,7 +305,7 @@ static int mv_match(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   } /* for (i = 0; i < ds->ds_num; i++) */
 
   free(values);
-  return (status);
+  return status;
 } /* }}} int mv_match */
 
 void module_register(void) {

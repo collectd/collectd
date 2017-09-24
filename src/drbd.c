@@ -57,7 +57,7 @@ static const char *drbd_names[] = {
 };
 static size_t drbd_names_num = STATIC_ARRAY_SIZE(drbd_names);
 
-static int drbd_init(void) { return (0); }
+static int drbd_init(void) { return 0; }
 
 static int drbd_submit_fields(long int resource, char **fields,
                               size_t fields_num) {
@@ -67,17 +67,17 @@ static int drbd_submit_fields(long int resource, char **fields,
 
   if (resource < 0) {
     WARNING("drbd plugin: Unable to parse resource");
-    return (EINVAL);
+    return EINVAL;
   }
 
   if (fields_num != drbd_names_num) {
     WARNING("drbd plugin: Wrong number of fields for "
             "r%ld statistics. Expected %zu, got %zu.",
             resource, drbd_names_num, fields_num);
-    return (EINVAL);
+    return EINVAL;
   }
 
-  ssnprintf(plugin_instance, sizeof(plugin_instance), "r%ld", resource);
+  snprintf(plugin_instance, sizeof(plugin_instance), "r%ld", resource);
 
   for (size_t i = 0; i < drbd_names_num; i++) {
     char *data;
@@ -86,7 +86,7 @@ static int drbd_submit_fields(long int resource, char **fields,
       continue;
     data = strchr(fields[i], ':');
     if (data == NULL)
-      return (EINVAL);
+      return EINVAL;
     (void)parse_value(++data, &values[i], DS_TYPE_DERIVE);
   }
 
@@ -103,7 +103,7 @@ static int drbd_submit_fields(long int resource, char **fields,
     plugin_dispatch_values(&vl);
   }
 
-  return (0);
+  return 0;
 } /* drbd_submit_fields */
 
 static int drbd_read(void) {
@@ -117,7 +117,7 @@ static int drbd_read(void) {
   fh = fopen(drbd_stats, "r");
   if (fh == NULL) {
     WARNING("drbd plugin: Unable to open %s", drbd_stats);
-    return (EINVAL);
+    return EINVAL;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -142,7 +142,7 @@ static int drbd_read(void) {
   } /* while (fgets) */
 
   fclose(fh);
-  return (0);
+  return 0;
 } /* void drbd_read */
 
 void module_register(void) {

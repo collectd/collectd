@@ -78,7 +78,7 @@ static int us_open_socket(void) {
     char errbuf[1024];
     ERROR("unixsock plugin: socket failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   sa.sun_family = AF_UNIX;
@@ -107,7 +107,7 @@ static int us_open_socket(void) {
     ERROR("unixsock plugin: bind failed: %s", errbuf);
     close(sock_fd);
     sock_fd = -1;
-    return (-1);
+    return -1;
   }
 
   status = chmod(sa.sun_path, sock_perms);
@@ -117,7 +117,7 @@ static int us_open_socket(void) {
           sstrerror(errno, errbuf, sizeof(errbuf)));
     close(sock_fd);
     sock_fd = -1;
-    return (-1);
+    return -1;
   }
 
   status = listen(sock_fd, 8);
@@ -127,14 +127,14 @@ static int us_open_socket(void) {
           sstrerror(errno, errbuf, sizeof(errbuf)));
     close(sock_fd);
     sock_fd = -1;
-    return (-1);
+    return -1;
   }
 
   do {
     const char *grpname;
     struct group *g;
     struct group sg;
-    char grbuf[2048];
+    char grbuf[4096];
 
     grpname = (sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME;
     g = NULL;
@@ -143,7 +143,7 @@ static int us_open_socket(void) {
     if (status != 0) {
       char errbuf[1024];
       WARNING("unixsock plugin: getgrnam_r (%s) failed: %s", grpname,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+              sstrerror(status, errbuf, sizeof(errbuf)));
       break;
     }
     if (g == NULL) {
@@ -160,7 +160,7 @@ static int us_open_socket(void) {
     }
   } while (0);
 
-  return (0);
+  return 0;
 } /* int us_open_socket */
 
 static void *us_handle_client(void *arg) {
@@ -191,7 +191,7 @@ static void *us_handle_client(void *arg) {
     close(fdin);
     close(fdout);
     pthread_exit((void *)1);
-    return ((void *)1);
+    return (void *)1;
   }
 
   fhout = fdopen(fdout, "w");
@@ -202,7 +202,7 @@ static void *us_handle_client(void *arg) {
     fclose(fhin); /* this closes fdin as well */
     close(fdout);
     pthread_exit((void *)1);
-    return ((void *)1);
+    return (void *)1;
   }
 
   /* change output buffer to line buffered mode */
@@ -213,7 +213,7 @@ static void *us_handle_client(void *arg) {
     fclose(fhin);
     fclose(fhout);
     pthread_exit((void *)1);
-    return ((void *)0);
+    return (void *)0;
   }
 
   while (42) {
@@ -253,7 +253,7 @@ static void *us_handle_client(void *arg) {
       fclose(fhin);
       fclose(fhout);
       pthread_exit((void *)1);
-      return ((void *)1);
+      return (void *)1;
     }
 
     if (strcasecmp(fields[0], "getval") == 0) {
@@ -283,7 +283,7 @@ static void *us_handle_client(void *arg) {
   fclose(fhout);
 
   pthread_exit((void *)0);
-  return ((void *)0);
+  return (void *)0;
 } /* void *us_handle_client */
 
 static void *us_server_thread(void __attribute__((unused)) * arg) {
@@ -351,21 +351,21 @@ static void *us_server_thread(void __attribute__((unused)) * arg) {
            sstrerror(errno, errbuf, sizeof(errbuf)));
   }
 
-  return ((void *)0);
+  return (void *)0;
 } /* void *us_server_thread */
 
 static int us_config(const char *key, const char *val) {
   if (strcasecmp(key, "SocketFile") == 0) {
     char *new_sock_file = strdup(val);
     if (new_sock_file == NULL)
-      return (1);
+      return 1;
 
     sfree(sock_file);
     sock_file = new_sock_file;
   } else if (strcasecmp(key, "SocketGroup") == 0) {
     char *new_sock_group = strdup(val);
     if (new_sock_group == NULL)
-      return (1);
+      return 1;
 
     sfree(sock_group);
     sock_group = new_sock_group;
@@ -377,10 +377,10 @@ static int us_config(const char *key, const char *val) {
     else
       delete_socket = 0;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int us_config */
 
 static int us_init(void) {
@@ -390,7 +390,7 @@ static int us_init(void) {
 
   /* Initialize only once. */
   if (have_init != 0)
-    return (0);
+    return 0;
   have_init = 1;
 
   loop = 1;
@@ -401,10 +401,10 @@ static int us_init(void) {
     char errbuf[1024];
     ERROR("unixsock plugin: pthread_create failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int us_init */
 
 static int us_shutdown(void) {
@@ -421,7 +421,7 @@ static int us_shutdown(void) {
   plugin_unregister_init("unixsock");
   plugin_unregister_shutdown("unixsock");
 
-  return (0);
+  return 0;
 } /* int us_shutdown */
 
 void module_register(void) {

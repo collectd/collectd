@@ -424,8 +424,6 @@ static int hv2value_list(pTHX_ HV *hash, value_list_t *vl) {
 
   if (NULL != (tmp = hv_fetch(hash, "host", 4, 0)))
     sstrncpy(vl->host, SvPV_nolen(*tmp), sizeof(vl->host));
-  else
-    sstrncpy(vl->host, hostname_g, sizeof(vl->host));
 
   if (NULL != (tmp = hv_fetch(hash, "plugin", 6, 0)))
     sstrncpy(vl->plugin, SvPV_nolen(*tmp), sizeof(vl->plugin));
@@ -494,16 +492,16 @@ static int av2data_set(pTHX_ AV *array, char *name, data_set_t *ds) {
  *   meta     => [ { name => <name>, value => <value> }, ... ]
  * }
  */
-static int av2notification_meta(pTHX_ AV *array, notification_meta_t **meta) {
-  notification_meta_t **m = meta;
+static int av2notification_meta(pTHX_ AV *array,
+                                notification_meta_t **ret_meta) {
+  notification_meta_t *tail = NULL;
 
   int len = av_len(array);
 
   for (int i = 0; i <= len; ++i) {
     SV **tmp = av_fetch(array, i, 0);
-    HV *hash;
 
-    if (NULL == tmp)
+    if (tmp == NULL)
       return -1;
 
     if (!(SvROK(*tmp) && (SVt_PVHV == SvTYPE(SvRV(*tmp))))) {
@@ -512,42 +510,51 @@ static int av2notification_meta(pTHX_ AV *array, notification_meta_t **meta) {
       continue;
     }
 
-    hash = (HV *)SvRV(*tmp);
+    HV *hash = (HV *)SvRV(*tmp);
 
-    *m = smalloc(sizeof(**m));
+    notification_meta_t *m = calloc(1, sizeof(*m));
+    if (m == NULL)
+      return ENOMEM;
 
-    if (NULL == (tmp = hv_fetch(hash, "name", 4, 0))) {
+    SV **name = hv_fetch(hash, "name", strlen("name"), 0);
+    if (name == NULL) {
       log_warn("av2notification_meta: Skipping invalid "
                "meta information.");
-      free(*m);
+      sfree(m);
       continue;
     }
-    sstrncpy((*m)->name, SvPV_nolen(*tmp), sizeof((*m)->name));
+    sstrncpy(m->name, SvPV_nolen(*name), sizeof(m->name));
 
-    if (NULL == (tmp = hv_fetch(hash, "value", 5, 0))) {
+    SV **value = hv_fetch(hash, "value", strlen("value"), 0);
+    if (value == NULL) {
       log_warn("av2notification_meta: Skipping invalid "
                "meta information.");
-      free(*m);
+      sfree(m);
       continue;
     }
 
-    if (SvNOK(*tmp)) {
-      (*m)->nm_value.nm_double = SvNVX(*tmp);
-      (*m)->type = NM_TYPE_DOUBLE;
-    } else if (SvUOK(*tmp)) {
-      (*m)->nm_value.nm_unsigned_int = SvUVX(*tmp);
-      (*m)->type = NM_TYPE_UNSIGNED_INT;
-    } else if (SvIOK(*tmp)) {
-      (*m)->nm_value.nm_signed_int = SvIVX(*tmp);
-      (*m)->type = NM_TYPE_SIGNED_INT;
+    if (SvNOK(*value)) {
+      m->nm_value.nm_double = SvNVX(*value);
+      m->type = NM_TYPE_DOUBLE;
+    } else if (SvUOK(*value)) {
+      m->nm_value.nm_unsigned_int = SvUVX(*value);
+      m->type = NM_TYPE_UNSIGNED_INT;
+    } else if (SvIOK(*value)) {
+      m->nm_value.nm_signed_int = SvIVX(*value);
+      m->type = NM_TYPE_SIGNED_INT;
     } else {
-      (*m)->nm_value.nm_string = sstrdup(SvPV_nolen(*tmp));
-      (*m)->type = NM_TYPE_STRING;
+      m->nm_value.nm_string = sstrdup(SvPV_nolen(*value));
+      m->type = NM_TYPE_STRING;
     }
 
-    (*m)->next = NULL;
-    m = &((*m)->next);
+    m->next = NULL;
+    if (tail == NULL)
+      *ret_meta = m;
+    else
+      tail->next = m;
+    tail = m;
   }
+
   return 0;
 } /* static int av2notification_meta (AV *, notification_meta_t *) */
 
@@ -873,12 +880,12 @@ static int oconfig_item2hv(pTHX_ oconfig_item_t *ci, HV *hash) {
 static char *get_module_name(char *buf, size_t buf_len, const char *module) {
   int status = 0;
   if (base_name[0] == '\0')
-    status = ssnprintf(buf, buf_len, "%s", module);
+    status = snprintf(buf, buf_len, "%s", module);
   else
-    status = ssnprintf(buf, buf_len, "%s::%s", base_name, module);
+    status = snprintf(buf, buf_len, "%s::%s", base_name, module);
   if ((status < 0) || ((unsigned int)status >= buf_len))
-    return (NULL);
-  return (buf);
+    return NULL;
+  return buf;
 } /* char *get_module_name */
 
 /*
@@ -1617,18 +1624,19 @@ static void _plugin_register_generic_userdata(pTHX, int type,
       ret = plugin_register_flush("perl", perl_flush, /* user_data = */ NULL);
     }
 
-    if (0 == ret)
+    if (0 == ret) {
       ret = plugin_register_flush(pluginname, perl_flush, &userdata);
+    } else {
+      free(userdata.data);
+    }
   } else {
     ret = -1;
   }
 
   if (0 == ret)
     XSRETURN_YES;
-  else {
-    free(userdata.data);
+  else
     XSRETURN_EMPTY;
-  }
 } /* static void _plugin_register_generic_userdata ( ... ) */
 
 /*
@@ -2489,7 +2497,7 @@ static int perl_config_loadplugin(pTHX_ oconfig_item_t *ci) {
 
   if (NULL == get_module_name(module_name, sizeof(module_name), value)) {
     log_err("Invalid module name %s", value);
-    return (1);
+    return 1;
   }
 
   if (0 != init_pi(perl_argc, perl_argv))
@@ -2607,6 +2615,12 @@ static int perl_config_plugin(pTHX_ oconfig_item_t *ci) {
 
   char *plugin;
   HV *config;
+
+  if (NULL == perl_threads) {
+    log_err("A `Plugin' block was encountered but no plugin was loaded yet. "
+            "Put the appropriate `LoadPlugin' option in front of it.");
+    return -1;
+  }
 
   dSP;
 

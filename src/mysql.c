@@ -121,13 +121,13 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("mysql plugin: The `Database' block "
             "needs exactly one string argument.");
-    return (-1);
+    return -1;
   }
 
   db = calloc(1, sizeof(*db));
   if (db == NULL) {
     ERROR("mysql plugin: calloc failed.");
-    return (-1);
+    return -1;
   }
 
   /* initialize all the pointers */
@@ -153,7 +153,7 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
   status = cf_util_get_string(ci, &db->instance);
   if (status != 0) {
     sfree(db);
-    return (status);
+    return status;
   }
   assert(db->instance != NULL);
 
@@ -218,7 +218,7 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
           (db->database != NULL) ? db->database : "<default>");
 
     if (db->instance != NULL)
-      ssnprintf(cb_name, sizeof(cb_name), "mysql-%s", db->instance);
+      snprintf(cb_name, sizeof(cb_name), "mysql-%s", db->instance);
     else
       sstrncpy(cb_name, "mysql", sizeof(cb_name));
 
@@ -229,16 +229,16 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
         });
   } else {
     mysql_database_free(db);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int mysql_config_database */
 
 static int mysql_config(oconfig_item_t *ci) /* {{{ */
 {
   if (ci == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   /* Fill the `mysql_database_t' structure.. */
   for (int i = 0; i < ci->children_num; i++) {
@@ -250,7 +250,7 @@ static int mysql_config(oconfig_item_t *ci) /* {{{ */
       WARNING("mysql plugin: Option \"%s\" not allowed here.", child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} int mysql_config */
 
 /* }}} End of configuration handling functions */
@@ -263,7 +263,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
 
     status = mysql_ping(db->con);
     if (status == 0)
-      return (db->con);
+      return db->con;
 
     WARNING("mysql plugin: Lost connection to instance \"%s\": %s",
             db->instance, mysql_error(db->con));
@@ -274,7 +274,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
     db->con = mysql_init(NULL);
     if (db->con == NULL) {
       ERROR("mysql plugin: mysql_init failed: %s", mysql_error(db->con));
-      return (NULL);
+      return NULL;
     }
   }
 
@@ -289,7 +289,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
           "at server %s: %s",
           (db->database != NULL) ? db->database : "<none>",
           (db->host != NULL) ? db->host : "localhost", mysql_error(db->con));
-    return (NULL);
+    return NULL;
   }
 
   cipher = mysql_get_ssl_cipher(db->con);
@@ -302,7 +302,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
        mysql_get_server_info(db->con), mysql_get_proto_info(db->con));
 
   db->is_connected = 1;
-  return (db->con);
+  return db->con;
 } /* static MYSQL *getconnection (mysql_database_t *db) */
 
 static void set_host(mysql_database_t *db, char *buf, size_t buflen) {
@@ -364,17 +364,17 @@ static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
   if (mysql_real_query(con, query, query_len)) {
     ERROR("mysql plugin: Failed to execute query: %s", mysql_error(con));
     INFO("mysql plugin: SQL query was: %s", query);
-    return (NULL);
+    return NULL;
   }
 
   res = mysql_store_result(con);
   if (res == NULL) {
     ERROR("mysql plugin: Failed to store query result: %s", mysql_error(con));
     INFO("mysql plugin: SQL query was: %s", query);
-    return (NULL);
+    return NULL;
   }
 
-  return (res);
+  return res;
 } /* exec_query */
 
 static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
@@ -389,7 +389,7 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
 
   res = exec_query(con, query);
   if (res == NULL)
-    return (-1);
+    return -1;
 
   row = mysql_fetch_row(res);
   if (row == NULL) {
@@ -397,7 +397,7 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
-    return (-1);
+    return -1;
   }
 
   field_num = mysql_num_fields(res);
@@ -406,7 +406,7 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
           "`%s' returned less than two columns.",
           query);
     mysql_free_result(res);
-    return (-1);
+    return -1;
   }
 
   position = atoll(row[1]);
@@ -420,7 +420,7 @@ static int mysql_read_master_stats(mysql_database_t *db, MYSQL *con) {
 
   mysql_free_result(res);
 
-  return (0);
+  return 0;
 } /* mysql_read_master_stats */
 
 static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
@@ -442,7 +442,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   res = exec_query(con, query);
   if (res == NULL)
-    return (-1);
+    return -1;
 
   row = mysql_fetch_row(res);
   if (row == NULL) {
@@ -450,7 +450,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
-    return (-1);
+    return -1;
   }
 
   field_num = mysql_num_fields(res);
@@ -459,7 +459,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
           "`%s' returned less than 33 columns.",
           query);
     mysql_free_result(res);
-    return (-1);
+    return -1;
   }
 
   if (db->slave_stats) {
@@ -496,15 +496,15 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
         (db->slave_io_running)) {
       n.severity = NOTIF_WARNING;
-      ssnprintf(n.message, sizeof(n.message),
-                "slave I/O thread not started or not connected to master");
+      snprintf(n.message, sizeof(n.message),
+               "slave I/O thread not started or not connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = 0;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                (!db->slave_io_running)) {
       n.severity = NOTIF_OKAY;
-      ssnprintf(n.message, sizeof(n.message),
-                "slave I/O thread started and connected to master");
+      snprintf(n.message, sizeof(n.message),
+               "slave I/O thread started and connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = 1;
     }
@@ -512,13 +512,13 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
         (db->slave_sql_running)) {
       n.severity = NOTIF_WARNING;
-      ssnprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+      snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
       plugin_dispatch_notification(&n);
       db->slave_sql_running = 0;
     } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
                (!db->slave_sql_running)) {
       n.severity = NOTIF_OKAY;
-      ssnprintf(n.message, sizeof(n.message), "slave SQL thread started");
+      snprintf(n.message, sizeof(n.message), "slave SQL thread started");
       plugin_dispatch_notification(&n);
       db->slave_sql_running = 1;
     }
@@ -532,7 +532,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   mysql_free_result(res);
 
-  return (0);
+  return 0;
 } /* mysql_read_slave_stats */
 
 static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
@@ -591,7 +591,7 @@ static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
 
   res = exec_query(con, query);
   if (res == NULL)
-    return (-1);
+    return -1;
 
   while ((row = mysql_fetch_row(res))) {
     int i;
@@ -621,7 +621,7 @@ static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
   }
 
   mysql_free_result(res);
-  return (0);
+  return 0;
 }
 
 static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
@@ -670,7 +670,7 @@ static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
 
   res = exec_query(con, query);
   if (res == NULL)
-    return (-1);
+    return -1;
 
   row = mysql_fetch_row(res);
   if (row == NULL) {
@@ -678,7 +678,7 @@ static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
-    return (-1);
+    return -1;
   }
 
   while ((row = mysql_fetch_row(res))) {
@@ -706,7 +706,7 @@ static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
   }
 
   mysql_free_result(res);
-  return (0);
+  return 0;
 } /* mysql_read_wsrep_stats */
 
 static int mysql_read(user_data_t *ud) {
@@ -733,14 +733,14 @@ static int mysql_read(user_data_t *ud) {
 
   if ((ud == NULL) || (ud->data == NULL)) {
     ERROR("mysql plugin: mysql_database_read: Invalid user data.");
-    return (-1);
+    return -1;
   }
 
   db = (mysql_database_t *)ud->data;
 
   /* An error message will have been printed in this case */
   if ((con = getconnection(db)) == NULL)
-    return (-1);
+    return -1;
 
   mysql_version = mysql_get_server_version(con);
 
@@ -750,7 +750,7 @@ static int mysql_read(user_data_t *ud) {
 
   res = exec_query(con, query);
   if (res == NULL)
-    return (-1);
+    return -1;
 
   while ((row = mysql_fetch_row(res))) {
     char *key;
@@ -938,7 +938,7 @@ static int mysql_read(user_data_t *ud) {
   if (db->wsrep_stats)
     mysql_read_wsrep_stats(db, con);
 
-  return (0);
+  return 0;
 } /* int mysql_read */
 
 void module_register(void) {

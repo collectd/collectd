@@ -240,9 +240,7 @@
 
 /* Only enable __attribute__() for compilers known to support it. */
 #if !defined(__clang__) && !defined(__GNUC__)
-#if !defined(__attribute__)
 #define __attribute__(x) /**/
-#endif
 #endif
 
 #if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__

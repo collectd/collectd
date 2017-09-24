@@ -22,6 +22,7 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
+ *   Pavel Rochnyak <pavel2000 ngs.ru>
  **/
 
 #include "collectd.h"
@@ -49,15 +50,20 @@ struct nut_ups_s {
   nut_ups_t *next;
 };
 
-static nut_ups_t *upslist_head = NULL;
-
-static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
-static int read_busy = 0;
-
-static const char *config_keys[] = {"UPS"};
+static const char *config_keys[] = {"UPS", "FORCESSL", "VERIFYPEER", "CAPATH",
+                                    "CONNECTTIMEOUT"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+static int force_ssl = 0;   // Initialized to default of 0 (false)
+static int verify_peer = 0; // Initialized to default of 0 (false)
+static int ssl_flags = UPSCLI_CONN_TRYSSL;
+static int connect_timeout = -1;
+static char *ca_path = NULL;
 
-static void free_nut_ups_t(nut_ups_t *ups) {
+static int nut_read(user_data_t *user_data);
+
+static void free_nut_ups_t(void *arg) {
+  nut_ups_t *ups = arg;
+
   if (ups->conn != NULL) {
     upscli_disconnect(ups->conn);
     sfree(ups->conn);
@@ -70,39 +76,113 @@ static void free_nut_ups_t(nut_ups_t *ups) {
 static int nut_add_ups(const char *name) {
   nut_ups_t *ups;
   int status;
+  char *cb_name;
 
   DEBUG("nut plugin: nut_add_ups (name = %s);", name);
 
   ups = calloc(1, sizeof(*ups));
   if (ups == NULL) {
     ERROR("nut plugin: nut_add_ups: calloc failed.");
-    return (1);
+    return 1;
   }
 
   status = upscli_splitname(name, &ups->upsname, &ups->hostname, &ups->port);
   if (status != 0) {
     ERROR("nut plugin: nut_add_ups: upscli_splitname (%s) failed.", name);
     free_nut_ups_t(ups);
-    return (1);
+    return 1;
   }
 
-  if (upslist_head == NULL)
-    upslist_head = ups;
-  else {
-    nut_ups_t *last = upslist_head;
-    while (last->next != NULL)
-      last = last->next;
-    last->next = ups;
+  cb_name = ssnprintf_alloc("nut/%s", name);
+
+  status = plugin_register_complex_read(
+      /* group     = */ "nut",
+      /* name      = */ cb_name,
+      /* callback  = */ nut_read,
+      /* interval  = */ 0,
+      /* user_data = */ &(user_data_t){
+          .data = ups, .free_func = free_nut_ups_t,
+      });
+
+  sfree(cb_name);
+
+  if (status == EINVAL) {
+    WARNING("nut plugin: UPS \"%s\" already added. "
+            "Please check your configuration.",
+            name);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int nut_add_ups */
+
+static int nut_force_ssl(const char *value) {
+  if (strcasecmp(value, "true") == 0)
+    force_ssl = 1;
+  else if (strcasecmp(value, "false") == 0)
+    force_ssl = 0; // Should already be set to 0 from initialization
+  else {
+    force_ssl = 0;
+    WARNING("nut plugin: nut_force_ssl: invalid FORCESSL value "
+            "found. Defaulting to false.");
+  }
+  return 0;
+} /* int nut_parse_force_ssl */
+
+static int nut_verify_peer(const char *value) {
+  if (strcasecmp(value, "true") == 0)
+    verify_peer = 1;
+  else if (strcasecmp(value, "false") == 0)
+    verify_peer = 0; // Should already be set to 0 from initialization
+  else {
+    verify_peer = 0;
+    WARNING("nut plugin: nut_verify_peer: invalid VERIFYPEER value "
+            "found. Defaulting to false.");
+  }
+  return 0;
+} /* int nut_verify_peer */
+
+static int nut_ca_path(const char *value) {
+  if (value != NULL && strcmp(value, "") != 0) {
+    ca_path = malloc(strlen(value) + 1);
+    strncpy(ca_path, value, (strlen(value) + 1));
+  } else {
+    ca_path = NULL; // Should alread be set to NULL from initialization
+  }
+  return 0;
+} /* int nut_ca_path */
+
+static int nut_set_connect_timeout(const char *value) {
+#if HAVE_UPSCLI_TRYCONNECT
+  long ret;
+
+  errno = 0;
+  ret = strtol(value, /* endptr = */ NULL, /* base = */ 10);
+  if (errno == 0)
+    connect_timeout = ret;
+  else
+    WARNING("nut plugin: The ConnectTimeout option requires numeric argument. "
+            "Setting ignored.");
+#else /* #if HAVE_UPSCLI_TRYCONNECT */
+  WARNING("nut plugin: Dependency libupsclient version insufficient (<2.6.2) "
+          "for ConnectTimeout option support. Setting ignored.");
+#endif
+  return 0;
+} /* int nut_set_connect_timeout */
 
 static int nut_config(const char *key, const char *value) {
   if (strcasecmp(key, "UPS") == 0)
-    return (nut_add_ups(value));
+    return nut_add_ups(value);
+  else if (strcasecmp(key, "FORCESSL") == 0)
+    return nut_force_ssl(value);
+  else if (strcasecmp(key, "VERIFYPEER") == 0)
+    return nut_verify_peer(value);
+  else if (strcasecmp(key, "CAPATH") == 0)
+    return nut_ca_path(value);
+  else if (strcasecmp(key, "CONNECTTIMEOUT") == 0)
+    return nut_set_connect_timeout(value);
   else
-    return (-1);
+    return -1;
 } /* int nut_config */
 
 static void nut_submit(nut_ups_t *ups, const char *type,
@@ -111,10 +191,8 @@ static void nut_submit(nut_ups_t *ups, const char *type,
 
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
-  sstrncpy(vl.host,
-           (strcasecmp(ups->hostname, "localhost") == 0) ? hostname_g
-                                                         : ups->hostname,
-           sizeof(vl.host));
+  if (strcasecmp(ups->hostname, "localhost") != 0)
+    sstrncpy(vl.host, ups->hostname, sizeof(vl.host));
   sstrncpy(vl.plugin, "nut", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, ups->upsname, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
@@ -123,7 +201,51 @@ static void nut_submit(nut_ups_t *ups, const char *type,
   plugin_dispatch_values(&vl);
 } /* void nut_submit */
 
-static int nut_read_one(nut_ups_t *ups) {
+static int nut_connect(nut_ups_t *ups) {
+  int status, ssl_status;
+
+#if HAVE_UPSCLI_TRYCONNECT
+  struct timeval tv;
+  tv.tv_sec = connect_timeout / 1000;
+  tv.tv_usec = connect_timeout % 1000;
+
+  status =
+      upscli_tryconnect(ups->conn, ups->hostname, ups->port, ssl_flags, &tv);
+#else /* #if HAVE_UPSCLI_TRYCONNECT */
+  status = upscli_connect(ups->conn, ups->hostname, ups->port, ssl_flags);
+#endif
+
+  if (status != 0) {
+    ERROR("nut plugin: nut_connect: upscli_connect (%s, %i) failed: %s",
+          ups->hostname, ups->port, upscli_strerror(ups->conn));
+    sfree(ups->conn);
+    return -1;
+  } /* if (status != 0) */
+
+  INFO("nut plugin: Connection to (%s, %i) established.", ups->hostname,
+       ups->port);
+
+  // Output INFO or WARNING based on SSL and VERIFICATION
+  ssl_status = upscli_ssl(ups->conn); // 1 for SSL, 0 for not, -1 for error
+  if (ssl_status == 1 && verify_peer == 1) {
+    INFO("nut plugin: Connection is secured with SSL and certificate "
+         "has been verified.");
+  } else if (ssl_status == 1) {
+    INFO("nut plugin: Connection is secured with SSL with no verification "
+         "of server SSL certificate.");
+  } else if (ssl_status == 0) {
+    WARNING("nut plugin: Connection is unsecured (no SSL).");
+  } else {
+    ERROR("nut plugin: nut_connect: upscli_ssl failed: %s",
+          upscli_strerror(ups->conn));
+    sfree(ups->conn);
+    return -1;
+  } /* if (ssl_status == 1 && verify_peer == 1) */
+  return 0;
+}
+
+static int nut_read(user_data_t *user_data) {
+  nut_ups_t *ups = user_data->data;
   const char *query[3] = {"VAR", ups->upsname, NULL};
   unsigned int query_num = 2;
   char **answer;
@@ -135,31 +257,24 @@ static int nut_read_one(nut_ups_t *ups) {
     ups->conn = malloc(sizeof(*ups->conn));
     if (ups->conn == NULL) {
       ERROR("nut plugin: malloc failed.");
-      return (-1);
+      return -1;
     }
 
-    status =
-        upscli_connect(ups->conn, ups->hostname, ups->port, UPSCLI_CONN_TRYSSL);
-    if (status != 0) {
-      ERROR("nut plugin: nut_read_one: upscli_connect (%s, %i) failed: %s",
-            ups->hostname, ups->port, upscli_strerror(ups->conn));
-      sfree(ups->conn);
-      return (-1);
-    }
+    status = nut_connect(ups);
+    if (status == -1)
+      return -1;
 
-    INFO("nut plugin: Connection to (%s, %i) established.", ups->hostname,
-         ups->port);
   } /* if (ups->conn == NULL) */
 
   /* nut plugin: nut_read_one: upscli_list_start (adpos) failed: Protocol
    * error */
   status = upscli_list_start(ups->conn, query_num, query);
   if (status != 0) {
-    ERROR("nut plugin: nut_read_one: upscli_list_start (%s) failed: %s",
+    ERROR("nut plugin: nut_read: upscli_list_start (%s) failed: %s",
           ups->upsname, upscli_strerror(ups->conn));
     upscli_disconnect(ups->conn);
     sfree(ups->conn);
-    return (-1);
+    return -1;
   }
 
   while ((status = upscli_list_next(ups->conn, query_num, query, &answer_num,
@@ -211,47 +326,68 @@ static int nut_read_one(nut_ups_t *ups) {
     }
   } /* while (upscli_list_next) */
 
-  return (0);
-} /* int nut_read_one */
-
-static int nut_read(void) {
-  int success = 0;
-
-  pthread_mutex_lock(&read_lock);
-  success = read_busy;
-  read_busy = 1;
-  pthread_mutex_unlock(&read_lock);
-
-  if (success != 0)
-    return (0);
-
-  for (nut_ups_t *ups = upslist_head; ups != NULL; ups = ups->next)
-    if (nut_read_one(ups) == 0)
-      success++;
-
-  pthread_mutex_lock(&read_lock);
-  read_busy = 0;
-  pthread_mutex_unlock(&read_lock);
-
-  return ((success != 0) ? 0 : -1);
+  return 0;
 } /* int nut_read */
 
-static int nut_shutdown(void) {
-  nut_ups_t *this;
-  nut_ups_t *next;
-
-  this = upslist_head;
-  while (this != NULL) {
-    next = this->next;
-    free_nut_ups_t(this);
-    this = next;
+static int nut_init(void) {
+#if HAVE_UPSCLI_INIT
+  if (verify_peer == 1 && force_ssl == 0) {
+    WARNING("nut plugin: nut_connect: VerifyPeer true but ForceSSL "
+            "false. Setting ForceSSL to true.");
+    force_ssl = 1;
   }
 
-  return (0);
+  if (verify_peer == 1 && ca_path == NULL) {
+    ERROR("nut plugin: nut_connect: VerifyPeer true but missing "
+          "CAPath value.");
+    plugin_unregister_read_group("nut");
+    return -1;
+  }
+
+  if (verify_peer == 1 || force_ssl == 1) {
+    int status = upscli_init(verify_peer, ca_path, NULL, NULL);
+
+    if (status != 1) {
+      ERROR("nut plugin: upscli_init (%i, %s) failed", verify_peer, ca_path);
+      upscli_cleanup();
+      plugin_unregister_read_group("nut");
+      return -1;
+    }
+  } /* if (verify_peer == 1) */
+
+  if (verify_peer == 1)
+    ssl_flags = (UPSCLI_CONN_REQSSL | UPSCLI_CONN_CERTVERIF);
+  else if (force_ssl == 1)
+    ssl_flags = UPSCLI_CONN_REQSSL;
+
+#else /* #if HAVE_UPSCLI_INIT */
+  if (verify_peer == 1 || ca_path != NULL) {
+    WARNING("nut plugin: nut_connect: Dependency libupsclient version "
+            "insufficient (<2.7) for VerifyPeer support. Ignoring VerifyPeer "
+            "and CAPath.");
+    verify_peer = 0;
+  }
+
+  if (force_ssl == 1)
+    ssl_flags = UPSCLI_CONN_REQSSL;
+#endif
+
+  if (connect_timeout <= 0)
+    connect_timeout = (long)CDTIME_T_TO_MS(plugin_get_interval());
+
+  return 0;
+} /* int nut_init */
+
+static int nut_shutdown(void) {
+#if HAVE_UPSCLI_INIT
+  upscli_cleanup();
+#endif
+
+  return 0;
 } /* int nut_shutdown */
 
 void module_register(void) {
   plugin_register_config("nut", nut_config, config_keys, config_keys_num);
-  plugin_register_read("nut", nut_read);
+  plugin_register_init("nut", nut_init);
   plugin_register_shutdown("nut", nut_shutdown);
 } /* void module_register */

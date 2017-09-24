@@ -84,7 +84,7 @@ static counter_list_t *counter_list_search(counter_list_t **list,
     if (entry->key == key)
       break;
 
-  return (entry);
+  return entry;
 }
 
 static counter_list_t *counter_list_create(counter_list_t **list,
@@ -94,7 +94,7 @@ static counter_list_t *counter_list_create(counter_list_t **list,
 
   entry = calloc(1, sizeof(*entry));
   if (entry == NULL)
-    return (NULL);
+    return NULL;
 
   entry->key = key;
   entry->value = value;
@@ -111,7 +111,7 @@ static counter_list_t *counter_list_create(counter_list_t **list,
     last->next = entry;
   }
 
-  return (entry);
+  return entry;
 }
 
 static void counter_list_add(counter_list_t **list, unsigned int key,
@@ -132,7 +132,7 @@ static int dns_config(const char *key, const char *value) {
     if (pcap_device != NULL)
       free(pcap_device);
     if ((pcap_device = strdup(value)) == NULL)
-      return (1);
+      return 1;
   } else if (strcasecmp(key, "IgnoreSource") == 0) {
     if (value != NULL)
       ignore_list_add_name(value);
@@ -142,10 +142,10 @@ static int dns_config(const char *key, const char *value) {
     else
       select_numeric_qtype = 1;
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 static void dns_child_callback(const rfc1035_header_t *dns) {
@@ -208,19 +208,19 @@ static int dns_run_pcap_loop(void) {
     ERROR("dns plugin: Opening interface `%s' "
           "failed: %s",
           (pcap_device != NULL) ? pcap_device : "any", pcap_error);
-    return (PCAP_ERROR);
+    return PCAP_ERROR;
   }
 
   status = pcap_compile(pcap_obj, &fp, "udp port 53", 1, 0);
   if (status < 0) {
     ERROR("dns plugin: pcap_compile failed: %s", pcap_statustostr(status));
-    return (status);
+    return status;
   }
 
   status = pcap_setfilter(pcap_obj, &fp);
   if (status < 0) {
     ERROR("dns plugin: pcap_setfilter failed: %s", pcap_statustostr(status));
-    return (status);
+    return status;
   }
 
   DEBUG("dns plugin: PCAP object created.");
@@ -237,7 +237,7 @@ static int dns_run_pcap_loop(void) {
     status = PCAP_ERROR_IFACE_NOT_UP;
 
   pcap_close(pcap_obj);
-  return (status);
+  return status;
 } /* int dns_run_pcap_loop */
 
 static int dns_sleep_one_interval(void) /* {{{ */
@@ -247,10 +247,10 @@ static int dns_sleep_one_interval(void) /* {{{ */
     if ((errno == EINTR) || (errno == EAGAIN))
       continue;
 
-    return (errno);
+    return errno;
   }
 
-  return (0);
+  return 0;
 } /* }}} int dns_sleep_one_interval */
 
 static void *dns_child_loop(__attribute__((unused)) void *dummy) /* {{{ */
@@ -269,7 +269,7 @@ static void *dns_child_loop(__attribute__((unused)) void *dummy) /* {{{ */
     ERROR("dns plugin: PCAP returned error %s.", pcap_statustostr(status));
 
   listen_thread_init = 0;
-  return (NULL);
+  return NULL;
 } /* }}} void *dns_child_loop */
 
 static int dns_init(void) {
@@ -282,7 +282,7 @@ static int dns_init(void) {
   pthread_mutex_unlock(&traffic_mutex);
 
   if (listen_thread_init != 0)
-    return (-1);
+    return -1;
 
   status = plugin_thread_create(&listen_thread, NULL, dns_child_loop, (void *)0,
                                 "dns listen");
@@ -290,7 +290,7 @@ static int dns_init(void) {
     char errbuf[1024];
     ERROR("dns plugin: pthread_create failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   listen_thread_init = 1;
@@ -308,7 +308,7 @@ static int dns_init(void) {
   }
 #endif
 
-  return (0);
+  return 0;
 } /* int dns_init */
 
 static void submit_derive(const char *type, const char *type_instance,
@@ -392,7 +392,7 @@ static int dns_read(void) {
     submit_derive("dns_rcode", rcode_str(keys[i]), values[i]);
   }
 
-  return (0);
+  return 0;
 } /* int dns_read */
 
 void module_register(void) {

@@ -89,7 +89,7 @@ static int read_file(const char *path) {
   if (fh == NULL) {
     ERROR("protocols plugin: fopen (%s) failed: %s.", path,
           sstrerror(errno, key_buffer, sizeof(key_buffer)));
-    return (-1);
+    return -1;
   }
 
   status = -1;
@@ -156,8 +156,8 @@ static int read_file(const char *path) {
       if (values_list != NULL) {
         char match_name[2 * DATA_MAX_NAME_LEN];
 
-        ssnprintf(match_name, sizeof(match_name), "%s:%s", key_buffer,
-                  key_fields[i]);
+        snprintf(match_name, sizeof(match_name), "%s:%s", key_buffer,
+                 key_fields[i]);
 
         if (ignorelist_match(values_list, match_name))
           continue;
@@ -169,7 +169,7 @@ static int read_file(const char *path) {
 
   fclose(fh);
 
-  return (status);
+  return status;
 } /* int read_file */
 
 static int protocols_read(void) {
@@ -185,9 +185,9 @@ static int protocols_read(void) {
     success++;
 
   if (success == 0)
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 } /* int protocols_read */
 
 static int protocols_config(const char *key, const char *value) {
@@ -202,10 +202,10 @@ static int protocols_config(const char *key, const char *value) {
       invert = 0;
     ignorelist_set_invert(values_list, invert);
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int protocols_config */
 
 void module_register(void) {

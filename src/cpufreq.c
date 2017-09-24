@@ -34,10 +34,10 @@ static int cpufreq_init(void) {
   num_cpu = 0;
 
   while (1) {
-    status = ssnprintf(filename, sizeof(filename),
-                       "/sys/devices/system/cpu/cpu%d/cpufreq/"
-                       "scaling_cur_freq",
-                       num_cpu);
+    status = snprintf(filename, sizeof(filename),
+                      "/sys/devices/system/cpu/cpu%d/cpufreq/"
+                      "scaling_cur_freq",
+                      num_cpu);
     if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
       break;
 
@@ -52,7 +52,7 @@ static int cpufreq_init(void) {
   if (num_cpu == 0)
     plugin_unregister_read("cpufreq");
 
-  return (0);
+  return 0;
 } /* int cpufreq_init */
 
 static void cpufreq_submit(int cpu_num, value_t value) {
@@ -62,7 +62,7 @@ static void cpufreq_submit(int cpu_num, value_t value) {
   vl.values_len = 1;
   sstrncpy(vl.plugin, "cpufreq", sizeof(vl.plugin));
   sstrncpy(vl.type, "cpufreq", sizeof(vl.type));
-  ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i", cpu_num);
+  snprintf(vl.type_instance, sizeof(vl.type_instance), "%i", cpu_num);
 
   plugin_dispatch_values(&vl);
 }
@@ -70,8 +70,8 @@ static void cpufreq_submit(int cpu_num, value_t value) {
 static int cpufreq_read(void) {
   for (int i = 0; i < num_cpu; i++) {
     char filename[PATH_MAX];
-    ssnprintf(filename, sizeof(filename),
-              "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+    snprintf(filename, sizeof(filename),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
 
     value_t v;
     if (parse_value_file(filename, &v, DS_TYPE_GAUGE) != 0) {
@@ -85,7 +85,7 @@ static int cpufreq_read(void) {
     cpufreq_submit(i, v);
   }
 
-  return (0);
+  return 0;
 } /* int cpufreq_read */
 
 void module_register(void) {

@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Iterator;
 import java.util.ArrayList;
 
@@ -127,6 +129,14 @@ class GenericJMXConfValue
     else if (obj instanceof BigInteger)
     {
       return (BigInteger.ZERO.add ((BigInteger) obj));
+    }
+    else if (obj instanceof AtomicInteger)
+    {
+        return (new Integer(((AtomicInteger) obj).get()));
+    }
+    else if (obj instanceof AtomicLong)
+    {
+        return (new Long(((AtomicLong) obj).get()));
     }
 
     return (null);

@@ -89,13 +89,12 @@ static void submit_interface(cr_data_t *rd, /* {{{ */
 
 static int handle_interface(__attribute__((unused))
                             ros_connection_t *c, /* {{{ */
-                            const ros_interface_t *i,
-                            void *user_data) {
+                            const ros_interface_t *i, void *user_data) {
   if ((i == NULL) || (user_data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   submit_interface(user_data, i);
-  return (0);
+  return 0;
 } /* }}} int handle_interface */
 
 static void cr_submit_gauge(cr_data_t *rd, const char *type, /* {{{ */
@@ -142,8 +141,8 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
     return;
 
   /*** RX ***/
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
-            r->radio_name);
+  snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
+           r->radio_name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -151,8 +150,8 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->rx_ccq);
 
   /*** TX ***/
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
-            r->radio_name);
+  snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
+           r->radio_name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -160,8 +159,8 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->tx_ccq);
 
   /*** RX / TX ***/
-  ssnprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
-            r->radio_name);
+  snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
+           r->radio_name);
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
   cr_submit_gauge(rd, "snr", type_instance, (gauge_t)r->signal_to_noise);
@@ -171,13 +170,12 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
 static int handle_regtable(__attribute__((unused))
                            ros_connection_t *c, /* {{{ */
-                           const ros_registration_table_t *r,
-                           void *user_data) {
+                           const ros_registration_table_t *r, void *user_data) {
   if ((r == NULL) || (user_data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   submit_regtable(user_data, r);
-  return (0);
+  return 0;
 } /* }}} int handle_regtable */
 
 #if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
@@ -188,7 +186,7 @@ static int handle_system_resource(__attribute__((unused))
   cr_data_t *rd;
 
   if ((r == NULL) || (user_data == NULL))
-    return (EINVAL);
+    return EINVAL;
   rd = user_data;
 
   if (rd->collect_cpu_load)
@@ -212,7 +210,7 @@ static int handle_system_resource(__attribute__((unused))
     cr_submit_gauge(rd, "gauge", "bad_blocks", (gauge_t)r->bad_blocks);
   }
 
-  return (0);
+  return 0;
 } /* }}} int handle_system_resource */
 #endif
 
@@ -222,11 +220,11 @@ static int cr_read(user_data_t *user_data) /* {{{ */
   cr_data_t *rd;
 
   if (user_data == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   rd = user_data->data;
   if (rd == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   if (rd->connection == NULL) {
     rd->connection =
@@ -235,7 +233,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
       char errbuf[128];
       ERROR("routeros plugin: ros_connect failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   }
   assert(rd->connection != NULL);
@@ -249,7 +247,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
             sstrerror(status, errbuf, sizeof(errbuf)));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
-      return (-1);
+      return -1;
     }
   }
 
@@ -262,7 +260,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
             sstrerror(status, errbuf, sizeof(errbuf)));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
-      return (-1);
+      return -1;
     }
   }
 
@@ -277,12 +275,12 @@ static int cr_read(user_data_t *user_data) /* {{{ */
             sstrerror(status, errbuf, sizeof(errbuf)));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
-      return (-1);
+      return -1;
     }
   }
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int cr_read */
 
 static void cr_free_data(cr_data_t *ptr) /* {{{ */
@@ -309,7 +307,7 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
 
   router_data = calloc(1, sizeof(*router_data));
   if (router_data == NULL)
-    return (-1);
+    return -1;
   router_data->connection = NULL;
   router_data->node = NULL;
   router_data->service = NULL;
@@ -378,18 +376,17 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  ssnprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
-  if (status == 0)
-    status = plugin_register_complex_read(
-        /* group = */ NULL, read_name, cr_read, /* interval = */ 0,
-        &(user_data_t){
-            .data = router_data, .free_func = (void *)cr_free_data,
-        });
-
-  if (status != 0)
+  if (status != 0) {
     cr_free_data(router_data);
+    return status;
+  }
 
-  return (status);
+  snprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
+  return plugin_register_complex_read(
+      /* group = */ NULL, read_name, cr_read, /* interval = */ 0,
+      &(user_data_t){
+          .data = router_data, .free_func = (void *)cr_free_data,
+      });
 } /* }}} int cr_config_router */
 
 static int cr_config(oconfig_item_t *ci) {
@@ -403,7 +400,7 @@ static int cr_config(oconfig_item_t *ci) {
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int cr_config */
 
 void module_register(void) {

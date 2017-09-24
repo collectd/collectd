@@ -71,7 +71,7 @@
 #endif
 #endif /* NAN_ZERO_ZERO */
 
-#include "libcollectdclient/collectd/client.h"
+#include "collectd/client.h"
 
 #define RET_OKAY 0
 #define RET_WARNING 1
@@ -118,7 +118,7 @@ cn_strdup(const char *str) /* {{{ */
   ret = (char *)malloc(strsize);
   if (ret != NULL)
     memcpy(ret, str, strsize);
-  return (ret);
+  return ret;
 } /* }}} char *cn_strdup */
 
 static int filter_ds(size_t *values_num, double **values,
@@ -127,19 +127,19 @@ static int filter_ds(size_t *values_num, double **values,
   char **new_names;
 
   if (match_ds_g == NULL)
-    return (RET_OKAY);
+    return RET_OKAY;
 
   new_values = (gauge_t *)calloc(match_ds_num_g, sizeof(*new_values));
   if (new_values == NULL) {
     fprintf(stderr, "calloc failed: %s\n", strerror(errno));
-    return (RET_UNKNOWN);
+    return RET_UNKNOWN;
   }
 
   new_names = (char **)calloc(match_ds_num_g, sizeof(*new_names));
   if (new_names == NULL) {
     fprintf(stderr, "calloc failed: %s\n", strerror(errno));
     free(new_values);
-    return (RET_UNKNOWN);
+    return RET_UNKNOWN;
   }
 
   for (size_t i = 0; i < match_ds_num_g; i++) {
@@ -153,7 +153,7 @@ static int filter_ds(size_t *values_num, double **values,
       for (j = 0; j < i; j++)
         free(new_names[j]);
       free(new_names);
-      return (RET_UNKNOWN);
+      return RET_UNKNOWN;
     }
 
     for (j = 0; j < *values_num; j++)
@@ -166,7 +166,7 @@ static int filter_ds(size_t *values_num, double **values,
       for (j = 0; j <= i; j++)
         free(new_names[j]);
       free(new_names);
-      return (RET_CRITICAL);
+      return RET_CRITICAL;
     }
 
     new_values[i] = (*values)[j];
@@ -180,7 +180,7 @@ static int filter_ds(size_t *values_num, double **values,
   *values = new_values;
   *values_names = new_names;
   *values_num = match_ds_num_g;
-  return (RET_OKAY);
+  return RET_OKAY;
 } /* int filter_ds */
 
 static void parse_range(char *string, range_t *range) {
@@ -227,7 +227,7 @@ static int match_range(range_t *range, double value) {
   if (!isnan(range->max) && (range->max < value))
     ret = 1;
 
-  return (((ret - range->invert) == 0) ? 0 : 1);
+  return ((ret - range->invert) == 0) ? 0 : 1;
 } /* int match_range */
 
 __attribute__((noreturn)) static void usage(const char *name) {
@@ -279,7 +279,7 @@ static int do_listval(lcc_connection_t *connection) {
     printf("UNKNOWN: %s\n", lcc_strerror(connection));
     if (ret_ident != NULL)
       free(ret_ident);
-    return (RET_UNKNOWN);
+    return RET_UNKNOWN;
   }
 
   status = lcc_sort_identifiers(connection, ret_ident, ret_ident_num);
@@ -287,7 +287,7 @@ static int do_listval(lcc_connection_t *connection) {
     printf("UNKNOWN: %s\n", lcc_strerror(connection));
     if (ret_ident != NULL)
       free(ret_ident);
-    return (RET_UNKNOWN);
+    return RET_UNKNOWN;
   }
 
   for (size_t i = 0; i < ret_ident_num; ++i) {
@@ -322,7 +322,7 @@ static int do_listval(lcc_connection_t *connection) {
 
   free(ret_ident);
   free(hostname);
-  return (RET_OKAY);
+  return RET_OKAY;
 } /* int do_listval */
 
 static int do_check_con_none(size_t values_num, double *values,
@@ -349,7 +349,7 @@ static int do_check_con_none(size_t values_num, double *values,
 
   if ((num_critical == 0) && (num_warning == 0) && (num_okay == 0)) {
     printf("WARNING: No defined values found\n");
-    return (RET_WARNING);
+    return RET_WARNING;
   } else if ((num_critical == 0) && (num_warning == 0)) {
     status_str = "OKAY";
     status_code = RET_OKAY;
@@ -370,7 +370,7 @@ static int do_check_con_none(size_t values_num, double *values,
   }
   printf("\n");
 
-  return (status_code);
+  return status_code;
 } /* int do_check_con_none */
 
 static int do_check_con_average(size_t values_num, double *values,
@@ -389,7 +389,7 @@ static int do_check_con_average(size_t values_num, double *values,
         continue;
 
       printf("CRITICAL: Data source \"%s\" is NaN\n", values_names[i]);
-      return (RET_CRITICAL);
+      return RET_CRITICAL;
     }
 
     total += values[i];
@@ -398,7 +398,7 @@ static int do_check_con_average(size_t values_num, double *values,
 
   if (total_num == 0) {
     printf("WARNING: No defined values found\n");
-    return (RET_WARNING);
+    return RET_WARNING;
   }
 
   average = total / total_num;
@@ -419,7 +419,7 @@ static int do_check_con_average(size_t values_num, double *values,
     printf(" %s=%f;;;;", values_names[i], values[i]);
   printf("\n");
 
-  return (status_code);
+  return status_code;
 } /* int do_check_con_average */
 
 static int do_check_con_sum(size_t values_num, double *values,
@@ -437,7 +437,7 @@ static int do_check_con_sum(size_t values_num, double *values,
         continue;
 
       printf("CRITICAL: Data source \"%s\" is NaN\n", values_names[i]);
-      return (RET_CRITICAL);
+      return RET_CRITICAL;
     }
 
     total += values[i];
@@ -446,7 +446,7 @@ static int do_check_con_sum(size_t values_num, double *values,
 
   if (total_num == 0) {
     printf("WARNING: No defined values found\n");
-    return (RET_WARNING);
+    return RET_WARNING;
   }
 
   if (match_range(&range_critical_g, total) != 0) {
@@ -465,7 +465,7 @@ static int do_check_con_sum(size_t values_num, double *values,
     printf(" %s=%f;;;;", values_names[i], values[i]);
   printf("\n");
 
-  return (status_code);
+  return status_code;
 } /* int do_check_con_sum */
 
 static int do_check_con_percentage(size_t values_num, double *values,
@@ -478,7 +478,7 @@ static int do_check_con_percentage(size_t values_num, double *values,
 
   if ((values_num < 1) || (isnan(values[0]))) {
     printf("WARNING: The first value is not defined\n");
-    return (RET_WARNING);
+    return RET_WARNING;
   }
 
   for (size_t i = 0; i < values_num; i++) {
@@ -487,7 +487,7 @@ static int do_check_con_percentage(size_t values_num, double *values,
         continue;
 
       printf("CRITICAL: Data source \"%s\" is NaN\n", values_names[i]);
-      return (RET_CRITICAL);
+      return RET_CRITICAL;
     }
 
     sum += values[i];
@@ -495,7 +495,7 @@ static int do_check_con_percentage(size_t values_num, double *values,
 
   if (sum == 0.0) {
     printf("WARNING: Values sum up to zero\n");
-    return (RET_WARNING);
+    return RET_WARNING;
   }
 
   percentage = 100.0 * values[0] / sum;
@@ -514,7 +514,7 @@ static int do_check_con_percentage(size_t values_num, double *values,
   printf("%s: %lf percent |", status_str, percentage);
   for (size_t i = 0; i < values_num; i++)
     printf(" %s=%lf;;;;", values_names[i], values[i]);
-  return (status_code);
+  return status_code;
 } /* int do_check_con_percentage */
 
 static int do_check(lcc_connection_t *connection) {
@@ -533,7 +533,7 @@ static int do_check(lcc_connection_t *connection) {
     printf("ERROR: Creating an identifier failed: %s.\n",
            lcc_strerror(connection));
     LCC_DESTROY(connection);
-    return (RET_CRITICAL);
+    return RET_CRITICAL;
   }
 
   status = lcc_getval(connection, &ident, &values_num, &values, &values_names);
@@ -541,14 +541,14 @@ static int do_check(lcc_connection_t *connection) {
     printf("ERROR: Retrieving values from the daemon failed: %s.\n",
            lcc_strerror(connection));
     LCC_DESTROY(connection);
-    return (RET_CRITICAL);
+    return RET_CRITICAL;
   }
 
   LCC_DESTROY(connection);
 
   status = filter_ds(&values_num, &values, &values_names);
   if (status != RET_OKAY)
-    return (status);
+    return status;
 
   status = RET_UNKNOWN;
   if (consolitation_g == CON_NONE)
@@ -566,7 +566,7 @@ static int do_check(lcc_connection_t *connection) {
       free(values_names[i]);
   free(values_names);
 
-  return (status);
+  return status;
 } /* int do_check */
 
 int main(int argc, char **argv) {
@@ -625,13 +625,13 @@ int main(int argc, char **argv) {
       tmp = realloc(match_ds_g, (match_ds_num_g + 1) * sizeof(char *));
       if (tmp == NULL) {
         fprintf(stderr, "realloc failed: %s\n", strerror(errno));
-        return (RET_UNKNOWN);
+        return RET_UNKNOWN;
       }
       match_ds_g = tmp;
       match_ds_g[match_ds_num_g] = cn_strdup(optarg);
       if (match_ds_g[match_ds_num_g] == NULL) {
         fprintf(stderr, "cn_strdup failed: %s\n", strerror(errno));
-        return (RET_UNKNOWN);
+        return RET_UNKNOWN;
       }
       match_ds_num_g++;
       break;
@@ -657,11 +657,11 @@ int main(int argc, char **argv) {
   status = lcc_connect(address, &connection);
   if (status != 0) {
     printf("ERROR: Connecting to daemon at %s failed.\n", socket_file_g);
-    return (RET_CRITICAL);
+    return RET_CRITICAL;
   }
 
   if (0 == strcasecmp(value_string_g, "LIST"))
-    return (do_listval(connection));
+    return do_listval(connection);
 
-  return (do_check(connection));
+  return do_check(connection);
 } /* int main */

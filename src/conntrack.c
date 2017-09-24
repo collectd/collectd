@@ -70,13 +70,13 @@ static int conntrack_read(void) {
   char const *path = old_files ? CONNTRACK_FILE_OLD : CONNTRACK_FILE;
   if (parse_value_file(path, &conntrack, DS_TYPE_GAUGE) != 0) {
     ERROR("conntrack plugin: Reading \"%s\" failed.", path);
-    return (-1);
+    return -1;
   }
 
   path = old_files ? CONNTRACK_MAX_FILE_OLD : CONNTRACK_MAX_FILE;
   if (parse_value_file(path, &conntrack_max, DS_TYPE_GAUGE) != 0) {
     ERROR("conntrack plugin: Reading \"%s\" failed.", path);
-    return (-1);
+    return -1;
   }
 
   conntrack_pct.gauge = (conntrack.gauge / conntrack_max.gauge) * 100;
@@ -85,7 +85,7 @@ static int conntrack_read(void) {
   conntrack_submit("conntrack", "max", conntrack_max);
   conntrack_submit("percent", "used", conntrack_pct);
 
-  return (0);
+  return 0;
 } /* static int conntrack_read */
 
 void module_register(void) {

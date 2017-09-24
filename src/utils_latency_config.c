@@ -25,8 +25,8 @@
  *   Pavel Rochnyack <pavel2000 at ngs.ru>
  */
 
-#include "common.h"
 #include "utils_latency_config.h"
+#include "common.h"
 #include "collectd.h"
 
 static int latency_config_add_percentile(latency_config_t *conf,
@@ -91,7 +91,7 @@ static int latency_config_add_bucket(latency_config_t *conf, oconfig_item_t *ci,
       DOUBLE_TO_CDTIME_T(ci->values[1].value.number);
   conf->buckets_num++;
 
-  return (0);
+  return 0;
 } /* int latency_config_add_bucket */
 
 int latency_config(latency_config_t *conf, oconfig_item_t *ci,

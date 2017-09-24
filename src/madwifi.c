@@ -418,7 +418,7 @@ static int madwifi_real_init(void) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(bounds); i++)
     bounds[i]++;
 
-  return (0);
+  return 0;
 }
 
 static int madwifi_config(const char *key, const char *value) {
@@ -461,7 +461,7 @@ static int madwifi_config(const char *key, const char *value) {
     int id = watchitem_find(value);
 
     if (id < 0)
-      return (-1);
+      return -1;
     else
       watchlist_add(watch_items, id);
   }
@@ -470,7 +470,7 @@ static int madwifi_config(const char *key, const char *value) {
     int id = watchitem_find(value);
 
     if (id < 0)
-      return (-1);
+      return -1;
     else
       watchlist_remove(watch_items, id);
   }
@@ -488,7 +488,7 @@ static int madwifi_config(const char *key, const char *value) {
     int id = watchitem_find(value);
 
     if (id < 0)
-      return (-1);
+      return -1;
     else
       watchlist_add(misc_items, id);
   }
@@ -497,15 +497,15 @@ static int madwifi_config(const char *key, const char *value) {
     int id = watchitem_find(value);
 
     if (id < 0)
-      return (-1);
+      return -1;
     else
       watchlist_remove(misc_items, id);
   }
 
   else
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 }
 
 static void submit(const char *dev, const char *type, const char *ti1,
@@ -519,7 +519,7 @@ static void submit(const char *dev, const char *type, const char *ti1,
   sstrncpy(vl.type, type, sizeof(vl.type));
 
   if ((ti1 != NULL) && (ti2 != NULL))
-    ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s", ti1, ti2);
+    snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s", ti1, ti2);
   else if ((ti1 != NULL) && (ti2 == NULL))
     sstrncpy(vl.type_instance, ti1, sizeof(vl.type_instance));
 
@@ -553,15 +553,15 @@ static void submit_antx(const char *dev, const char *name, u_int32_t *vals,
     if (vals[i] == 0)
       continue;
 
-    ssnprintf(ti2, sizeof(ti2), "%i", i);
+    snprintf(ti2, sizeof(ti2), "%i", i);
     submit_derive(dev, "ath_stat", name, ti2, (derive_t)vals[i]);
   }
 }
 
 static inline void macaddr_to_str(char *buf, size_t bufsize,
                                   const uint8_t mac[IEEE80211_ADDR_LEN]) {
-  ssnprintf(buf, bufsize, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1],
-            mac[2], mac[3], mac[4], mac[5]);
+  snprintf(buf, bufsize, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1],
+           mac[2], mac[3], mac[4], mac[5]);
 }
 
 static void process_stat_struct(int which, const void *ptr, const char *dev,
@@ -600,7 +600,7 @@ static int process_athstats(int sk, const char *dev) {
           "SIOCGATHSTATS to device %s "
           "failed with status %i.",
           dev, status);
-    return (status);
+    return status;
   }
 
   /* These stats are handled as a special case, because they are
@@ -616,7 +616,7 @@ static int process_athstats(int sk, const char *dev) {
 
   /* All other ath statistics */
   process_stat_struct(ATH_STAT, &stats, dev, NULL, "ath_stat", "ast_misc");
-  return (0);
+  return 0;
 }
 
 static int process_80211stats(int sk, const char *dev) {
@@ -633,11 +633,11 @@ static int process_80211stats(int sk, const char *dev) {
           "SIOCG80211STATS to device %s "
           "failed with status %i.",
           dev, status);
-    return (status);
+    return status;
   }
 
   process_stat_struct(IFA_STAT, &stats, dev, NULL, "ath_stat", "is_misc");
-  return (0);
+  return 0;
 }
 
 static int process_station(int sk, const char *dev,
@@ -668,7 +668,7 @@ static int process_station(int sk, const char *dev,
           "IEEE80211_IOCTL_STA_STATS to device %s "
           "failed with status %i.",
           dev, status);
-    return (status);
+    return status;
   }
 
   /* These two stats are handled as a special case as they are
@@ -685,7 +685,7 @@ static int process_station(int sk, const char *dev,
 
   /* All other node statistics */
   process_stat_struct(NOD_STAT, ns, dev, mac, "node_stat", "ns_misc");
-  return (0);
+  return 0;
 }
 
 static int process_stations(int sk, const char *dev) {
@@ -706,7 +706,7 @@ static int process_stations(int sk, const char *dev) {
           "IEEE80211_IOCTL_STA_INFO to device %s "
           "failed with status %i.",
           dev, status);
-    return (status);
+    return status;
   }
 
   len = iwr.u.data.length;
@@ -723,7 +723,7 @@ static int process_stations(int sk, const char *dev) {
 
   if (item_watched(STAT_ATH_NODES))
     submit_gauge(dev, "ath_nodes", NULL, NULL, nodes);
-  return (0);
+  return 0;
 }
 
 static int process_device(int sk, const char *dev) {
@@ -742,7 +742,7 @@ static int process_device(int sk, const char *dev) {
   if (status == 0)
     num_success++;
 
-  return ((num_success == 0) ? -1 : 0);
+  return (num_success == 0) ? -1 : 0;
 }
 
 static int check_devname(const char *dev) {
@@ -753,7 +753,7 @@ static int check_devname(const char *dev) {
   if (dev[0] == '.')
     return 0;
 
-  ssnprintf(buf, sizeof(buf), "/sys/class/net/%s/device/driver", dev);
+  snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/driver", dev);
   buf[sizeof(buf) - 1] = '\0';
 
   i = readlink(buf, buf2, sizeof(buf2) - 1);
@@ -777,7 +777,7 @@ static int sysfs_iterate(int sk) {
   nets = opendir("/sys/class/net/");
   if (nets == NULL) {
     WARNING("madwifi plugin: opening /sys/class/net failed");
-    return (-1);
+    return -1;
   }
 
   num_success = 0;
@@ -803,8 +803,8 @@ static int sysfs_iterate(int sk) {
   closedir(nets);
 
   if ((num_success == 0) && (num_fail != 0))
-    return (-1);
-  return (0);
+    return -1;
+  return 0;
 }
 
 static int procfs_iterate(int sk) {
@@ -817,7 +817,7 @@ static int procfs_iterate(int sk) {
 
   if ((fh = fopen("/proc/net/dev", "r")) == NULL) {
     WARNING("madwifi plugin: opening /proc/net/dev failed");
-    return (-1);
+    return -1;
   }
 
   num_success = 0;
@@ -852,7 +852,7 @@ static int procfs_iterate(int sk) {
   fclose(fh);
 
   if ((num_success == 0) && (num_fail != 0))
-    return (-1);
+    return -1;
   return 0;
 }
 
@@ -866,7 +866,7 @@ static int madwifi_read(void) {
 
   sk = socket(AF_INET, SOCK_DGRAM, 0);
   if (sk < 0)
-    return (-1);
+    return -1;
 
   /* procfs iteration is not safe because it does not check whether given
      interface is madwifi interface and there are private ioctls used, which

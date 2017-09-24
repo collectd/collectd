@@ -1397,7 +1397,7 @@ static int cpy_config(oconfig_item_t *ci) {
       status = 1;
     }
   }
-  return (status);
+  return status;
 }
 
 void module_register(void) {

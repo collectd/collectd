@@ -87,7 +87,7 @@ static rrdcreate_config_t rrdcreate_config = {
  * ALWAYS lock `cache_lock' first! */
 static cdtime_t cache_timeout = 0;
 static cdtime_t cache_flush_timeout = 0;
-static cdtime_t random_timeout = TIME_T_TO_CDTIME_T_STATIC(1);
+static cdtime_t random_timeout = 0;
 static cdtime_t cache_flush_last;
 static c_avl_tree_t *cache = NULL;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -122,7 +122,7 @@ static int srrd_update(char *filename, char *template, int argc,
             rrd_get_error());
   }
 
-  return (status);
+  return status;
 } /* int srrd_update */
 /* #endif HAVE_THREADSAFE_LIBRRD */
 
@@ -140,7 +140,7 @@ static int srrd_update(char *filename, char *template, int argc,
   new_argv = malloc((new_argc + 1) * sizeof(*new_argv));
   if (new_argv == NULL) {
     ERROR("rrdtool plugin: malloc failed.");
-    return (-1);
+    return -1;
   }
 
   new_argv[0] = "update";
@@ -163,7 +163,7 @@ static int srrd_update(char *filename, char *template, int argc,
 
   sfree(new_argv);
 
-  return (status);
+  return status;
 } /* int srrd_update */
 #endif /* !HAVE_THREADSAFE_LIBRRD */
 
@@ -177,9 +177,9 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
   memset(buffer, '\0', buffer_len);
 
   tt = CDTIME_T_TO_TIME_T(vl->time);
-  status = ssnprintf(buffer, buffer_len, "%u", (unsigned int)tt);
+  status = snprintf(buffer, buffer_len, "%u", (unsigned int)tt);
   if ((status < 1) || (status >= buffer_len))
-    return (-1);
+    return -1;
   offset = status;
 
   for (size_t i = 0; i < ds->ds_num; i++) {
@@ -187,28 +187,28 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
         (ds->ds[i].type != DS_TYPE_GAUGE) &&
         (ds->ds[i].type != DS_TYPE_DERIVE) &&
         (ds->ds[i].type != DS_TYPE_ABSOLUTE))
-      return (-1);
+      return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%llu",
-                         vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
+                        vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
-                         vl->values[i].gauge);
+      status = snprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
+                        vl->values[i].gauge);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
-                         vl->values[i].derive);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
+                        vl->values[i].derive);
     else /*if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                         vl->values[i].absolute);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                        vl->values[i].absolute);
 
     if ((status < 1) || (status >= (buffer_len - offset)))
-      return (-1);
+      return -1;
 
     offset += status;
   } /* for ds->ds_num */
 
-  return (0);
+  return 0;
 } /* int value_list_to_string_multiple */
 
 static int value_list_to_string(char *buffer, int buffer_len,
@@ -217,34 +217,34 @@ static int value_list_to_string(char *buffer, int buffer_len,
   time_t tt;
 
   if (ds->ds_num != 1)
-    return (value_list_to_string_multiple(buffer, buffer_len, ds, vl));
+    return value_list_to_string_multiple(buffer, buffer_len, ds, vl);
 
   tt = CDTIME_T_TO_TIME_T(vl->time);
   switch (ds->ds[0].type) {
   case DS_TYPE_DERIVE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
-                       vl->values[0].derive);
+    status = snprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
+                      vl->values[0].derive);
     break;
   case DS_TYPE_GAUGE:
-    status = ssnprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
-                       vl->values[0].gauge);
+    status = snprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
+                      vl->values[0].gauge);
     break;
   case DS_TYPE_COUNTER:
-    status = ssnprintf(buffer, buffer_len, "%u:%llu", (unsigned)tt,
-                       vl->values[0].counter);
+    status = snprintf(buffer, buffer_len, "%u:%llu", (unsigned)tt,
+                      vl->values[0].counter);
     break;
   case DS_TYPE_ABSOLUTE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
-                       vl->values[0].absolute);
+    status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
+                      vl->values[0].absolute);
     break;
   default:
-    return (EINVAL);
+    return EINVAL;
   }
 
   if ((status < 1) || (status >= buffer_len))
-    return (ENOMEM);
+    return ENOMEM;
 
-  return (0);
+  return 0;
 } /* int value_list_to_string */
 
 static int value_list_to_filename(char *buffer, size_t buffer_size,
@@ -257,7 +257,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
     size_t datadir_len = strlen(datadir) + 1;
 
     if (datadir_len >= buffer_size)
-      return (ENOMEM);
+      return ENOMEM;
 
     sstrncpy(buffer, datadir, buffer_size);
     buffer[datadir_len - 1] = '/';
@@ -269,7 +269,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
 
   status = FORMAT_VL(buffer, buffer_size, vl);
   if (status != 0)
-    return (status);
+    return status;
 
   len = strlen(buffer);
   assert(len < buffer_size);
@@ -277,10 +277,10 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   buffer_size -= len;
 
   if (buffer_size <= sizeof(suffix))
-    return (ENOMEM);
+    return ENOMEM;
 
   memcpy(buffer, suffix, sizeof(suffix));
-  return (0);
+  return 0;
 } /* int value_list_to_filename */
 
 static void *rrd_queue_thread(void __attribute__((unused)) * data) {
@@ -418,7 +418,7 @@ static void *rrd_queue_thread(void __attribute__((unused)) * data) {
   } /* while (42) */
 
   pthread_exit((void *)0);
-  return ((void *)0);
+  return (void *)0;
 } /* void *rrd_queue_thread */
 
 static int rrd_queue_enqueue(const char *filename, rrd_queue_t **head,
@@ -427,12 +427,12 @@ static int rrd_queue_enqueue(const char *filename, rrd_queue_t **head,
 
   queue_entry = malloc(sizeof(*queue_entry));
   if (queue_entry == NULL)
-    return (-1);
+    return -1;
 
   queue_entry->filename = strdup(filename);
   if (queue_entry->filename == NULL) {
     free(queue_entry);
-    return (-1);
+    return -1;
   }
 
   queue_entry->next = NULL;
@@ -448,7 +448,7 @@ static int rrd_queue_enqueue(const char *filename, rrd_queue_t **head,
   pthread_cond_signal(&queue_cond);
   pthread_mutex_unlock(&queue_lock);
 
-  return (0);
+  return 0;
 } /* int rrd_queue_enqueue */
 
 static int rrd_queue_dequeue(const char *filename, rrd_queue_t **head,
@@ -471,7 +471,7 @@ static int rrd_queue_dequeue(const char *filename, rrd_queue_t **head,
 
   if (this == NULL) {
     pthread_mutex_unlock(&queue_lock);
-    return (-1);
+    return -1;
   }
 
   if (prev == NULL)
@@ -487,7 +487,7 @@ static int rrd_queue_dequeue(const char *filename, rrd_queue_t **head,
   sfree(this->filename);
   sfree(this);
 
-  return (0);
+  return 0;
 } /* int rrd_queue_dequeue */
 
 /* XXX: You must hold "cache_lock" when calling this function! */
@@ -505,7 +505,6 @@ static void rrd_cache_flush(cdtime_t timeout) {
         CDTIME_T_TO_DOUBLE(timeout));
 
   now = cdtime();
-  timeout = TIME_T_TO_CDTIME_T(timeout);
 
   /* Build a list of entries to be flushed */
   iter = c_avl_get_iterator(cache);
@@ -568,7 +567,7 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
 
   if (identifier == NULL) {
     rrd_cache_flush(timeout);
-    return (0);
+    return 0;
   }
 
   now = cdtime();
@@ -584,7 +583,7 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
     INFO("rrdtool plugin: rrd_cache_flush_identifier: "
          "c_avl_get (%s) failed. Does that file really exist?",
          key);
-    return (status);
+    return status;
   }
 
   if (rc->flags == FLAG_FLUSHQ) {
@@ -602,27 +601,14 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
       rc->flags = FLAG_FLUSHQ;
   }
 
-  return (status);
+  return status;
 } /* int rrd_cache_flush_identifier */
 
 static int64_t rrd_get_random_variation(void) {
-  long min;
-  long max;
-
   if (random_timeout == 0)
-    return (0);
+    return 0;
 
-  /* Assure that "cache_timeout + random_variation" is never negative. */
-  if (random_timeout > cache_timeout) {
-    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
-         CDTIME_T_TO_DOUBLE(cache_timeout));
-    random_timeout = cache_timeout;
-  }
-
-  max = (long)(random_timeout / 2);
-  min = max - ((long)random_timeout);
-
-  return ((int64_t)cdrand_range(min, max));
+  return (int64_t)cdrand_range(-random_timeout, random_timeout);
 } /* int64_t rrd_get_random_variation */
 
 static int rrd_cache_insert(const char *filename, const char *value,
@@ -638,7 +624,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
   if (cache == NULL) {
     pthread_mutex_unlock(&cache_lock);
     WARNING("rrdtool plugin: cache == NULL.");
-    return (-1);
+    return -1;
   }
 
   c_avl_get(cache, filename, (void *)&rc);
@@ -647,7 +633,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
     rc = malloc(sizeof(*rc));
     if (rc == NULL) {
       pthread_mutex_unlock(&cache_lock);
-      return (-1);
+      return -1;
     }
     rc->values_num = 0;
     rc->values = NULL;
@@ -664,7 +650,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
     DEBUG("rrdtool plugin: (rc->last_value = %" PRIu64 ") "
           ">= (value_time = %" PRIu64 ")",
           rc->last_value, value_time);
-    return (-1);
+    return -1;
   }
 
   values_new =
@@ -683,7 +669,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
     sfree(cache_key);
     sfree(rc->values);
     sfree(rc);
-    return (-1);
+    return -1;
   }
   rc->values = values_new;
 
@@ -710,7 +696,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
       sfree(rc->values[0]);
       sfree(rc->values);
       sfree(rc);
-      return (-1);
+      return -1;
     }
 
     c_avl_insert(cache, cache_key, rc);
@@ -740,11 +726,11 @@ static int rrd_cache_insert(const char *filename, const char *value,
 
   if ((cache_timeout > 0) &&
       ((cdtime() - cache_flush_last) > cache_flush_timeout))
-    rrd_cache_flush(cache_flush_timeout);
+    rrd_cache_flush(cache_timeout + random_timeout);
 
   pthread_mutex_unlock(&cache_lock);
 
-  return (0);
+  return 0;
 } /* int rrd_cache_insert */
 
 static int rrd_cache_destroy(void) /* {{{ */
@@ -758,7 +744,7 @@ static int rrd_cache_destroy(void) /* {{{ */
 
   if (cache == NULL) {
     pthread_mutex_unlock(&cache_lock);
-    return (0);
+    return 0;
   }
 
   while (c_avl_pick(cache, &key, &value) == 0) {
@@ -791,7 +777,7 @@ static int rrd_cache_destroy(void) /* {{{ */
   }
 
   pthread_mutex_unlock(&cache_lock);
-  return (0);
+  return 0;
 } /* }}} int rrd_cache_destroy */
 
 static int rrd_compare_numeric(const void *a_ptr, const void *b_ptr) {
@@ -799,11 +785,11 @@ static int rrd_compare_numeric(const void *a_ptr, const void *b_ptr) {
   int b = *((int *)b_ptr);
 
   if (a < b)
-    return (-1);
+    return -1;
   else if (a > b)
-    return (1);
+    return 1;
   else
-    return (0);
+    return 0;
 } /* int rrd_compare_numeric */
 
 static int rrd_write(const data_set_t *ds, const value_list_t *vl,
@@ -814,7 +800,7 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   int status;
 
   if (do_shutdown)
-    return (0);
+    return 0;
 
   if (0 != strcmp(ds->type, vl->type)) {
     ERROR("rrdtool plugin: DS type does not match value list type");
@@ -822,32 +808,32 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   if (value_list_to_filename(filename, sizeof(filename), vl) != 0)
-    return (-1);
+    return -1;
 
   if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
-    return (-1);
+    return -1;
 
   if (stat(filename, &statbuf) == -1) {
     if (errno == ENOENT) {
       status = cu_rrd_create_file(filename, ds, vl, &rrdcreate_config);
       if (status != 0)
-        return (-1);
+        return -1;
       else if (rrdcreate_config.async)
-        return (0);
+        return 0;
     } else {
       char errbuf[1024];
       ERROR("stat(%s) failed: %s", filename,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   } else if (!S_ISREG(statbuf.st_mode)) {
     ERROR("stat(%s): Not a regular file!", filename);
-    return (-1);
+    return -1;
   }
 
   status = rrd_cache_insert(filename, values, vl->time);
 
-  return (status);
+  return status;
 } /* int rrd_write */
 
 static int rrd_flush(cdtime_t timeout, const char *identifier,
@@ -856,13 +842,13 @@ static int rrd_flush(cdtime_t timeout, const char *identifier,
 
   if (cache == NULL) {
     pthread_mutex_unlock(&cache_lock);
-    return (0);
+    return 0;
   }
 
   rrd_cache_flush_identifier(timeout, identifier);
 
   pthread_mutex_unlock(&cache_lock);
-  return (0);
+  return 0;
 } /* int rrd_flush */
 
 static int rrd_config(const char *key, const char *value) {
@@ -873,19 +859,19 @@ static int rrd_config(const char *key, const char *value) {
                       "be greater than 0.\n");
       ERROR("rrdtool: `CacheTimeout' must "
             "be greater than 0.\n");
-      return (1);
+      return 1;
     }
     cache_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("CacheFlush", key) == 0) {
-    int tmp = atoi(value);
+    double tmp = atof(value);
     if (tmp < 0) {
       fprintf(stderr, "rrdtool: `CacheFlush' must "
                       "be greater than 0.\n");
       ERROR("rrdtool: `CacheFlush' must "
             "be greater than 0.\n");
-      return (1);
+      return 1;
     }
-    cache_flush_timeout = tmp;
+    cache_flush_timeout = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strcasecmp("DataDir", key) == 0) {
     char *tmp;
     size_t len;
@@ -893,7 +879,7 @@ static int rrd_config(const char *key, const char *value) {
     tmp = strdup(value);
     if (tmp == NULL) {
       ERROR("rrdtool plugin: strdup failed.");
-      return (1);
+      return 1;
     }
 
     len = strlen(tmp);
@@ -905,7 +891,7 @@ static int rrd_config(const char *key, const char *value) {
     if (len == 0) {
       ERROR("rrdtool plugin: Invalid \"DataDir\" option.");
       sfree(tmp);
-      return (1);
+      return 1;
     }
 
     if (datadir != NULL) {
@@ -933,7 +919,7 @@ static int rrd_config(const char *key, const char *value) {
                       "be greater than 0.\n");
       ERROR("rrdtool: `RRARows' must "
             "be greater than 0.\n");
-      return (1);
+      return 1;
     }
     rrdcreate_config.rrarows = tmp;
   } else if (strcasecmp("RRATimespan", key) == 0) {
@@ -945,7 +931,7 @@ static int rrd_config(const char *key, const char *value) {
 
     value_copy = strdup(value);
     if (value_copy == NULL)
-      return (1);
+      return 1;
 
     dummy = value_copy;
     while ((ptr = strtok_r(dummy, ", \t", &saveptr)) != NULL) {
@@ -957,7 +943,7 @@ static int rrd_config(const char *key, const char *value) {
         fprintf(stderr, "rrdtool: realloc failed.\n");
         ERROR("rrdtool: realloc failed.\n");
         free(value_copy);
-        return (1);
+        return 1;
       }
       rrdcreate_config.timespans = tmp_alloc;
       rrdcreate_config.timespans[rrdcreate_config.timespans_num] = atoi(ptr);
@@ -978,7 +964,7 @@ static int rrd_config(const char *key, const char *value) {
                       "be in the range 0 to 1 (exclusive).");
       ERROR("rrdtool: `XFF' must "
             "be in the range 0 to 1 (exclusive).");
-      return (1);
+      return 1;
     }
     rrdcreate_config.xff = tmp;
   } else if (strcasecmp("WritesPerSecond", key) == 0) {
@@ -987,7 +973,7 @@ static int rrd_config(const char *key, const char *value) {
     if (wps < 0.0) {
       fprintf(stderr, "rrdtool: `WritesPerSecond' must be "
                       "greater than or equal to zero.");
-      return (1);
+      return 1;
     } else if (wps == 0.0) {
       write_rate = 0.0;
     } else {
@@ -1006,9 +992,9 @@ static int rrd_config(const char *key, const char *value) {
       random_timeout = DOUBLE_TO_CDTIME_T(tmp);
     }
   } else {
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 } /* int rrd_config */
 
 static int rrd_shutdown(void) {
@@ -1039,7 +1025,7 @@ static int rrd_shutdown(void) {
 
   rrd_cache_destroy();
 
-  return (0);
+  return 0;
 } /* int rrd_shutdown */
 
 static int rrd_init(void) {
@@ -1047,7 +1033,7 @@ static int rrd_init(void) {
   int status;
 
   if (init_once != 0)
-    return (0);
+    return 0;
   init_once = 1;
 
   if (rrdcreate_config.heartbeat <= 0)
@@ -1060,14 +1046,28 @@ static int rrd_init(void) {
   if (cache == NULL) {
     pthread_mutex_unlock(&cache_lock);
     ERROR("rrdtool plugin: c_avl_create failed.");
-    return (-1);
+    return -1;
   }
 
   cache_flush_last = cdtime();
   if (cache_timeout == 0) {
+    random_timeout = 0;
     cache_flush_timeout = 0;
-  } else if (cache_flush_timeout < cache_timeout)
+  } else if (cache_flush_timeout < cache_timeout) {
+    INFO("rrdtool plugin: \"CacheFlush %.3f\" is less than \"CacheTimeout %.3f\". "
+         "Ajusting \"CacheFlush\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_flush_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout),
+         CDTIME_T_TO_DOUBLE(cache_timeout * 10));
     cache_flush_timeout = 10 * cache_timeout;
+  }
+
+  /* Assure that "cache_timeout + random_variation" is never negative. */
+  if (random_timeout > cache_timeout) {
+    INFO("rrdtool plugin: Adjusting \"RandomTimeout\" to %.3f seconds.",
+         CDTIME_T_TO_DOUBLE(cache_timeout));
+    random_timeout = cache_timeout;
+  }
 
   pthread_mutex_unlock(&cache_lock);
 
@@ -1076,7 +1076,7 @@ static int rrd_init(void) {
                            /* args = */ NULL, "rrdtool queue");
   if (status != 0) {
     ERROR("rrdtool plugin: Cannot create queue-thread.");
-    return (-1);
+    return -1;
   }
   queue_thread_running = 1;
 
@@ -1086,7 +1086,7 @@ static int rrd_init(void) {
         rrdcreate_config.heartbeat, rrdcreate_config.rrarows,
         rrdcreate_config.xff);
 
-  return (0);
+  return 0;
 } /* int rrd_init */
 
 void module_register(void) {

@@ -42,14 +42,7 @@
 #include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
-/* this can probably only be found in the kernel sources */
-#if HAVE_LINUX_IP_VS_H
 #include <linux/ip_vs.h>
-#elif HAVE_NET_IP_VS_H
-#include <net/ip_vs.h>
-#elif HAVE_IP_VS_H
-#include <ip_vs.h>
-#endif /* HAVE_IP_VS_H */
 
 #define log_err(...) ERROR("ipvs: " __VA_ARGS__)
 #define log_info(...) INFO("ipvs: " __VA_ARGS__)
@@ -64,68 +57,67 @@ static int sockfd = -1;
  */
 static struct ip_vs_get_services *ipvs_get_services(void) {
   struct ip_vs_getinfo ipvs_info;
-  struct ip_vs_get_services *ret;
+  struct ip_vs_get_services *services;
 
-  socklen_t len;
+  socklen_t len = sizeof(ipvs_info);
 
-  len = sizeof(ipvs_info);
-
-  if (0 != getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (void *)&ipvs_info,
-                      &len)) {
+  if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len) ==
+      -1) {
     char errbuf[1024];
     log_err("ip_vs_get_services: getsockopt() failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
     return NULL;
   }
 
-  len = sizeof(*ret) +
+  len = sizeof(*services) +
         sizeof(struct ip_vs_service_entry) * ipvs_info.num_services;
 
-  if (NULL == (ret = malloc(len))) {
+  services = malloc(len);
+  if (services == NULL) {
     log_err("ipvs_get_services: Out of memory.");
-    exit(3);
+    return NULL;
   }
 
-  ret->num_services = ipvs_info.num_services;
+  services->num_services = ipvs_info.num_services;
 
-  if (0 != getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES, (void *)ret,
-                      &len)) {
+  if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES, services, &len) ==
+      -1) {
     char errbuf[1024];
     log_err("ipvs_get_services: getsockopt failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
 
-    free(ret);
+    free(services);
     return NULL;
   }
-  return ret;
+  return services;
 } /* ipvs_get_services */
 
 static struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_entry *se) {
-  struct ip_vs_get_dests *ret;
-  socklen_t len;
+  struct ip_vs_get_dests *dests;
 
-  len = sizeof(*ret) + sizeof(struct ip_vs_dest_entry) * se->num_dests;
+  socklen_t len =
+      sizeof(*dests) + sizeof(struct ip_vs_dest_entry) * se->num_dests;
 
-  if (NULL == (ret = malloc(len))) {
+  dests = malloc(len);
+  if (dests == NULL) {
     log_err("ipvs_get_dests: Out of memory.");
-    exit(3);
+    return NULL;
   }
 
-  ret->fwmark = se->fwmark;
-  ret->protocol = se->protocol;
-  ret->addr = se->addr;
-  ret->port = se->port;
-  ret->num_dests = se->num_dests;
+  dests->fwmark = se->fwmark;
+  dests->protocol = se->protocol;
+  dests->addr = se->addr;
+  dests->port = se->port;
+  dests->num_dests = se->num_dests;
 
-  if (0 !=
-      getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS, (void *)ret, &len)) {
+  if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS, dests, &len) == -1) {
     char errbuf[1024];
     log_err("ipvs_get_dests: getsockopt() failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    free(ret);
+    free(dests);
     return NULL;
   }
-  return ret;
+  return dests;
 } /* ip_vs_get_dests */
 
 /*
@@ -134,19 +126,17 @@ static struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_entry *se) {
 static int cipvs_init(void) {
   struct ip_vs_getinfo ipvs_info;
 
-  socklen_t len;
-
-  if (-1 == (sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW))) {
+  if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
     char errbuf[1024];
     log_err("cipvs_init: socket() failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
     return -1;
   }
 
-  len = sizeof(ipvs_info);
+  socklen_t len = sizeof(ipvs_info);
 
-  if (0 != getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (void *)&ipvs_info,
-                      &len)) {
+  if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len) ==
+      -1) {
     char errbuf[1024];
     log_err("cipvs_init: getsockopt() failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -176,21 +166,16 @@ static int cipvs_init(void) {
 
 /* plugin instance */
 static int get_pi(struct ip_vs_service_entry *se, char *pi, size_t size) {
-  struct in_addr addr;
-  int len = 0;
-
-  if ((NULL == se) || (NULL == pi))
+  if ((se == NULL) || (pi == NULL))
     return 0;
 
-  addr.s_addr = se->addr;
+  struct in_addr addr = {.s_addr = se->addr};
 
-  /* inet_ntoa() returns a pointer to a statically allocated buffer
-   * I hope non-glibc systems behave the same */
-  len =
-      ssnprintf(pi, size, "%s_%s%u", inet_ntoa(addr),
-                (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
+  int len =
+      snprintf(pi, size, "%s_%s%u", inet_ntoa(addr),
+               (se->protocol == IPPROTO_TCP) ? "TCP" : "UDP", ntohs(se->port));
 
-  if ((0 > len) || (size <= ((size_t)len))) {
+  if ((len < 0) || (size <= ((size_t)len))) {
     log_err("plugin instance truncated: %s", pi);
     return -1;
   }
@@ -199,19 +184,14 @@ static int get_pi(struct ip_vs_service_entry *se, char *pi, size_t size) {
 
 /* type instance */
 static int get_ti(struct ip_vs_dest_entry *de, char *ti, size_t size) {
-  struct in_addr addr;
-  int len = 0;
-
-  if ((NULL == de) || (NULL == ti))
+  if ((de == NULL) || (ti == NULL))
     return 0;
 
-  addr.s_addr = de->addr;
+  struct in_addr addr = {.s_addr = de->addr};
 
-  /* inet_ntoa() returns a pointer to a statically allocated buffer
-   * I hope non-glibc systems behave the same */
-  len = ssnprintf(ti, size, "%s_%u", inet_ntoa(addr), ntohs(de->port));
+  int len = snprintf(ti, size, "%s_%u", inet_ntoa(addr), ntohs(de->port));
 
-  if ((0 > len) || (size <= ((size_t)len))) {
+  if ((len < 0) || (size <= ((size_t)len))) {
     log_err("type instance truncated: %s", ti);
     return -1;
   }
@@ -228,11 +208,10 @@ static void cipvs_submit_connections(const char *pi, const char *ti,
   sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "connections", sizeof(vl.type));
-  sstrncpy(vl.type_instance, (NULL != ti) ? ti : "total",
+  sstrncpy(vl.type_instance, (ti != NULL) ? ti : "total",
            sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
-  return;
 } /* cipvs_submit_connections */
 
 static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
@@ -248,11 +227,10 @@ static void cipvs_submit_if(const char *pi, const char *t, const char *ti,
   sstrncpy(vl.plugin, "ipvs", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, pi, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, t, sizeof(vl.type));
-  sstrncpy(vl.type_instance, (NULL != ti) ? ti : "total",
+  sstrncpy(vl.type_instance, (ti != NULL) ? ti : "total",
            sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
-  return;
 } /* cipvs_submit_if */
 
 static void cipvs_submit_dest(const char *pi, struct ip_vs_dest_entry *de) {
@@ -260,13 +238,12 @@ static void cipvs_submit_dest(const char *pi, struct ip_vs_dest_entry *de) {
 
   char ti[DATA_MAX_NAME_LEN];
 
-  if (0 != get_ti(de, ti, sizeof(ti)))
+  if (get_ti(de, ti, sizeof(ti)) != 0)
     return;
 
   cipvs_submit_connections(pi, ti, stats.conns);
   cipvs_submit_if(pi, "if_packets", ti, stats.inpkts, stats.outpkts);
   cipvs_submit_if(pi, "if_octets", ti, stats.inbytes, stats.outbytes);
-  return;
 } /* cipvs_submit_dest */
 
 static void cipvs_submit_service(struct ip_vs_service_entry *se) {
@@ -275,7 +252,7 @@ static void cipvs_submit_service(struct ip_vs_service_entry *se) {
 
   char pi[DATA_MAX_NAME_LEN];
 
-  if (0 != get_pi(se, pi, sizeof(pi))) {
+  if (get_pi(se, pi, sizeof(pi)) != 0) {
     free(dests);
     return;
   }
@@ -292,12 +269,11 @@ static void cipvs_submit_service(struct ip_vs_service_entry *se) {
 } /* cipvs_submit_service */
 
 static int cipvs_read(void) {
-  struct ip_vs_get_services *services = NULL;
-
   if (sockfd < 0)
-    return (-1);
+    return -1;
 
-  if (NULL == (services = ipvs_get_services()))
+  struct ip_vs_get_services *services = ipvs_get_services();
+  if (services == NULL)
     return -1;
 
   for (size_t i = 0; i < services->num_services; ++i)

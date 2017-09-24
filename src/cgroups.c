@@ -61,28 +61,28 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
   FILE *fh;
 
   if (ignorelist_match(il_cgroup, cgroup_name))
-    return (0);
+    return 0;
 
-  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, cgroup_name);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, cgroup_name);
 
   status = lstat(abs_path, &statbuf);
   if (status != 0) {
     ERROR("cgroups plugin: stat (\"%s\") failed.", abs_path);
-    return (-1);
+    return -1;
   }
 
   /* We are only interested in directories, so skip everything else. */
   if (!S_ISDIR(statbuf.st_mode))
-    return (0);
+    return 0;
 
-  ssnprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
-            cgroup_name);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s/cpuacct.stat", dirname,
+           cgroup_name);
   fh = fopen(abs_path, "r");
   if (fh == NULL) {
     char errbuf[1024];
     ERROR("cgroups plugin: fopen (\"%s\") failed: %s", abs_path,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buf, sizeof(buf), fh) != NULL) {
@@ -124,7 +124,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
   }
 
   fclose(fh);
-  return (0);
+  return 0;
 } /* int read_cpuacct_procs */
 
 /*
@@ -138,29 +138,29 @@ static int read_cpuacct_root(const char *dirname, const char *filename,
   struct stat statbuf;
   int status;
 
-  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
+  snprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
 
   status = lstat(abs_path, &statbuf);
   if (status != 0) {
     ERROR("cgroups plugin: stat (%s) failed.", abs_path);
-    return (-1);
+    return -1;
   }
 
   if (S_ISDIR(statbuf.st_mode)) {
     status = walk_directory(abs_path, read_cpuacct_procs,
                             /* user_data = */ NULL,
                             /* include_hidden = */ 0);
-    return (status);
+    return status;
   }
 
-  return (0);
+  return 0;
 }
 
 static int cgroups_init(void) {
   if (il_cgroup == NULL)
     il_cgroup = ignorelist_create(1);
 
-  return (0);
+  return 0;
 }
 
 static int cgroups_config(const char *key, const char *value) {
@@ -168,17 +168,17 @@ static int cgroups_config(const char *key, const char *value) {
 
   if (strcasecmp(key, "CGroup") == 0) {
     if (ignorelist_add(il_cgroup, value))
-      return (1);
-    return (0);
+      return 1;
+    return 0;
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     if (IS_TRUE(value))
       ignorelist_set_invert(il_cgroup, 0);
     else
       ignorelist_set_invert(il_cgroup, 1);
-    return (0);
+    return 0;
   }
 
-  return (-1);
+  return -1;
 }
 
 static int cgroups_read(void) {
@@ -187,7 +187,7 @@ static int cgroups_read(void) {
 
   if (cu_mount_getlist(&mnt_list) == NULL) {
     ERROR("cgroups plugin: cu_mount_getlist failed.");
-    return (-1);
+    return -1;
   }
 
   for (cu_mount_t *mnt_ptr = mnt_list; mnt_ptr != NULL;
@@ -212,10 +212,10 @@ static int cgroups_read(void) {
   if (!cgroup_found) {
     WARNING("cgroups plugin: Unable to find cgroup "
             "mount-point with the \"cpuacct\" option.");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int cgroup_read */
 
 void module_register(void) {

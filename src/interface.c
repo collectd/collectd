@@ -120,10 +120,10 @@ static int interface_config(const char *key, const char *value) {
             "Solaris.");
 #endif /* HAVE_LIBKSTAT */
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 }
 
 #if HAVE_LIBKSTAT
@@ -133,7 +133,7 @@ static int interface_init(void) {
   numif = 0;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (numif = 0, ksp_chain = kc->kc_chain;
        (numif < MAX_NUMIF) && (ksp_chain != NULL);
@@ -149,7 +149,7 @@ static int interface_init(void) {
     ksp[numif++] = ksp_chain;
   }
 
-  return (0);
+  return 0;
 } /* int interface_init */
 #endif /* HAVE_LIBKSTAT */
 
@@ -202,7 +202,7 @@ static int interface_read(void) {
   struct IFA_DATA *if_data;
 
   if (getifaddrs(&if_list) != 0)
-    return (-1);
+    return -1;
 
   for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
        if_ptr = if_ptr->ifa_next) {
@@ -239,7 +239,7 @@ static int interface_read(void) {
     char errbuf[1024];
     WARNING("interface plugin: fopen: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buffer, 1024, fh) != NULL) {
@@ -289,15 +289,15 @@ static int interface_read(void) {
   char iname[DATA_MAX_NAME_LEN];
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (int i = 0; i < numif; i++) {
     if (kstat_read(kc, ksp[i], NULL) == -1)
       continue;
 
     if (unique_name)
-      ssnprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
-                ksp[i]->ks_instance, ksp[i]->ks_name);
+      snprintf(iname, sizeof(iname), "%s_%d_%s", ksp[i]->ks_module,
+               ksp[i]->ks_instance, ksp[i]->ks_name);
     else
       sstrncpy(iname, ksp[i]->ks_name, sizeof(iname));
 
@@ -355,7 +355,7 @@ static int interface_read(void) {
     char errbuf[1024];
     WARNING("interface plugin: perfstat_netinterface: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   if (pnif != nif || ifstat == NULL) {
@@ -370,7 +370,7 @@ static int interface_read(void) {
     char errbuf[1024];
     WARNING("interface plugin: perfstat_netinterface (interfaces=%d): %s", nif,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < ifs; i++) {
@@ -385,7 +385,7 @@ static int interface_read(void) {
   }
 #endif /* HAVE_PERFSTAT */
 
-  return (0);
+  return 0;
 } /* int interface_read */
 
 void module_register(void) {

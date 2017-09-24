@@ -63,7 +63,7 @@ static int mic_init(void) {
   U32 mic_count;
 
   if (mic_handle)
-    return (0);
+    return 0;
 
   mic_count = (U32)STATIC_ARRAY_SIZE(mics);
   ret = MicInitAPI(&mic_handle, eTARGET_SCIF_DRIVER, mics, &mic_count);
@@ -75,10 +75,10 @@ static int mic_init(void) {
 
   if (mic_count < 0 || mic_count >= MAX_MICS) {
     ERROR("mic plugin: No Intel MICs in system");
-    return (1);
+    return 1;
   } else {
     num_mics = mic_count;
-    return (0);
+    return 0;
   }
 }
 
@@ -88,7 +88,7 @@ static int mic_config(const char *key, const char *value) {
   if (power_ignore == NULL)
     power_ignore = ignorelist_create(1);
   if (temp_ignore == NULL || power_ignore == NULL)
-    return (1);
+    return 1;
 
   if (strcasecmp("ShowCPU", key) == 0) {
     show_cpu = IS_TRUE(value);
@@ -115,9 +115,9 @@ static int mic_config(const char *key, const char *value) {
       invert = 0;
     ignorelist_set_invert(power_ignore, invert);
   } else {
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 }
 
 static void mic_submit_memory_use(int micnumber, const char *type_instance,
@@ -132,7 +132,7 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance,
   vl.values_len = 1;
 
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
-  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, "memory", sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -148,13 +148,13 @@ static int mic_read_memory(int mic) {
   if (ret != MIC_ACCESS_API_SUCCESS) {
     ERROR("mic plugin: Problem getting Memory Utilization: %s",
           MicGetErrorString(ret));
-    return (1);
+    return 1;
   }
   mic_submit_memory_use(mic, "free", mem_free);
   mic_submit_memory_use(mic, "used", mem_total - mem_free - mem_bufs);
   mic_submit_memory_use(mic, "buffered", mem_bufs);
   DEBUG("mic plugin: Memory Read: %u %u %u", mem_total, mem_free, mem_bufs);
-  return (0);
+  return 0;
 }
 
 static void mic_submit_temp(int micnumber, const char *type, gauge_t value) {
@@ -163,9 +163,8 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t value) {
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
 
-  strncpy(vl.host, hostname_g, sizeof(vl.host));
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
-  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, "temperature", sizeof(vl.type));
   strncpy(vl.type_instance, type, sizeof(vl.type_instance));
 
@@ -191,11 +190,11 @@ static int mic_read_temps(int mic) {
       ERROR("mic plugin: Error reading temperature \"%s\": "
             "%s",
             name, MicGetErrorString(status));
-      return (1);
+      return 1;
     }
     mic_submit_temp(mic, name, temp_buffer);
   }
-  return (0);
+  return 0;
 }
 
 static void mic_submit_cpu(int micnumber, const char *type_instance, int core,
@@ -205,13 +204,12 @@ static void mic_submit_cpu(int micnumber, const char *type_instance, int core,
   vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
 
-  strncpy(vl.host, hostname_g, sizeof(vl.host));
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
   if (core < 0) /* global aggregation */
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   else /* per-core statistics */
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-cpu-%i",
-              micnumber, core);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-cpu-%i",
+             micnumber, core);
   strncpy(vl.type, "cpu", sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -231,7 +229,7 @@ static int mic_read_cpu(int mic) {
   if (status != MIC_ACCESS_API_SUCCESS) {
     ERROR("mic plugin: Problem getting CPU utilization: %s",
           MicGetErrorString(status));
-    return (-1);
+    return -1;
   }
 
   if (show_cpu) {
@@ -249,7 +247,7 @@ static int mic_read_cpu(int mic) {
       mic_submit_cpu(mic, "idle", j, core_jiffs[j].idle);
     }
   }
-  return (0);
+  return 0;
 }
 
 static void mic_submit_power(int micnumber, const char *type,
@@ -259,9 +257,8 @@ static void mic_submit_power(int micnumber, const char *type,
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
 
-  strncpy(vl.host, hostname_g, sizeof(vl.host));
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
-  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, type, sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -277,7 +274,7 @@ static int mic_read_power(int mic) {
   if (ret != MIC_ACCESS_API_SUCCESS) {
     ERROR("mic plugin: Problem getting Power Usage: %s",
           MicGetErrorString(ret));
-    return (1);
+    return 1;
   }
 
 /* power is in uWatts, current in mA, voltage in uVolts..   convert to
@@ -311,7 +308,7 @@ static int mic_read_power(int mic) {
   SUB_VOLTS(vddg);
   SUB_VOLTS(vddq);
 
-  return (0);
+  return 0;
 }
 
 static int mic_read(void) {
@@ -357,7 +354,7 @@ static int mic_shutdown(void) {
     MicCloseAPI(&mic_handle);
   mic_handle = NULL;
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

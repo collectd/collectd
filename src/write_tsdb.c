@@ -197,7 +197,7 @@ static int wt_callback_init(struct wt_callback *cb) {
     if ((cb->ai_last_update + resolve_interval + cb->next_random_ttl) >= now) {
       DEBUG("write_tsdb plugin: too many getaddrinfo(%s, %s) failures", node,
             service);
-      return (-1);
+      return -1;
     }
     cb->ai_last_update = now;
     cb->next_random_ttl = new_random_ttl();
@@ -325,7 +325,7 @@ static int wt_format_values(char *ret, size_t ret_len, int ds_num,
 
 #define BUFFER_ADD(...)                                                        \
   do {                                                                         \
-    status = ssnprintf(ret + offset, ret_len - offset, __VA_ARGS__);           \
+    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
     if (status < 1) {                                                          \
       sfree(rates);                                                            \
       return -1;                                                               \
@@ -388,36 +388,36 @@ static int wt_format_name(char *ret, int ret_len, const value_list_t *vl,
   if (ds_name != NULL) {
     if (vl->plugin_instance[0] == '\0') {
       if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin, vl->type,
-                  ds_name);
+        snprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin, vl->type,
+                 ds_name);
       } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin, vl->type,
-                  vl->type_instance, ds_name);
+        snprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin, vl->type,
+                 vl->type_instance, ds_name);
       }
     } else { /* vl->plugin_instance != "" */
       if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type, ds_name);
+        snprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                 vl->plugin_instance, vl->type, ds_name);
       } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type, vl->type_instance, ds_name);
+        snprintf(ret, ret_len, "%s%s.%s.%s.%s.%s", prefix, vl->plugin,
+                 vl->plugin_instance, vl->type, vl->type_instance, ds_name);
       }
     }
   } else { /* ds_name == NULL */
     if (vl->plugin_instance[0] == '\0') {
       if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s%s.%s", prefix, vl->plugin, vl->type);
+        snprintf(ret, ret_len, "%s%s.%s", prefix, vl->plugin, vl->type);
       } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
-                  vl->type_instance, vl->type);
+        snprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                 vl->type_instance, vl->type);
       }
     } else { /* vl->plugin_instance != "" */
       if (vl->type_instance[0] == '\0') {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type);
+        snprintf(ret, ret_len, "%s%s.%s.%s", prefix, vl->plugin,
+                 vl->plugin_instance, vl->type);
       } else {
-        ssnprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
-                  vl->plugin_instance, vl->type, vl->type_instance);
+        snprintf(ret, ret_len, "%s%s.%s.%s.%s", prefix, vl->plugin,
+                 vl->plugin_instance, vl->type, vl->type_instance);
       }
     }
   }
@@ -456,8 +456,8 @@ static int wt_send_message(const char *key, const char *value, cdtime_t time,
   }
 
   status =
-      ssnprintf(message, sizeof(message), "put %s %.0f %s fqdn=%s %s %s\r\n",
-                key, CDTIME_T_TO_DOUBLE(time), value, host, tags, host_tags);
+      snprintf(message, sizeof(message), "put %s %.0f %s fqdn=%s %s %s\r\n",
+               key, CDTIME_T_TO_DOUBLE(time), value, host, tags, host_tags);
   sfree(temp);
   if (status < 0)
     return -1;
@@ -607,9 +607,9 @@ static int wt_config_tsd(oconfig_item_t *ci) {
     }
   }
 
-  ssnprintf(callback_name, sizeof(callback_name), "write_tsdb/%s/%s",
-            cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
-            cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
+  snprintf(callback_name, sizeof(callback_name), "write_tsdb/%s/%s",
+           cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
+           cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
 
   user_data_t user_data = {.data = cb, .free_func = wt_callback_free};
 

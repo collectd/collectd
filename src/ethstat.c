@@ -62,19 +62,19 @@ static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
 
   tmp = realloc(interfaces, sizeof(*interfaces) * (interfaces_num + 1));
   if (tmp == NULL)
-    return (-1);
+    return -1;
   interfaces = tmp;
   interfaces[interfaces_num] = NULL;
 
   status = cf_util_get_string(ci, interfaces + interfaces_num);
   if (status != 0)
-    return (status);
+    return status;
 
   interfaces_num++;
   INFO("ethstat plugin: Registered interface %s",
        interfaces[interfaces_num - 1]);
 
-  return (0);
+  return 0;
 } /* }}} int ethstat_add_interface */
 
 static int ethstat_add_map(const oconfig_item_t *ci) /* {{{ */
@@ -90,20 +90,20 @@ static int ethstat_add_map(const oconfig_item_t *ci) /* {{{ */
     ERROR("ethstat plugin: The %s option requires "
           "two or three string arguments.",
           ci->key);
-    return (-1);
+    return -1;
   }
 
   key = strdup(ci->values[0].value.string);
   if (key == NULL) {
     ERROR("ethstat plugin: strdup(3) failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   map = calloc(1, sizeof(*map));
   if (map == NULL) {
     sfree(key);
     ERROR("ethstat plugin: calloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   sstrncpy(map->type, ci->values[1].value.string, sizeof(map->type));
@@ -117,7 +117,7 @@ static int ethstat_add_map(const oconfig_item_t *ci) /* {{{ */
       sfree(map);
       sfree(key);
       ERROR("ethstat plugin: c_avl_create() failed.");
-      return (-1);
+      return -1;
     }
   }
 
@@ -132,10 +132,10 @@ static int ethstat_add_map(const oconfig_item_t *ci) /* {{{ */
 
     sfree(map);
     sfree(key);
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int ethstat_add_map */
 
 static int ethstat_config(oconfig_item_t *ci) /* {{{ */
@@ -154,7 +154,7 @@ static int ethstat_config(oconfig_item_t *ci) /* {{{ */
               child->key);
   }
 
-  return (0);
+  return 0;
 } /* }}} */
 
 static void ethstat_submit_value(const char *device, const char *type_instance,
@@ -223,14 +223,14 @@ static int ethstat_read_interface(char *device) {
     ERROR("ethstat plugin: Failed to get driver information "
           "from %s: %s",
           device, sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   n_stats = (size_t)drvinfo.n_stats;
   if (n_stats < 1) {
     close(fd);
     ERROR("ethstat plugin: No stats available for %s", device);
-    return (-1);
+    return -1;
   }
 
   strings_size = sizeof(struct ethtool_gstrings) + (n_stats * ETH_GSTRING_LEN);
@@ -243,7 +243,7 @@ static int ethstat_read_interface(char *device) {
     sfree(strings);
     sfree(stats);
     ERROR("ethstat plugin: malloc failed.");
-    return (-1);
+    return -1;
   }
 
   strings->cmd = ETHTOOL_GSTRINGS;
@@ -258,7 +258,7 @@ static int ethstat_read_interface(char *device) {
     free(stats);
     ERROR("ethstat plugin: Cannot get strings from %s: %s", device,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   stats->cmd = ETHTOOL_GSTATS;
@@ -272,7 +272,7 @@ static int ethstat_read_interface(char *device) {
     free(stats);
     ERROR("ethstat plugin: Reading statistics from %s failed: %s", device,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   for (size_t i = 0; i < n_stats; i++) {
@@ -292,7 +292,7 @@ static int ethstat_read_interface(char *device) {
   sfree(strings);
   sfree(stats);
 
-  return (0);
+  return 0;
 } /* }}} ethstat_read_interface */
 
 static int ethstat_read(void) {
@@ -307,7 +307,7 @@ static int ethstat_shutdown(void) {
   void *value = NULL;
 
   if (value_map == NULL)
-    return (0);
+    return 0;
 
   while (c_avl_pick(value_map, &key, &value) == 0) {
     sfree(key);
@@ -317,7 +317,7 @@ static int ethstat_shutdown(void) {
   c_avl_destroy(value_map);
   value_map = NULL;
 
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

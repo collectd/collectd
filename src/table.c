@@ -55,6 +55,7 @@ typedef struct {
 typedef struct {
   char *file;
   char *sep;
+  char *plugin_name;
   char *instance;
 
   tbl_result_t *results;
@@ -92,6 +93,7 @@ static void tbl_result_clear(tbl_result_t *res) {
 static void tbl_setup(tbl_t *tbl, char *file) {
   tbl->file = sstrdup(file);
   tbl->sep = NULL;
+  tbl->plugin_name = NULL;
   tbl->instance = NULL;
 
   tbl->results = NULL;
@@ -103,6 +105,7 @@ static void tbl_setup(tbl_t *tbl, char *file) {
 static void tbl_clear(tbl_t *tbl) {
   sfree(tbl->file);
   sfree(tbl->sep);
+  sfree(tbl->plugin_name);
   sfree(tbl->instance);
 
   for (size_t i = 0; i < tbl->results_num; ++i)
@@ -256,6 +259,8 @@ static int tbl_config_table(oconfig_item_t *ci) {
 
     if (0 == strcasecmp(c->key, "Separator"))
       tbl_config_set_s(c->key, &tbl->sep, c);
+    else if (0 == strcasecmp(c->key, "Plugin"))
+      tbl_config_set_s(c->key, &tbl->plugin_name, c);
     else if (0 == strcasecmp(c->key, "Instance"))
       tbl_config_set_s(c->key, &tbl->instance, c);
     else if (0 == strcasecmp(c->key, "Result"))
@@ -367,7 +372,8 @@ static int tbl_result_dispatch(tbl_t *tbl, tbl_result_t *res, char **fields,
   vl.values = values;
   vl.values_len = STATIC_ARRAY_SIZE(values);
 
-  sstrncpy(vl.plugin, "table", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, (tbl->plugin_name != NULL) ? tbl->plugin_name : "table",
+           sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, tbl->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, res->type, sizeof(vl.type));
 

@@ -76,7 +76,7 @@ static int hp_config(oconfig_item_t *ci) {
             child->key);
   }
 
-  return (0);
+  return 0;
 }
 
 static void submit_hp(const struct entry_info *info) {
@@ -87,11 +87,11 @@ static void submit_hp(const struct entry_info *info) {
 
   sstrncpy(vl.plugin, g_plugin_name, sizeof(vl.plugin));
   if (info->node) {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%zuKb",
-              info->node, info->page_size_kb);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%zuKb",
+             info->node, info->page_size_kb);
   } else {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%zuKb",
-              info->page_size_kb);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%zuKb",
+             info->page_size_kb);
   }
 
   /* ensure all metrics have the same timestamp */
@@ -125,7 +125,7 @@ static int read_hugepage_entry(const char *path, const char *entry,
   struct entry_info *info = e_info;
   double value;
 
-  ssnprintf(path2, sizeof(path2), "%s/%s", path, entry);
+  snprintf(path2, sizeof(path2), "%s/%s", path, entry);
 
   FILE *fh = fopen(path2, "rt");
   if (fh == NULL) {
@@ -193,7 +193,7 @@ static int read_syshugepages(const char *path, const char *node) {
     }
 
     /* /sys/devices/system/node/node?/hugepages/ */
-    ssnprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
+    snprintf(path2, sizeof(path2), "%s/%s", path, result->d_name);
 
     walk_directory(path2, read_hugepage_entry,
                    &(struct entry_info){
@@ -238,7 +238,7 @@ static int read_nodes(void) {
       continue;
     }
 
-    ssnprintf(path, sizeof(path), sys_node_hugepages, result->d_name);
+    snprintf(path, sizeof(path), sys_node_hugepages, result->d_name);
     read_syshugepages(path, result->d_name);
     errno = 0;
   }

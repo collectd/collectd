@@ -98,9 +98,11 @@
 #define COLLECTD_CPU_STATE_INTERRUPT 5
 #define COLLECTD_CPU_STATE_SOFTIRQ 6
 #define COLLECTD_CPU_STATE_STEAL 7
-#define COLLECTD_CPU_STATE_IDLE 8
-#define COLLECTD_CPU_STATE_ACTIVE 9 /* sum of (!idle) */
-#define COLLECTD_CPU_STATE_MAX 10   /* #states */
+#define COLLECTD_CPU_STATE_GUEST 8
+#define COLLECTD_CPU_STATE_GUEST_NICE 9
+#define COLLECTD_CPU_STATE_IDLE 10
+#define COLLECTD_CPU_STATE_ACTIVE 11 /* sum of (!idle) */
+#define COLLECTD_CPU_STATE_MAX 12   /* #states */
 
 #if HAVE_STATGRAB_H
 #include <statgrab.h>
@@ -119,7 +121,7 @@
 
 static const char *cpu_state_names[] = {"user", "system",    "wait",    "nice",
                                         "swap", "interrupt", "softirq", "steal",
-                                        "idle", "active"};
+                                        "guest", "guest_nice", "idle", "active"};
 
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
@@ -193,9 +195,12 @@ static _Bool report_by_cpu = 1;
 static _Bool report_by_state = 1;
 static _Bool report_percent = 0;
 static _Bool report_num_cpu = 0;
+static _Bool report_guest = 0;
+static _Bool subtract_guest = 1;
 
 static const char *config_keys[] = {"ReportByCpu", "ReportByState",
-                                    "ReportNumCpu", "ValuesPercentage"};
+                                    "ReportNumCpu", "ValuesPercentage",
+                                    "ReportGuestState", "SubtractGuestState"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int cpu_config(char const *key, char const *value) /* {{{ */
@@ -208,10 +213,14 @@ static int cpu_config(char const *key, char const *value) /* {{{ */
     report_by_state = IS_TRUE(value) ? 1 : 0;
   else if (strcasecmp(key, "ReportNumCpu") == 0)
     report_num_cpu = IS_TRUE(value) ? 1 : 0;
+  else if (strcasecmp(key, "ReportGuestState") == 0)
+    report_guest = IS_TRUE(value) ? 1 : 0;
+  else if (strcasecmp(key, "SubtractGuestState") == 0)
+    subtract_guest = IS_TRUE(value) ? 1 : 0;
   else
-    return (-1);
+    return -1;
 
-  return (0);
+  return 0;
 } /* }}} int cpu_config */
 
 static int init(void) {
@@ -229,12 +238,12 @@ static int init(void) {
           "load information. "
           "<https://collectd.org/bugs/22>");
     cpu_list_len = 0;
-    return (-1);
+    return -1;
   }
   if (status != KERN_SUCCESS) {
     ERROR("cpu plugin: host_processors() failed with status %d.", (int)status);
     cpu_list_len = 0;
-    return (-1);
+    return -1;
   }
 
   INFO("cpu plugin: Found %i processor%s.", (int)cpu_list_len,
@@ -247,7 +256,7 @@ static int init(void) {
   numcpu = 0;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   /* Solaris doesn't count linear.. *sigh* */
   for (numcpu = 0, ksp_chain = kc->kc_chain;
@@ -269,7 +278,7 @@ static int init(void) {
   if (status == -1) {
     char errbuf[1024];
     WARNING("cpu plugin: sysctl: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 /* #endif CAN_USE_SYSCTL */
 
@@ -282,7 +291,7 @@ static int init(void) {
     char errbuf[1024];
     WARNING("cpu plugin: sysctlbyname(hw.ncpu): %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
 #ifdef HAVE_SYSCTL_KERN_CP_TIMES
@@ -292,7 +301,7 @@ static int init(void) {
     char errbuf[1024];
     WARNING("cpu plugin: sysctlbyname(kern.smp.maxcpus): %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 #else
   if (numcpu != 1)
@@ -310,7 +319,7 @@ static int init(void) {
 /* nothing to initialize */
 #endif /* HAVE_PERFSTAT */
 
-  return (0);
+  return 0;
 } /* int init */
 
 static void submit_value(int cpu_num, int cpu_state, const char *type,
@@ -326,7 +335,7 @@ static void submit_value(int cpu_num, int cpu_state, const char *type,
            sizeof(vl.type_instance));
 
   if (cpu_num >= 0) {
-    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
   }
   plugin_dispatch_values(&vl);
 }
@@ -362,7 +371,7 @@ static int cpu_states_alloc(size_t cpu_num) /* {{{ */
   tmp = realloc(cpu_states, sz * sizeof(*cpu_states));
   if (tmp == NULL) {
     ERROR("cpu plugin: realloc failed.");
-    return (ENOMEM);
+    return ENOMEM;
   }
   cpu_states = tmp;
   tmp = cpu_states + cpu_states_num;
@@ -377,9 +386,9 @@ static cpu_state_t *get_cpu_state(size_t cpu_num, size_t state) /* {{{ */
   size_t index = ((cpu_num * COLLECTD_CPU_STATE_MAX) + state);
 
   if (index >= cpu_states_num)
-    return (NULL);
+    return NULL;
 
-  return (&cpu_states[index]);
+  return &cpu_states[index];
 } /* }}} cpu_state_t *get_cpu_state */
 
 #if defined(HAVE_PERFSTAT) /* {{{ */
@@ -390,13 +399,13 @@ static int total_rate(gauge_t *sum_by_state, size_t state, derive_t d,
   int status =
       value_to_rate(&rate, (value_t){.derive = d}, DS_TYPE_DERIVE, now, conv);
   if (status != 0)
-    return (status);
+    return status;
 
   sum_by_state[state] = rate;
 
   if (state != COLLECTD_CPU_STATE_IDLE)
     RATE_ADD(sum_by_state[COLLECTD_CPU_STATE_ACTIVE], sum_by_state[state]);
-  return (0);
+  return 0;
 }
 #endif /* }}} HAVE_PERFSTAT */
 
@@ -524,7 +533,7 @@ static void cpu_commit_without_aggregation(void) /* {{{ */
 static void cpu_commit(void) /* {{{ */
 {
   gauge_t global_rates[COLLECTD_CPU_STATE_MAX] = {
-      NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
+      NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN /* Batman! */
   };
 
   if (report_num_cpu)
@@ -545,7 +554,8 @@ static void cpu_commit(void) /* {{{ */
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
     gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN, NAN, NAN, NAN};
+                                                   NAN, NAN, NAN, NAN, NAN,
+                                                   NAN, NAN };
 
     for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
       if (this_cpu_states[state].has_value)
@@ -567,11 +577,11 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
   value_t val = {.derive = d};
 
   if (state >= COLLECTD_CPU_STATE_ACTIVE)
-    return (EINVAL);
+    return EINVAL;
 
   status = cpu_states_alloc(cpu_num);
   if (status != 0)
-    return (status);
+    return status;
 
   if (global_cpu_num <= cpu_num)
     global_cpu_num = cpu_num + 1;
@@ -580,11 +590,11 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
 
   status = value_to_rate(&rate, val, DS_TYPE_DERIVE, now, &s->conv);
   if (status != 0)
-    return (status);
+    return status;
 
   s->rate = rate;
   s->has_value = 1;
-  return (0);
+  return 0;
 } /* }}} int cpu_stage */
 
 static int cpu_read(void) {
@@ -632,14 +642,14 @@ static int cpu_read(void) {
   FILE *fh;
   char buf[1024];
 
-  char *fields[9];
+  char *fields[11];
   int numfields;
 
   if ((fh = fopen("/proc/stat", "r")) == NULL) {
     char errbuf[1024];
     ERROR("cpu plugin: fopen (/proc/stat) failed: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   while (fgets(buf, 1024, fh) != NULL) {
@@ -648,14 +658,15 @@ static int cpu_read(void) {
     if ((buf[3] < '0') || (buf[3] > '9'))
       continue;
 
-    numfields = strsplit(buf, fields, 9);
+    numfields = strsplit(buf, fields, STATIC_ARRAY_SIZE(fields));
     if (numfields < 5)
       continue;
 
     cpu = atoi(fields[0] + 3);
 
-    cpu_stage(cpu, COLLECTD_CPU_STATE_USER, (derive_t)atoll(fields[1]), now);
-    cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)atoll(fields[2]), now);
+    /* Do not stage User and Nice immediately: we may need to alter them later: */
+    long long user_value = atoll(fields[1]);
+    long long nice_value = atoll(fields[2]);
     cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE, (derive_t)atoll(fields[4]), now);
 
@@ -665,11 +676,40 @@ static int cpu_read(void) {
                 now);
       cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
                 now);
+	}
 
-      if (numfields >= 9)
-        cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]),
-                  now);
+    if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
+      cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]), now);
     }
+
+    if (numfields >= 10) { /* Guest (since Linux 2.6.24) */
+      if (report_guest) {
+        long long value = atoll(fields[9]);
+        cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST, (derive_t)value, now);
+        /* Guest is included in User; optionally subtract Guest from User: */
+        if (subtract_guest) {
+          user_value -= value;
+          if (user_value < 0) user_value = 0;
+        }
+      }
+    }
+
+    if (numfields >= 11) { /* Guest_nice (since Linux 2.6.33) */
+      if (report_guest) {
+        long long value = atoll(fields[10]);
+        cpu_stage(cpu, COLLECTD_CPU_STATE_GUEST_NICE, (derive_t)value, now);
+        /* Guest_nice is included in Nice; optionally subtract Guest_nice from
+           Nice: */
+        if (subtract_guest) {
+          nice_value -= value;
+          if (nice_value < 0) nice_value = 0;
+        }
+      }
+    }
+
+    /* Eventually stage User and Nice: */
+    cpu_stage(cpu, COLLECTD_CPU_STATE_USER, (derive_t)user_value, now);
+    cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)nice_value, now);
   }
   fclose(fh);
 /* }}} #endif defined(KERNEL_LINUX) */
@@ -678,7 +718,7 @@ static int cpu_read(void) {
   static cpu_stat_t cs;
 
   if (kc == NULL)
-    return (-1);
+    return -1;
 
   for (int cpu = 0; cpu < numcpu; cpu++) {
     if (kstat_read(kc, ksp[cpu], &cs) == -1)
@@ -703,7 +743,7 @@ static int cpu_read(void) {
   if (numcpu < 1) {
     ERROR("cpu plugin: Could not determine number of "
           "installed CPUs using sysctl(3).");
-    return (-1);
+    return -1;
   }
 
   memset(cpuinfo, 0, sizeof(cpuinfo));
@@ -721,7 +761,7 @@ static int cpu_read(void) {
         char errbuf[1024];
         ERROR("cpu plugin: sysctl failed: %s.",
               sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (-1);
+        return -1;
       }
     }
   } else
@@ -738,7 +778,7 @@ static int cpu_read(void) {
       char errbuf[1024];
       ERROR("cpu plugin: sysctl failed: %s.",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
 
     for (int i = 0; i < CPUSTATES; i++) {
@@ -768,7 +808,7 @@ static int cpu_read(void) {
     char errbuf[1024];
     ERROR("cpu plugin: sysctlbyname failed: %s.",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < numcpu; i++) {
@@ -791,7 +831,7 @@ static int cpu_read(void) {
     char errbuf[1024];
     ERROR("cpu plugin: sysctlbyname failed: %s.",
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   cpu_stage(0, COLLECTD_CPU_STATE_USER, (derive_t)cpuinfo[CP_USER], now);
@@ -807,7 +847,7 @@ static int cpu_read(void) {
 
   if (cs == NULL) {
     ERROR("cpu plugin: sg_get_cpu_stats failed.");
-    return (-1);
+    return -1;
   }
 
   cpu_state(0, COLLECTD_CPU_STATE_IDLE, (derive_t)cs->idle);
@@ -827,7 +867,7 @@ static int cpu_read(void) {
     char errbuf[1024];
     WARNING("cpu plugin: perfstat_cpu: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   if (pnumcpu != numcpu || perfcpu == NULL) {
@@ -841,7 +881,7 @@ static int cpu_read(void) {
     char errbuf[1024];
     WARNING("cpu plugin: perfstat_cpu: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   for (int i = 0; i < cpus; i++) {
@@ -854,7 +894,7 @@ static int cpu_read(void) {
 
   cpu_commit();
   cpu_reset();
-  return (0);
+  return 0;
 }
 
 void module_register(void) {

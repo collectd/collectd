@@ -47,9 +47,9 @@ static int value_list_to_string(char *buffer, int buffer_len,
 
   memset(buffer, '\0', buffer_len);
 
-  status = ssnprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
+  status = snprintf(buffer, buffer_len, "%.3f", CDTIME_T_TO_DOUBLE(vl->time));
   if ((status < 1) || (status >= buffer_len))
-    return (-1);
+    return -1;
   offset = status;
 
   for (size_t i = 0; i < ds->ds_num; i++) {
@@ -58,43 +58,42 @@ static int value_list_to_string(char *buffer, int buffer_len,
         (ds->ds[i].type != DS_TYPE_DERIVE) &&
         (ds->ds[i].type != DS_TYPE_ABSOLUTE)) {
       sfree(rates);
-      return (-1);
+      return -1;
     }
 
     if (ds->ds[i].type == DS_TYPE_GAUGE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%lf",
-                         vl->values[i].gauge);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%lf",
+                        vl->values[i].gauge);
     } else if (store_rates != 0) {
       if (rates == NULL)
         rates = uc_get_rate(ds, vl);
       if (rates == NULL) {
         WARNING("csv plugin: "
                 "uc_get_rate failed.");
-        return (-1);
+        return -1;
       }
-      status =
-          ssnprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%llu",
-                         vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%llu",
+                        vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
-                         vl->values[i].derive);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
+                        vl->values[i].derive);
     } else if (ds->ds[i].type == DS_TYPE_ABSOLUTE) {
-      status = ssnprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
-                         vl->values[i].absolute);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
+                        vl->values[i].absolute);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset))) {
       sfree(rates);
-      return (-1);
+      return -1;
     }
 
     offset += status;
   } /* for ds->ds_num */
 
   sfree(rates);
-  return (0);
+  return 0;
 } /* int value_list_to_string */
 
 static int value_list_to_filename(char *buffer, size_t buffer_size,
@@ -110,7 +109,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
     size_t len = strlen(datadir) + 1;
 
     if (len >= ptr_size)
-      return (ENOBUFS);
+      return ENOBUFS;
 
     memcpy(ptr, datadir, len);
     ptr[len - 1] = '/';
@@ -120,12 +119,12 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
 
   status = FORMAT_VL(ptr, ptr_size, vl);
   if (status != 0)
-    return (status);
+    return status;
 
   /* Skip all the time formatting stuff when printing to STDOUT or
    * STDERR. */
   if (use_stdio)
-    return (0);
+    return 0;
 
   ptr_size -= strlen(ptr);
   ptr += strlen(ptr);
@@ -133,7 +132,7 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   /* "-2013-07-12" => 11 bytes */
   if (ptr_size < 12) {
     ERROR("csv plugin: Buffer too small.");
-    return (ENOMEM);
+    return ENOMEM;
   }
 
   /* TODO: Find a way to minimize the calls to `localtime_r',
@@ -141,31 +140,31 @@ static int value_list_to_filename(char *buffer, size_t buffer_size,
   now = time(NULL);
   if (localtime_r(&now, &struct_tm) == NULL) {
     ERROR("csv plugin: localtime_r failed");
-    return (-1);
+    return -1;
   }
 
   status = strftime(ptr, ptr_size, "-%Y-%m-%d", &struct_tm);
   if (status == 0) /* yep, it returns zero on error. */
   {
     ERROR("csv plugin: strftime failed");
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* int value_list_to_filename */
 
 static int csv_create_file(const char *filename, const data_set_t *ds) {
   FILE *csv;
 
   if (check_create_dir(filename))
-    return (-1);
+    return -1;
 
   csv = fopen(filename, "w");
   if (csv == NULL) {
     char errbuf[1024];
     ERROR("csv plugin: fopen (%s) failed: %s", filename,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
 
   fprintf(csv, "epoch");
@@ -186,10 +185,10 @@ static int csv_config(const char *key, const char *value) {
     }
     if (strcasecmp("stdout", value) == 0) {
       use_stdio = 1;
-      return (0);
+      return 0;
     } else if (strcasecmp("stderr", value) == 0) {
       use_stdio = 2;
-      return (0);
+      return 0;
     }
     datadir = strdup(value);
     if (datadir != NULL) {
@@ -209,9 +208,9 @@ static int csv_config(const char *key, const char *value) {
     else
       store_rates = 0;
   } else {
-    return (-1);
+    return -1;
   }
-  return (0);
+  return 0;
 } /* int csv_config */
 
 static int csv_write(const data_set_t *ds, const value_list_t *vl,
@@ -231,12 +230,12 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
 
   status = value_list_to_filename(filename, sizeof(filename), vl);
   if (status != 0)
-    return (-1);
+    return -1;
 
   DEBUG("csv plugin: csv_write: filename = %s;", filename);
 
   if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
-    return (-1);
+    return -1;
 
   if (use_stdio) {
     escape_string(filename, sizeof(filename));
@@ -251,22 +250,22 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
 
     fprintf(use_stdio == 1 ? stdout : stderr, "PUTVAL %s interval=%.3f %s\n",
             filename, CDTIME_T_TO_DOUBLE(vl->interval), values);
-    return (0);
+    return 0;
   }
 
   if (stat(filename, &statbuf) == -1) {
     if (errno == ENOENT) {
       if (csv_create_file(filename, ds))
-        return (-1);
+        return -1;
     } else {
       char errbuf[1024];
       ERROR("stat(%s) failed: %s", filename,
             sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (-1);
+      return -1;
     }
   } else if (!S_ISREG(statbuf.st_mode)) {
     ERROR("stat(%s): Not a regular file!", filename);
-    return (-1);
+    return -1;
   }
 
   csv = fopen(filename, "a");
@@ -274,7 +273,7 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
     char errbuf[1024];
     ERROR("csv plugin: fopen (%s) failed: %s", filename,
           sstrerror(errno, errbuf, sizeof(errbuf)));
-    return (-1);
+    return -1;
   }
   csv_fd = fileno(csv);
 
@@ -288,7 +287,7 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
     ERROR("csv plugin: flock (%s) failed: %s", filename,
           sstrerror(errno, errbuf, sizeof(errbuf)));
     fclose(csv);
-    return (-1);
+    return -1;
   }
 
   fprintf(csv, "%s\n", values);
@@ -297,7 +296,7 @@ static int csv_write(const data_set_t *ds, const value_list_t *vl,
    * because the `FILE *' may need to flush a cache first */
   fclose(csv);
 
-  return (0);
+  return 0;
 } /* int csv_write */
 
 void module_register(void) {

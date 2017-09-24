@@ -62,7 +62,7 @@ static oconfig_item_t *oconfig_parse_fh(FILE *fh) {
   status = yyparse();
   if (status != 0) {
     fprintf(stderr, "yyparse returned error #%i\n", status);
-    return (NULL);
+    return NULL;
   }
 
   c_file = NULL;
@@ -71,7 +71,7 @@ static oconfig_item_t *oconfig_parse_fh(FILE *fh) {
   ci_root = NULL;
   yyset_in((FILE *)0);
 
-  return (ret);
+  return ret;
 } /* oconfig_item_t *oconfig_parse_fh */
 
 oconfig_item_t *oconfig_parse_file(const char *file) {
@@ -83,7 +83,7 @@ oconfig_item_t *oconfig_parse_file(const char *file) {
   fh = fopen(file, "r");
   if (fh == NULL) {
     fprintf(stderr, "fopen (%s) failed: %s\n", file, strerror(errno));
-    return (NULL);
+    return NULL;
   }
 
   ret = oconfig_parse_fh(fh);
@@ -91,7 +91,7 @@ oconfig_item_t *oconfig_parse_file(const char *file) {
 
   c_file = NULL;
 
-  return (ret);
+  return ret;
 } /* oconfig_item_t *oconfig_parse_file */
 
 oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
@@ -100,7 +100,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
   ci_copy = calloc(1, sizeof(*ci_copy));
   if (ci_copy == NULL) {
     fprintf(stderr, "calloc failed.\n");
-    return (NULL);
+    return NULL;
   }
   ci_copy->values = NULL;
   ci_copy->parent = NULL;
@@ -110,7 +110,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
   if (ci_copy->key == NULL) {
     fprintf(stderr, "strdup failed.\n");
     free(ci_copy);
-    return (NULL);
+    return NULL;
   }
 
   if (ci_orig->values_num > 0) /* {{{ */
@@ -121,7 +121,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
       fprintf(stderr, "calloc failed.\n");
       free(ci_copy->key);
       free(ci_copy);
-      return (NULL);
+      return NULL;
     }
     ci_copy->values_num = ci_orig->values_num;
 
@@ -133,7 +133,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
         if (ci_copy->values[i].value.string == NULL) {
           fprintf(stderr, "strdup failed.\n");
           oconfig_free(ci_copy);
-          return (NULL);
+          return NULL;
         }
       } else /* ci_copy->values[i].type != OCONFIG_TYPE_STRING) */
       {
@@ -149,7 +149,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
     if (ci_copy->children == NULL) {
       fprintf(stderr, "calloc failed.\n");
       oconfig_free(ci_copy);
-      return (NULL);
+      return NULL;
     }
     ci_copy->children_num = ci_orig->children_num;
 
@@ -159,7 +159,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
       child = oconfig_clone(ci_orig->children + i);
       if (child == NULL) {
         oconfig_free(ci_copy);
-        return (NULL);
+        return NULL;
       }
       child->parent = ci_copy;
       ci_copy->children[i] = *child;
@@ -167,7 +167,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
     } /* for (i = 0; i < ci_copy->children_num; i++) */
   }   /* }}} if (ci_orig->children_num > 0) */
 
-  return (ci_copy);
+  return ci_copy;
 } /* oconfig_item_t *oconfig_clone */
 
 static void oconfig_free_all(oconfig_item_t *ci) {

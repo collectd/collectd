@@ -41,8 +41,6 @@
 #define HAVE_YAJL_V2 1
 #endif
 
-#define DEFAULT_LOGFILE LOCALSTATEDIR "/log/" PACKAGE_NAME ".json.log"
-
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;
 #else
@@ -149,8 +147,7 @@ static void log_logstash_print(yajl_gen g, int severity,
   pthread_mutex_lock(&file_lock);
 
   if (log_file == NULL) {
-    fh = fopen(DEFAULT_LOGFILE, "a");
-    do_close = 1;
+    fh = stderr;
   } else if (strcasecmp(log_file, "stdout") == 0) {
     fh = stdout;
     do_close = 0;
@@ -164,8 +161,7 @@ static void log_logstash_print(yajl_gen g, int severity,
 
   if (fh == NULL) {
     char errbuf[1024];
-    fprintf(stderr, "log_logstash plugin: fopen (%s) failed: %s\n",
-            (log_file == NULL) ? DEFAULT_LOGFILE : log_file,
+    fprintf(stderr, "log_logstash plugin: fopen (%s) failed: %s\n", log_file,
             sstrerror(errno, errbuf, sizeof(errbuf)));
   } else {
     fprintf(fh, "%s\n", buf);
@@ -240,7 +236,7 @@ static int log_logstash_notification(const notification_t *n,
 
   if (g == NULL) {
     fprintf(stderr, "Could not allocate JSON generator.\n");
-    return (0);
+    return 0;
   }
 
   if (yajl_gen_map_open(g) != yajl_gen_status_ok)
@@ -327,12 +323,12 @@ static int log_logstash_notification(const notification_t *n,
   }
 
   log_logstash_print(g, LOG_INFO, (n->time != 0) ? n->time : cdtime());
-  return (0);
+  return 0;
 
 err:
   yajl_gen_free(g);
   fprintf(stderr, "Could not correctly generate JSON notification\n");
-  return (0);
+  return 0;
 } /* int log_logstash_notification */
 
 void module_register(void) {

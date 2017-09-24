@@ -208,6 +208,12 @@ See also: http://dpdk.org/doc/guides/prog_guide/multi_proc_support.html
  *  The same PCI device configuration should be passed to the primary process as
     the secondary process uses the same port indexes as the primary.
  *  A blacklist / whitelist of NICs isn't supported yet.
+ *  Plugin initialization time depends on read interval. It requires 5 read
+    cycles to set up internal buffers and states. During that time no statistics
+    are submitted.
+ *  If number of DPDK ports is increased while plugin is running, internal
+    buffers are resized. That requires 3 read cycles and no port statistics
+    are submitted in that time.
 
 ## License
 

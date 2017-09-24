@@ -98,31 +98,35 @@ static int varnish_submit(const char *plugin_instance, /* {{{ */
 
   if (plugin_instance == NULL)
     plugin_instance = "default";
-  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-            plugin_instance, category);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
+           plugin_instance, category);
 
   sstrncpy(vl.type, type, sizeof(vl.type));
 
   if (type_instance != NULL)
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-  return (plugin_dispatch_values(&vl));
+  return plugin_dispatch_values(&vl);
 } /* }}} int varnish_submit */
 
 static int varnish_submit_gauge(const char *plugin_instance, /* {{{ */
                                 const char *category, const char *type,
                                 const char *type_instance,
                                 uint64_t gauge_value) {
-  return (varnish_submit(plugin_instance, category, type, type_instance,
-                         (value_t){.gauge = (gauge_t)gauge_value}));
+  return varnish_submit(plugin_instance, category, type, type_instance,
+                        (value_t){
+                            .gauge = (gauge_t)gauge_value,
+                        });
 } /* }}} int varnish_submit_gauge */
 
 static int varnish_submit_derive(const char *plugin_instance, /* {{{ */
                                  const char *category, const char *type,
                                  const char *type_instance,
                                  uint64_t derive_value) {
-  return (varnish_submit(plugin_instance, category, type, type_instance,
-                         (value_t){.derive = (derive_t)derive_value}));
+  return varnish_submit(plugin_instance, category, type, type_instance,
+                        (value_t){
+                            .derive = (derive_t)derive_value,
+                        });
 } /* }}} int varnish_submit_derive */
 
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
@@ -135,7 +139,7 @@ static int varnish_monitor(void *priv,
   const char *name;
 
   if (pt == NULL)
-    return (0);
+    return 0;
 
   conf = priv;
 
@@ -144,14 +148,14 @@ static int varnish_monitor(void *priv,
   name = pt->desc->name;
 
   if (strcmp(class, "MAIN") != 0)
-    return (0);
+    return 0;
 
 #elif HAVE_VARNISH_V3
   class = pt->class;
   name = pt->name;
 
   if (strcmp(class, "") != 0)
-    return (0);
+    return 0;
 #endif
 
   val = *(const volatile uint64_t *)pt->ptr;
@@ -629,7 +633,7 @@ static int varnish_monitor(void *priv,
   }
 #endif
 
-  return (0);
+  return 0;
 
 } /* }}} static int varnish_monitor */
 #else /* if HAVE_VARNISH_V2 */
@@ -981,7 +985,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   user_config_t *conf;
 
   if ((ud == NULL) || (ud->data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   conf = ud->data;
 
@@ -999,7 +1003,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
       ERROR("varnish plugin: VSM_n_Arg (\"%s\") failed "
             "with status %i.",
             conf->instance, status);
-      return (-1);
+      return -1;
     }
   }
 
@@ -1012,7 +1016,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
     VSM_Delete(vd);
     ERROR("varnish plugin: Unable to open connection.");
 
-    return (-1);
+    return -1;
   }
 
 #if HAVE_VARNISH_V3
@@ -1024,7 +1028,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
     VSM_Delete(vd);
     ERROR("varnish plugin: Unable to get statistics.");
 
-    return (-1);
+    return -1;
   }
 
 #if HAVE_VARNISH_V3
@@ -1034,7 +1038,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 #endif
   VSM_Delete(vd);
 
-  return (0);
+  return 0;
 } /* }}} */
 #else /* if HAVE_VARNISH_V2 */
 static int varnish_read(user_data_t *ud) /* {{{ */
@@ -1044,7 +1048,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   user_config_t *conf;
 
   if ((ud == NULL) || (ud->data == NULL))
-    return (EINVAL);
+    return EINVAL;
 
   conf = ud->data;
 
@@ -1052,12 +1056,12 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   if (stats == NULL) {
     ERROR("Varnish plugin : unable to load statistics");
 
-    return (-1);
+    return -1;
   }
 
   varnish_monitor(conf, stats);
 
-  return (0);
+  return 0;
 } /* }}} */
 #endif
 
@@ -1075,7 +1079,7 @@ static void varnish_config_free(void *ptr) /* {{{ */
 static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
 {
   if (conf == NULL)
-    return (EINVAL);
+    return EINVAL;
 
   conf->collect_backend = 1;
   conf->collect_cache = 1;
@@ -1110,7 +1114,7 @@ static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
   conf->collect_vsm = 0;
 #endif
 
-  return (0);
+  return 0;
 } /* }}} int varnish_config_apply_default */
 
 static int varnish_init(void) /* {{{ */
@@ -1118,11 +1122,11 @@ static int varnish_init(void) /* {{{ */
   user_config_t *conf;
 
   if (have_instance)
-    return (0);
+    return 0;
 
   conf = calloc(1, sizeof(*conf));
   if (conf == NULL)
-    return (ENOMEM);
+    return ENOMEM;
 
   /* Default settings: */
   conf->instance = NULL;
@@ -1133,11 +1137,12 @@ static int varnish_init(void) /* {{{ */
       /* group = */ "varnish",
       /* name      = */ "varnish/localhost",
       /* callback  = */ varnish_read,
-      /* interval  = */ 0, &(user_data_t){
-                               .data = conf, .free_func = varnish_config_free,
-                           });
+      /* interval  = */ 0,
+      &(user_data_t){
+          .data = conf, .free_func = varnish_config_free,
+      });
 
-  return (0);
+  return 0;
 } /* }}} int varnish_init */
 
 static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
@@ -1147,7 +1152,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
 
   conf = calloc(1, sizeof(*conf));
   if (conf == NULL)
-    return (ENOMEM);
+    return ENOMEM;
   conf->instance = NULL;
 
   varnish_config_apply_default(conf);
@@ -1158,7 +1163,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     status = cf_util_get_string(ci, &conf->instance);
     if (status != 0) {
       sfree(conf);
-      return (status);
+      return status;
     }
     assert(conf->instance != NULL);
 
@@ -1170,7 +1175,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     WARNING("Varnish plugin: \"Instance\" blocks accept only "
             "one argument.");
     sfree(conf);
-    return (EINVAL);
+    return EINVAL;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -1290,23 +1295,24 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
             "instance \"%s\". Disabling this instance.",
             (conf->instance == NULL) ? "localhost" : conf->instance);
     sfree(conf);
-    return (EINVAL);
+    return EINVAL;
   }
 
-  ssnprintf(callback_name, sizeof(callback_name), "varnish/%s",
-            (conf->instance == NULL) ? "localhost" : conf->instance);
+  snprintf(callback_name, sizeof(callback_name), "varnish/%s",
+           (conf->instance == NULL) ? "localhost" : conf->instance);
 
   plugin_register_complex_read(
       /* group = */ "varnish",
       /* name      = */ callback_name,
       /* callback  = */ varnish_read,
-      /* interval  = */ 0, &(user_data_t){
-                               .data = conf, .free_func = varnish_config_free,
-                           });
+      /* interval  = */ 0,
+      &(user_data_t){
+          .data = conf, .free_func = varnish_config_free,
+      });
 
   have_instance = 1;
 
-  return (0);
+  return 0;
 } /* }}} int varnish_config_instance */
 
 static int varnish_config(oconfig_item_t *ci) /* {{{ */
@@ -1323,7 +1329,7 @@ static int varnish_config(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  return (0);
+  return 0;
 } /* }}} int varnish_config */
 
 void module_register(void) /* {{{ */
