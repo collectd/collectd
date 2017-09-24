@@ -105,6 +105,8 @@ int latency_config(latency_config_t *conf, oconfig_item_t *ci,
       status = latency_config_add_percentile(conf, child, plugin);
     else if (strcasecmp("Bucket", child->key) == 0)
       status = latency_config_add_bucket(conf, child, plugin);
+    else if (strcasecmp("BucketType", child->key) == 0)
+      status = cf_util_get_string(child, &conf->bucket_type);
     else
       WARNING("%s plugin: \"%s\" is not a valid option within a \"%s\" block.",
               plugin, child->key, ci->key);
@@ -137,6 +139,14 @@ int latency_config_copy(latency_config_t *dst, const latency_config_t src) {
     return ENOMEM;
   }
 
+  if (src.bucket_type != NULL) {
+    dst->bucket_type = strdup(src.bucket_type);
+    if (dst->bucket_type == NULL) {
+      latency_config_free(*dst);
+      return ENOMEM;
+    }
+  }
+
   memmove(dst->percentile, src.percentile,
           dst->percentile_num * sizeof(*dst->percentile));
   memmove(dst->buckets, src.buckets, dst->buckets_num * sizeof(*dst->buckets));
@@ -147,4 +157,5 @@ int latency_config_copy(latency_config_t *dst, const latency_config_t src) {
 void latency_config_free(latency_config_t conf) {
   sfree(conf.percentile);
   sfree(conf.buckets);
+  sfree(conf.bucket_type);
 } /* void latency_config_free */

@@ -1404,6 +1404,7 @@
 #        Bucket 0.5 1.0   # -> bucket-latency-foo-0.5_1
 #        Bucket 1.0 2.0   # -> bucket-latency-foo-1_2
 #        Bucket 2.0 0     # -> bucket-latency-foo-2_inf
+#        #BucketType "bucket"
 #      </DSType>
 #      Type "latency"
 #      Instance "foo"

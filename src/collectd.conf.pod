@@ -7704,6 +7704,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
         <DSType "Distribution">
           Percentile 99
           Bucket 0 100
+          #BucketType "bucket"
         </DSType>
         Type "latency"
         Instance "foo"
@@ -7823,6 +7824,7 @@ B<Synopsis:>
   <DSType "Distribution">
     Percentile 99
     Bucket 0 100
+    BucketType "bucket"
   </DSType>
 
 =over 4
@@ -7859,10 +7861,16 @@ the following schema:
   Bucket  20  50
   Bucket  50   0
 
-Metrics are reported with the I<type> C<bucket> and the I<type instance>
+Metrics are reported with the I<type> set by B<BucketType> option (C<bucket> 
+by default) and the I<type instance>
 C<E<lt>TypeE<gt>[-E<lt>InstanceE<gt>]-E<lt>lower_boundE<gt>_E<lt>upper_boundE<gt>>.
 
 This option may be repeated to calculate more than one rate.
+
+=item B<BucketType> I<Type>
+
+Sets the type used to dispatch B<Bucket> metrics.
+Optional, by default C<bucket> will be used.
 
 =back
 
