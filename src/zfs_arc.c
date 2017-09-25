@@ -35,6 +35,10 @@
 /*
  * Global variables
  */
+static value_to_rate_state_t arc_hits_state;
+static value_to_rate_state_t arc_misses_state;
+static value_to_rate_state_t l2_hits_state;
+static value_to_rate_state_t l2_misses_state;
 
 #if defined(KERNEL_LINUX)
 #include "utils_llist.h"
@@ -187,9 +191,6 @@ static void za_submit_ratio(const char *type_instance, gauge_t hits,
 
   za_submit_gauge("cache_ratio", type_instance, ratio);
 }
-
-static value_to_rate_state_t arc_hits_state, arc_misses_state, l2_hits_state,
-    l2_misses_state;
 
 static int za_read(void) {
   gauge_t arc_hits, arc_misses, l2_hits, l2_misses;
@@ -360,11 +361,6 @@ static int za_init(void) /* {{{ */
     return -1;
   }
 #endif
-
-  memset(&arc_hits_state, 0, sizeof(arc_hits_state));
-  memset(&arc_misses_state, 0, sizeof(arc_misses_state));
-  memset(&l2_hits_state, 0, sizeof(l2_hits_state));
-  memset(&l2_misses_state, 0, sizeof(l2_misses_state));
 
   return 0;
 } /* }}} int za_init */
