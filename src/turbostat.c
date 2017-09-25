@@ -41,7 +41,7 @@
 #include "plugin.h"
 #include "utils_time.h"
 
-#include <asm/msr-index.h>
+#include "msr-index.h"
 #include <cpuid.h>
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>

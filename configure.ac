@@ -805,30 +805,10 @@ AC_CACHE_CHECK([whether clock_boottime and clock_monotonic are supported],
 
 
 # For the turbostat plugin
-have_asm_msrindex_h="no"
-AC_CHECK_HEADERS(asm/msr-index.h, [have_asm_msrindex_h="yes"])
-
-if test "x$have_asm_msrindex_h" = "xyes"
-then
-  AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
-                 [c_cv_have_usable_asm_msrindex_h],
-                 AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-[[[
-#include<asm/msr-index.h>
-]]],
-[[[
-int y = MSR_PKG_C10_RESIDENCY;
-return(y);
-]]]
-  )],
-                 [c_cv_have_usable_asm_msrindex_h="yes"],
-                 [c_cv_have_usable_asm_msrindex_h="no"],
-                                  )
-                 )
-fi
-
-have_cpuid_h="no"
-AC_CHECK_HEADERS(cpuid.h, [have_cpuid_h="yes"])
+AC_CHECK_HEADERS([cpuid.h],
+  [have_cpuid_h="yes"],
+  [have_cpuid_h="no (cpuid.h not found)"]
+)
 
 have_capability="yes"
 AC_CHECK_HEADERS(sys/capability.h,
@@ -6143,8 +6123,7 @@ then
 	then
 		plugin_ipvs="yes"
 	fi
-	if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"
-	then
+	if test "x$have_cpuid_h" = "xyes"; then
 		plugin_turbostat="yes"
 	fi
 	
