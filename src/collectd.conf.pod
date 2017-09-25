@@ -8223,9 +8223,9 @@ collections. The different bits of this bit mask accepted by this plugin are:
 
 Boolean enabling the use of logical core numbering for per core statistics.
 When enabled, C<cpuE<lt>nE<gt>> is used as plugin instance, where I<n> is a
-sequential number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
-where I<n> is the n-th core of the socket, causing name conflicts when there is
-more than one socket.
+dynamic number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
+if there is only one package and C<pkgE<lt>nE<gt>-coreE<lt>mE<gt>> if there is
+more than one, where I<n> is the n-th core of package I<m>.
 
 =back
 

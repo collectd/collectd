@@ -585,7 +585,10 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
 
   /* If not using logical core numbering, set core id */
   if (!config_lcn) {
-    snprintf(name, sizeof(name), "core%02d", c->core_id);
+    if (topology.num_packages > 1)
+      snprintf(name, sizeof(name), "pkg%02d-core%02d", p->package_id, c->core_id);
+    else
+      snprintf(name, sizeof(name), "core%02d", c->core_id);
   }
 
   if (do_core_cstate & (1 << 3))
