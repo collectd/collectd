@@ -521,32 +521,6 @@ if test "x$ac_system" = "xLinux"; then
     ]]
   )
   # For the turbostat plugin
-  AC_CHECK_HEADERS([asm/msr-index.h],
-    [have_asm_msrindex_h="yes"],
-    [have_asm_msrindex_h="no"]
-  )
-
-  if test "x$have_asm_msrindex_h" = "xyes"; then
-    AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
-      [c_cv_have_usable_asm_msrindex_h],
-      [
-        AC_COMPILE_IFELSE(
-          [
-            AC_LANG_PROGRAM(
-              [[#include<asm/msr-index.h>]],
-              [[
-                int y = MSR_PKG_C10_RESIDENCY;
-                return(y);
-              ]]
-            )
-          ],
-          [c_cv_have_usable_asm_msrindex_h="yes"],
-          [c_cv_have_usable_asm_msrindex_h="no"],
-        )
-      ]
-    )
-  fi
-
   AC_CHECK_HEADERS([cpuid.h],
     [have_cpuid_h="yes"],
     [have_cpuid_h="no (cpuid.h not found)"]
@@ -6227,7 +6201,7 @@ if test "x$ac_system" = "xLinux"; then
     plugin_ipvs="yes"
   fi
 
-  if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"; then
+  if test "x$have_cpuid_h" = "xyes"; then
     plugin_turbostat="yes"
   fi
 
