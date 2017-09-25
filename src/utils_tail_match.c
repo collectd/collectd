@@ -137,7 +137,11 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
   }
 
   /* Submit buckets */
-  sstrncpy(vl.type, "bucket", sizeof(vl.type));
+  if (data->latency_config.bucket_type != NULL)
+    sstrncpy(vl.type, data->latency_config.bucket_type, sizeof(vl.type));
+  else
+    sstrncpy(vl.type, "bucket", sizeof(vl.type));
+
   for (size_t i = 0; i < data->latency_config.buckets_num; i++) {
     latency_bucket_t bucket = data->latency_config.buckets[i];
 
