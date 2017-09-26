@@ -1680,7 +1680,9 @@ endif
 
 if BUILD_PLUGIN_TURBOSTAT
 pkglib_LTLIBRARIES += turbostat.la
-turbostat_la_SOURCES = src/turbostat.c
+turbostat_la_SOURCES = \
+	src/turbostat.c \
+	src/msr-index.h
 turbostat_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
