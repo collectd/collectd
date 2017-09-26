@@ -1363,8 +1363,11 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     }
 
     res = NULL;
-    /* snmp_sess_synch_response always frees our req PDU */
     status = snmp_sess_synch_response(host->sess_handle, req, &res);
+
+    /* snmp_sess_synch_response always frees our req PDU */
+    req = NULL;
+
     if ((status != STAT_SUCCESS) || (res == NULL)) {
       char *errstr = NULL;
 
