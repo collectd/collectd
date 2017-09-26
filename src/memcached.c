@@ -67,6 +67,7 @@ static void memcached_free(void *arg) {
   if (st->fd >= 0) {
     shutdown(st->fd, SHUT_RDWR);
     close(st->fd);
+    st->fd = -1;
   }
 
   sfree(st->name);
@@ -163,9 +164,9 @@ static int memcached_connect_inet(memcached_t *st) {
     }
 
     /* Wait until connection establishes */
-    struct pollfd pollfd;
-    pollfd.fd = fd;
-    pollfd.events = POLLOUT;
+    struct pollfd pollfd = {
+        .fd = fd, .events = POLLOUT,
+    };
     do
       status = poll(&pollfd, 1, MEMCACHED_CONNECT_TIMEOUT);
     while (status < 0 && errno == EINTR);
@@ -177,9 +178,8 @@ static int memcached_connect_inet(memcached_t *st) {
 
     /* Check if all is good */
     int socket_error;
-    socklen_t socket_error_len = sizeof(socket_error);
     status = getsockopt(fd, SOL_SOCKET, SO_ERROR, (void *)&socket_error,
-                        &socket_error_len);
+                        &(socklen_t){sizeof(socket_error)});
     if (status != 0 || socket_error != 0) {
       close(fd);
       fd = -1;
@@ -219,9 +219,9 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
     return -1;
   }
 
-  struct pollfd pollfd;
-  pollfd.fd = st->fd;
-  pollfd.events = POLLOUT;
+  struct pollfd pollfd = {
+      .fd = st->fd, .events = POLLOUT,
+  };
 
   do
     status = poll(&pollfd, 1, MEMCACHED_IO_TIMEOUT);
