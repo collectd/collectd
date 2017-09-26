@@ -1389,35 +1389,47 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     }
 
     if (res->errstat != SNMP_ERR_NOERROR) {
-      if (res->errindex != 0 && res->errindex < oid_list_len) {
+      if (res->errindex != 0) {
         /* Find the OID which caused error */
         for (i = 1, vb = res->variables; vb != NULL && i != res->errindex;
              vb = vb->next_variable, i++)
           /* do nothing */;
+      }
 
-        char oid_buffer[1024] = {0};
-        snprint_objid(oid_buffer, sizeof(oid_buffer) - 1, vb->name,
-                      vb->name_length);
-        NOTICE("snmp plugin: host %s; data %s: OID `%s` failed: %s",
-               host->name, data->name, oid_buffer,
-               snmp_errstring(res->errstat));
+      if ((res->errindex == 0) || (vb == NULL)) {
+        ERROR("snmp plugin: host %s; data %s: response error: %s (%li) ",
+              host->name, data->name, snmp_errstring(res->errstat),
+              res->errstat);
+        status = -1;
+        break;
+      }
 
-        /* Skip that OID */
-        i = res->errindex - 1;
+      char oid_buffer[1024] = {0};
+      snprint_objid(oid_buffer, sizeof(oid_buffer) - 1, vb->name,
+                    vb->name_length);
+      NOTICE("snmp plugin: host %s; data %s: OID `%s` failed: %s", host->name,
+             data->name, oid_buffer, snmp_errstring(res->errstat));
+
+      /* Calculate value index from todo list and skip OID found */
+      i = 0;
+      size_t j = 1;
+      for (;;) {
         while ((i < oid_list_len) && !oid_list_todo[i])
           i++;
 
-        oid_list_todo[i] = 0;
+        if (j == res->errindex)
+          break;
 
-        snmp_free_pdu(res);
-        res = NULL;
-        continue;
+        i++;
+        j++;
       }
 
-      ERROR("snmp plugin: host %s; data %s: response error: %s (%li) ",
-            host->name, data->name, snmp_errstring(res->errstat), res->errstat);
-      status = -1;
-      break;
+      assert(i < oid_list_len);
+      oid_list_todo[i] = 0;
+
+      snmp_free_pdu(res);
+      res = NULL;
+      continue;
     }
 
     for (vb = res->variables, i = 0; (vb != NULL);
