@@ -269,7 +269,8 @@ ssize_t swrite(int fd, const void *buf, size_t count) {
     if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
       /* if recv returns zero (even though poll() said there is data to be
        * read), that means the connection has been closed */
-      return errno ? errno : -1;
+      errno = ECONNRESET;
+      return -1;
     }
   }
 
