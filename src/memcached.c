@@ -392,8 +392,9 @@ static void submit_gauge2(const char *type, const char *type_inst,
   plugin_dispatch_values(&vl);
 }
 
-static gauge_t calculate_rate(gauge_t part, gauge_t total, gauge_t *prev_part,
-                              gauge_t *prev_total) {
+static gauge_t calculate_ratio_percent(gauge_t part, gauge_t total,
+                                       gauge_t *prev_part,
+                                       gauge_t *prev_total) {
   if (isnan(*prev_part) || isnan(*prev_total) || (part < *prev_part) ||
       (total < *prev_total)) {
     *prev_part = part;
@@ -413,8 +414,8 @@ static gauge_t calculate_rate(gauge_t part, gauge_t total, gauge_t *prev_part,
   return 100.0 * num / denom;
 }
 
-static gauge_t calculate_rate2(gauge_t part1, gauge_t part2, gauge_t *prev1,
-                               gauge_t *prev2) {
+static gauge_t calculate_ratio_percent2(gauge_t part1, gauge_t part2,
+                                        gauge_t *prev1, gauge_t *prev2) {
   if (isnan(*prev1) || isnan(*prev2) || (part1 < *prev1) || (part2 < *prev2)) {
     *prev1 = part1;
     *prev2 = part2;
@@ -605,23 +606,24 @@ static int memcached_read(user_data_t *user_data) {
     submit_derive2("memcached_octets", NULL, octets_rx, octets_tx, st);
 
   if (!isnan(gets) && !isnan(hits)) {
-    gauge_t rate = calculate_rate(hits, gets, &prev->hits, &prev->gets);
-    submit_gauge("percent", "hitratio", rate, st);
+    gauge_t ratio =
+        calculate_ratio_percent(hits, gets, &prev->hits, &prev->gets);
+    submit_gauge("percent", "hitratio", ratio, st);
   }
 
   if (!isnan(incr_hits) && !isnan(incr_misses) &&
       (incr_hits + incr_misses > 0)) {
-    gauge_t rate = calculate_rate2(incr_hits, incr_misses, &prev->incr_hits,
-                                   &prev->incr_misses);
-    submit_gauge("percent", "incr_hitratio", rate, st);
+    gauge_t ratio = calculate_ratio_percent2(
+        incr_hits, incr_misses, &prev->incr_hits, &prev->incr_misses);
+    submit_gauge("percent", "incr_hitratio", ratio, st);
     submit_derive("memcached_ops", "incr", incr_hits + incr_misses, st);
   }
 
   if (!isnan(decr_hits) && !isnan(decr_misses) &&
       (decr_hits + decr_misses > 0)) {
-    gauge_t rate = calculate_rate2(decr_hits, decr_misses, &prev->decr_hits,
-                                   &prev->decr_misses);
-    submit_gauge("percent", "decr_hitratio", rate, st);
+    gauge_t ratio = calculate_ratio_percent2(
+        decr_hits, decr_misses, &prev->decr_hits, &prev->decr_misses);
+    submit_gauge("percent", "decr_hitratio", ratio, st);
     submit_derive("memcached_ops", "decr", decr_hits + decr_misses, st);
   }
 
@@ -664,7 +666,7 @@ static int memcached_set_defaults(memcached_t *st) {
 
   assert(st->connhost != NULL);
   assert(st->connport != NULL);
-  
+
   st->prev.hits = NAN;
   st->prev.gets = NAN;
   st->prev.incr_hits = NAN;
