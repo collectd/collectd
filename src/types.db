@@ -129,6 +129,7 @@ latency                 value:GAUGE:0:U
 links                   value:GAUGE:0:U
 load                    shortterm:GAUGE:0:5000, midterm:GAUGE:0:5000, longterm:GAUGE:0:5000
 memory_bandwidth        value:DERIVE:0:U
+memory_maps             value:GAUGE:0:U
 md_disks                value:GAUGE:0:U
 memcached_command       value:DERIVE:0:U
 memcached_connections   value:GAUGE:0:U
