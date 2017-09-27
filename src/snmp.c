@@ -1327,8 +1327,6 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
   status = 0;
   while (status == 0) {
-    int oid_list_todo_num;
-
     req = snmp_pdu_create(SNMP_MSG_GETNEXT);
     if (req == NULL) {
       ERROR("snmp plugin: snmp_pdu_create failed.");
@@ -1336,13 +1334,17 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       break;
     }
 
-    oid_list_todo_num = 0;
+    size_t oid_list_todo_num = 0;
+    size_t var_idx[oid_list_len];
+    memset(var_idx, 0, sizeof(var_idx));
+
     for (i = 0; i < oid_list_len; i++) {
       /* Do not rerequest already finished OIDs */
       if (!oid_list_todo[i])
         continue;
-      oid_list_todo_num++;
       snmp_add_null_var(req, oid_list[i].oid, oid_list[i].oid_len);
+      var_idx[oid_list_todo_num] = i;
+      oid_list_todo_num++;
     }
 
     if (oid_list_todo_num == 0) {
@@ -1386,6 +1388,39 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     if (vb == NULL) {
       status = -1;
       break;
+    }
+
+    if (res->errstat != SNMP_ERR_NOERROR) {
+      if (res->errindex != 0) {
+        /* Find the OID which caused error */
+        for (i = 1, vb = res->variables; vb != NULL && i != res->errindex;
+             vb = vb->next_variable, i++)
+          /* do nothing */;
+      }
+
+      if ((res->errindex == 0) || (vb == NULL)) {
+        ERROR("snmp plugin: host %s; data %s: response error: %s (%li) ",
+              host->name, data->name, snmp_errstring(res->errstat),
+              res->errstat);
+        status = -1;
+        break;
+      }
+
+      char oid_buffer[1024] = {0};
+      snprint_objid(oid_buffer, sizeof(oid_buffer) - 1, vb->name,
+                    vb->name_length);
+      NOTICE("snmp plugin: host %s; data %s: OID `%s` failed: %s", host->name,
+             data->name, oid_buffer, snmp_errstring(res->errstat));
+
+      /* Get value index from todo list and skip OID found */
+      assert(res->errindex <= oid_list_todo_num);
+      i = var_idx[res->errindex - 1];
+      assert(i < oid_list_len);
+      oid_list_todo[i] = 0;
+
+      snmp_free_pdu(res);
+      res = NULL;
+      continue;
     }
 
     for (vb = res->variables, i = 0; (vb != NULL);
