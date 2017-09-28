@@ -752,7 +752,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
   plugin_dispatch_values(&vl);
 
   if ((ps->io_rchar != -1) && (ps->io_wchar != -1)) {
-    sstrncpy(vl.type, "ps_disk_octets", sizeof(vl.type));
+    sstrncpy(vl.type, "io_octets", sizeof(vl.type));
     vl.values[0].derive = ps->io_rchar;
     vl.values[1].derive = ps->io_wchar;
     vl.values_len = 2;
@@ -775,7 +775,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
     plugin_dispatch_values(&vl);
   }
 
- if (ps->num_fd > 0) {
+  if (ps->num_fd > 0) {
     sstrncpy(vl.type, "file_handles", sizeof(vl.type));
     vl.values[0].gauge = ps->num_fd;
     vl.values_len = 1;
