@@ -461,6 +461,31 @@
 #      Type "bytes"
 #    </Key>
 #  </URL>
+## PHP-FPM status metrics
+#<URL "http://nginx-status/php-fpm-status?json">
+#  Plugin 'phpfpm'
+#  Instance 'main'
+#  <Key "accepted conn">
+#      Type "phpfpm_requests"
+#      Instance ""
+#  </Key>
+#  <Key "slow requests">
+#      Type "phpfpm_slow_requests"
+#      Instance ""
+#  </Key>
+#  <Key "listen queue">
+#      Type "phpfpm_listen_queue"
+#      Instance ""
+#  </Key>
+#  <Key "active processes">
+#      Type "phpfpm_processes"
+#      Instance "active"
+#  </Key>
+#  <Key "total processes">
+#      Type "phpfpm_processes"
+#      Instance "total"
+#  </Key>
+#</URL>
 #</Plugin>
 
 #<Plugin curl_xml>
