@@ -188,7 +188,10 @@ static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
   if (db->q_prep_areas)
     for (size_t i = 0; i < db->queries_num; ++i)
       udb_query_delete_preparation_area(db->q_prep_areas[i]);
-  free(db->q_prep_areas);
+  sfree(db->q_prep_areas);
+  /* N.B.: db->queries references objects "owned" by the global queries
+   * variable. Free the array here, but not the content. */
+  sfree(db->queries);
 
   sfree(db);
 } /* }}} void cdbi_database_free */
