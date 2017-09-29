@@ -783,7 +783,8 @@ static void ps_submit_proc_list(procstat_t *ps) {
   }
 
   if (ps->num_maps > 0) {
-    sstrncpy(vl.type, "memory_maps", sizeof(vl.type));
+    sstrncpy(vl.type, "file_handles", sizeof(vl.type));
+    sstrncpy(vl.type_instance, "mapped", sizeof(vl.type_instance));
     vl.values[0].gauge = ps->num_maps;
     vl.values_len = 1;
     plugin_dispatch_values(&vl);
