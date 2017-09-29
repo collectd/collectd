@@ -369,10 +369,16 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
 
   struct passwd *sp_ptr;
   struct passwd sp;
-  char nambuf[4096];
 
   if (pl->pid != 0)
     return (-1);
+
+  long int nambuf_size = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (nambuf_size <= 0)
+    nambuf_size = sysconf(_SC_PAGESIZE);
+  if (nambuf_size <= 0)
+    nambuf_size = 4096;
+  char nambuf[nambuf_size];
 
   if ((create_pipe(fd_pipe_in) == -1) || (create_pipe(fd_pipe_out) == -1) ||
       (create_pipe(fd_pipe_err) == -1))
@@ -406,7 +412,14 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
       struct group *gr_ptr = NULL;
       struct group gr;
 
-      status = getgrnam_r(pl->group, &gr, nambuf, sizeof(nambuf), &gr_ptr);
+      long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
+      if (grbuf_size <= 0)
+        grbuf_size = sysconf(_SC_PAGESIZE);
+      if (grbuf_size <= 0)
+        grbuf_size = 4096;
+      char grbuf[grbuf_size];
+
+      status = getgrnam_r(pl->group, &gr, grbuf, sizeof(grbuf), &gr_ptr);
       if (0 != status) {
         ERROR("exec plugin: Failed to get group information "
               "for group ``%s'': %s",

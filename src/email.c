@@ -403,8 +403,14 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   {
     struct group sg;
     struct group *grp;
-    char grbuf[4096];
     int status;
+
+    long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
+    if (grbuf_size <= 0)
+      grbuf_size = sysconf(_SC_PAGESIZE);
+    if (grbuf_size <= 0)
+      grbuf_size = 4096;
+    char grbuf[grbuf_size];
 
     grp = NULL;
     status = getgrnam_r(group, &sg, grbuf, sizeof(grbuf), &grp);

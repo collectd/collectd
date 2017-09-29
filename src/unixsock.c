@@ -134,7 +134,13 @@ static int us_open_socket(void) {
     const char *grpname;
     struct group *g;
     struct group sg;
-    char grbuf[4096];
+
+    long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
+    if (grbuf_size <= 0)
+      grbuf_size = sysconf(_SC_PAGESIZE);
+    if (grbuf_size <= 0)
+      grbuf_size = 4096;
+    char grbuf[grbuf_size];
 
     grpname = (sock_group != NULL) ? sock_group : COLLECTD_GRP_NAME;
     g = NULL;
