@@ -495,6 +495,7 @@
 #		</Result>
 #	</Query>
 #	<Database "customers_db">
+#		#Plugin "mycompany"
 #		Driver "mysql"
 #		DriverOption "host" "localhost"
 #		DriverOption "username" "collectd"
@@ -1045,6 +1046,7 @@
 #    </Result>
 #  </Query>
 #  <Database "product_information">
+#    #Plugin "warehouse"
 #    ConnectID "db01"
 #    Username "oracle"
 #    Password "secret"
@@ -1131,6 +1133,7 @@
 #		StoreRates true
 #	</Writer>
 #	<Database foo>
+#		#Plugin "kingdom"
 #		Host "hostname"
 #		Port "5432"
 #		User "username"
