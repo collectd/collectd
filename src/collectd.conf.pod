@@ -6743,6 +6743,7 @@ collected for these selected processes are:
  - number of processes
  - number of threads
  - number of open files (under Linux)
+ - number of memory mapped files (under Linux)
  - io data (where available)
  - context switches (under Linux)
  - minor and major pagefaults.
@@ -6762,6 +6763,12 @@ slashes.
 =item B<CollectContextSwitch> I<Boolean>
 
 Collect context switch of the process.
+
+=item B<CollectMemoryMaps> I<Boolean>
+
+Collect the number of memory mapped files of the process.
+The limit for this number is configured via F</proc/sys/vm/max_map_count> in
+the Linux kernel.
 
 =back
 

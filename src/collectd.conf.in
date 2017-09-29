@@ -1173,6 +1173,7 @@
 #<Plugin processes>
 #	CollectFileDescriptor true
 #	CollectContextSwitch true
+#	CollectMemoryMaps true
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
