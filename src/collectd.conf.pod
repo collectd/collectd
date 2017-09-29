@@ -1659,7 +1659,7 @@ The following options are valid within B<Page> blocks:
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting values.
-Defaults to 'curl'.
+Defaults to C<curl>.
 
 =item B<URL> I<URL>
 
@@ -1824,7 +1824,7 @@ host name setting.
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting values.
-Defaults to 'curl_json'.
+Defaults to C<curl_json>.
 
 =item B<Instance> I<Instance>
 
@@ -3715,7 +3715,7 @@ When connected to the memcached server, asks for the page I<Key>.
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting values.
-Defaults to 'memcachec'.
+Defaults to C<memcachec>.
 
 =item E<lt>B<Match>E<gt>
 
@@ -5842,7 +5842,7 @@ The address of the OVS DB server JSON-RPC interface used by the plugin. To
 enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
 option. See L<ovsdb-server(1)> for more details. The option may be either
 network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
-format. Defaults to B<'localhost'>.
+format. Defaults to C<localhost>.
 
 =item B<Port> I<service>
 
@@ -5908,7 +5908,7 @@ The address of the OVS DB server JSON-RPC interface used by the plugin. To
 enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
 option. See L<ovsdb-server(1)> for more details. The option may be either
 network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
-format. Defaults to B<'localhost'>.
+format. Defaults to C<localhost>.
 
 =item B<Port> I<service>
 
@@ -8003,7 +8003,7 @@ I<File> block but there can be multiple if you have multiple CSV files.
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting values.
-Defaults to 'tail_csv'.
+Defaults to C<tail_csv>.
 
 =item B<Instance> I<PluginInstance>
 
