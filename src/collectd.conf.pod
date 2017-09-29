@@ -2226,7 +2226,7 @@ the daemon. Other than that, that name is not used.
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting query results from
-this B<Database>. Defaults to 'dbi'.
+this B<Database>. Defaults to C<dbi>.
 
 =item B<Interval> I<Interval>
 
@@ -5797,7 +5797,7 @@ values submitted to the daemon. Other than that, that name is not used.
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting query results from
-this B<Database>. Defaults to 'oracle'.
+this B<Database>. Defaults to C<oracle>.
 
 =item B<ConnectID> I<ID>
 
@@ -6477,7 +6477,7 @@ transaction fails or if the database server crashes.
 =item B<Plugin> I<Plugin>
 
 Use I<Plugin> as the plugin name when submitting query results from
-this B<Database>. Defaults to 'postgresql'.
+this B<Database>. Defaults to C<postgresql>.
 
 =item B<Instance> I<name>
 
