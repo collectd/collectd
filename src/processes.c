@@ -804,20 +804,22 @@ static void ps_submit_proc_list(procstat_t *ps) {
     plugin_dispatch_values(&vl);
   }
 
-  DEBUG("name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; num_maps = %lu; "
-        "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
-        "vmem_code = %lu; "
-        "vmem_minflt_counter = %" PRIi64 "; vmem_majflt_counter = %" PRIi64 "; "
-        "cpu_user_counter = %" PRIi64 "; cpu_system_counter = %" PRIi64 "; "
-        "io_rchar = %" PRIi64 "; io_wchar = %" PRIi64 "; "
-        "io_syscr = %" PRIi64 "; io_syscw = %" PRIi64 "; "
-        "io_diskr = %" PRIi64 "; io_diskw = %" PRIi64 "; "
-        "cswitch_vol = %" PRIi64 "; cswitch_invol = %" PRIi64 ";",
-        ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->num_maps, ps->vmem_size,
-        ps->vmem_rss, ps->vmem_data, ps->vmem_code, ps->vmem_minflt_counter,
-        ps->vmem_majflt_counter, ps->cpu_user_counter, ps->cpu_system_counter,
-        ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw, ps->io_diskr,
-        ps->io_diskw, ps->cswitch_vol, ps->cswitch_invol);
+  DEBUG(
+      "name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; num_maps = %lu; "
+      "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+      "vmem_code = %lu; "
+      "vmem_minflt_counter = %" PRIi64 "; vmem_majflt_counter = %" PRIi64 "; "
+      "cpu_user_counter = %" PRIi64 "; cpu_system_counter = %" PRIi64 "; "
+      "io_rchar = %" PRIi64 "; io_wchar = %" PRIi64 "; "
+      "io_syscr = %" PRIi64 "; io_syscw = %" PRIi64 "; "
+      "io_diskr = %" PRIi64 "; io_diskw = %" PRIi64 "; "
+      "cswitch_vol = %" PRIi64 "; cswitch_invol = %" PRIi64 ";",
+      ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->num_maps,
+      ps->vmem_size, ps->vmem_rss, ps->vmem_data, ps->vmem_code,
+      ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
+      ps->cpu_system_counter, ps->io_rchar, ps->io_wchar, ps->io_syscr,
+      ps->io_syscw, ps->io_diskr, ps->io_diskw, ps->cswitch_vol,
+      ps->cswitch_invol);
 
 } /* void ps_submit_proc_list */
 
@@ -1041,7 +1043,7 @@ static int ps_count_maps(pid_t pid) {
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     if (strchr(buffer, '\n')) {
-      count ++;
+      count++;
     }
   } /* while (fgets) */
 

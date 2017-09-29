@@ -6732,8 +6732,8 @@ Collect context switch of the process.
 =item B<CollectMemoryMaps> I<Boolean>
 
 Collect the number of memory mapped files of the process.
-The limit for this number is configured via /proc/sys/vm/max_map_count in the 
-linux kernel.
+The limit for this number is configured via F</proc/sys/vm/max_map_count> in
+the Linux kernel.
 
 =back
 
