@@ -16,7 +16,7 @@
 #
 # - fetch the desired collectd release file from https://collectd.org/files/
 #   and save it in your ~/rpmbuild/SOURCES/ directory (or build your own out of
-#   the git repository: ./build.sh && ./configure && make dist-bzip2)
+#   the git repository: ./build.sh && ./configure && make dist)
 #
 # - copy this file in your ~/rpmbuild/SPECS/ directory. Make sure the
 #   "Version:" tag matches the version from the tarball.
