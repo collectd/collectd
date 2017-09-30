@@ -383,8 +383,6 @@ static int cx_handle_all_value_xpaths(xmlXPathContextPtr xpath_ctx, /* {{{ */
 static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                     cx_xpath_t *xpath, value_list_t *vl) {
 
-  memset(vl->type_instance, 0, sizeof(vl->type_instance));
-
   /* Handle type instance */
   if (xpath->instance != NULL) {
     char *node_value = cx_get_text_node_value(xpath_ctx, xpath->instance,
