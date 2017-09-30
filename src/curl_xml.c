@@ -664,13 +664,10 @@ static int cx_config_add_xpath(cx_t *db, oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  if (db->xpath_list == NULL) {
-    db->xpath_list = llist_create();
-    if (db->xpath_list == NULL) {
-      ERROR("curl_xml plugin: list creation failed.");
-      cx_xpath_free(xpath);
-      return -1;
-    }
+  if (xpath->values_len == 0) {
+    WARNING("curl_xml plugin: `ValuesFrom' missing in `xpath' block.");
+    cx_xpath_free(xpath);
+    return -1;
   }
 
   llentry_t *le = llentry_create(xpath->path, xpath);
@@ -784,8 +781,6 @@ static int cx_init_curl(cx_t *db) /* {{{ */
 
 static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
 {
-  int status = 0;
-
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("curl_xml plugin: The `URL' block "
             "needs exactly one string argument.");
@@ -798,20 +793,29 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
+  db->instance = strdup("default");
+  if (db->instance == NULL) {
+    ERROR("curl_xml plugin: strdup failed.");
+    sfree(db);
+    return -1;
+  }
+
+  db->xpath_list = llist_create();
+  if (db->xpath_list == NULL) {
+    ERROR("curl_xml plugin: list creation failed.");
+    sfree(db->instance);
+    sfree(db);
+    return -1;
+  }
+
   db->timeout = -1;
 
-  if (strcasecmp("URL", ci->key) == 0) {
-    status = cf_util_get_string(ci, &db->url);
-    if (status != 0) {
-      sfree(db);
-      return status;
-    }
-  } else {
-    ERROR("curl_xml plugin: cx_config: "
-          "Invalid key: %s",
-          ci->key);
-    cx_free(db);
-    return -1;
+  int status = cf_util_get_string(ci, &db->url);
+  if (status != 0) {
+    llist_destroy(db->xpath_list);
+    sfree(db->instance);
+    sfree(db);
+    return status;
   }
 
   /* Fill the `cx_t' structure.. */
@@ -859,37 +863,34 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
       break;
   }
 
-  if (status == 0) {
-    if (db->xpath_list == NULL) {
-      WARNING("curl_xml plugin: No (valid) `xpath' block "
-              "within `URL' block `%s'.",
-              db->url);
-      status = -1;
-    }
-    if (status == 0)
-      status = cx_init_curl(db);
+  if (status != 0) {
+    cx_free(db);
+    return status;
   }
 
-  /* If all went well, register this database for reading */
-  if (status == 0) {
-    if (db->instance == NULL)
-      db->instance = strdup("default");
-
-    DEBUG("curl_xml plugin: Registering new read callback: %s", db->instance);
-
-    char *cb_name = ssnprintf_alloc("curl_xml-%s-%s", db->instance, db->url);
-
-    plugin_register_complex_read(/* group = */ "curl_xml", cb_name, cx_read,
-                                 /* interval = */ 0,
-                                 &(user_data_t){
-                                     .data = db, .free_func = cx_free,
-                                 });
-    sfree(cb_name);
-  } else {
+  if (llist_size(db->xpath_list) == 0) {
+    WARNING("curl_xml plugin: No `xpath' block within `URL' block `%s'.",
+            db->url);
     cx_free(db);
     return -1;
   }
 
+  if (cx_init_curl(db) != 0) {
+    cx_free(db);
+    return -1;
+  }
+
+  /* If all went well, register this database for reading */
+  DEBUG("curl_xml plugin: Registering new read callback: %s", db->instance);
+
+  char *cb_name = ssnprintf_alloc("curl_xml-%s-%s", db->instance, db->url);
+
+  plugin_register_complex_read(/* group = */ "curl_xml", cb_name, cx_read,
+                               /* interval = */ 0,
+                               &(user_data_t){
+                                   .data = db, .free_func = cx_free,
+                               });
+  sfree(cb_name);
   return 0;
 } /* }}} int cx_config_add_url */
 
