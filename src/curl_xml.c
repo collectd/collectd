@@ -275,50 +275,62 @@ static int cx_if_not_text_node(xmlNodePtr node) /* {{{ */
   return -1;
 } /* }}} cx_if_not_text_node */
 
-static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
-                                        cx_xpath_t *xpath, const data_set_t *ds,
-                                        value_list_t *vl, int index) {
-  xmlXPathObjectPtr values_node_obj;
-  xmlNodeSetPtr values_node;
-  int tmp_size;
-  char *node_value;
-
-  values_node_obj = cx_evaluate_xpath(xpath_ctx, xpath->values[index].path);
+static char *cx_get_text_node_value(xmlXPathContextPtr xpath_ctx, /* {{{ */
+                                    char *expr, const char *from_option) {
+  xmlXPathObjectPtr values_node_obj = cx_evaluate_xpath(xpath_ctx, expr);
   if (values_node_obj == NULL)
-    return -1; /* Error already logged. */
+    return NULL; /* Error already logged. */
 
-  values_node = values_node_obj->nodesetval;
-  tmp_size = (values_node) ? values_node->nodeNr : 0;
+  xmlNodeSetPtr values_node = values_node_obj->nodesetval;
+  size_t tmp_size = (values_node) ? values_node->nodeNr : 0;
 
   if (tmp_size == 0) {
     WARNING("curl_xml plugin: "
-            "relative xpath expression \"%s\" doesn't match any of the nodes. "
-            "Skipping...",
-            xpath->values[index].path);
+            "relative xpath expression \"%s\" %sdoesn't match "
+            "any of the nodes.",
+            expr, (from_option == NULL) ? "" : from_option);
     xmlXPathFreeObject(values_node_obj);
-    return -1;
+    return NULL;
   }
 
   if (tmp_size > 1) {
     WARNING("curl_xml plugin: "
-            "relative xpath expression \"%s\" is expected to return "
-            "only one node. Skipping...",
-            xpath->values[index].path);
+            "relative xpath expression \"%s\" %sis expected to return "
+            "only one text node. Skipping the node.",
+            expr, (from_option == NULL) ? "" : from_option);
     xmlXPathFreeObject(values_node_obj);
-    return -1;
+    return NULL;
   }
 
   /* ignoring the element if other than textnode/attribute*/
   if (cx_if_not_text_node(values_node->nodeTab[0])) {
     WARNING("curl_xml plugin: "
-            "relative xpath expression \"%s\" is expected to return "
-            "only text/attribute node which is not the case. Skipping...",
-            xpath->values[index].path);
+            "relative xpath expression \"%s\" %sis expected to return "
+            "only text/attribute node which is not the case. "
+            "Skipping the node.",
+            expr, (from_option == NULL) ? "" : from_option);
     xmlXPathFreeObject(values_node_obj);
-    return -1;
+    return NULL;
   }
 
-  node_value = (char *)xmlNodeGetContent(values_node->nodeTab[0]);
+  char *node_value = (char *)xmlNodeGetContent(values_node->nodeTab[0]);
+
+  /* free up object */
+  xmlXPathFreeObject(values_node_obj);
+
+  return node_value;
+} /* }}} char * cx_get_text_node_value */
+
+static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
+                                        cx_xpath_t *xpath, const data_set_t *ds,
+                                        value_list_t *vl, int index) {
+
+  char *node_value = cx_get_text_node_value(
+      xpath_ctx, xpath->values[index].path, "from 'ValuesFrom' ");
+
+  if (node_value == NULL)
+    return -1;
+
   switch (ds->ds[index].type) {
   case DS_TYPE_COUNTER:
     vl->values[index].counter =
@@ -340,8 +352,6 @@ static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                               /* endptr = */ NULL);
   }
 
-  /* free up object */
-  xmlXPathFreeObject(values_node_obj);
   sfree(node_value);
 
   /* We have reached here which means that
@@ -373,128 +383,37 @@ static int cx_handle_all_value_xpaths(xmlXPathContextPtr xpath_ctx, /* {{{ */
 static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                     cx_xpath_t *xpath, value_list_t *vl) {
 
-  xmlXPathObjectPtr instance_node_obj = NULL;
-  xmlNodeSetPtr instance_node = NULL;
-
   memset(vl->type_instance, 0, sizeof(vl->type_instance));
 
-  /* instance has to be an xpath expression */
+  /* Handle type instance */
   if (xpath->instance != NULL) {
-    int tmp_size;
-
-    instance_node_obj = cx_evaluate_xpath(xpath_ctx, xpath->instance);
-    if (instance_node_obj == NULL)
-      return -1; /* error is logged already */
-
-    instance_node = instance_node_obj->nodesetval;
-    tmp_size = (instance_node) ? instance_node->nodeNr : 0;
-
-    if (tmp_size <= 0) {
-      WARNING(
-          "curl_xml plugin: "
-          "relative xpath expression for 'InstanceFrom' \"%s\" doesn't match "
-          "any of the nodes. Skipping the node.",
-          xpath->instance);
-      xmlXPathFreeObject(instance_node_obj);
+    char *node_value = cx_get_text_node_value(xpath_ctx, xpath->instance,
+                                              "from 'InstanceFrom' ");
+    if (node_value == NULL)
       return -1;
-    }
 
-    if (tmp_size > 1) {
-      WARNING("curl_xml plugin: "
-              "relative xpath expression for 'InstanceFrom' \"%s\" is expected "
-              "to return only one text node. Skipping the node.",
-              xpath->instance);
-      xmlXPathFreeObject(instance_node_obj);
-      return -1;
-    }
-
-    /* ignoring the element if other than textnode/attribute */
-    if (cx_if_not_text_node(instance_node->nodeTab[0])) {
-      WARNING("curl_xml plugin: "
-              "relative xpath expression \"%s\" is expected to return only "
-              "text node "
-              "which is not the case. Skipping the node.",
-              xpath->instance);
-      xmlXPathFreeObject(instance_node_obj);
-      return -1;
-    }
-  } /* if (xpath->instance != NULL) */
-
-  if (xpath->instance_prefix != NULL) {
-    if (instance_node != NULL) {
-      char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
+    if (xpath->instance_prefix != NULL)
       snprintf(vl->type_instance, sizeof(vl->type_instance), "%s%s",
                xpath->instance_prefix, node_value);
-      sfree(node_value);
-    } else
-      sstrncpy(vl->type_instance, xpath->instance_prefix,
-               sizeof(vl->type_instance));
-  } else {
-    /* If instance_prefix and instance_node are NULL, then
-     * don't set the type_instance */
-    if (instance_node != NULL) {
-      char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
+    else
       sstrncpy(vl->type_instance, node_value, sizeof(vl->type_instance));
-      sfree(node_value);
-    }
-  }
 
-  /* Free `instance_node_obj' this late, because `instance_node' points to
-   * somewhere inside this structure. */
-  xmlXPathFreeObject(instance_node_obj);
+    sfree(node_value);
+  } else if (xpath->instance_prefix != NULL)
+    sstrncpy(vl->type_instance, xpath->instance_prefix,
+             sizeof(vl->type_instance));
 
-  /* Part 2, handle PluginInstanceFrom */
-  instance_node_obj = NULL;
-  instance_node = NULL;
-
-  /* plugin_instance_from has to be an xpath expression */
+  /* Handle plugin instance */
   if (xpath->plugin_instance_from != NULL) {
-    instance_node_obj =
-        cx_evaluate_xpath(xpath_ctx, xpath->plugin_instance_from);
-    if (instance_node_obj == NULL)
-      return -1; /* error is already logged */
+    char *node_value = cx_get_text_node_value(
+        xpath_ctx, xpath->plugin_instance_from, "from 'PluginInstanceFrom' ");
 
-    instance_node = instance_node_obj->nodesetval;
-    int tmp_size = (instance_node) ? instance_node->nodeNr : 0;
-
-    if (tmp_size <= 0) {
-      WARNING("curl_xml plugin: "
-              "relative xpath expression for 'PluginInstanceFrom' \"%s\" "
-              "doesn't match any of the nodes. Skipping the node.",
-              xpath->plugin_instance_from);
-      xmlXPathFreeObject(instance_node_obj);
+    if (node_value == NULL)
       return -1;
-    }
 
-    if (tmp_size > 1) {
-      WARNING("curl_xml plugin: "
-              "relative xpath expression for 'PluginInstanceFrom' \"%s\" "
-              "is expected to return only one text node. Skipping the node.",
-              xpath->plugin_instance_from);
-      xmlXPathFreeObject(instance_node_obj);
-      return -1;
-    }
-
-    /* ignoring the element if other than textnode/attribute */
-    if (cx_if_not_text_node(instance_node->nodeTab[0])) {
-      WARNING("curl_xml plugin: "
-              "relative xpath expression \"%s\" is expected to return only "
-              "text node which is not the case. Skipping the node.",
-              xpath->plugin_instance_from);
-      xmlXPathFreeObject(instance_node_obj);
-      return -1;
-    }
-
-    if (instance_node != NULL) {
-      char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
-      sstrncpy(vl->plugin_instance, node_value, sizeof(vl->plugin_instance));
-      sfree(node_value);
-    }
-
-    /* Free `instance_node_obj' this late, because `instance_node' points to
-     * somewhere inside this structure. */
-    xmlXPathFreeObject(instance_node_obj);
-  } /* if (xpath->plugin_instance_from != NULL) */
+    sstrncpy(vl->plugin_instance, node_value, sizeof(vl->plugin_instance));
+    sfree(node_value);
+  }
 
   return 0;
 } /* }}} int cx_handle_instance_xpath */
