@@ -1927,16 +1927,16 @@ Within the B<URL> block the following options are accepted:
 Use I<Name> as the host name when submitting values. Defaults to the global
 host name setting.
 
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to 'curl_xml'.
+
 =item B<Instance> I<Instance>
 
 Use I<Instance> as the plugin instance when submitting values.
 May be overridden by B<PluginInstanceFrom> option inside B<XPath> blocks.
 Defaults to an empty string (no plugin instance).
-
-=item B<Plugin> I<Plugin>
-
-Use I<Plugin> as the plugin name when submitting values.
-Defaults to 'curl_xml'.
 
 =item B<Namespace> I<Prefix> I<URL>
 
@@ -2028,6 +2028,7 @@ number of XPath expressions must match the number of data sources in the
 I<type> specified with B<Type> (see above). Each XPath expression must return
 exactly one element. The element's value is then parsed as a number and used as
 value for the appropriate value in the value list dispatched to the daemon.
+This option is required.
 
 =back
 
