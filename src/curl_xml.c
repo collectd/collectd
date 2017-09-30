@@ -97,7 +97,7 @@ struct cx_s /* {{{ */
   size_t buffer_size;
   size_t buffer_fill;
 
-  llist_t *list; /* list of xpath blocks */
+  llist_t *xpath_list; /* list of xpath blocks */
 };
 typedef struct cx_s cx_t; /* }}} */
 
@@ -107,9 +107,8 @@ typedef struct cx_s cx_t; /* }}} */
 static size_t cx_curl_callback(void *buf, /* {{{ */
                                size_t size, size_t nmemb, void *user_data) {
   size_t len = size * nmemb;
-  cx_t *db;
 
-  db = user_data;
+  cx_t *db = user_data;
   if (db == NULL) {
     ERROR("curl_xml plugin: cx_curl_callback: "
           "user_data pointer is NULL.");
@@ -120,9 +119,7 @@ static size_t cx_curl_callback(void *buf, /* {{{ */
     return len;
 
   if ((db->buffer_fill + len) >= db->buffer_size) {
-    char *temp;
-
-    temp = realloc(db->buffer, db->buffer_fill + len + 1);
+    char *temp = realloc(db->buffer, db->buffer_fill + len + 1);
     if (temp == NULL) {
       ERROR("curl_xml plugin: realloc failed.");
       return 0;
@@ -152,17 +149,14 @@ static void cx_xpath_free(cx_xpath_t *xpath) /* {{{ */
   sfree(xpath);
 } /* }}} void cx_xpath_free */
 
-static void cx_list_free(llist_t *list) /* {{{ */
+static void cx_xpath_list_free(llist_t *list) /* {{{ */
 {
   llentry_t *le;
 
   le = llist_head(list);
   while (le != NULL) {
-    llentry_t *le_next;
+    llentry_t *le_next = le->next;
 
-    le_next = le->next;
-
-    sfree(le->key);
     cx_xpath_free(le->value);
 
     le = le_next;
@@ -186,8 +180,8 @@ static void cx_free(void *arg) /* {{{ */
     curl_easy_cleanup(db->curl);
   db->curl = NULL;
 
-  if (db->list != NULL)
-    cx_list_free(db->list);
+  if (db->xpath_list != NULL)
+    cx_xpath_list_free(db->xpath_list);
 
   sfree(db->buffer);
   sfree(db->instance);
@@ -254,13 +248,11 @@ static int cx_check_type(const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
   return 0;
 } /* }}} cx_check_type */
 
-static xmlXPathObjectPtr
-cx_evaluate_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
-                  xmlChar *expr) {
-  xmlXPathObjectPtr xpath_obj;
-
-  /* XXX: When to free this? */
-  xpath_obj = xmlXPathEvalExpression(BAD_CAST expr, xpath_ctx);
+static xmlXPathObjectPtr cx_evaluate_xpath(xmlXPathContextPtr xpath_ctx,
+                                           char *expr) /* {{{ */
+{
+  xmlXPathObjectPtr xpath_obj =
+      xmlXPathEvalExpression(BAD_CAST expr, xpath_ctx);
   if (xpath_obj == NULL) {
     WARNING("curl_xml plugin: "
             "Error unable to evaluate xpath expression \"%s\". Skipping...",
@@ -291,8 +283,7 @@ static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
   int tmp_size;
   char *node_value;
 
-  values_node_obj =
-      cx_evaluate_xpath(xpath_ctx, BAD_CAST xpath->values[index].path);
+  values_node_obj = cx_evaluate_xpath(xpath_ctx, xpath->values[index].path);
   if (values_node_obj == NULL)
     return -1; /* Error already logged. */
 
@@ -362,7 +353,6 @@ static int cx_handle_all_value_xpaths(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                       cx_xpath_t *xpath, const data_set_t *ds,
                                       value_list_t *vl) {
   value_t values[xpath->values_len];
-  int status;
 
   assert(xpath->values_len > 0);
   assert(xpath->values_len == vl->values_len);
@@ -370,8 +360,7 @@ static int cx_handle_all_value_xpaths(xmlXPathContextPtr xpath_ctx, /* {{{ */
   vl->values = values;
 
   for (size_t i = 0; i < xpath->values_len; i++) {
-    status = cx_handle_single_value_xpath(xpath_ctx, xpath, ds, vl, i);
-    if (status != 0)
+    if (cx_handle_single_value_xpath(xpath_ctx, xpath, ds, vl, i) != 0)
       return -1; /* An error has been printed. */
   }              /* for (i = 0; i < xpath->values_len; i++) */
 
@@ -393,7 +382,7 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
   if (xpath->instance != NULL) {
     int tmp_size;
 
-    instance_node_obj = cx_evaluate_xpath(xpath_ctx, BAD_CAST xpath->instance);
+    instance_node_obj = cx_evaluate_xpath(xpath_ctx, xpath->instance);
     if (instance_node_obj == NULL)
       return -1; /* error is logged already */
 
@@ -460,15 +449,13 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
 
   /* plugin_instance_from has to be an xpath expression */
   if (xpath->plugin_instance_from != NULL) {
-    int tmp_size;
-
-    instance_node_obj = cx_evaluate_xpath(xpath_ctx,
-                                          BAD_CAST xpath->plugin_instance_from);
+    instance_node_obj =
+        cx_evaluate_xpath(xpath_ctx, xpath->plugin_instance_from);
     if (instance_node_obj == NULL)
       return -1; /* error is already logged */
 
     instance_node = instance_node_obj->nodesetval;
-    tmp_size = (instance_node) ? instance_node->nodeNr : 0;
+    int tmp_size = (instance_node) ? instance_node->nodeNr : 0;
 
     if (tmp_size <= 0) {
       WARNING("curl_xml plugin: "
@@ -500,7 +487,7 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
 
     if (instance_node != NULL) {
       char *node_value = (char *)xmlNodeGetContent(instance_node->nodeTab[0]);
-      sstrncpy (vl->plugin_instance, node_value, sizeof(vl->plugin_instance));
+      sstrncpy(vl->plugin_instance, node_value, sizeof(vl->plugin_instance));
       sfree(node_value);
     }
 
@@ -512,44 +499,42 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
   return 0;
 } /* }}} int cx_handle_instance_xpath */
 
-static int cx_handle_base_xpath(const cx_t *db, /* {{{ */
-                                xmlXPathContextPtr xpath_ctx,
-                                const data_set_t *ds, char *base_xpath,
-                                cx_xpath_t *xpath) {
-  int total_nodes;
+static int cx_handle_xpath(const cx_t *db, /* {{{ */
+                           xmlXPathContextPtr xpath_ctx, cx_xpath_t *xpath) {
 
-  xmlXPathObjectPtr base_node_obj = NULL;
-  xmlNodeSetPtr base_nodes = NULL;
+  const data_set_t *ds = plugin_get_ds(xpath->type);
+  if (cx_check_type(ds, xpath) != 0)
+    return -1;
 
-  value_list_t vl = VALUE_LIST_INIT;
-
-  base_node_obj = cx_evaluate_xpath(xpath_ctx, BAD_CAST base_xpath);
+  xmlXPathObjectPtr base_node_obj = cx_evaluate_xpath(xpath_ctx, xpath->path);
   if (base_node_obj == NULL)
     return -1; /* error is logged already */
 
-  base_nodes = base_node_obj->nodesetval;
-  total_nodes = (base_nodes) ? base_nodes->nodeNr : 0;
+  xmlNodeSetPtr base_nodes = base_node_obj->nodesetval;
+  int total_nodes = (base_nodes) ? base_nodes->nodeNr : 0;
 
   if (total_nodes == 0) {
     ERROR("curl_xml plugin: "
           "xpath expression \"%s\" doesn't match any of the nodes. "
           "Skipping the xpath block...",
-          base_xpath);
+          xpath->path);
     xmlXPathFreeObject(base_node_obj);
     return -1;
   }
 
   /* If base_xpath returned multiple results, then */
-  /* InstanceFrom or PluginInstanceFrom in the xpath block is required */ 
-  if (total_nodes > 1 && xpath->instance == NULL
-      && xpath->plugin_instance_from == NULL) {
+  /* InstanceFrom or PluginInstanceFrom in the xpath block is required */
+  if (total_nodes > 1 && xpath->instance == NULL &&
+      xpath->plugin_instance_from == NULL) {
     ERROR("curl_xml plugin: "
           "InstanceFrom or PluginInstanceFrom is must in xpath block "
           "since the base xpath expression \"%s\" "
           "returned multiple results. Skipping the xpath block...",
-          base_xpath);
+          xpath->path);
     return -1;
   }
+
+  value_list_t vl = VALUE_LIST_INIT;
 
   /* set the values for the value_list */
   vl.values_len = ds->ds_num;
@@ -559,19 +544,15 @@ static int cx_handle_base_xpath(const cx_t *db, /* {{{ */
   sstrncpy(vl.host, cx_host(db), sizeof(vl.host));
 
   for (int i = 0; i < total_nodes; i++) {
-    int status;
-
     xpath_ctx->node = base_nodes->nodeTab[i];
 
     if (db->instance != NULL)
-      sstrncpy (vl.plugin_instance, db->instance, sizeof (vl.plugin_instance));
+      sstrncpy(vl.plugin_instance, db->instance, sizeof(vl.plugin_instance));
 
-    status = cx_handle_instance_xpath(xpath_ctx, xpath, &vl);
-    if (status != 0)
+    if (cx_handle_instance_xpath(xpath_ctx, xpath, &vl) != 0)
       continue; /* An error has already been reported. */
 
-    status = cx_handle_all_value_xpaths(xpath_ctx, xpath, ds, &vl);
-    if (status != 0)
+    if (cx_handle_all_value_xpaths(xpath_ctx, xpath, ds, &vl) != 0)
       continue; /* An error has been logged. */
   }             /* for (i = 0; i < total_nodes; i++) */
 
@@ -579,23 +560,17 @@ static int cx_handle_base_xpath(const cx_t *db, /* {{{ */
   xmlXPathFreeObject(base_node_obj);
 
   return 0;
-} /* }}} cx_handle_base_xpath */
+} /* }}} cx_handle_xpath */
 
-static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
-                                xmlXPathContextPtr xpath_ctx, cx_t *db) {
-  llentry_t *le;
-  const data_set_t *ds;
-  cx_xpath_t *xpath;
+static int cx_handle_parsed_xml(cx_t *db, xmlDocPtr doc, /* {{{ */
+                                xmlXPathContextPtr xpath_ctx) {
   int status = -1;
 
-  le = llist_head(db->list);
+  llentry_t *le = llist_head(db->xpath_list);
   while (le != NULL) {
-    /* get the ds */
-    xpath = (cx_xpath_t *)le->value;
-    ds = plugin_get_ds(xpath->type);
+    cx_xpath_t *xpath = (cx_xpath_t *)le->value;
 
-    if ((cx_check_type(ds, xpath) == 0) &&
-        (cx_handle_base_xpath(db, xpath_ctx, ds, le->key, xpath) == 0))
+    if (cx_handle_xpath(db, xpath_ctx, xpath) == 0)
       status = 0; /* we got atleast one success */
 
     le = le->next;
@@ -604,20 +579,16 @@ static int cx_handle_parsed_xml(xmlDocPtr doc, /* {{{ */
   return status;
 } /* }}} cx_handle_parsed_xml */
 
-static int cx_parse_stats_xml(xmlChar *xml, cx_t *db) /* {{{ */
+static int cx_parse_xml(cx_t *db, char *xml) /* {{{ */
 {
-  int status;
-  xmlDocPtr doc;
-  xmlXPathContextPtr xpath_ctx;
-
   /* Load the XML */
-  doc = xmlParseDoc(xml);
+  xmlDocPtr doc = xmlParseDoc(BAD_CAST xml);
   if (doc == NULL) {
     ERROR("curl_xml plugin: Failed to parse the xml document  - %s", xml);
     return -1;
   }
 
-  xpath_ctx = xmlXPathNewContext(doc);
+  xmlXPathContextPtr xpath_ctx = xmlXPathNewContext(doc);
   if (xpath_ctx == NULL) {
     ERROR("curl_xml plugin: Failed to create the xml context");
     xmlFreeDoc(doc);
@@ -626,7 +597,7 @@ static int cx_parse_stats_xml(xmlChar *xml, cx_t *db) /* {{{ */
 
   for (size_t i = 0; i < db->namespaces_num; i++) {
     cx_namespace_t const *ns = db->namespaces + i;
-    status =
+    int status =
         xmlXPathRegisterNs(xpath_ctx, BAD_CAST ns->prefix, BAD_CAST ns->url);
     if (status != 0) {
       ERROR("curl_xml plugin: "
@@ -638,25 +609,29 @@ static int cx_parse_stats_xml(xmlChar *xml, cx_t *db) /* {{{ */
     }
   }
 
-  status = cx_handle_parsed_xml(doc, xpath_ctx, db);
+  int status = cx_handle_parsed_xml(db, doc, xpath_ctx);
   /* Cleanup */
   xmlXPathFreeContext(xpath_ctx);
   xmlFreeDoc(doc);
   return status;
-} /* }}} cx_parse_stats_xml */
+} /* }}} cx_parse_xml */
 
-static int cx_curl_perform(cx_t *db, CURL *curl) /* {{{ */
+static int cx_read(user_data_t *ud) /* {{{ */
 {
-  int status;
+  if ((ud == NULL) || (ud->data == NULL)) {
+    ERROR("curl_xml plugin: cx_read: Invalid user data.");
+    return -1;
+  }
+
   long rc;
-  char *ptr;
   char *url;
+  cx_t *db = (cx_t *)ud->data;
 
   db->buffer_fill = 0;
 
   curl_easy_setopt(db->curl, CURLOPT_URL, db->url);
 
-  status = curl_easy_perform(curl);
+  int status = curl_easy_perform(db->curl);
   if (status != CURLE_OK) {
     ERROR("curl_xml plugin: curl_easy_perform failed with status %i: %s (%s)",
           status, db->curl_errbuf, db->url);
@@ -666,8 +641,8 @@ static int cx_curl_perform(cx_t *db, CURL *curl) /* {{{ */
     curl_stats_dispatch(db->stats, db->curl, cx_host(db), "curl_xml",
                         db->instance);
 
-  curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url);
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc);
+  curl_easy_getinfo(db->curl, CURLINFO_EFFECTIVE_URL, &url);
+  curl_easy_getinfo(db->curl, CURLINFO_RESPONSE_CODE, &rc);
 
   /* The response code is zero if a non-HTTP transport was used. */
   if ((rc != 0) && (rc != 200)) {
@@ -677,26 +652,10 @@ static int cx_curl_perform(cx_t *db, CURL *curl) /* {{{ */
     return -1;
   }
 
-  ptr = db->buffer;
-
-  status = cx_parse_stats_xml(BAD_CAST ptr, db);
+  status = cx_parse_xml(db, db->buffer);
   db->buffer_fill = 0;
 
   return status;
-} /* }}} int cx_curl_perform */
-
-static int cx_read(user_data_t *ud) /* {{{ */
-{
-  cx_t *db;
-
-  if ((ud == NULL) || (ud->data == NULL)) {
-    ERROR("curl_xml plugin: cx_read: Invalid user data.");
-    return -1;
-  }
-
-  db = (cx_t *)ud->data;
-
-  return cx_curl_perform(db, db->curl);
 } /* }}} int cx_read */
 
 /* Configuration handling functions {{{ */
@@ -734,18 +693,13 @@ static int cx_config_add_values(const char *name, cx_xpath_t *xpath, /* {{{ */
 
 static int cx_config_add_xpath(cx_t *db, oconfig_item_t *ci) /* {{{ */
 {
-  cx_xpath_t *xpath;
-  char *name;
-  llentry_t *le;
-  int status;
-
-  xpath = calloc(1, sizeof(*xpath));
+  cx_xpath_t *xpath = calloc(1, sizeof(*xpath));
   if (xpath == NULL) {
     ERROR("curl_xml plugin: calloc failed.");
     return -1;
   }
 
-  status = cf_util_get_string(ci, &xpath->path);
+  int status = cf_util_get_string(ci, &xpath->path);
   if (status != 0) {
     cx_xpath_free(xpath);
     return status;
@@ -793,37 +747,28 @@ static int cx_config_add_xpath(cx_t *db, oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  if (db->list == NULL) {
-    db->list = llist_create();
-    if (db->list == NULL) {
+  if (db->xpath_list == NULL) {
+    db->xpath_list = llist_create();
+    if (db->xpath_list == NULL) {
       ERROR("curl_xml plugin: list creation failed.");
       cx_xpath_free(xpath);
       return -1;
     }
   }
 
-  name = strdup(xpath->path);
-  if (name == NULL) {
-    ERROR("curl_xml plugin: strdup failed.");
-    cx_xpath_free(xpath);
-    return -1;
-  }
-
-  le = llentry_create(name, xpath);
+  llentry_t *le = llentry_create(xpath->path, xpath);
   if (le == NULL) {
     ERROR("curl_xml plugin: llentry_create failed.");
     cx_xpath_free(xpath);
-    sfree(name);
     return -1;
   }
 
-  llist_append(db->list, le);
+  llist_append(db->xpath_list, le);
   return 0;
 } /* }}} int cx_config_add_xpath */
 
 static int cx_config_add_namespace(cx_t *db, /* {{{ */
                                    oconfig_item_t *ci) {
-  cx_namespace_t *ns;
 
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_STRING) ||
       (ci->values[1].type != OCONFIG_TYPE_STRING)) {
@@ -832,8 +777,8 @@ static int cx_config_add_namespace(cx_t *db, /* {{{ */
     return EINVAL;
   }
 
-  ns = realloc(db->namespaces,
-               sizeof(*db->namespaces) * (db->namespaces_num + 1));
+  cx_namespace_t *ns = realloc(
+      db->namespaces, sizeof(*db->namespaces) * (db->namespaces_num + 1));
   if (ns == NULL) {
     ERROR("curl_xml plugin: realloc failed.");
     return ENOMEM;
@@ -922,7 +867,6 @@ static int cx_init_curl(cx_t *db) /* {{{ */
 
 static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
 {
-  cx_t *db;
   int status = 0;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
@@ -931,7 +875,7 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  db = calloc(1, sizeof(*db));
+  cx_t *db = calloc(1, sizeof(*db));
   if (db == NULL) {
     ERROR("curl_xml plugin: calloc failed.");
     return -1;
@@ -999,8 +943,8 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
   }
 
   if (status == 0) {
-    if (db->list == NULL) {
-      WARNING("curl_xml plugin: No (valid) `Key' block "
+    if (db->xpath_list == NULL) {
+      WARNING("curl_xml plugin: No (valid) `xpath' block "
               "within `URL' block `%s'.",
               db->url);
       status = -1;
@@ -1011,14 +955,12 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
 
   /* If all went well, register this database for reading */
   if (status == 0) {
-    char *cb_name;
-
     if (db->instance == NULL)
       db->instance = strdup("default");
 
     DEBUG("curl_xml plugin: Registering new read callback: %s", db->instance);
 
-    cb_name = ssnprintf_alloc("curl_xml-%s-%s", db->instance, db->url);
+    char *cb_name = ssnprintf_alloc("curl_xml-%s-%s", db->instance, db->url);
 
     plugin_register_complex_read(/* group = */ "curl_xml", cb_name, cx_read,
                                  /* interval = */ 0,
@@ -1038,19 +980,14 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
 
 static int cx_config(oconfig_item_t *ci) /* {{{ */
 {
-  int success;
-  int errors;
-  int status;
-
-  success = 0;
-  errors = 0;
+  int success = 0;
+  int errors = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("URL", child->key) == 0) {
-      status = cx_config_add_url(child);
-      if (status == 0)
+      if (cx_config_add_url(child) == 0)
         success++;
       else
         errors++;
