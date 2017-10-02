@@ -363,10 +363,10 @@ static int varnish_monitor(void *priv,
                                    "workspace_overflow", val);
 #if HAVE_VARNISH_V4
     else if (strcmp(name, "exp_mailed") == 0)
-      return varnish_submit_derive(conf->instance, "struct", "objects",
+      return varnish_submit_gauge(conf->instance, "struct", "objects",
                                   "exp_mailed", val);
     else if (strcmp(name, "exp_received") == 0)
-      return varnish_submit_derive(conf->instance, "struct", "objects",
+      return varnish_submit_gauge(conf->instance, "struct", "objects",
                                   "exp_received", val);
 #endif
   }
@@ -438,10 +438,10 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "ban", "total_operations",
                                    "obj_killed", val);
     else if (strcmp(name, "bans_persisted_bytes") == 0)
-      return varnish_submit_gauge(conf->instance, "ban", "total_bytes",
+      return varnish_submit_derive(conf->instance, "ban", "total_bytes",
                                    "persisted_bytes", val);
     else if (strcmp(name, "bans_persisted_fragmentation") == 0)
-      return varnish_submit_gauge(conf->instance, "ban", "total_bytes",
+      return varnish_submit_derive(conf->instance, "ban", "total_bytes",
                                    "persisted_fragmentation", val);
     else if (strcmp(name, "bans_tests_tested") == 0)
       return varnish_submit_derive(conf->instance, "ban", "total_operations",
@@ -658,7 +658,7 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "workers", "total_threads",
                                    "dropped", val);
     else if (strcmp(name, "thread_queue_len") == 0)
-      return varnish_submit_derive(conf->instance, "workers", "queue_length",
+      return varnish_submit_gauge(conf->instance, "workers", "queue_length",
                                    "threads", val);
     else if (strcmp(name, "n_wrk") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "threads",
@@ -746,7 +746,7 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "vbe", "connections",
                                   "c_conns", val);
     else if (strcmp(name, "req") == 0)
-      return varnish_submit_gauge(conf->instance, "vbe", "http_requests",
+      return varnish_submit_derive(conf->instance, "vbe", "http_requests",
                                   "b_reqs", val);
   }
 
@@ -772,7 +772,7 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, category,
                                    "total_bytes", "bytes_freed", val);
     else if (strcmp(name, "g_alloc") == 0)
-      return varnish_submit_gauge(conf->instance, category,
+      return varnish_submit_derive(conf->instance, category,
                                   "total_operations", "alloc_outstanding", val);
     else if (strcmp(name, "g_bytes") == 0)
       return varnish_submit_gauge(conf->instance, category, "bytes",
@@ -822,10 +822,10 @@ static int varnish_monitor(void *priv,
 
   if (conf->collect_lck) {
     if (strcmp(name, "creat") == 0)
-      return varnish_submit_derive(conf->instance, "lck", "objects",
+      return varnish_submit_gauge(conf->instance, "lck", "objects",
                                   "created", val);
     else if (strcmp(name, "destroy") == 0)
-      return varnish_submit_derive(conf->instance, "lck", "objects",
+      return varnish_submit_gauge(conf->instance, "lck", "objects",
                                   "destroyed", val);
     else if (strcmp(name, "locks") == 0)
       return varnish_submit_derive(conf->instance, "lck", "total_operations",
@@ -852,19 +852,19 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "mempool",
                                    "total_operations", "frees", val);
     else if (strcmp(name, "recycle") == 0)
-      return varnish_submit_derive(conf->instance, "mempool",
+      return varnish_submit_gauge(conf->instance, "mempool",
                                    "objects", "recycled", val);
     else if (strcmp(name, "timeout") == 0)
-      return varnish_submit_derive(conf->instance, "mempool",
+      return varnish_submit_gauge(conf->instance, "mempool",
                                    "objects", "timed_out", val);
     else if (strcmp(name, "toosmall") == 0)
-      return varnish_submit_derive(conf->instance, "mempool",
+      return varnish_submit_gauge(conf->instance, "mempool",
                                    "objects", "too_small", val);
     else if (strcmp(name, "surplus") == 0)
-      return varnish_submit_derive(conf->instance, "mempool",
+      return varnish_submit_gauge(conf->instance, "mempool",
                                    "objects", "surplus", val);
     else if (strcmp(name, "randry") == 0)
-      return varnish_submit_derive(conf->instance, "mempool",
+      return varnish_submit_gauge(conf->instance, "mempool",
                                    "objects", "ran_dry", val);
   }
 #endif
