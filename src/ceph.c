@@ -418,7 +418,7 @@ static void ceph_daemon_free(struct ceph_daemon *d) {
 }
 
 /* compact_ds_name removed the special characters ":", "_", "-" and "+" from the
- * intput string. Characters following these special characters are capitalized.
+ * input string. Characters following these special characters are capitalized.
  * Trailing "+" and "-" characters are replaces with the strings "Plus" and
  * "Minus". */
 static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
