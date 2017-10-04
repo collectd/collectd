@@ -157,13 +157,14 @@ static void cx_xpath_list_free(llist_t *list) /* {{{ */
   while (le != NULL) {
     llentry_t *le_next = le->next;
 
+    /* this also frees xpath->path used for le->key */
     cx_xpath_free(le->value);
 
     le = le_next;
   }
 
   llist_destroy(list);
-} /* }}} void cx_list_free */
+} /* }}} void cx_xpath_list_free */
 
 static void cx_free(void *arg) /* {{{ */
 {
@@ -286,18 +287,18 @@ static char *cx_get_text_node_value(xmlXPathContextPtr xpath_ctx, /* {{{ */
 
   if (tmp_size == 0) {
     WARNING("curl_xml plugin: "
-            "relative xpath expression \"%s\" %sdoesn't match "
+            "relative xpath expression \"%s\" from '%s' doesn't match "
             "any of the nodes.",
-            expr, (from_option == NULL) ? "" : from_option);
+            expr, from_option);
     xmlXPathFreeObject(values_node_obj);
     return NULL;
   }
 
   if (tmp_size > 1) {
     WARNING("curl_xml plugin: "
-            "relative xpath expression \"%s\" %sis expected to return "
+            "relative xpath expression \"%s\" from '%s' is expected to return "
             "only one text node. Skipping the node.",
-            expr, (from_option == NULL) ? "" : from_option);
+            expr, from_option);
     xmlXPathFreeObject(values_node_obj);
     return NULL;
   }
@@ -305,10 +306,10 @@ static char *cx_get_text_node_value(xmlXPathContextPtr xpath_ctx, /* {{{ */
   /* ignoring the element if other than textnode/attribute*/
   if (cx_if_not_text_node(values_node->nodeTab[0])) {
     WARNING("curl_xml plugin: "
-            "relative xpath expression \"%s\" %sis expected to return "
+            "relative xpath expression \"%s\" from '%s' is expected to return "
             "only text/attribute node which is not the case. "
             "Skipping the node.",
-            expr, (from_option == NULL) ? "" : from_option);
+            expr, from_option);
     xmlXPathFreeObject(values_node_obj);
     return NULL;
   }
@@ -326,7 +327,7 @@ static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                         value_list_t *vl, int index) {
 
   char *node_value = cx_get_text_node_value(
-      xpath_ctx, xpath->values[index].path, "from 'ValuesFrom' ");
+      xpath_ctx, xpath->values[index].path, "ValuesFrom");
 
   if (node_value == NULL)
     return -1;
@@ -385,8 +386,8 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
 
   /* Handle type instance */
   if (xpath->instance != NULL) {
-    char *node_value = cx_get_text_node_value(xpath_ctx, xpath->instance,
-                                              "from 'InstanceFrom' ");
+    char *node_value =
+        cx_get_text_node_value(xpath_ctx, xpath->instance, "InstanceFrom");
     if (node_value == NULL)
       return -1;
 
@@ -404,7 +405,7 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
   /* Handle plugin instance */
   if (xpath->plugin_instance_from != NULL) {
     char *node_value = cx_get_text_node_value(
-        xpath_ctx, xpath->plugin_instance_from, "from 'PluginInstanceFrom' ");
+        xpath_ctx, xpath->plugin_instance_from, "PluginInstanceFrom");
 
     if (node_value == NULL)
       return -1;
@@ -448,6 +449,7 @@ static int cx_handle_xpath(const cx_t *db, /* {{{ */
           "since the base xpath expression \"%s\" "
           "returned multiple results. Skipping the xpath block...",
           xpath->path);
+    xmlXPathFreeObject(base_node_obj);
     return -1;
   }
 

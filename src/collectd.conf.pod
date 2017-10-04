@@ -1902,6 +1902,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
        Type "magic_level"
        #InstancePrefix "prefix-"
        InstanceFrom "td[1]"
+       #PluginInstanceFrom "td[1]"
        ValuesFrom "td[2]/span[@class=\"level\"]"
      </XPath>
    </URL>
