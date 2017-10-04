@@ -466,6 +466,7 @@
 #<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
 #    Host "my_host"
+#    #Plugin "stats"
 #    Instance "some_instance"
 #    User "collectd"
 #    Password "thaiNg0I"
@@ -480,6 +481,7 @@
 #      Type "magic_level"
 #      #InstancePrefix "prefix-"
 #      InstanceFrom "td[1]"
+#      #PluginInstanceFrom "td[1]"
 #      ValuesFrom "td[2]/span[@class=\"level\"]"
 #    </XPath>
 #  </URL>
