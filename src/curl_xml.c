@@ -276,6 +276,9 @@ static int cx_if_not_text_node(xmlNodePtr node) /* {{{ */
   return -1;
 } /* }}} cx_if_not_text_node */
 
+/*
+ * Returned value should be freed with xmlFree().
+ */
 static char *cx_get_text_node_value(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                     char *expr, const char *from_option) {
   xmlXPathObjectPtr values_node_obj = cx_evaluate_xpath(xpath_ctx, expr);
@@ -353,7 +356,7 @@ static int cx_handle_single_value_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
                                               /* endptr = */ NULL);
   }
 
-  sfree(node_value);
+  xmlFree(node_value);
 
   /* We have reached here which means that
    * we have got something to work */
@@ -397,7 +400,7 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
     else
       sstrncpy(vl->type_instance, node_value, sizeof(vl->type_instance));
 
-    sfree(node_value);
+    xmlFree(node_value);
   } else if (xpath->instance_prefix != NULL)
     sstrncpy(vl->type_instance, xpath->instance_prefix,
              sizeof(vl->type_instance));
@@ -411,7 +414,7 @@ static int cx_handle_instance_xpath(xmlXPathContextPtr xpath_ctx, /* {{{ */
       return -1;
 
     sstrncpy(vl->plugin_instance, node_value, sizeof(vl->plugin_instance));
-    sfree(node_value);
+    xmlFree(node_value);
   }
 
   return 0;
