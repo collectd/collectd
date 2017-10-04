@@ -278,7 +278,8 @@ static int ceph_cb_number(void *ctx, const char *number_val,
 
   /* Special case for latency metrics. */
   if ((strcmp("avgcount", state->key) == 0) ||
-      (strcmp("sum", state->key) == 0)) {
+      (strcmp("sum", state->key) == 0) ||
+      (strcmp("avgtime",state->key) == 0)) {
     latency_type = 1;
 
     /* depth >= 2  =>  (stack[-1] != NULL && stack[-2] != NULL) */
@@ -913,27 +914,34 @@ static int node_handler_fetch_data(void *arg, const char *val,
       // return after saving avgcount - don't dispatch value
       // until latency calculation
       return 0;
-    } else {
-      double sum, result;
-      sscanf(val, "%lf", &sum);
-
+    } else if (vtmp->avgcount_exists == 0) {
       if (vtmp->avgcount == 0) {
         vtmp->avgcount = 1;
       }
-
-      /** User wants latency values as long run avg */
+      vtmp->avgcount_exists = 1;
+      // user wants latency values as long run avg
+      // skip this step
       if (long_run_latency_avg) {
-        result = (sum / vtmp->avgcount);
-      } else {
-        result = get_last_avg(vtmp->d, ds_name, vtmp->latency_index, sum,
-                              vtmp->avgcount);
-        if (result == -ENOMEM) {
-          return -ENOMEM;
-        }
+        return 0;
       }
-
+      double sum, result;
+      sscanf(val, "%lf", &sum);
+      result = get_last_avg(vtmp->d, ds_name, vtmp->latency_index, sum,
+                            vtmp->avgcount);
+      if (result == -ENOMEM) {
+        return -ENOMEM;
+      }
       uv.gauge = result;
+      vtmp->latency_index = (vtmp->latency_index + 1);
+    } else if (vtmp->avgcount_exists == 1 ) {
       vtmp->avgcount_exists = -1;
+      // skip this step if no need in long run latency
+      if (!long_run_latency_avg) {
+        return 0;
+      }
+      double result;
+      sscanf(val, "%lf", &result);
+      uv.gauge = result;
       vtmp->latency_index = (vtmp->latency_index + 1);
     }
     break;
