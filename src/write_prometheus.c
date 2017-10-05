@@ -731,6 +731,7 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 }
 /* }}} */
 
+#if MHD_VERSION >= 0x00090000
 static int prom_open_socket(int domain, struct sockaddr const *addr,
                             socklen_t addrlen) {
   int fd = socket(domain, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -788,6 +789,21 @@ static struct MHD_Daemon *prom_start_daemon() {
 
   return d;
 }
+#else /* if MHD_VERSION < 0x00090000 */
+static struct MHD_Daemon *prom_start_daemon() {
+  struct MHD_Daemon *d =
+      MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 0,
+                       /* MHD_AcceptPolicyCallback = */ NULL,
+                       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler,
+                       NULL, MHD_OPTION_END);
+  if (d == NULL) {
+    ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
+    return NULL;
+  }
+
+  return d;
+}
+#endif
 
 /*
  * collectd callbacks
