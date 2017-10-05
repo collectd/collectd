@@ -59,9 +59,12 @@ static int c_ipmi_init_in_progress = 0;
 static int c_ipmi_active = 0;
 static pthread_t thread_id = (pthread_t)0;
 
-static const char *config_keys[] = {"Sensor", "IgnoreSelected",
-                                    "NotifySensorAdd", "NotifySensorRemove",
-                                    "NotifySensorNotPresent", "SELEnabled",
+static const char *config_keys[] = {"Sensor",
+                                    "IgnoreSelected",
+                                    "NotifySensorAdd",
+                                    "NotifySensorRemove",
+                                    "NotifySensorNotPresent",
+                                    "SELEnabled",
                                     "SELClearEvent"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -119,7 +122,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
              list_item->sensor_name);
 
         if (c_ipmi_notify_notpresent) {
-          notification_t n = {NOTIF_WARNING, cdtime(), "", "", "ipmi", "", "", "", NULL};
+          notification_t n = {
+              NOTIF_WARNING, cdtime(), "", "", "ipmi", "", "", "", NULL};
 
           sstrncpy(n.host, hostname_g, sizeof(n.host));
           sstrncpy(n.type_instance, list_item->sensor_name,
@@ -167,8 +171,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
          list_item->sensor_name);
 
     if (c_ipmi_notify_notpresent) {
-      notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "",
-                          NULL};
+      notification_t n = {NOTIF_OKAY, cdtime(), "", "",  "ipmi",
+                          "",         "",       "", NULL};
 
       sstrncpy(n.host, hostname_g, sizeof(n.host));
       sstrncpy(n.type_instance, list_item->sensor_name,
@@ -382,8 +386,8 @@ static int sensor_list_remove(ipmi_sensor_t *sensor) {
   pthread_mutex_unlock(&sensor_list_lock);
 
   if (c_ipmi_notify_remove && c_ipmi_active) {
-    notification_t n = {NOTIF_WARNING, cdtime(), "", "",  "ipmi",
-                        "",            "",       "", NULL};
+    notification_t n = {NOTIF_WARNING, cdtime(), "", "", "ipmi", "", "", "",
+                        NULL};
 
     sstrncpy(n.host, hostname_g, sizeof(n.host));
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
@@ -526,7 +530,7 @@ static int sensor_threshold_event_handler(
     char buf[DATA_MAX_NAME_LEN] = {0};
     snprintf(buf, sizeof(buf), "0x%2.2x", raw_value);
     plugin_notification_meta_add_string(&n, "raw", buf);
-    } break;
+  } break;
   default:
     break;
   } /* switch (value_present) */
@@ -552,7 +556,7 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   /* From the IPMI specification Chapter 2: Events.
    * If a callback handles the event, then all future callbacks called due to
    * the event will receive a NULL for the event. So be ready to handle a NULL
-   * event in all your event handlers. A NULL may also be passed to an event 
+   * event in all your event handlers. A NULL may also be passed to an event
    * handler if the callback was not due to an event. */
   if (event == NULL)
     return (IPMI_EVENT_NOT_HANDLED);
@@ -623,8 +627,7 @@ static void entity_sensor_update_handler(
       if (status) {
         char buf[DATA_MAX_NAME_LEN] = {0};
         sensor_get_name(sensor, buf, sizeof(buf));
-        ERROR("Unable to add sensor %s event handler, status: %d", buf,
-              status);
+        ERROR("Unable to add sensor %s event handler, status: %d", buf, status);
       }
     }
   } else if (op == IPMI_DELETED) {
@@ -668,8 +671,7 @@ static void domain_entity_update_handler(
 static void smi_event_handler(ipmi_con_t __attribute__((unused)) *ipmi,
                               const ipmi_addr_t __attribute__((unused)) *addr,
                               unsigned int __attribute__((unused)) addr_len,
-                              ipmi_event_t *event,
-                              void *cb_data) {
+                              ipmi_event_t *event, void *cb_data) {
   unsigned int type = ipmi_event_get_type(event);
   ipmi_domain_t *domain = cb_data;
 
@@ -703,7 +705,7 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
 
   ipmi_con_t *smi_connection = user_data;
   status = smi_connection->add_event_handler(smi_connection, smi_event_handler,
-                                             (void*) domain);
+                                             (void *)domain);
 
   if (status != 0)
     c_ipmi_error("Failed to register smi event handler", status);
@@ -730,13 +732,13 @@ static int thread_init(os_handler_t **ret_os_handler) {
     return (-1);
   }
 
-  ipmi_open_option_t open_option[1] = {[0] = {.option = IPMI_OPEN_OPTION_ALL,
-                                              {.ival = 1}}};
+  ipmi_open_option_t open_option[1] = {
+      [0] = {.option = IPMI_OPEN_OPTION_ALL, {.ival = 1}}};
 
   status = ipmi_open_domain(
       "mydomain", &smi_connection, /* num_con = */ 1,
       domain_connection_change_handler,
-      /* user data = */ (void*) smi_connection,
+      /* user data = */ (void *)smi_connection,
       /* domain_fully_up_handler = */ NULL, /* user data = */ NULL, open_option,
       sizeof(open_option) / sizeof(open_option[0]), &domain_id);
   if (status != 0) {
