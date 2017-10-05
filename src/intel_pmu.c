@@ -285,22 +285,20 @@ static void pmu_submit_counter(int cpu, char *event, counter_t value,
   plugin_dispatch_values(&vl);
 }
 
-meta_data_t *pmu_event_get_meta(struct event *e, int cpu) {
+meta_data_t *pmu_meta_data_create(const struct efd *efd) {
   meta_data_t *meta = NULL;
 
   /* create meta data only if value was scaled */
-  if (e->efd[cpu].val[1] != e->efd[cpu].val[2] && e->efd[cpu].val[2]) {
+  if (efd->val[1] != efd->val[2] && efd->val[2]) {
     meta = meta_data_create();
     if (meta == NULL) {
       ERROR(PMU_PLUGIN ": meta_data_create failed.");
       return NULL;
     }
 
-    meta_data_add_unsigned_int(meta, "intel_pmu:raw_count", e->efd[cpu].val[0]);
-    meta_data_add_unsigned_int(meta, "intel_pmu:time_enabled",
-                               e->efd[cpu].val[1]);
-    meta_data_add_unsigned_int(meta, "intel_pmu:time_running",
-                               e->efd[cpu].val[2]);
+    meta_data_add_unsigned_int(meta, "intel_pmu:raw_count", efd->val[0]);
+    meta_data_add_unsigned_int(meta, "intel_pmu:time_enabled", efd->val[1]);
+    meta_data_add_unsigned_int(meta, "intel_pmu:time_running", efd->val[2]);
   }
 
   return meta;
@@ -329,7 +327,7 @@ static void pmu_dispatch_data(void) {
       all_value += value;
 
       /* get meta data with information about scaling */
-      meta_data_t *meta = pmu_event_get_meta(e, i);
+      meta_data_t *meta = pmu_meta_data_create(&e->efd[i]);
 
       /* dispatch per CPU value */
       pmu_submit_counter(i, e->event, value, meta);
