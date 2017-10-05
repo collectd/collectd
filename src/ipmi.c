@@ -67,11 +67,11 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist = NULL;
 
-static int c_ipmi_notify_add = 0;
-static int c_ipmi_notify_remove = 0;
-static int c_ipmi_notify_notpresent = 0;
-static int c_ipmi_sel_enabled = 0;
-static int c_ipmi_sel_clear_event = 0;
+static _Bool c_ipmi_notify_add = 0;
+static _Bool c_ipmi_notify_remove = 0;
+static _Bool c_ipmi_notify_notpresent = 0;
+static _Bool c_ipmi_sel_enabled = 0;
+static _Bool c_ipmi_sel_clear_event = 0;
 
 /*
  * Misc private functions
@@ -202,41 +202,44 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
   plugin_dispatch_values(&vl);
 } /* void sensor_read_handler */
 
-static void sensor_get_name(ipmi_sensor_t *sensor, char *buf, int buf_len) {
-  char buffer[DATA_MAX_NAME_LEN] = {0};
+static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
+  char temp[DATA_MAX_NAME_LEN] = {0};
   ipmi_entity_t *ent = ipmi_sensor_get_entity(sensor);
   const char *entity_id_string = ipmi_entity_get_entity_id_string(ent);
   char sensor_name[DATA_MAX_NAME_LEN] = "";
   char *sensor_name_ptr;
 
-  ipmi_sensor_get_name(sensor, buffer, sizeof(buffer));
-  buffer[sizeof(buffer) - 1] = 0;
+  if ((buffer == NULL) || (buf_len == 0))
+    return;
 
-  if (entity_id_string != NULL && strlen(buffer))
-    ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", buffer,
+  ipmi_sensor_get_name(sensor, temp, sizeof(temp));
+  temp[sizeof(temp) - 1] = 0;
+
+  if (entity_id_string != NULL && strlen(temp))
+    ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", temp,
               entity_id_string);
   else if (entity_id_string != NULL)
     sstrncpy(sensor_name, entity_id_string, sizeof(sensor_name));
   else
-    sstrncpy(sensor_name, buffer, sizeof(sensor_name));
+    sstrncpy(sensor_name, temp, sizeof(sensor_name));
 
-  if (strlen(buffer)) {
-    sstrncpy(buffer, sensor_name, sizeof(buffer));
-    sensor_name_ptr = strstr(buffer, ").");
+  if (strlen(temp)) {
+    sstrncpy(temp, sensor_name, sizeof(temp));
+    sensor_name_ptr = strstr(temp, ").");
     if (sensor_name_ptr != NULL) {
       /* If name is something like "foo (123).bar",
        * change that to "bar (123)".
        * Both, sensor_name_ptr and sensor_id_ptr point to memory within the
-       * `buffer' array, which holds a copy of the current `sensor_name'. */
+       * `temp' array, which holds a copy of the current `sensor_name'. */
       char *sensor_id_ptr;
 
       /* `sensor_name_ptr' points to ").bar". */
       sensor_name_ptr[1] = 0;
-      /* `buffer' holds "foo (123)\0bar\0". */
+      /* `temp' holds "foo (123)\0bar\0". */
       sensor_name_ptr += 2;
       /* `sensor_name_ptr' now points to "bar". */
 
-      sensor_id_ptr = strstr(buffer, "(");
+      sensor_id_ptr = strstr(temp, "(");
       if (sensor_id_ptr != NULL) {
         /* `sensor_id_ptr' now points to "(123)". */
         ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
@@ -245,9 +248,7 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buf, int buf_len) {
       /* else: don't touch sensor_name. */
     }
   }
-
-  assert(buf != NULL);
-  sstrncpy(buf, sensor_name, buf_len);
+  sstrncpy(buffer, sensor_name, buf_len);
 }
 
 static int sensor_list_add(ipmi_sensor_t *sensor) {
@@ -478,15 +479,6 @@ static int sensor_threshold_event_handler(
     enum ipmi_thresh_e threshold, enum ipmi_event_value_dir_e high_low,
     enum ipmi_value_present_e value_present, unsigned int raw_value,
     double value, void *cb_data, ipmi_event_t *event) {
-  notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
-  /* offset is a table index and it's represented as enum of strings that are
-     organized in the way - high and low for each threshold severity level */
-  unsigned int offset = (2 * threshold) + high_low;
-  unsigned int event_type = ipmi_sensor_get_event_reading_type(sensor);
-  unsigned int sensor_type = ipmi_sensor_get_sensor_type(sensor);
-  const char *event_state =
-      ipmi_get_reading_name(event_type, sensor_type, offset);
-  char buf[DATA_MAX_NAME_LEN] = {0};
 
   /* From the IPMI specification Chapter 2: Events.
    * If a callback handles the event, then all future callbacks called due to
@@ -496,23 +488,30 @@ static int sensor_threshold_event_handler(
   if (event == NULL)
     return (IPMI_EVENT_NOT_HANDLED);
 
-  sensor_get_name(sensor, buf, sizeof(buf));
-  sstrncpy(n.type_instance, buf, sizeof(n.type_instance));
+  /* offset is a table index and it's represented as enum of strings that are
+     organized in the way - high and low for each threshold severity level */
+  notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
+  unsigned int offset = (2 * threshold) + high_low;
+  unsigned int event_type = ipmi_sensor_get_event_reading_type(sensor);
+  unsigned int sensor_type = ipmi_sensor_get_sensor_type(sensor);
+  const char *event_state =
+      ipmi_get_reading_name(event_type, sensor_type, offset);
+  sensor_get_name(sensor, n.type_instance, sizeof(n.type_instance));
   if (value_present != IPMI_NO_VALUES_PRESENT)
     ssnprintf(n.message, sizeof(n.message),
-              "sensor %s received event: %s, value is %f", buf, event_state,
-              value);
+              "sensor %s received event: %s, value is %f", n.type_instance,
+              event_state, value);
   else
     ssnprintf(n.message, sizeof(n.message),
-              "sensor %s received event: %s, value not provided", buf,
-              event_state);
+              "sensor %s received event: %s, value not provided",
+              n.type_instance, event_state);
 
-  DEBUG("Threshold event received for sensor %s", buf);
+  DEBUG("Threshold event received for sensor %s", n.type_instance);
 
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.type, ipmi_sensor_get_sensor_type_string(sensor), sizeof(n.type));
   n.severity = sensor_convert_threshold_severity(threshold);
-  n.time = ipmi_event_get_timestamp(event);
+  n.time = NS_TO_CDTIME_T(ipmi_event_get_timestamp(event));
 
   plugin_notification_meta_add_string(&n, "severity",
                                       ipmi_get_threshold_string(threshold));
@@ -522,10 +521,12 @@ static int sensor_threshold_event_handler(
   switch (value_present) {
   case IPMI_BOTH_VALUES_PRESENT:
     plugin_notification_meta_add_double(&n, "val", value);
-  case IPMI_RAW_VALUE_PRESENT:
+    /* both values present, so fall-through to add raw value too */
+  case IPMI_RAW_VALUE_PRESENT: {
+    char buf[DATA_MAX_NAME_LEN] = {0};
     snprintf(buf, sizeof(buf), "0x%2.2x", raw_value);
     plugin_notification_meta_add_string(&n, "raw", buf);
-    break;
+    } break;
   default:
     break;
   } /* switch (value_present) */
@@ -533,6 +534,7 @@ static int sensor_threshold_event_handler(
   add_event_common_data(&n, sensor, dir, event);
 
   plugin_dispatch_notification(&n);
+  plugin_notification_meta_free(n.meta);
 
   /* Delete handled ipmi event from the list */
   if (c_ipmi_sel_clear_event) {
@@ -547,13 +549,6 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
                                          enum ipmi_event_dir_e dir, int offset,
                                          int severity, int prev_severity,
                                          void *cb_data, ipmi_event_t *event) {
-  notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
-  unsigned int event_type = ipmi_sensor_get_event_reading_type(sensor);
-  unsigned int sensor_type = ipmi_sensor_get_sensor_type(sensor);
-  const char *event_state =
-      ipmi_get_reading_name(event_type, sensor_type, offset);
-  char buf[DATA_MAX_NAME_LEN] = {0};
-
   /* From the IPMI specification Chapter 2: Events.
    * If a callback handles the event, then all future callbacks called due to
    * the event will receive a NULL for the event. So be ready to handle a NULL
@@ -562,16 +557,20 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   if (event == NULL)
     return (IPMI_EVENT_NOT_HANDLED);
 
-  sensor_get_name(sensor, buf, sizeof(buf));
-  sstrncpy(n.type_instance, buf, sizeof(n.type_instance));
-  ssnprintf(n.message, sizeof(n.message), "sensor %s received event: %s", buf,
-            event_state);
+  notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
+  unsigned int event_type = ipmi_sensor_get_event_reading_type(sensor);
+  unsigned int sensor_type = ipmi_sensor_get_sensor_type(sensor);
+  const char *event_state =
+      ipmi_get_reading_name(event_type, sensor_type, offset);
+  sensor_get_name(sensor, n.type_instance, sizeof(n.type_instance));
+  ssnprintf(n.message, sizeof(n.message), "sensor %s received event: %s",
+            n.type_instance, event_state);
 
-  DEBUG("Discrete event received for sensor %s", buf);
+  DEBUG("Discrete event received for sensor %s", n.type_instance);
 
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.type, ipmi_sensor_get_sensor_type_string(sensor), sizeof(n.type));
-  n.time = ipmi_event_get_timestamp(event);
+  n.time = NS_TO_CDTIME_T(ipmi_event_get_timestamp(event));
 
   plugin_notification_meta_add_signed_int(&n, "offset", offset);
 
@@ -584,6 +583,7 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   add_event_common_data(&n, sensor, dir, event);
 
   plugin_dispatch_notification(&n);
+  plugin_notification_meta_free(n.meta);
 
   /* Delete handled ipmi event from the list */
   if (c_ipmi_sel_clear_event) {
@@ -647,7 +647,7 @@ static void entity_sensor_update_handler(
  */
 static void domain_entity_update_handler(
     enum ipmi_update_e op, ipmi_domain_t __attribute__((unused)) * domain,
-    ipmi_entity_t * entity, void __attribute__((unused)) * user_data) {
+    ipmi_entity_t *entity, void __attribute__((unused)) * user_data) {
   int status;
 
   if (op == IPMI_ADDED) {
@@ -777,25 +777,17 @@ static int c_ipmi_config(const char *key, const char *value) {
   if (strcasecmp("Sensor", key) == 0) {
     ignorelist_add(ignorelist, value);
   } else if (strcasecmp("IgnoreSelected", key) == 0) {
-    int invert = 1;
-    if (IS_TRUE(value))
-      invert = 0;
-    ignorelist_set_invert(ignorelist, invert);
+    ignorelist_set_invert(ignorelist, !IS_TRUE(value));
   } else if (strcasecmp("NotifySensorAdd", key) == 0) {
-    if (IS_TRUE(value))
-      c_ipmi_notify_add = 1;
+    c_ipmi_notify_add = IS_TRUE(value);
   } else if (strcasecmp("NotifySensorRemove", key) == 0) {
-    if (IS_TRUE(value))
-      c_ipmi_notify_remove = 1;
+    c_ipmi_notify_remove = IS_TRUE(value);
   } else if (strcasecmp("NotifySensorNotPresent", key) == 0) {
-    if (IS_TRUE(value))
-      c_ipmi_notify_notpresent = 1;
+    c_ipmi_notify_notpresent = IS_TRUE(value);
   } else if (strcasecmp("SELEnabled", key) == 0) {
-    if (IS_TRUE(value))
-      c_ipmi_sel_enabled = 1;
+    c_ipmi_sel_enabled = IS_TRUE(value);
   } else if (strcasecmp("SELClearEvent", key) == 0) {
-    if (IS_TRUE(value))
-      c_ipmi_sel_clear_event = 1;
+    c_ipmi_sel_clear_event = IS_TRUE(value);
   } else {
     return (-1);
   }
