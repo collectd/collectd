@@ -36,6 +36,10 @@
 
 #include <microhttpd.h>
 
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
 #ifndef PROMETHEUS_DEFAULT_STALENESS_DELTA
 #define PROMETHEUS_DEFAULT_STALENESS_DELTA TIME_T_TO_CDTIME_T_STATIC(300)
 #endif
@@ -727,6 +731,64 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 }
 /* }}} */
 
+static int prom_open_socket(int domain, struct sockaddr const *addr,
+                            socklen_t addrlen) {
+  int fd = socket(domain, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  if (fd == -1)
+    return errno;
+
+  if (bind(fd, addr, addrlen) != 0) {
+    close(fd);
+    return -1;
+  }
+
+  if (listen(fd, /* backlog = */ 16) != 0) {
+    close(fd);
+    return -1;
+  }
+
+  return fd;
+}
+
+static struct MHD_Daemon *prom_start_daemon() {
+  struct sockaddr_in6 sa6 = {
+      .sin6_family = AF_INET6,
+      .sin6_port = htons(httpd_port),
+      .sin6_addr = IN6ADDR_ANY_INIT,
+  };
+  int fd = prom_open_socket(PF_INET6, (void *)&sa6, sizeof(sa6));
+
+  if (fd == -1) {
+    struct sockaddr_in sa4 = {
+        .sin_family = AF_INET,
+        .sin_port = htons(httpd_port),
+        .sin_addr =
+            {
+                .s_addr = INADDR_ANY,
+            },
+    };
+    fd = prom_open_socket(PF_INET, (void *)&sa4, sizeof(sa4));
+  }
+
+  if (fd == -1) {
+    ERROR("write_prometheus plugin: Opening a listening socket failed.");
+    return NULL;
+  }
+
+  struct MHD_Daemon *d =
+      MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 0,
+                       /* MHD_AcceptPolicyCallback = */ NULL,
+                       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler,
+                       NULL, MHD_OPTION_LISTEN_SOCKET, fd, MHD_OPTION_END);
+  if (d == NULL) {
+    ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
+    close(fd);
+    return NULL;
+  }
+
+  return d;
+}
+
 /*
  * collectd callbacks
  */
@@ -760,15 +822,7 @@ static int prom_init() {
   }
 
   if (httpd == NULL) {
-    unsigned int flags = MHD_USE_THREAD_PER_CONNECTION;
-#if MHD_VERSION >= 0x00093300
-    flags |= MHD_USE_DUAL_STACK;
-#endif
-
-    httpd = MHD_start_daemon(flags, httpd_port,
-                             /* MHD_AcceptPolicyCallback = */ NULL,
-                             /* MHD_AcceptPolicyCallback arg = */ NULL,
-                             http_handler, NULL, MHD_OPTION_END);
+    httpd = prom_start_daemon();
     if (httpd == NULL) {
       ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
       return -1;
