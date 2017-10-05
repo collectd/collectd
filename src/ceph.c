@@ -166,6 +166,13 @@ static struct ceph_daemon **g_daemons = NULL;
 /** Number of elements in g_daemons */
 static size_t g_num_daemons = 0;
 
+/** Next expected latency metric value */
+enum latency_loop_state {
+  CEPH_AVGCOUNT,
+  CEPH_SUM,
+  CEPH_AVGTIME,
+};
+
 /**
  * A set of data that we build up in memory while parsing the JSON.
  */
@@ -176,8 +183,8 @@ struct values_tmp {
   uint64_t avgcount;
   /** current index of counters - used to get type of counter */
   int index;
-  /** do we already have an avgcount for latency pair */
-  int avgcount_exists;
+  /** value we expect to get next when parsing latency metric */
+  enum latency_loop_state latency_next_metric;
   /**
    * similar to index, but current index of latency type counters -
    * used to get last poll data of counter
@@ -908,17 +915,17 @@ static int node_handler_fetch_data(void *arg, const char *val,
 
   switch (type) {
   case DSET_LATENCY:
-    if (vtmp->avgcount_exists == -1) {
+    if (vtmp->latency_next_metric == CEPH_AVGCOUNT) {
       sscanf(val, "%" PRIu64, &vtmp->avgcount);
-      vtmp->avgcount_exists = 0;
+      vtmp->latency_next_metric = CEPH_SUM;
       // return after saving avgcount - don't dispatch value
       // until latency calculation
       return 0;
-    } else if (vtmp->avgcount_exists == 0) {
+    } else if (vtmp->latency_next_metric == CEPH_SUM) {
       if (vtmp->avgcount == 0) {
         vtmp->avgcount = 1;
       }
-      vtmp->avgcount_exists = 1;
+      vtmp->latency_next_metric = CEPH_AVGTIME;
       // user wants latency values as long run avg
       // skip this step
       if (long_run_latency_avg) {
@@ -933,8 +940,8 @@ static int node_handler_fetch_data(void *arg, const char *val,
       }
       uv.gauge = result;
       vtmp->latency_index = (vtmp->latency_index + 1);
-    } else if (vtmp->avgcount_exists == 1 ) {
-      vtmp->avgcount_exists = -1;
+    } else if (vtmp->latency_next_metric == CEPH_AVGTIME) {
+      vtmp->latency_next_metric = CEPH_AVGCOUNT;
       // skip this step if no need in long run latency
       if (!long_run_latency_avg) {
         return 0;
@@ -1040,7 +1047,7 @@ static int cconn_process_data(struct cconn *io, yajl_struct *yajl,
            sizeof(vtmp->vlist.plugin_instance));
 
   vtmp->d = io->d;
-  vtmp->avgcount_exists = -1;
+  vtmp->latency_next_metric = CEPH_AVGCOUNT;
   vtmp->latency_index = 0;
   vtmp->index = 0;
   yajl->handler_arg = vtmp;
