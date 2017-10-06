@@ -3381,6 +3381,19 @@ If a sensor disappears a notification is sent.
 If you have for example dual power supply and one of them is (un)plugged then
 a notification is sent.
 
+=item B<SELEnabled> I<true>|I<false>
+
+If system event log (SEL) is enabled, plugin will listen for sensor threshold
+and discrete events. When event is received the notification is sent.
+Defaults to B<false>.
+
+=item B<SELClearEvent> I<true>|I<false>
+
+If SEL clear event is enabled, plugin will delete event from SEL list after
+it is received and successfully handled. In this case other tools that are
+subscribed for SEL events will receive an empty event.
+Defaults to B<false>.
+
 =back
 
 =head2 Plugin C<iptables>
