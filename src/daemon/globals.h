@@ -26,6 +26,14 @@
 
 #include <inttypes.h>
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
+#ifndef DATA_MAX_NAME_LEN
+#define DATA_MAX_NAME_LEN 128
+#endif
+
 /* Type for time as used by "utils_time.h" */
 typedef uint64_t cdtime_t;
 

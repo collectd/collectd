@@ -23,16 +23,16 @@
 
 #include "common.h"
 #include "globals.h"
-#include "plugin.h"
 
 void hostname_set(char const *hostname) {
   sstrncpy(hostname_g, hostname, sizeof(hostname_g));
 }
 
+/*
+ * Global variables
+ */
 char *hostname_g;
 cdtime_t interval_g;
-int  pidfile_from_cli = 0;
 int  timeout_g;
-#if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
-#endif /* HAVE_LIBKSTAT */
+

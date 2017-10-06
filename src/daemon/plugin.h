@@ -36,10 +36,6 @@
 
 #include <pthread.h>
 
-#ifndef DATA_MAX_NAME_LEN
-#define DATA_MAX_NAME_LEN 128
-#endif
-
 #define DS_TYPE_COUNTER 0
 #define DS_TYPE_GAUGE 1
 #define DS_TYPE_DERIVE 2

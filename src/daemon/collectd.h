@@ -186,10 +186,6 @@
 #include <sys/param.h>
 #endif
 
-#if HAVE_KSTAT_H
-#include <kstat.h>
-#endif
-
 #ifndef PACKAGE_NAME
 #define PACKAGE_NAME "collectd"
 #endif
