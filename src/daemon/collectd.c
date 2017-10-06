@@ -83,11 +83,11 @@ static int init_hostname(void) {
 
   str = global_option_get("Hostname");
   if ((str != NULL) && (str[0] != 0)) {
-    sstrncpy(hostname_g, str, hostname_g_size);
+    hostname_set(str);
     return 0;
   }
 
-  if (gethostname(hostname_g, hostname_g_size) != 0) {
+  if (gethostname(hostname_g, sizeof(hostname_g)) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
     return -1;
@@ -115,7 +115,7 @@ static int init_hostname(void) {
     if (ai_ptr->ai_canonname == NULL)
       continue;
 
-    sstrncpy(hostname_g, ai_ptr->ai_canonname, hostname_g_size);
+    hostname_set(ai_ptr->ai_canonname);
     break;
   }
 

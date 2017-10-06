@@ -21,13 +21,15 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
+#include "common.h"
 #include "globals.h"
 #include "plugin.h"
-/*
- * Global variables
- */
-char hostname_g[DATA_MAX_NAME_LEN];
-const int hostname_g_size = sizeof (hostname_g);
+
+void hostname_set(char const *hostname) {
+  sstrncpy(hostname_g, hostname, sizeof(hostname_g));
+}
+
+char *hostname_g;
 cdtime_t interval_g;
 int  pidfile_from_cli = 0;
 int  timeout_g;
