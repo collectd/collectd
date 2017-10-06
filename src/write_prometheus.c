@@ -36,6 +36,10 @@
 
 #include <microhttpd.h>
 
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
 #ifndef PROMETHEUS_DEFAULT_STALENESS_DELTA
 #define PROMETHEUS_DEFAULT_STALENESS_DELTA TIME_T_TO_CDTIME_T_STATIC(300)
 #endif
@@ -727,6 +731,90 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 }
 /* }}} */
 
+#if MHD_VERSION >= 0x00090000
+static int prom_open_socket(int addrfamily) {
+  /* {{{ */
+  char service[NI_MAXSERV];
+  snprintf(service, sizeof(service), "%hu", httpd_port);
+
+  struct addrinfo *res;
+  int status = getaddrinfo(NULL, service,
+                           &(struct addrinfo){
+                               .ai_flags = AI_PASSIVE | AI_ADDRCONFIG,
+                               .ai_family = addrfamily,
+                               .ai_socktype = SOCK_STREAM,
+                           },
+                           &res);
+  if (status != 0) {
+    return -1;
+  }
+
+  int fd = -1;
+  for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
+    fd = socket(ai->ai_family, ai->ai_socktype | SOCK_CLOEXEC, 0);
+    if (fd == -1)
+      continue;
+
+    if (bind(fd, ai->ai_addr, ai->ai_addrlen) != 0) {
+      close(fd);
+      fd = -1;
+      continue;
+    }
+
+    if (listen(fd, /* backlog = */ 16) != 0) {
+      close(fd);
+      fd = -1;
+      continue;
+    }
+
+    break;
+  }
+
+  freeaddrinfo(res);
+
+  return fd;
+} /* }}} int prom_open_socket */
+
+static struct MHD_Daemon *prom_start_daemon() {
+  /* {{{ */
+  int fd = prom_open_socket(PF_INET6);
+  if (fd == -1)
+    fd = prom_open_socket(PF_INET);
+  if (fd == -1) {
+    ERROR("write_prometheus plugin: Opening a listening socket failed.");
+    return NULL;
+  }
+
+  struct MHD_Daemon *d =
+      MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 0,
+                       /* MHD_AcceptPolicyCallback = */ NULL,
+                       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler,
+                       NULL, MHD_OPTION_LISTEN_SOCKET, fd, MHD_OPTION_END);
+  if (d == NULL) {
+    ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
+    close(fd);
+    return NULL;
+  }
+
+  return d;
+} /* }}} struct MHD_Daemon *prom_start_daemon */
+#else /* if MHD_VERSION < 0x00090000 */
+static struct MHD_Daemon *prom_start_daemon() {
+  /* {{{ */
+  struct MHD_Daemon *d =
+      MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 0,
+                       /* MHD_AcceptPolicyCallback = */ NULL,
+                       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler,
+                       NULL, MHD_OPTION_END);
+  if (d == NULL) {
+    ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
+    return NULL;
+  }
+
+  return d;
+} /* }}} struct MHD_Daemon *prom_start_daemon */
+#endif
+
 /*
  * collectd callbacks
  */
@@ -760,15 +848,7 @@ static int prom_init() {
   }
 
   if (httpd == NULL) {
-    unsigned int flags = MHD_USE_THREAD_PER_CONNECTION;
-#if MHD_VERSION >= 0x00093300
-    flags |= MHD_USE_DUAL_STACK;
-#endif
-
-    httpd = MHD_start_daemon(flags, httpd_port,
-                             /* MHD_AcceptPolicyCallback = */ NULL,
-                             /* MHD_AcceptPolicyCallback arg = */ NULL,
-                             http_handler, NULL, MHD_OPTION_END);
+    httpd = prom_start_daemon();
     if (httpd == NULL) {
       ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
       return -1;
