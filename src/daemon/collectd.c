@@ -81,13 +81,20 @@ static int init_hostname(void) {
   struct addrinfo *ai_list;
   int status;
 
+  long hostname_len = sysconf(_SC_HOST_NAME_MAX);
+  if (hostname_len == -1) {
+    hostname_len = NI_MAXHOST;
+  }
+  char hostname[hostname_len];
+  hostname_set(hostname);
+
   str = global_option_get("Hostname");
   if ((str != NULL) && (str[0] != 0)) {
     hostname_set(str);
     return 0;
   }
 
-  if (gethostname(hostname_g, sizeof(hostname_g)) != 0) {
+  if (gethostname(hostname, hostname_len) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
     return -1;
@@ -99,14 +106,14 @@ static int init_hostname(void) {
 
   struct addrinfo ai_hints = {.ai_flags = AI_CANONNAME};
 
-  status = getaddrinfo(hostname_g, NULL, &ai_hints, &ai_list);
+  status = getaddrinfo(hostname, NULL, &ai_hints, &ai_list);
   if (status != 0) {
     ERROR("Looking up \"%s\" failed. You have set the "
           "\"FQDNLookup\" option, but I cannot resolve "
           "my hostname to a fully qualified domain "
           "name. Please fix the network "
           "configuration.",
-          hostname_g);
+          hostname);
     return -1;
   }
 

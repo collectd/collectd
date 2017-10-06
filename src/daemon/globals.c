@@ -1,6 +1,6 @@
 /**
  * collectd - src/globals.c
- * Copyright (C) 2017  Florian octo Forster
+ * Copyright (C) 2017  Google LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,12 @@
 #endif
 
 void hostname_set(char const *hostname) {
-  sstrncpy(hostname_g, hostname, sizeof(hostname_g));
+  char *h = strdup(hostname);
+  if (h == NULL)
+    return;
+
+  free(hostname_g);
+  hostname_g = h;
 }
 
 /*

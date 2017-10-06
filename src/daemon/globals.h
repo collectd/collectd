@@ -1,6 +1,6 @@
 /**
  * collectd - src/globals.h
- * Copyright (C) 2017  Florian octo Forster
+ * Copyright (C) 2017  Google LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
