@@ -67,7 +67,7 @@ struct intel_pmu_ctx_s {
   _Bool hw_cache_events;
   _Bool kernel_pmu_events;
   _Bool sw_events;
-  char  event_list_fn[PATH_MAX];
+  char event_list_fn[PATH_MAX];
   char **hw_events;
   size_t hw_events_count;
   struct eventlist *event_list;
@@ -265,7 +265,8 @@ static int pmu_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static void pmu_submit_counter(int cpu, char *event, counter_t value) {
+static void pmu_submit_counter(int cpu, char *event, counter_t value,
+                               meta_data_t *meta) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.counter = value};
@@ -275,12 +276,34 @@ static void pmu_submit_counter(int cpu, char *event, counter_t value) {
   if (cpu == -1) {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
   } else {
+    vl.meta = meta;
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
   }
   sstrncpy(vl.type, "counter", sizeof(vl.type));
   sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
+}
+
+meta_data_t *pmu_meta_data_create(const struct efd *efd) {
+  meta_data_t *meta = NULL;
+
+  /* create meta data only if value was scaled */
+  if (efd->val[1] == efd->val[2] || !efd->val[2]) {
+    return NULL;
+  }
+
+  meta = meta_data_create();
+  if (meta == NULL) {
+    ERROR(PMU_PLUGIN ": meta_data_create failed.");
+    return NULL;
+  }
+
+  meta_data_add_unsigned_int(meta, "intel_pmu:raw_count", efd->val[0]);
+  meta_data_add_unsigned_int(meta, "intel_pmu:time_enabled", efd->val[1]);
+  meta_data_add_unsigned_int(meta, "intel_pmu:time_running", efd->val[2]);
+
+  return meta;
 }
 
 static void pmu_dispatch_data(void) {
@@ -297,17 +320,27 @@ static void pmu_dispatch_data(void) {
 
       event_enabled++;
 
+      /* If there are more events than counters, the kernel uses time
+       * multiplexing. With multiplexing, at the end of the run,
+       * the counter is scaled basing on total time enabled vs time running.
+       * final_count = raw_count * time_enabled/time_running
+       */
       uint64_t value = event_scaled_value(e, i);
       all_value += value;
 
+      /* get meta data with information about scaling */
+      meta_data_t *meta = pmu_meta_data_create(&e->efd[i]);
+
       /* dispatch per CPU value */
-      pmu_submit_counter(i, e->event, value);
+      pmu_submit_counter(i, e->event, value, meta);
+
+      meta_data_destroy(meta);
     }
 
     if (event_enabled > 0) {
       DEBUG(PMU_PLUGIN ": %-20s %'10lu", e->event, all_value);
       /* dispatch all CPU value */
-      pmu_submit_counter(-1, e->event, all_value);
+      pmu_submit_counter(-1, e->event, all_value, NULL);
     }
   }
 }
@@ -538,7 +571,6 @@ init_error:
   }
   sfree(g_ctx.hw_events);
   g_ctx.hw_events_count = 0;
-
 
   return ret;
 }
