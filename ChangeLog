@@ -1,3 +1,73 @@
+2017-10-06, Version 5.6.3
+	* collectd: support for boolean string config values has been
+	  reintroduced. Thanks to Sebastian Harl. #2083, #2098
+	* collectd: The capability checking has been changed to use
+	  "cap_get_proc()". Thanks to Marc Fournier. #2151
+	* Documentation: A section documenting ignore lists has been added to
+	  collectd.conf(5). Thanks to Florian Forster.
+	* AMQP plugin: The "ExchangeType" option is now also valid for
+	  publishers. Thanks to Florian Forster. #2286
+	* Apache, Ascent, BIND, cURL, cURL-JSON, cURL-XML, nginx, Write HTTP
+	  plugins: Handling of URLs that redirect elsewhere has been fixed.
+	  Thanks to Pavel Rochnyack. #2328
+	* BIND plugin: Fix parsing of the sample time provided by BIND.
+	  Previously, the time was assumed to be in the local time zone when in
+	  fact it was in UTC. Thanks to Ed Ravin. #1268
+	* BIND plugin: Memory leaks have been fixed. Thanks to Ruben Kerkhof.
+	  #2303
+	* Chrony plugin: Build flags have been fixed. Thanks to Thomas Jost and
+	  Marc Fournier. #2133
+	* cURL-JSON plugin: The timeout value has been changed to default to the
+	  collection interval. This fixes a regression. Thanks to Marc Fournier.
+	* cURL-JSON plugin: Handling of arrays has been fixed. Thanks to Florian
+	  Forster. #2266
+	* DBI plugin: Memory leaks at shutdown have been fixes. Thanks to Pavel
+	  Rochnyack and Florian Forster.
+	* E-Mail, Exec, UnixSock plugins: Group ID lookup on systems with many
+	  groups has been fixed. Thanks to Ruben Kerkhof and Florian Forster.
+	  #2208
+	* IPC plugin: A compilation error on AIX has been fixed. Thanks to Pavel
+	  Rochnyack. #2305
+	* LogFile plugin: If writing to the file fails, print log messages on
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* Log Logstash plugin: If writing the log entry fails, print it to
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* memcachec, Tail plugins: A resource leak in the matching
+	  infrastructure has been fixed. Thanks to Krzysztof Matczak. #2192
+	* MQTT plugin: Invalid symbols in topic names are now replaced and a
+	  resource leak has been fixed. Thanks to Denys Fedoryshchenko. #2123
+	* Network plugin: A potential endless-loop has been fixed. This can be
+	  triggered remotely by sending a signed network packet to a server
+	  which is not set up to check signatures. Thanks to Marcin Kozlowski
+	  and Pavel Rochnyack. #2174, #2233, CVE-2017-7401
+	* Network plugin: A use-after-free has been fixed. Thanks to Pavel
+	  Rochnyack. #2375
+	* Notify Email plugin: The plugin is no longer explicitly linked against
+	  libssl and libcrypto, relies on libesmtp being linked correctly.
+	  Thanks to Marc Fournier. Debian#852924
+	* NTPd plugin: Calculation of loop offset and error has been fixed.
+	  Thanks to Neil Wilson. #2188
+	* OpenLDAP plugin: An incorrect use of the ldap library, leading to a
+	  crash, has been fixed. Thanks to Marc Fournier. #2331
+	* Perl plugin: A potential double-free has been fixed. Thanks to Florian
+	  Forster. #2278
+	* Perl plugin: Print an error when an incorrect configuration is
+	  encountered. Thanks to Pavel Rochnyack. #927
+	* RRDtool plugin: Incorrect handling of the flushes timeout option has
+	  been fixed. Handling of the "RandomTimeout" has been fixed. Thanks to
+	  Pavel Rochnyack. #2363
+	* SMART plugin: Some warning messages have been removed and the code has
+	  been cleaned up. Thanks to Florian Forster. #2062
+	* SMART plugin: A check for the "CAP_SYS_RAWIO" capability has been
+	  added. Thanks to Marc Fournier.
+	* SNMP plugin: A double free has been fixed. Thanks to Pavel Rochnyack.
+	  #2291
+	* Write Graphite plugin: Error handling in the case that calculating a
+	  metric's rate fails has been improved. Previously, the raw counter
+	  values were sent to Graphite. Thanks to Iain Buclaw. #2209
+	* Write Kafka plugin: A 32 bit random number is now used when formatting
+	  a random key. Thanks to Florian Forster. #2074
+
 2016-11-30, Version 5.6.2
 	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not
 	  available on AIX. Thanks to Chao Yang.
