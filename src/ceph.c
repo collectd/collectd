@@ -166,13 +166,6 @@ static struct ceph_daemon **g_daemons = NULL;
 /** Number of elements in g_daemons */
 static size_t g_num_daemons = 0;
 
-/** Next expected latency metric value */
-enum latency_loop_state {
-  CEPH_AVGCOUNT,
-  CEPH_SUM,
-  CEPH_AVGTIME,
-};
-
 /**
  * A set of data that we build up in memory while parsing the JSON.
  */
@@ -183,8 +176,6 @@ struct values_tmp {
   uint64_t avgcount;
   /** current index of counters - used to get type of counter */
   int index;
-  /** value we expect to get next when parsing latency metric */
-  enum latency_loop_state latency_next_metric;
   /**
    * similar to index, but current index of latency type counters -
    * used to get last poll data of counter
@@ -268,7 +259,6 @@ static int ceph_cb_number(void *ctx, const char *number_val,
   yajl_struct *state = (yajl_struct *)ctx;
   char buffer[number_len + 1];
   char key[2 * DATA_MAX_NAME_LEN] = {0};
-  _Bool latency_type = 0;
   int status;
 
   memcpy(buffer, number_val, number_len);
@@ -283,45 +273,25 @@ static int ceph_cb_number(void *ctx, const char *number_val,
     BUFFER_ADD(key, state->stack[i]);
   }
 
-  /* Special case for latency metrics. */
-  if ((strcmp("avgcount", state->key) == 0) ||
-      (strcmp("sum", state->key) == 0) ||
-      (strcmp("avgtime",state->key) == 0)) {
-    latency_type = 1;
-
-    /* depth >= 2  =>  (stack[-1] != NULL && stack[-2] != NULL) */
-    assert((state->depth < 2) || ((state->stack[state->depth - 1] != NULL) &&
-                                  (state->stack[state->depth - 2] != NULL)));
-
-    /* Super-special case for filestore.journal_wr_bytes.avgcount: For
-     * some reason, Ceph schema encodes this as a count/sum pair while all
-     * other "Bytes" data (excluding used/capacity bytes for OSD space) uses
-     * a single "Derive" type. To spare further confusion, keep this KPI as
-     * the same type of other "Bytes". Instead of keeping an "average" or
-     * "rate", use the "sum" in the pair and assign that to the derive
-     * value. */
-    if (convert_special_metrics && (state->depth >= 2) &&
-        (strcmp("filestore", state->stack[state->depth - 2]) == 0) &&
-        (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0) &&
-        (strcmp("avgcount", state->key) == 0)) {
-      DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
-      return CEPH_CB_CONTINUE;
-    }
-  } else /* not a latency type */
-  {
-    BUFFER_ADD(key, ".");
-    BUFFER_ADD(key, state->key);
+  /* Super-special case for filestore.journal_wr_bytes.avgcount: For
+   * some reason, Ceph schema encodes this as a count/sum pair while all
+   * other "Bytes" data (excluding used/capacity bytes for OSD space) uses
+   * a single "Derive" type. To spare further confusion, keep this KPI as
+   * the same type of other "Bytes". Instead of keeping an "average" or
+   * "rate", use the "sum" in the pair and assign that to the derive
+   * value. */
+  if (convert_special_metrics && (state->depth >= 2) &&
+      (strcmp("filestore", state->stack[state->depth - 2]) == 0) &&
+      (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0) &&
+      (strcmp("avgcount", state->key) == 0)) {
+    DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
+    return CEPH_CB_CONTINUE;
   }
+
+  BUFFER_ADD(key, ".");
+  BUFFER_ADD(key, state->key);
 
   status = state->handler(state->handler_arg, buffer, key);
-  if ((status == RETRY_AVGCOUNT) && latency_type) {
-    /* Add previously skipped part of the key, either "avgcount" or "sum",
-     * and try again. */
-    BUFFER_ADD(key, ".");
-    BUFFER_ADD(key, state->key);
-
-    status = state->handler(state->handler_arg, buffer, key);
-  }
 
   if (status != 0) {
     ERROR("ceph plugin: JSON handler failed with status %d.", status);
@@ -515,6 +485,22 @@ static _Bool has_suffix(char const *str, char const *suffix) {
   return 0;
 }
 
+static int cut_suffix(char new_str[], size_t new_str_len, char const *str, char const *suffix) {
+
+  size_t str_len = strlen (str);
+  size_t suffix_len = strlen (suffix);
+
+  size_t offset = str_len - suffix_len + 1;
+
+  if (offset > new_str_len) {
+    offset = new_str_len;
+  }
+
+  sstrncpy(new_str,str,offset);
+
+  return 0;
+}
+
 /* count_parts returns the number of elements a "foo.bar.baz" style key has. */
 static size_t count_parts(char const *key) {
   size_t parts_num = 0;
@@ -530,18 +516,22 @@ static size_t count_parts(char const *key) {
  */
 static int parse_keys(char *buffer, size_t buffer_size, const char *key_str) {
   char tmp[2 * buffer_size];
+  size_t tmp_size = sizeof(tmp);
 
   if (buffer == NULL || buffer_size == 0 || key_str == NULL ||
       strlen(key_str) == 0)
     return EINVAL;
-
-  if ((count_parts(key_str) > 2) && has_suffix(key_str, ".type")) {
-    /* strip ".type" suffix iff the key has more than two parts. */
-    size_t sz = strlen(key_str) - strlen(".type") + 1;
-
-    if (sz > sizeof(tmp))
-      sz = sizeof(tmp);
-    sstrncpy(tmp, key_str, sz);
+/* Strip suffix if it is ".type" or one of latency metric suffix. */
+  if (count_parts(key_str) > 2) {
+    if (has_suffix(key_str, ".type")) {
+      cut_suffix(tmp, tmp_size, key_str, ".type");
+    } else if (has_suffix(key_str, ".avgcount")) {
+      cut_suffix(tmp, tmp_size, key_str, ".avgcount");
+    } else if (has_suffix(key_str, ".sum")) {
+      cut_suffix(tmp, tmp_size, key_str, ".sum");
+    } else if (has_suffix(key_str, ".avgtime")) {
+      cut_suffix(tmp, tmp_size, key_str, ".avgtime");
+    }
   } else {
     sstrncpy(tmp, key_str, sizeof(tmp));
   }
@@ -915,17 +905,15 @@ static int node_handler_fetch_data(void *arg, const char *val,
 
   switch (type) {
   case DSET_LATENCY:
-    if (vtmp->latency_next_metric == CEPH_AVGCOUNT) {
+    if (has_suffix(key, ".avgcount")) {
       sscanf(val, "%" PRIu64, &vtmp->avgcount);
-      vtmp->latency_next_metric = CEPH_SUM;
       // return after saving avgcount - don't dispatch value
       // until latency calculation
       return 0;
-    } else if (vtmp->latency_next_metric == CEPH_SUM) {
+    } else if (has_suffix(key, ".sum")) {
       if (vtmp->avgcount == 0) {
         vtmp->avgcount = 1;
       }
-      vtmp->latency_next_metric = CEPH_AVGTIME;
       // user wants latency values as long run avg
       // skip this step
       if (long_run_latency_avg) {
@@ -940,8 +928,7 @@ static int node_handler_fetch_data(void *arg, const char *val,
       }
       uv.gauge = result;
       vtmp->latency_index = (vtmp->latency_index + 1);
-    } else if (vtmp->latency_next_metric == CEPH_AVGTIME) {
-      vtmp->latency_next_metric = CEPH_AVGCOUNT;
+    } else if (has_suffix(key, ".avgtime")) {
       // skip this step if no need in long run latency
       if (!long_run_latency_avg) {
         return 0;
@@ -950,6 +937,9 @@ static int node_handler_fetch_data(void *arg, const char *val,
       sscanf(val, "%lf", &result);
       uv.gauge = result;
       vtmp->latency_index = (vtmp->latency_index + 1);
+    } else {
+      WARNING("ceph plugin: ignoring unknown latency metric: %s", key);
+      return 0;
     }
     break;
   case DSET_BYTES:
@@ -1047,7 +1037,6 @@ static int cconn_process_data(struct cconn *io, yajl_struct *yajl,
            sizeof(vtmp->vlist.plugin_instance));
 
   vtmp->d = io->d;
-  vtmp->latency_next_metric = CEPH_AVGCOUNT;
   vtmp->latency_index = 0;
   vtmp->index = 0;
   yajl->handler_arg = vtmp;
