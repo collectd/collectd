@@ -302,8 +302,6 @@ static int parse_values(void *payload, size_t payload_size,
   state->values = calloc(sizeof(*state->values), state->values_len);
   state->values_types = calloc(sizeof(*state->values_types), state->values_len);
   if ((state->values == NULL) || (state->values_types == NULL)) {
-    free(state->values);
-    free(state->values_types);
     return ENOMEM;
   }
 
@@ -556,6 +554,8 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
     case TYPE_VALUES: {
       lcc_value_list_t vl = state;
       if (parse_values(payload, sizeof(payload), &vl)) {
+        free(vl.values);
+        free(vl.values_types);
         DEBUG("lcc_network_parse(): parse_values failed.\n");
         return EINVAL;
       }
