@@ -24,6 +24,10 @@
 #include "common.h"
 #include "globals.h"
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 void hostname_set(char const *hostname) {
   sstrncpy(hostname_g, hostname, sizeof(hostname_g));
 }
@@ -34,5 +38,7 @@ void hostname_set(char const *hostname) {
 char *hostname_g;
 cdtime_t interval_g;
 int  timeout_g;
+#if HAVE_KSTAT_H
 kstat_ctl_t *kc;
+#endif
 
