@@ -226,11 +226,6 @@ static void cj_advance_array(cj_t *db) {
 #define CJ_CB_ABORT 0
 #define CJ_CB_CONTINUE 1
 
-static int cj_cb_boolean(void *ctx, int boolVal) {
-  cj_advance_array(ctx);
-  return CJ_CB_CONTINUE;
-}
-
 static int cj_cb_null(void *ctx) {
   cj_advance_array(ctx);
   return CJ_CB_CONTINUE;
@@ -291,6 +286,14 @@ static int cj_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
   /* Handle the string as if it was a number. */
   return cj_cb_number(ctx, (const char *)val, len);
 } /* int cj_cb_string */
+
+static int cj_cb_boolean(void *ctx, int boolVal) {
+  if (boolVal) {
+   return (cj_cb_number (ctx, "1", 1));
+  } else {
+   return (cj_cb_number (ctx, "0", 1));
+ }
+} /* int cj_cb_boolean */
 
 static int cj_cb_end(void *ctx) {
   cj_t *db = (cj_t *)ctx;
