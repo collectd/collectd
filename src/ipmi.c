@@ -902,10 +902,9 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
 } /* int c_ipmi_thread_init */
 
 static void *c_ipmi_thread_main(void *user_data) {
-  int status;
   c_ipmi_instance_t *st = (c_ipmi_instance_t *)user_data;
 
-  status = c_ipmi_thread_init(st);
+  int status = c_ipmi_thread_init(st);
   if (status != 0) {
     ERROR("ipmi plugin: c_ipmi_thread_init failed.");
     st->active = 0;
@@ -974,7 +973,7 @@ static void c_ipmi_free_instance(c_ipmi_instance_t *st) {
   sfree(st);
 } /* void c_ipmi_free_instance */
 
-void c_ipmi_add_instance(c_ipmi_instance_t *instance) {
+static void c_ipmi_add_instance(c_ipmi_instance_t *instance) {
   if (instances == NULL) {
     instances = instance;
     return;
@@ -986,8 +985,6 @@ void c_ipmi_add_instance(c_ipmi_instance_t *instance) {
     last = last->next;
 
   last->next = instance;
-
-  return;
 } /* void c_ipmi_add_instance */
 
 static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
@@ -1096,8 +1093,7 @@ static int c_ipmi_config(oconfig_item_t *ci) {
 } /* int c_ipmi_config */
 
 static int c_ipmi_read(user_data_t *user_data) {
-  c_ipmi_instance_t *st;
-  st = user_data->data;
+  c_ipmi_instance_t *st = user_data->data;
 
   if ((st->active == 0) || (st->thread_id == (pthread_t)0)) {
     INFO("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
