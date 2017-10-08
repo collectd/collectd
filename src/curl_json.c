@@ -288,11 +288,10 @@ static int cj_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
 } /* int cj_cb_string */
 
 static int cj_cb_boolean(void *ctx, int boolVal) {
-  if (boolVal) {
-   return (cj_cb_number (ctx, "1", 1));
-  } else {
-   return (cj_cb_number (ctx, "0", 1));
- }
+  if (boolVal)
+    return cj_cb_number(ctx, "1", 1);
+  else
+    return cj_cb_number(ctx, "0", 1);
 } /* int cj_cb_boolean */
 
 static int cj_cb_end(void *ctx) {
