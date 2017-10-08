@@ -3409,6 +3409,11 @@ If a sensor disappears a notification is sent.
 If you have for example dual power supply and one of them is (un)plugged then
 a notification is sent.
 
+=item B<NotifyIPMIConnectionState> I<true>|I<false>
+
+If a IPMI connection state changes after initialization time of a minute
+a notification is sent. Defaults to B<false>.
+
 =item B<SELEnabled> I<true>|I<false>
 
 If system event log (SEL) is enabled, plugin will listen for sensor threshold

@@ -50,6 +50,7 @@ struct c_ipmi_instance_s {
   _Bool notify_add;
   _Bool notify_remove;
   _Bool notify_notpresent;
+  _Bool notify_conn;
   _Bool sel_enabled;
   _Bool sel_clear_event;
 
@@ -828,8 +829,30 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
     c_ipmi_error(st, "domain_connection_change_handler", err);
 
   if (!still_connected) {
+
+    if (st->notify_conn && st->connected && st->init_in_progress == 0) {
+      notification_t n = {NOTIF_FAILURE, cdtime(), "", "", "ipmi", "", "", "",
+                          NULL};
+
+      sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
+               sizeof(n.host));
+      sstrncpy(n.message, "IPMI connection lost", sizeof(n.plugin));
+
+      plugin_dispatch_notification(&n);
+    }
+
     st->connected = 0;
     return;
+  }
+
+  if (st->notify_conn && !st->connected && st->init_in_progress == 0) {
+    notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
+
+    sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
+             sizeof(n.host));
+    sstrncpy(n.message, "IPMI connection restored", sizeof(n.plugin));
+
+    plugin_dispatch_notification(&n);
   }
 
   st->connected = 1;
@@ -1016,6 +1039,9 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
         ignorelist_set_invert(st->ignorelist, /* invert = */ 0);
       else
         ignorelist_set_invert(st->ignorelist, /* invert = */ 1);
+    } else if (strcasecmp("NotifyIPMIConnectionState", child->key) == 0) {
+      if (ci->values[0].value.boolean)
+        st->notify_conn = 1;
     } else if (strcasecmp("NotifySensorAdd", child->key) == 0) {
       if (ci->values[0].value.boolean)
         st->notify_add = 1;

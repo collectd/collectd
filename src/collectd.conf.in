@@ -683,6 +683,7 @@
 #		NotifySensorAdd false
 #		NotifySensorRemove true
 #		NotifySensorNotPresent false
+#		NotifyIPMIConnectionState false
 #		SELEnabled false
 #		SELClearEvent false
 #	</Instance>
@@ -698,6 +699,7 @@
 #		NotifySensorAdd false
 #		NotifySensorRemove true
 #		NotifySensorNotPresent false
+#		NotifyIPMIConnectionState false
 #		SELEnabled false
 #		SELClearEvent false
 #	</Instance>
