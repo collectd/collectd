@@ -175,7 +175,8 @@ static void cjo_release_buffercontent(cjo_membuffer_t *buf) {
 static void cjo_remember_value(cjo_membuffer_t *ShouldBeInHere,
                                cjo_membuffer_t *BufferHereIfNot,
                                const char *ptr, size_t len,
-                               const char **SetThisOne, size_t *SetThisLen) {
+                               const char **SetThisOne,
+			       yajl_len_t *SetThisLen) {
   if (!((ptr > ShouldBeInHere->buffer) &&
         (ptr < ShouldBeInHere->buffer + ShouldBeInHere->used))) {
     char *tptr;
@@ -185,7 +186,7 @@ static void cjo_remember_value(cjo_membuffer_t *ShouldBeInHere,
   }
 
   *SetThisOne = ptr;
-  *SetThisLen = len;
+  *SetThisLen = (yajl_len_t) len;
 }
 
 /*
