@@ -59,6 +59,7 @@ struct c_ipmi_instance_s {
   char *password;
   unsigned int authtype;
 
+  _Bool connected;
   ipmi_con_t *connection;
   pthread_mutex_t sensor_list_lock;
   c_ipmi_sensor_list_t *sensor_list;
@@ -90,7 +91,7 @@ static c_ipmi_instance_t *instances = NULL;
 /*
  * Misc private functions
  */
-static void c_ipmi_error(const char *func, int status) {
+static void c_ipmi_error(c_ipmi_instance_t *st, const char *func, int status) {
   char errbuf[4096] = {0};
 
   if (IPMI_IS_OS_ERR(status) || IPMI_IS_RMCPP_ERR(status) ||
@@ -103,7 +104,7 @@ static void c_ipmi_error(const char *func, int status) {
   }
   errbuf[sizeof(errbuf) - 1] = 0;
 
-  ERROR("ipmi plugin: %s failed: %s", func, errbuf);
+  ERROR("ipmi plugin: %s failed for `%s`: %s", func, st->name, errbuf);
 } /* void c_ipmi_error */
 
 static void c_ipmi_log(os_handler_t *handler, const char *format,
@@ -782,13 +783,13 @@ domain_entity_update_handler(enum ipmi_update_e op,
     status = ipmi_entity_add_sensor_update_handler(
         entity, entity_sensor_update_handler, /* user data = */ (void *)st);
     if (status != 0) {
-      c_ipmi_error("ipmi_entity_add_sensor_update_handler", status);
+      c_ipmi_error(st, "ipmi_entity_add_sensor_update_handler", status);
     }
   } else if (op == IPMI_DELETED) {
     status = ipmi_entity_remove_sensor_update_handler(
         entity, entity_sensor_update_handler, /* user data = */ (void *)st);
     if (status != 0) {
-      c_ipmi_error("ipmi_entity_remove_sensor_update_handler", status);
+      c_ipmi_error(st, "ipmi_entity_remove_sensor_update_handler", status);
     }
   }
 } /* void domain_entity_update_handler */
@@ -821,25 +822,29 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
         "user_data = %p);",
         (void *)domain, err, conn_num, port_num, still_connected, user_data);
 
-  if (err != 0)
-    c_ipmi_error("domain_connection_change_handler", err);
-
-  if (!still_connected)
-    return;
-
   c_ipmi_instance_t *st = (c_ipmi_instance_t *)user_data;
+
+  if (err != 0)
+    c_ipmi_error(st, "domain_connection_change_handler", err);
+
+  if (!still_connected) {
+    st->connected = 0;
+    return;
+  }
+
+  st->connected = 1;
 
   int status = ipmi_domain_add_entity_update_handler(
       domain, domain_entity_update_handler, /* user data = */ st);
   if (status != 0) {
-    c_ipmi_error("ipmi_domain_add_entity_update_handler", status);
+    c_ipmi_error(st, "ipmi_domain_add_entity_update_handler", status);
   }
 
   status = st->connection->add_event_handler(st->connection, smi_event_handler,
                                              (void *)domain);
 
   if (status != 0)
-    c_ipmi_error("Failed to register smi event handler", status);
+    c_ipmi_error(st, "Failed to register smi event handler", status);
 } /* void domain_connection_change_handler */
 
 static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
@@ -858,14 +863,14 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
                                strlen(st->password), os_handler,
                                /* user data = */ NULL, &st->connection);
     if (status != 0) {
-      c_ipmi_error("ipmi_ip_setup_con", status);
+      c_ipmi_error(st, "ipmi_ip_setup_con", status);
       return -1;
     }
   } else {
     status = ipmi_smi_setup_con(/* if_num = */ 0, os_handler,
                                 /* user data = */ NULL, &st->connection);
     if (status != 0) {
-      c_ipmi_error("ipmi_smi_setup_con", status);
+      c_ipmi_error(st, "ipmi_smi_setup_con", status);
       return -1;
     }
   }
@@ -894,7 +899,7 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
       /* domain_fully_up_handler = */ NULL, /* user data = */ NULL, open_option,
       open_option_num, &domain_id);
   if (status != 0) {
-    c_ipmi_error("ipmi_open_domain", status);
+    c_ipmi_error(st, "ipmi_open_domain", status);
     return -1;
   }
 
@@ -1099,6 +1104,9 @@ static int c_ipmi_read(user_data_t *user_data) {
     INFO("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
     return -1;
   }
+
+  if (st->connected == 0)
+    return 0;
 
   sensor_list_read_all(st);
 
