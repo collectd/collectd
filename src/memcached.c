@@ -92,13 +92,12 @@ static void memcached_free(void *arg) {
 
 static int memcached_connect_unix(memcached_t *st) {
   struct sockaddr_un serv_addr = {0};
-  int fd;
 
   serv_addr.sun_family = AF_UNIX;
   sstrncpy(serv_addr.sun_path, st->socket, sizeof(serv_addr.sun_path));
 
   /* create our socket descriptor */
-  fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  int fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd < 0) {
     char errbuf[1024];
     ERROR("memcached plugin: memcached_connect_unix: socket(2) failed: %s",
@@ -127,14 +126,13 @@ static int memcached_connect_unix(memcached_t *st) {
 
 static int memcached_connect_inet(memcached_t *st) {
   struct addrinfo *ai_list;
-  int status;
   int fd = -1;
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
                               .ai_flags = AI_ADDRCONFIG,
                               .ai_socktype = SOCK_STREAM};
 
-  status = getaddrinfo(st->connhost, st->connport, &ai_hints, &ai_list);
+  int status = getaddrinfo(st->connhost, st->connport, &ai_hints, &ai_list);
   if (status != 0) {
     char errbuf[1024];
     ERROR("memcached plugin: memcached_connect_inet: "
@@ -437,10 +435,7 @@ static gauge_t calculate_ratio_percent2(derive_t part1, derive_t part2,
 static int memcached_read(user_data_t *user_data) {
   char buf[4096];
   char *fields[3];
-  char *ptr;
   char *line;
-  char *saveptr;
-  int fields_num;
 
   derive_t bytes_used = 0;
   derive_t bytes_total = 0;
@@ -466,18 +461,15 @@ static int memcached_read(user_data_t *user_data) {
 #define FIELD_IS(cnst)                                                         \
   (((sizeof(cnst) - 1) == name_len) && (strcmp(cnst, fields[1]) == 0))
 
-  ptr = buf;
-  saveptr = NULL;
+  char *ptr = buf;
+  char *saveptr = NULL;
   while ((line = strtok_r(ptr, "\n\r", &saveptr)) != NULL) {
-    int name_len;
-
     ptr = NULL;
 
-    fields_num = strsplit(line, fields, 3);
-    if (fields_num != 3)
+    if (strsplit(line, fields, 3) != 3)
       continue;
 
-    name_len = strlen(fields[1]);
+    int name_len = strlen(fields[1]);
     if (name_len == 0)
       continue;
 
@@ -701,13 +693,12 @@ static int memcached_add_read_callback(memcached_t *st) {
  * </Plugin>
  */
 static int config_add_instance(oconfig_item_t *ci) {
-  memcached_t *st;
   int status = 0;
 
   /* Disable automatic generation of default instance in the init callback. */
   memcached_have_instances = 1;
 
-  st = calloc(1, sizeof(*st));
+  memcached_t *st = calloc(1, sizeof(*st));
   if (st == NULL) {
     ERROR("memcached plugin: calloc failed.");
     return ENOMEM;
@@ -782,14 +773,12 @@ static int memcached_config(oconfig_item_t *ci) {
 } /* int memcached_config */
 
 static int memcached_init(void) {
-  memcached_t *st;
-  int status;
 
   if (memcached_have_instances)
     return 0;
 
   /* No instances were configured, lets start a default instance. */
-  st = calloc(1, sizeof(*st));
+  memcached_t *st = calloc(1, sizeof(*st));
   if (st == NULL)
     return ENOMEM;
   st->name = NULL;
@@ -800,7 +789,7 @@ static int memcached_init(void) {
 
   st->fd = -1;
 
-  status = memcached_add_read_callback(st);
+  int status = memcached_add_read_callback(st);
   if (status == 0)
     memcached_have_instances = 1;
 
