@@ -38,6 +38,8 @@
 #include <OpenIPMI/ipmi_smi.h>
 #include <OpenIPMI/ipmiif.h>
 
+#define ERR_BUF_SIZE 1024
+
 /*
  * Private data types
  */
@@ -93,7 +95,7 @@ static c_ipmi_instance_t *instances = NULL;
  * Misc private functions
  */
 static void c_ipmi_error(c_ipmi_instance_t *st, const char *func, int status) {
-  char errbuf[4096] = {0};
+  char errbuf[ERR_BUF_SIZE] = {0};
 
   if (IPMI_IS_OS_ERR(status) || IPMI_IS_RMCPP_ERR(status) ||
       IPMI_IS_IPMI_ERR(status)) {
@@ -110,7 +112,7 @@ static void c_ipmi_error(c_ipmi_instance_t *st, const char *func, int status) {
 
 static void c_ipmi_log(os_handler_t *handler, const char *format,
                        enum ipmi_log_type_e log_type, va_list ap) {
-  char msg[1024];
+  char msg[ERR_BUF_SIZE];
 
   vsnprintf(msg, sizeof(msg), format, ap);
 
@@ -202,7 +204,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
       INFO("ipmi plugin: sensor_read_handler: Sensor `%s` of `%s` timed out.",
            list_item->sensor_name, st->name);
     } else {
-      char errbuf[128] = {0};
+      char errbuf[ERR_BUF_SIZE] = {0};
       ipmi_get_error_string(err, errbuf, sizeof(errbuf) - 1);
 
       if (IPMI_IS_IPMI_ERR(err))
