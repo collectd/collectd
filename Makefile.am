@@ -576,7 +576,7 @@ liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
-if BUILD_WITH_LIBYAJL
+if BUILD_WITH_LIBYAJL2
 noinst_LTLIBRARIES += liboauth.la
 liboauth_la_SOURCES = \
 	src/utils_oauth.c \
@@ -615,7 +615,7 @@ libgce_la_LIBADD = \
 	$(BUILD_WITH_LIBCURL_LIBS)
 endif
 
-if BUILD_WITH_LIBYAJL
+if BUILD_WITH_LIBYAJL2
 noinst_LTLIBRARIES += libformat_gcm.la
 libformat_gcm_la_SOURCES = \
 	src/utils_format_gcm.c \

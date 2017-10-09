@@ -5844,6 +5844,7 @@ AC_SUBST([BUILD_WITH_LIBYAJL_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBYAJL_LIBS])
 
 AM_CONDITIONAL([BUILD_WITH_LIBYAJL], [test "x$with_libyajl" = "xyes"])
+AM_CONDITIONAL([BUILD_WITH_LIBYAJL2], [test "x$with_libyajl$with_libyajl2" = "xyesyes"])
 # }}}
 
 # --with-mic {{{
@@ -6561,6 +6562,9 @@ fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"; then
   plugin_curl_json="yes"
+fi
+
+if test "x$with_libcurl" = "xyes" && test "x$with_libssl" = "xyes" && test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
   plugin_write_gcm="yes"
 fi
 
