@@ -32,47 +32,395 @@
 #include "common.h"
 #include "plugin.h"
 
-#ifdef HAVE_MYSQL_H
-#include <mysql.h>
-#elif defined(HAVE_MYSQL_MYSQL_H)
-#include <mysql/mysql.h>
+#include "mysql_plugin.h"
+
+/* Forward declaration of report source handlers */
+static int mysql_compatible_read(mysql_database_t *db, const llist_t *reports,
+                                 void *userdata);
+static int mysql_compatible_reports(llist_t *reports);
+
+/* Functions from mysql_status_global.c */
+extern int mysql_reports_config(oconfig_item_t *ci, llist_t *reports);
+extern void mysql_reports_config_free(void *reportconfig);
+extern int mysql_reports_init(const llist_t *reports);
+extern int mysql_reports_db_init(mysql_database_t *db, const llist_t *reports,
+                                 void **userdata);
+extern int mysql_reports_status_read(mysql_database_t *db,
+                                     const llist_t *reports, void *userdata);
+extern int mysql_reports_innodb_metrics_read(mysql_database_t *db,
+                                             const llist_t *reports,
+                                             void *userdata);
+extern void mysql_reports_db_destroy(mysql_database_t *db,
+                                     const llist_t *reports, void *userdata);
+
+/* All supported Report Sources */
+static mysql_report_source_decl_t report_sources_decl[] = {
+    {
+        .option_name = NULL,
+        .config_cb = NULL,
+        .config_free = NULL,
+        .default_reports = mysql_compatible_reports,
+        .db_init_cb = NULL,
+        .db_read_cb = mysql_compatible_read,
+        .db_destroy_cb = NULL,
+    },
+    {
+        .option_name = "GlobalStatusReport",
+        .config_cb = mysql_reports_config,
+        .config_free = mysql_reports_config_free,
+        .source_init_cb = mysql_reports_init,
+        .db_init_cb = mysql_reports_db_init,
+        .db_read_cb = mysql_reports_status_read,
+        .db_destroy_cb = mysql_reports_db_destroy,
+    },
+    {
+        .option_name = "InnoDBMetricsReport",
+        .config_cb = mysql_reports_config,
+        .config_free = mysql_reports_config_free,
+        .source_init_cb = mysql_reports_init,
+        .db_init_cb = mysql_reports_db_init,
+        .db_read_cb = mysql_reports_innodb_metrics_read,
+        .db_destroy_cb = mysql_reports_db_destroy,
+    }
+
+};
+
+/* Type for registration of report sources and their reports */
+struct mysql_report_source_s;
+typedef struct mysql_report_source_s mysql_report_source_t;
+
+struct mysql_report_source_s {
+  mysql_report_source_decl_t *decl;
+  llist_t *reports; /* linked list of mysql_report_t values */
+  mysql_report_source_t *next;
+};
+
+/* Database initialization queue */
+static mysql_database_t *databases_first = NULL;
+static mysql_database_t *databases_last = NULL;
+/* All supported Report Sources */
+static mysql_report_source_t *report_sources = NULL;
+
+static MYSQL *getconnection(mysql_database_t *db);
+
+static void mysql_find_report_by_name(const char *name,
+                                      mysql_report_source_t **src_ret,
+                                      mysql_report_t **report_ret) {
+
+  for (mysql_report_source_t *src = report_sources; src; src = src->next) {
+    llentry_t *le = llist_head(src->reports);
+    while (le != NULL) {
+      if (strcasecmp(le->key, name) == 0) {
+        if (src_ret != NULL)
+          *src_ret = src;
+        if (report_ret != NULL)
+          *report_ret = le->value;
+        return;
+      }
+      le = le->next;
+    }
+  };
+} /* void mysql_find_report_by_name */
+
+mysql_report_t *mysql_add_report(llist_t *reports, const char *name) {
+  if (reports == NULL || name == NULL) {
+    ERROR("mysql plugin: mysql_add_report: invalid input.");
+    return NULL;
+  }
+
+  mysql_report_source_t *type = NULL;
+  mysql_find_report_by_name(name, &type, NULL);
+  if (type) {
+    ERROR("mysql plugin: mysql_add_report: Report `%s' already added.", name);
+    return NULL;
+  };
+
+#if 0
+  //When called from 'default_reports' callback, conflicts between reports of
+  //the new type are not checked, because type is not globally registered yet.
+  {
+    llentry_t *le = llist_head(reports);
+    
+    while (le != NULL) {
+      if (strcasecmp(le->key, name) == 0) {
+        ERROR("mysql plugin: mysql_add_report: Report `%s' already added.", name);
+        return NULL;
+      }
+      le = le->next;
+    };
+  }
 #endif
 
-struct mysql_database_s /* {{{ */
-{
-  char *instance;
-  char *alias;
-  char *host;
-  char *user;
-  char *pass;
-  char *database;
+  mysql_report_t *report = calloc(1, sizeof(mysql_report_t));
+  if (report == NULL) {
+    ERROR("mysql plugin: mysql_add_report: calloc failed.");
+    return NULL;
+  }
 
-  /* mysql_ssl_set params */
-  char *key;
-  char *cert;
-  char *ca;
-  char *capath;
-  char *cipher;
+  report->name = strdup(name);
+  if (report->name == NULL) {
+    ERROR("mysql plugin: mysql_add_report: strdup failed.");
+    return NULL;
+  }
 
-  char *socket;
-  int port;
-  int timeout;
+  llentry_t *le = llentry_create(report->name, report);
+  if (le == NULL) {
+    ERROR("mysql plugin: mysql_add_report: llentry_create failed.");
+    return NULL;
+  }
 
-  _Bool master_stats;
-  _Bool slave_stats;
-  _Bool innodb_stats;
-  _Bool wsrep_stats;
+  llist_append(reports, le);
+  return report;
+} /* mysql_report_t *mysql_add_report */
 
-  _Bool slave_notif;
-  _Bool slave_io_running;
-  _Bool slave_sql_running;
+static void mysql_db_report_source_free(mysql_db_report_source_t *source) {
+  llist_destroy(source->reports);
+  sfree(source);
+} /* void mysql_db_report_source_free */
 
-  MYSQL *con;
-  _Bool is_connected;
+/* Configuration handling functions {{{
+ *
+ * Existing options (and their defaults):
+ *
+ *   MasterStats false
+ *   SlaveStats false
+ *   SlaveNotifications false
+ *   WsrepStats false
+ *   InnodbStats false
+ *
+ * Usage schema:
+ *
+ * <Plugin mysql>
+ *   <GlobalStatusReport "TableCache">
+ *      ... some configuration ...
+ *   </GlobalStatusReport>
+ *   <PerformanceSchemaReport "ReportName">
+ *      ... some configuration ...
+ *   </PerformanceSchemaReport>
+ *   <InnoDBReport "InnoDB">
+ *      ... some configuration ...
+ *   </InnoDBReport>
+ *   ...
+ *   <Database "plugin_instance1">
+ *     Host "localhost"
+ *     Port 3306
+ *     ...
+ *     DisableReport compatible
+ *     Report InnoDB
+ *     ...
+ *   </Database>
+ * </Plugin>
+ */
+
+llist_t *c_mysql_clone_reports_list(llist_t *src) {
+  if (src == NULL)
+    return NULL;
+
+  llist_t *dst = llist_create();
+  if (dst == NULL) {
+    ERROR("mysql plugin: mysql_clone_reports_list: llist_create failed.");
+    return NULL;
+  }
+
+  llentry_t *le = llist_head(src);
+  while (le != NULL) {
+    mysql_report_t *report = le->value;
+
+    if (report->def) { // Enabled by default
+      llentry_t *newle = llentry_create(le->key, report);
+      if (newle == NULL) {
+        ERROR("mysql plugin: mysql_clone_reports_list: llentry_create failed.");
+        llist_destroy(dst);
+        return NULL;
+      }
+      llist_append(dst, newle);
+    }
+    le = le->next;
+  }
+  return dst;
+} /* llist_t* c_mysql_clone_reports_list */
+
+static int c_mysql_db_add_sources(mysql_database_t *db) {
+  mysql_db_report_source_t *last_source = NULL;
+
+  for (mysql_report_source_t *g_source = report_sources; g_source;
+       g_source = g_source->next) {
+
+    mysql_db_report_source_t *source =
+        calloc(1, sizeof(mysql_db_report_source_t));
+    if (source == NULL) {
+      ERROR("mysql plugin: calloc failed.");
+      return -1;
+    };
+
+    source->decl = g_source->decl;
+    source->reports = c_mysql_clone_reports_list(g_source->reports);
+    if (source->reports == NULL)
+      return -1;
+
+    if (last_source)
+      last_source->next = source;
+    else
+      db->reportsources = source;
+
+    last_source = source;
+  };
+  return 0;
 };
-typedef struct mysql_database_s mysql_database_t; /* }}} */
 
-static int mysql_read(user_data_t *ud);
+static int c_mysql_db_init_sources(mysql_database_t *db) {
+  mysql_db_report_source_t *prev = NULL;
+
+  for (mysql_db_report_source_t *source = db->reportsources; source;
+       source = source->next) {
+    int ret = 0;
+
+    llentry_t *le = llist_head(source->reports);
+    while (le != NULL) {
+      llentry_t *next = le->next;
+      mysql_report_t *report = le->value;
+
+      if (report->broken) {
+        WARNING("mysql plugin: Removed broken report `%s' from instance `%s'.",
+                report->name, db->instance);
+        llist_remove(source->reports, le);
+      }
+
+      le = next;
+    }
+
+    if (llist_size(source->reports) > 0) {
+      if (source->decl->db_init_cb) {
+        ret = source->decl->db_init_cb(db, source->reports, &source->userdata);
+        if (ret != 0) {
+          // TODO: Remove XXX
+          ERROR("mysql plugin: Failed to init source XXX for instance `%s'.",
+                db->instance);
+        }
+      }
+      if (ret == 0) {
+        prev = source;
+        continue;
+      }
+    };
+
+    /* Remove the source from database report sources */
+    if (prev)
+      prev->next = source->next;
+    else
+      db->reportsources = source->next;
+
+    mysql_db_report_source_free(source);
+  }
+  if (prev == NULL) {
+    WARNING("mysql plugin: No reports are enabled for database `%s'.",
+            db->instance);
+    return -1;
+  }
+
+  return 0;
+}
+
+static int c_mysql_read_sources(user_data_t *ud) {
+  mysql_database_t *db;
+
+  if ((ud == NULL) || (ud->data == NULL)) {
+    ERROR("mysql plugin: mysql_read: Invalid user data.");
+    return (-1);
+  }
+
+  db = (mysql_database_t *)ud->data;
+
+  /* An error message will have been printed in this case */
+  if (getconnection(db) == NULL)
+    return (-1);
+
+  for (mysql_db_report_source_t *source = db->reportsources; source;
+       source = source->next) {
+    int ret = source->decl->db_read_cb(db, source->reports, source->userdata);
+    if (ret != 0) {
+      // TODO: Remove XXX ?
+      ERROR("mysql plugin: mysql_read: Source XXX failed for instance `%s'.",
+            db->instance);
+    }
+  }
+
+  DEBUG("mysql plugin: mysql_read: Done all the work.");
+  return (0);
+} /* int c_mysql_read_sources */
+
+static int mysql_enable_report(mysql_database_t *db, const char *name) {
+  mysql_report_source_t *g_source = NULL;
+  mysql_report_t *g_report = NULL;
+
+  mysql_find_report_by_name(name, &g_source, &g_report);
+  if (g_source == NULL || g_report == NULL) {
+    ERROR("mysql plugin: Report `%s' not found. Failed to enable report.",
+          name);
+    return -1;
+  }
+
+  mysql_db_report_source_t *source = NULL;
+  for (source = db->reportsources; source; source = source->next) {
+    if (source->decl == g_source->decl)
+      break;
+  }
+  if (source == NULL) {
+    ERROR("mysql plugin: mysql_enable_report: Internal error.");
+    return -1;
+  }
+
+  llentry_t *le = llist_head(source->reports);
+  while (le != NULL) {
+    if (strcasecmp(le->key, name) == 0) {
+      // TODO: Logging
+      DEBUG("mysql plugin: mysql_enable_report: Report `%s' already enabled "
+            "for instance `%s'.",
+            name, db->instance);
+      return 0;
+    }
+    le = le->next;
+  };
+
+  llentry_t *newle = llentry_create(g_report->name, g_report);
+  if (newle == NULL) {
+    ERROR("mysql plugin: mysql_enable_report: llentry_create failed.");
+    return -1;
+  }
+
+  llist_append(source->reports, newle);
+
+  return 0;
+} /* int mysql_enable_report */
+
+static int mysql_disable_report(mysql_database_t *db, const char *name) {
+  mysql_db_report_source_t *source = NULL;
+  llentry_t *le = NULL;
+
+  for (source = db->reportsources; source; source = source->next) {
+    le = llist_head(source->reports);
+    while (le != NULL) {
+      if (strcasecmp(le->key, name) == 0)
+        break;
+
+      le = le->next;
+    }
+    if (le != NULL)
+      break;
+  };
+
+  if (le == NULL) {
+    // TODO: Logging
+    DEBUG("mysql plugin: mysql_disable_report: No report `%s' found in "
+          "instance `%s'.",
+          name, db->instance);
+    return 0;
+  }
+
+  llist_remove(source->reports, le);
+
+  return 0;
+} /* int c_mysql_disable_report */
 
 static void mysql_database_free(void *arg) /* {{{ */
 {
@@ -84,6 +432,16 @@ static void mysql_database_free(void *arg) /* {{{ */
 
   if (db == NULL)
     return;
+
+  for (mysql_db_report_source_t *source = db->reportsources; source; /* */) {
+    mysql_db_report_source_t *next = source->next;
+
+    if (source->decl->db_destroy_cb != NULL)
+      source->decl->db_destroy_cb(db, source->reports, source->userdata);
+
+    mysql_db_report_source_free(source);
+    source = next;
+  };
 
   if (db->con != NULL)
     mysql_close(db->con);
@@ -103,16 +461,6 @@ static void mysql_database_free(void *arg) /* {{{ */
   sfree(db);
 } /* }}} void mysql_database_free */
 
-/* Configuration handling functions {{{
- *
- * <Plugin mysql>
- *   <Database "plugin_instance1">
- *     Host "localhost"
- *     Port 22000
- *     ...
- *   </Database>
- * </Plugin>
- */
 static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
 {
   mysql_database_t *db;
@@ -156,6 +504,13 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
     return (status);
   }
   assert(db->instance != NULL);
+
+  /* Add all Report Sources to Database */
+  status = c_mysql_db_add_sources(db);
+  if (status != 0) {
+    mysql_database_free(db);
+    return status;
+  };
 
   /* Fill the `mysql_database_t' structure.. */
   for (int i = 0; i < ci->children_num; i++) {
@@ -201,7 +556,21 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_boolean(child, &db->innodb_stats);
     else if (strcasecmp("WsrepStats", child->key) == 0)
       status = cf_util_get_boolean(child, &db->wsrep_stats);
-    else {
+    else if (strcasecmp("Report", child->key) == 0) {
+      char *name;
+      status = cf_util_get_string(child, &name);
+      if (status == 0) {
+        status = mysql_enable_report(db, name);
+        sfree(name);
+      }
+    } else if (strcasecmp("DisableReport", child->key) == 0) {
+      char *report;
+      status = cf_util_get_string(child, &report);
+      if (status == 0) {
+        status = mysql_disable_report(db, report);
+        sfree(report);
+      }
+    } else {
       WARNING("mysql plugin: Option `%s' not allowed here.", child->key);
       status = -1;
     }
@@ -210,8 +579,131 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
       break;
   }
 
-  /* If all went well, register this database for reading */
-  if (status == 0) {
+  if (status != 0) {
+    ERROR("mysql plugin: Error in database `%s' configuration. Skipped it.",
+          db->instance);
+    mysql_database_free(db);
+    return status;
+  }
+
+  if (databases_last == NULL) {
+    databases_first = databases_last = db;
+  } else {
+    databases_last->next = db;
+    databases_last = db;
+  }
+
+  return (0);
+} /* }}} int mysql_config_database */
+
+static int mysql_config(oconfig_item_t *ci) /* {{{ */
+{
+  if (ci == NULL)
+    return (EINVAL);
+
+  // Preinit
+  // TODO: Move to function
+  // TODO: Remove check 'report_sources == NULL' so other modules can touch
+  // that.
+  if (report_sources == NULL) {
+    int status = 0;
+
+    mysql_report_source_t *last = NULL;
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(report_sources_decl); i++) {
+      mysql_report_source_t *source = calloc(1, sizeof(mysql_report_source_t));
+      if (source == NULL) {
+        ERROR("mysql plugin: calloc failed.");
+        status = -1;
+        break;
+      };
+
+      source->decl = &report_sources_decl[i];
+
+      source->reports = llist_create();
+      if (source->reports == NULL) {
+        ERROR("mysql plugin: list creation failed.");
+        status = -1;
+        break;
+      }
+
+      if (source->decl->default_reports) {
+        status = source->decl->default_reports(source->reports);
+        if (status != 0) {
+          //TODO: XXX
+          ERROR("mysql plugin: default_reports failed for id %zu.", i);
+          break;
+        }
+      }
+
+      if (last == NULL)
+        report_sources = source;
+      else
+        last->next = source;
+
+      last = source;
+    };
+
+    if (status != 0) {
+      // TODO: Add shutdown callback + add free-ing of report_sources;
+      return status;
+    }
+  }
+
+  /* Fill the `mysql_database_t' structure.. */
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strcasecmp("Database", child->key) == 0)
+      mysql_config_database(child);
+    else {
+      int found = 0;
+      for (mysql_report_source_t *g_source = report_sources; g_source;
+           g_source = g_source->next) {
+
+        if (g_source->decl->config_cb == NULL)
+          continue;
+
+        if (strcasecmp(g_source->decl->option_name, child->key) == 0) {
+          found = 1;
+          // TODO: check ret
+          g_source->decl->config_cb(child, g_source->reports);
+          break;
+        };
+      };
+      if (!found)
+        // TODO: Restore loglevel
+        ERROR("mysql plugin: Option \"%s\" not allowed here.", child->key);
+    }
+  }
+
+  return (0);
+} /* }}} int mysql_config */
+
+/* }}} End of configuration handling functions */
+
+static int c_mysql_init() {
+  for (mysql_report_source_t *g_source = report_sources; g_source;
+       g_source = g_source->next) {
+
+    if (g_source->decl->source_init_cb == NULL)
+      continue;
+
+    // TODO: check ret
+    g_source->decl->source_init_cb(g_source->reports);
+  }
+
+  if (databases_first == NULL)
+    return -1;
+
+  for (mysql_database_t *db = databases_first; db; db = db->next) {
+    int ret = c_mysql_db_init_sources(db);
+
+    if (ret != 0) {
+      mysql_database_free(db);
+      continue;
+    }
+
+    /* If all went well, register this database for reading */
     char cb_name[DATA_MAX_NAME_LEN];
 
     DEBUG("mysql plugin: Registering new read callback: %s",
@@ -224,35 +716,44 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
 
     user_data_t ud = {.data = db, .free_func = mysql_database_free};
 
-    plugin_register_complex_read(/* group = */ NULL, cb_name, mysql_read,
+    plugin_register_complex_read(/* group = */ NULL, cb_name,
+                                 c_mysql_read_sources,
                                  /* interval = */ 0, &ud);
-  } else {
-    mysql_database_free(db);
-    return (-1);
   }
 
-  return (0);
-} /* }}} int mysql_config_database */
+  /* No future use of these variables */
+  databases_first = databases_last = NULL;
 
-static int mysql_config(oconfig_item_t *ci) /* {{{ */
-{
-  if (ci == NULL)
-    return (EINVAL);
+  return 0;
+} /* int c_mysql_init */
 
-  /* Fill the `mysql_database_t' structure.. */
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
+static int c_mysql_shutdown() {
 
-    if (strcasecmp("Database", child->key) == 0)
-      mysql_config_database(child);
-    else
-      WARNING("mysql plugin: Option \"%s\" not allowed here.", child->key);
+  for (mysql_report_source_t *g_source = report_sources; g_source; /* */) {
+    mysql_report_source_t *next = g_source->next;
+
+    // if (g_source->decl->source_shutdown_cb != NULL) {
+    //  g_source->decl->source_shutdown_cb(g_source->reports);
+    //}
+
+    llentry_t *le = llist_head(g_source->reports);
+    while (le != NULL) {
+      mysql_report_t *report = le->value;
+
+      if (g_source->decl->config_free != NULL)
+        g_source->decl->config_free(report->config);
+
+      sfree(report->name);
+      sfree(report);
+
+      le = le->next;
+    }
+    llist_destroy(g_source->reports);
+    sfree(g_source);
+    g_source = next;
   }
-
-  return (0);
-} /* }}} int mysql_config */
-
-/* }}} End of configuration handling functions */
+  return 0;
+} /* int c_mysql_shutdown */
 
 static MYSQL *getconnection(mysql_database_t *db) {
   const char *cipher;
@@ -315,8 +816,8 @@ static void set_host(mysql_database_t *db, char *buf, size_t buflen) {
     sstrncpy(buf, db->host, buflen);
 } /* void set_host */
 
-static void submit(const char *type, const char *type_instance, value_t *values,
-                   size_t values_len, mysql_database_t *db) {
+void submit(const char *type, const char *type_instance, value_t *values,
+            size_t values_len, mysql_database_t *db) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = values;
@@ -337,24 +838,24 @@ static void submit(const char *type, const char *type_instance, value_t *values,
   plugin_dispatch_values(&vl);
 } /* submit */
 
-static void counter_submit(const char *type, const char *type_instance,
-                           derive_t value, mysql_database_t *db) {
+void counter_submit(const char *type, const char *type_instance, derive_t value,
+                    mysql_database_t *db) {
   value_t values[1];
 
   values[0].derive = value;
   submit(type, type_instance, values, STATIC_ARRAY_SIZE(values), db);
 } /* void counter_submit */
 
-static void gauge_submit(const char *type, const char *type_instance,
-                         gauge_t value, mysql_database_t *db) {
+void gauge_submit(const char *type, const char *type_instance, gauge_t value,
+                  mysql_database_t *db) {
   value_t values[1];
 
   values[0].gauge = value;
   submit(type, type_instance, values, STATIC_ARRAY_SIZE(values), db);
 } /* void gauge_submit */
 
-static void derive_submit(const char *type, const char *type_instance,
-                          derive_t value, mysql_database_t *db) {
+void derive_submit(const char *type, const char *type_instance, derive_t value,
+                   mysql_database_t *db) {
   value_t values[1];
 
   values[0].derive = value;
@@ -370,7 +871,7 @@ static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
   submit("mysql_octets", NULL, values, STATIC_ARRAY_SIZE(values), db);
 } /* void traffic_submit */
 
-static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
+MYSQL_RES *exec_query(MYSQL *con, const char *query) {
   MYSQL_RES *res;
 
   int query_len = strlen(query);
@@ -723,8 +1224,8 @@ static int mysql_read_wsrep_stats(mysql_database_t *db, MYSQL *con) {
   return (0);
 } /* mysql_read_wsrep_stats */
 
-static int mysql_read(user_data_t *ud) {
-  mysql_database_t *db;
+static int mysql_compatible_read(mysql_database_t *db, const llist_t *reports,
+                                 void *userdata) {
   MYSQL *con;
   MYSQL_RES *res;
   MYSQL_ROW row;
@@ -745,17 +1246,7 @@ static int mysql_read(user_data_t *ud) {
   unsigned long long traffic_outgoing = 0ULL;
   unsigned long mysql_version = 0ULL;
 
-  if ((ud == NULL) || (ud->data == NULL)) {
-    ERROR("mysql plugin: mysql_database_read: Invalid user data.");
-    return (-1);
-  }
-
-  db = (mysql_database_t *)ud->data;
-
-  /* An error message will have been printed in this case */
-  if ((con = getconnection(db)) == NULL)
-    return (-1);
-
+  con = db->con;
   mysql_version = mysql_get_server_version(con);
 
   query = "SHOW STATUS";
@@ -953,8 +1444,20 @@ static int mysql_read(user_data_t *ud) {
     mysql_read_wsrep_stats(db, con);
 
   return (0);
-} /* int mysql_read */
+} /* int mysql_compatible_read */
+
+static int mysql_compatible_reports(llist_t *reports) {
+  mysql_report_t *report = mysql_add_report(reports, "compatible");
+  if (report == NULL)
+    return -1;
+
+  report->def = 1;
+
+  return 0;
+} /* int mysql_compatible_reports */
 
 void module_register(void) {
   plugin_register_complex_config("mysql", mysql_config);
+  plugin_register_init("mysql", c_mysql_init);
+  plugin_register_shutdown("mysql", c_mysql_shutdown);
 } /* void module_register */
