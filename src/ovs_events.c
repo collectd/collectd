@@ -330,7 +330,7 @@ static void ovs_events_dispatch_notification(int first_event, const ovs_events_i
     break;
   case DOWN:
     msg_link_status = "DOWN";
-    /* if this is a first event sent an notify_okay */
+    /* if this is a first event send a notify_okay */
     n.severity = first_event ? NOTIF_OKAY: NOTIF_WARNING;
     break;
   default:
