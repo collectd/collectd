@@ -406,8 +406,11 @@ static gauge_t calculate_ratio_percent(derive_t part, derive_t total,
   *prev_part = part;
   *prev_total = total;
 
-  if (num == 0 || denom == 0)
+  if (denom == 0)
     return NAN;
+
+  if (num == 0)
+    return 0;
 
   return 100.0 * (gauge_t)num / (gauge_t)denom;
 }
@@ -426,8 +429,11 @@ static gauge_t calculate_ratio_percent2(derive_t part1, derive_t part2,
   *prev1 = part1;
   *prev2 = part2;
 
-  if (num == 0 || denom == 0)
+  if (denom == 0)
     return NAN;
+
+  if (num == 0)
+    return 0;
 
   return 100.0 * (gauge_t)num / (gauge_t)denom;
 }
