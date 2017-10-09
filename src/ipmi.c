@@ -1037,28 +1037,26 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
     if (strcasecmp("Sensor", child->key) == 0)
       ignorelist_add(st->ignorelist, ci->values[0].value.string);
     else if (strcasecmp("IgnoreSelected", child->key) == 0) {
-      if (ci->values[0].value.boolean)
+      _Bool t;
+      status = cf_util_get_boolean(child, &t);
+      if (status != 0)
+        break;
+      if (t)
         ignorelist_set_invert(st->ignorelist, /* invert = */ 0);
       else
         ignorelist_set_invert(st->ignorelist, /* invert = */ 1);
     } else if (strcasecmp("NotifyIPMIConnectionState", child->key) == 0) {
-      if (ci->values[0].value.boolean)
-        st->notify_conn = 1;
+      status = cf_util_get_boolean(child, &st->notify_conn);
     } else if (strcasecmp("NotifySensorAdd", child->key) == 0) {
-      if (ci->values[0].value.boolean)
-        st->notify_add = 1;
+      status = cf_util_get_boolean(child, &st->notify_add);
     } else if (strcasecmp("NotifySensorRemove", child->key) == 0) {
-      if (ci->values[0].value.boolean)
-        st->notify_remove = 1;
+      status = cf_util_get_boolean(child, &st->notify_remove);
     } else if (strcasecmp("NotifySensorNotPresent", child->key) == 0) {
-      if (ci->values[0].value.boolean)
-        st->notify_notpresent = 1;
+      status = cf_util_get_boolean(child, &st->notify_notpresent);
     } else if (strcasecmp("SELEnabled", child->key) == 0) {
-      if (ci->values[0].value.boolean)
-        st->sel_enabled = 1;
+      status = cf_util_get_boolean(child, &st->sel_enabled);
     } else if (strcasecmp("SELClearEvent", child->key) == 0) {
-      if (ci->values[0].value.boolean)
-        st->sel_clear_event = 1;
+      status = cf_util_get_boolean(child, &st->sel_clear_event);
     } else if (strcasecmp("Host", child->key) == 0)
       status = cf_util_get_string(child, &st->host);
     else if (strcasecmp("Address", child->key) == 0)
@@ -1107,7 +1105,10 @@ static int c_ipmi_config(oconfig_item_t *ci) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Instance", child->key) == 0) {
-      c_ipmi_config_add_instance(child);
+      int status = c_ipmi_config_add_instance(child);
+      if (status != 0)
+        return status;
+
       have_instance_block = 1;
     } else if (!have_instance_block) {
       /* Non-instance option: Assume legacy configuration (without <Instance />
