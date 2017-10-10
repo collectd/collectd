@@ -3355,8 +3355,15 @@ The B<ipmi plugin> allows to monitor server platform status using the Intelligen
 Platform Management Interface (IPMI). Local and remote interfaces are supported.
 
 The plugin configuration consists of one or more B<Instance> blocks which
-specify one I<ipmi> connection each. Within the B<Instance> blocks, the
-following options are allowed:
+specify one I<ipmi> connection each. Each block requires one unique string
+argument as the instance name. If instances are not configured, an instance with
+the default option values will be created.
+
+For backwards compatibility, any option other than B<Instance> block will trigger
+legacy config handling and it will be treated as an option within B<Instance>
+block. This support will go away in the next major version of Collectd.
+
+Within the B<Instance> blocks, the following options are allowed:
 
 =over 4
 

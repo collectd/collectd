@@ -88,7 +88,7 @@ struct c_ipmi_sensor_list_s {
 /*
  * Module global variables
  */
-static os_handler_t *os_handler;
+static os_handler_t *os_handler = NULL;
 static c_ipmi_instance_t *instances = NULL;
 
 /*
@@ -135,11 +135,11 @@ static void c_ipmi_log(os_handler_t *handler, const char *format,
 #if COLLECT_DEBUG
   case IPMI_LOG_DEBUG_START:
   case IPMI_LOG_DEBUG:
-    fprintf(stderr, "ipmi plugin: %s\n", msg);
+    DEBUG("ipmi plugin: %s", msg);
     break;
   case IPMI_LOG_DEBUG_CONT:
   case IPMI_LOG_DEBUG_END:
-    fprintf(stderr, "%s\n", msg);
+    DEBUG("%s", msg);
     break;
 #else
   case IPMI_LOG_DEBUG_START:
@@ -877,16 +877,11 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
   int status;
 
   if (st->connaddr != NULL) {
-    char *ip_addrs[1] = {NULL}, *ports[1] = {NULL};
-
-    ip_addrs[0] = strdup(st->connaddr);
-    ports[0] = strdup(IPMI_LAN_STD_PORT_STR);
-
-    status = ipmi_ip_setup_con(ip_addrs, ports, 1, st->authtype,
-                               (unsigned int)IPMI_PRIVILEGE_USER, st->username,
-                               strlen(st->username), st->password,
-                               strlen(st->password), os_handler,
-                               /* user data = */ NULL, &st->connection);
+    status = ipmi_ip_setup_con(
+        &st->connaddr, (char * [1]){IPMI_LAN_STD_PORT_STR}, 1, st->authtype,
+        (unsigned int)IPMI_PRIVILEGE_USER, st->username, strlen(st->username),
+        st->password, strlen(st->password), os_handler,
+        /* user data = */ NULL, &st->connection);
     if (status != 0) {
       c_ipmi_error(st, "ipmi_ip_setup_con", status);
       return -1;
@@ -900,19 +895,13 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
     }
   }
 
-  size_t open_option_num = 0;
-  ipmi_open_option_t open_option[2];
-
-  open_option[open_option_num].option = IPMI_OPEN_OPTION_ALL;
-  open_option[open_option_num].ival = 1;
-  open_option_num++;
-
+  ipmi_open_option_t opts[] = {
+      {.option = IPMI_OPEN_OPTION_ALL, {.ival = 1}},
 #ifdef IPMI_OPEN_OPTION_USE_CACHE
-  // This option appeared in OpenIPMI-2.0.17
-  open_option[open_option_num].option = IPMI_OPEN_OPTION_USE_CACHE;
-  open_option[open_option_num].ival = 0; /* Disable SDR cache in local file */
-  open_option_num++;
+      /* OpenIPMI-2.0.17 and later: Disable SDR cache in local file */
+      {.option = IPMI_OPEN_OPTION_USE_CACHE, {.ival = 0}},
 #endif
+  };
 
   /*
    * NOTE: Domain names must be unique. There is static `domains_list` common
@@ -921,8 +910,8 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
   status = ipmi_open_domain(
       st->name, &st->connection, /* num_con = */ 1,
       domain_connection_change_handler, /* user data = */ (void *)st,
-      /* domain_fully_up_handler = */ NULL, /* user data = */ NULL, open_option,
-      open_option_num, &domain_id);
+      /* domain_fully_up_handler = */ NULL, /* user data = */ NULL, opts,
+      STATIC_ARRAY_SIZE(opts), &domain_id);
   if (status != 0) {
     c_ipmi_error(st, "ipmi_open_domain", status);
     return -1;
@@ -1041,10 +1030,7 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
       status = cf_util_get_boolean(child, &t);
       if (status != 0)
         break;
-      if (t)
-        ignorelist_set_invert(st->ignorelist, /* invert = */ 0);
-      else
-        ignorelist_set_invert(st->ignorelist, /* invert = */ 1);
+      ignorelist_set_invert(st->ignorelist, /* invert = */ !t);
     } else if (strcasecmp("NotifyIPMIConnectionState", child->key) == 0) {
       status = cf_util_get_boolean(child, &st->notify_conn);
     } else if (strcasecmp("NotifySensorAdd", child->key) == 0) {
@@ -1114,13 +1100,17 @@ static int c_ipmi_config(oconfig_item_t *ci) {
       /* Non-instance option: Assume legacy configuration (without <Instance />
        * blocks) and call c_ipmi_config_add_instance with the <Plugin /> block.
        */
+      WARNING("ipmi plugin: Legacy configuration found! Please update your "
+              "config file.");
       return c_ipmi_config_add_instance(ci);
-    } else
+    } else {
       WARNING("ipmi plugin: The configuration option "
               "\"%s\" is not allowed here. Did you "
               "forget to add an <Instance /> block "
               "around the configuration?",
               child->key);
+      return -1;
+    }
   } /* for (ci->children) */
 
   return 0;
@@ -1129,7 +1119,7 @@ static int c_ipmi_config(oconfig_item_t *ci) {
 static int c_ipmi_read(user_data_t *user_data) {
   c_ipmi_instance_t *st = user_data->data;
 
-  if ((st->active == 0) || (st->thread_id == (pthread_t)0)) {
+  if (st->active == 0) {
     INFO("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
     return -1;
   }
@@ -1148,9 +1138,12 @@ static int c_ipmi_read(user_data_t *user_data) {
 } /* int c_ipmi_read */
 
 static int c_ipmi_init(void) {
-  int status;
   c_ipmi_instance_t *st;
   char callback_name[3 * DATA_MAX_NAME_LEN];
+
+  if (os_handler != NULL) {
+    return 0;
+  }
 
   os_handler = ipmi_posix_thread_setup_os_handler(SIGIO);
   if (os_handler == NULL) {
@@ -1166,9 +1159,6 @@ static int c_ipmi_init(void) {
     return -1;
   };
 
-  /* Don't send `ADD' notifications during startup (~ 1 minute) */
-  time_t iv = CDTIME_T_TO_TIME_T(plugin_get_interval());
-
   if (instances == NULL) {
     /* No instances were configured, let's start a default instance. */
     st = c_ipmi_init_instance();
@@ -1177,6 +1167,9 @@ static int c_ipmi_init(void) {
 
     c_ipmi_add_instance(st);
   }
+
+  /* Don't send `ADD' notifications during startup (~ 1 minute) */
+  int cycles = 1 + (60 / CDTIME_T_TO_TIME_T(plugin_get_interval()));
 
   st = instances;
   while (NULL != st) {
@@ -1189,7 +1182,7 @@ static int c_ipmi_init(void) {
         .data = st,
     };
 
-    status = plugin_register_complex_read(
+    int status = plugin_register_complex_read(
         /* group     = */ "ipmi",
         /* name      = */ callback_name,
         /* callback  = */ c_ipmi_read,
@@ -1197,12 +1190,11 @@ static int c_ipmi_init(void) {
         /* user_data = */ &ud);
 
     if (status != 0) {
-      st->active = 0;
       st = st->next;
       continue;
     }
 
-    st->init_in_progress = 1 + (60 / iv);
+    st->init_in_progress = cycles;
     st->active = 1;
 
     status = plugin_thread_create(&st->thread_id, /* attr = */ NULL,
@@ -1211,7 +1203,7 @@ static int c_ipmi_init(void) {
 
     if (status != 0) {
       st->active = 0;
-      st->thread_id = (pthread_t)0;
+      st->thread_id = (pthread_t){0};
 
       plugin_unregister_read(callback_name);
 
@@ -1234,9 +1226,9 @@ static int c_ipmi_shutdown(void) {
     st->next = NULL;
     st->active = 0;
 
-    if (st->thread_id != (pthread_t)0) {
+    if (!pthread_equal(st->thread_id, (pthread_t){0})) {
       pthread_join(st->thread_id, NULL);
-      st->thread_id = (pthread_t)0;
+      st->thread_id = (pthread_t){0};
     }
 
     sensor_list_remove_all(st);
@@ -1246,6 +1238,7 @@ static int c_ipmi_shutdown(void) {
   }
 
   os_handler->free_os_handler(os_handler);
+  os_handler = NULL;
 
   return 0;
 } /* int c_ipmi_shutdown */
