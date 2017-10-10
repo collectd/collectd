@@ -50,26 +50,6 @@ typedef struct {
     PyMem_Free(host);                                                          \
   } while (0)
 
-#define CPY_BUILD_META_FUNC(meta_type, func, val_type)                         \
-static int cpy_ ## func(void *meta, const char *key, val_type val)  {          \
-  return func((meta_type *)meta, key, val);                                    \
-}
-
-#define CPY_BUILD_META_HANDLER(func_prefix, meta_type)                         \
-CPY_BUILD_META_FUNC(meta_type, func_prefix ## _add_string, const char *)       \
-CPY_BUILD_META_FUNC(meta_type, func_prefix ## _add_signed_int, int64_t)        \
-CPY_BUILD_META_FUNC(meta_type, func_prefix ## _add_unsigned_int, uint64_t)     \
-CPY_BUILD_META_FUNC(meta_type, func_prefix ## _add_double, double)             \
-CPY_BUILD_META_FUNC(meta_type, func_prefix ## _add_boolean, _Bool)             \
-                                                                               \
-static cpy_build_meta_handler_t cpy_ ## func_prefix = {                        \
-  .add_string = cpy_ ## func_prefix ## _add_string,                            \
-  .add_signed_int = cpy_ ## func_prefix ## _add_signed_int,                    \
-  .add_unsigned_int = cpy_ ## func_prefix ## _add_unsigned_int,                \
-  .add_double = cpy_ ## func_prefix ## _add_double,                            \
-  .add_boolean = cpy_ ## func_prefix ## _add_boolean                           \
-}
-
 static PyObject *cpy_common_repr(PyObject *s) {
   PyObject *ret, *tmp;
   static PyObject *l_type = NULL, *l_type_instance = NULL, *l_plugin = NULL,
@@ -485,8 +465,9 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
   return 0;
 }
 
-static int cpy_build_meta(PyObject *meta, cpy_build_meta_handler_t *meta_func,
-                          void *m) {
+static int cpy_build_meta_generic(PyObject *meta,
+                                  cpy_build_meta_handler_t *meta_func,
+                                  void *m) {
   int s;
   PyObject *l;
 
@@ -571,12 +552,31 @@ static int cpy_build_meta(PyObject *meta, cpy_build_meta_handler_t *meta_func,
   return 0;
 }
 
+#define CPY_BUILD_META_FUNC(meta_type, func, val_type)                         \
+  static int cpy_##func(void *meta, const char *key, val_type val) {           \
+    return func((meta_type *)meta, key, val);                                  \
+  }
+
+#define CPY_BUILD_META_HANDLER(func_prefix, meta_type)                         \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_string, const char *)       \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_signed_int, int64_t)        \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_unsigned_int, uint64_t)     \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_double, double)             \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_boolean, _Bool)             \
+                                                                               \
+  static cpy_build_meta_handler_t cpy_##func_prefix = {                        \
+      .add_string = cpy_##func_prefix##_add_string,                            \
+      .add_signed_int = cpy_##func_prefix##_add_signed_int,                    \
+      .add_unsigned_int = cpy_##func_prefix##_add_unsigned_int,                \
+      .add_double = cpy_##func_prefix##_add_double,                            \
+      .add_boolean = cpy_##func_prefix##_add_boolean}
+
 CPY_BUILD_META_HANDLER(meta_data, meta_data_t);
 CPY_BUILD_META_HANDLER(plugin_notification_meta, notification_t);
 
-static meta_data_t *cpy_build_value_meta(PyObject *meta) {
+static meta_data_t *cpy_build_meta(PyObject *meta) {
   meta_data_t *m = meta_data_create();
-  if (cpy_build_meta(meta, &cpy_meta_data, (void *)m) < 0) {
+  if (cpy_build_meta_generic(meta, &cpy_meta_data, (void *)m) < 0) {
     meta_data_destroy(m);
     return NULL;
   }
@@ -584,7 +584,7 @@ static meta_data_t *cpy_build_value_meta(PyObject *meta) {
 }
 
 static void cpy_build_notification_meta(notification_t *n, PyObject *meta) {
-  cpy_build_meta(meta, &cpy_plugin_notification_meta, (void *)n);
+  cpy_build_meta_generic(meta, &cpy_plugin_notification_meta, (void *)n);
 }
 
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
@@ -694,7 +694,7 @@ static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
     }
   }
   value_list.values = value;
-  value_list.meta = cpy_build_value_meta(meta);
+  value_list.meta = cpy_build_meta(meta);
   value_list.values_len = size;
   value_list.time = DOUBLE_TO_CDTIME_T(time);
   value_list.interval = DOUBLE_TO_CDTIME_T(interval);
@@ -821,7 +821,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
   value_list.values_len = size;
   value_list.time = DOUBLE_TO_CDTIME_T(time);
   value_list.interval = DOUBLE_TO_CDTIME_T(interval);
-  value_list.meta = cpy_build_value_meta(meta);
+  value_list.meta = cpy_build_meta(meta);
   if (value_list.host[0] == 0)
     sstrncpy(value_list.host, hostname_g, sizeof(value_list.host));
   if (value_list.plugin[0] == 0)
@@ -988,15 +988,14 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
   PyObject *meta = NULL;
   char *type = NULL, *plugin_instance = NULL, *type_instance = NULL,
        *plugin = NULL, *host = NULL;
-  static char *kwlist[] = {"type",          "message",  "plugin_instance",
-                           "type_instance", "plugin",   "host",
-                           "time",          "severity", "meta",
-                           NULL};
+  static char *kwlist[] = {
+      "type", "message", "plugin_instance", "type_instance", "plugin",
+      "host", "time",    "severity",        "meta",          NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdiO", kwlist, NULL,
-                                   &type, NULL, &message, NULL,
-                                   &plugin_instance, NULL, &type_instance, NULL,
-                                   &plugin, NULL, &host, &time, &severity, &meta))
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "|etetetetetetdiO", kwlist, NULL, &type, NULL, &message,
+          NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin, NULL,
+          &host, &time, &severity, &meta))
     return -1;
 
   if (type && plugin_get_ds(type) == NULL) {
@@ -1046,10 +1045,9 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args,
        *type_instance = NULL;
   char *message = NULL;
 
-  static char *kwlist[] = {"type",          "message",  "plugin_instance",
-                           "type_instance", "plugin",   "host",
-                           "time",          "severity", "meta",
-                           NULL};
+  static char *kwlist[] = {
+      "type", "message", "plugin_instance", "type_instance", "plugin",
+      "host", "time",    "severity",        "meta",          NULL};
   if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdiO", kwlist, NULL,
                                    &type, NULL, &message, NULL,
                                    &plugin_instance, NULL, &type_instance, NULL,
@@ -1210,7 +1208,8 @@ static PyMethodDef Notification_methods[] = {
 
 static PyMemberDef Notification_members[] = {
     {"severity", T_INT, offsetof(Notification, severity), 0, severity_doc},
-    {"meta", T_OBJECT_EX, offsetof(Notification, meta), 0, notification_meta_doc},
+    {"meta", T_OBJECT_EX, offsetof(Notification, meta), 0,
+     notification_meta_doc},
     {NULL}};
 
 static PyGetSetDef Notification_getseters[] = {
@@ -1219,43 +1218,43 @@ static PyGetSetDef Notification_getseters[] = {
     {NULL}};
 
 PyTypeObject NotificationType = {
-    CPY_INIT_TYPE "collectd.Notification",    /* tp_name */
-    sizeof(Notification),                     /* tp_basicsize */
-    0,                                        /* Will be filled in later */
-    Notification_dealloc,                     /* tp_dealloc */
-    0,                                        /* tp_print */
-    0,                                        /* tp_getattr */
-    0,                                        /* tp_setattr */
-    0,                                        /* tp_compare */
-    Notification_repr,                        /* tp_repr */
-    0,                                        /* tp_as_number */
-    0,                                        /* tp_as_sequence */
-    0,                                        /* tp_as_mapping */
-    0,                                        /* tp_hash */
-    0,                                        /* tp_call */
-    0,                                        /* tp_str */
-    0,                                        /* tp_getattro */
-    0,                                        /* tp_setattro */
-    0,                                        /* tp_as_buffer */
+    CPY_INIT_TYPE "collectd.Notification", /* tp_name */
+    sizeof(Notification),                  /* tp_basicsize */
+    0,                                     /* Will be filled in later */
+    Notification_dealloc,                  /* tp_dealloc */
+    0,                                     /* tp_print */
+    0,                                     /* tp_getattr */
+    0,                                     /* tp_setattr */
+    0,                                     /* tp_compare */
+    Notification_repr,                     /* tp_repr */
+    0,                                     /* tp_as_number */
+    0,                                     /* tp_as_sequence */
+    0,                                     /* tp_as_mapping */
+    0,                                     /* tp_hash */
+    0,                                     /* tp_call */
+    0,                                     /* tp_str */
+    0,                                     /* tp_getattro */
+    0,                                     /* tp_setattro */
+    0,                                     /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
-    Notification_doc,                         /* tp_doc */
-    Notification_traverse,                    /* tp_traverse */
-    Notification_clear,                       /* tp_clear */
-    0,                                        /* tp_richcompare */
-    0,                                        /* tp_weaklistoffset */
-    0,                                        /* tp_iter */
-    0,                                        /* tp_iternext */
-    Notification_methods,                     /* tp_methods */
-    Notification_members,                     /* tp_members */
-    Notification_getseters,                   /* tp_getset */
-    0,                                        /* tp_base */
-    0,                                        /* tp_dict */
-    0,                                        /* tp_descr_get */
-    0,                                        /* tp_descr_set */
-    0,                                        /* tp_dictoffset */
-    Notification_init,                        /* tp_init */
-    0,                                        /* tp_alloc */
-    Notification_new                          /* tp_new */
+    Notification_doc,                                              /* tp_doc */
+    Notification_traverse,  /* tp_traverse */
+    Notification_clear,     /* tp_clear */
+    0,                      /* tp_richcompare */
+    0,                      /* tp_weaklistoffset */
+    0,                      /* tp_iter */
+    0,                      /* tp_iternext */
+    Notification_methods,   /* tp_methods */
+    Notification_members,   /* tp_members */
+    Notification_getseters, /* tp_getset */
+    0,                      /* tp_base */
+    0,                      /* tp_dict */
+    0,                      /* tp_descr_get */
+    0,                      /* tp_descr_set */
+    0,                      /* tp_dictoffset */
+    Notification_init,      /* tp_init */
+    0,                      /* tp_alloc */
+    Notification_new        /* tp_new */
 };
 
 static char Signed_doc[] =
