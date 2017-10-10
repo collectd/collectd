@@ -37,13 +37,8 @@
 #include <curl/curl.h>
 
 #include <yajl/yajl_parse.h>
-#if HAVE_YAJL_YAJL_VERSION_H
-#include <yajl/yajl_version.h>
-#endif
 
 #define CJO_DEFAULT_HOST "localhost"
-
-typedef size_t yajl_len_t;
 
 struct cjo_attribute_s /* {{{ */
 {
@@ -71,9 +66,9 @@ typedef enum { eNone = 0, eValue, eMBean } cjo_expect_token;
 /* {{{ */
 struct cjo_attribute_values_s {
 	const char *json_value;
-	yajl_len_t json_value_len;
+	size_t json_value_len;
 	const char *json_name;
-	yajl_len_t json_name_len;
+	size_t json_name_len;
 };
 typedef struct cjo_attribute_values_s cjo_attribute_values_t;
 /* }}} */
@@ -104,7 +99,7 @@ struct cjo_s /* {{{ */
 	int attribute_pool_used;
 
 	const char *json_key;
-	yajl_len_t json_key_len;
+	size_t json_key_len;
 
 	cjo_expect_token expect;
 
@@ -158,25 +153,24 @@ static void cjo_append_buffer(cjo_membuffer_t *buf, const char *append,
 
 static void cjo_release_buffercontent(cjo_membuffer_t *buf) {
 	sfree(buf->buffer);
-	buf->buffer = NULL;
 	buf->size = 0;
 	buf->used = 0;
 }
 
-static void cjo_remember_value(cjo_membuffer_t *ShouldBeInHere,
-			       cjo_membuffer_t *BufferHereIfNot,
+static void cjo_remember_value(cjo_membuffer_t *should_be_in_here,
+			       cjo_membuffer_t *buffer_here_if_not,
 			       const char *ptr, size_t len,
 			       const char **SetThisOne,
-			       yajl_len_t *SetThisLen) {
-	if (!((ptr > ShouldBeInHere->buffer) &&
-	      (ptr < ShouldBeInHere->buffer + ShouldBeInHere->used))) {
-		char *tptr = BufferHereIfNot->buffer + BufferHereIfNot->used;
-		cjo_append_buffer(BufferHereIfNot, ptr, len);
+			       size_t *SetThisLen) {
+	if (!((ptr > should_be_in_here->buffer) &&
+	      (ptr < should_be_in_here->buffer + should_be_in_here->used))) {
+		char *tptr = buffer_here_if_not->buffer + buffer_here_if_not->used;
+		cjo_append_buffer(buffer_here_if_not, ptr, len);
 		ptr = tptr;
 	}
 
 	*SetThisOne = ptr;
-	*SetThisLen = (yajl_len_t) len;
+	*SetThisLen = len;
 }
 
 /*
@@ -212,7 +206,7 @@ static int cjo_get_type(cjo_attribute_t *attribute) {
 
 	const data_set_t *ds = plugin_get_ds(attribute->type);
 	if (ds == NULL) {
-		static char type[DATA_MAX_NAME_LEN] = "!!!invalid!!!";
+		static char type[DATA_MAX_NAME_LEN] = "/--invalid--/";
 
 		if (strcmp(type, attribute->type) != 0) {
 			ERROR("curl_jolokia plugin: Unable to look up DS type \"%s\".",
@@ -261,7 +255,7 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 
 		/* Create a null-terminated version of the string. */
 		int ds_type = cjo_get_type(curr_attribute);
-		if (ds_type == -1) {
+		if (ds_type < 0) {
 			char attribute[db->curr_attribute->json_name_len + 1];
 
 			memcpy(attribute, db->curr_attribute->json_name,
@@ -273,8 +267,7 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 			continue;
 		}
 
-		value_t ret_value;
-		memset(&ret_value, 0, sizeof(ret_value));
+		value_t ret_value = {0};
 
 		char buffer[db->max_value_len + 1];
 		memcpy(buffer, db->curr_attribute->json_value,
@@ -333,7 +326,7 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 #define CJO_CB_ABORT 0
 #define CJO_CB_CONTINUE 1
 
-static int cjo_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
+static int cjo_cb_string(void *ctx, const unsigned char *val, size_t len) {
 	cjo_t *db = (cjo_t *)ctx;
 
 	switch (db->expect) {
@@ -365,7 +358,7 @@ static int cjo_cb_string(void *ctx, const unsigned char *val, yajl_len_t len) {
 	return CJO_CB_CONTINUE;
 } /* int cjo_cb_string */
 
-static int cjo_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
+static int cjo_cb_number(void *ctx, const char *number, size_t number_len) {
 	cjo_t *db = (cjo_t *)ctx;
 
 	switch (db->expect) {
@@ -389,7 +382,7 @@ static int cjo_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
 } /* int cjo_cb_number */
 
 static int cjo_cb_map_key(void *ctx, unsigned char const *in_name,
-			  yajl_len_t in_name_len) {
+			  size_t in_name_len) {
 	cjo_t *db = (cjo_t *)ctx;
 
 	if ((in_name_len == 5) && !strncmp((const char *)in_name, "value", 5)) {
