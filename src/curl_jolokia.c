@@ -94,7 +94,7 @@ struct cjo_s /* {{{ */
 	char *credentials;
 
 	const cjo_bean_t *match_this_bean;
-	cjo_attribute_values_t *curr_attribute; /* points to the pool below. */
+	cjo_attribute_values_t *curr_attribute_value; /* points to the pool below. */
 	cjo_attribute_values_t *attributepool;
 	int attribute_pool_used;
 
@@ -180,11 +180,12 @@ static int cjo_cfg_compare_attribute(llentry_t *match, void *vdb) {
 	cjo_t *db = (cjo_t *)vdb;
 	cjo_attribute_t *pcfg = (cjo_attribute_t *)match->value;
 
-	if (pcfg->attribute_match_len != db->curr_attribute->json_name_len)
+	if (pcfg->attribute_match_len != db->curr_attribute_value->json_name_len)
 		return -1;
 	else
-		return strncmp(pcfg->attribute_match, db->curr_attribute->json_name,
-			       db->curr_attribute->json_name_len);
+		return strncmp(pcfg->attribute_match,
+			       db->curr_attribute_value->json_name,
+			       db->curr_attribute_value->json_name_len);
 }
 static int cjo_cfg_compare_bean(llentry_t *match, void *vdb) {
 	cjo_t *db = (cjo_t *)vdb;
@@ -236,16 +237,14 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 
 	for (int i = 0; i < db->attribute_pool_used; i++) {
 		value_list_t vl = VALUE_LIST_INIT;
-
-		db->curr_attribute = &db->attributepool[i];
+		cjo_attribute_values_t *CAV = db->curr_attribute_value = &db->attributepool[i];
 		llentry_t *cfgptr = llist_search_custom(db->match_this_bean->attributes,
 					     cjo_cfg_compare_attribute, db);
 		if (cfgptr == NULL) {
-			char attribute[db->curr_attribute->json_name_len + 1];
+			char attribute[CAV->json_name_len + 1];
 
-			memcpy(attribute, db->curr_attribute->json_name,
-			       db->curr_attribute->json_name_len);
-			attribute[db->curr_attribute->json_name_len] = '\0';
+			memcpy(attribute, CAV->json_name, CAV->json_name_len);
+			attribute[CAV->json_name_len] = '\0';
 			ERROR("curl_jolokia plugin: failed to locate attribute [%s:\"%s\"]",
 			      db->match_this_bean->bean_name, attribute);
 
@@ -256,11 +255,10 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 		/* Create a null-terminated version of the string. */
 		int ds_type = cjo_get_type(curr_attribute);
 		if (ds_type < 0) {
-			char attribute[db->curr_attribute->json_name_len + 1];
+			char attribute[CAV->json_name_len + 1];
 
-			memcpy(attribute, db->curr_attribute->json_name,
-			       db->curr_attribute->json_name_len);
-			attribute[db->curr_attribute->json_name_len] = '\0';
+			memcpy(attribute, CAV->json_name, CAV->json_name_len);
+			attribute[CAV->json_name_len] = '\0';
 
 			ERROR("curl_jolokia plugin: failed to map type for [%s:%s:%s]",
 			      db->match_this_bean->bean_name, attribute, curr_attribute->type);
@@ -270,17 +268,15 @@ static void cjo_submit(cjo_t *db) /* {{{ */
 		value_t ret_value = {0};
 
 		char buffer[db->max_value_len + 1];
-		memcpy(buffer, db->curr_attribute->json_value,
-		       db->curr_attribute->json_value_len);
+		memcpy(buffer, CAV->json_value, CAV->json_value_len);
 
-		buffer[db->curr_attribute->json_value_len] = '\0';
+		buffer[CAV->json_value_len] = '\0';
 
 		if (parse_value(buffer, &ret_value, ds_type) != 0) {
-			char attribute[db->curr_attribute->json_name_len + 1];
+			char attribute[CAV->json_name_len + 1];
 
-			memcpy(attribute, db->curr_attribute->json_name,
-			       db->curr_attribute->json_name_len);
-			attribute[db->curr_attribute->json_name_len] = '\0';
+			memcpy(attribute, CAV->json_name, CAV->json_name_len);
+			attribute[CAV->json_name_len] = '\0';
 
 			WARNING("curl_jolokia plugin: Unable to parse number: [%s:%s:\"%s\"]",
 				db->match_this_bean->bean_name, attribute, buffer);
@@ -331,9 +327,10 @@ static int cjo_cb_string(void *ctx, const unsigned char *val, size_t len) {
 
 	switch (db->expect) {
 	case eValue:
-		cjo_remember_value(&db->replybuffer, &db->itembuffer, (const char *)val,
-				   len, &db->curr_attribute->json_value,
-				   &db->curr_attribute->json_value_len);
+		cjo_remember_value(&db->replybuffer, &db->itembuffer,
+				   (const char *)val, len,
+				   &db->curr_attribute_value->json_value,
+				   &db->curr_attribute_value->json_value_len);
 
 		if (len > db->max_value_len)
 			db->max_value_len = len;
@@ -364,8 +361,8 @@ static int cjo_cb_number(void *ctx, const char *number, size_t number_len) {
 	switch (db->expect) {
 	case eValue:
 		cjo_remember_value(&db->replybuffer, &db->itembuffer, number, number_len,
-				   &db->curr_attribute->json_value,
-				   &db->curr_attribute->json_value_len);
+				   &db->curr_attribute_value->json_value,
+				   &db->curr_attribute_value->json_value_len);
 
 		if (number_len > db->max_value_len)
 			db->max_value_len = number_len;
@@ -392,7 +389,7 @@ static int cjo_cb_map_key(void *ctx, unsigned char const *in_name,
 		db->expect = eMBean;
 	} else if (db->expect == eValue) {
 		if (db->attribute_pool_used <= db->max_attribute_count) {
-			db->curr_attribute = &db->attributepool[db->attribute_pool_used];
+			db->curr_attribute_value = &db->attributepool[db->attribute_pool_used];
 			db->attribute_pool_used++;
 		} else {
 			char buffer[in_name_len + 1];
@@ -404,8 +401,9 @@ static int cjo_cb_map_key(void *ctx, unsigned char const *in_name,
 			      db->attribute_pool_used, db->max_attribute_count, buffer);
 		}
 		cjo_remember_value(&db->replybuffer, &db->itembuffer, (const char *)in_name,
-				   in_name_len, &db->curr_attribute->json_name,
-				   &db->curr_attribute->json_name_len);
+				   in_name_len,
+				   &db->curr_attribute_value->json_name,
+				   &db->curr_attribute_value->json_name_len);
 	}
 	return CJO_CB_CONTINUE;
 }
