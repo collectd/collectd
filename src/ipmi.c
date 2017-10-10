@@ -172,7 +172,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
                                 void *user_data) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  c_ipmi_sensor_list_t *list_item = (c_ipmi_sensor_list_t *)user_data;
+  c_ipmi_sensor_list_t *list_item = user_data;
   c_ipmi_instance_t *st = list_item->instance;
 
   list_item->use--;
@@ -602,7 +602,7 @@ static int sensor_threshold_event_handler(
     enum ipmi_value_present_e value_present, unsigned int raw_value,
     double value, void *cb_data, ipmi_event_t *event) {
 
-  c_ipmi_instance_t *st = (c_ipmi_instance_t *)cb_data;
+  c_ipmi_instance_t *st = cb_data;
 
   /* From the IPMI specification Chapter 2: Events.
    * If a callback handles the event, then all future callbacks called due to
@@ -673,7 +673,7 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
                                          int severity, int prev_severity,
                                          void *cb_data, ipmi_event_t *event) {
 
-  c_ipmi_instance_t *st = (c_ipmi_instance_t *)cb_data;
+  c_ipmi_instance_t *st = cb_data;
 
   /* From the IPMI specification Chapter 2: Events.
    * If a callback handles the event, then all future callbacks called due to
@@ -726,7 +726,7 @@ static void
 entity_sensor_update_handler(enum ipmi_update_e op,
                              ipmi_entity_t __attribute__((unused)) * entity,
                              ipmi_sensor_t *sensor, void *user_data) {
-  c_ipmi_instance_t *st = (c_ipmi_instance_t *)user_data;
+  c_ipmi_instance_t *st = user_data;
 
   if ((op == IPMI_ADDED) || (op == IPMI_CHANGED)) {
     /* Will check for duplicate entries.. */
@@ -775,7 +775,7 @@ domain_entity_update_handler(enum ipmi_update_e op,
                              ipmi_domain_t __attribute__((unused)) * domain,
                              ipmi_entity_t *entity, void *user_data) {
   int status;
-  c_ipmi_instance_t *st = (c_ipmi_instance_t *)user_data;
+  c_ipmi_instance_t *st = user_data;
 
   if (op == IPMI_ADDED) {
     status = ipmi_entity_add_sensor_update_handler(
@@ -820,7 +820,7 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
         "user_data = %p);",
         (void *)domain, err, conn_num, port_num, still_connected, user_data);
 
-  c_ipmi_instance_t *st = (c_ipmi_instance_t *)user_data;
+  c_ipmi_instance_t *st = user_data;
 
   if (err != 0)
     c_ipmi_error(st, "domain_connection_change_handler", err);
@@ -868,7 +868,7 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
 
   if (st->connaddr != NULL) {
     status = ipmi_ip_setup_con(
-        &st->connaddr, (char * [1]){IPMI_LAN_STD_PORT_STR}, 1, st->authtype,
+        &st->connaddr, &(char *){IPMI_LAN_STD_PORT_STR}, 1, st->authtype,
         (unsigned int)IPMI_PRIVILEGE_USER, st->username, strlen(st->username),
         st->password, strlen(st->password), os_handler,
         /* user data = */ NULL, &st->connection);
@@ -911,7 +911,7 @@ static int c_ipmi_thread_init(c_ipmi_instance_t *st) {
 } /* int c_ipmi_thread_init */
 
 static void *c_ipmi_thread_main(void *user_data) {
-  c_ipmi_instance_t *st = (c_ipmi_instance_t *)user_data;
+  c_ipmi_instance_t *st = user_data;
 
   int status = c_ipmi_thread_init(st);
   if (status != 0) {
