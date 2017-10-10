@@ -2279,18 +2279,18 @@ Jolokia JSON reply retrieved via B<libcurl> (L<http://curl.haxx.se/>)
      Password "passvoid"
      Post <JOLOKIA json post data>
 
-     <BeanName "PS_Scavenge">
-          MBean "java.lang:name=PS Scavenge,type=GarbageCollector"
-          BeanNameSpace "java_lang"
-          <AttributeName "collectiontime" >
-                 Attribute "CollectionTime"
-                 type "gauge"
-          </AttributeName>
-          <AttributeName "collectioncount" >
-                 Attribute "CollectionCount"
-                 type "gauge"
-          </AttributeName>
-     </BeanName>
+   <BeanName "PS_Scavenge">
+        MBean "java.lang:name=PS Scavenge,type=GarbageCollector"
+        BeanNameSpace "java_lang"
+        <AttributeName "collectiontime" >
+               Attribute "CollectionTime"
+               type "gauge"
+        </AttributeName>
+        <AttributeName "collectioncount" >
+               Attribute "CollectionCount"
+               type "gauge"
+        </AttributeName>
+   </BeanName>
   </Plugin>
 
 The plugin is intended to be written in a simple manner. Thus it doesn't 
@@ -2358,13 +2358,26 @@ I<cURL> plugin. Please see there for a detailed description.
 =item B<E<lt>BeanNameE<gt>>
 
 One B<BeanName> block configures the translation of the gauges of one bean
-to their respective collectd names.
+to their respective collectd names, where BeanName sets the main name.
 
-=back
+=item B<MBean> I<MBean>
 
-The following options are valid within B<Key> blocks:
+The name of the Bean on the server
+
+=item B<BeanNameSpace> I<BeanNameSpace>
+
+The name space the Bean resides under
 
 =over 4
+
+=item B<AttributeName> I<AttributeName>
+
+A bean can contain several Attributes with gauges. Each one can be matched by a 
+AttributeName section or be ignored. 
+
+=item B<Attribute> I<Attribute>
+
+How should this attribute be called under the BeanName in the collectd hierarchy?
 
 =item B<Type> I<Type>
 
@@ -2372,10 +2385,7 @@ Sets the type used to dispatch the values to the daemon. Detailed information
 about types and their configuration can be found in L<types.db(5)>. This
 option is mandatory.
 
-=item B<Instance> I<Instance>
-
-Type-instance to use. Defaults to the current map key or current string array element value.
-
+=back
 =back
 
 =head2 Plugin C<curl_xml>
