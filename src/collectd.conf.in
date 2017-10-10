@@ -676,14 +676,33 @@
 #</Plugin>
 
 #<Plugin ipmi>
-#	Sensor "some_sensor"
-#	Sensor "another_one"
-#	IgnoreSelected false
-#	NotifySensorAdd false
-#	NotifySensorRemove true
-#	NotifySensorNotPresent false
-#	SELEnabled false
-#	SELClearEvent false
+#	<Instance "local">
+#		Sensor "some_sensor"
+#		Sensor "another_one"
+#		IgnoreSelected false
+#		NotifySensorAdd false
+#		NotifySensorRemove true
+#		NotifySensorNotPresent false
+#		NotifyIPMIConnectionState false
+#		SELEnabled false
+#		SELClearEvent false
+#	</Instance>
+#	<Instance "remote">
+#		Host "server.example.com"
+#		Address  "1.2.3.4"
+#		Username "user"
+#		Password "secret"
+#		#AuthType "md5"
+#		Sensor "some_sensor"
+#		Sensor "another_one"
+#		IgnoreSelected false
+#		NotifySensorAdd false
+#		NotifySensorRemove true
+#		NotifySensorNotPresent false
+#		NotifyIPMIConnectionState false
+#		SELEnabled false
+#		SELClearEvent false
+#	</Instance>
 #</Plugin>
 
 #<Plugin iptables>

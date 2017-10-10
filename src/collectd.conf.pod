@@ -3351,7 +3351,42 @@ This option is only available on Solaris.
 
 =head2 Plugin C<ipmi>
 
+The B<ipmi plugin> allows to monitor server platform status using the Intelligent
+Platform Management Interface (IPMI). Local and remote interfaces are supported.
+
+The plugin configuration consists of one or more B<Instance> blocks which
+specify one I<ipmi> connection each. Each block requires one unique string
+argument as the instance name. If instances are not configured, an instance with
+the default option values will be created.
+
+For backwards compatibility, any option other than B<Instance> block will trigger
+legacy config handling and it will be treated as an option within B<Instance>
+block. This support will go away in the next major version of Collectd.
+
+Within the B<Instance> blocks, the following options are allowed:
+
 =over 4
+
+=item B<Address> I<Address>
+
+Hostname or IP to connect to. If not specified, plugin will try to connect to
+local management controller (BMC).
+
+=item B<Username> I<Username>
+
+=item B<Password> I<Password>
+
+The username and the password to use for the connection to remote BMC.
+
+=item B<AuthType> I<MD5>|I<rmcp+>
+
+Forces the authentication type to use for the connection to remote BMC.
+By default most secure type is seleted.
+
+=item B<Host> I<Hostname>
+
+Sets the B<host> field of dispatched values. Defaults to the global hostname
+setting.
 
 =item B<Sensor> I<Sensor>
 
@@ -3380,6 +3415,11 @@ If a sensor disappears a notification is sent.
 
 If you have for example dual power supply and one of them is (un)plugged then
 a notification is sent.
+
+=item B<NotifyIPMIConnectionState> I<true>|I<false>
+
+If a IPMI connection state changes after initialization time of a minute
+a notification is sent. Defaults to B<false>.
 
 =item B<SELEnabled> I<true>|I<false>
 
