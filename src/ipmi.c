@@ -151,6 +151,14 @@ static void c_ipmi_log(os_handler_t *handler, const char *format,
   }
 } /* void c_ipmi_log */
 
+static notification_t c_ipmi_notification_init(c_ipmi_instance_t const *st,
+                                               int severity) {
+  notification_t n = {severity, cdtime(), "", "", "ipmi", "", "", "", NULL};
+
+  sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g, sizeof(n.host));
+  return n;
+} /* notification_t c_ipmi_notification_init */
+
 /*
  * Sensor handlers
  */
@@ -180,11 +188,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
              list_item->sensor_name, st->name);
 
         if (st->notify_notpresent) {
-          notification_t n = {
-              NOTIF_WARNING, cdtime(), "", "", "ipmi", "", "", "", NULL};
+          notification_t n = c_ipmi_notification_init(st, NOTIF_WARNING);
 
-          sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
-                   sizeof(n.host));
           sstrncpy(n.type_instance, list_item->sensor_name,
                    sizeof(n.type_instance));
           sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
@@ -236,11 +241,8 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
          list_item->sensor_name, st->name);
 
     if (st->notify_notpresent) {
-      notification_t n = {NOTIF_OKAY, cdtime(), "", "",  "ipmi",
-                          "",         "",       "", NULL};
+      notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
 
-      sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
-               sizeof(n.host));
       sstrncpy(n.type_instance, list_item->sensor_name,
                sizeof(n.type_instance));
       sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
@@ -457,10 +459,8 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   pthread_mutex_unlock(&st->sensor_list_lock);
 
   if (st->notify_add && (st->init_in_progress == 0)) {
-    notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
+    notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
 
-    sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
-             sizeof(n.host));
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     snprintf(n.message, sizeof(n.message), "sensor %s added",
@@ -505,11 +505,8 @@ static int sensor_list_remove(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   pthread_mutex_unlock(&st->sensor_list_lock);
 
   if (st->notify_remove && st->active) {
-    notification_t n = {NOTIF_WARNING, cdtime(), "", "", "ipmi", "", "", "",
-                        NULL};
+    notification_t n = c_ipmi_notification_init(st, NOTIF_WARNING);
 
-    sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
-             sizeof(n.host));
     sstrncpy(n.type_instance, list_item->sensor_name, sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     snprintf(n.message, sizeof(n.message), "sensor %s removed",
@@ -615,9 +612,9 @@ static int sensor_threshold_event_handler(
   if (event == NULL)
     return IPMI_EVENT_NOT_HANDLED;
 
+  notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
   /* offset is a table index and it's represented as enum of strings that are
      organized in the way - high and low for each threshold severity level */
-  notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
   unsigned int offset = (2 * threshold) + high_low;
   unsigned int event_type = ipmi_sensor_get_event_reading_type(sensor);
   unsigned int sensor_type = ipmi_sensor_get_sensor_type(sensor);
@@ -635,7 +632,6 @@ static int sensor_threshold_event_handler(
 
   DEBUG("Threshold event received for sensor %s", n.type_instance);
 
-  sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g, sizeof(n.host));
   sstrncpy(n.type, ipmi_sensor_get_sensor_type_string(sensor), sizeof(n.type));
   n.severity = sensor_convert_threshold_severity(threshold);
   n.time = NS_TO_CDTIME_T(ipmi_event_get_timestamp(event));
@@ -687,7 +683,7 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   if (event == NULL)
     return IPMI_EVENT_NOT_HANDLED;
 
-  notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
+  notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
   unsigned int event_type = ipmi_sensor_get_event_reading_type(sensor);
   unsigned int sensor_type = ipmi_sensor_get_sensor_type(sensor);
   const char *event_state =
@@ -698,7 +694,6 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
 
   DEBUG("Discrete event received for sensor %s", n.type_instance);
 
-  sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g, sizeof(n.host));
   sstrncpy(n.type, ipmi_sensor_get_sensor_type_string(sensor), sizeof(n.type));
   n.time = NS_TO_CDTIME_T(ipmi_event_get_timestamp(event));
 
@@ -833,11 +828,8 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
   if (!still_connected) {
 
     if (st->notify_conn && st->connected && st->init_in_progress == 0) {
-      notification_t n = {NOTIF_FAILURE, cdtime(), "", "", "ipmi", "", "", "",
-                          NULL};
+      notification_t n = c_ipmi_notification_init(st, NOTIF_FAILURE);
 
-      sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
-               sizeof(n.host));
       sstrncpy(n.message, "IPMI connection lost", sizeof(n.plugin));
 
       plugin_dispatch_notification(&n);
@@ -848,10 +840,8 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
   }
 
   if (st->notify_conn && !st->connected && st->init_in_progress == 0) {
-    notification_t n = {NOTIF_OKAY, cdtime(), "", "", "ipmi", "", "", "", NULL};
+    notification_t n = c_ipmi_notification_init(st, NOTIF_OKAY);
 
-    sstrncpy(n.host, (st->host != NULL) ? st->host : hostname_g,
-             sizeof(n.host));
     sstrncpy(n.message, "IPMI connection restored", sizeof(n.plugin));
 
     plugin_dispatch_notification(&n);
