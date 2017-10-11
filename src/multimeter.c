@@ -62,7 +62,7 @@ static int multimeter_read_value(double *value) {
       struct timeval time_now;
 
       status = swrite(fd, "D", 1);
-      if (status < 0) {
+      if (status != 0) {
         ERROR("multimeter plugin: swrite failed.");
         return -1;
       }
