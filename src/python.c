@@ -423,7 +423,7 @@ static int cpy_write_callback(const data_set_t *ds,
   }
   dict = PyDict_New(); /* New reference. */
   if (value_list->meta) {
-    char **table;
+    char **table = NULL;
     meta_data_t *meta = value_list->meta;
 
     int num = meta_data_toc(meta, &table);
@@ -446,19 +446,21 @@ static int cpy_write_callback(const data_set_t *ds,
       } else if (type == MD_TYPE_SIGNED_INT) {
         if (meta_data_get_signed_int(meta, table[i], &si))
           continue;
-        temp = PyObject_CallFunctionObjArgs((void *)&SignedType,
-                                            PyLong_FromLongLong(si),
+        PyObject *sival = PyLong_FromLongLong(si); /* New reference */
+        temp = PyObject_CallFunctionObjArgs((void *)&SignedType, sival,
                                             (void *)0); /* New reference. */
         PyDict_SetItemString(dict, table[i], temp);
         Py_XDECREF(temp);
+        Py_XDECREF(sival);
       } else if (type == MD_TYPE_UNSIGNED_INT) {
         if (meta_data_get_unsigned_int(meta, table[i], &ui))
           continue;
-        temp = PyObject_CallFunctionObjArgs((void *)&UnsignedType,
-                                            PyLong_FromUnsignedLongLong(ui),
+        PyObject *uval = PyLong_FromUnsignedLongLong(ui); /* New reference */
+        temp = PyObject_CallFunctionObjArgs((void *)&UnsignedType, uval,
                                             (void *)0); /* New reference. */
         PyDict_SetItemString(dict, table[i], temp);
         Py_XDECREF(temp);
+        Py_XDECREF(uval);
       } else if (type == MD_TYPE_DOUBLE) {
         if (meta_data_get_double(meta, table[i], &d))
           continue;
@@ -510,6 +512,39 @@ static int cpy_notification_callback(const notification_t *notification,
   Notification *n;
 
   CPY_LOCK_THREADS
+  PyObject *dict = PyDict_New(); /* New reference. */
+  for (notification_meta_t *meta = notification->meta; meta != NULL;
+       meta = meta->next) {
+    PyObject *temp = NULL;
+    if (meta->type == NM_TYPE_STRING) {
+      temp = cpy_string_to_unicode_or_bytes(
+          meta->nm_value.nm_string); /* New reference. */
+      PyDict_SetItemString(dict, meta->name, temp);
+      Py_XDECREF(temp);
+    } else if (meta->type == NM_TYPE_SIGNED_INT) {
+      PyObject *sival = PyLong_FromLongLong(meta->nm_value.nm_signed_int);
+      temp = PyObject_CallFunctionObjArgs((void *)&SignedType, sival,
+                                          (void *)0); /* New reference. */
+      PyDict_SetItemString(dict, meta->name, temp);
+      Py_XDECREF(temp);
+      Py_XDECREF(sival);
+    } else if (meta->type == NM_TYPE_UNSIGNED_INT) {
+      PyObject *uval =
+          PyLong_FromUnsignedLongLong(meta->nm_value.nm_unsigned_int);
+      temp = PyObject_CallFunctionObjArgs((void *)&UnsignedType, uval,
+                                          (void *)0); /* New reference. */
+      PyDict_SetItemString(dict, meta->name, temp);
+      Py_XDECREF(temp);
+      Py_XDECREF(uval);
+    } else if (meta->type == NM_TYPE_DOUBLE) {
+      temp = PyFloat_FromDouble(meta->nm_value.nm_double); /* New reference. */
+      PyDict_SetItemString(dict, meta->name, temp);
+      Py_XDECREF(temp);
+    } else if (meta->type == NM_TYPE_BOOLEAN) {
+      PyDict_SetItemString(dict, meta->name,
+                           meta->nm_value.nm_boolean ? Py_True : Py_False);
+    }
+  }
   notify = Notification_New(); /* New reference. */
   n = (Notification *)notify;
   sstrncpy(n->data.host, notification->host, sizeof(n->data.host));
@@ -522,6 +557,8 @@ static int cpy_notification_callback(const notification_t *notification,
   n->data.time = CDTIME_T_TO_DOUBLE(notification->time);
   sstrncpy(n->message, notification->message, sizeof(n->message));
   n->severity = notification->severity;
+  Py_CLEAR(n->meta);
+  n->meta = dict; /* Steals a reference. */
   ret = PyObject_CallFunctionObjArgs(c->callback, n, c->data,
                                      (void *)0); /* New reference. */
   Py_XDECREF(notify);
@@ -651,8 +688,9 @@ static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
   for (size_t i = 0; i < ds->ds_num; ++i) {
     tuple = PyTuple_New(4);
     PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
-    PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(
-                                   DS_TYPE_TO_STRING(ds->ds[i].type)));
+    PyTuple_SET_ITEM(
+        tuple, 1,
+        cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
     PyTuple_SET_ITEM(tuple, 2, float_or_none(ds->ds[i].min));
     PyTuple_SET_ITEM(tuple, 3, float_or_none(ds->ds[i].max));
     PyList_SET_ITEM(list, i, tuple);
@@ -720,7 +758,8 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler,
 
   register_function(buf, handler,
                     &(user_data_t){
-                        .data = c, .free_func = cpy_destroy_user_data,
+                        .data = c,
+                        .free_func = cpy_destroy_user_data,
                     });
 
   ++cpy_num_callbacks;
@@ -763,7 +802,8 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args,
       /* group = */ "python", buf, cpy_read_callback,
       DOUBLE_TO_CDTIME_T(interval),
       &(user_data_t){
-          .data = c, .free_func = cpy_destroy_user_data,
+          .data = c,
+          .free_func = cpy_destroy_user_data,
       });
   ++cpy_num_callbacks;
   return cpy_string_to_unicode_or_bytes(buf);
@@ -1132,8 +1172,9 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
   values = PyTuple_New(ci->values_num); /* New reference. */
   for (int i = 0; i < ci->values_num; ++i) {
     if (ci->values[i].type == OCONFIG_TYPE_STRING) {
-      PyTuple_SET_ITEM(values, i, cpy_string_to_unicode_or_bytes(
-                                      ci->values[i].value.string));
+      PyTuple_SET_ITEM(
+          values, i,
+          cpy_string_to_unicode_or_bytes(ci->values[i].value.string));
     } else if (ci->values[i].type == OCONFIG_TYPE_NUMBER) {
       PyTuple_SET_ITEM(values, i,
                        PyFloat_FromDouble(ci->values[i].value.number));

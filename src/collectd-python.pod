@@ -475,7 +475,7 @@ Methods defined here:
 
 =over 4
 
-=item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.
+=item B<dispatch>([type][, message][, plugin_instance][, type_instance][, plugin][, host][, time][, severity][, meta]) -> None.  Dispatch a notification.
 
 Dispatch this instance to the collectd process. The object has members for each
 of the possible arguments for this method. For a detailed explanation of these
@@ -500,6 +500,16 @@ generated.
 
 The severity of this notification. Assign or compare to I<NOTIF_FAILURE>,
 I<NOTIF_WARNING> or I<NOTIF_OKAY>.
+
+=item meta
+
+These are the meta data for the Notification object.
+It has to be a dictionary of numbers, strings or bools. All keys must be
+strings. I<int> and I<long> objects will be dispatched as signed integers unless
+they are between 2**63 and 2**64-1, which will result in a unsigned integer.
+One of these storage classes can be forced by using the classes
+B<collectd.Signed> and B<collectd.Unsigned>. A meta object received by a
+notification callback will always contain B<Signed> or B<Unsigned> objects.
 
 =back
 
