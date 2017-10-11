@@ -485,10 +485,11 @@ static _Bool has_suffix(char const *str, char const *suffix) {
   return 0;
 }
 
-static int cut_suffix(char new_str[], size_t new_str_len, char const *str, char const *suffix) {
+static int cut_suffix(char new_str[], size_t new_str_len, char const *str,
+                      char const *suffix) {
 
-  size_t str_len = strlen (str);
-  size_t suffix_len = strlen (suffix);
+  size_t str_len = strlen(str);
+  size_t suffix_len = strlen(suffix);
 
   size_t offset = str_len - suffix_len + 1;
 
@@ -496,7 +497,7 @@ static int cut_suffix(char new_str[], size_t new_str_len, char const *str, char 
     offset = new_str_len;
   }
 
-  sstrncpy(new_str,str,offset);
+  sstrncpy(new_str, str, offset);
 
   return 0;
 }
@@ -521,7 +522,7 @@ static int parse_keys(char *buffer, size_t buffer_size, const char *key_str) {
   if (buffer == NULL || buffer_size == 0 || key_str == NULL ||
       strlen(key_str) == 0)
     return EINVAL;
-/* Strip suffix if it is ".type" or one of latency metric suffix. */
+  /* Strip suffix if it is ".type" or one of latency metric suffix. */
   if (count_parts(key_str) > 2) {
     if (has_suffix(key_str, ".type")) {
       cut_suffix(tmp, tmp_size, key_str, ".type");
