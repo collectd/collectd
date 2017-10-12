@@ -62,23 +62,21 @@ typedef struct callback_func_s callback_func_t;
 #define RF_SIMPLE 0
 #define RF_COMPLEX 1
 #define RF_REMOVE 65535
-struct read_func_s {
-/* `read_func_t' "inherits" from `callback_func_t'.
- * The `rf_super' member MUST be the first one in this structure! */
-#define rf_callback rf_super.cf_callback
-#define rf_udata rf_super.cf_udata
-#define rf_ctx rf_super.cf_ctx
-  callback_func_t rf_super;
+typedef struct {
+  /* read_func_t embeds callback_func_t. This is the first field so that a
+   * read_func_t* can be cast to a callback_func_t*. */
+  callback_func_t base;
   char rf_group[DATA_MAX_NAME_LEN];
   char *rf_name;
   int rf_type;
   cdtime_t rf_interval;
   cdtime_t rf_effective_interval;
   cdtime_t rf_next_read;
-};
-typedef struct read_func_s read_func_t;
+} read_func_t;
 
 typedef struct {
+  /* write_func_t embeds callback_func_t. This is the first field so that a
+   * write_func_t* can be cast to a callback_func_t*. */
   callback_func_t base;
   backoff_t backoff;
 } write_func_t;
@@ -519,20 +517,20 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
 
     start = cdtime();
 
-    old_ctx = plugin_set_ctx(rf->rf_ctx);
+    old_ctx = plugin_set_ctx(rf->base.cf_ctx);
 
     if (rf_type == RF_SIMPLE) {
       int (*callback)(void);
 
-      callback = rf->rf_callback;
+      callback = rf->base.cf_callback;
       status = (*callback)();
     } else {
       plugin_read_cb callback;
 
       assert(rf_type == RF_COMPLEX);
 
-      callback = rf->rf_callback;
-      status = (*callback)(&rf->rf_udata);
+      callback = rf->base.cf_callback;
+      status = (*callback)(&rf->base.cf_udata);
     }
 
     plugin_set_ctx(old_ctx);
@@ -1169,7 +1167,7 @@ int plugin_register_read(const char *name, int (*callback)(void)) {
     return ENOMEM;
   }
   *rf = (read_func_t){
-      .rf_super = callback_func_init(callback, NULL),
+      .base = callback_func_init(callback, NULL),
       .rf_name = strdup(name),
       .rf_type = RF_SIMPLE,
       .rf_interval = plugin_get_interval(),
@@ -1197,7 +1195,7 @@ int plugin_register_complex_read(const char *group, const char *name,
     return ENOMEM;
   }
   *rf = (read_func_t){
-      .rf_super = callback_func_init(callback, user_data),
+      .base = callback_func_init(callback, user_data),
       .rf_name = strdup(name),
       .rf_type = RF_COMPLEX,
       .rf_interval = (interval != 0) ? interval : plugin_get_interval(),
@@ -1208,7 +1206,7 @@ int plugin_register_complex_read(const char *group, const char *name,
 
   status = plugin_insert_read(rf);
   if (status != 0) {
-    free_userdata(&rf->rf_super.cf_udata);
+    free_userdata(&rf->base.cf_udata);
     sfree(rf->rf_name);
     sfree(rf);
   }
@@ -1673,18 +1671,18 @@ int plugin_read_all_once(void) {
     if (rf == NULL)
       break;
 
-    old_ctx = plugin_set_ctx(rf->rf_ctx);
+    old_ctx = plugin_set_ctx(rf->base.cf_ctx);
 
     if (rf->rf_type == RF_SIMPLE) {
       int (*callback)(void);
 
-      callback = rf->rf_callback;
+      callback = rf->base.cf_callback;
       status = (*callback)();
     } else {
       plugin_read_cb callback;
 
-      callback = rf->rf_callback;
-      status = (*callback)(&rf->rf_udata);
+      callback = rf->base.cf_callback;
+      status = (*callback)(&rf->base.cf_udata);
     }
 
     plugin_set_ctx(old_ctx);
