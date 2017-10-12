@@ -32,6 +32,34 @@
 
 #include "utils_time.h"
 
+/* backoff_t holds the state for an exponential back-off.
+ *
+ * The functions in this module are meant to be used like this:
+ *
+ *    if (backoff_check(&bo) != 0) {
+ *      continue;
+ *    }
+ *    int status = protected_function();
+ *    backoff_update(&bo, status);
+ *
+ * After an initial failure is reported via backoff_update(), backoff_check()
+ * will return non-zero for a random duration in the [base,2*base] range. The
+ * bounds are doubled after each failure until they reach [max/2,max].
+ *
+ * Additional failures reported to backoff_update() before the end of that
+ * duration is reached are discarded, because initially many threads may return
+ * errors almost simultaneously.
+ *
+ * Once the end of the duration is reached, backoff_check() will return zero
+ * exactly once, so that *one* thread proceeds to call protected_function(). If
+ * that "canary" thread signals success, backoff_check() will return zero for
+ * all threads again. Otherwise, the back-off is increased as discussed above.
+ *
+ * It is important that every call to backoff_check() is matched with a call to
+ * backoff_update(), otherwise the assumptions made in these functions don't
+ * hold: if the canary thread never reports back, calls will be blocked
+ * indefinitely.
+ */
 typedef struct {
   cdtime_t base;
   cdtime_t max;

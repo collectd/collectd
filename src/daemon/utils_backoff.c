@@ -91,20 +91,19 @@ void backoff_update(backoff_t *bo, int status) {
     return;
   }
 
-  cdtime_t prev_interval = bo->interval;
-
+  /* this is the first error. Ensure that retry_interval will be at least
+   * base. */
   if (bo->interval == 0) {
-    /* first failure */
     bo->interval = bo->base;
-  } else {
-    bo->interval *= 2;
-    if (bo->interval > bo->max) {
-      bo->interval = bo->max;
-    }
+  }
+
+  bo->interval *= 2;
+  if (bo->interval > bo->max) {
+    bo->interval = bo->max;
   }
 
   cdtime_t retry_interval =
-      (cdtime_t)cdrand_range((long)prev_interval, (long)bo->interval);
+      (cdtime_t)cdrand_range((long)(bo->interval / 2), (long)bo->interval);
   bo->retry_time = cdtime() + retry_interval;
 
   pthread_mutex_unlock(&bo->lock);
