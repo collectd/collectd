@@ -350,7 +350,7 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
   sfree(keys);
 } /* }}} void log_list_callbacks */
 
-static callback_func_t callback_func_init(char const *name, void *callback,
+static callback_func_t callback_func_init(void *callback,
                                           user_data_t const *ud_ptr) {
   /* {{{ */
   return (callback_func_t){
@@ -370,7 +370,7 @@ static int create_register_callback(llist_t **list, /* {{{ */
     return -1;
   }
 
-  *cf = callback_func_init(name, callback, ud);
+  *cf = callback_func_init(callback, ud);
   return register_callback(list, name, cf);
 } /* }}} int create_register_callback */
 
@@ -1240,7 +1240,7 @@ int plugin_register_write(const char *name, plugin_write_cb callback,
     return ENOMEM;
   }
 
-  wf->base = callback_func_init(name, callback, ud);
+  wf->base = callback_func_init(callback, ud);
   backoff_init(&wf->backoff, MS_TO_CDTIME_T(100), TIME_T_TO_CDTIME_T(60));
 
   return register_callback(&list_write, name, (callback_func_t *)wf);
