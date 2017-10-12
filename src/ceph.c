@@ -532,6 +532,8 @@ static int parse_keys(char *buffer, size_t buffer_size, const char *key_str) {
       cut_suffix(tmp, tmp_size, key_str, ".sum");
     } else if (has_suffix(key_str, ".avgtime")) {
       cut_suffix(tmp, tmp_size, key_str, ".avgtime");
+    } else {
+      sstrncpy(tmp, key_str, sizeof(tmp));
     }
   } else {
     sstrncpy(tmp, key_str, sizeof(tmp));
