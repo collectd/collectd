@@ -203,6 +203,8 @@ collectd_SOURCES = \
 	src/daemon/meta_data.h \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
+	src/daemon/utils_backoff.c \
+	src/daemon/utils_backoff.h \
 	src/daemon/utils_cache.c \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \

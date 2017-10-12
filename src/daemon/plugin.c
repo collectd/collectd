@@ -35,6 +35,7 @@
 #include "filter_chain.h"
 #include "plugin.h"
 #include "utils_avltree.h"
+#include "utils_backoff.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "utils_heap.h"
@@ -79,15 +80,7 @@ typedef struct read_func_s read_func_t;
 
 typedef struct {
   callback_func_t base;
-  pthread_mutex_t lock;
-
-  /* backoff_interval is the interval for which this callback is diabled. If
-   * zero, the callback is healthy, if non-zero the callback is unhealthy. */
-  cdtime_t backoff_interval;
-  /* retry_time is the wall-clock time when the callback should be retried. If
-   * backoff_interval is non-zero and retry_time is zero, then another thread is
-   * currently retrying this callback. */
-  cdtime_t retry_time;
+  backoff_t backoff;
 } write_func_t;
 
 struct write_queue_s;
@@ -1248,7 +1241,7 @@ int plugin_register_write(const char *name, plugin_write_cb callback,
   }
 
   wf->base = callback_func_init(name, callback, ud);
-  pthread_mutex_init(&wf->lock);
+  backoff_init(&wf->backoff, MS_TO_CDTIME_T(100), TIME_T_TO_CDTIME_T(60));
 
   return register_callback(&list_write, name, (callback_func_t *)wf);
 } /* int plugin_register_write */
@@ -1723,93 +1716,6 @@ int plugin_read_all_once(void) {
   return return_status;
 } /* int plugin_read_all_once */
 
-/* plugin_write_status_check checks the status of the write plugin referenced by
- * name. If the plugin is in a good state and should be called, it returns true.
- * If the plugin is in a bad state and should be skipped, it returns false. Each
- * check decreases an exponential backoff counter. */
-_Bool plugin_write_status_check(write_func_t *wf) {
-  /* {{{ */
-  pthread_mutex_lock(&wf->lock);
-
-  if (wf->backoff_interval == 0) {
-    /* callback is healthy */
-    pthread_mutex_unlock(&wf->lock);
-    return 1;
-  }
-
-  if (wf->retry_time == 0) {
-    /* another thread is currently retrying */
-    pthread_mutex_unlock(&wf->lock);
-    return 0;
-  }
-
-  cdtime_t now = cdtime();
-  if (now >= wf->retry_time) {
-    /* this thread is retrying this callback */
-    wf->retry_time = 0;
-    pthread_mutex_unlock(&wf->lock);
-    return 1;
-  }
-
-  /* still in failure mode */
-  pthread_mutex_unlock(&wf->lock);
-  return 0;
-} /* }}} _Bool plugin_write_status_check */
-
-/* plugin_write_status_report tracks successes and failures from write callbacks
- * and manages an exponential backoff. When status is zero (success), the
- * exponential backoff is reset, otherwise it's increased. */
-void plugin_write_status_report(write_func_t *wf, int status,
-                                char const *name) {
-  /* {{{ */
-  pthread_mutex_lock(&wf->lock);
-
-  /* success: clear failures. */
-  if (status == 0) {
-    if (wf->backoff_interval != 0) {
-      NOTICE("write callback \"%s\" succeeded again.", name);
-    }
-    wf->backoff_interval = 0;
-    wf->retry_time = 0;
-    pthread_mutex_unlock(&wf->lock);
-    return;
-  }
-
-  /* while wf->retry_time != 0, no (new) threads should call the write callback
-   * and report a status. It's possible that we get a very late status update,
-   * though, which we will ignore. */
-  if (wf->retry_time != 0) {
-    pthread_mutex_unlock(&wf->lock);
-    return;
-  }
-
-  cdtime_t prev_backoff_interval = wf->backoff_interval;
-
-  if (wf->backoff_interval == 0) {
-    /* first failure */
-    /* TODO(octo): make base backoff interval configurable. */
-    wf->backoff_interval = MS_TO_CDTIME_T(100);
-  } else {
-    wf->backoff_interval *= 2;
-
-    /* TODO(octo): make max backoff interval configurable. */
-    cdtime_t const max_backoff_interval = TIME_T_TO_CDTIME_T(60);
-    if (wf->backoff_interval > max_backoff_interval) {
-      wf->backoff_interval = max_backoff_interval;
-    }
-  }
-
-  cdtime_t retry_interval = (cdtime_t)cdrand_range((long)prev_backoff_interval,
-                                                   (long)wf->backoff_interval);
-  wf->retry_time = cdtime() + retry_interval;
-
-  NOTICE("write callback \"%s\" failed. Will suspend "
-         "plugin for %.3f seconds.",
-         name, CDTIME_T_TO_DOUBLE(retry_interval));
-
-  pthread_mutex_unlock(&wf->lock);
-} /* }}} void plugin_write_status_report */
-
 int plugin_write(const char *plugin, const data_set_t *ds,
                  const value_list_t *vl) {
   /* {{{ */
@@ -1838,7 +1744,7 @@ int plugin_write(const char *plugin, const data_set_t *ds,
       write_func_t *wf = le->value;
       plugin_write_cb callback = wf->base.cf_callback;
 
-      if (!plugin_write_status_check(wf)) {
+      if (backoff_check(&wf->backoff) != 0) {
         failure++;
         continue;
       }
@@ -1849,7 +1755,7 @@ int plugin_write(const char *plugin, const data_set_t *ds,
       DEBUG("plugin: plugin_write: Writing values via %s.", name);
       int status = (*callback)(ds, vl, &wf->base.cf_udata);
 
-      plugin_write_status_report(wf, status, name);
+      backoff_update(&wf->backoff, status);
 
       if (status != 0)
         failure++;
@@ -1873,7 +1779,7 @@ int plugin_write(const char *plugin, const data_set_t *ds,
   write_func_t *wf = le->value;
   plugin_write_cb callback = wf->base.cf_callback;
 
-  if (!plugin_write_status_check(wf)) {
+  if (backoff_check(&wf->backoff) != 0) {
     return EAGAIN;
   }
 
@@ -1883,7 +1789,7 @@ int plugin_write(const char *plugin, const data_set_t *ds,
   DEBUG("plugin: plugin_write: Writing values via %s.", plugin);
   int status = (*callback)(ds, vl, &wf->base.cf_udata);
 
-  plugin_write_status_report(wf, status, plugin);
+  backoff_update(&wf->backoff, status);
   return status;
 } /* }}} int plugin_write */
 
