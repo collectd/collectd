@@ -36,6 +36,10 @@
 #define WRITE_HTTP_DEFAULT_BUFFER_SIZE 4096
 #endif
 
+#ifndef WRITE_HTTP_DEFAULT_PREFIX
+#define WRITE_HTTP_DEFAULT_PREFIX "collectd"
+#endif
+
 /*
  * Private variables
  */
@@ -80,6 +84,7 @@ struct wh_callback_s {
   pthread_mutex_t send_lock;
 
   int data_ttl;
+  char *metrics_prefix;
 };
 typedef struct wh_callback_s wh_callback_t;
 
@@ -328,6 +333,7 @@ static void wh_callback_free(void *data) /* {{{ */
   sfree(cb->clientcert);
   sfree(cb->clientkeypass);
   sfree(cb->send_buffer);
+  sfree(cb->metrics_prefix);
 
   sfree(cb);
 } /* }}} void wh_callback_free */
@@ -476,7 +482,7 @@ static int wh_write_kairosdb(const data_set_t *ds,
   status = format_kairosdb_value_list(
       cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
       cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
-      cb->data_ttl);
+      cb->data_ttl, cb->metrics_prefix);
   if (status == -ENOMEM) {
     status = wh_flush_nolock(/* timeout = */ 0, cb);
     if (status != 0) {
@@ -488,7 +494,7 @@ static int wh_write_kairosdb(const data_set_t *ds,
     status = format_kairosdb_value_list(
         cb->send_buffer, &cb->send_buffer_fill, &cb->send_buffer_free, ds, vl,
         cb->store_rates, (char const *const *)http_attrs, http_attrs_num,
-        cb->data_ttl);
+        cb->data_ttl, cb->metrics_prefix);
   }
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
@@ -629,6 +635,7 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   cb->send_metrics = 1;
   cb->send_notifications = 0;
   cb->data_ttl = 0;
+  cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
 
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
 
@@ -740,6 +747,8 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
       sfree(val);
     } else if (strcasecmp("TTL", child->key) == 0) {
       status = cf_util_get_int(child, &cb->data_ttl);
+    } else if (strcasecmp("Prefix", child->key) == 0) {
+      status = cf_util_get_string(child, &cb->metrics_prefix);
     } else {
       ERROR("write_http plugin: Invalid configuration "
             "option: %s.",

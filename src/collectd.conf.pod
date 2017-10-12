@@ -9270,6 +9270,12 @@ Sets the Cassandra ttl for the data points.
 
 Please refer to L<http://kairosdb.github.io/docs/build/html/restapi/AddDataPoints.html?highlight=ttl>
 
+=item B<Prefix> I<String>
+
+Only available for the KAIROSDB output format.
+
+Sets the metrics prefix I<string>. Defaults to I<collectd>.
+
 =item B<Metrics> B<true>|B<false>
 
 Controls whether I<metrics> are POSTed to this location. Defaults to B<true>.
