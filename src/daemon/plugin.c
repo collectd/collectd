@@ -70,8 +70,8 @@ typedef struct {
   char *rf_name;
   int rf_type;
   cdtime_t rf_interval;
-  cdtime_t rf_effective_interval;
   cdtime_t rf_next_read;
+  backoff_t backoff;
 } read_func_t;
 
 typedef struct {
@@ -440,6 +440,24 @@ static int plugin_load_file(const char *file, _Bool global) {
   return 0;
 }
 
+/* set_next_read calculates the next (wall clock) time at which this read plugin
+ * should be read the next time and stores it in rf->rf_next_read. */
+static void set_next_read(read_func_t *rf) {
+  pthread_mutex_lock(&rf->backoff.lock);
+  if (rf->backoff.retry_time != 0) {
+    rf->rf_next_read = rf->backoff.retry_time;
+  } else {
+    rf->rf_next_read += rf->rf_interval;
+  }
+  pthread_mutex_unlock(&rf->backoff.lock);
+
+  /* make sure rf->rf_next_read is not in the past */
+  cdtime_t now = cdtime();
+  if (rf->rf_next_read < now) {
+    rf->rf_next_read = now;
+  }
+}
+
 static void *plugin_read_thread(void __attribute__((unused)) * args) {
   while (read_loop != 0) {
     read_func_t *rf;
@@ -469,9 +487,6 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
        * for each plugin when loading it
        * XXX: issue a warning? */
       rf->rf_interval = plugin_get_interval();
-      rf->rf_effective_interval = rf->rf_interval;
-
-      rf->rf_next_read = cdtime();
     }
 
     /* sleep until this entry is due,
@@ -513,6 +528,11 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
       continue;
     }
 
+    if (backoff_check(&rf->backoff) != 0) {
+      set_next_read(rf);
+      continue;
+    }
+
     DEBUG("plugin_read_thread: Handling `%s'.", rf->rf_name);
 
     start = cdtime();
@@ -535,20 +555,7 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
 
     plugin_set_ctx(old_ctx);
 
-    /* If the function signals failure, we will increase the
-     * intervals in which it will be called. */
-    if (status != 0) {
-      rf->rf_effective_interval *= 2;
-      if (rf->rf_effective_interval > max_read_interval)
-        rf->rf_effective_interval = max_read_interval;
-
-      NOTICE("read-function of plugin `%s' failed. "
-             "Will suspend it for %.3f seconds.",
-             rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
-    } else {
-      /* Success: Restore the interval, if it was changed. */
-      rf->rf_effective_interval = rf->rf_interval;
-    }
+    backoff_update(&rf->backoff, status);
 
     /* update the ``next read due'' field */
     now = cdtime();
@@ -556,36 +563,19 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
     /* calculate the time spent in the read function */
     elapsed = (now - start);
 
-    if (elapsed > rf->rf_effective_interval)
+    if (elapsed > rf->rf_interval)
       WARNING(
           "plugin_read_thread: read-function of the `%s' plugin took %.3f "
           "seconds, which is above its read interval (%.3f seconds). You might "
           "want to adjust the `Interval' or `ReadThreads' settings.",
           rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed),
-          CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
+          CDTIME_T_TO_DOUBLE(rf->rf_interval));
 
     DEBUG("plugin_read_thread: read-function of the `%s' plugin took "
           "%.6f seconds.",
           rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed));
 
-    DEBUG("plugin_read_thread: Effective interval of the "
-          "`%s' plugin is %.3f seconds.",
-          rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
-
-    /* Calculate the next (absolute) time at which this function
-     * should be called. */
-    rf->rf_next_read += rf->rf_effective_interval;
-
-    /* Check, if `rf_next_read' is in the past. */
-    if (rf->rf_next_read < now) {
-      /* `rf_next_read' is in the past. Insert `now'
-       * so this value doesn't trail off into the
-       * past too much. */
-      rf->rf_next_read = now;
-    }
-
-    DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
-          rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_next_read));
+    set_next_read(rf);
 
     /* Re-insert this read function into the heap again. */
     c_heap_insert(read_heap, rf);
@@ -1104,7 +1094,6 @@ static int plugin_insert_read(read_func_t *rf) {
   llentry_t *le;
 
   rf->rf_next_read = cdtime();
-  rf->rf_effective_interval = rf->rf_interval;
 
   pthread_mutex_lock(&read_lock);
 
@@ -1172,6 +1161,7 @@ int plugin_register_read(const char *name, int (*callback)(void)) {
       .rf_type = RF_SIMPLE,
       .rf_interval = plugin_get_interval(),
   };
+  backoff_init(&rf->backoff, rf->rf_interval, max_read_interval);
 
   int status = plugin_insert_read(rf);
   if (status != 0) {
@@ -1203,6 +1193,8 @@ int plugin_register_complex_read(const char *group, const char *name,
 
   if (group != NULL)
     sstrncpy(rf->rf_group, group, sizeof(rf->rf_group));
+
+  backoff_init(&rf->backoff, rf->rf_interval, max_read_interval);
 
   status = plugin_insert_read(rf);
   if (status != 0) {
