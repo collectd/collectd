@@ -77,6 +77,19 @@ struct read_func_s {
 };
 typedef struct read_func_s read_func_t;
 
+typedef struct {
+  callback_func_t base;
+  pthread_mutex_t lock;
+
+  /* backoff_interval is the interval for which this callback is diabled. If
+   * zero, the callback is healthy, if non-zero the callback is unhealthy. */
+  cdtime_t backoff_interval;
+  /* retry_time is the wall-clock time when the callback should be retried. If
+   * backoff_interval is non-zero and retry_time is zero, then another thread is
+   * currently retrying this callback. */
+  cdtime_t retry_time;
+} write_func_t;
+
 struct write_queue_s;
 typedef struct write_queue_s write_queue_t;
 struct write_queue_s {
@@ -97,6 +110,7 @@ typedef struct flush_callback_s flush_callback_t;
 static c_avl_tree_t *plugins_loaded = NULL;
 
 static llist_t *list_init;
+/* list_write is a linked list of write_func_t*'s */
 static llist_t *list_write;
 static llist_t *list_flush;
 static llist_t *list_missing;
@@ -343,28 +357,27 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
   sfree(keys);
 } /* }}} void log_list_callbacks */
 
+static callback_func_t callback_func_init(char const *name, void *callback,
+                                          user_data_t const *ud_ptr) {
+  /* {{{ */
+  return (callback_func_t){
+      .cf_callback = callback,
+      .cf_udata = (ud_ptr != NULL) ? *ud_ptr : (user_data_t){0},
+      .cf_ctx = plugin_get_ctx(),
+  };
+} /* }}} callback_func_t callback_func_init */
+
 static int create_register_callback(llist_t **list, /* {{{ */
                                     const char *name, void *callback,
                                     user_data_t const *ud) {
-  callback_func_t *cf;
-
-  cf = calloc(1, sizeof(*cf));
+  callback_func_t *cf = calloc(1, sizeof(*cf));
   if (cf == NULL) {
     free_userdata(ud);
     ERROR("plugin: create_register_callback: calloc failed.");
     return -1;
   }
 
-  cf->cf_callback = callback;
-  if (ud == NULL) {
-    cf->cf_udata.data = NULL;
-    cf->cf_udata.free_func = NULL;
-  } else {
-    cf->cf_udata = *ud;
-  }
-
-  cf->cf_ctx = plugin_get_ctx();
-
+  *cf = callback_func_init(name, callback, ud);
   return register_callback(list, name, cf);
 } /* }}} int create_register_callback */
 
@@ -1227,7 +1240,17 @@ int plugin_register_complex_read(const char *group, const char *name,
 
 int plugin_register_write(const char *name, plugin_write_cb callback,
                           user_data_t const *ud) {
-  return create_register_callback(&list_write, name, (void *)callback, ud);
+  write_func_t *wf = calloc(1, sizeof(*wf));
+  if (wf == NULL) {
+    free_userdata(ud);
+    ERROR("plugin_register_write: calloc failed.");
+    return ENOMEM;
+  }
+
+  wf->base = callback_func_init(name, callback, ud);
+  pthread_mutex_init(&wf->lock);
+
+  return register_callback(&list_write, name, (callback_func_t *)wf);
 } /* int plugin_register_write */
 
 static int plugin_flush_timeout_callback(user_data_t *ud) {
@@ -1322,8 +1345,7 @@ int plugin_register_missing(const char *name, plugin_missing_cb callback,
 } /* int plugin_register_missing */
 
 int plugin_register_shutdown(const char *name, int (*callback)(void)) {
-  return create_register_callback(&list_shutdown, name, (void *)callback,
-                                  NULL);
+  return create_register_callback(&list_shutdown, name, (void *)callback, NULL);
 } /* int plugin_register_shutdown */
 
 static void plugin_free_data_sets(void) {
@@ -1701,10 +1723,96 @@ int plugin_read_all_once(void) {
   return return_status;
 } /* int plugin_read_all_once */
 
-int plugin_write(const char *plugin, /* {{{ */
-                 const data_set_t *ds, const value_list_t *vl) {
-  llentry_t *le;
-  int status;
+/* plugin_write_status_check checks the status of the write plugin referenced by
+ * name. If the plugin is in a good state and should be called, it returns true.
+ * If the plugin is in a bad state and should be skipped, it returns false. Each
+ * check decreases an exponential backoff counter. */
+_Bool plugin_write_status_check(write_func_t *wf) {
+  /* {{{ */
+  pthread_mutex_lock(&wf->lock);
+
+  if (wf->backoff_interval == 0) {
+    /* callback is healthy */
+    pthread_mutex_unlock(&wf->lock);
+    return 1;
+  }
+
+  if (wf->retry_time == 0) {
+    /* another thread is currently retrying */
+    pthread_mutex_unlock(&wf->lock);
+    return 0;
+  }
+
+  cdtime_t now = cdtime();
+  if (now >= wf->retry_time) {
+    /* this thread is retrying this callback */
+    wf->retry_time = 0;
+    pthread_mutex_unlock(&wf->lock);
+    return 1;
+  }
+
+  /* still in failure mode */
+  pthread_mutex_unlock(&wf->lock);
+  return 0;
+} /* }}} _Bool plugin_write_status_check */
+
+/* plugin_write_status_report tracks successes and failures from write callbacks
+ * and manages an exponential backoff. When status is zero (success), the
+ * exponential backoff is reset, otherwise it's increased. */
+void plugin_write_status_report(write_func_t *wf, int status,
+                                char const *name) {
+  /* {{{ */
+  pthread_mutex_lock(&wf->lock);
+
+  /* success: clear failures. */
+  if (status == 0) {
+    if (wf->backoff_interval != 0) {
+      NOTICE("write callback \"%s\" succeeded again.", name);
+    }
+    wf->backoff_interval = 0;
+    wf->retry_time = 0;
+    pthread_mutex_unlock(&wf->lock);
+    return;
+  }
+
+  /* while wf->retry_time != 0, no (new) threads should call the write callback
+   * and report a status. It's possible that we get a very late status update,
+   * though, which we will ignore. */
+  if (wf->retry_time != 0) {
+    pthread_mutex_unlock(&wf->lock);
+    return;
+  }
+
+  cdtime_t prev_backoff_interval = wf->backoff_interval;
+
+  if (wf->backoff_interval == 0) {
+    /* first failure */
+    /* TODO(octo): make base backoff interval configurable. */
+    wf->backoff_interval = MS_TO_CDTIME_T(100);
+  } else {
+    wf->backoff_interval *= 2;
+
+    /* TODO(octo): make max backoff interval configurable. */
+    cdtime_t const max_backoff_interval = TIME_T_TO_CDTIME_T(60);
+    if (wf->backoff_interval > max_backoff_interval) {
+      wf->backoff_interval = max_backoff_interval;
+    }
+  }
+
+  cdtime_t retry_interval = (cdtime_t)cdrand_range((long)prev_backoff_interval,
+                                                   (long)wf->backoff_interval);
+  wf->retry_time = cdtime() + retry_interval;
+
+  NOTICE("write callback \"%s\" failed. Will suspend "
+         "plugin for %.3f seconds.",
+         name, CDTIME_T_TO_DOUBLE(retry_interval));
+
+  pthread_mutex_unlock(&wf->lock);
+} /* }}} void plugin_write_status_report */
+
+int plugin_write(const char *plugin, const data_set_t *ds,
+                 const value_list_t *vl) {
+  /* {{{ */
 
   if (vl == NULL)
     return EINVAL;
@@ -1724,17 +1832,25 @@ int plugin_write(const char *plugin, /* {{{ */
     int success = 0;
     int failure = 0;
 
-    le = llist_head(list_write);
+    llentry_t *le = llist_head(list_write);
     while (le != NULL) {
-      callback_func_t *cf = le->value;
-      plugin_write_cb callback;
+      char const *name = le->key;
+      write_func_t *wf = le->value;
+      plugin_write_cb callback = wf->base.cf_callback;
+
+      if (!plugin_write_status_check(wf)) {
+        failure++;
+        continue;
+      }
 
       /* do not switch plugin context; rather keep the context (interval)
        * information of the calling read plugin */
 
-      DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
-      callback = cf->cf_callback;
-      status = (*callback)(ds, vl, &cf->cf_udata);
+      DEBUG("plugin: plugin_write: Writing values via %s.", name);
+      int status = (*callback)(ds, vl, &wf->base.cf_udata);
+
+      plugin_write_status_report(wf, status, name);
+
       if (status != 0)
         failure++;
       else
@@ -1744,35 +1860,30 @@ int plugin_write(const char *plugin, /* {{{ */
     }
 
     if ((success == 0) && (failure != 0))
-      status = -1;
-    else
-      status = 0;
-  } else /* plugin != NULL */
-  {
-    callback_func_t *cf;
-    plugin_write_cb callback;
+      return -1;
 
-    le = llist_head(list_write);
-    while (le != NULL) {
-      if (strcasecmp(plugin, le->key) == 0)
-        break;
+    return 0;
+  }
+  /* else: plugin != NULL */
 
-      le = le->next;
-    }
+  llentry_t *le = llist_search(list_write, plugin);
+  if (le == NULL)
+    return ENOENT;
 
-    if (le == NULL)
-      return ENOENT;
+  write_func_t *wf = le->value;
+  plugin_write_cb callback = wf->base.cf_callback;
 
-    cf = le->value;
-
-    /* do not switch plugin context; rather keep the context (interval)
-     * information of the calling read plugin */
-
-    DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
-    callback = cf->cf_callback;
-    status = (*callback)(ds, vl, &cf->cf_udata);
+  if (!plugin_write_status_check(wf)) {
+    return EAGAIN;
   }
 
+  /* do not switch plugin context; rather keep the context (interval)
+   * information of the calling read plugin */
+
+  DEBUG("plugin: plugin_write: Writing values via %s.", plugin);
+  int status = (*callback)(ds, vl, &wf->base.cf_udata);
+
+  plugin_write_status_report(wf, status, plugin);
   return status;
 } /* }}} int plugin_write */
 
@@ -2486,6 +2597,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
 void plugin_init_ctx(void) {
   pthread_key_create(&plugin_ctx_key, plugin_ctx_destructor);
+
   plugin_ctx_key_initialized = 1;
 } /* void plugin_init_ctx */
 
