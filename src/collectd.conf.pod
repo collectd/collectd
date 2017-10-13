@@ -2657,6 +2657,11 @@ this many threads will be started immediately setting this to a very high
 value will waste valuable resources. Defaults to B<5> and will be forced to be
 at most B<16384> to prevent typos and dumb mistakes.
 
+=item B<IncludeOnlyRegular> I<true>|I<false>
+
+Controls whether or not to include only regular files in the count.
+Defaults to I<true>, i.e. by default non regular files are ignored.
+
 =back
 
 =head2 Plugin C<ethstat>
