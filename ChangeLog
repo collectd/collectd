@@ -1,14 +1,14 @@
 2017-10-14, Version 5.8.0
-	* collectd: The core daemon is now completely licensed under the MIT 
+	* collectd: The core daemon is now completely licensed under the MIT
 	  license.
-	* collectd: Added daemon option to avoid making BaseDir. Thanks to 
+	* collectd: Added daemon option to avoid making BaseDir. Thanks to
 	  Nathaniel Wesley Filardo and Florian Forster. #2422
 	* Collectd as well as Apache, memcached, OpenLDAP, Perl, RouterOS, SNMP,
 	  Tail-CSV plugins: free userdata for plugin_register_complex_read().
 	  Thanks to Pavel Rochnyack. #2349
-	* Collectd client library: added parsing and server code. Thanks to 
+	* Collectd client library: added parsing and server code. Thanks to
 	  Florian Forster. #2258
-	* Build system: Dependency on libltdl has been removed, support for 
+	* Build system: Dependency on libltdl has been removed, support for
 	  libtool 1 has been dropped. Thanks to Ruben Kerkhof. #1898
 	* Build system: The build system has been switched to non-recursive
 	  make. Thanks to Ruben Kerkhof. #2085
