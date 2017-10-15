@@ -6523,12 +6523,15 @@ C<I<prefix>/var/run/collectd-powerdns>.
 
 =head2 Plugin C<processes>
 
-=over 4
+Collects information about processes of local system.
 
-=item B<Process> I<Name>
+By default, with no process matches configured, only general statistics is
+collected: the number of processes in each state and fork rate.
 
-Select more detailed statistics of processes matching this name. The statistics
-collected for these selected processes are:
+Process matches can be configured by B<Process> and B<ProcessMatch> options.
+These may also be a block in which further options may be specified.
+
+The statistics collected for matched processes are:
  - size of the resident segment size (RSS)
  - user- and system-time used
  - number of processes
@@ -6538,23 +6541,55 @@ collected for these selected processes are:
  - context switches (under Linux)
  - minor and major pagefaults.
 
-Some platforms have a limit on the length of process names. I<Name> must stay
-below this limit.
+B<Synopsis:>
+
+ <Plugin processes>
+   CollectFileDescriptor true
+   CollectContextSwitch true
+   Process "name"
+   ProcessMatch "name" "regex"
+   <Process "collectd">
+     CollectFileDescriptor false
+     CollectContextSwitch false
+   </Process>
+   <ProcessMatch "name" "regex">
+     CollectFileDescriptor false
+     CollectContextSwitch true
+   </Process>
+ </Plugin>
+
+=over 4
+
+=item B<Process> I<Name>
+
+Select more detailed statistics of processes matching this name.
+
+Some platforms have a limit on the length of process names.
+I<Name> must stay below this limit.
 
 =item B<ProcessMatch> I<name> I<regex>
 
-Similar to the B<Process> option this allows one to select more detailed
-statistics of processes matching the specified I<regex> (see L<regex(7)> for
-details). The statistics of all matching processes are summed up and
-dispatched to the daemon using the specified I<name> as an identifier. This
-allows one to "group" several processes together. I<name> must not contain
-slashes.
+Select more detailed statistics of processes matching the specified I<regex>
+(see L<regex(7)> for details). The statistics of all matching processes are
+summed up and dispatched to the daemon using the specified I<name> as an
+identifier. This allows one to "group" several processes together.
+I<name> must not contain slashes.
 
 =item B<CollectContextSwitch> I<Boolean>
 
-Collect context switch of the process.
+Collect the number of context switches for matched processes.
+Disabled by default.
+
+=item B<CollectFileDescriptor> I<Boolean>
+
+Collect number of file descriptors of matched processes.
+Disabled by default.
 
 =back
+
+Options B<CollectContextSwitch> and B<CollectFileDescriptor> may be used inside
+B<Process> and B<ProcessMatch> blocks - then they affect corresponding match
+only. Otherwise they set the default value for subsequent matches.
 
 =head2 Plugin C<protocols>
 
