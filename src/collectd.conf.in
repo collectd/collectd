@@ -1636,6 +1636,7 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Prefix "collectd"  # metric prefix, only available for KAIROSDB format
 #		Attribute "key" "value"     # only available for KAIROSDB format
 #		TTL 0   # data ttl, only available for KAIROSDB format
 #		Metrics true

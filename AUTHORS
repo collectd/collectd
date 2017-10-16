@@ -116,6 +116,9 @@ Dan Ryder <daryder at cisco.com>
 David Bacher <drbacher at gmail.com>
  - serial plugin.
 
+Denis Pompilio <denis.pompilio at gmail.com>
+ - Improvements to the write_http plugin.
+
 Doug MacEachern <dougm at hyperic.com>
  - The `-T' option (config testing mode).
  - OpenVPN plugin.
