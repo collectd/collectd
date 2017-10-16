@@ -213,11 +213,13 @@ static int value_list_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
     /* All value lists have a leading comma. The first one will be replaced with
      * a square bracket in `format_kairosdb_finalize'. */
-    BUFFER_ADD(",{");
+    BUFFER_ADD(",{\"name\":\"");
 
-    BUFFER_ADD("\"name\":\"%s", metrics_prefix);
+    if (metrics_prefix != NULL) {
+      BUFFER_ADD("%s.", metrics_prefix);
+    }
 
-    BUFFER_ADD(".%s", vl->plugin);
+    BUFFER_ADD("%s", vl->plugin);
 
     status = values_to_kairosdb(temp, sizeof(temp), ds, vl, store_rates, i);
     if (status != 0)

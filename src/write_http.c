@@ -785,6 +785,9 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
+  if (strlen(cb->metrics_prefix) == 0)
+    sfree(cb->metrics_prefix);
+
   if (cb->low_speed_limit > 0)
     cb->low_speed_time = CDTIME_T_TO_TIME_T(plugin_get_interval());
 
