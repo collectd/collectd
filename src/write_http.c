@@ -637,6 +637,12 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
 
+  if (cb->metrics_prefix == NULL) {
+    ERROR("write_http plugin: strdup failed.");
+    sfree(cb);
+    return -1;
+  }
+
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
 
   cf_util_get_string(ci, &cb->name);
