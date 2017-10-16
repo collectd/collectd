@@ -1208,6 +1208,8 @@ int plugin_register_complex_read(const char *group, const char *name,
 
 int plugin_register_write(const char *name, plugin_write_cb callback,
                           user_data_t const *ud) {
+  plugin_ctx_t ctx = plugin_get_ctx();
+
   write_func_t *wf = calloc(1, sizeof(*wf));
   if (wf == NULL) {
     free_userdata(ud);
@@ -1215,8 +1217,15 @@ int plugin_register_write(const char *name, plugin_write_cb callback,
     return ENOMEM;
   }
 
+  if (ctx.write_backoff_base == 0) {
+    ctx.write_backoff_base = MS_TO_CDTIME_T(10);
+  }
+  if (ctx.write_backoff_max == 0) {
+    ctx.write_backoff_max = MS_TO_CDTIME_T(60000);
+  }
+
   wf->base = callback_func_init(callback, ud);
-  backoff_init(&wf->backoff, MS_TO_CDTIME_T(100), TIME_T_TO_CDTIME_T(60));
+  backoff_init(&wf->backoff, ctx.write_backoff_base, ctx.write_backoff_max);
 
   return register_callback(&list_write, name, (callback_func_t *)wf);
 } /* int plugin_register_write */

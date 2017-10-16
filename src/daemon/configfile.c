@@ -244,11 +244,7 @@ static int dispatch_value_plugindir(oconfig_item_t *ci) {
 }
 
 static int dispatch_loadplugin(oconfig_item_t *ci) {
-  const char *name;
   _Bool global = 0;
-  plugin_ctx_t ctx = {0};
-  plugin_ctx_t old_ctx;
-  int ret_val;
 
   assert(strcasecmp(ci->key, "LoadPlugin") == 0);
 
@@ -257,14 +253,14 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
   if (ci->values[0].type != OCONFIG_TYPE_STRING)
     return -1;
 
-  name = ci->values[0].value.string;
+  char const *name = ci->values[0].value.string;
   if (strcmp("libvirt", name) == 0)
     name = "virt";
 
   /* default to the global interval set before loading this plugin */
-  ctx.interval = cf_get_default_interval();
-  ctx.flush_interval = 0;
-  ctx.flush_timeout = 0;
+  plugin_ctx_t ctx = {
+      .interval = cf_get_default_interval(),
+  };
 
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *child = ci->children + i;
@@ -277,6 +273,10 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
       cf_util_get_cdtime(child, &ctx.flush_interval);
     else if (strcasecmp("FlushTimeout", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.flush_timeout);
+    else if (strcasecmp("WriteBackoffBase", child->key) == 0)
+      cf_util_get_cdtime(child, &ctx.write_backoff_base);
+    else if (strcasecmp("WriteBackoffMax", child->key) == 0)
+      cf_util_get_cdtime(child, &ctx.write_backoff_max);
     else {
       WARNING("Ignoring unknown LoadPlugin option \"%s\" "
               "for plugin \"%s\"",
@@ -284,12 +284,12 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
     }
   }
 
-  old_ctx = plugin_set_ctx(ctx);
-  ret_val = plugin_load(name, global);
+  plugin_ctx_t old_ctx = plugin_set_ctx(ctx);
+  int status = plugin_load(name, global);
   /* reset to the "global" context */
   plugin_set_ctx(old_ctx);
 
-  return ret_val;
+  return status;
 } /* int dispatch_value_loadplugin */
 
 static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
@@ -874,7 +874,8 @@ const char *global_option_get(const char *option) {
     return NULL;
   }
 
-  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value : cf_global_options[i].def;
+  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value
+                                              : cf_global_options[i].def;
 } /* char *global_option_get */
 
 long global_option_get_long(const char *option, long default_value) {

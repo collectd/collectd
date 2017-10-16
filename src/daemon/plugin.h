@@ -178,6 +178,9 @@ struct plugin_ctx_s {
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
+
+  cdtime_t write_backoff_base;
+  cdtime_t write_backoff_max;
 };
 typedef struct plugin_ctx_s plugin_ctx_t;
 

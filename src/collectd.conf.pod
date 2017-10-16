@@ -139,6 +139,18 @@ defined in this plugin. By default, this is disabled.
 
 Specifies the value of the timeout argument of the flush callback.
 
+=item B<WriteBackoffBase> I<Seconds>
+
+=item B<WriteBackoffMax> I<Seconds>
+
+Configures the exponential back-off of write plugins. If a write plugin fails,
+calls to the write plugin will be suspended for B<WriteBackoffBase> seconds.
+After that, each subsequent failure will double the timeout up to a maximum of
+B<WriteBackoffMax> seconds.
+
+B<WriteBackoffBase> defaults to C<0.01> (10 ms), B<WriteBackoffMax> defaults to
+C<60> (1 minute).
+
 =back
 
 =item B<AutoLoadPlugin> B<false>|B<true>
