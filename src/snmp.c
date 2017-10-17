@@ -455,7 +455,7 @@ static int csnmp_config_add_host_timeout(host_definition_t *hd,
                                          oconfig_item_t *ci) {
   int timeout;
 
-  if (ci->values[0].type != OCONFIG_TYPE_NUMBER) {
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     WARNING("snmp plugin: `Timeout' must be a number");
     return -1;
   }
@@ -477,7 +477,7 @@ static int csnmp_config_add_host_retries(host_definition_t *hd,
   int retries;
 
 
-  if (ci->values[0].type != OCONFIG_TYPE_NUMBER) {
+  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
     WARNING("snmp plugin: `Retries' must be a number");
     return -1;
   }
@@ -640,6 +640,10 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
 
   hd->sess_handle = NULL;
   hd->interval = 0;
+
+  /* A negative value means that we have not set a timeout or retry value */
+  hd->timeout = -1;
+  hd->retries = -1;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
@@ -851,9 +855,13 @@ static void csnmp_host_open_session(host_definition_t *host) {
     sess.community_len = strlen(host->community);
   }
 
-  /* Set timeout & retries */
-  sess.timeout = host->timeout;
-  sess.retries = host->retries;
+  /* Set timeout & retries, if they have been changed from the default */
+  if (host->timeout >= 0) {
+    sess.timeout = host->timeout;
+  }
+  if (host->retries >= 0) {
+    sess.retries = host->retries;
+  }
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */
   host->sess_handle = snmp_sess_open(&sess);
