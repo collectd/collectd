@@ -449,9 +449,12 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
       break;
 
     INFO("ipmi plugin: sensor_list_add: Ignore sensor `%s` of `%s`, "
-         "because I don't know how to handle its type (%#x, %s). "
-         "If you need this sensor, please file a bug report.",
-         sensor_name_ptr, st->name, sensor_type,
+         "because I don't know how to handle its units (%#x, %#x, %#x). "
+         "Sensor type: (%#x, %s). If you need this sensor, please file "
+         "a bug report at http://collectd.org/.",
+         sensor_name_ptr, st->name, ipmi_sensor_get_base_unit(sensor),
+         ipmi_sensor_get_modifier_unit(sensor),
+         ipmi_sensor_get_rate_unit(sensor), sensor_type,
          ipmi_sensor_get_sensor_type_string(sensor));
     return -1;
   }
