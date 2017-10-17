@@ -601,7 +601,7 @@
 #		Size "+10k"
 #		Recursive true
 #		IncludeHidden false
-#		IncludeOnlyRegular true
+#		RegularOnly true
 #		#FilesSizeType "bytes"
 #		#FilesCountType "files"
 #		#TypeInstance "instance"
