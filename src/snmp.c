@@ -71,6 +71,8 @@ struct host_definition_s {
   char *name;
   char *address;
   int version;
+  int timeout;
+  int retries;
 
   /* snmpv1/2 options */
   char *community;
@@ -449,6 +451,48 @@ static int csnmp_config_add_host_version(host_definition_t *hd,
   return 0;
 } /* int csnmp_config_add_host_address */
 
+static int csnmp_config_add_host_timeout(host_definition_t *hd,
+                                         oconfig_item_t *ci) {
+  int timeout;
+
+  if (ci->values[0].type != OCONFIG_TYPE_NUMBER) {
+    WARNING("snmp plugin: `Timeout' must be a number");
+    return -1;
+  }
+
+  timeout = (int)ci->values[0].value.number;
+  if (timeout < 0) {
+    WARNING("snmp plugin: `Timeout' must not be negative");
+    return -1;
+  }
+
+  /* net-snmp library timeout is in microseconds */
+  hd->timeout = timeout * 1000000;
+
+  return 0;
+} /* int csnmp_config_add_host_timeout */
+
+static int csnmp_config_add_host_retries(host_definition_t *hd,
+                                         oconfig_item_t *ci) {
+  int retries;
+
+
+  if (ci->values[0].type != OCONFIG_TYPE_NUMBER) {
+    WARNING("snmp plugin: `Retries' must be a number");
+    return -1;
+  }
+
+  retries = (int)ci->values[0].value.number;
+  if (retries < 0) {
+    WARNING("snmp plugin: `Retries' must not be negative");
+    return -1;
+  }
+
+  hd->retries = retries;
+
+  return 0;
+} /* int csnmp_config_add_host_retries */
+
 static int csnmp_config_add_host_collect(host_definition_t *host,
                                          oconfig_item_t *ci) {
   data_definition_t *data;
@@ -607,6 +651,10 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       status = cf_util_get_string(option, &hd->community);
     else if (strcasecmp("Version", option->key) == 0)
       status = csnmp_config_add_host_version(hd, option);
+    else if (strcasecmp("Timeout", option->key) == 0)
+      status = csnmp_config_add_host_timeout(hd, option);
+    else if (strcasecmp("Retries", option->key) == 0)
+      status = csnmp_config_add_host_retries(hd, option);
     else if (strcasecmp("Collect", option->key) == 0)
       csnmp_config_add_host_collect(hd, option);
     else if (strcasecmp("Interval", option->key) == 0)
@@ -802,6 +850,10 @@ static void csnmp_host_open_session(host_definition_t *host) {
     sess.community = (u_char *)host->community;
     sess.community_len = strlen(host->community);
   }
+
+  /* Set timeout & retries */
+  sess.timeout = host->timeout;
+  sess.retries = host->retries;
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */
   host->sess_handle = snmp_sess_open(&sess);
