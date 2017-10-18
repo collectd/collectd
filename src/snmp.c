@@ -63,7 +63,7 @@ struct data_definition_s {
   struct data_definition_s *next;
   char **ignores;
   size_t ignores_len;
-  int invert_match;
+  _Bool invert_match;
 };
 typedef struct data_definition_s data_definition_t;
 
@@ -327,29 +327,14 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd,
   return 0;
 } /* int csnmp_config_add_data_blacklist */
 
-static int csnmp_config_add_data_blacklist_match_inverted(data_definition_t *dd,
-                                                          oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
-    WARNING("snmp plugin: `InvertMatch' needs exactly one boolean argument.");
-    return -1;
-  }
-
-  dd->invert_match = ci->values[0].value.boolean ? 1 : 0;
-
-  return 0;
-} /* int csnmp_config_add_data_blacklist_match_inverted */
-
 static int csnmp_config_add_data(oconfig_item_t *ci) {
-  data_definition_t *dd;
-  int status = 0;
-
-  dd = calloc(1, sizeof(*dd));
+  data_definition_t *dd = calloc(1, sizeof(*dd));
   if (dd == NULL)
     return -1;
 
-  status = cf_util_get_string(ci, &dd->name);
+  int status = cf_util_get_string(ci, &dd->name);
   if (status != 0) {
-    free(dd);
+    sfree(dd);
     return -1;
   }
 
@@ -376,7 +361,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
     else if (strcasecmp("Ignore", option->key) == 0)
       status = csnmp_config_add_data_blacklist(dd, option);
     else if (strcasecmp("InvertMatch", option->key) == 0)
-      status = csnmp_config_add_data_blacklist_match_inverted(dd, option);
+      status = cf_util_get_boolean(option, &dd->invert_match);
     else {
       WARNING("snmp plugin: Option `%s' not allowed here.", option->key);
       status = -1;
@@ -1032,7 +1017,6 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
   struct variable_list *vb;
   oid_t vb_name;
   int status;
-  uint32_t is_matched;
 
   /* Set vb on the last variable */
   for (vb = res->variables; (vb != NULL) && (vb->next_variable != NULL);
@@ -1062,11 +1046,11 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     char *ptr;
 
     csnmp_strvbcopy(il->instance, vb, sizeof(il->instance));
-    is_matched = 0;
+    _Bool is_matched = 0;
     for (uint32_t i = 0; i < dd->ignores_len; i++) {
       status = fnmatch(dd->ignores[i], il->instance, 0);
       if (status == 0) {
-        if (dd->invert_match == 0) {
+        if (!dd->invert_match) {
           sfree(il);
           return 0;
         } else {
@@ -1075,7 +1059,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
         }
       }
     }
-    if (dd->invert_match != 0 && is_matched == 0) {
+    if (dd->invert_match && !is_matched) {
       sfree(il);
       return 0;
     }
@@ -1520,7 +1504,6 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   if (res != NULL)
     snmp_free_pdu(res);
   res = NULL;
-
 
   if (status == 0)
     csnmp_dispatch_table(host, data, instance_list_head, value_list_head);
