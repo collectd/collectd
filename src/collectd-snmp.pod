@@ -36,6 +36,8 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Community "community_string"
       Collect "std_traffic"
       Interval 120
+      Timeout 10
+      Retries 1
     </Host>
     <Host "some.server.mydomain.org">
       Address "192.168.0.42"
@@ -60,6 +62,8 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Community "more_communities"
       Collect "powerplus_voltge_input"
       Interval 300
+      Timeout 5
+      Retries 5
     </Host>
   </Plugin>
 
@@ -78,7 +82,7 @@ and ten threads are used.
 =head1 CONFIGURATION
 
 Since the aim of the C<snmp plugin> is to provide a generic interface to SNMP,
-it's configuration is not trivial and may take some time.
+its configuration is not trivial and may take some time.
 
 Since the C<Net-SNMP> library is used you can use all the environment variables
 that are interpreted by that package. See L<snmpcmd(1)> for more details.
@@ -280,6 +284,15 @@ devices with not much CPU power, e.E<nbsp>g. network equipment such as
 switches, embedded devices, rack monitoring systems and so on. Since the
 B<Step> of generated RRD files depends on this setting it's wise to select a
 reasonable value once and never change it.
+
+=item B<Timeout> I<Seconds>
+
+How long to wait for a response. The C<Net-SNMP> library default is 1 second.
+
+=item B<Retries> I<Integer>
+
+The number of times that a query should be retried after the Timeout expires.
+The C<Net-SNMP> library default is 5.
 
 =back
 
