@@ -21,8 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
-#include "common.h"
 #include "globals.h"
+#include "common.h"
 
 #if HAVE_KSTAT_H
 #include <kstat.h>
@@ -33,17 +33,16 @@
  */
 char *hostname_g;
 cdtime_t interval_g;
-int  timeout_g;
+int timeout_g;
 #if HAVE_KSTAT_H
 kstat_ctl_t *kc;
 #endif
 
 void hostname_set(char const *hostname) {
-    char *h = strdup(hostname);
-      if (h == NULL)
-            return;
+  char *h = strdup(hostname);
+  if (h == NULL)
+    return;
 
-        free(hostname_g);
-          hostname_g = h;
+  free(hostname_g);
+  hostname_g = h;
 }
-

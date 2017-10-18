@@ -874,7 +874,8 @@ const char *global_option_get(const char *option) {
     return NULL;
   }
 
-  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value : cf_global_options[i].def;
+  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value
+                                              : cf_global_options[i].def;
 } /* char *global_option_get */
 
 long global_option_get_long(const char *option, long default_value) {

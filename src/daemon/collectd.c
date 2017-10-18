@@ -464,11 +464,12 @@ void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c;
-    c = getopt(argc, argv, "htTC:"
+    c = getopt(argc, argv,
+               "htTC:"
 #if COLLECT_DAEMON
-                           "fP:"
+               "fP:"
 #endif
-               );
+    );
 
     if (c == -1)
       break;
@@ -553,7 +554,9 @@ int main(int argc, char **argv) {
   int exit_status = 0;
 
   struct cmdline_config config = {
-      .daemonize = 1, .create_basedir = 1, .configfile = CONFIGFILE,
+      .daemonize = 1,
+      .create_basedir = 1,
+      .configfile = CONFIGFILE,
   };
 
   read_cmdline(argc, argv, &config);
@@ -586,7 +589,7 @@ int main(int argc, char **argv) {
 #ifdef KERNEL_LINUX
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
-      ) {
+  ) {
     int status;
 
     if ((pid = fork()) == -1) {
