@@ -600,7 +600,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   hd->interval = 0;
 
   /* These mean that we have not set a timeout or retry value */
-  hd->timeout = 0xFFFFFFFFFFFFFFFF;
+  hd->timeout = 0;
   hd->retries = -1;
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -814,7 +814,7 @@ static void csnmp_host_open_session(host_definition_t *host) {
   }
 
   /* Set timeout & retries, if they have been changed from the default */
-  if (host->timeout != 0xFFFFFFFFFFFFFFFF) {
+  if (host->timeout != 0) {
     /* net-snmp expects microseconds */
     sess.timeout = CDTIME_T_TO_US(host->timeout);
   }
