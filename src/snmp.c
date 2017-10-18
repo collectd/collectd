@@ -71,6 +71,8 @@ struct host_definition_s {
   char *name;
   char *address;
   int version;
+  cdtime_t timeout;
+  int retries;
 
   /* snmpv1/2 options */
   char *community;
@@ -582,6 +584,10 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   hd->sess_handle = NULL;
   hd->interval = 0;
 
+  /* These mean that we have not set a timeout or retry value */
+  hd->timeout = 0;
+  hd->retries = -1;
+
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
     status = 0;
@@ -592,6 +598,10 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       status = cf_util_get_string(option, &hd->community);
     else if (strcasecmp("Version", option->key) == 0)
       status = csnmp_config_add_host_version(hd, option);
+    else if (strcasecmp("Timeout", option->key) == 0)
+      cf_util_get_cdtime(option, &hd->timeout);
+    else if (strcasecmp("Retries", option->key) == 0)
+      cf_util_get_int(option, &hd->retries);
     else if (strcasecmp("Collect", option->key) == 0)
       csnmp_config_add_host_collect(hd, option);
     else if (strcasecmp("Interval", option->key) == 0)
@@ -786,6 +796,15 @@ static void csnmp_host_open_session(host_definition_t *host) {
   {
     sess.community = (u_char *)host->community;
     sess.community_len = strlen(host->community);
+  }
+
+  /* Set timeout & retries, if they have been changed from the default */
+  if (host->timeout != 0) {
+    /* net-snmp expects microseconds */
+    sess.timeout = CDTIME_T_TO_US(host->timeout);
+  }
+  if (host->retries >= 0) {
+    sess.retries = host->retries;
   }
 
   /* snmp_sess_open will copy the `struct snmp_session *'. */

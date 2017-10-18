@@ -1317,6 +1317,8 @@
 #       Community "community_string"
 #       Collect "std_traffic"
 #       Interval 120
+# 	Timeout 10
+#	Retries 1
 #   </Host>
 #   <Host "some.server.mydomain.org">
 #       Address "192.168.0.42"
@@ -1330,6 +1332,8 @@
 #       Community "more_communities"
 #       Collect "powerplus_voltge_input"
 #       Interval 300
+# 	Timeout 5
+#	Retries 5
 #   </Host>
 #</Plugin>
 
