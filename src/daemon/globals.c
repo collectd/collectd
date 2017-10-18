@@ -43,6 +43,6 @@ void hostname_set(char const *hostname) {
   if (h == NULL)
     return;
 
-  free(hostname_g);
+  sfree(hostname_g);
   hostname_g = h;
 }

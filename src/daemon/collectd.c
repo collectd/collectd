@@ -86,7 +86,6 @@ static int init_hostname(void) {
     hostname_len = NI_MAXHOST;
   }
   char hostname[hostname_len];
-  hostname_set(hostname);
 
   str = global_option_get("Hostname");
   if ((str != NULL) && (str[0] != 0)) {
