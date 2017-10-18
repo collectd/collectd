@@ -2834,6 +2834,11 @@ Controls whether or not to include "hidden" files and directories in the count.
 "Hidden" files and directories are those, whose name begins with a dot.
 Defaults to I<false>, i.e. by default hidden files and directories are ignored.
 
+=item B<RegularOnly> I<true>|I<false>
+
+Controls whether or not to include only regular files in the count.
+Defaults to I<true>, i.e. by default non regular files are ignored.
+
 =item B<FilesSizeType> I<Type>
 
 Sets the type used to dispatch files combined size. Empty value ("") disables

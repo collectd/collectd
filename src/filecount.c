@@ -34,6 +34,7 @@
 
 #define FC_RECURSIVE 1
 #define FC_HIDDEN 2
+#define FC_REGULAR 4
 
 struct fc_directory_conf_s {
   char *path;
@@ -340,7 +341,7 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
     return -1;
   }
 
-  dir->options = FC_RECURSIVE;
+  dir->options = FC_RECURSIVE | FC_REGULAR;
 
   dir->name = NULL;
   dir->plugin_name = strdup("filecount");
@@ -377,6 +378,8 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
       status = fc_config_add_dir_option(dir, option, FC_RECURSIVE);
     else if (strcasecmp("IncludeHidden", option->key) == 0)
       status = fc_config_add_dir_option(dir, option, FC_HIDDEN);
+    else if (strcasecmp("RegularOnly", option->key) == 0)
+      status = fc_config_add_dir_option(dir, option, FC_REGULAR);
     else if (strcasecmp("FilesSizeType", option->key) == 0)
       status = cf_util_get_string(option, &dir->files_size_type);
     else if (strcasecmp("FilesCountType", option->key) == 0)
@@ -488,7 +491,7 @@ static int fc_read_dir_callback(const char *dirname, const char *filename,
         abs_path, fc_read_dir_callback, dir,
         /* include hidden = */ (dir->options & FC_HIDDEN) ? 1 : 0);
     return status;
-  } else if (!S_ISREG(statbuf.st_mode)) {
+  } else if ((dir->options & FC_REGULAR) && !S_ISREG(statbuf.st_mode)) {
     return 0;
   }
 
@@ -496,6 +499,11 @@ static int fc_read_dir_callback(const char *dirname, const char *filename,
     status = fnmatch(dir->name, filename, /* flags = */ 0);
     if (status != 0)
       return 0;
+  }
+
+  if (!S_ISREG(statbuf.st_mode)) {
+    dir->files_num++;
+    return 0;
   }
 
   if (dir->mtime != 0) {
