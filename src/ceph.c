@@ -485,7 +485,7 @@ static _Bool has_suffix(char const *str, char const *suffix) {
   return 0;
 }
 
-static int cut_suffix(char new_str[], size_t new_str_len, char const *str,
+static void cut_suffix(char *buffer, size_t buffer_size, char const *str,
                       char const *suffix) {
 
   size_t str_len = strlen(str);
@@ -493,13 +493,11 @@ static int cut_suffix(char new_str[], size_t new_str_len, char const *str,
 
   size_t offset = str_len - suffix_len + 1;
 
-  if (offset > new_str_len) {
-    offset = new_str_len;
+  if (offset > buffer_size) {
+    offset = buffer_size;
   }
 
-  sstrncpy(new_str, str, offset);
-
-  return 0;
+  sstrncpy(buffer, str, offset);
 }
 
 /* count_parts returns the number of elements a "foo.bar.baz" style key has. */
