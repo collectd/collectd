@@ -1119,6 +1119,7 @@
 
 #<Plugin ping>
 #	Host "host.foo.bar"
+#	Host "host-with.alias.foo.bar" "alias"
 #	Interval 1.0
 #	Timeout 0.9
 #	TTL 255

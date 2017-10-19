@@ -23,6 +23,7 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   LoadPlugin ping
   <Plugin ping>
     Host "example.org"
+    Host "example.org" "example"
     Host "provider.net"
   </Plugin>
 
@@ -6113,10 +6114,11 @@ Available configuration options:
 
 =over 4
 
-=item B<Host> I<IP-address>
+=item B<Host> I<IP-address> [I<Alias>]
 
 Host to ping periodically. This option may be repeated several times to ping
-multiple hosts.
+multiple hosts. If an alias is specified, it will be used as the type
+instance, rather than the IP-Address.
 
 =item B<Interval> I<Seconds>
 
