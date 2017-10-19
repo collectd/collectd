@@ -36,23 +36,19 @@
 
 #include <pthread.h>
 
-#ifndef DATA_MAX_NAME_LEN
-#define DATA_MAX_NAME_LEN 128
-#endif
-
 #define DS_TYPE_COUNTER 0
 #define DS_TYPE_GAUGE 1
 #define DS_TYPE_DERIVE 2
 #define DS_TYPE_ABSOLUTE 3
 
 #define DS_TYPE_TO_STRING(t)                                                   \
-  (t == DS_TYPE_COUNTER) ? "counter" : (t == DS_TYPE_GAUGE)                    \
-                                           ? "gauge"                           \
-                                           : (t == DS_TYPE_DERIVE)             \
-                                                 ? "derive"                    \
-                                                 : (t == DS_TYPE_ABSOLUTE)     \
-                                                       ? "absolute"            \
-                                                       : "unknown"
+  (t == DS_TYPE_COUNTER)                                                       \
+      ? "counter"                                                              \
+      : (t == DS_TYPE_GAUGE)                                                   \
+            ? "gauge"                                                          \
+            : (t == DS_TYPE_DERIVE)                                            \
+                  ? "derive"                                                   \
+                  : (t == DS_TYPE_ABSOLUTE) ? "absolute" : "unknown"
 
 #ifndef LOG_ERR
 #define LOG_ERR 3

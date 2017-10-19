@@ -461,9 +461,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp =
-      realloc(dst->children, sizeof(oconfig_item_t) *
-                                 (dst->children_num + src->children_num - 1));
+  temp = realloc(dst->children,
+                 sizeof(oconfig_item_t) *
+                     (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -502,8 +502,9 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp = realloc(dst->children, sizeof(oconfig_item_t) *
-                                    (dst->children_num + src->children_num));
+  temp =
+      realloc(dst->children,
+              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -874,7 +875,8 @@ const char *global_option_get(const char *option) {
     return NULL;
   }
 
-  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value : cf_global_options[i].def;
+  return (cf_global_options[i].value != NULL) ? cf_global_options[i].value
+                                              : cf_global_options[i].def;
 } /* char *global_option_get */
 
 long global_option_get_long(const char *option, long default_value) {
@@ -1031,6 +1033,7 @@ int cf_read(const char *filename) {
   }
 
   return ret;
+
 } /* int cf_read */
 
 /* Assures the config option is a string, duplicates it and returns the copy in

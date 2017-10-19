@@ -186,10 +186,6 @@
 #include <sys/param.h>
 #endif
 
-#if HAVE_KSTAT_H
-#include <kstat.h>
-#endif
-
 #ifndef PACKAGE_NAME
 #define PACKAGE_NAME "collectd"
 #endif
@@ -267,11 +263,6 @@
 #define GAUGE_FORMAT "%.15g"
 #endif
 
-/* Type for time as used by "utils_time.h" */
-typedef uint64_t cdtime_t;
-
-extern char hostname_g[];
-extern cdtime_t interval_g;
-extern int timeout_g;
+#include "globals.h"
 
 #endif /* COLLECTD_H */
