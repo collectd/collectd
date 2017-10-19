@@ -518,12 +518,6 @@ static int parse_keys(char *buffer, size_t buffer_size, const char *key_str) {
   size_t tmp_size = sizeof(tmp);
   const char *cut_suffixes[] = {".type", ".avgcount", ".sum", ".avgtime"};
 
-  /* The "avgtime" metric reports ("sum" / "avgcount"), i.e. the average time
-   * per request since the start of the Ceph daemon. Report this only when the
-   * user has configured "long running average". Otherwise, use the rate of
-   * "sum" and "avgcount" to calculate the current latency.
-   */
-
   if (buffer == NULL || buffer_size == 0 || key_str == NULL ||
       strlen(key_str) == 0)
     return EINVAL;
@@ -933,7 +927,13 @@ static int node_handler_fetch_data(void *arg, const char *val,
       uv.gauge = result;
       vtmp->latency_index = (vtmp->latency_index + 1);
     } else if (has_suffix(key, ".avgtime")) {
-      // skip this step if no need in long run latency
+
+      /* The "avgtime" metric reports ("sum" / "avgcount"), i.e. the average
+       * time per request since the start of the Ceph daemon. Report this only
+       * when the user has configured "long running average". Otherwise, use the
+       * rate of "sum" and "avgcount" to calculate the current latency.
+       */
+
       if (!long_run_latency_avg) {
         return 0;
       }
