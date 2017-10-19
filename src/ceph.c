@@ -486,7 +486,7 @@ static _Bool has_suffix(char const *str, char const *suffix) {
 }
 
 static void cut_suffix(char *buffer, size_t buffer_size, char const *str,
-                      char const *suffix) {
+                       char const *suffix) {
 
   size_t str_len = strlen(str);
   size_t suffix_len = strlen(suffix);
@@ -516,25 +516,22 @@ static size_t count_parts(char const *key) {
 static int parse_keys(char *buffer, size_t buffer_size, const char *key_str) {
   char tmp[2 * buffer_size];
   size_t tmp_size = sizeof(tmp);
+  const char *cut_suffixes[] = {".type", ".avgcount", ".sum", ".avgtime"};
 
   if (buffer == NULL || buffer_size == 0 || key_str == NULL ||
       strlen(key_str) == 0)
     return EINVAL;
+
+  sstrncpy(tmp, key_str, tmp_size);
+
   /* Strip suffix if it is ".type" or one of latency metric suffix. */
   if (count_parts(key_str) > 2) {
-    if (has_suffix(key_str, ".type")) {
-      cut_suffix(tmp, tmp_size, key_str, ".type");
-    } else if (has_suffix(key_str, ".avgcount")) {
-      cut_suffix(tmp, tmp_size, key_str, ".avgcount");
-    } else if (has_suffix(key_str, ".sum")) {
-      cut_suffix(tmp, tmp_size, key_str, ".sum");
-    } else if (has_suffix(key_str, ".avgtime")) {
-      cut_suffix(tmp, tmp_size, key_str, ".avgtime");
-    } else {
-      sstrncpy(tmp, key_str, sizeof(tmp));
+    for (size_t i = 0; i < STATIC_ARRAY_SIZE(cut_suffixes); i++) {
+      if (has_suffix(key_str, cut_suffixes[i])) {
+        cut_suffix(tmp, tmp_size, key_str, cut_suffixes[i]);
+        break;
+      }
     }
-  } else {
-    sstrncpy(tmp, key_str, sizeof(tmp));
   }
 
   return compact_ds_name(buffer, buffer_size, tmp);
