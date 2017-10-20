@@ -731,6 +731,15 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 }
 /* }}} */
 
+static void prom_logger(__attribute__((unused)) void *arg, char const *fmt,
+                        va_list ap) {
+  /* {{{ */
+  char errbuf[1024];
+  vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
+
+  ERROR("write_prometheus plugin: %s", errbuf);
+} /* }}} prom_logger */
+
 #if MHD_VERSION >= 0x00090000
 static int prom_open_socket(int addrfamily) {
   /* {{{ */
@@ -785,11 +794,12 @@ static struct MHD_Daemon *prom_start_daemon() {
     return NULL;
   }
 
-  struct MHD_Daemon *d =
-      MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 0,
-                       /* MHD_AcceptPolicyCallback = */ NULL,
-                       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler,
-                       NULL, MHD_OPTION_LISTEN_SOCKET, fd, MHD_OPTION_END);
+  struct MHD_Daemon *d = MHD_start_daemon(
+      MHD_USE_THREAD_PER_CONNECTION | MHD_USE_DEBUG, httpd_port,
+      /* MHD_AcceptPolicyCallback = */ NULL,
+      /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler, NULL,
+      MHD_OPTION_LISTEN_SOCKET, fd, MHD_OPTION_EXTERNAL_LOGGER, prom_logger,
+      NULL, MHD_OPTION_END);
   if (d == NULL) {
     ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
     close(fd);
@@ -801,11 +811,11 @@ static struct MHD_Daemon *prom_start_daemon() {
 #else /* if MHD_VERSION < 0x00090000 */
 static struct MHD_Daemon *prom_start_daemon() {
   /* {{{ */
-  struct MHD_Daemon *d =
-      MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 0,
-                       /* MHD_AcceptPolicyCallback = */ NULL,
-                       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler,
-                       NULL, MHD_OPTION_END);
+  struct MHD_Daemon *d = MHD_start_daemon(
+      MHD_USE_THREAD_PER_CONNECTION | MHD_USE_DEBUG, httpd_port,
+      /* MHD_AcceptPolicyCallback = */ NULL,
+      /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler, NULL,
+      MHD_OPTION_EXTERNAL_LOGGER, prom_logger, NULL, MHD_OPTION_END);
   if (d == NULL) {
     ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
     return NULL;
