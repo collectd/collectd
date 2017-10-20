@@ -341,9 +341,10 @@ static int memcached_read(user_data_t *user_data) {
      * CPU time consumed by the memcached process
      */
     if (FIELD_IS("rusage_user")) {
-      rusage_user = atoll(fields[2]);
+      /* Convert to useconds */
+      rusage_user = atof(fields[2]) * 1000000;
     } else if (FIELD_IS("rusage_system")) {
-      rusage_syst = atoll(fields[2]);
+      rusage_syst = atof(fields[2]) * 1000000;
     }
 
     /*
