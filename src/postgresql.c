@@ -340,6 +340,7 @@ static int c_psql_connect(c_psql_database_t *db) {
   C_PSQL_PAR_APPEND(buf, buf_len, "sslmode", db->sslmode);
   C_PSQL_PAR_APPEND(buf, buf_len, "krbsrvname", db->krbsrvname);
   C_PSQL_PAR_APPEND(buf, buf_len, "service", db->service);
+  C_PSQL_PAR_APPEND(buf, buf_len, "application_name", "collectd_postgresql");
 
   db->conn = PQconnectdb(conninfo);
   db->proto_version = PQprotocolVersion(db->conn);
