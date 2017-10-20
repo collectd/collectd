@@ -233,6 +233,12 @@ static char reg_shutdown_doc[] =
     "The callback function will be called with no parameters except for\n"
     "    data if it was supplied.";
 
+static char CollectdError_doc[] =
+    "Basic exception for collectd Python scripts.\n"
+    "\n"
+    "Throwing this exception will not cause a stacktrace to be logged, \n"
+    "even if LogTraces is enabled in the config.";
+
 static pthread_t main_thread;
 static PyOS_sighandler_t python_sigint_handler;
 static _Bool do_interactive = 0;
@@ -244,7 +250,7 @@ static _Bool do_interactive = 0;
 
 static PyThreadState *state;
 
-static PyObject *sys_path, *cpy_format_exception;
+static PyObject *sys_path, *cpy_format_exception, *CollectdError;
 
 static cpy_callback_t *cpy_config_callbacks;
 static cpy_callback_t *cpy_init_callbacks;
@@ -300,7 +306,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback,
 }
 
 void cpy_log_exception(const char *context) {
-  int l = 0;
+  int l = 0, collectd_error;
   const char *typename = NULL, *message = NULL;
   PyObject *type, *value, *traceback, *tn, *m, *list;
 
@@ -308,6 +314,7 @@ void cpy_log_exception(const char *context) {
   PyErr_NormalizeException(&type, &value, &traceback);
   if (type == NULL)
     return;
+  collectd_error = PyErr_GivenExceptionMatches(value, CollectdError);
   tn = PyObject_GetAttrString(type, "__name__"); /* New reference. */
   m = PyObject_Str(value);                       /* New reference. */
   if (tn != NULL)
@@ -318,11 +325,17 @@ void cpy_log_exception(const char *context) {
     typename = "NamelessException";
   if (message == NULL)
     message = "N/A";
-  Py_BEGIN_ALLOW_THREADS ERROR("Unhandled python exception in %s: %s: %s",
-                               context, typename, message);
-  Py_END_ALLOW_THREADS Py_XDECREF(tn);
+  Py_BEGIN_ALLOW_THREADS;
+  if (collectd_error) {
+    WARNING("%s in %s: %s", typename, context, message);
+  } else {
+    ERROR("Unhandled python exception in %s: %s: %s", context, typename,
+          message);
+  }
+  Py_END_ALLOW_THREADS;
+  Py_XDECREF(tn);
   Py_XDECREF(m);
-  if (!cpy_format_exception || !traceback) {
+  if (!cpy_format_exception || !traceback || collectd_error) {
     PyErr_Clear();
     Py_DECREF(type);
     Py_XDECREF(value);
@@ -356,10 +369,11 @@ void cpy_log_exception(const char *context) {
     if (cpy[strlen(cpy) - 1] == '\n')
       cpy[strlen(cpy) - 1] = 0;
 
-    Py_BEGIN_ALLOW_THREADS ERROR("%s", cpy);
-    Py_END_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
+    ERROR("%s", cpy);
+    Py_END_ALLOW_THREADS;
 
-        free(cpy);
+    free(cpy);
   }
 
   Py_XDECREF(list);
@@ -410,9 +424,10 @@ static int cpy_write_callback(const data_set_t *ds,
       PyList_SetItem(
           list, i, PyLong_FromUnsignedLongLong(value_list->values[i].absolute));
     } else {
-      Py_BEGIN_ALLOW_THREADS ERROR("cpy_write_callback: Unknown value type %d.",
-                                   ds->ds[i].type);
-      Py_END_ALLOW_THREADS Py_DECREF(list);
+      Py_BEGIN_ALLOW_THREADS;
+      ERROR("cpy_write_callback: Unknown value type %d.", ds->ds[i].type);
+      Py_END_ALLOW_THREADS;
+      Py_DECREF(list);
       CPY_RETURN_FROM_THREADS 0;
     }
     if (PyErr_Occurred() != NULL) {
@@ -706,8 +721,10 @@ static PyObject *cpy_flush(PyObject *self, PyObject *args, PyObject *kwds) {
   if (PyArg_ParseTupleAndKeywords(args, kwds, "|etiet", kwlist, NULL, &plugin,
                                   &timeout, NULL, &identifier) == 0)
     return NULL;
-  Py_BEGIN_ALLOW_THREADS plugin_flush(plugin, timeout, identifier);
-  Py_END_ALLOW_THREADS PyMem_Free(plugin);
+  Py_BEGIN_ALLOW_THREADS;
+  plugin_flush(plugin, timeout, identifier);
+  Py_END_ALLOW_THREADS;
+  PyMem_Free(plugin);
   PyMem_Free(identifier);
   Py_RETURN_NONE;
 }
@@ -843,8 +860,10 @@ static PyObject *cpy_error(PyObject *self, PyObject *args) {
   char *text;
   if (PyArg_ParseTuple(args, "et", NULL, &text) == 0)
     return NULL;
-  Py_BEGIN_ALLOW_THREADS plugin_log(LOG_ERR, "%s", text);
-  Py_END_ALLOW_THREADS PyMem_Free(text);
+  Py_BEGIN_ALLOW_THREADS;
+  plugin_log(LOG_ERR, "%s", text);
+  Py_END_ALLOW_THREADS;
+  PyMem_Free(text);
   Py_RETURN_NONE;
 }
 
@@ -852,8 +871,10 @@ static PyObject *cpy_warning(PyObject *self, PyObject *args) {
   char *text;
   if (PyArg_ParseTuple(args, "et", NULL, &text) == 0)
     return NULL;
-  Py_BEGIN_ALLOW_THREADS plugin_log(LOG_WARNING, "%s", text);
-  Py_END_ALLOW_THREADS PyMem_Free(text);
+  Py_BEGIN_ALLOW_THREADS;
+  plugin_log(LOG_WARNING, "%s", text);
+  Py_END_ALLOW_THREADS;
+  PyMem_Free(text);
   Py_RETURN_NONE;
 }
 
@@ -861,8 +882,10 @@ static PyObject *cpy_notice(PyObject *self, PyObject *args) {
   char *text;
   if (PyArg_ParseTuple(args, "et", NULL, &text) == 0)
     return NULL;
-  Py_BEGIN_ALLOW_THREADS plugin_log(LOG_NOTICE, "%s", text);
-  Py_END_ALLOW_THREADS PyMem_Free(text);
+  Py_BEGIN_ALLOW_THREADS;
+  plugin_log(LOG_NOTICE, "%s", text);
+  Py_END_ALLOW_THREADS;
+  PyMem_Free(text);
   Py_RETURN_NONE;
 }
 
@@ -870,8 +893,10 @@ static PyObject *cpy_info(PyObject *self, PyObject *args) {
   char *text;
   if (PyArg_ParseTuple(args, "et", NULL, &text) == 0)
     return NULL;
-  Py_BEGIN_ALLOW_THREADS plugin_log(LOG_INFO, "%s", text);
-  Py_END_ALLOW_THREADS PyMem_Free(text);
+  Py_BEGIN_ALLOW_THREADS;
+  plugin_log(LOG_INFO, "%s", text);
+  Py_END_ALLOW_THREADS;
+  PyMem_Free(text);
   Py_RETURN_NONE;
 }
 
@@ -880,8 +905,10 @@ static PyObject *cpy_debug(PyObject *self, PyObject *args) {
   char *text;
   if (PyArg_ParseTuple(args, "et", NULL, &text) == 0)
     return NULL;
-  Py_BEGIN_ALLOW_THREADS plugin_log(LOG_DEBUG, "%s", text);
-  Py_END_ALLOW_THREADS PyMem_Free(text);
+  Py_BEGIN_ALLOW_THREADS;
+  plugin_log(LOG_DEBUG, "%s", text);
+  Py_END_ALLOW_THREADS;
+  PyMem_Free(text);
 #endif
   Py_RETURN_NONE;
 }
@@ -1063,13 +1090,14 @@ static int cpy_shutdown(void) {
   }
   PyErr_Print();
 
-  Py_BEGIN_ALLOW_THREADS cpy_unregister_list(&cpy_config_callbacks);
+  Py_BEGIN_ALLOW_THREADS;
+  cpy_unregister_list(&cpy_config_callbacks);
   cpy_unregister_list(&cpy_init_callbacks);
   cpy_unregister_list(&cpy_shutdown_callbacks);
   cpy_shutdown_triggered = 1;
-  Py_END_ALLOW_THREADS
+  Py_END_ALLOW_THREADS;
 
-      if (!cpy_num_callbacks) {
+  if (!cpy_num_callbacks) {
     Py_Finalize();
     return 0;
   }
@@ -1212,7 +1240,7 @@ PyMODINIT_FUNC PyInit_collectd(void) {
 
 static int cpy_init_python(void) {
   PyOS_sighandler_t cur_sig;
-  PyObject *sys;
+  PyObject *sys, *errordict;
   PyObject *module;
 
 #ifdef IS_PY3K
@@ -1239,6 +1267,11 @@ static int cpy_init_python(void) {
   PyType_Ready(&SignedType);
   UnsignedType.tp_base = &PyLong_Type;
   PyType_Ready(&UnsignedType);
+  errordict = PyDict_New();
+  PyDict_SetItemString(
+      errordict, "__doc__",
+      cpy_string_to_unicode_or_bytes(CollectdError_doc)); /* New reference. */
+  CollectdError = PyErr_NewException("collectd.CollectdError", NULL, errordict);
   sys = PyImport_ImportModule("sys"); /* New reference. */
   if (sys == NULL) {
     cpy_log_exception("python initialization");
@@ -1268,6 +1301,9 @@ static int cpy_init_python(void) {
                      (void *)&SignedType); /* Steals a reference. */
   PyModule_AddObject(module, "Unsigned",
                      (void *)&UnsignedType); /* Steals a reference. */
+  Py_XINCREF(CollectdError);
+  PyModule_AddObject(module, "CollectdError",
+                     CollectdError); /* Steals a reference. */
   PyModule_AddIntConstant(module, "LOG_DEBUG", LOG_DEBUG);
   PyModule_AddIntConstant(module, "LOG_INFO", LOG_INFO);
   PyModule_AddIntConstant(module, "LOG_NOTICE", LOG_NOTICE);
