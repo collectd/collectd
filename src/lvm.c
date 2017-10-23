@@ -187,16 +187,16 @@ static int lvm_read(void) {
   return 0;
 } /*lvm_read */
 
-static int lvm_init(void) {
+static int c_lvm_init(void) {
 #if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_SYS_ADMIN)
   if (check_capability(CAP_SYS_ADMIN) != 0) {
     if (getuid() == 0)
-      WARNING("smart plugin: Running collectd as root, but the "
+      WARNING("lvm plugin: Running collectd as root, but the "
               "CAP_SYS_ADMIN capability is missing. The plugin's read "
               "function will probably fail. Is your init system dropping "
               "capabilities?");
     else
-      WARNING("smart plugin: collectd doesn't have the CAP_SYS_ADMIN "
+      WARNING("lvm plugin: collectd doesn't have the CAP_SYS_ADMIN "
               "capability. If you don't want to run collectd as root, try "
               "running \"setcap cap_sys_admin=ep\" on the collectd binary.");
   }
@@ -205,6 +205,6 @@ static int lvm_init(void) {
 }
 
 void module_register(void) {
-  plugin_register_init("lvm", lvm_init);
+  plugin_register_init("lvm", c_lvm_init);
   plugin_register_read("lvm", lvm_read);
 } /* void module_register */
