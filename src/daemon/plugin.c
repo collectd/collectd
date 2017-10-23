@@ -1322,8 +1322,7 @@ int plugin_register_missing(const char *name, plugin_missing_cb callback,
 } /* int plugin_register_missing */
 
 int plugin_register_shutdown(const char *name, int (*callback)(void)) {
-  return create_register_callback(&list_shutdown, name, (void *)callback,
-                                  NULL);
+  return create_register_callback(&list_shutdown, name, (void *)callback, NULL);
 } /* int plugin_register_shutdown */
 
 static void plugin_free_data_sets(void) {
@@ -1874,23 +1873,16 @@ int plugin_shutdown_all(void) {
 
 int plugin_dispatch_missing(const value_list_t *vl) /* {{{ */
 {
-  llentry_t *le;
-
   if (list_missing == NULL)
     return 0;
 
-  le = llist_head(list_missing);
+  llentry_t *le = llist_head(list_missing);
   while (le != NULL) {
-    callback_func_t *cf;
-    plugin_missing_cb callback;
-    plugin_ctx_t old_ctx;
-    int status;
+    callback_func_t *cf = le->value;
+    plugin_ctx_t old_ctx = plugin_set_ctx(cf->cf_ctx);
+    plugin_missing_cb callback = cf->cf_callback;
 
-    cf = le->value;
-    old_ctx = plugin_set_ctx(cf->cf_ctx);
-    callback = cf->cf_callback;
-
-    status = (*callback)(vl, &cf->cf_udata);
+    int status = (*callback)(vl, &cf->cf_udata);
     plugin_set_ctx(old_ctx);
     if (status != 0) {
       if (status < 0) {
@@ -1911,8 +1903,6 @@ int plugin_dispatch_missing(const value_list_t *vl) /* {{{ */
 static int plugin_dispatch_values_internal(value_list_t *vl) {
   int status;
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-
-  data_set_t *ds;
 
   _Bool free_meta_data = 0;
 
@@ -1949,6 +1939,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
     return -1;
   }
 
+  data_set_t *ds = NULL;
   if (c_avl_get(data_sets, vl->type, (void *)&ds) != 0) {
     char ident[6 * DATA_MAX_NAME_LEN];
 
