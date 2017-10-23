@@ -151,7 +151,7 @@ static void vg_read(vg_t vg, char const *vg_name) {
   }
 }
 
-static int lvm_read(void) {
+static int c_lvm_read(void) {
   lvm_t lvm;
   struct dm_list *vg_names;
   struct lvm_str_list *name_list;
@@ -185,9 +185,9 @@ static int lvm_read(void) {
 
   lvm_quit(lvm);
   return 0;
-} /*lvm_read */
+} /*c_lvm_read */
 
-static int lvm_init(void) {
+static int c_lvm_init(void) {
 #if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_SYS_ADMIN)
   if (check_capability(CAP_SYS_ADMIN) != 0) {
     if (getuid() == 0)
@@ -205,6 +205,6 @@ static int lvm_init(void) {
 }
 
 void module_register(void) {
-  plugin_register_init("lvm", lvm_init);
-  plugin_register_read("lvm", lvm_read);
+  plugin_register_init("lvm", c_lvm_init);
+  plugin_register_read("lvm", c_lvm_read);
 } /* void module_register */
