@@ -102,7 +102,7 @@
 #define COLLECTD_CPU_STATE_GUEST_NICE 9
 #define COLLECTD_CPU_STATE_IDLE 10
 #define COLLECTD_CPU_STATE_ACTIVE 11 /* sum of (!idle) */
-#define COLLECTD_CPU_STATE_MAX 12   /* #states */
+#define COLLECTD_CPU_STATE_MAX 12    /* #states */
 
 #if HAVE_STATGRAB_H
 #include <statgrab.h>
@@ -119,9 +119,9 @@
 #error "No applicable input method."
 #endif
 
-static const char *cpu_state_names[] = {"user", "system",    "wait",    "nice",
-                                        "swap", "interrupt", "softirq", "steal",
-                                        "guest", "guest_nice", "idle", "active"};
+static const char *cpu_state_names[] = {
+    "user",    "system", "wait",  "nice",       "swap", "interrupt",
+    "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
 
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
@@ -137,9 +137,7 @@ static mach_msg_type_number_t cpu_list_len;
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so
  * CPUs.. */
 #define MAX_NUMCPU 256
-extern kstat_ctl_t *kc;
-static kstat_t *ksp[MAX_NUMCPU];
-static int numcpu;
+static kstat_ctl_t *local_kc;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
@@ -198,8 +196,8 @@ static _Bool report_num_cpu = 0;
 static _Bool report_guest = 0;
 static _Bool subtract_guest = 1;
 
-static const char *config_keys[] = {"ReportByCpu", "ReportByState",
-                                    "ReportNumCpu", "ValuesPercentage",
+static const char *config_keys[] = {"ReportByCpu",      "ReportByState",
+                                    "ReportNumCpu",     "ValuesPercentage",
                                     "ReportGuestState", "SubtractGuestState"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -251,19 +249,13 @@ static int init(void) {
 /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
-  kstat_t *ksp_chain;
-
-  numcpu = 0;
-
-  if (kc == NULL)
+  if (local_kc == NULL) {
+    local_kc = kstat_open();
+  }
+  if (local_kc == NULL) {
+    ERROR("cpu plugin: kstat_open failed.");
     return -1;
-
-  /* Solaris doesn't count linear.. *sigh* */
-  for (numcpu = 0, ksp_chain = kc->kc_chain;
-       (numcpu < MAX_NUMCPU) && (ksp_chain != NULL);
-       ksp_chain = ksp_chain->ks_next)
-    if (strncmp(ksp_chain->ks_module, "cpu_stat", 8) == 0)
-      ksp[numcpu++] = ksp_chain;
+  }
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
@@ -553,9 +545,8 @@ static void cpu_commit(void) /* {{{ */
 
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
-    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN };
+    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {
+        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
 
     for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
       if (this_cpu_states[state].has_value)
@@ -664,7 +655,8 @@ static int cpu_read(void) {
 
     cpu = atoi(fields[0] + 3);
 
-    /* Do not stage User and Nice immediately: we may need to alter them later: */
+    /* Do not stage User and Nice immediately: we may need to alter them later:
+     */
     long long user_value = atoll(fields[1]);
     long long nice_value = atoll(fields[2]);
     cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
@@ -676,7 +668,7 @@ static int cpu_read(void) {
                 now);
       cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
                 now);
-	}
+    }
 
     if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
       cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]), now);
@@ -689,7 +681,8 @@ static int cpu_read(void) {
         /* Guest is included in User; optionally subtract Guest from User: */
         if (subtract_guest) {
           user_value -= value;
-          if (user_value < 0) user_value = 0;
+          if (user_value < 0)
+            user_value = 0;
         }
       }
     }
@@ -702,7 +695,8 @@ static int cpu_read(void) {
            Nice: */
         if (subtract_guest) {
           nice_value -= value;
-          if (nice_value < 0) nice_value = 0;
+          if (nice_value < 0)
+            nice_value = 0;
         }
       }
     }
@@ -715,22 +709,32 @@ static int cpu_read(void) {
 /* }}} #endif defined(KERNEL_LINUX) */
 
 #elif defined(HAVE_LIBKSTAT) /* {{{ */
-  static cpu_stat_t cs;
-
-  if (kc == NULL)
+  if (local_kc == NULL)
     return -1;
 
-  for (int cpu = 0; cpu < numcpu; cpu++) {
-    if (kstat_read(kc, ksp[cpu], &cs) == -1)
-      continue; /* error message? */
+  if (kstat_chain_update(local_kc) < 0) {
+    ERROR("cpu plugin: kstat_chain_update failed.");
+    return -1;
+  }
 
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_IDLE,
+  for (kstat_t *ksp = local_kc->kc_chain; ksp != NULL; ksp = ksp->ks_next) {
+    if (strncmp(ksp->ks_module, "cpu_stat", 8) != 0) {
+      continue;
+    }
+
+    cpu_stat_t cs = {0};
+    if (kstat_read(local_kc, ksp, &cs) == -1) {
+      WARNING("cpu plugin: kstat_read failed.");
+      continue; /* error message? */
+    }
+
+    cpu_stage(ksp->ks_instance, COLLECTD_CPU_STATE_IDLE,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_IDLE], now);
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_USER,
+    cpu_stage(ksp->ks_instance, COLLECTD_CPU_STATE_USER,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_USER], now);
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_SYSTEM,
+    cpu_stage(ksp->ks_instance, COLLECTD_CPU_STATE_SYSTEM,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_KERNEL], now);
-    cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,
+    cpu_stage(ksp->ks_instance, COLLECTD_CPU_STATE_WAIT,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
   }
 /* }}} #endif defined(HAVE_LIBKSTAT) */
