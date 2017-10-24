@@ -44,8 +44,9 @@
 #include "utils_dpdk.h"
 
 #define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
-#define DPDK_EAL_ARGC 5
-#define DPDK_MAX_BUFFER_SIZE (4096 * 4)
+#define DPDK_EAL_ARGC 10
+//Complete trace should fit into 1024 chars
+#define DPDK_MAX_BUFFER_SIZE 896
 #define DPDK_CDM_DEFAULT_TIMEOUT 10000
 
 enum DPDK_HELPER_STATUS {
@@ -185,6 +186,14 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
                   "/var/run/.%s_config", prefix);
         DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
       }
+    } else if (strcasecmp("LogLevel", child->key) == 0) {
+      status = cf_util_get_string_buffer(child, phc->eal_config.log_level,
+                                         sizeof(phc->eal_config.log_level));
+      DEBUG("dpdk_common: EAL:LogLevel %s", phc->eal_config.log_level);
+    } else if (strcasecmp("RteDriverLibPath", child->key) == 0) {
+      status = cf_util_get_string_buffer(child, phc->eal_config.rte_driver_lib_path,
+                                         sizeof(phc->eal_config.rte_driver_lib_path));
+      DEBUG("dpdk_common: EAL:RteDriverLibPath %s", phc->eal_config.rte_driver_lib_path);
     } else {
       ERROR("dpdk_common: Invalid '%s' configuration option", child->key);
       status = -EINVAL;
@@ -493,6 +502,15 @@ static int dpdk_helper_eal_init(dpdk_helper_ctx_t *phc) {
   argp[argc++] = "--proc-type";
   argp[argc++] = "secondary";
 
+  if (strcasecmp(phc->eal_config.log_level, "") != 0) {
+    argp[argc++] = "--log-level";
+    argp[argc++] = phc->eal_config.log_level;
+  }
+  if (strcasecmp(phc->eal_config.rte_driver_lib_path, "") != 0) {
+      argp[argc++] = "-d";
+      argp[argc++] = phc->eal_config.rte_driver_lib_path;
+  }
+
   assert(argc <= (DPDK_EAL_ARGC * 2 + 1));
 
   int ret = rte_eal_init(argc, argp);
@@ -697,6 +715,7 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
       .fd = phc->pipes[0], .events = POLLIN,
   };
   int data_avail = poll(&fds, 1, 0);
+  DEBUG("%s:dpdk_helper_check_pipe: poll data_avail=%d", phc->shm_name, data_avail);
   if (data_avail < 0) {
     if (errno != EINTR || errno != EAGAIN) {
       char errbuf[ERR_BUF_SIZE];
@@ -705,10 +724,12 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
     }
   }
   while (data_avail) {
-    int nbytes = read(phc->pipes[0], buf, sizeof(buf));
+    int nbytes = read(phc->pipes[0], buf, (sizeof(buf) - 1));
+    DEBUG("%s:dpdk_helper_check_pipe: read nbytes=%d", phc->shm_name, nbytes);
     if (nbytes <= 0)
       break;
-    sstrncpy(out, buf, nbytes);
+    buf[nbytes] = '\n';
+    sstrncpy(out, buf, (nbytes + 1));
     DEBUG("%s: helper process:\n%s", phc->shm_name, out);
   }
 }
