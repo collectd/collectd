@@ -45,7 +45,7 @@
 
 #define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
 #define DPDK_EAL_ARGC 10
-//Complete trace should fit into 1024 chars
+// Complete trace should fit into 1024 chars
 #define DPDK_MAX_BUFFER_SIZE 896
 #define DPDK_CDM_DEFAULT_TIMEOUT 10000
 
@@ -183,7 +183,7 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
       status = cf_util_get_string_buffer(child, prefix, sizeof(prefix));
       if (status == 0) {
         snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
-                  "/var/run/.%s_config", prefix);
+                 "/var/run/.%s_config", prefix);
         DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
       }
     } else if (strcasecmp("LogLevel", child->key) == 0) {
@@ -191,9 +191,11 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
                                          sizeof(phc->eal_config.log_level));
       DEBUG("dpdk_common: EAL:LogLevel %s", phc->eal_config.log_level);
     } else if (strcasecmp("RteDriverLibPath", child->key) == 0) {
-      status = cf_util_get_string_buffer(child, phc->eal_config.rte_driver_lib_path,
-                                         sizeof(phc->eal_config.rte_driver_lib_path));
-      DEBUG("dpdk_common: EAL:RteDriverLibPath %s", phc->eal_config.rte_driver_lib_path);
+      status = cf_util_get_string_buffer(
+          child, phc->eal_config.rte_driver_lib_path,
+          sizeof(phc->eal_config.rte_driver_lib_path));
+      DEBUG("dpdk_common: EAL:RteDriverLibPath %s",
+            phc->eal_config.rte_driver_lib_path);
     } else {
       ERROR("dpdk_common: Invalid '%s' configuration option", child->key);
       status = -EINVAL;
@@ -507,8 +509,8 @@ static int dpdk_helper_eal_init(dpdk_helper_ctx_t *phc) {
     argp[argc++] = phc->eal_config.log_level;
   }
   if (strcasecmp(phc->eal_config.rte_driver_lib_path, "") != 0) {
-      argp[argc++] = "-d";
-      argp[argc++] = phc->eal_config.rte_driver_lib_path;
+    argp[argc++] = "-d";
+    argp[argc++] = phc->eal_config.rte_driver_lib_path;
   }
 
   assert(argc <= (DPDK_EAL_ARGC * 2 + 1));
@@ -715,7 +717,8 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
       .fd = phc->pipes[0], .events = POLLIN,
   };
   int data_avail = poll(&fds, 1, 0);
-  DEBUG("%s:dpdk_helper_check_pipe: poll data_avail=%d", phc->shm_name, data_avail);
+  DEBUG("%s:dpdk_helper_check_pipe: poll data_avail=%d", phc->shm_name,
+        data_avail);
   if (data_avail < 0) {
     if (errno != EINTR || errno != EAGAIN) {
       char errbuf[ERR_BUF_SIZE];
