@@ -245,6 +245,7 @@ time_ref                value:GAUGE:0:U
 timeleft                value:GAUGE:0:U
 total_bytes             value:DERIVE:0:U
 total_connections       value:DERIVE:0:U
+total_events            value:DERIVE:0:U
 total_objects           value:DERIVE:0:U
 total_operations        value:DERIVE:0:U
 total_requests          value:DERIVE:0:U

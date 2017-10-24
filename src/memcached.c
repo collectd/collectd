@@ -523,7 +523,7 @@ static int memcached_read(user_data_t *user_data) {
     else if (FIELD_IS("curr_connections")) {
       submit_gauge("memcached_connections", "current", atof(fields[2]), st);
     } else if (FIELD_IS("listen_disabled_num")) {
-      submit_derive("operations", "listen_disabled", atoll(fields[2]), st);
+      submit_derive("total_events", "listen_disabled", atoll(fields[2]), st);
     }
     /*
      * Total number of connections opened since the server started running
@@ -683,9 +683,10 @@ static int memcached_add_read_callback(memcached_t *st) {
       /* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
-      /* interval  = */ 0, &(user_data_t){
-                               .data = st, .free_func = memcached_free,
-                           });
+      /* interval  = */ 0,
+      &(user_data_t){
+          .data = st, .free_func = memcached_free,
+      });
 } /* int memcached_add_read_callback */
 
 /* Configuration handling functiions
