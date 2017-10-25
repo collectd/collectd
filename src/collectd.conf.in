@@ -561,6 +561,8 @@
 #    Coremask "0x2"
 #    MemoryChannels "4"
 #    FilePrefix "rte"
+#    LogLevel "7"
+#    RteDriverLibPath "/usr/lib/dpdk-pmd"
 #  </EAL>
 #  SharedMemObj "dpdk_collectd_stats_0"
 #  EnabledPortMask 0xffff
