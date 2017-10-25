@@ -734,7 +734,7 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
     if (nbytes <= 0)
       break;
     buf[nbytes] = '\0';
-    sstrncpy(out, buf, (nbytes + 1));
+    sstrncpy(out, buf, sizeof(out));
     DEBUG("%s: helper process:\n%s", phc->shm_name, out);
   }
 }
