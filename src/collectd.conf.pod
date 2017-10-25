@@ -2572,6 +2572,8 @@ B<Synopsis:>
      MemoryChannels "4"
      FilePrefix "rte"
      SocketMemory "1024"
+     LogLevel "7"
+     RteDriverLibPath "/usr/lib/dpdk-pmd"
    </EAL>
    SharedMemObj "dpdk_collectd_stats_0"
    EnabledPortMask 0xffff
@@ -2603,6 +2605,20 @@ The prefix text used for hugepage filenames. The filename will be set to
 
 A string containing amount of Memory to allocate from hugepages on specific
 sockets in MB. This is an optional value.
+
+=item B<LogLevel> I<LogLevel_number>
+
+A string containing log level number. This parameter is optional.
+If parameter is not present then default value "7" - (INFO) is used.
+Value "8" - (DEBUG) can be set to enable debug traces.
+
+=item B<RteDriverLibPath> I<Path>
+
+A string containing path to shared pmd driver lib or path to directory,
+where shared pmd driver libs are available. This parameter is optional.
+This parameter enable loading of shared pmd driver libs from defined path.
+E.g.: "/usr/lib/dpdk-pmd/librte_pmd_i40e.so"
+or    "/usr/lib/dpdk-pmd"
 
 =back
 

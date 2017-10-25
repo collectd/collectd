@@ -52,7 +52,7 @@ struct dpdk_eal_config_s {
   char socket_memory[DATA_MAX_NAME_LEN];
   char file_prefix[DATA_MAX_NAME_LEN];
   char log_level[DATA_MAX_NAME_LEN];
-  char rte_driver_lib_path[DATA_MAX_NAME_LEN];
+  char rte_driver_lib_path[PATH_MAX];
 };
 typedef struct dpdk_eal_config_s dpdk_eal_config_t;
 

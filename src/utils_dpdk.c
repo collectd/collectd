@@ -45,7 +45,9 @@
 
 #define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
 #define DPDK_EAL_ARGC 10
-// Complete trace should fit into 1024 chars
+// Complete trace should fit into 1024 chars. Trace contain some headers
+// and text together with traced data from pipe. This is the reason why
+// we need to limit DPDK_MAX_BUFFER_SIZE value.
 #define DPDK_MAX_BUFFER_SIZE 896
 #define DPDK_CDM_DEFAULT_TIMEOUT 10000
 
@@ -731,7 +733,7 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
     DEBUG("%s:dpdk_helper_check_pipe: read nbytes=%d", phc->shm_name, nbytes);
     if (nbytes <= 0)
       break;
-    buf[nbytes] = '\n';
+    buf[nbytes] = '\0';
     sstrncpy(out, buf, (nbytes + 1));
     DEBUG("%s: helper process:\n%s", phc->shm_name, out);
   }
