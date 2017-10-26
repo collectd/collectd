@@ -57,6 +57,47 @@
   (((PERF_COUNT_HW_CACHE_OP_PREFETCH) << 8) |                                  \
    ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))
 
+#define I915_PMU_SAMPLE_BITS (4)
+#define I915_PMU_SAMPLE_MASK (0xf)
+#define I915_PMU_SAMPLE_INSTANCE_BITS (8)
+#define I915_PMU_CLASS_SHIFT \
+    (I915_PMU_SAMPLE_BITS + I915_PMU_SAMPLE_INSTANCE_BITS)
+
+#define __I915_PMU_ENGINE(class, instance, sample) \
+    ((class) << I915_PMU_CLASS_SHIFT | \
+    (instance) << I915_PMU_SAMPLE_BITS | \
+    (sample))
+
+#define I915_PMU_ENGINE_BUSY_RENDER (I915_ENGINE_CLASS_RENDER << I915_PMU_CLASS_SHIFT | \
+    GPU_ENGINE_INSTANCES_0 << I915_PMU_SAMPLE_BITS | \
+    I915_SAMPLE_BUSY)
+
+#define I915_PMU_ENGINE_BUSY_COPY (I915_ENGINE_CLASS_COPY << I915_PMU_CLASS_SHIFT | \
+    GPU_ENGINE_INSTANCES_0 << I915_PMU_SAMPLE_BITS | \
+    I915_SAMPLE_BUSY)
+
+#define I915_PMU_ENGINE_BUSY_VDBOX0 (I915_ENGINE_CLASS_VIDEO << I915_PMU_CLASS_SHIFT | \
+    GPU_ENGINE_INSTANCES_0 << I915_PMU_SAMPLE_BITS | \
+    I915_SAMPLE_BUSY)
+
+#define I915_PMU_ENGINE_BUSY_VDBOX1 (I915_ENGINE_CLASS_VIDEO << I915_PMU_CLASS_SHIFT | \
+    GPU_ENGINE_INSTANCES_1 << I915_PMU_SAMPLE_BITS | \
+    I915_SAMPLE_BUSY)
+
+#define I915_PMU_ENGINE_BUSY_VDBOX1 (I915_ENGINE_CLASS_VIDEO << I915_PMU_CLASS_SHIFT | \
+    GPU_ENGINE_INSTANCES_1 << I915_PMU_SAMPLE_BITS | \
+    I915_SAMPLE_BUSY)
+
+#define I915_PMU_ENGINE_BUSY_VEBOX (I915_ENGINE_CLASS_VIDEO_ENHANCE << I915_PMU_CLASS_SHIFT | \
+    GPU_ENGINE_INSTANCES_0 << I915_PMU_SAMPLE_BITS | \
+    I915_SAMPLE_BUSY)
+
+#define __I915_PMU_OTHER(x) (__I915_PMU_ENGINE(0xff, 0xff, 0xf) + 1 + (x))
+#define I915_PMU_ACTUAL_FREQUENCY       __I915_PMU_OTHER(0)
+#define I915_PMU_REQUESTED_FREQUENCY    __I915_PMU_OTHER(1)
+
+
+
 struct event_info {
   char *name;
   uint64_t config;
@@ -66,14 +107,37 @@ typedef struct event_info event_info_t;
 struct intel_pmu_ctx_s {
   _Bool hw_cache_events;
   _Bool kernel_pmu_events;
+  _Bool kernel_pmu_i915_events;
   _Bool sw_events;
   char event_list_fn[PATH_MAX];
   char **hw_events;
   size_t hw_events_count;
   struct eventlist *event_list;
+  struct eventlist *event_list_i915;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
 
+enum drm_i915_gem_engine_class {
+    I915_ENGINE_CLASS_OTHER = 0,
+    I915_ENGINE_CLASS_RENDER = 1,
+    I915_ENGINE_CLASS_COPY = 2,
+    I915_ENGINE_CLASS_VIDEO = 3,
+    I915_ENGINE_CLASS_VIDEO_ENHANCE = 4,
+    I915_ENGINE_CLASS_MAX /* non-ABI */
+};
+
+enum drm_i915_pmu_engine_sample {
+    I915_SAMPLE_BUSY = 0,
+    I915_SAMPLE_WAIT = 1,
+    I915_SAMPLE_SEMA = 2,
+    I915_ENGINE_SAMPLE_MAX /* non-ABI */
+};
+
+enum drm_i915_gem_engine_instances {
+     GPU_ENGINE_INSTANCES_0 = 0,
+     GPU_ENGINE_INSTANCES_1 = 1,
+     GPU_ENGINE_INSTANCES_MAX /* non-ABI */
+};
 event_info_t g_kernel_pmu_events[] = {
     {.name = "cpu-cycles", .config = PERF_COUNT_HW_CPU_CYCLES},
     {.name = "instructions", .config = PERF_COUNT_HW_INSTRUCTIONS},
@@ -83,6 +147,18 @@ event_info_t g_kernel_pmu_events[] = {
     {.name = "branch-misses", .config = PERF_COUNT_HW_BRANCH_MISSES},
     {.name = "bus-cycles", .config = PERF_COUNT_HW_BUS_CYCLES},
 };
+
+event_info_t g_kernel_pmu_i915_events[] = {
+    {.name = "rcs0-busy", .config = I915_PMU_ENGINE_BUSY_RENDER},
+    {.name = "bcs0-busy", .config = I915_PMU_ENGINE_BUSY_COPY},
+    {.name = "vcs0-busy", .config = I915_PMU_ENGINE_BUSY_VDBOX0},
+    {.name = "vcs1-busy", .config = I915_PMU_ENGINE_BUSY_VDBOX1},
+    {.name = "vecs0-busy", .config = I915_PMU_ENGINE_BUSY_VEBOX },
+    {.name = "actual-frequency", .config = I915_PMU_ACTUAL_FREQUENCY},
+    {.name = "requested-frequency", .config = I915_PMU_REQUESTED_FREQUENCY},
+};
+
+
 
 event_info_t g_hw_cache_events[] = {
 
@@ -189,6 +265,7 @@ static void pmu_dump_config(void) {
   DEBUG(PMU_PLUGIN ": Config:");
   DEBUG(PMU_PLUGIN ":   hw_cache_events   : %d", g_ctx.hw_cache_events);
   DEBUG(PMU_PLUGIN ":   kernel_pmu_events : %d", g_ctx.kernel_pmu_events);
+  DEBUG(PMU_PLUGIN ":   kernel_pmu_i915_events : %d", g_ctx.kernel_pmu_i915_events);
   DEBUG(PMU_PLUGIN ":   software_events   : %d", g_ctx.sw_events);
 
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
@@ -240,7 +317,9 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = cf_util_get_boolean(child, &g_ctx.hw_cache_events);
     } else if (strcasecmp("ReportKernelPMUEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.kernel_pmu_events);
-    } else if (strcasecmp("EventList", child->key) == 0) {
+    }else if (strcasecmp("ReportKernelPMUi915Events", child->key) == 0) {
+      ret = cf_util_get_boolean(child, &g_ctx.kernel_pmu_i915_events);
+    }else if (strcasecmp("EventList", child->key) == 0) {
       ret = cf_util_get_string_buffer(child, g_ctx.event_list_fn,
                                       sizeof(g_ctx.event_list_fn));
     } else if (strcasecmp("HardwareEvents", child->key) == 0) {
@@ -261,7 +340,7 @@ static int pmu_config(oconfig_item_t *ci) {
 #if COLLECT_DEBUG
   pmu_dump_config();
 #endif
-
+  
   return 0;
 }
 
@@ -306,14 +385,14 @@ meta_data_t *pmu_meta_data_create(const struct efd *efd) {
   return meta;
 }
 
-static void pmu_dispatch_data(void) {
+static void pmu_dispatch_data(struct eventlist *event_list) {
 
   struct event *e;
 
-  for (e = g_ctx.event_list->eventlist; e; e = e->next) {
+  for (e = event_list->eventlist; e; e = e->next) {
     uint64_t all_value = 0;
     int event_enabled = 0;
-    for (int i = 0; i < g_ctx.event_list->num_cpus; i++) {
+    for (int i = 0; i < event_list->num_cpus; i++) {
 
       if (e->efd[i].fd < 0)
         continue;
@@ -355,14 +434,40 @@ static int pmu_read(__attribute__((unused)) user_data_t *ud) {
     ERROR(PMU_PLUGIN ": Failed to read values of all events.");
     return ret;
   }
+  ret = read_all_events(g_ctx.event_list_i915);
+  if (ret != 0) {
+    ERROR(PMU_PLUGIN ": Failed to read i915 values of all events.");
+    return ret;
+  }
 
-  pmu_dispatch_data();
+
+  pmu_dispatch_data(g_ctx.event_list);
+  pmu_dispatch_data(g_ctx.event_list_i915);
 
   return 0;
 }
 
+static uint64_t i915_type_id(void)
+{
+    char buf[1024];
+    int fd, n;
+
+    fd = open("/sys/bus/event_source/devices/i915/type", 0);
+    if (fd < 0) {
+        n = -1;
+    } else {
+        n = read(fd, buf, sizeof(buf)-1);
+        close(fd);
+    }
+    if (n < 0)
+        return EXIT_FAILURE;
+
+    buf[n] = '\0';
+    return strtoull(buf, 0, 0);
+}
+
 static int pmu_add_events(struct eventlist *el, uint32_t type,
-                          event_info_t *events, size_t count) {
+                          event_info_t *events, size_t count, bool el_i915) {
 
   for (size_t i = 0; i < count; i++) {
     /* Allocate memory for event struct that contains array of efd structs
@@ -374,7 +479,16 @@ static int pmu_add_events(struct eventlist *el, uint32_t type,
       return -ENOMEM;
     }
 
-    e->attr.type = type;
+    if(!el_i915)
+    	e->attr.type = type;
+    else{
+    	e->attr.type = i915_type_id();
+        if(e->attr.type < 0){
+           sfree(e);
+           ERROR(PMU_PLUGIN ": Failed to retrieve i915 PMU type");
+           return -ENOMEM;
+        }
+    }
     e->attr.config = events[i].config;
     e->attr.size = PERF_ATTR_SIZE_VER0;
     if (!el->eventlist)
@@ -498,9 +612,8 @@ static int pmu_init(void) {
   }
 
   if (g_ctx.hw_cache_events) {
-    ret =
-        pmu_add_events(g_ctx.event_list, PERF_TYPE_HW_CACHE, g_hw_cache_events,
-                       STATIC_ARRAY_SIZE(g_hw_cache_events));
+    ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_HW_CACHE, g_hw_cache_events,
+                       STATIC_ARRAY_SIZE(g_hw_cache_events), false);
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add hw cache events.");
       goto init_error;
@@ -510,7 +623,19 @@ static int pmu_init(void) {
   if (g_ctx.kernel_pmu_events) {
     ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_HARDWARE,
                          g_kernel_pmu_events,
-                         STATIC_ARRAY_SIZE(g_kernel_pmu_events));
+                         STATIC_ARRAY_SIZE(g_kernel_pmu_events),false);
+    if (ret != 0) {
+      ERROR(PMU_PLUGIN ":iled to add kernel PMU events.");
+      goto init_error;
+    }
+  }
+  if (g_ctx.kernel_pmu_i915_events) {
+    g_ctx.event_list_i915 = alloc_eventlist();
+    g_ctx.event_list_i915->num_cpus = 1;
+    ret = pmu_add_events(g_ctx.event_list_i915,0,
+                         g_kernel_pmu_i915_events,
+                         STATIC_ARRAY_SIZE(g_kernel_pmu_i915_events), true);
+    pmu_setup_events(g_ctx.event_list_i915, true, -1);
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add kernel PMU events.");
       goto init_error;
@@ -537,7 +662,7 @@ static int pmu_init(void) {
 
   if (g_ctx.sw_events) {
     ret = pmu_add_events(g_ctx.event_list, PERF_TYPE_SOFTWARE, g_sw_events,
-                         STATIC_ARRAY_SIZE(g_sw_events));
+                         STATIC_ARRAY_SIZE(g_sw_events),false);
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add software events.");
       goto init_error;
@@ -565,7 +690,9 @@ static int pmu_init(void) {
 init_error:
 
   pmu_free_events(g_ctx.event_list);
+  pmu_free_events(g_ctx.event_list_i915);
   sfree(g_ctx.event_list);
+  sfree(g_ctx.event_list_i915);
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     sfree(g_ctx.hw_events[i]);
   }
