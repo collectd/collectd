@@ -76,10 +76,11 @@ static void sig_usr1_handler(int __attribute__((unused)) signal) {
 }
 
 static int init_hostname(void) {
-  const char *str;
-
-  struct addrinfo *ai_list;
-  int status;
+  const char *str = global_option_get("Hostname");
+  if ((str != NULL) && (str[0] != 0)) {
+    hostname_set(str);
+    return 0;
+  }
 
   long hostname_len = sysconf(_SC_HOST_NAME_MAX);
   if (hostname_len == -1) {
@@ -87,25 +88,22 @@ static int init_hostname(void) {
   }
   char hostname[hostname_len];
 
-  str = global_option_get("Hostname");
-  if ((str != NULL) && (str[0] != 0)) {
-    hostname_set(str);
-    return 0;
-  }
-
   if (gethostname(hostname, hostname_len) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
     return -1;
   }
 
+  hostname_set(hostname);
+
   str = global_option_get("FQDNLookup");
   if (IS_FALSE(str))
     return 0;
 
+  struct addrinfo *ai_list;
   struct addrinfo ai_hints = {.ai_flags = AI_CANONNAME};
 
-  status = getaddrinfo(hostname, NULL, &ai_hints, &ai_list);
+  int status = getaddrinfo(hostname, NULL, &ai_hints, &ai_list);
   if (status != 0) {
     ERROR("Looking up \"%s\" failed. You have set the "
           "\"FQDNLookup\" option, but I cannot resolve "
