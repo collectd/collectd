@@ -188,39 +188,25 @@ static size_t nfs4_server40_procedures_names_num =
 
 static const char *nfs4_server4x_procedures_names[] = {
     /* NFS 4.1 */
-    "backchannel_ctl",
-    "bind_conn_to_session",
-    "exchange_id",
-    "create_session",
-    "destroy_session",
-    "free_stateid",
-    "get_dir_delegation",
-    "getdeviceinfo",
-    "getdevicelist",
-    "layoutcommit",
-    "layoutget",
-    "layoutreturn",
-    "secinfo_no_name",
-    "sequence",
-    "set_ssv",
-    "test_stateid",
-    "want_delegation",
-    "destroy_clientid",
-    "reclaim_complete",
+    "backchannel_ctl", "bind_conn_to_session", "exchange_id", "create_session",
+    "destroy_session", "free_stateid", "get_dir_delegation", "getdeviceinfo",
+    "getdevicelist", "layoutcommit", "layoutget", "layoutreturn",
+    "secinfo_no_name", "sequence", "set_ssv", "test_stateid", "want_delegation",
+    "destroy_clientid", "reclaim_complete",
     /* NFS 4.2 */
-    "allocate",		/* 3.18 */
-    "copy",		/* 3.18 */
-    "copy_notify",	/* 3.18 */
-    "deallocate",	/* 3.18 */
-    "ioadvise",		/* 3.18 */
-    "layouterror",	/* 3.18 */
-    "layoutstats",	/* 3.18 */
-    "offloadcancel",	/* 3.18 */
-    "offloadstatus",	/* 3.18 */
-    "readplus",		/* 3.18 */
-    "seek",		/* 3.18 */
-    "write_same",	/* 3.18 */
-    "clone"		/* 4.5 */
+    "allocate",      /* 3.18 */
+    "copy",          /* 3.18 */
+    "copy_notify",   /* 3.18 */
+    "deallocate",    /* 3.18 */
+    "ioadvise",      /* 3.18 */
+    "layouterror",   /* 3.18 */
+    "layoutstats",   /* 3.18 */
+    "offloadcancel", /* 3.18 */
+    "offloadstatus", /* 3.18 */
+    "readplus",      /* 3.18 */
+    "seek",          /* 3.18 */
+    "write_same",    /* 3.18 */
+    "clone"          /* 4.5 */
 };
 
 #define NFS4_SERVER40_NUM_PROC                                                 \
@@ -292,12 +278,12 @@ static const char *nfs4_client4x_procedures_names[] = {
     "bind_conn_to_session", /* |53| 3.5 */
     "destroy_clientid",     /* |53| 3.5 */
     /* NFS 4.2 */
-    "seek",                 /* |55| 3.18 */
-    "allocate",             /* |57| 3.19 */
-    "deallocate",           /* |57| 3.19 */
-    "layoutstats",          /* |58| 4.2 */
-    "clone",                /* |59| 4.4 */
-    "copy"                  /* |60| 4.7 */
+    "seek",        /* |55| 3.18 */
+    "allocate",    /* |57| 3.19 */
+    "deallocate",  /* |57| 3.19 */
+    "layoutstats", /* |58| 4.2 */
+    "clone",       /* |59| 4.4 */
+    "copy"         /* |60| 4.7 */
 };
 
 #define NFS4_CLIENT40_NUM_PROC                                                 \
@@ -431,7 +417,7 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
   case NFS4_SERVER40_NUM_PROC + 19: /* NFS 4.1 */
   case NFS4_SERVER40_NUM_PROC + 31: /* NFS 4.2 */
   case NFS4_SERVER40_NUM_PROC + 32: /* NFS 4.2 */
-	break;
+    break;
   default:
     if (!suppress_warning) {
       WARNING("nfs plugin: Unexpected number of fields for "
