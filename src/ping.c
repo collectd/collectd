@@ -53,6 +53,7 @@
  * Private data types
  */
 struct hostlist_s {
+  char *alias;
   char *host;
 
   uint32_t pkg_sent;
@@ -204,17 +205,17 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
 
       WARNING("ping plugin: host %s has not answered %d PING requests,"
               " triggering resolve",
-              hl->host, ping_max_missed);
+              hl->alias, ping_max_missed);
 
       /* we trigger the resolv simply be removeing and adding the host to our
        * ping object */
       status = ping_host_remove(pingobj, hl->host);
       if (status != 0) {
-        WARNING("ping plugin: ping_host_remove (%s) failed.", hl->host);
+        WARNING("ping plugin: ping_host_remove (%s) failed.", hl->alias);
       } else {
         status = ping_host_add(pingobj, hl->host);
         if (status != 0)
-          ERROR("ping plugin: ping_host_add (%s) failed.", hl->host);
+          ERROR("ping plugin: ping_host_add (%s) failed.", hl->alias);
       }
     } /* }}} ping_max_missed */
   }   /* }}} for (iter) */
@@ -268,7 +269,7 @@ static void *ping_thread(void *arg) /* {{{ */
     int tmp_status;
     tmp_status = ping_host_add(pingobj, hl->host);
     if (tmp_status != 0)
-      WARNING("ping plugin: ping_host_add (%s) failed: %s", hl->host,
+      WARNING("ping plugin: ping_host_add (%s) failed: %s", hl->alias,
               ping_get_error(pingobj));
     else
       count++;
@@ -452,7 +453,9 @@ static int ping_config(const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp(key, "Host") == 0) {
     hostlist_t *hl;
+    char *value_alias;
     char *host;
+    char *alias;
 
     hl = malloc(sizeof(*hl));
     if (hl == NULL) {
@@ -462,15 +465,33 @@ static int ping_config(const char *key, const char *value) /* {{{ */
       return 1;
     }
 
+    if ((value_alias = strchr(value, ' ')) == NULL)
+      value_alias = (char *)value;
+    else {
+      *value_alias = '\0';
+      value_alias++;
+    }
+
     host = strdup(value);
     if (host == NULL) {
       char errbuf[1024];
       sfree(hl);
-      ERROR("ping plugin: strdup failed: %s",
+      ERROR("ping plugin: strdup host failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       return 1;
     }
 
+    alias = strdup(value_alias);
+    if (alias == NULL) {
+      char errbuf[1024];
+      sfree(hl);
+      ERROR("ping plugin: strdup alias failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
+      return 1;
+    }
+
+    DEBUG("Host='%s' and Alias='%s'", host, alias);
+    hl->alias = alias;
     hl->host = host;
     hl->pkg_sent = 0;
     hl->pkg_recv = 0;
@@ -614,7 +635,7 @@ static int ping_read(void) /* {{{ */
 
     /* This e. g. happens when starting up. */
     if (pkg_sent == 0) {
-      DEBUG("ping plugin: No packages for host %s have been sent.", hl->host);
+      DEBUG("ping plugin: No packages for host %s have been sent.", hl->alias);
       continue;
     }
 
@@ -637,9 +658,9 @@ static int ping_read(void) /* {{{ */
     /* Calculate drop rate. */
     droprate = ((double)(pkg_sent - pkg_recv)) / ((double)pkg_sent);
 
-    submit(hl->host, "ping", latency_average);
-    submit(hl->host, "ping_stddev", latency_stddev);
-    submit(hl->host, "ping_droprate", droprate);
+    submit(hl->alias, "ping", latency_average);
+    submit(hl->alias, "ping_stddev", latency_stddev);
+    submit(hl->alias, "ping_droprate", droprate);
   } /* }}} for (hl = hostlist_head; hl != NULL; hl = hl->next) */
 
   return 0;
@@ -659,6 +680,7 @@ static int ping_shutdown(void) /* {{{ */
 
     hl_next = hl->next;
 
+    sfree(hl->alias);
     sfree(hl->host);
     sfree(hl);
 
