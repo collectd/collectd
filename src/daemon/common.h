@@ -385,7 +385,7 @@ int check_capability(int arg);
 #endif /* HAVE_SYS_CAPABILITY_H */
 
 #ifndef PRIsz
-#define PRIsz "zu"
+#define PRIsz PRIu64
 #endif /* PRIsz */
 
 #endif /* COMMON_H */
