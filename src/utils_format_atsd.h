@@ -23,10 +23,13 @@
 #include "collectd.h"
 #include "plugin.h"
 
-size_t strlcat(char *dst, const char *src, size_t siz);
+int format_value(char *ret, size_t ret_len, size_t i,
+                 const data_set_t *ds, const value_list_t *vl, gauge_t *rates);
 
-int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const value_list_t *vl);
+int format_entity(char *ret, const int ret_len, const char *entity,
+                  const char *host, _Bool short_hostname);
 
-int format_entity(char *ret, const int ret_len, const char *entity, const char *host, _Bool short_hostname);
+int format_atsd_command(char *buffer, size_t buffer_len, const char *entity, const char *prefix,
+                        size_t index, const data_set_t *ds, const value_list_t *vl, gauge_t* rates);
 
 #endif //UTILS_FORMAT_ATSD_H

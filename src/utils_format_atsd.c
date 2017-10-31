@@ -34,7 +34,7 @@
  * Returns strlen(src) + MIN(siz, strlen(initial dst)).
  * If retval >= siz, truncation occurred.
  */
-size_t strlcat(char *dst, const char *src, size_t siz) {
+static size_t strlcat(char *dst, const char *src, size_t siz) {
     char *d = dst;
     const char *s = src;
     size_t n = siz;
@@ -60,7 +60,8 @@ size_t strlcat(char *dst, const char *src, size_t siz) {
     return (dlen + (s - src));        /* count does not include NUL */
 }
 
-int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const value_list_t *vl) {
+int format_value(char *ret, size_t ret_len, size_t index,
+                 const data_set_t *ds, const value_list_t *vl, gauge_t *rates) {
     size_t offset = 0;
     int status;
 
@@ -79,18 +80,14 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
         offset += ((size_t)status);                                              \
     } while (0)
 
-    if (ds->ds[i].type == DS_TYPE_GAUGE)
-        BUFFER_ADD(GAUGE_FORMAT, vl->values[i].gauge);
-    else if (ds->ds[i].type == DS_TYPE_COUNTER)
-        BUFFER_ADD("%llu", vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-        BUFFER_ADD("%" PRIi64, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-        BUFFER_ADD("%" PRIu64, vl->values[i].absolute);
-    else {
-        ERROR("wa_format_values plugin: Unknown data source type: %i",
-              ds->ds[i].type);
-        return -1;
+    if (strcmp(vl->plugin, "cpu") == 0) {
+        printf("cpu %s", DS_TYPE_TO_STRING(ds->ds[index].type));
+    }
+
+    if (ds->ds[index].type == DS_TYPE_GAUGE) {
+        BUFFER_ADD(GAUGE_FORMAT, vl->values[index].gauge);
+    } else {
+        BUFFER_ADD("%f", rates[index]);
     }
 
 #undef BUFFER_ADD
@@ -104,8 +101,8 @@ static int starts_with(const char *pre, const char *str) {
     return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
 }
 
-int format_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
-
+int format_entity(char *ret, const int ret_len, const char *entity,
+                  const char *host_name, _Bool short_hostname) {
     char *host;
     char *c;
     char tmp[HOST_NAME_MAX];
@@ -151,5 +148,50 @@ int format_entity(char *ret, const int ret_len, const char *entity, const char *
 
     sstrncpy(ret, entity, ret_len);
     sfree(host);
+    return 0;
+}
+
+int format_atsd_command(char *buffer, size_t buffer_len, const char *entity, const char *prefix,
+                        size_t index, const data_set_t *ds, const value_list_t *vl, gauge_t* rates) {
+    int status;
+    char metric_name[6 * DATA_MAX_NAME_LEN];
+    char value_str[128];
+
+    status = format_value(value_str, sizeof(value_str), index, ds, vl, rates);
+    if (status != 0) {
+        return status;
+    }
+
+    sstrncpy(metric_name, prefix, sizeof(metric_name));
+
+    strlcat(metric_name, vl->plugin, sizeof(metric_name));
+    if (vl->type[0] != '\0') {
+        strlcat(metric_name, ".", sizeof(metric_name));
+        strlcat(metric_name, vl->type, sizeof(metric_name));
+    }
+    if (vl->type_instance[0] != '\0') {
+        strlcat(metric_name, ".", sizeof(metric_name));
+        strlcat(metric_name, vl->type_instance, sizeof(metric_name));
+    }
+    if (strcasecmp(ds->ds[index].name, "value") != 0) {
+        strlcat(metric_name, ".", sizeof(metric_name));
+        strlcat(metric_name, ds->ds[index].name, sizeof(metric_name));
+    }
+
+    memset(buffer, 0, buffer_len);
+    if (vl->plugin_instance[0] != '\0') {
+        snprintf(
+                buffer, buffer_len,
+                "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
+                entity, CDTIME_T_TO_MS(vl->time), metric_name, value_str, vl->plugin_instance
+        );
+    } else {
+        snprintf(
+                buffer, buffer_len,
+                "series e:%s ms:%" PRIu64 " m:%s=%s\n",
+                entity, CDTIME_T_TO_MS(vl->time), metric_name, value_str
+        );
+    }
+
     return 0;
 }

@@ -397,7 +397,7 @@ static int wa_send_message(char const *message, struct wa_callback *cb) {
 
 static int wa_update_property(const value_list_t *vl, const char *entity, struct wa_callback *cb) {
     cdtime_t now;
-    char sendline[1024];
+    char command[1024];
 
     now = cdtime();
     if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL) {
@@ -409,7 +409,7 @@ static int wa_update_property(const value_list_t *vl, const char *entity, struct
         if (!ret) {
 
             snprintf(
-                    sendline, sizeof(sendline),
+                    command, sizeof(command),
                     "property e:%s ms:%" PRIu64
                       " t:collectd-atsd v:host=%s"
                       " v:OperatingSystem=\"%s\""
@@ -422,14 +422,14 @@ static int wa_update_property(const value_list_t *vl, const char *entity, struct
             );
         } else {
             snprintf(
-                    sendline, sizeof(sendline),
+                    command, sizeof(command),
                     "property e:%s ms:%" PRIu64
                       " t:collectd-atsd v:host=%s\n",
                     entity, CDTIME_T_TO_MS(vl->time), vl->host
             );
         }
 
-        return wa_send_message(sendline, cb);
+        return wa_send_message(command, cb);
     }
     return 0;
 }
@@ -437,14 +437,11 @@ static int wa_update_property(const value_list_t *vl, const char *entity, struct
 static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                              struct wa_callback *cb) {
     int status;
-    int i;
+    size_t i;
+    gauge_t *rates = NULL;
 
-    char sendline[1024];
+    char command[1024];
     char entity[WA_MAX_LENGTH];
-    char metric_name[6 * DATA_MAX_NAME_LEN];
-    char ret[128];
-
-    size_t ret_len = sizeof(ret);
 
     if (0 != strcmp(ds->type, vl->type)) {
         ERROR("write_atsd plugin: DS type does not match "
@@ -459,61 +456,38 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
               ds->type, ds->ds_num, vl->values_len);
     }
 
-    status = format_entity(entity, sizeof(entity), cb->entity, vl->host, cb->short_hostname);
+    rates = uc_get_rate(ds, vl);
+    if (rates == NULL) {
+        ERROR("wa_write_messages: error with uc_get_rate");
+        return -1;
+    }
 
+    status = format_entity(entity, sizeof(entity), cb->entity,
+                           vl->host, cb->short_hostname);
     if (status != 0) {
-        /* error message has been printed already. */
+        sfree(rates);
         return status;
     }
 
     status = wa_update_property(vl, entity, cb);
     if (status != 0) {
+        sfree(rates);
         return status;
     }
 
-    memset(ret, 0, ret_len);
-
     for (i = 0; i < ds->ds_num; i++) {
-        status = format_value(ret, ret_len, i, ds, vl);
+        if (isnan(rates[i]))
+            continue;
+
+        format_atsd_command(command, sizeof(command), entity, cb->prefix, i, ds, vl, rates);
+        status = wa_send_message(command, cb);
         if (status != 0) {
+            sfree(rates);
             return status;
         }
-
-        sstrncpy(metric_name, cb->prefix, sizeof(metric_name));
-
-        strlcat(metric_name, vl->plugin, sizeof(metric_name));
-        if (vl->type[0] != '\0') {
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, vl->type, sizeof(metric_name));
-        }
-        if (vl->type_instance[0] != '\0') {
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        }
-        if (strcasecmp(ds->ds[i].name, "value") != 0) {
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, ds->ds[i].name, sizeof(metric_name));
-        }
-
-        if (vl->plugin_instance[0] != '\0') {
-            snprintf(
-                    sendline, sizeof(sendline),
-                    "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
-                    entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance
-            );
-        } else {
-            snprintf(
-                    sendline, sizeof(sendline),
-                    "series e:%s ms:%" PRIu64 " m:%s=%s\n",
-                    entity, CDTIME_T_TO_MS(vl->time), metric_name, ret
-            );
-        }
-        status = wa_send_message(sendline, cb);
-        if (status != 0) {
-            return status;
-        }
-
     }
+
+    sfree(rates);
     return 0;
 }
 
