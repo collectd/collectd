@@ -410,8 +410,8 @@ static int wh_write_command(const data_set_t *ds,
   cb->send_buffer_fill += command_len;
   cb->send_buffer_free -= command_len;
 
-  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%) \"%s\"", cb->location,
-        cb->send_buffer_fill, cb->send_buffer_size,
+  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%) \"%s\"",
+        cb->location, cb->send_buffer_fill, cb->send_buffer_size,
         100.0 * ((double)cb->send_buffer_fill) / ((double)cb->send_buffer_size),
         command);
 
@@ -452,8 +452,8 @@ static int wh_write_json(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return status;
   }
 
-  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%)", cb->location,
-        cb->send_buffer_fill, cb->send_buffer_size,
+  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%)",
+        cb->location, cb->send_buffer_fill, cb->send_buffer_size,
         100.0 * ((double)cb->send_buffer_fill) /
             ((double)cb->send_buffer_size));
 
@@ -501,8 +501,8 @@ static int wh_write_kairosdb(const data_set_t *ds,
     return status;
   }
 
-  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%)", cb->location,
-        cb->send_buffer_fill, cb->send_buffer_size,
+  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%)",
+        cb->location, cb->send_buffer_fill, cb->send_buffer_size,
         100.0 * ((double)cb->send_buffer_fill) /
             ((double)cb->send_buffer_size));
 
@@ -802,7 +802,8 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   /* Allocate the buffer. */
   cb->send_buffer = malloc(cb->send_buffer_size);
   if (cb->send_buffer == NULL) {
-    ERROR("write_http plugin: malloc(%" PRIsz ") failed.", cb->send_buffer_size);
+    ERROR("write_http plugin: malloc(%" PRIsz ") failed.",
+          cb->send_buffer_size);
     wh_callback_free(cb);
     return -1;
   }

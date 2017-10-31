@@ -488,7 +488,7 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *) &ce) == 0) {
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
     assert(ce != NULL);
 
     /* remove missing values from getval */
@@ -504,8 +504,7 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
         memcpy(ret, ce->values_raw, ret_num * sizeof(value_t));
       }
     }
-  }
-  else {
+  } else {
     DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
     status = -1;
   }
@@ -537,10 +536,10 @@ value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl) {
 
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
-  if (ret_num != (size_t) ds->ds_num) {
+  if (ret_num != (size_t)ds->ds_num) {
     ERROR("utils_cache: uc_get_value: ds[%s] has %" PRIsz " values, "
-          "but uc_get_value_by_name returned %" PRIsz ".", ds->type, ds->ds_num,
-          ret_num);
+          "but uc_get_value_by_name returned %" PRIsz ".",
+          ds->type, ds->ds_num, ret_num);
     sfree(ret);
     return (NULL);
   }
