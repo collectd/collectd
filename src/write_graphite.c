@@ -38,6 +38,7 @@
  *     Protocol "udp"
  *     LogSendErrors true
  *     Prefix "collectd"
+ *     UseTags true
  *   </Carbon>
  * </Plugin>
  */
@@ -518,6 +519,8 @@ static int wg_config_node(oconfig_item_t *ci) {
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_PRESERVE_SEPARATOR);
     else if (strcasecmp("DropDuplicateFields", child->key) == 0)
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_DROP_DUPE_FIELDS);
+    else if (strcasecmp("UseTags", child->key) == 0)
+      cf_util_get_flag(child, &cb->format_flags, GRAPHITE_USE_TAGS);
     else if (strcasecmp("EscapeCharacter", child->key) == 0)
       config_set_char(&cb->escape_char, child);
     else {
