@@ -1,10 +1,5 @@
 /**
  * collectd - src/write_atsd.c
- * Copyright (C) 2012       Pierre-Yves Ritschard
- * Copyright (C) 2011       Scott Sanders
- * Copyright (C) 2009       Paul Sadauskas
- * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2007-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,10 +25,6 @@
  *          Entity "entity"
  *          Prefix "collectd."
  *          ShortHostname false
- *          <Cache "df">
- *               Interval 300
- *               Threshold 0
- *          </Cache>
  *      </Node>
  *  </Plugin>
  */
@@ -52,7 +43,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-/* strlcat based on OpenBSDs strlcat */
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
@@ -120,14 +110,9 @@ struct wa_callback {
     cdtime_t send_buf_init_time;
 
     pthread_mutex_t send_lock;
-    pthread_mutex_t avl_lock;
     c_complain_t init_complaint;
     cdtime_t last_connect_time;
     cdtime_t last_property_time;
-
-    struct wa_cache_s **wa_caches;
-    int wa_num_caches;
-    c_avl_tree_t *cache_tree;
 
     /* Force reconnect useful for load balanced environments */
     cdtime_t last_reconnect_time;
@@ -333,13 +318,7 @@ static int wa_callback_init(struct wa_callback *cb) {
 }
 
 static void wa_callback_free(void *data) {
-
-    int i;
     struct wa_callback *cb;
-
-    atsd_key_t *atsd_stored_key = NULL;
-    atsd_value_t *atsd_stored_value = NULL;
-
 
     if (data == NULL)
         return;
@@ -360,26 +339,6 @@ static void wa_callback_free(void *data) {
     sfree(cb->protocol);
     sfree(cb->service);
     sfree(cb->prefix);
-
-    while (c_avl_pick(cb->cache_tree,(void *) &atsd_stored_key,(void *) &atsd_stored_value) == 0){
-
-        sfree(atsd_stored_key->plugin);
-        sfree(atsd_stored_key->plugin_instance);
-        sfree(atsd_stored_key->type);
-        sfree(atsd_stored_key->type_instance);
-        sfree(atsd_stored_key);
-
-        sfree(atsd_stored_value->value);
-        sfree(atsd_stored_value);
-    }
-
-
-    c_avl_destroy(cb->cache_tree);
-
-    for (i=0; i<cb->wa_num_caches;i++){
-        sfree(cb->wa_caches[i]->name);
-    }
-    sfree(cb->wa_caches);
 
     sfree(cb->entity);
 
@@ -436,107 +395,60 @@ static int wa_send_message(char const *message, struct wa_callback *cb) {
     return 0;
 }
 
-static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callback *cb){
+static int wa_update_property(const value_list_t *vl, const char *entity, struct wa_callback *cb) {
+    cdtime_t now;
+    char sendline[1024];
 
-    atsd_key_t *atsd_stored_key = NULL;
-    atsd_value_t *atsd_stored_value = NULL;
-    double stored_value, cur_value;
-    double cur_threshold;
+    now = cdtime();
+    if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL) {
+        cb->last_property_time = now;
 
-    int status, q;
-    int same_value = 1;
-    int interested = 0;
+        int ret;
+        struct utsname buf;
+        ret = uname(&buf);
+        if (!ret) {
 
-    for (q = 0; q < cb->wa_num_caches; q++) {
-
-        if (strcasecmp(ak->plugin, cb->wa_caches[q]->name) == 0) {
-            interested = 1;
-            status = c_avl_get(cb->cache_tree, ak, (void *) &atsd_stored_value);
-
-            if (status == 0) /* metric in tree */{
-                cur_value = atof(av->value);
-                stored_value = atof(atsd_stored_value->value);
-                cur_threshold = fabs(cur_value - stored_value);
-
-                if ((av->time - atsd_stored_value->time >= cb->wa_caches[q]->interval * 1000)
-                    || (cur_threshold >  (cb->wa_caches[q]->threshold) * stored_value / 100)) {
-
-                    status = c_avl_remove(cb->cache_tree, ak, (void *) &atsd_stored_key, NULL);
-
-                    sfree(atsd_stored_key->plugin);
-                    sfree(atsd_stored_key->plugin_instance);
-                    sfree(atsd_stored_key->type);
-                    sfree(atsd_stored_key->type_instance);
-                    sfree(atsd_stored_key);
-
-                    sfree(atsd_stored_value->value);
-                    sfree(atsd_stored_value);
-
-                    if (status != 0) {
-                        ERROR("utils_vl_lookup: c_avl_remove(\"%s\") failed with status %i.",
-                              ak->plugin, status);
-                        return -1;
-                    }
-
-                    status = c_avl_insert(cb->cache_tree, ak, av);
-                    if (status != 0) {
-                        ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
-                              ak->plugin, status);
-                        return -1;
-                    }
-                } else{
-                    same_value = 0;
-
-                    sfree(ak->plugin);
-                    sfree(ak->plugin_instance);
-                    sfree(ak->type);
-                    sfree(ak->type_instance);
-                    sfree(ak);
-
-                    sfree(av->value);
-                    sfree(av);
-                }
-            } else {
-                status = c_avl_insert(cb->cache_tree, ak, av);
-                if (status != 0) {
-                    ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
-                          ak->plugin, status);
-                    return -1;
-                }
-            }
-            break;
+            snprintf(
+                    sendline, sizeof(sendline),
+                    "property e:%s ms:%" PRIu64
+                      " t:collectd-atsd v:host=%s"
+                      " v:OperatingSystem=\"%s\""
+                      " v:Node=\"%s\""
+                      " v:Kernel_Release_Version=\"%s\""
+                      " v:OS_Version=\"%s\""
+                      " v:Hardware=\"%s\"\n",
+                    entity, CDTIME_T_TO_MS(vl->time), vl->host, buf.sysname,
+                    buf.nodename, buf.release, buf.version, buf.machine
+            );
+        } else {
+            snprintf(
+                    sendline, sizeof(sendline),
+                    "property e:%s ms:%" PRIu64
+                      " t:collectd-atsd v:host=%s\n",
+                    entity, CDTIME_T_TO_MS(vl->time), vl->host
+            );
         }
-    }
-    if (interested == 0){
-        sfree(ak->plugin);
-        sfree(ak->plugin_instance);
-        sfree(ak->type);
-        sfree(ak->type_instance);
-        sfree(ak);
 
-        sfree(av->value);
-        sfree(av);
+        return wa_send_message(sendline, cb);
     }
-    return same_value;
+    return 0;
 }
-
 
 static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                              struct wa_callback *cb) {
-
-    char plugin_instance[100];
     int status;
+    int i;
+
+    char sendline[1024];
+    char entity[WA_MAX_LENGTH];
+    char metric_name[6 * DATA_MAX_NAME_LEN];
+    char ret[128];
+
+    size_t ret_len = sizeof(ret);
+
     if (0 != strcmp(ds->type, vl->type)) {
         ERROR("write_atsd plugin: DS type does not match "
                       "value list type");
-        return -1;
-    }
-
-    int i;
-    gauge_t *rates;
-
-    rates = uc_get_rate(ds, vl);
-    if (rates == NULL) {
         return -1;
     }
 
@@ -547,514 +459,61 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
               ds->type, ds->ds_num, vl->values_len);
     }
 
-    char sendline[1024];
-    char metric_name[512];
-    cdtime_t now;
+    status = format_entity(entity, sizeof(entity), cb->entity, vl->host, cb->short_hostname);
 
-    char entity[WA_MAX_LENGTH];
-    int ent_len = sizeof(entity);
-
-    status = check_entity(entity, ent_len, cb->entity, vl->host, cb->short_hostname);
-
-    if (status != 0) /* error message has been printed already. */{
-        sfree(rates);
-        return (status);
-    }
-    now = cdtime();
-    if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL) {
-        cb->last_property_time = now;
-
-        int ret;
-        struct utsname buf;
-        ret = uname(&buf);
-        if (!ret) {
-
-            snprintf(sendline, sizeof(sendline),
-                      "property e:%s ms:%" PRIu64 " t:collectd-atsd v:host=%s v:OperatingSystem=\"%s\" v:Node=\"%s\" v:Kernel_Release_Version=\"%s\" v:OS_Version=\"%s\" v:Hardware=\"%s\"\n",
-                    entity, CDTIME_T_TO_MS(vl->time), vl->host, buf.sysname, buf.nodename, buf.release, buf.version,
-                    buf.machine);
-        }
-        else {
-            snprintf(sendline, sizeof(sendline), "property e:%s ms:%" PRIu64 " t:collectd-atsd v:host=%s\n",
-                    entity, CDTIME_T_TO_MS(vl->time), vl->host);
-        }
-
-        status = wa_send_message(sendline, cb);
-        if (status != 0){
-            sfree(rates);
-            return (status);
-        }
-
+    if (status != 0) {
+        /* error message has been printed already. */
+        return status;
     }
 
-    char tmp[512];
-    char tv[50];
-    char ret[128];
-    size_t ret_len = sizeof(ret);
-
-    char *str_location;
-    char *c;
+    status = wa_update_property(vl, entity, cb);
+    if (status != 0) {
+        return status;
+    }
 
     memset(ret, 0, ret_len);
 
-    atsd_key_t *ak = NULL;
-    atsd_value_t *av = NULL;
-
-    int same_value;
-
     for (i = 0; i < ds->ds_num; i++) {
-
-        if (isnan(rates[i]))
-            continue;
-
-        status = format_value(ret, ret_len, i, ds, vl, rates);
-        if (status != 0){
-            sfree(rates);
-            return (status);
+        status = format_value(ret, ret_len, i, ds, vl);
+        if (status != 0) {
+            return status;
         }
 
-        same_value = 1;
         sstrncpy(metric_name, cb->prefix, sizeof(metric_name));
 
-        if (strcasecmp(vl->plugin, "cpu") == 0) {
-            strlcat(metric_name, "cpu.", sizeof(metric_name));
-
-            if (strcasecmp(vl->type_instance, "idle") == 0) {
-
-
-                sstrncpy(tmp, metric_name, sizeof(tmp));
-                strlcat(tmp, "busy", sizeof(metric_name));
-
-                snprintf(tv, sizeof(tv), "%.2g", (100.0 - atof(ret)));
-
-                if (cb->wa_num_caches > 0) {
-
-                    ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-
-                    if (ak == NULL) {
-                        ERROR("write_atsd plugin: calloc failed.");
-                        return -1;
-                    }
-
-                    ak->plugin = strdup(vl->plugin);
-                    ak->plugin_instance = strdup(vl->plugin_instance);
-                    ak->type = strdup(vl->type);
-                    ak->type_instance = strdup("busy");
-
-                    av = (atsd_value_t *) calloc (1, sizeof(*av));
-                    if (av == NULL) {
-                        ERROR("write_atsd plugin: calloc failed.");
-                        return -1;
-                    }
-                    av->value = strdup(tv);
-                    av->time = CDTIME_T_TO_MS(vl->time);
-
-                    pthread_mutex_lock(&cb->avl_lock);
-                    same_value = check_cache_value(ak, av, cb);
-                    pthread_mutex_unlock(&cb->avl_lock);
-                }
-                if (same_value > 0) {
-                    if (vl->plugin_instance[0] != '\0') {
-                        snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
-                                entity, CDTIME_T_TO_MS(vl->time), tmp, tv, vl->plugin_instance);
-                    } else {
-                        snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s\n",
-                                entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
-                    }
-                    status = wa_send_message(sendline, cb);
-                    if (status != 0){
-                        sfree(rates);
-                        return (status);
-                    }
-                };
-            }
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        }
-        else if (strcasecmp(vl->plugin, "entropy") == 0) {
-            strlcat(metric_name, "entropy", sizeof(metric_name));
-            strlcat(metric_name, ".available", sizeof(metric_name));
-        }
-        else if (strcasecmp(vl->plugin, "memory") == 0) {
-            strlcat(metric_name, "memory.", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        }
-        else if (strcasecmp(vl->plugin, "swap") == 0 && (strcasecmp(vl->type, "swap") == 0)) {
-            strlcat(metric_name, "memory.swap_", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        }
-        else if (strcasecmp(vl->plugin, "swap") == 0 && (strcasecmp(vl->type, "swap_io") == 0)) {
-            strlcat(metric_name, "io.swap_", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        }
-        else if (strcasecmp(vl->plugin, "processes") == 0 && (strcasecmp(vl->type, "ps_state") == 0)) {
-            strlcat(metric_name, "processes.", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        }
-        else if (strcasecmp(vl->plugin, "processes") == 0 && (strcasecmp(vl->type, "fork_rate") == 0)) {
-            strlcat(metric_name, "processes.", sizeof(metric_name));
+        strlcat(metric_name, vl->plugin, sizeof(metric_name));
+        if (vl->type[0] != '\0') {
+            strlcat(metric_name, ".", sizeof(metric_name));
             strlcat(metric_name, vl->type, sizeof(metric_name));
         }
-        else if (strcasecmp(vl->plugin, "contextswitch") == 0 && (strcasecmp(vl->type, "fork_rate") == 0)) {
-            strlcat(metric_name, "contextswitches", sizeof(metric_name));
+        if (vl->type_instance[0] != '\0') {
+            strlcat(metric_name, ".", sizeof(metric_name));
+            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
         }
-        else if (strcasecmp(vl->plugin, "interface") == 0) {
-            strlcat(metric_name, "interface.", sizeof(metric_name));
-            strlcat(metric_name, vl->type, sizeof(metric_name));
-            if (strcasecmp(ds->ds[i].name, "rx") == 0) {
-                strlcat(metric_name, ".received", sizeof(metric_name));
-            }
-            else if (strcasecmp(ds->ds[i].name, "tx") == 0) {
-                strlcat(metric_name, ".sent", sizeof(metric_name));
-            }
+        if (strcasecmp(ds->ds[i].name, "value") != 0) {
+            strlcat(metric_name, ".", sizeof(metric_name));
+            strlcat(metric_name, ds->ds[i].name, sizeof(metric_name));
         }
-        else if (strcasecmp(vl->plugin, "df") == 0) {
-            strlcat(metric_name, "df.", sizeof(metric_name));
-            sstrncpy(plugin_instance, "/", sizeof(plugin_instance));
 
-            if (strcasecmp(vl->plugin_instance, "root") != 0) {
-                strlcat(plugin_instance, vl->plugin_instance, sizeof(plugin_instance));
-
-                for (c = plugin_instance; *c; c++) {
-                    if (*c == '-')
-                        *c = '/';
-                }
-            }
-
-            if (strcasecmp(vl->type, "df_inodes") == 0) {
-                strlcat(metric_name, "inodes.", sizeof(metric_name));
-                strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-            } else if (strcasecmp(vl->type, "df_complex") == 0) {
-                strlcat(metric_name, "space.", sizeof(metric_name));
-                strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-            }
-            else if (strcasecmp(vl->type, "percent_bytes") == 0) {
-                strlcat(metric_name, "space.", sizeof(metric_name));
-                if (strcasecmp(vl->type_instance, "free") == 0) {
-                    sstrncpy(tmp, metric_name, sizeof(tmp));
-                    strlcat(tmp, "used-reserved.percent", sizeof(metric_name));
-
-                    snprintf(tv, sizeof(tv), "%.2g", (100.0 - atof(ret)));
-
-                    if (cb->wa_num_caches > 0) {
-                        ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-                        if (ak == NULL) {
-                            ERROR("write_atsd plugin: calloc failed.");
-                            return -1;
-                        }
-
-                        ak->plugin = strdup(vl->plugin);
-                        ak->plugin_instance = strdup(vl->plugin_instance);
-                        ak->type = strdup(vl->type);
-                        ak->type_instance = strdup("used-reserved.percent");
-
-                        av = (atsd_value_t *) calloc (1, sizeof(*av));
-                        if (av == NULL) {
-                            ERROR("write_atsd plugin: calloc failed.");
-                            return -1;
-                        }
-                        av->value = strdup(tv);
-                        av->time = CDTIME_T_TO_MS(vl->time);
-
-                        pthread_mutex_lock(&cb->avl_lock);
-                        same_value = check_cache_value(ak, av, cb);
-                        pthread_mutex_unlock(&cb->avl_lock);
-                    }
-                    if (same_value > 0) {
-                        snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
-                                entity, CDTIME_T_TO_MS(vl->time), tmp, tv, plugin_instance);
-                        status = wa_send_message(sendline, cb);
-                        if (status != 0){
-                            sfree(rates);
-                            return (status);
-                        }
-                    };
-                }
-
-                strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-                strlcat(metric_name, ".percent", sizeof(metric_name));
-            } else if (strcasecmp(vl->type, "percent_inodes") == 0) {
-                strlcat(metric_name, "inodes.", sizeof(metric_name));
-                strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-                strlcat(metric_name, ".percent", sizeof(metric_name));
-            } else
-                ERROR("df plugin in write_atsd: unexpected value->type = %s: ", vl->type);
-
-            if (cb->wa_num_caches > 0) {
-                ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-                if (ak == NULL) {
-                    ERROR("write_atsd plugin: calloc failed.");
-                    return -1;
-                }
-
-                ak->plugin = strdup(vl->plugin);
-                ak->plugin_instance = strdup(vl->plugin_instance);
-                ak->type = strdup(vl->type);
-                ak->type_instance = strdup(vl->type_instance);
-
-                av = (atsd_value_t *) calloc (1, sizeof(*av));
-                if (av == NULL) {
-                    ERROR("write_atsd plugin: calloc failed.");
-                    return -1;
-                }
-                av->value = strdup(ret);
-                av->time = CDTIME_T_TO_MS(vl->time);
-
-                pthread_mutex_lock(&cb->avl_lock);
-                same_value = check_cache_value(ak, av, cb);
-                pthread_mutex_unlock(&cb->avl_lock);
-            }
-            if (same_value > 0) {
-                snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
-                        entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, plugin_instance);
-                status = wa_send_message(sendline, cb);
-                if (status != 0) {
-                    sfree(rates);
-                    return (status);
-                }
-            };
-
-            continue;
-
-        } else if (strcasecmp(vl->plugin, "users") == 0) {
-            strlcat(metric_name, "users.logged_in", sizeof(metric_name));
-        } else if (strcasecmp(vl->plugin, "postgresql") == 0) {
-            strlcat(metric_name, "db.", sizeof(metric_name));
-            strlcat(metric_name, vl->type, sizeof(metric_name));
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        } else if (strcasecmp(vl->plugin, "mongodb") == 0) {
-            strlcat(metric_name, "db.", sizeof(metric_name));
-            strlcat(metric_name, vl->plugin, sizeof(metric_name));
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-        } else if (strcasecmp(vl->plugin, "load") == 0) {
-
-            strlcat(metric_name, "load", sizeof(metric_name));
-            strlcat(metric_name, ".loadavg", sizeof(metric_name));
-
-            if (strcasecmp(ds->ds[i].name, "shortterm") == 0) {
-                strlcat(metric_name, ".1m", sizeof(metric_name));
-            } else if (strcasecmp(ds->ds[i].name, "midterm") == 0) {
-                strlcat(metric_name, ".5m", sizeof(metric_name));
-            } else if (strcasecmp(ds->ds[i].name, "longterm") == 0) {
-                strlcat(metric_name, ".15m", sizeof(metric_name));
-            }
-        } else if (strcasecmp(vl->plugin, "aggregation") == 0) {
-
-            sstrncpy(tmp, vl->type, sizeof(tmp));
-            strlcat(tmp, "-", sizeof(tmp));
-
-            sstrncpy(plugin_instance, vl->plugin_instance, sizeof(plugin_instance));
-            str_location = strstr(plugin_instance, tmp);
-
-            sstrncpy(plugin_instance, str_location + strlen(tmp), sizeof(plugin_instance));
-            strlcat(metric_name, vl->type, sizeof(metric_name));
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, vl->plugin, sizeof(metric_name));
-
-
-            if (strcasecmp(vl->type_instance, "idle") == 0 && strcasecmp(str_location, "average") == 0) {
-
-                sstrncpy(tmp, metric_name, sizeof(tmp));
-                strlcat(tmp, ".busy", sizeof(metric_name));
-
-                snprintf(tv, sizeof(tv), "%.2g", (100.0 - atof(ret)));
-
-                strlcat(tmp, ".", sizeof(tmp));
-                strlcat(tmp, str_location, sizeof(tmp));
-
-                if (cb->wa_num_caches > 0) {
-                    ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-                    if (ak == NULL) {
-                        ERROR("write_atsd plugin: calloc failed.");
-                        return -1;
-                    }
-
-                    ak->plugin = strdup(vl->plugin);
-                    ak->plugin_instance = strdup(vl->plugin_instance);
-                    ak->type = strdup(vl->type);
-                    ak->type_instance = strdup("busy");
-
-                    av = (atsd_value_t *) calloc (1, sizeof(*av));
-                    if (av == NULL) {
-                        ERROR("write_atsd plugin: calloc failed.");
-                        return -1;
-                    }
-                    av->value = strdup(tv);
-                    av->time = CDTIME_T_TO_MS(vl->time);
-
-                    pthread_mutex_lock(&cb->avl_lock);
-                    same_value = check_cache_value(ak, av, cb);
-                    pthread_mutex_unlock(&cb->avl_lock);
-                }
-                if (same_value > 0) {
-                    snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s\n",
-                            entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
-                    status = wa_send_message(sendline, cb);
-                    if (status != 0) {
-                        sfree(rates);
-                        return (status);
-                    }
-                };
-
-            }
-
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-
-            strlcat(metric_name, ".", sizeof(metric_name));
-            strlcat(metric_name, str_location, sizeof(metric_name));
-
-            if (cb->wa_num_caches > 0) {
-                ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-                if (ak == NULL) {
-                    ERROR("write_atsd plugin: calloc failed.");
-                    return -1;
-                }
-
-                ak->plugin = strdup(vl->plugin);
-                ak->plugin_instance = strdup(vl->plugin_instance);
-                ak->type = strdup(vl->type);
-                ak->type_instance = strdup(vl->type_instance);
-
-                av = (atsd_value_t *) calloc (1, sizeof(*av));
-                if (av == NULL) {
-                    ERROR("write_atsd plugin: calloc failed.");
-                    return -1;
-                }
-                av->value = strdup(ret);
-                av->time = CDTIME_T_TO_MS(vl->time);
-
-                pthread_mutex_lock(&cb->avl_lock);
-                same_value = check_cache_value(ak, av, cb);
-                pthread_mutex_unlock(&cb->avl_lock);
-            }
-            if (same_value > 0) {
-                snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s\n",
-                        entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
-                status = wa_send_message(sendline, cb);
-                if (status != 0) {
-                    sfree(rates);
-                    return (status);
-                }
-            };
-            continue;
-        } else if (strcasecmp(vl->plugin, "exec") == 0) {
-            strlcat(metric_name, vl->plugin_instance, sizeof(metric_name));
-            if (cb->wa_num_caches > 0) {
-                ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-                if (ak == NULL) {
-                    ERROR("write_atsd plugin: calloc failed.");
-                    return -1;
-                }
-
-                ak->plugin = strdup(vl->plugin);
-                ak->plugin_instance = strdup(vl->plugin_instance);
-                ak->type = strdup(vl->type);
-                ak->type_instance = strdup(vl->type_instance);
-
-                av = (atsd_value_t *) calloc (1, sizeof(*av));
-                if (av == NULL) {
-                    ERROR("write_atsd plugin: calloc failed.");
-                    return -1;
-                }
-                av->value = strdup(ret);
-                av->time = CDTIME_T_TO_MS(vl->time);
-
-                pthread_mutex_lock(&cb->avl_lock);
-                same_value = check_cache_value(ak, av, cb);
-                pthread_mutex_unlock(&cb->avl_lock);
-            }
-            if (same_value > 0) {
-                snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s", entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
-
-                char *type_instance = strdup(vl->type_instance);
-                char *saveptr = NULL;
-                char *key_value = strtok_r(type_instance, ";", &saveptr);
-                memset(tmp, '\0', sizeof(tmp));
-
-                while (key_value != NULL) {
-                    if (strstr(key_value, "=") != NULL) {
-                        strlcat(tmp, " t:", sizeof(tmp));
-                        strlcat(tmp, key_value, sizeof(tmp));
-                    } else {
-                        snprintf(tmp, sizeof(tmp), " t:instance=\"%s\"", vl->type_instance);
-                        sfree(type_instance);
-                        sfree(key_value);
-                        break;
-                    }
-                    key_value = strtok_r(NULL, ";", &saveptr);
-                }
-
-                sfree(type_instance);
-                sfree(key_value);
-
-                strlcat(sendline, tmp, sizeof(sendline));
-                strlcat(sendline, "\n", sizeof(sendline));
-                status = wa_send_message(sendline, cb);
-                if (status != 0) {
-                    sfree(rates);
-                    return (status);
-                }
-            };
-            continue;
+        if (vl->plugin_instance[0] != '\0') {
+            snprintf(
+                    sendline, sizeof(sendline),
+                    "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
+                    entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance
+            );
         } else {
-            strlcat(metric_name, vl->plugin, sizeof(metric_name));
-            if (vl->type[0] != '\0') {
-                strlcat(metric_name, ".", sizeof(metric_name));
-                strlcat(metric_name, vl->type, sizeof(metric_name));
-            }
-            if (vl->type_instance[0] != '\0') {
-                strlcat(metric_name, ".", sizeof(metric_name));
-                strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-            }
-            if (strcasecmp(ds->ds[i].name, "value") != 0) {
-                strlcat(metric_name, ".", sizeof(metric_name));
-                strlcat(metric_name, ds->ds[i].name, sizeof(metric_name));
-            }
+            snprintf(
+                    sendline, sizeof(sendline),
+                    "series e:%s ms:%" PRIu64 " m:%s=%s\n",
+                    entity, CDTIME_T_TO_MS(vl->time), metric_name, ret
+            );
         }
-
-        if (cb->wa_num_caches > 0) {
-            ak = (atsd_key_t *) calloc (1, sizeof(*ak));
-            if (ak == NULL) {
-                ERROR("write_atsd plugin: calloc failed.");
-                return -1;
-            }
-
-            ak->plugin = strdup(vl->plugin);
-            ak->plugin_instance = strdup(vl->plugin_instance);
-            ak->type = strdup(vl->type);
-            ak->type_instance = strdup(vl->type_instance);
-
-            av = (atsd_value_t *) calloc (1, sizeof(*av));
-            if (av == NULL) {
-                ERROR("write_atsd plugin: calloc failed.");
-                return -1;
-            }
-            av->value = strdup(ret);
-            av->time = CDTIME_T_TO_MS(vl->time);
-
-            pthread_mutex_lock(&cb->avl_lock);
-            same_value = check_cache_value(ak, av, cb);
-            pthread_mutex_unlock(&cb->avl_lock);
+        status = wa_send_message(sendline, cb);
+        if (status != 0) {
+            return status;
         }
-        if (same_value > 0) {
-            if (vl->plugin_instance[0] != '\0') {
-                snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
-                        entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance);
-            } else {
-                snprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s\n",
-                        entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
-            }
-            status = wa_send_message(sendline, cb);
-            if (status != 0) {
-                sfree(rates);
-                return (status);
-            }
-        };
 
     }
-    sfree (rates);
     return 0;
 }
 
@@ -1066,58 +525,13 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
     int status;
 
     if (user_data == NULL)
-        return (EINVAL);
+        return -1;
 
     cb = user_data->data;
 
     status = wa_write_messages(ds, vl, cb);
 
-    return (status);
-}
-
-static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
-
-    int q, status;
-    struct wa_cache_s *nc, wc;
-    struct wa_cache_s **tmp;
-    memset(&wc, 0, sizeof(struct wa_cache_s));
-
-    status = cf_util_get_string(child, &wc.name);
-    if (status != 0)
-        return status;
-
-    for (q = 0; q < child->children_num; q++) {
-        oconfig_item_t *grandchild = child->children + q;
-
-        if (strcasecmp("Interval", grandchild->key) == 0)
-            cf_util_get_int(grandchild, &wc.interval);
-        else if (strcasecmp("Threshold", grandchild->key) == 0)
-            cf_util_get_double(grandchild, &wc.threshold);
-        else {
-            ERROR("write_atsd plugin: Invalid configuration "
-                          "option: %s.", grandchild->key);
-            status = -1;
-        }
-
-        if (status != 0)
-            break;
-    }
-
-    tmp = realloc(cb->wa_caches, (cb->wa_num_caches + 1) * sizeof(*(cb->wa_caches)));
-    if (tmp == NULL) {
-        return ENOMEM;
-    }
-    cb->wa_caches = tmp;
-
-    nc = malloc(sizeof(*nc));
-    if (!nc) {
-        return ENOMEM;
-    }
-
-    memcpy(nc, &wc, sizeof(*nc));
-    cb->wa_caches[cb->wa_num_caches++] = nc;
-
-    return 0;
+    return status;
 }
 
 static int wa_config_node(oconfig_item_t *ci) {
@@ -1140,20 +554,9 @@ static int wa_config_node(oconfig_item_t *ci) {
     cb->prefix = strdup(WA_DEFAULT_PREFIX);
     cb->entity = NULL;
     cb->short_hostname = 0;
-    cb->wa_num_caches = 0;
-    cb->wa_caches = NULL;
-    cb->cache_tree = NULL;
-    cb->cache_tree = c_avl_create((void *) compare_atsd_keys);
-
-
-    if (cb->cache_tree == NULL) {
-        ERROR("utils_vl_lookup: c_avl_create failed.");
-        return -1;
-    }
 
 
     pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
-    pthread_mutex_init(&cb->avl_lock, /* attr = */ NULL);
     C_COMPLAIN_INIT(&cb->init_complaint);
 
     for (int i = 0; i < ci->children_num; i++) {
@@ -1207,9 +610,6 @@ static int wa_config_node(oconfig_item_t *ci) {
             cf_util_get_string(child, &cb->entity);
         else if (strcasecmp("ShortHostname", child->key) == 0)
             cf_util_get_boolean(child, &cb->short_hostname);
-        else if (strcasecmp("Cache", child->key) == 0) {
-            wa_config_cache(cb,child);
-        }
         else {
             ERROR("write_atsd plugin: Invalid configuration "
                           "option: %s.", child->key);

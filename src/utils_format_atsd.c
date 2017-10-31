@@ -1,10 +1,5 @@
 /**
  * collectd - src/utils_format_atsd.c
- * Copyright (C) 2012       Pierre-Yves Ritschard
- * Copyright (C) 2011       Scott Sanders
- * Copyright (C) 2009       Paul Sadauskas
- * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2007-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -65,66 +60,57 @@ size_t strlcat(char *dst, const char *src, size_t siz) {
     return (dlen + (s - src));        /* count does not include NUL */
 }
 
-int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const value_list_t *vl,
-                 const gauge_t *rates) {
-    int status;
+int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const value_list_t *vl) {
     size_t offset = 0;
+    int status;
+
     assert(0 == strcmp(ds->type, vl->type));
 
+    memset(ret, 0, ret_len);
 
-#define BUFFER_ADD(...) do { \
-            status = snprintf (ret + offset, ret_len - offset, \
-                    __VA_ARGS__); \
-            if (status < 1) \
-            { \
-                return (-1); \
-            } \
-            else if (((size_t) status) >= (ret_len - offset)) \
-            { \
-                return (-1); \
-            } \
-            else \
-            offset += ((size_t) status); \
-        } while (0)
+#define BUFFER_ADD(...)                                                          \
+    do {                                                                         \
+      status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
+      if (status < 1) {                                                          \
+        return -1;                                                               \
+      } else if (((size_t)status) >= (ret_len - offset)) {                       \
+        return -1;                                                               \
+      } else                                                                     \
+        offset += ((size_t)status);                                              \
+    } while (0)
 
-    if (ds->ds[i].type == DS_TYPE_GAUGE) {
-        BUFFER_ADD (GAUGE_FORMAT, vl->values[i].gauge);
-    } else if (rates != NULL) {
-        if (rates[i] == 0) {
-            BUFFER_ADD ("%i", (int) rates[i]);
-        } else {
-            BUFFER_ADD ("%f", rates[i]);
-        }
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-        BUFFER_ADD ("%llu", vl->values[i].counter);
+    if (ds->ds[i].type == DS_TYPE_GAUGE)
+        BUFFER_ADD(GAUGE_FORMAT, vl->values[i].gauge);
+    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+        BUFFER_ADD("%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-        BUFFER_ADD ("%"
-                            PRIi64, vl->values[i].derive);
+        BUFFER_ADD("%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-        BUFFER_ADD ("%"
-                            PRIu64, vl->values[i].absolute);
+        BUFFER_ADD("%" PRIu64, vl->values[i].absolute);
     else {
-        ERROR("gr_format_values plugin: Unknown data source type: %i",
+        ERROR("wa_format_values plugin: Unknown data source type: %i",
               ds->ds[i].type);
-        return (-1);
+        return -1;
     }
+
 #undef BUFFER_ADD
-    return (0);
+
+    return 0;
 }
 
-static int startsWith(const char *pre, const char *str) {
+static int starts_with(const char *pre, const char *str) {
     size_t lenpre = strlen(pre),
             lenstr = strlen(str);
     return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
 }
 
-int check_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
+int format_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
 
     char *host;
     char *c;
-    char tmp[100];
+    char tmp[HOST_NAME_MAX];
 
-    if ((strcasecmp("localhost", host_name) == 0 || startsWith(host_name, "localhost."))){
+    if (strcasecmp("localhost", host_name) == 0 || starts_with(host_name, "localhost.")) {
         gethostname(tmp, sizeof(tmp));
         host = strdup(tmp);
     } else {
