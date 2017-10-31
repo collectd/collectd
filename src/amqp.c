@@ -507,7 +507,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 
 static int camqp_shutdown(void) /* {{{ */
 {
-  DEBUG("amqp plugin: Shutting down %zu subscriber threads.",
+  DEBUG("amqp plugin: Shutting down %" PRIsz " subscriber threads.",
         subscriber_threads_num);
 
   subscriber_threads_running = 0;
@@ -982,10 +982,11 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
     char cbname[128];
     snprintf(cbname, sizeof(cbname), "amqp/%s", conf->name);
 
-    status = plugin_register_write(
-        cbname, camqp_write, &(user_data_t){
-                                 .data = conf, .free_func = camqp_config_free,
-                             });
+    status =
+        plugin_register_write(cbname, camqp_write,
+                              &(user_data_t){
+                                  .data = conf, .free_func = camqp_config_free,
+                              });
     if (status != 0) {
       camqp_config_free(conf);
       return status;

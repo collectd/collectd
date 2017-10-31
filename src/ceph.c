@@ -1341,7 +1341,7 @@ static int cconn_main_loop(uint32_t request_type) {
       struct cconn *io = io_array + i;
       ret = cconn_prepare(io, fds + nfds);
       if (ret < 0) {
-        WARNING("ceph plugin: cconn_prepare(name=%s,i=%zu,st=%d)=%d",
+        WARNING("ceph plugin: cconn_prepare(name=%s,i=%" PRIsz ",st=%d)=%d",
                 io->d->name, i, io->state, ret);
         cconn_close(io);
         io->request_type = ASOK_REQ_NONE;

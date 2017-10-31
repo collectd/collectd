@@ -893,7 +893,7 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       }
       BUFFER_ADD(":" GAUGE_FORMAT, rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD(":%llu", vl->values[i].counter);
+      BUFFER_ADD(":%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD(":%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)

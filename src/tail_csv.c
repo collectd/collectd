@@ -128,7 +128,7 @@ static _Bool tcsv_check_index(ssize_t index, size_t fields_num,
     return 1;
 
   ERROR("tail_csv plugin: Metric \"%s\": Request for index %zd when "
-        "only %zu fields are available.",
+        "only %" PRIsz " fields are available.",
         name, index, fields_num);
   return 0;
 }
@@ -532,7 +532,7 @@ static int tcsv_init(void) { /* {{{ */
             md->type, md->name);
       continue;
     } else if (ds->ds_num != 1) {
-      ERROR("tail_csv plugin: The type \"%s\" has %zu data sources. "
+      ERROR("tail_csv plugin: The type \"%s\" has %" PRIsz " data sources. "
             "Only types with a single data source are supported.",
             ds->type, ds->ds_num);
       continue;

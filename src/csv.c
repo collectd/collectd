@@ -74,8 +74,8 @@ static int value_list_to_string(char *buffer, int buffer_len,
       }
       status = snprintf(buffer + offset, buffer_len - offset, ",%lf", rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = snprintf(buffer + offset, buffer_len - offset, ",%llu",
-                        vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIu64,
+                        (uint64_t)vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
       status = snprintf(buffer + offset, buffer_len - offset, ",%" PRIi64,
                         vl->values[i].derive);

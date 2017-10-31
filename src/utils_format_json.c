@@ -130,7 +130,7 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
       else
         BUFFER_ADD("null");
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD("%llu", vl->values[i].counter);
+      BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD("%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)

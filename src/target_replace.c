@@ -294,7 +294,8 @@ static int tr_action_invoke(tr_action_t *act_head, /* {{{ */
     subst_status = subst(temp, sizeof(temp), buffer, (size_t)matches[0].rm_so,
                          (size_t)matches[0].rm_eo, act->replacement);
     if (subst_status == NULL) {
-      ERROR("Target `replace': subst (buffer = %s, start = %zu, end = %zu, "
+      ERROR("Target `replace': subst (buffer = %s, start = %" PRIsz
+            ", end = %" PRIsz ", "
             "replacement = %s) failed.",
             buffer, (size_t)matches[0].rm_so, (size_t)matches[0].rm_eo,
             act->replacement);
@@ -386,7 +387,8 @@ static int tr_meta_data_action_invoke(/* {{{ */
     subst_status = subst(temp, sizeof(temp), value, (size_t)matches[0].rm_so,
                          (size_t)matches[0].rm_eo, act->replacement);
     if (subst_status == NULL) {
-      ERROR("Target `replace': subst (value = %s, start = %zu, end = %zu, "
+      ERROR("Target `replace': subst (value = %s, start = %" PRIsz
+            ", end = %" PRIsz ", "
             "replacement = %s) failed.",
             value, (size_t)matches[0].rm_so, (size_t)matches[0].rm_eo,
             act->replacement);
