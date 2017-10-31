@@ -130,11 +130,11 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
       else
         BUFFER_ADD("null");
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD("%llu", vl->values[i].counter);
+      BUFFER_ADD("%" PRIsz, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD("%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-      BUFFER_ADD("%" PRIu64, vl->values[i].absolute);
+      BUFFER_ADD("%" PRIsz, vl->values[i].absolute);
     else {
       ERROR("format_json: Unknown data source type: %i", ds->ds[i].type);
       sfree(rates);
@@ -261,7 +261,7 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
     } else if (type == MD_TYPE_UNSIGNED_INT) {
       uint64_t value = 0;
       if (meta_data_get_unsigned_int(meta, key, &value) == 0)
-        BUFFER_ADD(",\"%s\":%" PRIu64, key, value);
+        BUFFER_ADD(",\"%s\":%" PRIsz, key, value);
     } else if (type == MD_TYPE_DOUBLE) {
       double value = 0.0;
       if (meta_data_get_double(meta, key, &value) == 0)
@@ -514,7 +514,7 @@ static int format_json_meta(yajl_gen g, notification_meta_t *meta) /* {{{ */
     JSON_ADDF(g, "%" PRIi64, meta->nm_value.nm_signed_int);
     break;
   case NM_TYPE_UNSIGNED_INT:
-    JSON_ADDF(g, "%" PRIu64, meta->nm_value.nm_unsigned_int);
+    JSON_ADDF(g, "%" PRIsz, meta->nm_value.nm_unsigned_int);
     break;
   case NM_TYPE_DOUBLE:
     JSON_ADDF(g, JSON_GAUGE_FORMAT, meta->nm_value.nm_double);

@@ -154,7 +154,7 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
   ce = cache_alloc(ds->ds_num);
   if (ce == NULL) {
     sfree(key_copy);
-    ERROR("uc_insert: cache_alloc (%zu) failed.", ds->ds_num);
+    ERROR("uc_insert: cache_alloc (%" PRIsz ") failed.", ds->ds_num);
     return -1;
   }
 
@@ -381,7 +381,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
       return -1;
     } /* switch (ds->ds[i].type) */
 
-    DEBUG("uc_update: %s: ds[%zu] = %lf", name, i, ce->values_gauge[i]);
+    DEBUG("uc_update: %s: ds[%" PRIsz "] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
 
   /* Update the history if it exists. */
@@ -469,8 +469,8 @@ gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
   if (ret_num != ds->ds_num) {
-    ERROR("utils_cache: uc_get_rate: ds[%s] has %zu values, "
-          "but uc_get_rate_by_name returned %zu.",
+    ERROR("utils_cache: uc_get_rate: ds[%s] has %" PRIsz " values, "
+          "but uc_get_rate_by_name returned %" PRIsz ".",
           ds->type, ds->ds_num, ret_num);
     sfree(ret);
     return NULL;
@@ -538,8 +538,8 @@ value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl) {
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
   if (ret_num != (size_t) ds->ds_num) {
-    ERROR("utils_cache: uc_get_value: ds[%s] has %zu values, "
-          "but uc_get_value_by_name returned %zu.", ds->type, ds->ds_num,
+    ERROR("utils_cache: uc_get_value: ds[%s] has %" PRIsz " values, "
+          "but uc_get_value_by_name returned %" PRIsz ".", ds->type, ds->ds_num,
           ret_num);
     sfree(ret);
     return (NULL);
