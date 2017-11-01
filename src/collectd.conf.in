@@ -1612,9 +1612,12 @@
 #</Plugin>
 
 #<Plugin write_atsd>
-#     <Node "example">
-#         AtsdUrl "atsd_url"
-#     </Node>
+#  <Node "example">
+#    AtsdUrl "tcp://localhost:8081"
+#    Entity "example-entity"
+#    Prefix "collectd"
+#    ShortHostname false
+#  </Node>
 # </Plugin>
 
 #<Plugin write_graphite>
