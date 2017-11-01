@@ -513,12 +513,12 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
 
   status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
   if (!conf->store_timestamp) {
-    char *p, *t;
-    strtok_r(payload, ":", &t);
-    p = strtok_r(NULL, ":", &t);
+    char *p = strchr(payload, ':');
+    int len = strlen(p);
+    if (len > 0) {
+      p = p + 1;
+    }
     strcpy(payload, p);
-    sfree(p);
-    sfree(t);
   }
 
   if (status != 0) {
