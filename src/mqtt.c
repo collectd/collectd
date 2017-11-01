@@ -75,6 +75,7 @@ struct mqtt_client_conf {
   /* For publishing */
   char *topic_prefix;
   _Bool store_rates;
+  _Bool store_timestamp;
   _Bool retain;
 
   /* For subscribing */
@@ -500,6 +501,13 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
+  if (!conf->store_timestamp) {
+    char *p, *t;
+    strtok_r(payload, ":", &t);
+    p = strtok_r(NULL, ":", &t);
+    strcpy(payload, p);
+  }
+
   if (status != 0) {
     ERROR("mqtt plugin: format_values failed with status %d.", status);
     return status;
@@ -556,6 +564,7 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
   conf->qos = 0;
   conf->topic_prefix = strdup(MQTT_DEFAULT_TOPIC_PREFIX);
   conf->store_rates = 1;
+  conf->store_timestamp = 1;
 
   status = pthread_mutex_init(&conf->lock, NULL);
   if (status != 0) {
@@ -592,6 +601,8 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       cf_util_get_string(child, &conf->topic_prefix);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &conf->store_rates);
+    else if (strcasecmp("StoreTimestamp", child->key) == 0)
+      cf_util_get_boolean(child, &conf->store_timestamp);
     else if (strcasecmp("Retain", child->key) == 0)
       cf_util_get_boolean(child, &conf->retain);
     else if (strcasecmp("CACert", child->key) == 0)
