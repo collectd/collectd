@@ -507,7 +507,7 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
 
   if (conf->pattern != NULL) {
     if (regexec(&conf->topic_pattern, topic, 0, NULL, 0) == REG_NOMATCH) {
-       return 0;
+      return 0;
     }
   }
 
@@ -517,6 +517,8 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
     strtok_r(payload, ":", &t);
     p = strtok_r(NULL, ":", &t);
     strcpy(payload, p);
+    sfree(p);
+    sfree(t);
   }
 
   if (status != 0) {
