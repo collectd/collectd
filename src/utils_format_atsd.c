@@ -20,6 +20,7 @@
 #include "plugin.h"
 #include "collectd.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,58 +99,52 @@ static int starts_with(const char *pre, const char *str) {
 
 int format_entity(char *ret, const int ret_len, const char *entity,
                   const char *host_name, _Bool short_hostname) {
-  char *host;
-  char *c;
-  char tmp[HOST_NAME_MAX];
+  char *host, *c;
+  char buf[HOST_NAME_MAX];
+  const char *e;
+  _Bool use_entity = true;
 
-  if (strcasecmp("localhost", host_name) == 0 ||
-      starts_with(host_name, "localhost.")) {
-    gethostname(tmp, sizeof(tmp));
-    host = strdup(tmp);
-  } else {
-    host = strdup(host_name);
-  }
-  if (short_hostname) {
-    for (c = host; *c; c++) {
-      if (*c == '.' && c != host) {
-        *c = '\0';
+  if (entity != NULL) {
+    for (e = entity; *e; e++) {
+      if (*e == ' ') {
+        use_entity = false;
         break;
       }
     }
-  }
-
-  if (entity == NULL) {
-    sstrncpy(ret, host, ret_len);
-    sfree(host);
-    return 0;
-  }
-
-  int i = 0;
-  int e_length = strlen(entity);
-
-  if (e_length != 0) {
-    while (i < e_length) {
-      if (entity[i] == ' ') {
-        sstrncpy(ret, host, ret_len);
-        sfree(host);
-        return 0;
-      }
-      i++;
-    }
   } else {
-    sstrncpy(ret, host, ret_len);
-    sfree(host);
-    return 0;
+    use_entity = false;
   }
 
-  sstrncpy(ret, entity, ret_len);
-  sfree(host);
+  if (use_entity) {
+    sstrncpy(ret, entity, ret_len);
+  } else {
+    if (strcasecmp("localhost", host_name) == 0 ||
+        starts_with(host_name, "localhost.")) {
+      gethostname(buf, sizeof buf);
+      host = strdup(buf);
+    } else {
+      host = strdup(host_name);
+    }
+
+    if (short_hostname) {
+      for (c = host + 1; *c; c++) {
+        if (*c == '.') {
+          *c = '\0';
+          break;
+        }
+      }
+    }
+
+    sstrncpy(ret, host, ret_len);
+    sfree(host);
+  }
+
   return 0;
 }
 
 static void metric_name_append(char *metric_name, const char *str, size_t n) {
-  if (*str != 0) {
-    if (*metric_name != 0)
+  if (*str != '\0') {
+    if (*metric_name != '\0')
       strlcat(metric_name, ".", n);
     strlcat(metric_name, str, n);
   }
