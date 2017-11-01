@@ -61,7 +61,7 @@
 #endif
 
 #ifndef WA_DEFAULT_PREFIX
-# define WA_DEFAULT_PREFIX "collectd."
+# define WA_DEFAULT_PREFIX "collectd"
 #endif
 
 

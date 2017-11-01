@@ -80,10 +80,6 @@ int format_value(char *ret, size_t ret_len, size_t index,
         offset += ((size_t)status);                                              \
     } while (0)
 
-    if (strcmp(vl->plugin, "cpu") == 0) {
-        printf("cpu %s", DS_TYPE_TO_STRING(ds->ds[index].type));
-    }
-
     if (ds->ds[index].type == DS_TYPE_GAUGE) {
         BUFFER_ADD(GAUGE_FORMAT, vl->values[index].gauge);
     } else {
@@ -151,47 +147,45 @@ int format_entity(char *ret, const int ret_len, const char *entity,
     return 0;
 }
 
+static void metric_name_append(char *metric_name, const char *str, size_t n) {
+    if (*str != 0) {
+        if (*metric_name != 0) {
+            strlcat(metric_name, ".", n);
+        }
+        strlcat(metric_name, str, n);
+    }
+}
+
 int format_atsd_command(char *buffer, size_t buffer_len, const char *entity, const char *prefix,
                         size_t index, const data_set_t *ds, const value_list_t *vl, gauge_t* rates) {
     int status;
     char metric_name[6 * DATA_MAX_NAME_LEN];
     char value_str[128];
+    size_t written;
 
     status = format_value(value_str, sizeof(value_str), index, ds, vl, rates);
-    if (status != 0) {
+    if (status != 0)
         return status;
-    }
 
-    sstrncpy(metric_name, prefix, sizeof(metric_name));
-
-    strlcat(metric_name, vl->plugin, sizeof(metric_name));
-    if (vl->type[0] != '\0') {
-        strlcat(metric_name, ".", sizeof(metric_name));
-        strlcat(metric_name, vl->type, sizeof(metric_name));
-    }
-    if (vl->type_instance[0] != '\0') {
-        strlcat(metric_name, ".", sizeof(metric_name));
-        strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-    }
+    metric_name[0] = '\0';
+    metric_name_append(metric_name, prefix, sizeof metric_name);
+    metric_name_append(metric_name, vl->plugin, sizeof metric_name);
+    metric_name_append(metric_name, vl->type, sizeof metric_name);
+    metric_name_append(metric_name, vl->type_instance, sizeof metric_name);
     if (strcasecmp(ds->ds[index].name, "value") != 0) {
-        strlcat(metric_name, ".", sizeof(metric_name));
-        strlcat(metric_name, ds->ds[index].name, sizeof(metric_name));
+        metric_name_append(metric_name, ds->ds[index].name, sizeof metric_name);
     }
 
     memset(buffer, 0, buffer_len);
-    if (vl->plugin_instance[0] != '\0') {
-        snprintf(
-                buffer, buffer_len,
-                "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
-                entity, CDTIME_T_TO_MS(vl->time), metric_name, value_str, vl->plugin_instance
-        );
-    } else {
-        snprintf(
-                buffer, buffer_len,
-                "series e:%s ms:%" PRIu64 " m:%s=%s\n",
-                entity, CDTIME_T_TO_MS(vl->time), metric_name, value_str
-        );
-    }
+
+    written = 0;
+    written += snprintf(buffer, buffer_len, "series e:%s ms:%" PRIu64 " m:%s=%s",
+                        entity, CDTIME_T_TO_MS(vl->time), metric_name, value_str);
+    if (*vl->plugin_instance != 0 && buffer_len > written)
+        written += snprintf(buffer + written, buffer_len - written,
+                            " t:instance=%s", vl->plugin_instance);
+    if (*vl->plugin_instance != 0 && buffer_len > written)
+        written += snprintf(buffer + written, buffer_len - written, " \n");
 
     return 0;
 }
