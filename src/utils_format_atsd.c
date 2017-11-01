@@ -61,6 +61,34 @@ static size_t strlcat(char *dst, const char *src, size_t siz) {
   return (dlen + (s - src)); /* count does not include NUL */
 }
 
+char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n) {
+  char tmp_buf[6 * DATA_MAX_NAME_LEN];
+  const char *s;
+  char *t;
+  size_t k;
+
+  k = 0;
+  s = src_buf;
+  t = tmp_buf;
+
+  if (n > sizeof(tmp_buf))
+    n = sizeof(tmp_buf);
+  while (k < n && *s) {
+    if (*s == '"') {
+      *t = '"';
+      t++;
+    }
+    *t = *s;
+    t++;
+    s++;
+    k++;
+  }
+  *t = '\0';
+
+  strncpy(dst_buf, tmp_buf, n);
+  return dst_buf;
+}
+
 int format_value(char *ret, size_t ret_len, size_t index, const data_set_t *ds,
                  const value_list_t *vl, gauge_t *rates) {
   size_t offset = 0;
@@ -155,6 +183,7 @@ int format_atsd_command(char *buffer, size_t buffer_len, const char *entity,
                         const value_list_t *vl, gauge_t *rates) {
   int status;
   char metric_name[6 * DATA_MAX_NAME_LEN];
+  char escape_buffer[6 * DATA_MAX_NAME_LEN];
   char value_str[128];
   size_t written;
 
@@ -172,12 +201,18 @@ int format_atsd_command(char *buffer, size_t buffer_len, const char *entity,
 
   memset(buffer, 0, buffer_len);
 
+  escape_atsd_string(escape_buffer, entity, sizeof escape_buffer);
+  escape_atsd_string(metric_name, metric_name, sizeof metric_name);
+
   written = 0;
-  written += snprintf(buffer, buffer_len, "series e:%s ms:%" PRIu64 " m:%s=%s",
-                      entity, CDTIME_T_TO_MS(vl->time), metric_name, value_str);
+  written +=
+      snprintf(buffer, buffer_len, "series e:\"%s\" ms:%" PRIu64 " m:\"%s\"=%s",
+               escape_buffer, CDTIME_T_TO_MS(vl->time), metric_name, value_str);
   if (*vl->plugin_instance != 0 && buffer_len > written)
-    written += snprintf(buffer + written, buffer_len - written,
-                        " t:instance=%s", vl->plugin_instance);
+    written +=
+        snprintf(buffer + written, buffer_len - written, " t:instance=\"%s\"",
+                 escape_atsd_string(escape_buffer, vl->plugin_instance,
+                                    sizeof escape_buffer));
   if (*vl->plugin_instance != 0 && buffer_len > written)
     snprintf(buffer + written, buffer_len - written, " \n");
 

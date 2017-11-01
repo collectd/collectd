@@ -369,18 +369,27 @@ static int wa_update_property(const value_list_t *vl, const char *entity,
   struct utsname buf;
   cdtime_t now;
   char command[1024];
+  char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written = 0;
 
   now = cdtime();
   if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL) {
     cb->last_property_time = now;
 
-    written += snprintf(command, sizeof(command), "property e:%s ms:%" PRIu64
-                                                  " t:collectd-atsd v:host=%s",
-                        entity, CDTIME_T_TO_MS(vl->time), vl->host);
+    written += snprintf(
+        command, sizeof(command),
+        "property e:\"%s\" ms:%" PRIu64 " t:collectd-atsd v:host=\"%s\"",
+        escape_atsd_string(escape_buffer, entity, sizeof escape_buffer),
+        CDTIME_T_TO_MS(vl->time),
+        escape_atsd_string(escape_buffer, vl->host, sizeof escape_buffer));
 
     ret = uname(&buf);
     if (!ret) {
+      escape_atsd_string(buf.sysname, buf.sysname, sizeof buf.sysname);
+      escape_atsd_string(buf.sysname, buf.nodename, sizeof buf.nodename);
+      escape_atsd_string(buf.sysname, buf.release, sizeof buf.release);
+      escape_atsd_string(buf.sysname, buf.version, sizeof buf.version);
+      escape_atsd_string(buf.sysname, buf.machine, sizeof buf.machine);
       written += snprintf(command + written, sizeof(command) - written,
                           " v:OperatingSystem=\"%s\""
                           " v:Node=\"%s\""

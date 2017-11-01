@@ -22,6 +22,8 @@
 #include "plugin.h"
 #include "collectd.h"
 
+char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n);
+
 int format_value(char *ret, size_t ret_len, size_t i, const data_set_t *ds,
                  const value_list_t *vl, gauge_t *rates);
 
