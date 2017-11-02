@@ -2,39 +2,53 @@
  * collectd - src/thermal_throttle.c
  * Copyright (C) 2017      notbaab
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
- *
- * Authors:
- *   notbaab <notbaab at gmail.com>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  **/
+
+#include "collectd.h"
 
 #include "common.h"
 #include "plugin.h"
-#include "collectd.h"
 
-static int num_cpu = 0;
+static void thermal_throttle_submit(int cpu_num, value_t v_value,
+                                    char type_instance[]) {
+  value_list_t vl = VALUE_LIST_INIT;
+  vl.values = &v_value;
+  vl.values_len = 1;
 
-static int thermal_throttle_init() {
-  int status;
-  char filename[256];
-  num_cpu = 0;
+  sstrncpy(vl.plugin, "thermal_throttles", sizeof(vl.plugin));
+  sstrncpy(vl.type, "total_throttles", sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type));
+  snprintf(vl.plugin_instance, sizeof(vl.type_instance), "cpu%d", cpu_num);
+
+  plugin_dispatch_values(&vl);
+}
+
+static int thermal_throttle_read(void) {
+  int core_num = 0;
 
   while (1) {
-    status = snprintf(filename, sizeof(filename),
-                      "/sys/devices/system/cpu/cpu%d/thermal_throttle/"
-                      "core_throttle_count",
-                      num_cpu);
+    char filename[128];
+    int status = snprintf(filename, sizeof(filename),
+                          "/sys/devices/system/cpu/cpu%d/thermal_throttle/"
+                          "core_throttle_count",
+                          core_num);
 
     if ((status < 1) || (unsigned int)status >= sizeof(filename)) {
       break;
@@ -44,57 +58,33 @@ static int thermal_throttle_init() {
       break;
     }
 
-    num_cpu++;
-  }
-  return 0;
-}
-
-static void thermal_throttle_submit(int cpu_num, value_t v_core,
-                                    value_t v_package) {
-  value_list_t v1 = VALUE_LIST_INIT;
-  value_t values[] = {v_core, v_package};
-  v1.values = values;
-  v1.values_len = 2;
-
-  sstrncpy(v1.plugin, "thermal_throttle", sizeof(v1.plugin));
-  sstrncpy(v1.type, "thermal_throttle", sizeof(v1.type));
-  snprintf(v1.type_instance, sizeof(v1.type_instance), "%i", cpu_num);
-
-  plugin_dispatch_values(&v1);
-}
-
-static int thermal_throttle_read(void) {
-  for (int i = 0; i < num_cpu; i++) {
-    char filename[1024];
-    snprintf(
-        filename, sizeof(filename),
-        "/sys/devices/system/cpu/cpu%d/thermal_throttle/core_throttle_count",
-        i);
-
     value_t v_core;
     if (parse_value_file(filename, &v_core, DS_TYPE_COUNTER) != 0) {
       WARNING("thermal_throttle plugin: Reading \"%s\" failed.", filename);
       continue;
     }
 
+    thermal_throttle_submit(core_num, v_core, "core");
+
     snprintf(
         filename, sizeof(filename),
         "/sys/devices/system/cpu/cpu%d/thermal_throttle/package_throttle_count",
-        i);
+        core_num);
 
     value_t v_package;
+
     if (parse_value_file(filename, &v_package, DS_TYPE_COUNTER) != 0) {
       WARNING("thermal_throttle plugin: Reading \"%s\" failed.", filename);
       continue;
     }
 
-    thermal_throttle_submit(i, v_core, v_package);
+    thermal_throttle_submit(core_num, v_package, "package");
+    core_num++;
   }
 
   return 0;
 }
 
 void module_register(void) {
-  plugin_register_init("thermal_throttle", thermal_throttle_init);
   plugin_register_read("thermal_throttle", thermal_throttle_read);
 }
