@@ -96,13 +96,25 @@
 #define I915_PMU_ACTUAL_FREQUENCY       __I915_PMU_OTHER(0)
 #define I915_PMU_REQUESTED_FREQUENCY    __I915_PMU_OTHER(1)
 
-
+#define count_2_percentage(NEW_COUNT, OLD_COUNT, NEW_TOTAL, OLD_TOTAL) ((NEW_COUNT-OLD_COUNT)*100)/(NEW_TOTAL-OLD_TOTAL)
 
 struct event_info {
   char *name;
   uint64_t config;
 };
+
 typedef struct event_info event_info_t;
+
+typedef struct i915_metrics {
+    struct {
+        uint64_t count;
+        uint64_t total;
+    } prev;
+    struct {
+        uint64_t count;
+        uint64_t total;
+    } new;
+}i915_metrics_t;
 
 struct intel_pmu_ctx_s {
   _Bool hw_cache_events;
@@ -114,6 +126,7 @@ struct intel_pmu_ctx_s {
   size_t hw_events_count;
   struct eventlist *event_list;
   struct eventlist *event_list_i915;
+  i915_metrics_t *i915_counters;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
 
@@ -157,8 +170,6 @@ event_info_t g_kernel_pmu_i915_events[] = {
     {.name = "actual-frequency", .config = I915_PMU_ACTUAL_FREQUENCY},
     {.name = "requested-frequency", .config = I915_PMU_REQUESTED_FREQUENCY},
 };
-
-
 
 event_info_t g_hw_cache_events[] = {
 
@@ -340,7 +351,7 @@ static int pmu_config(oconfig_item_t *ci) {
 #if COLLECT_DEBUG
   pmu_dump_config();
 #endif
-  
+
   return 0;
 }
 
@@ -354,13 +365,36 @@ static void pmu_submit_counter(int cpu, char *event, counter_t value,
   sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
   if (cpu == -1) {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
-  } else {
+  } else if (cpu == -2) {
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "gpu");
+  } else{
     vl.meta = meta;
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
   }
   sstrncpy(vl.type, "counter", sizeof(vl.type));
   sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
 
+  plugin_dispatch_values(&vl);
+}
+
+static void pmu_submit_percentage(int cpu, char *event, counter_t value,
+                               meta_data_t *meta) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
+  if (cpu == -1) {
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
+  }else if (cpu == -2){
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "gpu");
+  }else {
+    vl.meta = meta;
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
+  }
+  sstrncpy(vl.type, "percent", sizeof(vl.type));
+  sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
   plugin_dispatch_values(&vl);
 }
 
@@ -424,6 +458,39 @@ static void pmu_dispatch_data(struct eventlist *event_list) {
   }
 }
 
+static void pmu_dispatch_data_i915(struct eventlist *event_list) {
+
+ struct event *e;
+ int value = 0;
+ int event_indx = 0;
+
+
+ for (e = event_list->eventlist; e; e = e->next) {
+    if((e->attr.config != I915_PMU_ACTUAL_FREQUENCY)&&(e->attr.config != I915_PMU_REQUESTED_FREQUENCY)){
+        g_ctx.i915_counters[event_indx].new.count = e->efd[0].val[0];
+	g_ctx.i915_counters[event_indx].new.total  = e->efd[0].val[1];
+	value = count_2_percentage(g_ctx.i915_counters[event_indx].new.count,g_ctx.i915_counters[event_indx].prev.count, \
+        g_ctx.i915_counters[event_indx].new.total, g_ctx.i915_counters[event_indx].prev.total);
+	g_ctx.i915_counters[event_indx].prev.count = g_ctx.i915_counters[event_indx].new.count;
+	g_ctx.i915_counters[event_indx].prev.total = g_ctx.i915_counters[event_indx].new.total;
+	pmu_submit_percentage(-2, e->event, value, NULL);
+        event_indx++;
+	DEBUG(PMU_PLUGIN ": Type:%i percent %i val[0] %" PRIu64 " val[1] %" PRIu64 " val[2] %" PRIu64 " \n",event_indx, value, e->efd[0].val[0], e->efd[0].val[1], e->efd[0].val[2]);
+    }
+    else{
+        g_ctx.i915_counters[event_indx].new.count = e->efd[0].val[0];
+        g_ctx.i915_counters[event_indx].new.total  = e->efd[0].val[1];
+	value = g_ctx.i915_counters[event_indx].new.count - g_ctx.i915_counters[event_indx].prev.count;
+        g_ctx.i915_counters[event_indx].prev.count = g_ctx.i915_counters[event_indx].prev.count;
+        g_ctx.i915_counters[event_indx].prev.total = g_ctx.i915_counters[event_indx].new.total;
+        pmu_submit_counter(-2, e->event, value, NULL);
+	event_indx++;
+    }
+
+  }
+
+}
+
 static int pmu_read(__attribute__((unused)) user_data_t *ud) {
   int ret;
 
@@ -439,10 +506,8 @@ static int pmu_read(__attribute__((unused)) user_data_t *ud) {
     ERROR(PMU_PLUGIN ": Failed to read i915 values of all events.");
     return ret;
   }
-
-
   pmu_dispatch_data(g_ctx.event_list);
-  pmu_dispatch_data(g_ctx.event_list_i915);
+  pmu_dispatch_data_i915(g_ctx.event_list_i915);
 
   return 0;
 }
@@ -479,6 +544,8 @@ static int pmu_add_events(struct eventlist *el, uint32_t type,
       return -ENOMEM;
     }
 
+    /* if eventlist is not i915 eventlist set type to passed type value, else 
+       get value from call to i915_type_id */
     if(!el_i915)
     	e->attr.type = type;
     else{
@@ -635,6 +702,7 @@ static int pmu_init(void) {
     ret = pmu_add_events(g_ctx.event_list_i915,0,
                          g_kernel_pmu_i915_events,
                          STATIC_ARRAY_SIZE(g_kernel_pmu_i915_events), true);
+    g_ctx.i915_counters = calloc(STATIC_ARRAY_SIZE(g_kernel_pmu_i915_events),sizeof(i915_metrics_t));
     pmu_setup_events(g_ctx.event_list_i915, true, -1);
     if (ret != 0) {
       ERROR(PMU_PLUGIN ": Failed to add kernel PMU events.");
@@ -651,7 +719,6 @@ static int pmu_init(void) {
             g_ctx.event_list_fn);
       return ret;
     }
-
     ret = pmu_add_hw_events(g_ctx.event_list, g_ctx.hw_events,
                             g_ctx.hw_events_count);
     if (ret != 0) {
@@ -693,6 +760,7 @@ init_error:
   pmu_free_events(g_ctx.event_list_i915);
   sfree(g_ctx.event_list);
   sfree(g_ctx.event_list_i915);
+  sfree(g_ctx.i915_counters);
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     sfree(g_ctx.hw_events[i]);
   }
@@ -707,7 +775,10 @@ static int pmu_shutdown(void) {
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
   pmu_free_events(g_ctx.event_list);
+  pmu_free_events(g_ctx.event_list_i915);
   sfree(g_ctx.event_list);
+  sfree(g_ctx.event_list_i915);
+  sfree(g_ctx.i915_counters);
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
     sfree(g_ctx.hw_events[i]);
   }

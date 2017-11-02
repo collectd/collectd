@@ -3164,7 +3164,7 @@ Defaults to B<false>.
 
 =head2 Plugin C<intel_pmu>
 
-The I<intel_pmu> plugin collects performance counters data on Intel CPUs using
+The I<intel_pmu> plugin collects performance counters data on Intel CPUs and GPU using
 Linux perf interface. All events are reported on a per core basis.
 
 B<Synopsis:>
@@ -3172,6 +3172,7 @@ B<Synopsis:>
   <Plugin intel_pmu>
     ReportHardwareCacheEvents true
     ReportKernelPMUEvents true
+    ReportKernelPMUi915Events true
     ReportSoftwareEvents true
     EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
     HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
@@ -3222,6 +3223,16 @@ Enable or disable measuring of the following events:
   - branch-misses
   - bus-cycles
 
+=item B<ReportKernelPMUEvents> B<false>|B<true>
+
+Enable or disable measuring of software events provided by i915 driver in kernel:
+  - i915/bcs0-busy
+  - i915/rcs0-busy
+  - i915/vcs0-busy
+  - i915/vcs1-busy/
+  - i915/vecs0-busy
+  - i915/actual-frequency
+  - i915/requested-frequency
 =item B<ReportSoftwareEvents> B<false>|B<true>
 
 Enable or disable measuring of software events provided by kernel:
