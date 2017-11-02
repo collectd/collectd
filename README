@@ -514,9 +514,8 @@ Features
       done.
 
     - write_atsd
-      Sends data to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/) (ATSD) server using TCP or UDP
-      protocol. The transmitted data is in ATSD network commands form, [see 
-      details](write_atsd.md).
+      Sends data to Axibase Time-Series Database server using TCP or UDP protocol.
+      The transmitted data is in ATSD network commands form.
 
     - write_graphite
       Sends data to Carbon, the storage layer of Graphite using TCP or UDP. It
