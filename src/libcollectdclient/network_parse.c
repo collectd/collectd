@@ -43,6 +43,10 @@
 #include <endian.h>
 #elif HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
+#elif defined(_AIX) && defined(__GNUC__)
+/* AIX is always big endian */
+#define be16toh(x) (x)
+#define be64toh(x) (x)
 #endif
 
 #if HAVE_GCRYPT_H
