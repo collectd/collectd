@@ -58,7 +58,8 @@ static int ltoc_values(lua_State *L, /* {{{ */
 
   if (i != ds->ds_num) {
     WARNING("ltoc_values: invalid size for datasource \"%s\": expected %" PRIsz
-            ", got %" PRIsz, ds->type, ds->ds_num, i);
+            ", got %" PRIsz,
+            ds->type, ds->ds_num, i);
     return -1;
   }
 
