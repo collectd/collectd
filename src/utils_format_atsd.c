@@ -26,11 +26,96 @@
 #include <string.h>
 #include "utils_format_atsd.h"
 
+#define PART_END -1
+#define PART_STR 0
+#define PART_VL_PLUGIN 1
+#define PART_VL_TYPE 2
+#define PART_VL_TYPE_INSTANCE 3
+
+#define USE_PATTERN 0
+#define USE_FUNC 1
+
+#define MAX_NAME_PARTS 6
+
 typedef struct tag_key_val_s {
   char *key;
   char *val;
   struct tag_key_val_s *next;
 } tag_key_val_t;
+
+typedef int *(*metric_format_func_t)(char *metric_name, size_t metric_n, tag_key_val_t **tags,
+    const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl);
+
+typedef struct {
+    int part_type;
+    char *str_value;
+} name_part_t;
+
+typedef struct {
+    union {
+      name_part_t name_parts[MAX_NAME_PARTS];
+      //metric_format_func_t *format_func;
+    } rule_data;
+    int rule_type;
+} metric_rule_t;
+
+typedef struct {
+    char *plugin;
+    char *type;
+    metric_rule_t rule;
+} plugin_match_t;
+
+#define STR(__str_val) \
+    {.part_type = PART_STR, .str_value = __str_val}
+#define PLUGIN {.part_type = PART_VL_PLUGIN}
+#define TYPE {.part_type = PART_VL_TYPE}
+#define TYPE_INSTANCE {.part_type = PART_VL_TYPE_INSTANCE}
+#define PATTERN_END {.part_type = PART_END}
+#define DOT STR(".")
+
+#define NAME_PATTERN(...) \
+    {.rule_type = USE_PATTERN, \
+     .rule_data = {.name_parts = {__VA_ARGS__, PATTERN_END}}}
+
+#define PLUGIN_TYPE_MATCH(__plugin_name, __type_name, ...) \
+    {.plugin = __plugin_name, .type = __type_name, .rule = NAME_PATTERN(__VA_ARGS__)}
+
+#define PLUGIN_MATCH(__plugin_name, ...) \
+    {.plugin = __plugin_name, .type = NULL, .rule = NAME_PATTERN(__VA_ARGS__)}
+
+
+plugin_match_t default_rule_table[] = {
+  PLUGIN_MATCH("entropy",
+      STR("entropy.available")),
+
+  PLUGIN_MATCH("memory",
+      STR("memory."), TYPE_INSTANCE),
+
+  PLUGIN_MATCH("users",
+      STR("users.logged_in")),
+
+  PLUGIN_MATCH("postgresql",
+      STR("db."), PLUGIN, DOT, TYPE_INSTANCE),
+
+  PLUGIN_MATCH("mongodb",
+      STR("db."), PLUGIN, DOT, TYPE_INSTANCE),
+
+  PLUGIN_TYPE_MATCH("swap", "swap",
+      STR("memory.swap_"), TYPE_INSTANCE),
+
+  PLUGIN_TYPE_MATCH("swap", "swap_io",
+      STR("io.swap_"), TYPE_INSTANCE),
+
+  PLUGIN_TYPE_MATCH("processes", "ps_stat",
+      STR("processes."), TYPE_INSTANCE),
+
+  PLUGIN_TYPE_MATCH("processes", "fork_rate",
+      STR("processes."), TYPE_INSTANCE),
+
+  PLUGIN_TYPE_MATCH("contextswitch", "fork_rate",
+      STR("contextswitches"))
+};
+
 
 static int add_tag(tag_key_val_t **tags, const char *key, const char *val) {
   tag_key_val_t *tag = malloc(sizeof(tag_key_val_t));
@@ -52,6 +137,8 @@ static void remove_tag(tag_key_val_t **tags) {
   if (*tags != NULL) {
     tag = *tags;
     *tags = tag->next;
+    sfree(tag->key);
+    sfree(tag->val);
     sfree(tag);
   }
 }
@@ -288,24 +375,6 @@ static int metric_load_format(char *metric_name, size_t metric_n, tag_key_val_t 
   } else if (strcasecmp(ds->ds[index].name, "longterm") == 0) {
     metric_name_append(metric_name, "15m", metric_n);
   }
-
-  return ret;
-}
-
-static int metric_aggregation_format(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-                                     const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl) {
-  char tmp_buffer[2 * DATA_MAX_NAME_LEN], *s;
-  int ret;
-
-  tmp_buffer[0] = '\0';
-  strlcat(tmp_buffer, vl->type, sizeof tmp_buffer);
-  strlcat(tmp_buffer, "-", sizeof tmp_buffer);
-
-  s = strstr(vl->plugin_instance, tmp_buffer);
-
-  metric_name[0] = '\0';
-  metric_name_append(metric_name, "load", metric_n);
-  metric_name_append(metric_name, "loadavg", metric_n);
 
   return ret;
 }
