@@ -1093,7 +1093,8 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    snprintf(il->instance, sizeof(il->instance), "%" PRIu64, val.counter);
+    snprintf(il->instance, sizeof(il->instance), "%" PRIu64,
+             (uint64_t)val.counter);
   }
 
   /* TODO: Debugging output */

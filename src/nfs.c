@@ -486,10 +486,8 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
     break;
   default:
     if (!suppress_warning) {
-      WARNING("nfs plugin: Unexpected number of "
-              "fields for NFSv4 %s "
-              "statistics: %" PRIsz ". ",
-              instance, fields_num);
+      WARNING("nfs plugin: Unexpected number of fields for NFSv4 %s "
+              "statistics: %" PRIsz ". ", instance, fields_num);
     }
 
     if (fields_num > 34) {

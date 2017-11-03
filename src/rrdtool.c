@@ -227,7 +227,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
     break;
   case DS_TYPE_COUNTER:
     status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
-                      vl->values[0].counter);
+                      (uint64_t)vl->values[0].counter);
     break;
   case DS_TYPE_ABSOLUTE:
     status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
