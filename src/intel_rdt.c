@@ -308,7 +308,7 @@ static void rdt_dump_cgroups(void) {
     return;
 
   DEBUG(RDT_PLUGIN ": Core Groups Dump");
-  DEBUG(RDT_PLUGIN ":  groups count: %zu", g_rdt->num_groups);
+  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->num_groups);
 
   for (int i = 0; i < g_rdt->num_groups; i++) {
 

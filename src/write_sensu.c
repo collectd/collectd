@@ -454,7 +454,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   // incorporate the data source index
   {
     char ds_index[DATA_MAX_NAME_LEN];
-    snprintf(ds_index, sizeof(ds_index), "%zu", index);
+    snprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_index\": %s",
                       ret_str, ds_index);
     free(ret_str);
@@ -519,7 +519,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
         return NULL;
       }
     } else {
-      res = my_asprintf(&value_str, "%llu", vl->values[index].counter);
+      res = my_asprintf(&value_str, "%" PRIu64, (uint64_t)vl->values[index].counter);
       if (res == -1) {
         free(ret_str);
         ERROR("write_sensu plugin: Unable to alloc memory");

@@ -384,8 +384,4 @@ void strarray_free(char **array, size_t array_len);
 int check_capability(int arg);
 #endif /* HAVE_SYS_CAPABILITY_H */
 
-#ifndef PRIsz
-#define PRIsz "zu"
-#endif /* PRIsz */
-
 #endif /* COMMON_H */

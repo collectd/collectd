@@ -331,12 +331,12 @@ static size_t av2value(pTHX_ char *name, AV *array, value_t *value,
 
   if (array_len < ds->ds_num) {
     log_warn("av2value: array does not contain enough elements for type "
-             "\"%s\": got %zu, want %zu",
+             "\"%s\": got %" PRIsz ", want %" PRIsz,
              name, array_len, ds->ds_num);
     return 0;
   } else if (array_len > ds->ds_num) {
     log_warn("av2value: array contains excess elements for type \"%s\": got "
-             "%zu, want %zu",
+             "%" PRIsz ", want %" PRIsz,
              name, array_len, ds->ds_num);
   }
 

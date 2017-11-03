@@ -192,7 +192,7 @@ static void pmu_dump_config(void) {
   DEBUG(PMU_PLUGIN ":   software_events   : %d", g_ctx.sw_events);
 
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
-    DEBUG(PMU_PLUGIN ":   hardware_events[%zu]: %s", i, g_ctx.hw_events[i]);
+    DEBUG(PMU_PLUGIN ":   hardware_events[%" PRIsz "]: %s", i, g_ctx.hw_events[i]);
   }
 }
 

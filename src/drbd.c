@@ -72,7 +72,7 @@ static int drbd_submit_fields(long int resource, char **fields,
 
   if (fields_num != drbd_names_num) {
     WARNING("drbd plugin: Wrong number of fields for "
-            "r%ld statistics. Expected %zu, got %zu.",
+            "r%ld statistics. Expected %" PRIsz ", got %" PRIsz ".",
             resource, drbd_names_num, fields_num);
     return EINVAL;
   }

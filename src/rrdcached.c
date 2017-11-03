@@ -88,7 +88,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
                         vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
       status = snprintf(buffer + offset, buffer_len - offset, ":%f",

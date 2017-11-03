@@ -166,7 +166,7 @@ static void snmp_agent_dump_data(void) {
         DEBUG(PLUGIN_NAME ":     TypeInstance: %s", dd->type_instance);
       for (size_t i = 0; i < dd->oids_len; i++) {
         snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
-        DEBUG(PLUGIN_NAME ":     OID[%zu]: %s", i, oid_str);
+        DEBUG(PLUGIN_NAME ":     OID[%" PRIsz "]: %s", i, oid_str);
       }
       DEBUG(PLUGIN_NAME ":   Scale: %g", dd->scale);
       DEBUG(PLUGIN_NAME ":   Shift: %g", dd->shift);
@@ -190,7 +190,7 @@ static void snmp_agent_dump_data(void) {
       DEBUG(PLUGIN_NAME ":   TypeInstance: %s", dd->type_instance);
     for (size_t i = 0; i < dd->oids_len; i++) {
       snmp_agent_oid_to_string(oid_str, sizeof(oid_str), &dd->oids[i]);
-      DEBUG(PLUGIN_NAME ":   OID[%zu]: %s", i, oid_str);
+      DEBUG(PLUGIN_NAME ":   OID[%" PRIsz "]: %s", i, oid_str);
     }
     DEBUG(PLUGIN_NAME ":   Scale: %g", dd->scale);
     DEBUG(PLUGIN_NAME ":   Shift: %g", dd->shift);

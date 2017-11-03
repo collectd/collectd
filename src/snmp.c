@@ -398,7 +398,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
   }
 
   DEBUG("snmp plugin: dd = { name = %s, type = %s, is_table = %s, values_len = "
-        "%zu }",
+        "%" PRIsz " }",
         dd->name, dd->type, (dd->is_table != 0) ? "true" : "false",
         dd->values_len);
 
@@ -1093,7 +1093,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    snprintf(il->instance, sizeof(il->instance), "%llu", val.counter);
+    snprintf(il->instance, sizeof(il->instance), "%" PRIu64, val.counter);
   }
 
   /* TODO: Debugging output */
@@ -1296,8 +1296,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   }
 
   if (ds->ds_num != data->values_len) {
-    ERROR("snmp plugin: DataSet `%s' requires %zu values, but config talks "
-          "about %zu",
+    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz " values, but config talks "
+          "about %" PRIsz,
           data->type, ds->ds_num, data->values_len);
     return -1;
   }
@@ -1470,7 +1470,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
          * suffix is increasing. This also checks if we left the subtree */
         ret = csnmp_oid_suffix(&suffix, &vb_name, data->values + i);
         if (ret != 0) {
-          DEBUG("snmp plugin: host = %s; data = %s; i = %zu; "
+          DEBUG("snmp plugin: host = %s; data = %s; i = %" PRIsz "; "
                 "Value probably left its subtree.",
                 host->name, data->name, i);
           oid_list_todo[i] = 0;
@@ -1482,7 +1482,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
          * table matching algorithm will get confused. */
         if ((value_list_tail[i] != NULL) &&
             (csnmp_oid_compare(&suffix, &value_list_tail[i]->suffix) <= 0)) {
-          DEBUG("snmp plugin: host = %s; data = %s; i = %zu; "
+          DEBUG("snmp plugin: host = %s; data = %s; i = %" PRIsz "; "
                 "Suffix is not increasing.",
                 host->name, data->name, i);
           oid_list_todo[i] = 0;
@@ -1574,8 +1574,8 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
   }
 
   if (ds->ds_num != data->values_len) {
-    ERROR("snmp plugin: DataSet `%s' requires %zu values, but config talks "
-          "about %zu",
+    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz " values, but config talks "
+          "about %" PRIsz,
           data->type, ds->ds_num, data->values_len);
     return -1;
   }
