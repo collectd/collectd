@@ -498,8 +498,8 @@ static int wt_send_message(const char *key, const char *value, cdtime_t time,
   cb->send_buf_fill += message_len;
   cb->send_buf_free -= message_len;
 
-  DEBUG("write_tsdb plugin: [%s]:%s buf %" PRIsz "/%" PRIsz " (%.1f %%) \"%s\"", cb->node,
-        cb->service, cb->send_buf_fill, sizeof(cb->send_buf),
+  DEBUG("write_tsdb plugin: [%s]:%s buf %" PRIsz "/%" PRIsz " (%.1f %%) \"%s\"",
+        cb->node, cb->service, cb->send_buf_fill, sizeof(cb->send_buf),
         100.0 * ((double)cb->send_buf_fill) / ((double)sizeof(cb->send_buf)),
         message);
 

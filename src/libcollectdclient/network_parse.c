@@ -29,9 +29,9 @@
 #define __attribute__(x) /**/
 #endif
 
-#include "globals.h"
 #include "collectd/lcc_features.h"
 #include "collectd/network_parse.h"
+#include "globals.h"
 
 #include <errno.h>
 #include <math.h>

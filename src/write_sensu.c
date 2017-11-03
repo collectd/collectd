@@ -28,14 +28,14 @@
 
 #include "collectd.h"
 
+#include "common.h"
+#include "plugin.h"
+#include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <stddef.h>
-#include "common.h"
-#include "plugin.h"
-#include "utils_cache.h"
 
 #include <stdlib.h>
 #define SENSU_HOST "localhost"
@@ -519,7 +519,8 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
         return NULL;
       }
     } else {
-      res = my_asprintf(&value_str, "%" PRIu64, (uint64_t)vl->values[index].counter);
+      res = my_asprintf(&value_str, "%" PRIu64,
+                        (uint64_t)vl->values[index].counter);
       if (res == -1) {
         free(ret_str);
         ERROR("write_sensu plugin: Unable to alloc memory");

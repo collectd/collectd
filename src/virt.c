@@ -699,8 +699,9 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
               (time_diff_sec * node_cpus * NANOSEC_IN_SEC);
   }
 
-  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64 " cpu_time_new=%" PRIu64
-                    "cpu_time_diff=%" PRIu64 " time_diff_sec=%f percent=%f",
+  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64
+                    " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
+                    " time_diff_sec=%f percent=%f",
         node_cpus, cpu_time_old, cpu_time_new, cpu_time_diff, time_diff_sec,
         percent);
 

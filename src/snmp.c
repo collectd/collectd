@@ -1296,7 +1296,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   }
 
   if (ds->ds_num != data->values_len) {
-    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz " values, but config talks "
+    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz
+          " values, but config talks "
           "about %" PRIsz,
           data->type, ds->ds_num, data->values_len);
     return -1;
@@ -1574,7 +1575,8 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
   }
 
   if (ds->ds_num != data->values_len) {
-    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz " values, but config talks "
+    ERROR("snmp plugin: DataSet `%s' requires %" PRIsz
+          " values, but config talks "
           "about %" PRIsz,
           data->type, ds->ds_num, data->values_len);
     return -1;

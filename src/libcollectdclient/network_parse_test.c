@@ -245,10 +245,9 @@ static int test_network_parse() {
     uint8_t buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT];
     size_t buffer_size = sizeof(buffer);
     if (decode_string(raw_packet_data[i], buffer, &buffer_size)) {
-      fprintf(
-          stderr,
-          "lcc_network_parse(raw_packet_data[%" PRIsz "]): decoding string failed\n",
-          i);
+      fprintf(stderr, "lcc_network_parse(raw_packet_data[%" PRIsz
+                      "]): decoding string failed\n",
+              i);
       return -1;
     }
 
@@ -257,7 +256,8 @@ static int test_network_parse() {
                                                    .writer = nop_writer,
                                                });
     if (status != 0) {
-      fprintf(stderr, "lcc_network_parse(raw_packet_data[%" PRIsz "]) = %d, want 0\n",
+      fprintf(stderr,
+              "lcc_network_parse(raw_packet_data[%" PRIsz "]) = %d, want 0\n",
               i, status);
       ret = status;
     }
@@ -384,7 +384,8 @@ static int test_parse_values() {
   int want_types[] = {LCC_TYPE_GAUGE, LCC_TYPE_DERIVE, LCC_TYPE_GAUGE};
   for (size_t i = 0; i < sizeof(want_types) / sizeof(want_types[0]); i++) {
     if (vl.values_types[i] != want_types[i]) {
-      fprintf(stderr, "parse_values(): vl.values_types[%" PRIsz "] = %d, want %d\n", i,
+      fprintf(stderr,
+              "parse_values(): vl.values_types[%" PRIsz "] = %d, want %d\n", i,
               vl.values_types[i], want_types[i]);
       ret = -1;
     }

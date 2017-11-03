@@ -363,7 +363,8 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
 
   if (prep_area->ds->ds_num != r->values_num) {
     ERROR("db query utils: udb_result_prepare_result: The type `%s' "
-          "requires exactly %" PRIsz " value%s, but the configuration specifies %" PRIsz ".",
+          "requires exactly %" PRIsz
+          " value%s, but the configuration specifies %" PRIsz ".",
           r->type, prep_area->ds->ds_num,
           (prep_area->ds->ds_num == 1) ? "" : "s", r->values_num);
     BAIL_OUT(-1);

@@ -602,7 +602,8 @@ static int ps_config(oconfig_item_t *ci) {
 
 #if KERNEL_LINUX || KERNEL_SOLARIS || KERNEL_FREEBSD
       if (strlen(c->values[0].value.string) > max_procname_len) {
-        WARNING("processes plugin: this platform has a %" PRIsz " character limit "
+        WARNING("processes plugin: this platform has a %" PRIsz
+                " character limit "
                 "to process names. The `Process \"%s\"' option will "
                 "not work as expected.",
                 max_procname_len, c->values[0].value.string);
@@ -1153,7 +1154,8 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   /* Either '(' or ')' is not found or they are in the wrong order.
    * Anyway, something weird that shouldn't happen ever. */
   if (name_start_pos >= name_end_pos) {
-    ERROR("processes plugin: name_start_pos = %" PRIsz " >= name_end_pos = %" PRIsz,
+    ERROR("processes plugin: name_start_pos = %" PRIsz
+          " >= name_end_pos = %" PRIsz,
           name_start_pos, name_end_pos);
     return -1;
   }

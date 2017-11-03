@@ -25,8 +25,8 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "common.h"
 #include "collectd.h"
+#include "common.h"
 
 #include <pqos.h>
 
@@ -426,8 +426,8 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
          core_idx++) {
       if (!rdt_is_core_id_valid(g_rdt->cgroups[group_idx].cores[core_idx])) {
         ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%d'",
-                g_rdt->cgroups[group_idx].desc,
-                (int)g_rdt->cgroups[group_idx].cores[core_idx]);
+              g_rdt->cgroups[group_idx].desc,
+              (int)g_rdt->cgroups[group_idx].cores[core_idx]);
         rdt_free_cgroups();
         return -EINVAL;
       }

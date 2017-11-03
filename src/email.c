@@ -373,14 +373,13 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     pthread_exit((void *)1);
   }
 
-  struct sockaddr_un addr = {
-    .sun_family = AF_UNIX
-  };
+  struct sockaddr_un addr = {.sun_family = AF_UNIX};
   sstrncpy(addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
 
   errno = 0;
   if (bind(connector_socket, (struct sockaddr *)&addr,
-           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) == -1) {
+           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) ==
+      -1) {
     char errbuf[1024];
     disabled = 1;
     close(connector_socket);

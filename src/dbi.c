@@ -497,8 +497,8 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
     }
 
     column_num = (size_t)db_status;
-    DEBUG("cdbi_read_database_query (%s, %s): There are %" PRIsz " columns.", db->name,
-          udb_query_get_name(q), column_num);
+    DEBUG("cdbi_read_database_query (%s, %s): There are %" PRIsz " columns.",
+          db->name, udb_query_get_name(q), column_num);
   }
 
   /* Allocate `column_names' and `column_values'. {{{ */

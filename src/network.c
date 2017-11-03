@@ -2531,7 +2531,8 @@ static void network_send_buffer_encrypted(sockent_t *se, /* {{{ */
 
 static void network_send_buffer(char *buffer, size_t buffer_len) /* {{{ */
 {
-  DEBUG("network plugin: network_send_buffer: buffer_len = %" PRIsz, buffer_len);
+  DEBUG("network plugin: network_send_buffer: buffer_len = %" PRIsz,
+        buffer_len);
 
   for (sockent_t *se = sending_sockets; se != NULL; se = se->next) {
 #if HAVE_GCRYPT_H
@@ -2650,10 +2651,10 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 
   pthread_mutex_lock(&send_buffer_lock);
 
-  status =
-      add_to_buffer(send_buffer_ptr, network_config_packet_size -
-                                         (send_buffer_fill + BUFF_SIG_SIZE),
-                    &send_buffer_vl, ds, vl);
+  status = add_to_buffer(send_buffer_ptr,
+                         network_config_packet_size -
+                             (send_buffer_fill + BUFF_SIG_SIZE),
+                         &send_buffer_vl, ds, vl);
   if (status >= 0) {
     /* status == bytes added to the buffer */
     send_buffer_fill += status;
@@ -2664,10 +2665,10 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
   } else {
     flush_buffer();
 
-    status =
-        add_to_buffer(send_buffer_ptr, network_config_packet_size -
-                                           (send_buffer_fill + BUFF_SIG_SIZE),
-                      &send_buffer_vl, ds, vl);
+    status = add_to_buffer(send_buffer_ptr,
+                           network_config_packet_size -
+                               (send_buffer_fill + BUFF_SIG_SIZE),
+                           &send_buffer_vl, ds, vl);
 
     if (status >= 0) {
       send_buffer_fill += status;
