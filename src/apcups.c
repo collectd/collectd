@@ -236,7 +236,8 @@ static int apc_query_server(char const *node, char const *service,
   char recvline[1024];
   char *tokptr;
   char *toksaveptr;
-  int try = 0;
+  int try
+    = 0;
   int status;
 
 #if APCMAIN
@@ -261,7 +262,8 @@ static int apc_query_server(char const *node, char const *service,
       /* net_send closes the socket on error. */
       assert(global_sockfd < 0);
       if (try == 0) {
-        try++;
+        try
+          ++;
         count_retries++;
         continue;
       }
@@ -337,9 +339,7 @@ static int apc_query_server(char const *node, char const *service,
     net_shutdown(&global_sockfd);
 
   if (n < 0) {
-    char errbuf[1024];
-    ERROR("apcups plugin: Reading from socket failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("apcups plugin: Reading from socket failed: %s", STRERROR(status));
     return -1;
   }
 

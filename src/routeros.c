@@ -242,9 +242,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_interface(rd->connection, handle_interface,
                            /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
-      ERROR("routeros plugin: ros_interface failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("routeros plugin: ros_interface failed: %s", STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
       return -1;
@@ -255,9 +253,8 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_registration_table(rd->connection, handle_regtable,
                                     /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
       ERROR("routeros plugin: ros_registration_table failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+            STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
       return -1;
@@ -270,9 +267,8 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_system_resource(rd->connection, handle_system_resource,
                                  /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
       ERROR("routeros plugin: ros_system_resource failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+            STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
       return -1;

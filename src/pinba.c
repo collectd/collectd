@@ -600,9 +600,7 @@ static int plugin_shutdown(void) /* {{{ */
 
     status = pthread_join(collector_thread_id, /* retval = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("pinba plugin: pthread_join(3) failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("pinba plugin: pthread_join(3) failed: %s", STRERROR(status));
     }
 
     collector_thread_running = 0;

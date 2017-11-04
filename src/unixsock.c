@@ -138,9 +138,8 @@ static int us_open_socket(void) {
 
     status = getgrnam_r(grpname, &sg, grbuf, sizeof(grbuf), &g);
     if (status != 0) {
-      char errbuf[1024];
       WARNING("unixsock plugin: getgrnam_r (%s) failed: %s", grpname,
-              sstrerror(status, errbuf, sizeof(errbuf)));
+              STRERROR(status));
       break;
     }
     if (g == NULL) {

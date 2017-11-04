@@ -408,9 +408,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     grp = NULL;
     status = getgrnam_r(group, &sg, grbuf, sizeof(grbuf), &grp);
     if (status != 0) {
-      char errbuf[1024];
-      log_warn("getgrnam_r (%s) failed: %s", group,
-               sstrerror(status, errbuf, sizeof(errbuf)));
+      log_warn("getgrnam_r (%s) failed: %s", group, STRERROR(status));
     } else if (grp == NULL) {
       log_warn("No such group: `%s'", group);
     } else {
