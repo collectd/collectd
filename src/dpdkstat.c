@@ -127,7 +127,7 @@ static int dpdk_stats_preinit(void) {
   if (ret != 0) {
     char errbuf[ERR_BUF_SIZE];
     ERROR("%s: failed to initialize %s helper(error: %s)", DPDK_STATS_PLUGIN,
-          g_shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
+          g_shm_name, STRERRNO);
     return ret;
   }
 
@@ -448,7 +448,7 @@ static int dpdk_stats_reinit_helper() {
   if (ret != 0) {
     char errbuf[ERR_BUF_SIZE];
     ERROR("%s: failed to initialize %s helper(error: %s)", DPDK_STATS_PLUGIN,
-          g_shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
+          g_shm_name, STRERRNO);
     return ret;
   }
 

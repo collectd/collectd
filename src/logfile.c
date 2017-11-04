@@ -126,9 +126,8 @@ static void logfile_print(const char *msg, int severity,
   }
 
   if (fh == NULL) {
-    char errbuf[1024];
     fprintf(stderr, "logfile plugin: fopen (%s) failed: %s\n", log_file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
   } else {
     if (print_timestamp)
       fprintf(fh, "[%s] %s%s\n", timestamp_str, level_str, msg);

@@ -129,12 +129,11 @@ static int dpdk_event_keep_alive_shm_open(void) {
             shm_name);
   }
 
-  char errbuf[ERR_BUF_SIZE];
   int fd = shm_open(shm_name, O_RDONLY, 0);
   if (fd < 0) {
     ERROR(DPDK_EVENTS_PLUGIN ": Failed to open %s as SHM:%s. Is DPDK KA "
                              "primary application running?",
-          shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
+          shm_name, STRERRNO);
     return errno;
   }
 
@@ -166,8 +165,7 @@ static int dpdk_event_keep_alive_shm_open(void) {
   ec->config.keep_alive.shm = (dpdk_keepalive_shm_t *)mmap(
       0, sizeof(*(ec->config.keep_alive.shm)), PROT_READ, MAP_SHARED, fd, 0);
   if (ec->config.keep_alive.shm == MAP_FAILED) {
-    ERROR(DPDK_EVENTS_PLUGIN ": Failed to mmap KA SHM:%s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR(DPDK_EVENTS_PLUGIN ": Failed to mmap KA SHM:%s", STRERRNO);
     close(fd);
     return errno;
   }

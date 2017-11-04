@@ -824,7 +824,6 @@ static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 
 static int cj_sock_perform(cj_t *db) /* {{{ */
 {
-  char errbuf[1024];
   struct sockaddr_un sa_unix = {
       .sun_family = AF_UNIX,
   };
@@ -835,8 +834,7 @@ static int cj_sock_perform(cj_t *db) /* {{{ */
     return -1;
   if (connect(fd, (struct sockaddr *)&sa_unix, sizeof(sa_unix)) < 0) {
     ERROR("curl_json plugin: connect(%s) failed: %s",
-          (db->sock != NULL) ? db->sock : "<null>",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          (db->sock != NULL) ? db->sock : "<null>", STRERRNO);
     close(fd);
     return -1;
   }
@@ -847,8 +845,7 @@ static int cj_sock_perform(cj_t *db) /* {{{ */
     red = read(fd, buffer, sizeof(buffer));
     if (red < 0) {
       ERROR("curl_json plugin: read(%s) failed: %s",
-            (db->sock != NULL) ? db->sock : "<null>",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            (db->sock != NULL) ? db->sock : "<null>", STRERRNO);
       close(fd);
       return -1;
     }

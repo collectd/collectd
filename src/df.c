@@ -202,9 +202,7 @@ static int df_read(void) {
       continue;
 
     if (STATANYFS(mnt_ptr->dir, &statbuf) < 0) {
-      char errbuf[1024];
-      ERROR(STATANYFS_STR "(%s) failed: %s", mnt_ptr->dir,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR(STATANYFS_STR "(%s) failed: %s", mnt_ptr->dir, STRERRNO);
       continue;
     }
 

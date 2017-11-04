@@ -52,9 +52,9 @@
 #define MCELOG_UNCORRECTED_ERR_TYPE_INS "uncorrected_memory_errors"
 
 typedef struct mcelog_config_s {
-  char logfile[PATH_MAX]; /* mcelog logfile */
-  pthread_t tid;          /* poll thread id */
-  llist_t *dimms_list;    /* DIMMs list */
+  char logfile[PATH_MAX];     /* mcelog logfile */
+  pthread_t tid;              /* poll thread id */
+  llist_t *dimms_list;        /* DIMMs list */
   pthread_mutex_t dimms_lock; /* lock for dimms cache */
   _Bool persist;
 } mcelog_config_t;
@@ -237,15 +237,12 @@ static int socket_close(socket_adapter_t *self) {
   int ret = 0;
   pthread_rwlock_rdlock(&self->lock);
   if (fcntl(self->sock_fd, F_GETFL) != -1) {
-    char errbuf[MCELOG_BUFF_SIZE];
     if (shutdown(self->sock_fd, SHUT_RDWR) != 0) {
-      ERROR(MCELOG_PLUGIN ": Socket shutdown failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR(MCELOG_PLUGIN ": Socket shutdown failed: %s", STRERRNO);
       ret = -1;
     }
     if (close(self->sock_fd) != 0) {
-      ERROR(MCELOG_PLUGIN ": Socket close failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR(MCELOG_PLUGIN ": Socket close failed: %s", STRERRNO);
       ret = -1;
     }
   }
@@ -277,7 +274,6 @@ static void mcelog_dispatch_notification(notification_t *n) {
 }
 
 static int socket_reinit(socket_adapter_t *self) {
-  char errbuff[MCELOG_BUFF_SIZE];
   int ret = -1;
   cdtime_t interval = plugin_get_interval();
   struct timeval socket_timeout = CDTIME_T_TO_TIMEVAL(interval);
@@ -287,8 +283,7 @@ static int socket_reinit(socket_adapter_t *self) {
   self->sock_fd =
       socket(PF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
   if (self->sock_fd < 0) {
-    ERROR(MCELOG_PLUGIN ": Could not create a socket. %s",
-          sstrerror(errno, errbuff, sizeof(errbuff)));
+    ERROR(MCELOG_PLUGIN ": Could not create a socket. %s", STRERRNO);
     pthread_rwlock_unlock(&self->lock);
     return ret;
   }
@@ -304,8 +299,7 @@ static int socket_reinit(socket_adapter_t *self) {
   pthread_rwlock_rdlock(&self->lock);
   if (connect(self->sock_fd, (struct sockaddr *)&(self->unix_sock),
               sizeof(self->unix_sock)) < 0) {
-    ERROR(MCELOG_PLUGIN ": Failed to connect to mcelog server. %s",
-          sstrerror(errno, errbuff, sizeof(errbuff)));
+    ERROR(MCELOG_PLUGIN ": Failed to connect to mcelog server. %s", STRERRNO);
     self->close(self);
     ret = -1;
   } else {
@@ -534,9 +528,7 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
 
   if ((res = poll(&poll_fd, 1, MCELOG_POLL_TIMEOUT)) <= 0) {
     if (res != 0 && errno != EINTR) {
-      char errbuf[MCELOG_BUFF_SIZE];
-      ERROR("mcelog: poll failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("mcelog: poll failed: %s", STRERRNO);
     }
     pthread_rwlock_unlock(&self->lock);
     return res;
@@ -571,12 +563,10 @@ static int socket_receive(socket_adapter_t *self, FILE **pp_file) {
 }
 
 static void *poll_worker(__attribute__((unused)) void *arg) {
-  char errbuf[MCELOG_BUFF_SIZE];
   mcelog_thread_running = 1;
   FILE **pp_file = calloc(1, sizeof(*pp_file));
   if (pp_file == NULL) {
-    ERROR("mcelog: memory allocation failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("mcelog: memory allocation failed: %s", STRERRNO);
     pthread_exit((void *)1);
   }
 

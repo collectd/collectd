@@ -1009,9 +1009,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
   }
 
   if ((dh = opendir(dir)) == NULL) {
-    char errbuf[1024];
-    ERROR("plugin_load: opendir (%s) failed: %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("plugin_load: opendir (%s) failed: %s", dir, STRERRNO);
     return -1;
   }
 
@@ -1026,9 +1024,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
     }
 
     if (lstat(filename, &statbuf) == -1) {
-      char errbuf[1024];
-      WARNING("plugin_load: stat (\"%s\") failed: %s", filename,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("plugin_load: stat (\"%s\") failed: %s", filename, STRERRNO);
       continue;
     } else if (!S_ISREG(statbuf.st_mode)) {
       /* don't follow symlinks */
@@ -2462,9 +2458,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
   ctx = malloc(sizeof(*ctx));
   if (ctx == NULL) {
-    char errbuf[1024];
-    ERROR("Failed to allocate plugin context: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("Failed to allocate plugin context: %s", STRERRNO);
     return NULL;
   }
 

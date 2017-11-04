@@ -202,9 +202,8 @@ static int za_read(void) {
 
   fh = fopen(ZOL_ARCSTATS_FILE, "r");
   if (fh == NULL) {
-    char errbuf[1024];
     ERROR("zfs_arc plugin: Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return -1;
   }
 

@@ -75,17 +75,16 @@ static int fhcount_read(void) {
   int prc_used, prc_unused;
   char *fields[3];
   char buffer[buffer_len];
-  char errbuf[1024];
   FILE *fp;
 
   // Open file
   fp = fopen("/proc/sys/fs/file-nr", "r");
   if (fp == NULL) {
-    ERROR("fhcount: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fhcount: fopen: %s", STRERRNO);
     return EXIT_FAILURE;
   }
   if (fgets(buffer, buffer_len, fp) == NULL) {
-    ERROR("fhcount: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fhcount: fgets: %s", STRERRNO);
     fclose(fp);
     return EXIT_FAILURE;
   }

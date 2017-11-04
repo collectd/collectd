@@ -112,9 +112,8 @@ static int wt_send_buffer(struct wt_callback *cb) {
 
   status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
   if (status != 0) {
-    char errbuf[1024];
     ERROR("write_tsdb plugin: send failed with status %zi (%s)", status,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
 
     close(cb->sock_fd);
     cb->sock_fd = -1;
@@ -242,10 +241,9 @@ static int wt_callback_init(struct wt_callback *cb) {
   }
 
   if (cb->sock_fd < 0) {
-    char errbuf[1024];
     ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
           "The last error was: %s",
-          node, service, sstrerror(errno, errbuf, sizeof(errbuf)));
+          node, service, STRERRNO);
     return -1;
   }
 

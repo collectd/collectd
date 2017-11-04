@@ -159,8 +159,7 @@ static int change_basedir(const char *orig_dir, _Bool create) {
 
   dir = strdup(orig_dir);
   if (dir == NULL) {
-    char errbuf[1024];
-    ERROR("strdup failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("strdup failed: %s", STRERRNO);
     return -1;
   }
 
@@ -178,27 +177,21 @@ static int change_basedir(const char *orig_dir, _Bool create) {
     free(dir);
     return 0;
   } else if (!create || (errno != ENOENT)) {
-    char errbuf[1024];
-    ERROR("change_basedir: chdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: chdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
 
   status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: mkdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: mkdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
 
   status = chdir(dir);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: chdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: chdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
@@ -322,8 +315,7 @@ static int do_loop(void) {
 
     while ((loop == 0) && (nanosleep(&ts_wait, &ts_wait) != 0)) {
       if (errno != EINTR) {
-        char errbuf[1024];
-        ERROR("nanosleep failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("nanosleep failed: %s", STRERRNO);
         return -1;
       }
     }
@@ -342,8 +334,7 @@ static int pidfile_create(void) {
   const char *file = global_option_get("PIDFile");
 
   if ((fh = fopen(file, "w")) == NULL) {
-    char errbuf[1024];
-    ERROR("fopen (%s): %s", file, sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fopen (%s): %s", file, STRERRNO);
     return 1;
   }
 
@@ -411,9 +402,7 @@ static int notify_systemd(void) {
   fd = socket(AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
 #endif
   if (fd < 0) {
-    char errbuf[1024];
-    ERROR("creating UNIX socket failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("creating UNIX socket failed: %s", STRERRNO);
     return 0;
   }
 
@@ -436,9 +425,7 @@ static int notify_systemd(void) {
 
   if (sendto(fd, buffer, strlen(buffer), MSG_NOSIGNAL, (void *)&su,
              (socklen_t)su_size) < 0) {
-    char errbuf[1024];
-    ERROR("sendto(\"%s\") failed: %s", notifysocket,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("sendto(\"%s\") failed: %s", notifysocket, STRERRNO);
     close(fd);
     return 0;
   }
@@ -588,8 +575,7 @@ int main(int argc, char **argv) {
 
     if ((pid = fork()) == -1) {
       /* error */
-      char errbuf[1024];
-      fprintf(stderr, "fork: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      fprintf(stderr, "fork: %s", STRERRNO);
       return 1;
     } else if (pid != 0) {
       /* parent */
@@ -642,27 +628,24 @@ int main(int argc, char **argv) {
   struct sigaction sig_int_action = {.sa_handler = sig_int_handler};
 
   if (0 != sigaction(SIGINT, &sig_int_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal INT: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
   struct sigaction sig_term_action = {.sa_handler = sig_term_handler};
 
   if (0 != sigaction(SIGTERM, &sig_term_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal TERM: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
   struct sigaction sig_usr1_action = {.sa_handler = sig_usr1_handler};
 
   if (0 != sigaction(SIGUSR1, &sig_usr1_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal USR1: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 

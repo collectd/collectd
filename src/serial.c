@@ -52,8 +52,7 @@ static int serial_read(void) {
   /* there are a variety of names for the serial device */
   if ((fh = fopen("/proc/tty/driver/serial", "r")) == NULL &&
       (fh = fopen("/proc/tty/driver/ttyS", "r")) == NULL) {
-    char errbuf[1024];
-    WARNING("serial: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("serial: fopen: %s", STRERRNO);
     return -1;
   }
 

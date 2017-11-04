@@ -217,12 +217,10 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
 
   ai_return = getaddrinfo(node, service, &ai_hints, &ai_list);
   if (ai_return != 0) {
-    char errbuf[1024];
     ERROR("gmond plugin: getaddrinfo (%s, %s) failed: %s",
           (node == NULL) ? "(null)" : node,
           (service == NULL) ? "(null)" : service,
-          (ai_return == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                    : gai_strerror(ai_return));
+          (ai_return == EAI_SYSTEM) ? STRERRNO : gai_strerror(ai_return));
     return -1;
   }
 
@@ -241,9 +239,7 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
     sockets[sockets_num].fd =
         socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (sockets[sockets_num].fd < 0) {
-      char errbuf[1024];
-      ERROR("gmond plugin: socket failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("gmond plugin: socket failed: %s", STRERRNO);
       continue;
     }
 
@@ -261,17 +257,13 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
       status = setsockopt(sockets[sockets_num].fd, SOL_SOCKET, SO_REUSEADDR,
                           (void *)&yes, sizeof(yes));
       if (status != 0) {
-        char errbuf[1024];
-        WARNING("gmond plugin: setsockopt(2) failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        WARNING("gmond plugin: setsockopt(2) failed: %s", STRERRNO);
       }
     }
 
     status = bind(sockets[sockets_num].fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("gmond plugin: bind failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("gmond plugin: bind failed: %s", STRERRNO);
       close(sockets[sockets_num].fd);
       continue;
     }
@@ -291,9 +283,7 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
       status = setsockopt(sockets[sockets_num].fd, IPPROTO_IP,
                           IP_MULTICAST_LOOP, (void *)&loop, sizeof(loop));
       if (status != 0) {
-        char errbuf[1024];
-        WARNING("gmond plugin: setsockopt(2) failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        WARNING("gmond plugin: setsockopt(2) failed: %s", STRERRNO);
       }
 
       struct ip_mreq mreq = {.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
@@ -302,9 +292,7 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
       status = setsockopt(sockets[sockets_num].fd, IPPROTO_IP,
                           IP_ADD_MEMBERSHIP, (void *)&mreq, sizeof(mreq));
       if (status != 0) {
-        char errbuf[1024];
-        WARNING("gmond plugin: setsockopt(2) failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        WARNING("gmond plugin: setsockopt(2) failed: %s", STRERRNO);
       }
     } /* if (ai_ptr->ai_family == AF_INET) */
     else if (ai_ptr->ai_family == AF_INET6) {
@@ -322,9 +310,7 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
       status = setsockopt(sockets[sockets_num].fd, IPPROTO_IPV6,
                           IPV6_MULTICAST_LOOP, (void *)&loop, sizeof(loop));
       if (status != 0) {
-        char errbuf[1024];
-        WARNING("gmond plugin: setsockopt(2) failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        WARNING("gmond plugin: setsockopt(2) failed: %s", STRERRNO);
       }
 
       struct ipv6_mreq mreq = {
@@ -335,9 +321,7 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
       status = setsockopt(sockets[sockets_num].fd, IPPROTO_IPV6,
                           IPV6_ADD_MEMBERSHIP, (void *)&mreq, sizeof(mreq));
       if (status != 0) {
-        char errbuf[1024];
-        WARNING("gmond plugin: setsockopt(2) failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        WARNING("gmond plugin: setsockopt(2) failed: %s", STRERRNO);
       }
     } /* if (ai_ptr->ai_family == AF_INET6) */
 
@@ -393,9 +377,7 @@ static int request_meta_data(const char *host, const char *name) /* {{{ */
                /* flags = */ 0, (struct sockaddr *)&mc_send_sockets[i].addr,
                mc_send_sockets[i].addrlen);
     if (status == -1) {
-      char errbuf[1024];
-      ERROR("gmond plugin: sendto(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("gmond plugin: sendto(2) failed: %s", STRERRNO);
       continue;
     }
   }
@@ -737,9 +719,7 @@ static int mc_handle_socket(struct pollfd *p) /* {{{ */
 
   buffer_size = recv(p->fd, buffer, sizeof(buffer), /* flags = */ 0);
   if (buffer_size <= 0) {
-    char errbuf[1024];
-    ERROR("gmond plugin: recv failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("gmond plugin: recv failed: %s", STRERRNO);
     p->revents = 0;
     return -1;
   }
@@ -785,11 +765,9 @@ static void *mc_receive_thread(void *arg) /* {{{ */
   while (mc_receive_thread_loop != 0) {
     status = poll(mc_receive_sockets, mc_receive_sockets_num, -1);
     if (status <= 0) {
-      char errbuf[1024];
       if (errno == EINTR)
         continue;
-      ERROR("gmond plugin: poll failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("gmond plugin: poll failed: %s", STRERRNO);
       break;
     }
 

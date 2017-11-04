@@ -119,10 +119,8 @@ static int net_open(char const *node, char const *service) {
 
   status = getaddrinfo(node, service, &ai_hints, &ai_return);
   if (status != 0) {
-    char errbuf[1024];
     INFO("apcups plugin: getaddrinfo failed: %s",
-         (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                : gai_strerror(status));
+         (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -147,9 +145,7 @@ static int net_open(char const *node, char const *service) {
 
   if (status != 0) /* `connect(2)' failed */
   {
-    char errbuf[1024];
-    INFO("apcups plugin: connect failed: %s",
-         sstrerror(errno, errbuf, sizeof(errbuf)));
+    INFO("apcups plugin: connect failed: %s", STRERRNO);
     close(sd);
     return -1;
   }
@@ -424,8 +420,8 @@ static int apcups_read(void) {
   int status = apc_query_server(conf_node, conf_service, &apcups_detail);
 
   if (status != 0) {
-    DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
-          conf_node, conf_service, status);
+    DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d", conf_node,
+          conf_service, status);
     return status;
   }
 
