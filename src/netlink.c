@@ -353,8 +353,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
       continue;
 
     if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats64)) < 0) {
+      char errbuf[1024];
       ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 mnl_attr_validate2 "
-            "failed.");
+            "failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
       return MNL_CB_ERROR;
     }
     stats.stats64 = mnl_attr_get_payload(attr);
@@ -369,8 +371,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
       continue;
 
     if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats32)) < 0) {
+      char errbuf[1024];
       ERROR("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 "
-            "failed.");
+            "failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
       return MNL_CB_ERROR;
     }
     stats.stats32 = mnl_attr_get_payload(attr);
@@ -395,8 +399,10 @@ static int qos_attr_cb(const struct nlattr *attr, void *data) {
 
   if (mnl_attr_get_type(attr) == TCA_STATS_BASIC) {
     if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(**bs)) < 0) {
+      char errbuf[1024];
       ERROR("netlink plugin: qos_attr_cb: TCA_STATS_BASIC mnl_attr_validate2 "
-            "failed.");
+            "failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
       return MNL_CB_ERROR;
     }
     *bs = mnl_attr_get_payload(attr);
@@ -529,8 +535,10 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
       continue;
 
     if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*ts)) < 0) {
+      char errbuf[1024];
       ERROR("netlink plugin: qos_filter_cb: TCA_STATS mnl_attr_validate2 "
-            "failed.");
+            "failed: %s",
+            sstrerror(errno, errbuf, sizeof(errbuf)));
       return MNL_CB_ERROR;
     }
     ts = mnl_attr_get_payload(attr);
@@ -666,7 +674,9 @@ static int ir_read(void) {
     ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
   }
   if (ret < 0) {
-    ERROR("netlink plugin: ir_read: mnl_socket_recvfrom failed.");
+    char errbuf[1024];
+    ERROR("netlink plugin: ir_read: mnl_socket_recvfrom failed: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
 
@@ -711,10 +721,11 @@ static int ir_read(void) {
         ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
       }
       if (ret < 0) {
-        ERROR("netlink plugin: ir_read:mnl_socket_recvfrom failed.");
+        char errbuf[1024];
+        ERROR("netlink plugin: ir_read: mnl_socket_recvfrom failed: %s",
+              sstrerror(errno, errbuf, sizeof(errbuf)));
         continue;
       }
-
     } /* for (type_index) */
   }   /* for (if_index) */
 
