@@ -6565,7 +6565,7 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"; then
 fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libssl" = "xyes" && test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
-  plugin_write_gcm="yes"
+  plugin_write_stackdriver="yes"
 fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
@@ -6900,7 +6900,7 @@ AC_PLUGIN([vserver],             [$plugin_vserver],         [Linux VServer stati
 AC_PLUGIN([wireless],            [$plugin_wireless],        [Wireless statistics])
 AC_PLUGIN([write_graphite],      [yes],                     [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin])
-AC_PLUGIN([write_gcm],           [$plugin_write_gcm],  [Google cloud monitoring output plugin])
+AC_PLUGIN([write_stackdriver],   [$plugin_write_stackdriver], [Google Stackdriver Monitoring output plugin])
 AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
 AC_PLUGIN([write_log],           [yes],                     [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$with_libmongoc],         [MongoDB output plugin])
@@ -7323,7 +7323,6 @@ AC_MSG_RESULT([    vserver . . . . . . . $enable_vserver])
 AC_MSG_RESULT([    wireless  . . . . . . $enable_wireless])
 AC_MSG_RESULT([    write_graphite  . . . $enable_write_graphite])
 AC_MSG_RESULT([    write_http  . . . . . $enable_write_http])
-AC_MSG_RESULT([    write_gcm . . . . . . $enable_write_gcm])
 AC_MSG_RESULT([    write_kafka . . . . . $enable_write_kafka])
 AC_MSG_RESULT([    write_log . . . . . . $enable_write_log])
 AC_MSG_RESULT([    write_mongodb . . . . $enable_write_mongodb])
@@ -7331,6 +7330,7 @@ AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])
 AC_MSG_RESULT([    write_sensu . . . . . $enable_write_sensu])
+AC_MSG_RESULT([    write_stackdriver . . $enable_write_stackdriver])
 AC_MSG_RESULT([    write_tsdb  . . . . . $enable_write_tsdb])
 AC_MSG_RESULT([    xencpu  . . . . . . . $enable_xencpu])
 AC_MSG_RESULT([    xmms  . . . . . . . . $enable_xmms])

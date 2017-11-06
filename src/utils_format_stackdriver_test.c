@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_format_gcm_test.c
+ * collectd - src/utils_format_stackdriver_test.c
  * ISC license
  *
  * Copyright (C) 2017  Florian Forster
@@ -20,10 +20,10 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-#include "utils_format_gcm.h"
 #include "testing.h"
+#include "utils_format_stackdriver.h"
 
-DEF_TEST(gcm_format_metric_descriptor) {
+DEF_TEST(sd_format_metric_descriptor) {
   value_list_t vl = {
       .host = "example.com", .plugin = "unit-test", .type = "example",
   };
@@ -38,7 +38,7 @@ DEF_TEST(gcm_format_metric_descriptor) {
           },
   };
   EXPECT_EQ_INT(
-      0, gcm_format_metric_descriptor(got, sizeof(got), &ds_single, &vl, 0));
+      0, sd_format_metric_descriptor(got, sizeof(got), &ds_single, &vl, 0));
   char const *want_single =
       "{\"type\":\"custom.googleapis.com/collectd/unit_test/"
       "example\",\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"labels\":["
@@ -57,7 +57,7 @@ DEF_TEST(gcm_format_metric_descriptor) {
           },
   };
   EXPECT_EQ_INT(
-      0, gcm_format_metric_descriptor(got, sizeof(got), &ds_double, &vl, 0));
+      0, sd_format_metric_descriptor(got, sizeof(got), &ds_double, &vl, 0));
   char const *want_double =
       "{\"type\":\"custom.googleapis.com/collectd/unit_test/"
       "example_one\",\"metricKind\":\"CUMULATIVE\",\"valueType\":\"INT64\","
@@ -69,7 +69,7 @@ DEF_TEST(gcm_format_metric_descriptor) {
 }
 
 int main(int argc, char **argv) {
-  RUN_TEST(gcm_format_metric_descriptor);
+  RUN_TEST(sd_format_metric_descriptor);
 
   END_TEST;
 }

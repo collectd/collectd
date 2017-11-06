@@ -616,25 +616,25 @@ libgce_la_LIBADD = \
 endif
 
 if BUILD_WITH_LIBYAJL2
-noinst_LTLIBRARIES += libformat_gcm.la
-libformat_gcm_la_SOURCES = \
-	src/utils_format_gcm.c \
-	src/utils_format_gcm.h
-libformat_gcm_la_CPPFLAGS = \
+noinst_LTLIBRARIES += libformat_stackdriver.la
+libformat_stackdriver_la_SOURCES = \
+	src/utils_format_stackdriver.c \
+	src/utils_format_stackdriver.h
+libformat_stackdriver_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
-libformat_gcm_la_LIBADD = \
+libformat_stackdriver_la_LIBADD = \
 	libavltree.la \
 	$(BUILD_WITH_LIBSSL_LIBS) \
 	$(BUILD_WITH_LIBYAJL_LIBS)
 
-check_PROGRAMS += test_format_gcm
-TESTS += test_format_gcm
-test_format_gcm_SOURCES = \
-	src/utils_format_gcm_test.c \
+check_PROGRAMS += test_format_stackdriver
+TESTS += test_format_stackdriver
+test_format_stackdriver_SOURCES = \
+	src/utils_format_stackdriver_test.c \
 	src/testing.h
-test_format_gcm_LDADD = \
-	libformat_gcm.la \
+test_format_stackdriver_LDADD = \
+	libformat_stackdriver.la \
 	libplugin_mock.la \
 	-lm
 endif
@@ -1980,15 +1980,6 @@ write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
-if BUILD_PLUGIN_WRITE_GCM
-pkglib_LTLIBRARIES += write_gcm.la
-write_gcm_la_SOURCES = src/write_gcm.c
-write_gcm_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_gcm_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
-write_gcm_la_LIBADD = libformat_gcm.la libgce.la liboauth.la \
-                     $(BUILD_WITH_LIBCURL_LIBS)
-endif
-
 if BUILD_PLUGIN_WRITE_KAFKA
 pkglib_LTLIBRARIES += write_kafka.la
 write_kafka_la_SOURCES = src/write_kafka.c
@@ -2048,6 +2039,15 @@ if BUILD_PLUGIN_WRITE_SENSU
 pkglib_LTLIBRARIES += write_sensu.la
 write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_STACKDRIVER
+pkglib_LTLIBRARIES += write_stackdriver.la
+write_stackdriver_la_SOURCES = src/write_stackdriver.c
+write_stackdriver_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_stackdriver_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_stackdriver_la_LIBADD = libformat_stackdriver.la libgce.la liboauth.la \
+                     $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB

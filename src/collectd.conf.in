@@ -213,7 +213,6 @@
 #@BUILD_PLUGIN_VMEM_TRUE@LoadPlugin vmem
 #@BUILD_PLUGIN_VSERVER_TRUE@LoadPlugin vserver
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
-#@BUILD_PLUGIN_WRITE_GCM_TRUE@LoadPlugin write_gcm
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
 #@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
@@ -223,6 +222,7 @@
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_WRITE_SENSU_TRUE@LoadPlugin write_sensu
+#@BUILD_PLUGIN_WRITE_STACKDRIVER_TRUE@LoadPlugin write_stackdriver
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XENCPU_TRUE@LoadPlugin xencpu
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
@@ -1675,16 +1675,6 @@
 #	Verbose false
 #</Plugin>
 
-#<Plugin write_gcm>
-#  Project "stackdriver-account"
-#  CredentialFile "/path/to/gcp-project-id-12345.json"
-#  Email "123456789012@developer.gserviceaccount.com"
-#  <Resource "global">
-#    project_id "gcp-project-id"
-#  </Resource>
-#  Url "https://monitoring.googleapis.com/v3"
-#</Plugin>
-
 #<Plugin write_graphite>
 #  <Node "example">
 #    Host "localhost"
@@ -1796,6 +1786,16 @@
 #	</Node>
 #	Tag "foobar"
 #	Attribute "foo" "bar"
+#</Plugin>
+
+#<Plugin write_stackdriver>
+#  Project "stackdriver-account"
+#  CredentialFile "/path/to/gcp-project-id-12345.json"
+#  Email "123456789012@developer.gserviceaccount.com"
+#  <Resource "global">
+#    project_id "gcp-project-id"
+#  </Resource>
+#  Url "https://monitoring.googleapis.com/v3"
 #</Plugin>
 
 #<Plugin write_tsdb>

@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_format_gcm.c
+ * collectd - src/utils_format_stackdriver.c
  * ISC license
  *
  * Copyright (C) 2017  Florian Forster
@@ -22,7 +22,7 @@
 
 #include "collectd.h"
 
-#include "utils_format_gcm.h"
+#include "utils_format_stackdriver.h"
 
 #include "common.h"
 #include "plugin.h"
@@ -36,23 +36,23 @@
 #include <yajl/yajl_version.h>
 #endif
 
-struct gcm_output_s {
-  gcm_resource_t *res;
+struct sd_output_s {
+  sd_resource_t *res;
   yajl_gen gen;
   c_avl_tree_t *staged;
   c_avl_tree_t *metric_descriptors;
 };
 
-struct gcm_label_s {
+struct sd_label_s {
   char *key;
   char *value;
 };
-typedef struct gcm_label_s gcm_label_t;
+typedef struct sd_label_s sd_label_t;
 
-struct gcm_resource_s {
+struct sd_resource_s {
   char *type;
 
-  gcm_label_t *labels;
+  sd_label_t *labels;
   size_t labels_num;
 };
 
@@ -89,7 +89,7 @@ static int json_time(yajl_gen gen, cdtime_t t) {
  *   }
  * }
  */
-static int format_gcm_resource(yajl_gen gen, gcm_resource_t *res) /* {{{ */
+static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
 {
   int status;
 
@@ -348,7 +348,7 @@ static int format_metric(yajl_gen gen, data_set_t const *ds,
  */
 static int format_time_series(yajl_gen gen, data_set_t const *ds,
                               value_list_t const *vl, int ds_index,
-                              gcm_resource_t *res) {
+                              sd_resource_t *res) {
   /* {{{ */
   yajl_gen_map_open(gen);
 
@@ -383,7 +383,7 @@ static int format_time_series(yajl_gen gen, data_set_t const *ds,
  *   ],
  * }
  */
-static int gcm_output_initialize(gcm_output_t *out) /* {{{ */
+static int sd_output_initialize(sd_output_t *out) /* {{{ */
 {
   yajl_gen_map_open(out->gen);
 
@@ -394,27 +394,27 @@ static int gcm_output_initialize(gcm_output_t *out) /* {{{ */
 
   yajl_gen_array_open(out->gen);
   return 0;
-} /* }}} int gcm_output_initialize */
+} /* }}} int sd_output_initialize */
 
-static int gcm_output_finalize(gcm_output_t *out) /* {{{ */
+static int sd_output_finalize(sd_output_t *out) /* {{{ */
 {
   yajl_gen_array_close(out->gen);
   yajl_gen_map_close(out->gen);
 
   return 0;
-} /* }}} int gcm_output_finalize */
+} /* }}} int sd_output_finalize */
 
-static void gcm_output_reset_staged(gcm_output_t *out) /* {{{ */
+static void sd_output_reset_staged(sd_output_t *out) /* {{{ */
 {
   void *key = NULL;
 
   while (c_avl_pick(out->staged, &key, &(void *){NULL}) == 0)
     sfree(key);
-} /* }}} void gcm_output_reset_staged */
+} /* }}} void sd_output_reset_staged */
 
-gcm_output_t *gcm_output_create(gcm_resource_t *res) /* {{{ */
+sd_output_t *sd_output_create(sd_resource_t *res) /* {{{ */
 {
-  gcm_output_t *out = calloc(1, sizeof(*out));
+  sd_output_t *out = calloc(1, sizeof(*out));
   if (out == NULL)
     return NULL;
 
@@ -422,28 +422,28 @@ gcm_output_t *gcm_output_create(gcm_resource_t *res) /* {{{ */
 
   out->gen = yajl_gen_alloc(/* funcs = */ NULL);
   if (out->gen == NULL) {
-    gcm_output_destroy(out);
+    sd_output_destroy(out);
     return NULL;
   }
 
   out->staged = c_avl_create((void *)strcmp);
   if (out->staged == NULL) {
-    gcm_output_destroy(out);
+    sd_output_destroy(out);
     return NULL;
   }
 
   out->metric_descriptors = c_avl_create((void *)strcmp);
   if (out->metric_descriptors == NULL) {
-    gcm_output_destroy(out);
+    sd_output_destroy(out);
     return NULL;
   }
 
-  gcm_output_initialize(out);
+  sd_output_initialize(out);
 
   return out;
-} /* }}} gcm_output_t *gcm_output_create */
+} /* }}} sd_output_t *sd_output_create */
 
-void gcm_output_destroy(gcm_output_t *out) /* {{{ */
+void sd_output_destroy(sd_output_t *out) /* {{{ */
 {
   if (out == NULL)
     return;
@@ -458,7 +458,7 @@ void gcm_output_destroy(gcm_output_t *out) /* {{{ */
   }
 
   if (out->staged != NULL) {
-    gcm_output_reset_staged(out);
+    sd_output_reset_staged(out);
     c_avl_destroy(out->staged);
     out->staged = NULL;
   }
@@ -469,15 +469,15 @@ void gcm_output_destroy(gcm_output_t *out) /* {{{ */
   }
 
   if (out->res != NULL) {
-    gcm_resource_destroy(out->res);
+    sd_resource_destroy(out->res);
     out->res = NULL;
   }
 
   sfree(out);
-} /* }}} void gcm_output_destroy */
+} /* }}} void sd_output_destroy */
 
-int gcm_output_add(gcm_output_t *out, data_set_t const *ds,
-                   value_list_t const *vl) /* {{{ */
+int sd_output_add(sd_output_t *out, data_set_t const *ds,
+                  value_list_t const *vl) /* {{{ */
 {
   char key[6 * DATA_MAX_NAME_LEN];
   int status;
@@ -494,7 +494,7 @@ int gcm_output_add(gcm_output_t *out, data_set_t const *ds,
 
   status = FORMAT_VL(key, sizeof(key), vl);
   if (status != 0) {
-    ERROR("gcm_output_add: FORMAT_VL failed with status %d.", status);
+    ERROR("sd_output_add: FORMAT_VL failed with status %d.", status);
     return status;
   }
 
@@ -505,8 +505,7 @@ int gcm_output_add(gcm_output_t *out, data_set_t const *ds,
   for (size_t i = 0; i < ds->ds_num; i++) {
     int status = format_time_series(out->gen, ds, vl, i, out->res);
     if (status != 0) {
-      ERROR("gcm_output_add: format_time_series failed with status %d.",
-            status);
+      ERROR("sd_output_add: format_time_series failed with status %d.", status);
       return status;
     }
   }
@@ -519,10 +518,10 @@ int gcm_output_add(gcm_output_t *out, data_set_t const *ds,
     return ENOBUFS;
 
   return 0;
-} /* }}} int gcm_output_add */
+} /* }}} int sd_output_add */
 
-int gcm_output_register_metric(gcm_output_t *out, data_set_t const *ds,
-                               value_list_t const *vl) {
+int sd_output_register_metric(sd_output_t *out, data_set_t const *ds,
+                              value_list_t const *vl) {
   /* {{{ */
   for (size_t i = 0; i < ds->ds_num; i++) {
     char buffer[4 * DATA_MAX_NAME_LEN];
@@ -537,31 +536,31 @@ int gcm_output_register_metric(gcm_output_t *out, data_set_t const *ds,
   }
 
   return 0;
-} /* }}} int gcm_output_register_metric */
+} /* }}} int sd_output_register_metric */
 
-char *gcm_output_reset(gcm_output_t *out) /* {{{ */
+char *sd_output_reset(sd_output_t *out) /* {{{ */
 {
   unsigned char const *json_buffer = NULL;
   char *ret;
 
-  gcm_output_finalize(out);
+  sd_output_finalize(out);
 
   yajl_gen_get_buf(out->gen, &json_buffer, &(size_t){0});
   ret = strdup((void const *)json_buffer);
 
-  gcm_output_reset_staged(out);
+  sd_output_reset_staged(out);
 
   yajl_gen_free(out->gen);
   out->gen = yajl_gen_alloc(/* funcs = */ NULL);
 
-  gcm_output_initialize(out);
+  sd_output_initialize(out);
 
   return ret;
-} /* }}} char *gcm_output_reset */
+} /* }}} char *sd_output_reset */
 
-gcm_resource_t *gcm_resource_create(char const *type) /* {{{ */
+sd_resource_t *sd_resource_create(char const *type) /* {{{ */
 {
-  gcm_resource_t *res;
+  sd_resource_t *res;
 
   res = malloc(sizeof(*res));
   if (res == NULL)
@@ -578,9 +577,9 @@ gcm_resource_t *gcm_resource_create(char const *type) /* {{{ */
   res->labels_num = 0;
 
   return res;
-} /* }}} gcm_resource_t *gcm_resource_create */
+} /* }}} sd_resource_t *sd_resource_create */
 
-void gcm_resource_destroy(gcm_resource_t *res) /* {{{ */
+void sd_resource_destroy(sd_resource_t *res) /* {{{ */
 {
   size_t i;
 
@@ -594,12 +593,12 @@ void gcm_resource_destroy(gcm_resource_t *res) /* {{{ */
   sfree(res->labels);
   sfree(res->type);
   sfree(res);
-} /* }}} void gcm_resource_destroy */
+} /* }}} void sd_resource_destroy */
 
-int gcm_resource_add_label(gcm_resource_t *res, char const *key,
-                           char const *value) /* {{{ */
+int sd_resource_add_label(sd_resource_t *res, char const *key,
+                          char const *value) /* {{{ */
 {
-  gcm_label_t *l;
+  sd_label_t *l;
 
   if ((res == NULL) || (key == NULL) || (value == NULL))
     return EINVAL;
@@ -621,7 +620,7 @@ int gcm_resource_add_label(gcm_resource_t *res, char const *key,
 
   res->labels_num++;
   return 0;
-} /* }}} int gcm_resource_add_label */
+} /* }}} int sd_resource_add_label */
 
 /* LabelDescriptor
  *
@@ -662,9 +661,9 @@ static int format_label_descriptor(yajl_gen gen, char const *key) {
  *   "displayName": string,
  * }
  */
-int gcm_format_metric_descriptor(char *buffer, size_t buffer_size,
-                                 data_set_t const *ds, value_list_t const *vl,
-                                 int ds_index) {
+int sd_format_metric_descriptor(char *buffer, size_t buffer_size,
+                                data_set_t const *ds, value_list_t const *vl,
+                                int ds_index) {
   /* {{{ */
   yajl_gen gen = yajl_gen_alloc(/* funcs = */ NULL);
   if (gen == NULL) {
@@ -705,6 +704,6 @@ int gcm_format_metric_descriptor(char *buffer, size_t buffer_size,
 
   yajl_gen_free(gen);
   return 0;
-} /* }}} int gcm_format_metric_descriptor */
+} /* }}} int sd_format_metric_descriptor */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */

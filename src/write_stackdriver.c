@@ -1,5 +1,5 @@
 /**
- * collectd - src/write_gcm.c
+ * collectd - src/write_stackdriver.c
  * ISC license
  *
  * Copyright (C) 2017  Florian Forster
@@ -25,7 +25,7 @@
 #include "common.h"
 #include "configfile.h"
 #include "plugin.h"
-#include "utils_format_gcm.h"
+#include "utils_format_stackdriver.h"
 #include "utils_gce.h"
 #include "utils_oauth.h"
 
@@ -48,11 +48,11 @@ struct wg_callback_s {
   char *email;
   char *project;
   char *url;
-  gcm_resource_t *resource;
+  sd_resource_t *resource;
 
   /* runtime */
   oauth_t *auth;
-  gcm_output_t *formatter;
+  sd_output_t *formatter;
   CURL *curl;
   char curl_errbuf[CURL_ERROR_SIZE];
   /* used by flush */
@@ -104,7 +104,7 @@ static char *wg_get_authorization_header(wg_callback_t *cb) { /* {{{ */
   else
     status = gce_access_token(cb->email, access_token, sizeof(access_token));
   if (status != 0) {
-    ERROR("write_gcm plugin: Failed to get access token");
+    ERROR("write_stackdriver plugin: Failed to get access token");
     return NULL;
   }
 
@@ -136,7 +136,7 @@ static int wg_call_metricdescriptor_create(wg_callback_t *cb,
 
   CURL *curl = curl_easy_init();
   if (!curl) {
-    ERROR("write_gcm plugin: curl_easy_init failed.");
+    ERROR("write_stackdriver plugin: curl_easy_init failed.");
     curl_slist_free_all(headers);
     sfree(authorization_header);
     return -1;
@@ -160,8 +160,9 @@ static int wg_call_metricdescriptor_create(wg_callback_t *cb,
 
   status = curl_easy_perform(curl);
   if (status != CURLE_OK) {
-    ERROR("write_gcm plugin: curl_easy_perform failed with status %d: %s",
-          status, curl_errbuf);
+    ERROR(
+        "write_stackdriver plugin: curl_easy_perform failed with status %d: %s",
+        status, curl_errbuf);
     sfree(res.memory);
     curl_easy_cleanup(curl);
     curl_slist_free_all(headers);
@@ -172,9 +173,9 @@ static int wg_call_metricdescriptor_create(wg_callback_t *cb,
   long http_code = 0;
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
   if ((http_code < 200) || (http_code >= 300)) {
-    ERROR("write_gcm plugin: POST request to %s failed: HTTP error %ld",
+    ERROR("write_stackdriver plugin: POST request to %s failed: HTTP error %ld",
           final_url, http_code);
-    INFO("write_gcm plugin: Server replied: %s", res.memory);
+    INFO("write_stackdriver plugin: Server replied: %s", res.memory);
     sfree(res.memory);
     curl_easy_cleanup(curl);
     curl_slist_free_all(headers);
@@ -225,8 +226,9 @@ static int wg_call_timeseries_write(wg_callback_t *cb,
 
   status = curl_easy_perform(cb->curl);
   if (status != CURLE_OK) {
-    ERROR("write_gcm plugin: curl_easy_perform failed with status %d: %s",
-          status, cb->curl_errbuf);
+    ERROR(
+        "write_stackdriver plugin: curl_easy_perform failed with status %d: %s",
+        status, cb->curl_errbuf);
     sfree(res.memory);
     curl_slist_free_all(headers);
     sfree(authorization_header);
@@ -236,9 +238,9 @@ static int wg_call_timeseries_write(wg_callback_t *cb,
   long http_code = 0;
   curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
   if ((http_code < 200) || (http_code >= 300)) {
-    ERROR("write_gcm plugin: POST request to %s failed: HTTP error %ld",
+    ERROR("write_stackdriver plugin: POST request to %s failed: HTTP error %ld",
           final_url, http_code);
-    INFO("write_gcm plugin: Server replied: %s", res.memory);
+    INFO("write_stackdriver plugin: Server replied: %s", res.memory);
     sfree(res.memory);
     curl_slist_free_all(headers);
     sfree(authorization_header);
@@ -256,15 +258,15 @@ static int wg_callback_init(wg_callback_t *cb) /* {{{ */
   if (cb->curl != NULL)
     return 0;
 
-  cb->formatter = gcm_output_create(cb->resource);
+  cb->formatter = sd_output_create(cb->resource);
   if (cb->formatter == NULL) {
-    ERROR("write_gcm plugin: gcm_output_create failed.");
+    ERROR("write_stackdriver plugin: sd_output_create failed.");
     return -1;
   }
 
   cb->curl = curl_easy_init();
   if (cb->curl == NULL) {
-    ERROR("write_gcm plugin: curl_easy_init failed.");
+    ERROR("write_stackdriver plugin: curl_easy_init failed.");
     return -1;
   }
 
@@ -292,10 +294,11 @@ static int wg_flush_nolock(cdtime_t timeout, wg_callback_t *cb) /* {{{ */
       return 0;
   }
 
-  char *payload = gcm_output_reset(cb->formatter);
+  char *payload = sd_output_reset(cb->formatter);
   int status = wg_call_timeseries_write(cb, payload);
   if (status != 0) {
-    ERROR("write_gcm plugin: Sending buffer failed with status %d.", status);
+    ERROR("write_stackdriver plugin: Sending buffer failed with status %d.",
+          status);
   }
 
   wg_reset_buffer(cb);
@@ -318,7 +321,7 @@ static int wg_flush(cdtime_t timeout, /* {{{ */
   if (cb->curl == NULL) {
     status = wg_callback_init(cb);
     if (status != 0) {
-      ERROR("write_gcm plugin: wg_callback_init failed.");
+      ERROR("write_stackdriver plugin: wg_callback_init failed.");
       pthread_mutex_unlock(&cb->lock);
       return -1;
     }
@@ -336,7 +339,7 @@ static void wg_callback_free(void *data) /* {{{ */
   if (cb == NULL)
     return;
 
-  gcm_output_destroy(cb->formatter);
+  sd_output_destroy(cb->formatter);
   cb->formatter = NULL;
 
   sfree(cb->email);
@@ -357,10 +360,10 @@ static int wg_metric_descriptors_create(wg_callback_t *cb, const data_set_t *ds,
   for (size_t i = 0; i < ds->ds_num; i++) {
     char buffer[4096];
 
-    int status =
-        gcm_format_metric_descriptor(buffer, sizeof(buffer), ds, vl, i);
+    int status = sd_format_metric_descriptor(buffer, sizeof(buffer), ds, vl, i);
     if (status != 0) {
-      ERROR("write_gcm plugin: gcm_format_metric_descriptor failed with status "
+      ERROR("write_stackdriver plugin: sd_format_metric_descriptor failed "
+            "with status "
             "%d",
             status);
       return status;
@@ -368,14 +371,15 @@ static int wg_metric_descriptors_create(wg_callback_t *cb, const data_set_t *ds,
 
     status = wg_call_metricdescriptor_create(cb, buffer);
     if (status != 0) {
-      ERROR("write_gcm plugin: wg_call_metricdescriptor_create failed with "
+      ERROR("write_stackdriver plugin: wg_call_metricdescriptor_create failed "
+            "with "
             "status %d",
             status);
       return status;
     }
   }
 
-  return gcm_output_register_metric(cb->formatter, ds, vl);
+  return sd_output_register_metric(cb->formatter, ds, vl);
 } /* }}} int wg_metric_descriptors_create */
 
 static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
@@ -389,7 +393,7 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   if (cb->curl == NULL) {
     int status = wg_callback_init(cb);
     if (status != 0) {
-      ERROR("write_gcm plugin: wg_callback_init failed.");
+      ERROR("write_stackdriver plugin: wg_callback_init failed.");
       pthread_mutex_unlock(&cb->lock);
       return status;
     }
@@ -397,7 +401,7 @@ static int wg_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   int status;
   while (42) {
-    status = gcm_output_add(cb->formatter, ds, vl);
+    status = sd_output_add(cb->formatter, ds, vl);
     if (status == 0) { /* success */
       break;
     } else if (status == ENOBUFS) { /* success, flush */
@@ -432,7 +436,8 @@ static void wg_check_scope(char const *email) /* {{{ */
 {
   char *scope = gce_scope(email);
   if (scope == NULL) {
-    WARNING("write_gcm plugin: Unable to determine scope of this instance.");
+    WARNING("write_stackdriver plugin: Unable to determine scope of this "
+            "instance.");
     return;
   }
 
@@ -444,7 +449,7 @@ static void wg_check_scope(char const *email) /* {{{ */
     while ((scope_len > 0) && (iscntrl((int)scope[scope_len - 1])))
       scope[--scope_len] = 0;
 
-    WARNING("write_gcm plugin: The determined scope of this instance "
+    WARNING("write_stackdriver plugin: The determined scope of this instance "
             "(\"%s\") does not contain the monitoring scope (\"%s\"). You need "
             "to add this scope to the list of scopes passed to gcutil with "
             "--service_account_scopes when creating the instance. "
@@ -459,7 +464,8 @@ static void wg_check_scope(char const *email) /* {{{ */
 static int wg_config_resource(oconfig_item_t *ci, wg_callback_t *cb) /* {{{ */
 {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    ERROR("write_gcm plugin: The \"%s\" option requires exactly one string "
+    ERROR("write_stackdriver plugin: The \"%s\" option requires exactly one "
+          "string "
           "argument.",
           ci->key);
     return EINVAL;
@@ -467,12 +473,12 @@ static int wg_config_resource(oconfig_item_t *ci, wg_callback_t *cb) /* {{{ */
   char *resource_type = ci->values[0].value.string;
 
   if (cb->resource != NULL) {
-    gcm_resource_destroy(cb->resource);
+    sd_resource_destroy(cb->resource);
   }
 
-  cb->resource = gcm_resource_create(resource_type);
+  cb->resource = sd_resource_create(resource_type);
   if (cb->resource == NULL) {
-    ERROR("write_gcm plugin: gcm_resource_create(\"%s\") failed.",
+    ERROR("write_stackdriver plugin: sd_resource_create(\"%s\") failed.",
           resource_type);
     return ENOMEM;
   }
@@ -482,14 +488,15 @@ static int wg_config_resource(oconfig_item_t *ci, wg_callback_t *cb) /* {{{ */
 
     if ((child->values_num != 1) ||
         (child->values[0].type != OCONFIG_TYPE_STRING)) {
-      ERROR("write_gcm plugin: Resource labels must have exactly one string "
+      ERROR("write_stackdriver plugin: Resource labels must have exactly one "
+            "string "
             "value. Ignoring label \"%s\".",
             child->key);
       continue;
     }
 
-    gcm_resource_add_label(cb->resource, child->key,
-                           child->values[0].value.string);
+    sd_resource_add_label(cb->resource, child->key,
+                          child->values[0].value.string);
   }
 
   return 0;
@@ -503,7 +510,7 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
   wg_callback_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
-    ERROR("write_gcm plugin: calloc failed.");
+    ERROR("write_stackdriver plugin: calloc failed.");
     return ENOMEM;
   }
   cb->url = strdup(GCM_API_URL);
@@ -524,7 +531,8 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Resource", child->key) == 0)
       wg_config_resource(child, cb);
     else {
-      ERROR("write_gcm plugin: Invalid configuration option: %s.", child->key);
+      ERROR("write_stackdriver plugin: Invalid configuration option: %s.",
+            child->key);
       wg_callback_free(cb);
       return EINVAL;
     }
@@ -536,7 +544,7 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
     oauth_google_t cfg =
         oauth_create_google_file(credential_file, MONITORING_SCOPE);
     if (cfg.oauth == NULL) {
-      ERROR("write_gcm plugin: oauth_create_google_file failed");
+      ERROR("write_stackdriver plugin: oauth_create_google_file failed");
       wg_callback_free(cb);
       return EINVAL;
     }
@@ -544,8 +552,9 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
     if (cb->project == NULL) {
       cb->project = cfg.project_id;
-      INFO("write_gcm plugin: Automatically detected project ID: \"%s\"",
-           cb->project);
+      INFO(
+          "write_stackdriver plugin: Automatically detected project ID: \"%s\"",
+          cb->project);
     } else {
       sfree(cfg.project_id);
     }
@@ -557,15 +566,17 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
     if (cb->project == NULL) {
       cb->project = cfg.project_id;
-      INFO("write_gcm plugin: Automatically detected project ID: \"%s\"",
-           cb->project);
+      INFO(
+          "write_stackdriver plugin: Automatically detected project ID: \"%s\"",
+          cb->project);
     } else {
       sfree(cfg.project_id);
     }
   }
 
   if ((cb->auth != NULL) && (cb->email != NULL)) {
-    NOTICE("write_gcm plugin: A service account email was configured but is "
+    NOTICE("write_stackdriver plugin: A service account email was configured "
+           "but is "
            "not used for authentication because %s used instead.",
            (credential_file != NULL) ? "a credential file was"
                                      : "application default credentials were");
@@ -575,7 +586,8 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
   if ((cb->auth == NULL) && gce_check()) {
     wg_check_scope(cb->email);
   } else if (cb->auth == NULL) {
-    ERROR("write_gcm plugin: Unable to determine credentials. Please either "
+    ERROR("write_stackdriver plugin: Unable to determine credentials. Please "
+          "either "
           "specify the \"Credentials\" option or set up Application Default "
           "Credentials.");
     wg_callback_free(cb);
@@ -586,7 +598,7 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
     cb->project = gce_project_id();
   }
   if (cb->project == NULL) {
-    ERROR("write_gcm plugin: Unable to determine the project number. "
+    ERROR("write_stackdriver plugin: Unable to determine the project number. "
           "Please specify the \"Project\" option manually.");
     wg_callback_free(cb);
     return EINVAL;
@@ -594,27 +606,28 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
   if ((cb->resource == NULL) && gce_check()) {
     /* TODO(octo): add error handling */
-    cb->resource = gcm_resource_create("gce_instance");
-    gcm_resource_add_label(cb->resource, "project_id", gce_project_id());
-    gcm_resource_add_label(cb->resource, "instance_id", gce_instance_id());
-    gcm_resource_add_label(cb->resource, "zone", gce_zone());
+    cb->resource = sd_resource_create("gce_instance");
+    sd_resource_add_label(cb->resource, "project_id", gce_project_id());
+    sd_resource_add_label(cb->resource, "instance_id", gce_instance_id());
+    sd_resource_add_label(cb->resource, "zone", gce_zone());
   }
   if (cb->resource == NULL) {
     /* TODO(octo): add error handling */
-    cb->resource = gcm_resource_create("global");
-    gcm_resource_add_label(cb->resource, "project_id", cb->project);
+    cb->resource = sd_resource_create("global");
+    sd_resource_add_label(cb->resource, "project_id", cb->project);
   }
 
-  DEBUG("write_gcm plugin: Registering write callback with URL %s", cb->url);
+  DEBUG("write_stackdriver plugin: Registering write callback with URL %s",
+        cb->url);
   assert((cb->auth != NULL) || gce_check());
 
   user_data_t user_data = {
       .data = cb,
   };
-  plugin_register_flush("write_gcm", wg_flush, &user_data);
+  plugin_register_flush("write_stackdriver", wg_flush, &user_data);
 
   user_data.free_func = wg_callback_free;
-  plugin_register_write("write_gcm", wg_write, &user_data);
+  plugin_register_write("write_stackdriver", wg_write, &user_data);
 
   return 0;
 } /* }}} int wg_config */
@@ -630,8 +643,8 @@ static int wg_init(void) {
 
 void module_register(void) /* {{{ */
 {
-  plugin_register_complex_config("write_gcm", wg_config);
-  plugin_register_init("write_gcm", wg_init);
+  plugin_register_complex_config("write_stackdriver", wg_config);
+  plugin_register_init("write_stackdriver", wg_init);
 } /* }}} void module_register */
 
 /* vim: set sw=2 sts=2 et fdm=marker : */
