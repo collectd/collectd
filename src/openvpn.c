@@ -500,9 +500,10 @@ static int openvpn_config(const char *key, const char *value) {
         /* group = */ "openvpn",
         /* name      = */ callback_name,
         /* callback  = */ openvpn_read,
-        /* interval  = */ 0, &(user_data_t){
-                                 .data = instance, .free_func = openvpn_free,
-                             });
+        /* interval  = */ 0,
+        &(user_data_t){
+            .data = instance, .free_func = openvpn_free,
+        });
 
     if (status == EINVAL) {
       WARNING("openvpn plugin: status filename \"%s\" "

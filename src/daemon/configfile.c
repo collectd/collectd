@@ -461,9 +461,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp =
-      realloc(dst->children, sizeof(oconfig_item_t) *
-                                 (dst->children_num + src->children_num - 1));
+  temp = realloc(dst->children,
+                 sizeof(oconfig_item_t) *
+                     (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -502,8 +502,9 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp = realloc(dst->children, sizeof(oconfig_item_t) *
-                                    (dst->children_num + src->children_num));
+  temp =
+      realloc(dst->children,
+              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;

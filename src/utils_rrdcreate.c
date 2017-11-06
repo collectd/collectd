@@ -285,11 +285,11 @@ static int ds_get(char ***ret, /* {{{ */
     } else
       snprintf(max, sizeof(max), "%f", d->max);
 
-    status = snprintf(buffer, sizeof(buffer), "DS:%s:%s:%i:%s:%s", d->name,
-                      type, (cfg->heartbeat > 0)
-                                ? cfg->heartbeat
-                                : (int)CDTIME_T_TO_TIME_T(2 * vl->interval),
-                      min, max);
+    status = snprintf(
+        buffer, sizeof(buffer), "DS:%s:%s:%i:%s:%s", d->name, type,
+        (cfg->heartbeat > 0) ? cfg->heartbeat
+                             : (int)CDTIME_T_TO_TIME_T(2 * vl->interval),
+        min, max);
     if ((status < 1) || ((size_t)status >= sizeof(buffer)))
       break;
 

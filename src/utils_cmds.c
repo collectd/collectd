@@ -26,12 +26,12 @@
  *   Sebastian 'tokkee' Harl <sh at tokkee.org>
  **/
 
-#include "utils_cmds.h"
 #include "daemon/common.h"
 #include "utils_cmd_flush.h"
 #include "utils_cmd_getval.h"
 #include "utils_cmd_listval.h"
 #include "utils_cmd_putval.h"
+#include "utils_cmds.h"
 #include "utils_parse_option.h"
 
 #include <stdbool.h>

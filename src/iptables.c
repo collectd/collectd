@@ -101,7 +101,7 @@ static int iptables_config(const char *key, const char *value) {
     return 1;
 
   ip_chain_t temp = {0};
-  ip_chain_t * final, **list;
+  ip_chain_t *final, **list;
   char *table;
   int table_len;
   char *chain;
@@ -187,7 +187,7 @@ static int iptables_config(const char *key, const char *value) {
   }
 
   chain_list = list;
-  final = malloc(sizeof(* final));
+  final = malloc(sizeof(*final));
   if (final == NULL) {
     ERROR("malloc failed: %s", STRERRNO);
     sfree(temp.rule.comment);

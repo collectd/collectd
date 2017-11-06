@@ -677,9 +677,10 @@ static int memcached_add_read_callback(memcached_t *st) {
       /* group = */ "memcached",
       /* name      = */ callback_name,
       /* callback  = */ memcached_read,
-      /* interval  = */ 0, &(user_data_t){
-                               .data = st, .free_func = memcached_free,
-                           });
+      /* interval  = */ 0,
+      &(user_data_t){
+          .data = st, .free_func = memcached_free,
+      });
 } /* int memcached_add_read_callback */
 
 /* Configuration handling functiions

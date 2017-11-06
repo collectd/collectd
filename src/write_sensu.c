@@ -28,14 +28,14 @@
 
 #include "collectd.h"
 
+#include "common.h"
+#include "plugin.h"
+#include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <stddef.h>
-#include "common.h"
-#include "plugin.h"
-#include "utils_cache.h"
 
 #include <stdlib.h>
 #define SENSU_HOST "localhost"

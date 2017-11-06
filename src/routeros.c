@@ -89,8 +89,7 @@ static void submit_interface(cr_data_t *rd, /* {{{ */
 
 static int handle_interface(__attribute__((unused))
                             ros_connection_t *c, /* {{{ */
-                            const ros_interface_t *i,
-                            void *user_data) {
+                            const ros_interface_t *i, void *user_data) {
   if ((i == NULL) || (user_data == NULL))
     return EINVAL;
 
@@ -171,8 +170,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
 static int handle_regtable(__attribute__((unused))
                            ros_connection_t *c, /* {{{ */
-                           const ros_registration_table_t *r,
-                           void *user_data) {
+                           const ros_registration_table_t *r, void *user_data) {
   if ((r == NULL) || (user_data == NULL))
     return EINVAL;
 

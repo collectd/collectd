@@ -519,7 +519,6 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
 
   return first;
 } /* static cu_mount_t *cu_mount_gen_getmntent (void) */
-/* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"

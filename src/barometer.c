@@ -547,7 +547,6 @@ static int MPL115_read_coeffs(void) {
   int8_t sic12MSB, sic12LSB, sic11MSB, sic11LSB, sic22MSB, sic22LSB;
   int16_t sia0, sib1, sib2, sic12, sic11, sic22;
 
-
   res = i2c_smbus_read_i2c_block_data(i2c_bus_fd, MPL115_ADDR_COEFFS,
                                       STATIC_ARRAY_SIZE(mpl115_coeffs),
                                       mpl115_coeffs);
@@ -1126,7 +1125,6 @@ static int BMP085_read(double *pressure, double *temperature) {
 
   long adc_pressure;
   long adc_temperature;
-
 
   /* start conversion of temperature */
   res = i2c_smbus_write_byte_data(i2c_bus_fd, BMP085_ADDR_CTRL_REG,
