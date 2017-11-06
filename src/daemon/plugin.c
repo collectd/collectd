@@ -610,9 +610,7 @@ static void set_thread_name(pthread_t tid, char const *name) {
 #if defined(HAVE_PTHREAD_SETNAME_NP)
   int status = pthread_setname_np(tid, n);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("set_thread_name(\"%s\"): %s", n,
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("set_thread_name(\"%s\"): %s", n, STRERROR(status));
   }
 #else /* if defined(HAVE_PTHREAD_SET_NAME_NP) */
   pthread_set_name_np(tid, n);
@@ -638,10 +636,9 @@ static void start_read_threads(size_t num) /* {{{ */
                                 /* attr = */ NULL, plugin_read_thread,
                                 /* arg = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("plugin: start_read_threads: pthread_create failed "
-            "with status %i (%s).",
-            status, sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("plugin: start_read_threads: pthread_create failed with status %i "
+            "(%s).",
+            status, STRERROR(status));
       return;
     }
 
@@ -845,10 +842,9 @@ static void start_write_threads(size_t num) /* {{{ */
                                 /* attr = */ NULL, plugin_write_thread,
                                 /* arg = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("plugin: start_write_threads: pthread_create failed "
-            "with status %i (%s).",
-            status, sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("plugin: start_write_threads: pthread_create failed with status %i "
+            "(%s).",
+            status, STRERROR(status));
       return;
     }
 
@@ -1009,9 +1005,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
   }
 
   if ((dh = opendir(dir)) == NULL) {
-    char errbuf[1024];
-    ERROR("plugin_load: opendir (%s) failed: %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("plugin_load: opendir (%s) failed: %s", dir, STRERRNO);
     return -1;
   }
 
@@ -1026,9 +1020,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
     }
 
     if (lstat(filename, &statbuf) == -1) {
-      char errbuf[1024];
-      WARNING("plugin_load: stat (\"%s\") failed: %s", filename,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("plugin_load: stat (\"%s\") failed: %s", filename, STRERRNO);
       continue;
     } else if (!S_ISREG(statbuf.st_mode)) {
       /* don't follow symlinks */
@@ -2092,10 +2084,9 @@ int plugin_dispatch_values(value_list_t const *vl) {
 
   status = plugin_write_enqueue(vl);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("plugin_dispatch_values: plugin_write_enqueue failed "
-          "with status %i (%s).",
-          status, sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("plugin_dispatch_values: plugin_write_enqueue failed with status %i "
+          "(%s).",
+          status, STRERROR(status));
     return status;
   }
 
@@ -2462,9 +2453,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
   ctx = malloc(sizeof(*ctx));
   if (ctx == NULL) {
-    char errbuf[1024];
-    ERROR("Failed to allocate plugin context: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("Failed to allocate plugin context: %s", STRERRNO);
     return NULL;
   }
 

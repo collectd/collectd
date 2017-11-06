@@ -156,11 +156,9 @@ static int wg_send_buffer(struct wg_callback *cb) {
   status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
   if (status != 0) {
     if (cb->log_send_errors) {
-      char errbuf[1024];
       ERROR("write_graphite plugin: send to %s:%s (%s) failed with status %zi "
             "(%s)",
-            cb->node, cb->service, cb->protocol, status,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            cb->node, cb->service, cb->protocol, status, STRERRNO);
     }
 
     close(cb->sock_fd);
@@ -238,9 +236,7 @@ static int wg_callback_init(struct wg_callback *cb) {
     cb->sock_fd =
         socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (cb->sock_fd < 0) {
-      char errbuf[1024];
-      snprintf(connerr, sizeof(connerr), "failed to open socket: %s",
-               sstrerror(errno, errbuf, sizeof(errbuf)));
+      snprintf(connerr, sizeof(connerr), "failed to open socket: %s", STRERRNO);
       continue;
     }
 
@@ -248,10 +244,8 @@ static int wg_callback_init(struct wg_callback *cb) {
 
     status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      char errbuf[1024];
-      snprintf(connerr, sizeof(connerr), "failed to connect to remote "
-                                         "host: %s",
-               sstrerror(errno, errbuf, sizeof(errbuf)));
+      snprintf(connerr, sizeof(connerr), "failed to connect to remote host: %s",
+               STRERRNO);
       close(cb->sock_fd);
       cb->sock_fd = -1;
       continue;
@@ -263,9 +257,6 @@ static int wg_callback_init(struct wg_callback *cb) {
   freeaddrinfo(ai_list);
 
   if (cb->sock_fd < 0) {
-    if (connerr[0] == '\0')
-      /* this should not happen but try to get a message anyway */
-      sstrerror(errno, connerr, sizeof(connerr));
     c_complain(LOG_ERR, &cb->init_complaint,
                "write_graphite plugin: Connecting to %s:%s via %s failed. "
                "The last error was: %s",

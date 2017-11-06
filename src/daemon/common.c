@@ -629,14 +629,10 @@ int check_create_dir(const char *file_orig) {
           if (EEXIST == errno)
             continue;
 
-          char errbuf[1024];
-          ERROR("check_create_dir: mkdir (%s): %s", dir,
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+          ERROR("check_create_dir: mkdir (%s): %s", dir, STRERRNO);
           return -1;
         } else {
-          char errbuf[1024];
-          ERROR("check_create_dir: stat (%s): %s", dir,
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+          ERROR("check_create_dir: stat (%s): %s", dir, STRERRNO);
           return -1;
         }
       } else if (!S_ISDIR(statbuf.st_mode)) {
@@ -1210,9 +1206,7 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   failure = 0;
 
   if ((dh = opendir(dir)) == NULL) {
-    char errbuf[1024];
-    ERROR("walk_directory: Cannot open '%s': %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("walk_directory: Cannot open '%s': %s", dir, STRERRNO);
     return -1;
   }
 

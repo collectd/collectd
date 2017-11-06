@@ -74,7 +74,6 @@ static void md_submit(const int minor, const char *type_instance,
 } /* void md_submit */
 
 static void md_process(const int minor, const char *path) {
-  char errbuf[1024];
   int fd;
   struct stat st;
   mdu_array_info_t array;
@@ -82,13 +81,12 @@ static void md_process(const int minor, const char *path) {
 
   fd = open(path, O_RDONLY);
   if (fd < 0) {
-    WARNING("md: open(%s): %s", path, sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("md: open(%s): %s", path, STRERRNO);
     return;
   }
 
   if (fstat(fd, &st) < 0) {
-    WARNING("md: Unable to fstat file descriptor for %s: %s", path,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("md: Unable to fstat file descriptor for %s: %s", path, STRERRNO);
     close(fd);
     return;
   }
@@ -109,8 +107,7 @@ static void md_process(const int minor, const char *path) {
 
   /* Retrieve md information */
   if (ioctl(fd, GET_ARRAY_INFO, &array) < 0) {
-    WARNING("md: Unable to retrieve array info from %s: %s", path,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("md: Unable to retrieve array info from %s: %s", path, STRERRNO);
     close(fd);
     return;
   }
@@ -146,9 +143,7 @@ static int md_read(void) {
 
   fh = fopen(PROC_DISKSTATS, "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("md: Unable to open %s: %s", PROC_DISKSTATS,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("md: Unable to open %s: %s", PROC_DISKSTATS, STRERRNO);
     return -1;
   }
 

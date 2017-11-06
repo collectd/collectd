@@ -296,9 +296,7 @@ static void *ping_thread(void *arg) /* {{{ */
     _Bool send_successful = 0;
 
     if (gettimeofday(&tv_begin, NULL) < 0) {
-      char errbuf[1024];
-      ERROR("ping plugin: gettimeofday failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);
       ping_thread_error = 1;
       break;
     }
@@ -323,9 +321,7 @@ static void *ping_thread(void *arg) /* {{{ */
       (void)ping_dispatch_all(pingobj);
 
     if (gettimeofday(&tv_end, NULL) < 0) {
-      char errbuf[1024];
-      ERROR("ping plugin: gettimeofday failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);
       ping_thread_error = 1;
       break;
     }
@@ -436,9 +432,8 @@ static int config_set_string(const char *name, /* {{{ */
 
   tmp = strdup(value);
   if (tmp == NULL) {
-    char errbuf[1024];
     ERROR("ping plugin: Setting `%s' to `%s' failed: strdup failed: %s", name,
-          value, sstrerror(errno, errbuf, sizeof(errbuf)));
+          value, STRERRNO);
     return 1;
   }
 
@@ -456,18 +451,14 @@ static int ping_config(const char *key, const char *value) /* {{{ */
 
     hl = malloc(sizeof(*hl));
     if (hl == NULL) {
-      char errbuf[1024];
-      ERROR("ping plugin: malloc failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: malloc failed: %s", STRERRNO);
       return 1;
     }
 
     host = strdup(value);
     if (host == NULL) {
-      char errbuf[1024];
       sfree(hl);
-      ERROR("ping plugin: strdup failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: strdup failed: %s", STRERRNO);
       return 1;
     }
 

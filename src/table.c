@@ -154,8 +154,7 @@ static int tbl_config_append_array_i(char *name, size_t **var, size_t *len,
 
   tmp = realloc(*var, ((*len) + num) * sizeof(**var));
   if (NULL == tmp) {
-    char errbuf[1024];
-    log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("realloc failed: %s.", STRERRNO);
     return -1;
   }
   *var = tmp;
@@ -180,8 +179,7 @@ static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
 
   res = realloc(tbl->results, (tbl->results_num + 1) * sizeof(*tbl->results));
   if (res == NULL) {
-    char errbuf[1024];
-    log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("realloc failed: %s.", STRERRNO);
     return -1;
   }
 
@@ -243,8 +241,7 @@ static int tbl_config_table(oconfig_item_t *ci) {
 
   tbl = realloc(tables, (tables_num + 1) * sizeof(*tables));
   if (NULL == tbl) {
-    char errbuf[1024];
-    log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("realloc failed: %s.", STRERRNO);
     return -1;
   }
 
@@ -449,9 +446,7 @@ static int tbl_read_table(tbl_t *tbl) {
 
   fh = fopen(tbl->file, "r");
   if (NULL == fh) {
-    char errbuf[1024];
-    log_err("Failed to open file \"%s\": %s.", tbl->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("Failed to open file \"%s\": %s.", tbl->file, STRERRNO);
     return -1;
   }
 
@@ -469,9 +464,7 @@ static int tbl_read_table(tbl_t *tbl) {
   }
 
   if (0 != ferror(fh)) {
-    char errbuf[1024];
-    log_err("Failed to read from file \"%s\": %s.", tbl->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("Failed to read from file \"%s\": %s.", tbl->file, STRERRNO);
     fclose(fh);
     return -1;
   }

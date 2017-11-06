@@ -204,9 +204,7 @@ static int ethstat_read_interface(char *device) {
 
   fd = socket(AF_INET, SOCK_DGRAM, /* protocol = */ 0);
   if (fd < 0) {
-    char errbuf[1024];
-    ERROR("ethstat plugin: Failed to open control socket: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("ethstat plugin: Failed to open control socket: %s", STRERRNO);
     return 1;
   }
 
@@ -218,11 +216,10 @@ static int ethstat_read_interface(char *device) {
 
   status = ioctl(fd, SIOCETHTOOL, &req);
   if (status < 0) {
-    char errbuf[1024];
     close(fd);
     ERROR("ethstat plugin: Failed to get driver information "
           "from %s: %s",
-          device, sstrerror(errno, errbuf, sizeof(errbuf)));
+          device, STRERRNO);
     return -1;
   }
 
@@ -252,12 +249,10 @@ static int ethstat_read_interface(char *device) {
   req.ifr_data = (void *)strings;
   status = ioctl(fd, SIOCETHTOOL, &req);
   if (status < 0) {
-    char errbuf[1024];
     close(fd);
     free(strings);
     free(stats);
-    ERROR("ethstat plugin: Cannot get strings from %s: %s", device,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("ethstat plugin: Cannot get strings from %s: %s", device, STRERRNO);
     return -1;
   }
 
@@ -266,12 +261,11 @@ static int ethstat_read_interface(char *device) {
   req.ifr_data = (void *)stats;
   status = ioctl(fd, SIOCETHTOOL, &req);
   if (status < 0) {
-    char errbuf[1024];
     close(fd);
     free(strings);
     free(stats);
     ERROR("ethstat plugin: Reading statistics from %s failed: %s", device,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return -1;
   }
 

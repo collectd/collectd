@@ -1578,9 +1578,7 @@ static int network_set_ttl(const sockent_t *se, const struct addrinfo *ai) {
 
     if (setsockopt(se->data.client.fd, IPPROTO_IP, optname, &network_config_ttl,
                    sizeof(network_config_ttl)) != 0) {
-      char errbuf[1024];
-      ERROR("network plugin: setsockopt (ipv4-ttl): %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: setsockopt (ipv4-ttl): %s", STRERRNO);
       return -1;
     }
   } else if (ai->ai_family == AF_INET6) {
@@ -1596,9 +1594,7 @@ static int network_set_ttl(const sockent_t *se, const struct addrinfo *ai) {
 
     if (setsockopt(se->data.client.fd, IPPROTO_IPV6, optname,
                    &network_config_ttl, sizeof(network_config_ttl)) != 0) {
-      char errbuf[1024];
-      ERROR("network plugin: setsockopt(ipv6-ttl): %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: setsockopt(ipv6-ttl): %s", STRERRNO);
       return -1;
     }
   }
@@ -1634,9 +1630,7 @@ static int network_set_interface(const sockent_t *se,
 
       if (setsockopt(se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF, &mreq,
                      sizeof(mreq)) != 0) {
-        char errbuf[1024];
-        ERROR("network plugin: setsockopt (ipv4-multicast-if): %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: setsockopt (ipv4-multicast-if): %s", STRERRNO);
         return -1;
       }
 
@@ -1648,9 +1642,7 @@ static int network_set_interface(const sockent_t *se,
     if (IN6_IS_ADDR_MULTICAST(&addr->sin6_addr)) {
       if (setsockopt(se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
                      &se->interface, sizeof(se->interface)) != 0) {
-        char errbuf[1024];
-        ERROR("network plugin: setsockopt (ipv6-multicast-if): %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: setsockopt (ipv6-multicast-if): %s", STRERRNO);
         return -1;
       }
 
@@ -1671,9 +1663,7 @@ static int network_set_interface(const sockent_t *se,
 
     if (setsockopt(se->data.client.fd, SOL_SOCKET, SO_BINDTODEVICE,
                    interface_name, sizeof(interface_name)) == -1) {
-      char errbuf[1024];
-      ERROR("network plugin: setsockopt (bind-if): %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
 /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
@@ -1704,17 +1694,14 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 
   /* allow multiple sockets to use the same PORT number */
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
-    char errbuf[1024];
-    ERROR("network plugin: setsockopt (reuseaddr): %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("network plugin: setsockopt (reuseaddr): %s", STRERRNO);
     return -1;
   }
 
   DEBUG("fd = %i; calling `bind'", fd);
 
   if (bind(fd, ai->ai_addr, ai->ai_addrlen) == -1) {
-    char errbuf[1024];
-    ERROR("bind: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("bind: %s", STRERRNO);
     return -1;
   }
 
@@ -1742,17 +1729,13 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 
       if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) ==
           -1) {
-        char errbuf[1024];
-        ERROR("network plugin: setsockopt (multicast-loop): %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: setsockopt (multicast-loop): %s", STRERRNO);
         return -1;
       }
 
       if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) ==
           -1) {
-        char errbuf[1024];
-        ERROR("network plugin: setsockopt (add-membership): %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: setsockopt (add-membership): %s", STRERRNO);
         return -1;
       }
 
@@ -1782,17 +1765,13 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 
       if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop,
                      sizeof(loop)) == -1) {
-        char errbuf[1024];
-        ERROR("network plugin: setsockopt (ipv6-multicast-loop): %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: setsockopt (ipv6-multicast-loop): %s", STRERRNO);
         return -1;
       }
 
       if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq,
                      sizeof(mreq)) == -1) {
-        char errbuf[1024];
-        ERROR("network plugin: setsockopt (ipv6-add-membership): %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: setsockopt (ipv6-add-membership): %s", STRERRNO);
         return -1;
       }
 
@@ -1815,9 +1794,7 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 
     if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, interface_name,
                    sizeof(interface_name)) == -1) {
-      char errbuf[1024];
-      ERROR("network plugin: setsockopt (bind-if): %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
   }
@@ -1994,9 +1971,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
     client->fd =
         socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (client->fd < 0) {
-      char errbuf[1024];
-      ERROR("network plugin: socket(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: socket(2) failed: %s", STRERRNO);
       continue;
     }
 
@@ -2081,9 +2056,7 @@ static int sockent_server_listen(sockent_t *se) /* {{{ */
 
     *tmp = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (*tmp < 0) {
-      char errbuf[1024];
-      ERROR("network plugin: socket(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: socket(2) failed: %s", STRERRNO);
       continue;
     }
 
@@ -2231,11 +2204,9 @@ static int network_receive(void) /* {{{ */
   while (listen_loop == 0) {
     status = poll(listen_sockets_pollfd, listen_sockets_num, -1);
     if (status <= 0) {
-      char errbuf[1024];
       if (errno == EINTR)
         continue;
-      ERROR("network plugin: poll(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network plugin: poll(2) failed: %s", STRERRNO);
       break;
     }
 
@@ -2249,10 +2220,8 @@ static int network_receive(void) /* {{{ */
       buffer_len = recv(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
                         0 /* no flags */);
       if (buffer_len < 0) {
-        char errbuf[1024];
         status = (errno != 0) ? errno : -1;
-        ERROR("network plugin: recv(2) failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("network plugin: recv(2) failed: %s", STRERRNO);
         break;
       }
 
@@ -2362,13 +2331,11 @@ static void network_send_buffer_plain(sockent_t *se, /* {{{ */
                     /* flags = */ 0, (struct sockaddr *)se->data.client.addr,
                     se->data.client.addrlen);
     if (status < 0) {
-      char errbuf[1024];
-
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
       ERROR("network plugin: sendto failed: %s. Closing sending socket.",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
       sockent_client_disconnect(se);
       return;
     }
@@ -2650,10 +2617,10 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 
   pthread_mutex_lock(&send_buffer_lock);
 
-  status =
-      add_to_buffer(send_buffer_ptr, network_config_packet_size -
-                                         (send_buffer_fill + BUFF_SIG_SIZE),
-                    &send_buffer_vl, ds, vl);
+  status = add_to_buffer(send_buffer_ptr,
+                         network_config_packet_size -
+                             (send_buffer_fill + BUFF_SIG_SIZE),
+                         &send_buffer_vl, ds, vl);
   if (status >= 0) {
     /* status == bytes added to the buffer */
     send_buffer_fill += status;
@@ -2664,10 +2631,10 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
   } else {
     flush_buffer();
 
-    status =
-        add_to_buffer(send_buffer_ptr, network_config_packet_size -
-                                           (send_buffer_fill + BUFF_SIG_SIZE),
-                      &send_buffer_vl, ds, vl);
+    status = add_to_buffer(send_buffer_ptr,
+                           network_config_packet_size -
+                               (send_buffer_fill + BUFF_SIG_SIZE),
+                           &send_buffer_vl, ds, vl);
 
     if (status >= 0) {
       send_buffer_fill += status;
@@ -3167,9 +3134,7 @@ static int network_init(void) {
                                   dispatch_thread, NULL /* no argument */,
                                   "network disp");
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("network: pthread_create failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network: pthread_create failed: %s", STRERRNO);
     } else {
       dispatch_thread_running = 1;
     }
@@ -3181,9 +3146,7 @@ static int network_init(void) {
                                   receive_thread, NULL /* no argument */,
                                   "network recv");
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("network: pthread_create failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("network: pthread_create failed: %s", STRERRNO);
     } else {
       receive_thread_running = 1;
     }

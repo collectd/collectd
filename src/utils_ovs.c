@@ -751,17 +751,14 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
   }
   /* try to connect to the server */
   for (struct addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
-    char errbuff[OVS_ERROR_BUFF_SIZE];
     int sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
     if (sock < 0) {
-      sstrerror(errno, errbuff, sizeof(errbuff));
-      OVS_DEBUG("socket(): %s", errbuff);
+      OVS_DEBUG("socket(): %s", STRERRNO);
       continue;
     }
     if (connect(sock, rp->ai_addr, rp->ai_addrlen) < 0) {
       close(sock);
-      sstrerror(errno, errbuff, sizeof(errbuff));
-      OVS_DEBUG("connect(): %s [family=%d]", errbuff, rp->ai_family);
+      OVS_DEBUG("connect(): %s [family=%d]", STRERRNO, rp->ai_family);
     } else {
       /* send notification to event thread */
       ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
@@ -796,12 +793,10 @@ static void *ovs_poll_worker(void *arg) {
 
   /* poll data */
   while (ovs_db_poll_is_running(pdb)) {
-    char errbuff[OVS_ERROR_BUFF_SIZE];
     poll_fd.fd = pdb->sock;
     int poll_ret = poll(&poll_fd, 1, /* ms */ OVS_DB_POLL_TIMEOUT * 1000);
     if (poll_ret < 0) {
-      sstrerror(errno, errbuff, sizeof(errbuff));
-      OVS_ERROR("poll(): %s", errbuff);
+      OVS_ERROR("poll(): %s", STRERRNO);
       break;
     } else if (poll_ret == 0) {
       OVS_DEBUG("poll(): timeout");
@@ -827,8 +822,7 @@ static void *ovs_poll_worker(void *arg) {
       char buff[OVS_DB_POLL_READ_BLOCK_SIZE];
       ssize_t nbytes = recv(poll_fd.fd, buff, sizeof(buff), 0);
       if (nbytes < 0) {
-        sstrerror(errno, errbuff, sizeof(errbuff));
-        OVS_ERROR("recv(): %s", errbuff);
+        OVS_ERROR("recv(): %s", STRERRNO);
         /* read error? Try to reconnect */
         close(poll_fd.fd);
         continue;

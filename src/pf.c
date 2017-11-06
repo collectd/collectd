@@ -83,17 +83,13 @@ static int pf_read(void) {
 
   fd = open(pf_device, O_RDONLY);
   if (fd < 0) {
-    char errbuf[1024];
-    ERROR("pf plugin: Unable to open %s: %s", pf_device,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("pf plugin: Unable to open %s: %s", pf_device, STRERRNO);
     return -1;
   }
 
   status = ioctl(fd, DIOCGETSTATUS, &state);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("pf plugin: ioctl(DIOCGETSTATUS) failed: %s", STRERRNO);
     close(fd);
     return -1;
   }

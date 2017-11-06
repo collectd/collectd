@@ -99,28 +99,22 @@ static int zookeeper_connect(void) {
 
   status = getaddrinfo(host, port, &ai_hints, &ai_list);
   if (status != 0) {
-    char errbuf[1024];
     INFO("getaddrinfo failed: %s",
-         (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                : gai_strerror(status));
+         (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
   for (struct addrinfo *ai = ai_list; ai != NULL; ai = ai->ai_next) {
     sk = socket(ai->ai_family, SOCK_STREAM, 0);
     if (sk < 0) {
-      char errbuf[1024];
-      WARNING("zookeeper: socket(2) failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("zookeeper: socket(2) failed: %s", STRERRNO);
       continue;
     }
     status = (int)connect(sk, ai->ai_addr, ai->ai_addrlen);
     if (status != 0) {
-      char errbuf[1024];
       close(sk);
       sk = -1;
-      WARNING("zookeeper: connect(2) failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("zookeeper: connect(2) failed: %s", STRERRNO);
       continue;
     }
 
@@ -144,9 +138,7 @@ static int zookeeper_query(char *buffer, size_t buffer_size) {
 
   status = (int)swrite(sk, "mntr\r\n", strlen("mntr\r\n"));
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("zookeeper: write(2) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("zookeeper: write(2) failed: %s", STRERRNO);
     close(sk);
     return -1;
   }
@@ -158,11 +150,9 @@ static int zookeeper_query(char *buffer, size_t buffer_size) {
                              buffer_size - buffer_fill, /* flags = */ 0)) !=
          0) {
     if (status < 0) {
-      char errbuf[1024];
       if ((errno == EAGAIN) || (errno == EINTR))
         continue;
-      ERROR("zookeeper: Error reading from socket: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("zookeeper: Error reading from socket: %s", STRERRNO);
       close(sk);
       return -1;
     }
