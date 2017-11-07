@@ -33,6 +33,14 @@
 
 #include "cpython.h"
 
+typedef struct {
+  int (*add_string)(void *, const char *, const char *);
+  int (*add_signed_int)(void *, const char *, int64_t);
+  int (*add_unsigned_int)(void *, const char *, uint64_t);
+  int (*add_double)(void *, const char *, double);
+  int (*add_boolean)(void *, const char *, _Bool);
+} cpy_build_meta_handler_t;
+
 #define FreeAll()                                                              \
   do {                                                                         \
     PyMem_Free(type);                                                          \
@@ -457,26 +465,26 @@ static int Values_init(PyObject *s, PyObject *args, PyObject *kwds) {
   return 0;
 }
 
-static meta_data_t *cpy_build_meta(PyObject *meta) {
+static int cpy_build_meta_generic(PyObject *meta,
+                                  cpy_build_meta_handler_t *meta_func,
+                                  void *m) {
   int s;
-  meta_data_t *m = NULL;
   PyObject *l;
 
   if ((meta == NULL) || (meta == Py_None))
-    return NULL;
+    return -1;
 
   l = PyDict_Items(meta); /* New reference. */
   if (!l) {
     cpy_log_exception("building meta data");
-    return NULL;
+    return -1;
   }
   s = PyList_Size(l);
   if (s <= 0) {
     Py_XDECREF(l);
-    return NULL;
+    return -1;
   }
 
-  m = meta_data_create();
   for (int i = 0; i < s; ++i) {
     const char *string, *keystring;
     PyObject *key, *value, *item, *tmp;
@@ -493,45 +501,45 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
     value = PyTuple_GET_ITEM(item, 1);
     Py_INCREF(value);
     if (value == Py_True) {
-      meta_data_add_boolean(m, keystring, 1);
+      meta_func->add_boolean(m, keystring, 1);
     } else if (value == Py_False) {
-      meta_data_add_boolean(m, keystring, 0);
+      meta_func->add_boolean(m, keystring, 0);
     } else if (PyFloat_Check(value)) {
-      meta_data_add_double(m, keystring, PyFloat_AsDouble(value));
+      meta_func->add_double(m, keystring, PyFloat_AsDouble(value));
     } else if (PyObject_TypeCheck(value, &SignedType)) {
       long long int lli;
       lli = PyLong_AsLongLong(value);
       if (!PyErr_Occurred() && (lli == (int64_t)lli))
-        meta_data_add_signed_int(m, keystring, lli);
+        meta_func->add_signed_int(m, keystring, lli);
     } else if (PyObject_TypeCheck(value, &UnsignedType)) {
       long long unsigned llu;
       llu = PyLong_AsUnsignedLongLong(value);
       if (!PyErr_Occurred() && (llu == (uint64_t)llu))
-        meta_data_add_unsigned_int(m, keystring, llu);
+        meta_func->add_unsigned_int(m, keystring, llu);
     } else if (PyNumber_Check(value)) {
       long long int lli;
       long long unsigned llu;
       tmp = PyNumber_Long(value);
       lli = PyLong_AsLongLong(tmp);
       if (!PyErr_Occurred() && (lli == (int64_t)lli)) {
-        meta_data_add_signed_int(m, keystring, lli);
+        meta_func->add_signed_int(m, keystring, lli);
       } else {
         PyErr_Clear();
         llu = PyLong_AsUnsignedLongLong(tmp);
         if (!PyErr_Occurred() && (llu == (uint64_t)llu))
-          meta_data_add_unsigned_int(m, keystring, llu);
+          meta_func->add_unsigned_int(m, keystring, llu);
       }
       Py_XDECREF(tmp);
     } else {
       string = cpy_unicode_or_bytes_to_string(&value);
       if (string) {
-        meta_data_add_string(m, keystring, string);
+        meta_func->add_string(m, keystring, string);
       } else {
         PyErr_Clear();
         tmp = PyObject_Str(value);
         string = cpy_unicode_or_bytes_to_string(&tmp);
         if (string)
-          meta_data_add_string(m, keystring, string);
+          meta_func->add_string(m, keystring, string);
         Py_XDECREF(tmp);
       }
     }
@@ -541,7 +549,42 @@ static meta_data_t *cpy_build_meta(PyObject *meta) {
     Py_DECREF(key);
   }
   Py_XDECREF(l);
+  return 0;
+}
+
+#define CPY_BUILD_META_FUNC(meta_type, func, val_type)                         \
+  static int cpy_##func(void *meta, const char *key, val_type val) {           \
+    return func((meta_type *)meta, key, val);                                  \
+  }
+
+#define CPY_BUILD_META_HANDLER(func_prefix, meta_type)                         \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_string, const char *)       \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_signed_int, int64_t)        \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_unsigned_int, uint64_t)     \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_double, double)             \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_boolean, _Bool)             \
+                                                                               \
+  static cpy_build_meta_handler_t cpy_##func_prefix = {                        \
+      .add_string = cpy_##func_prefix##_add_string,                            \
+      .add_signed_int = cpy_##func_prefix##_add_signed_int,                    \
+      .add_unsigned_int = cpy_##func_prefix##_add_unsigned_int,                \
+      .add_double = cpy_##func_prefix##_add_double,                            \
+      .add_boolean = cpy_##func_prefix##_add_boolean}
+
+CPY_BUILD_META_HANDLER(meta_data, meta_data_t);
+CPY_BUILD_META_HANDLER(plugin_notification_meta, notification_t);
+
+static meta_data_t *cpy_build_meta(PyObject *meta) {
+  meta_data_t *m = meta_data_create();
+  if (cpy_build_meta_generic(meta, &cpy_meta_data, (void *)m) < 0) {
+    meta_data_destroy(m);
+    return NULL;
+  }
   return m;
+}
+
+static void cpy_build_notification_meta(notification_t *n, PyObject *meta) {
+  cpy_build_meta_generic(meta, &cpy_plugin_notification_meta, (void *)n);
 }
 
 static PyObject *Values_dispatch(Values *self, PyObject *args, PyObject *kwds) {
@@ -910,6 +953,17 @@ PyTypeObject ValuesType = {
     Values_new       /* tp_new */
 };
 
+static char notification_meta_doc[] =
+    "These are the meta data for the Notification object.\n"
+    "It has to be a dictionary of numbers, strings or bools. All keys must be\n"
+    "strings. int and long objects will be dispatched as signed integers "
+    "unless\n"
+    "they are between 2**63 and 2**64-1, which will result in an unsigned "
+    "integer.\n"
+    "One of these storage classes can be forced by using the classes\n"
+    "collectd.Signed and collectd.Unsigned. A meta object received by a\n"
+    "notification callback will always contain Signed or Unsigned objects.";
+
 static char severity_doc[] =
     "The severity of this notification. Assign or compare to\n"
     "NOTIF_FAILURE, NOTIF_WARNING or NOTIF_OKAY.";
@@ -931,16 +985,17 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
   int severity = 0;
   double time = 0;
   char *message = NULL;
+  PyObject *meta = NULL;
   char *type = NULL, *plugin_instance = NULL, *type_instance = NULL,
        *plugin = NULL, *host = NULL;
-  static char *kwlist[] = {"type",          "message",  "plugin_instance",
-                           "type_instance", "plugin",   "host",
-                           "time",          "severity", NULL};
+  static char *kwlist[] = {
+      "type", "message", "plugin_instance", "type_instance", "plugin",
+      "host", "time",    "severity",        "meta",          NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist, NULL,
-                                   &type, NULL, &message, NULL,
-                                   &plugin_instance, NULL, &type_instance, NULL,
-                                   &plugin, NULL, &host, &time, &severity))
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "|etetetetetetdiO", kwlist, NULL, &type, NULL, &message,
+          NULL, &plugin_instance, NULL, &type_instance, NULL, &plugin, NULL,
+          &host, &time, &severity, &meta))
     return -1;
 
   if (type && plugin_get_ds(type) == NULL) {
@@ -963,6 +1018,18 @@ static int Notification_init(PyObject *s, PyObject *args, PyObject *kwds) {
 
   FreeAll();
   PyMem_Free(message);
+
+  if (meta == NULL) {
+    meta = PyDict_New();
+    PyErr_Clear();
+  } else {
+    Py_INCREF(meta);
+  }
+
+  PyObject *tmp = self->meta;
+  self->meta = meta;
+  Py_XDECREF(tmp);
+
   return 0;
 }
 
@@ -972,18 +1039,19 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args,
   const data_set_t *ds;
   notification_t notification;
   double t = self->data.time;
+  PyObject *meta = self->meta;
   int severity = self->severity;
   char *host = NULL, *plugin = NULL, *plugin_instance = NULL, *type = NULL,
        *type_instance = NULL;
   char *message = NULL;
 
-  static char *kwlist[] = {"type",          "message",  "plugin_instance",
-                           "type_instance", "plugin",   "host",
-                           "time",          "severity", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdi", kwlist, NULL,
+  static char *kwlist[] = {
+      "type", "message", "plugin_instance", "type_instance", "plugin",
+      "host", "time",    "severity",        "meta",          NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|etetetetetetdiO", kwlist, NULL,
                                    &type, NULL, &message, NULL,
                                    &plugin_instance, NULL, &type_instance, NULL,
-                                   &plugin, NULL, &host, &t, &severity))
+                                   &plugin, NULL, &host, &t, &severity, &meta))
     return NULL;
 
   notification.time = DOUBLE_TO_CDTIME_T(t);
@@ -1015,6 +1083,11 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args,
     PyErr_Format(PyExc_TypeError, "Dataset %s not found", notification.type);
     return NULL;
   }
+  if (meta != NULL && meta != Py_None && !PyDict_Check(meta)) {
+    PyErr_Format(PyExc_TypeError, "meta must be a dict");
+    return NULL;
+  }
+  cpy_build_notification_meta(&notification, meta);
 
   if (notification.time == 0)
     notification.time = cdtime();
@@ -1024,6 +1097,8 @@ static PyObject *Notification_dispatch(Notification *self, PyObject *args,
     sstrncpy(notification.plugin, "python", sizeof(notification.plugin));
   Py_BEGIN_ALLOW_THREADS;
   ret = plugin_dispatch_notification(&notification);
+  if (notification.meta)
+    plugin_notification_meta_free(notification.meta);
   Py_END_ALLOW_THREADS;
   if (ret != 0) {
     PyErr_SetString(PyExc_RuntimeError,
@@ -1041,6 +1116,7 @@ static PyObject *Notification_new(PyTypeObject *type, PyObject *args,
   if (self == NULL)
     return NULL;
 
+  self->meta = PyDict_New();
   self->message[0] = 0;
   self->severity = 0;
   return (PyObject *)self;
@@ -1068,17 +1144,21 @@ static int Notification_setstring(PyObject *self, PyObject *value, void *data) {
 
 static PyObject *Notification_repr(PyObject *s) {
   PyObject *ret, *tmp;
-  static PyObject *l_severity = NULL, *l_message = NULL, *l_closing = NULL;
+  static PyObject *l_severity = NULL, *l_message = NULL, *l_meta = NULL,
+                  *l_closing = NULL;
   Notification *self = (Notification *)s;
 
   if (l_severity == NULL)
     l_severity = cpy_string_to_unicode_or_bytes(",severity=");
   if (l_message == NULL)
     l_message = cpy_string_to_unicode_or_bytes(",message=");
+  if (l_meta == NULL)
+    l_meta = cpy_string_to_unicode_or_bytes(",meta=");
   if (l_closing == NULL)
     l_closing = cpy_string_to_unicode_or_bytes(")");
 
-  if (l_severity == NULL || l_message == NULL || l_closing == NULL)
+  if (l_severity == NULL || l_message == NULL || l_meta == NULL ||
+      l_closing == NULL)
     return NULL;
 
   ret = cpy_common_repr(s);
@@ -1094,8 +1174,31 @@ static PyObject *Notification_repr(PyObject *s) {
     CPY_SUBSTITUTE(PyObject_Repr, tmp, tmp);
     CPY_STRCAT_AND_DEL(&ret, tmp);
   }
+  if (self->meta &&
+      (!PyDict_Check(self->meta) || PyDict_Size(self->meta) > 0)) {
+    CPY_STRCAT(&ret, l_meta);
+    tmp = PyObject_Repr(self->meta);
+    CPY_STRCAT_AND_DEL(&ret, tmp);
+  }
   CPY_STRCAT(&ret, l_closing);
   return ret;
+}
+
+static int Notification_traverse(PyObject *self, visitproc visit, void *arg) {
+  Notification *n = (Notification *)self;
+  Py_VISIT(n->meta);
+  return 0;
+}
+
+static int Notification_clear(PyObject *self) {
+  Notification *n = (Notification *)self;
+  Py_CLEAR(n->meta);
+  return 0;
+}
+
+static void Notification_dealloc(PyObject *self) {
+  Notification_clear(self);
+  self->ob_type->tp_free(self);
 }
 
 static PyMethodDef Notification_methods[] = {
@@ -1105,6 +1208,8 @@ static PyMethodDef Notification_methods[] = {
 
 static PyMemberDef Notification_members[] = {
     {"severity", T_INT, offsetof(Notification, severity), 0, severity_doc},
+    {"meta", T_OBJECT_EX, offsetof(Notification, meta), 0,
+     notification_meta_doc},
     {NULL}};
 
 static PyGetSetDef Notification_getseters[] = {
@@ -1113,43 +1218,43 @@ static PyGetSetDef Notification_getseters[] = {
     {NULL}};
 
 PyTypeObject NotificationType = {
-    CPY_INIT_TYPE "collectd.Notification",    /* tp_name */
-    sizeof(Notification),                     /* tp_basicsize */
-    0,                                        /* Will be filled in later */
-    0,                                        /* tp_dealloc */
-    0,                                        /* tp_print */
-    0,                                        /* tp_getattr */
-    0,                                        /* tp_setattr */
-    0,                                        /* tp_compare */
-    Notification_repr,                        /* tp_repr */
-    0,                                        /* tp_as_number */
-    0,                                        /* tp_as_sequence */
-    0,                                        /* tp_as_mapping */
-    0,                                        /* tp_hash */
-    0,                                        /* tp_call */
-    0,                                        /* tp_str */
-    0,                                        /* tp_getattro */
-    0,                                        /* tp_setattro */
-    0,                                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    Notification_doc,                         /* tp_doc */
-    0,                                        /* tp_traverse */
-    0,                                        /* tp_clear */
-    0,                                        /* tp_richcompare */
-    0,                                        /* tp_weaklistoffset */
-    0,                                        /* tp_iter */
-    0,                                        /* tp_iternext */
-    Notification_methods,                     /* tp_methods */
-    Notification_members,                     /* tp_members */
-    Notification_getseters,                   /* tp_getset */
-    0,                                        /* tp_base */
-    0,                                        /* tp_dict */
-    0,                                        /* tp_descr_get */
-    0,                                        /* tp_descr_set */
-    0,                                        /* tp_dictoffset */
-    Notification_init,                        /* tp_init */
-    0,                                        /* tp_alloc */
-    Notification_new                          /* tp_new */
+    CPY_INIT_TYPE "collectd.Notification", /* tp_name */
+    sizeof(Notification),                  /* tp_basicsize */
+    0,                                     /* Will be filled in later */
+    Notification_dealloc,                  /* tp_dealloc */
+    0,                                     /* tp_print */
+    0,                                     /* tp_getattr */
+    0,                                     /* tp_setattr */
+    0,                                     /* tp_compare */
+    Notification_repr,                     /* tp_repr */
+    0,                                     /* tp_as_number */
+    0,                                     /* tp_as_sequence */
+    0,                                     /* tp_as_mapping */
+    0,                                     /* tp_hash */
+    0,                                     /* tp_call */
+    0,                                     /* tp_str */
+    0,                                     /* tp_getattro */
+    0,                                     /* tp_setattro */
+    0,                                     /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Notification_doc,                                              /* tp_doc */
+    Notification_traverse,  /* tp_traverse */
+    Notification_clear,     /* tp_clear */
+    0,                      /* tp_richcompare */
+    0,                      /* tp_weaklistoffset */
+    0,                      /* tp_iter */
+    0,                      /* tp_iternext */
+    Notification_methods,   /* tp_methods */
+    Notification_members,   /* tp_members */
+    Notification_getseters, /* tp_getset */
+    0,                      /* tp_base */
+    0,                      /* tp_dict */
+    0,                      /* tp_descr_get */
+    0,                      /* tp_descr_set */
+    0,                      /* tp_dictoffset */
+    Notification_init,      /* tp_init */
+    0,                      /* tp_alloc */
+    Notification_new        /* tp_new */
 };
 
 static char Signed_doc[] =
@@ -1175,7 +1280,7 @@ PyTypeObject SignedType = {
     0,                                        /* tp_getattro */
     0,                                        /* tp_setattro */
     0,                                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
     Signed_doc                                /* tp_doc */
 };
 
@@ -1202,6 +1307,6 @@ PyTypeObject UnsignedType = {
     0,                                        /* tp_getattro */
     0,                                        /* tp_setattro */
     0,                                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
     Unsigned_doc                              /* tp_doc */
 };

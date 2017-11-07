@@ -73,14 +73,20 @@ char *sstrdup(const char *s);
 void *smalloc(size_t size);
 char *sstrerror(int errnum, char *buf, size_t buflen);
 
+#ifndef ERRBUF_SIZE
+#define ERRBUF_SIZE 256
+#endif
+
+#define STRERROR(e) sstrerror((e), (char[ERRBUF_SIZE]){0}, ERRBUF_SIZE)
+#define STRERRNO STRERROR(errno)
+
 /*
  * NAME
  *   sread
  *
  * DESCRIPTION
  *   Reads exactly `n' bytes or fails. Syntax and other behavior is analogous
- *   to `read(2)'. If EOF is received the file descriptor is closed and an
- *   error is returned.
+ *   to `read(2)'.
  *
  * PARAMETERS
  *   `fd'          File descriptor to write to.
@@ -91,7 +97,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen);
  *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
-ssize_t sread(int fd, void *buf, size_t count);
+int sread(int fd, void *buf, size_t count);
 
 /*
  * NAME
@@ -110,7 +116,7 @@ ssize_t sread(int fd, void *buf, size_t count);
  *   Zero upon success or non-zero if an error occurred. `errno' is set in this
  *   case.
  */
-ssize_t swrite(int fd, const void *buf, size_t count);
+int swrite(int fd, const void *buf, size_t count);
 
 /*
  * NAME

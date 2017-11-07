@@ -168,6 +168,7 @@ AC_CHECK_HEADERS_ONCE([ \
   pthread_np.h \
   pwd.h \
   regex.h \
+  sys/endian.h \
   sys/fs_types.h \
   sys/fstyp.h \
   sys/ioctl.h \
@@ -520,32 +521,6 @@ if test "x$ac_system" = "xLinux"; then
     ]]
   )
   # For the turbostat plugin
-  AC_CHECK_HEADERS([asm/msr-index.h],
-    [have_asm_msrindex_h="yes"],
-    [have_asm_msrindex_h="no"]
-  )
-
-  if test "x$have_asm_msrindex_h" = "xyes"; then
-    AC_CACHE_CHECK([whether asm/msr-index.h has MSR_PKG_C10_RESIDENCY],
-      [c_cv_have_usable_asm_msrindex_h],
-      [
-        AC_COMPILE_IFELSE(
-          [
-            AC_LANG_PROGRAM(
-              [[#include<asm/msr-index.h>]],
-              [[
-                int y = MSR_PKG_C10_RESIDENCY;
-                return(y);
-              ]]
-            )
-          ],
-          [c_cv_have_usable_asm_msrindex_h="yes"],
-          [c_cv_have_usable_asm_msrindex_h="no"],
-        )
-      ]
-    )
-  fi
-
   AC_CHECK_HEADERS([cpuid.h],
     [have_cpuid_h="yes"],
     [have_cpuid_h="no (cpuid.h not found)"]
@@ -2349,7 +2324,9 @@ AC_SUBST(BUILD_WITH_LIBDBI_LIBS)
 
 # --with-libdpdk {{{
 AC_ARG_VAR([LIBDPDK_CPPFLAGS], [Preprocessor flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_CFLAGS], [Compiler flags for libdpdk])
 AC_ARG_VAR([LIBDPDK_LDFLAGS], [Linker flags for libdpdk])
+AC_ARG_VAR([LIBDPDK_LIBS], [Libraries to link for libdpdk])
 
 AC_ARG_WITH([libdpdk],
   [AS_HELP_STRING([--without-libdpdk], [Disable libdpdk.])],
@@ -2358,11 +2335,26 @@ AC_ARG_WITH([libdpdk],
 )
 
 if test "x$with_libdpdk" != "xno"; then
+  PKG_CHECK_MODULES([DPDK], [libdpdk], [],
+    [AC_MSG_NOTICE([no DPDK pkg-config, using defaults])])
   if test "x$LIBDPDK_CPPFLAGS" = "x"; then
     LIBDPDK_CPPFLAGS="-I/usr/include/dpdk"
   fi
+  if test "x$LIBDPDK_CFLAGS" = "x"; then
+    LIBDPDK_CFLAGS="$DPDK_CFLAGS"
+    LIBDPDK_CPPFLAGS="$LIBDPDK_CPPFLAGS $DPDK_CFLAGS"
+  fi
+  if test "x$LIBDPDK_LIBS" = "x"; then
+    if test "x$DPDK_LIBS" != "x"; then
+      LIBDPDK_LIBS="$DPDK_LIBS"
+    else
+      LIBDPDK_LIBS="-ldpdk"
+    fi
+  fi
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$LIBDPDK_CFLAGS $CFLAGS"
   AC_CHECK_HEADERS([rte_config.h],
     [
       with_libdpdk="yes"
@@ -2384,6 +2376,7 @@ if test "x$with_libdpdk" != "xno"; then
     [with_libdpdk="no (rte_config.h not found)"]
   )
   CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
 if test "x$with_libdpdk" = "xyes"; then
@@ -6150,6 +6143,7 @@ plugin_python="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
+plugin_synproxy="no"
 plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
@@ -6194,6 +6188,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_protocols="yes"
   plugin_serial="yes"
   plugin_swap="yes"
+  plugin_synproxy="yes"
   plugin_tcpconns="yes"
   plugin_thermal="yes"
   plugin_uptime="yes"
@@ -6206,7 +6201,7 @@ if test "x$ac_system" = "xLinux"; then
     plugin_ipvs="yes"
   fi
 
-  if test "x$c_cv_have_usable_asm_msrindex_h" = "xyes" && test "x$have_cpuid_h" = "xyes"; then
+  if test "x$have_cpuid_h" = "xyes"; then
     plugin_turbostat="yes"
   fi
 
@@ -6470,8 +6465,7 @@ if test "x$with_libxenctrl" = "xyes"; then
   plugin_xencpu="yes"
 fi
 
-if test "x$with_libdpdk" = "xyes"
-then
+if test "x$with_libdpdk" = "xyes"; then
   plugin_dpdkevents="$dpdk_keepalive"
   plugin_dpdkstat="yes"
 fi
@@ -6610,6 +6604,7 @@ AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugi
 AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],   [SNMP agent plugin])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
+AC_PLUGIN([synproxy],            [$plugin_synproxy],        [Synproxy stats plugin])
 AC_PLUGIN([sysevent],            [$with_libyajl],           [Syslog event statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
 AC_PLUGIN([table],               [yes],                     [Parsing of tabular data])
@@ -7031,6 +7026,7 @@ AC_MSG_RESULT([    snmp  . . . . . . . . $enable_snmp])
 AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
+AC_MSG_RESULT([    synproxy  . . . . . . $enable_synproxy])
 AC_MSG_RESULT([    sysevent. . . . . . . $enable_sysevent])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
 AC_MSG_RESULT([    table . . . . . . . . $enable_table])

@@ -261,8 +261,7 @@ Features
       plugin of choice for that.
 
     - nfs
-      NFS Procedures: Which NFS command were called how often. Only NFSv2 and
-      NFSv3 right now.
+      NFS Procedures: Which NFS command were called how often.
 
     - nginx
       Collects statistics from `nginx' (speak: engine X), a HTTP and mail

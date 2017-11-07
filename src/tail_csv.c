@@ -44,6 +44,7 @@ struct metric_definition_s {
 typedef struct metric_definition_s metric_definition_t;
 
 struct instance_definition_s {
+  char *plugin_name;
   char *instance;
   char *path;
   cu_tail_t *tail;
@@ -67,7 +68,8 @@ static int tcsv_submit(instance_definition_t *id, metric_definition_t *md,
   vl.values_len = 1;
   vl.values = &v;
 
-  sstrncpy(vl.plugin, "tail_csv", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, (id->plugin_name != NULL) ? id->plugin_name : "tail_csv",
+           sizeof(vl.plugin));
   if (id->instance != NULL)
     sstrncpy(vl.plugin_instance, id->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, md->type, sizeof(vl.type));
@@ -358,6 +360,7 @@ static void tcsv_instance_definition_destroy(void *arg) {
     cu_tail_destroy(id->tail);
   id->tail = NULL;
 
+  sfree(id->plugin_name);
   sfree(id->instance);
   sfree(id->path);
   sfree(id->metric_list);
@@ -420,6 +423,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   id = calloc(1, sizeof(*id));
   if (id == NULL)
     return -1;
+  id->plugin_name = NULL;
   id->instance = NULL;
   id->path = NULL;
   id->metric_list = NULL;
@@ -447,6 +451,8 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
       cf_util_get_cdtime(option, &id->interval);
     else if (strcasecmp("TimeFrom", option->key) == 0)
       status = tcsv_config_get_index(option, &id->time_from);
+    else if (strcasecmp("Plugin", option->key) == 0)
+      status = cf_util_get_string(option, &id->plugin_name);
     else {
       WARNING("tail_csv plugin: Option `%s' not allowed here.", option->key);
       status = -1;

@@ -31,6 +31,12 @@
 #include <kstat.h>
 #endif
 
+static const char *config_keys[] = {"ReportV2", "ReportV3", "ReportV4"};
+static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+static _Bool report_v2 = 1;
+static _Bool report_v3 = 1;
+static _Bool report_v4 = 1;
+
 /*
 see /proc/net/rpc/nfs
 see http://www.missioncriticallinux.com/orph/NFS-Statistics
@@ -180,39 +186,37 @@ static const char *nfs4_server40_procedures_names[] = {"null",
 static size_t nfs4_server40_procedures_names_num =
     STATIC_ARRAY_SIZE(nfs4_server40_procedures_names);
 
-static const char *nfs4_server41_procedures_names[] = {
-    "backchannel_ctl",
-    "bind_conn_to_session",
-    "exchange_id",
-    "create_session",
-    "destroy_session",
-    "free_stateid",
-    "get_dir_delegation",
-    "getdeviceinfo",
-    "getdevicelist",
-    "layoutcommit",
-    "layoutget",
-    "layoutreturn",
-    "secinfo_no_name",
-    "sequence",
-    "set_ssv",
-    "test_stateid",
-    "want_delegation",
-    "destroy_clientid",
-    "reclaim_complete",
+static const char *nfs4_server4x_procedures_names[] = {
+    /* NFS 4.1 */
+    "backchannel_ctl", "bind_conn_to_session", "exchange_id", "create_session",
+    "destroy_session", "free_stateid", "get_dir_delegation", "getdeviceinfo",
+    "getdevicelist", "layoutcommit", "layoutget", "layoutreturn",
+    "secinfo_no_name", "sequence", "set_ssv", "test_stateid", "want_delegation",
+    "destroy_clientid", "reclaim_complete",
+    /* NFS 4.2 */
+    "allocate",      /* 3.18 */
+    "copy",          /* 3.18 */
+    "copy_notify",   /* 3.18 */
+    "deallocate",    /* 3.18 */
+    "ioadvise",      /* 3.18 */
+    "layouterror",   /* 3.18 */
+    "layoutstats",   /* 3.18 */
+    "offloadcancel", /* 3.18 */
+    "offloadstatus", /* 3.18 */
+    "readplus",      /* 3.18 */
+    "seek",          /* 3.18 */
+    "write_same",    /* 3.18 */
+    "clone"          /* 4.5 */
 };
-
-static size_t nfs4_server41_procedures_names_num =
-    STATIC_ARRAY_SIZE(nfs4_server41_procedures_names);
 
 #define NFS4_SERVER40_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_server40_procedures_names))
 
-#define NFS4_SERVER41_NUM_PROC                                                 \
+#define NFS4_SERVER4X_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_server40_procedures_names) +                         \
-   STATIC_ARRAY_SIZE(nfs4_server41_procedures_names))
+   STATIC_ARRAY_SIZE(nfs4_server4x_procedures_names))
 
-#define NFS4_SERVER_MAX_PROC (NFS4_SERVER41_NUM_PROC)
+#define NFS4_SERVER_MAX_PROC (NFS4_SERVER4X_NUM_PROC)
 
 static const char *nfs4_client40_procedures_names[] = {
     "null",
@@ -255,7 +259,8 @@ static const char *nfs4_client40_procedures_names[] = {
     "fsid_present"       /* |54| 3.13 */
 };
 
-static const char *nfs4_client41_procedures_names[] = {
+static const char *nfs4_client4x_procedures_names[] = {
+    /* NFS 4.1 */
     "exchange_id",          /* |40| 2.6.30 */
     "create_session",       /* |40| 2.6.30 */
     "destroy_session",      /* |40| 2.6.30 */
@@ -271,17 +276,24 @@ static const char *nfs4_client41_procedures_names[] = {
     "free_stateid",         /* |51| 3.1 */
     "getdevicelist",        /* |51| 3.1 */
     "bind_conn_to_session", /* |53| 3.5 */
-    "destroy_clientid"      /* |53| 3.5 */
+    "destroy_clientid",     /* |53| 3.5 */
+    /* NFS 4.2 */
+    "seek",        /* |55| 3.18 */
+    "allocate",    /* |57| 3.19 */
+    "deallocate",  /* |57| 3.19 */
+    "layoutstats", /* |58| 4.2 */
+    "clone",       /* |59| 4.4 */
+    "copy"         /* |60| 4.7 */
 };
 
 #define NFS4_CLIENT40_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_client40_procedures_names))
 
-#define NFS4_CLIENT41_NUM_PROC                                                 \
+#define NFS4_CLIENT4X_NUM_PROC                                                 \
   (STATIC_ARRAY_SIZE(nfs4_client40_procedures_names) +                         \
-   STATIC_ARRAY_SIZE(nfs4_client41_procedures_names))
+   STATIC_ARRAY_SIZE(nfs4_client4x_procedures_names))
 
-#define NFS4_CLIENT_MAX_PROC (NFS4_CLIENT41_NUM_PROC)
+#define NFS4_CLIENT_MAX_PROC (NFS4_CLIENT4X_NUM_PROC)
 
 #endif
 
@@ -294,6 +306,19 @@ static kstat_t *nfs3_ksp_server;
 static kstat_t *nfs4_ksp_client;
 static kstat_t *nfs4_ksp_server;
 #endif
+
+static int nfs_config(const char *key, const char *value) {
+  if (strcasecmp(key, "ReportV2") == 0)
+    report_v2 = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportV3") == 0)
+    report_v3 = IS_TRUE(value);
+  else if (strcasecmp(key, "ReportV4") == 0)
+    report_v4 = IS_TRUE(value);
+  else
+    return -1;
+
+  return 0;
+}
 
 #if KERNEL_LINUX
 static int nfs_init(void) { return 0; }
@@ -385,9 +410,15 @@ static int nfs_submit_fields_safe(int nfs_version, const char *instance,
 static int nfs_submit_nfs4_server(const char *instance, char **fields,
                                   size_t fields_num) {
   static int suppress_warning = 0;
+  size_t proc4x_names_num;
 
-  if (fields_num != NFS4_SERVER40_NUM_PROC &&
-      fields_num != NFS4_SERVER41_NUM_PROC) {
+  switch (fields_num) {
+  case NFS4_SERVER40_NUM_PROC:
+  case NFS4_SERVER40_NUM_PROC + 19: /* NFS 4.1 */
+  case NFS4_SERVER40_NUM_PROC + 31: /* NFS 4.2 */
+  case NFS4_SERVER40_NUM_PROC + 32: /* NFS 4.2 */
+    break;
+  default:
     if (!suppress_warning) {
       WARNING("nfs plugin: Unexpected number of fields for "
               "NFSv4 %s statistics: %zu. ",
@@ -405,11 +436,12 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
   nfs_submit_fields(4, instance, fields, nfs4_server40_procedures_names_num,
                     nfs4_server40_procedures_names);
 
-  if (fields_num >= NFS4_SERVER41_NUM_PROC) {
+  if (fields_num > nfs4_server40_procedures_names_num) {
+    proc4x_names_num = fields_num - nfs4_server40_procedures_names_num;
     fields += nfs4_server40_procedures_names_num;
 
-    nfs_submit_fields(4, instance, fields, nfs4_server41_procedures_names_num,
-                      nfs4_server41_procedures_names);
+    nfs_submit_fields(4, instance, fields, proc4x_names_num,
+                      nfs4_server4x_procedures_names);
   }
 
   return 0;
@@ -417,7 +449,7 @@ static int nfs_submit_nfs4_server(const char *instance, char **fields,
 
 static int nfs_submit_nfs4_client(const char *instance, char **fields,
                                   size_t fields_num) {
-  size_t proc40_names_num, proc41_names_num;
+  size_t proc40_names_num, proc4x_names_num;
 
   static int suppress_warning = 0;
 
@@ -445,6 +477,11 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
     proc40_names_num = 37;
     break;
   case 54:
+  case 55:
+  case 57:
+  case 58:
+  case 59:
+  case 60:
     proc40_names_num = 38;
     break;
   default:
@@ -470,11 +507,11 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
                     nfs4_client40_procedures_names);
 
   if (fields_num > proc40_names_num) {
-    proc41_names_num = fields_num - proc40_names_num;
+    proc4x_names_num = fields_num - proc40_names_num;
     fields += proc40_names_num;
 
-    nfs_submit_fields(4, instance, fields, proc41_names_num,
-                      nfs4_client41_procedures_names);
+    nfs_submit_fields(4, instance, fields, proc4x_names_num,
+                      nfs4_client4x_procedures_names);
   }
 
   return 0;
@@ -495,18 +532,18 @@ static void nfs_read_linux(FILE *fh, const char *inst) {
     if (fields_num < 3)
       continue;
 
-    if (strcmp(fields[0], "proc2") == 0) {
+    if (strcmp(fields[0], "proc2") == 0 && report_v2) {
       nfs_submit_fields_safe(/* version = */ 2, inst, fields + 2,
                              (size_t)(fields_num - 2), nfs2_procedures_names,
                              nfs2_procedures_names_num);
-    } else if (strncmp(fields[0], "proc3", 5) == 0) {
+    } else if (strncmp(fields[0], "proc3", 5) == 0 && report_v3) {
       nfs_submit_fields_safe(/* version = */ 3, inst, fields + 2,
                              (size_t)(fields_num - 2), nfs3_procedures_names,
                              nfs3_procedures_names_num);
-    } else if (strcmp(fields[0], "proc4ops") == 0) {
+    } else if (strcmp(fields[0], "proc4ops") == 0 && report_v4) {
       if (inst[0] == 's')
         nfs_submit_nfs4_server(inst, fields + 2, (size_t)(fields_num - 2));
-    } else if (strcmp(fields[0], "proc4") == 0) {
+    } else if (strcmp(fields[0], "proc4") == 0 && report_v4) {
       if (inst[0] == 'c')
         nfs_submit_nfs4_client(inst, fields + 2, (size_t)(fields_num - 2));
     }
@@ -561,24 +598,31 @@ static int nfs_read(void) {
 
 #elif HAVE_LIBKSTAT
 static int nfs_read(void) {
-  nfs_read_kstat(nfs2_ksp_client, /* version = */ 2, "client",
-                 nfs2_procedures_names, nfs2_procedures_names_num);
-  nfs_read_kstat(nfs2_ksp_server, /* version = */ 2, "server",
-                 nfs2_procedures_names, nfs2_procedures_names_num);
-  nfs_read_kstat(nfs3_ksp_client, /* version = */ 3, "client",
-                 nfs3_procedures_names, nfs3_procedures_names_num);
-  nfs_read_kstat(nfs3_ksp_server, /* version = */ 3, "server",
-                 nfs3_procedures_names, nfs3_procedures_names_num);
-  nfs_read_kstat(nfs4_ksp_client, /* version = */ 4, "client",
-                 nfs4_procedures_names, nfs4_procedures_names_num);
-  nfs_read_kstat(nfs4_ksp_server, /* version = */ 4, "server",
-                 nfs4_procedures_names, nfs4_procedures_names_num);
+  if (report_v2) {
+    nfs_read_kstat(nfs2_ksp_client, /* version = */ 2, "client",
+                   nfs2_procedures_names, nfs2_procedures_names_num);
+    nfs_read_kstat(nfs2_ksp_server, /* version = */ 2, "server",
+                   nfs2_procedures_names, nfs2_procedures_names_num);
+  }
+  if (report_v3) {
+    nfs_read_kstat(nfs3_ksp_client, /* version = */ 3, "client",
+                   nfs3_procedures_names, nfs3_procedures_names_num);
+    nfs_read_kstat(nfs3_ksp_server, /* version = */ 3, "server",
+                   nfs3_procedures_names, nfs3_procedures_names_num);
+  }
+  if (report_v4) {
+    nfs_read_kstat(nfs4_ksp_client, /* version = */ 4, "client",
+                   nfs4_procedures_names, nfs4_procedures_names_num);
+    nfs_read_kstat(nfs4_ksp_server, /* version = */ 4, "server",
+                   nfs4_procedures_names, nfs4_procedures_names_num);
+  }
 
   return 0;
 }
 #endif /* HAVE_LIBKSTAT */
 
 void module_register(void) {
+  plugin_register_config("nfs", nfs_config, config_keys, config_keys_num);
   plugin_register_init("nfs", nfs_init);
   plugin_register_read("nfs", nfs_read);
 } /* void module_register */

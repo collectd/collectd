@@ -247,10 +247,8 @@ static int mqtt_reconnect(mqtt_client_conf_t *conf) {
 
   status = mosquitto_reconnect(conf->mosq);
   if (status != MOSQ_ERR_SUCCESS) {
-    char errbuf[1024];
     ERROR("mqtt_connect_broker: mosquitto_connect failed: %s",
-          (status == MOSQ_ERR_ERRNO) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                     : mosquitto_strerror(status));
+          (status == MOSQ_ERR_ERRNO) ? STRERRNO : mosquitto_strerror(status));
     return -1;
   }
 
@@ -325,11 +323,8 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
     status =
         mosquitto_username_pw_set(conf->mosq, conf->username, conf->password);
     if (status != MOSQ_ERR_SUCCESS) {
-      char errbuf[1024];
       ERROR("mqtt plugin: mosquitto_username_pw_set failed: %s",
-            (status == MOSQ_ERR_ERRNO)
-                ? sstrerror(errno, errbuf, sizeof(errbuf))
-                : mosquitto_strerror(status));
+            (status == MOSQ_ERR_ERRNO) ? STRERRNO : mosquitto_strerror(status));
 
       mosquitto_destroy(conf->mosq);
       conf->mosq = NULL;
@@ -346,10 +341,8 @@ static int mqtt_connect(mqtt_client_conf_t *conf) {
       mosquitto_connect(conf->mosq, conf->host, conf->port, MQTT_KEEPALIVE);
 #endif
   if (status != MOSQ_ERR_SUCCESS) {
-    char errbuf[1024];
     ERROR("mqtt plugin: mosquitto_connect failed: %s",
-          (status == MOSQ_ERR_ERRNO) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                     : mosquitto_strerror(status));
+          (status == MOSQ_ERR_ERRNO) ? STRERRNO : mosquitto_strerror(status));
 
     mosquitto_destroy(conf->mosq);
     conf->mosq = NULL;
@@ -438,12 +431,10 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
 #endif
                              conf->qos, conf->retain);
   if (status != MOSQ_ERR_SUCCESS) {
-    char errbuf[1024];
     c_complain(LOG_ERR, &conf->complaint_cantpublish,
                "mqtt plugin: mosquitto_publish failed: %s",
-               (status == MOSQ_ERR_ERRNO)
-                   ? sstrerror(errno, errbuf, sizeof(errbuf))
-                   : mosquitto_strerror(status));
+               (status == MOSQ_ERR_ERRNO) ? STRERRNO
+                                          : mosquitto_strerror(status));
     /* Mark our connection "down" regardless of the error as a safety
      * measure; we will try to reconnect the next time we have to publish a
      * message */
@@ -525,10 +516,10 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
  *   StoreRates true
  *   Retain false
  *   QoS 0
- *   CACert "ca.pem"			Enables TLS if set
- *   CertificateFile "client-cert.pem"		optional
- *   CertificateKeyFile "client-key.pem"		optional
- *   TLSProtocol "tlsv1.2"		optional
+ *   CACert "ca.pem"                      Enables TLS if set
+ *   CertificateFile "client-cert.pem"	  optional
+ *   CertificateKeyFile "client-key.pem"  optional
+ *   TLSProtocol "tlsv1.2"                optional
  * </Publish>
  */
 static int mqtt_config_publisher(oconfig_item_t *ci) {
@@ -624,6 +615,10 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
  *   User "guest"
  *   Password "secret"
  *   Topic "collectd/#"
+ *   CACert "ca.pem"                      Enables TLS if set
+ *   CertificateFile "client-cert.pem"	  optional
+ *   CertificateKeyFile "client-key.pem"  optional
+ *   TLSProtocol "tlsv1.2"                optional
  * </Subscribe>
  */
 static int mqtt_config_subscriber(oconfig_item_t *ci) {
@@ -687,6 +682,16 @@ static int mqtt_config_subscriber(oconfig_item_t *ci) {
       cf_util_get_string(child, &conf->topic);
     else if (strcasecmp("CleanSession", child->key) == 0)
       cf_util_get_boolean(child, &conf->clean_session);
+    else if (strcasecmp("CACert", child->key) == 0)
+      cf_util_get_string(child, &conf->cacertificatefile);
+    else if (strcasecmp("CertificateFile", child->key) == 0)
+      cf_util_get_string(child, &conf->certificatefile);
+    else if (strcasecmp("CertificateKeyFile", child->key) == 0)
+      cf_util_get_string(child, &conf->certificatekeyfile);
+    else if (strcasecmp("TLSProtocol", child->key) == 0)
+      cf_util_get_string(child, &conf->tlsprotocol);
+    else if (strcasecmp("CipherSuite", child->key) == 0)
+      cf_util_get_string(child, &conf->ciphersuite);
     else
       ERROR("mqtt plugin: Unknown config option: %s", child->key);
   }
@@ -744,9 +749,7 @@ static int mqtt_init(void) {
                                   /* args  = */ subscribers[i],
                                   /* name  = */ "mqtt");
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("mqtt plugin: pthread_create failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("mqtt plugin: pthread_create failed: %s", STRERRNO);
       continue;
     }
   }

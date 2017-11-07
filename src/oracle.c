@@ -62,6 +62,7 @@ struct o_database_s {
   char *connect_id;
   char *username;
   char *password;
+  char *plugin_name;
 
   udb_query_preparation_area_t **q_prep_areas;
   udb_query_t **queries;
@@ -141,6 +142,7 @@ static void o_database_free(o_database_t *db) /* {{{ */
   sfree(db->username);
   sfree(db->password);
   sfree(db->queries);
+  sfree(db->plugin_name);
 
   if (db->q_prep_areas != NULL)
     for (size_t i = 0; i < db->queries_num; ++i)
@@ -192,6 +194,7 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
   db->connect_id = NULL;
   db->username = NULL;
   db->password = NULL;
+  db->plugin_name = NULL;
 
   status = cf_util_get_string(ci, &db->name);
   if (status != 0) {
@@ -211,6 +214,8 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->username);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &db->password);
+    else if (strcasecmp("Plugin", child->key) == 0)
+      status = cf_util_get_string(child, &db->plugin_name);
     else if (strcasecmp("Query", child->key) == 0)
       status = udb_query_pick_from_list(child, queries, queries_num,
                                         &db->queries, &db->queries_num);
@@ -544,7 +549,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
 
   status = udb_query_prepare_result(
       q, prep_area, (db->host != NULL) ? db->host : hostname_g,
-      /* plugin = */ "oracle", db->name, column_names, column_num,
+      /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "oracle",
+      db->name, column_names, column_num,
       /* interval = */ 0);
   if (status != 0) {
     ERROR("oracle plugin: o_read_database_query (%s, %s): "

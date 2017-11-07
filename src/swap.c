@@ -111,6 +111,7 @@ static int pagesize;
 
 static _Bool values_absolute = 1;
 static _Bool values_percentage = 0;
+static _Bool report_io = 1;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -136,6 +137,8 @@ static int swap_config(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &values_absolute);
     else if (strcasecmp("ValuesPercentage", child->key) == 0)
       cf_util_get_boolean(child, &values_percentage);
+    else if (strcasecmp("ReportIO", child->key) == 0)
+      cf_util_get_boolean(child, &report_io);
     else
       WARNING("swap plugin: Unknown config option: \"%s\"", child->key);
   }
@@ -231,9 +234,7 @@ static int swap_read_separate(void) /* {{{ */
 
   fh = fopen("/proc/swaps", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("swap plugin: fopen (/proc/swaps) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: fopen (/proc/swaps) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -288,9 +289,7 @@ static int swap_read_combined(void) /* {{{ */
 
   fh = fopen("/proc/meminfo", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -347,8 +346,7 @@ static int swap_read_io(void) /* {{{ */
     /* /proc/vmstat does not exist in kernels <2.6 */
     fh = fopen("/proc/stat", "r");
     if (fh == NULL) {
-      char errbuf[1024];
-      WARNING("swap: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("swap: fopen: %s", STRERRNO);
       return -1;
     } else
       old_kernel = 1;
@@ -406,7 +404,8 @@ static int swap_read(void) /* {{{ */
   else
     swap_read_combined();
 
-  swap_read_io();
+  if (report_io)
+    swap_read_io();
 
   return 0;
 } /* }}} int swap_read */
@@ -432,9 +431,7 @@ static int swap_read_kstat(void) /* {{{ */
   struct anoninfo ai;
 
   if (swapctl(SC_AINFO, &ai) == -1) {
-    char errbuf[1024];
-    ERROR("swap plugin: swapctl failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("swap plugin: swapctl failed: %s", STRERRNO);
     return -1;
   }
 
@@ -509,9 +506,7 @@ static int swap_read(void) /* {{{ */
 
   status = swapctl(SC_LIST, s);
   if (status < 0) {
-    char errbuf[1024];
-    ERROR("swap plugin: swapctl (SC_LIST) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("swap plugin: swapctl (SC_LIST) failed: %s", STRERRNO);
     sfree(s_paths);
     sfree(s);
     return -1;
@@ -715,9 +710,7 @@ static int swap_read(void) /* {{{ */
   status =
       perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
   if (status < 0) {
-    char errbuf[1024];
-    WARNING("swap plugin: perfstat_memory_total failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: perfstat_memory_total failed: %s", STRERRNO);
     return -1;
   }
 
@@ -726,8 +719,11 @@ static int swap_read(void) /* {{{ */
   reserved = (gauge_t)(pmemory.pgsp_rsvd * pagesize);
 
   swap_submit_usage(NULL, total - free, free, "reserved", reserved);
-  swap_submit_derive("in", (derive_t)pmemory.pgspins * pagesize);
-  swap_submit_derive("out", (derive_t)pmemory.pgspouts * pagesize);
+
+  if (report_io) {
+    swap_submit_derive("in", (derive_t)pmemory.pgspins * pagesize);
+    swap_submit_derive("out", (derive_t)pmemory.pgspouts * pagesize);
+  }
 
   return 0;
 } /* }}} int swap_read */

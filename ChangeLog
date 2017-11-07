@@ -1,3 +1,179 @@
+2017-11-15, Version 5.8.0 (RC0)
+	* collectd: The core daemon is now completely licensed under the MIT
+	  license.
+	* collectd: Added daemon option to avoid making BaseDir. Thanks to
+	  Nathaniel Wesley Filardo and Florian Forster. #2422
+	* collectd: Global variables have been moved to their own module to make
+	  porting collectd easier. Thanks to Sean Campbell. #2467
+	* collectd as well as Apache, memcached, OpenLDAP, Perl, RouterOS, SNMP,
+	  Tail-CSV plugins: Free userdata for "plugin_register_complex_read()".
+	  Thanks to Pavel Rochnyack. #2349
+	* Collectd client library: Added parsing and server code. Thanks to
+	  Florian Forster. #2258
+	* Build system: Dependency on libltdl has been removed, support for
+	  libtool 1 has been dropped. Thanks to Ruben Kerkhof. #1898
+	* Build system: The build system has been switched to non-recursive
+	  make. Thanks to Ruben Kerkhof. #2085
+	* APC UPS plugin: The plugin's configuration is now optional. Without a
+	  "<Plugin />" block reasonable defaults will be used. Thanks to Pavel
+	  Rochnyack. #2351
+	* Chrony plugin: Several issues found when working with a stratum-1
+	  server have been fixed. Thanks to Miroslav Lichvar. #2190
+	* Ceph plugin: Support for the Ceph version "Luminous" has been added.
+	  Thanks to Aleksei Zakharov. #2464
+	* CPU plugin : Linux-specific "guest" states have been added. Thanks to
+	  Xavier G. #2439
+	* cURL plugin, cURL-JSON, cURL-XML, DBI, FileCount, memcachec, Oracle,
+	  PostgreSQL, Table, Tail, Tail CSV plugins: The ability to configure
+	  the "plugin" field of generated metrics has been added. Thanks to
+	  Pavel Rochnyack. #1944, #1681, #1558
+	* cURL-JSON plugin: Parsing of arrays has been fixed. Thanks to Florian
+	  Forster. #2281
+	* DPDKEvents plugin: This new plugin reports link status and keep alive
+	  events. Thanks to Maryam Tahhan, Harry van Haaren, Serhiy Pshyk,
+	  Kim-Marie Jones, Krzysztof Matczak, Przemyslaw Szczerbik, Christian
+	  Ehrhardt and Luca Boccassi. #2157, #2348, #2400, #2405, #2417
+	* DPDKStat plugin: The plugin has been refactored to make DPDK related
+	  utility functions reusable. Thanks to Krzysztof Matczak, Przemyslaw
+	  Szczerbik, Christian Ehrhardt and Luca Boccassi. #2130, #2348, #2400,
+	  #2405, #2417
+	* DPDKStat plugin: The "LogLevel" and "RteDriverLibPath" config options
+	  have been added. Thanks to Jiri Prokes. #2505
+	* Email plugin as well as Exec and Unixsock plugins: Use
+	  "_SC_GETPW_R_SIZE_MAX". Thanks to Florian Forster. #2451
+	* FileCount plugin: Custom values for reported plugin, type and type
+	  instance. Thanks to Pavel Rochnyack. #1979
+	* GenericJMX plugin: Support for "AtomicInteger" and "AtomicLong" has
+	  been added. Thanks to Pierre Mauduit. #2158
+	* gRPC plugin: Support for meta data has been added. Thanks to Taylor
+	  Cramer. #2378
+	* IPC plugin: Fixed failed compilation on AIX. Thanks to Pavel
+	  Rochnyack. #2357
+	* Intel PMU plugin: This new plugin collects CPU performance metrics
+	  using Intel's Performance Monitoring Unit (PMU). Scaling information
+	  added to metadata. Thanks to Serhiy Pshyk and Roman Korynkevych.
+	  #2276, #2398, #2374
+	* Intel RDT plugin: Support for collectd's logging infrastructure has
+	  been added. PQoS monitoring groups are being reset on start-up to fix
+	  potential previous unclean shutdowns. Thanks to Roman Korynkevych.
+	  #2089.
+	* IPMI plugin: Support for System Event Log (SEL) has been added. Thanks
+	  to Roman Korynkevych. #2091
+	* IPMI plugin: Support for remote IPMI controllers has been added.
+	  Thanks to Pavel Rochnyack. #2024
+	* LVM plugin: A check for the "CAP_SYS_ADMIN" capability has been added.
+	  This will give users an informative warning when the process is not
+	  running with the required privileges for this plugin. Thanks to
+	  Florian Forster. #2426, #2499
+	* mcelog plugin: This new plugin subscribes to Machine Check Exceptions
+	  (MCE) and dispatches notifications. Metadata reset. Thanks to Maryam
+	  Tahhan, Volodymyr Mytnyk, Taras Chornyi, Krzysztof Matczak and Roman
+	  Korynkevych. #2003, #2246, #2380
+	* MQTT plugin: Add support for TLS in "Subscriber" blocks. Thanks to
+	  Florian Forster. #2434
+	* memcached plugin: Persistent connections have been implemented. Fix
+	  hit ratio reporting, add connections rate report. Thanks to Pavel
+	  Rochnyack. #2388, #2385
+	* memcached plugin: The type of the "listen_disabled" metric has been
+	  changed to "total_events". Thanks to Florian Forster. #2386, #2468
+	* Netlink plugin: The dropped packets metric has been added. Thanks to
+	  Denys Fedoryshchenko. #2053
+	* NFS plugin: Support for NFS 4.2 metrics has been added. Thanks to
+	  Marek Becka. #2369
+	* NFS plugin: Config options to ignore specified NFS versions have been
+	  added. Thanks to Christian Bartolomäus. #2430
+	* NUT plugin: The "ConnectTimeout", "ForceSSL", "VerifyPeer" and
+	  "CAPath" options have been added. Thanks to Pavel Rochnyack and Steven
+	  Bell. #2145, #2354
+	* OpenLDAP plugin: A segfault after a connection failure has been fixed.
+	  Thanks to Pavel Rochnyack. #2377
+	* Openvpn plugin: Added support for status files from latest OpenVPN-2.4
+	  and possible from future versions. Thanks to Pavel Rochnyack. #2352
+	* OVS Events plugin: This new plugin reports link state changes from
+	  Open vSwitch (OVS). Thanks to Volodymyr Mytnyk. #1971
+	* OVS Stats plugin: This new plugin reports bridge / interface
+	  statistics from Open vSwitch (OVS). Thanks to Volodymyr Mytnyk and
+	  Taras Chornyi. #2137
+	* Perl plugin: Bugfix, added check of proper interpreter initialization.
+	  Thanks to Pavel Rochnyack. #2391
+	* PostgreSQL plugin: The plugin now sets the "application_name"
+	  parameter when connecting to the database. Thanks to daniacs. #2497
+	* Processes plugin: The I/O operations reported for selected processes
+	  has been fixed. The metric "ps_disk_octets" has been renamed to
+	  "io_octets" because it actually contains the number of I/O operation
+	  by the process, not just disk related I/O. Same for "io_ops"
+	  (previously "ps_disk_ops"). The new metric "disk_octets" has been
+	  added and is reporting disk I/O only. Add option to collect the count
+	  of active memory maps for Linux processes. The "CollectFileDescriptor"
+	  and "CollectContextSwitch" options have been added. Thanks to Pavel
+	  Rochnyack and to Wilfried Goesgens. #2232, #2454, #1989
+	* Processes and TCPConns plugins: The OpenBSD implementation has been
+	  changed to use "kvm_openfiles" with "KVM_NO_FILES". Thanks to Jeremie
+	  Courreges-Anglas. #2061
+	* Python plugin: Extend Notification class to include metadata. Thanks
+	  to Volodymyr Mytnyk. #2135
+	* Python plugin: The "CollectdException" class has been added. This
+	  allows to throw an exception without a stack trace being logged.
+	  Thanks to Sven Trenkel. #2330, #2346
+	* Sensors plugin: Support for (electrical) current has been added.
+	  Thanks to Clemens Gruber. #2255
+	* SNMP plugin: Error handling has been improved: a potential double-free
+	  is now avoided (potentially leaking memory) and handling of
+	  non-failing subtrees has been fixed. Thanks to Pavel Rochnyack. #2449
+	* SNMP plugin: The "Timeout" and "Retries" config options have been
+	  added. Thanks to Carlos Vicente. #1472, #2488
+	* SNMP Agent plugin: This new plugin implements an SNMP AgentX subagent
+	  that receives and handles queries from SNMP master agent and returns
+	  configured metrics. Thanks to Roman Korynkevych, Serhiy Pshyk and
+	  Pavel Rochnyack. #2105, #2362
+	* Synproxy plugin: This new plugin provides statistics for Linux
+	  SYNPROXY. Thanks to Marek Bečka. #2381
+	* Tail plugin: Allow the calculation of several distributions in one
+	  "tail" instance through a "bucket" type. Thanks to Pavel Rochnyack.
+	  #2442
+	* Turbostat plugin: Import "msr-index.h" header from Linux and better
+	  support for mutliple packages. Thanks to Vincent Brillault. #2445,
+	  #2446
+	* Uptime plugin: Changed implementation to read from "/proc/uptime"
+	  instead of "/proc/stat". Update for Linux and AIX, uptime is read
+	  directly using a system call. Update for BSD and Solaris, uptime is
+	  calculated by subtracting boot time from current time. Thanks to Ivan
+	  Kurnosov and Marcin Jurkowski. #2431, #2034
+	* UUID plugin: Support for libhal has been removed. Thanks to Ruben
+	  Kerkhof. #2080
+	* Varnish plugin: Extended the varnish plugin with varnish-plus
+	  counters. Fixed invalid data source type. Thanks to Denes Matetelki.
+	  #2453, #2463
+	* virt plugin: The plugin has been updated to use
+	  "virConnectListAllDomains()". Thanks to Denis Silakov. #2051
+	* virt plugin: Support for domain tags has been added. Thanks to
+	  Francesco Romani. #2048
+	* virt plugin: Connection handling has been improved. Thanks to
+	  Francesco Romani. #2100, #2101
+	* virt plugin: Many metrics have been added, including disk, hypervisor
+	  CPU usage, performance monitoring events, domain state, CPU pinning
+	  (affinity), file system, and job statistics. Thanks to Francesco
+	  Romani and Przemyslaw Szczerbik. #2103, #2175, #2168
+	* Write Graphite plugin: Additional tests have been added. Thanks to
+	  Florian Forster.
+	* Write HTTP plugin: The "Attribute" and "TTL" options for the KairosDB
+	  format have been added. Implementation of "Prefix" option. Thanks to
+	  jaroug, Denis Pompilio and Pavel Rochnyack. #2199, #2252, #2482
+	* Write MongoDB plugin: Memory leaks have been fixed. Thanks to
+	  Saikrishna Arcot. #2307
+	* Write Prometheus plugin: Label values are now properly escaped. Thanks
+	  to Florian Forster. #2035
+	* Write Redis plugin: Add "max_set_duration" to set duration for value.
+	  Thanks to Tomofumi Hayashi. #2440
+	* Write Riemann plugin: Export times with microsecond resolution. Thanks
+	  to mcorbin. #2315
+	* Write TSDB plugin: The options "ResolveInterval" and "ResolveJitter"
+	  have been added to control DNS lookup behavior. This prevents DNS
+	  flooding in case TSDB is not available. Thanks to Yves Mettier and
+	  Florian Forster. #2059
+	* ZFS ARC plugin: Header lines are now ignored in the Linux
+	  implementation. Thanks to YmrDtnJu. #2097
+
 2017-06-06, Version 5.7.2
 	* Build system: The Notify Email plugin is no longer linked with
 	  indirect dependencies. Thanks to Marc Fournier.
@@ -133,6 +309,77 @@
 	* Write Prometheus plugin: This new plugin publishes values using an
 	  embedded HTTP server, in a format compatible with Prometheus'
 	  collectd_exporter. Thanks to Florian Forster. #1967
+
+2017-10-06, Version 5.6.3
+	* collectd: support for boolean string config values has been
+	  reintroduced. Thanks to Sebastian Harl. #2083, #2098
+	* collectd: The capability checking has been changed to use
+	  "cap_get_proc()". Thanks to Marc Fournier. #2151
+	* Documentation: A section documenting ignore lists has been added to
+	  collectd.conf(5). Thanks to Florian Forster.
+	* AMQP plugin: The "ExchangeType" option is now also valid for
+	  publishers. Thanks to Florian Forster. #2286
+	* Apache, Ascent, BIND, cURL, cURL-JSON, cURL-XML, nginx, Write HTTP
+	  plugins: Handling of URLs that redirect elsewhere has been fixed.
+	  Thanks to Pavel Rochnyack. #2328
+	* BIND plugin: Fix parsing of the sample time provided by BIND.
+	  Previously, the time was assumed to be in the local time zone when in
+	  fact it was in UTC. Thanks to Ed Ravin. #1268
+	* BIND plugin: Memory leaks have been fixed. Thanks to Ruben Kerkhof.
+	  #2303
+	* Chrony plugin: Build flags have been fixed. Thanks to Thomas Jost and
+	  Marc Fournier. #2133
+	* cURL-JSON plugin: The timeout value has been changed to default to the
+	  collection interval. This fixes a regression. Thanks to Marc Fournier.
+	* cURL-JSON plugin: Handling of arrays has been fixed. Thanks to Florian
+	  Forster. #2266
+	* DBI plugin: Memory leaks at shutdown have been fixes. Thanks to Pavel
+	  Rochnyack and Florian Forster.
+	* E-Mail, Exec, UnixSock plugins: Group ID lookup on systems with many
+	  groups has been fixed. Thanks to Ruben Kerkhof and Florian Forster.
+	  #2208
+	* IPC plugin: A compilation error on AIX has been fixed. Thanks to Pavel
+	  Rochnyack. #2305
+	* LogFile plugin: If writing to the file fails, print log messages on
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* Log Logstash plugin: If writing the log entry fails, print it to
+	  "STDERR" instead. Thanks to Marc Fournier.
+	* memcachec, Tail plugins: A resource leak in the matching
+	  infrastructure has been fixed. Thanks to Krzysztof Matczak. #2192
+	* MQTT plugin: Invalid symbols in topic names are now replaced and a
+	  resource leak has been fixed. Thanks to Denys Fedoryshchenko. #2123
+	* Network plugin: A potential endless-loop has been fixed. This can be
+	  triggered remotely by sending a signed network packet to a server
+	  which is not set up to check signatures. Thanks to Marcin Kozlowski
+	  and Pavel Rochnyack. #2174, #2233, CVE-2017-7401
+	* Network plugin: A use-after-free has been fixed. Thanks to Pavel
+	  Rochnyack. #2375
+	* Notify Email plugin: The plugin is no longer explicitly linked against
+	  libssl and libcrypto, relies on libesmtp being linked correctly.
+	  Thanks to Marc Fournier. Debian#852924
+	* NTPd plugin: Calculation of loop offset and error has been fixed.
+	  Thanks to Neil Wilson. #2188
+	* OpenLDAP plugin: An incorrect use of the ldap library, leading to a
+	  crash, has been fixed. Thanks to Marc Fournier. #2331
+	* Perl plugin: A potential double-free has been fixed. Thanks to Florian
+	  Forster. #2278
+	* Perl plugin: Print an error when an incorrect configuration is
+	  encountered. Thanks to Pavel Rochnyack. #927
+	* RRDtool plugin: Incorrect handling of the flushes timeout option has
+	  been fixed. Handling of the "RandomTimeout" has been fixed. Thanks to
+	  Pavel Rochnyack. #2363
+	* SMART plugin: Some warning messages have been removed and the code has
+	  been cleaned up. Thanks to Florian Forster. #2062
+	* SMART plugin: A check for the "CAP_SYS_RAWIO" capability has been
+	  added. Thanks to Marc Fournier.
+	* SNMP plugin: A double free has been fixed. Thanks to Pavel Rochnyack.
+	  #2291
+	* Write Graphite plugin: Error handling in the case that calculating a
+	  metric's rate fails has been improved. Previously, the raw counter
+	  values were sent to Graphite. Thanks to Iain Buclaw. #2209
+	* Write Kafka plugin: A 32 bit random number is now used when formatting
+	  a random key. Thanks to Florian Forster. #2074
+
 
 2016-11-30, Version 5.6.2
 	* collectd: A compile error on AIX has been fixed: "MSG_DONTWAIT" is not

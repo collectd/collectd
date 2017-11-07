@@ -41,7 +41,7 @@
 #include "plugin.h"
 #include "utils_time.h"
 
-#include <asm/msr-index.h>
+#include "msr-index.h"
 #include <cpuid.h>
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
@@ -585,7 +585,10 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
 
   /* If not using logical core numbering, set core id */
   if (!config_lcn) {
-    snprintf(name, sizeof(name), "core%02d", c->core_id);
+    if (topology.num_packages > 1)
+      snprintf(name, sizeof(name), "pkg%02d-core%02d", p->package_id, c->core_id);
+    else
+      snprintf(name, sizeof(name), "core%02d", c->core_id);
   }
 
   if (do_core_cstate & (1 << 3))

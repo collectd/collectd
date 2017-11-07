@@ -45,6 +45,7 @@ struct wr_node_s {
   char *prefix;
   int database;
   int max_set_size;
+  int max_set_duration;
   _Bool store_rates;
 
   redisContext *conn;
@@ -125,6 +126,20 @@ static int wr_write(const data_set_t *ds, /* {{{ */
       freeReplyObject(rr);
   }
 
+  if (node->max_set_duration > 0) {
+    /*
+     * remove element, scored less than 'current-max_set_duration'
+     * '(%d' indicates 'less than' in redis CLI.
+     */
+    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%d", key,
+                      (time - node->max_set_duration) + 1);
+    if (rr == NULL)
+      WARNING("ZREMRANGEBYSCORE command error. key:%s message:%s", key,
+              node->conn->errstr);
+    else
+      freeReplyObject(rr);
+  }
+
   /* TODO(octo): This is more overhead than necessary. Use the cache and
    * metadata to determine if it is a new metric and call SADD only once for
    * each metric. */
@@ -175,6 +190,7 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
   node->prefix = NULL;
   node->database = 0;
   node->max_set_size = -1;
+  node->max_set_duration = -1;
   node->store_rates = 1;
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
@@ -205,6 +221,8 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(child, &node->database);
     } else if (strcasecmp("MaxSetSize", child->key) == 0) {
       status = cf_util_get_int(child, &node->max_set_size);
+    } else if (strcasecmp("MaxSetDuration", child->key) == 0) {
+      status = cf_util_get_int(child, &node->max_set_duration);
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &node->store_rates);
     } else

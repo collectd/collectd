@@ -47,16 +47,6 @@
 #define COLLECTD_LOCALE "C"
 #endif
 
-/*
- * Global variables
- */
-char hostname_g[DATA_MAX_NAME_LEN];
-cdtime_t interval_g;
-int timeout_g;
-#if HAVE_LIBKSTAT
-kstat_ctl_t *kc;
-#endif /* HAVE_LIBKSTAT */
-
 static int loop = 0;
 
 static void *do_flush(void __attribute__((unused)) * arg) {
@@ -86,37 +76,41 @@ static void sig_usr1_handler(int __attribute__((unused)) signal) {
 }
 
 static int init_hostname(void) {
-  const char *str;
-
-  struct addrinfo *ai_list;
-  int status;
-
-  str = global_option_get("Hostname");
+  const char *str = global_option_get("Hostname");
   if ((str != NULL) && (str[0] != 0)) {
-    sstrncpy(hostname_g, str, sizeof(hostname_g));
+    hostname_set(str);
     return 0;
   }
 
-  if (gethostname(hostname_g, sizeof(hostname_g)) != 0) {
+  long hostname_len = sysconf(_SC_HOST_NAME_MAX);
+  if (hostname_len == -1) {
+    hostname_len = NI_MAXHOST;
+  }
+  char hostname[hostname_len];
+
+  if (gethostname(hostname, hostname_len) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
     return -1;
   }
 
+  hostname_set(hostname);
+
   str = global_option_get("FQDNLookup");
   if (IS_FALSE(str))
     return 0;
 
+  struct addrinfo *ai_list;
   struct addrinfo ai_hints = {.ai_flags = AI_CANONNAME};
 
-  status = getaddrinfo(hostname_g, NULL, &ai_hints, &ai_list);
+  int status = getaddrinfo(hostname, NULL, &ai_hints, &ai_list);
   if (status != 0) {
     ERROR("Looking up \"%s\" failed. You have set the "
           "\"FQDNLookup\" option, but I cannot resolve "
           "my hostname to a fully qualified domain "
           "name. Please fix the network "
           "configuration.",
-          hostname_g);
+          hostname);
     return -1;
   }
 
@@ -125,7 +119,7 @@ static int init_hostname(void) {
     if (ai_ptr->ai_canonname == NULL)
       continue;
 
-    sstrncpy(hostname_g, ai_ptr->ai_canonname, sizeof(hostname_g));
+    hostname_set(ai_ptr->ai_canonname);
     break;
   }
 
@@ -158,15 +152,14 @@ static int init_global_variables(void) {
   return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir) {
+static int change_basedir(const char *orig_dir, _Bool create) {
   char *dir;
   size_t dirlen;
   int status;
 
   dir = strdup(orig_dir);
   if (dir == NULL) {
-    char errbuf[1024];
-    ERROR("strdup failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("strdup failed: %s", STRERRNO);
     return -1;
   }
 
@@ -183,28 +176,22 @@ static int change_basedir(const char *orig_dir) {
   if (status == 0) {
     free(dir);
     return 0;
-  } else if (errno != ENOENT) {
-    char errbuf[1024];
-    ERROR("change_basedir: chdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+  } else if (!create || (errno != ENOENT)) {
+    ERROR("change_basedir: chdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
 
   status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: mkdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: mkdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
 
   status = chdir(dir);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: chdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: chdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
@@ -250,6 +237,7 @@ __attribute__((noreturn)) static void exit_usage(int status) {
 #if COLLECT_DAEMON
          "    -f              Don't fork to the background.\n"
 #endif
+         "    -B              Don't create the BaseDir\n"
          "    -h              Display help (this message)\n"
          "\nBuiltin defaults:\n"
          "  Config file       " CONFIGFILE "\n"
@@ -327,8 +315,7 @@ static int do_loop(void) {
 
     while ((loop == 0) && (nanosleep(&ts_wait, &ts_wait) != 0)) {
       if (errno != EINTR) {
-        char errbuf[1024];
-        ERROR("nanosleep failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("nanosleep failed: %s", STRERRNO);
         return -1;
       }
     }
@@ -347,8 +334,7 @@ static int pidfile_create(void) {
   const char *file = global_option_get("PIDFile");
 
   if ((fh = fopen(file, "w")) == NULL) {
-    char errbuf[1024];
-    ERROR("fopen (%s): %s", file, sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fopen (%s): %s", file, STRERRNO);
     return 1;
   }
 
@@ -416,9 +402,7 @@ static int notify_systemd(void) {
   fd = socket(AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
 #endif
   if (fd < 0) {
-    char errbuf[1024];
-    ERROR("creating UNIX socket failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("creating UNIX socket failed: %s", STRERRNO);
     return 0;
   }
 
@@ -441,9 +425,7 @@ static int notify_systemd(void) {
 
   if (sendto(fd, buffer, strlen(buffer), MSG_NOSIGNAL, (void *)&su,
              (socklen_t)su_size) < 0) {
-    char errbuf[1024];
-    ERROR("sendto(\"%s\") failed: %s", notifysocket,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("sendto(\"%s\") failed: %s", notifysocket, STRERRNO);
     close(fd);
     return 0;
   }
@@ -454,21 +436,18 @@ static int notify_systemd(void) {
 }
 #endif /* KERNEL_LINUX */
 
-int main(int argc, char **argv) {
-  const char *configfile = CONFIGFILE;
-  int test_config = 0;
-  int test_readall = 0;
-  const char *basedir;
-#if COLLECT_DAEMON
-  pid_t pid;
-  int daemonize = 1;
-#endif
-  int exit_status = 0;
+struct cmdline_config {
+  _Bool test_config;
+  _Bool test_readall;
+  _Bool create_basedir;
+  const char *configfile;
+  _Bool daemonize;
+};
 
+void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c;
-
     c = getopt(argc, argv, "htTC:"
 #if COLLECT_DAEMON
                            "fP:"
@@ -479,17 +458,20 @@ int main(int argc, char **argv) {
       break;
 
     switch (c) {
+    case 'B':
+      config->create_basedir = 0;
+      break;
     case 'C':
-      configfile = optarg;
+      config->configfile = optarg;
       break;
     case 't':
-      test_config = 1;
+      config->test_config = 1;
       break;
     case 'T':
-      test_readall = 1;
+      config->test_readall = 1;
       global_option_set("ReadThreads", "-1", 1);
 #if COLLECT_DAEMON
-      daemonize = 0;
+      config->daemonize = 0;
 #endif /* COLLECT_DAEMON */
       break;
 #if COLLECT_DAEMON
@@ -497,7 +479,7 @@ int main(int argc, char **argv) {
       global_option_set("PIDFile", optarg, 1);
       break;
     case 'f':
-      daemonize = 0;
+      config->daemonize = 0;
       break;
 #endif /* COLLECT_DAEMON */
     case 'h':
@@ -507,19 +489,17 @@ int main(int argc, char **argv) {
       exit_usage(1);
     } /* switch (c) */
   }   /* while (1) */
+}
 
-  if (optind < argc)
-    exit_usage(1);
-
-  plugin_init_ctx();
-
+int configure_collectd(struct cmdline_config *config) {
+  const char *basedir;
   /*
    * Read options from the config file, the environment and the command
    * line (in that order, with later options overwriting previous ones in
    * general).
    * Also, this will automatically load modules.
    */
-  if (cf_read(configfile)) {
+  if (cf_read(config->configfile)) {
     fprintf(stderr, "Error: Reading the config file failed!\n"
                     "Read the logs for details.\n");
     return 1;
@@ -533,22 +513,46 @@ int main(int argc, char **argv) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");
     return 1;
-  } else if (change_basedir(basedir)) {
+  } else if (change_basedir(basedir, config->create_basedir)) {
     fprintf(stderr, "Error: Unable to change to directory `%s'.\n", basedir);
     return 1;
   }
 
   /*
-   * Set global variables or, if that failes, exit. We cannot run with
+   * Set global variables or, if that fails, exit. We cannot run with
    * them being uninitialized. If nothing is configured, then defaults
    * are being used. So this means that the user has actually done
    * something wrong.
    */
   if (init_global_variables() != 0)
-    exit(EXIT_FAILURE);
+    return 1;
 
-  if (test_config)
+  return 0;
+}
+
+int main(int argc, char **argv) {
+#if COLLECT_DAEMON
+  pid_t pid;
+#endif
+  int exit_status = 0;
+
+  struct cmdline_config config = {
+      .daemonize = 1, .create_basedir = 1, .configfile = CONFIGFILE,
+  };
+
+  read_cmdline(argc, argv, &config);
+
+  if (config.test_config)
     return 0;
+
+  if (optind < argc)
+    exit_usage(1);
+
+  plugin_init_ctx();
+
+  int status;
+  if ((status = configure_collectd(&config)) != 0)
+    exit(EXIT_FAILURE);
 
 #if COLLECT_DAEMON
   /*
@@ -562,7 +566,7 @@ int main(int argc, char **argv) {
    * Only daemonize if we're not being supervised
    * by upstart or systemd (when using Linux).
    */
-  if (daemonize
+  if (config.daemonize
 #ifdef KERNEL_LINUX
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
@@ -571,8 +575,7 @@ int main(int argc, char **argv) {
 
     if ((pid = fork()) == -1) {
       /* error */
-      char errbuf[1024];
-      fprintf(stderr, "fork: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      fprintf(stderr, "fork: %s", STRERRNO);
       return 1;
     } else if (pid != 0) {
       /* parent */
@@ -612,7 +615,7 @@ int main(int argc, char **argv) {
             status);
       return 1;
     }
-  }    /* if (daemonize) */
+  }    /* if (config.daemonize) */
 #endif /* COLLECT_DAEMON */
 
   struct sigaction sig_pipe_action = {.sa_handler = SIG_IGN};
@@ -625,27 +628,24 @@ int main(int argc, char **argv) {
   struct sigaction sig_int_action = {.sa_handler = sig_int_handler};
 
   if (0 != sigaction(SIGINT, &sig_int_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal INT: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
   struct sigaction sig_term_action = {.sa_handler = sig_term_handler};
 
   if (0 != sigaction(SIGTERM, &sig_term_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal TERM: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
   struct sigaction sig_usr1_action = {.sa_handler = sig_usr1_handler};
 
   if (0 != sigaction(SIGUSR1, &sig_usr1_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal USR1: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
@@ -657,7 +657,7 @@ int main(int argc, char **argv) {
     exit_status = 1;
   }
 
-  if (test_readall) {
+  if (config.test_readall) {
     if (plugin_read_all_once() != 0) {
       ERROR("Error: one or more plugin read callbacks failed.");
       exit_status = 1;
@@ -676,7 +676,7 @@ int main(int argc, char **argv) {
   }
 
 #if COLLECT_DAEMON
-  if (daemonize)
+  if (config.daemonize)
     pidfile_remove();
 #endif /* COLLECT_DAEMON */
 

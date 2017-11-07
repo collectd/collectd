@@ -1517,6 +1517,19 @@ in the un-aggregated (per-CPU, per-state) mode as well.
 When set to B<true>, reports the number of available CPUs.
 Defaults to B<false>.
 
+=item B<ReportGuestState> B<false>|B<true>
+
+When set to B<true>, reports the "guest" and "guest_nice" CPU states.
+Defaults to B<false>.
+
+=item B<SubtractGuestState> B<false>|B<true>
+
+This option is only considered when B<ReportGuestState> is set to B<true>.
+"guest" and "guest_nice" are included in respectively "user" and "nice".
+If set to B<true>, "guest" will be subtracted from "user" and "guest_nice"
+will be subtracted from "nice".
+Defaults to B<true>.
+
 =back
 
 =head2 Plugin C<cpufreq>
@@ -1654,6 +1667,7 @@ finance page and dispatch the value to collectd.
 
   <Plugin curl>
     <Page "stock_quotes">
+      Plugin "quotes"
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
       User "foo"
       Password "bar"
@@ -1684,6 +1698,11 @@ string argument to the B<Page> block is used as plugin instance.
 The following options are valid within B<Page> blocks:
 
 =over 4
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to C<curl>.
 
 =item B<URL> I<URL>
 
@@ -1845,6 +1864,11 @@ The following options are valid within B<URL> blocks:
 Use I<Name> as the host name when submitting values. Defaults to the global
 host name setting.
 
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to C<curl_json>.
+
 =item B<Instance> I<Instance>
 
 Sets the plugin instance to I<Instance>.
@@ -1907,6 +1931,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
  <Plugin "curl_xml">
    <URL "http://localhost/stats.xml">
      Host "my_host"
+     #Plugin "curl_xml"
      Instance "some_instance"
      User "collectd"
      Password "thaiNg0I"
@@ -1920,6 +1945,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
        Type "magic_level"
        #InstancePrefix "prefix-"
        InstanceFrom "td[1]"
+       #PluginInstanceFrom "td[1]"
        ValuesFrom "td[2]/span[@class=\"level\"]"
      </XPath>
    </URL>
@@ -1945,10 +1971,16 @@ Within the B<URL> block the following options are accepted:
 Use I<Name> as the host name when submitting values. Defaults to the global
 host name setting.
 
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to 'curl_xml'.
+
 =item B<Instance> I<Instance>
 
-Use I<Instance> as the plugin instance when submitting values. Defaults to an
-empty string (no plugin instance).
+Use I<Instance> as the plugin instance when submitting values.
+May be overridden by B<PluginInstanceFrom> option inside B<XPath> blocks.
+Defaults to an empty string (no plugin instance).
 
 =item B<Namespace> I<Prefix> I<URL>
 
@@ -2019,9 +2051,19 @@ Specifies a XPath expression to use for determining the I<type instance>. The
 XPath expression must return exactly one element. The element's value is then
 used as I<type instance>, possibly prefixed with I<InstancePrefix> (see above).
 
-This value is required. As a special exception, if the "base XPath expression"
-(the argument to the B<XPath> block) returns exactly one argument, then this
-option may be omitted.
+=item B<PluginInstanceFrom> I<PluginInstanceFrom>
+
+Specifies a XPath expression to use for determining the I<plugin instance>. The
+XPath expression must return exactly one element. The element's value is then
+used as I<plugin instance>.
+
+=back
+
+If the "base XPath expression" (the argument to the B<XPath> block) returns
+exactly one argument, then I<InstanceFrom> and I<PluginInstanceFrom> may be omitted.
+Otherwise, at least one of I<InstanceFrom> or I<PluginInstanceFrom> is required.
+
+=over 4
 
 =item B<ValuesFrom> I<ValuesFrom> [I<ValuesFrom> ...]
 
@@ -2030,6 +2072,7 @@ number of XPath expressions must match the number of data sources in the
 I<type> specified with B<Type> (see above). Each XPath expression must return
 exactly one element. The element's value is then parsed as a number and used as
 value for the appropriate value in the value list dispatched to the daemon.
+This option is required.
 
 =back
 
@@ -2060,6 +2103,7 @@ than those of other plugins. It usually looks something like this:
       </Result>
     </Query>
     <Database "product_information">
+      #Plugin "warehouse"
       Driver "mysql"
       Interval 120
       DriverOption "host" "localhost"
@@ -2240,6 +2284,11 @@ block. This name will be used as "PluginInstance" in the values submitted to
 the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting query results from
+this B<Database>. Defaults to C<dbi>.
 
 =item B<Interval> I<Interval>
 
@@ -2566,6 +2615,8 @@ B<Synopsis:>
      MemoryChannels "4"
      FilePrefix "rte"
      SocketMemory "1024"
+     LogLevel "7"
+     RteDriverLibPath "/usr/lib/dpdk-pmd"
    </EAL>
    SharedMemObj "dpdk_collectd_stats_0"
    EnabledPortMask 0xffff
@@ -2597,6 +2648,20 @@ The prefix text used for hugepage filenames. The filename will be set to
 
 A string containing amount of Memory to allocate from hugepages on specific
 sockets in MB. This is an optional value.
+
+=item B<LogLevel> I<LogLevel_number>
+
+A string containing log level number. This parameter is optional.
+If parameter is not present then default value "7" - (INFO) is used.
+Value "8" - (DEBUG) can be set to enable debug traces.
+
+=item B<RteDriverLibPath> I<Path>
+
+A string containing path to shared pmd driver lib or path to directory,
+where shared pmd driver libs are available. This parameter is optional.
+This parameter enable loading of shared pmd driver libs from defined path.
+E.g.: "/usr/lib/dpdk-pmd/librte_pmd_i40e.so"
+or    "/usr/lib/dpdk-pmd"
 
 =back
 
@@ -2773,12 +2838,16 @@ blocks, the following options are recognized:
 
 =over 4
 
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to B<filecount>.
+
 =item B<Instance> I<Instance>
 
-Sets the plugin instance to I<Instance>. That instance name must be unique, but
-it's your responsibility, the plugin doesn't check for that. If not given, the
-instance is set to the directory name with all slashes replaced by underscores
-and all leading underscores removed.
+Sets the plugin instance to I<Instance>. If not given, the instance is set to
+the directory name with all slashes replaced by underscores and all leading
+underscores removed. Empty value is allowed.
 
 =item B<Name> I<Pattern>
 
@@ -2823,6 +2892,26 @@ Controls whether or not to recurse into subdirectories. Enabled by default.
 Controls whether or not to include "hidden" files and directories in the count.
 "Hidden" files and directories are those, whose name begins with a dot.
 Defaults to I<false>, i.e. by default hidden files and directories are ignored.
+
+=item B<RegularOnly> I<true>|I<false>
+
+Controls whether or not to include only regular files in the count.
+Defaults to I<true>, i.e. by default non regular files are ignored.
+
+=item B<FilesSizeType> I<Type>
+
+Sets the type used to dispatch files combined size. Empty value ("") disables
+reporting. Defaults to B<bytes>.
+
+=item B<FilesCountType> I<Type>
+
+Sets the type used to dispatch number of files. Empty value ("") disables
+reporting. Defaults to B<files>.
+
+=item B<TypeInstance> I<Instance>
+
+Sets the I<type instance> used to dispatch values. Defaults to an empty string
+(no plugin instance).
 
 =back
 
@@ -3326,7 +3415,42 @@ This option is only available on Solaris.
 
 =head2 Plugin C<ipmi>
 
+The B<ipmi plugin> allows to monitor server platform status using the Intelligent
+Platform Management Interface (IPMI). Local and remote interfaces are supported.
+
+The plugin configuration consists of one or more B<Instance> blocks which
+specify one I<ipmi> connection each. Each block requires one unique string
+argument as the instance name. If instances are not configured, an instance with
+the default option values will be created.
+
+For backwards compatibility, any option other than B<Instance> block will trigger
+legacy config handling and it will be treated as an option within B<Instance>
+block. This support will go away in the next major version of Collectd.
+
+Within the B<Instance> blocks, the following options are allowed:
+
 =over 4
+
+=item B<Address> I<Address>
+
+Hostname or IP to connect to. If not specified, plugin will try to connect to
+local management controller (BMC).
+
+=item B<Username> I<Username>
+
+=item B<Password> I<Password>
+
+The username and the password to use for the connection to remote BMC.
+
+=item B<AuthType> I<MD5>|I<rmcp+>
+
+Forces the authentication type to use for the connection to remote BMC.
+By default most secure type is seleted.
+
+=item B<Host> I<Hostname>
+
+Sets the B<host> field of dispatched values. Defaults to the global hostname
+setting.
 
 =item B<Sensor> I<Sensor>
 
@@ -3355,6 +3479,24 @@ If a sensor disappears a notification is sent.
 
 If you have for example dual power supply and one of them is (un)plugged then
 a notification is sent.
+
+=item B<NotifyIPMIConnectionState> I<true>|I<false>
+
+If a IPMI connection state changes after initialization time of a minute
+a notification is sent. Defaults to B<false>.
+
+=item B<SELEnabled> I<true>|I<false>
+
+If system event log (SEL) is enabled, plugin will listen for sensor threshold
+and discrete events. When event is received the notification is sent.
+Defaults to B<false>.
+
+=item B<SELClearEvent> I<true>|I<false>
+
+If SEL clear event is enabled, plugin will delete event from SEL list after
+it is received and successfully handled. In this case other tools that are
+subscribed for SEL events will receive an empty event.
+Defaults to B<false>.
 
 =back
 
@@ -3684,6 +3826,7 @@ Synopsis of the configuration:
    <Page "plugin_instance">
      Server "localhost"
      Key "page_key"
+     Plugin "plugin_name"
      <Match>
        Regex "(\\d+) bytes sent"
        DSType CounterAdd
@@ -3710,6 +3853,11 @@ B<Page> block.
 =item B<Key> I<Key>
 
 When connected to the memcached server, asks for the page I<Key>.
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to C<memcachec>.
 
 =item E<lt>B<Match>E<gt>
 
@@ -4216,18 +4364,18 @@ the B<collectd> branch.
 Path to the PEM-encoded CA certificate file. Setting this option enables TLS
 communication with the MQTT broker, and as such, B<Port> should be the TLS-enabled
 port of the MQTT broker.
-A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+This option enables the use of TLS.
 
 =item B<CertificateFile> I<file>
 
 Path to the PEM-encoded certificate file to use as client certificate when
 connecting to the MQTT broker.
-A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+Only valid if B<CACert> and B<CertificateKeyFile> are also set.
 
 =item B<CertificateKeyFile> I<file>
 
 Path to the unencrypted PEM-encoded key file corresponding to B<CertificateFile>.
-A valid TLS configuration requires B<CACert>, B<CertificateFile> and B<CertificateKeyFile>.
+Only valid if B<CACert> and B<CertificateFile> are also set.
 
 =item B<TLSProtocol> I<protocol>
 
@@ -4235,13 +4383,14 @@ If configured, this specifies the string protocol version (e.g. C<tlsv1>,
 C<tlsv1.2>) to use for the TLS connection to the broker. If not set a default
 version is used which depends on the version of OpenSSL the Mosquitto library
 was linked against.
+Only valid if B<CACert> is set.
 
 =item B<CipherSuite> I<ciphersuite>
 
 A string describing the ciphers available for use. See L<ciphers(1)> and the
 C<openssl ciphers> utility for more information. If unset, the default ciphers
 will be used.
-
+Only valid if B<CACert> is set.
 
 =back
 
@@ -4371,11 +4520,11 @@ If enabled, the plugin sends a notification if the replication slave I/O and /
 or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
- 
+
  Enable the collection of wsrep plugin statistics, used in Master-Master
  replication setups like in MySQL Galera/Percona XtraDB Cluster.
  User needs only privileges to execute 'SHOW GLOBAL STATUS'
- 
+
 =item B<ConnectTimeout> I<Seconds>
 
 Sets the connect timeout for the MySQL client.
@@ -5209,6 +5358,25 @@ statistics available. Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<nfs>
+
+The I<nfs plugin> collects information about the usage of the Network File
+System (NFS). It counts the number of procedure calls for each procedure,
+grouped by version and whether the system runs as server or client.
+
+It is possibly to omit metrics for a specific NFS version by setting one or
+more of the following options to B<false> (all of them default to B<true>).
+
+=over 4
+
+=item B<ReportV2> B<true>|B<false>
+
+=item B<ReportV3> B<true>|B<false>
+
+=item B<ReportV4> B<true>|B<false>
+
+=back
+
 =head2 Plugin C<nginx>
 
 This plugin collects the number of connections and requests handled by the
@@ -5679,15 +5847,12 @@ The OpenVPN plugin reads a status file maintained by OpenVPN and gathers
 traffic statistics about connected clients.
 
 To set up OpenVPN to write to the status file periodically, use the
-B<--status> option of OpenVPN. Since OpenVPN can write two different formats,
-you need to set the required format, too. This is done by setting
-B<--status-version> to B<2>.
+B<--status> option of OpenVPN.
 
 So, in a nutshell you need:
 
   openvpn $OTHER_OPTIONS \
-    --status "/var/run/openvpn-status" 10 \
-    --status-version 2
+    --status "/var/run/openvpn-status" 10
 
 Available options:
 
@@ -5742,6 +5907,7 @@ plugin's documentation above for details.
       </Result>
     </Query>
     <Database "product_information">
+      #Plugin "warehouse"
       ConnectID "db01"
       Username "oracle"
       Password "secret"
@@ -5763,6 +5929,11 @@ starting tag of the block. This name will be used as "PluginInstance" in the
 values submitted to the daemon. Other than that, that name is not used.
 
 =over 4
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting query results from
+this B<Database>. Defaults to C<oracle>.
 
 =item B<ConnectID> I<ID>
 
@@ -5819,7 +5990,7 @@ The address of the OVS DB server JSON-RPC interface used by the plugin. To
 enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
 option. See L<ovsdb-server(1)> for more details. The option may be either
 network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
-format. Defaults to B<'localhost'>.
+format. Defaults to C<localhost>.
 
 =item B<Port> I<service>
 
@@ -5885,7 +6056,7 @@ The address of the OVS DB server JSON-RPC interface used by the plugin. To
 enable the interface, OVS DB daemon should be running with C<--remote=ptcp:>
 option. See L<ovsdb-server(1)> for more details. The option may be either
 network hostname, IPv4 numbers-and-dots notation or IPv6 hexadecimal string
-format. Defaults to B<'localhost'>.
+format. Defaults to C<localhost>.
 
 =item B<Port> I<service>
 
@@ -6117,6 +6288,7 @@ L<http://www.postgresql.org/docs/manuals/>.
     </Writer>
 
     <Database foo>
+      Plugin "kingdom"
       Host "hostname"
       Port "5432"
       User "username"
@@ -6438,6 +6610,11 @@ activating this option. The draw-back is, that data covering the specified
 amount of time will be lost, for example, if a single statement within the
 transaction fails or if the database server crashes.
 
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting query results from
+this B<Database>. Defaults to C<postgresql>.
+
 =item B<Instance> I<name>
 
 Specify the plugin instance name that should be used instead of the database
@@ -6691,38 +6868,80 @@ C<I<prefix>/var/run/collectd-powerdns>.
 
 =head2 Plugin C<processes>
 
-=over 4
+Collects information about processes of local system.
 
-=item B<Process> I<Name>
+By default, with no process matches configured, only general statistics is
+collected: the number of processes in each state and fork rate.
 
-Select more detailed statistics of processes matching this name. The statistics
-collected for these selected processes are:
+Process matches can be configured by B<Process> and B<ProcessMatch> options.
+These may also be a block in which further options may be specified.
+
+The statistics collected for matched processes are:
  - size of the resident segment size (RSS)
  - user- and system-time used
  - number of processes
  - number of threads
  - number of open files (under Linux)
+ - number of memory mapped files (under Linux)
  - io data (where available)
  - context switches (under Linux)
  - minor and major pagefaults.
 
-Some platforms have a limit on the length of process names. I<Name> must stay
-below this limit.
+B<Synopsis:>
+
+ <Plugin processes>
+   CollectFileDescriptor true
+   CollectContextSwitch true
+   Process "name"
+   ProcessMatch "name" "regex"
+   <Process "collectd">
+     CollectFileDescriptor false
+     CollectContextSwitch false
+   </Process>
+   <ProcessMatch "name" "regex">
+     CollectFileDescriptor false
+     CollectContextSwitch true
+   </Process>
+ </Plugin>
+
+=over 4
+
+=item B<Process> I<Name>
+
+Select more detailed statistics of processes matching this name.
+
+Some platforms have a limit on the length of process names.
+I<Name> must stay below this limit.
 
 =item B<ProcessMatch> I<name> I<regex>
 
-Similar to the B<Process> option this allows one to select more detailed
-statistics of processes matching the specified I<regex> (see L<regex(7)> for
-details). The statistics of all matching processes are summed up and
-dispatched to the daemon using the specified I<name> as an identifier. This
-allows one to "group" several processes together. I<name> must not contain
-slashes.
+Select more detailed statistics of processes matching the specified I<regex>
+(see L<regex(7)> for details). The statistics of all matching processes are
+summed up and dispatched to the daemon using the specified I<name> as an
+identifier. This allows one to "group" several processes together.
+I<name> must not contain slashes.
 
 =item B<CollectContextSwitch> I<Boolean>
 
-Collect context switch of the process.
+Collect the number of context switches for matched processes.
+Disabled by default.
+
+=item B<CollectFileDescriptor> I<Boolean>
+
+Collect number of file descriptors of matched processes.
+Disabled by default.
+
+=item B<CollectMemoryMaps> I<Boolean>
+
+Collect the number of memory mapped files of the process.
+The limit for this number is configured via F</proc/sys/vm/max_map_count> in
+the Linux kernel.
 
 =back
+
+Options B<CollectContextSwitch> and B<CollectFileDescriptor> may be used inside
+B<Process> and B<ProcessMatch> blocks - then they affect corresponding match
+only. Otherwise they set the default value for subsequent matches.
 
 =head2 Plugin C<protocols>
 
@@ -7514,6 +7733,8 @@ Calculate and dispatch various values out of I<Timer> metrics received during
 an interval. If set to B<False>, the default, these values aren't calculated /
 dispatched.
 
+Please note what reported timer values less than 0.001 are ignored in all B<Timer*> reports.
+
 =back
 
 =head2 Plugin C<swap>
@@ -7551,6 +7772,13 @@ available and free. Defaults to B<false>.
 This is useful for deploying I<collectd> in a heterogeneous environment, where
 swap sizes differ and you want to specify generic thresholds or similar.
 
+=item B<ReportIO> B<true>|B<false>
+
+Enables or disables reporting swap IO. Defaults to B<true>.
+
+This is useful for the cases when swap IO is not neccessary, is not available,
+or is not reliable.
+
 =back
 
 =head2 Plugin C<syslog>
@@ -7586,6 +7814,7 @@ filesystem or CSV (comma separated values) files.
 
   <Plugin table>
     <Table "/proc/slabinfo">
+      #Plugin "slab"
       Instance "slabinfo"
       Separator " "
       <Result>
@@ -7612,10 +7841,14 @@ The following options are available inside a B<Table> block:
 
 =over 4
 
+=item B<Plugin> I<Plugin>
+
+If specified, I<Plugin> is used as the plugin name when submitting values.
+Defaults to B<table>.
+
 =item B<Instance> I<instance>
 
-If specified, I<instance> is used as the plugin instance. So, in the above
-example, the plugin name C<table-slabinfo> would be used. If omitted, the
+If specified, I<instance> is used as the plugin instance. If omitted, the
 filename of the table is used instead, with all special characters replaced
 with an underscore (C<_>).
 
@@ -7685,6 +7918,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
 
   <Plugin "tail">
     <File "/var/log/exim4/mainlog">
+      Plugin "mail"
       Instance "exim"
       Interval 60
       <Match>
@@ -7705,6 +7939,7 @@ user using (extended) regular expressions, as described in L<regex(7)>.
         <DSType "Distribution">
           Percentile 99
           Bucket 0 100
+          #BucketType "bucket"
         </DSType>
         Type "latency"
         Instance "foo"
@@ -7716,11 +7951,13 @@ The config consists of one or more B<File> blocks, each of which configures one
 logfile to parse. Within each B<File> block, there are one or more B<Match>
 blocks, which configure a regular expression to search for.
 
-The B<Instance> option in the B<File> block may be used to set the plugin
-instance. So in the above example the plugin name C<tail-foo> would be used.
-This plugin instance is for all B<Match> blocks that B<follow> it, until the
-next B<Instance> option. This way you can extract several plugin instances from
-one logfile, handy when parsing syslog and the like.
+The B<Plugin> and B<Instance> options in the B<File> block may be used to set
+the plugin name and instance respectively. So in the above example the plugin name
+C<mail-exim> would be used.
+
+These options are applied for all B<Match> blocks that B<follow> it, until the
+next B<Plugin> or B<Instance> option. This way you can extract several plugin
+instances from one logfile, handy when parsing syslog and the like.
 
 The B<Interval> option allows you to define the length of time between reads. If
 this is not set, the default Interval will be used.
@@ -7824,6 +8061,7 @@ B<Synopsis:>
   <DSType "Distribution">
     Percentile 99
     Bucket 0 100
+    BucketType "bucket"
   </DSType>
 
 =over 4
@@ -7860,10 +8098,16 @@ the following schema:
   Bucket  20  50
   Bucket  50   0
 
-Metrics are reported with the I<type> C<bucket> and the I<type instance>
+Metrics are reported with the I<type> set by B<BucketType> option (C<bucket> 
+by default) and the I<type instance>
 C<E<lt>TypeE<gt>[-E<lt>InstanceE<gt>]-E<lt>lower_boundE<gt>_E<lt>upper_boundE<gt>>.
 
 This option may be repeated to calculate more than one rate.
+
+=item B<BucketType> I<Type>
+
+Sets the type used to dispatch B<Bucket> metrics.
+Optional, by default C<bucket> will be used.
 
 =back
 
@@ -7901,7 +8145,8 @@ B<Synopsis:>
        Index 1
    </Metric>
    <File "/var/log/snort/snort.stats">
-       Instance "snort-eth0"
+       Plugin "snortstats"
+       Instance "eth0"
        Interval 600
        Collect "snort-dropped"
    </File>
@@ -7952,6 +8197,11 @@ Each B<File> block represents one CSV file to read. There must be at least one
 I<File> block but there can be multiple if you have multiple CSV files.
 
 =over 4
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name when submitting values.
+Defaults to C<tail_csv>.
 
 =item B<Instance> I<PluginInstance>
 
@@ -8216,9 +8466,9 @@ collections. The different bits of this bit mask accepted by this plugin are:
 
 Boolean enabling the use of logical core numbering for per core statistics.
 When enabled, C<cpuE<lt>nE<gt>> is used as plugin instance, where I<n> is a
-sequential number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
-where I<n> is the n-th core of the socket, causing name conflicts when there is
-more than one socket.
+dynamic number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
+if there is only one package and C<pkgE<lt>nE<gt>-coreE<lt>mE<gt>> if there is
+more than one, where I<n> is the n-th core of package I<m>.
 
 =back
 
@@ -8324,6 +8574,12 @@ Synopsis:
      CollectVCL         false
      CollectVSM         false
      CollectWorkers     false
+     CollectLock        false
+     CollectMempool     false
+     CollectManagement  false
+     CollectSMF         false
+     CollectVBE         false
+     CollectMSE         false
    </Instance>
  </Plugin>
 
@@ -8399,8 +8655,9 @@ log messages which is flushed to disk when full. True by default.
 =item B<CollectSMA> B<true>|B<false>
 
 malloc or umem (umem_alloc(3MALLOC) based) storage statistics. The umem storage
-component is Solaris specific. Only available with Varnish 2.x. False by
-default.
+component is Solaris specific. Note: SMA, SMF and MSE share counters, enable
+only the one used by the Varnish instance. Only available with Varnish 2.x.
+False by default.
 
 =item B<CollectSMS> B<true>|B<false>
 
@@ -8409,7 +8666,8 @@ component is used internally only. False by default.
 
 =item B<CollectSM> B<true>|B<false>
 
-file (memory mapped file) storage statistics. Only available with Varnish 2.x.
+file (memory mapped file) storage statistics. Only available with Varnish 2.x.,
+in varnish 4.x. use CollectSMF.
 False by default.
 
 =item B<CollectStruct> B<true>|B<false>
@@ -8439,6 +8697,35 @@ statistics subsystems). Only available with Varnish 4.x. False by default.
 =item B<CollectWorkers> B<true>|B<false>
 
 Collect statistics about worker threads. False by default.
+
+=item B<CollectVBE> B<true>|B<false>
+
+Backend counters. Only available with Varnish 4.x. False by default.
+
+=item B<CollectSMF> B<true>|B<false>
+
+file (memory mapped file) storage statistics. Only available with Varnish 4.x.
+Note: SMA, SMF and MSE share counters, enable only the one used by the Varnish
+instance. Used to be called SM in Varnish 2.x. False by default.
+
+=item B<CollectManagement> B<true>|B<false>
+
+Management process counters. Only available with Varnish 4.x. False by default.
+
+=item B<CollectLock> B<true>|B<false>
+
+Lock counters. Only available with Varnish 4.x. False by default.
+
+=item B<CollectMempool> B<true>|B<false>
+
+Memory pool counters. Only available with Varnish 4.x. False by default.
+
+=item B<CollectMSE> B<true>|B<false>
+
+Varnish Massive Storage Engine 2.0 (MSE2) is an improved storage backend for
+Varnish, replacing the traditional malloc and file storages. Only available
+with Varnish-Plus 4.x. Note: SMA, SMF and MSE share counters, enable only the
+one used by the Varnish instance. False by default.
 
 =back
 
@@ -8504,7 +8791,7 @@ will be collected.
 =item B<BlockDeviceFormat> B<target>|B<source>
 
 If I<BlockDeviceFormat> is set to B<target>, the default, then the device name
-seen by the guest will be used for reporting metrics. 
+seen by the guest will be used for reporting metrics.
 This corresponds to the C<E<lt>targetE<gt>> node in the XML definition of the
 domain.
 
@@ -9084,6 +9371,12 @@ Sets the Cassandra ttl for the data points.
 
 Please refer to L<http://kairosdb.github.io/docs/build/html/restapi/AddDataPoints.html?highlight=ttl>
 
+=item B<Prefix> I<String>
+
+Only available for the KAIROSDB output format.
+
+Sets the metrics prefix I<string>. Defaults to I<collectd>.
+
 =item B<Metrics> B<true>|B<false>
 
 Controls whether I<metrics> are POSTed to this location. Defaults to B<true>.
@@ -9265,6 +9558,7 @@ Synopsis:
         Prefix "collectd/"
         Database 1
         MaxSetSize -1
+        MaxSetDuration -1
         StoreRates true
     </Node>
   </Plugin>
@@ -9326,6 +9620,12 @@ to C<0>.
 
 The B<MaxSetSize> option limits the number of items that the I<Sorted Sets> can
 hold. Negative values for I<Items> sets no limit, which is the default behavior.
+
+=item B<MaxSetDuration> I<Seconds>
+
+The B<MaxSetDuration> option limits the duration of items that the
+I<Sorted Sets> can hold. Negative values for I<Items> sets no duration, which
+is the default behavior.
 
 =item B<StoreRates> B<true>|B<false>
 

@@ -28,14 +28,14 @@
 
 #include "collectd.h"
 
+#include "common.h"
+#include "plugin.h"
+#include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <stddef.h>
-#include "common.h"
-#include "plugin.h"
-#include "utils_cache.h"
 
 #include <stdlib.h>
 #define SENSU_HOST "localhost"
@@ -879,11 +879,9 @@ static int sensu_send_msg(struct sensu_host *host, const char *msg) /* {{{ */
   sensu_close_socket(host);
 
   if (status != 0) {
-    char errbuf[1024];
     ERROR("write_sensu plugin: Sending to Sensu at %s:%s failed: %s",
           (host->node != NULL) ? host->node : SENSU_HOST,
-          (host->service != NULL) ? host->service : SENSU_PORT,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          (host->service != NULL) ? host->service : SENSU_PORT, STRERRNO);
     return -1;
   }
 

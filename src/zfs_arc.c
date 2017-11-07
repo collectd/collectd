@@ -35,6 +35,10 @@
 /*
  * Global variables
  */
+static value_to_rate_state_t arc_hits_state;
+static value_to_rate_state_t arc_misses_state;
+static value_to_rate_state_t l2_hits_state;
+static value_to_rate_state_t l2_misses_state;
 
 #if defined(KERNEL_LINUX)
 #include "utils_llist.h"
@@ -198,9 +202,8 @@ static int za_read(void) {
 
   fh = fopen(ZOL_ARCSTATS_FILE, "r");
   if (fh == NULL) {
-    char errbuf[1024];
     ERROR("zfs_arc plugin: Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return -1;
   }
 
@@ -313,14 +316,25 @@ static int za_read(void) {
   za_read_derive(ksp, "mru_hits", "cache_result", "mru-hit");
   za_read_derive(ksp, "mru_ghost_hits", "cache_result", "mru_ghost-hit");
 
-  /* Ratios */
-  arc_hits = (gauge_t)get_zfs_value(ksp, "hits");
-  arc_misses = (gauge_t)get_zfs_value(ksp, "misses");
-  l2_hits = (gauge_t)get_zfs_value(ksp, "l2_hits");
-  l2_misses = (gauge_t)get_zfs_value(ksp, "l2_misses");
+  cdtime_t now = cdtime();
 
-  za_submit_ratio("arc", arc_hits, arc_misses);
-  za_submit_ratio("L2", l2_hits, l2_misses);
+  /* Ratios */
+  if ((value_to_rate(&arc_hits, (value_t){.derive = get_zfs_value(ksp, "hits")},
+                     DS_TYPE_DERIVE, now, &arc_hits_state) == 0) &&
+      (value_to_rate(&arc_misses,
+                     (value_t){.derive = get_zfs_value(ksp, "misses")},
+                     DS_TYPE_DERIVE, now, &arc_misses_state) == 0)) {
+    za_submit_ratio("arc", arc_hits, arc_misses);
+  }
+
+  if ((value_to_rate(&l2_hits,
+                     (value_t){.derive = get_zfs_value(ksp, "l2_hits")},
+                     DS_TYPE_DERIVE, now, &l2_hits_state) == 0) &&
+      (value_to_rate(&l2_misses,
+                     (value_t){.derive = get_zfs_value(ksp, "l2_misses")},
+                     DS_TYPE_DERIVE, now, &l2_misses_state) == 0)) {
+    za_submit_ratio("L2", l2_hits, l2_misses);
+  }
 
   /* I/O */
   value_t l2_io[] = {

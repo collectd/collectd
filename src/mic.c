@@ -163,7 +163,6 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t value) {
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
 
-  strncpy(vl.host, hostname_g, sizeof(vl.host));
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
   snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, "temperature", sizeof(vl.type));
@@ -205,7 +204,6 @@ static void mic_submit_cpu(int micnumber, const char *type_instance, int core,
   vl.values = &(value_t){.derive = value};
   vl.values_len = 1;
 
-  strncpy(vl.host, hostname_g, sizeof(vl.host));
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
   if (core < 0) /* global aggregation */
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
@@ -259,7 +257,6 @@ static void mic_submit_power(int micnumber, const char *type,
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
 
-  strncpy(vl.host, hostname_g, sizeof(vl.host));
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
   snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, type, sizeof(vl.type));

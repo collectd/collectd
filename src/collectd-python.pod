@@ -68,8 +68,10 @@ use multiple B<ModulePath> lines to add more than one directory.
 If a Python script throws an exception it will be logged by collectd with the
 name of the exception and the message. If you set this option to true it will
 also log the full stacktrace just like the default output of an interactive
-Python interpreter. This should probably be set to false most of the time but
-is very useful for development and debugging of new modules.
+Python interpreter. This does not apply to the CollectError exception, which
+will never log a stacktrace.
+This should probably be set to false most of the time but is very useful for
+development and debugging of new modules.
 
 =item B<Interactive> I<bool>
 
@@ -247,6 +249,18 @@ collectd you're done.
 
 The following complex types are used to pass values between the Python plugin
 and collectd:
+
+=head2 CollectdError
+
+This is an exception. If any Python script raises this exception it will
+still be treated like an error by collectd but it will be logged as a
+warning instead of an error and it will never generate a stacktrace.
+
+ class CollectdError(Exception)
+
+Basic exception for collectd Python scripts.
+Throwing this exception will not cause a stacktrace to be logged, even if
+LogTraces is enabled in the config.
 
 =head2 Signed
 
@@ -475,7 +489,7 @@ Methods defined here:
 
 =over 4
 
-=item B<dispatch>([type][, values][, plugin_instance][, type_instance][, plugin][, host][, time][, interval]) -> None.  Dispatch a value list.
+=item B<dispatch>([type][, message][, plugin_instance][, type_instance][, plugin][, host][, time][, severity][, meta]) -> None.  Dispatch a notification.
 
 Dispatch this instance to the collectd process. The object has members for each
 of the possible arguments for this method. For a detailed explanation of these
@@ -500,6 +514,16 @@ generated.
 
 The severity of this notification. Assign or compare to I<NOTIF_FAILURE>,
 I<NOTIF_WARNING> or I<NOTIF_OKAY>.
+
+=item meta
+
+These are the meta data for the Notification object.
+It has to be a dictionary of numbers, strings or bools. All keys must be
+strings. I<int> and I<long> objects will be dispatched as signed integers unless
+they are between 2**63 and 2**64-1, which will result in a unsigned integer.
+One of these storage classes can be forced by using the classes
+B<collectd.Signed> and B<collectd.Unsigned>. A meta object received by a
+notification callback will always contain B<Signed> or B<Unsigned> objects.
 
 =back
 

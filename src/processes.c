@@ -33,6 +33,7 @@
  *   Clément Stenac <clement.stenac at diwi.org>
  *   Cosmin Ioiart <cioiart at gmail.com>
  *   Pavel Rochnyack <pavel2000 at ngs.ru>
+ *   Wilfried Goesgens <dothebart at citadel.org>
  **/
 
 #include "collectd.h"
@@ -168,6 +169,7 @@ typedef struct process_entry_s {
   unsigned long num_proc;
   unsigned long num_lwp;
   unsigned long num_fd;
+  unsigned long num_maps;
   unsigned long vmem_size;
   unsigned long vmem_rss;
   unsigned long vmem_data;
@@ -194,6 +196,8 @@ typedef struct process_entry_s {
   _Bool has_cswitch;
 
   _Bool has_fd;
+
+  _Bool has_maps;
 } process_entry_t;
 
 typedef struct procstat_entry_s {
@@ -229,6 +233,7 @@ typedef struct procstat {
   unsigned long num_proc;
   unsigned long num_lwp;
   unsigned long num_fd;
+  unsigned long num_maps;
   unsigned long vmem_size;
   unsigned long vmem_rss;
   unsigned long vmem_data;
@@ -253,6 +258,7 @@ typedef struct procstat {
   derive_t cswitch_invol;
 
   _Bool report_fd_num;
+  _Bool report_maps_num;
   _Bool report_ctx_switch;
 
   struct procstat *next;
@@ -264,6 +270,7 @@ static procstat_t *list_head_g = NULL;
 static _Bool want_init = 1;
 static _Bool report_ctx_switch = 0;
 static _Bool report_fd_num = 0;
+static _Bool report_maps_num = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -322,6 +329,7 @@ static procstat_t *ps_list_register(const char *name, const char *regexp) {
   new->cswitch_invol = -1;
 
   new->report_fd_num = report_fd_num;
+  new->report_maps_num = report_maps_num;
   new->report_ctx_switch = report_ctx_switch;
 
 #if HAVE_REGEX_H
@@ -472,6 +480,7 @@ static void ps_list_add(const char *name, const char *cmdline,
     ps->num_proc += entry->num_proc;
     ps->num_lwp += entry->num_lwp;
     ps->num_fd += entry->num_fd;
+    ps->num_maps += entry->num_maps;
     ps->vmem_size += entry->vmem_size;
     ps->vmem_rss += entry->vmem_rss;
     ps->vmem_data += entry->vmem_data;
@@ -521,6 +530,7 @@ static void ps_list_reset(void) {
     ps->num_proc = 0;
     ps->num_lwp = 0;
     ps->num_fd = 0;
+    ps->num_maps = 0;
     ps->vmem_size = 0;
     ps->vmem_rss = 0;
     ps->vmem_data = 0;
@@ -561,6 +571,8 @@ static void ps_tune_instance(oconfig_item_t *ci, procstat_t *ps) {
       cf_util_get_boolean(c, &ps->report_ctx_switch);
     else if (strcasecmp(c->key, "CollectFileDescriptor") == 0)
       cf_util_get_boolean(c, &ps->report_fd_num);
+    else if (strcasecmp(c->key, "CollectMemoryMaps") == 0)
+      cf_util_get_boolean(c, &ps->report_maps_num);
     else {
       ERROR("processes plugin: Option `%s' not allowed here.", c->key);
     }
@@ -619,6 +631,8 @@ static int ps_config(oconfig_item_t *ci) {
       cf_util_get_boolean(c, &report_ctx_switch);
     } else if (strcasecmp(c->key, "CollectFileDescriptor") == 0) {
       cf_util_get_boolean(c, &report_fd_num);
+    } else if (strcasecmp(c->key, "CollectMemoryMaps") == 0) {
+      cf_util_get_boolean(c, &report_maps_num);
     } else {
       ERROR("processes plugin: The `%s' configuration option is not "
             "understood and will be ignored.",
@@ -768,6 +782,14 @@ static void ps_submit_proc_list(procstat_t *ps) {
     plugin_dispatch_values(&vl);
   }
 
+  if (ps->num_maps > 0) {
+    sstrncpy(vl.type, "file_handles", sizeof(vl.type));
+    sstrncpy(vl.type_instance, "mapped", sizeof(vl.type_instance));
+    vl.values[0].gauge = ps->num_maps;
+    vl.values_len = 1;
+    plugin_dispatch_values(&vl);
+  }
+
   if ((ps->cswitch_vol != -1) && (ps->cswitch_invol != -1)) {
     sstrncpy(vl.type, "contextswitch", sizeof(vl.type));
     sstrncpy(vl.type_instance, "voluntary", sizeof(vl.type_instance));
@@ -782,20 +804,23 @@ static void ps_submit_proc_list(procstat_t *ps) {
     plugin_dispatch_values(&vl);
   }
 
-  DEBUG("name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; "
-        "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
-        "vmem_code = %lu; "
-        "vmem_minflt_counter = %" PRIi64 "; vmem_majflt_counter = %" PRIi64 "; "
-        "cpu_user_counter = %" PRIi64 "; cpu_system_counter = %" PRIi64 "; "
-        "io_rchar = %" PRIi64 "; io_wchar = %" PRIi64 "; "
-        "io_syscr = %" PRIi64 "; io_syscw = %" PRIi64 "; "
-        "io_diskr = %" PRIi64 "; io_diskw = %" PRIi64 "; "
-        "cswitch_vol = %" PRIi64 "; cswitch_invol = %" PRIi64 ";",
-        ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->vmem_size,
-        ps->vmem_rss, ps->vmem_data, ps->vmem_code, ps->vmem_minflt_counter,
-        ps->vmem_majflt_counter, ps->cpu_user_counter, ps->cpu_system_counter,
-        ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw, ps->io_diskr,
-        ps->io_diskw, ps->cswitch_vol, ps->cswitch_invol);
+  DEBUG(
+      "name = %s; num_proc = %lu; num_lwp = %lu; num_fd = %lu; num_maps = %lu; "
+      "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+      "vmem_code = %lu; "
+      "vmem_minflt_counter = %" PRIi64 "; vmem_majflt_counter = %" PRIi64 "; "
+      "cpu_user_counter = %" PRIi64 "; cpu_system_counter = %" PRIi64 "; "
+      "io_rchar = %" PRIi64 "; io_wchar = %" PRIi64 "; "
+      "io_syscr = %" PRIi64 "; io_syscw = %" PRIi64 "; "
+      "io_diskr = %" PRIi64 "; io_diskw = %" PRIi64 "; "
+      "cswitch_vol = %" PRIi64 "; cswitch_invol = %" PRIi64 ";",
+      ps->name, ps->num_proc, ps->num_lwp, ps->num_fd, ps->num_maps,
+      ps->vmem_size, ps->vmem_rss, ps->vmem_data, ps->vmem_code,
+      ps->vmem_minflt_counter, ps->vmem_majflt_counter, ps->cpu_user_counter,
+      ps->cpu_system_counter, ps->io_rchar, ps->io_wchar, ps->io_syscr,
+      ps->io_syscw, ps->io_diskr, ps->io_diskw, ps->cswitch_vol,
+      ps->cswitch_invol);
+
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
@@ -879,9 +904,7 @@ static int ps_read_tasks_status(process_entry_t *ps) {
     } /* while (fgets) */
 
     if (fclose(fh)) {
-      char errbuf[1024];
-      WARNING("processes: fclose: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("processes: fclose: %s", STRERRNO);
     }
   }
   closedir(dh);
@@ -937,8 +960,7 @@ static int ps_read_status(long pid, process_entry_t *ps) {
   } /* while (fgets) */
 
   if (fclose(fh)) {
-    char errbuf[1024];
-    WARNING("processes: fclose: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("processes: fclose: %s", STRERRNO);
   }
 
   ps->vmem_data = data * 1024;
@@ -998,11 +1020,34 @@ static int ps_read_io(process_entry_t *ps) {
   } /* while (fgets) */
 
   if (fclose(fh)) {
-    char errbuf[1024];
-    WARNING("processes: fclose: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("processes: fclose: %s", STRERRNO);
   }
   return 0;
 } /* int ps_read_io (...) */
+
+static int ps_count_maps(pid_t pid) {
+  FILE *fh;
+  char buffer[1024];
+  char filename[64];
+  int count = 0;
+
+  snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
+  if ((fh = fopen(filename, "r")) == NULL) {
+    DEBUG("ps_count_maps: Failed to open file `%s'", filename);
+    return -1;
+  }
+
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    if (strchr(buffer, '\n')) {
+      count++;
+    }
+  } /* while (fgets) */
+
+  if (fclose(fh)) {
+    WARNING("processes: fclose: %s", STRERRNO);
+  }
+  return count;
+} /* int ps_count_maps (...) */
 
 static int ps_count_fd(int pid) {
   char dirname[64];
@@ -1038,6 +1083,14 @@ static void ps_fill_details(const procstat_t *ps, process_entry_t *entry) {
       ps_read_tasks_status(entry);
       entry->has_cswitch = 1;
     }
+  }
+
+  if (ps->report_maps_num) {
+    int num_maps;
+    if (entry->has_maps == 0 && (num_maps = ps_count_maps(entry->id)) > 0) {
+      entry->num_maps = num_maps;
+    }
+    entry->has_maps = 1;
   }
 
   if (ps->report_fd_num) {
@@ -1202,12 +1255,10 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   errno = 0;
   fd = open(file, O_RDONLY);
   if (fd < 0) {
-    char errbuf[4096];
     /* ENOENT means the process exited while we were handling it.
      * Don't complain about this, it only fills the logs. */
     if (errno != ENOENT)
-      WARNING("processes plugin: Failed to open `%s': %s.", file,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("processes plugin: Failed to open `%s': %s.", file, STRERRNO);
     return NULL;
   }
 
@@ -1222,13 +1273,12 @@ static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
     status = read(fd, (void *)buf_ptr, len);
 
     if (status < 0) {
-      char errbuf[1024];
 
       if ((EAGAIN == errno) || (EINTR == errno))
         continue;
 
       WARNING("processes plugin: Failed to read from `%s': %s.", file,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+              STRERRNO);
       close(fd);
       return NULL;
     }
@@ -1286,9 +1336,7 @@ static int read_fork_rate(void) {
 
   proc_stat = fopen("/proc/stat", "r");
   if (proc_stat == NULL) {
-    char errbuf[1024];
-    ERROR("processes plugin: fopen (/proc/stat) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("processes plugin: fopen (/proc/stat) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -1420,6 +1468,9 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
    * TODO: File descriptor count for Solaris
    */
   ps->num_fd = 0;
+
+  /* Number of memory mappings */
+  ps->num_maps = 0;
 
   /*
    * Calculating input/ouput chars
@@ -1656,6 +1707,9 @@ static int ps_read(void) {
         /* File descriptor count not implemented */
         pse.num_fd = 0;
 
+        /* Number of memory mappings */
+        pse.num_maps = 0;
+
         pse.vmem_minflt_counter = task_events_info.cow_faults;
         pse.vmem_majflt_counter = task_events_info.faults;
 
@@ -1794,8 +1848,7 @@ static int ps_read(void) {
   ps_list_reset();
 
   if ((proc = opendir("/proc")) == NULL) {
-    char errbuf[1024];
-    ERROR("Cannot open `/proc': %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("Cannot open `/proc': %s", STRERRNO);
     return -1;
   }
 
@@ -1961,6 +2014,9 @@ static int ps_read(void) {
       /* file descriptor count not implemented */
       pse.num_fd = 0;
 
+      /* Number of memory mappings */
+      pse.num_maps = 0;
+
       /* context switch counters not implemented */
       pse.cswitch_vol = -1;
       pse.cswitch_invol = -1;
@@ -2101,6 +2157,9 @@ static int ps_read(void) {
 
       /* file descriptor count not implemented */
       pse.num_fd = 0;
+
+      /* Number of memory mappings */
+      pse.num_maps = 0;
 
       /* context switch counters not implemented */
       pse.cswitch_vol = -1;
@@ -2265,6 +2324,7 @@ static int ps_read(void) {
       pse.io_diskw = -1;
 
       pse.num_fd = 0;
+      pse.num_maps = 0;
 
       pse.cswitch_vol = -1;
       pse.cswitch_invol = -1;

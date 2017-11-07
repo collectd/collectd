@@ -62,6 +62,7 @@ struct cdbi_database_s /* {{{ */
 {
   char *name;
   char *select_db;
+  char *plugin_name;
 
   cdtime_t interval;
 
@@ -172,7 +173,10 @@ static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
     return;
 
   sfree(db->name);
+  sfree(db->select_db);
+  sfree(db->plugin_name);
   sfree(db->driver);
+  sfree(db->host);
 
   for (size_t i = 0; i < db->driver_options_num; i++) {
     sfree(db->driver_options[i].key);
@@ -184,7 +188,10 @@ static void cdbi_database_free(cdbi_database_t *db) /* {{{ */
   if (db->q_prep_areas)
     for (size_t i = 0; i < db->queries_num; ++i)
       udb_query_delete_preparation_area(db->q_prep_areas[i]);
-  free(db->q_prep_areas);
+  sfree(db->q_prep_areas);
+  /* N.B.: db->queries references objects "owned" by the global queries
+   * variable. Free the array here, but not the content. */
+  sfree(db->queries);
 
   sfree(db);
 } /* }}} void cdbi_database_free */
@@ -298,6 +305,8 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->host);
     else if (strcasecmp("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &db->interval);
+    else if (strcasecmp("Plugin", child->key) == 0)
+      status = cf_util_get_string(child, &db->plugin_name);
     else {
       WARNING("dbi plugin: Option `%s' not allowed here.", child->key);
       status = -1;
@@ -540,7 +549,8 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
 
   udb_query_prepare_result(
       q, prep_area, (db->host ? db->host : hostname_g),
-      /* plugin = */ "dbi", db->name, column_names, column_num,
+      /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "dbi",
+      db->name, column_names, column_num,
       /* interval = */ (db->interval > 0) ? db->interval : 0);
 
   /* 0 = error; 1 = success; */

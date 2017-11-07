@@ -973,9 +973,7 @@ static int disk_read(void) {
   int rnumdisk;
 
   if ((numdisk = perfstat_disk(NULL, NULL, sizeof(perfstat_disk_t), 0)) < 0) {
-    char errbuf[1024];
-    WARNING("disk plugin: perfstat_disk: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("disk plugin: perfstat_disk: %s", STRERRNO);
     return -1;
   }
 
@@ -989,9 +987,7 @@ static int disk_read(void) {
   firstpath.name[0] = '\0';
   if ((rnumdisk = perfstat_disk(&firstpath, stat_disk, sizeof(perfstat_disk_t),
                                 numdisk)) < 0) {
-    char errbuf[1024];
-    WARNING("disk plugin: perfstat_disk : %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("disk plugin: perfstat_disk : %s", STRERRNO);
     return -1;
   }
 

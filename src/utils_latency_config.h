@@ -44,6 +44,7 @@ typedef struct {
 
   latency_bucket_t *buckets;
   size_t buckets_num;
+  char *bucket_type;
 
   /*
   _Bool lower;

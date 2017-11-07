@@ -30,7 +30,7 @@
 kstat_ctl_t *kc = NULL;
 #endif /* HAVE_LIBKSTAT */
 
-char hostname_g[] = "example.com";
+char *hostname_g = "example.com";
 
 void plugin_set_dir(const char *dir) { /* nop */
 }

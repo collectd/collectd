@@ -251,9 +251,7 @@ static int ds_get(char ***ret, /* {{{ */
 
   ds_def = calloc(ds->ds_num, sizeof(*ds_def));
   if (ds_def == NULL) {
-    char errbuf[1024];
-    ERROR("rrdtool plugin: calloc failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("rrdtool plugin: calloc failed: %s", STRERRNO);
     return -1;
   }
 
@@ -512,9 +510,8 @@ static void *srrd_create_thread(void *targs) /* {{{ */
 
   status = rename(tmpfile, args->filename);
   if (status != 0) {
-    char errbuf[1024];
     ERROR("srrd_create_thread: rename (\"%s\", \"%s\") failed: %s", tmpfile,
-          args->filename, sstrerror(errno, errbuf, sizeof(errbuf)));
+          args->filename, STRERRNO);
     unlink(tmpfile);
     unlock_file(args->filename);
     srrd_create_args_destroy(args);
@@ -559,9 +556,7 @@ static int srrd_create_async(const char *filename, /* {{{ */
 
   status = pthread_create(&thread, &attr, srrd_create_thread, args);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("srrd_create_async: pthread_create failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("srrd_create_async: pthread_create failed: %s", STRERROR(status));
     pthread_attr_destroy(&attr);
     srrd_create_args_destroy(args);
     return status;
@@ -605,9 +600,7 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   argc = ds_num + rra_num;
 
   if ((argv = malloc(sizeof(*argv) * (argc + 1))) == NULL) {
-    char errbuf[1024];
-    ERROR("cu_rrd_create_file failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("cu_rrd_create_file failed: %s", STRERRNO);
     rra_free(rra_num, rra_def);
     ds_free(ds_num, ds_def);
     return -1;

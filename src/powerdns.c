@@ -44,15 +44,12 @@
 #endif
 #define FUNC_ERROR(func)                                                       \
   do {                                                                         \
-    char errbuf[1024];                                                         \
-    ERROR("powerdns plugin: %s failed: %s", func,                              \
-          sstrerror(errno, errbuf, sizeof(errbuf)));                           \
+    ERROR("powerdns plugin: %s failed: %s", func, STRERRNO);                   \
   } while (0)
 #define SOCK_ERROR(func, sockpath)                                             \
   do {                                                                         \
-    char errbuf[1024];                                                         \
     ERROR("powerdns plugin: Socket `%s` %s failed: %s", sockpath, func,        \
-          sstrerror(errno, errbuf, sizeof(errbuf)));                           \
+          STRERRNO);                                                           \
   } while (0)
 
 #define SERVER_SOCKET LOCALSTATEDIR "/run/pdns.controlsocket"

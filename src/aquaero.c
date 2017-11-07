@@ -94,19 +94,15 @@ static int aquaero_read(void) {
   char type_instance[DATA_MAX_NAME_LEN];
 
   if (libaquaero5_poll(conf_device, &aq_data, &err_msg) < 0) {
-    char errbuf[1024];
     ERROR("aquaero plugin: Failed to poll device \"%s\": %s (%s)",
-          conf_device ? conf_device : "default", err_msg,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          conf_device ? conf_device : "default", err_msg, STRERRNO);
     return -1;
   }
 
   if (libaquaero5_getsettings(conf_device, &aq_sett, &err_msg) < 0) {
-    char errbuf[1024];
     ERROR("aquaero plugin: Failed to get settings "
           "for device \"%s\": %s (%s)",
-          conf_device ? conf_device : "default", err_msg,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          conf_device ? conf_device : "default", err_msg, STRERRNO);
     return -1;
   }
 

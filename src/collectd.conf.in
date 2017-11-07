@@ -369,6 +369,9 @@
 #  ReportByCpu true
 #  ReportByState true
 #  ValuesPercentage false
+#  ReportNumCpu false
+#  ReportGuestState false
+#  SubtractGuestState true
 #</Plugin>
 #
 #<Plugin csv>
@@ -468,6 +471,7 @@
 #<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
 #    Host "my_host"
+#    #Plugin "stats"
 #    Instance "some_instance"
 #    User "collectd"
 #    Password "thaiNg0I"
@@ -482,6 +486,7 @@
 #      Type "magic_level"
 #      #InstancePrefix "prefix-"
 #      InstanceFrom "td[1]"
+#      #PluginInstanceFrom "td[1]"
 #      ValuesFrom "td[2]/span[@class=\"level\"]"
 #    </XPath>
 #  </URL>
@@ -497,6 +502,7 @@
 #		</Result>
 #	</Query>
 #	<Database "customers_db">
+#		#Plugin "mycompany"
 #		Driver "mysql"
 #		DriverOption "host" "localhost"
 #		DriverOption "username" "collectd"
@@ -560,6 +566,8 @@
 #    Coremask "0x2"
 #    MemoryChannels "4"
 #    FilePrefix "rte"
+#    LogLevel "7"
+#    RteDriverLibPath "/usr/lib/dpdk-pmd"
 #  </EAL>
 #  SharedMemObj "dpdk_collectd_stats_0"
 #  EnabledPortMask 0xffff
@@ -593,12 +601,17 @@
 
 #<Plugin filecount>
 #	<Directory "/path/to/dir">
+#		#Plugin "foo"
 #		Instance "foodir"
 #		Name "*.conf"
 #		MTime "-5m"
 #		Size "+10k"
 #		Recursive true
 #		IncludeHidden false
+#		RegularOnly true
+#		#FilesSizeType "bytes"
+#		#FilesCountType "files"
+#		#TypeInstance "instance"
 #	</Directory>
 #</Plugin>
 
@@ -671,12 +684,33 @@
 #</Plugin>
 
 #<Plugin ipmi>
-#	Sensor "some_sensor"
-#	Sensor "another_one"
-#	IgnoreSelected false
-#	NotifySensorAdd false
-#	NotifySensorRemove true
-#	NotifySensorNotPresent false
+#	<Instance "local">
+#		Sensor "some_sensor"
+#		Sensor "another_one"
+#		IgnoreSelected false
+#		NotifySensorAdd false
+#		NotifySensorRemove true
+#		NotifySensorNotPresent false
+#		NotifyIPMIConnectionState false
+#		SELEnabled false
+#		SELClearEvent false
+#	</Instance>
+#	<Instance "remote">
+#		Host "server.example.com"
+#		Address  "1.2.3.4"
+#		Username "user"
+#		Password "secret"
+#		#AuthType "md5"
+#		Sensor "some_sensor"
+#		Sensor "another_one"
+#		IgnoreSelected false
+#		NotifySensorAdd false
+#		NotifySensorRemove true
+#		NotifySensorNotPresent false
+#		NotifyIPMIConnectionState false
+#		SELEnabled false
+#		SELClearEvent false
+#	</Instance>
 #</Plugin>
 
 #<Plugin iptables>
@@ -819,6 +853,11 @@
 #		QoS 2
 #		Topic "collectd/#"
 #		CleanSession true
+#		CACert "/etc/ssl/ca.crt"
+#		CertificateFile "/etc/ssl/client.crt"
+#		CertificateKeyFile "/etc/ssl/client.pem"
+#		TLSProtocol "tlsv1.2"
+#		CipherSuite "ciphers"
 #	</Subscribe>
 #</Plugin>
 
@@ -945,6 +984,12 @@
 #	CacheFlush 1800
 @LOAD_PLUGIN_NETWORK@</Plugin>
 
+#<Plugin nfs>
+#	ReportV2 false
+#	#ReportV3 false
+#	#ReportV4 false
+#</Plugin>
+
 #<Plugin nginx>
 #	URL "http://localhost/status?auto"
 #	User "www-user"
@@ -1032,6 +1077,7 @@
 #    </Result>
 #  </Query>
 #  <Database "product_information">
+#    #Plugin "warehouse"
 #    ConnectID "db01"
 #    Username "oracle"
 #    Password "secret"
@@ -1118,6 +1164,7 @@
 #		StoreRates true
 #	</Writer>
 #	<Database foo>
+#		#Plugin "kingdom"
 #		Host "hostname"
 #		Port "5432"
 #		User "username"
@@ -1157,6 +1204,7 @@
 #<Plugin processes>
 #	CollectFileDescriptor true
 #	CollectContextSwitch true
+#	CollectMemoryMaps true
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
@@ -1276,6 +1324,8 @@
 #       Community "community_string"
 #       Collect "std_traffic"
 #       Interval 120
+# 	Timeout 10
+#	Retries 1
 #   </Host>
 #   <Host "some.server.mydomain.org">
 #       Address "192.168.0.42"
@@ -1289,6 +1339,8 @@
 #       Community "more_communities"
 #       Collect "powerplus_voltge_input"
 #       Interval 300
+# 	Timeout 5
+#	Retries 5
 #   </Host>
 #</Plugin>
 
@@ -1338,10 +1390,12 @@
 #	ReportBytes true
 #	ValuesAbsolute true
 #	ValuesPercentage false
+#	ReportIO true
 #</Plugin>
 
 #<Plugin table>
 #	<Table "/proc/slabinfo">
+#		#Plugin "table"
 #		Instance "slabinfo"
 #		Separator " "
 #		<Result>
@@ -1393,6 +1447,7 @@
 #        Bucket 0.5 1.0   # -> bucket-latency-foo-0.5_1
 #        Bucket 1.0 2.0   # -> bucket-latency-foo-1_2
 #        Bucket 2.0 0     # -> bucket-latency-foo-2_inf
+#        #BucketType "bucket"
 #      </DSType>
 #      Type "latency"
 #      Instance "foo"
@@ -1472,7 +1527,7 @@
 #	SystemManagementInterrupt true
 #	DigitalTemperatureSensor true
 #	PackageThermalManagement true
-#	RunningAveragePowerLimit "7"	
+#	RunningAveragePowerLimit "7"
 #</Plugin>
 
 #<Plugin unixsock>
@@ -1522,7 +1577,7 @@
 #      CollectPurge false         # Varnish 2 only
 #      CollectSession false
 #      CollectSHM true
-#      CollectSMA false           # Varnish 2 only
+#      CollectSMA false           # Varnish 2 & 4 only
 #      CollectSMS false
 #      CollectSM false            # Varnish 2 only
 #      CollectStruct false
@@ -1531,6 +1586,12 @@
 #      CollectVCL false
 #      CollectVSM false           # Varnish 4 only
 #      CollectWorkers false
+#      CollectLock false          # Varnish 4 only
+#      CollectMempool false       # Varnish 4 only
+#      CollectManagement false    # Varnish 4 only
+#      CollectSMF false           # Varnish 4 only
+#      CollectVBE false           # Varnish 4 only
+#      CollectMSE false           # Varnish-Plus 4 only
 #   </Instance>
 #</Plugin>
 
@@ -1587,6 +1648,7 @@
 #		Header "X-Custom-Header: custom_value"
 #		SSLVersion "TLSv1"
 #		Format "Command"
+#		Prefix "collectd"  # metric prefix, only available for KAIROSDB format
 #		Attribute "key" "value"     # only available for KAIROSDB format
 #		TTL 0   # data ttl, only available for KAIROSDB format
 #		Metrics true

@@ -212,7 +212,7 @@ void sfree (void **ptr)
 }
 #endif
 
-ssize_t sread(int fd, void *buf, size_t count) {
+int sread(int fd, void *buf, size_t count) {
   char *ptr;
   size_t nleft;
   ssize_t status;
@@ -230,10 +230,7 @@ ssize_t sread(int fd, void *buf, size_t count) {
       return status;
 
     if (status == 0) {
-      DEBUG("Received EOF from fd %i. "
-            "Closing fd and returning error.",
-            fd);
-      close(fd);
+      DEBUG("Received EOF from fd %i. ", fd);
       return -1;
     }
 
@@ -246,7 +243,7 @@ ssize_t sread(int fd, void *buf, size_t count) {
   return 0;
 }
 
-ssize_t swrite(int fd, const void *buf, size_t count) {
+int swrite(int fd, const void *buf, size_t count) {
   const char *ptr;
   size_t nleft;
   ssize_t status;
@@ -269,7 +266,8 @@ ssize_t swrite(int fd, const void *buf, size_t count) {
     if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
       /* if recv returns zero (even though poll() said there is data to be
        * read), that means the connection has been closed */
-      return errno ? errno : -1;
+      errno = ECONNRESET;
+      return -1;
     }
   }
 
@@ -631,14 +629,10 @@ int check_create_dir(const char *file_orig) {
           if (EEXIST == errno)
             continue;
 
-          char errbuf[1024];
-          ERROR("check_create_dir: mkdir (%s): %s", dir,
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+          ERROR("check_create_dir: mkdir (%s): %s", dir, STRERRNO);
           return -1;
         } else {
-          char errbuf[1024];
-          ERROR("check_create_dir: stat (%s): %s", dir,
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+          ERROR("check_create_dir: stat (%s): %s", dir, STRERRNO);
           return -1;
         }
       } else if (!S_ISDIR(statbuf.st_mode)) {
@@ -1212,9 +1206,7 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   failure = 0;
 
   if ((dh = opendir(dir)) == NULL) {
-    char errbuf[1024];
-    ERROR("walk_directory: Cannot open '%s': %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("walk_directory: Cannot open '%s': %s", dir, STRERRNO);
     return -1;
   }
 

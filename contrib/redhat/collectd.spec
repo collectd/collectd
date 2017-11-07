@@ -16,7 +16,7 @@
 #
 # - fetch the desired collectd release file from https://collectd.org/files/
 #   and save it in your ~/rpmbuild/SOURCES/ directory (or build your own out of
-#   the git repository: ./build.sh && ./configure && make-dist-bz2)
+#   the git repository: ./build.sh && ./configure && make dist)
 #
 # - copy this file in your ~/rpmbuild/SPECS/ directory. Make sure the
 #   "Version:" tag matches the version from the tarball.
@@ -130,6 +130,7 @@
 %define with_snmp_agent 0%{!?_without_snmp_agent:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
+%define with_synproxy 0%{!?_without_synproxy:0}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
@@ -178,6 +179,8 @@
 %define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin intel_pmu disabled, requires libjevents
+%define with_intel_pmu 0%{!?_without_intel_pmu:0}
 # plugin intel_rdt disabled, requires intel-cmt-cat
 %define with_intel_rdt 0%{!?_without_intel_rdt:0}
 # plugin mic disabled, requires Mic
@@ -245,7 +248,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	6%{?dist}
+Release:	8%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -470,6 +473,16 @@ The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
 %endif
 
+%if %{with_intel_pmu}
+%package intel_pmu
+Summary:	Intel PMU plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description intel_pmu
+The intel_pmu plugin reads performance counters provided by the Linux
+kernel perf interface.
+%endif
+
 %if %{with_intel_rdt}
 %package intel_rdt
 Summary:	Intel RDT plugin for collectd
@@ -509,8 +522,8 @@ the byte- and packet-counters of selected rules and submit them to collectd.
 Summary:	Java plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	java-devel, jpackage-utils
-Requires:	java, jpackage-utils
+BuildRequires:	java-devel >= 1.6, jpackage-utils >= 1.6
+Requires:	java >= 1.6, jpackage-utils >= 1.6
 %description java
 This plugin for collectd allows plugins to be written in Java and executed
 in an embedded JVM.
@@ -1236,6 +1249,12 @@ Collectd utilities
 %define _with_hugepages --disable-hugepages
 %endif
 
+%if %{with_intel_pmu}
+%define _with_intel_pmu --enable-intel_pmu
+%else
+%define _with_intel_pmu --disable-intel_pmu
+%endif
+
 %if %{with_intel_rdt}
 %define _with_intel_rdt --enable-intel_rdt
 %else
@@ -1637,6 +1656,12 @@ Collectd utilities
 %define _with_swap --disable-swap
 %endif
 
+%if %{with_synproxy}
+%define _with_synproxy --enable-synproxy
+%else
+%define _with_synproxy --disable-synproxy
+%endif
+
 %if %{with_syslog}
 %define _with_syslog --enable-syslog
 %else
@@ -1902,6 +1927,7 @@ Collectd utilities
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
 	%{?_with_hugepages} \
+	%{?_with_intel_pmu} \
 	%{?_with_intel_rdt} \
 	%{?_with_interface} \
 	%{?_with_ipc} \
@@ -1967,6 +1993,7 @@ Collectd utilities
 	%{?_with_snmp_agent} \
 	%{?_with_statsd} \
 	%{?_with_swap} \
+	%{?_with_synproxy} \
 	%{?_with_syslog} \
 	%{?_with_table} \
 	%{?_with_tail_csv} \
@@ -2272,6 +2299,9 @@ fi
 %if %{with_swap}
 %{_libdir}/%{name}/swap.so
 %endif
+%if %{with_synproxy}
+%{_libdir}/%{name}/synproxy.so
+%endif
 %if %{with_syslog}
 %{_libdir}/%{name}/syslog.so
 %endif
@@ -2348,6 +2378,9 @@ fi
 %{_includedir}/collectd/network_buffer.h
 %{_includedir}/collectd/lcc_features.h
 %{_libdir}/pkgconfig/libcollectdclient.pc
+%{_includedir}/collectd/network_parse.h
+%{_includedir}/collectd/server.h
+%{_includedir}/collectd/types.h
 %{_libdir}/libcollectdclient.so
 
 %files -n libcollectdclient
@@ -2464,6 +2497,11 @@ fi
 %if %{with_hddtemp}
 %files hddtemp
 %{_libdir}/%{name}/hddtemp.so
+%endif
+
+%if %{with_intel_pmu}
+%files intel_pmu
+%{_libdir}/%{name}/intel_pmu.so
 %endif
 
 %if %{with_intel_rdt}
@@ -2699,6 +2737,15 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Sep 28 2017 xakru <calvinxakru@gmail.com> - 5.7.1-8
+- Add new libcollectdclient/network_parse
+- Add new libcollectdclient/server
+- Add new libcollectdclient/types
+- Add new synproxy plugin
+
+* Fri Aug 18 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-7
+- Add new intel_pmu plugin
+
 * Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-6
 - Move recently added plugins to subpackages
 

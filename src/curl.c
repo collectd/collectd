@@ -53,6 +53,7 @@ struct web_page_s;
 typedef struct web_page_s web_page_t;
 struct web_page_s /* {{{ */
 {
+  char *plugin_name;
   char *instance;
 
   char *url;
@@ -146,6 +147,7 @@ static void cc_web_page_free(web_page_t *wp) /* {{{ */
     curl_easy_cleanup(wp->curl);
   wp->curl = NULL;
 
+  sfree(wp->plugin_name);
   sfree(wp->instance);
 
   sfree(wp->url);
@@ -412,6 +414,7 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
     ERROR("curl plugin: calloc failed.");
     return -1;
   }
+  page->plugin_name = NULL;
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;
@@ -435,7 +438,9 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("URL", child->key) == 0)
+    if (strcasecmp("Plugin", child->key) == 0)
+      status = cf_util_get_string(child, &page->plugin_name);
+    else if (strcasecmp("URL", child->key) == 0)
       status = cf_util_get_string(child, &page->url);
     else if (strcasecmp("User", child->key) == 0)
       status = cf_util_get_string(child, &page->user);
@@ -566,7 +571,8 @@ static void cc_submit(const web_page_t *wp, const web_match_t *wm, /* {{{ */
 
   vl.values = &value;
   vl.values_len = 1;
-  sstrncpy(vl.plugin, "curl", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, (wp->plugin_name != NULL) ? wp->plugin_name : "curl",
+           sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, wp->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, wm->type, sizeof(vl.type));
   if (wm->instance != NULL)
@@ -581,7 +587,8 @@ static void cc_submit_response_code(const web_page_t *wp, long code) /* {{{ */
 
   vl.values = &(value_t){.gauge = (gauge_t)code};
   vl.values_len = 1;
-  sstrncpy(vl.plugin, "curl", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, (wp->plugin_name != NULL) ? wp->plugin_name : "curl",
+           sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, wp->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "response_code", sizeof(vl.type));
 
@@ -594,7 +601,8 @@ static void cc_submit_response_time(const web_page_t *wp, /* {{{ */
 
   vl.values = &(value_t){.gauge = response_time};
   vl.values_len = 1;
-  sstrncpy(vl.plugin, "curl", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, (wp->plugin_name != NULL) ? wp->plugin_name : "curl",
+           sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, wp->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "response_time", sizeof(vl.type));
 
@@ -623,7 +631,7 @@ static int cc_read_page(web_page_t *wp) /* {{{ */
   if (wp->response_time)
     cc_submit_response_time(wp, CDTIME_T_TO_DOUBLE(cdtime() - start));
   if (wp->stats != NULL)
-    curl_stats_dispatch(wp->stats, wp->curl, hostname_g, "curl", wp->instance);
+    curl_stats_dispatch(wp->stats, wp->curl, NULL, "curl", wp->instance);
 
   if (wp->response_code) {
     long response_code = 0;

@@ -108,10 +108,8 @@ static char *hddtemp_query_daemon(void) {
                               .ai_socktype = SOCK_STREAM};
 
   if ((ai_return = getaddrinfo(host, port, &ai_hints, &ai_list)) != 0) {
-    char errbuf[1024];
     ERROR("hddtemp plugin: getaddrinfo (%s, %s): %s", host, port,
-          (ai_return == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                    : gai_strerror(ai_return));
+          (ai_return == EAI_SYSTEM) ? STRERRNO : gai_strerror(ai_return));
     return NULL;
   }
 
@@ -121,17 +119,13 @@ static char *hddtemp_query_daemon(void) {
     /* create our socket descriptor */
     fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0) {
-      char errbuf[1024];
-      ERROR("hddtemp plugin: socket: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("hddtemp plugin: socket: %s", STRERRNO);
       continue;
     }
 
     /* connect to the hddtemp daemon */
     if (connect(fd, (struct sockaddr *)ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
-      char errbuf[1024];
-      INFO("hddtemp plugin: connect (%s, %s) failed: %s", host, port,
-           sstrerror(errno, errbuf, sizeof(errbuf)));
+      INFO("hddtemp plugin: connect (%s, %s) failed: %s", host, port, STRERRNO);
       close(fd);
       fd = -1;
       continue;
@@ -177,13 +171,11 @@ static char *hddtemp_query_daemon(void) {
     if (status == 0) {
       break;
     } else if (status == -1) {
-      char errbuf[1024];
 
       if ((errno == EAGAIN) || (errno == EINTR))
         continue;
 
-      ERROR("hddtemp plugin: Error reading from socket: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("hddtemp plugin: Error reading from socket: %s", STRERRNO);
       close(fd);
       free(buffer);
       return NULL;

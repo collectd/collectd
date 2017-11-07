@@ -185,10 +185,8 @@ static int read_syshugepages(const char *path, const char *node) {
     long page_size = strtol(result->d_name + strlen(hugepages_dir),
                             /* endptr = */ NULL, /* base = */ 10);
     if (errno != 0) {
-      char errbuf[1024];
       ERROR("%s: failed to determine page size from directory name \"%s\": %s",
-            g_plugin_name, result->d_name,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            g_plugin_name, result->d_name, STRERRNO);
       continue;
     }
 

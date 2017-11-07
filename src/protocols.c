@@ -87,8 +87,7 @@ static int read_file(const char *path) {
 
   fh = fopen(path, "r");
   if (fh == NULL) {
-    ERROR("protocols plugin: fopen (%s) failed: %s.", path,
-          sstrerror(errno, key_buffer, sizeof(key_buffer)));
+    ERROR("protocols plugin: fopen (%s) failed: %s.", path, STRERRNO);
     return -1;
   }
 
