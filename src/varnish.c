@@ -1390,7 +1390,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 #endif
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
   if (!ok) {
-    VSM_Destroy(&vd);
+    VSM_Delete(vd);
     ERROR("varnish plugin: Unable to open connection.");
     return -1;
   }
@@ -1403,7 +1403,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 #endif
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
   if (!stats) {
-    VSM_Destroy(&vd);
+    VSM_Delete(vd);
     ERROR("varnish plugin: Unable to get statistics.");
     return -1;
   }
