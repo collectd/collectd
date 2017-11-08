@@ -29,7 +29,7 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
 #include <vapi/vsc.h>
 #include <vapi/vsm.h>
 typedef struct VSC_C_main c_varnish_stats_t;
@@ -71,17 +71,17 @@ struct user_config_s {
 #if HAVE_VARNISH_V2
   _Bool collect_sm;
 #endif
-#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   _Bool collect_sma;
 #endif
   _Bool collect_struct;
   _Bool collect_totals;
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   _Bool collect_uptime;
 #endif
   _Bool collect_vcl;
   _Bool collect_workers;
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   _Bool collect_vsm;
   _Bool collect_lck;
   _Bool collect_mempool;
@@ -138,7 +138,7 @@ static int varnish_submit_derive(const char *plugin_instance, /* {{{ */
                         });
 } /* }}} int varnish_submit_derive */
 
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
 static int varnish_monitor(void *priv,
                            const struct VSC_point *const pt) /* {{{ */
 {
@@ -152,7 +152,17 @@ static int varnish_monitor(void *priv,
 
   conf = priv;
 
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V5
+  char namebuff[100];
+  char *c;
+
+  c = rindex(pt->name, '.');
+  strcpy(namebuff, c+1);
+  name = namebuff;
+
+  (void)class;
+
+#elif HAVE_VARNISH_V4
   class = pt->section->fantom->type;
   name = pt->desc->name;
 
@@ -191,7 +201,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "client_req") == 0)
       return varnish_submit_derive(conf->instance, "connections", "connections",
                                    "received", val);
-#ifdef HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
     else if (strcmp(name, "client_req_400") == 0)
       return varnish_submit_derive(conf->instance, "connections", "connections",
                                    "error_400", val);
@@ -306,7 +316,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "fetch_304") == 0)
       return varnish_submit_derive(conf->instance, "fetch", "http_requests",
                                    "no_body_304", val);
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
     else if (strcmp(name, "fetch_no_thread") == 0)
       return varnish_submit_derive(conf->instance, "fetch", "http_requests",
                                    "no_thread", val);
@@ -365,7 +375,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "n_objoverflow") == 0)
       return varnish_submit_derive(conf->instance, "objects", "total_objects",
                                    "workspace_overflow", val);
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
     else if (strcmp(name, "exp_mailed") == 0)
       return varnish_submit_gauge(conf->instance, "struct", "objects",
                                   "exp_mailed", val);
@@ -397,7 +407,7 @@ static int varnish_monitor(void *priv,
                                    "duplicate", val);
   }
 #endif
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   if (conf->collect_ban) {
     if (strcmp(name, "bans") == 0)
       return varnish_submit_derive(conf->instance, "ban", "total_operations",
@@ -485,7 +495,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "sess_herd") == 0)
       return varnish_submit_derive(conf->instance, "session",
                                    "total_operations", "herd", val);
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
     else if (strcmp(name, "sess_closed_err") == 0)
       return varnish_submit_derive(conf->instance, "session",
                                    "total_operations", "closed_err", val);
@@ -697,7 +707,7 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "n_wrk_lqueue") == 0)
       return varnish_submit_derive(conf->instance, "workers", "total_requests",
                                    "queue_length", val);
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
     else if (strcmp(name, "pools") == 0)
       return varnish_submit_gauge(conf->instance, "workers", "pools",
                                   "pools", val);
@@ -707,7 +717,7 @@ static int varnish_monitor(void *priv,
 #endif
   }
 
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   if (conf->collect_vsm) {
     if (strcmp(name, "vsm_free") == 0)
       return varnish_submit_gauge(conf->instance, "vsm", "bytes", "free", val);
@@ -1321,12 +1331,18 @@ static void varnish_monitor(const user_config_t *conf, /* {{{ */
 } /* }}} void varnish_monitor */
 #endif
 
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
 static int varnish_read(user_data_t *ud) /* {{{ */
 {
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
   struct VSM_data *vd;
-  const c_varnish_stats_t *stats;
   _Bool ok;
+  const c_varnish_stats_t *stats;
+#elif HAVE_VARNISH_V5
+  struct vsm *vd;
+  struct vsc *vsc;
+  int vsm_status;
+#endif
 
   user_config_t *conf;
 
@@ -1336,6 +1352,11 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   conf = ud->data;
 
   vd = VSM_New();
+
+#if HAVE_VARNISH_V5
+  vsc = VSC_New();
+#endif
+
 #if HAVE_VARNISH_V3
   VSC_Setup(vd);
 #endif
@@ -1343,10 +1364,20 @@ static int varnish_read(user_data_t *ud) /* {{{ */
   if (conf->instance != NULL) {
     int status;
 
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
     status = VSM_n_Arg(vd, conf->instance);
+#elif HAVE_VARNISH_V5
+    status = VSM_Arg(vd, 'n', conf->instance);
+#endif
+
     if (status < 0) {
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
       VSM_Delete(vd);
-      ERROR("varnish plugin: VSM_n_Arg (\"%s\") failed "
+#elif HAVE_VARNISH_V5
+    VSC_Destroy(&vsc, vd);
+    VSM_Destroy(&vd);
+#endif
+      ERROR("varnish plugin: VSM_Arg (\"%s\") failed "
             "with status %i.",
             conf->instance, status);
       return -1;
@@ -1355,34 +1386,61 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 
 #if HAVE_VARNISH_V3
   ok = (VSC_Open(vd, /* diag = */ 1) == 0);
-#else /* if HAVE_VARNISH_V4 */
+#elif HAVE_VARNISH_V4
   ok = (VSM_Open(vd) == 0);
 #endif
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
   if (!ok) {
-    VSM_Delete(vd);
+    VSM_Destroy(&vd);
     ERROR("varnish plugin: Unable to open connection.");
-
     return -1;
   }
+#endif
 
 #if HAVE_VARNISH_V3
   stats = VSC_Main(vd);
-#else /* if HAVE_VARNISH_V4 */
+#elif HAVE_VARNISH_V4
   stats = VSC_Main(vd, NULL);
 #endif
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
   if (!stats) {
-    VSM_Delete(vd);
+    VSM_Destroy(&vd);
     ERROR("varnish plugin: Unable to get statistics.");
-
     return -1;
   }
+#endif
+
+#if HAVE_VARNISH_V5
+    if (VSM_Attach(vd, STDERR_FILENO)) {
+        ERROR("varnish plugin: Cannot attach to varnish. %s", VSM_Error(vd));
+        VSC_Destroy(&vsc, vd);
+        VSM_Destroy(&vd);
+        return -1;
+    }
+
+    vsm_status = VSM_Status(vd);
+    if (vsm_status & ~(VSM_MGT_RUNNING|VSM_WRK_RUNNING)) {
+        ERROR("varnish plugin: Unable to get statistics.");
+        VSC_Destroy(&vsc, vd);
+        VSM_Destroy(&vd);
+        return -1;
+    }
+#endif
 
 #if HAVE_VARNISH_V3
   VSC_Iter(vd, varnish_monitor, conf);
-#else /* if HAVE_VARNISH_V4 */
+#elif HAVE_VARNISH_V4
   VSC_Iter(vd, NULL, varnish_monitor, conf);
+#elif HAVE_VARNISH_V5
+  VSC_Iter(vsc, vd, varnish_monitor, conf);
 #endif
-  VSM_Delete(vd);
+
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+    VSM_Delete(vd);
+#elif HAVE_VARNISH_V5
+    VSC_Destroy(&vsc, vd);
+    VSM_Destroy(&vd);
+#endif
 
   return 0;
 } /* }}} */
@@ -1447,18 +1505,18 @@ static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
 #if HAVE_VARNISH_V2
   conf->collect_sm = 0;
 #endif
-#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   conf->collect_sma = 0;
 #endif
   conf->collect_sms = 0;
   conf->collect_struct = 0;
   conf->collect_totals = 0;
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   conf->collect_uptime = 0;
 #endif
   conf->collect_vcl = 0;
   conf->collect_workers = 0;
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   conf->collect_vsm = 0;
   conf->collect_lck = 0;
   conf->collect_mempool = 0;
@@ -1577,7 +1635,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("CollectSMS", child->key) == 0)
       cf_util_get_boolean(child, &conf->collect_sms);
     else if (strcasecmp("CollectSMA", child->key) == 0)
-#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_sma);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
@@ -1595,7 +1653,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("CollectTotals", child->key) == 0)
       cf_util_get_boolean(child, &conf->collect_totals);
     else if (strcasecmp("CollectUptime", child->key) == 0)
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_uptime);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
@@ -1606,56 +1664,56 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("CollectWorkers", child->key) == 0)
       cf_util_get_boolean(child, &conf->collect_workers);
     else if (strcasecmp("CollectVSM", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_vsm);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectLock", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_lck);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectMempool", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_mempool);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectManagement", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_mgt);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectSMF", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_smf);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectSMF", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_smf);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectVBE", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_vbe);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
               child->key, "v4");
 #endif
     else if (strcasecmp("CollectMSE", child->key) == 0)
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_mse);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
@@ -1685,15 +1743,15 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
 #if HAVE_VARNISH_V2
       && !conf->collect_sm
 #endif
-#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V2 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       && !conf->collect_sma
 #endif
       && !conf->collect_struct && !conf->collect_totals
-#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
+#if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       && !conf->collect_uptime
 #endif
       && !conf->collect_vcl && !conf->collect_workers
-#if HAVE_VARNISH_V4
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       && !conf->collect_vsm && !conf->collect_vbe && !conf->collect_smf
       && !conf->collect_mgt && !conf->collect_lck && !conf->collect_mempool
       && !conf->collect_mse
