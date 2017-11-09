@@ -711,7 +711,7 @@ int lcc_network_buffer_initialize(lcc_network_buffer_t *nb) /* {{{ */
     memcpy(nb->ptr, nb->username, username_len);
     nb->ptr += username_len;
     nb->free -= username_len;
-  } else if (nb->seclevel == ENCRYPT) {
+  } else if (nb->seclevel == ENCRYPT2) {
     size_t username_length = strlen(nb->username);
     uint16_t pkg_type = htons(TYPE_ENCR_AES256);
     uint16_t pkg_length = 0; /* Filled in in finalize. */
@@ -746,7 +746,7 @@ int lcc_network_buffer_finalize(lcc_network_buffer_t *nb) /* {{{ */
 #if HAVE_GCRYPT_H
   if (nb->seclevel == SIGN)
     return nb_add_signature(nb);
-  else if (nb->seclevel == ENCRYPT)
+  else if (nb->seclevel == ENCRYPT2)
     return nb_add_encryption(nb);
 #endif
 

@@ -42,7 +42,7 @@ typedef struct lcc_network_s lcc_network_t;
 struct lcc_server_s;
 typedef struct lcc_server_s lcc_server_t;
 
-enum lcc_security_level_e { NONE, SIGN, ENCRYPT };
+enum lcc_security_level_e { NONE, SIGN, ENCRYPT2 };
 typedef enum lcc_security_level_e lcc_security_level_t;
 
 /*

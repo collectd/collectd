@@ -467,8 +467,11 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
   }
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_flags = 0,
                               .ai_socktype = SOCK_STREAM};
+#ifdef AI_ADDRCONFIG
+  ai_hints.ai_flags = AI_ADDRCONFIG;
+#endif
 
   status = getaddrinfo(addr, port == NULL ? LCC_DEFAULT_PORT : port, &ai_hints,
                        &ai_res);

@@ -20,6 +20,7 @@ else
       sys_socket \
       nanosleep \
       netdb \
+      net_if \
       sendto \
       gettimeofday \
       time_r \
@@ -30,7 +31,8 @@ else
       setlocale \
       strtok_r \
       poll \
-      recv
+      recv \
+      net_if
 
   cd ${TOP_SRCDIR}/_build_aux/_gnulib
   ./configure --host="mingw32" LIBS="-lws2_32 -lpthread"

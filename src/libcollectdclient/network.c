@@ -131,8 +131,11 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
     server_close_socket(srv);
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_flags = 0,
                               .ai_socktype = SOCK_DGRAM};
+#ifdef AI_ADDRCONFIG
+  ai_hints.ai_flags |= AI_ADDRCONFIG;
+#endif
 
   status = getaddrinfo(srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)

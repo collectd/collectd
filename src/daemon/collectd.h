@@ -33,14 +33,13 @@
 #define __LITTLE_ENDIAN 1234
 #endif
 
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #ifdef WIN32
-#include <config.h>
+typedef int uid_t;
+//#include <config.h>
 #include <gnulib_config.h>
-#endif
+#elif HAVE_CONFIG_H
+#include "config.h"
+#endif /* WIN32 */
 
 #include <assert.h>
 #include <ctype.h>
