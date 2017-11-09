@@ -176,11 +176,6 @@ AM_CPPFLAGS = \
 	-DPLUGINDIR='"${pkglibdir}"' \
 	-DPKGDATADIR='"${pkgdatadir}"'
 
-COMMON_LDFLAGS =
-if BUILD_WIN32
-COMMON_LDFLAGS += -no-undefined -shared
-endif
-
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
 if BUILD_WIN32
@@ -541,11 +536,6 @@ liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 if BUILD_WIN32
 liboconfig_la_LDFLAGS += -shared -no-undefined
 endif
-
-# TODO: Because of the way Windows linking works, every plugin that will be
-# ported to Windows will need a line like this:
-#
-# *_la_LIBADD = daemon/libcollectd.la
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -1105,7 +1095,6 @@ endif
 if BUILD_PLUGIN_MATCH_REGEX
 pkglib_LTLIBRARIES += match_regex.la
 match_regex_la_SOURCES = src/match_regex.c
-match_regex_la_LIBADD = daemon/libcollectd.la
 match_regex_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1663,7 +1652,6 @@ endif
 if BUILD_PLUGIN_TARGET_REPLACE
 pkglib_LTLIBRARIES += target_replace.la
 target_replace_la_SOURCES = src/target_replace.c
-target_replace_la_LIBADD = daemon/libcollectd.la
 target_replace_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1676,7 +1664,6 @@ endif
 if BUILD_PLUGIN_TARGET_SET
 pkglib_LTLIBRARIES += target_set.la
 target_set_la_SOURCES = src/target_set.c
-target_set_la_LIBADD = daemon/libcollectd.la
 target_set_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1845,7 +1832,7 @@ write_http_la_SOURCES = \
 	src/utils_format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS) daemon/libcollectd.la
+write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
 if BUILD_WITH_GNULIB
 write_http_la_LIBADD += -lgnu
 endif
@@ -1867,7 +1854,7 @@ if BUILD_PLUGIN_WRITE_LOG
 pkglib_LTLIBRARIES += write_log.la
 write_log_la_SOURCES = src/write_log.c
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_log_la_LIBADD = libformat_graphite.la libformat_json.la daemon/libcollectd.la
+write_log_la_LIBADD = libformat_graphite.la libformat_json.la
 if BUILD_WITH_GNULIB
 write_log_la_LIBADD += -lgnu
 endif
