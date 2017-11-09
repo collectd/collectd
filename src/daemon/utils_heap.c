@@ -24,6 +24,11 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+#include <gnulib_config.h>
+#include <config.h>
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>

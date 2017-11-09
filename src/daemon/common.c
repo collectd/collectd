@@ -42,6 +42,8 @@
 #include <sys/types.h>
 
 #include <poll.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #if HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -70,8 +72,10 @@ extern kstat_ctl_t *kc;
 #endif
 
 #if !HAVE_GETPWNAM_R
+#ifdef HAVE_GETPWNAM
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
+#endif /* HAVE_GETPWNAME */
+#endif /* !HAVE_GETPWNAM_R */
 
 #if !HAVE_STRERROR_R
 static pthread_mutex_t strerror_r_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -1130,6 +1134,9 @@ int parse_value_file(char const *path, value_t *ret_value, int ds_type) {
 #if !HAVE_GETPWNAM_R
 int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
                struct passwd **pwbufp) {
+#ifndef HAVE_GETPWNAM
+  return -1;
+#else
   int status = 0;
   struct passwd *pw;
 
@@ -1172,6 +1179,7 @@ int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
   pthread_mutex_unlock(&getpwnam_r_lock);
 
   return status;
+#endif /* HAVE_GETPWNAM */
 } /* int getpwnam_r */
 #endif /* !HAVE_GETPWNAM_R */
 

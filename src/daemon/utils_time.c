@@ -24,6 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#include <sys/time.h>
+
 #include "collectd.h"
 
 #include "common.h"

@@ -27,7 +27,6 @@
 #define _GNU_SOURCE
 
 #include "collectd.h"
-
 #include "utils_mount.h"
 
 #if HAVE_XFS_XQM_H
@@ -71,6 +70,12 @@
 #include <paths.h>
 #endif
 
+#ifdef WIN32
+/* TODO: is this include needed unconditionally? */
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
+
 #ifdef COLLECTD_MNTTAB
 #undef COLLECTD_MNTTAB
 #endif
@@ -100,12 +105,14 @@
 #define UUID 1
 #define VOL 2
 
+#ifndef WIN32
 static struct uuidCache_s {
   struct uuidCache_s *next;
   char uuid[16];
   char *label;
   char *device;
 } *uuidCache = NULL;
+#endif /* !WIN32 */
 
 #define EXT2_SUPER_MAGIC 0xEF53
 struct ext2_super_block {
@@ -137,6 +144,7 @@ struct reiserfs_super_block {
   char s_volume_name[16];
 };
 
+#ifndef WIN32
 /* for now, only ext2 and xfs are supported */
 static int get_label_uuid(const char *device, char **label, char *uuid) {
   /* start with ext2 and xfs tests, taken from mount_guess_fstype */
@@ -351,6 +359,7 @@ static char *get_device_name(const char *optstr) {
   }
   return rc;
 }
+#endif /* !WIN32 */
 
 /* What weird OS is this..? I can't find any info with google :/ -octo */
 #if HAVE_LISTMNTENT && 0
@@ -642,6 +651,9 @@ static cu_mount_t *cu_mount_getmntent(void) {
 /* *** *** *** ******************************************** *** *** *** */
 
 cu_mount_t *cu_mount_getlist(cu_mount_t **list) {
+#ifdef WIN32
+  return NULL;
+#else
   cu_mount_t *new;
   cu_mount_t *first = NULL;
   cu_mount_t *last = NULL;
@@ -682,6 +694,7 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list) {
     last = last->next;
 
   return last;
+#endif /* WIN32 */
 } /* cu_mount_t *cu_mount_getlist(cu_mount_t **list) */
 
 void cu_mount_freelist(cu_mount_t *list) {

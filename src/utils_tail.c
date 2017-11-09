@@ -30,6 +30,8 @@
  *   the end of a file.
  **/
 
+#include <sys/stat.h>
+
 #include "collectd.h"
 
 #include "common.h"

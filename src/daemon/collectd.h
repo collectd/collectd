@@ -27,8 +27,19 @@
 #ifndef COLLECTD_H
 #define COLLECTD_H
 
+#ifdef WIN32
+#undef restrict
+#define restrict __restrict
+#define __LITTLE_ENDIAN 1234
+#endif
+
 #if HAVE_CONFIG_H
 #include "config.h"
+#endif
+
+#ifdef WIN32
+#include <gnulib_config.h>
+#include <config.h>
 #endif
 
 #include <assert.h>

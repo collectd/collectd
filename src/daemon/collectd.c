@@ -25,6 +25,10 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
+#ifdef WIN32
+#undef COLLECT_DAEMON
+#endif
+
 #include "collectd.h"
 
 #include "common.h"
@@ -32,8 +36,16 @@
 #include "plugin.h"
 
 #include <netdb.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
+
+#ifndef WIN32
 #include <sys/un.h>
+#else
+#undef gethostname
+#include <Winsock2.h>
+#endif /* !WIN32 */
 
 #if HAVE_LOCALE_H
 #include <locale.h>
@@ -49,6 +61,8 @@
 
 static int loop = 0;
 
+/* TODO: some form of controlling collectd should be present on Windows. */
+#ifndef WIN32
 static void *do_flush(void __attribute__((unused)) * arg) {
   INFO("Flushing all data.");
   plugin_flush(/* plugin = */ NULL,
@@ -74,6 +88,7 @@ static void sig_usr1_handler(int __attribute__((unused)) signal) {
   pthread_create(&thread, &attr, do_flush, NULL);
   pthread_attr_destroy(&attr);
 }
+#endif /* !WIN32 */
 
 static int init_hostname(void) {
   const char *str = global_option_get("Hostname");
@@ -555,9 +570,6 @@ int main(int argc, char **argv) {
 
   read_cmdline(argc, argv, &config);
 
-  if (config.test_config)
-    return 0;
-
   if (optind < argc)
     exit_usage(1);
 
@@ -566,6 +578,9 @@ int main(int argc, char **argv) {
   int status;
   if ((status = configure_collectd(&config)) != 0)
     exit(EXIT_FAILURE);
+
+  if (config.test_config)
+    return 0;
 
 #if COLLECT_DAEMON
   /*

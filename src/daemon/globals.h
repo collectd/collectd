@@ -31,8 +31,12 @@
 #endif
 
 #ifndef PRIsz
+#ifdef WIN32
+#define PRIsz "Iu"
+#else
 #define PRIsz "zu"
-#endif /* PRIsz */
+#endif /* WIN32 */
+#endif /* !PRIsz */
 
 /* Type for time as used by "utils_time.h" */
 typedef uint64_t cdtime_t;

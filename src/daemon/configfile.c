@@ -25,6 +25,8 @@
  *   Sebastian tokkee Harl <sh at tokkee.org>
  **/
 
+#include <sys/stat.h>
+
 #include "collectd.h"
 
 #include "liboconfig/oconfig.h"

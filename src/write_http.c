@@ -859,7 +859,13 @@ static int wh_init(void) /* {{{ */
 {
   /* Call this while collectd is still single-threaded to avoid
    * initialization issues in libgcrypt. */
+#ifdef WIN32
+  /* These two macros might mean exactly the same, but the libcurl
+   * documentation isn't explicit about this. */
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+#else
   curl_global_init(CURL_GLOBAL_SSL);
+#endif
   return 0;
 } /* }}} int wh_init */
 

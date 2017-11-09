@@ -28,6 +28,9 @@
 /* _GNU_SOURCE is needed in Linux to use pthread_setname_np */
 #define _GNU_SOURCE
 
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "collectd.h"
 
 #include "common.h"
@@ -964,6 +967,13 @@ static void plugin_free_loaded(void) {
 }
 
 #define BUFSIZE 512
+
+#ifdef WIN32
+#define SHLIB_SUFFIX ".dll"
+#else
+#define SHLIB_SUFFIX ".so"
+#endif
+
 int plugin_load(char const *plugin_name, _Bool global) {
   DIR *dh;
   const char *dir;
@@ -1000,11 +1010,11 @@ int plugin_load(char const *plugin_name, _Bool global) {
       (strcasecmp("python", plugin_name) == 0))
     global = 1;
 
-  /* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
+  /* `cpu' should not match `cpufreq'. To solve this we add SHLIB_SUFFIX to the
    * type when matching the filename */
-  status = snprintf(typename, sizeof(typename), "%s.so", plugin_name);
+  status = snprintf(typename, sizeof(typename), "%s" SHLIB_SUFFIX, plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
-    WARNING("plugin_load: Filename too long: \"%s.so\"", plugin_name);
+    WARNING("plugin_load: Filename too long: \"%s\"" SHLIB_SUFFIX, plugin_name);
     return -1;
   }
 
