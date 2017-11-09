@@ -851,6 +851,7 @@ if test "x$c_cv_have_strtok_r_reentrant" = "xyes"; then
   CFLAGS="$CFLAGS -D_REENTRANT=1"
 fi
 
+if !BUILD_WIN32; then
 AC_CHECK_FUNCS([socket],
   [],
   [
@@ -876,6 +877,7 @@ AC_CHECK_FUNCS([socket],
     )
   ]
 )
+fi
 AM_CONDITIONAL([BUILD_WITH_LIBSOCKET], [test "x$socket_needs_socket" = "xyes"])
 AM_CONDITIONAL([BUILD_WITH_GNULIB], [test "x$socket_needs_gnulib" = "xyes"])
 
@@ -7100,3 +7102,4 @@ if test "x$dependency_warning" = "xyes"; then
 fi
 
 # vim: set fdm=marker sw=2 sts=2 ts=2 et :
+

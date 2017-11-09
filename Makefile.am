@@ -102,7 +102,7 @@ lib_LTLIBRARIES = libcollectdclient.la
 if BUILD_WIN32
 # TODO: we should build these executables on Windows as well.
 sbin_PROGRAMS =
-bin_PROGRAMS
+bin_PROGRAMS =
 else
 sbin_PROGRAMS = \
 	collectd \
