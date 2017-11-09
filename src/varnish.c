@@ -152,11 +152,13 @@ static int varnish_monitor(void *priv,
   conf = priv;
 
 #if HAVE_VARNISH_V5
-  char namebuff[100];
-  char *c;
+  char namebuff[DATA_MAX_NAME_LEN];
 
-  c = rindex(pt->name, '.');
-  strcpy(namebuff, c + 1);
+  char const *c = strrchr(pt->name, '.');
+  if (c == NULL) {
+    return EINVAL;
+  }
+  sstrncpy(namebuff, c + 1, sizeof(namebuff));
   name = namebuff;
 
 #elif HAVE_VARNISH_V4
