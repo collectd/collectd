@@ -38,8 +38,8 @@
 #endif
 
 #ifdef WIN32
-#include <gnulib_config.h>
 #include <config.h>
+#include <gnulib_config.h>
 #endif
 
 #include <assert.h>

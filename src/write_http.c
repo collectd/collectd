@@ -857,8 +857,8 @@ static int wh_config(oconfig_item_t *ci) /* {{{ */
 
 static int wh_init(void) /* {{{ */
 {
-  /* Call this while collectd is still single-threaded to avoid
-   * initialization issues in libgcrypt. */
+/* Call this while collectd is still single-threaded to avoid
+ * initialization issues in libgcrypt. */
 #ifdef WIN32
   /* These two macros might mean exactly the same, but the libcurl
    * documentation isn't explicit about this. */

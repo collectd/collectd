@@ -72,8 +72,8 @@
 
 #ifdef WIN32
 /* TODO: is this include needed unconditionally? */
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #endif
 
 #ifdef COLLECTD_MNTTAB

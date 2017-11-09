@@ -66,7 +66,7 @@ double cdrand_d(void) {
   /* TODO: This is a workaround for missing erand48() on Windows */
   r = (double)rand() / (double)RAND_MAX;
 #endif
-pthread_mutex_unlock(&lock);
+  pthread_mutex_unlock(&lock);
 
   return r;
 }
