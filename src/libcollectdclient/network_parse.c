@@ -308,7 +308,7 @@ static int parse_values(void *payload, size_t payload_size,
   for (uint16_t i = 0; i < n; i++) {
     char buf[8];
     if (buffer_next(b, &buf, sizeof(buf)))
-        return EINVAL;
+      return EINVAL;
     uint64_t tmp = *(uint64_t *)buf;
     if (state->values_types[i] == LCC_TYPE_GAUGE) {
       union {
