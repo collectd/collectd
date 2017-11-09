@@ -160,22 +160,15 @@ static int varnish_monitor(void *priv,
   name = namebuff;
 
 #elif HAVE_VARNISH_V4
-  const char *class;
+  if (strcmp(pt->section->fantom->type, "MAIN") != 0)
+    return 0;
 
-  class = pt->section->fantom->type;
   name = pt->desc->name;
-
-  if (strcmp(class, "MAIN") != 0)
-    return 0;
-
 #elif HAVE_VARNISH_V3
-  const char *class;
-
-  class = pt->class;
-  name = pt->name;
-
-  if (strcmp(class, "") != 0)
+  if (strcmp(pt->class, "") != 0)
     return 0;
+
+  name = pt->name;
 #endif
 
   val = *(const volatile uint64_t *)pt->ptr;
