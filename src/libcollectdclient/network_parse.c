@@ -31,20 +31,12 @@
 
 #include "collectd/lcc_features.h"
 #include "collectd/network_parse.h"
-#include "globals.h"
 
 #include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* for be{16,64}toh */
-#if HAVE_ENDIAN_H
-#include <endian.h>
-#elif HAVE_SYS_ENDIAN_H
-#include <sys/endian.h>
-#endif
 
 #if HAVE_GCRYPT_H
 #define GCRYPT_NO_DEPRECATED
@@ -115,11 +107,11 @@ static int buffer_next(buffer_t *b, void *out, size_t n) {
 }
 
 static int buffer_uint16(buffer_t *b, uint16_t *out) {
-  uint16_t tmp;
+  char tmp[2];
   if (buffer_next(b, &tmp, sizeof(tmp)) != 0)
     return -1;
 
-  *out = be16toh(tmp);
+  *out = *(uint16_t *)tmp;
   return 0;
 }
 
@@ -137,13 +129,13 @@ static int buffer_uint16(buffer_t *b, uint16_t *out) {
 #define TYPE_ENCR_AES256 0x0210
 
 static int parse_int(void *payload, size_t payload_size, uint64_t *out) {
-  uint64_t tmp;
+  char tmp[8];
 
   if (payload_size != sizeof(tmp))
     return EINVAL;
 
   memmove(&tmp, payload, sizeof(tmp));
-  *out = be64toh(tmp);
+  *out = *(uint64_t *)tmp;
   return 0;
 }
 
@@ -314,10 +306,10 @@ static int parse_values(void *payload, size_t payload_size,
   }
 
   for (uint16_t i = 0; i < n; i++) {
-    uint64_t tmp;
-    if (buffer_next(b, &tmp, sizeof(tmp)))
+    char buf[8];
+    if (buffer_next(b, &buf, sizeof(buf)))
       return EINVAL;
-
+    uint64_t tmp = *(uint64_t *)buf;
     if (state->values_types[i] == LCC_TYPE_GAUGE) {
       union {
         uint64_t i;
@@ -327,7 +319,6 @@ static int parse_values(void *payload, size_t payload_size,
       continue;
     }
 
-    tmp = be64toh(tmp);
     switch (state->values_types[i]) {
     case LCC_TYPE_COUNTER:
       state->values[i].counter = (counter_t)tmp;
@@ -433,7 +424,7 @@ static int decrypt_aes256(buffer_t *b, void *iv, size_t iv_size,
   uint8_t pwhash[32] = {0};
   gcry_md_hash_buffer(GCRY_MD_SHA256, pwhash, password, strlen(password));
 
-  fprintf(stderr, "sizeof(iv) = %" PRIsz "\n", sizeof(iv));
+  fprintf(stderr, "sizeof(iv) = %zu\n", sizeof(iv));
   if (gcry_cipher_setkey(cipher, pwhash, sizeof(pwhash)) ||
       gcry_cipher_setiv(cipher, iv, iv_size) ||
       gcry_cipher_decrypt(cipher, b->data, b->len, /* in = */ NULL,
@@ -518,7 +509,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
 
     if ((sz < 5) || (((size_t)sz - 4) > b->len)) {
       DEBUG("lcc_network_parse(): invalid 'sz' field: sz = %" PRIu16
-            ", b->len = %" PRIsz "\n",
+            ", b->len = %zu\n",
             sz, b->len);
       return EINVAL;
     }
