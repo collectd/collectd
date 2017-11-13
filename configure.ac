@@ -6316,7 +6316,6 @@ fi
 
 if test "x$with_libyajl" = "xyes"; then
   plugin_ceph="yes"
-  plugin_sysevent="yes"
 fi
 
 if test "x$have_processor_info" = "xyes"; then
@@ -6502,7 +6501,6 @@ AC_PLUGIN([bind],                [$plugin_bind],            [ISC Bind nameserver
 AC_PLUGIN([ceph],                [$plugin_ceph],            [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],         [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                     [Chrony statistics])
-AC_PLUGIN([connectivity],        [$with_libmnl],            [Network interface up/down stats])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statistics])
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
@@ -6605,7 +6603,6 @@ AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],   [SNMP agent plugin])
 AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
 AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
 AC_PLUGIN([synproxy],            [$plugin_synproxy],        [Synproxy stats plugin])
-AC_PLUGIN([sysevent],            [$with_libyajl],           [Syslog event statistics])
 AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
 AC_PLUGIN([table],               [yes],                     [Parsing of tabular data])
 AC_PLUGIN([tail],                [yes],                     [Parsing of logfiles])
@@ -6925,7 +6922,6 @@ AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])
-AC_MSG_RESULT([    connectivity. . . . . $enable_connectivity])
 AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
@@ -7027,7 +7023,6 @@ AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    synproxy  . . . . . . $enable_synproxy])
-AC_MSG_RESULT([    sysevent. . . . . . . $enable_sysevent])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
 AC_MSG_RESULT([    table . . . . . . . . $enable_table])
 AC_MSG_RESULT([    tail_csv  . . . . . . $enable_tail_csv])

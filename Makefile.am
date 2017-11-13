@@ -636,14 +636,6 @@ chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 chrony_la_LIBADD = -lm
 endif
 
-if BUILD_PLUGIN_CONNECTIVITY
-pkglib_LTLIBRARIES += connectivity.la
-connectivity_la_SOURCES = src/connectivity.c
-connectivity_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
-connectivity_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-connectivity_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
-endif
-
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
 conntrack_la_SOURCES = src/conntrack.c
@@ -1575,14 +1567,6 @@ if BUILD_PLUGIN_SYNPROXY
 pkglib_LTLIBRARIES += synproxy.la
 synproxy_la_SOURCES = src/synproxy.c
 synproxy_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-endif
-
-if BUILD_PLUGIN_SYSEVENT
-pkglib_LTLIBRARIES += sysevent.la
-sysevent_la_SOURCES = src/sysevent.c
-sysevent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
-sysevent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
-sysevent_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
 if BUILD_PLUGIN_SYSLOG
