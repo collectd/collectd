@@ -52,9 +52,9 @@
 #define MCELOG_UNCORRECTED_ERR_TYPE_INS "uncorrected_memory_errors"
 
 typedef struct mcelog_config_s {
-  char logfile[PATH_MAX]; /* mcelog logfile */
-  pthread_t tid;          /* poll thread id */
-  llist_t *dimms_list;    /* DIMMs list */
+  char logfile[PATH_MAX];     /* mcelog logfile */
+  pthread_t tid;              /* poll thread id */
+  llist_t *dimms_list;        /* DIMMs list */
   pthread_mutex_t dimms_lock; /* lock for dimms cache */
   _Bool persist;
 } mcelog_config_t;
