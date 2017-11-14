@@ -52,9 +52,9 @@
 #define MCELOG_UNCORRECTED_ERR_TYPE_INS "uncorrected_memory_errors"
 
 typedef struct mcelog_config_s {
-  char logfile[PATH_MAX]; /* mcelog logfile */
-  pthread_t tid;          /* poll thread id */
-  llist_t *dimms_list;    /* DIMMs list */
+  char logfile[PATH_MAX];     /* mcelog logfile */
+  pthread_t tid;              /* poll thread id */
+  llist_t *dimms_list;        /* DIMMs list */
   pthread_mutex_t dimms_lock; /* lock for dimms cache */
   _Bool persist;
 } mcelog_config_t;
@@ -75,12 +75,12 @@ struct socket_adapter_s {
 typedef struct mcelog_memory_rec_s {
   int corrected_err_total; /* x total*/
   int corrected_err_timed; /* x in 24h*/
-  char corrected_err_timed_period[DATA_MAX_NAME_LEN];
+  char corrected_err_timed_period[DATA_MAX_NAME_LEN / 2];
   int uncorrected_err_total; /* x total*/
   int uncorrected_err_timed; /* x in 24h*/
-  char uncorrected_err_timed_period[DATA_MAX_NAME_LEN];
-  char location[DATA_MAX_NAME_LEN];  /* SOCKET x CHANNEL x DIMM x*/
-  char dimm_name[DATA_MAX_NAME_LEN]; /* DMI_NAME "DIMM_F1" */
+  char uncorrected_err_timed_period[DATA_MAX_NAME_LEN / 2];
+  char location[DATA_MAX_NAME_LEN / 2];  /* SOCKET x CHANNEL x DIMM x*/
+  char dimm_name[DATA_MAX_NAME_LEN / 2]; /* DMI_NAME "DIMM_F1" */
 } mcelog_memory_rec_t;
 
 static int socket_close(socket_adapter_t *self);
