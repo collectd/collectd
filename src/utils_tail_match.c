@@ -118,7 +118,7 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
   sstrncpy(vl.type, data->type, sizeof(vl.type));
   for (size_t i = 0; i < data->latency_config.percentile_num; i++) {
     if (strlen(data->type_instance) != 0)
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%.0f",
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.117s-%.2f",
                data->type_instance, data->latency_config.percentile[i]);
     else
       snprintf(vl.type_instance, sizeof(vl.type_instance), "%.0f",
@@ -150,10 +150,10 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
         bucket.upper_bound ? CDTIME_T_TO_DOUBLE(bucket.upper_bound) : INFINITY;
 
     if (strlen(data->type_instance) != 0)
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s-%g_%g",
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.54s-%.54s-%.2g_%.2g",
                data->type, data->type_instance, lower_bound, upper_bound);
     else
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%g_%g",
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.107s-%.2g_%.2g",
                data->type, lower_bound, upper_bound);
 
     vl.values = &(value_t){
