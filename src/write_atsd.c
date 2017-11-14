@@ -33,8 +33,8 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "utils_avltree.c"
 #include "utils_avltree.h"
+#include "utils_vl_lookup.h"
 
 #include "utils_cache.h"
 #include "utils_complain.h"
@@ -96,7 +96,9 @@ struct wa_callback {
   char *protocol;
   char *prefix;
   char *entity;
+
   _Bool short_hostname;
+  _Bool store_rates;
 
   char send_buf[WA_SEND_BUF_SIZE];
   size_t send_buf_free;
@@ -104,9 +106,14 @@ struct wa_callback {
   cdtime_t send_buf_init_time;
 
   pthread_mutex_t send_lock;
+  pthread_mutex_t avl_lock;
   c_complain_t init_complaint;
   cdtime_t last_connect_time;
   cdtime_t last_property_time;
+
+  struct wa_cache_s **wa_caches;
+  int wa_num_caches;
+  c_avl_tree_t *cache_tree;
 
   /* Force reconnect useful for load balanced environments */
   cdtime_t last_reconnect_time;
@@ -114,13 +121,44 @@ struct wa_callback {
   _Bool reconnect_interval_reached;
 };
 
+
 struct atsd_key_s {
-  char *plugin;
-  char *plugin_instance;
-  char *type;
-  char *type_instance;
+  char host[DATA_MAX_NAME_LEN];
+  char plugin[DATA_MAX_NAME_LEN];
+  char plugin_instance[DATA_MAX_NAME_LEN];
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
+  char data_source[DATA_MAX_NAME_LEN];
 };
 typedef struct atsd_key_s atsd_key_t;
+
+struct atsd_value_s {
+  uint64_t time;
+  double value;
+};
+typedef struct atsd_value_s atsd_value_t;
+
+int compare_atsd_keys(atsd_key_t *key_a, atsd_key_t *key_b) {
+  int p;
+
+#define COMPARE(l, r)   \
+  do {                  \
+    p = strcmp(l, r);   \
+    if (p != 0)         \
+      return p;         \
+  } while(0)
+
+  COMPARE(key_a->host, key_b->host);
+  COMPARE(key_a->plugin, key_b->plugin);
+  COMPARE(key_a->type, key_b->type);
+  COMPARE(key_a->plugin_instance, key_b->plugin_instance);
+  COMPARE(key_a->type_instance, key_b->type_instance);
+  COMPARE(key_a->data_source, key_b->data_source);
+
+#undef COMPARE
+
+  return p;
+}
 
 /* wa_force_reconnect_check closes cb->sock_fd when it was open for longer
  * than cb->reconnect_interval. Must hold cb->send_lock when calling. */
@@ -289,7 +327,12 @@ static int wa_callback_init(struct wa_callback *cb) {
 }
 
 static void wa_callback_free(void *data) {
+  int i;
+
   struct wa_callback *cb;
+
+  atsd_key_t *atsd_stored_key = NULL;
+  atsd_value_t *atsd_stored_value = NULL;
 
   if (data == NULL)
     return;
@@ -310,6 +353,19 @@ static void wa_callback_free(void *data) {
   sfree(cb->protocol);
   sfree(cb->service);
   sfree(cb->prefix);
+
+  while (c_avl_pick(cb->cache_tree, (void *)&atsd_stored_key,
+                    (void *)&atsd_stored_value) == 0) {
+    sfree(atsd_stored_key);
+    sfree(atsd_stored_value);
+  }
+
+  c_avl_destroy(cb->cache_tree);
+
+  for (i = 0; i < cb->wa_num_caches; i++) {
+    sfree(cb->wa_caches[i]->name);
+  }
+  sfree(cb->wa_caches);
 
   sfree(cb->entity);
 
@@ -406,29 +462,91 @@ static int wa_update_property(const value_list_t *vl, const char *entity,
   return 0;
 }
 
+static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
+                             struct wa_callback *cb) {
+
+  atsd_key_t *atsd_stored_key;
+  atsd_value_t *atsd_stored_value;
+  double stored_value, cur_value;
+  double diff;
+
+  int status, q;
+
+  for (q = 0; q < cb->wa_num_caches; q++)
+    if (strcasecmp(ak->plugin, cb->wa_caches[q]->name) == 0)
+      break;
+  if (q >= cb->wa_num_caches)
+    return 1;
+
+  pthread_mutex_lock(&cb->avl_lock);
+  status = c_avl_get(cb->cache_tree, ak, (void *)&atsd_stored_value);
+  pthread_mutex_unlock(&cb->avl_lock);
+
+  if (status == 0) /* metric in tree */ {
+    assert(atsd_stored_value->time < av->time);
+
+    cur_value = av->value;
+    stored_value = atsd_stored_value->value;
+    diff = fabs(cur_value - stored_value);
+
+    if ((av->time - atsd_stored_value->time >= cb->wa_caches[q]->interval * 1000) ||
+        (diff > (cb->wa_caches[q]->threshold) * stored_value / 100)) {
+      atsd_stored_value->value = av->value;
+      atsd_stored_value->time = av->time;
+    } else {
+      return 0;
+    }
+  } else {
+    atsd_stored_key = (atsd_key_t *) malloc(sizeof(atsd_key_t));
+    if (atsd_stored_key == NULL) {
+      ERROR("write_atsd plugin: malloc failed.");
+      return -1;
+    }
+
+    strncpy(atsd_stored_key->host, ak->host, DATA_MAX_NAME_LEN);
+    strncpy(atsd_stored_key->plugin, ak->plugin, DATA_MAX_NAME_LEN);
+    strncpy(atsd_stored_key->plugin_instance, ak->plugin_instance, DATA_MAX_NAME_LEN);
+    strncpy(atsd_stored_key->type, ak->type, DATA_MAX_NAME_LEN);
+    strncpy(atsd_stored_key->type_instance, ak->type_instance, DATA_MAX_NAME_LEN);
+    strncpy(atsd_stored_key->data_source, ak->data_source, DATA_MAX_NAME_LEN);
+
+    atsd_stored_value = (atsd_value_t *) malloc(sizeof(atsd_value_t));
+    if (atsd_stored_value == NULL) {
+      ERROR("write_atsd plugin: malloc failed.");
+      free(atsd_stored_key);
+      return -1;
+    }
+
+    atsd_stored_value->value = av->value;
+    atsd_stored_value->time = av->time;
+
+    pthread_mutex_lock(&cb->avl_lock);
+    status = c_avl_insert(cb->cache_tree, atsd_stored_key, atsd_stored_value);
+    pthread_mutex_unlock(&cb->avl_lock);
+
+    if (status != 0) {
+      ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
+            ak->plugin, status);
+      return -1;
+    }
+  }
+
+  return 1;
+}
+
 static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                              struct wa_callback *cb) {
   int status;
   size_t i;
   gauge_t *rates;
+  atsd_key_t cache_key;
+  atsd_value_t cache_value;
+  format_info_t format;
 
   char command[1024];
   char entity[WA_MAX_LENGTH];
 
   status = 0;
-
-  if (0 != strcmp(ds->type, vl->type)) {
-    ERROR("write_atsd plugin: DS type does not match "
-          "value list type");
-    return -1;
-  }
-
-  if (ds->ds_num != vl->values_len) {
-    ERROR("plugin_dispatch_values: ds->type = %s: "
-          "(ds->ds_num = %zu) != "
-          "(vl->values_len = %zu)",
-          ds->type, ds->ds_num, vl->values_len);
-  }
 
   rates = NULL;
   rates = uc_get_rate(ds, vl);
@@ -446,15 +564,39 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
   if (status != 0)
     goto end;
 
+  format.buffer = command;
+  format.buffer_len = sizeof(command);
+  format.vl = vl;
+  format.ds = ds;
+  format.entity = entity;
+  format.rates = rates;
+
   for (i = 0; i < ds->ds_num; i++) {
     if (isnan(rates[i]))
       continue;
 
-    format_atsd_command(command, sizeof(command), entity, cb->prefix, i, ds, vl,
-                        rates);
-    status = wa_send_message(command, cb);
-    if (status != 0)
+    format.index = i;
+
+    strncpy(cache_key.host, vl->host, DATA_MAX_NAME_LEN);
+    strncpy(cache_key.plugin, vl->plugin, DATA_MAX_NAME_LEN);
+    strncpy(cache_key.plugin_instance, vl->plugin_instance, DATA_MAX_NAME_LEN);
+    strncpy(cache_key.type, vl->type, DATA_MAX_NAME_LEN);
+    strncpy(cache_key.type_instance, vl->type_instance, DATA_MAX_NAME_LEN);
+    strncpy(cache_key.data_source, ds->ds[i].name, DATA_MAX_NAME_LEN);
+
+    cache_value.value = get_value(&format);
+    cache_value.time = CDTIME_T_TO_MS(vl->time);
+
+    status = check_cache_value(&cache_key, &cache_value, cb);
+
+    if (status == 1) {
+      format_atsd_command(&format);
+      status = wa_send_message(command, cb);
+      if (status != 0)
+        goto end;
+    } else if (status == -1) {
       goto end;
+    }
   }
 
 end:
@@ -471,6 +613,54 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
 
   return wa_write_messages(ds, vl, user_data->data);
 }
+
+static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
+
+  int q, status;
+  struct wa_cache_s *nc, wc;
+  struct wa_cache_s **tmp;
+  memset(&wc, 0, sizeof(struct wa_cache_s));
+
+  status = cf_util_get_string(child, &wc.name);
+  if (status != 0)
+    return status;
+
+  for (q = 0; q < child->children_num; q++) {
+    oconfig_item_t *grandchild = child->children + q;
+
+    if (strcasecmp("Interval", grandchild->key) == 0)
+      cf_util_get_int(grandchild, &wc.interval);
+    else if (strcasecmp("Threshold", grandchild->key) == 0)
+      cf_util_get_double(grandchild, &wc.threshold);
+    else {
+      ERROR("write_atsd plugin: Invalid configuration "
+            "option: %s.",
+            grandchild->key);
+      status = -1;
+    }
+
+    if (status != 0)
+      break;
+  }
+
+  tmp = realloc(cb->wa_caches,
+                (cb->wa_num_caches + 1) * sizeof(*(cb->wa_caches)));
+  if (tmp == NULL) {
+    return ENOMEM;
+  }
+  cb->wa_caches = tmp;
+
+  nc = malloc(sizeof(*nc));
+  if (!nc) {
+    return ENOMEM;
+  }
+
+  memcpy(nc, &wc, sizeof(*nc));
+  cb->wa_caches[cb->wa_num_caches++] = nc;
+
+  return 0;
+}
+
 
 static int wa_config_node(oconfig_item_t *ci) {
   struct wa_callback *cb;
@@ -491,8 +681,13 @@ static int wa_config_node(oconfig_item_t *ci) {
   cb->prefix = strdup(WA_DEFAULT_PREFIX);
   cb->entity = NULL;
   cb->short_hostname = 0;
+  cb->wa_num_caches = 0;
+  cb->wa_caches = NULL;
+  cb->cache_tree = NULL;
+  cb->cache_tree = c_avl_create((void *)compare_atsd_keys);
 
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
+  pthread_mutex_init(&cb->avl_lock, /* attr = */ NULL);
   C_COMPLAIN_INIT(&cb->init_complaint);
 
   for (int i = 0; i < ci->children_num; i++) {
@@ -550,6 +745,10 @@ static int wa_config_node(oconfig_item_t *ci) {
       cf_util_get_string(child, &cb->entity);
     else if (strcasecmp("ShortHostname", child->key) == 0)
       cf_util_get_boolean(child, &cb->short_hostname);
+    else if (strcasecmp("StoreRates", child->key) == 0)
+      cf_util_get_boolean(child, &cb->store_rates);
+    else if (strcasecmp("Cache", child->key) == 0)
+      wa_config_cache(cb, child);
     else {
       ERROR("write_atsd plugin: Invalid configuration "
             "option: %s.",

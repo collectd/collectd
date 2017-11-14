@@ -22,16 +22,32 @@
 #include "plugin.h"
 #include "collectd.h"
 
+#define MAX_DERIVED_SERIES 2
+#define MAX_VALUE_LEN 64
+
+struct format_info_s {
+  char *buffer;
+  size_t buffer_len;
+
+  char *entity;
+  char *prefix;
+
+  size_t index;
+  const data_set_t *ds;
+  const value_list_t *vl;
+  gauge_t *rates;
+};
+typedef struct format_info_s format_info_t;
+
 char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n);
 
-int format_value(char *ret, size_t ret_len, size_t i, const data_set_t *ds,
-                 const value_list_t *vl, gauge_t *rates);
+double get_value(format_info_t *format);
+
+int format_value(char *ret, size_t ret_len, format_info_t *format);
 
 int format_entity(char *ret, const int ret_len, const char *entity,
                   const char *host, _Bool short_hostname);
 
-int format_atsd_command(char *buffer, size_t buffer_len, const char *entity,
-                        const char *prefix, size_t index, const data_set_t *ds,
-                        const value_list_t *vl, gauge_t *rates);
+int format_atsd_command(format_info_t *format);
 
 #endif // UTILS_FORMAT_ATSD_H

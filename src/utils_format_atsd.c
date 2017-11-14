@@ -26,96 +26,25 @@
 #include <string.h>
 #include "utils_format_atsd.h"
 
-#define PART_END -1
-#define PART_STR 0
-#define PART_VL_PLUGIN 1
-#define PART_VL_TYPE 2
-#define PART_VL_TYPE_INSTANCE 3
-
-#define USE_PATTERN 0
-#define USE_FUNC 1
-
-#define MAX_NAME_PARTS 6
-
 typedef struct tag_key_val_s {
   char *key;
   char *val;
   struct tag_key_val_s *next;
 } tag_key_val_t;
 
-typedef int *(*metric_format_func_t)(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-    const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl);
+typedef struct series_s {
+  char entity[6 * DATA_MAX_NAME_LEN];
+  char metric[6 * DATA_MAX_NAME_LEN];
+  char formatted_value[MAX_VALUE_LEN];
+  tag_key_val_t *tags;
+  uint64_t time;
+} series_t;
 
-typedef struct {
-    int part_type;
-    char *str_value;
-} name_part_t;
-
-typedef struct {
-    union {
-      name_part_t name_parts[MAX_NAME_PARTS];
-      //metric_format_func_t *format_func;
-    } rule_data;
-    int rule_type;
-} metric_rule_t;
-
-typedef struct {
-    char *plugin;
-    char *type;
-    metric_rule_t rule;
-} plugin_match_t;
-
-#define STR(__str_val) \
-    {.part_type = PART_STR, .str_value = __str_val}
-#define PLUGIN {.part_type = PART_VL_PLUGIN}
-#define TYPE {.part_type = PART_VL_TYPE}
-#define TYPE_INSTANCE {.part_type = PART_VL_TYPE_INSTANCE}
-#define PATTERN_END {.part_type = PART_END}
-#define DOT STR(".")
-
-#define NAME_PATTERN(...) \
-    {.rule_type = USE_PATTERN, \
-     .rule_data = {.name_parts = {__VA_ARGS__, PATTERN_END}}}
-
-#define PLUGIN_TYPE_MATCH(__plugin_name, __type_name, ...) \
-    {.plugin = __plugin_name, .type = __type_name, .rule = NAME_PATTERN(__VA_ARGS__)}
-
-#define PLUGIN_MATCH(__plugin_name, ...) \
-    {.plugin = __plugin_name, .type = NULL, .rule = NAME_PATTERN(__VA_ARGS__)}
-
-
-plugin_match_t default_rule_table[] = {
-  PLUGIN_MATCH("entropy",
-      STR("entropy.available")),
-
-  PLUGIN_MATCH("memory",
-      STR("memory."), TYPE_INSTANCE),
-
-  PLUGIN_MATCH("users",
-      STR("users.logged_in")),
-
-  PLUGIN_MATCH("postgresql",
-      STR("db."), PLUGIN, DOT, TYPE_INSTANCE),
-
-  PLUGIN_MATCH("mongodb",
-      STR("db."), PLUGIN, DOT, TYPE_INSTANCE),
-
-  PLUGIN_TYPE_MATCH("swap", "swap",
-      STR("memory.swap_"), TYPE_INSTANCE),
-
-  PLUGIN_TYPE_MATCH("swap", "swap_io",
-      STR("io.swap_"), TYPE_INSTANCE),
-
-  PLUGIN_TYPE_MATCH("processes", "ps_stat",
-      STR("processes."), TYPE_INSTANCE),
-
-  PLUGIN_TYPE_MATCH("processes", "fork_rate",
-      STR("processes."), TYPE_INSTANCE),
-
-  PLUGIN_TYPE_MATCH("contextswitch", "fork_rate",
-      STR("contextswitches"))
-};
-
+typedef struct value_index_t {
+  size_t index;
+  value_list_t *vl;
+  data_set_t *ds;
+} value_index_s;
 
 static int add_tag(tag_key_val_t **tags, const char *key, const char *val) {
   tag_key_val_t *tag = malloc(sizeof(tag_key_val_t));
@@ -197,12 +126,19 @@ char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n) {
   return dst_buf;
 }
 
-int format_value(char *ret, size_t ret_len, size_t index, const data_set_t *ds,
-                 const value_list_t *vl, gauge_t *rates) {
+double get_value(format_info_t *format) {
+  if (format->ds->ds[format->index].type == DS_TYPE_GAUGE) {
+    return format->vl->values[format->index].gauge;
+  } else {
+    return format->rates[format->index];
+  }
+}
+
+int format_value(char *ret, size_t ret_len, format_info_t *format) {
   size_t offset = 0;
   int status;
 
-  assert(0 == strcmp(ds->type, vl->type));
+  assert(0 == strcmp(format->ds->type, format->vl->type));
 
   memset(ret, 0, ret_len);
 
@@ -217,10 +153,10 @@ int format_value(char *ret, size_t ret_len, size_t index, const data_set_t *ds,
       offset += ((size_t)status);                                              \
   } while (0)
 
-  if (ds->ds[index].type == DS_TYPE_GAUGE) {
-    BUFFER_ADD(GAUGE_FORMAT, vl->values[index].gauge);
+  if (format->ds->ds[format->index].type == DS_TYPE_GAUGE) {
+    BUFFER_ADD(GAUGE_FORMAT, format->vl->values[format->index].gauge);
   } else {
-    BUFFER_ADD("%f", rates[index]);
+    BUFFER_ADD("%.15g", format->rates[format->index]);
   }
 
 #undef BUFFER_ADD
@@ -283,158 +219,159 @@ static void metric_name_append(char *metric_name, const char *str, size_t n) {
   }
 }
 
-static int metric_cpu_format(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-                             const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl) {
+static int format_metric_default(series_t *series, format_info_t *format) {
   int ret;
 
-  metric_name[0] = '\0';
-  metric_name_append(metric_name, prefix, metric_n);
-  metric_name_append(metric_name, "cpu", metric_n);
-  if (strcmp(vl->type_instance, "idle") == 0) {
-    metric_name_append(metric_name, "busy", metric_n);
-  } else {
-    metric_name_append(metric_name, vl->type_instance, metric_n);
+  memset(series->metric, 0, sizeof(series->metric));
+  metric_name_append(series->metric, format->prefix, sizeof(series->metric));
+  metric_name_append(series->metric, format->vl->plugin, sizeof(series->metric));
+  metric_name_append(series->metric, format->vl->type, sizeof(series->metric));
+  metric_name_append(series->metric, format->vl->type_instance, sizeof(series->metric));
+  if (strcasecmp(format->ds->ds[format->index].name, "value") != 0) {
+    metric_name_append(series->metric, format->ds->ds[format->index].name,
+                       sizeof(series->metric));
   }
 
-  if (*vl->plugin_instance != '\0')
-      ret = add_tag(tags, "instance", vl->plugin_instance);
+  if (*format->vl->plugin != '\0') {
+    ret = add_tag(&series->tags, "plugin", format->vl->plugin);
+  }
+  if (*format->vl->plugin_instance != '\0') {
+    ret = add_tag(&series->tags, "plugin_instance", format->vl->plugin_instance);
+    ret = add_tag(&series->tags, "instance", format->vl->plugin_instance);
+  }
+  if (*format->vl->type != '\0') {
+    ret = add_tag(&series->tags, "type", format->vl->type);
+  }
+  if (*format->vl->type_instance != '\0') {
+    ret = add_tag(&series->tags, "type_instance", format->vl->type_instance);
+  }
+  ret = add_tag(&series->tags, "data_source", format->ds->ds[format->index].name);
 
   return ret;
 }
 
-static int metric_inrerface_format(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-                                   const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl) {
-  int ret;
-
-  metric_name[0] = '\0';
-  metric_name_append(metric_name, prefix, metric_n);
-  metric_name_append(metric_name, "interface", metric_n);
-  metric_name_append(metric_name, vl->type, metric_n);
-
-  if (strcasecmp(ds->ds[index].name, "rx") == 0) {
-    metric_name_append(metric_name, "received", metric_n);
-  } else if (strcasecmp(ds->ds[index].name, "tx") == 0) {
-    metric_name_append(metric_name, "sent", metric_n);
-  }
-
-  return ret;
+void init_series(series_t *series, const char *entity, const value_list_t *vl) {
+  series->tags = NULL;
+  series->time = CDTIME_T_TO_MS(vl->time);
+  strncpy(series->entity, entity, sizeof(series->entity));
 }
 
-static int metric_df_format(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-                            const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl) {
-  char path_buffer[1024], *c;
+size_t derive_series(series_t *series_buffer, format_info_t *format) {
+  char tmp_value[MAX_VALUE_LEN];
+  char *key, *value, *strtok_ctx, *tmp;
+  size_t count = 0;
 
-  metric_name[0] = '\0';
-  metric_name_append(metric_name, prefix, metric_n);
-  metric_name_append(metric_name, "df", metric_n);
+  init_series(series_buffer, format->entity, format->vl);
+  format_metric_default(series_buffer, format);
+  format_value(series_buffer->formatted_value,
+               sizeof(series_buffer->formatted_value), format);
 
-  if (strcasecmp(vl->type, "df_inodes") == 0) {
-    metric_name_append(metric_name, "inodes", metric_n);
-    metric_name_append(metric_name, vl->type_instance, metric_n);
-  } else if (strcasecmp(vl->type, "df_complex") == 0) {
-    metric_name_append(metric_name, "space", metric_n);
-    metric_name_append(metric_name, vl->type_instance, metric_n);
-  } else if (strcasecmp(vl->type, "percent_bytes") == 0) {
-    metric_name_append(metric_name, "space", metric_n);
-    if (strcasecmp(vl->type_instance, "free") == 0) {
-      metric_name_append(metric_name, "used-reserved", metric_n);
+  count++;
+  series_buffer++;
+
+  if (strcasecmp(format->vl->plugin, "cpu") == 0 &&
+      strcasecmp(format->vl->type_instance, "idle") == 0) {
+    init_series(series_buffer, format->entity, format->vl);
+    snprintf(series_buffer->metric, sizeof(series_buffer->metric),
+             "%s.cpu.%s.busy", format->prefix, format->vl->type);
+    if (*format->vl->plugin_instance != '\0')
+      add_tag(&series_buffer->tags, "instance", format->vl->plugin_instance);
+
+    format_value(tmp_value, sizeof(tmp_value), format);
+    snprintf(series_buffer->formatted_value,
+             sizeof(series_buffer->formatted_value), "%g",
+             (100.0 - atof(tmp_value)));
+
+    count++;
+    series_buffer++;
+  } else if (strcasecmp(format->vl->plugin, "df") == 0 &&
+             strcasecmp(format->vl->type, "percent_bytes") == 0 &&
+             strcasecmp(format->vl->type_instance, "free") == 0) {
+    init_series(series_buffer, format->entity, format->vl);
+    snprintf(series_buffer->metric, sizeof(series_buffer->metric),
+             "%s.df.percent_bytes.used_reserved", format->prefix);
+    if (*format->vl->plugin_instance != '\0')
+      add_tag(&series_buffer->tags, "instance", format->vl->plugin_instance);
+
+    format_value(tmp_value, sizeof(tmp_value), format);
+    snprintf(series_buffer->formatted_value,
+             sizeof(series_buffer->formatted_value), "%g",
+             (100.0 - atof(tmp_value)));
+
+    count++;
+    series_buffer++;
+  } else if (strcasecmp(format->vl->plugin, "exec") == 0) {
+    init_series(series_buffer, format->entity, format->vl);
+    snprintf(series_buffer->metric, sizeof(series_buffer->metric), "%s.%s",
+             format->prefix, format->vl->plugin_instance);
+    format_value(series_buffer->formatted_value,
+                 sizeof(series_buffer->formatted_value), format);
+
+    if (strchr(format->vl->type_instance, ';')) {
+      tmp = strdup(format->vl->type_instance);
+      while ((key = strtok_r(tmp, ";", &strtok_ctx)) != NULL) {
+        value = strchr(key, '=');
+        if (value) {
+          *value++ = '\0';
+          add_tag(&series_buffer->tags, key, value);
+        }
+      }
+      free(tmp);
     } else {
-      metric_name_append(metric_name, vl->type_instance, metric_n);
+      add_tag(&series_buffer->tags, "instance", format->vl->type_instance);
     }
-    metric_name_append(metric_name, "percent", metric_n);
-  } else if (strcasecmp(vl->type, "percent_inodes") == 0) {
-    metric_name_append(metric_name, "inodes", metric_n);
-    metric_name_append(metric_name, vl->type_instance, metric_n);
-    metric_name_append(metric_name, "percent", metric_n);
   }
 
-  path_buffer[0] = '/';
-  path_buffer[1] = '\0';
-  if (strcasecmp(vl->plugin_instance, "root") != 0) {
-    strlcat(path_buffer, vl->plugin_instance, sizeof path_buffer);
-    for (c = path_buffer; *c; c++)
-      if (*c == '-')
-        *c = '/';
-  }
-
-  return add_tag(tags, "instance", path_buffer);
+  return count;
 }
 
-static int metric_load_format(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-                              const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl) {
-  int ret;
-
-  metric_name[0] = '\0';
-  metric_name_append(metric_name, "load", metric_n);
-  metric_name_append(metric_name, "loadavg", metric_n);
-
-  if (strcasecmp(ds->ds[index].name, "shortterm") == 0) {
-    metric_name_append(metric_name, "1m", metric_n);
-  } else if (strcasecmp(ds->ds[index].name, "midterm") == 0) {
-    metric_name_append(metric_name, "5m", metric_n);
-  } else if (strcasecmp(ds->ds[index].name, "longterm") == 0) {
-    metric_name_append(metric_name, "15m", metric_n);
-  }
-
-  return ret;
-}
-
-static int metric_default_format(char *metric_name, size_t metric_n, tag_key_val_t **tags,
-                                 const char *prefix, size_t index, const data_set_t *ds, const value_list_t *vl) {
-  int ret;
-
-  metric_name[0] = '\0';
-  metric_name_append(metric_name, prefix, metric_n);
-  metric_name_append(metric_name, vl->plugin, metric_n);
-  metric_name_append(metric_name, vl->type, metric_n);
-  metric_name_append(metric_name, vl->type_instance, metric_n);
-  if (strcasecmp(ds->ds[index].name, "value") != 0)
-    metric_name_append(metric_name, ds->ds[index].name, metric_n);
-
-  if (*vl->plugin_instance != '\0')
-    ret = add_tag(tags, "instance", vl->plugin_instance);
-
-  return ret;
-}
-
-int format_atsd_command(char *buffer, size_t buffer_len, const char *entity,
-                        const char *prefix, size_t index, const data_set_t *ds,
-                        const value_list_t *vl, gauge_t *rates) {
-  int status;
-  char metric_name[6 * DATA_MAX_NAME_LEN];
+size_t format_command(char *buffer, size_t buffer_len, series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
-  char value_str[128];
-  tag_key_val_t *tags;
   size_t written;
 
-  status = format_value(value_str, sizeof(value_str), index, ds, vl, rates);
-  if (status != 0)
-    return status;
-
-  tags = NULL;
-  metric_default_format(metric_name, sizeof metric_name, &tags, prefix, index, ds, vl);
-
   memset(buffer, 0, buffer_len);
-
-  escape_atsd_string(escape_buffer, entity, sizeof escape_buffer);
-  escape_atsd_string(metric_name, metric_name, sizeof metric_name);
-
   written = 0;
-  written += snprintf(buffer, buffer_len, "series e:\"%s\" ms:%" PRIu64 " m:\"%s\"=%s",
-                      escape_buffer, CDTIME_T_TO_MS(vl->time), metric_name, value_str);
 
-  for (; tags; remove_tag(&tags)) {
-    escape_atsd_string(escape_buffer, tags->key, sizeof escape_buffer);
-    written += snprintf(buffer + written, buffer_len - written,
-                        " t:\"%s\"=", escape_buffer);
+  written += snprintf(buffer, buffer_len, "series");
 
-    escape_atsd_string(escape_buffer, tags->val, sizeof escape_buffer);
-    written += snprintf(buffer + written, buffer_len - written,
-                        "\"%s\"", escape_buffer);
+  escape_atsd_string(escape_buffer, series->entity, sizeof escape_buffer);
+  written += snprintf(buffer + written, buffer_len - written, " e:\"%s\"",
+                      escape_buffer);
+
+  escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
+  written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"=%s",
+                      escape_buffer, series->formatted_value);
+
+  for (; series->tags; remove_tag(&series->tags)) {
+    escape_atsd_string(escape_buffer, series->tags->key, sizeof escape_buffer);
+    written += snprintf(buffer + written, buffer_len - written, " t:\"%s\"=",
+                        escape_buffer);
+
+    escape_atsd_string(escape_buffer, series->tags->val, sizeof escape_buffer);
+    written += snprintf(buffer + written, buffer_len - written, "\"%s\"",
+                        escape_buffer);
   }
 
-  if (buffer_len > written)
-    snprintf(buffer + written, buffer_len - written, " \n");
+  written += snprintf(buffer + written, buffer_len - written, " ms:%" PRIu64,
+                      series->time);
+  written += snprintf(buffer + written, buffer_len - written, " \n");
+
+  return written;
+}
+
+int format_atsd_command(format_info_t *format) {
+  size_t series_count, i, written;
+  series_t series_buffer[MAX_DERIVED_SERIES];
+
+  series_count =
+      derive_series(series_buffer, format);
+
+  memset(format->buffer, 0, format->buffer_len);
+  written = 0;
+  for (i = 0; i < series_count; i++) {
+    written += format_command(format->buffer + written, format->buffer_len - written,
+                              &series_buffer[i]);
+  }
 
   return 0;
 }
