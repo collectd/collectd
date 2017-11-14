@@ -222,7 +222,8 @@ static int tn_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
     char value_str[DATA_MAX_NAME_LEN];
 
     const char *format = "%%{ds:%.*s}";
-    snprintf(template, sizeof(template), format, DATA_MAX_NAME_LEN - strlen(format), ds->ds[i].name);
+    snprintf(template, sizeof(template), format,
+             DATA_MAX_NAME_LEN - strlen(format), ds->ds[i].name);
 
     if (ds->ds[i].type != DS_TYPE_GAUGE) {
       if ((rates == NULL) && (rates_failed == 0)) {
