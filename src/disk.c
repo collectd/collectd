@@ -662,6 +662,7 @@ static int disk_read(void) {
   char buffer[1024];
 
   char *fields[32];
+  static unsigned int local_poll_count = 0;
 
   derive_t read_sectors = 0;
   derive_t write_sectors = 0;
@@ -714,6 +715,7 @@ static int disk_read(void) {
         disklist = ds;
       else
         pre_ds->next = ds;
+      ds->poll_count = local_poll_count;
     }
 
     is_disk = 0;
@@ -875,6 +877,27 @@ static int disk_read(void) {
 #endif
   } /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
 
+  local_poll_count++;
+  for (ds = disklist, pre_ds = disklist; ds != NULL;) {
+      /* test if we have seen the disk in diskstats */
+      if (ds->poll_count != local_poll_count) {
+        diskstats_t *old_ds = ds;
+        /* free the ds */
+        if (pre_ds == disklist) {
+            /* first element */
+            disklist = ds->next;
+            ds = disklist;
+            pre_ds = ds;
+        } else {
+            pre_ds->next = ds->next;
+            ds = ds->next;
+        }
+        free(old_ds);
+      } else {
+        pre_ds = ds;
+        ds = ds->next;
+      }
+  }
   fclose(fh);
 /* #endif defined(KERNEL_LINUX) */
 
