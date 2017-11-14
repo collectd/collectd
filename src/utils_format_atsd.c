@@ -36,7 +36,8 @@ typedef struct series_s {
   char entity[6 * DATA_MAX_NAME_LEN];
   char metric[6 * DATA_MAX_NAME_LEN];
   char formatted_value[MAX_VALUE_LEN];
-  tag_key_val_t *tags;
+  tag_key_val_t *metric_tags;
+  tag_key_val_t *series_tags;
   uint64_t time;
 } series_t;
 
@@ -129,9 +130,16 @@ char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n) {
 double get_value(format_info_t *format) {
   if (format->ds->ds[format->index].type == DS_TYPE_GAUGE) {
     return format->vl->values[format->index].gauge;
-  } else {
+  } else if (format->rates != NULL) {
     return format->rates[format->index];
+  } else if (format->ds->ds[format->index].type == DS_TYPE_COUNTER) {
+    return format->vl->values[format->index].counter;
+  } else if (format->ds->ds[format->index].type == DS_TYPE_DERIVE) {
+    return format->vl->values[format->index].derive;
+  } else if (format->ds->ds[format->index].type == DS_TYPE_ABSOLUTE) {
+    return format->vl->values[format->index].absolute;
   }
+  return -1;
 }
 
 int format_value(char *ret, size_t ret_len, format_info_t *format) {
@@ -155,8 +163,14 @@ int format_value(char *ret, size_t ret_len, format_info_t *format) {
 
   if (format->ds->ds[format->index].type == DS_TYPE_GAUGE) {
     BUFFER_ADD(GAUGE_FORMAT, format->vl->values[format->index].gauge);
-  } else {
+  } else if (format->rates != NULL) {
     BUFFER_ADD("%.15g", format->rates[format->index]);
+  } else if (format->ds->ds[format->index].type == DS_TYPE_COUNTER) {
+    BUFFER_ADD("%llu", format->vl->values[format->index].counter);
+  } else if (format->ds->ds[format->index].type == DS_TYPE_DERIVE) {
+    BUFFER_ADD("%" PRIi64, format->vl->values[format->index].derive);
+  } else if (format->ds->ds[format->index].type == DS_TYPE_ABSOLUTE) {
+    BUFFER_ADD("%" PRIu64, format->vl->values[format->index].absolute);
   }
 
 #undef BUFFER_ADD
@@ -231,27 +245,34 @@ static int format_metric_default(series_t *series, format_info_t *format) {
     metric_name_append(series->metric, format->ds->ds[format->index].name,
                        sizeof(series->metric));
   }
+  if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
+    metric_name_append(series->metric, "raw", sizeof(series->metric));
+  }
 
   if (*format->vl->plugin != '\0') {
-    ret = add_tag(&series->tags, "plugin", format->vl->plugin);
+    ret = add_tag(&series->series_tags, "plugin", format->vl->plugin);
   }
   if (*format->vl->plugin_instance != '\0') {
-    ret = add_tag(&series->tags, "plugin_instance", format->vl->plugin_instance);
-    ret = add_tag(&series->tags, "instance", format->vl->plugin_instance);
+    ret = add_tag(&series->series_tags, "plugin_instance", format->vl->plugin_instance);
+    ret = add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
   }
   if (*format->vl->type != '\0') {
-    ret = add_tag(&series->tags, "type", format->vl->type);
+    ret = add_tag(&series->series_tags, "type", format->vl->type);
   }
   if (*format->vl->type_instance != '\0') {
-    ret = add_tag(&series->tags, "type_instance", format->vl->type_instance);
+    ret = add_tag(&series->series_tags, "type_instance", format->vl->type_instance);
   }
-  ret = add_tag(&series->tags, "data_source", format->ds->ds[format->index].name);
+  ret = add_tag(&series->series_tags, "data_source", format->ds->ds[format->index].name);
+
+  add_tag(&series->metric_tags, "data_type",
+      DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
 
   return ret;
 }
 
 void init_series(series_t *series, const char *entity, const value_list_t *vl) {
-  series->tags = NULL;
+  series->metric_tags = NULL;
+  series->series_tags = NULL;
   series->time = CDTIME_T_TO_MS(vl->time);
   strncpy(series->entity, entity, sizeof(series->entity));
 }
@@ -269,13 +290,16 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
   count++;
   series_buffer++;
 
-  if (strcasecmp(format->vl->plugin, "cpu") == 0 &&
+  if (format->rates != NULL &&
+      strcasecmp(format->vl->plugin, "cpu") == 0 &&
       strcasecmp(format->vl->type_instance, "idle") == 0) {
     init_series(series_buffer, format->entity, format->vl);
     snprintf(series_buffer->metric, sizeof(series_buffer->metric),
              "%s.cpu.%s.busy", format->prefix, format->vl->type);
     if (*format->vl->plugin_instance != '\0')
-      add_tag(&series_buffer->tags, "instance", format->vl->plugin_instance);
+      add_tag(&series_buffer->series_tags, "instance", format->vl->plugin_instance);
+    add_tag(&series_buffer->metric_tags, "data_type",
+          DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
 
     format_value(tmp_value, sizeof(tmp_value), format);
     snprintf(series_buffer->formatted_value,
@@ -290,8 +314,13 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
     init_series(series_buffer, format->entity, format->vl);
     snprintf(series_buffer->metric, sizeof(series_buffer->metric),
              "%s.df.percent_bytes.used_reserved", format->prefix);
+    if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
+      metric_name_append(series_buffer->metric, "raw", sizeof(series_buffer->metric));
+    }
     if (*format->vl->plugin_instance != '\0')
-      add_tag(&series_buffer->tags, "instance", format->vl->plugin_instance);
+      add_tag(&series_buffer->series_tags, "instance", format->vl->plugin_instance);
+    add_tag(&series_buffer->metric_tags, "data_type",
+          DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
 
     format_value(tmp_value, sizeof(tmp_value), format);
     snprintf(series_buffer->formatted_value,
@@ -304,6 +333,12 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
     init_series(series_buffer, format->entity, format->vl);
     snprintf(series_buffer->metric, sizeof(series_buffer->metric), "%s.%s",
              format->prefix, format->vl->plugin_instance);
+    if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
+      metric_name_append(series_buffer->metric, "raw", sizeof(series_buffer->metric));
+    }
+    add_tag(&series_buffer->metric_tags, "data_type",
+          DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
+
     format_value(series_buffer->formatted_value,
                  sizeof(series_buffer->formatted_value), format);
 
@@ -313,45 +348,49 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
         value = strchr(key, '=');
         if (value) {
           *value++ = '\0';
-          add_tag(&series_buffer->tags, key, value);
+          add_tag(&series_buffer->series_tags, key, value);
         }
       }
       free(tmp);
     } else {
-      add_tag(&series_buffer->tags, "instance", format->vl->type_instance);
+      add_tag(&series_buffer->series_tags, "instance", format->vl->type_instance);
     }
   }
 
   return count;
 }
 
-size_t format_command(char *buffer, size_t buffer_len, series_t *series) {
+size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t **tags) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written;
 
-  memset(buffer, 0, buffer_len);
-  written = 0;
-
-  written += snprintf(buffer, buffer_len, "series");
-
-  escape_atsd_string(escape_buffer, series->entity, sizeof escape_buffer);
-  written += snprintf(buffer + written, buffer_len - written, " e:\"%s\"",
-                      escape_buffer);
-
-  escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
-  written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"=%s",
-                      escape_buffer, series->formatted_value);
-
-  for (; series->tags; remove_tag(&series->tags)) {
-    escape_atsd_string(escape_buffer, series->tags->key, sizeof escape_buffer);
+  for (; *tags; remove_tag(tags)) {
+    escape_atsd_string(escape_buffer, (*tags)->key, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written, " t:\"%s\"=",
                         escape_buffer);
 
-    escape_atsd_string(escape_buffer, series->tags->val, sizeof escape_buffer);
+    escape_atsd_string(escape_buffer, (*tags)->val, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written, "\"%s\"",
                         escape_buffer);
   }
 
+  return written;
+}
+
+size_t format_series_command(char *buffer, size_t buffer_len, series_t *series) {
+  char escape_buffer[6 * DATA_MAX_NAME_LEN];
+  size_t written;
+
+  written = 0;
+
+  written += snprintf(buffer, buffer_len, "series");
+  escape_atsd_string(escape_buffer, series->entity, sizeof escape_buffer);
+  written += snprintf(buffer + written, buffer_len - written, " e:\"%s\"",
+                      escape_buffer);
+  escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
+  written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"=%s",
+                      escape_buffer, series->formatted_value);
+  written += format_tags(buffer + written, buffer_len - written, &series->series_tags);
   written += snprintf(buffer + written, buffer_len - written, " ms:%" PRIu64,
                       series->time);
   written += snprintf(buffer + written, buffer_len - written, " \n");
@@ -359,17 +398,37 @@ size_t format_command(char *buffer, size_t buffer_len, series_t *series) {
   return written;
 }
 
-int format_atsd_command(format_info_t *format) {
+size_t format_metric_command(char *buffer, size_t buffer_len, series_t *series) {
+  char escape_buffer[6 * DATA_MAX_NAME_LEN];
+  size_t written;
+
+  written = 0;
+
+  written += snprintf(buffer, buffer_len, "metric");
+  escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
+  written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"",
+                      escape_buffer);
+  written += format_tags(buffer + written, buffer_len - written, &series->metric_tags);
+  written += snprintf(buffer + written, buffer_len - written, " \n");
+
+  return written;
+}
+
+int format_atsd_command(format_info_t *format, _Bool append_metrics) {
   size_t series_count, i, written;
   series_t series_buffer[MAX_DERIVED_SERIES];
 
-  series_count =
-      derive_series(series_buffer, format);
+  series_count = derive_series(series_buffer, format);
 
   memset(format->buffer, 0, format->buffer_len);
   written = 0;
   for (i = 0; i < series_count; i++) {
-    written += format_command(format->buffer + written, format->buffer_len - written,
+    if (append_metrics) {
+      written += format_metric_command(format->buffer + written, format->buffer_len - written,
+                                       &series_buffer[i]);
+    }
+
+    written += format_series_command(format->buffer + written, format->buffer_len - written,
                               &series_buffer[i]);
   }
 

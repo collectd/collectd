@@ -40,6 +40,8 @@
 #include "utils_complain.h"
 #include "utils_format_atsd.h"
 
+#include <stdbool.h>
+
 #include <netdb.h>
 #include <sys/socket.h>
 
@@ -106,14 +108,16 @@ struct wa_callback {
   cdtime_t send_buf_init_time;
 
   pthread_mutex_t send_lock;
-  pthread_mutex_t avl_lock;
+  pthread_mutex_t value_cache_lock;
+  pthread_mutex_t metric_cache_lock;
   c_complain_t init_complaint;
   cdtime_t last_connect_time;
   cdtime_t last_property_time;
 
   struct wa_cache_s **wa_caches;
   int wa_num_caches;
-  c_avl_tree_t *cache_tree;
+  c_avl_tree_t *value_cache;
+  c_avl_tree_t *metric_cache;
 
   /* Force reconnect useful for load balanced environments */
   cdtime_t last_reconnect_time;
@@ -354,13 +358,13 @@ static void wa_callback_free(void *data) {
   sfree(cb->service);
   sfree(cb->prefix);
 
-  while (c_avl_pick(cb->cache_tree, (void *)&atsd_stored_key,
+  while (c_avl_pick(cb->value_cache, (void *)&atsd_stored_key,
                     (void *)&atsd_stored_value) == 0) {
     sfree(atsd_stored_key);
     sfree(atsd_stored_value);
   }
 
-  c_avl_destroy(cb->cache_tree);
+  c_avl_destroy(cb->value_cache);
 
   for (i = 0; i < cb->wa_num_caches; i++) {
     sfree(cb->wa_caches[i]->name);
@@ -463,7 +467,8 @@ static int wa_update_property(const value_list_t *vl, const char *entity,
 }
 
 static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
-                             struct wa_callback *cb) {
+                             struct wa_callback *cb, _Bool *update_series,
+                             _Bool *update_metrics) {
 
   atsd_key_t *atsd_stored_key;
   atsd_value_t *atsd_stored_value;
@@ -472,15 +477,47 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
 
   int status, q;
 
+  *update_series = true;
+  *update_metrics = false;
+
+#define COPY_KEY(dst, src) \
+  do {                     \
+    strncpy(dst->host, src->host, sizeof(dst->host));  \
+    strncpy(dst->plugin, src->plugin, sizeof(dst->plugin));  \
+    strncpy(dst->plugin_instance, src->plugin_instance, sizeof(dst->plugin_instance));  \
+    strncpy(dst->type, src->type, sizeof(dst->type));  \
+    strncpy(dst->type_instance, src->type_instance, sizeof(dst->type_instance));  \
+    strncpy(dst->data_source, src->data_source, sizeof(dst->data_source));  \
+  } while (0)
+
+  pthread_mutex_lock(&cb->metric_cache_lock);
+  status = c_avl_get(cb->metric_cache, ak, NULL);
+  pthread_mutex_unlock(&cb->metric_cache_lock);
+
+  if (status != 0) {
+    atsd_stored_key = (atsd_key_t *) malloc(sizeof(atsd_key_t));
+    if (atsd_stored_key == NULL) {
+      ERROR("write_atsd plugin: malloc failed.");
+      return -1;
+    }
+    COPY_KEY(atsd_stored_key, ak);
+
+    pthread_mutex_lock(&cb->metric_cache_lock);
+    status = c_avl_insert(cb->metric_cache, atsd_stored_key, NULL);
+    pthread_mutex_unlock(&cb->metric_cache_lock);
+
+    *update_metrics = true;
+  }
+
   for (q = 0; q < cb->wa_num_caches; q++)
     if (strcasecmp(ak->plugin, cb->wa_caches[q]->name) == 0)
       break;
   if (q >= cb->wa_num_caches)
-    return 1;
+    return 0;
 
-  pthread_mutex_lock(&cb->avl_lock);
-  status = c_avl_get(cb->cache_tree, ak, (void *)&atsd_stored_value);
-  pthread_mutex_unlock(&cb->avl_lock);
+  pthread_mutex_lock(&cb->value_cache_lock);
+  status = c_avl_get(cb->value_cache, ak, (void *)&atsd_stored_value);
+  pthread_mutex_unlock(&cb->value_cache_lock);
 
   if (status == 0) /* metric in tree */ {
     assert(atsd_stored_value->time < av->time);
@@ -494,7 +531,7 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
       atsd_stored_value->value = av->value;
       atsd_stored_value->time = av->time;
     } else {
-      return 0;
+      *update_series = false;
     }
   } else {
     atsd_stored_key = (atsd_key_t *) malloc(sizeof(atsd_key_t));
@@ -502,13 +539,7 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
       ERROR("write_atsd plugin: malloc failed.");
       return -1;
     }
-
-    strncpy(atsd_stored_key->host, ak->host, DATA_MAX_NAME_LEN);
-    strncpy(atsd_stored_key->plugin, ak->plugin, DATA_MAX_NAME_LEN);
-    strncpy(atsd_stored_key->plugin_instance, ak->plugin_instance, DATA_MAX_NAME_LEN);
-    strncpy(atsd_stored_key->type, ak->type, DATA_MAX_NAME_LEN);
-    strncpy(atsd_stored_key->type_instance, ak->type_instance, DATA_MAX_NAME_LEN);
-    strncpy(atsd_stored_key->data_source, ak->data_source, DATA_MAX_NAME_LEN);
+    COPY_KEY(atsd_stored_key, ak);
 
     atsd_stored_value = (atsd_value_t *) malloc(sizeof(atsd_value_t));
     if (atsd_stored_value == NULL) {
@@ -520,9 +551,9 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
     atsd_stored_value->value = av->value;
     atsd_stored_value->time = av->time;
 
-    pthread_mutex_lock(&cb->avl_lock);
-    status = c_avl_insert(cb->cache_tree, atsd_stored_key, atsd_stored_value);
-    pthread_mutex_unlock(&cb->avl_lock);
+    pthread_mutex_lock(&cb->value_cache_lock);
+    status = c_avl_insert(cb->value_cache, atsd_stored_key, atsd_stored_value);
+    pthread_mutex_unlock(&cb->value_cache_lock);
 
     if (status != 0) {
       ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
@@ -530,8 +561,9 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
       return -1;
     }
   }
+#undef COPY_KEY
 
-  return 1;
+  return 0;
 }
 
 static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
@@ -543,16 +575,21 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
   atsd_value_t cache_value;
   format_info_t format;
 
-  char command[1024];
+  _Bool update_metrics;
+  _Bool update_series;
+
+  char commands[1024];
   char entity[WA_MAX_LENGTH];
 
   status = 0;
-
   rates = NULL;
-  rates = uc_get_rate(ds, vl);
-  if (rates == NULL) {
-    ERROR("wa_write_messages: error with uc_get_rate");
-    return -1;
+
+  if (cb->store_rates) {
+    rates = uc_get_rate(ds, vl);
+    if (rates == NULL) {
+      ERROR("wa_write_messages: error with uc_get_rate");
+      return -1;
+    }
   }
 
   status = format_entity(entity, sizeof(entity), cb->entity, vl->host,
@@ -564,15 +601,16 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
   if (status != 0)
     goto end;
 
-  format.buffer = command;
-  format.buffer_len = sizeof(command);
+  format.buffer = commands;
+  format.buffer_len = sizeof(commands);
+  format.entity = entity;
+  format.prefix = cb->prefix;
   format.vl = vl;
   format.ds = ds;
-  format.entity = entity;
   format.rates = rates;
 
   for (i = 0; i < ds->ds_num; i++) {
-    if (isnan(rates[i]))
+    if (rates != NULL && isnan(rates[i]))
       continue;
 
     format.index = i;
@@ -587,15 +625,17 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     cache_value.value = get_value(&format);
     cache_value.time = CDTIME_T_TO_MS(vl->time);
 
-    status = check_cache_value(&cache_key, &cache_value, cb);
+    status = check_cache_value(&cache_key, &cache_value, cb,
+                               &update_series, &update_metrics);
+    if (status != 0) {
+      goto end;
+    }
 
-    if (status == 1) {
-      format_atsd_command(&format);
-      status = wa_send_message(command, cb);
+    if (update_series) {
+      format_atsd_command(&format, update_metrics);
+      status = wa_send_message(commands, cb);
       if (status != 0)
         goto end;
-    } else if (status == -1) {
-      goto end;
     }
   }
 
@@ -680,14 +720,19 @@ static int wa_config_node(oconfig_item_t *ci) {
   cb->protocol = strdup(WA_DEFAULT_PROTOCOL);
   cb->prefix = strdup(WA_DEFAULT_PREFIX);
   cb->entity = NULL;
-  cb->short_hostname = 0;
+  cb->short_hostname = false;
+  cb->store_rates = true;
   cb->wa_num_caches = 0;
   cb->wa_caches = NULL;
-  cb->cache_tree = NULL;
-  cb->cache_tree = c_avl_create((void *)compare_atsd_keys);
+  cb->value_cache = NULL;
+  cb->value_cache = c_avl_create((void *)compare_atsd_keys);
+  cb->metric_cache = NULL;
+  cb->metric_cache = c_avl_create((void *)compare_atsd_keys);
 
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
-  pthread_mutex_init(&cb->avl_lock, /* attr = */ NULL);
+  pthread_mutex_init(&cb->value_cache_lock, /* attr = */ NULL);
+  pthread_mutex_init(&cb->metric_cache_lock, /* attr = */ NULL);
+
   C_COMPLAIN_INIT(&cb->init_complaint);
 
   for (int i = 0; i < ci->children_num; i++) {

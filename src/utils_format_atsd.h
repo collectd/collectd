@@ -48,6 +48,6 @@ int format_value(char *ret, size_t ret_len, format_info_t *format);
 int format_entity(char *ret, const int ret_len, const char *entity,
                   const char *host, _Bool short_hostname);
 
-int format_atsd_command(format_info_t *format);
+int format_atsd_command(format_info_t *format, _Bool append_metrics);
 
 #endif // UTILS_FORMAT_ATSD_H
