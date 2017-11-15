@@ -106,14 +106,16 @@ static int add_tag(tag_key_val_t **tags, const char *key, const char *val) {
   return 0;
 }
 
-static void remove_tag(tag_key_val_t **tags) {
-  tag_key_val_t *tag;
-  if (*tags != NULL) {
-    tag = *tags;
-    *tags = tag->next;
+static void free_tags(tag_key_val_t *tags) {
+  tag_key_val_t *tag, *next_tag;
+
+  tag = tags;
+  while (tag != NULL) {
+    next_tag = tag->next;
     sfree(tag->key);
     sfree(tag->val);
     sfree(tag);
+    tag = next_tag;
   }
 }
 
@@ -406,18 +408,19 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
   return count;
 }
 
-size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t **tags) {
+size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
+  tag_key_val_t *tag;
   size_t written;
 
   written = 0;
 
-  for (; *tags; remove_tag(tags)) {
-    escape_atsd_string(escape_buffer, (*tags)->key, sizeof escape_buffer);
+  for (tag = tags; tag != NULL; tag = tag->next) {
+    escape_atsd_string(escape_buffer, tags->key, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written, " t:\"%s\"=",
                         escape_buffer);
 
-    escape_atsd_string(escape_buffer, (*tags)->val, sizeof escape_buffer);
+    escape_atsd_string(escape_buffer, tags->val, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written, "\"%s\"",
                         escape_buffer);
   }
@@ -440,7 +443,7 @@ size_t format_series_command(char *buffer, size_t buffer_len,
   written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"=%s",
                       escape_buffer, series->formatted_value);
   written +=
-      format_tags(buffer + written, buffer_len - written, &series->series_tags);
+      format_tags(buffer + written, buffer_len - written, series->series_tags);
   written += snprintf(buffer + written, buffer_len - written, " ms:%" PRIu64,
                       series->time);
   written += snprintf(buffer + written, buffer_len - written, " \n");
@@ -460,7 +463,7 @@ size_t format_metric_command(char *buffer, size_t buffer_len,
   written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"",
                       escape_buffer);
   written +=
-      format_tags(buffer + written, buffer_len - written, &series->metric_tags);
+      format_tags(buffer + written, buffer_len - written, series->metric_tags);
   written += snprintf(buffer + written, buffer_len - written, " \n");
 
   return written;
@@ -484,6 +487,9 @@ int format_atsd_command(format_info_t *format, _Bool append_metrics) {
     written +=
         format_series_command(format->buffer + written,
                               format->buffer_len - written, &series_buffer[i]);
+
+    free_tags(series_buffer[i].metric_tags);
+    free_tags(series_buffer[i].series_tags);
   }
 
   return 0;

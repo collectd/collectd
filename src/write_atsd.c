@@ -86,6 +86,8 @@ struct wa_cache_s {
   char *name;
   int interval;
   double threshold;
+
+  struct wa_cache_s *next;
 };
 
 struct wa_callback {
@@ -114,7 +116,7 @@ struct wa_callback {
   cdtime_t last_connect_time;
   cdtime_t last_property_time;
 
-  struct wa_cache_s **wa_caches;
+  struct wa_cache_s *wa_caches;
   int wa_num_caches;
   c_avl_tree_t *value_cache;
   c_avl_tree_t *metric_cache;
@@ -330,12 +332,11 @@ static int wa_callback_init(struct wa_callback *cb) {
 }
 
 static void wa_callback_free(void *data) {
-  int i;
-
   struct wa_callback *cb;
-
   atsd_key_t *atsd_stored_key = NULL;
   atsd_value_t *atsd_stored_value = NULL;
+  struct wa_cache_s *cache, *next_cache;
+  void *empty;
 
   if (data == NULL)
     return;
@@ -362,13 +363,20 @@ static void wa_callback_free(void *data) {
     sfree(atsd_stored_key);
     sfree(atsd_stored_value);
   }
-
   c_avl_destroy(cb->value_cache);
 
-  for (i = 0; i < cb->wa_num_caches; i++) {
-    sfree(cb->wa_caches[i]->name);
+  while (c_avl_pick(cb->metric_cache, (void *)&atsd_stored_key, &empty) == 0) {
+    sfree(atsd_stored_key);
   }
-  sfree(cb->wa_caches);
+  c_avl_destroy(cb->metric_cache);
+
+  cache = cb->wa_caches;
+  while (cache != NULL) {
+    next_cache = cache->next;
+    sfree(cache->name);
+    sfree(cache);
+    cache = next_cache;
+  }
 
   sfree(cb->entity);
 
@@ -471,10 +479,10 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
 
   atsd_key_t *atsd_stored_key;
   atsd_value_t *atsd_stored_value;
+  struct wa_cache_s *cache;
   double stored_value, cur_value;
   double diff;
-
-  int status, q;
+  int status;
 
   *update_series = true;
   *update_metrics = false;
@@ -510,10 +518,10 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
     *update_metrics = true;
   }
 
-  for (q = 0; q < cb->wa_num_caches; q++)
-    if (strcasecmp(ak->plugin, cb->wa_caches[q]->name) == 0)
+  for (cache = cb->wa_caches; cache != NULL; cache = cache->next)
+    if (strcasecmp(ak->plugin, cache->name) == 0)
       break;
-  if (q >= cb->wa_num_caches)
+  if (cache == NULL)
     return 0;
 
   pthread_mutex_lock(&cb->value_cache_lock);
@@ -527,9 +535,8 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
     stored_value = atsd_stored_value->value;
     diff = fabs(cur_value - stored_value);
 
-    if ((av->time - atsd_stored_value->time >=
-         cb->wa_caches[q]->interval * 1000) ||
-        (diff > (cb->wa_caches[q]->threshold) * stored_value / 100)) {
+    if ((av->time - atsd_stored_value->time >= cache->interval * 1000) ||
+        (diff > (cache->threshold) * stored_value / 100)) {
       atsd_stored_value->value = av->value;
       atsd_stored_value->time = av->time;
     } else {
@@ -659,11 +666,20 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
 static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
 
   int q, status;
-  struct wa_cache_s *nc, wc;
-  struct wa_cache_s **tmp;
-  memset(&wc, 0, sizeof(struct wa_cache_s));
+  struct wa_cache_s *wc;
 
-  status = cf_util_get_string(child, &wc.name);
+  wc = malloc(sizeof(struct wa_cache_s));
+
+  if (wc == NULL) {
+    ERROR("write_atsd plugin: malloc failed.");
+    return -1;
+  }
+
+  memset(wc, 0, sizeof(struct wa_cache_s));
+  wc->next = cb->wa_caches;
+  cb->wa_caches = wc;
+
+  status = cf_util_get_string(child, &wc->name);
   if (status != 0)
     return status;
 
@@ -671,9 +687,9 @@ static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
     oconfig_item_t *grandchild = child->children + q;
 
     if (strcasecmp("Interval", grandchild->key) == 0)
-      cf_util_get_int(grandchild, &wc.interval);
+      cf_util_get_int(grandchild, &wc->interval);
     else if (strcasecmp("Threshold", grandchild->key) == 0)
-      cf_util_get_double(grandchild, &wc.threshold);
+      cf_util_get_double(grandchild, &wc->threshold);
     else {
       ERROR("write_atsd plugin: Invalid configuration "
             "option: %s.",
@@ -684,21 +700,6 @@ static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
     if (status != 0)
       break;
   }
-
-  tmp = realloc(cb->wa_caches,
-                (cb->wa_num_caches + 1) * sizeof(*(cb->wa_caches)));
-  if (tmp == NULL) {
-    return ENOMEM;
-  }
-  cb->wa_caches = tmp;
-
-  nc = malloc(sizeof(*nc));
-  if (!nc) {
-    return ENOMEM;
-  }
-
-  memcpy(nc, &wc, sizeof(*nc));
-  cb->wa_caches[cb->wa_num_caches++] = nc;
 
   return 0;
 }
