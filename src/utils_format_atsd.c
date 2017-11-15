@@ -26,6 +26,41 @@
 #include <string.h>
 #include "utils_format_atsd.h"
 
+#define PART_END -1
+#define PART_STR 0
+#define PART_VL_PLUGIN 1
+#define PART_VL_PLUGIN_INSTANCE 2
+#define PART_VL_TYPE 3
+#define PART_VL_TYPE_INSTANCE 4
+#define PART_IS_RAW 5
+#define PART_DS_NAME 6
+
+/* Max number of part in name pattern */
+#define MAX_NAME_PARTS 6
+
+typedef struct {
+    int part_type;
+    char *str_value;
+} name_part_t;
+
+typedef struct {
+    name_part_t name_parts[MAX_NAME_PARTS];
+} name_rule_t;
+
+typedef void (*transform_func_t)(char *value);
+
+#define STRING(__str_val) {.part_type = PART_STR, .str_value = __str_val}
+#define PLUGIN {.part_type = PART_VL_PLUGIN}
+#define PLUGIN_INSTANCE {.part_type = PART_VL_PLUGIN_INSTANCE}
+#define TYPE {.part_type = PART_VL_TYPE}
+#define TYPE_INSTANCE {.part_type = PART_VL_TYPE_INSTANCE}
+#define DATA_SOURCE {.part_type = PART_DS_NAME}
+#define IS_RAW {.part_type = PART_IS_RAW}
+#define END {.part_type = PART_END}
+
+#define NAME_PATTERN(...) {.name_parts = {__VA_ARGS__, END}}
+#define NAME_PATTERN_PTR(...) &(name_rule_t) NAME_PATTERN (__VA_ARGS__)
+
 typedef struct tag_key_val_s {
   char *key;
   char *val;
@@ -79,7 +114,7 @@ static size_t strlcat(char *dst, const char *src, size_t siz) {
   size_t n = siz;
   size_t dlen;
 
-  /* Find the end of dst and adjust bytes left but don't go past end */
+  /* Find the end of dst and adjust bytes left but dobreak;n't go past end */
   while (n-- != 0 && *d != '\0')
     d++;
   dlen = d - dst;
@@ -194,7 +229,8 @@ int format_entity(char *ret, const int ret_len, const char *entity,
     for (e = entity; *e; e++) {
       if (*e == ' ') {
         use_entity = false;
-        break;
+        break;\
+
       }
     }
   } else {
@@ -233,20 +269,64 @@ static void metric_name_append(char *metric_name, const char *str, size_t n) {
   }
 }
 
-static int format_metric_default(series_t *series, format_info_t *format) {
+static void format_metric_name(char *buffer, size_t len, format_info_t *format, name_rule_t *rule) {
+  name_part_t name_part;
+  size_t i;
+
+  memset(buffer, 0, len);
+  metric_name_append(buffer, format->prefix, len);
+  for (i = 0; rule->name_parts[i].part_type != PART_END; i++) {
+    name_part = rule->name_parts[i];
+    switch (name_part.part_type) {
+      case PART_STR:
+        metric_name_append(buffer, name_part.str_value, len);
+        break;
+      case PART_VL_PLUGIN:
+        metric_name_append(buffer, format->vl->plugin, len);
+        break;
+      case PART_VL_TYPE:
+        metric_name_append(buffer, format->vl->type, len);
+        break;
+      case PART_VL_TYPE_INSTANCE:
+        metric_name_append(buffer, format->vl->type_instance, len);
+        break;
+      case PART_IS_RAW:
+        if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
+          metric_name_append(buffer, "raw", len);
+        }
+        break;
+      case PART_DS_NAME:
+        if (strcasecmp(format->ds->ds[format->index].name, "value") != 0) {
+          metric_name_append(buffer, format->ds->ds[format->index].name, len);
+        }
+        break;
+      default:
+        ERROR("utils_format_atsd: unknown metric format part type");
+    }
+  }
+}
+
+static void invert_percent(char *value) {
+  char tmp[MAX_VALUE_LEN];
+  snprintf(tmp, sizeof(tmp), "%.15g", (100.0 - atof(value)));
+  strncpy(value, tmp, MAX_VALUE_LEN);
+}
+
+static int format_series(series_t *series, format_info_t *format,
+                         name_rule_t *name_rule, _Bool add_instance_tag,
+                         transform_func_t transform) {
   int ret;
 
-  memset(series->metric, 0, sizeof(series->metric));
-  metric_name_append(series->metric, format->prefix, sizeof(series->metric));
-  metric_name_append(series->metric, format->vl->plugin, sizeof(series->metric));
-  metric_name_append(series->metric, format->vl->type, sizeof(series->metric));
-  metric_name_append(series->metric, format->vl->type_instance, sizeof(series->metric));
-  if (strcasecmp(format->ds->ds[format->index].name, "value") != 0) {
-    metric_name_append(series->metric, format->ds->ds[format->index].name,
-                       sizeof(series->metric));
-  }
-  if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
-    metric_name_append(series->metric, "raw", sizeof(series->metric));
+  series->metric_tags = NULL;
+  series->series_tags = NULL;
+  series->time = CDTIME_T_TO_MS(format->vl->time);
+  strncpy(series->entity, format->entity, sizeof(series->entity));
+
+  format_metric_name(series->metric, sizeof(series->metric), format, name_rule);
+  format_value(series->formatted_value, sizeof(series->formatted_value), format);
+
+  if (transform != NULL) {
+    transform(series->formatted_value);
   }
 
   if (*format->vl->plugin != '\0') {
@@ -254,7 +334,9 @@ static int format_metric_default(series_t *series, format_info_t *format) {
   }
   if (*format->vl->plugin_instance != '\0') {
     ret = add_tag(&series->series_tags, "plugin_instance", format->vl->plugin_instance);
-    ret = add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
+    if (add_instance_tag) {
+      ret = add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
+    }
   }
   if (*format->vl->type != '\0') {
     ret = add_tag(&series->series_tags, "type", format->vl->type);
@@ -270,77 +352,31 @@ static int format_metric_default(series_t *series, format_info_t *format) {
   return ret;
 }
 
-void init_series(series_t *series, const char *entity, const value_list_t *vl) {
-  series->metric_tags = NULL;
-  series->series_tags = NULL;
-  series->time = CDTIME_T_TO_MS(vl->time);
-  strncpy(series->entity, entity, sizeof(series->entity));
-}
-
 size_t derive_series(series_t *series_buffer, format_info_t *format) {
-  char tmp_value[MAX_VALUE_LEN];
   char *key, *value, *strtok_ctx, *tmp;
+  _Bool preserve_original = true;
   size_t count = 0;
-
-  init_series(series_buffer, format->entity, format->vl);
-  format_metric_default(series_buffer, format);
-  format_value(series_buffer->formatted_value,
-               sizeof(series_buffer->formatted_value), format);
-
-  count++;
-  series_buffer++;
 
   if (format->rates != NULL &&
       strcasecmp(format->vl->plugin, "cpu") == 0 &&
       strcasecmp(format->vl->type_instance, "idle") == 0) {
-    init_series(series_buffer, format->entity, format->vl);
-    snprintf(series_buffer->metric, sizeof(series_buffer->metric),
-             "%s.cpu.%s.busy", format->prefix, format->vl->type);
-    if (*format->vl->plugin_instance != '\0')
-      add_tag(&series_buffer->series_tags, "instance", format->vl->plugin_instance);
-    add_tag(&series_buffer->metric_tags, "data_type",
-          DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
-
-    format_value(tmp_value, sizeof(tmp_value), format);
-    snprintf(series_buffer->formatted_value,
-             sizeof(series_buffer->formatted_value), "%g",
-             (100.0 - atof(tmp_value)));
-
+    format_series(series_buffer, format,
+                  &(name_rule_t) NAME_PATTERN(PLUGIN, TYPE, STRING("busy")),
+                  true, invert_percent);
     count++;
     series_buffer++;
   } else if (strcasecmp(format->vl->plugin, "df") == 0 &&
              strcasecmp(format->vl->type, "percent_bytes") == 0 &&
              strcasecmp(format->vl->type_instance, "free") == 0) {
-    init_series(series_buffer, format->entity, format->vl);
-    snprintf(series_buffer->metric, sizeof(series_buffer->metric),
-             "%s.df.percent_bytes.used_reserved", format->prefix);
-    if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
-      metric_name_append(series_buffer->metric, "raw", sizeof(series_buffer->metric));
-    }
-    if (*format->vl->plugin_instance != '\0')
-      add_tag(&series_buffer->series_tags, "instance", format->vl->plugin_instance);
-    add_tag(&series_buffer->metric_tags, "data_type",
-          DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
-
-    format_value(tmp_value, sizeof(tmp_value), format);
-    snprintf(series_buffer->formatted_value,
-             sizeof(series_buffer->formatted_value), "%g",
-             (100.0 - atof(tmp_value)));
-
+    format_series(series_buffer, format,
+                  NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")),
+                  true, invert_percent);
     count++;
     series_buffer++;
   } else if (strcasecmp(format->vl->plugin, "exec") == 0) {
-    init_series(series_buffer, format->entity, format->vl);
-    snprintf(series_buffer->metric, sizeof(series_buffer->metric), "%s.%s",
-             format->prefix, format->vl->plugin_instance);
-    if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
-      metric_name_append(series_buffer->metric, "raw", sizeof(series_buffer->metric));
-    }
-    add_tag(&series_buffer->metric_tags, "data_type",
-          DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
-
-    format_value(series_buffer->formatted_value,
-                 sizeof(series_buffer->formatted_value), format);
+    format_series(series_buffer, format,
+                  NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW),
+                  false, NULL);
 
     if (strchr(format->vl->type_instance, ';')) {
       tmp = strdup(format->vl->type_instance);
@@ -355,6 +391,16 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
     } else {
       add_tag(&series_buffer->series_tags, "instance", format->vl->type_instance);
     }
+
+    preserve_original = false;
+  }
+
+  if (preserve_original) {
+    format_series(series_buffer, format,
+                  NAME_PATTERN_PTR(PLUGIN, TYPE, TYPE_INSTANCE, DATA_SOURCE, IS_RAW),
+                  true, NULL);
+    count++;
+    series_buffer++;
   }
 
   return count;
@@ -363,6 +409,8 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
 size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t **tags) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written;
+
+  written = 0;
 
   for (; *tags; remove_tag(tags)) {
     escape_atsd_string(escape_buffer, (*tags)->key, sizeof escape_buffer);
