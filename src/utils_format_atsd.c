@@ -39,27 +39,36 @@
 #define MAX_NAME_PARTS 6
 
 typedef struct {
-    int part_type;
-    char *str_value;
+  int part_type;
+  char *str_value;
 } name_part_t;
 
-typedef struct {
-    name_part_t name_parts[MAX_NAME_PARTS];
-} name_rule_t;
+typedef struct { name_part_t name_parts[MAX_NAME_PARTS]; } name_rule_t;
 
 typedef void (*transform_func_t)(char *value);
 
-#define STRING(__str_val) {.part_type = PART_STR, .str_value = __str_val}
-#define PLUGIN {.part_type = PART_VL_PLUGIN}
-#define PLUGIN_INSTANCE {.part_type = PART_VL_PLUGIN_INSTANCE}
-#define TYPE {.part_type = PART_VL_TYPE}
-#define TYPE_INSTANCE {.part_type = PART_VL_TYPE_INSTANCE}
-#define DATA_SOURCE {.part_type = PART_DS_NAME}
-#define IS_RAW {.part_type = PART_IS_RAW}
-#define END {.part_type = PART_END}
+#define STRING(__str_val)                                                      \
+  { .part_type = PART_STR, .str_value = __str_val }
+#define PLUGIN                                                                 \
+  { .part_type = PART_VL_PLUGIN }
+#define PLUGIN_INSTANCE                                                        \
+  { .part_type = PART_VL_PLUGIN_INSTANCE }
+#define TYPE                                                                   \
+  { .part_type = PART_VL_TYPE }
+#define TYPE_INSTANCE                                                          \
+  { .part_type = PART_VL_TYPE_INSTANCE }
+#define DATA_SOURCE                                                            \
+  { .part_type = PART_DS_NAME }
+#define IS_RAW                                                                 \
+  { .part_type = PART_IS_RAW }
+#define END                                                                    \
+  { .part_type = PART_END }
 
-#define NAME_PATTERN(...) {.name_parts = {__VA_ARGS__, END}}
-#define NAME_PATTERN_PTR(...) &(name_rule_t) NAME_PATTERN (__VA_ARGS__)
+#define NAME_PATTERN(...)                                                      \
+  {                                                                            \
+    .name_parts = { __VA_ARGS__, END }                                         \
+  }
+#define NAME_PATTERN_PTR(...) &(name_rule_t)NAME_PATTERN(__VA_ARGS__)
 
 typedef struct tag_key_val_s {
   char *key;
@@ -229,8 +238,7 @@ int format_entity(char *ret, const int ret_len, const char *entity,
     for (e = entity; *e; e++) {
       if (*e == ' ') {
         use_entity = false;
-        break;\
-
+        break;
       }
     }
   } else {
@@ -269,7 +277,8 @@ static void metric_name_append(char *metric_name, const char *str, size_t n) {
   }
 }
 
-static void format_metric_name(char *buffer, size_t len, format_info_t *format, name_rule_t *rule) {
+static void format_metric_name(char *buffer, size_t len, format_info_t *format,
+                               name_rule_t *rule) {
   name_part_t name_part;
   size_t i;
 
@@ -278,30 +287,31 @@ static void format_metric_name(char *buffer, size_t len, format_info_t *format, 
   for (i = 0; rule->name_parts[i].part_type != PART_END; i++) {
     name_part = rule->name_parts[i];
     switch (name_part.part_type) {
-      case PART_STR:
-        metric_name_append(buffer, name_part.str_value, len);
-        break;
-      case PART_VL_PLUGIN:
-        metric_name_append(buffer, format->vl->plugin, len);
-        break;
-      case PART_VL_TYPE:
-        metric_name_append(buffer, format->vl->type, len);
-        break;
-      case PART_VL_TYPE_INSTANCE:
-        metric_name_append(buffer, format->vl->type_instance, len);
-        break;
-      case PART_IS_RAW:
-        if (format->ds->ds[format->index].type != DS_TYPE_GAUGE && format->rates == NULL) {
-          metric_name_append(buffer, "raw", len);
-        }
-        break;
-      case PART_DS_NAME:
-        if (strcasecmp(format->ds->ds[format->index].name, "value") != 0) {
-          metric_name_append(buffer, format->ds->ds[format->index].name, len);
-        }
-        break;
-      default:
-        ERROR("utils_format_atsd: unknown metric format part type");
+    case PART_STR:
+      metric_name_append(buffer, name_part.str_value, len);
+      break;
+    case PART_VL_PLUGIN:
+      metric_name_append(buffer, format->vl->plugin, len);
+      break;
+    case PART_VL_TYPE:
+      metric_name_append(buffer, format->vl->type, len);
+      break;
+    case PART_VL_TYPE_INSTANCE:
+      metric_name_append(buffer, format->vl->type_instance, len);
+      break;
+    case PART_IS_RAW:
+      if (format->ds->ds[format->index].type != DS_TYPE_GAUGE &&
+          format->rates == NULL) {
+        metric_name_append(buffer, "raw", len);
+      }
+      break;
+    case PART_DS_NAME:
+      if (strcasecmp(format->ds->ds[format->index].name, "value") != 0) {
+        metric_name_append(buffer, format->ds->ds[format->index].name, len);
+      }
+      break;
+    default:
+      ERROR("utils_format_atsd: unknown metric format part type");
     }
   }
 }
@@ -323,16 +333,21 @@ static int format_series(series_t *series, format_info_t *format,
   strncpy(series->entity, format->entity, sizeof(series->entity));
 
   format_metric_name(series->metric, sizeof(series->metric), format, name_rule);
-  format_value(series->formatted_value, sizeof(series->formatted_value), format);
+  format_value(series->formatted_value, sizeof(series->formatted_value),
+               format);
   if (transform != NULL)
     transform(series->formatted_value);
   if (*format->vl->plugin_instance != '\0' && add_instance_tag)
-    ret = add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
+    ret =
+        add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
   ret = add_tag(&series->metric_tags, "plugin", format->vl->plugin);
   ret = add_tag(&series->metric_tags, "type", format->vl->type);
-  ret = add_tag(&series->metric_tags, "type_instance", format->vl->type_instance);
-  ret = add_tag(&series->metric_tags, "data_source", format->ds->ds[format->index].name);
-  ret = add_tag(&series->metric_tags, "data_type", DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
+  ret =
+      add_tag(&series->metric_tags, "type_instance", format->vl->type_instance);
+  ret = add_tag(&series->metric_tags, "data_source",
+                format->ds->ds[format->index].name);
+  ret = add_tag(&series->metric_tags, "data_type",
+                DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
 
   return ret;
 }
@@ -342,11 +357,10 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
   _Bool preserve_original = true;
   size_t count = 0;
 
-  if (format->rates != NULL &&
-      strcasecmp(format->vl->plugin, "cpu") == 0 &&
+  if (format->rates != NULL && strcasecmp(format->vl->plugin, "cpu") == 0 &&
       strcasecmp(format->vl->type_instance, "idle") == 0) {
     format_series(series_buffer, format,
-                  &(name_rule_t) NAME_PATTERN(PLUGIN, TYPE, STRING("busy")),
+                  &(name_rule_t)NAME_PATTERN(PLUGIN, TYPE, STRING("busy")),
                   true, invert_percent);
     count++;
     series_buffer++;
@@ -354,14 +368,13 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
              strcasecmp(format->vl->type, "percent_bytes") == 0 &&
              strcasecmp(format->vl->type_instance, "free") == 0) {
     format_series(series_buffer, format,
-                  NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")),
-                  true, invert_percent);
+                  NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")), true,
+                  invert_percent);
     count++;
     series_buffer++;
   } else if (strcasecmp(format->vl->plugin, "exec") == 0) {
     format_series(series_buffer, format,
-                  NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW),
-                  false, NULL);
+                  NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW), false, NULL);
 
     if (strchr(format->vl->type_instance, ';')) {
       tmp = strdup(format->vl->type_instance);
@@ -374,16 +387,18 @@ size_t derive_series(series_t *series_buffer, format_info_t *format) {
       }
       free(tmp);
     } else {
-      add_tag(&series_buffer->series_tags, "instance", format->vl->type_instance);
+      add_tag(&series_buffer->series_tags, "instance",
+              format->vl->type_instance);
     }
 
     preserve_original = false;
   }
 
   if (preserve_original) {
-    format_series(series_buffer, format,
-                  NAME_PATTERN_PTR(PLUGIN, TYPE, TYPE_INSTANCE, DATA_SOURCE, IS_RAW),
-                  true, NULL);
+    format_series(
+        series_buffer, format,
+        NAME_PATTERN_PTR(PLUGIN, TYPE, TYPE_INSTANCE, DATA_SOURCE, IS_RAW),
+        true, NULL);
     count++;
     series_buffer++;
   }
@@ -410,7 +425,8 @@ size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t **tags) {
   return written;
 }
 
-size_t format_series_command(char *buffer, size_t buffer_len, series_t *series) {
+size_t format_series_command(char *buffer, size_t buffer_len,
+                             series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written;
 
@@ -423,7 +439,8 @@ size_t format_series_command(char *buffer, size_t buffer_len, series_t *series) 
   escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
   written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"=%s",
                       escape_buffer, series->formatted_value);
-  written += format_tags(buffer + written, buffer_len - written, &series->series_tags);
+  written +=
+      format_tags(buffer + written, buffer_len - written, &series->series_tags);
   written += snprintf(buffer + written, buffer_len - written, " ms:%" PRIu64,
                       series->time);
   written += snprintf(buffer + written, buffer_len - written, " \n");
@@ -431,7 +448,8 @@ size_t format_series_command(char *buffer, size_t buffer_len, series_t *series) 
   return written;
 }
 
-size_t format_metric_command(char *buffer, size_t buffer_len, series_t *series) {
+size_t format_metric_command(char *buffer, size_t buffer_len,
+                             series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written;
 
@@ -441,7 +459,8 @@ size_t format_metric_command(char *buffer, size_t buffer_len, series_t *series) 
   escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
   written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"",
                       escape_buffer);
-  written += format_tags(buffer + written, buffer_len - written, &series->metric_tags);
+  written +=
+      format_tags(buffer + written, buffer_len - written, &series->metric_tags);
   written += snprintf(buffer + written, buffer_len - written, " \n");
 
   return written;
@@ -457,12 +476,14 @@ int format_atsd_command(format_info_t *format, _Bool append_metrics) {
   written = 0;
   for (i = 0; i < series_count; i++) {
     if (append_metrics) {
-      written += format_metric_command(format->buffer + written, format->buffer_len - written,
+      written += format_metric_command(format->buffer + written,
+                                       format->buffer_len - written,
                                        &series_buffer[i]);
     }
 
-    written += format_series_command(format->buffer + written, format->buffer_len - written,
-                              &series_buffer[i]);
+    written +=
+        format_series_command(format->buffer + written,
+                              format->buffer_len - written, &series_buffer[i]);
   }
 
   return 0;
