@@ -255,6 +255,10 @@ static double htond(double val) /* {{{ */
 
 static int nb_add_values(char **ret_buffer, /* {{{ */
                          size_t *ret_buffer_len, const lcc_value_list_t *vl) {
+  if ((vl == NULL) || (vl->values_len < 1)) {
+    return EINVAL;
+  }
+
   char *packet_ptr;
   size_t packet_len;
 
