@@ -324,30 +324,15 @@ static int format_series(series_t *series, format_info_t *format,
 
   format_metric_name(series->metric, sizeof(series->metric), format, name_rule);
   format_value(series->formatted_value, sizeof(series->formatted_value), format);
-
-  if (transform != NULL) {
+  if (transform != NULL)
     transform(series->formatted_value);
-  }
-
-  if (*format->vl->plugin != '\0') {
-    ret = add_tag(&series->series_tags, "plugin", format->vl->plugin);
-  }
-  if (*format->vl->plugin_instance != '\0') {
-    ret = add_tag(&series->series_tags, "plugin_instance", format->vl->plugin_instance);
-    if (add_instance_tag) {
-      ret = add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
-    }
-  }
-  if (*format->vl->type != '\0') {
-    ret = add_tag(&series->series_tags, "type", format->vl->type);
-  }
-  if (*format->vl->type_instance != '\0') {
-    ret = add_tag(&series->series_tags, "type_instance", format->vl->type_instance);
-  }
-  ret = add_tag(&series->series_tags, "data_source", format->ds->ds[format->index].name);
-
-  add_tag(&series->metric_tags, "data_type",
-      DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
+  if (*format->vl->plugin_instance != '\0' && add_instance_tag)
+    ret = add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
+  ret = add_tag(&series->metric_tags, "plugin", format->vl->plugin);
+  ret = add_tag(&series->metric_tags, "type", format->vl->type);
+  ret = add_tag(&series->metric_tags, "type_instance", format->vl->type_instance);
+  ret = add_tag(&series->metric_tags, "data_source", format->ds->ds[format->index].name);
+  ret = add_tag(&series->metric_tags, "data_type", DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
 
   return ret;
 }
