@@ -29,27 +29,28 @@
 #include "plugin.h"
 #include "utils_complain.h"
 
-#include <pthread.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
+#include <regex.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
+#include <dirent.h>
+#include <libmnl/libmnl.h>
+#include <linux/cn_proc.h>
+#include <linux/connector.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include <libmnl/libmnl.h>
-#include <linux/connector.h>
-#include <linux/cn_proc.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <string.h>
 #include <stdlib.h>
-#include <dirent.h>
+#include <string.h>
 
 #define PROCEVENT_EXITED 0
 #define PROCEVENT_STARTED 1
-#define PROCEVENT_FIELDS 3  // pid, status, extra
+#define PROCEVENT_FIELDS 3 // pid, status, extra
 #define BUFSIZE 512
 #define PROCDIR "/proc"
 
@@ -58,15 +59,19 @@
  */
 
 typedef struct {
-    int head;
-    int tail;
-    int maxLen;
-    int ** buffer;
+  int head;
+  int tail;
+  int maxLen;
+  int **buffer;
 } circbuf_t;
 
 struct processlist_s {
   char *process;
+  char *process_regex;
 
+  regex_t process_regex_obj;
+
+  uint32_t is_regex;
   uint32_t pid;
 
   struct processlist_s *next;
@@ -85,11 +90,10 @@ static pthread_cond_t procevent_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t procevent_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static int nl_sock = -1;
 static int buffer_length;
-static _Bool fuzzy_names = 0;
 static circbuf_t ring;
 static processlist_t *processlist_head = NULL;
 
-static const char *config_keys[] = { "BufferLength", "Process", "FuzzyNames" };
+static const char *config_keys[] = {"BufferLength", "Process", "RegexProcess"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /*
@@ -97,36 +101,35 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
  */
 
 // Does /proc/<pid>/comm contain a process name we are interested in?
-static processlist_t * process_check(int pid)
-{
-  int len;
+static processlist_t *process_check(int pid) {
+  int len, is_match, status;
   char file[BUFSIZE];
   FILE *fh;
   char buffer[BUFSIZE];
+  regmatch_t matches[20];
 
   len = snprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
 
-  if ((len < 0) || (len >= BUFSIZE))
-  {
+  if ((len < 0) || (len >= BUFSIZE)) {
     WARNING("procevent process_check: process name too large");
     return NULL;
   }
 
   if (NULL == (fh = fopen(file, "r"))) {
-      // No /proc/<pid>/comm for this pid, just ignore
-      INFO("procevent plugin: no comm file available for pid %d", pid);
-      return NULL;
+    // No /proc/<pid>/comm for this pid, just ignore
+    INFO("procevent plugin: no comm file available for pid %d", pid);
+    return NULL;
   }
 
   fscanf(fh, "%[^\n]", buffer);
-        
+
   //
   // Go through the processlist linked list and look for the process name
   // in /proc/<pid>/comm.  If found:
   // 1. If pl->pid is -1, then set pl->pid to <pid>
   // 2. If pl->pid is not -1, then another <process name> process was already
   //    found.  If <pid> == pl->pid, this is an old match, so do nothing.
-  //    If the <pid> is different, however,  make a new processlist_t and 
+  //    If the <pid> is different, however,  make a new processlist_t and
   //    associate <pid> with it (with the same process name as the existing).
   //
 
@@ -135,24 +138,48 @@ static processlist_t * process_check(int pid)
   processlist_t *pl;
   processlist_t *match = NULL;
 
-  for (pl = processlist_head; pl != NULL; pl = pl->next)
-  {
-    if (strcmp(buffer, pl->process) == 0)
-    {
-      INFO("procevent plugin: process %d name match for %s", pid, pl->process);
+  for (pl = processlist_head; pl != NULL; pl = pl->next) {
+    if (pl->is_regex != 0) {
+      is_match =
+          (regexec(&pl->process_regex_obj, buffer, 20, matches, 0) == 0 ? 1
+                                                                        : 0);
+    } else {
+      is_match = (strcmp(buffer, pl->process) == 0 ? 1 : 0);
+    }
 
-      if (pl->pid == pid)
-      {
+    if (is_match == 1) {
+      INFO("procevent plugin: process %d name match (pattern: %s) for %s", pid,
+           (pl->is_regex == 0 ? pl->process : pl->process_regex), buffer);
+
+      if (pl->is_regex == 1) {
+        // If this is a regex name, copy the actual process name into the object
+        // for cleaner log reporting
+
+        if (pl->process != NULL)
+          sfree(pl->process);
+        pl->process = strdup(buffer);
+        if (pl->process == NULL) {
+          char errbuf[1024];
+          ERROR("procevent plugin: strdup failed during process_check: %s",
+                sstrerror(errno, errbuf, sizeof(errbuf)));
+          pthread_mutex_unlock(&procevent_list_lock);
+          return NULL;
+        }
+      }
+
+      if (pl->pid == pid) {
         // this is a match, and we've already stored the exact pid/name combo
-        match = pl;  
+        match = pl;
         break;
       } else if (pl->pid == -1) {
-        // this is a match, and we've found a candidate processlist_t to store this new pid/name combo
+        // this is a match, and we've found a candidate processlist_t to store
+        // this new pid/name combo
         pl->pid = pid;
-        match = pl;  
+        match = pl;
         break;
       } else if (pl->pid != -1) {
-        // this is a match, but another instance of this process has already claimed this pid/name combo,
+        // this is a match, but another instance of this process has already
+        // claimed this pid/name combo,
         // so keep looking
         match = pl;
         continue;
@@ -160,15 +187,18 @@ static processlist_t * process_check(int pid)
     }
   }
 
-  if (match != NULL && match->pid != -1 && match->pid != pid)
-  {
-    // if there was a match but the associated processlist_t object already contained a pid/name combo,
+  if (match != NULL && match->pid != -1 && match->pid != pid) {
+    // if there was a match but the associated processlist_t object already
+    // contained a pid/name combo,
     // then make a new one and add it to the linked list
 
-    INFO("procevent plugin: allocating new processlist_t object for PID %d (%s)", pid, match->process);
+    INFO(
+        "procevent plugin: allocating new processlist_t object for PID %d (%s)",
+        pid, match->process);
 
     processlist_t *pl2;
     char *process;
+    char *process_regex;
 
     pl2 = malloc(sizeof(*pl2));
     if (pl2 == NULL) {
@@ -183,10 +213,35 @@ static processlist_t * process_check(int pid)
     if (process == NULL) {
       char errbuf[1024];
       sfree(pl2);
-      ERROR("procevent plugin: strdup failed process_check: %s",
+      ERROR("procevent plugin: strdup failed during process_check: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       pthread_mutex_unlock(&procevent_list_lock);
       return NULL;
+    }
+
+    if (match->is_regex == 1) {
+      pl2->is_regex = 1;
+      status =
+          regcomp(&pl2->process_regex_obj, match->process_regex, REG_EXTENDED);
+
+      if (status != 0) {
+        ERROR("procevent plugin: invalid regular expression: %s",
+              match->process_regex);
+        return NULL;
+      }
+
+      process_regex = strdup(match->process_regex);
+      if (process_regex == NULL) {
+        char errbuf[1024];
+        sfree(pl);
+        ERROR("procevent plugin: strdup failed during process_check: %s",
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+        return NULL;
+      }
+
+      pl2->process_regex = process_regex;
+
+      NOTICE("AJB regex process object created on the fly");
     }
 
     pl2->process = process;
@@ -208,26 +263,22 @@ static processlist_t * process_check(int pid)
 }
 
 // Does our map have this PID or name?
-static processlist_t * process_map_check(int pid, char * process)
-{
+static processlist_t *process_map_check(int pid, char *process) {
   processlist_t *pl;
 
   pthread_mutex_lock(&procevent_list_lock);
 
-  for (pl = processlist_head; pl != NULL; pl = pl->next)
-  {
+  for (pl = processlist_head; pl != NULL; pl = pl->next) {
     int match_pid = 0;
     int match_process = 0;
     int match = 0;
 
-    if (pid > 0)
-    {
+    if (pid > 0) {
       if (pl->pid == pid)
         match_pid = 1;
     }
 
-    if (process != NULL)
-    {
+    if (process != NULL) {
       if (strcmp(pl->process, process) == 0)
         match_process = 1;
     }
@@ -239,8 +290,7 @@ static processlist_t * process_map_check(int pid, char * process)
     else if (pid > 0 && process != NULL && match_pid == 1 && match_process == 1)
       match = 1;
 
-    if (match == 1)
-    {
+    if (match == 1) {
       pthread_mutex_unlock(&procevent_list_lock);
       return pl;
     }
@@ -251,8 +301,7 @@ static processlist_t * process_map_check(int pid, char * process)
   return NULL;
 }
 
-static int process_map_refresh(void)
-{
+static int process_map_refresh(void) {
   DIR *proc;
 
   errno = 0;
@@ -264,8 +313,7 @@ static int process_map_refresh(void)
     return -1;
   }
 
-  while (42) 
-  {
+  while (42) {
     struct dirent *dent;
     int len;
     char file[BUFSIZE];
@@ -312,24 +360,24 @@ static int process_map_refresh(void)
 
     int not_number = 0;
 
-    for (int i = 0; i < strlen(dent->d_name); i++)
-    {
-        if (!isdigit(dent->d_name[i]))
-        {
-          not_number = 1;
-          break;
-        }
+    for (int i = 0; i < strlen(dent->d_name); i++) {
+      if (!isdigit(dent->d_name[i])) {
+        not_number = 1;
+        break;
+      }
     }
 
     if (not_number != 0)
       continue;
 
-    // Check if we need to store this pid/name combo in our processlist_t linked list
+    // Check if we need to store this pid/name combo in our processlist_t linked
+    // list
     int this_pid = atoi(dent->d_name);
     processlist_t *pl = process_check(this_pid);
 
     if (pl != NULL)
-      INFO("procevent plugin: process map refreshed for PID %d and name %s", this_pid, pl->process);
+      INFO("procevent plugin: process map refreshed for PID %d and name %s",
+           this_pid, pl->process);
   }
 
   closedir(proc);
@@ -337,189 +385,183 @@ static int process_map_refresh(void)
   return 0;
 }
 
-static int nl_connect()
-{
-    int rc;
-    struct sockaddr_nl sa_nl;
+static int nl_connect() {
+  int rc;
+  struct sockaddr_nl sa_nl;
 
-    nl_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
-    if (nl_sock == -1) {
-        ERROR("procevent plugin: socket open failed.");
-        return -1;
-    }
+  nl_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
+  if (nl_sock == -1) {
+    ERROR("procevent plugin: socket open failed.");
+    return -1;
+  }
 
-    sa_nl.nl_family = AF_NETLINK;
-    sa_nl.nl_groups = CN_IDX_PROC;
-    sa_nl.nl_pid = getpid();
+  sa_nl.nl_family = AF_NETLINK;
+  sa_nl.nl_groups = CN_IDX_PROC;
+  sa_nl.nl_pid = getpid();
 
-    rc = bind(nl_sock, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
-    if (rc == -1) {
-        ERROR("procevent plugin: socket bind failed.");
-        close(nl_sock);
-        return -1;
-    }
+  rc = bind(nl_sock, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
+  if (rc == -1) {
+    ERROR("procevent plugin: socket bind failed.");
+    close(nl_sock);
+    return -1;
+  }
 
-    return 0;
+  return 0;
 }
 
-static int set_proc_ev_listen(bool enable)
-{
-    int rc;
-    struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
-        struct nlmsghdr nl_hdr;
-        struct __attribute__ ((__packed__)) {
-            struct cn_msg cn_msg;
-            enum proc_cn_mcast_op cn_mcast;
-        };
-    } nlcn_msg;
+static int set_proc_ev_listen(bool enable) {
+  int rc;
+  struct __attribute__((aligned(NLMSG_ALIGNTO))) {
+    struct nlmsghdr nl_hdr;
+    struct __attribute__((__packed__)) {
+      struct cn_msg cn_msg;
+      enum proc_cn_mcast_op cn_mcast;
+    };
+  } nlcn_msg;
 
-    memset(&nlcn_msg, 0, sizeof(nlcn_msg));
-    nlcn_msg.nl_hdr.nlmsg_len = sizeof(nlcn_msg);
-    nlcn_msg.nl_hdr.nlmsg_pid = getpid();
-    nlcn_msg.nl_hdr.nlmsg_type = NLMSG_DONE;
+  memset(&nlcn_msg, 0, sizeof(nlcn_msg));
+  nlcn_msg.nl_hdr.nlmsg_len = sizeof(nlcn_msg);
+  nlcn_msg.nl_hdr.nlmsg_pid = getpid();
+  nlcn_msg.nl_hdr.nlmsg_type = NLMSG_DONE;
 
-    nlcn_msg.cn_msg.id.idx = CN_IDX_PROC;
-    nlcn_msg.cn_msg.id.val = CN_VAL_PROC;
-    nlcn_msg.cn_msg.len = sizeof(enum proc_cn_mcast_op);
+  nlcn_msg.cn_msg.id.idx = CN_IDX_PROC;
+  nlcn_msg.cn_msg.id.val = CN_VAL_PROC;
+  nlcn_msg.cn_msg.len = sizeof(enum proc_cn_mcast_op);
 
-    nlcn_msg.cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
+  nlcn_msg.cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
 
-    rc = send(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
-    if (rc == -1) {
-        ERROR("procevent plugin: subscribing to netlink process events failed.");
-        return -1;
-    }
+  rc = send(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
+  if (rc == -1) {
+    ERROR("procevent plugin: subscribing to netlink process events failed.");
+    return -1;
+  }
 
-    return 0;
+  return 0;
 }
 
-static int read_event()
-{
-    int status;
-    int ret = 0;
-    int proc_id = -1;
-    int proc_status = -1;
-    int proc_extra = -1;
-    struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
-        struct nlmsghdr nl_hdr;
-        struct __attribute__ ((__packed__)) {
-            struct cn_msg cn_msg;
-            struct proc_event proc_ev;
-        };
-    } nlcn_msg;
+static int read_event() {
+  int status;
+  int ret = 0;
+  int proc_id = -1;
+  int proc_status = -1;
+  int proc_extra = -1;
+  struct __attribute__((aligned(NLMSG_ALIGNTO))) {
+    struct nlmsghdr nl_hdr;
+    struct __attribute__((__packed__)) {
+      struct cn_msg cn_msg;
+      struct proc_event proc_ev;
+    };
+  } nlcn_msg;
 
-    if (nl_sock == -1)
-      return ret;
+  if (nl_sock == -1)
+    return ret;
 
-    status = recv(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
+  status = recv(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
 
-    if (status == 0) {
-        return 0;
-    } else if (status == -1) {
-        if (errno != EINTR)
-        {
-          INFO("procevent plugin: socket receive error: %d", errno);
-          return -1;
-        }
+  if (status == 0) {
+    return 0;
+  } else if (status == -1) {
+    if (errno != EINTR) {
+      INFO("procevent plugin: socket receive error: %d", errno);
+      return -1;
     }
+  }
 
-    switch (nlcn_msg.proc_ev.what) {
-      case PROC_EVENT_NONE:
-          //printf("set mcast listen ok\n");
-          break;
-      case PROC_EVENT_FORK:
-          // printf("fork: parent tid=%d pid=%d -> child tid=%d pid=%d\n",
-          //         nlcn_msg.proc_ev.event_data.fork.parent_pid,
-          //         nlcn_msg.proc_ev.event_data.fork.parent_tgid,
-          //         nlcn_msg.proc_ev.event_data.fork.child_pid,
-          //         nlcn_msg.proc_ev.event_data.fork.child_tgid);
-          //proc_status = PROCEVENT_STARTED;
-          //proc_id = nlcn_msg.proc_ev.event_data.fork.child_pid;
-          break;
-      case PROC_EVENT_EXEC:
-          // printf("exec: tid=%d pid=%d\n",
-          //         nlcn_msg.proc_ev.event_data.exec.process_pid,
-          //         nlcn_msg.proc_ev.event_data.exec.process_tgid);
-          proc_status = PROCEVENT_STARTED;
-          proc_id = nlcn_msg.proc_ev.event_data.exec.process_pid;
-          break;
-      case PROC_EVENT_UID:
-          // printf("uid change: tid=%d pid=%d from %d to %d\n",
-          //         nlcn_msg.proc_ev.event_data.id.process_pid,
-          //         nlcn_msg.proc_ev.event_data.id.process_tgid,
-          //         nlcn_msg.proc_ev.event_data.id.r.ruid,
-          //         nlcn_msg.proc_ev.event_data.id.e.euid);
-          break;
-      case PROC_EVENT_GID:
-          // printf("gid change: tid=%d pid=%d from %d to %d\n",
-          //         nlcn_msg.proc_ev.event_data.id.process_pid,
-          //         nlcn_msg.proc_ev.event_data.id.process_tgid,
-          //         nlcn_msg.proc_ev.event_data.id.r.rgid,
-          //         nlcn_msg.proc_ev.event_data.id.e.egid);
-          break;
-      case PROC_EVENT_EXIT:
-            proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
-            proc_status = PROCEVENT_EXITED;
-            proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
-          break;
-      default:
-          break;
-    }
+  switch (nlcn_msg.proc_ev.what) {
+  case PROC_EVENT_NONE:
+    // printf("set mcast listen ok\n");
+    break;
+  case PROC_EVENT_FORK:
+    // printf("fork: parent tid=%d pid=%d -> child tid=%d pid=%d\n",
+    //         nlcn_msg.proc_ev.event_data.fork.parent_pid,
+    //         nlcn_msg.proc_ev.event_data.fork.parent_tgid,
+    //         nlcn_msg.proc_ev.event_data.fork.child_pid,
+    //         nlcn_msg.proc_ev.event_data.fork.child_tgid);
+    // proc_status = PROCEVENT_STARTED;
+    // proc_id = nlcn_msg.proc_ev.event_data.fork.child_pid;
+    break;
+  case PROC_EVENT_EXEC:
+    // printf("exec: tid=%d pid=%d\n",
+    //         nlcn_msg.proc_ev.event_data.exec.process_pid,
+    //         nlcn_msg.proc_ev.event_data.exec.process_tgid);
+    proc_status = PROCEVENT_STARTED;
+    proc_id = nlcn_msg.proc_ev.event_data.exec.process_pid;
+    break;
+  case PROC_EVENT_UID:
+    // printf("uid change: tid=%d pid=%d from %d to %d\n",
+    //         nlcn_msg.proc_ev.event_data.id.process_pid,
+    //         nlcn_msg.proc_ev.event_data.id.process_tgid,
+    //         nlcn_msg.proc_ev.event_data.id.r.ruid,
+    //         nlcn_msg.proc_ev.event_data.id.e.euid);
+    break;
+  case PROC_EVENT_GID:
+    // printf("gid change: tid=%d pid=%d from %d to %d\n",
+    //         nlcn_msg.proc_ev.event_data.id.process_pid,
+    //         nlcn_msg.proc_ev.event_data.id.process_tgid,
+    //         nlcn_msg.proc_ev.event_data.id.r.rgid,
+    //         nlcn_msg.proc_ev.event_data.id.e.egid);
+    break;
+  case PROC_EVENT_EXIT:
+    proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
+    proc_status = PROCEVENT_EXITED;
+    proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
+    break;
+  default:
+    break;
+  }
 
-    // If we're interested in this process status event, place the event 
-    // in the ring buffer for consumption by the main polling thread.
+  // If we're interested in this process status event, place the event
+  // in the ring buffer for consumption by the main polling thread.
 
-    if (proc_status != -1)
-    {
-      pthread_mutex_unlock(&procevent_lock);
+  if (proc_status != -1) {
+    pthread_mutex_unlock(&procevent_lock);
 
-      int next = ring.head + 1;
-      if (next >= ring.maxLen)
-        next = 0;
+    int next = ring.head + 1;
+    if (next >= ring.maxLen)
+      next = 0;
 
-      if (next == ring.tail)
-      {
-        WARNING("procevent plugin: ring buffer full");
+    if (next == ring.tail) {
+      WARNING("procevent plugin: ring buffer full");
+    } else {
+
+      struct timeval tv;
+
+      gettimeofday(&tv, NULL);
+
+      unsigned long long millisecondsSinceEpoch =
+          (unsigned long long)(tv.tv_sec) * 1000 +
+          (unsigned long long)(tv.tv_usec) / 1000;
+
+      if (proc_status == PROCEVENT_EXITED) {
+        INFO("procevent plugin (%llu): Process %d status is now EXITED",
+             millisecondsSinceEpoch, proc_id);
+
+        ring.buffer[ring.head][0] = proc_id;
+        ring.buffer[ring.head][1] = proc_status;
+        ring.buffer[ring.head][2] = proc_extra;
       } else {
+        INFO("procevent plugin (%llu): Process %d status is now STARTED",
+             millisecondsSinceEpoch, proc_id);
 
-        struct timeval tv;
-
-        gettimeofday(&tv, NULL);
-
-        unsigned long long millisecondsSinceEpoch =
-        (unsigned long long)(tv.tv_sec) * 1000 +
-        (unsigned long long)(tv.tv_usec) / 1000;
-        
-        if (proc_status == PROCEVENT_EXITED)
-        {
-          INFO("procevent plugin (%llu): Process %d status is now EXITED", millisecondsSinceEpoch, proc_id);
-
-          ring.buffer[ring.head][0] = proc_id;
-          ring.buffer[ring.head][1] = proc_status;
-          ring.buffer[ring.head][2] = proc_extra;
-        } else {
-          INFO("procevent plugin (%llu): Process %d status is now STARTED", millisecondsSinceEpoch, proc_id);
-
-          ring.buffer[ring.head][0] = proc_id;
-          ring.buffer[ring.head][1] = proc_status;
-          ring.buffer[ring.head][2] = 0;
-        }
-
-        ring.head = next;
+        ring.buffer[ring.head][0] = proc_id;
+        ring.buffer[ring.head][1] = proc_status;
+        ring.buffer[ring.head][2] = 0;
       }
 
-      pthread_mutex_unlock(&procevent_lock);
+      ring.head = next;
     }
 
-    return ret;
+    pthread_mutex_unlock(&procevent_lock);
+  }
+
+  return ret;
 }
 
 static void *procevent_thread(void *arg) /* {{{ */
 {
   pthread_mutex_lock(&procevent_lock);
 
-  while (procevent_thread_loop > 0) 
-  {
+  while (procevent_thread_loop > 0) {
     int status;
 
     pthread_mutex_unlock(&procevent_lock);
@@ -527,15 +569,14 @@ static void *procevent_thread(void *arg) /* {{{ */
     usleep(1000);
 
     status = read_event();
-    
+
     pthread_mutex_lock(&procevent_lock);
 
-    if (status < 0)
-    {
+    if (status < 0) {
       procevent_thread_error = 1;
       break;
     }
-    
+
     if (procevent_thread_loop <= 0)
       break;
   } /* while (procevent_thread_loop > 0) */
@@ -556,16 +597,15 @@ static int start_thread(void) /* {{{ */
     return (0);
   }
 
-  if (nl_sock == -1)
-  {
+  if (nl_sock == -1) {
     status = nl_connect();
 
     if (status != 0)
       return status;
 
     status = set_proc_ev_listen(true);
-    if (status == -1) 
-        return status;
+    if (status == -1)
+      return status;
   }
 
   INFO("procevent plugin: socket created and bound");
@@ -573,7 +613,8 @@ static int start_thread(void) /* {{{ */
   procevent_thread_loop = 1;
   procevent_thread_error = 0;
 
-  status = plugin_thread_create(&procevent_thread_id, /* attr = */ NULL, procevent_thread,
+  status = plugin_thread_create(&procevent_thread_id, /* attr = */ NULL,
+                                procevent_thread,
                                 /* arg = */ (void *)0, "procevent");
   if (status != 0) {
     procevent_thread_loop = 0;
@@ -590,12 +631,11 @@ static int stop_thread(int shutdown) /* {{{ */
 {
   int status;
 
-  if (nl_sock != -1)
-  {
+  if (nl_sock != -1) {
     status = close(nl_sock);
-    if (status != 0)
-    {
-      ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock, status, strerror(errno));
+    if (status != 0) {
+      ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock,
+            status, strerror(errno));
       return (-1);
     } else
       nl_sock = -1;
@@ -612,18 +652,16 @@ static int stop_thread(int shutdown) /* {{{ */
   pthread_cond_broadcast(&procevent_cond);
   pthread_mutex_unlock(&procevent_lock);
 
-  if (shutdown == 1)
-  {
-    // Calling pthread_cancel here in 
-    // the case of a shutdown just assures that the thread is 
+  if (shutdown == 1) {
+    // Calling pthread_cancel here in
+    // the case of a shutdown just assures that the thread is
     // gone and that the process has been fully terminated.
 
     INFO("procevent plugin: Canceling thread for process shutdown");
 
     status = pthread_cancel(procevent_thread_id);
 
-    if (status != 0)
-    {
+    if (status != 0) {
       ERROR("procevent plugin: Unable to cancel thread: %d", status);
       status = -1;
     }
@@ -657,17 +695,15 @@ static int procevent_init(void) /* {{{ */
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
-  ring.buffer = (int **) malloc(buffer_length * sizeof(int *));
+  ring.buffer = (int **)malloc(buffer_length * sizeof(int *));
 
-  for (int i = 0; i < buffer_length; i ++)
-  {
-    ring.buffer[i] = (int*) malloc(PROCEVENT_FIELDS * sizeof(int));
+  for (int i = 0; i < buffer_length; i++) {
+    ring.buffer[i] = (int *)malloc(PROCEVENT_FIELDS * sizeof(int));
   }
 
   status = process_map_refresh();
 
-  if (status == -1)
-  {
+  if (status == -1) {
     ERROR("procevent plugin: Initial process mapping failed.");
     return (-1);
   }
@@ -677,12 +713,16 @@ static int procevent_init(void) /* {{{ */
 
 static int procevent_config(const char *key, const char *value) /* {{{ */
 {
+  int status;
+
   if (strcasecmp(key, "BufferLength") == 0) {
     buffer_length = atoi(value);
-  } else if (strcasecmp(key, "Process") == 0) {
+  } else if (strcasecmp(key, "Process") == 0 ||
+             strcasecmp(key, "RegexProcess") == 0) {
 
     processlist_t *pl;
     char *process;
+    char *process_regex;
 
     pl = malloc(sizeof(*pl));
     if (pl == NULL) {
@@ -696,17 +736,40 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
     if (process == NULL) {
       char errbuf[1024];
       sfree(pl);
-      ERROR("procevent plugin: strdup failed procevent_config: %s",
+      ERROR("procevent plugin: strdup failed during procevent_config: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
       return (1);
+    }
+
+    if (strcasecmp(key, "RegexProcess") == 0) {
+      pl->is_regex = 1;
+      status = regcomp(&pl->process_regex_obj, value, REG_EXTENDED);
+
+      if (status != 0) {
+        ERROR("procevent plugin: invalid regular expression: %s", value);
+        return (1);
+      }
+
+      process_regex = strdup(value);
+      if (process_regex == NULL) {
+        char errbuf[1024];
+        sfree(pl);
+        ERROR("procevent plugin: strdup failed during procevent_config: %s",
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+        return (1);
+      }
+
+      pl->process_regex = process_regex;
+
+      NOTICE("AJB regex process object created");
+    } else {
+      pl->is_regex = 0;
     }
 
     pl->process = process;
     pl->pid = -1;
     pl->next = processlist_head;
     processlist_head = pl;
-  } else if (strcasecmp(key, "FuzzyNames") == 0) {
-    fuzzy_names = 1;
   } else {
     return (-1);
   }
@@ -734,10 +797,11 @@ static void submit(int pid, const char *type, /* {{{ */
   gettimeofday(&tv, NULL);
 
   unsigned long long millisecondsSinceEpoch =
-  (unsigned long long)(tv.tv_sec) * 1000 +
-  (unsigned long long)(tv.tv_usec) / 1000;
+      (unsigned long long)(tv.tv_sec) * 1000 +
+      (unsigned long long)(tv.tv_usec) / 1000;
 
-  INFO("procevent plugin (%llu): dispatching state %d for PID %d (%s)", millisecondsSinceEpoch, (int) value, pid, process);
+  INFO("procevent plugin (%llu): dispatching state %d for PID %d (%s)",
+       millisecondsSinceEpoch, (int)value, pid, process);
 
   plugin_dispatch_values(&vl);
 } /* }}} void interface_submit */
@@ -745,7 +809,8 @@ static void submit(int pid, const char *type, /* {{{ */
 static int procevent_read(void) /* {{{ */
 {
   if (procevent_thread_error != 0) {
-    ERROR("procevent plugin: The interface thread had a problem. Restarting it.");
+    ERROR(
+        "procevent plugin: The interface thread had a problem. Restarting it.");
 
     stop_thread(0);
 
@@ -756,33 +821,35 @@ static int procevent_read(void) /* {{{ */
 
   pthread_mutex_lock(&procevent_lock);
 
-  while (ring.head != ring.tail)
-  {
+  while (ring.head != ring.tail) {
     int next = ring.tail + 1;
 
     if (next >= ring.maxLen)
       next = 0;
 
-    if (ring.buffer[ring.tail][1] == PROCEVENT_EXITED)
-    {
-      processlist_t * pl = process_map_check(ring.buffer[ring.tail][0], NULL);
+    if (ring.buffer[ring.tail][1] == PROCEVENT_EXITED) {
+      processlist_t *pl = process_map_check(ring.buffer[ring.tail][0], NULL);
 
-      if (pl != NULL)
-      {
+      if (pl != NULL) {
         // This process is of interest to us, so publish its EXITED status
-        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1], pl->process);
-        INFO("procevent plugin: PID %d (%s) EXITED, removing PID from process list", pl->pid, pl->process);
+        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1],
+               pl->process);
+        INFO("procevent plugin: PID %d (%s) EXITED, removing PID from process "
+             "list",
+             pl->pid, pl->process);
         pl->pid = -1;
       }
     } else if (ring.buffer[ring.tail][1] == PROCEVENT_STARTED) {
       // a new process has started, so check if we should monitor it
-      processlist_t * pl = process_check(ring.buffer[ring.tail][0]);
+      processlist_t *pl = process_check(ring.buffer[ring.tail][0]);
 
-      if (pl != NULL)
-      {
+      if (pl != NULL) {
         // This process is of interest to us, so publish its STARTED status
-        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1], pl->process);
-        INFO("procevent plugin: PID %d (%s) STARTED, adding PID to process list", pl->pid, pl->process);
+        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1],
+               pl->process);
+        INFO(
+            "procevent plugin: PID %d (%s) STARTED, adding PID to process list",
+            pl->pid, pl->process);
       }
     }
 
@@ -796,15 +863,14 @@ static int procevent_read(void) /* {{{ */
 
 static int procevent_shutdown(void) /* {{{ */
 {
-  //int status = 0;
+  // int status = 0;
   processlist_t *pl;
 
   INFO("procevent plugin: Shutting down thread.");
   if (stop_thread(1) < 0)
     return (-1);
 
-  for (int i = 0; i < buffer_length; i ++)
-  {
+  for (int i = 0; i < buffer_length; i++) {
     free(ring.buffer[i]);
   }
 
@@ -816,6 +882,11 @@ static int procevent_shutdown(void) /* {{{ */
 
     pl_next = pl->next;
 
+    if (pl->is_regex == 1) {
+      sfree(pl->process_regex);
+      regfree(&pl->process_regex_obj);
+    }
+
     sfree(pl->process);
     sfree(pl);
 
@@ -826,7 +897,8 @@ static int procevent_shutdown(void) /* {{{ */
 } /* }}} int procevent_shutdown */
 
 void module_register(void) {
-  plugin_register_config("procevent", procevent_config, config_keys, config_keys_num);
+  plugin_register_config("procevent", procevent_config, config_keys,
+                         config_keys_num);
   plugin_register_init("procevent", procevent_init);
   plugin_register_read("procevent", procevent_read);
   plugin_register_shutdown("procevent", procevent_shutdown);
