@@ -416,11 +416,11 @@ size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
   written = 0;
 
   for (tag = tags; tag != NULL; tag = tag->next) {
-    escape_atsd_string(escape_buffer, tags->key, sizeof escape_buffer);
+    escape_atsd_string(escape_buffer, tag->key, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written,
                         " t:\"%s\"=", escape_buffer);
 
-    escape_atsd_string(escape_buffer, tags->val, sizeof escape_buffer);
+    escape_atsd_string(escape_buffer, tag->val, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written, "\"%s\"",
                         escape_buffer);
   }
