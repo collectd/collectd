@@ -150,6 +150,7 @@
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
+%define with_write_atsd 0%{!?_without_write_atsd:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
@@ -1782,6 +1783,12 @@ Collectd utilities
 %define _with_wireless --disable-wireless
 %endif
 
+%if %{with_write_atsd}
+%define _with_write_atsd --enable-write_atsd
+%else
+%define _with_write_atsd --disable-write_atsd
+%endif
+
 %if %{with_write_graphite}
 %define _with_write_graphite --enable-write_graphite
 %else
@@ -2015,6 +2022,7 @@ Collectd utilities
 	%{?_with_vmem} \
 	%{?_with_vserver} \
 	%{?_with_wireless}\
+	%{?_with_write_atsd} \
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
 	%{?_with_write_http} \
@@ -2352,6 +2360,9 @@ fi
 %endif
 %if %{with_wireless}
 %{_libdir}/%{name}/wireless.so
+%endif
+%if %{with_write_atsd}
+%{_libdir}/%{name}/write_atsd.so
 %endif
 %if %{with_write_graphite}
 %{_libdir}/%{name}/write_graphite.so

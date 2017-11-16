@@ -8921,6 +8921,46 @@ traffic (e.E<nbsp>g. due to headers and retransmission). If you want to
 collect on-wire traffic you could, for example, use the logging facilities of
 iptables to feed data for the guest IPs into the iptables plugin.
 
+=head2 Plugin C<write_atsd>
+
+The ATSD Write plugin sends collectd metrics to
+L<Axibase Time Series Database|https://axibase.com/products/axibase-time-series-database/>
+server.
+
+Synopsys:
+
+  <Plugin write_atsd>
+    <Node "atsd">
+      AtsdUrl "tcp://localhost:8082"
+      Entity "example-entity"
+      ShortHostname true
+    </Node>
+  </Plugin>
+
+=over 4
+
+=item B<AtsdUrl> I<URL>
+
+Protocol to transfer data: B<tcp> or B<udp>, hostname and port of the target
+ATSD server. Default value is B<tcp://localhost:8081>
+
+=item B<Entity> I<String>
+
+The entity under which all metrics will be stored. By default, entity will
+be set to hostname.
+
+=item B<ShortHostname> B<false>|B<true>
+
+If set to B<true> and entity name is hostname, then fully qualified domain name
+will be truncated to short form (before first C<.> occurrence). The default is B<false>
+
+=item B<Prefix> I<String>
+
+Prefix for metric names in form I<prefix.metric_name>. The default value is
+B<collectd>
+
+=back
+
 =head2 Plugin C<write_graphite>
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
