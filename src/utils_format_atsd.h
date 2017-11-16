@@ -19,8 +19,8 @@
 #ifndef UTILS_FORMAT_ATSD_H
 #define UTILS_FORMAT_ATSD_H 1
 
-#include "plugin.h"
 #include "collectd.h"
+#include "plugin.h"
 
 #define MAX_DERIVED_SERIES 2
 #define MAX_VALUE_LEN 64

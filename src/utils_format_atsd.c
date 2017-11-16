@@ -16,15 +16,15 @@
  *
  **/
 
+#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
-#include "collectd.h"
 
+#include "utils_format_atsd.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "utils_format_atsd.h"
 
 #define PART_END -1
 #define PART_STR 0
@@ -417,8 +417,8 @@ size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
 
   for (tag = tags; tag != NULL; tag = tag->next) {
     escape_atsd_string(escape_buffer, tags->key, sizeof escape_buffer);
-    written += snprintf(buffer + written, buffer_len - written, " t:\"%s\"=",
-                        escape_buffer);
+    written += snprintf(buffer + written, buffer_len - written,
+                        " t:\"%s\"=", escape_buffer);
 
     escape_atsd_string(escape_buffer, tags->val, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written, "\"%s\"",
