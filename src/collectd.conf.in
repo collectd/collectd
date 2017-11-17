@@ -1212,6 +1212,13 @@
 #	</Process>
 #</Plugin>
 
+#<Plugin procevent>
+#       BufferLength 10
+#       Process "ovs-vswitchd"
+#       Process "libvirtd"
+#       RegexProcess "^openstack.*$"
+#</Plugin>
+
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
