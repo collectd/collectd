@@ -21,6 +21,7 @@
  *
  * Authors:
  *   Red Hat NFVPE
+ *     Andrew Bays <abays at redhat.com>
  **/
 
 #include "collectd.h"
@@ -777,19 +778,14 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
   return (0);
 } /* }}} int procevent_config */
 
-static void submit(int pid, const char *type, /* {{{ */
+static void submit(const char *type, /* {{{ */
                    gauge_t value, const char *process) {
-  char pid_str[10];
-
-  snprintf(pid_str, 10, "%d", pid);
-
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "procevent", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, process, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type_instance, pid_str, sizeof(vl.type_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
 
   struct timeval tv;
@@ -802,6 +798,23 @@ static void submit(int pid, const char *type, /* {{{ */
 
   INFO("procevent plugin (%llu): dispatching state %d for PID %d (%s)",
        millisecondsSinceEpoch, (int)value, pid, process);
+
+  // Create metadata to store JSON key-values
+  meta_data_t *meta = meta_data_create();
+
+  vl.meta = meta;
+
+  if (value == 1) {
+    meta_data_add_string(meta, "condition", "process_up");
+    meta_data_add_string(meta, "entity", process);
+    meta_data_add_string(meta, "source", hostname);
+    meta_data_add_string(meta, "dest", "process_down");
+  } else {
+    meta_data_add_string(meta, "condition", "process_down");
+    meta_data_add_string(meta, "entity", process);
+    meta_data_add_string(meta, "source", hostname);
+    meta_data_add_string(meta, "dest", "process_up");
+  }
 
   plugin_dispatch_values(&vl);
 } /* }}} void interface_submit */
@@ -832,8 +845,7 @@ static int procevent_read(void) /* {{{ */
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its EXITED status
-        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1],
-               pl->process);
+        submit("gauge", ring.buffer[ring.tail][1], pl->process);
         INFO("procevent plugin: PID %d (%s) EXITED, removing PID from process "
              "list",
              pl->pid, pl->process);
@@ -845,8 +857,7 @@ static int procevent_read(void) /* {{{ */
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its STARTED status
-        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1],
-               pl->process);
+        submit("gauge", ring.buffer[ring.tail][1], pl->process);
         INFO(
             "procevent plugin: PID %d (%s) STARTED, adding PID to process list",
             pl->pid, pl->process);
