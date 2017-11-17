@@ -128,10 +128,10 @@ static int df_config(const char *key, const char *value) {
   return -1;
 }
 
-__attribute__((nonnull(2))) static void df_submit_one(char *plugin_instance,
-                                                      const char *type,
-                                                      const char *type_instance,
-                                                      gauge_t value) {
+__attribute__((nonnull(2))) static int df_submit_one(char *plugin_instance,
+                                                     const char *type,
+                                                     const char *type_instance,
+                                                     gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.gauge = value};
@@ -143,7 +143,24 @@ __attribute__((nonnull(2))) static void df_submit_one(char *plugin_instance,
   if (type_instance != NULL)
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
+  vl.meta = meta_data_create();
+  if (vl.meta == NULL) {
+    ERROR("df plugin: meta_data_create failed.");
+    return -1;
+  }
+
+  if (meta_data_add_string(vl.meta, "df:unescaped_plugin_instance",
+                           plugin_instance) != 0) {
+    ERROR("df plugin: meta_data_add_string failed.");
+    return -1;
+  }
+
   plugin_dispatch_values(&vl);
+
+  meta_data_destroy(vl.meta);
+  vl.meta = NULL;
+
+  return 0;
 } /* void df_submit_one */
 
 static int df_read(void) {
@@ -265,23 +282,29 @@ static int df_read(void) {
     blk_used = (uint64_t)(statbuf.f_blocks - statbuf.f_bfree);
 
     if (values_absolute) {
-      df_submit_one(disk_name, "df_complex", "free",
-                    (gauge_t)(blk_free * blocksize));
-      df_submit_one(disk_name, "df_complex", "reserved",
-                    (gauge_t)(blk_reserved * blocksize));
-      df_submit_one(disk_name, "df_complex", "used",
-                    (gauge_t)(blk_used * blocksize));
+      if (df_submit_one(disk_name, "df_complex", "free",
+                        (gauge_t)(blk_free * blocksize)) != 0 ||
+          df_submit_one(disk_name, "df_complex", "reserved",
+                        (gauge_t)(blk_reserved * blocksize)) != 0 ||
+          df_submit_one(disk_name, "df_complex", "used",
+                        (gauge_t)(blk_used * blocksize)) != 0) {
+        return -1;
+      }
     }
 
     if (values_percentage) {
       if (statbuf.f_blocks > 0) {
-        df_submit_one(disk_name, "percent_bytes", "free",
-                      (gauge_t)((float_t)(blk_free) / statbuf.f_blocks * 100));
-        df_submit_one(
-            disk_name, "percent_bytes", "reserved",
-            (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100));
-        df_submit_one(disk_name, "percent_bytes", "used",
-                      (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100));
+        if (df_submit_one(
+                disk_name, "percent_bytes", "free",
+                (gauge_t)((float_t)(blk_free) / statbuf.f_blocks * 100)) != 0 ||
+            df_submit_one(disk_name, "percent_bytes", "reserved",
+                          (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks *
+                                    100)) != 0 ||
+            df_submit_one(
+                disk_name, "percent_bytes", "used",
+                (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100)) != 0) {
+          return -1;
+        }
       } else
         return -1;
     }
@@ -304,23 +327,29 @@ static int df_read(void) {
 
       if (values_percentage) {
         if (statbuf.f_files > 0) {
-          df_submit_one(
-              disk_name, "percent_inodes", "free",
-              (gauge_t)((float_t)(inode_free) / statbuf.f_files * 100));
-          df_submit_one(
-              disk_name, "percent_inodes", "reserved",
-              (gauge_t)((float_t)(inode_reserved) / statbuf.f_files * 100));
-          df_submit_one(
-              disk_name, "percent_inodes", "used",
-              (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100));
+          if (df_submit_one(disk_name, "percent_inodes", "free",
+                            (gauge_t)((float_t)(inode_free) / statbuf.f_files *
+                                      100)) != 0 ||
+              df_submit_one(disk_name, "percent_inodes", "reserved",
+                            (gauge_t)((float_t)(inode_reserved) /
+                                      statbuf.f_files * 100)) != 0 ||
+              df_submit_one(
+                  disk_name, "percent_inodes", "used",
+                  (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100))) {
+            return -1;
+          }
         } else
           return -1;
       }
       if (values_absolute) {
-        df_submit_one(disk_name, "df_inodes", "free", (gauge_t)inode_free);
-        df_submit_one(disk_name, "df_inodes", "reserved",
-                      (gauge_t)inode_reserved);
-        df_submit_one(disk_name, "df_inodes", "used", (gauge_t)inode_used);
+        if (df_submit_one(disk_name, "df_inodes", "free",
+                          (gauge_t)inode_free) != 0 ||
+            df_submit_one(disk_name, "df_inodes", "reserved",
+                          (gauge_t)inode_reserved) != 0 ||
+            df_submit_one(disk_name, "df_inodes", "used",
+                          (gauge_t)inode_used)) {
+          return -1;
+        }
       }
     }
   }
