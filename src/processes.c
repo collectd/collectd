@@ -502,7 +502,7 @@ static void ps_list_add(const char *name, const char *cmdline,
       ps_update_counter(&ps->io_diskw, &pse->io_diskw, entry->io_diskw);
     }
 
-    if ((entry->cswitch_vol != -1) && (entry->cswitch_vol != -1)) {
+    if ((entry->cswitch_vol != -1) && (entry->cswitch_invol != -1)) {
       ps_update_counter(&ps->cswitch_vol, &pse->cswitch_vol,
                         entry->cswitch_vol);
       ps_update_counter(&ps->cswitch_invol, &pse->cswitch_invol,
