@@ -332,6 +332,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
         if (br == NULL) {
           br = (bridge_list_t *)calloc(1, sizeof(bridge_list_t));
           if (!br) {
+            pthread_mutex_unlock(&g_stats_lock);
             ERROR("%s: Error allocating memory for bridge", plugin_name);
             return -1;
           }
