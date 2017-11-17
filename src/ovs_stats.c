@@ -789,7 +789,6 @@ static void ovs_stats_conn_terminate() {
  */
 static int ovs_stats_plugin_config(oconfig_item_t *ci) {
   bridge_list_t *bridge;
-  char *br_name;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -821,19 +820,22 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
           goto cleanup_fail;
         }
         /* get value */
-        if ((br_name = strdup(child->values[j].value.string)) == NULL) {
-          ERROR("%s: strdup() copy bridge name fail", plugin_name);
-          goto cleanup_fail;
-        }
+        char const *br_name = child->values[j].value.string;
         if ((bridge = ovs_stats_get_bridge(g_monitored_bridge_list_head,
                                            br_name)) == NULL) {
           if ((bridge = calloc(1, sizeof(bridge_list_t))) == NULL) {
             ERROR("%s: Error allocating memory for bridge", plugin_name);
             goto cleanup_fail;
           } else {
+            char *br_name_dup = strdup(br_name);
+            if (br_name_dup == NULL) {
+              ERROR("%s: strdup() copy bridge name fail", plugin_name);
+              goto cleanup_fail;
+            }
+
             pthread_mutex_lock(&g_stats_lock);
             /* store bridge name */
-            bridge->name = br_name;
+            bridge->name = br_name_dup;
             bridge->next = g_monitored_bridge_list_head;
             g_monitored_bridge_list_head = bridge;
             pthread_mutex_unlock(&g_stats_lock);
