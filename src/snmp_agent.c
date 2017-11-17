@@ -1117,12 +1117,6 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
     }
   }
 
-  llentry_t *entry = llentry_create(td->name, td);
-  if (entry == NULL) {
-    snmp_agent_free_table(&td);
-    return -ENOMEM;
-  }
-
   td->instance_index =
       c_avl_create((int (*)(const void *, const void *))strcmp);
   if (td->instance_index == NULL) {
@@ -1137,6 +1131,11 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
     return -ENOMEM;
   }
 
+  llentry_t *entry = llentry_create(td->name, td);
+  if (entry == NULL) {
+    snmp_agent_free_table(&td);
+    return -ENOMEM;
+  }
   llist_append(g_agent->tables, entry);
 
   return 0;
