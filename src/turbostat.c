@@ -567,9 +567,9 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
                    1.0 / 1000000 * t->aperf / interval_float);
 
   if ((!aperf_mperf_unstable) || (!(t->aperf > t->tsc || t->mperf > t->tsc)))
-    turbostat_submit(name, "frequency", "busy", 1.0 * t->tsc / 1000000 *
-                                                    t->aperf / t->mperf /
-                                                    interval_float);
+    turbostat_submit(name, "frequency", "busy",
+                     1.0 * t->tsc / 1000000 * t->aperf / t->mperf /
+                         interval_float);
 
   /* Sanity check (should stay stable) */
   turbostat_submit(name, "gauge", "TSC",
