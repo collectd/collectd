@@ -737,7 +737,6 @@ int meta_data_as_string(meta_data_t *md, /* {{{ */
 
   temp = md_strdup(actual);
   if (temp == NULL) {
-    pthread_mutex_unlock(&md->lock);
     ERROR("meta_data_as_string: md_strdup failed for key `%s'.", key);
     return -ENOMEM;
   }

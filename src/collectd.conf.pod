@@ -6258,7 +6258,7 @@ L<http://www.postgresql.org/docs/manuals/>.
     <Database bar>
       Interval 300
       Service "service_name"
-      Query backend # predefined
+      Query backends # predefined
       Query rt36_tickets
     </Database>
 
