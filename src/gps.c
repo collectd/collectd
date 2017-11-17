@@ -307,7 +307,6 @@ static int cgps_shutdown(void) {
   free(res);
 
   // Clean mutex:
-  pthread_mutex_unlock(&cgps_thread_lock);
   pthread_mutex_destroy(&cgps_thread_lock);
   pthread_mutex_unlock(&cgps_data_lock);
   pthread_mutex_destroy(&cgps_data_lock);
