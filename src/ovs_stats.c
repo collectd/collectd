@@ -330,10 +330,10 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
         br = ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
         pthread_mutex_lock(&g_stats_lock);
         if (br == NULL) {
-          br = (bridge_list_t *)calloc(1, sizeof(bridge_list_t));
+          br = calloc(1, sizeof(*br));
           if (!br) {
             pthread_mutex_unlock(&g_stats_lock);
-            ERROR("%s: Error allocating memory for bridge", plugin_name);
+            ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
             return -1;
           }
           char *tmp = YAJL_GET_STRING(br_name);
@@ -343,6 +343,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
           if (br->name == NULL) {
             sfree(br);
             pthread_mutex_unlock(&g_stats_lock);
+            ERROR("%s: strdup failed.", plugin_name);
             return -1;
           }
           br->next = g_bridge_list_head;
