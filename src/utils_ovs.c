@@ -1268,6 +1268,8 @@ int ovs_db_destroy(ovs_db_t *pdb) {
     ovs_db_ret = (-1);
   }
 
+  pthread_mutex_unlock(&pdb->mutex);
+
   /* unsubscribe callbacks */
   ovs_db_callback_remove_all(pdb);
 
@@ -1276,7 +1278,6 @@ int ovs_db_destroy(ovs_db_t *pdb) {
     close(pdb->sock);
 
   /* release DB handler */
-  pthread_mutex_unlock(&pdb->mutex);
   pthread_mutex_destroy(&pdb->mutex);
   sfree(pdb);
   return ovs_db_ret;
