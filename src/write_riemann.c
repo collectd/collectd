@@ -610,6 +610,7 @@ static void wrr_free(void *p) /* {{{ */
 
   wrr_disconnect(host);
 
+  pthread_mutex_lock(&host->lock);
   pthread_mutex_destroy(&host->lock);
   sfree(host);
 } /* }}} void wrr_free */

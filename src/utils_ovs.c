@@ -263,12 +263,11 @@ static void ovs_db_callback_remove(ovs_db_t *pdb, ovs_callback_t *del_cb) {
 /* Remove all callbacks form OVS DB object */
 static void ovs_db_callback_remove_all(ovs_db_t *pdb) {
   pthread_mutex_lock(&pdb->mutex);
-  for (ovs_callback_t *del_cb = pdb->remote_cb; pdb->remote_cb;
-       del_cb = pdb->remote_cb) {
+  while (pdb->remote_cb != NULL) {
+    ovs_callback_t *del_cb = pdb->remote_cb;
     pdb->remote_cb = del_cb->next;
-    free(del_cb);
+    sfree(del_cb);
   }
-  pdb->remote_cb = NULL;
   pthread_mutex_unlock(&pdb->mutex);
 }
 
@@ -896,7 +895,7 @@ static void *ovs_event_worker(void *arg) {
 
 /* Initialize EVENT thread */
 static int ovs_db_event_thread_init(ovs_db_t *pdb) {
-  pdb->event_thread.tid = (pthread_t)-1;
+  pdb->event_thread.tid = (pthread_t){0};
   /* init event thread condition variable */
   if (pthread_cond_init(&pdb->event_thread.cond, NULL)) {
     return -1;
@@ -929,10 +928,12 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
 }
 
 /* Destroy EVENT thread */
+/* XXX: Must hold pdb->mutex when calling! */
 static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->event_thread.tid == (pthread_t)-1)
+  if (pthread_equal(pdb->event_thread.tid, (pthread_t){0})) {
     /* already destroyed */
     return 0;
+  }
   ovs_db_event_post(pdb, OVS_DB_EVENT_TERMINATE);
   if (pthread_join(pdb->event_thread.tid, NULL) != 0)
     return -1;
@@ -943,13 +944,13 @@ static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
   pthread_mutex_unlock(&pdb->event_thread.mutex);
   pthread_mutex_destroy(&pdb->event_thread.mutex);
   pthread_cond_destroy(&pdb->event_thread.cond);
-  pdb->event_thread.tid = (pthread_t)-1;
+  pdb->event_thread.tid = (pthread_t){0};
   return 0;
 }
 
 /* Initialize POLL thread */
 static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
-  pdb->poll_thread.tid = (pthread_t)-1;
+  pdb->poll_thread.tid = (pthread_t){0};
   /* init event thread mutex */
   if (pthread_mutex_init(&pdb->poll_thread.mutex, NULL)) {
     return -1;
@@ -967,10 +968,12 @@ static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
 }
 
 /* Destroy POLL thread */
+/* XXX: Must hold pdb->mutex when calling! */
 static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->poll_thread.tid == (pthread_t)-1)
+  if (pthread_equal(pdb->poll_thread.tid, (pthread_t){0})) {
     /* already destroyed */
     return 0;
+  }
   /* change thread state */
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   pdb->poll_thread.state = OVS_DB_POLL_STATE_EXITING;
@@ -979,7 +982,7 @@ static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
   if (pthread_join(pdb->poll_thread.tid, NULL) != 0)
     return -1;
   pthread_mutex_destroy(&pdb->poll_thread.mutex);
-  pdb->poll_thread.tid = (pthread_t)-1;
+  pdb->poll_thread.tid = (pthread_t){0};
   return 0;
 }
 
@@ -1253,14 +1256,16 @@ int ovs_db_destroy(ovs_db_t *pdb) {
   /* stop poll thread */
   if (ovs_db_event_thread_destroy(pdb) < 0) {
     OVS_ERROR("destroy poll thread failed");
-    ovs_db_ret = (-1);
+    ovs_db_ret = -1;
   }
 
   /* stop event thread */
   if (ovs_db_poll_thread_destroy(pdb) < 0) {
     OVS_ERROR("stop event thread failed");
-    ovs_db_ret = (-1);
+    ovs_db_ret = -1;
   }
+
+  pthread_mutex_unlock(&pdb->mutex);
 
   /* unsubscribe callbacks */
   ovs_db_callback_remove_all(pdb);
@@ -1270,7 +1275,6 @@ int ovs_db_destroy(ovs_db_t *pdb) {
     close(pdb->sock);
 
   /* release DB handler */
-  pthread_mutex_unlock(&pdb->mutex);
   pthread_mutex_destroy(&pdb->mutex);
   sfree(pdb);
   return ovs_db_ret;
