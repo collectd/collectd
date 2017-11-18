@@ -1432,8 +1432,12 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     for (vb = res->variables, i = 0; (vb != NULL);
          vb = vb->next_variable, i++) {
       /* Calculate value index from todo list */
-      while ((i < oid_list_len) && !oid_list_todo[i])
+      while ((i < oid_list_len) && !oid_list_todo[i]) {
         i++;
+      }
+      if (i >= oid_list_len) {
+        break;
+      }
 
       /* An instance is configured and the res variable we process is the
        * instance value (last index) */
