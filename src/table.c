@@ -166,16 +166,13 @@ static int tbl_config_append_array_i(char *name, size_t **var, size_t *len,
 } /* tbl_config_append_array_s */
 
 static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
-  tbl_result_t *res;
-
-  int status = 0;
-
   if (0 != ci->values_num) {
     log_err("<Result> does not expect any arguments.");
     return 1;
   }
 
-  res = realloc(tbl->results, (tbl->results_num + 1) * sizeof(*tbl->results));
+  tbl_result_t *res =
+      realloc(tbl->results, (tbl->results_num + 1) * sizeof(*tbl->results));
   if (res == NULL) {
     char errbuf[1024];
     log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -183,9 +180,8 @@ static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
   }
 
   tbl->results = res;
-  ++tbl->results_num;
 
-  res = tbl->results + tbl->results_num - 1;
+  res = tbl->results + tbl->results_num;
   tbl_result_setup(res);
 
   for (int i = 0; i < ci->children_num; ++i) {
@@ -206,39 +202,35 @@ static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
                c->key);
   }
 
+  int status = 0;
   if (NULL == res->type) {
-    log_err("No \"Type\" option specified for <Result> "
-            "in table \"%s\".",
+    log_err("No \"Type\" option specified for <Result> in table \"%s\".",
             tbl->file);
     status = 1;
   }
 
   if (NULL == res->values) {
-    log_err("No \"ValuesFrom\" option specified for <Result> "
-            "in table \"%s\".",
+    log_err("No \"ValuesFrom\" option specified for <Result> in table \"%s\".",
             tbl->file);
     status = 1;
   }
 
   if (0 != status) {
     tbl_result_clear(res);
-    --tbl->results_num;
     return status;
   }
+
+  tbl->results_num++;
   return 0;
 } /* tbl_config_result */
 
 static int tbl_config_table(oconfig_item_t *ci) {
-  tbl_t *tbl;
-
-  int status = 0;
-
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
     log_err("<Table> expects a single string argument.");
     return 1;
   }
 
-  tbl = realloc(tables, (tables_num + 1) * sizeof(*tables));
+  tbl_t *tbl = realloc(tables, (tables_num + 1) * sizeof(*tables));
   if (NULL == tbl) {
     char errbuf[1024];
     log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -246,9 +238,8 @@ static int tbl_config_table(oconfig_item_t *ci) {
   }
 
   tables = tbl;
-  ++tables_num;
 
-  tbl = tables + tables_num - 1;
+  tbl = tables + tables_num;
   tbl_setup(tbl, ci->values[0].value.string);
 
   for (size_t i = 0; i < ((size_t)ci->children_num); ++i) {
@@ -266,6 +257,7 @@ static int tbl_config_table(oconfig_item_t *ci) {
                c->key, tbl->file);
   }
 
+  int status = 0;
   if (NULL == tbl->sep) {
     log_err("Table \"%s\" does not specify any separator.", tbl->file);
     status = 1;
@@ -279,13 +271,13 @@ static int tbl_config_table(oconfig_item_t *ci) {
   }
 
   if (NULL == tbl->results) {
+    assert(tbl->results_num == 0);
     log_err("Table \"%s\" does not specify any (valid) results.", tbl->file);
     status = 1;
   }
 
   if (0 != status) {
     tbl_clear(tbl);
-    --tables_num;
     return status;
   }
 
@@ -300,6 +292,8 @@ static int tbl_config_table(oconfig_item_t *ci) {
       if (res->values[j] > tbl->max_colnum)
         tbl->max_colnum = res->values[j];
   }
+
+  tables_num++;
   return 0;
 } /* tbl_config_table */
 
