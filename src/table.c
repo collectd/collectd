@@ -279,6 +279,7 @@ static int tbl_config_table(oconfig_item_t *ci) {
   }
 
   if (NULL == tbl->results) {
+    assert(tbl->results_num == 0);
     log_err("Table \"%s\" does not specify any (valid) results.", tbl->file);
     status = 1;
   }
