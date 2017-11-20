@@ -28,14 +28,15 @@
 
 #include "collectd.h"
 
+#include "common.h"
+#include "plugin.h"
+#include "utils_cache.h"
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <stddef.h>
-#include "common.h"
-#include "plugin.h"
-#include "utils_cache.h"
 
 #include <stdlib.h>
 #define SENSU_HOST "localhost"
@@ -998,7 +999,10 @@ static void sensu_free(void *p) /* {{{ */
   sfree(host->separator);
   free_str_list(&(host->metric_handlers));
   free_str_list(&(host->notification_handlers));
+
+  pthread_mutex_unlock(&host->lock);
   pthread_mutex_destroy(&host->lock);
+
   sfree(host);
 } /* }}} void sensu_free */
 
