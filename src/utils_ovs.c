@@ -1006,6 +1006,7 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
   ovs_db_t *pdb = calloc(1, sizeof(*pdb));
   if (pdb == NULL)
     return NULL;
+  pdb->sock = -1;
 
   /* store the OVS DB address */
   sstrncpy(pdb->node, node, sizeof(pdb->node));
@@ -1047,7 +1048,6 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
   }
 
   /* init polling thread */
-  pdb->sock = -1;
   if (ovs_db_poll_thread_init(pdb) < 0) {
     ovs_db_destroy(pdb);
     return NULL;
