@@ -1003,7 +1003,7 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
     return NULL;
 
   /* allocate db data & fill it */
-  ovs_db_t *pdb = pdb = calloc(1, sizeof(*pdb));
+  ovs_db_t *pdb = calloc(1, sizeof(*pdb));
   if (pdb == NULL)
     return NULL;
 
