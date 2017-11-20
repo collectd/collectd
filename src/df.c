@@ -161,7 +161,7 @@ __attribute__((nonnull(2))) static int df_submit_one(char *plugin_instance,
   vl.meta = NULL;
 
   return 0;
-} /* void df_submit_one */
+} /* int df_submit_one */
 
 static int df_read(void) {
 #if HAVE_STATVFS
