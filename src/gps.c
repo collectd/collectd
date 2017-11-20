@@ -26,10 +26,10 @@
  *   Marc Fournier <marc.fournier at camptocamp.com>
  **/
 
+#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "utils_time.h"
-#include "collectd.h"
 
 #define CGPS_TRUE 1
 #define CGPS_FALSE 0
@@ -80,7 +80,7 @@ static int cgps_thread_pause(cdtime_t pTime) {
 
   int ret = !cgps_thread_shutdown;
 
-  pthread_mutex_lock(&cgps_thread_lock);
+  pthread_mutex_unlock(&cgps_thread_lock);
   return ret;
 }
 
