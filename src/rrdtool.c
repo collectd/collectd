@@ -803,7 +803,7 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   if (value_list_to_filename(filename, sizeof(filename), vl) != 0)
     return -1;
 
-  char values[32 * ds->ds_num];
+  char values[32 * (ds->ds_num + 1)];
   if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
     return -1;
 
