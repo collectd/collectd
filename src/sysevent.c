@@ -21,6 +21,7 @@
  *
  * Authors:
  *   Red Hat NFVPE
+ *     Andrew Bays <abays at redhat.com>
  **/
 
 #include "collectd.h"
@@ -39,6 +40,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <yajl/yajl_tree.h>
+#include <regex.h>
 
 
 /*
@@ -51,6 +53,14 @@ typedef struct {
     int maxLen;
     char **buffer;
 } circbuf_t;
+
+struct regexfilterlist_s {
+  char *regex_filter;
+  regex_t regex_filter_obj;
+
+  struct regexfilterlist_s *next;
+};
+typedef struct regexfilterlist_s regexfilterlist_t;
 
 /*
  * Private variables
@@ -65,8 +75,10 @@ static circbuf_t ring;
 
 static char * listen_ip;
 static char * listen_port;
-static int listen_buffer_size;
-static int buffer_length;
+static int listen_buffer_size = 1024;
+static int buffer_length = 10;
+
+static regexfilterlist_t *regexfilterlist_head = NULL;
 
 static const char * rsyslog_keys[3] = {"@timestamp", "@source_host", "@message"};
 static const char * rsyslog_field_keys[4] = {"facility", "severity", "program", "processid"};
@@ -107,8 +119,6 @@ static void *sysevent_thread(void *arg) /* {{{ */
     } else if (count >= sizeof(buffer)) {
         WARNING("sysevent plugin: datagram too large for buffer: truncated");
     } else {
-        //INFO("sysevent plugin: received");
-
         // 1. Parse message
         // 2. Acquire lock
         // 3. Push to buffer if there is room, otherwise report error?
@@ -124,17 +134,19 @@ static void *sysevent_thread(void *arg) /* {{{ */
           WARNING("sysevent plugin: ring buffer full");
         } else {
 
-          yajl_val node;
-          char errbuf[1024];
+          // yajl_val node;
+          // char errbuf[1024];
 
-          errbuf[0] = 0;
+          // errbuf[0] = 0;
 
-          node = yajl_tree_parse((const char *) buffer, errbuf, sizeof(errbuf));
+          // node = yajl_tree_parse((const char *) buffer, errbuf, sizeof(errbuf));
 
-          if (node == NULL)
-          {
-            ERROR("sysevent plugin: fail to parse JSON: %s", errbuf);
-          } else {
+          // if (node == NULL)
+          // {
+          //   // rsyslog is not sending JSON, so just handle the buffer as a string
+          //   //INFO("sysevent plugin: fail to parse JSON: %s", errbuf);
+
+          // } else {
 
             // char json_val[listen_buffer_size];
             // const char * path[] = { "@timestamp", (const char *) 0 };
@@ -148,9 +160,9 @@ static void *sysevent_thread(void *arg) /* {{{ */
 
             strncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
             ring.head = next;
-          }
+          // }
 
-          yajl_tree_free(node);
+          // yajl_tree_free(node);
 
           // Send notification for kafka to intercept
 
@@ -376,6 +388,49 @@ static int sysevent_config_add_buffer_length(const oconfig_item_t *ci) /* {{{ */
   return (0);
 }
 
+static int sysevent_config_add_regex_filter(const oconfig_item_t *ci) /* {{{ */
+{
+  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
+    ERROR("sysevent plugin: The `%s' config option needs "
+          "one string argument, a regular expression.",
+          ci->key);
+    return (-1);
+  }
+
+  regexfilterlist_t *rl;
+  char * regexp_str;
+  regex_t regexp;
+  int status;
+
+  regexp_str = strdup(ci->values[0].value.string);
+
+  status =
+          regcomp(&regexp, regexp_str, REG_EXTENDED);
+
+  if (status != 0) {
+    ERROR("sysevent plugin: invalid regular expression: %s",
+          regexp_str);
+    return (-1);
+  }
+
+  rl = malloc(sizeof(*rl));
+  if (rl == NULL) {
+    char errbuf[1024];
+    ERROR("sysevent plugin: malloc failed during sysevent_config_add_regex_filter: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return (-1);
+  }
+
+  rl->regex_filter = regexp_str;
+  rl->regex_filter_obj = regexp;
+  rl->next = regexfilterlist_head;
+  regexfilterlist_head = rl;
+
+  INFO("AJB created regex filter: %s", regexp_str);
+
+  return (0);
+}
+
 static int sysevent_config(oconfig_item_t *ci) /* {{{ */
 {
   // TODO
@@ -389,6 +444,8 @@ static int sysevent_config(oconfig_item_t *ci) /* {{{ */
       sysevent_config_add_buffer_size(child);
     else if (strcasecmp("BufferLength", child->key) == 0)
       sysevent_config_add_buffer_length(child);
+    else if (strcasecmp("RegexFilter", child->key) == 0)
+      sysevent_config_add_regex_filter(child);
     else {
       WARNING("sysevent plugin: Option `%s' is not allowed here.", child->key);
     }
@@ -398,7 +455,7 @@ static int sysevent_config(oconfig_item_t *ci) /* {{{ */
 } /* }}} int sysevent_config */
 
 // TODO
-static void submit(const char *something, const char *type, /* {{{ */
+static void submit(const char *message, yajl_val *node, const char *type, /* {{{ */
                    gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -408,48 +465,49 @@ static void submit(const char *something, const char *type, /* {{{ */
   //sstrncpy(vl.type_instance, something, sizeof(vl.type_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
 
-  yajl_val node;
-  char errbuf[1024];
-
-  errbuf[0] = 0;
-
-  node = yajl_tree_parse((const char *) something, errbuf, sizeof(errbuf));
-
   // Create metadata to store JSON key-values
   meta_data_t * meta = meta_data_create();
 
-  size_t i = 0;
-
-  for (i = 0; i < sizeof(rsyslog_keys) / sizeof(*rsyslog_keys); i ++)
+  if (node != NULL)
   {
-    char json_val[listen_buffer_size];
-    const char * key = (const char *) rsyslog_keys[i];
-    const char * path[] = { key, (const char *) 0 };
-    yajl_val v = yajl_tree_get(node, path, yajl_t_string);
+    // If we have a parsed-JSON node to work with, use that
+    size_t i = 0;
 
-    memset(json_val, '\0', listen_buffer_size);
+    for (i = 0; i < sizeof(rsyslog_keys) / sizeof(*rsyslog_keys); i ++)
+    {
+      char json_val[listen_buffer_size];
+      const char * key = (const char *) rsyslog_keys[i];
+      const char * path[] = { key, (const char *) 0 };
+      yajl_val v = yajl_tree_get(*node, path, yajl_t_string);
 
-    sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
+      memset(json_val, '\0', listen_buffer_size);
 
-    INFO("sysevent plugin: adding jsonval: %s", json_val);
+      sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
 
-    meta_data_add_string(meta, rsyslog_keys[i], json_val);
-  }
+      INFO("sysevent plugin: adding jsonval: %s", json_val);
 
-  for (i = 0; i < sizeof(rsyslog_field_keys) / sizeof(*rsyslog_field_keys); i ++)
-  {
-    char json_val[listen_buffer_size];
-    const char * key = (const char *) rsyslog_field_keys[i];
-    const char * path[] = { "@fields", key, (const char *) 0 };
-    yajl_val v = yajl_tree_get(node, path, yajl_t_string);
+      meta_data_add_string(meta, rsyslog_keys[i], json_val);
+    }
 
-    memset(json_val, '\0', listen_buffer_size);
+    for (i = 0; i < sizeof(rsyslog_field_keys) / sizeof(*rsyslog_field_keys); i ++)
+    {
+      char json_val[listen_buffer_size];
+      const char * key = (const char *) rsyslog_field_keys[i];
+      const char * path[] = { "@fields", key, (const char *) 0 };
+      yajl_val v = yajl_tree_get(*node, path, yajl_t_string);
 
-    sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
+      memset(json_val, '\0', listen_buffer_size);
 
-    INFO("sysevent plugin: adding jsonval: %s", json_val);
+      sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
 
-    meta_data_add_string(meta, rsyslog_field_keys[i], json_val);
+      INFO("sysevent plugin: adding jsonval: %s", json_val);
+
+      meta_data_add_string(meta, rsyslog_field_keys[i], json_val);
+    }
+  } else {
+    // Data was not sent in JSON format, so just treat the whole log entry
+    // as the message
+    meta_data_add_string(meta, "@message", strdup(message));
   }
 
   vl.meta = meta;
@@ -462,7 +520,7 @@ static void submit(const char *something, const char *type, /* {{{ */
   (unsigned long long)(tv.tv_sec) * 1000 +
   (unsigned long long)(tv.tv_usec) / 1000;
 
-  INFO("sysevent plugin (%llu): dispatching something", millisecondsSinceEpoch);
+  INFO("sysevent plugin (%llu): dispatching message", millisecondsSinceEpoch);
 
   plugin_dispatch_values(&vl);
 } /* }}} void sysevent_submit */
@@ -484,6 +542,9 @@ static int sysevent_read(void) /* {{{ */
 
   while (ring.head != ring.tail)
   {
+    int is_match = 1;
+    char * match_str = NULL;
+    regexfilterlist_t *rl = regexfilterlist_head;
     int next = ring.tail + 1;
 
     if (next >= ring.maxLen)
@@ -491,7 +552,71 @@ static int sysevent_read(void) /* {{{ */
 
     INFO("sysevent plugin: reading %s", ring.buffer[ring.tail]);
 
-    submit(ring.buffer[ring.tail], "gauge", 1);
+    // Try to parse JSON, and if it fails, fall back to plain string
+    yajl_val node;
+    char errbuf[1024];
+
+    errbuf[0] = 0;
+
+    node = yajl_tree_parse((const char *) ring.buffer[ring.tail], errbuf, sizeof(errbuf));
+
+    if (node != NULL)
+    {
+      // JSON rsyslog data
+
+      // If we have any regex filters, we need to see if the message portion of
+      // the data matches any of them (otherwise we're not interested)
+      if (regexfilterlist_head != NULL)
+      {
+        char json_val[listen_buffer_size];
+        const char * path[] = { "@message", (const char *) 0 };
+        yajl_val v = yajl_tree_get(node, path, yajl_t_string);
+
+        memset(json_val, '\0', listen_buffer_size);
+
+        sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
+
+        match_str = (char *) &json_val;
+      }
+    } else {
+      // non-JSON rsyslog data
+
+      // If we have any regex filters, we need to see if the message data
+      // matches any of them (otherwise we're not interested)
+      if (regexfilterlist_head != NULL)
+        match_str = ring.buffer[ring.tail];
+    }
+
+    // If we care about matching, do that comparison here
+    if (match_str != NULL)
+    {
+      is_match = 0;
+
+      while (rl != NULL)
+      {
+        regmatch_t matches[20];
+
+        is_match =
+        (regexec(&rl->regex_filter_obj, match_str, 20, matches, 0) == 0 ? 1
+                                                                      : 0);
+
+        if (is_match == 1)
+        {
+          INFO("sysevent plugin: regex filter match: %s", rl->regex_filter);
+          break;
+        }
+
+        rl = rl->next;
+      }
+    }
+
+    if (is_match == 1 && node != NULL)
+      submit(NULL, &node, "gauge", 1);
+    else if (is_match == 1)
+      submit(ring.buffer[ring.tail], NULL, "gauge", 1);
+
+    if (node != NULL)
+      yajl_tree_free(node);
 
     ring.tail = next;
   }
@@ -504,6 +629,7 @@ static int sysevent_read(void) /* {{{ */
 static int sysevent_shutdown(void) /* {{{ */
 {
   int status;
+  regexfilterlist_t *rl;
 
   INFO("sysevent plugin: Shutting down thread.");
   if (stop_thread(1) < 0)
@@ -529,6 +655,20 @@ static int sysevent_shutdown(void) /* {{{ */
   }
 
   free(ring.buffer);
+
+  rl = regexfilterlist_head;
+  while (rl != NULL) {
+    regexfilterlist_t *rl_next;
+
+    rl_next = rl->next;
+
+    free(rl->regex_filter);
+    regfree(&rl->regex_filter_obj);
+
+    sfree(rl);
+
+    rl = rl_next;
+  }
 
   return (0);
 } /* }}} int sysevent_shutdown */
