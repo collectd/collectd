@@ -279,6 +279,7 @@ static void wt_callback_free(void *data) {
   sfree(cb->service);
   sfree(cb->host_tags);
 
+  pthread_mutex_unlock(&cb->send_lock);
   pthread_mutex_destroy(&cb->send_lock);
 
   sfree(cb);

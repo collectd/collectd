@@ -312,6 +312,7 @@ static void wg_callback_free(void *data) {
   sfree(cb->prefix);
   sfree(cb->postfix);
 
+  pthread_mutex_unlock(&cb->send_lock);
   pthread_mutex_destroy(&cb->send_lock);
 
   sfree(cb);
