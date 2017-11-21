@@ -6900,9 +6900,6 @@ Options B<CollectContextSwitch> and B<CollectFileDescriptor> may be used inside
 B<Process> and B<ProcessMatch> blocks - then they affect corresponding match
 only. Otherwise they set the default value for subsequent matches.
 
-
-
-
 =head2 Plugin C<procevent>
  
 The I<procevent> plugin monitors when processes start (EXEC) and stop (EXIT).

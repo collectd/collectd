@@ -53,6 +53,7 @@
 #define PROCEVENT_FIELDS 3 // pid, status, extra
 #define BUFSIZE 512
 #define PROCDIR "/proc"
+#define PROCEVENT_REGEX_MATCHES 1
 
 /*
  * Private data types
@@ -106,7 +107,7 @@ static processlist_t *process_check(int pid) {
   char file[BUFSIZE];
   FILE *fh;
   char buffer[BUFSIZE];
-  regmatch_t matches[20];
+  regmatch_t matches[PROCEVENT_REGEX_MATCHES];
 
   len = snprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
 
@@ -140,9 +141,10 @@ static processlist_t *process_check(int pid) {
 
   for (pl = processlist_head; pl != NULL; pl = pl->next) {
     if (pl->is_regex != 0) {
-      is_match =
-          (regexec(&pl->process_regex_obj, buffer, 20, matches, 0) == 0 ? 1
-                                                                        : 0);
+      is_match = (regexec(&pl->process_regex_obj, buffer,
+                          PROCEVENT_REGEX_MATCHES, matches, 0) == 0
+                      ? 1
+                      : 0);
     } else {
       is_match = (strcmp(buffer, pl->process) == 0 ? 1 : 0);
     }
