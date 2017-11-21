@@ -19,23 +19,33 @@
 #ifndef UTILS_FORMAT_ATSD_H
 #define UTILS_FORMAT_ATSD_H 1
 
-#include "plugin.h"
 #include "collectd.h"
+#include "plugin.h"
 
-size_t strlcat(char *dst, const char *src, size_t siz);
+#define MAX_DERIVED_SERIES 2
+#define MAX_VALUE_LEN 64
 
-int format_value(char *ret, size_t ret_len, int ds_index, const data_set_t *ds,
-                 const value_list_t *vl, const gauge_t *rates);
+struct format_info_s {
+  char *buffer;
+  size_t buffer_len;
 
-/*
- *	Check if entity is not empty and has no spaces.
- *	Otherwise try to use host information from value list as entity.
- *	If host is 'localhost' or started with 'localhost.'
- *	use the output of `gethostname()` command.
- *	If short_hostname option is enabled,
- *	convert host from fully qualified domain name.
- *	Resulted entity returned in first argument.
- */
-void check_entity(char *ret, const int ret_len, const char *entity,
+  char *entity;
+  char *prefix;
+
+  size_t index;
+  const data_set_t *ds;
+  const value_list_t *vl;
+  gauge_t *rates;
+};
+typedef struct format_info_s format_info_t;
+
+char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n);
+
+int get_value(format_info_t *format, double *value);
+
+int format_entity(char *ret, const int ret_len, const char *entity,
                   const char *host, _Bool short_hostname);
+
+int format_atsd_command(format_info_t *format, _Bool append_metrics);
+
 #endif // UTILS_FORMAT_ATSD_H

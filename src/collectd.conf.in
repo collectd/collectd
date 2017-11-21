@@ -1612,10 +1612,21 @@
 #</Plugin>
 
 #<Plugin write_atsd>
-#     <Node "example">
-#         AtsdUrl "atsd_url"
-#     </Node>
-# </Plugin>
+#  <Node "example">
+#    AtsdUrl "tcp://localhost:8081"
+#    Entity "example-entity"
+#    Prefix "collectd"
+#    ShortHostname false
+#    <Cache "df">
+#      Interval 3
+#      Threshold 1
+#    </Cache>
+#    <Cache "disk">
+#      Interval 3
+#      Threshold 1
+#    </Cache>
+#  </Node>
+#</Plugin>
 
 #<Plugin write_graphite>
 #  <Node "example">

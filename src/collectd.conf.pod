@@ -8982,6 +8982,8 @@ If threshold is exceeded, then the value is sent regardless of the cache interva
 
 =back
 
+=back
+
 =head2 Plugin C<write_graphite>
 
 The C<write_graphite> plugin writes data to I<Graphite>, an open-source metrics
