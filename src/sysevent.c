@@ -30,28 +30,29 @@
 #include "plugin.h"
 #include "utils_complain.h"
 
-#include <pthread.h>
 #include <asm/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <regex.h>
 #include <stdio.h>
 #include <string.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <yajl/yajl_tree.h>
-#include <regex.h>
 
+#define SYSEVENT_REGEX_MATCHES 1
 
 /*
  * Private data types
  */
 
 typedef struct {
-    int head;
-    int tail;
-    int maxLen;
-    char **buffer;
+  int head;
+  int tail;
+  int maxLen;
+  char **buffer;
 } circbuf_t;
 
 struct regexfilterlist_s {
@@ -73,16 +74,16 @@ static pthread_mutex_t sysevent_lock = PTHREAD_MUTEX_INITIALIZER;
 static int sock = -1;
 static circbuf_t ring;
 
-static char * listen_ip;
-static char * listen_port;
+static char *listen_ip;
+static char *listen_port;
 static int listen_buffer_size = 1024;
 static int buffer_length = 10;
 
 static regexfilterlist_t *regexfilterlist_head = NULL;
 
-static const char * rsyslog_keys[3] = {"@timestamp", "@source_host", "@message"};
-static const char * rsyslog_field_keys[4] = {"facility", "severity", "program", "processid"};
-
+static const char *rsyslog_keys[3] = {"@timestamp", "@source_host", "@message"};
+static const char *rsyslog_field_keys[4] = {"facility", "severity", "program",
+                                            "processid"};
 
 /*
  * Private functions
@@ -92,103 +93,60 @@ static void *sysevent_thread(void *arg) /* {{{ */
 {
   pthread_mutex_lock(&sysevent_lock);
 
-  while (sysevent_thread_loop > 0) 
-  {
+  while (sysevent_thread_loop > 0) {
     int status = 0;
 
     pthread_mutex_unlock(&sysevent_lock);
 
     if (sock == -1)
-      return ((void*)0);
+      return ((void *)0);
 
-    //INFO("sysevent plugin: listening for events");
-
-    // read here
     char buffer[listen_buffer_size];
     struct sockaddr_storage src_addr;
     socklen_t src_addr_len = sizeof(src_addr);
 
     memset(buffer, '\0', listen_buffer_size);
 
-    ssize_t count = recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr*) &src_addr, &src_addr_len);
+    ssize_t count = recvfrom(sock, buffer, sizeof(buffer), 0,
+                             (struct sockaddr *)&src_addr, &src_addr_len);
 
-    if (count == -1) 
-    {
-        ERROR("sysevent plugin: failed to receive data: %s", strerror(errno));
-        status = -1;
+    if (count == -1) {
+      ERROR("sysevent plugin: failed to receive data: %s", strerror(errno));
+      status = -1;
     } else if (count >= sizeof(buffer)) {
-        WARNING("sysevent plugin: datagram too large for buffer: truncated");
+      WARNING("sysevent plugin: datagram too large for buffer: truncated");
     } else {
-        // 1. Parse message
-        // 2. Acquire lock
-        // 3. Push to buffer if there is room, otherwise report error?
+      // 1. Acquire lock
+      // 2. Push to buffer if there is room, otherwise raise warning
 
-        pthread_mutex_lock(&sysevent_lock);
+      pthread_mutex_lock(&sysevent_lock);
 
-        int next = ring.head + 1;
-        if (next >= ring.maxLen)
-          next = 0;
+      int next = ring.head + 1;
+      if (next >= ring.maxLen)
+        next = 0;
 
-        if (next == ring.tail)
-        {
-          WARNING("sysevent plugin: ring buffer full");
-        } else {
+      if (next == ring.tail) {
+        WARNING("sysevent plugin: ring buffer full");
+      } else {
+        DEBUG("sysevent plugin: writing %s", buffer);
 
-          // yajl_val node;
-          // char errbuf[1024];
+        strncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
+        ring.head = next;
+      }
 
-          // errbuf[0] = 0;
-
-          // node = yajl_tree_parse((const char *) buffer, errbuf, sizeof(errbuf));
-
-          // if (node == NULL)
-          // {
-          //   // rsyslog is not sending JSON, so just handle the buffer as a string
-          //   //INFO("sysevent plugin: fail to parse JSON: %s", errbuf);
-
-          // } else {
-
-            // char json_val[listen_buffer_size];
-            // const char * path[] = { "@timestamp", (const char *) 0 };
-            // yajl_val v = yajl_tree_get(node, path, yajl_t_string);
-
-            // memset(json_val, '\0', listen_buffer_size);
-
-            // sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
-
-            INFO("sysevent plugin: writing %s", buffer);
-
-            strncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
-            ring.head = next;
-          // }
-
-          // yajl_tree_free(node);
-
-          // Send notification for kafka to intercept
-
-          // notification_t n = {
-          //     NOTIF_WARNING, cdtime(), "", "", "sysevent", "", "", "", NULL};
-
-          // sstrncpy(n.host, hostname_g, sizeof(n.host));
-          // ssnprintf(n.message, sizeof(n.message), buffer);
-
-          // plugin_dispatch_notification(&n);
-        }
-
-        pthread_mutex_unlock(&sysevent_lock);
+      pthread_mutex_unlock(&sysevent_lock);
     }
-    
+
     usleep(1000);
 
     pthread_mutex_lock(&sysevent_lock);
 
-    if (status < 0)
-    {
-      WARNING("sysevent plugin: problem thread status: %d", status);
+    if (status < 0) {
+      WARNING("sysevent plugin: problem with thread status: %d", status);
       sysevent_thread_error = 1;
       break;
     }
-    
+
     if (sysevent_thread_loop <= 0)
       break;
   } /* while (sysevent_thread_loop > 0) */
@@ -213,9 +171,10 @@ static int start_thread(void) /* {{{ */
   sysevent_thread_loop = 1;
   sysevent_thread_error = 0;
 
-  INFO("sysevent plugin: starting thread");
+  DEBUG("sysevent plugin: starting thread");
 
-  status = plugin_thread_create(&sysevent_thread_id, /* attr = */ NULL, sysevent_thread,
+  status = plugin_thread_create(&sysevent_thread_id, /* attr = */ NULL,
+                                sysevent_thread,
                                 /* arg = */ (void *)0, "sysevent");
   if (status != 0) {
     sysevent_thread_loop = 0;
@@ -242,26 +201,25 @@ static int stop_thread(int shutdown) /* {{{ */
   sysevent_thread_loop = 0;
   pthread_mutex_unlock(&sysevent_lock);
 
-  if (shutdown == 1)
-  {
+  if (shutdown == 1) {
     // Since the thread is blocking, calling pthread_join
     // doesn't actually succeed in stopping it.  It will stick around
-    // until a message is received on the socket (at which 
-    // it will realize that "sysevent_thread_loop" is 0 and will 
+    // until a message is received on the socket (at which
+    // it will realize that "sysevent_thread_loop" is 0 and will
     // break out of the read loop and be allowed to die).  This is
-    // fine when the process isn't supposed to be exiting, but in 
+    // fine when the process isn't supposed to be exiting, but in
     // the case of a process shutdown, we don't want to have an
-    // idle thread hanging around.  Calling pthread_cancel here in 
-    // the case of a shutdown is just assures that the thread is 
+    // idle thread hanging around.  Calling pthread_cancel here in
+    // the case of a shutdown is just assures that the thread is
     // gone and that the process has been fully terminated.
 
-    INFO("sysevent plugin: Canceling thread for process shutdown");
+    DEBUG("sysevent plugin: Canceling thread for process shutdown");
 
     status = pthread_cancel(sysevent_thread_id);
 
-    if (status != 0)
-    {
-      ERROR("sysevent plugin: Unable to cancel thread: %d (%s)", status, strerror(errno));
+    if (status != 0) {
+      ERROR("sysevent plugin: Unable to cancel thread: %d (%s)", status,
+            strerror(errno));
       status = -1;
     }
   } else {
@@ -277,7 +235,7 @@ static int stop_thread(int shutdown) /* {{{ */
   sysevent_thread_error = 0;
   pthread_mutex_unlock(&sysevent_lock);
 
-  INFO("sysevent plugin: Finished requesting stop of thread");
+  DEBUG("sysevent plugin: Finished requesting stop of thread");
 
   return (status);
 } /* }}} int stop_thread */
@@ -289,51 +247,47 @@ static int sysevent_init(void) /* {{{ */
   ring.maxLen = buffer_length;
   ring.buffer = (char **)malloc(buffer_length * sizeof(char *));
 
-  for (int i = 0; i < buffer_length; i ++)
-  {
+  for (int i = 0; i < buffer_length; i++) {
     ring.buffer[i] = malloc(listen_buffer_size);
   }
 
-  if (sock == -1)
-  {
-    const char* hostname = listen_ip;
-    const char* portname = listen_port;
+  if (sock == -1) {
+    const char *hostname = listen_ip;
+    const char *portname = listen_port;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = 0;
-    hints.ai_flags= AI_PASSIVE|AI_ADDRCONFIG;
-    struct addrinfo* res = 0;
+    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
+    struct addrinfo *res = 0;
 
     int err = getaddrinfo(hostname, portname, &hints, &res);
 
-    if (err != 0) 
-    {
-        ERROR("sysevent plugin: failed to resolve local socket address (err=%d)",err);
-        freeaddrinfo(res);
-        return (-1);
+    if (err != 0) {
+      ERROR("sysevent plugin: failed to resolve local socket address (err=%d)",
+            err);
+      freeaddrinfo(res);
+      return (-1);
     }
 
     sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (sock == -1) 
-    {
-        ERROR("sysevent plugin: failed to open socket: %s", strerror(errno));
-        freeaddrinfo(res);
-        return (-1);
+    if (sock == -1) {
+      ERROR("sysevent plugin: failed to open socket: %s", strerror(errno));
+      freeaddrinfo(res);
+      return (-1);
     }
 
-    if (bind(sock, res->ai_addr, res->ai_addrlen) == -1) 
-    {
-        ERROR("sysevent plugin: failed to bind socket: %s", strerror(errno));
-        freeaddrinfo(res);
-        return (-1);
+    if (bind(sock, res->ai_addr, res->ai_addrlen) == -1) {
+      ERROR("sysevent plugin: failed to bind socket: %s", strerror(errno));
+      freeaddrinfo(res);
+      return (-1);
     }
 
     freeaddrinfo(res);
   }
 
-  INFO("sysevent plugin: socket created and bound");
+  DEBUG("sysevent plugin: socket created and bound");
 
   return (start_thread());
 } /* }}} int sysevent_init */
@@ -380,8 +334,7 @@ static int sysevent_config_add_buffer_length(const oconfig_item_t *ci) /* {{{ */
   else if ((tmp >= 3) && (tmp <= 1024))
     buffer_length = tmp;
   else {
-    WARNING(
-        "sysevent plugin: The `Bufferlength' must be between 3 and 1024.");
+    WARNING("sysevent plugin: The `Bufferlength' must be between 3 and 1024.");
     return (-1);
   }
 
@@ -398,17 +351,16 @@ static int sysevent_config_add_regex_filter(const oconfig_item_t *ci) /* {{{ */
   }
 
   regexfilterlist_t *rl;
-  char * regexp_str;
+  char *regexp_str;
   regex_t regexp;
   int status;
 
   regexp_str = strdup(ci->values[0].value.string);
 
-  status =
-          regcomp(&regexp, regexp_str, REG_EXTENDED);
+  status = regcomp(&regexp, regexp_str, REG_EXTENDED);
 
   if (status != 0) {
-    ERROR("sysevent plugin: invalid regular expression: %s",
+    ERROR("sysevent plugin: 'RegexFilter' invalid regular expression: %s",
           regexp_str);
     return (-1);
   }
@@ -416,7 +368,8 @@ static int sysevent_config_add_regex_filter(const oconfig_item_t *ci) /* {{{ */
   rl = malloc(sizeof(*rl));
   if (rl == NULL) {
     char errbuf[1024];
-    ERROR("sysevent plugin: malloc failed during sysevent_config_add_regex_filter: %s",
+    ERROR("sysevent plugin: malloc failed during "
+          "sysevent_config_add_regex_filter: %s",
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return (-1);
   }
@@ -426,15 +379,11 @@ static int sysevent_config_add_regex_filter(const oconfig_item_t *ci) /* {{{ */
   rl->next = regexfilterlist_head;
   regexfilterlist_head = rl;
 
-  INFO("AJB created regex filter: %s", regexp_str);
-
   return (0);
 }
 
 static int sysevent_config(oconfig_item_t *ci) /* {{{ */
 {
-  // TODO
-
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
@@ -455,52 +404,50 @@ static int sysevent_config(oconfig_item_t *ci) /* {{{ */
 } /* }}} int sysevent_config */
 
 // TODO
-static void submit(const char *message, yajl_val *node, const char *type, /* {{{ */
+static void submit(const char *message, yajl_val *node,
+                   const char *type, /* {{{ */
                    gauge_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "sysevent", sizeof(vl.plugin));
-  //sstrncpy(vl.type_instance, something, sizeof(vl.type_instance));
   sstrncpy(vl.type, type, sizeof(vl.type));
 
   // Create metadata to store JSON key-values
-  meta_data_t * meta = meta_data_create();
+  meta_data_t *meta = meta_data_create();
 
-  if (node != NULL)
-  {
+  if (node != NULL) {
     // If we have a parsed-JSON node to work with, use that
     size_t i = 0;
 
-    for (i = 0; i < sizeof(rsyslog_keys) / sizeof(*rsyslog_keys); i ++)
-    {
+    for (i = 0; i < sizeof(rsyslog_keys) / sizeof(*rsyslog_keys); i++) {
       char json_val[listen_buffer_size];
-      const char * key = (const char *) rsyslog_keys[i];
-      const char * path[] = { key, (const char *) 0 };
+      const char *key = (const char *)rsyslog_keys[i];
+      const char *path[] = {key, (const char *)0};
       yajl_val v = yajl_tree_get(*node, path, yajl_t_string);
 
       memset(json_val, '\0', listen_buffer_size);
 
       sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
 
-      INFO("sysevent plugin: adding jsonval: %s", json_val);
+      DEBUG("sysevent plugin: adding jsonval: %s", json_val);
 
       meta_data_add_string(meta, rsyslog_keys[i], json_val);
     }
 
-    for (i = 0; i < sizeof(rsyslog_field_keys) / sizeof(*rsyslog_field_keys); i ++)
-    {
+    for (i = 0; i < sizeof(rsyslog_field_keys) / sizeof(*rsyslog_field_keys);
+         i++) {
       char json_val[listen_buffer_size];
-      const char * key = (const char *) rsyslog_field_keys[i];
-      const char * path[] = { "@fields", key, (const char *) 0 };
+      const char *key = (const char *)rsyslog_field_keys[i];
+      const char *path[] = {"@fields", key, (const char *)0};
       yajl_val v = yajl_tree_get(*node, path, yajl_t_string);
 
       memset(json_val, '\0', listen_buffer_size);
 
       sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
 
-      INFO("sysevent plugin: adding jsonval: %s", json_val);
+      DEBUG("sysevent plugin: adding jsonval: %s", json_val);
 
       meta_data_add_string(meta, rsyslog_field_keys[i], json_val);
     }
@@ -517,19 +464,20 @@ static void submit(const char *message, yajl_val *node, const char *type, /* {{{
   gettimeofday(&tv, NULL);
 
   unsigned long long millisecondsSinceEpoch =
-  (unsigned long long)(tv.tv_sec) * 1000 +
-  (unsigned long long)(tv.tv_usec) / 1000;
+      (unsigned long long)(tv.tv_sec) * 1000 +
+      (unsigned long long)(tv.tv_usec) / 1000;
 
-  INFO("sysevent plugin (%llu): dispatching message", millisecondsSinceEpoch);
+  DEBUG("sysevent plugin (%llu): dispatching message", millisecondsSinceEpoch);
 
   plugin_dispatch_values(&vl);
 } /* }}} void sysevent_submit */
 
 static int sysevent_read(void) /* {{{ */
 {
-  if (sysevent_thread_error != 0) 
-  {
-    ERROR("sysevent plugin: The sysevent thread had a problem (%d). Restarting it.", sysevent_thread_error);
+  if (sysevent_thread_error != 0) {
+    ERROR("sysevent plugin: The sysevent thread had a problem (%d). Restarting "
+          "it.",
+          sysevent_thread_error);
 
     stop_thread(0);
 
@@ -540,17 +488,16 @@ static int sysevent_read(void) /* {{{ */
 
   pthread_mutex_lock(&sysevent_lock);
 
-  while (ring.head != ring.tail)
-  {
+  while (ring.head != ring.tail) {
     int is_match = 1;
-    char * match_str = NULL;
+    char *match_str = NULL;
     regexfilterlist_t *rl = regexfilterlist_head;
     int next = ring.tail + 1;
 
     if (next >= ring.maxLen)
       next = 0;
 
-    INFO("sysevent plugin: reading %s", ring.buffer[ring.tail]);
+    DEBUG("sysevent plugin: reading %s", ring.buffer[ring.tail]);
 
     // Try to parse JSON, and if it fails, fall back to plain string
     yajl_val node;
@@ -558,25 +505,24 @@ static int sysevent_read(void) /* {{{ */
 
     errbuf[0] = 0;
 
-    node = yajl_tree_parse((const char *) ring.buffer[ring.tail], errbuf, sizeof(errbuf));
+    node = yajl_tree_parse((const char *)ring.buffer[ring.tail], errbuf,
+                           sizeof(errbuf));
 
-    if (node != NULL)
-    {
+    if (node != NULL) {
       // JSON rsyslog data
 
       // If we have any regex filters, we need to see if the message portion of
       // the data matches any of them (otherwise we're not interested)
-      if (regexfilterlist_head != NULL)
-      {
+      if (regexfilterlist_head != NULL) {
         char json_val[listen_buffer_size];
-        const char * path[] = { "@message", (const char *) 0 };
+        const char *path[] = {"@message", (const char *)0};
         yajl_val v = yajl_tree_get(node, path, yajl_t_string);
 
         memset(json_val, '\0', listen_buffer_size);
 
         sprintf(json_val, "%s%c", YAJL_GET_STRING(v), '\0');
 
-        match_str = (char *) &json_val;
+        match_str = (char *)&json_val;
       }
     } else {
       // non-JSON rsyslog data
@@ -588,21 +534,19 @@ static int sysevent_read(void) /* {{{ */
     }
 
     // If we care about matching, do that comparison here
-    if (match_str != NULL)
-    {
+    if (match_str != NULL) {
       is_match = 0;
 
-      while (rl != NULL)
-      {
-        regmatch_t matches[20];
+      while (rl != NULL) {
+        regmatch_t matches[SYSEVENT_REGEX_MATCHES];
 
-        is_match =
-        (regexec(&rl->regex_filter_obj, match_str, 20, matches, 0) == 0 ? 1
-                                                                      : 0);
+        is_match = (regexec(&rl->regex_filter_obj, match_str,
+                            SYSEVENT_REGEX_MATCHES, matches, 0) == 0
+                        ? 1
+                        : 0);
 
-        if (is_match == 1)
-        {
-          INFO("sysevent plugin: regex filter match: %s", rl->regex_filter);
+        if (is_match == 1) {
+          DEBUG("sysevent plugin: regex filter match: %s", rl->regex_filter);
           break;
         }
 
@@ -631,16 +575,15 @@ static int sysevent_shutdown(void) /* {{{ */
   int status;
   regexfilterlist_t *rl;
 
-  INFO("sysevent plugin: Shutting down thread.");
+  DEBUG("sysevent plugin: Shutting down thread.");
   if (stop_thread(1) < 0)
     return (-1);
 
-  if (sock != -1)
-  {
+  if (sock != -1) {
     status = close(sock);
-    if (status != 0)
-    {
-      ERROR("sysevent plugin: failed to close socket %d: %d (%s)", sock, status, strerror(errno));
+    if (status != 0) {
+      ERROR("sysevent plugin: failed to close socket %d: %d (%s)", sock, status,
+            strerror(errno));
       return (-1);
     } else
       sock = -1;
@@ -649,8 +592,7 @@ static int sysevent_shutdown(void) /* {{{ */
   free(listen_ip);
   free(listen_port);
 
-  for (int i = 0; i < buffer_length; i ++)
-  {
+  for (int i = 0; i < buffer_length; i++) {
     free(ring.buffer[i]);
   }
 
