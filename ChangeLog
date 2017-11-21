@@ -1,4 +1,4 @@
-2017-11-15, Version 5.8.0 (RC0)
+2017-11-17, Version 5.8.0
 	* collectd: The core daemon is now completely licensed under the MIT
 	  license.
 	* collectd: Added daemon option to avoid making BaseDir. Thanks to
