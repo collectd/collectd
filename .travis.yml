@@ -1,3 +1,9 @@
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   # via the "travis encrypt" command using the project repo's public key
+   - secure: "ZdWWp0XX3C4sLIp4lqeQTWC7vt+GsWjmyRiD17T9833NBAW4dddz310I6iyeXe6oX09ZFFiVIN4ogx9ANcNBx9jriGXI2/82nBhpxOJBebet8JCNS5VeTr4rDSfQOKP+Oc+ko5KbbghTuAtO2CFYiH3jZUcn4TdsYbVanf+TwUs="
+
 sudo: required
 dist: trusty
 compiler:
@@ -5,6 +11,7 @@ compiler:
   - clang
 language: c
 before_install:
+  - openssl s_client -connect scan.coverity.com:443 </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-certificates.crt
   - sudo apt-get update -qq
   - sudo apt-get install -qq --no-install-recommends
       iptables-dev
@@ -56,4 +63,15 @@ before_install:
       perl
       protobuf-c-compiler
       python-dev
-script: sh build.sh && ./configure && make distcheck
+before_script: autoreconf -fi
+script: ./configure && make -j 4 && make check
+
+addons:
+  coverity_scan:
+    project:
+      name: "collectd/collectd"
+      description: "Build submitted via Travis CI"
+    notification_email: octo@collectd.org
+    build_command_prepend: "./configure; make clean"
+    build_command: "make -j 4"
+    branch_pattern: coverity_scan
