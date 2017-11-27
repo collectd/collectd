@@ -14,6 +14,7 @@ before_install:
   - openssl s_client -connect scan.coverity.com:443 </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-certificates.crt
   - sudo apt-get update -qq
   - sudo apt-get install -qq --no-install-recommends
+      autotools-dev
       iptables-dev
       libatasmart-dev
       libcap-dev
@@ -28,6 +29,8 @@ before_install:
       libi2c-dev
       libldap2-dev
       libltdl-dev
+      liblua50-dev
+      liblua5.1-0-dev
       liblua5.2-dev
       liblvm2-dev
       libmemcached-dev
@@ -46,6 +49,7 @@ before_install:
       libprotobuf-c0-dev
       librabbitmq-dev
       librdkafka-dev
+      libriemann-client-dev
       librrd-dev
       libsensors4-dev
       libsigrok-dev
@@ -57,12 +61,15 @@ before_install:
       libupsclient-dev
       libvarnish-dev
       libvirt-dev
+      libxen-dev
       libxml2-dev
       libyajl-dev
       linux-libc-dev
       perl
       protobuf-c-compiler
+      python3-dev
       python-dev
+      xfslibs-dev
 before_script: autoreconf -fi
 script: ./configure && make -j 4 && make check
 
