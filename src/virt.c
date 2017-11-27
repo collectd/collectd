@@ -1929,7 +1929,7 @@ static int persistent_domains_state_notification(void) {
       }
       /* virDomainGetState is not available. Submit 0, which corresponds to
        * unknown reason. */
-      domain_state_submit_notif(domain->ptr, info.di.state, 0);
+      domain_state_submit_notif(dom, info.state, 0);
     }
     sfree(domids);
   }
