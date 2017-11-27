@@ -6136,6 +6136,7 @@ plugin_log_logstash="no"
 plugin_mcelog="no"
 plugin_memory="no"
 plugin_multimeter="no"
+plugin_notify_icinga="no"
 plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
@@ -6201,7 +6202,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_vserver="yes"
   plugin_wireless="yes"
   plugin_zfs_arc="yes"
-
+  plugin_notify_icinga="yes"
   if test "x$ac_cv_header_linux_ip_vs_h" = "xyes"; then
     plugin_ipvs="yes"
   fi
@@ -6313,6 +6314,7 @@ fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"; then
   plugin_curl_json="yes"
+  plugin_notify_icinga="yes"
 fi
 
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
@@ -6574,6 +6576,7 @@ AC_PLUGIN([nginx],               [$with_libcurl],           [nginx statistics])
 AC_PLUGIN([notify_desktop],      [$with_libnotify],         [Desktop notifications])
 AC_PLUGIN([notify_email],        [$with_libesmtp],          [Email notifier])
 AC_PLUGIN([notify_nagios],       [yes],                     [Nagios notification plugin])
+AC_PLUGIN([notify_icinga],       [$plugin_notify_icinga],   [Icinga REST API notification plugin])
 AC_PLUGIN([ntpd],                [yes],                     [NTPd statistics])
 AC_PLUGIN([numa],                [$plugin_numa],            [NUMA virtual memory statistics])
 AC_PLUGIN([nut],                 [$with_libupsclient],      [Network UPS tools statistics])
@@ -6993,6 +6996,7 @@ AC_MSG_RESULT([    nginx . . . . . . . . $enable_nginx])
 AC_MSG_RESULT([    notify_desktop  . . . $enable_notify_desktop])
 AC_MSG_RESULT([    notify_email  . . . . $enable_notify_email])
 AC_MSG_RESULT([    notify_nagios . . . . $enable_notify_nagios])
+AC_MSG_RESULT([    notify_icinga . . . . $enable_notify_icinga])
 AC_MSG_RESULT([    ntpd  . . . . . . . . $enable_ntpd])
 AC_MSG_RESULT([    numa  . . . . . . . . $enable_numa])
 AC_MSG_RESULT([    nut . . . . . . . . . $enable_nut])

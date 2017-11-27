@@ -162,6 +162,7 @@
 #@BUILD_PLUGIN_NOTIFY_DESKTOP_TRUE@LoadPlugin notify_desktop
 #@BUILD_PLUGIN_NOTIFY_EMAIL_TRUE@LoadPlugin notify_email
 #@BUILD_PLUGIN_NOTIFY_NAGIOS_TRUE@LoadPlugin notify_nagios
+#@BUILD_PLUGIN_NOTIFY_ICINGA_TRUE@LoadPlugin notify_icinga
 #@BUILD_PLUGIN_NTPD_TRUE@LoadPlugin ntpd
 #@BUILD_PLUGIN_NUMA_TRUE@LoadPlugin numa
 #@BUILD_PLUGIN_NUT_TRUE@LoadPlugin nut
@@ -1008,6 +1009,13 @@
 #	Subject "Aaaaaa!! %s on %s!!!!!"
 #	Recipient "email1@domain1.net"
 #	Recipient "email2@domain2.com"
+#</Plugin>
+
+#LoadPlugin "notify_icinga"
+#<Plugin "notify_icinga">
+#  IcingaHost "localhost"
+#  IcingaPort 5665
+#  LogOnly false
 #</Plugin>
 
 #<Plugin notify_nagios>
