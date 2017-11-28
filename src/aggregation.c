@@ -506,11 +506,7 @@ static int agg_config_handle_group_by(oconfig_item_t const *ci, /* {{{ */
 
 static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
 {
-  aggregation_t *agg;
-  _Bool is_valid;
-  int status;
-
-  agg = calloc(1, sizeof(*agg));
+  aggregation_t *agg = calloc(1, sizeof(*agg));
   if (agg == NULL) {
     ERROR("aggregation plugin: calloc failed.");
     return (-1);
@@ -579,7 +575,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
     agg->regex_fields |= LU_GROUP_BY_TYPE_INSTANCE;
 
   /* Sanity checking */
-  is_valid = 1;
+  _Bool is_valid = 1;
   if (strcmp("/.*/", agg->ident.type) == 0) /* {{{ */
   {
     ERROR("aggregation plugin: It appears you did not specify the required "
@@ -639,7 +635,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
     return (-1);
   } /* }}} */
 
-  status = lookup_add(lookup, &agg->ident, agg->group_by, agg);
+  int status = lookup_add(lookup, &agg->ident, agg->group_by, agg);
   if (status != 0) {
     ERROR("aggregation plugin: lookup_add failed with status %i.", status);
     sfree(agg);
