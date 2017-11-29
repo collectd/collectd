@@ -11,7 +11,8 @@ compiler:
   - clang
 language: c
 before_install:
-  - openssl s_client -connect scan.coverity.com:443 </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-certificates.crt
+  # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
+  - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" && "${TRAVIS_JOB_NUMBER}" =~ \.1$ ]]; then exit 0; fi
   - sudo apt-get update -qq
   - sudo apt-get install -qq --no-install-recommends
       autotools-dev
@@ -71,7 +72,11 @@ before_install:
       python-dev
       xfslibs-dev
 before_script: autoreconf -fi
-script: ./configure && make -j 4 && make check
+script:
+  - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
+  - ./configure
+  - make -j 4
+  - make check
 
 addons:
   coverity_scan:
