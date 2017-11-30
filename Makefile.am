@@ -1261,6 +1261,16 @@ notify_nagios_la_SOURCES = src/notify_nagios.c
 notify_nagios_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_NOTIFY_ICINGA
+pkglib_LTLIBRARIES += notify_icinga.la
+notify_icinga_la_SOURCES = src/notify_icinga.c
+notify_icinga_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+notify_icinga_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+notify_icinga_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+notigy_icinga_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+endif
+
+
 if BUILD_PLUGIN_NTPD
 pkglib_LTLIBRARIES += ntpd.la
 ntpd_la_SOURCES = src/ntpd.c
