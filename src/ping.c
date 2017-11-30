@@ -81,11 +81,11 @@ static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
 static int ping_max_missed = -1;
 
+static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
 static int ping_thread_loop = 0;
 static int ping_thread_error = 0;
 static pthread_t ping_thread_id;
-static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
 
 static const char *config_keys[] = {"Host",    "SourceAddress",
 #ifdef HAVE_OPING_1_3
@@ -224,8 +224,6 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
 
 static void *ping_thread(void *arg) /* {{{ */
 {
-  pingobj_t *pingobj = NULL;
-
   struct timeval tv_begin;
   struct timeval tv_end;
   struct timespec ts_wait;
@@ -235,11 +233,10 @@ static void *ping_thread(void *arg) /* {{{ */
 
   c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
-  pthread_mutex_lock(&ping_lock);
-
-  pingobj = ping_construct();
+  pingobj_t *pingobj = ping_construct();
   if (pingobj == NULL) {
     ERROR("ping plugin: ping_construct failed.");
+    pthread_mutex_lock(&ping_lock);
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
     return (void *)-1;
@@ -276,6 +273,7 @@ static void *ping_thread(void *arg) /* {{{ */
 
   if (count == 0) {
     ERROR("ping plugin: No host could be added to ping object. Giving up.");
+    pthread_mutex_lock(&ping_lock);
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
     return (void *)-1;
@@ -291,8 +289,8 @@ static void *ping_thread(void *arg) /* {{{ */
     ts_int.tv_nsec = (long)(temp_nsec * 1000000000L);
   }
 
+  pthread_mutex_lock(&ping_lock);
   while (ping_thread_loop > 0) {
-    int status;
     _Bool send_successful = 0;
 
     if (gettimeofday(&tv_begin, NULL) < 0) {
@@ -305,7 +303,7 @@ static void *ping_thread(void *arg) /* {{{ */
 
     pthread_mutex_unlock(&ping_lock);
 
-    status = ping_send(pingobj);
+    int status = ping_send(pingobj);
     if (status < 0) {
       c_complain(LOG_ERR, &complaint, "ping plugin: ping_send failed: %s",
                  ping_get_error(pingobj));
