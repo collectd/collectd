@@ -412,6 +412,7 @@ static int test_parse_values() {
   return ret;
 }
 
+#if HAVE_GCRYPT_H
 static int test_verify_sha256() {
   int ret = 0;
 
@@ -441,7 +442,9 @@ static int test_verify_sha256() {
 
   return ret;
 }
+#endif
 
+#if HAVE_GCRYPT_H
 static int test_decrypt_aes256() {
   char const *iv_str = "4cbe2a747c9f9dcfa0e66f0c2fa74875";
   uint8_t iv[16] = {0};
@@ -480,11 +483,10 @@ static int test_decrypt_aes256() {
 
   return 0;
 }
+#endif
 
 int main(void) {
   int ret = 0;
-
-  printf("libcollectdclient/server_test.c\n");
 
   int status;
   if ((status = test_network_parse())) {
@@ -500,12 +502,14 @@ int main(void) {
     ret = status;
   }
 
+#if HAVE_GCRYPT_H
   if ((status = test_verify_sha256())) {
     ret = status;
   }
   if ((status = test_decrypt_aes256())) {
     ret = status;
   }
+#endif
 
   return ret;
 }
