@@ -598,6 +598,9 @@ static int powerdns_read_server(list_item_t *item) /* {{{ */
   status = powerdns_get_data(item, &buffer, &buffer_size);
   if (status != 0)
     return (-1);
+  if ((buffer == NULL) || (buffer_size == 0)) {
+    return EINVAL;
+  }
 
   if (item->fields_num != 0) {
     fields = (const char *const *)item->fields;
