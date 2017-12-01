@@ -2350,14 +2350,25 @@ static int g_interval_set(pTHX_ SV *var, MAGIC *mg) {
   return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
-static MGVTBL g_pv_vtbl = {g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
+static MGVTBL g_pv_vtbl = {g_pv_get,
+                           g_pv_set,
+                           NULL,
+                           NULL,
+                           NULL,
+                           NULL,
+                           NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                            ,
                            NULL
 #endif
 };
-static MGVTBL g_interval_vtbl = {g_interval_get, g_interval_set, NULL, NULL,
-                                 NULL, NULL, NULL
+static MGVTBL g_interval_vtbl = {g_interval_get,
+                                 g_interval_set,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                                  ,
                                  NULL
