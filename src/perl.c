@@ -496,7 +496,8 @@ static int av2data_set(pTHX_ AV *array, char *name, data_set_t *ds) {
  *   meta     => [ { name => <name>, value => <value> }, ... ]
  * }
  */
-static int av2notification_meta(pTHX_ AV *array, notification_meta_t **ret_meta) {
+static int av2notification_meta(pTHX_ AV *array,
+                                notification_meta_t **ret_meta) {
   notification_meta_t *tail = NULL;
 
   int len = av_len(array);
@@ -715,10 +716,8 @@ static int value_list2hv(pTHX_ value_list_t *vl, data_set_t *ds, HV *hash) {
 
 static int notification_meta2av(pTHX_ notification_meta_t *meta, AV *array) {
   int meta_num = 0;
-
-  while (meta) {
+  for (notification_meta_t *m = meta; m != NULL; m = m->next) {
     ++meta_num;
-    meta = meta->next;
   }
 
   av_extend(array, meta_num);
@@ -2351,14 +2350,25 @@ static int g_interval_set(pTHX_ SV *var, MAGIC *mg) {
   return 0;
 } /* static int g_interval_set (pTHX_ SV *, MAGIC *) */
 
-static MGVTBL g_pv_vtbl = {g_pv_get, g_pv_set, NULL, NULL, NULL, NULL, NULL
+static MGVTBL g_pv_vtbl = {g_pv_get,
+                           g_pv_set,
+                           NULL,
+                           NULL,
+                           NULL,
+                           NULL,
+                           NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                            ,
                            NULL
 #endif
 };
-static MGVTBL g_interval_vtbl = {g_interval_get, g_interval_set, NULL, NULL,
-                                 NULL, NULL, NULL
+static MGVTBL g_interval_vtbl = {g_interval_get,
+                                 g_interval_set,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 NULL,
+                                 NULL
 #if HAVE_PERL_STRUCT_MGVTBL_SVT_LOCAL
                                  ,
                                  NULL
