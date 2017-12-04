@@ -77,6 +77,10 @@ static void tbl_result_setup(tbl_result_t *res) {
 } /* tbl_result_setup */
 
 static void tbl_result_clear(tbl_result_t *res) {
+  if (res == NULL) {
+    return;
+  }
+
   sfree(res->type);
 
   sfree(res->instance_prefix);
@@ -101,10 +105,16 @@ static void tbl_setup(tbl_t *tbl, char *file) {
 } /* tbl_setup */
 
 static void tbl_clear(tbl_t *tbl) {
+  if (tbl == NULL) {
+    return;
+  }
+
   sfree(tbl->file);
   sfree(tbl->sep);
   sfree(tbl->instance);
 
+  /* (tbl->results == NULL) -> (tbl->results_num == 0) */
+  assert((tbl->results != NULL) || (tbl->results_num == 0));
   for (size_t i = 0; i < tbl->results_num; ++i)
     tbl_result_clear(tbl->results + i);
   sfree(tbl->results);
