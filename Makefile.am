@@ -101,7 +101,7 @@ lib_LTLIBRARIES = libcollectdclient.la
 
 if BUILD_WIN32
 # TODO: we should build these executables on Windows as well.
-sbin_PROGRAMS =
+sbin_PROGRAMS = collectd
 bin_PROGRAMS =
 else
 sbin_PROGRAMS = \
@@ -116,6 +116,7 @@ bin_PROGRAMS = \
 endif # BUILD_WIN32
 
 noinst_LTLIBRARIES = \
+        libcollectd.la \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
@@ -203,10 +204,7 @@ if BUILD_WITH_LIBDEVINFO
 COMMON_LIBS += -ldevinfo
 endif
 
-
-collectd_SOURCES = \
-	src/daemon/collectd.c \
-	src/daemon/collectd.h \
+libcollectd_la_SOURCES =  \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
 	src/daemon/filter_chain.c \
@@ -233,12 +231,10 @@ collectd_SOURCES = \
 	src/daemon/types_list.h \
 	src/daemon/utils_threshold.c \
 	src/daemon/utils_threshold.h
-
-
-collectd_CFLAGS = $(AM_CFLAGS)
-collectd_CPPFLAGS = $(AM_CPPFLAGS)
-collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = \
+libcollectd_la_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
+libcollectd_la_CFLAGS = $(AM_CFLAGS)
+libcollectd_la_LDFLAGS = $(COMMON_LDFLAGS) -ldl
+libcollectd_la_LIBADD = \
 	libavltree.la \
 	libcommon.la \
 	libheap.la \
@@ -246,6 +242,16 @@ collectd_LDADD = \
 	-lm \
 	$(COMMON_LIBS) \
 	$(DLOPEN_LIBS)
+#-lm $(COMMON_LIBS) -lltdl
+
+collectd_SOURCES = \
+	src/daemon/collectd.c \
+	src/daemon/collectd.h
+collectd_CFLAGS = $(AM_CFLAGS)
+collectd_CPPFLAGS = $(AM_CPPFLAGS)
+collectd_LDFLAGS = -export-dynamic
+collectd_LDADD = \
+        libcollectd.la
 
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
@@ -1034,6 +1040,7 @@ endif # BUILD_PLUGIN_LOAD
 if BUILD_PLUGIN_LOGFILE
 pkglib_LTLIBRARIES += logfile.la
 logfile_la_SOURCES = src/logfile.c
+logfile_la_LIBADD = libcollectd.la
 logfile_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1096,6 +1103,7 @@ if BUILD_PLUGIN_MATCH_REGEX
 pkglib_LTLIBRARIES += match_regex.la
 match_regex_la_SOURCES = src/match_regex.c
 match_regex_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+match_regex_la_LIBADD = libcollectd.la
 endif
 
 if BUILD_PLUGIN_MATCH_TIMEDIFF
@@ -1653,6 +1661,7 @@ if BUILD_PLUGIN_TARGET_REPLACE
 pkglib_LTLIBRARIES += target_replace.la
 target_replace_la_SOURCES = src/target_replace.c
 target_replace_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+target_replace_la_LIBADD = libcollectd.la
 endif
 
 if BUILD_PLUGIN_TARGET_SCALE
@@ -1665,6 +1674,7 @@ if BUILD_PLUGIN_TARGET_SET
 pkglib_LTLIBRARIES += target_set.la
 target_set_la_SOURCES = src/target_set.c
 target_set_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+target_set_la_LIBADD = libcollectd.la
 endif
 
 if BUILD_PLUGIN_TARGET_V5UPGRADE
@@ -1832,7 +1842,7 @@ write_http_la_SOURCES = \
 	src/utils_format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
+write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS) libcollectd.la
 if BUILD_WITH_GNULIB
 write_http_la_LIBADD += -lgnu
 endif
@@ -1854,7 +1864,7 @@ if BUILD_PLUGIN_WRITE_LOG
 pkglib_LTLIBRARIES += write_log.la
 write_log_la_SOURCES = src/write_log.c
 write_log_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_log_la_LIBADD = libformat_graphite.la libformat_json.la
+write_log_la_LIBADD = libformat_graphite.la libformat_json.la libcollectd.la
 if BUILD_WITH_GNULIB
 write_log_la_LIBADD += -lgnu
 endif
@@ -2025,6 +2035,10 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+#if BUILD_WIN32
+#	$(mkinstalldirs) $(DESTDIR)$(sbindir)
+#	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll $(DESTDIR)$(sbindir)/libuuid.dll
+#endif
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(pkgdatadir)/types.db;

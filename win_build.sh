@@ -23,6 +23,7 @@ else
       net_if \
       sendto \
       gettimeofday \
+      getsockopt \
       time_r \
       sys_stat \
       fcntl-h \

@@ -43,6 +43,9 @@
 #ifndef WIN32
 #include <sys/un.h>
 #else
+#include <fcntl.h>
+#include <locale.h>
+#include <unistd.h>
 #undef gethostname
 #include <Winsock2.h>
 #endif /* !WIN32 */
@@ -57,6 +60,10 @@
 
 #ifndef COLLECTD_LOCALE
 #define COLLECTD_LOCALE "C"
+#endif
+
+#ifdef WIN32
+#undef COLLECT_DAEMON
 #endif
 
 static int loop = 0;
@@ -97,7 +104,11 @@ static int init_hostname(void) {
     return 0;
   }
 
+#ifndef WIN32
   long hostname_len = sysconf(_SC_HOST_NAME_MAX);
+#else
+  long hostname_len = -1;
+#endif
   if (hostname_len == -1) {
     hostname_len = NI_MAXHOST;
   }
@@ -647,6 +658,7 @@ int main(int argc, char **argv) {
   }    /* if (config.daemonize) */
 #endif /* COLLECT_DAEMON */
 
+#ifndef WIN32
   struct sigaction sig_pipe_action = {.sa_handler = SIG_IGN};
 
   sigaction(SIGPIPE, &sig_pipe_action, NULL);
@@ -680,6 +692,7 @@ int main(int argc, char **argv) {
           sstrerror(errno, errbuf, sizeof(errbuf)));
     return 1;
   }
+#endif /* !WIN32 */
 
   /*
    * run the actual loops
@@ -695,7 +708,6 @@ int main(int argc, char **argv) {
       exit_status = 1;
     }
   } else {
-    INFO("Initialization complete, entering read-loop.");
     do_loop();
   }
 

@@ -28,7 +28,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "config.h"
 #include "collectd.h"
 
 #include "plugin.h"

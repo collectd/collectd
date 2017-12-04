@@ -328,7 +328,6 @@ static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
 
 static int dispatch_value(oconfig_item_t *ci) {
   int ret = 0;
-
   for (int i = 0; i < cf_value_map_num; i++)
     if (strcasecmp(cf_value_map[i].key, ci->key) == 0) {
       ret = cf_value_map[i].func(ci);
@@ -1030,8 +1029,10 @@ int cf_read(const char *filename) {
 
   /* Read the default types.db if no `TypesDB' option was given. */
   if (cf_default_typesdb) {
-    if (read_types_list(PKGDATADIR "/types.db") != 0)
+    if (read_types_list(PKGDATADIR "/types.db") != 0){
+printf("error types: " PKGDATADIR "/types.db\n");
       ret = -1;
+}
   }
 
   return ret;

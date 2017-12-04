@@ -28,6 +28,7 @@
 #ifndef PLUGIN_H
 #define PLUGIN_H
 
+#include <inttypes.h>
 #include "collectd.h"
 
 #include "configfile.h"

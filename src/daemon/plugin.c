@@ -28,10 +28,10 @@
 /* _GNU_SOURCE is needed in Linux to use pthread_setname_np */
 #define _GNU_SOURCE
 
+#include "collectd.h"
+
 #include <sys/stat.h>
 #include <unistd.h>
-
-#include "collectd.h"
 
 #include "common.h"
 #include "configfile.h"
@@ -649,7 +649,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%" PRIsz, read_threads_num);
+    snprintf(name, sizeof(name), "reader#%" PRIu64, read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -856,7 +856,7 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%" PRIsz, write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIu64, write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -2488,11 +2488,13 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 void plugin_init_ctx(void) {
   pthread_key_create(&plugin_ctx_key, plugin_ctx_destructor);
   plugin_ctx_key_initialized = 1;
+  printf("plugin_init_ctx: %d\n", plugin_ctx_key_initialized);
 } /* void plugin_init_ctx */
 
 plugin_ctx_t plugin_get_ctx(void) {
   plugin_ctx_t *ctx;
 
+  printf("plugin_get_ctx: %d\n", plugin_ctx_key_initialized);
   assert(plugin_ctx_key_initialized);
   ctx = pthread_getspecific(plugin_ctx_key);
 

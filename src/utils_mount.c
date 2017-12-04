@@ -20,10 +20,6 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
 **/
 
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #define _GNU_SOURCE
 
 #include "collectd.h"

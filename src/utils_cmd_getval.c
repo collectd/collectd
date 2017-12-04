@@ -33,6 +33,8 @@
 #include "utils_cmd_getval.h"
 #include "utils_parse_option.h"
 
+#include <math.h>
+
 cmd_status_t cmd_parse_getval(size_t argc, char **argv,
                               cmd_getval_t *ret_getval,
                               const cmd_options_t *opts,
@@ -141,7 +143,7 @@ cmd_status_t cmd_handle_getval(FILE *fh, char *buffer) {
     return CMD_ERROR;
   }
 
-  print_to_socket(fh, "%" PRIsz " Value%s found\n", values_num,
+  print_to_socket(fh, "%" PRIu64 " Value%s found\n", values_num,
                   (values_num == 1) ? "" : "s");
   for (size_t i = 0; i < values_num; i++) {
     print_to_socket(fh, "%s=", ds->ds[i].name);

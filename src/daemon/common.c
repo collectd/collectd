@@ -27,10 +27,6 @@
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
 **/
 
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "collectd.h"
 
 #include "common.h"
@@ -41,8 +37,10 @@
 #include <netdb.h>
 #include <sys/types.h>
 
+#include <dirent.h>
 #include <poll.h>
 #include <sys/stat.h>
+#include <math.h>
 #include <unistd.h>
 
 #if HAVE_NETINET_IN_H
@@ -67,9 +65,11 @@ extern kstat_ctl_t *kc;
 #endif
 
 /* AIX doesn't have MSG_DONTWAIT */
+/*
 #ifndef MSG_DONTWAIT
 #define MSG_DONTWAIT MSG_NONBLOCK
 #endif
+*/
 
 #if !HAVE_GETPWNAM_R
 #ifdef HAVE_GETPWNAM
@@ -267,7 +267,7 @@ int swrite(int fd, const void *buf, size_t count) {
   pfd.revents = 0;
   if (poll(&pfd, 1, 0) > 0) {
     char buffer[32];
-    if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
+    if (recv(fd, buffer, sizeof(buffer), MSG_PEEK /*| MSG_DONTWAIT*/) == 0) {
       /* if recv returns zero (even though poll() said there is data to be
        * read), that means the connection has been closed */
       errno = ECONNRESET;

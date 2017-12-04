@@ -37,9 +37,11 @@
 typedef int uid_t;
 //#include <config.h>
 #include <gnulib_config.h>
-#elif HAVE_CONFIG_H
-#include "config.h"
-#endif /* WIN32 */
+#endif
+
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <assert.h>
 #include <ctype.h>

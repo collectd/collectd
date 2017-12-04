@@ -76,7 +76,12 @@ uint32_t cdrand_u(void) {
 
   pthread_mutex_lock(&lock);
   cdrand_seed();
+#ifndef WIN32
   r = jrand48(seed);
+#else
+  /* TODO: This is a workaround for missing erand48() on Windows */
+  r = rand();
+#endif
   pthread_mutex_unlock(&lock);
 
   return (uint32_t)r;

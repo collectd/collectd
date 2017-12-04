@@ -34,6 +34,8 @@
 #include "utils_parse_option.h" /* for `parse_string' */
 #include "utils_threshold.h"
 
+#include <math.h>
+
 #define print_to_socket(fh, ...)                                               \
   if (fprintf(fh, __VA_ARGS__) < 0) {                                          \
     char errbuf[1024];                                                         \
@@ -152,7 +154,7 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     i++;
 
   /* Print the response */
-  print_to_socket(fh, "%" PRIsz " Threshold found\n", i);
+  print_to_socket(fh, "%" PRIu64 " Threshold found\n", i);
 
   if (threshold.host[0] != 0)
     print_to_socket(fh, "Host: %s\n", threshold.host);
