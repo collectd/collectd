@@ -96,7 +96,9 @@ pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/server.h \
 	src/libcollectdclient/collectd/types.h
 
-lib_LTLIBRARIES = libcollectdclient.la
+lib_LTLIBRARIES = \
+	libcollectd.la \
+	libcollectdclient.la
 
 
 sbin_PROGRAMS = \
@@ -192,9 +194,7 @@ COMMON_LIBS += -ldevinfo
 endif
 
 
-collectd_SOURCES = \
-	src/daemon/collectd.c \
-	src/daemon/collectd.h \
+libcollectd_la_SOURCES = \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
 	src/daemon/filter_chain.c \
@@ -221,12 +221,10 @@ collectd_SOURCES = \
 	src/daemon/types_list.h \
 	src/daemon/utils_threshold.c \
 	src/daemon/utils_threshold.h
-
-
-collectd_CFLAGS = $(AM_CFLAGS)
-collectd_CPPFLAGS = $(AM_CPPFLAGS)
-collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = \
+libcollectd_la_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
+libcollectd_la_CFLAGS = $(AM_CFLAGS)
+libcollectd_la_LDFLAGS = $(COMMON_LDFLAGS)
+libcollectd_la_LIBADD = \
 	libavltree.la \
 	libcommon.la \
 	libheap.la \
@@ -234,6 +232,16 @@ collectd_LDADD = \
 	-lm \
 	$(COMMON_LIBS) \
 	$(DLOPEN_LIBS)
+
+collectd_SOURCES = \
+	src/daemon/collectd.c \
+	src/daemon/collectd.h
+collectd_CFLAGS = $(AM_CFLAGS)
+collectd_CPPFLAGS = $(AM_CPPFLAGS)
+collectd_LDFLAGS = -export-dynamic
+collectd_LDADD = \
+	$(COMMON_LIBS) \
+	libcollectd.la
 
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
