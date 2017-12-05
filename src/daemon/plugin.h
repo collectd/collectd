@@ -28,8 +28,8 @@
 #ifndef PLUGIN_H
 #define PLUGIN_H
 
-#include <inttypes.h>
 #include "collectd.h"
+#include <inttypes.h>
 
 #include "configfile.h"
 #include "meta_data.h"
