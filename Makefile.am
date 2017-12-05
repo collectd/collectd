@@ -208,7 +208,7 @@ COMMON_LIBS += -ldevinfo
 endif
 
 lib_LTLIBRARIES = libcollectd.la
-libcollectd_la_SOURCES =  \
+libcollectd_la_SOURCES = \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
 	src/daemon/filter_chain.c \
@@ -244,19 +244,17 @@ libcollectd_la_LIBADD = \
 	libheap.la \
 	liboconfig.la \
 	-lm \
+        -ldl \
 	$(COMMON_LIBS) \
-	$(DLOPEN_LIBS) \
-        -ldl
-#-lm $(COMMON_LIBS) -lltdl
+	$(DLOPEN_LIBS)
 
 collectd_SOURCES = \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h
 collectd_CFLAGS = $(AM_CFLAGS)
-collectd_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
+collectd_CPPFLAGS = $(AM_CPPFLAGS)
 collectd_LDFLAGS = -export-dynamic
-collectd_LDADD = \
-        libcollectd.la -lm $(COMMON_LIBS)
+collectd_LDADD = libcollectd.la
 
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
