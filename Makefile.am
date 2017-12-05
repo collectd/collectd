@@ -822,11 +822,11 @@ endif
 
 if BUILD_PLUGIN_WMI
 pkglib_LTLIBRARIES += wmi.la
-wmi_la_SOURCES = wmi.c wmi_config.c wmi_variant_utils.c
+wmi_la_SOURCES = src/wmi.c src/wmi_config.c src/wmi_variant_utils.c
 wmi_la_CFLAGS = $(AM_CFLAGS)
 wmi_la_LDFLAGS = $(PLUGIN_LDFLAGS) -L.
 wmi_la_DEPENDENCIES = libuuid.dll
-wmi_la_LIBADD = -loleaut32 -lole32 -luuid daemon/libcollectd.la
+wmi_la_LIBADD = -loleaut32 -lole32 -luuid libcollectd.la
 endif
 
 if BUILD_PLUGIN_DNS
