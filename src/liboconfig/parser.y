@@ -31,7 +31,7 @@
 #include "aux_types.h"
 
 static char *unquote (const char *orig);
-static int yyerror (const char *s);
+static void yyerror(const char *s);
 
 /* Lexer variables */
 extern int yylineno;
@@ -159,8 +159,8 @@ block:
 	 if (strcmp ($1.key, $3) != 0)
 	 {
 		printf ("block_begin = %s; block_end = %s;\n", $1.key, $3);
-	 	yyerror ("Block not closed..\n");
-		exit (1);
+		yyerror("block not closed");
+		YYERROR;
 	 }
 	 free ($3); $3 = NULL;
 	 $$ = $1;
@@ -172,8 +172,8 @@ block:
 	 if (strcmp ($1.key, $2) != 0)
 	 {
 		printf ("block_begin = %s; block_end = %s;\n", $1.key, $2);
-		yyerror ("Block not closed..\n");
-		exit (1);
+		yyerror("block not closed");
+		YYERROR;
 	 }
 	 free ($2); $2 = NULL;
 	 $$ = $1;
@@ -247,18 +247,19 @@ entire_file:
 	;
 
 %%
-static int yyerror (const char *s)
+static void yyerror(const char *s)
 {
 	const char *text;
 
-	if (*yytext == '\n')
+	if (yytext == NULL)
+		text = "<empty>";
+	else if (*yytext == '\n')
 		text = "<newline>";
 	else
 		text = yytext;
 
-	fprintf (stderr, "Parse error in file `%s', line %i near `%s': %s\n",
+	fprintf(stderr, "Parse error in file `%s', line %i near `%s': %s\n",
 		c_file, yylineno, text, s);
-	return (-1);
 } /* int yyerror */
 
 static char *unquote (const char *orig)
