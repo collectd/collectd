@@ -105,6 +105,7 @@
 #define OVS_DB_POLL_READ_BLOCK_SIZE 512 /* read block size (bytes) */
 #define OVS_DB_DEFAULT_DB_NAME "Open_vSwitch"
 
+#define OVS_DB_EVENT_NONE 0
 #define OVS_DB_EVENT_TIMEOUT 5 /* event thread timeout (sec) */
 #define OVS_DB_EVENT_TERMINATE 1
 #define OVS_DB_EVENT_CONN_ESTABLISHED 2
@@ -760,8 +761,8 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
       OVS_DEBUG("connect(): %s [family=%d]", STRERRNO, rp->ai_family);
     } else {
       /* send notification to event thread */
-      ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
       pdb->sock = sock;
+      ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
       break;
     }
   }
@@ -862,26 +863,30 @@ static void *ovs_event_worker(void *arg) {
     ts.tv_sec += (OVS_DB_EVENT_TIMEOUT);
     int ret = pthread_cond_timedwait(&pdb->event_thread.cond,
                                      &pdb->event_thread.mutex, &ts);
-    if (!ret) {
+    if (!ret || ret == ETIMEDOUT) {
       /* handle the event */
       OVS_DEBUG("handle event %d", pdb->event_thread.value);
       switch (pdb->event_thread.value) {
       case OVS_DB_EVENT_CONN_ESTABLISHED:
         if (pdb->cb.post_conn_init)
           pdb->cb.post_conn_init(pdb);
+        /* reset event */
+        pdb->event_thread.value = OVS_DB_EVENT_NONE;
         break;
       case OVS_DB_EVENT_CONN_TERMINATED:
         if (pdb->cb.post_conn_terminate)
           pdb->cb.post_conn_terminate();
+        /* reset event */
+        pdb->event_thread.value = OVS_DB_EVENT_NONE;
+        break;
+      case OVS_DB_EVENT_NONE:
+        /* wait timeout */
+        OVS_DEBUG("no event received (timeout)");
         break;
       default:
         OVS_DEBUG("unknown event received");
         break;
       }
-    } else if (ret == ETIMEDOUT) {
-      /* wait timeout */
-      OVS_DEBUG("no event received (timeout)");
-      continue;
     } else {
       /* unexpected error */
       OVS_ERROR("pthread_cond_timedwait() failed");
@@ -927,11 +932,10 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
   return 0;
 }
 
-/* Destroy EVENT thread */
-/* XXX: Must hold pdb->mutex when calling! */
-static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
+/* Terminate EVENT thread */
+static int ovs_db_event_thread_terminate(ovs_db_t *pdb) {
   if (pthread_equal(pdb->event_thread.tid, (pthread_t){0})) {
-    /* already destroyed */
+    /* already terminated */
     return 0;
   }
   ovs_db_event_post(pdb, OVS_DB_EVENT_TERMINATE);
@@ -941,11 +945,16 @@ static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
    * performs some task (handles event) and releases it when
    * while sleeping. Thus, if event thread exits, the mutex
    * remains locked */
+  pdb->event_thread.tid = (pthread_t){0};
   pthread_mutex_unlock(&pdb->event_thread.mutex);
+  return 0;
+}
+
+/* Destroy EVENT thread private data */
+static void ovs_db_event_thread_data_destroy(ovs_db_t *pdb) {
+  /* destroy mutex */
   pthread_mutex_destroy(&pdb->event_thread.mutex);
   pthread_cond_destroy(&pdb->event_thread.cond);
-  pdb->event_thread.tid = (pthread_t){0};
-  return 0;
 }
 
 /* Initialize POLL thread */
@@ -1247,23 +1256,26 @@ int ovs_db_destroy(ovs_db_t *pdb) {
   if (pdb == NULL)
     return -1;
 
+  /* stop event thread */
+  if (ovs_db_event_thread_terminate(pdb) < 0) {
+    OVS_ERROR("stop event thread failed");
+    ovs_db_ret = -1;
+  }
+
   /* try to lock the structure before releasing */
   if ((ret = pthread_mutex_lock(&pdb->mutex))) {
     OVS_ERROR("pthread_mutex_lock() DB mutex lock failed (%d)", ret);
     return -1;
   }
 
-  /* stop poll thread */
-  if (ovs_db_event_thread_destroy(pdb) < 0) {
+  /* stop poll thread and destroy thread's private data */
+  if (ovs_db_poll_thread_destroy(pdb) < 0) {
     OVS_ERROR("destroy poll thread failed");
     ovs_db_ret = -1;
   }
 
-  /* stop event thread */
-  if (ovs_db_poll_thread_destroy(pdb) < 0) {
-    OVS_ERROR("stop event thread failed");
-    ovs_db_ret = -1;
-  }
+  /* destroy event thread private data */
+  ovs_db_event_thread_data_destroy(pdb);
 
   pthread_mutex_unlock(&pdb->mutex);
 
