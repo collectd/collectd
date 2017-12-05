@@ -83,7 +83,7 @@ addons:
     project:
       name: "collectd/collectd"
       description: "Build submitted via Travis CI"
-    notification_email: octo@collectd.org
+    notification_email: collectd-changes@verplant.org
     build_command_prepend: "./configure; make clean"
     build_command: "make -j 4"
     branch_pattern: coverity_scan
