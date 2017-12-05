@@ -408,9 +408,9 @@ static void append_metadata_string (char *dest, int size, const metadata_str_t *
     if (ms->base)
     {
         if (dest_len > 0)
-            status = ssnprintf(&dest[dest_len], size_left, "-%s", ms->base);
+            status = snprintf(&dest[dest_len], size_left, "-%s", ms->base);
         else
-            status = ssnprintf(&dest[dest_len], size_left, "%s", ms->base);
+            status = snprintf(&dest[dest_len], size_left, "%s", ms->base);
 
         dest_len = strlen (dest);
         size_left = size - dest_len;
@@ -428,9 +428,9 @@ static void append_metadata_string (char *dest, int size, const metadata_str_t *
         sanitize_string (part);
 
         if (dest_len > 0)
-            status = ssnprintf (&dest[dest_len], size_left, "-%s", part);
+            status = snprintf (&dest[dest_len], size_left, "-%s", part);
         else
-            status = ssnprintf (&dest[dest_len], size_left, "%s", part);
+            status = snprintf (&dest[dest_len], size_left, "%s", part);
 
         if (status < 0 || status >= size_left)
         {
