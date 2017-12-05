@@ -2488,13 +2488,11 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 void plugin_init_ctx(void) {
   pthread_key_create(&plugin_ctx_key, plugin_ctx_destructor);
   plugin_ctx_key_initialized = 1;
-  printf("plugin_init_ctx: %d\n", plugin_ctx_key_initialized);
 } /* void plugin_init_ctx */
 
 plugin_ctx_t plugin_get_ctx(void) {
   plugin_ctx_t *ctx;
 
-  printf("plugin_get_ctx: %d\n", plugin_ctx_key_initialized);
   assert(plugin_ctx_key_initialized);
   ctx = pthread_getspecific(plugin_ctx_key);
 

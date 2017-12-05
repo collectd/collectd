@@ -1,7 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_YFLAGS = -d
 
-
 BUILT_SOURCES = \
 	src/libcollectdclient/collectd/lcc_features.h \
 	src/liboconfig/parser.h \
@@ -116,7 +115,6 @@ bin_PROGRAMS = \
 endif # BUILD_WIN32
 
 noinst_LTLIBRARIES = \
-        libcollectd.la \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
@@ -177,6 +175,11 @@ AM_CPPFLAGS = \
 	-DPLUGINDIR='"${pkglibdir}"' \
 	-DPKGDATADIR='"${pkgdatadir}"'
 
+COMMON_LDFLAGS =
+if BUILD_WIN32
+COMMON_LDFLAGS += -no-undefined -shared
+endif
+
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
 if BUILD_WIN32
@@ -204,6 +207,7 @@ if BUILD_WITH_LIBDEVINFO
 COMMON_LIBS += -ldevinfo
 endif
 
+lib_LTLIBRARIES = libcollectd.la
 libcollectd_la_SOURCES =  \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \
@@ -233,7 +237,7 @@ libcollectd_la_SOURCES =  \
 	src/daemon/utils_threshold.h
 libcollectd_la_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 libcollectd_la_CFLAGS = $(AM_CFLAGS)
-libcollectd_la_LDFLAGS = $(COMMON_LDFLAGS) -ldl
+libcollectd_la_LDFLAGS = $(COMMON_LDFLAGS)
 libcollectd_la_LIBADD = \
 	libavltree.la \
 	libcommon.la \
@@ -241,17 +245,18 @@ libcollectd_la_LIBADD = \
 	liboconfig.la \
 	-lm \
 	$(COMMON_LIBS) \
-	$(DLOPEN_LIBS)
+	$(DLOPEN_LIBS) \
+        -ldl
 #-lm $(COMMON_LIBS) -lltdl
 
 collectd_SOURCES = \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h
 collectd_CFLAGS = $(AM_CFLAGS)
-collectd_CPPFLAGS = $(AM_CPPFLAGS)
+collectd_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = \
-        libcollectd.la
+        libcollectd.la -lm $(COMMON_LIBS)
 
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
@@ -813,6 +818,15 @@ endif
 if BUILD_WITH_PERFSTAT
 disk_la_LIBADD += -lperfstat
 endif
+endif
+
+if BUILD_PLUGIN_WMI
+pkglib_LTLIBRARIES += wmi.la
+wmi_la_SOURCES = wmi.c wmi_config.c wmi_variant_utils.c
+wmi_la_CFLAGS = $(AM_CFLAGS)
+wmi_la_LDFLAGS = $(PLUGIN_LDFLAGS) -L.
+wmi_la_DEPENDENCIES = libuuid.dll
+wmi_la_LIBADD = -loleaut32 -lole32 -luuid daemon/libcollectd.la
 endif
 
 if BUILD_PLUGIN_DNS
@@ -2035,15 +2049,31 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
-#if BUILD_WIN32
-#	$(mkinstalldirs) $(DESTDIR)$(sbindir)
-#	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll $(DESTDIR)$(sbindir)/libuuid.dll
-#endif
+if BUILD_WIN32
+	$(mkinstalldirs) $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll $(DESTDIR)$(sbindir)/libuuid.dll
+endif
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+
+check_PROGRAMS = test_utils_mount test_utils_vl_lookup
+
+test_utils_mount_SOURCES = utils_mount_test.c testing.h
+test_utils_mount_LDADD = libmount.la daemon/libplugin_mock.la
+
+test_utils_vl_lookup_SOURCES = utils_vl_lookup_test.c testing.h
+test_utils_vl_lookup_LDADD = liblookup.la daemon/libplugin_mock.la
+
+TESTS = test_utils_mount test_utils_vl_lookup
+
+
+# Windows doesn't have a shared library for libuuid.dll, so we need to build
+# a wrapper.
+libuuid.dll:
+	${CC} -x c /dev/null -shared -o libuuid.dll -Wl,-whole-archive -luuid -Wl,-no-whole-archive
 
 all-local: @PERL_BINDINGS@
 

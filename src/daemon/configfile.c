@@ -986,7 +986,6 @@ int cf_register_complex(const char *type, int (*callback)(oconfig_item_t *)) {
 
   new->callback = callback;
   new->next = NULL;
-
   new->ctx = plugin_get_ctx();
 
   if (complex_callback_head == NULL) {
@@ -1029,10 +1028,8 @@ int cf_read(const char *filename) {
 
   /* Read the default types.db if no `TypesDB' option was given. */
   if (cf_default_typesdb) {
-    if (read_types_list(PKGDATADIR "/types.db") != 0){
-printf("error types: " PKGDATADIR "/types.db\n");
+    if (read_types_list(PKGDATADIR "/types.db") != 0)
       ret = -1;
-}
   }
 
   return ret;
