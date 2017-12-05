@@ -123,7 +123,7 @@ identifier:
 option:
 	identifier argument_list EOL
 	{
-	 memset (&$$, '\0', sizeof ($$));
+	 memset(&$$, 0, sizeof($$));
 	 $$.key = $1;
 	 $$.values = $2.argument;
 	 $$.values_num = $2.argument_num;
@@ -133,13 +133,13 @@ option:
 block_begin:
 	OPENBRAC identifier CLOSEBRAC EOL
 	{
-	 memset (&$$, '\0', sizeof ($$));
+	 memset(&$$, 0, sizeof($$));
 	 $$.key = $2;
 	}
 	|
 	OPENBRAC identifier argument_list CLOSEBRAC EOL
 	{
-	 memset (&$$, '\0', sizeof ($$));
+	 memset(&$$, 0, sizeof($$));
 	 $$.key = $2;
 	 $$.values = $3.argument;
 	 $$.values_num = $3.argument_num;
@@ -156,9 +156,9 @@ block_end:
 block:
 	block_begin statement_list block_end
 	{
-	 if (strcmp ($1.key, $3) != 0)
+	 if (strcmp($1.key, $3) != 0)
 	 {
-		printf ("block_begin = %s; block_end = %s;\n", $1.key, $3);
+		printf("block_begin = %s; block_end = %s;\n", $1.key, $3);
 		yyerror("block not closed");
 		YYERROR;
 	 }
@@ -169,9 +169,9 @@ block:
 	}
 	| block_begin block_end
 	{
-	 if (strcmp ($1.key, $2) != 0)
+	 if (strcmp($1.key, $2) != 0)
 	 {
-		printf ("block_begin = %s; block_end = %s;\n", $1.key, $2);
+		printf("block_begin = %s; block_end = %s;\n", $1.key, $2);
 		yyerror("block not closed");
 		YYERROR;
 	 }
@@ -277,7 +277,7 @@ static char *unquote (const char *orig)
 
 	len -= 2;
 	memmove (ret, ret + 1, len);
-	ret[len] = '\0';
+	ret[len] = 0;
 
 	for (int i = 0; i < len; i++)
 	{
