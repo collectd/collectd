@@ -626,7 +626,8 @@ static int c_grpc_config_listen(oconfig_item_t *ci) {
   listener.port = grpc::string(ci->values[1].value.string);
   listener.ssl = nullptr;
 
-  auto ssl_opts = new (grpc::SslServerCredentialsOptions);
+  auto ssl_opts = new grpc::SslServerCredentialsOptions(
+      GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY);
   grpc::SslServerCredentialsOptions::PemKeyCertPair pkcp = {};
   bool use_ssl = false;
 
@@ -659,6 +660,14 @@ static int c_grpc_config_listen(oconfig_item_t *ci) {
         return -1;
       }
       pkcp.cert_chain = read_file(cert);
+    } else if (!strcasecmp("VerifyPeer", child->key)) {
+      _Bool verify = 0;
+      if (cf_util_get_boolean(child, &verify)) {
+        return -1;
+      }
+      ssl_opts->client_certificate_request =
+          verify ? GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY
+                 : GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
     } else {
       WARNING("grpc: Option `%s` not allowed in <%s> block.", child->key,
               ci->key);

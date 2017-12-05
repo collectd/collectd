@@ -3094,6 +3094,13 @@ Whether to enable SSL for incoming connections. Default: false.
 Filenames specifying SSL certificate and key material to be used with SSL
 connections.
 
+=item B<VerifyPeer> B<true>|B<false>
+
+When enabled, a valid client certificate is required to connect to the server.
+When disabled, a client certifiacte is not requested and any unsolicited client
+certificate is accepted.
+Enabled by default.
+
 =back
 
 =back
