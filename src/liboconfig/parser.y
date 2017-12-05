@@ -94,13 +94,23 @@ argument_list:
 	argument_list argument
 	{
 	 $$ = $1;
+	 oconfig_value_t *tmp = realloc($$.argument,
+	                                ($$.argument_num+1) * sizeof(*$$.argument));
+	 if (tmp == NULL) {
+	   yyerror("realloc failed");
+	   YYERROR;
+	 }
+	 $$.argument = tmp;
+	 $$.argument[$$.argument_num] = $2;
 	 $$.argument_num++;
-	 $$.argument = realloc ($$.argument, $$.argument_num * sizeof (oconfig_value_t));
-	 $$.argument[$$.argument_num-1] = $2;
 	}
 	| argument
 	{
-	 $$.argument = malloc (sizeof (oconfig_value_t));
+	 $$.argument = calloc(1, sizeof(*$$.argument));
+	 if ($$.argument == NULL) {
+	   yyerror("calloc failed");
+	   YYERROR;
+	 }
 	 $$.argument[0] = $1;
 	 $$.argument_num = 1;
 	}
@@ -184,16 +194,26 @@ statement_list:
 	 $$ = $1;
 	 if (($2.values_num > 0) || ($2.children_num > 0))
 	 {
+		 oconfig_item_t *tmp = realloc($$.statement,
+		                               ($$.statement_num+1) * sizeof(*tmp));
+		 if (tmp == NULL) {
+		   yyerror("realloc failed");
+		   YYERROR;
+		 }
+		 $$.statement = tmp;
+		 $$.statement[$$.statement_num] = $2;
 		 $$.statement_num++;
-		 $$.statement = realloc ($$.statement, $$.statement_num * sizeof (oconfig_item_t));
-		 $$.statement[$$.statement_num-1] = $2;
 	 }
 	}
 	| statement
 	{
 	 if (($1.values_num > 0) || ($1.children_num > 0))
 	 {
-		 $$.statement = malloc (sizeof (oconfig_item_t));
+		 $$.statement = calloc(1, sizeof(*$$.statement));
+		 if ($$.statement == NULL) {
+		   yyerror("calloc failed");
+		   YYERROR;
+		 }
 		 $$.statement[0] = $1;
 		 $$.statement_num = 1;
 	 }
@@ -208,15 +228,21 @@ statement_list:
 entire_file:
 	statement_list
 	{
-	 ci_root = calloc (1, sizeof (*ci_root));
+	 ci_root = calloc(1, sizeof(*ci_root));
+	 if (ci_root == NULL) {
+	   yyerror("calloc failed");
+	   YYERROR;
+	 }
 	 ci_root->children = $1.statement;
 	 ci_root->children_num = $1.statement_num;
 	}
 	| /* epsilon */
 	{
-	 ci_root = calloc (1, sizeof (*ci_root));
-	 ci_root->children = NULL;
-	 ci_root->children_num = 0;
+	 ci_root = calloc(1, sizeof(*ci_root));
+	 if (ci_root == NULL) {
+	   yyerror("calloc failed");
+	   YYERROR;
+	 }
 	}
 	;
 
