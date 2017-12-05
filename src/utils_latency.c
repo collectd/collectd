@@ -156,7 +156,9 @@ void latency_counter_add(latency_counter_t *lc, cdtime_t latency) /* {{{ */
     change_bin_width(lc, latency);
     bin = (latency - 1) / lc->bin_width;
     if (bin >= HISTOGRAM_NUM_BINS) {
-      ERROR("utils_latency: latency_counter_add: Invalid bin: %" "Iu64", bin);
+      ERROR("utils_latency: latency_counter_add: Invalid bin: %"
+            "Iu64",
+            bin);
       return;
     }
   }

@@ -51,8 +51,8 @@
 #define DEBUG(...) printf(__VA_ARGS__)
 
 #ifdef WIN32
-#include <netioapi.h>
 #include <Ws2tcpip.h>
+#include <netioapi.h>
 #endif
 
 static _Bool is_multicast(struct addrinfo const *ai) {
@@ -98,8 +98,7 @@ static int server_multicast_join(lcc_listener_t *srv,
     };
 #else
     struct ip_mreq mreq = {
-        .imr_address.s_addr = INADDR_ANY,
-        .imr_multiaddr.s_addr = sa->s_addr,
+        .imr_address.s_addr = INADDR_ANY, .imr_multiaddr.s_addr = sa->s_addr,
     };
 #endif /* WIN32 */
 #endif /* HAVE_STRUCT_IP_MREQN_IMR_IFINDEX */

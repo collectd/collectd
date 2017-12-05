@@ -38,9 +38,9 @@
 #include <sys/types.h>
 
 #include <dirent.h>
+#include <math.h>
 #include <poll.h>
 #include <sys/stat.h>
-#include <math.h>
 #include <unistd.h>
 
 #if HAVE_NETINET_IN_H
