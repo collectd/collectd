@@ -1200,11 +1200,13 @@
 #	CollectFileDescriptor true
 #	CollectContextSwitch true
 #	CollectMemoryMaps true
+#	CollectDelayAccounting false
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
 #		CollectFileDescriptor false
 #		CollectContextSwitch false
+#		CollectDelayAccounting true
 #	</Process>
 #	<ProcessMatch "name" "regex">
 #		CollectFileDescriptor false
