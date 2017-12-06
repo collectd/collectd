@@ -29,8 +29,8 @@
 #include "common.h"
 #include "plugin.h"
 
-#include <poll.h>
 #include "utils_dns.h"
+#include <poll.h>
 
 #include <pcap.h>
 
@@ -287,9 +287,7 @@ static int dns_init(void) {
   status = plugin_thread_create(&listen_thread, NULL, dns_child_loop, (void *)0,
                                 "dns listen");
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("dns plugin: pthread_create failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("dns plugin: pthread_create failed: %s", STRERRNO);
     return -1;
   }
 

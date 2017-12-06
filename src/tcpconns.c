@@ -459,7 +459,7 @@ static int conn_read_netlink(void) {
   if (fd < 0) {
     ERROR("tcpconns plugin: conn_read_netlink: socket(AF_NETLINK, SOCK_RAW, "
           "NETLINK_INET_DIAG) failed: %s",
-          sstrerror(errno, buf, sizeof(buf)));
+          STRERRNO);
     return -1;
   }
 
@@ -490,7 +490,7 @@ static int conn_read_netlink(void) {
 
   if (sendmsg(fd, &msg, 0) < 0) {
     ERROR("tcpconns plugin: conn_read_netlink: sendmsg(2) failed: %s",
-          sstrerror(errno, buf, sizeof(buf)));
+          STRERRNO);
     close(fd);
     return -1;
   }
@@ -514,7 +514,7 @@ static int conn_read_netlink(void) {
         continue;
 
       ERROR("tcpconns plugin: conn_read_netlink: recvmsg(2) failed: %s",
-            sstrerror(errno, buf, sizeof(buf)));
+            STRERRNO);
       close(fd);
       return -1;
     } else if (status == 0) {

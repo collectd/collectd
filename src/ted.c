@@ -109,19 +109,15 @@ static int ted_read_value(double *ret_power, double *ret_voltage) {
       /* Some signal or something. Start over.. */
       continue;
     } else if (status < 0) {
-      char errbuf[1024];
-      ERROR("ted plugin: select failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ted plugin: select failed: %s", STRERRNO);
       return -1;
     }
 
     receive_buffer_length = read(fd, receive_buffer, sizeof(receive_buffer));
     if (receive_buffer_length < 0) {
-      char errbuf[1024];
       if ((errno == EAGAIN) || (errno == EINTR))
         continue;
-      ERROR("ted plugin: read(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ted plugin: read(2) failed: %s", STRERRNO);
       return -1;
     } else if (receive_buffer_length == 0) {
       /* Should we close the FD in this case? */

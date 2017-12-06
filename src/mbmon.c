@@ -95,10 +95,8 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
                               .ai_socktype = SOCK_STREAM};
 
   if ((ai_return = getaddrinfo(host, port, &ai_hints, &ai_list)) != 0) {
-    char errbuf[1024];
     ERROR("mbmon: getaddrinfo (%s, %s): %s", host, port,
-          (ai_return == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                    : gai_strerror(ai_return));
+          (ai_return == EAI_SYSTEM) ? STRERRNO : gai_strerror(ai_return));
     return -1;
   }
 
@@ -108,16 +106,13 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
     /* create our socket descriptor */
     if ((fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype,
                      ai_ptr->ai_protocol)) < 0) {
-      char errbuf[1024];
-      ERROR("mbmon: socket: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("mbmon: socket: %s", STRERRNO);
       continue;
     }
 
     /* connect to the mbmon daemon */
     if (connect(fd, (struct sockaddr *)ai_ptr->ai_addr, ai_ptr->ai_addrlen)) {
-      char errbuf[1024];
-      INFO("mbmon: connect (%s, %s): %s", host, port,
-           sstrerror(errno, errbuf, sizeof(errbuf)));
+      INFO("mbmon: connect (%s, %s): %s", host, port, STRERRNO);
       close(fd);
       fd = -1;
       continue;
@@ -142,13 +137,11 @@ static int mbmon_query_daemon(char *buffer, int buffer_size) {
   while ((status = read(fd, buffer + buffer_fill, buffer_size - buffer_fill)) !=
          0) {
     if (status == -1) {
-      char errbuf[1024];
 
       if ((errno == EAGAIN) || (errno == EINTR))
         continue;
 
-      ERROR("mbmon: Error reading from socket: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("mbmon: Error reading from socket: %s", STRERRNO);
       close(fd);
       return -1;
     }

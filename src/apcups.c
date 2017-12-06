@@ -119,10 +119,8 @@ static int net_open(char const *node, char const *service) {
 
   status = getaddrinfo(node, service, &ai_hints, &ai_return);
   if (status != 0) {
-    char errbuf[1024];
     INFO("apcups plugin: getaddrinfo failed: %s",
-         (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                : gai_strerror(status));
+         (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -147,9 +145,7 @@ static int net_open(char const *node, char const *service) {
 
   if (status != 0) /* `connect(2)' failed */
   {
-    char errbuf[1024];
-    INFO("apcups plugin: connect failed: %s",
-         sstrerror(errno, errbuf, sizeof(errbuf)));
+    INFO("apcups plugin: connect failed: %s", STRERRNO);
     close(sd);
     return -1;
   }
@@ -240,7 +236,8 @@ static int apc_query_server(char const *node, char const *service,
   char recvline[1024];
   char *tokptr;
   char *toksaveptr;
-  int try = 0;
+  int try
+    = 0;
   int status;
 
 #if APCMAIN
@@ -265,7 +262,8 @@ static int apc_query_server(char const *node, char const *service,
       /* net_send closes the socket on error. */
       assert(global_sockfd < 0);
       if (try == 0) {
-        try++;
+        try
+          ++;
         count_retries++;
         continue;
       }
@@ -341,9 +339,7 @@ static int apc_query_server(char const *node, char const *service,
     net_shutdown(&global_sockfd);
 
   if (n < 0) {
-    char errbuf[1024];
-    ERROR("apcups plugin: Reading from socket failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("apcups plugin: Reading from socket failed: %s", STRERROR(status));
     return -1;
   }
 
@@ -424,8 +420,8 @@ static int apcups_read(void) {
   int status = apc_query_server(conf_node, conf_service, &apcups_detail);
 
   if (status != 0) {
-    DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
-          conf_node, conf_service, status);
+    DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d", conf_node,
+          conf_service, status);
     return status;
   }
 

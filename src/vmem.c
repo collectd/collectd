@@ -104,9 +104,7 @@ static int vmem_read(void) {
 
   fh = fopen("/proc/vmstat", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    ERROR("vmem plugin: fopen (/proc/vmstat) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("vmem plugin: fopen (/proc/vmstat) failed: %s", STRERRNO);
     return -1;
   }
 

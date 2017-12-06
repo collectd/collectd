@@ -184,11 +184,12 @@ static void ts_subst(char *dest, size_t size, const char *string, /* {{{ */
 
   if (vl->meta != NULL) {
     char **meta_toc = NULL;
-    int meta_entries = meta_data_toc(vl->meta, &meta_toc);
-    if (meta_entries <= 0)
+    int status = meta_data_toc(vl->meta, &meta_toc);
+    if (status <= 0)
       return;
+    size_t meta_entries = (size_t)status;
 
-    for (int i = 0; i < meta_entries; i++) {
+    for (size_t i = 0; i < meta_entries; i++) {
       char meta_name[DATA_MAX_NAME_LEN];
       char *value_str;
       const char *key = meta_toc[i];
@@ -342,7 +343,6 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
 
   if (data->meta != NULL) {
     char temp[DATA_MAX_NAME_LEN * 2];
-    int meta_entries;
     char **meta_toc;
 
     if ((new_meta = meta_data_create()) == NULL) {
@@ -350,8 +350,15 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
       return -ENOMEM;
     }
 
-    meta_entries = meta_data_toc(data->meta, &meta_toc);
-    for (int i = 0; i < meta_entries; i++) {
+    int status = meta_data_toc(data->meta, &meta_toc);
+    if (status < 0) {
+      ERROR("Target `set': meta_data_toc failed with status %d.", status);
+      meta_data_destroy(new_meta);
+      return status;
+    }
+    size_t meta_entries = (size_t)status;
+
+    for (size_t i = 0; i < meta_entries; i++) {
       const char *key = meta_toc[i];
       char *string;
       int status;
@@ -360,7 +367,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
       if (status) {
         ERROR("Target `set': Unable to get replacement metadata value `%s'.",
               key);
-        strarray_free(meta_toc, (size_t)meta_entries);
+        strarray_free(meta_toc, meta_entries);
         meta_data_destroy(new_meta);
         return status;
       }
@@ -376,13 +383,13 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
       status = meta_data_add_string(new_meta, key, temp);
       if (status) {
         ERROR("Target `set': Unable to set metadata value `%s'.", key);
-        strarray_free(meta_toc, (size_t)meta_entries);
+        strarray_free(meta_toc, meta_entries);
         meta_data_destroy(new_meta);
         return status;
       }
     }
 
-    strarray_free(meta_toc, (size_t)meta_entries);
+    strarray_free(meta_toc, meta_entries);
   }
 
 #define SUBST_FIELD(f)                                                         \

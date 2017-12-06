@@ -500,6 +500,14 @@ static int json_add_string(yajl_gen g, char const *str) /* {{{ */
     }                                                                          \
   } while (0)
 
+#define CHECK_SUCCESS(cmd)                                                     \
+  do {                                                                         \
+    yajl_gen_status s = (cmd);                                                 \
+    if (s != yajl_gen_status_ok) {                                             \
+      return (int)s;                                                           \
+    }                                                                          \
+  } while (0)
+
 static int format_json_meta(yajl_gen g, notification_meta_t *meta) /* {{{ */
 {
   if (meta == NULL)
@@ -525,7 +533,7 @@ static int format_json_meta(yajl_gen g, notification_meta_t *meta) /* {{{ */
   default:
     ERROR("format_json_meta: unknown meta data type %d (name \"%s\")",
           meta->type, meta->name);
-    yajl_gen_null(g);
+    CHECK_SUCCESS(yajl_gen_null(g));
   }
 
   return format_json_meta(g, meta->next);
@@ -544,14 +552,14 @@ static int format_time(yajl_gen g, cdtime_t t) /* {{{ */
 
 static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
 {
-  yajl_gen_array_open(g);
-  yajl_gen_map_open(g); /* BEGIN alert */
+  CHECK_SUCCESS(yajl_gen_array_open(g)); /* BEGIN array */
+  CHECK_SUCCESS(yajl_gen_map_open(g));   /* BEGIN alert */
 
   /*
    * labels
    */
   JSON_ADD(g, "labels");
-  yajl_gen_map_open(g); /* BEGIN labels */
+  CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN labels */
 
   JSON_ADD(g, "alertname");
   if (strncmp(n->plugin, n->type, strlen(n->plugin)) == 0)
@@ -587,27 +595,30 @@ static int format_alert(yajl_gen g, notification_t const *n) /* {{{ */
   JSON_ADD(g, "service");
   JSON_ADD(g, "collectd");
 
-  yajl_gen_map_close(g); /* END labels */
+  CHECK_SUCCESS(yajl_gen_map_close(g)); /* END labels */
 
   /*
    * annotations
    */
   JSON_ADD(g, "annotations");
-  yajl_gen_map_open(g); /* BEGIN annotations */
+  CHECK_SUCCESS(yajl_gen_map_open(g)); /* BEGIN annotations */
 
   JSON_ADD(g, "summary");
   JSON_ADD(g, n->message);
 
-  if (format_json_meta(g, n->meta) != 0)
+  if (format_json_meta(g, n->meta) != 0) {
     return -1;
+  }
 
-  yajl_gen_map_close(g); /* END annotations */
+  CHECK_SUCCESS(yajl_gen_map_close(g)); /* END annotations */
 
   JSON_ADD(g, "startsAt");
-  format_time(g, n->time);
+  if (format_time(g, n->time) != 0) {
+    return -1;
+  }
 
-  yajl_gen_map_close(g); /* END alert */
-  yajl_gen_array_close(g);
+  CHECK_SUCCESS(yajl_gen_map_close(g));   /* END alert */
+  CHECK_SUCCESS(yajl_gen_array_close(g)); /* END array */
 
   return 0;
 } /* }}} format_alert */
@@ -672,7 +683,11 @@ int format_json_notification(char *buffer, size_t buffer_size, /* {{{ */
   }
 
   /* copy to output buffer */
-  yajl_gen_get_buf(g, &out, &unused_out_len);
+  if (yajl_gen_get_buf(g, &out, &unused_out_len) != yajl_gen_status_ok) {
+    yajl_gen_clear(g);
+    yajl_gen_free(g);
+    return -1;
+  }
   sstrncpy(buffer, (void *)out, buffer_size);
 
   yajl_gen_clear(g);

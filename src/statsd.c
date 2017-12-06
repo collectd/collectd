@@ -446,13 +446,11 @@ static void statsd_network_read(int fd) /* {{{ */
 
   status = recv(fd, buffer, sizeof(buffer), /* flags = */ MSG_DONTWAIT);
   if (status < 0) {
-    char errbuf[1024];
 
     if ((errno == EAGAIN) || (errno == EWOULDBLOCK))
       return;
 
-    ERROR("statsd plugin: recv(2) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("statsd plugin: recv(2) failed: %s", STRERRNO);
     return;
   }
 
@@ -497,9 +495,7 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
 
     fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0) {
-      char errbuf[1024];
-      ERROR("statsd plugin: socket(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("statsd plugin: socket(2) failed: %s", STRERRNO);
       continue;
     }
 
@@ -511,9 +507,7 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
 
     status = bind(fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("statsd plugin: bind(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("statsd plugin: bind(2) failed: %s", STRERRNO);
       close(fd);
       continue;
     }
@@ -561,13 +555,11 @@ static void *statsd_network_thread(void *args) /* {{{ */
   while (!network_thread_shutdown) {
     status = poll(fds, (nfds_t)fds_num, /* timeout = */ -1);
     if (status < 0) {
-      char errbuf[1024];
 
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
-      ERROR("statsd plugin: poll(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("statsd plugin: poll(2) failed: %s", STRERRNO);
       break;
     }
 
@@ -669,10 +661,8 @@ static int statsd_init(void) /* {{{ */
                             /* attr = */ NULL, statsd_network_thread,
                             /* args = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
       pthread_mutex_unlock(&metrics_lock);
-      ERROR("statsd plugin: pthread_create failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("statsd plugin: pthread_create failed: %s", STRERRNO);
       return status;
     }
   }

@@ -280,7 +280,7 @@ static int ceph_cb_number(void *ctx, const char *number_val,
    * the same type of other "Bytes". Instead of keeping an "average" or
    * "rate", use the "sum" in the pair and assign that to the derive
    * value. */
-  if (convert_special_metrics && (state->depth >= 2) &&
+  if (convert_special_metrics && (state->depth > 2) &&
       (strcmp("filestore", state->stack[state->depth - 2]) == 0) &&
       (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0) &&
       (strcmp("avgcount", state->key) == 0)) {

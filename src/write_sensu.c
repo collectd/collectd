@@ -880,11 +880,9 @@ static int sensu_send_msg(struct sensu_host *host, const char *msg) /* {{{ */
   sensu_close_socket(host);
 
   if (status != 0) {
-    char errbuf[1024];
     ERROR("write_sensu plugin: Sending to Sensu at %s:%s failed: %s",
           (host->node != NULL) ? host->node : SENSU_HOST,
-          (host->service != NULL) ? host->service : SENSU_PORT,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          (host->service != NULL) ? host->service : SENSU_PORT, STRERRNO);
     return -1;
   }
 
@@ -999,7 +997,10 @@ static void sensu_free(void *p) /* {{{ */
   sfree(host->separator);
   free_str_list(&(host->metric_handlers));
   free_str_list(&(host->notification_handlers));
+
+  pthread_mutex_unlock(&host->lock);
   pthread_mutex_destroy(&host->lock);
+
   sfree(host);
 } /* }}} void sensu_free */
 

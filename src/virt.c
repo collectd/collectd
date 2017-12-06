@@ -444,12 +444,10 @@ static void init_block_info(struct lv_block_info *binfo) {
 #ifdef HAVE_BLOCK_STATS_FLAGS
 
 #define GET_BLOCK_INFO_VALUE(NAME, FIELD)                                      \
-  do {                                                                         \
-    if (!strcmp(param[i].field, NAME)) {                                       \
-      binfo->FIELD = param[i].value.l;                                         \
-      continue;                                                                \
-    }                                                                          \
-  } while (0)
+  if (!strcmp(param[i].field, NAME)) {                                         \
+    binfo->FIELD = param[i].value.l;                                           \
+    continue;                                                                  \
+  }
 
 static int get_block_info(struct lv_block_info *binfo,
                           virTypedParameterPtr param, int nparams) {

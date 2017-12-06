@@ -389,50 +389,44 @@ static int plugin_unregister(llist_t *list, const char *name) /* {{{ */
   return 0;
 } /* }}} int plugin_unregister */
 
-/*
- * (Try to) load the shared object `file'. Won't complain if it isn't a shared
- * object, but it will bitch about a shared object not having a
- * ``module_register'' symbol..
- */
-static int plugin_load_file(const char *file, _Bool global) {
-  void (*reg_handle)(void);
-
+/* plugin_load_file loads the shared object "file" and calls its
+ * "module_register" function. Returns zero on success, non-zero otherwise. */
+static int plugin_load_file(char const *file, _Bool global) {
   int flags = RTLD_NOW;
   if (global)
     flags |= RTLD_GLOBAL;
 
   void *dlh = dlopen(file, flags);
-
   if (dlh == NULL) {
     char errbuf[1024] = "";
 
     snprintf(errbuf, sizeof(errbuf),
-             "dlopen (\"%s\") failed: %s. "
-             "The most common cause for this problem is "
-             "missing dependencies. Use ldd(1) to check "
-             "the dependencies of the plugin "
-             "/ shared object.",
+             "dlopen(\"%s\") failed: %s. "
+             "The most common cause for this problem is missing dependencies. "
+             "Use ldd(1) to check the dependencies of the plugin / shared "
+             "object.",
              file, dlerror());
 
-    ERROR("%s", errbuf);
-    /* Make sure this is printed to STDERR in any case, but also
-     * make sure it's printed only once. */
-    if (list_log != NULL)
-      fprintf(stderr, "ERROR: %s\n", errbuf);
+    /* This error is printed to STDERR unconditionally. If list_log is NULL,
+     * plugin_log() will also print to STDERR. We avoid duplicate output by
+     * checking that the list of log handlers, list_log, is not NULL. */
+    fprintf(stderr, "ERROR: %s\n", errbuf);
+    if (list_log != NULL) {
+      ERROR("%s", errbuf);
+    }
 
-    return 1;
+    return ENOENT;
   }
 
-  reg_handle = (void (*)(void))dlsym(dlh, "module_register");
+  void (*reg_handle)(void) = dlsym(dlh, "module_register");
   if (reg_handle == NULL) {
-    WARNING("Couldn't find symbol \"module_register\" in \"%s\": %s\n", file,
-            dlerror());
+    ERROR("Couldn't find symbol \"module_register\" in \"%s\": %s\n", file,
+          dlerror());
     dlclose(dlh);
-    return -1;
+    return ENOENT;
   }
 
   (*reg_handle)();
-
   return 0;
 }
 
@@ -610,9 +604,7 @@ static void set_thread_name(pthread_t tid, char const *name) {
 #if defined(HAVE_PTHREAD_SETNAME_NP)
   int status = pthread_setname_np(tid, n);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("set_thread_name(\"%s\"): %s", n,
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("set_thread_name(\"%s\"): %s", n, STRERROR(status));
   }
 #else /* if defined(HAVE_PTHREAD_SET_NAME_NP) */
   pthread_set_name_np(tid, n);
@@ -638,10 +630,9 @@ static void start_read_threads(size_t num) /* {{{ */
                                 /* attr = */ NULL, plugin_read_thread,
                                 /* arg = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("plugin: start_read_threads: pthread_create failed "
-            "with status %i (%s).",
-            status, sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("plugin: start_read_threads: pthread_create failed with status %i "
+            "(%s).",
+            status, STRERROR(status));
       return;
     }
 
@@ -845,10 +836,9 @@ static void start_write_threads(size_t num) /* {{{ */
                                 /* attr = */ NULL, plugin_write_thread,
                                 /* arg = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("plugin: start_write_threads: pthread_create failed "
-            "with status %i (%s).",
-            status, sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("plugin: start_write_threads: pthread_create failed with status %i "
+            "(%s).",
+            status, STRERROR(status));
       return;
     }
 
@@ -1009,9 +999,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
   }
 
   if ((dh = opendir(dir)) == NULL) {
-    char errbuf[1024];
-    ERROR("plugin_load: opendir (%s) failed: %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("plugin_load: opendir (%s) failed: %s", dir, STRERRNO);
     return -1;
   }
 
@@ -1026,9 +1014,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
     }
 
     if (lstat(filename, &statbuf) == -1) {
-      char errbuf[1024];
-      WARNING("plugin_load: stat (\"%s\") failed: %s", filename,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("plugin_load: stat (\"%s\") failed: %s", filename, STRERRNO);
       continue;
     } else if (!S_ISREG(statbuf.st_mode)) {
       /* don't follow symlinks */
@@ -2092,10 +2078,9 @@ int plugin_dispatch_values(value_list_t const *vl) {
 
   status = plugin_write_enqueue(vl);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("plugin_dispatch_values: plugin_write_enqueue failed "
-          "with status %i (%s).",
-          status, sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("plugin_dispatch_values: plugin_write_enqueue failed with status %i "
+          "(%s).",
+          status, STRERROR(status));
     return status;
   }
 
@@ -2462,9 +2447,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
   ctx = malloc(sizeof(*ctx));
   if (ctx == NULL) {
-    char errbuf[1024];
-    ERROR("Failed to allocate plugin context: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("Failed to allocate plugin context: %s", STRERRNO);
     return NULL;
   }
 

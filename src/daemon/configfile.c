@@ -634,9 +634,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
 
   dh = opendir(dir);
   if (dh == NULL) {
-    char errbuf[1024];
-    ERROR("configfile: opendir failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("configfile: opendir failed: %s", STRERRNO);
     return NULL;
   }
 
@@ -765,9 +763,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
     status = stat(path_ptr, &statbuf);
     if (status != 0) {
-      char errbuf[1024];
-      WARNING("configfile: stat (%s) failed: %s", path_ptr,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("configfile: stat (%s) failed: %s", path_ptr, STRERRNO);
       continue;
     }
 
@@ -813,9 +809,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   status = stat(path, &statbuf);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("configfile: stat (%s) failed: %s", path,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("configfile: stat (%s) failed: %s", path, STRERRNO);
     return NULL;
   }
 

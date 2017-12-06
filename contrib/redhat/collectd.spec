@@ -130,6 +130,7 @@
 %define with_snmp_agent 0%{!?_without_snmp_agent:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
+%define with_synproxy 0%{!?_without_synproxy:0}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
@@ -247,7 +248,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	7%{?dist}
+Release:	8%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -1655,6 +1656,12 @@ Collectd utilities
 %define _with_swap --disable-swap
 %endif
 
+%if %{with_synproxy}
+%define _with_synproxy --enable-synproxy
+%else
+%define _with_synproxy --disable-synproxy
+%endif
+
 %if %{with_syslog}
 %define _with_syslog --enable-syslog
 %else
@@ -1986,6 +1993,7 @@ Collectd utilities
 	%{?_with_snmp_agent} \
 	%{?_with_statsd} \
 	%{?_with_swap} \
+	%{?_with_synproxy} \
 	%{?_with_syslog} \
 	%{?_with_table} \
 	%{?_with_tail_csv} \
@@ -2291,6 +2299,9 @@ fi
 %if %{with_swap}
 %{_libdir}/%{name}/swap.so
 %endif
+%if %{with_synproxy}
+%{_libdir}/%{name}/synproxy.so
+%endif
 %if %{with_syslog}
 %{_libdir}/%{name}/syslog.so
 %endif
@@ -2367,6 +2378,9 @@ fi
 %{_includedir}/collectd/network_buffer.h
 %{_includedir}/collectd/lcc_features.h
 %{_libdir}/pkgconfig/libcollectdclient.pc
+%{_includedir}/collectd/network_parse.h
+%{_includedir}/collectd/server.h
+%{_includedir}/collectd/types.h
 %{_libdir}/libcollectdclient.so
 
 %files -n libcollectdclient
@@ -2723,6 +2737,12 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Sep 28 2017 xakru <calvinxakru@gmail.com> - 5.7.1-8
+- Add new libcollectdclient/network_parse
+- Add new libcollectdclient/server
+- Add new libcollectdclient/types
+- Add new synproxy plugin
+
 * Fri Aug 18 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-7
 - Add new intel_pmu plugin
 

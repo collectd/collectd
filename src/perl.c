@@ -706,10 +706,8 @@ static int value_list2hv(pTHX_ value_list_t *vl, data_set_t *ds, HV *hash) {
 
 static int notification_meta2av(pTHX_ notification_meta_t *meta, AV *array) {
   int meta_num = 0;
-
-  while (meta) {
+  for (notification_meta_t *m = meta; m != NULL; m = m->next) {
     ++meta_num;
-    meta = meta->next;
   }
 
   av_extend(array, meta_num);

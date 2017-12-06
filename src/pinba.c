@@ -294,25 +294,19 @@ static int pb_add_socket(pinba_socket_t *s, /* {{{ */
 
   fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
   if (fd < 0) {
-    char errbuf[1024];
-    ERROR("pinba plugin: socket(2) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("pinba plugin: socket(2) failed: %s", STRERRNO);
     return 0;
   }
 
   tmp = 1;
   status = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp));
   if (status != 0) {
-    char errbuf[1024];
-    WARNING("pinba plugin: setsockopt(SO_REUSEADDR) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("pinba plugin: setsockopt(SO_REUSEADDR) failed: %s", STRERRNO);
   }
 
   status = bind(fd, ai->ai_addr, ai->ai_addrlen);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("pinba plugin: bind(2) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("pinba plugin: bind(2) failed: %s", STRERRNO);
     close(fd);
     return 0;
   }
@@ -414,7 +408,6 @@ static int pinba_udp_read_callback_fn(int sock) /* {{{ */
     status = recvfrom(sock, buffer, buffer_size - 1, MSG_DONTWAIT,
                       /* from = */ NULL, /* from len = */ 0);
     if (status < 0) {
-      char errbuf[1024];
 
       if ((errno == EINTR)
 #ifdef EWOULDBLOCK
@@ -424,8 +417,7 @@ static int pinba_udp_read_callback_fn(int sock) /* {{{ */
         continue;
       }
 
-      WARNING("pinba plugin: recvfrom(2) failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("pinba plugin: recvfrom(2) failed: %s", STRERRNO);
       return -1;
     } else if (status == 0) {
       DEBUG("pinba plugin: recvfrom(2) returned unexpected status zero.");
@@ -469,13 +461,10 @@ static int receive_loop(void) /* {{{ */
     {
       continue;
     } else if (status < 0) {
-      char errbuf[1024];
-
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
 
-      ERROR("pinba plugin: poll(2) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("pinba plugin: poll(2) failed: %s", STRERRNO);
       pinba_socket_free(s);
       return -1;
     }
@@ -593,9 +582,7 @@ static int plugin_init(void) /* {{{ */
                                 /* attrs = */ NULL, collector_thread,
                                 /* args = */ NULL, "pinba collector");
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("pinba plugin: pthread_create(3) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("pinba plugin: pthread_create(3) failed: %s", STRERRNO);
     return -1;
   }
   collector_thread_running = 1;
@@ -613,9 +600,7 @@ static int plugin_shutdown(void) /* {{{ */
 
     status = pthread_join(collector_thread_id, /* retval = */ NULL);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("pinba plugin: pthread_join(3) failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("pinba plugin: pthread_join(3) failed: %s", STRERROR(status));
     }
 
     collector_thread_running = 0;

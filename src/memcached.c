@@ -99,9 +99,8 @@ static int memcached_connect_unix(memcached_t *st) {
   /* create our socket descriptor */
   int fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd < 0) {
-    char errbuf[1024];
     ERROR("memcached plugin: memcached_connect_unix: socket(2) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return -1;
   }
 
@@ -134,12 +133,10 @@ static int memcached_connect_inet(memcached_t *st) {
 
   int status = getaddrinfo(st->connhost, st->connport, &ai_hints, &ai_list);
   if (status != 0) {
-    char errbuf[1024];
     ERROR("memcached plugin: memcached_connect_inet: "
           "getaddrinfo(%s,%s) failed: %s",
           st->connhost, st->connport,
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -148,10 +145,9 @@ static int memcached_connect_inet(memcached_t *st) {
     /* create our socket descriptor */
     fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0) {
-      char errbuf[1024];
       WARNING("memcached plugin: memcached_connect_inet: "
               "socket(2) failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+              STRERRNO);
       continue;
     }
 
@@ -246,9 +242,8 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
 
   status = (int)swrite(st->fd, "stats\r\n", strlen("stats\r\n"));
   if (status != 0) {
-    char errbuf[1024];
     ERROR("memcached plugin: Instance \"%s\": write(2) failed: %s", st->name,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     shutdown(st->fd, SHUT_RDWR);
     close(st->fd);
     st->fd = -1;
@@ -280,13 +275,12 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
 
     char const end_token[5] = {'E', 'N', 'D', '\r', '\n'};
     if (status < 0) {
-      char errbuf[1024];
 
       if ((errno == EAGAIN) || (errno == EWOULDBLOCK))
         continue;
 
       ERROR("memcached plugin: Instance \"%s\": Error reading from socket: %s",
-            st->name, sstrerror(errno, errbuf, sizeof(errbuf)));
+            st->name, STRERRNO);
       shutdown(st->fd, SHUT_RDWR);
       close(st->fd);
       st->fd = -1;

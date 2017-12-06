@@ -79,9 +79,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
            cgroup_name);
   fh = fopen(abs_path, "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    ERROR("cgroups plugin: fopen (\"%s\") failed: %s", abs_path,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("cgroups plugin: fopen (\"%s\") failed: %s", abs_path, STRERRNO);
     return -1;
   }
 

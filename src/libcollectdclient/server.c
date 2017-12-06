@@ -82,7 +82,7 @@ static int server_multicast_join(lcc_listener_t *srv,
     };
 #else
     struct ip_mreq mreq = {
-        .imr_address.s_addr = INADDR_ANY, .imr_multiaddr.s_addr = sa->s_addr,
+        .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
     };
 #endif
     status = setsockopt(srv->conn, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,

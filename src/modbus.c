@@ -770,10 +770,8 @@ static int mb_config_set_host_address(mb_host_t *host, /* {{{ */
 
   status = getaddrinfo(address, /* service = */ NULL, &ai_hints, &ai_list);
   if (status != 0) {
-    char errbuf[1024];
     ERROR("Modbus plugin: getaddrinfo failed: %s",
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return status;
   }
 

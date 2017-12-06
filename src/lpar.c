@@ -76,9 +76,8 @@ static int lpar_init(void) {
                                     sizeof(perfstat_partition_total_t),
                                     /* number = */ 1 /* (must be 1) */);
   if (status != 1) {
-    char errbuf[1024];
-    ERROR("lpar plugin: perfstat_partition_total failed: %s (%i)",
-          sstrerror(errno, errbuf, sizeof(errbuf)), status);
+    ERROR("lpar plugin: perfstat_partition_total failed: %s (%i)", STRERRNO,
+          status);
     return -1;
   }
 
@@ -138,9 +137,8 @@ static int lpar_read(void) {
                                &lparstats, sizeof(perfstat_partition_total_t),
                                /* number = */ 1 /* (must be 1) */);
   if (status != 1) {
-    char errbuf[1024];
-    ERROR("lpar plugin: perfstat_partition_total failed: %s (%i)",
-          sstrerror(errno, errbuf, sizeof(errbuf)), status);
+    ERROR("lpar plugin: perfstat_partition_total failed: %s (%i)", STRERRNO,
+          status);
     return -1;
   }
 
