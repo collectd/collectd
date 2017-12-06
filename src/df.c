@@ -152,6 +152,7 @@ static int df_read(void) {
 #elif HAVE_STATFS
   struct statfs statbuf;
 #endif
+  int retval = 0;
   /* struct STATANYFS statbuf; */
   cu_mount_t *mnt_list;
 
@@ -282,8 +283,10 @@ static int df_read(void) {
             (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100));
         df_submit_one(disk_name, "percent_bytes", "used",
                       (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100));
-      } else
-        return -1;
+      } else {
+        retval = -1;
+        break;
+      }
     }
 
     /* inode handling */
@@ -313,8 +316,10 @@ static int df_read(void) {
           df_submit_one(
               disk_name, "percent_inodes", "used",
               (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100));
-        } else
-          return -1;
+        } else {
+          retval = -1;
+          break;
+        }
       }
       if (values_absolute) {
         df_submit_one(disk_name, "df_inodes", "free", (gauge_t)inode_free);
@@ -327,7 +332,7 @@ static int df_read(void) {
 
   cu_mount_freelist(mnt_list);
 
-  return 0;
+  return retval;
 } /* int df_read */
 
 void module_register(void) {
