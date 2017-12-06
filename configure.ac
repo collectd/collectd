@@ -6383,8 +6383,18 @@ if test "x$with_libgps" = "xyes"; then
   plugin_gps="yes"
 fi
 
-if test "x$with_libgrpcpp" = "xyes" && test "x$with_libprotobuf" = "xyes" && test "x$have_protoc3" = "xyes" && test "x$GRPC_CPP_PLUGIN" != "x"; then
-  plugin_grpc="yes"
+plugin_grpc="yes"
+if test "x$GRPC_CPP_PLUGIN" = "x"; then
+  plugin_grpc="no (grpc_cpp_plugin not found)"
+fi
+if test "x$have_protoc3" != "xyes"; then
+  plugin_grpc="no (protoc3 not found)"
+fi
+if test "x$with_libprotobuf" != "xyes"; then
+  plugin_grpc="no (libprotobuf not found)"
+fi
+if test "x$with_libgrpcpp" != "xyes"; then
+  plugin_grpc="no (libgrpc++ not found)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then
