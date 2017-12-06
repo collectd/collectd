@@ -68,6 +68,18 @@
 
 static int loop = 0;
 
+long hostname_len() {
+#ifdef WIN32
+  return NI_MAXHOST;
+#else
+  long hostname_len = sysconf(_SC_HOST_NAME_MAX);
+  if (hostname_len == -1) {
+    hostname_len = NI_MAXHOST;
+  }
+  return hostname_len;
+#endif /* WIN32 */
+}
+
 /* TODO: some form of controlling collectd should be present on Windows. */
 #ifndef WIN32
 static void *do_flush(void __attribute__((unused)) * arg) {
@@ -104,17 +116,9 @@ static int init_hostname(void) {
     return 0;
   }
 
-#ifndef WIN32
-  long hostname_len = sysconf(_SC_HOST_NAME_MAX);
-#else
-  long hostname_len = -1;
-#endif
-  if (hostname_len == -1) {
-    hostname_len = NI_MAXHOST;
-  }
-  char hostname[hostname_len];
+  char hostname[hostname_len()];
 
-  if (gethostname(hostname, hostname_len) != 0) {
+  if (gethostname(hostname, hostname_len()) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
     return -1;
