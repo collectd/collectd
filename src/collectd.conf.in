@@ -643,6 +643,7 @@
 #		SSLCACertificateFile "/path/to/root.pem"
 #		SSLCertificateFile "/path/to/client.pem"
 #		SSLCertificateKeyFile "/path/to/client.key"
+#		VerifyPeer true
 #	</Listen>
 #</Plugin>
 
