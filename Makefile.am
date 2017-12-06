@@ -1421,6 +1421,15 @@ python_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBPYTHON_CPPFLAGS)
 python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
+if HAVE_LIBMNL
+noinst_LTLIBRARIES += libtaskstats.la
+libtaskstats_la_SOURCES = \
+	src/utils_taskstats.c \
+	src/utils_taskstats.h
+libtaskstats_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+libtaskstats_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
+endif
+
 if BUILD_PLUGIN_PROCESSES
 pkglib_LTLIBRARIES += processes.la
 processes_la_SOURCES = src/processes.c
