@@ -599,11 +599,7 @@ test_utils_oauth_LDADD = \
 	liboauth.la \
 	libcommon.la \
 	libplugin_mock.la
-endif
-endif
-endif
 
-if BUILD_WITH_LIBCURL
 noinst_LTLIBRARIES += libgce.la
 libgce_la_SOURCES = \
 	src/utils_gce.c \
@@ -613,6 +609,8 @@ libgce_la_CPPFLAGS = \
 	$(BUILD_WITH_LIBCURL_CFLAGS)
 libgce_la_LIBADD = \
 	$(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
 endif
 
 if BUILD_WITH_LIBYAJL2
