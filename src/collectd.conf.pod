@@ -6895,7 +6895,7 @@ freed pages to be reclaimed. The metrics are reported as a percentage, e.g.
 C<percent-delay-cpu>. Disabled by default.
 
 This option is only available on Linux, requires the C<libmnl> library and
-requires root privileges at runtime.
+requires the C<CAP_NET_ADMIN> capability at runtime.
 
 =item B<CollectFileDescriptor> I<Boolean>
 

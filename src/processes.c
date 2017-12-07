@@ -158,6 +158,10 @@
 #include <kstat.h>
 #endif
 
+#ifdef HAVE_SYS_CAPABILITY_H
+#include <sys/capability.h>
+#endif
+
 #ifndef CMDLINE_BUFFER_SIZE
 #if defined(ARG_MAX) && (ARG_MAX < 4096)
 #define CMDLINE_BUFFER_SIZE ARG_MAX
@@ -1215,10 +1219,38 @@ static int ps_delay(process_entry_t *ps) {
   int status = ts_delay_by_tgid(taskstats_handle, (uint32_t)ps->id, &ps->delay);
   if (status == EPERM) {
     static c_complain_t c;
-    c_complain(LOG_ERR, &c, "processes plugin: reading delay information "
-                            "failed: \"%s\". This is probably because the "
-                            "taskstats interface requires root privileges.",
+#if defined(HAVE_SYS_CAPABILITY_H) && defined(CAP_NET_ADMIN)
+    if (check_capability(CAP_NET_ADMIN) != 0) {
+      if (getuid() == 0) {
+        c_complain(
+            LOG_ERR, &c,
+            "processes plugin: Reading Delay Accounting metric failed: %s. "
+            "collectd is running as root, but missing the CAP_NET_ADMIN "
+            "capability. The most common cause for this is that the init "
+            "system is dropping capabilities.",
+            STRERROR(status));
+      } else {
+        c_complain(
+            LOG_ERR, &c,
+            "processes plugin: Reading Delay Accounting metric failed: %s. "
+            "collectd is not running as root and missing the CAP_NET_ADMIN "
+            "capability. Either run collectd as root or grant it the "
+            "CAP_NET_ADMIN capability using \"setcap cap_net_admin=ep " PREFIX
+            "/sbin/collectd\".",
+            STRERROR(status));
+      }
+    } else {
+      ERROR("processes plugin: ts_delay_by_tgid failed: %s. The CAP_NET_ADMIN "
+            "capability is available (I checked), so this error is utterly "
+            "unexpected.",
+            STRERROR(status));
+    }
+#else
+    c_complain(LOG_ERR, &c,
+               "processes plugin: Reading Delay Accounting metric failed: %s. "
+               "Reading Delay Accounting metrics requires root privileges.",
                STRERROR(status));
+#endif
     return status;
   } else if (status != 0) {
     ERROR("processes plugin: ts_delay_by_tgid failed: %s", STRERROR(status));
@@ -1757,8 +1789,7 @@ static int mach_get_task_name(task_t t, int *pid, char *name,
   return 0;
 }
 #endif /* HAVE_THREAD_INFO */
-/* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO -------
- */
+/* end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO */
 
 /* do actual readings from kernel */
 static int ps_read(void) {
