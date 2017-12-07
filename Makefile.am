@@ -95,12 +95,15 @@ pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/server.h \
 	src/libcollectdclient/collectd/types.h
 
-lib_LTLIBRARIES = libcollectdclient.la
-
+lib_LTLIBRARIES = \
+        libcollectd.la \
+        libcollectdclient.la
 
 if BUILD_WIN32
 # TODO: we should build these executables on Windows as well.
-sbin_PROGRAMS = collectd
+sbin_PROGRAMS = \
+        collectd
+
 bin_PROGRAMS =
 else
 sbin_PROGRAMS = \
@@ -207,7 +210,6 @@ if BUILD_WITH_LIBDEVINFO
 COMMON_LIBS += -ldevinfo
 endif
 
-lib_LTLIBRARIES = libcollectd.la
 libcollectd_la_SOURCES = \
 	src/daemon/configfile.c \
 	src/daemon/configfile.h \

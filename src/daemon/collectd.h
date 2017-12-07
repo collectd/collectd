@@ -35,7 +35,6 @@
 
 #ifdef WIN32
 typedef int uid_t;
-//#include <config.h>
 #include <gnulib_config.h>
 #endif
 

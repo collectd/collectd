@@ -43,10 +43,10 @@
 #ifndef WIN32
 #include <sys/un.h>
 #else
+#undef gethostname
 #include <fcntl.h>
 #include <locale.h>
 #include <unistd.h>
-#undef gethostname
 #include <Winsock2.h>
 #endif /* !WIN32 */
 
