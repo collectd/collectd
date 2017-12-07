@@ -586,7 +586,8 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
   /* If not using logical core numbering, set core id */
   if (!config_lcn) {
     if (topology.num_packages > 1)
-      snprintf(name, sizeof(name), "pkg%02d-core%02d", p->package_id, c->core_id);
+      snprintf(name, sizeof(name), "pkg%02d-core%02d", p->package_id,
+               c->core_id);
     else
       snprintf(name, sizeof(name), "core%02d", c->core_id);
   }
@@ -977,6 +978,7 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x45: /* HSW */
     case 0x46: /* HSW */
     case 0x3D: /* BDW */
+    case 0x5E: /* SKL */
       do_rapl = RAPL_PKG | RAPL_CORES | RAPL_GFX;
       break;
     case 0x3F: /* HSX */
