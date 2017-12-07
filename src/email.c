@@ -299,22 +299,21 @@ static void *collect(void *arg) {
       }
 
       if (line[0] == 'e') { /* e:<type>:<bytes> */
-        char *ptr = NULL;
-        char *type = strtok_r(line + 2, ":", &ptr);
-        char *tmp = strtok_r(NULL, ":", &ptr);
-        int bytes = 0;
-
-        if (tmp == NULL) {
+        char *type = line + 2;
+        char *bytes_str = strchr(type, ':');
+        if (bytes_str == NULL) {
           log_err("collect: syntax error in line '%s'", line);
           continue;
         }
 
-        bytes = atoi(tmp);
+        *bytes_str = 0;
+        bytes_str++;
 
         pthread_mutex_lock(&count_mutex);
         type_list_incr(&list_count, type, /* increment = */ 1);
         pthread_mutex_unlock(&count_mutex);
 
+        int bytes = atoi(bytes_str);
         if (bytes > 0) {
           pthread_mutex_lock(&size_mutex);
           type_list_incr(&list_size, type, /* increment = */ bytes);
@@ -374,13 +373,14 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   }
 
   struct sockaddr_un addr = {
-    .sun_family = AF_UNIX
+      .sun_family = AF_UNIX,
   };
   sstrncpy(addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
 
   errno = 0;
   if (bind(connector_socket, (struct sockaddr *)&addr,
-           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) == -1) {
+           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) ==
+      -1) {
     char errbuf[1024];
     disabled = 1;
     close(connector_socket);
