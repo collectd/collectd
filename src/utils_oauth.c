@@ -104,52 +104,6 @@ static size_t write_memory(void *contents, size_t size, size_t nmemb, /* {{{ */
   return realsize;
 } /* }}} size_t write_memory */
 
-static EVP_PKEY *load_p12(/* {{{ */
-                          char const *p12_filename,
-                          char const *p12_passphrase) {
-  FILE *fp;
-  PKCS12 *p12;
-  X509 *cert;
-  STACK_OF(X509) *ca = NULL;
-  EVP_PKEY *pkey = NULL;
-
-  OpenSSL_add_all_algorithms();
-
-  fp = fopen(p12_filename, "rb");
-  if (fp == NULL) {
-    char errbuf[1024];
-    ERROR("utils_oauth: Opening private key %s failed: %s", p12_filename,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
-    return NULL;
-  }
-
-  p12 = d2i_PKCS12_fp(fp, NULL);
-  fclose(fp);
-  if (p12 == NULL) {
-    char errbuf[1024];
-    ERR_error_string_n(ERR_get_error(), errbuf, sizeof(errbuf));
-    ERROR("utils_oauth: Reading private key %s failed: %s", p12_filename,
-          errbuf);
-    return NULL;
-  }
-
-  if (PKCS12_parse(p12, p12_passphrase, &pkey, &cert, &ca) == 0) {
-    char errbuf[1024];
-    ERR_error_string_n(ERR_get_error(), errbuf, sizeof(errbuf));
-    ERROR("utils_oauth: Parsing private key %s failed: %s", p12_filename,
-          errbuf);
-
-    if (cert)
-      X509_free(cert);
-    if (ca)
-      sk_X509_pop_free(ca, X509_free);
-    PKCS12_free(p12);
-    return NULL;
-  }
-
-  return pkey;
-} /* }}} EVP_PKEY *load_p12 */
-
 /* Base64-encodes "s" and stores the result in buffer.
  * Returns zero on success, non-zero otherwise. */
 static int base64_encode_n(char const *s, size_t s_size, /* {{{ */
@@ -479,11 +433,9 @@ static int renew_token(oauth_t *auth) /* {{{ */
   return new_token(auth);
 } /* }}} int renew_token */
 
-/*
- * Public
- */
-oauth_t *oauth_create(char const *url, char const *iss, char const *scope,
-                      char const *aud, EVP_PKEY *key) /* {{{ */
+static oauth_t *oauth_create(char const *url, char const *iss,
+                             char const *scope, char const *aud,
+                             EVP_PKEY *key) /* {{{ */
 {
   oauth_t *auth;
 
@@ -512,18 +464,9 @@ oauth_t *oauth_create(char const *url, char const *iss, char const *scope,
   return auth;
 } /* }}} oauth_t *oauth_create */
 
-oauth_t *oauth_create_p12(char const *url, char const *iss, char const *scope,
-                          char const *aud, /* {{{ */
-                          char const *file, char const *pass) {
-  EVP_PKEY *key = load_p12(file, pass);
-  if (key == NULL) {
-    ERROR("utils_oauth: Failed to load PKCS#12 key from %s", file);
-    return NULL;
-  }
-
-  return oauth_create(url, iss, scope, aud, key);
-} /* }}} oauth_t *oauth_create_p12 */
-
+/*
+ * Public
+ */
 oauth_google_t oauth_create_google_json(char const *buffer, char const *scope) {
   char errbuf[1024];
   yajl_val root = yajl_tree_parse(buffer, errbuf, sizeof(errbuf));

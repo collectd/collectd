@@ -30,18 +30,11 @@
 #define GOOGLE_OAUTH_URL "https://www.googleapis.com/oauth2/v3/token"
 #endif
 
-#include <openssl/evp.h>
-
 struct oauth_s;
 typedef struct oauth_s oauth_t;
 
 int oauth_parse_json_token(char const *json, char *out_access_token,
                            size_t access_token_size, cdtime_t *expires_in);
-
-oauth_t *oauth_create(char const *url, char const *iss, char const *scope,
-                      char const *aud, EVP_PKEY *key);
-oauth_t *oauth_create_p12(char const *url, char const *iss, char const *scope,
-                          char const *aud, char const *file, char const *pass);
 
 typedef struct {
   char *project_id;
