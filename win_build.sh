@@ -1,3 +1,5 @@
+#! /bin/sh
+
 set -e
 
 TOP_SRCDIR=`pwd`
