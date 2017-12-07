@@ -907,34 +907,23 @@ static void ps_submit_proc_list(procstat_t *ps) {
    * them to a percentage. */
   gauge_t const delay_factor = 100.0 / 1000000000.0;
 
-  if (!isnan(ps->delay_cpu)) {
+  struct {
+    char *type_instance;
+    gauge_t rate_ns;
+  } delay_metrics[] = {
+      {"cpu", ps->delay_cpu},
+      {"blkio", ps->delay_blkio},
+      {"swapin", ps->delay_swapin},
+      {"freepages", ps->delay_freepages},
+  };
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(delay_metrics); i++) {
+    if (isnan(delay_metrics[i].rate_ns)) {
+      continue;
+    }
     sstrncpy(vl.type, "percent", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "delay-cpu", sizeof(vl.type_instance));
-    vl.values[0].gauge = ps->delay_cpu * delay_factor;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-  }
-
-  if (!isnan(ps->delay_blkio)) {
-    sstrncpy(vl.type, "percent", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "delay-blkio", sizeof(vl.type_instance));
-    vl.values[0].gauge = ps->delay_blkio * delay_factor;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-  }
-
-  if (!isnan(ps->delay_swapin)) {
-    sstrncpy(vl.type, "percent", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "delay-swapin", sizeof(vl.type_instance));
-    vl.values[0].gauge = ps->delay_swapin * delay_factor;
-    vl.values_len = 1;
-    plugin_dispatch_values(&vl);
-  }
-
-  if (!isnan(ps->delay_freepages)) {
-    sstrncpy(vl.type, "percent", sizeof(vl.type));
-    sstrncpy(vl.type_instance, "delay-freepages", sizeof(vl.type_instance));
-    vl.values[0].gauge = ps->delay_freepages * delay_factor;
+    sstrncpy(vl.type_instance, delay_metrics[i].type_instance,
+             sizeof(vl.type_instance));
+    vl.values[0].gauge = delay_metrics[i].rate_ns * delay_factor;
     vl.values_len = 1;
     plugin_dispatch_values(&vl);
   }
