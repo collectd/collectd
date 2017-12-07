@@ -44,10 +44,10 @@
 #include <sys/un.h>
 #else
 #undef gethostname
+#include <Winsock2.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <unistd.h>
-#include <Winsock2.h>
 #endif /* !WIN32 */
 
 #if HAVE_LOCALE_H
