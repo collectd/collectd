@@ -657,7 +657,7 @@ static void ps_tune_instance(oconfig_item_t *ci, procstat_t *ps) {
               "for the \"CollectDelayAccounting\" option.");
 #endif
     } else {
-      ERROR("processes plugin: Option `%s' not allowed heeere.", c->key);
+      ERROR("processes plugin: Option \"%s\" not allowed here.", c->key);
     }
   } /* for (ci->children) */
 } /* void ps_tune_instance */
