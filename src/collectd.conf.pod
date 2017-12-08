@@ -6849,22 +6849,25 @@ The statistics collected for matched processes are:
  - number of memory mapped files (under Linux)
  - io data (where available)
  - context switches (under Linux)
- - minor and major pagefaults.
+ - minor and major pagefaults
+ - Delay Accounting information (Linux only, requires libmnl)
 
 B<Synopsis:>
 
  <Plugin processes>
-   CollectFileDescriptor true
-   CollectContextSwitch true
+   CollectFileDescriptor  true
+   CollectContextSwitch   true
+   CollectDelayAccounting false
    Process "name"
    ProcessMatch "name" "regex"
    <Process "collectd">
-     CollectFileDescriptor false
-     CollectContextSwitch false
+     CollectFileDescriptor  false
+     CollectContextSwitch   false
+     CollectDelayAccounting true
    </Process>
    <ProcessMatch "name" "regex">
      CollectFileDescriptor false
-     CollectContextSwitch true
+     CollectContextSwitch  true
    </Process>
  </Plugin>
 
@@ -6890,6 +6893,18 @@ I<name> must not contain slashes.
 Collect the number of context switches for matched processes.
 Disabled by default.
 
+=item B<CollectDelayAccounting> I<Boolean>
+
+If enabled, collect Linux Delay Accounding information for matching processes.
+Delay Accounting provides the time processes wait for the CPU to become
+available, for I/O operations to finish, for pages to be swapped in and for
+freed pages to be reclaimed. The metrics are reported as "seconds per second"
+using the C<delay_rate> type, e.g. C<delay_rate-delay-cpu>.
+Disabled by default.
+
+This option is only available on Linux, requires the C<libmnl> library and
+requires the C<CAP_NET_ADMIN> capability at runtime.
+
 =item B<CollectFileDescriptor> I<Boolean>
 
 Collect number of file descriptors of matched processes.
@@ -6903,9 +6918,12 @@ the Linux kernel.
 
 =back
 
-Options B<CollectContextSwitch> and B<CollectFileDescriptor> may be used inside
-B<Process> and B<ProcessMatch> blocks - then they affect corresponding match
-only. Otherwise they set the default value for subsequent matches.
+The B<CollectContextSwitch>, B<CollectDelayAccounting>,
+B<CollectFileDescriptor> and B<CollectMemoryMaps> options may be used inside
+B<Process> and B<ProcessMatch> blocks. When used there, these options affect
+reporting the corresponding processes only. Outside of B<Process> and
+B<ProcessMatch> blocks these options set the default value for subsequent
+matches.
 
 =head2 Plugin C<protocols>
 

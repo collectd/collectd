@@ -3673,6 +3673,7 @@ if test "x$with_libmnl" = "xyes"; then
 fi
 AC_SUBST([BUILD_WITH_LIBMNL_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMNL_LIBS])
+AM_CONDITIONAL([HAVE_LIBMNL], [test "x$with_libmnl" = "xyes"])
 # }}}
 
 # --with-libnetapp {{{
