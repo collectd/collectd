@@ -459,15 +459,7 @@ static void submit(const char *message, yajl_val *node,
 
   vl.meta = meta;
 
-  struct timeval tv;
-
-  gettimeofday(&tv, NULL);
-
-  unsigned long long millisecondsSinceEpoch =
-      (unsigned long long)(tv.tv_sec) * 1000 +
-      (unsigned long long)(tv.tv_usec) / 1000;
-
-  DEBUG("sysevent plugin (%llu): dispatching message", millisecondsSinceEpoch);
+  DEBUG("sysevent plugin: dispatching message");
 
   plugin_dispatch_values(&vl);
 } /* }}} void sysevent_submit */
