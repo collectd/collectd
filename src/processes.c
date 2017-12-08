@@ -903,9 +903,9 @@ static void ps_submit_proc_list(procstat_t *ps) {
     plugin_dispatch_values(&vl);
   }
 
-  /* The ps->delay_* metrics are in nanoseconds per second. This factor converts
-   * them to a percentage. */
-  gauge_t const delay_factor = 100.0 / 1000000000.0;
+  /* The ps->delay_* metrics are in nanoseconds per second. Convert to seconds
+   * per second. */
+  gauge_t const delay_factor = 1000000000.0;
 
   struct {
     char *type_instance;
@@ -920,7 +920,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
     if (isnan(delay_metrics[i].rate_ns)) {
       continue;
     }
-    sstrncpy(vl.type, "percent", sizeof(vl.type));
+    sstrncpy(vl.type, "delay_rate", sizeof(vl.type));
     sstrncpy(vl.type_instance, delay_metrics[i].type_instance,
              sizeof(vl.type_instance));
     vl.values[0].gauge = delay_metrics[i].rate_ns * delay_factor;

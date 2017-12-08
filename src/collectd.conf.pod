@@ -6891,8 +6891,9 @@ Disabled by default.
 If enabled, collect Linux Delay Accounding information for matching processes.
 Delay Accounting provides the time processes wait for the CPU to become
 available, for I/O operations to finish, for pages to be swapped in and for
-freed pages to be reclaimed. The metrics are reported as a percentage, e.g.
-C<percent-delay-cpu>. Disabled by default.
+freed pages to be reclaimed. The metrics are reported as "seconds per second"
+using the C<delay_rate> type, e.g. C<delay_rate-delay-cpu>.
+Disabled by default.
 
 This option is only available on Linux, requires the C<libmnl> library and
 requires the C<CAP_NET_ADMIN> capability at runtime.
