@@ -911,10 +911,10 @@ static void ps_submit_proc_list(procstat_t *ps) {
     char *type_instance;
     gauge_t rate_ns;
   } delay_metrics[] = {
-      {"cpu", ps->delay_cpu},
-      {"blkio", ps->delay_blkio},
-      {"swapin", ps->delay_swapin},
-      {"freepages", ps->delay_freepages},
+      {"delay-cpu", ps->delay_cpu},
+      {"delay-blkio", ps->delay_blkio},
+      {"delay-swapin", ps->delay_swapin},
+      {"delay-freepages", ps->delay_freepages},
   };
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(delay_metrics); i++) {
     if (isnan(delay_metrics[i].rate_ns)) {
