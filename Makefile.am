@@ -1782,15 +1782,6 @@ wireless_la_SOURCES = src/wireless.c
 wireless_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
-if BUILD_PLUGIN_WRITE_AODH
-pkglib_LTLIBRARIES += write_aodh.la
-write_aodh_la_SOURCES = \
-	src/write_aodh.c
-write_aodh_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
-write_aodh_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-write_aodh_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
-endif
-
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = src/write_graphite.c
