@@ -486,17 +486,18 @@ static int wg_config_resource(oconfig_item_t *ci, wg_callback_t *cb) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if ((child->values_num != 1) ||
-        (child->values[0].type != OCONFIG_TYPE_STRING)) {
-      ERROR("write_stackdriver plugin: Resource labels must have exactly one "
-            "string "
-            "value. Ignoring label \"%s\".",
-            child->key);
-      continue;
-    }
+    if (strcasecmp("Label", child->key) == 0) {
+      if ((child->values_num != 2) ||
+          (child->values[0].type != OCONFIG_TYPE_STRING) ||
+          (child->values[1].type != OCONFIG_TYPE_STRING)) {
+        ERROR("write_stackdriver plugin: The \"Label\" option needs exactly "
+              "two string arguments.");
+        continue;
+      }
 
-    sd_resource_add_label(cb->resource, child->key,
-                          child->values[0].value.string);
+      sd_resource_add_label(cb->resource, child->values[0].value.string,
+                            child->values[1].value.string);
+    }
   }
 
   return 0;

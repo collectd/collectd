@@ -1793,7 +1793,7 @@
 #  CredentialFile "/path/to/gcp-project-id-12345.json"
 #  Email "123456789012@developer.gserviceaccount.com"
 #  <Resource "global">
-#    project_id "gcp-project-id"
+#    Label "project_id" "gcp-project-id"
 #  </Resource>
 #  Url "https://monitoring.googleapis.com/v3"
 #</Plugin>

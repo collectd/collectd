@@ -10323,7 +10323,7 @@ B<Synopsis:>
  <Plugin write_stackdriver>
    CredentialFile "/path/to/service_account.json"
    <Resource "global">
-     project_id "monitored_project"
+     Label "project_id" "monitored_project"
    </Resource>
  </Plugin>
 
@@ -10347,7 +10347,7 @@ credentials.
 
 =item
 
-The patch C<${HOME}/.config/gcloud/application_default_credentials.json> is
+The path C<${HOME}/.config/gcloud/application_default_credentials.json> is
 checked. This where credentials used by the I<gcloud> command line utility are
 stored. You can use C<gcloud auth application-default login> to create these
 credentials.
@@ -10388,30 +10388,44 @@ I<write_stackdriver plugin>.
 
 =item B<Resource> I<ResourceType>
 
-Configures the I<Monitored Resource> to use when storing metrics. This option
-takes a I<ResourceType> and arbitrary string options which are used as labels.
+Configures the I<Monitored Resource> to use when storing metrics.
+More information on I<Monitored Resources> and I<Monitored Resource Types> are
+available at L<https://cloud.google.com/monitoring/api/resources>.
 
-On GCE, defaults to the equivalent of this config:
+This block takes one string argument, the I<ResourceType>. Inside the block are
+one or more B<Label> options which configure the resource labels.
+
+This block is optional. The default value depends on the runtime environment:
+on GCE, the C<gce_instance> resource type is used, otherwise the C<global>
+resource type ist used:
+
+=over 4
+
+=item
+
+B<On GCE>, defaults to the equivalent of this config:
 
   <Resource "gce_instance">
-    project_id "<project_id>"
-    instance_id "<instance_id>"
-    zone "<zone>"
+    Label "project_id" "<project_id>"
+    Label "instance_id" "<instance_id>"
+    Label "zone" "<zone>"
   </Resource>
 
 The values for I<project_id>, I<instance_id> and I<zone> are read from the GCE
 metadata service.
 
-When not running on GCE, defaults to the equivalent of this config:
+=item
+
+B<Elsewhere>, i.e. not on GCE, defaults to the equivalent of this config:
 
   <Resource "global">
-    project_id "<Project>"
+    Label "project_id" "<Project>"
   </Resource>
 
-Where I<Project> refers to the value of the B<Project> option.
+Where I<Project> refers to the value of the B<Project> option or the project ID
+inferred from the B<CredentialFile>.
 
-See L<https://cloud.google.com/monitoring/api/resources> for more information
-on I<Monitored Resource Types>.
+=back
 
 =item B<Url> I<Url>
 
