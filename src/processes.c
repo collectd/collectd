@@ -1248,10 +1248,6 @@ static int ps_delay(process_entry_t *ps) {
 
   return 0;
 }
-#else
-static int ps_delay(__attribute__((unused)) process_entry_t *unused) {
-  return -1;
-}
 #endif
 
 static void ps_fill_details(const procstat_t *ps, process_entry_t *entry) {
