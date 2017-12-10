@@ -1249,7 +1249,8 @@ static int ps_delay(process_entry_t *ps) {
   return 0;
 }
 #else
-static int ps_delay(__attribute__((unused)) process_entry_t *unused) {
+__attribute__((unused)) static int ps_delay(__attribute__((unused))
+                                            process_entry_t *unused) {
   return -1;
 }
 #endif
