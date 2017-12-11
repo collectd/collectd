@@ -101,6 +101,7 @@ export CFLAGS="-Drestrict=__restrict -I${GNULIB_DIR}"
   --enable-target_replace \
   --enable-target_set \
   --enable-match_regex \
+  --enable-network \
   --enable-write_http \
   --enable-write_log \
   --enable-wmi

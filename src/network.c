@@ -133,7 +133,7 @@ typedef struct sockent {
 
   char *node;
   char *service;
-  int interface;
+  int interface_;
 
   union {
     struct sockent_client client;
@@ -1610,7 +1610,7 @@ static int network_set_interface(const sockent_t *se,
                                  const struct addrinfo *ai) /* {{{ */
 {
   DEBUG("network plugin: network_set_interface: interface index = %i;",
-        se->interface);
+        se->interface_);
 
   assert(se->type == SOCKENT_TYPE_CLIENT);
 
@@ -1626,7 +1626,7 @@ static int network_set_interface(const sockent_t *se,
        * appears not to be portable. */
       struct ip_mreqn mreq = {.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
                               .imr_address.s_addr = ntohl(INADDR_ANY),
-                              .imr_ifindex = se->interface};
+                              .imr_ifindex = se->interface_};
 #else
       struct ip_mreq mreq = {.imr_multiaddr.s_addr = addr->sin_addr.s_addr,
                              .imr_interface.s_addr = ntohl(INADDR_ANY)};
@@ -1647,7 +1647,7 @@ static int network_set_interface(const sockent_t *se,
 
     if (IN6_IS_ADDR_MULTICAST(&addr->sin6_addr)) {
       if (setsockopt(se->data.client.fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-                     &se->interface, sizeof(se->interface)) != 0) {
+                     &se->interface_, sizeof(se->interface_)) != 0) {
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv6-multicast-if): %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -1659,12 +1659,12 @@ static int network_set_interface(const sockent_t *se,
   }
 
   /* else: Not a multicast interface. */
-  if (se->interface != 0) {
+  if (se->interface_ != 0) {
 #if defined(HAVE_IF_INDEXTONAME) && HAVE_IF_INDEXTONAME &&                     \
     defined(SO_BINDTODEVICE)
     char interface_name[IFNAMSIZ];
 
-    if (if_indextoname(se->interface, interface_name) == NULL)
+    if (if_indextoname(se->interface_, interface_name) == NULL)
       return -1;
 
     DEBUG("network plugin: Binding socket to interface %s", interface_name);
@@ -1842,7 +1842,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
   se->type = type;
   se->node = NULL;
   se->service = NULL;
-  se->interface = 0;
+  se->interface_ = 0;
   se->next = NULL;
 
   if (type == SOCKENT_TYPE_SERVER) {
@@ -2087,7 +2087,7 @@ static int sockent_server_listen(sockent_t *se) /* {{{ */
       continue;
     }
 
-    status = network_bind_socket(*tmp, ai_ptr, se->interface);
+    status = network_bind_socket(*tmp, ai_ptr, se->interface_);
     if (status != 0) {
       close(*tmp);
       *tmp = -1;
@@ -2707,13 +2707,13 @@ static int network_config_set_ttl(const oconfig_item_t *ci) /* {{{ */
 } /* }}} int network_config_set_ttl */
 
 static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
-                                        int *interface) {
+                                        int *interface_) {
   char if_name[256];
 
   if (cf_util_get_string_buffer(ci, if_name, sizeof(if_name)) != 0)
     return -1;
 
-  *interface = if_nametoindex(if_name);
+  *interface_ = if_nametoindex(if_name);
   return 0;
 } /* }}} int network_config_set_interface */
 
@@ -2795,7 +2795,7 @@ static int network_config_add_listen(const oconfig_item_t *ci) /* {{{ */
     else
 #endif /* HAVE_GCRYPT_H */
         if (strcasecmp("Interface", child->key) == 0)
-      network_config_set_interface(child, &se->interface);
+      network_config_set_interface(child, &se->interface_);
     else {
       WARNING("network plugin: Option `%s' is not allowed here.", child->key);
     }
@@ -2875,7 +2875,7 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
     else
 #endif /* HAVE_GCRYPT_H */
         if (strcasecmp("Interface", child->key) == 0)
-      network_config_set_interface(child, &se->interface);
+      network_config_set_interface(child, &se->interface_);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else {
