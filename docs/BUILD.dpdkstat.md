@@ -1,7 +1,14 @@
 # The dpdkstat plugin
 
 **Data Plane Development Kit** (DPDK) is a set of drivers and libraries for fast
-packet processing.
+packet processing. Please note that this plugin is a polling based plugin rather
+than an events based plugin (using it will drive up core utilization on a system).
+
+**PLEASE DO NOT USE THIS PLUGIN FOR OVS-DPDK**. dpdkstat is really for DPDK
+applications that have no other way of exposing stats. For OVS or OVS-with-DPDK the
+Open vSwitch plugins available in collectd Version 5.8.0 should be used for
+collecting stats and events. In addition the OVS plugin is events based rather
+than polling based and will have a smaller footprint on the system.
 
 ## Summary
 
