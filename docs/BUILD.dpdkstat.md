@@ -1,5 +1,8 @@
 # The dpdkstat plugin
 
+This plugin is optional and only has a specific use case: monitoring DPDK applications
+that don't expose stats in any other way than the DPDK xstats API.
+
 **Data Plane Development Kit** (DPDK) is a set of drivers and libraries for fast
 packet processing. Please note that this plugin is a polling based plugin rather
 than an events based plugin (using it will drive up core utilization on a system).
