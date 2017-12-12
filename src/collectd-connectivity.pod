@@ -1,0 +1,57 @@
+
+=encoding UTF-8
+
+=head1 Plugin Connectivity
+
+connectivity - Documentation of collectd's C<connectivity plugin>
+
+=head1 SYNOPSIS
+
+  LoadPlugin connectivity
+  # ...
+  <Plugin connectivity>
+    Interface eth0
+    ...
+    Interface eno2
+  </Plugin>
+
+=head1 DESCRIPTION
+
+The C<connectivity plugin> queries interface status using netlink (man 7 netlink) which provides information about network interfaces via the NETLINK_ROUTE family (man 7 rtnetlink). The plugin  translates the value it receives to collectd's internal format and depending on the write plugins you have loaded they may be written to disk or submitted to another instance .
+The plugin lsitenes to interfaces configured in LoadPlugin(see configuration belwo)
+
+=head1 CONFIGURATION
+
+Here this example shows C<connectivity plugin> monitoring 2 interfaces "eth0" and "eth1"
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth01
+  Interface eth02
+</Plugin>
+
+=over 4
+
+=item B<Interface> I<interface_name>
+
+interface(s) to monitor. 
+
+=back
+
+=head1 Status
+
+If I<Status> is greater than or equal to zero the message indicates interface is up,
+if I<Status> is less than zero the message indicates interface is down. 
+
+=back
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+
+=head1 AUTHOR
+
+The C<connectivity plugin> has been written by Andrew Bays E<lt>abays@redhat.comE<gt>.
+
+This manpage has been written by Aneesh Puttur E<lt>aputtur@redhat.comE<gt>.
+
+=cut
