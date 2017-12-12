@@ -1015,6 +1015,8 @@
 #<Plugin "notify_icinga">
 #  IcingaHost "localhost"
 #  IcingaPort 5665
+#  IcingaUser "icingauser"
+#  IcingaPassword "icingapassword"
 #  LogOnly false
 #</Plugin>
 

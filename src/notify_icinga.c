@@ -122,8 +122,7 @@ struct ni_callback {
  "check_source": "example.localdomain" }'
 
 static const char *config_keys[] = {"IcingaHost", "IcingaPort", "IcingaUser",
-                                    "IcingaPassword", "IcingaCert",
-"IcingaKey"};
+                                    "IcingaPassword", "IcingaCert", "IcingaKey"};
 
 static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 */
