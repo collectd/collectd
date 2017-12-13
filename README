@@ -378,6 +378,9 @@ Features
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
 
+    - sysevent
+      Listens to rsyslog events and submits matched values.
+
     - swap
       Pages swapped out onto hard disk or whatever is called `swap' by the OS..
 
