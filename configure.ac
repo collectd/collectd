@@ -6480,18 +6480,15 @@ if test "x$ac_system" = "xLinux"; then
   if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
     plugin_ovs_events="yes"
     plugin_ovs_stats="yes"
-<<<<<<< HEAD
     plugin_procevent="yes"
-  fi
-
-  if test "x$have_pci_regs_h" = "xyes"; then
-    plugin_pcie_errors="yes"
-=======
 
     if test "x$with_libmnl" = "xyes"; then
       plugin_connectivity="yes"
     fi
->>>>>>> connectivity notifications
+  fi
+
+  if test "x$have_pci_regs_h" = "xyes"; then
+    plugin_pcie_errors="yes"
   fi
 fi
 
