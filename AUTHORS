@@ -57,6 +57,7 @@ Andreas Henriksson <andreas at fatal.se>
  - libmnl support in the netlink plugin.
 
 Andrew Bays <abays at redhat.com>
+ - connectivity plugin.
  - procevent plugin.
  - sysevent plugin.
 
@@ -65,6 +66,9 @@ Andy Parkins <andyp at fussylogic.co.uk>
 
 Andy Smith <ansmith at redhat.com>
  - AMQP 1.0 plugin.
+ 
+Aneesh Puttur <aputtur at redhat.com>
+ - connectivity plugin.
 
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
