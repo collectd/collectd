@@ -103,7 +103,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 // Does /proc/<pid>/comm contain a process name we are interested in?
 static processlist_t *process_check(int pid) {
-  int len, is_match, status;
+  int len, is_match, status, retval;
   char file[BUFSIZE];
   FILE *fh;
   char buffer[BUFSIZE];
@@ -122,7 +122,13 @@ static processlist_t *process_check(int pid) {
     return NULL;
   }
 
-  fscanf(fh, "%[^\n]", buffer);
+  retval = fscanf(fh, "%[^\n]", buffer);
+
+  if (retval < 0) {
+    WARNING("procevent process_check: unable to read comm file for pid %d",
+            pid);
+    return NULL;
+  }
 
   //
   // Go through the processlist linked list and look for the process name
