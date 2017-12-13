@@ -32,6 +32,7 @@ clock_stratum           value:GAUGE:0:U
 compression             uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
 compression_ratio       value:GAUGE:0:2
 connections             value:DERIVE:0:U
+connectivity            value:GAUGE:0:2
 conntrack               value:GAUGE:0:4294967295
 contextswitch           value:DERIVE:0:U
 cookies                 value:DERIVE:0:U
