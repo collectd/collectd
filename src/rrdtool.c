@@ -620,9 +620,8 @@ static int rrd_cache_insert(const char *filename, const char *value,
     return -1;
   }
 
-  c_avl_get(cache, filename, (void *)&rc);
-
-  if (rc == NULL) {
+  int status = c_avl_get(cache, filename, (void *)&rc);
+  if ((status != 0) || (rc == NULL)) {
     rc = malloc(sizeof(*rc));
     if (rc == NULL) {
       pthread_mutex_unlock(&cache_lock);
@@ -794,7 +793,7 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   if (value_list_to_filename(filename, sizeof(filename), vl) != 0)
     return -1;
 
-  char values[32 * ds->ds_num];
+  char values[32 * (ds->ds_num + 1)];
   if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
     return -1;
 
@@ -1036,8 +1035,7 @@ static int rrd_init(void) {
     cache_flush_timeout = 0;
   } else if (cache_flush_timeout < cache_timeout) {
     INFO("rrdtool plugin: \"CacheFlush %.3f\" is less than \"CacheTimeout "
-         "%.3f\". "
-         "Ajusting \"CacheFlush\" to %.3f seconds.",
+         "%.3f\". Adjusting \"CacheFlush\" to %.3f seconds.",
          CDTIME_T_TO_DOUBLE(cache_flush_timeout),
          CDTIME_T_TO_DOUBLE(cache_timeout),
          CDTIME_T_TO_DOUBLE(cache_timeout * 10));
