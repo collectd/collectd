@@ -353,6 +353,7 @@ static int ts_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
     int status = meta_data_toc(data->meta, &meta_toc);
     if (status < 0) {
       ERROR("Target `set': meta_data_toc failed with status %d.", status);
+      meta_data_destroy(new_meta);
       return status;
     }
     size_t meta_entries = (size_t)status;

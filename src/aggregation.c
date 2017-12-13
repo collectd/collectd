@@ -403,9 +403,10 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
     READ_FUNC(average, (inst->sum / ((gauge_t)inst->num)));
     READ_FUNC(min, inst->min);
     READ_FUNC(max, inst->max);
-    READ_FUNC(stddev, sqrt((((gauge_t)inst->num) * inst->squares_sum) -
-                           (inst->sum * inst->sum)) /
-                          ((gauge_t)inst->num));
+    READ_FUNC(stddev,
+              sqrt((((gauge_t)inst->num) * inst->squares_sum) -
+                   (inst->sum * inst->sum)) /
+                  ((gauge_t)inst->num));
   }
 
   /* Reset internal state. */
@@ -504,11 +505,7 @@ static int agg_config_handle_group_by(oconfig_item_t const *ci, /* {{{ */
 
 static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
 {
-  aggregation_t *agg;
-  _Bool is_valid;
-  int status;
-
-  agg = calloc(1, sizeof(*agg));
+  aggregation_t *agg = calloc(1, sizeof(*agg));
   if (agg == NULL) {
     ERROR("aggregation plugin: calloc failed.");
     return -1;
@@ -523,49 +520,55 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
+    int status = 0;
 
     if (strcasecmp("Host", child->key) == 0)
-      cf_util_get_string_buffer(child, agg->ident.host,
-                                sizeof(agg->ident.host));
+      status = cf_util_get_string_buffer(child, agg->ident.host,
+                                         sizeof(agg->ident.host));
     else if (strcasecmp("Plugin", child->key) == 0)
-      cf_util_get_string_buffer(child, agg->ident.plugin,
-                                sizeof(agg->ident.plugin));
+      status = cf_util_get_string_buffer(child, agg->ident.plugin,
+                                         sizeof(agg->ident.plugin));
     else if (strcasecmp("PluginInstance", child->key) == 0)
-      cf_util_get_string_buffer(child, agg->ident.plugin_instance,
-                                sizeof(agg->ident.plugin_instance));
+      status = cf_util_get_string_buffer(child, agg->ident.plugin_instance,
+                                         sizeof(agg->ident.plugin_instance));
     else if (strcasecmp("Type", child->key) == 0)
-      cf_util_get_string_buffer(child, agg->ident.type,
-                                sizeof(agg->ident.type));
+      status = cf_util_get_string_buffer(child, agg->ident.type,
+                                         sizeof(agg->ident.type));
     else if (strcasecmp("TypeInstance", child->key) == 0)
-      cf_util_get_string_buffer(child, agg->ident.type_instance,
-                                sizeof(agg->ident.type_instance));
+      status = cf_util_get_string_buffer(child, agg->ident.type_instance,
+                                         sizeof(agg->ident.type_instance));
     else if (strcasecmp("SetHost", child->key) == 0)
-      cf_util_get_string(child, &agg->set_host);
+      status = cf_util_get_string(child, &agg->set_host);
     else if (strcasecmp("SetPlugin", child->key) == 0)
-      cf_util_get_string(child, &agg->set_plugin);
+      status = cf_util_get_string(child, &agg->set_plugin);
     else if (strcasecmp("SetPluginInstance", child->key) == 0)
-      cf_util_get_string(child, &agg->set_plugin_instance);
+      status = cf_util_get_string(child, &agg->set_plugin_instance);
     else if (strcasecmp("SetTypeInstance", child->key) == 0)
-      cf_util_get_string(child, &agg->set_type_instance);
+      status = cf_util_get_string(child, &agg->set_type_instance);
     else if (strcasecmp("GroupBy", child->key) == 0)
-      agg_config_handle_group_by(child, agg);
+      status = agg_config_handle_group_by(child, agg);
     else if (strcasecmp("CalculateNum", child->key) == 0)
-      cf_util_get_boolean(child, &agg->calc_num);
+      status = cf_util_get_boolean(child, &agg->calc_num);
     else if (strcasecmp("CalculateSum", child->key) == 0)
-      cf_util_get_boolean(child, &agg->calc_sum);
+      status = cf_util_get_boolean(child, &agg->calc_sum);
     else if (strcasecmp("CalculateAverage", child->key) == 0)
-      cf_util_get_boolean(child, &agg->calc_average);
+      status = cf_util_get_boolean(child, &agg->calc_average);
     else if (strcasecmp("CalculateMinimum", child->key) == 0)
-      cf_util_get_boolean(child, &agg->calc_min);
+      status = cf_util_get_boolean(child, &agg->calc_min);
     else if (strcasecmp("CalculateMaximum", child->key) == 0)
-      cf_util_get_boolean(child, &agg->calc_max);
+      status = cf_util_get_boolean(child, &agg->calc_max);
     else if (strcasecmp("CalculateStddev", child->key) == 0)
-      cf_util_get_boolean(child, &agg->calc_stddev);
+      status = cf_util_get_boolean(child, &agg->calc_stddev);
     else
       WARNING("aggregation plugin: The \"%s\" key is not allowed inside "
               "<Aggregation /> blocks and will be ignored.",
               child->key);
-  }
+
+    if (status != 0) {
+      sfree(agg);
+      return status;
+    }
+  } /* for (int i = 0; i < ci->children_num; i++) */
 
   if (agg_is_regex(agg->ident.host))
     agg->regex_fields |= LU_GROUP_BY_HOST;
@@ -577,7 +580,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
     agg->regex_fields |= LU_GROUP_BY_TYPE_INSTANCE;
 
   /* Sanity checking */
-  is_valid = 1;
+  _Bool is_valid = 1;
   if (strcmp("/.*/", agg->ident.type) == 0) /* {{{ */
   {
     ERROR("aggregation plugin: It appears you did not specify the required "
@@ -631,13 +634,12 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
     is_valid = 0;
   } /* }}} */
 
-  if (!is_valid) /* {{{ */
-  {
+  if (!is_valid) { /* {{{ */
     sfree(agg);
     return -1;
   } /* }}} */
 
-  status = lookup_add(lookup, &agg->ident, agg->group_by, agg);
+  int status = lookup_add(lookup, &agg->ident, agg->group_by, agg);
   if (status != 0) {
     ERROR("aggregation plugin: lookup_add failed with status %i.", status);
     sfree(agg);

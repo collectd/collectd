@@ -2635,6 +2635,7 @@ AC_ARG_WITH([libgrpc++],
     if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_libgrpcpp_cppflags="-I$withval/include"
       with_libgrpcpp_ldflags="-L$withval/lib"
+      with_libgrpcpp_bin="$withval/bin"
       with_libgrpcpp="yes"
     fi
     if test "x$withval" = "xno"; then
@@ -2714,7 +2715,11 @@ AC_SUBST([BUILD_WITH_LIBGRPCPP_LIBS])
 # }}}
 
 AC_ARG_VAR([GRPC_CPP_PLUGIN], [path to the grpc_cpp_plugin binary])
-AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+if test "x$with_libgrpcpp_bin" = "x"; then
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+else
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin], [], "$with_libgrpcpp_bin:$PATH")
+fi
 AM_CONDITIONAL([HAVE_GRPC_CPP], [test "x$GRPC_CPP_PLUGIN" != "x"])
 
 # --with-libiptc {{{
@@ -3668,6 +3673,7 @@ if test "x$with_libmnl" = "xyes"; then
 fi
 AC_SUBST([BUILD_WITH_LIBMNL_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMNL_LIBS])
+AM_CONDITIONAL([HAVE_LIBMNL], [test "x$with_libmnl" = "xyes"])
 # }}}
 
 # --with-libnetapp {{{
@@ -6380,8 +6386,18 @@ if test "x$with_libgps" = "xyes"; then
   plugin_gps="yes"
 fi
 
-if test "x$with_libgrpcpp" = "xyes" && test "x$with_libprotobuf" = "xyes" && test "x$have_protoc3" = "xyes" && test "x$GRPC_CPP_PLUGIN" != "x"; then
-  plugin_grpc="yes"
+plugin_grpc="yes"
+if test "x$GRPC_CPP_PLUGIN" = "x"; then
+  plugin_grpc="no (grpc_cpp_plugin not found)"
+fi
+if test "x$have_protoc3" != "xyes"; then
+  plugin_grpc="no (protoc3 not found)"
+fi
+if test "x$with_libprotobuf" != "xyes"; then
+  plugin_grpc="no (libprotobuf not found)"
+fi
+if test "x$with_libgrpcpp" != "xyes"; then
+  plugin_grpc="no (libgrpc++ not found)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then
