@@ -195,6 +195,7 @@ players                 value:GAUGE:0:1000000
 pools                   value:GAUGE:0:U
 power                   value:GAUGE:U:U
 pressure                value:GAUGE:0:U
+procevent               value:GAUGE:0:1
 protocol_counter        value:DERIVE:0:U
 ps_code                 value:GAUGE:0:9223372036854775807
 ps_count                processes:GAUGE:0:1000000, threads:GAUGE:0:1000000
