@@ -5484,8 +5484,6 @@ Available configuration options:
 
 =over 4
 
-Parameter names are self-describing.
-
 =item B<IcingaHost> I<hostname>
 
 =item B<IcingaPort> I<port number>
