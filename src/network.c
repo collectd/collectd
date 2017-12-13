@@ -25,6 +25,11 @@
 #define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For struct ip_mreq */
 
+#ifdef WIN32
+#include <ws2tcpip.h>
+#include <netioapi.h>
+#endif
+
 #include "collectd.h"
 
 #include "common.h"
@@ -133,7 +138,11 @@ typedef struct sockent {
 
   char *node;
   char *service;
+#ifdef WIN32
+  char interface_;
+#else
   int interface_;
+#endif
 
   union {
     struct sockent_client client;
@@ -261,7 +270,11 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
+#ifndef WIN32
 static int network_config_ttl = 0;
+#else
+static char network_config_ttl = 0;
+#endif
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
 static _Bool network_config_forward = 0;
@@ -1632,7 +1645,13 @@ static int network_set_interface(const sockent_t *se,
                              .imr_interface.s_addr = ntohl(INADDR_ANY)};
 #endif
 
-      if (setsockopt(se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF, &mreq,
+#ifdef WIN32
+      char *mreq_ptr = (char*)&mreq;
+#else
+      void *mreq_ptr = &mreq;
+#endif
+
+      if (setsockopt(se->data.client.fd, IPPROTO_IP, IP_MULTICAST_IF, mreq_ptr,
                      sizeof(mreq)) != 0) {
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv4-multicast-if): %s",
@@ -1695,12 +1714,16 @@ static int network_set_interface(const sockent_t *se,
 
 static int network_bind_socket(int fd, const struct addrinfo *ai,
                                const int interface_idx) {
-#if KERNEL_SOLARIS
+#if KERNEL_SOLARIS || WIN32
   char loop = 0;
 #else
   int loop = 0;
 #endif
+#ifdef WIN32
+  char yes = 1;
+#else
   int yes = 1;
+#endif
 
   /* allow multiple sockets to use the same PORT number */
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
@@ -1739,7 +1762,6 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 #else
       mreq.imr_interface.s_addr = ntohl(INADDR_ANY);
 #endif
-
       if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) ==
           -1) {
         char errbuf[1024];
@@ -1748,7 +1770,12 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
         return -1;
       }
 
-      if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) ==
+#ifdef WIN32
+      char *mreq_ptr = (char*)&mreq;
+#else
+      void *mreq_ptr = &mreq;
+#endif
+      if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, mreq_ptr, sizeof(mreq)) ==
           -1) {
         char errbuf[1024];
         ERROR("network plugin: setsockopt (add-membership): %s",
@@ -1788,7 +1815,13 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
         return -1;
       }
 
-      if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq,
+#ifdef WIN32
+      char *mreq_ptr = (char*)&mreq;
+#else
+      void *mreq_ptr = &mreq;
+#endif
+
+      if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, mreq_ptr,
                      sizeof(mreq)) == -1) {
         char errbuf[1024];
         ERROR("network plugin: setsockopt (ipv6-add-membership): %s",
@@ -1968,9 +2001,12 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
     return 0;
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_flags = 0,
                               .ai_protocol = IPPROTO_UDP,
                               .ai_socktype = SOCK_DGRAM};
+#ifndef WIN32
+  ai_hints.ai_flags = AI_ADDDRCONFIG;
+#endif
 
   status = getaddrinfo(se->node,
                        (se->service != NULL) ? se->service : NET_DEFAULT_PORT,
@@ -2054,9 +2090,12 @@ static int sockent_server_listen(sockent_t *se) /* {{{ */
         service);
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG | AI_PASSIVE,
+                              .ai_flags = AI_PASSIVE,
                               .ai_protocol = IPPROTO_UDP,
                               .ai_socktype = SOCK_DGRAM};
+#ifndef WIN32
+  ai_hints |= AI_ADDRCONFIG;
+#endif
 
   status = getaddrinfo(node, service, &ai_hints, &ai_list);
   if (status != 0) {
@@ -2707,13 +2746,22 @@ static int network_config_set_ttl(const oconfig_item_t *ci) /* {{{ */
 } /* }}} int network_config_set_ttl */
 
 static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
-                                        int *interface_) {
+#ifdef WIN32
+                                        char *interface_
+#else
+                                        int *interface_
+#endif
+                                       ) {
   char if_name[256];
 
   if (cf_util_get_string_buffer(ci, if_name, sizeof(if_name)) != 0)
     return -1;
 
+#ifdef WIN32
+  *interface_ = (char)if_nametoindex(if_name);
+#else
   *interface_ = if_nametoindex(if_name);
+#endif
   return 0;
 } /* }}} int network_config_set_interface */
 

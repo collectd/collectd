@@ -1266,12 +1266,15 @@ network_la_SOURCES = \
 	src/utils_fbhash.h
 network_la_CPPFLAGS = $(AM_CPPFLAGS)
 network_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-network_la_LIBADD =
+network_la_LIBADD = libcollectd.la
 if BUILD_WITH_LIBSOCKET
 network_la_LIBADD += -lsocket
 endif
 if BUILD_WITH_GNULIB
 network_la_LIBADD += -lgnu
+endif
+if BUILD_WIN32
+network_la_LIBADD += -liphlpapi
 endif
 if BUILD_WITH_LIBGCRYPT
 network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
