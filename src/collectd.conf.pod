@@ -7314,6 +7314,40 @@ reporting the corresponding processes only. Outside of B<Process> and
 B<ProcessMatch> blocks these options set the default value for subsequent
 matches.
 
+=head2 Plugin C<procevent>
+ 
+The I<procevent> plugin monitors when processes start (EXEC) and stop (EXIT).
+ 
+B<Synopsis:>
+ 
+  <Plugin procevent>
+    BufferLength 10
+    Process "name"
+    RegexProcess "regex"
+  </Plugin>
+ 
+B<Options:>
+ 
+=over 4
+ 
+=item B<BufferLength> I<length>
+ 
+Maximum number of process events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+ 
+=item B<Process> I<name>
+ 
+Enumerate a process name to monitor.  All processes that match this exact
+name will be monitored for EXECs and EXITs.
+
+=item B<RegexProcess> I<regex>
+ 
+Enumerate a process pattern to monitor.  All processes that match this 
+regular expression will be monitored for EXECs and EXITs.
+ 
+=back
+
 =head2 Plugin C<protocols>
 
 Collects a lot of information about various network protocols, such as I<IP>,

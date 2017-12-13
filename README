@@ -347,6 +347,9 @@ Features
     - processes
       Process counts: Number of running, sleeping, zombie, ... processes.
 
+    - procevent
+      Listens for process starts and exits via netlink.
+
     - protocols
       Counts various aspects of network protocols such as IP, TCP, UDP, etc.
 
