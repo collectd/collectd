@@ -285,6 +285,12 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
       close(st->fd);
       st->fd = -1;
       return -1;
+    } else if (status == 0) {
+      ERROR("memcached plugin: Instance \"%s\": Connection closed by peer",
+            st->name);
+      close(st->fd);
+      st->fd = -1;
+      return -1;
     }
 
     buffer_fill += (size_t)status;
