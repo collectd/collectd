@@ -512,7 +512,8 @@ static int sysevent_read(void) /* {{{ */
 
         memset(json_val, '\0', listen_buffer_size);
 
-        snprintf(json_val, listen_buffer_size, "%s%c", YAJL_GET_STRING(v), '\0');
+        snprintf(json_val, listen_buffer_size, "%s%c", YAJL_GET_STRING(v),
+                 '\0');
 
         match_str = (char *)&json_val;
       }
