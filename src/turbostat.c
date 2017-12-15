@@ -1478,8 +1478,8 @@ static int turbostat_read(void) {
    * get_counters. If the call is unsuccessfull, this will be handled later
    * on by restoring affinity to cpu_present_set instead.
    */
-  sched_getaffinity_ret = sched_getaffinity(0, cpu_saved_affinity_setsize,
-                        cpu_saved_affinity_set);
+  sched_getaffinity_ret =
+      sched_getaffinity(0, cpu_saved_affinity_setsize, cpu_saved_affinity_set);
 
   if (!initialized) {
     if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
@@ -1519,7 +1519,7 @@ out:
    * This might fail if the number of CPU changed, but we can't do anything in
    * that case..
    */
-  if (sched_getaffinity_ret == 0) 
+  if (sched_getaffinity_ret == 0)
     (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
                             cpu_saved_affinity_set);
   else {
