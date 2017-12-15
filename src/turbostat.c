@@ -1456,6 +1456,7 @@ err:
 
 static int turbostat_read(void) {
   int ret;
+  int sched_getaffinity_ret;
 
   if (!allocated) {
     if ((ret = setup_all_buffers()) < 0)
@@ -1473,12 +1474,12 @@ static int turbostat_read(void) {
     }
   }
 
-  /* Saving the scheduling affinity, as it will be modified by get_counters */
-  if (sched_getaffinity(0, cpu_saved_affinity_setsize,
-                        cpu_saved_affinity_set) != 0) {
-    ERROR("turbostat plugin: Unable to save the CPU affinity: %s", STRERRNO);
-    return -1;
-  }
+  /* Try to save the scheduling affinity, as it will be modified by
+   * get_counters. If the call is unsuccessfull, this will be handled later
+   * on by restoring affinity to cpu_present_set instead.
+   */
+  sched_getaffinity_ret = sched_getaffinity(0, cpu_saved_affinity_setsize,
+                        cpu_saved_affinity_set);
 
   if (!initialized) {
     if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
@@ -1518,8 +1519,16 @@ out:
    * This might fail if the number of CPU changed, but we can't do anything in
    * that case..
    */
-  (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
-                          cpu_saved_affinity_set);
+  if (sched_getaffinity_ret == 0) 
+    (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
+                            cpu_saved_affinity_set);
+  else {
+    /*
+     * The previous call to sched_getaffinity() failed, so
+     * reset the affinity to all present cpus.
+     */
+    (void)sched_setaffinity(0, cpu_present_setsize, cpu_present_set);
+  }
   return ret;
 }
 
