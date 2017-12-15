@@ -336,8 +336,8 @@ static int tbl_prepare(tbl_t *tbl) {
     }
 
     if (res->values_num != res->ds->ds_num) {
-      log_err("Invalid type \"%s\". Expected %zu data source%s, "
-              "got %zu.",
+      log_err("Invalid type \"%s\". Expected %" PRIsz " data source%s, "
+              "got %" PRIsz ".",
               res->type, res->values_num, (1 == res->values_num) ? "" : "s",
               res->ds->ds_num);
       return -1;
@@ -430,7 +430,7 @@ static int tbl_parse_line(tbl_t *tbl, char *line, size_t len) {
 
   if (i <= tbl->max_colnum) {
     log_warn("Not enough columns in line "
-             "(expected at least %zu, got %zu).",
+             "(expected at least %" PRIsz ", got %" PRIsz ").",
              tbl->max_colnum + 1, i);
     return -1;
   }

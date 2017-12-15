@@ -1840,7 +1840,8 @@ static int cjni_create_jvm(void) /* {{{ */
   vm_args.nOptions = (jint)jvm_argc;
 
   for (size_t i = 0; i < jvm_argc; i++) {
-    DEBUG("java plugin: cjni_create_jvm: jvm_argv[%zu] = %s", i, jvm_argv[i]);
+    DEBUG("java plugin: cjni_create_jvm: jvm_argv[%" PRIsz "] = %s", i,
+          jvm_argv[i]);
     vm_args.options[i].optionString = jvm_argv[i];
   }
 
@@ -2183,8 +2184,9 @@ static int cjni_config_perform(oconfig_item_t *ci) /* {{{ */
     }
   }
 
-  DEBUG("java plugin: jvm_argc = %zu;", jvm_argc);
-  DEBUG("java plugin: java_classes_list_len = %zu;", java_classes_list_len);
+  DEBUG("java plugin: jvm_argc = %" PRIsz ";", jvm_argc);
+  DEBUG("java plugin: java_classes_list_len = %" PRIsz ";",
+        java_classes_list_len);
 
   if ((success == 0) && (errors > 0)) {
     ERROR("java plugin: All statements failed.");

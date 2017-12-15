@@ -175,7 +175,7 @@ static int wg_flush_nolock(cdtime_t timeout, struct wg_callback *cb) {
   int status;
 
   DEBUG("write_graphite plugin: wg_flush_nolock: timeout = %.3f; "
-        "send_buf_fill = %zu;",
+        "send_buf_fill = %" PRIsz ";",
         (double)timeout, cb->send_buf_fill);
 
   /* timeout == 0  => flush unconditionally */
@@ -373,7 +373,8 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
   cb->send_buf_fill += message_len;
   cb->send_buf_free -= message_len;
 
-  DEBUG("write_graphite plugin: [%s]:%s (%s) buf %zu/%zu (%.1f %%) \"%s\"",
+  DEBUG("write_graphite plugin: [%s]:%s (%s) buf %" PRIsz "/%" PRIsz
+        " (%.1f %%) \"%s\"",
         cb->node, cb->service, cb->protocol, cb->send_buf_fill,
         sizeof(cb->send_buf),
         100.0 * ((double)cb->send_buf_fill) / ((double)sizeof(cb->send_buf)),

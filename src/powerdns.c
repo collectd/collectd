@@ -352,7 +352,7 @@ static void submit(const char *plugin_instance, /* {{{ */
   }
 
   if (ds->ds_num != 1) {
-    ERROR("powerdns plugin: type `%s' has %zu data sources, "
+    ERROR("powerdns plugin: type `%s' has %" PRIsz " data sources, "
           "but I can only handle one.",
           type, ds->ds_num);
     return;

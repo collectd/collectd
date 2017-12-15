@@ -362,7 +362,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   {
     char ds_index[DATA_MAX_NAME_LEN];
 
-    snprintf(ds_index, sizeof(ds_index), "%zu", index);
+    snprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
     riemann_event_string_attribute_add(event, "ds_index", ds_index);
   }
 

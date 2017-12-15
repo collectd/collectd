@@ -637,7 +637,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%zu", read_threads_num);
+    snprintf(name, sizeof(name), "reader#%" PRIsz, read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -648,7 +648,7 @@ static void stop_read_threads(void) {
   if (read_threads == NULL)
     return;
 
-  INFO("collectd: Stopping %zu read threads.", read_threads_num);
+  INFO("collectd: Stopping %" PRIsz " read threads.", read_threads_num);
 
   pthread_mutex_lock(&read_lock);
   read_loop = 0;
@@ -843,7 +843,7 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%zu", write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIsz, write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -858,7 +858,7 @@ static void stop_write_threads(void) /* {{{ */
   if (write_threads == NULL)
     return;
 
-  INFO("collectd: Stopping %zu write threads.", write_threads_num);
+  INFO("collectd: Stopping %" PRIsz " write threads.", write_threads_num);
 
   pthread_mutex_lock(&write_lock);
   write_loop = 0;
@@ -890,7 +890,7 @@ static void stop_write_threads(void) /* {{{ */
   pthread_mutex_unlock(&write_lock);
 
   if (i > 0) {
-    WARNING("plugin: %zu value list%s left after shutting down "
+    WARNING("plugin: %" PRIsz " value list%s left after shutting down "
             "the write threads.",
             i, (i == 1) ? " was" : "s were");
   }
@@ -1956,8 +1956,8 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
 #else
   if (ds->ds_num != vl->values_len) {
     ERROR("plugin_dispatch_values: ds->type = %s: "
-          "(ds->ds_num = %zu) != "
-          "(vl->values_len = %zu)",
+          "(ds->ds_num = %" PRIsz ") != "
+          "(vl->values_len = %" PRIsz ")",
           ds->type, ds->ds_num, vl->values_len);
     return -1;
   }

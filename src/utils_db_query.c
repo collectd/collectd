@@ -363,7 +363,8 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
 
   if (prep_area->ds->ds_num != r->values_num) {
     ERROR("db query utils: udb_result_prepare_result: The type `%s' "
-          "requires exactly %zu value%s, but the configuration specifies %zu.",
+          "requires exactly %" PRIsz
+          " value%s, but the configuration specifies %" PRIsz ".",
           r->type, prep_area->ds->ds_num,
           (prep_area->ds->ds_num == 1) ? "" : "s", r->values_num);
     BAIL_OUT(-1);
@@ -892,7 +893,7 @@ int udb_query_handle_result(udb_query_t const *q, /* {{{ */
   do {
     for (size_t i = 0; i < prep_area->column_num; i++) {
       DEBUG("db query utils: udb_query_handle_result (%s, %s): "
-            "column[%zu] = %s;",
+            "column[%" PRIsz "] = %s;",
             prep_area->db_name, q->name, i, column_values[i]);
     }
   } while (0);
@@ -949,7 +950,7 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
   do {
     for (size_t i = 0; i < column_num; i++) {
       DEBUG("db query utils: udb_query_prepare_result: "
-            "query = %s; column[%zu] = %s;",
+            "query = %s; column[%" PRIsz "] = %s;",
             q->name, i, column_names[i]);
     }
   } while (0);

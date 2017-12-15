@@ -753,7 +753,7 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
 
   if (buffer_len < 15) {
     NOTICE("network plugin: packet is too short: "
-           "buffer_len = %zu",
+           "buffer_len = %" PRIsz,
            buffer_len);
     return -1;
   }
@@ -777,8 +777,8 @@ static int parse_part_values(void **ret_buffer, size_t *ret_buffer_len,
   if (buffer_len < exp_size) {
     WARNING("network plugin: parse_part_values: "
             "Packet too short: "
-            "Chunk of size %zu expected, "
-            "but buffer has only %zu bytes left.",
+            "Chunk of size %" PRIsz " expected, "
+            "but buffer has only %" PRIsz " bytes left.",
             exp_size, buffer_len);
     return -1;
   }
@@ -857,8 +857,8 @@ static int parse_part_number(void **ret_buffer, size_t *ret_buffer_len,
   if (buffer_len < exp_size) {
     WARNING("network plugin: parse_part_number: "
             "Packet too short: "
-            "Chunk of size %zu expected, "
-            "but buffer has only %zu bytes left.",
+            "Chunk of size %" PRIsz " expected, "
+            "but buffer has only %" PRIsz " bytes left.",
             exp_size, buffer_len);
     return -1;
   }
@@ -898,8 +898,8 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
   if (buffer_len < header_size) {
     WARNING("network plugin: parse_part_string: "
             "Packet too short: "
-            "Chunk of at least size %zu expected, "
-            "but buffer has only %zu bytes left.",
+            "Chunk of at least size %" PRIsz " expected, "
+            "but buffer has only %" PRIsz " bytes left.",
             header_size, buffer_len);
     return -1;
   }
@@ -918,7 +918,7 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
     WARNING("network plugin: parse_part_string: "
             "Packet too big: "
             "Chunk of size %" PRIu16 " received, "
-            "but buffer has only %zu bytes left.",
+            "but buffer has only %" PRIsz " bytes left.",
             pkg_length, buffer_len);
     return -1;
   }
@@ -939,9 +939,9 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
   if (output_len < payload_size) {
     WARNING("network plugin: parse_part_string: "
             "Buffer too small: "
-            "Output buffer holds %zu bytes, "
+            "Output buffer holds %" PRIsz " bytes, "
             "which is too small to hold the received "
-            "%zu byte string.",
+            "%" PRIsz " byte string.",
             output_len, payload_size);
     return -1;
   }
@@ -2447,7 +2447,7 @@ static void network_send_buffer_encrypted(sockent_t *se, /* {{{ */
 
   assert(buffer_size <= sizeof(buffer));
   DEBUG("network plugin: network_send_buffer_encrypted: "
-        "buffer_size = %zu;",
+        "buffer_size = %" PRIsz ";",
         buffer_size);
 
   pea.head.length = htons(
@@ -2498,7 +2498,8 @@ static void network_send_buffer_encrypted(sockent_t *se, /* {{{ */
 
 static void network_send_buffer(char *buffer, size_t buffer_len) /* {{{ */
 {
-  DEBUG("network plugin: network_send_buffer: buffer_len = %zu", buffer_len);
+  DEBUG("network plugin: network_send_buffer: buffer_len = %" PRIsz,
+        buffer_len);
 
   for (sockent_t *se = sending_sockets; se != NULL; se = se->next) {
 #if HAVE_GCRYPT_H

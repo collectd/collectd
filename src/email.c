@@ -274,7 +274,7 @@ static void *collect(void *arg) {
 
       len = strlen(line);
       if ((line[len - 1] != '\n') && (line[len - 1] != '\r')) {
-        log_warn("collect: line too long (> %zu characters): "
+        log_warn("collect: line too long (> %" PRIsz " characters): "
                  "'%s' (truncated)",
                  sizeof(line) - 1, line);
 

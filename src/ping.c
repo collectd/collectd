@@ -521,7 +521,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
       } /* }}} for (i = 0; i < size; i++) */
       ping_data[size] = 0;
     } else
-      WARNING("ping plugin: Ignoring invalid Size %zu.", size);
+      WARNING("ping plugin: Ignoring invalid Size %" PRIsz ".", size);
   } else if (strcasecmp(key, "Timeout") == 0) {
     double tmp;
 

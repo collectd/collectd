@@ -31,6 +31,7 @@
 
 #include "collectd/lcc_features.h"
 #include "collectd/network_parse.h"
+#include "globals.h"
 
 #include <errno.h>
 #include <math.h>
@@ -449,7 +450,7 @@ static int decrypt_aes256(buffer_t *b, void *iv, size_t iv_size,
   uint8_t pwhash[32] = {0};
   gcry_md_hash_buffer(GCRY_MD_SHA256, pwhash, password, strlen(password));
 
-  fprintf(stderr, "sizeof(iv) = %zu\n", sizeof(iv));
+  fprintf(stderr, "sizeof(iv) = %" PRIsz "\n", sizeof(iv));
   if (gcry_cipher_setkey(cipher, pwhash, sizeof(pwhash)) ||
       gcry_cipher_setiv(cipher, iv, iv_size) ||
       gcry_cipher_decrypt(cipher, b->data, b->len, /* in = */ NULL,
@@ -534,7 +535,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
 
     if ((sz < 5) || (((size_t)sz - 4) > b->len)) {
       DEBUG("lcc_network_parse(): invalid 'sz' field: sz = %" PRIu16
-            ", b->len = %zu\n",
+            ", b->len = %" PRIsz "\n",
             sz, b->len);
       return EINVAL;
     }

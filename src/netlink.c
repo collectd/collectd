@@ -464,7 +464,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
   if ((tm->tcm_ifindex >= 0) && ((size_t)tm->tcm_ifindex >= iflist_len)) {
     ERROR("netlink plugin: qos_filter_cb: tm->tcm_ifindex = %i "
-          ">= iflist_len = %zu",
+          ">= iflist_len = %" PRIsz,
           tm->tcm_ifindex, iflist_len);
     return MNL_CB_ERROR;
   }
@@ -717,7 +717,7 @@ static int ir_read(void) {
         continue;
       }
 
-      DEBUG("netlink plugin: ir_read: querying %s from %s (%zu).",
+      DEBUG("netlink plugin: ir_read: querying %s from %s (%" PRIsz ").",
             type_name[type_index], iflist[ifindex], ifindex);
 
       nlh = mnl_nlmsg_put_header(buf);

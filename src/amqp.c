@@ -503,7 +503,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 
 static int camqp_shutdown(void) /* {{{ */
 {
-  DEBUG("amqp plugin: Shutting down %zu subscriber threads.",
+  DEBUG("amqp plugin: Shutting down %" PRIsz " subscriber threads.",
         subscriber_threads_num);
 
   subscriber_threads_running = 0;

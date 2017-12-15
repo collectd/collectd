@@ -454,7 +454,8 @@ static int staging_entry_update(const char *host, const char *name, /* {{{ */
   }
 
   if (ds->ds_num <= ds_index) {
-    ERROR("gmond plugin: Invalid index %zu: %s has only %zu data source(s).",
+    ERROR("gmond plugin: Invalid index %" PRIsz ": %s has only %" PRIsz
+          " data source(s).",
           ds_index, ds->type, ds->ds_num);
     return -1;
   }

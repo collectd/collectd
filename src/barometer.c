@@ -412,16 +412,16 @@ static int get_reference_temperature(double *result) {
         continue;
       }
 
-      DEBUG(
-          "barometer: get_reference_temperature - initialize \"%s\", %zu vals",
-          list->sensor_name, values_num);
+      DEBUG("barometer: get_reference_temperature - initialize \"%s\", %" PRIsz
+            " vals",
+            list->sensor_name, values_num);
 
       list->initialized = 1;
       list->num_values = values_num;
 
       for (size_t i = 0; i < values_num; ++i) {
-        DEBUG("barometer: get_reference_temperature - rate %zu: %lf **", i,
-              values[i]);
+        DEBUG("barometer: get_reference_temperature - rate %" PRIsz ": %lf **",
+              i, values[i]);
         if (!isnan(values[i])) {
           avg_sum += values[i];
           ++avg_num;
@@ -444,7 +444,7 @@ static int get_reference_temperature(double *result) {
     }
 
     for (size_t i = 0; i < REF_TEMP_AVG_NUM * list->num_values; ++i) {
-      DEBUG("barometer: get_reference_temperature - history %zu: %lf", i,
+      DEBUG("barometer: get_reference_temperature - history %" PRIsz ": %lf", i,
             values_history[i]);
       if (!isnan(values_history[i])) {
         avg_sum += values_history[i];
@@ -464,8 +464,9 @@ static int get_reference_temperature(double *result) {
       }
 
       for (size_t i = 0; i < values_num; ++i) {
-        DEBUG("barometer: get_reference_temperature - rate last %zu: %lf **", i,
-              values[i]);
+        DEBUG("barometer: get_reference_temperature - rate last %" PRIsz
+              ": %lf **",
+              i, values[i]);
         if (!isnan(values[i])) {
           avg_sum += values[i];
           ++avg_num;

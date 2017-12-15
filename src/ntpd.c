@@ -584,7 +584,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
      * Enough with the checks. Copy the data now.
      * We start by allocating some more memory.
      */
-    DEBUG("realloc (%p, %zu)", (void *)*res_data,
+    DEBUG("realloc (%p, %" PRIsz ")", (void *)*res_data,
           (items_num + pkt_item_num) * res_item_size);
     items = realloc(*res_data, (items_num + pkt_item_num) * res_item_size);
     if (items == NULL) {

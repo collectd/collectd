@@ -560,7 +560,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
     return -1;
 
   sstrncpy(sjson, data, len + 1);
-  OVS_DEBUG("[len=%zu] %s", len, sjson);
+  OVS_DEBUG("[len=%" PRIsz "] %s", len, sjson);
 
   /* parse json data */
   jnode = yajl_tree_parse(sjson, yajl_errbuf, sizeof(yajl_errbuf));
