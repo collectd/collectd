@@ -29,9 +29,77 @@
 #include "common.h"
 #include "plugin.h"
 
-#if HAVE_SYSLOG_H
-#include <syslog.h>
-#endif
+#ifdef WIN32
+#include <windows.h>
+
+#define LOG_CONS 0
+#define LOG_PID 0
+#define LOG_DAEMON 0
+
+HANDLE event_source;
+char log_prefix[512];
+
+int event_type_from_priority(int event_id) {
+  switch (event_id) {
+    case LOG_INFO:
+      return EVENTLOG_INFORMATION_TYPE;
+    case LOG_NOTICE:
+      return EVENTLOG_INFORMATION_TYPE;
+    case LOG_DEBUG:
+      return EVENTLOG_INFORMATION_TYPE;
+    case LOG_ERR:
+      return EVENTLOG_ERROR_TYPE;
+    default:
+      return EVENTLOG_WARNING_TYPE;
+  }
+}
+
+void openlog(const char *ident, int option, int facility) {
+  sprintf(log_prefix, (option & LOG_PID) ? "%s[%d]: " : "%s: ", ident, getpid());
+  event_source = RegisterEventSource(NULL, "collectd");
+  if (event_source == NULL) {
+    printf("openlog() failed\n");
+  }
+}
+
+void closelog() {
+  BOOL success = DeregisterEventSource(event_source);
+  if (!success) {
+    printf("closelog() failed\n");
+  }
+}
+
+void vsyslog(int priority, const char *format, va_list ap) {
+  char msg[2056];
+  vsprintf(msg, format, ap);
+  sprintf(msg, "%s%s", log_prefix, format);
+  const char *messages[] = {msg};
+
+  BOOL success = ReportEvent(
+      event_source,
+      event_type_from_priority(priority), // wType
+      0,        // wCategory
+      500,      // dwEventID
+      NULL,     // lpUserSid
+      1,        // wNumStrings
+      0,        // dwDataSize
+      messages, // lpStrings
+      NULL      // lpRawData
+  );
+  if (!success) {
+    printf("syslog() failed\n");
+  }
+}
+
+void syslog(int priority, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vsyslog(priority, format, args);
+  va_end(args);
+}
+
+#endif /* WIN32 */
+
 
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;

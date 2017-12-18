@@ -1630,6 +1630,7 @@ if BUILD_PLUGIN_SYSLOG
 pkglib_LTLIBRARIES += syslog.la
 syslog_la_SOURCES = src/syslog.c
 syslog_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+syslog_la_LIBADD = libcollectd.la
 endif
 
 if BUILD_PLUGIN_TABLE
