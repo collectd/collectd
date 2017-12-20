@@ -1565,6 +1565,23 @@ snmp_agent_la_SOURCES = src/snmp_agent.c
 snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
 snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
+
+test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
+                                 src/daemon/utils_avltree.c \
+                                 src/daemon/utils_llist.c \
+                                 src/daemon/configfile.c \
+                                 src/daemon/types_list.c
+test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
+test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
+test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la \
+	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
+
+check_PROGRAMS += test_plugin_snmp_agent
+TESTS += test_plugin_snmp_agent
+
+
 endif
 
 if BUILD_PLUGIN_STATSD

@@ -60,6 +60,16 @@ int plugin_register_read(const char *name, int (*callback)(void)) {
   return ENOTSUP;
 }
 
+int plugin_register_write(const char *name, plugin_write_cb callback,
+                          user_data_t const *ud) {
+  return ENOTSUP;
+}
+
+int plugin_register_missing(const char *name, plugin_missing_cb callback,
+                            user_data_t const *ud) {
+  return ENOTSUP;
+}
+
 int plugin_register_complex_read(const char *group, const char *name,
                                  int (*callback)(user_data_t *),
                                  cdtime_t interval,

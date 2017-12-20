@@ -1392,7 +1392,9 @@
 #    IndexOID "IF-MIB::ifIndex"
 #    SizeOID "IF-MIB::ifNumber"
 #    <Data "ifDescr">
-#      Index "PluginInstance"
+#      <IndexKey>
+#        Source "PluginInstance"
+#      </IndexKey>
 #      Plugin "interface"
 #      OIDs "IF-MIB::ifDescr"
 #    </Data>
