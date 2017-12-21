@@ -102,14 +102,16 @@ lib_LTLIBRARIES = \
 if BUILD_WIN32
 # TODO: we should build these executables on Windows as well.
 sbin_PROGRAMS = \
-        collectd
+        collectd \
+        collectd_svc \
+        collectd_svc_config \
+        collectd_svc_control
 
 bin_PROGRAMS =
 else
 sbin_PROGRAMS = \
 	collectd \
-	collectdmon
-
+	collectdmon \
 
 bin_PROGRAMS = \
 	collectd-nagios \
@@ -253,6 +255,9 @@ libcollectd_la_LIBADD = \
 collectd_SOURCES = \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h
+if BUILD_WIN32
+collectd_SOURCES += src/daemon/svc.c
+endif
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
 collectd_LDFLAGS = -export-dynamic
@@ -269,6 +274,20 @@ collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
+if BUILD_WIN32
+#collectd_svc_SOURCES = \
+#        src/daemon/svc.c \
+#        src/daemon/collectd.c \
+#        src/daemon/collectd.h
+#collectd_svc_CFLAGS = $(AM_CFLAGS)
+#collectd_svc_CPPFLAGS = $(AM_CPPFLAGS)
+#collectd_svc_LDFLAGS = -export-dynamic
+#collectd_svc_LDADD = libcollectd.la
+
+collectd_svc_config_SOURCES = src/daemon/svc_config.c
+
+collectd_svc_control_SOURCES = src/daemon/svc_control.c
+endif
 
 collectdmon_SOURCES = src/collectdmon.c
 

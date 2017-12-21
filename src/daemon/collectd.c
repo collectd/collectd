@@ -573,7 +573,11 @@ int configure_collectd(struct cmdline_config *config) {
   return 0;
 }
 
+#ifdef WIN32
+int main_func(int argc, char **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
 #if COLLECT_DAEMON
   pid_t pid;
 #endif
