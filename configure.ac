@@ -6762,7 +6762,7 @@ AC_SUBST([LOAD_PLUGIN_NETWORK])
 AC_SUBST([LOAD_PLUGIN_CSV])
 
 dnl Perl bindings
-PERL_BINDINGS_OPTIONS="PREFIX=${prefix}"
+PERL_BINDINGS_OPTIONS="PREFIX=\"${prefix}\""
 AC_ARG_WITH(perl-bindings, [AS_HELP_STRING([--with-perl-bindings@<:@=OPTIONS@:>@], [Options passed to "perl Makefile.PL".])],
 [
   if test "x$withval" != "xno" && test "x$withval" != "xyes"; then

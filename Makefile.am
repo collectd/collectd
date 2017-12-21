@@ -2039,29 +2039,29 @@ endif
 endif
 
 install-exec-hook:
-	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/run
-	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/lib/$(PACKAGE_NAME)
-	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
-	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
-	if test -e $(DESTDIR)$(sysconfdir)/collectd.conf; \
+	$(mkinstalldirs) '"$(DESTDIR)$(localstatedir)/run"'
+	$(mkinstalldirs) '"$(DESTDIR)$(localstatedir)/lib/$(PACKAGE_NAME)"'
+	$(mkinstalldirs) '"$(DESTDIR)$(localstatedir)/log"'
+	$(mkinstalldirs) '"$(DESTDIR)$(sysconfdir)"'
+	if test -e "$(DESTDIR)$(sysconfdir)/collectd.conf"; \
 	then \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
+		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf "$(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig"; \
 	else \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
+		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf "$(DESTDIR)$(sysconfdir)/collectd.conf"; \
 	fi; \
-	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
-	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
+	$(mkinstalldirs) "$(DESTDIR)$(pkgdatadir)"
+	$(INSTALL) -m 0644 $(srcdir)/src/types.db "$(DESTDIR)$(pkgdatadir)/types.db";
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
-		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+		"$(DESTDIR)$(pkgdatadir)/postgresql_default.conf";
 if BUILD_WIN32
-	$(mkinstalldirs) $(DESTDIR)$(sbindir)
-	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll $(DESTDIR)$(sbindir)/libuuid.dll
+	$(mkinstalldirs) "$(DESTDIR)$(sbindir)"
+	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll "$(DESTDIR)$(sbindir)/libuuid.dll"
 endif
 
 uninstall-hook:
-	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
-	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
-	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+	rm -f "$(DESTDIR)$(pkgdatadir)/types.db";
+	rm -f "$(DESTDIR)$(sysconfdir)/collectd.conf"
+	rm -f "$(DESTDIR)$(pkgdatadir)/postgresql_default.conf";
 
 check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 
@@ -2087,8 +2087,8 @@ install-exec-local:
 # Perl 'make uninstall' does not work as well as wanted.
 # So we do the work here.
 uninstall-local:
-	@PERL@ -I$(DESTDIR)$(prefix) $(srcdir)/bindings/perl/uninstall_mod.pl Collectd
-	find $(DESTDIR)$(prefix) -name "perllocal.pod" -exec rm {} \;
+	@PERL@ -I"$(DESTDIR)$(prefix)" $(srcdir)/bindings/perl/uninstall_mod.pl Collectd
+	find "$(DESTDIR)$(prefix)" -name "perllocal.pod" -exec rm {} \;
 
 clean-local:
 	rm -rf buildperl

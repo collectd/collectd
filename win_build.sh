@@ -2,6 +2,8 @@
 
 set -e
 
+export CC=/usr/bin/x86_64-w64-mingw32-gcc.exe
+
 TOP_SRCDIR=`pwd`
 
 mkdir -p _build_aux
@@ -80,6 +82,9 @@ else
 fi
 popd
 
+#INSTALL_DIR="C:/Program Files/collectd"
+INSTALL_DIR="C:/opt"
+MINGW_ROOT="/usr/x86_64-w64-mingw32/sys-root/mingw"
 LIBTOOL_DIR="${TOP_SRCDIR}/_build_aux/_libtool"
 LIBCURL_DIR="${TOP_SRCDIR}/_build_aux/_libcurl"
 GNULIB_DIR="${TOP_SRCDIR}/_build_aux/_gnulib/gllib"
@@ -94,7 +99,7 @@ export LDFLAGS="-L${GNULIB_DIR} -L${LIBTOOL_DIR}/bin -L${LIBTOOL_DIR}/lib"
 export LIBS="-lgnu"
 export CFLAGS="-Drestrict=__restrict -I${GNULIB_DIR}"
 
-./configure --prefix="C:/opt" --disable-all-plugins \
+./configure --prefix="${INSTALL_DIR}" --disable-all-plugins \
   --host="mingw32" \
   --with-libcurl="${LIBCURL_DIR}" \
   --enable-logfile \
@@ -115,5 +120,16 @@ cp libtool libtool_bak
 sed -i "s%\$LTCC \$LTCFLAGS\(.*cwrapper.*\)%\$LTCC \1%" libtool
 
 make
+make install
 
-echo "Only 'make install' left"
+cp "${INSTALL_DIR}"/bin/*.dll "${INSTALL_DIR}/sbin"
+cp .libs/*.dll "${INSTALL_DIR}/lib/collectd"
+cp "${GNULIB_DIR}/libgnu.dll" "${LIBTOOL_DIR}/bin/libltdl-7.dll" "${LIBCURL_DIR}/bin/libcurl-4.dll" "${INSTALL_DIR}/sbin"
+cp "${MINGW_ROOT}"/bin/{zlib1.dll,libwinpthread-1.dll,libdl.dll} "${INSTALL_DIR}/sbin"
+cp "${INSTALL_DIR}"/sbin/*.dll "${INSTALL_DIR}/lib/collectd"
+
+#DEST_DIR="C:/Program Files/collectd"
+#mkdir -p "${DEST_DIR}"
+#cp -r "${INSTALL_DIR}"/* "${DEST_DIR}"
+
+echo "Done"
