@@ -255,6 +255,7 @@ Collectd utilities
 	   --enable-statefs_cellular \
 	   --enable-statefs_internet \
 	   --enable-suspend \
+	   --enable-swap \
 	   --enable-table \
 	   --enable-tail \
 	   --enable-tail_csv \
