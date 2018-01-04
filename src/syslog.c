@@ -55,7 +55,11 @@ int event_type_from_priority(int event_id) {
 }
 
 void openlog(const char *ident, int option, int facility) {
-  sprintf(log_prefix, (option & LOG_PID) ? "%s[%d]: " : "%s: ", ident, getpid());
+  if (option & LOG_PID) {
+    sprintf(log_prefix, "%s[%d]: ", ident, getpid());
+  } else {
+    sprintf(log_prefix, "%s: ", ident);
+  }
   event_source = RegisterEventSource(NULL, "collectd");
   if (event_source == NULL) {
     printf("openlog() failed\n");
