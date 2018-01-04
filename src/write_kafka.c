@@ -156,7 +156,7 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
                                          topic_conf)) == NULL) {
       ERROR("write_kafka plugin: cannot create topic : %s\n",
             rd_kafka_err2str(kafka_error()));
-      return 1;
+      return errno;
     }
 
     rd_kafka_topic_conf_destroy(ctx->conf);
