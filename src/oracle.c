@@ -558,7 +558,7 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
       q, prep_area, (db->host != NULL) ? db->host : hostname_g,
       /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "oracle",
       db->name, column_names, column_num,
-      /* interval = */ 0);
+      q->interval);
   if (status != 0) {
     ERROR("oracle plugin: o_read_database_query (%s, %s): "
           "udb_query_prepare_result failed.",

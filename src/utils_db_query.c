@@ -54,6 +54,7 @@ struct udb_query_s /* {{{ */
   char *statement;
   void *user_data;
   char *plugin_instance_from;
+  cdtime_t interval;
 
   unsigned int min_version;
   unsigned int max_version;
@@ -637,6 +638,7 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
   q->statement = NULL;
   q->results = NULL;
   q->plugin_instance_from = NULL;
+  q->interval = 0;
 
   status = udb_config_set_string(&q->name, ci);
   if (status != 0) {
@@ -658,6 +660,8 @@ int udb_query_create(udb_query_t ***ret_query_list, /* {{{ */
       status = udb_config_set_uint(&q->max_version, child);
     else if (strcasecmp("PluginInstanceFrom", child->key) == 0)
       status = udb_config_set_string(&q->plugin_instance_from, child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      status = udb_config_set_uint(&q->interval, child);
 
     /* Call custom callbacks */
     else if (cb != NULL) {
