@@ -38,7 +38,7 @@ build_linux ()
 	WARNING: Neither \`libtoolize' nor \`glibtoolize' have been found!
 	    Please make sure that one of them is installed and is in one of the
 	    directories listed in the PATH environment variable.
-	EOF
+EOF
 			GLOBAL_ERROR_INDICATOR=1
 		fi
 	 fi
