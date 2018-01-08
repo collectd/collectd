@@ -66,6 +66,11 @@
 #undef COLLECT_DAEMON
 #endif
 
+#ifdef WIN32
+#include <windows.h>
+extern HANDLE ghSvcStopEvent;
+#endif
+
 static int loop = 0;
 
 long hostname_len() {
@@ -329,6 +334,13 @@ static int do_loop(void) {
   wait_until = cdtime() + interval;
 
   while (loop == 0) {
+
+#ifdef WIN32
+    if (WaitForSingleObject(ghSvcStopEvent, 0) == WAIT_OBJECT_0) {
+      loop++;
+    }
+#endif
+
     cdtime_t now;
 
 #if HAVE_LIBKSTAT

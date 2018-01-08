@@ -1,6 +1,6 @@
-#include <strsafe.h>
-#include <tchar.h>
 #include <windows.h>
+#include <tchar.h>
+#include <strsafe.h>
 //#include "sample.h"
 
 #pragma comment(lib, "advapi32.lib")
@@ -19,6 +19,8 @@ VOID WINAPI SvcMain(DWORD, LPTSTR *);
 VOID ReportSvcStatus(DWORD, DWORD, DWORD);
 VOID SvcInit(DWORD, LPTSTR *);
 VOID SvcReportEvent(LPTSTR);
+
+extern int main_func(int argc, char **argv);
 
 //
 // Purpose:

@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include <strsafe.h>
-#include <tchar.h>
 #include <windows.h>
+#include <tchar.h>
+#include <strsafe.h>
 
 #pragma comment(lib, "advapi32.lib")
 
