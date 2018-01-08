@@ -147,7 +147,7 @@ build_windows ()
 
 	#INSTALL_DIR="C:/Program Files/collectd"
 	#INSTALL_DIR="C:/opt"
-	INSTALL_DIR="/opt"
+	INSTALL_DIR="${TOP_SRCDIR}/opt"
 	MINGW_ROOT="/usr/x86_64-w64-mingw32/sys-root/mingw"
 	LIBTOOL_DIR="${TOP_SRCDIR}/_build_aux/_libtool"
 	LIBCURL_DIR="${TOP_SRCDIR}/_build_aux/_libcurl"
