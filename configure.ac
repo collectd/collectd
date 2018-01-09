@@ -5985,6 +5985,11 @@ PKG_CHECK_MODULES([LIBRIEMANN_CLIENT], [riemann-client >= 1.6.0],
  [with_libriemann_client="no (pkg-config doesn't know libriemann-client)"]
 )
 
+PKG_CHECK_MODULES([KNOT], [libknot],
+  [with_libknot="yes"],
+  [with_libknot="no (pkg-config could not find libknot)"]
+)
+
 # Check for enabled/disabled features
 #
 
@@ -6137,6 +6142,7 @@ plugin_ipc="no"
 plugin_ipmi="no"
 plugin_ipvs="no"
 plugin_irq="no"
+plugin_knot="no"
 plugin_load="no"
 plugin_log_logstash="no"
 plugin_mcelog="no"
@@ -6490,6 +6496,10 @@ if test "x$with_libdpdk" = "xyes"; then
   plugin_dpdkstat="yes"
 fi
 
+if test "x$with_libknot" = "xyes"; then
+  plugin_knot="yes"
+fi
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
@@ -6559,7 +6569,7 @@ AC_PLUGIN([iptables],            [$with_libiptc],           [IPTables rule count
 AC_PLUGIN([ipvs],                [$plugin_ipvs],            [IPVS connection statistics])
 AC_PLUGIN([irq],                 [$plugin_irq],             [IRQ statistics])
 AC_PLUGIN([java],                [$with_java],              [Embed the Java Virtual Machine])
-AC_PLUGIN([knot],                [yes],                     [Knot DNS server statistics])
+AC_PLUGIN([knot],                [$plugin_knot],            [Knot DNS server statistics])
 AC_PLUGIN([load],                [$plugin_load],            [System load])
 AC_PLUGIN([log_logstash],        [$plugin_log_logstash],    [Logstash json_event compatible logging])
 AC_PLUGIN([logfile],             [yes],                     [File logging plugin])
@@ -6874,6 +6884,7 @@ AC_MSG_RESULT([    libiptc . . . . . . . $with_libiptc])
 AC_MSG_RESULT([    libjevents  . . . . . $with_libjevents])
 AC_MSG_RESULT([    libjvm  . . . . . . . $with_java])
 AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
+AC_MSG_RESULT([    libknot . . . . . . . $with_libknot])
 AC_MSG_RESULT([    libkvm  . . . . . . . $with_libkvm])
 AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
 AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
@@ -6979,6 +6990,7 @@ AC_MSG_RESULT([    iptables  . . . . . . $enable_iptables])
 AC_MSG_RESULT([    ipvs  . . . . . . . . $enable_ipvs])
 AC_MSG_RESULT([    irq . . . . . . . . . $enable_irq])
 AC_MSG_RESULT([    java  . . . . . . . . $enable_java])
+AC_MSG_RESULT([    knot  . . . . . . . . $enable_knot])
 AC_MSG_RESULT([    load  . . . . . . . . $enable_load])
 AC_MSG_RESULT([    logfile . . . . . . . $enable_logfile])
 AC_MSG_RESULT([    log_logstash  . . . . $enable_log_logstash])
