@@ -6559,6 +6559,7 @@ AC_PLUGIN([iptables],            [$with_libiptc],           [IPTables rule count
 AC_PLUGIN([ipvs],                [$plugin_ipvs],            [IPVS connection statistics])
 AC_PLUGIN([irq],                 [$plugin_irq],             [IRQ statistics])
 AC_PLUGIN([java],                [$with_java],              [Embed the Java Virtual Machine])
+AC_PLUGIN([knot],                [yes],                     [Knot DNS server statistics])
 AC_PLUGIN([load],                [$plugin_load],            [System load])
 AC_PLUGIN([log_logstash],        [$plugin_log_logstash],    [Logstash json_event compatible logging])
 AC_PLUGIN([logfile],             [yes],                     [File logging plugin])

@@ -993,6 +993,14 @@ java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
 java_la_LIBADD = $(JAVA_LIBS)
 endif
 
+if BUILD_PLUGIN_KNOT
+pkglib_LTLIBRARIES += knot.la
+knot_la_SOURCES = src/knot.c
+knot_la_CFLAGS = $(AM_CFLAGS)
+knot_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+knot_la_LIBADD = libignorelist.la -lknot
+endif
+
 if BUILD_PLUGIN_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = src/load.c
