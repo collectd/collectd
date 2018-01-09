@@ -138,6 +138,7 @@
 #@BUILD_PLUGIN_IPVS_TRUE@LoadPlugin ipvs
 #@BUILD_PLUGIN_IRQ_TRUE@LoadPlugin irq
 #@BUILD_PLUGIN_JAVA_TRUE@LoadPlugin java
+#@BUILD_PLUGIN_KNOT_TRUE@LoadPlugin knot
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
@@ -729,6 +730,14 @@
 #	<Plugin "org.collectd.java.Foobar">
 #	  # To be parsed by the plugin
 #	</Plugin>
+#</Plugin>
+
+#<Plugin knot>
+#        Socket "/run/knot/knot.sock"
+#        PerZoneStats false
+#        Zone "example.com"
+#        Zone "example.org"
+#        IgnoreSelected false
 #</Plugin>
 
 #<Plugin load>
