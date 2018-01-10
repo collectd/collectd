@@ -59,7 +59,7 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
-/* Unfortunately, protoc-c doesn't export it's implementation of varint, so we
+/* Unfortunately, protoc-c doesn't export its implementation of varint, so we
  * need to implement our own. */
 static size_t varint(uint8_t buffer[static VARINT_UINT32_BYTES],
                      uint32_t value) {

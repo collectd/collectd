@@ -36,7 +36,7 @@ exit (0);
 
 =head1 CONFIGURATION
 
-This script reads it's configuration from F</etc/exec-nagios.conf>. The
+This script reads its configuration from F</etc/exec-nagios.conf>. The
 configuration is read using C<Config::General> which understands a Apache-like
 config syntax, so it's very similar to the F<collectd.conf> syntax, too.
 
