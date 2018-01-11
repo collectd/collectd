@@ -3566,6 +3566,66 @@ independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
 
+=head2 Plugin C<knot>
+
+The I<Knot plugin> collects metrics from Knot, a high-performance
+authoritative-only DNS server. It requires Knot version 2.4.0 or later. To use
+this plugin, you first need to tell Knot to make this information available.
+This is done with the C<mod-stats> plugin which can be enabled on a per-zone
+basis or via a zone template:
+
+  template:
+    - id: default
+      global-module: mod-stats
+
+B<Synopsis:>
+
+  <Plugin knot>
+    Socket "/run/knot/knot.sock"
+    PerZoneStats false
+    Zone "example.com"
+    Zone "example.org"
+    IgnoreSelected false
+  </Plugin>
+
+The knot plugin accepts the following configuration options:
+
+=over 4
+
+=item B<Socket> I<Path>
+
+Connect to I<knot> using the UNIX domain socket at I<Path>.
+
+=item B<PerZoneStats> B<true>|B<false>
+
+Selects whether statistics for individual zones are collected. Defaults to
+B<false> as it can generate large amounts of data (possibly over 100 metrics
+per zone, depending on the C<mod-stats> options set in the Knot configuration
+file).
+
+=item B<Zone> I<Name>
+
+Select the zone I<Name>. Whether it is collected or ignored depends on the
+B<IgnoreSelected> setting, see below. As with other plugins that use the
+daemon's ignorelist functionality, a string that starts and ends with a slash
+is interpreted as a regular expression. Examples:
+
+  Zone "collectd.org"
+  Zone "/example\..*/"
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Sets whether selected zones, i.E<nbsp>e. the ones matches by any of the B<Zone>
+statements, are ignored or if all other zones are ignored. The behavior
+(hopefully) is intuitive: If no B<Zone> option is configured, all zones are
+collected. If at least one B<Zone> option is given and no B<IgnoreSelected> or
+set to B<false>, B<only> matching zones will be collected. If B<IgnoreSelected>
+is set to B<true>, all zones are collected B<except> the ones matched.
+
+=back
+
 =head2 Plugin C<load>
 
 The I<Load plugin> collects the system load. These numbers give a rough overview
