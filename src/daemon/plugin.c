@@ -42,6 +42,11 @@
 #include "utils_random.h"
 #include "utils_time.h"
 
+#ifdef WIN32
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #if HAVE_PTHREAD_NP_H
 #include <pthread_np.h> /* for pthread_set_name_np(3) */
 #endif
@@ -637,7 +642,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%" PRIsz, read_threads_num);
+    snprintf(name, sizeof(name), "reader#%" PRIu64, (uint64_t)read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -843,7 +848,7 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%" PRIsz, write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIu64, (uint64_t)write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -954,6 +959,11 @@ static void plugin_free_loaded(void) {
 }
 
 #define BUFSIZE 512
+#ifdef WIN32
+# define SHLIB_SUFFIX ".dll"
+#else
+# define SHLIB_SUFFIX ".so"
+#endif
 int plugin_load(char const *plugin_name, _Bool global) {
   DIR *dh;
   const char *dir;
@@ -990,11 +1000,11 @@ int plugin_load(char const *plugin_name, _Bool global) {
       (strcasecmp("python", plugin_name) == 0))
     global = 1;
 
-  /* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
+  /* `cpu' should not match `cpufreq'. To solve this we add SHLIB_SUFFIX to the
    * type when matching the filename */
-  status = snprintf(typename, sizeof(typename), "%s.so", plugin_name);
+  status = snprintf(typename, sizeof(typename), "%s" SHLIB_SUFFIX, plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
-    WARNING("plugin_load: Filename too long: \"%s.so\"", plugin_name);
+    WARNING("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"", plugin_name);
     return -1;
   }
 

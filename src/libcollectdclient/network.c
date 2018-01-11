@@ -127,8 +127,11 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
     server_close_socket(srv);
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_flags = 0,
                               .ai_socktype = SOCK_DGRAM};
+#ifdef AI_ADDRCONFIG
+  ai_hints.ai_flags = AI_ADDRCONFIG;
+#endif
 
   status = getaddrinfo(srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)
@@ -364,15 +367,15 @@ int lcc_server_set_ttl(lcc_server_t *srv, uint8_t ttl) /* {{{ */
   return 0;
 } /* }}} int lcc_server_set_ttl */
 
-int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
+int lcc_server_set_interface(lcc_server_t *srv, char const *interface_) /* {{{ */
 {
   unsigned int if_index;
   int status;
 
-  if ((srv == NULL) || (interface == NULL))
+  if ((srv == NULL) || (interface_ == NULL))
     return EINVAL;
 
-  if_index = if_nametoindex(interface);
+  if_index = if_nametoindex(interface_);
   if (if_index == 0)
     return ENOENT;
 
@@ -420,8 +423,8 @@ int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
 
 /* else: Not a multicast interface. */
 #if defined(SO_BINDTODEVICE)
-  status = setsockopt(srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
-                      (socklen_t)(strlen(interface) + 1));
+  status = setsockopt(srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface_,
+                      (socklen_t)(strlen(interface_) + 1));
   if (status != 0)
     return -1;
 #endif
