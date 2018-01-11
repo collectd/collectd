@@ -18,37 +18,145 @@ EOF
 	done
 }
 
-check_for_application lex bison autoheader aclocal automake autoconf pkg-config
-
-libtoolize=""
-libtoolize --version >/dev/null 2>/dev/null
-if test $? -eq 0
-then
-	libtoolize=libtoolize
-else
-	glibtoolize --version >/dev/null 2>/dev/null
+setup_libtool ()
+{
+	libtoolize=""
+	libtoolize --version >/dev/null 2>/dev/null
 	if test $? -eq 0
 	then
-		libtoolize=glibtoolize
+		libtoolize=libtoolize
 	else
-		cat >&2 <<EOF
-WARNING: Neither \`libtoolize' nor \`glibtoolize' have been found!
-    Please make sure that one of them is installed and is in one of the
-    directories listed in the PATH environment variable.
+		glibtoolize --version >/dev/null 2>/dev/null
+		if test $? -eq 0
+		then
+			libtoolize=glibtoolize
+		else
+			cat >&2 <<EOF
+	WARNING: Neither \`libtoolize' nor \`glibtoolize' have been found!
+	    Please make sure that one of them is installed and is in one of the
+	    directories listed in the PATH environment variable.
 EOF
-		GLOBAL_ERROR_INDICATOR=1
-	fi
- fi
+			GLOBAL_ERROR_INDICATOR=1
+		fi
+	 fi
 
-if test "$GLOBAL_ERROR_INDICATOR" != "0"
-then
-	exit 1
+	if test "$GLOBAL_ERROR_INDICATOR" != "0"
+	then
+		exit 1
+	fi
+}
+
+build ()
+{
+	set -x
+	autoheader \
+	&& aclocal \
+	&& $libtoolize --copy --force \
+	&& automake --add-missing --copy \
+	&& autoconf
+}
+
+build_linux ()
+{
+	echo "Building for Linux..."
+	check_for_application lex bison autoheader aclocal automake autoconf pkg-config
+	setup_libtool
+	build
+}
+
+build_windows ()
+{
+	echo "Building for Windows..."
+	check_for_application aclocal autoconf autoheader automake bison flex git make pkg-config x86_64-w64-mingw32-gcc
+	setup_libtool
+
+	set -e
+
+	: ${INSTALL_DIR:="C:/opt"}
+	TOP_SRCDIR=$(pwd)
+	MINGW_ROOT="/usr/x86_64-w64-mingw32/sys-root/mingw"
+	GNULIB_DIR="${TOP_SRCDIR}/_build_aux/_gnulib/gllib"
+
+	export CC="x86_64-w64-mingw32-gcc"
+
+	mkdir -p _build_aux
+
+	# build gnulib
+	cd "_build_aux"
+	if [ -d "_gnulib" ]; then
+	  echo "Assuming that gnulib is already built, because _gnulib exists."
+	else
+	  git clone git://git.savannah.gnu.org/gnulib.git
+	  cd "gnulib"
+	  git checkout 2f8140bc8ce5501e31dcc665b42b5df64f84c20c
+	  ./gnulib-tool --create-testdir \
+	      --source-base=lib \
+	      --dir=${TOP_SRCDIR}/_build_aux/_gnulib \
+	      canonicalize-lgpl \
+	      fcntl-h \
+	      gettimeofday \
+	      getsockopt \
+	      nanosleep \
+	      netdb \
+	      net_if \
+	      poll \
+	      recv \
+	      regex \
+	      sendto \
+	      setlocale \
+	      strtok_r \
+	      sys_resource \
+	      sys_socket \
+	      sys_stat \
+	      sys_wait \
+	      time_r
+
+	  cd "${TOP_SRCDIR}/_build_aux/_gnulib"
+	  ./configure --host="mingw32" LIBS="-lws2_32 -lpthread"
+	  make 
+	  cd gllib
+
+	  # We have to rebuild libgnu.a to get the list of *.o files to build a dll later
+	  rm libgnu.a
+	  OBJECT_LIST=`make V=1 | grep "ar" | cut -d' ' -f4-`
+	  $CC -shared -o libgnu.dll $OBJECT_LIST -lws2_32 -lpthread
+	  rm libgnu.a # get rid of it, to use libgnu.dll
+	fi
+	cd "${TOP_SRCDIR}"
+
+	build
+
+	export LDFLAGS="-L${GNULIB_DIR}"
+	export LIBS="-lgnu"
+	export CFLAGS="-Drestrict=__restrict -I${GNULIB_DIR}"
+
+	./configure --prefix="${INSTALL_DIR}" --disable-all-plugins \
+	  --host="mingw32" \
+	  --enable-logfile
+
+	cp ${GNULIB_DIR}/../config.h src/gnulib_config.h
+	echo "#include <config.h.in>" >> src/gnulib_config.h
+
+	# TODO: find a sane way to set LTCFLAGS for libtool
+	cp libtool libtool_bak
+	sed -i "s%\$LTCC \$LTCFLAGS\(.*cwrapper.*\)%\$LTCC \1%" libtool
+
+	make
+	make install
+
+	cp "${INSTALL_DIR}"/bin/*.dll "${INSTALL_DIR}/sbin"
+	cp .libs/*.dll "${INSTALL_DIR}/lib/collectd"
+	cp "${GNULIB_DIR}/libgnu.dll" "${INSTALL_DIR}/sbin"
+	cp "${MINGW_ROOT}/bin/zlib1.dll" "${INSTALL_DIR}/sbin"
+	cp "${MINGW_ROOT}/bin/libwinpthread-1.dll" "${INSTALL_DIR}/sbin"
+	cp "${MINGW_ROOT}/bin/libdl.dll" "${INSTALL_DIR}/sbin"
+
+	echo "Done"
+}
+
+if test "${OSTYPE}" = "cygwin"; then
+	build_windows
+else
+	build_linux
 fi
 
-set -x
-
-autoheader \
-&& aclocal \
-&& $libtoolize --copy --force \
-&& automake --add-missing --copy \
-&& autoconf
