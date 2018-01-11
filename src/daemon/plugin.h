@@ -34,7 +34,12 @@
 #include "meta_data.h"
 #include "utils_time.h"
 
+#include <inttypes.h>
 #include <pthread.h>
+
+#ifdef WIN32
+#undef ERROR
+#endif
 
 #define DS_TYPE_COUNTER 0
 #define DS_TYPE_GAUGE 1

@@ -24,6 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#include "collectd.h"
+
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>

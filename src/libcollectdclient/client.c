@@ -24,6 +24,14 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+#include "gnulib_config.h"
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
+
 #include "config.h"
 
 #if !defined(__GNUC__) || !__GNUC__
@@ -40,9 +48,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/un.h>
 #include <unistd.h>
 
 #include "collectd/client.h"
@@ -367,6 +373,10 @@ static int lcc_sendreceive(lcc_connection_t *c, /* {{{ */
 
 static int lcc_open_unixsocket(lcc_connection_t *c, const char *path) /* {{{ */
 {
+#ifdef WIN32
+  lcc_set_errno(c, ENOTSUP);
+  return -1;
+#else
   struct sockaddr_un sa = {0};
   int fd;
   int status;
@@ -401,6 +411,7 @@ static int lcc_open_unixsocket(lcc_connection_t *c, const char *path) /* {{{ */
   }
 
   return 0;
+#endif /* WIN32 */
 } /* }}} int lcc_open_unixsocket */
 
 static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
@@ -453,8 +464,11 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
   }
 
   struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_flags = 0,
                               .ai_socktype = SOCK_STREAM};
+#ifdef AI_ADDRCONFIG
+  ai_hints.ai_flags = AI_ADDRCONFIG;
+#endif
 
   status = getaddrinfo(addr, port == NULL ? LCC_DEFAULT_PORT : port, &ai_hints,
                        &ai_res);
