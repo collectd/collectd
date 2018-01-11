@@ -103,6 +103,7 @@ if BUILD_WIN32
 # TODO: we should build these executables on Windows as well.
 sbin_PROGRAMS = \
         collectd \
+        collectd_svc \
         collectd_svc_config \
         collectd_svc_control
 
@@ -259,8 +260,7 @@ collectd_CPPFLAGS = $(AM_CPPFLAGS)
 collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = libcollectd.la
 if BUILD_WIN32
-collectd_SOURCES += src/daemon/collectd_svc.c
-collectd_LDADD += -lkernel32 -ladvapi32
+collectd_SOURCES += src/daemon/collectd_win.c
 endif
 
 if BUILD_FEATURE_DAEMON
@@ -275,14 +275,17 @@ collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
 if BUILD_WIN32
-#collectd_svc_SOURCES = \
-#        src/daemon/svc.c \
-#        src/daemon/collectd.c \
-#        src/daemon/collectd.h
-#collectd_svc_CFLAGS = $(AM_CFLAGS)
-#collectd_svc_CPPFLAGS = $(AM_CPPFLAGS)
-#collectd_svc_LDFLAGS = -export-dynamic
-#collectd_svc_LDADD = libcollectd.la
+collectd_svc_SOURCES = \
+        src/daemon/collectd_svc.c \
+        src/daemon/collectd.c \
+        src/daemon/collectd.h
+collectd_svc_CFLAGS = $(AM_CFLAGS)
+collectd_svc_CPPFLAGS = $(AM_CPPFLAGS)
+collectd_svc_LDFLAGS = -export-dynamic
+collectd_svc_LDADD = libcollectd.la -lkernel32 -ladvapi32
+
+#collectd_svc_SOURCES = src/daemon/collectd_svc.c
+#collectd_svc_LDADD = -lkernel32 -ladvapi32
 
 collectd_svc_config_SOURCES = src/daemon/collectd_svc_config.c
 collectd_svc_config_LDADD = -lkernel32 -ladvapi32

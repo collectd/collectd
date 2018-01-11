@@ -335,7 +335,7 @@ static int do_loop(void) {
 
   while (loop == 0) {
 
-#ifdef WIN32
+#if defined(WIN32) && defined(SVCNAME)
     if (WaitForSingleObject(ghSvcStopEvent, 0) == WAIT_OBJECT_0) {
       loop++;
     }

@@ -163,6 +163,7 @@ build_windows ()
 	export LIBS="-lgnu"
 	export CFLAGS="-Drestrict=__restrict -I${GNULIB_DIR}"
 
+	#./configure --datarootdir="${INSTALL_DIR}" --disable-all-plugins \
 	./configure --prefix="${INSTALL_DIR}" --disable-all-plugins \
 	  --host="mingw32" \
 	  --with-libcurl="${LIBCURL_DIR}" \
@@ -183,7 +184,7 @@ build_windows ()
 	cp libtool libtool_bak
 	sed -i "s%\$LTCC \$LTCFLAGS\(.*cwrapper.*\)%\$LTCC \1%" libtool
 
-	make
+	make #datadir="."
 	make install
 
 	cp "${INSTALL_DIR}"/bin/*.dll "${INSTALL_DIR}/sbin"
