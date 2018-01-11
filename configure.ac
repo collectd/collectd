@@ -6191,7 +6191,6 @@ if test "x$ac_system" = "xLinux"; then
   plugin_nfs="yes"
   plugin_numa="yes"
   plugin_processes="yes"
-  plugin_procevent="yes"
   plugin_protocols="yes"
   plugin_serial="yes"
   plugin_swap="yes"
@@ -6219,6 +6218,7 @@ if test "x$ac_system" = "xLinux"; then
   if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
     plugin_ovs_events="yes"
     plugin_ovs_stats="yes"
+    plugin_procevent="yes"
   fi
 fi
 
@@ -6594,7 +6594,7 @@ AC_PLUGIN([ping],                [$with_liboping],          [Network latency sta
 AC_PLUGIN([postgresql],          [$with_libpq],             [PostgreSQL database statistics])
 AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics])
 AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
-AC_PLUGIN([procevent],           [$plugin_procevent],       [Process event (start, stop) statistics])
+AC_PLUGIN([procevent],           [$plugin_procevent],       [Process event (start, stop) events])
 AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
 AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
 AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])

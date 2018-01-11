@@ -48,12 +48,56 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <yajl/yajl_common.h>
+#include <yajl/yajl_gen.h>
+#if HAVE_YAJL_YAJL_VERSION_H
+#include <yajl/yajl_version.h>
+#endif
+#if defined(YAJL_MAJOR) && (YAJL_MAJOR > 1)
+#define HAVE_YAJL_V2 1
+#endif
+
 #define PROCEVENT_EXITED 0
 #define PROCEVENT_STARTED 1
-#define PROCEVENT_FIELDS 3 // pid, status, extra
+#define PROCEVENT_FIELDS 4 // pid, status, extra, timestamp
 #define BUFSIZE 512
 #define PROCDIR "/proc"
 #define PROCEVENT_REGEX_MATCHES 1
+
+#define PROCEVENT_DOMAIN_FIELD "domain"
+#define PROCEVENT_DOMAIN_VALUE "fault"
+#define PROCEVENT_EVENT_ID_FIELD "eventId"
+#define PROCEVENT_EVENT_NAME_FIELD "eventName"
+#define PROCEVENT_EVENT_NAME_DOWN_VALUE "down"
+#define PROCEVENT_EVENT_NAME_UP_VALUE "up"
+#define PROCEVENT_LAST_EPOCH_MICROSEC_FIELD "lastEpochMicrosec"
+#define PROCEVENT_PRIORITY_FIELD "priority"
+#define PROCEVENT_PRIORITY_VALUE "high"
+#define PROCEVENT_REPORTING_ENTITY_NAME_FIELD "reportingEntityName"
+#define PROCEVENT_REPORTING_ENTITY_NAME_VALUE "collectd procevent plugin"
+#define PROCEVENT_SEQUENCE_FIELD "sequence"
+#define PROCEVENT_SEQUENCE_VALUE "0"
+#define PROCEVENT_SOURCE_NAME_FIELD "sourceName"
+#define PROCEVENT_START_EPOCH_MICROSEC_FIELD "startEpochMicrosec"
+#define PROCEVENT_VERSION_FIELD "version"
+#define PROCEVENT_VERSION_VALUE "1.0"
+
+#define PROCEVENT_ALARM_CONDITION_FIELD "alarmCondition"
+#define PROCEVENT_ALARM_INTERFACE_A_FIELD "alarmInterfaceA"
+#define PROCEVENT_EVENT_SEVERITY_FIELD "eventSeverity"
+#define PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE "CRITICAL"
+#define PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE "NORMAL"
+#define PROCEVENT_EVENT_SOURCE_TYPE_FIELD "eventSourceType"
+#define PROCEVENT_EVENT_SOURCE_TYPE_VALUE "process"
+#define PROCEVENT_FAULT_FIELDS_FIELD "faultFields"
+#define PROCEVENT_FAULT_FIELDS_VERSION_FIELD "faultFieldsVersion"
+#define PROCEVENT_FAULT_FIELDS_VERSION_VALUE "1.0"
+#define PROCEVENT_SPECIFIC_PROBLEM_FIELD "specificProblem"
+#define PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE "down"
+#define PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE "up"
+#define PROCEVENT_VF_STATUS_FIELD "vfStatus"
+#define PROCEVENT_VF_STATUS_CRITICAL_VALUE "Ready to terminate"
+#define PROCEVENT_VF_STATUS_NORMAL_VALUE "Active"
 
 /*
  * Private data types
@@ -63,7 +107,7 @@ typedef struct {
   int head;
   int tail;
   int maxLen;
-  int **buffer;
+  long long unsigned int **buffer;
 } circbuf_t;
 
 struct processlist_s {
@@ -93,6 +137,7 @@ static int nl_sock = -1;
 static int buffer_length;
 static circbuf_t ring;
 static processlist_t *processlist_head = NULL;
+static int event_id = 0;
 
 static const char *config_keys[] = {"BufferLength", "Process", "RegexProcess"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -100,6 +145,324 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 /*
  * Private functions
  */
+
+static int gen_message_payload(int state, int pid, char *process,
+                               long long unsigned int timestamp, char **buf) {
+  const unsigned char *buf2;
+  yajl_gen g;
+
+#if !defined(HAVE_YAJL_V2)
+  yajl_gen_config conf = {};
+
+  conf.beautify = 0;
+#endif
+
+#if HAVE_YAJL_V2
+  size_t len;
+  g = yajl_gen_alloc(NULL);
+  yajl_gen_config(g, yajl_gen_beautify, 0);
+#else
+  unsigned int len;
+  g = yajl_gen_alloc(&conf, NULL);
+#endif
+
+  yajl_gen_clear(g);
+
+  // *** BEGIN common event header ***
+
+  if (yajl_gen_map_open(g) != yajl_gen_status_ok)
+    goto err;
+
+  // domain
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_DOMAIN_FIELD,
+                      strlen(PROCEVENT_DOMAIN_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_DOMAIN_VALUE,
+                      strlen(PROCEVENT_DOMAIN_VALUE)) != yajl_gen_status_ok)
+    goto err;
+
+  // eventId
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_EVENT_ID_FIELD,
+                      strlen(PROCEVENT_EVENT_ID_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  event_id = event_id + 1;
+  int event_id_len = sizeof(char) * sizeof(int) * 4 + 1;
+  char *event_id_str = malloc(event_id_len);
+  snprintf(event_id_str, event_id_len, "%d", event_id);
+
+  if (yajl_gen_number(g, event_id_str, strlen(event_id_str)) !=
+      yajl_gen_status_ok) {
+    sfree(event_id_str);
+    goto err;
+  }
+
+  sfree(event_id_str);
+
+  // eventName
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_EVENT_NAME_FIELD,
+                      strlen(PROCEVENT_EVENT_NAME_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  int event_name_len = 0;
+  event_name_len = event_name_len + (sizeof(char) * sizeof(int) * 4); // pid
+  event_name_len = event_name_len + strlen(process);      // process name
+  event_name_len = event_name_len + (state == 0 ? 4 : 2); // "down" or "up"
+  event_name_len = event_name_len +
+                   13; // "process", 3 spaces, 2 parentheses and null-terminator
+  char *event_name_str = malloc(event_name_len);
+  memset(event_name_str, '\0', event_name_len);
+  snprintf(event_name_str, event_name_len, "process %s (%d) %s", process, pid,
+           (state == 0 ? PROCEVENT_EVENT_NAME_DOWN_VALUE
+                       : PROCEVENT_EVENT_NAME_UP_VALUE));
+
+  if (yajl_gen_string(g, (u_char *)event_name_str, strlen(event_name_str)) !=
+      yajl_gen_status_ok) {
+    sfree(event_name_str);
+    goto err;
+  }
+
+  sfree(event_name_str);
+
+  // lastEpochMicrosec
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_LAST_EPOCH_MICROSEC_FIELD,
+                      strlen(PROCEVENT_LAST_EPOCH_MICROSEC_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  int last_epoch_microsec_len =
+      sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
+  char *last_epoch_microsec_str = malloc(last_epoch_microsec_len);
+  snprintf(last_epoch_microsec_str, last_epoch_microsec_len, "%llu",
+           (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+
+  if (yajl_gen_number(g, last_epoch_microsec_str,
+                      strlen(last_epoch_microsec_str)) != yajl_gen_status_ok) {
+    sfree(last_epoch_microsec_str);
+    goto err;
+  }
+
+  sfree(last_epoch_microsec_str);
+
+  // priority
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_PRIORITY_FIELD,
+                      strlen(PROCEVENT_PRIORITY_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_PRIORITY_VALUE,
+                      strlen(PROCEVENT_PRIORITY_VALUE)) != yajl_gen_status_ok)
+    goto err;
+
+  // reportingEntityName
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_REPORTING_ENTITY_NAME_FIELD,
+                      strlen(PROCEVENT_REPORTING_ENTITY_NAME_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_REPORTING_ENTITY_NAME_VALUE,
+                      strlen(PROCEVENT_REPORTING_ENTITY_NAME_VALUE)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  // sequence
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_SEQUENCE_FIELD,
+                      strlen(PROCEVENT_SEQUENCE_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_number(g, PROCEVENT_SEQUENCE_VALUE,
+                      strlen(PROCEVENT_SEQUENCE_VALUE)) != yajl_gen_status_ok)
+    goto err;
+
+  // sourceName
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_SOURCE_NAME_FIELD,
+                      strlen(PROCEVENT_SOURCE_NAME_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(g, (u_char *)process, strlen(process)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  // startEpochMicrosec
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_START_EPOCH_MICROSEC_FIELD,
+                      strlen(PROCEVENT_START_EPOCH_MICROSEC_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  int start_epoch_microsec_len =
+      sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
+  char *start_epoch_microsec_str = malloc(start_epoch_microsec_len);
+  snprintf(start_epoch_microsec_str, start_epoch_microsec_len, "%llu",
+           (long long unsigned int)timestamp);
+
+  if (yajl_gen_number(g, start_epoch_microsec_str,
+                      strlen(start_epoch_microsec_str)) != yajl_gen_status_ok) {
+    sfree(start_epoch_microsec_str);
+    goto err;
+  }
+
+  sfree(start_epoch_microsec_str);
+
+  // version
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_VERSION_FIELD,
+                      strlen(PROCEVENT_VERSION_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_number(g, PROCEVENT_VERSION_VALUE,
+                      strlen(PROCEVENT_VERSION_VALUE)) != yajl_gen_status_ok)
+    goto err;
+
+  // *** END common event header ***
+
+  // *** BEGIN fault fields ***
+
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_FAULT_FIELDS_FIELD,
+                      strlen(PROCEVENT_FAULT_FIELDS_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_map_open(g) != yajl_gen_status_ok)
+    goto err;
+
+  // alarmCondition
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_ALARM_CONDITION_FIELD,
+                      strlen(PROCEVENT_ALARM_CONDITION_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  int alarm_condition_len = 0;
+  alarm_condition_len =
+      alarm_condition_len + (sizeof(char) * sizeof(int) * 4);  // pid
+  alarm_condition_len = alarm_condition_len + strlen(process); // process name
+  alarm_condition_len =
+      alarm_condition_len + 25; // "process", "state", "change", 4 spaces, 2
+                                // parentheses and null-terminator
+  char *alarm_condition_str = malloc(alarm_condition_len);
+  memset(alarm_condition_str, '\0', alarm_condition_len);
+  snprintf(alarm_condition_str, alarm_condition_len,
+           "process %s (%d) state change", process, pid);
+
+  if (yajl_gen_string(g, (u_char *)alarm_condition_str,
+                      strlen(alarm_condition_str)) != yajl_gen_status_ok) {
+    sfree(alarm_condition_str);
+    goto err;
+  }
+
+  sfree(alarm_condition_str);
+
+  // alarmInterfaceA
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_ALARM_INTERFACE_A_FIELD,
+                      strlen(PROCEVENT_ALARM_INTERFACE_A_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(g, (u_char *)process, strlen(process)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  // eventSeverity
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_EVENT_SEVERITY_FIELD,
+                      strlen(PROCEVENT_EVENT_SEVERITY_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(
+          g, (u_char *)(state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
+                                   : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE),
+          strlen((state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
+                             : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE))) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  // eventSourceType
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_EVENT_SOURCE_TYPE_FIELD,
+                      strlen(PROCEVENT_EVENT_SOURCE_TYPE_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_EVENT_SOURCE_TYPE_VALUE,
+                      strlen(PROCEVENT_EVENT_SOURCE_TYPE_VALUE)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  // faultFieldsVersion
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_FAULT_FIELDS_VERSION_FIELD,
+                      strlen(PROCEVENT_FAULT_FIELDS_VERSION_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_number(g, PROCEVENT_FAULT_FIELDS_VERSION_VALUE,
+                      strlen(PROCEVENT_FAULT_FIELDS_VERSION_VALUE)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  // specificProblem
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_SPECIFIC_PROBLEM_FIELD,
+                      strlen(PROCEVENT_SPECIFIC_PROBLEM_FIELD)) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  int specific_problem_len = 0;
+  specific_problem_len =
+      specific_problem_len + (sizeof(char) * sizeof(int) * 4);   // pid
+  specific_problem_len = specific_problem_len + strlen(process); // process name
+  specific_problem_len =
+      specific_problem_len + (state == 0 ? 4 : 2); // "down" or "up"
+  specific_problem_len =
+      specific_problem_len +
+      13; // "process", 3 spaces, 2 parentheses and null-terminator
+  char *specific_problem_str = malloc(specific_problem_len);
+  memset(specific_problem_str, '\0', specific_problem_len);
+  snprintf(specific_problem_str, specific_problem_len, "process %s (%d) %s",
+           process, pid, (state == 0 ? PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE
+                                     : PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE));
+
+  if (yajl_gen_string(g, (u_char *)specific_problem_str,
+                      strlen(specific_problem_str)) != yajl_gen_status_ok) {
+    sfree(specific_problem_str);
+    goto err;
+  }
+
+  sfree(specific_problem_str);
+
+  // vfStatus
+  if (yajl_gen_string(g, (u_char *)PROCEVENT_VF_STATUS_FIELD,
+                      strlen(PROCEVENT_VF_STATUS_FIELD)) != yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_string(
+          g, (u_char *)(state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
+                                   : PROCEVENT_VF_STATUS_NORMAL_VALUE),
+          strlen((state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
+                             : PROCEVENT_VF_STATUS_NORMAL_VALUE))) !=
+      yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_map_close(g) != yajl_gen_status_ok)
+    goto err;
+
+  // *** END fault fields ***
+
+  if (yajl_gen_map_close(g) != yajl_gen_status_ok)
+    goto err;
+
+  if (yajl_gen_get_buf(g, &buf2, &len) != yajl_gen_status_ok)
+    goto err;
+
+  *buf = malloc(strlen((char *)buf2) + 1);
+
+  sstrncpy(*buf, (char *)buf2, strlen((char *)buf2) + 1);
+
+  yajl_gen_free(g);
+
+  return 0;
+
+err:
+  yajl_gen_free(g);
+  ERROR("procevent plugin: gen_message_payload failed to generate JSON");
+  return -1;
+}
 
 // Does /proc/<pid>/comm contain a process name we are interested in?
 static processlist_t *process_check(int pid) {
@@ -529,17 +892,22 @@ static int read_event() {
     if (next == ring.tail) {
       WARNING("procevent plugin: ring buffer full");
     } else {
-      DEBUG("procevent plugin: Process %d status is now %s", proc_id,
-            (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"));
+      DEBUG("procevent plugin: Process %d status is now %s at %llu", proc_id,
+            (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"),
+            (long long unsigned int)CDTIME_T_TO_US(cdtime()));
 
       if (proc_status == PROCEVENT_EXITED) {
         ring.buffer[ring.head][0] = proc_id;
         ring.buffer[ring.head][1] = proc_status;
         ring.buffer[ring.head][2] = proc_extra;
+        ring.buffer[ring.head][3] =
+            (long long unsigned int)CDTIME_T_TO_US(cdtime());
       } else {
         ring.buffer[ring.head][0] = proc_id;
         ring.buffer[ring.head][1] = proc_status;
         ring.buffer[ring.head][2] = 0;
+        ring.buffer[ring.head][3] =
+            (long long unsigned int)CDTIME_T_TO_US(cdtime());
       }
 
       ring.head = next;
@@ -689,10 +1057,12 @@ static int procevent_init(void) /* {{{ */
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
-  ring.buffer = (int **)malloc(buffer_length * sizeof(int *));
+  ring.buffer = (long long unsigned int **)malloc(
+      buffer_length * sizeof(long long unsigned int *));
 
   for (int i = 0; i < buffer_length; i++) {
-    ring.buffer[i] = (int *)malloc(PROCEVENT_FIELDS * sizeof(int));
+    ring.buffer[i] = (long long unsigned int *)malloc(
+        PROCEVENT_FIELDS * sizeof(long long unsigned int));
   }
 
   status = process_map_refresh();
@@ -769,41 +1139,54 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
   return (0);
 } /* }}} int procevent_config */
 
-static void submit(int pid, const char *type, /* {{{ */
-                   gauge_t value, const char *process) {
-  value_list_t vl = VALUE_LIST_INIT;
-  char hostname[1024];
+static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
+                                            gauge_t value, char *process,
+                                            long long unsigned int timestamp) {
+  char *buf = NULL;
+  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", "procevent", "", "", "",
+                      NULL};
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-  sstrncpy(vl.plugin, "procevent", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, process, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
+  if (value == 1)
+    n.severity = NOTIF_OKAY;
+
+  char hostname[1024];
+  gethostname(hostname, sizeof(hostname));
+
+  sstrncpy(n.host, hostname, sizeof(n.host));
+  sstrncpy(n.plugin_instance, process, sizeof(n.plugin_instance));
+  sstrncpy(n.type, "gauge", sizeof(n.type));
+  sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
+
+  gen_message_payload(value, pid, process, timestamp, &buf);
+
+  notification_meta_t *m = calloc(1, sizeof(*m));
+
+  if (m == NULL) {
+    char errbuf[1024];
+    sfree(buf);
+    ERROR("procevent plugin: unable to allocate metadata: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return;
+  }
+
+  sstrncpy(m->name, "ves", sizeof(m->name));
+  m->nm_value.nm_string = sstrdup(buf);
+  m->type = NM_TYPE_STRING;
+  n.meta = m;
+
+  DEBUG("procevent plugin: notification message: %s",
+        n.meta->nm_value.nm_string);
 
   DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
         pid, process);
 
-  // Create metadata to store JSON key-values
-  meta_data_t *meta = meta_data_create();
+  plugin_dispatch_notification(&n);
+  plugin_notification_meta_free(n.meta);
 
-  vl.meta = meta;
-
-  gethostname(hostname, sizeof(hostname));
-
-  if (value == 1) {
-    meta_data_add_string(meta, "condition", "process_up");
-    meta_data_add_string(meta, "entity", process);
-    meta_data_add_string(meta, "source", hostname);
-    meta_data_add_string(meta, "dest", "process_down");
-  } else {
-    meta_data_add_string(meta, "condition", "process_down");
-    meta_data_add_string(meta, "entity", process);
-    meta_data_add_string(meta, "source", hostname);
-    meta_data_add_string(meta, "dest", "process_up");
-  }
-
-  plugin_dispatch_values(&vl);
-} /* }}} void interface_submit */
+  // malloc'd in gen_message_payload
+  if (buf != NULL)
+    sfree(buf);
+}
 
 static int procevent_read(void) /* {{{ */
 {
@@ -831,8 +1214,9 @@ static int procevent_read(void) /* {{{ */
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its EXITED status
-        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1],
-               pl->process);
+        procevent_dispatch_notification(ring.buffer[ring.tail][0], "gauge",
+                                        ring.buffer[ring.tail][1], pl->process,
+                                        ring.buffer[ring.tail][3]);
         DEBUG("procevent plugin: PID %d (%s) EXITED, removing PID from process "
               "list",
               pl->pid, pl->process);
@@ -844,8 +1228,9 @@ static int procevent_read(void) /* {{{ */
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its STARTED status
-        submit(ring.buffer[ring.tail][0], "gauge", ring.buffer[ring.tail][1],
-               pl->process);
+        procevent_dispatch_notification(ring.buffer[ring.tail][0], "gauge",
+                                        ring.buffer[ring.tail][1], pl->process,
+                                        ring.buffer[ring.tail][3]);
         DEBUG(
             "procevent plugin: PID %d (%s) STARTED, adding PID to process list",
             pl->pid, pl->process);
