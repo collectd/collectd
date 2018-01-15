@@ -742,8 +742,9 @@ is preserved, i.e. passed through.
 
 The I<AMQP1 plugin> can be used to communicate with other instances of
 I<collectd> or third party applications using an AMQP 1.0 message
-intermediary. Values are sent to the messaging intermediary which
-may handle direct messaging or queue based transfer.
+intermediary. Metric values or notifications are sent to the
+messaging intermediary which may handle direct messaging or
+queue based transfer.
 
 B<Synopsis:>
 
@@ -758,6 +759,7 @@ B<Synopsis:>
     <Instance "some_name">
         Format "command"
         PreSettle false
+        Notify false
  #      StoreRates false
  #      GraphitePrefix "collectd."
  #      GraphiteEscapeChar "_"
@@ -770,8 +772,9 @@ B<Synopsis:>
 
 The plugin's configuration consists of a I<Transport> that configures
 communications to the AMQP 1.0 messaging bus and one or more I<Instance>
-corresponding to publishers to the messaging system. The address in
-the I<Transport> block concatenated with the name given int the
+corresponding to metric or event publishers to the messaging system.
+
+The address in the I<Transport> block concatenated with the name given in the
 I<Instance> block starting tag will be used as the send-to address for
 communications over the messaging link.
 
@@ -835,6 +838,13 @@ message. This indicates transfer of ownership to the messaging
 system. If set to B<true>, the plugin will not wait for a message
 acknowledgement and the message may be dropped prior to transfer of
 ownership.
+
+=item B<Notify> B<true>|B<false>
+
+If set to B<false> (the default), the plugin will service the
+instance write call back as a value list. If set to B<true> the
+plugin will service the instance as a write notification callback
+for alert formatting.
 
 =item B<StoreRates> B<true>|B<false>
 
