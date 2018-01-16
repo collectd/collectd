@@ -259,6 +259,11 @@ collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = \
 	$(COMMON_LIBS) \
 	libcollectd.la
+if BUILD_WIN32
+collectd_SOURCES += src/daemon/collectd_windows.c
+else
+collectd_SOURCES += src/daemon/collectd_linux.c
+endif
 
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'

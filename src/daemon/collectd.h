@@ -270,4 +270,16 @@ typedef int uid_t;
 
 #include "globals.h"
 
+struct cmdline_config {
+  _Bool test_config;
+  _Bool test_readall;
+  _Bool create_basedir;
+  const char *configfile;
+  _Bool daemonize;
+};
+
+void stop_collectd(void);
+struct cmdline_config init_config(int argc, char **argv);
+int run_loop(_Bool test_readall);
+
 #endif /* COLLECTD_H */
