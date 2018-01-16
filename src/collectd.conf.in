@@ -712,6 +712,7 @@
 #<Plugin iptables>
 #	Chain table chain
 #	Chain6 table chain
+#	IgnoreSelected false
 #</Plugin>
 
 #<Plugin irq>
