@@ -856,6 +856,18 @@ disk_la_LIBADD += -lperfstat
 endif
 endif
 
+if BUILD_PLUGIN_WMI
+pkglib_LTLIBRARIES += wmi.la
+wmi_la_SOURCES = \
+	src/wmi.c \
+	src/utils_wmi.c \
+	src/utils_wmi.h
+wmi_la_CFLAGS = $(AM_CFLAGS)
+wmi_la_LDFLAGS = $(PLUGIN_LDFLAGS) -L.
+wmi_la_DEPENDENCIES = $(COMMON_DEPS) libuuid.dll
+wmi_la_LIBADD = -loleaut32 -lole32 -luuid
+endif
+
 if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = \
@@ -2098,6 +2110,10 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+if BUILD_WIN32
+	$(mkinstalldirs) "$(DESTDIR)$(sbindir)"
+	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll "$(pkglibdir)/libuuid.dll"
+endif
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
@@ -2105,6 +2121,11 @@ uninstall-hook:
 	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 
 all-local: @PERL_BINDINGS@
+
+# Windows doesn't have a shared library for libuuid.dll.
+# So we need to build a wrapper.
+libuuid.dll:
+	${CC} -x c /dev/null -shared -o libuuid.dll -Wl,-whole-archive -luuid -Wl,-no-whole-archive
 
 install-exec-local:
 	[ ! -f buildperl/Makefile ] || ( cd buildperl && $(MAKE) install )

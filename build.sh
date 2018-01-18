@@ -145,7 +145,8 @@ build_cygwin()
       --enable-logfile \
       --enable-match_regex \
       --enable-target_replace \
-      --enable-target_set
+      --enable-target_set \
+      --enable-wmi
 
     cp ${GNULIB_DIR}/../config.h src/gnulib_config.h
     echo "#include <config.h.in>" >> src/gnulib_config.h
