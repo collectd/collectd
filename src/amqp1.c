@@ -29,13 +29,13 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_cmd_putval.h"
+#include "utils_deq.h"
 #include "utils_format_graphite.h"
 #include "utils_format_json.h"
 #include "utils_random.h"
-#include "utils_deq.h"
 
-#include <proton/connection.h>
 #include <proton/condition.h>
+#include <proton/connection.h>
 #include <proton/delivery.h>
 #include <proton/link.h>
 #include <proton/message.h>
@@ -44,10 +44,10 @@
 #include <proton/session.h>
 #include <proton/transport.h>
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define BUFSIZE 8192
 #define AMQP1_FORMAT_JSON 0
@@ -56,26 +56,26 @@
 
 typedef struct amqp1_config_transport_t {
   DEQ_LINKS(struct amqp1_config_transport_t);
-  char              *name;
-  char              *host;
-  char              *port;
-  char              *user;
-  char              *password;
-  char              *address;
+  char *name;
+  char *host;
+  char *port;
+  char *user;
+  char *password;
+  char *address;
 } amqp1_config_transport_t;
 
 typedef struct amqp1_config_instance_t {
   DEQ_LINKS(struct amqp1_config_instance_t);
-  char              *name;
-  _Bool             notify;
-  uint8_t           format;
-  unsigned int      graphite_flags;
-  _Bool             store_rates;
-  char              *prefix;
-  char              *postfix;
-  char              escape_char;
-  _Bool             pre_settle;
-  char              send_to[128];
+  char *name;
+  _Bool notify;
+  uint8_t format;
+  unsigned int graphite_flags;
+  _Bool store_rates;
+  char *prefix;
+  char *postfix;
+  char escape_char;
+  _Bool pre_settle;
+  char send_to[128];
 } amqp1_config_instance_t;
 
 DEQ_DECLARE(amqp1_config_instance_t, amqp1_config_instance_list_t);
@@ -91,25 +91,24 @@ DEQ_DECLARE(cd_message_t, cd_message_list_t);
 /*
  * Globals
  */
-pn_connection_t          *conn = NULL;
-pn_session_t             *ssn = NULL;
-pn_link_t                *sender = NULL;
-pn_proactor_t            *proactor = NULL;
-pthread_mutex_t          send_lock;
-cd_message_list_t        out_messages;
-uint64_t                 cd_tag = 1;
-uint64_t                 acknowledged = 0;
+pn_connection_t *conn = NULL;
+pn_session_t *ssn = NULL;
+pn_link_t *sender = NULL;
+pn_proactor_t *proactor = NULL;
+pthread_mutex_t send_lock;
+cd_message_list_t out_messages;
+uint64_t cd_tag = 1;
+uint64_t acknowledged = 0;
 amqp1_config_transport_t *transport = NULL;
-bool                     finished = false;
+bool finished = false;
 
-static int       event_thread_running = 0;
+static int event_thread_running = 0;
 static pthread_t event_thread_id;
 
 /*
  * Functions
  */
-static void cd_message_free(cd_message_t *cdm)
-{
+static void cd_message_free(cd_message_t *cdm) {
   if (cdm->mbuf.start) {
     free((void *)cdm->mbuf.start);
   }
@@ -118,12 +117,12 @@ static void cd_message_free(cd_message_t *cdm)
 
 static int amqp1_send_out_messages(pn_link_t *link) /* {{{ */
 {
-  uint64_t          dtag;
+  uint64_t dtag;
   cd_message_list_t to_send;
-  cd_message_t      *cdm;
-  int               link_credit = pn_link_credit(link);
-  int               event_count = 0;
-  pn_delivery_t     *dlv;
+  cd_message_t *cdm;
+  int link_credit = pn_link_credit(link);
+  int event_count = 0;
+  pn_delivery_t *dlv;
 
   DEQ_INIT(to_send);
 
@@ -149,7 +148,7 @@ static int amqp1_send_out_messages(pn_link_t *link) /* {{{ */
   while (cdm) {
     DEQ_REMOVE_HEAD(to_send);
     dtag++;
-    dlv = pn_delivery(link, pn_dtag((const char*)&dtag, sizeof(dtag)));
+    dlv = pn_delivery(link, pn_dtag((const char *)&dtag, sizeof(dtag)));
     pn_link_send(link, cdm->mbuf.start, cdm->mbuf.size);
     pn_link_advance(link);
     if (cdm->instance->pre_settle == true) {
@@ -166,10 +165,8 @@ static int amqp1_send_out_messages(pn_link_t *link) /* {{{ */
 static void check_condition(pn_event_t *e, pn_condition_t *cond) /* {{{ */
 {
   if (pn_condition_is_set(cond)) {
-    ERROR("amqp1 plugin: %s: %s: %s",
-          pn_event_type_name(pn_event_type(e)),
-          pn_condition_get_name(cond),
-          pn_condition_get_description(cond));
+    ERROR("amqp1 plugin: %s: %s: %s", pn_event_type_name(pn_event_type(e)),
+          pn_condition_get_name(cond), pn_condition_get_description(cond));
     pn_connection_close(pn_event_connection(e));
     conn = NULL;
   }
@@ -180,7 +177,7 @@ static bool handle(pn_event_t *event) /* {{{ */
 
   switch (pn_event_type(event)) {
 
-  case PN_CONNECTION_INIT:{
+  case PN_CONNECTION_INIT: {
     conn = pn_event_connection(event);
     pn_connection_set_container(conn, transport->address);
     pn_connection_open(conn);
@@ -200,7 +197,7 @@ static bool handle(pn_event_t *event) /* {{{ */
 
   case PN_DELIVERY: {
     /* acknowledgement from peer that a message was delivered */
-    pn_delivery_t * dlv = pn_event_delivery(event);
+    pn_delivery_t *dlv = pn_event_delivery(event);
     if (pn_delivery_remote_state(dlv) == PN_ACCEPTED) {
       acknowledged++;
     }
@@ -220,13 +217,15 @@ static bool handle(pn_event_t *event) /* {{{ */
   }
 
   case PN_CONNECTION_REMOTE_CLOSE: {
-    check_condition(event, pn_session_remote_condition(pn_event_session(event)));
+    check_condition(event,
+                    pn_session_remote_condition(pn_event_session(event)));
     pn_connection_close(pn_event_connection(event));
     break;
   }
 
   case PN_SESSION_REMOTE_CLOSE: {
-    check_condition(event, pn_session_remote_condition(pn_event_session(event)));
+    check_condition(event,
+                    pn_session_remote_condition(pn_event_session(event)));
     pn_connection_close(pn_event_connection(event));
     break;
   }
@@ -242,7 +241,8 @@ static bool handle(pn_event_t *event) /* {{{ */
     return false;
   }
 
-  default: break;
+  default:
+    break;
   }
   return true;
 } /* }}} bool handle */
@@ -266,10 +266,11 @@ static void *event_thread(void __attribute__((unused)) * arg) /* {{{ */
   return NULL;
 } /* }}} void event_thread */
 
-static void encqueue(cd_message_t *cdm, amqp1_config_instance_t *instance ) /* {{{ */
+static void encqueue(cd_message_t *cdm,
+                     amqp1_config_instance_t *instance) /* {{{ */
 {
-  size_t       bufsize = BUFSIZE;
-  pn_data_t    *body;
+  size_t bufsize = BUFSIZE;
+  pn_data_t *body;
   pn_message_t *message;
 
   /* encode message */
@@ -297,14 +298,15 @@ static void encqueue(cd_message_t *cdm, amqp1_config_instance_t *instance ) /* {
 
 } /* }}} void encqueue */
 
-static int amqp1_notify(notification_t const *n, user_data_t *user_data) /* {{{ */
+static int amqp1_notify(notification_t const *n,
+                        user_data_t *user_data) /* {{{ */
 {
   amqp1_config_instance_t *instance;
-  int          status = 0;
-  size_t       bfree = BUFSIZE;
-  size_t       bfill = 0;
+  int status = 0;
+  size_t bfree = BUFSIZE;
+  size_t bfill = 0;
   cd_message_t *cdm;
-  size_t       bufsize = BUFSIZE;
+  size_t bufsize = BUFSIZE;
 
   if ((n == NULL) || (user_data == NULL))
     return EINVAL;
@@ -317,7 +319,7 @@ static int amqp1_notify(notification_t const *n, user_data_t *user_data) /* {{{ 
 
   cdm = NEW(cd_message_t);
   DEQ_ITEM_INIT(cdm);
-  cdm->mbuf = pn_bytes(bufsize, (char *) malloc(bufsize));
+  cdm->mbuf = pn_bytes(bufsize, (char *)malloc(bufsize));
   cdm->instance = instance;
 
   switch (instance->format) {
@@ -342,16 +344,16 @@ static int amqp1_notify(notification_t const *n, user_data_t *user_data) /* {{{ 
 } /* }}} int amqp1_notify */
 
 static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
-                       user_data_t *user_data)
-{
+                       user_data_t *user_data) {
   amqp1_config_instance_t *instance;
-  int          status = 0;
-  size_t       bfree = BUFSIZE;
-  size_t       bfill = 0;
+  int status = 0;
+  size_t bfree = BUFSIZE;
+  size_t bfill = 0;
   cd_message_t *cdm;
-  size_t       bufsize = BUFSIZE;
+  size_t bufsize = BUFSIZE;
 
-  if ((ds == NULL) || (vl == NULL) || (transport == NULL) || (user_data == NULL))
+  if ((ds == NULL) || (vl == NULL) || (transport == NULL) ||
+      (user_data == NULL))
     return EINVAL;
 
   instance = user_data->data;
@@ -362,7 +364,7 @@ static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
 
   cdm = NEW(cd_message_t);
   DEQ_ITEM_INIT(cdm);
-  cdm->mbuf = pn_bytes(bufsize, (char *) malloc(bufsize));
+  cdm->mbuf = pn_bytes(bufsize, (char *)malloc(bufsize));
   cdm->instance = instance;
 
   switch (instance->format) {
@@ -377,14 +379,14 @@ static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
   case AMQP1_FORMAT_JSON:
     format_json_initialize((char *)cdm->mbuf.start, &bfill, &bfree);
     format_json_value_list((char *)cdm->mbuf.start, &bfill, &bfree, ds, vl,
-                             instance->store_rates);
+                           instance->store_rates);
     format_json_finalize((char *)cdm->mbuf.start, &bfill, &bfree);
     cdm->mbuf.size = strlen(cdm->mbuf.start);
     break;
   case AMQP1_FORMAT_GRAPHITE:
-    status =
-        format_graphite((char *)cdm->mbuf.start, bufsize, ds, vl, instance->prefix,
-                        instance->postfix, instance->escape_char, instance->graphite_flags);
+    status = format_graphite((char *)cdm->mbuf.start, bufsize, ds, vl,
+                             instance->prefix, instance->postfix,
+                             instance->escape_char, instance->graphite_flags);
     if (status != 0) {
       ERROR("amqp1 plugin: format_graphite failed with status %i.", status);
       return status;
@@ -434,7 +436,7 @@ static void amqp1_config_instance_free(void *ptr) /* {{{ */
 
 static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
 {
-  int  status=0;
+  int status = 0;
   char *key = NULL;
   amqp1_config_instance_t *instance;
 
@@ -463,8 +465,8 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Format", child->key) == 0) {
       status = cf_util_get_string(child, &key);
       if (status != 0)
-          return status;
-          /* TODO: goto errout */
+        return status;
+      /* TODO: goto errout */
       //          goto errout;
       assert(key != NULL);
       if (strcasecmp(key, "Command") == 0) {
@@ -477,8 +479,7 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
         WARNING("amqp1 plugin: Invalid format string: %s", key);
       }
       sfree(key);
-    }
-    else if (strcasecmp("StoreRates", child->key) == 0)
+    } else if (strcasecmp("StoreRates", child->key) == 0)
       status = cf_util_get_boolean(child, &instance->store_rates);
     else if (strcasecmp("GraphiteSeparateInstances", child->key) == 0)
       status = cf_util_get_flag(child, &instance->graphite_flags,
@@ -501,11 +502,11 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
                 "only one character. Others will be ignored.");
       instance->escape_char = tmp_buff[0];
       sfree(tmp_buff);
-    }
-    else
+    } else
       WARNING("amqp1 plugin: Ignoring unknown "
               "instance configuration option "
-              "\%s\".", child->key);
+              "\%s\".",
+              child->key);
     if (status != 0)
       break;
   }
@@ -517,13 +518,19 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
     char tpname[128];
     snprintf(tpname, sizeof(tpname), "amqp1/%s", instance->name);
     snprintf(instance->send_to, sizeof(instance->send_to), "/%s/%s",
-             transport->address,instance->name);
+             transport->address, instance->name);
     if (instance->notify == true) {
-      status = plugin_register_notification(tpname, amqp1_notify, &(user_data_t) {
-              .data = instance, .free_func = amqp1_config_instance_free, });
+      status = plugin_register_notification(
+          tpname, amqp1_notify,
+          &(user_data_t){
+              .data = instance, .free_func = amqp1_config_instance_free,
+          });
     } else {
-      status = plugin_register_write(tpname, amqp1_write, &(user_data_t) {
-              .data = instance, .free_func = amqp1_config_instance_free, });
+      status = plugin_register_write(
+          tpname, amqp1_write,
+          &(user_data_t){
+              .data = instance, .free_func = amqp1_config_instance_free,
+          });
     }
 
     if (status != 0) {
@@ -536,7 +543,7 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
 
 static int amqp1_config_transport(oconfig_item_t *ci) /* {{{ */
 {
-  int status=0;
+  int status = 0;
 
   transport = calloc(1, sizeof(*transport));
   if (transport == NULL) {
@@ -566,12 +573,13 @@ static int amqp1_config_transport(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &transport->password);
     else if (strcasecmp("Address", child->key) == 0)
       status = cf_util_get_string(child, &transport->address);
-    else if (strcasecmp("Instance",child->key) == 0)
+    else if (strcasecmp("Instance", child->key) == 0)
       amqp1_config_instance(child);
     else
       WARNING("amqp1 plugin: Ignoring unknown "
               "transport configuration option "
-              "\%s\".", child->key);
+              "\%s\".",
+              child->key);
 
     if (status != 0)
       break;
@@ -581,7 +589,7 @@ static int amqp1_config_transport(oconfig_item_t *ci) /* {{{ */
     amqp1_config_transport_free(transport);
   }
   return status;
-}  /* }}} int amqp1_config_transport */
+} /* }}} int amqp1_config_transport */
 
 static int amqp1_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -602,7 +610,7 @@ static int amqp1_config(oconfig_item_t *ci) /* {{{ */
 static int amqp1_init(void) /* {{{ */
 {
   char addr[PN_MAX_ADDR];
-  int  status;
+  int status;
   char errbuf[1024];
 
   if (transport == NULL) {
@@ -613,17 +621,17 @@ static int amqp1_init(void) /* {{{ */
   if (proactor == NULL) {
     pthread_mutex_init(&send_lock, /* attr = */ NULL);
     proactor = pn_proactor();
-    pn_proactor_addr(addr, sizeof(addr),transport->host,transport->port);
+    pn_proactor_addr(addr, sizeof(addr), transport->host, transport->port);
     conn = pn_connection();
     if (transport->user != NULL) {
-        pn_connection_set_user(conn, transport->user);
-        pn_connection_set_password(conn, transport->password);
+      pn_connection_set_user(conn, transport->user);
+      pn_connection_set_password(conn, transport->password);
     }
     pn_proactor_connect(proactor, conn, addr);
     /* start_thread */
-    status = plugin_thread_create(&event_thread_id, NULL /* no attributes */,
-                                  event_thread, NULL /* no argument */,
-                                  "handle");
+    status =
+        plugin_thread_create(&event_thread_id, NULL /* no attributes */,
+                             event_thread, NULL /* no argument */, "handle");
     if (status != 0) {
       ERROR("amqp1: pthread_create failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
@@ -640,7 +648,7 @@ static int amqp1_shutdown(void) /* {{{ */
 
   /* Stop the proactor thread */
   if (event_thread_running != 0) {
-    finished=true;
+    finished = true;
     /* activate the event thread */
     pn_connection_wake(conn);
     pthread_join(event_thread_id, NULL /* no return value */);
@@ -666,9 +674,8 @@ static int amqp1_shutdown(void) /* {{{ */
   return 0;
 } /* }}} int amqp1_shutdown */
 
-void module_register(void)
-{
+void module_register(void) {
   plugin_register_complex_config("amqp1", amqp1_config);
   plugin_register_init("amqp1", amqp1_init);
-  plugin_register_shutdown("amqp1",amqp1_shutdown);
+  plugin_register_shutdown("amqp1", amqp1_shutdown);
 } /* void module_register */
