@@ -193,6 +193,7 @@ build_windows ()
 	cp "${GNULIB_DIR}/libgnu.dll" "${LIBTOOL_DIR}/bin/libltdl-7.dll" "${LIBCURL_DIR}/bin/libcurl-4.dll" "${INSTALL_DIR}/sbin"
 	cp "${MINGW_ROOT}"/bin/{zlib1.dll,libwinpthread-1.dll,libdl.dll} "${INSTALL_DIR}/sbin"
 	cp "${INSTALL_DIR}"/sbin/*.dll "${INSTALL_DIR}/lib/collectd"
+	cp "collectd.conf" "$INSTALL_DIR/etc"
 
 	#DEST_DIR="C:/Program Files/collectd"
 	#mkdir -p "${DEST_DIR}"
