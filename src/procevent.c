@@ -838,37 +838,14 @@ static int read_event() {
 
   switch (nlcn_msg.proc_ev.what) {
   case PROC_EVENT_NONE:
-    // printf("set mcast listen ok\n");
-    break;
   case PROC_EVENT_FORK:
-    // printf("fork: parent tid=%d pid=%d -> child tid=%d pid=%d\n",
-    //         nlcn_msg.proc_ev.event_data.fork.parent_pid,
-    //         nlcn_msg.proc_ev.event_data.fork.parent_tgid,
-    //         nlcn_msg.proc_ev.event_data.fork.child_pid,
-    //         nlcn_msg.proc_ev.event_data.fork.child_tgid);
-    // proc_status = PROCEVENT_STARTED;
-    // proc_id = nlcn_msg.proc_ev.event_data.fork.child_pid;
+  case PROC_EVENT_UID:
+  case PROC_EVENT_GID:
+    // Not of interest in current version
     break;
   case PROC_EVENT_EXEC:
-    // printf("exec: tid=%d pid=%d\n",
-    //         nlcn_msg.proc_ev.event_data.exec.process_pid,
-    //         nlcn_msg.proc_ev.event_data.exec.process_tgid);
     proc_status = PROCEVENT_STARTED;
     proc_id = nlcn_msg.proc_ev.event_data.exec.process_pid;
-    break;
-  case PROC_EVENT_UID:
-    // printf("uid change: tid=%d pid=%d from %d to %d\n",
-    //         nlcn_msg.proc_ev.event_data.id.process_pid,
-    //         nlcn_msg.proc_ev.event_data.id.process_tgid,
-    //         nlcn_msg.proc_ev.event_data.id.r.ruid,
-    //         nlcn_msg.proc_ev.event_data.id.e.euid);
-    break;
-  case PROC_EVENT_GID:
-    // printf("gid change: tid=%d pid=%d from %d to %d\n",
-    //         nlcn_msg.proc_ev.event_data.id.process_pid,
-    //         nlcn_msg.proc_ev.event_data.id.process_tgid,
-    //         nlcn_msg.proc_ev.event_data.id.r.rgid,
-    //         nlcn_msg.proc_ev.event_data.id.e.egid);
     break;
   case PROC_EVENT_EXIT:
     proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
@@ -1247,7 +1224,6 @@ static int procevent_read(void) /* {{{ */
 
 static int procevent_shutdown(void) /* {{{ */
 {
-  // int status = 0;
   processlist_t *pl;
 
   DEBUG("procevent plugin: Shutting down thread.");
