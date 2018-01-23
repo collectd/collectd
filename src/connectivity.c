@@ -56,6 +56,10 @@
 
 #define MYPROTO NETLINK_ROUTE
 
+#define LINK_STATE_DOWN 0
+#define LINK_STATE_UP 1
+#define LINK_STATE_UNKNOWN 2
+
 #define CONNECTIVITY_DOMAIN_FIELD "domain"
 #define CONNECTIVITY_DOMAIN_VALUE "stateChange"
 #define CONNECTIVITY_EVENT_ID_FIELD "eventId"
@@ -421,7 +425,8 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
       uint32_t prev_status;
 
       prev_status = il->status;
-      il->status = ((ifi->ifi_flags & IFF_RUNNING) ? 1 : 0);
+      il->status =
+          ((ifi->ifi_flags & IFF_RUNNING) ? LINK_STATE_UP : LINK_STATE_DOWN);
       il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
 
       // If the new status is different than the previous status,
@@ -450,17 +455,14 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
 static int msg_handler(struct nlmsghdr *msg) {
   switch (msg->nlmsg_type) {
   case RTM_NEWADDR:
-    break;
   case RTM_DELADDR:
-    break;
   case RTM_NEWROUTE:
-    break;
   case RTM_DELROUTE:
+  case RTM_DELLINK:
+    // Not of interest in current version
     break;
   case RTM_NEWLINK:
     connectivity_link_state(msg);
-    break;
-  case RTM_DELLINK:
     break;
   default:
     ERROR("connectivity plugin: msg_handler: Unknown netlink nlmsg_type %d\n",
@@ -690,8 +692,8 @@ static int connectivity_config(const char *key, const char *value) /* {{{ */
     }
 
     il->interface = interface;
-    il->status = 2; // "unknown"
-    il->prev_status = 2;
+    il->status = LINK_STATE_UNKNOWN;
+    il->prev_status = LINK_STATE_UNKNOWN;
     il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
     il->sent = 0;
     il->next = interfacelist_head;
@@ -711,7 +713,7 @@ static void connectivity_dispatch_notification(
   notification_t n = {
       NOTIF_FAILURE, cdtime(), "", "", "connectivity", "", "", "", NULL};
 
-  if (value == 1)
+  if (value == LINK_STATE_UP)
     n.severity = NOTIF_OKAY;
 
   char hostname[1024];
@@ -762,8 +764,8 @@ static int connectivity_read(void) /* {{{ */
     stop_thread(0);
 
     for (interfacelist_t *il = interfacelist_head; il != NULL; il = il->next) {
-      il->status = 2; // signifies "unknown"
-      il->prev_status = 2;
+      il->status = LINK_STATE_UNKNOWN;
+      il->prev_status = LINK_STATE_UNKNOWN;
       il->sent = 0;
     }
 
