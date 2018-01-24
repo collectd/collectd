@@ -223,7 +223,6 @@ libcollectd_la_SOURCES = \
 	src/daemon/utils_threshold.h
 libcollectd_la_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
 libcollectd_la_CFLAGS = $(AM_CFLAGS)
-libcollectd_la_LDFLAGS = $(COMMON_LDFLAGS)
 libcollectd_la_LIBADD = \
 	libavltree.la \
 	libcommon.la \
@@ -238,7 +237,6 @@ collectd_SOURCES = \
 	src/daemon/collectd.h
 collectd_CFLAGS = $(AM_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
-collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = \
 	$(COMMON_LIBS) \
 	libcollectd.la
