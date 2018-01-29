@@ -29,9 +29,9 @@
 #include "common.h"
 #include "plugin.h"
 
+#include "utils_ignorelist.h"
 #include <libiptc/libip6tc.h>
 #include <libiptc/libiptc.h>
-#include "utils_ignorelist.h"
 
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
@@ -98,11 +98,9 @@ static int iptables_config(const char *key, const char *value) {
   protocol_version_t ip_version = 0;
   if (strcasecmp(key, "Chain") == 0) {
     ip_version = IPV4;
-  }
-  else if (strcasecmp(key, "Chain6") == 0) {
+  } else if (strcasecmp(key, "Chain6") == 0) {
     ip_version = IPV6;
-  }
-  else if (strcasecmp(key, "IgnoreSelected") == 0) {
+  } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     int invert = 1;
     if (IS_TRUE(value))
       invert = 0;
@@ -390,12 +388,13 @@ static int iptables_read(void) {
         num_failures++;
         continue;
       }
-	for (chain_name = iptc_first_chain(handle); chain_name; chain_name = iptc_next_chain(handle)) {
-	  if (ignorelist_match(ignorelist, chain_name) == 0) {
-	    sstrncpy(temp_chain.chain, chain_name, sizeof(temp_chain.chain));
-	    submit_chain(handle, &temp_chain);
-	  }
-	}
+      for (chain_name = iptc_first_chain(handle); chain_name;
+           chain_name = iptc_next_chain(handle)) {
+        if (ignorelist_match(ignorelist, chain_name) == 0) {
+          sstrncpy(temp_chain.chain, chain_name, sizeof(temp_chain.chain));
+          submit_chain(handle, &temp_chain);
+        }
+      }
       iptc_free(handle);
     } else if (chain->ip_version == IPV6) {
 #ifdef HAVE_IP6TC_HANDLE_T
@@ -413,11 +412,12 @@ static int iptables_read(void) {
         num_failures++;
         continue;
       }
-      for (chain_name = ip6tc_first_chain(handle); chain_name; chain_name = ip6tc_next_chain(handle)) {
+      for (chain_name = ip6tc_first_chain(handle); chain_name;
+           chain_name = ip6tc_next_chain(handle)) {
         if (ignorelist_match(ignorelist, chain_name) == 0) {
-	  sstrncpy(temp_chain.chain, chain_name, sizeof(temp_chain.chain));
-	  submit6_chain(handle, &temp_chain);
-	}
+          sstrncpy(temp_chain.chain, chain_name, sizeof(temp_chain.chain));
+          submit6_chain(handle, &temp_chain);
+        }
       }
       ip6tc_free(handle);
     } else
