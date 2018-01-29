@@ -3487,7 +3487,7 @@ comment or the number.
 
   <Plugin iptables>
     Chain "mangle" "/^custom_chain/"
-    Chain6 "magle" "custom_chain" "comment_name"
+    Chain6 "mangle" "custom_chain" "comment_name"
   </Plugin>
 
 See F</"IGNORELISTS"> for details.
