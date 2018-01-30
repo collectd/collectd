@@ -35,8 +35,8 @@
 #include <sys/types.h>
 
 #ifdef WIN32
-#include <unistd.h>
 #include <locale.h>
+#include <unistd.h>
 #undef COLLECT_DAEMON
 #undef gethostname
 #include <winsock2.h>
@@ -403,9 +403,7 @@ int configure_collectd(struct cmdline_config *config) {
   return 0;
 }
 
-void stop_collectd(void) {
-  loop++;
-}
+void stop_collectd(void) { loop++; }
 
 struct cmdline_config init_config(int argc, char **argv) {
   struct cmdline_config config = {

@@ -126,9 +126,8 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
   if (srv->fd >= 0)
     server_close_socket(srv);
 
-  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = 0,
-                              .ai_socktype = SOCK_DGRAM};
+  struct addrinfo ai_hints = {
+      .ai_family = AF_UNSPEC, .ai_flags = 0, .ai_socktype = SOCK_DGRAM};
 #ifdef AI_ADDRCONFIG
   ai_hints.ai_flags = AI_ADDRCONFIG;
 #endif
@@ -367,7 +366,8 @@ int lcc_server_set_ttl(lcc_server_t *srv, uint8_t ttl) /* {{{ */
   return 0;
 } /* }}} int lcc_server_set_ttl */
 
-int lcc_server_set_interface(lcc_server_t *srv, char const *interface_) /* {{{ */
+int lcc_server_set_interface(lcc_server_t *srv,
+                             char const *interface_) /* {{{ */
 {
   unsigned int if_index;
   int status;

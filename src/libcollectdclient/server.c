@@ -91,13 +91,12 @@ static int server_multicast_join(lcc_listener_t *srv,
 #else
 #ifdef WIN32
     struct ip_mreq mreq = {
-      .imr_interface.s_addr = INADDR_ANY,
-      .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
+        .imr_interface.s_addr = INADDR_ANY,
+        .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
     };
 #else
     struct ip_mreq mreq = {
-        .imr_address.s_addr = INADDR_ANY,
-        .imr_multiaddr.s_addr = sa->s_addr,
+        .imr_address.s_addr = INADDR_ANY, .imr_multiaddr.s_addr = sa->s_addr,
     };
 #endif /* WIN32 */
 #endif /* HAVE_STRUCT_IP_MREQN_IMR_IFINDEX */

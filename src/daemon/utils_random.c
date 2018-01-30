@@ -36,9 +36,7 @@ double erand48(unsigned short unused[3]) {
   return (double)rand() / (double)RAND_MAX;
 }
 
-long int jrand48(unsigned short unused[3]) {
-  return rand();
-}
+long int jrand48(unsigned short unused[3]) { return rand(); }
 #endif
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;

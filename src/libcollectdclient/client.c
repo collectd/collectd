@@ -463,9 +463,8 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
     }
   }
 
-  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
-                              .ai_flags = 0,
-                              .ai_socktype = SOCK_STREAM};
+  struct addrinfo ai_hints = {
+      .ai_family = AF_UNSPEC, .ai_flags = 0, .ai_socktype = SOCK_STREAM};
 #ifdef AI_ADDRCONFIG
   ai_hints.ai_flags = AI_ADDRCONFIG;
 #endif

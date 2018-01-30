@@ -848,7 +848,8 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%" PRIu64, (uint64_t)write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIu64,
+             (uint64_t)write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -960,9 +961,9 @@ static void plugin_free_loaded(void) {
 
 #define BUFSIZE 512
 #ifdef WIN32
-# define SHLIB_SUFFIX ".dll"
+#define SHLIB_SUFFIX ".dll"
 #else
-# define SHLIB_SUFFIX ".so"
+#define SHLIB_SUFFIX ".so"
 #endif
 int plugin_load(char const *plugin_name, _Bool global) {
   DIR *dh;
@@ -1004,7 +1005,8 @@ int plugin_load(char const *plugin_name, _Bool global) {
    * type when matching the filename */
   status = snprintf(typename, sizeof(typename), "%s" SHLIB_SUFFIX, plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
-    WARNING("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"", plugin_name);
+    WARNING("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"",
+            plugin_name);
     return -1;
   }
 

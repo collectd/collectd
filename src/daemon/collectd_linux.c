@@ -36,9 +36,13 @@ static void *do_flush(void __attribute__((unused)) * arg) {
   return NULL;
 }
 
-static void sig_int_handler(int __attribute__((unused)) signal) { stop_collectd(); }
+static void sig_int_handler(int __attribute__((unused)) signal) {
+  stop_collectd();
+}
 
-static void sig_term_handler(int __attribute__((unused)) signal) { stop_collectd(); }
+static void sig_term_handler(int __attribute__((unused)) signal) {
+  stop_collectd();
+}
 
 static void sig_usr1_handler(int __attribute__((unused)) signal) {
   pthread_t thread;
