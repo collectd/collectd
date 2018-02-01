@@ -93,7 +93,7 @@
 /*
  * Private data types
  */
-struct interfacelist_s {
+struct interface_list_s {
   char *interface;
 
   uint32_t status;
@@ -101,14 +101,14 @@ struct interfacelist_s {
   uint32_t sent;
   long long unsigned int timestamp;
 
-  struct interfacelist_s *next;
+  struct interface_list_s *next;
 };
-typedef struct interfacelist_s interfacelist_t;
+typedef struct interface_list_s interface_list_t;
 
 /*
  * Private variables
  */
-static interfacelist_t *interfacelist_head = NULL;
+static interface_list_t *interface_list_head = NULL;
 
 static int connectivity_thread_loop = 0;
 static int connectivity_thread_error = 0;
@@ -129,6 +129,7 @@ static int gen_message_payload(int state, int old_state, const char *interface,
                                long long unsigned int timestamp, char **buf) {
   const unsigned char *buf2;
   yajl_gen g;
+  char json_str[DATA_MAX_NAME_LEN];
 
 #if !defined(HAVE_YAJL_V2)
   yajl_gen_config conf = {};
@@ -169,16 +170,12 @@ static int gen_message_payload(int state, int old_state, const char *interface,
 
   event_id = event_id + 1;
   int event_id_len = sizeof(char) * sizeof(int) * 4 + 1;
-  char *event_id_str = malloc(event_id_len);
-  snprintf(event_id_str, event_id_len, "%d", event_id);
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, event_id_len, "%d", event_id);
 
-  if (yajl_gen_number(g, event_id_str, strlen(event_id_str)) !=
-      yajl_gen_status_ok) {
-    sfree(event_id_str);
+  if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(event_id_str);
 
   // eventName
   if (yajl_gen_string(g, (u_char *)CONNECTIVITY_EVENT_NAME_FIELD,
@@ -191,19 +188,15 @@ static int gen_message_payload(int state, int old_state, const char *interface,
   event_name_len = event_name_len + (state == 0 ? 4 : 2); // "down" or "up"
   event_name_len =
       event_name_len + 12; // "interface", 2 spaces and null-terminator
-  char *event_name_str = malloc(event_name_len);
-  memset(event_name_str, '\0', event_name_len);
-  snprintf(event_name_str, event_name_len, "interface %s %s", interface,
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, event_name_len, "interface %s %s", interface,
            (state == 0 ? CONNECTIVITY_EVENT_NAME_DOWN_VALUE
                        : CONNECTIVITY_EVENT_NAME_UP_VALUE));
 
-  if (yajl_gen_string(g, (u_char *)event_name_str, strlen(event_name_str)) !=
+  if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
       yajl_gen_status_ok) {
-    sfree(event_name_str);
     goto err;
   }
-
-  sfree(event_name_str);
 
   // lastEpochMicrosec
   if (yajl_gen_string(g, (u_char *)CONNECTIVITY_LAST_EPOCH_MICROSEC_FIELD,
@@ -213,17 +206,13 @@ static int gen_message_payload(int state, int old_state, const char *interface,
 
   int last_epoch_microsec_len =
       sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  char *last_epoch_microsec_str = malloc(last_epoch_microsec_len);
-  snprintf(last_epoch_microsec_str, last_epoch_microsec_len, "%llu",
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, last_epoch_microsec_len, "%llu",
            (long long unsigned int)CDTIME_T_TO_US(cdtime()));
 
-  if (yajl_gen_number(g, last_epoch_microsec_str,
-                      strlen(last_epoch_microsec_str)) != yajl_gen_status_ok) {
-    sfree(last_epoch_microsec_str);
+  if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(last_epoch_microsec_str);
 
   // priority
   if (yajl_gen_string(g, (u_char *)CONNECTIVITY_PRIORITY_FIELD,
@@ -276,17 +265,13 @@ static int gen_message_payload(int state, int old_state, const char *interface,
 
   int start_epoch_microsec_len =
       sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  char *start_epoch_microsec_str = malloc(start_epoch_microsec_len);
-  snprintf(start_epoch_microsec_str, start_epoch_microsec_len, "%llu",
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, start_epoch_microsec_len, "%llu",
            (long long unsigned int)timestamp);
 
-  if (yajl_gen_number(g, start_epoch_microsec_str,
-                      strlen(start_epoch_microsec_str)) != yajl_gen_status_ok) {
-    sfree(start_epoch_microsec_str);
+  if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(start_epoch_microsec_str);
 
   // version
   if (yajl_gen_string(g, (u_char *)CONNECTIVITY_VERSION_FIELD,
@@ -396,7 +381,7 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
 
   pthread_mutex_lock(&connectivity_lock);
 
-  interfacelist_t *il;
+  interface_list_t *il;
 
   /* Scan attribute list for device name. */
   mnl_attr_for_each(attr, msg, sizeof(*ifi)) {
@@ -413,7 +398,7 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
 
     dev = mnl_attr_get_str(attr);
 
-    for (il = interfacelist_head; il != NULL; il = il->next)
+    for (il = interface_list_head; il != NULL; il = il->next)
       if (strcmp(dev, il->interface) == 0)
         break;
 
@@ -660,7 +645,7 @@ static int stop_thread(int shutdown) /* {{{ */
 
 static int connectivity_init(void) /* {{{ */
 {
-  if (interfacelist_head == NULL) {
+  if (interface_list_head == NULL) {
     NOTICE("connectivity plugin: No interfaces have been configured.");
     return (-1);
   }
@@ -671,7 +656,7 @@ static int connectivity_init(void) /* {{{ */
 static int connectivity_config(const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp(key, "Interface") == 0) {
-    interfacelist_t *il;
+    interface_list_t *il;
     char *interface;
 
     il = malloc(sizeof(*il));
@@ -696,8 +681,8 @@ static int connectivity_config(const char *key, const char *value) /* {{{ */
     il->prev_status = LINK_STATE_UNKNOWN;
     il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
     il->sent = 0;
-    il->next = interfacelist_head;
-    interfacelist_head = il;
+    il->next = interface_list_head;
+    interface_list_head = il;
 
   } else {
     return (-1);
@@ -763,7 +748,8 @@ static int connectivity_read(void) /* {{{ */
 
     stop_thread(0);
 
-    for (interfacelist_t *il = interfacelist_head; il != NULL; il = il->next) {
+    for (interface_list_t *il = interface_list_head; il != NULL;
+         il = il->next) {
       il->status = LINK_STATE_UNKNOWN;
       il->prev_status = LINK_STATE_UNKNOWN;
       il->sent = 0;
@@ -774,7 +760,7 @@ static int connectivity_read(void) /* {{{ */
     return (-1);
   } /* if (connectivity_thread_error != 0) */
 
-  for (interfacelist_t *il = interfacelist_head; il != NULL;
+  for (interface_list_t *il = interface_list_head; il != NULL;
        il = il->next) /* {{{ */
   {
     uint32_t status;
@@ -794,22 +780,22 @@ static int connectivity_read(void) /* {{{ */
     }
 
     pthread_mutex_unlock(&connectivity_lock);
-  } /* }}} for (il = interfacelist_head; il != NULL; il = il->next) */
+  } /* }}} for (il = interface_list_head; il != NULL; il = il->next) */
 
   return (0);
 } /* }}} int connectivity_read */
 
 static int connectivity_shutdown(void) /* {{{ */
 {
-  interfacelist_t *il;
+  interface_list_t *il;
 
   DEBUG("connectivity plugin: Shutting down thread.");
   if (stop_thread(1) < 0)
     return (-1);
 
-  il = interfacelist_head;
+  il = interface_list_head;
   while (il != NULL) {
-    interfacelist_t *il_next;
+    interface_list_t *il_next;
 
     il_next = il->next;
 
