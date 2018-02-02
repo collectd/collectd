@@ -183,7 +183,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   for (size_t group_idx = 0; group_idx < n; group_idx++) {
     core_group_t *cgroup = g_rdt->cores.cgroups + group_idx;
     for (size_t core_idx = 0; core_idx < cgroup->num_cores; core_idx++) {
-      if (!rdt_is_core_id_valid((int) cgroup->cores[core_idx])) {
+      if (!rdt_is_core_id_valid((int)cgroup->cores[core_idx])) {
         ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%d'",
               cgroup->desc, (int)cgroup->cores[core_idx]);
         rdt_free_cgroups();
@@ -200,7 +200,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
       ERROR(RDT_PLUGIN ": Error creating default core groups configuration.");
       return ret;
     }
-    n = (size_t) ret;
+    n = (size_t)ret;
     INFO(RDT_PLUGIN
          ": No core groups configured. Default core groups created.");
   }

@@ -216,9 +216,9 @@ static void pmu_dump_cgroups(void) {
       snprintf(cores + strlen(cores), cores_size - strlen(cores), " %d",
                cgroup->cores[j]);
 
-    DEBUG(PMU_PLUGIN ":   group[%zu]", i);
+    DEBUG(PMU_PLUGIN ":   group[%" PRIsz "]", i);
     DEBUG(PMU_PLUGIN ":     description: %s", cgroup->desc);
-    DEBUG(PMU_PLUGIN ":     cores count: %zu", cgroup->num_cores);
+    DEBUG(PMU_PLUGIN ":     cores count: %" PRIsz, cgroup->num_cores);
     DEBUG(PMU_PLUGIN ":     cores      :%s", cores);
     sfree(cores);
   }
@@ -231,7 +231,7 @@ static int pmu_validate_cgroups(core_group_t *cgroups, size_t len,
   /* i - group index, j - core index */
   for (size_t i = 0; i < len; i++) {
     for (size_t j = 0; j < cgroups[i].num_cores; j++) {
-      int core = (int) cgroups[i].cores[j];
+      int core = (int)cgroups[i].cores[j];
 
       /* Core index cannot exceed number of cores in system,
          note that max_cores include both online and offline CPUs. */
@@ -242,10 +242,10 @@ static int pmu_validate_cgroups(core_group_t *cgroups, size_t len,
       }
     }
     /* Check if cores are set in remaining groups */
-    for (size_t k = i+1; k < len; k++)
+    for (size_t k = i + 1; k < len; k++)
       if (config_cores_cmp_cgroups(&cgroups[i], &cgroups[k]) != 0) {
-         ERROR(PMU_PLUGIN ": Same cores cannot be set in different groups.");
-         return -1;
+        ERROR(PMU_PLUGIN ": Same cores cannot be set in different groups.");
+        return -1;
       }
   }
   return 0;
@@ -375,7 +375,7 @@ static void pmu_dispatch_data(void) {
       meta_data_t *meta = NULL;
 
       for (size_t j = 0; j < cgroup->num_cores; j++) {
-        int core = (int) cgroup->cores[j];
+        int core = (int)cgroup->cores[j];
         if (e->efd[core].fd < 0)
           continue;
 
@@ -415,7 +415,7 @@ static int pmu_read(__attribute__((unused)) user_data_t *ud) {
     for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
       core_group_t *cgroup = g_ctx.cores.cgroups + i;
       for (size_t j = 0; j < cgroup->num_cores; j++) {
-        int core = (int) cgroup->cores[j];
+        int core = (int)cgroup->cores[j];
         if (e->efd[core].fd < 0)
           continue;
 
@@ -527,6 +527,7 @@ static void pmu_free_events(struct eventlist *el) {
 
   while (e) {
     struct event *next = e->next;
+    sfree(e->event);
     sfree(e);
     e = next;
   }
@@ -544,7 +545,7 @@ static int pmu_setup_events(struct eventlist *el, bool measure_all,
     for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
       core_group_t *cgroup = g_ctx.cores.cgroups + i;
       for (size_t j = 0; j < cgroup->num_cores; j++) {
-        int core = (int) cgroup->cores[j];
+        int core = (int)cgroup->cores[j];
 
         if (setup_event(e, core, leader, measure_all, measure_pid) < 0) {
           WARNING(PMU_PLUGIN ": perf event '%s' is not available (cpu=%d).",

@@ -49,7 +49,7 @@ static int str_to_uint(const char *s, unsigned *n) {
     return -EINVAL;
   char *endptr = NULL;
 
-  *n = (unsigned) strtoul(s, &endptr, 0);
+  *n = (unsigned)strtoul(s, &endptr, 0);
   if (*s == '\0' || *endptr != '\0') {
     ERROR(UTIL_NAME ": Failed to parse '%s' into unsigned number", s);
     return -EINVAL;
@@ -84,7 +84,7 @@ static size_t str_list_to_nums(char *s, unsigned *nums, size_t nums_len) {
   char *token;
   size_t idx = 0;
 
-  while((token = strtok_r(s, ",", &saveptr))) {
+  while ((token = strtok_r(s, ",", &saveptr))) {
     char *pos;
     unsigned start, end = 0;
     s = NULL;
@@ -119,7 +119,8 @@ static size_t str_list_to_nums(char *s, unsigned *nums, size_t nums_len) {
       if (is_in_list(i, nums, idx))
         continue;
       if (idx >= nums_len) {
-        WARNING(UTIL_NAME ": exceeded the cores number limit: %zu", nums_len);
+        WARNING(UTIL_NAME ": exceeded the cores number limit: %" PRIsz,
+                nums_len);
         return idx;
       }
       nums[idx] = i;
@@ -202,7 +203,8 @@ int config_cores_parse(const oconfig_item_t *ci, core_groups_list_t *cgl) {
     unsigned cores[MAX_CORES] = {0};
 
     if (cg_idx >= STATIC_ARRAY_SIZE(cgroups)) {
-      ERROR(UTIL_NAME ": Configuration exceeds maximum number of cores: %zu",
+      ERROR(UTIL_NAME
+            ": Configuration exceeds maximum number of cores: %" PRIsz,
             STATIC_ARRAY_SIZE(cgroups));
       ret = -EINVAL;
       goto parse_error;
@@ -290,7 +292,7 @@ int config_cores_parse(const oconfig_item_t *ci, core_groups_list_t *cgl) {
 parse_error:
 
   cg_idx = 0;
-  while(cg_idx < STATIC_ARRAY_SIZE(cgroups) && cgroups[cg_idx].desc != NULL) {
+  while (cg_idx < STATIC_ARRAY_SIZE(cgroups) && cgroups[cg_idx].desc != NULL) {
     sfree(cgroups[cg_idx].desc);
     sfree(cgroups[cg_idx].cores);
     cg_idx++;
@@ -324,9 +326,9 @@ int config_cores_default(int num_cores, core_groups_list_t *cgl) {
 
     cgl->cgroups[i].desc = strdup(desc);
     if (cgl->cgroups[i].desc == NULL) {
-       ERROR(UTIL_NAME ": Failed to allocate description for cgroup %d.", i);
-       config_cores_cleanup(cgl);
-       return -ENOMEM;
+      ERROR(UTIL_NAME ": Failed to allocate description for cgroup %d.", i);
+      config_cores_cleanup(cgl);
+      return -ENOMEM;
     }
   }
   return 0;
@@ -368,4 +370,3 @@ int config_cores_cmp_cgroups(const core_group_t *cg_a,
   /* if not all cores are the same */
   return -1;
 }
-

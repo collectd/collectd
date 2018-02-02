@@ -28,34 +28,24 @@
 #include "testing.h"
 #include "utils_config_cores.c" /* sic */
 
-oconfig_value_t test_cfg_values[] = {
-  { {"0"}, OCONFIG_TYPE_STRING },
-  { {"1-2"}, OCONFIG_TYPE_STRING },
-  { {"[3-4]"}, OCONFIG_TYPE_STRING }};
+oconfig_value_t test_cfg_values[] = {{{"0"}, OCONFIG_TYPE_STRING},
+                                     {{"1-2"}, OCONFIG_TYPE_STRING},
+                                     {{"[3-4]"}, OCONFIG_TYPE_STRING}};
 
 oconfig_item_t test_cfg = {
-  "Cores",
-  test_cfg_values,
-  STATIC_ARRAY_SIZE(test_cfg_values),
-  NULL,
-  NULL,
-  0 };
+    "Cores", test_cfg_values, STATIC_ARRAY_SIZE(test_cfg_values), NULL, NULL,
+    0};
 
 static int compare_with_test_config(core_groups_list_t *cgl) {
-  if (cgl->num_cgroups == 4 &&
-      cgl->cgroups[0].num_cores == 1 &&
-      strcmp("0", cgl->cgroups[0].desc) == 0 &&
-      cgl->cgroups[0].cores[0] == 0 &&
+  if (cgl->num_cgroups == 4 && cgl->cgroups[0].num_cores == 1 &&
+      strcmp("0", cgl->cgroups[0].desc) == 0 && cgl->cgroups[0].cores[0] == 0 &&
       cgl->cgroups[1].num_cores == 2 &&
       strcmp("1-2", cgl->cgroups[1].desc) == 0 &&
-      cgl->cgroups[1].cores[0] == 1 &&
-      cgl->cgroups[1].cores[1] == 2 &&
+      cgl->cgroups[1].cores[0] == 1 && cgl->cgroups[1].cores[1] == 2 &&
       cgl->cgroups[2].num_cores == 1 &&
-      strcmp("3", cgl->cgroups[2].desc) == 0 &&
-      cgl->cgroups[2].cores[0] == 3 &&
+      strcmp("3", cgl->cgroups[2].desc) == 0 && cgl->cgroups[2].cores[0] == 3 &&
       cgl->cgroups[3].num_cores == 1 &&
-      strcmp("4", cgl->cgroups[3].desc) == 0 &&
-      cgl->cgroups[3].cores[0] == 4)
+      strcmp("4", cgl->cgroups[3].desc) == 0 && cgl->cgroups[3].cores[0] == 4)
     return 0;
 
   return -1;
@@ -112,7 +102,7 @@ DEF_TEST(cores_list_to_numbers) {
   n = str_list_to_nums(str, nums, STATIC_ARRAY_SIZE(nums));
   EXPECT_EQ_INT(MAX_CORES, n);
   EXPECT_EQ_INT(0, nums[0]);
-  EXPECT_EQ_INT(MAX_CORES-1, nums[MAX_CORES-1]);
+  EXPECT_EQ_INT(MAX_CORES - 1, nums[MAX_CORES - 1]);
 
   /* Should return 0 for incorrect syntax. */
   strncpy(str, "5g", STATIC_ARRAY_SIZE(str));
@@ -157,8 +147,8 @@ DEF_TEST(cores_option_parse_fail) {
   int ret = 0;
   core_groups_list_t cgl = {0};
   /* Wrong value, missing closing bracket ] */
-  oconfig_value_t values = { {"[0-15"}, OCONFIG_TYPE_STRING };
-  oconfig_item_t cfg = { "Cores", &values, 1, NULL, NULL, 0 };
+  oconfig_value_t values = {{"[0-15"}, OCONFIG_TYPE_STRING};
+  oconfig_item_t cfg = {"Cores", &values, 1, NULL, NULL, 0};
 
   ret = config_cores_parse(&cfg, &cgl);
   EXPECT_EQ_INT(-EINVAL, ret);
@@ -198,7 +188,7 @@ DEF_TEST(cores_default_list_fail) {
 
   ret = config_cores_default(-1, &cgl);
   OK(ret < 0);
-  ret = config_cores_default(MAX_CORES+1, &cgl);
+  ret = config_cores_default(MAX_CORES + 1, &cgl);
   OK(ret < 0);
   ret = config_cores_default(1, NULL);
   OK(ret < 0);
@@ -223,10 +213,10 @@ DEF_TEST(cores_group_cleanup) {
 }
 
 DEF_TEST(cores_group_cmp) {
-  unsigned cores_mock[] = {0,1,2};
-  core_group_t group_mock = { "0,1,2", cores_mock, 3 };
-  unsigned cores_mock_2[] = {2,3};
-  core_group_t group_mock_2 = { "2,3", cores_mock_2, 2 };
+  unsigned cores_mock[] = {0, 1, 2};
+  core_group_t group_mock = {"0,1,2", cores_mock, 3};
+  unsigned cores_mock_2[] = {2, 3};
+  core_group_t group_mock_2 = {"2,3", cores_mock_2, 2};
 
   int ret = config_cores_cmp_cgroups(&group_mock, &group_mock);
   EXPECT_EQ_INT(1, ret);

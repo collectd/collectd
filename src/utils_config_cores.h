@@ -128,4 +128,3 @@ int config_cores_cmp_cgroups(const core_group_t *cg_a,
                              const core_group_t *cg_b);
 
 #endif /* UTILS_CONFIG_CORES_H */
-
