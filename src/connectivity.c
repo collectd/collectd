@@ -109,6 +109,7 @@ typedef struct interface_list_s interface_list_t;
  * Private variables
  */
 static interface_list_t *interface_list_head = NULL;
+static int monitor_all_interfaces = 0;
 
 static int connectivity_thread_loop = 0;
 static int connectivity_thread_error = 0;
@@ -373,6 +374,41 @@ err:
   return -1;
 }
 
+static interface_list_t *add_interface(const char *interface, int status,
+                                       int prev_status) {
+  interface_list_t *il;
+  char *interface2;
+
+  il = malloc(sizeof(*il));
+  if (il == NULL) {
+    char errbuf[1024];
+    ERROR("connectivity plugin: malloc failed during add_interface: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return NULL;
+  }
+
+  interface2 = strdup(interface);
+  if (interface2 == NULL) {
+    char errbuf[1024];
+    sfree(il);
+    ERROR("connectivity plugin: strdup failed during add_interface: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    return NULL;
+  }
+
+  il->interface = interface2;
+  il->status = status;
+  il->prev_status = prev_status;
+  il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
+  il->sent = 0;
+  il->next = interface_list_head;
+  interface_list_head = il;
+
+  DEBUG("connectivity plugin: added interface %s", interface2);
+
+  return il;
+}
+
 static int connectivity_link_state(struct nlmsghdr *msg) {
   int retval = 0;
   struct ifinfomsg *ifi = mnl_nlmsg_get_payload(msg);
@@ -402,12 +438,25 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
       if (strcmp(dev, il->interface) == 0)
         break;
 
-    if (il == NULL) {
+    if (il == NULL && monitor_all_interfaces == 0) {
       DEBUG("connectivity plugin: Ignoring link state change for unmonitored "
             "interface: %s",
             dev);
     } else {
       uint32_t prev_status;
+
+      if (il == NULL) {
+        // We're monitoring all interfaces and we haven't encountered this one
+        // yet, so add it to the linked list
+        il = add_interface(dev, LINK_STATE_UNKNOWN, LINK_STATE_UNKNOWN);
+
+        if (il == NULL) {
+          ERROR("connectivity plugin: unable to add interface %s during "
+                "connectivity_link_state",
+                dev);
+          return MNL_CB_ERROR;
+        }
+      }
 
       prev_status = il->status;
       il->status =
@@ -646,8 +695,9 @@ static int stop_thread(int shutdown) /* {{{ */
 static int connectivity_init(void) /* {{{ */
 {
   if (interface_list_head == NULL) {
-    NOTICE("connectivity plugin: No interfaces have been configured.");
-    return (-1);
+    NOTICE("connectivity plugin: No interfaces have been selected, so all will "
+           "be monitored");
+    monitor_all_interfaces = 1;
   }
 
   return (start_thread());
@@ -656,34 +706,14 @@ static int connectivity_init(void) /* {{{ */
 static int connectivity_config(const char *key, const char *value) /* {{{ */
 {
   if (strcasecmp(key, "Interface") == 0) {
-    interface_list_t *il;
-    char *interface;
-
-    il = malloc(sizeof(*il));
+    interface_list_t *il =
+        add_interface(value, LINK_STATE_UNKNOWN, LINK_STATE_UNKNOWN);
     if (il == NULL) {
-      char errbuf[1024];
-      ERROR("connectivity plugin: malloc failed during connectivity_config: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (1);
+      ERROR("connectivity plugin: unable to add interface %s during "
+            "connectivity_init",
+            value);
+      return (-1);
     }
-
-    interface = strdup(value);
-    if (interface == NULL) {
-      char errbuf[1024];
-      sfree(il);
-      ERROR("connectivity plugin: strdup failed connectivity_config: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (1);
-    }
-
-    il->interface = interface;
-    il->status = LINK_STATE_UNKNOWN;
-    il->prev_status = LINK_STATE_UNKNOWN;
-    il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
-    il->sent = 0;
-    il->next = interface_list_head;
-    interface_list_head = il;
-
   } else {
     return (-1);
   }
