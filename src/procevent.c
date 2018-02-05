@@ -150,6 +150,7 @@ static int gen_message_payload(int state, int pid, char *process,
                                long long unsigned int timestamp, char **buf) {
   const unsigned char *buf2;
   yajl_gen g;
+  char json_str[DATA_MAX_NAME_LEN];
 
 #if !defined(HAVE_YAJL_V2)
   yajl_gen_config conf = {};
@@ -189,16 +190,12 @@ static int gen_message_payload(int state, int pid, char *process,
 
   event_id = event_id + 1;
   int event_id_len = sizeof(char) * sizeof(int) * 4 + 1;
-  char *event_id_str = malloc(event_id_len);
-  snprintf(event_id_str, event_id_len, "%d", event_id);
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, event_id_len, "%d", event_id);
 
-  if (yajl_gen_number(g, event_id_str, strlen(event_id_str)) !=
-      yajl_gen_status_ok) {
-    sfree(event_id_str);
+  if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(event_id_str);
 
   // eventName
   if (yajl_gen_string(g, (u_char *)PROCEVENT_EVENT_NAME_FIELD,
@@ -211,19 +208,15 @@ static int gen_message_payload(int state, int pid, char *process,
   event_name_len = event_name_len + (state == 0 ? 4 : 2); // "down" or "up"
   event_name_len = event_name_len +
                    13; // "process", 3 spaces, 2 parentheses and null-terminator
-  char *event_name_str = malloc(event_name_len);
-  memset(event_name_str, '\0', event_name_len);
-  snprintf(event_name_str, event_name_len, "process %s (%d) %s", process, pid,
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, event_name_len, "process %s (%d) %s", process, pid,
            (state == 0 ? PROCEVENT_EVENT_NAME_DOWN_VALUE
                        : PROCEVENT_EVENT_NAME_UP_VALUE));
 
-  if (yajl_gen_string(g, (u_char *)event_name_str, strlen(event_name_str)) !=
+  if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
       yajl_gen_status_ok) {
-    sfree(event_name_str);
     goto err;
   }
-
-  sfree(event_name_str);
 
   // lastEpochMicrosec
   if (yajl_gen_string(g, (u_char *)PROCEVENT_LAST_EPOCH_MICROSEC_FIELD,
@@ -233,17 +226,13 @@ static int gen_message_payload(int state, int pid, char *process,
 
   int last_epoch_microsec_len =
       sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  char *last_epoch_microsec_str = malloc(last_epoch_microsec_len);
-  snprintf(last_epoch_microsec_str, last_epoch_microsec_len, "%llu",
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, last_epoch_microsec_len, "%llu",
            (long long unsigned int)CDTIME_T_TO_US(cdtime()));
 
-  if (yajl_gen_number(g, last_epoch_microsec_str,
-                      strlen(last_epoch_microsec_str)) != yajl_gen_status_ok) {
-    sfree(last_epoch_microsec_str);
+  if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(last_epoch_microsec_str);
 
   // priority
   if (yajl_gen_string(g, (u_char *)PROCEVENT_PRIORITY_FIELD,
@@ -292,17 +281,13 @@ static int gen_message_payload(int state, int pid, char *process,
 
   int start_epoch_microsec_len =
       sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  char *start_epoch_microsec_str = malloc(start_epoch_microsec_len);
-  snprintf(start_epoch_microsec_str, start_epoch_microsec_len, "%llu",
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, start_epoch_microsec_len, "%llu",
            (long long unsigned int)timestamp);
 
-  if (yajl_gen_number(g, start_epoch_microsec_str,
-                      strlen(start_epoch_microsec_str)) != yajl_gen_status_ok) {
-    sfree(start_epoch_microsec_str);
+  if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(start_epoch_microsec_str);
 
   // version
   if (yajl_gen_string(g, (u_char *)PROCEVENT_VERSION_FIELD,
@@ -338,18 +323,14 @@ static int gen_message_payload(int state, int pid, char *process,
   alarm_condition_len =
       alarm_condition_len + 25; // "process", "state", "change", 4 spaces, 2
                                 // parentheses and null-terminator
-  char *alarm_condition_str = malloc(alarm_condition_len);
-  memset(alarm_condition_str, '\0', alarm_condition_len);
-  snprintf(alarm_condition_str, alarm_condition_len,
-           "process %s (%d) state change", process, pid);
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, alarm_condition_len, "process %s (%d) state change",
+           process, pid);
 
-  if (yajl_gen_string(g, (u_char *)alarm_condition_str,
-                      strlen(alarm_condition_str)) != yajl_gen_status_ok) {
-    sfree(alarm_condition_str);
+  if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
+      yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(alarm_condition_str);
 
   // alarmInterfaceA
   if (yajl_gen_string(g, (u_char *)PROCEVENT_ALARM_INTERFACE_A_FIELD,
@@ -412,19 +393,15 @@ static int gen_message_payload(int state, int pid, char *process,
   specific_problem_len =
       specific_problem_len +
       13; // "process", 3 spaces, 2 parentheses and null-terminator
-  char *specific_problem_str = malloc(specific_problem_len);
-  memset(specific_problem_str, '\0', specific_problem_len);
-  snprintf(specific_problem_str, specific_problem_len, "process %s (%d) %s",
-           process, pid, (state == 0 ? PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE
-                                     : PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE));
+  memset(json_str, '\0', DATA_MAX_NAME_LEN);
+  snprintf(json_str, specific_problem_len, "process %s (%d) %s", process, pid,
+           (state == 0 ? PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE
+                       : PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE));
 
-  if (yajl_gen_string(g, (u_char *)specific_problem_str,
-                      strlen(specific_problem_str)) != yajl_gen_status_ok) {
-    sfree(specific_problem_str);
+  if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
+      yajl_gen_status_ok) {
     goto err;
   }
-
-  sfree(specific_problem_str);
 
   // vfStatus
   if (yajl_gen_string(g, (u_char *)PROCEVENT_VF_STATUS_FIELD,
@@ -596,6 +573,8 @@ static processlist_t *process_check(int pid) {
           regcomp(&pl2->process_regex_obj, match->process_regex, REG_EXTENDED);
 
       if (status != 0) {
+        sfree(pl2);
+        sfree(process);
         ERROR("procevent plugin: invalid regular expression: %s",
               match->process_regex);
         return NULL;
@@ -604,7 +583,8 @@ static processlist_t *process_check(int pid) {
       process_regex = strdup(match->process_regex);
       if (process_regex == NULL) {
         char errbuf[1024];
-        sfree(pl);
+        sfree(pl2);
+        sfree(process);
         ERROR("procevent plugin: strdup failed during process_check: %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
         return NULL;
@@ -1087,6 +1067,8 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
       status = regcomp(&pl->process_regex_obj, value, REG_EXTENDED);
 
       if (status != 0) {
+        sfree(pl);
+        sfree(process);
         ERROR("procevent plugin: invalid regular expression: %s", value);
         return (1);
       }
@@ -1095,6 +1077,7 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
       if (process_regex == NULL) {
         char errbuf[1024];
         sfree(pl);
+        sfree(process);
         ERROR("procevent plugin: strdup failed during procevent_config: %s",
               sstrerror(errno, errbuf, sizeof(errbuf)));
         return (1);
