@@ -96,10 +96,10 @@ pkginclude_HEADERS = \
 	src/libcollectdclient/collectd/server.h \
 	src/libcollectdclient/collectd/types.h
 
-lib_LTLIBRARIES = \
-	libcollectd.la \
-	libcollectdclient.la
-
+lib_LTLIBRARIES = libcollectdclient.la
+if BUILD_WIN32
+lib_LTLIBRARIES += libcollectd.la
+endif
 
 sbin_PROGRAMS = \
 	collectd \
@@ -125,6 +125,9 @@ noinst_LTLIBRARIES = \
 	libmetadata.la \
 	libmount.la \
 	liboconfig.la
+if !BUILD_WIN32
+noinst_LTLIBRARIES += libcollectd.la
+endif
 
 
 check_LTLIBRARIES = \
