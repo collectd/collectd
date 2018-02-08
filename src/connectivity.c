@@ -30,6 +30,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_complain.h"
+#include "utils_ignorelist.h"
 
 #include <asm/types.h>
 #include <errno.h>
@@ -108,6 +109,8 @@ typedef struct interface_list_s interface_list_t;
 /*
  * Private variables
  */
+static ignorelist_t *ignorelist = NULL;
+
 static interface_list_t *interface_list_head = NULL;
 static int monitor_all_interfaces = 0;
 
@@ -362,6 +365,13 @@ static int gen_message_payload(int state, int old_state, const char *interface,
 
   *buf = malloc(strlen((char *)buf2) + 1);
 
+  if (*buf == NULL) {
+    char errbuf[1024];
+    ERROR("connectivity plugin: malloc failed during gen_message_payload: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    goto err;
+  }
+
   sstrncpy(*buf, (char *)buf2, strlen((char *)buf2) + 1);
 
   yajl_gen_free(g);
@@ -417,7 +427,7 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
 
   pthread_mutex_lock(&connectivity_lock);
 
-  interface_list_t *il;
+  interface_list_t *il = NULL;
 
   /* Scan attribute list for device name. */
   mnl_attr_for_each(attr, msg, sizeof(*ifi)) {
@@ -434,46 +444,47 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
 
     dev = mnl_attr_get_str(attr);
 
+    // Check the list of interfaces we should monitor, if we've chosen
+    // a subset.  If we don't care about this one, abort.
+    if (ignorelist_match(ignorelist, dev) != 0) {
+      DEBUG("connectivity plugin: Ignoring link state change for unmonitored "
+            "interface: %s",
+            dev);
+      break;
+    }
+
     for (il = interface_list_head; il != NULL; il = il->next)
       if (strcmp(dev, il->interface) == 0)
         break;
 
-    if (il == NULL && monitor_all_interfaces == 0) {
-      DEBUG("connectivity plugin: Ignoring link state change for unmonitored "
-            "interface: %s",
-            dev);
-    } else {
-      uint32_t prev_status;
+    uint32_t prev_status;
+
+    if (il == NULL) {
+      // We haven't encountered this interface yet, so add it to the linked list
+      il = add_interface(dev, LINK_STATE_UNKNOWN, LINK_STATE_UNKNOWN);
 
       if (il == NULL) {
-        // We're monitoring all interfaces and we haven't encountered this one
-        // yet, so add it to the linked list
-        il = add_interface(dev, LINK_STATE_UNKNOWN, LINK_STATE_UNKNOWN);
-
-        if (il == NULL) {
-          ERROR("connectivity plugin: unable to add interface %s during "
-                "connectivity_link_state",
-                dev);
-          return MNL_CB_ERROR;
-        }
+        ERROR("connectivity plugin: unable to add interface %s during "
+              "connectivity_link_state",
+              dev);
+        return MNL_CB_ERROR;
       }
-
-      prev_status = il->status;
-      il->status =
-          ((ifi->ifi_flags & IFF_RUNNING) ? LINK_STATE_UP : LINK_STATE_DOWN);
-      il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
-
-      // If the new status is different than the previous status,
-      // store the previous status and set sent to zero
-      if (il->status != prev_status) {
-        il->prev_status = prev_status;
-        il->sent = 0;
-      }
-
-      DEBUG("connectivity plugin (%llu): Interface %s status is now %s",
-            il->timestamp, dev,
-            ((ifi->ifi_flags & IFF_RUNNING) ? "UP" : "DOWN"));
     }
+
+    prev_status = il->status;
+    il->status =
+        ((ifi->ifi_flags & IFF_RUNNING) ? LINK_STATE_UP : LINK_STATE_DOWN);
+    il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
+
+    // If the new status is different than the previous status,
+    // store the previous status and set sent to zero
+    if (il->status != prev_status) {
+      il->prev_status = prev_status;
+      il->sent = 0;
+    }
+
+    DEBUG("connectivity plugin (%llu): Interface %s status is now %s",
+          il->timestamp, dev, ((ifi->ifi_flags & IFF_RUNNING) ? "UP" : "DOWN"));
 
     // no need to loop again, we found the interface name attr
     // (otherwise the first if-statement in the loop would
@@ -705,15 +716,11 @@ static int connectivity_init(void) /* {{{ */
 
 static int connectivity_config(const char *key, const char *value) /* {{{ */
 {
+  if (ignorelist == NULL)
+    ignorelist = ignorelist_create(/* invert = */ 1);
+
   if (strcasecmp(key, "Interface") == 0) {
-    interface_list_t *il =
-        add_interface(value, LINK_STATE_UNKNOWN, LINK_STATE_UNKNOWN);
-    if (il == NULL) {
-      ERROR("connectivity plugin: unable to add interface %s during "
-            "connectivity_init",
-            value);
-      return (-1);
-    }
+    ignorelist_add(ignorelist, value);
   } else {
     return (-1);
   }
@@ -731,10 +738,7 @@ static void connectivity_dispatch_notification(
   if (value == LINK_STATE_UP)
     n.severity = NOTIF_OKAY;
 
-  char hostname[1024];
-  gethostname(hostname, sizeof(hostname));
-
-  sstrncpy(n.host, hostname, sizeof(n.host));
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, interface, sizeof(n.plugin_instance));
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "interface_status", sizeof(n.type_instance));
@@ -834,6 +838,8 @@ static int connectivity_shutdown(void) /* {{{ */
 
     il = il_next;
   }
+
+  ignorelist_free(ignorelist);
 
   return (0);
 } /* }}} int connectivity_shutdown */
