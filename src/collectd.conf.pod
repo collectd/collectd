@@ -1586,7 +1586,7 @@ connectivity - Documentation of collectd's C<connectivity plugin>
   </Plugin>
 
 The C<connectivity plugin> queries interface status using netlink (man 7 netlink) which provides information about network interfaces via the NETLINK_ROUTE family (man 7 rtnetlink). The plugin translates the value it receives to collectd's internal format and, depending on the write plugins you have loaded, it may be written to disk or submitted to another instance.
-The plugin listens to interfaces configured in LoadPlugin (see configuration below).  If no interfaces are listed, then the default is for all interfaces to be monitored.
+The plugin listens to interfaces enumerated within the plugin configuration (see below).  If no interfaces are listed, then the default is for all interfaces to be monitored.
 
 This example shows C<connectivity plugin> monitoring all interfaces.
 LoadPlugin connectivity
