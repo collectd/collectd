@@ -201,6 +201,8 @@ typedef int uid_t;
 #define PACKAGE_NAME "collectd"
 #endif
 
+#ifndef WIN32
+
 #ifndef PREFIX
 #define PREFIX "/opt/" PACKAGE_NAME
 #endif
@@ -232,6 +234,44 @@ typedef int uid_t;
 #ifndef PKGDATADIR
 #define PKGDATADIR PREFIX "/share/" PACKAGE_NAME
 #endif
+
+#else
+
+#ifndef PREFIX
+#define PREFIX "C:/Program Files/collectd"
+#endif
+
+#ifndef SYSCONFDIR
+#define SYSCONFDIR PREFIX
+#endif
+
+#ifndef CONFIGFILE
+#define CONFIGFILE SYSCONFDIR "/collectd.conf"
+#endif
+
+#ifndef LOCALSTATEDIR
+#define LOCALSTATEDIR PREFIX
+#endif
+
+#ifndef PKGLOCALSTATEDIR
+#define PKGLOCALSTATEDIR PREFIX
+#endif
+
+#ifndef PIDFILE
+#define PIDFILE PREFIX "/" PACKAGE_NAME ".pid"
+#endif
+
+#ifndef PLUGINDIR
+#define PLUGINDIR PREFIX "/plugins
+#endif
+
+#ifndef PKGDATADIR
+#define PKGDATADIR PREFIX "/share/" PACKAGE_NAME
+#endif
+
+#endif /* !WIN32 */
+
+
 
 #ifndef COLLECTD_GRP_NAME
 #define COLLECTD_GRP_NAME "collectd"
