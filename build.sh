@@ -66,6 +66,8 @@ build_windows ()
 	#check_for_application mingw64-x86_64-gcc-core git automake make flex bison pkg-config mingw64-x86_64-zlib wget mingw64-x86_64-dlfcn
 
 	export CC=/usr/bin/x86_64-w64-mingw32-gcc.exe
+	: ${INSTALL_DIR:="C:/opt"}
+	echo "Installing collectd to ${INSTALL_DIR}."
 
 	TOP_SRCDIR=`pwd`
 
@@ -149,7 +151,6 @@ build_windows ()
 	#INSTALL_DIR="C:/opt"
 	#INSTALL_DIR="${TOP_SRCDIR}/opt"
 	#INSTALL_DIR="C:/PROGRA~1/Google/monitoringatcorp"
-	: ${INSTALL_DIR:="C:/opt"}
 	MINGW_ROOT="/usr/x86_64-w64-mingw32/sys-root/mingw"
 	LIBTOOL_DIR="${TOP_SRCDIR}/_build_aux/_libtool"
 	LIBCURL_DIR="${TOP_SRCDIR}/_build_aux/_libcurl"
