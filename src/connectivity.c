@@ -112,7 +112,7 @@ typedef struct interface_list_s interface_list_t;
 static ignorelist_t *ignorelist = NULL;
 
 static interface_list_t *interface_list_head = NULL;
-static int monitor_all_interfaces = 0;
+static int monitor_all_interfaces = 1;
 
 static int connectivity_thread_loop = 0;
 static int connectivity_thread_error = 0;
@@ -705,10 +705,9 @@ static int stop_thread(int shutdown) /* {{{ */
 
 static int connectivity_init(void) /* {{{ */
 {
-  if (interface_list_head == NULL) {
+  if (monitor_all_interfaces) {
     NOTICE("connectivity plugin: No interfaces have been selected, so all will "
            "be monitored");
-    monitor_all_interfaces = 1;
   }
 
   return (start_thread());
@@ -716,11 +715,13 @@ static int connectivity_init(void) /* {{{ */
 
 static int connectivity_config(const char *key, const char *value) /* {{{ */
 {
-  if (ignorelist == NULL)
+  if (ignorelist == NULL) {
     ignorelist = ignorelist_create(/* invert = */ 1);
+  }
 
   if (strcasecmp(key, "Interface") == 0) {
     ignorelist_add(ignorelist, value);
+    monitor_all_interfaces = 0;
   } else {
     return (-1);
   }
