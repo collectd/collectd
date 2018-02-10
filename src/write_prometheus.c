@@ -764,6 +764,16 @@ static int prom_open_socket(int addrfamily) {
     if (fd == -1)
       continue;
 
+    int tmp = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp)) != 0) {
+      char errbuf[1024];
+      WARNING("write_prometheus: setsockopt(SO_REUSEADDR) failed: %s",
+              sstrerror(errno, errbuf, sizeof(errbuf)));
+      close(fd);
+      fd = -1;
+      continue;
+    }
+
     if (bind(fd, ai->ai_addr, ai->ai_addrlen) != 0) {
       close(fd);
       fd = -1;
