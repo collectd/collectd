@@ -471,7 +471,7 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
     if (!events)
       return -1;
 
-    char *s, *tmp;
+    char *s, *tmp = NULL;
     for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
 
       /* Allocate memory for event struct that contains array of efd structs

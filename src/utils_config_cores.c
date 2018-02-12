@@ -80,7 +80,7 @@ static int str_to_uint(const char *s, unsigned *n) {
  *    Number of elements placed into nums.
  */
 static size_t str_list_to_nums(char *s, unsigned *nums, size_t nums_len) {
-  char *saveptr;
+  char *saveptr = NULL;
   char *token;
   size_t idx = 0;
 
