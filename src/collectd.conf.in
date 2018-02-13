@@ -1213,6 +1213,12 @@
 #	</Process>
 #</Plugin>
 
+#<Plugin "procevent">
+#  BufferLength 10
+#  RegexProcess "/^ovs.*$/" 
+#  Process tuned
+#</Plugin>
+
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false

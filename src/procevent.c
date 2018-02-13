@@ -29,10 +29,10 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_complain.h"
+#include "utils_ignorelist.h"
 
 #include <errno.h>
 #include <pthread.h>
-#include <regex.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -62,7 +62,6 @@
 #define PROCEVENT_FIELDS 4 // pid, status, extra, timestamp
 #define BUFSIZE 512
 #define PROCDIR "/proc"
-#define PROCEVENT_REGEX_MATCHES 1
 
 #define PROCEVENT_DOMAIN_FIELD "domain"
 #define PROCEVENT_DOMAIN_VALUE "fault"
@@ -112,11 +111,7 @@ typedef struct {
 
 struct processlist_s {
   char *process;
-  char *process_regex;
 
-  regex_t process_regex_obj;
-
-  uint32_t is_regex;
   uint32_t pid;
 
   struct processlist_s *next;
@@ -126,6 +121,7 @@ typedef struct processlist_s processlist_t;
 /*
  * Private variables
  */
+static ignorelist_t *ignorelist = NULL;
 
 static int procevent_thread_loop = 0;
 static int procevent_thread_error = 0;
@@ -429,6 +425,13 @@ static int gen_message_payload(int state, int pid, char *process,
 
   *buf = malloc(strlen((char *)buf2) + 1);
 
+  if (*buf == NULL) {
+    char errbuf[1024];
+    ERROR("procevent plugin: malloc failed during gen_message_payload: %s",
+          sstrerror(errno, errbuf, sizeof(errbuf)));
+    goto err;
+  }
+
   sstrncpy(*buf, (char *)buf2, strlen((char *)buf2) + 1);
 
   yajl_gen_free(g);
@@ -443,11 +446,10 @@ err:
 
 // Does /proc/<pid>/comm contain a process name we are interested in?
 static processlist_t *process_check(int pid) {
-  int len, is_match, status, retval;
+  int len, is_match, retval;
   char file[BUFSIZE];
   FILE *fh;
   char buffer[BUFSIZE];
-  regmatch_t matches[PROCEVENT_REGEX_MATCHES];
 
   len = snprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
 
@@ -467,16 +469,30 @@ static processlist_t *process_check(int pid) {
   if (retval < 0) {
     WARNING("procevent process_check: unable to read comm file for pid %d",
             pid);
+    fclose(fh);
     return NULL;
+  }
+
+  // Now that we have the process name in the buffer, check if we are
+  // even interested in it
+  if (ignorelist_match(ignorelist, buffer) != 0) {
+    DEBUG("procevent process_check: ignoring process %s (%d)", buffer, pid);
+    fclose(fh);
+    return NULL;
+  }
+
+  if (fh != NULL) {
+    fclose(fh);
+    fh = NULL;
   }
 
   //
   // Go through the processlist linked list and look for the process name
   // in /proc/<pid>/comm.  If found:
-  // 1. If pl->pid is -1, then set pl->pid to <pid>
+  // 1. If pl->pid is -1, then set pl->pid to <pid> (and return that object)
   // 2. If pl->pid is not -1, then another <process name> process was already
   //    found.  If <pid> == pl->pid, this is an old match, so do nothing.
-  //    If the <pid> is different, however,  make a new processlist_t and
+  //    If the <pid> is different, however, make a new processlist_t and
   //    associate <pid> with it (with the same process name as the existing).
   //
 
@@ -486,34 +502,11 @@ static processlist_t *process_check(int pid) {
   processlist_t *match = NULL;
 
   for (pl = processlist_head; pl != NULL; pl = pl->next) {
-    if (pl->is_regex != 0) {
-      is_match = (regexec(&pl->process_regex_obj, buffer,
-                          PROCEVENT_REGEX_MATCHES, matches, 0) == 0
-                      ? 1
-                      : 0);
-    } else {
-      is_match = (strcmp(buffer, pl->process) == 0 ? 1 : 0);
-    }
+
+    is_match = (strcmp(buffer, pl->process) == 0 ? 1 : 0);
 
     if (is_match == 1) {
-      DEBUG("procevent plugin: process %d name match (pattern: %s) for %s", pid,
-            (pl->is_regex == 0 ? pl->process : pl->process_regex), buffer);
-
-      if (pl->is_regex == 1) {
-        // If this is a regex name, copy the actual process name into the object
-        // for cleaner log reporting
-
-        if (pl->process != NULL)
-          sfree(pl->process);
-        pl->process = strdup(buffer);
-        if (pl->process == NULL) {
-          char errbuf[1024];
-          ERROR("procevent plugin: strdup failed during process_check: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
-          pthread_mutex_unlock(&procevent_list_lock);
-          return NULL;
-        }
-      }
+      DEBUG("procevent plugin: process %d name match for %s", pid, buffer);
 
       if (pl->pid == pid) {
         // this is a match, and we've already stored the exact pid/name combo
@@ -535,18 +528,19 @@ static processlist_t *process_check(int pid) {
     }
   }
 
-  if (match != NULL && match->pid != -1 && match->pid != pid) {
+  if (match == NULL ||
+      (match != NULL && match->pid != -1 && match->pid != pid)) {
+    // if there wasn't an existing match, OR
     // if there was a match but the associated processlist_t object already
     // contained a pid/name combo,
     // then make a new one and add it to the linked list
 
     DEBUG(
         "procevent plugin: allocating new processlist_t object for PID %d (%s)",
-        pid, match->process);
+        pid, buffer);
 
     processlist_t *pl2;
     char *process;
-    char *process_regex;
 
     pl2 = malloc(sizeof(*pl2));
     if (pl2 == NULL) {
@@ -557,7 +551,7 @@ static processlist_t *process_check(int pid) {
       return NULL;
     }
 
-    process = strdup(match->process);
+    process = strdup(buffer);
     if (process == NULL) {
       char errbuf[1024];
       sfree(pl2);
@@ -565,32 +559,6 @@ static processlist_t *process_check(int pid) {
             sstrerror(errno, errbuf, sizeof(errbuf)));
       pthread_mutex_unlock(&procevent_list_lock);
       return NULL;
-    }
-
-    if (match->is_regex == 1) {
-      pl2->is_regex = 1;
-      status =
-          regcomp(&pl2->process_regex_obj, match->process_regex, REG_EXTENDED);
-
-      if (status != 0) {
-        sfree(pl2);
-        sfree(process);
-        ERROR("procevent plugin: invalid regular expression: %s",
-              match->process_regex);
-        return NULL;
-      }
-
-      process_regex = strdup(match->process_regex);
-      if (process_regex == NULL) {
-        char errbuf[1024];
-        sfree(pl2);
-        sfree(process);
-        ERROR("procevent plugin: strdup failed during process_check: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
-        return NULL;
-      }
-
-      pl2->process_regex = process_regex;
     }
 
     pl2->process = process;
@@ -602,11 +570,6 @@ static processlist_t *process_check(int pid) {
   }
 
   pthread_mutex_unlock(&procevent_list_lock);
-
-  if (fh != NULL) {
-    fclose(fh);
-    fh = NULL;
-  }
 
   return match;
 }
@@ -1006,11 +969,6 @@ static int procevent_init(void) /* {{{ */
 {
   int status;
 
-  if (processlist_head == NULL) {
-    NOTICE("procevent plugin: No processes have been configured.");
-    return (-1);
-  }
-
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
@@ -1029,6 +987,11 @@ static int procevent_init(void) /* {{{ */
     return (-1);
   }
 
+  if (processlist_head == NULL) {
+    NOTICE("procevent plugin: No processes have been configured.");
+    return (-1);
+  }
+
   return (start_thread());
 } /* }}} int procevent_init */
 
@@ -1036,62 +999,25 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 {
   int status;
 
+  if (ignorelist == NULL)
+    ignorelist = ignorelist_create(/* invert = */ 1);
+
   if (strcasecmp(key, "BufferLength") == 0) {
     buffer_length = atoi(value);
-  } else if (strcasecmp(key, "Process") == 0 ||
-             strcasecmp(key, "RegexProcess") == 0) {
+  } else if (strcasecmp(key, "Process") == 0) {
+    ignorelist_add(ignorelist, value);
+  } else if (strcasecmp(key, "RegexProcess") == 0) {
+#if HAVE_REGEX_H
+    status = ignorelist_add(ignorelist, value);
 
-    processlist_t *pl;
-    char *process;
-    char *process_regex;
-
-    pl = malloc(sizeof(*pl));
-    if (pl == NULL) {
-      char errbuf[1024];
-      ERROR("procevent plugin: malloc failed during procevent_config: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    if (status != 0) {
+      ERROR("procevent plugin: invalid regular expression: %s", value);
       return (1);
     }
-
-    process = strdup(value);
-    if (process == NULL) {
-      char errbuf[1024];
-      sfree(pl);
-      ERROR("procevent plugin: strdup failed during procevent_config: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-      return (1);
-    }
-
-    if (strcasecmp(key, "RegexProcess") == 0) {
-      pl->is_regex = 1;
-      status = regcomp(&pl->process_regex_obj, value, REG_EXTENDED);
-
-      if (status != 0) {
-        sfree(pl);
-        sfree(process);
-        ERROR("procevent plugin: invalid regular expression: %s", value);
-        return (1);
-      }
-
-      process_regex = strdup(value);
-      if (process_regex == NULL) {
-        char errbuf[1024];
-        sfree(pl);
-        sfree(process);
-        ERROR("procevent plugin: strdup failed during procevent_config: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
-        return (1);
-      }
-
-      pl->process_regex = process_regex;
-    } else {
-      pl->is_regex = 0;
-    }
-
-    pl->process = process;
-    pl->pid = -1;
-    pl->next = processlist_head;
-    processlist_head = pl;
+#else
+    WARNING("procevent plugin: The plugin has been compiled without support "
+            "for the \"RegexProcess\" option.");
+#endif
   } else {
     return (-1);
   }
@@ -1109,10 +1035,7 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   if (value == 1)
     n.severity = NOTIF_OKAY;
 
-  char hostname[1024];
-  gethostname(hostname, sizeof(hostname));
-
-  sstrncpy(n.host, hostname, sizeof(n.host));
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, process, sizeof(n.plugin_instance));
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
@@ -1225,11 +1148,6 @@ static int procevent_shutdown(void) /* {{{ */
     processlist_t *pl_next;
 
     pl_next = pl->next;
-
-    if (pl->is_regex == 1) {
-      sfree(pl->process_regex);
-      regfree(&pl->process_regex_obj);
-    }
 
     sfree(pl->process);
     sfree(pl);
