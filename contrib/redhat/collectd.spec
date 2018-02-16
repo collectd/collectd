@@ -248,7 +248,7 @@
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
 Version:	5.7.1
-Release:	8%{?dist}
+Release:	9%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -1360,7 +1360,7 @@ Collectd utilities
 %if %{with_mcelog}
 %define _with_mcelog --enable-mcelog
 %else
-%define _with_mbmon --disable-mcelog
+%define _with_mcelog --disable-mcelog
 %endif
 
 %if %{with_md}
@@ -2737,6 +2737,9 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Sep 28 2017 Jakub Jankowski <shasta@toxcorp.com> - 5.7.1-9
+- Fix mbmon/mcelog build options
+
 * Thu Sep 28 2017 xakru <calvinxakru@gmail.com> - 5.7.1-8
 - Add new libcollectdclient/network_parse
 - Add new libcollectdclient/server
