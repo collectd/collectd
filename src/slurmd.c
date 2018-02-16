@@ -34,7 +34,8 @@
 static const char *config_keys[] =
 {
   "CgroupMountPoint",
-  "IgnoreAbsentCpuset"
+  "IgnoreAbsentCpuset",
+  "SlurmdNodeName"
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -80,6 +81,7 @@ typedef struct job_info_s jobs_list_t;
 
 /* configuration parameters */
 static char *cgroup_mnt_pt = NULL;
+static char *slurmd_node_name = NULL;
 static _Bool ignore_absent_cpuset = 0;
 /* global vars */
 static jobs_list_t *jobs = NULL;
@@ -881,6 +883,7 @@ static int slurmd_browse_uid_cpuset (const char *uid_cpuset_mnt_pt)
   return ret;
 } /* int slurmd_browse_uid_cpuset */
 
+
 /*
  * Browse Slurm cgroup cpuset hierarchy to search for Slurm UID specific
  * sub-cpusets, and browse all of them.
@@ -891,15 +894,36 @@ static int slurmd_update_jobs_usage (void)
 {
   char slurm_cpuset_mnt_pt[PATH_MAX];
   char uid_cpuset_mnt_pt[PATH_MAX];
+  char node_name[HOST_NAME_MAX];
   DIR *dir;
   struct dirent dir_ent_buf, *dir_ent;
   int ret = 0;
 
+  /* Try to open cpuset/slurm in cgroups */
   bzero(slurm_cpuset_mnt_pt, PATH_MAX);
   ssnprintf(slurm_cpuset_mnt_pt, sizeof(slurm_cpuset_mnt_pt), "%s/%s",
             cgroup_mnt_pt, "cpuset/slurm");
 
   dir = opendir(slurm_cpuset_mnt_pt);
+
+  /* There is no cpuset/slurm directory, check cpuset/slurm_<nodename> */
+  if (dir == NULL) {
+    bzero(node_name, HOST_NAME_MAX);
+    if (slurmd_node_name != NULL)
+    {
+      sstrncpy(node_name, slurmd_node_name, sizeof(slurmd_node_name));
+    } else {
+      if ( gethostname(node_name, HOST_NAME_MAX) != 0) {
+        ERROR("slurmd plugin: can't gethostname and none provided in config: %d", errno);
+        return(-1);
+      }
+    }
+
+    bzero(slurm_cpuset_mnt_pt, PATH_MAX);
+    ssnprintf(slurm_cpuset_mnt_pt, sizeof(slurm_cpuset_mnt_pt), "%s/%s_%s",
+              cgroup_mnt_pt, "cpuset/slurm", node_name);
+    dir = opendir(slurm_cpuset_mnt_pt);
+  }
 
   if (dir == NULL) {
     ERROR("slurmd plugin: directory %s could not be open", slurm_cpuset_mnt_pt);
@@ -963,6 +987,10 @@ static int slurmd_config (const char *key, const char *value)
       ignore_absent_cpuset = 0;
     else
       ignore_absent_cpuset = 1;
+  } else if (0 == strcasecmp (key, "SlurmdNodeName")) {
+    if (slurmd_node_name != NULL)
+      sfree(slurmd_node_name);
+    slurmd_node_name = strdup(value);
   } else
     return (-1);
   return (0);

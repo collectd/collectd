@@ -6132,6 +6132,16 @@ Therefore, it is recommanded to set this parameter to B<true> to avoid the
 plugin returning errors and then being increasingly delayed on compute node
 boot.
 
+=item B<SlurmdNodeName> I<NodeName>
+
+Slurm will create cgroups under the directory I<cpuset/slurm> in
+B<CgroupMountPoint> by default. When Slurm is build with support for multiple
+Slurmd by node, it will use a path including the nodename declared for the
+node: I<cpuset/slurm_NODENAME>. This plugin will try both and will by default
+use the hostname returned by C<gethostname()>. If this does not fit the current
+nodename used by slurmd, this option permits to give the true nodename to use
+to the plugin.
+
 =back
 
 =head2 Plugin C<slurmctld>
