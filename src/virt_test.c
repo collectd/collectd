@@ -29,8 +29,7 @@
 
 virDomainPtr *domains;
 
-static int setup(void)
-{
+static int setup(void) {
   if (virInitialize() != 0) {
     printf("ERROR: virInitialize() != 0\n");
     return -1;
@@ -45,8 +44,7 @@ static int setup(void)
   return 0;
 }
 
-static int teardown(void)
-{
+static int teardown(void) {
   sfree(domains);
   if (conn != NULL)
     virConnectClose(conn);
@@ -56,7 +54,8 @@ static int teardown(void)
 
 DEF_TEST(get_domain_state_notify) {
   if (setup() == 0) {
-    int n_domains = virConnectListAllDomains(conn, &domains, VIR_CONNECT_GET_ALL_DOMAINS_STATS_PERSISTENT);
+    int n_domains = virConnectListAllDomains(
+        conn, &domains, VIR_CONNECT_GET_ALL_DOMAINS_STATS_PERSISTENT);
     if (n_domains <= 0) {
       printf("ERROR: virConnectListAllDomains: n_domains <= 0\n");
       return -1;
@@ -66,7 +65,7 @@ DEF_TEST(get_domain_state_notify) {
     EXPECT_EQ_INT(0, ret);
   }
   teardown();
-  
+
   return 0;
 }
 
@@ -76,7 +75,7 @@ DEF_TEST(persistent_domains_state_notification) {
     EXPECT_EQ_INT(0, ret);
   }
   teardown();
-  
+
   return 0;
 }
 #endif

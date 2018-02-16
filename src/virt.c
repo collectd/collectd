@@ -183,7 +183,8 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     case VIR_DOMAIN_EVENT_STARTED_BOOTED: /* Normal startup from boot */
       ret = VIR_DOMAIN_RUNNING_BOOTED;
       break;
-    case VIR_DOMAIN_EVENT_STARTED_MIGRATED: /* Incoming migration from another host */
+    case VIR_DOMAIN_EVENT_STARTED_MIGRATED: /* Incoming migration from another
+                                               host */
       ret = VIR_DOMAIN_RUNNING_MIGRATED;
       break;
     case VIR_DOMAIN_EVENT_STARTED_RESTORED: /* Restored from a state file */
@@ -201,31 +202,40 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     break;
   case VIR_DOMAIN_EVENT_SUSPENDED:
     switch (detail) {
-    case VIR_DOMAIN_EVENT_SUSPENDED_PAUSED: /* Normal suspend due to admin pause */
+    case VIR_DOMAIN_EVENT_SUSPENDED_PAUSED: /* Normal suspend due to admin
+                                               pause */
       ret = VIR_DOMAIN_PAUSED_USER;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_MIGRATED: /* Suspended for offline migration */
+    case VIR_DOMAIN_EVENT_SUSPENDED_MIGRATED: /* Suspended for offline
+                                                 migration */
       ret = VIR_DOMAIN_PAUSED_MIGRATION;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_IOERROR: /* Suspended due to a disk I/O error */
+    case VIR_DOMAIN_EVENT_SUSPENDED_IOERROR: /* Suspended due to a disk I/O
+                                                error */
       ret = VIR_DOMAIN_PAUSED_IOERROR;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_WATCHDOG: /* Suspended due to a watchdog firing */
+    case VIR_DOMAIN_EVENT_SUSPENDED_WATCHDOG: /* Suspended due to a watchdog
+                                                 firing */
       ret = VIR_DOMAIN_PAUSED_WATCHDOG;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_RESTORED: /* Restored from paused state file */
+    case VIR_DOMAIN_EVENT_SUSPENDED_RESTORED: /* Restored from paused state
+                                                 file */
       ret = VIR_DOMAIN_PAUSED_UNKNOWN;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_FROM_SNAPSHOT: /* Restored from paused snapshot */
+    case VIR_DOMAIN_EVENT_SUSPENDED_FROM_SNAPSHOT: /* Restored from paused
+                                                      snapshot */
       ret = VIR_DOMAIN_PAUSED_FROM_SNAPSHOT;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR: /* Suspended after failure during libvirt API call */
+    case VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR: /* Suspended after failure during
+                                                  libvirt API call */
       ret = VIR_DOMAIN_PAUSED_UNKNOWN;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY: /* Suspended for post-copy migration */
+    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY: /* Suspended for post-copy
+                                                 migration */
       ret = VIR_DOMAIN_PAUSED_POSTCOPY;
       break;
-    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY_FAILED: /* Suspended after failed post-copy */
+    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY_FAILED: /* Suspended after failed
+                                                        post-copy */
       ret = VIR_DOMAIN_PAUSED_POSTCOPY_FAILED;
       break;
     default:
@@ -234,16 +244,19 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     break;
   case VIR_DOMAIN_EVENT_RESUMED:
     switch (detail) {
-    case VIR_DOMAIN_EVENT_RESUMED_UNPAUSED: /* Normal resume due to admin unpause */
+    case VIR_DOMAIN_EVENT_RESUMED_UNPAUSED: /* Normal resume due to admin
+                                               unpause */
       ret = VIR_DOMAIN_RUNNING_UNPAUSED;
       break;
-    case VIR_DOMAIN_EVENT_RESUMED_MIGRATED: /* Resumed for completion of migration */
+    case VIR_DOMAIN_EVENT_RESUMED_MIGRATED: /* Resumed for completion of
+                                               migration */
       ret = VIR_DOMAIN_RUNNING_MIGRATED;
       break;
     case VIR_DOMAIN_EVENT_RESUMED_FROM_SNAPSHOT: /* Resumed from snapshot */
       ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
       break;
-    case VIR_DOMAIN_EVENT_RESUMED_POSTCOPY: /* Resumed, but migration is still running in post-copy mode */
+    case VIR_DOMAIN_EVENT_RESUMED_POSTCOPY: /* Resumed, but migration is still
+                                               running in post-copy mode */
       ret = VIR_DOMAIN_RUNNING_POSTCOPY;
       break;
     default:
@@ -279,7 +292,8 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     break;
   case VIR_DOMAIN_EVENT_SHUTDOWN:
     switch (detail) {
-    case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED: /* Guest finished shutdown sequence */
+    case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED: /* Guest finished shutdown
+                                                sequence */
       ret = VIR_DOMAIN_SHUTDOWN_USER;
       break;
     default:
@@ -288,7 +302,8 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     break;
   case VIR_DOMAIN_EVENT_PMSUSPENDED:
     switch (detail) {
-    case VIR_DOMAIN_EVENT_PMSUSPENDED_MEMORY: /* Guest was PM suspended to memory */
+    case VIR_DOMAIN_EVENT_PMSUSPENDED_MEMORY: /* Guest was PM suspended to
+                                                 memory */
       ret = VIR_DOMAIN_PMSUSPENDED_UNKNOWN;
       break;
     case VIR_DOMAIN_EVENT_PMSUSPENDED_DISK: /* Guest was PM suspended to disk */
@@ -1856,12 +1871,10 @@ static int start_event_loop(void) {
 /* stop event loop thread and deregister callback */
 static void stop_event_loop(void) {
   if (pthread_cancel(event_loop_tid) != 0)
-    ERROR(PLUGIN_NAME " plugin: cancelling thread %lu failed",
-          event_loop_tid);
+    ERROR(PLUGIN_NAME " plugin: cancelling thread %lu failed", event_loop_tid);
 
   if (pthread_join(event_loop_tid, NULL) != 0)
-    ERROR(PLUGIN_NAME " plugin: stopping thread %lu failed",
-          event_loop_tid);
+    ERROR(PLUGIN_NAME " plugin: stopping thread %lu failed", event_loop_tid);
 
   if (conn != NULL && domain_event_cb_id != -1)
     virConnectDomainEventDeregisterAny(conn, domain_event_cb_id);
@@ -1877,8 +1890,7 @@ static int persistent_domains_state_notification(void) {
   if (n < 0) {
     VIRT_ERROR(conn, "reading list of persistent domains");
     status = -1;
-  }
-  else {
+  } else {
     DEBUG(PLUGIN_NAME " plugin: getting state of %i persistent domains", n);
     /* Fetch each persistent domain's state and notify it */
     int n_notified = n;
@@ -1974,8 +1986,9 @@ static int lv_read(user_data_t *ud) {
     if (inst->id == 0 && persistent_notification) {
       int status = persistent_domains_state_notification();
       if (status != 0)
-        DEBUG(PLUGIN_NAME " plugin: persistent_domains_state_notifications " \
-              "returned with status %i", status);
+        DEBUG(PLUGIN_NAME " plugin: persistent_domains_state_notifications "
+                          "returned with status %i",
+              status);
     }
     if (refresh_lists(inst) != 0) {
       if (inst->id == 0) {
@@ -1988,19 +2001,19 @@ static int lv_read(user_data_t *ud) {
     last_refresh = t;
   }
 
-  #if COLLECT_DEBUG
-    for (int i = 0; i < state->nr_domains; ++i)
-        DEBUG(PLUGIN_NAME " plugin: domain %s",
-              virDomainGetName(state->domains[i].ptr));
-    for (int i = 0; i < state->nr_block_devices; ++i)
-        DEBUG(PLUGIN_NAME " plugin: block device %d %s:%s",
-              i, virDomainGetName(state->block_devices[i].dom),
-              state->block_devices[i].path);
-    for (int i = 0; i < state->nr_interface_devices; ++i)
-        DEBUG(PLUGIN_NAME " plugin: interface device %d %s:%s",
-              i, virDomainGetName(state->interface_devices[i].dom),
-              state->interface_devices[i].path);
-  #endif
+#if COLLECT_DEBUG
+  for (int i = 0; i < state->nr_domains; ++i)
+    DEBUG(PLUGIN_NAME " plugin: domain %s",
+          virDomainGetName(state->domains[i].ptr));
+  for (int i = 0; i < state->nr_block_devices; ++i)
+    DEBUG(PLUGIN_NAME " plugin: block device %d %s:%s", i,
+          virDomainGetName(state->block_devices[i].dom),
+          state->block_devices[i].path);
+  for (int i = 0; i < state->nr_interface_devices; ++i)
+    DEBUG(PLUGIN_NAME " plugin: interface device %d %s:%s", i,
+          virDomainGetName(state->interface_devices[i].dom),
+          state->interface_devices[i].path);
+#endif
 
   /* Get domains' metrics */
   for (int i = 0; i < state->nr_domains; ++i) {
@@ -2216,8 +2229,7 @@ static int refresh_lists(struct lv_read_instance *inst) {
   virDomainPtr *domains, *domains_inactive;
   int m = virConnectListAllDomains(conn, &domains_inactive,
                                    VIR_CONNECT_LIST_DOMAINS_INACTIVE);
-  n = virConnectListAllDomains(conn, &domains,
-                               VIR_CONNECT_LIST_DOMAINS_ACTIVE);
+  n = virConnectListAllDomains(conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
 #else
   int *domids;
 
