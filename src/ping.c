@@ -71,6 +71,7 @@ typedef struct hostlist_s hostlist_t;
  */
 static hostlist_t *hostlist_head = NULL;
 
+static char *ping_af = NULL;
 static char *ping_source = NULL;
 #ifdef HAVE_OPING_1_3
 static char *ping_device = NULL;
@@ -87,7 +88,7 @@ static int ping_thread_loop = 0;
 static int ping_thread_error = 0;
 static pthread_t ping_thread_id;
 
-static const char *config_keys[] = {"Host",    "SourceAddress",
+static const char *config_keys[] = {"Host",    "SourceAddress", "AddressFamily",
 #ifdef HAVE_OPING_1_3
                                     "Device",
 #endif
@@ -240,6 +241,22 @@ static void *ping_thread(void *arg) /* {{{ */
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
     return (void *)-1;
+  }
+
+  if (ping_af != NULL) {
+    int af = PING_DEF_AF;
+    if (strncmp(ping_af, "any", 3) == 0) {
+      af = AF_UNSPEC;
+    } else if (strncmp(ping_af, "ipv4", 4) == 0) {
+      af = AF_INET;
+    } else if (strncmp(ping_af, "ipv6", 4) == 0) {
+      af = AF_INET6;
+    } else {
+      ERROR("ping plugin: Bad address family: %s. Using default.", ping_af);
+    }
+    if (ping_setopt(pingobj, PING_OPT_AF, &af) != 0)
+      ERROR("ping plugin: Failed to set address family: %s",
+            ping_get_error(pingobj));
   }
 
   if (ping_source != NULL)
@@ -468,6 +485,10 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->latency_squared = 0.0;
     hl->next = hostlist_head;
     hostlist_head = hl;
+  } else if (strcasecmp(key, "AddressFamily") == 0) {
+    int status = config_set_string(key, &ping_af, value);
+    if (status != 0)
+      return status;
   } else if (strcasecmp(key, "SourceAddress") == 0) {
     int status = config_set_string(key, &ping_source, value);
     if (status != 0)
