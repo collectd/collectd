@@ -367,7 +367,7 @@ static int notify_upstart(void) {
     return 0;
   }
 
-  NOTICE("Upstart detected, stopping now to signal readyness.");
+  NOTICE("Upstart detected, stopping now to signal readiness.");
   raise(SIGSTOP);
   unsetenv("UPSTART_JOB");
 
@@ -392,7 +392,7 @@ static int notify_systemd(void) {
           notifysocket);
     return 0;
   }
-  NOTICE("Systemd detected, trying to signal readyness.");
+  NOTICE("Systemd detected, trying to signal readiness.");
 
   unsetenv("NOTIFY_SOCKET");
 
