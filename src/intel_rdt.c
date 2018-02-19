@@ -25,8 +25,8 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "common.h"
 #include "collectd.h"
+#include "common.h"
 
 #include "utils_config_cores.h"
 

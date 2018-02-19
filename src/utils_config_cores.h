@@ -28,6 +28,10 @@
 #ifndef UTILS_CONFIG_CORES_H
 #define UTILS_CONFIG_CORES_H 1
 
+#ifndef PRIsz
+#define PRIsz "zu"
+#endif /* PRIsz */
+
 struct core_group_s {
   char *desc;
   unsigned *cores;
