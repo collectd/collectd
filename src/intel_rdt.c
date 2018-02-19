@@ -23,12 +23,12 @@
  *
  * Authors:
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
+ *   Starzyk, Mateusz <mateuszx.starzyk@intel.com>
  **/
 
 #include "collectd.h"
 #include "utils/common/common.h"
 #include "utils/config_cores/config_cores.h"
-
 #include <pqos.h>
 
 #define RDT_PLUGIN "intel_rdt"
@@ -36,6 +36,11 @@
 #define RDT_MAX_SOCKETS 8
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
+/*
+ * Process name inside comm file is limited to 16 chars.
+ * More info here: http://man7.org/linux/man-pages/man5/proc.5.html
+ */
+#define RDT_MAX_PROC_COMM_LENGTH 16
 
 typedef enum {
   UNKNOWN = 0,
@@ -235,6 +240,226 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     }
   }
 
+  return 0;
+}
+
+/* Helper typedef for process name array
+ * Extra 1 char is added for string null termination.
+ */
+typedef char proc_comm_t[RDT_MAX_PROC_COMM_LENGTH + 1];
+
+/* Linked one-way list of pids. */
+typedef struct pids_list_s {
+  pid_t pid;
+  struct pids_list_s *next;
+} pids_list_t;
+
+/* Holds process name and list of pids assigned to that name */
+typedef struct proc_pids_s {
+  proc_comm_t proccess_name;
+  pids_list_t *pids;
+} proc_pids_t;
+
+/*
+ * NAME
+ *   pids_list_add_pid
+ *
+ * DESCRIPTION
+ *   Adds pid at the end of the pids list.
+ *   Allocates memory for new pid element, it is up to user to free it.
+ *
+ * PARAMETERS
+ *   `list'     Head of target pids_list.
+ *   `pid'      Pid to be added.
+ *
+ * RETURN VALUE
+ *   On success, returns 0.
+ *   -1 on memory allocation error.
+ */
+static int pids_list_add_pid(pids_list_t **list, const pid_t pid) {
+  pids_list_t *new_element = calloc(1, sizeof(*new_element));
+
+  if (new_element == NULL) {
+    ERROR(RDT_PLUGIN ": Alloc error\n");
+    return -1;
+  }
+  new_element->pid = pid;
+  new_element->next = NULL;
+
+  pids_list_t **current = list;
+  while (*current != NULL) {
+    current = &((*current)->next);
+  }
+  *current = new_element;
+  return 0;
+}
+
+/*
+ * NAME
+ *   read_proc_name
+ *
+ * DESCRIPTION
+ *   Reads process name from given pid directory.
+ *   Strips new-line character (\n).
+ *
+ * PARAMETERS
+ *   `procfs_path` Path to systems proc directory (e.g. /proc)
+ *   `pid_entry'   Dirent for PID directory
+ *   `name'        Output buffer for process name, recommended proc_comm.
+ *   `out_size'    Output buffer size, recommended sizeof(proc_comm)
+ *
+ * RETURN VALUE
+ *   On success, the number of read bytes (includes stripped \n).
+ *   -1 on file open error
+ */
+static int read_proc_name(const char *procfs_path,
+                          const struct dirent *pid_entry, char *name,
+                          const size_t out_size) {
+  assert(procfs_path);
+  assert(pid_entry);
+  assert(name);
+  assert(out_size);
+  memset(name, 0, out_size);
+
+  const char *comm_file_name = "comm";
+
+  char *path = ssnprintf_alloc("%s/%s/%s", procfs_path, pid_entry->d_name,
+                               comm_file_name);
+
+  FILE *f = fopen(path, "r");
+  if (f == NULL) {
+    ERROR(RDT_PLUGIN ": Failed to open comm file, error: %d\n", errno);
+    sfree(path);
+    return -1;
+  }
+  size_t read_length = fread(name, sizeof(char), out_size, f);
+  fclose(f);
+  sfree(path);
+  /* strip new line ending */
+  char *newline = strchr(name, '\n');
+  if (newline) {
+    *newline = '\0';
+  }
+
+  return read_length;
+}
+
+/*
+ * NAME
+ *   get_pid_number
+ *
+ * DESCRIPTION
+ *   Gets pid number for given /proc/pid directory entry or
+ *   returns error if input directory does not hold PID information.
+ *
+ * PARAMETERS
+ *   `entry'    Dirent for PID directory
+ *   `pid'      PID number to be filled
+ *
+ * RETURN VALUE
+ *   0 on success. Negative number on error:
+ *   -1: given entry is not a directory
+ *   -2: PID conversion error
+ */
+static int get_pid_number(struct dirent *entry, pid_t *pid) {
+  char *tmp_end; /* used for strtoul error check*/
+
+  if (pid == NULL || entry == NULL)
+    return -1;
+
+  if (entry->d_type != DT_DIR)
+    return -1;
+
+  /* trying to get pid number from directory name*/
+  *pid = strtoul(entry->d_name, &tmp_end, 10);
+  if (*tmp_end != '\0') {
+    return -2; /* conversion failed, not proc-pid */
+  }
+  /* all checks passed, marking as success */
+  return 0;
+}
+
+/*
+ * NAME
+ *   fetch_pids_for_procs
+ *
+ * DESCRIPTION
+ *   Finds PIDs matching given process's names.
+ *   Searches all PID directories in /proc fs and
+ *   allocates memory for proc_pids structs, it is up to user to free it.
+ *   Output array will have same element count as input array.
+ *
+ * PARAMETERS
+ *   `procfs_path'      Path to systems proc directory (e.g. /proc)
+ *   `procs'            Array of null-terminated strings with
+ *                      process' names to search for
+ *   `procs_size'       procs array element count
+ *   `proc_pids_array'  Address of pointer, under which new
+ *                      array of proc_pids will be allocated. Must be NULL.
+ *
+ * RETURN VALUE
+ *   0 on success. Negative number on error:
+ *   -1: could not open /proc dir
+ */
+__attribute__((unused)) /* TODO: remove this attribute when PID monitoring is
+                           implemented */
+static int
+fetch_pids_for_procs(const char *procfs_path, const char **procs_names_array,
+                     const size_t procs_names_array_size,
+                     proc_pids_t **proc_pids_array) {
+  assert(procfs_path);
+  assert(procs_names_array);
+  assert(procs_names_array_size);
+  assert(proc_pids_array);
+  assert(NULL == *proc_pids_array);
+
+  DIR *proc_dir = opendir(procfs_path);
+  if (proc_dir == NULL) {
+    ERROR(RDT_PLUGIN ": Could not open %s directory, error: %d", procfs_path,
+          errno);
+    return -1;
+  }
+
+  /* Copy procs names to output array. Initialize pids list with NULL value. */
+  (*proc_pids_array) =
+      calloc(procs_names_array_size, sizeof(**proc_pids_array));
+  for (size_t i = 0; i < procs_names_array_size; ++i) {
+    sstrncpy((*proc_pids_array)[i].proccess_name, procs_names_array[i],
+             STATIC_ARRAY_SIZE((*proc_pids_array)[i].proccess_name));
+    (*proc_pids_array)[i].pids = NULL;
+  }
+
+  /* Go through procfs and find PIDS and their comms */
+  struct dirent *entry;
+  while ((entry = readdir(proc_dir)) != NULL) {
+
+    pid_t pid;
+    int pid_conversion = get_pid_number(entry, &pid);
+    if (pid_conversion < 0)
+      continue;
+
+    proc_comm_t comm;
+    int read_result =
+        read_proc_name(procfs_path, entry, comm, sizeof(proc_comm_t));
+    if (read_result <= 0) {
+      ERROR(RDT_PLUGIN ": Comm file skipped. Read result: %d", read_result);
+      continue;
+    }
+
+    /* Try to find comm in input procs array (proc_pids_array has same names) */
+    for (size_t i = 0; i < procs_names_array_size; ++i) {
+      if (0 == strncmp(comm, (*proc_pids_array)[i].proccess_name,
+                       STATIC_ARRAY_SIZE(comm)))
+        pids_list_add_pid(&((*proc_pids_array)[i].pids), pid);
+    }
+  }
+
+  int close_result = closedir(proc_dir);
+  if (0 != close_result) {
+    ERROR(RDT_PLUGIN ": failed to close %s directory, error: %d", procfs_path,
+          errno);
+    return -1;
+  }
   return 0;
 }
 

@@ -1070,6 +1070,18 @@ intel_rdt_la_SOURCES = \
 intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
+
+test_plugin_intel_rdt_SOURCES = \
+	src/intel_rdt_test.c \
+	src/utils/config_cores/config_cores.h \
+	src/utils/config_cores/config_cores.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_intel_rdt_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la
+check_PROGRAMS += test_plugin_intel_rdt
+TESTS += test_plugin_intel_rdt
 endif
 
 if BUILD_PLUGIN_INTERFACE
