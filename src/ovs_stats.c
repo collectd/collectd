@@ -244,6 +244,9 @@ static port_list_t *ovs_stats_get_port_by_name(const char *name) {
 /* Create or get port by port uuid */
 static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
                                        const char *uuid) {
+  if (uuid == NULL)
+    return NULL;
+
   port_list_t *port = ovs_stats_get_port(uuid);
 
   if (port == NULL) {
