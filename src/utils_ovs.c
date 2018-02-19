@@ -1368,6 +1368,9 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
     return NULL;
 
   /* try to find map value by map key */
+  if (YAJL_GET_ARRAY(array_values[1]) == NULL)
+    return NULL;
+
   map_len = YAJL_GET_ARRAY(array_values[1])->len;
   map_values = YAJL_GET_ARRAY(array_values[1])->values;
   for (size_t i = 0; i < map_len; i++) {
