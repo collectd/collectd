@@ -632,10 +632,15 @@ static int ovs_stats_update_iface(yajl_val iface) {
     ovs_stats_update_iface_ext_ids(port,
                                    YAJL_GET_ARRAY(iface_ext_ids)->values[1]);
   if (iface_uuid && YAJL_IS_ARRAY(iface_uuid) &&
-      YAJL_GET_ARRAY(iface_uuid)->len == 2)
+      YAJL_GET_ARRAY(iface_uuid)->len == 2 &&
+      YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]) != NULL)
     sstrncpy(port->iface_uuid,
              YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]),
              sizeof(port->iface_uuid));
+  else {
+    ERROR("ovs_stats plugin: incorrect JSON interface data");
+    return -1;
+  }
 
   return 0;
 }
