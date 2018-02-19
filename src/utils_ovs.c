@@ -1364,7 +1364,7 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
 
   /* check first element of the array */
   str_val = YAJL_GET_STRING(array_values[0]);
-  if (strcmp("map", str_val) != 0)
+  if (str_val == NULL || strcmp("map", str_val) != 0)
     return NULL;
 
   /* try to find map value by map key */
