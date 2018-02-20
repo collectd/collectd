@@ -3223,7 +3223,7 @@ Enable or disable measuring of the following events:
   - branch-misses
   - bus-cycles
 
-=item B<ReportKernelPMUEvents> B<false>|B<true>
+=item B<ReportGPUEvents> B<false>|B<true>
 
 Enable or disable measuring of software events provided by i915 driver in kernel:
   - i915/bcs0-busy
