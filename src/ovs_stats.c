@@ -362,19 +362,27 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
           if (array != NULL && array_len > 0 && YAJL_IS_ARRAY(array[1])) {
             yajl_val *ports_arr = YAJL_GET_ARRAY(array[1])->values;
             size_t ports_num = YAJL_GET_ARRAY(array[1])->len;
-            for (size_t i = 0; i < ports_num && ports_arr != NULL; i++)
-              ovs_stats_new_port(
-                  br, YAJL_GET_STRING(ports_arr[i]->u.array.values[1]));
+            for (size_t i = 0; i < ports_num && ports_arr != NULL; i++) {
+              tmp = YAJL_GET_STRING(ports_arr[i]->u.array.values[1]);
+              if (tmp != NULL)
+                ovs_stats_new_port(br, tmp);
+              else
+                goto failure;
+            }
           }
         } else
           ovs_stats_new_port(br, YAJL_GET_STRING(br_ports->u.array.values[1]));
       }
     }
   } else {
-    ERROR("Incorrect JSON Bridge data");
-    return -1;
+    goto failure;
   }
+
   return 0;
+
+failure:
+  ERROR("Incorrect JSON Bridge data");
+  return -1;
 }
 
 /* Handle JSON with Bridge Table change event */
