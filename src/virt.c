@@ -38,6 +38,14 @@
 /* Plugin name */
 #define PLUGIN_NAME "virt"
 
+/* Secure strcat macro assuring null termination. Parameter (n) is the size of
+   buffer (d), allowing this macro to be safe for static and dynamic buffers */
+#define SSTRNCAT(d, s, n)                                                      \
+  do {                                                                         \
+    size_t _l = strlen(d);                                                     \
+    sstrncpy((d) + _l, (s), (n)-_l);                                           \
+  } while (0)
+
 #ifdef LIBVIR_CHECK_VERSION
 
 #if LIBVIR_CHECK_VERSION(0, 9, 2)
@@ -739,7 +747,6 @@ static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
 }
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
-  int n;
   const char *name;
   char uuid[VIR_UUID_STRING_BUFLEN];
 
@@ -752,44 +759,34 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
     if (hostname_format[i] == hf_none)
       continue;
 
-    n = DATA_MAX_NAME_LEN - strlen(vl->host) - 2;
-
-    if (i > 0 && n >= 1) {
-      strncat(vl->host, ":", 1);
-      n--;
-    }
+    if (i > 0)
+      SSTRNCAT(vl->host, ":", sizeof(vl->host));
 
     switch (hostname_format[i]) {
     case hf_none:
       break;
     case hf_hostname:
-      strncat(vl->host, hostname_g, n);
+      SSTRNCAT(vl->host, hostname_g, sizeof(vl->host));
       break;
     case hf_name:
       name = virDomainGetName(dom);
       if (name)
-        strncat(vl->host, name, n);
+        SSTRNCAT(vl->host, name, sizeof(vl->host));
       break;
     case hf_uuid:
       if (virDomainGetUUIDString(dom, uuid) == 0)
-        strncat(vl->host, uuid, n);
+        SSTRNCAT(vl->host, uuid, sizeof(vl->host));
       break;
     }
   }
-
-  vl->host[sizeof(vl->host) - 1] = '\0';
 
   /* Construct the plugin instance field according to PluginInstanceFormat. */
   for (int i = 0; i < PLGINST_MAX_FIELDS; ++i) {
     if (plugin_instance_format[i] == plginst_none)
       continue;
 
-    n = sizeof(vl->plugin_instance) - strlen(vl->plugin_instance) - 2;
-
-    if (i > 0 && n >= 1) {
-      strncat(vl->plugin_instance, ":", 1);
-      n--;
-    }
+    if (i > 0)
+      SSTRNCAT(vl->plugin_instance, ":", sizeof(vl->plugin_instance));
 
     switch (plugin_instance_format[i]) {
     case plginst_none:
@@ -797,16 +794,14 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
     case plginst_name:
       name = virDomainGetName(dom);
       if (name)
-        strncat(vl->plugin_instance, name, n);
+        SSTRNCAT(vl->plugin_instance, name, sizeof(vl->plugin_instance));
       break;
     case plginst_uuid:
       if (virDomainGetUUIDString(dom, uuid) == 0)
-        strncat(vl->plugin_instance, uuid, n);
+        SSTRNCAT(vl->plugin_instance, uuid, sizeof(vl->plugin_instance));
       break;
     }
   }
-
-  vl->plugin_instance[sizeof(vl->plugin_instance) - 1] = '\0';
 
 } /* void init_value_list */
 
