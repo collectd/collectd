@@ -1,7 +1,7 @@
 /**
  * collectd - src/intel_pmu.c
  *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

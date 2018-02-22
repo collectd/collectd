@@ -1,7 +1,7 @@
 /**
  * collectd - src/utils_config_cores.h
  *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,8 @@
 
 #ifndef UTILS_CONFIG_CORES_H
 #define UTILS_CONFIG_CORES_H 1
+
+#include "configfile.h"
 
 #ifndef PRIsz
 #define PRIsz "zu"
