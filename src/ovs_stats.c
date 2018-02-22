@@ -849,6 +849,7 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
             char *br_name_dup = strdup(br_name);
             if (br_name_dup == NULL) {
               ERROR("%s: strdup() copy bridge name fail", plugin_name);
+              sfree(bridge);
               goto cleanup_fail;
             }
 
