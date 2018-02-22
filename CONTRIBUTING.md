@@ -56,4 +56,4 @@ the mailing list have a tendency to fall through the cracks.
 *   [Mailing list](http://mailman.verplant.org/listinfo/collectd)
 *   [#collectd IRC channel](https://webchat.freenode.net/?channels=#collectd)
     on *freenode*.
-*   [Old patch submission guideline](https://collectd.org/wiki/index.php/Submitting_patches)
+*   [Old patch submission guideline](https://web.archive.org/web/20140331233936/https://collectd.org/wiki/index.php/Submitting_patches)
