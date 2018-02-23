@@ -24,6 +24,7 @@
  * Authors:
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  *   Starzyk, Mateusz <mateuszx.starzyk@intel.com>
+ *   Wojciech Andralojc <wojciechx.andralojc@intel.com>
  **/
 
 #include "collectd.h"
@@ -32,15 +33,6 @@
 #include <pqos.h>
 
 #define RDT_PLUGIN "intel_rdt"
-
-#define RDT_MAX_SOCKETS 8
-#define RDT_MAX_SOCKET_CORES 64
-#define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
-/*
- * Process name inside comm file is limited to 16 chars.
- * More info here: http://man7.org/linux/man-pages/man5/proc.5.html
- */
-#define RDT_MAX_PROC_COMM_LENGTH 16
 
 /* PQOS API STUB
  * In future: Start monitoring for PID group. For perf grouping will be added.
@@ -78,16 +70,39 @@ pqos_mon_remove_pids(const unsigned num_pids, const pid_t *pids, void *context,
   return PQOS_RETVAL_OK;
 }
 
+#define RDT_PLUGIN "intel_rdt"
+
+#define RDT_MAX_SOCKETS 8
+#define RDT_MAX_SOCKET_CORES 64
+#define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
+
+/*
+ * Process name inside comm file is limited to 16 chars.
+ * More info here: http://man7.org/linux/man-pages/man5/proc.5.html
+ */
+#define RDT_MAX_NAME_LEN 16
+#define RDT_MAX_NAMES_GROUPS 64
+
 typedef enum {
   UNKNOWN = 0,
   CONFIGURATION_ERROR,
 } rdt_config_status;
 
+struct rdt_name_group_s {
+  char *desc;
+  size_t num_names;
+  char **names;
+  enum pqos_mon_event events;
+};
+typedef struct rdt_name_group_s rdt_name_group_t;
+
 struct rdt_ctx_s {
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
-  struct pqos_mon_data *pgroups[RDT_MAX_CORES];
-  size_t num_groups;
+  struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
+  rdt_name_group_t ngroups[RDT_MAX_NAMES_GROUPS];
+  struct pqos_mon_data *pngroups[RDT_MAX_NAMES_GROUPS];
+  size_t num_ngroups;
   const struct pqos_cpuinfo *pqos_cpu;
   const struct pqos_cap *pqos_cap;
   const struct pqos_capability *cap_mon;
@@ -98,6 +113,165 @@ static rdt_ctx_t *g_rdt;
 
 static rdt_config_status g_state = UNKNOWN;
 
+static int isdupstr(const char *names[], const size_t size, const char *name) {
+  for (size_t i = 0; i < size; i++)
+    if (strncmp(names[i], name, (size_t)RDT_MAX_NAME_LEN) == 0)
+      return 1;
+
+  return 0;
+}
+
+/*
+ * NAME
+ *   strlisttoarray
+ *
+ * DESCRIPTION
+ *   Converts string representing list of strings into array of strings.
+ *   Allowed format is:
+ *     name,name1,name2,name3
+ *
+ * PARAMETERS
+ *   `str_list'  String representing list of strings.
+ *   `names'     Array to put extracted strings into.
+ *   `names_num' Variable to put number of extracted strings.
+ *
+ * RETURN VALUE
+ *    Number of elements placed into names.
+ */
+static int strlisttoarray(char *str_list, char ***names, size_t *names_num) {
+  char *saveptr = NULL;
+
+  if (str_list == NULL || names == NULL)
+    return -EINVAL;
+
+  for (;;) {
+    char *token = strtok_r(str_list, ",", &saveptr);
+    if (token == NULL)
+      break;
+
+    str_list = NULL;
+
+    while (isspace(*token))
+      token++;
+
+    if (*token == '\0')
+      continue;
+
+    if (!(isdupstr((const char **)*names, *names_num, token)))
+      if (0 != strarray_add(names, names_num, token)) {
+        ERROR(RDT_PLUGIN ": Error allocating process name string");
+        return -ENOMEM;
+      }
+  }
+
+  return 0;
+}
+
+/*
+ * NAME
+ *   ngroup_cmp
+ *
+ * DESCRIPTION
+ *   Function to compare names in two name groups.
+ *
+ * PARAMETERS
+ *   `ng_a'      Pointer to name group a.
+ *   `ng_b'      Pointer to name group b.
+ *
+ * RETURN VALUE
+ *    1 if both groups contain the same names
+ *    0 if none of their names match
+ *    -1 if some but not all names match
+ */
+static int ngroup_cmp(const rdt_name_group_t *ng_a,
+                      const rdt_name_group_t *ng_b) {
+  unsigned found = 0;
+
+  assert(ng_a != NULL);
+  assert(ng_b != NULL);
+
+  const size_t sz_a = (unsigned)ng_a->num_names;
+  const size_t sz_b = (unsigned)ng_b->num_names;
+  const char **tab_a = (const char **)ng_a->names;
+  const char **tab_b = (const char **)ng_b->names;
+
+  for (size_t i = 0; i < sz_a; i++) {
+    for (size_t j = 0; j < sz_b; j++)
+      if (strncmp(tab_a[i], tab_b[j], (size_t)RDT_MAX_NAME_LEN) == 0)
+        found++;
+  }
+  /* if no names are the same */
+  if (!found)
+    return 0;
+  /* if group contains same names */
+  if (sz_a == sz_b && sz_b == (size_t)found)
+    return 1;
+  /* if not all names are the same */
+  return -1;
+}
+
+/*
+ * NAME
+ *   oconfig_to_ngroups
+ *
+ * DESCRIPTION
+ *   Function to set the descriptions and names for each process names group.
+ *   Takes a config option containing list of strings that are used to set
+ *   process group values.
+ *
+ * PARAMETERS
+ *   `item'        Config option containing process names groups.
+ *   `groups'      Table of process name groups to set values in.
+ *   `max_groups'  Maximum number of process name groups allowed.
+ *
+ * RETURN VALUE
+ *   On success, the number of name groups set up. On error, appropriate
+ *   negative error value.
+ */
+static int oconfig_to_ngroups(const oconfig_item_t *item,
+                              rdt_name_group_t *groups,
+                              const size_t max_groups) {
+  int index = 0;
+
+  assert(groups != NULL);
+  assert(max_groups > 0);
+  assert(item != NULL);
+
+  for (int j = 0; j < item->values_num; j++) {
+    int ret;
+    char value[DATA_MAX_NAME_LEN];
+
+    if ((item->values[j].value.string == NULL) ||
+        (strlen(item->values[j].value.string) == 0))
+      continue;
+
+    sstrncpy(value, item->values[j].value.string, sizeof(value));
+
+    ret = strlisttoarray(value, &groups[index].names, &groups[index].num_names);
+    if (ret != 0 || groups[index].num_names == 0) {
+      ERROR(RDT_PLUGIN ": Error parsing process names group (%s)",
+            item->values[j].value.string);
+      return -EINVAL;
+    }
+
+    /* set group description info */
+    groups[index].desc = sstrdup(item->values[j].value.string);
+    if (groups[index].desc == NULL) {
+      ERROR(RDT_PLUGIN ": Error allocating name group description");
+      return -ENOMEM;
+    }
+
+    index++;
+
+    if (index >= (const int)max_groups) {
+      WARNING(RDT_PLUGIN ": Too many process names groups configured");
+      return index;
+    }
+  }
+
+  return index;
+}
+
 #if COLLECT_DEBUG
 static void rdt_dump_cgroups(void) {
   char cores[RDT_MAX_CORES * 4];
@@ -106,9 +280,9 @@ static void rdt_dump_cgroups(void) {
     return;
 
   DEBUG(RDT_PLUGIN ": Core Groups Dump");
-  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->num_groups);
+  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->cores.num_cgroups);
 
-  for (size_t i = 0; i < g_rdt->num_groups; i++) {
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cgroup = g_rdt->cores.cgroups + i;
 
     memset(cores, 0, sizeof(cores));
@@ -126,6 +300,31 @@ static void rdt_dump_cgroups(void) {
   return;
 }
 
+static void rdt_dump_ngroups(void) {
+
+  char names[DATA_MAX_NAME_LEN];
+
+  if (g_rdt == NULL)
+    return;
+
+  DEBUG(RDT_PLUGIN ": Process Names Groups Dump");
+  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->num_ngroups);
+
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
+    memset(names, 0, sizeof(names));
+    for (size_t j = 0; j < g_rdt->ngroups[i].num_names; j++)
+      snprintf(names + strlen(names), sizeof(names) - strlen(names) - 1, " %s",
+               g_rdt->ngroups[i].names[j]);
+
+    DEBUG(RDT_PLUGIN ":  group[%d]:", (int)i);
+    DEBUG(RDT_PLUGIN ":    description: %s", g_rdt->ngroups[i].desc);
+    DEBUG(RDT_PLUGIN ":    process names:%s", names);
+    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->ngroups[i].events);
+  }
+
+  return;
+}
+
 static inline double bytes_to_kb(const double bytes) { return bytes / 1024.0; }
 
 static inline double bytes_to_mb(const double bytes) {
@@ -135,21 +334,39 @@ static inline double bytes_to_mb(const double bytes) {
 static void rdt_dump_data(void) {
   /*
    * CORE - monitored group of cores
+   * NAME - monitored group of processes
    * RMID - Resource Monitoring ID associated with the monitored group
    * LLC - last level cache occupancy
    * MBL - local memory bandwidth
    * MBR - remote memory bandwidth
    */
   DEBUG("  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-  for (size_t i = 0; i < g_rdt->num_groups; i++) {
-    const struct pqos_event_values *pv = &g_rdt->pgroups[i]->values;
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
+
+    const struct pqos_event_values *pv = &g_rdt->pcgroups[i]->values;
 
     double llc = bytes_to_kb(pv->llc);
     double mbr = bytes_to_mb(pv->mbm_remote_delta);
     double mbl = bytes_to_mb(pv->mbm_local_delta);
 
     DEBUG(" [%s] %8u %10.1f %10.1f %10.1f", g_rdt->cores.cgroups[i].desc,
-          g_rdt->pgroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
+          g_rdt->pcgroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
+  }
+
+  DEBUG("  NAME     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
+
+    if (g_rdt->pngroups[i]->poll_ctx == NULL)
+      continue;
+
+    const struct pqos_event_values *pv = &g_rdt->pngroups[i]->values;
+
+    double llc = bytes_to_kb(pv->llc);
+    double mbr = bytes_to_mb(pv->mbm_remote_delta);
+    double mbl = bytes_to_mb(pv->mbm_local_delta);
+
+    DEBUG(" [%s] %8u %10.1f %10.1f %10.1f", g_rdt->ngroups[i].desc,
+          g_rdt->pngroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
   }
 }
 #endif /* COLLECT_DEBUG */
@@ -157,7 +374,16 @@ static void rdt_dump_data(void) {
 static void rdt_free_cgroups(void) {
   config_cores_cleanup(&g_rdt->cores);
   for (int i = 0; i < RDT_MAX_CORES; i++) {
-    sfree(g_rdt->pgroups[i]);
+    sfree(g_rdt->pcgroups[i]);
+  }
+}
+
+static void rdt_free_ngroups(void) {
+  for (int i = 0; i < RDT_MAX_NAMES_GROUPS; i++) {
+    sfree(g_rdt->ngroups[i].desc);
+    strarray_free(g_rdt->ngroups[i].names, g_rdt->ngroups[i].num_names);
+    g_rdt->ngroups[i].num_names = 0;
+    sfree(g_rdt->pngroups[i]);
   }
 }
 
@@ -203,6 +429,22 @@ static int rdt_is_core_id_valid(unsigned int core_id) {
   for (unsigned int i = 0; i < g_rdt->pqos_cpu->num_cores; i++)
     if (core_id == g_rdt->pqos_cpu->cores[i].lcore)
       return 1;
+
+  return 0;
+}
+
+static int rdt_is_proc_name_valid(const char *name) {
+
+  if (name != NULL) {
+    unsigned len = strlen(name);
+    if (len > 0 && len <= RDT_MAX_NAME_LEN)
+      return 1;
+    else {
+      DEBUG(RDT_PLUGIN
+            ": Process name \'%s\' is too long. Max supported len is %d chars.",
+            name, RDT_MAX_NAME_LEN);
+    }
+  }
 
   return 0;
 }
@@ -254,9 +496,9 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
         g_rdt->pqos_cpu->num_cores);
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
-  g_rdt->num_groups = n;
-  for (size_t i = 0; i < n; i++) {
-    for (size_t j = 0; j < i; j++) {
+  g_rdt->cores.num_cgroups = n;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < i; j++) {
       int found = 0;
       found = config_cores_cmp_cgroups(&g_rdt->cores.cgroups[j],
                                        &g_rdt->cores.cgroups[i]);
@@ -268,10 +510,89 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
     }
 
     g_rdt->events[i] = events;
-    g_rdt->pgroups[i] = calloc(1, sizeof(*g_rdt->pgroups[i]));
-    if (g_rdt->pgroups[i] == NULL) {
+    g_rdt->pcgroups[i] = calloc(1, sizeof(*g_rdt->pcgroups[i]));
+    if (g_rdt->pcgroups[i] == NULL) {
       rdt_free_cgroups();
       ERROR(RDT_PLUGIN ": Failed to allocate memory for monitoring data.");
+      return -ENOMEM;
+    }
+  }
+
+  return 0;
+}
+
+static int rdt_config_ngroups(const oconfig_item_t *item) {
+  int n = 0;
+  enum pqos_mon_event events = 0;
+
+  if (item == NULL) {
+    DEBUG(RDT_PLUGIN ": ngroups_config: Invalid argument.");
+    return -EINVAL;
+  }
+
+  DEBUG(RDT_PLUGIN ": Process names groups [%d]:", item->values_num);
+  for (int j = 0; j < item->values_num; j++) {
+    if (item->values[j].type != OCONFIG_TYPE_STRING) {
+      ERROR(RDT_PLUGIN
+            ": given process names group value is not a string [idx=%d]",
+            j);
+      return -EINVAL;
+    }
+    DEBUG(RDT_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
+  }
+
+  n = oconfig_to_ngroups(item, g_rdt->ngroups, RDT_MAX_NAMES_GROUPS);
+  if (n < 0) {
+    rdt_free_ngroups();
+    ERROR(RDT_PLUGIN ": Error parsing process name groups configuration.");
+    return -EINVAL;
+  }
+
+  /* validate configured process name values */
+  for (int group_idx = 0; group_idx < n; group_idx++) {
+    for (size_t name_idx = 0; name_idx < g_rdt->ngroups[group_idx].num_names;
+         name_idx++) {
+      if (!rdt_is_proc_name_valid(g_rdt->ngroups[group_idx].names[name_idx])) {
+        ERROR(RDT_PLUGIN ": Process name group '%s' contains invalid name '%s'",
+              g_rdt->ngroups[group_idx].desc,
+              g_rdt->ngroups[group_idx].names[name_idx]);
+        rdt_free_ngroups();
+        return -EINVAL;
+      }
+    }
+  }
+
+  if (n == 0) {
+    ERROR(RDT_PLUGIN ": Empty process name groups configured.");
+    return -EINVAL;
+  }
+
+  /* Get all available events on this platform */
+  for (unsigned i = 0; i < g_rdt->cap_mon->u.mon->num_events; i++)
+    events |= g_rdt->cap_mon->u.mon->events[i].type;
+
+  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
+
+  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
+
+  g_rdt->num_ngroups = n;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < i; j++) {
+      int found = ngroup_cmp(&g_rdt->ngroups[j], &g_rdt->ngroups[i]);
+      if (found != 0) {
+        rdt_free_ngroups();
+        ERROR(RDT_PLUGIN
+              ": Cannot monitor same process name in different groups.");
+        return -EINVAL;
+      }
+    }
+
+    g_rdt->ngroups[i].events = events;
+    g_rdt->pngroups[i] = calloc(1, sizeof(*g_rdt->pngroups[i]));
+    if (g_rdt->pngroups[i] == NULL) {
+      rdt_free_ngroups();
+      ERROR(RDT_PLUGIN
+            ": Failed to allocate memory for process name monitoring data.");
       return -ENOMEM;
     }
   }
@@ -282,7 +603,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
 /* Helper typedef for process name array
  * Extra 1 char is added for string null termination.
  */
-typedef char proc_comm_t[RDT_MAX_PROC_COMM_LENGTH + 1];
+typedef char proc_comm_t[RDT_MAX_NAME_LEN + 1];
 
 /* Linked one-way list of pids. */
 typedef struct pids_list_s {
@@ -575,7 +896,7 @@ static int rdt_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Cores", child->key) == 0) {
+    if (strncasecmp("Cores", child->key, (size_t)strlen("Cores")) == 0) {
       if (rdt_config_cgroups(child) != 0) {
         g_state = CONFIGURATION_ERROR;
         /* if we return -1 at this point collectd
@@ -587,6 +908,20 @@ static int rdt_config(oconfig_item_t *ci) {
 
 #if COLLECT_DEBUG
       rdt_dump_cgroups();
+#endif /* COLLECT_DEBUG */
+    } else if (strncasecmp("Processes", child->key,
+                           (size_t)strlen("Processes")) == 0) {
+      if (rdt_config_ngroups(child) != 0) {
+        g_state = CONFIGURATION_ERROR;
+        /* if we return -1 at this point collectd
+           reports a failure in configuration and
+           aborts
+         */
+        return (0);
+      }
+
+#if COLLECT_DEBUG
+      rdt_dump_ngroups();
 #endif /* COLLECT_DEBUG */
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
@@ -636,7 +971,7 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
     return -EINVAL;
   }
 
-  ret = pqos_mon_poll(&g_rdt->pgroups[0], (unsigned)g_rdt->num_groups);
+  ret = pqos_mon_poll(&g_rdt->pcgroups[0], (unsigned)g_rdt->cores.num_cgroups);
   if (ret != PQOS_RETVAL_OK) {
     ERROR(RDT_PLUGIN ": Failed to poll monitoring data.");
     return -1;
@@ -646,14 +981,13 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
   rdt_dump_data();
 #endif /* COLLECT_DEBUG */
 
-  for (size_t i = 0; i < g_rdt->num_groups; i++) {
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cgroup = g_rdt->cores.cgroups + i;
-
     enum pqos_mon_event mbm_events =
         (PQOS_MON_EVENT_LMEM_BW | PQOS_MON_EVENT_TMEM_BW |
          PQOS_MON_EVENT_RMEM_BW);
 
-    const struct pqos_event_values *pv = &g_rdt->pgroups[i]->values;
+    const struct pqos_event_values *pv = &g_rdt->pcgroups[i]->values;
 
     /* Submit only monitored events data */
 
@@ -685,11 +1019,11 @@ static int rdt_init(void) {
     return ret;
 
   /* Start monitoring */
-  for (size_t i = 0; i < g_rdt->num_groups; i++) {
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
     core_group_t *cg = g_rdt->cores.cgroups + i;
 
     ret = pqos_mon_start(cg->num_cores, cg->cores, g_rdt->events[i],
-                         (void *)cg->desc, g_rdt->pgroups[i]);
+                         (void *)cg->desc, g_rdt->pcgroups[i]);
 
     if (ret != PQOS_RETVAL_OK)
       ERROR(RDT_PLUGIN ": Error starting monitoring group %s (pqos status=%d)",
@@ -708,8 +1042,8 @@ static int rdt_shutdown(void) {
     return 0;
 
   /* Stop monitoring */
-  for (size_t i = 0; i < g_rdt->num_groups; i++) {
-    pqos_mon_stop(g_rdt->pgroups[i]);
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
+    pqos_mon_stop(g_rdt->pcgroups[i]);
   }
 
   ret = pqos_fini();
