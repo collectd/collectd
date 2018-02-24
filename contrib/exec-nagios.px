@@ -443,7 +443,7 @@ sub execute_script
 
   close ($fh);
   # Save the exit status of the check in $state
-  $state = $? >> 8;
+  my $exit_status = $state = $? >> 8;
 
   if ($state == 0)
   {
@@ -463,6 +463,9 @@ sub execute_script
 
     print "PUTNOTIF time=$time severity=$state host=$host plugin=nagios "
     . "plugin_instance=$pinst type=$type message=$serviceoutput\n";
+
+    print "PUTVAL $host/nagios-$pinst/response_code interval=$Interval "
+    . "${time}:$exit_status\n";
   }
 
   if ($script->{'type'})
