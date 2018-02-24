@@ -462,7 +462,7 @@ sub execute_script
     my $type = $script->{'type'} || 'nagios_check';
 
     print "PUTNOTIF time=$time severity=$state host=$host plugin=nagios "
-    . "plugin_instance=$pinst type=$type message=$serviceoutput\n";
+    . "plugin_instance=$pinst type=$type message=\"$serviceoutput\"\n";
 
     print "PUTVAL $host/nagios-$pinst/response_code interval=$Interval "
     . "${time}:$exit_status\n";
