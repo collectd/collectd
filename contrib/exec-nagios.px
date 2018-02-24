@@ -17,6 +17,7 @@ using this transition layer.
 =cut
 
 use Sys::Hostname ('hostname');
+use Net::Domain ('hostfqdn');
 use File::Basename ('basename');
 use Config::General ('ParseConfig');
 use Regexp::Common ('number');
@@ -380,7 +381,7 @@ sub execute_script
   my $time = time ();
   my $script = shift;
   my @args = ();
-  my $host = $Hostname || hostname () || 'localhost';
+  my $host = $Hostname || hostfqdn () || hostname () || 'localhost';
 
   my $state = 0;
   my $serviceoutput;
