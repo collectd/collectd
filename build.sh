@@ -2,7 +2,7 @@
 
 GLOBAL_ERROR_INDICATOR=0
 
-check_for_application ()
+check_for_application()
 {
     for PROG in "$@"
     do
@@ -22,13 +22,11 @@ check_for_application lex bison autoheader aclocal automake autoconf pkg-config
 
 libtoolize=""
 libtoolize --version >/dev/null 2>/dev/null
-if test $? -eq 0
-then
+if test $? -eq 0; then
     libtoolize=libtoolize
 else
     glibtoolize --version >/dev/null 2>/dev/null
-    if test $? -eq 0
-    then
+    if test $? -eq 0; then
         libtoolize=glibtoolize
     else
         cat >&2 <<EOF
@@ -40,8 +38,7 @@ EOF
     fi
  fi
 
-if test "$GLOBAL_ERROR_INDICATOR" != "0"
-then
+if test "$GLOBAL_ERROR_INDICATOR" != "0"; then
     exit 1
 fi
 
