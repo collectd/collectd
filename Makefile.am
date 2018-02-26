@@ -1582,7 +1582,7 @@ pkglib_LTLIBRARIES += sysevent.la
 sysevent_la_SOURCES = src/sysevent.c
 sysevent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 sysevent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
-sysevent_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+sysevent_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS) libignorelist.la
 endif
 
 if BUILD_PLUGIN_SYSLOG
