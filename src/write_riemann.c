@@ -362,7 +362,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   {
     char ds_index[DATA_MAX_NAME_LEN];
 
-    snprintf(ds_index, sizeof(ds_index), "%zu", index);
+    snprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
     riemann_event_string_attribute_add(event, "ds_index", ds_index);
   }
 
@@ -610,6 +610,7 @@ static void wrr_free(void *p) /* {{{ */
 
   wrr_disconnect(host);
 
+  pthread_mutex_lock(&host->lock);
   pthread_mutex_destroy(&host->lock);
   sfree(host);
 } /* }}} void wrr_free */

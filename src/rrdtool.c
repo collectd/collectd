@@ -186,8 +186,8 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
-                        vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                        (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
       status = snprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
                         vl->values[i].gauge);
@@ -226,8 +226,8 @@ static int value_list_to_string(char *buffer, int buffer_len,
                       vl->values[0].gauge);
     break;
   case DS_TYPE_COUNTER:
-    status = snprintf(buffer, buffer_len, "%u:%llu", (unsigned)tt,
-                      vl->values[0].counter);
+    status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
+                      (uint64_t)vl->values[0].counter);
     break;
   case DS_TYPE_ABSOLUTE:
     status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
@@ -520,10 +520,7 @@ static void rrd_cache_flush(cdtime_t timeout) {
     {
       char **tmp = realloc(keys, (keys_num + 1) * sizeof(char *));
       if (tmp == NULL) {
-        char errbuf[1024];
-        ERROR("rrdtool plugin: "
-              "realloc failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("rrdtool plugin: realloc failed: %s", STRERRNO);
         c_avl_iterator_destroy(iter);
         sfree(keys);
         return;
@@ -623,9 +620,8 @@ static int rrd_cache_insert(const char *filename, const char *value,
     return -1;
   }
 
-  c_avl_get(cache, filename, (void *)&rc);
-
-  if (rc == NULL) {
+  int status = c_avl_get(cache, filename, (void *)&rc);
+  if ((status != 0) || (rc == NULL)) {
     rc = malloc(sizeof(*rc));
     if (rc == NULL) {
       pthread_mutex_unlock(&cache_lock);
@@ -652,15 +648,12 @@ static int rrd_cache_insert(const char *filename, const char *value,
   values_new =
       realloc((void *)rc->values, (rc->values_num + 1) * sizeof(char *));
   if (values_new == NULL) {
-    char errbuf[1024];
     void *cache_key = NULL;
-
-    sstrerror(errno, errbuf, sizeof(errbuf));
 
     c_avl_remove(cache, filename, &cache_key, NULL);
     pthread_mutex_unlock(&cache_lock);
 
-    ERROR("rrdtool plugin: realloc failed: %s", errbuf);
+    ERROR("rrdtool plugin: realloc failed: %s", STRERRNO);
 
     sfree(cache_key);
     sfree(rc->values);
@@ -682,12 +675,9 @@ static int rrd_cache_insert(const char *filename, const char *value,
     void *cache_key = strdup(filename);
 
     if (cache_key == NULL) {
-      char errbuf[1024];
-      sstrerror(errno, errbuf, sizeof(errbuf));
-
       pthread_mutex_unlock(&cache_lock);
 
-      ERROR("rrdtool plugin: strdup failed: %s", errbuf);
+      ERROR("rrdtool plugin: strdup failed: %s", STRERRNO);
 
       sfree(rc->values[0]);
       sfree(rc->values);
@@ -803,7 +793,7 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   if (value_list_to_filename(filename, sizeof(filename), vl) != 0)
     return -1;
 
-  char values[32 * ds->ds_num];
+  char values[32 * (ds->ds_num + 1)];
   if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
     return -1;
 
@@ -816,9 +806,7 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
         return 0;
       }
     } else {
-      char errbuf[1024];
-      ERROR("rrdtool plugin: stat(%s) failed: %s", filename,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("rrdtool plugin: stat(%s) failed: %s", filename, STRERRNO);
       return -1;
     }
   } else if (!S_ISREG(statbuf.st_mode)) {
@@ -1047,8 +1035,7 @@ static int rrd_init(void) {
     cache_flush_timeout = 0;
   } else if (cache_flush_timeout < cache_timeout) {
     INFO("rrdtool plugin: \"CacheFlush %.3f\" is less than \"CacheTimeout "
-         "%.3f\". "
-         "Ajusting \"CacheFlush\" to %.3f seconds.",
+         "%.3f\". Adjusting \"CacheFlush\" to %.3f seconds.",
          CDTIME_T_TO_DOUBLE(cache_flush_timeout),
          CDTIME_T_TO_DOUBLE(cache_timeout),
          CDTIME_T_TO_DOUBLE(cache_timeout * 10));

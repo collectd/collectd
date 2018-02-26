@@ -330,9 +330,10 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
         br = ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
         pthread_mutex_lock(&g_stats_lock);
         if (br == NULL) {
-          br = (bridge_list_t *)calloc(1, sizeof(bridge_list_t));
+          br = calloc(1, sizeof(*br));
           if (!br) {
-            ERROR("%s: Error allocating memory for bridge", plugin_name);
+            pthread_mutex_unlock(&g_stats_lock);
+            ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
             return -1;
           }
           char *tmp = YAJL_GET_STRING(br_name);
@@ -342,6 +343,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
           if (br->name == NULL) {
             sfree(br);
             pthread_mutex_unlock(&g_stats_lock);
+            ERROR("%s: strdup failed.", plugin_name);
             return -1;
           }
           br->next = g_bridge_list_head;
@@ -581,56 +583,57 @@ static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
 
 /* Get interface statistic and external_ids */
 static int ovs_stats_update_iface(yajl_val iface) {
-  yajl_val row;
-  port_list_t *port = NULL;
-  if (iface && YAJL_IS_OBJECT(iface)) {
-    row = ovs_utils_get_value_by_key(iface, "new");
-    if (row && YAJL_IS_OBJECT(row)) {
-      yajl_val iface_name = ovs_utils_get_value_by_key(row, "name");
-      yajl_val iface_stats = ovs_utils_get_value_by_key(row, "statistics");
-      yajl_val iface_ext_ids = ovs_utils_get_value_by_key(row, "external_ids");
-      yajl_val iface_uuid = ovs_utils_get_value_by_key(row, "_uuid");
-      if (iface_name && YAJL_IS_STRING(iface_name)) {
-        port = ovs_stats_get_port_by_name(YAJL_GET_STRING(iface_name));
-        if (port == NULL)
-          return 0;
-      }
-      /*
-       * {
-            "statistics": [
-              "map",
-              [
-                [
-                  "collisions",
-                  0
-                ],
-                . . .
-                [
-                  "tx_packets",
-                  0
-                ]
-              ]
-            ]
-          }
-       Check that statistics is an array with 2 elements
-       */
-      if (iface_stats && YAJL_IS_ARRAY(iface_stats) &&
-          YAJL_GET_ARRAY(iface_stats)->len == 2)
-        ovs_stats_update_iface_stats(port,
-                                     YAJL_GET_ARRAY(iface_stats)->values[1]);
-      if (iface_ext_ids && YAJL_IS_ARRAY(iface_ext_ids))
-        ovs_stats_update_iface_ext_ids(
-            port, YAJL_GET_ARRAY(iface_ext_ids)->values[1]);
-      if (iface_uuid && YAJL_IS_ARRAY(iface_uuid) &&
-          YAJL_GET_ARRAY(iface_uuid)->len == 2)
-        sstrncpy(port->iface_uuid,
-                 YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]),
-                 sizeof(port->iface_uuid));
-    }
-  } else {
-    ERROR("Incorrect JSON Port data");
+  if (!iface || !YAJL_IS_OBJECT(iface)) {
+    ERROR("ovs_stats plugin: incorrect JSON port data");
     return -1;
   }
+
+  yajl_val row = ovs_utils_get_value_by_key(iface, "new");
+  if (!row || !YAJL_IS_OBJECT(row))
+    return 0;
+
+  yajl_val iface_name = ovs_utils_get_value_by_key(row, "name");
+  if (!iface_name || !YAJL_IS_STRING(iface_name))
+    return 0;
+
+  port_list_t *port = ovs_stats_get_port_by_name(YAJL_GET_STRING(iface_name));
+  if (port == NULL)
+    return 0;
+
+  yajl_val iface_stats = ovs_utils_get_value_by_key(row, "statistics");
+  yajl_val iface_ext_ids = ovs_utils_get_value_by_key(row, "external_ids");
+  yajl_val iface_uuid = ovs_utils_get_value_by_key(row, "_uuid");
+  /*
+   * {
+        "statistics": [
+          "map",
+          [
+            [
+              "collisions",
+              0
+            ],
+            . . .
+            [
+              "tx_packets",
+              0
+            ]
+          ]
+        ]
+      }
+   Check that statistics is an array with 2 elements
+   */
+  if (iface_stats && YAJL_IS_ARRAY(iface_stats) &&
+      YAJL_GET_ARRAY(iface_stats)->len == 2)
+    ovs_stats_update_iface_stats(port, YAJL_GET_ARRAY(iface_stats)->values[1]);
+  if (iface_ext_ids && YAJL_IS_ARRAY(iface_ext_ids))
+    ovs_stats_update_iface_ext_ids(port,
+                                   YAJL_GET_ARRAY(iface_ext_ids)->values[1]);
+  if (iface_uuid && YAJL_IS_ARRAY(iface_uuid) &&
+      YAJL_GET_ARRAY(iface_uuid)->len == 2)
+    sstrncpy(port->iface_uuid,
+             YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]),
+             sizeof(port->iface_uuid));
+
   return 0;
 }
 
@@ -789,7 +792,6 @@ static void ovs_stats_conn_terminate() {
  */
 static int ovs_stats_plugin_config(oconfig_item_t *ci) {
   bridge_list_t *bridge;
-  char *br_name;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -821,19 +823,22 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
           goto cleanup_fail;
         }
         /* get value */
-        if ((br_name = strdup(child->values[j].value.string)) == NULL) {
-          ERROR("%s: strdup() copy bridge name fail", plugin_name);
-          goto cleanup_fail;
-        }
+        char const *br_name = child->values[j].value.string;
         if ((bridge = ovs_stats_get_bridge(g_monitored_bridge_list_head,
                                            br_name)) == NULL) {
           if ((bridge = calloc(1, sizeof(bridge_list_t))) == NULL) {
             ERROR("%s: Error allocating memory for bridge", plugin_name);
             goto cleanup_fail;
           } else {
+            char *br_name_dup = strdup(br_name);
+            if (br_name_dup == NULL) {
+              ERROR("%s: strdup() copy bridge name fail", plugin_name);
+              goto cleanup_fail;
+            }
+
             pthread_mutex_lock(&g_stats_lock);
             /* store bridge name */
-            bridge->name = br_name;
+            bridge->name = br_name_dup;
             bridge->next = g_monitored_bridge_list_head;
             g_monitored_bridge_list_head = bridge;
             pthread_mutex_unlock(&g_stats_lock);
@@ -969,9 +974,9 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
 
 /* Shutdown OvS Stats plugin */
 static int ovs_stats_plugin_shutdown(void) {
-  pthread_mutex_lock(&g_stats_lock);
   DEBUG("OvS Statistics plugin shutting down");
   ovs_db_destroy(g_ovs_db);
+  pthread_mutex_lock(&g_stats_lock);
   ovs_stats_free_bridge_list(g_bridge_list_head);
   ovs_stats_free_bridge_list(g_monitored_bridge_list_head);
   ovs_stats_free_port_list(g_port_list_head);

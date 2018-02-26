@@ -49,9 +49,7 @@ static int cu_tail_reopen(cu_tail_t *obj) {
 
   status = stat(obj->file, &stat_buf);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("utils_tail: stat (%s) failed: %s", obj->file,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("utils_tail: stat (%s) failed: %s", obj->file, STRERRNO);
     return -1;
   }
 
@@ -62,9 +60,7 @@ static int cu_tail_reopen(cu_tail_t *obj) {
       INFO("utils_tail: File `%s' was truncated.", obj->file);
       status = fseek(obj->fh, 0, SEEK_SET);
       if (status != 0) {
-        char errbuf[1024];
-        ERROR("utils_tail: fseek (%s) failed: %s", obj->file,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("utils_tail: fseek (%s) failed: %s", obj->file, STRERRNO);
         fclose(obj->fh);
         obj->fh = NULL;
         return -1;
@@ -81,18 +77,14 @@ static int cu_tail_reopen(cu_tail_t *obj) {
 
   fh = fopen(obj->file, "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    ERROR("utils_tail: fopen (%s) failed: %s", obj->file,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("utils_tail: fopen (%s) failed: %s", obj->file, STRERRNO);
     return -1;
   }
 
   if (seek_end != 0) {
     status = fseek(fh, 0, SEEK_END);
     if (status != 0) {
-      char errbuf[1024];
-      ERROR("utils_tail: fseek (%s) failed: %s", obj->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("utils_tail: fseek (%s) failed: %s", obj->file, STRERRNO);
       fclose(fh);
       return -1;
     }
@@ -183,9 +175,8 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
   }
 
   if (ferror(obj->fh) != 0) {
-    char errbuf[1024];
     WARNING("utils_tail: fgets (%s) returned an error: %s", obj->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
     fclose(obj->fh);
     obj->fh = NULL;
     return -1;

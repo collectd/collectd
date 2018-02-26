@@ -429,9 +429,7 @@ static int openvpn_read(user_data_t *user_data) {
 
   FILE *fh = fopen(st->file, "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("openvpn plugin: fopen(%s) failed: %s", st->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("openvpn plugin: fopen(%s) failed: %s", st->file, STRERRNO);
 
     return -1;
   }
@@ -471,9 +469,7 @@ static int openvpn_config(const char *key, const char *value) {
 
     char *status_file = strdup(value);
     if (status_file == NULL) {
-      char errbuf[1024];
-      ERROR("openvpn plugin: strdup failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("openvpn plugin: strdup failed: %s", STRERRNO);
       return 1;
     }
 
@@ -491,9 +487,7 @@ static int openvpn_config(const char *key, const char *value) {
     /* create a new vpn element */
     vpn_status_t *instance = calloc(1, sizeof(*instance));
     if (instance == NULL) {
-      char errbuf[1024];
-      ERROR("openvpn plugin: malloc failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("openvpn plugin: malloc failed: %s", STRERRNO);
       sfree(status_file);
       return 1;
     }

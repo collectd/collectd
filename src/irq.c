@@ -90,9 +90,7 @@ static int irq_read(void) {
    */
   fh = fopen("/proc/interrupts", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    ERROR("irq plugin: fopen (/proc/interrupts): %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("irq plugin: fopen (/proc/interrupts): %s", STRERRNO);
     return -1;
   }
 

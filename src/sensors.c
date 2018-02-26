@@ -269,9 +269,7 @@ static int sensors_load_conf(void) {
   if (conffile != NULL) {
     fh = fopen(conffile, "r");
     if (fh == NULL) {
-      char errbuf[1024];
-      ERROR("sensors plugin: fopen(%s) failed: %s", conffile,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("sensors plugin: fopen(%s) failed: %s", conffile, STRERRNO);
       return -1;
     }
   }

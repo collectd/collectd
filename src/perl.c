@@ -331,12 +331,12 @@ static size_t av2value(pTHX_ char *name, AV *array, value_t *value,
 
   if (array_len < ds->ds_num) {
     log_warn("av2value: array does not contain enough elements for type "
-             "\"%s\": got %zu, want %zu",
+             "\"%s\": got %" PRIsz ", want %" PRIsz,
              name, array_len, ds->ds_num);
     return 0;
   } else if (array_len > ds->ds_num) {
     log_warn("av2value: array contains excess elements for type \"%s\": got "
-             "%zu, want %zu",
+             "%" PRIsz ", want %" PRIsz,
              name, array_len, ds->ds_num);
   }
 
@@ -706,10 +706,8 @@ static int value_list2hv(pTHX_ value_list_t *vl, data_set_t *ds, HV *hash) {
 
 static int notification_meta2av(pTHX_ notification_meta_t *meta, AV *array) {
   int meta_num = 0;
-
-  while (meta) {
+  for (notification_meta_t *m = meta; m != NULL; m = m->next) {
     ++meta_num;
-    meta = meta->next;
   }
 
   av_extend(array, meta_num);

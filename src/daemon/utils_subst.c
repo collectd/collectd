@@ -152,7 +152,7 @@ char *subst_string(char *buf, size_t buflen, const char *string,
   }
 
   if (i >= buflen) {
-    WARNING("subst_string: Loop exited after %zu iterations: "
+    WARNING("subst_string: Loop exited after %" PRIsz " iterations: "
             "string = %s; needle = %s; replacement = %s;",
             i, string, needle, replacement);
   }

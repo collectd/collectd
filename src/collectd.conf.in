@@ -643,6 +643,7 @@
 #		SSLCACertificateFile "/path/to/root.pem"
 #		SSLCertificateFile "/path/to/client.pem"
 #		SSLCertificateKeyFile "/path/to/client.key"
+#		VerifyPeer true
 #	</Listen>
 #</Plugin>
 
@@ -1171,7 +1172,7 @@
 #	<Database bar>
 #		Interval 60
 #		Service "service_name"
-#		Query backend # predefined
+#		Query backends # predefined
 #		Query rt36_tickets
 #	</Database>
 #	<Database qux>
@@ -1200,11 +1201,13 @@
 #	CollectFileDescriptor true
 #	CollectContextSwitch true
 #	CollectMemoryMaps true
+#	CollectDelayAccounting false
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
 #		CollectFileDescriptor false
 #		CollectContextSwitch false
+#		CollectDelayAccounting true
 #	</Process>
 #	<ProcessMatch "name" "regex">
 #		CollectFileDescriptor false

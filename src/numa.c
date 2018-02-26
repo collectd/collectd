@@ -66,9 +66,8 @@ static int numa_read_node(int node) /* {{{ */
 
   fh = fopen(path, "r");
   if (fh == NULL) {
-    char errbuf[1024];
     ERROR("numa plugin: Reading node %i failed: open(%s): %s", node, path,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return -1;
   }
 
@@ -137,9 +136,7 @@ static int numa_init(void) /* {{{ */
       break;
     } else /* ((status != 0) && (errno != ENOENT)) */
     {
-      char errbuf[1024];
-      ERROR("numa plugin: stat(%s) failed: %s", path,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("numa plugin: stat(%s) failed: %s", path, STRERRNO);
       return -1;
     }
   }

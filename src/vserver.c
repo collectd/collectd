@@ -124,9 +124,7 @@ static int vserver_read(void) {
   errno = 0;
   proc = opendir(PROCDIR);
   if (proc == NULL) {
-    char errbuf[1024];
-    ERROR("vserver plugin: fopen (%s): %s", PROCDIR,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("vserver plugin: fopen (%s): %s", PROCDIR, STRERRNO);
     return -1;
   }
 
@@ -146,13 +144,11 @@ static int vserver_read(void) {
     errno = 0;
     dent = readdir(proc);
     if (dent == NULL) {
-      char errbuf[4096];
-
       if (errno == 0) /* end of directory */
         break;
 
       ERROR("vserver plugin: failed to read directory %s: %s", PROCDIR,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
       closedir(proc);
       return -1;
     }
@@ -166,9 +162,7 @@ static int vserver_read(void) {
 
     status = stat(file, &statbuf);
     if (status != 0) {
-      char errbuf[4096];
-      WARNING("vserver plugin: stat (%s) failed: %s", file,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("vserver plugin: stat (%s) failed: %s", file, STRERRNO);
       continue;
     }
 
@@ -181,9 +175,7 @@ static int vserver_read(void) {
       continue;
 
     if (NULL == (fh = fopen(file, "r"))) {
-      char errbuf[1024];
-      ERROR("Cannot open '%s': %s", file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("Cannot open '%s': %s", file, STRERRNO);
     }
 
     while ((fh != NULL) && (NULL != fgets(buffer, BUFSIZE, fh))) {
@@ -225,9 +217,7 @@ static int vserver_read(void) {
       continue;
 
     if (NULL == (fh = fopen(file, "r"))) {
-      char errbuf[1024];
-      ERROR("Cannot open '%s': %s", file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("Cannot open '%s': %s", file, STRERRNO);
     }
 
     while ((fh != NULL) && (NULL != fgets(buffer, BUFSIZE, fh))) {
@@ -271,9 +261,7 @@ static int vserver_read(void) {
       continue;
 
     if (NULL == (fh = fopen(file, "r"))) {
-      char errbuf[1024];
-      ERROR("Cannot open '%s': %s", file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("Cannot open '%s': %s", file, STRERRNO);
     }
 
     while ((fh != NULL) && (NULL != fgets(buffer, BUFSIZE, fh))) {

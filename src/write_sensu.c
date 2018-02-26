@@ -28,14 +28,14 @@
 
 #include "collectd.h"
 
+#include "common.h"
+#include "plugin.h"
+#include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <stddef.h>
-#include "common.h"
-#include "plugin.h"
-#include "utils_cache.h"
 
 #include <stdlib.h>
 #define SENSU_HOST "localhost"
@@ -454,7 +454,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   // incorporate the data source index
   {
     char ds_index[DATA_MAX_NAME_LEN];
-    snprintf(ds_index, sizeof(ds_index), "%zu", index);
+    snprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_index\": %s",
                       ret_str, ds_index);
     free(ret_str);
@@ -519,7 +519,8 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
         return NULL;
       }
     } else {
-      res = my_asprintf(&value_str, "%llu", vl->values[index].counter);
+      res = my_asprintf(&value_str, "%" PRIu64,
+                        (uint64_t)vl->values[index].counter);
       if (res == -1) {
         free(ret_str);
         ERROR("write_sensu plugin: Unable to alloc memory");
@@ -879,11 +880,9 @@ static int sensu_send_msg(struct sensu_host *host, const char *msg) /* {{{ */
   sensu_close_socket(host);
 
   if (status != 0) {
-    char errbuf[1024];
     ERROR("write_sensu plugin: Sending to Sensu at %s:%s failed: %s",
           (host->node != NULL) ? host->node : SENSU_HOST,
-          (host->service != NULL) ? host->service : SENSU_PORT,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          (host->service != NULL) ? host->service : SENSU_PORT, STRERRNO);
     return -1;
   }
 
@@ -998,7 +997,10 @@ static void sensu_free(void *p) /* {{{ */
   sfree(host->separator);
   free_str_list(&(host->metric_handlers));
   free_str_list(&(host->notification_handlers));
+
+  pthread_mutex_unlock(&host->lock);
   pthread_mutex_destroy(&host->lock);
+
   sfree(host);
 } /* }}} void sensu_free */
 

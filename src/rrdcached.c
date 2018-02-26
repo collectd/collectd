@@ -88,8 +88,8 @@ static int value_list_to_string(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
-                        vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                        (uint64_t)vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
       status = snprintf(buffer + offset, buffer_len - offset, ":%f",
                         vl->values[i].gauge);
@@ -424,9 +424,7 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
     status = stat(filename, &statbuf);
     if (status != 0) {
       if (errno != ENOENT) {
-        char errbuf[1024];
-        ERROR("rrdcached plugin: stat (%s) failed: %s", filename,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("rrdcached plugin: stat (%s) failed: %s", filename, STRERRNO);
         return -1;
       }
 

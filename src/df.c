@@ -169,6 +169,7 @@ static int df_read(void) {
 #elif HAVE_STATFS
   struct statfs statbuf;
 #endif
+  int retval = 0;
   /* struct STATANYFS statbuf; */
   cu_mount_t *mnt_list;
 
@@ -219,9 +220,7 @@ static int df_read(void) {
       continue;
 
     if (STATANYFS(mnt_ptr->dir, &statbuf) < 0) {
-      char errbuf[1024];
-      ERROR(STATANYFS_STR "(%s) failed: %s", mnt_ptr->dir,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR(STATANYFS_STR "(%s) failed: %s", mnt_ptr->dir, STRERRNO);
       continue;
     }
 
@@ -290,7 +289,8 @@ static int df_read(void) {
                         (gauge_t)(blk_reserved * blocksize)) != 0 ||
           df_submit_one(disk_name, "df_complex", "used",
                         (gauge_t)(blk_used * blocksize)) != 0) {
-        return -1;
+        retval = -1;
+        break;
       }
     }
 
@@ -305,10 +305,13 @@ static int df_read(void) {
             df_submit_one(
                 disk_name, "percent_bytes", "used",
                 (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100)) != 0) {
-          return -1;
+          retval = -1;
+          break;
         }
-      } else
-        return -1;
+      } else {
+        retval = -1;
+        break;
+      }
     }
 
     /* inode handling */
@@ -338,10 +341,13 @@ static int df_read(void) {
               df_submit_one(
                   disk_name, "percent_inodes", "used",
                   (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100))) {
-            return -1;
+            retval = -1;
+            break;
           }
-        } else
-          return -1;
+        } else {
+          retval = -1;
+          break;
+        }
       }
       if (values_absolute) {
         if (df_submit_one(disk_name, "df_inodes", "free",
@@ -350,7 +356,8 @@ static int df_read(void) {
                           (gauge_t)inode_reserved) != 0 ||
             df_submit_one(disk_name, "df_inodes", "used",
                           (gauge_t)inode_used)) {
-          return -1;
+          retval = -1;
+          break;
         }
       }
     }
@@ -358,7 +365,7 @@ static int df_read(void) {
 
   cu_mount_freelist(mnt_list);
 
-  return 0;
+  return retval;
 } /* int df_read */
 
 void module_register(void) {

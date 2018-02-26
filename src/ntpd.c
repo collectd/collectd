@@ -337,10 +337,8 @@ static int ntpd_connect(void) {
                               .ai_socktype = SOCK_DGRAM};
 
   if ((status = getaddrinfo(host, port, &ai_hints, &ai_list)) != 0) {
-    char errbuf[1024];
     ERROR("ntpd plugin: getaddrinfo (%s, %s): %s", host, port,
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -409,9 +407,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
   *res_data = NULL;
 
   if (gettimeofday(&time_end, NULL) < 0) {
-    char errbuf[1024];
-    ERROR("ntpd plugin: gettimeofday failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("ntpd plugin: gettimeofday failed: %s", STRERRNO);
     return -1;
   }
   time_end.tv_sec++; /* wait for a most one second */
@@ -421,9 +417,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
     struct timeval time_left;
 
     if (gettimeofday(&time_now, NULL) < 0) {
-      char errbuf[1024];
-      ERROR("ntpd plugin: gettimeofday failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ntpd plugin: gettimeofday failed: %s", STRERRNO);
       return -1;
     }
 
@@ -447,9 +441,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       continue;
 
     if (status < 0) {
-      char errbuf[1024];
-      ERROR("ntpd plugin: poll failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ntpd plugin: poll failed: %s", STRERRNO);
       return -1;
     }
 
@@ -466,8 +458,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       continue;
 
     if (status < 0) {
-      char errbuf[1024];
-      INFO("recv(2) failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      INFO("recv(2) failed: %s", STRERRNO);
       DEBUG("Closing socket #%i", sd);
       close(sd);
       sock_descr = sd = -1;
@@ -593,7 +584,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
      * Enough with the checks. Copy the data now.
      * We start by allocating some more memory.
      */
-    DEBUG("realloc (%p, %zu)", (void *)*res_data,
+    DEBUG("realloc (%p, %" PRIsz ")", (void *)*res_data,
           (items_num + pkt_item_num) * res_item_size);
     items = realloc(*res_data, (items_num + pkt_item_num) * res_item_size);
     if (items == NULL) {
@@ -763,10 +754,8 @@ static int ntpd_get_name_from_address(char *buffer, size_t buffer_size,
                        buffer_size, NULL, 0, /* No port name */
                        flags);
   if (status != 0) {
-    char errbuf[1024];
     ERROR("ntpd plugin: getnameinfo failed: %s",
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 

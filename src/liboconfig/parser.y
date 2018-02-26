@@ -31,7 +31,7 @@
 #include "aux_types.h"
 
 static char *unquote (const char *orig);
-static int yyerror (const char *s);
+static void yyerror(const char *s);
 
 /* Lexer variables */
 extern int yylineno;
@@ -94,13 +94,23 @@ argument_list:
 	argument_list argument
 	{
 	 $$ = $1;
+	 oconfig_value_t *tmp = realloc($$.argument,
+	                                ($$.argument_num+1) * sizeof(*$$.argument));
+	 if (tmp == NULL) {
+	   yyerror("realloc failed");
+	   YYERROR;
+	 }
+	 $$.argument = tmp;
+	 $$.argument[$$.argument_num] = $2;
 	 $$.argument_num++;
-	 $$.argument = realloc ($$.argument, $$.argument_num * sizeof (oconfig_value_t));
-	 $$.argument[$$.argument_num-1] = $2;
 	}
 	| argument
 	{
-	 $$.argument = malloc (sizeof (oconfig_value_t));
+	 $$.argument = calloc(1, sizeof(*$$.argument));
+	 if ($$.argument == NULL) {
+	   yyerror("calloc failed");
+	   YYERROR;
+	 }
 	 $$.argument[0] = $1;
 	 $$.argument_num = 1;
 	}
@@ -113,7 +123,7 @@ identifier:
 option:
 	identifier argument_list EOL
 	{
-	 memset (&$$, '\0', sizeof ($$));
+	 memset(&$$, 0, sizeof($$));
 	 $$.key = $1;
 	 $$.values = $2.argument;
 	 $$.values_num = $2.argument_num;
@@ -123,13 +133,13 @@ option:
 block_begin:
 	OPENBRAC identifier CLOSEBRAC EOL
 	{
-	 memset (&$$, '\0', sizeof ($$));
+	 memset(&$$, 0, sizeof($$));
 	 $$.key = $2;
 	}
 	|
 	OPENBRAC identifier argument_list CLOSEBRAC EOL
 	{
-	 memset (&$$, '\0', sizeof ($$));
+	 memset(&$$, 0, sizeof($$));
 	 $$.key = $2;
 	 $$.values = $3.argument;
 	 $$.values_num = $3.argument_num;
@@ -146,11 +156,11 @@ block_end:
 block:
 	block_begin statement_list block_end
 	{
-	 if (strcmp ($1.key, $3) != 0)
+	 if (strcmp($1.key, $3) != 0)
 	 {
-		printf ("block_begin = %s; block_end = %s;\n", $1.key, $3);
-	 	yyerror ("Block not closed..\n");
-		exit (1);
+		printf("block_begin = %s; block_end = %s;\n", $1.key, $3);
+		yyerror("block not closed");
+		YYERROR;
 	 }
 	 free ($3); $3 = NULL;
 	 $$ = $1;
@@ -159,11 +169,11 @@ block:
 	}
 	| block_begin block_end
 	{
-	 if (strcmp ($1.key, $2) != 0)
+	 if (strcmp($1.key, $2) != 0)
 	 {
-		printf ("block_begin = %s; block_end = %s;\n", $1.key, $2);
-		yyerror ("Block not closed..\n");
-		exit (1);
+		printf("block_begin = %s; block_end = %s;\n", $1.key, $2);
+		yyerror("block not closed");
+		YYERROR;
 	 }
 	 free ($2); $2 = NULL;
 	 $$ = $1;
@@ -184,16 +194,26 @@ statement_list:
 	 $$ = $1;
 	 if (($2.values_num > 0) || ($2.children_num > 0))
 	 {
+		 oconfig_item_t *tmp = realloc($$.statement,
+		                               ($$.statement_num+1) * sizeof(*tmp));
+		 if (tmp == NULL) {
+		   yyerror("realloc failed");
+		   YYERROR;
+		 }
+		 $$.statement = tmp;
+		 $$.statement[$$.statement_num] = $2;
 		 $$.statement_num++;
-		 $$.statement = realloc ($$.statement, $$.statement_num * sizeof (oconfig_item_t));
-		 $$.statement[$$.statement_num-1] = $2;
 	 }
 	}
 	| statement
 	{
 	 if (($1.values_num > 0) || ($1.children_num > 0))
 	 {
-		 $$.statement = malloc (sizeof (oconfig_item_t));
+		 $$.statement = calloc(1, sizeof(*$$.statement));
+		 if ($$.statement == NULL) {
+		   yyerror("calloc failed");
+		   YYERROR;
+		 }
 		 $$.statement[0] = $1;
 		 $$.statement_num = 1;
 	 }
@@ -208,31 +228,38 @@ statement_list:
 entire_file:
 	statement_list
 	{
-	 ci_root = calloc (1, sizeof (*ci_root));
+	 ci_root = calloc(1, sizeof(*ci_root));
+	 if (ci_root == NULL) {
+	   yyerror("calloc failed");
+	   YYERROR;
+	 }
 	 ci_root->children = $1.statement;
 	 ci_root->children_num = $1.statement_num;
 	}
 	| /* epsilon */
 	{
-	 ci_root = calloc (1, sizeof (*ci_root));
-	 ci_root->children = NULL;
-	 ci_root->children_num = 0;
+	 ci_root = calloc(1, sizeof(*ci_root));
+	 if (ci_root == NULL) {
+	   yyerror("calloc failed");
+	   YYERROR;
+	 }
 	}
 	;
 
 %%
-static int yyerror (const char *s)
+static void yyerror(const char *s)
 {
 	const char *text;
 
-	if (*yytext == '\n')
+	if (yytext == NULL)
+		text = "<empty>";
+	else if (*yytext == '\n')
 		text = "<newline>";
 	else
 		text = yytext;
 
-	fprintf (stderr, "Parse error in file `%s', line %i near `%s': %s\n",
+	fprintf(stderr, "Parse error in file `%s', line %i near `%s': %s\n",
 		c_file, yylineno, text, s);
-	return (-1);
 } /* int yyerror */
 
 static char *unquote (const char *orig)
@@ -250,7 +277,7 @@ static char *unquote (const char *orig)
 
 	len -= 2;
 	memmove (ret, ret + 1, len);
-	ret[len] = '\0';
+	ret[len] = 0;
 
 	for (int i = 0; i < len; i++)
 	{

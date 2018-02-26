@@ -78,6 +78,10 @@ static void tbl_result_setup(tbl_result_t *res) {
 } /* tbl_result_setup */
 
 static void tbl_result_clear(tbl_result_t *res) {
+  if (res == NULL) {
+    return;
+  }
+
   sfree(res->type);
 
   sfree(res->instance_prefix);
@@ -103,11 +107,17 @@ static void tbl_setup(tbl_t *tbl, char *file) {
 } /* tbl_setup */
 
 static void tbl_clear(tbl_t *tbl) {
+  if (tbl == NULL) {
+    return;
+  }
+
   sfree(tbl->file);
   sfree(tbl->sep);
   sfree(tbl->plugin_name);
   sfree(tbl->instance);
 
+  /* (tbl->results == NULL) -> (tbl->results_num == 0) */
+  assert((tbl->results != NULL) || (tbl->results_num == 0));
   for (size_t i = 0; i < tbl->results_num; ++i)
     tbl_result_clear(tbl->results + i);
   sfree(tbl->results);
@@ -154,8 +164,7 @@ static int tbl_config_append_array_i(char *name, size_t **var, size_t *len,
 
   tmp = realloc(*var, ((*len) + num) * sizeof(**var));
   if (NULL == tmp) {
-    char errbuf[1024];
-    log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("realloc failed: %s.", STRERRNO);
     return -1;
   }
   *var = tmp;
@@ -169,26 +178,21 @@ static int tbl_config_append_array_i(char *name, size_t **var, size_t *len,
 } /* tbl_config_append_array_s */
 
 static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
-  tbl_result_t *res;
-
-  int status = 0;
-
   if (0 != ci->values_num) {
     log_err("<Result> does not expect any arguments.");
     return 1;
   }
 
-  res = realloc(tbl->results, (tbl->results_num + 1) * sizeof(*tbl->results));
+  tbl_result_t *res =
+      realloc(tbl->results, (tbl->results_num + 1) * sizeof(*tbl->results));
   if (res == NULL) {
-    char errbuf[1024];
-    log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("realloc failed: %s.", STRERRNO);
     return -1;
   }
 
   tbl->results = res;
-  ++tbl->results_num;
 
-  res = tbl->results + tbl->results_num - 1;
+  res = tbl->results + tbl->results_num;
   tbl_result_setup(res);
 
   for (int i = 0; i < ci->children_num; ++i) {
@@ -209,49 +213,43 @@ static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
                c->key);
   }
 
+  int status = 0;
   if (NULL == res->type) {
-    log_err("No \"Type\" option specified for <Result> "
-            "in table \"%s\".",
+    log_err("No \"Type\" option specified for <Result> in table \"%s\".",
             tbl->file);
     status = 1;
   }
 
   if (NULL == res->values) {
-    log_err("No \"ValuesFrom\" option specified for <Result> "
-            "in table \"%s\".",
+    log_err("No \"ValuesFrom\" option specified for <Result> in table \"%s\".",
             tbl->file);
     status = 1;
   }
 
   if (0 != status) {
     tbl_result_clear(res);
-    --tbl->results_num;
     return status;
   }
+
+  tbl->results_num++;
   return 0;
 } /* tbl_config_result */
 
 static int tbl_config_table(oconfig_item_t *ci) {
-  tbl_t *tbl;
-
-  int status = 0;
-
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
     log_err("<Table> expects a single string argument.");
     return 1;
   }
 
-  tbl = realloc(tables, (tables_num + 1) * sizeof(*tables));
+  tbl_t *tbl = realloc(tables, (tables_num + 1) * sizeof(*tables));
   if (NULL == tbl) {
-    char errbuf[1024];
-    log_err("realloc failed: %s.", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("realloc failed: %s.", STRERRNO);
     return -1;
   }
 
   tables = tbl;
-  ++tables_num;
 
-  tbl = tables + tables_num - 1;
+  tbl = tables + tables_num;
   tbl_setup(tbl, ci->values[0].value.string);
 
   for (size_t i = 0; i < ((size_t)ci->children_num); ++i) {
@@ -271,6 +269,7 @@ static int tbl_config_table(oconfig_item_t *ci) {
                c->key, tbl->file);
   }
 
+  int status = 0;
   if (NULL == tbl->sep) {
     log_err("Table \"%s\" does not specify any separator.", tbl->file);
     status = 1;
@@ -284,13 +283,13 @@ static int tbl_config_table(oconfig_item_t *ci) {
   }
 
   if (NULL == tbl->results) {
+    assert(tbl->results_num == 0);
     log_err("Table \"%s\" does not specify any (valid) results.", tbl->file);
     status = 1;
   }
 
   if (0 != status) {
     tbl_clear(tbl);
-    --tables_num;
     return status;
   }
 
@@ -305,6 +304,8 @@ static int tbl_config_table(oconfig_item_t *ci) {
       if (res->values[j] > tbl->max_colnum)
         tbl->max_colnum = res->values[j];
   }
+
+  tables_num++;
   return 0;
 } /* tbl_config_table */
 
@@ -335,8 +336,8 @@ static int tbl_prepare(tbl_t *tbl) {
     }
 
     if (res->values_num != res->ds->ds_num) {
-      log_err("Invalid type \"%s\". Expected %zu data source%s, "
-              "got %zu.",
+      log_err("Invalid type \"%s\". Expected %" PRIsz " data source%s, "
+              "got %" PRIsz ".",
               res->type, res->values_num, (1 == res->values_num) ? "" : "s",
               res->ds->ds_num);
       return -1;
@@ -429,7 +430,7 @@ static int tbl_parse_line(tbl_t *tbl, char *line, size_t len) {
 
   if (i <= tbl->max_colnum) {
     log_warn("Not enough columns in line "
-             "(expected at least %zu, got %zu).",
+             "(expected at least %" PRIsz ", got %" PRIsz ").",
              tbl->max_colnum + 1, i);
     return -1;
   }
@@ -449,9 +450,7 @@ static int tbl_read_table(tbl_t *tbl) {
 
   fh = fopen(tbl->file, "r");
   if (NULL == fh) {
-    char errbuf[1024];
-    log_err("Failed to open file \"%s\": %s.", tbl->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("Failed to open file \"%s\": %s.", tbl->file, STRERRNO);
     return -1;
   }
 
@@ -469,9 +468,7 @@ static int tbl_read_table(tbl_t *tbl) {
   }
 
   if (0 != ferror(fh)) {
-    char errbuf[1024];
-    log_err("Failed to read from file \"%s\": %s.", tbl->file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("Failed to read from file \"%s\": %s.", tbl->file, STRERRNO);
     fclose(fh);
     return -1;
   }

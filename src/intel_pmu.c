@@ -192,7 +192,8 @@ static void pmu_dump_config(void) {
   DEBUG(PMU_PLUGIN ":   software_events   : %d", g_ctx.sw_events);
 
   for (size_t i = 0; i < g_ctx.hw_events_count; i++) {
-    DEBUG(PMU_PLUGIN ":   hardware_events[%zu]: %s", i, g_ctx.hw_events[i]);
+    DEBUG(PMU_PLUGIN ":   hardware_events[%" PRIsz "]: %s", i,
+          g_ctx.hw_events[i]);
   }
 }
 
@@ -201,6 +202,11 @@ static void pmu_dump_config(void) {
 static int pmu_config_hw_events(oconfig_item_t *ci) {
 
   if (strcasecmp("HardwareEvents", ci->key) != 0) {
+    return -EINVAL;
+  }
+
+  if (g_ctx.hw_events) {
+    ERROR(PMU_PLUGIN ": Duplicate config for HardwareEvents.");
     return -EINVAL;
   }
 
@@ -401,12 +407,6 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
     char *s, *tmp;
     for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
 
-      /* Multiple events parsed in one entry */
-      if (group_events_count == 1) {
-        /* Mark previously added event as group leader */
-        el->eventlist_last->group_leader = 1;
-      }
-
       /* Allocate memory for event struct that contains array of efd structs
          for all cores */
       struct event *e =
@@ -416,18 +416,25 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
         return -ENOMEM;
       }
 
-      if (resolve_event(s, &e->attr) == 0) {
-        e->next = NULL;
-        if (!el->eventlist)
-          el->eventlist = e;
-        if (el->eventlist_last)
-          el->eventlist_last->next = e;
-        el->eventlist_last = e;
-        e->event = strdup(s);
-      } else {
-        DEBUG(PMU_PLUGIN ": Cannot resolve %s", s);
+      if (resolve_event(s, &e->attr) != 0) {
+        WARNING(PMU_PLUGIN ": Cannot resolve %s", s);
         sfree(e);
+        continue;
       }
+
+      /* Multiple events parsed in one entry */
+      if (group_events_count == 1) {
+        /* Mark previously added event as group leader */
+        el->eventlist_last->group_leader = 1;
+      }
+
+      e->next = NULL;
+      if (!el->eventlist)
+        el->eventlist = e;
+      if (el->eventlist_last)
+        el->eventlist_last->next = e;
+      el->eventlist_last = e;
+      e->event = strdup(s);
 
       group_events_count++;
     }

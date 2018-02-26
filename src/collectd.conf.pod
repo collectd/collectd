@@ -3094,6 +3094,13 @@ Whether to enable SSL for incoming connections. Default: false.
 Filenames specifying SSL certificate and key material to be used with SSL
 connections.
 
+=item B<VerifyPeer> B<true>|B<false>
+
+When enabled, a valid client certificate is required to connect to the server.
+When disabled, a client certifiacte is not requested and any unsolicited client
+certificate is accepted.
+Enabled by default.
+
 =back
 
 =back
@@ -4121,11 +4128,19 @@ Configures the base register to read from the device. If the option
 B<RegisterType> has been set to B<Uint32> or B<Float>, this and the next
 register will be read (the register number is increased by one).
 
-=item B<RegisterType> B<Int16>|B<Int32>|B<Uint16>|B<Uint32>|B<Float>
+=item B<RegisterType> B<Int16>|B<Int32>|B<Uint16>|B<Uint32>|B<Float>|B<Int32LE>|B<Uint32LE>|B<FloatLE>
 
-Specifies what kind of data is returned by the device. If the type is B<Int32>,
-B<Uint32> or B<Float>, two 16E<nbsp>bit registers will be read and the data is
-combined into one value. Defaults to B<Uint16>.
+Specifies what kind of data is returned by the device. This defaults to
+B<Uint16>.  If the type is B<Int32>, B<Int32LE>, B<Uint32>, B<Uint32LE>,
+B<Float> or B<FloatLE>, two 16E<nbsp>bit registers at B<RegisterBase>
+and B<RegisterBase+1> will be read and the data is combined into one
+32E<nbsp>value. For B<Int32>, B<Uint32> and B<Float> the most significant
+16E<nbsp>bits are in the register at B<RegisterBase> and the least
+significant 16E<nbsp>bits are in the register at B<RegisterBase+1>.
+For B<Int32LE>, B<Uint32LE>, or B<Float32LE>, the high and low order
+registers are swapped with the most significant 16E<nbsp>bits in
+the B<RegisterBase+1> and the least significant 16E<nbsp>bits in
+B<RegisterBase>.
 
 =item B<RegisterCmd> B<ReadHolding>|B<ReadInput>
 
@@ -6258,7 +6273,7 @@ L<http://www.postgresql.org/docs/manuals/>.
     <Database bar>
       Interval 300
       Service "service_name"
-      Query backend # predefined
+      Query backends # predefined
       Query rt36_tickets
     </Database>
 
@@ -6842,22 +6857,25 @@ The statistics collected for matched processes are:
  - number of memory mapped files (under Linux)
  - io data (where available)
  - context switches (under Linux)
- - minor and major pagefaults.
+ - minor and major pagefaults
+ - Delay Accounting information (Linux only, requires libmnl)
 
 B<Synopsis:>
 
  <Plugin processes>
-   CollectFileDescriptor true
-   CollectContextSwitch true
+   CollectFileDescriptor  true
+   CollectContextSwitch   true
+   CollectDelayAccounting false
    Process "name"
    ProcessMatch "name" "regex"
    <Process "collectd">
-     CollectFileDescriptor false
-     CollectContextSwitch false
+     CollectFileDescriptor  false
+     CollectContextSwitch   false
+     CollectDelayAccounting true
    </Process>
    <ProcessMatch "name" "regex">
      CollectFileDescriptor false
-     CollectContextSwitch true
+     CollectContextSwitch  true
    </Process>
  </Plugin>
 
@@ -6883,6 +6901,18 @@ I<name> must not contain slashes.
 Collect the number of context switches for matched processes.
 Disabled by default.
 
+=item B<CollectDelayAccounting> I<Boolean>
+
+If enabled, collect Linux Delay Accounding information for matching processes.
+Delay Accounting provides the time processes wait for the CPU to become
+available, for I/O operations to finish, for pages to be swapped in and for
+freed pages to be reclaimed. The metrics are reported as "seconds per second"
+using the C<delay_rate> type, e.g. C<delay_rate-delay-cpu>.
+Disabled by default.
+
+This option is only available on Linux, requires the C<libmnl> library and
+requires the C<CAP_NET_ADMIN> capability at runtime.
+
 =item B<CollectFileDescriptor> I<Boolean>
 
 Collect number of file descriptors of matched processes.
@@ -6896,9 +6926,12 @@ the Linux kernel.
 
 =back
 
-Options B<CollectContextSwitch> and B<CollectFileDescriptor> may be used inside
-B<Process> and B<ProcessMatch> blocks - then they affect corresponding match
-only. Otherwise they set the default value for subsequent matches.
+The B<CollectContextSwitch>, B<CollectDelayAccounting>,
+B<CollectFileDescriptor> and B<CollectMemoryMaps> options may be used inside
+B<Process> and B<ProcessMatch> blocks. When used there, these options affect
+reporting the corresponding processes only. Outside of B<Process> and
+B<ProcessMatch> blocks these options set the default value for subsequent
+matches.
 
 =head2 Plugin C<protocols>
 

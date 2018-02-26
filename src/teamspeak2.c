@@ -204,18 +204,14 @@ static int tss2_get_socket(FILE **ret_read_fh, FILE **ret_write_fh) {
     /* Create socket */
     sd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (sd < 0) {
-      char errbuf[1024];
-      WARNING("teamspeak2 plugin: socket failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("teamspeak2 plugin: socket failed: %s", STRERRNO);
       continue;
     }
 
     /* Try to connect */
     status = connect(sd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      char errbuf[1024];
-      WARNING("teamspeak2 plugin: connect failed: %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("teamspeak2 plugin: connect failed: %s", STRERRNO);
       close(sd);
       sd = -1;
       continue;
@@ -236,18 +232,14 @@ static int tss2_get_socket(FILE **ret_read_fh, FILE **ret_write_fh) {
   /* Create file objects from sockets */
   global_read_fh = fdopen(sd, "r");
   if (global_read_fh == NULL) {
-    char errbuf[1024];
-    ERROR("teamspeak2 plugin: fdopen failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("teamspeak2 plugin: fdopen failed: %s", STRERRNO);
     close(sd);
     return -1;
   }
 
   global_write_fh = fdopen(sd, "w");
   if (global_write_fh == NULL) {
-    char errbuf[1024];
-    ERROR("teamspeak2 plugin: fdopen failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("teamspeak2 plugin: fdopen failed: %s", STRERRNO);
     tss2_close_socket();
     return -1;
   }
@@ -312,9 +304,7 @@ static int tss2_receive_line(FILE *fh, char *buffer, int buffer_size) {
    */
   temp = fgets(buffer, buffer_size, fh);
   if (temp == NULL) {
-    char errbuf[1024];
-    ERROR("teamspeak2 plugin: fgets failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("teamspeak2 plugin: fgets failed: %s", STRERRNO);
     tss2_close_socket();
     return -1;
   }

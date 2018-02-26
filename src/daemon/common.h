@@ -73,6 +73,13 @@ char *sstrdup(const char *s);
 void *smalloc(size_t size);
 char *sstrerror(int errnum, char *buf, size_t buflen);
 
+#ifndef ERRBUF_SIZE
+#define ERRBUF_SIZE 256
+#endif
+
+#define STRERROR(e) sstrerror((e), (char[ERRBUF_SIZE]){0}, ERRBUF_SIZE)
+#define STRERRNO STRERROR(errno)
+
 /*
  * NAME
  *   sread

@@ -76,9 +76,13 @@
 enum mb_register_type_e /* {{{ */
 { REG_TYPE_INT16,
   REG_TYPE_INT32,
+  REG_TYPE_INT32_CDAB,
   REG_TYPE_UINT16,
   REG_TYPE_UINT32,
-  REG_TYPE_FLOAT }; /* }}} */
+  REG_TYPE_UINT32_CDAB,
+  REG_TYPE_FLOAT,
+  REG_TYPE_FLOAT_CDAB }; /* }}} */
+
 enum mb_mreg_type_e /* {{{ */
 { MREG_HOLDING,
   MREG_INPUT }; /* }}} */
@@ -417,7 +421,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
 
   if (ds->ds_num != 1) {
-    ERROR("Modbus plugin: The type \"%s\" has %zu data sources. "
+    ERROR("Modbus plugin: The type \"%s\" has %" PRIsz " data sources. "
           "I can only handle data sets with only one data source.",
           data->type, ds->ds_num);
     return -1;
@@ -425,7 +429,9 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
   if ((ds->ds[0].type != DS_TYPE_GAUGE) &&
       (data->register_type != REG_TYPE_INT32) &&
-      (data->register_type != REG_TYPE_UINT32)) {
+      (data->register_type != REG_TYPE_INT32_CDAB) &&
+      (data->register_type != REG_TYPE_UINT32) &&
+      (data->register_type != REG_TYPE_UINT32_CDAB)) {
     NOTICE(
         "Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
         "This will most likely result in problems, because the register type "
@@ -434,8 +440,11 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
 
   if ((data->register_type == REG_TYPE_INT32) ||
+      (data->register_type == REG_TYPE_INT32_CDAB) ||
       (data->register_type == REG_TYPE_UINT32) ||
-      (data->register_type == REG_TYPE_FLOAT))
+      (data->register_type == REG_TYPE_UINT32_CDAB) ||
+      (data->register_type == REG_TYPE_FLOAT) ||
+      (data->register_type == REG_TYPE_FLOAT_CDAB))
     values_num = 2;
   else
     values_num = 1;
@@ -496,8 +505,8 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   }
   if (status != values_num) {
     ERROR("Modbus plugin: modbus read function (%s/%s) failed. "
-          " status = %i, values_num = %i. Giving up.",
-          host->host, host->node, status, values_num);
+          " status = %i, start_addr = %i, values_num = %i. Giving up.",
+          host->host, host->node, status, data->register_base, values_num);
 #if LEGACY_LIBMODBUS
     modbus_close(&host->connection);
 #else
@@ -523,6 +532,17 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
     CAST_TO_VALUE_T(ds, vt, float_value);
     mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_FLOAT_CDAB) {
+    float float_value;
+    value_t vt;
+
+    float_value = mb_register_to_float(values[1], values[0]);
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned float value is %g",
+          (double)float_value);
+
+    CAST_TO_VALUE_T(ds, vt, float_value);
+    mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT32) {
     union {
       uint32_t u32;
@@ -531,6 +551,20 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     value_t vt;
 
     v.u32 = (((uint32_t)values[0]) << 16) | ((uint32_t)values[1]);
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned int32 value is %" PRIi32,
+          v.i32);
+
+    CAST_TO_VALUE_T(ds, vt, v.i32);
+    mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_INT32_CDAB) {
+    union {
+      uint32_t u32;
+      int32_t i32;
+    } v;
+    value_t vt;
+
+    v.u32 = (((uint32_t)values[1]) << 16) | ((uint32_t)values[0]);
     DEBUG("Modbus plugin: mb_read_data: "
           "Returned int32 value is %" PRIi32,
           v.i32);
@@ -557,6 +591,17 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     value_t vt;
 
     v32 = (((uint32_t)values[0]) << 16) | ((uint32_t)values[1]);
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned uint32 value is %" PRIu32,
+          v32);
+
+    CAST_TO_VALUE_T(ds, vt, v32);
+    mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_UINT32_CDAB) {
+    uint32_t v32;
+    value_t vt;
+
+    v32 = (((uint32_t)values[1]) << 16) | ((uint32_t)values[0]);
     DEBUG("Modbus plugin: mb_read_data: "
           "Returned uint32 value is %" PRIu32,
           v32);
@@ -702,12 +747,18 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
         data.register_type = REG_TYPE_INT16;
       else if (strcasecmp("Int32", tmp) == 0)
         data.register_type = REG_TYPE_INT32;
+      else if (strcasecmp("Int32LE", tmp) == 0)
+        data.register_type = REG_TYPE_INT32_CDAB;
       else if (strcasecmp("Uint16", tmp) == 0)
         data.register_type = REG_TYPE_UINT16;
       else if (strcasecmp("Uint32", tmp) == 0)
         data.register_type = REG_TYPE_UINT32;
+      else if (strcasecmp("Uint32LE", tmp) == 0)
+        data.register_type = REG_TYPE_UINT32_CDAB;
       else if (strcasecmp("Float", tmp) == 0)
         data.register_type = REG_TYPE_FLOAT;
+      else if (strcasecmp("FloatLE", tmp) == 0)
+        data.register_type = REG_TYPE_FLOAT_CDAB;
       else {
         ERROR("Modbus plugin: The register type \"%s\" is unknown.", tmp);
         status = -1;
@@ -770,10 +821,8 @@ static int mb_config_set_host_address(mb_host_t *host, /* {{{ */
 
   status = getaddrinfo(address, /* service = */ NULL, &ai_hints, &ai_list);
   if (status != 0) {
-    char errbuf[1024];
     ERROR("Modbus plugin: getaddrinfo failed: %s",
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return status;
   }
 

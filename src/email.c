@@ -265,18 +265,16 @@ static void *collect(void *arg) {
       errno = 0;
       if (fgets(line, sizeof(line), this->socket) == NULL) {
         if (errno != 0) {
-          char errbuf[1024];
           log_err("collect: reading from socket (fd #%i) "
                   "failed: %s",
-                  fileno(this->socket),
-                  sstrerror(errno, errbuf, sizeof(errbuf)));
+                  fileno(this->socket), STRERRNO);
         }
         break;
       }
 
       len = strlen(line);
       if ((line[len - 1] != '\n') && (line[len - 1] != '\r')) {
-        log_warn("collect: line too long (> %zu characters): "
+        log_warn("collect: line too long (> %" PRIsz " characters): "
                  "'%s' (truncated)",
                  sizeof(line) - 1, line);
 
@@ -299,22 +297,21 @@ static void *collect(void *arg) {
       }
 
       if (line[0] == 'e') { /* e:<type>:<bytes> */
-        char *ptr = NULL;
-        char *type = strtok_r(line + 2, ":", &ptr);
-        char *tmp = strtok_r(NULL, ":", &ptr);
-        int bytes = 0;
-
-        if (tmp == NULL) {
+        char *type = line + 2;
+        char *bytes_str = strchr(type, ':');
+        if (bytes_str == NULL) {
           log_err("collect: syntax error in line '%s'", line);
           continue;
         }
 
-        bytes = atoi(tmp);
+        *bytes_str = 0;
+        bytes_str++;
 
         pthread_mutex_lock(&count_mutex);
         type_list_incr(&list_count, type, /* increment = */ 1);
         pthread_mutex_unlock(&count_mutex);
 
+        int bytes = atoi(bytes_str);
         if (bytes > 0) {
           pthread_mutex_lock(&size_mutex);
           type_list_incr(&list_size, type, /* increment = */ bytes);
@@ -367,35 +364,33 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   /* create UNIX socket */
   errno = 0;
   if ((connector_socket = socket(PF_UNIX, SOCK_STREAM, 0)) == -1) {
-    char errbuf[1024];
     disabled = 1;
-    log_err("socket() failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("socket() failed: %s", STRERRNO);
     pthread_exit((void *)1);
   }
 
   struct sockaddr_un addr = {
-    .sun_family = AF_UNIX
+      .sun_family = AF_UNIX,
   };
   sstrncpy(addr.sun_path, path, (size_t)(UNIX_PATH_MAX - 1));
 
   errno = 0;
   if (bind(connector_socket, (struct sockaddr *)&addr,
-           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) == -1) {
-    char errbuf[1024];
+           offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path)) ==
+      -1) {
     disabled = 1;
     close(connector_socket);
     connector_socket = -1;
-    log_err("bind() failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("bind() failed: %s", STRERRNO);
     pthread_exit((void *)1);
   }
 
   errno = 0;
   if (listen(connector_socket, 5) == -1) {
-    char errbuf[1024];
     disabled = 1;
     close(connector_socket);
     connector_socket = -1;
-    log_err("listen() failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("listen() failed: %s", STRERRNO);
     pthread_exit((void *)1);
   }
 
@@ -414,25 +409,21 @@ static void *open_connection(void __attribute__((unused)) * arg) {
     grp = NULL;
     status = getgrnam_r(group, &sg, grbuf, sizeof(grbuf), &grp);
     if (status != 0) {
-      char errbuf[1024];
-      log_warn("getgrnam_r (%s) failed: %s", group,
-               sstrerror(status, errbuf, sizeof(errbuf)));
+      log_warn("getgrnam_r (%s) failed: %s", group, STRERROR(status));
     } else if (grp == NULL) {
       log_warn("No such group: `%s'", group);
     } else {
       status = chown(path, (uid_t)-1, grp->gr_gid);
       if (status != 0) {
-        char errbuf[1024];
         log_warn("chown (%s, -1, %i) failed: %s", path, (int)grp->gr_gid,
-                 sstrerror(errno, errbuf, sizeof(errbuf)));
+                 STRERRNO);
       }
     }
   }
 
   errno = 0;
   if (chmod(path, sock_perms) != 0) {
-    char errbuf[1024];
-    log_warn("chmod() failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_warn("chmod() failed: %s", STRERRNO);
   }
 
   { /* initialize collector threads */
@@ -454,9 +445,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 
       if (plugin_thread_create(&collectors[i]->thread, &ptattr, collect,
                                collectors[i], "email collector") != 0) {
-        char errbuf[1024];
-        log_err("plugin_thread_create() failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        log_err("plugin_thread_create() failed: %s", STRERRNO);
         collectors[i]->thread = (pthread_t)0;
       }
     }
@@ -484,16 +473,13 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 
       remote = accept(connector_socket, NULL, NULL);
       if (remote == -1) {
-        char errbuf[1024];
-
         if (errno == EINTR)
           continue;
 
         disabled = 1;
         close(connector_socket);
         connector_socket = -1;
-        log_err("accept() failed: %s",
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+        log_err("accept() failed: %s", STRERRNO);
         pthread_exit((void *)1);
       }
 
@@ -538,10 +524,8 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 static int email_init(void) {
   if (plugin_thread_create(&connector, NULL, open_connection, NULL,
                            "email listener") != 0) {
-    char errbuf[1024];
     disabled = 1;
-    log_err("plugin_thread_create() failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("plugin_thread_create() failed: %s", STRERRNO);
     return -1;
   }
 

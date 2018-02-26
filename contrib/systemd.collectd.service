@@ -22,6 +22,7 @@ ProtectHome=true
 #   intel_pmu       CAP_SYS_ADMIN
 #   iptables        CAP_NET_ADMIN
 #   ping            CAP_NET_RAW
+#   processes       CAP_NET_ADMIN  (CollectDelayAccounting only)
 #   smart           CAP_SYS_RAWIO
 #   turbostat       CAP_SYS_RAWIO
 #

@@ -63,9 +63,7 @@ static struct ip_vs_get_services *ipvs_get_services(void) {
 
   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len) ==
       -1) {
-    char errbuf[1024];
-    log_err("ip_vs_get_services: getsockopt() failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("ip_vs_get_services: getsockopt() failed: %s", STRERRNO);
     return NULL;
   }
 
@@ -82,9 +80,7 @@ static struct ip_vs_get_services *ipvs_get_services(void) {
 
   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICES, services, &len) ==
       -1) {
-    char errbuf[1024];
-    log_err("ipvs_get_services: getsockopt failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("ipvs_get_services: getsockopt failed: %s", STRERRNO);
 
     free(services);
     return NULL;
@@ -111,9 +107,7 @@ static struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_entry *se) {
   dests->num_dests = se->num_dests;
 
   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS, dests, &len) == -1) {
-    char errbuf[1024];
-    log_err("ipvs_get_dests: getsockopt() failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("ipvs_get_dests: getsockopt() failed: %s", STRERRNO);
     free(dests);
     return NULL;
   }
@@ -127,9 +121,7 @@ static int cipvs_init(void) {
   struct ip_vs_getinfo ipvs_info;
 
   if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
-    char errbuf[1024];
-    log_err("cipvs_init: socket() failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("cipvs_init: socket() failed: %s", STRERRNO);
     return -1;
   }
 
@@ -137,9 +129,7 @@ static int cipvs_init(void) {
 
   if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len) ==
       -1) {
-    char errbuf[1024];
-    log_err("cipvs_init: getsockopt() failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    log_err("cipvs_init: getsockopt() failed: %s", STRERRNO);
     close(sockfd);
     sockfd = -1;
     return -1;

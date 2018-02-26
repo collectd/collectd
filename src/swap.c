@@ -234,9 +234,7 @@ static int swap_read_separate(void) /* {{{ */
 
   fh = fopen("/proc/swaps", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("swap plugin: fopen (/proc/swaps) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: fopen (/proc/swaps) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -291,9 +289,7 @@ static int swap_read_combined(void) /* {{{ */
 
   fh = fopen("/proc/meminfo", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -350,8 +346,7 @@ static int swap_read_io(void) /* {{{ */
     /* /proc/vmstat does not exist in kernels <2.6 */
     fh = fopen("/proc/stat", "r");
     if (fh == NULL) {
-      char errbuf[1024];
-      WARNING("swap: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("swap: fopen: %s", STRERRNO);
       return -1;
     } else
       old_kernel = 1;
@@ -436,9 +431,7 @@ static int swap_read_kstat(void) /* {{{ */
   struct anoninfo ai;
 
   if (swapctl(SC_AINFO, &ai) == -1) {
-    char errbuf[1024];
-    ERROR("swap plugin: swapctl failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("swap plugin: swapctl failed: %s", STRERRNO);
     return -1;
   }
 
@@ -513,9 +506,7 @@ static int swap_read(void) /* {{{ */
 
   status = swapctl(SC_LIST, s);
   if (status < 0) {
-    char errbuf[1024];
-    ERROR("swap plugin: swapctl (SC_LIST) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("swap plugin: swapctl (SC_LIST) failed: %s", STRERRNO);
     sfree(s_paths);
     sfree(s);
     return -1;
@@ -719,9 +710,7 @@ static int swap_read(void) /* {{{ */
   status =
       perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
   if (status < 0) {
-    char errbuf[1024];
-    WARNING("swap plugin: perfstat_memory_total failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: perfstat_memory_total failed: %s", STRERRNO);
     return -1;
   }
 

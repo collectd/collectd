@@ -162,19 +162,16 @@ static FILE *olsrd_connect(void) /* {{{ */
        ai_ptr = ai_ptr->ai_next) {
     int fd;
     int status;
-    char errbuf[1024];
 
     fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0) {
-      ERROR("olsrd plugin: socket failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("olsrd plugin: socket failed: %s", STRERRNO);
       continue;
     }
 
     status = connect(fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      ERROR("olsrd plugin: connect failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("olsrd plugin: connect failed: %s", STRERRNO);
       close(fd);
       continue;
     }

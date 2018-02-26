@@ -280,7 +280,7 @@ static int ceph_cb_number(void *ctx, const char *number_val,
    * the same type of other "Bytes". Instead of keeping an "average" or
    * "rate", use the "sum" in the pair and assign that to the derive
    * value. */
-  if (convert_special_metrics && (state->depth >= 2) &&
+  if (convert_special_metrics && (state->depth > 2) &&
       (strcmp("filestore", state->stack[state->depth - 2]) == 0) &&
       (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0) &&
       (strcmp("avgcount", state->key) == 0)) {
@@ -1341,7 +1341,7 @@ static int cconn_main_loop(uint32_t request_type) {
       struct cconn *io = io_array + i;
       ret = cconn_prepare(io, fds + nfds);
       if (ret < 0) {
-        WARNING("ceph plugin: cconn_prepare(name=%s,i=%zu,st=%d)=%d",
+        WARNING("ceph plugin: cconn_prepare(name=%s,i=%" PRIsz ",st=%d)=%d",
                 io->d->name, i, io->state, ret);
         cconn_close(io);
         io->request_type = ASOK_REQ_NONE;

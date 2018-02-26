@@ -742,7 +742,8 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
 
       status = snprintf(str_ptr, str_len, ",%lf", rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = snprintf(str_ptr, str_len, ",%llu", vl->values[i].counter);
+      status = snprintf(str_ptr, str_len, ",%" PRIu64,
+                        (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       status = snprintf(str_ptr, str_len, ",%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)

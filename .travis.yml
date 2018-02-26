@@ -1,3 +1,9 @@
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   # via the "travis encrypt" command using the project repo's public key
+   - secure: "ZdWWp0XX3C4sLIp4lqeQTWC7vt+GsWjmyRiD17T9833NBAW4dddz310I6iyeXe6oX09ZFFiVIN4ogx9ANcNBx9jriGXI2/82nBhpxOJBebet8JCNS5VeTr4rDSfQOKP+Oc+ko5KbbghTuAtO2CFYiH3jZUcn4TdsYbVanf+TwUs="
+
 sudo: required
 dist: trusty
 compiler:
@@ -5,8 +11,11 @@ compiler:
   - clang
 language: c
 before_install:
+  # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
+  - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" && ! "${TRAVIS_JOB_NUMBER}" =~ \.1$ ]]; then exit 0; fi
   - sudo apt-get update -qq
   - sudo apt-get install -qq --no-install-recommends
+      autotools-dev
       iptables-dev
       libatasmart-dev
       libcap-dev
@@ -21,6 +30,8 @@ before_install:
       libi2c-dev
       libldap2-dev
       libltdl-dev
+      liblua50-dev
+      liblua5.1-0-dev
       liblua5.2-dev
       liblvm2-dev
       libmemcached-dev
@@ -39,6 +50,7 @@ before_install:
       libprotobuf-c0-dev
       librabbitmq-dev
       librdkafka-dev
+      libriemann-client-dev
       librrd-dev
       libsensors4-dev
       libsigrok-dev
@@ -50,10 +62,28 @@ before_install:
       libupsclient-dev
       libvarnish-dev
       libvirt-dev
+      libxen-dev
       libxml2-dev
       libyajl-dev
       linux-libc-dev
       perl
       protobuf-c-compiler
+      python3-dev
       python-dev
-script: sh build.sh && ./configure && make distcheck
+      xfslibs-dev
+before_script: autoreconf -fi
+script:
+  - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
+  - ./configure
+  - make -j 4
+  - make check
+
+addons:
+  coverity_scan:
+    project:
+      name: "collectd/collectd"
+      description: "Build submitted via Travis CI"
+    notification_email: collectd-changes@verplant.org
+    build_command_prepend: "./configure; make clean"
+    build_command: "make -j 4"
+    branch_pattern: coverity_scan

@@ -441,10 +441,8 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 
   status = amqp_socket_open(socket, CONF(conf, host), conf->port);
   if (status < 0) {
-    char errbuf[1024];
     status *= -1;
-    ERROR("amqp plugin: amqp_socket_open failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("amqp plugin: amqp_socket_open failed: %s", STRERROR(status));
     amqp_destroy_connection(conf->connection);
     conf->connection = NULL;
     return status;
@@ -454,10 +452,8 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
   /* this interface is deprecated as of rabbitmq-c 0.4 */
   sockfd = amqp_open_socket(CONF(conf, host), conf->port);
   if (sockfd < 0) {
-    char errbuf[1024];
     status = (-1) * sockfd;
-    ERROR("amqp plugin: amqp_open_socket failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("amqp plugin: amqp_open_socket failed: %s", STRERROR(status));
     amqp_destroy_connection(conf->connection);
     conf->connection = NULL;
     return status;
@@ -507,7 +503,7 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
 
 static int camqp_shutdown(void) /* {{{ */
 {
-  DEBUG("amqp plugin: Shutting down %zu subscriber threads.",
+  DEBUG("amqp plugin: Shutting down %" PRIsz " subscriber threads.",
         subscriber_threads_num);
 
   subscriber_threads_running = 0;
@@ -545,10 +541,8 @@ static int camqp_read_body(camqp_config_t *conf, /* {{{ */
   while (received < body_size) {
     status = amqp_simple_wait_frame(conf->connection, &frame);
     if (status < 0) {
-      char errbuf[1024];
       status = (-1) * status;
-      ERROR("amqp plugin: amqp_simple_wait_frame failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("amqp plugin: amqp_simple_wait_frame failed: %s", STRERROR(status));
       camqp_close_connection(conf);
       return status;
     }
@@ -597,10 +591,8 @@ static int camqp_read_header(camqp_config_t *conf) /* {{{ */
 
   status = amqp_simple_wait_frame(conf->connection, &frame);
   if (status < 0) {
-    char errbuf[1024];
     status = (-1) * status;
-    ERROR("amqp plugin: amqp_simple_wait_frame failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("amqp plugin: amqp_simple_wait_frame failed: %s", STRERROR(status));
     camqp_close_connection(conf);
     return status;
   }
@@ -693,9 +685,7 @@ static int camqp_subscribe_init(camqp_config_t *conf) /* {{{ */
   status = plugin_thread_create(tmp, /* attr = */ NULL, camqp_subscribe_thread,
                                 conf, "amqp subscribe");
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("amqp plugin: pthread_create failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("amqp plugin: pthread_create failed: %s", STRERROR(status));
     return status;
   }
 
@@ -982,10 +972,11 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
     char cbname[128];
     snprintf(cbname, sizeof(cbname), "amqp/%s", conf->name);
 
-    status = plugin_register_write(
-        cbname, camqp_write, &(user_data_t){
-                                 .data = conf, .free_func = camqp_config_free,
-                             });
+    status =
+        plugin_register_write(cbname, camqp_write,
+                              &(user_data_t){
+                                  .data = conf, .free_func = camqp_config_free,
+                              });
     if (status != 0) {
       camqp_config_free(conf);
       return status;

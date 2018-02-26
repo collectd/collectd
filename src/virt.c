@@ -444,12 +444,10 @@ static void init_block_info(struct lv_block_info *binfo) {
 #ifdef HAVE_BLOCK_STATS_FLAGS
 
 #define GET_BLOCK_INFO_VALUE(NAME, FIELD)                                      \
-  do {                                                                         \
-    if (!strcmp(param[i].field, NAME)) {                                       \
-      binfo->FIELD = param[i].value.l;                                         \
-      continue;                                                                \
-    }                                                                          \
-  } while (0)
+  if (!strcmp(param[i].field, NAME)) {                                         \
+    binfo->FIELD = param[i].value.l;                                           \
+    continue;                                                                  \
+  }
 
 static int get_block_info(struct lv_block_info *binfo,
                           virTypedParameterPtr param, int nparams) {
@@ -699,10 +697,11 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
               (time_diff_sec * node_cpus * NANOSEC_IN_SEC);
   }
 
-  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%llu cpu_time_new=%llu"
-                    "cpu_time_diff=%llu time_diff_sec=%f percent=%f",
-        node_cpus, cpu_time_old, cpu_time_new, cpu_time_diff, time_diff_sec,
-        percent);
+  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64
+                    " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
+                    " time_diff_sec=%f percent=%f",
+        node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
+        (uint64_t)cpu_time_diff, time_diff_sec, percent);
 
   return percent;
 }
@@ -1660,7 +1659,7 @@ static int lv_init_instance(size_t i, plugin_read_cb callback) {
 
   memset(lv_ud, 0, sizeof(*lv_ud));
 
-  snprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
+  snprintf(inst->tag, sizeof(inst->tag), "%s-%" PRIsz, PLUGIN_NAME, i);
   inst->id = i;
 
   user_data_t *ud = &(lv_ud->ud);

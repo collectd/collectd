@@ -215,20 +215,16 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
 static int dpdk_shm_init(const char *name, size_t size, void **map) {
   DPDK_HELPER_TRACE(name);
 
-  char errbuf[ERR_BUF_SIZE];
-
   int fd = shm_open(name, O_CREAT | O_TRUNC | O_RDWR, 0666);
   if (fd < 0) {
-    WARNING("dpdk_shm_init: Failed to open %s as SHM:%s", name,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("dpdk_shm_init: Failed to open %s as SHM:%s", name, STRERRNO);
     *map = NULL;
     return -1;
   }
 
   int ret = ftruncate(fd, size);
   if (ret != 0) {
-    WARNING("dpdk_shm_init: Failed to resize SHM:%s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("dpdk_shm_init: Failed to resize SHM:%s", STRERRNO);
     close(fd);
     *map = NULL;
     dpdk_shm_cleanup(name, size, NULL);
@@ -237,8 +233,7 @@ static int dpdk_shm_init(const char *name, size_t size, void **map) {
 
   *map = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (*map == MAP_FAILED) {
-    WARNING("dpdk_shm_init:Failed to mmap SHM:%s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("dpdk_shm_init:Failed to mmap SHM:%s", STRERRNO);
     close(fd);
     *map = NULL;
     dpdk_shm_cleanup(name, size, NULL);
@@ -253,17 +248,16 @@ static int dpdk_shm_init(const char *name, size_t size, void **map) {
 
 static void dpdk_shm_cleanup(const char *name, size_t size, void *map) {
   DPDK_HELPER_TRACE(name);
-  char errbuf[ERR_BUF_SIZE];
 
   /*
    * Call shm_unlink first, as 'name' might be no longer accessible after munmap
    */
   if (shm_unlink(name))
-    ERROR("shm_unlink failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("shm_unlink failure %s", STRERRNO);
 
   if (map != NULL) {
     if (munmap(map, size))
-      ERROR("munmap failure %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("munmap failure %s", STRERRNO);
   }
 }
 
@@ -287,7 +281,6 @@ int dpdk_helper_init(const char *name, size_t data_size,
                      dpdk_helper_ctx_t **pphc) {
   dpdk_helper_ctx_t *phc = NULL;
   size_t shm_size = sizeof(dpdk_helper_ctx_t) + data_size;
-  char errbuf[ERR_BUF_SIZE];
 
   if (pphc == NULL) {
     ERROR("%s:Invalid argument(pphc)", __FUNCTION__);
@@ -311,8 +304,7 @@ int dpdk_helper_init(const char *name, size_t data_size,
 
   err = sem_init(&phc->sema_cmd_start, 1, 0);
   if (err != 0) {
-    ERROR("sema_cmd_start semaphore init failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("sema_cmd_start semaphore init failed: %s", STRERRNO);
     int errno_m = errno;
     dpdk_shm_cleanup(name, shm_size, (void *)phc);
     return -errno_m;
@@ -320,8 +312,7 @@ int dpdk_helper_init(const char *name, size_t data_size,
 
   err = sem_init(&phc->sema_cmd_complete, 1, 0);
   if (err != 0) {
-    ERROR("sema_cmd_complete semaphore init failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("sema_cmd_complete semaphore init failed: %s", STRERRNO);
     sem_destroy(&phc->sema_cmd_start);
     int errno_m = errno;
     dpdk_shm_cleanup(name, shm_size, (void *)phc);
@@ -356,7 +347,6 @@ void dpdk_helper_shutdown(dpdk_helper_ctx_t *phc) {
 }
 
 static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
-  char errbuf[ERR_BUF_SIZE];
   if (phc == NULL) {
     ERROR("Invalid argument(phc)");
     return -EINVAL;
@@ -379,22 +369,19 @@ static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
   }
 
   if (pipe(phc->pipes) != 0) {
-    DEBUG("dpdk_helper_spawn: Could not create helper pipe: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    DEBUG("dpdk_helper_spawn: Could not create helper pipe: %s", STRERRNO);
     return -1;
   }
 
   int pipe0_flags = fcntl(phc->pipes[0], F_GETFL, 0);
   int pipe1_flags = fcntl(phc->pipes[1], F_GETFL, 0);
   if (pipe0_flags == -1 || pipe1_flags == -1) {
-    WARNING("dpdk_helper_spawn: error setting up pipe flags: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("dpdk_helper_spawn: error setting up pipe flags: %s", STRERRNO);
   }
   int pipe0_err = fcntl(phc->pipes[0], F_SETFL, pipe1_flags | O_NONBLOCK);
   int pipe1_err = fcntl(phc->pipes[1], F_SETFL, pipe0_flags | O_NONBLOCK);
   if (pipe0_err == -1 || pipe1_err == -1) {
-    WARNING("dpdk_helper_spawn: error setting up pipes: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("dpdk_helper_spawn: error setting up pipes: %s", STRERRNO);
   }
 
   pid_t pid = fork();
@@ -412,8 +399,7 @@ static int dpdk_helper_spawn(dpdk_helper_ctx_t *phc) {
     dpdk_helper_worker(phc);
     exit(0);
   } else {
-    ERROR("dpdk_helper_start: Failed to fork helper process: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("dpdk_helper_start: Failed to fork helper process: %s", STRERRNO);
     return -1;
   }
 
@@ -436,7 +422,6 @@ static int dpdk_helper_exit(dpdk_helper_ctx_t *phc,
 
 static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
                                     enum DPDK_HELPER_STATUS status) {
-  char errbuf[ERR_BUF_SIZE];
   DPDK_HELPER_TRACE(phc->shm_name);
 
   close(phc->pipes[1]);
@@ -453,8 +438,7 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
 
       int err = kill(phc->pid, SIGKILL);
       if (err) {
-        ERROR("%s error sending kill to helper: %s", __FUNCTION__,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("%s error sending kill to helper: %s", __FUNCTION__, STRERRNO);
       }
     }
   } else {
@@ -464,8 +448,7 @@ static int dpdk_helper_exit_command(dpdk_helper_ctx_t *phc,
 
     int err = kill(phc->pid, SIGKILL);
     if (err) {
-      ERROR("%s error sending kill to helper: %s", __FUNCTION__,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("%s error sending kill to helper: %s", __FUNCTION__, STRERRNO);
     }
   }
 
@@ -633,10 +616,9 @@ static int dpdk_helper_worker(dpdk_helper_ctx_t *phc) {
     DPDK_CHILD_LOG("%s:%s:%d post sema_cmd_complete (pid=%lu)\n", phc->shm_name,
                    __FUNCTION__, __LINE__, (long)getpid());
     if (err) {
-      char errbuf[ERR_BUF_SIZE];
       DPDK_CHILD_LOG("dpdk_helper_worker: error posting sema_cmd_complete "
                      "semaphore (%s)\n",
-                     sstrerror(errno, errbuf, sizeof(errbuf)));
+                     STRERRNO);
     }
 
 #if COLLECT_DEBUG
@@ -674,7 +656,6 @@ static const char *dpdk_helper_status_str(enum DPDK_HELPER_STATUS status) {
 static int dpdk_helper_status_check(dpdk_helper_ctx_t *phc) {
   DEBUG("%s:%s:%d pid=%u %s", phc->shm_name, __FUNCTION__, __LINE__, getpid(),
         dpdk_helper_status_str(phc->status));
-  char errbuf[ERR_BUF_SIZE];
 
   if (phc->status == DPDK_HELPER_GRACEFUL_QUIT) {
     return 0;
@@ -684,8 +665,7 @@ static int dpdk_helper_status_check(dpdk_helper_ctx_t *phc) {
           __LINE__);
     int err = dpdk_helper_spawn(phc);
     if (err) {
-      ERROR("dpdkstat: error spawning helper %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("dpdkstat: error spawning helper %s", STRERRNO);
     }
     return -1;
   }
@@ -697,8 +677,7 @@ static int dpdk_helper_status_check(dpdk_helper_ctx_t *phc) {
           __LINE__);
     int err = dpdk_helper_spawn(phc);
     if (err) {
-      ERROR("dpdkstat: error spawning helper %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("dpdkstat: error spawning helper %s", STRERRNO);
     }
     return -1;
   }
@@ -723,9 +702,7 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
         data_avail);
   if (data_avail < 0) {
     if (errno != EINTR || errno != EAGAIN) {
-      char errbuf[ERR_BUF_SIZE];
-      ERROR("%s: poll(2) failed: %s", phc->shm_name,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("%s: poll(2) failed: %s", phc->shm_name, STRERRNO);
     }
   }
   while (data_avail) {
@@ -767,9 +744,8 @@ int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
   /* kick helper to process command */
   int err = sem_post(&phc->sema_cmd_start);
   if (err) {
-    char errbuf[ERR_BUF_SIZE];
     ERROR("dpdk_helper_worker: error posting sema_cmd_start semaphore (%s)",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
   }
 
 #if COLLECT_DEBUG

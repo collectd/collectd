@@ -112,9 +112,8 @@ static int wt_send_buffer(struct wt_callback *cb) {
 
   status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
   if (status != 0) {
-    char errbuf[1024];
     ERROR("write_tsdb plugin: send failed with status %zi (%s)", status,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
 
     close(cb->sock_fd);
     cb->sock_fd = -1;
@@ -130,7 +129,7 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb) {
   int status;
 
   DEBUG("write_tsdb plugin: wt_flush_nolock: timeout = %.3f; "
-        "send_buf_fill = %zu;",
+        "send_buf_fill = %" PRIsz ";",
         (double)timeout, cb->send_buf_fill);
 
   /* timeout == 0  => flush unconditionally */
@@ -242,10 +241,9 @@ static int wt_callback_init(struct wt_callback *cb) {
   }
 
   if (cb->sock_fd < 0) {
-    char errbuf[1024];
     ERROR("write_tsdb plugin: Connecting to %s:%s failed. "
           "The last error was: %s",
-          node, service, sstrerror(errno, errbuf, sizeof(errbuf)));
+          node, service, STRERRNO);
     return -1;
   }
 
@@ -279,6 +277,7 @@ static void wt_callback_free(void *data) {
   sfree(cb->service);
   sfree(cb->host_tags);
 
+  pthread_mutex_unlock(&cb->send_lock);
   pthread_mutex_destroy(&cb->send_lock);
 
   sfree(cb);
@@ -348,7 +347,7 @@ static int wt_format_values(char *ret, size_t ret_len, int ds_num,
     }
     BUFFER_ADD(GAUGE_FORMAT, rates[ds_num]);
   } else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
-    BUFFER_ADD("%llu", vl->values[ds_num].counter);
+    BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[ds_num].counter);
   else if (ds->ds[ds_num].type == DS_TYPE_DERIVE)
     BUFFER_ADD("%" PRIi64, vl->values[ds_num].derive);
   else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
@@ -465,7 +464,7 @@ static int wt_send_message(const char *key, const char *value, cdtime_t time,
 
   if (message_len >= sizeof(message)) {
     ERROR("write_tsdb plugin: message buffer too small: "
-          "Need %zu bytes.",
+          "Need %" PRIsz " bytes.",
           message_len + 1);
     return -1;
   }
@@ -498,8 +497,8 @@ static int wt_send_message(const char *key, const char *value, cdtime_t time,
   cb->send_buf_fill += message_len;
   cb->send_buf_free -= message_len;
 
-  DEBUG("write_tsdb plugin: [%s]:%s buf %zu/%zu (%.1f %%) \"%s\"", cb->node,
-        cb->service, cb->send_buf_fill, sizeof(cb->send_buf),
+  DEBUG("write_tsdb plugin: [%s]:%s buf %" PRIsz "/%" PRIsz " (%.1f %%) \"%s\"",
+        cb->node, cb->service, cb->send_buf_fill, sizeof(cb->send_buf),
         100.0 * ((double)cb->send_buf_fill) / ((double)sizeof(cb->send_buf)),
         message);
 
