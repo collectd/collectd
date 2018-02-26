@@ -1387,7 +1387,7 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
 
     /* return map value if given key equals map key */
     str_val = YAJL_GET_STRING(array_values[0]);
-    if (strcmp(key, str_val) == 0)
+    if (str_val != NULL && strcmp(key, str_val) == 0)
       return array_values[1];
   }
   return NULL;
