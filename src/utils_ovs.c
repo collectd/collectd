@@ -1375,7 +1375,7 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
   map_values = YAJL_GET_ARRAY(array_values[1])->values;
   for (size_t i = 0; i < map_len; i++) {
     /* check YAJL array */
-    if (!YAJL_IS_ARRAY(map_values[i]))
+    if (!YAJL_IS_ARRAY(map_values[i]) || YAJL_GET_ARRAY(map_values[i]) == NULL)
       break;
 
     /* check a database pair value (2-element, first one represents a key
