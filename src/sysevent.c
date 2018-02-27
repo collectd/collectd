@@ -124,7 +124,7 @@ static const char *rsyslog_keys[3] = {"@timestamp", "@source_host", "@message"};
 static const char *rsyslog_field_keys[5] = {
     "facility", "severity", "severity-num", "program", "processid"};
 #endif
-    
+
 /*
  * Private functions
  */
