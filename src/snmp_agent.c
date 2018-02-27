@@ -671,15 +671,20 @@ static void snmp_agent_table_data_remove(data_definition_t *dd,
 
   pthread_mutex_lock(&g_agent->agentx_lock);
 
+  int reg_oids = -1; /* Number of registered oids for given instance */
+
   for (size_t i = 0; i < dd->oids_len; i++) {
     if (td->index_oid.oid_len)
       snmp_agent_unregister_oid_index(&dd->oids[i], *index);
     else
       snmp_agent_unregister_oid_string(&dd->oids[i], index_oid);
+
+    reg_oids =
+        snmp_agent_update_instance_oids(td->instance_oids, index_oid, -1);
   }
 
   /* Checking if any metrics are left registered */
-  if (snmp_agent_update_instance_oids(td->instance_oids, index_oid, -1) > 0) {
+  if (reg_oids != 0) {
     pthread_mutex_unlock(&g_agent->agentx_lock);
     return;
   }
