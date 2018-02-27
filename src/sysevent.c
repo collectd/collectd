@@ -119,10 +119,12 @@ static int buffer_length = 10;
 
 static int monitor_all_messages = 1;
 
+#if HAVE_YAJL_V2
 static const char *rsyslog_keys[3] = {"@timestamp", "@source_host", "@message"};
 static const char *rsyslog_field_keys[5] = {
     "facility", "severity", "severity-num", "program", "processid"};
-
+#endif
+    
 /*
  * Private functions
  */
