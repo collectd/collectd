@@ -1001,6 +1001,8 @@ static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
 
 ovs_db_t *ovs_db_init(const char *node, const char *service,
                       const char *unix_path, ovs_db_callback_t *cb) {
+  int ret;
+
   /* sanity check */
   if (node == NULL || service == NULL || unix_path == NULL)
     return NULL;
@@ -1046,16 +1048,25 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
 
   /* init event thread */
   if (ovs_db_event_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
-    return NULL;
+    ret = ovs_db_destroy(pdb);
+    if (ret > 0)
+      goto failure;
   }
 
   /* init polling thread */
   if (ovs_db_poll_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
-    return NULL;
+    ret = ovs_db_destroy(pdb);
+    if (ret > 0) {
+      ovs_db_event_thread_data_destroy(pdb);
+      goto failure;
+    }
   }
   return pdb;
+
+failure:
+  pthread_mutex_destroy(&pdb->mutex);
+  sfree(pdb);
+  return NULL;
 }
 
 int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
@@ -1265,7 +1276,7 @@ int ovs_db_destroy(ovs_db_t *pdb) {
   /* try to lock the structure before releasing */
   if ((ret = pthread_mutex_lock(&pdb->mutex))) {
     OVS_ERROR("pthread_mutex_lock() DB mutex lock failed (%d)", ret);
-    return -1;
+    return ret;
   }
 
   /* stop poll thread and destroy thread's private data */
