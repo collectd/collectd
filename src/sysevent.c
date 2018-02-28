@@ -31,7 +31,6 @@
 #include "utils_complain.h"
 #include "utils_ignorelist.h"
 
-#include <asm/types.h>
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
