@@ -71,7 +71,8 @@ static void sig_usr1_handler(int __attribute__((unused)) signal) {
    * so it should be done asynchronously */
   pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  pthread_create(&thread, &attr, do_flush, NULL);
+  if (pthread_create(&thread, &attr, do_flush, NULL) != 0)
+    fprintf(stderr, "Can not create thread: %s.\n", strerror(errno));
   pthread_attr_destroy(&attr);
 }
 
