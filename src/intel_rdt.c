@@ -42,6 +42,42 @@
  */
 #define RDT_MAX_PROC_COMM_LENGTH 16
 
+/* PQOS API STUB
+ * In future: Start monitoring for PID group. For perf grouping will be added.
+ * Currently: Start monitoring only for the first PID.
+ */
+__attribute__((unused)) static int
+pqos_mon_start_pids(const unsigned num_pids, const pid_t *pids,
+                    const enum pqos_mon_event event, void *context,
+                    struct pqos_mon_data *group) {
+
+  assert(num_pids > 0);
+  assert(pids);
+  return pqos_mon_start_pid(pids[0], event, context, group);
+}
+
+/* PQOS API STUB
+ * In future: Add PIDs to the monitoring group. Supported for resctrl monitoring
+ * only.
+ * Currently: Does nothing.
+ */
+__attribute__((unused)) static int
+pqos_mon_add_pids(const unsigned num_pids, const pid_t *pids, void *context,
+                  struct pqos_mon_data *group) {
+  return PQOS_RETVAL_OK;
+}
+
+/* PQOS API STUB
+ * In future: Remove PIDs from the monitoring group. Supported for resctrl
+ * monitoring only.
+ * Currently: Does nothing.
+ */
+__attribute__((unused)) static int
+pqos_mon_remove_pids(const unsigned num_pids, const pid_t *pids, void *context,
+                     struct pqos_mon_data *group) {
+  return PQOS_RETVAL_OK;
+}
+
 typedef enum {
   UNKNOWN = 0,
   CONFIGURATION_ERROR,
