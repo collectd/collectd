@@ -1210,7 +1210,7 @@ static int c_ipmi_init(void) {
   }
 
   /* Don't send `ADD' notifications during startup (~ 1 minute) */
-  int cycles = 1 + (60 / CDTIME_T_TO_TIME_T(plugin_get_interval()));
+  int cycles = 1 + (int)(TIME_T_TO_CDTIME_T(60) / plugin_get_interval());
 
   st = instances;
   while (NULL != st) {
