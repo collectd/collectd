@@ -2309,7 +2309,7 @@ static int plugin_notification_meta_append(notification_t *n,
   // If m is passed and is not NULL, and m is of type NM_TYPE_NESTED, then this
   // metadata object will either be m's nm_value or appended to the end of the
   // linked list starting with nm_value.  If m is not of type NM_TYPE_NESTED,
-  // this metadata object will be append to the end of the linked list of which 
+  // this metadata object will be append to the end of the linked list of which
   // m is a member.
 
   notification_meta_t *meta;
