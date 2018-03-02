@@ -386,7 +386,7 @@ static int gen_message_payload(const char *msg, char *sev, int sev_num,
   if (yajl_gen_string(g, (u_char *)SYSEVENT_SYSLOG_TAG_VALUE,
                       strlen(SYSEVENT_SYSLOG_TAG_VALUE)) != yajl_gen_status_ok)
     goto err;
-  
+
   if (yajl_gen_map_close(g) != yajl_gen_status_ok)
     goto err;
 
