@@ -6109,7 +6109,7 @@ information (CPU time, memory consumption) on compute nodes.
 B<Synopsis:>
 
   <Plugin slurmd>
-      CgroupMountPoint "/cgroup"
+      CgroupMountPoint "/sys/fs/cgroup"
       IgnoreAbsentCpuset false
   </Plugin>
 

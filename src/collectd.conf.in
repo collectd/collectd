@@ -1078,7 +1078,7 @@
 #</Plugin>
 
 #<Plugin slurmd>
-#  CgroupMountPoint "/cgroup"
+#  CgroupMountPoint "/sys/fs/cgroup"
 #  IgnoreAbsentCpuset false
 #</Plugin>
 
