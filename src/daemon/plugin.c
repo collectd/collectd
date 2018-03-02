@@ -2304,16 +2304,13 @@ static int plugin_notification_meta_append(notification_t *n,
                                            enum notification_meta_type_e type,
                                            const void *value) {
   // If n is passed and is not NULL, this metadata object will be append to the
-  // end of n's linked list
-  // of metadata objects.
+  // end of n's linked list of metadata objects.
   //
   // If m is passed and is not NULL, and m is of type NM_TYPE_NESTED, then this
-  // metadata object will
-  // either be m's nm_value or appended to the end of the linked list starting
-  // with nm_value.  If m
-  // is not of type NM_TYPE_NESTED, this metadata object will be end of the
-  // linked list of which m
-  // is a member.
+  // metadata object will either be m's nm_value or appended to the end of the
+  // linked list starting with nm_value.  If m is not of type NM_TYPE_NESTED,
+  // this metadata object will be append to the end of the linked list of which 
+  // m is a member.
 
   notification_meta_t *meta;
   notification_meta_t *tail;
@@ -2367,7 +2364,7 @@ static int plugin_notification_meta_append(notification_t *n,
   }
   case NM_TYPE_NESTED: {
     // This nested object's associated value will be the first
-    // of its nested children, with the first child being set by the
+    // of its nested children, with that first child being set by the
     // first metadata object appended to this nested object by
     // a later call to this function where this nested object is
     // passed as "m"
