@@ -73,10 +73,8 @@
   in some systems which actually have virConnectListAllDomains()
   we can't detect this.
  */
-#ifdef LIBVIR_CHECK_VERSION
 #if LIBVIR_CHECK_VERSION(0, 10, 2)
 #define HAVE_LIST_ALL_DOMAINS 1
-#endif
 #endif
 
 #if LIBVIR_CHECK_VERSION(1, 0, 1)
@@ -171,18 +169,23 @@ static int map_domain_event_to_state(int event) {
   case VIR_DOMAIN_EVENT_SHUTDOWN:
     ret = VIR_DOMAIN_SHUTDOWN;
     break;
+#ifdef HAVE_DOM_STATE_PMSUSPENDED
   case VIR_DOMAIN_EVENT_PMSUSPENDED:
     ret = VIR_DOMAIN_PMSUSPENDED;
     break;
+#endif
+#ifdef HAVE_DOM_REASON_CRASHED
   case VIR_DOMAIN_EVENT_CRASHED:
     ret = VIR_DOMAIN_CRASHED;
     break;
+#endif
   default:
     ret = VIR_DOMAIN_NOSTATE;
   }
   return ret;
 }
 
+#ifdef HAVE_DOM_REASON
 static int map_domain_event_detail_to_reason(int event, int detail) {
   int ret;
   switch (event) {
@@ -201,9 +204,11 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     case VIR_DOMAIN_EVENT_STARTED_FROM_SNAPSHOT: /* Restored from snapshot */
       ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
       break;
+#ifdef HAVE_DOM_REASON_RUNNING_WAKEUP
     case VIR_DOMAIN_EVENT_STARTED_WAKEUP: /* Started due to wakeup event */
       ret = VIR_DOMAIN_RUNNING_WAKEUP;
       break;
+#endif
     default:
       ret = VIR_DOMAIN_RUNNING_UNKNOWN;
     }
@@ -238,6 +243,7 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
                                                   libvirt API call */
       ret = VIR_DOMAIN_PAUSED_UNKNOWN;
       break;
+#ifdef HAVE_DOM_REASON_POSTCOPY
     case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY: /* Suspended for post-copy
                                                  migration */
       ret = VIR_DOMAIN_PAUSED_POSTCOPY;
@@ -246,6 +252,7 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
                                                         post-copy */
       ret = VIR_DOMAIN_PAUSED_POSTCOPY_FAILED;
       break;
+#endif
     default:
       ret = VIR_DOMAIN_PAUSED_UNKNOWN;
     }
@@ -263,10 +270,12 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     case VIR_DOMAIN_EVENT_RESUMED_FROM_SNAPSHOT: /* Resumed from snapshot */
       ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
       break;
+#ifdef HAVE_DOM_REASON_POSTCOPY
     case VIR_DOMAIN_EVENT_RESUMED_POSTCOPY: /* Resumed, but migration is still
                                                running in post-copy mode */
       ret = VIR_DOMAIN_RUNNING_POSTCOPY;
       break;
+#endif
     default:
       ret = VIR_DOMAIN_RUNNING_UNKNOWN;
     }
@@ -308,6 +317,7 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
       ret = VIR_DOMAIN_SHUTDOWN_UNKNOWN;
     }
     break;
+#ifdef HAVE_DOM_STATE_PMSUSPENDED
   case VIR_DOMAIN_EVENT_PMSUSPENDED:
     switch (detail) {
     case VIR_DOMAIN_EVENT_PMSUSPENDED_MEMORY: /* Guest was PM suspended to
@@ -321,6 +331,7 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
       ret = VIR_DOMAIN_PMSUSPENDED_UNKNOWN;
     }
     break;
+#endif
   case VIR_DOMAIN_EVENT_CRASHED:
     switch (detail) {
     case VIR_DOMAIN_EVENT_CRASHED_PANICKED: /* Guest was panicked */
@@ -336,7 +347,6 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
   return ret;
 }
 
-#ifdef HAVE_DOM_REASON
 #define DOMAIN_STATE_REASON_MAX_SIZE 20
 const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
         [VIR_DOMAIN_NOSTATE][VIR_DOMAIN_NOSTATE_UNKNOWN] =
@@ -370,7 +380,6 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
         [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_POSTCOPY] =
             "running in post-copy migration mode",
 #endif
-
         [VIR_DOMAIN_BLOCKED][VIR_DOMAIN_BLOCKED_UNKNOWN] =
             "the reason is unknown",
 
@@ -410,7 +419,6 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
         [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_POSTCOPY_FAILED] =
             "paused after failed post-copy",
 #endif
-
         [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_UNKNOWN] =
             "the reason is unknown",
         [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_USER] =
@@ -1813,7 +1821,10 @@ static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr conn,
                                      virDomainPtr dom, int event, int detail,
                                      __attribute__((unused)) void *opaque) {
   int domain_state = map_domain_event_to_state(event);
-  int domain_reason = map_domain_event_detail_to_reason(event, detail);
+  int domain_reason = 0; /* 0 means UNKNOWN reason for any state */
+#ifdef HAVE_DOM_REASON
+  domain_reason = map_domain_event_detail_to_reason(event, detail);
+#endif
   domain_state_submit_notif(dom, domain_state, domain_reason);
 
   return 0;
@@ -2013,11 +2024,13 @@ static int lv_read(user_data_t *ud) {
   /* Get domains' metrics */
   for (int i = 0; i < state->nr_domains; ++i) {
     domain_t *dom = &state->domains[i];
-    int status;
+    int status = 0;
     if (dom->active)
       status = get_domain_metrics(dom);
+#ifdef HAVE_DOM_REASON
     else
       status = get_domain_state(dom->ptr);
+#endif
 
     if (status != 0)
       ERROR(PLUGIN_NAME " failed to get metrics for domain=%s",
