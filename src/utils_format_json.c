@@ -530,6 +530,11 @@ static int format_json_meta(yajl_gen g, notification_meta_t *meta) /* {{{ */
   case NM_TYPE_BOOLEAN:
     JSON_ADD(g, meta->nm_value.nm_boolean ? "true" : "false");
     break;
+  case NM_TYPE_NESTED:
+    CHECK_SUCCESS(yajl_gen_map_open(g));
+    format_json_meta(g, meta->nm_value.nm_nested);
+    CHECK_SUCCESS(yajl_gen_map_close(g));
+    break;
   default:
     ERROR("format_json_meta: unknown meta data type %d (name \"%s\")",
           meta->type, meta->name);
