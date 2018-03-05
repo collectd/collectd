@@ -387,14 +387,6 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
         ipmi_sensor_get_sensor_direction(sensor),
         ipmi_sensor_get_event_support(sensor));
 
-  /* Both `ignorelist' and `sensor_name_ptr' may be NULL. */
-  if (ignorelist_match(st->ignorelist, sensor_name_ptr) != 0) {
-    INFO("ipmi plugin: sensor_list_add: Ignore sensor `%s` of `%s`, "
-         "because it is on ignore list.",
-         sensor_name_ptr, st->name);
-    return -1;
-  }
-
   /* FIXME: Use rate unit or base unit to scale the value */
 
   sensor_type = ipmi_sensor_get_sensor_type(sensor);
@@ -804,10 +796,9 @@ entity_sensor_update_handler(enum ipmi_update_e op,
         status = ipmi_sensor_add_discrete_event_handler(
             sensor, sensor_discrete_event_handler, st);
 
-      if (status) {
+      if (status)
         ERROR("Unable to add sensor %s event handler, status: %d", sensor_name,
               status);
-      }
     }
   } else if (op == IPMI_DELETED) {
     sensor_list_remove(st, sensor);
