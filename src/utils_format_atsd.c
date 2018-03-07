@@ -454,10 +454,14 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
 
     if (strchr(format->vl->type_instance, ';')) {
       char *key, *strtok_ctx;
-      char tmp[DATA_MAX_NAME_LEN];
+      char tmp[DATA_MAX_NAME_LEN], *tmp_strtok_ptr;
 
+      tmp_strtok_ptr = tmp;
       strncpy(tmp, format->vl->type_instance, sizeof(tmp));
-      while ((key = strtok_r(tmp, ";", &strtok_ctx)) != NULL) {
+      while ((key = strtok_r(tmp_strtok_ptr, ";", &strtok_ctx)) != NULL) {
+        /* Make tmp_tok_ptr NULL, as strtok_r
+         * requires it to be null on subsequent calls */
+        tmp_strtok_ptr = NULL;
         char *value = strchr(key, '=');
         if (value) {
           *value++ = '\0';
