@@ -241,7 +241,7 @@ static grpc::Status unmarshal_meta_data(const grpcMetadata &rpc_metadata,
   *md_out = meta_data_create();
   if (*md_out == nullptr) {
     return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                        grpc::string("failed to metadata list"));
+                        grpc::string("failed to create metadata list"));
   }
   for (auto kv : rpc_metadata) {
     auto k = kv.first.c_str();
