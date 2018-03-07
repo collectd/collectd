@@ -71,21 +71,36 @@ int plugin_register_data_set(const data_set_t *ds) { return ENOTSUP; }
 
 int plugin_dispatch_values(value_list_t const *vl) { return ENOTSUP; }
 
-int plugin_dispatch_notification(const notification_t *notif) { return ENOTSUP; }
+int plugin_dispatch_notification(const notification_t *notif) {
+  return ENOTSUP;
+}
 
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
-                                        const char *value) { return ENOTSUP; }
+                                        const char *value) {
+  return ENOTSUP;
+}
 int plugin_notification_meta_add_signed_int(notification_t *n, const char *name,
-                                            int64_t value) { return ENOTSUP; }
+                                            int64_t value) {
+  return ENOTSUP;
+}
 int plugin_notification_meta_add_unsigned_int(notification_t *n,
-                                              const char *name, uint64_t value) { return ENOTSUP; }
+                                              const char *name,
+                                              uint64_t value) {
+  return ENOTSUP;
+}
 int plugin_notification_meta_add_double(notification_t *n, const char *name,
-                                        double value) { return ENOTSUP; }
+                                        double value) {
+  return ENOTSUP;
+}
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
-                                         _Bool value) { return ENOTSUP; }
+                                         _Bool value) {
+  return ENOTSUP;
+}
 
 int plugin_notification_meta_copy(notification_t *dst,
-                                  const notification_t *src) { return ENOTSUP; }
+                                  const notification_t *src) {
+  return ENOTSUP;
+}
 
 int plugin_notification_meta_free(notification_meta_t *n) { return ENOTSUP; }
 
