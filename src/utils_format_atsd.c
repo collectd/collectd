@@ -294,6 +294,9 @@ static int format_metric_name(char *buffer, size_t len, format_info_t *format,
     case PART_VL_PLUGIN:
       metric_name_append(buffer, format->vl->plugin, len);
       break;
+    case PART_VL_PLUGIN_INSTANCE:
+      metric_name_append(buffer, format->vl->plugin_instance, len);
+      break;
     case PART_VL_TYPE:
       metric_name_append(buffer, format->vl->type, len);
       break;
