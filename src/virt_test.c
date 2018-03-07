@@ -25,8 +25,6 @@
 #include "testing.h"
 #include "virt.c" /* sic */
 
-#ifdef HAVE_LIST_ALL_DOMAINS
-
 virDomainPtr *domains;
 
 static int setup(void) {
@@ -52,6 +50,7 @@ static int teardown(void) {
   return 0;
 }
 
+#ifdef HAVE_LIST_ALL_DOMAINS
 DEF_TEST(get_domain_state_notify) {
   if (setup() == 0) {
     int n_domains = virConnectListAllDomains(
@@ -68,6 +67,7 @@ DEF_TEST(get_domain_state_notify) {
 
   return 0;
 }
+#endif
 
 DEF_TEST(persistent_domains_state_notification) {
   if (setup() == 0) {
@@ -78,13 +78,12 @@ DEF_TEST(persistent_domains_state_notification) {
 
   return 0;
 }
-#endif
 
 int main(void) {
 #ifdef HAVE_LIST_ALL_DOMAINS
   RUN_TEST(get_domain_state_notify);
-  RUN_TEST(persistent_domains_state_notification);
 #endif
+  RUN_TEST(persistent_domains_state_notification);
 
   END_TEST;
 }
