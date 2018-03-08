@@ -1,0 +1,16 @@
+num_bricks		value:GAUGE:0:U
+brick_connections       value:GAUGE:0:U
+brick_used_percent 	value:DERIVE:0:U
+brick_bytes 		value:GAUGE:0:U
+brick_inode	        value:GAUGE:0:U
+brick_inode_used_percent        value:GAUGE:0:U
+
+brick_metadata_used_percent value:GAUGE:0:U
+brick_metadata_used	value:GAUGE:0:U
+
+brick_thinpool          value:GAUGE:0:U
+brick_thinpool_used_percent value:GAUGE:0:U
+
+brick_split_brain_cnt   value:GAUGE:0:U
+brick_healed_cnt        value:GAUGE:0:U
+brick_heal_failed_cnt   value:GAUGE:0:U
