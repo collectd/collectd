@@ -81,56 +81,6 @@ int pqos_cap_get_type(const struct pqos_cap *cap, const enum pqos_cap_type type,
 int pqos_cap_get(const struct pqos_cap **cap, const struct pqos_cpuinfo **cpu) {
   return 0;
 }
-#else
-/***************************************************************************
- * PQOS v1.2 mocks
- */
-int pqos_mon_reset(void) { return 0; }
-int pqos_mon_assoc_get(const unsigned lcore, pqos_rmid_t *rmid) { return 0; }
-int pqos_mon_start(const unsigned num_cores, const unsigned *cores,
-                   const enum pqos_mon_event event, void *context,
-                   struct pqos_mon_data *group) {
-  return 0;
-}
-int pqos_mon_start_pid(const pid_t pids, const enum pqos_mon_event event,
-                       void *context, struct pqos_mon_data *group) {
-  return 0;
-}
-int pqos_mon_stop(struct pqos_mon_data *group) { return 0; }
-int pqos_mon_poll(struct pqos_mon_data **groups, const unsigned num_groups) {
-  return 0;
-}
-int pqos_alloc_assoc_set(const unsigned lcore, const unsigned class_id) {
-  return 0;
-}
-int pqos_alloc_assoc_get(const unsigned lcore, unsigned *class_id) { return 0; }
-int pqos_alloc_assoc_set_pid(const pid_t task, const unsigned class_id) {
-  return 0;
-}
-int pqos_alloc_assoc_get_pid(const pid_t task, unsigned *class_id) { return 0; }
-int pqos_alloc_assign(const unsigned technology, const unsigned *core_array,
-                      const unsigned core_num, unsigned *class_id) {
-  return 0;
-}
-int pqos_alloc_release(const unsigned *core_array, const unsigned core_num) {
-  return 0;
-}
-int pqos_alloc_assign_pid(const unsigned technology, const pid_t *task_array,
-                          const unsigned task_num, unsigned *class_id) {
-  return 0;
-}
-int pqos_alloc_release_pid(const pid_t *task_array, const unsigned task_num) {
-  return 0;
-}
-int pqos_init(const struct pqos_config *config) { return 0; }
-int pqos_fini(void) { return 0; }
-int pqos_cap_get_type(const struct pqos_cap *cap, const enum pqos_cap_type type,
-                      const struct pqos_capability **cap_item) {
-  return 0;
-}
-int pqos_cap_get(const struct pqos_cap **cap, const struct pqos_cpuinfo **cpu) {
-  return 0;
-}
 #endif /* LIBPQOS2 */
 
 /***************************************************************************
@@ -512,3 +462,65 @@ int main(void) {
   stub_procfs_teardown();
   END_TEST;
 }
+
+#else
+/***************************************************************************
+ * PQOS v1.2 mocks
+ */
+int pqos_mon_reset(void) { return 0; }
+int pqos_mon_assoc_get(const unsigned lcore, pqos_rmid_t *rmid) { return 0; }
+int pqos_mon_start(const unsigned num_cores, const unsigned *cores,
+                   const enum pqos_mon_event event, void *context,
+                   struct pqos_mon_data *group) {
+  return 0;
+}
+int pqos_mon_start_pid(const pid_t pids, const enum pqos_mon_event event,
+                       void *context, struct pqos_mon_data *group) {
+  return 0;
+}
+int pqos_mon_stop(struct pqos_mon_data *group) { return 0; }
+int pqos_mon_poll(struct pqos_mon_data **groups, const unsigned num_groups) {
+  return 0;
+}
+int pqos_alloc_assoc_set(const unsigned lcore, const unsigned class_id) {
+  return 0;
+}
+int pqos_alloc_assoc_get(const unsigned lcore, unsigned *class_id) { return 0; }
+int pqos_alloc_assoc_set_pid(const pid_t task, const unsigned class_id) {
+  return 0;
+}
+int pqos_alloc_assoc_get_pid(const pid_t task, unsigned *class_id) { return 0; }
+int pqos_alloc_assign(const unsigned technology, const unsigned *core_array,
+                      const unsigned core_num, unsigned *class_id) {
+  return 0;
+}
+int pqos_alloc_release(const unsigned *core_array, const unsigned core_num) {
+  return 0;
+}
+int pqos_alloc_assign_pid(const unsigned technology, const pid_t *task_array,
+                          const unsigned task_num, unsigned *class_id) {
+  return 0;
+}
+int pqos_alloc_release_pid(const pid_t *task_array, const unsigned task_num) {
+  return 0;
+}
+int pqos_init(const struct pqos_config *config) { return 0; }
+int pqos_fini(void) { return 0; }
+int pqos_cap_get_type(const struct pqos_cap *cap, const enum pqos_cap_type type,
+                      const struct pqos_capability **cap_item) {
+  return 0;
+}
+int pqos_cap_get(const struct pqos_cap **cap, const struct pqos_cpuinfo **cpu) {
+  return 0;
+}
+
+DEF_TEST(pqos12_test_stub) {
+  EXPECT_EQ_INT(0, 0);
+  return 0;
+}
+
+int main(void) {
+  RUN_TEST(pqos12_test_stub);
+  END_TEST;
+}
+#endif

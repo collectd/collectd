@@ -34,41 +34,11 @@
 
 #define RDT_PLUGIN "intel_rdt"
 
-/* PQOS API STUB
- * In future: Start monitoring for PID group. For perf grouping will be added.
- * Currently: Start monitoring only for the first PID.
- */
-__attribute__((unused)) static int
-pqos_mon_start_pids(const unsigned num_pids, const pid_t *pids,
-                    const enum pqos_mon_event event, void *context,
-                    struct pqos_mon_data *group) {
-
-  assert(num_pids > 0);
-  assert(pids);
-  return pqos_mon_start_pid(pids[0], event, context, group);
-}
-
-/* PQOS API STUB
- * In future: Add PIDs to the monitoring group. Supported for resctrl monitoring
- * only.
- * Currently: Does nothing.
- */
-__attribute__((unused)) static int
-pqos_mon_add_pids(const unsigned num_pids, const pid_t *pids, void *context,
-                  struct pqos_mon_data *group) {
-  return PQOS_RETVAL_OK;
-}
-
-/* PQOS API STUB
- * In future: Remove PIDs from the monitoring group. Supported for resctrl
- * monitoring only.
- * Currently: Does nothing.
- */
-__attribute__((unused)) static int
-pqos_mon_remove_pids(const unsigned num_pids, const pid_t *pids, void *context,
-                     struct pqos_mon_data *group) {
-  return PQOS_RETVAL_OK;
-}
+/* libpqos v2.0 or newer is required for process monitoring*/
+#undef LIBPQOS2
+#if defined(PQOS_VERSION) && PQOS_VERSION >= 20000
+#define LIBPQOS2
+#endif
 
 #define RDT_PLUGIN "intel_rdt"
 
@@ -76,6 +46,7 @@ pqos_mon_remove_pids(const unsigned num_pids, const pid_t *pids, void *context,
 #define RDT_MAX_SOCKET_CORES 64
 #define RDT_MAX_CORES (RDT_MAX_SOCKET_CORES * RDT_MAX_SOCKETS)
 
+#ifdef LIBPQOS2
 /*
  * Process name inside comm file is limited to 16 chars.
  * More info here: http://man7.org/linux/man-pages/man5/proc.5.html
@@ -84,12 +55,14 @@ pqos_mon_remove_pids(const unsigned num_pids, const pid_t *pids, void *context,
 #define RDT_MAX_NAMES_GROUPS 64
 
 #define RDT_PROC_PATH "/proc"
+#endif /* LIBPQOS2 */
 
 typedef enum {
   UNKNOWN = 0,
   CONFIGURATION_ERROR,
 } rdt_config_status;
 
+#ifdef LIBPQOS2
 /* Helper typedef for process name array
  * Extra 1 char is added for string null termination.
  */
@@ -115,14 +88,17 @@ struct rdt_name_group_s {
   enum pqos_mon_event events;
 };
 typedef struct rdt_name_group_s rdt_name_group_t;
+#endif /* LIBPQOS2 */
 
 struct rdt_ctx_s {
   core_groups_list_t cores;
   enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pcgroups[RDT_MAX_CORES];
+#ifdef LIBPQOS2
   rdt_name_group_t ngroups[RDT_MAX_NAMES_GROUPS];
   struct pqos_mon_data *pngroups[RDT_MAX_NAMES_GROUPS];
   size_t num_ngroups;
+#endif /* LIBPQOS2 */
   const struct pqos_cpuinfo *pqos_cpu;
   const struct pqos_cap *pqos_cap;
   const struct pqos_capability *cap_mon;
@@ -133,6 +109,7 @@ static rdt_ctx_t *g_rdt;
 
 static rdt_config_status g_state = UNKNOWN;
 
+#ifdef LIBPQOS2
 static int isdupstr(const char *names[], const size_t size, const char *name) {
   for (size_t i = 0; i < size; i++)
     if (strncmp(names[i], name, (size_t)RDT_MAX_NAME_LEN) == 0)
@@ -293,6 +270,7 @@ static int oconfig_to_ngroups(const oconfig_item_t *item,
 
   return index;
 }
+#endif /* LIBPQOS2 */
 
 #if COLLECT_DEBUG
 static void rdt_dump_cgroups(void) {
@@ -322,6 +300,7 @@ static void rdt_dump_cgroups(void) {
   return;
 }
 
+#ifdef LIBPQOS2
 static void rdt_dump_ngroups(void) {
 
   char names[DATA_MAX_NAME_LEN];
@@ -346,6 +325,7 @@ static void rdt_dump_ngroups(void) {
 
   return;
 }
+#endif /* LIBPQOS2 */
 
 static inline double bytes_to_kb(const double bytes) { return bytes / 1024.0; }
 
@@ -375,6 +355,7 @@ static void rdt_dump_data(void) {
           g_rdt->pcgroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
   }
 
+#ifdef LIBPQOS2
   DEBUG("  NAME     PIDs");
   char pids[DATA_MAX_NAME_LEN];
   for (size_t i = 0; i < g_rdt->num_ngroups; ++i) {
@@ -405,6 +386,7 @@ static void rdt_dump_data(void) {
     DEBUG(" [%s] %8u %10.1f %10.1f %10.1f", g_rdt->ngroups[i].desc,
           g_rdt->pngroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
   }
+#endif /* LIBPQOS2 */
 }
 #endif /* COLLECT_DEBUG */
 
@@ -415,6 +397,7 @@ static void rdt_free_cgroups(void) {
   }
 }
 
+#ifdef LIBPQOS2
 static int pids_list_free(pids_list_t *list) {
   assert(list);
 
@@ -448,6 +431,7 @@ static void rdt_free_ngroups(void) {
     sfree(g_rdt->pngroups[i]);
   }
 }
+#endif /* LIBPQOS2 */
 
 static int rdt_default_cgroups(void) {
   unsigned num_cores = g_rdt->pqos_cpu->num_cores;
@@ -495,6 +479,7 @@ static int rdt_is_core_id_valid(unsigned int core_id) {
   return 0;
 }
 
+#ifdef LIBPQOS2
 static int rdt_is_proc_name_valid(const char *name) {
 
   if (name != NULL) {
@@ -510,6 +495,7 @@ static int rdt_is_proc_name_valid(const char *name) {
 
   return 0;
 }
+#endif /* LIBPQOS2 */
 
 static int rdt_config_cgroups(oconfig_item_t *item) {
   size_t n = 0;
@@ -583,6 +569,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   return 0;
 }
 
+#ifdef LIBPQOS2
 static int rdt_config_ngroups(const oconfig_item_t *item) {
   int n = 0;
   enum pqos_mon_event events = 0;
@@ -932,6 +919,7 @@ fetch_pids_for_procs(const char *procfs_path, const char **procs_names_array,
   }
   return 0;
 }
+#endif /* LIBPQOS2 */
 
 static void rdt_pqos_log(void *context, const size_t size, const char *msg) {
   DEBUG(RDT_PLUGIN ": %s", msg);
@@ -1024,6 +1012,7 @@ static int rdt_config(oconfig_item_t *ci) {
 #endif /* COLLECT_DEBUG */
     } else if (strncasecmp("Processes", child->key,
                            (size_t)strlen("Processes")) == 0) {
+#ifdef LIBPQOS2
       if (rdt_config_ngroups(child) != 0) {
         g_state = CONFIGURATION_ERROR;
         /* if we return -1 at this point collectd
@@ -1036,6 +1025,11 @@ static int rdt_config(oconfig_item_t *ci) {
 #if COLLECT_DEBUG
       rdt_dump_ngroups();
 #endif /* COLLECT_DEBUG */
+#else  /* !LIBPQOS2 */
+      ERROR(RDT_PLUGIN ": Configuration parameter \"%s\" not supported, please "
+                       "recompile collectd with libpqos version 2.0 or newer.",
+            child->key);
+#endif /* LIBPQOS2 */
     } else {
       ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
     }
@@ -1076,6 +1070,7 @@ static void rdt_submit_gauge(const char *cgroup, const char *type,
   plugin_dispatch_values(&vl);
 }
 
+#ifdef LIBPQOS2
 static int rdt_pid_list_diff(pids_list_t *prev, pids_list_t *curr,
                              pids_list_t **added, size_t *added_num,
                              pids_list_t **removed, size_t *removed_num) {
@@ -1175,6 +1170,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup) {
 
   return 0;
 }
+#endif /* LIBPQOS2 */
 
 static int rdt_read(__attribute__((unused)) user_data_t *ud) {
   int ret;
@@ -1190,8 +1186,10 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
     return -1;
   }
 
+#ifdef LIBPQOS2
   for (size_t i = 0; i < g_rdt->num_ngroups; i++)
     rdt_refresh_ngroup(&g_rdt->ngroups[i]);
+#endif /* LIBPQOS2 */
 
 #if COLLECT_DEBUG
   rdt_dump_data();
