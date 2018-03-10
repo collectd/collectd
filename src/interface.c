@@ -91,6 +91,9 @@ static ignorelist_t *ignorelist = NULL;
 static _Bool report_inactive = 1;
 
 #ifdef HAVE_LIBKSTAT
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 #define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];

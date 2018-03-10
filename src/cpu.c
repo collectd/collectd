@@ -134,6 +134,9 @@ static mach_msg_type_number_t cpu_list_len;
 /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so
  * CPUs.. */
 #define MAX_NUMCPU 256

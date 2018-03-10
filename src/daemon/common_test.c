@@ -27,6 +27,10 @@
 #include "common.h"
 #include "testing.h"
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
 #endif /* HAVE_LIBKSTAT */

@@ -60,6 +60,10 @@
 #include <sys/capability.h>
 #endif
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
