@@ -158,7 +158,13 @@ TESTS = $(check_PROGRAMS)
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_srcdir)/testwrapper.sh
 
 
-jardir = $(pkgdatadir)/java
+if BUILD_WIN32
+packagedatadir=$(prefix)
+else
+packagedatadir=$(pkgdatadir)
+endif
+
+jardir = $(packagedatadir)/java
 
 pkglib_LTLIBRARIES =
 
@@ -171,6 +177,16 @@ if BUILD_WIN32
 PLUGIN_LDFLAGS += -shared -no-undefined
 endif
 
+if BUILD_WIN32
+AM_CPPFLAGS = \
+	-I$(top_srcdir)/src -I$(top_srcdir)/src/daemon \
+	-DPREFIX='"${prefix}"' \
+	-DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"' \
+	-DLOCALSTATEDIR='"${localstatedir}"' \
+	-DPKGLOCALSTATEDIR='"${localstatedir}"' \
+	-DPLUGINDIR='"${prefix}/plugins"' \
+	-DPKGDATADIR='"${packagedatadir}"'
+else
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/src -I$(top_srcdir)/src/daemon \
 	-DPREFIX='"${prefix}"' \
@@ -178,8 +194,9 @@ AM_CPPFLAGS = \
 	-DLOCALSTATEDIR='"${localstatedir}"' \
 	-DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"' \
 	-DPLUGINDIR='"${pkglibdir}"' \
-	-DPKGDATADIR='"${pkgdatadir}"'
-
+	-DPKGDATADIR='"${packagedatadir}"'
+endif
+	
 COMMON_LDFLAGS =
 if BUILD_WIN32
 COMMON_LDFLAGS += -no-undefined -shared
@@ -248,7 +265,7 @@ libcollectd_la_LIBADD = \
 	libheap.la \
 	liboconfig.la \
 	-lm \
-        -ldl \
+	-ldl \
 	$(COMMON_LIBS) \
 	$(DLOPEN_LIBS)
 
@@ -2073,19 +2090,19 @@ install-exec-hook:
 	else \
 		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf "$(DESTDIR)$(sysconfdir)/collectd.conf"; \
 	fi; \
-	$(mkinstalldirs) "$(DESTDIR)$(pkgdatadir)"
-	$(INSTALL) -m 0644 $(srcdir)/src/types.db "$(DESTDIR)$(pkgdatadir)/types.db";
+	$(mkinstalldirs) "$(DESTDIR)$(packagedatadir)"
+	$(INSTALL) -m 0644 $(srcdir)/src/types.db "$(DESTDIR)$(packagedatadir)/types.db";
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
-		"$(DESTDIR)$(pkgdatadir)/postgresql_default.conf";
+		"$(DESTDIR)$(packagedatadir)/postgresql_default.conf";
 if BUILD_WIN32
 	$(mkinstalldirs) "$(DESTDIR)$(sbindir)"
 	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll "$(DESTDIR)$(sbindir)/libuuid.dll"
 endif
 
 uninstall-hook:
-	rm -f "$(DESTDIR)$(pkgdatadir)/types.db";
+	rm -f "$(DESTDIR)$(packagedatadir)/types.db";
 	rm -f "$(DESTDIR)$(sysconfdir)/collectd.conf"
-	rm -f "$(DESTDIR)$(pkgdatadir)/postgresql_default.conf";
+	rm -f "$(DESTDIR)$(packagedatadir)/postgresql_default.conf";
 
 check_PROGRAMS = test_utils_mount test_utils_vl_lookup
 

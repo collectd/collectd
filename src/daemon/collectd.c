@@ -25,10 +25,6 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
-#ifdef WIN32
-#undef COLLECT_DAEMON
-#endif
-
 #include "collectd.h"
 
 #include "common.h"
@@ -43,6 +39,7 @@
 #ifndef WIN32
 #include <sys/un.h>
 #else
+#undef COLLECT_DAEMON
 #undef gethostname
 #include <Winsock2.h>
 #include <fcntl.h>
@@ -129,6 +126,7 @@ static int init_hostname(void) {
     return -1;
   }
 
+  INFO("hostname: %s", hostname);
   hostname_set(hostname);
 
   str = global_option_get("FQDNLookup");
@@ -587,12 +585,20 @@ int configure_collectd(struct cmdline_config *config) {
 
 #ifdef WIN32
 int main_func(int argc, char **argv) {
+  WORD wVersionRequested = MAKEWORD(2, 2);
+  WSADATA wsaData;
+  int err = WSAStartup(wVersionRequested, &wsaData);
+  if (err != 0) {
+    ERROR("WSAStartup failed with error: %d\n", err);
+    return 1;
+  }
 #else
 int main(int argc, char **argv) {
 #endif
 #if COLLECT_DAEMON
   pid_t pid;
 #endif
+
   int exit_status = 0;
 
   struct cmdline_config config = {

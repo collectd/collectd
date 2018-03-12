@@ -66,7 +66,7 @@ build_windows ()
 	#check_for_application mingw64-x86_64-gcc-core git automake make flex bison pkg-config mingw64-x86_64-zlib wget mingw64-x86_64-dlfcn
 
 	export CC=/usr/bin/x86_64-w64-mingw32-gcc.exe
-	: ${INSTALL_DIR:="C:/opt"}
+	: ${INSTALL_DIR:="C:/PROGRA~1/collectd"}
 	echo "Installing collectd to ${INSTALL_DIR}."
 
 	TOP_SRCDIR=`pwd`
@@ -167,7 +167,16 @@ build_windows ()
 	export CFLAGS="-Drestrict=__restrict -I${GNULIB_DIR}"
 
 	#./configure --datarootdir="${INSTALL_DIR}" --disable-all-plugins \
-	./configure --prefix="${INSTALL_DIR}" --disable-all-plugins \
+	
+	./configure \
+	  --prefix="${INSTALL_DIR}" \
+	  --libdir="${INSTALL_DIR}" \
+	  --bindir="${INSTALL_DIR}" \
+	  --sbindir="${INSTALL_DIR}" \
+	  --sysconfdir="${INSTALL_DIR}" \
+	  --localstatedir="${INSTALL_DIR}" \
+	  --datarootdir="${INSTALL_DIR}" \
+	  --disable-all-plugins \
 	  --host="mingw32" \
 	  --with-libcurl="${LIBCURL_DIR}" \
 	  --enable-logfile \
@@ -187,20 +196,20 @@ build_windows ()
 	cp libtool libtool_bak
 	sed -i "s%\$LTCC \$LTCFLAGS\(.*cwrapper.*\)%\$LTCC \1%" libtool
 
-	make #datadir="."
+	make
 	make install
 
-	cp "${INSTALL_DIR}"/bin/*.dll "${INSTALL_DIR}/sbin"
-	cp .libs/*.dll "${INSTALL_DIR}/lib/collectd"
-	cp "${GNULIB_DIR}/libgnu.dll" "${LIBTOOL_DIR}/bin/libltdl-7.dll" "${LIBCURL_DIR}/bin/libcurl-4.dll" "${INSTALL_DIR}/sbin"
-	cp "${MINGW_ROOT}"/bin/{zlib1.dll,libwinpthread-1.dll,libdl.dll} "${INSTALL_DIR}/sbin"
-	cp "${INSTALL_DIR}"/sbin/*.dll "${INSTALL_DIR}/lib/collectd"
-	cp "collectd.conf" "$INSTALL_DIR/etc"
-
-	#DEST_DIR="C:/Program Files/collectd"
-	#mkdir -p "${DEST_DIR}"
-	#cp -r "${INSTALL_DIR}"/* "${DEST_DIR}"
-
+	mkdir "${INSTALL_DIR}/plugins"
+	mv "${INSTALL_DIR}/libuuid.dll" "${INSTALL_DIR}/plugins"
+	mv "${INSTALL_DIR}/collectd"/*.dll "${INSTALL_DIR}/plugins"
+	rm -rf "${INSTALL_DIR}/collectd"
+	cp ".libs/libcollectd-0.dll" "${INSTALL_DIR}"
+	cp "${GNULIB_DIR}/libgnu.dll" "${INSTALL_DIR}"
+	cp "${LIBTOOL_DIR}/bin/libltdl-7.dll" "${INSTALL_DIR}"
+	cp "${LIBCURL_DIR}/bin/libcurl-4.dll" "${INSTALL_DIR}"
+	cp "${MINGW_ROOT}"/bin/{zlib1.dll,libwinpthread-1.dll,libdl.dll} "${INSTALL_DIR}"
+	#cp "collectd.conf" "${INSTALL_DIR}"
+	
 	echo "Done"
 }
 
