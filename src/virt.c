@@ -1892,7 +1892,7 @@ static int persistent_domains_state_notification(void) {
 #ifdef HAVE_LIST_ALL_DOMAINS
   virDomainPtr *domains;
   n = virConnectListAllDomains(conn, &domains,
-                               VIR_CONNECT_GET_ALL_DOMAINS_STATS_PERSISTENT);
+                               VIR_CONNECT_LIST_DOMAINS_PERSISTENT);
   if (n < 0) {
     VIRT_ERROR(conn, "reading list of persistent domains");
     status = -1;
