@@ -9246,6 +9246,10 @@ considered the time of the update. The result is that there appear more
 datapoints in I<Prometheus> than were actually created, but at least the metric
 doesn't disappear periodically.
 
+=item B<Label> I<Key> I<Value>
+
+Add a custom label to all metrics. It can be used multiple times.
+
 =back
 
 =head2 Plugin C<write_http>

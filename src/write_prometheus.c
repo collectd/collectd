@@ -59,6 +59,69 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
+struct label_map_s {
+  char value[DATA_MAX_NAME_LEN];
+};
+typedef struct label_map_s label_map_t;
+
+static c_avl_tree_t *label_map = NULL;
+
+static int prom_add_label(const oconfig_item_t *ci) /* {{{ */
+{
+  label_map_t *map;
+  int status;
+  char *key;
+
+  if ((ci->values_num < 2) || (ci->values_num > 3) ||
+      (ci->values[0].type != OCONFIG_TYPE_STRING) ||
+      (ci->values[1].type != OCONFIG_TYPE_STRING)) {
+    ERROR("write_prometheus: The %s option requires "
+          "two string arguments.",
+          ci->key);
+    return -1;
+  }
+
+  key = strdup(ci->values[0].value.string);
+  if (key == NULL) {
+    ERROR("write_prometheus plugin: strdup(3) failed.");
+    return ENOMEM;
+  }
+
+  map = calloc(1, sizeof(*map));
+  if (map == NULL) {
+    sfree(key);
+    ERROR("write_prometheus plugin: calloc failed.");
+    return ENOMEM;
+  }
+
+  sstrncpy(map->value, ci->values[1].value.string, sizeof(map->value));
+  if (label_map == NULL) {
+    label_map = c_avl_create((int (*)(const void *, const void *))strcmp);
+    if (label_map == NULL) {
+      sfree(map);
+      sfree(key);
+      ERROR("write_prometheus plugin: c_avl_create() failed.");
+      return -1;
+    }
+  }
+
+  status = c_avl_insert(label_map,
+                        /* key = */ key,
+                        /* value = */ map);
+
+  if (status != 0) {
+    if (status > 0)
+      ERROR("write_prometheus plugin: Multiple mappings for \"%s\".", key);
+    else
+      ERROR("write_prometheus plugin: c_avl_insert(\"%s\") failed.", key);
+
+    sfree(map);
+    sfree(key);
+    return -1;
+  }
+  return 0;
+} /* }}} prom_add_label */
+
 /* Unfortunately, protoc-c doesn't export it's implementation of varint, so we
  * need to implement our own. */
 static size_t varint(uint8_t buffer[static VARINT_UINT32_BYTES],
@@ -154,10 +217,12 @@ static char *format_labels(char *buffer, size_t buffer_size,
 #define LABEL_VALUE_SIZE (2 * DATA_MAX_NAME_LEN - 1)
 #define LABEL_BUFFER_SIZE (LABEL_KEY_SIZE + LABEL_VALUE_SIZE + 4)
 
-  char *labels[3] = {
-      (char[LABEL_BUFFER_SIZE]){0}, (char[LABEL_BUFFER_SIZE]){0},
-      (char[LABEL_BUFFER_SIZE]){0},
-  };
+  int labels_len = m->n_label + c_avl_size(label_map);
+
+  char *labels[labels_len];
+  for (int i = 0; i < labels_len; i++) {
+    labels[i] = calloc(LABEL_BUFFER_SIZE, sizeof(char));
+  }
 
   /* N.B.: the label *names* are hard-coded by this plugin and therefore we
    * know that they are sane. */
@@ -167,7 +232,23 @@ static char *format_labels(char *buffer, size_t buffer_size,
              escape_label_value(value, sizeof(value), m->label[i]->value));
   }
 
-  strjoin(buffer, buffer_size, labels, m->n_label, ",");
+  /* Add custom labels */
+  char *key;
+  label_map_t *map = NULL;
+
+  c_avl_iterator_t *iter = c_avl_get_iterator(label_map);
+  int i = 0;
+  while (c_avl_iterator_next(iter, (void *)&key, (void *)&map) == 0) {
+    snprintf(labels[m->n_label + i], LABEL_BUFFER_SIZE, "%s=\"%s\"", key,
+             map->value);
+    i++;
+  }
+
+  strjoin(buffer, buffer_size, labels, labels_len, ",");
+  for (int i = 0; i < labels_len; i++) {
+    free(labels[i]);
+  }
+  free(iter);
   return buffer;
 }
 
@@ -180,7 +261,7 @@ static void format_text(ProtobufCBuffer *buffer) {
   Io__Prometheus__Client__MetricFamily *fam;
   c_avl_iterator_t *iter = c_avl_get_iterator(metrics);
   while (c_avl_iterator_next(iter, (void *)&unused_name, (void *)&fam) == 0) {
-    char line[1024]; /* 4x DATA_MAX_NAME_LEN? */
+    char line[(4 + c_avl_size(label_map)) * DATA_MAX_NAME_LEN];
 
     snprintf(line, sizeof(line), "# HELP %s %s\n", fam->name, fam->help);
     buffer->append(buffer, strlen(line), (uint8_t *)line);
@@ -194,7 +275,7 @@ static void format_text(ProtobufCBuffer *buffer) {
     for (size_t i = 0; i < fam->n_metric; i++) {
       Io__Prometheus__Client__Metric *m = fam->metric[i];
 
-      char labels[1024];
+      char labels[(4 + c_avl_size(label_map)) * DATA_MAX_NAME_LEN];
 
       char timestamp_ms[24] = "";
       if (m->has_timestamp_ms)
@@ -848,6 +929,8 @@ static int prom_config(oconfig_item_t *ci) {
         httpd_port = (unsigned short)status;
     } else if (strcasecmp("StalenessDelta", child->key) == 0) {
       cf_util_get_cdtime(child, &staleness_delta);
+    } else if (strcasecmp("Label", child->key) == 0) {
+      prom_add_label(child);
     } else {
       WARNING("write_prometheus plugin: Ignoring unknown configuration option "
               "\"%s\".",
