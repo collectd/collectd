@@ -290,7 +290,7 @@ static int ni_notify(const notification_t *n, /* {{{ */
     headers = curl_slist_append(headers, "charsets: utf-8");
     curl_easy_setopt(curl, CURLOPT_URL, url_buf);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (char*) json_buf);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (char *)json_buf);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "collectd-notify-icinga/0.1");
     res = curl_easy_perform(curl);
     INFO("notify_icinga: curl: %d", res);
