@@ -144,6 +144,14 @@ static int strlisttoarray(char *str_list, char ***names, size_t *names_num) {
   if (str_list == NULL || names == NULL)
     return -EINVAL;
 
+  if (strstr(str_list, ",,")) {
+    /* strtok ignores empty words between separators.
+     * This condition handles that by rejecting strings
+     * with consecutive seprators */
+    ERROR(RDT_PLUGIN ": Empty process name");
+    return -EINVAL;
+  }
+
   for (;;) {
     char *token = strtok_r(str_list, ",", &saveptr);
     if (token == NULL)
@@ -157,11 +165,16 @@ static int strlisttoarray(char *str_list, char ***names, size_t *names_num) {
     if (*token == '\0')
       continue;
 
-    if (!(isdupstr((const char **)*names, *names_num, token)))
+    if ((isdupstr((const char **)*names, *names_num, token))) {
+      ERROR(RDT_PLUGIN ": Duplicated process name \'%s\' in group \'%s\'",
+            token, str_list);
+      return -EINVAL;
+    } else {
       if (0 != strarray_add(names, names_num, token)) {
         ERROR(RDT_PLUGIN ": Error allocating process name string");
         return -ENOMEM;
       }
+    }
   }
 
   return 0;
@@ -242,8 +255,10 @@ static int oconfig_to_ngroups(const oconfig_item_t *item,
     char value[DATA_MAX_NAME_LEN];
 
     if ((item->values[j].value.string == NULL) ||
-        (strlen(item->values[j].value.string) == 0))
-      continue;
+        (strlen(item->values[j].value.string) == 0)) {
+      ERROR(RDT_PLUGIN ": Error - empty group");
+      return -EINVAL;
+    }
 
     sstrncpy(value, item->values[j].value.string, sizeof(value));
 
@@ -440,26 +455,27 @@ static int pids_list_free(pids_list_t *list) {
   return 0;
 }
 
-static void rdt_free_ngroups(void) {
+static void rdt_free_ngroups(rdt_ctx_t *rdt) {
   for (int i = 0; i < RDT_MAX_NAMES_GROUPS; i++) {
-    if (g_rdt->ngroups[i].desc)
+    if (rdt->ngroups[i].desc)
       DEBUG(RDT_PLUGIN ": Freeing pids \'%s\' group\'s data...",
-            g_rdt->ngroups[i].desc);
-    sfree(g_rdt->ngroups[i].desc);
-    strarray_free(g_rdt->ngroups[i].names, g_rdt->ngroups[i].num_names);
+            rdt->ngroups[i].desc);
+    sfree(rdt->ngroups[i].desc);
 
-    if (g_rdt->ngroups[i].proc_pids_array) {
-      for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
-        if (NULL == g_rdt->ngroups[i].proc_pids_array[j].pids)
+    strarray_free(rdt->ngroups[i].names, rdt->ngroups[i].num_names);
+
+    if (rdt->ngroups[i].proc_pids_array) {
+      for (size_t j = 0; j < rdt->ngroups[i].num_names; ++j) {
+        if (NULL == rdt->ngroups[i].proc_pids_array[j].pids)
           continue;
-        pids_list_free(g_rdt->ngroups[i].proc_pids_array[j].pids);
+        pids_list_free(rdt->ngroups[i].proc_pids_array[j].pids);
       }
 
-      sfree(g_rdt->ngroups[i].proc_pids_array);
+      sfree(rdt->ngroups[i].proc_pids_array);
     }
 
-    g_rdt->ngroups[i].num_names = 0;
-    sfree(g_rdt->pngroups[i]);
+    rdt->ngroups[i].num_names = 0;
+    sfree(rdt->pngroups[i]);
   }
 }
 #endif /* LIBPQOS2 */
@@ -601,7 +617,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
 }
 
 #ifdef LIBPQOS2
-static int rdt_config_ngroups(const oconfig_item_t *item) {
+static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
   int n = 0;
   enum pqos_mon_event events = 0;
 
@@ -621,22 +637,26 @@ static int rdt_config_ngroups(const oconfig_item_t *item) {
     DEBUG(RDT_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
   }
 
-  n = oconfig_to_ngroups(item, g_rdt->ngroups, RDT_MAX_NAMES_GROUPS);
+  n = oconfig_to_ngroups(item, rdt->ngroups, RDT_MAX_NAMES_GROUPS);
   if (n < 0) {
-    rdt_free_ngroups();
+    rdt_free_ngroups(rdt);
     ERROR(RDT_PLUGIN ": Error parsing process name groups configuration.");
     return -EINVAL;
   }
 
   /* validate configured process name values */
   for (int group_idx = 0; group_idx < n; group_idx++) {
-    for (size_t name_idx = 0; name_idx < g_rdt->ngroups[group_idx].num_names;
+    DEBUG(RDT_PLUGIN ":  checking group [%d]: %s", group_idx,
+          rdt->ngroups[group_idx].desc);
+    for (size_t name_idx = 0; name_idx < rdt->ngroups[group_idx].num_names;
          name_idx++) {
-      if (!rdt_is_proc_name_valid(g_rdt->ngroups[group_idx].names[name_idx])) {
+      DEBUG(RDT_PLUGIN ":    checking process name [%zu]: %s", name_idx,
+            rdt->ngroups[group_idx].names[name_idx]);
+      if (!rdt_is_proc_name_valid(rdt->ngroups[group_idx].names[name_idx])) {
         ERROR(RDT_PLUGIN ": Process name group '%s' contains invalid name '%s'",
-              g_rdt->ngroups[group_idx].desc,
-              g_rdt->ngroups[group_idx].names[name_idx]);
-        rdt_free_ngroups();
+              rdt->ngroups[group_idx].desc,
+              rdt->ngroups[group_idx].names[name_idx]);
+        rdt_free_ngroups(rdt);
         return -EINVAL;
       }
     }
@@ -648,29 +668,29 @@ static int rdt_config_ngroups(const oconfig_item_t *item) {
   }
 
   /* Get all available events on this platform */
-  for (unsigned i = 0; i < g_rdt->cap_mon->u.mon->num_events; i++)
-    events |= g_rdt->cap_mon->u.mon->events[i].type;
+  for (unsigned i = 0; i < rdt->cap_mon->u.mon->num_events; i++)
+    events |= rdt->cap_mon->u.mon->events[i].type;
 
   events &= ~(PQOS_PERF_EVENT_LLC_MISS);
 
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
-  g_rdt->num_ngroups = n;
+  rdt->num_ngroups = n;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < i; j++) {
-      int found = ngroup_cmp(&g_rdt->ngroups[j], &g_rdt->ngroups[i]);
+      int found = ngroup_cmp(&rdt->ngroups[j], &rdt->ngroups[i]);
       if (found != 0) {
-        rdt_free_ngroups();
+        rdt_free_ngroups(rdt);
         ERROR(RDT_PLUGIN
               ": Cannot monitor same process name in different groups.");
         return -EINVAL;
       }
     }
 
-    g_rdt->ngroups[i].events = events;
-    g_rdt->pngroups[i] = calloc(1, sizeof(*g_rdt->pngroups[i]));
-    if (g_rdt->pngroups[i] == NULL) {
-      rdt_free_ngroups();
+    rdt->ngroups[i].events = events;
+    rdt->pngroups[i] = calloc(1, sizeof(*rdt->pngroups[i]));
+    if (rdt->pngroups[i] == NULL) {
+      rdt_free_ngroups(rdt);
       ERROR(RDT_PLUGIN
             ": Failed to allocate memory for process name monitoring data.");
       return -ENOMEM;
@@ -1136,7 +1156,7 @@ static int rdt_config(oconfig_item_t *ci) {
         return 0;
       }
 
-      if (rdt_config_ngroups(child) != 0) {
+      if (rdt_config_ngroups(g_rdt, child) != 0) {
         g_state = CONFIGURATION_ERROR;
         /* if we return -1 at this point collectd
            reports a failure in configuration and
@@ -1658,7 +1678,7 @@ static int rdt_shutdown(void) {
 
   rdt_free_cgroups();
 #ifdef LIBPQOS2
-  rdt_free_ngroups();
+  rdt_free_ngroups(g_rdt);
 #endif /* LIBPQOS2 */
   sfree(g_rdt);
 
