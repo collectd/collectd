@@ -1990,13 +1990,6 @@ static int lv_read(user_data_t *ud) {
   /* Need to refresh domain or device lists? */
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
-    if (inst->id == 0 && persistent_notification) {
-      int status = persistent_domains_state_notification();
-      if (status != 0)
-        DEBUG(PLUGIN_NAME " plugin: persistent_domains_state_notifications "
-                          "returned with status %i",
-              status);
-    }
     if (refresh_lists(inst) != 0) {
       if (inst->id == 0) {
         if (!persistent_notification)
@@ -2006,6 +1999,15 @@ static int lv_read(user_data_t *ud) {
       return -1;
     }
     last_refresh = t;
+  }
+
+  /* persistent domains state notifications are handled by instance 0 */
+  if (inst->id == 0 && persistent_notification) {
+    int status = persistent_domains_state_notification();
+    if (status != 0)
+      DEBUG(PLUGIN_NAME " plugin: persistent_domains_state_notifications "
+                        "returned with status %i",
+            status);
   }
 
 #if COLLECT_DEBUG
