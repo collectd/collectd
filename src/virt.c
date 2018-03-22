@@ -1890,7 +1890,7 @@ static int persistent_domains_state_notification(void) {
   int status = 0;
   int n;
 #ifdef HAVE_LIST_ALL_DOMAINS
-  virDomainPtr *domains;
+  virDomainPtr *domains = NULL;
   n = virConnectListAllDomains(conn, &domains,
                                VIR_CONNECT_LIST_DOMAINS_PERSISTENT);
   if (n < 0) {
@@ -1907,6 +1907,7 @@ static int persistent_domains_state_notification(void) {
         ERROR(PLUGIN_NAME " plugin: could not notify state of domain %s",
               virDomainGetName(domains[i]));
       }
+      virDomainFree(domains[i]);
     }
 
     sfree(domains);
@@ -2256,6 +2257,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
 #ifndef HAVE_LIST_ALL_DOMAINS
     sfree(domids);
 #else
+    for (int i = 0; i < m; ++i)
+      virDomainFree(domains_inactive[i]);
     sfree(domains_inactive);
 #endif
     return -1;
@@ -2432,7 +2435,11 @@ static int refresh_lists(struct lv_read_instance *inst) {
   }
 
 #ifdef HAVE_LIST_ALL_DOMAINS
+  for (int i = 0; i < n; ++i)
+    virDomainFree(domains[i]);
   sfree(domains);
+  for (int i = 0; i < m; ++i)
+    virDomainFree(domains_inactive[i]);
   sfree(domains_inactive);
 #else
   sfree(domids);

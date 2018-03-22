@@ -25,7 +25,8 @@
 #include "testing.h"
 #include "virt.c" /* sic */
 
-virDomainPtr *domains;
+static virDomainPtr *domains = NULL;
+static int nr_domains = 0;
 
 static int setup(void) {
   if (virInitialize() != 0) {
@@ -43,7 +44,12 @@ static int setup(void) {
 }
 
 static int teardown(void) {
-  sfree(domains);
+  if (domains) {
+    for (int i = 0; i < nr_domains; ++i)
+      virDomainFree(domains[i]);
+    sfree(domains);
+  }
+  nr_domains = 0;
   if (conn != NULL)
     virConnectClose(conn);
 
@@ -53,10 +59,10 @@ static int teardown(void) {
 #ifdef HAVE_LIST_ALL_DOMAINS
 DEF_TEST(get_domain_state_notify) {
   if (setup() == 0) {
-    int n_domains = virConnectListAllDomains(
+    nr_domains = virConnectListAllDomains(
         conn, &domains, VIR_CONNECT_GET_ALL_DOMAINS_STATS_PERSISTENT);
-    if (n_domains <= 0) {
-      printf("ERROR: virConnectListAllDomains: n_domains <= 0\n");
+    if (nr_domains <= 0) {
+      printf("ERROR: virConnectListAllDomains: nr_domains <= 0\n");
       return -1;
     }
 
