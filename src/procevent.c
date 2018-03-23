@@ -803,7 +803,7 @@ static int read_event() {
   // in the ring buffer for consumption by the main polling thread.
 
   if (proc_status != -1) {
-    pthread_mutex_unlock(&procevent_lock);
+    pthread_mutex_lock(&procevent_lock);
 
     int next = ring.head + 1;
     if (next >= ring.maxLen)
