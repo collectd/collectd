@@ -49,9 +49,17 @@ static int set_option(value_list_t *vl, const char *key, const char *value) {
 
     if ((errno == 0) && (endptr != NULL) && (endptr != value) && (tmp > 0.0))
       vl->interval = DOUBLE_TO_CDTIME_T(tmp);
-  } else
+  } else if (strncasecmp("meta:", key, 5) == 0) {
+    if (vl->meta == NULL) {
+      vl->meta = meta_data_create();
+      if (vl->meta == NULL) {
+        return 1;
+      }
+    }
+    return meta_data_add_string(vl->meta, key + 5, value);
+  } else {
     return 1;
-
+  }
   return 0;
 } /* int set_option */
 
