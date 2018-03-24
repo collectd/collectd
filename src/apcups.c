@@ -381,9 +381,6 @@ static int apcups_config(oconfig_item_t *ci) {
 
 static void apc_submit_generic(const char *type, const char *type_inst,
                                gauge_t value) {
-  if (isnan(value))
-    return;
-
   value_list_t vl = VALUE_LIST_INIT;
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
