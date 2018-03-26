@@ -1919,9 +1919,9 @@ static int persistent_domains_state_notification(void) {
   if (n > 0) {
     int *domids;
     /* Get list of domains. */
-    domids = malloc(sizeof(*domids) * n);
+    domids = calloc(n, sizeof(*domids));
     if (domids == NULL) {
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+      ERROR(PLUGIN_NAME " plugin: calloc failed.");
       return -1;
     }
     n = virConnectListDomains(conn, domids, n);
@@ -2245,9 +2245,9 @@ static int refresh_lists(struct lv_read_instance *inst) {
   int *domids;
 
   /* Get list of domains. */
-  domids = malloc(sizeof(*domids) * n);
+  domids = calloc(n, sizeof(*domids));
   if (domids == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
   }
 
