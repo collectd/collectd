@@ -105,6 +105,8 @@ struct mb_data_s /* {{{ */
   mb_mreg_type_t modbus_register_type;
   char type[DATA_MAX_NAME_LEN];
   char instance[DATA_MAX_NAME_LEN];
+  double scale;
+  double shift;
 
   mb_data_t *next;
 }; /* }}} */
@@ -395,13 +397,13 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
 #define CAST_TO_VALUE_T(ds, vt, raw)                                           \
   do {                                                                         \
     if ((ds)->ds[0].type == DS_TYPE_COUNTER)                                   \
-      (vt).counter = (counter_t)(raw);                                         \
+      (vt).counter = (((counter_t)(raw) * ds[0].scale) + ds[0].shift);         \
     else if ((ds)->ds[0].type == DS_TYPE_GAUGE)                                \
-      (vt).gauge = (gauge_t)(raw);                                             \
+      (vt).gauge = (((gauge_t)(raw) * ds[0].scale) + ds[0].shift);             \
     else if ((ds)->ds[0].type == DS_TYPE_DERIVE)                               \
-      (vt).derive = (derive_t)(raw);                                           \
+      (vt).derive = (((derive_t)(raw) * ds[0].scale) + ds[0].shift);           \
     else /* if (ds->ds[0].type == DS_TYPE_ABSOLUTE) */                         \
-      (vt).absolute = (absolute_t)(raw);                                       \
+      (vt).absolute = (((absolute_t)(raw) * ds[0].scale) + ds[0].shift);       \
   } while (0)
 
 static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
@@ -723,6 +725,8 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
   data.name = NULL;
   data.register_type = REG_TYPE_UINT16;
   data.next = NULL;
+  data.scale = 1;
+  data.shift = 0;
 
   status = cf_util_get_string(ci, &data.name);
   if (status != 0)
@@ -736,6 +740,12 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Instance", child->key) == 0)
       status = cf_util_get_string_buffer(child, data.instance,
                                          sizeof(data.instance));
+    else if (strcasecmp("Scale", child->key) == 0)
+      status = cf_util_get_string_buffer(child, data.scale, 
+                                         sizeof(data.scale));
+    else if (strcasecmp("Shift", child->key) == 0)
+      status = cf_util_get_string_buffer(child, data.shift, 
+                                         sizeof(data.shift));
     else if (strcasecmp("RegisterBase", child->key) == 0)
       status = cf_util_get_int(child, &data.register_base);
     else if (strcasecmp("RegisterType", child->key) == 0) {

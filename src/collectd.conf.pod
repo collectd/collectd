@@ -4158,6 +4158,16 @@ supported.
 Sets the type instance to use when dispatching the value to I<collectd>. If
 unset, an empty string (no type instance) is used.
 
+=item B<Scale> I<Value>
+
+The values taken from collectd are multiplied by I<Value>. The field is optional
+and the default is B<1.0>.
+
+=item B<Shift> I<Value>
+
+I<Value> is added to values from collectd after they have been multiplied by
+B<Scale> value. The field is optional and the default value is B<0.0>.
+
 =back
 
 =item E<lt>B<Host> I<Name>E<gt> blocks
