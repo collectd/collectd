@@ -445,9 +445,13 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     return -1;
   }
 
-  // -1 means default timeout, 1000ms
-  // second argument is unused, set to 1 for future compatibility
-  status = mosquitto_loop(conf->mosq, -1, 1);
+  #if LIBMOSQUITTO_MAJOR == 0
+    status = mosquitto_loop(conf->mosq, /* timeout = */ 1000 /* ms */);
+  #else
+    status = mosquitto_loop(conf->mosq,
+                            /* timeout[ms] = */ 1000,
+                            /* max_packets = */ 1);
+  #endif
 
   if (status != MOSQ_ERR_SUCCESS) {
     c_complain(LOG_ERR, &conf->complaint_cantpublish,
