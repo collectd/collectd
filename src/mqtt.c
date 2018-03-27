@@ -445,6 +445,26 @@ static int publish(mqtt_client_conf_t *conf, char const *topic,
     return -1;
   }
 
+  // -1 means default timeout, 1000ms
+  // second argument is unused, set to 1 for future compatibility
+  status = mosquitto_loop(conf->mosq, -1, 1);
+
+  if (status != MOSQ_ERR_SUCCESS) {
+    c_complain(LOG_ERR, &conf->complaint_cantpublish,
+               "mqtt plugin: mosquitto_loop failed: %s",
+               (status == MOSQ_ERR_ERRNO)
+                   ? STRERRNO
+                   : mosquitto_strerror(status));
+    /* Mark our connection "down" regardless of the error as a safety
+     * measure; we will try to reconnect the next time we have to publish a
+     * message */
+    conf->connected = 0;
+    mosquitto_disconnect(conf->mosq);
+
+    pthread_mutex_unlock(&conf->lock);
+    return -1;
+  }
+
   pthread_mutex_unlock(&conf->lock);
   return 0;
 } /* int publish */
