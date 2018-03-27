@@ -397,13 +397,13 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
 #define CAST_TO_VALUE_T(ds, vt, raw, scale, shift)                             \
   do {                                                                         \
     if ((ds)->ds[0].type == DS_TYPE_COUNTER)                                   \
-      (vt).counter = (((counter_t)(raw) * scale) + shift);                     \
+      (vt).counter = (((counter_t)(raw)*scale) + shift);                       \
     else if ((ds)->ds[0].type == DS_TYPE_GAUGE)                                \
-      (vt).gauge = (((gauge_t)(raw) * scale) + shift);                         \
+      (vt).gauge = (((gauge_t)(raw)*scale) + shift);                           \
     else if ((ds)->ds[0].type == DS_TYPE_DERIVE)                               \
-      (vt).derive = (((derive_t)(raw) * scale) + shift);                       \
+      (vt).derive = (((derive_t)(raw)*scale) + shift);                         \
     else /* if (ds->ds[0].type == DS_TYPE_ABSOLUTE) */                         \
-      (vt).absolute = (((absolute_t)(raw) * scale) + shift);                   \
+      (vt).absolute = (((absolute_t)(raw)*scale) + shift);                     \
   } while (0)
 
 static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
