@@ -987,7 +987,7 @@ static int procevent_init(void) /* {{{ */
     return (-1);
   }
 
-  if (processlist_head == NULL) {
+  if (ignorelist == NULL) {
     NOTICE("procevent plugin: No processes have been configured.");
     return (-1);
   }
