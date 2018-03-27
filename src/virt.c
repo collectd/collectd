@@ -1941,14 +1941,15 @@ static int persistent_domains_state_notification(void) {
         continue;
       }
       status = virDomainGetInfo(dom, &info);
-      if (status != 0) {
+      if (status == 0)
+        /* virDomainGetState is not available. Submit 0, which corresponds to
+         * unknown reason. */
+        domain_state_submit_notif(dom, info.state, 0);
+      else
         ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
               status);
-        continue;
-      }
-      /* virDomainGetState is not available. Submit 0, which corresponds to
-       * unknown reason. */
-      domain_state_submit_notif(dom, info.state, 0);
+
+      virDomainFree(dom);
     }
     sfree(domids);
   }
