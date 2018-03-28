@@ -831,7 +831,7 @@ uint128_t str_to_uint128(const char *str, int len) {
       return lcore_mask;
   } else {
     char low_str[DATA_MAX_NAME_LEN];
-    char high_str[DATA_MAX_NAME_LEN];
+    char high_str[DATA_MAX_NAME_LEN * 2];
 
     memset(high_str, 0, sizeof(high_str));
     memset(low_str, 0, sizeof(low_str));
