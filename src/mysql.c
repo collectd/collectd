@@ -270,12 +270,16 @@ static MYSQL *getconnection(mysql_database_t *db) {
   }
   db->is_connected = 0;
 
+  /* Close the old connection before initializing a new one. */
+  if (db->con != NULL) {
+    mysql_close(db->con);
+    db->con = NULL;
+  }
+
+  db->con = mysql_init(NULL);
   if (db->con == NULL) {
-    db->con = mysql_init(NULL);
-    if (db->con == NULL) {
-      ERROR("mysql plugin: mysql_init failed: %s", mysql_error(db->con));
-      return NULL;
-    }
+    ERROR("mysql plugin: mysql_init failed: %s", mysql_error(db->con));
+    return NULL;
   }
 
   /* Configure TCP connect timeout (default: 0) */
