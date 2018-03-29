@@ -59,8 +59,8 @@ static int teardown(void) {
 #ifdef HAVE_LIST_ALL_DOMAINS
 DEF_TEST(get_domain_state_notify) {
   if (setup() == 0) {
-    nr_domains = virConnectListAllDomains(
-        conn, &domains, VIR_CONNECT_LIST_DOMAINS_PERSISTENT);
+    nr_domains = virConnectListAllDomains(conn, &domains,
+                                          VIR_CONNECT_LIST_DOMAINS_PERSISTENT);
     if (nr_domains <= 0) {
       printf("ERROR: virConnectListAllDomains: nr_domains <= 0\n");
       return -1;
