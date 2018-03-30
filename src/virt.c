@@ -2271,6 +2271,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
   for (int i = 0; i < m; ++i)
     if (add_domain(state, domains_inactive[i], 0) < 0) {
       ERROR(PLUGIN_NAME " plugin: malloc failed.");
+      virDomainFree(domains_inactive[i]);
+      domains_inactive[i] = NULL;
       continue;
     }
 #endif
@@ -2297,6 +2299,20 @@ static int refresh_lists(struct lv_read_instance *inst) {
       continue;
     }
 #endif
+
+    if (add_domain(state, dom, 1) < 0) {
+      /*
+       * When domain is already tracked, then there is
+       * no problem with memory handling (will be freed
+       * with the rest of domains cached data)
+       * But in case of error like this (error occurred
+       * before adding domain to track) we have to take
+       * care it ourselves and call virDomainFree
+       */
+      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+      virDomainFree(dom);
+      goto cont;
+    }
 
     name = virDomainGetName(dom);
     if (name == NULL) {
@@ -2342,11 +2358,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
     if (!lv_instance_include_domain(inst, name, tag))
       goto cont;
-
-    if (add_domain(state, dom, 1) < 0) {
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
-      goto cont;
-    }
 
     /* Block devices. */
     const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
@@ -2438,11 +2449,10 @@ static int refresh_lists(struct lv_read_instance *inst) {
   }
 
 #ifdef HAVE_LIST_ALL_DOMAINS
-  for (int i = 0; i < n; ++i)
-    virDomainFree(domains[i]);
+  /* NOTE: domains_active and domains_inactive data will be cleared during
+     refresh of all domains (inside lv_clean_read_state function) so we need
+     to free here only allocated arrays */
   sfree(domains);
-  for (int i = 0; i < m; ++i)
-    virDomainFree(domains_inactive[i]);
   sfree(domains_inactive);
 #else
   sfree(domids);
