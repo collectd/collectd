@@ -449,7 +449,7 @@ struct cmdline_config {
   _Bool daemonize;
 };
 
-void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
+static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c;
