@@ -883,6 +883,12 @@ static int ntpd_read(void) {
       continue;
     }
 
+    // `0.0.0.0` hosts are caused by POOL servers
+    // see https://github.com/collectd/collectd/issues/2358
+    if (strcmp(peername, "0.0.0.0") == 0) {
+      continue;
+    }
+
     refclock_id = ntpd_get_refclock_id(ptr);
 
     /* Convert the `long floating point' offset value to double */
