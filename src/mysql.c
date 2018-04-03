@@ -62,6 +62,7 @@ struct mysql_database_s /* {{{ */
   _Bool slave_stats;
   _Bool innodb_stats;
   _Bool wsrep_stats;
+  _Bool is_mariadb;
 
   _Bool slave_notif;
   _Bool slave_io_running;
@@ -305,6 +306,10 @@ static MYSQL *getconnection(mysql_database_t *db) {
        mysql_get_host_info(db->con), (cipher != NULL) ? cipher : "<none>",
        mysql_get_server_info(db->con), mysql_get_proto_info(db->con));
 
+  db->is_mariadb = 0;
+  if (strstr(mysql_get_server_info(db->con), "MariaDB") != NULL)
+    db->is_mariadb = 1;
+
   db->is_connected = 1;
   return db->con;
 } /* static MYSQL *getconnection (mysql_database_t *db) */
@@ -538,6 +543,134 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   return 0;
 } /* mysql_read_slave_stats */
+
+static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+
+  const char *query;
+  int field_num;
+  int row_count = 0;
+
+  /* WTF? libmysqlclient does not seem to provide any means to
+   * translate a column name to a column index ... :-/ */
+  const int CONNECTION_NAME = 0;
+  const int READ_MASTER_LOG_POS_IDX = 8;
+  const int SLAVE_IO_RUNNING_IDX = 12;
+  const int SLAVE_SQL_RUNNING_IDX = 13;
+  const int EXEC_MASTER_LOG_POS_IDX = 23;
+  const int SECONDS_BEHIND_MASTER_IDX = 34;
+
+  query = "SHOW ALL SLAVES STATUS";
+
+  res = exec_query(con, query);
+  if (res == NULL)
+    return (-1);
+
+  // We loop to handle multi-master replication
+  while ((row = mysql_fetch_row(res))) {
+    row_count++;
+
+    field_num = mysql_num_fields(res);
+    if (field_num < 55) {
+      ERROR("mysql plugin: Failed to get slave statistics on mariadb: "
+            "`%s' returned less than 55 columns.",
+            query);
+      mysql_free_result(res);
+      return (-1);
+    }
+
+    char *connection_name = "";
+    if (strlen(row[CONNECTION_NAME]))
+      connection_name = row[CONNECTION_NAME];
+
+    if (db->slave_stats) {
+      unsigned long long counter;
+      double gauge;
+      char *type_instance;
+
+      type_instance = "slave-read";
+      if (strlen(connection_name))
+        type_instance = ssnprintf_alloc("slave-read-%s", connection_name);
+
+      counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
+      derive_submit("mysql_log_position", type_instance, counter, db);
+
+      type_instance = "slave-exec";
+      if (strlen(connection_name))
+        type_instance = ssnprintf_alloc("slave-exec-%s", connection_name);
+
+      counter = atoll(row[EXEC_MASTER_LOG_POS_IDX]);
+      derive_submit("mysql_log_position", type_instance, counter, db);
+
+      if (row[SECONDS_BEHIND_MASTER_IDX] != NULL) {
+        gauge = atof(row[SECONDS_BEHIND_MASTER_IDX]);
+        gauge_submit("time_offset", connection_name, gauge, db);
+      }
+    }
+
+    if (db->slave_notif) {
+      notification_t n = {0, cdtime(),      "", "",  "mysql",
+                          "", "time_offset", "", NULL};
+      char *io, *sql;
+
+      io = row[SLAVE_IO_RUNNING_IDX];
+      sql = row[SLAVE_SQL_RUNNING_IDX];
+
+      set_host(db, n.host, sizeof(n.host));
+
+      if (strlen(connection_name))
+        sstrncpy(n.type_instance, connection_name,
+                 strlen(connection_name)+1);
+
+      /* Assured by "mysql_config_database" */
+      assert(db->instance != NULL);
+      sstrncpy(n.plugin_instance, db->instance, sizeof(n.plugin_instance));
+
+      if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
+          (db->slave_io_running)) {
+        n.severity = NOTIF_WARNING;
+        ssnprintf(n.message, sizeof(n.message),
+                  "slave I/O thread not started or not connected to master");
+        plugin_dispatch_notification(&n);
+        db->slave_io_running = 0;
+      } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
+                 (!db->slave_io_running)) {
+        n.severity = NOTIF_OKAY;
+        ssnprintf(n.message, sizeof(n.message),
+                  "slave I/O thread started and connected to master");
+        plugin_dispatch_notification(&n);
+        db->slave_io_running = 1;
+      }
+
+      if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
+          (db->slave_sql_running)) {
+        n.severity = NOTIF_WARNING;
+        ssnprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+        plugin_dispatch_notification(&n);
+        db->slave_sql_running = 0;
+      } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
+                 (!db->slave_sql_running)) {
+        n.severity = NOTIF_OKAY;
+        ssnprintf(n.message, sizeof(n.message), "slave SQL thread started");
+        plugin_dispatch_notification(&n);
+        db->slave_sql_running = 1;
+      }
+    }
+  }
+
+  if (row_count == 0) {
+    ERROR("mysql plugin: Failed to get slave statistics: "
+          "`%s' did not return any rows.",
+          query);
+    mysql_free_result(res);
+    return (-1);
+  }
+
+  mysql_free_result(res);
+
+  return (0);
+} /* mariadb_read_slave_stats */
 
 static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
   MYSQL_RES *res;
