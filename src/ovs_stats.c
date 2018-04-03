@@ -244,6 +244,9 @@ static port_list_t *ovs_stats_get_port_by_name(const char *name) {
 /* Create or get port by port uuid */
 static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
                                        const char *uuid) {
+  if (uuid == NULL)
+    return NULL;
+
   port_list_t *port = ovs_stats_get_port(uuid);
 
   if (port == NULL) {
@@ -357,21 +360,33 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
           yajl_val *array = YAJL_GET_ARRAY(br_ports)->values;
           size_t array_len = YAJL_GET_ARRAY(br_ports)->len;
           if (array != NULL && array_len > 0 && YAJL_IS_ARRAY(array[1])) {
-            yajl_val *ports_arr = YAJL_GET_ARRAY(array[1])->values;
-            size_t ports_num = YAJL_GET_ARRAY(array[1])->len;
-            for (size_t i = 0; i < ports_num && ports_arr != NULL; i++)
-              ovs_stats_new_port(
-                  br, YAJL_GET_STRING(ports_arr[i]->u.array.values[1]));
+            if (YAJL_GET_ARRAY(array[1]) == NULL)
+              goto failure;
+            else {
+              yajl_val *ports_arr = YAJL_GET_ARRAY(array[1])->values;
+              size_t ports_num = YAJL_GET_ARRAY(array[1])->len;
+              for (size_t i = 0; i < ports_num && ports_arr != NULL; i++) {
+                tmp = YAJL_GET_STRING(ports_arr[i]->u.array.values[1]);
+                if (tmp != NULL)
+                  ovs_stats_new_port(br, tmp);
+                else
+                  goto failure;
+              }
+            }
           }
         } else
           ovs_stats_new_port(br, YAJL_GET_STRING(br_ports->u.array.values[1]));
       }
     }
   } else {
-    ERROR("Incorrect JSON Bridge data");
-    return -1;
+    goto failure;
   }
+
   return 0;
+
+failure:
+  ERROR("Incorrect JSON Bridge data");
+  return -1;
 }
 
 /* Handle JSON with Bridge Table change event */
@@ -629,10 +644,15 @@ static int ovs_stats_update_iface(yajl_val iface) {
     ovs_stats_update_iface_ext_ids(port,
                                    YAJL_GET_ARRAY(iface_ext_ids)->values[1]);
   if (iface_uuid && YAJL_IS_ARRAY(iface_uuid) &&
-      YAJL_GET_ARRAY(iface_uuid)->len == 2)
+      YAJL_GET_ARRAY(iface_uuid)->len == 2 &&
+      YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]) != NULL)
     sstrncpy(port->iface_uuid,
              YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]),
              sizeof(port->iface_uuid));
+  else {
+    ERROR("ovs_stats plugin: incorrect JSON interface data");
+    return -1;
+  }
 
   return 0;
 }
@@ -833,6 +853,7 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
             char *br_name_dup = strdup(br_name);
             if (br_name_dup == NULL) {
               ERROR("%s: strdup() copy bridge name fail", plugin_name);
+              sfree(bridge);
               goto cleanup_fail;
             }
 

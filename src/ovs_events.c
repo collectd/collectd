@@ -404,13 +404,13 @@ static int ovs_events_get_iface_info(yajl_val jobject,
   if (!YAJL_IS_OBJECT(jobject))
     return -1;
 
-  /* zero the interface info structure */
-  memset(ifinfo, 0, sizeof(*ifinfo));
-
   /* try to find external_ids, name and link_state fields */
   jexternal_ids = ovs_utils_get_value_by_key(jobject, "external_ids");
   if (jexternal_ids == NULL || ifinfo == NULL)
     return -1;
+
+  /* zero the interface info structure */
+  memset(ifinfo, 0, sizeof(*ifinfo));
 
   /* get iface-id from external_ids field */
   jvalue = ovs_utils_get_map_value(jexternal_ids, "iface-id");

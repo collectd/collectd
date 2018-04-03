@@ -142,7 +142,7 @@ static int pnumdisk;
 #error "No applicable input method."
 #endif
 
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
 #include <libudev.h>
 
 static char *conf_udev_name_attr = NULL;
@@ -176,7 +176,7 @@ static int disk_config(const char *key, const char *value) {
             "on Mach / Mac OS X and will be ignored.");
 #endif
   } else if (strcasecmp("UdevNameAttr", key) == 0) {
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
     if (conf_udev_name_attr != NULL) {
       free(conf_udev_name_attr);
       conf_udev_name_attr = NULL;
@@ -212,7 +212,7 @@ static int disk_init(void) {
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
   if (conf_udev_name_attr != NULL) {
     handle_udev = udev_new();
     if (handle_udev == NULL) {
@@ -220,7 +220,7 @@ static int disk_init(void) {
       return -1;
     }
   }
-#endif /* HAVE_UDEV_H */
+#endif /* HAVE_LIBUDEV_H */
 /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
@@ -263,10 +263,10 @@ static int disk_init(void) {
 
 static int disk_shutdown(void) {
 #if KERNEL_LINUX
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
   if (handle_udev != NULL)
     udev_unref(handle_udev);
-#endif /* HAVE_UDEV_H */
+#endif /* HAVE_LIBUDEV_H */
 #endif /* KERNEL_LINUX */
   return 0;
 } /* int disk_shutdown */
@@ -328,7 +328,7 @@ static counter_t disk_calc_time_incr(counter_t delta_time,
 }
 #endif
 
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
 /**
  * Attempt to provide an rename disk instance from an assigned udev attribute.
  *
@@ -844,7 +844,7 @@ static int disk_read(void) {
 
     output_name = disk_name;
 
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
     char *alt_name = NULL;
     if (conf_udev_name_attr != NULL) {
       alt_name =
@@ -855,7 +855,7 @@ static int disk_read(void) {
 #endif
 
     if (ignorelist_match(ignorelist, output_name) != 0) {
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
       /* release udev-based alternate name, if allocated */
       sfree(alt_name);
 #endif
@@ -881,7 +881,7 @@ static int disk_read(void) {
         submit_io_time(output_name, io_time, weighted_time);
     } /* if (is_disk) */
 
-#if HAVE_UDEV_H
+#if HAVE_LIBUDEV_H
     /* release udev-based alternate name, if allocated */
     sfree(alt_name);
 #endif
