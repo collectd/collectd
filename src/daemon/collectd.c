@@ -555,8 +555,7 @@ int main(int argc, char **argv) {
 
   plugin_init_ctx();
 
-  int status;
-  if ((status = configure_collectd(&config)) != 0)
+  if (configure_collectd(&config) != 0)
     exit(EXIT_FAILURE);
 
 #if COLLECT_DAEMON
