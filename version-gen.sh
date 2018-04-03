@@ -10,4 +10,7 @@ if test -z "$VERSION"; then
 	VERSION="$DEFAULT_VERSION"
 fi
 
+# set current version in .spec file for rpm package
+sed -i "s/^Version.*/Version: ${VERSION}/g" contrib/redhat/collectd.spec
+
 printf "%s" "$VERSION"
