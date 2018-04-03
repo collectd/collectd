@@ -172,6 +172,7 @@
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
 #@BUILD_PLUGIN_OVS_STATS_TRUE@LoadPlugin ovs_stats
+#@BUILD_PLUGIN_PCIE_ERRORS_TRUE@LoadPlugin pcie_errors
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
@@ -1095,6 +1096,48 @@
 #  Address "127.0.0.1"
 #  Socket "/var/run/openvswitch/db.sock"
 #  Bridges "br0" "br_ext"
+#</Plugin>
+
+#<Plugin pcie_errors>
+#	Source "sysfs"
+#	AccessDir "/sys/bus/pci"
+#	ReportMasked false
+#	PersistentNotifications false
+#	FirstFullRead false
+#	LogFile "/var/log/syslog"
+#	<MsgPattern "AER">
+#		<Match>
+#			Name "aer error"
+#			Regex "AER:.*error received"
+#			SubmatchIdx -1
+#		</Match>
+#		<Match>
+#			Name "incident time"
+#			Regex "(... .. ..:..:..) .* pcieport.*AER"
+#			IsMandatory false
+#		</Match>
+#		<Match>
+#			Name "root port"
+#			Regex "pcieport (.*): AER:"
+#		</Match>
+#		<Match>
+#			Name "device"
+#			Regex " ([0-9a-fA-F:\\.]*): PCIe Bus Error"
+#		</Match>
+#		<Match>
+#			Name "severity"
+#			Regex "severity=([^,]*)"
+#		</Match>
+#		<Match>
+#			Name "error type"
+#			Regex "type=(.*),"
+#			IsMandatory false
+#		</Match>
+#		<Match>
+#			Name "id"
+#			Regex ", id=(.*)"
+#		</Match>
+#	</MsgPattern>
 #</Plugin>
 
 #<Plugin perl>

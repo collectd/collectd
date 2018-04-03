@@ -6051,6 +6051,125 @@ Default: empty (monitor all bridges)
 
 =back
 
+=head2 Plugin C<pcie_errors>
+
+The I<pcie_errors> plugin collects PCI Express errors from Device Status in Capability
+structure and from Advanced Error Reporting Extended Capability where available.
+At every read it polls config space of PCI Express devices and dispatches
+notification for every error that is set. It can be configured to parse log file
+for system reported AER errors. It checks for new errors at every read.
+The device is indicated in plugin_instance according to format "domain:bus:dev.fn".
+Errors are divided into categories indicated by type_instance: "correctable", and
+for uncorrectable errors "non_fatal" or "fatal".
+Fatal errros are reported as I<NOTIF_FAILURE> and all others as I<NOTIF_WARNING>.
+
+B<Synopsis:>
+
+  <Plugin "pcie_errors">
+    Source "sysfs"
+    AccessDir "/sys/bus/pci"
+    ReportMasked false
+    PersistentNotifications false
+    FirstFullRead false
+    LogFile "/var/log/syslog"
+    <MsgPattern "correctable">
+      <Match>
+        Name "root port"
+        Regex "pcieport (.*): AER: Corrected"
+        SubmatchIdx 1
+        Excluderegex "collectd"
+        IsMandatory true
+      </Match>
+    </MsgPattern>
+  </Plugin>
+
+B<Options:>
+
+=over 4
+
+=item B<Source> B<sysfs>|B<proc>|B<logfile>
+
+Use B<sysfs> or B<proc> for reading data from registers. If set to B<logfile> the
+file is parsed for reported AER errors and corresponding notifications are sent.
+The default value is B<sysfs>.
+
+=item B<AccessDir> I<dir>
+
+Directory used to access device config space. It is optional and defaults to
+/sys/bus/pci for B<sysfs> and to /proc/bus/pci for B<proc>.
+
+=item B<ReportMasked> B<false>|B<true>
+
+If true plugin will notify errors that are set to masked in Error Mask register.
+Such errors are not reported to the PCI Express Root Complex. Defaults to
+B<false>. This parameter takes effect only if B<Source> is set to B<sysfs>
+or B<proc>.
+
+=item B<PersistentNotifications> B<false>|B<true>
+
+If false plugin will dispatch notfication only on set/clear of error.
+The ones already reported will be ignored. Defaults to B<false>.
+This parameter takes effect only if B<Source> is set to B<sysfs> or B<proc>.
+
+=item B<FirstFullRead> B<false>|B<true>
+
+If set to true, the full scan of existing log file is done during first read.
+Otherwise only new incoming entries will be parsed. This parameter only affects
+the plugin if B<Source> is set to B<logfile>. Default value is B<false>.
+
+=item B<LogFile> I<dir>
+
+Log file name to use when B<Source> is set to B<logfile>. Default value
+is "/var/log/syslog".
+
+=item B<MsgPattern> I<name>
+
+Optional definition of regular expressions used to parse the error messages
+in a log file when B<Source> is set to B<logfile>. I<Name> is the type instance
+of message. Multiple definitions are allowed to parse different messages.
+Contains several I<Match> subsections described below. There are two special
+match names that should be present in the message pattern definition: "device"
+and "severity". They are used to set plugin instance, severity and type instance
+for notification. If B<MsgPattern> is not specified the default configuration
+is used.
+
+=item B<Match>
+
+Multiple I<Match> blocks define regular expression patterns for extracting or
+excluding specific string patterns from parsing. First and last I<Match> items
+in the same I<MsgPattern> set boundaries of multiline AER message and are
+mandatory.
+
+=item B<Name> I<name>
+
+Name of regular expression, used in AER error notification.
+
+=item B<Regex> I<regex>
+
+Regular expression with pattern matching string. It may contain subexpressions,
+so next option B<SubmatchIdx> specifies which subexpression should be stored.
+
+=item B<SubmatchIdx> I<index>
+
+Index of subexpression to be used for AER error notification. Multiple
+subexpressions are allowed. Index value 0 takes whole regular expression match
+as a result. Index value -1 does not add result to message item. Can be omitted,
+default value is 1.
+
+=item B<Excluderegex> I<regex>
+
+Regular expression for excluding lines containing specific matching strings.
+This is processed before checking I<Regex> pattern. It is optional and can
+be omitted.
+
+=item B<IsMandatory>  I<true>|I<false>
+
+Flag indicating if I<Match> item is mandatory for message validation. If set to
+true, whole message is discarded if it's missing. For false its presence is
+optional. Default value is set to true.
+
+=back
+
 =head2 Plugin C<perl>
 
 This plugin embeds a Perl-interpreter into collectd and provides an interface
