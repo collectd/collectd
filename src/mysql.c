@@ -551,6 +551,14 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   const char *query;
   int field_num;
   int row_count = 0;
+  struct maria_replication_s /* {{{ */
+  {
+    char *connection_name;
+    _Bool slave_io_running;
+    _Bool slave_sql_running;
+  };
+  typedef struct maria_replication_s maria_replication_t; /* }}} */
+  static maria_replication_t *replication[32] = {NULL};
 
   /* WTF? libmysqlclient does not seem to provide any means to
    * translate a column name to a column index ... :-/ */
@@ -567,9 +575,8 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   if (res == NULL)
     return (-1);
 
-  // We loop to handle multi-master replication
+  // We loop to handle multi-master replications
   while ((row = mysql_fetch_row(res))) {
-    row_count++;
 
     field_num = mysql_num_fields(res);
     if (field_num < 55) {
@@ -583,6 +590,25 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     char *connection_name = "";
     if (strlen(row[CONNECTION_NAME]))
       connection_name = row[CONNECTION_NAME];
+
+    if (replication[row_count] == NULL) {
+      INFO("mysql plugin: mariadb replication '%s' found.",
+           connection_name);
+      replication[row_count] = (maria_replication_t *) malloc(sizeof(maria_replication_t));
+      replication[row_count]->connection_name = strdup(connection_name);
+      replication[row_count]->slave_io_running = 1;
+      replication[row_count]->slave_sql_running = 1;
+    } else if (strcmp(replication[row_count]->connection_name,
+                      connection_name)) {
+      /* as rows are sorted according to 'Connection_name', we need to
+         reset replication status for the current cell */
+      INFO("mysql plugin: mariadb replication '%s' replaced by '%s'.",
+           replication[row_count]->connection_name, connection_name);
+      free(replication[row_count]->connection_name);
+      replication[row_count]->connection_name = strdup(connection_name);
+      replication[row_count]->slave_io_running = 1;
+      replication[row_count]->slave_sql_running = 1;
+    }
 
     if (db->slave_stats) {
       unsigned long long counter;
@@ -628,35 +654,36 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
       sstrncpy(n.plugin_instance, db->instance, sizeof(n.plugin_instance));
 
       if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
-          (db->slave_io_running)) {
+          (replication[row_count]->slave_io_running)) {
         n.severity = NOTIF_WARNING;
-        ssnprintf(n.message, sizeof(n.message),
+        snprintf(n.message, sizeof(n.message),
                   "slave I/O thread not started or not connected to master");
         plugin_dispatch_notification(&n);
-        db->slave_io_running = 0;
+        replication[row_count]->slave_io_running = 0;
       } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
-                 (!db->slave_io_running)) {
+                 (!replication[row_count]->slave_io_running)) {
         n.severity = NOTIF_OKAY;
-        ssnprintf(n.message, sizeof(n.message),
+        snprintf(n.message, sizeof(n.message),
                   "slave I/O thread started and connected to master");
         plugin_dispatch_notification(&n);
-        db->slave_io_running = 1;
+        replication[row_count]->slave_io_running = 1;
       }
 
       if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
-          (db->slave_sql_running)) {
+          (replication[row_count]->slave_sql_running)) {
         n.severity = NOTIF_WARNING;
-        ssnprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+        snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
         plugin_dispatch_notification(&n);
-        db->slave_sql_running = 0;
+        replication[row_count]->slave_sql_running = 0;
       } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
-                 (!db->slave_sql_running)) {
+                 (!replication[row_count]->slave_sql_running)) {
         n.severity = NOTIF_OKAY;
-        ssnprintf(n.message, sizeof(n.message), "slave SQL thread started");
+        snprintf(n.message, sizeof(n.message), "slave SQL thread started");
         plugin_dispatch_notification(&n);
-        db->slave_sql_running = 1;
+        replication[row_count]->slave_sql_running = 1;
       }
     }
+    row_count++;
   }
 
   if (row_count == 0) {
@@ -665,6 +692,13 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
           query);
     mysql_free_result(res);
     return (-1);
+  }
+
+  /* freeing unused replication structures */
+  for (int i = row_count; replication[i]; i++) {
+    free(replication[i]->connection_name);
+    free(replication[i]);
+    replication[i] = NULL;
   }
 
   mysql_free_result(res);
