@@ -496,7 +496,7 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   }   /* while (1) */
 }
 
-int configure_collectd(struct cmdline_config *config) {
+static int configure_collectd(struct cmdline_config *config) {
   const char *basedir;
   /*
    * Read options from the config file, the environment and the command
