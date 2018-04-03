@@ -73,7 +73,7 @@ Each line beginning with a C<#> (hash mark) is ignored.
 =item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 
 Submits one or more values (identified by I<Identifier>, see below) to the
-daemon which will dispatch it to all it's write-plugins.
+daemon which will dispatch it to all its write-plugins.
 
 An I<Identifier> is of the form
 C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both

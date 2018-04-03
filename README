@@ -100,6 +100,9 @@ Features
       Collect DPDK interface statistics.
       See docs/BUILD.dpdkstat.md for detailed build instructions.
 
+      This plugin should be compiled with compiler defenses enabled, for
+      example -fstack-protector.
+
     - drbd
       Collect individual drbd resource statistics.
 
@@ -139,6 +142,9 @@ Features
       Report the number of used and free hugepages. More info on
       hugepages can be found here:
       https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt.
+
+      This plugin should be compiled with compiler defenses enabled, for
+      example -fstack-protector.
 
     - intel_pmu
       The intel_pmu plugin reads performance counters provided by the Linux
