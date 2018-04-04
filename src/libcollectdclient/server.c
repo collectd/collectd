@@ -34,13 +34,13 @@
 #include "collectd/server.h"
 
 #include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
