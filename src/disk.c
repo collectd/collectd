@@ -819,7 +819,7 @@ static int disk_read(void) {
       if (read_merged || write_merged)
         ds->has_merged = 1;
 
-      if (in_progress)
+      if (in_progress != NAN)
         ds->has_in_progress = 1;
 
       if (io_time)
