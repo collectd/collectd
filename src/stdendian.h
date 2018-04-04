@@ -211,7 +211,7 @@
 
 /* Host swap macros */
 #ifndef __HOSTSWAP_DEFINED
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 #define htobe16(x) bswap16((x))
 #define htole16(x) ((uint16_t)(x))
 #define be16toh(x) bswap16((x))
@@ -226,7 +226,7 @@
 #define htole64(x) ((uint64_t)(x))
 #define be64toh(x) bswap64((x))
 #define le64toh(x) ((uint64_t)(x))
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif _BYTE_ORDER == _BIG_ENDIAN
 #define htobe16(x) ((uint16_t)(x))
 #define htole16(x) bswap16((x))
 #define be16toh(x) ((uint16_t)(x))
