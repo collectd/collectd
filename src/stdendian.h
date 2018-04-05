@@ -173,7 +173,7 @@
 /* handle missing __builtin_bswap16
  * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52624 */
 #if defined __GNUC__
-/* define bswap16(x) __builtin_bswap16(x) */
+#define bswap16(x) __builtin_bswap16(x)
 #else
 #define bswap16(x)                                                             \
   ((uint16_t)((((uint16_t)(x)&0xff00) >> 8) | (((uint16_t)(x)&0x00ff) << 8)))
