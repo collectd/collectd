@@ -99,6 +99,10 @@ case $host_os in
     AC_DEFINE([KERNEL_SOLARIS], [1], [True if program is to be compiled for a Solaris kernel])
     ac_system="Solaris"
     ;;
+  *mingw*)
+    AC_DEFINE([KERNEL_WIN32], [1], [True if program is to be compiled for a Windows kernel])
+    ac_system="Windows"
+    ;;
   *)
     ac_system="unknown"
     ;;
@@ -111,6 +115,7 @@ AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
 AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
 AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
+AM_CONDITIONAL([BUILD_WIN32], [test "x$ac_system" = "xWindows"])
 
 if test "x$ac_system" = "xSolaris"; then
   AC_DEFINE([_POSIX_PTHREAD_SEMANTICS], [1], [Define to enforce POSIX thread semantics under Solaris.])
@@ -7093,3 +7098,4 @@ if test "x$dependency_warning" = "xyes"; then
 fi
 
 # vim: set fdm=marker sw=2 sts=2 ts=2 et :
+
