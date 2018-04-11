@@ -199,6 +199,7 @@ static bool handle(pn_event_t *event) /* {{{ */
     /* acknowledgement from peer that a message was delivered */
     pn_delivery_t *dlv = pn_event_delivery(event);
     if (pn_delivery_remote_state(dlv) == PN_ACCEPTED) {
+      pn_delivery_settle(dlv);
       acknowledged++;
     }
     break;
