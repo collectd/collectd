@@ -136,7 +136,8 @@ enum notification_meta_type_e {
   NM_TYPE_SIGNED_INT,
   NM_TYPE_UNSIGNED_INT,
   NM_TYPE_DOUBLE,
-  NM_TYPE_BOOLEAN
+  NM_TYPE_BOOLEAN,
+  NM_TYPE_NESTED
 };
 
 typedef struct notification_meta_s {
@@ -148,6 +149,7 @@ typedef struct notification_meta_s {
     uint64_t nm_unsigned_int;
     double nm_double;
     _Bool nm_boolean;
+    struct notification_meta_s *nm_nested;
   } nm_value;
   struct notification_meta_s *next;
 } notification_meta_t;
@@ -400,16 +402,36 @@ int parse_notif_severity(const char *severity);
 
 const data_set_t *plugin_get_ds(const char *name);
 
+int plugin_notification_meta_append_string(notification_meta_t *m,
+                                           const char *name, const char *value);
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
                                         const char *value);
+int plugin_notification_meta_append_signed_int(notification_meta_t *m,
+                                               const char *name, int64_t value);
 int plugin_notification_meta_add_signed_int(notification_t *n, const char *name,
                                             int64_t value);
+int plugin_notification_meta_append_unsigned_int(notification_meta_t *m,
+                                                 const char *name,
+                                                 uint64_t value);
 int plugin_notification_meta_add_unsigned_int(notification_t *n,
                                               const char *name, uint64_t value);
+int plugin_notification_meta_append_double(notification_meta_t *m,
+                                           const char *name, double value);
 int plugin_notification_meta_add_double(notification_t *n, const char *name,
                                         double value);
+int plugin_notification_meta_append_boolean(notification_meta_t *m,
+                                            const char *name, _Bool value);
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
                                          _Bool value);
+int plugin_notification_meta_append_nested(notification_meta_t *m,
+                                           const char *name);
+int plugin_notification_meta_add_nested(notification_t *n, const char *name);
+
+int plugin_notification_meta_get_meta_tail(notification_t *n,
+                                           notification_meta_t **tail);
+
+int plugin_notification_meta_get_nested_tail(notification_meta_t *m,
+                                             notification_meta_t **tail);
 
 int plugin_notification_meta_copy(notification_t *dst,
                                   const notification_t *src);

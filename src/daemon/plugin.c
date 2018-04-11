@@ -2287,20 +2287,49 @@ const data_set_t *plugin_get_ds(const char *name) {
   return ds;
 } /* data_set_t *plugin_get_ds */
 
-static int plugin_notification_meta_add(notification_t *n, const char *name,
-                                        enum notification_meta_type_e type,
-                                        const void *value) {
+/*
+ A semantic distinction in the signature names that follow:
+
+ "add" functions place the metadata object at the end of the
+ linked list of metadata objects belonging to the notification.
+
+ "append" functions place the metadata object at the end of the
+ linked list of metadata objects nested within another metadata
+ object of NM_TYPE_NESTED.
+*/
+
+static int plugin_notification_meta_append(notification_t *n,
+                                           notification_meta_t *m,
+                                           const char *name,
+                                           enum notification_meta_type_e type,
+                                           const void *value) {
+  // If n is passed and is not NULL, this metadata object will be append to the
+  // end of n's linked list of metadata objects.
+  //
+  // If m is passed and is not NULL, and m is of type NM_TYPE_NESTED, then this
+  // metadata object will either be m's nm_value or appended to the end of the
+  // linked list starting with nm_value.  If m is not of type NM_TYPE_NESTED,
+  // this metadata object will be append to the end of the linked list of which
+  // m is a member.
+
   notification_meta_t *meta;
   notification_meta_t *tail;
 
-  if ((n == NULL) || (name == NULL) || (value == NULL)) {
-    ERROR("plugin_notification_meta_add: A pointer is NULL!");
+  if ((n == NULL && m == NULL) || (name == NULL) ||
+      (value == NULL && type != NM_TYPE_NESTED)) {
+    ERROR("plugin_notification_meta_append: A pointer is NULL!");
+    return -1;
+  }
+
+  if (n != NULL && m != NULL) {
+    ERROR("plugin_notification_meta_append: Only a notification xor "
+          "notification-meta object may be passed.");
     return -1;
   }
 
   meta = calloc(1, sizeof(*meta));
   if (meta == NULL) {
-    ERROR("plugin_notification_meta_add: calloc failed.");
+    ERROR("plugin_notification_meta_append: calloc failed.");
     return -1;
   }
 
@@ -2311,7 +2340,7 @@ static int plugin_notification_meta_add(notification_t *n, const char *name,
   case NM_TYPE_STRING: {
     meta->nm_value.nm_string = strdup((const char *)value);
     if (meta->nm_value.nm_string == NULL) {
-      ERROR("plugin_notification_meta_add: strdup failed.");
+      ERROR("plugin_notification_meta_append: strdup failed.");
       sfree(meta);
       return -1;
     }
@@ -2333,50 +2362,242 @@ static int plugin_notification_meta_add(notification_t *n, const char *name,
     meta->nm_value.nm_boolean = *((_Bool *)value);
     break;
   }
+  case NM_TYPE_NESTED: {
+    // This nested object's associated value will be the first
+    // of its nested children, with that first child being set by the
+    // first metadata object appended to this nested object by
+    // a later call to this function where this nested object is
+    // passed as "m"
+    meta->nm_value.nm_nested = NULL;
+    break;
+  }
   default: {
-    ERROR("plugin_notification_meta_add: Unknown type: %i", type);
+    ERROR("plugin_notification_meta_append: Unknown type: %i", type);
     sfree(meta);
     return -1;
   }
   } /* switch (type) */
 
   meta->next = NULL;
-  tail = n->meta;
+
+  tail = (m == NULL ? n->meta : m);
+
+  if (m != NULL && tail != NULL && tail->type == NM_TYPE_NESTED) {
+    // If the tail is a nested object and that nested object
+    // has no associate value yet, set that associated value
+    // to this meta object, as this meta object is the first
+    // of the nested object's nested children.  Otherwise,
+    // if the nested object already has a value, set the tail
+    // to that metadata object value
+    if (tail->nm_value.nm_nested == NULL) {
+      tail->nm_value.nm_nested = meta;
+      return 0;
+    }
+
+    tail = tail->nm_value.nm_nested;
+  }
+
   while ((tail != NULL) && (tail->next != NULL))
     tail = tail->next;
 
+  // tail will never be NULL if m was not NULL,
+  // and if m is NULL then n is not NULL, so there is
+  // no chance of n being NULL if tail is NULL
   if (tail == NULL)
     n->meta = meta;
   else
     tail->next = meta;
 
   return 0;
-} /* int plugin_notification_meta_add */
+}
+
+int plugin_notification_meta_append_string(notification_meta_t *m,
+                                           const char *name,
+                                           const char *value) {
+  return plugin_notification_meta_append(NULL, m, name, NM_TYPE_STRING, value);
+}
 
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
                                         const char *value) {
-  return plugin_notification_meta_add(n, name, NM_TYPE_STRING, value);
+  return plugin_notification_meta_append(n, NULL, name, NM_TYPE_STRING, value);
+}
+
+int plugin_notification_meta_append_signed_int(notification_meta_t *m,
+                                               const char *name,
+                                               int64_t value) {
+  return plugin_notification_meta_append(NULL, m, name, NM_TYPE_SIGNED_INT,
+                                         &value);
 }
 
 int plugin_notification_meta_add_signed_int(notification_t *n, const char *name,
                                             int64_t value) {
-  return plugin_notification_meta_add(n, name, NM_TYPE_SIGNED_INT, &value);
+  return plugin_notification_meta_append(n, NULL, name, NM_TYPE_SIGNED_INT,
+                                         &value);
+}
+
+int plugin_notification_meta_append_unsigned_int(notification_meta_t *m,
+                                                 const char *name,
+                                                 uint64_t value) {
+  return plugin_notification_meta_append(NULL, m, name, NM_TYPE_UNSIGNED_INT,
+                                         &value);
 }
 
 int plugin_notification_meta_add_unsigned_int(notification_t *n,
                                               const char *name,
                                               uint64_t value) {
-  return plugin_notification_meta_add(n, name, NM_TYPE_UNSIGNED_INT, &value);
+  return plugin_notification_meta_append(n, NULL, name, NM_TYPE_UNSIGNED_INT,
+                                         &value);
+}
+
+int plugin_notification_meta_append_double(notification_meta_t *m,
+                                           const char *name, double value) {
+  return plugin_notification_meta_append(NULL, m, name, NM_TYPE_DOUBLE, &value);
 }
 
 int plugin_notification_meta_add_double(notification_t *n, const char *name,
                                         double value) {
-  return plugin_notification_meta_add(n, name, NM_TYPE_DOUBLE, &value);
+  return plugin_notification_meta_append(n, NULL, name, NM_TYPE_DOUBLE, &value);
+}
+
+int plugin_notification_meta_append_boolean(notification_meta_t *m,
+                                            const char *name, _Bool value) {
+  return plugin_notification_meta_append(NULL, m, name, NM_TYPE_BOOLEAN,
+                                         &value);
 }
 
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
                                          _Bool value) {
-  return plugin_notification_meta_add(n, name, NM_TYPE_BOOLEAN, &value);
+  return plugin_notification_meta_append(n, NULL, name, NM_TYPE_BOOLEAN,
+                                         &value);
+}
+
+int plugin_notification_meta_append_nested(notification_meta_t *m,
+                                           const char *name) {
+  return plugin_notification_meta_append(NULL, m, name, NM_TYPE_NESTED, NULL);
+}
+
+int plugin_notification_meta_add_nested(notification_t *n, const char *name) {
+  return plugin_notification_meta_append(n, NULL, name, NM_TYPE_NESTED, NULL);
+}
+
+static int plugin_notification_meta_get_tail(notification_t *n,
+                                             notification_meta_t *m,
+                                             notification_meta_t **tail) {
+
+  notification_meta_t *tmp_tail = NULL;
+
+  if (n == NULL && m == NULL) {
+    ERROR("plugin_notification_meta_get_tail: A pointer is NULL!");
+    return -1;
+  }
+
+  if (n != NULL && m != NULL) {
+    ERROR("plugin_notification_meta_get_tail: Only a notification xor "
+          "notification-meta object may be passed.");
+    return -1;
+  }
+
+  if (n != NULL)
+    tmp_tail = n->meta;
+  else {
+    if (m->type != NM_TYPE_NESTED)
+      tmp_tail = m->next;
+    else
+      tmp_tail = m->nm_value.nm_nested;
+  }
+
+  while ((tmp_tail != NULL) && (tmp_tail->next != NULL))
+    tmp_tail = tmp_tail->next;
+
+  *tail = tmp_tail;
+
+  return 0;
+}
+
+int plugin_notification_meta_get_meta_tail(notification_t *n,
+                                           notification_meta_t **tail) {
+  return plugin_notification_meta_get_tail(n, NULL, tail);
+}
+
+int plugin_notification_meta_get_nested_tail(notification_meta_t *m,
+                                             notification_meta_t **tail) {
+
+  if (m == NULL) {
+    ERROR("plugin_notification_meta_get_nested_tail: m is NULL!");
+    return -1;
+  }
+
+  if (m->type != NM_TYPE_NESTED) {
+    // If m isn't a nested metadata object, this function will
+    // simply return the tail of m as opposed to the tail of
+    // m's nested contents
+    WARNING("plugin_notification_meta_get_nested_tail: metadata object '%s' is "
+            "not of type NM_TYPE_NESTED.",
+            m->name);
+  }
+
+  return plugin_notification_meta_get_tail(NULL, m, tail);
+}
+
+static int plugin_notification_meta_copy_nested(
+    notification_t *dst, const notification_t *src,
+    notification_meta_t *dst_nested, const notification_meta_t *src_nested) {
+  assert(dst != NULL);
+  assert(src != NULL);
+  assert(dst != src);
+  assert(src_nested != NULL);
+  assert(src_nested != dst_nested);
+  assert(src_nested->type == NM_TYPE_NESTED);
+  assert(dst_nested == NULL || dst_nested->type == NM_TYPE_NESTED);
+
+  notification_meta_t *nested;
+
+  // If this function was passed a NULL dst_nested, then we're
+  // dealing with a src_nested metadata object at the base level.
+  // In this case, we can just add a nested metadata object to
+  // the end of dst's metadata chain.
+  //
+  // On the other hand, if we received a non-NULL dst_nested
+  // object, then this src_nested metadata object is itself a
+  // child of a NM_TYPE_NESTED metadata object.  In this case,
+  // we have to append a nested metadata object to the end of
+  // dst_nested's metadata chain.
+
+  if (dst_nested == NULL) {
+    plugin_notification_meta_add_nested(dst, src_nested->name);
+    plugin_notification_meta_get_meta_tail(dst, &nested);
+  } else {
+    plugin_notification_meta_append_nested(dst_nested, src_nested->name);
+    plugin_notification_meta_get_nested_tail(dst_nested, &nested);
+  }
+
+  // Loop through src_nested's metadata chain (which will start
+  // with its nm_nested value, if any).  If another
+  // NM_TYPE_NESTED object is encountered, recurse and pass
+  // the "nested" object created above as dst_nested.
+
+  for (notification_meta_t *meta = src_nested->nm_value.nm_nested; meta != NULL;
+       meta = meta->next) {
+    if (meta->type == NM_TYPE_STRING)
+      plugin_notification_meta_append_string(nested, meta->name,
+                                             meta->nm_value.nm_string);
+    else if (meta->type == NM_TYPE_SIGNED_INT)
+      plugin_notification_meta_append_signed_int(nested, meta->name,
+                                                 meta->nm_value.nm_signed_int);
+    else if (meta->type == NM_TYPE_UNSIGNED_INT)
+      plugin_notification_meta_append_unsigned_int(
+          nested, meta->name, meta->nm_value.nm_unsigned_int);
+    else if (meta->type == NM_TYPE_DOUBLE)
+      plugin_notification_meta_append_double(nested, meta->name,
+                                             meta->nm_value.nm_double);
+    else if (meta->type == NM_TYPE_BOOLEAN)
+      plugin_notification_meta_append_boolean(nested, meta->name,
+                                              meta->nm_value.nm_boolean);
+    else if (meta->type == NM_TYPE_NESTED)
+      plugin_notification_meta_copy_nested(dst, src, nested, meta);
+  }
+
+  return 0;
 }
 
 int plugin_notification_meta_copy(notification_t *dst,
@@ -2402,6 +2623,11 @@ int plugin_notification_meta_copy(notification_t *dst,
     else if (meta->type == NM_TYPE_BOOLEAN)
       plugin_notification_meta_add_boolean(dst, meta->name,
                                            meta->nm_value.nm_boolean);
+    else if (meta->type == NM_TYPE_NESTED)
+      // If this is a nested metadata object, call the nested copy
+      // function, but pass dst_nested as NULL to indicate that this
+      // object is nested at the base level.
+      plugin_notification_meta_copy_nested(dst, src, NULL, meta);
   }
 
   return 0;
@@ -2427,6 +2653,12 @@ int plugin_notification_meta_free(notification_meta_t *n) {
 
       sfree(tmp);
       this->nm_value.nm_string = NULL;
+    } else if (this->type == NM_TYPE_NESTED) {
+      // Since the nm_value of this type is just a pointer to another
+      // notification_meta_t, just recurse and pass that pointer (and
+      // the value will be freed in that call)
+      if (this->nm_value.nm_nested != NULL)
+        plugin_notification_meta_free(this->nm_value.nm_nested);
     }
     sfree(this);
 
