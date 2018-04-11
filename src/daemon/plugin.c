@@ -35,6 +35,7 @@
 #include "filter_chain.h"
 #include "plugin.h"
 #include "utils_avltree.h"
+#include "utils_backoff.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "utils_heap.h"
@@ -61,21 +62,24 @@ typedef struct callback_func_s callback_func_t;
 #define RF_SIMPLE 0
 #define RF_COMPLEX 1
 #define RF_REMOVE 65535
-struct read_func_s {
-/* `read_func_t' "inherits" from `callback_func_t'.
- * The `rf_super' member MUST be the first one in this structure! */
-#define rf_callback rf_super.cf_callback
-#define rf_udata rf_super.cf_udata
-#define rf_ctx rf_super.cf_ctx
-  callback_func_t rf_super;
+typedef struct {
+  /* read_func_t embeds callback_func_t. This is the first field so that a
+   * read_func_t* can be cast to a callback_func_t*. */
+  callback_func_t base;
   char rf_group[DATA_MAX_NAME_LEN];
   char *rf_name;
   int rf_type;
   cdtime_t rf_interval;
-  cdtime_t rf_effective_interval;
   cdtime_t rf_next_read;
-};
-typedef struct read_func_s read_func_t;
+  backoff_t backoff;
+} read_func_t;
+
+typedef struct {
+  /* write_func_t embeds callback_func_t. This is the first field so that a
+   * write_func_t* can be cast to a callback_func_t*. */
+  callback_func_t base;
+  backoff_t backoff;
+} write_func_t;
 
 struct write_queue_s;
 typedef struct write_queue_s write_queue_t;
@@ -97,6 +101,7 @@ typedef struct flush_callback_s flush_callback_t;
 static c_avl_tree_t *plugins_loaded = NULL;
 
 static llist_t *list_init;
+/* list_write is a linked list of write_func_t*'s */
 static llist_t *list_write;
 static llist_t *list_flush;
 static llist_t *list_missing;
@@ -343,28 +348,27 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
   sfree(keys);
 } /* }}} void log_list_callbacks */
 
+static callback_func_t callback_func_init(void *callback,
+                                          user_data_t const *ud_ptr) {
+  /* {{{ */
+  return (callback_func_t){
+      .cf_callback = callback,
+      .cf_udata = (ud_ptr != NULL) ? *ud_ptr : (user_data_t){0},
+      .cf_ctx = plugin_get_ctx(),
+  };
+} /* }}} callback_func_t callback_func_init */
+
 static int create_register_callback(llist_t **list, /* {{{ */
                                     const char *name, void *callback,
                                     user_data_t const *ud) {
-  callback_func_t *cf;
-
-  cf = calloc(1, sizeof(*cf));
+  callback_func_t *cf = calloc(1, sizeof(*cf));
   if (cf == NULL) {
     free_userdata(ud);
     ERROR("plugin: create_register_callback: calloc failed.");
     return -1;
   }
 
-  cf->cf_callback = callback;
-  if (ud == NULL) {
-    cf->cf_udata.data = NULL;
-    cf->cf_udata.free_func = NULL;
-  } else {
-    cf->cf_udata = *ud;
-  }
-
-  cf->cf_ctx = plugin_get_ctx();
-
+  *cf = callback_func_init(callback, ud);
   return register_callback(list, name, cf);
 } /* }}} int create_register_callback */
 
@@ -430,6 +434,24 @@ static int plugin_load_file(char const *file, _Bool global) {
   return 0;
 }
 
+/* set_next_read calculates the next (wall clock) time at which this read plugin
+ * should be read the next time and stores it in rf->rf_next_read. */
+static void set_next_read(read_func_t *rf) {
+  pthread_mutex_lock(&rf->backoff.lock);
+  if (rf->backoff.retry_time != 0) {
+    rf->rf_next_read = rf->backoff.retry_time;
+  } else {
+    rf->rf_next_read += rf->rf_interval;
+  }
+  pthread_mutex_unlock(&rf->backoff.lock);
+
+  /* make sure rf->rf_next_read is not in the past */
+  cdtime_t now = cdtime();
+  if (rf->rf_next_read < now) {
+    rf->rf_next_read = now;
+  }
+}
+
 static void *plugin_read_thread(void __attribute__((unused)) * args) {
   while (read_loop != 0) {
     read_func_t *rf;
@@ -459,9 +481,6 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
        * for each plugin when loading it
        * XXX: issue a warning? */
       rf->rf_interval = plugin_get_interval();
-      rf->rf_effective_interval = rf->rf_interval;
-
-      rf->rf_next_read = cdtime();
     }
 
     /* sleep until this entry is due,
@@ -503,42 +522,34 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
       continue;
     }
 
+    if (backoff_check(&rf->backoff) != 0) {
+      set_next_read(rf);
+      continue;
+    }
+
     DEBUG("plugin_read_thread: Handling `%s'.", rf->rf_name);
 
     start = cdtime();
 
-    old_ctx = plugin_set_ctx(rf->rf_ctx);
+    old_ctx = plugin_set_ctx(rf->base.cf_ctx);
 
     if (rf_type == RF_SIMPLE) {
       int (*callback)(void);
 
-      callback = rf->rf_callback;
+      callback = rf->base.cf_callback;
       status = (*callback)();
     } else {
       plugin_read_cb callback;
 
       assert(rf_type == RF_COMPLEX);
 
-      callback = rf->rf_callback;
-      status = (*callback)(&rf->rf_udata);
+      callback = rf->base.cf_callback;
+      status = (*callback)(&rf->base.cf_udata);
     }
 
     plugin_set_ctx(old_ctx);
 
-    /* If the function signals failure, we will increase the
-     * intervals in which it will be called. */
-    if (status != 0) {
-      rf->rf_effective_interval *= 2;
-      if (rf->rf_effective_interval > max_read_interval)
-        rf->rf_effective_interval = max_read_interval;
-
-      NOTICE("read-function of plugin `%s' failed. "
-             "Will suspend it for %.3f seconds.",
-             rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
-    } else {
-      /* Success: Restore the interval, if it was changed. */
-      rf->rf_effective_interval = rf->rf_interval;
-    }
+    backoff_update(&rf->backoff, status);
 
     /* update the ``next read due'' field */
     now = cdtime();
@@ -546,36 +557,19 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
     /* calculate the time spent in the read function */
     elapsed = (now - start);
 
-    if (elapsed > rf->rf_effective_interval)
+    if (elapsed > rf->rf_interval)
       WARNING(
           "plugin_read_thread: read-function of the `%s' plugin took %.3f "
           "seconds, which is above its read interval (%.3f seconds). You might "
           "want to adjust the `Interval' or `ReadThreads' settings.",
           rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed),
-          CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
+          CDTIME_T_TO_DOUBLE(rf->rf_interval));
 
     DEBUG("plugin_read_thread: read-function of the `%s' plugin took "
           "%.6f seconds.",
           rf->rf_name, CDTIME_T_TO_DOUBLE(elapsed));
 
-    DEBUG("plugin_read_thread: Effective interval of the "
-          "`%s' plugin is %.3f seconds.",
-          rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_effective_interval));
-
-    /* Calculate the next (absolute) time at which this function
-     * should be called. */
-    rf->rf_next_read += rf->rf_effective_interval;
-
-    /* Check, if `rf_next_read' is in the past. */
-    if (rf->rf_next_read < now) {
-      /* `rf_next_read' is in the past. Insert `now'
-       * so this value doesn't trail off into the
-       * past too much. */
-      rf->rf_next_read = now;
-    }
-
-    DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
-          rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_next_read));
+    set_next_read(rf);
 
     /* Re-insert this read function into the heap again. */
     c_heap_insert(read_heap, rf);
@@ -1086,7 +1080,6 @@ static int plugin_insert_read(read_func_t *rf) {
   llentry_t *le;
 
   rf->rf_next_read = cdtime();
-  rf->rf_effective_interval = rf->rf_interval;
 
   pthread_mutex_lock(&read_lock);
 
@@ -1142,25 +1135,21 @@ static int plugin_insert_read(read_func_t *rf) {
 } /* int plugin_insert_read */
 
 int plugin_register_read(const char *name, int (*callback)(void)) {
-  read_func_t *rf;
-  int status;
 
-  rf = calloc(1, sizeof(*rf));
+  read_func_t *rf = calloc(1, sizeof(*rf));
   if (rf == NULL) {
     ERROR("plugin_register_read: calloc failed.");
     return ENOMEM;
   }
+  *rf = (read_func_t){
+      .base = callback_func_init(callback, NULL),
+      .rf_name = strdup(name),
+      .rf_type = RF_SIMPLE,
+      .rf_interval = plugin_get_interval(),
+  };
+  backoff_init(&rf->backoff, rf->rf_interval, max_read_interval);
 
-  rf->rf_callback = (void *)callback;
-  rf->rf_udata.data = NULL;
-  rf->rf_udata.free_func = NULL;
-  rf->rf_ctx = plugin_get_ctx();
-  rf->rf_group[0] = '\0';
-  rf->rf_name = strdup(name);
-  rf->rf_type = RF_SIMPLE;
-  rf->rf_interval = plugin_get_interval();
-
-  status = plugin_insert_read(rf);
+  int status = plugin_insert_read(rf);
   if (status != 0) {
     sfree(rf->rf_name);
     sfree(rf);
@@ -1181,29 +1170,21 @@ int plugin_register_complex_read(const char *group, const char *name,
     ERROR("plugin_register_complex_read: calloc failed.");
     return ENOMEM;
   }
+  *rf = (read_func_t){
+      .base = callback_func_init(callback, user_data),
+      .rf_name = strdup(name),
+      .rf_type = RF_COMPLEX,
+      .rf_interval = (interval != 0) ? interval : plugin_get_interval(),
+  };
 
-  rf->rf_callback = (void *)callback;
   if (group != NULL)
     sstrncpy(rf->rf_group, group, sizeof(rf->rf_group));
-  else
-    rf->rf_group[0] = '\0';
-  rf->rf_name = strdup(name);
-  rf->rf_type = RF_COMPLEX;
-  rf->rf_interval = (interval != 0) ? interval : plugin_get_interval();
 
-  /* Set user data */
-  if (user_data == NULL) {
-    rf->rf_udata.data = NULL;
-    rf->rf_udata.free_func = NULL;
-  } else {
-    rf->rf_udata = *user_data;
-  }
-
-  rf->rf_ctx = plugin_get_ctx();
+  backoff_init(&rf->backoff, rf->rf_interval, max_read_interval);
 
   status = plugin_insert_read(rf);
   if (status != 0) {
-    free_userdata(&rf->rf_udata);
+    free_userdata(&rf->base.cf_udata);
     sfree(rf->rf_name);
     sfree(rf);
   }
@@ -1213,7 +1194,26 @@ int plugin_register_complex_read(const char *group, const char *name,
 
 int plugin_register_write(const char *name, plugin_write_cb callback,
                           user_data_t const *ud) {
-  return create_register_callback(&list_write, name, (void *)callback, ud);
+  plugin_ctx_t ctx = plugin_get_ctx();
+
+  write_func_t *wf = calloc(1, sizeof(*wf));
+  if (wf == NULL) {
+    free_userdata(ud);
+    ERROR("plugin_register_write: calloc failed.");
+    return ENOMEM;
+  }
+
+  if (ctx.write_backoff_base == 0) {
+    ctx.write_backoff_base = MS_TO_CDTIME_T(10);
+  }
+  if (ctx.write_backoff_max == 0) {
+    ctx.write_backoff_max = MS_TO_CDTIME_T(60000);
+  }
+
+  wf->base = callback_func_init(callback, ud);
+  backoff_init(&wf->backoff, ctx.write_backoff_base, ctx.write_backoff_max);
+
+  return register_callback(&list_write, name, (callback_func_t *)wf);
 } /* int plugin_register_write */
 
 static int plugin_flush_timeout_callback(user_data_t *ud) {
@@ -1658,18 +1658,18 @@ int plugin_read_all_once(void) {
     if (rf == NULL)
       break;
 
-    old_ctx = plugin_set_ctx(rf->rf_ctx);
+    old_ctx = plugin_set_ctx(rf->base.cf_ctx);
 
     if (rf->rf_type == RF_SIMPLE) {
       int (*callback)(void);
 
-      callback = rf->rf_callback;
+      callback = rf->base.cf_callback;
       status = (*callback)();
     } else {
       plugin_read_cb callback;
 
-      callback = rf->rf_callback;
-      status = (*callback)(&rf->rf_udata);
+      callback = rf->base.cf_callback;
+      status = (*callback)(&rf->base.cf_udata);
     }
 
     plugin_set_ctx(old_ctx);
@@ -1686,10 +1686,9 @@ int plugin_read_all_once(void) {
   return return_status;
 } /* int plugin_read_all_once */
 
-int plugin_write(const char *plugin, /* {{{ */
-                 const data_set_t *ds, const value_list_t *vl) {
-  llentry_t *le;
-  int status;
+int plugin_write(const char *plugin, const data_set_t *ds,
+                 const value_list_t *vl) {
+  /* {{{ */
 
   if (vl == NULL)
     return EINVAL;
@@ -1709,17 +1708,25 @@ int plugin_write(const char *plugin, /* {{{ */
     int success = 0;
     int failure = 0;
 
-    le = llist_head(list_write);
+    llentry_t *le = llist_head(list_write);
     while (le != NULL) {
-      callback_func_t *cf = le->value;
-      plugin_write_cb callback;
+      char const *name = le->key;
+      write_func_t *wf = le->value;
+      plugin_write_cb callback = wf->base.cf_callback;
+
+      if (backoff_check(&wf->backoff) != 0) {
+        failure++;
+        continue;
+      }
 
       /* do not switch plugin context; rather keep the context (interval)
        * information of the calling read plugin */
 
-      DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
-      callback = cf->cf_callback;
-      status = (*callback)(ds, vl, &cf->cf_udata);
+      DEBUG("plugin: plugin_write: Writing values via %s.", name);
+      int status = (*callback)(ds, vl, &wf->base.cf_udata);
+
+      backoff_update(&wf->backoff, status);
+
       if (status != 0)
         failure++;
       else
@@ -1729,35 +1736,30 @@ int plugin_write(const char *plugin, /* {{{ */
     }
 
     if ((success == 0) && (failure != 0))
-      status = -1;
-    else
-      status = 0;
-  } else /* plugin != NULL */
-  {
-    callback_func_t *cf;
-    plugin_write_cb callback;
+      return -1;
 
-    le = llist_head(list_write);
-    while (le != NULL) {
-      if (strcasecmp(plugin, le->key) == 0)
-        break;
+    return 0;
+  }
+  /* else: plugin != NULL */
 
-      le = le->next;
-    }
+  llentry_t *le = llist_search(list_write, plugin);
+  if (le == NULL)
+    return ENOENT;
 
-    if (le == NULL)
-      return ENOENT;
+  write_func_t *wf = le->value;
+  plugin_write_cb callback = wf->base.cf_callback;
 
-    cf = le->value;
-
-    /* do not switch plugin context; rather keep the context (interval)
-     * information of the calling read plugin */
-
-    DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
-    callback = cf->cf_callback;
-    status = (*callback)(ds, vl, &cf->cf_udata);
+  if (backoff_check(&wf->backoff) != 0) {
+    return EAGAIN;
   }
 
+  /* do not switch plugin context; rather keep the context (interval)
+   * information of the calling read plugin */
+
+  DEBUG("plugin: plugin_write: Writing values via %s.", plugin);
+  int status = (*callback)(ds, vl, &wf->base.cf_udata);
+
+  backoff_update(&wf->backoff, status);
   return status;
 } /* }}} int plugin_write */
 
@@ -2460,6 +2462,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
 void plugin_init_ctx(void) {
   pthread_key_create(&plugin_ctx_key, plugin_ctx_destructor);
+
   plugin_ctx_key_initialized = 1;
 } /* void plugin_init_ctx */
 
