@@ -277,6 +277,7 @@
 #    User "guest"
 #    Password "guest"
 #    Address "collectd"
+#    RetryDelay 1
 #    <Instance "log">
 #        Format JSON
 #        PreSettle false

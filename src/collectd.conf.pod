@@ -756,6 +756,7 @@ B<Synopsis:>
     User "guest"
     Password "guest"
     Address "collectd"
+#    RetryDelay 1
     <Instance "some_name">
         Format "command"
         PreSettle false
@@ -805,6 +806,12 @@ default "guest"/"guest" is used.
 
 This option specifies the prefix for the send-to value in the message.
 By default, "collectd" will be used.
+
+=item B<RetryDelay> I<RetryDelay>
+
+When the AMQP1 connection is lost, defines the time in seconds to wait
+before attempting to reconnect. Defaults to 1, which implies attempt
+to reconnect at 1 second intervals.
 
 =back
 
