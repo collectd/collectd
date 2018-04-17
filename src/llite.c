@@ -19,13 +19,13 @@
  *   Gary Skouson <gary.skouson at pnnl.gov>
  **/
 
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
+#include "collectd.h"
 #include "common.h"
 #include "plugin.h"
 #include "utils_ignorelist.h"
-#include "collectd.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #define LLITEDIR "/proc/fs/lustre/llite"
 
