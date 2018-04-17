@@ -182,6 +182,9 @@ Features
       bytecode.
       See docs/BUILD.java.md for detailed build instructions.
 
+    - llite
+      Collects Lustre(http://lustre.org/) file system client statistics. 
+
     - load
       System load average over the last 1, 5 and 15 minutes.
 
