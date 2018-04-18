@@ -41,7 +41,7 @@ struct cu_tail_s {
   struct stat stat;
 };
 
-static int cu_tail_reopen(cu_tail_t *obj, _Bool force_rewind) {
+static int cu_tail_reopen(cu_tail_t *obj, bool force_rewind) {
   int seek_end = 0;
   struct stat stat_buf = {0};
 
@@ -72,7 +72,7 @@ static int cu_tail_reopen(cu_tail_t *obj, _Bool force_rewind) {
    * if we re-open the same file again or the file opened is the first at all
    * or the first after an error */
   if ((obj->stat.st_ino == 0) || (obj->stat.st_ino == stat_buf.st_ino))
-    seek_end = force_rewind ? 0 : 1;
+    seek_end = force_rewind ? false : true;
 
   FILE *fh = fopen(obj->file, "r");
   if (fh == NULL) {
@@ -124,7 +124,7 @@ int cu_tail_destroy(cu_tail_t *obj) {
   return 0;
 } /* int cu_tail_destroy */
 
-int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen, _Bool force_rewind) {
+int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen, bool force_rewind) {
   int status;
 
   if (buflen < 1) {
@@ -187,7 +187,7 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen, _Bool force_rewind) 
 } /* int cu_tail_readline */
 
 int cu_tail_read(cu_tail_t *obj, char *buf, int buflen, tailfunc_t *callback,
-                 void *data, _Bool force_rewind) {
+                 void *data, bool force_rewind) {
   int status;
 
   while (42) {

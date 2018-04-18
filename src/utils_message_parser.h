@@ -2,7 +2,7 @@
  * collectd - src/utils_message_parser.h
  * MIT License
  *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,7 @@
  *
  * Authors:
  *   Krzysztof Matczak <krzysztofx.matczak@intel.com>
+ *   Marcin Mozejko <marcinx.mozejko@intel.com>
  */
 
 #ifndef UTILS_MESSAGE_PARSER_H
@@ -31,7 +32,7 @@
 
 #include "utils_tail_match.h"
 
-typedef struct message_item_pattern_t {
+typedef struct message_pattern_s {
   /* User defined name for message item */
   char *name;
   /* Regular expression for finding out specific message item. The match result
@@ -48,22 +49,28 @@ typedef struct message_item_pattern_t {
   /* Regular expression that excludes string from further processing */
   char *excluderegex;
   /* Flag indicating if this item is mandatory for message validation */
-  _Bool is_mandatory;
-} message_pattern;
+  bool is_mandatory;
+  /* Pointer to optional user data */
+  void *user_data;
+  /* Freeing function */
+  void (*free_user_data)(void *data);
+} message_pattern_t;
 
-typedef struct message_item_t {
+typedef struct message_item_s {
   char name[32];
   char value[64];
-} message_item;
+  void *user_data;
+  void (*free_user_data)(void *data);
+} message_item_t;
 
-typedef struct message_t {
-  message_item message_items[32];
+typedef struct message_s {
+  message_item_t message_items[32];
   int matched_patterns_check[32];
-  _Bool started;
-  _Bool completed;
-} message;
+  bool started;
+  bool completed;
+} message_t;
 
-typedef struct parser_job_data_t parser_job_data;
+typedef struct parser_job_data_s parser_job_data_t;
 
 /*
  * NAME
@@ -101,11 +108,11 @@ typedef struct parser_job_data_t parser_job_data;
  * RETURN VALUE
  *   Returns NULL upon failure, pointer to new parser job otherwise.
  */
-parser_job_data *message_parser_init(const char *filename,
-                                     unsigned int start_idx,
-                                     unsigned int stop_idx,
-                                     message_pattern message_patterns[],
-                                     size_t message_patterns_len);
+parser_job_data_t *message_parser_init(const char *filename,
+                                       unsigned int start_idx,
+                                       unsigned int stop_idx,
+                                       message_pattern_t message_patterns[],
+                                       size_t message_patterns_len);
 
 /*
  * NAME
@@ -127,8 +134,8 @@ parser_job_data *message_parser_init(const char *filename,
  *   Returns -1 upon failure, number of messages collected from last read
  *   otherwise.
  */
-int message_parser_read(parser_job_data *parser_job, message **messages_storage,
-                        _Bool force_rewind);
+int message_parser_read(parser_job_data_t *parser_job,
+                        message_t **messages_storage, bool force_rewind);
 
 /*
  * NAME
@@ -141,6 +148,6 @@ int message_parser_read(parser_job_data *parser_job, message **messages_storage,
  *   `parser_job' Pointer to parser job to be cleaned up.
  *
  */
-void message_parser_cleanup(parser_job_data *parser_job);
+void message_parser_cleanup(parser_job_data_t *parser_job);
 
 #endif /* UTILS_MESSAGE_PARSER_H */

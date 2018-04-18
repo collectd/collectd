@@ -306,7 +306,7 @@ out:
   return status;
 } /* int tail_match_add_match_simple */
 
-int tail_match_read(cu_tail_match_t *obj, _Bool force_rewind) {
+int tail_match_read(cu_tail_match_t *obj, bool force_rewind) {
   char buffer[4096];
   int status;
 
