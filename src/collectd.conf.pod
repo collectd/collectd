@@ -3577,10 +3577,11 @@ The following configuration options are available:
 
 =over 4
 
-=item B<ReportRelative> B<false>|B<true>
+=item B<ReportRelative> B<false>|B<true>|B<both>
 
 When enabled, system load divided by number of available CPU cores is reported
-for intervals 1 min, 5 min and 15 min. Defaults to false.
+for intervals 1 min, 5 min and 15 min. When set to both, reports both,
+relative measure and absolute one. Defaults to false (only absolute).
 
 =back
 

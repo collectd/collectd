@@ -55,7 +55,7 @@
 #include <sys/protosw.h>
 #endif /* HAVE_PERFSTAT */
 
-static _Bool report_relative_load = 0;
+static uint8_t report_relative_load = 0;
 
 static const char *config_keys[] = {"ReportRelative"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -63,7 +63,13 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int load_config(const char *key, const char *value) {
   if (strcasecmp(key, "ReportRelative") == 0)
 #ifdef _SC_NPROCESSORS_ONLN
-    report_relative_load = IS_TRUE(value) ? 1 : 0;
+  {
+    if (strcasecmp (value, "Both") == 0) {
+      report_relative_load = 2;
+    } else {
+      report_relative_load = IS_TRUE(value) ? 1 : 0;
+    }
+  }
 #else
     WARNING("load plugin: The \"ReportRelative\" configuration "
             "is not available, because I can't determine the "
@@ -79,6 +85,22 @@ static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
     if ((cores = sysconf(_SC_NPROCESSORS_ONLN)) < 1) {
       WARNING("load: sysconf failed : %s", STRERRNO);
     }
+  }
+  /* Dispatch absolute values if Both modes are enabled */
+  if (report_relative_load == 2) {
+    value_list_t vl = VALUE_LIST_INIT;
+    value_t values[] = {
+      { .gauge = snum },
+      { .gauge = mnum },
+      { .gauge = lnum },
+    };
+
+    vl.values = values;
+    vl.values_len = STATIC_ARRAY_SIZE (values);
+
+    sstrncpy (vl.plugin, "load", sizeof (vl.plugin));
+    sstrncpy (vl.type, "load", sizeof (vl.type));
+    plugin_dispatch_values (&vl);
   }
 #endif
   if (cores > 0) {
