@@ -34,6 +34,7 @@
 #include "common.h"
 #include "plugin.h"
 #include "utils_complain.h"
+#include <regex.h>
 
 #include <mosquitto.h>
 
@@ -75,7 +76,10 @@ struct mqtt_client_conf {
   /* For publishing */
   char *topic_prefix;
   _Bool store_rates;
+  _Bool store_timestamp;
   _Bool retain;
+  char *pattern;
+  regex_t topic_pattern;
 
   /* For subscribing */
   pthread_t thread;
@@ -149,6 +153,8 @@ static void mqtt_free(mqtt_client_conf_t *conf) {
   sfree(conf->password);
   sfree(conf->client_id);
   sfree(conf->topic_prefix);
+  sfree(conf->pattern);
+  regfree(&conf->topic_pattern);
   sfree(conf);
 }
 
@@ -490,7 +496,22 @@ static int mqtt_write(const data_set_t *ds, const value_list_t *vl,
     return status;
   }
 
+  if (conf->pattern != NULL) {
+    if (regexec(&conf->topic_pattern, topic, 0, NULL, 0) == REG_NOMATCH) {
+      return 0;
+    }
+  }
+
   status = format_values(payload, sizeof(payload), ds, vl, conf->store_rates);
+  if (!conf->store_timestamp) {
+    char *p = strchr(payload, ':');
+    int len = strlen(p);
+    if (len > 0) {
+      p = p + 1;
+    }
+    strcpy(payload, p);
+  }
+
   if (status != 0) {
     ERROR("mqtt plugin: format_values failed with status %d.", status);
     return status;
@@ -547,6 +568,7 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
   conf->qos = 0;
   conf->topic_prefix = strdup(MQTT_DEFAULT_TOPIC_PREFIX);
   conf->store_rates = 1;
+  conf->store_timestamp = 1;
 
   status = pthread_mutex_init(&conf->lock, NULL);
   if (status != 0) {
@@ -583,8 +605,12 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       cf_util_get_string(child, &conf->topic_prefix);
     else if (strcasecmp("StoreRates", child->key) == 0)
       cf_util_get_boolean(child, &conf->store_rates);
+    else if (strcasecmp("StoreTimestamp", child->key) == 0)
+      cf_util_get_boolean(child, &conf->store_timestamp);
     else if (strcasecmp("Retain", child->key) == 0)
       cf_util_get_boolean(child, &conf->retain);
+    else if (strcasecmp("Pattern", child->key) == 0)
+      cf_util_get_string(child, &conf->pattern);
     else if (strcasecmp("CACert", child->key) == 0)
       cf_util_get_string(child, &conf->cacertificatefile);
     else if (strcasecmp("CertificateFile", child->key) == 0)
@@ -597,6 +623,10 @@ static int mqtt_config_publisher(oconfig_item_t *ci) {
       cf_util_get_string(child, &conf->ciphersuite);
     else
       ERROR("mqtt plugin: Unknown config option: %s", child->key);
+  }
+
+  if (conf->pattern != NULL) {
+    regcomp(&conf->topic_pattern, conf->pattern, REG_EXTENDED);
   }
 
   snprintf(cb_name, sizeof(cb_name), "mqtt/%s", conf->name);
