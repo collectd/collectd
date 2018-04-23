@@ -108,6 +108,14 @@
 
 #endif /* LIBVIR_CHECK_VERSION */
 
+/* structure used for aggregating notification-thread data*/
+typedef struct virt_notif_thread_s {
+  pthread_t event_loop_tid;
+  int domain_event_cb_id;
+  pthread_mutex_t active_mutex; /* protects 'is_active' member access*/
+  _Bool is_active;
+} virt_notif_thread_t;
+
 static const char *config_keys[] = {"Connection",
 
                                     "RefreshInterval",
@@ -132,10 +140,8 @@ static const char *config_keys[] = {"Connection",
 /* PersistentNotification is false by default */
 static _Bool persistent_notification = 0;
 
-/* libvirt event loop */
-static pthread_t event_loop_tid;
-
-static int domain_event_cb_id;
+/* Thread used for handling libvirt notifications events */
+static virt_notif_thread_t notif_thread;
 
 const char *domain_states[] = {
         [VIR_DOMAIN_NOSTATE] = "no state",
@@ -1842,9 +1848,30 @@ static int register_event_impl(void) {
   return 0;
 }
 
+static void virt_notif_thread_set_active(virt_notif_thread_t *thread_data,
+                                         const _Bool active) {
+  assert(thread_data != NULL);
+  pthread_mutex_lock(&thread_data->active_mutex);
+  thread_data->is_active = active;
+  pthread_mutex_unlock(&thread_data->active_mutex);
+}
+
+static _Bool virt_notif_thread_is_active(virt_notif_thread_t *thread_data) {
+  _Bool state = 0;
+
+  assert(thread_data != NULL);
+  pthread_mutex_lock(&thread_data->active_mutex);
+  state = thread_data->is_active;
+  pthread_mutex_unlock(&thread_data->active_mutex);
+
+  return state;
+}
+
 /* worker function running default event implementation */
-static void *event_loop_worker(__attribute__((unused)) void *arg) {
-  while (1) {
+static void *event_loop_worker(void *arg) {
+  virt_notif_thread_t *thread_data = (virt_notif_thread_t *)arg;
+
+  while (virt_notif_thread_is_active(thread_data)) {
     if (virEventRunDefaultImpl() < 0) {
       virErrorPtr err = virGetLastError();
       ERROR(PLUGIN_NAME " plugin: failed to run event loop: %s\n",
@@ -1855,19 +1882,42 @@ static void *event_loop_worker(__attribute__((unused)) void *arg) {
   return NULL;
 }
 
+static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
+  int ret;
+
+  assert(thread_data != NULL);
+  ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME ": Failed to initialize mutex, err %u", ret);
+    return ret;
+  }
+
+  /**
+   * '0' and positive integers are meaningful ID's, therefore setting
+   * domain_event_cb_id to '-1'
+   */
+  thread_data->domain_event_cb_id = -1;
+  thread_data->is_active = 0;
+
+  return 0;
+}
+
 /* register domain event callback and start event loop thread */
-static int start_event_loop(void) {
-  domain_event_cb_id = virConnectDomainEventRegisterAny(
+static int start_event_loop(virt_notif_thread_t *thread_data) {
+  assert(thread_data != NULL);
+  thread_data->domain_event_cb_id = virConnectDomainEventRegisterAny(
       conn, NULL, VIR_DOMAIN_EVENT_ID_LIFECYCLE,
       VIR_DOMAIN_EVENT_CALLBACK(domain_lifecycle_event_cb), NULL, NULL);
-  if (domain_event_cb_id == -1) {
+  if (thread_data->domain_event_cb_id == -1) {
     ERROR(PLUGIN_NAME " plugin: error while callback registering");
     return -1;
   }
 
-  if (pthread_create(&event_loop_tid, NULL, event_loop_worker, NULL)) {
+  virt_notif_thread_set_active(thread_data, 1);
+  if (pthread_create(&thread_data->event_loop_tid, NULL, event_loop_worker,
+                     thread_data)) {
     ERROR(PLUGIN_NAME " plugin: failed event loop thread creation");
-    virConnectDomainEventDeregisterAny(conn, domain_event_cb_id);
+    virConnectDomainEventDeregisterAny(conn, thread_data->domain_event_cb_id);
     return -1;
   }
 
@@ -1875,15 +1925,15 @@ static int start_event_loop(void) {
 }
 
 /* stop event loop thread and deregister callback */
-static void stop_event_loop(void) {
-  if (pthread_cancel(event_loop_tid) != 0)
-    ERROR(PLUGIN_NAME " plugin: cancelling thread %lu failed", event_loop_tid);
+static void stop_event_loop(virt_notif_thread_t *thread_data) {
+  /* stopping loop and de-registering event handler*/
+  virt_notif_thread_set_active(thread_data, 0);
+  if (conn != NULL && thread_data->domain_event_cb_id != -1)
+    virConnectDomainEventDeregisterAny(conn, thread_data->domain_event_cb_id);
 
-  if (pthread_join(event_loop_tid, NULL) != 0)
-    ERROR(PLUGIN_NAME " plugin: stopping thread %lu failed", event_loop_tid);
-
-  if (conn != NULL && domain_event_cb_id != -1)
-    virConnectDomainEventDeregisterAny(conn, domain_event_cb_id);
+  if (pthread_join(notif_thread.event_loop_tid, NULL) != 0)
+    ERROR(PLUGIN_NAME " plugin: stopping thread %lu failed",
+          notif_thread.event_loop_tid);
 }
 
 static int persistent_domains_state_notification(void) {
@@ -1982,7 +2032,7 @@ static int lv_read(user_data_t *ud) {
       return -1;
 
     if (!persistent_notification && reconnect && conn != NULL)
-      if (start_event_loop() != 0)
+      if (start_event_loop(&notif_thread) != 0)
         return -1;
   }
 
@@ -1994,7 +2044,7 @@ static int lv_read(user_data_t *ud) {
     if (refresh_lists(inst) != 0) {
       if (inst->id == 0) {
         if (!persistent_notification)
-          stop_event_loop();
+          stop_event_loop(&notif_thread);
         lv_disconnect();
       }
       return -1;
@@ -2111,9 +2161,11 @@ static int lv_init(void) {
 
   DEBUG(PLUGIN_NAME " plugin: starting event loop");
 
-  if (!persistent_notification)
-    if (start_event_loop() != 0)
+  if (!persistent_notification) {
+    virt_notif_thread_init(&notif_thread);
+    if (start_event_loop(&notif_thread) != 0)
       return -1;
+  }
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
@@ -2619,7 +2671,7 @@ static int lv_shutdown(void) {
   DEBUG(PLUGIN_NAME " plugin: stopping event loop");
 
   if (!persistent_notification)
-    stop_event_loop();
+    stop_event_loop(&notif_thread);
 
   lv_disconnect();
 
