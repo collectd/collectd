@@ -38,6 +38,9 @@
 %global _hardened_build 1
 %{?perl_default_filter}
 
+# disable collectd debug by default
+%bcond_with debug
+
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
@@ -1872,8 +1875,15 @@ Collectd utilities
 %define _with_zookeeper --disable-zookeeper
 %endif
 
+%if %{with debug}
+%define _feature_debug --enable-debug
+%else
+%define _feature_debug --disable-debug
+%endif
+
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	%{?_python_config} \
+	%{?_feature_debug} \
 	--disable-static \
 	--enable-all-plugins=yes \
 	--enable-match_empty_counter \
