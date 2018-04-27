@@ -216,7 +216,7 @@ for (my $i = 0; $i < scalar(@rrds); ++$i) {
 END
 
 	# graph various ranges
-	foreach my $span qw(1hour 1day 1week 1month){
+	foreach my $span (qw(1hour 1day 1week 1month)){
 		system("mkdir -p $IMG_DIR/" . dirname($bn));
 		my $img = "$IMG_DIR/${bn}-$span$IMG_SFX";
 

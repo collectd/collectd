@@ -28,9 +28,16 @@
 
 %{
 #include <stdlib.h>
+#include <string.h>
 #include "oconfig.h"
 #include "aux_types.h"
 #include "parser.h"
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
+#endif
+
 
 /* multiline string buffer */
 static char *ml_buffer = NULL;
@@ -50,6 +57,8 @@ static void ml_append (char *);
 %}
 %option yylineno
 %option noyywrap
+%option noinput
+%option nounput
 %x ML
 WHITE_SPACE [\ \t\b]
 NON_WHITE_SPACE [^\ \t\b]
@@ -143,7 +152,7 @@ static void ml_append (char *string)
 
 	if (ml_free <= len) {
 		ml_len += len - ml_free + 1;
-		ml_buffer = (char *)realloc (ml_buffer, ml_len);
+		ml_buffer = realloc (ml_buffer, ml_len);
 		if (NULL == ml_buffer)
 			YY_FATAL_ERROR ("out of dynamic memory in ml_append");
 	}
@@ -156,3 +165,6 @@ static void ml_append (char *string)
 	return;
 } /* ml_append */
 
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif

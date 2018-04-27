@@ -137,13 +137,13 @@ sub _parse_identifier
 
 sub _escape_argument
 {
-	local $_ = shift;
+	my $arg = shift;
 
-	return $_ if /^\w+$/;
+	return $arg if $arg =~ /^\w+$/;
 
-	s#\\#\\\\#g;
-	s#"#\\"#g;
-	return "\"$_\"";
+	$arg =~ s#\\#\\\\#g;
+	$arg =~ s#"#\\"#g;
+	return "\"$arg\"";
 }
 
 # Send a command on a socket, including any required argument escaping.
@@ -153,19 +153,19 @@ sub _socket_command {
 
 	my $fh = $self->{sock} or confess ('object has no filehandle');
 
-    if($args) {
-        my $identifier = _create_identifier ($args) or return;
-	    $command .= ' ' . _escape_argument ($identifier) . "\n";
-    } else {
-        $command .= "\n";
-    }
+	if($args) {
+		my $identifier = _create_identifier ($args) or return;
+		$command .= ' ' . _escape_argument ($identifier) . "\n";
+	} else {
+		$command .= "\n";
+	}
 	_debug "-> $command";
 	$fh->print($command);
 
 	my $response = $fh->getline;
 	chomp $response;
 	_debug "<- $response\n";
-    return $response;
+	return $response;
 }
 
 # Read any remaining results from a socket and pass them to
@@ -188,11 +188,37 @@ sub _socket_chat
 		my $entry = $fh->getline;
 		chomp $entry;
 		_debug "<- $entry\n";
-        $callback->($entry, $cbdata);
+		$callback->($entry, $cbdata);
 	}
 	return $cbdata;
 }
 
+# Send a raw message on a socket.
+# Returns true upon success and false otherwise.
+sub _send_message
+{
+	my ($self, $msg) = @_;
+	
+	my $fh = $self->{'sock'} or confess ('object has no filehandle');
+	
+	$msg .= "\n" unless $msg =~/\n$/;
+	
+	#1024 is default buffer size at unixsock.c us_handle_client()
+	warn "Collectd::Unixsock->_send_message(\$msg): message is too long!" if length($msg) > 1024;
+	
+	_debug "-> $msg";
+	$fh->print($msg);
+
+	$msg = <$fh>;
+	chomp ($msg);
+	_debug "<- $msg\n";
+
+	my ($status, $error) = split / /, $msg, 2;
+	return 1 if $status == 0;
+
+	$self->{error} = $error;
+	return;
+}
 
 =head1 PUBLIC METHODS
 
@@ -234,14 +260,14 @@ sub getval # {{{
 	my %args = @_;
 	my $ret = {};
 
-    my $msg = $self->_socket_command('GETVAL', \%args) or return;
-    $self->_socket_chat($msg, sub {
-            local $_ = shift;
-            my $ret = shift;
-            /^(\w+)=NaN$/ and $ret->{$1} = undef, return;
-            /^(\w+)=(.*)$/ and looks_like_number($2) and $ret->{$1} = 0 + $2, return;
-        }, $ret
-    );
+	my $msg = $self->_socket_command('GETVAL', \%args) or return;
+	$self->_socket_chat($msg, sub {
+			local $_ = shift;
+			my $ret = shift;
+			/^(\w+)=NaN$/ and $ret->{$1} = undef, return;
+			/^(\w+)=(.*)$/ and looks_like_number($2) and $ret->{$1} = 0 + $2, return;
+		}, $ret
+	);
 	return $ret;
 } # }}} sub getval
 
@@ -258,16 +284,17 @@ sub getthreshold # {{{
 	my %args = @_;
 	my $ret = {};
 
-    my $msg = $self->_socket_command('GETTHRESHOLD', \%args) or return;
-    $self->_socket_chat($msg, sub {
-            local $_ = shift;
-            my $ret = shift;
-		    /^\s*([^:]+):\s*(.*)/ and do {
-			    $1 =~ s/\s*$//;
-			    $ret->{$1} = $2;
-		    };
-        }, $ret
-    );
+	my $msg = $self->_socket_command('GETTHRESHOLD', \%args) or return;
+	$self->_socket_chat($msg, sub {
+			local $_ = shift;
+			my $ret = shift;
+			my ( $key, $val );
+			( $key, $val ) = /^\s*([^:]+):\s*(.*)/ and do {
+				  $key =~ s/\s*$//;
+				  $ret->{$key} = $val;
+			};
+		}, $ret
+	);
 	return $ret;
 } # }}} sub getthreshold
 
@@ -292,7 +319,7 @@ sub putval
 	my $fh = $self->{sock} or confess;
 
 	my $interval = defined $args{interval} ?
-    ' interval=' . _escape_argument ($args{interval}) : '';
+	' interval=' . _escape_argument ($args{interval}) : '';
 
 	$identifier = _create_identifier (\%args) or return;
 	if (!$args{values})
@@ -329,18 +356,8 @@ sub putval
 	. _escape_argument ($identifier)
 	. $interval
 	. ' ' . _escape_argument ($values) . "\n";
-	_debug "-> $msg";
-	$fh->print($msg);
 
-	$msg = <$fh>;
-	chomp $msg;
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	return 1 if $status == 0;
-
-	$self->{error} = $msg;
-	return;
+	return $self->_send_message($msg);
 } # putval
 
 =item I<$res> = I<$self>-E<gt>B<listval_filter> ( C<%identifier> )
@@ -355,23 +372,23 @@ The returned data is in the same format as from C<listval>.
 sub listval_filter
 {
 	my $self = shift;
-    my %args = @_;
+	my %args = @_;
 	my @ret;
 	my $nresults;
 	my $fh = $self->{sock} or confess;
 
-    my $pattern =
-    (exists $args{host}              ? "$args{host}"             : '[^/]+') .
-    (exists $args{plugin}            ? "/$args{plugin}"          : '/[^/-]+') .
+	my $pattern =
+	(exists $args{host}              ? "$args{host}"             : '[^/]+') .
+	(exists $args{plugin}            ? "/$args{plugin}"          : '/[^/-]+') .
 	(exists $args{plugin_instance}   ? "-$args{plugin_instance}" : '(?:-[^/]+)?') .
 	(exists $args{type}              ? "/$args{type}"            : '/[^/-]+') .
 	(exists $args{type_instance}     ? "-$args{type_instance}"   : '(?:-[^/]+)?');
-    $pattern = qr/^\d+ $pattern$/;
+	$pattern = qr/^\d+(?:\.\d+)? $pattern$/;
 
-    my $msg = $self->_socket_command('LISTVAL') or return;
+	my $msg = $self->_socket_command('LISTVAL') or return;
 	($nresults, $msg) = split / /, $msg, 2;
 
-    # This could use _socket_chat() but doesn't for speed reasons
+	# This could use _socket_chat() but doesn't for speed reasons
 	if ($nresults < 0)
 	{
 		$self->{error} = $msg;
@@ -387,13 +404,13 @@ sub listval_filter
 		my ($time, $ident) = split / /, $msg, 2;
 
 		$ident = _parse_identifier ($ident);
-		$ident->{time} = int $time;
+		$ident->{time} = 0+$time;
 
 		push (@ret, $ident);
-	} # for (i = 0 .. $status)
+	} # for (i = 0 .. $nresults)
 
 	return @ret;
-} # listval
+} # listval_filter
 
 =item I<$res> = I<$self>-E<gt>B<listval> ()
 
@@ -410,10 +427,10 @@ sub listval
 	my @ret;
 	my $fh = $self->{sock} or confess;
 
-    my $msg = $self->_socket_command('LISTVAL') or return;
+	my $msg = $self->_socket_command('LISTVAL') or return;
 	($nresults, $msg) = split / /, $msg, 2;
 
-    # This could use _socket_chat() but doesn't for speed reasons
+	# This could use _socket_chat() but doesn't for speed reasons
 	if ($nresults < 0)
 	{
 		$self->{error} = $msg;
@@ -429,10 +446,10 @@ sub listval
 		my ($time, $ident) = split / /, $msg, 2;
 
 		$ident = _parse_identifier ($ident);
-		$ident->{time} = int $time;
+		$ident->{time} = 0+$time;
 
 		push (@ret, $ident);
-	} # for (i = 0 .. $status)
+	} # for (i = 0 .. $nresults)
 
 	return @ret;
 } # listval
@@ -480,10 +497,10 @@ sub putnotif
 
 	my $msg; # message sent to the socket
 	
-    for my $arg (qw( message severity ))
-    {
-        cluck ("Need argument `$arg'"), return unless $args{$arg};
-    }
+	for my $arg (qw( message severity ))
+	{
+		cluck ("Need argument `$arg'"), return unless $args{$arg};
+	}
 	$args{severity} = lc $args{severity};
 	if (($args{severity} ne 'failure')
 		&& ($args{severity} ne 'warning')
@@ -499,18 +516,7 @@ sub putnotif
 	. join (' ', map { $_ . '=' . _escape_argument ($args{$_}) } keys %args)
 	. "\n";
 
-	_debug "-> $msg";
-	$fh->print($msg);
-
-	$msg = <$fh>;
-	chomp $msg;
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	return 1 if $status == 0;
-
-	$self->{error} = $msg;
-	return;
+	return $self->_send_message($msg);
 } # putnotif
 
 =item I<$self>-E<gt>B<flush> (B<timeout> =E<gt> I<$timeout>, B<plugins> =E<gt> [...], B<identifier>  =E<gt> [...]);
@@ -548,10 +554,9 @@ sub flush
 
 	my $fh = $self->{sock} or confess;
 
-	my $status = 0;
-	my $msg    = "FLUSH";
+	my $msg = "FLUSH";
 
-    $msg .= " timeout=$args{timeout}" if defined $args{timeout};
+	$msg .= " timeout=$args{timeout}" if defined $args{timeout};
 
 	if ($args{plugins})
 	{
@@ -563,6 +568,7 @@ sub flush
 
 	if ($args{identifier})
 	{
+		my $pre = $msg;
 		for my $identifier (@{$args{identifier}})
 		{
 			my $ident_str;
@@ -575,24 +581,18 @@ sub flush
 			}
 
 			$ident_str = _create_identifier ($identifier) or return;
-			$msg .= ' identifier=' . _escape_argument ($ident_str);
+			$ident_str = ' identifier=' . _escape_argument ($ident_str);
+
+			if (length($msg)+length($ident_str) >= 1023) { #1024 - 1 byte for \n
+				$self->_send_message($msg) or return;
+				$msg = $pre;
+			}
+
+			$msg .= $ident_str;
 		}
 	}
 
-	$msg .= "\n";
-
-	_debug "-> $msg";
-	$fh->print($msg);
-
-	$msg = <$fh>;
-	chomp ($msg);
-	_debug "<- $msg\n";
-
-	($status, $msg) = split / /, $msg, 2;
-	return 1 if $status == 0;
-
-	$self->{error} = $msg;
-	return;
+	return $self->_send_message($msg);
 }
 
 sub error
@@ -637,4 +637,4 @@ Florian octo Forster E<lt>octo@collectd.orgE<gt>
 
 =cut
 1;
-# vim: set fdm=marker :
+# vim: set fdm=marker noexpandtab:

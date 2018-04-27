@@ -29,8 +29,15 @@
 
 #include <stdio.h>
 
-int handle_getval (FILE *fh, char *buffer);
+#include "utils_cmds.h"
+
+cmd_status_t cmd_parse_getval(size_t argc, char **argv,
+                              cmd_getval_t *ret_getval,
+                              const cmd_options_t *opts,
+                              cmd_error_handler_t *err);
+
+cmd_status_t cmd_handle_getval(FILE *fh, char *buffer);
+
+void cmd_destroy_getval(cmd_getval_t *getval);
 
 #endif /* UTILS_CMD_GETVAL_H */
-
-/* vim: set sw=2 sts=2 ts=8 : */

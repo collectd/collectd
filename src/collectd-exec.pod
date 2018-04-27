@@ -17,7 +17,7 @@ collectd-exec - Documentation of collectd's C<exec plugin>
 
 =head1 DESCRIPTION
 
-The C<exec plugin> forks of an executable either to receive values or to
+The C<exec plugin> forks off an executable either to receive values or to
 dispatch notifications to the outside world. The syntax of the configuration is
 explained in L<collectd.conf(5)> but summarized in the above synopsis.
 
@@ -42,7 +42,7 @@ time and continuously write values to C<STDOUT>.
 See L<EXEC DATA FORMAT> below for a description of the output format expected
 from these programs.
 
-B<Warning:> If the executable only writes one value and then exits I will be
+B<Warning:> If the executable only writes one value and then exits it will be
 executed every I<Interval> seconds. If I<Interval> is short (the default is 10
 seconds) this may result in serious system load.
 
@@ -73,7 +73,7 @@ Each line beginning with a C<#> (hash mark) is ignored.
 =item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 
 Submits one or more values (identified by I<Identifier>, see below) to the
-daemon which will dispatch it to all it's write-plugins.
+daemon which will dispatch it to all its write-plugins.
 
 An I<Identifier> is of the form
 C<I<host>B</>I<plugin>B<->I<instance>B</>I<type>B<->I<instance>> with both
@@ -94,7 +94,7 @@ I<Valuelist> is a colon-separated list of the time and the values, each either
 an integer if the data-source is a counter, or a double if the data-source is
 of type "gauge". You can submit an undefined gauge-value by using B<U>. When
 submitting B<U> to a counter the behavior is undefined. The time is given as
-epoch (i.E<nbsp>e. standard UNIX time).
+epoch (i.E<nbsp>e. standard UNIX time) or B<N> to use the current time.
 
 You can mix options and values, but the order is important: Options only
 effect following values, so specifying an option as last field is allowed, but
@@ -281,12 +281,12 @@ to make use of collectd's more powerful interface.
 
 =over 4
 
-=item
+=item *
 
 The user, the binary is executed as, may not have root privileges, i.E<nbsp>e.
 must have an UID that is non-zero. This is for your own good.
 
-=item
+=item *
 
 Early versions of the plugin did not use a command but treated all lines as if
 they were arguments to the I<PUTVAL> command. When the I<PUTNOTIF> command was

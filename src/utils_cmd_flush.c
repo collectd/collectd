@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cmd_flush.c
- * Copyright (C) 2008       Sebastian Harl
+ * Copyright (C) 2008, 2016 Sebastian Harl
  * Copyright (C) 2008       Florian Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,163 +27,151 @@
  **/
 
 #include "collectd.h"
+
 #include "common.h"
 #include "plugin.h"
-#include "utils_parse_option.h"
+#include "utils_cmd_flush.h"
 
-#define print_to_socket(fh, ...) \
-	do { \
-		if (fprintf (fh, __VA_ARGS__) < 0) { \
-			char errbuf[1024]; \
-			WARNING ("handle_flush: failed to write to socket #%i: %s", \
-					fileno (fh), sstrerror (errno, errbuf, sizeof (errbuf))); \
-			return -1; \
-		} \
-		fflush(fh); \
-	} while (0)
+cmd_status_t cmd_parse_flush(size_t argc, char **argv, cmd_flush_t *ret_flush,
+                             const cmd_options_t *opts,
+                             cmd_error_handler_t *err) {
 
-static int add_to_array (char ***array, int *array_num, char *value)
-{
-	char **temp;
+  if ((ret_flush == NULL) || (opts == NULL)) {
+    errno = EINVAL;
+    cmd_error(CMD_ERROR, err, "Invalid arguments to cmd_parse_flush.");
+    return CMD_ERROR;
+  }
 
-	temp = (char **) realloc (*array, sizeof (char *) * (*array_num + 1));
-	if (temp == NULL)
-		return (-1);
+  for (size_t i = 0; i < argc; i++) {
+    char *opt_key;
+    char *opt_value;
+    int status;
 
-	*array = temp;
-	(*array)[*array_num] = value;
-	(*array_num)++;
+    opt_key = NULL;
+    opt_value = NULL;
+    status = cmd_parse_option(argv[i], &opt_key, &opt_value, err);
+    if (status != 0) {
+      if (status == CMD_NO_OPTION)
+        cmd_error(CMD_PARSE_ERROR, err, "Invalid option string `%s'.", argv[i]);
+      cmd_destroy_flush(ret_flush);
+      return CMD_PARSE_ERROR;
+    }
 
-	return (0);
-} /* int add_to_array */
+    if (strcasecmp("plugin", opt_key) == 0) {
+      strarray_add(&ret_flush->plugins, &ret_flush->plugins_num, opt_value);
+    } else if (strcasecmp("identifier", opt_key) == 0) {
+      identifier_t *id =
+          realloc(ret_flush->identifiers,
+                  (ret_flush->identifiers_num + 1) * sizeof(*id));
+      if (id == NULL) {
+        cmd_error(CMD_ERROR, err, "realloc failed.");
+        cmd_destroy_flush(ret_flush);
+        return CMD_ERROR;
+      }
 
-int handle_flush (FILE *fh, char *buffer)
-{
-	int success = 0;
-	int error   = 0;
+      ret_flush->identifiers = id;
+      id = ret_flush->identifiers + ret_flush->identifiers_num;
+      ret_flush->identifiers_num++;
+      if (parse_identifier(opt_value, &id->host, &id->plugin,
+                           &id->plugin_instance, &id->type, &id->type_instance,
+                           opts->identifier_default_host) != 0) {
+        cmd_error(CMD_PARSE_ERROR, err, "Invalid identifier `%s'.", opt_value);
+        cmd_destroy_flush(ret_flush);
+        return CMD_PARSE_ERROR;
+      }
+    } else if (strcasecmp("timeout", opt_key) == 0) {
+      char *endptr;
 
-	double timeout = 0.0;
-	char **plugins = NULL;
-	int plugins_num = 0;
-	char **identifiers = NULL;
-	int identifiers_num = 0;
+      errno = 0;
+      endptr = NULL;
+      ret_flush->timeout = strtod(opt_value, &endptr);
 
-	int i;
+      if ((endptr == opt_value) || (errno != 0) ||
+          (!isfinite(ret_flush->timeout))) {
+        cmd_error(CMD_PARSE_ERROR, err,
+                  "Invalid value for option `timeout': %s", opt_value);
+        cmd_destroy_flush(ret_flush);
+        return CMD_PARSE_ERROR;
+      } else if (ret_flush->timeout < 0.0) {
+        ret_flush->timeout = 0.0;
+      }
+    } else {
+      cmd_error(CMD_PARSE_ERROR, err, "Cannot parse option `%s'.", opt_key);
+      cmd_destroy_flush(ret_flush);
+      return CMD_PARSE_ERROR;
+    }
+  }
 
-	if ((fh == NULL) || (buffer == NULL))
-		return (-1);
+  return CMD_OK;
+} /* cmd_status_t cmd_parse_flush */
 
-	DEBUG ("utils_cmd_flush: handle_flush (fh = %p, buffer = %s);",
-			(void *) fh, buffer);
+cmd_status_t cmd_handle_flush(FILE *fh, char *buffer) {
+  cmd_error_handler_t err = {cmd_error_fh, fh};
+  cmd_t cmd;
 
-	if (strncasecmp ("FLUSH", buffer, strlen ("FLUSH")) != 0)
-	{
-		print_to_socket (fh, "-1 Cannot parse command.\n");
-		return (-1);
-	}
-	buffer += strlen ("FLUSH");
+  int success = 0;
+  int error = 0;
+  int status;
 
-	while (*buffer != 0)
-	{
-		char *opt_key;
-		char *opt_value;
-		int status;
+  if ((fh == NULL) || (buffer == NULL))
+    return -1;
 
-		opt_key = NULL;
-		opt_value = NULL;
-		status = parse_option (&buffer, &opt_key, &opt_value);
-		if (status != 0)
-		{
-			print_to_socket (fh, "-1 Parsing options failed.\n");
-			sfree (plugins);
-			sfree (identifiers);
-			return (-1);
-		}
+  DEBUG("utils_cmd_flush: cmd_handle_flush (fh = %p, buffer = %s);", (void *)fh,
+        buffer);
 
-		if (strcasecmp ("plugin", opt_key) == 0)
-		{
-			add_to_array (&plugins, &plugins_num, opt_value);
-		}
-		else if (strcasecmp ("identifier", opt_key) == 0)
-		{
-			add_to_array (&identifiers, &identifiers_num, opt_value);
-		}
-		else if (strcasecmp ("timeout", opt_key) == 0)
-		{
-			char *endptr;
-			
-			errno = 0;
-			endptr = NULL;
-			timeout = strtod (opt_value, &endptr);
+  if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
+    return status;
+  if (cmd.type != CMD_FLUSH) {
+    cmd_error(CMD_UNKNOWN_COMMAND, &err, "Unexpected command: `%s'.",
+              CMD_TO_STRING(cmd.type));
+    cmd_destroy(&cmd);
+    return CMD_UNKNOWN_COMMAND;
+  }
 
-			if ((endptr == opt_value) || (errno != 0) || (!isfinite (timeout)))
-			{
-				print_to_socket (fh, "-1 Invalid value for option `timeout': "
-						"%s\n", opt_value);
-				sfree (plugins);
-				sfree (identifiers);
-				return (-1);
-			}
-			else if (timeout < 0.0)
-			{
-				timeout = 0.0;
-			}
-		}
-		else
-		{
-			print_to_socket (fh, "-1 Cannot parse option %s\n", opt_key);
-			sfree (plugins);
-			sfree (identifiers);
-			return (-1);
-		}
-	} /* while (*buffer != 0) */
+  for (size_t i = 0; (i == 0) || (i < cmd.cmd.flush.plugins_num); i++) {
+    char *plugin = NULL;
 
-	/* Add NULL entries for `any plugin' and/or `any value' if nothing was
-	 * specified. */
-	if (plugins_num == 0)
-		add_to_array (&plugins, &plugins_num, NULL);
+    if (cmd.cmd.flush.plugins_num != 0)
+      plugin = cmd.cmd.flush.plugins[i];
 
-	if (identifiers_num == 0)
-		add_to_array (&identifiers, &identifiers_num, NULL);
+    for (size_t j = 0; (j == 0) || (j < cmd.cmd.flush.identifiers_num); j++) {
+      char *identifier = NULL;
+      char buf[1024];
 
-	for (i = 0; i < plugins_num; i++)
-	{
-		char *plugin;
-		int j;
+      if (cmd.cmd.flush.identifiers_num != 0) {
+        identifier_t *id = cmd.cmd.flush.identifiers + j;
+        if (format_name(buf, sizeof(buf), id->host, id->plugin,
+                        id->plugin_instance, id->type,
+                        id->type_instance) != 0) {
+          error++;
+          continue;
+        }
+        identifier = buf;
+      }
 
-		plugin = plugins[i];
+      if (plugin_flush(plugin, DOUBLE_TO_CDTIME_T(cmd.cmd.flush.timeout),
+                       identifier) == 0)
+        success++;
+      else
+        error++;
+    }
+  }
 
-		for (j = 0; j < identifiers_num; j++)
-		{
-			char *identifier;
-			int status;
+  cmd_error(CMD_OK, &err, "Done: %i successful, %i errors", success, error);
 
-			identifier = identifiers[j];
-			status = plugin_flush (plugin,
-					DOUBLE_TO_CDTIME_T (timeout),
-					identifier);
-			if (status == 0)
-				success++;
-			else
-				error++;
-		}
-	}
+  cmd_destroy(&cmd);
+  return 0;
+#undef PRINT_TO_SOCK
+} /* cmd_status_t cmd_handle_flush */
 
-	if ((success + error) > 0)
-	{
-		print_to_socket (fh, "0 Done: %i successful, %i errors\n",
-				success, error);
-	}
-	else
-	{
-		plugin_flush (NULL, DOUBLE_TO_CDTIME_T (timeout), NULL);
-		print_to_socket (fh, "0 Done\n");
-	}
+void cmd_destroy_flush(cmd_flush_t *flush) {
+  if (flush == NULL)
+    return;
 
-	sfree (plugins);
-	sfree (identifiers);
-	return (0);
-} /* int handle_flush */
+  strarray_free(flush->plugins, flush->plugins_num);
+  flush->plugins = NULL;
+  flush->plugins_num = 0;
 
-/* vim: set sw=4 ts=4 tw=78 noexpandtab : */
-
+  sfree(flush->identifiers);
+  flush->identifiers_num = 0;
+} /* void cmd_destroy_flush */
