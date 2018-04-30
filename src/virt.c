@@ -230,6 +230,8 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
 };
 #endif /* HAVE_DOM_REASON */
 
+#define VIR_DOMAIN_INTERFACE_TYPE_MULTICAST "mcast"
+
 #define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
 #define NANOSEC_IN_SEC 1e9
 
@@ -273,6 +275,7 @@ struct interface_device {
   char *path;       /* name of interface device */
   char *address;    /* mac address of interface device */
   char *number;     /* interface device number */
+  char *type;       /* interface type */
 };
 
 typedef struct domain_s {
@@ -302,7 +305,7 @@ static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
 static void free_interface_devices(struct lv_read_state *state);
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
-                                unsigned int number);
+                                const char *type, unsigned int number);
 
 #define METADATA_VM_PARTITION_URI "http://ovirt.org/ovirtmap/tag/1.0"
 #define METADATA_VM_PARTITION_ELEMENT "tag"
@@ -1642,6 +1645,14 @@ static int lv_read(user_data_t *ud) {
 
   /* Get interface stats for each domain. */
   for (int i = 0; i < state->nr_interface_devices; ++i) {
+    if (strcmp(state->interface_devices[i].type,
+               VIR_DOMAIN_INTERFACE_TYPE_MULTICAST) == 0) {
+      DEBUG(PLUGIN_NAME " is skipping stat collection for multicast interface "
+                        "(%s) in domain %s",
+            state->interface_devices[i].path,
+            virDomainGetName(state->interface_devices[i].dom));
+      continue;
+    }
     int status = get_if_dev_stats(&state->interface_devices[i]);
     if (status != 0)
       ERROR(PLUGIN_NAME
@@ -1960,11 +1971,14 @@ static int refresh_lists(struct lv_read_instance *inst) {
       for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
         char *path = NULL;
         char *address = NULL;
+        char *type = NULL;
         xmlNodePtr xml_interface;
 
         xml_interface = xml_interfaces->nodeTab[j];
         if (!xml_interface)
           continue;
+
+        type = (char *)xmlGetProp(xml_interface, (const xmlChar *)"type");
 
         for (xmlNodePtr child = xml_interface->children; child;
              child = child->next) {
@@ -1987,12 +2001,14 @@ static int refresh_lists(struct lv_read_instance *inst) {
              ignore_device_match(il_interface_devices, name, address) != 0))
           goto cont3;
 
-        add_interface_device(state, dom, path, address, j + 1);
+        add_interface_device(state, dom, path, address, type, j + 1);
       cont3:
         if (path)
           xmlFree(path);
         if (address)
           xmlFree(address);
+        if (type)
+          xmlFree(type);
       }
 
     cont:
@@ -2101,11 +2117,11 @@ static void free_interface_devices(struct lv_read_state *state) {
 
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
-                                unsigned int number) {
+                                const char *type, unsigned int number) {
   struct interface_device *new_ptr;
   int new_size =
       sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[15];
+  char *path_copy, *address_copy, *type_copy, number_string[15];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;
@@ -2120,6 +2136,12 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
     return -1;
   }
 
+  type_copy = strdup(type);
+  if (!type_copy) {
+    sfree(type_copy);
+    return -1;
+  }
+
   snprintf(number_string, sizeof(number_string), "interface-%u", number);
 
   if (state->interface_devices)
@@ -2130,12 +2152,14 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
   if (new_ptr == NULL) {
     sfree(path_copy);
     sfree(address_copy);
+    sfree(type_copy);
     return -1;
   }
   state->interface_devices = new_ptr;
   state->interface_devices[state->nr_interface_devices].dom = dom;
   state->interface_devices[state->nr_interface_devices].path = path_copy;
   state->interface_devices[state->nr_interface_devices].address = address_copy;
+  state->interface_devices[state->nr_interface_devices].type = type_copy;
   state->interface_devices[state->nr_interface_devices].number =
       strdup(number_string);
   return state->nr_interface_devices++;
