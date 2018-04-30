@@ -2123,7 +2123,7 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
       sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
   char *path_copy, *address_copy, *type_copy, number_string[15];
 
-  if ((path == NULL) || (address == NULL))
+  if ((path == NULL) || (address == NULL) || (type == NULL))
     return EINVAL;
 
   path_copy = strdup(path);
@@ -2138,7 +2138,8 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
 
   type_copy = strdup(type);
   if (!type_copy) {
-    sfree(type_copy);
+    sfree(path_copy);
+    sfree(address_copy);
     return -1;
   }
 
