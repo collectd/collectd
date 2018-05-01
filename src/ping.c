@@ -476,7 +476,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->next = hostlist_head;
     hostlist_head = hl;
   } else if (strcasecmp(key, "AddressFamily") == 0) {
-    char* af = NULL;
+    char *af = NULL;
     int status = config_set_string(key, &af, value);
     if (status != 0)
       return status;
