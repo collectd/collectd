@@ -488,9 +488,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     } else if (strncmp(af, "ipv6", 4) == 0) {
       ping_af = AF_INET6;
     } else {
-      ERROR("ping plugin: Bad address family: %s", af);
-      free(af);
-      return 1;
+      WARNING("ping plugin: Ignoring invalid AddressFamily value %s", af);
     }
     free(af);
 
