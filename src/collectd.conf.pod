@@ -6185,6 +6185,10 @@ long string is used so that the packet size of an ICMPv4 packet is exactly
 Sets the source address to use. I<host> may either be a numerical network
 address or a network hostname.
 
+=item B<AddressFamily> I<af>
+
+Sets the address family to use. I<af> may be "any", "ipv4" or "ipv6". This option will be ignored if you set a B<SourceAddress>.
+
 =item B<Device> I<name>
 
 Sets the outgoing network device to be used. I<name> has to specify an
