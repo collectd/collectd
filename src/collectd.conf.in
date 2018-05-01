@@ -1126,6 +1126,7 @@
 #	Timeout 0.9
 #	TTL 255
 #	SourceAddress "1.2.3.4"
+#	AddressFamily "any"
 #	Device "eth0"
 #	MaxMissed -1
 #</Plugin>
