@@ -383,7 +383,8 @@ static int bind_xml_read_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
 static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
                                    xmlDoc *doc, xmlXPathContext *xpathCtx,
                                    time_t *ret_value) {
-  xmlXPathObject *xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
@@ -409,7 +410,6 @@ static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
     xmlXPathFreeObject(xpathObj);
     return -1;
   }
-
 
   char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL) {
@@ -464,7 +464,8 @@ static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
                                          void *user_data, xmlDoc *doc,
                                          xmlXPathContext *xpathCtx,
                                          time_t current_time, int ds_type) {
-  xmlXPathObject *xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
@@ -542,7 +543,8 @@ static int bind_parse_generic_value_list(const char *xpath_expression, /* {{{ */
                                          void *user_data, xmlDoc *doc,
                                          xmlXPathContext *xpathCtx,
                                          time_t current_time, int ds_type) {
-  xmlXPathObject *xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
@@ -601,7 +603,8 @@ static int bind_parse_generic_name_attr_value_list(
     list_callback_t list_callback, void *user_data, xmlDoc *doc,
     xmlXPathContext *xpathCtx, time_t current_time, int ds_type) {
 
-  xmlXPathObject *xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
@@ -670,7 +673,8 @@ static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
     xmlFree(n);
     xmlFree(c);
   } else {
-    xmlXPathObject *path_obj = xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
+    xmlXPathObject *path_obj =
+        xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
     if (path_obj == NULL) {
       ERROR("bind plugin: xmlXPathEvalExpression failed.");
       return -1;
@@ -748,7 +752,8 @@ static int bind_xml_stats_search_zones(int version, xmlDoc *doc, /* {{{ */
     return -1;
   }
 
-  xmlXPathObject *zone_nodes = xmlXPathEvalExpression(BAD_CAST "zones/zone", path_ctx);
+  xmlXPathObject *zone_nodes =
+      xmlXPathEvalExpression(BAD_CAST "zones/zone", path_ctx);
   if (zone_nodes == NULL) {
     ERROR("bind plugin: Cannot find any <view> tags.");
     xmlXPathFreeContext(zone_path_context);
@@ -793,7 +798,8 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
     xmlFree(view_name);
     view_name = NULL;
   } else {
-    xmlXPathObject *path_obj = xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
+    xmlXPathObject *path_obj =
+        xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
     if (path_obj == NULL) {
       ERROR("bind plugin: xmlXPathEvalExpression failed.");
       return -1;
@@ -910,7 +916,8 @@ static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
     return -1;
   }
 
-  xmlXPathObject *view_nodes = xmlXPathEvalExpression(BAD_CAST "views/view", xpathCtx);
+  xmlXPathObject *view_nodes =
+      xmlXPathEvalExpression(BAD_CAST "views/view", xpathCtx);
   if (view_nodes == NULL) {
     ERROR("bind plugin: Cannot find any <view> tags.");
     xmlXPathFreeContext(view_path_context);
@@ -1228,7 +1235,7 @@ static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
   /* TODO: Check `server/boot-time' to recognize server restarts. */
 
   int status = bind_xml_read_timestamp("server/current-time", doc, xpathCtx,
-                                   &current_time);
+                                       &current_time);
   if (status != 0) {
     ERROR("bind plugin: Reading `server/current-time' failed.");
     return -1;
@@ -1291,7 +1298,8 @@ static int bind_xml(const char *data) /* {{{ */
   // version 3.* of statistics XML (since BIND9.9)
   //
 
-  xmlXPathObject *xpathObj = xmlXPathEvalExpression(BAD_CAST "/statistics", xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST "/statistics", xpathCtx);
   if (xpathObj == NULL || xpathObj->nodesetval == NULL ||
       xpathObj->nodesetval->nodeNr == 0) {
     DEBUG("bind plugin: Statistics appears not to be v3");
@@ -1559,8 +1567,9 @@ static int bind_init(void) /* {{{ */
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
-                   (timeout >= 0) ? (long)timeout : (long)CDTIME_T_TO_MS(
-                                                        plugin_get_interval()));
+                   (timeout >= 0)
+                       ? (long)timeout
+                       : (long)CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
   return 0;
