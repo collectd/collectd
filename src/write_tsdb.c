@@ -152,7 +152,7 @@ static int wt_flush_nolock(cdtime_t timeout, struct wt_callback *cb) {
   return status;
 }
 
-static cdtime_t new_random_ttl() {
+static cdtime_t new_random_ttl(void) {
   if (resolve_jitter == 0)
     return 0;
 
