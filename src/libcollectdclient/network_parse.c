@@ -68,7 +68,7 @@ static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
                          lcc_network_parse_options_t const *opts);
 
 #if HAVE_GCRYPT_H
-static int init_gcrypt() {
+static int init_gcrypt(void) {
   /* http://lists.gnupg.org/pipermail/gcrypt-devel/2003-August/000458.html
    * Because you can't know in a library whether another library has
    * already initialized the library */
