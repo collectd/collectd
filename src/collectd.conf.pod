@@ -6880,8 +6880,8 @@ B<Synopsis:>
    </Process>
    <ProcessMatch "name" "regex">
      CollectFileDescriptor false
-     CollectContextSwitch  true
-   </Process>
+     CollectContextSwitch true
+   </ProcessMatch>
  </Plugin>
 
 =over 4
