@@ -359,7 +359,7 @@ static int start_thread(void) /* {{{ */
 
   ping_thread_loop = 1;
   ping_thread_error = 0;
-  status = plugin_thread_create(&ping_thread_id, /* attr = */ NULL, ping_thread,
+  status = plugin_thread_create(&ping_thread_id, ping_thread,
                                 /* arg = */ (void *)0, "ping");
   if (status != 0) {
     ping_thread_loop = 0;

@@ -834,7 +834,6 @@ static int exec_read(void) /* {{{ */
 {
   for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next) {
     pthread_t t;
-    pthread_attr_t attr;
 
     /* Only execute `normal' style executables here. */
     if ((pl->flags & PL_NORMAL) == 0)
@@ -849,14 +848,13 @@ static int exec_read(void) /* {{{ */
     pl->flags |= PL_RUNNING;
     pthread_mutex_unlock(&pl_lock);
 
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     int status =
-        plugin_thread_create(&t, &attr, exec_read_one, (void *)pl, "exec read");
-    if (status != 0) {
+        plugin_thread_create(&t, exec_read_one, (void *)pl, "exec read");
+    if (status == 0) {
+      pthread_detach(t);
+    } else {
       ERROR("exec plugin: plugin_thread_create failed.");
     }
-    pthread_attr_destroy(&attr);
   } /* for (pl) */
 
   return 0;
@@ -868,7 +866,6 @@ static int exec_notification(const notification_t *n, /* {{{ */
 
   for (program_list_t *pl = pl_head; pl != NULL; pl = pl->next) {
     pthread_t t;
-    pthread_attr_t attr;
 
     /* Only execute `notification' style executables here. */
     if ((pl->flags & PL_NOTIF_ACTION) == 0)
@@ -892,14 +889,13 @@ static int exec_notification(const notification_t *n, /* {{{ */
     pln->n.meta = NULL;
     plugin_notification_meta_copy(&pln->n, n);
 
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    int status = plugin_thread_create(&t, &attr, exec_notification_one,
-                                      (void *)pln, "exec notify");
-    if (status != 0) {
+    int status = plugin_thread_create(&t, exec_notification_one, (void *)pln,
+                                      "exec notify");
+    if (status == 0) {
+      pthread_detach(t);
+    } else {
       ERROR("exec plugin: plugin_thread_create failed.");
     }
-    pthread_attr_destroy(&attr);
   } /* for (pl) */
 
   return 0;

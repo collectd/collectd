@@ -574,8 +574,7 @@ static int plugin_init(void) /* {{{ */
   if (collector_thread_running)
     return 0;
 
-  status = plugin_thread_create(&collector_thread_id,
-                                /* attrs = */ NULL, collector_thread,
+  status = plugin_thread_create(&collector_thread_id, collector_thread,
                                 /* args = */ NULL, "pinba collector");
   if (status != 0) {
     ERROR("pinba plugin: pthread_create(3) failed: %s", STRERRNO);

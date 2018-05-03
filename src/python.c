@@ -1170,7 +1170,7 @@ static int cpy_init(void) {
       ERROR("python: Unable to create pipe.");
       return 1;
     }
-    if (plugin_thread_create(&thread, NULL, cpy_interactive, pipefd + 1,
+    if (plugin_thread_create(&thread, cpy_interactive, pipefd + 1,
                              "python interpreter")) {
       ERROR("python: Error creating thread for interactive interpreter.");
     }

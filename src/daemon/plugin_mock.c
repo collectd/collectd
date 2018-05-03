@@ -233,7 +233,6 @@ plugin_ctx_t plugin_set_ctx(plugin_ctx_t ctx) {
 cdtime_t plugin_get_interval(void) { return mock_context.interval; }
 
 int plugin_thread_create(__attribute__((unused)) pthread_t *thread,
-                         __attribute__((unused)) const pthread_attr_t *attr,
                          __attribute__((unused)) void *(*start_routine)(void *),
                          __attribute__((unused)) void *arg,
                          __attribute__((unused)) char const *name) {

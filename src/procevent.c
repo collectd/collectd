@@ -1006,7 +1006,7 @@ static int start_netlink_thread(void) /* {{{ */
   procevent_netlink_thread_loop = 1;
   procevent_netlink_thread_error = 0;
 
-  status = plugin_thread_create(&procevent_netlink_thread_id, /* attr = */ NULL,
+  status = plugin_thread_create(&procevent_netlink_thread_id,
                                 procevent_netlink_thread,
                                 /* arg = */ (void *)0, "procevent");
   if (status != 0) {
@@ -1043,7 +1043,7 @@ static int start_dequeue_thread(void) /* {{{ */
   procevent_dequeue_thread_loop = 1;
 
   int status = plugin_thread_create(&procevent_dequeue_thread_id,
-                                    /* attr = */ NULL, procevent_dequeue_thread,
+                                    procevent_dequeue_thread,
                                     /* arg = */ (void *)0, "procevent");
   if (status != 0) {
     procevent_dequeue_thread_loop = 0;

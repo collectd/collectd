@@ -428,13 +428,8 @@ static void *open_connection(void __attribute__((unused)) * arg) {
   }
 
   { /* initialize collector threads */
-    pthread_attr_t ptattr;
-
     conns.head = NULL;
     conns.tail = NULL;
-
-    pthread_attr_init(&ptattr);
-    pthread_attr_setdetachstate(&ptattr, PTHREAD_CREATE_DETACHED);
 
     available_collectors = max_conns;
 
@@ -444,14 +439,14 @@ static void *open_connection(void __attribute__((unused)) * arg) {
       collectors[i] = smalloc(sizeof(*collectors[i]));
       collectors[i]->socket = NULL;
 
-      if (plugin_thread_create(&collectors[i]->thread, &ptattr, collect,
-                               collectors[i], "email collector") != 0) {
+      if (plugin_thread_create(&collectors[i]->thread, collect, collectors[i],
+                               "email collector") == 0) {
+        pthread_detach(collectors[i]->thread);
+      } else {
         log_err("plugin_thread_create() failed: %s", STRERRNO);
         collectors[i]->thread = (pthread_t)0;
       }
     }
-
-    pthread_attr_destroy(&ptattr);
   }
 
   while (1) {
@@ -523,7 +518,7 @@ static void *open_connection(void __attribute__((unused)) * arg) {
 } /* static void *open_connection (void *) */
 
 static int email_init(void) {
-  if (plugin_thread_create(&connector, NULL, open_connection, NULL,
+  if (plugin_thread_create(&connector, open_connection, NULL,
                            "email listener") != 0) {
     disabled = 1;
     log_err("plugin_thread_create() failed: %s", STRERRNO);

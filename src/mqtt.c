@@ -744,7 +744,6 @@ static int mqtt_init(void) {
       continue;
 
     status = plugin_thread_create(&subscribers[i]->thread,
-                                  /* attrs = */ NULL,
                                   /* func  = */ subscribers_thread,
                                   /* args  = */ subscribers[i],
                                   /* name  = */ "mqtt");

@@ -683,8 +683,8 @@ static int camqp_subscribe_init(camqp_config_t *conf) /* {{{ */
   tmp = subscriber_threads + subscriber_threads_num;
   memset(tmp, 0, sizeof(*tmp));
 
-  status = plugin_thread_create(tmp, /* attr = */ NULL, camqp_subscribe_thread,
-                                conf, "amqp subscribe");
+  status =
+      plugin_thread_create(tmp, camqp_subscribe_thread, conf, "amqp subscribe");
   if (status != 0) {
     ERROR("amqp plugin: pthread_create failed: %s", STRERROR(status));
     return status;

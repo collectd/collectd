@@ -1357,7 +1357,8 @@ EXPORT int plugin_register_cache_event(const char *name,
   user_data_t user_data;
   if (ud == NULL) {
     user_data = (user_data_t){
-        .data = NULL, .free_func = NULL,
+        .data = NULL,
+        .free_func = NULL,
     };
   } else {
     user_data = *ud;
@@ -2728,9 +2729,8 @@ static void *plugin_thread_start(void *arg) {
   return start_routine(plugin_arg);
 } /* void *plugin_thread_start */
 
-int plugin_thread_create(pthread_t *thread, const pthread_attr_t *attr,
-                         void *(*start_routine)(void *), void *arg,
-                         char const *name) {
+int plugin_thread_create(pthread_t *thread, void *(*start_routine)(void *),
+                         void *arg, char const *name) {
   plugin_thread_t *plugin_thread;
 
   plugin_thread = malloc(sizeof(*plugin_thread));
@@ -2741,7 +2741,7 @@ int plugin_thread_create(pthread_t *thread, const pthread_attr_t *attr,
   plugin_thread->start_routine = start_routine;
   plugin_thread->arg = arg;
 
-  int ret = pthread_create(thread, attr, plugin_thread_start, plugin_thread);
+  int ret = pthread_create(thread, NULL, plugin_thread_start, plugin_thread);
   if (ret != 0) {
     sfree(plugin_thread);
     return ret;

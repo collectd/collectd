@@ -926,8 +926,8 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
   }
   /* start event thread */
   pthread_t tid;
-  if (plugin_thread_create(&tid, NULL, ovs_event_worker, pdb,
-                           "utils_ovs:event") != 0) {
+  if (plugin_thread_create(&tid, ovs_event_worker, pdb, "utils_ovs:event") !=
+      0) {
     pthread_mutex_unlock(&pdb->event_thread.mutex);
     pthread_mutex_destroy(&pdb->event_thread.mutex);
     pthread_cond_destroy(&pdb->event_thread.cond);
@@ -972,8 +972,7 @@ static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
   /* start poll thread */
   pthread_t tid;
   pdb->poll_thread.state = OVS_DB_POLL_STATE_RUNNING;
-  if (plugin_thread_create(&tid, NULL, ovs_poll_worker, pdb,
-                           "utils_ovs:poll") != 0) {
+  if (plugin_thread_create(&tid, ovs_poll_worker, pdb, "utils_ovs:poll") != 0) {
     pthread_mutex_destroy(&pdb->poll_thread.mutex);
     return -1;
   }
