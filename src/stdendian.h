@@ -109,6 +109,23 @@
 #define __ENDIAN_DEFINED 1
 #endif /* sun */
 
+/* AIX */
+#if defined(_AIX)
+#include <sys/machine.h>
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define _LITTLE_ENDIAN 1234
+#define _BIG_ENDIAN 4321
+#define _BYTE_ORDER _LITTLE_ENDIAN
+#elif BYTE_ORDER == BIG_ENDIAN
+#define _LITTLE_ENDIAN 1234
+#define _BIG_ENDIAN 4321
+#define _BYTE_ORDER _BIG_ENDIAN
+#else
+#error Could not determine CPU byte order for AIX
+#endif
+#define __ENDIAN_DEFINED 1
+#endif /* AIX */
+
 /* Windows */
 #if defined(_WIN32) || defined(_MSC_VER)
 /* assumes all Microsoft targets are little endian */
