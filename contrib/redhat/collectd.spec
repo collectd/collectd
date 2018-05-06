@@ -41,6 +41,7 @@
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
+%define with_amqp1 0%{!?_without_amqp1:1}
 %define with_apache 0%{!?_without_apache:1}
 %define with_apcups 0%{!?_without_apcups:1}
 %define with_ascent 0%{!?_without_ascent:1}
@@ -277,13 +278,24 @@ every 10 seconds by default.
 
 %if %{with_amqp}
 %package amqp
-Summary:	AMQP plugin for collectd
+Summary:	AMQP 0.9 plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	librabbitmq-devel
 %description amqp
-The AMQP plugin transmits or receives values collected by collectd via the
-Advanced Message Queuing Protocol (AMQP).
+The AMQP 0.9 plugin transmits or receives values collected by collectd via the
+Advanced Message Queuing Protocol v0.9 (AMQP).
+%endif
+
+%if %{with_amqp1}
+%package amqp1
+Summary:	AMQP 1.0 plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	qpid-proton-c-devel
+%description amqp1
+The AMQP 1.0 plugin transmits or receives values collected by collectd via the
+Advanced Message Queuing Protocol v1.0 (AMQP1).
 %endif
 
 %if %{with_apache}
@@ -1013,6 +1025,12 @@ Collectd utilities
 %define _with_amqp --enable-amqp
 %else
 %define _with_amqp --disable-amqp
+%endif
+
+%if %{with_amqp1}
+%define _with_amqp1 --enable-amqp1
+%else
+%define _with_amqp1 --disable-amqp1
 %endif
 
 %if %{with_apache}
@@ -1888,6 +1906,7 @@ Collectd utilities
 	--enable-target_v5upgrade \
 	%{?_with_aggregation} \
 	%{?_with_amqp} \
+	%{?_with_amqp1} \
 	%{?_with_apache} \
 	%{?_with_apcups} \
 	%{?_with_apple_sensors} \
@@ -2397,6 +2416,11 @@ fi
 %if %{with_amqp}
 %files amqp
 %{_libdir}/%{name}/amqp.so
+%endif
+
+%if %{with_amqp1}
+%files amqp1
+%{_libdir}/%{name}/amqp1.so
 %endif
 
 %if %{with_apache}

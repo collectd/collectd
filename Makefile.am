@@ -544,7 +544,9 @@ endif
 
 if BUILD_PLUGIN_AMQP1
 pkglib_LTLIBRARIES += amqp1.la
-amqp1_la_SOURCES = src/amqp1.c
+amqp1_la_SOURCES = \
+	src/amqp1.c \
+	src/utils_deq.h
 amqp1_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
 amqp1_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
 amqp1_la_LIBADD = \
