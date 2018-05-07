@@ -3660,6 +3660,18 @@ if test "x$with_libmnl" = "xyes"; then
     [[#include <linux/if_link.h>]]
   )
 
+  AC_CHECK_MEMBERS([struct rtnl_link_stats.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_MEMBERS([struct rtnl_link_stats64.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
   AC_CHECK_LIB([mnl], [mnl_nlmsg_get_payload],
     [with_libmnl="yes"],
     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],

@@ -56,6 +56,7 @@ struct ir_link_stats_storage_s {
   uint64_t tx_dropped;
   uint64_t multicast;
   uint64_t collisions;
+  uint64_t rx_nohandler;
 
   uint64_t rx_length_errors;
   uint64_t rx_over_errors;
@@ -253,6 +254,10 @@ static void check_ignorelist_and_submit(const char *dev,
     submit_two(dev, "if_dropped", NULL, stats->rx_dropped, stats->tx_dropped);
     submit_one(dev, "if_multicast", NULL, stats->multicast);
     submit_one(dev, "if_collisions", NULL, stats->collisions);
+#if defined(HAVE_STRUCT_RTNL_LINK_STATS_RX_NOHANDLER) ||                       \
+    defined(HAVE_STRUCT_RTNL_LINK_STATS64_RX_NOHANDLER)
+    submit_one(dev, "if_rx_nohandler", NULL, stats->rx_nohandler);
+#endif
 
     submit_one(dev, "if_rx_errors", "length", stats->rx_length_errors);
     submit_one(dev, "if_rx_errors", "over", stats->rx_over_errors);
@@ -304,6 +309,9 @@ static void check_ignorelist_and_submit64(const char *dev,
   struct ir_link_stats_storage_s s;
 
   COPY_RTNL_LINK_STATS(&s, stats);
+#ifdef HAVE_STRUCT_RTNL_LINK_STATS64_RX_NOHANDLER
+  COPY_RTNL_LINK_VALUE(&s, stats, rx_nohandler);
+#endif
 
   check_ignorelist_and_submit(dev, &s);
 }
@@ -314,6 +322,9 @@ static void check_ignorelist_and_submit32(const char *dev,
   struct ir_link_stats_storage_s s;
 
   COPY_RTNL_LINK_STATS(&s, stats);
+#ifdef HAVE_STRUCT_RTNL_LINK_STATS_RX_NOHANDLER
+  COPY_RTNL_LINK_VALUE(&s, stats, rx_nohandler);
+#endif
 
   check_ignorelist_and_submit(dev, &s);
 }
@@ -357,10 +368,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     if (mnl_attr_get_type(attr) != IFLA_STATS64)
       continue;
 
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats64)) < 0) {
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 mnl_attr_validate2 "
-            "failed: %s",
-            STRERRNO);
+    uint16_t attr_len = mnl_attr_get_payload_len(attr);
+    if (attr_len < sizeof(*stats.stats64)) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 attribute has "
+            "insufficient data.");
       return MNL_CB_ERROR;
     }
     stats.stats64 = mnl_attr_get_payload(attr);
@@ -374,10 +385,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     if (mnl_attr_get_type(attr) != IFLA_STATS)
       continue;
 
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats32)) < 0) {
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 "
-            "failed: %s",
-            STRERRNO);
+    uint16_t attr_len = mnl_attr_get_payload_len(attr);
+    if (attr_len < sizeof(*stats.stats32)) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_STATS attribute has "
+            "insufficient data.");
       return MNL_CB_ERROR;
     }
     stats.stats32 = mnl_attr_get_payload(attr);
