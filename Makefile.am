@@ -61,6 +61,7 @@ EXTRA_DIST = \
 	src/types.db \
 	src/types.db.pod \
 	src/valgrind.FreeBSD.suppress \
+	src/valgrind.suppress \
 	testwrapper.sh \
 	version-gen.sh
 
