@@ -1932,8 +1932,7 @@ static void stop_event_loop(virt_notif_thread_t *thread_data) {
     virConnectDomainEventDeregisterAny(conn, thread_data->domain_event_cb_id);
 
   if (pthread_join(notif_thread.event_loop_tid, NULL) != 0)
-    ERROR(PLUGIN_NAME " plugin: stopping thread %lu failed",
-          notif_thread.event_loop_tid);
+    ERROR(PLUGIN_NAME " plugin: stopping notification thread failed");
 }
 
 static int persistent_domains_state_notification(void) {
