@@ -3476,7 +3476,7 @@ Select the iptables/ip6tables filter rules to count packets and bytes from.
 
 If only I<Table> and I<Chain> are given, this plugin will collect the counters
 of all rules which have a comment-match. The comment is then used as
-type-instance.
+type-instance.You can provide pattern in chain name.
 
 If I<Comment> or I<Number> is given, only the rule with the matching comment or
 the I<n>th rule will be collected. Again, the comment (or the number) will be
@@ -3484,6 +3484,21 @@ used as the type-instance.
 
 If I<Name> is supplied, it will be used as the type-instance instead of the
 comment or the number.
+
+  <Plugin iptables>
+    Chain "mangle" "/^custom_chain/"
+    Chain6 "mangle" "custom_chain" "comment_name"
+  </Plugin>
+
+See F</"IGNORELISTS"> for details.
+
+=item B<IgnoreSelected>
+
+The behavior is the same as with all other similar plugins: If nothing is
+selected at all, everything is collected. If some things are selected using the
+options described above, only these statistics are collected. If you set
+B<IgnoreSelected> to B<true>, this behavior is inverted, i.E<nbsp>e. the
+specified statistics will not be collected.
 
 =back
 

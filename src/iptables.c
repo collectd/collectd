@@ -29,6 +29,7 @@
 #include "common.h"
 #include "plugin.h"
 
+#include "utils_ignorelist.h"
 #include <libiptc/libip6tc.h>
 #include <libiptc/libiptc.h>
 
@@ -63,7 +64,7 @@ typedef struct ip6tc_handle ip6tc_handle_t;
  * Config format should be `Chain table chainname',
  * e. g. `Chain mangle incoming'
  */
-static const char *config_keys[] = {"Chain", "Chain6"};
+static const char *config_keys[] = {"Chain", "Chain6", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 enum protocol_version_e { IPV4, IPV6 };
 typedef enum protocol_version_e protocol_version_t;
@@ -88,17 +89,25 @@ typedef struct {
 
 static ip_chain_t **chain_list = NULL;
 static int chain_num = 0;
+static ignorelist_t *ignorelist = NULL;
 
 static int iptables_config(const char *key, const char *value) {
+  if (ignorelist == NULL)
+    ignorelist = ignorelist_create(/* invert = */ 1);
   /* int ip_value; */
   protocol_version_t ip_version = 0;
-
-  if (strcasecmp(key, "Chain") == 0)
+  if (strcasecmp(key, "Chain") == 0) {
     ip_version = IPV4;
-  else if (strcasecmp(key, "Chain6") == 0)
+  } else if (strcasecmp(key, "Chain6") == 0) {
     ip_version = IPV6;
-  else
+  } else if (strcasecmp(key, "IgnoreSelected") == 0) {
+    int invert = 1;
+    if (IS_TRUE(value))
+      invert = 0;
+    ignorelist_set_invert(ignorelist, invert);
+  } else {
     return 1;
+  }
 
   ip_chain_t temp = {0};
   ip_chain_t *final, **list;
@@ -151,7 +160,7 @@ static int iptables_config(const char *key, const char *value) {
     return 1;
   }
   sstrncpy(temp.chain, chain, chain_len);
-
+  ignorelist_add(ignorelist, chain);
   if (fields_num >= 3) {
     char *comment = fields[2];
     int rule = atoi(comment);
@@ -351,15 +360,16 @@ static void submit_chain(iptc_handle_t *handle, ip_chain_t *chain) {
 static int iptables_read(void) {
   int num_failures = 0;
   ip_chain_t *chain;
-
+  ip_chain_t temp_chain = {0};
+  const char *chain_name = NULL;
   /* Init the iptc handle structure and query the correct table */
   for (int i = 0; i < chain_num; i++) {
     chain = chain_list[i];
-
     if (!chain) {
       DEBUG("iptables plugin: chain == NULL");
       continue;
     }
+    memcpy(&temp_chain, chain, sizeof(*chain));
 
     if (chain->ip_version == IPV4) {
 #ifdef HAVE_IPTC_HANDLE_T
@@ -378,8 +388,13 @@ static int iptables_read(void) {
         num_failures++;
         continue;
       }
-
-      submit_chain(handle, chain);
+      for (chain_name = iptc_first_chain(handle); chain_name;
+           chain_name = iptc_next_chain(handle)) {
+        if (ignorelist_match(ignorelist, chain_name) == 0) {
+          sstrncpy(temp_chain.chain, chain_name, sizeof(temp_chain.chain));
+          submit_chain(handle, &temp_chain);
+        }
+      }
       iptc_free(handle);
     } else if (chain->ip_version == IPV6) {
 #ifdef HAVE_IP6TC_HANDLE_T
@@ -397,8 +412,13 @@ static int iptables_read(void) {
         num_failures++;
         continue;
       }
-
-      submit6_chain(handle, chain);
+      for (chain_name = ip6tc_first_chain(handle); chain_name;
+           chain_name = ip6tc_next_chain(handle)) {
+        if (ignorelist_match(ignorelist, chain_name) == 0) {
+          sstrncpy(temp_chain.chain, chain_name, sizeof(temp_chain.chain));
+          submit6_chain(handle, &temp_chain);
+        }
+      }
       ip6tc_free(handle);
     } else
       num_failures++;
