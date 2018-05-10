@@ -149,6 +149,11 @@ static int parse_int(void *payload, size_t payload_size, uint64_t *out) {
   return 0;
 }
 
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && (__GNUC__ >= 8)
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
+
 static int parse_string(void *payload, size_t payload_size, char *out,
                         size_t out_size) {
   char *in = payload;
@@ -160,6 +165,8 @@ static int parse_string(void *payload, size_t payload_size, char *out,
   strncpy(out, in, out_size);
   return 0;
 }
+
+#pragma GCC diagnostic pop
 
 static int parse_identifier(uint16_t type, void *payload, size_t payload_size,
                             lcc_value_list_t *state) {
