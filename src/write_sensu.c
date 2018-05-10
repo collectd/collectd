@@ -570,6 +570,11 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   return ret_str;
 } /* }}} char *sensu_value_to_json */
 
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && (__GNUC__ >= 8)
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 /*
  * Uses replace_str2() implementation from
  * http://creativeandcritical.net/str-replace-c/
@@ -631,6 +636,8 @@ static char *replace_str(const char *str, const char *old, /* {{{ */
 
   return ret;
 } /* }}} char *replace_str */
+
+#pragma GCC diagnostic pop
 
 static char *replace_json_reserved(const char *message) /* {{{ */
 {
