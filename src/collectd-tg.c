@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <math.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +67,7 @@ static c_heap_t *values_heap = NULL;
 static struct sigaction sigint_action;
 static struct sigaction sigterm_action;
 
-static _Bool loop = 1;
+static bool loop = 1;
 
 __attribute__((noreturn)) static void exit_usage(int exit_status) /* {{{ */
 {

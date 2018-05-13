@@ -126,20 +126,20 @@ static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 static write_queue_t *write_queue_head;
 static write_queue_t *write_queue_tail;
 static long write_queue_length = 0;
-static _Bool write_loop = 1;
+static bool write_loop = 1;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t write_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t *write_threads = NULL;
 static size_t write_threads_num = 0;
 
 static pthread_key_t plugin_ctx_key;
-static _Bool plugin_ctx_key_initialized = 0;
+static bool plugin_ctx_key_initialized = 0;
 
 static long write_limit_high = 0;
 static long write_limit_low = 0;
 
 static derive_t stats_values_dropped = 0;
-static _Bool record_statistics = 0;
+static bool record_statistics = 0;
 
 /*
  * Static functions
@@ -391,7 +391,7 @@ static int plugin_unregister(llist_t *list, const char *name) /* {{{ */
 
 /* plugin_load_file loads the shared object "file" and calls its
  * "module_register" function. Returns zero on success, non-zero otherwise. */
-static int plugin_load_file(char const *file, _Bool global) {
+static int plugin_load_file(char const *file, bool global) {
   int flags = RTLD_NOW;
   if (global)
     flags |= RTLD_GLOBAL;
@@ -912,7 +912,7 @@ void plugin_set_dir(const char *dir) {
     ERROR("plugin_set_dir: strdup(\"%s\") failed", dir);
 }
 
-static _Bool plugin_is_loaded(char const *name) {
+static bool plugin_is_loaded(char const *name) {
   int status;
 
   if (plugins_loaded == NULL)
@@ -954,7 +954,7 @@ static void plugin_free_loaded(void) {
 }
 
 #define BUFSIZE 512
-int plugin_load(char const *plugin_name, _Bool global) {
+int plugin_load(char const *plugin_name, bool global) {
   DIR *dh;
   const char *dir;
   char filename[BUFSIZE] = "";
@@ -1890,7 +1890,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   int status;
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
-  _Bool free_meta_data = 0;
+  bool free_meta_data = 0;
 
   assert(vl != NULL);
 
@@ -2023,7 +2023,7 @@ static double get_drop_probability(void) /* {{{ */
   return (double)pos / (double)size;
 } /* }}} double get_drop_probability */
 
-static _Bool check_drop_value(void) /* {{{ */
+static bool check_drop_value(void) /* {{{ */
 {
   static cdtime_t last_message_time = 0;
   static pthread_mutex_t last_message_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -2061,7 +2061,7 @@ static _Bool check_drop_value(void) /* {{{ */
     return 1;
   else
     return 0;
-} /* }}} _Bool check_drop_value */
+} /* }}} bool check_drop_value */
 
 int plugin_dispatch_values(value_list_t const *vl) {
   int status;
@@ -2089,7 +2089,7 @@ int plugin_dispatch_values(value_list_t const *vl) {
 
 __attribute__((sentinel)) int
 plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
-                           _Bool store_percentage, int store_type, ...) {
+                           bool store_percentage, int store_type, ...) {
   value_list_t *vl;
   int failed = 0;
   gauge_t sum = 0.0;
@@ -2330,7 +2330,7 @@ static int plugin_notification_meta_add(notification_t *n, const char *name,
     break;
   }
   case NM_TYPE_BOOLEAN: {
-    meta->nm_value.nm_boolean = *((_Bool *)value);
+    meta->nm_value.nm_boolean = *((bool *)value);
     break;
   }
   default: {
@@ -2375,7 +2375,7 @@ int plugin_notification_meta_add_double(notification_t *n, const char *name,
 }
 
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
-                                         _Bool value) {
+                                         bool value) {
   return plugin_notification_meta_add(n, name, NM_TYPE_BOOLEAN, &value);
 }
 

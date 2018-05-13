@@ -102,7 +102,7 @@ typedef struct {
 typedef struct {
   char *name;
   char *statement;
-  _Bool store_rates;
+  bool store_rates;
 } c_psql_writer_t;
 
 typedef struct {
@@ -348,7 +348,7 @@ static int c_psql_connect(c_psql_database_t *db) {
 } /* c_psql_connect */
 
 static int c_psql_check_connection(c_psql_database_t *db) {
-  _Bool init = 0;
+  bool init = 0;
 
   if (!db->conn) {
     init = 1;
@@ -664,7 +664,7 @@ static char *values_name_to_sqlarray(const data_set_t *ds, char *string,
 } /* values_name_to_sqlarray */
 
 static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
-                                     size_t string_len, _Bool store_rates) {
+                                     size_t string_len, bool store_rates) {
   char *str_ptr;
   size_t str_len;
 
@@ -707,7 +707,7 @@ static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
 
 static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
                                 char *string, size_t string_len,
-                                _Bool store_rates) {
+                                bool store_rates) {
   char *str_ptr;
   size_t str_len;
 
@@ -936,7 +936,7 @@ static int c_psql_flush(cdtime_t timeout,
 } /* c_psql_flush */
 
 static int c_psql_shutdown(void) {
-  _Bool had_flush = 0;
+  bool had_flush = 0;
 
   plugin_unregister_read_group("postgresql");
 
@@ -1124,7 +1124,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
   c_psql_database_t *db;
 
   char cb_name[DATA_MAX_NAME_LEN];
-  static _Bool have_flush = 0;
+  static bool have_flush = 0;
 
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
     log_err("<Database> expects a single string argument.");

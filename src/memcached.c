@@ -69,7 +69,7 @@ struct memcached_s {
 };
 typedef struct memcached_s memcached_t;
 
-static _Bool memcached_have_instances = 0;
+static bool memcached_have_instances = 0;
 
 static void memcached_free(void *arg) {
   memcached_t *st = arg;
@@ -755,7 +755,7 @@ static int config_add_instance(oconfig_item_t *ci) {
 } /* int config_add_instance */
 
 static int memcached_config(oconfig_item_t *ci) {
-  _Bool have_instance_block = 0;
+  bool have_instance_block = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;

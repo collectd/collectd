@@ -198,20 +198,20 @@ typedef struct process_entry_s {
   derive_t io_syscw;
   derive_t io_diskr;
   derive_t io_diskw;
-  _Bool has_io;
+  bool has_io;
 
   derive_t cswitch_vol;
   derive_t cswitch_invol;
-  _Bool has_cswitch;
+  bool has_cswitch;
 
 #if HAVE_LIBTASKSTATS
   ts_delay_t delay;
 #endif
-  _Bool has_delay;
+  bool has_delay;
 
-  _Bool has_fd;
+  bool has_fd;
 
-  _Bool has_maps;
+  bool has_maps;
 } process_entry_t;
 
 typedef struct procstat_entry_s {
@@ -284,10 +284,10 @@ typedef struct procstat {
   gauge_t delay_swapin;
   gauge_t delay_freepages;
 
-  _Bool report_fd_num;
-  _Bool report_maps_num;
-  _Bool report_ctx_switch;
-  _Bool report_delay;
+  bool report_fd_num;
+  bool report_maps_num;
+  bool report_ctx_switch;
+  bool report_delay;
 
   struct procstat *next;
   struct procstat_entry_s *instances;
@@ -295,11 +295,11 @@ typedef struct procstat {
 
 static procstat_t *list_head_g = NULL;
 
-static _Bool want_init = 1;
-static _Bool report_ctx_switch = 0;
-static _Bool report_fd_num = 0;
-static _Bool report_maps_num = 0;
-static _Bool report_delay = 0;
+static bool want_init = 1;
+static bool report_ctx_switch = 0;
+static bool report_fd_num = 0;
+static bool report_maps_num = 0;
+static bool report_delay = 0;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -1521,7 +1521,7 @@ static int read_fork_rate(void) {
   FILE *proc_stat;
   char buffer[1024];
   value_t value;
-  _Bool value_valid = 0;
+  bool value_valid = 0;
 
   proc_stat = fopen("/proc/stat", "r");
   if (proc_stat == NULL) {
@@ -2137,7 +2137,7 @@ static int ps_read(void) {
      * filter out threads (duplicate PID entries). */
     if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) {
       char cmdline[CMDLINE_BUFFER_SIZE] = "";
-      _Bool have_cmdline = 0;
+      bool have_cmdline = 0;
 
       proc_ptr = &(procs[i]);
       /* Don't probe system processes and processes without arguments */
@@ -2292,7 +2292,7 @@ static int ps_read(void) {
      * filter out threads (duplicate PID entries). */
     if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) {
       char cmdline[CMDLINE_BUFFER_SIZE] = "";
-      _Bool have_cmdline = 0;
+      bool have_cmdline = 0;
 
       proc_ptr = &(procs[i]);
       /* Don't probe zombie processes  */

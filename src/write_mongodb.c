@@ -50,8 +50,8 @@ struct wm_node_s {
   char *user;
   char *passwd;
 
-  _Bool store_rates;
-  _Bool connected;
+  bool store_rates;
+  bool connected;
 
   mongoc_client_t *client;
   mongoc_database_t *database;
@@ -63,7 +63,7 @@ typedef struct wm_node_s wm_node_t;
  * Functions
  */
 static bson_t *wm_create_bson(const data_set_t *ds, /* {{{ */
-                              const value_list_t *vl, _Bool store_rates) {
+                              const value_list_t *vl, bool store_rates) {
   bson_t *ret;
   bson_t subarray;
   gauge_t *rates;

@@ -38,7 +38,7 @@ typedef struct {
   int (*add_signed_int)(void *, const char *, int64_t);
   int (*add_unsigned_int)(void *, const char *, uint64_t);
   int (*add_double)(void *, const char *, double);
-  int (*add_boolean)(void *, const char *, _Bool);
+  int (*add_boolean)(void *, const char *, bool);
 } cpy_build_meta_handler_t;
 
 #define FreeAll()                                                              \
@@ -562,7 +562,7 @@ static int cpy_build_meta_generic(PyObject *meta,
   CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_signed_int, int64_t)        \
   CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_unsigned_int, uint64_t)     \
   CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_double, double)             \
-  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_boolean, _Bool)             \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_boolean, bool)             \
                                                                                \
   static cpy_build_meta_handler_t cpy_##func_prefix = {                        \
       .add_string = cpy_##func_prefix##_add_string,                            \

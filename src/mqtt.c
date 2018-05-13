@@ -54,11 +54,11 @@
  * Data types
  */
 struct mqtt_client_conf {
-  _Bool publish;
+  bool publish;
   char *name;
 
   struct mosquitto *mosq;
-  _Bool connected;
+  bool connected;
 
   char *host;
   int port;
@@ -74,14 +74,14 @@ struct mqtt_client_conf {
 
   /* For publishing */
   char *topic_prefix;
-  _Bool store_rates;
-  _Bool retain;
+  bool store_rates;
+  bool retain;
 
   /* For subscribing */
   pthread_t thread;
-  _Bool loop;
+  bool loop;
   char *topic;
-  _Bool clean_session;
+  bool clean_session;
 
   c_complain_t complaint_cantpublish;
   pthread_mutex_t lock;

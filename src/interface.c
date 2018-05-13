@@ -88,7 +88,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist = NULL;
 
-static _Bool report_inactive = 1;
+static bool report_inactive = 1;
 
 #ifdef HAVE_LIBKSTAT
 #if HAVE_KSTAT_H
@@ -98,7 +98,7 @@ static _Bool report_inactive = 1;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
-static _Bool unique_name = 0;
+static bool unique_name = 0;
 #endif /* HAVE_LIBKSTAT */
 
 static int interface_config(const char *key, const char *value) {

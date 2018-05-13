@@ -94,8 +94,8 @@ static int pagesize;
 #error "No applicable input method."
 #endif
 
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
+static bool values_absolute = 1;
+static bool values_percentage = 0;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -268,7 +268,7 @@ static int memory_read_internal(value_list_t *vl) {
   char *fields[8];
   int numfields;
 
-  _Bool detailed_slab_info = 0;
+  bool detailed_slab_info = 0;
 
   gauge_t mem_total = 0;
   gauge_t mem_used = 0;

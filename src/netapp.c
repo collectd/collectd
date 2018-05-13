@@ -2842,7 +2842,7 @@ static int cna_register_host(host_config_t *host) /* {{{ */
 static int cna_config_host(host_config_t *host, /* {{{ */
                            const oconfig_item_t *ci) {
   oconfig_item_t *item;
-  _Bool is_vfiler = 0;
+  bool is_vfiler = 0;
   int status;
 
   if (!strcasecmp(ci->key, "VFiler"))

@@ -76,7 +76,7 @@ typedef struct cf_value_map_s {
 typedef struct cf_global_option_s {
   const char *key;
   char *value;
-  _Bool from_cli; /* value set from CLI */
+  bool from_cli; /* value set from CLI */
   const char *def;
 } cf_global_option_t;
 
@@ -245,7 +245,7 @@ static int dispatch_value_plugindir(oconfig_item_t *ci) {
 
 static int dispatch_loadplugin(oconfig_item_t *ci) {
   const char *name;
-  _Bool global = 0;
+  bool global = 0;
   plugin_ctx_t ctx = {0};
   plugin_ctx_t old_ctx;
   int ret_val;
@@ -826,7 +826,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 /*
  * Public functions
  */
-int global_option_set(const char *option, const char *value, _Bool from_cli) {
+int global_option_set(const char *option, const char *value, bool from_cli) {
   int i;
   DEBUG("option = %s; value = %s;", option, value);
 
@@ -1110,7 +1110,7 @@ int cf_util_get_double(const oconfig_item_t *ci, double *ret_value) /* {{{ */
   return 0;
 } /* }}} int cf_util_get_double */
 
-int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
+int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
 {
   if ((ci == NULL) || (ret_bool == NULL))
     return EINVAL;
@@ -1152,7 +1152,7 @@ int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 int cf_util_get_flag(const oconfig_item_t *ci, /* {{{ */
                      unsigned int *ret_value, unsigned int flag) {
   int status;
-  _Bool b;
+  bool b;
 
   if (ret_value == NULL)
     return EINVAL;

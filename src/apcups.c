@@ -73,8 +73,8 @@ typedef struct {
 static char *conf_node = NULL;
 static char *conf_service = NULL;
 /* Defaults to false for backwards compatibility. */
-static _Bool conf_report_seconds = 0;
-static _Bool conf_persistent_conn = 1;
+static bool conf_report_seconds = 0;
+static bool conf_persistent_conn = 1;
 
 static int global_sockfd = -1;
 
@@ -347,7 +347,7 @@ static int apc_query_server(char const *node, char const *service,
 }
 
 static int apcups_config(oconfig_item_t *ci) {
-  _Bool persistent_conn_set = 0;
+  bool persistent_conn_set = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;

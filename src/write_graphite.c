@@ -92,7 +92,7 @@ struct wg_callback {
   char *node;
   char *service;
   char *protocol;
-  _Bool log_send_errors;
+  bool log_send_errors;
   char *prefix;
   char *postfix;
   char escape_char;
@@ -111,7 +111,7 @@ struct wg_callback {
   /* Force reconnect useful for load balanced environments */
   cdtime_t last_reconnect_time;
   cdtime_t reconnect_interval;
-  _Bool reconnect_interval_reached;
+  bool reconnect_interval_reached;
 };
 
 /* wg_force_reconnect_check closes cb->sock_fd when it was open for longer

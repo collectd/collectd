@@ -50,16 +50,16 @@ struct wh_callback_s {
   char *user;
   char *pass;
   char *credentials;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   char *capath;
   char *clientkey;
   char *clientcert;
   char *clientkeypass;
   long sslversion;
-  _Bool store_rates;
-  _Bool log_http_error;
+  bool store_rates;
+  bool log_http_error;
   int low_speed_limit;
   time_t low_speed_time;
   int timeout;
@@ -68,8 +68,8 @@ struct wh_callback_s {
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
   int format;
-  _Bool send_metrics;
-  _Bool send_notifications;
+  bool send_metrics;
+  bool send_notifications;
 
   CURL *curl;
   struct curl_slist *headers;

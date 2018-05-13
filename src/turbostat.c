@@ -65,12 +65,12 @@
  *
  * This value is automatically set if mperf or aperf go backward
  */
-static _Bool aperf_mperf_unstable;
+static bool aperf_mperf_unstable;
 
 /*
  * If set, use kernel logical core numbering for all "per core" metrics.
  */
-static _Bool config_lcn;
+static bool config_lcn;
 
 /*
  * Bitmask of the list of core C states supported by the processor.
@@ -78,7 +78,7 @@ static _Bool config_lcn;
  */
 static unsigned int do_core_cstate;
 static unsigned int config_core_cstate;
-static _Bool apply_config_core_cstate;
+static bool apply_config_core_cstate;
 
 /*
  * Bitmask of the list of pacages C states supported by the processor.
@@ -86,15 +86,15 @@ static _Bool apply_config_core_cstate;
  */
 static unsigned int do_pkg_cstate;
 static unsigned int config_pkg_cstate;
-static _Bool apply_config_pkg_cstate;
+static bool apply_config_pkg_cstate;
 
 /*
  * Boolean indicating if the processor supports 'I/O System-Management Interrupt
  * counter'
  */
-static _Bool do_smi;
-static _Bool config_smi;
-static _Bool apply_config_smi;
+static bool do_smi;
+static bool config_smi;
+static bool apply_config_smi;
 
 /*
  * Boolean indicating if the processor supports 'Digital temperature sensor'
@@ -105,9 +105,9 @@ static _Bool apply_config_smi;
  * might be wrong
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
-static _Bool do_dts;
-static _Bool config_dts;
-static _Bool apply_config_dts;
+static bool do_dts;
+static bool config_dts;
+static bool apply_config_dts;
 
 /*
  * Boolean indicating if the processor supports 'Package thermal management'
@@ -118,9 +118,9 @@ static _Bool apply_config_dts;
  * might be wrong
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
-static _Bool do_ptm;
-static _Bool config_ptm;
-static _Bool apply_config_ptm;
+static bool do_ptm;
+static bool config_ptm;
+static bool apply_config_ptm;
 
 /*
  * Thermal Control Circuit Activation Temperature as configured by the user.
@@ -131,7 +131,7 @@ static unsigned int tcc_activation_temp;
 
 static unsigned int do_rapl;
 static unsigned int config_rapl;
-static _Bool apply_config_rapl;
+static bool apply_config_rapl;
 static double rapl_energy_units;
 
 #define RAPL_PKG (1 << 0)
@@ -195,10 +195,10 @@ static struct pkg_data {
 #define DELTA_COUNTERS thread_delta, core_delta, package_delta
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
-static _Bool is_even = 1;
+static bool is_even = 1;
 
-static _Bool allocated = 0;
-static _Bool initialized = 0;
+static bool allocated = 0;
+static bool initialized = 0;
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no)                    \
   (thread_base + (pkg_no)*topology.num_cores * topology.num_threads +          \
@@ -210,8 +210,8 @@ static _Bool initialized = 0;
 struct cpu_topology {
   unsigned int package_id;
   unsigned int core_id;
-  _Bool first_core_in_package;
-  _Bool first_thread_in_core;
+  bool first_core_in_package;
+  bool first_thread_in_core;
 };
 
 static struct topology {
@@ -246,7 +246,7 @@ static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
  * 1
  */
 static int __attribute__((warn_unused_result))
-open_msr(unsigned int cpu, _Bool multiple_read) {
+open_msr(unsigned int cpu, bool multiple_read) {
   char pathname[32];
   int fd;
 

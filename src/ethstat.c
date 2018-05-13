@@ -53,7 +53,7 @@ static size_t interfaces_num = 0;
 
 static c_avl_tree_t *value_map = NULL;
 
-static _Bool collect_mapped_only = 0;
+static bool collect_mapped_only = 0;
 
 static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
 {

@@ -96,7 +96,7 @@ static int wl_write(const data_set_t *ds, const value_list_t *vl,
 
 static int wl_config(oconfig_item_t *ci) /* {{{ */
 {
-  _Bool format_seen = 0;
+  bool format_seen = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;

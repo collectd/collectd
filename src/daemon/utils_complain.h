@@ -39,7 +39,7 @@ typedef struct {
    * 0 indicates that the complaint is no longer valid. */
   cdtime_t interval;
 
-  _Bool complained_once;
+  bool complained_once;
 } c_complain_t;
 
 #define C_COMPLAIN_INIT_STATIC                                                 \

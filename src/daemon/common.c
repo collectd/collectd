@@ -857,7 +857,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
 
 int format_values(char *ret, size_t ret_len, /* {{{ */
                   const data_set_t *ds, const value_list_t *vl,
-                  _Bool store_rates) {
+                  bool store_rates) {
   size_t offset = 0;
   int status;
   gauge_t *rates = NULL;

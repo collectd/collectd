@@ -244,7 +244,7 @@ static int http_handler(void *cls, struct MHD_Connection *connection,
 
   char const *accept = MHD_lookup_connection_value(connection, MHD_HEADER_KIND,
                                                    MHD_HTTP_HEADER_ACCEPT);
-  _Bool want_proto =
+  bool want_proto =
       (accept != NULL) &&
       (strstr(accept, "application/vnd.google.protobuf") != NULL);
 
@@ -689,7 +689,7 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
  * necessary. */
 static Io__Prometheus__Client__MetricFamily *
 metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
-                  _Bool allocate) {
+                  bool allocate) {
   char *name = metric_family_name(ds, vl, ds_index);
   if (name == NULL) {
     ERROR("write_prometheus plugin: Allocating metric family name failed.");

@@ -35,7 +35,7 @@ static const char *config_keys[] = {"Device", "IgnoreSelected",
 static const char *const dirname_sysfs = "/sys/class/thermal";
 static const char *const dirname_procfs = "/proc/acpi/thermal_zone";
 
-static _Bool force_procfs = 0;
+static bool force_procfs = 0;
 static ignorelist_t *device_list;
 
 enum dev_type { TEMP = 0, COOLING_DEV };
@@ -59,7 +59,7 @@ static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
                                      const char *name,
                                      void __attribute__((unused)) * user_data) {
   char filename[PATH_MAX];
-  _Bool success = 0;
+  bool success = 0;
   value_t value;
 
   if (device_list && ignorelist_match(device_list, name))

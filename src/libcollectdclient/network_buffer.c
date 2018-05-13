@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -122,10 +123,10 @@ struct lcc_network_buffer_s {
 /*
  * Private functions
  */
-static _Bool have_gcrypt(void) /* {{{ */
+static bool have_gcrypt(void) /* {{{ */
 {
-  static _Bool result = 0;
-  static _Bool need_init = 1;
+  static bool result = 0;
+  static bool need_init = 1;
 
   if (!need_init)
     return result;
@@ -150,7 +151,7 @@ static _Bool have_gcrypt(void) /* {{{ */
 #else
   return 0;
 #endif
-} /* }}} _Bool have_gcrypt */
+} /* }}} bool have_gcrypt */
 
 #ifndef HAVE_HTONLL
 static uint64_t htonll(uint64_t val) /* {{{ */

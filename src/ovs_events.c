@@ -66,7 +66,7 @@ typedef struct ovs_events_iface_list_s ovs_events_iface_list_t;
 
 /* OVS events configuration data */
 struct ovs_events_config_s {
-  _Bool send_notification;                 /* sent notification to collectd? */
+  bool send_notification;                 /* sent notification to collectd? */
   char ovs_db_node[OVS_DB_ADDR_NODE_SIZE]; /* OVS DB node */
   char ovs_db_serv[OVS_DB_ADDR_SERVICE_SIZE]; /* OVS DB service */
   char ovs_db_unix[OVS_DB_ADDR_UNIX_SIZE];    /* OVS DB unix socket path */
@@ -80,7 +80,7 @@ struct ovs_events_ctx_s {
   ovs_db_t *ovs_db;           /* pointer to OVS DB instance */
   ovs_events_config_t config; /* plugin config */
   char *ovs_db_select_params; /* OVS DB select parameter request */
-  _Bool is_db_available;      /* specify whether OVS DB is available */
+  bool is_db_available;      /* specify whether OVS DB is available */
 };
 typedef struct ovs_events_ctx_s ovs_events_ctx_t;
 
@@ -231,7 +231,7 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
  * in allocated memory. Returns negative value in case of error.
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
-  _Bool dispatch_values = 0;
+  bool dispatch_values = 0;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
@@ -592,7 +592,7 @@ static void ovs_events_conn_terminate() {
 
 /* Read OVS DB interface link status callback */
 static int ovs_events_plugin_read(__attribute__((unused)) user_data_t *u) {
-  _Bool is_connected = 0;
+  bool is_connected = 0;
   OVS_EVENTS_CTX_LOCK { is_connected = ovs_events_ctx.is_db_available; }
   if (is_connected)
     if (ovs_db_send_request(ovs_events_ctx.ovs_db, "transact",

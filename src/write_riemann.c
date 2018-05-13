@@ -48,11 +48,11 @@ struct riemann_host {
   char *name;
   char *event_service_prefix;
   pthread_mutex_t lock;
-  _Bool batch_mode;
-  _Bool notifications;
-  _Bool check_thresholds;
-  _Bool store_rates;
-  _Bool always_append_ds;
+  bool batch_mode;
+  bool notifications;
+  bool check_thresholds;
+  bool store_rates;
+  bool always_append_ds;
   char *node;
   int port;
   riemann_client_type_t client_type;

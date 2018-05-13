@@ -135,7 +135,7 @@ struct mb_host_s /* {{{ */
 #else
   modbus_t *connection;
 #endif
-  _Bool is_connected;
+  bool is_connected;
 }; /* }}} */
 typedef struct mb_host_s mb_host_t;
 

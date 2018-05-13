@@ -46,7 +46,7 @@ struct wr_node_s {
   int database;
   int max_set_size;
   int max_set_duration;
-  _Bool store_rates;
+  bool store_rates;
 
   redisContext *conn;
   pthread_mutex_t lock;

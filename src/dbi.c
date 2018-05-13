@@ -54,7 +54,7 @@ struct cdbi_driver_option_s /* {{{ */
     char *string;
     int numeric;
   } value;
-  _Bool is_numeric;
+  bool is_numeric;
 };
 typedef struct cdbi_driver_option_s cdbi_driver_option_t; /* }}} */
 

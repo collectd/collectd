@@ -39,7 +39,7 @@ static int test_handler(void *user, char const *val, char const *key) {
   size_t i;
 
   char status[1024];
-  _Bool ok;
+  bool ok;
 
   /* special case for latency metrics. */
   if (strcmp("filestore.example_latency", key) == 0)

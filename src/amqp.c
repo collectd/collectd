@@ -66,7 +66,7 @@ int amqp_socket_close(amqp_socket_t *);
  * Data types
  */
 struct camqp_config_s {
-  _Bool publish;
+  bool publish;
   char *name;
 
   char *host;
@@ -83,7 +83,7 @@ struct camqp_config_s {
 
   /* publish only */
   uint8_t delivery_mode;
-  _Bool store_rates;
+  bool store_rates;
   int format;
   /* publish & graphite format only */
   char *prefix;
@@ -94,8 +94,8 @@ struct camqp_config_s {
   /* subscribe only */
   char *exchange_type;
   char *queue;
-  _Bool queue_durable;
-  _Bool queue_auto_delete;
+  bool queue_durable;
+  bool queue_auto_delete;
 
   amqp_connection_state_t connection;
   pthread_mutex_t lock;
@@ -113,7 +113,7 @@ static const char *def_exchange = "amq.fanout";
 
 static pthread_t *subscriber_threads = NULL;
 static size_t subscriber_threads_num = 0;
-static _Bool subscriber_threads_running = 1;
+static bool subscriber_threads_running = 1;
 
 #define CONF(c, f) (((c)->f != NULL) ? (c)->f : def_##f)
 
@@ -176,7 +176,7 @@ static char *camqp_bytes_cstring(amqp_bytes_t *in) /* {{{ */
   return ret;
 } /* }}} char *camqp_bytes_cstring */
 
-static _Bool camqp_is_error(camqp_config_t *conf) /* {{{ */
+static bool camqp_is_error(camqp_config_t *conf) /* {{{ */
 {
   amqp_rpc_reply_t r;
 
@@ -185,7 +185,7 @@ static _Bool camqp_is_error(camqp_config_t *conf) /* {{{ */
     return 0;
 
   return 1;
-} /* }}} _Bool camqp_is_error */
+} /* }}} bool camqp_is_error */
 
 static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
                             char *buffer, size_t buffer_size) {
@@ -825,7 +825,7 @@ static int camqp_config_set_format(oconfig_item_t *ci, /* {{{ */
 } /* }}} int config_set_string */
 
 static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
-                                   _Bool publish) {
+                                   bool publish) {
   camqp_config_t *conf;
   int status;
 
@@ -902,7 +902,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
     else if (strcasecmp("RoutingKey", child->key) == 0)
       status = cf_util_get_string(child, &conf->routing_key);
     else if ((strcasecmp("Persistent", child->key) == 0) && publish) {
-      _Bool tmp = 0;
+      bool tmp = 0;
       status = cf_util_get_boolean(child, &tmp);
       if (tmp)
         conf->delivery_mode = CAMQP_DM_PERSISTENT;

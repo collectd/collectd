@@ -72,9 +72,9 @@
 int battery_read_statefs(
     void); /* defined in battery_statefs; used by StateFS backend */
 
-static _Bool report_percent = 0;
-static _Bool report_degraded = 0;
-static _Bool query_statefs = 0;
+static bool report_percent = 0;
+static bool report_degraded = 0;
+static bool query_statefs = 0;
 
 static void battery_submit2(char const *plugin_instance, /* {{{ */
                             char const *type, char const *type_instance,
@@ -410,7 +410,7 @@ static int read_sysfs_callback(char const *dir, /* {{{ */
   char const *plugin_instance;
   char buffer[32];
   gauge_t v = NAN;
-  _Bool discharging = 0;
+  bool discharging = 0;
   int status;
 
   /* Ignore non-battery directories, such as AC power. */
@@ -522,8 +522,8 @@ static int read_acpi_callback(char const *dir, /* {{{ */
   gauge_t capacity_charged = NAN;
   gauge_t capacity_full = NAN;
   gauge_t capacity_design = NAN;
-  _Bool charging = 0;
-  _Bool is_current = 0;
+  bool charging = 0;
+  bool is_current = 0;
 
   char const *plugin_instance;
   char filename[PATH_MAX];

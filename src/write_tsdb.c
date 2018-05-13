@@ -79,8 +79,8 @@ struct wt_callback {
   char *service;
   char *host_tags;
 
-  _Bool store_rates;
-  _Bool always_append_ds;
+  bool store_rates;
+  bool always_append_ds;
 
   char send_buf[WT_SEND_BUF_SIZE];
   size_t send_buf_free;
@@ -89,7 +89,7 @@ struct wt_callback {
 
   pthread_mutex_t send_lock;
 
-  _Bool connect_failed_log_enabled;
+  bool connect_failed_log_enabled;
   int connect_dns_failed_attempts_remaining;
   cdtime_t next_random_ttl;
 };
@@ -313,7 +313,7 @@ static int wt_flush(cdtime_t timeout,
 
 static int wt_format_values(char *ret, size_t ret_len, int ds_num,
                             const data_set_t *ds, const value_list_t *vl,
-                            _Bool store_rates) {
+                            bool store_rates) {
   size_t offset = 0;
   int status;
   gauge_t *rates = NULL;

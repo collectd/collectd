@@ -56,7 +56,7 @@ static int check_count__ = 0;
 
 #define OK1(cond, text)                                                        \
   do {                                                                         \
-    _Bool result = (cond);                                                     \
+    bool result = (cond);                                                     \
     LOG(result, text);                                                         \
     if (!result) {                                                             \
       return -1;                                                               \

@@ -181,7 +181,7 @@ static int cgroups_config(const char *key, const char *value) {
 
 static int cgroups_read(void) {
   cu_mount_t *mnt_list = NULL;
-  _Bool cgroup_found = 0;
+  bool cgroup_found = 0;
 
   if (cu_mount_getlist(&mnt_list) == NULL) {
     ERROR("cgroups plugin: cu_mount_getlist failed.");

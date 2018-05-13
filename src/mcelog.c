@@ -56,7 +56,7 @@ typedef struct mcelog_config_s {
   pthread_t tid;              /* poll thread id */
   llist_t *dimms_list;        /* DIMMs list */
   pthread_mutex_t dimms_lock; /* lock for dimms cache */
-  _Bool persist;
+  bool persist;
 } mcelog_config_t;
 
 typedef struct socket_adapter_s socket_adapter_t;
@@ -106,8 +106,8 @@ static socket_adapter_t socket_adapter = {
     .receive = socket_receive,
 };
 
-static _Bool mcelog_thread_running;
-static _Bool mcelog_apply_defaults;
+static bool mcelog_thread_running;
+static bool mcelog_apply_defaults;
 
 static void mcelog_free_dimms_list_records(llist_t *dimms_list) {
 

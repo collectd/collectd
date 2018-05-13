@@ -158,7 +158,7 @@ typedef struct featurelist {
 } featurelist_t;
 
 static char *conffile = NULL;
-static _Bool use_labels = 0;
+static bool use_labels = 0;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */

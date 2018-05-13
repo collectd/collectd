@@ -40,10 +40,10 @@
 static const char *config_keys[] = {"CpuPoolStats", "ReportBySerial"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static _Bool pool_stats = 0;
-static _Bool report_by_serial = 0;
+static bool pool_stats = 0;
+static bool report_by_serial = 0;
 #if PERFSTAT_SUPPORTS_DONATION
-static _Bool donate_flag = 0;
+static bool donate_flag = 0;
 #endif
 static char serial[SYS_NMLN];
 

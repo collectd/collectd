@@ -404,8 +404,8 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   size_t src_len;
   char *ptr = buffer;
   size_t ptr_size = buffer_size;
-  _Bool append_plus = 0;
-  _Bool append_minus = 0;
+  bool append_plus = 0;
+  bool append_minus = 0;
 
   if ((buffer == NULL) || (buffer_size <= strlen("Minus")) || (src == NULL))
     return EINVAL;
@@ -470,7 +470,7 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   return 0;
 }
 
-static _Bool has_suffix(char const *str, char const *suffix) {
+static bool has_suffix(char const *str, char const *suffix) {
   size_t str_len = strlen(str);
   size_t suffix_len = strlen(suffix);
   size_t offset;

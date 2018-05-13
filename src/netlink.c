@@ -449,7 +449,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
   const char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
-  _Bool stats_submitted = 0;
+  bool stats_submitted = 0;
 
   if (nlh->nlmsg_type == RTM_NEWQDISC)
     tc_type = "qdisc";

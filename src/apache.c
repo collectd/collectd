@@ -40,8 +40,8 @@ struct apache_s {
   char *url;
   char *user;
   char *pass;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   char *ssl_ciphers;
   char *server; /* user specific server type */

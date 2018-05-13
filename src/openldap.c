@@ -47,10 +47,10 @@ struct cldap_s /* {{{ */
   char *password;
   char *cacert;
   char *host;
-  _Bool starttls;
+  bool starttls;
   int timeout;
   char *url;
-  _Bool verifyhost;
+  bool verifyhost;
   int version;
 
   LDAP *ld;

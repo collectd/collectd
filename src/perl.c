@@ -138,8 +138,8 @@ static int perl_flush(cdtime_t timeout, const char *identifier,
 typedef struct c_ithread_s {
   /* the thread's Perl interpreter */
   PerlInterpreter *interp;
-  _Bool running; /* thread is inside Perl interpreter */
-  _Bool shutdown;
+  bool running; /* thread is inside Perl interpreter */
+  bool shutdown;
   pthread_t pthread;
 
   /* double linked list of threads */
@@ -183,7 +183,7 @@ extern char **environ;
  * private variables
  */
 
-static _Bool register_legacy_flush = 1;
+static bool register_legacy_flush = 1;
 
 /* if perl_threads != NULL perl_threads->head must
  * point to the "base" thread */
@@ -981,7 +981,7 @@ static int pplugin_dispatch_notification(pTHX_ HV *notif) {
  * Call perl sub with thread locking flags handled.
  */
 static int call_pv_locked(pTHX_ const char *sub_name) {
-  _Bool old_running;
+  bool old_running;
   int ret;
 
   c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);

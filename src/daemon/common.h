@@ -319,7 +319,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
   format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
               (vl)->type, (vl)->type_instance)
 int format_values(char *ret, size_t ret_len, const data_set_t *ds,
-                  const value_list_t *vl, _Bool store_rates);
+                  const value_list_t *vl, bool store_rates);
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_plugin_instance, char **ret_type,

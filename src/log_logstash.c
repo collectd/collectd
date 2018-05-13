@@ -75,7 +75,7 @@ static int log_logstash_config(const char *key, const char *value) {
 static void log_logstash_print(yajl_gen g, int severity,
                                cdtime_t timestamp_time) {
   FILE *fh;
-  _Bool do_close = 0;
+  bool do_close = 0;
   struct tm timestamp_tm;
   char timestamp_str[64];
   const unsigned char *buf;

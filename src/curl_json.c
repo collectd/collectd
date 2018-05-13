@@ -74,7 +74,7 @@ typedef struct {
  * exists for this part of the JSON structure. */
 typedef struct {
   cj_tree_entry_t *entry;
-  _Bool in_array;
+  bool in_array;
   int index;
   char name[DATA_MAX_NAME_LEN];
 } cj_state_t;
@@ -91,9 +91,9 @@ struct cj_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;

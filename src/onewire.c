@@ -88,7 +88,7 @@ static int ow_family_features_num = STATIC_ARRAY_SIZE(ow_family_features);
 
 static char *device_g = NULL;
 static cdtime_t ow_interval = 0;
-static _Bool direct_access = 0;
+static bool direct_access = 0;
 
 static const char *config_keys[] = {"Device", "IgnoreSelected", "Sensor",
                                     "Interval"};
@@ -96,7 +96,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *sensor_list;
 
-static _Bool regex_direct_initialized = 0;
+static bool regex_direct_initialized = 0;
 static regex_t regex_direct;
 
 /**

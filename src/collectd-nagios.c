@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,7 +101,7 @@ static char *hostname_g = NULL;
 static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
-static _Bool nan_is_error_g = 0;
+static bool nan_is_error_g = 0;
 
 static char **match_ds_g = NULL;
 static size_t match_ds_num_g = 0;

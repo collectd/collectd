@@ -74,14 +74,14 @@
 #if KERNEL_LINUX
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_bytes = 0;
-static _Bool report_by_device = 0;
+static bool report_bytes = 0;
+static bool report_by_device = 0;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_by_device = 0;
+static bool report_by_device = 0;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
@@ -109,9 +109,9 @@ static int pagesize;
 #error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
-static _Bool report_io = 1;
+static bool values_absolute = 1;
+static bool values_percentage = 0;
+static bool report_io = 1;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -335,7 +335,7 @@ static int swap_read_io(void) /* {{{ */
   FILE *fh;
   char buffer[1024];
 
-  _Bool old_kernel = 0;
+  bool old_kernel = 0;
 
   uint8_t have_data = 0;
   derive_t swap_in = 0;

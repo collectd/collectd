@@ -55,10 +55,10 @@ static ignorelist_t *il_device = NULL;
 static ignorelist_t *il_mountpoint = NULL;
 static ignorelist_t *il_fstype = NULL;
 
-static _Bool by_device = 0;
-static _Bool report_inodes = 0;
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
+static bool by_device = 0;
+static bool report_inodes = 0;
+static bool values_absolute = 1;
+static bool values_percentage = 0;
 
 static int df_init(void) {
   if (il_device == NULL)

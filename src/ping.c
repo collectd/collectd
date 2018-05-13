@@ -298,7 +298,7 @@ static void *ping_thread(void *arg) /* {{{ */
 
   pthread_mutex_lock(&ping_lock);
   while (ping_thread_loop > 0) {
-    _Bool send_successful = 0;
+    bool send_successful = 0;
 
     if (gettimeofday(&tv_begin, NULL) < 0) {
       ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);

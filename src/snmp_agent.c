@@ -71,7 +71,7 @@ struct data_definition_s {
   char *type;
   char *type_instance;
   const table_definition_t *table;
-  _Bool is_instance;
+  bool is_instance;
   oid_t *oids;
   size_t oids_len;
   double scale;

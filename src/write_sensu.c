@@ -107,10 +107,10 @@ struct sensu_host {
 #define F_READY 0x01
   uint8_t flags;
   pthread_mutex_t lock;
-  _Bool notifications;
-  _Bool metrics;
-  _Bool store_rates;
-  _Bool always_append_ds;
+  bool notifications;
+  bool metrics;
+  bool store_rates;
+  bool always_append_ds;
   char *separator;
   char *node;
   char *service;

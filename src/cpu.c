@@ -183,7 +183,7 @@ static int pnumcpu;
 struct cpu_state_s {
   value_to_rate_state_t conv;
   gauge_t rate;
-  _Bool has_value;
+  bool has_value;
 };
 typedef struct cpu_state_s cpu_state_t;
 
@@ -194,12 +194,12 @@ static size_t cpu_states_num = 0; /* #cpu_states allocated */
  * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
 static size_t global_cpu_num = 0;
 
-static _Bool report_by_cpu = 1;
-static _Bool report_by_state = 1;
-static _Bool report_percent = 0;
-static _Bool report_num_cpu = 0;
-static _Bool report_guest = 0;
-static _Bool subtract_guest = 1;
+static bool report_by_cpu = 1;
+static bool report_by_state = 1;
+static bool report_percent = 0;
+static bool report_num_cpu = 0;
+static bool report_guest = 0;
+static bool subtract_guest = 1;
 
 static const char *config_keys[] = {"ReportByCpu",      "ReportByState",
                                     "ReportNumCpu",     "ValuesPercentage",

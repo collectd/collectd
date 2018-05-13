@@ -37,7 +37,7 @@ typedef struct tr_action_s tr_action_t;
 struct tr_action_s {
   regex_t re;
   char *replacement;
-  _Bool may_be_empty;
+  bool may_be_empty;
 
   tr_action_t *next;
 };
@@ -110,7 +110,7 @@ static void tr_meta_data_action_destroy(tr_meta_data_action_t *act) /* {{{ */
 } /* }}} void tr_meta_data_action_destroy */
 
 static int tr_config_add_action(tr_action_t **dest, /* {{{ */
-                                const oconfig_item_t *ci, _Bool may_be_empty) {
+                                const oconfig_item_t *ci, bool may_be_empty) {
   tr_action_t *act;
   int status;
 
@@ -172,7 +172,7 @@ static int tr_config_add_action(tr_action_t **dest, /* {{{ */
 
 static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
                                      const oconfig_item_t *ci,
-                                     _Bool should_delete) {
+                                     bool should_delete) {
   tr_meta_data_action_t *act;
   int status;
 
@@ -262,7 +262,7 @@ static int tr_config_add_meta_action(tr_meta_data_action_t **dest, /* {{{ */
 
 static int tr_action_invoke(tr_action_t *act_head, /* {{{ */
                             char *buffer_in, size_t buffer_in_size,
-                            _Bool may_be_empty) {
+                            bool may_be_empty) {
   int status;
   char buffer[DATA_MAX_NAME_LEN];
   regmatch_t matches[8] = {[0] = {0}};

@@ -80,10 +80,10 @@ struct vpn_status_s {
 };
 typedef struct vpn_status_s vpn_status_t;
 
-static _Bool new_naming_schema = 0;
-static _Bool collect_compression = 1;
-static _Bool collect_user_count = 0;
-static _Bool collect_individual_users = 1;
+static bool new_naming_schema = 0;
+static bool collect_compression = 1;
+static bool collect_user_count = 0;
+static bool collect_individual_users = 1;
 
 static const char *config_keys[] = {
     "StatusFile",           "Compression", /* old, deprecated name */
@@ -247,7 +247,7 @@ static int multi1_read(const char *name, FILE *fh) {
   char *fields[10];
   const int max_fields = STATIC_ARRAY_SIZE(fields);
   long long sum_users = 0;
-  _Bool found_header = 0;
+  bool found_header = 0;
 
   /* read the file until the "ROUTING TABLE" line is found (no more info after)
    */
@@ -320,7 +320,7 @@ static int multi2_read(const char *name, FILE *fh) {
   const int max_fields = STATIC_ARRAY_SIZE(fields);
   long long sum_users = 0;
 
-  _Bool found_header = 0;
+  bool found_header = 0;
   int idx_cname = 0;
   int idx_bytes_recv = 0;
   int idx_bytes_sent = 0;

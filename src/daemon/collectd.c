@@ -156,7 +156,7 @@ static int init_global_variables(void) {
   return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir, _Bool create) {
+static int change_basedir(const char *orig_dir, bool create) {
   char *dir;
   size_t dirlen;
   int status;
@@ -442,11 +442,11 @@ static int notify_systemd(void) {
 #endif /* KERNEL_LINUX */
 
 struct cmdline_config {
-  _Bool test_config;
-  _Bool test_readall;
-  _Bool create_basedir;
+  bool test_config;
+  bool test_readall;
+  bool create_basedir;
   const char *configfile;
-  _Bool daemonize;
+  bool daemonize;
 };
 
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {

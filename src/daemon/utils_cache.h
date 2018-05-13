@@ -124,7 +124,7 @@ int uc_meta_data_add_unsigned_int(const value_list_t *vl, const char *key,
 int uc_meta_data_add_double(const value_list_t *vl, const char *key,
                             double value);
 int uc_meta_data_add_boolean(const value_list_t *vl, const char *key,
-                             _Bool value);
+                             bool value);
 
 int uc_meta_data_get_string(const value_list_t *vl, const char *key,
                             char **value);
@@ -135,6 +135,6 @@ int uc_meta_data_get_unsigned_int(const value_list_t *vl, const char *key,
 int uc_meta_data_get_double(const value_list_t *vl, const char *key,
                             double *value);
 int uc_meta_data_get_boolean(const value_list_t *vl, const char *key,
-                             _Bool *value);
+                             bool *value);
 
 #endif /* !UTILS_CACHE_H */

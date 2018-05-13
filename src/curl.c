@@ -60,14 +60,14 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
-  _Bool response_time;
-  _Bool response_code;
+  bool response_time;
+  bool response_code;
   int timeout;
   curl_stats_t *stats;
 

@@ -77,7 +77,7 @@ static int logfile_config(const char *key, const char *value) {
 static void logfile_print(const char *msg, int severity,
                           cdtime_t timestamp_time) {
   FILE *fh;
-  _Bool do_close = 0;
+  bool do_close = 0;
   char timestamp_str[64];
   char level_str[16] = "";
 

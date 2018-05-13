@@ -209,7 +209,7 @@ static void ovs_db_event_post(ovs_db_t *pdb, int event) {
 
 /* Check if POLL thread is still running. Returns
  * 1 if running otherwise 0 is returned */
-static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
+static bool ovs_db_poll_is_running(ovs_db_t *pdb) {
   int state = 0;
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   state = pdb->poll_thread.state;

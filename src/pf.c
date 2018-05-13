@@ -58,7 +58,7 @@ static char const *pf_scounters[SCNT_MAX + 1] = SCNT_NAMES;
 static char const *pf_device = "/dev/pf";
 
 static void pf_submit(char const *type, char const *type_instance, uint64_t val,
-                      _Bool is_gauge) {
+                      bool is_gauge) {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 

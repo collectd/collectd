@@ -82,7 +82,7 @@
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
  * major version. */
-static _Bool use_bsd_name = 0;
+static bool use_bsd_name = 0;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
@@ -106,9 +106,9 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
-  _Bool has_merged;
-  _Bool has_in_progress;
-  _Bool has_io_time;
+  bool has_merged;
+  bool has_in_progress;
+  bool has_io_time;
 
   struct diskstats *next;
 } diskstats_t;

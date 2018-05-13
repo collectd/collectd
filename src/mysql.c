@@ -58,17 +58,17 @@ struct mysql_database_s /* {{{ */
   int port;
   int timeout;
 
-  _Bool master_stats;
-  _Bool slave_stats;
-  _Bool innodb_stats;
-  _Bool wsrep_stats;
+  bool master_stats;
+  bool slave_stats;
+  bool innodb_stats;
+  bool wsrep_stats;
 
-  _Bool slave_notif;
-  _Bool slave_io_running;
-  _Bool slave_sql_running;
+  bool slave_notif;
+  bool slave_io_running;
+  bool slave_sql_running;
 
   MYSQL *con;
-  _Bool is_connected;
+  bool is_connected;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 

@@ -50,50 +50,50 @@ typedef struct varnish_stats c_varnish_stats_t;
 struct user_config_s {
   char *instance;
 
-  _Bool collect_cache;
-  _Bool collect_connections;
-  _Bool collect_esi;
-  _Bool collect_backend;
+  bool collect_cache;
+  bool collect_connections;
+  bool collect_esi;
+  bool collect_backend;
 #ifdef HAVE_VARNISH_V3
-  _Bool collect_dirdns;
+  bool collect_dirdns;
 #endif
-  _Bool collect_fetch;
-  _Bool collect_hcb;
-  _Bool collect_objects;
+  bool collect_fetch;
+  bool collect_hcb;
+  bool collect_objects;
 #if HAVE_VARNISH_V2
-  _Bool collect_purge;
+  bool collect_purge;
 #else
-  _Bool collect_ban;
+  bool collect_ban;
 #endif
-  _Bool collect_session;
-  _Bool collect_shm;
-  _Bool collect_sms;
+  bool collect_session;
+  bool collect_shm;
+  bool collect_sms;
 #if HAVE_VARNISH_V2
-  _Bool collect_sm;
+  bool collect_sm;
 #endif
 #if HAVE_VARNISH_V2 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-  _Bool collect_sma;
+  bool collect_sma;
 #endif
-  _Bool collect_struct;
-  _Bool collect_totals;
+  bool collect_struct;
+  bool collect_totals;
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-  _Bool collect_uptime;
+  bool collect_uptime;
 #endif
-  _Bool collect_vcl;
-  _Bool collect_workers;
+  bool collect_vcl;
+  bool collect_workers;
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-  _Bool collect_vsm;
-  _Bool collect_lck;
-  _Bool collect_mempool;
-  _Bool collect_mgt;
-  _Bool collect_smf;
-  _Bool collect_vbe;
-  _Bool collect_mse;
+  bool collect_vsm;
+  bool collect_lck;
+  bool collect_mempool;
+  bool collect_mgt;
+  bool collect_smf;
+  bool collect_vbe;
+  bool collect_mse;
 #endif
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
-static _Bool have_instance = 0;
+static bool have_instance = 0;
 
 static int varnish_submit(const char *plugin_instance, /* {{{ */
                           const char *category, const char *type,
@@ -1331,7 +1331,7 @@ static int varnish_read(user_data_t *ud) /* {{{ */
 {
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4
   struct VSM_data *vd;
-  _Bool ok;
+  bool ok;
   const c_varnish_stats_t *stats;
 #elif HAVE_VARNISH_V5
   struct vsm *vd;

@@ -37,7 +37,7 @@ DEF_TEST(base) {
   int64_t si;
   uint64_t ui;
   double d;
-  _Bool b;
+  bool b;
 
   CHECK_NOT_NULL(m = meta_data_create());
 

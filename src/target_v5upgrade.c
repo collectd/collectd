@@ -213,7 +213,7 @@ static int v5_mysql_threads(const data_set_t *ds, value_list_t *vl) /* {{{ */
 static int v5_zfs_arc_counts(const data_set_t *ds, value_list_t *vl) /* {{{ */
 {
   value_list_t new_vl;
-  _Bool is_hits;
+  bool is_hits;
 
   if (vl->values_len != 4)
     return FC_TARGET_STOP;

@@ -48,12 +48,12 @@ struct aggregation_s /* {{{ */
   char *set_plugin_instance;
   char *set_type_instance;
 
-  _Bool calc_num;
-  _Bool calc_sum;
-  _Bool calc_average;
-  _Bool calc_min;
-  _Bool calc_max;
-  _Bool calc_stddev;
+  bool calc_num;
+  bool calc_sum;
+  bool calc_average;
+  bool calc_min;
+  bool calc_max;
+  bool calc_stddev;
 }; /* }}} */
 typedef struct aggregation_s aggregation_t;
 
@@ -88,7 +88,7 @@ static lookup_t *lookup = NULL;
 static pthread_mutex_t agg_instance_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static agg_instance_t *agg_instance_list_head = NULL;
 
-static _Bool agg_is_regex(char const *str) /* {{{ */
+static bool agg_is_regex(char const *str) /* {{{ */
 {
   if (str == NULL)
     return 0;
@@ -101,7 +101,7 @@ static _Bool agg_is_regex(char const *str) /* {{{ */
     return 1;
   else
     return 0;
-} /* }}} _Bool agg_is_regex */
+} /* }}} bool agg_is_regex */
 
 static void agg_destroy(aggregation_t *agg) /* {{{ */
 {
@@ -570,7 +570,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
     agg->regex_fields |= LU_GROUP_BY_TYPE_INSTANCE;
 
   /* Sanity checking */
-  _Bool is_valid = 1;
+  bool is_valid = 1;
   if (strcmp("/.*/", agg->ident.type) == 0) /* {{{ */
   {
     ERROR("aggregation plugin: It appears you did not specify the required "
@@ -711,7 +711,7 @@ static int agg_read(void) /* {{{ */
 
 static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
                      __attribute__((unused)) user_data_t *user_data) {
-  _Bool created_by_aggregation = 0;
+  bool created_by_aggregation = 0;
   /* Ignore values that were created by the aggregation plugin to avoid weird
    * effects. */
   (void)meta_data_get_boolean(vl->meta, "aggregation:created",

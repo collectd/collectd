@@ -64,9 +64,9 @@ struct event_info {
 typedef struct event_info event_info_t;
 
 struct intel_pmu_ctx_s {
-  _Bool hw_cache_events;
-  _Bool kernel_pmu_events;
-  _Bool sw_events;
+  bool hw_cache_events;
+  bool kernel_pmu_events;
+  bool sw_events;
   char event_list_fn[PATH_MAX];
   char **hw_events;
   size_t hw_events_count;

@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <math.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 

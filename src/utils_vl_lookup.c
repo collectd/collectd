@@ -57,7 +57,7 @@ kstat_ctl_t *kc;
 struct part_match_s {
   char str[DATA_MAX_NAME_LEN];
   regex_t regex;
-  _Bool is_regex;
+  bool is_regex;
 };
 typedef struct part_match_s part_match_t;
 
@@ -114,7 +114,7 @@ typedef struct by_type_entry_s by_type_entry_t;
 /*
  * Private functions
  */
-static _Bool lu_part_matches(part_match_t const *match, /* {{{ */
+static bool lu_part_matches(part_match_t const *match, /* {{{ */
                              char const *str) {
   if (match->is_regex) {
     /* Short cut popular catch-all regex. */
@@ -132,7 +132,7 @@ static _Bool lu_part_matches(part_match_t const *match, /* {{{ */
     return 1;
   else
     return 0;
-} /* }}} _Bool lu_part_matches */
+} /* }}} bool lu_part_matches */
 
 static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
                                        char const *ident_part) {
@@ -335,7 +335,7 @@ static int lu_handle_user_class_list(lookup_t *obj, /* {{{ */
 
 static by_type_entry_t *lu_search_by_type(lookup_t *obj, /* {{{ */
                                           char const *type,
-                                          _Bool allocate_if_missing) {
+                                          bool allocate_if_missing) {
   by_type_entry_t *by_type;
   char *type_copy;
   int status;

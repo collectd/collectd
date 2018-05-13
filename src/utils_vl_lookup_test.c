@@ -29,8 +29,8 @@
 #include "testing.h"
 #include "utils_vl_lookup.h"
 
-static _Bool expect_new_obj = 0;
-static _Bool have_new_obj = 0;
+static bool expect_new_obj = 0;
+static bool have_new_obj = 0;
 
 static lookup_identifier_t last_class_ident;
 static lookup_identifier_t last_obj_ident;
@@ -105,7 +105,7 @@ static int checked_lookup_add(lookup_t *obj, /* {{{ */
 static int checked_lookup_search(lookup_t *obj, char const *host,
                                  char const *plugin,
                                  char const *plugin_instance, char const *type,
-                                 char const *type_instance, _Bool expect_new) {
+                                 char const *type_instance, bool expect_new) {
   int status;
   value_list_t vl = VALUE_LIST_INIT;
   data_set_t const *ds = &ds_unknown;

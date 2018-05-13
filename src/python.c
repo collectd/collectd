@@ -241,7 +241,7 @@ static char CollectdError_doc[] =
 
 static pthread_t main_thread;
 static PyOS_sighandler_t python_sigint_handler;
-static _Bool do_interactive = 0;
+static bool do_interactive = 0;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
@@ -448,7 +448,7 @@ static int cpy_write_callback(const data_set_t *ds,
       int64_t si;
       uint64_t ui;
       double d;
-      _Bool b;
+      bool b;
 
       type = meta_data_type(meta, table[i]);
       if (type == MD_TYPE_STRING) {
@@ -1366,7 +1366,7 @@ static int cpy_config(oconfig_item_t *ci) {
 #endif
       sfree(encoding);
     } else if (strcasecmp(item->key, "LogTraces") == 0) {
-      _Bool log_traces;
+      bool log_traces;
       if (cf_util_get_boolean(item, &log_traces) != 0) {
         status = 1;
         continue;

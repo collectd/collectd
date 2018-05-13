@@ -66,19 +66,19 @@ typedef struct dpdk_ka_monitor_s {
 
 typedef struct dpdk_link_status_config_s {
   int enabled;
-  _Bool send_updated;
+  bool send_updated;
   uint32_t enabled_port_mask;
   char port_name[RTE_MAX_ETHPORTS][DATA_MAX_NAME_LEN];
-  _Bool notify;
+  bool notify;
 } dpdk_link_status_config_t;
 
 typedef struct dpdk_keep_alive_config_s {
   int enabled;
-  _Bool send_updated;
+  bool send_updated;
   uint128_t lcore_mask;
   dpdk_keepalive_shm_t *shm;
   char shm_name[DATA_MAX_NAME_LEN];
-  _Bool notify;
+  bool notify;
   int fd;
 } dpdk_keep_alive_config_t;
 

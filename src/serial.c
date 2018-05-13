@@ -59,7 +59,7 @@ static int serial_read(void) {
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     derive_t rx = 0;
     derive_t tx = 0;
-    _Bool have_rx = 0, have_tx = 0;
+    bool have_rx = 0, have_tx = 0;
     size_t len;
 
     char *fields[16];
