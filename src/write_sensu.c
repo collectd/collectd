@@ -627,7 +627,7 @@ static char *replace_str(const char *str, const char *old, /* {{{ */
     r += newlen;
     p = q + oldlen;
   }
-  strncpy(r, p, strlen(p));
+  sstrncpy(r, p, sizeof(r));
 
   return ret;
 } /* }}} char *replace_str */
