@@ -170,7 +170,7 @@ static int disk_config(const char *key, const char *value) {
     ignorelist_set_invert(ignorelist, invert);
   } else if (strcasecmp("UseBSDName", key) == 0) {
 #if HAVE_IOKIT_IOKITLIB_H
-    use_bsd_name = IS_TRUE(value) ? 1 : 0;
+    use_bsd_name = IS_TRUE(value);
 #else
     WARNING("disk plugin: The \"UseBSDName\" option is only supported "
             "on Mach / Mac OS X and will be ignored.");
@@ -817,13 +817,13 @@ static int disk_read(void) {
       ds->write_time = write_time;
 
       if (read_merged || write_merged)
-        ds->has_merged = 1;
+        ds->has_merged = true;
 
       if (in_progress)
-        ds->has_in_progress = 1;
+        ds->has_in_progress = true;
 
       if (io_time)
-        ds->has_io_time = 1;
+        ds->has_io_time = true;
 
     } /* if (is_disk) */
 

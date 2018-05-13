@@ -89,7 +89,7 @@ typedef struct ovs_events_ctx_s ovs_events_ctx_t;
  */
 static ovs_events_ctx_t ovs_events_ctx = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .config = {.send_notification = 1,     /* send notification by default */
+    .config = {.send_notification = true,  /* send notification by default */
                .ovs_db_node = "localhost", /* use default OVS DB node */
                .ovs_db_serv = "6640"}      /* use default OVS DB service */
 };
@@ -231,7 +231,7 @@ static int ovs_events_config_get_interfaces(const oconfig_item_t *ci) {
  * in allocated memory. Returns negative value in case of error.
  */
 static int ovs_events_plugin_config(oconfig_item_t *ci) {
-  bool dispatch_values = 0;
+  bool dispatch_values = false;
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("SendNotification", child->key) == 0) {
@@ -577,7 +577,7 @@ static void ovs_events_conn_initialize(ovs_db_t *pdb) {
       return;
     }
   }
-  OVS_EVENTS_CTX_LOCK { ovs_events_ctx.is_db_available = 1; }
+  OVS_EVENTS_CTX_LOCK { ovs_events_ctx.is_db_available = true; }
   DEBUG(OVS_EVENTS_PLUGIN ": OVS DB connection has been initialized");
 }
 
@@ -587,12 +587,12 @@ static void ovs_events_conn_terminate() {
   if (ovs_events_ctx.config.send_notification)
     ovs_events_dispatch_terminate_notification(msg);
   WARNING(OVS_EVENTS_PLUGIN ": %s", msg);
-  OVS_EVENTS_CTX_LOCK { ovs_events_ctx.is_db_available = 0; }
+  OVS_EVENTS_CTX_LOCK { ovs_events_ctx.is_db_available = false; }
 }
 
 /* Read OVS DB interface link status callback */
 static int ovs_events_plugin_read(__attribute__((unused)) user_data_t *u) {
-  bool is_connected = 0;
+  bool is_connected = false;
   OVS_EVENTS_CTX_LOCK { is_connected = ovs_events_ctx.is_db_available; }
   if (is_connected)
     if (ovs_db_send_request(ovs_events_ctx.ovs_db, "transact",

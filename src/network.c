@@ -1924,7 +1924,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
   struct sockent_client *client;
   struct addrinfo *ai_list;
   int status;
-  bool reconnect = 0;
+  bool reconnect = false;
   cdtime_t now;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
@@ -1938,7 +1938,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
           "next_resolve_reconnect = %lf",
           CDTIME_T_TO_DOUBLE(client->resolve_interval),
           CDTIME_T_TO_DOUBLE(client->next_resolve_reconnect));
-    reconnect = 1;
+    reconnect = true;
   }
 
   if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
@@ -3102,7 +3102,7 @@ static int network_init(void) {
    * nothing more to do (for now, that is). */
   if (have_init)
     return 0;
-  have_init = 1;
+  have_init = true;
 
   if (network_config_stats)
     plugin_register_read("network", network_stats_read);

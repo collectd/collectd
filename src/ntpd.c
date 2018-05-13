@@ -272,14 +272,14 @@ static int ntpd_config(const char *key, const char *value) {
       sstrncpy(ntpd_port, value, sizeof(ntpd_port));
   } else if (strcasecmp(key, "ReverseLookups") == 0) {
     if (IS_TRUE(value))
-      do_reverse_lookups = 1;
+      do_reverse_lookups = true;
     else
-      do_reverse_lookups = 0;
+      do_reverse_lookups = false;
   } else if (strcasecmp(key, "IncludeUnitID") == 0) {
     if (IS_TRUE(value))
-      include_unit_id = 1;
+      include_unit_id = true;
     else
-      include_unit_id = 0;
+      include_unit_id = false;
   } else {
     return -1;
   }

@@ -117,7 +117,7 @@ static int interface_config(const char *key, const char *value) {
   else if (strcasecmp(key, "UniqueName") == 0) {
 #ifdef HAVE_LIBKSTAT
     if (IS_TRUE(value))
-      unique_name = 1;
+      unique_name = true;
 #else
     WARNING("interface plugin: the \"UniqueName\" option is only valid on "
             "Solaris.");

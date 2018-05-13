@@ -171,7 +171,7 @@ static int direct_list_insert(const char *config) {
       direct_list_element_free(element);
       return 1;
     }
-    regex_direct_initialized = 1;
+    regex_direct_initialized = true;
     DEBUG("onewire plugin: Compiled regex!!");
   }
 
@@ -246,7 +246,7 @@ static int cow_load_config(const char *key, const char *value) {
       }
     } else {
       DEBUG("onewire plugin: %s is a direct access", value);
-      direct_access = 1;
+      direct_access = true;
     }
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     ignorelist_set_invert(sensor_list, 1);

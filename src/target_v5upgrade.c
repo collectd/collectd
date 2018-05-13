@@ -219,9 +219,9 @@ static int v5_zfs_arc_counts(const data_set_t *ds, value_list_t *vl) /* {{{ */
     return FC_TARGET_STOP;
 
   if (strcmp("hits", vl->type_instance) == 0)
-    is_hits = 1;
+    is_hits = true;
   else if (strcmp("misses", vl->type_instance) == 0)
-    is_hits = 0;
+    is_hits = false;
   else
     return FC_TARGET_STOP;
 

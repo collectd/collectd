@@ -404,8 +404,8 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   size_t src_len;
   char *ptr = buffer;
   size_t ptr_size = buffer_size;
-  bool append_plus = 0;
-  bool append_minus = 0;
+  bool append_plus = false;
+  bool append_minus = false;
 
   if ((buffer == NULL) || (buffer_size <= strlen("Minus")) || (src == NULL))
     return EINVAL;
@@ -415,11 +415,11 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
 
   /* Remove trailing "+" and "-". */
   if (src_copy[src_len - 1] == '+') {
-    append_plus = 1;
+    append_plus = true;
     src_len--;
     src_copy[src_len] = 0;
   } else if (src_copy[src_len - 1] == '-') {
-    append_minus = 1;
+    append_minus = true;
     src_len--;
     src_copy[src_len] = 0;
   }
@@ -476,13 +476,13 @@ static bool has_suffix(char const *str, char const *suffix) {
   size_t offset;
 
   if (suffix_len > str_len)
-    return 0;
+    return false;
   offset = str_len - suffix_len;
 
   if (strcmp(str + offset, suffix) == 0)
-    return 1;
+    return true;
 
-  return 0;
+  return false;
 }
 
 static void cut_suffix(char *buffer, size_t buffer_size, char const *str,

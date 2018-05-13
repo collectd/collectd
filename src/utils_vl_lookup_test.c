@@ -75,7 +75,7 @@ static void *lookup_class_callback(data_set_t const *ds, value_list_t const *vl,
   strncpy(obj->type, vl->type, sizeof(obj->type));
   strncpy(obj->type_instance, vl->type_instance, sizeof(obj->type_instance));
 
-  have_new_obj = 1;
+  have_new_obj = true;
 
   return (void *)obj;
 }
@@ -120,7 +120,7 @@ static int checked_lookup_search(lookup_t *obj, char const *host,
     ds = &ds_test;
 
   expect_new_obj = expect_new;
-  have_new_obj = 0;
+  have_new_obj = false;
 
   status = lookup_search(obj, ds, &vl);
   return status;

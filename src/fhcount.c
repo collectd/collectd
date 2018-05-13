@@ -33,17 +33,17 @@ static int fhcount_config(const char *key, const char *value) {
 
   if (strcasecmp(key, "ValuesAbsolute") == 0) {
     if (IS_TRUE(value)) {
-      values_absolute = 1;
+      values_absolute = true;
     } else {
-      values_absolute = 0;
+      values_absolute = false;
     }
 
     ret = 0;
   } else if (strcasecmp(key, "ValuesPercentage") == 0) {
     if (IS_TRUE(value)) {
-      values_percentage = 1;
+      values_percentage = true;
     } else {
-      values_percentage = 0;
+      values_percentage = false;
     }
 
     ret = 0;

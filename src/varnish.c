@@ -1480,45 +1480,45 @@ static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
   if (conf == NULL)
     return EINVAL;
 
-  conf->collect_backend = 1;
-  conf->collect_cache = 1;
-  conf->collect_connections = 1;
+  conf->collect_backend = true;
+  conf->collect_cache = true;
+  conf->collect_connections = true;
 #ifdef HAVE_VARNISH_V3
-  conf->collect_dirdns = 0;
+  conf->collect_dirdns = false;
 #endif
-  conf->collect_esi = 0;
-  conf->collect_fetch = 0;
-  conf->collect_hcb = 0;
-  conf->collect_objects = 0;
+  conf->collect_esi = false;
+  conf->collect_fetch = false;
+  conf->collect_hcb = false;
+  conf->collect_objects = false;
 #if HAVE_VARNISH_V2
-  conf->collect_purge = 0;
+  conf->collect_purge = false;
 #else
-  conf->collect_ban = 0;
+  conf->collect_ban = false;
 #endif
-  conf->collect_session = 0;
-  conf->collect_shm = 1;
+  conf->collect_session = false;
+  conf->collect_shm = true;
 #if HAVE_VARNISH_V2
-  conf->collect_sm = 0;
+  conf->collect_sm = false;
 #endif
 #if HAVE_VARNISH_V2 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-  conf->collect_sma = 0;
+  conf->collect_sma = false;
 #endif
-  conf->collect_sms = 0;
-  conf->collect_struct = 0;
-  conf->collect_totals = 0;
+  conf->collect_sms = false;
+  conf->collect_struct = false;
+  conf->collect_totals = false;
 #if HAVE_VARNISH_V3 || HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-  conf->collect_uptime = 0;
+  conf->collect_uptime = false;
 #endif
-  conf->collect_vcl = 0;
-  conf->collect_workers = 0;
+  conf->collect_vcl = false;
+  conf->collect_workers = false;
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-  conf->collect_vsm = 0;
-  conf->collect_lck = 0;
-  conf->collect_mempool = 0;
-  conf->collect_mgt = 0;
-  conf->collect_smf = 0;
-  conf->collect_vbe = 0;
-  conf->collect_mse = 0;
+  conf->collect_vsm = false;
+  conf->collect_lck = false;
+  conf->collect_mempool = false;
+  conf->collect_mgt = false;
+  conf->collect_smf = false;
+  conf->collect_vbe = false;
+  conf->collect_mse = false;
 #endif
 
   return 0;
@@ -1771,7 +1771,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
           .data = conf, .free_func = varnish_config_free,
       });
 
-  have_instance = 1;
+  have_instance = true;
 
   return 0;
 } /* }}} int varnish_config_instance */

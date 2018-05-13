@@ -989,7 +989,7 @@ static int call_pv_locked(pTHX_ const char *sub_name) {
     return 0;
 
   old_running = t->running;
-  t->running = 1;
+  t->running = true;
 
   if (t->shutdown) {
     t->running = old_running;
@@ -1189,7 +1189,7 @@ static void c_ithread_destroy(c_ithread_t *ithread) {
   /* Mark as running to avoid deadlock:
      c_ithread_destroy -> log_debug -> perl_log()
   */
-  ithread->running = 1;
+  ithread->running = true;
   log_debug("Shutting down Perl interpreter %p...", aTHX);
 
 #if COLLECT_DEBUG
@@ -1275,8 +1275,8 @@ static c_ithread_t *c_ithread_create(PerlInterpreter *base) {
   }
 
   t->pthread = pthread_self();
-  t->running = 0;
-  t->shutdown = 0;
+  t->running = false;
+  t->shutdown = false;
   perl_threads->tail = t;
 
   pthread_setspecific(perl_thr_key, (const void *)t);
@@ -2276,7 +2276,7 @@ static int perl_shutdown(void) {
      * the thread as this will free the memory */
     t = t->prev;
 
-    thr->shutdown = 1;
+    thr->shutdown = true;
     if (thr->running) {
       /* Give some time to thread to exit from Perl interpreter */
       WARNING("perl shutdown: Thread is running inside Perl. Waiting.");

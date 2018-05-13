@@ -399,8 +399,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
 
   DEBUG("snmp plugin: dd = { name = %s, type = %s, is_table = %s, values_len = "
         "%" PRIsz " }",
-        dd->name, dd->type, (dd->is_table != 0) ? "true" : "false",
-        dd->values_len);
+        dd->name, dd->type, (dd->is_table) ? "true" : "false", dd->values_len);
 
   if (data_head == NULL)
     data_head = dd;

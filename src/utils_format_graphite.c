@@ -116,7 +116,7 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   if (postfix == NULL)
     postfix = "";
 
-  bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR) ? 1 : 0;
+  bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
 
   gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
                       preserve_separator);

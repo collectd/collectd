@@ -1252,38 +1252,38 @@ static int ps_delay(process_entry_t *ps) {
 #endif
 
 static void ps_fill_details(const procstat_t *ps, process_entry_t *entry) {
-  if (entry->has_io == 0) {
+  if (entry->has_io == false) {
     ps_read_io(entry);
-    entry->has_io = 1;
+    entry->has_io = true;
   }
 
   if (ps->report_ctx_switch) {
-    if (entry->has_cswitch == 0) {
+    if (entry->has_cswitch == false) {
       ps_read_tasks_status(entry);
-      entry->has_cswitch = 1;
+      entry->has_cswitch = true;
     }
   }
 
   if (ps->report_maps_num) {
     int num_maps;
-    if (entry->has_maps == 0 && (num_maps = ps_count_maps(entry->id)) > 0) {
+    if (entry->has_maps == false && (num_maps = ps_count_maps(entry->id)) > 0) {
       entry->num_maps = num_maps;
     }
-    entry->has_maps = 1;
+    entry->has_maps = true;
   }
 
   if (ps->report_fd_num) {
     int num_fd;
-    if (entry->has_fd == 0 && (num_fd = ps_count_fd(entry->id)) > 0) {
+    if (entry->has_fd == false && (num_fd = ps_count_fd(entry->id)) > 0) {
       entry->num_fd = num_fd;
     }
-    entry->has_fd = 1;
+    entry->has_fd = true;
   }
 
 #if HAVE_LIBTASKSTATS
   if (ps->report_delay && !entry->has_delay) {
     if (ps_delay(entry) == 0) {
-      entry->has_delay = 1;
+      entry->has_delay = true;
     }
   }
 #endif
@@ -2632,7 +2632,7 @@ static int ps_read(void) {
   read_fork_rate();
 #endif /* KERNEL_SOLARIS */
 
-  want_init = 0;
+  want_init = false;
 
   return 0;
 } /* int ps_read */

@@ -632,11 +632,11 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   host->reference_count = 1;
   host->node = NULL;
   host->port = 0;
-  host->notifications = 1;
-  host->check_thresholds = 0;
-  host->store_rates = 1;
-  host->always_append_ds = 0;
-  host->batch_mode = 1;
+  host->notifications = true;
+  host->check_thresholds = false;
+  host->store_rates = true;
+  host->always_append_ds = false;
+  host->batch_mode = true;
   host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
   host->batch_init = cdtime();
   host->batch_timeout = 0;

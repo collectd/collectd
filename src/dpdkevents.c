@@ -185,8 +185,8 @@ static void dpdk_events_default_config(void) {
   /* Link Status */
   ec->config.link_status.enabled = 1;
   ec->config.link_status.enabled_port_mask = ~0;
-  ec->config.link_status.send_updated = 1;
-  ec->config.link_status.notify = 0;
+  ec->config.link_status.send_updated = true;
+  ec->config.link_status.notify = false;
 
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
     ec->config.link_status.port_name[i][0] = 0;
@@ -194,8 +194,8 @@ static void dpdk_events_default_config(void) {
 
   /* Keep Alive */
   ec->config.keep_alive.enabled = 1;
-  ec->config.keep_alive.send_updated = 1;
-  ec->config.keep_alive.notify = 0;
+  ec->config.keep_alive.send_updated = true;
+  ec->config.keep_alive.notify = false;
   /* by default enable 128 cores */
   memset(&ec->config.keep_alive.lcore_mask, 1,
          sizeof(ec->config.keep_alive.lcore_mask));

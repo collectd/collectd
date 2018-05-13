@@ -325,7 +325,7 @@ static int cj_cb_start_array(void *ctx) {
     return CJ_CB_ABORT;
   }
   db->depth++;
-  db->state[db->depth].in_array = 1;
+  db->state[db->depth].in_array = true;
   db->state[db->depth].index = 0;
 
   cj_load_key(db, "0");
@@ -335,7 +335,7 @@ static int cj_cb_start_array(void *ctx) {
 
 static int cj_cb_end_array(void *ctx) {
   cj_t *db = (cj_t *)ctx;
-  db->state[db->depth].in_array = 0;
+  db->state[db->depth].in_array = false;
   return cj_cb_end(ctx);
 }
 

@@ -225,7 +225,7 @@ static int sensors_config(const char *key, const char *value) {
   }
 #if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
   else if (strcasecmp(key, "UseLabels") == 0) {
-    use_labels = IS_TRUE(value) ? 1 : 0;
+    use_labels = IS_TRUE(value);
   }
 #endif
   else {

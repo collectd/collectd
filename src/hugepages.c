@@ -102,20 +102,20 @@ static void submit_hp(const struct entry_info *info) {
 
   if (g_values_pages) {
     sstrncpy(vl.type, "vmpage_number", sizeof(vl.type));
-    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
-                               "free", free, "used", used, NULL);
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ false,
+                               DS_TYPE_GAUGE, "free", free, "used", used, NULL);
   }
   if (g_values_bytes) {
     gauge_t page_size = (gauge_t)(1024 * info->page_size_kb);
     sstrncpy(vl.type, "memory", sizeof(vl.type));
-    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
-                               "free", free * page_size, "used",
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ false,
+                               DS_TYPE_GAUGE, "free", free * page_size, "used",
                                used * page_size, NULL);
   }
   if (g_values_percent) {
     sstrncpy(vl.type, "percent", sizeof(vl.type));
-    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 1, DS_TYPE_GAUGE,
-                               "free", free, "used", used, NULL);
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ true,
+                               DS_TYPE_GAUGE, "free", free, "used", used, NULL);
   }
 }
 

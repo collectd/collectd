@@ -884,7 +884,7 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
       plugin_dispatch_notification(&n);
     }
 
-    st->connected = 0;
+    st->connected = false;
     return;
   }
 
@@ -896,7 +896,7 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
     plugin_dispatch_notification(&n);
   }
 
-  st->connected = 1;
+  st->connected = true;
 
   int status = ipmi_domain_add_entity_update_handler(
       domain, domain_entity_update_handler, /* user data = */ st);
@@ -965,11 +965,11 @@ static void *c_ipmi_thread_main(void *user_data) {
   int status = c_ipmi_thread_init(st);
   if (status != 0) {
     ERROR("ipmi plugin: c_ipmi_thread_init failed.");
-    st->active = 0;
+    st->active = false;
     return (void *)-1;
   }
 
-  while (st->active != 0) {
+  while (st->active) {
     struct timeval tv = {1, 0};
     os_handler->perform_one_op(os_handler, &tv);
   }
@@ -1158,12 +1158,12 @@ static int c_ipmi_config(oconfig_item_t *ci) {
 static int c_ipmi_read(user_data_t *user_data) {
   c_ipmi_instance_t *st = user_data->data;
 
-  if (st->active == 0) {
+  if (st->active == false) {
     INFO("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
     return -1;
   }
 
-  if (st->connected == 0)
+  if (st->connected == false)
     return 0;
 
   sensor_list_read_all(st);
@@ -1234,14 +1234,14 @@ static int c_ipmi_init(void) {
     }
 
     st->init_in_progress = cycles;
-    st->active = 1;
+    st->active = true;
 
     status = plugin_thread_create(&st->thread_id, /* attr = */ NULL,
                                   c_ipmi_thread_main,
                                   /* user data = */ (void *)st, "ipmi");
 
     if (status != 0) {
-      st->active = 0;
+      st->active = false;
       st->thread_id = (pthread_t){0};
 
       plugin_unregister_read(callback_name);
@@ -1263,7 +1263,7 @@ static int c_ipmi_shutdown(void) {
     c_ipmi_instance_t *next = st->next;
 
     st->next = NULL;
-    st->active = 0;
+    st->active = false;
 
     if (!pthread_equal(st->thread_id, (pthread_t){0})) {
       pthread_join(st->thread_id, NULL);

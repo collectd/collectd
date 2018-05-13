@@ -209,17 +209,17 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int cpu_config(char const *key, char const *value) /* {{{ */
 {
   if (strcasecmp(key, "ReportByCpu") == 0)
-    report_by_cpu = IS_TRUE(value) ? 1 : 0;
+    report_by_cpu = IS_TRUE(value);
   else if (strcasecmp(key, "ValuesPercentage") == 0)
-    report_percent = IS_TRUE(value) ? 1 : 0;
+    report_percent = IS_TRUE(value);
   else if (strcasecmp(key, "ReportByState") == 0)
-    report_by_state = IS_TRUE(value) ? 1 : 0;
+    report_by_state = IS_TRUE(value);
   else if (strcasecmp(key, "ReportNumCpu") == 0)
-    report_num_cpu = IS_TRUE(value) ? 1 : 0;
+    report_num_cpu = IS_TRUE(value);
   else if (strcasecmp(key, "ReportGuestState") == 0)
-    report_guest = IS_TRUE(value) ? 1 : 0;
+    report_guest = IS_TRUE(value);
   else if (strcasecmp(key, "SubtractGuestState") == 0)
-    subtract_guest = IS_TRUE(value) ? 1 : 0;
+    subtract_guest = IS_TRUE(value);
   else
     return -1;
 
@@ -431,7 +431,7 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
     }
 
     if (!isnan(this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate))
-      this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = 1;
+      this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = true;
 
     RATE_ADD(sum_by_state[COLLECTD_CPU_STATE_ACTIVE],
              this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate);
@@ -505,7 +505,7 @@ static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
 static void cpu_reset(void) /* {{{ */
 {
   for (size_t i = 0; i < cpu_states_num; i++)
-    cpu_states[i].has_value = 0;
+    cpu_states[i].has_value = false;
 
   global_cpu_num = 0;
 } /* }}} void cpu_reset */
@@ -588,7 +588,7 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
     return status;
 
   s->rate = rate;
-  s->has_value = 1;
+  s->has_value = true;
   return 0;
 } /* }}} int cpu_stage */
 

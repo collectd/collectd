@@ -99,28 +99,28 @@ static int df_config(const char *key, const char *value) {
     return 0;
   } else if (strcasecmp(key, "ReportByDevice") == 0) {
     if (IS_TRUE(value))
-      by_device = 1;
+      by_device = true;
 
     return 0;
   } else if (strcasecmp(key, "ReportInodes") == 0) {
     if (IS_TRUE(value))
-      report_inodes = 1;
+      report_inodes = true;
     else
-      report_inodes = 0;
+      report_inodes = false;
 
     return 0;
   } else if (strcasecmp(key, "ValuesAbsolute") == 0) {
     if (IS_TRUE(value))
-      values_absolute = 1;
+      values_absolute = true;
     else
-      values_absolute = 0;
+      values_absolute = false;
 
     return 0;
   } else if (strcasecmp(key, "ValuesPercentage") == 0) {
     if (IS_TRUE(value))
-      values_percentage = 1;
+      values_percentage = true;
     else
-      values_percentage = 0;
+      values_percentage = false;
 
     return 0;
   }

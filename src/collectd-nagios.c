@@ -638,7 +638,7 @@ int main(int argc, char **argv) {
       break;
     }
     case 'm':
-      nan_is_error_g = 1;
+      nan_is_error_g = true;
       break;
     default:
       usage(argv[0]);

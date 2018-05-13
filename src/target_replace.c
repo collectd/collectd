@@ -306,7 +306,7 @@ static int tr_action_invoke(tr_action_t *act_head, /* {{{ */
     DEBUG("target_replace plugin: tr_action_invoke: -- buffer = %s;", buffer);
   } /* for (act = act_head; act != NULL; act = act->next) */
 
-  if ((may_be_empty == 0) && (buffer[0] == 0)) {
+  if ((may_be_empty == false) && (buffer[0] == 0)) {
     WARNING("Target `replace': Replacement resulted in an empty string, "
             "which is not allowed for this buffer (`host' or `plugin').");
     return 0;
@@ -470,13 +470,13 @@ static int tr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
     if ((strcasecmp("Host", child->key) == 0) ||
         (strcasecmp("Hostname", child->key) == 0))
       status = tr_config_add_action(&data->host, child,
-                                    /* may be empty = */ 0);
+                                    /* may be empty = */ false);
     else if (strcasecmp("Plugin", child->key) == 0)
       status = tr_config_add_action(&data->plugin, child,
-                                    /* may be empty = */ 0);
+                                    /* may be empty = */ false);
     else if (strcasecmp("PluginInstance", child->key) == 0)
       status = tr_config_add_action(&data->plugin_instance, child,
-                                    /* may be empty = */ 1);
+                                    /* may be empty = */ true);
 #if 0
     else if (strcasecmp ("Type", child->key) == 0)
       status = tr_config_add_action (&data->type, child,
@@ -484,13 +484,13 @@ static int tr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
 #endif
     else if (strcasecmp("TypeInstance", child->key) == 0)
       status = tr_config_add_action(&data->type_instance, child,
-                                    /* may be empty = */ 1);
+                                    /* may be empty = */ true);
     else if (strcasecmp("MetaData", child->key) == 0)
       status = tr_config_add_meta_action(&data->meta, child,
-                                         /* should delete = */ 0);
+                                         /* should delete = */ false);
     else if (strcasecmp("DeleteMetaData", child->key) == 0)
       status = tr_config_add_meta_action(&data->meta, child,
-                                         /* should delete = */ 1);
+                                         /* should delete = */ true);
     else {
       ERROR("Target `replace': The `%s' configuration option is not understood "
             "and will be ignored.",
@@ -546,11 +546,11 @@ static int tr_invoke(const data_set_t *ds, value_list_t *vl, /* {{{ */
 #define HANDLE_FIELD(f, e)                                                     \
   if (data->f != NULL)                                                         \
   tr_action_invoke(data->f, vl->f, sizeof(vl->f), e)
-  HANDLE_FIELD(host, 0);
-  HANDLE_FIELD(plugin, 0);
-  HANDLE_FIELD(plugin_instance, 1);
-  /* HANDLE_FIELD (type, 0); */
-  HANDLE_FIELD(type_instance, 1);
+  HANDLE_FIELD(host, false);
+  HANDLE_FIELD(plugin, false);
+  HANDLE_FIELD(plugin_instance, true);
+  /* HANDLE_FIELD (type, false); */
+  HANDLE_FIELD(type_instance, true);
 
   return FC_TARGET_CONTINUE;
 } /* }}} int tr_invoke */

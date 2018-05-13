@@ -348,10 +348,10 @@ static int c_psql_connect(c_psql_database_t *db) {
 } /* c_psql_connect */
 
 static int c_psql_check_connection(c_psql_database_t *db) {
-  bool init = 0;
+  bool init = false;
 
   if (!db->conn) {
-    init = 1;
+    init = true;
 
     /* trigger c_release() */
     if (0 == db->conn_complaint.interval)
@@ -936,7 +936,7 @@ static int c_psql_flush(cdtime_t timeout,
 } /* c_psql_flush */
 
 static int c_psql_shutdown(void) {
-  bool had_flush = 0;
+  bool had_flush = false;
 
   plugin_unregister_read_group("postgresql");
 
@@ -949,7 +949,7 @@ static int c_psql_shutdown(void) {
 
       if (!had_flush) {
         plugin_unregister_flush("postgresql");
-        had_flush = 1;
+        had_flush = true;
       }
 
       plugin_unregister_flush(cb_name);
@@ -1097,7 +1097,7 @@ static int c_psql_config_writer(oconfig_item_t *ci) {
 
   writer->name = sstrdup(ci->values[0].value.string);
   writer->statement = NULL;
-  writer->store_rates = 1;
+  writer->store_rates = true;
 
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
@@ -1221,7 +1221,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
     if (!have_flush) {
       /* flush all */
       plugin_register_flush("postgresql", c_psql_flush, /* user data = */ NULL);
-      have_flush = 1;
+      have_flush = true;
     }
 
     /* flush this connection only */

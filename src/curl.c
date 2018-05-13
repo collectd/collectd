@@ -418,11 +418,11 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;
-  page->digest = 0;
-  page->verify_peer = 1;
-  page->verify_host = 1;
-  page->response_time = 0;
-  page->response_code = 0;
+  page->digest = false;
+  page->verify_peer = true;
+  page->verify_host = true;
+  page->response_time = false;
+  page->response_code = false;
   page->timeout = -1;
   page->stats = NULL;
 

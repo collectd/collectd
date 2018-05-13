@@ -182,9 +182,9 @@ static bool camqp_is_error(camqp_config_t *conf) /* {{{ */
 
   r = amqp_get_rpc_reply(conf->connection);
   if (r.reply_type == AMQP_RESPONSE_NORMAL)
-    return 0;
+    return false;
 
-  return 1;
+  return true;
 } /* }}} bool camqp_is_error */
 
 static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
@@ -850,7 +850,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
 
   /* publish only */
   conf->delivery_mode = CAMQP_DM_VOLATILE;
-  conf->store_rates = 0;
+  conf->store_rates = false;
   conf->graphite_flags = 0;
   /* publish & graphite only */
   conf->prefix = NULL;
@@ -859,8 +859,8 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   /* subscribe only */
   conf->exchange_type = NULL;
   conf->queue = NULL;
-  conf->queue_durable = 0;
-  conf->queue_auto_delete = 1;
+  conf->queue_durable = false;
+  conf->queue_auto_delete = true;
   /* general */
   conf->connection = NULL;
   pthread_mutex_init(&conf->lock, /* attr = */ NULL);
@@ -998,9 +998,9 @@ static int camqp_config(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Publish", child->key) == 0)
-      camqp_config_connection(child, /* publish = */ 1);
+      camqp_config_connection(child, /* publish = */ true);
     else if (strcasecmp("Subscribe", child->key) == 0)
-      camqp_config_connection(child, /* publish = */ 0);
+      camqp_config_connection(child, /* publish = */ false);
     else
       WARNING("amqp plugin: Ignoring unknown config option \"%s\".",
               child->key);

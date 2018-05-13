@@ -163,9 +163,9 @@ static int memory_init(void) {
 #define MEMORY_SUBMIT(...)                                                     \
   do {                                                                         \
     if (values_absolute)                                                       \
-      plugin_dispatch_multivalue(vl, 0, DS_TYPE_GAUGE, __VA_ARGS__, NULL);     \
+      plugin_dispatch_multivalue(vl, false, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
     if (values_percentage)                                                     \
-      plugin_dispatch_multivalue(vl, 1, DS_TYPE_GAUGE, __VA_ARGS__, NULL);     \
+      plugin_dispatch_multivalue(vl, true, DS_TYPE_GAUGE, __VA_ARGS__, NULL);  \
   } while (0)
 
 static int memory_read_internal(value_list_t *vl) {
@@ -268,7 +268,7 @@ static int memory_read_internal(value_list_t *vl) {
   char *fields[8];
   int numfields;
 
-  bool detailed_slab_info = 0;
+  bool detailed_slab_info = false;
 
   gauge_t mem_total = 0;
   gauge_t mem_used = 0;
@@ -299,10 +299,10 @@ static int memory_read_internal(value_list_t *vl) {
       val = &mem_slab_total;
     else if (strncasecmp(buffer, "SReclaimable:", 13) == 0) {
       val = &mem_slab_reclaimable;
-      detailed_slab_info = 1;
+      detailed_slab_info = true;
     } else if (strncasecmp(buffer, "SUnreclaim:", 11) == 0) {
       val = &mem_slab_unreclaimable;
-      detailed_slab_info = 1;
+      detailed_slab_info = true;
     } else
       continue;
 

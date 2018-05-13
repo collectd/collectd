@@ -350,9 +350,9 @@ static int us_config(const char *key, const char *val) {
     sock_perms = (int)strtol(val, NULL, 8);
   } else if (strcasecmp(key, "DeleteSocket") == 0) {
     if (IS_TRUE(val))
-      delete_socket = 1;
+      delete_socket = true;
     else
-      delete_socket = 0;
+      delete_socket = false;
   } else {
     return -1;
   }

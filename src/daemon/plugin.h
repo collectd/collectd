@@ -346,7 +346,7 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  plugin_dispatch_multivalue
  *
  * SYNOPSIS
- *  plugin_dispatch_multivalue (vl, 1, DS_TYPE_GAUGE,
+ *  plugin_dispatch_multivalue (vl, true, DS_TYPE_GAUGE,
  *                              "free", 42.0,
  *                              "used", 58.0,
  *                              NULL);

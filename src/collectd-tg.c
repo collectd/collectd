@@ -97,7 +97,7 @@ __attribute__((noreturn)) static void exit_usage(int exit_status) /* {{{ */
 
 static void signal_handler(int signal) /* {{{ */
 {
-  loop = 0;
+  loop = false;
 } /* }}} void signal_handler */
 
 #if HAVE_CLOCK_GETTIME

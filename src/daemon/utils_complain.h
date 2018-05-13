@@ -48,7 +48,7 @@ typedef struct {
   do {                                                                         \
     (c)->last = 0;                                                             \
     (c)->interval = 0;                                                         \
-    (c)->complained_once = 0;                                                  \
+    (c)->complained_once = false;                                              \
   } while (0)
 
 /*

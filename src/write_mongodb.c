@@ -170,7 +170,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
             "authentication string.");
       mongoc_client_destroy(node->client);
       node->client = NULL;
-      node->connected = 0;
+      node->connected = false;
       return -1;
     }
 
@@ -179,7 +179,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
       ERROR("write_mongodb plugin: Authenticating to [%s]:%d for database "
             "\"%s\" as user \"%s\" failed.",
             node->host, node->port, node->db, node->user);
-      node->connected = 0;
+      node->connected = false;
       sfree(uri);
       return -1;
     }
@@ -190,7 +190,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
             "authentication string.");
       mongoc_client_destroy(node->client);
       node->client = NULL;
-      node->connected = 0;
+      node->connected = false;
       return -1;
     }
 
@@ -198,7 +198,7 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
     if (!node->client) {
       ERROR("write_mongodb plugin: Connecting to [%s]:%d failed.", node->host,
             node->port);
-      node->connected = 0;
+      node->connected = false;
       sfree(uri);
       return -1;
     }
@@ -210,11 +210,11 @@ static int wm_initialize(wm_node_t *node) /* {{{ */
     ERROR("write_mongodb plugin: error creating/getting database");
     mongoc_client_destroy(node->client);
     node->client = NULL;
-    node->connected = 0;
+    node->connected = false;
     return -1;
   }
 
-  node->connected = 1;
+  node->connected = true;
   return 0;
 } /* }}} int wm_initialize */
 
@@ -248,7 +248,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     mongoc_client_destroy(node->client);
     node->database = NULL;
     node->client = NULL;
-    node->connected = 0;
+    node->connected = false;
     pthread_mutex_unlock(&node->lock);
     bson_destroy(bson_record);
     return -1;
@@ -263,7 +263,7 @@ static int wm_write(const data_set_t *ds, /* {{{ */
     mongoc_client_destroy(node->client);
     node->database = NULL;
     node->client = NULL;
-    node->connected = 0;
+    node->connected = false;
     pthread_mutex_unlock(&node->lock);
     bson_destroy(bson_record);
     mongoc_collection_destroy(collection);
@@ -291,7 +291,7 @@ static void wm_config_free(void *ptr) /* {{{ */
   mongoc_client_destroy(node->client);
   node->database = NULL;
   node->client = NULL;
-  node->connected = 0;
+  node->connected = false;
 
   sfree(node->host);
   sfree(node);
@@ -312,7 +312,7 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
     return ENOMEM;
   }
   node->port = MONGOC_DEFAULT_PORT;
-  node->store_rates = 1;
+  node->store_rates = true;
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));

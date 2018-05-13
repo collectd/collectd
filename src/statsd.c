@@ -666,7 +666,7 @@ static int statsd_init(void) /* {{{ */
       return status;
     }
   }
-  network_thread_running = 1;
+  network_thread_running = true;
 
   pthread_mutex_unlock(&metrics_lock);
 
@@ -876,11 +876,11 @@ static int statsd_shutdown(void) /* {{{ */
   void *value;
 
   if (network_thread_running) {
-    network_thread_shutdown = 1;
+    network_thread_shutdown = true;
     pthread_kill(network_thread, SIGTERM);
     pthread_join(network_thread, /* retval = */ NULL);
   }
-  network_thread_running = 0;
+  network_thread_running = false;
 
   pthread_mutex_lock(&metrics_lock);
 

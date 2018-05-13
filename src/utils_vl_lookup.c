@@ -119,19 +119,19 @@ static bool lu_part_matches(part_match_t const *match, /* {{{ */
   if (match->is_regex) {
     /* Short cut popular catch-all regex. */
     if (strcmp(".*", match->str) == 0)
-      return 1;
+      return true;
 
     int status = regexec(&match->regex, str,
                          /* nmatch = */ 0, /* pmatch = */ NULL,
                          /* flags = */ 0);
     if (status == 0)
-      return 1;
+      return true;
     else
-      return 0;
+      return false;
   } else if (strcmp(match->str, str) == 0)
-    return 1;
+    return true;
   else
-    return 0;
+    return false;
 } /* }}} bool lu_part_matches */
 
 static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
@@ -141,7 +141,7 @@ static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
 
   if ((len < 3) || (ident_part[0] != '/') || (ident_part[len - 1] != '/')) {
     sstrncpy(match_part->str, ident_part, sizeof(match_part->str));
-    match_part->is_regex = 0;
+    match_part->is_regex = false;
     return 0;
   }
 
@@ -160,7 +160,7 @@ static int lu_copy_ident_to_match_part(part_match_t *match_part, /* {{{ */
           match_part->str, errbuf);
     return EINVAL;
   }
-  match_part->is_regex = 1;
+  match_part->is_regex = true;
 
   return 0;
 } /* }}} int lu_copy_ident_to_match_part */
@@ -467,7 +467,7 @@ static void lu_destroy_user_class_list(lookup_t *obj, /* {{{ */
   do {                                                                         \
     if (user_class_list->entry.match.field.is_regex) {                         \
       regfree(&user_class_list->entry.match.field.regex);                      \
-      user_class_list->entry.match.field.is_regex = 0;                         \
+      user_class_list->entry.match.field.is_regex = false;                     \
     }                                                                          \
   } while (0)
 
@@ -576,7 +576,7 @@ int lookup_add(lookup_t *obj, /* {{{ */
   by_type_entry_t *by_type = NULL;
   user_class_list_t *user_class_obj;
 
-  by_type = lu_search_by_type(obj, ident->type, /* allocate = */ 1);
+  by_type = lu_search_by_type(obj, ident->type, /* allocate = */ true);
   if (by_type == NULL)
     return -1;
 
@@ -605,7 +605,7 @@ int lookup_search(lookup_t *obj, /* {{{ */
   if ((obj == NULL) || (ds == NULL) || (vl == NULL))
     return -EINVAL;
 
-  by_type = lu_search_by_type(obj, vl->type, /* allocate = */ 0);
+  by_type = lu_search_by_type(obj, vl->type, /* allocate = */ false);
   if (by_type == NULL)
     return 0;
 

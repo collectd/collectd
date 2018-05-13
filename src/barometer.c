@@ -1392,7 +1392,7 @@ static int MPL115_collectd_barometer_read(void) {
             config_oversample - 1);
       usleep(20000);
     }
-    avg_initialized = 1;
+    avg_initialized = true;
   }
 
   result = MPL115_read_averaged(&pressure, &temperature);
@@ -1635,7 +1635,7 @@ static int collectd_barometer_init(void) {
     return -1;
   }
 
-  configured = 1;
+  configured = true;
   return 0;
 }
 

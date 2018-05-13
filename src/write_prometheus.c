@@ -884,7 +884,7 @@ static int prom_write(data_set_t const *ds, value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ 1);
+        metric_family_get(ds, vl, i, /* allocate = */ true);
     if (fam == NULL)
       continue;
 
@@ -911,7 +911,7 @@ static int prom_missing(value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ 0);
+        metric_family_get(ds, vl, i, /* allocate = */ false);
     if (fam == NULL)
       continue;
 

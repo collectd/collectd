@@ -624,16 +624,16 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
     ERROR("write_http plugin: calloc failed.");
     return -1;
   }
-  cb->verify_peer = 1;
-  cb->verify_host = 1;
+  cb->verify_peer = true;
+  cb->verify_host = true;
   cb->format = WH_FORMAT_COMMAND;
   cb->sslversion = CURL_SSLVERSION_DEFAULT;
   cb->low_speed_limit = 0;
   cb->timeout = 0;
-  cb->log_http_error = 0;
+  cb->log_http_error = false;
   cb->headers = NULL;
-  cb->send_metrics = 1;
-  cb->send_notifications = 0;
+  cb->send_metrics = true;
+  cb->send_notifications = false;
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
 

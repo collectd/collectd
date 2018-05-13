@@ -65,7 +65,7 @@
 #endif
 
 #ifndef WG_DEFAULT_LOG_SEND_ERRORS
-#define WG_DEFAULT_LOG_SEND_ERRORS 1
+#define WG_DEFAULT_LOG_SEND_ERRORS true
 #endif
 
 #ifndef WG_DEFAULT_ESCAPE
@@ -131,7 +131,7 @@ static void wg_force_reconnect_check(struct wg_callback *cb) {
   close(cb->sock_fd);
   cb->sock_fd = -1;
   cb->last_reconnect_time = now;
-  cb->reconnect_interval_reached = 1;
+  cb->reconnect_interval_reached = true;
 
   INFO("write_graphite plugin: Connection closed after %.3f seconds.",
        CDTIME_T_TO_DOUBLE(now - cb->last_reconnect_time));
@@ -274,7 +274,7 @@ static int wg_callback_init(struct wg_callback *cb) {
   if (!cb->reconnect_interval_reached || (cb->send_buf_free == 0))
     wg_reset_buffer(cb);
   else
-    cb->reconnect_interval_reached = 0;
+    cb->reconnect_interval_reached = false;
 
   return 0;
 }
@@ -466,7 +466,7 @@ static int wg_config_node(oconfig_item_t *ci) {
   cb->protocol = strdup(WG_DEFAULT_PROTOCOL);
   cb->last_reconnect_time = cdtime();
   cb->reconnect_interval = 0;
-  cb->reconnect_interval_reached = 0;
+  cb->reconnect_interval_reached = false;
   cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
   cb->prefix = NULL;
   cb->postfix = NULL;

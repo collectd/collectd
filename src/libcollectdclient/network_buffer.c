@@ -130,26 +130,26 @@ static bool have_gcrypt(void) /* {{{ */
 
   if (!need_init)
     return result;
-  need_init = 0;
+  need_init = false;
 
 #if HAVE_GCRYPT_H
 #if GCRYPT_VERSION_NUMBER < 0x010600
   if (gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread))
-    return 0;
+    return false;
 #endif
 
   if (!gcry_check_version(GCRYPT_VERSION))
-    return 0;
+    return false;
 
   if (!gcry_control(GCRYCTL_INIT_SECMEM, 32768, 0))
-    return 0;
+    return false;
 
   gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 
-  result = 1;
-  return 1;
+  result = true;
+  return true;
 #else
-  return 0;
+  return false;
 #endif
 } /* }}} bool have_gcrypt */
 

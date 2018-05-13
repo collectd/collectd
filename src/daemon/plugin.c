@@ -861,7 +861,7 @@ static void stop_write_threads(void) /* {{{ */
   INFO("collectd: Stopping %" PRIsz " write threads.", write_threads_num);
 
   pthread_mutex_lock(&write_lock);
-  write_loop = 0;
+  write_loop = false;
   DEBUG("plugin: stop_write_threads: Signalling `write_cond'");
   pthread_cond_broadcast(&write_cond);
   pthread_mutex_unlock(&write_lock);
@@ -988,7 +988,7 @@ int plugin_load(char const *plugin_name, bool global) {
    */
   if ((strcasecmp("perl", plugin_name) == 0) ||
       (strcasecmp("python", plugin_name) == 0))
-    global = 1;
+    global = true;
 
   /* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
    * type when matching the filename */
@@ -1545,7 +1545,7 @@ int plugin_init_all(void) {
   uc_init();
 
   if (IS_TRUE(global_option_get("CollectInternalStats"))) {
-    record_statistics = 1;
+    record_statistics = true;
     plugin_register_read("collectd", plugin_update_internal_statistics);
   }
 
@@ -1890,7 +1890,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   int status;
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
-  bool free_meta_data = 0;
+  bool free_meta_data = false;
 
   assert(vl != NULL);
 
@@ -1910,7 +1910,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
    * this case matches and targets may add some and the calling function
    * may not expect (and therefore free) that data. */
   if (vl->meta == NULL)
-    free_meta_data = 1;
+    free_meta_data = true;
 
   if (list_write == NULL)
     c_complain_once(LOG_WARNING, &no_write_complaint,
@@ -1994,7 +1994,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   } else
     fc_default_action(ds, vl);
 
-  if ((free_meta_data != 0) && (vl->meta != NULL)) {
+  if ((free_meta_data == true) && (vl->meta != NULL)) {
     meta_data_destroy(vl->meta);
     vl->meta = NULL;
   }
@@ -2033,11 +2033,11 @@ static bool check_drop_value(void) /* {{{ */
   int status;
 
   if (write_limit_high == 0)
-    return 0;
+    return false;
 
   p = get_drop_probability();
   if (p == 0.0)
-    return 0;
+    return false;
 
   status = pthread_mutex_trylock(&last_message_lock);
   if (status == 0) {
@@ -2054,13 +2054,13 @@ static bool check_drop_value(void) /* {{{ */
   }
 
   if (p == 1.0)
-    return 1;
+    return true;
 
   q = cdrand_d();
   if (q > p)
-    return 1;
+    return true;
   else
-    return 0;
+    return false;
 } /* }}} bool check_drop_value */
 
 int plugin_dispatch_values(value_list_t const *vl) {
@@ -2460,7 +2460,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
 void plugin_init_ctx(void) {
   pthread_key_create(&plugin_ctx_key, plugin_ctx_destructor);
-  plugin_ctx_key_initialized = 1;
+  plugin_ctx_key_initialized = true;
 } /* void plugin_init_ctx */
 
 plugin_ctx_t plugin_get_ctx(void) {

@@ -702,7 +702,7 @@ static int config_add_instance(oconfig_item_t *ci) {
   int status = 0;
 
   /* Disable automatic generation of default instance in the init callback. */
-  memcached_have_instances = 1;
+  memcached_have_instances = true;
 
   memcached_t *st = calloc(1, sizeof(*st));
   if (st == NULL) {
@@ -797,7 +797,7 @@ static int memcached_init(void) {
 
   int status = memcached_add_read_callback(st);
   if (status == 0)
-    memcached_have_instances = 1;
+    memcached_have_instances = true;
 
   return status;
 } /* int memcached_init */

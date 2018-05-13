@@ -271,7 +271,7 @@ int cmd_create_putval(char *ret, size_t ret_len, /* {{{ */
   escape_string(buffer_ident, sizeof(buffer_ident));
 
   status = format_values(buffer_values, sizeof(buffer_values), ds, vl,
-                         /* store rates = */ 0);
+                         /* store rates = */ false);
   if (status != 0)
     return status;
   escape_string(buffer_values, sizeof(buffer_values));

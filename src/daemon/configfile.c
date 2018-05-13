@@ -245,7 +245,7 @@ static int dispatch_value_plugindir(oconfig_item_t *ci) {
 
 static int dispatch_loadplugin(oconfig_item_t *ci) {
   const char *name;
-  bool global = 0;
+  bool global = false;
   plugin_ctx_t ctx = {0};
   plugin_ctx_t old_ctx;
   int ret_val;
@@ -372,7 +372,7 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
     ctx.interval = cf_get_default_interval();
 
     old_ctx = plugin_set_ctx(ctx);
-    status = plugin_load(name, /* flags = */ 0);
+    status = plugin_load(name, /* flags = */ false);
     /* reset to the "global" context */
     plugin_set_ctx(old_ctx);
 
@@ -1125,7 +1125,7 @@ int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
 
   switch (ci->values[0].type) {
   case OCONFIG_TYPE_BOOLEAN:
-    *ret_bool = ci->values[0].value.boolean ? 1 : 0;
+    *ret_bool = ci->values[0].value.boolean ? true : false;
     break;
   case OCONFIG_TYPE_STRING:
     WARNING("cf_util_get_boolean: Using string value `%s' for boolean option "
@@ -1134,9 +1134,9 @@ int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
             ci->values[0].value.string, ci->key);
 
     if (IS_TRUE(ci->values[0].value.string))
-      *ret_bool = 1;
+      *ret_bool = true;
     else if (IS_FALSE(ci->values[0].value.string))
-      *ret_bool = 0;
+      *ret_bool = false;
     else {
       ERROR("cf_util_get_boolean: Cannot parse string value `%s' of the `%s' "
             "option as a boolean value.",
@@ -1152,12 +1152,11 @@ int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
 int cf_util_get_flag(const oconfig_item_t *ci, /* {{{ */
                      unsigned int *ret_value, unsigned int flag) {
   int status;
-  bool b;
 
   if (ret_value == NULL)
     return EINVAL;
 
-  b = 0;
+  bool b = false;
   status = cf_util_get_boolean(ci, &b);
   if (status != 0)
     return status;

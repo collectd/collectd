@@ -90,7 +90,7 @@ static int socket_reinit(socket_adapter_t *self);
 static int socket_receive(socket_adapter_t *self, FILE **p_file);
 
 static mcelog_config_t g_mcelog_config = {
-    .logfile = "/var/log/mcelog", .persist = 0,
+    .logfile = "/var/log/mcelog", .persist = false,
 };
 
 static socket_adapter_t socket_adapter = {
