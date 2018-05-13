@@ -82,7 +82,7 @@
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
  * major version. */
-static bool use_bsd_name = 0;
+static bool use_bsd_name;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX

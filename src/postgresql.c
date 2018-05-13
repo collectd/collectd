@@ -1124,7 +1124,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
   c_psql_database_t *db;
 
   char cb_name[DATA_MAX_NAME_LEN];
-  static bool have_flush = 0;
+  static bool have_flush;
 
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
     log_err("<Database> expects a single string argument.");

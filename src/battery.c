@@ -72,9 +72,9 @@
 int battery_read_statefs(
     void); /* defined in battery_statefs; used by StateFS backend */
 
-static bool report_percent = 0;
-static bool report_degraded = 0;
-static bool query_statefs = 0;
+static bool report_percent;
+static bool report_degraded;
+static bool query_statefs;
 
 static void battery_submit2(char const *plugin_instance, /* {{{ */
                             char const *type, char const *type_instance,

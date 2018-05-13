@@ -186,7 +186,7 @@ static double config_temp_offset = 0.0;  /**< temperature offset */
 static double config_altitude = NAN; /**< altitude */
 static int config_normalize = 0;     /**< normalization method */
 
-static bool configured = 0; /**< the whole plugin config status */
+static bool configured; /**< the whole plugin config status */
 
 static int i2c_bus_fd = -1; /**< I2C bus device FD */
 
@@ -226,7 +226,7 @@ static short bmp085_MD;
 /*  Used only for MPL115. MPL3115 supports real oversampling in the device so */
 /*  no need for any postprocessing. */
 
-static bool avg_initialized = 0; /**< already initialized by real values */
+static bool avg_initialized; /**< already initialized by real values */
 
 typedef struct averaging_s {
   long int *ring_buffer;

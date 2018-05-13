@@ -133,13 +133,13 @@ static pthread_t *write_threads = NULL;
 static size_t write_threads_num = 0;
 
 static pthread_key_t plugin_ctx_key;
-static bool plugin_ctx_key_initialized = 0;
+static bool plugin_ctx_key_initialized;
 
 static long write_limit_high = 0;
 static long write_limit_low = 0;
 
 static derive_t stats_values_dropped = 0;
-static bool record_statistics = 0;
+static bool record_statistics;
 
 /*
  * Static functions

@@ -73,7 +73,7 @@ typedef struct {
 static char *conf_node = NULL;
 static char *conf_service = NULL;
 /* Defaults to false for backwards compatibility. */
-static bool conf_report_seconds = 0;
+static bool conf_report_seconds;
 static bool conf_persistent_conn = 1;
 
 static int global_sockfd = -1;

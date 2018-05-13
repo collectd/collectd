@@ -98,7 +98,7 @@ static bool report_inactive = 1;
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
 static int numif = 0;
-static bool unique_name = 0;
+static bool unique_name;
 #endif /* HAVE_LIBKSTAT */
 
 static int interface_config(const char *key, const char *value) {

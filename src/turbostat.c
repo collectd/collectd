@@ -197,8 +197,8 @@ static struct pkg_data {
 #define EVEN_COUNTERS thread_even, core_even, package_even
 static bool is_even = 1;
 
-static bool allocated = 0;
-static bool initialized = 0;
+static bool allocated;
+static bool initialized;
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no)                    \
   (thread_base + (pkg_no)*topology.num_cores * topology.num_threads +          \

@@ -93,7 +93,7 @@ struct user_config_s {
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
-static bool have_instance = 0;
+static bool have_instance;
 
 static int varnish_submit(const char *plugin_instance, /* {{{ */
                           const char *category, const char *type,

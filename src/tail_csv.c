@@ -513,7 +513,7 @@ static int tcsv_config(oconfig_item_t *ci) {
 } /* int tcsv_config */
 
 static int tcsv_init(void) { /* {{{ */
-  static bool have_init = 0;
+  static bool have_init;
   metric_definition_t *md;
 
   if (have_init)

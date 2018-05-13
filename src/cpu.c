@@ -196,9 +196,9 @@ static size_t global_cpu_num = 0;
 
 static bool report_by_cpu = 1;
 static bool report_by_state = 1;
-static bool report_percent = 0;
-static bool report_num_cpu = 0;
-static bool report_guest = 0;
+static bool report_percent;
+static bool report_num_cpu;
+static bool report_guest;
 static bool subtract_guest = 1;
 
 static const char *config_keys[] = {"ReportByCpu",      "ReportByState",

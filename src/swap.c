@@ -74,14 +74,14 @@
 #if KERNEL_LINUX
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static bool report_bytes = 0;
-static bool report_by_device = 0;
+static bool report_bytes;
+static bool report_by_device;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static bool report_by_device = 0;
+static bool report_by_device;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
@@ -110,7 +110,7 @@ static int pagesize;
 #endif /* HAVE_LIBSTATGRAB */
 
 static bool values_absolute = 1;
-static bool values_percentage = 0;
+static bool values_percentage;
 static bool report_io = 1;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */

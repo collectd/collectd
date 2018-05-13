@@ -264,8 +264,8 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 static int network_config_ttl = 0;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
-static bool network_config_forward = 0;
-static bool network_config_stats = 0;
+static bool network_config_forward;
+static bool network_config_stats;
 
 static sockent_t *sending_sockets = NULL;
 
@@ -3096,7 +3096,7 @@ static int network_stats_read(void) /* {{{ */
 } /* }}} int network_stats_read */
 
 static int network_init(void) {
-  static bool have_init = 0;
+  static bool have_init;
 
   /* Check if we were already initialized. If so, just return - there's
    * nothing more to do (for now, that is). */

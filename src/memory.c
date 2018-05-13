@@ -95,7 +95,7 @@ static int pagesize;
 #endif
 
 static bool values_absolute = 1;
-static bool values_percentage = 0;
+static bool values_percentage;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {

@@ -125,7 +125,7 @@ struct lcc_network_buffer_s {
  */
 static bool have_gcrypt(void) /* {{{ */
 {
-  static bool result = 0;
+  static bool result;
   static bool need_init = 1;
 
   if (!need_init)

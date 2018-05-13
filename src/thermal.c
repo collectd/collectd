@@ -35,7 +35,7 @@ static const char *config_keys[] = {"Device", "IgnoreSelected",
 static const char *const dirname_sysfs = "/sys/class/thermal";
 static const char *const dirname_procfs = "/proc/acpi/thermal_zone";
 
-static bool force_procfs = 0;
+static bool force_procfs;
 static ignorelist_t *device_list;
 
 enum dev_type { TEMP = 0, COOLING_DEV };

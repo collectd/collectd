@@ -241,7 +241,7 @@ static char CollectdError_doc[] =
 
 static pthread_t main_thread;
 static PyOS_sighandler_t python_sigint_handler;
-static bool do_interactive = 0;
+static bool do_interactive;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background

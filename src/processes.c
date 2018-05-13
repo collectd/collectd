@@ -296,10 +296,10 @@ typedef struct procstat {
 static procstat_t *list_head_g = NULL;
 
 static bool want_init = 1;
-static bool report_ctx_switch = 0;
-static bool report_fd_num = 0;
-static bool report_maps_num = 0;
-static bool report_delay = 0;
+static bool report_ctx_switch;
+static bool report_fd_num;
+static bool report_maps_num;
+static bool report_delay;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;

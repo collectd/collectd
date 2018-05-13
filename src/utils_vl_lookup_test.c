@@ -29,8 +29,8 @@
 #include "testing.h"
 #include "utils_vl_lookup.h"
 
-static bool expect_new_obj = 0;
-static bool have_new_obj = 0;
+static bool expect_new_obj;
+static bool have_new_obj;
 
 static lookup_identifier_t last_class_ident;
 static lookup_identifier_t last_obj_ident;

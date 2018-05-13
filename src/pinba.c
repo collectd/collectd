@@ -106,8 +106,8 @@ static pthread_mutex_t stat_nodes_lock;
 static char *conf_node = NULL;
 static char *conf_service = NULL;
 
-static bool collector_thread_running = 0;
-static bool collector_thread_do_shutdown = 0;
+static bool collector_thread_running;
+static bool collector_thread_do_shutdown;
 static pthread_t collector_thread_id;
 /* }}} */
 

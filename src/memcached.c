@@ -69,7 +69,7 @@ struct memcached_s {
 };
 typedef struct memcached_s memcached_t;
 
-static bool memcached_have_instances = 0;
+static bool memcached_have_instances;
 
 static void memcached_free(void *arg) {
   memcached_t *st = arg;

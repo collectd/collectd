@@ -55,7 +55,7 @@
 #include <sys/protosw.h>
 #endif /* HAVE_PERFSTAT */
 
-static bool report_relative_load = 0;
+static bool report_relative_load;
 
 static const char *config_keys[] = {"ReportRelative"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);

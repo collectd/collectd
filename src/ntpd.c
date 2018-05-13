@@ -61,7 +61,7 @@ static bool do_reverse_lookups = 1;
 /* This option only exists for backward compatibility. If it is false and two
  * ntpd peers use the same refclock driver, the plugin will try to write
  * simultaneous measurements from both to the same type instance. */
-static bool include_unit_id = 0;
+static bool include_unit_id;
 
 #define NTPD_DEFAULT_HOST "localhost"
 #define NTPD_DEFAULT_PORT "123"

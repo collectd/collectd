@@ -39,8 +39,8 @@ static bool g_flag_rpt_numa = 1;
 static bool g_flag_rpt_mm = 1;
 
 static bool g_values_pages = 1;
-static bool g_values_bytes = 0;
-static bool g_values_percent = 0;
+static bool g_values_bytes;
+static bool g_values_percent;
 
 #define HP_HAVE_NR 0x01
 #define HP_HAVE_SURPLUS 0x02

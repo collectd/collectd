@@ -80,9 +80,9 @@ struct vpn_status_s {
 };
 typedef struct vpn_status_s vpn_status_t;
 
-static bool new_naming_schema = 0;
+static bool new_naming_schema;
 static bool collect_compression = 1;
-static bool collect_user_count = 0;
+static bool collect_user_count;
 static bool collect_individual_users = 1;
 
 static const char *config_keys[] = {
