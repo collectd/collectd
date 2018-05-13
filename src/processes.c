@@ -295,7 +295,7 @@ typedef struct procstat {
 
 static procstat_t *list_head_g = NULL;
 
-static bool want_init = 1;
+static bool want_init = true;
 static bool report_ctx_switch;
 static bool report_fd_num;
 static bool report_maps_num;

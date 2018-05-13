@@ -183,7 +183,7 @@ extern char **environ;
  * private variables
  */
 
-static bool register_legacy_flush = 1;
+static bool register_legacy_flush = true;
 
 /* if perl_threads != NULL perl_threads->head must
  * point to the "base" thread */

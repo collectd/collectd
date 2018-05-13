@@ -35,10 +35,10 @@
 
 static const char g_plugin_name[] = "hugepages";
 
-static bool g_flag_rpt_numa = 1;
-static bool g_flag_rpt_mm = 1;
+static bool g_flag_rpt_numa = true;
+static bool g_flag_rpt_mm = true;
 
-static bool g_values_pages = 1;
+static bool g_values_pages = true;
 static bool g_values_bytes;
 static bool g_values_percent;
 

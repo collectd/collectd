@@ -56,7 +56,7 @@ static const char *config_keys[] = {"Host", "Port", "ReverseLookups",
                                     "IncludeUnitID"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static bool do_reverse_lookups = 1;
+static bool do_reverse_lookups = true;
 
 /* This option only exists for backward compatibility. If it is false and two
  * ntpd peers use the same refclock driver, the plugin will try to write

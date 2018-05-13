@@ -194,12 +194,12 @@ static size_t cpu_states_num = 0; /* #cpu_states allocated */
  * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
 static size_t global_cpu_num = 0;
 
-static bool report_by_cpu = 1;
-static bool report_by_state = 1;
+static bool report_by_cpu = true;
+static bool report_by_state = true;
 static bool report_percent;
 static bool report_num_cpu;
 static bool report_guest;
-static bool subtract_guest = 1;
+static bool subtract_guest = true;
 
 static const char *config_keys[] = {"ReportByCpu",      "ReportByState",
                                     "ReportNumCpu",     "ValuesPercentage",

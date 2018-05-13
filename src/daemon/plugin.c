@@ -126,7 +126,7 @@ static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 static write_queue_t *write_queue_head;
 static write_queue_t *write_queue_tail;
 static long write_queue_length = 0;
-static bool write_loop = 1;
+static bool write_loop = true;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t write_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t *write_threads = NULL;

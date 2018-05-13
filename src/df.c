@@ -57,7 +57,7 @@ static ignorelist_t *il_fstype = NULL;
 
 static bool by_device;
 static bool report_inodes;
-static bool values_absolute = 1;
+static bool values_absolute = true;
 static bool values_percentage;
 
 static int df_init(void) {

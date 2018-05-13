@@ -25,7 +25,7 @@
 static const char *config_keys[] = {"ValuesAbsolute", "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static bool values_absolute = 1;
+static bool values_absolute = true;
 static bool values_percentage;
 
 static int fhcount_config(const char *key, const char *value) {

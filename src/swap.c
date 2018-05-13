@@ -109,9 +109,9 @@ static int pagesize;
 #error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-static bool values_absolute = 1;
+static bool values_absolute = true;
 static bool values_percentage;
-static bool report_io = 1;
+static bool report_io = true;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */
 {

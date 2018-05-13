@@ -88,7 +88,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *ignorelist = NULL;
 
-static bool report_inactive = 1;
+static bool report_inactive = true;
 
 #ifdef HAVE_LIBKSTAT
 #if HAVE_KSTAT_H

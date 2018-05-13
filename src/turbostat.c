@@ -195,7 +195,7 @@ static struct pkg_data {
 #define DELTA_COUNTERS thread_delta, core_delta, package_delta
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
-static bool is_even = 1;
+static bool is_even = true;
 
 static bool allocated;
 static bool initialized;

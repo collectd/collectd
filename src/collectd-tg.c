@@ -67,7 +67,7 @@ static c_heap_t *values_heap = NULL;
 static struct sigaction sigint_action;
 static struct sigaction sigterm_action;
 
-static bool loop = 1;
+static bool loop = true;
 
 __attribute__((noreturn)) static void exit_usage(int exit_status) /* {{{ */
 {

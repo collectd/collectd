@@ -81,9 +81,9 @@ struct vpn_status_s {
 typedef struct vpn_status_s vpn_status_t;
 
 static bool new_naming_schema;
-static bool collect_compression = 1;
+static bool collect_compression = true;
 static bool collect_user_count;
-static bool collect_individual_users = 1;
+static bool collect_individual_users = true;
 
 static const char *config_keys[] = {
     "StatusFile",           "Compression", /* old, deprecated name */

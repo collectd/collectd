@@ -94,7 +94,7 @@ static int pagesize;
 #error "No applicable input method."
 #endif
 
-static bool values_absolute = 1;
+static bool values_absolute = true;
 static bool values_percentage;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */

@@ -104,7 +104,7 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 
 /* FIXME: Enabled by default for backwards compatibility. */
 /* TODO: Remove time parsing code. */
-static bool config_parse_time = 1;
+static bool config_parse_time = true;
 
 static char *url = NULL;
 static int global_opcodes = 1;

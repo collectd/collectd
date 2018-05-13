@@ -39,8 +39,8 @@
  */
 static char *datadir = NULL;
 static char *daemon_address = NULL;
-static bool config_create_files = 1;
-static bool config_collect_stats = 1;
+static bool config_create_files = true;
+static bool config_collect_stats = true;
 static rrdcreate_config_t rrdcreate_config = {
     /* stepsize = */ 0,
     /* heartbeat = */ 0,

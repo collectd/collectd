@@ -113,7 +113,7 @@ static const char *def_exchange = "amq.fanout";
 
 static pthread_t *subscriber_threads = NULL;
 static size_t subscriber_threads_num = 0;
-static bool subscriber_threads_running = 1;
+static bool subscriber_threads_running = true;
 
 #define CONF(c, f) (((c)->f != NULL) ? (c)->f : def_##f)
 
