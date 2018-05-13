@@ -66,7 +66,7 @@ typedef struct ovs_events_iface_list_s ovs_events_iface_list_t;
 
 /* OVS events configuration data */
 struct ovs_events_config_s {
-  bool send_notification;                 /* sent notification to collectd? */
+  bool send_notification;                  /* sent notification to collectd? */
   char ovs_db_node[OVS_DB_ADDR_NODE_SIZE]; /* OVS DB node */
   char ovs_db_serv[OVS_DB_ADDR_SERVICE_SIZE]; /* OVS DB service */
   char ovs_db_unix[OVS_DB_ADDR_UNIX_SIZE];    /* OVS DB unix socket path */
@@ -80,7 +80,7 @@ struct ovs_events_ctx_s {
   ovs_db_t *ovs_db;           /* pointer to OVS DB instance */
   ovs_events_config_t config; /* plugin config */
   char *ovs_db_select_params; /* OVS DB select parameter request */
-  bool is_db_available;      /* specify whether OVS DB is available */
+  bool is_db_available;       /* specify whether OVS DB is available */
 };
 typedef struct ovs_events_ctx_s ovs_events_ctx_t;
 

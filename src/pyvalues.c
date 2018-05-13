@@ -562,7 +562,7 @@ static int cpy_build_meta_generic(PyObject *meta,
   CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_signed_int, int64_t)        \
   CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_unsigned_int, uint64_t)     \
   CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_double, double)             \
-  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_boolean, bool)             \
+  CPY_BUILD_META_FUNC(meta_type, func_prefix##_add_boolean, bool)              \
                                                                                \
   static cpy_build_meta_handler_t cpy_##func_prefix = {                        \
       .add_string = cpy_##func_prefix##_add_string,                            \

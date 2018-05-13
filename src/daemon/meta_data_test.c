@@ -24,8 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
+#include "common.h" /* for STATIC_ARRAY_SIZE */
 
 #include "meta_data.h"
 #include "testing.h"

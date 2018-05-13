@@ -224,8 +224,7 @@ static int config_add(oconfig_item_t *ci) {
       /* callback  = */ apache_read_host,
       /* interval  = */ 0,
       &(user_data_t){
-          .data = st,
-          .free_func = apache_free,
+          .data = st, .free_func = apache_free,
       });
 } /* int config_add */
 

@@ -313,7 +313,7 @@ static double averaging_add_sample(averaging_t *avg, long int sample) {
 typedef struct temperature_list_s {
   char *sensor_name;               /**< sensor name/reference */
   size_t num_values;               /**< number of values (usually one) */
-  bool initialized;               /**< sensor already provides data */
+  bool initialized;                /**< sensor already provides data */
   struct temperature_list_s *next; /**< next in the list */
 } temperature_list_t;
 

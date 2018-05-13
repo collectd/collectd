@@ -121,7 +121,7 @@ static int tcsv_read_metric(instance_definition_t *id, metric_definition_t *md,
 }
 
 static bool tcsv_check_index(ssize_t index, size_t fields_num,
-                              char const *name) {
+                             char const *name) {
   if (index < 0)
     return 1;
   else if (((size_t)index) < fields_num)

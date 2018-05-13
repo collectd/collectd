@@ -115,7 +115,7 @@ typedef struct by_type_entry_s by_type_entry_t;
  * Private functions
  */
 static bool lu_part_matches(part_match_t const *match, /* {{{ */
-                             char const *str) {
+                            char const *str) {
   if (match->is_regex) {
     /* Short cut popular catch-all regex. */
     if (strcmp(".*", match->str) == 0)

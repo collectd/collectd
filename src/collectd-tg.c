@@ -147,7 +147,8 @@ static int get_boundet_random(int min, int max) /* {{{ */
 
   range = max - min;
 
-  return min + ((int)(((double)range) * ((double)random()) / (((double)RAND_MAX) + 1.0)));
+  return min + ((int)(((double)range) * ((double)random()) /
+                      (((double)RAND_MAX) + 1.0)));
 } /* }}} int get_boundet_random */
 
 static lcc_value_list_t *create_value_list(void) /* {{{ */

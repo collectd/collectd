@@ -33,6 +33,7 @@
 #include "collectd/network_parse.h" /* for lcc_network_parse_options_t */
 #include "collectd/server.h"
 
+// clang-format off
 #include <errno.h>
 #include <stdbool.h>
 #include <string.h>
@@ -42,6 +43,7 @@
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
+// clang-format on
 
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
