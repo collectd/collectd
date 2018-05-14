@@ -181,9 +181,7 @@ static int wrr_send(struct riemann_host *host, riemann_message_t *msg) {
   return status;
 }
 
-static riemann_message_t *
-wrr_notification_to_message(struct riemann_host *host, /* {{{ */
-                            notification_t const *n) {
+static riemann_message_t *wrr_notification_to_message(notification_t const *n) {
   riemann_message_t *msg;
   riemann_event_t *event;
   char service_buffer[6 * DATA_MAX_NAME_LEN];
@@ -271,7 +269,7 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
         "host = \"%s\", service = \"%s\", state = \"%s\"",
         event->host, event->service, event->state);
   return msg;
-} /* }}} riemann_message_t *wrr_notification_to_message */
+}
 
 static riemann_event_t *
 wrr_value_to_event(struct riemann_host const *host, /* {{{ */
@@ -546,7 +544,7 @@ static int wrr_notification(const notification_t *n, user_data_t *ud) /* {{{ */
   /*
    * Never batch for notifications, send them ASAP
    */
-  msg = wrr_notification_to_message(host, n);
+  msg = wrr_notification_to_message(n);
   if (msg == NULL)
     return -1;
 
