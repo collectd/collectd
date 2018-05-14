@@ -598,13 +598,13 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
     else if (strcasecmp("Version", option->key) == 0)
       status = csnmp_config_add_host_version(hd, option);
     else if (strcasecmp("Timeout", option->key) == 0)
-      cf_util_get_cdtime(option, &hd->timeout);
+      status = cf_util_get_cdtime(option, &hd->timeout);
     else if (strcasecmp("Retries", option->key) == 0)
-      cf_util_get_int(option, &hd->retries);
+      status = cf_util_get_int(option, &hd->retries);
     else if (strcasecmp("Collect", option->key) == 0)
-      csnmp_config_add_host_collect(hd, option);
+      status = csnmp_config_add_host_collect(hd, option);
     else if (strcasecmp("Interval", option->key) == 0)
-      cf_util_get_cdtime(option, &hd->interval);
+      status = cf_util_get_cdtime(option, &hd->interval);
     else if (strcasecmp("Username", option->key) == 0)
       status = cf_util_get_string(option, &hd->username);
     else if (strcasecmp("AuthProtocol", option->key) == 0)
