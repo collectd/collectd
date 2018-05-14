@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
 
   /* i < argc => -f already present */
   collectd_argc = 1 + argc - optind + ((i < argc) ? 0 : 1);
-  collectd_argv = (char **)calloc(collectd_argc + 1, sizeof(char *));
+  collectd_argv = calloc(collectd_argc + 1, sizeof(char *));
 
   if (NULL == collectd_argv) {
     fprintf(stderr, "Out of memory.");
