@@ -337,8 +337,7 @@ static void in_place_replace_sensu_name_reserved(char *orig_name) /* {{{ */
 
 static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
                                  data_set_t const *ds, value_list_t const *vl,
-                                 size_t index, gauge_t const *rates,
-                                 int status) {
+                                 size_t index, gauge_t const *rates) {
   char name_buffer[5 * DATA_MAX_NAME_LEN];
   char service_buffer[6 * DATA_MAX_NAME_LEN];
   char *ret_str;
@@ -926,7 +925,7 @@ static int sensu_write(const data_set_t *ds, /* {{{ */
     }
   }
   for (size_t i = 0; i < vl->values_len; i++) {
-    msg = sensu_value_to_json(host, ds, vl, (int)i, rates, statuses[i]);
+    msg = sensu_value_to_json(host, ds, vl, (int)i, rates);
     if (msg == NULL) {
       sfree(rates);
       pthread_mutex_unlock(&host->lock);
