@@ -86,8 +86,8 @@ static ow_family_features_t ow_family_features[] = {
      /* features_num = */ 1}};
 static int ow_family_features_num = STATIC_ARRAY_SIZE(ow_family_features);
 
-static char *device_g = NULL;
-static cdtime_t ow_interval = 0;
+static char *device_g;
+static cdtime_t ow_interval;
 static bool direct_access;
 
 static const char *config_keys[] = {"Device", "IgnoreSelected", "Sensor",
@@ -109,7 +109,7 @@ typedef struct direct_access_element_s {
   struct direct_access_element_s *next; /**< Next in the list */
 } direct_access_element_t;
 
-static direct_access_element_t *direct_list = NULL;
+static direct_access_element_t *direct_list;
 
 /* ===================================================================================
  */

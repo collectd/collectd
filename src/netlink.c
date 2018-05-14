@@ -92,12 +92,12 @@ struct qos_stats {
 };
 
 static int ir_ignorelist_invert = 1;
-static ir_ignorelist_t *ir_ignorelist_head = NULL;
+static ir_ignorelist_t *ir_ignorelist_head;
 
 static struct mnl_socket *nl;
 
-static char **iflist = NULL;
-static size_t iflist_len = 0;
+static char **iflist;
+static size_t iflist_len;
 
 static const char *config_keys[] = {"Interface", "VerboseInterface",
                                     "QDisc",     "Class",

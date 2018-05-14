@@ -261,30 +261,30 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
-static int network_config_ttl = 0;
+static int network_config_ttl;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
 static bool network_config_forward;
 static bool network_config_stats;
 
-static sockent_t *sending_sockets = NULL;
+static sockent_t *sending_sockets;
 
-static receive_list_entry_t *receive_list_head = NULL;
-static receive_list_entry_t *receive_list_tail = NULL;
+static receive_list_entry_t *receive_list_head;
+static receive_list_entry_t *receive_list_tail;
 static pthread_mutex_t receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t receive_list_cond = PTHREAD_COND_INITIALIZER;
-static uint64_t receive_list_length = 0;
+static uint64_t receive_list_length;
 
-static sockent_t *listen_sockets = NULL;
-static struct pollfd *listen_sockets_pollfd = NULL;
-static size_t listen_sockets_num = 0;
+static sockent_t *listen_sockets;
+static struct pollfd *listen_sockets_pollfd;
+static size_t listen_sockets_num;
 
 /* The receive and dispatch threads will run as long as `listen_loop' is set to
  * zero. */
-static int listen_loop = 0;
-static int receive_thread_running = 0;
+static int listen_loop;
+static int receive_thread_running;
 static pthread_t receive_thread_id;
-static int dispatch_thread_running = 0;
+static int dispatch_thread_running;
 static pthread_t dispatch_thread_id;
 
 /* Buffer in which to-be-sent network packets are constructed. */
@@ -301,14 +301,14 @@ static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
  * example). Only if neither is true, the stats_lock is acquired. The counters
  * are always read without holding a lock in the hope that writing 8 bytes to
  * memory is an atomic operation. */
-static derive_t stats_octets_rx = 0;
-static derive_t stats_octets_tx = 0;
-static derive_t stats_packets_rx = 0;
-static derive_t stats_packets_tx = 0;
-static derive_t stats_values_dispatched = 0;
-static derive_t stats_values_not_dispatched = 0;
-static derive_t stats_values_sent = 0;
-static derive_t stats_values_not_sent = 0;
+static derive_t stats_octets_rx;
+static derive_t stats_octets_tx;
+static derive_t stats_packets_rx;
+static derive_t stats_packets_tx;
+static derive_t stats_values_dispatched;
+static derive_t stats_values_not_dispatched;
+static derive_t stats_values_sent;
+static derive_t stats_values_not_sent;
 static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -1113,7 +1113,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
                                   int flags) {
-  static int warning_has_been_printed = 0;
+  static int warning_has_been_printed;
 
   char *buffer;
   size_t buffer_size;
@@ -1268,7 +1268,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
                                   int flags) {
-  static int warning_has_been_printed = 0;
+  static int warning_has_been_printed;
 
   char *buffer;
   size_t buffer_size;

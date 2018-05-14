@@ -83,10 +83,10 @@ struct agg_instance_s /* {{{ */
   agg_instance_t *next;
 }; /* }}} */
 
-static lookup_t *lookup = NULL;
+static lookup_t *lookup;
 
 static pthread_mutex_t agg_instance_list_lock = PTHREAD_MUTEX_INITIALIZER;
-static agg_instance_t *agg_instance_list_head = NULL;
+static agg_instance_t *agg_instance_list_head;
 
 static bool agg_is_regex(char const *str) /* {{{ */
 {

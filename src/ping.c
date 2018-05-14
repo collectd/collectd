@@ -69,14 +69,14 @@ typedef struct hostlist_s hostlist_t;
 /*
  * Private variables
  */
-static hostlist_t *hostlist_head = NULL;
+static hostlist_t *hostlist_head;
 
 static int ping_af = PING_DEF_AF;
-static char *ping_source = NULL;
+static char *ping_source;
 #ifdef HAVE_OPING_1_3
-static char *ping_device = NULL;
+static char *ping_device;
 #endif
-static char *ping_data = NULL;
+static char *ping_data;
 static int ping_ttl = PING_DEF_TTL;
 static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
@@ -84,8 +84,8 @@ static int ping_max_missed = -1;
 
 static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
-static int ping_thread_loop = 0;
-static int ping_thread_error = 0;
+static int ping_thread_loop;
+static int ping_thread_error;
 static pthread_t ping_thread_id;
 
 static const char *config_keys[] = {"Host",    "SourceAddress", "AddressFamily",

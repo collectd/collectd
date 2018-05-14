@@ -221,7 +221,7 @@ static int parse_time(uint16_t type, void *payload, size_t payload_size,
 
 static double ntohd(double val) /* {{{ */
 {
-  static int config = 0;
+  static int config;
 
   union {
     uint8_t byte[8];

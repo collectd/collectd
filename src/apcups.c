@@ -70,16 +70,16 @@ typedef struct {
  * Private variables
  */
 /* Default values for contacting daemon */
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 /* Defaults to false for backwards compatibility. */
 static bool conf_report_seconds;
 static bool conf_persistent_conn = true;
 
 static int global_sockfd = -1;
 
-static int count_retries = 0;
-static int count_iterations = 0;
+static int count_retries;
+static int count_iterations;
 
 static int net_shutdown(int *fd) {
   uint16_t packet_size = 0;

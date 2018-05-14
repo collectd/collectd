@@ -293,7 +293,7 @@ typedef struct procstat {
   struct procstat_entry_s *instances;
 } procstat_t;
 
-static procstat_t *list_head_g = NULL;
+static procstat_t *list_head_g;
 
 static bool want_init = true;
 static bool report_ctx_switch;
@@ -334,7 +334,7 @@ int getargs(void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
 #endif /* HAVE_PROCINFO_H */
 
 #if HAVE_LIBTASKSTATS
-static ts_t *taskstats_handle = NULL;
+static ts_t *taskstats_handle;
 #endif
 
 /* put name of process from config to list_head_g tree

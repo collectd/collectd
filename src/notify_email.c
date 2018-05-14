@@ -38,19 +38,19 @@ static const char *config_keys[] = {"SMTPServer",   "SMTPPort", "SMTPUser",
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static char **recipients;
-static int recipients_len = 0;
+static int recipients_len;
 
 static smtp_session_t session;
 static pthread_mutex_t session_lock = PTHREAD_MUTEX_INITIALIZER;
 static smtp_message_t message;
-static auth_context_t authctx = NULL;
+static auth_context_t authctx;
 
 static int smtp_port = 25;
-static char *smtp_host = NULL;
-static char *smtp_user = NULL;
-static char *smtp_password = NULL;
-static char *email_from = NULL;
-static char *email_subject = NULL;
+static char *smtp_host;
+static char *smtp_user;
+static char *smtp_password;
+static char *email_from;
+static char *email_subject;
 
 #define DEFAULT_SMTP_HOST "localhost"
 #define DEFAULT_SMTP_FROM "root@localhost"

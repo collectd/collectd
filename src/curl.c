@@ -85,8 +85,7 @@ struct web_page_s /* {{{ */
 /*
  * Global variables;
  */
-/* static CURLM *curl = NULL; */
-static web_page_t *pages_g = NULL;
+static web_page_t *pages_g;
 
 /*
  * Private functions

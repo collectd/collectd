@@ -55,12 +55,12 @@ static const char *config_keys[] = {"SocketFile", "SocketGroup", "SocketPerms",
                                     "DeleteSocket"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static int loop = 0;
+static int loop;
 
 /* socket configuration */
 static int sock_fd = -1;
-static char *sock_file = NULL;
-static char *sock_group = NULL;
+static char *sock_file;
+static char *sock_group;
 static int sock_perms = S_IRWXU | S_IRWXG;
 static bool delete_socket;
 
@@ -361,7 +361,7 @@ static int us_config(const char *key, const char *val) {
 } /* int us_config */
 
 static int us_init(void) {
-  static int have_init = 0;
+  static int have_init;
 
   int status;
 

@@ -111,13 +111,13 @@ static const char *config_keys[] = {"SocketFile", "SocketGroup", "SocketPerms",
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /* socket configuration */
-static char *sock_file = NULL;
-static char *sock_group = NULL;
+static char *sock_file;
+static char *sock_group;
 static int sock_perms = S_IRWXU | S_IRWXG;
 static int max_conns = MAX_CONNS;
 
 /* state of the plugin */
-static int disabled = 0;
+static int disabled;
 
 /* thread managing "client" connections */
 static pthread_t connector = (pthread_t)0;
@@ -134,7 +134,7 @@ static conn_list_t conns;
 static pthread_cond_t collector_available = PTHREAD_COND_INITIALIZER;
 
 /* collector threads */
-static collector_t **collectors = NULL;
+static collector_t **collectors;
 
 static pthread_mutex_t available_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int available_collectors;

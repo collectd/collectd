@@ -71,11 +71,11 @@
 #define WCOREDUMP(s) 0
 #endif /* ! WCOREDUMP */
 
-static int loop = 0;
-static int restart = 0;
+static int loop;
+static int restart;
 
-static const char *pidfile = NULL;
-static pid_t collectd_pid = 0;
+static const char *pidfile;
+static pid_t collectd_pid;
 
 __attribute__((noreturn)) static void exit_usage(const char *name) {
   printf("Usage: %s <options> [-- <collectd options>]\n"
@@ -246,8 +246,8 @@ static void log_status(int status) {
 static void check_respawn(void) {
   time_t t = time(NULL);
 
-  static time_t timestamp = 0;
-  static int counter = 0;
+  static time_t timestamp;
+  static int counter;
 
   if ((t - 120) < timestamp)
     ++counter;

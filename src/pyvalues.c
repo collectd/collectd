@@ -52,9 +52,8 @@ typedef struct {
 
 static PyObject *cpy_common_repr(PyObject *s) {
   PyObject *ret, *tmp;
-  static PyObject *l_type = NULL, *l_type_instance = NULL, *l_plugin = NULL,
-                  *l_plugin_instance = NULL;
-  static PyObject *l_host = NULL, *l_time = NULL;
+  static PyObject *l_type, *l_type_instance, *l_plugin, *l_plugin_instance;
+  static PyObject *l_host, *l_time;
   PluginData *self = (PluginData *)s;
 
   if (l_type == NULL)
@@ -203,7 +202,7 @@ static int PluginData_init(PyObject *s, PyObject *args, PyObject *kwds) {
 
 static PyObject *PluginData_repr(PyObject *s) {
   PyObject *ret;
-  static PyObject *l_closing = NULL;
+  static PyObject *l_closing;
 
   if (l_closing == NULL)
     l_closing = cpy_string_to_unicode_or_bytes(")");
@@ -843,8 +842,7 @@ static PyObject *Values_write(Values *self, PyObject *args, PyObject *kwds) {
 
 static PyObject *Values_repr(PyObject *s) {
   PyObject *ret, *tmp;
-  static PyObject *l_interval = NULL, *l_values = NULL, *l_meta = NULL,
-                  *l_closing = NULL;
+  static PyObject *l_interval, *l_values, *l_meta, *l_closing;
   Values *self = (Values *)s;
 
   if (l_interval == NULL)
@@ -1146,8 +1144,7 @@ static int Notification_setstring(PyObject *self, PyObject *value, void *data) {
 
 static PyObject *Notification_repr(PyObject *s) {
   PyObject *ret, *tmp;
-  static PyObject *l_severity = NULL, *l_message = NULL, *l_meta = NULL,
-                  *l_closing = NULL;
+  static PyObject *l_severity, *l_message, *l_meta, *l_closing;
   Notification *self = (Notification *)s;
 
   if (l_severity == NULL)

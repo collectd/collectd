@@ -91,8 +91,8 @@ static int dispatch_block_plugin(oconfig_item_t *ci);
 /*
  * Private variables
  */
-static cf_callback_t *first_callback = NULL;
-static cf_complex_callback_t *complex_callback_head = NULL;
+static cf_callback_t *first_callback;
+static cf_complex_callback_t *complex_callback_head;
 
 static cf_value_map_t cf_value_map[] = {{"TypesDB", dispatch_value_typesdb},
                                         {"PluginDir", dispatch_value_plugindir},

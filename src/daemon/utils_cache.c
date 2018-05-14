@@ -76,7 +76,7 @@ struct uc_iter_s {
   cache_entry_t *entry;
 };
 
-static c_avl_tree_t *cache_tree = NULL;
+static c_avl_tree_t *cache_tree;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {

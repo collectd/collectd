@@ -57,7 +57,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int select_numeric_qtype = 1;
 
 #define PCAP_SNAPLEN 1460
-static char *pcap_device = NULL;
+static char *pcap_device;
 
 static derive_t tr_queries;
 static derive_t tr_responses;
@@ -66,7 +66,7 @@ static counter_list_t *opcode_list;
 static counter_list_t *rcode_list;
 
 static pthread_t listen_thread;
-static int listen_thread_init = 0;
+static int listen_thread_init;
 /* The `traffic' mutex if for `tr_queries' and `tr_responses' */
 static pthread_mutex_t traffic_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qtype_mutex = PTHREAD_MUTEX_INITIALIZER;

@@ -99,12 +99,12 @@ typedef struct pinba_statnode_s pinba_statnode_t;
  * Module global variables
  */
 /* {{{ */
-static pinba_statnode_t *stat_nodes = NULL;
-static unsigned int stat_nodes_num = 0;
+static pinba_statnode_t *stat_nodes;
+static unsigned int stat_nodes_num;
 static pthread_mutex_t stat_nodes_lock;
 
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 
 static bool collector_thread_running;
 static bool collector_thread_do_shutdown;

@@ -257,8 +257,8 @@ static cpy_callback_t *cpy_init_callbacks;
 static cpy_callback_t *cpy_shutdown_callbacks;
 
 /* Make sure to hold the GIL while modifying these. */
-static int cpy_shutdown_triggered = 0;
-static int cpy_num_callbacks = 0;
+static int cpy_shutdown_triggered;
+static int cpy_num_callbacks;
 
 static void cpy_destroy_user_data(void *data) {
   cpy_callback_t *c = data;

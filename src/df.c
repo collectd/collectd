@@ -51,9 +51,9 @@ static const char *config_keys[] = {
     "ReportByDevice", "ReportInodes", "ValuesAbsolute", "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *il_device = NULL;
-static ignorelist_t *il_mountpoint = NULL;
-static ignorelist_t *il_fstype = NULL;
+static ignorelist_t *il_device;
+static ignorelist_t *il_mountpoint;
+static ignorelist_t *il_fstype;
 
 static bool by_device;
 static bool report_inodes;

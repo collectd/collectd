@@ -148,7 +148,7 @@ enum perfcounter_type_d {
 };
 
 /** Give user option to use default (long run = since daemon started) avg */
-static int long_run_latency_avg = 0;
+static int long_run_latency_avg;
 
 /**
  * Give user option to use default type for special cases -
@@ -161,10 +161,10 @@ static int long_run_latency_avg = 0;
 static int convert_special_metrics = 1;
 
 /** Array of daemons to monitor */
-static struct ceph_daemon **g_daemons = NULL;
+static struct ceph_daemon **g_daemons;
 
 /** Number of elements in g_daemons */
-static size_t g_num_daemons = 0;
+static size_t g_num_daemons;
 
 /**
  * A set of data that we build up in memory while parsing the JSON.

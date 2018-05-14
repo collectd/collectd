@@ -36,7 +36,7 @@
 #define MAX_NUMTAPE 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMTAPE];
-static int numtape = 0;
+static int numtape;
 
 static int tape_init(void) {
   kstat_t *ksp_chain;

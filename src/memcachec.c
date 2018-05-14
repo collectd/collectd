@@ -68,7 +68,7 @@ struct web_page_s /* {{{ */
 /*
  * Global variables;
  */
-static web_page_t *pages_g = NULL;
+static web_page_t *pages_g;
 
 /*
  * Private functions
@@ -412,7 +412,7 @@ static void cmc_submit(const web_page_t *wp, const web_match_t *wm, /* {{{ */
   vl.values = &value;
   vl.values_len = 1;
   sstrncpy(vl.plugin, (wp->plugin_name != NULL) ? wp->plugin_name : "memcachec",
-           sizeof (vl.plugin));
+           sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, wp->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, wm->type, sizeof(vl.type));
   sstrncpy(vl.type_instance, wm->instance, sizeof(vl.type_instance));

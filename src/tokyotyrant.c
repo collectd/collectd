@@ -33,10 +33,10 @@
 static const char *config_keys[] = {"Host", "Port"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *config_host = NULL;
-static char *config_port = NULL;
+static char *config_host;
+static char *config_port;
 
-static TCRDB *rdb = NULL;
+static TCRDB *rdb;
 
 static int tt_config(const char *key, const char *value) {
   if (strcasecmp("Host", key) == 0) {

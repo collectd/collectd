@@ -155,14 +155,14 @@ static const char *const def_queries[] = {
     "table_states", "disk_io",      "disk_usage"};
 static int def_queries_num = STATIC_ARRAY_SIZE(def_queries);
 
-static c_psql_database_t **databases = NULL;
-static size_t databases_num = 0;
+static c_psql_database_t **databases;
+static size_t databases_num;
 
-static udb_query_t **queries = NULL;
-static size_t queries_num = 0;
+static udb_query_t **queries;
+static size_t queries_num;
 
-static c_psql_writer_t *writers = NULL;
-static size_t writers_num = 0;
+static c_psql_writer_t *writers;
+static size_t writers_num;
 
 static int c_psql_begin(c_psql_database_t *db) {
   PGresult *r = PQexec(db->conn, "BEGIN");
@@ -1237,7 +1237,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
 } /* c_psql_config_database */
 
 static int c_psql_config(oconfig_item_t *ci) {
-  static int have_def_config = 0;
+  static int have_def_config;
 
   if (0 == have_def_config) {
     oconfig_item_t *c;

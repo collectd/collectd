@@ -90,7 +90,7 @@ struct snmp_agent_ctx_s {
 };
 typedef struct snmp_agent_ctx_s snmp_agent_ctx_t;
 
-static snmp_agent_ctx_t *g_agent = NULL;
+static snmp_agent_ctx_t *g_agent;
 
 #define CHECK_DD_TYPE(_dd, _p, _pi, _t, _ti)                                   \
   (_dd->plugin ? !strcmp(_dd->plugin, _p) : 0) &&                              \

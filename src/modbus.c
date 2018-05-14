@@ -152,7 +152,7 @@ struct mb_data_group_s /* {{{ */
 /*
  * Global variables
  */
-static mb_data_t *data_definitions = NULL;
+static mb_data_t *data_definitions;
 
 /*
  * Functions

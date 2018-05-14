@@ -51,7 +51,7 @@
 #define COLLECTD_LOCALE "C"
 #endif
 
-static int loop = 0;
+static int loop;
 
 static void *do_flush(void __attribute__((unused)) * arg) {
   INFO("Flushing all data.");

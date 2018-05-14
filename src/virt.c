@@ -241,8 +241,8 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   } while (0)
 
 /* Connection. */
-static virConnectPtr conn = 0;
-static char *conn_string = NULL;
+static virConnectPtr conn;
+static char *conn_string;
 static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 
 /* Node information required for %CPU */
@@ -252,11 +252,11 @@ static virNodeInfo nodeinfo;
 static int interval = 60;
 
 /* List of domains, if specified. */
-static ignorelist_t *il_domains = NULL;
+static ignorelist_t *il_domains;
 /* List of block devices, if specified. */
-static ignorelist_t *il_block_devices = NULL;
+static ignorelist_t *il_block_devices;
 /* List of network interface devices, if specified. */
-static ignorelist_t *il_interface_devices = NULL;
+static ignorelist_t *il_interface_devices;
 
 static int ignore_device_match(ignorelist_t *, const char *domname,
                                const char *devpath);

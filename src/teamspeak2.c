@@ -46,14 +46,14 @@ typedef struct vserver_list_s {
   int port;
   struct vserver_list_s *next;
 } vserver_list_t;
-static vserver_list_t *server_list = NULL;
+static vserver_list_t *server_list;
 
 /* Host data */
-static char *config_host = NULL;
-static char *config_port = NULL;
+static char *config_host;
+static char *config_port;
 
-static FILE *global_read_fh = NULL;
-static FILE *global_write_fh = NULL;
+static FILE *global_read_fh;
+static FILE *global_write_fh;
 
 /* Config data */
 static const char *config_keys[] = {"Host", "Port", "Server"};

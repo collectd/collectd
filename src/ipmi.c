@@ -95,8 +95,8 @@ typedef struct c_ipmi_db_type_map_s c_ipmi_db_type_map_t;
 /*
  * Module global variables
  */
-static os_handler_t *os_handler = NULL;
-static c_ipmi_instance_t *instances = NULL;
+static os_handler_t *os_handler;
+static c_ipmi_instance_t *instances;
 
 /*
  * Misc private functions

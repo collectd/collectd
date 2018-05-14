@@ -156,7 +156,7 @@ static bool have_gcrypt(void) /* {{{ */
 #ifndef HAVE_HTONLL
 static uint64_t htonll(uint64_t val) /* {{{ */
 {
-  static int config = 0;
+  static int config;
 
   uint32_t hi;
   uint32_t lo;
@@ -186,7 +186,7 @@ static uint64_t htonll(uint64_t val) /* {{{ */
 
 static double htond(double val) /* {{{ */
 {
-  static int config = 0;
+  static int config;
 
   union {
     uint8_t byte[8];

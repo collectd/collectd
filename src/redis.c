@@ -76,7 +76,7 @@ struct redis_node_s {
   redis_node_t *next;
 };
 
-static redis_node_t *nodes_head = NULL;
+static redis_node_t *nodes_head;
 
 static int redis_node_add(const redis_node_t *rn) /* {{{ */
 {

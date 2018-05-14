@@ -66,7 +66,7 @@ static bool include_unit_id;
 #define NTPD_DEFAULT_HOST "localhost"
 #define NTPD_DEFAULT_PORT "123"
 static int sock_descr = -1;
-static char *ntpd_host = NULL;
+static char *ntpd_host;
 static char ntpd_port[16];
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

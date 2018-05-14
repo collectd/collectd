@@ -59,7 +59,7 @@ struct rdt_ctx_s {
 };
 typedef struct rdt_ctx_s rdt_ctx_t;
 
-static rdt_ctx_t *g_rdt = NULL;
+static rdt_ctx_t *g_rdt;
 
 static rdt_config_status g_state = UNKNOWN;
 

@@ -31,7 +31,7 @@
 static char const *config_keys[] = {"CGroup", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *il_cgroup = NULL;
+static ignorelist_t *il_cgroup;
 
 __attribute__((nonnull(1))) __attribute__((nonnull(2))) static void
 cgroups_submit_one(char const *plugin_instance, char const *type_instance,
