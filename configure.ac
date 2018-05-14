@@ -766,9 +766,7 @@ AC_CHECK_FUNCS_ONCE([ \
 AC_FUNC_STRERROR_R
 
 SAVE_CFLAGS="$CFLAGS"
-# Emulate behavior of src/Makefile.am
-if test "x$GCC" = "xyes"; then
-  CFLAGS="$CFLAGS -Wall -Werror"
+CFLAGS="-Wall -Werror"
 fi
 
 AC_CACHE_CHECK([for strtok_r],
