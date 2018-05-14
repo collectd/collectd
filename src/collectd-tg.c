@@ -95,7 +95,7 @@ __attribute__((noreturn)) static void exit_usage(int exit_status) /* {{{ */
   exit(exit_status);
 } /* }}} void exit_usage */
 
-static void signal_handler(int signal) /* {{{ */
+static void signal_handler(int __attribute__((unused)) signal) /* {{{ */
 {
   loop = false;
 } /* }}} void signal_handler */
