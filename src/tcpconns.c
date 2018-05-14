@@ -76,7 +76,6 @@
 #endif
 
 #if KERNEL_LINUX
-#include <asm/types.h>
 #include <linux/netlink.h>
 #if HAVE_LINUX_INET_DIAG_H
 #include <linux/inet_diag.h>
