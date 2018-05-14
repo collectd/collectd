@@ -3049,18 +3049,33 @@ else
           PKG_CHECK_MODULES([LUA], [lua5.3],
             [with_liblua="yes"],
             [
-              PKG_CHECK_MODULES([LUA], [lua-5.2],
+              PKG_CHECK_MODULES([LUA], [lua53],
                 [with_liblua="yes"],
                 [
-                  PKG_CHECK_MODULES([LUA], [lua5.2],
+                  PKG_CHECK_MODULES([LUA], [lua-5.2],
                     [with_liblua="yes"],
                     [
-                      PKG_CHECK_MODULES([LUA], [lua-5.1],
+                      PKG_CHECK_MODULES([LUA], [lua5.2],
                         [with_liblua="yes"],
                         [
-                          PKG_CHECK_MODULES([LUA], [lua5.1],
+                          PKG_CHECK_MODULES([LUA], [lua52],
                             [with_liblua="yes"],
-                            [with_liblua="no (pkg-config cannot find liblua)"]
+                            [
+                              PKG_CHECK_MODULES([LUA], [lua-5.1],
+                                [with_liblua="yes"],
+                                [
+                                  PKG_CHECK_MODULES([LUA], [lua5.1],
+                                    [with_liblua="yes"],
+                                    [
+                                      PKG_CHECK_MODULES([LUA], [lua51],
+                                        [with_liblua="yes"],
+                                        [with_liblua="no (pkg-config cannot find liblua)"]
+                                      )
+                                    ]
+                                  )
+                                ]
+                              )
+                            ]
                           )
                         ]
                       )
