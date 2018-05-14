@@ -33,9 +33,9 @@
 
 static const char *config_keys[] = {"ReportV2", "ReportV3", "ReportV4"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-static _Bool report_v2 = 1;
-static _Bool report_v3 = 1;
-static _Bool report_v4 = 1;
+static bool report_v2 = true;
+static bool report_v3 = true;
+static bool report_v4 = true;
 
 /*
 see /proc/net/rpc/nfs

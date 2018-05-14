@@ -104,7 +104,7 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 
 /* FIXME: Enabled by default for backwards compatibility. */
 /* TODO: Remove time parsing code. */
-static _Bool config_parse_time = 1;
+static bool config_parse_time = true;
 
 static char *url = NULL;
 static int global_opcodes = 1;
@@ -1567,9 +1567,8 @@ static int bind_init(void) /* {{{ */
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
-                   (timeout >= 0)
-                       ? (long)timeout
-                       : (long)CDTIME_T_TO_MS(plugin_get_interval()));
+                   (timeout >= 0) ? (long)timeout : (long)CDTIME_T_TO_MS(
+                                                        plugin_get_interval()));
 #endif
 
   return 0;

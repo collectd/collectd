@@ -62,7 +62,7 @@ static int sock_fd = -1;
 static char *sock_file = NULL;
 static char *sock_group = NULL;
 static int sock_perms = S_IRWXU | S_IRWXG;
-static _Bool delete_socket = 0;
+static bool delete_socket;
 
 static pthread_t listen_thread = (pthread_t)0;
 
@@ -350,9 +350,9 @@ static int us_config(const char *key, const char *val) {
     sock_perms = (int)strtol(val, NULL, 8);
   } else if (strcasecmp(key, "DeleteSocket") == 0) {
     if (IS_TRUE(val))
-      delete_socket = 1;
+      delete_socket = true;
     else
-      delete_socket = 0;
+      delete_socket = false;
   } else {
     return -1;
   }

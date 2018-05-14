@@ -664,7 +664,7 @@ static int c_grpc_config_listen(oconfig_item_t *ci) {
       }
       pkcp.cert_chain = read_file(cert);
     } else if (!strcasecmp("VerifyPeer", child->key)) {
-      _Bool verify = 0;
+      bool verify = false;
       if (cf_util_get_boolean(child, &verify)) {
         return -1;
       }

@@ -39,12 +39,12 @@ struct cr_data_s {
   char *username;
   char *password;
 
-  _Bool collect_interface;
-  _Bool collect_regtable;
-  _Bool collect_cpu_load;
-  _Bool collect_memory;
-  _Bool collect_df;
-  _Bool collect_disk;
+  bool collect_interface;
+  bool collect_regtable;
+  bool collect_cpu_load;
+  bool collect_memory;
+  bool collect_df;
+  bool collect_disk;
 };
 typedef struct cr_data_s cr_data_t;
 

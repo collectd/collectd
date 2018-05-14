@@ -54,7 +54,7 @@ struct cdbi_driver_option_s /* {{{ */
     char *string;
     int numeric;
   } value;
-  _Bool is_numeric;
+  bool is_numeric;
 };
 typedef struct cdbi_driver_option_s cdbi_driver_option_t; /* }}} */
 
@@ -258,7 +258,7 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
   } else {
     assert(ci->values[1].type == OCONFIG_TYPE_NUMBER);
     option->value.numeric = (int)(ci->values[1].value.number + .5);
-    option->is_numeric = 1;
+    option->is_numeric = true;
   }
 
   db->driver_options_num++;

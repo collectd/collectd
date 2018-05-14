@@ -186,7 +186,7 @@ static double config_temp_offset = 0.0;  /**< temperature offset */
 static double config_altitude = NAN; /**< altitude */
 static int config_normalize = 0;     /**< normalization method */
 
-static _Bool configured = 0; /**< the whole plugin config status */
+static bool configured; /**< the whole plugin config status */
 
 static int i2c_bus_fd = -1; /**< I2C bus device FD */
 
@@ -226,7 +226,7 @@ static short bmp085_MD;
 /*  Used only for MPL115. MPL3115 supports real oversampling in the device so */
 /*  no need for any postprocessing. */
 
-static _Bool avg_initialized = 0; /**< already initialized by real values */
+static bool avg_initialized; /**< already initialized by real values */
 
 typedef struct averaging_s {
   long int *ring_buffer;
@@ -313,7 +313,7 @@ static double averaging_add_sample(averaging_t *avg, long int sample) {
 typedef struct temperature_list_s {
   char *sensor_name;               /**< sensor name/reference */
   size_t num_values;               /**< number of values (usually one) */
-  _Bool initialized;               /**< sensor already provides data */
+  bool initialized;                /**< sensor already provides data */
   struct temperature_list_s *next; /**< next in the list */
 } temperature_list_t;
 
@@ -1392,7 +1392,7 @@ static int MPL115_collectd_barometer_read(void) {
             config_oversample - 1);
       usleep(20000);
     }
-    avg_initialized = 1;
+    avg_initialized = true;
   }
 
   result = MPL115_read_averaged(&pressure, &temperature);
@@ -1635,7 +1635,7 @@ static int collectd_barometer_init(void) {
     return -1;
   }
 
-  configured = 1;
+  configured = true;
   return 0;
 }
 

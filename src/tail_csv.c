@@ -120,17 +120,17 @@ static int tcsv_read_metric(instance_definition_t *id, metric_definition_t *md,
   return tcsv_submit(id, md, v, t);
 }
 
-static _Bool tcsv_check_index(ssize_t index, size_t fields_num,
-                              char const *name) {
+static bool tcsv_check_index(ssize_t index, size_t fields_num,
+                             char const *name) {
   if (index < 0)
-    return 1;
+    return true;
   else if (((size_t)index) < fields_num)
-    return 1;
+    return true;
 
   ERROR("tail_csv plugin: Metric \"%s\": Request for index %zd when "
         "only %" PRIsz " fields are available.",
         name, index, fields_num);
-  return 0;
+  return false;
 }
 
 static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
@@ -513,7 +513,7 @@ static int tcsv_config(oconfig_item_t *ci) {
 } /* int tcsv_config */
 
 static int tcsv_init(void) { /* {{{ */
-  static _Bool have_init = 0;
+  static bool have_init;
   metric_definition_t *md;
 
   if (have_init)

@@ -107,10 +107,10 @@ struct sensu_host {
 #define F_READY 0x01
   uint8_t flags;
   pthread_mutex_t lock;
-  _Bool notifications;
-  _Bool metrics;
-  _Bool store_rates;
-  _Bool always_append_ds;
+  bool notifications;
+  bool metrics;
+  bool store_rates;
+  bool always_append_ds;
   char *separator;
   char *node;
   char *service;
@@ -1019,10 +1019,10 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
   host->reference_count = 1;
   host->node = NULL;
   host->service = NULL;
-  host->notifications = 0;
-  host->metrics = 0;
-  host->store_rates = 1;
-  host->always_append_ds = 0;
+  host->notifications = false;
+  host->metrics = false;
+  host->store_rates = true;
+  host->always_append_ds = false;
   host->metric_handlers.nb_strs = 0;
   host->metric_handlers.strs = NULL;
   host->notification_handlers.nb_strs = 0;
@@ -1124,16 +1124,17 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  if ((host->notification_handlers.nb_strs > 0) && (host->notifications == 0)) {
+  if ((host->notification_handlers.nb_strs > 0) &&
+      (host->notifications == false)) {
     WARNING("write_sensu plugin: NotificationHandler given so forcing "
             "notifications to be enabled");
     host->notifications = 1;
   }
 
-  if ((host->metric_handlers.nb_strs > 0) && (host->metrics == 0)) {
+  if ((host->metric_handlers.nb_strs > 0) && (host->metrics == false)) {
     WARNING("write_sensu plugin: MetricHandler given so forcing metrics to be "
             "enabled");
-    host->metrics = 1;
+    host->metrics = true;
   }
 
   if (!(host->notifications || host->metrics)) {

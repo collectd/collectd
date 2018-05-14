@@ -48,12 +48,12 @@ struct aggregation_s /* {{{ */
   char *set_plugin_instance;
   char *set_type_instance;
 
-  _Bool calc_num;
-  _Bool calc_sum;
-  _Bool calc_average;
-  _Bool calc_min;
-  _Bool calc_max;
-  _Bool calc_stddev;
+  bool calc_num;
+  bool calc_sum;
+  bool calc_average;
+  bool calc_min;
+  bool calc_max;
+  bool calc_stddev;
 }; /* }}} */
 typedef struct aggregation_s aggregation_t;
 
@@ -88,20 +88,20 @@ static lookup_t *lookup = NULL;
 static pthread_mutex_t agg_instance_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static agg_instance_t *agg_instance_list_head = NULL;
 
-static _Bool agg_is_regex(char const *str) /* {{{ */
+static bool agg_is_regex(char const *str) /* {{{ */
 {
   if (str == NULL)
-    return 0;
+    return false;
 
   size_t len = strlen(str);
   if (len < 3)
-    return 0;
+    return false;
 
   if ((str[0] == '/') && (str[len - 1] == '/'))
-    return 1;
+    return true;
   else
-    return 0;
-} /* }}} _Bool agg_is_regex */
+    return false;
+} /* }}} bool agg_is_regex */
 
 static void agg_destroy(aggregation_t *agg) /* {{{ */
 {
@@ -396,9 +396,10 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
     READ_FUNC(average, (inst->sum / ((gauge_t)inst->num)));
     READ_FUNC(min, inst->min);
     READ_FUNC(max, inst->max);
-    READ_FUNC(stddev, sqrt((((gauge_t)inst->num) * inst->squares_sum) -
-                           (inst->sum * inst->sum)) /
-                          ((gauge_t)inst->num));
+    READ_FUNC(stddev,
+              sqrt((((gauge_t)inst->num) * inst->squares_sum) -
+                   (inst->sum * inst->sum)) /
+                  ((gauge_t)inst->num));
   }
 
   /* Reset internal state. */
@@ -570,7 +571,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
     agg->regex_fields |= LU_GROUP_BY_TYPE_INSTANCE;
 
   /* Sanity checking */
-  _Bool is_valid = 1;
+  bool is_valid = true;
   if (strcmp("/.*/", agg->ident.type) == 0) /* {{{ */
   {
     ERROR("aggregation plugin: It appears you did not specify the required "
@@ -579,13 +580,13 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
           "Type \"%s\", TypeInstance \"%s\")",
           agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
           agg->ident.type, agg->ident.type_instance);
-    is_valid = 0;
+    is_valid = false;
   } else if (strchr(agg->ident.type, '/') != NULL) {
     ERROR("aggregation plugin: The \"Type\" may not contain the '/' "
           "character. Especially, it may not be a regex. The current "
           "value is \"%s\".",
           agg->ident.type);
-    is_valid = 0;
+    is_valid = false;
   } /* }}} */
 
   /* Check that there is at least one regex field without a grouping. {{{ */
@@ -598,7 +599,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
           "Type \"%s\", TypeInstance \"%s\")",
           agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
           agg->ident.type, agg->ident.type_instance);
-    is_valid = 0;
+    is_valid = false;
   } /* }}} */
 
   /* Check that all grouping fields are regular expressions. {{{ */
@@ -610,7 +611,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
           "Type \"%s\", TypeInstance \"%s\")",
           agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
           agg->ident.type, agg->ident.type_instance);
-    is_valid = 0;
+    is_valid = false;
   } /* }}} */
 
   if (!agg->calc_num && !agg->calc_sum && !agg->calc_average /* {{{ */
@@ -621,7 +622,7 @@ static int agg_config_aggregation(oconfig_item_t *ci) /* {{{ */
           "Type \"%s\", TypeInstance \"%s\")",
           agg->ident.host, agg->ident.plugin, agg->ident.plugin_instance,
           agg->ident.type, agg->ident.type_instance);
-    is_valid = 0;
+    is_valid = false;
   } /* }}} */
 
   if (!is_valid) { /* {{{ */
@@ -711,7 +712,7 @@ static int agg_read(void) /* {{{ */
 
 static int agg_write(data_set_t const *ds, value_list_t const *vl, /* {{{ */
                      __attribute__((unused)) user_data_t *user_data) {
-  _Bool created_by_aggregation = 0;
+  bool created_by_aggregation = false;
   /* Ignore values that were created by the aggregation plugin to avoid weird
    * effects. */
   (void)meta_data_get_boolean(vl->meta, "aggregation:created",

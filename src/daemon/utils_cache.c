@@ -998,7 +998,7 @@ int uc_meta_data_exists(const value_list_t *vl,
                         const value_list_t *vl, const char *key, double value)
                         UC_WRAP(meta_data_add_double) int uc_meta_data_add_boolean(
                             const value_list_t *vl, const char *key,
-                            _Bool value) UC_WRAP(meta_data_add_boolean)
+                            bool value) UC_WRAP(meta_data_add_boolean)
 
                             int uc_meta_data_get_string(const value_list_t *vl,
                                                         const char *key,
@@ -1014,6 +1014,6 @@ int uc_meta_data_exists(const value_list_t *vl,
                                             const char *key, double *value)
                                             UC_WRAP(meta_data_get_double) int uc_meta_data_get_boolean(
                                                 const value_list_t *vl,
-                                                const char *key, _Bool *value)
+                                                const char *key, bool *value)
                                                 UC_WRAP(meta_data_get_boolean)
 #undef UC_WRAP

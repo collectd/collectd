@@ -56,12 +56,12 @@ static const char *config_keys[] = {"Host", "Port", "ReverseLookups",
                                     "IncludeUnitID"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static _Bool do_reverse_lookups = 1;
+static bool do_reverse_lookups = true;
 
 /* This option only exists for backward compatibility. If it is false and two
  * ntpd peers use the same refclock driver, the plugin will try to write
  * simultaneous measurements from both to the same type instance. */
-static _Bool include_unit_id = 0;
+static bool include_unit_id;
 
 #define NTPD_DEFAULT_HOST "localhost"
 #define NTPD_DEFAULT_PORT "123"
@@ -272,14 +272,14 @@ static int ntpd_config(const char *key, const char *value) {
       sstrncpy(ntpd_port, value, sizeof(ntpd_port));
   } else if (strcasecmp(key, "ReverseLookups") == 0) {
     if (IS_TRUE(value))
-      do_reverse_lookups = 1;
+      do_reverse_lookups = true;
     else
-      do_reverse_lookups = 0;
+      do_reverse_lookups = false;
   } else if (strcasecmp(key, "IncludeUnitID") == 0) {
     if (IS_TRUE(value))
-      include_unit_id = 1;
+      include_unit_id = true;
     else
-      include_unit_id = 0;
+      include_unit_id = false;
   } else {
     return -1;
   }
@@ -717,7 +717,7 @@ ntpd_get_refclock_id(struct info_peer_summary const *peer_info) {
 
 static int ntpd_get_name_from_address(char *buffer, size_t buffer_size,
                                       struct info_peer_summary const *peer_info,
-                                      _Bool do_reverse_lookup) {
+                                      bool do_reverse_lookup) {
   struct sockaddr_storage sa = {0};
   socklen_t sa_len;
   int flags = 0;

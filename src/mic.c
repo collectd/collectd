@@ -50,12 +50,12 @@ static const char *config_keys[] = {
     "ShowPower",        "Power",        "IgnoreSelectedPower"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static _Bool show_cpu = 1;
-static _Bool show_cpu_cores = 1;
-static _Bool show_memory = 1;
-static _Bool show_temps = 1;
+static bool show_cpu = true;
+static bool show_cpu_cores = true;
+static bool show_memory = true;
+static bool show_temps = true;
 static ignorelist_t *temp_ignore = NULL;
-static _Bool show_power = 1;
+static bool show_power = true;
 static ignorelist_t *power_ignore = NULL;
 
 static int mic_init(void) {

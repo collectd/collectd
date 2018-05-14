@@ -135,7 +135,7 @@ struct mb_host_s /* {{{ */
 #else
   modbus_t *connection;
 #endif
-  _Bool is_connected;
+  bool is_connected;
 }; /* }}} */
 typedef struct mb_host_s mb_host_t;
 
@@ -332,7 +332,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
     return status;
   }
 
-  host->is_connected = 1;
+  host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
 /* #endif LEGACY_LIBMODBUS */
@@ -465,7 +465,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     if (status != 0) {
       ERROR("Modbus plugin: mb_init_connection (%s/%s) failed. ", host->host,
             host->node);
-      host->is_connected = 0;
+      host->is_connected = false;
       host->connection = NULL;
       return -1;
     }

@@ -46,7 +46,7 @@ struct wr_node_s {
   int database;
   int max_set_size;
   int max_set_duration;
-  _Bool store_rates;
+  bool store_rates;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -191,7 +191,7 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
   node->database = 0;
   node->max_set_size = -1;
   node->max_set_duration = -1;
-  node->store_rates = 1;
+  node->store_rates = true;
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));

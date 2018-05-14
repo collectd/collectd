@@ -75,7 +75,7 @@ static int log_logstash_config(const char *key, const char *value) {
 static void log_logstash_print(yajl_gen g, int severity,
                                cdtime_t timestamp_time) {
   FILE *fh;
-  _Bool do_close = 0;
+  bool do_close = false;
   struct tm timestamp_tm;
   char timestamp_str[64];
   const unsigned char *buf;
@@ -150,13 +150,13 @@ static void log_logstash_print(yajl_gen g, int severity,
     fh = stderr;
   } else if (strcasecmp(log_file, "stdout") == 0) {
     fh = stdout;
-    do_close = 0;
+    do_close = false;
   } else if (strcasecmp(log_file, "stderr") == 0) {
     fh = stderr;
-    do_close = 0;
+    do_close = false;
   } else {
     fh = fopen(log_file, "a");
-    do_close = 1;
+    do_close = true;
   }
 
   if (fh == NULL) {

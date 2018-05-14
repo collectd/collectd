@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <math.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +67,7 @@ static c_heap_t *values_heap = NULL;
 static struct sigaction sigint_action;
 static struct sigaction sigterm_action;
 
-static _Bool loop = 1;
+static bool loop = true;
 
 __attribute__((noreturn)) static void exit_usage(int exit_status) /* {{{ */
 {
@@ -96,7 +97,7 @@ __attribute__((noreturn)) static void exit_usage(int exit_status) /* {{{ */
 
 static void signal_handler(int signal) /* {{{ */
 {
-  loop = 0;
+  loop = false;
 } /* }}} void signal_handler */
 
 #if HAVE_CLOCK_GETTIME
@@ -146,7 +147,8 @@ static int get_boundet_random(int min, int max) /* {{{ */
 
   range = max - min;
 
-  return min + ((int)(((double)range) * ((double)random()) / (((double)RAND_MAX) + 1.0)));
+  return min + ((int)(((double)range) * ((double)random()) /
+                      (((double)RAND_MAX) + 1.0)));
 } /* }}} int get_boundet_random */
 
 static lcc_value_list_t *create_value_list(void) /* {{{ */

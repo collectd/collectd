@@ -39,7 +39,7 @@ char *hostname_g = "example.com";
 void plugin_set_dir(const char *dir) { /* nop */
 }
 
-int plugin_load(const char *name, _Bool global) { return ENOTSUP; }
+int plugin_load(const char *name, bool global) { return ENOTSUP; }
 
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),

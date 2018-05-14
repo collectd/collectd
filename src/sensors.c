@@ -158,7 +158,7 @@ typedef struct featurelist {
 } featurelist_t;
 
 static char *conffile = NULL;
-static _Bool use_labels = 0;
+static bool use_labels;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -225,7 +225,7 @@ static int sensors_config(const char *key, const char *value) {
   }
 #if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
   else if (strcasecmp(key, "UseLabels") == 0) {
-    use_labels = IS_TRUE(value) ? 1 : 0;
+    use_labels = IS_TRUE(value);
   }
 #endif
   else {
