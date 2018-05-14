@@ -489,7 +489,6 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
 #endif /* COLLECT_DAEMON */
     case 'h':
       exit_usage(0);
-      break;
     default:
       exit_usage(1);
     } /* switch (c) */
