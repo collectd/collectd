@@ -908,7 +908,6 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
 
 static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
                                        xmlXPathContext *xpathCtx,
-                                       xmlNode *statsnode,
                                        time_t current_time) {
   xmlXPathContext *view_path_context = xmlXPathNewContext(doc);
   if (view_path_context == NULL) {
@@ -940,8 +939,7 @@ static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
 } /* }}} int bind_xml_stats_search_views */
 
 static void bind_xml_stats_v3(xmlDoc *doc, /* {{{ */
-                              xmlXPathContext *xpathCtx, xmlNode *statsnode,
-                              time_t current_time) {
+                              xmlXPathContext *xpathCtx, time_t current_time) {
   /* XPath:     server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
    * Layout v3:
@@ -1059,7 +1057,7 @@ static void bind_xml_stats_v3(xmlDoc *doc, /* {{{ */
 } /* }}} bind_xml_stats_v3 */
 
 static void bind_xml_stats_v1_v2(int version, xmlDoc *doc, /* {{{ */
-                                 xmlXPathContext *xpathCtx, xmlNode *statsnode,
+                                 xmlXPathContext *xpathCtx,
                                  time_t current_time) {
   /* XPath:     server/requests/opcode, server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
@@ -1243,9 +1241,9 @@ static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
   DEBUG("bind plugin: Current server time is %i.", (int)current_time);
 
   if (version == 3) {
-    bind_xml_stats_v3(doc, xpathCtx, statsnode, current_time);
+    bind_xml_stats_v3(doc, xpathCtx, current_time);
   } else {
-    bind_xml_stats_v1_v2(version, doc, xpathCtx, statsnode, current_time);
+    bind_xml_stats_v1_v2(version, doc, xpathCtx, current_time);
   }
 
   /* XPath:  memory/summary
@@ -1271,8 +1269,7 @@ static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
   }
 
   if (views_num > 0)
-    bind_xml_stats_search_views(version, doc, xpathCtx, statsnode,
-                                current_time);
+    bind_xml_stats_search_views(version, doc, xpathCtx, current_time);
 
   return 0;
 } /* }}} int bind_xml_stats */
