@@ -126,7 +126,7 @@ static struct gmesh geom_tree;
 #define MAX_NUMDISK 1024
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
-static int numdisk = 0;
+static int numdisk;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)

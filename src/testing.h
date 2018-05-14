@@ -29,8 +29,8 @@
 
 #include <inttypes.h>
 
-static int fail_count__ = 0;
-static int check_count__ = 0;
+static int fail_count__;
+static int check_count__;
 
 #ifndef DBL_PRECISION
 #define DBL_PRECISION 1e-12

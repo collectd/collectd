@@ -409,7 +409,7 @@ static int nfs_submit_fields_safe(int nfs_version, const char *instance,
 
 static int nfs_submit_nfs4_server(const char *instance, char **fields,
                                   size_t fields_num) {
-  static int suppress_warning = 0;
+  static int suppress_warning;
   size_t proc4x_names_num;
 
   switch (fields_num) {
@@ -451,7 +451,7 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
                                   size_t fields_num) {
   size_t proc40_names_num, proc4x_names_num;
 
-  static int suppress_warning = 0;
+  static int suppress_warning;
 
   switch (fields_num) {
   case 34:

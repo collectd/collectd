@@ -112,7 +112,7 @@ static const char *def_password = "guest";
 static const char *def_exchange = "amq.fanout";
 
 static pthread_t *subscriber_threads;
-static size_t subscriber_threads_num = 0;
+static size_t subscriber_threads_num;
 static bool subscriber_threads_running = true;
 
 #define CONF(c, f) (((c)->f != NULL) ? (c)->f : def_##f)
@@ -396,7 +396,7 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
 
 static int camqp_connect(camqp_config_t *conf) /* {{{ */
 {
-  static time_t last_connect_time = 0;
+  static time_t last_connect_time;
 
   amqp_rpc_reply_t reply;
   int status;

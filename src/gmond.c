@@ -89,14 +89,14 @@ static char *mc_receive_group;
 static char *mc_receive_port;
 
 static struct pollfd *mc_receive_sockets;
-static size_t mc_receive_sockets_num = 0;
+static size_t mc_receive_sockets_num;
 
 static socket_entry_t *mc_send_sockets;
-static size_t mc_send_sockets_num = 0;
+static size_t mc_send_sockets_num;
 static pthread_mutex_t mc_send_sockets_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static int mc_receive_thread_loop = 0;
-static int mc_receive_thread_running = 0;
+static int mc_receive_thread_loop;
+static int mc_receive_thread_running;
 static pthread_t mc_receive_thread_id;
 
 static metric_map_t metric_map_default[] =
@@ -123,7 +123,7 @@ static metric_map_t metric_map_default[] =
 static size_t metric_map_len_default = STATIC_ARRAY_SIZE(metric_map_default);
 
 static metric_map_t *metric_map;
-static size_t metric_map_len = 0;
+static size_t metric_map_len;
 
 static c_avl_tree_t *staging_tree;
 static pthread_mutex_t staging_lock = PTHREAD_MUTEX_INITIALIZER;

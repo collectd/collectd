@@ -84,8 +84,8 @@ static int ping_max_missed = -1;
 
 static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
-static int ping_thread_loop = 0;
-static int ping_thread_error = 0;
+static int ping_thread_loop;
+static int ping_thread_error;
 static pthread_t ping_thread_id;
 
 static const char *config_keys[] = {"Host",    "SourceAddress", "AddressFamily",

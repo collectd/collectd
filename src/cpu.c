@@ -188,11 +188,11 @@ struct cpu_state_s {
 typedef struct cpu_state_s cpu_state_t;
 
 static cpu_state_t *cpu_states;
-static size_t cpu_states_num = 0; /* #cpu_states allocated */
+static size_t cpu_states_num; /* #cpu_states allocated */
 
 /* Highest CPU number in the current iteration. Used by the dispatch logic to
  * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
-static size_t global_cpu_num = 0;
+static size_t global_cpu_num;
 
 static bool report_by_cpu = true;
 static bool report_by_state = true;

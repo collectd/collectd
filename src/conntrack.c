@@ -41,7 +41,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
     Each table/chain combo that will be queried goes into this list
 */
 
-static int old_files = 0;
+static int old_files;
 
 static int conntrack_config(const char *key, const char *value) {
   if (strcmp(key, "OldFiles") == 0)

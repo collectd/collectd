@@ -44,7 +44,7 @@ static char *timeout;
 static CURL *curl;
 
 static char nginx_buffer[16384];
-static size_t nginx_buffer_len = 0;
+static size_t nginx_buffer_len;
 static char nginx_curl_error[CURL_ERROR_SIZE];
 
 static const char *config_keys[] = {

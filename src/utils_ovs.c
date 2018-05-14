@@ -191,7 +191,7 @@ struct ovs_db_s {
 };
 
 /* Global variables */
-static uint64_t ovs_uid = 0;
+static uint64_t ovs_uid;
 static pthread_mutex_t ovs_uid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Post an event to event thread.

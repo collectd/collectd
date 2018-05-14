@@ -98,8 +98,8 @@ static char *timeout;
 static CURL *curl;
 
 static char *ascent_buffer;
-static size_t ascent_buffer_size = 0;
-static size_t ascent_buffer_fill = 0;
+static size_t ascent_buffer_size;
+static size_t ascent_buffer_fill;
 static char ascent_curl_error[CURL_ERROR_SIZE];
 
 static const char *config_keys[] = {

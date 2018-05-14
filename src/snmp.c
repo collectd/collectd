@@ -219,7 +219,7 @@ static void csnmp_host_definition_destroy(void *arg) /* {{{ */
  *      +-> csnmp_config_add_host_security_level
  */
 static void call_snmp_init_once(void) {
-  static int have_init = 0;
+  static int have_init;
 
   if (have_init == 0)
     init_snmp(PACKAGE_NAME);

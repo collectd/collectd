@@ -120,25 +120,25 @@ static int read_loop = 1;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t read_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t *read_threads;
-static size_t read_threads_num = 0;
+static size_t read_threads_num;
 static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 
 static write_queue_t *write_queue_head;
 static write_queue_t *write_queue_tail;
-static long write_queue_length = 0;
+static long write_queue_length;
 static bool write_loop = true;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t write_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t *write_threads;
-static size_t write_threads_num = 0;
+static size_t write_threads_num;
 
 static pthread_key_t plugin_ctx_key;
 static bool plugin_ctx_key_initialized;
 
-static long write_limit_high = 0;
-static long write_limit_low = 0;
+static long write_limit_high;
+static long write_limit_low;
 
-static derive_t stats_values_dropped = 0;
+static derive_t stats_values_dropped;
 static bool record_statistics;
 
 /*
@@ -2025,7 +2025,7 @@ static double get_drop_probability(void) /* {{{ */
 
 static bool check_drop_value(void) /* {{{ */
 {
-  static cdtime_t last_message_time = 0;
+  static cdtime_t last_message_time;
   static pthread_mutex_t last_message_lock = PTHREAD_MUTEX_INITIALIZER;
 
   double p;

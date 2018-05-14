@@ -53,8 +53,8 @@ struct nut_ups_s {
 static const char *config_keys[] = {"UPS", "FORCESSL", "VERIFYPEER", "CAPATH",
                                     "CONNECTTIMEOUT"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-static int force_ssl = 0;   // Initialized to default of 0 (false)
-static int verify_peer = 0; // Initialized to default of 0 (false)
+static int force_ssl;   // Initialized to default of 0 (false)
+static int verify_peer; // Initialized to default of 0 (false)
 static int ssl_flags = UPSCLI_CONN_TRYSSL;
 static int connect_timeout = -1;
 static char *ca_path;

@@ -100,7 +100,7 @@ typedef struct pinba_statnode_s pinba_statnode_t;
  */
 /* {{{ */
 static pinba_statnode_t *stat_nodes;
-static unsigned int stat_nodes_num = 0;
+static unsigned int stat_nodes_num;
 static pthread_mutex_t stat_nodes_lock;
 
 static char *conf_node;

@@ -192,7 +192,7 @@ static c_ithread_list_t *perl_threads;
 /* the key used to store each pthread's ithread */
 static pthread_key_t perl_thr_key;
 
-static int perl_argc = 0;
+static int perl_argc;
 static char **perl_argv;
 
 static char base_name[DATA_MAX_NAME_LEN] = "";

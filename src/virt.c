@@ -241,7 +241,7 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   } while (0)
 
 /* Connection. */
-static virConnectPtr conn = 0;
+static virConnectPtr conn;
 static char *conn_string;
 static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 

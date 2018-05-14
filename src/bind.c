@@ -111,18 +111,18 @@ static int global_opcodes = 1;
 static int global_qtypes = 1;
 static int global_server_stats = 1;
 static int global_zone_maint_stats = 1;
-static int global_resolver_stats = 0;
+static int global_resolver_stats;
 static int global_memory_stats = 1;
 static int timeout = -1;
 
 static cb_view_t *views;
-static size_t views_num = 0;
+static size_t views_num;
 
 static CURL *curl;
 
 static char *bind_buffer;
-static size_t bind_buffer_size = 0;
-static size_t bind_buffer_fill = 0;
+static size_t bind_buffer_size;
+static size_t bind_buffer_fill;
 static char bind_curl_error[CURL_ERROR_SIZE];
 
 /* Translation table for the `nsstats' values. */

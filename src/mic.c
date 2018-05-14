@@ -35,7 +35,7 @@
 #define MAX_CORES 256
 
 static MicDeviceOnSystem mics[MAX_MICS];
-static U32 num_mics = 0;
+static U32 num_mics;
 static HANDLE mic_handle;
 
 static int const therm_ids[] = {

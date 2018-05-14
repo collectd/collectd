@@ -38,7 +38,7 @@ static const char *config_keys[] = {"SMTPServer",   "SMTPPort", "SMTPUser",
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static char **recipients;
-static int recipients_len = 0;
+static int recipients_len;
 
 static smtp_session_t session;
 static pthread_mutex_t session_lock = PTHREAD_MUTEX_INITIALIZER;

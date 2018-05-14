@@ -67,7 +67,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
  * is zero a default, depending on the `interval' member of the value list is
  * being used. */
 static char *datadir;
-static double write_rate = 0.0;
+static double write_rate;
 static rrdcreate_config_t rrdcreate_config = {
     /* stepsize = */ 0,
     /* heartbeat = */ 0,
@@ -84,9 +84,9 @@ static rrdcreate_config_t rrdcreate_config = {
 
 /* XXX: If you need to lock both, cache_lock and queue_lock, at the same time,
  * ALWAYS lock `cache_lock' first! */
-static cdtime_t cache_timeout = 0;
-static cdtime_t cache_flush_timeout = 0;
-static cdtime_t random_timeout = 0;
+static cdtime_t cache_timeout;
+static cdtime_t cache_flush_timeout;
+static cdtime_t random_timeout;
 static cdtime_t cache_flush_last;
 static c_avl_tree_t *cache;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -104,7 +104,7 @@ static pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-static int do_shutdown = 0;
+static int do_shutdown;
 
 #if HAVE_THREADSAFE_LIBRRD
 static int srrd_update(char *filename, char *template, int argc,
@@ -1010,7 +1010,7 @@ static int rrd_shutdown(void) {
 } /* int rrd_shutdown */
 
 static int rrd_init(void) {
-  static int init_once = 0;
+  static int init_once;
 
   if (init_once != 0)
     return 0;

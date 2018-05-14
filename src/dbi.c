@@ -83,12 +83,12 @@ typedef struct cdbi_database_s cdbi_database_t; /* }}} */
  * Global variables
  */
 #if !defined(HAVE_LEGACY_LIBDBI) || !HAVE_LEGACY_LIBDBI
-static dbi_inst dbi_instance = 0;
+static dbi_inst dbi_instance;
 #endif
 static udb_query_t **queries;
-static size_t queries_num = 0;
+static size_t queries_num;
 static cdbi_database_t **databases;
-static size_t databases_num = 0;
+static size_t databases_num;
 
 static int cdbi_read_database(user_data_t *ud);
 
@@ -407,7 +407,7 @@ static int cdbi_config(oconfig_item_t *ci) /* {{{ */
 
 static int cdbi_init(void) /* {{{ */
 {
-  static int did_init = 0;
+  static int did_init;
   int status;
 
   if (did_init != 0)

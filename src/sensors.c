@@ -251,7 +251,7 @@ static void sensors_free_features(void) {
 }
 
 static int sensors_load_conf(void) {
-  static int call_once = 0;
+  static int call_once;
 
   FILE *fh = NULL;
   featurelist_t *last_feature = NULL;

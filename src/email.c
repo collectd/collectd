@@ -117,7 +117,7 @@ static int sock_perms = S_IRWXU | S_IRWXG;
 static int max_conns = MAX_CONNS;
 
 /* state of the plugin */
-static int disabled = 0;
+static int disabled;
 
 /* thread managing "client" connections */
 static pthread_t connector = (pthread_t)0;

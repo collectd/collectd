@@ -49,7 +49,7 @@ struct value_map_s {
 typedef struct value_map_s value_map_t;
 
 static char **interfaces;
-static size_t interfaces_num = 0;
+static size_t interfaces_num;
 
 static c_avl_tree_t *value_map;
 

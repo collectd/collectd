@@ -94,8 +94,8 @@ struct wt_callback {
   cdtime_t next_random_ttl;
 };
 
-static cdtime_t resolve_interval = 0;
-static cdtime_t resolve_jitter = 0;
+static cdtime_t resolve_interval;
+static cdtime_t resolve_jitter;
 
 /*
  * Functions

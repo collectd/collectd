@@ -87,7 +87,7 @@ static ow_family_features_t ow_family_features[] = {
 static int ow_family_features_num = STATIC_ARRAY_SIZE(ow_family_features);
 
 static char *device_g;
-static cdtime_t ow_interval = 0;
+static cdtime_t ow_interval;
 static bool direct_access;
 
 static const char *config_keys[] = {"Device", "IgnoreSelected", "Sensor",

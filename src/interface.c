@@ -97,7 +97,7 @@ static bool report_inactive = true;
 #define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
-static int numif = 0;
+static int numif;
 static bool unique_name;
 #endif /* HAVE_LIBKSTAT */
 

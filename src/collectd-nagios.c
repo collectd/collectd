@@ -104,7 +104,7 @@ static int consolitation_g = CON_NONE;
 static bool nan_is_error_g;
 
 static char **match_ds_g;
-static size_t match_ds_num_g = 0;
+static size_t match_ds_num_g;
 
 /* `strdup' is an XSI extension. I don't want to pull in all of XSI just for
  * that, so here's an own implementation.. It's easy enough. The GCC attributes

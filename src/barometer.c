@@ -180,11 +180,11 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static char *config_device;       /**< I2C bus device */
 static int config_oversample = 1; /**< averaging window */
 
-static double config_press_offset = 0.0; /**< pressure offset */
-static double config_temp_offset = 0.0;  /**< temperature offset */
+static double config_press_offset; /**< pressure offset */
+static double config_temp_offset;  /**< temperature offset */
 
 static double config_altitude = NAN; /**< altitude */
-static int config_normalize = 0;     /**< normalization method */
+static int config_normalize;         /**< normalization method */
 
 static bool configured; /**< the whole plugin config status */
 
@@ -193,7 +193,7 @@ static int i2c_bus_fd = -1; /**< I2C bus device FD */
 static enum Sensor_type sensor_type =
     Sensor_none; /**< detected/used sensor type */
 
-static __s32 mpl3115_oversample = 0; /**< MPL3115 CTRL1 oversample setting */
+static __s32 mpl3115_oversample; /**< MPL3115 CTRL1 oversample setting */
 
 // BMP085 configuration
 static unsigned bmp085_oversampling; /**< BMP085 oversampling (0-3) */
