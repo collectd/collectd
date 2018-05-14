@@ -767,7 +767,6 @@ AC_FUNC_STRERROR_R
 
 SAVE_CFLAGS="$CFLAGS"
 CFLAGS="-Wall -Werror"
-fi
 
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
