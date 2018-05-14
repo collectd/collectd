@@ -94,7 +94,7 @@ typedef struct flush_callback_s flush_callback_t;
 /*
  * Private variables
  */
-static c_avl_tree_t *plugins_loaded = NULL;
+static c_avl_tree_t *plugins_loaded;
 
 static llist_t *list_init;
 static llist_t *list_write;
@@ -104,22 +104,22 @@ static llist_t *list_shutdown;
 static llist_t *list_log;
 static llist_t *list_notification;
 
-static fc_chain_t *pre_cache_chain = NULL;
-static fc_chain_t *post_cache_chain = NULL;
+static fc_chain_t *pre_cache_chain;
+static fc_chain_t *post_cache_chain;
 
 static c_avl_tree_t *data_sets;
 
-static char *plugindir = NULL;
+static char *plugindir;
 
 #ifndef DEFAULT_MAX_READ_INTERVAL
 #define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T_STATIC(86400)
 #endif
-static c_heap_t *read_heap = NULL;
+static c_heap_t *read_heap;
 static llist_t *read_list;
 static int read_loop = 1;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t read_cond = PTHREAD_COND_INITIALIZER;
-static pthread_t *read_threads = NULL;
+static pthread_t *read_threads;
 static size_t read_threads_num = 0;
 static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 
@@ -129,7 +129,7 @@ static long write_queue_length = 0;
 static bool write_loop = true;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t write_cond = PTHREAD_COND_INITIALIZER;
-static pthread_t *write_threads = NULL;
+static pthread_t *write_threads;
 static size_t write_threads_num = 0;
 
 static pthread_key_t plugin_ctx_key;

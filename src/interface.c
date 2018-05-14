@@ -86,7 +86,7 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
 static bool report_inactive = true;
 

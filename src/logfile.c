@@ -39,7 +39,7 @@ static int log_level = LOG_INFO;
 
 static pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static char *log_file = NULL;
+static char *log_file;
 static int print_timestamp = 1;
 static int print_severity = 0;
 

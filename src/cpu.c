@@ -187,7 +187,7 @@ struct cpu_state_s {
 };
 typedef struct cpu_state_s cpu_state_t;
 
-static cpu_state_t *cpu_states = NULL;
+static cpu_state_t *cpu_states;
 static size_t cpu_states_num = 0; /* #cpu_states allocated */
 
 /* Highest CPU number in the current iteration. Used by the dispatch logic to

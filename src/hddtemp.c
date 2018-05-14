@@ -53,7 +53,7 @@
 static const char *config_keys[] = {"Host", "Port"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *hddtemp_host = NULL;
+static char *hddtemp_host;
 static char hddtemp_port[16];
 
 /*

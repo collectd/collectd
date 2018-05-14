@@ -74,7 +74,7 @@
 static int loop = 0;
 static int restart = 0;
 
-static const char *pidfile = NULL;
+static const char *pidfile;
 static pid_t collectd_pid = 0;
 
 __attribute__((noreturn)) static void exit_usage(const char *name) {

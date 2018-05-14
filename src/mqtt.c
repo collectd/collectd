@@ -88,7 +88,7 @@ struct mqtt_client_conf {
 };
 typedef struct mqtt_client_conf mqtt_client_conf_t;
 
-static mqtt_client_conf_t **subscribers = NULL;
+static mqtt_client_conf_t **subscribers;
 static size_t subscribers_num = 0;
 
 /*

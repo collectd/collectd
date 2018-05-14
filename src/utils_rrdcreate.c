@@ -61,7 +61,7 @@ static int rra_types_num = STATIC_ARRAY_SIZE(rra_types);
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-static async_create_file_t *async_creation_list = NULL;
+static async_create_file_t *async_creation_list;
 static pthread_mutex_t async_creation_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*

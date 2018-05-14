@@ -60,7 +60,7 @@ struct fc_directory_conf_s {
 };
 typedef struct fc_directory_conf_s fc_directory_conf_t;
 
-static fc_directory_conf_t **directories = NULL;
+static fc_directory_conf_t **directories;
 static size_t directories_num = 0;
 
 static void fc_free_dir(fc_directory_conf_t *dir) {

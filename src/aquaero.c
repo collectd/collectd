@@ -30,7 +30,7 @@
  * Private variables
  */
 /* Default values for contacting daemon */
-static char *conf_device = NULL;
+static char *conf_device;
 
 static int aquaero_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {

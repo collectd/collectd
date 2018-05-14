@@ -62,7 +62,7 @@ static const char *conf_service = NET_DEFAULT_PORT;
 
 static lcc_network_t *net;
 
-static c_heap_t *values_heap = NULL;
+static c_heap_t *values_heap;
 
 static struct sigaction sigint_action;
 static struct sigaction sigterm_action;

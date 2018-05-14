@@ -115,7 +115,7 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
 /*
  * Private variables
  */
-static data_definition_t *data_head = NULL;
+static data_definition_t *data_head;
 
 /*
  * Prototypes

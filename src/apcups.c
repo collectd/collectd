@@ -70,8 +70,8 @@ typedef struct {
  * Private variables
  */
 /* Default values for contacting daemon */
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 /* Defaults to false for backwards compatibility. */
 static bool conf_report_seconds;
 static bool conf_persistent_conn = true;

@@ -106,7 +106,7 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 /* TODO: Remove time parsing code. */
 static bool config_parse_time = true;
 
-static char *url = NULL;
+static char *url;
 static int global_opcodes = 1;
 static int global_qtypes = 1;
 static int global_server_stats = 1;
@@ -115,12 +115,12 @@ static int global_resolver_stats = 0;
 static int global_memory_stats = 1;
 static int timeout = -1;
 
-static cb_view_t *views = NULL;
+static cb_view_t *views;
 static size_t views_num = 0;
 
-static CURL *curl = NULL;
+static CURL *curl;
 
-static char *bind_buffer = NULL;
+static char *bind_buffer;
 static size_t bind_buffer_size = 0;
 static size_t bind_buffer_fill = 0;
 static char bind_curl_error[CURL_ERROR_SIZE];

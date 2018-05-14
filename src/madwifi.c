@@ -99,8 +99,8 @@
 #error "No applicable input method."
 #endif
 
-#include <linux/wireless.h>
 #include "madwifi.h"
+#include <linux/wireless.h>
 
 struct stat_spec {
   uint16_t flags;
@@ -347,7 +347,7 @@ static const char *config_keys[] = {"Interface", "IgnoreSelected", "Source",
                                     "MiscAdd",   "MiscRemove",     "MiscSet"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
 static int use_sysfs = 1;
 static int init_state = 0;

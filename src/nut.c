@@ -57,7 +57,7 @@ static int force_ssl = 0;   // Initialized to default of 0 (false)
 static int verify_peer = 0; // Initialized to default of 0 (false)
 static int ssl_flags = UPSCLI_CONN_TRYSSL;
 static int connect_timeout = -1;
-static char *ca_path = NULL;
+static char *ca_path;
 
 static int nut_read(user_data_t *user_data);
 

@@ -57,7 +57,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int select_numeric_qtype = 1;
 
 #define PCAP_SNAPLEN 1460
-static char *pcap_device = NULL;
+static char *pcap_device;
 
 static derive_t tr_queries;
 static derive_t tr_responses;

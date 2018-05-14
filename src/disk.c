@@ -145,7 +145,7 @@ static int pnumdisk;
 #if HAVE_LIBUDEV_H
 #include <libudev.h>
 
-static char *conf_udev_name_attr = NULL;
+static char *conf_udev_name_attr;
 static struct udev *handle_udev;
 #endif
 
@@ -153,7 +153,7 @@ static const char *config_keys[] = {"Disk", "UseBSDName", "IgnoreSelected",
                                     "UdevNameAttr"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
 static int disk_config(const char *key, const char *value) {
   if (ignorelist == NULL)

@@ -57,7 +57,7 @@ struct instance_definition_s {
 typedef struct instance_definition_s instance_definition_t;
 
 /* Private */
-static metric_definition_t *metric_head = NULL;
+static metric_definition_t *metric_head;
 
 static int tcsv_submit(instance_definition_t *id, metric_definition_t *md,
                        value_t v, cdtime_t t) {

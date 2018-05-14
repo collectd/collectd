@@ -33,15 +33,15 @@
 
 #include <curl/curl.h>
 
-static char *url = NULL;
-static char *user = NULL;
-static char *pass = NULL;
-static char *verify_peer = NULL;
-static char *verify_host = NULL;
-static char *cacert = NULL;
-static char *timeout = NULL;
+static char *url;
+static char *user;
+static char *pass;
+static char *verify_peer;
+static char *verify_host;
+static char *cacert;
+static char *timeout;
 
-static CURL *curl = NULL;
+static CURL *curl;
 
 static char nginx_buffer[16384];
 static size_t nginx_buffer_len = 0;

@@ -37,8 +37,8 @@
 /*
  * Private variables
  */
-static char *datadir = NULL;
-static char *daemon_address = NULL;
+static char *datadir;
+static char *daemon_address;
 static bool config_create_files = true;
 static bool config_collect_stats = true;
 static rrdcreate_config_t rrdcreate_config = {

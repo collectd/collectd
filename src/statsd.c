@@ -61,22 +61,22 @@ struct statsd_metric_s {
 };
 typedef struct statsd_metric_s statsd_metric_t;
 
-static c_avl_tree_t *metrics_tree = NULL;
+static c_avl_tree_t *metrics_tree;
 static pthread_mutex_t metrics_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_t network_thread;
 static bool network_thread_running;
 static bool network_thread_shutdown;
 
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 
 static bool conf_delete_counters;
 static bool conf_delete_timers;
 static bool conf_delete_gauges;
 static bool conf_delete_sets;
 
-static double *conf_timer_percentile = NULL;
+static double *conf_timer_percentile;
 static size_t conf_timer_percentile_num;
 
 static bool conf_counter_sum;

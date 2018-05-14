@@ -86,7 +86,7 @@ typedef struct {
   char name[64];
 } ip_chain_t;
 
-static ip_chain_t **chain_list = NULL;
+static ip_chain_t **chain_list;
 static int chain_num = 0;
 
 static int iptables_config(const char *key, const char *value) {

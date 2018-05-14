@@ -111,7 +111,7 @@ static const char *def_user = "guest";
 static const char *def_password = "guest";
 static const char *def_exchange = "amq.fanout";
 
-static pthread_t *subscriber_threads = NULL;
+static pthread_t *subscriber_threads;
 static size_t subscriber_threads_num = 0;
 static bool subscriber_threads_running = true;
 

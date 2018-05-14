@@ -177,8 +177,8 @@ static const char *config_keys[] = {
 
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *config_device = NULL; /**< I2C bus device */
-static int config_oversample = 1;  /**< averaging window */
+static char *config_device;       /**< I2C bus device */
+static int config_oversample = 1; /**< averaging window */
 
 static double config_press_offset = 0.0; /**< pressure offset */
 static double config_temp_offset = 0.0;  /**< temperature offset */
@@ -235,8 +235,8 @@ typedef struct averaging_s {
   int ring_buffer_head;
 } averaging_t;
 
-static averaging_t pressure_averaging = {NULL, 0, 0L, 0};
-static averaging_t temperature_averaging = {NULL, 0, 0L, 0};
+static averaging_t pressure_averaging;
+static averaging_t temperature_averaging;
 
 /**
  * Create / allocate averaging buffer
@@ -317,7 +317,7 @@ typedef struct temperature_list_s {
   struct temperature_list_s *next; /**< next in the list */
 } temperature_list_t;
 
-static temperature_list_t *temp_list = NULL;
+static temperature_list_t *temp_list;
 
 /*
  * Add new sensor to the temperature reference list

@@ -155,13 +155,13 @@ static const char *const def_queries[] = {
     "table_states", "disk_io",      "disk_usage"};
 static int def_queries_num = STATIC_ARRAY_SIZE(def_queries);
 
-static c_psql_database_t **databases = NULL;
+static c_psql_database_t **databases;
 static size_t databases_num = 0;
 
-static udb_query_t **queries = NULL;
+static udb_query_t **queries;
 static size_t queries_num = 0;
 
-static c_psql_writer_t *writers = NULL;
+static c_psql_writer_t *writers;
 static size_t writers_num = 0;
 
 static int c_psql_begin(c_psql_database_t *db) {

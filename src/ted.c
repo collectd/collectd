@@ -53,7 +53,7 @@
 
 #define DEFAULT_DEVICE "/dev/ttyUSB0"
 
-static char *conf_device = NULL;
+static char *conf_device;
 static int conf_retries = 0;
 
 static int fd = -1;

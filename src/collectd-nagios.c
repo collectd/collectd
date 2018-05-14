@@ -94,16 +94,16 @@ typedef struct range_s range_t;
 extern char *optarg;
 extern int optind, opterr, optopt;
 
-static char *socket_file_g = NULL;
-static char *value_string_g = NULL;
-static char *hostname_g = NULL;
+static char *socket_file_g;
+static char *value_string_g;
+static char *hostname_g;
 
 static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
 static bool nan_is_error_g;
 
-static char **match_ds_g = NULL;
+static char **match_ds_g;
 static size_t match_ds_num_g = 0;
 
 /* `strdup' is an XSI extension. I don't want to pull in all of XSI just for

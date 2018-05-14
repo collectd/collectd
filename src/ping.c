@@ -69,14 +69,14 @@ typedef struct hostlist_s hostlist_t;
 /*
  * Private variables
  */
-static hostlist_t *hostlist_head = NULL;
+static hostlist_t *hostlist_head;
 
 static int ping_af = PING_DEF_AF;
-static char *ping_source = NULL;
+static char *ping_source;
 #ifdef HAVE_OPING_1_3
-static char *ping_device = NULL;
+static char *ping_device;
 #endif
-static char *ping_data = NULL;
+static char *ping_data;
 static int ping_ttl = PING_DEF_TTL;
 static double ping_interval = 1.0;
 static double ping_timeout = 0.9;

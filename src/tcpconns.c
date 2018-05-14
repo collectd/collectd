@@ -263,7 +263,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int port_collect_listening = 0;
 static int port_collect_total = 0;
-static port_entry_t *port_list_head = NULL;
+static port_entry_t *port_list_head;
 static uint32_t count_total[TCP_STATE_MAX + 1];
 
 #if KERNEL_LINUX

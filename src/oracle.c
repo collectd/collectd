@@ -75,9 +75,9 @@ typedef struct o_database_s o_database_t;
 /*
  * Global variables
  */
-static udb_query_t **queries = NULL;
+static udb_query_t **queries;
 static size_t queries_num = 0;
-static o_database_t **databases = NULL;
+static o_database_t **databases;
 static size_t databases_num = 0;
 
 OCIEnv *oci_env = NULL;

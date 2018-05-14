@@ -36,7 +36,7 @@
 
 static MicDeviceOnSystem mics[MAX_MICS];
 static U32 num_mics = 0;
-static HANDLE mic_handle = NULL;
+static HANDLE mic_handle;
 
 static int const therm_ids[] = {
     eMicThermalDie,  eMicThermalDevMem, eMicThermalFin, eMicThermalFout,
@@ -54,9 +54,9 @@ static bool show_cpu = true;
 static bool show_cpu_cores = true;
 static bool show_memory = true;
 static bool show_temps = true;
-static ignorelist_t *temp_ignore = NULL;
+static ignorelist_t *temp_ignore;
 static bool show_power = true;
-static ignorelist_t *power_ignore = NULL;
+static ignorelist_t *power_ignore;
 
 static int mic_init(void) {
   U32 ret;

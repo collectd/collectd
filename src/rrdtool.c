@@ -66,7 +66,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 /* If datadir is zero, the daemon's basedir is used. If stepsize or heartbeat
  * is zero a default, depending on the `interval' member of the value list is
  * being used. */
-static char *datadir = NULL;
+static char *datadir;
 static double write_rate = 0.0;
 static rrdcreate_config_t rrdcreate_config = {
     /* stepsize = */ 0,
@@ -88,13 +88,13 @@ static cdtime_t cache_timeout = 0;
 static cdtime_t cache_flush_timeout = 0;
 static cdtime_t random_timeout = 0;
 static cdtime_t cache_flush_last;
-static c_avl_tree_t *cache = NULL;
+static c_avl_tree_t *cache;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static rrd_queue_t *queue_head = NULL;
-static rrd_queue_t *queue_tail = NULL;
-static rrd_queue_t *flushq_head = NULL;
-static rrd_queue_t *flushq_tail = NULL;
+static rrd_queue_t *queue_head;
+static rrd_queue_t *queue_tail;
+static rrd_queue_t *flushq_head;
+static rrd_queue_t *flushq_tail;
 static pthread_t queue_thread;
 static int queue_thread_running = 1;
 static pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;

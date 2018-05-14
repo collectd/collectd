@@ -41,8 +41,8 @@ static const char *config_keys[] = {"Host", "Port", "CollectLinks",
                                     "CollectRoutes", "CollectTopology"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *config_node = NULL;
-static char *config_service = NULL;
+static char *config_node;
+static char *config_service;
 
 #define OLSRD_WANT_NOT 0
 #define OLSRD_WANT_SUMMARY 1

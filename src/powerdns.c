@@ -304,10 +304,10 @@ static statname_lookup_t lookup_table[] = /* {{{ */
         {"uptime", "uptime", NULL}}; /* }}} */
 static int lookup_table_length = STATIC_ARRAY_SIZE(lookup_table);
 
-static llist_t *list = NULL;
+static llist_t *list;
 
 #define PDNS_LOCAL_SOCKPATH LOCALSTATEDIR "/run/" PACKAGE_NAME "-powerdns"
-static char *local_sockpath = NULL;
+static char *local_sockpath;
 
 /* TODO: Do this before 4.4:
  * - Update the collectd.conf(5) manpage.

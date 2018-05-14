@@ -93,7 +93,7 @@ static bool report_by_device;
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-static kvm_t *kvm_obj = NULL;
+static kvm_t *kvm_obj;
 int kvm_pagesize;
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
 

@@ -33,7 +33,7 @@
 static const char *config_keys[] = {"DataDir", "StoreRates"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *datadir = NULL;
+static char *datadir;
 static int store_rates = 0;
 static int use_stdio = 0;
 

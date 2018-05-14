@@ -40,7 +40,7 @@
 static const char *config_keys[] = {"Device", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
 static int md_config(const char *key, const char *value) {
   if (ignorelist == NULL)

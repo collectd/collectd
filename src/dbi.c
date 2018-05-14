@@ -85,9 +85,9 @@ typedef struct cdbi_database_s cdbi_database_t; /* }}} */
 #if !defined(HAVE_LEGACY_LIBDBI) || !HAVE_LEGACY_LIBDBI
 static dbi_inst dbi_instance = 0;
 #endif
-static udb_query_t **queries = NULL;
+static udb_query_t **queries;
 static size_t queries_num = 0;
-static cdbi_database_t **databases = NULL;
+static cdbi_database_t **databases;
 static size_t databases_num = 0;
 
 static int cdbi_read_database(user_data_t *ud);

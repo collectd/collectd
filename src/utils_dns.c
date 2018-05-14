@@ -158,13 +158,13 @@ typedef int(printer)(const char *, ...);
  */
 
 #if HAVE_PCAP_H
-static pcap_t *pcap_obj = NULL;
+static pcap_t *pcap_obj;
 #endif
 
-static ip_list_t *IgnoreList = NULL;
+static ip_list_t *IgnoreList;
 
 #if HAVE_PCAP_H
-static void (*Callback)(const rfc1035_header_t *) = NULL;
+static void (*Callback)(const rfc1035_header_t *);
 
 static int query_count_intvl = 0;
 static int query_count_total = 0;

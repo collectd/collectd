@@ -59,8 +59,8 @@ static int loop = 0;
 
 /* socket configuration */
 static int sock_fd = -1;
-static char *sock_file = NULL;
-static char *sock_group = NULL;
+static char *sock_file;
+static char *sock_group;
 static int sock_perms = S_IRWXU | S_IRWXG;
 static bool delete_socket;
 

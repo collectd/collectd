@@ -119,8 +119,8 @@ struct sensu_host {
   int reference_count;
 };
 
-static char *sensu_tags = NULL;
-static char **sensu_attrs = NULL;
+static char *sensu_tags;
+static char **sensu_attrs;
 static size_t sensu_attrs_num;
 
 static int add_str_to_list(struct str_list *strs,

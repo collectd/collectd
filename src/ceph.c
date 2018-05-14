@@ -161,7 +161,7 @@ static int long_run_latency_avg = 0;
 static int convert_special_metrics = 1;
 
 /** Array of daemons to monitor */
-static struct ceph_daemon **g_daemons = NULL;
+static struct ceph_daemon **g_daemons;
 
 /** Number of elements in g_daemons */
 static size_t g_num_daemons = 0;

@@ -77,23 +77,23 @@ typedef struct cjni_callback_info_s cjni_callback_info_t;
 /*
  * Global variables
  */
-static JavaVM *jvm = NULL;
+static JavaVM *jvm;
 static pthread_key_t jvm_env_key;
 
 /* Configuration options for the JVM. */
-static char **jvm_argv = NULL;
+static char **jvm_argv;
 static size_t jvm_argc = 0;
 
 /* List of class names to load */
-static java_plugin_class_t *java_classes_list = NULL;
+static java_plugin_class_t *java_classes_list;
 static size_t java_classes_list_len;
 
 /* List of config, init, and shutdown callbacks. */
-static cjni_callback_info_t *java_callbacks = NULL;
+static cjni_callback_info_t *java_callbacks;
 static size_t java_callbacks_num = 0;
 static pthread_mutex_t java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static oconfig_item_t *config_block = NULL;
+static oconfig_item_t *config_block;
 
 /*
  * Prototypes

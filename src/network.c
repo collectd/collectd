@@ -267,16 +267,16 @@ static size_t network_config_packet_size = 1452;
 static bool network_config_forward;
 static bool network_config_stats;
 
-static sockent_t *sending_sockets = NULL;
+static sockent_t *sending_sockets;
 
-static receive_list_entry_t *receive_list_head = NULL;
-static receive_list_entry_t *receive_list_tail = NULL;
+static receive_list_entry_t *receive_list_head;
+static receive_list_entry_t *receive_list_tail;
 static pthread_mutex_t receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t receive_list_cond = PTHREAD_COND_INITIALIZER;
 static uint64_t receive_list_length = 0;
 
-static sockent_t *listen_sockets = NULL;
-static struct pollfd *listen_sockets_pollfd = NULL;
+static sockent_t *listen_sockets;
+static struct pollfd *listen_sockets_pollfd;
 static size_t listen_sockets_num = 0;
 
 /* The receive and dispatch threads will run as long as `listen_loop' is set to
