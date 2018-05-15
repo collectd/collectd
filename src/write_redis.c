@@ -129,10 +129,10 @@ static int wr_write(const data_set_t *ds, /* {{{ */
   if (node->max_set_duration > 0) {
     /*
      * remove element, scored less than 'current-max_set_duration'
-     * '(%d' indicates 'less than' in redis CLI.
+     * '(...' indicates 'less than' in redis CLI.
      */
-    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%d", key,
-                      (time - node->max_set_duration) + 1);
+    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%.9f", key,
+                      (CDTIME_T_TO_DOUBLE(vl->time) - node->max_set_duration));
     if (rr == NULL)
       WARNING("ZREMRANGEBYSCORE command error. key:%s message:%s", key,
               node->conn->errstr);
