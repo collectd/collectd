@@ -276,9 +276,10 @@ int main(int argc, char **argv) {
   while (42) {
     int c = getopt(argc, argv, "hc:P:");
 
-    switch (c) {
-    case -1:
+    if (c == -1)
       break;
+
+    switch (c) {
     case 'c':
       collectd = optarg;
       break;
