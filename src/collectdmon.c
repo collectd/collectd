@@ -259,7 +259,7 @@ static void check_respawn(void) {
                     "disabled for %i seconds",
            time_left);
 
-    while (((time_left = sleep(time_left)) >= 0) && loop == 0)
+    while (((time_left = sleep(time_left)) > 0) && loop == 0)
       ;
   }
   return;
