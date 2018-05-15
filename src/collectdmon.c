@@ -135,7 +135,7 @@ static int daemonize(void) {
   }
 
   pid_t pid = fork();
-  if (pid  < 0) {
+  if (pid < 0) {
     fprintf(stderr, "Error: fork() failed: %s\n", strerror(errno));
     return -1;
   } else if (pid != 0) {
@@ -276,9 +276,10 @@ int main(int argc, char **argv) {
   while (42) {
     int c = getopt(argc, argv, "hc:P:");
 
-    switch (c) {
-    case -1:
+    if (c == -1)
       break;
+
+    switch (c) {
     case 'c':
       collectd = optarg;
       break;
@@ -322,8 +323,7 @@ int main(int argc, char **argv) {
   }
 
   struct sigaction sa = {
-    .sa_handler = sig_int_term_handler,
-    .sa_flags = 0,
+      .sa_handler = sig_int_term_handler, .sa_flags = 0,
   };
   sigemptyset(&sa.sa_mask);
 
