@@ -489,7 +489,8 @@ libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/network.c \
 	src/libcollectdclient/network_buffer.c \
 	src/libcollectdclient/network_parse.c \
-	src/libcollectdclient/server.c
+	src/libcollectdclient/server.c \
+	src/libcollectdclient/collectd/stdendian.h
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
