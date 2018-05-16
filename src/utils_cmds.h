@@ -62,9 +62,6 @@ typedef struct {
 } cmd_getval_t;
 
 typedef struct {
-} cmd_listval_t;
-
-typedef struct {
   /* The raw identifier as provided by the user. */
   char *raw_identifier;
 
@@ -86,7 +83,6 @@ typedef struct {
   union {
     cmd_flush_t flush;
     cmd_getval_t getval;
-    cmd_listval_t listval;
     cmd_putval_t putval;
   } cmd;
 } cmd_t;
