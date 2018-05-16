@@ -1062,9 +1062,14 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Sensor", child->key) == 0)
-      ignorelist_add(st->ignorelist, child->values[0].value.string);
-    else if (strcasecmp("IgnoreSelected", child->key) == 0) {
+    if (strcasecmp("Sensor", child->key) == 0) {
+      char *value = NULL;
+      status = cf_util_get_string(child, &value);
+      if (status != 0)
+        break;
+      ignorelist_add(st->ignorelist, value);
+      sfree(value);
+    } else if (strcasecmp("IgnoreSelected", child->key) == 0) {
       _Bool t;
       status = cf_util_get_boolean(child, &t);
       if (status != 0)
