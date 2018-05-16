@@ -389,17 +389,15 @@ static int tbl_result_dispatch(tbl_t *tbl, tbl_result_t *res, char **fields,
             STATIC_ARRAY_SIZE(instances), "-");
     instances_str[sizeof(instances_str) - 1] = '\0';
 
-    vl.type_instance[sizeof(vl.type_instance) - 1] = '\0';
+    int r;
     if (res->instance_prefix == NULL)
-      strncpy(vl.type_instance, instances_str, sizeof(vl.type_instance));
+      r = snprintf(vl.type_instance, sizeof(vl.type_instance), "%s",
+                   instances_str);
     else
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s",
-               res->instance_prefix, instances_str);
-
-    if (vl.type_instance[sizeof(vl.type_instance) - 1] != '\0') {
-      vl.type_instance[sizeof(vl.type_instance) - 1] = '\0';
+      r = snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s",
+                   res->instance_prefix, instances_str);
+    if (r >= sizeof(vl.type_instance))
       log_warn("Truncated type instance: %s.", vl.type_instance);
-    }
   }
 
   plugin_dispatch_values(&vl);
@@ -429,7 +427,7 @@ static int tbl_parse_line(tbl_t *tbl, char *line, size_t len) {
 
   for (i = 0; i < tbl->results_num; ++i)
     if (tbl_result_dispatch(tbl, tbl->results + i, fields,
-                                 STATIC_ARRAY_SIZE(fields)) != 0) {
+                            STATIC_ARRAY_SIZE(fields)) != 0) {
       log_err("Failed to dispatch result.");
       continue;
     }

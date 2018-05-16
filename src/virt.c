@@ -2105,7 +2105,7 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
   struct interface_device *new_ptr;
   int new_size =
       sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[15];
+  char *path_copy, *address_copy, number_string[21];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;

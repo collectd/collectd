@@ -541,7 +541,13 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
       stats_submitted = true;
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type, tc_inst);
+      int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
+                       tc_inst);
+      if (r >= sizeof(type_instance)) {
+        ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
+              sizeof(type_instance), r);
+        return MNL_CB_ERROR;
+      }
 
       if (q_stats.bs != NULL) {
         submit_one(dev, "ipt_bytes", type_instance, q_stats.bs->bytes);
@@ -574,7 +580,13 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (!stats_submitted && ts != NULL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type, tc_inst);
+      int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
+                       tc_inst);
+      if (r >= sizeof(type_instance)) {
+        ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
+              sizeof(type_instance), r);
+        return MNL_CB_ERROR;
+      }
 
       submit_one(dev, "ipt_bytes", type_instance, ts->bytes);
       submit_one(dev, "ipt_packets", type_instance, ts->packets);
