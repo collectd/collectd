@@ -206,8 +206,7 @@ cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
         cmd_parse_getval(argc - 1, argv + 1, &ret_cmd->cmd.getval, opts, err);
   } else if (strcasecmp("LISTVAL", command) == 0) {
     ret_cmd->type = CMD_LISTVAL;
-    status =
-        cmd_parse_listval(argc - 1, argv + 1, opts, err);
+    status = cmd_parse_listval(argc - 1, argv + 1, opts, err);
   } else if (strcasecmp("PUTVAL", command) == 0) {
     ret_cmd->type = CMD_PUTVAL;
     status =

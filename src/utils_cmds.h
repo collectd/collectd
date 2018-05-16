@@ -39,13 +39,13 @@ typedef enum {
   CMD_PUTVAL = 4,
 } cmd_type_t;
 #define CMD_TO_STRING(type)                                                    \
-  ((type) == CMD_FLUSH) ? "FLUSH" : ((type) == CMD_GETVAL)                     \
-                                        ? "GETVAL"                             \
-                                        : ((type) == CMD_LISTVAL)              \
-                                              ? "LISTVAL"                      \
-                                              : ((type) == CMD_PUTVAL)         \
-                                                    ? "PUTVAL"                 \
-                                                    : "UNKNOWN"
+  ((type) == CMD_FLUSH)                                                        \
+      ? "FLUSH"                                                                \
+      : ((type) == CMD_GETVAL)                                                 \
+            ? "GETVAL"                                                         \
+            : ((type) == CMD_LISTVAL)                                          \
+                  ? "LISTVAL"                                                  \
+                  : ((type) == CMD_PUTVAL) ? "PUTVAL" : "UNKNOWN"
 
 typedef struct {
   double timeout;
