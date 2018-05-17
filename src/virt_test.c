@@ -25,8 +25,8 @@
 #include "testing.h"
 #include "virt.c" /* sic */
 
-static virDomainPtr *domains = NULL;
-static int nr_domains = 0;
+static virDomainPtr *domains;
+static int nr_domains;
 
 static int setup(void) {
   if (virInitialize() != 0) {
