@@ -34,6 +34,7 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
+#include <stdbool.h>
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
@@ -113,7 +114,7 @@ typedef struct virt_notif_thread_s {
   pthread_t event_loop_tid;
   int domain_event_cb_id;
   pthread_mutex_t active_mutex; /* protects 'is_active' member access*/
-  _Bool is_active;
+  bool is_active;
 } virt_notif_thread_t;
 
 static const char *config_keys[] = {"Connection",
@@ -138,7 +139,7 @@ static const char *config_keys[] = {"Connection",
                                     NULL};
 
 /* PersistentNotification is false by default */
-static _Bool persistent_notification = 0;
+static bool persistent_notification = false;
 
 /* Thread used for handling libvirt notifications events */
 static virt_notif_thread_t notif_thread;
@@ -504,7 +505,7 @@ struct interface_device {
 typedef struct domain_s {
   virDomainPtr ptr;
   virDomainInfo info;
-  _Bool active;
+  bool active;
 } domain_t;
 
 struct lv_read_state {
@@ -521,7 +522,7 @@ struct lv_read_state {
 
 static void free_domains(struct lv_read_state *state);
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
-                      _Bool active);
+                      bool active);
 
 static void free_block_devices(struct lv_read_state *state);
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
@@ -629,7 +630,7 @@ static const struct ex_stats_item ex_stats_table[] = {
 };
 
 /* BlockDeviceFormatBasename */
-_Bool blockdevice_format_basename = 0;
+static bool blockdevice_format_basename = false;
 static enum bd_field blockdevice_format = target;
 static enum if_field interface_format = if_name;
 
@@ -1122,7 +1123,7 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
   if (strcasecmp(key, "BlockDeviceFormatBasename") == 0) {
-    blockdevice_format_basename = IS_TRUE(value);
+    blockdevice_format_basename = IS_TRUE(value) ? true : false;
     return 0;
   }
   if (strcasecmp(key, "InterfaceDevice") == 0) {
@@ -1396,7 +1397,8 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
                             unsigned char *cpu_maps, int cpu_map_len) {
   for (int cpu = 0; cpu < max_cpus; ++cpu) {
     char type_instance[DATA_MAX_NAME_LEN];
-    _Bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu) ? 1 : 0;
+    bool is_set =
+        VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu) ? true : false;
 
     snprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu, cpu);
     submit(dom, "cpu_affinity", type_instance, &(value_t){.gauge = is_set}, 1);
@@ -1849,22 +1851,22 @@ static int register_event_impl(void) {
 }
 
 static void virt_notif_thread_set_active(virt_notif_thread_t *thread_data,
-                                         const _Bool active) {
+                                         const bool active) {
   assert(thread_data != NULL);
   pthread_mutex_lock(&thread_data->active_mutex);
   thread_data->is_active = active;
   pthread_mutex_unlock(&thread_data->active_mutex);
 }
 
-static _Bool virt_notif_thread_is_active(virt_notif_thread_t *thread_data) {
-  _Bool state = 0;
+static bool virt_notif_thread_is_active(virt_notif_thread_t *thread_data) {
+  bool active = false;
 
   assert(thread_data != NULL);
   pthread_mutex_lock(&thread_data->active_mutex);
-  state = thread_data->is_active;
+  active = thread_data->is_active;
   pthread_mutex_unlock(&thread_data->active_mutex);
 
-  return state;
+  return active;
 }
 
 /* worker function running default event implementation */
@@ -2020,7 +2022,7 @@ static int lv_read(user_data_t *ud) {
   inst = ud->data;
   state = &inst->read_state;
 
-  _Bool reconnect = conn == NULL ? 1 : 0;
+  bool reconnect = conn == NULL ? true : false;
   /* event implementation must be registered before connection is opened */
   if (inst->id == 0) {
     if (!persistent_notification && reconnect)
@@ -2530,7 +2532,7 @@ static void free_domains(struct lv_read_state *state) {
 }
 
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
-                      _Bool active) {
+                      bool active) {
   domain_t *new_ptr;
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
