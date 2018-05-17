@@ -66,19 +66,19 @@ typedef struct dpdk_ka_monitor_s {
 
 typedef struct dpdk_link_status_config_s {
   int enabled;
-  _Bool send_updated;
+  bool send_updated;
   uint32_t enabled_port_mask;
   char port_name[RTE_MAX_ETHPORTS][DATA_MAX_NAME_LEN];
-  _Bool notify;
+  bool notify;
 } dpdk_link_status_config_t;
 
 typedef struct dpdk_keep_alive_config_s {
   int enabled;
-  _Bool send_updated;
+  bool send_updated;
   uint128_t lcore_mask;
   dpdk_keepalive_shm_t *shm;
   char shm_name[DATA_MAX_NAME_LEN];
-  _Bool notify;
+  bool notify;
   int fd;
 } dpdk_keep_alive_config_t;
 
@@ -129,12 +129,11 @@ static int dpdk_event_keep_alive_shm_open(void) {
             shm_name);
   }
 
-  char errbuf[ERR_BUF_SIZE];
   int fd = shm_open(shm_name, O_RDONLY, 0);
   if (fd < 0) {
     ERROR(DPDK_EVENTS_PLUGIN ": Failed to open %s as SHM:%s. Is DPDK KA "
                              "primary application running?",
-          shm_name, sstrerror(errno, errbuf, sizeof(errbuf)));
+          shm_name, STRERRNO);
     return errno;
   }
 
@@ -166,8 +165,7 @@ static int dpdk_event_keep_alive_shm_open(void) {
   ec->config.keep_alive.shm = (dpdk_keepalive_shm_t *)mmap(
       0, sizeof(*(ec->config.keep_alive.shm)), PROT_READ, MAP_SHARED, fd, 0);
   if (ec->config.keep_alive.shm == MAP_FAILED) {
-    ERROR(DPDK_EVENTS_PLUGIN ": Failed to mmap KA SHM:%s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR(DPDK_EVENTS_PLUGIN ": Failed to mmap KA SHM:%s", STRERRNO);
     close(fd);
     return errno;
   }
@@ -187,8 +185,8 @@ static void dpdk_events_default_config(void) {
   /* Link Status */
   ec->config.link_status.enabled = 1;
   ec->config.link_status.enabled_port_mask = ~0;
-  ec->config.link_status.send_updated = 1;
-  ec->config.link_status.notify = 0;
+  ec->config.link_status.send_updated = true;
+  ec->config.link_status.notify = false;
 
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
     ec->config.link_status.port_name[i][0] = 0;
@@ -196,8 +194,8 @@ static void dpdk_events_default_config(void) {
 
   /* Keep Alive */
   ec->config.keep_alive.enabled = 1;
-  ec->config.keep_alive.send_updated = 1;
-  ec->config.keep_alive.notify = 0;
+  ec->config.keep_alive.send_updated = true;
+  ec->config.keep_alive.notify = false;
   /* by default enable 128 cores */
   memset(&ec->config.keep_alive.lcore_mask, 1,
          sizeof(ec->config.keep_alive.lcore_mask));

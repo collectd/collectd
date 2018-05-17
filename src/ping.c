@@ -69,25 +69,26 @@ typedef struct hostlist_s hostlist_t;
 /*
  * Private variables
  */
-static hostlist_t *hostlist_head = NULL;
+static hostlist_t *hostlist_head;
 
-static char *ping_source = NULL;
+static int ping_af = PING_DEF_AF;
+static char *ping_source;
 #ifdef HAVE_OPING_1_3
-static char *ping_device = NULL;
+static char *ping_device;
 #endif
-static char *ping_data = NULL;
+static char *ping_data;
 static int ping_ttl = PING_DEF_TTL;
 static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
 static int ping_max_missed = -1;
 
-static int ping_thread_loop = 0;
-static int ping_thread_error = 0;
-static pthread_t ping_thread_id;
 static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
+static int ping_thread_loop;
+static int ping_thread_error;
+static pthread_t ping_thread_id;
 
-static const char *config_keys[] = {"Host",    "SourceAddress",
+static const char *config_keys[] = {"Host",    "SourceAddress", "AddressFamily",
 #ifdef HAVE_OPING_1_3
                                     "Device",
 #endif
@@ -224,8 +225,6 @@ static int ping_dispatch_all(pingobj_t *pingobj) /* {{{ */
 
 static void *ping_thread(void *arg) /* {{{ */
 {
-  pingobj_t *pingobj = NULL;
-
   struct timeval tv_begin;
   struct timeval tv_end;
   struct timespec ts_wait;
@@ -235,14 +234,19 @@ static void *ping_thread(void *arg) /* {{{ */
 
   c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
 
-  pthread_mutex_lock(&ping_lock);
-
-  pingobj = ping_construct();
+  pingobj_t *pingobj = ping_construct();
   if (pingobj == NULL) {
     ERROR("ping plugin: ping_construct failed.");
+    pthread_mutex_lock(&ping_lock);
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
     return (void *)-1;
+  }
+
+  if (ping_af != PING_DEF_AF) {
+    if (ping_setopt(pingobj, PING_OPT_AF, &ping_af) != 0)
+      ERROR("ping plugin: Failed to set address family: %s",
+            ping_get_error(pingobj));
   }
 
   if (ping_source != NULL)
@@ -276,6 +280,7 @@ static void *ping_thread(void *arg) /* {{{ */
 
   if (count == 0) {
     ERROR("ping plugin: No host could be added to ping object. Giving up.");
+    pthread_mutex_lock(&ping_lock);
     ping_thread_error = 1;
     pthread_mutex_unlock(&ping_lock);
     return (void *)-1;
@@ -291,27 +296,25 @@ static void *ping_thread(void *arg) /* {{{ */
     ts_int.tv_nsec = (long)(temp_nsec * 1000000000L);
   }
 
+  pthread_mutex_lock(&ping_lock);
   while (ping_thread_loop > 0) {
-    int status;
-    _Bool send_successful = 0;
+    bool send_successful = false;
 
     if (gettimeofday(&tv_begin, NULL) < 0) {
-      char errbuf[1024];
-      ERROR("ping plugin: gettimeofday failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);
       ping_thread_error = 1;
       break;
     }
 
     pthread_mutex_unlock(&ping_lock);
 
-    status = ping_send(pingobj);
+    int status = ping_send(pingobj);
     if (status < 0) {
       c_complain(LOG_ERR, &complaint, "ping plugin: ping_send failed: %s",
                  ping_get_error(pingobj));
     } else {
       c_release(LOG_NOTICE, &complaint, "ping plugin: ping_send succeeded.");
-      send_successful = 1;
+      send_successful = true;
     }
 
     pthread_mutex_lock(&ping_lock);
@@ -323,9 +326,7 @@ static void *ping_thread(void *arg) /* {{{ */
       (void)ping_dispatch_all(pingobj);
 
     if (gettimeofday(&tv_end, NULL) < 0) {
-      char errbuf[1024];
-      ERROR("ping plugin: gettimeofday failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);
       ping_thread_error = 1;
       break;
     }
@@ -436,9 +437,8 @@ static int config_set_string(const char *name, /* {{{ */
 
   tmp = strdup(value);
   if (tmp == NULL) {
-    char errbuf[1024];
     ERROR("ping plugin: Setting `%s' to `%s' failed: strdup failed: %s", name,
-          value, sstrerror(errno, errbuf, sizeof(errbuf)));
+          value, STRERRNO);
     return 1;
   }
 
@@ -456,18 +456,14 @@ static int ping_config(const char *key, const char *value) /* {{{ */
 
     hl = malloc(sizeof(*hl));
     if (hl == NULL) {
-      char errbuf[1024];
-      ERROR("ping plugin: malloc failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: malloc failed: %s", STRERRNO);
       return 1;
     }
 
     host = strdup(value);
     if (host == NULL) {
-      char errbuf[1024];
       sfree(hl);
-      ERROR("ping plugin: strdup failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ping plugin: strdup failed: %s", STRERRNO);
       return 1;
     }
 
@@ -479,6 +475,23 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->latency_squared = 0.0;
     hl->next = hostlist_head;
     hostlist_head = hl;
+  } else if (strcasecmp(key, "AddressFamily") == 0) {
+    char *af = NULL;
+    int status = config_set_string(key, &af, value);
+    if (status != 0)
+      return status;
+
+    if (strncmp(af, "any", 3) == 0) {
+      ping_af = AF_UNSPEC;
+    } else if (strncmp(af, "ipv4", 4) == 0) {
+      ping_af = AF_INET;
+    } else if (strncmp(af, "ipv6", 4) == 0) {
+      ping_af = AF_INET6;
+    } else {
+      WARNING("ping plugin: Ignoring invalid AddressFamily value %s", af);
+    }
+    free(af);
+
   } else if (strcasecmp(key, "SourceAddress") == 0) {
     int status = config_set_string(key, &ping_source, value);
     if (status != 0)
@@ -532,7 +545,7 @@ static int ping_config(const char *key, const char *value) /* {{{ */
       } /* }}} for (i = 0; i < size; i++) */
       ping_data[size] = 0;
     } else
-      WARNING("ping plugin: Ignoring invalid Size %zu.", size);
+      WARNING("ping plugin: Ignoring invalid Size %" PRIsz ".", size);
   } else if (strcasecmp(key, "Timeout") == 0) {
     double tmp;
 

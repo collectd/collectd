@@ -76,7 +76,7 @@ typedef struct cf_value_map_s {
 typedef struct cf_global_option_s {
   const char *key;
   char *value;
-  _Bool from_cli; /* value set from CLI */
+  bool from_cli; /* value set from CLI */
   const char *def;
 } cf_global_option_t;
 
@@ -91,8 +91,8 @@ static int dispatch_block_plugin(oconfig_item_t *ci);
 /*
  * Private variables
  */
-static cf_callback_t *first_callback = NULL;
-static cf_complex_callback_t *complex_callback_head = NULL;
+static cf_callback_t *first_callback;
+static cf_complex_callback_t *complex_callback_head;
 
 static cf_value_map_t cf_value_map[] = {{"TypesDB", dispatch_value_typesdb},
                                         {"PluginDir", dispatch_value_plugindir},
@@ -245,7 +245,7 @@ static int dispatch_value_plugindir(oconfig_item_t *ci) {
 
 static int dispatch_loadplugin(oconfig_item_t *ci) {
   const char *name;
-  _Bool global = 0;
+  bool global = false;
   plugin_ctx_t ctx = {0};
   plugin_ctx_t old_ctx;
   int ret_val;
@@ -372,7 +372,7 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
     ctx.interval = cf_get_default_interval();
 
     old_ctx = plugin_set_ctx(ctx);
-    status = plugin_load(name, /* flags = */ 0);
+    status = plugin_load(name, /* flags = */ false);
     /* reset to the "global" context */
     plugin_set_ctx(old_ctx);
 
@@ -634,9 +634,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
 
   dh = opendir(dir);
   if (dh == NULL) {
-    char errbuf[1024];
-    ERROR("configfile: opendir failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("configfile: opendir failed: %s", STRERRNO);
     return NULL;
   }
 
@@ -765,9 +763,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
     status = stat(path_ptr, &statbuf);
     if (status != 0) {
-      char errbuf[1024];
-      WARNING("configfile: stat (%s) failed: %s", path_ptr,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("configfile: stat (%s) failed: %s", path_ptr, STRERRNO);
       continue;
     }
 
@@ -813,9 +809,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   status = stat(path, &statbuf);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("configfile: stat (%s) failed: %s", path,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("configfile: stat (%s) failed: %s", path, STRERRNO);
     return NULL;
   }
 
@@ -832,7 +826,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 /*
  * Public functions
  */
-int global_option_set(const char *option, const char *value, _Bool from_cli) {
+int global_option_set(const char *option, const char *value, bool from_cli) {
   int i;
   DEBUG("option = %s; value = %s;", option, value);
 
@@ -1116,7 +1110,7 @@ int cf_util_get_double(const oconfig_item_t *ci, double *ret_value) /* {{{ */
   return 0;
 } /* }}} int cf_util_get_double */
 
-int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
+int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
 {
   if ((ci == NULL) || (ret_bool == NULL))
     return EINVAL;
@@ -1131,7 +1125,7 @@ int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 
   switch (ci->values[0].type) {
   case OCONFIG_TYPE_BOOLEAN:
-    *ret_bool = ci->values[0].value.boolean ? 1 : 0;
+    *ret_bool = ci->values[0].value.boolean ? true : false;
     break;
   case OCONFIG_TYPE_STRING:
     WARNING("cf_util_get_boolean: Using string value `%s' for boolean option "
@@ -1140,9 +1134,9 @@ int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
             ci->values[0].value.string, ci->key);
 
     if (IS_TRUE(ci->values[0].value.string))
-      *ret_bool = 1;
+      *ret_bool = true;
     else if (IS_FALSE(ci->values[0].value.string))
-      *ret_bool = 0;
+      *ret_bool = false;
     else {
       ERROR("cf_util_get_boolean: Cannot parse string value `%s' of the `%s' "
             "option as a boolean value.",
@@ -1158,12 +1152,11 @@ int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool) /* {{{ */
 int cf_util_get_flag(const oconfig_item_t *ci, /* {{{ */
                      unsigned int *ret_value, unsigned int flag) {
   int status;
-  _Bool b;
 
   if (ret_value == NULL)
     return EINVAL;
 
-  b = 0;
+  bool b = false;
   status = cf_util_get_boolean(ci, &b);
   if (status != 0)
     return status;

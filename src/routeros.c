@@ -39,12 +39,12 @@ struct cr_data_s {
   char *username;
   char *password;
 
-  _Bool collect_interface;
-  _Bool collect_regtable;
-  _Bool collect_cpu_load;
-  _Bool collect_memory;
-  _Bool collect_df;
-  _Bool collect_disk;
+  bool collect_interface;
+  bool collect_regtable;
+  bool collect_cpu_load;
+  bool collect_memory;
+  bool collect_df;
+  bool collect_disk;
 };
 typedef struct cr_data_s cr_data_t;
 
@@ -142,7 +142,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** RX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
-           r->radio_name);
+           r->radio_name ? r->radio_name : "default");
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -151,7 +151,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
-           r->radio_name);
+           r->radio_name ? r->radio_name : "default");
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -160,7 +160,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** RX / TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
-           r->radio_name);
+           r->radio_name ? r->radio_name : "default");
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
   cr_submit_gauge(rd, "snr", type_instance, (gauge_t)r->signal_to_noise);
@@ -230,9 +230,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     rd->connection =
         ros_connect(rd->node, rd->service, rd->username, rd->password);
     if (rd->connection == NULL) {
-      char errbuf[128];
-      ERROR("routeros plugin: ros_connect failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("routeros plugin: ros_connect failed: %s", STRERRNO);
       return -1;
     }
   }
@@ -242,9 +240,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_interface(rd->connection, handle_interface,
                            /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
-      ERROR("routeros plugin: ros_interface failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("routeros plugin: ros_interface failed: %s", STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
       return -1;
@@ -255,9 +251,8 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_registration_table(rd->connection, handle_regtable,
                                     /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
       ERROR("routeros plugin: ros_registration_table failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+            STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
       return -1;
@@ -270,9 +265,8 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_system_resource(rd->connection, handle_system_resource,
                                  /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
       ERROR("routeros plugin: ros_system_resource failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+            STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
       return -1;

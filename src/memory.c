@@ -94,8 +94,8 @@ static int pagesize;
 #error "No applicable input method."
 #endif
 
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
+static bool values_absolute = true;
+static bool values_percentage;
 
 static int memory_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -163,9 +163,9 @@ static int memory_init(void) {
 #define MEMORY_SUBMIT(...)                                                     \
   do {                                                                         \
     if (values_absolute)                                                       \
-      plugin_dispatch_multivalue(vl, 0, DS_TYPE_GAUGE, __VA_ARGS__, NULL);     \
+      plugin_dispatch_multivalue(vl, false, DS_TYPE_GAUGE, __VA_ARGS__, NULL); \
     if (values_percentage)                                                     \
-      plugin_dispatch_multivalue(vl, 1, DS_TYPE_GAUGE, __VA_ARGS__, NULL);     \
+      plugin_dispatch_multivalue(vl, true, DS_TYPE_GAUGE, __VA_ARGS__, NULL);  \
   } while (0)
 
 static int memory_read_internal(value_list_t *vl) {
@@ -268,7 +268,7 @@ static int memory_read_internal(value_list_t *vl) {
   char *fields[8];
   int numfields;
 
-  _Bool detailed_slab_info = 0;
+  bool detailed_slab_info = false;
 
   gauge_t mem_total = 0;
   gauge_t mem_used = 0;
@@ -280,8 +280,7 @@ static int memory_read_internal(value_list_t *vl) {
   gauge_t mem_slab_unreclaimable = 0;
 
   if ((fh = fopen("/proc/meminfo", "r")) == NULL) {
-    char errbuf[1024];
-    WARNING("memory: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("memory: fopen: %s", STRERRNO);
     return -1;
   }
 
@@ -300,10 +299,10 @@ static int memory_read_internal(value_list_t *vl) {
       val = &mem_slab_total;
     else if (strncasecmp(buffer, "SReclaimable:", 13) == 0) {
       val = &mem_slab_reclaimable;
-      detailed_slab_info = 1;
+      detailed_slab_info = true;
     } else if (strncasecmp(buffer, "SUnreclaim:", 11) == 0) {
       val = &mem_slab_unreclaimable;
-      detailed_slab_info = 1;
+      detailed_slab_info = true;
     } else
       continue;
 
@@ -315,8 +314,7 @@ static int memory_read_internal(value_list_t *vl) {
   }
 
   if (fclose(fh)) {
-    char errbuf[1024];
-    WARNING("memory: fclose: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("memory: fclose: %s", STRERRNO);
   }
 
   if (mem_total < (mem_free + mem_buffered + mem_cached + mem_slab_total))
@@ -421,9 +419,7 @@ static int memory_read_internal(value_list_t *vl) {
   size = sizeof(vmtotal);
 
   if (sysctl(mib, 2, &vmtotal, &size, NULL, 0) < 0) {
-    char errbuf[1024];
-    WARNING("memory plugin: sysctl failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("memory plugin: sysctl failed: %s", STRERRNO);
     return -1;
   }
 
@@ -451,9 +447,7 @@ static int memory_read_internal(value_list_t *vl) {
   perfstat_memory_total_t pmemory = {0};
 
   if (perfstat_memory_total(NULL, &pmemory, sizeof(pmemory), 1) < 0) {
-    char errbuf[1024];
-    WARNING("memory plugin: perfstat_memory_total failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("memory plugin: perfstat_memory_total failed: %s", STRERRNO);
     return -1;
   }
 

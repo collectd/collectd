@@ -38,7 +38,7 @@ static int log_level = LOG_DEBUG;
 #else
 static int log_level = LOG_INFO;
 #endif /* COLLECT_DEBUG */
-static int notif_severity = 0;
+static int notif_severity;
 
 static const char *config_keys[] = {
     "LogLevel", "NotifyLevel",

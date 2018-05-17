@@ -60,6 +60,10 @@
 #include <sys/capability.h>
 #endif
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -629,14 +633,10 @@ int check_create_dir(const char *file_orig) {
           if (EEXIST == errno)
             continue;
 
-          char errbuf[1024];
-          ERROR("check_create_dir: mkdir (%s): %s", dir,
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+          ERROR("check_create_dir: mkdir (%s): %s", dir, STRERRNO);
           return -1;
         } else {
-          char errbuf[1024];
-          ERROR("check_create_dir: stat (%s): %s", dir,
-                sstrerror(errno, errbuf, sizeof(errbuf)));
+          ERROR("check_create_dir: stat (%s): %s", dir, STRERRNO);
           return -1;
         }
       } else if (!S_ISDIR(statbuf.st_mode)) {
@@ -857,7 +857,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
 
 int format_values(char *ret, size_t ret_len, /* {{{ */
                   const data_set_t *ds, const value_list_t *vl,
-                  _Bool store_rates) {
+                  bool store_rates) {
   size_t offset = 0;
   int status;
   gauge_t *rates = NULL;
@@ -893,7 +893,7 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       }
       BUFFER_ADD(":" GAUGE_FORMAT, rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD(":%llu", vl->values[i].counter);
+      BUFFER_ADD(":%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD(":%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -1210,9 +1210,7 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   failure = 0;
 
   if ((dh = opendir(dir)) == NULL) {
-    char errbuf[1024];
-    ERROR("walk_directory: Cannot open '%s': %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("walk_directory: Cannot open '%s': %s", dir, STRERRNO);
     return -1;
   }
 

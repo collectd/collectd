@@ -45,7 +45,7 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *values_list = NULL;
+static ignorelist_t *values_list;
 
 /*
  * Functions
@@ -87,8 +87,7 @@ static int read_file(const char *path) {
 
   fh = fopen(path, "r");
   if (fh == NULL) {
-    ERROR("protocols plugin: fopen (%s) failed: %s.", path,
-          sstrerror(errno, key_buffer, sizeof(key_buffer)));
+    ERROR("protocols plugin: fopen (%s) failed: %s.", path, STRERRNO);
     return -1;
   }
 

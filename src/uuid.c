@@ -37,7 +37,7 @@
 #define UUID_PRINTABLE_COMPACT_LENGTH (UUID_RAW_LENGTH * 2)
 #define UUID_PRINTABLE_NORMAL_LENGTH (UUID_PRINTABLE_COMPACT_LENGTH + 4)
 
-static char *uuidfile = NULL;
+static char *uuidfile;
 
 static const char *config_keys[] = {"UUIDFile"};
 
@@ -193,7 +193,7 @@ static int uuid_init(void) {
   char *uuid = uuid_get_local();
 
   if (uuid) {
-    sstrncpy(hostname_g, uuid, DATA_MAX_NAME_LEN);
+    hostname_set(uuid);
     sfree(uuid);
     return 0;
   }

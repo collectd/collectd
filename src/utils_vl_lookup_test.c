@@ -29,8 +29,8 @@
 #include "testing.h"
 #include "utils_vl_lookup.h"
 
-static _Bool expect_new_obj = 0;
-static _Bool have_new_obj = 0;
+static bool expect_new_obj;
+static bool have_new_obj;
 
 static lookup_identifier_t last_class_ident;
 static lookup_identifier_t last_obj_ident;
@@ -75,7 +75,7 @@ static void *lookup_class_callback(data_set_t const *ds, value_list_t const *vl,
   strncpy(obj->type, vl->type, sizeof(obj->type));
   strncpy(obj->type_instance, vl->type_instance, sizeof(obj->type_instance));
 
-  have_new_obj = 1;
+  have_new_obj = true;
 
   return (void *)obj;
 }
@@ -105,7 +105,7 @@ static int checked_lookup_add(lookup_t *obj, /* {{{ */
 static int checked_lookup_search(lookup_t *obj, char const *host,
                                  char const *plugin,
                                  char const *plugin_instance, char const *type,
-                                 char const *type_instance, _Bool expect_new) {
+                                 char const *type_instance, bool expect_new) {
   int status;
   value_list_t vl = VALUE_LIST_INIT;
   data_set_t const *ds = &ds_unknown;
@@ -120,7 +120,7 @@ static int checked_lookup_search(lookup_t *obj, char const *host,
     ds = &ds_test;
 
   expect_new_obj = expect_new;
-  have_new_obj = 0;
+  have_new_obj = false;
 
   status = lookup_search(obj, ds, &vl);
   return status;

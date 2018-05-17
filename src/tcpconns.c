@@ -76,7 +76,6 @@
 #endif
 
 #if KERNEL_LINUX
-#include <asm/types.h>
 #include <linux/netlink.h>
 #if HAVE_LINUX_INET_DIAG_H
 #include <linux/inet_diag.h>
@@ -206,7 +205,7 @@ static const char *tcp_state[] = {"CLOSED",    "LISTEN",      "SYN_SENT",
                                   "FIN_WAIT2", "TIME_WAIT"};
 
 static kvm_t *kvmd;
-static u_long inpcbtable_off = 0;
+static u_long inpcbtable_off;
 struct inpcbtable *inpcbtable_ptr = NULL;
 
 #define TCP_STATE_LISTEN 1
@@ -262,9 +261,9 @@ static const char *config_keys[] = {"ListeningPorts", "LocalPort", "RemotePort",
                                     "AllPortsSummary"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static int port_collect_listening = 0;
-static int port_collect_total = 0;
-static port_entry_t *port_list_head = NULL;
+static int port_collect_listening;
+static int port_collect_total;
+static port_entry_t *port_list_head;
 static uint32_t count_total[TCP_STATE_MAX + 1];
 
 #if KERNEL_LINUX
@@ -272,7 +271,7 @@ static uint32_t count_total[TCP_STATE_MAX + 1];
 /* This depends on linux inet_diag_req because if this structure is missing,
  * sequence_number is useless and we get a compilation warning.
  */
-static uint32_t sequence_number = 0;
+static uint32_t sequence_number;
 #endif
 
 static enum { SRC_DUNNO, SRC_NETLINK, SRC_PROC } linux_source = SRC_DUNNO;
@@ -459,7 +458,7 @@ static int conn_read_netlink(void) {
   if (fd < 0) {
     ERROR("tcpconns plugin: conn_read_netlink: socket(AF_NETLINK, SOCK_RAW, "
           "NETLINK_INET_DIAG) failed: %s",
-          sstrerror(errno, buf, sizeof(buf)));
+          STRERRNO);
     return -1;
   }
 
@@ -490,7 +489,7 @@ static int conn_read_netlink(void) {
 
   if (sendmsg(fd, &msg, 0) < 0) {
     ERROR("tcpconns plugin: conn_read_netlink: sendmsg(2) failed: %s",
-          sstrerror(errno, buf, sizeof(buf)));
+          STRERRNO);
     close(fd);
     return -1;
   }
@@ -514,7 +513,7 @@ static int conn_read_netlink(void) {
         continue;
 
       ERROR("tcpconns plugin: conn_read_netlink: recvmsg(2) failed: %s",
-            sstrerror(errno, buf, sizeof(buf)));
+            STRERRNO);
       close(fd);
       return -1;
     } else if (status == 0) {

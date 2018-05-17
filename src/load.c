@@ -55,7 +55,7 @@
 #include <sys/protosw.h>
 #endif /* HAVE_PERFSTAT */
 
-static _Bool report_relative_load = 0;
+static bool report_relative_load;
 
 static const char *config_keys[] = {"ReportRelative"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -63,7 +63,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static int load_config(const char *key, const char *value) {
   if (strcasecmp(key, "ReportRelative") == 0)
 #ifdef _SC_NPROCESSORS_ONLN
-    report_relative_load = IS_TRUE(value) ? 1 : 0;
+    report_relative_load = IS_TRUE(value);
 #else
     WARNING("load plugin: The \"ReportRelative\" configuration "
             "is not available, because I can't determine the "
@@ -73,13 +73,11 @@ static int load_config(const char *key, const char *value) {
 }
 static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
   int cores = 0;
-  char errbuf[1024];
 
 #ifdef _SC_NPROCESSORS_ONLN
   if (report_relative_load) {
     if ((cores = sysconf(_SC_NPROCESSORS_ONLN)) < 1) {
-      WARNING("load: sysconf failed : %s",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("load: sysconf failed : %s", STRERRNO);
     }
   }
 #endif
@@ -114,9 +112,7 @@ static int load_read(void) {
   if (getloadavg(load, 3) == 3)
     load_submit(load[LOADAVG_1MIN], load[LOADAVG_5MIN], load[LOADAVG_15MIN]);
   else {
-    char errbuf[1024];
-    WARNING("load: getloadavg failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("load: getloadavg failed: %s", STRERRNO);
   }
 /* #endif HAVE_GETLOADAVG */
 
@@ -129,21 +125,18 @@ static int load_read(void) {
   int numfields;
 
   if ((loadavg = fopen("/proc/loadavg", "r")) == NULL) {
-    char errbuf[1024];
-    WARNING("load: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("load: fopen: %s", STRERRNO);
     return -1;
   }
 
   if (fgets(buffer, 16, loadavg) == NULL) {
-    char errbuf[1024];
-    WARNING("load: fgets: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("load: fgets: %s", STRERRNO);
     fclose(loadavg);
     return -1;
   }
 
   if (fclose(loadavg)) {
-    char errbuf[1024];
-    WARNING("load: fclose: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("load: fclose: %s", STRERRNO);
   }
 
   numfields = strsplit(buffer, fields, 8);
@@ -177,9 +170,7 @@ static int load_read(void) {
 
   if (perfstat_cpu_total(NULL, &cputotal, sizeof(perfstat_cpu_total_t), 1) <
       0) {
-    char errbuf[1024];
-    WARNING("load: perfstat_cpu : %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("load: perfstat_cpu : %s", STRERRNO);
     return -1;
   }
 

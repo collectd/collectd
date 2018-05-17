@@ -25,8 +25,8 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "common.h"
 #include "collectd.h"
+#include "common.h"
 
 #include <pqos.h>
 
@@ -59,7 +59,7 @@ struct rdt_ctx_s {
 };
 typedef struct rdt_ctx_s rdt_ctx_t;
 
-static rdt_ctx_t *g_rdt = NULL;
+static rdt_ctx_t *g_rdt;
 
 static rdt_config_status g_state = UNKNOWN;
 
@@ -308,7 +308,7 @@ static void rdt_dump_cgroups(void) {
     return;
 
   DEBUG(RDT_PLUGIN ": Core Groups Dump");
-  DEBUG(RDT_PLUGIN ":  groups count: %zu", g_rdt->num_groups);
+  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->num_groups);
 
   for (int i = 0; i < g_rdt->num_groups; i++) {
 
@@ -426,8 +426,8 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
          core_idx++) {
       if (!rdt_is_core_id_valid(g_rdt->cgroups[group_idx].cores[core_idx])) {
         ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%d'",
-                g_rdt->cgroups[group_idx].desc,
-                (int)g_rdt->cgroups[group_idx].cores[core_idx]);
+              g_rdt->cgroups[group_idx].desc,
+              (int)g_rdt->cgroups[group_idx].cores[core_idx]);
         rdt_free_cgroups();
         return -EINVAL;
       }

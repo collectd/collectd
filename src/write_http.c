@@ -50,16 +50,16 @@ struct wh_callback_s {
   char *user;
   char *pass;
   char *credentials;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   char *capath;
   char *clientkey;
   char *clientcert;
   char *clientkeypass;
   long sslversion;
-  _Bool store_rates;
-  _Bool log_http_error;
+  bool store_rates;
+  bool log_http_error;
   int low_speed_limit;
   time_t low_speed_time;
   int timeout;
@@ -68,8 +68,8 @@ struct wh_callback_s {
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
   int format;
-  _Bool send_metrics;
-  _Bool send_notifications;
+  bool send_metrics;
+  bool send_notifications;
 
   CURL *curl;
   struct curl_slist *headers;
@@ -228,7 +228,7 @@ static int wh_flush_nolock(cdtime_t timeout, wh_callback_t *cb) /* {{{ */
   int status;
 
   DEBUG("write_http plugin: wh_flush_nolock: timeout = %.3f; "
-        "send_buffer_fill = %zu;",
+        "send_buffer_fill = %" PRIsz ";",
         CDTIME_T_TO_DOUBLE(timeout), cb->send_buffer_fill);
 
   /* timeout == 0  => flush unconditionally */
@@ -380,7 +380,7 @@ static int wh_write_command(const data_set_t *ds,
                                  CDTIME_T_TO_DOUBLE(vl->interval), values);
   if (command_len >= sizeof(command)) {
     ERROR("write_http plugin: Command buffer too small: "
-          "Need %zu bytes.",
+          "Need %" PRIsz " bytes.",
           command_len + 1);
     return -1;
   }
@@ -410,8 +410,8 @@ static int wh_write_command(const data_set_t *ds,
   cb->send_buffer_fill += command_len;
   cb->send_buffer_free -= command_len;
 
-  DEBUG("write_http plugin: <%s> buffer %zu/%zu (%g%%) \"%s\"", cb->location,
-        cb->send_buffer_fill, cb->send_buffer_size,
+  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%) \"%s\"",
+        cb->location, cb->send_buffer_fill, cb->send_buffer_size,
         100.0 * ((double)cb->send_buffer_fill) / ((double)cb->send_buffer_size),
         command);
 
@@ -452,8 +452,8 @@ static int wh_write_json(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     return status;
   }
 
-  DEBUG("write_http plugin: <%s> buffer %zu/%zu (%g%%)", cb->location,
-        cb->send_buffer_fill, cb->send_buffer_size,
+  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%)",
+        cb->location, cb->send_buffer_fill, cb->send_buffer_size,
         100.0 * ((double)cb->send_buffer_fill) /
             ((double)cb->send_buffer_size));
 
@@ -501,8 +501,8 @@ static int wh_write_kairosdb(const data_set_t *ds,
     return status;
   }
 
-  DEBUG("write_http plugin: <%s> buffer %zu/%zu (%g%%)", cb->location,
-        cb->send_buffer_fill, cb->send_buffer_size,
+  DEBUG("write_http plugin: <%s> buffer %" PRIsz "/%" PRIsz " (%g%%)",
+        cb->location, cb->send_buffer_fill, cb->send_buffer_size,
         100.0 * ((double)cb->send_buffer_fill) /
             ((double)cb->send_buffer_size));
 
@@ -624,16 +624,16 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
     ERROR("write_http plugin: calloc failed.");
     return -1;
   }
-  cb->verify_peer = 1;
-  cb->verify_host = 1;
+  cb->verify_peer = true;
+  cb->verify_host = true;
   cb->format = WH_FORMAT_COMMAND;
   cb->sslversion = CURL_SSLVERSION_DEFAULT;
   cb->low_speed_limit = 0;
   cb->timeout = 0;
-  cb->log_http_error = 0;
+  cb->log_http_error = false;
   cb->headers = NULL;
-  cb->send_metrics = 1;
-  cb->send_notifications = 0;
+  cb->send_metrics = true;
+  cb->send_notifications = false;
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
 
@@ -802,7 +802,8 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
   /* Allocate the buffer. */
   cb->send_buffer = malloc(cb->send_buffer_size);
   if (cb->send_buffer == NULL) {
-    ERROR("write_http plugin: malloc(%zu) failed.", cb->send_buffer_size);
+    ERROR("write_http plugin: malloc(%" PRIsz ") failed.",
+          cb->send_buffer_size);
     wh_callback_free(cb);
     return -1;
   }

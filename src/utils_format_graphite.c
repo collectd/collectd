@@ -60,7 +60,7 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
   else if (rates != NULL)
     BUFFER_ADD("%f", rates[ds_num]);
   else if (ds->ds[ds_num].type == DS_TYPE_COUNTER)
-    BUFFER_ADD("%llu", vl->values[ds_num].counter);
+    BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[ds_num].counter);
   else if (ds->ds[ds_num].type == DS_TYPE_DERIVE)
     BUFFER_ADD("%" PRIi64, vl->values[ds_num].derive);
   else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
@@ -77,7 +77,7 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
 }
 
 static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
-                                char escape_char, _Bool preserve_separator) {
+                                char escape_char, bool preserve_separator) {
   memset(dst, 0, dst_len);
 
   if (src == NULL)
@@ -116,7 +116,7 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   if (postfix == NULL)
     postfix = "";
 
-  _Bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR) ? 1 : 0;
+  bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
 
   gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
                       preserve_separator);
@@ -223,7 +223,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
                          (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
     if (message_len >= sizeof(message)) {
       ERROR("format_graphite: message buffer too small: "
-            "Need %zu bytes.",
+            "Need %" PRIsz " bytes.",
             message_len + 1);
       sfree(rates);
       return -ENOMEM;

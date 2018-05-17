@@ -26,12 +26,12 @@
  *   Sebastian 'tokkee' Harl <sh at tokkee.org>
  **/
 
-#include "utils_cmds.h"
 #include "daemon/common.h"
 #include "utils_cmd_flush.h"
 #include "utils_cmd_getval.h"
 #include "utils_cmd_listval.h"
 #include "utils_cmd_putval.h"
+#include "utils_cmds.h"
 #include "utils_parse_option.h"
 
 #include <stdbool.h>
@@ -206,8 +206,7 @@ cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
         cmd_parse_getval(argc - 1, argv + 1, &ret_cmd->cmd.getval, opts, err);
   } else if (strcasecmp("LISTVAL", command) == 0) {
     ret_cmd->type = CMD_LISTVAL;
-    status =
-        cmd_parse_listval(argc - 1, argv + 1, &ret_cmd->cmd.listval, opts, err);
+    status = cmd_parse_listval(argc - 1, argv + 1, opts, err);
   } else if (strcasecmp("PUTVAL", command) == 0) {
     ret_cmd->type = CMD_PUTVAL;
     status =
@@ -252,7 +251,6 @@ void cmd_destroy(cmd_t *cmd) {
     cmd_destroy_getval(&cmd->cmd.getval);
     break;
   case CMD_LISTVAL:
-    cmd_destroy_listval(&cmd->cmd.listval);
     break;
   case CMD_PUTVAL:
     cmd_destroy_putval(&cmd->cmd.putval);
@@ -301,9 +299,8 @@ void cmd_error_fh(void *ud, cmd_status_t status, const char *format,
   vsnprintf(buf, sizeof(buf), format, ap);
   buf[sizeof(buf) - 1] = '\0';
   if (fprintf(fh, "%i %s\n", code, buf) < 0) {
-    char errbuf[1024];
     WARNING("utils_cmds: failed to write to file-handle #%i: %s", fileno(fh),
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
     return;
   }
 

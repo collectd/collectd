@@ -102,7 +102,7 @@
 #define COLLECTD_CPU_STATE_GUEST_NICE 9
 #define COLLECTD_CPU_STATE_IDLE 10
 #define COLLECTD_CPU_STATE_ACTIVE 11 /* sum of (!idle) */
-#define COLLECTD_CPU_STATE_MAX 12   /* #states */
+#define COLLECTD_CPU_STATE_MAX 12    /* #states */
 
 #if HAVE_STATGRAB_H
 #include <statgrab.h>
@@ -119,9 +119,9 @@
 #error "No applicable input method."
 #endif
 
-static const char *cpu_state_names[] = {"user", "system",    "wait",    "nice",
-                                        "swap", "interrupt", "softirq", "steal",
-                                        "guest", "guest_nice", "idle", "active"};
+static const char *cpu_state_names[] = {
+    "user",    "system", "wait",  "nice",       "swap", "interrupt",
+    "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
 
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
@@ -134,6 +134,9 @@ static mach_msg_type_number_t cpu_list_len;
 /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so
  * CPUs.. */
 #define MAX_NUMCPU 256
@@ -180,43 +183,43 @@ static int pnumcpu;
 struct cpu_state_s {
   value_to_rate_state_t conv;
   gauge_t rate;
-  _Bool has_value;
+  bool has_value;
 };
 typedef struct cpu_state_s cpu_state_t;
 
-static cpu_state_t *cpu_states = NULL;
-static size_t cpu_states_num = 0; /* #cpu_states allocated */
+static cpu_state_t *cpu_states;
+static size_t cpu_states_num; /* #cpu_states allocated */
 
 /* Highest CPU number in the current iteration. Used by the dispatch logic to
  * determine how many CPUs there were. Reset to 0 by cpu_reset(). */
-static size_t global_cpu_num = 0;
+static size_t global_cpu_num;
 
-static _Bool report_by_cpu = 1;
-static _Bool report_by_state = 1;
-static _Bool report_percent = 0;
-static _Bool report_num_cpu = 0;
-static _Bool report_guest = 0;
-static _Bool subtract_guest = 1;
+static bool report_by_cpu = true;
+static bool report_by_state = true;
+static bool report_percent;
+static bool report_num_cpu;
+static bool report_guest;
+static bool subtract_guest = true;
 
-static const char *config_keys[] = {"ReportByCpu", "ReportByState",
-                                    "ReportNumCpu", "ValuesPercentage",
+static const char *config_keys[] = {"ReportByCpu",      "ReportByState",
+                                    "ReportNumCpu",     "ValuesPercentage",
                                     "ReportGuestState", "SubtractGuestState"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int cpu_config(char const *key, char const *value) /* {{{ */
 {
   if (strcasecmp(key, "ReportByCpu") == 0)
-    report_by_cpu = IS_TRUE(value) ? 1 : 0;
+    report_by_cpu = IS_TRUE(value);
   else if (strcasecmp(key, "ValuesPercentage") == 0)
-    report_percent = IS_TRUE(value) ? 1 : 0;
+    report_percent = IS_TRUE(value);
   else if (strcasecmp(key, "ReportByState") == 0)
-    report_by_state = IS_TRUE(value) ? 1 : 0;
+    report_by_state = IS_TRUE(value);
   else if (strcasecmp(key, "ReportNumCpu") == 0)
-    report_num_cpu = IS_TRUE(value) ? 1 : 0;
+    report_num_cpu = IS_TRUE(value);
   else if (strcasecmp(key, "ReportGuestState") == 0)
-    report_guest = IS_TRUE(value) ? 1 : 0;
+    report_guest = IS_TRUE(value);
   else if (strcasecmp(key, "SubtractGuestState") == 0)
-    subtract_guest = IS_TRUE(value) ? 1 : 0;
+    subtract_guest = IS_TRUE(value);
   else
     return -1;
 
@@ -276,8 +279,7 @@ static int init(void) {
 
   status = sysctl(mib, STATIC_ARRAY_SIZE(mib), &numcpu, &numcpu_size, NULL, 0);
   if (status == -1) {
-    char errbuf[1024];
-    WARNING("cpu plugin: sysctl: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("cpu plugin: sysctl: %s", STRERRNO);
     return -1;
   }
 /* #endif CAN_USE_SYSCTL */
@@ -288,9 +290,7 @@ static int init(void) {
   numcpu_size = sizeof(numcpu);
 
   if (sysctlbyname("hw.ncpu", &numcpu, &numcpu_size, NULL, 0) < 0) {
-    char errbuf[1024];
-    WARNING("cpu plugin: sysctlbyname(hw.ncpu): %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("cpu plugin: sysctlbyname(hw.ncpu): %s", STRERRNO);
     return -1;
   }
 
@@ -298,9 +298,7 @@ static int init(void) {
   numcpu_size = sizeof(maxcpu);
 
   if (sysctlbyname("kern.smp.maxcpus", &maxcpu, &numcpu_size, NULL, 0) < 0) {
-    char errbuf[1024];
-    WARNING("cpu plugin: sysctlbyname(kern.smp.maxcpus): %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("cpu plugin: sysctlbyname(kern.smp.maxcpus): %s", STRERRNO);
     return -1;
   }
 #else
@@ -433,7 +431,7 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
     }
 
     if (!isnan(this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate))
-      this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = 1;
+      this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].has_value = true;
 
     RATE_ADD(sum_by_state[COLLECTD_CPU_STATE_ACTIVE],
              this_cpu_states[COLLECTD_CPU_STATE_ACTIVE].rate);
@@ -444,9 +442,7 @@ static void aggregate(gauge_t *sum_by_state) /* {{{ */
   perfstat_cpu_total_t cputotal = {0};
 
   if (!perfstat_cpu_total(NULL, &cputotal, sizeof(cputotal), 1)) {
-    char errbuf[1024];
-    WARNING("cpu plugin: perfstat_cpu_total: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("cpu plugin: perfstat_cpu_total: %s", STRERRNO);
     return;
   }
 
@@ -509,7 +505,7 @@ static void cpu_commit_num_cpu(gauge_t value) /* {{{ */
 static void cpu_reset(void) /* {{{ */
 {
   for (size_t i = 0; i < cpu_states_num; i++)
-    cpu_states[i].has_value = 0;
+    cpu_states[i].has_value = false;
 
   global_cpu_num = 0;
 } /* }}} void cpu_reset */
@@ -553,9 +549,8 @@ static void cpu_commit(void) /* {{{ */
 
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
-    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN };
+    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {
+        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
 
     for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
       if (this_cpu_states[state].has_value)
@@ -593,7 +588,7 @@ static int cpu_stage(size_t cpu_num, size_t state, derive_t d,
     return status;
 
   s->rate = rate;
-  s->has_value = 1;
+  s->has_value = true;
   return 0;
 } /* }}} int cpu_stage */
 
@@ -646,9 +641,7 @@ static int cpu_read(void) {
   int numfields;
 
   if ((fh = fopen("/proc/stat", "r")) == NULL) {
-    char errbuf[1024];
-    ERROR("cpu plugin: fopen (/proc/stat) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("cpu plugin: fopen (/proc/stat) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -664,7 +657,8 @@ static int cpu_read(void) {
 
     cpu = atoi(fields[0] + 3);
 
-    /* Do not stage User and Nice immediately: we may need to alter them later: */
+    /* Do not stage User and Nice immediately: we may need to alter them later:
+     */
     long long user_value = atoll(fields[1]);
     long long nice_value = atoll(fields[2]);
     cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
@@ -676,7 +670,7 @@ static int cpu_read(void) {
                 now);
       cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
                 now);
-	}
+    }
 
     if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
       cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]), now);
@@ -689,7 +683,8 @@ static int cpu_read(void) {
         /* Guest is included in User; optionally subtract Guest from User: */
         if (subtract_guest) {
           user_value -= value;
-          if (user_value < 0) user_value = 0;
+          if (user_value < 0)
+            user_value = 0;
         }
       }
     }
@@ -702,7 +697,8 @@ static int cpu_read(void) {
            Nice: */
         if (subtract_guest) {
           nice_value -= value;
-          if (nice_value < 0) nice_value = 0;
+          if (nice_value < 0)
+            nice_value = 0;
         }
       }
     }
@@ -758,9 +754,7 @@ static int cpu_read(void) {
       status = sysctl(mib, STATIC_ARRAY_SIZE(mib), cpuinfo[i], &cpuinfo_size,
                       NULL, 0);
       if (status == -1) {
-        char errbuf[1024];
-        ERROR("cpu plugin: sysctl failed: %s.",
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("cpu plugin: sysctl failed: %s.", STRERRNO);
         return -1;
       }
     }
@@ -775,9 +769,7 @@ static int cpu_read(void) {
     status = sysctl(mib, STATIC_ARRAY_SIZE(mib), &cpuinfo_tmp, &cpuinfo_size,
                     NULL, 0);
     if (status == -1) {
-      char errbuf[1024];
-      ERROR("cpu plugin: sysctl failed: %s.",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("cpu plugin: sysctl failed: %s.", STRERRNO);
       return -1;
     }
 
@@ -805,9 +797,7 @@ static int cpu_read(void) {
 
   cpuinfo_size = sizeof(cpuinfo);
   if (sysctlbyname("kern.cp_times", &cpuinfo, &cpuinfo_size, NULL, 0) < 0) {
-    char errbuf[1024];
-    ERROR("cpu plugin: sysctlbyname failed: %s.",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("cpu plugin: sysctlbyname failed: %s.", STRERRNO);
     return -1;
   }
 
@@ -828,9 +818,7 @@ static int cpu_read(void) {
   cpuinfo_size = sizeof(cpuinfo);
 
   if (sysctlbyname("kern.cp_time", &cpuinfo, &cpuinfo_size, NULL, 0) < 0) {
-    char errbuf[1024];
-    ERROR("cpu plugin: sysctlbyname failed: %s.",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("cpu plugin: sysctlbyname failed: %s.", STRERRNO);
     return -1;
   }
 
@@ -864,9 +852,7 @@ static int cpu_read(void) {
 
   numcpu = perfstat_cpu(NULL, NULL, sizeof(perfstat_cpu_t), 0);
   if (numcpu == -1) {
-    char errbuf[1024];
-    WARNING("cpu plugin: perfstat_cpu: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("cpu plugin: perfstat_cpu: %s", STRERRNO);
     return -1;
   }
 
@@ -878,9 +864,7 @@ static int cpu_read(void) {
 
   id.name[0] = '\0';
   if ((cpus = perfstat_cpu(&id, perfcpu, sizeof(perfstat_cpu_t), numcpu)) < 0) {
-    char errbuf[1024];
-    WARNING("cpu plugin: perfstat_cpu: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("cpu plugin: perfstat_cpu: %s", STRERRNO);
     return -1;
   }
 

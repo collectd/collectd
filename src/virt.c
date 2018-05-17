@@ -241,8 +241,8 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   } while (0)
 
 /* Connection. */
-static virConnectPtr conn = 0;
-static char *conn_string = NULL;
+static virConnectPtr conn;
+static char *conn_string;
 static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 
 /* Node information required for %CPU */
@@ -252,11 +252,11 @@ static virNodeInfo nodeinfo;
 static int interval = 60;
 
 /* List of domains, if specified. */
-static ignorelist_t *il_domains = NULL;
+static ignorelist_t *il_domains;
 /* List of block devices, if specified. */
-static ignorelist_t *il_block_devices = NULL;
+static ignorelist_t *il_block_devices;
 /* List of network interface devices, if specified. */
-static ignorelist_t *il_interface_devices = NULL;
+static ignorelist_t *il_interface_devices;
 
 static int ignore_device_match(ignorelist_t *, const char *domname,
                                const char *devpath);
@@ -401,7 +401,7 @@ static const struct ex_stats_item ex_stats_table[] = {
 };
 
 /* BlockDeviceFormatBasename */
-_Bool blockdevice_format_basename = 0;
+static bool blockdevice_format_basename;
 static enum bd_field blockdevice_format = target;
 static enum if_field interface_format = if_name;
 
@@ -444,12 +444,10 @@ static void init_block_info(struct lv_block_info *binfo) {
 #ifdef HAVE_BLOCK_STATS_FLAGS
 
 #define GET_BLOCK_INFO_VALUE(NAME, FIELD)                                      \
-  do {                                                                         \
-    if (!strcmp(param[i].field, NAME)) {                                       \
-      binfo->FIELD = param[i].value.l;                                         \
-      continue;                                                                \
-    }                                                                          \
-  } while (0)
+  if (!strcmp(param[i].field, NAME)) {                                         \
+    binfo->FIELD = param[i].value.l;                                           \
+    continue;                                                                  \
+  }
 
 static int get_block_info(struct lv_block_info *binfo,
                           virTypedParameterPtr param, int nparams) {
@@ -699,10 +697,11 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
               (time_diff_sec * node_cpus * NANOSEC_IN_SEC);
   }
 
-  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%llu cpu_time_new=%llu"
-                    "cpu_time_diff=%llu time_diff_sec=%f percent=%f",
-        node_cpus, cpu_time_old, cpu_time_new, cpu_time_diff, time_diff_sec,
-        percent);
+  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64
+                    " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
+                    " time_diff_sec=%f percent=%f",
+        node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
+        (uint64_t)cpu_time_diff, time_diff_sec, percent);
 
   return percent;
 }
@@ -1178,7 +1177,7 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
                             unsigned char *cpu_maps, int cpu_map_len) {
   for (int cpu = 0; cpu < max_cpus; ++cpu) {
     char type_instance[DATA_MAX_NAME_LEN];
-    _Bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu) ? 1 : 0;
+    bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu);
 
     snprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu, cpu);
     submit(dom, "cpu_affinity", type_instance, &(value_t){.gauge = is_set}, 1);
@@ -1660,7 +1659,7 @@ static int lv_init_instance(size_t i, plugin_read_cb callback) {
 
   memset(lv_ud, 0, sizeof(*lv_ud));
 
-  snprintf(inst->tag, sizeof(inst->tag), "%s-%zu", PLUGIN_NAME, i);
+  snprintf(inst->tag, sizeof(inst->tag), "%s-%" PRIsz, PLUGIN_NAME, i);
   inst->id = i;
 
   user_data_t *ud = &(lv_ud->ud);
@@ -2106,7 +2105,7 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
   struct interface_device *new_ptr;
   int new_size =
       sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[15];
+  char *path_copy, *address_copy, number_string[21];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;

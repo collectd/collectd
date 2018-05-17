@@ -766,10 +766,7 @@ AC_CHECK_FUNCS_ONCE([ \
 AC_FUNC_STRERROR_R
 
 SAVE_CFLAGS="$CFLAGS"
-# Emulate behavior of src/Makefile.am
-if test "x$GCC" = "xyes"; then
-  CFLAGS="$CFLAGS -Wall -Werror"
-fi
+CFLAGS="-Wall -Werror"
 
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
@@ -1567,7 +1564,7 @@ if test "x$have_getmntent" = "xlibc"; then
               struct mntent *me;
               fh = setmntent ("/etc/mtab", "r");
               me = getmntent (fh);
-              return(me->mnt_passno);
+              return me->mnt_passno;
             ]]
           )
         ],
@@ -1590,7 +1587,7 @@ if test "x$have_getmntent" = "xlibc"; then
               int status;
               fh = fopen ("/etc/mnttab", "r");
               status = getmntent (fh, &mt);
-              return(status);
+              return status;
             ]]
           )
         ],
@@ -2635,6 +2632,7 @@ AC_ARG_WITH([libgrpc++],
     if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_libgrpcpp_cppflags="-I$withval/include"
       with_libgrpcpp_ldflags="-L$withval/lib"
+      with_libgrpcpp_bin="$withval/bin"
       with_libgrpcpp="yes"
     fi
     if test "x$withval" = "xno"; then
@@ -2714,7 +2712,11 @@ AC_SUBST([BUILD_WITH_LIBGRPCPP_LIBS])
 # }}}
 
 AC_ARG_VAR([GRPC_CPP_PLUGIN], [path to the grpc_cpp_plugin binary])
-AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+if test "x$with_libgrpcpp_bin" = "x"; then
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+else
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin], [], "$with_libgrpcpp_bin:$PATH")
+fi
 AM_CONDITIONAL([HAVE_GRPC_CPP], [test "x$GRPC_CPP_PLUGIN" != "x"])
 
 # --with-libiptc {{{
@@ -3044,18 +3046,33 @@ else
           PKG_CHECK_MODULES([LUA], [lua5.3],
             [with_liblua="yes"],
             [
-              PKG_CHECK_MODULES([LUA], [lua-5.2],
+              PKG_CHECK_MODULES([LUA], [lua53],
                 [with_liblua="yes"],
                 [
-                  PKG_CHECK_MODULES([LUA], [lua5.2],
+                  PKG_CHECK_MODULES([LUA], [lua-5.2],
                     [with_liblua="yes"],
                     [
-                      PKG_CHECK_MODULES([LUA], [lua-5.1],
+                      PKG_CHECK_MODULES([LUA], [lua5.2],
                         [with_liblua="yes"],
                         [
-                          PKG_CHECK_MODULES([LUA], [lua5.1],
+                          PKG_CHECK_MODULES([LUA], [lua52],
                             [with_liblua="yes"],
-                            [with_liblua="no (pkg-config cannot find liblua)"]
+                            [
+                              PKG_CHECK_MODULES([LUA], [lua-5.1],
+                                [with_liblua="yes"],
+                                [
+                                  PKG_CHECK_MODULES([LUA], [lua5.1],
+                                    [with_liblua="yes"],
+                                    [
+                                      PKG_CHECK_MODULES([LUA], [lua51],
+                                        [with_liblua="yes"],
+                                        [with_liblua="no (pkg-config cannot find liblua)"]
+                                      )
+                                    ]
+                                  )
+                                ]
+                              )
+                            ]
                           )
                         ]
                       )
@@ -3655,6 +3672,18 @@ if test "x$with_libmnl" = "xyes"; then
     [[#include <linux/if_link.h>]]
   )
 
+  AC_CHECK_MEMBERS([struct rtnl_link_stats.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_MEMBERS([struct rtnl_link_stats64.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
   AC_CHECK_LIB([mnl], [mnl_nlmsg_get_payload],
     [with_libmnl="yes"],
     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
@@ -3668,6 +3697,7 @@ if test "x$with_libmnl" = "xyes"; then
 fi
 AC_SUBST([BUILD_WITH_LIBMNL_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMNL_LIBS])
+AM_CONDITIONAL([HAVE_LIBMNL], [test "x$with_libmnl" = "xyes"])
 # }}}
 
 # --with-libnetapp {{{
@@ -4075,7 +4105,7 @@ if test "x$with_libpcap" = "xyes"; then
             [[#include <pcap.h>]],
             [[
               int val = PCAP_ERROR_IFACE_NOT_UP;
-              return(val);
+              return val;
             ]]
           )
         ],
@@ -5718,20 +5748,25 @@ if test "x$with_libvarnish" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $with_libvarnish_cflags"
 
-  AC_CHECK_HEADERS([vapi/vsc.h],
-    [AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
-    [
-      AC_CHECK_HEADERS([vsc.h],
-        [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support]) ],
-        [
-          AC_CHECK_HEADERS([varnishapi.h],
-            [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
-            [with_libvarnish="no (found none of the varnish header files)"]
-          )
-        ]
-      )
-    ]
-  )
+  $PKG_CONFIG --atleast-version=5.2 'varnishapi' 2>/dev/null
+  if test $? -eq 0; then
+    AC_DEFINE([HAVE_VARNISH_V5], [1], [Varnish 5 API support])
+  else
+    AC_CHECK_HEADERS([vapi/vsc.h],
+      [AC_DEFINE([HAVE_VARNISH_V4], [1], [Varnish 4 API support])],
+      [
+        AC_CHECK_HEADERS([vsc.h],
+          [AC_DEFINE([HAVE_VARNISH_V3], [1], [Varnish 3 API support]) ],
+          [
+            AC_CHECK_HEADERS([varnishapi.h],
+              [AC_DEFINE([HAVE_VARNISH_V2], [1], [Varnish 2 API support])],
+              [with_libvarnish="no (found none of the varnish header files)"]
+            )
+          ]
+        )
+      ]
+    )
+  fi
 
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
@@ -6373,8 +6408,18 @@ if test "x$with_libgps" = "xyes"; then
   plugin_gps="yes"
 fi
 
-if test "x$with_libgrpcpp" = "xyes" && test "x$with_libprotobuf" = "xyes" && test "x$have_protoc3" = "xyes" && test "x$GRPC_CPP_PLUGIN" != "x"; then
-  plugin_grpc="yes"
+plugin_grpc="yes"
+if test "x$GRPC_CPP_PLUGIN" = "x"; then
+  plugin_grpc="no (grpc_cpp_plugin not found)"
+fi
+if test "x$have_protoc3" != "xyes"; then
+  plugin_grpc="no (protoc3 not found)"
+fi
+if test "x$with_libprotobuf" != "xyes"; then
+  plugin_grpc="no (libprotobuf not found)"
+fi
+if test "x$with_libgrpcpp" != "xyes"; then
+  plugin_grpc="no (libgrpc++ not found)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then

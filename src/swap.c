@@ -74,14 +74,14 @@
 #if KERNEL_LINUX
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_bytes = 0;
-static _Bool report_by_device = 0;
+static bool report_bytes;
+static bool report_by_device;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_by_device = 0;
+static bool report_by_device;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
@@ -93,7 +93,7 @@ static _Bool report_by_device = 0;
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-static kvm_t *kvm_obj = NULL;
+static kvm_t *kvm_obj;
 int kvm_pagesize;
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
@@ -109,9 +109,9 @@ static int pagesize;
 #error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
-static _Bool report_io = 1;
+static bool values_absolute = true;
+static bool values_percentage;
+static bool report_io = true;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -203,10 +203,10 @@ static void swap_submit_usage(char const *plugin_instance, /* {{{ */
   sstrncpy(vl.type, "swap", sizeof(vl.type));
 
   if (values_absolute)
-    plugin_dispatch_multivalue(&vl, 0, DS_TYPE_GAUGE, "used", used, "free",
+    plugin_dispatch_multivalue(&vl, false, DS_TYPE_GAUGE, "used", used, "free",
                                free, other_name, other_value, NULL);
   if (values_percentage)
-    plugin_dispatch_multivalue(&vl, 1, DS_TYPE_GAUGE, "used", used, "free",
+    plugin_dispatch_multivalue(&vl, true, DS_TYPE_GAUGE, "used", used, "free",
                                free, other_name, other_value, NULL);
 } /* }}} void swap_submit_usage */
 
@@ -234,9 +234,7 @@ static int swap_read_separate(void) /* {{{ */
 
   fh = fopen("/proc/swaps", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("swap plugin: fopen (/proc/swaps) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: fopen (/proc/swaps) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -291,9 +289,7 @@ static int swap_read_combined(void) /* {{{ */
 
   fh = fopen("/proc/meminfo", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s", STRERRNO);
     return -1;
   }
 
@@ -339,7 +335,7 @@ static int swap_read_io(void) /* {{{ */
   FILE *fh;
   char buffer[1024];
 
-  _Bool old_kernel = 0;
+  bool old_kernel = false;
 
   uint8_t have_data = 0;
   derive_t swap_in = 0;
@@ -350,11 +346,10 @@ static int swap_read_io(void) /* {{{ */
     /* /proc/vmstat does not exist in kernels <2.6 */
     fh = fopen("/proc/stat", "r");
     if (fh == NULL) {
-      char errbuf[1024];
-      WARNING("swap: fopen: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      WARNING("swap: fopen: %s", STRERRNO);
       return -1;
     } else
-      old_kernel = 1;
+      old_kernel = true;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -436,9 +431,7 @@ static int swap_read_kstat(void) /* {{{ */
   struct anoninfo ai;
 
   if (swapctl(SC_AINFO, &ai) == -1) {
-    char errbuf[1024];
-    ERROR("swap plugin: swapctl failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("swap plugin: swapctl failed: %s", STRERRNO);
     return -1;
   }
 
@@ -513,9 +506,7 @@ static int swap_read(void) /* {{{ */
 
   status = swapctl(SC_LIST, s);
   if (status < 0) {
-    char errbuf[1024];
-    ERROR("swap plugin: swapctl (SC_LIST) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("swap plugin: swapctl (SC_LIST) failed: %s", STRERRNO);
     sfree(s_paths);
     sfree(s);
     return -1;
@@ -565,7 +556,7 @@ static int swap_read(void) /* {{{ */
     return -1;
   }
 
-  /* If the "separate" option was specified (report_by_device == 1), all
+  /* If the "separate" option was specified (report_by_device == true) all
    * values have already been dispatched from within the loop. */
   if (!report_by_device)
     swap_submit_usage(NULL, total - avail, avail, NULL, NAN);
@@ -719,9 +710,7 @@ static int swap_read(void) /* {{{ */
   status =
       perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
   if (status < 0) {
-    char errbuf[1024];
-    WARNING("swap plugin: perfstat_memory_total failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    WARNING("swap plugin: perfstat_memory_total failed: %s", STRERRNO);
     return -1;
   }
 

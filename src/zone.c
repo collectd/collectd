@@ -68,9 +68,7 @@ static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
   }
 
   if (sread(fd, buf, bufsize) != 0) {
-    char errbuf[1024];
-    ERROR("zone plugin: Reading \"%s\" failed: %s", procfile,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("zone plugin: Reading \"%s\" failed: %s", procfile, STRERRNO);
     close(fd);
     return 1;
   }

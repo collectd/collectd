@@ -43,11 +43,15 @@
 #include <statgrab.h>
 #endif
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #ifndef COLLECTD_LOCALE
 #define COLLECTD_LOCALE "C"
 #endif
 
-static int loop = 0;
+static int loop;
 
 static void *do_flush(void __attribute__((unused)) * arg) {
   INFO("Flushing all data.");
@@ -152,15 +156,14 @@ static int init_global_variables(void) {
   return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir, _Bool create) {
+static int change_basedir(const char *orig_dir, bool create) {
   char *dir;
   size_t dirlen;
   int status;
 
   dir = strdup(orig_dir);
   if (dir == NULL) {
-    char errbuf[1024];
-    ERROR("strdup failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("strdup failed: %s", STRERRNO);
     return -1;
   }
 
@@ -178,27 +181,21 @@ static int change_basedir(const char *orig_dir, _Bool create) {
     free(dir);
     return 0;
   } else if (!create || (errno != ENOENT)) {
-    char errbuf[1024];
-    ERROR("change_basedir: chdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: chdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
 
   status = mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: mkdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: mkdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
 
   status = chdir(dir);
   if (status != 0) {
-    char errbuf[1024];
-    ERROR("change_basedir: chdir (%s): %s", dir,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("change_basedir: chdir (%s): %s", dir, STRERRNO);
     free(dir);
     return -1;
   }
@@ -208,6 +205,7 @@ static int change_basedir(const char *orig_dir, _Bool create) {
 } /* static int change_basedir (char *dir) */
 
 #if HAVE_LIBKSTAT
+extern kstat_ctl_t *kc;
 static void update_kstat(void) {
   if (kc == NULL) {
     if ((kc = kstat_open()) == NULL)
@@ -322,8 +320,7 @@ static int do_loop(void) {
 
     while ((loop == 0) && (nanosleep(&ts_wait, &ts_wait) != 0)) {
       if (errno != EINTR) {
-        char errbuf[1024];
-        ERROR("nanosleep failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("nanosleep failed: %s", STRERRNO);
         return -1;
       }
     }
@@ -342,8 +339,7 @@ static int pidfile_create(void) {
   const char *file = global_option_get("PIDFile");
 
   if ((fh = fopen(file, "w")) == NULL) {
-    char errbuf[1024];
-    ERROR("fopen (%s): %s", file, sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fopen (%s): %s", file, STRERRNO);
     return 1;
   }
 
@@ -376,7 +372,7 @@ static int notify_upstart(void) {
     return 0;
   }
 
-  NOTICE("Upstart detected, stopping now to signal readyness.");
+  NOTICE("Upstart detected, stopping now to signal readiness.");
   raise(SIGSTOP);
   unsetenv("UPSTART_JOB");
 
@@ -401,7 +397,7 @@ static int notify_systemd(void) {
           notifysocket);
     return 0;
   }
-  NOTICE("Systemd detected, trying to signal readyness.");
+  NOTICE("Systemd detected, trying to signal readiness.");
 
   unsetenv("NOTIFY_SOCKET");
 
@@ -411,9 +407,7 @@ static int notify_systemd(void) {
   fd = socket(AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
 #endif
   if (fd < 0) {
-    char errbuf[1024];
-    ERROR("creating UNIX socket failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("creating UNIX socket failed: %s", STRERRNO);
     return 0;
   }
 
@@ -436,9 +430,7 @@ static int notify_systemd(void) {
 
   if (sendto(fd, buffer, strlen(buffer), MSG_NOSIGNAL, (void *)&su,
              (socklen_t)su_size) < 0) {
-    char errbuf[1024];
-    ERROR("sendto(\"%s\") failed: %s", notifysocket,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("sendto(\"%s\") failed: %s", notifysocket, STRERRNO);
     close(fd);
     return 0;
   }
@@ -450,14 +442,14 @@ static int notify_systemd(void) {
 #endif /* KERNEL_LINUX */
 
 struct cmdline_config {
-  _Bool test_config;
-  _Bool test_readall;
-  _Bool create_basedir;
+  bool test_config;
+  bool test_readall;
+  bool create_basedir;
   const char *configfile;
-  _Bool daemonize;
+  bool daemonize;
 };
 
-void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
+static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c;
@@ -472,19 +464,19 @@ void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
 
     switch (c) {
     case 'B':
-      config->create_basedir = 0;
+      config->create_basedir = false;
       break;
     case 'C':
       config->configfile = optarg;
       break;
     case 't':
-      config->test_config = 1;
+      config->test_config = true;
       break;
     case 'T':
-      config->test_readall = 1;
+      config->test_readall = true;
       global_option_set("ReadThreads", "-1", 1);
 #if COLLECT_DAEMON
-      config->daemonize = 0;
+      config->daemonize = false;
 #endif /* COLLECT_DAEMON */
       break;
 #if COLLECT_DAEMON
@@ -492,19 +484,18 @@ void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
       global_option_set("PIDFile", optarg, 1);
       break;
     case 'f':
-      config->daemonize = 0;
+      config->daemonize = false;
       break;
 #endif /* COLLECT_DAEMON */
     case 'h':
       exit_usage(0);
-      break;
     default:
       exit_usage(1);
     } /* switch (c) */
   }   /* while (1) */
 }
 
-int configure_collectd(struct cmdline_config *config) {
+static int configure_collectd(struct cmdline_config *config) {
   const char *basedir;
   /*
    * Read options from the config file, the environment and the command
@@ -550,7 +541,7 @@ int main(int argc, char **argv) {
   int exit_status = 0;
 
   struct cmdline_config config = {
-      .daemonize = 1, .create_basedir = 1, .configfile = CONFIGFILE,
+      .daemonize = true, .create_basedir = true, .configfile = CONFIGFILE,
   };
 
   read_cmdline(argc, argv, &config);
@@ -563,8 +554,7 @@ int main(int argc, char **argv) {
 
   plugin_init_ctx();
 
-  int status;
-  if ((status = configure_collectd(&config)) != 0)
+  if (configure_collectd(&config) != 0)
     exit(EXIT_FAILURE);
 
 #if COLLECT_DAEMON
@@ -588,8 +578,7 @@ int main(int argc, char **argv) {
 
     if ((pid = fork()) == -1) {
       /* error */
-      char errbuf[1024];
-      fprintf(stderr, "fork: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      fprintf(stderr, "fork: %s", STRERRNO);
       return 1;
     } else if (pid != 0) {
       /* parent */
@@ -642,27 +631,24 @@ int main(int argc, char **argv) {
   struct sigaction sig_int_action = {.sa_handler = sig_int_handler};
 
   if (0 != sigaction(SIGINT, &sig_int_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal INT: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
   struct sigaction sig_term_action = {.sa_handler = sig_term_handler};
 
   if (0 != sigaction(SIGTERM, &sig_term_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal TERM: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 
   struct sigaction sig_usr1_action = {.sa_handler = sig_usr1_handler};
 
   if (0 != sigaction(SIGUSR1, &sig_usr1_action, NULL)) {
-    char errbuf[1024];
     ERROR("Error: Failed to install a signal handler for signal USR1: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          STRERRNO);
     return 1;
   }
 

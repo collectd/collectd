@@ -70,16 +70,16 @@ typedef struct {
  * Private variables
  */
 /* Default values for contacting daemon */
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 /* Defaults to false for backwards compatibility. */
-static _Bool conf_report_seconds = 0;
-static _Bool conf_persistent_conn = 1;
+static bool conf_report_seconds;
+static bool conf_persistent_conn = true;
 
 static int global_sockfd = -1;
 
-static int count_retries = 0;
-static int count_iterations = 0;
+static int count_retries;
+static int count_iterations;
 
 static int net_shutdown(int *fd) {
   uint16_t packet_size = 0;
@@ -119,10 +119,8 @@ static int net_open(char const *node, char const *service) {
 
   status = getaddrinfo(node, service, &ai_hints, &ai_return);
   if (status != 0) {
-    char errbuf[1024];
     INFO("apcups plugin: getaddrinfo failed: %s",
-         (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                : gai_strerror(status));
+         (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -147,9 +145,7 @@ static int net_open(char const *node, char const *service) {
 
   if (status != 0) /* `connect(2)' failed */
   {
-    char errbuf[1024];
-    INFO("apcups plugin: connect failed: %s",
-         sstrerror(errno, errbuf, sizeof(errbuf)));
+    INFO("apcups plugin: connect failed: %s", STRERRNO);
     close(sd);
     return -1;
   }
@@ -240,7 +236,8 @@ static int apc_query_server(char const *node, char const *service,
   char recvline[1024];
   char *tokptr;
   char *toksaveptr;
-  int try = 0;
+  int try
+    = 0;
   int status;
 
 #if APCMAIN
@@ -265,7 +262,8 @@ static int apc_query_server(char const *node, char const *service,
       /* net_send closes the socket on error. */
       assert(global_sockfd < 0);
       if (try == 0) {
-        try++;
+        try
+          ++;
         count_retries++;
         continue;
       }
@@ -287,7 +285,7 @@ static int apc_query_server(char const *node, char const *service,
            "first %i iterations. Will close the socket "
            "in future iterations.",
            count_retries, count_iterations);
-    conf_persistent_conn = 0;
+    conf_persistent_conn = false;
   }
 
   while ((n = net_recv(&global_sockfd, recvline, sizeof(recvline) - 1)) > 0) {
@@ -341,9 +339,7 @@ static int apc_query_server(char const *node, char const *service,
     net_shutdown(&global_sockfd);
 
   if (n < 0) {
-    char errbuf[1024];
-    ERROR("apcups plugin: Reading from socket failed: %s",
-          sstrerror(status, errbuf, sizeof(errbuf)));
+    ERROR("apcups plugin: Reading from socket failed: %s", STRERROR(status));
     return -1;
   }
 
@@ -351,7 +347,7 @@ static int apc_query_server(char const *node, char const *service,
 }
 
 static int apcups_config(oconfig_item_t *ci) {
-  _Bool persistent_conn_set = 0;
+  bool persistent_conn_set = false;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -364,7 +360,7 @@ static int apcups_config(oconfig_item_t *ci) {
       cf_util_get_boolean(child, &conf_report_seconds);
     else if (strcasecmp(child->key, "PersistentConnection") == 0) {
       cf_util_get_boolean(child, &conf_persistent_conn);
-      persistent_conn_set = 1;
+      persistent_conn_set = true;
     } else
       ERROR("apcups plugin: Unknown config option \"%s\".", child->key);
   }
@@ -376,7 +372,7 @@ static int apcups_config(oconfig_item_t *ci) {
              "Apcupsd NIS socket timeout is %.3f seconds, "
              "PersistentConnection disabled by default.",
              interval, APCUPS_SERVER_TIMEOUT);
-      conf_persistent_conn = 0;
+      conf_persistent_conn = false;
     }
   }
 
@@ -424,8 +420,8 @@ static int apcups_read(void) {
   int status = apc_query_server(conf_node, conf_service, &apcups_detail);
 
   if (status != 0) {
-    DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d",
-          conf_node, conf_service, status);
+    DEBUG("apcups plugin: apc_query_server (\"%s\", \"%s\") = %d", conf_node,
+          conf_service, status);
     return status;
   }
 

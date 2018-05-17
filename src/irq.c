@@ -37,7 +37,7 @@
 static const char *config_keys[] = {"Irq", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
 /*
  * Private functions
@@ -90,9 +90,7 @@ static int irq_read(void) {
    */
   fh = fopen("/proc/interrupts", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    ERROR("irq plugin: fopen (/proc/interrupts): %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("irq plugin: fopen (/proc/interrupts): %s", STRERRNO);
     return -1;
   }
 

@@ -39,7 +39,7 @@ static int parse_ds(data_source_t *dsrc, char *buf, size_t buf_len) {
   int fields_num;
 
   if (buf_len < 11) {
-    ERROR("parse_ds: (buf_len = %zu) < 11", buf_len);
+    ERROR("parse_ds: (buf_len = %" PRIsz ") < 11", buf_len);
     return -1;
   }
 
@@ -121,8 +121,8 @@ static void parse_line(char *buf) {
 
   for (size_t i = 0; i < ds->ds_num; i++)
     if (parse_ds(ds->ds + i, fields[i + 1], strlen(fields[i + 1])) != 0) {
-      ERROR("types_list: parse_line: Cannot parse data source #%zu "
-            "of data set %s",
+      ERROR("types_list: parse_line: Cannot parse data source #%" PRIsz
+            " of data set %s",
             i, ds->type);
       sfree(ds->ds);
       sfree(ds);
@@ -174,11 +174,9 @@ int read_types_list(const char *file) {
 
   fh = fopen(file, "r");
   if (fh == NULL) {
-    char errbuf[1024];
     fprintf(stderr, "Failed to open types database `%s': %s.\n", file,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
-    ERROR("Failed to open types database `%s': %s", file,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
+    ERROR("Failed to open types database `%s': %s", file, STRERRNO);
     return -1;
   }
 

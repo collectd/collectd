@@ -86,9 +86,9 @@ static ow_family_features_t ow_family_features[] = {
      /* features_num = */ 1}};
 static int ow_family_features_num = STATIC_ARRAY_SIZE(ow_family_features);
 
-static char *device_g = NULL;
-static cdtime_t ow_interval = 0;
-static _Bool direct_access = 0;
+static char *device_g;
+static cdtime_t ow_interval;
+static bool direct_access;
 
 static const char *config_keys[] = {"Device", "IgnoreSelected", "Sensor",
                                     "Interval"};
@@ -96,7 +96,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *sensor_list;
 
-static _Bool regex_direct_initialized = 0;
+static bool regex_direct_initialized;
 static regex_t regex_direct;
 
 /**
@@ -109,7 +109,7 @@ typedef struct direct_access_element_s {
   struct direct_access_element_s *next; /**< Next in the list */
 } direct_access_element_t;
 
-static direct_access_element_t *direct_list = NULL;
+static direct_access_element_t *direct_list;
 
 /* ===================================================================================
  */
@@ -171,7 +171,7 @@ static int direct_list_insert(const char *config) {
       direct_list_element_free(element);
       return 1;
     }
-    regex_direct_initialized = 1;
+    regex_direct_initialized = true;
     DEBUG("onewire plugin: Compiled regex!!");
   }
 
@@ -246,7 +246,7 @@ static int cow_load_config(const char *key, const char *value) {
       }
     } else {
       DEBUG("onewire plugin: %s is a direct access", value);
-      direct_access = 1;
+      direct_access = true;
     }
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     ignorelist_set_invert(sensor_list, 1);
@@ -293,7 +293,6 @@ static int cow_read_values(const char *path, const char *name,
     char *buffer;
     size_t buffer_size;
     int status;
-    char errbuf[1024];
 
     char file[4096];
     char *endptr;
@@ -308,8 +307,7 @@ static int cow_read_values(const char *path, const char *name,
     status = OW_get(file, &buffer, &buffer_size);
     if (status < 0) {
       ERROR("onewire plugin: OW_get (%s/%s) failed. error = %s;", path,
-            family_info->features[i].filename,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            family_info->features[i].filename, STRERRNO);
       return -1;
     }
     DEBUG("Read onewire device %s as %s", file, buffer);
@@ -365,7 +363,6 @@ static int cow_read_bus(const char *path) {
   char *buffer;
   size_t buffer_size;
   int status;
-  char errbuf[1024];
 
   char *buffer_ptr;
   char *dummy;
@@ -374,8 +371,7 @@ static int cow_read_bus(const char *path) {
 
   status = OW_get(path, &buffer, &buffer_size);
   if (status < 0) {
-    ERROR("onewire plugin: OW_get (%s) failed. error = %s;", path,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("onewire plugin: OW_get (%s) failed. error = %s;", path, STRERRNO);
     return -1;
   }
   DEBUG("onewire plugin: OW_get (%s) returned: %s", path, buffer);
@@ -426,7 +422,6 @@ static int cow_simple_read(void) {
   char *buffer;
   size_t buffer_size;
   int status;
-  char errbuf[1024];
   char *endptr;
   direct_access_element_t *traverse;
 
@@ -438,7 +433,7 @@ static int cow_simple_read(void) {
     status = OW_get(traverse->path, &buffer, &buffer_size);
     if (status < 0) {
       ERROR("onewire plugin: OW_get (%s) failed. status = %s;", traverse->path,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            STRERRNO);
       return -1;
     }
     DEBUG("onewire plugin: Read onewire device %s as %s", traverse->path,
@@ -507,7 +502,6 @@ static int cow_shutdown(void) {
 
 static int cow_init(void) {
   int status;
-  char errbuf[1024];
 
   if (device_g == NULL) {
     ERROR("onewire plugin: cow_init: No device configured.");
@@ -517,8 +511,7 @@ static int cow_init(void) {
   DEBUG("onewire plugin: about to init device <%s>.", device_g);
   status = (int)OW_init(device_g);
   if (status != 0) {
-    ERROR("onewire plugin: OW_init(%s) failed: %s.", device_g,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("onewire plugin: OW_init(%s) failed: %s.", device_g, STRERRNO);
     return 1;
   }
 

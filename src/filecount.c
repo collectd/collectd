@@ -60,10 +60,10 @@ struct fc_directory_conf_s {
 };
 typedef struct fc_directory_conf_s fc_directory_conf_t;
 
-static fc_directory_conf_t **directories = NULL;
-static size_t directories_num = 0;
+static fc_directory_conf_t **directories;
+static size_t directories_num;
 
-void fc_free_dir(fc_directory_conf_t *dir) {
+static void fc_free_dir(fc_directory_conf_t *dir) {
   sfree(dir->path);
   sfree(dir->plugin_name);
   sfree(dir->instance);

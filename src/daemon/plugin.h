@@ -147,7 +147,7 @@ typedef struct notification_meta_s {
     int64_t nm_signed_int;
     uint64_t nm_unsigned_int;
     double nm_double;
-    _Bool nm_boolean;
+    bool nm_boolean;
   } nm_value;
   struct notification_meta_s *next;
 } notification_meta_t;
@@ -230,7 +230,7 @@ void plugin_set_dir(const char *dir);
  *  Re-loading an already loaded module is detected and zero is returned in
  *  this case.
  */
-int plugin_load(const char *name, _Bool global);
+int plugin_load(const char *name, bool global);
 
 int plugin_init_all(void);
 void plugin_read_all(void);
@@ -346,7 +346,7 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  plugin_dispatch_multivalue
  *
  * SYNOPSIS
- *  plugin_dispatch_multivalue (vl, 1, DS_TYPE_GAUGE,
+ *  plugin_dispatch_multivalue (vl, true, DS_TYPE_GAUGE,
  *                              "free", 42.0,
  *                              "used", 58.0,
  *                              NULL);
@@ -374,7 +374,7 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  The number of values it failed to dispatch (zero on success).
  */
 __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
-                                                         _Bool store_percentage,
+                                                         bool store_percentage,
                                                          int store_type, ...);
 
 int plugin_dispatch_missing(const value_list_t *vl);
@@ -409,7 +409,7 @@ int plugin_notification_meta_add_unsigned_int(notification_t *n,
 int plugin_notification_meta_add_double(notification_t *n, const char *name,
                                         double value);
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
-                                         _Bool value);
+                                         bool value);
 
 int plugin_notification_meta_copy(notification_t *dst,
                                   const notification_t *src);

@@ -105,6 +105,7 @@
 #define OVS_DB_POLL_READ_BLOCK_SIZE 512 /* read block size (bytes) */
 #define OVS_DB_DEFAULT_DB_NAME "Open_vSwitch"
 
+#define OVS_DB_EVENT_NONE 0
 #define OVS_DB_EVENT_TIMEOUT 5 /* event thread timeout (sec) */
 #define OVS_DB_EVENT_TERMINATE 1
 #define OVS_DB_EVENT_CONN_ESTABLISHED 2
@@ -190,7 +191,7 @@ struct ovs_db_s {
 };
 
 /* Global variables */
-static uint64_t ovs_uid = 0;
+static uint64_t ovs_uid;
 static pthread_mutex_t ovs_uid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Post an event to event thread.
@@ -208,7 +209,7 @@ static void ovs_db_event_post(ovs_db_t *pdb, int event) {
 
 /* Check if POLL thread is still running. Returns
  * 1 if running otherwise 0 is returned */
-static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
+static bool ovs_db_poll_is_running(ovs_db_t *pdb) {
   int state = 0;
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   state = pdb->poll_thread.state;
@@ -263,12 +264,11 @@ static void ovs_db_callback_remove(ovs_db_t *pdb, ovs_callback_t *del_cb) {
 /* Remove all callbacks form OVS DB object */
 static void ovs_db_callback_remove_all(ovs_db_t *pdb) {
   pthread_mutex_lock(&pdb->mutex);
-  for (ovs_callback_t *del_cb = pdb->remote_cb; pdb->remote_cb;
-       del_cb = pdb->remote_cb) {
+  while (pdb->remote_cb != NULL) {
+    ovs_callback_t *del_cb = pdb->remote_cb;
     pdb->remote_cb = del_cb->next;
-    free(del_cb);
+    sfree(del_cb);
   }
-  pdb->remote_cb = NULL;
   pthread_mutex_unlock(&pdb->mutex);
 }
 
@@ -560,7 +560,7 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
     return -1;
 
   sstrncpy(sjson, data, len + 1);
-  OVS_DEBUG("[len=%zu] %s", len, sjson);
+  OVS_DEBUG("[len=%" PRIsz "] %s", len, sjson);
 
   /* parse json data */
   jnode = yajl_tree_parse(sjson, yajl_errbuf, sizeof(yajl_errbuf));
@@ -751,21 +751,18 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
   }
   /* try to connect to the server */
   for (struct addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
-    char errbuff[OVS_ERROR_BUFF_SIZE];
     int sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
     if (sock < 0) {
-      sstrerror(errno, errbuff, sizeof(errbuff));
-      OVS_DEBUG("socket(): %s", errbuff);
+      OVS_DEBUG("socket(): %s", STRERRNO);
       continue;
     }
     if (connect(sock, rp->ai_addr, rp->ai_addrlen) < 0) {
       close(sock);
-      sstrerror(errno, errbuff, sizeof(errbuff));
-      OVS_DEBUG("connect(): %s [family=%d]", errbuff, rp->ai_family);
+      OVS_DEBUG("connect(): %s [family=%d]", STRERRNO, rp->ai_family);
     } else {
       /* send notification to event thread */
-      ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
       pdb->sock = sock;
+      ovs_db_event_post(pdb, OVS_DB_EVENT_CONN_ESTABLISHED);
       break;
     }
   }
@@ -796,12 +793,10 @@ static void *ovs_poll_worker(void *arg) {
 
   /* poll data */
   while (ovs_db_poll_is_running(pdb)) {
-    char errbuff[OVS_ERROR_BUFF_SIZE];
     poll_fd.fd = pdb->sock;
     int poll_ret = poll(&poll_fd, 1, /* ms */ OVS_DB_POLL_TIMEOUT * 1000);
     if (poll_ret < 0) {
-      sstrerror(errno, errbuff, sizeof(errbuff));
-      OVS_ERROR("poll(): %s", errbuff);
+      OVS_ERROR("poll(): %s", STRERRNO);
       break;
     } else if (poll_ret == 0) {
       OVS_DEBUG("poll(): timeout");
@@ -827,8 +822,7 @@ static void *ovs_poll_worker(void *arg) {
       char buff[OVS_DB_POLL_READ_BLOCK_SIZE];
       ssize_t nbytes = recv(poll_fd.fd, buff, sizeof(buff), 0);
       if (nbytes < 0) {
-        sstrerror(errno, errbuff, sizeof(errbuff));
-        OVS_ERROR("recv(): %s", errbuff);
+        OVS_ERROR("recv(): %s", STRERRNO);
         /* read error? Try to reconnect */
         close(poll_fd.fd);
         continue;
@@ -869,26 +863,30 @@ static void *ovs_event_worker(void *arg) {
     ts.tv_sec += (OVS_DB_EVENT_TIMEOUT);
     int ret = pthread_cond_timedwait(&pdb->event_thread.cond,
                                      &pdb->event_thread.mutex, &ts);
-    if (!ret) {
+    if (!ret || ret == ETIMEDOUT) {
       /* handle the event */
       OVS_DEBUG("handle event %d", pdb->event_thread.value);
       switch (pdb->event_thread.value) {
       case OVS_DB_EVENT_CONN_ESTABLISHED:
         if (pdb->cb.post_conn_init)
           pdb->cb.post_conn_init(pdb);
+        /* reset event */
+        pdb->event_thread.value = OVS_DB_EVENT_NONE;
         break;
       case OVS_DB_EVENT_CONN_TERMINATED:
         if (pdb->cb.post_conn_terminate)
           pdb->cb.post_conn_terminate();
+        /* reset event */
+        pdb->event_thread.value = OVS_DB_EVENT_NONE;
+        break;
+      case OVS_DB_EVENT_NONE:
+        /* wait timeout */
+        OVS_DEBUG("no event received (timeout)");
         break;
       default:
         OVS_DEBUG("unknown event received");
         break;
       }
-    } else if (ret == ETIMEDOUT) {
-      /* wait timeout */
-      OVS_DEBUG("no event received (timeout)");
-      continue;
     } else {
       /* unexpected error */
       OVS_ERROR("pthread_cond_timedwait() failed");
@@ -902,7 +900,7 @@ static void *ovs_event_worker(void *arg) {
 
 /* Initialize EVENT thread */
 static int ovs_db_event_thread_init(ovs_db_t *pdb) {
-  pdb->event_thread.tid = (pthread_t)-1;
+  pdb->event_thread.tid = (pthread_t){0};
   /* init event thread condition variable */
   if (pthread_cond_init(&pdb->event_thread.cond, NULL)) {
     return -1;
@@ -934,11 +932,12 @@ static int ovs_db_event_thread_init(ovs_db_t *pdb) {
   return 0;
 }
 
-/* Destroy EVENT thread */
-static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->event_thread.tid == (pthread_t)-1)
-    /* already destroyed */
+/* Terminate EVENT thread */
+static int ovs_db_event_thread_terminate(ovs_db_t *pdb) {
+  if (pthread_equal(pdb->event_thread.tid, (pthread_t){0})) {
+    /* already terminated */
     return 0;
+  }
   ovs_db_event_post(pdb, OVS_DB_EVENT_TERMINATE);
   if (pthread_join(pdb->event_thread.tid, NULL) != 0)
     return -1;
@@ -946,16 +945,21 @@ static int ovs_db_event_thread_destroy(ovs_db_t *pdb) {
    * performs some task (handles event) and releases it when
    * while sleeping. Thus, if event thread exits, the mutex
    * remains locked */
+  pdb->event_thread.tid = (pthread_t){0};
   pthread_mutex_unlock(&pdb->event_thread.mutex);
+  return 0;
+}
+
+/* Destroy EVENT thread private data */
+static void ovs_db_event_thread_data_destroy(ovs_db_t *pdb) {
+  /* destroy mutex */
   pthread_mutex_destroy(&pdb->event_thread.mutex);
   pthread_cond_destroy(&pdb->event_thread.cond);
-  pdb->event_thread.tid = (pthread_t)-1;
-  return 0;
 }
 
 /* Initialize POLL thread */
 static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
-  pdb->poll_thread.tid = (pthread_t)-1;
+  pdb->poll_thread.tid = (pthread_t){0};
   /* init event thread mutex */
   if (pthread_mutex_init(&pdb->poll_thread.mutex, NULL)) {
     return -1;
@@ -973,10 +977,12 @@ static int ovs_db_poll_thread_init(ovs_db_t *pdb) {
 }
 
 /* Destroy POLL thread */
+/* XXX: Must hold pdb->mutex when calling! */
 static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
-  if (pdb->poll_thread.tid == (pthread_t)-1)
+  if (pthread_equal(pdb->poll_thread.tid, (pthread_t){0})) {
     /* already destroyed */
     return 0;
+  }
   /* change thread state */
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   pdb->poll_thread.state = OVS_DB_POLL_STATE_EXITING;
@@ -985,7 +991,7 @@ static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
   if (pthread_join(pdb->poll_thread.tid, NULL) != 0)
     return -1;
   pthread_mutex_destroy(&pdb->poll_thread.mutex);
-  pdb->poll_thread.tid = (pthread_t)-1;
+  pdb->poll_thread.tid = (pthread_t){0};
   return 0;
 }
 
@@ -995,14 +1001,17 @@ static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
 
 ovs_db_t *ovs_db_init(const char *node, const char *service,
                       const char *unix_path, ovs_db_callback_t *cb) {
+  int ret;
+
   /* sanity check */
   if (node == NULL || service == NULL || unix_path == NULL)
     return NULL;
 
   /* allocate db data & fill it */
-  ovs_db_t *pdb = pdb = calloc(1, sizeof(*pdb));
+  ovs_db_t *pdb = calloc(1, sizeof(*pdb));
   if (pdb == NULL)
     return NULL;
+  pdb->sock = -1;
 
   /* store the OVS DB address */
   sstrncpy(pdb->node, node, sizeof(pdb->node));
@@ -1039,17 +1048,25 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
 
   /* init event thread */
   if (ovs_db_event_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
-    return NULL;
+    ret = ovs_db_destroy(pdb);
+    if (ret > 0)
+      goto failure;
   }
 
   /* init polling thread */
-  pdb->sock = -1;
   if (ovs_db_poll_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
-    return NULL;
+    ret = ovs_db_destroy(pdb);
+    if (ret > 0) {
+      ovs_db_event_thread_data_destroy(pdb);
+      goto failure;
+    }
   }
   return pdb;
+
+failure:
+  pthread_mutex_destroy(&pdb->mutex);
+  sfree(pdb);
+  return NULL;
 }
 
 int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
@@ -1250,23 +1267,28 @@ int ovs_db_destroy(ovs_db_t *pdb) {
   if (pdb == NULL)
     return -1;
 
+  /* stop event thread */
+  if (ovs_db_event_thread_terminate(pdb) < 0) {
+    OVS_ERROR("stop event thread failed");
+    ovs_db_ret = -1;
+  }
+
   /* try to lock the structure before releasing */
   if ((ret = pthread_mutex_lock(&pdb->mutex))) {
     OVS_ERROR("pthread_mutex_lock() DB mutex lock failed (%d)", ret);
-    return -1;
+    return ret;
   }
 
-  /* stop poll thread */
-  if (ovs_db_event_thread_destroy(pdb) < 0) {
-    OVS_ERROR("destroy poll thread failed");
-    ovs_db_ret = (-1);
-  }
-
-  /* stop event thread */
+  /* stop poll thread and destroy thread's private data */
   if (ovs_db_poll_thread_destroy(pdb) < 0) {
-    OVS_ERROR("stop event thread failed");
-    ovs_db_ret = (-1);
+    OVS_ERROR("destroy poll thread failed");
+    ovs_db_ret = -1;
   }
+
+  /* destroy event thread private data */
+  ovs_db_event_thread_data_destroy(pdb);
+
+  pthread_mutex_unlock(&pdb->mutex);
 
   /* unsubscribe callbacks */
   ovs_db_callback_remove_all(pdb);
@@ -1276,7 +1298,6 @@ int ovs_db_destroy(ovs_db_t *pdb) {
     close(pdb->sock);
 
   /* release DB handler */
-  pthread_mutex_unlock(&pdb->mutex);
   pthread_mutex_destroy(&pdb->mutex);
   sfree(pdb);
   return ovs_db_ret;
@@ -1354,15 +1375,18 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
 
   /* check first element of the array */
   str_val = YAJL_GET_STRING(array_values[0]);
-  if (strcmp("map", str_val) != 0)
+  if (str_val == NULL || strcmp("map", str_val) != 0)
     return NULL;
 
   /* try to find map value by map key */
+  if (YAJL_GET_ARRAY(array_values[1]) == NULL)
+    return NULL;
+
   map_len = YAJL_GET_ARRAY(array_values[1])->len;
   map_values = YAJL_GET_ARRAY(array_values[1])->values;
   for (size_t i = 0; i < map_len; i++) {
     /* check YAJL array */
-    if (!YAJL_IS_ARRAY(map_values[i]))
+    if (!YAJL_IS_ARRAY(map_values[i]) || YAJL_GET_ARRAY(map_values[i]) == NULL)
       break;
 
     /* check a database pair value (2-element, first one represents a key
@@ -1374,7 +1398,7 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
 
     /* return map value if given key equals map key */
     str_val = YAJL_GET_STRING(array_values[0]);
-    if (strcmp(key, str_val) == 0)
+    if (str_val != NULL && strcmp(key, str_val) == 0)
       return array_values[1];
   }
   return NULL;

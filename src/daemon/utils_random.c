@@ -32,7 +32,7 @@
 #include <pthread.h>
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-static _Bool have_seed = 0;
+static bool have_seed;
 static unsigned short seed[3];
 
 static void cdrand_seed(void) {
@@ -47,7 +47,7 @@ static void cdrand_seed(void) {
   seed[1] = (unsigned short)(t >> 16);
   seed[2] = (unsigned short)(t >> 32);
 
-  have_seed = 1;
+  have_seed = true;
 }
 
 double cdrand_d(void) {

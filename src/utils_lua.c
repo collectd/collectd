@@ -28,8 +28,8 @@
  * GCC will complain about the macro definition. */
 #define DONT_POISON_SPRINTF_YET
 
-#include "utils_lua.h"
 #include "common.h"
+#include "utils_lua.h"
 
 static int ltoc_values(lua_State *L, /* {{{ */
                        const data_set_t *ds, value_t *ret_values) {
@@ -57,8 +57,8 @@ static int ltoc_values(lua_State *L, /* {{{ */
   } /* while (lua_next) */
 
   if (i != ds->ds_num) {
-    WARNING("ltoc_values: invalid size for datasource \"%s\": expected %zu, "
-            "got %zu",
+    WARNING("ltoc_values: invalid size for datasource \"%s\": expected %" PRIsz
+            ", got %" PRIsz,
             ds->type, ds->ds_num, i);
     return -1;
   }

@@ -37,10 +37,10 @@
 /*
  * Private variables
  */
-static char *datadir = NULL;
-static char *daemon_address = NULL;
-static _Bool config_create_files = 1;
-static _Bool config_collect_stats = 1;
+static char *datadir;
+static char *daemon_address;
+static bool config_create_files = true;
+static bool config_collect_stats = true;
 static rrdcreate_config_t rrdcreate_config = {
     /* stepsize = */ 0,
     /* heartbeat = */ 0,
@@ -88,8 +88,8 @@ static int value_list_to_string(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
-      status = snprintf(buffer + offset, buffer_len - offset, ":%llu",
-                        vl->values[i].counter);
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+                        (uint64_t)vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
       status = snprintf(buffer + offset, buffer_len - offset, ":%f",
                         vl->values[i].gauge);
@@ -284,7 +284,7 @@ static int try_reconnect(void) {
 static int rc_read(void) {
   int status;
   rrdc_stats_t *head;
-  _Bool retried = 0;
+  bool retried = false;
 
   value_list_t vl = VALUE_LIST_INIT;
   vl.values = &(value_t){.gauge = NAN};
@@ -320,7 +320,7 @@ static int rc_read(void) {
       break;
 
     if (!retried) {
-      retried = 1;
+      retried = true;
       if (try_reconnect() == 0)
         continue;
       /* else: report the error and fail */
@@ -392,7 +392,7 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
   char values[512];
   char *values_array[2];
   int status;
-  _Bool retried = 0;
+  bool retried = false;
 
   if (daemon_address == NULL) {
     ERROR("rrdcached plugin: daemon_address == NULL.");
@@ -424,9 +424,7 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
     status = stat(filename, &statbuf);
     if (status != 0) {
       if (errno != ENOENT) {
-        char errbuf[1024];
-        ERROR("rrdcached plugin: stat (%s) failed: %s", filename,
-              sstrerror(errno, errbuf, sizeof(errbuf)));
+        ERROR("rrdcached plugin: stat (%s) failed: %s", filename, STRERRNO);
         return -1;
       }
 
@@ -457,7 +455,7 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
       break;
 
     if (!retried) {
-      retried = 1;
+      retried = true;
       if (try_reconnect() == 0)
         continue;
       /* else: report the error and fail */
@@ -476,7 +474,7 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
                     __attribute__((unused)) user_data_t *ud) {
   char filename[PATH_MAX + 1];
   int status;
-  _Bool retried = 0;
+  bool retried = false;
 
   if (identifier == NULL)
     return EINVAL;
@@ -504,7 +502,7 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
       break;
 
     if (!retried) {
-      retried = 1;
+      retried = true;
       if (try_reconnect() == 0)
         continue;
       /* else: report the error and fail */

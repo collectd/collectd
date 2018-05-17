@@ -56,17 +56,17 @@ static const char *config_keys[] = {"Host", "Port", "ReverseLookups",
                                     "IncludeUnitID"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static _Bool do_reverse_lookups = 1;
+static bool do_reverse_lookups = true;
 
 /* This option only exists for backward compatibility. If it is false and two
  * ntpd peers use the same refclock driver, the plugin will try to write
  * simultaneous measurements from both to the same type instance. */
-static _Bool include_unit_id = 0;
+static bool include_unit_id;
 
 #define NTPD_DEFAULT_HOST "localhost"
 #define NTPD_DEFAULT_PORT "123"
 static int sock_descr = -1;
-static char *ntpd_host = NULL;
+static char *ntpd_host;
 static char ntpd_port[16];
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -272,14 +272,14 @@ static int ntpd_config(const char *key, const char *value) {
       sstrncpy(ntpd_port, value, sizeof(ntpd_port));
   } else if (strcasecmp(key, "ReverseLookups") == 0) {
     if (IS_TRUE(value))
-      do_reverse_lookups = 1;
+      do_reverse_lookups = true;
     else
-      do_reverse_lookups = 0;
+      do_reverse_lookups = false;
   } else if (strcasecmp(key, "IncludeUnitID") == 0) {
     if (IS_TRUE(value))
-      include_unit_id = 1;
+      include_unit_id = true;
     else
-      include_unit_id = 0;
+      include_unit_id = false;
   } else {
     return -1;
   }
@@ -337,10 +337,8 @@ static int ntpd_connect(void) {
                               .ai_socktype = SOCK_DGRAM};
 
   if ((status = getaddrinfo(host, port, &ai_hints, &ai_list)) != 0) {
-    char errbuf[1024];
     ERROR("ntpd plugin: getaddrinfo (%s, %s): %s", host, port,
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -409,9 +407,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
   *res_data = NULL;
 
   if (gettimeofday(&time_end, NULL) < 0) {
-    char errbuf[1024];
-    ERROR("ntpd plugin: gettimeofday failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("ntpd plugin: gettimeofday failed: %s", STRERRNO);
     return -1;
   }
   time_end.tv_sec++; /* wait for a most one second */
@@ -421,9 +417,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
     struct timeval time_left;
 
     if (gettimeofday(&time_now, NULL) < 0) {
-      char errbuf[1024];
-      ERROR("ntpd plugin: gettimeofday failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ntpd plugin: gettimeofday failed: %s", STRERRNO);
       return -1;
     }
 
@@ -447,9 +441,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       continue;
 
     if (status < 0) {
-      char errbuf[1024];
-      ERROR("ntpd plugin: poll failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+      ERROR("ntpd plugin: poll failed: %s", STRERRNO);
       return -1;
     }
 
@@ -466,8 +458,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
       continue;
 
     if (status < 0) {
-      char errbuf[1024];
-      INFO("recv(2) failed: %s", sstrerror(errno, errbuf, sizeof(errbuf)));
+      INFO("recv(2) failed: %s", STRERRNO);
       DEBUG("Closing socket #%i", sd);
       close(sd);
       sock_descr = sd = -1;
@@ -593,7 +584,7 @@ static int ntpd_receive_response(int *res_items, int *res_size, char **res_data,
      * Enough with the checks. Copy the data now.
      * We start by allocating some more memory.
      */
-    DEBUG("realloc (%p, %zu)", (void *)*res_data,
+    DEBUG("realloc (%p, %" PRIsz ")", (void *)*res_data,
           (items_num + pkt_item_num) * res_item_size);
     items = realloc(*res_data, (items_num + pkt_item_num) * res_item_size);
     if (items == NULL) {
@@ -726,7 +717,7 @@ ntpd_get_refclock_id(struct info_peer_summary const *peer_info) {
 
 static int ntpd_get_name_from_address(char *buffer, size_t buffer_size,
                                       struct info_peer_summary const *peer_info,
-                                      _Bool do_reverse_lookup) {
+                                      bool do_reverse_lookup) {
   struct sockaddr_storage sa = {0};
   socklen_t sa_len;
   int flags = 0;
@@ -763,10 +754,8 @@ static int ntpd_get_name_from_address(char *buffer, size_t buffer_size,
                        buffer_size, NULL, 0, /* No port name */
                        flags);
   if (status != 0) {
-    char errbuf[1024];
     ERROR("ntpd plugin: getnameinfo failed: %s",
-          (status == EAI_SYSTEM) ? sstrerror(errno, errbuf, sizeof(errbuf))
-                                 : gai_strerror(status));
+          (status == EAI_SYSTEM) ? STRERRNO : gai_strerror(status));
     return -1;
   }
 
@@ -891,6 +880,12 @@ static int ntpd_read(void) {
     status = ntpd_get_name(peername, sizeof(peername), ptr);
     if (status != 0) {
       ERROR("ntpd plugin: Determining name of peer failed.");
+      continue;
+    }
+
+    // `0.0.0.0` hosts are caused by POOL servers
+    // see https://github.com/collectd/collectd/issues/2358
+    if (strcmp(peername, "0.0.0.0") == 0) {
       continue;
     }
 

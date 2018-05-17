@@ -361,9 +361,7 @@ static cu_mount_t *cu_mount_listmntent(void) {
   struct tabmntent *mntlist;
   if (listmntent(&mntlist, COLLECTD_MNTTAB, NULL, NULL) < 0) {
 #if COLLECT_DEBUG
-    char errbuf[1024];
-    DEBUG("utils_mount: calling listmntent() failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    DEBUG("utils_mount: calling listmntent() failed: %s", STRERRNO);
 #endif /* COLLECT_DEBUG */
   }
 
@@ -431,9 +429,7 @@ static cu_mount_t *cu_mount_getfsstat(void) {
   /* Get the number of mounted file systems */
   if ((bufsize = CMD_STATFS(NULL, 0, FLAGS_STATFS)) < 1) {
 #if COLLECT_DEBUG
-    char errbuf[1024];
-    DEBUG("utils_mount: getv?fsstat failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    DEBUG("utils_mount: getv?fsstat failed: %s", STRERRNO);
 #endif /* COLLECT_DEBUG */
     return NULL;
   }
@@ -446,9 +442,7 @@ static cu_mount_t *cu_mount_getfsstat(void) {
   if ((num = CMD_STATFS(buf, bufsize * sizeof(STRUCT_STATFS), FLAGS_STATFS)) <
       1) {
 #if COLLECT_DEBUG
-    char errbuf[1024];
-    DEBUG("utils_mount: getv?fsstat failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    DEBUG("utils_mount: getv?fsstat failed: %s", STRERRNO);
 #endif /* COLLECT_DEBUG */
     free(buf);
     return NULL;
@@ -495,9 +489,7 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
   DEBUG("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
   if ((fp = fopen(COLLECTD_MNTTAB, "r")) == NULL) {
-    char errbuf[1024];
-    ERROR("fopen (%s): %s", COLLECTD_MNTTAB,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("fopen (%s): %s", COLLECTD_MNTTAB, STRERRNO);
     return NULL;
   }
 
@@ -527,7 +519,6 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
 
   return first;
 } /* static cu_mount_t *cu_mount_gen_getmntent (void) */
-  /* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"
@@ -546,9 +537,7 @@ static cu_mount_t *cu_mount_getmntent(void) {
   DEBUG("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
   if ((fp = setmntent(COLLECTD_MNTTAB, "r")) == NULL) {
-    char errbuf[1024];
-    ERROR("setmntent (%s): %s", COLLECTD_MNTTAB,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("setmntent (%s): %s", COLLECTD_MNTTAB, STRERRNO);
     return NULL;
   }
 
@@ -597,9 +586,7 @@ static cu_mount_t *cu_mount_getmntent(void) {
   DEBUG("utils_mount: (void); COLLECTD_MNTTAB = %s", COLLECTD_MNTTAB);
 
   if ((fp = setmntent(COLLECTD_MNTTAB, "r")) == NULL) {
-    char errbuf[1024];
-    ERROR("setmntent (%s): %s", COLLECTD_MNTTAB,
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("setmntent (%s): %s", COLLECTD_MNTTAB, STRERRNO);
     return NULL;
   }
 

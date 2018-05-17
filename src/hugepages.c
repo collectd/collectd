@@ -35,12 +35,12 @@
 
 static const char g_plugin_name[] = "hugepages";
 
-static _Bool g_flag_rpt_numa = 1;
-static _Bool g_flag_rpt_mm = 1;
+static bool g_flag_rpt_numa = true;
+static bool g_flag_rpt_mm = true;
 
-static _Bool g_values_pages = 1;
-static _Bool g_values_bytes = 0;
-static _Bool g_values_percent = 0;
+static bool g_values_pages = true;
+static bool g_values_bytes;
+static bool g_values_percent;
 
 #define HP_HAVE_NR 0x01
 #define HP_HAVE_SURPLUS 0x02
@@ -102,20 +102,20 @@ static void submit_hp(const struct entry_info *info) {
 
   if (g_values_pages) {
     sstrncpy(vl.type, "vmpage_number", sizeof(vl.type));
-    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
-                               "free", free, "used", used, NULL);
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ false,
+                               DS_TYPE_GAUGE, "free", free, "used", used, NULL);
   }
   if (g_values_bytes) {
     gauge_t page_size = (gauge_t)(1024 * info->page_size_kb);
     sstrncpy(vl.type, "memory", sizeof(vl.type));
-    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 0, DS_TYPE_GAUGE,
-                               "free", free * page_size, "used",
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ false,
+                               DS_TYPE_GAUGE, "free", free * page_size, "used",
                                used * page_size, NULL);
   }
   if (g_values_percent) {
     sstrncpy(vl.type, "percent", sizeof(vl.type));
-    plugin_dispatch_multivalue(&vl, /* store_percentage = */ 1, DS_TYPE_GAUGE,
-                               "free", free, "used", used, NULL);
+    plugin_dispatch_multivalue(&vl, /* store_percentage = */ true,
+                               DS_TYPE_GAUGE, "free", free, "used", used, NULL);
   }
 }
 
@@ -185,10 +185,8 @@ static int read_syshugepages(const char *path, const char *node) {
     long page_size = strtol(result->d_name + strlen(hugepages_dir),
                             /* endptr = */ NULL, /* base = */ 10);
     if (errno != 0) {
-      char errbuf[1024];
       ERROR("%s: failed to determine page size from directory name \"%s\": %s",
-            g_plugin_name, result->d_name,
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            g_plugin_name, result->d_name, STRERRNO);
       continue;
     }
 

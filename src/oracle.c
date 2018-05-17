@@ -75,10 +75,10 @@ typedef struct o_database_s o_database_t;
 /*
  * Global variables
  */
-static udb_query_t **queries = NULL;
-static size_t queries_num = 0;
-static o_database_t **databases = NULL;
-static size_t databases_num = 0;
+static udb_query_t **queries;
+static size_t queries_num;
+static o_database_t **databases;
+static size_t databases_num;
 
 OCIEnv *oci_env = NULL;
 OCIError *oci_error = NULL;
@@ -308,10 +308,10 @@ static int o_config(oconfig_item_t *ci) /* {{{ */
     }
 
     if (queries_num > 0) {
-      DEBUG("oracle plugin: o_config: queries_num = %zu; queries[0] = %p; "
-            "udb_query_get_user_data (queries[0]) = %p;",
-            queries_num, (void *)queries[0],
-            udb_query_get_user_data(queries[0]));
+      DEBUG(
+          "oracle plugin: o_config: queries_num = %" PRIsz "; queries[0] = %p; "
+          "udb_query_get_user_data (queries[0]) = %p;",
+          queries_num, (void *)queries[0], udb_query_get_user_data(queries[0]));
     }
   } /* for (ci->children) */
 
@@ -532,8 +532,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     memcpy(column_names[i], column_name, column_name_length);
     column_names[i][column_name_length] = 0;
 
-    DEBUG("oracle plugin: o_read_database_query: column_names[%zu] = %s; "
-          "column_name_length = %" PRIu32 ";",
+    DEBUG("oracle plugin: o_read_database_query: column_names[%" PRIsz "] = %s;"
+          " column_name_length = %" PRIu32 ";",
           i, column_names[i], (uint32_t)column_name_length);
 
     status = OCIDefineByPos(oci_statement, &oci_defines[i], oci_error,

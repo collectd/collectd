@@ -74,7 +74,7 @@ typedef struct {
  * exists for this part of the JSON structure. */
 typedef struct {
   cj_tree_entry_t *entry;
-  _Bool in_array;
+  bool in_array;
   int index;
   char name[DATA_MAX_NAME_LEN];
 } cj_state_t;
@@ -91,9 +91,9 @@ struct cj_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
@@ -325,7 +325,7 @@ static int cj_cb_start_array(void *ctx) {
     return CJ_CB_ABORT;
   }
   db->depth++;
-  db->state[db->depth].in_array = 1;
+  db->state[db->depth].in_array = true;
   db->state[db->depth].index = 0;
 
   cj_load_key(db, "0");
@@ -335,7 +335,7 @@ static int cj_cb_start_array(void *ctx) {
 
 static int cj_cb_end_array(void *ctx) {
   cj_t *db = (cj_t *)ctx;
-  db->state[db->depth].in_array = 0;
+  db->state[db->depth].in_array = false;
   return cj_cb_end(ctx);
 }
 
@@ -824,7 +824,6 @@ static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
 
 static int cj_sock_perform(cj_t *db) /* {{{ */
 {
-  char errbuf[1024];
   struct sockaddr_un sa_unix = {
       .sun_family = AF_UNIX,
   };
@@ -835,8 +834,7 @@ static int cj_sock_perform(cj_t *db) /* {{{ */
     return -1;
   if (connect(fd, (struct sockaddr *)&sa_unix, sizeof(sa_unix)) < 0) {
     ERROR("curl_json plugin: connect(%s) failed: %s",
-          (db->sock != NULL) ? db->sock : "<null>",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+          (db->sock != NULL) ? db->sock : "<null>", STRERRNO);
     close(fd);
     return -1;
   }
@@ -847,8 +845,7 @@ static int cj_sock_perform(cj_t *db) /* {{{ */
     red = read(fd, buffer, sizeof(buffer));
     if (red < 0) {
       ERROR("curl_json plugin: read(%s) failed: %s",
-            (db->sock != NULL) ? db->sock : "<null>",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+            (db->sock != NULL) ? db->sock : "<null>", STRERRNO);
       close(fd);
       return -1;
     }

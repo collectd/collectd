@@ -33,7 +33,7 @@
 static const char *config_keys[] = {"Verbose"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static int verbose_output = 0;
+static int verbose_output;
 /* #endif KERNEL_LINUX */
 
 #else
@@ -104,9 +104,7 @@ static int vmem_read(void) {
 
   fh = fopen("/proc/vmstat", "r");
   if (fh == NULL) {
-    char errbuf[1024];
-    ERROR("vmem plugin: fopen (/proc/vmstat) failed: %s",
-          sstrerror(errno, errbuf, sizeof(errbuf)));
+    ERROR("vmem plugin: fopen (/proc/vmstat) failed: %s", STRERRNO);
     return -1;
   }
 
