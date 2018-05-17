@@ -213,8 +213,12 @@ static void pmu_dump_cgroups(void) {
       return;
     }
     for (size_t j = 0; j < cgroup->num_cores; j++)
-      snprintf(cores + strlen(cores), cores_size - strlen(cores), " %d",
-               cgroup->cores[j]);
+      if (snprintf(cores + strlen(cores), cores_size - strlen(cores), " %d",
+                   cgroup->cores[j]) < 0) {
+        DEBUG(PMU_PLUGIN ": Failed to write list of cores to string.");
+        sfree(cores);
+        return;
+      }
 
     DEBUG(PMU_PLUGIN ":   group[%" PRIsz "]", i);
     DEBUG(PMU_PLUGIN ":     description: %s", cgroup->desc);
@@ -325,8 +329,8 @@ static int pmu_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static void pmu_submit_counter(char *cgroup, char *event, counter_t value,
-                               meta_data_t *meta) {
+static void pmu_submit_counter(const char *cgroup, const char *event,
+                               counter_t value, meta_data_t *meta) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.counter = value};
