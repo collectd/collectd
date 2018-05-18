@@ -1,7 +1,7 @@
 /**
  * collectd - src/intel_rdt.c
  *
- * Copyright(c) 2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016-2018 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,8 +25,10 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  **/
 
-#include "common.h"
 #include "collectd.h"
+#include "common.h"
+
+#include "utils_config_cores.h"
 
 #include <pqos.h>
 
@@ -41,16 +43,9 @@ typedef enum {
   CONFIGURATION_ERROR,
 } rdt_config_status;
 
-struct rdt_core_group_s {
-  char *desc;
-  size_t num_cores;
-  unsigned *cores;
-  enum pqos_mon_event events;
-};
-typedef struct rdt_core_group_s rdt_core_group_t;
-
 struct rdt_ctx_s {
-  rdt_core_group_t cgroups[RDT_MAX_CORES];
+  core_groups_list_t cores;
+  enum pqos_mon_event events[RDT_MAX_CORES];
   struct pqos_mon_data *pgroups[RDT_MAX_CORES];
   size_t num_groups;
   const struct pqos_cpuinfo *pqos_cpu;
@@ -63,243 +58,6 @@ static rdt_ctx_t *g_rdt = NULL;
 
 static rdt_config_status g_state = UNKNOWN;
 
-static int isdup(const uint64_t *nums, size_t size, uint64_t val) {
-  for (size_t i = 0; i < size; i++)
-    if (nums[i] == val)
-      return 1;
-  return 0;
-}
-
-static int strtouint64(const char *s, uint64_t *n) {
-  char *endptr = NULL;
-
-  assert(s != NULL);
-  assert(n != NULL);
-
-  *n = strtoull(s, &endptr, 0);
-
-  if (!(*s != '\0' && *endptr == '\0')) {
-    DEBUG(RDT_PLUGIN ": Error converting '%s' to unsigned number.", s);
-    return -EINVAL;
-  }
-
-  return 0;
-}
-
-/*
- * NAME
- *   strlisttonums
- *
- * DESCRIPTION
- *   Converts string of characters representing list of numbers into array of
- *   numbers. Allowed formats are:
- *     0,1,2,3
- *     0-10,20-18
- *     1,3,5-8,10,0x10-12
- *
- *   Numbers can be in decimal or hexadecimal format.
- *
- * PARAMETERS
- *   `s'         String representing list of unsigned numbers.
- *   `nums'      Array to put converted numeric values into.
- *   `max'       Maximum number of elements that nums can accommodate.
- *
- * RETURN VALUE
- *    Number of elements placed into nums.
- */
-static size_t strlisttonums(char *s, uint64_t *nums, size_t max) {
-  int ret;
-  size_t index = 0;
-  char *saveptr = NULL;
-
-  if (s == NULL || nums == NULL || max == 0)
-    return index;
-
-  for (;;) {
-    char *p = NULL;
-    char *token = NULL;
-
-    token = strtok_r(s, ",", &saveptr);
-    if (token == NULL)
-      break;
-
-    s = NULL;
-
-    while (isspace(*token))
-      token++;
-    if (*token == '\0')
-      continue;
-
-    p = strchr(token, '-');
-    if (p != NULL) {
-      uint64_t n, start, end;
-      *p = '\0';
-      ret = strtouint64(token, &start);
-      if (ret < 0)
-        return 0;
-      ret = strtouint64(p + 1, &end);
-      if (ret < 0)
-        return 0;
-      if (start > end) {
-        return 0;
-      }
-      for (n = start; n <= end; n++) {
-        if (!(isdup(nums, index, n))) {
-          nums[index] = n;
-          index++;
-        }
-        if (index >= max)
-          return index;
-      }
-    } else {
-      uint64_t val;
-
-      ret = strtouint64(token, &val);
-      if (ret < 0)
-        return 0;
-
-      if (!(isdup(nums, index, val))) {
-        nums[index] = val;
-        index++;
-      }
-      if (index >= max)
-        return index;
-    }
-  }
-
-  return index;
-}
-
-/*
- * NAME
- *   cgroup_cmp
- *
- * DESCRIPTION
- *   Function to compare cores in 2 core groups.
- *
- * PARAMETERS
- *   `cg_a'      Pointer to core group a.
- *   `cg_b'      Pointer to core group b.
- *
- * RETURN VALUE
- *    1 if both groups contain the same cores
- *    0 if none of their cores match
- *    -1 if some but not all cores match
- */
-static int cgroup_cmp(const rdt_core_group_t *cg_a,
-                      const rdt_core_group_t *cg_b) {
-  int found = 0;
-
-  assert(cg_a != NULL);
-  assert(cg_b != NULL);
-
-  const int sz_a = cg_a->num_cores;
-  const int sz_b = cg_b->num_cores;
-  const unsigned *tab_a = cg_a->cores;
-  const unsigned *tab_b = cg_b->cores;
-
-  for (int i = 0; i < sz_a; i++) {
-    for (int j = 0; j < sz_b; j++)
-      if (tab_a[i] == tab_b[j])
-        found++;
-  }
-  /* if no cores are the same */
-  if (!found)
-    return 0;
-  /* if group contains same cores */
-  if (sz_a == sz_b && sz_b == found)
-    return 1;
-  /* if not all cores are the same */
-  return -1;
-}
-
-static int cgroup_set(rdt_core_group_t *cg, char *desc, uint64_t *cores,
-                      size_t num_cores) {
-  assert(cg != NULL);
-  assert(desc != NULL);
-  assert(cores != NULL);
-  assert(num_cores > 0);
-
-  cg->cores = calloc(num_cores, sizeof(unsigned));
-  if (cg->cores == NULL) {
-    ERROR(RDT_PLUGIN ": Error allocating core group table");
-    return -ENOMEM;
-  }
-  cg->num_cores = num_cores;
-  cg->desc = strdup(desc);
-  if (cg->desc == NULL) {
-    ERROR(RDT_PLUGIN ": Error allocating core group description");
-    sfree(cg->cores);
-    return -ENOMEM;
-  }
-
-  for (size_t i = 0; i < num_cores; i++)
-    cg->cores[i] = (unsigned)cores[i];
-
-  return 0;
-}
-
-/*
- * NAME
- *   oconfig_to_cgroups
- *
- * DESCRIPTION
- *   Function to set the descriptions and cores for each core group.
- *   Takes a config option containing list of strings that are used to set
- *   core group values.
- *
- * PARAMETERS
- *   `item'        Config option containing core groups.
- *   `groups'      Table of core groups to set values in.
- *   `max_groups'  Maximum number of core groups allowed.
- *
- * RETURN VALUE
- *   On success, the number of core groups set up. On error, appropriate
- *   negative error value.
- */
-static int oconfig_to_cgroups(oconfig_item_t *item, rdt_core_group_t *groups,
-                              size_t max_groups) {
-  int index = 0;
-
-  assert(groups != NULL);
-  assert(max_groups > 0);
-  assert(item != NULL);
-
-  for (int j = 0; j < item->values_num; j++) {
-    int ret;
-    size_t n;
-    uint64_t cores[RDT_MAX_CORES] = {0};
-    char value[DATA_MAX_NAME_LEN];
-
-    if ((item->values[j].value.string == NULL) ||
-        (strlen(item->values[j].value.string) == 0))
-      continue;
-
-    sstrncpy(value, item->values[j].value.string, sizeof(value));
-
-    n = strlisttonums(value, cores, STATIC_ARRAY_SIZE(cores));
-    if (n == 0) {
-      ERROR(RDT_PLUGIN ": Error parsing core group (%s)",
-            item->values[j].value.string);
-      return -EINVAL;
-    }
-
-    /* set core group info */
-    ret = cgroup_set(&groups[index], item->values[j].value.string, cores, n);
-    if (ret < 0)
-      return ret;
-
-    index++;
-
-    if (index >= max_groups) {
-      WARNING(RDT_PLUGIN ": Too many core groups configured");
-      return index;
-    }
-  }
-
-  return index;
-}
-
 #if COLLECT_DEBUG
 static void rdt_dump_cgroups(void) {
   char cores[RDT_MAX_CORES * 4];
@@ -311,17 +69,18 @@ static void rdt_dump_cgroups(void) {
   DEBUG(RDT_PLUGIN ":  groups count: %zu", g_rdt->num_groups);
 
   for (int i = 0; i < g_rdt->num_groups; i++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + i;
 
     memset(cores, 0, sizeof(cores));
-    for (int j = 0; j < g_rdt->cgroups[i].num_cores; j++) {
+    for (int j = 0; j < cgroup->num_cores; j++) {
       snprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
-               g_rdt->cgroups[i].cores[j]);
+               cgroup->cores[j]);
     }
 
     DEBUG(RDT_PLUGIN ":  group[%d]:", i);
-    DEBUG(RDT_PLUGIN ":    description: %s", g_rdt->cgroups[i].desc);
+    DEBUG(RDT_PLUGIN ":    description: %s", cgroup->desc);
     DEBUG(RDT_PLUGIN ":    cores: %s", cores);
-    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->cgroups[i].events);
+    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->events[i]);
   }
 
   return;
@@ -350,40 +109,54 @@ static void rdt_dump_data(void) {
     double mbr = bytes_to_mb(pv->mbm_remote_delta);
     double mbl = bytes_to_mb(pv->mbm_local_delta);
 
-    DEBUG(" [%s] %8u %10.1f %10.1f %10.1f", g_rdt->cgroups[i].desc,
+    DEBUG(" [%s] %8u %10.1f %10.1f %10.1f", g_rdt->cores.cgroups[i].desc,
           g_rdt->pgroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
   }
 }
 #endif /* COLLECT_DEBUG */
 
 static void rdt_free_cgroups(void) {
+  config_cores_cleanup(&g_rdt->cores);
   for (int i = 0; i < RDT_MAX_CORES; i++) {
-    sfree(g_rdt->cgroups[i].desc);
-
-    sfree(g_rdt->cgroups[i].cores);
-    g_rdt->cgroups[i].num_cores = 0;
-
     sfree(g_rdt->pgroups[i]);
   }
 }
 
 static int rdt_default_cgroups(void) {
-  int ret;
+  unsigned num_cores = g_rdt->pqos_cpu->num_cores;
+
+  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*(g_rdt->cores.cgroups)));
+  if (g_rdt->cores.cgroups == NULL) {
+    ERROR(RDT_PLUGIN ": Error allocating core groups array");
+    return -ENOMEM;
+  }
+  g_rdt->cores.num_cgroups = num_cores;
 
   /* configure each core in separate group */
-  for (unsigned i = 0; i < g_rdt->pqos_cpu->num_cores; i++) {
+  for (unsigned i = 0; i < num_cores; i++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + i;
     char desc[DATA_MAX_NAME_LEN];
-    uint64_t core = i;
-
-    snprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
 
     /* set core group info */
-    ret = cgroup_set(&g_rdt->cgroups[i], desc, &core, 1);
-    if (ret < 0)
-      return ret;
+    cgroup->cores = calloc(1, sizeof(*(cgroup->cores)));
+    if (cgroup->cores == NULL) {
+      ERROR(RDT_PLUGIN ": Error allocating cores array");
+      rdt_free_cgroups();
+      return -ENOMEM;
+    }
+    cgroup->num_cores = 1;
+    cgroup->cores[0] = i;
+
+    snprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
+    cgroup->desc = strdup(desc);
+    if (cgroup->desc == NULL) {
+      ERROR(RDT_PLUGIN ": Error allocating core group description");
+      rdt_free_cgroups();
+      return -ENOMEM;
+    }
   }
 
-  return g_rdt->pqos_cpu->num_cores;
+  return num_cores;
 }
 
 static int rdt_is_core_id_valid(int core_id) {
@@ -396,38 +169,23 @@ static int rdt_is_core_id_valid(int core_id) {
 }
 
 static int rdt_config_cgroups(oconfig_item_t *item) {
-  int n = 0;
+  size_t n = 0;
   enum pqos_mon_event events = 0;
 
-  if (item == NULL) {
-    DEBUG(RDT_PLUGIN ": cgroups_config: Invalid argument.");
-    return -EINVAL;
-  }
-
-  DEBUG(RDT_PLUGIN ": Core groups [%d]:", item->values_num);
-  for (int j = 0; j < item->values_num; j++) {
-    if (item->values[j].type != OCONFIG_TYPE_STRING) {
-      ERROR(RDT_PLUGIN ": given core group value is not a string [idx=%d]", j);
-      return -EINVAL;
-    }
-    DEBUG(RDT_PLUGIN ":  [%d]: %s", j, item->values[j].value.string);
-  }
-
-  n = oconfig_to_cgroups(item, g_rdt->cgroups, g_rdt->pqos_cpu->num_cores);
-  if (n < 0) {
+  if (config_cores_parse(item, &g_rdt->cores) < 0) {
     rdt_free_cgroups();
     ERROR(RDT_PLUGIN ": Error parsing core groups configuration.");
     return -EINVAL;
   }
+  n = g_rdt->cores.num_cgroups;
 
   /* validate configured core id values */
-  for (int group_idx = 0; group_idx < n; group_idx++) {
-    for (int core_idx = 0; core_idx < g_rdt->cgroups[group_idx].num_cores;
-         core_idx++) {
-      if (!rdt_is_core_id_valid(g_rdt->cgroups[group_idx].cores[core_idx])) {
+  for (size_t group_idx = 0; group_idx < n; group_idx++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + group_idx;
+    for (size_t core_idx = 0; core_idx < cgroup->num_cores; core_idx++) {
+      if (!rdt_is_core_id_valid((int)cgroup->cores[core_idx])) {
         ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%d'",
-                g_rdt->cgroups[group_idx].desc,
-                (int)g_rdt->cgroups[group_idx].cores[core_idx]);
+              cgroup->desc, (int)cgroup->cores[core_idx]);
         rdt_free_cgroups();
         return -EINVAL;
       }
@@ -436,12 +194,13 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
 
   if (n == 0) {
     /* create default core groups if "Cores" config option is empty */
-    n = rdt_default_cgroups();
-    if (n < 0) {
+    int ret = rdt_default_cgroups();
+    if (ret < 0) {
       rdt_free_cgroups();
       ERROR(RDT_PLUGIN ": Error creating default core groups configuration.");
-      return n;
+      return ret;
     }
+    n = (size_t)ret;
     INFO(RDT_PLUGIN
          ": No core groups configured. Default core groups created.");
   }
@@ -457,10 +216,11 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
   DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
 
   g_rdt->num_groups = n;
-  for (int i = 0; i < n; i++) {
-    for (int j = 0; j < i; j++) {
+  for (size_t i = 0; i < n; i++) {
+    for (size_t j = 0; j < i; j++) {
       int found = 0;
-      found = cgroup_cmp(&g_rdt->cgroups[j], &g_rdt->cgroups[i]);
+      found = config_cores_cmp_cgroups(&g_rdt->cores.cgroups[j],
+                                       &g_rdt->cores.cgroups[i]);
       if (found != 0) {
         rdt_free_cgroups();
         ERROR(RDT_PLUGIN ": Cannot monitor same cores in different groups.");
@@ -468,7 +228,7 @@ static int rdt_config_cgroups(oconfig_item_t *item) {
       }
     }
 
-    g_rdt->cgroups[i].events = events;
+    g_rdt->events[i] = events;
     g_rdt->pgroups[i] = calloc(1, sizeof(*g_rdt->pgroups[i]));
     if (g_rdt->pgroups[i] == NULL) {
       rdt_free_cgroups();
@@ -628,6 +388,8 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
 #endif /* COLLECT_DEBUG */
 
   for (int i = 0; i < g_rdt->num_groups; i++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + i;
+
     enum pqos_mon_event mbm_events =
         (PQOS_MON_EVENT_LMEM_BW | PQOS_MON_EVENT_TMEM_BW |
          PQOS_MON_EVENT_RMEM_BW);
@@ -636,16 +398,16 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
 
     /* Submit only monitored events data */
 
-    if (g_rdt->cgroups[i].events & PQOS_MON_EVENT_L3_OCCUP)
-      rdt_submit_gauge(g_rdt->cgroups[i].desc, "bytes", "llc", pv->llc);
+    if (g_rdt->events[i] & PQOS_MON_EVENT_L3_OCCUP)
+      rdt_submit_gauge(cgroup->desc, "bytes", "llc", pv->llc);
 
-    if (g_rdt->cgroups[i].events & PQOS_PERF_EVENT_IPC)
-      rdt_submit_gauge(g_rdt->cgroups[i].desc, "ipc", NULL, pv->ipc);
+    if (g_rdt->events[i] & PQOS_PERF_EVENT_IPC)
+      rdt_submit_gauge(cgroup->desc, "ipc", NULL, pv->ipc);
 
-    if (g_rdt->cgroups[i].events & mbm_events) {
-      rdt_submit_derive(g_rdt->cgroups[i].desc, "memory_bandwidth", "local",
+    if (g_rdt->events[i] & mbm_events) {
+      rdt_submit_derive(cgroup->desc, "memory_bandwidth", "local",
                         pv->mbm_local_delta);
-      rdt_submit_derive(g_rdt->cgroups[i].desc, "memory_bandwidth", "remote",
+      rdt_submit_derive(cgroup->desc, "memory_bandwidth", "remote",
                         pv->mbm_remote_delta);
     }
   }
@@ -665,10 +427,10 @@ static int rdt_init(void) {
 
   /* Start monitoring */
   for (int i = 0; i < g_rdt->num_groups; i++) {
-    rdt_core_group_t *cg = &g_rdt->cgroups[i];
+    core_group_t *cg = g_rdt->cores.cgroups + i;
 
-    ret = pqos_mon_start(cg->num_cores, cg->cores, cg->events, (void *)cg->desc,
-                         g_rdt->pgroups[i]);
+    ret = pqos_mon_start(cg->num_cores, cg->cores, g_rdt->events[i],
+                         (void *)cg->desc, g_rdt->pgroups[i]);
 
     if (ret != PQOS_RETVAL_OK)
       ERROR(RDT_PLUGIN ": Error starting monitoring group %s (pqos status=%d)",

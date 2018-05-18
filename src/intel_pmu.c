@@ -1,7 +1,7 @@
 /**
  * collectd - src/intel_pmu.c
  *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,13 @@
  *
  * Authors:
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
+ *   Kamil Wiatrowski <kamilx.wiatrowski@intel.com>
  **/
 
 #include "collectd.h"
 #include "common.h"
+
+#include "utils_config_cores.h"
 
 #include <jevents.h>
 #include <jsession.h>
@@ -70,6 +73,7 @@ struct intel_pmu_ctx_s {
   char event_list_fn[PATH_MAX];
   char **hw_events;
   size_t hw_events_count;
+  core_groups_list_t cores;
   struct eventlist *event_list;
 };
 typedef struct intel_pmu_ctx_s intel_pmu_ctx_t;
@@ -196,7 +200,60 @@ static void pmu_dump_config(void) {
   }
 }
 
+static void pmu_dump_cgroups(void) {
+
+  DEBUG(PMU_PLUGIN ": Core groups:");
+
+  for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
+    core_group_t *cgroup = g_ctx.cores.cgroups + i;
+    const size_t cores_size = cgroup->num_cores * 4 + 1;
+    char *cores = calloc(cores_size, sizeof(*cores));
+    if (cores == NULL) {
+      DEBUG(PMU_PLUGIN ": Failed to allocate string to list cores.");
+      return;
+    }
+    for (size_t j = 0; j < cgroup->num_cores; j++)
+      if (snprintf(cores + strlen(cores), cores_size - strlen(cores), " %d",
+                   cgroup->cores[j]) < 0) {
+        DEBUG(PMU_PLUGIN ": Failed to write list of cores to string.");
+        sfree(cores);
+        return;
+      }
+
+    DEBUG(PMU_PLUGIN ":   group[%" PRIsz "]", i);
+    DEBUG(PMU_PLUGIN ":     description: %s", cgroup->desc);
+    DEBUG(PMU_PLUGIN ":     cores count: %" PRIsz, cgroup->num_cores);
+    DEBUG(PMU_PLUGIN ":     cores      :%s", cores);
+    sfree(cores);
+  }
+}
+
 #endif /* COLLECT_DEBUG */
+
+static int pmu_validate_cgroups(core_group_t *cgroups, size_t len,
+                                int max_cores) {
+  /* i - group index, j - core index */
+  for (size_t i = 0; i < len; i++) {
+    for (size_t j = 0; j < cgroups[i].num_cores; j++) {
+      int core = (int)cgroups[i].cores[j];
+
+      /* Core index cannot exceed number of cores in system,
+         note that max_cores include both online and offline CPUs. */
+      if (core >= max_cores) {
+        ERROR(PMU_PLUGIN ": Core %d is not valid, max core index: %d.", core,
+              max_cores - 1);
+        return -1;
+      }
+    }
+    /* Check if cores are set in remaining groups */
+    for (size_t k = i + 1; k < len; k++)
+      if (config_cores_cmp_cgroups(&cgroups[i], &cgroups[k]) != 0) {
+        ERROR(PMU_PLUGIN ": Same cores cannot be set in different groups.");
+        return -1;
+      }
+  }
+  return 0;
+}
 
 static int pmu_config_hw_events(oconfig_item_t *ci) {
 
@@ -252,6 +309,8 @@ static int pmu_config(oconfig_item_t *ci) {
       ret = pmu_config_hw_events(child);
     } else if (strcasecmp("ReportSoftwareEvents", child->key) == 0) {
       ret = cf_util_get_boolean(child, &g_ctx.sw_events);
+    } else if (strcasecmp("Cores", child->key) == 0) {
+      ret = config_cores_parse(child, &g_ctx.cores);
     } else {
       ERROR(PMU_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
       ret = -1;
@@ -270,20 +329,17 @@ static int pmu_config(oconfig_item_t *ci) {
   return 0;
 }
 
-static void pmu_submit_counter(int cpu, char *event, counter_t value,
-                               meta_data_t *meta) {
+static void pmu_submit_counter(const char *cgroup, const char *event,
+                               counter_t value, meta_data_t *meta) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &(value_t){.counter = value};
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, PMU_PLUGIN, sizeof(vl.plugin));
-  if (cpu == -1) {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "all");
-  } else {
+  sstrncpy(vl.plugin_instance, cgroup, sizeof(vl.plugin_instance));
+  if (meta)
     vl.meta = meta;
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%d", cpu);
-  }
   sstrncpy(vl.type, "counter", sizeof(vl.type));
   sstrncpy(vl.type_instance, event, sizeof(vl.type_instance));
 
@@ -316,49 +372,65 @@ static void pmu_dispatch_data(void) {
   struct event *e;
 
   for (e = g_ctx.event_list->eventlist; e; e = e->next) {
-    uint64_t all_value = 0;
-    int event_enabled = 0;
-    for (int i = 0; i < g_ctx.event_list->num_cpus; i++) {
+    for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
+      core_group_t *cgroup = g_ctx.cores.cgroups + i;
+      uint64_t cgroup_value = 0;
+      int event_enabled_cgroup = 0;
+      meta_data_t *meta = NULL;
 
-      if (e->efd[i].fd < 0)
-        continue;
+      for (size_t j = 0; j < cgroup->num_cores; j++) {
+        int core = (int)cgroup->cores[j];
+        if (e->efd[core].fd < 0)
+          continue;
 
-      event_enabled++;
+        event_enabled_cgroup++;
 
-      /* If there are more events than counters, the kernel uses time
-       * multiplexing. With multiplexing, at the end of the run,
-       * the counter is scaled basing on total time enabled vs time running.
-       * final_count = raw_count * time_enabled/time_running
-       */
-      uint64_t value = event_scaled_value(e, i);
-      all_value += value;
+        /* If there are more events than counters, the kernel uses time
+         * multiplexing. With multiplexing, at the end of the run,
+         * the counter is scaled basing on total time enabled vs time running.
+         * final_count = raw_count * time_enabled/time_running
+         */
+        uint64_t value = event_scaled_value(e, core);
+        cgroup_value += value;
 
-      /* get meta data with information about scaling */
-      meta_data_t *meta = pmu_meta_data_create(&e->efd[i]);
+        /* get meta data with information about scaling */
+        if (cgroup->num_cores == 1)
+          meta = pmu_meta_data_create(&e->efd[core]);
+      }
 
-      /* dispatch per CPU value */
-      pmu_submit_counter(i, e->event, value, meta);
-
-      meta_data_destroy(meta);
-    }
-
-    if (event_enabled > 0) {
-      DEBUG(PMU_PLUGIN ": %-20s %'10lu", e->event, all_value);
-      /* dispatch all CPU value */
-      pmu_submit_counter(-1, e->event, all_value, NULL);
+      if (event_enabled_cgroup > 0) {
+        DEBUG(PMU_PLUGIN ": %s/%s = %lu", e->event, cgroup->desc, cgroup_value);
+        /* dispatch per core group value */
+        pmu_submit_counter(cgroup->desc, e->event, cgroup_value, meta);
+        meta_data_destroy(meta);
+      }
     }
   }
 }
 
 static int pmu_read(__attribute__((unused)) user_data_t *ud) {
   int ret;
+  struct event *e;
 
   DEBUG(PMU_PLUGIN ": %s:%d", __FUNCTION__, __LINE__);
 
-  ret = read_all_events(g_ctx.event_list);
-  if (ret != 0) {
-    ERROR(PMU_PLUGIN ": Failed to read values of all events.");
-    return ret;
+  /* read all events only for configured cores */
+  for (e = g_ctx.event_list->eventlist; e; e = e->next) {
+    for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
+      core_group_t *cgroup = g_ctx.cores.cgroups + i;
+      for (size_t j = 0; j < cgroup->num_cores; j++) {
+        int core = (int)cgroup->cores[j];
+        if (e->efd[core].fd < 0)
+          continue;
+
+        ret = read_event(e, core);
+        if (ret != 0) {
+          ERROR(PMU_PLUGIN ": Failed to read value of %s/%d event.", e->event,
+                core);
+          return ret;
+        }
+      }
+    }
   }
 
   pmu_dispatch_data();
@@ -403,7 +475,7 @@ static int pmu_add_hw_events(struct eventlist *el, char **e, size_t count) {
     if (!events)
       return -1;
 
-    char *s, *tmp;
+    char *s, *tmp = NULL;
     for (s = strtok_r(events, ",", &tmp); s; s = strtok_r(NULL, ",", &tmp)) {
 
       /* Allocate memory for event struct that contains array of efd structs
@@ -459,6 +531,7 @@ static void pmu_free_events(struct eventlist *el) {
 
   while (e) {
     struct event *next = e->next;
+    sfree(e->event);
     sfree(e);
     e = next;
   }
@@ -473,13 +546,18 @@ static int pmu_setup_events(struct eventlist *el, bool measure_all,
 
   for (e = el->eventlist; e; e = e->next) {
 
-    for (int i = 0; i < el->num_cpus; i++) {
-      if (setup_event(e, i, leader, measure_all, measure_pid) < 0) {
-        WARNING(PMU_PLUGIN ": perf event '%s' is not available (cpu=%d).",
-                e->event, i);
-      } else {
-        /* success if at least one event was set */
-        ret = 0;
+    for (size_t i = 0; i < g_ctx.cores.num_cgroups; i++) {
+      core_group_t *cgroup = g_ctx.cores.cgroups + i;
+      for (size_t j = 0; j < cgroup->num_cores; j++) {
+        int core = (int)cgroup->cores[j];
+
+        if (setup_event(e, core, leader, measure_all, measure_pid) < 0) {
+          WARNING(PMU_PLUGIN ": perf event '%s' is not available (cpu=%d).",
+                  e->event, core);
+        } else {
+          /* success if at least one event was set */
+          ret = 0;
+        }
       }
     }
 
@@ -502,6 +580,24 @@ static int pmu_init(void) {
     ERROR(PMU_PLUGIN ": Failed to allocate event list.");
     return -ENOMEM;
   }
+
+  if (g_ctx.cores.num_cgroups == 0) {
+    ret = config_cores_default(g_ctx.event_list->num_cpus, &g_ctx.cores);
+    if (ret != 0) {
+      ERROR(PMU_PLUGIN ": Failed to set default core groups.");
+      goto init_error;
+    }
+  } else {
+    ret = pmu_validate_cgroups(g_ctx.cores.cgroups, g_ctx.cores.num_cgroups,
+                               g_ctx.event_list->num_cpus);
+    if (ret != 0) {
+      ERROR(PMU_PLUGIN ": Invalid core groups configuration.");
+      goto init_error;
+    }
+  }
+#if COLLECT_DEBUG
+  pmu_dump_cgroups();
+#endif
 
   if (g_ctx.hw_cache_events) {
     ret =
@@ -578,6 +674,8 @@ init_error:
   sfree(g_ctx.hw_events);
   g_ctx.hw_events_count = 0;
 
+  config_cores_cleanup(&g_ctx.cores);
+
   return ret;
 }
 
@@ -592,6 +690,8 @@ static int pmu_shutdown(void) {
   }
   sfree(g_ctx.hw_events);
   g_ctx.hw_events_count = 0;
+
+  config_cores_cleanup(&g_ctx.cores);
 
   return 0;
 }

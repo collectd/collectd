@@ -665,6 +665,7 @@
 #    ReportSoftwareEvents true
 #    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
 #    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
+#    Cores "[0-3]"
 #</Plugin>
 
 #<Plugin "intel_rdt">
