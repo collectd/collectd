@@ -25,183 +25,71 @@
 #include "testing.h"
 #include "virt.c" /* sic */
 
-#include <unistd.h>
+static virDomainPtr *domains;
+static int nr_domains;
 
-static const char minimal_xml[] =
-    ""
-    "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-    "<domain type=\"kvm\" xmlns:ovirt=\"http://ovirt.org/vm/tune/1.0\">"
-    "  <metadata/>"
-    "</domain>";
-
-static const char minimal_metadata_xml[] =
-    ""
-    "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-    "<domain type=\"kvm\" xmlns:ovirt=\"http://ovirt.org/vm/tune/1.0\">"
-    "  <metadata>"
-    "    <ovirtmap:tag "
-    "xmlns:ovirtmap=\"http://ovirt.org/ovirtmap/tag/1.0\">virt-0</ovirtmap:tag>"
-    "  </metadata>"
-    "</domain>";
-
-struct xml_state {
-  xmlDocPtr xml_doc;
-  xmlXPathContextPtr xpath_ctx;
-  xmlXPathObjectPtr xpath_obj;
-  char tag[PARTITION_TAG_MAX_LEN];
-};
-
-static int init_state(struct xml_state *st, const char *xml) {
-  memset(st, 0, sizeof(*st));
-
-  st->xml_doc = xmlReadDoc((const xmlChar *)xml, NULL, NULL, XML_PARSE_NONET);
-  if (st->xml_doc == NULL) {
+static int setup(void) {
+  if (virInitialize() != 0) {
+    printf("ERROR: virInitialize() != 0\n");
     return -1;
   }
-  st->xpath_ctx = xmlXPathNewContext(st->xml_doc);
-  if (st->xpath_ctx == NULL) {
+
+  conn = virConnectOpen("test:///default");
+  if (conn == NULL) {
+    printf("ERROR: virConnectOpen == NULL\n");
     return -1;
   }
+
   return 0;
 }
 
-static void fini_state(struct xml_state *st) {
-  if (st->xpath_ctx) {
-    xmlXPathFreeContext(st->xpath_ctx);
-    st->xpath_ctx = NULL;
+static int teardown(void) {
+  if (domains) {
+    for (int i = 0; i < nr_domains; ++i)
+      virDomainFree(domains[i]);
+    sfree(domains);
   }
-  if (st->xml_doc) {
-    xmlFreeDoc(st->xml_doc);
-    st->xml_doc = NULL;
+  nr_domains = 0;
+  if (conn != NULL)
+    virConnectClose(conn);
+
+  return 0;
+}
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+DEF_TEST(get_domain_state_notify) {
+  if (setup() == 0) {
+    nr_domains = virConnectListAllDomains(conn, &domains,
+                                          VIR_CONNECT_LIST_DOMAINS_PERSISTENT);
+    if (nr_domains <= 0) {
+      printf("ERROR: virConnectListAllDomains: nr_domains <= 0\n");
+      return -1;
+    }
+
+    int ret = get_domain_state_notify(domains[0]);
+    EXPECT_EQ_INT(0, ret);
   }
-}
-
-#define TAG "virt-0"
-
-DEF_TEST(lv_domain_get_tag_no_metadata_xml) {
-  int err;
-  struct xml_state st;
-  err = init_state(&st, minimal_xml);
-  EXPECT_EQ_INT(0, err);
-
-  err = lv_domain_get_tag(st.xpath_ctx, "test", st.tag);
-
-  EXPECT_EQ_INT(0, err);
-  EXPECT_EQ_STR("", st.tag);
-
-  fini_state(&st);
-  return 0;
-}
-
-DEF_TEST(lv_domain_get_tag_valid_xml) {
-  int err;
-  struct xml_state st;
-  err = init_state(&st, minimal_metadata_xml);
-  EXPECT_EQ_INT(0, err);
-
-  err = lv_domain_get_tag(st.xpath_ctx, "test", st.tag);
-
-  EXPECT_EQ_INT(0, err);
-  EXPECT_EQ_STR(TAG, st.tag);
+  teardown();
 
   return 0;
 }
+#endif
 
-DEF_TEST(lv_default_instance_include_domain_without_tag) {
-  struct lv_read_instance *inst = NULL;
-  int ret;
+DEF_TEST(persistent_domains_state_notification) {
+  if (setup() == 0) {
+    int ret = persistent_domains_state_notification();
+    EXPECT_EQ_INT(0, ret);
+  }
+  teardown();
 
-  ret = lv_init_instance(0, lv_read);
-  inst = &(lv_read_user_data[0].inst);
-  EXPECT_EQ_STR("virt-0", inst->tag);
-
-  ret = lv_instance_include_domain(inst, "testing", "");
-  EXPECT_EQ_INT(1, ret);
-
-  lv_fini_instance(0);
   return 0;
 }
-
-DEF_TEST(lv_regular_instance_skip_domain_without_tag) {
-  struct lv_read_instance *inst = NULL;
-  int ret;
-
-  ret = lv_init_instance(1, lv_read);
-  inst = &(lv_read_user_data[1].inst);
-  EXPECT_EQ_STR("virt-1", inst->tag);
-
-  ret = lv_instance_include_domain(inst, "testing", "");
-  EXPECT_EQ_INT(0, ret);
-
-  lv_fini_instance(0);
-  return 0;
-}
-
-DEF_TEST(lv_include_domain_matching_tags) {
-  struct lv_read_instance *inst = NULL;
-  int ret;
-
-  ret = lv_init_instance(0, lv_read);
-  inst = &(lv_read_user_data[0].inst);
-  EXPECT_EQ_STR("virt-0", inst->tag);
-
-  ret = lv_instance_include_domain(inst, "testing", "virt-0");
-  EXPECT_EQ_INT(1, ret);
-
-  ret = lv_init_instance(1, lv_read);
-  inst = &(lv_read_user_data[1].inst);
-  EXPECT_EQ_STR("virt-1", inst->tag);
-
-  ret = lv_instance_include_domain(inst, "testing", "virt-1");
-  EXPECT_EQ_INT(1, ret);
-
-  lv_fini_instance(0);
-  lv_fini_instance(1);
-  return 0;
-}
-
-DEF_TEST(lv_default_instance_include_domain_with_unknown_tag) {
-  struct lv_read_instance *inst = NULL;
-  int ret;
-
-  ret = lv_init_instance(0, lv_read);
-  inst = &(lv_read_user_data[0].inst);
-  EXPECT_EQ_STR("virt-0", inst->tag);
-
-  ret = lv_instance_include_domain(inst, "testing", "unknownFormat-tag");
-  EXPECT_EQ_INT(1, ret);
-
-  lv_fini_instance(0);
-  return 0;
-}
-
-DEF_TEST(lv_regular_instance_skip_domain_with_unknown_tag) {
-  struct lv_read_instance *inst = NULL;
-  int ret;
-
-  ret = lv_init_instance(1, lv_read);
-  inst = &(lv_read_user_data[1].inst);
-  EXPECT_EQ_STR("virt-1", inst->tag);
-
-  ret = lv_instance_include_domain(inst, "testing", "unknownFormat-tag");
-  EXPECT_EQ_INT(0, ret);
-
-  lv_fini_instance(0);
-  return 0;
-}
-#undef TAG
 
 int main(void) {
-  RUN_TEST(lv_domain_get_tag_no_metadata_xml);
-  RUN_TEST(lv_domain_get_tag_valid_xml);
-
-  RUN_TEST(lv_default_instance_include_domain_without_tag);
-  RUN_TEST(lv_regular_instance_skip_domain_without_tag);
-  RUN_TEST(lv_include_domain_matching_tags);
-  RUN_TEST(lv_default_instance_include_domain_with_unknown_tag);
-  RUN_TEST(lv_regular_instance_skip_domain_with_unknown_tag);
+#ifdef HAVE_LIST_ALL_DOMAINS
+  RUN_TEST(get_domain_state_notify);
+#endif
+  RUN_TEST(persistent_domains_state_notification);
 
   END_TEST;
 }
-
-/* vim: set sw=2 sts=2 et : */
