@@ -593,7 +593,7 @@ if BUILD_PLUGIN_BAROMETER
 pkglib_LTLIBRARIES += barometer.la
 barometer_la_SOURCES = src/barometer.c
 barometer_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-barometer_la_LIBADD = -lm
+barometer_la_LIBADD = -lm $(BUILD_WITH_LIBI2C_LIBS)
 endif
 
 if BUILD_PLUGIN_BATTERY

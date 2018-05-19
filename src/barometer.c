@@ -27,6 +27,9 @@
 
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
+#if HAVE_I2C_SMBUS_H
+#include <i2c/smbus.h>
+#endif
 #include <math.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
