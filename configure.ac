@@ -4713,7 +4713,16 @@ if test "x$with_libqpid_proton" = "xyes"; then
   CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
-# add library checks for function calls
+if test "x$with_libqpid_proton" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libqpid_proton_ldflags"
+
+  AC_CHECK_LIB([qpid-proton], [pn_connection],
+    [with_libqpid_proton="yes"],
+    [with_libqpid_proton="no (Symbol 'pn_connection' not found)"])
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
 
 if test "x$with_libqpid_proton" = "xyes"; then
   BUILD_WITH_LIBQPIDPROTON_CPPFLAGS="$with_libqpid_proton_cppflags"
