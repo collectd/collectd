@@ -26,6 +26,10 @@
 
 #include "plugin.h"
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc = NULL;
 #endif /* HAVE_LIBKSTAT */

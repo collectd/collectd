@@ -52,6 +52,9 @@
 /*
  * Global variables
  */
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 
 #if HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;

@@ -33,6 +33,10 @@
 #include "utils_avltree.h"
 #include "utils_vl_lookup.h"
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;
 #endif /* HAVE_LIBKSTAT */

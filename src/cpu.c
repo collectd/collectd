@@ -102,7 +102,7 @@
 #define COLLECTD_CPU_STATE_GUEST_NICE 9
 #define COLLECTD_CPU_STATE_IDLE 10
 #define COLLECTD_CPU_STATE_ACTIVE 11 /* sum of (!idle) */
-#define COLLECTD_CPU_STATE_MAX 12   /* #states */
+#define COLLECTD_CPU_STATE_MAX 12    /* #states */
 
 #if HAVE_STATGRAB_H
 #include <statgrab.h>
@@ -119,9 +119,9 @@
 #error "No applicable input method."
 #endif
 
-static const char *cpu_state_names[] = {"user", "system",    "wait",    "nice",
-                                        "swap", "interrupt", "softirq", "steal",
-                                        "guest", "guest_nice", "idle", "active"};
+static const char *cpu_state_names[] = {
+    "user",    "system", "wait",  "nice",       "swap", "interrupt",
+    "softirq", "steal",  "guest", "guest_nice", "idle", "active"};
 
 #ifdef PROCESSOR_CPU_LOAD_INFO
 static mach_port_t port_host;
@@ -134,6 +134,9 @@ static mach_msg_type_number_t cpu_list_len;
 /* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 /* colleague tells me that Sun doesn't sell systems with more than 100 or so
  * CPUs.. */
 #define MAX_NUMCPU 256
@@ -198,8 +201,8 @@ static _Bool report_num_cpu = 0;
 static _Bool report_guest = 0;
 static _Bool subtract_guest = 1;
 
-static const char *config_keys[] = {"ReportByCpu", "ReportByState",
-                                    "ReportNumCpu", "ValuesPercentage",
+static const char *config_keys[] = {"ReportByCpu",      "ReportByState",
+                                    "ReportNumCpu",     "ValuesPercentage",
                                     "ReportGuestState", "SubtractGuestState"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -553,9 +556,8 @@ static void cpu_commit(void) /* {{{ */
 
   for (size_t cpu_num = 0; cpu_num < global_cpu_num; cpu_num++) {
     cpu_state_t *this_cpu_states = get_cpu_state(cpu_num, 0);
-    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN, NAN, NAN, NAN,
-                                                   NAN, NAN };
+    gauge_t local_rates[COLLECTD_CPU_STATE_MAX] = {
+        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
 
     for (size_t state = 0; state < COLLECTD_CPU_STATE_MAX; state++)
       if (this_cpu_states[state].has_value)
@@ -664,7 +666,8 @@ static int cpu_read(void) {
 
     cpu = atoi(fields[0] + 3);
 
-    /* Do not stage User and Nice immediately: we may need to alter them later: */
+    /* Do not stage User and Nice immediately: we may need to alter them later:
+     */
     long long user_value = atoll(fields[1]);
     long long nice_value = atoll(fields[2]);
     cpu_stage(cpu, COLLECTD_CPU_STATE_SYSTEM, (derive_t)atoll(fields[3]), now);
@@ -676,7 +679,7 @@ static int cpu_read(void) {
                 now);
       cpu_stage(cpu, COLLECTD_CPU_STATE_SOFTIRQ, (derive_t)atoll(fields[7]),
                 now);
-	}
+    }
 
     if (numfields >= 9) { /* Steal (since Linux 2.6.11) */
       cpu_stage(cpu, COLLECTD_CPU_STATE_STEAL, (derive_t)atoll(fields[8]), now);
@@ -689,7 +692,8 @@ static int cpu_read(void) {
         /* Guest is included in User; optionally subtract Guest from User: */
         if (subtract_guest) {
           user_value -= value;
-          if (user_value < 0) user_value = 0;
+          if (user_value < 0)
+            user_value = 0;
         }
       }
     }
@@ -702,7 +706,8 @@ static int cpu_read(void) {
            Nice: */
         if (subtract_guest) {
           nice_value -= value;
-          if (nice_value < 0) nice_value = 0;
+          if (nice_value < 0)
+            nice_value = 0;
         }
       }
     }
