@@ -120,6 +120,9 @@ static struct gmesh geom_tree;
 /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 #define MAX_NUMDISK 1024
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];

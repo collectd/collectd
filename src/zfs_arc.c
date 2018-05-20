@@ -99,6 +99,11 @@ static void free_zfs_values(kstat_t *ksp) {
 }
 
 #elif defined(KERNEL_SOLARIS)
+
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name) {
