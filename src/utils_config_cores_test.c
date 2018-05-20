@@ -25,6 +25,8 @@
  *   Kamil Wiatrowski <kamilx.wiatrowski@intel.com>
  **/
 
+#include "collectd.h"
+
 #include "testing.h"
 #include "utils_config_cores.c" /* sic */
 
