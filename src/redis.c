@@ -72,6 +72,7 @@ struct redis_node_s {
   char passwd[MAX_REDIS_PASSWD_LENGTH];
   int port;
   struct timeval timeout;
+  int db;
   redis_query_t *queries;
 
   redis_node_t *next;
