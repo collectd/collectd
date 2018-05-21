@@ -50,6 +50,7 @@
  *     Host "localhost"
  *     Port "6379"
  *     Timeout 2
+ *     Db 8
  *     Password "foobar"
  *   </Node>
  * </Plugin>
@@ -165,6 +166,7 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
   redis_query_t *rq;
   int status;
   int timeout;
+  int db;
 
   redis_node_t rn = {.port = REDIS_DEF_PORT,
                      .timeout.tv_usec = REDIS_DEF_TIMEOUT};
