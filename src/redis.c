@@ -36,7 +36,8 @@
 #define REDIS_DEF_PASSWD ""
 #define REDIS_DEF_PORT 6379
 #define REDIS_DEF_TIMEOUT 2000
-#define REDIS_DEF_DB_COUNT 16
+#define REDIS_DEF_DB_COUNT 256
+#define REDIS_DEF_DB 0
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
 #define MAX_REDIS_VAL_SIZE 256
@@ -196,6 +197,10 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(option, &timeout);
       if (status == 0)
         rn.timeout.tv_usec = timeout;
+    } else if (strcasecmp("Db", option->key) == 0) {
+      status = cf_util_get_int(option, &db);
+      if (status == 0)
+        rn.db = db;
     } else if (strcasecmp("Password", option->key) == 0)
       status = cf_util_get_string_buffer(option, rn.passwd, sizeof(rn.passwd));
     else
@@ -257,6 +262,7 @@ static int redis_init(void) /* {{{ */
   redis_node_t rn = {.name = "default",
                      .host = REDIS_DEF_HOST,
                      .port = REDIS_DEF_PORT,
+                     .db = REDIS_DEF_DB,
                      .timeout.tv_sec = 0,
                      .timeout.tv_usec = REDIS_DEF_TIMEOUT,
                      .next = NULL};
@@ -424,6 +430,11 @@ static int redis_read(void) /* {{{ */
       }
 
       freeReplyObject(rr);
+    }
+
+    if ((rr = redisCommand(rh, "SELECT %d", rn->db)) == NULL) {
+      WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rn->db, rn->name);
+      goto redis_fail;
     }
 
     if ((rr = redisCommand(rh, "INFO")) == NULL) {
