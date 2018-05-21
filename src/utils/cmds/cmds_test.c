@@ -204,6 +204,18 @@ static struct {
         CMD_OK,
         CMD_PUTVAL,
     },
+    {
+        "PUTVAL myhost/magic/MAGIC meta:KEY=\"string_value\" 1234:42",
+        NULL,
+        CMD_OK,
+        CMD_PUTVAL,
+    },
+    {
+        "PUTVAL myhost/magic/MAGIC meta:KEY='string_value' 1234:42",
+        NULL,
+        CMD_OK,
+        CMD_PUTVAL,
+    },
 
     /* Invalid PUTVAL commands. */
     {

@@ -35,6 +35,15 @@
  * private helper functions
  */
 
+static int is_quoted(const char *str, size_t len) {
+  if (len < 2) {
+    return 0;
+  }
+
+  return (str[0] == '"' && str[len - 1] == '"') ||
+         (str[0] == '\'' && str[len - 1] == '\'');
+}
+
 static int set_option(value_list_t *vl, const char *key, const char *value) {
   if ((vl == NULL) || (key == NULL) || (value == NULL))
     return -1;
@@ -50,13 +59,21 @@ static int set_option(value_list_t *vl, const char *key, const char *value) {
     if ((errno == 0) && (endptr != NULL) && (endptr != value) && (tmp > 0.0))
       vl->interval = DOUBLE_TO_CDTIME_T(tmp);
   } else if (strncasecmp("meta:", key, 5) == 0) {
+    const char *meta_key = key + 5;
+    size_t value_len = strlen(value);
+
     if (vl->meta == NULL) {
       vl->meta = meta_data_create();
       if (vl->meta == NULL) {
         return 1;
       }
     }
-    return meta_data_add_string(vl->meta, key + 5, value);
+
+    if (is_quoted(value, value_len)) {
+      const char *value_str = strndup(value + 1, value_len - 2);
+      return meta_data_add_string(vl->meta, meta_key, value_str);
+    }
+    return 1;
   } else {
     return 1;
   }
