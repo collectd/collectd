@@ -71,7 +71,11 @@ static int set_option(value_list_t *vl, const char *key, const char *value) {
 
     if (is_quoted(value, value_len)) {
       const char *value_str = strndup(value + 1, value_len - 2);
-      return meta_data_add_string(vl->meta, meta_key, value_str);
+      if (value_str == NULL) {
+        return 1;
+      }
+      meta_data_add_string(vl->meta, meta_key, value_str);
+      free((void *)value_str);
     }
     return 1;
   } else {
