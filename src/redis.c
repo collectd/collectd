@@ -434,7 +434,8 @@ static int redis_read(void) /* {{{ */
     }
 
     if ((rr = redisCommand(rh, "SELECT %d", rn->db)) == NULL) {
-      WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rn->db, rn->name);
+      WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rn->db,
+              rn->name);
       goto redis_fail;
     }
 
