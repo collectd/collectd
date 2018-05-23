@@ -44,7 +44,7 @@
 #elif HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
 #else /* fallback */
-#include "stdendian.h"
+#include "collectd/stdendian.h"
 #endif
 
 #if HAVE_GCRYPT_H

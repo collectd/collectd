@@ -282,6 +282,9 @@ int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta);
 int check_create_dir(const char *file_orig);
 
 #ifdef HAVE_LIBKSTAT
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name);
 long long get_kstat_value(kstat_t *ksp, char *name);
 #endif
