@@ -150,7 +150,7 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
       status =
           cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
     } else if (strcasecmp("Db", option->key) == 0) {
-      status = cf_util_get_int(option, rq->db);
+      status = cf_util_get_int(option, &rq->db);
     } else {
       WARNING("redis plugin: unknown configuration option: %s", option->key);
       status = -1;
@@ -322,7 +322,7 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
   if ((rr = redisCommand(rh, "SELECT %d", rq->db)) == NULL) {
     WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rq->db,
             rn->name);
-    goto redis_fail;
+    return -1;
   }
 
   if ((rr = redisCommand(rh, rq->query)) == NULL) {
