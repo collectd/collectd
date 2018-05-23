@@ -396,7 +396,7 @@ static int tbl_result_dispatch(tbl_t *tbl, tbl_result_t *res, char **fields,
     else
       r = snprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s",
                    res->instance_prefix, instances_str);
-    if (r >= sizeof(vl.type_instance))
+    if ((size_t)r >= sizeof(vl.type_instance))
       log_warn("Truncated type instance: %s.", vl.type_instance);
   }
 
