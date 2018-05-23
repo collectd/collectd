@@ -319,8 +319,8 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
 
   if (rq->database > 0) {
     if ((rr = redisCommand(rh, "SELECT %d", rq->database)) == NULL) {
-      WARNING("redis plugin: unable to switch to database `%d' on node `%s'.", rq->database,
-              rn->name);
+      WARNING("redis plugin: unable to switch to database `%d' on node `%s'.",
+              rq->database, rn->name);
       return -1;
     }
   }
