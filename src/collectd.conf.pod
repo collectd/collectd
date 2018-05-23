@@ -7093,6 +7093,7 @@ which configures the connection parameters for this node.
     <Node "example">
         Host "localhost"
         Port "6379"
+        Db "0"
         Timeout 2000
         <Query "LLEN myqueue">
           Type "queue_length"
@@ -7134,6 +7135,10 @@ The B<Timeout> option set the socket timeout for node response. Since the Redis
 read function is blocking, you should keep this value as low as possible. Keep
 in mind that the sum of all B<Timeout> values for all B<Nodes> should be lower
 than B<Interval> defined globally.
+
+=item B<Db> I<Db>
+
+Database to perform queries
 
 =item B<Query> I<Querystring>
 

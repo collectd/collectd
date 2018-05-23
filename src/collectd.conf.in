@@ -1237,6 +1237,7 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
+#      Db "0"
 #      Timeout 2000
 #   </Node>
 #</Plugin>
