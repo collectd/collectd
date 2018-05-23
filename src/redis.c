@@ -37,7 +37,6 @@
 #define REDIS_DEF_PORT 6379
 #define REDIS_DEF_TIMEOUT 2000
 #define REDIS_DEF_DB_COUNT 256
-#define REDIS_DEF_DB 0
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
 #define MAX_REDIS_VAL_SIZE 256
@@ -61,7 +60,7 @@ struct redis_query_s {
   char query[MAX_REDIS_QUERY];
   char type[DATA_MAX_NAME_LEN];
   char instance[DATA_MAX_NAME_LEN];
-  int db;
+  int database;
 
   redis_query_t *next;
 };
@@ -143,14 +142,13 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
-    rq->db = REDIS_DEF_DB;
     if (strcasecmp("Type", option->key) == 0) {
       status = cf_util_get_string_buffer(option, rq->type, sizeof(rq->type));
     } else if (strcasecmp("Instance", option->key) == 0) {
       status =
           cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
-    } else if (strcasecmp("Db", option->key) == 0) {
-      status = cf_util_get_int(option, &rq->db);
+    } else if (strcasecmp("Database", option->key) == 0) {
+      status = cf_util_get_int(option, &rq->database);
     } else {
       WARNING("redis plugin: unknown configuration option: %s", option->key);
       status = -1;
@@ -319,10 +317,12 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
     return -1;
   }
 
-  if ((rr = redisCommand(rh, "SELECT %d", rq->db)) == NULL) {
-    WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rq->db,
-            rn->name);
-    return -1;
+  if (rq->database > 0) {
+    if ((rr = redisCommand(rh, "SELECT %d", rq->database)) == NULL) {
+      WARNING("redis plugin: unable to switch to database `%d' on node `%s'.", rq->database,
+              rn->name);
+      return -1;
+    }
   }
 
   if ((rr = redisCommand(rh, rq->query)) == NULL) {
