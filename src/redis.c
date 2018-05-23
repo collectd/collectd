@@ -320,8 +320,8 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
   }
 
   if ((rr = redisCommand(rh, "SELECT %d", rq->db)) == NULL) {
-    WARNING("redis plugin: unable to switch to db `%d' on node `%s'.",
-            rq->name);
+    WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rq->db,
+            rn->name);
     goto redis_fail;
   }
 
