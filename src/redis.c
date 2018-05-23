@@ -50,7 +50,6 @@
  *     Host "localhost"
  *     Port "6379"
  *     Timeout 2
- *     Db 8
  *     Password "foobar"
  *   </Node>
  * </Plugin>
@@ -62,6 +61,8 @@ struct redis_query_s {
   char query[MAX_REDIS_QUERY];
   char type[DATA_MAX_NAME_LEN];
   char instance[DATA_MAX_NAME_LEN];
+  int db;
+
   redis_query_t *next;
 };
 
@@ -73,7 +74,6 @@ struct redis_node_s {
   char passwd[MAX_REDIS_PASSWD_LENGTH];
   int port;
   struct timeval timeout;
-  int db;
   redis_query_t *queries;
 
   redis_node_t *next;
@@ -143,11 +143,14 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
+    rq->db = REDIS_DEF_DB;
     if (strcasecmp("Type", option->key) == 0) {
       status = cf_util_get_string_buffer(option, rq->type, sizeof(rq->type));
     } else if (strcasecmp("Instance", option->key) == 0) {
       status =
           cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
+    } else if (strcasecmp("Db", option->key) == 0) {
+      status = cf_util_get_int(option, rq->db);
     } else {
       WARNING("redis plugin: unknown configuration option: %s", option->key);
       status = -1;
@@ -166,7 +169,6 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
   redis_query_t *rq;
   int status;
   int timeout;
-  int db;
 
   redis_node_t rn = {.port = REDIS_DEF_PORT,
                      .timeout.tv_usec = REDIS_DEF_TIMEOUT};
@@ -200,10 +202,6 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_int(option, &timeout);
       if (status == 0)
         rn.timeout.tv_usec = timeout;
-    } else if (strcasecmp("Db", option->key) == 0) {
-      status = cf_util_get_int(option, &db);
-      if (status == 0)
-        rn.db = db;
     } else if (strcasecmp("Password", option->key) == 0)
       status = cf_util_get_string_buffer(option, rn.passwd, sizeof(rn.passwd));
     else
@@ -265,7 +263,6 @@ static int redis_init(void) /* {{{ */
   redis_node_t rn = {.name = "default",
                      .host = REDIS_DEF_HOST,
                      .port = REDIS_DEF_PORT,
-                     .db = REDIS_DEF_DB,
                      .timeout.tv_sec = 0,
                      .timeout.tv_usec = REDIS_DEF_TIMEOUT,
                      .next = NULL};
@@ -320,6 +317,12 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
   if (ds->ds_num != 1) {
     ERROR("redis plugin: DS `%s' has too many types.", rq->type);
     return -1;
+  }
+
+  if ((rr = redisCommand(rh, "SELECT %d", rq->db)) == NULL) {
+    WARNING("redis plugin: unable to switch to db `%d' on node `%s'.",
+            rq->name);
+    goto redis_fail;
   }
 
   if ((rr = redisCommand(rh, rq->query)) == NULL) {
@@ -433,12 +436,6 @@ static int redis_read(void) /* {{{ */
       }
 
       freeReplyObject(rr);
-    }
-
-    if ((rr = redisCommand(rh, "SELECT %d", rn->db)) == NULL) {
-      WARNING("redis plugin: unable to switch to db `%d' on node `%s'.", rn->db,
-              rn->name);
-      goto redis_fail;
     }
 
     if ((rr = redisCommand(rh, "INFO")) == NULL) {

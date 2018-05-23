@@ -1237,8 +1237,12 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
-#      Db "0"
 #      Timeout 2000
+#      <Query "LLEN myqueue">
+#        Db "0"
+#        Type "queue_length"
+#        Instance "myqueue"
+#      <Query>
 #   </Node>
 #</Plugin>
 
