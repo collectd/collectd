@@ -553,10 +553,10 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
       db->name, column_names, column_num,
       /* interval = */ (db->interval > 0) ? db->interval : 0);
 
-  if (status != 0)
-  {
-    ERROR("dbi plugin: udb_query_prepare_result failed with status %i.", status);
-    BAIL_OUT (-1);
+  if (status != 0) {
+    ERROR("dbi plugin: udb_query_prepare_result failed with status %i.",
+          status);
+    BAIL_OUT(-1);
   }
 
   /* 0 = error; 1 = success; */
