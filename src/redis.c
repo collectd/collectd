@@ -142,7 +142,7 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
-    &rq->database = 0;
+    rq->database = 0;
 
     if (strcasecmp("Type", option->key) == 0) {
       status = cf_util_get_string_buffer(option, rq->type, sizeof(rq->type));
@@ -151,9 +151,6 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
           cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
     } else if (strcasecmp("Database", option->key) == 0) {
       status = cf_util_get_int(option, &rq->database);
-      if (option[0].value.number < 0) {
-        status = -1;
-      }
     } else {
       WARNING("redis plugin: unknown configuration option: %s", option->key);
       status = -1;
@@ -322,8 +319,14 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
     return -1;
   }
 
-  if ((rr = redisCommand(rh, "SELECT %d", rq->database)) == NULL) {
-    WARNING("redis plugin: unable to switch to database `%d' on node `%s'.",
+  if (rq->database >= 0) {
+    if ((rr = redisCommand(rh, "SELECT %d", rq->database)) == NULL) {
+      WARNING("redis plugin: unable to switch to database `%d' on node `%s'.",
+              rq->database, rn->name);
+      return -1;
+    }
+  } else {
+    WARNING("redis plugin: database `%d' must be positive int on node `%s'.",
             rq->database, rn->name);
     return -1;
   }
