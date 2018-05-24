@@ -92,16 +92,16 @@ DEQ_DECLARE(cd_message_t, cd_message_list_t);
 /*
  * Globals
  */
-static pn_connection_t *conn = NULL;
-static pn_link_t *sender = NULL;
-static pn_proactor_t *proactor = NULL;
+static pn_connection_t *conn;
+static pn_link_t *sender;
+static pn_proactor_t *proactor;
 static pthread_mutex_t send_lock;
 static cd_message_list_t out_messages;
 static uint64_t cd_tag = 1;
-static uint64_t acknowledged = 0;
-static amqp1_config_transport_t *transport = NULL;
-static bool stopping = false;
-static int event_thread_running = 0;
+static uint64_t acknowledged;
+static amqp1_config_transport_t *transport;
+static bool stopping;
+static int event_thread_running;
 static pthread_t event_thread_id;
 
 /*
