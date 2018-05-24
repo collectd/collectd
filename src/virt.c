@@ -1899,7 +1899,7 @@ static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
    */
   thread_data->domain_event_cb_id = -1;
   pthread_mutex_lock(&thread_data->active_mutex);
-  thread_data->is_active = 0;
+  thread_data->is_active = false;
   pthread_mutex_unlock(&thread_data->active_mutex);
 
   return 0;
