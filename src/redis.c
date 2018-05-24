@@ -152,8 +152,9 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("Database", option->key) == 0) {
       status = cf_util_get_int(option, &rq->database);
       if (rq->database < 0) {
-        WARNING("redis plugin: database `%d' must be positive int on node `%s'.",
-              rq->database, rn->name);
+        WARNING(
+            "redis plugin: database `%d' must be positive int on node `%s'.",
+            rq->database, rn->name);
         status = -1;
       }
     } else {
