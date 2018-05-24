@@ -151,7 +151,7 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
           cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
     } else if (strcasecmp("Database", option->key) == 0) {
       status = cf_util_get_int(option, &rq->database);
-      if (option[0].value.number < 0 ) {
+      if (option[0].value.number < 0) {
         status = -1;
       }
     } else {
