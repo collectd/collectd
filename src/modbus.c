@@ -80,8 +80,8 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_UINT16,
   REG_TYPE_UINT32,
   REG_TYPE_UINT32_CDAB,
-  REG_TYPE_UINT64,
   REG_TYPE_INT64,
+  REG_TYPE_UINT64,
   REG_TYPE_FLOAT,
   REG_TYPE_FLOAT_CDAB }; /* }}} */
 
@@ -433,13 +433,13 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type != REG_TYPE_INT32) &&
       (data->register_type != REG_TYPE_INT32_CDAB) &&
       (data->register_type != REG_TYPE_UINT32) &&
+      (data->register_type != REG_TYPE_UINT32_CDAB) &&
       (data->register_type != REG_TYPE_INT64) &&
-      (data->register_type != REG_TYPE_UINT64) &&
-      (data->register_type != REG_TYPE_UINT32_CDAB)) {
+      (data->register_type != REG_TYPE_UINT64)) {
     NOTICE(
         "Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
         "This will most likely result in problems, because the register type "
-        "is not UINT32 OR UINT64.",
+        "is not UINT32 or UINT64.",
         data->type, DS_TYPE_TO_STRING(ds->ds[0].type));
   }
 
@@ -450,8 +450,8 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type == REG_TYPE_FLOAT) ||
       (data->register_type == REG_TYPE_FLOAT_CDAB))
     values_num = 2;
-  else if ((data->register_type == REG_TYPE_UINT64) ||
-           (data->register_type == REG_TYPE_INT64))
+  else if ((data->register_type == REG_TYPE_INT64) ||
+           (data->register_type == REG_TYPE_UINT64))
     values_num = 4;
   else
     values_num = 1;
