@@ -80,6 +80,8 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_UINT16,
   REG_TYPE_UINT32,
   REG_TYPE_UINT32_CDAB,
+  REG_TYPE_UINT64,
+  REG_TYPE_INT64,
   REG_TYPE_FLOAT,
   REG_TYPE_FLOAT_CDAB }; /* }}} */
 
@@ -406,7 +408,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
 
 static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
                         mb_data_t *data) {
-  uint16_t values[2] = {0};
+  uint16_t values[4] = {0};
   int values_num;
   const data_set_t *ds;
   int status = 0;
@@ -431,11 +433,13 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type != REG_TYPE_INT32) &&
       (data->register_type != REG_TYPE_INT32_CDAB) &&
       (data->register_type != REG_TYPE_UINT32) &&
+      (data->register_type != REG_TYPE_INT64) &&
+      (data->register_type != REG_TYPE_UINT64) &&
       (data->register_type != REG_TYPE_UINT32_CDAB)) {
     NOTICE(
         "Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
         "This will most likely result in problems, because the register type "
-        "is not UINT32.",
+        "is not UINT32 OR UINT64.",
         data->type, DS_TYPE_TO_STRING(ds->ds[0].type));
   }
 
@@ -446,6 +450,9 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type == REG_TYPE_FLOAT) ||
       (data->register_type == REG_TYPE_FLOAT_CDAB))
     values_num = 2;
+  else if ((data->register_type == REG_TYPE_UINT64) ||
+           (data->register_type == REG_TYPE_INT64))
+    values_num = 4;
   else
     values_num = 1;
 
@@ -608,6 +615,33 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
 
     CAST_TO_VALUE_T(ds, vt, v32);
     mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_UINT64) {
+    uint64_t v64;
+    value_t vt;
+
+    v64 = (((uint64_t)values[0]) << 48) | (((uint64_t)values[1]) << 32) |
+          (((uint64_t)values[2]) << 16) | (((uint64_t)values[3]));
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned uint64 value is %" PRIu64,
+          v64);
+
+    CAST_TO_VALUE_T(ds, vt, v64);
+    mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_INT64) {
+    union {
+      uint64_t u64;
+      int64_t i64;
+    } v;
+    value_t vt;
+
+    v.u64 = (((uint64_t)values[0]) << 48) | (((uint64_t)values[1]) << 32) |
+            (((uint64_t)values[2]) << 16) | ((uint64_t)values[3]);
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned uint64 value is %" PRIi64,
+          v.i64);
+
+    CAST_TO_VALUE_T(ds, vt, v.i64);
+    mb_submit(host, slave, data, vt);
   } else /* if (data->register_type == REG_TYPE_UINT16) */
   {
     value_t vt;
@@ -759,6 +793,10 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
         data.register_type = REG_TYPE_FLOAT;
       else if (strcasecmp("FloatLE", tmp) == 0)
         data.register_type = REG_TYPE_FLOAT_CDAB;
+      else if (strcasecmp("Uint64", tmp) == 0)
+        data.register_type = REG_TYPE_UINT64;
+      else if (strcasecmp("Int64", tmp) == 0)
+        data.register_type = REG_TYPE_INT64;
       else {
         ERROR("Modbus plugin: The register type \"%s\" is unknown.", tmp);
         status = -1;
