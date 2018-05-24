@@ -323,7 +323,7 @@ static int encqueue(cd_message_t *cdm,
                                      &cdm->mbuf.size)) == PN_OVERFLOW) {
     DEBUG("amqp1 plugin: increasing message buffer size %zu", cdm->mbuf.size);
     cdm->mbuf.size *= 2;
-    cdm->mbuf.start = (char *)realloc(cdm->mbuf.start, cdm->mbuf.size);
+    cdm->mbuf.start = realloc(cdm->mbuf.start, cdm->mbuf.size);
   }
 
   if (status != 0) {
