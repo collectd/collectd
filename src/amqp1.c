@@ -101,7 +101,7 @@ static uint64_t cd_tag = 1;
 static uint64_t acknowledged;
 static amqp1_config_transport_t *transport;
 static bool stopping;
-static int event_thread_running;
+static bool event_thread_running;
 static pthread_t event_thread_id;
 
 /*
@@ -299,7 +299,7 @@ static void *event_thread(void __attribute__((unused)) * arg) /* {{{ */
     cdm = DEQ_HEAD(out_messages);
   }
 
-  event_thread_running = 0;
+  event_thread_running = false;
 
   return NULL;
 } /* }}} void event_thread */
@@ -690,7 +690,7 @@ static int amqp1_init(void) /* {{{ */
       ERROR("amqp1 plugin: pthread_create failed: %s",
             sstrerror(errno, errbuf, sizeof(errbuf)));
     } else {
-      event_thread_running = 1;
+      event_thread_running = true;
     }
   }
   return 0;
@@ -701,7 +701,7 @@ static int amqp1_shutdown(void) /* {{{ */
   stopping = true;
 
   /* Stop the proactor thread */
-  if (event_thread_running == 1) {
+  if (event_thread_running) {
     DEBUG("amqp1 plugin: Shutting down proactor thread.");
     pn_connection_wake(conn);
   }
