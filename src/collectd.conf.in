@@ -90,6 +90,7 @@
 
 #@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
+#@BUILD_PLUGIN_AMQP1_TRUE@LoadPlugin amqp1
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
@@ -267,6 +268,29 @@
 #    StoreRates false
 #    ConnectionRetryDelay 0
 #  </Publish>
+#</Plugin>
+
+#<Plugin amqp1>
+#  <Transport "name">
+#    Host "localhost"
+#    Port "5672"
+#    User "guest"
+#    Password "guest"
+#    Address "collectd"
+#    RetryDelay 1
+#    <Instance "log">
+#        Format JSON
+#        PreSettle false
+#    </Instance>
+#    <Instance "notify">
+#        Format JSON
+#        PreSettle true
+#    </Instance>
+#    <Instance "telemetry">
+#        Format JSON
+#        PreSettle false
+#    </Instance>
+#  </Transport>
 #</Plugin>
 
 #<Plugin apache>

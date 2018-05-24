@@ -543,7 +543,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
       int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
                        tc_inst);
-      if (r >= sizeof(type_instance)) {
+      if ((size_t)r >= sizeof(type_instance)) {
         ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
               sizeof(type_instance), r);
         return MNL_CB_ERROR;
@@ -582,7 +582,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
       int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
                        tc_inst);
-      if (r >= sizeof(type_instance)) {
+      if ((size_t)r >= sizeof(type_instance)) {
         ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
               sizeof(type_instance), r);
         return MNL_CB_ERROR;

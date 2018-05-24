@@ -995,8 +995,9 @@ static int ps_read_tasks_status(process_entry_t *ps) {
 
     tpid = ent->d_name;
 
-    if (snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
-                 tpid) >= sizeof(filename)) {
+    int r = snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status",
+                     ps->id, tpid);
+    if ((size_t)r >= sizeof(filename)) {
       DEBUG("Filename too long: `%s'", filename);
       continue;
     }
