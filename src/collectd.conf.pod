@@ -4242,8 +4242,9 @@ which the sizes of physical memory vary.
 
 The B<modbus plugin> connects to a Modbus "slave" via Modbus/TCP or Modbus/RTU and
 reads register values. It supports reading single registers (unsigned 16E<nbsp>bit
-values), large integer values (unsigned 32E<nbsp>bit values) and floating point
-values (two registers interpreted as IEEE floats in big endian notation).
+values), large integer values (unsigned 32E<nbsp>bit and 64E<nbsp>bit values) and
+floating point values (two registers interpreted as IEEE floats in big endian
+notation).
 
 B<Synopsis:>
 
@@ -4253,6 +4254,8 @@ B<Synopsis:>
    RegisterCmd ReadHolding
    Type voltage
    Instance "input-1"
+   #Scale 1.0
+   #Shift 0.0
  </Data>
 
  <Data "voltage-input-2">
@@ -4341,8 +4344,18 @@ supported.
 
 =item B<Instance> I<Instance>
 
-Sets the type instance to use when dispatching the value to I<collectd>. If
+Sets the type instance to use when dispatching the value to I<Instance>. If
 unset, an empty string (no type instance) is used.
+
+=item B<Scale> I<Value>
+
+The values taken from device are multiplied by I<Value>. The field is optional
+and the default is B<1.0>.
+
+=item B<Shift> I<Value>
+
+I<Value> is added to values from device after they have been multiplied by
+B<Scale> value. The field is optional and the default value is B<0.0>.
 
 =back
 
