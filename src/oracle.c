@@ -583,6 +583,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     }
   } /* }}} while (42) */
 
+  udb_query_finish_result(q, prep_area);
+
   /* DEBUG ("oracle plugin: o_read_database_query: This statement succeeded:
    * %s", q->statement); */
   FREE_ALL;

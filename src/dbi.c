@@ -547,11 +547,17 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
     sstrncpy(column_names[i], column_name, DATA_MAX_NAME_LEN);
   } /* }}} for (i = 0; i < column_num; i++) */
 
-  udb_query_prepare_result(
+  status = udb_query_prepare_result(
       q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "dbi",
       db->name, column_names, column_num,
       /* interval = */ (db->interval > 0) ? db->interval : 0);
+
+  if (status != 0) {
+    ERROR("dbi plugin: udb_query_prepare_result failed with status %i.",
+          status);
+    BAIL_OUT(-1);
+  }
 
   /* 0 = error; 1 = success; */
   status = dbi_result_first_row(res); /* {{{ */
