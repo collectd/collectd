@@ -352,9 +352,8 @@ static int statsd_handle_set(char const *name, /* {{{ */
   status = c_avl_insert(metric->set, set_key, /* value = */ NULL);
   if (status < 0) {
     pthread_mutex_unlock(&metrics_lock);
-    if (status < 0)
-      ERROR("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
-            set_key, status);
+    ERROR("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
+          set_key, status);
     sfree(set_key);
     return -1;
   } else if (status > 0) /* key already exists */
