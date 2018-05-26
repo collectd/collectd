@@ -997,12 +997,13 @@ int plugin_load(char const *plugin_name, bool global) {
    * type when matching the filename */
   status = snprintf(typename, sizeof(typename), "%s.so", plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
-    WARNING("plugin_load: Filename too long: \"%s.so\"", plugin_name);
+    daemon_log(LOG_WARNING, "plugin_load: Filename too long: \"%s.so\"",
+               plugin_name);
     return -1;
   }
 
   if ((dh = opendir(dir)) == NULL) {
-    ERROR("plugin_load: opendir (%s) failed: %s", dir, STRERRNO);
+    daemon_log(LOG_ERR, "plugin_load: opendir (%s) failed: %s", dir, STRERRNO);
     return -1;
   }
 
@@ -1012,16 +1013,19 @@ int plugin_load(char const *plugin_name, bool global) {
 
     status = snprintf(filename, sizeof(filename), "%s/%s", dir, de->d_name);
     if ((status < 0) || ((size_t)status >= sizeof(filename))) {
-      WARNING("plugin_load: Filename too long: \"%s/%s\"", dir, de->d_name);
+      daemon_log(LOG_WARNING, "plugin_load: Filename too long: \"%s/%s\"", dir,
+                 de->d_name);
       continue;
     }
 
     if (lstat(filename, &statbuf) == -1) {
-      WARNING("plugin_load: stat (\"%s\") failed: %s", filename, STRERRNO);
+      daemon_log(LOG_WARNING, "plugin_load: stat (\"%s\") failed: %s", filename,
+                 STRERRNO);
       continue;
     } else if (!S_ISREG(statbuf.st_mode)) {
       /* don't follow symlinks */
-      WARNING("plugin_load: %s is not a regular file.", filename);
+      daemon_log(LOG_WARNING, "plugin_load: %s is not a regular file.",
+                 filename);
       continue;
     }
 
@@ -1030,19 +1034,21 @@ int plugin_load(char const *plugin_name, bool global) {
       /* success */
       plugin_mark_loaded(plugin_name);
       ret = 0;
-      INFO("plugin_load: plugin \"%s\" successfully loaded.", plugin_name);
+      daemon_log(LOG_INFO, "plugin_load: plugin \"%s\" successfully loaded.",
+                 plugin_name);
       break;
     } else {
-      ERROR("plugin_load: Load plugin \"%s\" failed with "
-            "status %i.",
-            plugin_name, status);
+      daemon_log(LOG_ERR, "plugin_load: Load plugin \"%s\" failed with "
+                          "status %i.",
+                 plugin_name, status);
     }
   }
 
   closedir(dh);
 
   if (filename[0] == 0)
-    ERROR("plugin_load: Could not find plugin \"%s\" in %s", plugin_name, dir);
+    daemon_log(LOG_ERR, "plugin_load: Could not find plugin \"%s\" in %s",
+               plugin_name, dir);
 
   return ret;
 }
@@ -2207,31 +2213,18 @@ int plugin_dispatch_notification(const notification_t *notif) {
   return 0;
 } /* int plugin_dispatch_notification */
 
-void plugin_log(int level, const char *format, ...) {
-  char msg[1024] = "";
-  va_list ap;
-  llentry_t *le;
-
+void _daemon_log(int level, const char *msg) {
 #if !COLLECT_DEBUG
   if (level >= LOG_DEBUG)
     return;
 #endif
-
-  char const *name = plugin_get_ctx().name;
-  if (name != NULL)
-    snprintf(msg, sizeof(msg), "%s plugin: ", name);
-
-  va_start(ap, format);
-  vsnprintf(msg + strlen(msg), sizeof(msg) - strlen(msg), format, ap);
-  msg[sizeof(msg) - 1] = 0;
-  va_end(ap);
 
   if (list_log == NULL) {
     fprintf(stderr, "%s\n", msg);
     return;
   }
 
-  le = llist_head(list_log);
+  llentry_t *le = llist_head(list_log);
   while (le != NULL) {
     callback_func_t *cf;
     plugin_log_cb callback;
@@ -2246,7 +2239,34 @@ void plugin_log(int level, const char *format, ...) {
 
     le = le->next;
   }
+} /* void _daemon_log */
+
+void plugin_log(int level, const char *format, ...) {
+  char msg[1024] = "";
+
+  char const *name = plugin_get_ctx().name;
+  if (name != NULL)
+    snprintf(msg, sizeof(msg), "%s plugin: ", name);
+
+  va_list ap;
+  va_start(ap, format);
+  vsnprintf(msg + strlen(msg), sizeof(msg) - strlen(msg), format, ap);
+  msg[sizeof(msg) - 1] = 0;
+  va_end(ap);
+
+  _daemon_log(level, msg);
 } /* void plugin_log */
+
+void daemon_log(int level, const char *format, ...) {
+  char msg[1024] = "";
+
+  va_list ap;
+  va_start(ap, format);
+  vsnprintf(msg, sizeof(msg), format, ap);
+  msg[sizeof(msg) - 1] = 0;
+  va_end(ap);
+  _daemon_log(level, msg);
+} /* void daemon_log */
 
 int parse_log_severity(const char *severity) {
   int log_level = -1;
