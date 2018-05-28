@@ -381,7 +381,7 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
 
   for (int db = 0; db < REDIS_DEF_DB_COUNT; db++) {
     static char buf[MAX_REDIS_VAL_SIZE];
-    static char field_name[11];
+    static char field_name[12];
     static char db_id[3];
     value_t val;
     char *str;
