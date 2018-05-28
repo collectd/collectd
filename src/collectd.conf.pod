@@ -7276,7 +7276,7 @@ which configures the connection parameters for this node.
         Port "6379"
         Timeout 2000
         <Query "LLEN myqueue">
-          Database 0
+          #Database 0
           Type "queue_length"
           Instance "myqueue"
         <Query>
@@ -7324,7 +7324,7 @@ There may be an arbitrary number of queries to execute.
 
 =item B<Database> I<Index>
 
-This index selects the redis database to use for queries. Defaults
+This index selects the Redis logical database to use for query. Defaults
 to C<0>.
 
 =item B<Type> I<Collectd type>

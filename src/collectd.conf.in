@@ -1265,7 +1265,7 @@
 #      Port "6379"
 #      Timeout 2000
 #      <Query "LLEN myqueue">
-#        Database 0
+#        #Database 0
 #        Type "queue_length"
 #        Instance "myqueue"
 #      <Query>
