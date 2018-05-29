@@ -428,7 +428,7 @@ static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
   }
   ec->nb_ports = nb_ports > RTE_MAX_ETHPORTS ? RTE_MAX_ETHPORTS : nb_ports;
 
-  for (int i = 0; i < ec->nb_ports; i++) {
+  for (unsigned int i = 0; i < ec->nb_ports; i++) {
     if (ec->config.link_status.enabled_port_mask & (1 << i)) {
       struct rte_eth_link link;
       ec->link_info[i].read_time = cdtime();
@@ -497,7 +497,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
         ec->nb_ports);
 
   /* dispatch Link Status values to collectd */
-  for (int i = 0; i < ec->nb_ports; i++) {
+  for (unsigned int i = 0; i < ec->nb_ports; i++) {
     if (ec->config.link_status.enabled_port_mask & (1 << i)) {
       if (!ec->config.link_status.send_updated ||
           ec->link_info[i].status_updated) {
