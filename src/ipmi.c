@@ -357,7 +357,7 @@ static const char *sensor_unit_to_type(ipmi_sensor_t *sensor) {
 
   /* find the db type by using sensor base unit type */
   enum ipmi_unit_type_e ipmi_type = ipmi_sensor_get_base_unit(sensor);
-  for (int i = 0; i < STATIC_ARRAY_SIZE(ipmi_db_type_map); i++)
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(ipmi_db_type_map); i++)
     if (ipmi_db_type_map[i].type == ipmi_type)
       return ipmi_db_type_map[i].type_name;
 
