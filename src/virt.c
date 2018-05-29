@@ -1016,7 +1016,7 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
 }
 
 static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
-  if ((state < 0) || (state >= STATIC_ARRAY_SIZE(domain_states))) {
+  if ((state < 0) || ((size_t)state >= STATIC_ARRAY_SIZE(domain_states))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
     return;
   }
@@ -1024,7 +1024,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   char msg[DATA_MAX_NAME_LEN];
   const char *state_str = domain_states[state];
 #ifdef HAVE_DOM_REASON
-  if ((reason < 0) || (reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
+  if ((reason < 0) || ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: reason=%d", reason);
     return;
   }
@@ -1584,7 +1584,7 @@ static int get_block_stats(struct block_device *block_dev) {
 
 #define NM_ADD_STR_ITEMS(_items, _size)                                        \
   do {                                                                         \
-    for (int _i = 0; _i < _size; ++_i) {                                       \
+    for (size_t _i = 0; _i < _size; ++_i) {                                       \
       DEBUG(PLUGIN_NAME                                                        \
             " plugin: Adding notification metadata name=%s value=%s",          \
             _items[_i].name, _items[_i].value);                                \
@@ -1609,7 +1609,7 @@ static int fs_info_notify(virDomainPtr domain, virDomainFSInfoPtr fs_info) {
       {.name = "name", .value = fs_info->name},
       {.name = "fstype", .value = fs_info->fstype}};
 
-  for (int i = 0; i < fs_info->ndevAlias; ++i) {
+  for (size_t i = 0; i < fs_info->ndevAlias; ++i) {
     fs_dev_alias[i].name = "devAlias";
     fs_dev_alias[i].value = fs_info->devAlias[i];
   }
