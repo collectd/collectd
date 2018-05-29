@@ -163,7 +163,7 @@ static int check_core_grouping(char *out, const char *in, size_t out_size,
       ERROR(UTIL_NAME ": Missing closing bracket ] in option %s.", in);
       return -EINVAL;
     }
-    if ((end - start) >= out_size) {
+    if ((size_t)(end - start) >= out_size) {
       ERROR(UTIL_NAME ": Out buffer is too small.");
       return -EINVAL;
     }

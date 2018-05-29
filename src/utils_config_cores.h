@@ -36,7 +36,7 @@
 
 struct core_group_s {
   char *desc;
-  unsigned *cores;
+  unsigned int *cores;
   size_t num_cores;
 };
 typedef struct core_group_s core_group_t;
