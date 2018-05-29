@@ -76,7 +76,7 @@ static void rdt_dump_cgroups(void) {
                cgroup->cores[j]);
     }
 
-    DEBUG(RDT_PLUGIN ":  group[%d]:", i);
+    DEBUG(RDT_PLUGIN ":  group[%zu]:", i);
     DEBUG(RDT_PLUGIN ":    description: %s", cgroup->desc);
     DEBUG(RDT_PLUGIN ":    cores: %s", cores);
     DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->events[i]);
