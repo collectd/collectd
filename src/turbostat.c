@@ -1289,15 +1289,15 @@ static int allocate_counters(struct thread_data **threads,
   *cores = calloc(total_cores, sizeof(struct core_data));
   if (*cores == NULL) {
     ERROR("turbostat plugin: calloc failed");
-    sfree(threads);
+    sfree(*threads);
     return -1;
   }
 
   *packages = calloc(topology.num_packages, sizeof(struct pkg_data));
   if (*packages == NULL) {
     ERROR("turbostat plugin: calloc failed");
-    sfree(cores);
-    sfree(threads);
+    sfree(*cores);
+    sfree(*threads);
     return -1;
   }
 
