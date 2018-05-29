@@ -589,7 +589,6 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp("Address", option->key) == 0)
       status = cf_util_get_string(option, &hd->address);
