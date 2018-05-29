@@ -135,7 +135,7 @@ static int amqp1_send_out_messages(pn_link_t *link) /* {{{ */
     while (cdm) {
       DEQ_REMOVE_HEAD(out_messages);
       DEQ_INSERT_TAIL(to_send, cdm);
-      if (DEQ_SIZE(to_send) == link_credit)
+      if (DEQ_SIZE(to_send) == (size_t)link_credit)
         break;
       cdm = DEQ_HEAD(out_messages);
     }
