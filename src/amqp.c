@@ -66,7 +66,7 @@ int amqp_socket_close(amqp_socket_t *);
  * Data types
  */
 struct camqp_config_s {
-  _Bool publish;
+  bool publish;
   char *name;
 
   char *host;
@@ -83,7 +83,7 @@ struct camqp_config_s {
 
   /* publish only */
   uint8_t delivery_mode;
-  _Bool store_rates;
+  bool store_rates;
   int format;
   /* publish & graphite format only */
   char *prefix;
@@ -94,8 +94,8 @@ struct camqp_config_s {
   /* subscribe only */
   char *exchange_type;
   char *queue;
-  _Bool queue_durable;
-  _Bool queue_auto_delete;
+  bool queue_durable;
+  bool queue_auto_delete;
 
   amqp_connection_state_t connection;
   pthread_mutex_t lock;
@@ -111,9 +111,9 @@ static const char *def_user = "guest";
 static const char *def_password = "guest";
 static const char *def_exchange = "amq.fanout";
 
-static pthread_t *subscriber_threads = NULL;
-static size_t subscriber_threads_num = 0;
-static _Bool subscriber_threads_running = 1;
+static pthread_t *subscriber_threads;
+static size_t subscriber_threads_num;
+static bool subscriber_threads_running = true;
 
 #define CONF(c, f) (((c)->f != NULL) ? (c)->f : def_##f)
 
@@ -176,16 +176,16 @@ static char *camqp_bytes_cstring(amqp_bytes_t *in) /* {{{ */
   return ret;
 } /* }}} char *camqp_bytes_cstring */
 
-static _Bool camqp_is_error(camqp_config_t *conf) /* {{{ */
+static bool camqp_is_error(camqp_config_t *conf) /* {{{ */
 {
   amqp_rpc_reply_t r;
 
   r = amqp_get_rpc_reply(conf->connection);
   if (r.reply_type == AMQP_RESPONSE_NORMAL)
-    return 0;
+    return false;
 
-  return 1;
-} /* }}} _Bool camqp_is_error */
+  return true;
+} /* }}} bool camqp_is_error */
 
 static char *camqp_strerror(camqp_config_t *conf, /* {{{ */
                             char *buffer, size_t buffer_size) {
@@ -396,7 +396,7 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
 
 static int camqp_connect(camqp_config_t *conf) /* {{{ */
 {
-  static time_t last_connect_time = 0;
+  static time_t last_connect_time;
 
   amqp_rpc_reply_t reply;
   int status;
@@ -825,7 +825,7 @@ static int camqp_config_set_format(oconfig_item_t *ci, /* {{{ */
 } /* }}} int config_set_string */
 
 static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
-                                   _Bool publish) {
+                                   bool publish) {
   camqp_config_t *conf;
   int status;
 
@@ -850,7 +850,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
 
   /* publish only */
   conf->delivery_mode = CAMQP_DM_VOLATILE;
-  conf->store_rates = 0;
+  conf->store_rates = false;
   conf->graphite_flags = 0;
   /* publish & graphite only */
   conf->prefix = NULL;
@@ -859,8 +859,8 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   /* subscribe only */
   conf->exchange_type = NULL;
   conf->queue = NULL;
-  conf->queue_durable = 0;
-  conf->queue_auto_delete = 1;
+  conf->queue_durable = false;
+  conf->queue_auto_delete = true;
   /* general */
   conf->connection = NULL;
   pthread_mutex_init(&conf->lock, /* attr = */ NULL);
@@ -902,7 +902,7 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
     else if (strcasecmp("RoutingKey", child->key) == 0)
       status = cf_util_get_string(child, &conf->routing_key);
     else if ((strcasecmp("Persistent", child->key) == 0) && publish) {
-      _Bool tmp = 0;
+      bool tmp = 0;
       status = cf_util_get_boolean(child, &tmp);
       if (tmp)
         conf->delivery_mode = CAMQP_DM_PERSISTENT;
@@ -998,9 +998,9 @@ static int camqp_config(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Publish", child->key) == 0)
-      camqp_config_connection(child, /* publish = */ 1);
+      camqp_config_connection(child, /* publish = */ true);
     else if (strcasecmp("Subscribe", child->key) == 0)
-      camqp_config_connection(child, /* publish = */ 0);
+      camqp_config_connection(child, /* publish = */ false);
     else
       WARNING("amqp plugin: Ignoring unknown config option \"%s\".",
               child->key);

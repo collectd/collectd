@@ -80,6 +80,8 @@ enum mb_register_type_e /* {{{ */
   REG_TYPE_UINT16,
   REG_TYPE_UINT32,
   REG_TYPE_UINT32_CDAB,
+  REG_TYPE_INT64,
+  REG_TYPE_UINT64,
   REG_TYPE_FLOAT,
   REG_TYPE_FLOAT_CDAB }; /* }}} */
 
@@ -105,6 +107,8 @@ struct mb_data_s /* {{{ */
   mb_mreg_type_t modbus_register_type;
   char type[DATA_MAX_NAME_LEN];
   char instance[DATA_MAX_NAME_LEN];
+  double scale;
+  double shift;
 
   mb_data_t *next;
 }; /* }}} */
@@ -135,7 +139,7 @@ struct mb_host_s /* {{{ */
 #else
   modbus_t *connection;
 #endif
-  _Bool is_connected;
+  bool is_connected;
 }; /* }}} */
 typedef struct mb_host_s mb_host_t;
 
@@ -152,7 +156,7 @@ struct mb_data_group_s /* {{{ */
 /*
  * Global variables
  */
-static mb_data_t *data_definitions = NULL;
+static mb_data_t *data_definitions;
 
 /*
  * Functions
@@ -332,7 +336,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
     return status;
   }
 
-  host->is_connected = 1;
+  host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
 /* #endif LEGACY_LIBMODBUS */
@@ -392,21 +396,21 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
 } /* }}} int mb_init_connection */
 #endif /* !LEGACY_LIBMODBUS */
 
-#define CAST_TO_VALUE_T(ds, vt, raw)                                           \
+#define CAST_TO_VALUE_T(ds, vt, raw, scale, shift)                             \
   do {                                                                         \
     if ((ds)->ds[0].type == DS_TYPE_COUNTER)                                   \
-      (vt).counter = (counter_t)(raw);                                         \
+      (vt).counter = (((counter_t)(raw)*scale) + shift);                       \
     else if ((ds)->ds[0].type == DS_TYPE_GAUGE)                                \
-      (vt).gauge = (gauge_t)(raw);                                             \
+      (vt).gauge = (((gauge_t)(raw)*scale) + shift);                           \
     else if ((ds)->ds[0].type == DS_TYPE_DERIVE)                               \
-      (vt).derive = (derive_t)(raw);                                           \
+      (vt).derive = (((derive_t)(raw)*scale) + shift);                         \
     else /* if (ds->ds[0].type == DS_TYPE_ABSOLUTE) */                         \
-      (vt).absolute = (absolute_t)(raw);                                       \
+      (vt).absolute = (((absolute_t)(raw)*scale) + shift);                     \
   } while (0)
 
 static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
                         mb_data_t *data) {
-  uint16_t values[2] = {0};
+  uint16_t values[4] = {0};
   int values_num;
   const data_set_t *ds;
   int status = 0;
@@ -431,11 +435,13 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type != REG_TYPE_INT32) &&
       (data->register_type != REG_TYPE_INT32_CDAB) &&
       (data->register_type != REG_TYPE_UINT32) &&
-      (data->register_type != REG_TYPE_UINT32_CDAB)) {
+      (data->register_type != REG_TYPE_UINT32_CDAB) &&
+      (data->register_type != REG_TYPE_INT64) &&
+      (data->register_type != REG_TYPE_UINT64)) {
     NOTICE(
         "Modbus plugin: The data source of type \"%s\" is %s, not gauge. "
         "This will most likely result in problems, because the register type "
-        "is not UINT32.",
+        "is not UINT32 or UINT64.",
         data->type, DS_TYPE_TO_STRING(ds->ds[0].type));
   }
 
@@ -446,6 +452,9 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
       (data->register_type == REG_TYPE_FLOAT) ||
       (data->register_type == REG_TYPE_FLOAT_CDAB))
     values_num = 2;
+  else if ((data->register_type == REG_TYPE_INT64) ||
+           (data->register_type == REG_TYPE_UINT64))
+    values_num = 4;
   else
     values_num = 1;
 
@@ -465,7 +474,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     if (status != 0) {
       ERROR("Modbus plugin: mb_init_connection (%s/%s) failed. ", host->host,
             host->node);
-      host->is_connected = 0;
+      host->is_connected = false;
       host->connection = NULL;
       return -1;
     }
@@ -530,7 +539,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned float value is %g",
           (double)float_value);
 
-    CAST_TO_VALUE_T(ds, vt, float_value);
+    CAST_TO_VALUE_T(ds, vt, float_value, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_FLOAT_CDAB) {
     float float_value;
@@ -541,7 +550,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned float value is %g",
           (double)float_value);
 
-    CAST_TO_VALUE_T(ds, vt, float_value);
+    CAST_TO_VALUE_T(ds, vt, float_value, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT32) {
     union {
@@ -555,7 +564,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned int32 value is %" PRIi32,
           v.i32);
 
-    CAST_TO_VALUE_T(ds, vt, v.i32);
+    CAST_TO_VALUE_T(ds, vt, v.i32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT32_CDAB) {
     union {
@@ -569,7 +578,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned int32 value is %" PRIi32,
           v.i32);
 
-    CAST_TO_VALUE_T(ds, vt, v.i32);
+    CAST_TO_VALUE_T(ds, vt, v.i32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_INT16) {
     union {
@@ -584,7 +593,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned int16 value is %" PRIi16,
           v.i16);
 
-    CAST_TO_VALUE_T(ds, vt, v.i16);
+    CAST_TO_VALUE_T(ds, vt, v.i16, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT32) {
     uint32_t v32;
@@ -595,7 +604,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint32 value is %" PRIu32,
           v32);
 
-    CAST_TO_VALUE_T(ds, vt, v32);
+    CAST_TO_VALUE_T(ds, vt, v32, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else if (data->register_type == REG_TYPE_UINT32_CDAB) {
     uint32_t v32;
@@ -606,7 +615,34 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint32 value is %" PRIu32,
           v32);
 
-    CAST_TO_VALUE_T(ds, vt, v32);
+    CAST_TO_VALUE_T(ds, vt, v32, data->scale, data->shift);
+    mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_UINT64) {
+    uint64_t v64;
+    value_t vt;
+
+    v64 = (((uint64_t)values[0]) << 48) | (((uint64_t)values[1]) << 32) |
+          (((uint64_t)values[2]) << 16) | (((uint64_t)values[3]));
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned uint64 value is %" PRIu64,
+          v64);
+
+    CAST_TO_VALUE_T(ds, vt, v64, data->scale, data->shift);
+    mb_submit(host, slave, data, vt);
+  } else if (data->register_type == REG_TYPE_INT64) {
+    union {
+      uint64_t u64;
+      int64_t i64;
+    } v;
+    value_t vt;
+
+    v.u64 = (((uint64_t)values[0]) << 48) | (((uint64_t)values[1]) << 32) |
+            (((uint64_t)values[2]) << 16) | ((uint64_t)values[3]);
+    DEBUG("Modbus plugin: mb_read_data: "
+          "Returned uint64 value is %" PRIi64,
+          v.i64);
+
+    CAST_TO_VALUE_T(ds, vt, v.i64, data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   } else /* if (data->register_type == REG_TYPE_UINT16) */
   {
@@ -616,7 +652,7 @@ static int mb_read_data(mb_host_t *host, mb_slave_t *slave, /* {{{ */
           "Returned uint16 value is %" PRIu16,
           values[0]);
 
-    CAST_TO_VALUE_T(ds, vt, values[0]);
+    CAST_TO_VALUE_T(ds, vt, values[0], data->scale, data->shift);
     mb_submit(host, slave, data, vt);
   }
 
@@ -723,6 +759,8 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
   data.name = NULL;
   data.register_type = REG_TYPE_UINT16;
   data.next = NULL;
+  data.scale = 1;
+  data.shift = 0;
 
   status = cf_util_get_string(ci, &data.name);
   if (status != 0)
@@ -736,6 +774,10 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Instance", child->key) == 0)
       status = cf_util_get_string_buffer(child, data.instance,
                                          sizeof(data.instance));
+    else if (strcasecmp("Scale", child->key) == 0)
+      status = cf_util_get_double(child, &data.scale);
+    else if (strcasecmp("Shift", child->key) == 0)
+      status = cf_util_get_double(child, &data.shift);
     else if (strcasecmp("RegisterBase", child->key) == 0)
       status = cf_util_get_int(child, &data.register_base);
     else if (strcasecmp("RegisterType", child->key) == 0) {
@@ -759,6 +801,10 @@ static int mb_config_add_data(oconfig_item_t *ci) /* {{{ */
         data.register_type = REG_TYPE_FLOAT;
       else if (strcasecmp("FloatLE", tmp) == 0)
         data.register_type = REG_TYPE_FLOAT_CDAB;
+      else if (strcasecmp("Uint64", tmp) == 0)
+        data.register_type = REG_TYPE_UINT64;
+      else if (strcasecmp("Int64", tmp) == 0)
+        data.register_type = REG_TYPE_INT64;
       else {
         ERROR("Modbus plugin: The register type \"%s\" is unknown.", tmp);
         status = -1;

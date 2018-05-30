@@ -50,7 +50,7 @@
 #define COLLECTD_LOCALE "C"
 #endif
 
-static int loop = 0;
+static int loop;
 
 static int init_hostname(void) {
   const char *str = global_option_get("Hostname");
@@ -129,7 +129,7 @@ static int init_global_variables(void) {
   return 0;
 } /* int init_global_variables */
 
-static int change_basedir(const char *orig_dir, _Bool create) {
+static int change_basedir(const char *orig_dir, bool create) {
   char *dir;
   size_t dirlen;
   int status;
@@ -321,19 +321,19 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
 
     switch (c) {
     case 'B':
-      config->create_basedir = 0;
+      config->create_basedir = false;
       break;
     case 'C':
       config->configfile = optarg;
       break;
     case 't':
-      config->test_config = 1;
+      config->test_config = true;
       break;
     case 'T':
-      config->test_readall = 1;
+      config->test_readall = true;
       global_option_set("ReadThreads", "-1", 1);
 #if COLLECT_DAEMON
-      config->daemonize = 0;
+      config->daemonize = false;
 #endif /* COLLECT_DAEMON */
       break;
 #if COLLECT_DAEMON
@@ -341,12 +341,11 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
       global_option_set("PIDFile", optarg, 1);
       break;
     case 'f':
-      config->daemonize = 0;
+      config->daemonize = false;
       break;
 #endif /* COLLECT_DAEMON */
     case 'h':
       exit_usage(0);
-      break;
     default:
       exit_usage(1);
     } /* switch (c) */
@@ -396,7 +395,7 @@ void stop_collectd(void) { loop++; }
 
 struct cmdline_config init_config(int argc, char **argv) {
   struct cmdline_config config = {
-      .daemonize = 1, .create_basedir = 1, .configfile = CONFIGFILE,
+      .daemonize = true, .create_basedir = true, .configfile = CONFIGFILE,
   };
 
   read_cmdline(argc, argv, &config);

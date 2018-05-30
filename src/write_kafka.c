@@ -43,7 +43,7 @@ struct kafka_topic_context {
 #define KAFKA_FORMAT_GRAPHITE 2
   uint8_t format;
   unsigned int graphite_flags;
-  _Bool store_rates;
+  bool store_rates;
   rd_kafka_topic_conf_t *conf;
   rd_kafka_topic_t *topic;
   rd_kafka_conf_t *kafka_conf;
@@ -273,7 +273,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf,
   }
 
   tctx->escape_char = '.';
-  tctx->store_rates = 1;
+  tctx->store_rates = true;
   tctx->format = KAFKA_FORMAT_JSON;
   tctx->key = NULL;
 

@@ -50,16 +50,16 @@ struct wh_callback_s {
   char *user;
   char *pass;
   char *credentials;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   char *capath;
   char *clientkey;
   char *clientcert;
   char *clientkeypass;
   long sslversion;
-  _Bool store_rates;
-  _Bool log_http_error;
+  bool store_rates;
+  bool log_http_error;
   int low_speed_limit;
   time_t low_speed_time;
   int timeout;
@@ -68,8 +68,8 @@ struct wh_callback_s {
 #define WH_FORMAT_JSON 1
 #define WH_FORMAT_KAIROSDB 2
   int format;
-  _Bool send_metrics;
-  _Bool send_notifications;
+  bool send_metrics;
+  bool send_notifications;
 
   CURL *curl;
   struct curl_slist *headers;
@@ -624,16 +624,16 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
     ERROR("write_http plugin: calloc failed.");
     return -1;
   }
-  cb->verify_peer = 1;
-  cb->verify_host = 1;
+  cb->verify_peer = true;
+  cb->verify_host = true;
   cb->format = WH_FORMAT_COMMAND;
   cb->sslversion = CURL_SSLVERSION_DEFAULT;
   cb->low_speed_limit = 0;
   cb->timeout = 0;
-  cb->log_http_error = 0;
+  cb->log_http_error = false;
   cb->headers = NULL;
-  cb->send_metrics = 1;
-  cb->send_notifications = 0;
+  cb->send_metrics = true;
+  cb->send_notifications = false;
   cb->data_ttl = 0;
   cb->metrics_prefix = strdup(WRITE_HTTP_DEFAULT_PREFIX);
 

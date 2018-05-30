@@ -2842,11 +2842,11 @@ static int cna_register_host(host_config_t *host) /* {{{ */
 static int cna_config_host(host_config_t *host, /* {{{ */
                            const oconfig_item_t *ci) {
   oconfig_item_t *item;
-  _Bool is_vfiler = 0;
+  bool is_vfiler = false;
   int status;
 
   if (!strcasecmp(ci->key, "VFiler"))
-    is_vfiler = 1;
+    is_vfiler = true;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("netapp plugin: \"%s\" needs exactly one string argument. Ignoring "

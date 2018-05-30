@@ -46,7 +46,7 @@ struct wr_node_s {
   int database;
   int max_set_size;
   int max_set_duration;
-  _Bool store_rates;
+  bool store_rates;
 
   redisContext *conn;
   pthread_mutex_t lock;
@@ -129,10 +129,10 @@ static int wr_write(const data_set_t *ds, /* {{{ */
   if (node->max_set_duration > 0) {
     /*
      * remove element, scored less than 'current-max_set_duration'
-     * '(%d' indicates 'less than' in redis CLI.
+     * '(...' indicates 'less than' in redis CLI.
      */
-    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%d", key,
-                      (time - node->max_set_duration) + 1);
+    rr = redisCommand(node->conn, "ZREMRANGEBYSCORE %s -1 (%.9f", key,
+                      (CDTIME_T_TO_DOUBLE(vl->time) - node->max_set_duration));
     if (rr == NULL)
       WARNING("ZREMRANGEBYSCORE command error. key:%s message:%s", key,
               node->conn->errstr);
@@ -191,7 +191,7 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
   node->database = 0;
   node->max_set_size = -1;
   node->max_set_duration = -1;
-  node->store_rates = 1;
+  node->store_rates = true;
   pthread_mutex_init(&node->lock, /* attr = */ NULL);
 
   status = cf_util_get_string_buffer(ci, node->name, sizeof(node->name));

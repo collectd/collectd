@@ -104,25 +104,25 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 
 /* FIXME: Enabled by default for backwards compatibility. */
 /* TODO: Remove time parsing code. */
-static _Bool config_parse_time = 1;
+static bool config_parse_time = true;
 
-static char *url = NULL;
+static char *url;
 static int global_opcodes = 1;
 static int global_qtypes = 1;
 static int global_server_stats = 1;
 static int global_zone_maint_stats = 1;
-static int global_resolver_stats = 0;
+static int global_resolver_stats;
 static int global_memory_stats = 1;
 static int timeout = -1;
 
-static cb_view_t *views = NULL;
-static size_t views_num = 0;
+static cb_view_t *views;
+static size_t views_num;
 
-static CURL *curl = NULL;
+static CURL *curl;
 
-static char *bind_buffer = NULL;
-static size_t bind_buffer_size = 0;
-static size_t bind_buffer_fill = 0;
+static char *bind_buffer;
+static size_t bind_buffer_size;
+static size_t bind_buffer_fill;
 static char bind_curl_error[CURL_ERROR_SIZE];
 
 /* Translation table for the `nsstats' values. */
@@ -274,9 +274,7 @@ static size_t bind_curl_callback(void *buf, size_t size, /* {{{ */
     return len;
 
   if ((bind_buffer_fill + len) >= bind_buffer_size) {
-    char *temp;
-
-    temp = realloc(bind_buffer, bind_buffer_fill + len + 1);
+    char *temp = realloc(bind_buffer, bind_buffer_fill + len + 1);
     if (temp == NULL) {
       ERROR("bind plugin: realloc failed.");
       return 0;
@@ -335,17 +333,15 @@ static int bind_xml_list_callback(const char *name, /* {{{ */
 
 static int bind_xml_read_derive(xmlDoc *doc, xmlNode *node, /* {{{ */
                                 derive_t *ret_value) {
-  char *str_ptr;
-  value_t value;
-  int status;
-
-  str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+  char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL) {
     ERROR("bind plugin: bind_xml_read_derive: xmlNodeListGetString failed.");
     return -1;
   }
 
-  status = parse_value(str_ptr, &value, DS_TYPE_DERIVE);
+  value_t value;
+
+  int status = parse_value(str_ptr, &value, DS_TYPE_DERIVE);
   if (status != 0) {
     ERROR("bind plugin: Parsing string \"%s\" to derive value failed.",
           str_ptr);
@@ -360,17 +356,15 @@ static int bind_xml_read_derive(xmlDoc *doc, xmlNode *node, /* {{{ */
 
 static int bind_xml_read_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
                                gauge_t *ret_value) {
-  char *str_ptr, *end_ptr;
-  double value;
-
-  str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+  char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL) {
     ERROR("bind plugin: bind_xml_read_gauge: xmlNodeListGetString failed.");
     return -1;
   }
 
+  char *end_ptr;
   errno = 0;
-  value = strtod(str_ptr, &end_ptr);
+  double value = strtod(str_ptr, &end_ptr);
   xmlFree(str_ptr);
   if (str_ptr == end_ptr || errno) {
     if (errno && (value < 0))
@@ -389,13 +383,8 @@ static int bind_xml_read_gauge(xmlDoc *doc, xmlNode *node, /* {{{ */
 static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
                                    xmlDoc *doc, xmlXPathContext *xpathCtx,
                                    time_t *ret_value) {
-  xmlXPathObject *xpathObj = NULL;
-  xmlNode *node;
-  char *str_ptr;
-  char *tmp;
-  struct tm tm = {0};
-
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
@@ -413,7 +402,7 @@ static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
            xpath_expression, xpathObj->nodesetval->nodeNr);
   }
 
-  node = xpathObj->nodesetval->nodeTab[0];
+  xmlNode *node = xpathObj->nodesetval->nodeTab[0];
 
   if (node->xmlChildrenNode == NULL) {
     ERROR("bind plugin: bind_xml_read_timestamp: "
@@ -422,14 +411,15 @@ static int bind_xml_read_timestamp(const char *xpath_expression, /* {{{ */
     return -1;
   }
 
-  str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+  char *str_ptr = (char *)xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
   if (str_ptr == NULL) {
     ERROR("bind plugin: bind_xml_read_timestamp: xmlNodeListGetString failed.");
     xmlXPathFreeObject(xpathObj);
     return -1;
   }
 
-  tmp = strptime(str_ptr, "%Y-%m-%dT%T", &tm);
+  struct tm tm = {0};
+  char *tmp = strptime(str_ptr, "%Y-%m-%dT%T", &tm);
   xmlFree(str_ptr);
   if (tmp == NULL) {
     ERROR("bind plugin: bind_xml_read_timestamp: strptime failed.");
@@ -474,25 +464,23 @@ static int bind_parse_generic_name_value(const char *xpath_expression, /* {{{ */
                                          void *user_data, xmlDoc *doc,
                                          xmlXPathContext *xpathCtx,
                                          time_t current_time, int ds_type) {
-  xmlXPathObject *xpathObj = NULL;
-  int num_entries;
-
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
     return -1;
   }
 
-  num_entries = 0;
+  int num_entries = 0;
   /* Iterate over all matching nodes. */
   for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
        i++) {
+
     xmlNode *name_node = NULL;
     xmlNode *counter = NULL;
-    xmlNode *parent;
 
-    parent = xpathObj->nodesetval->nodeTab[i];
+    xmlNode *parent = xpathObj->nodesetval->nodeTab[i];
     DEBUG("bind plugin: bind_parse_generic_name_value: parent->name = %s;",
           (char *)parent->name);
 
@@ -555,32 +543,29 @@ static int bind_parse_generic_value_list(const char *xpath_expression, /* {{{ */
                                          void *user_data, xmlDoc *doc,
                                          xmlXPathContext *xpathCtx,
                                          time_t current_time, int ds_type) {
-  xmlXPathObject *xpathObj = NULL;
-  int num_entries;
-
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
     return -1;
   }
 
-  num_entries = 0;
+  int num_entries = 0;
   /* Iterate over all matching nodes. */
   for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
        i++) {
     /* Iterate over all child nodes. */
     for (xmlNode *child = xpathObj->nodesetval->nodeTab[i]->xmlChildrenNode;
          child != NULL; child = child->next) {
-      char *node_name;
-      value_t value;
-      int status;
 
       if (child->type != XML_ELEMENT_NODE)
         continue;
 
-      node_name = (char *)child->name;
+      char *node_name = (char *)child->name;
 
+      value_t value;
+      int status;
       if (ds_type == DS_TYPE_GAUGE)
         status = bind_xml_read_gauge(doc, child, &value.gauge);
       else
@@ -617,17 +602,16 @@ static int bind_parse_generic_name_attr_value_list(
     const char *xpath_expression, /* {{{ */
     list_callback_t list_callback, void *user_data, xmlDoc *doc,
     xmlXPathContext *xpathCtx, time_t current_time, int ds_type) {
-  xmlXPathObject *xpathObj = NULL;
-  int num_entries;
 
-  xpathObj = xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST xpath_expression, xpathCtx);
   if (xpathObj == NULL) {
     ERROR("bind plugin: Unable to evaluate XPath expression `%s'.",
           xpath_expression);
     return -1;
   }
 
-  num_entries = 0;
+  int num_entries = 0;
   /* Iterate over all matching nodes. */
   for (int i = 0; xpathObj->nodesetval && (i < xpathObj->nodesetval->nodeNr);
        i++) {
@@ -640,15 +624,15 @@ static int bind_parse_generic_name_attr_value_list(
       if (strncmp("counter", (char *)child->name, strlen("counter")) != 0)
         continue;
 
-      char *attr_name;
-      value_t value;
-      int status;
-
-      attr_name = (char *)xmlGetProp(child, BAD_CAST "name");
+      char *attr_name = (char *)xmlGetProp(child, BAD_CAST "name");
       if (attr_name == NULL) {
         DEBUG("bind plugin: found <counter> without name.");
         continue;
       }
+
+      value_t value;
+      int status;
+
       if (ds_type == DS_TYPE_GAUGE)
         status = bind_xml_read_gauge(doc, child, &value.gauge);
       else
@@ -677,9 +661,7 @@ static int bind_parse_generic_name_attr_value_list(
 static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
                                       xmlXPathContext *path_ctx, xmlNode *node,
                                       cb_view_t *view, time_t current_time) {
-  xmlXPathObject *path_obj;
   char *zone_name = NULL;
-  size_t j;
 
   if (version >= 3) {
     char *n = (char *)xmlGetProp(node, BAD_CAST "name");
@@ -691,7 +673,8 @@ static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
     xmlFree(n);
     xmlFree(c);
   } else {
-    path_obj = xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
+    xmlXPathObject *path_obj =
+        xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
     if (path_obj == NULL) {
       ERROR("bind plugin: xmlXPathEvalExpression failed.");
       return -1;
@@ -712,13 +695,13 @@ static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
     return -1;
   }
 
+  size_t j;
   for (j = 0; j < view->zones_num; j++) {
     if (strcasecmp(zone_name, view->zones[j]) == 0)
       break;
   }
 
   xmlFree(zone_name);
-  zone_name = NULL;
 
   if (j >= view->zones_num)
     return 0;
@@ -763,16 +746,14 @@ static int bind_xml_stats_handle_zone(int version, xmlDoc *doc, /* {{{ */
 static int bind_xml_stats_search_zones(int version, xmlDoc *doc, /* {{{ */
                                        xmlXPathContext *path_ctx, xmlNode *node,
                                        cb_view_t *view, time_t current_time) {
-  xmlXPathObject *zone_nodes = NULL;
-  xmlXPathContext *zone_path_context;
-
-  zone_path_context = xmlXPathNewContext(doc);
+  xmlXPathContext *zone_path_context = xmlXPathNewContext(doc);
   if (zone_path_context == NULL) {
     ERROR("bind plugin: xmlXPathNewContext failed.");
     return -1;
   }
 
-  zone_nodes = xmlXPathEvalExpression(BAD_CAST "zones/zone", path_ctx);
+  xmlXPathObject *zone_nodes =
+      xmlXPathEvalExpression(BAD_CAST "zones/zone", path_ctx);
   if (zone_nodes == NULL) {
     ERROR("bind plugin: Cannot find any <view> tags.");
     xmlXPathFreeContext(zone_path_context);
@@ -817,8 +798,8 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
     xmlFree(view_name);
     view_name = NULL;
   } else {
-    xmlXPathObject *path_obj;
-    path_obj = xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
+    xmlXPathObject *path_obj =
+        xmlXPathEvalExpression(BAD_CAST "name", path_ctx);
     if (path_obj == NULL) {
       ERROR("bind plugin: xmlXPathEvalExpression failed.");
       return -1;
@@ -927,18 +908,15 @@ static int bind_xml_stats_handle_view(int version, xmlDoc *doc, /* {{{ */
 
 static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
                                        xmlXPathContext *xpathCtx,
-                                       xmlNode *statsnode,
                                        time_t current_time) {
-  xmlXPathObject *view_nodes = NULL;
-  xmlXPathContext *view_path_context;
-
-  view_path_context = xmlXPathNewContext(doc);
+  xmlXPathContext *view_path_context = xmlXPathNewContext(doc);
   if (view_path_context == NULL) {
     ERROR("bind plugin: xmlXPathNewContext failed.");
     return -1;
   }
 
-  view_nodes = xmlXPathEvalExpression(BAD_CAST "views/view", xpathCtx);
+  xmlXPathObject *view_nodes =
+      xmlXPathEvalExpression(BAD_CAST "views/view", xpathCtx);
   if (view_nodes == NULL) {
     ERROR("bind plugin: Cannot find any <view> tags.");
     xmlXPathFreeContext(view_path_context);
@@ -946,9 +924,7 @@ static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
   }
 
   for (int i = 0; i < view_nodes->nodesetval->nodeNr; i++) {
-    xmlNode *node;
-
-    node = view_nodes->nodesetval->nodeTab[i];
+    xmlNode *node = view_nodes->nodesetval->nodeTab[i];
     assert(node != NULL);
 
     view_path_context->node = node;
@@ -963,8 +939,7 @@ static int bind_xml_stats_search_views(int version, xmlDoc *doc, /* {{{ */
 } /* }}} int bind_xml_stats_search_views */
 
 static void bind_xml_stats_v3(xmlDoc *doc, /* {{{ */
-                              xmlXPathContext *xpathCtx, xmlNode *statsnode,
-                              time_t current_time) {
+                              xmlXPathContext *xpathCtx, time_t current_time) {
   /* XPath:     server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
    * Layout v3:
@@ -1082,7 +1057,7 @@ static void bind_xml_stats_v3(xmlDoc *doc, /* {{{ */
 } /* }}} bind_xml_stats_v3 */
 
 static void bind_xml_stats_v1_v2(int version, xmlDoc *doc, /* {{{ */
-                                 xmlXPathContext *xpathCtx, xmlNode *statsnode,
+                                 xmlXPathContext *xpathCtx,
                                  time_t current_time) {
   /* XPath:     server/requests/opcode, server/counters[@type='opcode']
    * Variables: QUERY, IQUERY, NOTIFY, UPDATE, ...
@@ -1252,14 +1227,13 @@ static void bind_xml_stats_v1_v2(int version, xmlDoc *doc, /* {{{ */
 static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
                           xmlXPathContext *xpathCtx, xmlNode *statsnode) {
   time_t current_time = 0;
-  int status;
 
   xpathCtx->node = statsnode;
 
   /* TODO: Check `server/boot-time' to recognize server restarts. */
 
-  status = bind_xml_read_timestamp("server/current-time", doc, xpathCtx,
-                                   &current_time);
+  int status = bind_xml_read_timestamp("server/current-time", doc, xpathCtx,
+                                       &current_time);
   if (status != 0) {
     ERROR("bind plugin: Reading `server/current-time' failed.");
     return -1;
@@ -1267,9 +1241,9 @@ static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
   DEBUG("bind plugin: Current server time is %i.", (int)current_time);
 
   if (version == 3) {
-    bind_xml_stats_v3(doc, xpathCtx, statsnode, current_time);
+    bind_xml_stats_v3(doc, xpathCtx, current_time);
   } else {
-    bind_xml_stats_v1_v2(version, doc, xpathCtx, statsnode, current_time);
+    bind_xml_stats_v1_v2(version, doc, xpathCtx, current_time);
   }
 
   /* XPath:  memory/summary
@@ -1295,26 +1269,22 @@ static int bind_xml_stats(int version, xmlDoc *doc, /* {{{ */
   }
 
   if (views_num > 0)
-    bind_xml_stats_search_views(version, doc, xpathCtx, statsnode,
-                                current_time);
+    bind_xml_stats_search_views(version, doc, xpathCtx, current_time);
 
   return 0;
 } /* }}} int bind_xml_stats */
 
 static int bind_xml(const char *data) /* {{{ */
 {
-  xmlDoc *doc = NULL;
-  xmlXPathContext *xpathCtx = NULL;
-  xmlXPathObject *xpathObj = NULL;
   int ret = -1;
 
-  doc = xmlParseMemory(data, strlen(data));
+  xmlDoc *doc = xmlParseMemory(data, strlen(data));
   if (doc == NULL) {
     ERROR("bind plugin: xmlParseMemory failed.");
     return -1;
   }
 
-  xpathCtx = xmlXPathNewContext(doc);
+  xmlXPathContext *xpathCtx = xmlXPathNewContext(doc);
   if (xpathCtx == NULL) {
     ERROR("bind plugin: xmlXPathNewContext failed.");
     xmlFreeDoc(doc);
@@ -1325,7 +1295,8 @@ static int bind_xml(const char *data) /* {{{ */
   // version 3.* of statistics XML (since BIND9.9)
   //
 
-  xpathObj = xmlXPathEvalExpression(BAD_CAST "/statistics", xpathCtx);
+  xmlXPathObject *xpathObj =
+      xmlXPathEvalExpression(BAD_CAST "/statistics", xpathCtx);
   if (xpathObj == NULL || xpathObj->nodesetval == NULL ||
       xpathObj->nodesetval->nodeNr == 0) {
     DEBUG("bind plugin: Statistics appears not to be v3");
@@ -1457,15 +1428,13 @@ static int bind_config_set_bool(const char *name, int *var, /* {{{ */
 
 static int bind_config_add_view_zone(cb_view_t *view, /* {{{ */
                                      oconfig_item_t *ci) {
-  char **tmp;
-
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("bind plugin: The `Zone' option needs "
             "exactly one string argument.");
     return -1;
   }
 
-  tmp = realloc(view->zones, sizeof(char *) * (view->zones_num + 1));
+  char **tmp = realloc(view->zones, sizeof(char *) * (view->zones_num + 1));
   if (tmp == NULL) {
     ERROR("bind plugin: realloc failed.");
     return -1;
@@ -1484,14 +1453,12 @@ static int bind_config_add_view_zone(cb_view_t *view, /* {{{ */
 
 static int bind_config_add_view(oconfig_item_t *ci) /* {{{ */
 {
-  cb_view_t *tmp;
-
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("bind plugin: `View' blocks need exactly one string argument.");
     return -1;
   }
 
-  tmp = realloc(views, sizeof(*views) * (views_num + 1));
+  cb_view_t *tmp = realloc(views, sizeof(*views) * (views_num + 1));
   if (tmp == NULL) {
     ERROR("bind plugin: realloc failed.");
     return -1;
@@ -1606,8 +1573,6 @@ static int bind_init(void) /* {{{ */
 
 static int bind_read(void) /* {{{ */
 {
-  int status;
-
   if (curl == NULL) {
     ERROR("bind plugin: I don't have a CURL object.");
     return -1;
@@ -1622,7 +1587,7 @@ static int bind_read(void) /* {{{ */
     return -1;
   }
 
-  status = bind_xml(bind_buffer);
+  int status = bind_xml(bind_buffer);
   if (status != 0)
     return -1;
   else

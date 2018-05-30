@@ -77,7 +77,7 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
 }
 
 static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
-                                char escape_char, _Bool preserve_separator) {
+                                char escape_char, bool preserve_separator) {
   memset(dst, 0, dst_len);
 
   if (src == NULL)
@@ -116,7 +116,7 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   if (postfix == NULL)
     postfix = "";
 
-  _Bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR) ? 1 : 0;
+  bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
 
   gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
                       preserve_separator);

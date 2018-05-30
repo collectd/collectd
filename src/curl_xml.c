@@ -79,9 +79,9 @@ struct cx_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   char *post_body;
   int timeout;

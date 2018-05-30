@@ -148,7 +148,7 @@ enum perfcounter_type_d {
 };
 
 /** Give user option to use default (long run = since daemon started) avg */
-static int long_run_latency_avg = 0;
+static int long_run_latency_avg;
 
 /**
  * Give user option to use default type for special cases -
@@ -161,10 +161,10 @@ static int long_run_latency_avg = 0;
 static int convert_special_metrics = 1;
 
 /** Array of daemons to monitor */
-static struct ceph_daemon **g_daemons = NULL;
+static struct ceph_daemon **g_daemons;
 
 /** Number of elements in g_daemons */
-static size_t g_num_daemons = 0;
+static size_t g_num_daemons;
 
 /**
  * A set of data that we build up in memory while parsing the JSON.
@@ -281,7 +281,9 @@ static int ceph_cb_number(void *ctx, const char *number_val,
    * "rate", use the "sum" in the pair and assign that to the derive
    * value. */
   if (convert_special_metrics && (state->depth > 2) &&
+      state->stack[state->depth - 2] &&
       (strcmp("filestore", state->stack[state->depth - 2]) == 0) &&
+      state->stack[state->depth - 1] &&
       (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0) &&
       (strcmp("avgcount", state->key) == 0)) {
     DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
@@ -404,8 +406,8 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   size_t src_len;
   char *ptr = buffer;
   size_t ptr_size = buffer_size;
-  _Bool append_plus = 0;
-  _Bool append_minus = 0;
+  bool append_plus = false;
+  bool append_minus = false;
 
   if ((buffer == NULL) || (buffer_size <= strlen("Minus")) || (src == NULL))
     return EINVAL;
@@ -415,11 +417,11 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
 
   /* Remove trailing "+" and "-". */
   if (src_copy[src_len - 1] == '+') {
-    append_plus = 1;
+    append_plus = true;
     src_len--;
     src_copy[src_len] = 0;
   } else if (src_copy[src_len - 1] == '-') {
-    append_minus = 1;
+    append_minus = true;
     src_len--;
     src_copy[src_len] = 0;
   }
@@ -470,19 +472,19 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   return 0;
 }
 
-static _Bool has_suffix(char const *str, char const *suffix) {
+static bool has_suffix(char const *str, char const *suffix) {
   size_t str_len = strlen(str);
   size_t suffix_len = strlen(suffix);
   size_t offset;
 
   if (suffix_len > str_len)
-    return 0;
+    return false;
   offset = str_len - suffix_len;
 
   if (strcmp(str + offset, suffix) == 0)
-    return 1;
+    return true;
 
-  return 0;
+  return false;
 }
 
 static void cut_suffix(char *buffer, size_t buffer_size, char const *str,

@@ -59,8 +59,8 @@ struct ctail_config_match_s {
 };
 typedef struct ctail_config_match_s ctail_config_match_t;
 
-static cu_tail_match_t **tail_match_list = NULL;
-static size_t tail_match_list_num = 0;
+static cu_tail_match_t **tail_match_list;
+static size_t tail_match_list_num;
 static cdtime_t tail_match_list_intervals[255];
 
 static int ctail_config_add_match_dstype(ctail_config_match_t *cm,
@@ -134,8 +134,7 @@ static int ctail_config_add_match_dstype(ctail_config_match_t *cm,
   return 0;
 } /* int ctail_config_add_match_dstype */
 
-static int ctail_config_add_match(cu_tail_match_t *tm,
-                                  const char *plugin_name,
+static int ctail_config_add_match(cu_tail_match_t *tm, const char *plugin_name,
                                   const char *plugin_instance,
                                   oconfig_item_t *ci, cdtime_t interval) {
   ctail_config_match_t cm = {0};
@@ -194,8 +193,8 @@ static int ctail_config_add_match(cu_tail_match_t *tm,
     // TODO(octo): there's nothing "simple" about the latency stuff …
     status = tail_match_add_match_simple(
         tm, cm.regex, cm.excluderegex, cm.flags,
-        (plugin_name != NULL) ? plugin_name : "tail", plugin_instance,
-        cm.type, cm.type_instance, cm.latency, interval);
+        (plugin_name != NULL) ? plugin_name : "tail", plugin_instance, cm.type,
+        cm.type_instance, cm.latency, interval);
 
     if (status != 0)
       ERROR("tail plugin: tail_match_add_match_simple failed.");
@@ -234,7 +233,7 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
     int status = 0;
 
     if (strcasecmp("Plugin", option->key) == 0)
-      status = cf_util_get_string (option, &plugin_name);
+      status = cf_util_get_string(option, &plugin_name);
     else if (strcasecmp("Instance", option->key) == 0)
       status = cf_util_get_string(option, &plugin_instance);
     else if (strcasecmp("Interval", option->key) == 0)

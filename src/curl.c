@@ -60,14 +60,14 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
-  _Bool response_time;
-  _Bool response_code;
+  bool response_time;
+  bool response_code;
   int timeout;
   curl_stats_t *stats;
 
@@ -85,8 +85,7 @@ struct web_page_s /* {{{ */
 /*
  * Global variables;
  */
-/* static CURLM *curl = NULL; */
-static web_page_t *pages_g = NULL;
+static web_page_t *pages_g;
 
 /*
  * Private functions
@@ -418,11 +417,11 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;
-  page->digest = 0;
-  page->verify_peer = 1;
-  page->verify_host = 1;
-  page->response_time = 0;
-  page->response_code = 0;
+  page->digest = false;
+  page->verify_peer = true;
+  page->verify_host = true;
+  page->response_time = false;
+  page->response_code = false;
   page->timeout = -1;
   page->stats = NULL;
 

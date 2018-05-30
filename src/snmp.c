@@ -53,7 +53,7 @@ typedef union instance_u instance_t;
 struct data_definition_s {
   char *name; /* used to reference this from the `Collect' option */
   char *type; /* used to find the data_set */
-  _Bool is_table;
+  bool is_table;
   instance_t instance;
   char *instance_prefix;
   oid_t *values;
@@ -63,7 +63,7 @@ struct data_definition_s {
   struct data_definition_s *next;
   char **ignores;
   size_t ignores_len;
-  _Bool invert_match;
+  bool invert_match;
 };
 typedef struct data_definition_s data_definition_t;
 
@@ -115,7 +115,7 @@ typedef struct csnmp_table_values_s csnmp_table_values_t;
 /*
  * Private variables
  */
-static data_definition_t *data_head = NULL;
+static data_definition_t *data_head;
 
 /*
  * Prototypes
@@ -219,7 +219,7 @@ static void csnmp_host_definition_destroy(void *arg) /* {{{ */
  *      +-> csnmp_config_add_host_security_level
  */
 static void call_snmp_init_once(void) {
-  static int have_init = 0;
+  static int have_init;
 
   if (have_init == 0)
     init_snmp(PACKAGE_NAME);
@@ -399,8 +399,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
 
   DEBUG("snmp plugin: dd = { name = %s, type = %s, is_table = %s, values_len = "
         "%" PRIsz " }",
-        dd->name, dd->type, (dd->is_table != 0) ? "true" : "false",
-        dd->values_len);
+        dd->name, dd->type, (dd->is_table) ? "true" : "false", dd->values_len);
 
   if (data_head == NULL)
     data_head = dd;
@@ -590,7 +589,6 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
-    status = 0;
 
     if (strcasecmp("Address", option->key) == 0)
       status = cf_util_get_string(option, &hd->address);
@@ -599,13 +597,13 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
     else if (strcasecmp("Version", option->key) == 0)
       status = csnmp_config_add_host_version(hd, option);
     else if (strcasecmp("Timeout", option->key) == 0)
-      cf_util_get_cdtime(option, &hd->timeout);
+      status = cf_util_get_cdtime(option, &hd->timeout);
     else if (strcasecmp("Retries", option->key) == 0)
-      cf_util_get_int(option, &hd->retries);
+      status = cf_util_get_int(option, &hd->retries);
     else if (strcasecmp("Collect", option->key) == 0)
-      csnmp_config_add_host_collect(hd, option);
+      status = csnmp_config_add_host_collect(hd, option);
     else if (strcasecmp("Interval", option->key) == 0)
-      cf_util_get_cdtime(option, &hd->interval);
+      status = cf_util_get_cdtime(option, &hd->interval);
     else if (strcasecmp("Username", option->key) == 0)
       status = cf_util_get_string(option, &hd->username);
     else if (strcasecmp("AuthProtocol", option->key) == 0)
@@ -830,9 +828,9 @@ static value_t csnmp_value_list_to_value(struct variable_list *vl, int type,
   value_t ret;
   uint64_t tmp_unsigned = 0;
   int64_t tmp_signed = 0;
-  _Bool defined = 1;
+  bool defined = 1;
   /* Set to true when the original SNMP type appears to have been signed. */
-  _Bool prefer_signed = 0;
+  bool prefer_signed = 0;
 
   if ((vl->type == ASN_INTEGER) || (vl->type == ASN_UINTEGER) ||
       (vl->type == ASN_COUNTER)
@@ -1065,7 +1063,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
     char *ptr;
 
     csnmp_strvbcopy(il->instance, vb, sizeof(il->instance));
-    _Bool is_matched = 0;
+    bool is_matched = 0;
     for (uint32_t i = 0; i < dd->ignores_len; i++) {
       status = fnmatch(dd->ignores[i], il->instance, 0);
       if (status == 0) {
@@ -1119,7 +1117,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
   csnmp_table_values_t *value_table_ptr[data->values_len];
 
   size_t i;
-  _Bool have_more;
+  bool have_more;
   oid_t current_suffix;
 
   ds = plugin_get_ds(data->type);
@@ -1142,7 +1140,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
   have_more = 1;
   while (have_more) {
-    _Bool suffix_skipped = 0;
+    bool suffix_skipped = 0;
 
     /* Determine next suffix to handle. */
     if (instance_list != NULL) {
@@ -1268,7 +1266,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   oid_t oid_list[oid_list_len];
   /* Set to false when an OID has left its subtree so we don't re-request it
    * again. */
-  _Bool oid_list_todo[oid_list_len];
+  bool oid_list_todo[oid_list_len];
 
   int status;
   size_t i;

@@ -33,9 +33,9 @@
 static const char *config_keys[] = {"DataDir", "StoreRates"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *datadir = NULL;
-static int store_rates = 0;
-static int use_stdio = 0;
+static char *datadir;
+static int store_rates;
+static int use_stdio;
 
 static int value_list_to_string(char *buffer, int buffer_len,
                                 const data_set_t *ds, const value_list_t *vl) {

@@ -82,7 +82,7 @@
 static mach_port_t io_master_port = MACH_PORT_NULL;
 /* This defaults to false for backwards compatibility. Please fix in the next
  * major version. */
-static _Bool use_bsd_name = 0;
+static bool use_bsd_name;
 /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
@@ -106,9 +106,9 @@ typedef struct diskstats {
   derive_t avg_read_time;
   derive_t avg_write_time;
 
-  _Bool has_merged;
-  _Bool has_in_progress;
-  _Bool has_io_time;
+  bool has_merged;
+  bool has_in_progress;
+  bool has_io_time;
 
   struct diskstats *next;
 } diskstats_t;
@@ -126,7 +126,7 @@ static struct gmesh geom_tree;
 #define MAX_NUMDISK 1024
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMDISK];
-static int numdisk = 0;
+static int numdisk;
 /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
@@ -145,7 +145,7 @@ static int pnumdisk;
 #if HAVE_LIBUDEV_H
 #include <libudev.h>
 
-static char *conf_udev_name_attr = NULL;
+static char *conf_udev_name_attr;
 static struct udev *handle_udev;
 #endif
 
@@ -153,7 +153,7 @@ static const char *config_keys[] = {"Disk", "UseBSDName", "IgnoreSelected",
                                     "UdevNameAttr"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
 static int disk_config(const char *key, const char *value) {
   if (ignorelist == NULL)
@@ -170,7 +170,7 @@ static int disk_config(const char *key, const char *value) {
     ignorelist_set_invert(ignorelist, invert);
   } else if (strcasecmp("UseBSDName", key) == 0) {
 #if HAVE_IOKIT_IOKITLIB_H
-    use_bsd_name = IS_TRUE(value) ? 1 : 0;
+    use_bsd_name = IS_TRUE(value);
 #else
     WARNING("disk plugin: The \"UseBSDName\" option is only supported "
             "on Mach / Mac OS X and will be ignored.");
@@ -817,13 +817,13 @@ static int disk_read(void) {
       ds->write_time = write_time;
 
       if (read_merged || write_merged)
-        ds->has_merged = 1;
+        ds->has_merged = true;
 
       if (in_progress)
-        ds->has_in_progress = 1;
+        ds->has_in_progress = true;
 
       if (io_time)
-        ds->has_io_time = 1;
+        ds->has_io_time = true;
 
     } /* if (is_disk) */
 

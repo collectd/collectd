@@ -191,7 +191,7 @@ struct ovs_db_s {
 };
 
 /* Global variables */
-static uint64_t ovs_uid = 0;
+static uint64_t ovs_uid;
 static pthread_mutex_t ovs_uid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Post an event to event thread.
@@ -209,7 +209,7 @@ static void ovs_db_event_post(ovs_db_t *pdb, int event) {
 
 /* Check if POLL thread is still running. Returns
  * 1 if running otherwise 0 is returned */
-static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
+static bool ovs_db_poll_is_running(ovs_db_t *pdb) {
   int state = 0;
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   state = pdb->poll_thread.state;
@@ -1051,6 +1051,8 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
     ret = ovs_db_destroy(pdb);
     if (ret > 0)
       goto failure;
+    else
+      return NULL;
   }
 
   /* init polling thread */
@@ -1059,6 +1061,8 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
     if (ret > 0) {
       ovs_db_event_thread_data_destroy(pdb);
       goto failure;
+    } else {
+      return NULL;
     }
   }
   return pdb;

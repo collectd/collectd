@@ -36,7 +36,7 @@
 #define REDIS_DEF_PASSWD ""
 #define REDIS_DEF_PORT 6379
 #define REDIS_DEF_TIMEOUT 2000
-#define REDIS_DEF_DB_COUNT 16
+#define REDIS_DEF_DB_COUNT 256
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
 #define MAX_REDIS_VAL_SIZE 256
@@ -60,6 +60,8 @@ struct redis_query_s {
   char query[MAX_REDIS_QUERY];
   char type[DATA_MAX_NAME_LEN];
   char instance[DATA_MAX_NAME_LEN];
+  int database;
+
   redis_query_t *next;
 };
 
@@ -76,7 +78,7 @@ struct redis_node_s {
   redis_node_t *next;
 };
 
-static redis_node_t *nodes_head = NULL;
+static redis_node_t *nodes_head;
 
 static int redis_node_add(const redis_node_t *rn) /* {{{ */
 {
@@ -137,6 +139,8 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
   (void)sstrncpy(rq->instance, rq->query, sizeof(rq->instance));
   replace_special(rq->instance, sizeof(rq->instance));
 
+  rq->database = 0;
+
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
@@ -145,6 +149,13 @@ static redis_query_t *redis_config_query(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("Instance", option->key) == 0) {
       status =
           cf_util_get_string_buffer(option, rq->instance, sizeof(rq->instance));
+    } else if (strcasecmp("Database", option->key) == 0) {
+      status = cf_util_get_int(option, &rq->database);
+      if (rq->database < 0) {
+        WARNING("redis plugin: The \"Database\" option must be positive "
+                "integer or zero");
+        status = -1;
+      }
     } else {
       WARNING("redis plugin: unknown configuration option: %s", option->key);
       status = -1;
@@ -313,6 +324,12 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
     return -1;
   }
 
+  if ((rr = redisCommand(rh, "SELECT %d", rq->database)) == NULL) {
+    WARNING("redis plugin: unable to switch to database `%d' on node `%s'.",
+            rq->database, rn->name);
+    return -1;
+  }
+
   if ((rr = redisCommand(rh, rq->query)) == NULL) {
     WARNING("redis plugin: unable to carry out query `%s'.", rq->query);
     return -1;
@@ -364,8 +381,8 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
 
   for (int db = 0; db < REDIS_DEF_DB_COUNT; db++) {
     static char buf[MAX_REDIS_VAL_SIZE];
-    static char field_name[11];
-    static char db_id[3];
+    static char field_name[12];
+    static char db_id[4];
     value_t val;
     char *str;
     int i;

@@ -319,7 +319,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
   format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
               (vl)->type, (vl)->type_instance)
 int format_values(char *ret, size_t ret_len, const data_set_t *ds,
-                  const value_list_t *vl, _Bool store_rates);
+                  const value_list_t *vl, bool store_rates);
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_plugin_instance, char **ret_type,
@@ -386,12 +386,10 @@ int strtogauge(const char *string, gauge_t *ret_value);
 int strarray_add(char ***ret_array, size_t *ret_array_len, char const *str);
 void strarray_free(char **array, size_t array_len);
 
-#ifdef HAVE_SYS_CAPABILITY_H
 /** Check if the current process benefits from the capability passed in
  * argument. Returns zero if it does, less than zero if it doesn't or on error.
  * See capabilities(7) for the list of possible capabilities.
  * */
 int check_capability(int arg);
-#endif /* HAVE_SYS_CAPABILITY_H */
 
 #endif /* COMMON_H */

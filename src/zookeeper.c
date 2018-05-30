@@ -37,8 +37,8 @@
 #define ZOOKEEPER_DEF_HOST "127.0.0.1"
 #define ZOOKEEPER_DEF_PORT "2181"
 
-static char *zk_host = NULL;
-static char *zk_port = NULL;
+static char *zk_host;
+static char *zk_port;
 
 static const char *config_keys[] = {"Host", "Port"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);

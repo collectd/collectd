@@ -96,7 +96,7 @@ static int wl_write(const data_set_t *ds, const value_list_t *vl,
 
 static int wl_config(oconfig_item_t *ci) /* {{{ */
 {
-  _Bool format_seen = 0;
+  bool format_seen = false;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -110,7 +110,7 @@ static int wl_config(oconfig_item_t *ci) /* {{{ */
       if (format_seen) {
         WARNING("write_log plugin: Redefining option `%s'.", child->key);
       }
-      format_seen = 1;
+      format_seen = true;
 
       if (strcasecmp("Graphite", str) == 0)
         wl_format = WL_FORMAT_GRAPHITE;

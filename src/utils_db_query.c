@@ -268,6 +268,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
     vl.meta = meta_data_create();
     if (vl.meta == NULL) {
       ERROR("db query utils:: meta_data_create failed.");
+      free(vl.values);
       return -ENOMEM;
     }
 
@@ -278,6 +279,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
         ERROR("db query utils:: meta_data_add_string failed.");
         meta_data_destroy(vl.meta);
         vl.meta = NULL;
+        free(vl.values);
         return status;
       }
     }
@@ -336,21 +338,19 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
   if ((r == NULL) || (prep_area == NULL))
     return -EINVAL;
 
-#define BAIL_OUT(status)                                                       \
-  prep_area->ds = NULL;                                                        \
-  sfree(prep_area->instances_pos);                                             \
-  sfree(prep_area->values_pos);                                                \
-  sfree(prep_area->metadata_pos);                                              \
-  sfree(prep_area->instances_buffer);                                          \
-  sfree(prep_area->values_buffer);                                             \
-  sfree(prep_area->metadata_buffer);                                           \
-  return (status)
+#if COLLECT_DEBUG
+  assert(prep_area->ds == NULL);
+  assert(prep_area->instances_pos == NULL);
+  assert(prep_area->values_pos == NULL);
+  assert(prep_area->metadata_pos == NULL);
+  assert(prep_area->instances_buffer == NULL);
+  assert(prep_area->values_buffer == NULL);
+  assert(prep_area->metadata_buffer == NULL);
+#endif
 
-  /* Make sure previous preparations are cleaned up. */
-  udb_result_finish_result(r, prep_area);
-  prep_area->instances_pos = NULL;
-  prep_area->values_pos = NULL;
-  prep_area->metadata_pos = NULL;
+#define BAIL_OUT(status)                                                       \
+  udb_result_finish_result(r, prep_area);                                      \
+  return (status)
 
   /* Read `ds' and check number of values {{{ */
   prep_area->ds = plugin_get_ds(r->type);
@@ -929,7 +929,13 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
   if ((q == NULL) || (prep_area == NULL))
     return -EINVAL;
 
-  udb_query_finish_result(q, prep_area);
+#if COLLECT_DEBUG
+  assert(prep_area->column_num == 0);
+  assert(prep_area->host == NULL);
+  assert(prep_area->plugin == NULL);
+  assert(prep_area->db_name == NULL);
+  assert(prep_area->interval == 0);
+#endif
 
   prep_area->column_num = column_num;
   prep_area->host = strdup(host);

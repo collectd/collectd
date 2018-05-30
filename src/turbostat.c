@@ -65,12 +65,12 @@
  *
  * This value is automatically set if mperf or aperf go backward
  */
-static _Bool aperf_mperf_unstable;
+static bool aperf_mperf_unstable;
 
 /*
  * If set, use kernel logical core numbering for all "per core" metrics.
  */
-static _Bool config_lcn;
+static bool config_lcn;
 
 /*
  * Bitmask of the list of core C states supported by the processor.
@@ -78,7 +78,7 @@ static _Bool config_lcn;
  */
 static unsigned int do_core_cstate;
 static unsigned int config_core_cstate;
-static _Bool apply_config_core_cstate;
+static bool apply_config_core_cstate;
 
 /*
  * Bitmask of the list of pacages C states supported by the processor.
@@ -86,15 +86,15 @@ static _Bool apply_config_core_cstate;
  */
 static unsigned int do_pkg_cstate;
 static unsigned int config_pkg_cstate;
-static _Bool apply_config_pkg_cstate;
+static bool apply_config_pkg_cstate;
 
 /*
  * Boolean indicating if the processor supports 'I/O System-Management Interrupt
  * counter'
  */
-static _Bool do_smi;
-static _Bool config_smi;
-static _Bool apply_config_smi;
+static bool do_smi;
+static bool config_smi;
+static bool apply_config_smi;
 
 /*
  * Boolean indicating if the processor supports 'Digital temperature sensor'
@@ -105,9 +105,9 @@ static _Bool apply_config_smi;
  * might be wrong
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
-static _Bool do_dts;
-static _Bool config_dts;
-static _Bool apply_config_dts;
+static bool do_dts;
+static bool config_dts;
+static bool apply_config_dts;
 
 /*
  * Boolean indicating if the processor supports 'Package thermal management'
@@ -118,9 +118,9 @@ static _Bool apply_config_dts;
  * might be wrong
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
-static _Bool do_ptm;
-static _Bool config_ptm;
-static _Bool apply_config_ptm;
+static bool do_ptm;
+static bool config_ptm;
+static bool apply_config_ptm;
 
 /*
  * Thermal Control Circuit Activation Temperature as configured by the user.
@@ -131,7 +131,7 @@ static unsigned int tcc_activation_temp;
 
 static unsigned int do_rapl;
 static unsigned int config_rapl;
-static _Bool apply_config_rapl;
+static bool apply_config_rapl;
 static double rapl_energy_units;
 
 #define RAPL_PKG (1 << 0)
@@ -195,10 +195,10 @@ static struct pkg_data {
 #define DELTA_COUNTERS thread_delta, core_delta, package_delta
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
-static _Bool is_even = 1;
+static bool is_even = true;
 
-static _Bool allocated = 0;
-static _Bool initialized = 0;
+static bool allocated;
+static bool initialized;
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no)                    \
   (thread_base + (pkg_no)*topology.num_cores * topology.num_threads +          \
@@ -210,8 +210,8 @@ static _Bool initialized = 0;
 struct cpu_topology {
   unsigned int package_id;
   unsigned int core_id;
-  _Bool first_core_in_package;
-  _Bool first_thread_in_core;
+  bool first_core_in_package;
+  bool first_thread_in_core;
 };
 
 static struct topology {
@@ -243,10 +243,10 @@ static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 /*
  * Open a MSR device for reading
  * Can change the scheduling affinity of the current process if multiple_read is
- * 1
+ * true
  */
 static int __attribute__((warn_unused_result))
-open_msr(unsigned int cpu, _Bool multiple_read) {
+open_msr(unsigned int cpu, bool multiple_read) {
   char pathname[32];
   int fd;
 
@@ -487,7 +487,7 @@ delta_thread(struct thread_data *delta, const struct thread_data *new,
               "the entire interval. Fix this by running "
               "Linux-2.6.30 or later.");
 
-      aperf_mperf_unstable = 1;
+      aperf_mperf_unstable = true;
     }
   }
 
@@ -895,14 +895,14 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     switch (model) {
     /* Atom (partial) */
     case 0x27:
-      do_smi = 0;
+      do_smi = false;
       do_core_cstate = 0;
       do_pkg_cstate = (1 << 2) | (1 << 4) | (1 << 6);
       break;
     /* Silvermont */
     case 0x37: /* BYT */
     case 0x4D: /* AVN */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 1) | (1 << 6);
       do_pkg_cstate = (1 << 6);
       break;
@@ -912,7 +912,7 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
                   Forest */
     case 0x1F: /* Core i7 and i5 Processor - Nehalem */
     case 0x2E: /* Nehalem-EX Xeon - Beckton */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6);
       do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       break;
@@ -920,21 +920,21 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x25: /* Westmere Client - Clarkdale, Arrandale */
     case 0x2C: /* Westmere EP - Gulftown */
     case 0x2F: /* Westmere-EX Xeon - Eagleton */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6);
       do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       break;
     /* Sandy Bridge */
     case 0x2A: /* SNB */
     case 0x2D: /* SNB Xeon */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
     /* Ivy Bridge */
     case 0x3A: /* IVB */
     case 0x3E: /* IVB Xeon */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
@@ -942,31 +942,31 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x3C: /* HSW */
     case 0x3F: /* HSW */
     case 0x46: /* HSW */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
     case 0x45: /* HSW */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) |
                       (1 << 9) | (1 << 10);
       break;
-    /* Broadwel */
+    /* Broadwell */
     case 0x4F: /* BDW */
     case 0x56: /* BDX-DE */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
     case 0x3D: /* BDW */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) |
                       (1 << 9) | (1 << 10);
       break;
     default:
-      do_smi = 0;
+      do_smi = false;
       do_core_cstate = 0;
       do_pkg_cstate = 0;
       break;
@@ -1227,7 +1227,7 @@ static int __attribute__((warn_unused_result)) topology_probe(void) {
     if (ret < 0)
       goto err;
     else if ((unsigned int)ret == i)
-      cpu->first_core_in_package = 1;
+      cpu->first_core_in_package = true;
 
     ret = get_threads_on_core(i);
     if (ret < 0)
@@ -1241,7 +1241,7 @@ static int __attribute__((warn_unused_result)) topology_probe(void) {
     if (ret < 0)
       goto err;
     else if ((unsigned int)ret == i)
-      cpu->first_thread_in_core = 1;
+      cpu->first_thread_in_core = true;
 
     DEBUG("turbostat plugin: cpu %d pkg %d core %d\n", i, cpu->package_id,
           cpu->core_id);
@@ -1289,15 +1289,15 @@ static int allocate_counters(struct thread_data **threads,
   *cores = calloc(total_cores, sizeof(struct core_data));
   if (*cores == NULL) {
     ERROR("turbostat plugin: calloc failed");
-    sfree(threads);
+    sfree(*threads);
     return -1;
   }
 
   *packages = calloc(topology.num_packages, sizeof(struct pkg_data));
   if (*packages == NULL) {
     ERROR("turbostat plugin: calloc failed");
-    sfree(cores);
-    sfree(threads);
+    sfree(*cores);
+    sfree(*threads);
     return -1;
   }
 
@@ -1338,8 +1338,8 @@ static void initialize_counters(void) {
 }
 
 static void free_all_buffers(void) {
-  allocated = 0;
-  initialized = 0;
+  allocated = false;
+  initialized = false;
 
   CPU_FREE(cpu_present_set);
   cpu_present_set = NULL;
@@ -1400,7 +1400,7 @@ static int setup_all_buffers(void) {
   DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
   DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
-  allocated = 1;
+  allocated = true;
   return 0;
 err:
   free_all_buffers();
@@ -1437,8 +1437,8 @@ static int turbostat_read(void) {
     if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
       goto out;
     time_even = cdtime();
-    is_even = 1;
-    initialized = 1;
+    is_even = true;
+    initialized = true;
     ret = 0;
     goto out;
   }
@@ -1447,7 +1447,7 @@ static int turbostat_read(void) {
     if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
       goto out;
     time_odd = cdtime();
-    is_even = 0;
+    is_even = false;
     time_delta = time_odd - time_even;
     if ((ret = for_all_cpus_delta(ODD_COUNTERS, EVEN_COUNTERS)) < 0)
       goto out;
@@ -1457,7 +1457,7 @@ static int turbostat_read(void) {
     if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
       goto out;
     time_even = cdtime();
-    is_even = 1;
+    is_even = true;
     time_delta = time_even - time_odd;
     if ((ret = for_all_cpus_delta(EVEN_COUNTERS, ODD_COUNTERS)) < 0)
       goto out;
@@ -1554,7 +1554,7 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     config_core_cstate = (unsigned int)tmp_val;
-    apply_config_core_cstate = 1;
+    apply_config_core_cstate = true;
   } else if (strcasecmp("PackageCstates", key) == 0) {
     tmp_val = strtoul(value, &end, 0);
     if (*end != '\0' || tmp_val > UINT_MAX) {
@@ -1562,16 +1562,16 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     config_pkg_cstate = (unsigned int)tmp_val;
-    apply_config_pkg_cstate = 1;
+    apply_config_pkg_cstate = true;
   } else if (strcasecmp("SystemManagementInterrupt", key) == 0) {
     config_smi = IS_TRUE(value);
-    apply_config_smi = 1;
+    apply_config_smi = true;
   } else if (strcasecmp("DigitalTemperatureSensor", key) == 0) {
     config_dts = IS_TRUE(value);
-    apply_config_dts = 1;
+    apply_config_dts = true;
   } else if (strcasecmp("PackageThermalManagement", key) == 0) {
     config_ptm = IS_TRUE(value);
-    apply_config_ptm = 1;
+    apply_config_ptm = true;
   } else if (strcasecmp("LogicalCoreNames", key) == 0) {
     config_lcn = IS_TRUE(value);
   } else if (strcasecmp("RunningAveragePowerLimit", key) == 0) {
@@ -1581,7 +1581,7 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     config_rapl = (unsigned int)tmp_val;
-    apply_config_rapl = 1;
+    apply_config_rapl = true;
   } else if (strcasecmp("TCCActivationTemp", key) == 0) {
     tmp_val = strtoul(value, &end, 0);
     if (*end != '\0' || tmp_val > UINT_MAX) {

@@ -37,7 +37,7 @@
 #define UUID_PRINTABLE_COMPACT_LENGTH (UUID_RAW_LENGTH * 2)
 #define UUID_PRINTABLE_NORMAL_LENGTH (UUID_PRINTABLE_COMPACT_LENGTH + 4)
 
-static char *uuidfile = NULL;
+static char *uuidfile;
 
 static const char *config_keys[] = {"UUIDFile"};
 

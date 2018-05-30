@@ -66,19 +66,19 @@ typedef struct dpdk_ka_monitor_s {
 
 typedef struct dpdk_link_status_config_s {
   int enabled;
-  _Bool send_updated;
+  bool send_updated;
   uint32_t enabled_port_mask;
   char port_name[RTE_MAX_ETHPORTS][DATA_MAX_NAME_LEN];
-  _Bool notify;
+  bool notify;
 } dpdk_link_status_config_t;
 
 typedef struct dpdk_keep_alive_config_s {
   int enabled;
-  _Bool send_updated;
+  bool send_updated;
   uint128_t lcore_mask;
   dpdk_keepalive_shm_t *shm;
   char shm_name[DATA_MAX_NAME_LEN];
-  _Bool notify;
+  bool notify;
   int fd;
 } dpdk_keep_alive_config_t;
 
@@ -185,8 +185,8 @@ static void dpdk_events_default_config(void) {
   /* Link Status */
   ec->config.link_status.enabled = 1;
   ec->config.link_status.enabled_port_mask = ~0;
-  ec->config.link_status.send_updated = 1;
-  ec->config.link_status.notify = 0;
+  ec->config.link_status.send_updated = true;
+  ec->config.link_status.notify = false;
 
   for (int i = 0; i < RTE_MAX_ETHPORTS; i++) {
     ec->config.link_status.port_name[i][0] = 0;
@@ -194,8 +194,8 @@ static void dpdk_events_default_config(void) {
 
   /* Keep Alive */
   ec->config.keep_alive.enabled = 1;
-  ec->config.keep_alive.send_updated = 1;
-  ec->config.keep_alive.notify = 0;
+  ec->config.keep_alive.send_updated = true;
+  ec->config.keep_alive.notify = false;
   /* by default enable 128 cores */
   memset(&ec->config.keep_alive.lcore_mask, 1,
          sizeof(ec->config.keep_alive.lcore_mask));
@@ -428,7 +428,7 @@ static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
   }
   ec->nb_ports = nb_ports > RTE_MAX_ETHPORTS ? RTE_MAX_ETHPORTS : nb_ports;
 
-  for (int i = 0; i < ec->nb_ports; i++) {
+  for (unsigned int i = 0; i < ec->nb_ports; i++) {
     if (ec->config.link_status.enabled_port_mask & (1 << i)) {
       struct rte_eth_link link;
       ec->link_info[i].read_time = cdtime();
@@ -497,7 +497,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
         ec->nb_ports);
 
   /* dispatch Link Status values to collectd */
-  for (int i = 0; i < ec->nb_ports; i++) {
+  for (unsigned int i = 0; i < ec->nb_ports; i++) {
     if (ec->config.link_status.enabled_port_mask & (1 << i)) {
       if (!ec->config.link_status.send_updated ||
           ec->link_info[i].status_updated) {

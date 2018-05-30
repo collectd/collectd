@@ -261,30 +261,30 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
-static int network_config_ttl = 0;
+static int network_config_ttl;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
-static _Bool network_config_forward = 0;
-static _Bool network_config_stats = 0;
+static bool network_config_forward;
+static bool network_config_stats;
 
-static sockent_t *sending_sockets = NULL;
+static sockent_t *sending_sockets;
 
-static receive_list_entry_t *receive_list_head = NULL;
-static receive_list_entry_t *receive_list_tail = NULL;
+static receive_list_entry_t *receive_list_head;
+static receive_list_entry_t *receive_list_tail;
 static pthread_mutex_t receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t receive_list_cond = PTHREAD_COND_INITIALIZER;
-static uint64_t receive_list_length = 0;
+static uint64_t receive_list_length;
 
-static sockent_t *listen_sockets = NULL;
-static struct pollfd *listen_sockets_pollfd = NULL;
-static size_t listen_sockets_num = 0;
+static sockent_t *listen_sockets;
+static struct pollfd *listen_sockets_pollfd;
+static size_t listen_sockets_num;
 
 /* The receive and dispatch threads will run as long as `listen_loop' is set to
  * zero. */
-static int listen_loop = 0;
-static int receive_thread_running = 0;
+static int listen_loop;
+static int receive_thread_running;
 static pthread_t receive_thread_id;
-static int dispatch_thread_running = 0;
+static int dispatch_thread_running;
 static pthread_t dispatch_thread_id;
 
 /* Buffer in which to-be-sent network packets are constructed. */
@@ -301,20 +301,20 @@ static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
  * example). Only if neither is true, the stats_lock is acquired. The counters
  * are always read without holding a lock in the hope that writing 8 bytes to
  * memory is an atomic operation. */
-static derive_t stats_octets_rx = 0;
-static derive_t stats_octets_tx = 0;
-static derive_t stats_packets_rx = 0;
-static derive_t stats_packets_tx = 0;
-static derive_t stats_values_dispatched = 0;
-static derive_t stats_values_not_dispatched = 0;
-static derive_t stats_values_sent = 0;
-static derive_t stats_values_not_sent = 0;
+static derive_t stats_octets_rx;
+static derive_t stats_octets_tx;
+static derive_t stats_packets_rx;
+static derive_t stats_packets_tx;
+static derive_t stats_values_dispatched;
+static derive_t stats_values_not_dispatched;
+static derive_t stats_values_sent;
+static derive_t stats_values_not_sent;
 static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Private functions
  */
-static _Bool check_receive_okay(const value_list_t *vl) /* {{{ */
+static bool check_receive_okay(const value_list_t *vl) /* {{{ */
 {
   uint64_t time_sent = 0;
   int status;
@@ -327,11 +327,11 @@ static _Bool check_receive_okay(const value_list_t *vl) /* {{{ */
     return 0;
 
   return 1;
-} /* }}} _Bool check_receive_okay */
+} /* }}} bool check_receive_okay */
 
-static _Bool check_send_okay(const value_list_t *vl) /* {{{ */
+static bool check_send_okay(const value_list_t *vl) /* {{{ */
 {
-  _Bool received = 0;
+  bool received = 0;
   int status;
 
   if (network_config_forward)
@@ -353,22 +353,22 @@ static _Bool check_send_okay(const value_list_t *vl) /* {{{ */
   /* By default, only *send* value lists that were not *received* by the
    * network plugin. */
   return !received;
-} /* }}} _Bool check_send_okay */
+} /* }}} bool check_send_okay */
 
-static _Bool check_notify_received(const notification_t *n) /* {{{ */
+static bool check_notify_received(const notification_t *n) /* {{{ */
 {
   for (notification_meta_t *ptr = n->meta; ptr != NULL; ptr = ptr->next)
     if ((strcmp("network:received", ptr->name) == 0) &&
         (ptr->type == NM_TYPE_BOOLEAN))
-      return (_Bool)ptr->nm_value.nm_boolean;
+      return (bool)ptr->nm_value.nm_boolean;
 
   return 0;
-} /* }}} _Bool check_notify_received */
+} /* }}} bool check_notify_received */
 
-static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
+static bool check_send_notify_okay(const notification_t *n) /* {{{ */
 {
   static c_complain_t complain_forwarding = C_COMPLAIN_INIT_STATIC;
-  _Bool received = 0;
+  bool received = 0;
 
   if (n->meta == NULL)
     return 1;
@@ -388,7 +388,7 @@ static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
   /* By default, only *send* value lists that were not *received* by the
    * network plugin. */
   return !received;
-} /* }}} _Bool check_send_notify_okay */
+} /* }}} bool check_send_notify_okay */
 
 static int network_dispatch_values(value_list_t *vl, /* {{{ */
                                    const char *username) {
@@ -1113,7 +1113,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
                                   int flags) {
-  static int warning_has_been_printed = 0;
+  static int warning_has_been_printed;
 
   char *buffer;
   size_t buffer_size;
@@ -1268,7 +1268,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
                                   int flags) {
-  static int warning_has_been_printed = 0;
+  static int warning_has_been_printed;
 
   char *buffer;
   size_t buffer_size;
@@ -1924,7 +1924,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
   struct sockent_client *client;
   struct addrinfo *ai_list;
   int status;
-  _Bool reconnect = 0;
+  bool reconnect = false;
   cdtime_t now;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
@@ -1938,7 +1938,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
           "next_resolve_reconnect = %lf",
           CDTIME_T_TO_DOUBLE(client->resolve_interval),
           CDTIME_T_TO_DOUBLE(client->next_resolve_reconnect));
-    reconnect = 1;
+    reconnect = true;
   }
 
   if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
@@ -3096,13 +3096,13 @@ static int network_stats_read(void) /* {{{ */
 } /* }}} int network_stats_read */
 
 static int network_init(void) {
-  static _Bool have_init = 0;
+  static bool have_init;
 
   /* Check if we were already initialized. If so, just return - there's
    * nothing more to do (for now, that is). */
   if (have_init)
     return 0;
-  have_init = 1;
+  have_init = true;
 
   if (network_config_stats)
     plugin_register_read("network", network_stats_read);
