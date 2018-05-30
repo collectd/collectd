@@ -193,7 +193,7 @@ endif
 
 
 collectd_SOURCES = \
-	src/daemon/collectd_linux.c \
+	src/daemon/cmd.c \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h \
 	src/daemon/configfile.c \

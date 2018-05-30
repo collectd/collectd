@@ -1,6 +1,6 @@
 /**
- * collectd - src/collectd_linux.c
- * Copyright (C) 2018  Google LLC
+ * collectd - src/daemon/cmd.c
+ * Copyright (C) 2005-2007  Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
