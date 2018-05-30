@@ -52,14 +52,6 @@
 
 static int loop = 0;
 
-static long hostname_len() {
-  long hostname_len = sysconf(_SC_HOST_NAME_MAX);
-  if (hostname_len == -1) {
-    hostname_len = NI_MAXHOST;
-  }
-  return hostname_len;
-}
-
 static int init_hostname(void) {
   const char *str = global_option_get("Hostname");
   if ((str != NULL) && (str[0] != 0)) {
@@ -67,9 +59,13 @@ static int init_hostname(void) {
     return 0;
   }
 
-  char hostname[hostname_len()];
+  long hostname_len = sysconf(_SC_HOST_NAME_MAX);
+  if (hostname_len == -1) {
+    hostname_len = NI_MAXHOST;
+  }
+  char hostname[hostname_len];
 
-  if (gethostname(hostname, hostname_len()) != 0) {
+  if (gethostname(hostname, hostname_len) != 0) {
     fprintf(stderr, "`gethostname' failed and no "
                     "hostname was configured.\n");
     return -1;
