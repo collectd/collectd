@@ -266,11 +266,11 @@
 #include "globals.h"
 
 struct cmdline_config {
-  _Bool test_config;
-  _Bool test_readall;
-  _Bool create_basedir;
+  bool test_config;
+  bool test_readall;
+  bool create_basedir;
   const char *configfile;
-  _Bool daemonize;
+  bool daemonize;
 };
 
 void stop_collectd(void);
