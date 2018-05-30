@@ -1051,6 +1051,8 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
     ret = ovs_db_destroy(pdb);
     if (ret > 0)
       goto failure;
+    else
+      return NULL;
   }
 
   /* init polling thread */
@@ -1059,6 +1061,8 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
     if (ret > 0) {
       ovs_db_event_thread_data_destroy(pdb);
       goto failure;
+    } else {
+      return NULL;
     }
   }
   return pdb;
