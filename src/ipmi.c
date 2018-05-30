@@ -49,6 +49,7 @@ typedef struct c_ipmi_sensor_list_s c_ipmi_sensor_list_t;
 struct c_ipmi_instance_s {
   char *name;
   ignorelist_t *ignorelist;
+  ignorelist_t *sel_ignorelist;
   bool notify_add;
   bool notify_remove;
   bool notify_notpresent;
@@ -770,6 +771,40 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   return IPMI_EVENT_NOT_HANDLED;
 } /* int sensor_discrete_event_handler */
 
+static int sel_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
+  char sensor_name[DATA_MAX_NAME_LEN] = {0};
+  int status = 0;
+
+  /* Check if sensor on sel_ignorelist */
+  sensor_get_name(sensor, sensor_name, sizeof(sensor_name));
+  if (ignorelist_match(st->sel_ignorelist, sensor_name) != 0)
+    return 0;
+
+  /* register threshold event if threshold sensor support events */
+  if (ipmi_sensor_get_event_reading_type(sensor) ==
+      IPMI_EVENT_READING_TYPE_THRESHOLD)
+    status = ipmi_sensor_add_threshold_event_handler(
+        sensor, sensor_threshold_event_handler, st);
+  /* register discrete handler if discrete/specific sensor support events */
+  else if (ipmi_sensor_get_event_support(sensor) != IPMI_EVENT_SUPPORT_NONE)
+    status = ipmi_sensor_add_discrete_event_handler(
+        sensor, sensor_discrete_event_handler, st);
+
+  if (status)
+    ERROR("Unable to add sensor %s event handler, status: %d", sensor_name,
+          status);
+  return status;
+}
+
+static void sel_list_remove(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
+  if (ipmi_sensor_get_event_reading_type(sensor) ==
+      IPMI_EVENT_READING_TYPE_THRESHOLD)
+    ipmi_sensor_remove_threshold_event_handler(
+        sensor, sensor_threshold_event_handler, st);
+  else
+    ipmi_sensor_remove_discrete_event_handler(
+        sensor, sensor_discrete_event_handler, st);
+}
 /*
  * Entity handlers
  */
@@ -782,37 +817,12 @@ entity_sensor_update_handler(enum ipmi_update_e op,
   if ((op == IPMI_ADDED) || (op == IPMI_CHANGED)) {
     /* Will check for duplicate entries.. */
     sensor_list_add(st, sensor);
-
-    if (st->sel_enabled) {
-      int status = 0;
-      /* register threshold event handler */
-      if (ipmi_sensor_get_event_reading_type(sensor) ==
-          IPMI_EVENT_READING_TYPE_THRESHOLD)
-        status = ipmi_sensor_add_threshold_event_handler(
-            sensor, sensor_threshold_event_handler, st);
-      /* register discrete handler if discrete/specific sensor support events */
-      else if (ipmi_sensor_get_event_support(sensor) != IPMI_EVENT_SUPPORT_NONE)
-        status = ipmi_sensor_add_discrete_event_handler(
-            sensor, sensor_discrete_event_handler, st);
-
-      if (status) {
-        char buf[DATA_MAX_NAME_LEN] = {0};
-        sensor_get_name(sensor, buf, sizeof(buf));
-        ERROR("Unable to add sensor %s event handler, status: %d", buf, status);
-      }
-    }
+    if (st->sel_enabled)
+      sel_list_add(st, sensor);
   } else if (op == IPMI_DELETED) {
     sensor_list_remove(st, sensor);
-
-    if (st->sel_enabled) {
-      if (ipmi_sensor_get_event_reading_type(sensor) ==
-          IPMI_EVENT_READING_TYPE_THRESHOLD)
-        ipmi_sensor_remove_threshold_event_handler(
-            sensor, sensor_threshold_event_handler, st);
-      else
-        ipmi_sensor_remove_discrete_event_handler(
-            sensor, sensor_discrete_event_handler, st);
-    }
+    if (st->sel_enabled)
+      sel_list_remove(st, sensor);
   }
 } /* void entity_sensor_update_handler */
 
@@ -1000,6 +1010,15 @@ static c_ipmi_instance_t *c_ipmi_init_instance() {
     return NULL;
   }
 
+  st->sel_ignorelist = ignorelist_create(/* invert = */ 1);
+  if (st->sel_ignorelist == NULL) {
+    ignorelist_free(st->ignorelist);
+    sfree(st->name);
+    sfree(st);
+    ERROR("ipmi plugin: SEL ignorelist_create() failed.");
+    return NULL;
+  }
+
   st->sensor_list = NULL;
   pthread_mutex_init(&st->sensor_list_lock, /* attr = */ NULL);
 
@@ -1026,6 +1045,7 @@ static void c_ipmi_free_instance(c_ipmi_instance_t *st) {
   sfree(st->username);
   sfree(st->password);
 
+  ignorelist_free(st->sel_ignorelist);
   ignorelist_free(st->ignorelist);
   pthread_mutex_destroy(&st->sensor_list_lock);
   sfree(st);
@@ -1083,6 +1103,19 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
       status = cf_util_get_boolean(child, &st->notify_remove);
     } else if (strcasecmp("NotifySensorNotPresent", child->key) == 0) {
       status = cf_util_get_boolean(child, &st->notify_notpresent);
+    } else if (strcasecmp("SELSensor", child->key) == 0) {
+      char *value = NULL;
+      status = cf_util_get_string(child, &value);
+      if (status != 0)
+        break;
+      ignorelist_add(st->sel_ignorelist, value);
+      sfree(value);
+    } else if (strcasecmp("SELIgnoreSelected", child->key) == 0) {
+      bool t;
+      status = cf_util_get_boolean(child, &t);
+      if (status != 0)
+        break;
+      ignorelist_set_invert(st->sel_ignorelist, /* invert = */ !t);
     } else if (strcasecmp("SELEnabled", child->key) == 0) {
       status = cf_util_get_boolean(child, &st->sel_enabled);
     } else if (strcasecmp("SELClearEvent", child->key) == 0) {

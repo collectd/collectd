@@ -714,6 +714,9 @@
 #		NotifySensorNotPresent false
 #		NotifyIPMIConnectionState false
 #		SELEnabled false
+#		SELSensor "some_sensor"
+#		SELSensor "another_one"
+#		SELIgnoreSelected false
 #		SELClearEvent false
 #	</Instance>
 #	<Instance "remote">
@@ -730,6 +733,9 @@
 #		NotifySensorNotPresent false
 #		NotifyIPMIConnectionState false
 #		SELEnabled false
+#		SELSensor "some_sensor"
+#		SELSensor "another_one"
+#		SELIgnoreSelected false
 #		SELClearEvent false
 #	</Instance>
 #</Plugin>

@@ -3636,7 +3636,22 @@ a notification is sent. Defaults to B<false>.
 
 If system event log (SEL) is enabled, plugin will listen for sensor threshold
 and discrete events. When event is received the notification is sent.
+SEL event filtering can be configured using B<SELSensor> and B<SELIgnoreSelected>
+config options.
 Defaults to B<false>.
+
+=item B<SELSensor> I<SELSensor>
+
+Selects sensors to get events from or to ignore, depending on B<SELIgnoreSelected>.
+
+See F</"IGNORELISTS"> for details.
+
+=item B<SELIgnoreSelected> I<true>|I<false>
+
+If no configuration is given, the B<ipmi> plugin will pass events from all
+sensors. This option enables you to do that: By setting B<SELIgnoreSelected>
+to I<true> the effect of B<SELSensor> is inverted: All events from selected
+sensors are ignored and all events from other sensors are passed.
 
 =item B<SELClearEvent> I<true>|I<false>
 
