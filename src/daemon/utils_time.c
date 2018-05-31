@@ -146,7 +146,7 @@ static int format_zone(char *buffer, size_t buffer_size,
 int format_rfc3339(char *buffer, size_t buffer_size, struct tm const *t_tm,
                    long nsec, bool print_nano, char const *zone) /* {{{ */
 {
-  int len;
+  size_t len;
   char *pos = buffer;
   size_t size_left = buffer_size;
 
