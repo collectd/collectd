@@ -110,7 +110,7 @@ IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 {UNQUOTED_STRING}	{yylval.string = yytext; return (UNQUOTED_STRING);}
 
 \"{QUOTED_STRING}\\{EOL} {
-	int len = strlen (yytext);
+	size_t len = strlen (yytext);
 
 	ml_pos = 0;
 
@@ -126,7 +126,7 @@ IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 }
 <ML>^{WHITE_SPACE}+ {/* remove leading white-space */}
 <ML>{NON_WHITE_SPACE}{QUOTED_STRING}\\{EOL} {
-	int len = strlen (yytext);
+	size_t len = strlen (yytext);
 
 	/* remove "\\<EOL>" */
 	if ('\r' == yytext[len - 2])
@@ -147,7 +147,7 @@ IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 %%
 static void ml_append (char *string)
 {
-	int len = strlen (string);
+	size_t len = strlen (string);
 	int s;
 
 	if (ml_free <= len) {
