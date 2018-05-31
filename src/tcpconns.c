@@ -498,7 +498,6 @@ static int conn_read_netlink(void) {
   iov.iov_len = sizeof(buf);
 
   while (1) {
-    int status;
     struct nlmsghdr *h;
 
     memset(&msg, 0, sizeof(msg));
@@ -507,7 +506,7 @@ static int conn_read_netlink(void) {
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
 
-    status = recvmsg(fd, (void *)&msg, /* flags = */ 0);
+    ssize_t status = recvmsg(fd, (void *)&msg, /* flags = */ 0);
     if (status < 0) {
       if ((errno == EINTR) || (errno == EAGAIN))
         continue;
@@ -574,11 +573,11 @@ static int conn_handle_line(char *buffer) {
 
   uint8_t state;
 
-  int buffer_len = strlen(buffer);
+  size_t buffer_len = strlen(buffer);
 
   while ((buffer_len > 0) && (buffer[buffer_len - 1] < 32))
     buffer[--buffer_len] = '\0';
-  if (buffer_len <= 0)
+  if (buffer_len == 0)
     return -1;
 
   fields_len = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
