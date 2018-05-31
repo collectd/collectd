@@ -81,7 +81,7 @@ static void sig_usr1_handler(int __attribute__((unused)) signal) {
 
 static int init_hostname(void) {
   const char *str = global_option_get("Hostname");
-  if ((str != NULL) && (str[0] != 0)) {
+  if (str && str[0] != '\0') {
     hostname_set(str);
     return 0;
   }
@@ -118,8 +118,7 @@ static int init_hostname(void) {
     return -1;
   }
 
-  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
-       ai_ptr = ai_ptr->ai_next) {
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr; ai_ptr = ai_ptr->ai_next) {
     if (ai_ptr->ai_canonname == NULL)
       continue;
 
@@ -132,13 +131,11 @@ static int init_hostname(void) {
 } /* int init_hostname */
 
 static int init_global_variables(void) {
-  char const *str;
-
   interval_g = cf_get_default_interval();
   assert(interval_g > 0);
   DEBUG("interval_g = %.3f;", CDTIME_T_TO_DOUBLE(interval_g));
 
-  str = global_option_get("Timeout");
+  const char *str = global_option_get("Timeout");
   if (str == NULL)
     str = "2";
   timeout_g = atoi(str);
@@ -157,17 +154,13 @@ static int init_global_variables(void) {
 } /* int init_global_variables */
 
 static int change_basedir(const char *orig_dir, bool create) {
-  char *dir;
-  size_t dirlen;
-  int status;
-
-  dir = strdup(orig_dir);
+  char *dir = strdup(orig_dir);
   if (dir == NULL) {
     ERROR("strdup failed: %s", STRERRNO);
     return -1;
   }
 
-  dirlen = strlen(dir);
+  size_t dirlen = strlen(dir);
   while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
     dir[--dirlen] = '\0';
 
@@ -176,7 +169,7 @@ static int change_basedir(const char *orig_dir, bool create) {
     return -1;
   }
 
-  status = chdir(dir);
+  int status = chdir(dir);
   if (status == 0) {
     free(dir);
     return 0;
@@ -211,8 +204,7 @@ static void update_kstat(void) {
     if ((kc = kstat_open()) == NULL)
       ERROR("Unable to open kstat control structure");
   } else {
-    kid_t kid;
-    kid = kstat_chain_update(kc);
+    kid_t kid = kstat_chain_update(kc);
     if (kid > 0) {
       INFO("kstat chain has been updated");
       plugin_init_all();
@@ -225,9 +217,6 @@ static void update_kstat(void) {
 } /* static void update_kstat (void) */
 #endif /* HAVE_LIBKSTAT */
 
-/* TODO
- * Remove all settings but `-f' and `-C'
- */
 __attribute__((noreturn)) static void exit_usage(int status) {
   printf("Usage: " PACKAGE_NAME " [OPTIONS]\n\n"
 
@@ -292,13 +281,9 @@ static int do_init(void) {
 
 static int do_loop(void) {
   cdtime_t interval = cf_get_default_interval();
-  cdtime_t wait_until;
-
-  wait_until = cdtime() + interval;
+  cdtime_t wait_until = cdtime() + interval;
 
   while (loop == 0) {
-    cdtime_t now;
-
 #if HAVE_LIBKSTAT
     update_kstat();
 #endif
@@ -306,7 +291,7 @@ static int do_loop(void) {
     /* Issue all plugins */
     plugin_read_all();
 
-    now = cdtime();
+    cdtime_t now = cdtime();
     if (now >= wait_until) {
       WARNING("Not sleeping because the next interval is "
               "%.3f seconds in the past!",
@@ -380,13 +365,8 @@ static int notify_upstart(void) {
 }
 
 static int notify_systemd(void) {
-  int fd;
-  const char *notifysocket;
-  struct sockaddr_un su = {0};
   size_t su_size;
-  char buffer[] = "READY=1\n";
-
-  notifysocket = getenv("NOTIFY_SOCKET");
+  const char *notifysocket = getenv("NOTIFY_SOCKET");
   if (notifysocket == NULL)
     return 0;
 
@@ -401,6 +381,7 @@ static int notify_systemd(void) {
 
   unsetenv("NOTIFY_SOCKET");
 
+  int fd;
 #if defined(SOCK_CLOEXEC)
   fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, /* protocol = */ 0);
 #else
@@ -411,6 +392,7 @@ static int notify_systemd(void) {
     return 0;
   }
 
+  struct sockaddr_un su = {0};
   su.sun_family = AF_UNIX;
   if (notifysocket[0] != '@') {
     /* regular UNIX socket */
@@ -428,6 +410,7 @@ static int notify_systemd(void) {
       su_size = sizeof(su);
   }
 
+  const char buffer[] = "READY=1\n";
   if (sendto(fd, buffer, strlen(buffer), MSG_NOSIGNAL, (void *)&su,
              (socklen_t)su_size) < 0) {
     ERROR("sendto(\"%s\") failed: %s", notifysocket, STRERRNO);
@@ -452,12 +435,11 @@ struct cmdline_config {
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
-    int c;
-    c = getopt(argc, argv, "htTC:"
+    int c = getopt(argc, argv, "htTC:"
 #if COLLECT_DAEMON
-                           "fP:"
+                               "fP:"
 #endif
-               );
+                   );
 
     if (c == -1)
       break;
@@ -496,7 +478,6 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
 }
 
 static int configure_collectd(struct cmdline_config *config) {
-  const char *basedir;
   /*
    * Read options from the config file, the environment and the command
    * line (in that order, with later options overwriting previous ones in
@@ -513,6 +494,7 @@ static int configure_collectd(struct cmdline_config *config) {
    * Change directory. We do this _after_ reading the config and loading
    * modules to relative paths work as expected.
    */
+  const char *basedir;
   if ((basedir = global_option_get("BaseDir")) == NULL) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");
@@ -535,9 +517,6 @@ static int configure_collectd(struct cmdline_config *config) {
 }
 
 int main(int argc, char **argv) {
-#if COLLECT_DAEMON
-  pid_t pid;
-#endif
   int exit_status = 0;
 
   struct cmdline_config config = {
@@ -574,8 +553,7 @@ int main(int argc, char **argv) {
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
       ) {
-    int status;
-
+    pid_t pid;
     if ((pid = fork()) == -1) {
       /* error */
       fprintf(stderr, "fork: %s", STRERRNO);
@@ -598,7 +576,7 @@ int main(int argc, char **argv) {
     close(1);
     close(0);
 
-    status = open("/dev/null", O_RDWR);
+    int status = open("/dev/null", O_RDWR);
     if (status != 0) {
       ERROR("Error: Could not connect `STDIN' to `/dev/null' (status %d)",
             status);
@@ -630,7 +608,7 @@ int main(int argc, char **argv) {
    */
   struct sigaction sig_int_action = {.sa_handler = sig_int_handler};
 
-  if (0 != sigaction(SIGINT, &sig_int_action, NULL)) {
+  if (sigaction(SIGINT, &sig_int_action, NULL) != 0) {
     ERROR("Error: Failed to install a signal handler for signal INT: %s",
           STRERRNO);
     return 1;
@@ -638,7 +616,7 @@ int main(int argc, char **argv) {
 
   struct sigaction sig_term_action = {.sa_handler = sig_term_handler};
 
-  if (0 != sigaction(SIGTERM, &sig_term_action, NULL)) {
+  if (sigaction(SIGTERM, &sig_term_action, NULL) != 0) {
     ERROR("Error: Failed to install a signal handler for signal TERM: %s",
           STRERRNO);
     return 1;
@@ -646,7 +624,7 @@ int main(int argc, char **argv) {
 
   struct sigaction sig_usr1_action = {.sa_handler = sig_usr1_handler};
 
-  if (0 != sigaction(SIGUSR1, &sig_usr1_action, NULL)) {
+  if (sigaction(SIGUSR1, &sig_usr1_action, NULL) != 0) {
     ERROR("Error: Failed to install a signal handler for signal USR1: %s",
           STRERRNO);
     return 1;
