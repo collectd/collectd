@@ -42,13 +42,10 @@ static char *uuidfile;
 static const char *config_keys[] = {"UUIDFile"};
 
 static int looks_like_a_uuid(const char *uuid) {
-  int len;
-
   if (!uuid)
     return 0;
 
-  len = strlen(uuid);
-
+  size_t len = strlen(uuid);
   if (len < UUID_PRINTABLE_COMPACT_LENGTH)
     return 0;
 
