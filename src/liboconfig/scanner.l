@@ -41,8 +41,8 @@
 
 /* multiline string buffer */
 static char *ml_buffer = NULL;
-static int   ml_pos    = 0;
-static int   ml_len    = 0;
+static size_t ml_pos    = 0;
+static size_t ml_len    = 0;
 
 #define ml_free (ml_len - ml_pos)
 
