@@ -266,12 +266,12 @@ static char *unquote (const char *orig)
 {
 	char *ret = strdup (orig);
 	if (ret == NULL)
-		return (NULL);
+		return NULL;
 
 	size_t len = strlen (ret);
 
 	if ((len < 2) || (ret[0] != '"') || (ret[len - 1] != '"'))
-		return (ret);
+		return ret;
 
 	len -= 2;
 	memmove (ret, ret + 1, len);
@@ -286,5 +286,5 @@ static char *unquote (const char *orig)
 		}
 	}
 
-	return (ret);
+	return ret;
 } /* char *unquote */
