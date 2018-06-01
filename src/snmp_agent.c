@@ -285,8 +285,8 @@ static int snmp_agent_validate_data(void) {
 
 static void snmp_agent_generate_oid2string(oid_t *oid, size_t offset,
                                            char *key) {
-  int key_len = oid->oid[offset];
-  int i;
+  size_t key_len = oid->oid[offset];
+  size_t i;
 
   for (i = 0; i < key_len && offset < oid->oid_len; i++)
     key[i] = oid->oid[++offset];
@@ -295,10 +295,10 @@ static void snmp_agent_generate_oid2string(oid_t *oid, size_t offset,
 }
 
 static int snmp_agent_generate_string2oid(oid_t *oid, const char *key) {
-  int key_len = strlen(key);
+  size_t key_len = strlen(key);
 
   oid->oid[oid->oid_len++] = key_len;
-  for (int i = 0; i < key_len; i++) {
+  for (size_t i = 0; i < key_len; i++) {
     oid->oid[oid->oid_len++] = key[i];
     if (oid->oid_len >= MAX_OID_LEN) {
       ERROR(PLUGIN_NAME ": Conversion key string %s to OID failed", key);
