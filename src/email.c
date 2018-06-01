@@ -260,7 +260,6 @@ static void *collect(void *arg) {
     while (42) {
       /* 256 bytes ought to be enough for anybody ;-) */
       char line[256 + 1]; /* line + '\0' */
-      int len = 0;
 
       errno = 0;
       if (fgets(line, sizeof(line), this->socket) == NULL) {
@@ -272,7 +271,7 @@ static void *collect(void *arg) {
         break;
       }
 
-      len = strlen(line);
+      size_t len = strlen(line);
       if ((line[len - 1] != '\n') && (line[len - 1] != '\r')) {
         log_warn("collect: line too long (> %" PRIsz " characters): "
                  "'%s' (truncated)",
@@ -287,7 +286,7 @@ static void *collect(void *arg) {
         continue;
       }
 
-      line[len - 1] = 0;
+      line[len - 1] = '\0';
 
       log_debug("collect: line = '%s'", line);
 
