@@ -225,12 +225,10 @@ static int df_read(void) {
       if (strcmp(mnt_ptr->dir, "/") == 0)
         sstrncpy(disk_name, "root", sizeof(disk_name));
       else {
-        int len;
-
         sstrncpy(disk_name, mnt_ptr->dir + 1, sizeof(disk_name));
-        len = strlen(disk_name);
+        size_t len = strlen(disk_name);
 
-        for (int i = 0; i < len; i++)
+        for (size_t i = 0; i < len; i++)
           if (disk_name[i] == '/')
             disk_name[i] = '-';
       }
