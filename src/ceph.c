@@ -1142,8 +1142,8 @@ static int cconn_validate_revents(struct cconn *io, int revents) {
 }
 
 /** Handle a network event for a connection */
-static int cconn_handle_event(struct cconn *io) {
-  int ret;
+static ssize_t cconn_handle_event(struct cconn *io) {
+  ssize_t ret;
   switch (io->state) {
   case CSTATE_UNCONNECTED:
     ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
@@ -1296,8 +1296,8 @@ static int cconn_prepare(struct cconn *io, struct pollfd *fds) {
  */
 static int milli_diff(const struct timeval *t1, const struct timeval *t2) {
   int64_t ret;
-  int sec_diff = t1->tv_sec - t2->tv_sec;
-  int usec_diff = t1->tv_usec - t2->tv_usec;
+  long sec_diff = t1->tv_sec - t2->tv_sec;
+  long usec_diff = t1->tv_usec - t2->tv_usec;
   ret = usec_diff / 1000;
   ret += (sec_diff * 1000);
   return (ret > INT_MAX) ? INT_MAX : ((ret < INT_MIN) ? INT_MIN : (int)ret);
@@ -1305,8 +1305,9 @@ static int milli_diff(const struct timeval *t1, const struct timeval *t2) {
 
 /** This handles the actual network I/O to talk to the Ceph daemons.
  */
-static int cconn_main_loop(uint32_t request_type) {
-  int ret, some_unreachable = 0;
+static ssize_t cconn_main_loop(uint32_t request_type) {
+  int some_unreachable = 0;
+  ssize_t ret;
   struct timeval end_tv;
   struct cconn io_array[g_num_daemons];
 
@@ -1343,7 +1344,7 @@ static int cconn_main_loop(uint32_t request_type) {
       struct cconn *io = io_array + i;
       ret = cconn_prepare(io, fds + nfds);
       if (ret < 0) {
-        WARNING("ceph plugin: cconn_prepare(name=%s,i=%" PRIsz ",st=%d)=%d",
+        WARNING("ceph plugin: cconn_prepare(name=%s,i=%" PRIsz ",st=%d)=%zd",
                 io->d->name, i, io->state, ret);
         cconn_close(io);
         io->request_type = ASOK_REQ_NONE;
@@ -1367,7 +1368,7 @@ static int cconn_main_loop(uint32_t request_type) {
     }
     RETRY_ON_EINTR(ret, poll(fds, nfds, diff));
     if (ret < 0) {
-      ERROR("ceph plugin: poll(2) error: %d", ret);
+      ERROR("ceph plugin: poll(2) error: %zd", ret);
       goto done;
     }
     for (int i = 0; i < nfds; ++i) {
@@ -1388,7 +1389,7 @@ static int cconn_main_loop(uint32_t request_type) {
         ret = cconn_handle_event(io);
         if (ret) {
           WARNING("ceph plugin: cconn_handle_event(name=%s,"
-                  "i=%d,st=%d): error %d",
+                  "i=%d,st=%d): error %zd",
                   io->d->name, i, io->state, ret);
           cconn_close(io);
           io->request_type = ASOK_REQ_NONE;
@@ -1409,7 +1410,7 @@ done:
   return ret;
 }
 
-static int ceph_read(void) { return cconn_main_loop(ASOK_REQ_DATA); }
+static int ceph_read(void) { return (int)cconn_main_loop(ASOK_REQ_DATA); }
 
 /******* lifecycle *******/
 static int ceph_init(void) {
@@ -1436,7 +1437,7 @@ static int ceph_init(void) {
     return ENOENT;
   }
 
-  return cconn_main_loop(ASOK_REQ_VERSION);
+  return (int)cconn_main_loop(ASOK_REQ_VERSION);
 }
 
 static int ceph_shutdown(void) {
