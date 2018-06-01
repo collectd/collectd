@@ -32,15 +32,15 @@ static int num_cpu;
 struct thread_data {
   long long time_prev[MAX_AVAIL_FREQS];
   long long transitions;
-} *t_data;
+} * t_data;
 
 /* Flags denoting capability of reporting stats. */
 unsigned report_time_in_state, report_total_trans;
 
-static int counter_init(void){
+static int counter_init(void) {
   t_data = calloc(num_cpu, sizeof(struct thread_data));
   if (t_data == NULL)
-	return 0;
+    return 0;
 
   report_time_in_state = 1;
   report_total_trans = 1;
@@ -54,7 +54,7 @@ static int counter_init(void){
     long long t;
 
     snprintf(filename, sizeof(filename),
-              "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
+             "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
     fh = fopen(filename, "r");
     if (fh == NULL) {
       report_time_in_state = 0;
@@ -63,7 +63,7 @@ static int counter_init(void){
     while (fgets(buffer, sizeof(buffer), fh) != NULL) {
       if (!sscanf(buffer, "%s%lli", state, &t)) {
         fclose(fh);
-	return 0;
+        return 0;
       }
       t_data[i].time_prev[j] = t;
       j++;
@@ -72,7 +72,7 @@ static int counter_init(void){
 
     /* Initialize total transitions for cpu frequency */
     snprintf(filename, sizeof(filename),
-              "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
+             "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
     fh = fopen(filename, "r");
     if (fh == NULL) {
       report_total_trans = 0;
@@ -119,7 +119,8 @@ static int cpufreq_init(void) {
   return 0;
 } /* int cpufreq_init */
 
-static void cpufreq_submit(int cpu_num, const char *type, const char *type_instance, value_t value) {
+static void cpufreq_submit(int cpu_num, const char *type,
+                           const char *type_instance, value_t value) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = &value;
@@ -129,7 +130,7 @@ static void cpufreq_submit(int cpu_num, const char *type, const char *type_insta
   if (type != NULL)
     sstrncpy(vl.type, type, sizeof(vl.type));
   if (type_instance != NULL)
-  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   plugin_dispatch_values(&vl);
 }
@@ -158,21 +159,21 @@ static int cpufreq_read(void) {
     /* Read total transitions for cpu frequency */
     if (report_total_trans) {
       snprintf(filename, sizeof(filename),
-                "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
+               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
       fh = fopen(filename, "r");
       if (fh == NULL)
         continue;
       while (fgets(buffer, sizeof(buffer), fh) != NULL) {
         if (!sscanf(buffer, "%lli", &t)) {
           fclose(fh);
-	  return 0;
-	}
+          return 0;
+        }
         snprintf(buffer, sizeof(buffer), "%lli", t - t_data[i].transitions);
         t_data[i].transitions = t;
       }
       if (parse_value(buffer, &v, DS_TYPE_GAUGE) != 0) {
         WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
-	fclose(fh);
+        fclose(fh);
         continue;
       }
       fclose(fh);
@@ -189,19 +190,19 @@ static int cpufreq_read(void) {
       value_t val;
 
       snprintf(filename, sizeof(filename),
-              "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
+               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
       fh = fopen(filename, "r");
       if (fh == NULL)
         continue;
       while (fgets(buffer, sizeof(buffer), fh) != NULL) {
         if (!sscanf(buffer, "%s%lli", state, &t)) {
-	  fclose(fh);
+          fclose(fh);
           return 0;
-	}
+        }
         snprintf(time, sizeof(time), "%lli", t - t_data[i].time_prev[j]);
         if (parse_value(time, &val, DS_TYPE_GAUGE) != 0) {
           WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
-	  fclose(fh);
+          fclose(fh);
           continue;
         }
         cpufreq_submit(i, "time_in_state", state, val);
