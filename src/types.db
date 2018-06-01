@@ -244,6 +244,7 @@ tdp                     value:GAUGE:U:U
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
+time_in_state           value:GAUGE:0:U
 time_offset             value:GAUGE:-1000000:1000000
 time_offset_ntp         value:GAUGE:-1000000:1000000
 time_offset_rms         value:GAUGE:-1000000:1000000
@@ -260,6 +261,7 @@ total_threads           value:DERIVE:0:U
 total_time_in_ms        value:DERIVE:0:U
 total_values            value:DERIVE:0:U
 turbo_enabled           value:GAUGE:0:1
+transitions             value:GAUGE:0:U
 uptime                  value:GAUGE:0:4294967295
 uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
