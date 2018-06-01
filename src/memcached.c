@@ -475,7 +475,7 @@ static int memcached_read(user_data_t *user_data) {
     if (strsplit(line, fields, 3) != 3)
       continue;
 
-    int name_len = strlen(fields[1]);
+    size_t name_len = strlen(fields[1]);
     if (name_len == 0)
       continue;
 
