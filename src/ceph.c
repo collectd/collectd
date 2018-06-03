@@ -1158,7 +1158,7 @@ static ssize_t cconn_handle_event(struct cconn *io) {
     size_t cmd_len = strlen(cmd);
     RETRY_ON_EINTR(
         ret, write(io->asok, ((char *)&cmd) + io->amt, cmd_len - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,amt=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,amt=%d,ret=%zd)",
           io->d->name, io->state, io->amt, ret);
     if (ret < 0) {
       return ret;
@@ -1180,7 +1180,7 @@ static ssize_t cconn_handle_event(struct cconn *io) {
   case CSTATE_READ_VERSION: {
     RETRY_ON_EINTR(ret, read(io->asok, ((char *)(&io->d->version)) + io->amt,
                              sizeof(io->d->version) - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%zd)",
           io->d->name, io->state, ret);
     if (ret < 0) {
       return ret;
@@ -1206,7 +1206,7 @@ static ssize_t cconn_handle_event(struct cconn *io) {
   case CSTATE_READ_AMT: {
     RETRY_ON_EINTR(ret, read(io->asok, ((char *)(&io->json_len)) + io->amt,
                              sizeof(io->json_len) - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%zd)",
           io->d->name, io->state, ret);
     if (ret < 0) {
       return ret;
@@ -1227,7 +1227,7 @@ static ssize_t cconn_handle_event(struct cconn *io) {
   case CSTATE_READ_JSON: {
     RETRY_ON_EINTR(ret,
                    read(io->asok, io->json + io->amt, io->json_len - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%zd)",
           io->d->name, io->state, ret);
     if (ret < 0) {
       return ret;
