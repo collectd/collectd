@@ -1009,9 +1009,8 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
   jobjectArray o_number_array;
 
   value_t *values;
-  int values_num;
 
-  values_num = ds->ds_num;
+  size_t values_num = ds->ds_num;
 
   values = NULL;
   o_number_array = NULL;
@@ -1064,7 +1063,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
     BAIL_OUT(-1);
   }
 
-  for (int i = 0; i < values_num; i++) {
+  for (size_t i = 0; i < values_num; i++) {
     jobject o_number;
     int status;
 
@@ -1072,7 +1071,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
         (*jvm_env)->GetObjectArrayElement(jvm_env, o_number_array, (jsize)i);
     if (o_number == NULL) {
       ERROR("java plugin: jtoc_values_array: "
-            "GetObjectArrayElement (%i) failed.",
+            "GetObjectArrayElement (%zu) failed.",
             i);
       BAIL_OUT(-1);
     }
@@ -1080,7 +1079,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
     status = jtoc_value(jvm_env, values + i, ds->ds[i].type, o_number);
     if (status != 0) {
       ERROR("java plugin: jtoc_values_array: "
-            "jtoc_value (%i) failed.",
+            "jtoc_value (%zu) failed.",
             i);
       BAIL_OUT(-1);
     }

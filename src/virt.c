@@ -2648,12 +2648,12 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
 static int ignore_device_match(ignorelist_t *il, const char *domname,
                                const char *devpath) {
   char *name;
-  int n, r;
+  int r;
 
   if ((domname == NULL) || (devpath == NULL))
     return 0;
 
-  n = strlen(domname) + strlen(devpath) + 2;
+  size_t n = strlen(domname) + strlen(devpath) + 2;
   name = malloc(n);
   if (name == NULL) {
     ERROR(PLUGIN_NAME " plugin: malloc failed.");

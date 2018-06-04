@@ -2010,9 +2010,9 @@ install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
 	if test -e $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	then \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
+		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
 	else \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
+		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
 	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;

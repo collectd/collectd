@@ -363,7 +363,7 @@ static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
 static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
   MYSQL_RES *res;
 
-  int query_len = strlen(query);
+  size_t query_len = strlen(query);
 
   if (mysql_real_query(con, query, query_len)) {
     ERROR("mysql plugin: Failed to execute query: %s", mysql_error(con));
