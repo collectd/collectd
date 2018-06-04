@@ -414,7 +414,7 @@ struct cmdline_config init_config(int argc, char **argv) {
   return config;
 }
 
-int run_loop(_Bool test_readall) {
+int run_loop(bool test_readall) {
   int exit_status = 0;
 
   if (do_init() != 0) {

@@ -103,13 +103,8 @@ static int notify_upstart(void) {
 }
 
 static int notify_systemd(void) {
-  int fd;
-  const char *notifysocket;
-  struct sockaddr_un su = {0};
   size_t su_size;
-  char buffer[] = "READY=1\n";
-
-  notifysocket = getenv("NOTIFY_SOCKET");
+  const char *notifysocket = getenv("NOTIFY_SOCKET");
   if (notifysocket == NULL)
     return 0;
 
@@ -124,6 +119,7 @@ static int notify_systemd(void) {
 
   unsetenv("NOTIFY_SOCKET");
 
+  int fd;
 #if defined(SOCK_CLOEXEC)
   fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, /* protocol = */ 0);
 #else
@@ -134,6 +130,7 @@ static int notify_systemd(void) {
     return 0;
   }
 
+  struct sockaddr_un su = {0};
   su.sun_family = AF_UNIX;
   if (notifysocket[0] != '@') {
     /* regular UNIX socket */
@@ -151,6 +148,7 @@ static int notify_systemd(void) {
       su_size = sizeof(su);
   }
 
+  const char buffer[] = "READY=1\n";
   if (sendto(fd, buffer, strlen(buffer), MSG_NOSIGNAL, (void *)&su,
              (socklen_t)su_size) < 0) {
     ERROR("sendto(\"%s\") failed: %s", notifysocket, STRERRNO);
@@ -168,7 +166,6 @@ int main(int argc, char **argv) {
   struct cmdline_config config = init_config(argc, argv);
 
 #if COLLECT_DAEMON
-  pid_t pid;
   /*
    * fork off child
    */
@@ -185,8 +182,7 @@ int main(int argc, char **argv) {
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
       ) {
-    int status;
-
+    pid_t pid;
     if ((pid = fork()) == -1) {
       /* error */
       fprintf(stderr, "fork: %s", STRERRNO);
@@ -209,7 +205,7 @@ int main(int argc, char **argv) {
     close(1);
     close(0);
 
-    status = open("/dev/null", O_RDWR);
+    int status = open("/dev/null", O_RDWR);
     if (status != 0) {
       ERROR("Error: Could not connect `STDIN' to `/dev/null' (status %d)",
             status);
@@ -241,7 +237,7 @@ int main(int argc, char **argv) {
    */
   struct sigaction sig_int_action = {.sa_handler = sig_int_handler};
 
-  if (0 != sigaction(SIGINT, &sig_int_action, NULL)) {
+  if (sigaction(SIGINT, &sig_int_action, NULL) != 0) {
     ERROR("Error: Failed to install a signal handler for signal INT: %s",
           STRERRNO);
     return 1;
@@ -249,7 +245,7 @@ int main(int argc, char **argv) {
 
   struct sigaction sig_term_action = {.sa_handler = sig_term_handler};
 
-  if (0 != sigaction(SIGTERM, &sig_term_action, NULL)) {
+  if (sigaction(SIGTERM, &sig_term_action, NULL) != 0) {
     ERROR("Error: Failed to install a signal handler for signal TERM: %s",
           STRERRNO);
     return 1;
@@ -257,7 +253,7 @@ int main(int argc, char **argv) {
 
   struct sigaction sig_usr1_action = {.sa_handler = sig_usr1_handler};
 
-  if (0 != sigaction(SIGUSR1, &sig_usr1_action, NULL)) {
+  if (sigaction(SIGUSR1, &sig_usr1_action, NULL) != 0) {
     ERROR("Error: Failed to install a signal handler for signal USR1: %s",
           STRERRNO);
     return 1;

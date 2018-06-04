@@ -276,6 +276,6 @@ struct cmdline_config {
 
 void stop_collectd(void);
 struct cmdline_config init_config(int argc, char **argv);
-int run_loop(_Bool test_readall);
+int run_loop(bool test_readall);
 
 #endif /* COLLECTD_H */
