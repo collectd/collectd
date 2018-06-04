@@ -28,6 +28,12 @@
 #include "snmp_agent.c"
 #include "testing.h"
 
+#define TEST_HOSTNAME "test_hostname"
+#define TEST_PLUGIN "test_plugin"
+#define TEST_PLUGIN_INST "test_plugin_inst"
+#define TEST_TYPE "test_type"
+#define TEST_TYPE_INST "test_type_inst"
+
 DEF_TEST(oid_to_string) {
   oid_t o = {.oid = {1, 2, 3, 4, 5, 6, 7, 8, 9}, .oid_len = 9};
   char oid_str[DATA_MAX_NAME_LEN];
@@ -43,10 +49,10 @@ DEF_TEST(oid_to_string) {
 DEF_TEST(format_name_scalar) {
   data_definition_t *dd = calloc(1, sizeof(*dd));
 
-  dd->plugin = strdup("test_plugin");
-  dd->plugin_instance = strdup("test_plugin_inst");
-  dd->type = strdup("test_type");
-  dd->type_instance = strdup("test_type_inst");
+  dd->plugin = TEST_PLUGIN;
+  dd->plugin_instance = TEST_PLUGIN_INST;
+  dd->type = TEST_TYPE;
+  dd->type_instance = TEST_TYPE_INST;
 
   char name[DATA_MAX_NAME_LEN];
   int ret = snmp_agent_format_name(name, sizeof(name), dd, NULL);
@@ -56,10 +62,6 @@ DEF_TEST(format_name_scalar) {
       "example.com/test_plugin-test_plugin_inst/test_type-test_type_inst",
       name);
 
-  sfree(dd->plugin);
-  sfree(dd->plugin_instance);
-  sfree(dd->type);
-  sfree(dd->type_instance);
   sfree(dd);
 
   return 0;
@@ -77,16 +79,16 @@ DEF_TEST(format_name_simple_index) {
   td->index_keys[1].source = INDEX_TYPE_INSTANCE;
   td->index_keys[1].type = ASN_OCTET_STR;
   dd->table = td;
-  dd->plugin = strdup("test_plugin");
-  dd->type = strdup("test_type");
+  dd->plugin = TEST_PLUGIN;
+  dd->type = TEST_TYPE;
 
-  char *plugin_inst = strdup("test_plugin_inst");
-  char *type_inst = strdup("test_type_inst");
+  const char plugin_inst[] = TEST_PLUGIN_INST;
+  const char type_inst[] = TEST_TYPE_INST;
 
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_OCTET_STR,
-                            plugin_inst, strlen(plugin_inst));
-  snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_OCTET_STR, type_inst,
-                            strlen(type_inst));
+                            (const u_char *)plugin_inst, strlen(plugin_inst));
+  snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_OCTET_STR,
+                            (const u_char *)type_inst, strlen(type_inst));
 
   build_oid_noalloc(index_oid.oid, sizeof(index_oid.oid), &index_oid.oid_len,
                     NULL, 0, index_list_tmp);
@@ -107,12 +109,8 @@ DEF_TEST(format_name_simple_index) {
 
   snmp_free_varbind(index_list_tmp);
   snmp_free_varbind(td->index_list_cont);
-  sfree(dd->plugin);
-  sfree(dd->type);
   sfree(dd);
   sfree(td);
-  sfree(plugin_inst);
-  sfree(type_inst);
 
   return 0;
 }
@@ -129,26 +127,27 @@ DEF_TEST(format_name_regex_index) {
   td->index_keys[0].type = ASN_OCTET_STR;
   td->index_keys[1].source = INDEX_TYPE_INSTANCE;
   td->index_keys[1].type = ASN_INTEGER;
-  td->index_keys[1].regex = strdup("^vcpu_([0-9]{1,3})-cpu_[0-9]{1,3}$");
+  td->index_keys[1].regex = "^vcpu_([0-9]{1,3})-cpu_[0-9]{1,3}$";
   td->index_keys[1].group = 1;
   td->index_keys[2].source = INDEX_TYPE_INSTANCE;
   td->index_keys[2].type = ASN_INTEGER;
-  td->index_keys[2].regex = strdup("^vcpu_[0-9]{1,3}-cpu_([0-9]{1,3})$");
+  td->index_keys[2].regex = "^vcpu_[0-9]{1,3}-cpu_([0-9]{1,3})$";
   td->index_keys[2].group = 1;
 
   dd->table = td;
-  dd->plugin = strdup("test_plugin");
-  dd->type = strdup("test_type");
+  dd->plugin = TEST_PLUGIN;
+  dd->type = TEST_TYPE;
 
-  char *plugin_inst = strdup("test_plugin_inst");
-  char *type_inst = strdup("vcpu_1-cpu_10");
+  const char plugin_inst[] = TEST_PLUGIN_INST;
   int vcpu = 1;
   int cpu = 10;
 
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_OCTET_STR,
-                            plugin_inst, strlen(plugin_inst));
-  snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER, &vcpu, 1);
-  snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER, &cpu, 1);
+                            (const u_char *)plugin_inst, strlen(plugin_inst));
+  snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER,
+                            (const u_char *)&vcpu, 1);
+  snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER,
+                            (const u_char *)&cpu, 1);
 
   build_oid_noalloc(index_oid.oid, sizeof(index_oid.oid), &index_oid.oid_len,
                     NULL, 0, index_list_tmp);
@@ -194,14 +193,8 @@ DEF_TEST(format_name_regex_index) {
   c_avl_destroy(td->tokens[INDEX_TYPE_INSTANCE]);
   snmp_free_varbind(index_list_tmp);
   snmp_free_varbind(td->index_list_cont);
-  for (int i = 0; i < td->index_keys_len; i++)
-    sfree(td->index_keys[i].regex);
-  sfree(dd->plugin);
-  sfree(dd->type);
   sfree(dd);
   sfree(td);
-  sfree(plugin_inst);
-  sfree(type_inst);
 
   return 0;
 }
@@ -258,11 +251,11 @@ DEF_TEST(fill_index_list_simple) {
   /* Preparing value list */
   value_list_t *vl = calloc(1, sizeof(*vl));
   assert(vl != NULL);
-  strncpy(vl->host, "test_hostname", DATA_MAX_NAME_LEN);
-  strncpy(vl->plugin, "test_plugin", DATA_MAX_NAME_LEN);
-  strncpy(vl->plugin_instance, "test_plugin_inst", DATA_MAX_NAME_LEN);
-  strncpy(vl->type, "test_type", DATA_MAX_NAME_LEN);
-  strncpy(vl->type_instance, "test_type_inst", DATA_MAX_NAME_LEN);
+  strncpy(vl->host, TEST_HOSTNAME, DATA_MAX_NAME_LEN);
+  strncpy(vl->plugin, TEST_PLUGIN, DATA_MAX_NAME_LEN);
+  strncpy(vl->plugin_instance, TEST_PLUGIN_INST, DATA_MAX_NAME_LEN);
+  strncpy(vl->type, TEST_TYPE, DATA_MAX_NAME_LEN);
+  strncpy(vl->type_instance, TEST_TYPE_INST, DATA_MAX_NAME_LEN);
 
   td->index_keys_len = 5;
   td->index_keys[0].source = INDEX_HOST;
@@ -320,7 +313,7 @@ DEF_TEST(fill_index_list_regex) {
 
   /* Preparing value list */
   value_list_t *vl = calloc(1, sizeof(*vl));
-  strncpy(vl->plugin_instance, "test_plugin_inst", DATA_MAX_NAME_LEN);
+  strncpy(vl->plugin_instance, TEST_PLUGIN_INST, DATA_MAX_NAME_LEN);
   strncpy(vl->type_instance, "1test2test3", DATA_MAX_NAME_LEN);
 
   td->index_keys_len = 4;
@@ -328,15 +321,15 @@ DEF_TEST(fill_index_list_regex) {
   td->index_keys[0].type = ASN_OCTET_STR;
   td->index_keys[1].source = INDEX_TYPE_INSTANCE;
   td->index_keys[1].type = ASN_INTEGER;
-  td->index_keys[1].regex = strdup("^([0-9])test[0-9]test[0-9]$");
+  td->index_keys[1].regex = "^([0-9])test[0-9]test[0-9]$";
   td->index_keys[1].group = 1;
   td->index_keys[2].source = INDEX_TYPE_INSTANCE;
   td->index_keys[2].type = ASN_INTEGER;
-  td->index_keys[2].regex = strdup("^[0-9]test([0-9])test[0-9]$");
+  td->index_keys[2].regex = "^[0-9]test([0-9])test[0-9]$";
   td->index_keys[2].group = 1;
   td->index_keys[3].source = INDEX_TYPE_INSTANCE;
   td->index_keys[3].type = ASN_INTEGER;
-  td->index_keys[3].regex = strdup("^[0-9]test[0-9]test([0-9])$");
+  td->index_keys[3].regex = "^[0-9]test[0-9]test([0-9])$";
   td->index_keys[3].group = 1;
 
   td->index_list_cont = NULL;
@@ -388,7 +381,6 @@ DEF_TEST(fill_index_list_regex) {
   sfree(vl);
 
   for (int i = 0; i < td->index_keys_len; i++) {
-    sfree(td->index_keys[i].regex);
     regfree(&td->index_keys[i].regex_info);
   }
   sfree(td);
@@ -408,7 +400,7 @@ DEF_TEST(config_index_key_source) {
   ci->values = calloc(1, sizeof(*ci->values));
   assert(ci->values != NULL);
   ci->values_num = 1;
-  ci->values->value.string = strdup("PluginInstance");
+  ci->values->value.string = "PluginInstance";
   ci->values->type = OCONFIG_TYPE_STRING;
 
   int ret = snmp_agent_config_index_key_source(td, dd, ci);
@@ -420,7 +412,6 @@ DEF_TEST(config_index_key_source) {
   EXPECT_EQ_INT(GROUP_UNUSED, td->index_keys[0].group);
   OK(td->index_keys[0].regex == NULL);
 
-  sfree(ci->values->value.string);
   sfree(ci->values);
   sfree(ci);
   sfree(td);
@@ -445,7 +436,7 @@ DEF_TEST(config_index_key_regex) {
   ci->values = calloc(1, sizeof(*ci->values));
   assert(ci->values != NULL);
   ci->values_num = 1;
-  ci->values->value.string = strdup("^([0-9])test[0-9]test[0-9]$");
+  ci->values->value.string = "^([0-9])test[0-9]test[0-9]$";
   ci->values->type = OCONFIG_TYPE_STRING;
 
   int ret = snmp_agent_config_index_key_regex(td, dd, ci);
@@ -455,7 +446,6 @@ DEF_TEST(config_index_key_regex) {
   OK(td->tokens[INDEX_PLUGIN_INSTANCE] != NULL);
 
   c_avl_destroy(td->tokens[INDEX_PLUGIN_INSTANCE]);
-  sfree(ci->values->value.string);
   sfree(ci->values);
   sfree(ci);
   sfree(td->index_keys[0].regex);
@@ -478,23 +468,23 @@ DEF_TEST(config_index_key) {
   ci->children_num = 3;
   ci->children = calloc(1, sizeof(*ci->children) * ci->children_num);
 
-  ci->children[0].key = strdup("Source");
+  ci->children[0].key = "Source";
   ci->children[0].parent = ci;
   ci->children[0].values_num = 1;
   ci->children[0].values = calloc(1, sizeof(*ci->children[0].values));
   assert(ci->children[0].values != NULL);
-  ci->children[0].values->value.string = strdup("PluginInstance");
+  ci->children[0].values->value.string = "PluginInstance";
   ci->children[0].values->type = OCONFIG_TYPE_STRING;
 
-  ci->children[1].key = strdup("Regex");
+  ci->children[1].key = "Regex";
   ci->children[1].parent = ci;
   ci->children[1].values_num = 1;
   ci->children[1].values = calloc(1, sizeof(*ci->children[0].values));
   assert(ci->children[1].values != NULL);
-  ci->children[1].values->value.string = strdup("^([0-9])test[0-9]test[0-9]$");
+  ci->children[1].values->value.string = "^([0-9])test[0-9]test[0-9]$";
   ci->children[1].values->type = OCONFIG_TYPE_STRING;
 
-  ci->children[2].key = strdup("Group");
+  ci->children[2].key = "Group";
   ci->children[2].parent = ci;
   ci->children[2].values_num = 1;
   ci->children[2].values = calloc(1, sizeof(*ci->children[0].values));
@@ -512,16 +502,9 @@ DEF_TEST(config_index_key) {
   EXPECT_EQ_STR("^([0-9])test[0-9]test[0-9]$", td->index_keys[0].regex);
   OK(td->tokens[INDEX_PLUGIN_INSTANCE] != NULL);
 
-  sfree(ci->children[0].values->value.string);
   sfree(ci->children[0].values);
-  sfree(ci->children[0].key);
-
-  sfree(ci->children[1].values->value.string);
   sfree(ci->children[1].values);
-  sfree(ci->children[1].key);
-
   sfree(ci->children[2].values);
-  sfree(ci->children[2].key);
 
   sfree(ci->children);
   sfree(ci);
@@ -536,34 +519,29 @@ DEF_TEST(config_index_key) {
 }
 
 DEF_TEST(parse_index_key) {
-  char *regex = strdup("test-([0-9])-([0-9])");
-  char *input = strdup("snmp-test-5-6");
+  const char regex[] = "test-([0-9])-([0-9])";
+  const char input[] = "snmp-test-5-6";
   regex_t regex_info;
   regmatch_t match;
-
-  assert(regex != NULL);
-  assert(input != NULL);
 
   int ret = regcomp(&regex_info, regex, REG_EXTENDED);
   EXPECT_EQ_INT(0, ret);
 
-  ret = snmp_agent_parse_index_key(input, regex, &regex_info, 0, &match);
+  ret = snmp_agent_parse_index_key(input, &regex_info, 0, &match);
   EXPECT_EQ_INT(0, ret);
   EXPECT_EQ_INT(5, match.rm_so);
   EXPECT_EQ_INT(13, match.rm_eo);
 
-  ret = snmp_agent_parse_index_key(input, regex, &regex_info, 1, &match);
+  ret = snmp_agent_parse_index_key(input, &regex_info, 1, &match);
   EXPECT_EQ_INT(0, ret);
   EXPECT_EQ_INT(10, match.rm_so);
   EXPECT_EQ_INT(11, match.rm_eo);
 
-  ret = snmp_agent_parse_index_key(input, regex, &regex_info, 2, &match);
+  ret = snmp_agent_parse_index_key(input, &regex_info, 2, &match);
   EXPECT_EQ_INT(0, ret);
   EXPECT_EQ_INT(12, match.rm_so);
   EXPECT_EQ_INT(13, match.rm_eo);
 
-  sfree(regex);
-  sfree(input);
   regfree(&regex_info);
 
   return 0;
@@ -572,10 +550,9 @@ DEF_TEST(parse_index_key) {
 DEF_TEST(create_token) {
   c_avl_tree_t *tokens =
       c_avl_create((int (*)(const void *, const void *))num_compare);
-  char *input = strdup("testA1-testB2");
+  const char input[] = "testA1-testB2";
 
   assert(tokens != NULL);
-  assert(input != NULL);
 
   int ret = snmp_agent_create_token(input, 0, 5, tokens, NULL);
   EXPECT_EQ_INT(0, ret);
@@ -606,7 +583,6 @@ DEF_TEST(create_token) {
   OK(ret != 0);
 
   c_avl_destroy(tokens);
-  sfree(input);
 
   return 0;
 }
@@ -614,10 +590,9 @@ DEF_TEST(create_token) {
 DEF_TEST(delete_token) {
   c_avl_tree_t *tokens =
       c_avl_create((int (*)(const void *, const void *))num_compare);
-  char *input = strdup("testA1-testB2-testC3");
+  const char input[] = "testA1-testB2-testC3";
 
   assert(tokens != NULL);
-  assert(input != NULL);
 
   int ret = snmp_agent_create_token(input, 0, 5, tokens, NULL);
   EXPECT_EQ_INT(0, ret);
@@ -652,7 +627,6 @@ DEF_TEST(delete_token) {
   OK(ret != 0);
 
   c_avl_destroy(tokens);
-  sfree(input);
 
   return 0;
 }
@@ -660,10 +634,9 @@ DEF_TEST(delete_token) {
 DEF_TEST(get_token) {
   c_avl_tree_t *tokens =
       c_avl_create((int (*)(const void *, const void *))num_compare);
-  char *input = strdup("testA1-testB2-testC3");
+  const char input[] = "testA1-testB2-testC3";
 
   assert(tokens != NULL);
-  assert(input != NULL);
 
   int ret = snmp_agent_create_token(input, 0, 5, tokens, NULL);
   EXPECT_EQ_INT(0, ret);
@@ -685,7 +658,6 @@ DEF_TEST(get_token) {
   }
 
   c_avl_destroy(tokens);
-  sfree(input);
 
   return 0;
 }
@@ -696,14 +668,13 @@ DEF_TEST(tokenize) {
                      {19, 20}}; /* "3" */
   c_avl_tree_t *tokens =
       c_avl_create((int (*)(const void *, const void *))num_compare);
-  char *input = strdup("testA1-testB2-testC3");
+  const char input[] = "testA1-testB2-testC3";
   token_t *token;
   int *offset;
   c_avl_iterator_t *it;
   int ret;
 
   assert(tokens != NULL);
-  assert(input != NULL);
 
   /* First pass */
   ret = snmp_agent_tokenize(input, tokens, &m[0], NULL);
@@ -760,7 +731,6 @@ DEF_TEST(tokenize) {
   }
 
   c_avl_destroy(tokens);
-  sfree(input);
 
   return 0;
 }
@@ -785,8 +755,9 @@ DEF_TEST(build_name) {
   for (int i = 0; i < 3; i++) {
     token = malloc(sizeof(*token));
     token->str = t[i];
-    token->key = snmp_varlist_add_variable(&td->index_list_cont, NULL, 0,
-                                           ASN_INTEGER, &n[i], sizeof(n[i]));
+    token->key =
+        snmp_varlist_add_variable(&td->index_list_cont, NULL, 0, ASN_INTEGER,
+                                  (const u_char *)&n[i], sizeof(n[i]));
     assert(token->key != NULL);
     offset = &off[i];
     ret = c_avl_insert(tokens, (void *)offset, (void *)token);

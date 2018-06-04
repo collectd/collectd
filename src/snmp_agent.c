@@ -340,9 +340,8 @@ static int snmp_agent_validate_config(void) {
   return 0;
 }
 
-static int snmp_agent_parse_index_key(const char *input, char *regex,
-                                      regex_t *regex_info, int gi,
-                                      regmatch_t *m) {
+static int snmp_agent_parse_index_key(const char *input, regex_t *regex_info,
+                                      int gi, regmatch_t *m) {
   regmatch_t matches[MAX_MATCHES];
 
   int ret = regexec(regex_info, input, MAX_MATCHES, matches, 0);
@@ -526,8 +525,7 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
       regmatch_t m = {-1, -1};
 
       /* Parsing input string */
-      ret = snmp_agent_parse_index_key(ptr, td->index_keys[i].regex,
-                                       &td->index_keys[i].regex_info,
+      ret = snmp_agent_parse_index_key(ptr, &td->index_keys[i].regex_info,
                                        td->index_keys[i].group, &m);
       if (ret != 0) {
         ERROR(PLUGIN_NAME ": Error executing regex");
@@ -543,11 +541,25 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
 
       if (td->index_keys[i].type == ASN_INTEGER) {
         int val = strtol(ptr + m.rm_so, NULL, 0);
+
+#ifdef HAVE_NETSNMP_OLD_API
+        ret = snmp_set_var_value(key, (const u_char *)&val, sizeof(val));
+#else
         ret = snmp_set_var_value(key, &val, sizeof(val));
+#endif
       } else
+#ifdef HAVE_NETSNMP_OLD_API
+        ret = snmp_set_var_value(key, (const u_char *)(ptr + m.rm_so),
+                                 m.rm_eo - m.rm_so);
+#else
         ret = snmp_set_var_value(key, ptr + m.rm_so, m.rm_eo - m.rm_so);
+#endif
     } else
+#ifdef HAVE_NETSNMP_OLD_API
+      ret = snmp_set_var_value(key, (const u_char *)ptr, strlen(ptr));
+#else
       ret = snmp_set_var_value(key, ptr, strlen(ptr));
+#endif
     key = key->next_variable;
   }
 
@@ -1041,12 +1053,24 @@ static int snmp_agent_form_reply(struct netsnmp_request_info_s *requests,
     requests->requestvb->type = td->index_keys[dd->index_key_pos].type;
 
     if (requests->requestvb->type == ASN_INTEGER)
+#ifdef HAVE_NETSNMP_OLD_API
+      snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
+                               (const u_char *)key->val.integer,
+                               sizeof(*key->val.integer));
+#else
       snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
                                key->val.integer, sizeof(*key->val.integer));
+#endif
     else /* OCTET_STR */
+#ifdef HAVE_NETSNMP_OLD_API
       snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
                                (const u_char *)key->val.string,
                                strlen((const char *)key->val.string));
+#else
+      snmp_set_var_typed_value(requests->requestvb, requests->requestvb->type,
+                               key->val.string,
+                               strlen((const char *)key->val.string));
+#endif
 
     pthread_mutex_unlock(&g_agent->lock);
 

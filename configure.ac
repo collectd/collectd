@@ -3814,11 +3814,67 @@ if test "x$with_libnetsnmp" = "xyes"; then
   LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
 
   AC_CHECK_LIB([netsnmp], [init_snmp],
-    [with_libnetsmp="yes"],
+    [with_libnetsnmp="yes"],
     [with_libnetsnmp="no (libnetsnmp not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmp" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
+
+  AC_CHECK_LIB([netsnmp], [netsnmp_get_version],
+    [with_libnetsnmp="yes"],
+    [with_libnetsnmp="no (couldn't get libnetsnmp version)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmp" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="$CPPFLAGS $with_libnetsnmp_cppflags -Wall -Werror"
+  LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
+  LIBS="$LIBS -lnetsnmp"
+
+  AC_CACHE_CHECK([whether netsnmp library has old API],
+    [c_cv_have_netsnmp_old_api],
+    [
+      AC_COMPILE_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[
+              #include <net-snmp/net-snmp-config.h>
+              #include <net-snmp/net-snmp-includes.h>
+            ]],
+            [[
+              netsnmp_variable_list *key;
+              int val;
+              u_char type;
+              snmp_set_var_value(key, &val, sizeof(val));
+              snmp_set_var_typed_value(key, type, &val, sizeof(val));
+              return 0;
+            ]]
+          )
+        ],
+        [c_cv_have_netsnmp_old_api="no"],
+        [c_cv_have_netsnmp_old_api="yes"]
+      )
+    ]
+  )
+
+  if test "x$c_cv_have_netsnmp_old_api" = "xyes"; then
+    AC_DEFINE([HAVE_NETSNMP_OLD_API], [1],
+              ["Define 1 if you have old netsnmp API]")
+  fi
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
 
 if test "x$with_libnetsnmp" = "xyes"; then
@@ -3832,7 +3888,7 @@ AC_SUBST([BUILD_WITH_LIBNETSNMP_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBNETSNMP_LIBS])
 # }}}
 
-# --with-libnetsmpagent {{{
+# --with-libnetsnmpagent {{{
 AC_ARG_WITH([libnetsnmpagent],
   [AS_HELP_STRING([--with-libnetsnmpagent@<:@=PREFIX@:>@], [Path to libnetsnmpagent.])],
   [
