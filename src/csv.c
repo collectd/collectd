@@ -190,12 +190,12 @@ static int csv_config(const char *key, const char *value) {
     }
     datadir = strdup(value);
     if (datadir != NULL) {
-      int len = strlen(datadir);
+      size_t len = strlen(datadir);
       while ((len > 0) && (datadir[len - 1] == '/')) {
         len--;
         datadir[len] = '\0';
       }
-      if (len <= 0) {
+      if (len == 0) {
         free(datadir);
         datadir = NULL;
       }

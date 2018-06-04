@@ -208,7 +208,6 @@ static void *us_handle_client(void *arg) {
     char buffer_copy[1024];
     char *fields[128];
     int fields_num;
-    int len;
 
     errno = 0;
     if (fgets(buffer, sizeof(buffer), fhin) == NULL) {
@@ -222,7 +221,7 @@ static void *us_handle_client(void *arg) {
       break;
     }
 
-    len = strlen(buffer);
+    size_t len = strlen(buffer);
     while ((len > 0) &&
            ((buffer[len - 1] == '\n') || (buffer[len - 1] == '\r')))
       buffer[--len] = '\0';

@@ -54,7 +54,7 @@ static int loop;
 
 static int init_hostname(void) {
   const char *str = global_option_get("Hostname");
-  if ((str != NULL) && (str[0] != 0)) {
+  if (str && str[0] != '\0') {
     hostname_set(str);
     return 0;
   }
@@ -91,8 +91,7 @@ static int init_hostname(void) {
     return -1;
   }
 
-  for (struct addrinfo *ai_ptr = ai_list; ai_ptr != NULL;
-       ai_ptr = ai_ptr->ai_next) {
+  for (struct addrinfo *ai_ptr = ai_list; ai_ptr; ai_ptr = ai_ptr->ai_next) {
     if (ai_ptr->ai_canonname == NULL)
       continue;
 
@@ -105,13 +104,11 @@ static int init_hostname(void) {
 } /* int init_hostname */
 
 static int init_global_variables(void) {
-  char const *str;
-
   interval_g = cf_get_default_interval();
   assert(interval_g > 0);
   DEBUG("interval_g = %.3f;", CDTIME_T_TO_DOUBLE(interval_g));
 
-  str = global_option_get("Timeout");
+  const char *str = global_option_get("Timeout");
   if (str == NULL)
     str = "2";
   timeout_g = atoi(str);
@@ -130,17 +127,13 @@ static int init_global_variables(void) {
 } /* int init_global_variables */
 
 static int change_basedir(const char *orig_dir, bool create) {
-  char *dir;
-  size_t dirlen;
-  int status;
-
-  dir = strdup(orig_dir);
+  char *dir = strdup(orig_dir);
   if (dir == NULL) {
     ERROR("strdup failed: %s", STRERRNO);
     return -1;
   }
 
-  dirlen = strlen(dir);
+  size_t dirlen = strlen(dir);
   while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
     dir[--dirlen] = '\0';
 
@@ -149,7 +142,7 @@ static int change_basedir(const char *orig_dir, bool create) {
     return -1;
   }
 
-  status = chdir(dir);
+  int status = chdir(dir);
   if (status == 0) {
     free(dir);
     return 0;
@@ -184,8 +177,7 @@ static void update_kstat(void) {
     if ((kc = kstat_open()) == NULL)
       ERROR("Unable to open kstat control structure");
   } else {
-    kid_t kid;
-    kid = kstat_chain_update(kc);
+    kid_t kid = kstat_chain_update(kc);
     if (kid > 0) {
       INFO("kstat chain has been updated");
       plugin_init_all();
@@ -198,9 +190,6 @@ static void update_kstat(void) {
 } /* static void update_kstat (void) */
 #endif /* HAVE_LIBKSTAT */
 
-/* TODO
- * Remove all settings but `-f' and `-C'
- */
 __attribute__((noreturn)) static void exit_usage(int status) {
   printf("Usage: " PACKAGE_NAME " [OPTIONS]\n\n"
 
@@ -265,13 +254,9 @@ static int do_init(void) {
 
 static int do_loop(void) {
   cdtime_t interval = cf_get_default_interval();
-  cdtime_t wait_until;
-
-  wait_until = cdtime() + interval;
+  cdtime_t wait_until = cdtime() + interval;
 
   while (loop == 0) {
-    cdtime_t now;
-
 #if HAVE_LIBKSTAT
     update_kstat();
 #endif
@@ -279,7 +264,7 @@ static int do_loop(void) {
     /* Issue all plugins */
     plugin_read_all();
 
-    now = cdtime();
+    cdtime_t now = cdtime();
     if (now >= wait_until) {
       WARNING("Not sleeping because the next interval is "
               "%.3f seconds in the past!",
@@ -309,12 +294,11 @@ static int do_shutdown(void) {
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
-    int c;
-    c = getopt(argc, argv, "htTC:"
+    int c = getopt(argc, argv, "htTC:"
 #if COLLECT_DAEMON
-                           "fP:"
+                               "fP:"
 #endif
-               );
+                   );
 
     if (c == -1)
       break;
@@ -353,7 +337,6 @@ static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
 }
 
 static int configure_collectd(struct cmdline_config *config) {
-  const char *basedir;
   /*
    * Read options from the config file, the environment and the command
    * line (in that order, with later options overwriting previous ones in
@@ -370,6 +353,7 @@ static int configure_collectd(struct cmdline_config *config) {
    * Change directory. We do this _after_ reading the config and loading
    * modules to relative paths work as expected.
    */
+  const char *basedir;
   if ((basedir = global_option_get("BaseDir")) == NULL) {
     fprintf(stderr,
             "Don't have a basedir to use. This should not happen. Ever.");

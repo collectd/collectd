@@ -86,7 +86,7 @@ static int wireless_read(void) {
   int numfields;
 
   int devices_found;
-  int len;
+  size_t len;
 
   /* there are a variety of names for the wireless device */
   if ((fh = fopen(WIRELESS_PROC_FILE, "r")) == NULL) {
