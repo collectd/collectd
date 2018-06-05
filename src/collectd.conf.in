@@ -1670,6 +1670,8 @@
 #	InterfaceDevice "name:device"
 #	IgnoreSelected false
 #	HostnameFormat name
+#	HostnameMetadataXPath "/instance/name/text()"
+#	HostnameMetadataNS "http://openstack.org/xmlns/libvirt/nova/1.0"
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
