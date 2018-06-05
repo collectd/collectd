@@ -425,15 +425,15 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p) {
     READ_MSR(MSR_IA32_PACKAGE_THERM_STATUS, &msr);
     p->pkg_temp_c = p->tcc_activation_temp - ((msr >> 16) & 0x7F);
   }
-  if (do_power_fields && TURBO_PLATFORM) {
+  if (do_power_fields & TURBO_PLATFORM) {
     READ_MSR(MSR_IA32_MISC_ENABLE, &msr);
     p->turbo_enabled = !((msr >> 38) & 0x1);
   }
-  if (do_power_fields && PSTATES_PLATFORM) {
+  if (do_power_fields & PSTATES_PLATFORM) {
     READ_MSR(MSR_IA32_MISC_ENABLE, &msr);
     p->pstates_enabled = (msr >> 16) & 0x1;
   }
-  if (do_power_fields && UFS_PLATFORM) {
+  if (do_power_fields & UFS_PLATFORM) {
     READ_MSR(MSR_UNCORE_FREQ_SCALING, &msr);
     p->uncore = msr & 0x1F;
   }
@@ -673,13 +673,13 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
                        p->energy_dram * rapl_energy_units / interval_float);
   }
 
-  if (do_power_fields && TURBO_PLATFORM) {
+  if (do_power_fields & TURBO_PLATFORM) {
     turbostat_submit(name, "turbo_enabled", NULL, p->turbo_enabled);
   }
-  if (do_power_fields && PSTATES_PLATFORM) {
+  if (do_power_fields & PSTATES_PLATFORM) {
     turbostat_submit(name, "pstates_enabled", NULL, p->pstates_enabled);
   }
-  if (do_power_fields && UFS_PLATFORM) {
+  if (do_power_fields & UFS_PLATFORM) {
     turbostat_submit(name, "uncore_ratio", NULL, p->uncore);
   }
   turbostat_submit(name, "temperature", "tcc_activation",
