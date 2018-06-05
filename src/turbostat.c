@@ -129,14 +129,21 @@ static bool apply_config_ptm;
  */
 static unsigned int tcc_activation_temp;
 
+static unsigned int do_power_fields;
+#define UFS_PLATFORM (1 << 0)
+#define TURBO_PLATFORM (1 << 1)
+#define PSTATES_PLATFORM (1 << 2)
+
 static unsigned int do_rapl;
 static unsigned int config_rapl;
 static bool apply_config_rapl;
 static double rapl_energy_units;
+static double rapl_power_units;
 
 #define RAPL_PKG (1 << 0)
 /* 0x610 MSR_PKG_POWER_LIMIT */
 /* 0x611 MSR_PKG_ENERGY_STATUS */
+/* 0x614 MSR_PKG_POWER_INFO */
 #define RAPL_DRAM (1 << 1)
 /* 0x618 MSR_DRAM_POWER_LIMIT */
 /* 0x619 MSR_DRAM_ENERGY_STATUS */
@@ -188,6 +195,10 @@ static struct pkg_data {
   uint32_t energy_dram;  /* MSR_DRAM_ENERGY_STATUS */
   uint32_t energy_cores; /* MSR_PP0_ENERGY_STATUS */
   uint32_t energy_gfx;   /* MSR_PP1_ENERGY_STATUS */
+  uint32_t tdp;
+  uint8_t turbo_enabled;
+  uint8_t pstates_enabled;
+  uint32_t uncore;
   unsigned int tcc_activation_temp;
   unsigned int pkg_temp_c;
 } * package_delta, *package_even, *package_odd;
@@ -395,6 +406,8 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p) {
   if (do_rapl & RAPL_PKG) {
     READ_MSR(MSR_PKG_ENERGY_STATUS, &msr);
     p->energy_pkg = msr & 0xFFFFFFFF;
+    READ_MSR(MSR_PKG_POWER_INFO, &msr);
+    p->tdp = msr & 0x7FFF;
   }
   if (do_rapl & RAPL_CORES) {
     READ_MSR(MSR_PP0_ENERGY_STATUS, &msr);
@@ -411,6 +424,18 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p) {
   if (do_ptm) {
     READ_MSR(MSR_IA32_PACKAGE_THERM_STATUS, &msr);
     p->pkg_temp_c = p->tcc_activation_temp - ((msr >> 16) & 0x7F);
+  }
+  if (do_power_fields && TURBO_PLATFORM) {
+    READ_MSR(MSR_IA32_MISC_ENABLE, &msr);
+    p->turbo_enabled = !((msr >> 38) & 0x1);
+  }
+  if (do_power_fields && PSTATES_PLATFORM) {
+    READ_MSR(MSR_IA32_MISC_ENABLE, &msr);
+    p->pstates_enabled = (msr >> 16) & 0x1;
+  }
+  if (do_power_fields && UFS_PLATFORM) {
+    READ_MSR(MSR_UNCORE_FREQ_SCALING, &msr);
+    p->uncore = msr & 0x1F;
   }
 
 out:
@@ -442,6 +467,11 @@ static inline void delta_package(struct pkg_data *delta,
   delta->energy_cores = new->energy_cores - old->energy_cores;
   delta->energy_gfx = new->energy_gfx - old->energy_gfx;
   delta->energy_dram = new->energy_dram - old->energy_dram;
+  delta->tdp = new->tdp;
+  delta->turbo_enabled = new->turbo_enabled;
+  delta->pstates_enabled = new->pstates_enabled;
+  delta->tcc_activation_temp = new->tcc_activation_temp;
+  delta->uncore = new->uncore;
 }
 
 /*
@@ -627,9 +657,11 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
     turbostat_submit(name, "percent", "pc10", 100.0 * p->pc10 / t->tsc);
 
   if (do_rapl) {
-    if (do_rapl & RAPL_PKG)
+    if (do_rapl & RAPL_PKG) {
       turbostat_submit(name, "power", "pkg",
                        p->energy_pkg * rapl_energy_units / interval_float);
+      turbostat_submit(name, "tdp", "pkg", p->tdp * rapl_power_units);
+    }
     if (do_rapl & RAPL_CORES)
       turbostat_submit(name, "power", "cores",
                        p->energy_cores * rapl_energy_units / interval_float);
@@ -640,6 +672,18 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
       turbostat_submit(name, "power", "DRAM",
                        p->energy_dram * rapl_energy_units / interval_float);
   }
+
+  if (do_power_fields && TURBO_PLATFORM) {
+    turbostat_submit(name, "turbo_enabled", NULL, p->turbo_enabled);
+  }
+  if (do_power_fields && PSTATES_PLATFORM) {
+    turbostat_submit(name, "pstates_enabled", NULL, p->pstates_enabled);
+  }
+  if (do_power_fields && UFS_PLATFORM) {
+    turbostat_submit(name, "uncore_ratio", NULL, p->uncore);
+  }
+  turbostat_submit(name, "temperature", "tcc_activation",
+                   p->tcc_activation_temp);
 done:
   return 0;
 }
@@ -985,10 +1029,12 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x4F: /* BDX */
     case 0x56: /* BDX-DE */
       do_rapl = RAPL_PKG | RAPL_DRAM;
+      do_power_fields = TURBO_PLATFORM | UFS_PLATFORM | PSTATES_PLATFORM;
       break;
     case 0x2D: /* SNB Xeon */
     case 0x3E: /* IVB Xeon */
       do_rapl = RAPL_PKG | RAPL_CORES | RAPL_DRAM;
+      do_power_fields = TURBO_PLATFORM | PSTATES_PLATFORM;
       break;
     case 0x37: /* BYT */
     case 0x4D: /* AVN */
@@ -1023,6 +1069,7 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
       return 0;
 
+    rapl_power_units = 1.0 / (1 << (msr & 0xF));
     if (model == 0x37)
       rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
     else

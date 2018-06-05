@@ -208,6 +208,7 @@ ps_rss                  value:GAUGE:0:9223372036854775807
 ps_stacksize            value:GAUGE:0:9223372036854775807
 ps_state                value:GAUGE:0:65535
 ps_vm                   value:GAUGE:0:9223372036854775807
+pstates_enabled         value:GAUGE:0:1
 pubsub                  value:GAUGE:0:U
 queue_length            value:GAUGE:0:U
 records                 value:GAUGE:0:U
@@ -237,6 +238,7 @@ spl                     value:GAUGE:U:U
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
 tcp_connections         value:GAUGE:0:4294967295
+tdp                     value:GAUGE:U:U
 temperature             value:GAUGE:U:U
 threads                 value:GAUGE:0:U
 time_dispersion         value:GAUGE:-1000000:1000000
@@ -255,7 +257,9 @@ total_sessions          value:DERIVE:0:U
 total_threads           value:DERIVE:0:U
 total_time_in_ms        value:DERIVE:0:U
 total_values            value:DERIVE:0:U
+turbo_enabled           value:GAUGE:0:1
 uptime                  value:GAUGE:0:4294967295
+uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
 vcl                     value:GAUGE:0:65535
 vcpu                    value:GAUGE:0:U
