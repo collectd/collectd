@@ -25,6 +25,7 @@
  *   Alvaro Barcellos <alvaro.barcellos at gmail.com>
  **/
 
+#include "cmd.h"
 #include "collectd.h"
 
 #include "common.h"

@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
+#include "cmd.h"
 #include "collectd.h"
 
 #include "common.h"
