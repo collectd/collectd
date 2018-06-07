@@ -24,10 +24,6 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-/* <lua5.1/luaconf.h> defines a macro using "sprintf". Although not used here,
- * GCC will complain about the macro definition. */
-#define DONT_POISON_SPRINTF_YET
-
 #include "common.h"
 #include "utils_lua.h"
 
