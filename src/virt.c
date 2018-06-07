@@ -1024,7 +1024,8 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   char msg[DATA_MAX_NAME_LEN];
   const char *state_str = domain_states[state];
 #ifdef HAVE_DOM_REASON
-  if ((reason < 0) || ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
+  if ((reason < 0) ||
+      ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: reason=%d", reason);
     return;
   }
@@ -1584,7 +1585,7 @@ static int get_block_stats(struct block_device *block_dev) {
 
 #define NM_ADD_STR_ITEMS(_items, _size)                                        \
   do {                                                                         \
-    for (size_t _i = 0; _i < _size; ++_i) {                                       \
+    for (size_t _i = 0; _i < _size; ++_i) {                                    \
       DEBUG(PLUGIN_NAME                                                        \
             " plugin: Adding notification metadata name=%s value=%s",          \
             _items[_i].name, _items[_i].value);                                \
@@ -1824,7 +1825,7 @@ static int get_if_dev_stats(struct interface_device *if_dev) {
   return 0;
 }
 
-static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr conn,
+static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr con_,
                                      virDomainPtr dom, int event, int detail,
                                      __attribute__((unused)) void *opaque) {
   int domain_state = map_domain_event_to_state(event);
