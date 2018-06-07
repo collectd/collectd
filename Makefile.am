@@ -269,7 +269,7 @@ if BUILD_WIN32
 collectd_SOURCES += src/daemon/cmd_windows.c
 collectd_LDFLAGS += -ldl -Wl,--out-implib,libcollectd.a
 else
-collectd_sources += src/daemon/cmd.c
+collectd_SOURCES += src/daemon/cmd.c
 endif
 	
 if BUILD_FEATURE_DAEMON
