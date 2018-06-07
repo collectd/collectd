@@ -1,7 +1,7 @@
 /**
  * collectd - src/snmp_agent.c
  *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -101,7 +101,7 @@ struct table_definition_s {
                                              will be split into sepearate
                                              tokens */
 
-  _Bool tokens_done; /* Set to 1 when all tokens are generated */
+  bool tokens_done; /* Set to true when all tokens are generated */
 };
 typedef struct table_definition_s table_definition_t;
 
@@ -134,7 +134,7 @@ struct snmp_agent_ctx_s {
 typedef struct snmp_agent_ctx_s snmp_agent_ctx_t;
 
 static snmp_agent_ctx_t *g_agent;
-const char *const index_opts[MAX_KEY_SOURCES] = {
+static const char *index_opts[MAX_KEY_SOURCES] = {
     "Hostname", "Plugin", "PluginInstance", "Type", "TypeInstance"};
 
 #define CHECK_DD_TYPE(_dd, _p, _pi, _t, _ti)                                   \
@@ -533,7 +533,7 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
       }
 
       /* Tokenizing input string if not done yet */
-      if (td->tokens_done == 0)
+      if (td->tokens_done == false)
         ret = snmp_agent_tokenize(ptr, tokens, &m, key);
 
       if (ret != 0)
@@ -565,7 +565,7 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
 
   /* Tokens for all source strings are generated */
   for (i = 0; i < MAX_KEY_SOURCES; i++)
-    td->tokens_done = 1;
+    td->tokens_done = true;
 
   return 0;
 }
@@ -1500,7 +1500,7 @@ static int snmp_agent_config_index_key_source(table_definition_t *td,
   if (ret != 0)
     return -1;
 
-  _Bool match = 0;
+  bool match = false;
 
   for (int i = 0; i < MAX_KEY_SOURCES; i++) {
     if (strcasecmp(index_opts[i], (const char *)val) == 0) {
@@ -1520,7 +1520,7 @@ static int snmp_agent_config_index_key_source(table_definition_t *td,
 
   sfree(val);
   dd->index_key_pos = td->index_keys_len++;
-  dd->is_index_key = 1;
+  dd->is_index_key = true;
 
   return 0;
 }
@@ -1599,14 +1599,14 @@ static int snmp_agent_config_table_column(table_definition_t *td,
   dd->shift = 0.0;
   /* NULL if it's a scalar */
   dd->table = td;
-  dd->is_index_key = 0;
+  dd->is_index_key = false;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
 
     /* First 3 options are reserved for table entry only */
     if (td != NULL && strcasecmp("IndexKey", option->key) == 0) {
-      dd->is_index_key = 1;
+      dd->is_index_key = true;
       option_tmp = option;
     } else if (strcasecmp("Plugin", option->key) == 0)
       ret = cf_util_get_string(option, &dd->plugin);
@@ -1705,7 +1705,7 @@ static int snmp_agent_config_table(oconfig_item_t *ci) {
 
   for (int i = 0; i < MAX_KEY_SOURCES; i++)
     td->tokens[i] = NULL;
-  td->tokens_done = 0;
+  td->tokens_done = false;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
@@ -1880,11 +1880,11 @@ static int snmp_agent_update_index(data_definition_t *dd,
   int ret;
   int *index = NULL;
   int *value = NULL;
-  _Bool free_index_oid = 1;
+  bool do_free_index_oid = true;
 
   if (c_avl_get(td->instance_index, (void *)*index_oid, (void **)&index) != 0) {
     /* Processing new instance */
-    free_index_oid = 0;
+    do_free_index_oid = false;
 
     /* need to generate index for the table */
     if (td->index_oid.oid_len) {
@@ -1998,7 +1998,7 @@ static int snmp_agent_update_index(data_definition_t *dd,
     plugin_dispatch_notification(&n);
   }
 
-  if (free_index_oid)
+  if (do_free_index_oid)
     sfree(*index_oid);
 
   return 0;
