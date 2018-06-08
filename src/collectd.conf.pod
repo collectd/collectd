@@ -7791,7 +7791,9 @@ B<Synopsis:>
       IndexOID "IF-MIB::ifIndex"
       SizeOID "IF-MIB::ifNumber"
       <Data "ifDescr">
-        Instance true
+        <IndexKey>
+          Source "PluginInstance"
+        </IndexKey>
         Plugin "interface"
         OIDs "IF-MIB::ifDescr"
       </Data>
@@ -7802,12 +7804,44 @@ B<Synopsis:>
         OIDs "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
       </Data>
     </Table>
+    <Table "CPUAffinityTable">
+      <Data "DomainName">
+        <IndexKey>
+          Source "PluginInstance"
+        </IndexKey>
+        Plugin "virt"
+        OIDs "LIBVIRT-HYPERVISOR-MIB::lvhAffinityDomainName"
+      </Data>
+      <Data "VCPU">
+        Plugin "virt"
+        <IndexKey>
+          Source "TypeInstance"
+          Regex "^vcpu_([0-9]{1,3})-cpu_[0-9]{1,3}$"
+          Group 1
+        </IndexKey>
+        OIDs "LIBVIRT-HYPERVISOR-MIB::lvhVCPUIndex"
+      </Data>
+      <Data "CPU">
+        Plugin "virt"
+        <IndexKey>
+          Source "TypeInstance"
+          Regex "^vcpu_[0-9]{1,3}-cpu_([0-9]{1,3})$"
+          Group 1
+        </IndexKey>
+        OIDs "LIBVIRT-HYPERVISOR-MIB::lvhCPUIndex"
+      </Data>
+      <Data "CPUAffinity">
+        Plugin "virt"
+        Type "cpu_affinity"
+        OIDs "LIBVIRT-HYPERVISOR-MIB::lvhCPUAffinity"
+      </Data>
+    </Table>
   </Plugin>
 
 There are two types of blocks that can be contained in the
 C<E<lt>PluginE<nbsp> snmp_agentE<gt>> block: B<Data> and B<Table>:
 
-=head3 The B<Data> block
+=head3 B<Data> block
 
 The B<Data> block defines a list OIDs that are to be handled. This block can
 define scalar or table OIDs. If B<Data> block is defined inside of B<Table>
@@ -7816,11 +7850,34 @@ The following options can be set:
 
 =over 4
 
-=item B<Instance> I<true|false>
+=item B<IndexKey> block
 
-When B<Instance> is set to B<true>, the value for requested OID is copied from
-plugin instance field of corresponding collectd value. If B<Data> block defines
-scalar data type B<Instance> has no effect and can be omitted.
+B<IndexKey> block contains all data needed for proper index build of snmp table.
+In case more than
+one table B<Data> block has B<IndexKey> block present then multiple key index is
+built. If B<Data> block defines scalar data type B<IndexKey> has no effect and can
+be omitted.
+
+=over 8
+
+=item B<Source> I<String>
+
+B<Source> can be set to one of the following values: "Hostname", "Plugin",
+"PluginInstance", "Type", "TypeInstance". This value indicates which field of
+corresponding collectd metric is taken as a SNMP table index.
+
+=item B<Regex> I<String>
+
+B<Regex> option can also be used to parse strings or numbers out of
+specific field. For example: type-instance field which is "vcpu1-cpu2" can be
+parsed into two numeric fields CPU = 2 and VCPU = 1 and can be later used
+as a table index.
+
+=item B<Group> I<Number>
+
+B<Group> number can be specified in case groups are used in regex.
+
+=back
 
 =item B<Plugin> I<String>
 

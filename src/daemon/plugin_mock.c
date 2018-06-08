@@ -56,7 +56,19 @@ int plugin_register_init(const char *name, plugin_init_cb callback) {
   return ENOTSUP;
 }
 
-int plugin_register_read(const char *name, int (*callback)(void)) {
+int plugin_register_read(__attribute__((unused)) const char *name,
+                         __attribute__((unused)) int (*callback)(void)) {
+  return ENOTSUP;
+}
+
+int plugin_register_write(__attribute__((unused)) const char *name,
+                          __attribute__((unused)) plugin_write_cb callback,
+                          __attribute__((unused)) user_data_t const *ud) {
+  return ENOTSUP;
+}
+
+int plugin_register_missing(const char *name, plugin_missing_cb callback,
+                            user_data_t const *ud) {
   return ENOTSUP;
 }
 
