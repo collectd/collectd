@@ -55,8 +55,8 @@
 #undef COLLECT_DAEMON
 #include <unistd.h>
 #undef gethostname
-#include <winsock2.h>
 #include <locale.h>
+#include <winsock2.h>
 #endif
 
 static int loop;

@@ -47,7 +47,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #else
-#define EXPORT 
+#define EXPORT
 #endif
 
 #if HAVE_PTHREAD_NP_H
@@ -851,7 +851,8 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%" PRIu64, (uint64_t)write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIu64,
+             (uint64_t)write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -963,9 +964,9 @@ static void plugin_free_loaded(void) {
 
 #define BUFSIZE 512
 #ifdef WIN32
-# define SHLIB_SUFFIX ".dll"
+#define SHLIB_SUFFIX ".dll"
 #else
-# define SHLIB_SUFFIX ".so"
+#define SHLIB_SUFFIX ".so"
 #endif
 int plugin_load(char const *plugin_name, bool global) {
   DIR *dh;
@@ -1007,7 +1008,8 @@ int plugin_load(char const *plugin_name, bool global) {
    * type when matching the filename */
   status = snprintf(typename, sizeof(typename), "%s" SHLIB_SUFFIX, plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
-    WARNING("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"", plugin_name);
+    WARNING("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"",
+            plugin_name);
     return -1;
   }
 
@@ -1061,14 +1063,15 @@ int plugin_load(char const *plugin_name, bool global) {
  * The `register_*' functions follow
  */
 EXPORT int plugin_register_config(const char *name,
-                           int (*callback)(const char *key, const char *val),
-                           const char **keys, int keys_num) {
+                                  int (*callback)(const char *key,
+                                                  const char *val),
+                                  const char **keys, int keys_num) {
   cf_register(name, callback, keys, keys_num);
   return 0;
 } /* int plugin_register_config */
 
 EXPORT int plugin_register_complex_config(const char *type,
-                                   int (*callback)(oconfig_item_t *)) {
+                                          int (*callback)(oconfig_item_t *)) {
   return cf_register_complex(type, callback);
 } /* int plugin_register_complex_config */
 
@@ -1183,8 +1186,9 @@ EXPORT int plugin_register_read(const char *name, int (*callback)(void)) {
 } /* int plugin_register_read */
 
 EXPORT int plugin_register_complex_read(const char *group, const char *name,
-                                 plugin_read_cb callback, cdtime_t interval,
-                                 user_data_t const *user_data) {
+                                        plugin_read_cb callback,
+                                        cdtime_t interval,
+                                        user_data_t const *user_data) {
   read_func_t *rf;
   int status;
 
@@ -1225,7 +1229,7 @@ EXPORT int plugin_register_complex_read(const char *group, const char *name,
 } /* int plugin_register_complex_read */
 
 EXPORT int plugin_register_write(const char *name, plugin_write_cb callback,
-                          user_data_t const *ud) {
+                                 user_data_t const *ud) {
   return create_register_callback(&list_write, name, (void *)callback, ud);
 } /* int plugin_register_write */
 
@@ -1267,7 +1271,7 @@ static char *plugin_flush_callback_name(const char *name) {
 } /* static char *plugin_flush_callback_name */
 
 EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
-                          user_data_t const *ud) {
+                                 user_data_t const *ud) {
   int status;
   plugin_ctx_t ctx = plugin_get_ctx();
 
@@ -1316,7 +1320,7 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
 } /* int plugin_register_flush */
 
 EXPORT int plugin_register_missing(const char *name, plugin_missing_cb callback,
-                            user_data_t const *ud) {
+                                   user_data_t const *ud) {
   return create_register_callback(&list_missing, name, (void *)callback, ud);
 } /* int plugin_register_missing */
 
@@ -1373,13 +1377,13 @@ EXPORT int plugin_register_data_set(const data_set_t *ds) {
 } /* int plugin_register_data_set */
 
 EXPORT int plugin_register_log(const char *name, plugin_log_cb callback,
-                        user_data_t const *ud) {
+                               user_data_t const *ud) {
   return create_register_callback(&list_log, name, (void *)callback, ud);
 } /* int plugin_register_log */
 
 EXPORT int plugin_register_notification(const char *name,
-                                 plugin_notification_cb callback,
-                                 user_data_t const *ud) {
+                                        plugin_notification_cb callback,
+                                        user_data_t const *ud) {
   return create_register_callback(&list_notification, name, (void *)callback,
                                   ud);
 } /* int plugin_register_log */
@@ -1700,7 +1704,7 @@ EXPORT int plugin_read_all_once(void) {
 } /* int plugin_read_all_once */
 
 EXPORT int plugin_write(const char *plugin, /* {{{ */
-                 const data_set_t *ds, const value_list_t *vl) {
+                        const data_set_t *ds, const value_list_t *vl) {
   llentry_t *le;
   int status;
 
@@ -1774,7 +1778,8 @@ EXPORT int plugin_write(const char *plugin, /* {{{ */
   return status;
 } /* }}} int plugin_write */
 
-EXPORT int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier) {
+EXPORT int plugin_flush(const char *plugin, cdtime_t timeout,
+                        const char *identifier) {
   llentry_t *le;
 
   if (list_flush == NULL)

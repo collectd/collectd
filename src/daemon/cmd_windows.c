@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     printf("WSAStartup failed with error: %d\n", err);
     return 1;
   }
-  
+
   struct cmdline_config config = init_config(argc, argv);
   return run_loop(config.test_readall);
 }
