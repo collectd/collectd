@@ -190,8 +190,12 @@ static int cf_dispatch(const char *type, const char *orig_key,
 } /* int cf_dispatch */
 
 static int dispatch_global_option(const oconfig_item_t *ci) {
-  if (ci->values_num != 1)
+  if (ci->values_num != 1) {
+    ERROR("configfile: Global option `%s' needs exactly one argument.",
+          ci->key);
     return -1;
+  }
+
   if (ci->values[0].type == OCONFIG_TYPE_STRING)
     return global_option_set(ci->key, ci->values[0].value.string, 0);
   else if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
@@ -204,6 +208,8 @@ static int dispatch_global_option(const oconfig_item_t *ci) {
     else
       return global_option_set(ci->key, "false", 0);
   }
+
+  ERROR("configfile: Global option `%s' argument has unknown type.", ci->key);
 
   return -1;
 } /* int dispatch_global_option */
@@ -234,10 +240,11 @@ static int dispatch_value_typesdb(oconfig_item_t *ci) {
 static int dispatch_value_plugindir(oconfig_item_t *ci) {
   assert(strcasecmp(ci->key, "PluginDir") == 0);
 
-  if (ci->values_num != 1)
+  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
+    ERROR("configfile: The `PluginDir' option needs exactly one string "
+          "argument.");
     return -1;
-  if (ci->values[0].type != OCONFIG_TYPE_STRING)
-    return -1;
+  }
 
   plugin_set_dir(ci->values[0].value.string);
   return 0;
@@ -252,10 +259,11 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   assert(strcasecmp(ci->key, "LoadPlugin") == 0);
 
-  if (ci->values_num != 1)
+  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
+    ERROR("configfile: The `LoadPlugin' block needs exactly one string "
+          "argument.");
     return -1;
-  if (ci->values[0].type != OCONFIG_TYPE_STRING)
-    return -1;
+  }
 
   name = ci->values[0].value.string;
   if (strcmp("libvirt", name) == 0)
@@ -333,6 +341,9 @@ static int dispatch_value(oconfig_item_t *ci) {
       break;
     }
 
+  if (ret != 0)
+    return ret;
+
   for (int i = 0; i < cf_global_options_num; i++)
     if (strcasecmp(cf_global_options[i].key, ci->key) == 0) {
       ret = dispatch_global_option(ci);
@@ -343,16 +354,18 @@ static int dispatch_value(oconfig_item_t *ci) {
 } /* int dispatch_value */
 
 static int dispatch_block_plugin(oconfig_item_t *ci) {
-  const char *name;
+  assert(strcasecmp(ci->key, "Plugin") == 0);
 
-  if (strcasecmp(ci->key, "Plugin") != 0)
+  if (ci->values_num < 1) {
+    ERROR("configfile: The `Plugin' block requires arguments.");
     return -1;
-  if (ci->values_num < 1)
+  }
+  if (ci->values[0].type != OCONFIG_TYPE_STRING) {
+    ERROR("configfile: First argument of `Plugin' block should be a string.");
     return -1;
-  if (ci->values[0].type != OCONFIG_TYPE_STRING)
-    return -1;
+  }
 
-  name = ci->values[0].value.string;
+  const char *name = ci->values[0].value.string;
   if (strcmp("libvirt", name) == 0) {
     /* TODO(octo): Remove this legacy. */
     WARNING("The \"libvirt\" plugin has been renamed to \"virt\" to avoid "
