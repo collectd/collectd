@@ -171,6 +171,7 @@ struct user_data_s {
 typedef struct user_data_s user_data_t;
 
 struct plugin_ctx_s {
+  char *name;
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
@@ -382,6 +383,9 @@ int plugin_dispatch_missing(const value_list_t *vl);
 int plugin_dispatch_notification(const notification_t *notif);
 
 void plugin_log(int level, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+void daemon_log(int level, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 
 /* These functions return the parsed severity or less than zero on failure. */
