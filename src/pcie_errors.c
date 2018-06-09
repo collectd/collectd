@@ -49,11 +49,10 @@
 #define PCIE_ECAP_OFFSET 0x100 /* ECAP always begin at offset 0x100 */
 
 typedef struct pcie_config_s {
-  _Bool use_sysfs;
-  _Bool notif_masked;
-  _Bool persistent;
+  bool use_sysfs;
+  bool notif_masked;
+  bool persistent;
   char access_dir[PATH_MAX];
-  _Bool config_error;
 } pcie_config_t;
 
 typedef struct pcie_device_s {
@@ -82,11 +81,11 @@ typedef struct pcie_error_s {
 } pcie_error_t;
 
 static llist_t *pcie_dev_list;
-static pcie_config_t pcie_config = {.access_dir = "", .use_sysfs = 1};
+static pcie_config_t pcie_config = {.access_dir = "", .use_sysfs = true};
 static pcie_fops_t pcie_fops;
 
 /* Device Error Status */
-static pcie_error_t pcie_base_errors[] = {
+static const pcie_error_t pcie_base_errors[] = {
     {PCI_EXP_DEVSTA_CED, "Correctable Error"},
     {PCI_EXP_DEVSTA_NFED, "Non-Fatal Error"},
     {PCI_EXP_DEVSTA_FED, "Fatal Error"},
@@ -94,7 +93,7 @@ static pcie_error_t pcie_base_errors[] = {
 static const int pcie_base_errors_num = STATIC_ARRAY_SIZE(pcie_base_errors);
 
 /* Uncorrectable Error Status */
-static pcie_error_t pcie_aer_ues[] = {
+static const pcie_error_t pcie_aer_ues[] = {
 #ifdef PCI_ERR_UNC_DLP
     {PCI_ERR_UNC_DLP, "Data Link Protocol"},
 #endif
@@ -147,7 +146,7 @@ static pcie_error_t pcie_aer_ues[] = {
 static const int pcie_aer_ues_num = STATIC_ARRAY_SIZE(pcie_aer_ues);
 
 /* Correctable Error Status */
-static pcie_error_t pcie_aer_ces[] = {
+static const pcie_error_t pcie_aer_ces[] = {
 #ifdef PCI_ERR_COR_RCVR
     {PCI_ERR_COR_RCVR, "Receiver Error Status"},
 #endif
@@ -223,7 +222,13 @@ static int pcie_list_devices_proc(llist_t *dev_list) {
   if (dev_list == NULL)
     return -EINVAL;
 
-  snprintf(file_name, sizeof(file_name), "%s/devices", pcie_config.access_dir);
+  ret = snprintf(file_name, sizeof(file_name), "%s/devices",
+                 pcie_config.access_dir);
+  if (ret < 1 || (size_t)ret >= sizeof(file_name)) {
+    ERROR(PCIE_ERRORS_PLUGIN ": Access dir `%s' is too long (%d)",
+          pcie_config.access_dir, ret);
+    return -EINVAL;
+  }
   fd = fopen(file_name, "r");
   if (!fd) {
     char errbuf[PCIE_BUFF_SIZE];
@@ -234,7 +239,6 @@ static int pcie_list_devices_proc(llist_t *dev_list) {
 
   while (fgets(buf, sizeof(buf), fd)) {
     unsigned int slot;
-    uint8_t bus, dev, fn;
 
     if (sscanf(buf, "%x", &slot) != 1) {
       ERROR(PCIE_ERRORS_PLUGIN ": Failed to read line %u from %s", i + 1,
@@ -242,9 +246,9 @@ static int pcie_list_devices_proc(llist_t *dev_list) {
       continue;
     }
 
-    bus = slot >> 8U;
-    dev = PCIE_DEV(slot);
-    fn = PCIE_FN(slot);
+    uint8_t bus = slot >> 8U;
+    uint8_t dev = PCIE_DEV(slot);
+    uint8_t fn = PCIE_FN(slot);
     ret = pcie_add_device(dev_list, 0, bus, dev, fn);
     if (ret)
       break;
@@ -265,7 +269,13 @@ static int pcie_list_devices_sysfs(llist_t *dev_list) {
   if (dev_list == NULL)
     return -EINVAL;
 
-  snprintf(dir_name, sizeof(dir_name), "%s/devices", pcie_config.access_dir);
+  ret = snprintf(dir_name, sizeof(dir_name), "%s/devices",
+                 pcie_config.access_dir);
+  if (ret < 1 || (size_t)ret >= sizeof(dir_name)) {
+    ERROR(PCIE_ERRORS_PLUGIN ": Access dir `%s' is too long (%d)",
+          pcie_config.access_dir, ret);
+    return -EINVAL;
+  }
   dir = opendir(dir_name);
   if (!dir) {
     char errbuf[PCIE_BUFF_SIZE];
@@ -322,8 +332,14 @@ static int pcie_open(pcie_device_t *dev, const char *name) {
 static int pcie_open_proc(pcie_device_t *dev) {
   char file_name[PCIE_NAME_LEN];
 
-  snprintf(file_name, sizeof(file_name), "%s/%02x/%02x.%d",
-           pcie_config.access_dir, dev->bus, dev->device, dev->function);
+  int ret =
+      snprintf(file_name, sizeof(file_name), "%s/%02x/%02x.%d",
+               pcie_config.access_dir, dev->bus, dev->device, dev->function);
+  if (ret < 1 || (size_t)ret >= sizeof(file_name)) {
+    ERROR(PCIE_ERRORS_PLUGIN ": Access dir `%s' is too long (%d)",
+          pcie_config.access_dir, ret);
+    return -EINVAL;
+  }
 
   return pcie_open(dev, file_name);
 }
@@ -331,9 +347,15 @@ static int pcie_open_proc(pcie_device_t *dev) {
 static int pcie_open_sysfs(pcie_device_t *dev) {
   char file_name[PCIE_NAME_LEN];
 
-  snprintf(file_name, sizeof(file_name), "%s/devices/%04x:%02x:%02x.%d/config",
-           pcie_config.access_dir, dev->domain, dev->bus, dev->device,
-           dev->function);
+  int ret =
+      snprintf(file_name, sizeof(file_name),
+               "%s/devices/%04x:%02x:%02x.%d/config", pcie_config.access_dir,
+               dev->domain, dev->bus, dev->device, dev->function);
+  if (ret < 1 || (size_t)ret >= sizeof(file_name)) {
+    ERROR(PCIE_ERRORS_PLUGIN ": Access dir `%s' is too long (%d)",
+          pcie_config.access_dir, ret);
+    return -EINVAL;
+  }
 
   return pcie_open(dev, file_name);
 }
@@ -393,7 +415,7 @@ static void pcie_dispatch_notification(pcie_device_t *dev, notification_t *n,
 static void pcie_dispatch_correctable_errors(pcie_device_t *dev,
                                              uint32_t errors, uint32_t masked) {
   for (int i = 0; i < pcie_aer_ces_num; i++) {
-    pcie_error_t *err = pcie_aer_ces + i;
+    const pcie_error_t *err = pcie_aer_ces + i;
     notification_t n = {.severity = NOTIF_WARNING,
                         .time = cdtime(),
                         .plugin = PCIE_ERRORS_PLUGIN,
@@ -431,7 +453,7 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
                                                uint32_t errors, uint32_t masked,
                                                uint32_t severity) {
   for (int i = 0; i < pcie_aer_ues_num; i++) {
-    pcie_error_t *err = pcie_aer_ues + i;
+    const pcie_error_t *err = pcie_aer_ues + i;
     const char *type_instance =
         (severity & err->mask) ? PCIE_SEV_FATAL : PCIE_SEV_NOFATAL;
     notification_t n = {
@@ -533,13 +555,13 @@ static void pcie_check_dev_status(pcie_device_t *dev, int pos) {
 
   /* Report errors found in Device Status register */
   for (int i = 0; i < pcie_base_errors_num; i++) {
-    pcie_error_t *err = pcie_base_errors + i;
+    const pcie_error_t *err = pcie_base_errors + i;
     const char *type_instance = (err->mask == PCI_EXP_DEVSTA_FED)
                                     ? PCIE_SEV_FATAL
                                     : (err->mask == PCI_EXP_DEVSTA_CED)
                                           ? PCIE_SEV_CE
                                           : PCIE_SEV_NOFATAL;
-    const int severity =
+    int severity =
         (err->mask == PCI_EXP_DEVSTA_FED) ? NOTIF_FAILURE : NOTIF_WARNING;
     notification_t n = {.severity = severity,
                         .time = cdtime(),
@@ -629,7 +651,7 @@ static void pcie_preprocess_devices(llist_t *devs) {
 
   for (llentry_t *e = llist_head(devs); e != NULL; e = e_next) {
     pcie_device_t *dev = e->value;
-    _Bool del = 0;
+    bool del = false;
 
     if (pcie_fops.open(dev) == 0) {
       uint16_t status = pcie_read16(dev, PCI_STATUS);
@@ -640,7 +662,7 @@ static void pcie_preprocess_devices(llist_t *devs) {
       if (dev->cap_exp == -1) {
         DEBUG(PCIE_ERRORS_PLUGIN ": Not PCI Express device: %04x:%02x:%02x.%d",
               dev->domain, dev->bus, dev->device, dev->function);
-        del = 1;
+        del = true;
       } else {
         dev->ecap_aer = pcie_find_ecap_aer(dev);
         if (dev->ecap_aer == -1)
@@ -653,7 +675,7 @@ static void pcie_preprocess_devices(llist_t *devs) {
     } else {
       ERROR(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: failed to open",
             dev->domain, dev->bus, dev->device, dev->function);
-      del = 1;
+      del = true;
     }
 
     e_next = e->next;
@@ -697,17 +719,17 @@ static void pcie_access_config(void) {
 }
 
 static int pcie_plugin_config(oconfig_item_t *ci) {
+  int status = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
-    int status = 0;
 
     if (strcasecmp("Source", child->key) == 0) {
       if ((child->values_num != 1) ||
           (child->values[0].type != OCONFIG_TYPE_STRING)) {
         status = -1;
       } else if (strcasecmp("proc", child->values[0].value.string) == 0) {
-        pcie_config.use_sysfs = 0;
+        pcie_config.use_sysfs = false;
       } else if (strcasecmp("sysfs", child->values[0].value.string) != 0) {
         ERROR(PCIE_ERRORS_PLUGIN ": Allowed sources are 'proc' or 'sysfs'.");
         status = -1;
@@ -722,19 +744,18 @@ static int pcie_plugin_config(oconfig_item_t *ci) {
     } else {
       ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration option \"%s\".",
             child->key);
-      pcie_config.config_error = 1;
+      status = -1;
       break;
     }
 
     if (status) {
       ERROR(PCIE_ERRORS_PLUGIN ": Invalid configuration parameter \"%s\".",
             child->key);
-      pcie_config.config_error = 1;
       break;
     }
   }
 
-  return 0;
+  return status;
 }
 
 static int pcie_shutdown(void) {
@@ -745,11 +766,6 @@ static int pcie_shutdown(void) {
 }
 
 static int pcie_init(void) {
-  if (pcie_config.config_error) {
-    ERROR(PCIE_ERRORS_PLUGIN
-          ": Error in configuration, failed to init plugin.");
-    return -1;
-  }
 
   pcie_access_config();
   pcie_dev_list = llist_create();

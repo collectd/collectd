@@ -25,6 +25,8 @@
  *   Kamil Wiatrowski <kamilx.wiatrowski@intel.com>
  **/
 
+#define plugin_dispatch_notification plugin_dispatch_notification_pcie_test
+
 #include "pcie_errors.c" /* sic */
 #include "testing.h"
 
@@ -40,7 +42,7 @@ static notification_t last_notif;
 static char g_buff[G_BUFF_LEN];
 
 /* mock functions */
-int plugin_dispatch_notification(const notification_t *notif) {
+int plugin_dispatch_notification_pcie_test(const notification_t *notif) {
   last_notif = *notif;
   return ENOTSUP;
 }
@@ -70,7 +72,7 @@ DEF_TEST(clear_dev_list) {
   llist_append(test_list, entry);
 
   for (llentry_t *e = llist_head(test_list); e != NULL; e = e->next) {
-    EXPECT_EQ_UINT64(dev, e->value);
+    EXPECT_EQ_PTR(dev, e->value);
   }
 
   pcie_clear_list(test_list);
@@ -169,10 +171,10 @@ DEF_TEST(dispatch_notification) {
 DEF_TEST(access_config) {
   pcie_config.use_sysfs = 0;
   pcie_access_config();
-  EXPECT_EQ_UINT64(pcie_list_devices_proc, pcie_fops.list_devices);
-  EXPECT_EQ_UINT64(pcie_open_proc, pcie_fops.open);
-  EXPECT_EQ_UINT64(pcie_close, pcie_fops.close);
-  EXPECT_EQ_UINT64(pcie_read, pcie_fops.read);
+  EXPECT_EQ_PTR(pcie_list_devices_proc, pcie_fops.list_devices);
+  EXPECT_EQ_PTR(pcie_open_proc, pcie_fops.open);
+  EXPECT_EQ_PTR(pcie_close, pcie_fops.close);
+  EXPECT_EQ_PTR(pcie_read, pcie_fops.read);
   EXPECT_EQ_STR(PCIE_DEFAULT_PROCDIR, pcie_config.access_dir);
 
   sstrncpy(pcie_config.access_dir, "Test", sizeof(pcie_config.access_dir));
@@ -181,10 +183,10 @@ DEF_TEST(access_config) {
 
   pcie_config.use_sysfs = 1;
   pcie_access_config();
-  EXPECT_EQ_UINT64(pcie_list_devices_sysfs, pcie_fops.list_devices);
-  EXPECT_EQ_UINT64(pcie_open_sysfs, pcie_fops.open);
-  EXPECT_EQ_UINT64(pcie_close, pcie_fops.close);
-  EXPECT_EQ_UINT64(pcie_read, pcie_fops.read);
+  EXPECT_EQ_PTR(pcie_list_devices_sysfs, pcie_fops.list_devices);
+  EXPECT_EQ_PTR(pcie_open_sysfs, pcie_fops.open);
+  EXPECT_EQ_PTR(pcie_close, pcie_fops.close);
+  EXPECT_EQ_PTR(pcie_read, pcie_fops.read);
   EXPECT_EQ_STR("Test", pcie_config.access_dir);
 
   pcie_config.access_dir[0] = '\0';
@@ -206,28 +208,20 @@ DEF_TEST(plugin_config_fail) {
   test_cfg_parent.children_num = 1;
 
   int ret = pcie_plugin_config(&test_cfg_parent);
-  EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(1, pcie_config.config_error);
-  pcie_config.config_error = 0;
+  EXPECT_EQ_INT(-1, ret);
 
   sstrncpy(key_buff, "Source", sizeof(key_buff));
   ret = pcie_plugin_config(&test_cfg_parent);
-  EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(1, pcie_config.config_error);
-  pcie_config.config_error = 0;
+  EXPECT_EQ_INT(-1, ret);
 
   sstrncpy(value_buff, "proc", sizeof(value_buff));
   test_cfg_value.type = OCONFIG_TYPE_NUMBER;
   ret = pcie_plugin_config(&test_cfg_parent);
-  EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(1, pcie_config.config_error);
-  pcie_config.config_error = 0;
+  EXPECT_EQ_INT(-1, ret);
 
   sstrncpy(key_buff, "AccessDir", sizeof(key_buff));
   ret = pcie_plugin_config(&test_cfg_parent);
-  EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(1, pcie_config.config_error);
-  pcie_config.config_error = 0;
+  EXPECT_EQ_INT(-1, ret);
 
   return 0;
 }
@@ -246,21 +240,18 @@ DEF_TEST(plugin_config) {
   pcie_config.use_sysfs = 1;
   int ret = pcie_plugin_config(&test_cfg_parent);
   EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(0, pcie_config.config_error);
   EXPECT_EQ_INT(0, pcie_config.use_sysfs);
 
   pcie_config.use_sysfs = 1;
   sstrncpy(value_buff, "sysfs", sizeof(value_buff));
   ret = pcie_plugin_config(&test_cfg_parent);
   EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(0, pcie_config.config_error);
   EXPECT_EQ_INT(1, pcie_config.use_sysfs);
 
   sstrncpy(key_buff, "AccessDir", sizeof(key_buff));
   sstrncpy(value_buff, "some/test/value", sizeof(value_buff));
   ret = pcie_plugin_config(&test_cfg_parent);
   EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(0, pcie_config.config_error);
   EXPECT_EQ_STR("some/test/value", pcie_config.access_dir);
 
   memset(&test_cfg_value.value, 0, sizeof(test_cfg_value.value));
@@ -269,13 +260,11 @@ DEF_TEST(plugin_config) {
   sstrncpy(key_buff, "ReportMasked", sizeof(key_buff));
   ret = pcie_plugin_config(&test_cfg_parent);
   EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(0, pcie_config.config_error);
   EXPECT_EQ_INT(1, pcie_config.notif_masked);
 
   sstrncpy(key_buff, "PersistentNotifications", sizeof(key_buff));
   ret = pcie_plugin_config(&test_cfg_parent);
   EXPECT_EQ_INT(0, ret);
-  EXPECT_EQ_INT(0, pcie_config.config_error);
   EXPECT_EQ_INT(1, pcie_config.persistent);
 
   return 0;
