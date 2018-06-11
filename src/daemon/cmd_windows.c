@@ -22,6 +22,7 @@
  **/
 
 #include "cmd.h"
+#include "plugin.h"
 #include <stdio.h>
 #include <windows.h>
 
@@ -30,7 +31,7 @@ int main(int argc, char **argv) {
   WORD wVersionRequested = MAKEWORD(2, 2);
   int err = WSAStartup(wVersionRequested, &wsaData);
   if (err != 0) {
-    printf("WSAStartup failed with error: %d\n", err);
+    ERROR("WSAStartup failed with error: %d\n", err);
     return 1;
   }
 
