@@ -368,8 +368,7 @@ int lcc_server_set_ttl(lcc_server_t *srv, uint8_t ttl) /* {{{ */
   return 0;
 } /* }}} int lcc_server_set_ttl */
 
-int lcc_server_set_interface(lcc_server_t *srv,
-                             char const *iface) /* {{{ */
+int lcc_server_set_interface(lcc_server_t *srv, char const *iface) /* {{{ */
 {
   unsigned int if_index;
   int status;
