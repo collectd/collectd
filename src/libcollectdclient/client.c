@@ -27,9 +27,6 @@
 #ifdef WIN32
 #include "gnulib_config.h"
 #include <winsock2.h>
-#else
-#include <sys/socket.h>
-#include <sys/un.h>
 #endif
 
 #include "config.h"
@@ -51,6 +48,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifndef WIN32
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
+
 #include "collectd/client.h"
 
 /* NI_MAXHOST has been obsoleted by RFC 3493 which is a reason for SunOS 5.11
@@ -66,6 +68,10 @@
 #else
 #define EILSEQ EINVAL
 #endif
+#endif
+
+#ifdef WIN32
+#define AI_ADDRCONFIG 0
 #endif
 
 /* Secure/static macros. They work like `strcpy' and `strcat', but assure null
@@ -463,11 +469,9 @@ static int lcc_open_netsocket(lcc_connection_t *c, /* {{{ */
     }
   }
 
-  struct addrinfo ai_hints = {
-      .ai_family = AF_UNSPEC, .ai_flags = 0, .ai_socktype = SOCK_STREAM};
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags = AI_ADDRCONFIG;
-#endif
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_socktype = SOCK_STREAM};
 
   status = getaddrinfo(addr, port == NULL ? LCC_DEFAULT_PORT : port, &ai_hints,
                        &ai_res);

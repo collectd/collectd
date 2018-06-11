@@ -89,7 +89,7 @@ static int server_multicast_join(lcc_listener_t *srv,
     struct ip_mreqn mreq = {
         .imr_address.s_addr = INADDR_ANY,
         .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
-        .imr_ifindex = if_nametoindex(srv->interface_),
+        .imr_ifindex = if_nametoindex(srv->iface),
     };
 #else
 #ifdef WIN32
@@ -121,7 +121,7 @@ static int server_multicast_join(lcc_listener_t *srv,
       return errno;
 
     struct ipv6_mreq mreq6 = {
-        .ipv6mr_interface = if_nametoindex(srv->interface_),
+        .ipv6mr_interface = if_nametoindex(srv->iface),
     };
     memmove(&mreq6.ipv6mr_multiaddr, &sa->sin6_addr, sizeof(struct in6_addr));
 
