@@ -127,7 +127,7 @@ build_cygwin()
     cd "${TOP_SRCDIR}"
 
     set -x
-    autoreconf
+    autoreconf --install
 
     export LDFLAGS="-L${GNULIB_DIR}"
     export LIBS="-lgnu"
