@@ -167,7 +167,8 @@ build_cygwin()
     echo "Done"
 }
 
-if test "$(uname)" = "CYGWIN"*; then
+os_name="$(uname)"
+if test ${os_name:0:6} = "CYGWIN"; then
     build_cygwin
 else
     build
