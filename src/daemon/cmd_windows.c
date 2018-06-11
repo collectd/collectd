@@ -26,12 +26,9 @@
 #include <windows.h>
 
 int main(int argc, char **argv) {
-  WORD wVersionRequested;
   WSADATA wsaData;
-  int err;
-  wVersionRequested = MAKEWORD(2, 2);
-
-  err = WSAStartup(wVersionRequested, &wsaData);
+  WORD wVersionRequested = MAKEWORD(2, 2);
+  int err = WSAStartup(wVersionRequested, &wsaData);
   if (err != 0) {
     printf("WSAStartup failed with error: %d\n", err);
     return 1;
