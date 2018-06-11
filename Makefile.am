@@ -254,7 +254,7 @@ collectd_SOURCES = \
 
 
 collectd_CFLAGS = $(AM_CFLAGS)
-collectd_CPPFLAGS = $(AM_CPPFLAGS) $(LTDLINCL)
+collectd_CPPFLAGS = $(AM_CPPFLAGS)
 collectd_LDFLAGS = -export-dynamic
 collectd_LDADD = \
 	libavltree.la \
