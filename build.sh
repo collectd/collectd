@@ -127,11 +127,7 @@ build_cygwin()
     cd "${TOP_SRCDIR}"
 
     set -x
-    autoheader \
-    && aclocal -I /usr/share/aclocal \
-    && $libtoolize --copy --force \
-    && automake --add-missing --copy \
-    && autoconf
+    autoreconf
 
     export LDFLAGS="-L${GNULIB_DIR}"
     export LIBS="-lgnu"
