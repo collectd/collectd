@@ -54,6 +54,7 @@
 
 #ifdef WIN32
 #include <ws2tcpip.h>
+#define AI_ADDRCONFIG 0
 #endif
 
 static bool is_multicast(struct addrinfo const *ai) {
@@ -162,11 +163,7 @@ static int server_open(lcc_listener_t *srv) {
   int status = getaddrinfo(srv->node ? srv->node : "::",
                            srv->service ? srv->service : LCC_DEFAULT_PORT,
                            &(struct addrinfo){
-#ifdef AI_ADDRCONFIG
                                .ai_flags = AI_ADDRCONFIG,
-#else
-                               .ai_flags = 0,
-#endif
                                .ai_family = AF_UNSPEC,
                                .ai_socktype = SOCK_DGRAM,
                            },

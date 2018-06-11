@@ -47,6 +47,10 @@
 #include <net/if.h>
 #endif
 
+#ifdef WIN32
+#define AI_ADDRCONFIG 0
+#endif
+
 #include "collectd/network.h"
 #include "collectd/network_buffer.h"
 
@@ -126,11 +130,9 @@ static int server_open_socket(lcc_server_t *srv) /* {{{ */
   if (srv->fd >= 0)
     server_close_socket(srv);
 
-  struct addrinfo ai_hints = {
-      .ai_family = AF_UNSPEC, .ai_flags = 0, .ai_socktype = SOCK_DGRAM};
-#ifdef AI_ADDRCONFIG
-  ai_hints.ai_flags = AI_ADDRCONFIG;
-#endif
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_ADDRCONFIG,
+                              .ai_socktype = SOCK_DGRAM};
 
   status = getaddrinfo(srv->node, srv->service, &ai_hints, &ai_list);
   if (status != 0)
