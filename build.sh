@@ -95,24 +95,23 @@ build_cygwin()
           --source-base=lib \
           --dir=${TOP_SRCDIR}/_build_aux/_gnulib \
           canonicalize-lgpl \
-          regex \
-          sys_socket \
+          fcntl-h \
+          getsockopt \
+          gettimeofday \
           nanosleep \
           netdb \
           net_if \
-          sendto \
-          gettimeofday \
-          getsockopt \
-          time_r \
-          sys_stat \
-          fcntl-h \
-          sys_resource \
-          sys_wait \
-          setlocale \
-          strtok_r \
           poll \
           recv \
-          net_if
+          regex \
+          sendto \
+          setlocale \
+          strtok_r \
+          sys_resource \
+          sys_socket \
+          sys_stat \
+          sys_wait \
+          time_r
 
         cd ${TOP_SRCDIR}/_build_aux/_gnulib
         ./configure --host="mingw32" LIBS="-lws2_32 -lpthread"
