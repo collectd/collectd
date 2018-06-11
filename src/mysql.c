@@ -38,6 +38,8 @@
 #include <mysql/mysql.h>
 #endif
 
+#define MAX_MARIADB_SLAVES 32
+
 struct mysql_database_s /* {{{ */
 {
   char *instance;
@@ -558,7 +560,7 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     _Bool slave_sql_running;
   };
   typedef struct maria_replication_s maria_replication_t; /* }}} */
-  static maria_replication_t *replication[32] = {NULL};
+  static maria_replication_t *replication[MAX_MARIADB_SLAVES] = {NULL};
 
   /* WTF? libmysqlclient does not seem to provide any means to
    * translate a column name to a column index ... :-/ */
@@ -684,6 +686,8 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
       }
     }
     row_count++;
+    if (row_count > MAX_MARIADB_SLAVES)
+      break;
   }
 
   if (row_count == 0) {
@@ -695,7 +699,7 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   }
 
   /* freeing unused replication structures */
-  for (int i = row_count; replication[i]; i++) {
+  for (int i = row_count; i <= MAX_MARIADB_SLAVES && replication[i]; i++) {
     free(replication[i]->connection_name);
     free(replication[i]);
     replication[i] = NULL;
@@ -1103,8 +1107,12 @@ static int mysql_read(user_data_t *ud) {
   if (db->master_stats)
     mysql_read_master_stats(db, con);
 
-  if ((db->slave_stats) || (db->slave_notif))
-    mysql_read_slave_stats(db, con);
+  if ((db->slave_stats) || (db->slave_notif)) {
+    if (db->is_mariadb)
+      mariadb_read_slave_stats(db, con);
+    else
+      mysql_read_slave_stats(db, con);
+  }
 
   if (db->wsrep_stats)
     mysql_read_wsrep_stats(db, con);
