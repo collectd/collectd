@@ -38,6 +38,7 @@
 #include <pthread.h>
 
 #ifdef WIN32
+// ERROR is previosly defined in wingdi.h, included from windows.h.
 #undef ERROR
 #endif
 
