@@ -186,8 +186,10 @@ AM_CPPFLAGS = \
 	-DLOCALSTATEDIR='"${localstatedir}"' \
 	-DPKGLOCALSTATEDIR='"${pkglocalstatedir}"' \
 	-DPLUGINDIR='"${pkglibdir}"' \
-	-DPKGDATADIR='"${pkgdatadir}"' \
-	-DNOGDI
+	-DPKGDATADIR='"${pkgdatadir}"'
+if BUILD_WIN32
+AM_CPPFLAGS += -DNOGDI
+endif
 
 COMMON_DEPS =
 if BUILD_WIN32
