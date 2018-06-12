@@ -161,7 +161,7 @@ build_cygwin()
 }
 
 os_name="$(uname)"
-if test ${os_name:0:6} = "CYGWIN"; then
+if test "${os_name#CYGWIN}" != "$os_name"; then
     build_cygwin
 else
     build
