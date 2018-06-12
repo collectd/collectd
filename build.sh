@@ -77,23 +77,20 @@ build_cygwin()
     echo "Installing collectd to ${INSTALL_DIR}."
     TOP_SRCDIR=$(pwd)
     MINGW_ROOT="/usr/x86_64-w64-mingw32/sys-root/mingw"
-    GNULIB_DIR="${TOP_SRCDIR}/_build_aux/_gnulib/gllib"
+    GNULIB_DIR="${TOP_SRCDIR}/gnulib/build/gllib"
 
     export CC="x86_64-w64-mingw32-gcc"
 
-    mkdir -p _build_aux
-
-    cd _build_aux
-    if [ -d "_gnulib" ]; then
-        echo "Assuming that gnulib is already built, because _gnulib exists."
+    if [ -d "${TOP_SRCDIR}/gnulib/build" ]; then
+        echo "Assuming that gnulib is already built, because gnulib/build exists."
     else
-        git clone git://git.savannah.gnu.org/gnulib.git
+        git submodule init
+        git submodule update
         cd gnulib
-        git checkout 2f8140bc8ce5501e31dcc665b42b5df64f84c20c
         ./gnulib-tool \
           --create-testdir \
           --source-base=lib \
-          --dir=${TOP_SRCDIR}/_build_aux/_gnulib \
+          --dir=${TOP_SRCDIR}/gnulib/build \
           canonicalize-lgpl \
           fcntl-h \
           getsockopt \
@@ -103,7 +100,7 @@ build_cygwin()
           net_if \
           poll \
           recv \
-          regex \
+              regex \
           sendto \
           setlocale \
           strtok_r \
@@ -113,7 +110,7 @@ build_cygwin()
           sys_wait \
           time_r
 
-        cd ${TOP_SRCDIR}/_build_aux/_gnulib
+        cd ${TOP_SRCDIR}/gnulib/build
         ./configure --host="mingw32" LIBS="-lws2_32 -lpthread"
         make 
         cd gllib
@@ -123,7 +120,7 @@ build_cygwin()
         OBJECT_LIST=`make V=1 | grep "ar" | cut -d' ' -f4-`
         $CC -shared -o libgnu.dll $OBJECT_LIST -lws2_32 -lpthread
         rm libgnu.a # get rid of it, to use libgnu.dll
-    fi
+	fi
     cd "${TOP_SRCDIR}"
 
     set -x

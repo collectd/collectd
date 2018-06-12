@@ -39,7 +39,7 @@
 
 #ifdef WIN32
 // ERROR is previously defined in wingdi.h, included from windows.h.
-#undef ERROR
+//#undef ERROR
 #endif
 
 #define DS_TYPE_COUNTER 0
