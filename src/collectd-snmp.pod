@@ -141,6 +141,11 @@ Since the semantic of B<Instance> and B<Values> depends on this setting you
 need to set it before setting them. Doing vice verse will result in undefined
 behavior.
 
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name of the values that are dispatched.
+Defaults to C<snmp>.
+
 =item B<Instance> I<Instance>
 
 Sets the type-instance of the values that are dispatched. The meaning of this

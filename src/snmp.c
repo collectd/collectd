@@ -55,6 +55,7 @@ struct data_definition_s {
   char *type; /* used to find the data_set */
   bool is_table;
   instance_t instance;
+  char *plugin_name;
   char *instance_prefix;
   oid_t *values;
   size_t values_len;
@@ -315,9 +316,6 @@ static int csnmp_config_add_data_blacklist(data_definition_t *dd,
     }
   }
 
-  dd->ignores_len = 0;
-  dd->ignores = NULL;
-
   for (int i = 0; i < ci->values_num; ++i) {
     if (strarray_add(&(dd->ignores), &(dd->ignores_len),
                      ci->values[i].value.string) != 0) {
@@ -342,6 +340,14 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
 
   dd->scale = 1.0;
   dd->shift = 0.0;
+  dd->ignores_len = 0;
+  dd->ignores = NULL;
+
+  dd->plugin_name = strdup("snmp");
+  if (dd->plugin_name == NULL) {
+      ERROR("snmp plugin: Can't allocate memory");
+      return ENOMEM;
+  }
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
@@ -350,6 +356,8 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
       status = cf_util_get_string(option, &dd->type);
     else if (strcasecmp("Table", option->key) == 0)
       status = cf_util_get_boolean(option, &dd->is_table);
+    else if (strcasecmp("Plugin", option->key) == 0)
+      status = cf_util_get_string(option, &dd->plugin_name);
     else if (strcasecmp("Instance", option->key) == 0)
       status = csnmp_config_add_data_instance(dd, option);
     else if (strcasecmp("InstancePrefix", option->key) == 0)
@@ -390,6 +398,8 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
 
   if (status != 0) {
     sfree(dd->name);
+    sfree(dd->type);
+    sfree(dd->plugin_name);
     sfree(dd->instance_prefix);
     sfree(dd->values);
     sfree(dd->ignores);
@@ -1134,7 +1144,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
     value_table_ptr[i] = value_table[i];
 
   sstrncpy(vl.host, host->name, sizeof(vl.host));
-  sstrncpy(vl.plugin, "snmp", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
 
   vl.interval = host->interval;
 
@@ -1597,7 +1607,7 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
   }
 
   sstrncpy(vl.host, host->name, sizeof(vl.host));
-  sstrncpy(vl.plugin, "snmp", sizeof(vl.plugin));
+  sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
   sstrncpy(vl.type, data->type, sizeof(vl.type));
   sstrncpy(vl.type_instance, data->instance.string, sizeof(vl.type_instance));
 
@@ -1713,6 +1723,8 @@ static int csnmp_shutdown(void) {
 
     sfree(data_this->name);
     sfree(data_this->type);
+    sfree(data_this->plugin_name);
+    sfree(data_this->instance_prefix);
     sfree(data_this->values);
     sfree(data_this->ignores);
     sfree(data_this);
