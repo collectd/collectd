@@ -383,20 +383,19 @@ static int snmp_agent_create_token(char const *input, int t_off, int n,
   int ret = 0;
 
   token->key = index_key;
-
-  /* copy at most n bytes from input with offset t_off into token->str */
   input += t_off;
   size_t len = strlen(input);
+
   if (n < len)
     len = n;
 
   token->str = malloc(len + 1);
+
   if (token->str == NULL)
     goto free_offset_error;
 
-  memcpy(token->str, input, len);
-  token->str[len] = '\0';
-
+  /* copy at most n bytes from input with offset t_off into token->str */
+  sstrncpy(token->str, input, len + 1);
   *offset = t_off;
   ret = c_avl_insert(tree, (void *)offset, (void *)token);
 
@@ -502,7 +501,6 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
     /* var should never be NULL */
     assert(key != NULL);
     ptr = NULL;
-    ret = 0;
     const index_key_src_t source = td->index_keys[i].source;
     c_avl_tree_t *const tokens = td->tokens[source];
     /* Generating list filled with all data necessary to generate an OID */
@@ -526,8 +524,6 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
       ERROR(PLUGIN_NAME ": Unknown index key source provided");
       return -EINVAL;
     }
-    if (ret != 0)
-      return -EINVAL;
 
     /* Parsing input string if necessary */
     if (td->index_keys[i].regex) {
@@ -569,6 +565,10 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
 #else
       ret = snmp_set_var_value(key, ptr, strlen(ptr));
 #endif
+
+    if (ret != 0)
+      return -1;
+
     key = key->next_variable;
   }
 
@@ -936,6 +936,7 @@ static void snmp_agent_free_table(table_definition_t **td) {
 
 static int snmp_agent_parse_oid_index_keys(const table_definition_t *td,
                                            oid_t *index_oid) {
+  assert(index_oid != NULL);
   int ret = parse_oid_indexes(index_oid->oid, index_oid->oid_len,
                               td->index_list_cont);
   if (ret != SNMPERR_SUCCESS)
@@ -944,7 +945,6 @@ static int snmp_agent_parse_oid_index_keys(const table_definition_t *td,
 }
 
 static int snmp_agent_build_name(char **name, c_avl_tree_t *tokens) {
-
   int *pos;
   token_t *tok;
   char str[DATA_MAX_NAME_LEN];
@@ -957,19 +957,19 @@ static int snmp_agent_build_name(char **name, c_avl_tree_t *tokens) {
   }
 
   while (c_avl_iterator_next(it, (void **)&pos, (void **)&tok) == 0) {
-    strncat(out, tok->str, strlen(tok->str));
+    strncat(out, tok->str, DATA_MAX_NAME_LEN - strlen(out) - 1);
     if (tok->key != NULL) {
       if (tok->key->type == ASN_INTEGER) {
         snprintf(str, sizeof(str), "%ld", *tok->key->val.integer);
-        strncat(out, str, strlen(str));
-      } else { /* OCTET_STR */
+        strncat(out, str, DATA_MAX_NAME_LEN - strlen(out) - 1);
+      } else /* OCTET_STR */
         strncat(out, (char *)tok->key->val.string,
-                strlen((char *)tok->key->val.string));
-      }
+                DATA_MAX_NAME_LEN - strlen(out) - 1);
     }
   }
-  *name = strdup(out);
+
   c_avl_iterator_destroy(it);
+  *name = strdup(out);
 
   if (*name == NULL) {
     ERROR(PLUGIN_NAME ": Could not allocate memory");
@@ -1885,31 +1885,31 @@ static int snmp_agent_update_instance_oids(c_avl_tree_t *tree, oid_t *index_oid,
 }
 
 static int snmp_agent_update_index(data_definition_t *dd,
-                                   table_definition_t *td, oid_t **index_oid) {
+                                   table_definition_t *td, oid_t *index_oid,
+                                   bool *free_index_oid) {
   int ret;
   int *index = NULL;
   int *value = NULL;
-  bool do_free_index_oid = true;
 
-  if (c_avl_get(td->instance_index, (void *)*index_oid, (void **)&index) != 0) {
-    /* Processing new instance */
-    do_free_index_oid = false;
+  if (c_avl_get(td->instance_index, (void *)index_oid, (void **)&index) != 0) {
+    /* We'll keep index_oid stored in AVL tree */
+    *free_index_oid = false;
 
     /* need to generate index for the table */
     if (td->index_oid.oid_len) {
       index = calloc(1, sizeof(*index));
       if (index == NULL) {
         ret = -ENOMEM;
-        goto free_index_oid;
+        goto error;
       }
 
       *index = c_avl_size(td->instance_index) + 1;
 
-      ret = c_avl_insert(td->instance_index, *index_oid, index);
+      ret = c_avl_insert(td->instance_index, index_oid, index);
       if (ret != 0)
         goto free_index;
 
-      ret = c_avl_insert(td->index_instance, index, *index_oid);
+      ret = c_avl_insert(td->index_instance, index, index_oid);
       if (ret < 0) {
         DEBUG(PLUGIN_NAME ": Failed to update index_instance for '%s' table",
               td->name);
@@ -1922,9 +1922,9 @@ static int snmp_agent_update_index(data_definition_t *dd,
         goto remove_avl_index;
     } else {
       /* instance as a key is required for any table */
-      ret = c_avl_insert(td->instance_index, *index_oid, NULL);
+      ret = c_avl_insert(td->instance_index, index_oid, NULL);
       if (ret != 0)
-        goto free_index_oid;
+        goto error;
     }
 
     value = calloc(1, sizeof(*value));
@@ -1935,7 +1935,7 @@ static int snmp_agent_update_index(data_definition_t *dd,
       goto unregister_index;
     }
 
-    ret = c_avl_insert(td->instance_oids, *index_oid, value);
+    ret = c_avl_insert(td->instance_oids, index_oid, value);
 
     if (ret < 0) {
       DEBUG(PLUGIN_NAME ": Failed to update instance_oids for '%s' table",
@@ -1956,7 +1956,7 @@ static int snmp_agent_update_index(data_definition_t *dd,
           ret = snmp_agent_register_oid_index(&idd->oids[i], *index,
                                               snmp_agent_table_oid_handler);
         else
-          ret = snmp_agent_register_oid_string(&idd->oids[i], *index_oid,
+          ret = snmp_agent_register_oid_string(&idd->oids[i], index_oid,
                                                snmp_agent_table_oid_handler);
 
         if (ret != 0) {
@@ -1977,14 +1977,14 @@ static int snmp_agent_update_index(data_definition_t *dd,
       ret = snmp_agent_register_oid_index(&dd->oids[i], *index,
                                           snmp_agent_table_oid_handler);
     else
-      ret = snmp_agent_register_oid_string(&dd->oids[i], *index_oid,
+      ret = snmp_agent_register_oid_string(&dd->oids[i], index_oid,
                                            snmp_agent_table_oid_handler);
 
     if (ret < 0)
       goto free_index;
     else if (ret == OID_EXISTS)
       break;
-    else if (snmp_agent_update_instance_oids(td->instance_oids, *index_oid, 1) <
+    else if (snmp_agent_update_instance_oids(td->instance_oids, index_oid, 1) <
              0)
       goto free_index;
   }
@@ -1993,7 +1993,7 @@ static int snmp_agent_update_index(data_definition_t *dd,
     char index_str[DATA_MAX_NAME_LEN];
 
     if (index == NULL)
-      snmp_agent_oid_to_string(index_str, sizeof(index_str), *index_oid);
+      snmp_agent_oid_to_string(index_str, sizeof(index_str), index_oid);
     else
       snprintf(index_str, sizeof(index_str), "%d", *index);
 
@@ -2007,26 +2007,23 @@ static int snmp_agent_update_index(data_definition_t *dd,
     plugin_dispatch_notification(&n);
   }
 
-  if (do_free_index_oid)
-    sfree(*index_oid);
-
   return 0;
 
 free_value:
   sfree(value);
 unregister_index:
   if (td->index_oid.oid_len)
-    snmp_agent_unregister_oid_index(*index_oid, *index);
+    snmp_agent_unregister_oid_index(index_oid, *index);
 remove_avl_index:
   if (td->index_oid.oid_len)
     c_avl_remove(td->index_instance, index, NULL, NULL);
 remove_avl_index_oid:
-  c_avl_remove(td->instance_index, *index_oid, NULL, NULL);
+  c_avl_remove(td->instance_index, index_oid, NULL, NULL);
 free_index:
   if (index != NULL)
     sfree(index);
-free_index_oid:
-  sfree(*index_oid);
+error:
+  *free_index_oid = true;
 
   return ret;
 }
@@ -2045,6 +2042,7 @@ static int snmp_agent_write(value_list_t const *vl) {
         if (CHECK_DD_TYPE(dd, vl->plugin, vl->plugin_instance, vl->type,
                           vl->type_instance)) {
           oid_t *index_oid = calloc(1, sizeof(*index_oid));
+          bool free_index_oid = true;
 
           if (index_oid == NULL) {
             ERROR(PLUGIN_NAME ": Could not allocate memory for index_oid");
@@ -2054,7 +2052,11 @@ static int snmp_agent_write(value_list_t const *vl) {
           int ret = snmp_agent_generate_index(td, vl, index_oid);
 
           if (ret == 0)
-            ret = snmp_agent_update_index(dd, td, &index_oid);
+            ret = snmp_agent_update_index(dd, td, index_oid, &free_index_oid);
+
+          /* Index exists or update failed */
+          if (free_index_oid)
+            sfree(index_oid);
 
           return ret;
         }
