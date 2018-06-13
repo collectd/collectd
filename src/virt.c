@@ -656,7 +656,7 @@ static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
 
-struct lv_block_info {
+struct lv_block_stats {
   virDomainBlockStatsStruct bi;
 
   long long rd_total_times;
@@ -666,50 +666,50 @@ struct lv_block_info {
   long long fl_total_times;
 };
 
-static void init_block_info(struct lv_block_info *binfo) {
-  if (binfo == NULL)
+static void init_block_stats(struct lv_block_stats *bstats) {
+  if (bstats == NULL)
     return;
 
-  binfo->bi.rd_req = -1;
-  binfo->bi.wr_req = -1;
-  binfo->bi.rd_bytes = -1;
-  binfo->bi.wr_bytes = -1;
+  bstats->bi.rd_req = -1;
+  bstats->bi.wr_req = -1;
+  bstats->bi.rd_bytes = -1;
+  bstats->bi.wr_bytes = -1;
 
-  binfo->rd_total_times = -1;
-  binfo->wr_total_times = -1;
-  binfo->fl_req = -1;
-  binfo->fl_total_times = -1;
+  bstats->rd_total_times = -1;
+  bstats->wr_total_times = -1;
+  bstats->fl_req = -1;
+  bstats->fl_total_times = -1;
 }
 
 #ifdef HAVE_BLOCK_STATS_FLAGS
 
-#define GET_BLOCK_INFO_VALUE(NAME, FIELD)                                      \
+#define GET_BLOCK_STATS_VALUE(NAME, FIELD)                                     \
   if (!strcmp(param[i].field, NAME)) {                                         \
-    binfo->FIELD = param[i].value.l;                                           \
+    bstats->FIELD = param[i].value.l;                                          \
     continue;                                                                  \
   }
 
-static int get_block_info(struct lv_block_info *binfo,
-                          virTypedParameterPtr param, int nparams) {
-  if (binfo == NULL || param == NULL)
+static int get_block_stats(struct lv_block_stats *bstats,
+                           virTypedParameterPtr param, int nparams) {
+  if (bstats == NULL || param == NULL)
     return -1;
 
   for (int i = 0; i < nparams; ++i) {
     /* ignore type. Everything must be LLONG anyway. */
-    GET_BLOCK_INFO_VALUE("rd_operations", bi.rd_req);
-    GET_BLOCK_INFO_VALUE("wr_operations", bi.wr_req);
-    GET_BLOCK_INFO_VALUE("rd_bytes", bi.rd_bytes);
-    GET_BLOCK_INFO_VALUE("wr_bytes", bi.wr_bytes);
-    GET_BLOCK_INFO_VALUE("rd_total_times", rd_total_times);
-    GET_BLOCK_INFO_VALUE("wr_total_times", wr_total_times);
-    GET_BLOCK_INFO_VALUE("flush_operations", fl_req);
-    GET_BLOCK_INFO_VALUE("flush_total_times", fl_total_times);
+    GET_BLOCK_STATS_VALUE("rd_operations", bi.rd_req);
+    GET_BLOCK_STATS_VALUE("wr_operations", bi.wr_req);
+    GET_BLOCK_STATS_VALUE("rd_bytes", bi.rd_bytes);
+    GET_BLOCK_STATS_VALUE("wr_bytes", bi.wr_bytes);
+    GET_BLOCK_STATS_VALUE("rd_total_times", rd_total_times);
+    GET_BLOCK_STATS_VALUE("wr_total_times", wr_total_times);
+    GET_BLOCK_STATS_VALUE("flush_operations", fl_req);
+    GET_BLOCK_STATS_VALUE("flush_total_times", fl_total_times);
   }
 
   return 0;
 }
 
-#undef GET_BLOCK_INFO_VALUE
+#undef GET_BLOCK_STATS_VALUE
 
 #endif /* HAVE_BLOCK_STATS_FLAGS */
 
@@ -1002,8 +1002,8 @@ static void vcpu_submit(derive_t value, virDomainPtr dom, int vcpu_nr,
   submit(dom, type, type_instance, &(value_t){.derive = value}, 1);
 }
 
-static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
-                        const char *dev) {
+static void disk_block_stats_submit(struct lv_block_stats *bstats,
+                                    virDomainPtr dom, const char *dev) {
   char *dev_copy = strdup(dev);
   const char *type_instance = dev_copy;
 
@@ -1022,24 +1022,24 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
   snprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
            type_instance);
 
-  if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
-    submit_derive2("disk_ops", (derive_t)binfo->bi.rd_req,
-                   (derive_t)binfo->bi.wr_req, dom, type_instance);
+  if ((bstats->bi.rd_req != -1) && (bstats->bi.wr_req != -1))
+    submit_derive2("disk_ops", (derive_t)bstats->bi.rd_req,
+                   (derive_t)bstats->bi.wr_req, dom, type_instance);
 
-  if ((binfo->bi.rd_bytes != -1) && (binfo->bi.wr_bytes != -1))
-    submit_derive2("disk_octets", (derive_t)binfo->bi.rd_bytes,
-                   (derive_t)binfo->bi.wr_bytes, dom, type_instance);
+  if ((bstats->bi.rd_bytes != -1) && (bstats->bi.wr_bytes != -1))
+    submit_derive2("disk_octets", (derive_t)bstats->bi.rd_bytes,
+                   (derive_t)bstats->bi.wr_bytes, dom, type_instance);
 
   if (extra_stats & ex_stats_disk) {
-    if ((binfo->rd_total_times != -1) && (binfo->wr_total_times != -1))
-      submit_derive2("disk_time", (derive_t)binfo->rd_total_times,
-                     (derive_t)binfo->wr_total_times, dom, type_instance);
+    if ((bstats->rd_total_times != -1) && (bstats->wr_total_times != -1))
+      submit_derive2("disk_time", (derive_t)bstats->rd_total_times,
+                     (derive_t)bstats->wr_total_times, dom, type_instance);
 
-    if (binfo->fl_req != -1)
+    if (bstats->fl_req != -1)
       submit(dom, "total_requests", flush_type_instance,
-             &(value_t){.derive = (derive_t)binfo->fl_req}, 1);
-    if (binfo->fl_total_times != -1) {
-      derive_t value = binfo->fl_total_times / 1000; // ns -> ms
+             &(value_t){.derive = (derive_t)bstats->fl_req}, 1);
+    if (bstats->fl_total_times != -1) {
+      derive_t value = bstats->fl_total_times / 1000; // ns -> ms
       submit(dom, "total_time_in_ms", flush_type_instance,
              &(value_t){.derive = value}, 1);
     }
@@ -1422,8 +1422,8 @@ static void lv_disconnect(void) {
   WARNING(PLUGIN_NAME " plugin: closed connection to libvirt");
 }
 
-static int lv_domain_block_info(virDomainPtr dom, const char *path,
-                                struct lv_block_info *binfo) {
+static int lv_domain_block_stats(virDomainPtr dom, const char *path,
+                                 struct lv_block_stats *bstats) {
 #ifdef HAVE_BLOCK_STATS_FLAGS
   int nparams = 0;
   if (virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0) < 0 ||
@@ -1443,14 +1443,14 @@ static int lv_domain_block_info(virDomainPtr dom, const char *path,
   if (virDomainBlockStatsFlags(dom, path, params, &nparams, 0) < 0) {
     VIRT_ERROR(conn, "getting the disk params values");
   } else {
-    rc = get_block_info(binfo, params, nparams);
+    rc = get_block_stats(bstats, params, nparams);
   }
 
   virTypedParamsClear(params, nparams);
   sfree(params);
   return rc;
 #else
-  return virDomainBlockStats(dom, path, &(binfo->bi), sizeof(binfo->bi));
+  return virDomainBlockStats(dom, path, &(bstats->bi), sizeof(bstats->bi));
 #endif /* HAVE_BLOCK_STATS_FLAGS */
 }
 
@@ -1689,22 +1689,22 @@ static int get_disk_err(virDomainPtr domain) {
 }
 #endif /* HAVE_DISK_ERR */
 
-static int get_block_stats(struct block_device *block_dev) {
+static int get_block_device_stats(struct block_device *block_dev) {
 
   if (!block_dev) {
     ERROR(PLUGIN_NAME " plugin: get_block_stats NULL pointer");
     return -1;
   }
 
-  struct lv_block_info binfo;
-  init_block_info(&binfo);
+  struct lv_block_stats bstats;
+  init_block_stats(&bstats);
 
-  if (lv_domain_block_info(block_dev->dom, block_dev->path, &binfo) < 0) {
-    ERROR(PLUGIN_NAME " plugin: lv_domain_block_info failed");
+  if (lv_domain_block_stats(block_dev->dom, block_dev->path, &bstats) < 0) {
+    ERROR(PLUGIN_NAME " plugin: lv_domain_block_stats failed");
     return -1;
   }
 
-  disk_submit(&binfo, block_dev->dom, block_dev->path);
+  disk_block_stats_submit(&bstats, block_dev->dom, block_dev->path);
   return 0;
 }
 
@@ -2234,7 +2234,7 @@ static int lv_read(user_data_t *ud) {
 
   /* Get block device stats for each domain. */
   for (int i = 0; i < state->nr_block_devices; ++i) {
-    int status = get_block_stats(&state->block_devices[i]);
+    int status = get_block_device_stats(&state->block_devices[i]);
     if (status != 0)
       ERROR(PLUGIN_NAME
             " plugin: failed to get stats for block device (%s) in domain %s",
