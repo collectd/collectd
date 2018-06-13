@@ -138,7 +138,7 @@ C<IF-MIB::ifHCInOctets> and C<IF-MIB::ifHCOutOctets>. But, this is because of
 the B<Type> setting, not the B<Table> setting.
 
 Since the semantic of B<Instance> and B<Values> depends on this setting you
-need to set it before setting them. Doing vice verse will result in undefined
+need to set it before setting them. Doing vice versa will result in undefined
 behavior.
 
 =item B<Plugin> I<Plugin>
