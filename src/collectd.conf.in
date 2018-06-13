@@ -1337,22 +1337,29 @@
 
 #<Plugin snmp>
 #   <Data "powerplus_voltge_input">
-#       Type "voltage"
 #       Table false
-#       Instance "input_line1"
+#       Type "voltage"
+#       TypeInstance "input_line1"
 #       Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
 #   </Data>
 #   <Data "hr_users">
-#       Type "users"
 #       Table false
-#       Instance ""
+#       Type "users"
+#       TypeInstance ""
 #       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
 #   </Data>
 #   <Data "std_traffic">
-#       Type "if_octets"
 #       Table true
-#       #Plugin "interface"
-#       Instance "IF-MIB::ifDescr"
+#       Type "if_octets"
+#       TypeInstanceOID "IF-MIB::ifDescr"
+#       #InstancePrefix "port"
+#       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+#   </Data>
+#   <Data "interface_traffic">
+#       Table true
+#       Type "if_octets"
+#       Plugin "interface"
+#       PluginInstanceOID "IF-MIB::ifDescr"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
 #   </Data>
 #
