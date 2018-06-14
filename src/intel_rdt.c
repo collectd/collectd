@@ -30,6 +30,7 @@
 #include "collectd.h"
 #include "utils/common/common.h"
 #include "utils/config_cores/config_cores.h"
+#include "utils_proc_pids.h"
 #include <pqos.h>
 
 #define RDT_PLUGIN "intel_rdt"
@@ -51,9 +52,7 @@
  * Process name inside comm file is limited to 16 chars.
  * More info here: http://man7.org/linux/man-pages/man5/proc.5.html
  */
-#define RDT_MAX_NAME_LEN 16
 #define RDT_MAX_NAMES_GROUPS 64
-
 #define RDT_PROC_PATH "/proc"
 #endif /* LIBPQOS2 */
 
@@ -63,23 +62,6 @@ typedef enum {
 } rdt_config_status;
 
 #ifdef LIBPQOS2
-/* Helper typedef for process name array
- * Extra 1 char is added for string null termination.
- */
-typedef char proc_comm_t[RDT_MAX_NAME_LEN + 1];
-
-/* Linked one-way list of pids. */
-typedef struct pids_list_s {
-  pid_t pid;
-  struct pids_list_s *next;
-} pids_list_t;
-
-/* Holds process name and list of pids assigned to that name */
-typedef struct proc_pids_s {
-  proc_comm_t proccess_name;
-  pids_list_t *pids;
-} proc_pids_t;
-
 struct rdt_name_group_s {
   char *desc;
   size_t num_names;
@@ -112,10 +94,186 @@ static rdt_config_status g_state = UNKNOWN;
 
 static int g_interface = -1;
 
+static void rdt_submit_derive(const char *cgroup, const char *type,
+                              const char *type_instance, derive_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.derive = value};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+
+static void rdt_submit_gauge(const char *cgroup, const char *type,
+                             const char *type_instance, gauge_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = &(value_t){.gauge = value};
+  vl.values_len = 1;
+
+  sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+
+#if COLLECT_DEBUG
+static void rdt_dump_cgroups(void) {
+  char cores[RDT_MAX_CORES * 4];
+
+  if (g_rdt == NULL)
+    return;
+
+  DEBUG(RDT_PLUGIN ": Core Groups Dump");
+  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->cores.num_cgroups);
+
+  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + i;
+
+    memset(cores, 0, sizeof(cores));
+    for (size_t j = 0; j < cgroup->num_cores; j++) {
+      snprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
+               cgroup->cores[j]);
+    }
+
+    DEBUG(RDT_PLUGIN ":  group[%zu]:", i);
+    DEBUG(RDT_PLUGIN ":    description: %s", cgroup->desc);
+    DEBUG(RDT_PLUGIN ":    cores: %s", cores);
+    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->events[i]);
+  }
+
+  return;
+}
+
+#ifdef LIBPQOS2
+static void rdt_dump_ngroups(void) {
+
+  char names[DATA_MAX_NAME_LEN];
+
+  if (g_rdt == NULL)
+    return;
+
+  DEBUG(RDT_PLUGIN ": Process Names Groups Dump");
+  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->num_ngroups);
+
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
+    memset(names, 0, sizeof(names));
+    for (size_t j = 0; j < g_rdt->ngroups[i].num_names; j++)
+      snprintf(names + strlen(names), sizeof(names) - strlen(names) - 1, " %s",
+               g_rdt->ngroups[i].names[j]);
+
+    DEBUG(RDT_PLUGIN ":  group[%d]:", (int)i);
+    DEBUG(RDT_PLUGIN ":    description: %s", g_rdt->ngroups[i].desc);
+    DEBUG(RDT_PLUGIN ":    process names:%s", names);
+    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->ngroups[i].events);
+  }
+
+  return;
+}
+#endif /* LIBPQOS2 */
+
+static inline double bytes_to_kb(const double bytes) { return bytes / 1024.0; }
+
+static inline double bytes_to_mb(const double bytes) {
+  return bytes / (1024.0 * 1024.0);
+}
+
+static void rdt_dump_cores_data(void) {
+/*
+ * CORE - monitored group of cores
+ * RMID - Resource Monitoring ID associated with the monitored group
+ *        This is not available for monitoring with resource control
+ * LLC - last level cache occupancy
+ * MBL - local memory bandwidth
+ * MBR - remote memory bandwidth
+ */
+#ifdef LIBPQOS2
+  if (g_interface == PQOS_INTER_OS_RESCTRL_MON) {
+    DEBUG(RDT_PLUGIN ":  CORE     LLC[KB]   MBL[MB]    MBR[MB]");
+  } else {
+    DEBUG(RDT_PLUGIN ":  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
+  }
+#else
+  DEBUG(RDT_PLUGIN ":  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
+#endif /* LIBPQOS2 */
+
+  for (int i = 0; i < g_rdt->cores.num_cgroups; i++) {
+    const struct pqos_event_values *pv = &g_rdt->pcgroups[i]->values;
+
+    double llc = bytes_to_kb(pv->llc);
+    double mbr = bytes_to_mb(pv->mbm_remote_delta);
+    double mbl = bytes_to_mb(pv->mbm_local_delta);
+#ifdef LIBPQOS2
+    if (g_interface == PQOS_INTER_OS_RESCTRL_MON) {
+      DEBUG(RDT_PLUGIN ": [%s] %10.1f %10.1f %10.1f",
+            g_rdt->cores.cgroups[i].desc, llc, mbl, mbr);
+    } else {
+      DEBUG(RDT_PLUGIN ": [%s] %8u %10.1f %10.1f %10.1f",
+            g_rdt->cores.cgroups[i].desc, g_rdt->pcgroups[i]->poll_ctx[0].rmid,
+            llc, mbl, mbr);
+    }
+#else
+    DEBUG(RDT_PLUGIN ": [%s] %8u %10.1f %10.1f %10.1f",
+          g_rdt->cores.cgroups[i].desc, g_rdt->pcgroups[i]->poll_ctx[0].rmid,
+          llc, mbl, mbr);
+#endif /* LIBPQOS2 */
+  }
+}
+
+#ifdef LIBPQOS2
+static void rdt_dump_pids_data(void) {
+  /*
+   * NAME - monitored group of processes
+   * PIDs - list of PID numbers in the NAME group
+   * LLC - last level cache occupancy
+   * MBL - local memory bandwidth
+   * MBR - remote memory bandwidth
+   */
+
+  DEBUG(RDT_PLUGIN ":  NAME     PIDs");
+  char pids[DATA_MAX_NAME_LEN];
+  for (size_t i = 0; i < g_rdt->num_ngroups; ++i) {
+    memset(pids, 0, sizeof(pids));
+    for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
+      pids_list_t *list = g_rdt->ngroups[i].proc_pids_array[j].pids;
+      while (list != NULL) {
+        snprintf(pids + strlen(pids), sizeof(pids) - strlen(pids) - 1, " %u",
+                 list->pid);
+        list = list->next;
+      }
+    }
+    DEBUG(RDT_PLUGIN ":  [%s] %s", g_rdt->ngroups[i].desc, pids);
+  }
+
+  DEBUG(RDT_PLUGIN ":  NAME    LLC[KB]   MBL[MB]    MBR[MB]");
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
+
+    const struct pqos_event_values *pv = &g_rdt->pngroups[i]->values;
+
+    double llc = bytes_to_kb(pv->llc);
+    double mbr = bytes_to_mb(pv->mbm_remote_delta);
+    double mbl = bytes_to_mb(pv->mbm_local_delta);
+
+    DEBUG(RDT_PLUGIN ":  [%s] %10.1f %10.1f %10.1f", g_rdt->ngroups[i].desc,
+          llc, mbl, mbr);
+  }
+}
+#endif /* LIBPQOS2 */
+#endif /* COLLECT_DEBUG */
+
 #ifdef LIBPQOS2
 static int isdupstr(const char *names[], const size_t size, const char *name) {
   for (size_t i = 0; i < size; i++)
-    if (strncmp(names[i], name, (size_t)RDT_MAX_NAME_LEN) == 0)
+    if (strncmp(names[i], name, (size_t)MAX_PROC_NAME_LEN) == 0)
       return 1;
 
   return 0;
@@ -210,7 +368,7 @@ static int ngroup_cmp(const rdt_name_group_t *ng_a,
 
   for (size_t i = 0; i < sz_a; i++) {
     for (size_t j = 0; j < sz_b; j++)
-      if (strncmp(tab_a[i], tab_b[j], (size_t)RDT_MAX_NAME_LEN) == 0)
+      if (strncmp(tab_a[i], tab_b[j], (size_t)MAX_PROC_NAME_LEN) == 0)
         found++;
   }
   /* if no names are the same */
@@ -289,171 +447,6 @@ static int oconfig_to_ngroups(const oconfig_item_t *item,
 
   return index;
 }
-#endif /* LIBPQOS2 */
-
-#if COLLECT_DEBUG
-static void rdt_dump_cgroups(void) {
-  char cores[RDT_MAX_CORES * 4];
-
-  if (g_rdt == NULL)
-    return;
-
-  DEBUG(RDT_PLUGIN ": Core Groups Dump");
-  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->cores.num_cgroups);
-
-  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
-    core_group_t *cgroup = g_rdt->cores.cgroups + i;
-
-    memset(cores, 0, sizeof(cores));
-    for (size_t j = 0; j < cgroup->num_cores; j++) {
-      snprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
-               cgroup->cores[j]);
-    }
-
-    DEBUG(RDT_PLUGIN ":  group[%zu]:", i);
-    DEBUG(RDT_PLUGIN ":    description: %s", cgroup->desc);
-    DEBUG(RDT_PLUGIN ":    cores: %s", cores);
-    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->events[i]);
-  }
-
-  return;
-}
-
-#ifdef LIBPQOS2
-static void rdt_dump_ngroups(void) {
-
-  char names[DATA_MAX_NAME_LEN];
-
-  if (g_rdt == NULL)
-    return;
-
-  DEBUG(RDT_PLUGIN ": Process Names Groups Dump");
-  DEBUG(RDT_PLUGIN ":  groups count: %" PRIsz, g_rdt->num_ngroups);
-
-  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
-    memset(names, 0, sizeof(names));
-    for (size_t j = 0; j < g_rdt->ngroups[i].num_names; j++)
-      snprintf(names + strlen(names), sizeof(names) - strlen(names) - 1, " %s",
-               g_rdt->ngroups[i].names[j]);
-
-    DEBUG(RDT_PLUGIN ":  group[%d]:", (int)i);
-    DEBUG(RDT_PLUGIN ":    description: %s", g_rdt->ngroups[i].desc);
-    DEBUG(RDT_PLUGIN ":    process names:%s", names);
-    DEBUG(RDT_PLUGIN ":    events: 0x%X", g_rdt->ngroups[i].events);
-  }
-
-  return;
-}
-#endif /* LIBPQOS2 */
-
-static inline double bytes_to_kb(const double bytes) { return bytes / 1024.0; }
-
-static inline double bytes_to_mb(const double bytes) {
-  return bytes / (1024.0 * 1024.0);
-}
-
-static void rdt_dump_cores_data(void) {
-/*
- * CORE - monitored group of cores
- * RMID - Resource Monitoring ID associated with the monitored group
- *        This is not available for monitoring with resource control
- * LLC - last level cache occupancy
- * MBL - local memory bandwidth
- * MBR - remote memory bandwidth
- */
-#ifdef LIBPQOS2
-  if (g_interface == PQOS_INTER_OS_RESCTRL_MON) {
-    DEBUG(RDT_PLUGIN ":  CORE     LLC[KB]   MBL[MB]    MBR[MB]");
-  } else {
-    DEBUG(RDT_PLUGIN ":  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-  }
-#else
-  DEBUG(RDT_PLUGIN ":  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-#endif /* LIBPQOS2 */
-
-  for (size_t i = 0; i < g_rdt->cores.num_cgroups; i++) {
-    const struct pqos_event_values *pv = &g_rdt->pcgroups[i]->values;
-
-    double llc = bytes_to_kb(pv->llc);
-    double mbr = bytes_to_mb(pv->mbm_remote_delta);
-    double mbl = bytes_to_mb(pv->mbm_local_delta);
-#ifdef LIBPQOS2
-    if (g_interface == PQOS_INTER_OS_RESCTRL_MON) {
-      DEBUG(RDT_PLUGIN ": [%s] %10.1f %10.1f %10.1f",
-            g_rdt->cores.cgroups[i].desc, llc, mbl, mbr);
-    } else {
-      DEBUG(RDT_PLUGIN ": [%s] %8u %10.1f %10.1f %10.1f",
-            g_rdt->cores.cgroups[i].desc, g_rdt->pcgroups[i]->poll_ctx[0].rmid,
-            llc, mbl, mbr);
-    }
-#else
-    DEBUG(RDT_PLUGIN ": [%s] %8u %10.1f %10.1f %10.1f",
-          g_rdt->cores.cgroups[i].desc, g_rdt->pcgroups[i]->poll_ctx[0].rmid,
-          llc, mbl, mbr);
-#endif /* LIBPQOS2 */
-  }
-}
-
-#ifdef LIBPQOS2
-static void rdt_dump_pids_data(void) {
-  /*
-   * NAME - monitored group of processes
-   * PIDs - list of PID numbers in the NAME group
-   * LLC - last level cache occupancy
-   * MBL - local memory bandwidth
-   * MBR - remote memory bandwidth
-   */
-
-  DEBUG(RDT_PLUGIN ":  NAME     PIDs");
-  char pids[DATA_MAX_NAME_LEN];
-  for (size_t i = 0; i < g_rdt->num_ngroups; ++i) {
-    memset(pids, 0, sizeof(pids));
-    for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
-      pids_list_t *list = g_rdt->ngroups[i].proc_pids_array[j].pids;
-      while (list != NULL) {
-        snprintf(pids + strlen(pids), sizeof(pids) - strlen(pids) - 1, " %u",
-                 list->pid);
-        list = list->next;
-      }
-    }
-    DEBUG(RDT_PLUGIN ":  [%s] %s", g_rdt->ngroups[i].desc, pids);
-  }
-
-  DEBUG(RDT_PLUGIN ":  NAME    LLC[KB]   MBL[MB]    MBR[MB]");
-  for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
-
-    const struct pqos_event_values *pv = &g_rdt->pngroups[i]->values;
-
-    double llc = bytes_to_kb(pv->llc);
-    double mbr = bytes_to_mb(pv->mbm_remote_delta);
-    double mbl = bytes_to_mb(pv->mbm_local_delta);
-
-    DEBUG(RDT_PLUGIN ":  [%s] %10.1f %10.1f %10.1f", g_rdt->ngroups[i].desc,
-          llc, mbl, mbr);
-  }
-}
-#endif /* LIBPQOS2 */
-#endif /* COLLECT_DEBUG */
-
-static void rdt_free_cgroups(void) {
-  config_cores_cleanup(&g_rdt->cores);
-  for (int i = 0; i < RDT_MAX_CORES; i++) {
-    sfree(g_rdt->pcgroups[i]);
-  }
-}
-
-#ifdef LIBPQOS2
-static int pids_list_free(pids_list_t *list) {
-  assert(list);
-
-  pids_list_t *current = list;
-  while (current != NULL) {
-    pids_list_t *previous = current;
-    current = current->next;
-    sfree(previous);
-  }
-  return 0;
-}
 
 static void rdt_free_ngroups(rdt_ctx_t *rdt) {
   for (int i = 0; i < RDT_MAX_NAMES_GROUPS; i++) {
@@ -461,7 +454,6 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
       DEBUG(RDT_PLUGIN ": Freeing pids \'%s\' group\'s data...",
             rdt->ngroups[i].desc);
     sfree(rdt->ngroups[i].desc);
-
     strarray_free(rdt->ngroups[i].names, rdt->ngroups[i].num_names);
 
     if (rdt->ngroups[i].proc_pids_array) {
@@ -473,150 +465,11 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
 
       sfree(rdt->ngroups[i].proc_pids_array);
     }
-
     rdt->ngroups[i].num_names = 0;
     sfree(rdt->pngroups[i]);
   }
 }
-#endif /* LIBPQOS2 */
 
-static int rdt_default_cgroups(void) {
-  unsigned num_cores = g_rdt->pqos_cpu->num_cores;
-
-  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*g_rdt->cores.cgroups));
-  if (g_rdt->cores.cgroups == NULL) {
-    ERROR(RDT_PLUGIN ": Error allocating core groups array");
-    return -ENOMEM;
-  }
-  g_rdt->cores.num_cgroups = num_cores;
-
-  /* configure each core in separate group */
-  for (unsigned i = 0; i < num_cores; i++) {
-    core_group_t *cgroup = g_rdt->cores.cgroups + i;
-    char desc[DATA_MAX_NAME_LEN];
-
-    /* set core group info */
-    cgroup->cores = calloc(1, sizeof(*cgroup->cores));
-    if (cgroup->cores == NULL) {
-      ERROR(RDT_PLUGIN ": Error allocating cores array");
-      rdt_free_cgroups();
-      return -ENOMEM;
-    }
-    cgroup->num_cores = 1;
-    cgroup->cores[0] = i;
-
-    snprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
-    cgroup->desc = strdup(desc);
-    if (cgroup->desc == NULL) {
-      ERROR(RDT_PLUGIN ": Error allocating core group description");
-      rdt_free_cgroups();
-      return -ENOMEM;
-    }
-  }
-
-  return num_cores;
-}
-
-static int rdt_is_core_id_valid(unsigned int core_id) {
-
-  for (unsigned int i = 0; i < g_rdt->pqos_cpu->num_cores; i++)
-    if (core_id == g_rdt->pqos_cpu->cores[i].lcore)
-      return 1;
-
-  return 0;
-}
-
-#ifdef LIBPQOS2
-static int rdt_is_proc_name_valid(const char *name) {
-
-  if (name != NULL) {
-    unsigned len = strlen(name);
-    if (len > 0 && len <= RDT_MAX_NAME_LEN)
-      return 1;
-    else {
-      DEBUG(RDT_PLUGIN
-            ": Process name \'%s\' is too long. Max supported len is %d chars.",
-            name, RDT_MAX_NAME_LEN);
-    }
-  }
-
-  return 0;
-}
-#endif /* LIBPQOS2 */
-
-static int rdt_config_cgroups(oconfig_item_t *item) {
-  size_t n = 0;
-  enum pqos_mon_event events = 0;
-
-  if (config_cores_parse(item, &g_rdt->cores) < 0) {
-    rdt_free_cgroups();
-    ERROR(RDT_PLUGIN ": Error parsing core groups configuration.");
-    return -EINVAL;
-  }
-  n = g_rdt->cores.num_cgroups;
-
-  /* validate configured core id values */
-  for (size_t group_idx = 0; group_idx < n; group_idx++) {
-    core_group_t *cgroup = g_rdt->cores.cgroups + group_idx;
-    for (size_t core_idx = 0; core_idx < cgroup->num_cores; core_idx++) {
-      if (!rdt_is_core_id_valid(cgroup->cores[core_idx])) {
-        ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%u'",
-              cgroup->desc, cgroup->cores[core_idx]);
-        rdt_free_cgroups();
-        return -EINVAL;
-      }
-    }
-  }
-
-  if (n == 0) {
-    /* create default core groups if "Cores" config option is empty */
-    int ret = rdt_default_cgroups();
-    if (ret < 0) {
-      rdt_free_cgroups();
-      ERROR(RDT_PLUGIN ": Error creating default core groups configuration.");
-      return ret;
-    }
-    n = (size_t)ret;
-    INFO(RDT_PLUGIN
-         ": No core groups configured. Default core groups created.");
-  }
-
-  /* Get all available events on this platform */
-  for (unsigned int i = 0; i < g_rdt->cap_mon->u.mon->num_events; i++)
-    events |= g_rdt->cap_mon->u.mon->events[i].type;
-
-  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
-
-  DEBUG(RDT_PLUGIN ": Number of cores in the system: %u",
-        g_rdt->pqos_cpu->num_cores);
-  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
-
-  g_rdt->cores.num_cgroups = n;
-  for (int i = 0; i < n; i++) {
-    for (int j = 0; j < i; j++) {
-      int found = 0;
-      found = config_cores_cmp_cgroups(&g_rdt->cores.cgroups[j],
-                                       &g_rdt->cores.cgroups[i]);
-      if (found != 0) {
-        rdt_free_cgroups();
-        ERROR(RDT_PLUGIN ": Cannot monitor same cores in different groups.");
-        return -EINVAL;
-      }
-    }
-
-    g_rdt->events[i] = events;
-    g_rdt->pcgroups[i] = calloc(1, sizeof(*g_rdt->pcgroups[i]));
-    if (g_rdt->pcgroups[i] == NULL) {
-      rdt_free_cgroups();
-      ERROR(RDT_PLUGIN ": Failed to allocate memory for monitoring data.");
-      return -ENOMEM;
-    }
-  }
-
-  return 0;
-}
-
-#ifdef LIBPQOS2
 static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
   int n = 0;
   enum pqos_mon_event events = 0;
@@ -652,7 +505,7 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
          name_idx++) {
       DEBUG(RDT_PLUGIN ":    checking process name [%zu]: %s", name_idx,
             rdt->ngroups[group_idx].names[name_idx]);
-      if (!rdt_is_proc_name_valid(rdt->ngroups[group_idx].names[name_idx])) {
+      if (!is_proc_name_valid(rdt->ngroups[group_idx].names[name_idx])) {
         ERROR(RDT_PLUGIN ": Process name group '%s' contains invalid name '%s'",
               rdt->ngroups[group_idx].desc,
               rdt->ngroups[group_idx].names[name_idx]);
@@ -695,558 +548,6 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
             ": Failed to allocate memory for process name monitoring data.");
       return -ENOMEM;
     }
-  }
-
-  return 0;
-}
-
-/*
- * NAME
- *   pids_list_add_pid
- *
- * DESCRIPTION
- *   Adds pid at the end of the pids list.
- *   Allocates memory for new pid element, it is up to user to free it.
- *
- * PARAMETERS
- *   `list'     Head of target pids_list.
- *   `pid'      Pid to be added.
- *
- * RETURN VALUE
- *   On success, returns 0.
- *   -1 on memory allocation error.
- */
-static int pids_list_add_pid(pids_list_t **list, const pid_t pid) {
-  assert(list);
-
-  pids_list_t *new_element = calloc(1, sizeof(*new_element));
-
-  if (new_element == NULL) {
-    ERROR(RDT_PLUGIN ": Alloc error\n");
-    return -1;
-  }
-  new_element->pid = pid;
-  new_element->next = NULL;
-
-  pids_list_t **current = list;
-  while (*current != NULL) {
-    current = &((*current)->next);
-  }
-  *current = new_element;
-  return 0;
-}
-
-/*
- * NAME
- *   pids_list_contains_pid
- *
- * DESCRIPTION
- *   Tests if pids list contains specific pid.
- *
- * PARAMETERS
- *   `list'     Head of pids_list.
- *   `pid'      Pid to be searched for.
- *
- * RETURN VALUE
- *   If PID found in list, returns 1,
- *   Otherwise returns 0.
- */
-static int pids_list_contains_pid(pids_list_t *list, const pid_t pid) {
-  assert(list);
-
-  pids_list_t *current = list;
-  while (current != NULL) {
-    if (current->pid == pid)
-      return 1;
-    current = current->next;
-  }
-  return 0;
-}
-
-/*
- * NAME
- *   pids_list_add_pids_list
- *
- * DESCRIPTION
- *   Adds pids list at the end of the pids list.
- *   Allocates memory for new pid elements, it is up to user to free it.
- *   Increases dst_num by a number of added PIDs.
- *
- * PARAMETERS
- *   `dst'      Head of target PIDs list.
- *   `src'      Head of source PIDs list.
- *   `dst_num'  Variable to be increased by a number of appended PIDs.
- *
- * RETURN VALUE
- *   On success, returns 0.
- *   -1 on memory allocation error.
- */
-static int pids_list_add_pids_list(pids_list_t **dst, pids_list_t *src,
-                                   size_t *dst_num) {
-  assert(dst);
-  assert(src);
-  assert(dst_num);
-
-  pids_list_t *current = src;
-  int ret;
-
-  while (current != NULL) {
-    ret = pids_list_add_pid(dst, current->pid);
-    if (0 != ret)
-      return ret;
-
-    ++(*dst_num);
-    current = current->next;
-  }
-
-  return 0;
-}
-
-/*
- * NAME
- *   read_proc_name
- *
- * DESCRIPTION
- *   Reads process name from given pid directory.
- *   Strips new-line character (\n).
- *
- * PARAMETERS
- *   `procfs_path` Path to systems proc directory (e.g. /proc)
- *   `pid_entry'   Dirent for PID directory
- *   `name'        Output buffer for process name, recommended proc_comm.
- *   `out_size'    Output buffer size, recommended sizeof(proc_comm)
- *
- * RETURN VALUE
- *   On success, the number of read bytes (includes stripped \n).
- *   -1 on file open error
- */
-static int read_proc_name(const char *procfs_path,
-                          const struct dirent *pid_entry, char *name,
-                          const size_t out_size) {
-  assert(procfs_path);
-  assert(pid_entry);
-  assert(name);
-  assert(out_size);
-  memset(name, 0, out_size);
-
-  const char *comm_file_name = "comm";
-
-  char *path = ssnprintf_alloc("%s/%s/%s", procfs_path, pid_entry->d_name,
-                               comm_file_name);
-  if (path == NULL)
-    return -1;
-  FILE *f = fopen(path, "r");
-  if (f == NULL) {
-    ERROR(RDT_PLUGIN ": Failed to open comm file, error: %d\n", errno);
-    sfree(path);
-    return -1;
-  }
-  size_t read_length = fread(name, sizeof(char), out_size, f);
-  name[out_size - 1] = '\0';
-  fclose(f);
-  sfree(path);
-  /* strip new line ending */
-  char *newline = strchr(name, '\n');
-  if (newline) {
-    *newline = '\0';
-  }
-
-  return read_length;
-}
-
-/*
- * NAME
- *   get_pid_number
- *
- * DESCRIPTION
- *   Gets pid number for given /proc/pid directory entry or
- *   returns error if input directory does not hold PID information.
- *
- * PARAMETERS
- *   `entry'    Dirent for PID directory
- *   `pid'      PID number to be filled
- *
- * RETURN VALUE
- *   0 on success. -1 on error.
- */
-static int get_pid_number(struct dirent *entry, pid_t *pid) {
-  char *tmp_end; /* used for strtoul error check*/
-
-  if (pid == NULL || entry == NULL)
-    return -1;
-
-  if (entry->d_type != DT_DIR)
-    return -1;
-
-  /* trying to get pid number from directory name*/
-  *pid = strtoul(entry->d_name, &tmp_end, 10);
-  if (*tmp_end != '\0') {
-    return -1; /* conversion failed, not proc-pid */
-  }
-  /* all checks passed, marking as success */
-  return 0;
-}
-
-/*
- * NAME
- *   pids_list_to_array
- *
- * DESCRIPTION
- *   Copies element from list to array. Assumes the space for the array is
- *   allocated.
- *
- * PARAMETERS
- *   `array'      First element of target array
- *   `list'       Head of the list
- *   `array_length' Length (element count) of the target array
- */
-static void pids_list_to_array(pid_t *array, pids_list_t *list,
-                               const size_t array_length) {
-
-  assert(list);
-  assert(array);
-  assert(array_length > 0);
-
-  size_t current = 0;
-
-  while (list != NULL && current < array_length) {
-    array[current] = list->pid;
-    list = list->next;
-    ++current;
-  }
-}
-
-/*
- * NAME
- *   initialize_proc_pids
- *
- * DESCRIPTION
- *   Helper function to properly initialize array of proc_pids.
- *   Allocates memory for proc_pids structs.
- *
- * PARAMETERS
- *   `procs_names_array'      Array of null-terminated strings with
- *                            process' names to be copied to new array
- *   `procs_names_array_size' procs_names_array element count
- *   `proc_pids_array'        Address of pointer, under which new
- *                            array of proc_pids will be allocated.
- *                            Must be NULL.
- * RETURN VALUE
- *   0 on success. Negative number on error:
- *   -1: allocation error
- */
-static int initialize_proc_pids(const char **procs_names_array,
-                                const size_t procs_names_array_size,
-                                proc_pids_t **proc_pids_array) {
-
-  assert(proc_pids_array);
-  assert(NULL == *proc_pids_array);
-
-  /* Copy procs names to output array. Initialize pids list with NULL value. */
-  *proc_pids_array = calloc(procs_names_array_size, sizeof(**proc_pids_array));
-
-  if (NULL == *proc_pids_array)
-    return -1;
-
-  for (size_t i = 0; i < procs_names_array_size; ++i) {
-    sstrncpy((*proc_pids_array)[i].proccess_name, procs_names_array[i],
-             STATIC_ARRAY_SIZE((*proc_pids_array)[i].proccess_name));
-    (*proc_pids_array)[i].pids = NULL;
-  }
-
-  return 0;
-}
-
-/*
- * NAME
- *   fetch_pids_for_procs
- *
- * DESCRIPTION
- *   Finds PIDs matching given process's names.
- *   Searches all PID directories in /proc fs and
- *   allocates memory for proc_pids structs, it is up to user to free it.
- *   Output array will have same element count as input array.
- *
- * PARAMETERS
- *   `procfs_path'            Path to systems proc directory (e.g. /proc)
- *   `procs_names_array'      Array of null-terminated strings with
- *                            process' names to be copied to new array
- *   `procs_names_array_size' procs_names_array element count
- *   `proc_pids_array'        Address of pointer, under which new
- *                            array of proc_pids will be allocated.
- *                            Must be NULL.
- *
- * RETURN VALUE
- *   0 on success. -1 on error.
- */
-static int fetch_pids_for_procs(const char *procfs_path,
-                                const char **procs_names_array,
-                                const size_t procs_names_array_size,
-                                proc_pids_t **proc_pids_array) {
-  assert(procfs_path);
-  assert(procs_names_array);
-  assert(procs_names_array_size);
-
-  DIR *proc_dir = opendir(procfs_path);
-  if (proc_dir == NULL) {
-    ERROR(RDT_PLUGIN ": Could not open %s directory, error: %d", procfs_path,
-          errno);
-    return -1;
-  }
-
-  int init_result = initialize_proc_pids(
-      procs_names_array, procs_names_array_size, proc_pids_array);
-  if (0 != init_result)
-    return -1;
-
-  /* Go through procfs and find PIDS and their comms */
-  struct dirent *entry;
-  while ((entry = readdir(proc_dir)) != NULL) {
-
-    pid_t pid;
-    int pid_conversion = get_pid_number(entry, &pid);
-    if (pid_conversion < 0)
-      continue;
-
-    proc_comm_t comm;
-    int read_result =
-        read_proc_name(procfs_path, entry, comm, sizeof(proc_comm_t));
-    if (read_result <= 0) {
-      ERROR(RDT_PLUGIN ": Comm file skipped. Read result: %d", read_result);
-      continue;
-    }
-
-    /* Try to find comm in input procs array (proc_pids_array has same names) */
-    for (size_t i = 0; i < procs_names_array_size; ++i) {
-      if (0 == strncmp(comm, (*proc_pids_array)[i].proccess_name,
-                       STATIC_ARRAY_SIZE(comm)))
-        pids_list_add_pid(&((*proc_pids_array)[i].pids), pid);
-    }
-  }
-
-  int close_result = closedir(proc_dir);
-  if (0 != close_result) {
-    ERROR(RDT_PLUGIN ": failed to close %s directory, error: %d", procfs_path,
-          errno);
-    sfree(*proc_pids_array);
-    return -1;
-  }
-  return 0;
-}
-#endif /* LIBPQOS2 */
-
-static void rdt_pqos_log(void *context, const size_t size, const char *msg) {
-  DEBUG(RDT_PLUGIN ": %s", msg);
-}
-
-static int rdt_preinit(void) {
-  int ret;
-
-  if (g_rdt != NULL) {
-    /* already initialized if config callback was called before init callback */
-    return 0;
-  }
-
-  g_rdt = calloc(1, sizeof(*g_rdt));
-  if (g_rdt == NULL) {
-    ERROR(RDT_PLUGIN ": Failed to allocate memory for rdt context.");
-    return -ENOMEM;
-  }
-
-  struct pqos_config pqos = {.fd_log = -1,
-                             .callback_log = rdt_pqos_log,
-                             .context_log = NULL,
-                             .verbose = 0,
-#ifdef LIBPQOS2
-                             .interface = PQOS_INTER_OS_RESCTRL_MON};
-  DEBUG(RDT_PLUGIN ": Initializing PQoS with RESCTRL interface");
-#else
-                             .interface = PQOS_INTER_MSR};
-  DEBUG(RDT_PLUGIN ": Initializing PQoS with MSR interface");
-#endif
-
-  ret = pqos_init(&pqos);
-  DEBUG(RDT_PLUGIN ": PQoS initialization result: [%d]", ret);
-
-#ifdef LIBPQOS2
-  if (ret == PQOS_RETVAL_INTER) {
-    pqos.interface = PQOS_INTER_MSR;
-    DEBUG(RDT_PLUGIN ": Initializing PQoS with MSR interface");
-    ret = pqos_init(&pqos);
-    DEBUG(RDT_PLUGIN ": PQoS initialization result: [%d]", ret);
-  }
-#endif
-
-  if (ret != PQOS_RETVAL_OK) {
-    ERROR(RDT_PLUGIN ": Error initializing PQoS library!");
-    goto rdt_preinit_error1;
-  }
-
-  g_interface = pqos.interface;
-
-  ret = pqos_cap_get(&g_rdt->pqos_cap, &g_rdt->pqos_cpu);
-  if (ret != PQOS_RETVAL_OK) {
-    ERROR(RDT_PLUGIN ": Error retrieving PQoS capabilities.");
-    goto rdt_preinit_error2;
-  }
-
-  ret = pqos_cap_get_type(g_rdt->pqos_cap, PQOS_CAP_TYPE_MON, &g_rdt->cap_mon);
-  if (ret == PQOS_RETVAL_PARAM) {
-    ERROR(RDT_PLUGIN ": Error retrieving monitoring capabilities.");
-    goto rdt_preinit_error2;
-  }
-
-  if (g_rdt->cap_mon == NULL) {
-    ERROR(
-        RDT_PLUGIN
-        ": Monitoring capability not detected. Nothing to do for the plugin.");
-    goto rdt_preinit_error2;
-  }
-
-  /* Reset pqos monitoring groups registers */
-  pqos_mon_reset();
-
-  return 0;
-
-rdt_preinit_error2:
-  pqos_fini();
-
-rdt_preinit_error1:
-  sfree(g_rdt);
-
-  return -1;
-}
-
-static int rdt_config(oconfig_item_t *ci) {
-  if (rdt_preinit() != 0) {
-    g_state = CONFIGURATION_ERROR;
-    /* if we return -1 at this point collectd
-      reports a failure in configuration and
-      aborts
-    */
-    return (0);
-  }
-
-  for (int i = 0; i < ci->children_num; i++) {
-    oconfig_item_t *child = ci->children + i;
-
-    if (strncasecmp("Cores", child->key, (size_t)strlen("Cores")) == 0) {
-      if (rdt_config_cgroups(child) != 0) {
-        g_state = CONFIGURATION_ERROR;
-        /* if we return -1 at this point collectd
-           reports a failure in configuration and
-           aborts
-         */
-        return (0);
-      }
-
-#if COLLECT_DEBUG
-      rdt_dump_cgroups();
-#endif /* COLLECT_DEBUG */
-    } else if (strncasecmp("Processes", child->key,
-                           (size_t)strlen("Processes")) == 0) {
-#ifdef LIBPQOS2
-      if (g_interface != PQOS_INTER_OS_RESCTRL_MON) {
-        ERROR(RDT_PLUGIN ": Configuration parameter \"%s\" not supported. "
-                         "Resctrl monitoring is needed for PIDs monitoring.",
-              child->key);
-        g_state = CONFIGURATION_ERROR;
-        /* if we return -1 at this point collectd
-           reports a failure in configuration and
-           aborts
-         */
-        return 0;
-      }
-
-      if (rdt_config_ngroups(g_rdt, child) != 0) {
-        g_state = CONFIGURATION_ERROR;
-        /* if we return -1 at this point collectd
-           reports a failure in configuration and
-           aborts
-         */
-        return 0;
-      }
-
-#if COLLECT_DEBUG
-      rdt_dump_ngroups();
-#endif /* COLLECT_DEBUG */
-#else  /* !LIBPQOS2 */
-      ERROR(RDT_PLUGIN ": Configuration parameter \"%s\" not supported, please "
-                       "recompile collectd with libpqos version 2.0 or newer.",
-            child->key);
-#endif /* LIBPQOS2 */
-    } else {
-      ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
-    }
-  }
-
-  return 0;
-}
-
-static void rdt_submit_derive(const char *cgroup, const char *type,
-                              const char *type_instance, derive_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.derive = value};
-  vl.values_len = 1;
-
-  sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
-
-static void rdt_submit_gauge(const char *cgroup, const char *type,
-                             const char *type_instance, gauge_t value) {
-  value_list_t vl = VALUE_LIST_INIT;
-
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
-
-  sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
-  sstrncpy(vl.type, type, sizeof(vl.type));
-  if (type_instance)
-    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
-
-  plugin_dispatch_values(&vl);
-}
-
-#ifdef LIBPQOS2
-static int rdt_pid_list_diff(pids_list_t *prev, pids_list_t *curr,
-                             pids_list_t **added, size_t *added_num,
-                             pids_list_t **removed, size_t *removed_num) {
-  assert(prev || curr);
-  assert(added);
-  assert(removed);
-
-  if (NULL == prev) {
-    /* append all PIDs from curr to added*/
-    return pids_list_add_pids_list(added, curr, added_num);
-  } else if (NULL == curr) {
-    /* append all PIDs from prev to removed*/
-    return pids_list_add_pids_list(removed, prev, removed_num);
-  }
-
-  pids_list_t *item = prev;
-  while (item != NULL) {
-    if (0 == pids_list_contains_pid(curr, item->pid)) {
-      pids_list_add_pid(removed, item->pid);
-      ++(*removed_num);
-    }
-    item = item->next;
-  }
-
-  item = curr;
-  while (item != NULL) {
-    if (0 == pids_list_contains_pid(prev, item->pid)) {
-      pids_list_add_pid(added, item->pid);
-      ++(*added_num);
-    }
-    item = item->next;
   }
 
   return 0;
@@ -1296,7 +597,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     if (NULL == proc_pids_array_prev[i].pids &&
         NULL == proc_pids_array_curr[i].pids)
       continue;
-    int diff_result = rdt_pid_list_diff(
+    int diff_result = pids_list_diff(
         proc_pids_array_prev[i].pids, proc_pids_array_curr[i].pids, &new_pids,
         &new_pids_count, &lost_pids, &lost_pids_count);
     if (0 != diff_result) {
@@ -1569,6 +870,279 @@ static void rdt_init_pids_monitoring() {
 }
 #endif /* LIBPQOS2 */
 
+static void rdt_free_cgroups(void) {
+  config_cores_cleanup(&g_rdt->cores);
+  for (int i = 0; i < RDT_MAX_CORES; i++) {
+    sfree(g_rdt->pcgroups[i]);
+  }
+}
+
+static int rdt_default_cgroups(void) {
+  unsigned num_cores = g_rdt->pqos_cpu->num_cores;
+
+  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*(g_rdt->cores.cgroups)));
+  if (g_rdt->cores.cgroups == NULL) {
+    ERROR(RDT_PLUGIN ": Error allocating core groups array");
+    return -ENOMEM;
+  }
+  g_rdt->cores.num_cgroups = num_cores;
+
+  /* configure each core in separate group */
+  for (unsigned i = 0; i < num_cores; i++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + i;
+    char desc[DATA_MAX_NAME_LEN];
+
+    /* set core group info */
+    cgroup->cores = calloc(1, sizeof(*cgroup->cores));
+    if (cgroup->cores == NULL) {
+      ERROR(RDT_PLUGIN ": Error allocating cores array");
+      rdt_free_cgroups();
+      return -ENOMEM;
+    }
+    cgroup->num_cores = 1;
+    cgroup->cores[0] = i;
+
+    snprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
+    cgroup->desc = strdup(desc);
+    if (cgroup->desc == NULL) {
+      ERROR(RDT_PLUGIN ": Error allocating core group description");
+      rdt_free_cgroups();
+      return -ENOMEM;
+    }
+  }
+
+  return num_cores;
+}
+
+static int rdt_is_core_id_valid(unsigned int core_id) {
+
+  for (unsigned int i = 0; i < g_rdt->pqos_cpu->num_cores; i++)
+    if (core_id == g_rdt->pqos_cpu->cores[i].lcore)
+      return 1;
+
+  return 0;
+}
+
+static int rdt_config_cgroups(oconfig_item_t *item) {
+  size_t n = 0;
+  enum pqos_mon_event events = 0;
+
+  if (config_cores_parse(item, &g_rdt->cores) < 0) {
+    rdt_free_cgroups();
+    ERROR(RDT_PLUGIN ": Error parsing core groups configuration.");
+    return -EINVAL;
+  }
+  n = g_rdt->cores.num_cgroups;
+
+  /* validate configured core id values */
+  for (size_t group_idx = 0; group_idx < n; group_idx++) {
+    core_group_t *cgroup = g_rdt->cores.cgroups + group_idx;
+    for (size_t core_idx = 0; core_idx < cgroup->num_cores; core_idx++) {
+      if (!rdt_is_core_id_valid(cgroup->cores[core_idx])) {
+        ERROR(RDT_PLUGIN ": Core group '%s' contains invalid core id '%u'",
+              cgroup->desc, cgroup->cores[core_idx]);
+        rdt_free_cgroups();
+        return -EINVAL;
+      }
+    }
+  }
+
+  if (n == 0) {
+    /* create default core groups if "Cores" config option is empty */
+    int ret = rdt_default_cgroups();
+    if (ret < 0) {
+      rdt_free_cgroups();
+      ERROR(RDT_PLUGIN ": Error creating default core groups configuration.");
+      return ret;
+    }
+    n = (size_t)ret;
+    INFO(RDT_PLUGIN
+         ": No core groups configured. Default core groups created.");
+  }
+
+  /* Get all available events on this platform */
+  for (unsigned int i = 0; i < g_rdt->cap_mon->u.mon->num_events; i++)
+    events |= g_rdt->cap_mon->u.mon->events[i].type;
+
+  events &= ~(PQOS_PERF_EVENT_LLC_MISS);
+
+  DEBUG(RDT_PLUGIN ": Number of cores in the system: %u",
+        g_rdt->pqos_cpu->num_cores);
+  DEBUG(RDT_PLUGIN ": Available events to monitor: %#x", events);
+
+  g_rdt->cores.num_cgroups = n;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < i; j++) {
+      int found = 0;
+      found = config_cores_cmp_cgroups(&g_rdt->cores.cgroups[j],
+                                       &g_rdt->cores.cgroups[i]);
+      if (found != 0) {
+        rdt_free_cgroups();
+        ERROR(RDT_PLUGIN ": Cannot monitor same cores in different groups.");
+        return -EINVAL;
+      }
+    }
+
+    g_rdt->events[i] = events;
+    g_rdt->pcgroups[i] = calloc(1, sizeof(*g_rdt->pcgroups[i]));
+    if (g_rdt->pcgroups[i] == NULL) {
+      rdt_free_cgroups();
+      ERROR(RDT_PLUGIN ": Failed to allocate memory for monitoring data.");
+      return -ENOMEM;
+    }
+  }
+
+  return 0;
+}
+
+static void rdt_pqos_log(void *context, const size_t size, const char *msg) {
+  DEBUG(RDT_PLUGIN ": %s", msg);
+}
+
+static int rdt_preinit(void) {
+  int ret;
+
+  if (g_rdt != NULL) {
+    /* already initialized if config callback was called before init callback */
+    return 0;
+  }
+
+  g_rdt = calloc(1, sizeof(*g_rdt));
+  if (g_rdt == NULL) {
+    ERROR(RDT_PLUGIN ": Failed to allocate memory for rdt context.");
+    return -ENOMEM;
+  }
+
+  struct pqos_config pqos = {.fd_log = -1,
+                             .callback_log = rdt_pqos_log,
+                             .context_log = NULL,
+                             .verbose = 0,
+#ifdef LIBPQOS2
+                             .interface = PQOS_INTER_OS_RESCTRL_MON};
+  DEBUG(RDT_PLUGIN ": Initializing PQoS with RESCTRL interface");
+#else
+                             .interface = PQOS_INTER_MSR};
+  DEBUG(RDT_PLUGIN ": Initializing PQoS with MSR interface");
+#endif
+
+  ret = pqos_init(&pqos);
+  DEBUG(RDT_PLUGIN ": PQoS initialization result: [%d]", ret);
+
+#ifdef LIBPQOS2
+  if (ret == PQOS_RETVAL_INTER) {
+    pqos.interface = PQOS_INTER_MSR;
+    DEBUG(RDT_PLUGIN ": Initializing PQoS with MSR interface");
+    ret = pqos_init(&pqos);
+    DEBUG(RDT_PLUGIN ": PQoS initialization result: [%d]", ret);
+  }
+#endif
+
+  if (ret != PQOS_RETVAL_OK) {
+    ERROR(RDT_PLUGIN ": Error initializing PQoS library!");
+    goto rdt_preinit_error1;
+  }
+
+  g_interface = pqos.interface;
+
+  ret = pqos_cap_get(&g_rdt->pqos_cap, &g_rdt->pqos_cpu);
+  if (ret != PQOS_RETVAL_OK) {
+    ERROR(RDT_PLUGIN ": Error retrieving PQoS capabilities.");
+    goto rdt_preinit_error2;
+  }
+
+  ret = pqos_cap_get_type(g_rdt->pqos_cap, PQOS_CAP_TYPE_MON, &g_rdt->cap_mon);
+  if (ret == PQOS_RETVAL_PARAM) {
+    ERROR(RDT_PLUGIN ": Error retrieving monitoring capabilities.");
+    goto rdt_preinit_error2;
+  }
+
+  if (g_rdt->cap_mon == NULL) {
+    ERROR(
+        RDT_PLUGIN
+        ": Monitoring capability not detected. Nothing to do for the plugin.");
+    goto rdt_preinit_error2;
+  }
+
+  /* Reset pqos monitoring groups registers */
+  pqos_mon_reset();
+
+  return 0;
+
+rdt_preinit_error2:
+  pqos_fini();
+
+rdt_preinit_error1:
+  sfree(g_rdt);
+
+  return -1;
+}
+
+static int rdt_config(oconfig_item_t *ci) {
+  if (rdt_preinit() != 0) {
+    g_state = CONFIGURATION_ERROR;
+    /* if we return -1 at this point collectd
+      reports a failure in configuration and
+      aborts
+    */
+    return (0);
+  }
+
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+
+    if (strncasecmp("Cores", child->key, (size_t)strlen("Cores")) == 0) {
+      if (rdt_config_cgroups(child) != 0) {
+        g_state = CONFIGURATION_ERROR;
+        /* if we return -1 at this point collectd
+           reports a failure in configuration and
+           aborts
+         */
+        return (0);
+      }
+
+#if COLLECT_DEBUG
+      rdt_dump_cgroups();
+#endif /* COLLECT_DEBUG */
+    } else if (strncasecmp("Processes", child->key,
+                           (size_t)strlen("Processes")) == 0) {
+#ifdef LIBPQOS2
+      if (g_interface != PQOS_INTER_OS_RESCTRL_MON) {
+        ERROR(RDT_PLUGIN ": Configuration parameter \"%s\" not supported. "
+                         "Resctrl monitoring is needed for PIDs monitoring.",
+              child->key);
+        g_state = CONFIGURATION_ERROR;
+        /* if we return -1 at this point collectd
+           reports a failure in configuration and
+           aborts
+         */
+        return 0;
+      }
+
+      if (rdt_config_ngroups(g_rdt, child) != 0) {
+        g_state = CONFIGURATION_ERROR;
+        /* if we return -1 at this point collectd
+           reports a failure in configuration and
+           aborts
+         */
+        return 0;
+      }
+
+#if COLLECT_DEBUG
+      rdt_dump_ngroups();
+#endif /* COLLECT_DEBUG */
+#else  /* !LIBPQOS2 */
+      ERROR(RDT_PLUGIN ": Configuration parameter \"%s\" not supported, please "
+                       "recompile collectd with libpqos version 2.0 or newer.",
+            child->key);
+#endif /* LIBPQOS2 */
+    } else {
+      ERROR(RDT_PLUGIN ": Unknown configuration parameter \"%s\".", child->key);
+    }
+  }
+
+  return 0;
+}
+
 static int read_cores_data() {
 
   if (0 == g_rdt->cores.num_cgroups) {
@@ -1695,7 +1269,6 @@ static int rdt_shutdown(void) {
   ret = pqos_fini();
   if (ret != PQOS_RETVAL_OK)
     ERROR(RDT_PLUGIN ": Error shutting down PQoS library.");
-
   rdt_free_cgroups();
 #ifdef LIBPQOS2
   rdt_free_ngroups(g_rdt);
