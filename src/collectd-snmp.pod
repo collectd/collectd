@@ -10,23 +10,22 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
   # ...
   <Plugin snmp>
     <Data "powerplus_voltge_input">
-      Type "voltage"
       Table false
-      Instance "input_line1"
+      Type "voltage"
+      TypeInstance "input_line1"
       Scale 0.1
       Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
     </Data>
     <Data "hr_users">
-      Type "users"
       Table false
-      Instance ""
+      Type "users"
       Shift -1
       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
     </Data>
     <Data "std_traffic">
-      Type "if_octets"
       Table true
-      Instance "IF-MIB::ifDescr"
+      Type "if_octets"
+      TypeInstanceOID "IF-MIB::ifDescr"
       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
     </Data>
 
@@ -138,25 +137,67 @@ C<IF-MIB::ifHCInOctets> and C<IF-MIB::ifHCOutOctets>. But, this is because of
 the B<Type> setting, not the B<Table> setting.
 
 Since the semantic of B<Instance> and B<Values> depends on this setting you
-need to set it before setting them. Doing vice verse will result in undefined
+need to set it before setting them. Doing vice versa will result in undefined
 behavior.
+
+=item B<Plugin> I<Plugin>
+
+Use I<Plugin> as the plugin name of the values that are dispatched.
+Defaults to C<snmp>.
+
+=item B<PluginInstance> I<Instance>
+
+Sets the plugin-instance of the values that are dispatched to I<Instance> value.
+
+When B<Table> is set to I<true> and B<PluginInstanceOID> is set then this option
+has no effect.
+
+Defaults to an empty string.
+
+=item B<TypeInstance> I<Instance>
+
+Sets the type-instance of the values that are dispatched to I<Instance> value.
+
+When B<Table> is set to I<true> and B<TypeInstanceOID> is set then this option
+has no effect.
+
+Defaults to an empty string.
+
+=item B<TypeInstanceOID> I<OID>
+
+=item B<PluginInstanceOID> I<OID>
+
+If B<Table> is set to I<true>, I<OID> is interpreted as an SNMP-prefix that will
+return a list of values. Those values are then used as the actual type-instance
+or plugin-instance of dispatched metrics. An example would be the
+C<IF-MIB::ifDescr> subtree. L<variables(5)> from the SNMP distribution describes
+the format of OIDs. When set to empty string, then "SUBID" will be used as the
+instance.
+
+Prefix may be set for values with use of B<InstancePrefix> option.
+
+When B<Table> is set to I<false> these options has no effect.
+Only one of these options may be used in the same B<Data> block.
+
+Defaults:
+
+B<TypeInstanceOID> defaults to an empty string.
+
+B<PluginInstanceOID> is not configured.
 
 =item B<Instance> I<Instance>
 
-Sets the type-instance of the values that are dispatched. The meaning of this
-setting depends on whether B<Table> is set to I<true> or I<false>:
+Attention: this option exists for backwards compatibility only and will be
+removed in next major release. Please use B<TypeInstance> / B<TypeInstanceOID>
+instead.
 
-If B<Table> is set to I<true>, I<Instance> is interpreted as an SNMP-prefix
-that will return a list of values. Those values are then used as the actual
-type-instance. An example would be the C<IF-MIB::ifDescr> subtree.
-L<variables(5)> from the SNMP distribution describes the format of OIDs.
+The meaning of this setting depends on whether B<Table> is set to I<true> or
+I<false>.
 
-If B<Table> is set to I<true> and B<Instance> is omitted, then "SUBID" will be
-used as the instance.
+If B<Table> is set to I<true>, option behaves as B<TypeInstanceOID>.
+If B<Table> is set to I<false>, option behaves as B<TypeInstance>.
 
-If B<Table> is set to I<false> the actual string configured for I<Instance> is
-copied into the value-list. In this case I<Instance> may be empty, i.E<nbsp>e.
-"".
+Note what B<Table> option must be set before setting B<Instance>.
 
 =item B<InstancePrefix> I<String>
 
