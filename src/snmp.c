@@ -1100,61 +1100,34 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   return 0;
 } /* }}} int csnmp_strvbcopy */
 
-static int csnmp_instance_list_add(csnmp_cell_char_t **head,
-                                   csnmp_cell_char_t **tail,
-                                   const struct variable_list *vb,
-                                   const host_definition_t *hd,
-                                   const data_definition_t *dd) {
+static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
+                                              const host_definition_t *hd,
+                                              const data_definition_t *dd) {
 
   if (vb == NULL)
-    return -1;
-
-  oid_t vb_name;
-  csnmp_oid_init(&vb_name, vb->name, vb->name_length);
+    return NULL;
 
   csnmp_cell_char_t *il = calloc(1, sizeof(*il));
   if (il == NULL) {
     ERROR("snmp plugin: calloc failed.");
-    return -1;
+    return NULL;
   }
   il->next = NULL;
 
-  int status = csnmp_oid_suffix(&il->suffix, &vb_name, &dd->instance.oid);
-  if (status != 0) {
+  oid_t vb_name;
+  csnmp_oid_init(&vb_name, vb->name, vb->name_length);
+
+  if (csnmp_oid_suffix(&il->suffix, &vb_name, &dd->instance.oid) != 0) {
     sfree(il);
-    return status;
+    return NULL;
   }
 
-  /* Get instance name */
+  /* Get value */
   if ((vb->type == ASN_OCTET_STR) || (vb->type == ASN_BIT_STR) ||
       (vb->type == ASN_IPADDRESS)) {
-    char *ptr;
 
     csnmp_strvbcopy(il->value, vb, sizeof(il->value));
-    bool is_matched = 0;
-    for (uint32_t i = 0; i < dd->ignores_len; i++) {
-      status = fnmatch(dd->ignores[i], il->value, 0);
-      if (status == 0) {
-        if (!dd->invert_match) {
-          sfree(il);
-          return 0;
-        } else {
-          is_matched = 1;
-          break;
-        }
-      }
-    }
-    if (dd->invert_match && !is_matched) {
-      sfree(il);
-      return 0;
-    }
-    for (ptr = il->value; *ptr != '\0'; ptr++) {
-      if ((*ptr > 0) && (*ptr < 32))
-        *ptr = ' ';
-      else if (*ptr == '/')
-        *ptr = '_';
-    }
-    DEBUG("snmp plugin: il->instance = `%s';", il->value);
+
   } else {
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
@@ -1162,16 +1135,38 @@ static int csnmp_instance_list_add(csnmp_cell_char_t **head,
     snprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
   }
 
-  /* TODO: Debugging output */
+  return il;
+} /* csnmp_cell_char_t csnmp_get_char_cell */
 
+static void csnmp_cells_append(csnmp_cell_char_t **head,
+                               csnmp_cell_char_t **tail,
+                               csnmp_cell_char_t *il) {
   if (*head == NULL)
     *head = il;
   else
     (*tail)->next = il;
   *tail = il;
+} /* void csnmp_cells_append */
 
+static bool csnmp_ignore_instance(csnmp_cell_char_t *cell,
+                                  const data_definition_t *dd) {
+  bool is_matched = 0;
+  for (uint32_t i = 0; i < dd->ignores_len; i++) {
+    int status = fnmatch(dd->ignores[i], cell->value, 0);
+    if (status == 0) {
+      if (!dd->invert_match) {
+        return 1;
+      } else {
+        is_matched = 1;
+        break;
+      }
+    }
+  }
+  if (dd->invert_match && !is_matched) {
+    return 1;
+  }
   return 0;
-} /* int csnmp_instance_list_add */
+} /* bool csnmp_ignore_instance */
 
 static int csnmp_dispatch_table(host_definition_t *host,
                                 data_definition_t *data,
@@ -1537,12 +1532,27 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
         /* Allocate a new `csnmp_cell_char_t', insert the instance name and
          * add it to the list */
-        if (csnmp_instance_list_add(&instance_cells_head, &instance_cells_tail,
-                                    vb, host, data) != 0) {
-          ERROR("snmp plugin: host %s: csnmp_instance_list_add failed.",
+        csnmp_cell_char_t *cell = csnmp_get_char_cell(vb, host, data);
+        if (cell == NULL) {
+          ERROR("snmp plugin: host %s: csnmp_get_char_cell() failed.",
                 host->name);
           status = -1;
           break;
+        }
+
+        if (csnmp_ignore_instance(cell, data)) {
+          sfree(cell);
+        } else {
+          /**/
+          for (char *ptr = cell->value; *ptr != '\0'; ptr++) {
+            if ((*ptr > 0) && (*ptr < 32))
+              *ptr = ' ';
+            else if (*ptr == '/')
+              *ptr = '_';
+          }
+
+          DEBUG("snmp plugin: il->instance = `%s';", cell->value);
+          csnmp_cells_append(&instance_cells_head, &instance_cells_tail, cell);
         }
       } else if (oid_list_todo[i] == OID_TYPE_HOST) {
         /* todo */
