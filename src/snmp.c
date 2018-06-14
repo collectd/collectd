@@ -102,19 +102,19 @@ typedef struct host_definition_s host_definition_t;
 
 /* These two types are used to cache values in `csnmp_read_table' to handle
  * gaps in tables. */
-struct csnmp_list_instances_s {
+struct csnmp_cell_char_s {
   oid_t suffix;
-  char instance[DATA_MAX_NAME_LEN];
-  struct csnmp_list_instances_s *next;
+  char value[DATA_MAX_NAME_LEN];
+  struct csnmp_cell_char_s *next;
 };
-typedef struct csnmp_list_instances_s csnmp_list_instances_t;
+typedef struct csnmp_cell_char_s csnmp_cell_char_t;
 
-struct csnmp_table_values_s {
+struct csnmp_cell_value_s {
   oid_t suffix;
   value_t value;
-  struct csnmp_table_values_s *next;
+  struct csnmp_cell_value_s *next;
 };
-typedef struct csnmp_table_values_s csnmp_table_values_t;
+typedef struct csnmp_cell_value_s csnmp_cell_value_t;
 
 typedef enum {
   OID_TYPE_SKIP = 0,
@@ -1100,8 +1100,8 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   return 0;
 } /* }}} int csnmp_strvbcopy */
 
-static int csnmp_instance_list_add(csnmp_list_instances_t **head,
-                                   csnmp_list_instances_t **tail,
+static int csnmp_instance_list_add(csnmp_cell_char_t **head,
+                                   csnmp_cell_char_t **tail,
                                    const struct variable_list *vb,
                                    const host_definition_t *hd,
                                    const data_definition_t *dd) {
@@ -1112,7 +1112,7 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
   oid_t vb_name;
   csnmp_oid_init(&vb_name, vb->name, vb->name_length);
 
-  csnmp_list_instances_t *il = calloc(1, sizeof(*il));
+  csnmp_cell_char_t *il = calloc(1, sizeof(*il));
   if (il == NULL) {
     ERROR("snmp plugin: calloc failed.");
     return -1;
@@ -1130,10 +1130,10 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
       (vb->type == ASN_IPADDRESS)) {
     char *ptr;
 
-    csnmp_strvbcopy(il->instance, vb, sizeof(il->instance));
+    csnmp_strvbcopy(il->value, vb, sizeof(il->value));
     bool is_matched = 0;
     for (uint32_t i = 0; i < dd->ignores_len; i++) {
-      status = fnmatch(dd->ignores[i], il->instance, 0);
+      status = fnmatch(dd->ignores[i], il->value, 0);
       if (status == 0) {
         if (!dd->invert_match) {
           sfree(il);
@@ -1148,19 +1148,18 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
       sfree(il);
       return 0;
     }
-    for (ptr = il->instance; *ptr != '\0'; ptr++) {
+    for (ptr = il->value; *ptr != '\0'; ptr++) {
       if ((*ptr > 0) && (*ptr < 32))
         *ptr = ' ';
       else if (*ptr == '/')
         *ptr = '_';
     }
-    DEBUG("snmp plugin: il->instance = `%s';", il->instance);
+    DEBUG("snmp plugin: il->instance = `%s';", il->value);
   } else {
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    snprintf(il->instance, sizeof(il->instance), "%" PRIu64,
-             (uint64_t)val.counter);
+    snprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
   }
 
   /* TODO: Debugging output */
@@ -1176,13 +1175,13 @@ static int csnmp_instance_list_add(csnmp_list_instances_t **head,
 
 static int csnmp_dispatch_table(host_definition_t *host,
                                 data_definition_t *data,
-                                csnmp_list_instances_t *instance_list,
-                                csnmp_table_values_t **value_table) {
+                                csnmp_cell_char_t *instance_cells,
+                                csnmp_cell_value_t **value_cells) {
   const data_set_t *ds;
   value_list_t vl = VALUE_LIST_INIT;
 
-  csnmp_list_instances_t *instance_list_ptr;
-  csnmp_table_values_t *value_table_ptr[data->values_len];
+  csnmp_cell_char_t *instance_cell_ptr;
+  csnmp_cell_value_t *value_cell_ptr[data->values_len];
 
   size_t i;
   bool have_more;
@@ -1196,10 +1195,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
   assert(ds->ds_num == data->values_len);
   assert(data->values_len > 0);
 
-  instance_list_ptr = instance_list;
+  instance_cell_ptr = instance_cells;
 
   for (i = 0; i < data->values_len; i++)
-    value_table_ptr[i] = value_table[i];
+    value_cell_ptr[i] = value_cells[i];
 
   sstrncpy(vl.host, host->name, sizeof(vl.host));
   sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
@@ -1211,17 +1210,17 @@ static int csnmp_dispatch_table(host_definition_t *host,
     bool suffix_skipped = 0;
 
     /* Determine next suffix to handle. */
-    if (instance_list != NULL) {
-      if (instance_list_ptr == NULL) {
+    if (instance_cells != NULL) {
+      if (instance_cell_ptr == NULL) {
         have_more = 0;
         continue;
       }
 
-      memcpy(&current_suffix, &instance_list_ptr->suffix,
+      memcpy(&current_suffix, &instance_cell_ptr->suffix,
              sizeof(current_suffix));
     } else {
       /* no instance configured */
-      csnmp_table_values_t *ptr = value_table_ptr[0];
+      csnmp_cell_value_t *ptr = value_cell_ptr[0];
       if (ptr == NULL) {
         have_more = 0;
         continue;
@@ -1230,18 +1229,18 @@ static int csnmp_dispatch_table(host_definition_t *host,
       memcpy(&current_suffix, &ptr->suffix, sizeof(current_suffix));
     }
 
-    /* Update all the value_table_ptr to point at the entry with the same
+    /* Update all the value_cell_ptr to point at the entry with the same
      * trailing partial OID */
     for (i = 0; i < data->values_len; i++) {
       while (
-          (value_table_ptr[i] != NULL) &&
-          (csnmp_oid_compare(&value_table_ptr[i]->suffix, &current_suffix) < 0))
-        value_table_ptr[i] = value_table_ptr[i]->next;
+          (value_cell_ptr[i] != NULL) &&
+          (csnmp_oid_compare(&value_cell_ptr[i]->suffix, &current_suffix) < 0))
+        value_cell_ptr[i] = value_cell_ptr[i]->next;
 
-      if (value_table_ptr[i] == NULL) {
+      if (value_cell_ptr[i] == NULL) {
         have_more = 0;
         break;
-      } else if (csnmp_oid_compare(&value_table_ptr[i]->suffix,
+      } else if (csnmp_oid_compare(&value_cell_ptr[i]->suffix,
                                    &current_suffix) > 0) {
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
@@ -1255,26 +1254,26 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
     /* Matching the values failed. Start from the beginning again. */
     if (suffix_skipped) {
-      if (instance_list != NULL)
-        instance_list_ptr = instance_list_ptr->next;
+      if (instance_cells != NULL)
+        instance_cell_ptr = instance_cell_ptr->next;
       else
-        value_table_ptr[0] = value_table_ptr[0]->next;
+        value_cell_ptr[0] = value_cell_ptr[0]->next;
 
       continue;
     }
 
-/* if we reach this line, all value_table_ptr[i] are non-NULL and are set
- * to the same subid. instance_list_ptr is either NULL or points to the
+/* if we reach this line, all value_cell_ptr[i] are non-NULL and are set
+ * to the same subid. instance_cell_ptr is either NULL or points to the
  * same subid, too. */
 #if COLLECT_DEBUG
     for (i = 1; i < data->values_len; i++) {
-      assert(value_table_ptr[i] != NULL);
-      assert(csnmp_oid_compare(&value_table_ptr[i - 1]->suffix,
-                               &value_table_ptr[i]->suffix) == 0);
+      assert(value_cell_ptr[i] != NULL);
+      assert(csnmp_oid_compare(&value_cell_ptr[i - 1]->suffix,
+                               &value_cell_ptr[i]->suffix) == 0);
     }
-    assert((instance_list_ptr == NULL) ||
-           (csnmp_oid_compare(&instance_list_ptr->suffix,
-                              &value_table_ptr[0]->suffix) == 0));
+    assert((instance_cell_ptr == NULL) ||
+           (csnmp_oid_compare(&instance_cell_ptr->suffix,
+                              &value_cell_ptr[0]->suffix) == 0));
 #endif
 
     sstrncpy(vl.type, data->type, sizeof(vl.type));
@@ -1282,10 +1281,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
     {
       char temp[DATA_MAX_NAME_LEN];
 
-      if (instance_list_ptr == NULL)
+      if (instance_cell_ptr == NULL)
         csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
       else
-        sstrncpy(temp, instance_list_ptr->instance, sizeof(temp));
+        sstrncpy(temp, instance_cell_ptr->value, sizeof(temp));
 
       if (data->instance.is_plugin) {
         if (data->instance_prefix == NULL)
@@ -1315,7 +1314,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
     vl.values = values;
 
     for (i = 0; i < data->values_len; i++)
-      vl.values[i] = value_table_ptr[i]->value;
+      vl.values[i] = value_cell_ptr[i]->value;
 
     plugin_dispatch_values(&vl);
 
@@ -1323,10 +1322,10 @@ static int csnmp_dispatch_table(host_definition_t *host,
     vl.values_len = 0;
     vl.values = NULL;
 
-    if (instance_list != NULL)
-      instance_list_ptr = instance_list_ptr->next;
+    if (instance_cells != NULL)
+      instance_cell_ptr = instance_cell_ptr->next;
     else
-      value_table_ptr[0] = value_table_ptr[0]->next;
+      value_cell_ptr[0] = value_cell_ptr[0]->next;
   } /* while (have_more) */
 
   return (0);
@@ -1354,14 +1353,14 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   int status;
   size_t i;
 
-  /* `value_list_head' and `value_list_tail' implement a linked list for each
-   * value. `instance_list_head' and `instance_list_tail' implement a linked
+  /* `value_list_head' and `value_cells_tail' implement a linked list for each
+   * value. `instance_cells_head' and `instance_cells_tail' implement a linked
    * list of
    * instance names. This is used to jump gaps in the table. */
-  csnmp_list_instances_t *instance_list_head;
-  csnmp_list_instances_t *instance_list_tail;
-  csnmp_table_values_t **value_list_head;
-  csnmp_table_values_t **value_list_tail;
+  csnmp_cell_char_t *instance_cells_head;
+  csnmp_cell_char_t *instance_cells_tail;
+  csnmp_cell_value_t **value_cells_head;
+  csnmp_cell_value_t **value_cells_tail;
 
   DEBUG("snmp plugin: csnmp_read_table (host = %s, data = %s)", host->name,
         data->name);
@@ -1398,19 +1397,19 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   }
 
   /* We're going to construct n linked lists, one for each "value".
-   * value_list_head will contain pointers to the heads of these linked lists,
-   * value_list_tail will contain pointers to the tail of the lists. */
-  value_list_head = calloc(data->values_len, sizeof(*value_list_head));
-  value_list_tail = calloc(data->values_len, sizeof(*value_list_tail));
-  if ((value_list_head == NULL) || (value_list_tail == NULL)) {
+   * value_cells_head will contain pointers to the heads of these linked lists,
+   * value_cells_tail will contain pointers to the tail of the lists. */
+  value_cells_head = calloc(data->values_len, sizeof(*value_cells_head));
+  value_cells_tail = calloc(data->values_len, sizeof(*value_cells_tail));
+  if ((value_cells_head == NULL) || (value_cells_tail == NULL)) {
     ERROR("snmp plugin: csnmp_read_table: calloc failed.");
-    sfree(value_list_head);
-    sfree(value_list_tail);
+    sfree(value_cells_head);
+    sfree(value_cells_tail);
     return -1;
   }
 
-  instance_list_head = NULL;
-  instance_list_tail = NULL;
+  instance_cells_head = NULL;
+  instance_cells_tail = NULL;
 
   status = 0;
   while (status == 0) {
@@ -1536,9 +1535,9 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
           continue;
         }
 
-        /* Allocate a new `csnmp_list_instances_t', insert the instance name and
+        /* Allocate a new `csnmp_cell_char_t', insert the instance name and
          * add it to the list */
-        if (csnmp_instance_list_add(&instance_list_head, &instance_list_tail,
+        if (csnmp_instance_list_add(&instance_cells_head, &instance_cells_tail,
                                     vb, host, data) != 0) {
           ERROR("snmp plugin: host %s: csnmp_instance_list_add failed.",
                 host->name);
@@ -1552,7 +1551,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       {
         assert(oid_list_todo[i] == OID_TYPE_VARIABLE);
 
-        csnmp_table_values_t *vt;
+        csnmp_cell_value_t *vt;
         oid_t vb_name;
         oid_t suffix;
         int ret;
@@ -1577,8 +1576,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
         /* Make sure the OIDs returned by the agent are increasing. Otherwise
          * our table matching algorithm will get confused. */
-        if ((value_list_tail[i] != NULL) &&
-            (csnmp_oid_compare(&suffix, &value_list_tail[i]->suffix) <= 0)) {
+        if ((value_cells_tail[i] != NULL) &&
+            (csnmp_oid_compare(&suffix, &value_cells_tail[i]->suffix) <= 0)) {
           DEBUG("snmp plugin: host = %s; data = %s; i = %" PRIsz "; "
                 "Suffix is not increasing.",
                 host->name, data->name, i);
@@ -1599,11 +1598,11 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         memcpy(&vt->suffix, &suffix, sizeof(vt->suffix));
         vt->next = NULL;
 
-        if (value_list_tail[i] == NULL)
-          value_list_head[i] = vt;
+        if (value_cells_tail[i] == NULL)
+          value_cells_head[i] = vt;
         else
-          value_list_tail[i]->next = vt;
-        value_list_tail[i] = vt;
+          value_cells_tail[i]->next = vt;
+        value_cells_tail[i] = vt;
       }
 
       /* Copy OID to oid_list[i] */
@@ -1622,25 +1621,25 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   res = NULL;
 
   if (status == 0)
-    csnmp_dispatch_table(host, data, instance_list_head, value_list_head);
+    csnmp_dispatch_table(host, data, instance_cells_head, value_cells_head);
 
   /* Free all allocated variables here */
-  while (instance_list_head != NULL) {
-    csnmp_list_instances_t *next = instance_list_head->next;
-    sfree(instance_list_head);
-    instance_list_head = next;
+  while (instance_cells_head != NULL) {
+    csnmp_cell_char_t *next = instance_cells_head->next;
+    sfree(instance_cells_head);
+    instance_cells_head = next;
   }
 
   for (i = 0; i < data->values_len; i++) {
-    while (value_list_head[i] != NULL) {
-      csnmp_table_values_t *next = value_list_head[i]->next;
-      sfree(value_list_head[i]);
-      value_list_head[i] = next;
+    while (value_cells_head[i] != NULL) {
+      csnmp_cell_value_t *next = value_cells_head[i]->next;
+      sfree(value_cells_head[i]);
+      value_cells_head[i] = next;
     }
   }
 
-  sfree(value_list_head);
-  sfree(value_list_tail);
+  sfree(value_cells_head);
+  sfree(value_cells_tail);
 
   return 0;
 } /* int csnmp_read_table */
