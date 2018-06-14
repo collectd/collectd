@@ -896,8 +896,8 @@ static void csnmp_host_open_session(host_definition_t *host) {
 
 /* TODO: Check if negative values wrap around. Problem: negative temperatures.
  */
-static value_t csnmp_value_list_to_value(struct variable_list *vl, int type,
-                                         double scale, double shift,
+static value_t csnmp_value_list_to_value(const struct variable_list *vl,
+                                         int type, double scale, double shift,
                                          const char *host_name,
                                          const char *data_name) {
   value_t ret;
@@ -1102,31 +1102,24 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
 
 static int csnmp_instance_list_add(csnmp_list_instances_t **head,
                                    csnmp_list_instances_t **tail,
-                                   const struct snmp_pdu *res,
+                                   const struct variable_list *vb,
                                    const host_definition_t *hd,
                                    const data_definition_t *dd) {
-  csnmp_list_instances_t *il;
-  struct variable_list *vb;
-  oid_t vb_name;
-  int status;
 
-  /* Set vb on the last variable */
-  for (vb = res->variables; (vb != NULL) && (vb->next_variable != NULL);
-       vb = vb->next_variable)
-    /* do nothing */;
   if (vb == NULL)
     return -1;
 
+  oid_t vb_name;
   csnmp_oid_init(&vb_name, vb->name, vb->name_length);
 
-  il = calloc(1, sizeof(*il));
+  csnmp_list_instances_t *il = calloc(1, sizeof(*il));
   if (il == NULL) {
     ERROR("snmp plugin: calloc failed.");
     return -1;
   }
   il->next = NULL;
 
-  status = csnmp_oid_suffix(&il->suffix, &vb_name, &dd->instance.oid);
+  int status = csnmp_oid_suffix(&il->suffix, &vb_name, &dd->instance.oid);
   if (status != 0) {
     sfree(il);
     return status;
@@ -1546,7 +1539,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         /* Allocate a new `csnmp_list_instances_t', insert the instance name and
          * add it to the list */
         if (csnmp_instance_list_add(&instance_list_head, &instance_list_tail,
-                                    res, host, data) != 0) {
+                                    vb, host, data) != 0) {
           ERROR("snmp plugin: host %s: csnmp_instance_list_add failed.",
                 host->name);
           status = -1;
