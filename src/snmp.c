@@ -1576,8 +1576,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         }
 
         /* Make sure the OIDs returned by the agent are increasing. Otherwise
-         * our
-         * table matching algorithm will get confused. */
+         * our table matching algorithm will get confused. */
         if ((value_list_tail[i] != NULL) &&
             (csnmp_oid_compare(&suffix, &value_list_tail[i]->suffix) <= 0)) {
           DEBUG("snmp plugin: host = %s; data = %s; i = %" PRIsz "; "
