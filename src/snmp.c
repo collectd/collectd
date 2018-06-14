@@ -116,6 +116,13 @@ struct csnmp_table_values_s {
 };
 typedef struct csnmp_table_values_s csnmp_table_values_t;
 
+typedef enum {
+  OID_TYPE_SKIP = 0,
+  OID_TYPE_VARIABLE,
+  OID_TYPE_INSTANCE,
+  OID_TYPE_HOST,
+} csnmp_oid_type_t;
+
 /*
  * Private variables
  */
@@ -1339,13 +1346,17 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
   const data_set_t *ds;
 
-  size_t oid_list_len = data->values_len + 1;
+  size_t oid_list_len = data->values_len;
+
+  if (data->instance.oid.oid_len > 0)
+    oid_list_len++;
+
   /* Holds the last OID returned by the device. We use this in the GETNEXT
    * request to proceed. */
   oid_t oid_list[oid_list_len];
   /* Set to false when an OID has left its subtree so we don't re-request it
    * again. */
-  bool oid_list_todo[oid_list_len];
+  csnmp_oid_type_t oid_list_todo[oid_list_len];
 
   int status;
   size_t i;
@@ -1382,15 +1393,16 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   }
   assert(data->values_len > 0);
 
+  for (i = 0; i < data->values_len; i++)
+    oid_list_todo[i] = OID_TYPE_VARIABLE;
+
   /* We need a copy of all the OIDs, because GETNEXT will destroy them. */
   memcpy(oid_list, data->values, data->values_len * sizeof(oid_t));
-  if (data->instance.oid.oid_len > 0)
-    memcpy(oid_list + data->values_len, &data->instance.oid, sizeof(oid_t));
-  else /* no InstanceFrom option specified. */
-    oid_list_len--;
 
-  for (i = 0; i < oid_list_len; i++)
-    oid_list_todo[i] = 1;
+  if (data->instance.oid.oid_len > 0) {
+    memcpy(oid_list + i, &data->instance.oid, sizeof(oid_t));
+    oid_list_todo[i] = OID_TYPE_INSTANCE;
+  }
 
   /* We're going to construct n linked lists, one for each "value".
    * value_list_head will contain pointers to the heads of these linked lists,
@@ -1519,8 +1531,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       }
 
       /* An instance is configured and the res variable we process is the
-       * instance value (last index) */
-      if ((data->instance.oid.oid_len > 0) && (i == data->values_len)) {
+       * instance value */
+      if (oid_list_todo[i] == OID_TYPE_INSTANCE) {
         if ((vb->type == SNMP_ENDOFMIBVIEW) ||
             (snmp_oid_ncompare(
                  data->instance.oid.oid, data->instance.oid.oid_len, vb->name,
@@ -1540,14 +1552,24 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
           status = -1;
           break;
         }
+      } else if (oid_list_todo[i] == OID_TYPE_HOST) {
+        /* todo */
+        assert(1 == 0);
       } else /* The variable we are processing is a normal value */
       {
+        assert(oid_list_todo[i] == OID_TYPE_VARIABLE);
+
         csnmp_table_values_t *vt;
         oid_t vb_name;
         oid_t suffix;
         int ret;
 
         csnmp_oid_init(&vb_name, vb->name, vb->name_length);
+
+        DEBUG(
+            "snmp plugin: src.oid_len = %d root.oid_len = %d is_endofmib = %s",
+            vb_name.oid_len, (data->values + i)->oid_len,
+            (vb->type == SNMP_ENDOFMIBVIEW) ? "true" : "false");
 
         /* Calculate the current suffix. This is later used to check that the
          * suffix is increasing. This also checks if we left the subtree */
