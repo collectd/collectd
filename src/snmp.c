@@ -434,8 +434,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
       }
     } else if (strcasecmp("InstancePrefix", option->key) == 0) {
       WARNING("snmp plugin: data %s: Option `InstancePrefix' is deprecated, "
-              "please use "
-              "option `TypeInstancePrefix'.",
+              "please use option `TypeInstancePrefix'.",
               dd->name);
       status = cf_util_get_string(option, &dd->type_instance.prefix);
     } else if (strcasecmp("PluginInstance", option->key) == 0)
@@ -487,7 +486,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
   while (status == 0) {
     if (dd->is_table) {
       /* Set type_instance to SUBID by default */
-      if (!dd->type_instance.configured && !dd->host.configured)
+      if (!dd->plugin_instance.configured && !dd->host.configured)
         dd->type_instance.configured = true;
 
       if (dd->plugin_instance.value && dd->plugin_instance.configured) {
@@ -611,7 +610,7 @@ static int csnmp_config_add_host_version(host_definition_t *hd,
   hd->version = version;
 
   return 0;
-} /* int csnmp_config_add_host_address */
+} /* int csnmp_config_add_host_version */
 
 static int csnmp_config_add_host_collect(host_definition_t *host,
                                          oconfig_item_t *ci) {
@@ -1279,7 +1278,7 @@ static void csnmp_cell_replace_reserved_chars(csnmp_cell_char_t *cell) {
     else if (*ptr == '/')
       *ptr = '_';
   }
-}
+} /* void csnmp_cell_replace_reserved_chars */
 
 static int csnmp_dispatch_table(host_definition_t *host,
                                 data_definition_t *data,
@@ -1313,6 +1312,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
     value_cell_ptr[i] = value_cells[i];
 
   sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
+  sstrncpy(vl.type, data->type, sizeof(vl.type));
 
   vl.interval = host->interval;
 
@@ -1460,6 +1460,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
                               &value_cell_ptr[0]->suffix) == 0));
 #endif
 
+    /* Check the value in filter column */
     if (filter_cell_ptr &&
         ignorelist_match(data->ignorelist, filter_cell_ptr->value) != 0) {
       if (type_instance_cells != NULL)
@@ -1470,57 +1471,56 @@ static int csnmp_dispatch_table(host_definition_t *host,
       continue;
     }
 
-    sstrncpy(vl.type, data->type, sizeof(vl.type));
+    /* set vl.host */
+    if (data->host.configured) {
+      char temp[DATA_MAX_NAME_LEN];
+      if (hostname_cell_ptr == NULL)
+        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+      else
+        sstrncpy(temp, hostname_cell_ptr->value, sizeof(temp));
 
-    {
-      if (data->host.configured) {
-        char temp[DATA_MAX_NAME_LEN];
-        if (hostname_cell_ptr == NULL)
-          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-        else
-          sstrncpy(temp, hostname_cell_ptr->value, sizeof(temp));
+      if (data->host.prefix == NULL)
+        sstrncpy(vl.host, temp, sizeof(vl.host));
+      else
+        snprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
+    } else {
+      sstrncpy(vl.host, host->name, sizeof(vl.host));
+    }
 
-        if (data->host.prefix == NULL)
-          sstrncpy(vl.host, temp, sizeof(vl.host));
-        else
-          snprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
-      } else {
-        sstrncpy(vl.host, host->name, sizeof(vl.host));
-      }
+    /* set vl.type_instance */
+    if (data->type_instance.configured) {
+      char temp[DATA_MAX_NAME_LEN];
+      if (type_instance_cell_ptr == NULL)
+        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+      else
+        sstrncpy(temp, type_instance_cell_ptr->value, sizeof(temp));
 
-      if (data->type_instance.configured) {
-        char temp[DATA_MAX_NAME_LEN];
-        if (type_instance_cell_ptr == NULL)
-          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-        else
-          sstrncpy(temp, type_instance_cell_ptr->value, sizeof(temp));
+      if (data->type_instance.prefix == NULL)
+        sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
+      else
+        snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
+                 data->type_instance.prefix, temp);
+    } else if (data->type_instance.value) {
+      sstrncpy(vl.type_instance, data->type_instance.value,
+               sizeof(vl.type_instance));
+    }
 
-        if (data->type_instance.prefix == NULL)
-          sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
-        else
-          snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                   data->type_instance.prefix, temp);
-      } else if (data->type_instance.value) {
-        sstrncpy(vl.type_instance, data->type_instance.value,
-                 sizeof(vl.type_instance));
-      }
+    /* set vl.plugin_instance */
+    if (data->plugin_instance.configured) {
+      char temp[DATA_MAX_NAME_LEN];
+      if (plugin_instance_cell_ptr == NULL)
+        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+      else
+        sstrncpy(temp, plugin_instance_cell_ptr->value, sizeof(temp));
 
-      if (data->plugin_instance.configured) {
-        char temp[DATA_MAX_NAME_LEN];
-        if (plugin_instance_cell_ptr == NULL)
-          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-        else
-          sstrncpy(temp, plugin_instance_cell_ptr->value, sizeof(temp));
-
-        if (data->plugin_instance.prefix == NULL)
-          sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
-        else
-          snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
-                   data->plugin_instance.prefix, temp);
-      } else if (data->plugin_instance.value) {
-        sstrncpy(vl.plugin_instance, data->plugin_instance.value,
-                 sizeof(vl.plugin_instance));
-      }
+      if (data->plugin_instance.prefix == NULL)
+        sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
+      else
+        snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
+                 data->plugin_instance.prefix, temp);
+    } else if (data->plugin_instance.value) {
+      sstrncpy(vl.plugin_instance, data->plugin_instance.value,
+               sizeof(vl.plugin_instance));
     }
 
     vl.values_len = data->values_len;
@@ -1892,11 +1892,6 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         int ret;
 
         csnmp_oid_init(&vb_name, vb->name, vb->name_length);
-
-        DEBUG("snmp plugin: src.oid_len = %" PRIsz " root.oid_len = %" PRIsz
-              " is_endofmib = %s",
-              vb_name.oid_len, (data->values + i)->oid_len,
-              (vb->type == SNMP_ENDOFMIBVIEW) ? "true" : "false");
 
         /* Calculate the current suffix. This is later used to check that the
          * suffix is increasing. This also checks if we left the subtree */
