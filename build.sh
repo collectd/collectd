@@ -100,7 +100,7 @@ build_cygwin()
           net_if \
           poll \
           recv \
-              regex \
+          regex \
           sendto \
           setlocale \
           strtok_r \
