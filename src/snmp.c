@@ -1364,8 +1364,6 @@ static int csnmp_dispatch_table(host_definition_t *host,
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
-        NOTICE("snmp plugin: suffix skipped, variable not found for "
-               "TypeInstanceOID.");
       }
     }
 
@@ -1385,7 +1383,6 @@ static int csnmp_dispatch_table(host_definition_t *host,
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
-        NOTICE("snmp plugin: suffix skipped, variable not found for HostOID.");
       }
     }
 
@@ -1404,7 +1401,6 @@ static int csnmp_dispatch_table(host_definition_t *host,
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
-        NOTICE("snmp plugin: suffix skipped, variable not found for HostOID.");
       }
     }
 
@@ -1424,8 +1420,6 @@ static int csnmp_dispatch_table(host_definition_t *host,
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
-        NOTICE(
-            "snmp plugin: suffix skipped, variable not found for Value OID.");
         break;
       }
     } /* for (i = 0; i < columns; i++) */
