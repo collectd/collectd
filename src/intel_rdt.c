@@ -83,15 +83,35 @@ pqos_mon_remove_pids(const unsigned num_pids, const pid_t *pids, void *context,
 #define RDT_MAX_NAME_LEN 16
 #define RDT_MAX_NAMES_GROUPS 64
 
+#define RDT_PROC_PATH "/proc"
+
 typedef enum {
   UNKNOWN = 0,
   CONFIGURATION_ERROR,
 } rdt_config_status;
 
+/* Helper typedef for process name array
+ * Extra 1 char is added for string null termination.
+ */
+typedef char proc_comm_t[RDT_MAX_NAME_LEN + 1];
+
+/* Linked one-way list of pids. */
+typedef struct pids_list_s {
+  pid_t pid;
+  struct pids_list_s *next;
+} pids_list_t;
+
+/* Holds process name and list of pids assigned to that name */
+typedef struct proc_pids_s {
+  proc_comm_t proccess_name;
+  pids_list_t *pids;
+} proc_pids_t;
+
 struct rdt_name_group_s {
   char *desc;
   size_t num_names;
   char **names;
+  proc_pids_t *proc_pids_array;
   enum pqos_mon_event events;
 };
 typedef struct rdt_name_group_s rdt_name_group_t;
@@ -261,6 +281,8 @@ static int oconfig_to_ngroups(const oconfig_item_t *item,
       return -ENOMEM;
     }
 
+    groups[index].proc_pids_array = NULL;
+
     index++;
 
     if (index >= (const int)max_groups) {
@@ -353,6 +375,21 @@ static void rdt_dump_data(void) {
           g_rdt->pcgroups[i]->poll_ctx[0].rmid, llc, mbl, mbr);
   }
 
+  DEBUG("  NAME     PIDs");
+  char pids[DATA_MAX_NAME_LEN];
+  for (size_t i = 0; i < g_rdt->num_ngroups; ++i) {
+    memset(pids, 0, sizeof(pids));
+    for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
+      pids_list_t *list = g_rdt->ngroups[i].proc_pids_array[j].pids;
+      while (list != NULL) {
+        snprintf(pids + strlen(pids), sizeof(pids) - strlen(pids) - 1, " %u",
+                 list->pid);
+        list = list->next;
+      }
+    }
+    DEBUG(" [%s] %s", g_rdt->ngroups[i].desc, pids);
+  }
+
   DEBUG("  NAME     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
   for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
 
@@ -378,10 +415,35 @@ static void rdt_free_cgroups(void) {
   }
 }
 
+static int pids_list_free(pids_list_t *list) {
+  assert(list);
+
+  pids_list_t *current = list;
+  while (current != NULL) {
+    pids_list_t *previous = current;
+    current = current->next;
+    sfree(previous);
+  }
+  return 0;
+}
+
 static void rdt_free_ngroups(void) {
   for (int i = 0; i < RDT_MAX_NAMES_GROUPS; i++) {
+    DEBUG(RDT_PLUGIN ": Freeing \'%s\' group\'s data...",
+          g_rdt->ngroups[i].desc);
     sfree(g_rdt->ngroups[i].desc);
     strarray_free(g_rdt->ngroups[i].names, g_rdt->ngroups[i].num_names);
+
+    if (g_rdt->ngroups[i].proc_pids_array) {
+      for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
+        if (NULL == g_rdt->ngroups[i].proc_pids_array[j].pids)
+          continue;
+        pids_list_free(g_rdt->ngroups[i].proc_pids_array[j].pids);
+      }
+
+      sfree(g_rdt->ngroups[i].proc_pids_array);
+    }
+
     g_rdt->ngroups[i].num_names = 0;
     sfree(g_rdt->pngroups[i]);
   }
@@ -600,23 +662,6 @@ static int rdt_config_ngroups(const oconfig_item_t *item) {
   return 0;
 }
 
-/* Helper typedef for process name array
- * Extra 1 char is added for string null termination.
- */
-typedef char proc_comm_t[RDT_MAX_NAME_LEN + 1];
-
-/* Linked one-way list of pids. */
-typedef struct pids_list_s {
-  pid_t pid;
-  struct pids_list_s *next;
-} pids_list_t;
-
-/* Holds process name and list of pids assigned to that name */
-typedef struct proc_pids_s {
-  proc_comm_t proccess_name;
-  pids_list_t *pids;
-} proc_pids_t;
-
 /*
  * NAME
  *   pids_list_add_pid
@@ -634,6 +679,8 @@ typedef struct proc_pids_s {
  *   -1 on memory allocation error.
  */
 static int pids_list_add_pid(pids_list_t **list, const pid_t pid) {
+  assert(list);
+
   pids_list_t *new_element = calloc(1, sizeof(*new_element));
 
   if (new_element == NULL) {
@@ -648,6 +695,72 @@ static int pids_list_add_pid(pids_list_t **list, const pid_t pid) {
     current = &((*current)->next);
   }
   *current = new_element;
+  return 0;
+}
+
+/*
+ * NAME
+ *   pids_list_contains_pid
+ *
+ * DESCRIPTION
+ *   Tests if pids list contains specific pid.
+ *
+ * PARAMETERS
+ *   `list'     Head of pids_list.
+ *   `pid'      Pid to be searched for.
+ *
+ * RETURN VALUE
+ *   If PID found in list, returns 1,
+ *   Otherwise returns 0.
+ */
+static int pids_list_contains_pid(pids_list_t *list, const pid_t pid) {
+  assert(list);
+
+  pids_list_t *current = list;
+  while (current != NULL) {
+    if (current->pid == pid)
+      return 1;
+    current = current->next;
+  }
+  return 0;
+}
+
+/*
+ * NAME
+ *   pids_list_add_pids_list
+ *
+ * DESCRIPTION
+ *   Adds pids list at the end of the pids list.
+ *   Allocates memory for new pid elements, it is up to user to free it.
+ *   Increases dst_num by a number of added PIDs.
+ *
+ * PARAMETERS
+ *   `dst'      Head of target PIDs list.
+ *   `src'      Head of source PIDs list.
+ *   `dst_num'  Variable to be increased by a number of appended PIDs.
+ *
+ * RETURN VALUE
+ *   On success, returns 0.
+ *   -1 on memory allocation error.
+ */
+static int pids_list_add_pids_list(pids_list_t **dst, pids_list_t *src,
+                                   size_t *dst_num) {
+  assert(dst);
+  assert(src);
+  assert(dst_num);
+
+  pids_list_t *current = src;
+  int ret;
+
+  while (current != NULL) {
+    ret = pids_list_add_pid(dst, current->pid);
+    if (0 != ret)
+      return ret;
+
+    ++(*dst_num);
+    current = current->next;
+  }
+
   return 0;
 }
 
@@ -963,6 +1076,106 @@ static void rdt_submit_gauge(const char *cgroup, const char *type,
   plugin_dispatch_values(&vl);
 }
 
+static int rdt_pid_list_diff(pids_list_t *prev, pids_list_t *curr,
+                             pids_list_t **added, size_t *added_num,
+                             pids_list_t **removed, size_t *removed_num) {
+  assert(prev || curr);
+  assert(added);
+  assert(removed);
+
+  if (NULL == prev) {
+    /* append all PIDs from curr to added*/
+    return pids_list_add_pids_list(added, curr, added_num);
+  } else if (NULL == curr) {
+    /* append all PIDs from prev to removed*/
+    return pids_list_add_pids_list(removed, prev, removed_num);
+  }
+
+  pids_list_t *item = prev;
+  while (item != NULL) {
+    if (0 == pids_list_contains_pid(curr, item->pid)) {
+      pids_list_add_pid(removed, item->pid);
+      ++(*removed_num);
+    }
+    item = item->next;
+  }
+
+  item = curr;
+  while (item != NULL) {
+    if (0 == pids_list_contains_pid(prev, item->pid)) {
+      pids_list_add_pid(added, item->pid);
+      ++(*added_num);
+    }
+    item = item->next;
+  }
+
+  return 0;
+}
+
+static int rdt_refresh_ngroup(rdt_name_group_t *ngroup) {
+  if (NULL == ngroup)
+    return -1;
+
+  DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' process names group.",
+        ngroup->desc);
+
+  proc_pids_t *pids_array_prev = ngroup->proc_pids_array;
+  proc_pids_t *pids_array_curr = NULL;
+
+  int fetch_result =
+      fetch_pids_for_procs(RDT_PROC_PATH, (const char **)ngroup->names,
+                           ngroup->num_names, &pids_array_curr);
+
+  if (0 != fetch_result) {
+    ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: failed to fetch PIDs for \'%s\' "
+                     "process names group.",
+          ngroup->desc);
+    return fetch_result;
+  }
+
+  if (NULL == pids_array_prev) {
+    /*no PIDs info yet, just save current one for next iteration*/
+    ngroup->proc_pids_array = pids_array_curr;
+    return 0;
+  }
+
+  pids_list_t *added = NULL;
+  size_t added_num = 0;
+
+  pids_list_t *removed = NULL;
+  size_t removed_num = 0;
+
+  for (size_t i = 0; i < ngroup->num_names; ++i) {
+    if (NULL == pids_array_prev[i].pids && NULL == pids_array_curr[i].pids)
+      continue;
+    rdt_pid_list_diff(pids_array_prev[i].pids, pids_array_curr[i].pids, &added,
+                      &added_num, &removed, &removed_num);
+  }
+
+  DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' process names group, added: "
+                   "%u, removed: %u.",
+        ngroup->desc, (unsigned)added_num, (unsigned)removed_num);
+
+  if (added_num != 0 || removed_num != 0) {
+    ngroup->proc_pids_array = pids_array_curr;
+
+    /*call pqos add and remove functions here*/
+  }
+
+  /*free prev PID lists, only if new was saved in ngroup struct*/
+  if (pids_array_prev && pids_array_prev != ngroup->proc_pids_array) {
+    for (size_t i = 0; i < ngroup->num_names; ++i) {
+      if (NULL == pids_array_prev[i].pids)
+        continue;
+      pids_list_free(pids_array_prev[i].pids);
+    }
+
+    sfree(pids_array_prev);
+  }
+
+  return 0;
+}
+
 static int rdt_read(__attribute__((unused)) user_data_t *ud) {
   int ret;
 
@@ -976,6 +1189,9 @@ static int rdt_read(__attribute__((unused)) user_data_t *ud) {
     ERROR(RDT_PLUGIN ": Failed to poll monitoring data.");
     return -1;
   }
+
+  for (size_t i = 0; i < g_rdt->num_ngroups; i++)
+    rdt_refresh_ngroup(&g_rdt->ngroups[i]);
 
 #if COLLECT_DEBUG
   rdt_dump_data();
