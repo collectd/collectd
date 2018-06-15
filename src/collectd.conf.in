@@ -1352,7 +1352,7 @@
 #       Table true
 #       Type "if_octets"
 #       TypeInstanceOID "IF-MIB::ifDescr"
-#       #InstancePrefix "port"
+#       #TypeInstancePrefix "port"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
 #   </Data>
 #   <Data "interface_traffic">

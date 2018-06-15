@@ -167,23 +167,42 @@ Defaults to an empty string.
 
 =item B<PluginInstanceOID> I<OID>
 
-If B<Table> is set to I<true>, I<OID> is interpreted as an SNMP-prefix that will
-return a list of values. Those values are then used as the actual type-instance
-or plugin-instance of dispatched metrics. An example would be the
-C<IF-MIB::ifDescr> subtree. L<variables(5)> from the SNMP distribution describes
-the format of OIDs. When set to empty string, then "SUBID" will be used as the
-instance.
+=item B<HostOID> I<OID>
 
-Prefix may be set for values with use of B<InstancePrefix> option.
+If B<Table> is set to I<true>, I<OID> is interpreted as an SNMP-prefix that will
+return a list of values. Those values are then used as the actual type-instance,
+plugin-instance or host of dispatched metrics. An example would be the
+C<IF-MIB::ifDescr> subtree. L<variables(5)> from the SNMP distribution describes
+the format of OIDs. When option is set to empty string, then "SUBID" will be used
+as the value.
+
+Prefix may be set for values with use of appropriate B<TypeInstancePrefix>,
+B<PluginInstancePrefix> and B<HostPrefix> options.
 
 When B<Table> is set to I<false> these options has no effect.
-Only one of these options may be used in the same B<Data> block.
 
-Defaults:
-
+Defaults: When no one of these options is configured explicitly,
 B<TypeInstanceOID> defaults to an empty string.
 
-B<PluginInstanceOID> is not configured.
+=item B<TypeInstancePrefix>
+
+=item B<PluginInstancePrefix>
+
+=item B<HostPrefix>
+
+These options are intented to be used together with B<TypeInstanceOID>,
+B<PluginInstanceOID> and B<HostOID> respectively.
+
+If set, I<String> is preprended to values received by querying the agent.
+
+When B<Table> is set to I<false> these options has no effect.
+
+The C<UPS-MIB> is an example where you need this setting: It has voltages of
+the inlets, outlets and the battery of an UPS. However, it doesn't provide a
+descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
+instances is not enough, because the inlet voltages and outlet voltages may
+both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
+between the different voltages.
 
 =item B<Instance> I<Instance>
 
@@ -201,17 +220,8 @@ Note what B<Table> option must be set before setting B<Instance>.
 
 =item B<InstancePrefix> I<String>
 
-If B<Table> is set to I<true>, you may feel the need to add something to the
-instance of the files. If set, I<String> is prepended to the instance as
-determined by querying the agent. When B<Table> is set to I<false> this option
-has no effect.
-
-The C<UPS-MIB> is an example where you need this setting: It has voltages of
-the inlets, outlets and the battery of an UPS. However, it doesn't provide a
-descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
-instances is not enough, because the inlet voltages and outlet voltages may
-both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
-between the different voltages.
+Attention: this option exists for backwards compatibility only and will be
+removed in next major release. Please use B<TypeInstancePrefix> instead.
 
 =item B<Values> I<OID> [I<OID> ...]
 

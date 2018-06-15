@@ -46,8 +46,9 @@ typedef struct oid_s oid_t;
 
 struct instance_s {
   bool configured;
-  bool is_plugin;
   oid_t oid;
+  char *prefix;
+  char *value;
 };
 typedef struct instance_s instance_t;
 
@@ -55,12 +56,10 @@ struct data_definition_s {
   char *name; /* used to reference this from the `Collect' option */
   char *type; /* used to find the data_set */
   bool is_table;
-  instance_t instance;
+  instance_t type_instance;
+  instance_t plugin_instance;
+  instance_t host;
   char *plugin_name;
-  char *plugin_instance;
-  char *type_instance;
-  char *instance_prefix;
-  oid_t hostname_oid;
   oid_t *values;
   size_t values_len;
   double scale;
@@ -120,7 +119,8 @@ typedef struct csnmp_cell_value_s csnmp_cell_value_t;
 typedef enum {
   OID_TYPE_SKIP = 0,
   OID_TYPE_VARIABLE,
-  OID_TYPE_INSTANCE,
+  OID_TYPE_TYPEINSTANCE,
+  OID_TYPE_PLUGININSTANCE,
   OID_TYPE_HOST,
 } csnmp_oid_type_t;
 
@@ -211,6 +211,21 @@ static void csnmp_host_definition_destroy(void *arg) /* {{{ */
   sfree(hd);
 } /* }}} void csnmp_host_definition_destroy */
 
+static void csnmp_data_definition_destroy(data_definition_t *dd) {
+  sfree(dd->name);
+  sfree(dd->type);
+  sfree(dd->plugin_name);
+  sfree(dd->plugin_instance.prefix);
+  sfree(dd->plugin_instance.value);
+  sfree(dd->type_instance.prefix);
+  sfree(dd->type_instance.value);
+  sfree(dd->host.prefix);
+  sfree(dd->host.value);
+  sfree(dd->values);
+  sfree(dd->ignores);
+  sfree(dd);
+} /* void csnmp_data_definition_destroy */
+
 /* Many functions to handle the configuration. {{{ */
 /* First there are many functions which do configuration stuff. It's a big
  * bloated and messy, I'm afraid. */
@@ -220,7 +235,7 @@ static void csnmp_host_definition_destroy(void *arg) /* {{{ */
  *  csnmp_config
  *  +-> call_snmp_init_once
  *  +-> csnmp_config_add_data
- *  !   +-> csnmp_config_add_data_instance
+ *  !   +-> csnmp_config_configure_data_instance
  *  !   +-> csnmp_config_add_data_values
  *  +-> csnmp_config_add_host
  *      +-> csnmp_config_add_host_version
@@ -237,59 +252,29 @@ static void call_snmp_init_once(void) {
   have_init = 1;
 } /* void call_snmp_init_once */
 
-static int csnmp_config_add_data_instance_oid(data_definition_t *dd,
-                                              oconfig_item_t *ci,
-                                              bool is_plugin) {
+static int csnmp_config_configure_data_instance(instance_t *instance,
+                                                oconfig_item_t *ci) {
   char buffer[DATA_MAX_NAME_LEN];
 
   int status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
   if (status != 0)
     return status;
 
-  if (dd->instance.configured) {
-    ERROR("snmp plugin: Only one of options `TypeInstanceOID', "
-          "`PluginInstanceOID' or `Instance' can be used in `Data' block.");
-    return -1;
-  }
-
-  dd->instance.is_plugin = is_plugin;
-  dd->instance.configured = true;
+  instance->configured = true;
 
   if (strlen(buffer) == 0) {
     return 0;
   }
 
-  dd->instance.oid.oid_len = MAX_OID_LEN;
+  instance->oid.oid_len = MAX_OID_LEN;
 
-  if (!read_objid(buffer, dd->instance.oid.oid, &dd->instance.oid.oid_len)) {
+  if (!read_objid(buffer, instance->oid.oid, &instance->oid.oid_len)) {
     ERROR("snmp plugin: read_objid (%s) failed.", buffer);
     return -1;
   }
 
   return 0;
-} /* int csnmp_config_add_data_instance_oid */
-
-static int csnmp_config_add_data_hostname_oid(data_definition_t *dd,
-                                              oconfig_item_t *ci) {
-  char buffer[DATA_MAX_NAME_LEN];
-
-  int status = cf_util_get_string_buffer(ci, buffer, sizeof(buffer));
-  if (status != 0)
-    return status;
-
-  if (strlen(buffer) == 0) {
-    return 0;
-  }
-
-  dd->hostname_oid.oid_len = MAX_OID_LEN;
-
-  if (!read_objid(buffer, dd->hostname_oid.oid, &dd->hostname_oid.oid_len)) {
-    ERROR("snmp plugin: read_objid (%s) failed.", buffer);
-    return -1;
-  }
-
-  return 0;
-} /* int csnmp_config_add_data_hostname_oid */
+} /* int csnmp_config_configure_data_instance */
 
 static int csnmp_config_add_data_values(data_definition_t *dd,
                                         oconfig_item_t *ci) {
@@ -326,7 +311,7 @@ static int csnmp_config_add_data_values(data_definition_t *dd,
   }
 
   return 0;
-} /* int csnmp_config_add_data_instance */
+} /* int csnmp_config_configure_data_instance */
 
 static int csnmp_config_add_data_blacklist(data_definition_t *dd,
                                            oconfig_item_t *ci) {
@@ -385,32 +370,43 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
     else if (strcasecmp("Instance", option->key) == 0) {
       if (dd->is_table) {
         /* Instance is OID */
-        WARNING("snmp plugin: Option `Instance' is deprecated, please update "
-                "Data \"%s\" block to use option `TypeInstanceOID'.",
-                dd->name);
-        status = csnmp_config_add_data_instance_oid(dd, option,
-                                                    false /* type instance */);
+        WARNING(
+            "snmp plugin: data %s: Option `Instance' is deprecated, please use "
+            "option `TypeInstanceOID'.",
+            dd->name);
+        status =
+            csnmp_config_configure_data_instance(&dd->type_instance, option);
       } else {
         /* Instance is a simple string */
-        WARNING("snmp plugin: Option `Instance' is deprecated, please update "
-                "Data \"%s\" block to use option `TypeInstance'.",
-                dd->name);
-        status = cf_util_get_string(option, &dd->type_instance);
+        WARNING(
+            "snmp plugin: data %s: Option `Instance' is deprecated, please use "
+            "option `TypeInstance'.",
+            dd->name);
+        status = cf_util_get_string(option, &dd->type_instance.value);
       }
+    } else if (strcasecmp("InstancePrefix", option->key) == 0) {
+      WARNING("snmp plugin: data %s: Option `InstancePrefix' is deprecated, "
+              "please use "
+              "option `TypeInstancePrefix'.",
+              dd->name);
+      status = cf_util_get_string(option, &dd->type_instance.prefix);
     } else if (strcasecmp("PluginInstance", option->key) == 0)
-      status = cf_util_get_string(option, &dd->plugin_instance);
+      status = cf_util_get_string(option, &dd->plugin_instance.value);
     else if (strcasecmp("TypeInstance", option->key) == 0)
-      status = cf_util_get_string(option, &dd->type_instance);
+      status = cf_util_get_string(option, &dd->type_instance.value);
     else if (strcasecmp("PluginInstanceOID", option->key) == 0)
-      status = csnmp_config_add_data_instance_oid(dd, option,
-                                                  true /* plugin instance */);
+      status =
+          csnmp_config_configure_data_instance(&dd->plugin_instance, option);
+    else if (strcasecmp("PluginInstancePrefix", option->key) == 0)
+      status = cf_util_get_string(option, &dd->plugin_instance.prefix);
     else if (strcasecmp("TypeInstanceOID", option->key) == 0)
-      status = csnmp_config_add_data_instance_oid(dd, option,
-                                                  false /* type instance */);
-    else if (strcasecmp("InstancePrefix", option->key) == 0)
-      status = cf_util_get_string(option, &dd->instance_prefix);
-    else if (strcasecmp("HostnameOID", option->key) == 0)
-      status = csnmp_config_add_data_hostname_oid(dd, option);
+      status = csnmp_config_configure_data_instance(&dd->type_instance, option);
+    else if (strcasecmp("TypeInstancePrefix", option->key) == 0)
+      status = cf_util_get_string(option, &dd->type_instance.prefix);
+    else if (strcasecmp("HostOID", option->key) == 0)
+      status = csnmp_config_configure_data_instance(&dd->host, option);
+    else if (strcasecmp("HostPrefix", option->key) == 0)
+      status = cf_util_get_string(option, &dd->host.prefix);
     else if (strcasecmp("Values", option->key) == 0)
       status = csnmp_config_add_data_values(dd, option);
     else if (strcasecmp("Shift", option->key) == 0)
@@ -422,7 +418,8 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
     else if (strcasecmp("InvertMatch", option->key) == 0)
       status = cf_util_get_boolean(option, &dd->invert_match);
     else {
-      WARNING("snmp plugin: Option `%s' not allowed here.", option->key);
+      WARNING("snmp plugin: data %s: Option `%s' not allowed here.", dd->name,
+              option->key);
       status = -1;
     }
 
@@ -432,33 +429,61 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
 
   while (status == 0) {
     if (dd->is_table) {
-      if (dd->plugin_instance && dd->instance.is_plugin) {
-        WARNING("snmp plugin: Option `PluginInstance' will be ignored for "
-                "Data `%s'",
+      /* Set type_instance to SUBID by default */
+      if (!dd->type_instance.configured && !dd->host.configured)
+        dd->type_instance.configured = true;
+
+      if (dd->plugin_instance.value && dd->plugin_instance.configured) {
+        WARNING(
+            "snmp plugin: data %s: Option `PluginInstance' will be ignored.",
+            dd->name);
+      }
+      if (dd->type_instance.value && dd->type_instance.configured) {
+        WARNING("snmp plugin: data %s: Option `TypeInstance' will be ignored.",
                 dd->name);
       }
-      if (dd->type_instance && !dd->instance.is_plugin) {
-        WARNING("snmp plugin: Option `TypeInstance' will be ignored for Data "
-                "`%s'",
+      if (dd->type_instance.prefix && !dd->type_instance.configured) {
+        WARNING("snmp plugin: data %s: Option `TypeInstancePrefix' will be "
+                "ignored.",
+                dd->name);
+      }
+      if (dd->plugin_instance.prefix && !dd->plugin_instance.configured) {
+        WARNING("snmp plugin: data %s: Option `PluginInstancePrefix' will be "
+                "ignored.",
+                dd->name);
+      }
+      if (dd->host.prefix && !dd->host.configured) {
+        WARNING("snmp plugin: data %s: Option `HostPrefix' will be ignored.",
                 dd->name);
       }
     } else {
-      if (dd->instance.configured) {
-        if (dd->instance.is_plugin) {
-          WARNING("snmp plugin: Option `PluginInstanceOID' will be ignored for "
-                  "Data `%s'",
-                  dd->name);
-        } else {
-          WARNING("snmp plugin: Option `TypeInstanceOID' will be ignored for "
-                  "Data `%s'",
-                  dd->name);
-        }
-      }
-
-      if (dd->instance_prefix) {
-        WARNING("snmp plugin: data %s: InstancePrefix is ignored when `Table' "
-                "is set to `false'.",
+      if (dd->plugin_instance.oid.oid_len > 0) {
+        WARNING("snmp plugin: data %s: Option `PluginInstanceOID' will be "
+                "ignored.",
                 dd->name);
+      }
+      if (dd->type_instance.oid.oid_len > 0) {
+        WARNING(
+            "snmp plugin: data %s: Option `TypeInstanceOID' will be ignored.",
+            dd->name);
+      }
+      if (dd->type_instance.prefix) {
+        WARNING("snmp plugin: data %s: Option `TypeInstancePrefix' is ignored "
+                "when `Table' "
+                "set to `false'.",
+                dd->name);
+      }
+      if (dd->plugin_instance.prefix) {
+        WARNING("snmp plugin: data %s: Option `PluginInstancePrefix' is "
+                "ignored when "
+                "`Table' set to `false'.",
+                dd->name);
+      }
+      if (dd->host.prefix) {
+        WARNING(
+            "snmp plugin: data %s: Option `HostPrefix' is ignored when `Table' "
+            "set to `false'.",
+            dd->name);
       }
     }
 
@@ -477,15 +502,7 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
   } /* while (status == 0) */
 
   if (status != 0) {
-    sfree(dd->name);
-    sfree(dd->type);
-    sfree(dd->plugin_name);
-    sfree(dd->plugin_instance);
-    sfree(dd->type_instance);
-    sfree(dd->instance_prefix);
-    sfree(dd->values);
-    sfree(dd->ignores);
-    sfree(dd);
+    csnmp_data_definition_destroy(dd);
     return -1;
   }
 
@@ -494,11 +511,16 @@ static int csnmp_config_add_data(oconfig_item_t *ci) {
         dd->name, dd->type, (dd->is_table) ? "true" : "false", dd->values_len);
 
   DEBUG("snmp plugin:        plugin_instance = %s, type_instance = %s,",
-        dd->plugin_instance, dd->type_instance);
+        dd->plugin_instance.value, dd->type_instance.value);
 
-  DEBUG("snmp plugin:        instance_by_oid = %s, to_plugin_instance = %s }",
-        (dd->instance.oid.oid_len > 0) ? "true" : "SUBID",
-        (dd->instance.is_plugin) ? "true" : "false");
+  DEBUG("snmp plugin:        type_instance_by_oid = %s, plugin_instance_by_oid "
+        "= %s }",
+        (dd->type_instance.oid.oid_len > 0)
+            ? "true"
+            : ((dd->type_instance.configured) ? "SUBID" : "false"),
+        (dd->plugin_instance.oid.oid_len > 0)
+            ? "true"
+            : ((dd->plugin_instance.configured) ? "SUBID" : "false"));
 
   if (data_head == NULL)
     data_head = dd;
@@ -1204,14 +1226,16 @@ static void csnmp_cell_replace_reserved_chars(csnmp_cell_char_t *cell) {
 
 static int csnmp_dispatch_table(host_definition_t *host,
                                 data_definition_t *data,
-                                csnmp_cell_char_t *instance_cells,
+                                csnmp_cell_char_t *type_instance_cells,
+                                csnmp_cell_char_t *plugin_instance_cells,
                                 csnmp_cell_char_t *hostname_cells,
                                 csnmp_cell_value_t **value_cells) {
   const data_set_t *ds;
   value_list_t vl = VALUE_LIST_INIT;
 
-  csnmp_cell_char_t *instance_cell_ptr;
-  csnmp_cell_char_t *hostname_cell_ptr;
+  csnmp_cell_char_t *type_instance_cell_ptr = type_instance_cells;
+  csnmp_cell_char_t *plugin_instance_cell_ptr = plugin_instance_cells;
+  csnmp_cell_char_t *hostname_cell_ptr = hostname_cells;
   csnmp_cell_value_t *value_cell_ptr[data->values_len];
 
   size_t i;
@@ -1226,9 +1250,6 @@ static int csnmp_dispatch_table(host_definition_t *host,
   assert(ds->ds_num == data->values_len);
   assert(data->values_len > 0);
 
-  instance_cell_ptr = instance_cells;
-  hostname_cell_ptr = hostname_cells;
-
   for (i = 0; i < data->values_len; i++)
     value_cell_ptr[i] = value_cells[i];
 
@@ -1241,13 +1262,13 @@ static int csnmp_dispatch_table(host_definition_t *host,
     bool suffix_skipped = 0;
 
     /* Determine next suffix to handle. */
-    if (instance_cells != NULL) {
-      if (instance_cell_ptr == NULL) {
+    if (type_instance_cells != NULL) {
+      if (type_instance_cell_ptr == NULL) {
         have_more = 0;
         continue;
       }
 
-      memcpy(&current_suffix, &instance_cell_ptr->suffix,
+      memcpy(&current_suffix, &type_instance_cell_ptr->suffix,
              sizeof(current_suffix));
     } else {
       /* no instance configured */
@@ -1267,6 +1288,28 @@ static int csnmp_dispatch_table(host_definition_t *host,
     DEBUG("SNMP PLUGIN: SUFFIX %s", oid_buffer);
     */
 
+    /* Update plugin_instance_cell_ptr to point expected suffix */
+    if (plugin_instance_cells != NULL) {
+      while ((plugin_instance_cell_ptr != NULL) &&
+             (csnmp_oid_compare(&plugin_instance_cell_ptr->suffix,
+                                &current_suffix) < 0))
+        plugin_instance_cell_ptr = plugin_instance_cell_ptr->next;
+
+      if (plugin_instance_cell_ptr == NULL) {
+        have_more = 0;
+        continue;
+      }
+
+      if (csnmp_oid_compare(&plugin_instance_cell_ptr->suffix,
+                            &current_suffix) > 0) {
+        /* This suffix is missing in the subtree. Indicate this with the
+         * "suffix_skipped" flag and try the next instance / suffix. */
+        suffix_skipped = 1;
+        NOTICE("snmp plugin: suffix skipped, variable not found for "
+               "TypeInstanceOID.");
+      }
+    }
+
     /* Update hostname_cell_ptr to point expected suffix */
     if (hostname_cells != NULL) {
       while (
@@ -1283,8 +1326,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
         /* This suffix is missing in the subtree. Indicate this with the
          * "suffix_skipped" flag and try the next instance / suffix. */
         suffix_skipped = 1;
-        NOTICE(
-            "snmp plugin: suffix skipped, variable not found for HostnameOID.");
+        NOTICE("snmp plugin: suffix skipped, variable not found for HostOID.");
       }
     }
 
@@ -1315,8 +1357,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
     /* Matching the values failed. Start from the beginning again. */
     if (suffix_skipped) {
-      if (instance_cells != NULL)
-        instance_cell_ptr = instance_cell_ptr->next;
+      if (type_instance_cells != NULL)
+        type_instance_cell_ptr = type_instance_cell_ptr->next;
       else
         value_cell_ptr[0] = value_cell_ptr[0]->next;
 
@@ -1324,7 +1366,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
     }
 
 /* if we reach this line, all value_cell_ptr[i] are non-NULL and are set
- * to the same subid. instance_cell_ptr is either NULL or points to the
+ * to the same subid. type_instance_cell_ptr is either NULL or points to the
  * same subid, too. */
 #if COLLECT_DEBUG
     for (i = 1; i < data->values_len; i++) {
@@ -1332,8 +1374,11 @@ static int csnmp_dispatch_table(host_definition_t *host,
       assert(csnmp_oid_compare(&value_cell_ptr[i - 1]->suffix,
                                &value_cell_ptr[i]->suffix) == 0);
     }
-    assert((instance_cell_ptr == NULL) ||
-           (csnmp_oid_compare(&instance_cell_ptr->suffix,
+    assert((type_instance_cell_ptr == NULL) ||
+           (csnmp_oid_compare(&type_instance_cell_ptr->suffix,
+                              &value_cell_ptr[0]->suffix) == 0));
+    assert((plugin_instance_cell_ptr == NULL) ||
+           (csnmp_oid_compare(&plugin_instance_cell_ptr->suffix,
                               &value_cell_ptr[0]->suffix) == 0));
     assert((hostname_cell_ptr == NULL) ||
            (csnmp_oid_compare(&hostname_cell_ptr->suffix,
@@ -1342,40 +1387,54 @@ static int csnmp_dispatch_table(host_definition_t *host,
 
     sstrncpy(vl.type, data->type, sizeof(vl.type));
 
-    if (hostname_cell_ptr) {
-      sstrncpy(vl.host, hostname_cell_ptr->value, sizeof(vl.host));
-    } else {
-      sstrncpy(vl.host, host->name, sizeof(vl.host));
-    }
-
     {
-      char temp[DATA_MAX_NAME_LEN];
-
-      if (instance_cell_ptr == NULL)
-        csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
-      else
-        sstrncpy(temp, instance_cell_ptr->value, sizeof(temp));
-
-      if (data->instance.is_plugin) {
-        if (data->instance_prefix == NULL)
-          sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
+      if (data->host.configured) {
+        char temp[DATA_MAX_NAME_LEN];
+        if (hostname_cell_ptr == NULL)
+          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
         else
-          snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
-                   data->instance_prefix, temp);
+          sstrncpy(temp, hostname_cell_ptr->value, sizeof(temp));
 
-        if (data->type_instance)
-          sstrncpy(vl.type_instance, data->type_instance,
-                   sizeof(vl.type_instance));
+        if (data->host.prefix == NULL)
+          sstrncpy(vl.host, temp, sizeof(vl.host));
+        else
+          snprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
       } else {
-        if (data->instance_prefix == NULL)
+        sstrncpy(vl.host, host->name, sizeof(vl.host));
+      }
+
+      if (data->type_instance.configured) {
+        char temp[DATA_MAX_NAME_LEN];
+        if (type_instance_cell_ptr == NULL)
+          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+        else
+          sstrncpy(temp, type_instance_cell_ptr->value, sizeof(temp));
+
+        if (data->type_instance.prefix == NULL)
           sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
         else
           snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                   data->instance_prefix, temp);
+                   data->type_instance.prefix, temp);
+      } else if (data->type_instance.value) {
+        sstrncpy(vl.type_instance, data->type_instance.value,
+                 sizeof(vl.type_instance));
+      }
 
-        if (data->plugin_instance)
-          sstrncpy(vl.plugin_instance, data->plugin_instance,
-                   sizeof(vl.plugin_instance));
+      if (data->plugin_instance.configured) {
+        char temp[DATA_MAX_NAME_LEN];
+        if (plugin_instance_cell_ptr == NULL)
+          csnmp_oid_to_string(temp, sizeof(temp), &current_suffix);
+        else
+          sstrncpy(temp, plugin_instance_cell_ptr->value, sizeof(temp));
+
+        if (data->plugin_instance.prefix == NULL)
+          sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
+        else
+          snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
+                   data->plugin_instance.prefix, temp);
+      } else if (data->plugin_instance.value) {
+        sstrncpy(vl.plugin_instance, data->plugin_instance.value,
+                 sizeof(vl.plugin_instance));
       }
     }
 
@@ -1392,8 +1451,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
     vl.values_len = 0;
     vl.values = NULL;
 
-    if (instance_cells != NULL)
-      instance_cell_ptr = instance_cell_ptr->next;
+    if (type_instance_cells != NULL)
+      type_instance_cell_ptr = type_instance_cell_ptr->next;
     else
       value_cell_ptr[0] = value_cell_ptr[0]->next;
   } /* while (have_more) */
@@ -1410,10 +1469,13 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
   size_t oid_list_len = data->values_len;
 
-  if (data->instance.oid.oid_len > 0)
+  if (data->type_instance.oid.oid_len > 0)
     oid_list_len++;
 
-  if (data->hostname_oid.oid_len > 0)
+  if (data->plugin_instance.oid.oid_len > 0)
+    oid_list_len++;
+
+  if (data->host.oid.oid_len > 0)
     oid_list_len++;
 
   /* Holds the last OID returned by the device. We use this in the GETNEXT
@@ -1429,8 +1491,10 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   /* `value_list_head' and `value_cells_tail' implement a linked list for each
    * value. `instance_cells_head' and `instance_cells_tail' implement a linked
    * list of instance names. This is used to jump gaps in the table. */
-  csnmp_cell_char_t *instance_cells_head = NULL;
-  csnmp_cell_char_t *instance_cells_tail = NULL;
+  csnmp_cell_char_t *type_instance_cells_head = NULL;
+  csnmp_cell_char_t *type_instance_cells_tail = NULL;
+  csnmp_cell_char_t *plugin_instance_cells_head = NULL;
+  csnmp_cell_char_t *plugin_instance_cells_tail = NULL;
   csnmp_cell_char_t *hostname_cells_head = NULL;
   csnmp_cell_char_t *hostname_cells_tail = NULL;
   csnmp_cell_value_t **value_cells_head;
@@ -1465,14 +1529,20 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   /* We need a copy of all the OIDs, because GETNEXT will destroy them. */
   memcpy(oid_list, data->values, data->values_len * sizeof(oid_t));
 
-  if (data->instance.oid.oid_len > 0) {
-    memcpy(oid_list + i, &data->instance.oid, sizeof(oid_t));
-    oid_list_todo[i] = OID_TYPE_INSTANCE;
+  if (data->type_instance.oid.oid_len > 0) {
+    memcpy(oid_list + i, &data->type_instance.oid, sizeof(oid_t));
+    oid_list_todo[i] = OID_TYPE_TYPEINSTANCE;
     i++;
   }
 
-  if (data->hostname_oid.oid_len > 0) {
-    memcpy(oid_list + i, &data->hostname_oid, sizeof(oid_t));
+  if (data->plugin_instance.oid.oid_len > 0) {
+    memcpy(oid_list + i, &data->plugin_instance.oid, sizeof(oid_t));
+    oid_list_todo[i] = OID_TYPE_PLUGININSTANCE;
+    i++;
+  }
+
+  if (data->host.oid.oid_len > 0) {
+    memcpy(oid_list + i, &data->host.oid, sizeof(oid_t));
     oid_list_todo[i] = OID_TYPE_HOST;
     i++;
   }
@@ -1602,12 +1672,14 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
       /* An instance is configured and the res variable we process is the
        * instance value */
-      if (oid_list_todo[i] == OID_TYPE_INSTANCE) {
+      if (oid_list_todo[i] == OID_TYPE_TYPEINSTANCE) {
         if ((vb->type == SNMP_ENDOFMIBVIEW) ||
-            (snmp_oid_ncompare(
-                 data->instance.oid.oid, data->instance.oid.oid_len, vb->name,
-                 vb->name_length, data->instance.oid.oid_len) != 0)) {
-          DEBUG("snmp plugin: host = %s; data = %s; Instance left its subtree.",
+            (snmp_oid_ncompare(data->type_instance.oid.oid,
+                               data->type_instance.oid.oid_len, vb->name,
+                               vb->name_length,
+                               data->type_instance.oid.oid_len) != 0)) {
+          DEBUG("snmp plugin: host = %s; data = %s; TypeInstance left its "
+                "subtree.",
                 host->name, data->name);
           oid_list_todo[i] = 0;
           continue;
@@ -1616,7 +1688,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         /* Allocate a new `csnmp_cell_char_t', insert the instance name and
          * add it to the list */
         csnmp_cell_char_t *cell =
-            csnmp_get_char_cell(vb, &data->instance.oid, host, data);
+            csnmp_get_char_cell(vb, &data->type_instance.oid, host, data);
         if (cell == NULL) {
           ERROR("snmp plugin: host %s: csnmp_get_char_cell() failed.",
                 host->name);
@@ -1629,15 +1701,18 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         } else {
           csnmp_cell_replace_reserved_chars(cell);
 
-          DEBUG("snmp plugin: il->instance = `%s';", cell->value);
-          csnmp_cells_append(&instance_cells_head, &instance_cells_tail, cell);
+          DEBUG("snmp plugin: il->type_instance = `%s';", cell->value);
+          csnmp_cells_append(&type_instance_cells_head,
+                             &type_instance_cells_tail, cell);
         }
-      } else if (oid_list_todo[i] == OID_TYPE_HOST) {
+      } else if (oid_list_todo[i] == OID_TYPE_PLUGININSTANCE) {
         if ((vb->type == SNMP_ENDOFMIBVIEW) ||
-            (snmp_oid_ncompare(
-                 data->hostname_oid.oid, data->hostname_oid.oid_len, vb->name,
-                 vb->name_length, data->hostname_oid.oid_len) != 0)) {
-          DEBUG("snmp plugin: host = %s; data = %s; Instance left its subtree.",
+            (snmp_oid_ncompare(data->plugin_instance.oid.oid,
+                               data->plugin_instance.oid.oid_len, vb->name,
+                               vb->name_length,
+                               data->plugin_instance.oid.oid_len) != 0)) {
+          DEBUG("snmp plugin: host = %s; data = %s; TypeInstance left its "
+                "subtree.",
                 host->name, data->name);
           oid_list_todo[i] = 0;
           continue;
@@ -1646,7 +1721,34 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         /* Allocate a new `csnmp_cell_char_t', insert the instance name and
          * add it to the list */
         csnmp_cell_char_t *cell =
-            csnmp_get_char_cell(vb, &data->hostname_oid, host, data);
+            csnmp_get_char_cell(vb, &data->plugin_instance.oid, host, data);
+        if (cell == NULL) {
+          ERROR("snmp plugin: host %s: csnmp_get_char_cell() failed.",
+                host->name);
+          status = -1;
+          break;
+        }
+
+        csnmp_cell_replace_reserved_chars(cell);
+
+        DEBUG("snmp plugin: il->plugin_instance = `%s';", cell->value);
+        csnmp_cells_append(&plugin_instance_cells_head,
+                           &plugin_instance_cells_tail, cell);
+      } else if (oid_list_todo[i] == OID_TYPE_HOST) {
+        if ((vb->type == SNMP_ENDOFMIBVIEW) ||
+            (snmp_oid_ncompare(data->host.oid.oid, data->host.oid.oid_len,
+                               vb->name, vb->name_length,
+                               data->host.oid.oid_len) != 0)) {
+          DEBUG("snmp plugin: host = %s; data = %s; Host left its subtree.",
+                host->name, data->name);
+          oid_list_todo[i] = 0;
+          continue;
+        }
+
+        /* Allocate a new `csnmp_cell_char_t', insert the instance name and
+         * add it to the list */
+        csnmp_cell_char_t *cell =
+            csnmp_get_char_cell(vb, &data->host.oid, host, data);
         if (cell == NULL) {
           ERROR("snmp plugin: host %s: csnmp_get_char_cell() failed.",
                 host->name);
@@ -1669,10 +1771,10 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
         csnmp_oid_init(&vb_name, vb->name, vb->name_length);
 
-        DEBUG(
-            "snmp plugin: src.oid_len = %d root.oid_len = %d is_endofmib = %s",
-            vb_name.oid_len, (data->values + i)->oid_len,
-            (vb->type == SNMP_ENDOFMIBVIEW) ? "true" : "false");
+        DEBUG("snmp plugin: src.oid_len = %" PRIsz " root.oid_len = %" PRIsz
+              " is_endofmib = %s",
+              vb_name.oid_len, (data->values + i)->oid_len,
+              (vb->type == SNMP_ENDOFMIBVIEW) ? "true" : "false");
 
         /* Calculate the current suffix. This is later used to check that the
          * suffix is increasing. This also checks if we left the subtree */
@@ -1732,14 +1834,21 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   res = NULL;
 
   if (status == 0)
-    csnmp_dispatch_table(host, data, instance_cells_head, hostname_cells_head,
+    csnmp_dispatch_table(host, data, type_instance_cells_head,
+                         plugin_instance_cells_head, hostname_cells_head,
                          value_cells_head);
 
   /* Free all allocated variables here */
-  while (instance_cells_head != NULL) {
-    csnmp_cell_char_t *next = instance_cells_head->next;
-    sfree(instance_cells_head);
-    instance_cells_head = next;
+  while (type_instance_cells_head != NULL) {
+    csnmp_cell_char_t *next = type_instance_cells_head->next;
+    sfree(type_instance_cells_head);
+    type_instance_cells_head = next;
+  }
+
+  while (plugin_instance_cells_head != NULL) {
+    csnmp_cell_char_t *next = plugin_instance_cells_head->next;
+    sfree(plugin_instance_cells_head);
+    plugin_instance_cells_head = next;
   }
 
   while (hostname_cells_head != NULL) {
@@ -1809,10 +1918,11 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
   sstrncpy(vl.host, host->name, sizeof(vl.host));
   sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
   sstrncpy(vl.type, data->type, sizeof(vl.type));
-  if (data->type_instance)
-    sstrncpy(vl.type_instance, data->type_instance, sizeof(vl.type_instance));
-  if (data->plugin_instance)
-    sstrncpy(vl.plugin_instance, data->plugin_instance,
+  if (data->type_instance.value)
+    sstrncpy(vl.type_instance, data->type_instance.value,
+             sizeof(vl.type_instance));
+  if (data->plugin_instance.value)
+    sstrncpy(vl.plugin_instance, data->plugin_instance.value,
              sizeof(vl.plugin_instance));
 
   vl.interval = host->interval;
@@ -1925,15 +2035,7 @@ static int csnmp_shutdown(void) {
   while (data_this != NULL) {
     data_next = data_this->next;
 
-    sfree(data_this->name);
-    sfree(data_this->type);
-    sfree(data_this->plugin_name);
-    sfree(data_this->plugin_instance);
-    sfree(data_this->type_instance);
-    sfree(data_this->instance_prefix);
-    sfree(data_this->values);
-    sfree(data_this->ignores);
-    sfree(data_this);
+    csnmp_data_definition_destroy(data_this);
 
     data_this = data_next;
   }
