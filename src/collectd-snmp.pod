@@ -26,6 +26,8 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Table true
       Type "if_octets"
       TypeInstanceOID "IF-MIB::ifDescr"
+      #FilterOID "IF-MIB::ifOperStatus"
+      #FilterValues "1", "2"
       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
     </Data>
 
@@ -113,8 +115,9 @@ queried using the C<GET> SNMP command (see L<snmpget(1)>) and transmitted to
 collectd. B<One> value list is dispatched and, eventually, one file will be
 written.
 
-When B<Table> is set to B<true>, the OIDs given to B<Values> (see below) are
-queried using the C<GETNEXT> SNMP command until the subtree is left. After all
+When B<Table> is set to B<true>, the OIDs given to B<Values>, B<TypeInstanceOID>,
+B<PluginInstanceOID>, B<HostOID> and B<FilterOID> (see below) are queried using
+the C<GETNEXT> SNMP command until the subtree is left. After all
 the lists (think: all columns of the table) have been read B<several> values
 sets will be dispatches and, eventually, several files will be written. If you
 configure a B<Type> (see above) which needs more than one data source (for
@@ -268,6 +271,27 @@ glob-type shell matching.
 The invertmatch value should be use in combination of the Ignore option.
 It changes the behaviour of the Ignore option, from a blacklist behaviour
 when InvertMatch is set to false, to a whitelist when specified to true.
+
+=item B<FilterOID> I<OID>
+
+=item B<FilterValues> I<Value> [, I<Value> ...]
+
+=item B<FilterIgnoreSelected> I<true|false(default)>
+
+When B<Table> is set to I<true>, these options allow to configure filtering
+based on MIB values.
+
+The B<FilterOID> declares I<OID> to fill table column with values.
+The B<FilterValues> declares values list to do match. Whether table row will be
+collected or ignored depends on the B<FilterIgnoreSelected> setting.
+As with other plugins that use the daemon's ignorelist functionality, a string
+that starts and ends with a slash is interpreted as a regular expression.
+
+If no selection is configured at all, B<all> table rows are selected.
+
+When B<Table> is set to I<false> then these options has no effect.
+
+See B<Table> and F</"IGNORELISTS"> for details.
 
 =back
 

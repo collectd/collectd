@@ -1354,6 +1354,8 @@
 #       TypeInstanceOID "IF-MIB::ifDescr"
 #       #TypeInstancePrefix "port"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+#       #FilterOID "IF-MIB::ifOperStatus"
+#       #FilterValues "1", "2"
 #   </Data>
 #   <Data "interface_traffic">
 #       Table true
