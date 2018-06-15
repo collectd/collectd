@@ -855,7 +855,7 @@ AC_CHECK_FUNCS([socket],
     AC_CHECK_LIB([socket], [socket],
       [socket_needs_socket="yes"],
       [
-        AC_CHECK_LIB(gnu, rpl_socket,
+        AC_CHECK_LIB([gnu], [rpl_socket],
           [socket_needs_gnulib="yes"],
           [AC_MSG_ERROR([cannot find socket() in libsocket])]
         )
