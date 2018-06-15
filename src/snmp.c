@@ -1193,6 +1193,15 @@ static bool csnmp_ignore_instance(csnmp_cell_char_t *cell,
   return 0;
 } /* bool csnmp_ignore_instance */
 
+static void csnmp_cell_replace_reserved_chars(csnmp_cell_char_t *cell) {
+  for (char *ptr = cell->value; *ptr != '\0'; ptr++) {
+    if ((*ptr > 0) && (*ptr < 32))
+      *ptr = ' ';
+    else if (*ptr == '/')
+      *ptr = '_';
+  }
+}
+
 static int csnmp_dispatch_table(host_definition_t *host,
                                 data_definition_t *data,
                                 csnmp_cell_char_t *instance_cells,
@@ -1618,13 +1627,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
         if (csnmp_ignore_instance(cell, data)) {
           sfree(cell);
         } else {
-          /**/
-          for (char *ptr = cell->value; *ptr != '\0'; ptr++) {
-            if ((*ptr > 0) && (*ptr < 32))
-              *ptr = ' ';
-            else if (*ptr == '/')
-              *ptr = '_';
-          }
+          csnmp_cell_replace_reserved_chars(cell);
 
           DEBUG("snmp plugin: il->instance = `%s';", cell->value);
           csnmp_cells_append(&instance_cells_head, &instance_cells_tail, cell);
@@ -1650,6 +1653,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
           status = -1;
           break;
         }
+
+        csnmp_cell_replace_reserved_chars(cell);
 
         DEBUG("snmp plugin: il->hostname = `%s';", cell->value);
         csnmp_cells_append(&hostname_cells_head, &hostname_cells_tail, cell);
