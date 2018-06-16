@@ -347,7 +347,7 @@ static int create_register_callback(llist_t **list, /* {{{ */
                                     const char *name, void *callback,
                                     user_data_t const *ud) {
 
-  if ((name == NULL) || (callback == NULL))
+  if (name == NULL || callback == NULL)
     return EINVAL;
 
   callback_func_t *cf = calloc(1, sizeof(*cf));
