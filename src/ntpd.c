@@ -251,7 +251,7 @@ static const char *refclock_names[] = {
     "CHRONOLOG",  "DUMBCLOCK",    "ULINK_M320", "PCF",         /* 32-35 */
     "WWV_AUDIO",  "GPS_FG",       "HOPF_S",     "HOPF_P",      /* 36-39 */
     "JJY",        "TT_IRIG",      "GPS_ZYFER",  "GPS_RIPENCC", /* 40-43 */
-    "NEOCLK4X"                                                 /* 44    */
+    "NEOCLK4X",   "PCI_TSYNC",    "GPSD_JSON"                  /* 44-46 */
 };
 static size_t refclock_names_num = STATIC_ARRAY_SIZE(refclock_names);
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
