@@ -1041,21 +1041,33 @@ int cf_read(const char *filename) {
 
 } /* int cf_read */
 
+void cf_log(int level, const char *format, ...) {
+  char msg[1024] = ""; // Size inherits from plugin_log()
+
+  char const *name = plugin_get_ctx().name;
+
+  va_list ap;
+  va_start(ap, format);
+  vsnprintf(msg, sizeof(msg), format, ap);
+  va_end(ap);
+
+  plugin_log(level, "%s plugin: %s", name, msg);
+} /* void cf_log */
+
+#define CF_ERROR(...) cf_log(LOG_ERR, __VA_ARGS__)
+#define CF_WARNING(...) cf_log(LOG_WARNING, __VA_ARGS__)
+
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
  * success. */
 int cf_util_get_string(const oconfig_item_t *ci, char **ret_string) /* {{{ */
 {
-  char *string;
-
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    ERROR("cf_util_get_string: The %s option requires "
-          "exactly one string argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one string argument.", ci->key);
     return -1;
   }
 
-  string = strdup(ci->values[0].value.string);
+  char *string = strdup(ci->values[0].value.string);
   if (string == NULL)
     return -1;
 
@@ -1074,9 +1086,7 @@ int cf_util_get_string_buffer(const oconfig_item_t *ci, char *buffer, /* {{{ */
     return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    ERROR("cf_util_get_string_buffer: The %s option requires "
-          "exactly one string argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one string argument.", ci->key);
     return -1;
   }
 
@@ -1093,9 +1103,7 @@ int cf_util_get_int(const oconfig_item_t *ci, int *ret_value) /* {{{ */
     return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    ERROR("cf_util_get_int: The %s option requires "
-          "exactly one numeric argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one numeric argument.", ci->key);
     return -1;
   }
 
@@ -1110,9 +1118,7 @@ int cf_util_get_double(const oconfig_item_t *ci, double *ret_value) /* {{{ */
     return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    ERROR("cf_util_get_double: The %s option requires "
-          "exactly one numeric argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one numeric argument.", ci->key);
     return -1;
   }
 
@@ -1128,9 +1134,7 @@ int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
 
   if ((ci->values_num != 1) || ((ci->values[0].type != OCONFIG_TYPE_BOOLEAN) &&
                                 (ci->values[0].type != OCONFIG_TYPE_STRING))) {
-    ERROR("cf_util_get_boolean: The %s option requires "
-          "exactly one boolean argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one boolean argument.", ci->key);
     return -1;
   }
 
@@ -1139,19 +1143,19 @@ int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool) /* {{{ */
     *ret_bool = ci->values[0].value.boolean ? true : false;
     break;
   case OCONFIG_TYPE_STRING:
-    WARNING("cf_util_get_boolean: Using string value `%s' for boolean option "
-            "`%s' is deprecated and will be removed in future releases. "
-            "Use unquoted true or false instead.",
-            ci->values[0].value.string, ci->key);
+    CF_WARNING("Using string value `%s' for boolean option `%s' is deprecated "
+               "and will be removed in future releases. Use unquoted true or "
+               "false instead.",
+               ci->values[0].value.string, ci->key);
 
     if (IS_TRUE(ci->values[0].value.string))
       *ret_bool = true;
     else if (IS_FALSE(ci->values[0].value.string))
       *ret_bool = false;
     else {
-      ERROR("cf_util_get_boolean: Cannot parse string value `%s' of the `%s' "
-            "option as a boolean value.",
-            ci->values[0].value.string, ci->key);
+      CF_ERROR("Cannot parse string value `%s' of the `%s' option as a boolean "
+               "value.",
+               ci->values[0].value.string, ci->key);
       return -1;
     }
     break;
@@ -1192,9 +1196,7 @@ int cf_util_get_port_number(const oconfig_item_t *ci) /* {{{ */
 
   if ((ci->values_num != 1) || ((ci->values[0].type != OCONFIG_TYPE_STRING) &&
                                 (ci->values[0].type != OCONFIG_TYPE_NUMBER))) {
-    ERROR("cf_util_get_port_number: The \"%s\" option requires "
-          "exactly one string argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one string argument.", ci->key);
     return -1;
   }
 
@@ -1204,11 +1206,9 @@ int cf_util_get_port_number(const oconfig_item_t *ci) /* {{{ */
   assert(ci->values[0].type == OCONFIG_TYPE_NUMBER);
   tmp = (int)(ci->values[0].value.number + 0.5);
   if ((tmp < 1) || (tmp > 65535)) {
-    ERROR("cf_util_get_port_number: The \"%s\" option requires "
-          "a service name or a port number. The number "
-          "you specified, %i, is not in the valid "
-          "range of 1-65535.",
-          ci->key, tmp);
+    CF_ERROR("The `%s' option requires a service name or a port number. The "
+             "number you specified, %i, is not in the valid range of 1-65535.",
+             ci->key, tmp);
     return -1;
   }
 
@@ -1222,18 +1222,15 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
   int status;
 
   if (ci->values_num != 1) {
-    ERROR("cf_util_get_service: The %s option requires exactly "
-          "one argument.",
-          ci->key);
+    CF_ERROR("The `%s` option requires exactly one argument.", ci->key);
     return -1;
   }
 
   if (ci->values[0].type == OCONFIG_TYPE_STRING)
     return cf_util_get_string(ci, ret_string);
   if (ci->values[0].type != OCONFIG_TYPE_NUMBER) {
-    ERROR("cf_util_get_service: The %s option requires "
-          "exactly one string or numeric argument.",
-          ci->key);
+    CF_ERROR("The `%s` option requires exactly one string or numeric argument.",
+             ci->key);
   }
 
   port = 0;
@@ -1241,16 +1238,14 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
   if (status != 0)
     return status;
   else if ((port < 1) || (port > 65535)) {
-    ERROR("cf_util_get_service: The port number given "
-          "for the %s option is out of "
-          "range (%i).",
-          ci->key, port);
+    CF_ERROR("The port number given for the `%s` option is out of range (%i).",
+             ci->key, port);
     return -1;
   }
 
   service = malloc(6);
   if (service == NULL) {
-    ERROR("cf_util_get_service: Out of memory.");
+    CF_ERROR("cf_util_get_service: Out of memory.");
     return -1;
   }
   snprintf(service, 6, "%i", port);
@@ -1267,16 +1262,13 @@ int cf_util_get_cdtime(const oconfig_item_t *ci, cdtime_t *ret_value) /* {{{ */
     return EINVAL;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    ERROR("cf_util_get_cdtime: The %s option requires "
-          "exactly one numeric argument.",
-          ci->key);
+    CF_ERROR("The `%s' option requires exactly one numeric argument.", ci->key);
     return -1;
   }
 
   if (ci->values[0].value.number < 0.0) {
-    ERROR("cf_util_get_cdtime: The numeric argument of the %s "
-          "option must not be negative.",
-          ci->key);
+    CF_ERROR("The numeric argument of the `%s' option must not be negative.",
+             ci->key);
     return -1;
   }
 

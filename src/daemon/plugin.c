@@ -2208,7 +2208,7 @@ int plugin_dispatch_notification(const notification_t *notif) {
 } /* int plugin_dispatch_notification */
 
 void plugin_log(int level, const char *format, ...) {
-  char msg[1024] = "";
+  char msg[1024];
   va_list ap;
   llentry_t *le;
 
@@ -2217,13 +2217,9 @@ void plugin_log(int level, const char *format, ...) {
     return;
 #endif
 
-  char const *name = plugin_get_ctx().name;
-  if (name != NULL)
-    snprintf(msg, sizeof(msg), "%s plugin: ", name);
-
   va_start(ap, format);
-  vsnprintf(msg + strlen(msg), sizeof(msg) - strlen(msg), format, ap);
-  msg[sizeof(msg) - 1] = 0;
+  vsnprintf(msg, sizeof(msg), format, ap);
+  msg[sizeof(msg) - 1] = '\0';
   va_end(ap);
 
   if (list_log == NULL) {
