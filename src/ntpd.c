@@ -779,17 +779,6 @@ static int ntpd_get_name_refclock(char *buffer, size_t buffer_size,
   return 0;
 } /* int ntpd_get_name_refclock */
 
-static int ntpd_get_name(char *buffer, size_t buffer_size,
-                         struct info_peer_summary const *peer_info) {
-  uint32_t addr = ntohl(peer_info->srcadr);
-
-  if (!peer_info->v6_flag && ((addr & REFCLOCK_MASK) == REFCLOCK_ADDR))
-    return ntpd_get_name_refclock(buffer, buffer_size, peer_info);
-  else
-    return ntpd_get_name_from_address(buffer, buffer_size, peer_info,
-                                      do_reverse_lookups);
-} /* int ntpd_addr_to_name */
-
 static int ntpd_read(void) {
   struct info_kernel *ik;
   int ik_num;
@@ -877,7 +866,15 @@ static int ntpd_read(void) {
 
     ptr = ps + i;
 
-    status = ntpd_get_name(peername, sizeof(peername), ptr);
+    int is_refclock = !ptr->v6_flag &&
+                      ((ntohl(ptr->srcadr) & REFCLOCK_MASK) == REFCLOCK_ADDR);
+
+    if (is_refclock)
+      status = ntpd_get_name_refclock(peername, sizeof(peername), ptr);
+    else
+      status = ntpd_get_name_from_address(peername, sizeof(peername), ptr,
+                                          do_reverse_lookups);
+
     if (status != 0) {
       ERROR("ntpd plugin: Determining name of peer failed.");
       continue;
@@ -895,6 +892,8 @@ static int ntpd_read(void) {
     M_LFPTOD(ntohl(ptr->offset_int), ntohl(ptr->offset_frc), offset);
 
     DEBUG("peer %i:\n"
+          "  is_refclock= %d\n"
+          "  refclock_id= %d\n"
           "  peername   = %s\n"
           "  srcadr     = 0x%08x\n"
           "  reach      = 0%03o\n"
@@ -903,16 +902,19 @@ static int ntpd_read(void) {
           "  offset_frc = %i\n"
           "  offset     = %f\n"
           "  dispersion = %f\n",
-          i, peername, ntohl(ptr->srcadr), ptr->reach, ntpd_read_fp(ptr->delay),
+          i, is_refclock, (is_refclock > 0) ? refclock_id : 0, peername,
+          ntohl(ptr->srcadr), ptr->reach, ntpd_read_fp(ptr->delay),
           ntohl(ptr->offset_int), ntohl(ptr->offset_frc), offset,
           ntpd_read_fp(ptr->dispersion));
 
-    if (refclock_id !=
-        1) /* not the system clock (offset will always be zero.. */
-      ntpd_submit_reach("time_offset", peername, ptr->reach, offset);
     ntpd_submit_reach("time_dispersion", peername, ptr->reach,
                       ntpd_read_fp(ptr->dispersion));
-    if (refclock_id == 0) /* not a reference clock */
+
+    /* not the system clock (offset will always be zero) */
+    if (!(is_refclock && refclock_id == 1))
+      ntpd_submit_reach("time_offset", peername, ptr->reach, offset);
+
+    if (!is_refclock) /* not a reference clock */
       ntpd_submit_reach("delay", peername, ptr->reach,
                         ntpd_read_fp(ptr->delay));
   }
