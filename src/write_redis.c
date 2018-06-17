@@ -184,8 +184,8 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
     return ENOMEM;
   node->host = NULL;
   node->port = 0;
-  node->timeout.tv_sec = 0;
-  node->timeout.tv_usec = 1000;
+  node->timeout.tv_sec = 1;
+  node->timeout.tv_usec = 0;
   node->conn = NULL;
   node->prefix = NULL;
   node->database = 0;
@@ -213,8 +213,11 @@ static int wr_config_node(oconfig_item_t *ci) /* {{{ */
       }
     } else if (strcasecmp("Timeout", child->key) == 0) {
       status = cf_util_get_int(child, &timeout);
-      if (status == 0)
-        node->timeout.tv_usec = timeout;
+      if (status == 0) {
+        node->timeout.tv_usec = timeout * 1000;
+        node->timeout.tv_sec = node->timeout.tv_usec / 1000000L;
+        node->timeout.tv_usec %= 1000000L;
+      }
     } else if (strcasecmp("Prefix", child->key) == 0) {
       status = cf_util_get_string(child, &node->prefix);
     } else if (strcasecmp("Database", child->key) == 0) {
