@@ -423,8 +423,13 @@ static int redis_read(void) /* {{{ */
 
     rh = redisConnectWithTimeout((char *)rn->host, rn->port, rn->timeout);
     if (rh == NULL) {
-      ERROR("redis plugin: unable to connect to node `%s' (%s:%d).", rn->name,
-            rn->host, rn->port);
+      ERROR("redis plugin: can't allocate redis context");
+      continue;
+    }
+    if (rh->err) {
+      ERROR("redis plugin: unable to connect to node `%s' (%s:%d): %s.",
+            rn->name, rn->host, rn->port, rh->errstr);
+      redisFree(rh);
       continue;
     }
 
