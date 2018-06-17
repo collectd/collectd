@@ -624,6 +624,7 @@ static int rrd_cache_insert(const char *filename, const char *value,
   if ((status != 0) || (rc == NULL)) {
     rc = malloc(sizeof(*rc));
     if (rc == NULL) {
+      ERROR("rrdtool plugin: malloc failed: %s", STRERRNO);
       pthread_mutex_unlock(&cache_lock);
       return -1;
     }
@@ -790,17 +791,22 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   char filename[PATH_MAX];
-  if (value_list_to_filename(filename, sizeof(filename), vl) != 0)
+  if (value_list_to_filename(filename, sizeof(filename), vl) != 0) {
+    ERROR("rrdtool plugin: failed to build filename");
     return -1;
+  }
 
   char values[32 * (ds->ds_num + 1)];
-  if (value_list_to_string(values, sizeof(values), ds, vl) != 0)
+  if (value_list_to_string(values, sizeof(values), ds, vl) != 0) {
+    ERROR("rrdtool plugin: failed to build values string");
     return -1;
+  }
 
   struct stat statbuf = {0};
   if (stat(filename, &statbuf) == -1) {
     if (errno == ENOENT) {
       if (cu_rrd_create_file(filename, ds, vl, &rrdcreate_config) != 0) {
+        ERROR("rrdtool plugin: cu_rrd_create_file (%s) failed.", filename);
         return -1;
       } else if (rrdcreate_config.async) {
         return 0;
