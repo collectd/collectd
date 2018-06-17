@@ -317,12 +317,14 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
 
   ds = plugin_get_ds(rq->type);
   if (!ds) {
-    ERROR("redis plugin: DataSet `%s' not defined.", rq->type);
+    ERROR("redis plugin: DS type `%s' not defined.", rq->type);
     return -1;
   }
 
   if (ds->ds_num != 1) {
-    ERROR("redis plugin: DS `%s' has too many types.", rq->type);
+    ERROR("redis plugin: DS type `%s' has too many datasources. This is not "
+          "supported currently.",
+          rq->type);
     return -1;
   }
 
@@ -356,13 +358,20 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
     break;
   case REDIS_REPLY_STRING:
     if (parse_value(rr->str, &val, ds->ds[0].type) == -1) {
-      WARNING("redis plugin: Unable to parse field `%s'.", rq->type);
+      WARNING("redis plugin: Query `%s': Unable to parse value.", rq->query);
       freeReplyObject(rr);
       return -1;
     }
     break;
+  case REDIS_REPLY_ARRAY:
+    WARNING("redis plugin: Query `%s' should return string or integer. Arrays "
+            "are not supported.",
+            rq->query);
+    freeReplyObject(rr);
+    return -1;
   default:
-    WARNING("redis plugin: Cannot coerce redis type.");
+    WARNING("redis plugin: Query `%s': Cannot coerce redis type (%i).",
+            rq->query, rr->type);
     freeReplyObject(rr);
     return -1;
   }
