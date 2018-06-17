@@ -544,9 +544,8 @@ int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta) {
 int check_create_dir(const char *file_orig) {
   struct stat statbuf;
 
-  char file_copy[512];
-  char dir[512];
-  int dir_len = 512;
+  char file_copy[PATH_MAX];
+  char dir[PATH_MAX];
   char *fields[16];
   int fields_num;
   char *ptr;
@@ -563,8 +562,10 @@ int check_create_dir(const char *file_orig) {
 
   if ((len = strlen(file_orig)) < 1)
     return -1;
-  else if (len >= sizeof(file_copy))
+  else if (len >= sizeof(file_copy)) {
+    ERROR("check_create_dir: name (%s) is too long.", file_orig);
     return -1;
+  }
 
   /*
    * If `file_orig' ends in a slash the last component is a directory,
@@ -615,8 +616,9 @@ int check_create_dir(const char *file_orig) {
      * Join the components together again
      */
     dir[0] = '/';
-    if (strjoin(dir + path_is_absolute, (size_t)(dir_len - path_is_absolute),
-                fields, (size_t)(i + 1), "/") < 0) {
+    if (strjoin(dir + path_is_absolute,
+                (size_t)(sizeof(dir) - path_is_absolute), fields,
+                (size_t)(i + 1), "/") < 0) {
       ERROR("strjoin failed: `%s', component #%i", file_orig, i);
       return -1;
     }
