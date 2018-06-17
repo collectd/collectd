@@ -363,6 +363,10 @@ static int redis_handle_query(redisContext *rh, redis_node_t *rn,
       return -1;
     }
     break;
+  case REDIS_REPLY_ERROR:
+    WARNING("redis plugin: Query `%s' failed: %s.", rq->query, rr->str);
+    freeReplyObject(rr);
+    return -1;
   case REDIS_REPLY_ARRAY:
     WARNING("redis plugin: Query `%s' should return string or integer. Arrays "
             "are not supported.",
