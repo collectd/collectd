@@ -35,7 +35,7 @@
 #define REDIS_DEF_HOST "localhost"
 #define REDIS_DEF_PASSWD ""
 #define REDIS_DEF_PORT 6379
-#define REDIS_DEF_TIMEOUT 2000
+#define REDIS_DEF_TIMEOUT_SEC 2
 #define REDIS_DEF_DB_COUNT 256
 #define MAX_REDIS_NODE_NAME 64
 #define MAX_REDIS_PASSWD_LENGTH 512
@@ -176,7 +176,7 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
   int timeout;
 
   redis_node_t rn = {.port = REDIS_DEF_PORT,
-                     .timeout.tv_usec = REDIS_DEF_TIMEOUT};
+                     .timeout.tv_sec = REDIS_DEF_TIMEOUT_SEC};
 
   sstrncpy(rn.host, REDIS_DEF_HOST, sizeof(rn.host));
 
@@ -205,8 +205,11 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
       }
     } else if (strcasecmp("Timeout", option->key) == 0) {
       status = cf_util_get_int(option, &timeout);
-      if (status == 0)
-        rn.timeout.tv_usec = timeout;
+      if (status == 0) {
+        rn.timeout.tv_usec = timeout * 1000;
+        rn.timeout.tv_sec = rn.timeout.tv_usec / 1000000L;
+        rn.timeout.tv_usec %= 1000000L;
+      }
     } else if (strcasecmp("Password", option->key) == 0)
       status = cf_util_get_string_buffer(option, rn.passwd, sizeof(rn.passwd));
     else
@@ -268,8 +271,7 @@ static int redis_init(void) /* {{{ */
   redis_node_t rn = {.name = "default",
                      .host = REDIS_DEF_HOST,
                      .port = REDIS_DEF_PORT,
-                     .timeout.tv_sec = 0,
-                     .timeout.tv_usec = REDIS_DEF_TIMEOUT,
+                     .timeout.tv_sec = REDIS_DEF_TIMEOUT_SEC,
                      .next = NULL};
 
   if (nodes_head == NULL)
