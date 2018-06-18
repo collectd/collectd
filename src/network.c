@@ -134,6 +134,7 @@ typedef struct sockent {
   char *node;
   char *service;
   int interface;
+  struct sockaddr_storage *bind_address;
 
   union {
     struct sockent_client client;
@@ -1683,6 +1684,36 @@ static int network_set_interface(const sockent_t *se,
   return 0;
 } /* }}} network_set_interface */
 
+static int network_bind_socket_to_addr(sockent_t *se, const struct addrinfo *ai) {
+
+  if (se->bind_address == NULL)
+    return 0;
+
+  DEBUG("fd %i: bind socket to address", se->data.client.fd);
+  char pbuffer[64];
+
+  if (ai->ai_family == AF_INET) {
+    struct sockaddr_in *addr = (struct sockaddr_in *)(se->bind_address);
+    inet_ntop(AF_INET, &(addr->sin_addr), pbuffer, 64);
+    INFO("binding client socket to ipv4 address: %s", pbuffer);
+    if (bind(se->data.client.fd, (struct sockaddr*)addr, sizeof(*addr)) == -1) {
+      ERROR("network_bind_socket_to_addr: %s", STRERRNO);
+      return -1;
+    }
+  } else if (ai->ai_family == AF_INET6) {
+    struct sockaddr_in6 *addr = (struct sockaddr_in6 *)(se->bind_address);
+    inet_ntop(AF_INET, &(addr->sin6_addr), pbuffer, 64);
+    INFO("binding client socket to ipv6 address: %s", pbuffer);
+    if (bind(se->data.client.fd, (struct sockaddr*)addr, sizeof(*addr)) == -1) {
+      ERROR("network_bind_socket_to_addr: %s", STRERRNO);
+      return -1;
+    }
+  }
+
+  return 0;
+}
+ /* int network_bind_socket_to_addr */
+
 static int network_bind_socket(int fd, const struct addrinfo *ai,
                                const int interface_idx) {
 #if KERNEL_SOLARIS
@@ -1820,6 +1851,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
   se->node = NULL;
   se->service = NULL;
   se->interface = 0;
+  se->bind_address = NULL;
   se->next = NULL;
 
   if (type == SOCKENT_TYPE_SERVER) {
@@ -1989,6 +2021,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
 
     network_set_ttl(se, ai_ptr);
     network_set_interface(se, ai_ptr);
+    network_bind_socket_to_addr(se, ai_ptr);
 
     /* We don't open more than one write-socket per
      * node/service pair.. */
@@ -2684,6 +2717,43 @@ static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
   return 0;
 } /* }}} int network_config_set_interface */
 
+static int network_config_set_bind_address(const oconfig_item_t *ci,
+                                        struct sockaddr_storage **bind_address) {
+  char addr_text[256];
+
+  if (cf_util_get_string_buffer(ci, addr_text, sizeof(addr_text)) != 0)
+    return -1;
+
+  int ret;
+  struct addrinfo hint, *res = NULL;
+
+  memset(&hint, '\0', sizeof hint);
+  hint.ai_family = PF_UNSPEC;
+  hint.ai_flags = AI_NUMERICHOST;
+
+  ret = getaddrinfo(addr_text, NULL, &hint, &res);
+  if (ret) {
+    ERROR("Invalid address");
+    ERROR(gai_strerror(ret));
+    return 1;
+  }
+
+  *bind_address = malloc(sizeof(**bind_address));
+  (*bind_address)->ss_family = res->ai_family;
+  if(res->ai_family == AF_INET) {
+    struct sockaddr_in* addr = (struct sockaddr_in*)(*bind_address);
+    inet_pton(AF_INET, addr_text, &(addr->sin_addr));
+  } else if (res->ai_family == AF_INET6) {
+    struct sockaddr_in6* addr = (struct sockaddr_in6*)(*bind_address);
+    inet_pton(AF_INET6, addr_text, &(addr->sin6_addr));
+  } else {
+    ERROR("%s is an unknown address format %d\n",addr_text,res->ai_family);
+  }
+
+  return 0;
+} /* int network_config_set_bind_address */
+
+
 static int network_config_set_buffer_size(const oconfig_item_t *ci) /* {{{ */
 {
   int tmp = 0;
@@ -2843,6 +2913,8 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
 #endif /* HAVE_GCRYPT_H */
         if (strcasecmp("Interface", child->key) == 0)
       network_config_set_interface(child, &se->interface);
+    else if (strcasecmp("BindAddress", child->key) == 0)
+      network_config_set_bind_address(child, &se->bind_address);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else {
