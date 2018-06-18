@@ -636,7 +636,7 @@ static void redis_read_command_stats(redis_node_t *rn) {
     return;
   }
 
-  char command[DATA_MAX_NAME_LEN];
+  char *command;
   char *line;
   char *ptr = rr->str;
   char *saveptr = NULL;
@@ -658,51 +658,38 @@ static void redis_read_command_stats(redis_node_t *rn) {
       continue;
     }
 
-    int cmd_len = values - line - strlen("cmdstat_") + 1;
-    if (cmd_len > DATA_MAX_NAME_LEN)
-      cmd_len = DATA_MAX_NAME_LEN;
-
-    sstrncpy(command, line + strlen("cmdstat_"), cmd_len);
+    /* Null-terminate command token */
+    values[0] = '\0';
+    command = line + strlen("cmdstat_");
+    values++;
 
     /* parse values */
     /* cmdstat_publish:calls=20795774,usec=111039258,usec_per_call=5.34 */
-
     char *field;
-    char *saveptr_line = NULL;
-    values++;
-    while ((field = strtok_r(values, "=,", &saveptr_line)) != NULL) {
+    char *saveptr_field = NULL;
+    while ((field = strtok_r(values, "=", &saveptr_field)) != NULL) {
       values = NULL;
 
-      if ((strcmp(field, "calls") == 0) &&
-          ((field = strtok_r(NULL, "=,", &saveptr_line)) != NULL)) {
-
-        char *endptr = NULL;
-        errno = 0;
-        derive_t calls = strtoll(field, &endptr, 0);
-
-        if ((endptr == field) || (errno != 0))
-          continue;
-
-        ERROR("redis plugin: Found CALLS value %lld (%s)", calls, command);
-        redis_submit(rn->name, "commands", command, (value_t){.derive = calls});
+      const char *type;
+      /* only these are supported */
+      if (strcmp(field, "calls") == 0)
+        type = "commands";
+      else if (strcmp(field, "usec") == 0)
+        type = "redis_command_cputime";
+      else
         continue;
-      }
 
-      if ((strcmp(field, "usec") == 0) &&
-          ((field = strtok_r(NULL, "=,", &saveptr_line)) != NULL)) {
-
-        char *endptr = NULL;
-        errno = 0;
-        derive_t calls = strtoll(field, &endptr, 0);
-
-        if ((endptr == field) || (errno != 0))
-          continue;
-
-        ERROR("redis plugin: Found USEC value %lld (%s)", calls, command);
-        redis_submit(rn->name, "redis_command_cputime", command,
-                     (value_t){.derive = calls});
+      if ((field = strtok_r(NULL, ",", &saveptr_field)) == NULL)
         continue;
-      }
+
+      char *endptr = NULL;
+      errno = 0;
+      derive_t value = strtoll(field, &endptr, 0);
+
+      if ((endptr == field) || (errno != 0))
+        continue;
+
+      redis_submit(rn->name, type, command, (value_t){.derive = value});
     }
   }
   freeReplyObject(rr);
