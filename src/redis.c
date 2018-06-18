@@ -271,6 +271,29 @@ redis_submit(char *plugin_instance, const char *type, const char *type_instance,
   plugin_dispatch_values(&vl);
 } /* }}} */
 
+__attribute__((nonnull(2))) static void
+redis_submit2(char *plugin_instance, const char *type,
+              const char *type_instance, value_t value0,
+              value_t value1) /* {{{ */
+{
+  value_list_t vl = VALUE_LIST_INIT;
+  value_t values[] = {value0, value1};
+
+  vl.values = values;
+  vl.values_len = STATIC_ARRAY_SIZE(values);
+
+  sstrncpy(vl.plugin, "redis", sizeof(vl.plugin));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+
+  if (plugin_instance != NULL)
+    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+
+  if (type_instance != NULL)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+} /* }}} */
+
 static int redis_init(void) /* {{{ */
 {
   if (redis_have_instances)
@@ -312,13 +335,10 @@ static void *c_redisCommand(redis_node_t *rn, const char *format, ...) {
   return reply;
 } /* void c_redisCommand */
 
-static int redis_handle_info(char *node, char const *info_line,
-                             char const *type, char const *type_instance,
-                             char const *field_name, int ds_type) /* {{{ */
-{
+static int redis_get_info_value(char const *info_line, char const *field_name,
+                                int ds_type, value_t *val) {
   char *str = strstr(info_line, field_name);
   static char buf[MAX_REDIS_VAL_SIZE];
-  value_t val;
   if (str) {
     int i;
 
@@ -328,16 +348,26 @@ static int redis_handle_info(char *node, char const *info_line,
       buf[i] = *str;
     buf[i] = '\0';
 
-    if (parse_value(buf, &val, ds_type) == -1) {
+    if (parse_value(buf, val, ds_type) == -1) {
       WARNING("redis plugin: Unable to parse field `%s'.", field_name);
       return -1;
     }
 
-    redis_submit(node, type, type_instance, val);
     return 0;
   }
   return -1;
+} /* int redis_get_info_value */
 
+static int redis_handle_info(char *node, char const *info_line,
+                             char const *type, char const *type_instance,
+                             char const *field_name, int ds_type) /* {{{ */
+{
+  value_t val;
+  if (redis_get_info_value(info_line, field_name, ds_type, &val) != 0)
+    return -1;
+
+  redis_submit(node, type, type_instance, val);
+  return 0;
 } /* }}} int redis_handle_info */
 
 static int redis_handle_query(redis_node_t *rn, redis_query_t *rq) /* {{{ */
@@ -544,6 +574,42 @@ static void redis_read_server_info(redis_node_t *rn) {
                     "total_net_input_bytes", DS_TYPE_DERIVE);
   redis_handle_info(rn->name, rr->str, "total_bytes", "output",
                     "total_net_output_bytes", DS_TYPE_DERIVE);
+
+  while (42) {
+    value_t rusage_user;
+    value_t rusage_syst;
+
+    if (redis_get_info_value(rr->str, "used_cpu_user", DS_TYPE_GAUGE,
+                             &rusage_user) != 0)
+      break;
+
+    if (redis_get_info_value(rr->str, "used_cpu_sys", DS_TYPE_GAUGE,
+                             &rusage_syst) != 0)
+      break;
+
+    redis_submit2(rn->name, "ps_cputime", "daemon",
+                  (value_t){.derive = rusage_user.gauge * 1000000},
+                  (value_t){.derive = rusage_syst.gauge * 1000000});
+    break;
+  }
+
+  while (42) {
+    value_t rusage_user;
+    value_t rusage_syst;
+
+    if (redis_get_info_value(rr->str, "used_cpu_user_children", DS_TYPE_GAUGE,
+                             &rusage_user) != 0)
+      break;
+
+    if (redis_get_info_value(rr->str, "used_cpu_sys_children", DS_TYPE_GAUGE,
+                             &rusage_syst) != 0)
+      break;
+
+    redis_submit2(rn->name, "ps_cputime", "children",
+                  (value_t){.derive = rusage_user.gauge * 1000000},
+                  (value_t){.derive = rusage_syst.gauge * 1000000});
+    break;
+  }
 
   redis_db_stats(rn->name, rr->str);
 
