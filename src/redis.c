@@ -67,6 +67,7 @@ struct redis_node_s {
   char *passwd;
   int port;
   struct timeval timeout;
+  bool report_command_stats;
   redisContext *redisContext;
   redis_query_t *queries;
 
@@ -220,6 +221,8 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
       }
     } else if (strcasecmp("Password", option->key) == 0)
       status = cf_util_get_string(option, &rn->passwd);
+    else if (strcasecmp("ReportCommandStats", option->key) == 0)
+      status = cf_util_get_boolean(option, &rn->report_command_stats);
     else
       WARNING("redis plugin: Option `%s' not allowed inside a `Node' "
               "block. I'll ignore this option.",
@@ -616,6 +619,95 @@ static void redis_read_server_info(redis_node_t *rn) {
   freeReplyObject(rr);
 } /* void redis_read_server_info */
 
+static void redis_read_command_stats(redis_node_t *rn) {
+  redisReply *rr;
+
+  if ((rr = c_redisCommand(rn, "INFO commandstats")) == NULL) {
+    WARNING("redis plugin: node `%s': unable to get `INFO commandstats'.",
+            rn->name);
+    return;
+  }
+
+  if (rr->type != REDIS_REPLY_STRING) {
+    WARNING("redis plugin: node `%s' `INFO commandstats' returned unsupported "
+            "redis type %i.",
+            rn->name, rr->type);
+    freeReplyObject(rr);
+    return;
+  }
+
+  char command[DATA_MAX_NAME_LEN];
+  char *line;
+  char *ptr = rr->str;
+  char *saveptr = NULL;
+  while ((line = strtok_r(ptr, "\n\r", &saveptr)) != NULL) {
+    ptr = NULL;
+
+    if (line[0] == '#')
+      continue;
+
+    /* command name */
+    if (strstr(line, "cmdstat_") != line) {
+      ERROR("redis plugin: not found 'cmdstat_' prefix in line '%s'", line);
+      continue;
+    }
+
+    char *values = strstr(line, ":");
+    if (values == NULL) {
+      ERROR("redis plugin: not found ':' separator in line '%s'", line);
+      continue;
+    }
+
+    int cmd_len = values - line - strlen("cmdstat_") + 1;
+    if (cmd_len > DATA_MAX_NAME_LEN)
+      cmd_len = DATA_MAX_NAME_LEN;
+
+    sstrncpy(command, line + strlen("cmdstat_"), cmd_len);
+
+    /* parse values */
+    /* cmdstat_publish:calls=20795774,usec=111039258,usec_per_call=5.34 */
+
+    char *field;
+    char *saveptr_line = NULL;
+    values++;
+    while ((field = strtok_r(values, "=,", &saveptr_line)) != NULL) {
+      values = NULL;
+
+      if ((strcmp(field, "calls") == 0) &&
+          ((field = strtok_r(NULL, "=,", &saveptr_line)) != NULL)) {
+
+        char *endptr = NULL;
+        errno = 0;
+        derive_t calls = strtoll(field, &endptr, 0);
+
+        if ((endptr == field) || (errno != 0))
+          continue;
+
+        ERROR("redis plugin: Found CALLS value %lld (%s)", calls, command);
+        redis_submit(rn->name, "commands", command, (value_t){.derive = calls});
+        continue;
+      }
+
+      if ((strcmp(field, "usec") == 0) &&
+          ((field = strtok_r(NULL, "=,", &saveptr_line)) != NULL)) {
+
+        char *endptr = NULL;
+        errno = 0;
+        derive_t calls = strtoll(field, &endptr, 0);
+
+        if ((endptr == field) || (errno != 0))
+          continue;
+
+        ERROR("redis plugin: Found USEC value %lld (%s)", calls, command);
+        redis_submit(rn->name, "redis_command_cputime", command,
+                     (value_t){.derive = calls});
+        continue;
+      }
+    }
+  }
+  freeReplyObject(rr);
+} /* void redis_read_command_stats */
+
 static int redis_read(user_data_t *user_data) /* {{{ */
 {
   redis_node_t *rn = user_data->data;
@@ -632,6 +724,13 @@ static int redis_read(user_data_t *user_data) /* {{{ */
 
   if (!rn->redisContext) /* connection lost */
     return -1;
+
+  if (rn->report_command_stats) {
+    redis_read_command_stats(rn);
+
+    if (!rn->redisContext) /* connection lost */
+      return -1;
+  }
 
   for (redis_query_t *rq = rn->queries; rq != NULL; rq = rq->next) {
     redis_handle_query(rn, rq);

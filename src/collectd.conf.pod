@@ -7292,6 +7292,7 @@ Server state is requested by sending I<INFO> query.
         Host "localhost"
         Port "6379"
         Timeout 2000
+        ReportCommandStats false
         <Query "LLEN myqueue">
           #Database 0
           Type "queue_length"
@@ -7334,6 +7335,12 @@ It is expected what B<Timeout> values should be lower than B<Interval> defined
 globally.
 
 Defaults to 2000 (2 seconds).
+
+=item B<ReportCommandStats> B<false>|B<true>
+
+Enables or disables reporting of statistics based on the command type, including
+rate of command calls and average CPU time consumed.
+Defaults to B<false>.
 
 =item B<Query> I<Querystring>
 
