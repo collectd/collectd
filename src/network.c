@@ -113,6 +113,7 @@ struct sockent_client {
 #endif
   cdtime_t next_resolve_reconnect;
   cdtime_t resolve_interval;
+  struct sockaddr_storage *bind_addr;
 };
 
 struct sockent_server {
@@ -134,7 +135,6 @@ typedef struct sockent {
   char *node;
   char *service;
   int interface;
-  struct sockaddr_storage *bind_address;
 
   union {
     struct sockent_client client;
@@ -1502,6 +1502,7 @@ static void free_sockent_client(struct sockent_client *sec) /* {{{ */
     sec->fd = -1;
   }
   sfree(sec->addr);
+  sfree(sec->bind_addr);
 #if HAVE_GCRYPT_H
   sfree(sec->username);
   sfree(sec->password);
@@ -1687,35 +1688,38 @@ static int network_set_interface(const sockent_t *se,
 static int network_bind_socket_to_addr(sockent_t *se,
                                        const struct addrinfo *ai) {
 
-  if (se->bind_address == NULL)
+  if (se->data.client.bind_addr == NULL)
     return 0;
 
   DEBUG("fd %i: bind socket to address", se->data.client.fd);
   char pbuffer[64];
 
   if (ai->ai_family == AF_INET) {
-    struct sockaddr_in *addr = (struct sockaddr_in *)(se->bind_address);
+    struct sockaddr_in *addr =
+        (struct sockaddr_in *)(se->data.client.bind_addr);
     inet_ntop(AF_INET, &(addr->sin_addr), pbuffer, 64);
-    INFO("binding client socket to ipv4 address: %s", pbuffer);
+    DEBUG("binding client socket to ipv4 address: %s", pbuffer);
     if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
         -1) {
-      ERROR("network_bind_socket_to_addr: %s", STRERRNO);
+      ERROR("network_plugin: failed to bind client socket (ipv4): %s",
+            STRERRNO);
       return -1;
     }
   } else if (ai->ai_family == AF_INET6) {
-    struct sockaddr_in6 *addr = (struct sockaddr_in6 *)(se->bind_address);
+    struct sockaddr_in6 *addr =
+        (struct sockaddr_in6 *)(se->data.client.bind_addr);
     inet_ntop(AF_INET, &(addr->sin6_addr), pbuffer, 64);
-    INFO("binding client socket to ipv6 address: %s", pbuffer);
+    DEBUG("binding client socket to ipv6 address: %s", pbuffer);
     if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
         -1) {
-      ERROR("network_bind_socket_to_addr: %s", STRERRNO);
+      ERROR("network_plugin: failed to bind client socket (ipv6): %s",
+            STRERRNO);
       return -1;
     }
   }
 
   return 0;
-}
-/* int network_bind_socket_to_addr */
+} /* int network_bind_socket_to_addr */
 
 static int network_bind_socket(int fd, const struct addrinfo *ai,
                                const int interface_idx) {
@@ -1854,7 +1858,6 @@ static sockent_t *sockent_create(int type) /* {{{ */
   se->node = NULL;
   se->service = NULL;
   se->interface = 0;
-  se->bind_address = NULL;
   se->next = NULL;
 
   if (type == SOCKENT_TYPE_SERVER) {
@@ -1869,6 +1872,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
   } else {
     se->data.client.fd = -1;
     se->data.client.addr = NULL;
+    se->data.client.bind_addr = NULL;
     se->data.client.resolve_interval = 0;
     se->data.client.next_resolve_reconnect = 0;
 #if HAVE_GCRYPT_H
@@ -2723,6 +2727,11 @@ static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
 static int
 network_config_set_bind_address(const oconfig_item_t *ci,
                                 struct sockaddr_storage **bind_address) {
+  if ((*bind_address) != NULL) {
+    ERROR("network_plugin: only a single bind address is allowed");
+    return 1;
+  }
+
   char addr_text[256];
 
   if (cf_util_get_string_buffer(ci, addr_text, sizeof(addr_text)) != 0)
@@ -2737,7 +2746,7 @@ network_config_set_bind_address(const oconfig_item_t *ci,
 
   ret = getaddrinfo(addr_text, NULL, &hint, &res);
   if (ret) {
-    ERROR("Invalid address");
+    ERROR("Bind address option has invalid address set: %s", gai_strerror(ret));
     return 1;
   }
 
@@ -2916,7 +2925,7 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
         if (strcasecmp("Interface", child->key) == 0)
       network_config_set_interface(child, &se->interface);
     else if (strcasecmp("BindAddress", child->key) == 0)
-      network_config_set_bind_address(child, &se->bind_address);
+      network_config_set_bind_address(child, &se->data.client.bind_addr);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else {
