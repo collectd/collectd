@@ -26,6 +26,8 @@ collectd-snmp - Documentation of collectd's C<snmp plugin>
       Table true
       Type "if_octets"
       TypeInstanceOID "IF-MIB::ifDescr"
+      #FilterOID "IF-MIB::ifOperStatus"
+      #FilterValues "1", "2"
       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
     </Data>
 
@@ -113,8 +115,9 @@ queried using the C<GET> SNMP command (see L<snmpget(1)>) and transmitted to
 collectd. B<One> value list is dispatched and, eventually, one file will be
 written.
 
-When B<Table> is set to B<true>, the OIDs given to B<Values> (see below) are
-queried using the C<GETNEXT> SNMP command until the subtree is left. After all
+When B<Table> is set to B<true>, the OIDs given to B<Values>, B<TypeInstanceOID>,
+B<PluginInstanceOID>, B<HostOID> and B<FilterOID> (see below) are queried using
+the C<GETNEXT> SNMP command until the subtree is left. After all
 the lists (think: all columns of the table) have been read B<several> values
 sets will be dispatches and, eventually, several files will be written. If you
 configure a B<Type> (see above) which needs more than one data source (for
@@ -167,23 +170,42 @@ Defaults to an empty string.
 
 =item B<PluginInstanceOID> I<OID>
 
-If B<Table> is set to I<true>, I<OID> is interpreted as an SNMP-prefix that will
-return a list of values. Those values are then used as the actual type-instance
-or plugin-instance of dispatched metrics. An example would be the
-C<IF-MIB::ifDescr> subtree. L<variables(5)> from the SNMP distribution describes
-the format of OIDs. When set to empty string, then "SUBID" will be used as the
-instance.
+=item B<HostOID> I<OID>
 
-Prefix may be set for values with use of B<InstancePrefix> option.
+If B<Table> is set to I<true>, I<OID> is interpreted as an SNMP-prefix that will
+return a list of values. Those values are then used as the actual type-instance,
+plugin-instance or host of dispatched metrics. An example would be the
+C<IF-MIB::ifDescr> subtree. L<variables(5)> from the SNMP distribution describes
+the format of OIDs. When option is set to empty string, then "SUBID" will be used
+as the value.
+
+Prefix may be set for values with use of appropriate B<TypeInstancePrefix>,
+B<PluginInstancePrefix> and B<HostPrefix> options.
 
 When B<Table> is set to I<false> these options has no effect.
-Only one of these options may be used in the same B<Data> block.
 
-Defaults:
-
+Defaults: When no one of these options is configured explicitly,
 B<TypeInstanceOID> defaults to an empty string.
 
-B<PluginInstanceOID> is not configured.
+=item B<TypeInstancePrefix>
+
+=item B<PluginInstancePrefix>
+
+=item B<HostPrefix>
+
+These options are intented to be used together with B<TypeInstanceOID>,
+B<PluginInstanceOID> and B<HostOID> respectively.
+
+If set, I<String> is preprended to values received by querying the agent.
+
+When B<Table> is set to I<false> these options has no effect.
+
+The C<UPS-MIB> is an example where you need this setting: It has voltages of
+the inlets, outlets and the battery of an UPS. However, it doesn't provide a
+descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
+instances is not enough, because the inlet voltages and outlet voltages may
+both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
+between the different voltages.
 
 =item B<Instance> I<Instance>
 
@@ -201,17 +223,8 @@ Note what B<Table> option must be set before setting B<Instance>.
 
 =item B<InstancePrefix> I<String>
 
-If B<Table> is set to I<true>, you may feel the need to add something to the
-instance of the files. If set, I<String> is prepended to the instance as
-determined by querying the agent. When B<Table> is set to I<false> this option
-has no effect.
-
-The C<UPS-MIB> is an example where you need this setting: It has voltages of
-the inlets, outlets and the battery of an UPS. However, it doesn't provide a
-descriptive column for these voltages. In this case having 1, 2,E<nbsp>... as
-instances is not enough, because the inlet voltages and outlet voltages may
-both have the subids 1, 2,E<nbsp>... You can use this setting to distinguish
-between the different voltages.
+Attention: this option exists for backwards compatibility only and will be
+removed in next major release. Please use B<TypeInstancePrefix> instead.
 
 =item B<Values> I<OID> [I<OID> ...]
 
@@ -249,15 +262,38 @@ This value is not applied to counter-values.
 
 =item B<Ignore> I<Value> [, I<Value> ...]
 
-The ignore values allows one to ignore Instances based on their name and the
-patterns specified by the various values you've entered. The match is a
+The ignore values allows one to ignore TypeInstances based on their name and
+the patterns specified by the various values you've entered. The match is a
 glob-type shell matching.
+
+When B<Table> is set to I<false> then this option has no effect.
 
 =item B<InvertMatch> I<true|false(default)>
 
 The invertmatch value should be use in combination of the Ignore option.
 It changes the behaviour of the Ignore option, from a blacklist behaviour
 when InvertMatch is set to false, to a whitelist when specified to true.
+
+=item B<FilterOID> I<OID>
+
+=item B<FilterValues> I<Value> [, I<Value> ...]
+
+=item B<FilterIgnoreSelected> I<true|false(default)>
+
+When B<Table> is set to I<true>, these options allow to configure filtering
+based on MIB values.
+
+The B<FilterOID> declares I<OID> to fill table column with values.
+The B<FilterValues> declares values list to do match. Whether table row will be
+collected or ignored depends on the B<FilterIgnoreSelected> setting.
+As with other plugins that use the daemon's ignorelist functionality, a string
+that starts and ends with a slash is interpreted as a regular expression.
+
+If no selection is configured at all, B<all> table rows are selected.
+
+When B<Table> is set to I<false> then these options has no effect.
+
+See B<Table> and F</"IGNORELISTS"> for details.
 
 =back
 
