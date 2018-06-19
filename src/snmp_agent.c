@@ -531,7 +531,7 @@ static int snmp_agent_fill_index_list(table_definition_t *td,
 
     /* Parsing input string if necessary */
     if (td->index_keys[i].regex) {
-      regmatch_t m = {-1, -1};
+      regmatch_t m;
 
       /* Parsing input string */
       ret = snmp_agent_parse_index_key(ptr, &td->index_keys[i].regex_info,
