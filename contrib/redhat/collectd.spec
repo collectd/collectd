@@ -389,7 +389,7 @@ Chrony plugin for collectd
 %if %{with_connectivity}
 %package connectivity
 Summary:       Connectivity plugin for collectd
-Group:	       System Environment/Daemons
+Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
 BuildRequires: yajl-devel
 %description connectivity
@@ -1172,11 +1172,11 @@ Collectd utilities
 %define _with_chrony --disable-chrony
 %endif
 
-+%if %{with_connectivity}
-+%define _with_connectivity --enable-connectivity
-+%else
-+%define _with_connectivity --disable-connectivity
-+%endif
+%if %{with_connectivity}
+%define _with_connectivity --enable-connectivity
+%else
+%define _with_connectivity --disable-connectivity
+%endif
 
 %if %{with_conntrack}
 %define _with_conntrack --enable-conntrack
