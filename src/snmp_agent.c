@@ -383,10 +383,19 @@ static int snmp_agent_create_token(char const *input, int t_off, int n,
   int ret = 0;
 
   token->key = index_key;
-  token->str = strndup(input + t_off, n);
 
+  /* copy at most n bytes from input with offset t_off into token->str */
+  input += t_off;
+  size_t len = strlen(input);
+  if (n < len)
+    len = n;
+
+  token->str = malloc(len + 1);
   if (token->str == NULL)
     goto free_offset_error;
+
+  memcpy(token->str, input, len);
+  token->str[len] = '\0';
 
   *offset = t_off;
   ret = c_avl_insert(tree, (void *)offset, (void *)token);
