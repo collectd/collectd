@@ -316,8 +316,12 @@ static int redis_init(void) /* {{{ */
   rn->name = strdup("default");
   rn->host = strdup(REDIS_DEF_HOST);
 
-  if (rn->name == NULL || rn->host == NULL)
+  if (rn->name == NULL || rn->host == NULL) {
+    sfree(rn->name);
+    sfree(rn->host);
+    sfree(rn);
     return ENOMEM;
+  }
 
   return redis_node_add(rn);
 } /* }}} int redis_init */
