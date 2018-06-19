@@ -123,6 +123,7 @@
 %define with_postgresql 0%{!?_without_postgresql:1}
 %define with_powerdns 0%{!?_without_powerdns:1}
 %define with_processes 0%{!?_without_processes:1}
+%define with_procevent 0%{!?_without_procevent:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
 %define with_redis 0%{!?_without_redis:1}
@@ -252,6 +253,7 @@
 %define with_mqtt 0
 %define with_ovs_events 0
 %define with_ovs_stats 0
+%define with_procevent 0
 %define with_redis 0
 %define with_rrdcached 0
 %define with_sysevent 0
@@ -792,6 +794,16 @@ BuildRequires:	postgresql-devel
 %description postgresql
 The PostgreSQL plugin connects to and executes SQL statements on a PostgreSQL
 database.
+%endif
+
+%if %{with_procevent}
+%package procevent
+Summary:       Processes event plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description procevent
+Monitors process starts/stops via netlink library.
 %endif
 
 %if %{with_python}
@@ -1646,6 +1658,12 @@ Collectd utilities
 %define _with_processes --disable-processes
 %endif
 
+%if %{with_procevent}
+%define _with_procevent --enable-procevent
+%else
+%define _with_procevent --disable-procevent
+%endif
+
 %if %{with_protocols}
 %define _with_protocols --enable-protocols
 %else
@@ -2091,6 +2109,7 @@ Collectd utilities
 	%{?_with_postgresql} \
 	%{?_with_powerdns} \
 	%{?_with_processes} \
+	%{?_with_procevent} \
 	%{?_with_protocols} \
 	%{?_with_python} \
 	%{?_with_redis} \
@@ -2765,6 +2784,11 @@ fi
 %files postgresql
 %{_datadir}/collectd/postgresql_default.conf
 %{_libdir}/%{name}/postgresql.so
+%endif
+
+%if %{with_procevent}
+%files procevent
+%{_libdir}/%{name}/procevent.so
 %endif
 
 %if %{with_python}
