@@ -49,6 +49,7 @@
 %define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
 %define with_chrony 0%{!?_without_chrony:1}
+%define with_connectivity 0%{!?_without_connectivity:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
@@ -233,6 +234,7 @@
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_connectivity 0
 %define with_cpusleep 0
 %define with_gps 0
 %define with_mqtt 0
@@ -354,6 +356,16 @@ Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
 %description chrony
 Chrony plugin for collectd
+%endif
+
+%if %{with_connectivity}
+%package connectivity
+Summary:       Connectivity plugin for collectd
+Group:	       System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description connectivity
+Monitors network interface up/down status via netlink library.
 %endif
 
 %if %{with_curl}
@@ -1074,6 +1086,12 @@ Collectd utilities
 %else
 %define _with_chrony --disable-chrony
 %endif
+
++%if %{with_connectivity}
++%define _with_connectivity --enable-connectivity
++%else
++%define _with_connectivity --disable-connectivity
++%endif
 
 %if %{with_conntrack}
 %define _with_conntrack --enable-conntrack
@@ -1899,6 +1917,7 @@ Collectd utilities
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
 	%{?_with_chrony} \
+	%{?_with_connectivity} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
@@ -2432,6 +2451,11 @@ fi
 %if %{with_chrony}
 %files chrony
 %{_libdir}/%{name}/chrony.so
+%endif
+
+%if %{with_connectivity}
+%files connectivity
+%{_libdir}/%{name}/connectivity.so
 %endif
 
 %if %{with_curl}
