@@ -7281,25 +7281,25 @@ Defaults to B<false>.
 
 =head2 Plugin C<redis>
 
-The I<Redis plugin> connects to one or more Redis servers and gathers
-information about each server's state. For each server there is a I<Node> block
-which configures the connection parameters for this node.
+The I<Redis plugin> connects to one or more Redis servers, gathers
+information about each server's state and executes user-defined queries.
+For each server there is a I<Node> block which configures the connection
+parameters and set of user-defined queries for this node.
 
   <Plugin redis>
     <Node "example">
         Host "localhost"
         Port "6379"
         Timeout 2000
+        ReportCommandStats false
+        ReportCpuUsage true
         <Query "LLEN myqueue">
           #Database 0
           Type "queue_length"
           Instance "myqueue"
-        <Query>
+        </Query>
     </Node>
   </Plugin>
-
-The information shown in the synopsis above is the I<default configuration>
-which is used by the plugin if no configuration is present.
 
 =over 4
 
@@ -7308,7 +7308,9 @@ which is used by the plugin if no configuration is present.
 The B<Node> block identifies a new Redis node, that is a new Redis instance
 running in an specified host and port. The name for node is a canonical
 identifier which is used as I<plugin instance>. It is limited to
-64E<nbsp>characters in length.
+128E<nbsp>characters in length.
+
+When no B<Node> is configured explicitly, plugin connects to "localhost:6379".
 
 =item B<Host> I<Hostname>
 
@@ -7328,30 +7330,47 @@ Use I<Password> to authenticate when connecting to I<Redis>.
 =item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option set the socket timeout for node response. Since the Redis
-read function is blocking, you should keep this value as low as possible. Keep
-in mind that the sum of all B<Timeout> values for all B<Nodes> should be lower
-than B<Interval> defined globally.
+read function is blocking, you should keep this value as low as possible.
+It is expected what B<Timeout> values should be lower than B<Interval> defined
+globally.
+
+Defaults to 2000 (2 seconds).
+
+=item B<ReportCommandStats> B<false>|B<true>
+
+Enables or disables reporting of statistics based on the command type, including
+rate of command calls and average CPU time consumed by command processing.
+Defaults to B<false>.
+
+=item B<ReportCpuUsage> B<true>|B<false>
+
+Enables or disables reporting of CPU consumption statistics.
+Defaults to B<true>.
 
 =item B<Query> I<Querystring>
 
 The B<Query> block identifies a query to execute against the redis server.
-There may be an arbitrary number of queries to execute.
-
-=item B<Database> I<Index>
-
-This index selects the Redis logical database to use for query. Defaults
-to C<0>.
+There may be an arbitrary number of queries to execute. Each query should
+return single string or integer.
 
 =item B<Type> I<Collectd type>
 
-Within a query definition, a valid collectd type to use as when submitting
+Within a query definition, a valid I<collectd type> to use as when submitting
 the result of the query. When not supplied, will default to B<gauge>.
+
+Currently only types with one datasource are supported.
+See L<types.db(5)> for more details on types and their configuration.
 
 =item B<Instance> I<Type instance>
 
 Within a query definition, an optional type instance to use when submitting
 the result of the query. When not supplied will default to the escaped
-command, up to 64 chars.
+command, up to 128 chars.
+
+=item B<Database> I<Index>
+
+This index selects the Redis logical database to use for query. Defaults
+to C<0>.
 
 =back
 

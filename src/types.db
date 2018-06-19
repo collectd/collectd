@@ -31,6 +31,7 @@ clock_state             value:GAUGE:0:U
 clock_stratum           value:GAUGE:0:U
 compression             uncompressed:DERIVE:0:U, compressed:DERIVE:0:U
 compression_ratio       value:GAUGE:0:2
+commands                value:DERIVE:0:U
 connections             value:DERIVE:0:U
 conntrack               value:GAUGE:0:4294967295
 contextswitch           value:DERIVE:0:U
@@ -211,6 +212,7 @@ ps_vm                   value:GAUGE:0:9223372036854775807
 pubsub                  value:GAUGE:0:U
 queue_length            value:GAUGE:0:U
 records                 value:GAUGE:0:U
+redis_command_cputime   value:DERIVE:0:U
 requests                value:GAUGE:0:U
 response_code           value:GAUGE:0:U
 response_time           value:GAUGE:0:U
