@@ -663,9 +663,9 @@ DEF_TEST(get_token) {
 }
 
 DEF_TEST(tokenize) {
-  regmatch_t m[3] = {{5, 6},    /* "1" */
-                     {12, 13},  /* "2" */
-                     {19, 20}}; /* "3" */
+  regmatch_t m[3] = {{(regoff_t)5, (regoff_t)6},    /* "1" */
+                     {(regoff_t)12, (regoff_t)13},  /* "2" */
+                     {(regoff_t)19, (regoff_t)20}}; /* "3" */
   c_avl_tree_t *tokens =
       c_avl_create((int (*)(const void *, const void *))num_compare);
   const char input[] = "testA1-testB2-testC3";
