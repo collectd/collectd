@@ -7285,7 +7285,6 @@ The I<Redis plugin> connects to one or more Redis servers, gathers
 information about each server's state and executes user-defined queries.
 For each server there is a I<Node> block which configures the connection
 parameters and set of user-defined queries for this node.
-Server state is requested by sending I<INFO> query.
 
   <Plugin redis>
     <Node "example">
@@ -7293,6 +7292,7 @@ Server state is requested by sending I<INFO> query.
         Port "6379"
         Timeout 2000
         ReportCommandStats false
+        ReportCpuUsage true
         <Query "LLEN myqueue">
           #Database 0
           Type "queue_length"
@@ -7339,8 +7339,13 @@ Defaults to 2000 (2 seconds).
 =item B<ReportCommandStats> B<false>|B<true>
 
 Enables or disables reporting of statistics based on the command type, including
-rate of command calls and average CPU time consumed.
+rate of command calls and average CPU time consumed by command processing.
 Defaults to B<false>.
+
+=item B<ReportCpuUsage> B<true>|B<false>
+
+Enables or disables reporting of CPU consumption statistics.
+Defaults to B<true>.
 
 =item B<Query> I<Querystring>
 

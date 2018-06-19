@@ -68,6 +68,7 @@ struct redis_node_s {
   int port;
   struct timeval timeout;
   bool report_command_stats;
+  bool report_cpu_usage;
   redisContext *redisContext;
   redis_query_t *queries;
 
@@ -177,6 +178,7 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
 
   rn->port = REDIS_DEF_PORT;
   rn->timeout.tv_sec = REDIS_DEF_TIMEOUT_SEC;
+  rn->report_cpu_usage = true;
 
   rn->host = strdup(REDIS_DEF_HOST);
   if (rn->host == NULL) {
@@ -223,6 +225,8 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(option, &rn->passwd);
     else if (strcasecmp("ReportCommandStats", option->key) == 0)
       status = cf_util_get_boolean(option, &rn->report_command_stats);
+    else if (strcasecmp("ReportCpuUsage", option->key) == 0)
+      status = cf_util_get_boolean(option, &rn->report_cpu_usage);
     else
       WARNING("redis plugin: Option `%s' not allowed inside a `Node' "
               "block. I'll ignore this option.",
@@ -257,8 +261,8 @@ static int redis_config(oconfig_item_t *ci) /* {{{ */
 } /* }}} */
 
 __attribute__((nonnull(2))) static void
-redis_submit(char *plugin_instance, const char *type, const char *type_instance,
-             value_t value) /* {{{ */
+redis_submit(const char *plugin_instance, const char *type,
+             const char *type_instance, value_t value) /* {{{ */
 {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -275,7 +279,7 @@ redis_submit(char *plugin_instance, const char *type, const char *type_instance,
 } /* }}} */
 
 __attribute__((nonnull(2))) static void
-redis_submit2(char *plugin_instance, const char *type,
+redis_submit2(const char *plugin_instance, const char *type,
               const char *type_instance, value_t value0,
               value_t value1) /* {{{ */
 {
@@ -450,7 +454,7 @@ static int redis_handle_query(redis_node_t *rn, redis_query_t *rq) /* {{{ */
   return 0;
 } /* }}} int redis_handle_query */
 
-static int redis_db_stats(char *node, char const *info_line) /* {{{ */
+static int redis_db_stats(const char *node, char const *info_line) /* {{{ */
 {
   /* redis_db_stats parses and dispatches Redis database statistics,
    * currently the number of keys for each database.
@@ -488,6 +492,44 @@ static int redis_db_stats(char *node, char const *info_line) /* {{{ */
   return 0;
 
 } /* }}} int redis_db_stats */
+
+static void redis_cpu_usage(const char *node, char const *info_line) {
+  while (42) {
+    value_t rusage_user;
+    value_t rusage_syst;
+
+    if (redis_get_info_value(info_line, "used_cpu_user", DS_TYPE_GAUGE,
+                             &rusage_user) != 0)
+      break;
+
+    if (redis_get_info_value(info_line, "used_cpu_sys", DS_TYPE_GAUGE,
+                             &rusage_syst) != 0)
+      break;
+
+    redis_submit2(node, "ps_cputime", "daemon",
+                  (value_t){.derive = rusage_user.gauge * 1000000},
+                  (value_t){.derive = rusage_syst.gauge * 1000000});
+    break;
+  }
+
+  while (42) {
+    value_t rusage_user;
+    value_t rusage_syst;
+
+    if (redis_get_info_value(info_line, "used_cpu_user_children", DS_TYPE_GAUGE,
+                             &rusage_user) != 0)
+      break;
+
+    if (redis_get_info_value(info_line, "used_cpu_sys_children", DS_TYPE_GAUGE,
+                             &rusage_syst) != 0)
+      break;
+
+    redis_submit2(node, "ps_cputime", "children",
+                  (value_t){.derive = rusage_user.gauge * 1000000},
+                  (value_t){.derive = rusage_syst.gauge * 1000000});
+    break;
+  }
+} /* void redis_cpu_usage */
 
 static void redis_check_connection(redis_node_t *rn) {
   if (rn->redisContext)
@@ -578,43 +620,10 @@ static void redis_read_server_info(redis_node_t *rn) {
   redis_handle_info(rn->name, rr->str, "total_bytes", "output",
                     "total_net_output_bytes", DS_TYPE_DERIVE);
 
-  while (42) {
-    value_t rusage_user;
-    value_t rusage_syst;
-
-    if (redis_get_info_value(rr->str, "used_cpu_user", DS_TYPE_GAUGE,
-                             &rusage_user) != 0)
-      break;
-
-    if (redis_get_info_value(rr->str, "used_cpu_sys", DS_TYPE_GAUGE,
-                             &rusage_syst) != 0)
-      break;
-
-    redis_submit2(rn->name, "ps_cputime", "daemon",
-                  (value_t){.derive = rusage_user.gauge * 1000000},
-                  (value_t){.derive = rusage_syst.gauge * 1000000});
-    break;
-  }
-
-  while (42) {
-    value_t rusage_user;
-    value_t rusage_syst;
-
-    if (redis_get_info_value(rr->str, "used_cpu_user_children", DS_TYPE_GAUGE,
-                             &rusage_user) != 0)
-      break;
-
-    if (redis_get_info_value(rr->str, "used_cpu_sys_children", DS_TYPE_GAUGE,
-                             &rusage_syst) != 0)
-      break;
-
-    redis_submit2(rn->name, "ps_cputime", "children",
-                  (value_t){.derive = rusage_user.gauge * 1000000},
-                  (value_t){.derive = rusage_syst.gauge * 1000000});
-    break;
-  }
-
   redis_db_stats(rn->name, rr->str);
+
+  if (rn->report_cpu_usage)
+    redis_cpu_usage(rn->name, rr->str);
 
   freeReplyObject(rr);
 } /* void redis_read_server_info */
