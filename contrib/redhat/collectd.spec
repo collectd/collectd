@@ -363,7 +363,7 @@ Chrony plugin for collectd
 Summary:       Connectivity plugin for collectd
 Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
-BuildRequires: yajl-devel
+BuildRequires: libmnl-devel, yajl-devel
 %description connectivity
 Monitors network interface up/down status via netlink library.
 %endif
