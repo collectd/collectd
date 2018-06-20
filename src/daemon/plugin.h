@@ -399,7 +399,7 @@ int parse_notif_severity(const char *severity);
 #define DEBUG(...) /* noop */
 #endif             /* ! COLLECT_DEBUG */
 
-/* These will log messages, prefixed by plugin name */
+/* This will log messages, prefixed by plugin name */
 void daemon_log(int level, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 
