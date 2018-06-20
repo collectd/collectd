@@ -171,6 +171,7 @@ struct user_data_s {
 typedef struct user_data_s user_data_t;
 
 struct plugin_ctx_s {
+  char *name;
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
@@ -397,6 +398,15 @@ int parse_notif_severity(const char *severity);
 #else              /* COLLECT_DEBUG */
 #define DEBUG(...) /* noop */
 #endif             /* ! COLLECT_DEBUG */
+
+/* This will log messages, prefixed by plugin name */
+void daemon_log(int level, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+#define P_ERROR(...) daemon_log(LOG_ERR, __VA_ARGS__)
+#define P_WARNING(...) daemon_log(LOG_WARNING, __VA_ARGS__)
+#define P_NOTICE(...) daemon_log(LOG_NOTICE, __VA_ARGS__)
+#define P_INFO(...) daemon_log(LOG_INFO, __VA_ARGS__)
 
 const data_set_t *plugin_get_ds(const char *name);
 
