@@ -2738,16 +2738,17 @@ network_config_set_bind_address(const oconfig_item_t *ci,
     return -1;
 
   int ret;
-  struct addrinfo hint, *res = NULL;
-
-  memset(&hint, '\0', sizeof hint);
-  hint.ai_family = PF_UNSPEC;
-  hint.ai_flags = AI_NUMERICHOST;
+  struct addrinfo *res = NULL;
+  struct addrinfo hint = {.ai_family = PF_UNSPEC,
+                          .ai_flags = AI_NUMERICHOST,
+                          .ai_protocol = IPPROTO_IP,
+                          .ai_socktype = SOCK_DGRAM};
 
   ret = getaddrinfo(addr_text, NULL, &hint, &res);
   if (ret) {
     ERROR("network plugin: Bind address option has invalid address set: %s",
           gai_strerror(ret));
+    freeaddrinfo(res);
     return -1;
   }
 
@@ -2763,9 +2764,11 @@ network_config_set_bind_address(const oconfig_item_t *ci,
     ERROR("network plugin: %s is an unknown address format %d\n", addr_text,
           res->ai_family);
     sfree(*bind_address);
+    freeaddrinfo(res);
     return -1;
   }
 
+  freeaddrinfo(res);
   return 0;
 } /* int network_config_set_bind_address */
 
