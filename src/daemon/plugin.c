@@ -2244,6 +2244,21 @@ void plugin_log(int level, const char *format, ...) {
   }
 } /* void plugin_log */
 
+void daemon_log(int level, const char *format, ...) {
+  char msg[1024] = ""; // Size inherits from plugin_log()
+
+  char const *name = plugin_get_ctx().name;
+  if (name == NULL)
+    name = "UNKNOWN";
+
+  va_list ap;
+  va_start(ap, format);
+  vsnprintf(msg, sizeof(msg), format, ap);
+  va_end(ap);
+
+  plugin_log(level, "%s plugin: %s", name, msg);
+} /* void daemon_log */
+
 int parse_log_severity(const char *severity) {
   int log_level = -1;
 

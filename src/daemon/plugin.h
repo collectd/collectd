@@ -399,6 +399,15 @@ int parse_notif_severity(const char *severity);
 #define DEBUG(...) /* noop */
 #endif             /* ! COLLECT_DEBUG */
 
+/* These will log messages, prefixed by plugin name */
+void daemon_log(int level, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+#define P_ERROR(...) daemon_log(LOG_ERR, __VA_ARGS__)
+#define P_WARNING(...) daemon_log(LOG_WARNING, __VA_ARGS__)
+#define P_NOTICE(...) daemon_log(LOG_NOTICE, __VA_ARGS__)
+#define P_INFO(...) daemon_log(LOG_INFO, __VA_ARGS__)
+
 const data_set_t *plugin_get_ds(const char *name);
 
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
