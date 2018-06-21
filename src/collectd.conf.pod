@@ -5438,6 +5438,17 @@ behavior is to let the kernel choose the appropriate interface. Be warned
 that the manual selection of an interface for unicast traffic is only
 necessary in rare cases.
 
+=item B<BindAddress> I<IP Address>
+
+Set the outgoing IP address for IP packets. This option can be used instead of
+the I<Interface> option to explicitly define the IP address which will be used
+to send Packets to the remote server. This applies at least
+to IPv6 packets and if possible to IPv4. If this option is not applicable,
+undefined or a non-existent interface name is specified, the default
+behavior is to let the kernel choose the appropriate interface. Be warned
+that the manual selection of an interface for unicast traffic is only
+necessary in rare cases.
+
 =item B<ResolveInterval> I<Seconds>
 
 Sets the interval at which to re-resolve the DNS for the I<Host>. This is
