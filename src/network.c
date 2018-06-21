@@ -1708,7 +1708,7 @@ static int network_bind_socket_to_addr(sockent_t *se,
   } else if (ai->ai_family == AF_INET6) {
     struct sockaddr_in6 *addr =
         (struct sockaddr_in6 *)(se->data.client.bind_addr);
-    inet_ntop(AF_INET, &(addr->sin6_addr), pbuffer, 64);
+    inet_ntop(AF_INET6, &(addr->sin6_addr), pbuffer, 64);
     DEBUG("network_plugin: binding client socket to ipv6 address: %s", pbuffer);
     if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
         -1) {
@@ -2739,20 +2739,23 @@ network_config_set_bind_address(const oconfig_item_t *ci,
 
   int ret;
   struct addrinfo *res = NULL;
-  struct addrinfo hint = {.ai_family = PF_UNSPEC,
-                          .ai_flags = AI_NUMERICHOST,
-                          .ai_protocol = IPPROTO_IP,
-                          .ai_socktype = SOCK_DGRAM};
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_NUMERICHOST,
+                              .ai_protocol = IPPROTO_UDP,
+                              .ai_socktype = SOCK_DGRAM};
 
-  ret = getaddrinfo(addr_text, NULL, &hint, &res);
+  ret = getaddrinfo(addr_text, NULL, &ai_hints, &res);
   if (ret) {
     ERROR("network plugin: Bind address option has invalid address set: %s",
           gai_strerror(ret));
-    freeaddrinfo(res);
     return -1;
   }
 
   *bind_address = malloc(sizeof(**bind_address));
+  if (*bind_address == NULL) {
+    ERROR("network plugin: network_config_set_bind_address: malloc failed.");
+    return -1;
+  }
   (*bind_address)->ss_family = res->ai_family;
   if (res->ai_family == AF_INET) {
     struct sockaddr_in *addr = (struct sockaddr_in *)(*bind_address);
