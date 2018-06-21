@@ -145,9 +145,9 @@ DEF_TEST(format_name_regex_index) {
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_OCTET_STR,
                             (const u_char *)plugin_inst, strlen(plugin_inst));
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER,
-                            (const u_char *)&vcpu, 1);
+                            (const u_char *)&vcpu, sizeof(vcpu));
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER,
-                            (const u_char *)&cpu, 1);
+                            (const u_char *)&cpu, sizeof(cpu));
 
   build_oid_noalloc(index_oid.oid, sizeof(index_oid.oid), &index_oid.oid_len,
                     NULL, 0, index_list_tmp);
