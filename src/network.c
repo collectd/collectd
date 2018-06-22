@@ -1691,7 +1691,7 @@ static int network_bind_socket_to_addr(sockent_t *se,
   if (se->data.client.bind_addr == NULL)
     return 0;
 
-  DEBUG("network_plugin: fd %i: bind socket to address", se->data.client.fd);
+  ERROR("network plugin: failed to bind client socket (ipvX) to %s: %s", pbuffer, STRERRNO);
   char pbuffer[64];
 
   if (ai->ai_family == AF_INET) {
