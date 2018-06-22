@@ -833,28 +833,6 @@ static int mc_receive_thread_stop(void) /* {{{ */
  *   </Metric>
  * </Plugin>
  */
-static int gmond_config_set_string(oconfig_item_t *ci, char **str) /* {{{ */
-{
-  char *tmp;
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("gmond plugin: The `%s' option needs "
-            "exactly one string argument.",
-            ci->key);
-    return -1;
-  }
-
-  tmp = strdup(ci->values[0].value.string);
-  if (tmp == NULL) {
-    ERROR("gmond plugin: strdup failed.");
-    return -1;
-  }
-
-  sfree(*str);
-  *str = tmp;
-  return 0;
-} /* }}} int gmond_config_set_string */
-
 static int gmond_config_add_metric(oconfig_item_t *ci) /* {{{ */
 {
   metric_map_t *map;
@@ -889,11 +867,11 @@ static int gmond_config_add_metric(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("Type", child->key) == 0)
-      gmond_config_set_string(child, &map->type);
+      cf_util_get_string(child, &map->type);
     else if (strcasecmp("TypeInstance", child->key) == 0)
-      gmond_config_set_string(child, &map->type_instance);
+      cf_util_get_string(child, &map->type_instance);
     else if (strcasecmp("DataSource", child->key) == 0)
-      gmond_config_set_string(child, &map->ds_name);
+      cf_util_get_string(child, &map->ds_name);
     else {
       WARNING("gmond plugin: Unknown configuration option `%s' ignored.",
               child->key);

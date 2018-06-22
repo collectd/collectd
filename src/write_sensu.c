@@ -1084,12 +1084,8 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
         break;
     } else if (strcasecmp("Port", child->key) == 0) {
       status = cf_util_get_service(child, &host->service);
-      if (status != 0) {
-        ERROR("write_sensu plugin: Invalid argument "
-              "configured for the \"Port\" "
-              "option.");
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &host->store_rates);
       if (status != 0)
