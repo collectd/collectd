@@ -211,8 +211,8 @@ static int notify_email_notification(const notification_t *n,
   char subject[MAXSTRING];
 
   char buf[4096] = "";
+  char *buf_ptr = buf;
   int buf_len = sizeof(buf);
-  int i;
 
   snprintf(severity, sizeof(severity), "%s",
            (n->severity == NOTIF_FAILURE)
@@ -231,15 +231,36 @@ static int notify_email_notification(const notification_t *n,
   timestamp_str[sizeof(timestamp_str) - 1] = '\0';
 
   /* Let's make RFC822 message text with \r\n EOLs */
-  snprintf(buf, buf_len, "MIME-Version: 1.0\r\n"
-                         "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
-                         "Content-Transfer-Encoding: 8bit\r\n"
-                         "Subject: %s\r\n"
-                         "\r\n"
-                         "%s - %s@%s\r\n"
-                         "\r\n"
-                         "Message: %s",
-           subject, timestamp_str, severity, n->host, n->message);
+  int status = snprintf(buf, buf_len,
+                        "MIME-Version: 1.0\r\n"
+                        "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
+                        "Content-Transfer-Encoding: 8bit\r\n"
+                        "Subject: %s\r\n"
+                        "\r\n"
+                        "%s - %s@%s\r\n"
+                        "\r\n",
+                        subject, timestamp_str, severity, n->host);
+
+  if (status > 0) {
+    buf_ptr += status;
+    buf_len -= status;
+  }
+
+#define APPEND(format, value)                                                  \
+  if ((buf_len > 0) && (strlen(value) > 0)) {                                  \
+    status = snprintf(buf_ptr, buf_len, format "\r\n", value);                 \
+    if (status > 0) {                                                          \
+      buf_ptr += status;                                                       \
+      buf_len -= status;                                                       \
+    }                                                                          \
+  }
+
+  APPEND("Host: %s", n->host);
+  APPEND("Plugin: %s", n->plugin);
+  APPEND("Plugin instance: %s", n->plugin_instance);
+  APPEND("Type: %s", n->type);
+  APPEND("Type instance: %s", n->type_instance);
+  APPEND("\r\nMessage: %s", n->message);
 
   pthread_mutex_lock(&session_lock);
 
@@ -258,7 +279,7 @@ static int notify_email_notification(const notification_t *n,
   smtp_set_header(message, "To", NULL, NULL);
   smtp_set_message_str(message, buf);
 
-  for (i = 0; i < recipients_len; i++)
+  for (int i = 0; i < recipients_len; i++)
     smtp_add_recipient(message, recipients[i]);
 
   /* Initiate a connection to the SMTP server and transfer the message. */
