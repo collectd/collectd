@@ -1677,7 +1677,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
-#	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin"
+#	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin disk_physical disk_allocation disk_capacity"
 #	PersistentNotification false
 #</Plugin>
 

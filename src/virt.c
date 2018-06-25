@@ -617,6 +617,9 @@ enum ex_stats {
   ex_stats_job_stats_completed = 1 << 8,
   ex_stats_job_stats_background = 1 << 9,
 #endif
+  ex_stats_disk_allocation = 1 << 10,
+  ex_stats_disk_capacity = 1 << 11,
+  ex_stats_disk_physical = 1 << 12
 };
 
 static unsigned int extra_stats = ex_stats_none;
@@ -644,6 +647,9 @@ static const struct ex_stats_item ex_stats_table[] = {
     {"job_stats_completed", ex_stats_job_stats_completed},
     {"job_stats_background", ex_stats_job_stats_background},
 #endif
+    {"disk_allocation", ex_stats_disk_allocation},
+    {"disk_capacity", ex_stats_disk_capacity},
+    {"disk_physical", ex_stats_disk_physical},
     {NULL, ex_stats_none},
 };
 
@@ -680,6 +686,12 @@ static void init_block_stats(struct lv_block_stats *bstats) {
   bstats->wr_total_times = -1;
   bstats->fl_req = -1;
   bstats->fl_total_times = -1;
+}
+
+static void init_block_info(virDomainBlockInfoPtr binfo) {
+  binfo->allocation = -1;
+  binfo->capacity = -1;
+  binfo->physical = -1;
 }
 
 #ifdef HAVE_BLOCK_STATS_FLAGS
@@ -1004,7 +1016,8 @@ static void vcpu_submit(derive_t value, virDomainPtr dom, int vcpu_nr,
 }
 
 static void disk_block_stats_submit(struct lv_block_stats *bstats,
-                                    virDomainPtr dom, const char *dev) {
+                                    virDomainPtr dom, const char *dev,
+                                    virDomainBlockInfoPtr binfo) {
   char *dev_copy = strdup(dev);
   const char *type_instance = dev_copy;
 
@@ -1045,6 +1058,20 @@ static void disk_block_stats_submit(struct lv_block_stats *bstats,
              &(value_t){.derive = value}, 1);
     }
   }
+
+  /* disk_allocation, disk_capacity and disk_physical are stored only
+   * if corresponding extrastats are set in collectd configuration file */
+  if ((extra_stats & ex_stats_disk_allocation) && binfo->allocation != -1)
+    submit(dom, "disk_allocation", type_instance,
+           &(value_t){.gauge = (gauge_t)binfo->allocation}, 1);
+
+  if ((extra_stats & ex_stats_disk_capacity) && binfo->capacity != -1)
+    submit(dom, "disk_capacity", type_instance,
+           &(value_t){.gauge = (gauge_t)binfo->capacity}, 1);
+
+  if ((extra_stats & ex_stats_disk_physical) && binfo->physical != -1)
+    submit(dom, "disk_physical", type_instance,
+           &(value_t){.gauge = (gauge_t)binfo->physical}, 1);
 
   sfree(dev_copy);
 }
@@ -1691,10 +1718,22 @@ static int get_disk_err(virDomainPtr domain) {
 #endif /* HAVE_DISK_ERR */
 
 static int get_block_device_stats(struct block_device *block_dev) {
+  virDomainBlockInfo binfo;
+  init_block_info(&binfo);
 
   if (!block_dev) {
     ERROR(PLUGIN_NAME " plugin: get_block_stats NULL pointer");
     return -1;
+  }
+
+  /* Block info statistics can be only fetched from devices with 'source'
+   * defined */
+  if (block_dev->has_source) {
+    if (virDomainGetBlockInfo(block_dev->dom, block_dev->path, &binfo, 0) < 0) {
+      ERROR(PLUGIN_NAME " plugin: virDomainGetBlockInfo failed for path: %s",
+            block_dev->path);
+      return -1;
+    }
   }
 
   struct lv_block_stats bstats;
@@ -1705,7 +1744,7 @@ static int get_block_device_stats(struct block_device *block_dev) {
     return -1;
   }
 
-  disk_block_stats_submit(&bstats, block_dev->dom, block_dev->path);
+  disk_block_stats_submit(&bstats, block_dev->dom, block_dev->path, &binfo);
   return 0;
 }
 
