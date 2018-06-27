@@ -308,15 +308,12 @@ static MYSQL *getconnection(mysql_database_t *db) {
        mysql_get_host_info(db->con), (cipher != NULL) ? cipher : "<none>",
        mysql_get_server_info(db->con), mysql_get_proto_info(db->con));
 
-<<<<<<< HEAD
   db->is_mariadb = 0;
   if (strstr(mysql_get_server_info(db->con), "MariaDB") != NULL)
     db->is_mariadb = 1;
 
-  db->is_connected = 1;
-=======
   db->is_connected = true;
->>>>>>> c23146326ce4c1099df5bd2e02dc80a641eae258
+
   return db->con;
 } /* static MYSQL *getconnection (mysql_database_t *db) */
 
