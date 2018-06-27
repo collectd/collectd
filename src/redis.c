@@ -59,6 +59,12 @@ struct redis_query_s {
   redis_query_t *next;
 };
 
+struct prev_s {
+  derive_t keyspace_hits;
+  derive_t keyspace_misses;
+};
+typedef struct prev_s prev_t;
+
 struct redis_node_s;
 typedef struct redis_node_s redis_node_t;
 struct redis_node_s {
@@ -71,6 +77,7 @@ struct redis_node_s {
   bool report_cpu_usage;
   redisContext *redisContext;
   redis_query_t *queries;
+  prev_t prev;
 
   redis_node_t *next;
 };
@@ -535,6 +542,50 @@ static void redis_cpu_usage(const char *node, char const *info_line) {
   }
 } /* void redis_cpu_usage */
 
+static gauge_t calculate_ratio_percent(derive_t part1, derive_t part2,
+                                       derive_t *prev1, derive_t *prev2) {
+  if ((*prev1 == 0) || (*prev2 == 0) || (part1 < *prev1) || (part2 < *prev2)) {
+    *prev1 = part1;
+    *prev2 = part2;
+    return NAN;
+  }
+
+  derive_t num = part1 - *prev1;
+  derive_t denom = part2 - *prev2 + num;
+
+  *prev1 = part1;
+  *prev2 = part2;
+
+  if (denom == 0)
+    return NAN;
+
+  if (num == 0)
+    return 0;
+
+  return 100.0 * (gauge_t)num / (gauge_t)denom;
+} /* gauge_t calculate_ratio_percent */
+
+static void redis_keyspace_usage(redis_node_t *rn, char const *info_line) {
+  value_t hits, misses;
+
+  if (redis_get_info_value(info_line, "keyspace_hits", DS_TYPE_DERIVE, &hits) !=
+      0)
+    return;
+
+  if (redis_get_info_value(info_line, "keyspace_misses", DS_TYPE_DERIVE,
+                           &misses) != 0)
+    return;
+
+  redis_submit(rn->name, "cache_result", "hits", hits);
+  redis_submit(rn->name, "cache_result", "misses", misses);
+
+  prev_t *prev = &rn->prev;
+  gauge_t ratio = calculate_ratio_percent(
+      hits.derive, misses.derive, &prev->keyspace_hits, &prev->keyspace_misses);
+  redis_submit(rn->name, "percent", "hitratio", (value_t){.gauge = ratio});
+
+} /* void redis_keyspace_usage */
+
 static void redis_check_connection(redis_node_t *rn) {
   if (rn->redisContext)
     return;
@@ -615,14 +666,12 @@ static void redis_read_server_info(redis_node_t *rn) {
                     DS_TYPE_GAUGE);
   redis_handle_info(rn->name, rr->str, "current_connections", "slaves",
                     "connected_slaves", DS_TYPE_GAUGE);
-  redis_handle_info(rn->name, rr->str, "cache_result", "hits", "keyspace_hits",
-                    DS_TYPE_DERIVE);
-  redis_handle_info(rn->name, rr->str, "cache_result", "misses",
-                    "keyspace_misses", DS_TYPE_DERIVE);
   redis_handle_info(rn->name, rr->str, "total_bytes", "input",
                     "total_net_input_bytes", DS_TYPE_DERIVE);
   redis_handle_info(rn->name, rr->str, "total_bytes", "output",
                     "total_net_output_bytes", DS_TYPE_DERIVE);
+
+  redis_keyspace_usage(rn, rr->str);
 
   redis_db_stats(rn->name, rr->str);
 
