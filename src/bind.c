@@ -343,8 +343,6 @@ static int bind_xml_read_derive(xmlDoc *doc, xmlNode *node, /* {{{ */
 
   int status = parse_value(str_ptr, &value, DS_TYPE_DERIVE);
   if (status != 0) {
-    ERROR("bind plugin: Parsing string \"%s\" to derive value failed.",
-          str_ptr);
     xmlFree(str_ptr);
     return -1;
   }

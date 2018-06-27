@@ -256,7 +256,6 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
   value_t vt;
   int status = parse_value(buffer, &vt, type);
   if (status != 0) {
-    NOTICE("curl_json plugin: Unable to parse number: \"%s\"", buffer);
     cj_advance_array(ctx);
     return CJ_CB_CONTINUE;
   }
