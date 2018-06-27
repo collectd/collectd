@@ -64,7 +64,7 @@ struct mysql_database_s /* {{{ */
   bool slave_stats;
   bool innodb_stats;
   bool wsrep_stats;
-  boot is_mariadb;
+  bool is_mariadb;
 
   bool slave_notif;
   bool slave_io_running;
