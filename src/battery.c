@@ -72,9 +72,9 @@
 int battery_read_statefs(
     void); /* defined in battery_statefs; used by StateFS backend */
 
-static _Bool report_percent = 0;
-static _Bool report_degraded = 0;
-static _Bool query_statefs = 0;
+static bool report_percent;
+static bool report_degraded;
+static bool query_statefs;
 
 static void battery_submit2(char const *plugin_instance, /* {{{ */
                             char const *type, char const *type_instance,
@@ -410,7 +410,7 @@ static int read_sysfs_callback(char const *dir, /* {{{ */
   char const *plugin_instance;
   char buffer[32];
   gauge_t v = NAN;
-  _Bool discharging = 0;
+  bool discharging = false;
   int status;
 
   /* Ignore non-battery directories, such as AC power. */
@@ -424,7 +424,7 @@ static int read_sysfs_callback(char const *dir, /* {{{ */
   (void)sysfs_file_to_buffer(dir, power_supply, "status", buffer,
                              sizeof(buffer));
   if (strcasecmp("Discharging", buffer) == 0)
-    discharging = 1;
+    discharging = true;
 
   /* FIXME: This is a dirty hack for backwards compatibility: The battery
    * plugin, for a very long time, has had the plugin_instance
@@ -522,8 +522,8 @@ static int read_acpi_callback(char const *dir, /* {{{ */
   gauge_t capacity_charged = NAN;
   gauge_t capacity_full = NAN;
   gauge_t capacity_design = NAN;
-  _Bool charging = 0;
-  _Bool is_current = 0;
+  bool charging = false;
+  bool is_current = false;
 
   char const *plugin_instance;
   char filename[PATH_MAX];
@@ -560,9 +560,9 @@ static int read_acpi_callback(char const *dir, /* {{{ */
     if ((strcmp(fields[0], "charging") == 0) &&
         (strcmp(fields[1], "state:") == 0)) {
       if (strcmp(fields[2], "charging") == 0)
-        charging = 1;
+        charging = true;
       else
-        charging = 0;
+        charging = false;
       continue;
     }
 
@@ -575,7 +575,7 @@ static int read_acpi_callback(char const *dir, /* {{{ */
       strtogauge(fields[2], &power);
 
       if ((numfields >= 4) && (strcmp("mA", fields[3]) == 0))
-        is_current = 1;
+        is_current = true;
     } else if ((strcmp(fields[0], "remaining") == 0) &&
                (strcmp(fields[1], "capacity:") == 0))
       strtogauge(fields[2], &capacity_charged);

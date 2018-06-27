@@ -66,8 +66,8 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
   else if (ds->ds[ds_num].type == DS_TYPE_ABSOLUTE)
     BUFFER_ADD("%" PRIu64, vl->values[ds_num].absolute);
   else {
-    ERROR("gr_format_values plugin: Unknown data source type: %i",
-          ds->ds[ds_num].type);
+    P_ERROR("gr_format_values: Unknown data source type: %i",
+            ds->ds[ds_num].type);
     return -1;
   }
 
@@ -77,7 +77,7 @@ static int gr_format_values(char *ret, size_t ret_len, int ds_num,
 }
 
 static void gr_copy_escape_part(char *dst, const char *src, size_t dst_len,
-                                char escape_char, _Bool preserve_separator) {
+                                char escape_char, bool preserve_separator) {
   memset(dst, 0, dst_len);
 
   if (src == NULL)
@@ -116,7 +116,7 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   if (postfix == NULL)
     postfix = "";
 
-  _Bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR) ? 1 : 0;
+  bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
 
   gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
                       preserve_separator);
@@ -183,7 +183,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
   if (flags & GRAPHITE_STORE_RATES) {
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
-      ERROR("format_graphite: error with uc_get_rate");
+      P_ERROR("format_graphite: error with uc_get_rate");
       return -1;
     }
   }
@@ -202,7 +202,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
     status = gr_format_name(key, sizeof(key), vl, ds_name, prefix, postfix,
                             escape_char, flags);
     if (status != 0) {
-      ERROR("format_graphite: error with gr_format_name");
+      P_ERROR("format_graphite: error with gr_format_name");
       sfree(rates);
       return status;
     }
@@ -212,7 +212,7 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
      * `values'. */
     status = gr_format_values(values, sizeof(values), i, ds, vl, rates);
     if (status != 0) {
-      ERROR("format_graphite: error with gr_format_values");
+      P_ERROR("format_graphite: error with gr_format_values");
       sfree(rates);
       return status;
     }
@@ -222,16 +222,16 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
         (size_t)snprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
                          (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
     if (message_len >= sizeof(message)) {
-      ERROR("format_graphite: message buffer too small: "
-            "Need %" PRIsz " bytes.",
-            message_len + 1);
+      P_ERROR("format_graphite: message buffer too small: "
+              "Need %" PRIsz " bytes.",
+              message_len + 1);
       sfree(rates);
       return -ENOMEM;
     }
 
     /* Append it in case we got multiple data set */
     if ((buffer_pos + message_len) >= buffer_size) {
-      ERROR("format_graphite: target buffer too small");
+      P_ERROR("format_graphite: target buffer too small");
       sfree(rates);
       return -ENOMEM;
     }

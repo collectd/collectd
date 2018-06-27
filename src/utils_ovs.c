@@ -191,7 +191,7 @@ struct ovs_db_s {
 };
 
 /* Global variables */
-static uint64_t ovs_uid = 0;
+static uint64_t ovs_uid;
 static pthread_mutex_t ovs_uid_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Post an event to event thread.
@@ -209,7 +209,7 @@ static void ovs_db_event_post(ovs_db_t *pdb, int event) {
 
 /* Check if POLL thread is still running. Returns
  * 1 if running otherwise 0 is returned */
-static _Bool ovs_db_poll_is_running(ovs_db_t *pdb) {
+static bool ovs_db_poll_is_running(ovs_db_t *pdb) {
   int state = 0;
   pthread_mutex_lock(&pdb->poll_thread.mutex);
   state = pdb->poll_thread.state;
@@ -1001,6 +1001,8 @@ static int ovs_db_poll_thread_destroy(ovs_db_t *pdb) {
 
 ovs_db_t *ovs_db_init(const char *node, const char *service,
                       const char *unix_path, ovs_db_callback_t *cb) {
+  int ret;
+
   /* sanity check */
   if (node == NULL || service == NULL || unix_path == NULL)
     return NULL;
@@ -1046,16 +1048,29 @@ ovs_db_t *ovs_db_init(const char *node, const char *service,
 
   /* init event thread */
   if (ovs_db_event_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
-    return NULL;
+    ret = ovs_db_destroy(pdb);
+    if (ret > 0)
+      goto failure;
+    else
+      return NULL;
   }
 
   /* init polling thread */
   if (ovs_db_poll_thread_init(pdb) < 0) {
-    ovs_db_destroy(pdb);
-    return NULL;
+    ret = ovs_db_destroy(pdb);
+    if (ret > 0) {
+      ovs_db_event_thread_data_destroy(pdb);
+      goto failure;
+    } else {
+      return NULL;
+    }
   }
   return pdb;
+
+failure:
+  pthread_mutex_destroy(&pdb->mutex);
+  sfree(pdb);
+  return NULL;
 }
 
 int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
@@ -1265,7 +1280,7 @@ int ovs_db_destroy(ovs_db_t *pdb) {
   /* try to lock the structure before releasing */
   if ((ret = pthread_mutex_lock(&pdb->mutex))) {
     OVS_ERROR("pthread_mutex_lock() DB mutex lock failed (%d)", ret);
-    return -1;
+    return ret;
   }
 
   /* stop poll thread and destroy thread's private data */
@@ -1364,15 +1379,18 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
 
   /* check first element of the array */
   str_val = YAJL_GET_STRING(array_values[0]);
-  if (strcmp("map", str_val) != 0)
+  if (str_val == NULL || strcmp("map", str_val) != 0)
     return NULL;
 
   /* try to find map value by map key */
+  if (YAJL_GET_ARRAY(array_values[1]) == NULL)
+    return NULL;
+
   map_len = YAJL_GET_ARRAY(array_values[1])->len;
   map_values = YAJL_GET_ARRAY(array_values[1])->values;
   for (size_t i = 0; i < map_len; i++) {
     /* check YAJL array */
-    if (!YAJL_IS_ARRAY(map_values[i]))
+    if (!YAJL_IS_ARRAY(map_values[i]) || YAJL_GET_ARRAY(map_values[i]) == NULL)
       break;
 
     /* check a database pair value (2-element, first one represents a key
@@ -1384,7 +1402,7 @@ yajl_val ovs_utils_get_map_value(yajl_val jval, const char *key) {
 
     /* return map value if given key equals map key */
     str_val = YAJL_GET_STRING(array_values[0]);
-    if (strcmp(key, str_val) == 0)
+    if (str_val != NULL && strcmp(key, str_val) == 0)
       return array_values[1];
   }
   return NULL;

@@ -34,9 +34,18 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
+#include <stdbool.h>
 
 /* Plugin name */
 #define PLUGIN_NAME "virt"
+
+/* Secure strcat macro assuring null termination. Parameter (n) is the size of
+   buffer (d), allowing this macro to be safe for static and dynamic buffers */
+#define SSTRNCAT(d, s, n)                                                      \
+  do {                                                                         \
+    size_t _l = strlen(d);                                                     \
+    sstrncpy((d) + _l, (s), (n)-_l);                                           \
+  } while (0)
 
 #ifdef LIBVIR_CHECK_VERSION
 
@@ -57,6 +66,16 @@
 #define HAVE_CPU_STATS 1
 #define HAVE_DOM_STATE_PMSUSPENDED 1
 #define HAVE_DOM_REASON_RUNNING_WAKEUP 1
+#endif
+
+/*
+  virConnectListAllDomains() appeared in 0.10.2
+  Note that LIBVIR_CHECK_VERSION appeared a year later, so
+  in some systems which actually have virConnectListAllDomains()
+  we can't detect this.
+ */
+#if LIBVIR_CHECK_VERSION(0, 10, 2)
+#define HAVE_LIST_ALL_DOMAINS 1
 #endif
 
 #if LIBVIR_CHECK_VERSION(1, 0, 1)
@@ -90,6 +109,14 @@
 
 #endif /* LIBVIR_CHECK_VERSION */
 
+/* structure used for aggregating notification-thread data*/
+typedef struct virt_notif_thread_s {
+  pthread_t event_loop_tid;
+  int domain_event_cb_id;
+  pthread_mutex_t active_mutex; /* protects 'is_active' member access*/
+  bool is_active;
+} virt_notif_thread_t;
+
 static const char *config_keys[] = {"Connection",
 
                                     "RefreshInterval",
@@ -108,7 +135,14 @@ static const char *config_keys[] = {"Connection",
 
                                     "Instances",
                                     "ExtraStats",
+                                    "PersistentNotification",
                                     NULL};
+
+/* PersistentNotification is false by default */
+static bool persistent_notification = false;
+
+/* Thread used for handling libvirt notifications events */
+static virt_notif_thread_t notif_thread;
 
 const char *domain_states[] = {
         [VIR_DOMAIN_NOSTATE] = "no state",
@@ -124,7 +158,202 @@ const char *domain_states[] = {
 #endif
 };
 
+static int map_domain_event_to_state(int event) {
+  int ret;
+  switch (event) {
+  case VIR_DOMAIN_EVENT_STARTED:
+    ret = VIR_DOMAIN_RUNNING;
+    break;
+  case VIR_DOMAIN_EVENT_SUSPENDED:
+    ret = VIR_DOMAIN_PAUSED;
+    break;
+  case VIR_DOMAIN_EVENT_RESUMED:
+    ret = VIR_DOMAIN_RUNNING;
+    break;
+  case VIR_DOMAIN_EVENT_STOPPED:
+    ret = VIR_DOMAIN_SHUTOFF;
+    break;
+  case VIR_DOMAIN_EVENT_SHUTDOWN:
+    ret = VIR_DOMAIN_SHUTDOWN;
+    break;
+#ifdef HAVE_DOM_STATE_PMSUSPENDED
+  case VIR_DOMAIN_EVENT_PMSUSPENDED:
+    ret = VIR_DOMAIN_PMSUSPENDED;
+    break;
+#endif
+#ifdef HAVE_DOM_REASON_CRASHED
+  case VIR_DOMAIN_EVENT_CRASHED:
+    ret = VIR_DOMAIN_CRASHED;
+    break;
+#endif
+  default:
+    ret = VIR_DOMAIN_NOSTATE;
+  }
+  return ret;
+}
+
 #ifdef HAVE_DOM_REASON
+static int map_domain_event_detail_to_reason(int event, int detail) {
+  int ret;
+  switch (event) {
+  case VIR_DOMAIN_EVENT_STARTED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_STARTED_BOOTED: /* Normal startup from boot */
+      ret = VIR_DOMAIN_RUNNING_BOOTED;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_MIGRATED: /* Incoming migration from another
+                                               host */
+      ret = VIR_DOMAIN_RUNNING_MIGRATED;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_RESTORED: /* Restored from a state file */
+      ret = VIR_DOMAIN_RUNNING_RESTORED;
+      break;
+    case VIR_DOMAIN_EVENT_STARTED_FROM_SNAPSHOT: /* Restored from snapshot */
+      ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
+      break;
+#ifdef HAVE_DOM_REASON_RUNNING_WAKEUP
+    case VIR_DOMAIN_EVENT_STARTED_WAKEUP: /* Started due to wakeup event */
+      ret = VIR_DOMAIN_RUNNING_WAKEUP;
+      break;
+#endif
+    default:
+      ret = VIR_DOMAIN_RUNNING_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_SUSPENDED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_SUSPENDED_PAUSED: /* Normal suspend due to admin
+                                               pause */
+      ret = VIR_DOMAIN_PAUSED_USER;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_MIGRATED: /* Suspended for offline
+                                                 migration */
+      ret = VIR_DOMAIN_PAUSED_MIGRATION;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_IOERROR: /* Suspended due to a disk I/O
+                                                error */
+      ret = VIR_DOMAIN_PAUSED_IOERROR;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_WATCHDOG: /* Suspended due to a watchdog
+                                                 firing */
+      ret = VIR_DOMAIN_PAUSED_WATCHDOG;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_RESTORED: /* Restored from paused state
+                                                 file */
+      ret = VIR_DOMAIN_PAUSED_UNKNOWN;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_FROM_SNAPSHOT: /* Restored from paused
+                                                      snapshot */
+      ret = VIR_DOMAIN_PAUSED_FROM_SNAPSHOT;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_API_ERROR: /* Suspended after failure during
+                                                  libvirt API call */
+      ret = VIR_DOMAIN_PAUSED_UNKNOWN;
+      break;
+#ifdef HAVE_DOM_REASON_POSTCOPY
+    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY: /* Suspended for post-copy
+                                                 migration */
+      ret = VIR_DOMAIN_PAUSED_POSTCOPY;
+      break;
+    case VIR_DOMAIN_EVENT_SUSPENDED_POSTCOPY_FAILED: /* Suspended after failed
+                                                        post-copy */
+      ret = VIR_DOMAIN_PAUSED_POSTCOPY_FAILED;
+      break;
+#endif
+    default:
+      ret = VIR_DOMAIN_PAUSED_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_RESUMED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_RESUMED_UNPAUSED: /* Normal resume due to admin
+                                               unpause */
+      ret = VIR_DOMAIN_RUNNING_UNPAUSED;
+      break;
+    case VIR_DOMAIN_EVENT_RESUMED_MIGRATED: /* Resumed for completion of
+                                               migration */
+      ret = VIR_DOMAIN_RUNNING_MIGRATED;
+      break;
+    case VIR_DOMAIN_EVENT_RESUMED_FROM_SNAPSHOT: /* Resumed from snapshot */
+      ret = VIR_DOMAIN_RUNNING_FROM_SNAPSHOT;
+      break;
+#ifdef HAVE_DOM_REASON_POSTCOPY
+    case VIR_DOMAIN_EVENT_RESUMED_POSTCOPY: /* Resumed, but migration is still
+                                               running in post-copy mode */
+      ret = VIR_DOMAIN_RUNNING_POSTCOPY;
+      break;
+#endif
+    default:
+      ret = VIR_DOMAIN_RUNNING_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_STOPPED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_STOPPED_SHUTDOWN: /* Normal shutdown */
+      ret = VIR_DOMAIN_SHUTOFF_SHUTDOWN;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_DESTROYED: /* Forced poweroff from host */
+      ret = VIR_DOMAIN_SHUTOFF_DESTROYED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_CRASHED: /* Guest crashed */
+      ret = VIR_DOMAIN_SHUTOFF_CRASHED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_MIGRATED: /* Migrated off to another host */
+      ret = VIR_DOMAIN_SHUTOFF_MIGRATED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_SAVED: /* Saved to a state file */
+      ret = VIR_DOMAIN_SHUTOFF_SAVED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_FAILED: /* Host emulator/mgmt failed */
+      ret = VIR_DOMAIN_SHUTOFF_FAILED;
+      break;
+    case VIR_DOMAIN_EVENT_STOPPED_FROM_SNAPSHOT: /* Offline snapshot loaded */
+      ret = VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT;
+      break;
+    default:
+      ret = VIR_DOMAIN_SHUTOFF_UNKNOWN;
+    }
+    break;
+  case VIR_DOMAIN_EVENT_SHUTDOWN:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED: /* Guest finished shutdown
+                                                sequence */
+      ret = VIR_DOMAIN_SHUTDOWN_USER;
+      break;
+    default:
+      ret = VIR_DOMAIN_SHUTDOWN_UNKNOWN;
+    }
+    break;
+#ifdef HAVE_DOM_STATE_PMSUSPENDED
+  case VIR_DOMAIN_EVENT_PMSUSPENDED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_PMSUSPENDED_MEMORY: /* Guest was PM suspended to
+                                                 memory */
+      ret = VIR_DOMAIN_PMSUSPENDED_UNKNOWN;
+      break;
+    case VIR_DOMAIN_EVENT_PMSUSPENDED_DISK: /* Guest was PM suspended to disk */
+      ret = VIR_DOMAIN_PMSUSPENDED_DISK_UNKNOWN;
+      break;
+    default:
+      ret = VIR_DOMAIN_PMSUSPENDED_UNKNOWN;
+    }
+    break;
+#endif
+  case VIR_DOMAIN_EVENT_CRASHED:
+    switch (detail) {
+    case VIR_DOMAIN_EVENT_CRASHED_PANICKED: /* Guest was panicked */
+      ret = VIR_DOMAIN_CRASHED_PANICKED;
+      break;
+    default:
+      ret = VIR_DOMAIN_CRASHED_UNKNOWN;
+    }
+    break;
+  default:
+    ret = VIR_DOMAIN_NOSTATE_UNKNOWN;
+  }
+  return ret;
+}
+
 #define DOMAIN_STATE_REASON_MAX_SIZE 20
 const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
         [VIR_DOMAIN_NOSTATE][VIR_DOMAIN_NOSTATE_UNKNOWN] =
@@ -158,7 +387,6 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
         [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_POSTCOPY] =
             "running in post-copy migration mode",
 #endif
-
         [VIR_DOMAIN_BLOCKED][VIR_DOMAIN_BLOCKED_UNKNOWN] =
             "the reason is unknown",
 
@@ -198,7 +426,6 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
         [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_POSTCOPY_FAILED] =
             "paused after failed post-copy",
 #endif
-
         [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_UNKNOWN] =
             "the reason is unknown",
         [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_USER] =
@@ -241,8 +468,8 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   } while (0)
 
 /* Connection. */
-static virConnectPtr conn = 0;
-static char *conn_string = NULL;
+static virConnectPtr conn;
+static char *conn_string;
 static c_complain_t conn_complain = C_COMPLAIN_INIT_STATIC;
 
 /* Node information required for %CPU */
@@ -252,11 +479,11 @@ static virNodeInfo nodeinfo;
 static int interval = 60;
 
 /* List of domains, if specified. */
-static ignorelist_t *il_domains = NULL;
+static ignorelist_t *il_domains;
 /* List of block devices, if specified. */
-static ignorelist_t *il_block_devices = NULL;
+static ignorelist_t *il_block_devices;
 /* List of network interface devices, if specified. */
-static ignorelist_t *il_interface_devices = NULL;
+static ignorelist_t *il_interface_devices;
 
 static int ignore_device_match(ignorelist_t *, const char *domname,
                                const char *devpath);
@@ -278,6 +505,7 @@ struct interface_device {
 typedef struct domain_s {
   virDomainPtr ptr;
   virDomainInfo info;
+  bool active;
 } domain_t;
 
 struct lv_read_state {
@@ -293,7 +521,8 @@ struct lv_read_state {
 };
 
 static void free_domains(struct lv_read_state *state);
-static int add_domain(struct lv_read_state *state, virDomainPtr dom);
+static int add_domain(struct lv_read_state *state, virDomainPtr dom,
+                      bool active);
 
 static void free_block_devices(struct lv_read_state *state);
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
@@ -401,7 +630,7 @@ static const struct ex_stats_item ex_stats_table[] = {
 };
 
 /* BlockDeviceFormatBasename */
-_Bool blockdevice_format_basename = 0;
+static bool blockdevice_format_basename;
 static enum bd_field blockdevice_format = target;
 static enum if_field interface_format = if_name;
 
@@ -533,7 +762,6 @@ static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
 }
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
-  int n;
   const char *name;
   char uuid[VIR_UUID_STRING_BUFLEN];
 
@@ -546,44 +774,34 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
     if (hostname_format[i] == hf_none)
       continue;
 
-    n = DATA_MAX_NAME_LEN - strlen(vl->host) - 2;
-
-    if (i > 0 && n >= 1) {
-      strncat(vl->host, ":", 1);
-      n--;
-    }
+    if (i > 0)
+      SSTRNCAT(vl->host, ":", sizeof(vl->host));
 
     switch (hostname_format[i]) {
     case hf_none:
       break;
     case hf_hostname:
-      strncat(vl->host, hostname_g, n);
+      SSTRNCAT(vl->host, hostname_g, sizeof(vl->host));
       break;
     case hf_name:
       name = virDomainGetName(dom);
       if (name)
-        strncat(vl->host, name, n);
+        SSTRNCAT(vl->host, name, sizeof(vl->host));
       break;
     case hf_uuid:
       if (virDomainGetUUIDString(dom, uuid) == 0)
-        strncat(vl->host, uuid, n);
+        SSTRNCAT(vl->host, uuid, sizeof(vl->host));
       break;
     }
   }
-
-  vl->host[sizeof(vl->host) - 1] = '\0';
 
   /* Construct the plugin instance field according to PluginInstanceFormat. */
   for (int i = 0; i < PLGINST_MAX_FIELDS; ++i) {
     if (plugin_instance_format[i] == plginst_none)
       continue;
 
-    n = sizeof(vl->plugin_instance) - strlen(vl->plugin_instance) - 2;
-
-    if (i > 0 && n >= 1) {
-      strncat(vl->plugin_instance, ":", 1);
-      n--;
-    }
+    if (i > 0)
+      SSTRNCAT(vl->plugin_instance, ":", sizeof(vl->plugin_instance));
 
     switch (plugin_instance_format[i]) {
     case plginst_none:
@@ -591,16 +809,14 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
     case plginst_name:
       name = virDomainGetName(dom);
       if (name)
-        strncat(vl->plugin_instance, name, n);
+        SSTRNCAT(vl->plugin_instance, name, sizeof(vl->plugin_instance));
       break;
     case plginst_uuid:
       if (virDomainGetUUIDString(dom, uuid) == 0)
-        strncat(vl->plugin_instance, uuid, n);
+        SSTRNCAT(vl->plugin_instance, uuid, sizeof(vl->plugin_instance));
       break;
     }
   }
-
-  vl->plugin_instance[sizeof(vl->plugin_instance) - 1] = '\0';
 
 } /* void init_value_list */
 
@@ -799,9 +1015,8 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
   return ex_stats_flags;
 }
 
-static void domain_state_submit(virDomainPtr dom, int state, int reason) {
-
-  if ((state < 0) || (state >= STATIC_ARRAY_SIZE(domain_states))) {
+static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
+  if ((state < 0) || ((size_t)state >= STATIC_ARRAY_SIZE(domain_states))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
     return;
   }
@@ -809,7 +1024,8 @@ static void domain_state_submit(virDomainPtr dom, int state, int reason) {
   char msg[DATA_MAX_NAME_LEN];
   const char *state_str = domain_states[state];
 #ifdef HAVE_DOM_REASON
-  if ((reason < 0) || (reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
+  if ((reason < 0) ||
+      ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
     ERROR(PLUGIN_NAME ": Array index out of bounds: reason=%d", reason);
     return;
   }
@@ -908,7 +1124,7 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
   if (strcasecmp(key, "BlockDeviceFormatBasename") == 0) {
-    blockdevice_format_basename = IS_TRUE(value);
+    blockdevice_format_basename = IS_TRUE(value) ? true : false;
     return 0;
   }
   if (strcasecmp(key, "InterfaceDevice") == 0) {
@@ -1070,6 +1286,11 @@ static int lv_config(const char *key, const char *value) {
     }
   }
 
+  if (strcasecmp(key, "PersistentNotification") == 0) {
+    persistent_notification = IS_TRUE(value);
+    return 0;
+  }
+
   /* Unrecognised option. */
   return -1;
 }
@@ -1177,7 +1398,7 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
                             unsigned char *cpu_maps, int cpu_map_len) {
   for (int cpu = 0; cpu < max_cpus; ++cpu) {
     char type_instance[DATA_MAX_NAME_LEN];
-    _Bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu) ? 1 : 0;
+    bool is_set = VIR_CPU_USABLE(cpu_maps, cpu_map_len, vcpu, cpu);
 
     snprintf(type_instance, sizeof(type_instance), "vcpu_%d-cpu_%d", vcpu, cpu);
     submit(dom, "cpu_affinity", type_instance, &(value_t){.gauge = is_set}, 1);
@@ -1223,6 +1444,15 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
 }
 
 #ifdef HAVE_DOM_REASON
+
+static void domain_state_submit(virDomainPtr dom, int state, int reason) {
+  value_t values[] = {
+      {.gauge = (gauge_t)state}, {.gauge = (gauge_t)reason},
+  };
+
+  submit(dom, "domain_state", NULL, values, STATIC_ARRAY_SIZE(values));
+}
+
 static int get_domain_state(virDomainPtr domain) {
   int domain_state = 0;
   int domain_reason = 0;
@@ -1235,8 +1465,28 @@ static int get_domain_state(virDomainPtr domain) {
   }
 
   domain_state_submit(domain, domain_state, domain_reason);
+
   return status;
 }
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+static int get_domain_state_notify(virDomainPtr domain) {
+  int domain_state = 0;
+  int domain_reason = 0;
+
+  int status = virDomainGetState(domain, &domain_state, &domain_reason, 0);
+  if (status != 0) {
+    ERROR(PLUGIN_NAME " plugin: virDomainGetState failed with status %i.",
+          status);
+    return status;
+  }
+
+  if (persistent_notification)
+    domain_state_submit_notif(domain, domain_state, domain_reason);
+
+  return status;
+}
+#endif /* HAVE_LIST_ALL_DOMAINS */
 #endif /* HAVE_DOM_REASON */
 
 static int get_memory_stats(virDomainPtr domain) {
@@ -1335,7 +1585,7 @@ static int get_block_stats(struct block_device *block_dev) {
 
 #define NM_ADD_STR_ITEMS(_items, _size)                                        \
   do {                                                                         \
-    for (int _i = 0; _i < _size; ++_i) {                                       \
+    for (size_t _i = 0; _i < _size; ++_i) {                                    \
       DEBUG(PLUGIN_NAME                                                        \
             " plugin: Adding notification metadata name=%s value=%s",          \
             _items[_i].name, _items[_i].value);                                \
@@ -1360,7 +1610,7 @@ static int fs_info_notify(virDomainPtr domain, virDomainFSInfoPtr fs_info) {
       {.name = "name", .value = fs_info->name},
       {.name = "fstype", .value = fs_info->fstype}};
 
-  for (int i = 0; i < fs_info->ndevAlias; ++i) {
+  for (size_t i = 0; i < fs_info->ndevAlias; ++i) {
     fs_dev_alias[i].name = "devAlias";
     fs_dev_alias[i].value = fs_info->devAlias[i];
   }
@@ -1488,10 +1738,6 @@ static int get_domain_metrics(domain_t *domain) {
      * We need to get it from virDomainGetState.
      */
     GET_STATS(get_domain_state, "domain reason", domain->ptr);
-#else
-    /* virDomainGetState is not available. Submit 0, which corresponds to
-     * unknown reason. */
-    domain_state_submit(domain->ptr, info.di.state, 0);
 #endif
   }
 
@@ -1530,6 +1776,7 @@ static int get_domain_metrics(domain_t *domain) {
 
   /* Update cached virDomainInfo. It has to be done after cpu_submit */
   memcpy(&domain->info, &info.di, sizeof(domain->info));
+
   return 0;
 }
 
@@ -1578,6 +1825,192 @@ static int get_if_dev_stats(struct interface_device *if_dev) {
   return 0;
 }
 
+static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr con_,
+                                     virDomainPtr dom, int event, int detail,
+                                     __attribute__((unused)) void *opaque) {
+  int domain_state = map_domain_event_to_state(event);
+  int domain_reason = 0; /* 0 means UNKNOWN reason for any state */
+#ifdef HAVE_DOM_REASON
+  domain_reason = map_domain_event_detail_to_reason(event, detail);
+#endif
+  domain_state_submit_notif(dom, domain_state, domain_reason);
+
+  return 0;
+}
+
+static int register_event_impl(void) {
+  if (virEventRegisterDefaultImpl() < 0) {
+    virErrorPtr err = virGetLastError();
+    ERROR(PLUGIN_NAME
+          " plugin: error while event implementation registering: %s",
+          err && err->message ? err->message : "Unknown error");
+    return -1;
+  }
+
+  return 0;
+}
+
+static void virt_notif_thread_set_active(virt_notif_thread_t *thread_data,
+                                         const bool active) {
+  assert(thread_data != NULL);
+  pthread_mutex_lock(&thread_data->active_mutex);
+  thread_data->is_active = active;
+  pthread_mutex_unlock(&thread_data->active_mutex);
+}
+
+static bool virt_notif_thread_is_active(virt_notif_thread_t *thread_data) {
+  bool active = false;
+
+  assert(thread_data != NULL);
+  pthread_mutex_lock(&thread_data->active_mutex);
+  active = thread_data->is_active;
+  pthread_mutex_unlock(&thread_data->active_mutex);
+
+  return active;
+}
+
+/* worker function running default event implementation */
+static void *event_loop_worker(void *arg) {
+  virt_notif_thread_t *thread_data = (virt_notif_thread_t *)arg;
+
+  while (virt_notif_thread_is_active(thread_data)) {
+    if (virEventRunDefaultImpl() < 0) {
+      virErrorPtr err = virGetLastError();
+      ERROR(PLUGIN_NAME " plugin: failed to run event loop: %s\n",
+            err && err->message ? err->message : "Unknown error");
+    }
+  }
+
+  return NULL;
+}
+
+static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
+  int ret;
+
+  assert(thread_data != NULL);
+  ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME ": Failed to initialize mutex, err %u", ret);
+    return ret;
+  }
+
+  /**
+   * '0' and positive integers are meaningful ID's, therefore setting
+   * domain_event_cb_id to '-1'
+   */
+  thread_data->domain_event_cb_id = -1;
+  pthread_mutex_lock(&thread_data->active_mutex);
+  thread_data->is_active = false;
+  pthread_mutex_unlock(&thread_data->active_mutex);
+
+  return 0;
+}
+
+/* register domain event callback and start event loop thread */
+static int start_event_loop(virt_notif_thread_t *thread_data) {
+  assert(thread_data != NULL);
+  thread_data->domain_event_cb_id = virConnectDomainEventRegisterAny(
+      conn, NULL, VIR_DOMAIN_EVENT_ID_LIFECYCLE,
+      VIR_DOMAIN_EVENT_CALLBACK(domain_lifecycle_event_cb), NULL, NULL);
+  if (thread_data->domain_event_cb_id == -1) {
+    ERROR(PLUGIN_NAME " plugin: error while callback registering");
+    return -1;
+  }
+
+  virt_notif_thread_set_active(thread_data, 1);
+  if (pthread_create(&thread_data->event_loop_tid, NULL, event_loop_worker,
+                     thread_data)) {
+    ERROR(PLUGIN_NAME " plugin: failed event loop thread creation");
+    virConnectDomainEventDeregisterAny(conn, thread_data->domain_event_cb_id);
+    return -1;
+  }
+
+  return 0;
+}
+
+/* stop event loop thread and deregister callback */
+static void stop_event_loop(virt_notif_thread_t *thread_data) {
+  /* stopping loop and de-registering event handler*/
+  virt_notif_thread_set_active(thread_data, 0);
+  if (conn != NULL && thread_data->domain_event_cb_id != -1)
+    virConnectDomainEventDeregisterAny(conn, thread_data->domain_event_cb_id);
+
+  if (pthread_join(notif_thread.event_loop_tid, NULL) != 0)
+    ERROR(PLUGIN_NAME " plugin: stopping notification thread failed");
+}
+
+static int persistent_domains_state_notification(void) {
+  int status = 0;
+  int n;
+#ifdef HAVE_LIST_ALL_DOMAINS
+  virDomainPtr *domains = NULL;
+  n = virConnectListAllDomains(conn, &domains,
+                               VIR_CONNECT_LIST_DOMAINS_PERSISTENT);
+  if (n < 0) {
+    VIRT_ERROR(conn, "reading list of persistent domains");
+    status = -1;
+  } else {
+    DEBUG(PLUGIN_NAME " plugin: getting state of %i persistent domains", n);
+    /* Fetch each persistent domain's state and notify it */
+    int n_notified = n;
+    for (int i = 0; i < n; ++i) {
+      status = get_domain_state_notify(domains[i]);
+      if (status != 0) {
+        n_notified--;
+        ERROR(PLUGIN_NAME " plugin: could not notify state of domain %s",
+              virDomainGetName(domains[i]));
+      }
+      virDomainFree(domains[i]);
+    }
+
+    sfree(domains);
+    DEBUG(PLUGIN_NAME " plugin: notified state of %i persistent domains",
+          n_notified);
+  }
+#else
+  n = virConnectNumOfDomains(conn);
+  if (n > 0) {
+    int *domids;
+    /* Get list of domains. */
+    domids = calloc(n, sizeof(*domids));
+    if (domids == NULL) {
+      ERROR(PLUGIN_NAME " plugin: calloc failed.");
+      return -1;
+    }
+    n = virConnectListDomains(conn, domids, n);
+    if (n < 0) {
+      VIRT_ERROR(conn, "reading list of domains");
+      sfree(domids);
+      return -1;
+    }
+    /* Fetch info of each active domain and notify it */
+    for (int i = 0; i < n; ++i) {
+      virDomainInfo info;
+      virDomainPtr dom = NULL;
+      dom = virDomainLookupByID(conn, domids[i]);
+      if (dom == NULL) {
+        VIRT_ERROR(conn, "virDomainLookupByID");
+        /* Could be that the domain went away -- ignore it anyway. */
+        continue;
+      }
+      status = virDomainGetInfo(dom, &info);
+      if (status == 0)
+        /* virDomainGetState is not available. Submit 0, which corresponds to
+         * unknown reason. */
+        domain_state_submit_notif(dom, info.state, 0);
+      else
+        ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
+              status);
+
+      virDomainFree(dom);
+    }
+    sfree(domids);
+  }
+#endif
+
+  return status;
+}
+
 static int lv_read(user_data_t *ud) {
   time_t t;
   struct lv_read_instance *inst = NULL;
@@ -1591,9 +2024,19 @@ static int lv_read(user_data_t *ud) {
   inst = ud->data;
   state = &inst->read_state;
 
+  bool reconnect = conn == NULL ? true : false;
+  /* event implementation must be registered before connection is opened */
   if (inst->id == 0) {
+    if (!persistent_notification && reconnect)
+      if (register_event_impl() != 0)
+        return -1;
+
     if (lv_connect() < 0)
       return -1;
+
+    if (!persistent_notification && reconnect && conn != NULL)
+      if (start_event_loop(&notif_thread) != 0)
+        return -1;
   }
 
   time(&t);
@@ -1602,32 +2045,53 @@ static int lv_read(user_data_t *ud) {
   if ((last_refresh == (time_t)0) ||
       ((interval > 0) && ((last_refresh + interval) <= t))) {
     if (refresh_lists(inst) != 0) {
-      if (inst->id == 0)
+      if (inst->id == 0) {
+        if (!persistent_notification)
+          stop_event_loop(&notif_thread);
         lv_disconnect();
+      }
       return -1;
     }
     last_refresh = t;
   }
 
-#if 0
-    for (int i = 0; i < nr_domains; ++i)
-        fprintf (stderr, "domain %s\n", virDomainGetName (state->domains[i].ptr));
-    for (int i = 0; i < nr_block_devices; ++i)
-        fprintf  (stderr, "block device %d %s:%s\n",
-                  i, virDomainGetName (block_devices[i].dom),
-                  block_devices[i].path);
-    for (int i = 0; i < nr_interface_devices; ++i)
-        fprintf (stderr, "interface device %d %s:%s\n",
-                 i, virDomainGetName (interface_devices[i].dom),
-                 interface_devices[i].path);
+  /* persistent domains state notifications are handled by instance 0 */
+  if (inst->id == 0 && persistent_notification) {
+    int status = persistent_domains_state_notification();
+    if (status != 0)
+      DEBUG(PLUGIN_NAME " plugin: persistent_domains_state_notifications "
+                        "returned with status %i",
+            status);
+  }
+
+#if COLLECT_DEBUG
+  for (int i = 0; i < state->nr_domains; ++i)
+    DEBUG(PLUGIN_NAME " plugin: domain %s",
+          virDomainGetName(state->domains[i].ptr));
+  for (int i = 0; i < state->nr_block_devices; ++i)
+    DEBUG(PLUGIN_NAME " plugin: block device %d %s:%s", i,
+          virDomainGetName(state->block_devices[i].dom),
+          state->block_devices[i].path);
+  for (int i = 0; i < state->nr_interface_devices; ++i)
+    DEBUG(PLUGIN_NAME " plugin: interface device %d %s:%s", i,
+          virDomainGetName(state->interface_devices[i].dom),
+          state->interface_devices[i].path);
 #endif
 
   /* Get domains' metrics */
   for (int i = 0; i < state->nr_domains; ++i) {
-    int status = get_domain_metrics(&state->domains[i]);
+    domain_t *dom = &state->domains[i];
+    int status = 0;
+    if (dom->active)
+      status = get_domain_metrics(dom);
+#ifdef HAVE_DOM_REASON
+    else
+      status = get_domain_state(dom->ptr);
+#endif
+
     if (status != 0)
       ERROR(PLUGIN_NAME " failed to get metrics for domain=%s",
-            virDomainGetName(state->domains[i].ptr));
+            virDomainGetName(dom->ptr));
   }
 
   /* Get block device stats for each domain. */
@@ -1667,6 +2131,7 @@ static int lv_init_instance(size_t i, plugin_read_cb callback) {
   ud->free_func = NULL;
 
   INFO(PLUGIN_NAME " plugin: reader %s initialized", inst->tag);
+
   return plugin_register_complex_read(NULL, inst->tag, callback, 0, ud);
 }
 
@@ -1681,6 +2146,7 @@ static void lv_fini_instance(size_t i) {
   struct lv_read_state *state = &(inst->read_state);
 
   lv_clean_read_state(state);
+
   INFO(PLUGIN_NAME " plugin: reader %s finalized", inst->tag);
 }
 
@@ -1688,13 +2154,27 @@ static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
 
+  /* event implementation must be registered before connection is opened */
+  if (!persistent_notification)
+    if (register_event_impl() != 0)
+      return -1;
+
   if (lv_connect() != 0)
     return -1;
+
+  DEBUG(PLUGIN_NAME " plugin: starting event loop");
+
+  if (!persistent_notification) {
+    virt_notif_thread_init(&notif_thread);
+    if (start_event_loop(&notif_thread) != 0)
+      return -1;
+  }
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
   for (int i = 0; i < nr_instances; ++i)
-    lv_init_instance(i, lv_read);
+    if (lv_init_instance(i, lv_read) != 0)
+      return -1;
 
   return 0;
 }
@@ -1793,224 +2273,247 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
   return 0;
 }
 
-/*
-  virConnectListAllDomains() appeared in 0.10.2
-  Note that LIBVIR_CHECK_VERSION appeared a year later, so
-  in some systems which actually have virConnectListAllDomains()
-  we can't detect this.
- */
-#ifdef LIBVIR_CHECK_VERSION
-#if LIBVIR_CHECK_VERSION(0, 10, 2)
-#define HAVE_LIST_ALL_DOMAINS 1
-#endif
-#endif
-
 static int refresh_lists(struct lv_read_instance *inst) {
   struct lv_read_state *state = &inst->read_state;
   int n;
 
+#ifndef HAVE_LIST_ALL_DOMAINS
   n = virConnectNumOfDomains(conn);
   if (n < 0) {
     VIRT_ERROR(conn, "reading number of domains");
     return -1;
   }
+#endif
 
   lv_clean_read_state(state);
 
-  if (n > 0) {
-#ifdef HAVE_LIST_ALL_DOMAINS
-    virDomainPtr *domains;
-    n = virConnectListAllDomains(conn, &domains,
-                                 VIR_CONNECT_LIST_DOMAINS_ACTIVE);
-#else
-    int *domids;
-
-    /* Get list of domains. */
-    domids = malloc(sizeof(*domids) * n);
-    if (domids == NULL) {
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
-      return -1;
-    }
-
-    n = virConnectListDomains(conn, domids, n);
-#endif
-
-    if (n < 0) {
-      VIRT_ERROR(conn, "reading list of domains");
 #ifndef HAVE_LIST_ALL_DOMAINS
-      sfree(domids);
+  if (n == 0)
+    goto end;
 #endif
-      return -1;
-    }
-
-    /* Fetch each domain and add it to the list, unless ignore. */
-    for (int i = 0; i < n; ++i) {
-      const char *name;
-      char *xml = NULL;
-      xmlDocPtr xml_doc = NULL;
-      xmlXPathContextPtr xpath_ctx = NULL;
-      xmlXPathObjectPtr xpath_obj = NULL;
-      char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
-      virDomainInfo info;
-      int status;
 
 #ifdef HAVE_LIST_ALL_DOMAINS
-      virDomainPtr dom = domains[i];
+  virDomainPtr *domains, *domains_inactive;
+  int m = virConnectListAllDomains(conn, &domains_inactive,
+                                   VIR_CONNECT_LIST_DOMAINS_INACTIVE);
+  n = virConnectListAllDomains(conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
 #else
-      virDomainPtr dom = NULL;
-      dom = virDomainLookupByID(conn, domids[i]);
-      if (dom == NULL) {
-        VIRT_ERROR(conn, "virDomainLookupByID");
-        /* Could be that the domain went away -- ignore it anyway. */
-        continue;
-      }
-#endif
+  int *domids;
 
-      name = virDomainGetName(dom);
-      if (name == NULL) {
-        VIRT_ERROR(conn, "virDomainGetName");
-        goto cont;
-      }
-
-      status = virDomainGetInfo(dom, &info);
-      if (status != 0) {
-        ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
-              status);
-        continue;
-      }
-
-      if (info.state != VIR_DOMAIN_RUNNING) {
-        DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", name);
-        continue;
-      }
-
-      if (il_domains && ignorelist_match(il_domains, name) != 0)
-        goto cont;
-
-      /* Get a list of devices for this domain. */
-      xml = virDomainGetXMLDesc(dom, 0);
-      if (!xml) {
-        VIRT_ERROR(conn, "virDomainGetXMLDesc");
-        goto cont;
-      }
-
-      /* Yuck, XML.  Parse out the devices. */
-      xml_doc = xmlReadDoc((xmlChar *)xml, NULL, NULL, XML_PARSE_NONET);
-      if (xml_doc == NULL) {
-        VIRT_ERROR(conn, "xmlReadDoc");
-        goto cont;
-      }
-
-      xpath_ctx = xmlXPathNewContext(xml_doc);
-
-      if (lv_domain_get_tag(xpath_ctx, name, tag) < 0) {
-        ERROR(PLUGIN_NAME " plugin: lv_domain_get_tag failed.");
-        goto cont;
-      }
-
-      if (!lv_instance_include_domain(inst, name, tag))
-        goto cont;
-
-      if (add_domain(state, dom) < 0) {
-        ERROR(PLUGIN_NAME " plugin: malloc failed.");
-        goto cont;
-      }
-
-      /* Block devices. */
-      const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
-      if (blockdevice_format == source)
-        bd_xmlpath = "/domain/devices/disk/source[@dev]";
-      xpath_obj = xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
-
-      if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-          xpath_obj->nodesetval == NULL)
-        goto cont;
-
-      for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-        xmlNodePtr node;
-        char *path = NULL;
-
-        node = xpath_obj->nodesetval->nodeTab[j];
-        if (!node)
-          continue;
-        path = (char *)xmlGetProp(node, (xmlChar *)"dev");
-        if (!path)
-          continue;
-
-        if (il_block_devices &&
-            ignore_device_match(il_block_devices, name, path) != 0)
-          goto cont2;
-
-        add_block_device(state, dom, path);
-      cont2:
-        if (path)
-          xmlFree(path);
-      }
-      xmlXPathFreeObject(xpath_obj);
-
-      /* Network interfaces. */
-      xpath_obj = xmlXPathEval(
-          (xmlChar *)"/domain/devices/interface[target[@dev]]", xpath_ctx);
-      if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-          xpath_obj->nodesetval == NULL)
-        goto cont;
-
-      xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
-
-      for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
-        char *path = NULL;
-        char *address = NULL;
-        xmlNodePtr xml_interface;
-
-        xml_interface = xml_interfaces->nodeTab[j];
-        if (!xml_interface)
-          continue;
-
-        for (xmlNodePtr child = xml_interface->children; child;
-             child = child->next) {
-          if (child->type != XML_ELEMENT_NODE)
-            continue;
-
-          if (xmlStrEqual(child->name, (const xmlChar *)"target")) {
-            path = (char *)xmlGetProp(child, (const xmlChar *)"dev");
-            if (!path)
-              continue;
-          } else if (xmlStrEqual(child->name, (const xmlChar *)"mac")) {
-            address = (char *)xmlGetProp(child, (const xmlChar *)"address");
-            if (!address)
-              continue;
-          }
-        }
-
-        if (il_interface_devices &&
-            (ignore_device_match(il_interface_devices, name, path) != 0 ||
-             ignore_device_match(il_interface_devices, name, address) != 0))
-          goto cont3;
-
-        add_interface_device(state, dom, path, address, j + 1);
-      cont3:
-        if (path)
-          xmlFree(path);
-        if (address)
-          xmlFree(address);
-      }
-
-    cont:
-      if (xpath_obj)
-        xmlXPathFreeObject(xpath_obj);
-      if (xpath_ctx)
-        xmlXPathFreeContext(xpath_ctx);
-      if (xml_doc)
-        xmlFreeDoc(xml_doc);
-      sfree(xml);
-    }
-
-#ifdef HAVE_LIST_ALL_DOMAINS
-    sfree(domains);
-#else
-    sfree(domids);
-#endif
+  /* Get list of domains. */
+  domids = calloc(n, sizeof(*domids));
+  if (domids == NULL) {
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
+    return -1;
   }
+
+  n = virConnectListDomains(conn, domids, n);
+#endif
+
+  if (n < 0) {
+    VIRT_ERROR(conn, "reading list of domains");
+#ifndef HAVE_LIST_ALL_DOMAINS
+    sfree(domids);
+#else
+    for (int i = 0; i < m; ++i)
+      virDomainFree(domains_inactive[i]);
+    sfree(domains_inactive);
+#endif
+    return -1;
+  }
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+  for (int i = 0; i < m; ++i)
+    if (add_domain(state, domains_inactive[i], 0) < 0) {
+      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+      virDomainFree(domains_inactive[i]);
+      domains_inactive[i] = NULL;
+      continue;
+    }
+#endif
+
+  /* Fetch each domain and add it to the list, unless ignore. */
+  for (int i = 0; i < n; ++i) {
+    const char *name;
+    char *xml = NULL;
+    xmlDocPtr xml_doc = NULL;
+    xmlXPathContextPtr xpath_ctx = NULL;
+    xmlXPathObjectPtr xpath_obj = NULL;
+    char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
+    virDomainInfo info;
+    int status;
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+    virDomainPtr dom = domains[i];
+#else
+    virDomainPtr dom = NULL;
+    dom = virDomainLookupByID(conn, domids[i]);
+    if (dom == NULL) {
+      VIRT_ERROR(conn, "virDomainLookupByID");
+      /* Could be that the domain went away -- ignore it anyway. */
+      continue;
+    }
+#endif
+
+    if (add_domain(state, dom, 1) < 0) {
+      /*
+       * When domain is already tracked, then there is
+       * no problem with memory handling (will be freed
+       * with the rest of domains cached data)
+       * But in case of error like this (error occurred
+       * before adding domain to track) we have to take
+       * care it ourselves and call virDomainFree
+       */
+      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+      virDomainFree(dom);
+      goto cont;
+    }
+
+    name = virDomainGetName(dom);
+    if (name == NULL) {
+      VIRT_ERROR(conn, "virDomainGetName");
+      goto cont;
+    }
+
+    status = virDomainGetInfo(dom, &info);
+    if (status != 0) {
+      ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
+            status);
+      continue;
+    }
+
+    if (info.state != VIR_DOMAIN_RUNNING) {
+      DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", name);
+      continue;
+    }
+
+    if (il_domains && ignorelist_match(il_domains, name) != 0)
+      goto cont;
+
+    /* Get a list of devices for this domain. */
+    xml = virDomainGetXMLDesc(dom, 0);
+    if (!xml) {
+      VIRT_ERROR(conn, "virDomainGetXMLDesc");
+      goto cont;
+    }
+
+    /* Yuck, XML.  Parse out the devices. */
+    xml_doc = xmlReadDoc((xmlChar *)xml, NULL, NULL, XML_PARSE_NONET);
+    if (xml_doc == NULL) {
+      VIRT_ERROR(conn, "xmlReadDoc");
+      goto cont;
+    }
+
+    xpath_ctx = xmlXPathNewContext(xml_doc);
+
+    if (lv_domain_get_tag(xpath_ctx, name, tag) < 0) {
+      ERROR(PLUGIN_NAME " plugin: lv_domain_get_tag failed.");
+      goto cont;
+    }
+
+    if (!lv_instance_include_domain(inst, name, tag))
+      goto cont;
+
+    /* Block devices. */
+    const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
+    if (blockdevice_format == source)
+      bd_xmlpath = "/domain/devices/disk/source[@dev]";
+    xpath_obj = xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
+
+    if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
+        xpath_obj->nodesetval == NULL)
+      goto cont;
+
+    for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
+      xmlNodePtr node;
+      char *path = NULL;
+
+      node = xpath_obj->nodesetval->nodeTab[j];
+      if (!node)
+        continue;
+      path = (char *)xmlGetProp(node, (xmlChar *)"dev");
+      if (!path)
+        continue;
+
+      if (il_block_devices &&
+          ignore_device_match(il_block_devices, name, path) != 0)
+        goto cont2;
+
+      add_block_device(state, dom, path);
+    cont2:
+      if (path)
+        xmlFree(path);
+    }
+    xmlXPathFreeObject(xpath_obj);
+
+    /* Network interfaces. */
+    xpath_obj = xmlXPathEval(
+        (xmlChar *)"/domain/devices/interface[target[@dev]]", xpath_ctx);
+    if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
+        xpath_obj->nodesetval == NULL)
+      goto cont;
+
+    xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
+
+    for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
+      char *path = NULL;
+      char *address = NULL;
+      xmlNodePtr xml_interface;
+
+      xml_interface = xml_interfaces->nodeTab[j];
+      if (!xml_interface)
+        continue;
+
+      for (xmlNodePtr child = xml_interface->children; child;
+           child = child->next) {
+        if (child->type != XML_ELEMENT_NODE)
+          continue;
+
+        if (xmlStrEqual(child->name, (const xmlChar *)"target")) {
+          path = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+          if (!path)
+            continue;
+        } else if (xmlStrEqual(child->name, (const xmlChar *)"mac")) {
+          address = (char *)xmlGetProp(child, (const xmlChar *)"address");
+          if (!address)
+            continue;
+        }
+      }
+
+      if (il_interface_devices &&
+          (ignore_device_match(il_interface_devices, name, path) != 0 ||
+           ignore_device_match(il_interface_devices, name, address) != 0))
+        goto cont3;
+
+      add_interface_device(state, dom, path, address, j + 1);
+    cont3:
+      if (path)
+        xmlFree(path);
+      if (address)
+        xmlFree(address);
+    }
+
+  cont:
+    if (xpath_obj)
+      xmlXPathFreeObject(xpath_obj);
+    if (xpath_ctx)
+      xmlXPathFreeContext(xpath_ctx);
+    if (xml_doc)
+      xmlFreeDoc(xml_doc);
+    sfree(xml);
+  }
+
+#ifdef HAVE_LIST_ALL_DOMAINS
+  /* NOTE: domains_active and domains_inactive data will be cleared during
+     refresh of all domains (inside lv_clean_read_state function) so we need
+     to free here only allocated arrays */
+  sfree(domains);
+  sfree(domains_inactive);
+#else
+  sfree(domids);
+
+end:
+#endif
 
   DEBUG(PLUGIN_NAME " plugin#%s: refreshing"
                     " domains=%i block_devices=%i iface_devices=%i",
@@ -2030,7 +2533,8 @@ static void free_domains(struct lv_read_state *state) {
   state->nr_domains = 0;
 }
 
-static int add_domain(struct lv_read_state *state, virDomainPtr dom) {
+static int add_domain(struct lv_read_state *state, virDomainPtr dom,
+                      bool active) {
   domain_t *new_ptr;
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
@@ -2044,6 +2548,7 @@ static int add_domain(struct lv_read_state *state, virDomainPtr dom) {
 
   state->domains = new_ptr;
   state->domains[state->nr_domains].ptr = dom;
+  state->domains[state->nr_domains].active = active;
   memset(&state->domains[state->nr_domains].info, 0,
          sizeof(state->domains[state->nr_domains].info));
 
@@ -2105,7 +2610,7 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
   struct interface_device *new_ptr;
   int new_size =
       sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[15];
+  char *path_copy, *address_copy, number_string[21];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;
@@ -2144,12 +2649,12 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
 static int ignore_device_match(ignorelist_t *il, const char *domname,
                                const char *devpath) {
   char *name;
-  int n, r;
+  int r;
 
   if ((domname == NULL) || (devpath == NULL))
     return 0;
 
-  n = strlen(domname) + strlen(devpath) + 2;
+  size_t n = strlen(domname) + strlen(devpath) + 2;
   name = malloc(n);
   if (name == NULL) {
     ERROR(PLUGIN_NAME " plugin: malloc failed.");
@@ -2165,6 +2670,11 @@ static int lv_shutdown(void) {
   for (int i = 0; i < nr_instances; ++i) {
     lv_fini_instance(i);
   }
+
+  DEBUG(PLUGIN_NAME " plugin: stopping event loop");
+
+  if (!persistent_notification)
+    stop_event_loop(&notif_thread);
 
   lv_disconnect();
 

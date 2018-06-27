@@ -89,7 +89,7 @@ int cf_register_complex(const char *type, int (*callback)(oconfig_item_t *));
  */
 int cf_read(const char *filename);
 
-int global_option_set(const char *option, const char *value, _Bool from_cli);
+int global_option_set(const char *option, const char *value, bool from_cli);
 const char *global_option_get(const char *option);
 long global_option_get_long(const char *option, long default_value);
 
@@ -115,7 +115,7 @@ int cf_util_get_double(const oconfig_item_t *ci, double *ret_value);
 
 /* Assures the config option is a boolean and assignes it to `ret_bool'.
  * Otherwise, `ret_bool' is not changed and non-zero is returned. */
-int cf_util_get_boolean(const oconfig_item_t *ci, _Bool *ret_bool);
+int cf_util_get_boolean(const oconfig_item_t *ci, bool *ret_bool);
 
 /* Assures the config option is a boolean and set or unset the given flag in
  * `ret_value' as appropriate. Returns non-zero on error. */

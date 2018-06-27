@@ -33,20 +33,11 @@
 /* do not automatically get the thread specific Perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
-#define DONT_POISON_SPRINTF_YET 1
 #include "collectd.h"
-
-#undef DONT_POISON_SPRINTF_YET
-
 #include <stdbool.h>
 
 #include <EXTERN.h>
 #include <perl.h>
-
-#if defined(COLLECT_DEBUG) && COLLECT_DEBUG && defined(__GNUC__) && __GNUC__
-#undef sprintf
-#pragma GCC poison sprintf
-#endif
 
 #include <XSUB.h>
 
@@ -138,8 +129,8 @@ static int perl_flush(cdtime_t timeout, const char *identifier,
 typedef struct c_ithread_s {
   /* the thread's Perl interpreter */
   PerlInterpreter *interp;
-  _Bool running; /* thread is inside Perl interpreter */
-  _Bool shutdown;
+  bool running; /* thread is inside Perl interpreter */
+  bool shutdown;
   pthread_t pthread;
 
   /* double linked list of threads */
@@ -183,17 +174,17 @@ extern char **environ;
  * private variables
  */
 
-static _Bool register_legacy_flush = 1;
+static bool register_legacy_flush = true;
 
 /* if perl_threads != NULL perl_threads->head must
  * point to the "base" thread */
-static c_ithread_list_t *perl_threads = NULL;
+static c_ithread_list_t *perl_threads;
 
 /* the key used to store each pthread's ithread */
 static pthread_key_t perl_thr_key;
 
-static int perl_argc = 0;
-static char **perl_argv = NULL;
+static int perl_argc;
+static char **perl_argv;
 
 static char base_name[DATA_MAX_NAME_LEN] = "";
 
@@ -981,7 +972,7 @@ static int pplugin_dispatch_notification(pTHX_ HV *notif) {
  * Call perl sub with thread locking flags handled.
  */
 static int call_pv_locked(pTHX_ const char *sub_name) {
-  _Bool old_running;
+  bool old_running;
   int ret;
 
   c_ithread_t *t = (c_ithread_t *)pthread_getspecific(perl_thr_key);
@@ -989,7 +980,7 @@ static int call_pv_locked(pTHX_ const char *sub_name) {
     return 0;
 
   old_running = t->running;
-  t->running = 1;
+  t->running = true;
 
   if (t->shutdown) {
     t->running = old_running;
@@ -1189,7 +1180,7 @@ static void c_ithread_destroy(c_ithread_t *ithread) {
   /* Mark as running to avoid deadlock:
      c_ithread_destroy -> log_debug -> perl_log()
   */
-  ithread->running = 1;
+  ithread->running = true;
   log_debug("Shutting down Perl interpreter %p...", aTHX);
 
 #if COLLECT_DEBUG
@@ -1275,8 +1266,8 @@ static c_ithread_t *c_ithread_create(PerlInterpreter *base) {
   }
 
   t->pthread = pthread_self();
-  t->running = 0;
-  t->shutdown = 0;
+  t->running = false;
+  t->shutdown = false;
   perl_threads->tail = t;
 
   pthread_setspecific(perl_thr_key, (const void *)t);
@@ -1642,23 +1633,23 @@ static void _plugin_register_generic_userdata(pTHX, int type,
  */
 
 static XS(Collectd_plugin_register_read) {
-  return _plugin_register_generic_userdata(aTHX, PLUGIN_READ, "read");
+  _plugin_register_generic_userdata(aTHX, PLUGIN_READ, "read");
 }
 
 static XS(Collectd_plugin_register_write) {
-  return _plugin_register_generic_userdata(aTHX, PLUGIN_WRITE, "write");
+  _plugin_register_generic_userdata(aTHX, PLUGIN_WRITE, "write");
 }
 
 static XS(Collectd_plugin_register_log) {
-  return _plugin_register_generic_userdata(aTHX, PLUGIN_LOG, "log");
+  _plugin_register_generic_userdata(aTHX, PLUGIN_LOG, "log");
 }
 
 static XS(Collectd_plugin_register_notification) {
-  return _plugin_register_generic_userdata(aTHX, PLUGIN_NOTIF, "notification");
+  _plugin_register_generic_userdata(aTHX, PLUGIN_NOTIF, "notification");
 }
 
 static XS(Collectd_plugin_register_flush) {
-  return _plugin_register_generic_userdata(aTHX, PLUGIN_FLUSH, "flush");
+  _plugin_register_generic_userdata(aTHX, PLUGIN_FLUSH, "flush");
 }
 
 typedef int perl_unregister_function_t(const char *name);
@@ -1685,8 +1676,6 @@ static void _plugin_unregister_generic(pTHX, perl_unregister_function_t *unreg,
   unreg(SvPV_nolen(ST(0)));
 
   XSRETURN_EMPTY;
-
-  return;
 } /* static void _plugin_unregister_generic ( ... ) */
 
 /*
@@ -1700,24 +1689,24 @@ static void _plugin_unregister_generic(pTHX, perl_unregister_function_t *unreg,
  */
 
 static XS(Collectd_plugin_unregister_read) {
-  return _plugin_unregister_generic(aTHX, plugin_unregister_read, "read");
+  _plugin_unregister_generic(aTHX, plugin_unregister_read, "read");
 }
 
 static XS(Collectd_plugin_unregister_write) {
-  return _plugin_unregister_generic(aTHX, plugin_unregister_write, "write");
+  _plugin_unregister_generic(aTHX, plugin_unregister_write, "write");
 }
 
 static XS(Collectd_plugin_unregister_log) {
-  return _plugin_unregister_generic(aTHX, plugin_unregister_log, "log");
+  _plugin_unregister_generic(aTHX, plugin_unregister_log, "log");
 }
 
 static XS(Collectd_plugin_unregister_notification) {
-  return _plugin_unregister_generic(aTHX, plugin_unregister_notification,
-                                    "notification");
+  _plugin_unregister_generic(aTHX, plugin_unregister_notification,
+                             "notification");
 }
 
 static XS(Collectd_plugin_unregister_flush) {
-  return _plugin_unregister_generic(aTHX, plugin_unregister_flush, "flush");
+  _plugin_unregister_generic(aTHX, plugin_unregister_flush, "flush");
 }
 
 /*
@@ -2276,7 +2265,7 @@ static int perl_shutdown(void) {
      * the thread as this will free the memory */
     t = t->prev;
 
-    thr->shutdown = 1;
+    thr->shutdown = true;
     if (thr->running) {
       /* Give some time to thread to exit from Perl interpreter */
       WARNING("perl shutdown: Thread is running inside Perl. Waiting.");

@@ -35,7 +35,7 @@ static const char *config_keys[] = {"Device", "IgnoreSelected",
 static const char *const dirname_sysfs = "/sys/class/thermal";
 static const char *const dirname_procfs = "/proc/acpi/thermal_zone";
 
-static _Bool force_procfs = 0;
+static bool force_procfs;
 static ignorelist_t *device_list;
 
 enum dev_type { TEMP = 0, COOLING_DEV };
@@ -59,7 +59,7 @@ static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
                                      const char *name,
                                      void __attribute__((unused)) * user_data) {
   char filename[PATH_MAX];
-  _Bool success = 0;
+  bool success = false;
   value_t value;
 
   if (device_list && ignorelist_match(device_list, name))
@@ -69,13 +69,13 @@ static int thermal_sysfs_device_read(const char __attribute__((unused)) * dir,
   if (parse_value_file(filename, &value, DS_TYPE_GAUGE) == 0) {
     value.gauge /= 1000.0;
     thermal_submit(name, TEMP, value);
-    success = 1;
+    success = true;
   }
 
   snprintf(filename, sizeof(filename), "%s/%s/cur_state", dirname_sysfs, name);
   if (parse_value_file(filename, &value, DS_TYPE_GAUGE) == 0) {
     thermal_submit(name, COOLING_DEV, value);
-    success = 1;
+    success = true;
   }
 
   return success ? 0 : -1;
@@ -157,9 +157,9 @@ static int thermal_config(const char *key, const char *value) {
     if (IS_TRUE(value))
       ignorelist_set_invert(device_list, 0);
   } else if (strcasecmp(key, "ForceUseProcfs") == 0) {
-    force_procfs = 0;
+    force_procfs = false;
     if (IS_TRUE(value))
-      force_procfs = 1;
+      force_procfs = true;
   } else {
     return -1;
   }

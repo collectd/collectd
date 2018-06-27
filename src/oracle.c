@@ -75,10 +75,10 @@ typedef struct o_database_s o_database_t;
 /*
  * Global variables
  */
-static udb_query_t **queries = NULL;
-static size_t queries_num = 0;
-static o_database_t **databases = NULL;
-static size_t databases_num = 0;
+static udb_query_t **queries;
+static size_t queries_num;
+static o_database_t **databases;
+static size_t databases_num;
 
 OCIEnv *oci_env = NULL;
 OCIError *oci_error = NULL;
@@ -582,6 +582,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
               db->name, udb_query_get_name(q));
     }
   } /* }}} while (42) */
+
+  udb_query_finish_result(q, prep_area);
 
   /* DEBUG ("oracle plugin: o_read_database_query: This statement succeeded:
    * %s", q->statement); */

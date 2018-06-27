@@ -84,19 +84,19 @@ struct metric_map_s {
 typedef struct metric_map_s metric_map_t;
 
 #define MC_RECEIVE_GROUP_DEFAULT "239.2.11.71"
-static char *mc_receive_group = NULL;
+static char *mc_receive_group;
 #define MC_RECEIVE_PORT_DEFAULT "8649"
-static char *mc_receive_port = NULL;
+static char *mc_receive_port;
 
-static struct pollfd *mc_receive_sockets = NULL;
-static size_t mc_receive_sockets_num = 0;
+static struct pollfd *mc_receive_sockets;
+static size_t mc_receive_sockets_num;
 
-static socket_entry_t *mc_send_sockets = NULL;
-static size_t mc_send_sockets_num = 0;
+static socket_entry_t *mc_send_sockets;
+static size_t mc_send_sockets_num;
 static pthread_mutex_t mc_send_sockets_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static int mc_receive_thread_loop = 0;
-static int mc_receive_thread_running = 0;
+static int mc_receive_thread_loop;
+static int mc_receive_thread_running;
 static pthread_t mc_receive_thread_id;
 
 static metric_map_t metric_map_default[] =
@@ -122,8 +122,8 @@ static metric_map_t metric_map_default[] =
      {"pkts_out", "if_packets", "", "tx", -1, -1}};
 static size_t metric_map_len_default = STATIC_ARRAY_SIZE(metric_map_default);
 
-static metric_map_t *metric_map = NULL;
-static size_t metric_map_len = 0;
+static metric_map_t *metric_map;
+static size_t metric_map_len;
 
 static c_avl_tree_t *staging_tree;
 static pthread_mutex_t staging_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -833,28 +833,6 @@ static int mc_receive_thread_stop(void) /* {{{ */
  *   </Metric>
  * </Plugin>
  */
-static int gmond_config_set_string(oconfig_item_t *ci, char **str) /* {{{ */
-{
-  char *tmp;
-
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("gmond plugin: The `%s' option needs "
-            "exactly one string argument.",
-            ci->key);
-    return -1;
-  }
-
-  tmp = strdup(ci->values[0].value.string);
-  if (tmp == NULL) {
-    ERROR("gmond plugin: strdup failed.");
-    return -1;
-  }
-
-  sfree(*str);
-  *str = tmp;
-  return 0;
-} /* }}} int gmond_config_set_string */
-
 static int gmond_config_add_metric(oconfig_item_t *ci) /* {{{ */
 {
   metric_map_t *map;
@@ -889,11 +867,11 @@ static int gmond_config_add_metric(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
     if (strcasecmp("Type", child->key) == 0)
-      gmond_config_set_string(child, &map->type);
+      cf_util_get_string(child, &map->type);
     else if (strcasecmp("TypeInstance", child->key) == 0)
-      gmond_config_set_string(child, &map->type_instance);
+      cf_util_get_string(child, &map->type_instance);
     else if (strcasecmp("DataSource", child->key) == 0)
-      gmond_config_set_string(child, &map->ds_name);
+      cf_util_get_string(child, &map->ds_name);
     else {
       WARNING("gmond plugin: Unknown configuration option `%s' ignored.",
               child->key);

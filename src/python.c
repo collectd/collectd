@@ -241,7 +241,7 @@ static char CollectdError_doc[] =
 
 static pthread_t main_thread;
 static PyOS_sighandler_t python_sigint_handler;
-static _Bool do_interactive = 0;
+static bool do_interactive;
 
 /* This is our global thread state. Python saves some stuff in thread-local
  * storage. So if we allow the interpreter to run in the background
@@ -257,8 +257,8 @@ static cpy_callback_t *cpy_init_callbacks;
 static cpy_callback_t *cpy_shutdown_callbacks;
 
 /* Make sure to hold the GIL while modifying these. */
-static int cpy_shutdown_triggered = 0;
-static int cpy_num_callbacks = 0;
+static int cpy_shutdown_triggered;
+static int cpy_num_callbacks;
 
 static void cpy_destroy_user_data(void *data) {
   cpy_callback_t *c = data;
@@ -448,7 +448,7 @@ static int cpy_write_callback(const data_set_t *ds,
       int64_t si;
       uint64_t ui;
       double d;
-      _Bool b;
+      bool b;
 
       type = meta_data_type(meta, table[i]);
       if (type == MD_TYPE_STRING) {
@@ -703,9 +703,8 @@ static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
   for (size_t i = 0; i < ds->ds_num; ++i) {
     tuple = PyTuple_New(4);
     PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
-    PyTuple_SET_ITEM(
-        tuple, 1,
-        cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
+    PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(
+                                   DS_TYPE_TO_STRING(ds->ds[i].type)));
     PyTuple_SET_ITEM(tuple, 2, float_or_none(ds->ds[i].min));
     PyTuple_SET_ITEM(tuple, 3, float_or_none(ds->ds[i].max));
     PyList_SET_ITEM(list, i, tuple);
@@ -775,8 +774,7 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler,
 
   register_function(buf, handler,
                     &(user_data_t){
-                        .data = c,
-                        .free_func = cpy_destroy_user_data,
+                        .data = c, .free_func = cpy_destroy_user_data,
                     });
 
   ++cpy_num_callbacks;
@@ -819,8 +817,7 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args,
       /* group = */ "python", buf, cpy_read_callback,
       DOUBLE_TO_CDTIME_T(interval),
       &(user_data_t){
-          .data = c,
-          .free_func = cpy_destroy_user_data,
+          .data = c, .free_func = cpy_destroy_user_data,
       });
   ++cpy_num_callbacks;
   return cpy_string_to_unicode_or_bytes(buf);
@@ -1200,9 +1197,8 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
   values = PyTuple_New(ci->values_num); /* New reference. */
   for (int i = 0; i < ci->values_num; ++i) {
     if (ci->values[i].type == OCONFIG_TYPE_STRING) {
-      PyTuple_SET_ITEM(
-          values, i,
-          cpy_string_to_unicode_or_bytes(ci->values[i].value.string));
+      PyTuple_SET_ITEM(values, i, cpy_string_to_unicode_or_bytes(
+                                      ci->values[i].value.string));
     } else if (ci->values[i].type == OCONFIG_TYPE_NUMBER) {
       PyTuple_SET_ITEM(values, i,
                        PyFloat_FromDouble(ci->values[i].value.number));
@@ -1366,7 +1362,7 @@ static int cpy_config(oconfig_item_t *ci) {
 #endif
       sfree(encoding);
     } else if (strcasecmp(item->key, "LogTraces") == 0) {
-      _Bool log_traces;
+      bool log_traces;
       if (cf_util_get_boolean(item, &log_traces) != 0) {
         status = 1;
         continue;

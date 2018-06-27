@@ -37,18 +37,15 @@
 #define UUID_PRINTABLE_COMPACT_LENGTH (UUID_RAW_LENGTH * 2)
 #define UUID_PRINTABLE_NORMAL_LENGTH (UUID_PRINTABLE_COMPACT_LENGTH + 4)
 
-static char *uuidfile = NULL;
+static char *uuidfile;
 
 static const char *config_keys[] = {"UUIDFile"};
 
 static int looks_like_a_uuid(const char *uuid) {
-  int len;
-
   if (!uuid)
     return 0;
 
-  len = strlen(uuid);
-
+  size_t len = strlen(uuid);
   if (len < UUID_PRINTABLE_COMPACT_LENGTH)
     return 0;
 

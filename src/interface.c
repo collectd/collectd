@@ -86,9 +86,9 @@ static const char *config_keys[] = {
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
+static ignorelist_t *ignorelist;
 
-static _Bool report_inactive = 1;
+static bool report_inactive = true;
 
 #ifdef HAVE_LIBKSTAT
 #if HAVE_KSTAT_H
@@ -97,8 +97,8 @@ static _Bool report_inactive = 1;
 #define MAX_NUMIF 256
 extern kstat_ctl_t *kc;
 static kstat_t *ksp[MAX_NUMIF];
-static int numif = 0;
-static _Bool unique_name = 0;
+static int numif;
+static bool unique_name;
 #endif /* HAVE_LIBKSTAT */
 
 static int interface_config(const char *key, const char *value) {
@@ -117,7 +117,7 @@ static int interface_config(const char *key, const char *value) {
   else if (strcasecmp(key, "UniqueName") == 0) {
 #ifdef HAVE_LIBKSTAT
     if (IS_TRUE(value))
-      unique_name = 1;
+      unique_name = true;
 #else
     WARNING("interface plugin: the \"UniqueName\" option is only valid on "
             "Solaris.");

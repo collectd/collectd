@@ -48,11 +48,11 @@ struct riemann_host {
   char *name;
   char *event_service_prefix;
   pthread_mutex_t lock;
-  _Bool batch_mode;
-  _Bool notifications;
-  _Bool check_thresholds;
-  _Bool store_rates;
-  _Bool always_append_ds;
+  bool batch_mode;
+  bool notifications;
+  bool check_thresholds;
+  bool store_rates;
+  bool always_append_ds;
   char *node;
   int port;
   riemann_client_type_t client_type;
@@ -181,9 +181,7 @@ static int wrr_send(struct riemann_host *host, riemann_message_t *msg) {
   return status;
 }
 
-static riemann_message_t *
-wrr_notification_to_message(struct riemann_host *host, /* {{{ */
-                            notification_t const *n) {
+static riemann_message_t *wrr_notification_to_message(notification_t const *n) {
   riemann_message_t *msg;
   riemann_event_t *event;
   char service_buffer[6 * DATA_MAX_NAME_LEN];
@@ -271,7 +269,7 @@ wrr_notification_to_message(struct riemann_host *host, /* {{{ */
         "host = \"%s\", service = \"%s\", state = \"%s\"",
         event->host, event->service, event->state);
   return msg;
-} /* }}} riemann_message_t *wrr_notification_to_message */
+}
 
 static riemann_event_t *
 wrr_value_to_event(struct riemann_host const *host, /* {{{ */
@@ -546,7 +544,7 @@ static int wrr_notification(const notification_t *n, user_data_t *ud) /* {{{ */
   /*
    * Never batch for notifications, send them ASAP
    */
-  msg = wrr_notification_to_message(host, n);
+  msg = wrr_notification_to_message(n);
   if (msg == NULL)
     return -1;
 
@@ -632,11 +630,11 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
   host->reference_count = 1;
   host->node = NULL;
   host->port = 0;
-  host->notifications = 1;
-  host->check_thresholds = 0;
-  host->store_rates = 1;
-  host->always_append_ds = 0;
-  host->batch_mode = 1;
+  host->notifications = true;
+  host->check_thresholds = false;
+  host->store_rates = true;
+  host->always_append_ds = false;
+  host->batch_mode = true;
   host->batch_max = RIEMANN_BATCH_MAX; /* typical MSS */
   host->batch_init = cdtime();
   host->batch_timeout = 0;
@@ -701,21 +699,13 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("Port", child->key) == 0) {
       host->port = cf_util_get_port_number(child);
       if (host->port == -1) {
-        ERROR("write_riemann plugin: Invalid argument "
-              "configured for the \"Port\" "
-              "option.");
         break;
       }
     } else if (strcasecmp("Protocol", child->key) == 0) {
       char tmp[16];
       status = cf_util_get_string_buffer(child, tmp, sizeof(tmp));
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
 
       if (strcasecmp("UDP", tmp) == 0)
         host->client_type = RIEMANN_CLIENT_UDP;
@@ -731,31 +721,16 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
                 tmp);
     } else if (strcasecmp("TLSCAFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_ca_file);
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("TLSCertFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_cert_file);
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("TLSKeyFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_key_file);
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &host->store_rates);
       if (status != 0)

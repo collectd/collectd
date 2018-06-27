@@ -27,6 +27,9 @@
 
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
+#if HAVE_I2C_SMBUS_H
+#include <i2c/smbus.h>
+#endif
 #include <math.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
@@ -177,23 +180,23 @@ static const char *config_keys[] = {
 
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static char *config_device = NULL; /**< I2C bus device */
-static int config_oversample = 1;  /**< averaging window */
+static char *config_device;       /**< I2C bus device */
+static int config_oversample = 1; /**< averaging window */
 
-static double config_press_offset = 0.0; /**< pressure offset */
-static double config_temp_offset = 0.0;  /**< temperature offset */
+static double config_press_offset; /**< pressure offset */
+static double config_temp_offset;  /**< temperature offset */
 
 static double config_altitude = NAN; /**< altitude */
-static int config_normalize = 0;     /**< normalization method */
+static int config_normalize;         /**< normalization method */
 
-static _Bool configured = 0; /**< the whole plugin config status */
+static bool configured; /**< the whole plugin config status */
 
 static int i2c_bus_fd = -1; /**< I2C bus device FD */
 
 static enum Sensor_type sensor_type =
     Sensor_none; /**< detected/used sensor type */
 
-static __s32 mpl3115_oversample = 0; /**< MPL3115 CTRL1 oversample setting */
+static __s32 mpl3115_oversample; /**< MPL3115 CTRL1 oversample setting */
 
 // BMP085 configuration
 static unsigned bmp085_oversampling; /**< BMP085 oversampling (0-3) */
@@ -226,7 +229,7 @@ static short bmp085_MD;
 /*  Used only for MPL115. MPL3115 supports real oversampling in the device so */
 /*  no need for any postprocessing. */
 
-static _Bool avg_initialized = 0; /**< already initialized by real values */
+static bool avg_initialized; /**< already initialized by real values */
 
 typedef struct averaging_s {
   long int *ring_buffer;
@@ -235,8 +238,8 @@ typedef struct averaging_s {
   int ring_buffer_head;
 } averaging_t;
 
-static averaging_t pressure_averaging = {NULL, 0, 0L, 0};
-static averaging_t temperature_averaging = {NULL, 0, 0L, 0};
+static averaging_t pressure_averaging;
+static averaging_t temperature_averaging;
 
 /**
  * Create / allocate averaging buffer
@@ -313,11 +316,11 @@ static double averaging_add_sample(averaging_t *avg, long int sample) {
 typedef struct temperature_list_s {
   char *sensor_name;               /**< sensor name/reference */
   size_t num_values;               /**< number of values (usually one) */
-  _Bool initialized;               /**< sensor already provides data */
+  bool initialized;                /**< sensor already provides data */
   struct temperature_list_s *next; /**< next in the list */
 } temperature_list_t;
 
-static temperature_list_t *temp_list = NULL;
+static temperature_list_t *temp_list;
 
 /*
  * Add new sensor to the temperature reference list
@@ -1392,7 +1395,7 @@ static int MPL115_collectd_barometer_read(void) {
             config_oversample - 1);
       usleep(20000);
     }
-    avg_initialized = 1;
+    avg_initialized = true;
   }
 
   result = MPL115_read_averaged(&pressure, &temperature);
@@ -1635,7 +1638,7 @@ static int collectd_barometer_init(void) {
     return -1;
   }
 
-  configured = 1;
+  configured = true;
   return 0;
 }
 

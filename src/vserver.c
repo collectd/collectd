@@ -42,7 +42,7 @@
 #error "No applicable input method."
 #endif
 
-static int pagesize = 0;
+static int pagesize;
 
 static int vserver_init(void) {
   /* XXX Should we check for getpagesize () in configure?

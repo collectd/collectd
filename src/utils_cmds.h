@@ -39,13 +39,13 @@ typedef enum {
   CMD_PUTVAL = 4,
 } cmd_type_t;
 #define CMD_TO_STRING(type)                                                    \
-  ((type) == CMD_FLUSH) ? "FLUSH" : ((type) == CMD_GETVAL)                     \
-                                        ? "GETVAL"                             \
-                                        : ((type) == CMD_LISTVAL)              \
-                                              ? "LISTVAL"                      \
-                                              : ((type) == CMD_PUTVAL)         \
-                                                    ? "PUTVAL"                 \
-                                                    : "UNKNOWN"
+  ((type) == CMD_FLUSH)                                                        \
+      ? "FLUSH"                                                                \
+      : ((type) == CMD_GETVAL)                                                 \
+            ? "GETVAL"                                                         \
+            : ((type) == CMD_LISTVAL)                                          \
+                  ? "LISTVAL"                                                  \
+                  : ((type) == CMD_PUTVAL) ? "PUTVAL" : "UNKNOWN"
 
 typedef struct {
   double timeout;
@@ -60,9 +60,6 @@ typedef struct {
   char *raw_identifier;
   identifier_t identifier;
 } cmd_getval_t;
-
-typedef struct {
-} cmd_listval_t;
 
 typedef struct {
   /* The raw identifier as provided by the user. */
@@ -86,7 +83,6 @@ typedef struct {
   union {
     cmd_flush_t flush;
     cmd_getval_t getval;
-    cmd_listval_t listval;
     cmd_putval_t putval;
   } cmd;
 } cmd_t;

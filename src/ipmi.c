@@ -49,12 +49,13 @@ typedef struct c_ipmi_sensor_list_s c_ipmi_sensor_list_t;
 struct c_ipmi_instance_s {
   char *name;
   ignorelist_t *ignorelist;
-  _Bool notify_add;
-  _Bool notify_remove;
-  _Bool notify_notpresent;
-  _Bool notify_conn;
-  _Bool sel_enabled;
-  _Bool sel_clear_event;
+  ignorelist_t *sel_ignorelist;
+  bool notify_add;
+  bool notify_remove;
+  bool notify_notpresent;
+  bool notify_conn;
+  bool sel_enabled;
+  bool sel_clear_event;
 
   char *host;
   char *connaddr;
@@ -62,12 +63,12 @@ struct c_ipmi_instance_s {
   char *password;
   unsigned int authtype;
 
-  _Bool connected;
+  bool connected;
   ipmi_con_t *connection;
   pthread_mutex_t sensor_list_lock;
   c_ipmi_sensor_list_t *sensor_list;
 
-  _Bool active;
+  bool active;
   pthread_t thread_id;
   int init_in_progress;
 
@@ -95,8 +96,8 @@ typedef struct c_ipmi_db_type_map_s c_ipmi_db_type_map_t;
 /*
  * Module global variables
  */
-static os_handler_t *os_handler = NULL;
-static c_ipmi_instance_t *instances = NULL;
+static os_handler_t *os_handler;
+static c_ipmi_instance_t *instances;
 
 /*
  * Misc private functions
@@ -357,7 +358,7 @@ static const char *sensor_unit_to_type(ipmi_sensor_t *sensor) {
 
   /* find the db type by using sensor base unit type */
   enum ipmi_unit_type_e ipmi_type = ipmi_sensor_get_base_unit(sensor);
-  for (int i = 0; i < STATIC_ARRAY_SIZE(ipmi_db_type_map); i++)
+  for (size_t i = 0; i < STATIC_ARRAY_SIZE(ipmi_db_type_map); i++)
     if (ipmi_db_type_map[i].type == ipmi_type)
       return ipmi_db_type_map[i].type_name;
 
@@ -770,6 +771,40 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   return IPMI_EVENT_NOT_HANDLED;
 } /* int sensor_discrete_event_handler */
 
+static int sel_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
+  char sensor_name[DATA_MAX_NAME_LEN] = {0};
+  int status = 0;
+
+  /* Check if sensor on sel_ignorelist */
+  sensor_get_name(sensor, sensor_name, sizeof(sensor_name));
+  if (ignorelist_match(st->sel_ignorelist, sensor_name) != 0)
+    return 0;
+
+  /* register threshold event if threshold sensor support events */
+  if (ipmi_sensor_get_event_reading_type(sensor) ==
+      IPMI_EVENT_READING_TYPE_THRESHOLD)
+    status = ipmi_sensor_add_threshold_event_handler(
+        sensor, sensor_threshold_event_handler, st);
+  /* register discrete handler if discrete/specific sensor support events */
+  else if (ipmi_sensor_get_event_support(sensor) != IPMI_EVENT_SUPPORT_NONE)
+    status = ipmi_sensor_add_discrete_event_handler(
+        sensor, sensor_discrete_event_handler, st);
+
+  if (status)
+    ERROR("Unable to add sensor %s event handler, status: %d", sensor_name,
+          status);
+  return status;
+}
+
+static void sel_list_remove(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
+  if (ipmi_sensor_get_event_reading_type(sensor) ==
+      IPMI_EVENT_READING_TYPE_THRESHOLD)
+    ipmi_sensor_remove_threshold_event_handler(
+        sensor, sensor_threshold_event_handler, st);
+  else
+    ipmi_sensor_remove_discrete_event_handler(
+        sensor, sensor_discrete_event_handler, st);
+}
 /*
  * Entity handlers
  */
@@ -782,37 +817,12 @@ entity_sensor_update_handler(enum ipmi_update_e op,
   if ((op == IPMI_ADDED) || (op == IPMI_CHANGED)) {
     /* Will check for duplicate entries.. */
     sensor_list_add(st, sensor);
-
-    if (st->sel_enabled) {
-      int status = 0;
-      /* register threshold event handler */
-      if (ipmi_sensor_get_event_reading_type(sensor) ==
-          IPMI_EVENT_READING_TYPE_THRESHOLD)
-        status = ipmi_sensor_add_threshold_event_handler(
-            sensor, sensor_threshold_event_handler, st);
-      /* register discrete handler if discrete/specific sensor support events */
-      else if (ipmi_sensor_get_event_support(sensor) != IPMI_EVENT_SUPPORT_NONE)
-        status = ipmi_sensor_add_discrete_event_handler(
-            sensor, sensor_discrete_event_handler, st);
-
-      if (status) {
-        char buf[DATA_MAX_NAME_LEN] = {0};
-        sensor_get_name(sensor, buf, sizeof(buf));
-        ERROR("Unable to add sensor %s event handler, status: %d", buf, status);
-      }
-    }
+    if (st->sel_enabled)
+      sel_list_add(st, sensor);
   } else if (op == IPMI_DELETED) {
     sensor_list_remove(st, sensor);
-
-    if (st->sel_enabled) {
-      if (ipmi_sensor_get_event_reading_type(sensor) ==
-          IPMI_EVENT_READING_TYPE_THRESHOLD)
-        ipmi_sensor_remove_threshold_event_handler(
-            sensor, sensor_threshold_event_handler, st);
-      else
-        ipmi_sensor_remove_discrete_event_handler(
-            sensor, sensor_discrete_event_handler, st);
-    }
+    if (st->sel_enabled)
+      sel_list_remove(st, sensor);
   }
 } /* void entity_sensor_update_handler */
 
@@ -884,7 +894,7 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
       plugin_dispatch_notification(&n);
     }
 
-    st->connected = 0;
+    st->connected = false;
     return;
   }
 
@@ -896,7 +906,7 @@ static void domain_connection_change_handler(ipmi_domain_t *domain, int err,
     plugin_dispatch_notification(&n);
   }
 
-  st->connected = 1;
+  st->connected = true;
 
   int status = ipmi_domain_add_entity_update_handler(
       domain, domain_entity_update_handler, /* user data = */ st);
@@ -965,11 +975,11 @@ static void *c_ipmi_thread_main(void *user_data) {
   int status = c_ipmi_thread_init(st);
   if (status != 0) {
     ERROR("ipmi plugin: c_ipmi_thread_init failed.");
-    st->active = 0;
+    st->active = false;
     return (void *)-1;
   }
 
-  while (st->active != 0) {
+  while (st->active) {
     struct timeval tv = {1, 0};
     os_handler->perform_one_op(os_handler, &tv);
   }
@@ -1000,6 +1010,15 @@ static c_ipmi_instance_t *c_ipmi_init_instance() {
     return NULL;
   }
 
+  st->sel_ignorelist = ignorelist_create(/* invert = */ 1);
+  if (st->sel_ignorelist == NULL) {
+    ignorelist_free(st->ignorelist);
+    sfree(st->name);
+    sfree(st);
+    ERROR("ipmi plugin: SEL ignorelist_create() failed.");
+    return NULL;
+  }
+
   st->sensor_list = NULL;
   pthread_mutex_init(&st->sensor_list_lock, /* attr = */ NULL);
 
@@ -1026,6 +1045,7 @@ static void c_ipmi_free_instance(c_ipmi_instance_t *st) {
   sfree(st->username);
   sfree(st->password);
 
+  ignorelist_free(st->sel_ignorelist);
   ignorelist_free(st->ignorelist);
   pthread_mutex_destroy(&st->sensor_list_lock);
   sfree(st);
@@ -1062,10 +1082,15 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Sensor", child->key) == 0)
-      ignorelist_add(st->ignorelist, child->values[0].value.string);
-    else if (strcasecmp("IgnoreSelected", child->key) == 0) {
-      _Bool t;
+    if (strcasecmp("Sensor", child->key) == 0) {
+      char *value = NULL;
+      status = cf_util_get_string(child, &value);
+      if (status != 0)
+        break;
+      ignorelist_add(st->ignorelist, value);
+      sfree(value);
+    } else if (strcasecmp("IgnoreSelected", child->key) == 0) {
+      bool t;
       status = cf_util_get_boolean(child, &t);
       if (status != 0)
         break;
@@ -1078,6 +1103,19 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
       status = cf_util_get_boolean(child, &st->notify_remove);
     } else if (strcasecmp("NotifySensorNotPresent", child->key) == 0) {
       status = cf_util_get_boolean(child, &st->notify_notpresent);
+    } else if (strcasecmp("SELSensor", child->key) == 0) {
+      char *value = NULL;
+      status = cf_util_get_string(child, &value);
+      if (status != 0)
+        break;
+      ignorelist_add(st->sel_ignorelist, value);
+      sfree(value);
+    } else if (strcasecmp("SELIgnoreSelected", child->key) == 0) {
+      bool t;
+      status = cf_util_get_boolean(child, &t);
+      if (status != 0)
+        break;
+      ignorelist_set_invert(st->sel_ignorelist, /* invert = */ !t);
     } else if (strcasecmp("SELEnabled", child->key) == 0) {
       status = cf_util_get_boolean(child, &st->sel_enabled);
     } else if (strcasecmp("SELClearEvent", child->key) == 0) {
@@ -1124,7 +1162,7 @@ static int c_ipmi_config_add_instance(oconfig_item_t *ci) {
 } /* int c_ipmi_config_add_instance */
 
 static int c_ipmi_config(oconfig_item_t *ci) {
-  _Bool have_instance_block = 0;
+  bool have_instance_block = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -1158,12 +1196,12 @@ static int c_ipmi_config(oconfig_item_t *ci) {
 static int c_ipmi_read(user_data_t *user_data) {
   c_ipmi_instance_t *st = user_data->data;
 
-  if (st->active == 0) {
+  if (st->active == false) {
     INFO("ipmi plugin: c_ipmi_read: I'm not active, returning false.");
     return -1;
   }
 
-  if (st->connected == 0)
+  if (st->connected == false)
     return 0;
 
   sensor_list_read_all(st);
@@ -1234,14 +1272,14 @@ static int c_ipmi_init(void) {
     }
 
     st->init_in_progress = cycles;
-    st->active = 1;
+    st->active = true;
 
     status = plugin_thread_create(&st->thread_id, /* attr = */ NULL,
                                   c_ipmi_thread_main,
                                   /* user data = */ (void *)st, "ipmi");
 
     if (status != 0) {
-      st->active = 0;
+      st->active = false;
       st->thread_id = (pthread_t){0};
 
       plugin_unregister_read(callback_name);
@@ -1263,7 +1301,7 @@ static int c_ipmi_shutdown(void) {
     c_ipmi_instance_t *next = st->next;
 
     st->next = NULL;
-    st->active = 0;
+    st->active = false;
 
     if (!pthread_equal(st->thread_id, (pthread_t){0})) {
       pthread_join(st->thread_id, NULL);

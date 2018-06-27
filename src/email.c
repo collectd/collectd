@@ -111,13 +111,13 @@ static const char *config_keys[] = {"SocketFile", "SocketGroup", "SocketPerms",
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /* socket configuration */
-static char *sock_file = NULL;
-static char *sock_group = NULL;
+static char *sock_file;
+static char *sock_group;
 static int sock_perms = S_IRWXU | S_IRWXG;
 static int max_conns = MAX_CONNS;
 
 /* state of the plugin */
-static int disabled = 0;
+static int disabled;
 
 /* thread managing "client" connections */
 static pthread_t connector = (pthread_t)0;
@@ -134,7 +134,7 @@ static conn_list_t conns;
 static pthread_cond_t collector_available = PTHREAD_COND_INITIALIZER;
 
 /* collector threads */
-static collector_t **collectors = NULL;
+static collector_t **collectors;
 
 static pthread_mutex_t available_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int available_collectors;
@@ -260,7 +260,6 @@ static void *collect(void *arg) {
     while (42) {
       /* 256 bytes ought to be enough for anybody ;-) */
       char line[256 + 1]; /* line + '\0' */
-      int len = 0;
 
       errno = 0;
       if (fgets(line, sizeof(line), this->socket) == NULL) {
@@ -272,7 +271,7 @@ static void *collect(void *arg) {
         break;
       }
 
-      len = strlen(line);
+      size_t len = strlen(line);
       if ((line[len - 1] != '\n') && (line[len - 1] != '\r')) {
         log_warn("collect: line too long (> %" PRIsz " characters): "
                  "'%s' (truncated)",
@@ -287,7 +286,7 @@ static void *collect(void *arg) {
         continue;
       }
 
-      line[len - 1] = 0;
+      line[len - 1] = '\0';
 
       log_debug("collect: line = '%s'", line);
 

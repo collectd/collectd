@@ -267,7 +267,7 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_double(meta, key, &value) == 0)
         BUFFER_ADD(",\"%s\":%f", key, value);
     } else if (type == MD_TYPE_BOOLEAN) {
-      _Bool value = 0;
+      bool value = false;
       if (meta_data_get_boolean(meta, key, &value) == 0)
         BUFFER_ADD(",\"%s\":%s", key, value ? "true" : "false");
     }

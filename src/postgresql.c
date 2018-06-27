@@ -102,7 +102,7 @@ typedef struct {
 typedef struct {
   char *name;
   char *statement;
-  _Bool store_rates;
+  bool store_rates;
 } c_psql_writer_t;
 
 typedef struct {
@@ -155,14 +155,14 @@ static const char *const def_queries[] = {
     "table_states", "disk_io",      "disk_usage"};
 static int def_queries_num = STATIC_ARRAY_SIZE(def_queries);
 
-static c_psql_database_t **databases = NULL;
-static size_t databases_num = 0;
+static c_psql_database_t **databases;
+static size_t databases_num;
 
-static udb_query_t **queries = NULL;
-static size_t queries_num = 0;
+static udb_query_t **queries;
+static size_t queries_num;
 
-static c_psql_writer_t *writers = NULL;
-static size_t writers_num = 0;
+static c_psql_writer_t *writers;
+static size_t writers_num;
 
 static int c_psql_begin(c_psql_database_t *db) {
   PGresult *r = PQexec(db->conn, "BEGIN");
@@ -348,10 +348,10 @@ static int c_psql_connect(c_psql_database_t *db) {
 } /* c_psql_connect */
 
 static int c_psql_check_connection(c_psql_database_t *db) {
-  _Bool init = 0;
+  bool init = false;
 
   if (!db->conn) {
-    init = 1;
+    init = true;
 
     /* trigger c_release() */
     if (0 == db->conn_complaint.interval)
@@ -664,7 +664,7 @@ static char *values_name_to_sqlarray(const data_set_t *ds, char *string,
 } /* values_name_to_sqlarray */
 
 static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
-                                     size_t string_len, _Bool store_rates) {
+                                     size_t string_len, bool store_rates) {
   char *str_ptr;
   size_t str_len;
 
@@ -707,7 +707,7 @@ static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
 
 static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
                                 char *string, size_t string_len,
-                                _Bool store_rates) {
+                                bool store_rates) {
   char *str_ptr;
   size_t str_len;
 
@@ -936,7 +936,7 @@ static int c_psql_flush(cdtime_t timeout,
 } /* c_psql_flush */
 
 static int c_psql_shutdown(void) {
-  _Bool had_flush = 0;
+  bool had_flush = false;
 
   plugin_unregister_read_group("postgresql");
 
@@ -949,7 +949,7 @@ static int c_psql_shutdown(void) {
 
       if (!had_flush) {
         plugin_unregister_flush("postgresql");
-        had_flush = 1;
+        had_flush = true;
       }
 
       plugin_unregister_flush(cb_name);
@@ -1097,7 +1097,7 @@ static int c_psql_config_writer(oconfig_item_t *ci) {
 
   writer->name = sstrdup(ci->values[0].value.string);
   writer->statement = NULL;
-  writer->store_rates = 1;
+  writer->store_rates = true;
 
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *c = ci->children + i;
@@ -1124,7 +1124,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
   c_psql_database_t *db;
 
   char cb_name[DATA_MAX_NAME_LEN];
-  static _Bool have_flush = 0;
+  static bool have_flush;
 
   if ((1 != ci->values_num) || (OCONFIG_TYPE_STRING != ci->values[0].type)) {
     log_err("<Database> expects a single string argument.");
@@ -1221,7 +1221,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
     if (!have_flush) {
       /* flush all */
       plugin_register_flush("postgresql", c_psql_flush, /* user data = */ NULL);
-      have_flush = 1;
+      have_flush = true;
     }
 
     /* flush this connection only */
@@ -1237,7 +1237,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
 } /* c_psql_config_database */
 
 static int c_psql_config(oconfig_item_t *ci) {
-  static int have_def_config = 0;
+  static int have_def_config;
 
   if (0 == have_def_config) {
     oconfig_item_t *c;

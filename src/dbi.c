@@ -54,7 +54,7 @@ struct cdbi_driver_option_s /* {{{ */
     char *string;
     int numeric;
   } value;
-  _Bool is_numeric;
+  bool is_numeric;
 };
 typedef struct cdbi_driver_option_s cdbi_driver_option_t; /* }}} */
 
@@ -83,12 +83,12 @@ typedef struct cdbi_database_s cdbi_database_t; /* }}} */
  * Global variables
  */
 #if !defined(HAVE_LEGACY_LIBDBI) || !HAVE_LEGACY_LIBDBI
-static dbi_inst dbi_instance = 0;
+static dbi_inst dbi_instance;
 #endif
-static udb_query_t **queries = NULL;
-static size_t queries_num = 0;
-static cdbi_database_t **databases = NULL;
-static size_t databases_num = 0;
+static udb_query_t **queries;
+static size_t queries_num;
+static cdbi_database_t **databases;
+static size_t databases_num;
 
 static int cdbi_read_database(user_data_t *ud);
 
@@ -258,7 +258,7 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
   } else {
     assert(ci->values[1].type == OCONFIG_TYPE_NUMBER);
     option->value.numeric = (int)(ci->values[1].value.number + .5);
-    option->is_numeric = 1;
+    option->is_numeric = true;
   }
 
   db->driver_options_num++;
@@ -407,7 +407,7 @@ static int cdbi_config(oconfig_item_t *ci) /* {{{ */
 
 static int cdbi_init(void) /* {{{ */
 {
-  static int did_init = 0;
+  static int did_init;
   int status;
 
   if (did_init != 0)
@@ -547,11 +547,17 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
     sstrncpy(column_names[i], column_name, DATA_MAX_NAME_LEN);
   } /* }}} for (i = 0; i < column_num; i++) */
 
-  udb_query_prepare_result(
+  status = udb_query_prepare_result(
       q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "dbi",
       db->name, column_names, column_num,
       /* interval = */ (db->interval > 0) ? db->interval : 0);
+
+  if (status != 0) {
+    ERROR("dbi plugin: udb_query_prepare_result failed with status %i.",
+          status);
+    BAIL_OUT(-1);
+  }
 
   /* 0 = error; 1 = success; */
   status = dbi_result_first_row(res); /* {{{ */

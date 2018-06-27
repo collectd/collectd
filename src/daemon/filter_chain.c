@@ -693,7 +693,7 @@ static int fc_bit_write_invoke(const data_set_t *ds, /* {{{ */
 
 static int fc_init_once(void) /* {{{ */
 {
-  static int done = 0;
+  static int done;
   target_proc_t tproc = {0};
 
   if (done != 0)

@@ -87,7 +87,7 @@ static int test_map_key(void *ctx, unsigned char const *key,
 }
 
 static int expect_label(char const *name, char const *got, char const *want) {
-  _Bool ok = (strcmp(got, want) == 0);
+  bool ok = (strcmp(got, want) == 0);
   char msg[1024];
 
   if (ok)

@@ -39,7 +39,7 @@ char *hostname_g = "example.com";
 void plugin_set_dir(const char *dir) { /* nop */
 }
 
-int plugin_load(const char *name, _Bool global) { return ENOTSUP; }
+int plugin_load(const char *name, bool global) { return ENOTSUP; }
 
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
@@ -56,7 +56,19 @@ int plugin_register_init(const char *name, plugin_init_cb callback) {
   return ENOTSUP;
 }
 
-int plugin_register_read(const char *name, int (*callback)(void)) {
+int plugin_register_read(__attribute__((unused)) const char *name,
+                         __attribute__((unused)) int (*callback)(void)) {
+  return ENOTSUP;
+}
+
+int plugin_register_write(__attribute__((unused)) const char *name,
+                          __attribute__((unused)) plugin_write_cb callback,
+                          __attribute__((unused)) user_data_t const *ud) {
+  return ENOTSUP;
+}
+
+int plugin_register_missing(const char *name, plugin_missing_cb callback,
+                            user_data_t const *ud) {
   return ENOTSUP;
 }
 
@@ -74,6 +86,65 @@ int plugin_register_shutdown(const char *name, int (*callback)(void)) {
 int plugin_register_data_set(const data_set_t *ds) { return ENOTSUP; }
 
 int plugin_dispatch_values(value_list_t const *vl) { return ENOTSUP; }
+
+int plugin_dispatch_notification(__attribute__((unused))
+                                 const notification_t *notif) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_add_string(__attribute__((unused))
+                                        notification_t *n,
+                                        __attribute__((unused))
+                                        const char *name,
+                                        __attribute__((unused))
+                                        const char *value) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_add_signed_int(__attribute__((unused))
+                                            notification_t *n,
+                                            __attribute__((unused))
+                                            const char *name,
+                                            __attribute__((unused))
+                                            int64_t value) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_add_unsigned_int(__attribute__((unused))
+                                              notification_t *n,
+                                              __attribute__((unused))
+                                              const char *name,
+                                              __attribute__((unused))
+                                              uint64_t value) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_add_double(__attribute__((unused))
+                                        notification_t *n,
+                                        __attribute__((unused))
+                                        const char *name,
+                                        __attribute__((unused)) double value) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_add_boolean(__attribute__((unused))
+                                         notification_t *n,
+                                         __attribute__((unused))
+                                         const char *name,
+                                         __attribute__((unused)) _Bool value) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_copy(__attribute__((unused)) notification_t *dst,
+                                  __attribute__((unused))
+                                  const notification_t *src) {
+  return ENOTSUP;
+}
+
+int plugin_notification_meta_free(__attribute__((unused))
+                                  notification_meta_t *n) {
+  return ENOTSUP;
+}
 
 int plugin_flush(const char *plugin, cdtime_t timeout, const char *identifier) {
   return ENOTSUP;
@@ -97,6 +168,17 @@ void plugin_log(int level, char const *format, ...) {
   va_end(ap);
 
   printf("plugin_log (%i, \"%s\");\n", level, buffer);
+}
+
+void daemon_log(int level, char const *format, ...) {
+  char buffer[1024];
+  va_list ap;
+
+  va_start(ap, format);
+  vsnprintf(buffer, sizeof(buffer), format, ap);
+  va_end(ap);
+
+  printf("daemon_log (%i, \"%s\");\n", level, buffer);
 }
 
 void plugin_init_ctx(void) { /* nop */

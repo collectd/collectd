@@ -24,13 +24,14 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "common.h" /* STATIC_ARRAY_SIZE */
 #include "collectd.h"
+#include "common.h" /* STATIC_ARRAY_SIZE */
 
 #include "testing.h"
 #include "utils_avltree.h"
 
-static int compare_total_count = 0;
+static int compare_total_count;
+
 #define RESET_COUNTS()                                                         \
   do {                                                                         \
     compare_total_count = 0;                                                   \

@@ -69,13 +69,14 @@ typedef struct hostlist_s hostlist_t;
 /*
  * Private variables
  */
-static hostlist_t *hostlist_head = NULL;
+static hostlist_t *hostlist_head;
 
-static char *ping_source = NULL;
+static int ping_af = PING_DEF_AF;
+static char *ping_source;
 #ifdef HAVE_OPING_1_3
-static char *ping_device = NULL;
+static char *ping_device;
 #endif
-static char *ping_data = NULL;
+static char *ping_data;
 static int ping_ttl = PING_DEF_TTL;
 static double ping_interval = 1.0;
 static double ping_timeout = 0.9;
@@ -83,11 +84,11 @@ static int ping_max_missed = -1;
 
 static pthread_mutex_t ping_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ping_cond = PTHREAD_COND_INITIALIZER;
-static int ping_thread_loop = 0;
-static int ping_thread_error = 0;
+static int ping_thread_loop;
+static int ping_thread_error;
 static pthread_t ping_thread_id;
 
-static const char *config_keys[] = {"Host",    "SourceAddress",
+static const char *config_keys[] = {"Host",    "SourceAddress", "AddressFamily",
 #ifdef HAVE_OPING_1_3
                                     "Device",
 #endif
@@ -242,6 +243,12 @@ static void *ping_thread(void *arg) /* {{{ */
     return (void *)-1;
   }
 
+  if (ping_af != PING_DEF_AF) {
+    if (ping_setopt(pingobj, PING_OPT_AF, &ping_af) != 0)
+      ERROR("ping plugin: Failed to set address family: %s",
+            ping_get_error(pingobj));
+  }
+
   if (ping_source != NULL)
     if (ping_setopt(pingobj, PING_OPT_SOURCE, (void *)ping_source) != 0)
       ERROR("ping plugin: Failed to set source address: %s",
@@ -291,7 +298,7 @@ static void *ping_thread(void *arg) /* {{{ */
 
   pthread_mutex_lock(&ping_lock);
   while (ping_thread_loop > 0) {
-    _Bool send_successful = 0;
+    bool send_successful = false;
 
     if (gettimeofday(&tv_begin, NULL) < 0) {
       ERROR("ping plugin: gettimeofday failed: %s", STRERRNO);
@@ -307,7 +314,7 @@ static void *ping_thread(void *arg) /* {{{ */
                  ping_get_error(pingobj));
     } else {
       c_release(LOG_NOTICE, &complaint, "ping plugin: ping_send succeeded.");
-      send_successful = 1;
+      send_successful = true;
     }
 
     pthread_mutex_lock(&ping_lock);
@@ -468,6 +475,23 @@ static int ping_config(const char *key, const char *value) /* {{{ */
     hl->latency_squared = 0.0;
     hl->next = hostlist_head;
     hostlist_head = hl;
+  } else if (strcasecmp(key, "AddressFamily") == 0) {
+    char *af = NULL;
+    int status = config_set_string(key, &af, value);
+    if (status != 0)
+      return status;
+
+    if (strncmp(af, "any", 3) == 0) {
+      ping_af = AF_UNSPEC;
+    } else if (strncmp(af, "ipv4", 4) == 0) {
+      ping_af = AF_INET;
+    } else if (strncmp(af, "ipv6", 4) == 0) {
+      ping_af = AF_INET6;
+    } else {
+      WARNING("ping plugin: Ignoring invalid AddressFamily value %s", af);
+    }
+    free(af);
+
   } else if (strcasecmp(key, "SourceAddress") == 0) {
     int status = config_set_string(key, &ping_source, value);
     if (status != 0)

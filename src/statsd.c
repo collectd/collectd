@@ -61,29 +61,29 @@ struct statsd_metric_s {
 };
 typedef struct statsd_metric_s statsd_metric_t;
 
-static c_avl_tree_t *metrics_tree = NULL;
+static c_avl_tree_t *metrics_tree;
 static pthread_mutex_t metrics_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_t network_thread;
-static _Bool network_thread_running = 0;
-static _Bool network_thread_shutdown = 0;
+static bool network_thread_running;
+static bool network_thread_shutdown;
 
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 
-static _Bool conf_delete_counters = 0;
-static _Bool conf_delete_timers = 0;
-static _Bool conf_delete_gauges = 0;
-static _Bool conf_delete_sets = 0;
+static bool conf_delete_counters;
+static bool conf_delete_timers;
+static bool conf_delete_gauges;
+static bool conf_delete_sets;
 
-static double *conf_timer_percentile = NULL;
-static size_t conf_timer_percentile_num = 0;
+static double *conf_timer_percentile;
+static size_t conf_timer_percentile_num;
 
-static _Bool conf_counter_sum = 0;
-static _Bool conf_timer_lower = 0;
-static _Bool conf_timer_upper = 0;
-static _Bool conf_timer_sum = 0;
-static _Bool conf_timer_count = 0;
+static bool conf_counter_sum;
+static bool conf_timer_lower;
+static bool conf_timer_upper;
+static bool conf_timer_sum;
+static bool conf_timer_count;
 
 /* Must hold metrics_lock when calling this function. */
 static statsd_metric_t *statsd_metric_lookup_unsafe(char const *name, /* {{{ */
@@ -352,9 +352,8 @@ static int statsd_handle_set(char const *name, /* {{{ */
   status = c_avl_insert(metric->set, set_key, /* value = */ NULL);
   if (status < 0) {
     pthread_mutex_unlock(&metrics_lock);
-    if (status < 0)
-      ERROR("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
-            set_key, status);
+    ERROR("statsd plugin: c_avl_insert (\"%s\") failed with status %i.",
+          set_key, status);
     sfree(set_key);
     return -1;
   } else if (status > 0) /* key already exists */
@@ -666,7 +665,7 @@ static int statsd_init(void) /* {{{ */
       return status;
     }
   }
-  network_thread_running = 1;
+  network_thread_running = true;
 
   pthread_mutex_unlock(&metrics_lock);
 
@@ -717,7 +716,7 @@ static int statsd_metric_submit_unsafe(char const *name,
   if (metric->type == STATSD_GAUGE)
     vl.values[0].gauge = (gauge_t)metric->value;
   else if (metric->type == STATSD_TIMER) {
-    _Bool have_events = (metric->updates_num > 0);
+    bool have_events = (metric->updates_num > 0);
 
     /* Make sure all timer metrics share the *same* timestamp. */
     vl.time = cdtime();
@@ -876,11 +875,11 @@ static int statsd_shutdown(void) /* {{{ */
   void *value;
 
   if (network_thread_running) {
-    network_thread_shutdown = 1;
+    network_thread_shutdown = true;
     pthread_kill(network_thread, SIGTERM);
     pthread_join(network_thread, /* retval = */ NULL);
   }
-  network_thread_running = 0;
+  network_thread_running = false;
 
   pthread_mutex_lock(&metrics_lock);
 

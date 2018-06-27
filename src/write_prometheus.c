@@ -244,9 +244,8 @@ static int http_handler(void *cls, struct MHD_Connection *connection,
 
   char const *accept = MHD_lookup_connection_value(connection, MHD_HEADER_KIND,
                                                    MHD_HTTP_HEADER_ACCEPT);
-  _Bool want_proto =
-      (accept != NULL) &&
-      (strstr(accept, "application/vnd.google.protobuf") != NULL);
+  bool want_proto = (accept != NULL) &&
+                    (strstr(accept, "application/vnd.google.protobuf") != NULL);
 
   uint8_t scratch[4096] = {0};
   ProtobufCBufferSimple simple = PROTOBUF_C_BUFFER_SIMPLE_INIT(scratch);
@@ -689,7 +688,7 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
  * necessary. */
 static Io__Prometheus__Client__MetricFamily *
 metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
-                  _Bool allocate) {
+                  bool allocate) {
   char *name = metric_family_name(ds, vl, ds_index);
   if (name == NULL) {
     ERROR("write_prometheus plugin: Allocating metric family name failed.");
@@ -885,7 +884,7 @@ static int prom_write(data_set_t const *ds, value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ 1);
+        metric_family_get(ds, vl, i, /* allocate = */ true);
     if (fam == NULL)
       continue;
 
@@ -912,7 +911,7 @@ static int prom_missing(value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ 0);
+        metric_family_get(ds, vl, i, /* allocate = */ false);
     if (fam == NULL)
       continue;
 

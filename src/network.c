@@ -113,6 +113,7 @@ struct sockent_client {
 #endif
   cdtime_t next_resolve_reconnect;
   cdtime_t resolve_interval;
+  struct sockaddr_storage *bind_addr;
 };
 
 struct sockent_server {
@@ -261,30 +262,30 @@ typedef struct receive_list_entry_s receive_list_entry_t;
 /*
  * Private variables
  */
-static int network_config_ttl = 0;
+static int network_config_ttl;
 /* Ethernet - (IPv6 + UDP) = 1500 - (40 + 8) = 1452 */
 static size_t network_config_packet_size = 1452;
-static _Bool network_config_forward = 0;
-static _Bool network_config_stats = 0;
+static bool network_config_forward;
+static bool network_config_stats;
 
-static sockent_t *sending_sockets = NULL;
+static sockent_t *sending_sockets;
 
-static receive_list_entry_t *receive_list_head = NULL;
-static receive_list_entry_t *receive_list_tail = NULL;
+static receive_list_entry_t *receive_list_head;
+static receive_list_entry_t *receive_list_tail;
 static pthread_mutex_t receive_list_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t receive_list_cond = PTHREAD_COND_INITIALIZER;
-static uint64_t receive_list_length = 0;
+static uint64_t receive_list_length;
 
-static sockent_t *listen_sockets = NULL;
-static struct pollfd *listen_sockets_pollfd = NULL;
-static size_t listen_sockets_num = 0;
+static sockent_t *listen_sockets;
+static struct pollfd *listen_sockets_pollfd;
+static size_t listen_sockets_num;
 
 /* The receive and dispatch threads will run as long as `listen_loop' is set to
  * zero. */
-static int listen_loop = 0;
-static int receive_thread_running = 0;
+static int listen_loop;
+static int receive_thread_running;
 static pthread_t receive_thread_id;
-static int dispatch_thread_running = 0;
+static int dispatch_thread_running;
 static pthread_t dispatch_thread_id;
 
 /* Buffer in which to-be-sent network packets are constructed. */
@@ -301,20 +302,20 @@ static pthread_mutex_t send_buffer_lock = PTHREAD_MUTEX_INITIALIZER;
  * example). Only if neither is true, the stats_lock is acquired. The counters
  * are always read without holding a lock in the hope that writing 8 bytes to
  * memory is an atomic operation. */
-static derive_t stats_octets_rx = 0;
-static derive_t stats_octets_tx = 0;
-static derive_t stats_packets_rx = 0;
-static derive_t stats_packets_tx = 0;
-static derive_t stats_values_dispatched = 0;
-static derive_t stats_values_not_dispatched = 0;
-static derive_t stats_values_sent = 0;
-static derive_t stats_values_not_sent = 0;
+static derive_t stats_octets_rx;
+static derive_t stats_octets_tx;
+static derive_t stats_packets_rx;
+static derive_t stats_packets_tx;
+static derive_t stats_values_dispatched;
+static derive_t stats_values_not_dispatched;
+static derive_t stats_values_sent;
+static derive_t stats_values_not_sent;
 static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Private functions
  */
-static _Bool check_receive_okay(const value_list_t *vl) /* {{{ */
+static bool check_receive_okay(const value_list_t *vl) /* {{{ */
 {
   uint64_t time_sent = 0;
   int status;
@@ -327,11 +328,11 @@ static _Bool check_receive_okay(const value_list_t *vl) /* {{{ */
     return 0;
 
   return 1;
-} /* }}} _Bool check_receive_okay */
+} /* }}} bool check_receive_okay */
 
-static _Bool check_send_okay(const value_list_t *vl) /* {{{ */
+static bool check_send_okay(const value_list_t *vl) /* {{{ */
 {
-  _Bool received = 0;
+  bool received = 0;
   int status;
 
   if (network_config_forward)
@@ -353,22 +354,22 @@ static _Bool check_send_okay(const value_list_t *vl) /* {{{ */
   /* By default, only *send* value lists that were not *received* by the
    * network plugin. */
   return !received;
-} /* }}} _Bool check_send_okay */
+} /* }}} bool check_send_okay */
 
-static _Bool check_notify_received(const notification_t *n) /* {{{ */
+static bool check_notify_received(const notification_t *n) /* {{{ */
 {
   for (notification_meta_t *ptr = n->meta; ptr != NULL; ptr = ptr->next)
     if ((strcmp("network:received", ptr->name) == 0) &&
         (ptr->type == NM_TYPE_BOOLEAN))
-      return (_Bool)ptr->nm_value.nm_boolean;
+      return (bool)ptr->nm_value.nm_boolean;
 
   return 0;
-} /* }}} _Bool check_notify_received */
+} /* }}} bool check_notify_received */
 
-static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
+static bool check_send_notify_okay(const notification_t *n) /* {{{ */
 {
   static c_complain_t complain_forwarding = C_COMPLAIN_INIT_STATIC;
-  _Bool received = 0;
+  bool received = 0;
 
   if (n->meta == NULL)
     return 1;
@@ -388,7 +389,7 @@ static _Bool check_send_notify_okay(const notification_t *n) /* {{{ */
   /* By default, only *send* value lists that were not *received* by the
    * network plugin. */
   return !received;
-} /* }}} _Bool check_send_notify_okay */
+} /* }}} bool check_send_notify_okay */
 
 static int network_dispatch_values(value_list_t *vl, /* {{{ */
                                    const char *username) {
@@ -1113,7 +1114,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
                                   int flags) {
-  static int warning_has_been_printed = 0;
+  static int warning_has_been_printed;
 
   char *buffer;
   size_t buffer_size;
@@ -1268,7 +1269,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
                                   void **ret_buffer, size_t *ret_buffer_size,
                                   int flags) {
-  static int warning_has_been_printed = 0;
+  static int warning_has_been_printed;
 
   char *buffer;
   size_t buffer_size;
@@ -1501,6 +1502,7 @@ static void free_sockent_client(struct sockent_client *sec) /* {{{ */
     sec->fd = -1;
   }
   sfree(sec->addr);
+  sfree(sec->bind_addr);
 #if HAVE_GCRYPT_H
   sfree(sec->username);
   sfree(sec->password);
@@ -1683,6 +1685,42 @@ static int network_set_interface(const sockent_t *se,
   return 0;
 } /* }}} network_set_interface */
 
+static int network_bind_socket_to_addr(sockent_t *se,
+                                       const struct addrinfo *ai) {
+
+  if (se->data.client.bind_addr == NULL)
+    return 0;
+
+  DEBUG("network_plugin: fd %i: bind socket to address", se->data.client.fd);
+  char pbuffer[64];
+
+  if (ai->ai_family == AF_INET) {
+    struct sockaddr_in *addr =
+        (struct sockaddr_in *)(se->data.client.bind_addr);
+    inet_ntop(AF_INET, &(addr->sin_addr), pbuffer, 64);
+    DEBUG("network_plugin: binding client socket to ipv4 address: %s", pbuffer);
+    if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
+        -1) {
+      ERROR("network plugin: failed to bind client socket (ipv4) to %s: %s",
+            pbuffer, STRERRNO);
+      return -1;
+    }
+  } else if (ai->ai_family == AF_INET6) {
+    struct sockaddr_in6 *addr =
+        (struct sockaddr_in6 *)(se->data.client.bind_addr);
+    inet_ntop(AF_INET6, &(addr->sin6_addr), pbuffer, 64);
+    DEBUG("network_plugin: binding client socket to ipv6 address: %s", pbuffer);
+    if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
+        -1) {
+      ERROR("network plugin: failed to bind client socket (ipv6) to %s: %s",
+            pbuffer, STRERRNO);
+      return -1;
+    }
+  }
+
+  return 0;
+} /* int network_bind_socket_to_addr */
+
 static int network_bind_socket(int fd, const struct addrinfo *ai,
                                const int interface_idx) {
 #if KERNEL_SOLARIS
@@ -1834,6 +1872,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
   } else {
     se->data.client.fd = -1;
     se->data.client.addr = NULL;
+    se->data.client.bind_addr = NULL;
     se->data.client.resolve_interval = 0;
     se->data.client.next_resolve_reconnect = 0;
 #if HAVE_GCRYPT_H
@@ -1924,7 +1963,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
   struct sockent_client *client;
   struct addrinfo *ai_list;
   int status;
-  _Bool reconnect = 0;
+  bool reconnect = false;
   cdtime_t now;
 
   if ((se == NULL) || (se->type != SOCKENT_TYPE_CLIENT))
@@ -1938,7 +1977,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
           "next_resolve_reconnect = %lf",
           CDTIME_T_TO_DOUBLE(client->resolve_interval),
           CDTIME_T_TO_DOUBLE(client->next_resolve_reconnect));
-    reconnect = 1;
+    reconnect = true;
   }
 
   if (client->fd >= 0 && !reconnect) /* already connected and not stale*/
@@ -1989,6 +2028,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
 
     network_set_ttl(se, ai_ptr);
     network_set_interface(se, ai_ptr);
+    network_bind_socket_to_addr(se, ai_ptr);
 
     /* We don't open more than one write-socket per
      * node/service pair.. */
@@ -2684,6 +2724,57 @@ static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
   return 0;
 } /* }}} int network_config_set_interface */
 
+static int
+network_config_set_bind_address(const oconfig_item_t *ci,
+                                struct sockaddr_storage **bind_address) {
+  if ((*bind_address) != NULL) {
+    ERROR("network_plugin: only a single bind address is allowed");
+    return -1;
+  }
+
+  char addr_text[256];
+
+  if (cf_util_get_string_buffer(ci, addr_text, sizeof(addr_text)) != 0)
+    return -1;
+
+  int ret;
+  struct addrinfo *res = NULL;
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_NUMERICHOST,
+                              .ai_protocol = IPPROTO_UDP,
+                              .ai_socktype = SOCK_DGRAM};
+
+  ret = getaddrinfo(addr_text, NULL, &ai_hints, &res);
+  if (ret) {
+    ERROR("network plugin: Bind address option has invalid address set: %s",
+          gai_strerror(ret));
+    return -1;
+  }
+
+  *bind_address = malloc(sizeof(**bind_address));
+  if (*bind_address == NULL) {
+    ERROR("network plugin: network_config_set_bind_address: malloc failed.");
+    return -1;
+  }
+  (*bind_address)->ss_family = res->ai_family;
+  if (res->ai_family == AF_INET) {
+    struct sockaddr_in *addr = (struct sockaddr_in *)(*bind_address);
+    inet_pton(AF_INET, addr_text, &(addr->sin_addr));
+  } else if (res->ai_family == AF_INET6) {
+    struct sockaddr_in6 *addr = (struct sockaddr_in6 *)(*bind_address);
+    inet_pton(AF_INET6, addr_text, &(addr->sin6_addr));
+  } else {
+    ERROR("network plugin: %s is an unknown address format %d\n", addr_text,
+          res->ai_family);
+    sfree(*bind_address);
+    freeaddrinfo(res);
+    return -1;
+  }
+
+  freeaddrinfo(res);
+  return 0;
+} /* int network_config_set_bind_address */
+
 static int network_config_set_buffer_size(const oconfig_item_t *ci) /* {{{ */
 {
   int tmp = 0;
@@ -2843,6 +2934,8 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
 #endif /* HAVE_GCRYPT_H */
         if (strcasecmp("Interface", child->key) == 0)
       network_config_set_interface(child, &se->interface);
+    else if (strcasecmp("BindAddress", child->key) == 0)
+      network_config_set_bind_address(child, &se->data.client.bind_addr);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else {
@@ -3096,13 +3189,13 @@ static int network_stats_read(void) /* {{{ */
 } /* }}} int network_stats_read */
 
 static int network_init(void) {
-  static _Bool have_init = 0;
+  static bool have_init;
 
   /* Check if we were already initialized. If so, just return - there's
    * nothing more to do (for now, that is). */
   if (have_init)
     return 0;
-  have_init = 1;
+  have_init = true;
 
   if (network_config_stats)
     plugin_register_read("network", network_stats_read);

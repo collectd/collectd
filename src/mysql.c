@@ -60,18 +60,18 @@ struct mysql_database_s /* {{{ */
   int port;
   int timeout;
 
-  _Bool master_stats;
-  _Bool slave_stats;
-  _Bool innodb_stats;
-  _Bool wsrep_stats;
-  _Bool is_mariadb;
+  bool master_stats;
+  bool slave_stats;
+  bool innodb_stats;
+  bool wsrep_stats;
+  boot is_mariadb;
 
-  _Bool slave_notif;
-  _Bool slave_io_running;
-  _Bool slave_sql_running;
+  bool slave_notif;
+  bool slave_io_running;
+  bool slave_sql_running;
 
   MYSQL *con;
-  _Bool is_connected;
+  bool is_connected;
 };
 typedef struct mysql_database_s mysql_database_t; /* }}} */
 
@@ -150,8 +150,8 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
   db->timeout = 0;
 
   /* trigger a notification, if it's not running */
-  db->slave_io_running = 1;
-  db->slave_sql_running = 1;
+  db->slave_io_running = true;
+  db->slave_sql_running = true;
 
   status = cf_util_get_string(ci, &db->instance);
   if (status != 0) {
@@ -271,7 +271,7 @@ static MYSQL *getconnection(mysql_database_t *db) {
     WARNING("mysql plugin: Lost connection to instance \"%s\": %s",
             db->instance, mysql_error(db->con));
   }
-  db->is_connected = 0;
+  db->is_connected = false;
 
   /* Close the old connection before initializing a new one. */
   if (db->con != NULL) {
@@ -308,11 +308,15 @@ static MYSQL *getconnection(mysql_database_t *db) {
        mysql_get_host_info(db->con), (cipher != NULL) ? cipher : "<none>",
        mysql_get_server_info(db->con), mysql_get_proto_info(db->con));
 
+<<<<<<< HEAD
   db->is_mariadb = 0;
   if (strstr(mysql_get_server_info(db->con), "MariaDB") != NULL)
     db->is_mariadb = 1;
 
   db->is_connected = 1;
+=======
+  db->is_connected = true;
+>>>>>>> c23146326ce4c1099df5bd2e02dc80a641eae258
   return db->con;
 } /* static MYSQL *getconnection (mysql_database_t *db) */
 
@@ -370,7 +374,7 @@ static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
 static MYSQL_RES *exec_query(MYSQL *con, const char *query) {
   MYSQL_RES *res;
 
-  int query_len = strlen(query);
+  size_t query_len = strlen(query);
 
   if (mysql_real_query(con, query, query_len)) {
     ERROR("mysql plugin: Failed to execute query: %s", mysql_error(con));
@@ -510,14 +514,14 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
       snprintf(n.message, sizeof(n.message),
                "slave I/O thread not started or not connected to master");
       plugin_dispatch_notification(&n);
-      db->slave_io_running = 0;
+      db->slave_io_running = false;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                (!db->slave_io_running)) {
       n.severity = NOTIF_OKAY;
       snprintf(n.message, sizeof(n.message),
                "slave I/O thread started and connected to master");
       plugin_dispatch_notification(&n);
-      db->slave_io_running = 1;
+      db->slave_io_running = true;
     }
 
     if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
@@ -525,13 +529,13 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
       n.severity = NOTIF_WARNING;
       snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
       plugin_dispatch_notification(&n);
-      db->slave_sql_running = 0;
+      db->slave_sql_running = false;
     } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
                (!db->slave_sql_running)) {
       n.severity = NOTIF_OKAY;
       snprintf(n.message, sizeof(n.message), "slave SQL thread started");
       plugin_dispatch_notification(&n);
-      db->slave_sql_running = 1;
+      db->slave_sql_running = true;
     }
   }
 

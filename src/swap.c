@@ -74,14 +74,14 @@
 #if KERNEL_LINUX
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_bytes = 0;
-static _Bool report_by_device = 0;
+static bool report_bytes;
+static bool report_by_device;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 #define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_by_device = 0;
+static bool report_by_device;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
@@ -93,7 +93,7 @@ static _Bool report_by_device = 0;
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-static kvm_t *kvm_obj = NULL;
+static kvm_t *kvm_obj;
 int kvm_pagesize;
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
@@ -109,9 +109,9 @@ static int pagesize;
 #error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
-static _Bool report_io = 1;
+static bool values_absolute = true;
+static bool values_percentage;
+static bool report_io = true;
 
 static int swap_config(oconfig_item_t *ci) /* {{{ */
 {
@@ -203,10 +203,10 @@ static void swap_submit_usage(char const *plugin_instance, /* {{{ */
   sstrncpy(vl.type, "swap", sizeof(vl.type));
 
   if (values_absolute)
-    plugin_dispatch_multivalue(&vl, 0, DS_TYPE_GAUGE, "used", used, "free",
+    plugin_dispatch_multivalue(&vl, false, DS_TYPE_GAUGE, "used", used, "free",
                                free, other_name, other_value, NULL);
   if (values_percentage)
-    plugin_dispatch_multivalue(&vl, 1, DS_TYPE_GAUGE, "used", used, "free",
+    plugin_dispatch_multivalue(&vl, true, DS_TYPE_GAUGE, "used", used, "free",
                                free, other_name, other_value, NULL);
 } /* }}} void swap_submit_usage */
 
@@ -335,7 +335,7 @@ static int swap_read_io(void) /* {{{ */
   FILE *fh;
   char buffer[1024];
 
-  _Bool old_kernel = 0;
+  bool old_kernel = false;
 
   uint8_t have_data = 0;
   derive_t swap_in = 0;
@@ -349,7 +349,7 @@ static int swap_read_io(void) /* {{{ */
       WARNING("swap: fopen: %s", STRERRNO);
       return -1;
     } else
-      old_kernel = 1;
+      old_kernel = true;
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
@@ -556,7 +556,7 @@ static int swap_read(void) /* {{{ */
     return -1;
   }
 
-  /* If the "separate" option was specified (report_by_device == 1), all
+  /* If the "separate" option was specified (report_by_device == true) all
    * values have already been dispatched from within the loop. */
   if (!report_by_device)
     swap_submit_usage(NULL, total - avail, avail, NULL, NAN);

@@ -56,6 +56,7 @@ struct ir_link_stats_storage_s {
   uint64_t tx_dropped;
   uint64_t multicast;
   uint64_t collisions;
+  uint64_t rx_nohandler;
 
   uint64_t rx_length_errors;
   uint64_t rx_over_errors;
@@ -91,12 +92,12 @@ struct qos_stats {
 };
 
 static int ir_ignorelist_invert = 1;
-static ir_ignorelist_t *ir_ignorelist_head = NULL;
+static ir_ignorelist_t *ir_ignorelist_head;
 
 static struct mnl_socket *nl;
 
-static char **iflist = NULL;
-static size_t iflist_len = 0;
+static char **iflist;
+static size_t iflist_len;
 
 static const char *config_keys[] = {"Interface", "VerboseInterface",
                                     "QDisc",     "Class",
@@ -253,6 +254,10 @@ static void check_ignorelist_and_submit(const char *dev,
     submit_two(dev, "if_dropped", NULL, stats->rx_dropped, stats->tx_dropped);
     submit_one(dev, "if_multicast", NULL, stats->multicast);
     submit_one(dev, "if_collisions", NULL, stats->collisions);
+#if defined(HAVE_STRUCT_RTNL_LINK_STATS_RX_NOHANDLER) ||                       \
+    defined(HAVE_STRUCT_RTNL_LINK_STATS64_RX_NOHANDLER)
+    submit_one(dev, "if_rx_nohandler", NULL, stats->rx_nohandler);
+#endif
 
     submit_one(dev, "if_rx_errors", "length", stats->rx_length_errors);
     submit_one(dev, "if_rx_errors", "over", stats->rx_over_errors);
@@ -304,6 +309,9 @@ static void check_ignorelist_and_submit64(const char *dev,
   struct ir_link_stats_storage_s s;
 
   COPY_RTNL_LINK_STATS(&s, stats);
+#ifdef HAVE_STRUCT_RTNL_LINK_STATS64_RX_NOHANDLER
+  COPY_RTNL_LINK_VALUE(&s, stats, rx_nohandler);
+#endif
 
   check_ignorelist_and_submit(dev, &s);
 }
@@ -314,6 +322,9 @@ static void check_ignorelist_and_submit32(const char *dev,
   struct ir_link_stats_storage_s s;
 
   COPY_RTNL_LINK_STATS(&s, stats);
+#ifdef HAVE_STRUCT_RTNL_LINK_STATS_RX_NOHANDLER
+  COPY_RTNL_LINK_VALUE(&s, stats, rx_nohandler);
+#endif
 
   check_ignorelist_and_submit(dev, &s);
 }
@@ -357,10 +368,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     if (mnl_attr_get_type(attr) != IFLA_STATS64)
       continue;
 
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats64)) < 0) {
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 mnl_attr_validate2 "
-            "failed: %s",
-            STRERRNO);
+    uint16_t attr_len = mnl_attr_get_payload_len(attr);
+    if (attr_len < sizeof(*stats.stats64)) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 attribute has "
+            "insufficient data.");
       return MNL_CB_ERROR;
     }
     stats.stats64 = mnl_attr_get_payload(attr);
@@ -374,10 +385,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     if (mnl_attr_get_type(attr) != IFLA_STATS)
       continue;
 
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats32)) < 0) {
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 "
-            "failed: %s",
-            STRERRNO);
+    uint16_t attr_len = mnl_attr_get_payload_len(attr);
+    if (attr_len < sizeof(*stats.stats32)) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_STATS attribute has "
+            "insufficient data.");
       return MNL_CB_ERROR;
     }
     stats.stats32 = mnl_attr_get_payload(attr);
@@ -438,7 +449,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
   const char *tc_type;
   char tc_inst[DATA_MAX_NAME_LEN];
 
-  _Bool stats_submitted = 0;
+  bool stats_submitted = false;
 
   if (nlh->nlmsg_type == RTM_NEWQDISC)
     tc_type = "qdisc";
@@ -528,9 +539,15 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (q_stats.bs != NULL || q_stats.qs != NULL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      stats_submitted = 1;
+      stats_submitted = true;
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type, tc_inst);
+      int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
+                       tc_inst);
+      if ((size_t)r >= sizeof(type_instance)) {
+        ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
+              sizeof(type_instance), r);
+        return MNL_CB_ERROR;
+      }
 
       if (q_stats.bs != NULL) {
         submit_one(dev, "ipt_bytes", type_instance, q_stats.bs->bytes);
@@ -563,7 +580,13 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (!stats_submitted && ts != NULL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type, tc_inst);
+      int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
+                       tc_inst);
+      if ((size_t)r >= sizeof(type_instance)) {
+        ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
+              sizeof(type_instance), r);
+        return MNL_CB_ERROR;
+      }
 
       submit_one(dev, "ipt_bytes", type_instance, ts->bytes);
       submit_one(dev, "ipt_packets", type_instance, ts->packets);

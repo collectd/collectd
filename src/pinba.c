@@ -99,15 +99,15 @@ typedef struct pinba_statnode_s pinba_statnode_t;
  * Module global variables
  */
 /* {{{ */
-static pinba_statnode_t *stat_nodes = NULL;
-static unsigned int stat_nodes_num = 0;
+static pinba_statnode_t *stat_nodes;
+static unsigned int stat_nodes_num;
 static pthread_mutex_t stat_nodes_lock;
 
-static char *conf_node = NULL;
-static char *conf_service = NULL;
+static char *conf_node;
+static char *conf_service;
 
-static _Bool collector_thread_running = 0;
-static _Bool collector_thread_do_shutdown = 0;
+static bool collector_thread_running;
+static bool collector_thread_do_shutdown;
 static pthread_t collector_thread_id;
 /* }}} */
 
@@ -490,7 +490,7 @@ static void *collector_thread(void *arg) /* {{{ */
   receive_loop();
 
   memset(&collector_thread_id, 0, sizeof(collector_thread_id));
-  collector_thread_running = 0;
+  collector_thread_running = false;
   pthread_exit(NULL);
   return NULL;
 } /* }}} void *collector_thread */
@@ -585,7 +585,7 @@ static int plugin_init(void) /* {{{ */
     ERROR("pinba plugin: pthread_create(3) failed: %s", STRERRNO);
     return -1;
   }
-  collector_thread_running = 1;
+  collector_thread_running = true;
 
   return 0;
 } /* }}} */
@@ -596,15 +596,15 @@ static int plugin_shutdown(void) /* {{{ */
     int status;
 
     DEBUG("pinba plugin: Shutting down collector thread.");
-    collector_thread_do_shutdown = 1;
+    collector_thread_do_shutdown = true;
 
     status = pthread_join(collector_thread_id, /* retval = */ NULL);
     if (status != 0) {
       ERROR("pinba plugin: pthread_join(3) failed: %s", STRERROR(status));
     }
 
-    collector_thread_running = 0;
-    collector_thread_do_shutdown = 0;
+    collector_thread_running = false;
+    collector_thread_do_shutdown = false;
   } /* if (collector_thread_running) */
 
   return 0;

@@ -64,7 +64,7 @@ void c_complain(int level, c_complain_t *c, const char *format, ...) {
 
   va_start(ap, format);
   if (vcomplain(level, c, format, ap))
-    c->complained_once = 1;
+    c->complained_once = true;
   va_end(ap);
 } /* c_complain */
 
@@ -76,7 +76,7 @@ void c_complain_once(int level, c_complain_t *c, const char *format, ...) {
 
   va_start(ap, format);
   if (vcomplain(level, c, format, ap))
-    c->complained_once = 1;
+    c->complained_once = true;
   va_end(ap);
 } /* c_complain_once */
 
@@ -88,7 +88,7 @@ void c_do_release(int level, c_complain_t *c, const char *format, ...) {
     return;
 
   c->interval = 0;
-  c->complained_once = 0;
+  c->complained_once = false;
 
   va_start(ap, format);
   vsnprintf(message, sizeof(message), format, ap);

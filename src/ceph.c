@@ -148,7 +148,7 @@ enum perfcounter_type_d {
 };
 
 /** Give user option to use default (long run = since daemon started) avg */
-static int long_run_latency_avg = 0;
+static int long_run_latency_avg;
 
 /**
  * Give user option to use default type for special cases -
@@ -161,10 +161,10 @@ static int long_run_latency_avg = 0;
 static int convert_special_metrics = 1;
 
 /** Array of daemons to monitor */
-static struct ceph_daemon **g_daemons = NULL;
+static struct ceph_daemon **g_daemons;
 
 /** Number of elements in g_daemons */
-static size_t g_num_daemons = 0;
+static size_t g_num_daemons;
 
 /**
  * A set of data that we build up in memory while parsing the JSON.
@@ -281,7 +281,9 @@ static int ceph_cb_number(void *ctx, const char *number_val,
    * "rate", use the "sum" in the pair and assign that to the derive
    * value. */
   if (convert_special_metrics && (state->depth > 2) &&
+      state->stack[state->depth - 2] &&
       (strcmp("filestore", state->stack[state->depth - 2]) == 0) &&
+      state->stack[state->depth - 1] &&
       (strcmp("journal_wr_bytes", state->stack[state->depth - 1]) == 0) &&
       (strcmp("avgcount", state->key) == 0)) {
     DEBUG("ceph plugin: Skipping avgcount for filestore.JournalWrBytes");
@@ -404,8 +406,8 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   size_t src_len;
   char *ptr = buffer;
   size_t ptr_size = buffer_size;
-  _Bool append_plus = 0;
-  _Bool append_minus = 0;
+  bool append_plus = false;
+  bool append_minus = false;
 
   if ((buffer == NULL) || (buffer_size <= strlen("Minus")) || (src == NULL))
     return EINVAL;
@@ -415,11 +417,11 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
 
   /* Remove trailing "+" and "-". */
   if (src_copy[src_len - 1] == '+') {
-    append_plus = 1;
+    append_plus = true;
     src_len--;
     src_copy[src_len] = 0;
   } else if (src_copy[src_len - 1] == '-') {
-    append_minus = 1;
+    append_minus = true;
     src_len--;
     src_copy[src_len] = 0;
   }
@@ -470,19 +472,19 @@ static int compact_ds_name(char *buffer, size_t buffer_size, char const *src) {
   return 0;
 }
 
-static _Bool has_suffix(char const *str, char const *suffix) {
+static bool has_suffix(char const *str, char const *suffix) {
   size_t str_len = strlen(str);
   size_t suffix_len = strlen(suffix);
   size_t offset;
 
   if (suffix_len > str_len)
-    return 0;
+    return false;
   offset = str_len - suffix_len;
 
   if (strcmp(str + offset, suffix) == 0)
-    return 1;
+    return true;
 
-  return 0;
+  return false;
 }
 
 static void cut_suffix(char *buffer, size_t buffer_size, char const *str,
@@ -1140,8 +1142,8 @@ static int cconn_validate_revents(struct cconn *io, int revents) {
 }
 
 /** Handle a network event for a connection */
-static int cconn_handle_event(struct cconn *io) {
-  int ret;
+static ssize_t cconn_handle_event(struct cconn *io) {
+  ssize_t ret;
   switch (io->state) {
   case CSTATE_UNCONNECTED:
     ERROR("ceph plugin: cconn_handle_event(name=%s) got to illegal "
@@ -1156,7 +1158,7 @@ static int cconn_handle_event(struct cconn *io) {
     size_t cmd_len = strlen(cmd);
     RETRY_ON_EINTR(
         ret, write(io->asok, ((char *)&cmd) + io->amt, cmd_len - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,amt=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,amt=%d,ret=%zd)",
           io->d->name, io->state, io->amt, ret);
     if (ret < 0) {
       return ret;
@@ -1178,7 +1180,7 @@ static int cconn_handle_event(struct cconn *io) {
   case CSTATE_READ_VERSION: {
     RETRY_ON_EINTR(ret, read(io->asok, ((char *)(&io->d->version)) + io->amt,
                              sizeof(io->d->version) - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%zd)",
           io->d->name, io->state, ret);
     if (ret < 0) {
       return ret;
@@ -1204,7 +1206,7 @@ static int cconn_handle_event(struct cconn *io) {
   case CSTATE_READ_AMT: {
     RETRY_ON_EINTR(ret, read(io->asok, ((char *)(&io->json_len)) + io->amt,
                              sizeof(io->json_len) - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%zd)",
           io->d->name, io->state, ret);
     if (ret < 0) {
       return ret;
@@ -1225,7 +1227,7 @@ static int cconn_handle_event(struct cconn *io) {
   case CSTATE_READ_JSON: {
     RETRY_ON_EINTR(ret,
                    read(io->asok, io->json + io->amt, io->json_len - io->amt));
-    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%d)",
+    DEBUG("ceph plugin: cconn_handle_event(name=%s,state=%d,ret=%zd)",
           io->d->name, io->state, ret);
     if (ret < 0) {
       return ret;
@@ -1294,8 +1296,8 @@ static int cconn_prepare(struct cconn *io, struct pollfd *fds) {
  */
 static int milli_diff(const struct timeval *t1, const struct timeval *t2) {
   int64_t ret;
-  int sec_diff = t1->tv_sec - t2->tv_sec;
-  int usec_diff = t1->tv_usec - t2->tv_usec;
+  long sec_diff = t1->tv_sec - t2->tv_sec;
+  long usec_diff = t1->tv_usec - t2->tv_usec;
   ret = usec_diff / 1000;
   ret += (sec_diff * 1000);
   return (ret > INT_MAX) ? INT_MAX : ((ret < INT_MIN) ? INT_MIN : (int)ret);
@@ -1303,8 +1305,9 @@ static int milli_diff(const struct timeval *t1, const struct timeval *t2) {
 
 /** This handles the actual network I/O to talk to the Ceph daemons.
  */
-static int cconn_main_loop(uint32_t request_type) {
-  int ret, some_unreachable = 0;
+static ssize_t cconn_main_loop(uint32_t request_type) {
+  int some_unreachable = 0;
+  ssize_t ret;
   struct timeval end_tv;
   struct cconn io_array[g_num_daemons];
 
@@ -1341,7 +1344,7 @@ static int cconn_main_loop(uint32_t request_type) {
       struct cconn *io = io_array + i;
       ret = cconn_prepare(io, fds + nfds);
       if (ret < 0) {
-        WARNING("ceph plugin: cconn_prepare(name=%s,i=%" PRIsz ",st=%d)=%d",
+        WARNING("ceph plugin: cconn_prepare(name=%s,i=%" PRIsz ",st=%d)=%zd",
                 io->d->name, i, io->state, ret);
         cconn_close(io);
         io->request_type = ASOK_REQ_NONE;
@@ -1365,7 +1368,7 @@ static int cconn_main_loop(uint32_t request_type) {
     }
     RETRY_ON_EINTR(ret, poll(fds, nfds, diff));
     if (ret < 0) {
-      ERROR("ceph plugin: poll(2) error: %d", ret);
+      ERROR("ceph plugin: poll(2) error: %zd", ret);
       goto done;
     }
     for (int i = 0; i < nfds; ++i) {
@@ -1386,7 +1389,7 @@ static int cconn_main_loop(uint32_t request_type) {
         ret = cconn_handle_event(io);
         if (ret) {
           WARNING("ceph plugin: cconn_handle_event(name=%s,"
-                  "i=%d,st=%d): error %d",
+                  "i=%d,st=%d): error %zd",
                   io->d->name, i, io->state, ret);
           cconn_close(io);
           io->request_type = ASOK_REQ_NONE;
@@ -1407,7 +1410,7 @@ done:
   return ret;
 }
 
-static int ceph_read(void) { return cconn_main_loop(ASOK_REQ_DATA); }
+static int ceph_read(void) { return (int)cconn_main_loop(ASOK_REQ_DATA); }
 
 /******* lifecycle *******/
 static int ceph_init(void) {
@@ -1434,7 +1437,7 @@ static int ceph_init(void) {
     return ENOENT;
   }
 
-  return cconn_main_loop(ASOK_REQ_VERSION);
+  return (int)cconn_main_loop(ASOK_REQ_VERSION);
 }
 
 static int ceph_shutdown(void) {

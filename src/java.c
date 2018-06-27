@@ -77,23 +77,23 @@ typedef struct cjni_callback_info_s cjni_callback_info_t;
 /*
  * Global variables
  */
-static JavaVM *jvm = NULL;
+static JavaVM *jvm;
 static pthread_key_t jvm_env_key;
 
 /* Configuration options for the JVM. */
-static char **jvm_argv = NULL;
-static size_t jvm_argc = 0;
+static char **jvm_argv;
+static size_t jvm_argc;
 
 /* List of class names to load */
-static java_plugin_class_t *java_classes_list = NULL;
+static java_plugin_class_t *java_classes_list;
 static size_t java_classes_list_len;
 
 /* List of config, init, and shutdown callbacks. */
-static cjni_callback_info_t *java_callbacks = NULL;
-static size_t java_callbacks_num = 0;
+static cjni_callback_info_t *java_callbacks;
+static size_t java_callbacks_num;
 static pthread_mutex_t java_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static oconfig_item_t *config_block = NULL;
+static oconfig_item_t *config_block;
 
 /*
  * Prototypes
@@ -1009,9 +1009,8 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
   jobjectArray o_number_array;
 
   value_t *values;
-  int values_num;
 
-  values_num = ds->ds_num;
+  size_t values_num = ds->ds_num;
 
   values = NULL;
   o_number_array = NULL;
@@ -1064,7 +1063,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
     BAIL_OUT(-1);
   }
 
-  for (int i = 0; i < values_num; i++) {
+  for (size_t i = 0; i < values_num; i++) {
     jobject o_number;
     int status;
 
@@ -1072,7 +1071,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
         (*jvm_env)->GetObjectArrayElement(jvm_env, o_number_array, (jsize)i);
     if (o_number == NULL) {
       ERROR("java plugin: jtoc_values_array: "
-            "GetObjectArrayElement (%i) failed.",
+            "GetObjectArrayElement (%zu) failed.",
             i);
       BAIL_OUT(-1);
     }
@@ -1080,7 +1079,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
     status = jtoc_value(jvm_env, values + i, ds->ds[i].type, o_number);
     if (status != 0) {
       ERROR("java plugin: jtoc_values_array: "
-            "jtoc_value (%i) failed.",
+            "jtoc_value (%zu) failed.",
             i);
       BAIL_OUT(-1);
     }

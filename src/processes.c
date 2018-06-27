@@ -198,20 +198,20 @@ typedef struct process_entry_s {
   derive_t io_syscw;
   derive_t io_diskr;
   derive_t io_diskw;
-  _Bool has_io;
+  bool has_io;
 
   derive_t cswitch_vol;
   derive_t cswitch_invol;
-  _Bool has_cswitch;
+  bool has_cswitch;
 
 #if HAVE_LIBTASKSTATS
   ts_delay_t delay;
 #endif
-  _Bool has_delay;
+  bool has_delay;
 
-  _Bool has_fd;
+  bool has_fd;
 
-  _Bool has_maps;
+  bool has_maps;
 } process_entry_t;
 
 typedef struct procstat_entry_s {
@@ -284,22 +284,22 @@ typedef struct procstat {
   gauge_t delay_swapin;
   gauge_t delay_freepages;
 
-  _Bool report_fd_num;
-  _Bool report_maps_num;
-  _Bool report_ctx_switch;
-  _Bool report_delay;
+  bool report_fd_num;
+  bool report_maps_num;
+  bool report_ctx_switch;
+  bool report_delay;
 
   struct procstat *next;
   struct procstat_entry_s *instances;
 } procstat_t;
 
-static procstat_t *list_head_g = NULL;
+static procstat_t *list_head_g;
 
-static _Bool want_init = 1;
-static _Bool report_ctx_switch = 0;
-static _Bool report_fd_num = 0;
-static _Bool report_maps_num = 0;
-static _Bool report_delay = 0;
+static bool want_init = true;
+static bool report_ctx_switch;
+static bool report_fd_num;
+static bool report_maps_num;
+static bool report_delay;
 
 #if HAVE_THREAD_INFO
 static mach_port_t port_host_self;
@@ -334,7 +334,7 @@ int getargs(void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
 #endif /* HAVE_PROCINFO_H */
 
 #if HAVE_LIBTASKSTATS
-static ts_t *taskstats_handle = NULL;
+static ts_t *taskstats_handle;
 #endif
 
 /* put name of process from config to list_head_g tree
@@ -909,7 +909,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
   gauge_t const delay_factor = 1000000000.0;
 
   struct {
-    char *type_instance;
+    const char *type_instance;
     gauge_t rate_ns;
   } delay_metrics[] = {
       {"delay-cpu", ps->delay_cpu},
@@ -995,8 +995,9 @@ static int ps_read_tasks_status(process_entry_t *ps) {
 
     tpid = ent->d_name;
 
-    if (snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status", ps->id,
-                 tpid) >= sizeof(filename)) {
+    int r = snprintf(filename, sizeof(filename), "/proc/%li/task/%s/status",
+                     ps->id, tpid);
+    if ((size_t)r >= sizeof(filename)) {
       DEBUG("Filename too long: `%s'", filename);
       continue;
     }
@@ -1252,38 +1253,38 @@ static int ps_delay(process_entry_t *ps) {
 #endif
 
 static void ps_fill_details(const procstat_t *ps, process_entry_t *entry) {
-  if (entry->has_io == 0) {
+  if (entry->has_io == false) {
     ps_read_io(entry);
-    entry->has_io = 1;
+    entry->has_io = true;
   }
 
   if (ps->report_ctx_switch) {
-    if (entry->has_cswitch == 0) {
+    if (entry->has_cswitch == false) {
       ps_read_tasks_status(entry);
-      entry->has_cswitch = 1;
+      entry->has_cswitch = true;
     }
   }
 
   if (ps->report_maps_num) {
     int num_maps;
-    if (entry->has_maps == 0 && (num_maps = ps_count_maps(entry->id)) > 0) {
+    if (entry->has_maps == false && (num_maps = ps_count_maps(entry->id)) > 0) {
       entry->num_maps = num_maps;
     }
-    entry->has_maps = 1;
+    entry->has_maps = true;
   }
 
   if (ps->report_fd_num) {
     int num_fd;
-    if (entry->has_fd == 0 && (num_fd = ps_count_fd(entry->id)) > 0) {
+    if (entry->has_fd == false && (num_fd = ps_count_fd(entry->id)) > 0) {
       entry->num_fd = num_fd;
     }
-    entry->has_fd = 1;
+    entry->has_fd = true;
   }
 
 #if HAVE_LIBTASKSTATS
   if (ps->report_delay && !entry->has_delay) {
     if (ps_delay(entry) == 0) {
-      entry->has_delay = 1;
+      entry->has_delay = true;
     }
   }
 #endif
@@ -1521,7 +1522,7 @@ static int read_fork_rate(void) {
   FILE *proc_stat;
   char buffer[1024];
   value_t value;
-  _Bool value_valid = 0;
+  bool value_valid = 0;
 
   proc_stat = fopen("/proc/stat", "r");
   if (proc_stat == NULL) {
@@ -2137,7 +2138,7 @@ static int ps_read(void) {
      * filter out threads (duplicate PID entries). */
     if ((proc_ptr == NULL) || (proc_ptr->ki_pid != procs[i].ki_pid)) {
       char cmdline[CMDLINE_BUFFER_SIZE] = "";
-      _Bool have_cmdline = 0;
+      bool have_cmdline = 0;
 
       proc_ptr = &(procs[i]);
       /* Don't probe system processes and processes without arguments */
@@ -2292,7 +2293,7 @@ static int ps_read(void) {
      * filter out threads (duplicate PID entries). */
     if ((proc_ptr == NULL) || (proc_ptr->p_pid != procs[i].p_pid)) {
       char cmdline[CMDLINE_BUFFER_SIZE] = "";
-      _Bool have_cmdline = 0;
+      bool have_cmdline = 0;
 
       proc_ptr = &(procs[i]);
       /* Don't probe zombie processes  */
@@ -2632,7 +2633,7 @@ static int ps_read(void) {
   read_fork_rate();
 #endif /* KERNEL_SOLARIS */
 
-  want_init = 0;
+  want_init = false;
 
   return 0;
 } /* int ps_read */
