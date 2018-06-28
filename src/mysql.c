@@ -595,9 +595,9 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
       connection_name = row[CONNECTION_NAME];
 
     if (replication[row_count] == NULL) {
-      INFO("mysql plugin: mariadb replication '%s' found.",
-           connection_name);
-      replication[row_count] = (maria_replication_t *) malloc(sizeof(maria_replication_t));
+      INFO("mysql plugin: mariadb replication '%s' found.", connection_name);
+      replication[row_count] =
+          (maria_replication_t *)malloc(sizeof(maria_replication_t));
       replication[row_count]->connection_name = strdup(connection_name);
       replication[row_count]->slave_io_running = true;
       replication[row_count]->slave_sql_running = true;
@@ -639,7 +639,7 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     }
 
     if (db->slave_notif) {
-      notification_t n = {0, cdtime(),      "", "",  "mysql",
+      notification_t n = {0,  cdtime(),      "", "",  "mysql",
                           "", "time_offset", "", NULL};
       char *io, *sql;
 
@@ -649,8 +649,7 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
       set_host(db, n.host, sizeof(n.host));
 
       if (strlen(connection_name))
-        sstrncpy(n.type_instance, connection_name,
-                 strlen(connection_name)+1);
+        sstrncpy(n.type_instance, connection_name, strlen(connection_name) + 1);
 
       /* Assured by "mysql_config_database" */
       assert(db->instance != NULL);
@@ -660,14 +659,14 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
           (replication[row_count]->slave_io_running)) {
         n.severity = NOTIF_WARNING;
         snprintf(n.message, sizeof(n.message),
-                  "slave I/O thread not started or not connected to master");
+                 "slave I/O thread not started or not connected to master");
         plugin_dispatch_notification(&n);
         replication[row_count]->slave_io_running = false;
       } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                  (!replication[row_count]->slave_io_running)) {
         n.severity = NOTIF_OKAY;
         snprintf(n.message, sizeof(n.message),
-                  "slave I/O thread started and connected to master");
+                 "slave I/O thread started and connected to master");
         plugin_dispatch_notification(&n);
         replication[row_count]->slave_io_running = true;
       }
