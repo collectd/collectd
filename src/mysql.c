@@ -308,9 +308,9 @@ static MYSQL *getconnection(mysql_database_t *db) {
        mysql_get_host_info(db->con), (cipher != NULL) ? cipher : "<none>",
        mysql_get_server_info(db->con), mysql_get_proto_info(db->con));
 
-  db->is_mariadb = 0;
+  db->is_mariadb = false;
   if (strstr(mysql_get_server_info(db->con), "MariaDB") != NULL)
-    db->is_mariadb = 1;
+    db->is_mariadb = true;
 
   db->is_connected = true;
 
@@ -557,8 +557,8 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   struct maria_replication_s /* {{{ */
   {
     char *connection_name;
-    _Bool slave_io_running;
-    _Bool slave_sql_running;
+    bool slave_io_running;
+    bool slave_sql_running;
   };
   typedef struct maria_replication_s maria_replication_t; /* }}} */
   static maria_replication_t *replication[MAX_MARIADB_SLAVES] = {NULL};
@@ -599,8 +599,8 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
            connection_name);
       replication[row_count] = (maria_replication_t *) malloc(sizeof(maria_replication_t));
       replication[row_count]->connection_name = strdup(connection_name);
-      replication[row_count]->slave_io_running = 1;
-      replication[row_count]->slave_sql_running = 1;
+      replication[row_count]->slave_io_running = true;
+      replication[row_count]->slave_sql_running = true;
     } else if (strcmp(replication[row_count]->connection_name,
                       connection_name)) {
       /* as rows are sorted according to 'Connection_name', we need to
@@ -609,8 +609,8 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
            replication[row_count]->connection_name, connection_name);
       free(replication[row_count]->connection_name);
       replication[row_count]->connection_name = strdup(connection_name);
-      replication[row_count]->slave_io_running = 1;
-      replication[row_count]->slave_sql_running = 1;
+      replication[row_count]->slave_io_running = true;
+      replication[row_count]->slave_sql_running = true;
     }
 
     if (db->slave_stats) {
@@ -662,14 +662,14 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
         snprintf(n.message, sizeof(n.message),
                   "slave I/O thread not started or not connected to master");
         plugin_dispatch_notification(&n);
-        replication[row_count]->slave_io_running = 0;
+        replication[row_count]->slave_io_running = false;
       } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                  (!replication[row_count]->slave_io_running)) {
         n.severity = NOTIF_OKAY;
         snprintf(n.message, sizeof(n.message),
                   "slave I/O thread started and connected to master");
         plugin_dispatch_notification(&n);
-        replication[row_count]->slave_io_running = 1;
+        replication[row_count]->slave_io_running = true;
       }
 
       if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
@@ -677,13 +677,13 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
         n.severity = NOTIF_WARNING;
         snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
         plugin_dispatch_notification(&n);
-        replication[row_count]->slave_sql_running = 0;
+        replication[row_count]->slave_sql_running = false;
       } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
                  (!replication[row_count]->slave_sql_running)) {
         n.severity = NOTIF_OKAY;
         snprintf(n.message, sizeof(n.message), "slave SQL thread started");
         plugin_dispatch_notification(&n);
-        replication[row_count]->slave_sql_running = 1;
+        replication[row_count]->slave_sql_running = true;
       }
     }
     row_count++;
@@ -696,7 +696,7 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
-    return (-1);
+    return -1;
   }
 
   /* freeing unused replication structures */
@@ -708,7 +708,7 @@ static int mariadb_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   mysql_free_result(res);
 
-  return (0);
+  return 0;
 } /* mariadb_read_slave_stats */
 
 static int mysql_read_innodb_stats(mysql_database_t *db, MYSQL *con) {
