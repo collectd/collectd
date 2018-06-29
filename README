@@ -1070,8 +1070,6 @@ or:
 
 $ INSTALL_DIR="C:/some/other/install/directory" ./build.sh
 
-As of now, the only plugin tested to work on Windows is the `logfile' plugin.
-
 
 Crosscompiling
 --------------
