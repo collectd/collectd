@@ -64,12 +64,12 @@
 extern kstat_ctl_t *kc;
 #endif
 
+#if !defined(MSG_DONTWAIT)
+#if defined(MSG_NONBLOCK)
 /* AIX doesn't have MSG_DONTWAIT */
-#if !defined(MSG_DONTWAIT) && defined(MSG_NONBLOCK)
 #define MSG_DONTWAIT MSG_NONBLOCK
-#endif
-
-#ifdef WIN32
+#else
+/* Windows doesn't have MSG_DONTWAIT or MSG_NONBLOCK */
 #define MSG_DONTWAIT 0
 #endif
 
