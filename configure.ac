@@ -900,12 +900,7 @@ AC_CHECK_FUNCS([nanosleep], [],
     [
       AC_CHECK_LIB([posix4], [nanosleep],
         [nanosleep_needs_posix4="yes"],
-        [
-          AC_CHECK_FUNCS([rpl_nanosleep],
-            [nanosleep_needs_gnulib="yes"],
-            [AC_MSG_ERROR([cannot find nanosleep])]
-          )
-        ]
+        [AC_MSG_ERROR([cannot find nanosleep])]
       )
     ]
   )
