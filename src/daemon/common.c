@@ -71,7 +71,8 @@ extern kstat_ctl_t *kc;
 #else
 /* Windows doesn't have MSG_DONTWAIT or MSG_NONBLOCK */
 #define MSG_DONTWAIT 0
-#endif
+#endif /* defined(MSG_NONBLOCK) */
+#endif /* !defined(MSG_DONTWAIT) */
 
 #if !HAVE_GETPWNAM_R && defined(HAVE_GETPWNAM)
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
