@@ -654,8 +654,6 @@ static void redis_read_server_info(redis_node_t *rn) {
                     "total_connections_received", DS_TYPE_DERIVE);
   redis_handle_info(rn->name, rr->str, "total_operations", NULL,
                     "total_commands_processed", DS_TYPE_DERIVE);
-  redis_handle_info(rn->name, rr->str, "operations_per_second", NULL,
-                    "instantaneous_ops_per_sec", DS_TYPE_GAUGE);
   redis_handle_info(rn->name, rr->str, "expired_keys", NULL, "expired_keys",
                     DS_TYPE_DERIVE);
   redis_handle_info(rn->name, rr->str, "evicted_keys", NULL, "evicted_keys",
