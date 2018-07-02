@@ -304,10 +304,10 @@ static statname_lookup_t lookup_table[] = /* {{{ */
         {"uptime", "uptime", NULL}}; /* }}} */
 static int lookup_table_length = STATIC_ARRAY_SIZE(lookup_table);
 
-static llist_t *list = NULL;
+static llist_t *list;
 
 #define PDNS_LOCAL_SOCKPATH LOCALSTATEDIR "/run/" PACKAGE_NAME "-powerdns"
-static char *local_sockpath = NULL;
+static char *local_sockpath;
 
 /* TODO: Do this before 4.4:
  * - Update the collectd.conf(5) manpage.
@@ -352,16 +352,13 @@ static void submit(const char *plugin_instance, /* {{{ */
   }
 
   if (ds->ds_num != 1) {
-    ERROR("powerdns plugin: type `%s' has %zu data sources, "
+    ERROR("powerdns plugin: type `%s' has %" PRIsz " data sources, "
           "but I can only handle one.",
           type, ds->ds_num);
     return;
   }
 
   if (0 != parse_value(value_str, &value, ds->ds[0].type)) {
-    ERROR("powerdns plugin: Cannot convert `%s' "
-          "to a number.",
-          value_str);
     return;
   }
 

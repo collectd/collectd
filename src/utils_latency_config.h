@@ -47,9 +47,9 @@ typedef struct {
   char *bucket_type;
 
   /*
-  _Bool lower;
-  _Bool upper;
-  _Bool avg;
+  bool lower;
+  bool upper;
+  bool avg;
   */
 } latency_config_t;
 

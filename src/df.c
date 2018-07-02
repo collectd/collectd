@@ -51,14 +51,14 @@ static const char *config_keys[] = {
     "ReportByDevice", "ReportInodes", "ValuesAbsolute", "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *il_device = NULL;
-static ignorelist_t *il_mountpoint = NULL;
-static ignorelist_t *il_fstype = NULL;
+static ignorelist_t *il_device;
+static ignorelist_t *il_mountpoint;
+static ignorelist_t *il_fstype;
 
-static _Bool by_device = 0;
-static _Bool report_inodes = 0;
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
+static bool by_device;
+static bool report_inodes;
+static bool values_absolute = true;
+static bool values_percentage;
 
 static int df_init(void) {
   if (il_device == NULL)
@@ -99,28 +99,28 @@ static int df_config(const char *key, const char *value) {
     return 0;
   } else if (strcasecmp(key, "ReportByDevice") == 0) {
     if (IS_TRUE(value))
-      by_device = 1;
+      by_device = true;
 
     return 0;
   } else if (strcasecmp(key, "ReportInodes") == 0) {
     if (IS_TRUE(value))
-      report_inodes = 1;
+      report_inodes = true;
     else
-      report_inodes = 0;
+      report_inodes = false;
 
     return 0;
   } else if (strcasecmp(key, "ValuesAbsolute") == 0) {
     if (IS_TRUE(value))
-      values_absolute = 1;
+      values_absolute = true;
     else
-      values_absolute = 0;
+      values_absolute = false;
 
     return 0;
   } else if (strcasecmp(key, "ValuesPercentage") == 0) {
     if (IS_TRUE(value))
-      values_percentage = 1;
+      values_percentage = true;
     else
-      values_percentage = 0;
+      values_percentage = false;
 
     return 0;
   }
@@ -152,6 +152,7 @@ static int df_read(void) {
 #elif HAVE_STATFS
   struct statfs statbuf;
 #endif
+  int retval = 0;
   /* struct STATANYFS statbuf; */
   cu_mount_t *mnt_list;
 
@@ -224,12 +225,10 @@ static int df_read(void) {
       if (strcmp(mnt_ptr->dir, "/") == 0)
         sstrncpy(disk_name, "root", sizeof(disk_name));
       else {
-        int len;
-
         sstrncpy(disk_name, mnt_ptr->dir + 1, sizeof(disk_name));
-        len = strlen(disk_name);
+        size_t len = strlen(disk_name);
 
-        for (int i = 0; i < len; i++)
+        for (size_t i = 0; i < len; i++)
           if (disk_name[i] == '/')
             disk_name[i] = '-';
       }
@@ -282,8 +281,10 @@ static int df_read(void) {
             (gauge_t)((float_t)(blk_reserved) / statbuf.f_blocks * 100));
         df_submit_one(disk_name, "percent_bytes", "used",
                       (gauge_t)((float_t)(blk_used) / statbuf.f_blocks * 100));
-      } else
-        return -1;
+      } else {
+        retval = -1;
+        break;
+      }
     }
 
     /* inode handling */
@@ -313,8 +314,10 @@ static int df_read(void) {
           df_submit_one(
               disk_name, "percent_inodes", "used",
               (gauge_t)((float_t)(inode_used) / statbuf.f_files * 100));
-        } else
-          return -1;
+        } else {
+          retval = -1;
+          break;
+        }
       }
       if (values_absolute) {
         df_submit_one(disk_name, "df_inodes", "free", (gauge_t)inode_free);
@@ -327,7 +330,7 @@ static int df_read(void) {
 
   cu_mount_freelist(mnt_list);
 
-  return 0;
+  return retval;
 } /* int df_read */
 
 void module_register(void) {

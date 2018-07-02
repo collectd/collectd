@@ -39,12 +39,12 @@ struct cr_data_s {
   char *username;
   char *password;
 
-  _Bool collect_interface;
-  _Bool collect_regtable;
-  _Bool collect_cpu_load;
-  _Bool collect_memory;
-  _Bool collect_df;
-  _Bool collect_disk;
+  bool collect_interface;
+  bool collect_regtable;
+  bool collect_cpu_load;
+  bool collect_memory;
+  bool collect_df;
+  bool collect_disk;
 };
 typedef struct cr_data_s cr_data_t;
 
@@ -142,7 +142,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** RX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
-           r->radio_name);
+           r->radio_name ? r->radio_name : "default");
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -151,7 +151,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
-           r->radio_name);
+           r->radio_name ? r->radio_name : "default");
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -160,7 +160,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** RX / TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
-           r->radio_name);
+           r->radio_name ? r->radio_name : "default");
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
   cr_submit_gauge(rd, "snr", type_instance, (gauge_t)r->signal_to_noise);

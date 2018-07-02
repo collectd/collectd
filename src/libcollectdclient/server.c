@@ -33,19 +33,22 @@
 #include "collectd/network_parse.h" /* for lcc_network_parse_options_t */
 #include "collectd/server.h"
 
+// clang-format off
 #include <errno.h>
+#include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+// clang-format on
 
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
 
-static _Bool is_multicast(struct addrinfo const *ai) {
+static bool is_multicast(struct addrinfo const *ai) {
   if (ai->ai_family == AF_INET) {
     struct sockaddr_in *addr = (struct sockaddr_in *)ai->ai_addr;
     return IN_MULTICAST(ntohl(addr->sin_addr.s_addr));
@@ -175,7 +178,7 @@ static int server_open(lcc_listener_t *srv) {
 }
 
 int lcc_listen_and_write(lcc_listener_t srv) {
-  _Bool close_socket = 0;
+  bool close_socket = 0;
 
   if (srv.conn < 0) {
     int status = server_open(&srv);

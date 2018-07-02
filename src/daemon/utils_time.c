@@ -144,9 +144,9 @@ static int format_zone(char *buffer, size_t buffer_size,
 } /* }}} int format_zone */
 
 int format_rfc3339(char *buffer, size_t buffer_size, struct tm const *t_tm,
-                   long nsec, _Bool print_nano, char const *zone) /* {{{ */
+                   long nsec, bool print_nano, char const *zone) /* {{{ */
 {
-  int len;
+  size_t len;
   char *pos = buffer;
   size_t size_left = buffer_size;
 
@@ -167,7 +167,7 @@ int format_rfc3339(char *buffer, size_t buffer_size, struct tm const *t_tm,
 } /* }}} int format_rfc3339 */
 
 int format_rfc3339_utc(char *buffer, size_t buffer_size, cdtime_t t,
-                       _Bool print_nano) /* {{{ */
+                       bool print_nano) /* {{{ */
 {
   struct tm t_tm;
   long nsec = 0;
@@ -181,7 +181,7 @@ int format_rfc3339_utc(char *buffer, size_t buffer_size, cdtime_t t,
 } /* }}} int format_rfc3339_utc */
 
 int format_rfc3339_local(char *buffer, size_t buffer_size, cdtime_t t,
-                         _Bool print_nano) /* {{{ */
+                         bool print_nano) /* {{{ */
 {
   struct tm t_tm;
   long nsec = 0;

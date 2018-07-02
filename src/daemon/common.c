@@ -60,6 +60,10 @@
 #include <sys/capability.h>
 #endif
 
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -413,7 +417,7 @@ int strunescape(char *buf, size_t buf_len) {
       continue;
 
     if (((i + 1) >= buf_len) || (buf[i + 1] == 0)) {
-      ERROR("string unescape: backslash found at end of string.");
+      P_ERROR("string unescape: backslash found at end of string.");
       /* Ensure null-byte at the end of the buffer. */
       buf[i] = 0;
       return -1;
@@ -540,9 +544,8 @@ int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta) {
 int check_create_dir(const char *file_orig) {
   struct stat statbuf;
 
-  char file_copy[512];
-  char dir[512];
-  int dir_len = 512;
+  char file_copy[PATH_MAX];
+  char dir[PATH_MAX];
   char *fields[16];
   int fields_num;
   char *ptr;
@@ -559,8 +562,10 @@ int check_create_dir(const char *file_orig) {
 
   if ((len = strlen(file_orig)) < 1)
     return -1;
-  else if (len >= sizeof(file_copy))
+  else if (len >= sizeof(file_copy)) {
+    ERROR("check_create_dir: name (%s) is too long.", file_orig);
     return -1;
+  }
 
   /*
    * If `file_orig' ends in a slash the last component is a directory,
@@ -601,9 +606,9 @@ int check_create_dir(const char *file_orig) {
      * behavior.
      */
     if (fields[i][0] == '.') {
-      ERROR("Cowardly refusing to create a directory that "
-            "begins with a `.' (dot): `%s'",
-            file_orig);
+      P_ERROR("Cowardly refusing to create a directory that "
+              "begins with a `.' (dot): `%s'",
+              file_orig);
       return -2;
     }
 
@@ -611,9 +616,10 @@ int check_create_dir(const char *file_orig) {
      * Join the components together again
      */
     dir[0] = '/';
-    if (strjoin(dir + path_is_absolute, (size_t)(dir_len - path_is_absolute),
-                fields, (size_t)(i + 1), "/") < 0) {
-      ERROR("strjoin failed: `%s', component #%i", file_orig, i);
+    if (strjoin(dir + path_is_absolute,
+                (size_t)(sizeof(dir) - path_is_absolute), fields,
+                (size_t)(i + 1), "/") < 0) {
+      P_ERROR("strjoin failed: `%s', component #%i", file_orig, i);
       return -1;
     }
 
@@ -629,16 +635,16 @@ int check_create_dir(const char *file_orig) {
           if (EEXIST == errno)
             continue;
 
-          ERROR("check_create_dir: mkdir (%s): %s", dir, STRERRNO);
+          P_ERROR("check_create_dir: mkdir (%s): %s", dir, STRERRNO);
           return -1;
         } else {
-          ERROR("check_create_dir: stat (%s): %s", dir, STRERRNO);
+          P_ERROR("check_create_dir: stat (%s): %s", dir, STRERRNO);
           return -1;
         }
       } else if (!S_ISDIR(statbuf.st_mode)) {
-        ERROR("check_create_dir: `%s' exists but is not "
-              "a directory!",
-              dir);
+        P_ERROR("check_create_dir: `%s' exists but is not "
+                "a directory!",
+                dir);
         return -1;
       }
       break;
@@ -661,12 +667,12 @@ int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name) {
 
   *ksp_ptr = kstat_lookup(kc, module, instance, name);
   if (*ksp_ptr == NULL) {
-    ERROR("get_kstat: Cound not find kstat %s", ident);
+    P_ERROR("get_kstat: Cound not find kstat %s", ident);
     return -1;
   }
 
   if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED) {
-    ERROR("get_kstat: kstat %s has wrong type", ident);
+    P_ERROR("get_kstat: kstat %s has wrong type", ident);
     *ksp_ptr = NULL;
     return -1;
   }
@@ -677,12 +683,12 @@ int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name) {
 #endif
 
   if (kstat_read(kc, *ksp_ptr, NULL) == -1) {
-    ERROR("get_kstat: kstat %s could not be read", ident);
+    P_ERROR("get_kstat: kstat %s could not be read", ident);
     return -1;
   }
 
   if ((*ksp_ptr)->ks_type != KSTAT_TYPE_NAMED) {
-    ERROR("get_kstat: kstat %s has wrong type", ident);
+    P_ERROR("get_kstat: kstat %s has wrong type", ident);
     return -1;
   }
 
@@ -694,12 +700,12 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
   long long retval = -1LL;
 
   if (ksp == NULL) {
-    ERROR("get_kstat_value (\"%s\"): ksp is NULL.", name);
+    P_ERROR("get_kstat_value (\"%s\"): ksp is NULL.", name);
     return -1LL;
   } else if (ksp->ks_type != KSTAT_TYPE_NAMED) {
-    ERROR("get_kstat_value (\"%s\"): ksp->ks_type (%#x) "
-          "is not KSTAT_TYPE_NAMED (%#x).",
-          name, (unsigned int)ksp->ks_type, (unsigned int)KSTAT_TYPE_NAMED);
+    P_ERROR("get_kstat_value (\"%s\"): ksp->ks_type (%#x) "
+            "is not KSTAT_TYPE_NAMED (%#x).",
+            name, (unsigned int)ksp->ks_type, (unsigned int)KSTAT_TYPE_NAMED);
     return -1LL;
   }
 
@@ -717,7 +723,7 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
   else if (kn->data_type == KSTAT_DATA_UINT64)
     retval = (long long)kn->value.ui64; /* XXX: Might overflow! */
   else
-    WARNING("get_kstat_value: Not a numeric value: %s", name);
+    P_WARNING("get_kstat_value: Not a numeric value: %s", name);
 
   return retval;
 }
@@ -853,7 +859,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
 
 int format_values(char *ret, size_t ret_len, /* {{{ */
                   const data_set_t *ds, const value_list_t *vl,
-                  _Bool store_rates) {
+                  bool store_rates) {
   size_t offset = 0;
   int status;
   gauge_t *rates = NULL;
@@ -889,7 +895,7 @@ int format_values(char *ret, size_t ret_len, /* {{{ */
       }
       BUFFER_ADD(":" GAUGE_FORMAT, rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD(":%llu", vl->values[i].counter);
+      BUFFER_ADD(":%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD(":%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -1029,19 +1035,19 @@ int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
 
   default:
     sfree(value);
-    ERROR("parse_value: Invalid data source type: %i.", ds_type);
+    P_ERROR("parse_value: Invalid data source type: %i.", ds_type);
     return -1;
   }
 
   if (value == endptr) {
-    ERROR("parse_value: Failed to parse string as %s: \"%s\".",
-          DS_TYPE_TO_STRING(ds_type), value);
+    P_ERROR("parse_value: Failed to parse string as %s: \"%s\".",
+            DS_TYPE_TO_STRING(ds_type), value);
     sfree(value);
     return -1;
   } else if ((NULL != endptr) && ('\0' != *endptr))
-    INFO("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
-         "Input string was \"%s\".",
-         endptr, DS_TYPE_TO_STRING(ds_type), value_orig);
+    P_INFO("parse_value: Ignoring trailing garbage \"%s\" after %s value. "
+           "Input string was \"%s\".",
+           endptr, DS_TYPE_TO_STRING(ds_type), value_orig);
 
   sfree(value);
   return 0;
@@ -1206,7 +1212,7 @@ int walk_directory(const char *dir, dirwalk_callback_f callback,
   failure = 0;
 
   if ((dh = opendir(dir)) == NULL) {
-    ERROR("walk_directory: Cannot open '%s': %s", dir, STRERRNO);
+    P_ERROR("walk_directory: Cannot open '%s': %s", dir, STRERRNO);
     return -1;
   }
 
@@ -1246,7 +1252,7 @@ ssize_t read_file_contents(const char *filename, char *buf, size_t bufsize) {
 
   ret = (ssize_t)fread(buf, 1, bufsize, fh);
   if ((ret == 0) && (ferror(fh) != 0)) {
-    ERROR("read_file_contents: Reading file \"%s\" failed.", filename);
+    P_ERROR("read_file_contents: Reading file \"%s\" failed.", filename);
     ret = -1;
   }
 
@@ -1405,8 +1411,8 @@ int service_name_to_port_number(const char *service_name) {
 
   status = getaddrinfo(/* node = */ NULL, service_name, &ai_hints, &ai_list);
   if (status != 0) {
-    ERROR("service_name_to_port_number: getaddrinfo failed: %s",
-          gai_strerror(status));
+    P_ERROR("service_name_to_port_number: getaddrinfo failed: %s",
+            gai_strerror(status));
     return -1;
   }
 
@@ -1444,7 +1450,7 @@ void set_sock_opts(int sockfd) /* {{{ */
   status = getsockopt(sockfd, SOL_SOCKET, SO_TYPE, &socktype,
                       &(socklen_t){sizeof(socktype)});
   if (status != 0) {
-    WARNING("set_sock_opts: failed to determine socket type");
+    P_WARNING("set_sock_opts: failed to determine socket type");
     return;
   }
 
@@ -1452,14 +1458,14 @@ void set_sock_opts(int sockfd) /* {{{ */
     status =
         setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &(int){1}, sizeof(int));
     if (status != 0)
-      WARNING("set_sock_opts: failed to set socket keepalive flag");
+      P_WARNING("set_sock_opts: failed to set socket keepalive flag");
 
 #ifdef TCP_KEEPIDLE
     int tcp_keepidle = ((CDTIME_T_TO_MS(plugin_get_interval()) - 1) / 100 + 1);
     status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPIDLE, &tcp_keepidle,
                         sizeof(tcp_keepidle));
     if (status != 0)
-      WARNING("set_sock_opts: failed to set socket tcp keepalive time");
+      P_WARNING("set_sock_opts: failed to set socket tcp keepalive time");
 #endif
 
 #ifdef TCP_KEEPINTVL
@@ -1468,7 +1474,7 @@ void set_sock_opts(int sockfd) /* {{{ */
     status = setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &tcp_keepintvl,
                         sizeof(tcp_keepintvl));
     if (status != 0)
-      WARNING("set_sock_opts: failed to set socket tcp keepalive interval");
+      P_WARNING("set_sock_opts: failed to set socket tcp keepalive interval");
 #endif
   }
 } /* }}} void set_sock_opts */
@@ -1552,12 +1558,12 @@ int check_capability(int arg) /* {{{ */
     return -1;
 
   if (!(cap = cap_get_proc())) {
-    ERROR("check_capability: cap_get_proc failed.");
+    P_ERROR("check_capability: cap_get_proc failed.");
     return -1;
   }
 
   if (cap_get_flag(cap, cap_value, CAP_EFFECTIVE, &cap_flag_value) < 0) {
-    ERROR("check_capability: cap_get_flag failed.");
+    P_ERROR("check_capability: cap_get_flag failed.");
     cap_free(cap);
     return -1;
   }
@@ -1568,8 +1574,8 @@ int check_capability(int arg) /* {{{ */
 #else
 int check_capability(__attribute__((unused)) int arg) /* {{{ */
 {
-  WARNING("check_capability: unsupported capability implementation. "
-          "Some plugin(s) may require elevated privileges to work properly.");
+  P_WARNING("check_capability: unsupported capability implementation. "
+            "Some plugin(s) may require elevated privileges to work properly.");
   return 0;
 } /* }}} int check_capability */
 #endif /* HAVE_CAPABILITY */

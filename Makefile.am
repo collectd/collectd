@@ -61,6 +61,7 @@ EXTRA_DIST = \
 	src/types.db \
 	src/types.db.pod \
 	src/valgrind.FreeBSD.suppress \
+	src/valgrind.suppress \
 	testwrapper.sh \
 	version-gen.sh
 
@@ -141,7 +142,8 @@ check_PROGRAMS = \
 	test_utils_subst \
 	test_utils_time \
 	test_utils_vl_lookup \
-	test_libcollectd_network_parse
+	test_libcollectd_network_parse \
+	test_utils_config_cores
 
 
 TESTS = $(check_PROGRAMS)
@@ -193,6 +195,8 @@ endif
 
 
 collectd_SOURCES = \
+	src/daemon/cmd.c \
+	src/daemon/cmd.h \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h \
 	src/daemon/configfile.c \
@@ -325,6 +329,11 @@ test_utils_subst_SOURCES = \
 	src/daemon/utils_subst.c \
 	src/daemon/utils_subst.h
 test_utils_subst_LDADD = libplugin_mock.la
+
+test_utils_config_cores_SOURCES = \
+	src/utils_config_cores_test.c \
+	src/testing.h
+test_utils_config_cores_LDADD = libplugin_mock.la
 
 libavltree_la_SOURCES = \
 	src/daemon/utils_avltree.c \
@@ -483,7 +492,8 @@ libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/network.c \
 	src/libcollectdclient/network_buffer.c \
 	src/libcollectdclient/network_parse.c \
-	src/libcollectdclient/server.c
+	src/libcollectdclient/server.c \
+	src/libcollectdclient/collectd/stdendian.h
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
@@ -542,6 +552,20 @@ amqp_la_LIBADD = \
 	libformat_json.la
 endif
 
+if BUILD_PLUGIN_AMQP1
+pkglib_LTLIBRARIES += amqp1.la
+amqp1_la_SOURCES = \
+	src/amqp1.c \
+	src/utils_deq.h
+amqp1_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
+amqp1_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
+amqp1_la_LIBADD = \
+	$(BUILD_WITH_LIBQPIDPROTON_LIBS) \
+	libcmds.la \
+	libformat_graphite.la \
+	libformat_json.la
+endif
+
 if BUILD_PLUGIN_APACHE
 pkglib_LTLIBRARIES += apache.la
 apache_la_SOURCES = src/apache.c
@@ -592,7 +616,7 @@ if BUILD_PLUGIN_BAROMETER
 pkglib_LTLIBRARIES += barometer.la
 barometer_la_SOURCES = src/barometer.c
 barometer_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-barometer_la_LIBADD = -lm
+barometer_la_LIBADD = -lm $(BUILD_WITH_LIBI2C_LIBS)
 endif
 
 if BUILD_PLUGIN_BATTERY
@@ -922,7 +946,10 @@ endif
 
 if BUILD_PLUGIN_INTEL_PMU
 pkglib_LTLIBRARIES += intel_pmu.la
-intel_pmu_la_SOURCES = src/intel_pmu.c
+intel_pmu_la_SOURCES = \
+	src/intel_pmu.c \
+	src/utils_config_cores.h \
+	src/utils_config_cores.c
 intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
 intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
 intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
@@ -930,7 +957,10 @@ endif
 
 if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
-intel_rdt_la_SOURCES = src/intel_rdt.c
+intel_rdt_la_SOURCES = \
+	src/intel_rdt.c \
+	src/utils_config_cores.h \
+	src/utils_config_cores.c
 intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
@@ -1537,7 +1567,7 @@ pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = src/snmp.c
 snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
 snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
-snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+snmp_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBNETSNMP_LIBS)
 endif
 
 if BUILD_PLUGIN_SNMP_AGENT
@@ -1546,6 +1576,23 @@ snmp_agent_la_SOURCES = src/snmp_agent.c
 snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
 snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
+
+test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
+                                 src/daemon/utils_avltree.c \
+                                 src/daemon/utils_llist.c \
+                                 src/daemon/configfile.c \
+                                 src/daemon/types_list.c
+test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
+test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
+test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la \
+	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
+
+check_PROGRAMS += test_plugin_snmp_agent
+TESTS += test_plugin_snmp_agent
+
+
 endif
 
 if BUILD_PLUGIN_STATSD
@@ -1767,18 +1814,15 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 
-# TODO: enable once we support only modern libvirts which depends on libnl-3
-# the libvirt on wheezy is linked in libnl v1, and there is a small leak here,
-# triggered by the library initialization. There are no means to avoid it,
-# and libvirt switched to libnl3 anyway
-#test_plugin_virt_SOURCES = src/virt_test.c
-#test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
-#	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
-#test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
-#test_plugin_virt_LDADD = libplugin_mock.la \
-#	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
-#check_PROGRAMS += test_plugin_virt
-#TESTS += test_plugin_virt
+test_plugin_virt_SOURCES = src/virt_test.c
+test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
+test_plugin_virt_LDADD = libplugin_mock.la \
+	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+check_PROGRAMS += test_plugin_virt
+TESTS += test_plugin_virt
 endif
 
 if BUILD_PLUGIN_VMEM
@@ -1993,9 +2037,9 @@ install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
 	if test -e $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	then \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
+		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
 	else \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
+		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
 	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;

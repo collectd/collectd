@@ -265,21 +265,19 @@ static void yyerror(const char *s)
 static char *unquote (const char *orig)
 {
 	char *ret = strdup (orig);
-	int len;
-
 	if (ret == NULL)
-		return (NULL);
+		return NULL;
 
-	len = strlen (ret);
+	size_t len = strlen (ret);
 
 	if ((len < 2) || (ret[0] != '"') || (ret[len - 1] != '"'))
-		return (ret);
+		return ret;
 
 	len -= 2;
 	memmove (ret, ret + 1, len);
 	ret[len] = 0;
 
-	for (int i = 0; i < len; i++)
+	for (size_t i = 0; i < len; i++)
 	{
 		if (ret[i] == '\\')
 		{
@@ -288,5 +286,5 @@ static char *unquote (const char *orig)
 		}
 	}
 
-	return (ret);
+	return ret;
 } /* char *unquote */

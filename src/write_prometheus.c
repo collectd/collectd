@@ -59,7 +59,7 @@ static struct MHD_Daemon *httpd;
 
 static cdtime_t staleness_delta = PROMETHEUS_DEFAULT_STALENESS_DELTA;
 
-/* Unfortunately, protoc-c doesn't export it's implementation of varint, so we
+/* Unfortunately, protoc-c doesn't export its implementation of varint, so we
  * need to implement our own. */
 static size_t varint(uint8_t buffer[static VARINT_UINT32_BYTES],
                      uint32_t value) {
@@ -244,9 +244,8 @@ static int http_handler(void *cls, struct MHD_Connection *connection,
 
   char const *accept = MHD_lookup_connection_value(connection, MHD_HEADER_KIND,
                                                    MHD_HTTP_HEADER_ACCEPT);
-  _Bool want_proto =
-      (accept != NULL) &&
-      (strstr(accept, "application/vnd.google.protobuf") != NULL);
+  bool want_proto = (accept != NULL) &&
+                    (strstr(accept, "application/vnd.google.protobuf") != NULL);
 
   uint8_t scratch[4096] = {0};
   ProtobufCBufferSimple simple = PROTOBUF_C_BUFFER_SIMPLE_INIT(scratch);
@@ -689,7 +688,7 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
  * necessary. */
 static Io__Prometheus__Client__MetricFamily *
 metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
-                  _Bool allocate) {
+                  bool allocate) {
   char *name = metric_family_name(ds, vl, ds_index);
   if (name == NULL) {
     ERROR("write_prometheus plugin: Allocating metric family name failed.");
@@ -763,6 +762,15 @@ static int prom_open_socket(int addrfamily) {
     fd = socket(ai->ai_family, ai->ai_socktype | SOCK_CLOEXEC, 0);
     if (fd == -1)
       continue;
+
+    int tmp = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp)) != 0) {
+      WARNING("write_prometheus: setsockopt(SO_REUSEADDR) failed: %s",
+              STRERRNO);
+      close(fd);
+      fd = -1;
+      continue;
+    }
 
     if (bind(fd, ai->ai_addr, ai->ai_addrlen) != 0) {
       close(fd);
@@ -876,7 +884,7 @@ static int prom_write(data_set_t const *ds, value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ 1);
+        metric_family_get(ds, vl, i, /* allocate = */ true);
     if (fam == NULL)
       continue;
 
@@ -903,7 +911,7 @@ static int prom_missing(value_list_t const *vl,
 
   for (size_t i = 0; i < ds->ds_num; i++) {
     Io__Prometheus__Client__MetricFamily *fam =
-        metric_family_get(ds, vl, i, /* allocate = */ 0);
+        metric_family_get(ds, vl, i, /* allocate = */ false);
     if (fam == NULL)
       continue;
 

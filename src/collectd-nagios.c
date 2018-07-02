@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,17 +94,17 @@ typedef struct range_s range_t;
 extern char *optarg;
 extern int optind, opterr, optopt;
 
-static char *socket_file_g = NULL;
-static char *value_string_g = NULL;
-static char *hostname_g = NULL;
+static char *socket_file_g;
+static char *value_string_g;
+static char *hostname_g;
 
 static range_t range_critical_g;
 static range_t range_warning_g;
 static int consolitation_g = CON_NONE;
-static _Bool nan_is_error_g = 0;
+static bool nan_is_error_g;
 
-static char **match_ds_g = NULL;
-static size_t match_ds_num_g = 0;
+static char **match_ds_g;
+static size_t match_ds_num_g;
 
 /* `strdup' is an XSI extension. I don't want to pull in all of XSI just for
  * that, so here's an own implementation.. It's easy enough. The GCC attributes
@@ -637,7 +638,7 @@ int main(int argc, char **argv) {
       break;
     }
     case 'm':
-      nan_is_error_g = 1;
+      nan_is_error_g = true;
       break;
     default:
       usage(argv[0]);

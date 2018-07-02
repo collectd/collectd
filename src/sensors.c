@@ -157,8 +157,8 @@ typedef struct featurelist {
   struct featurelist *next;
 } featurelist_t;
 
-static char *conffile = NULL;
-static _Bool use_labels = 0;
+static char *conffile;
+static bool use_labels;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -166,7 +166,7 @@ static _Bool use_labels = 0;
 	"as bug."
 #endif
 
-static featurelist_t *first_feature = NULL;
+static featurelist_t *first_feature;
 static ignorelist_t *sensor_list;
 
 #if SENSORS_API_VERSION < 0x400
@@ -225,7 +225,7 @@ static int sensors_config(const char *key, const char *value) {
   }
 #if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
   else if (strcasecmp(key, "UseLabels") == 0) {
-    use_labels = IS_TRUE(value) ? 1 : 0;
+    use_labels = IS_TRUE(value);
   }
 #endif
   else {
@@ -251,7 +251,7 @@ static void sensors_free_features(void) {
 }
 
 static int sensors_load_conf(void) {
-  static int call_once = 0;
+  static int call_once;
 
   FILE *fh = NULL;
   featurelist_t *last_feature = NULL;

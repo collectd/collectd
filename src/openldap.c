@@ -47,10 +47,10 @@ struct cldap_s /* {{{ */
   char *password;
   char *cacert;
   char *host;
-  _Bool starttls;
+  bool starttls;
   int timeout;
   char *url;
-  _Bool verifyhost;
+  bool verifyhost;
   int version;
 
   LDAP *ld;
@@ -105,12 +105,12 @@ static int cldap_init_host(cldap_t *st) /* {{{ */
   if (st->cacert != NULL)
     ldap_set_option(st->ld, LDAP_OPT_X_TLS_CACERTFILE, st->cacert);
 
-  if (st->verifyhost == 0) {
+  if (st->verifyhost == false) {
     int never = LDAP_OPT_X_TLS_NEVER;
     ldap_set_option(st->ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &never);
   }
 
-  if (st->starttls != 0) {
+  if (st->starttls) {
     rc = ldap_start_tls_s(st->ld, NULL, NULL);
     if (rc != LDAP_SUCCESS) {
       ERROR("openldap plugin: Failed to start tls on %s: %s", st->url,
@@ -397,9 +397,9 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
-  st->starttls = 0;
+  st->starttls = false;
   st->timeout = (long)CDTIME_T_TO_TIME_T(plugin_get_interval());
-  st->verifyhost = 1;
+  st->verifyhost = true;
   st->version = LDAP_VERSION3;
 
   for (int i = 0; i < ci->children_num; i++) {

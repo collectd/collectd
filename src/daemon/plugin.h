@@ -147,7 +147,7 @@ typedef struct notification_meta_s {
     int64_t nm_signed_int;
     uint64_t nm_unsigned_int;
     double nm_double;
-    _Bool nm_boolean;
+    bool nm_boolean;
   } nm_value;
   struct notification_meta_s *next;
 } notification_meta_t;
@@ -171,6 +171,7 @@ struct user_data_s {
 typedef struct user_data_s user_data_t;
 
 struct plugin_ctx_s {
+  char *name;
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
@@ -230,7 +231,7 @@ void plugin_set_dir(const char *dir);
  *  Re-loading an already loaded module is detected and zero is returned in
  *  this case.
  */
-int plugin_load(const char *name, _Bool global);
+int plugin_load(const char *name, bool global);
 
 int plugin_init_all(void);
 void plugin_read_all(void);
@@ -346,7 +347,7 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  plugin_dispatch_multivalue
  *
  * SYNOPSIS
- *  plugin_dispatch_multivalue (vl, 1, DS_TYPE_GAUGE,
+ *  plugin_dispatch_multivalue (vl, true, DS_TYPE_GAUGE,
  *                              "free", 42.0,
  *                              "used", 58.0,
  *                              NULL);
@@ -374,7 +375,7 @@ int plugin_dispatch_values(value_list_t const *vl);
  *  The number of values it failed to dispatch (zero on success).
  */
 __attribute__((sentinel)) int plugin_dispatch_multivalue(value_list_t const *vl,
-                                                         _Bool store_percentage,
+                                                         bool store_percentage,
                                                          int store_type, ...);
 
 int plugin_dispatch_missing(const value_list_t *vl);
@@ -398,6 +399,15 @@ int parse_notif_severity(const char *severity);
 #define DEBUG(...) /* noop */
 #endif             /* ! COLLECT_DEBUG */
 
+/* This will log messages, prefixed by plugin name */
+void daemon_log(int level, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+#define P_ERROR(...) daemon_log(LOG_ERR, __VA_ARGS__)
+#define P_WARNING(...) daemon_log(LOG_WARNING, __VA_ARGS__)
+#define P_NOTICE(...) daemon_log(LOG_NOTICE, __VA_ARGS__)
+#define P_INFO(...) daemon_log(LOG_INFO, __VA_ARGS__)
+
 const data_set_t *plugin_get_ds(const char *name);
 
 int plugin_notification_meta_add_string(notification_t *n, const char *name,
@@ -409,7 +419,7 @@ int plugin_notification_meta_add_unsigned_int(notification_t *n,
 int plugin_notification_meta_add_double(notification_t *n, const char *name,
                                         double value);
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
-                                         _Bool value);
+                                         bool value);
 
 int plugin_notification_meta_copy(notification_t *dst,
                                   const notification_t *src);

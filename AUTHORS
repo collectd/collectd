@@ -65,6 +65,9 @@ Andy Parkins <andyp at fussylogic.co.uk>
 Aneesh Puttur <aputtur at redhat.com>
  - connectivity plugin.
 
+Andy Smith <ansmith at redhat.com>
+ - AMQP 1.0 plugin.
+
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
 
@@ -292,7 +295,7 @@ Scott Sanders <scott at jssjr.com>
  - Write-Graphite plugin.
 
 Sebastien Pahl <sebastien.pahl at dotcloud.com>
- - AMQP plugin.
+ - AMQP 0.9 plugin.
 
 Serhiy Pshyk <serhiyx.pshyk at intel.com>
  - intel_pmu plugin

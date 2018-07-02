@@ -58,7 +58,7 @@ static char const *pf_scounters[SCNT_MAX + 1] = SCNT_NAMES;
 static char const *pf_device = "/dev/pf";
 
 static void pf_submit(char const *type, char const *type_instance, uint64_t val,
-                      _Bool is_gauge) {
+                      bool is_gauge) {
   value_t values[1];
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -103,19 +103,19 @@ static int pf_read(void) {
 
   for (int i = 0; i < PFRES_MAX; i++)
     pf_submit("pf_counters", pf_reasons[i], state.counters[i],
-              /* is gauge = */ 0);
+              /* is gauge = */ false);
   for (int i = 0; i < LCNT_MAX; i++)
     pf_submit("pf_limits", pf_lcounters[i], state.lcounters[i],
-              /* is gauge = */ 0);
+              /* is gauge = */ false);
   for (int i = 0; i < FCNT_MAX; i++)
     pf_submit("pf_state", pf_fcounters[i], state.fcounters[i],
-              /* is gauge = */ 0);
+              /* is gauge = */ false);
   for (int i = 0; i < SCNT_MAX; i++)
     pf_submit("pf_source", pf_scounters[i], state.scounters[i],
-              /* is gauge = */ 0);
+              /* is gauge = */ false);
 
   pf_submit("pf_states", "current", (uint32_t)state.states,
-            /* is gauge = */ 1);
+            /* is gauge = */ true);
 
   return 0;
 } /* int pf_read */
