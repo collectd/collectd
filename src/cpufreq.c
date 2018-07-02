@@ -25,7 +25,7 @@
 #include "common.h"
 #include "plugin.h"
 
-static int num_cpu = 0;
+static int num_cpu;
 
 static int cpufreq_init(void) {
   int status;

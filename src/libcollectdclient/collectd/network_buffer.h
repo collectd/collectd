@@ -27,6 +27,8 @@
 #ifndef LIBCOLLECTDCLIENT_NETWORK_BUFFER_H
 #define LIBCOLLECTDCLIENT_NETWORK_BUFFER_H 1
 
+#include "config.h"
+
 #include "collectd/network.h" /* for lcc_security_level_t */
 #include "collectd/types.h"
 

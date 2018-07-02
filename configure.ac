@@ -766,10 +766,9 @@ AC_CHECK_FUNCS_ONCE([ \
 AC_FUNC_STRERROR_R
 
 SAVE_CFLAGS="$CFLAGS"
-# Emulate behavior of src/Makefile.am
-if test "x$GCC" = "xyes"; then
-  CFLAGS="$CFLAGS -Wall -Werror"
-fi
+CFLAGS="-Wall -Werror"
+SAVE_LDFAGS="$LDFLAGS"
+LDFLAGS=""
 
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
@@ -842,6 +841,7 @@ if test "x$c_cv_have_strtok_r_default" = "xno"; then
 fi
 
 CFLAGS="$SAVE_CFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
 if test "x$c_cv_have_strtok_r_reentrant" = "xyes"; then
   CFLAGS="$CFLAGS -D_REENTRANT=1"
 fi
@@ -1567,7 +1567,7 @@ if test "x$have_getmntent" = "xlibc"; then
               struct mntent *me;
               fh = setmntent ("/etc/mtab", "r");
               me = getmntent (fh);
-              return(me->mnt_passno);
+              return me->mnt_passno;
             ]]
           )
         ],
@@ -1590,7 +1590,7 @@ if test "x$have_getmntent" = "xlibc"; then
               int status;
               fh = fopen ("/etc/mnttab", "r");
               status = getmntent (fh, &mt);
-              return(status);
+              return status;
             ]]
           )
         ],
@@ -1878,14 +1878,23 @@ fi
 
 # libi2c-dev
 if test "x$ac_system" = "xLinux"; then
+  with_libi2c_libs=""
+  AC_CHECK_HEADERS([i2c/smbus.h],
+    [with_libi2c_libs="-li2c"]
+  )
   AC_CHECK_DECL([i2c_smbus_read_i2c_block_data],
     [with_libi2c="yes"],
     [with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"],
     [[
       #include <stdlib.h>
       #include <linux/i2c-dev.h>
+      #if HAVE_I2C_SMBUS_H
+      # include <i2c/smbus.h>
+      #endif
     ]]
   )
+  BUILD_WITH_LIBI2C_LIBS="$with_libi2c_libs"
+  AC_SUBST([BUILD_WITH_LIBI2C_LIBS])
 else
   with_libi2c="no (Linux only)"
 fi
@@ -2635,6 +2644,7 @@ AC_ARG_WITH([libgrpc++],
     if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_libgrpcpp_cppflags="-I$withval/include"
       with_libgrpcpp_ldflags="-L$withval/lib"
+      with_libgrpcpp_bin="$withval/bin"
       with_libgrpcpp="yes"
     fi
     if test "x$withval" = "xno"; then
@@ -2714,7 +2724,11 @@ AC_SUBST([BUILD_WITH_LIBGRPCPP_LIBS])
 # }}}
 
 AC_ARG_VAR([GRPC_CPP_PLUGIN], [path to the grpc_cpp_plugin binary])
-AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+if test "x$with_libgrpcpp_bin" = "x"; then
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+else
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin], [], "$with_libgrpcpp_bin:$PATH")
+fi
 AM_CONDITIONAL([HAVE_GRPC_CPP], [test "x$GRPC_CPP_PLUGIN" != "x"])
 
 # --with-libiptc {{{
@@ -3044,18 +3058,33 @@ else
           PKG_CHECK_MODULES([LUA], [lua5.3],
             [with_liblua="yes"],
             [
-              PKG_CHECK_MODULES([LUA], [lua-5.2],
+              PKG_CHECK_MODULES([LUA], [lua53],
                 [with_liblua="yes"],
                 [
-                  PKG_CHECK_MODULES([LUA], [lua5.2],
+                  PKG_CHECK_MODULES([LUA], [lua-5.2],
                     [with_liblua="yes"],
                     [
-                      PKG_CHECK_MODULES([LUA], [lua-5.1],
+                      PKG_CHECK_MODULES([LUA], [lua5.2],
                         [with_liblua="yes"],
                         [
-                          PKG_CHECK_MODULES([LUA], [lua5.1],
+                          PKG_CHECK_MODULES([LUA], [lua52],
                             [with_liblua="yes"],
-                            [with_liblua="no (pkg-config cannot find liblua)"]
+                            [
+                              PKG_CHECK_MODULES([LUA], [lua-5.1],
+                                [with_liblua="yes"],
+                                [
+                                  PKG_CHECK_MODULES([LUA], [lua5.1],
+                                    [with_liblua="yes"],
+                                    [
+                                      PKG_CHECK_MODULES([LUA], [lua51],
+                                        [with_liblua="yes"],
+                                        [with_liblua="no (pkg-config cannot find liblua)"]
+                                      )
+                                    ]
+                                  )
+                                ]
+                              )
+                            ]
                           )
                         ]
                       )
@@ -3655,6 +3684,18 @@ if test "x$with_libmnl" = "xyes"; then
     [[#include <linux/if_link.h>]]
   )
 
+  AC_CHECK_MEMBERS([struct rtnl_link_stats.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_MEMBERS([struct rtnl_link_stats64.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
   AC_CHECK_LIB([mnl], [mnl_nlmsg_get_payload],
     [with_libmnl="yes"],
     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
@@ -3668,6 +3709,7 @@ if test "x$with_libmnl" = "xyes"; then
 fi
 AC_SUBST([BUILD_WITH_LIBMNL_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMNL_LIBS])
+AM_CONDITIONAL([HAVE_LIBMNL], [test "x$with_libmnl" = "xyes"])
 # }}}
 
 # --with-libnetapp {{{
@@ -3775,11 +3817,67 @@ if test "x$with_libnetsnmp" = "xyes"; then
   LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
 
   AC_CHECK_LIB([netsnmp], [init_snmp],
-    [with_libnetsmp="yes"],
+    [with_libnetsnmp="yes"],
     [with_libnetsnmp="no (libnetsnmp not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmp" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
+
+  AC_CHECK_LIB([netsnmp], [netsnmp_get_version],
+    [with_libnetsnmp="yes"],
+    [with_libnetsnmp="no (couldn't get libnetsnmp version)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmp" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="$CPPFLAGS $with_libnetsnmp_cppflags -Wall -Werror"
+  LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
+  LIBS="$LIBS -lnetsnmp"
+
+  AC_CACHE_CHECK([whether netsnmp library has old API],
+    [c_cv_have_netsnmp_old_api],
+    [
+      AC_LINK_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[
+              #include <net-snmp/net-snmp-config.h>
+              #include <net-snmp/net-snmp-includes.h>
+            ]],
+            [[
+              netsnmp_variable_list *key = SNMP_MALLOC_TYPEDEF(netsnmp_variable_list);;
+              int val;
+              u_char type = ASN_INTEGER;
+              snmp_set_var_value(key, &val, sizeof(val));
+              snmp_set_var_typed_value(key, type, &val, sizeof(val));
+              return 0;
+            ]]
+          )
+        ],
+        [c_cv_have_netsnmp_old_api="no"],
+        [c_cv_have_netsnmp_old_api="yes"]
+      )
+    ]
+  )
+
+  if test "x$c_cv_have_netsnmp_old_api" = "xyes"; then
+    AC_DEFINE([HAVE_NETSNMP_OLD_API], [1],
+              ["Define 1 if you have old netsnmp API]")
+  fi
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
 
 if test "x$with_libnetsnmp" = "xyes"; then
@@ -3793,7 +3891,7 @@ AC_SUBST([BUILD_WITH_LIBNETSNMP_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBNETSNMP_LIBS])
 # }}}
 
-# --with-libnetsmpagent {{{
+# --with-libnetsnmpagent {{{
 AC_ARG_WITH([libnetsnmpagent],
   [AS_HELP_STRING([--with-libnetsnmpagent@<:@=PREFIX@:>@], [Path to libnetsnmpagent.])],
   [
@@ -4075,7 +4173,7 @@ if test "x$with_libpcap" = "xyes"; then
             [[#include <pcap.h>]],
             [[
               int val = PCAP_ERROR_IFACE_NOT_UP;
-              return(val);
+              return val;
             ]]
           )
         ],
@@ -4679,6 +4777,56 @@ if test "$with_libpython" != "xno"; then
   LIBS="$SAVE_LIBS"
 fi
 # }}} --with-libpython
+
+# --with-libqpid_proton {{{
+AC_ARG_WITH([libqpid_proton],
+  [AS_HELP_STRING([--with-libqpid_proton@<:@=PREFIX@:>@], [Path to libqpid_proton.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libqpid_proton_cppflags="-I$withval/include"
+      with_libqpid_proton_ldflags="-L$withval/lib"
+      with_libqpid_proton="yes"
+    else
+      with_libqpid_proton="$withval"
+    fi
+  ],
+  [with_libqpid_proton="yes"]
+)
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libqpid_proton_cppflags"
+
+  AC_CHECK_HEADERS([proton/proactor.h],
+    [with_libqpid_proton="yes"],
+    [with_libqpid_proton="no (proton/proactor.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libqpid_proton_ldflags"
+
+  AC_CHECK_LIB([qpid-proton], [pn_connection],
+    [with_libqpid_proton="yes"],
+    [with_libqpid_proton="no (Symbol 'pn_connection' not found)"])
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  BUILD_WITH_LIBQPIDPROTON_CPPFLAGS="$with_libqpid_proton_cppflags"
+  BUILD_WITH_LIBQPIDPROTON_LDFLAGS="$with_libqpid_proton_ldflags"
+  BUILD_WITH_LIBQPIDPROTON_LIBS="-lqpid-proton"
+fi
+
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_LIBS)
+
+# }}}
 
 # --with-librabbitmq {{{
 AC_ARG_WITH([librabbitmq],
@@ -6378,8 +6526,18 @@ if test "x$with_libgps" = "xyes"; then
   plugin_gps="yes"
 fi
 
-if test "x$with_libgrpcpp" = "xyes" && test "x$with_libprotobuf" = "xyes" && test "x$have_protoc3" = "xyes" && test "x$GRPC_CPP_PLUGIN" != "x"; then
-  plugin_grpc="yes"
+plugin_grpc="yes"
+if test "x$GRPC_CPP_PLUGIN" = "x"; then
+  plugin_grpc="no (grpc_cpp_plugin not found)"
+fi
+if test "x$have_protoc3" != "xyes"; then
+  plugin_grpc="no (protoc3 not found)"
+fi
+if test "x$with_libprotobuf" != "xyes"; then
+  plugin_grpc="no (libprotobuf not found)"
+fi
+if test "x$with_libgrpcpp" != "xyes"; then
+  plugin_grpc="no (libgrpc++ not found)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then
@@ -6495,6 +6653,7 @@ m4_divert_once([HELP_ENABLE], [])
 
 AC_PLUGIN([aggregation],         [yes],                     [Aggregation plugin])
 AC_PLUGIN([amqp],                [$with_librabbitmq],       [AMQP output plugin])
+AC_PLUGIN([amqp1],               [$with_libqpid_proton],    [AMQP 1.0 output plugin])
 AC_PLUGIN([apache],              [$with_libcurl],           [Apache httpd statistics])
 AC_PLUGIN([apcups],              [yes],                     [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors],       [$with_libiokit],          [Apple hardware sensors])
@@ -6883,6 +7042,7 @@ AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
+AC_MSG_RESULT([    libqpid-proton .  . . $with_libqpid_proton])
 AC_MSG_RESULT([    librabbitmq . . . . . $with_librabbitmq])
 AC_MSG_RESULT([    libriemann-client . . $with_libriemann_client])
 AC_MSG_RESULT([    librdkafka  . . . . . $with_librdkafka])
@@ -6914,6 +7074,7 @@ AC_MSG_RESULT()
 AC_MSG_RESULT([  Modules:])
 AC_MSG_RESULT([    aggregation . . . . . $enable_aggregation])
 AC_MSG_RESULT([    amqp    . . . . . . . $enable_amqp])
+AC_MSG_RESULT([    amqp1   . . . . . . . $enable_amqp1])
 AC_MSG_RESULT([    apache  . . . . . . . $enable_apache])
 AC_MSG_RESULT([    apcups  . . . . . . . $enable_apcups])
 AC_MSG_RESULT([    apple_sensors . . . . $enable_apple_sensors])

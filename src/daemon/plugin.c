@@ -94,7 +94,7 @@ typedef struct flush_callback_s flush_callback_t;
 /*
  * Private variables
  */
-static c_avl_tree_t *plugins_loaded = NULL;
+static c_avl_tree_t *plugins_loaded;
 
 static llist_t *list_init;
 static llist_t *list_write;
@@ -104,42 +104,42 @@ static llist_t *list_shutdown;
 static llist_t *list_log;
 static llist_t *list_notification;
 
-static fc_chain_t *pre_cache_chain = NULL;
-static fc_chain_t *post_cache_chain = NULL;
+static fc_chain_t *pre_cache_chain;
+static fc_chain_t *post_cache_chain;
 
 static c_avl_tree_t *data_sets;
 
-static char *plugindir = NULL;
+static char *plugindir;
 
 #ifndef DEFAULT_MAX_READ_INTERVAL
 #define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T_STATIC(86400)
 #endif
-static c_heap_t *read_heap = NULL;
+static c_heap_t *read_heap;
 static llist_t *read_list;
 static int read_loop = 1;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t read_cond = PTHREAD_COND_INITIALIZER;
-static pthread_t *read_threads = NULL;
-static size_t read_threads_num = 0;
+static pthread_t *read_threads;
+static size_t read_threads_num;
 static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
 
 static write_queue_t *write_queue_head;
 static write_queue_t *write_queue_tail;
-static long write_queue_length = 0;
-static _Bool write_loop = 1;
+static long write_queue_length;
+static bool write_loop = true;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t write_cond = PTHREAD_COND_INITIALIZER;
-static pthread_t *write_threads = NULL;
-static size_t write_threads_num = 0;
+static pthread_t *write_threads;
+static size_t write_threads_num;
 
 static pthread_key_t plugin_ctx_key;
-static _Bool plugin_ctx_key_initialized = 0;
+static bool plugin_ctx_key_initialized;
 
-static long write_limit_high = 0;
-static long write_limit_low = 0;
+static long write_limit_high;
+static long write_limit_low;
 
-static derive_t stats_values_dropped = 0;
-static _Bool record_statistics = 0;
+static derive_t stats_values_dropped;
+static bool record_statistics;
 
 /*
  * Static functions
@@ -346,19 +346,22 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
 static int create_register_callback(llist_t **list, /* {{{ */
                                     const char *name, void *callback,
                                     user_data_t const *ud) {
-  callback_func_t *cf;
 
-  cf = calloc(1, sizeof(*cf));
+  if (name == NULL || callback == NULL)
+    return EINVAL;
+
+  callback_func_t *cf = calloc(1, sizeof(*cf));
   if (cf == NULL) {
     free_userdata(ud);
     ERROR("plugin: create_register_callback: calloc failed.");
-    return -1;
+    return ENOMEM;
   }
 
   cf->cf_callback = callback;
   if (ud == NULL) {
-    cf->cf_udata.data = NULL;
-    cf->cf_udata.free_func = NULL;
+    cf->cf_udata = (user_data_t){
+        .data = NULL, .free_func = NULL,
+    };
   } else {
     cf->cf_udata = *ud;
   }
@@ -391,7 +394,7 @@ static int plugin_unregister(llist_t *list, const char *name) /* {{{ */
 
 /* plugin_load_file loads the shared object "file" and calls its
  * "module_register" function. Returns zero on success, non-zero otherwise. */
-static int plugin_load_file(char const *file, _Bool global) {
+static int plugin_load_file(char const *file, bool global) {
   int flags = RTLD_NOW;
   if (global)
     flags |= RTLD_GLOBAL;
@@ -637,7 +640,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%zu", read_threads_num);
+    snprintf(name, sizeof(name), "reader#%" PRIsz, read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -648,7 +651,7 @@ static void stop_read_threads(void) {
   if (read_threads == NULL)
     return;
 
-  INFO("collectd: Stopping %zu read threads.", read_threads_num);
+  INFO("collectd: Stopping %" PRIsz " read threads.", read_threads_num);
 
   pthread_mutex_lock(&read_lock);
   read_loop = 0;
@@ -843,7 +846,7 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%zu", write_threads_num);
+    snprintf(name, sizeof(name), "writer#%" PRIsz, write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -858,10 +861,10 @@ static void stop_write_threads(void) /* {{{ */
   if (write_threads == NULL)
     return;
 
-  INFO("collectd: Stopping %zu write threads.", write_threads_num);
+  INFO("collectd: Stopping %" PRIsz " write threads.", write_threads_num);
 
   pthread_mutex_lock(&write_lock);
-  write_loop = 0;
+  write_loop = false;
   DEBUG("plugin: stop_write_threads: Signalling `write_cond'");
   pthread_cond_broadcast(&write_cond);
   pthread_mutex_unlock(&write_lock);
@@ -890,7 +893,7 @@ static void stop_write_threads(void) /* {{{ */
   pthread_mutex_unlock(&write_lock);
 
   if (i > 0) {
-    WARNING("plugin: %zu value list%s left after shutting down "
+    WARNING("plugin: %" PRIsz " value list%s left after shutting down "
             "the write threads.",
             i, (i == 1) ? " was" : "s were");
   }
@@ -912,7 +915,7 @@ void plugin_set_dir(const char *dir) {
     ERROR("plugin_set_dir: strdup(\"%s\") failed", dir);
 }
 
-static _Bool plugin_is_loaded(char const *name) {
+static bool plugin_is_loaded(char const *name) {
   int status;
 
   if (plugins_loaded == NULL)
@@ -954,7 +957,7 @@ static void plugin_free_loaded(void) {
 }
 
 #define BUFSIZE 512
-int plugin_load(char const *plugin_name, _Bool global) {
+int plugin_load(char const *plugin_name, bool global) {
   DIR *dh;
   const char *dir;
   char filename[BUFSIZE] = "";
@@ -988,7 +991,7 @@ int plugin_load(char const *plugin_name, _Bool global) {
    */
   if ((strcasecmp("perl", plugin_name) == 0) ||
       (strcasecmp("python", plugin_name) == 0))
-    global = 1;
+    global = true;
 
   /* `cpu' should not match `cpufreq'. To solve this we add `.so' to the
    * type when matching the filename */
@@ -1545,7 +1548,7 @@ int plugin_init_all(void) {
   uc_init();
 
   if (IS_TRUE(global_option_get("CollectInternalStats"))) {
-    record_statistics = 1;
+    record_statistics = true;
     plugin_register_read("collectd", plugin_update_internal_statistics);
   }
 
@@ -1714,8 +1717,12 @@ int plugin_write(const char *plugin, /* {{{ */
       callback_func_t *cf = le->value;
       plugin_write_cb callback;
 
-      /* do not switch plugin context; rather keep the context (interval)
-       * information of the calling read plugin */
+      /* Keep the read plugin's interval and flush information but update the
+       * plugin name. */
+      plugin_ctx_t old_ctx = plugin_get_ctx();
+      plugin_ctx_t ctx = old_ctx;
+      ctx.name = cf->cf_ctx.name;
+      plugin_set_ctx(ctx);
 
       DEBUG("plugin: plugin_write: Writing values via %s.", le->key);
       callback = cf->cf_callback;
@@ -1725,6 +1732,7 @@ int plugin_write(const char *plugin, /* {{{ */
       else
         success++;
 
+      plugin_set_ctx(old_ctx);
       le = le->next;
     }
 
@@ -1890,7 +1898,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   int status;
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
 
-  _Bool free_meta_data = 0;
+  bool free_meta_data = false;
 
   assert(vl != NULL);
 
@@ -1910,7 +1918,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
    * this case matches and targets may add some and the calling function
    * may not expect (and therefore free) that data. */
   if (vl->meta == NULL)
-    free_meta_data = 1;
+    free_meta_data = true;
 
   if (list_write == NULL)
     c_complain_once(LOG_WARNING, &no_write_complaint,
@@ -1956,8 +1964,8 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
 #else
   if (ds->ds_num != vl->values_len) {
     ERROR("plugin_dispatch_values: ds->type = %s: "
-          "(ds->ds_num = %zu) != "
-          "(vl->values_len = %zu)",
+          "(ds->ds_num = %" PRIsz ") != "
+          "(vl->values_len = %" PRIsz ")",
           ds->type, ds->ds_num, vl->values_len);
     return -1;
   }
@@ -1994,7 +2002,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
   } else
     fc_default_action(ds, vl);
 
-  if ((free_meta_data != 0) && (vl->meta != NULL)) {
+  if ((free_meta_data == true) && (vl->meta != NULL)) {
     meta_data_destroy(vl->meta);
     vl->meta = NULL;
   }
@@ -2023,9 +2031,9 @@ static double get_drop_probability(void) /* {{{ */
   return (double)pos / (double)size;
 } /* }}} double get_drop_probability */
 
-static _Bool check_drop_value(void) /* {{{ */
+static bool check_drop_value(void) /* {{{ */
 {
-  static cdtime_t last_message_time = 0;
+  static cdtime_t last_message_time;
   static pthread_mutex_t last_message_lock = PTHREAD_MUTEX_INITIALIZER;
 
   double p;
@@ -2033,11 +2041,11 @@ static _Bool check_drop_value(void) /* {{{ */
   int status;
 
   if (write_limit_high == 0)
-    return 0;
+    return false;
 
   p = get_drop_probability();
   if (p == 0.0)
-    return 0;
+    return false;
 
   status = pthread_mutex_trylock(&last_message_lock);
   if (status == 0) {
@@ -2054,14 +2062,14 @@ static _Bool check_drop_value(void) /* {{{ */
   }
 
   if (p == 1.0)
-    return 1;
+    return true;
 
   q = cdrand_d();
   if (q > p)
-    return 1;
+    return true;
   else
-    return 0;
-} /* }}} _Bool check_drop_value */
+    return false;
+} /* }}} bool check_drop_value */
 
 int plugin_dispatch_values(value_list_t const *vl) {
   int status;
@@ -2089,7 +2097,7 @@ int plugin_dispatch_values(value_list_t const *vl) {
 
 __attribute__((sentinel)) int
 plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
-                           _Bool store_percentage, int store_type, ...) {
+                           bool store_percentage, int store_type, ...) {
   value_list_t *vl;
   int failed = 0;
   gauge_t sum = 0.0;
@@ -2236,6 +2244,21 @@ void plugin_log(int level, const char *format, ...) {
   }
 } /* void plugin_log */
 
+void daemon_log(int level, const char *format, ...) {
+  char msg[1024] = ""; // Size inherits from plugin_log()
+
+  char const *name = plugin_get_ctx().name;
+  if (name == NULL)
+    name = "UNKNOWN";
+
+  va_list ap;
+  va_start(ap, format);
+  vsnprintf(msg, sizeof(msg), format, ap);
+  va_end(ap);
+
+  plugin_log(level, "%s plugin: %s", name, msg);
+} /* void daemon_log */
+
 int parse_log_severity(const char *severity) {
   int log_level = -1;
 
@@ -2330,7 +2353,7 @@ static int plugin_notification_meta_add(notification_t *n, const char *name,
     break;
   }
   case NM_TYPE_BOOLEAN: {
-    meta->nm_value.nm_boolean = *((_Bool *)value);
+    meta->nm_value.nm_boolean = *((bool *)value);
     break;
   }
   default: {
@@ -2375,7 +2398,7 @@ int plugin_notification_meta_add_double(notification_t *n, const char *name,
 }
 
 int plugin_notification_meta_add_boolean(notification_t *n, const char *name,
-                                         _Bool value) {
+                                         bool value) {
   return plugin_notification_meta_add(n, name, NM_TYPE_BOOLEAN, &value);
 }
 
@@ -2460,7 +2483,7 @@ static plugin_ctx_t *plugin_ctx_create(void) {
 
 void plugin_init_ctx(void) {
   pthread_key_create(&plugin_ctx_key, plugin_ctx_destructor);
-  plugin_ctx_key_initialized = 1;
+  plugin_ctx_key_initialized = true;
 } /* void plugin_init_ctx */
 
 plugin_ctx_t plugin_get_ctx(void) {

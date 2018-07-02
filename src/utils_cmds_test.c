@@ -191,7 +191,7 @@ DEF_TEST(parse) {
     cmd_status_t status;
     cmd_t cmd;
 
-    _Bool result;
+    bool result;
 
     memset(&cmd, 0, sizeof(cmd));
 

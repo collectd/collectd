@@ -24,11 +24,15 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+#include "common.h" /* for STATIC_ARRAY_SIZE */
 
 #include "testing.h"
 #include "utils_subst.h"
+
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 
 #if HAVE_LIBKSTAT
 kstat_ctl_t *kc;

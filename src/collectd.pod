@@ -69,7 +69,7 @@ Output usage information and exit.
 
 =head1 PLUGINS
 
-As noted above, the real power of collectd lies within it's plugins. A
+As noted above, the real power of collectd lies within its plugins. A
 (hopefully complete) list of plugins and short descriptions can be found in the
 F<README> file that is distributed with the sourcecode. If you're using a
 package it's a good bet to search somewhere near F</usr/share/doc/collectd>.

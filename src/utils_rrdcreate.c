@@ -61,7 +61,7 @@ static int rra_types_num = STATIC_ARRAY_SIZE(rra_types);
 static pthread_mutex_t librrd_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-static async_create_file_t *async_creation_list = NULL;
+static async_create_file_t *async_creation_list;
 static pthread_mutex_t async_creation_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -96,7 +96,7 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
 
   args = calloc(1, sizeof(*args));
   if (args == NULL) {
-    ERROR("srrd_create_args_create: calloc failed.");
+    P_ERROR("srrd_create_args_create: calloc failed.");
     return NULL;
   }
   args->filename = NULL;
@@ -106,14 +106,14 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
 
   args->filename = strdup(filename);
   if (args->filename == NULL) {
-    ERROR("srrd_create_args_create: strdup failed.");
+    P_ERROR("srrd_create_args_create: strdup failed.");
     srrd_create_args_destroy(args);
     return NULL;
   }
 
   args->argv = calloc((size_t)(argc + 1), sizeof(*args->argv));
   if (args->argv == NULL) {
-    ERROR("srrd_create_args_create: calloc failed.");
+    P_ERROR("srrd_create_args_create: calloc failed.");
     srrd_create_args_destroy(args);
     return NULL;
   }
@@ -121,7 +121,7 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
   for (args->argc = 0; args->argc < argc; args->argc++) {
     args->argv[args->argc] = strdup(argv[args->argc]);
     if (args->argv[args->argc] == NULL) {
-      ERROR("srrd_create_args_create: strdup failed.");
+      P_ERROR("srrd_create_args_create: strdup failed.");
       srrd_create_args_destroy(args);
       return NULL;
     }
@@ -212,7 +212,7 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
                         rra_types[j], cfg->xff, cdp_len, cdp_num);
 
       if ((status < 0) || ((size_t)status >= sizeof(buffer))) {
-        ERROR("rra_get: Buffer would have been truncated.");
+        P_ERROR("rra_get: Buffer would have been truncated.");
         continue;
       }
 
@@ -251,7 +251,7 @@ static int ds_get(char ***ret, /* {{{ */
 
   ds_def = calloc(ds->ds_num, sizeof(*ds_def));
   if (ds_def == NULL) {
-    ERROR("rrdtool plugin: calloc failed: %s", STRERRNO);
+    P_ERROR("ds_get: calloc failed: %s", STRERRNO);
     return -1;
   }
 
@@ -271,7 +271,7 @@ static int ds_get(char ***ret, /* {{{ */
     else if (d->type == DS_TYPE_ABSOLUTE)
       type = "ABSOLUTE";
     else {
-      ERROR("rrdtool plugin: Unknown DS type: %i", d->type);
+      P_ERROR("ds_get: Unknown DS type: %i", d->type);
       break;
     }
 
@@ -335,8 +335,8 @@ static int srrd_create(const char *filename, /* {{{ */
   status = rrd_create_r(filename_copy, pdp_step, last_up, argc, (void *)argv);
 
   if (status != 0) {
-    WARNING("rrdtool plugin: rrd_create_r (%s) failed: %s", filename,
-            rrd_get_error());
+    P_WARNING("srrd_create: rrd_create_r (%s) failed: %s", filename,
+              rrd_get_error());
   }
 
   sfree(filename_copy);
@@ -360,7 +360,7 @@ static int srrd_create(const char *filename, /* {{{ */
   new_argc = 6 + argc;
   new_argv = malloc((new_argc + 1) * sizeof(*new_argv));
   if (new_argv == NULL) {
-    ERROR("rrdtool plugin: malloc failed.");
+    P_ERROR("srrd_create: malloc failed.");
     return -1;
   }
 
@@ -388,8 +388,8 @@ static int srrd_create(const char *filename, /* {{{ */
   pthread_mutex_unlock(&librrd_lock);
 
   if (status != 0) {
-    WARNING("rrdtool plugin: rrd_create (%s) failed: %s", filename,
-            rrd_get_error());
+    P_WARNING("srrd_create: rrd_create (%s) failed: %s", filename,
+              rrd_get_error());
   }
 
   sfree(new_argv);
@@ -487,10 +487,11 @@ static void *srrd_create_thread(void *targs) /* {{{ */
   status = lock_file(args->filename);
   if (status != 0) {
     if (status == EEXIST)
-      NOTICE("srrd_create_thread: File \"%s\" is already being created.",
-             args->filename);
+      P_NOTICE("srrd_create_thread: File \"%s\" is already being created.",
+               args->filename);
     else
-      ERROR("srrd_create_thread: Unable to lock file \"%s\".", args->filename);
+      P_ERROR("srrd_create_thread: Unable to lock file \"%s\".",
+              args->filename);
     srrd_create_args_destroy(args);
     return 0;
   }
@@ -500,8 +501,8 @@ static void *srrd_create_thread(void *targs) /* {{{ */
   status = srrd_create(tmpfile, args->pdp_step, args->last_up, args->argc,
                        (void *)args->argv);
   if (status != 0) {
-    WARNING("srrd_create_thread: srrd_create (%s) returned status %i.",
-            args->filename, status);
+    P_WARNING("srrd_create_thread: srrd_create (%s) returned status %i.",
+              args->filename, status);
     unlink(tmpfile);
     unlock_file(args->filename);
     srrd_create_args_destroy(args);
@@ -510,8 +511,8 @@ static void *srrd_create_thread(void *targs) /* {{{ */
 
   status = rename(tmpfile, args->filename);
   if (status != 0) {
-    ERROR("srrd_create_thread: rename (\"%s\", \"%s\") failed: %s", tmpfile,
-          args->filename, STRERRNO);
+    P_ERROR("srrd_create_thread: rename (\"%s\", \"%s\") failed: %s", tmpfile,
+            args->filename, STRERRNO);
     unlink(tmpfile);
     unlock_file(args->filename);
     srrd_create_args_destroy(args);
@@ -556,7 +557,7 @@ static int srrd_create_async(const char *filename, /* {{{ */
 
   status = pthread_create(&thread, &attr, srrd_create_thread, args);
   if (status != 0) {
-    ERROR("srrd_create_async: pthread_create failed: %s", STRERROR(status));
+    P_ERROR("srrd_create_async: pthread_create failed: %s", STRERROR(status));
     pthread_attr_destroy(&attr);
     srrd_create_args_destroy(args);
     return status;
@@ -587,12 +588,12 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
     return -1;
 
   if ((rra_num = rra_get(&rra_def, vl, cfg)) < 1) {
-    ERROR("cu_rrd_create_file failed: Could not calculate RRAs");
+    P_ERROR("cu_rrd_create_file failed: Could not calculate RRAs");
     return -1;
   }
 
   if ((ds_num = ds_get(&ds_def, ds, vl, cfg)) < 1) {
-    ERROR("cu_rrd_create_file failed: Could not calculate DSes");
+    P_ERROR("cu_rrd_create_file failed: Could not calculate DSes");
     rra_free(rra_num, rra_def);
     return -1;
   }
@@ -600,7 +601,7 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
   argc = ds_num + rra_num;
 
   if ((argv = malloc(sizeof(*argv) * (argc + 1))) == NULL) {
-    ERROR("cu_rrd_create_file failed: %s", STRERRNO);
+    P_ERROR("cu_rrd_create_file failed: %s", STRERRNO);
     rra_free(rra_num, rra_def);
     ds_free(ds_num, ds_def);
     return -1;
@@ -624,25 +625,25 @@ int cu_rrd_create_file(const char *filename, /* {{{ */
     status = srrd_create_async(filename, stepsize, last_up, argc,
                                (const char **)argv);
     if (status != 0)
-      WARNING("cu_rrd_create_file: srrd_create_async (%s) "
-              "returned status %i.",
-              filename, status);
+      P_WARNING("cu_rrd_create_file: srrd_create_async (%s) "
+                "returned status %i.",
+                filename, status);
   } else /* synchronous */
   {
     status = lock_file(filename);
     if (status != 0) {
       if (status == EEXIST)
-        NOTICE("cu_rrd_create_file: File \"%s\" is already being created.",
-               filename);
+        P_NOTICE("cu_rrd_create_file: File \"%s\" is already being created.",
+                 filename);
       else
-        ERROR("cu_rrd_create_file: Unable to lock file \"%s\".", filename);
+        P_ERROR("cu_rrd_create_file: Unable to lock file \"%s\".", filename);
     } else {
       status =
           srrd_create(filename, stepsize, last_up, argc, (const char **)argv);
 
       if (status != 0) {
-        WARNING("cu_rrd_create_file: srrd_create (%s) returned status %i.",
-                filename, status);
+        P_WARNING("cu_rrd_create_file: srrd_create (%s) returned status %i.",
+                  filename, status);
       } else {
         DEBUG("cu_rrd_create_file: Successfully created RRD file \"%s\".",
               filename);

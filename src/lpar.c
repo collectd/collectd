@@ -40,10 +40,10 @@
 static const char *config_keys[] = {"CpuPoolStats", "ReportBySerial"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static _Bool pool_stats = 0;
-static _Bool report_by_serial = 0;
+static bool pool_stats;
+static bool report_by_serial;
 #if PERFSTAT_SUPPORTS_DONATION
-static _Bool donate_flag = 0;
+static bool donate_flag;
 #endif
 static char serial[SYS_NMLN];
 
@@ -52,14 +52,14 @@ static perfstat_partition_total_t lparstats_old;
 static int lpar_config(const char *key, const char *value) {
   if (strcasecmp("CpuPoolStats", key) == 0) {
     if (IS_TRUE(value))
-      pool_stats = 1;
+      pool_stats = true;
     else
-      pool_stats = 0;
+      pool_stats = false;
   } else if (strcasecmp("ReportBySerial", key) == 0) {
     if (IS_TRUE(value))
-      report_by_serial = 1;
+      report_by_serial = true;
     else
-      report_by_serial = 0;
+      report_by_serial = false;
   } else {
     return -1;
   }
@@ -84,14 +84,14 @@ static int lpar_init(void) {
 #if PERFSTAT_SUPPORTS_DONATION
   if (!lparstats_old.type.b.shared_enabled &&
       lparstats_old.type.b.donate_enabled) {
-    donate_flag = 1;
+    donate_flag = true;
   }
 #endif
 
   if (pool_stats && !lparstats_old.type.b.pool_util_authority) {
     WARNING("lpar plugin: This partition does not have pool authority. "
             "Disabling CPU pool statistics collection.");
-    pool_stats = 0;
+    pool_stats = false;
   }
 
   return 0;

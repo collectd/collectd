@@ -80,7 +80,7 @@ typedef struct program_list_and_notification_s {
 /*
  * Private variables
  */
-static program_list_t *pl_head = NULL;
+static program_list_t *pl_head;
 static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -788,7 +788,11 @@ static int exec_read(void) /* {{{ */
 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    plugin_thread_create(&t, &attr, exec_read_one, (void *)pl, "exec read");
+    int status =
+        plugin_thread_create(&t, &attr, exec_read_one, (void *)pl, "exec read");
+    if (status != 0) {
+      ERROR("exec plugin: plugin_thread_create failed.");
+    }
     pthread_attr_destroy(&attr);
   } /* for (pl) */
 
@@ -827,8 +831,11 @@ static int exec_notification(const notification_t *n, /* {{{ */
 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    plugin_thread_create(&t, &attr, exec_notification_one, (void *)pln,
-                         "exec notify");
+    int status = plugin_thread_create(&t, &attr, exec_notification_one,
+                                      (void *)pln, "exec notify");
+    if (status != 0) {
+      ERROR("exec plugin: plugin_thread_create failed.");
+    }
     pthread_attr_destroy(&attr);
   } /* for (pl) */
 

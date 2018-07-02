@@ -65,7 +65,7 @@ struct latency_counter_s {
 * When a value above this range is added, Histogram's range is increased by
 * increasing the bin width (note that number of bins remains always at 1000).
 * This operation of increasing bin width is little expensive as each bin need
-* to be visited to update it's count. To reduce frequent change of bin width,
+* to be visited to update its count. To reduce frequent change of bin width,
 * new bin width will be the next nearest power of 2. Example: 2, 4, 8, 16, 32,
 * 64, 128, 256, 512, 1024, 2048, 5086, ...
 *

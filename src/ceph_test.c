@@ -39,7 +39,7 @@ static int test_handler(void *user, char const *val, char const *key) {
   size_t i;
 
   char status[1024];
-  _Bool ok;
+  bool ok;
 
   /* special case for latency metrics. */
   if (strcmp("filestore.example_latency", key) == 0)
@@ -47,7 +47,7 @@ static int test_handler(void *user, char const *val, char const *key) {
 
   snprintf(status, sizeof(status),
            "unexpected call: test_handler(\"%s\") = \"%s\"", key, val);
-  ok = 0;
+  ok = false;
 
   for (i = 0; i < t->cases_num; i++) {
     if (strcmp(key, t->cases[i].key) != 0)
@@ -57,12 +57,12 @@ static int test_handler(void *user, char const *val, char const *key) {
       snprintf(status, sizeof(status),
                "test_handler(\"%s\") = \"%s\", want \"%s\"", key, val,
                t->cases[i].value);
-      ok = 0;
+      ok = false;
       break;
     }
 
     snprintf(status, sizeof(status), "test_handler(\"%s\") = \"%s\"", key, val);
-    ok = 1;
+    ok = true;
     break;
   }
 

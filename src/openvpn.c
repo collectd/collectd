@@ -80,10 +80,10 @@ struct vpn_status_s {
 };
 typedef struct vpn_status_s vpn_status_t;
 
-static _Bool new_naming_schema = 0;
-static _Bool collect_compression = 1;
-static _Bool collect_user_count = 0;
-static _Bool collect_individual_users = 1;
+static bool new_naming_schema;
+static bool collect_compression = true;
+static bool collect_user_count;
+static bool collect_individual_users = true;
 
 static const char *config_keys[] = {
     "StatusFile",           "Compression", /* old, deprecated name */
@@ -247,7 +247,7 @@ static int multi1_read(const char *name, FILE *fh) {
   char *fields[10];
   const int max_fields = STATIC_ARRAY_SIZE(fields);
   long long sum_users = 0;
-  _Bool found_header = 0;
+  bool found_header = false;
 
   /* read the file until the "ROUTING TABLE" line is found (no more info after)
    */
@@ -256,12 +256,12 @@ static int multi1_read(const char *name, FILE *fh) {
       break;
 
     if (strcmp(buffer, V1HEADER) == 0) {
-      found_header = 1;
+      found_header = true;
       continue;
     }
 
     /* skip the first lines until the client list section is found */
-    if (found_header == 0)
+    if (found_header == false)
       /* we can't start reading data until this string is found */
       continue;
 
@@ -292,7 +292,7 @@ static int multi1_read(const char *name, FILE *fh) {
   if (ferror(fh))
     return -1;
 
-  if (found_header == 0) {
+  if (found_header == false) {
     NOTICE("openvpn plugin: Unknown file format in instance %s, please "
            "report this as bug. Make sure to include "
            "your status file, so the plugin can "
@@ -320,7 +320,7 @@ static int multi2_read(const char *name, FILE *fh) {
   const int max_fields = STATIC_ARRAY_SIZE(fields);
   long long sum_users = 0;
 
-  _Bool found_header = 0;
+  bool found_header = false;
   int idx_cname = 0;
   int idx_bytes_recv = 0;
   int idx_bytes_sent = 0;
@@ -330,7 +330,7 @@ static int multi2_read(const char *name, FILE *fh) {
     int fields_num = openvpn_strsplit(buffer, fields, max_fields);
 
     /* Try to find section header */
-    if (found_header == 0) {
+    if (found_header == false) {
       if (fields_num < 2)
         continue;
       if (strcmp(fields[0], "HEADER") != 0)
@@ -358,7 +358,7 @@ static int multi2_read(const char *name, FILE *fh) {
       /* Data row has 1 field ("HEADER") less than header row */
       columns = fields_num - 1;
 
-      found_header = 1;
+      found_header = true;
       continue;
     }
 
@@ -404,7 +404,7 @@ static int multi2_read(const char *name, FILE *fh) {
   if (ferror(fh))
     return -1;
 
-  if (found_header == 0) {
+  if (found_header == false) {
     NOTICE("openvpn plugin: Unknown file format in instance %s, please "
            "report this as bug. Make sure to include "
            "your status file, so the plugin can "
@@ -519,29 +519,29 @@ static int openvpn_config(const char *key, const char *value) {
            (strcasecmp("Compression", key) == 0)) /* old, deprecated name */
   {
     if (IS_FALSE(value))
-      collect_compression = 0;
+      collect_compression = false;
     else
-      collect_compression = 1;
+      collect_compression = true;
   } /* if (strcasecmp ("CollectCompression", key) == 0) */
   else if (strcasecmp("ImprovedNamingSchema", key) == 0) {
     if (IS_TRUE(value)) {
       DEBUG("openvpn plugin: using the new naming schema");
-      new_naming_schema = 1;
+      new_naming_schema = true;
     } else {
-      new_naming_schema = 0;
+      new_naming_schema = false;
     }
   } /* if (strcasecmp ("ImprovedNamingSchema", key) == 0) */
   else if (strcasecmp("CollectUserCount", key) == 0) {
     if (IS_TRUE(value))
-      collect_user_count = 1;
+      collect_user_count = true;
     else
-      collect_user_count = 0;
+      collect_user_count = false;
   } /* if (strcasecmp("CollectUserCount", key) == 0) */
   else if (strcasecmp("CollectIndividualUsers", key) == 0) {
     if (IS_FALSE(value))
-      collect_individual_users = 0;
+      collect_individual_users = false;
     else
-      collect_individual_users = 1;
+      collect_individual_users = true;
   } /* if (strcasecmp("CollectIndividualUsers", key) == 0) */
   else {
     return -1;

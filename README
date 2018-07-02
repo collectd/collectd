@@ -100,6 +100,9 @@ Features
       Collect DPDK interface statistics.
       See docs/BUILD.dpdkstat.md for detailed build instructions.
 
+      This plugin should be compiled with compiler defenses enabled, for
+      example -fstack-protector.
+
     - drbd
       Collect individual drbd resource statistics.
 
@@ -139,6 +142,9 @@ Features
       Report the number of used and free hugepages. More info on
       hugepages can be found here:
       https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt.
+
+      This plugin should be compiled with compiler defenses enabled, for
+      example -fstack-protector.
 
     - intel_pmu
       The intel_pmu plugin reads performance counters provided by the Linux
@@ -459,7 +465,11 @@ Features
 
     - amqp
       Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
-      server, such as RabbitMQ.
+      0.9.1 server, such as RabbitMQ.
+
+    - amqp1
+      Sends JSON-encoded data to an Advanced Message Queuing Protocol (AMQP)
+      1.0 server, such as Qpid Dispatch Router or Apache Artemis Broker.
 
     - csv
       Write to comma separated values (CSV) files. This needs lots of
@@ -902,8 +912,14 @@ Prerequisites
     are supported.
     <http://www.python.org/>
 
+  * libqpid-proton (optional)
+    Used by the `amqp1' plugin for AMQP 1.0 connections, for example to
+    Qdrouterd.
+    <http://qpid.apache.org/>
+
   * librabbitmq (optional; also called “rabbitmq-c”)
-    Used by the `amqp' plugin for AMQP connections, for example to RabbitMQ.
+    Used by the `amqp' plugin for AMQP 0.9.1 connections, for example to
+    RabbitMQ.
     <http://hg.rabbitmq.com/rabbitmq-c/>
 
   * librdkafka (optional; also called “rdkafka”)
@@ -981,9 +997,8 @@ Configuring / Compiling / Installing
 ------------------------------------
 
   To configure, build and install collectd with the default settings, run
-  `./configure && make && make install'.  For detailed, generic instructions
-  see INSTALL. For a complete list of configure options and their description,
-  run `./configure --help'.
+  `./configure && make && make install'.  For a complete list of configure
+  options and their description, run `./configure --help'.
 
   By default, the configure script will check for all build dependencies and
   disable all plugins whose requirements cannot be fulfilled (any other plugin

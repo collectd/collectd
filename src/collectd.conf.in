@@ -90,6 +90,7 @@
 
 #@BUILD_PLUGIN_AGGREGATION_TRUE@LoadPlugin aggregation
 #@BUILD_PLUGIN_AMQP_TRUE@LoadPlugin amqp
+#@BUILD_PLUGIN_AMQP1_TRUE@LoadPlugin amqp1
 #@BUILD_PLUGIN_APACHE_TRUE@LoadPlugin apache
 #@BUILD_PLUGIN_APCUPS_TRUE@LoadPlugin apcups
 #@BUILD_PLUGIN_APPLE_SENSORS_TRUE@LoadPlugin apple_sensors
@@ -267,6 +268,29 @@
 #    StoreRates false
 #    ConnectionRetryDelay 0
 #  </Publish>
+#</Plugin>
+
+#<Plugin amqp1>
+#  <Transport "name">
+#    Host "localhost"
+#    Port "5672"
+#    User "guest"
+#    Password "guest"
+#    Address "collectd"
+#    RetryDelay 1
+#    <Instance "log">
+#        Format JSON
+#        PreSettle false
+#    </Instance>
+#    <Instance "notify">
+#        Format JSON
+#        PreSettle true
+#    </Instance>
+#    <Instance "telemetry">
+#        Format JSON
+#        PreSettle false
+#    </Instance>
+#  </Transport>
 #</Plugin>
 
 #<Plugin apache>
@@ -643,6 +667,7 @@
 #		SSLCACertificateFile "/path/to/root.pem"
 #		SSLCertificateFile "/path/to/client.pem"
 #		SSLCertificateKeyFile "/path/to/client.key"
+#		VerifyPeer true
 #	</Listen>
 #</Plugin>
 
@@ -665,6 +690,7 @@
 #    ReportSoftwareEvents true
 #    EventList "/var/cache/pmu/GenuineIntel-6-2D-core.json"
 #    HardwareEvents "L2_RQSTS.CODE_RD_HIT,L2_RQSTS.CODE_RD_MISS" "L2_RQSTS.ALL_CODE_RD"
+#    Cores "[0-3]"
 #</Plugin>
 
 #<Plugin "intel_rdt">
@@ -688,6 +714,9 @@
 #		NotifySensorNotPresent false
 #		NotifyIPMIConnectionState false
 #		SELEnabled false
+#		SELSensor "some_sensor"
+#		SELSensor "another_one"
+#		SELIgnoreSelected false
 #		SELClearEvent false
 #	</Instance>
 #	<Instance "remote">
@@ -704,6 +733,9 @@
 #		NotifySensorNotPresent false
 #		NotifyIPMIConnectionState false
 #		SELEnabled false
+#		SELSensor "some_sensor"
+#		SELSensor "another_one"
+#		SELIgnoreSelected false
 #		SELClearEvent false
 #	</Instance>
 #</Plugin>
@@ -808,6 +840,8 @@
 #		RegisterType float
 #		Type gauge
 #		Instance "..."
+#		#Scale 1.0
+#		#Shift 0.0
 #	</Data>
 #
 #	<Host "name">
@@ -1125,6 +1159,7 @@
 #	Timeout 0.9
 #	TTL 255
 #	SourceAddress "1.2.3.4"
+#	AddressFamily "any"
 #	Device "eth0"
 #	MaxMissed -1
 #</Plugin>
@@ -1200,11 +1235,13 @@
 #	CollectFileDescriptor true
 #	CollectContextSwitch true
 #	CollectMemoryMaps true
+#	CollectDelayAccounting false
 #	Process "name"
 #	ProcessMatch "name" "regex"
 #	<Process "collectd">
 #		CollectFileDescriptor false
 #		CollectContextSwitch false
+#		CollectDelayAccounting true
 #	</Process>
 #	<ProcessMatch "name" "regex">
 #		CollectFileDescriptor false
@@ -1233,6 +1270,11 @@
 #      Host "redis.example.com"
 #      Port "6379"
 #      Timeout 2000
+#      <Query "LLEN myqueue">
+#        #Database 0
+#        Type "queue_length"
+#        Instance "myqueue"
+#      <Query>
 #   </Node>
 #</Plugin>
 
@@ -1295,21 +1337,31 @@
 
 #<Plugin snmp>
 #   <Data "powerplus_voltge_input">
-#       Type "voltage"
 #       Table false
-#       Instance "input_line1"
+#       Type "voltage"
+#       TypeInstance "input_line1"
 #       Values "SNMPv2-SMI::enterprises.6050.5.4.1.1.2.1"
 #   </Data>
 #   <Data "hr_users">
-#       Type "users"
 #       Table false
-#       Instance ""
+#       Type "users"
+#       TypeInstance ""
 #       Values "HOST-RESOURCES-MIB::hrSystemNumUsers.0"
 #   </Data>
 #   <Data "std_traffic">
-#       Type "if_octets"
 #       Table true
-#       Instance "IF-MIB::ifDescr"
+#       Type "if_octets"
+#       TypeInstanceOID "IF-MIB::ifDescr"
+#       #TypeInstancePrefix "port"
+#       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
+#       #FilterOID "IF-MIB::ifOperStatus"
+#       #FilterValues "1", "2"
+#   </Data>
+#   <Data "interface_traffic">
+#       Table true
+#       Type "if_octets"
+#       Plugin "interface"
+#       PluginInstanceOID "IF-MIB::ifDescr"
 #       Values "IF-MIB::ifInOctets" "IF-MIB::ifOutOctets"
 #   </Data>
 #
@@ -1350,7 +1402,9 @@
 #    IndexOID "IF-MIB::ifIndex"
 #    SizeOID "IF-MIB::ifNumber"
 #    <Data "ifDescr">
-#      Instance true
+#      <IndexKey>
+#        Source "PluginInstance"
+#      </IndexKey>
 #      Plugin "interface"
 #      OIDs "IF-MIB::ifDescr"
 #    </Data>
@@ -1604,6 +1658,7 @@
 #	PluginInstanceFormat name
 #	Instances 1
 #	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin"
+#	PersistentNotification false
 #</Plugin>
 
 #<Plugin vmem>

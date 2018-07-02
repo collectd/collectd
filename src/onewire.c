@@ -86,9 +86,9 @@ static ow_family_features_t ow_family_features[] = {
      /* features_num = */ 1}};
 static int ow_family_features_num = STATIC_ARRAY_SIZE(ow_family_features);
 
-static char *device_g = NULL;
-static cdtime_t ow_interval = 0;
-static _Bool direct_access = 0;
+static char *device_g;
+static cdtime_t ow_interval;
+static bool direct_access;
 
 static const char *config_keys[] = {"Device", "IgnoreSelected", "Sensor",
                                     "Interval"};
@@ -96,7 +96,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *sensor_list;
 
-static _Bool regex_direct_initialized = 0;
+static bool regex_direct_initialized;
 static regex_t regex_direct;
 
 /**
@@ -109,7 +109,7 @@ typedef struct direct_access_element_s {
   struct direct_access_element_s *next; /**< Next in the list */
 } direct_access_element_t;
 
-static direct_access_element_t *direct_list = NULL;
+static direct_access_element_t *direct_list;
 
 /* ===================================================================================
  */
@@ -171,7 +171,7 @@ static int direct_list_insert(const char *config) {
       direct_list_element_free(element);
       return 1;
     }
-    regex_direct_initialized = 1;
+    regex_direct_initialized = true;
     DEBUG("onewire plugin: Compiled regex!!");
   }
 
@@ -246,7 +246,7 @@ static int cow_load_config(const char *key, const char *value) {
       }
     } else {
       DEBUG("onewire plugin: %s is a direct access", value);
-      direct_access = 1;
+      direct_access = true;
     }
   } else if (strcasecmp(key, "IgnoreSelected") == 0) {
     ignorelist_set_invert(sensor_list, 1);

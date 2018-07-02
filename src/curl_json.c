@@ -74,7 +74,7 @@ typedef struct {
  * exists for this part of the JSON structure. */
 typedef struct {
   cj_tree_entry_t *entry;
-  _Bool in_array;
+  bool in_array;
   int index;
   char name[DATA_MAX_NAME_LEN];
 } cj_state_t;
@@ -91,9 +91,9 @@ struct cj_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
@@ -256,7 +256,6 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
   value_t vt;
   int status = parse_value(buffer, &vt, type);
   if (status != 0) {
-    NOTICE("curl_json plugin: Unable to parse number: \"%s\"", buffer);
     cj_advance_array(ctx);
     return CJ_CB_CONTINUE;
   }
@@ -325,7 +324,7 @@ static int cj_cb_start_array(void *ctx) {
     return CJ_CB_ABORT;
   }
   db->depth++;
-  db->state[db->depth].in_array = 1;
+  db->state[db->depth].in_array = true;
   db->state[db->depth].index = 0;
 
   cj_load_key(db, "0");
@@ -335,7 +334,7 @@ static int cj_cb_start_array(void *ctx) {
 
 static int cj_cb_end_array(void *ctx) {
   cj_t *db = (cj_t *)ctx;
-  db->state[db->depth].in_array = 0;
+  db->state[db->depth].in_array = false;
   return cj_cb_end(ctx);
 }
 

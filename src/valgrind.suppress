@@ -1,0 +1,7 @@
+{
+   libnl1_virt_initialization_unpreventable_leak
+   Memcheck:Leak
+   ...
+   obj:*libnl.so.1.*
+   ...
+}

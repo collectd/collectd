@@ -39,9 +39,9 @@ static int log_level = LOG_INFO;
 
 static pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static char *log_file = NULL;
+static char *log_file;
 static int print_timestamp = 1;
-static int print_severity = 0;
+static int print_severity;
 
 static const char *config_keys[] = {"LogLevel", "File", "Timestamp",
                                     "PrintSeverity"};
@@ -77,7 +77,7 @@ static int logfile_config(const char *key, const char *value) {
 static void logfile_print(const char *msg, int severity,
                           cdtime_t timestamp_time) {
   FILE *fh;
-  _Bool do_close = 0;
+  bool do_close = false;
   char timestamp_str[64];
   char level_str[16] = "";
 
@@ -122,7 +122,7 @@ static void logfile_print(const char *msg, int severity,
     fh = stdout;
   else {
     fh = fopen(log_file, "a");
-    do_close = 1;
+    do_close = true;
   }
 
   if (fh == NULL) {

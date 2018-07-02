@@ -151,7 +151,7 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     i++;
 
   /* Print the response */
-  print_to_socket(fh, "%zu Threshold found\n", i);
+  print_to_socket(fh, "%" PRIsz " Threshold found\n", i);
 
   if (threshold.host[0] != 0)
     print_to_socket(fh, "Host: %s\n", threshold.host);

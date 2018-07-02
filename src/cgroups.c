@@ -31,7 +31,7 @@
 static char const *config_keys[] = {"CGroup", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *il_cgroup = NULL;
+static ignorelist_t *il_cgroup;
 
 __attribute__((nonnull(1))) __attribute__((nonnull(2))) static void
 cgroups_submit_one(char const *plugin_instance, char const *type_instance,
@@ -181,7 +181,7 @@ static int cgroups_config(const char *key, const char *value) {
 
 static int cgroups_read(void) {
   cu_mount_t *mnt_list = NULL;
-  _Bool cgroup_found = 0;
+  bool cgroup_found = false;
 
   if (cu_mount_getlist(&mnt_list) == NULL) {
     ERROR("cgroups plugin: cu_mount_getlist failed.");
@@ -199,7 +199,7 @@ static int cgroups_read(void) {
     walk_directory(mnt_ptr->dir, read_cpuacct_root,
                    /* user_data = */ NULL,
                    /* include_hidden = */ 0);
-    cgroup_found = 1;
+    cgroup_found = true;
     /* It doesn't make sense to check other cpuacct mount-points
      * (if any), they contain the same data. */
     break;
