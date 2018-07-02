@@ -157,7 +157,7 @@ build_cygwin()
     cp "${MINGW_ROOT}/bin/libwinpthread-1.dll" "${INSTALL_DIR}"
     cp "${MINGW_ROOT}/bin/libdl.dll" "${INSTALL_DIR}"
 
-    echo "Done"
+    echo "Done."
 }
 
 os_name="$(uname)"
