@@ -80,9 +80,8 @@ void tail_match_destroy(cu_tail_match_t *obj);
  *   When `tail_match_destroy' is called the `user_data' pointer is freed using
  *   the `free_user_data' callback - if it is not NULL.
  *   When using this interface the `tail_match' module doesn't dispatch any
- * values
- *   itself - all that has to happen in either the match-callbacks or the
- *   submit_match callback.
+ *   values itself - all that has to happen in either the match-callbacks or
+ *   the submit_match callback.
  *
  * RETURN VALUE
  *   Zero upon success, non-zero otherwise.
