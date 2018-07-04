@@ -292,10 +292,10 @@ static int register_callback(llist_t **list, /* {{{ */
     old_cf = le->value;
     le->value = cf;
 
-    WARNING("plugin: register_callback: "
-            "a callback named `%s' already exists - "
-            "overwriting the old entry!",
-            name);
+    P_WARNING("register_callback: "
+              "a callback named `%s' already exists - "
+              "overwriting the old entry!",
+              name);
 
     destroy_callback(old_cf);
     sfree(key);
@@ -315,7 +315,7 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
 
   n = llist_size(*list);
   if (n == 0) {
-    INFO("%s [none]", comment);
+    INFO("%s: [none]", comment);
     return;
   }
 
@@ -1097,9 +1097,9 @@ static int plugin_insert_read(read_func_t *rf) {
   le = llist_search(read_list, rf->rf_name);
   if (le != NULL) {
     pthread_mutex_unlock(&read_lock);
-    WARNING("The read function \"%s\" is already registered. "
-            "Check for duplicates in your configuration!",
-            rf->rf_name);
+    P_WARNING("The read function \"%s\" is already registered. "
+              "Check for duplicates in your configuration!",
+              rf->rf_name);
     return EINVAL;
   }
 
@@ -2283,7 +2283,7 @@ const data_set_t *plugin_get_ds(const char *name) {
   data_set_t *ds;
 
   if (data_sets == NULL) {
-    ERROR("plugin_get_ds: No data sets are defined yet.");
+    P_ERROR("plugin_get_ds: No data sets are defined yet.");
     return NULL;
   }
 
@@ -2514,7 +2514,7 @@ cdtime_t plugin_get_interval(void) {
   if (interval > 0)
     return interval;
 
-  ERROR("plugin_get_interval: Unable to determine interval from context.");
+  P_ERROR("plugin_get_interval: Unable to determine Interval from context.");
 
   return cf_get_default_interval();
 } /* cdtime_t plugin_get_interval */
