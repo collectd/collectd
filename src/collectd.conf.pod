@@ -9284,6 +9284,7 @@ Synopsis:
      Protocol "tcp"
      LogSendErrors true
      Prefix "collectd"
+     UseTags false
    </Node>
  </Plugin>
 
@@ -9321,13 +9322,20 @@ approach and logging errors fills syslog with unneeded messages.
 
 =item B<Prefix> I<String>
 
-When set, I<String> is added in front of the host name. Dots and whitespace are
-I<not> escaped in this string (see B<EscapeCharacter> below).
+When B<UseTags> is I<false>, B<Prefix> value is added in front of the host name.
+When B<UseTags> is I<true>, B<Prefix> value is added in front of series name.
+
+Dots and whitespace are I<not> escaped in this string (see B<EscapeCharacter>
+below).
 
 =item B<Postfix> I<String>
 
-When set, I<String> is appended to the host name. Dots and whitespace are
-I<not> escaped in this string (see B<EscapeCharacter> below).
+When B<UseTags> is I<false>, B<Postfix> value appended to the host name.
+When B<UseTags> is I<true>, B<Postgix> value appended to the end of series name
+(before the first ; that separates the name from the tags).
+
+Dots and whitespace are I<not> escaped in this string (see B<EscapeCharacter>
+below).
 
 =item B<EscapeCharacter> I<Char>
 
@@ -9349,6 +9357,8 @@ path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
 default), the plugin and plugin instance (and likewise the type and type
 instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 
+Option value is not used when B<UseTags> is I<true>.
+
 =item B<AlwaysAppendDS> B<false>|B<true>
 
 If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
@@ -9361,11 +9371,30 @@ If set to B<false> (the default) the C<.> (dot) character is replaced with
 I<EscapeCharacter>. Otherwise, if set to B<true>, the C<.> (dot) character
 is preserved, i.e. passed through.
 
+Option value is not used when B<UseTags> is I<true>.
+
 =item B<DropDuplicateFields> B<false>|B<true>
 
 If set to B<true>, detect and remove duplicate components in Graphite metric
 names. For example, the metric name  C<host.load.load.shortterm> will
 be shortened to C<host.load.shortterm>.
+
+=item B<UseTags> B<false>|B<true>
+
+If set to B<true>, Graphite metric names will be generated as tagged series.
+This allows for much more flexibility than the traditional hierarchical layout.
+
+Example:
+C<test.single;host=example.com;plugin=test;plugin_instance=foo;type=single;type_instance=bar>
+
+You can use B<Postfix> option to add more tags by specifying it like
+C<;tag1=value1;tag2=value2>. Note what tagging support was added since Graphite
+version 1.1.x.
+
+If set to B<true>, the B<SeparateInstances> and B<PreserveSeparator> settings
+are not used.
+
+Default value: B<false>.
 
 =back
 
