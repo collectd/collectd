@@ -57,10 +57,7 @@ struct cu_tail_match_match_s {
 typedef struct cu_tail_match_match_s cu_tail_match_match_t;
 
 struct cu_tail_match_s {
-  int flags;
   cu_tail_t *tail;
-
-  cdtime_t interval;
   cu_tail_match_match_t *matches;
   size_t matches_num;
 };
