@@ -9821,16 +9821,25 @@ been set to B<JSON>.
 =item B<GraphitePrefix> (B<Format>=I<Graphite> only)
 
 A prefix can be added in the metric name when outputting in the I<Graphite>
-format. It's added before the I<Host> name.
+format.
+
+When B<GraphiteUseTags> is I<false>, prefix is added before the I<Host> name.
 Metric name will be
 C<E<lt>prefixE<gt>E<lt>hostE<gt>E<lt>postfixE<gt>E<lt>pluginE<gt>E<lt>typeE<gt>E<lt>nameE<gt>>
+
+When B<GraphiteUseTags> is I<true>, prefix is added in front of series name.
 
 =item B<GraphitePostfix> (B<Format>=I<Graphite> only)
 
 A postfix can be added in the metric name when outputting in the I<Graphite>
-format. It's added after the I<Host> name.
+format.
+
+When B<GraphiteUseTags> is I<false>, postfix is added after the I<Host> name.
 Metric name will be
 C<E<lt>prefixE<gt>E<lt>hostE<gt>E<lt>postfixE<gt>E<lt>pluginE<gt>E<lt>typeE<gt>E<lt>nameE<gt>>
+
+When B<GraphiteUseTags> is I<true>, prefix value appended to the end of series
+name (before the first ; that separates the name from the tags).
 
 =item B<GraphiteEscapeChar> (B<Format>=I<Graphite> only)
 
@@ -9846,6 +9855,8 @@ path component, for example C<host.cpu.0.cpu.idle>. If set to B<false> (the
 default), the plugin and plugin instance (and likewise the type and type
 instance) are put into one component, for example C<host.cpu-0.cpu-idle>.
 
+Option value is not used when B<GraphiteUseTags> is I<true>.
+
 =item B<GraphiteAlwaysAppendDS> B<true>|B<false>
 
 If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
@@ -9857,6 +9868,14 @@ more than one DS.
 If set to B<false> (the default) the C<.> (dot) character is replaced with
 I<GraphiteEscapeChar>. Otherwise, if set to B<true>, the C<.> (dot) character
 is preserved, i.e. passed through.
+
+Option value is not used when B<GraphiteUseTags> is I<true>.
+
+=item B<GraphiteUseTags> B<false>|B<true>
+
+If set to B<true> Graphite metric names will be generated as tagged series.
+
+Default value: B<false>.
 
 =item B<StoreRates> B<true>|B<false>
 
