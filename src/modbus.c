@@ -129,7 +129,6 @@ struct mb_host_s /* {{{ */
   int port;     /* for Modbus/TCP */
   int baudrate; /* for Modbus/RTU */
   mb_conntype_t conntype;
-  cdtime_t interval;
 
   mb_slave_t *slaves;
   size_t slaves_num;
@@ -252,15 +251,11 @@ static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
   if ((host == NULL) || (slave == NULL) || (data == NULL))
     return EINVAL;
 
-  if (host->interval == 0)
-    host->interval = plugin_get_interval();
-
   if (slave->instance[0] == 0)
     snprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
 
   vl.values = &value;
   vl.values_len = 1;
-  vl.interval = host->interval;
   sstrncpy(vl.host, host->host, sizeof(vl.host));
   sstrncpy(vl.plugin, "modbus", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, slave->instance, sizeof(vl.plugin_instance));
@@ -952,6 +947,7 @@ static int mb_config_add_slave(mb_host_t *host, oconfig_item_t *ci) /* {{{ */
 
 static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
 {
+  cdtime_t interval = 0;
   mb_host_t *host;
   int status;
 
@@ -992,7 +988,7 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("Baudrate", child->key) == 0)
       status = cf_util_get_int(child, &host->baudrate);
     else if (strcasecmp("Interval", child->key) == 0)
-      status = cf_util_get_cdtime(child, &host->interval);
+      status = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("Slave", child->key) == 0)
       /* Don't set status: Gracefully continue if a slave fails. */
       mb_config_add_slave(host, child);
@@ -1033,7 +1029,7 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
 
     plugin_register_complex_read(/* group = */ NULL, name,
                                  /* callback = */ mb_read,
-                                 /* interval = */ host->interval,
+                                 /* interval = */ interval,
                                  &(user_data_t){
                                      .data = host, .free_func = host_free,
                                  });

@@ -43,7 +43,6 @@ struct cu_tail_match_simple_s {
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
-  cdtime_t interval;
   latency_config_t latency_config;
 };
 typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
@@ -89,7 +88,6 @@ static int simple_submit_match(cu_match_t *match, void *user_data) {
   sstrncpy(vl.type, data->type, sizeof(vl.type));
   sstrncpy(vl.type_instance, data->type_instance, sizeof(vl.type_instance));
 
-  vl.interval = data->interval;
   plugin_dispatch_values(&vl);
 
   match_value_reset(match_value);
@@ -108,7 +106,6 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
   sstrncpy(vl.plugin, data->plugin, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, data->plugin_instance,
            sizeof(vl.plugin_instance));
-  vl.interval = data->interval;
   vl.time = cdtime();
 
   /* Submit percentiles */
@@ -245,8 +242,6 @@ int tail_match_add_match(cu_tail_match_t *obj, cu_match_t *match,
   obj->matches = temp;
   obj->matches_num++;
 
-  DEBUG("tail_match_add_match interval %lf",
-        CDTIME_T_TO_DOUBLE(((cu_tail_match_simple_t *)user_data)->interval));
   temp = obj->matches + (obj->matches_num - 1);
 
   temp->match = match;
@@ -261,8 +256,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
                                 const char *excluderegex, int ds_type,
                                 const char *plugin, const char *plugin_instance,
                                 const char *type, const char *type_instance,
-                                const latency_config_t latency_cfg,
-                                const cdtime_t interval) {
+                                const latency_config_t latency_cfg) {
   cu_match_t *match;
   cu_tail_match_simple_t *user_data;
   int status;
@@ -286,8 +280,6 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
   if (type_instance != NULL)
     sstrncpy(user_data->type_instance, type_instance,
              sizeof(user_data->type_instance));
-
-  user_data->interval = interval;
 
   if ((ds_type & UTILS_MATCH_DS_TYPE_GAUGE) &&
       (ds_type & UTILS_MATCH_CF_GAUGE_DIST)) {

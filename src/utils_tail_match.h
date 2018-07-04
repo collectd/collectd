@@ -115,8 +115,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
                                 const char *excluderegex, int ds_type,
                                 const char *plugin, const char *plugin_instance,
                                 const char *type, const char *type_instance,
-                                const latency_config_t latency_cfg,
-                                const cdtime_t interval);
+                                const latency_config_t latency_cfg);
 
 /*
  * NAME

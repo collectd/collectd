@@ -97,7 +97,6 @@ struct cj_s /* {{{ */
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
-  cdtime_t interval;
   int timeout;
   curl_stats_t *stats;
 
@@ -623,9 +622,6 @@ static int cj_init_curl(cj_t *db) /* {{{ */
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
   if (db->timeout >= 0)
     curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS, (long)db->timeout);
-  else if (db->interval > 0)
-    curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS,
-                     (long)CDTIME_T_TO_MS(db->interval));
   else
     curl_easy_setopt(db->curl, CURLOPT_TIMEOUT_MS,
                      (long)CDTIME_T_TO_MS(plugin_get_interval()));
@@ -638,6 +634,7 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
 {
   cj_t *db;
   int status = 0;
+  cdtime_t interval = 0;
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("curl_json plugin: The `URL' block "
@@ -698,7 +695,7 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Key", child->key) == 0)
       status = cj_config_add_key(db, child);
     else if (strcasecmp("Interval", child->key) == 0)
-      status = cf_util_get_cdtime(child, &db->interval);
+      status = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("Timeout", child->key) == 0)
       status = cf_util_get_int(child, &db->timeout);
     else if (strcasecmp("Statistics", child->key) == 0) {
@@ -736,8 +733,7 @@ static int cj_config_add_url(oconfig_item_t *ci) /* {{{ */
     cb_name = ssnprintf_alloc("curl_json-%s-%s", db->instance,
                               db->url ? db->url : db->sock);
 
-    plugin_register_complex_read(/* group = */ NULL, cb_name, cj_read,
-                                 /* interval = */ db->interval,
+    plugin_register_complex_read(/* group = */ NULL, cb_name, cj_read, interval,
                                  &(user_data_t){
                                      .data = db, .free_func = cj_free,
                                  });
@@ -814,9 +810,6 @@ static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
            sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, db->instance, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, key->type, sizeof(vl.type));
-
-  if (db->interval > 0)
-    vl.interval = db->interval;
 
   plugin_dispatch_values(&vl);
 } /* }}} int cj_submit_impl */
