@@ -97,14 +97,13 @@ int tail_match_add_match(cu_tail_match_t *obj, cu_match_t *match,
  *  tail_match_add_match_simple
  *
  * DESCRIPTION
- *  A simplified version of `tail_match_add_match'. The regular expressen
- * `regex'
- *  must match a number, which is then dispatched according to `ds_type'. See
- *  the `match_create_simple' function in utils_match.h for a description how
- *  this flag effects calculation of a new value.
+ *  A simplified version of `tail_match_add_match'. The regular expression
+ *  `regex' must match a number, which is then dispatched according to
+ * `ds_type'.
+ *  See the `match_create_simple' function in utils_match.h for a description
+ *  how this flag effects calculation of a new value.
  *  The values gathered are dispatched by the tail_match module in this case.
- * The
- *  passed `plugin', `plugin_instance', `type', and `type_instance' are
+ *  The passed `plugin', `plugin_instance', `type', and `type_instance' are
  *  directly used when submitting these values.
  *  With excluderegex it is possible to exlude lines from the match.
  *  The `latency_cfg' specifies configuration for submitting latency.
@@ -129,8 +128,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
  *   added `utils_match' objects.
  *   After all lines have been read and processed, the submit_match callback is
  *   called or, in case of tail_match_add_match_simple, the data is dispatched
- * to
- *   the daemon directly.
+ *   to the daemon directly.
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.
