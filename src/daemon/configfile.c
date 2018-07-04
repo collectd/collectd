@@ -381,6 +381,7 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
 
     /* default to the global interval set before loading this plugin */
     ctx.interval = cf_get_default_interval();
+    ctx.name = strdup(name);
 
     old_ctx = plugin_set_ctx(ctx);
     status = plugin_load(name, /* flags = */ false);
