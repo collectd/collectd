@@ -713,25 +713,8 @@ plugin_value_list_clone(value_list_t const *vl_orig) /* {{{ */
     vl->time = cdtime();
 
   /* Fill in the interval from the thread context, if it is zero. */
-  if (vl->interval == 0) {
-    plugin_ctx_t ctx = plugin_get_ctx();
-
-    if (ctx.interval != 0)
-      vl->interval = ctx.interval;
-    else {
-      char name[6 * DATA_MAX_NAME_LEN];
-      FORMAT_VL(name, sizeof(name), vl);
-      ERROR("plugin_value_list_clone: Unable to determine "
-            "interval from context for "
-            "value list \"%s\". "
-            "This indicates a broken plugin. "
-            "Please report this problem to the "
-            "collectd mailing list or at "
-            "<http://collectd.org/bugs/>.",
-            name);
-      vl->interval = cf_get_default_interval();
-    }
-  }
+  if (vl->interval == 0)
+    vl->interval = plugin_get_interval();
 
   return vl;
 } /* }}} value_list_t *plugin_value_list_clone */
@@ -2530,6 +2513,8 @@ cdtime_t plugin_get_interval(void) {
   interval = plugin_get_ctx().interval;
   if (interval > 0)
     return interval;
+
+  ERROR("plugin_get_interval: Unable to determine interval from context.");
 
   return cf_get_default_interval();
 } /* cdtime_t plugin_get_interval */
