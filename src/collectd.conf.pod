@@ -2104,6 +2104,11 @@ Use I<Instance> as the plugin instance when submitting values.
 May be overridden by B<PluginInstanceFrom> option inside B<XPath> blocks.
 Defaults to an empty string (no plugin instance).
 
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+URL. By default the global B<Interval> setting will be used.
+
 =item B<Namespace> I<Prefix> I<URL>
 
 If an XPath expression references namespaces, they must be specified
