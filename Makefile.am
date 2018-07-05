@@ -1381,6 +1381,24 @@ ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
+if BUILD_PLUGIN_PCIE_ERRORS
+pkglib_LTLIBRARIES += pcie_errors.la
+pcie_errors_la_SOURCES = src/pcie_errors.c
+pcie_errors_la_CPPFLAGS = $(AM_CPPFLAGS)
+pcie_errors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_pcie_errors_SOURCES = \
+	src/pcie_errors_test.c \
+	src/daemon/utils_llist.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_pcie_errors_LDADD = liboconfig.la libplugin_mock.la
+check_PROGRAMS += test_plugin_pcie_errors
+TESTS += test_plugin_pcie_errors
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = src/perl.c

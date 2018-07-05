@@ -550,6 +550,12 @@ if test "x$ac_system" = "xLinux"; then
     AC_DEFINE([HAVE_CAPABILITY], [1], [Define to 1 if you have cap_get_proc() (-lcap).])
   fi
 
+  # For pcie_errors plugin
+  AC_CHECK_HEADERS([linux/pci_regs.h],
+    [have_pci_regs_h="yes"],
+    [have_pci_regs_h="no (linux/pci_regs.h not found)"]
+  )
+
 else
   have_linux_raid_md_u_h="no"
   have_linux_wireless_h="no"
@@ -6288,6 +6294,7 @@ plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
 plugin_ovs_stats="no"
+plugin_pcie_errors="no"
 plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
@@ -6365,6 +6372,10 @@ if test "x$ac_system" = "xLinux"; then
   if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
     plugin_ovs_events="yes"
     plugin_ovs_stats="yes"
+  fi
+
+  if test "x$have_pci_regs_h" = "xyes"; then
+    plugin_pcie_errors="yes"
   fi
 fi
 
@@ -6743,6 +6754,7 @@ AC_PLUGIN([openvpn],             [yes],                     [OpenVPN client stat
 AC_PLUGIN([oracle],              [$with_oracle],            [Oracle plugin])
 AC_PLUGIN([ovs_events],          [$plugin_ovs_events],      [OVS events plugin])
 AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],       [OVS statistics plugin])
+AC_PLUGIN([pcie_errors],         [$plugin_pcie_errors],     [PCIe errors plugin])
 AC_PLUGIN([perl],                [$plugin_perl],            [Embed a Perl interpreter])
 AC_PLUGIN([pf],                  [$have_net_pfvar_h],       [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
@@ -7164,6 +7176,7 @@ AC_MSG_RESULT([    openvpn . . . . . . . $enable_openvpn])
 AC_MSG_RESULT([    oracle  . . . . . . . $enable_oracle])
 AC_MSG_RESULT([    ovs_events  . . . . . $enable_ovs_events])
 AC_MSG_RESULT([    ovs_stats . . . . . . $enable_ovs_stats])
+AC_MSG_RESULT([    pcie_errors . . . . . $enable_pcie_errors])
 AC_MSG_RESULT([    perl  . . . . . . . . $enable_perl])
 AC_MSG_RESULT([    pf  . . . . . . . . . $enable_pf])
 AC_MSG_RESULT([    pinba . . . . . . . . $enable_pinba])
