@@ -31,6 +31,7 @@
 #define GRAPHITE_ALWAYS_APPEND_DS 0x04
 #define GRAPHITE_DROP_DUPE_FIELDS 0x08
 #define GRAPHITE_PRESERVE_SEPARATOR 0x10
+#define GRAPHITE_USE_TAGS 0x20
 
 int format_graphite(char *buffer, size_t buffer_size, const data_set_t *ds,
                     const value_list_t *vl, const char *prefix,
