@@ -84,8 +84,6 @@ struct udb_query_preparation_area_s /* {{{ */
   char *plugin;
   char *db_name;
 
-  cdtime_t interval;
-
   udb_result_preparation_area_t *result_prep_areas;
 }; /* }}} */
 
@@ -187,9 +185,6 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
       return -1;
     }
   }
-
-  if (q_area->interval > 0)
-    vl.interval = q_area->interval;
 
   sstrncpy(vl.host, q_area->host, sizeof(vl.host));
   sstrncpy(vl.plugin, q_area->plugin, sizeof(vl.plugin));
@@ -835,8 +830,6 @@ void udb_query_finish_result(udb_query_t const *q, /* {{{ */
   sfree(prep_area->plugin);
   sfree(prep_area->db_name);
 
-  prep_area->interval = 0;
-
   for (r = q->results, r_area = prep_area->result_prep_areas; r != NULL;
        r = r->next, r_area = r_area->next) {
     /* this may happen during error conditions of the caller */
@@ -897,7 +890,7 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
                              udb_query_preparation_area_t *prep_area,
                              const char *host, const char *plugin,
                              const char *db_name, char **column_names,
-                             size_t column_num, cdtime_t interval) {
+                             size_t column_num) {
   udb_result_preparation_area_t *r_area;
   udb_result_t *r;
   int status;
@@ -910,15 +903,12 @@ int udb_query_prepare_result(udb_query_t const *q, /* {{{ */
   assert(prep_area->host == NULL);
   assert(prep_area->plugin == NULL);
   assert(prep_area->db_name == NULL);
-  assert(prep_area->interval == 0);
 #endif
 
   prep_area->column_num = column_num;
   prep_area->host = strdup(host);
   prep_area->plugin = strdup(plugin);
   prep_area->db_name = strdup(db_name);
-
-  prep_area->interval = interval;
 
   if ((prep_area->host == NULL) || (prep_area->plugin == NULL) ||
       (prep_area->db_name == NULL)) {

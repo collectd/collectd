@@ -1908,6 +1908,11 @@ plugin below on how matches are defined. If the B<MeasureResponseTime> or
 B<MeasureResponseCode> options are set to B<true>, B<Match> blocks are
 optional.
 
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+URL. By default the global B<Interval> setting will be used.
+
 =item B<Timeout> I<Milliseconds>
 
 The B<Timeout> option sets the overall timeout for HTTP requests to B<URL>, in
@@ -2103,6 +2108,11 @@ Defaults to 'curl_xml'.
 Use I<Instance> as the plugin instance when submitting values.
 May be overridden by B<PluginInstanceFrom> option inside B<XPath> blocks.
 Defaults to an empty string (no plugin instance).
+
+=item B<Interval> I<Interval>
+
+Sets the interval (in seconds) in which the values will be collected from this
+URL. By default the global B<Interval> setting will be used.
 
 =item B<Namespace> I<Prefix> I<URL>
 

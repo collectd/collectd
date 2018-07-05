@@ -64,8 +64,6 @@ struct cdbi_database_s /* {{{ */
   char *select_db;
   char *plugin_name;
 
-  cdtime_t interval;
-
   char *driver;
   char *host;
   cdbi_driver_option_t *driver_options;
@@ -267,6 +265,7 @@ static int cdbi_config_add_database_driver_option(cdbi_database_t *db, /* {{{ */
 
 static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
 {
+  cdtime_t interval = 0;
   cdbi_database_t *db;
   int status;
 
@@ -304,7 +303,7 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Host", child->key) == 0)
       status = cf_util_get_string(child, &db->host);
     else if (strcasecmp("Interval", child->key) == 0)
-      status = cf_util_get_cdtime(child, &db->interval);
+      status = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &db->plugin_name);
     else {
@@ -370,7 +369,7 @@ static int cdbi_config_add_database(oconfig_item_t *ci) /* {{{ */
           /* group = */ NULL,
           /* name = */ name ? name : db->name,
           /* callback = */ cdbi_read_database,
-          /* interval = */ (db->interval > 0) ? db->interval : 0,
+          /* interval = */ interval,
           &(user_data_t){
               .data = db,
           });
@@ -550,8 +549,7 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
   status = udb_query_prepare_result(
       q, prep_area, (db->host ? db->host : hostname_g),
       /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "dbi",
-      db->name, column_names, column_num,
-      /* interval = */ (db->interval > 0) ? db->interval : 0);
+      db->name, column_names, column_num);
 
   if (status != 0) {
     ERROR("dbi plugin: udb_query_prepare_result failed with status %i.",

@@ -292,10 +292,10 @@ static int register_callback(llist_t **list, /* {{{ */
     old_cf = le->value;
     le->value = cf;
 
-    WARNING("plugin: register_callback: "
-            "a callback named `%s' already exists - "
-            "overwriting the old entry!",
-            name);
+    P_WARNING("register_callback: "
+              "a callback named `%s' already exists - "
+              "overwriting the old entry!",
+              name);
 
     destroy_callback(old_cf);
     sfree(key);
@@ -315,7 +315,7 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
 
   n = llist_size(*list);
   if (n == 0) {
-    INFO("%s [none]", comment);
+    INFO("%s: [none]", comment);
     return;
   }
 
@@ -713,25 +713,8 @@ plugin_value_list_clone(value_list_t const *vl_orig) /* {{{ */
     vl->time = cdtime();
 
   /* Fill in the interval from the thread context, if it is zero. */
-  if (vl->interval == 0) {
-    plugin_ctx_t ctx = plugin_get_ctx();
-
-    if (ctx.interval != 0)
-      vl->interval = ctx.interval;
-    else {
-      char name[6 * DATA_MAX_NAME_LEN];
-      FORMAT_VL(name, sizeof(name), vl);
-      ERROR("plugin_value_list_clone: Unable to determine "
-            "interval from context for "
-            "value list \"%s\". "
-            "This indicates a broken plugin. "
-            "Please report this problem to the "
-            "collectd mailing list or at "
-            "<http://collectd.org/bugs/>.",
-            name);
-      vl->interval = cf_get_default_interval();
-    }
-  }
+  if (vl->interval == 0)
+    vl->interval = plugin_get_interval();
 
   return vl;
 } /* }}} value_list_t *plugin_value_list_clone */
@@ -1114,9 +1097,9 @@ static int plugin_insert_read(read_func_t *rf) {
   le = llist_search(read_list, rf->rf_name);
   if (le != NULL) {
     pthread_mutex_unlock(&read_lock);
-    WARNING("The read function \"%s\" is already registered. "
-            "Check for duplicates in your configuration!",
-            rf->rf_name);
+    P_WARNING("The read function \"%s\" is already registered. "
+              "Check for duplicates in your configuration!",
+              rf->rf_name);
     return EINVAL;
   }
 
@@ -1162,6 +1145,7 @@ int plugin_register_read(const char *name, int (*callback)(void)) {
   rf->rf_name = strdup(name);
   rf->rf_type = RF_SIMPLE;
   rf->rf_interval = plugin_get_interval();
+  rf->rf_ctx.interval = rf->rf_interval;
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -1203,6 +1187,7 @@ int plugin_register_complex_read(const char *group, const char *name,
   }
 
   rf->rf_ctx = plugin_get_ctx();
+  rf->rf_ctx.interval = rf->rf_interval;
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -2298,7 +2283,7 @@ const data_set_t *plugin_get_ds(const char *name) {
   data_set_t *ds;
 
   if (data_sets == NULL) {
-    ERROR("plugin_get_ds: No data sets are defined yet.");
+    P_ERROR("plugin_get_ds: No data sets are defined yet.");
     return NULL;
   }
 
@@ -2528,6 +2513,8 @@ cdtime_t plugin_get_interval(void) {
   interval = plugin_get_ctx().interval;
   if (interval > 0)
     return interval;
+
+  P_ERROR("plugin_get_interval: Unable to determine Interval from context.");
 
   return cf_get_default_interval();
 } /* cdtime_t plugin_get_interval */
