@@ -1429,7 +1429,7 @@ static int turbostat_read(void) {
   /* Saving the scheduling affinity, as it will be modified by get_counters */
   if (sched_getaffinity(0, cpu_saved_affinity_setsize,
                         cpu_saved_affinity_set) != 0) {
-    ERROR("turbostat plugin: Unable to save the CPU affinity");
+    ERROR("turbostat plugin: Unable to save the CPU affinity: %s", STRERRNO);
     return -1;
   }
 
