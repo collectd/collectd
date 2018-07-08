@@ -393,7 +393,27 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
       status = -1;
     }
 
-    if (!router_data->collect_interface && !router_data->collect_regtable) {
+    int report = 0;
+    if (router_data->collect_interface)
+      report++;
+    if (router_data->collect_regtable)
+      report++;
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 0)
+    if (router_data->collect_cpu_load)
+      report++;
+    if (router_data->collect_memory)
+      report++;
+    if (router_data->collect_df)
+      report++;
+    if (router_data->collect_disk)
+      report++;
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 3)
+    if (router_data->collect_health)
+      report++;
+#endif
+#endif
+
+    if (!report) {
       ERROR("routeros plugin: No `Collect*' option within a `Router' block. "
             "What statistics should I collect?");
       status = -1;
