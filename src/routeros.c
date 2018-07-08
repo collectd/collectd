@@ -206,7 +206,7 @@ static int handle_system_resource(__attribute__((unused))
   }
 
   if (rd->collect_disk) {
-    cr_submit_counter(rd, "counter", "secors_written",
+    cr_submit_counter(rd, "counter", "sectors_written",
                       (derive_t)r->write_sect_total);
     cr_submit_gauge(rd, "gauge", "bad_blocks", (gauge_t)r->bad_blocks);
   }
