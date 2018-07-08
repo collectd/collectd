@@ -225,8 +225,8 @@ static int handle_system_health(__attribute__((unused))
     return (EINVAL);
   rd = user_data;
 
-  cr_submit_gauge(rd, "gauge", "voltage", (gauge_t)r->voltage);
-  cr_submit_gauge(rd, "gauge", "temperature", (gauge_t)r->temperature);
+  cr_submit_gauge(rd, "voltage", "system", (gauge_t)r->voltage);
+  cr_submit_gauge(rd, "temperature", "system", (gauge_t)r->temperature);
 
   return (0);
 } /* }}} int handle_system_health */
