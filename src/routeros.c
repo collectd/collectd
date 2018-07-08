@@ -214,6 +214,7 @@ static int handle_system_resource(__attribute__((unused))
   return 0;
 } /* }}} int handle_system_resource */
 
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 3)
 static int handle_system_health(__attribute__((unused))
                                 ros_connection_t *c, /* {{{ */
                                 const ros_system_health_t *r,
@@ -229,6 +230,7 @@ static int handle_system_health(__attribute__((unused))
 
   return (0);
 } /* }}} int handle_system_health */
+#endif
 #endif
 
 static int cr_read(user_data_t *user_data) /* {{{ */
@@ -290,6 +292,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     }
   }
 
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 3)
   if (rd->collect_health) {
     status = ros_system_health(rd->connection, handle_system_health,
                                /* user data = */ rd);
@@ -302,6 +305,7 @@ static int cr_read(user_data_t *user_data) /* {{{ */
       return (-1);
     }
   }
+#endif
 #endif
 
   return 0;
@@ -363,8 +367,10 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &router_data->collect_df);
     else if (strcasecmp("CollectDisk", child->key) == 0)
       cf_util_get_boolean(child, &router_data->collect_disk);
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 3)
     else if (strcasecmp("CollectHealth", child->key) == 0)
       cf_util_get_boolean(child, &router_data->collect_health);
+#endif
 #endif
     else {
       WARNING("routeros plugin: Unknown config option `%s'.", child->key);
