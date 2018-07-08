@@ -219,16 +219,16 @@ static int handle_system_health(__attribute__((unused))
                                 ros_connection_t *c, /* {{{ */
                                 const ros_system_health_t *r,
                                 __attribute__((unused)) void *user_data) {
-  cr_data_t *rd;
 
   if ((r == NULL) || (user_data == NULL))
-    return (EINVAL);
-  rd = user_data;
+    return EINVAL;
+
+  cr_data_t *rd = user_data;
 
   cr_submit_gauge(rd, "voltage", "system", (gauge_t)r->voltage);
   cr_submit_gauge(rd, "temperature", "system", (gauge_t)r->temperature);
 
-  return (0);
+  return 0;
 } /* }}} int handle_system_health */
 #endif
 #endif
@@ -297,12 +297,10 @@ static int cr_read(user_data_t *user_data) /* {{{ */
     status = ros_system_health(rd->connection, handle_system_health,
                                /* user data = */ rd);
     if (status != 0) {
-      char errbuf[128];
-      ERROR("routeros plugin: ros_system_health failed: %s",
-            sstrerror(status, errbuf, sizeof(errbuf)));
+      ERROR("routeros plugin: ros_system_health failed: %s", STRERROR(status));
       ros_disconnect(rd->connection);
       rd->connection = NULL;
-      return (-1);
+      return -1;
     }
   }
 #endif
