@@ -1297,6 +1297,7 @@
 #		CollectMemory true
 #		CollectDF true
 #		CollectDisk true
+#		CollectHealth true
 #	</Router>
 #</Plugin>
 
