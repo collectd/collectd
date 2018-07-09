@@ -141,9 +141,17 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   if (r == NULL)
     return;
 
+  const char *name = r->radio_name;
+#if ROS_VERSION >= ROS_VERSION_ENCODE(1, 1, 3)
+  if (name == NULL)
+    name = r->mac_address;
+#endif
+  if (name == NULL)
+    name = "default";
+
   /*** RX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
-           r->radio_name ? r->radio_name : "default");
+           name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -152,7 +160,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
 
   /*** TX ***/
   snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
-           r->radio_name ? r->radio_name : "default");
+           name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -160,8 +168,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->tx_ccq);
 
   /*** RX / TX ***/
-  snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface,
-           r->radio_name ? r->radio_name : "default");
+  snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface, name);
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
   cr_submit_gauge(rd, "snr", type_instance, (gauge_t)r->signal_to_noise);
