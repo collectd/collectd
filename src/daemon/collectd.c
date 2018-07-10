@@ -466,7 +466,7 @@ void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
     int c;
-    c = getopt(argc, argv, "htTC:"
+    c = getopt(argc, argv, "BhtTC:"
 #if COLLECT_DAEMON
                            "fP:"
 #endif
