@@ -557,19 +557,20 @@ size_t uc_get_size(void) {
   return size_arrays;
 }
 
-int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
+int uc_get_names(char ***ret_names, cdtime_t **ret_times, int **ret_states, size_t *ret_number) {
   c_avl_iterator_t *iter;
   char *key;
   cache_entry_t *value;
 
   char **names = NULL;
   cdtime_t *times = NULL;
+  int *states = NULL;
   size_t number = 0;
   size_t size_arrays = 0;
 
   int status = 0;
 
-  if ((ret_names == NULL) || (ret_number == NULL))
+  if ((ret_names == NULL) || (ret_number == NULL) || (ret_times == NULL))
     return -1;
 
   pthread_mutex_lock(&cache_lock);
@@ -584,10 +585,13 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
 
   names = calloc(size_arrays, sizeof(*names));
   times = calloc(size_arrays, sizeof(*times));
-  if ((names == NULL) || (times == NULL)) {
+  states = calloc(size_arrays, sizeof(*states));
+
+  if ((names == NULL) || (times == NULL) || (states == NULL)) {
     ERROR("uc_get_names: calloc failed.");
     sfree(names);
     sfree(times);
+    sfree(states);
     pthread_mutex_unlock(&cache_lock);
     return ENOMEM;
   }
@@ -604,6 +608,9 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
 
     if (ret_times != NULL)
       times[number] = value->last_time;
+
+    if (ret_states != NULL)
+      states[number] = value->state;
 
     names[number] = strdup(key);
     if (names[number] == NULL) {
@@ -623,6 +630,7 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     }
     sfree(names);
     sfree(times);
+    sfree(states);
 
     return -1;
   }
@@ -632,6 +640,10 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
     *ret_times = times;
   else
     sfree(times);
+  if (ret_states != NULL)
+    *ret_states = states;
+  else
+    sfree(states);
   *ret_number = number;
 
   return 0;

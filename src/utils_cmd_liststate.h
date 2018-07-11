@@ -1,6 +1,6 @@
 /**
- * collectd - src/tests/mock/utils_cache.c
- * Copyright (C) 2013       Florian octo Forster
+ * collectd - src/utils_cmd_liststate.h
+ * Copyright (C) 2008       Florian octo Forster
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,27 +22,19 @@
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
- */
+ **/
 
-#include "utils_cache.h"
-#include <errno.h>
+#ifndef UTILS_CMD_LISTVAL_H
+#define UTILS_CMD_LISTVAL_H 1
 
-gauge_t *uc_get_rate(__attribute__((unused)) data_set_t const *ds,
-                     __attribute__((unused)) value_list_t const *vl) {
-  errno = ENOTSUP;
-  return NULL;
-}
+#include <stdio.h>
 
-int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
-                        size_t *ret_values_num) {
-  return ENOTSUP;
-}
+#include "utils_cmds.h"
 
-int uc_get_names(char ***ret_names, cdtime_t **ret_times, int **ret_states, size_t *ret_number) {
-  return ENOTSUP;
-}
+cmd_status_t cmd_parse_liststate(size_t argc, char **argv,
+                               const cmd_options_t *opts,
+                               cmd_error_handler_t *err);
 
-int uc_get_value_by_name(const char *name, value_t **ret_values,
-                         size_t *ret_values_num) {
-  return ENOTSUP;
-}
+cmd_status_t cmd_handle_liststate(FILE *fh, char *buffer);
+
+#endif /* UTILS_CMD_LISTVAL_H */
