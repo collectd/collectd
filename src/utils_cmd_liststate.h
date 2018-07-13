@@ -24,17 +24,19 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
-#ifndef UTILS_CMD_LISTVAL_H
-#define UTILS_CMD_LISTVAL_H 1
+#ifndef UTILS_CMD_LISTSTATE_H
+#define UTILS_CMD_LISTSTATE_H 1
 
 #include <stdio.h>
 
 #include "utils_cmds.h"
 
-cmd_status_t cmd_parse_liststate(size_t argc, char **argv,
+cmd_status_t cmd_parse_liststate(size_t argc, char **argv, cmd_liststate_t *ret_liststate,
                                const cmd_options_t *opts,
                                cmd_error_handler_t *err);
 
 cmd_status_t cmd_handle_liststate(FILE *fh, char *buffer);
 
-#endif /* UTILS_CMD_LISTVAL_H */
+void cmd_destroy_liststate(cmd_liststate_t *liststate);
+
+#endif /* UTILS_CMD_LISTSTATE_H */

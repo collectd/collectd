@@ -381,6 +381,73 @@ static int listval(lcc_connection_t *c, int argc, char **argv) {
 #undef BAIL_OUT
 } /* listval */
 
+static int liststate(lcc_connection_t *c, int argc, char **argv) {
+  lcc_identifier_t *ret_ident = NULL;
+  size_t ret_ident_num = 0;
+  char *state = NULL;
+
+  int status;
+
+  assert(strcasecmp(argv[0], "liststate") == 0);
+
+  if (argc > 2) {
+    fprintf(stderr, "ERROR: liststate: Does not accept more than 1 argument.\n");
+    return -1;
+  }
+
+#define BAIL_OUT(s)                                                            \
+  do {                                                                         \
+    if (ret_ident != NULL)                                                     \
+      free(ret_ident);                                                         \
+    ret_ident_num = 0;                                                         \
+    return s;                                                                  \
+  } while (0)
+
+  for (int i = 1; i < argc; ++i) {
+    char *key, *value;
+
+    key = argv[i];
+    value = strchr(argv[i], (int)'=');
+
+    if (!value) {
+      fprintf(stderr, "ERROR: liststate: Invalid option ``%s''.\n", argv[i]);
+      BAIL_OUT(-1);
+    }
+
+    *value = '\0';
+    ++value;
+
+    if (strcasecmp(key, "state") == 0) {
+      state = value;
+    } else {
+      fprintf(stderr, "ERROR: liststate: Unknown option `%s'.\n", key);
+      BAIL_OUT(-1);
+    }
+  }
+
+  status = lcc_liststate(c, state, &ret_ident, &ret_ident_num);
+  if (status != 0) {
+    fprintf(stderr, "ERROR: %s\n", lcc_strerror(c));
+    BAIL_OUT(status);
+  }
+
+  for (size_t i = 0; i < ret_ident_num; ++i) {
+    char id[1024];
+
+    status = lcc_identifier_to_string(c, id, sizeof(id), ret_ident + i);
+    if (status != 0) {
+      fprintf(stderr, "ERROR: liststate: Failed to convert returned "
+                      "identifier to a string: %s\n",
+              lcc_strerror(c));
+      continue;
+    }
+
+    printf("%s\n", id);
+  }
+  BAIL_OUT(0);
+#undef BAIL_OUT
+} /* liststate */
+
 static int putval(lcc_connection_t *c, int argc, char **argv) {
   lcc_value_list_t vl = LCC_VALUE_LIST_INIT;
 
@@ -572,6 +639,8 @@ int main(int argc, char **argv) {
     status = flush(c, argc - optind, argv + optind);
   else if (strcasecmp(argv[optind], "listval") == 0)
     status = listval(c, argc - optind, argv + optind);
+  else if (strcasecmp(argv[optind], "liststate") == 0)
+    status = liststate(c, argc - optind, argv + optind);
   else if (strcasecmp(argv[optind], "putval") == 0)
     status = putval(c, argc - optind, argv + optind);
   else {

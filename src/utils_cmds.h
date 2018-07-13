@@ -37,6 +37,7 @@ typedef enum {
   CMD_GETVAL = 2,
   CMD_LISTVAL = 3,
   CMD_PUTVAL = 4,
+  CMD_LISTSTATE = 5,
 } cmd_type_t;
 #define CMD_TO_STRING(type)                                                    \
   ((type) == CMD_FLUSH)                                                        \
@@ -45,7 +46,9 @@ typedef enum {
             ? "GETVAL"                                                         \
             : ((type) == CMD_LISTVAL)                                          \
                   ? "LISTVAL"                                                  \
-                  : ((type) == CMD_PUTVAL) ? "PUTVAL" : "UNKNOWN"
+                  : ((type) == CMD_PUTVAL)                                     \
+                        ? "PUTVAL"                                             \
+                        : ((type) == CMD_LISTSTATE) ? "LISTSTATE" : "UNKNOWN"  \
 
 typedef struct {
   double timeout;
@@ -55,6 +58,12 @@ typedef struct {
   identifier_t *identifiers;
   size_t identifiers_num;
 } cmd_flush_t;
+
+typedef struct {
+  double timeout;
+
+  char *state;
+} cmd_liststate_t;
 
 typedef struct {
   char *raw_identifier;
@@ -84,6 +93,7 @@ typedef struct {
     cmd_flush_t flush;
     cmd_getval_t getval;
     cmd_putval_t putval;
+    cmd_liststate_t liststate;
   } cmd;
 } cmd_t;
 

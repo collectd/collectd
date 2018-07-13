@@ -72,6 +72,9 @@ int lcc_flush(lcc_connection_t *c, const char *plugin, lcc_identifier_t *ident,
 int lcc_listval(lcc_connection_t *c, lcc_identifier_t **ret_ident,
                 size_t *ret_ident_num);
 
+int lcc_liststate(lcc_connection_t *c, char *state, lcc_identifier_t **ret_ident,
+                size_t *ret_ident_num);
+
 /* TODO: putnotif */
 
 const char *lcc_strerror(lcc_connection_t *c);

@@ -30,6 +30,7 @@
 #include "utils_cmd_flush.h"
 #include "utils_cmd_getval.h"
 #include "utils_cmd_listval.h"
+#include "utils_cmd_liststate.h"
 #include "utils_cmd_putval.h"
 #include "utils_cmds.h"
 #include "utils_parse_option.h"
@@ -209,8 +210,10 @@ cmd_status_t cmd_parsev(size_t argc, char **argv, cmd_t *ret_cmd,
     status = cmd_parse_listval(argc - 1, argv + 1, opts, err);
   } else if (strcasecmp("PUTVAL", command) == 0) {
     ret_cmd->type = CMD_PUTVAL;
-    status =
-        cmd_parse_putval(argc - 1, argv + 1, &ret_cmd->cmd.putval, opts, err);
+    status = cmd_parse_putval(argc - 1, argv + 1, &ret_cmd->cmd.putval, opts, err);
+  } else if (strcasecmp("LISTSTATE", command) == 0) {
+    ret_cmd->type = CMD_LISTSTATE;
+    status = cmd_parse_liststate(argc - 1, argv + 1, &ret_cmd->cmd.liststate, opts, err);
   } else {
     ret_cmd->type = CMD_UNKNOWN;
     cmd_error(CMD_UNKNOWN_COMMAND, err, "Unknown command `%s'.", command);
@@ -251,6 +254,9 @@ void cmd_destroy(cmd_t *cmd) {
     cmd_destroy_getval(&cmd->cmd.getval);
     break;
   case CMD_LISTVAL:
+    break;
+  case CMD_LISTSTATE:
+    cmd_destroy_liststate(&cmd->cmd.liststate);
     break;
   case CMD_PUTVAL:
     cmd_destroy_putval(&cmd->cmd.putval);
