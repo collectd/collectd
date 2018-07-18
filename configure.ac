@@ -5920,25 +5920,41 @@ AC_SUBST([BUILD_WITH_LIBVARNISH_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBVARNISH_LIBS])
 # }}}
 
-# pkg-config --exists 'libxml-2.0' {{{
-$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
-if test $? -eq 0; then
-  with_libxml2="yes"
-else
-  with_libxml2="no (pkg-config doesn't know libxml-2.0)"
-fi
-
-if test "x$with_libxml2" = "xyes"; then
-  with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
-  if test $? -ne 0; then
-    with_libxml2="no"
-  fi
-
-  with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
-  if test $? -ne 0; then
-    with_libxml2="no"
-  fi
-fi
+# --with-libxml2 {{{
+AC_ARG_WITH(libxml2,
+  [AS_HELP_STRING([--with-libxml2@<:@=PREFIX@:>@], [Path to libxml2.])],
+  [
+    if test "x$withval" = "xno"; then
+      with_libxml2="no"
+    else if test "x$withval" = "xyes"; then
+      $PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
+      if test $? -eq 0; then
+        with_libxml2="yes"
+        with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
+        with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
+      else
+        with_libxml2="no (pkg-config doesn't know libxml-2.0)"
+      fi
+    else
+      with_libxml2="yes"
+      with_libxml2_cflags="-I$withval/include"
+      with_libxml2_ldflags="-L$withval/lib"
+    fi; fi
+  ],
+  dnl  if no argument --with-libxml2 was passed, find the library locations
+  dnl  with pkg-config just like above, when --with-libxml2=yes.
+  [
+    with_libxml2="yes"
+    $PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
+    if test $? -eq 0; then
+      with_libxml2="yes"
+      with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
+      with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
+    else
+      with_libxml2="no (pkg-config doesn't know libxml-2.0)"
+    fi
+  ]
+)
 
 if test "x$with_libxml2" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
