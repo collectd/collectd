@@ -400,6 +400,12 @@ static int gen_message_payload(const char *msg, char *sev, int sev_num,
 
   *buf = malloc(strlen((char *)buf2) + 1);
 
+  if (*buf == NULL)
+  {
+    ERROR("sysevent plugin: gen_message_payload malloc failed");
+    goto err;
+  }
+
   sstrncpy(*buf, (char *)buf2, strlen((char *)buf2) + 1);
 
   yajl_gen_free(g);
@@ -571,6 +577,12 @@ static int sysevent_init(void) /* {{{ */
   ring.tail = 0;
   ring.maxLen = buffer_length;
   ring.buffer = (char **)malloc(buffer_length * sizeof(char *));
+
+  if (ring.buffer == NULL)
+  {
+    ERROR("sysevent plugin: sysevent_init malloc failed");
+    return (-1);
+  }
 
   for (int i = 0; i < buffer_length; i++) {
     ring.buffer[i] = malloc(listen_buffer_size);
