@@ -8502,13 +8502,14 @@ B<Synopsis:>
    <Metric "snort-dropped">
        Type "percent"
        Instance "dropped"
-       Index 1
+       ValueFrom 1
    </Metric>
    <File "/var/log/snort/snort.stats">
        Plugin "snortstats"
        Instance "eth0"
        Interval 600
        Collect "snort-dropped"
+       #TimeFrom 0
    </File>
  </Plugin>
 
