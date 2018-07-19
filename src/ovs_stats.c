@@ -250,10 +250,8 @@ static port_list_t *ovs_stats_get_port_by_interface_uuid(const char *uuid) {
     return NULL;
 
   for (port_list_t *port = g_port_list_head; port != NULL; port = port->next) {
-    if ((port->iface_uuid != NULL &&
-         strncmp(port->iface_uuid, uuid, strlen(uuid)) == 0) ||
-        (port->iface_uuid2 != NULL &&
-         strncmp(port->iface_uuid2, uuid, strlen(uuid)) == 0)) {
+    if (strncmp(port->iface_uuid, uuid, strlen(uuid)) == 0 ||
+        strncmp(port->iface_uuid2, uuid, strlen(uuid)) == 0) {
       return port;
     }
   }
