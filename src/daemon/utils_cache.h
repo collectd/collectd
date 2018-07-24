@@ -36,14 +36,13 @@
 #define STATE_ERROR 2
 #define STATE_MISSING 15
 
-#define STATE_TO_STRING(s)                                                \
-  (s == STATE_OKAY)                                                       \
-      ? "OKAY"                                                            \
-      : (s == STATE_WARNING)                                              \
-            ? "WARNING"                                                   \
-            : (s == STATE_ERROR)                                          \
-                  ? "ERROR"                                               \
-                  : (s == STATE_MISSING) ? "MISSING" : "UNKNOWN"
+#define STATE_TO_STRING(s)                                                     \
+  (s == STATE_OKAY) ? "OKAY"                                                   \
+                    : (s == STATE_WARNING)                                     \
+                          ? "WARNING"                                          \
+                          : (s == STATE_ERROR)                                 \
+                                ? "ERROR"                                      \
+                                : (s == STATE_MISSING) ? "MISSING" : "UNKNOWN"
 
 int uc_init(void);
 int uc_check_timeout(void);
@@ -57,7 +56,8 @@ value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl);
 
 size_t uc_get_size(void);
 int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number);
-int uc_get_names_states(char ***ret_names, cdtime_t **ret_times, int **ret_states, size_t *ret_number, char *state);
+int uc_get_names_states(char ***ret_names, cdtime_t **ret_times,
+                        int **ret_states, size_t *ret_number, char *state);
 
 int uc_get_state(const data_set_t *ds, const value_list_t *vl);
 int uc_set_state(const data_set_t *ds, const value_list_t *vl, int state);

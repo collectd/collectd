@@ -882,7 +882,7 @@ int lcc_listval(lcc_connection_t *c, /* {{{ */
 } /* }}} int lcc_listval */
 
 int lcc_liststate(lcc_connection_t *c, char *state, /* {{{ */
-                lcc_identifier_t **ret_ident, size_t *ret_ident_num) {
+                  lcc_identifier_t **ret_ident, size_t *ret_ident_num) {
   char command[1024] = "";
   lcc_response_t res;
   int status;

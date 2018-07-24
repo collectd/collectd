@@ -48,7 +48,7 @@ typedef enum {
                   ? "LISTVAL"                                                  \
                   : ((type) == CMD_PUTVAL)                                     \
                         ? "PUTVAL"                                             \
-                        : ((type) == CMD_LISTSTATE) ? "LISTSTATE" : "UNKNOWN"  \
+                        : ((type) == CMD_LISTSTATE) ? "LISTSTATE" : "UNKNOWN"
 
 typedef struct {
   double timeout;

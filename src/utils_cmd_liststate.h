@@ -31,9 +31,10 @@
 
 #include "utils_cmds.h"
 
-cmd_status_t cmd_parse_liststate(size_t argc, char **argv, cmd_liststate_t *ret_liststate,
-                               const cmd_options_t *opts,
-                               cmd_error_handler_t *err);
+cmd_status_t cmd_parse_liststate(size_t argc, char **argv,
+                                 cmd_liststate_t *ret_liststate,
+                                 const cmd_options_t *opts,
+                                 cmd_error_handler_t *err);
 
 cmd_status_t cmd_handle_liststate(FILE *fh, char *buffer);
 

@@ -32,8 +32,8 @@
 #include "utils_cmd_flush.h"
 #include "utils_cmd_getthreshold.h"
 #include "utils_cmd_getval.h"
-#include "utils_cmd_listval.h"
 #include "utils_cmd_liststate.h"
+#include "utils_cmd_listval.h"
 #include "utils_cmd_putnotif.h"
 #include "utils_cmd_putval.h"
 
@@ -250,7 +250,7 @@ static void *us_handle_client(void *arg) {
       cmd_handle_putval(fhout, buffer);
     } else if (strcasecmp(fields[0], "listval") == 0) {
       cmd_handle_listval(fhout, buffer);
-    }else if (strcasecmp(fields[0], "liststate") == 0) {
+    } else if (strcasecmp(fields[0], "liststate") == 0) {
       cmd_handle_liststate(fhout, buffer);
     } else if (strcasecmp(fields[0], "putnotif") == 0) {
       handle_putnotif(fhout, buffer);

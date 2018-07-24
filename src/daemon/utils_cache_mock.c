@@ -42,7 +42,8 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   return ENOTSUP;
 }
 
-int uc_get_names_states(char ***ret_names, cdtime_t **ret_times, int **ret_states, size_t *ret_number, char *state) {
+int uc_get_names_states(char ***ret_names, cdtime_t **ret_times,
+                        int **ret_states, size_t *ret_number, char *state) {
   return ENOTSUP;
 }
 

@@ -637,7 +637,8 @@ int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   return 0;
 } /* int uc_get_names */
 
-int uc_get_names_states(char ***ret_names, cdtime_t **ret_times, int **ret_states, size_t *ret_number, char *state) {
+int uc_get_names_states(char ***ret_names, cdtime_t **ret_times,
+                        int **ret_states, size_t *ret_number, char *state) {
   c_avl_iterator_t *iter;
   char *key;
   cache_entry_t *value;
@@ -688,7 +689,7 @@ int uc_get_names_states(char ***ret_names, cdtime_t **ret_times, int **ret_state
 
     char *state_current = STATE_TO_STRING(value->state);
 
-    if(state == NULL || strcasecmp(state, state_current) == 0){
+    if (state == NULL || strcasecmp(state, state_current) == 0) {
       if (ret_times != NULL)
         times[number] = value->last_time;
 

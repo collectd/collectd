@@ -33,10 +33,11 @@
 #include "utils_cmd_liststate.h"
 #include "utils_parse_option.h"
 
-cmd_status_t cmd_parse_liststate(size_t argc, char **argv, cmd_liststate_t *ret_liststate,
-                               const cmd_options_t *opts
-                               __attribute__((unused)),
-                               cmd_error_handler_t *err) {
+cmd_status_t cmd_parse_liststate(size_t argc, char **argv,
+                                 cmd_liststate_t *ret_liststate,
+                                 const cmd_options_t *opts
+                                 __attribute__((unused)),
+                                 cmd_error_handler_t *err) {
   if (argc > 1) {
     cmd_error(CMD_PARSE_ERROR, err, "Garbage after end of command: `%s'.",
               argv[0]);
@@ -85,8 +86,8 @@ cmd_status_t cmd_parse_liststate(size_t argc, char **argv, cmd_liststate_t *ret_
 #define print_to_socket(fh, ...)                                               \
   do {                                                                         \
     if (fprintf(fh, __VA_ARGS__) < 0) {                                        \
-      WARNING("handle_liststate: failed to write to socket #%i: %s", fileno(fh), \
-              STRERRNO);                                                       \
+      WARNING("handle_liststate: failed to write to socket #%i: %s",           \
+              fileno(fh), STRERRNO);                                           \
       free_everything_and_return(CMD_ERROR);                                   \
     }                                                                          \
     fflush(fh);                                                                \
@@ -102,8 +103,8 @@ cmd_status_t cmd_handle_liststate(FILE *fh, char *buffer) {
   int *states = NULL;
   size_t number = 0;
 
-  DEBUG("utils_cmd_liststate: handle_liststate (fh = %p, buffer = %s);", (void *)fh,
-        buffer);
+  DEBUG("utils_cmd_liststate: handle_liststate (fh = %p, buffer = %s);",
+        (void *)fh, buffer);
 
   if ((status = cmd_parse(buffer, &cmd, NULL, &err)) != CMD_OK)
     return status;
@@ -113,9 +114,11 @@ cmd_status_t cmd_handle_liststate(FILE *fh, char *buffer) {
     free_everything_and_return(CMD_UNKNOWN_COMMAND);
   }
 
-  status = uc_get_names_states(&names, &times, &states, &number, cmd.cmd.liststate.state);
+  status = uc_get_names_states(&names, &times, &states, &number,
+                               cmd.cmd.liststate.state);
   if (status != 0) {
-    DEBUG("command liststate: uc_get_names_states failed with status %i", status);
+    DEBUG("command liststate: uc_get_names_states failed with status %i",
+          status);
     cmd_error(CMD_ERROR, &err, "uc_get_names_states failed.");
     free_everything_and_return(CMD_ERROR);
   }
@@ -123,7 +126,8 @@ cmd_status_t cmd_handle_liststate(FILE *fh, char *buffer) {
   print_to_socket(fh, "%i Value%s found\n", (int)number,
                   (number == 1) ? "" : "s");
   for (size_t i = 0; i < number; i++)
-    print_to_socket(fh, "%.3f %s %s\n", CDTIME_T_TO_DOUBLE(times[i]), names[i], STATE_TO_STRING(states[i]));
+    print_to_socket(fh, "%.3f %s %s\n", CDTIME_T_TO_DOUBLE(times[i]), names[i],
+                    STATE_TO_STRING(states[i]));
 
   free_everything_and_return(CMD_OK);
 } /* cmd_status_t cmd_handle_liststate */

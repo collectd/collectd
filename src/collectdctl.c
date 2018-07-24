@@ -391,7 +391,8 @@ static int liststate(lcc_connection_t *c, int argc, char **argv) {
   assert(strcasecmp(argv[0], "liststate") == 0);
 
   if (argc > 2) {
-    fprintf(stderr, "ERROR: liststate: Does not accept more than 1 argument.\n");
+    fprintf(stderr,
+            "ERROR: liststate: Does not accept more than 1 argument.\n");
     return -1;
   }
 
