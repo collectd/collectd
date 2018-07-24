@@ -113,6 +113,14 @@ static struct {
         "LISTVAL invalid", NULL, CMD_PARSE_ERROR, CMD_UNKNOWN,
     },
 
+    /* Valid LISTSTATE commands. */
+    {
+        "LISTSTATE", NULL, CMD_OK, CMD_LISTSTATE,
+    },
+    {
+        "LISTSTATE state=OKAY", NULL, CMD_OK, CMD_LISTSTATE,
+    },
+
     /* Valid PUTVAL commands. */
     {
         "PUTVAL magic/MAGIC N:42", &default_host_opts, CMD_OK, CMD_PUTVAL,
