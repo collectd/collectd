@@ -132,6 +132,5 @@ void cmd_destroy_liststate(cmd_liststate_t *liststate) {
   if (liststate == NULL)
     return;
 
-  sfree(liststate->state);
   liststate->state = NULL;
 } /* void cmd_destroy_liststate */
