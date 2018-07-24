@@ -38,7 +38,7 @@ int uc_get_rate_by_name(const char *name, gauge_t **ret_values,
   return ENOTSUP;
 }
 
-int uc_get_names(char ***ret_names, cdtime_t **ret_times, int **ret_states, size_t *ret_number) {
+int uc_get_names(char ***ret_names, cdtime_t **ret_times, size_t *ret_number) {
   return ENOTSUP;
 }
 
