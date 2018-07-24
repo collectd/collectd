@@ -833,7 +833,8 @@ static int read_proc_name(const char *procfs_path,
 
   char *path = ssnprintf_alloc("%s/%s/%s", procfs_path, pid_entry->d_name,
                                comm_file_name);
-
+  if (path == NULL)
+    return -1;
   FILE *f = fopen(path, "r");
   if (f == NULL) {
     ERROR(RDT_PLUGIN ": Failed to open comm file, error: %d\n", errno);
@@ -841,6 +842,7 @@ static int read_proc_name(const char *procfs_path,
     return -1;
   }
   size_t read_length = fread(name, sizeof(char), out_size, f);
+  name[out_size - 1] = '\0';
   fclose(f);
   sfree(path);
   /* strip new line ending */
@@ -1308,9 +1310,9 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
                    "%u, removed: %u.",
         ngroup->desc, (unsigned)new_pids_count, (unsigned)lost_pids_count);
 
-  if (new_pids_count != 0 || lost_pids_count != 0) {
+  if (new_pids_count > 0 || lost_pids_count > 0) {
 
-    if (new_pids) {
+    if (new_pids && new_pids_count > 0) {
       pid_t new_pids_array[new_pids_count];
       pids_list_to_array(new_pids_array, new_pids,
                          STATIC_ARRAY_SIZE(new_pids_array));
@@ -1347,7 +1349,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
       }
     }
 
-    if (lost_pids) {
+    if (lost_pids && lost_pids_count > 0) {
       pid_t lost_pids_array[lost_pids_count];
       pids_list_to_array(lost_pids_array, lost_pids,
                          STATIC_ARRAY_SIZE(lost_pids_array));
