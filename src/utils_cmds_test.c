@@ -121,6 +121,11 @@ static struct {
         "LISTSTATE state=OKAY", NULL, CMD_OK, CMD_LISTSTATE,
     },
 
+    /* Invalid LISTSTATE commands. */
+    {
+        "LISTSTATE invalid", NULL, CMD_PARSE_ERROR, CMD_UNKNOWN,
+    },
+
     /* Valid PUTVAL commands. */
     {
         "PUTVAL magic/MAGIC N:42", &default_host_opts, CMD_OK, CMD_PUTVAL,

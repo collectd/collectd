@@ -1,6 +1,6 @@
 /**
  * collectd - src/utils_cmd_liststate.c
- * Copyright (C) 2008       Florian octo Forster
+ * Copyright (C) 2018       Simone Brundu
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at collectd.org>
+ *   Simone Brundu <simone.brundu at gmail.com>
  **/
 
 #include "collectd.h"
