@@ -303,9 +303,7 @@ static void submit_io_time(char const *plugin_instance, derive_t io_time,
 
   plugin_dispatch_values(&vl);
 } /* void submit_io_time */
-#endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
-#if KERNEL_LINUX
 static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -317,7 +315,9 @@ static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
 
   plugin_dispatch_values(&vl);
 }
+#endif /* KERNEL_FREEBSD || KERNEL_LINUX */
 
+#if KERNEL_LINUX
 static counter_t disk_calc_time_incr(counter_t delta_time,
                                      counter_t delta_ops) {
   double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
@@ -544,6 +544,7 @@ static int disk_read(void) {
 
   const char *disk_name;
   long double read_time, write_time, busy_time, total_duration;
+  uint64_t queue_length;
 
   for (retry = 0, dirty = 1; retry < 5 && dirty == 1; retry++) {
     if (snap != NULL)
@@ -646,10 +647,11 @@ static int disk_read(void) {
     }
     if (devstat_compute_statistics(snap_iter, NULL, 1.0, DSM_TOTAL_BUSY_TIME,
                                    &busy_time, DSM_TOTAL_DURATION,
-                                   &total_duration, DSM_NONE) != 0) {
+                                   &total_duration, DSM_QUEUE_LENGTH, &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
       submit_io_time(disk_name, busy_time, total_duration);
+      submit_in_progress(disk_name, (gauge_t)queue_length);
     }
   }
   geom_stats_snapshot_free(snap);
