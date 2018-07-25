@@ -479,7 +479,7 @@ static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     }
     cdm->mbuf.size = strlen(cdm->mbuf.start);
     if (cdm->mbuf.size >= BUFSIZE) {
-      ERROR("amqp1 plugin: format graphite failed");
+      ERROR("amqp1 plugin: format json failed");
       cd_message_free(cdm);
       return -1;
     }
