@@ -685,7 +685,12 @@ to it.
 =item B<Collect> I<mbean_block_name>
 
 Configures which of the I<MBean> blocks to use with this connection. May be
-repeated to collect multiple I<MBeans> from this server. 
+repeated to collect multiple I<MBeans> from this server.
+
+=item B<Ssl> I<ssl>
+
+Use I<Ssl> to connect to the jmx ssl server configured with
+com.sun.management.jmxremote.ssl. If not given, plain connection is used.
 
 =back
 
