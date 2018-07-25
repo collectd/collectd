@@ -476,7 +476,7 @@ static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
       ERROR("amqp1 plugin: format_json_finalize failed with status %i.",
             status);
       cd_message_free(cdm);
-      return (status);
+      return status;
     }
     cdm->mbuf.size = strlen(cdm->mbuf.start);
     if (cdm->mbuf.size >= BUFSIZE) {
