@@ -647,7 +647,8 @@ static int disk_read(void) {
     }
     if (devstat_compute_statistics(snap_iter, NULL, 1.0, DSM_TOTAL_BUSY_TIME,
                                    &busy_time, DSM_TOTAL_DURATION,
-                                   &total_duration, DSM_QUEUE_LENGTH, &queue_length, DSM_NONE) != 0) {
+                                   &total_duration, DSM_QUEUE_LENGTH,
+                                   &queue_length, DSM_NONE) != 0) {
       WARNING("%s", devstat_errbuf);
     } else {
       submit_io_time(disk_name, busy_time, total_duration);
