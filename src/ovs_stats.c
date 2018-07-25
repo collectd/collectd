@@ -1118,18 +1118,18 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
             for (interface_list_t *iface = port->iface; iface != NULL;
                  iface = iface->next) {
               memset(key_str, '\0', DATA_MAX_NAME_LEN);
-              snprintf(key_str, 5, "uuid%d", i);
+              snprintf(key_str, 6, "uuid%d", i);
               meta_data_add_string(meta, key_str, iface->iface_uuid);
 
               if (strlen(iface->ex_vm_id)) {
                 memset(key_str, '\0', DATA_MAX_NAME_LEN);
-                snprintf(key_str, 8, "vm-uuid%d", i);
+                snprintf(key_str, 9, "vm-uuid%d", i);
                 meta_data_add_string(meta, key_str, iface->ex_vm_id);
               }
 
               if (strlen(iface->ex_iface_id)) {
                 memset(key_str, '\0', DATA_MAX_NAME_LEN);
-                snprintf(key_str, 9, "iface-id%d", i);
+                snprintf(key_str, 10, "iface-id%d", i);
                 meta_data_add_string(meta, key_str, iface->ex_iface_id);
               }
 
