@@ -81,6 +81,32 @@ Example:
   <- | 1182204284 myhost/cpu-0/cpu-user
   ...
 
+=item B<LISTSTATE>
+
+Returns a list of the values available in the value cache together with the
+time of the last update, so that querying applications can issue a B<GETVAL>
+command for the values that have changed. Each return value consists of the
+update time as an epoch value, the identifier and the internal state of the
+value, all separated by a space. The update time is the time of the last value,
+as provided by the collecting instance and may be very different from the
+time the server considers to be "now".
+
+Example:
+  -> | LISTSTATE
+  <- | 19 Values found
+  <- | 1182204284 myhost/cpu-0/cpu-idle OKAY
+  <- | 1182204284 myhost/cpu-0/cpu-nice OKAY
+  <- | 1182204284 myhost/cpu-0/cpu-system OKAY
+  <- | 1182204284 myhost/cpu-0/cpu-user ERROR
+  <- | 1182204284 myhost/interface-eno1/if_dropped OKAY
+  <- | 1182204284 myhost/interface-eno1/if_errors OKAY
+  <- | 1182204284 myhost/interface-eno1/if_octets OKAY
+  <- | 1182204284 myhost/interface-eno1/if_packets ERROR
+  <- | 1182204284 myhost/interface-lo/if_dropped OKAY
+  <- | 1182204284 myhost/interface-lo/if_errors OKAY
+  <- | 1182204284 myhost/interface-lo/if_octets OKAY
+  ...
+
 =item B<PUTVAL> I<Identifier> [I<OptionList>] I<Valuelist>
 
 Submits one or more values (identified by I<Identifier>, see below) to the
