@@ -5904,19 +5904,12 @@ AC_SUBST([BUILD_WITH_LIBVARNISH_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBVARNISH_LIBS])
 # }}}
 
-# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
+# pkg-config --exists 'libxml-2.0' {{{
 $PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
 if test $? -eq 0; then
   with_libxml2="yes"
 else
   with_libxml2="no (pkg-config doesn't know libxml-2.0)"
-fi
-
-$PKG_CONFIG --exists libvirt 2>/dev/null
-if test $? = 0; then
-  with_libvirt="yes"
-else
-  with_libvirt="no (pkg-config doesn't know libvirt)"
 fi
 
 if test "x$with_libxml2" = "xyes"; then
@@ -5962,6 +5955,15 @@ fi
 
 AC_SUBST([BUILD_WITH_LIBXML2_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBXML2_LIBS])
+# }}}
+
+# pkg-config --exists libvirt {{{
+$PKG_CONFIG --exists libvirt 2>/dev/null
+if test $? = 0; then
+  with_libvirt="yes"
+else
+  with_libvirt="no (pkg-config doesn't know libvirt)"
+fi
 
 if test "x$with_libvirt" = "xyes"; then
   with_libvirt_cflags="`$PKG_CONFIG --cflags libvirt`"
