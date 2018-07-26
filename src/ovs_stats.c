@@ -78,15 +78,22 @@ typedef enum iface_counter {
 #define PORT_NAME_SIZE_MAX 255
 #define UUID_SIZE 64
 
-typedef struct port_s {
-  char name[PORT_NAME_SIZE_MAX];      /* Port name */
+typedef struct interface_s {
+  char name[PORT_NAME_SIZE_MAX];      /* Interface name */
   char port_uuid[UUID_SIZE];          /* Port table _uuid */
   char iface_uuid[UUID_SIZE];         /* Interface table uuid */
   char ex_iface_id[UUID_SIZE];        /* External iface id */
   char ex_vm_id[UUID_SIZE];           /* External vm id */
-  int64_t stats[IFACE_COUNTER_COUNT]; /* Port statistics */
-  struct bridge_list_s *br;           /* Pointer to bridge */
-  struct port_s *next;                /* Next port */
+  int64_t stats[IFACE_COUNTER_COUNT]; /* Statistics for interface */
+  struct interface_s *next;           /* Next interface for associated port */
+} interface_list_t;
+
+typedef struct port_s {
+  char name[PORT_NAME_SIZE_MAX]; /* Port name */
+  char port_uuid[UUID_SIZE];     /* Port table _uuid */
+  struct bridge_list_s *br;      /* Pointer to bridge */
+  struct interface_s *iface;     /* Pointer to first interface */
+  struct port_s *next;           /* Next port */
 } port_list_t;
 
 typedef struct bridge_list_s {
@@ -158,6 +165,9 @@ static ovs_stats_config_t ovs_stats_cfg = {
     .ovs_db_serv = "6640",      /* use default OVS DB service */
 };
 
+/* flag indicating whether or not to publish individual interface statistics */
+static bool interface_stats = false;
+
 static iface_counter ovs_stats_counter_name_to_type(const char *counter) {
   iface_counter index = not_supported;
 
@@ -219,6 +229,183 @@ static void ovs_stats_submit_two(const char *dev, const char *type,
   plugin_dispatch_values(&vl);
 }
 
+static void ovs_stats_submit_interfaces(bridge_list_t *bridge,
+                                        port_list_t *port) {
+  char devname[PORT_NAME_SIZE_MAX * 2];
+
+  for (interface_list_t *iface = port->iface; iface != NULL;
+       iface = iface->next) {
+    meta_data_t *meta = meta_data_create();
+    if (meta != NULL) {
+      meta_data_add_string(meta, "uuid", iface->iface_uuid);
+
+      if (strlen(iface->ex_vm_id))
+        meta_data_add_string(meta, "vm-uuid", iface->ex_vm_id);
+
+      if (strlen(iface->ex_iface_id))
+        meta_data_add_string(meta, "iface-id", iface->ex_iface_id);
+    }
+    snprintf(devname, sizeof(devname), "%s.%s.%s", bridge->name, port->name,
+             iface->name);
+    ovs_stats_submit_one(devname, "if_collisions", NULL,
+                         iface->stats[collisions], meta);
+    ovs_stats_submit_two(devname, "if_dropped", NULL, iface->stats[rx_dropped],
+                         iface->stats[tx_dropped], meta);
+    ovs_stats_submit_two(devname, "if_errors", NULL, iface->stats[rx_errors],
+                         iface->stats[tx_errors], meta);
+    ovs_stats_submit_two(devname, "if_packets", NULL, iface->stats[rx_packets],
+                         iface->stats[tx_packets], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "crc",
+                         iface->stats[rx_crc_err], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "frame",
+                         iface->stats[rx_frame_err], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "over",
+                         iface->stats[rx_over_err], meta);
+    ovs_stats_submit_one(devname, "if_rx_octets", NULL, iface->stats[rx_bytes],
+                         meta);
+    ovs_stats_submit_one(devname, "if_tx_octets", NULL, iface->stats[tx_bytes],
+                         meta);
+    ovs_stats_submit_two(devname, "if_packets", "1_to_64_packets",
+                         iface->stats[rx_1_to_64_packets],
+                         iface->stats[tx_1_to_64_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "65_to_127_packets",
+                         iface->stats[rx_65_to_127_packets],
+                         iface->stats[tx_65_to_127_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "128_to_255_packets",
+                         iface->stats[rx_128_to_255_packets],
+                         iface->stats[tx_128_to_255_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "256_to_511_packets",
+                         iface->stats[rx_256_to_511_packets],
+                         iface->stats[tx_256_to_511_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "512_to_1023_packets",
+                         iface->stats[rx_512_to_1023_packets],
+                         iface->stats[tx_512_to_1023_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "1024_to_1518_packets",
+                         iface->stats[rx_1024_to_1522_packets],
+                         iface->stats[tx_1024_to_1522_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "1523_to_max_packets",
+                         iface->stats[rx_1523_to_max_packets],
+                         iface->stats[tx_1523_to_max_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "broadcast_packets",
+                         iface->stats[rx_broadcast_packets],
+                         iface->stats[tx_broadcast_packets], meta);
+    ovs_stats_submit_one(devname, "if_multicast", "tx_multicast_packets",
+                         iface->stats[tx_multicast_packets], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "rx_undersized_errors",
+                         iface->stats[rx_undersized_errors], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "rx_oversize_errors",
+                         iface->stats[rx_oversize_errors], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "rx_fragmented_errors",
+                         iface->stats[rx_fragmented_errors], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "rx_jabber_errors",
+                         iface->stats[rx_jabber_errors], meta);
+
+    meta_data_destroy(meta);
+  }
+}
+
+static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
+  char devname[PORT_NAME_SIZE_MAX * 2];
+
+  meta_data_t *meta = meta_data_create();
+  if (meta != NULL) {
+    char key_str[DATA_MAX_NAME_LEN];
+    int i = 0;
+
+    for (interface_list_t *iface = port->iface; iface != NULL;
+         iface = iface->next) {
+      memset(key_str, '\0', DATA_MAX_NAME_LEN);
+      snprintf(key_str, 6, "uuid%d", i);
+      meta_data_add_string(meta, key_str, iface->iface_uuid);
+
+      if (strlen(iface->ex_vm_id)) {
+        memset(key_str, '\0', DATA_MAX_NAME_LEN);
+        snprintf(key_str, 9, "vm-uuid%d", i);
+        meta_data_add_string(meta, key_str, iface->ex_vm_id);
+      }
+
+      if (strlen(iface->ex_iface_id)) {
+        memset(key_str, '\0', DATA_MAX_NAME_LEN);
+        snprintf(key_str, 10, "iface-id%d", i);
+        meta_data_add_string(meta, key_str, iface->ex_iface_id);
+      }
+
+      i++;
+    }
+  }
+  snprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
+  ovs_stats_submit_one(devname, "if_collisions", NULL,
+                       ovs_stats_get_port_stat_value(port, collisions), meta);
+  ovs_stats_submit_two(devname, "if_dropped", NULL,
+                       ovs_stats_get_port_stat_value(port, rx_dropped),
+                       ovs_stats_get_port_stat_value(port, tx_dropped), meta);
+  ovs_stats_submit_two(devname, "if_errors", NULL,
+                       ovs_stats_get_port_stat_value(port, rx_errors),
+                       ovs_stats_get_port_stat_value(port, tx_errors), meta);
+  ovs_stats_submit_two(devname, "if_packets", NULL,
+                       ovs_stats_get_port_stat_value(port, rx_packets),
+                       ovs_stats_get_port_stat_value(port, tx_packets), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "crc",
+                       ovs_stats_get_port_stat_value(port, rx_crc_err), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "frame",
+                       ovs_stats_get_port_stat_value(port, rx_frame_err), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "over",
+                       ovs_stats_get_port_stat_value(port, rx_over_err), meta);
+  ovs_stats_submit_one(devname, "if_rx_octets", NULL,
+                       ovs_stats_get_port_stat_value(port, rx_bytes), meta);
+  ovs_stats_submit_one(devname, "if_tx_octets", NULL,
+                       ovs_stats_get_port_stat_value(port, tx_bytes), meta);
+  ovs_stats_submit_two(devname, "if_packets", "1_to_64_packets",
+                       ovs_stats_get_port_stat_value(port, rx_1_to_64_packets),
+                       ovs_stats_get_port_stat_value(port, tx_1_to_64_packets),
+                       meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "65_to_127_packets",
+      ovs_stats_get_port_stat_value(port, rx_65_to_127_packets),
+      ovs_stats_get_port_stat_value(port, tx_65_to_127_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "128_to_255_packets",
+      ovs_stats_get_port_stat_value(port, rx_128_to_255_packets),
+      ovs_stats_get_port_stat_value(port, tx_128_to_255_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "256_to_511_packets",
+      ovs_stats_get_port_stat_value(port, rx_256_to_511_packets),
+      ovs_stats_get_port_stat_value(port, tx_256_to_511_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "512_to_1023_packets",
+      ovs_stats_get_port_stat_value(port, rx_512_to_1023_packets),
+      ovs_stats_get_port_stat_value(port, tx_512_to_1023_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "1024_to_1518_packets",
+      ovs_stats_get_port_stat_value(port, rx_1024_to_1522_packets),
+      ovs_stats_get_port_stat_value(port, tx_1024_to_1522_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "1523_to_max_packets",
+      ovs_stats_get_port_stat_value(port, rx_1523_to_max_packets),
+      ovs_stats_get_port_stat_value(port, tx_1523_to_max_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "broadcast_packets",
+      ovs_stats_get_port_stat_value(port, rx_broadcast_packets),
+      ovs_stats_get_port_stat_value(port, tx_broadcast_packets), meta);
+  ovs_stats_submit_one(
+      devname, "if_multicast", "tx_multicast_packets",
+      ovs_stats_get_port_stat_value(port, tx_multicast_packets), meta);
+  ovs_stats_submit_one(
+      devname, "if_rx_errors", "rx_undersized_errors",
+      ovs_stats_get_port_stat_value(port, rx_undersized_errors), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "rx_oversize_errors",
+                       ovs_stats_get_port_stat_value(port, rx_oversize_errors),
+                       meta);
+  ovs_stats_submit_one(
+      devname, "if_rx_errors", "rx_fragmented_errors",
+      ovs_stats_get_port_stat_value(port, rx_fragmented_errors), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "rx_jabber_errors",
+                       ovs_stats_get_port_stat_value(port, rx_jabber_errors),
+                       meta);
+
+  meta_data_destroy(meta);
+}
+
 static port_list_t *ovs_stats_get_port(const char *uuid) {
   if (uuid == NULL)
     return NULL;
@@ -230,15 +417,85 @@ static port_list_t *ovs_stats_get_port(const char *uuid) {
   return NULL;
 }
 
-static port_list_t *ovs_stats_get_port_by_name(const char *name) {
-  if (name == NULL)
+static int ovs_stats_get_port_stat_value(port_list_t *port,
+                                         iface_counter index) {
+  if (port == NULL)
+    return 0;
+
+  int value = 0;
+
+  for (interface_list_t *iface = port->iface; iface != NULL;
+       iface = iface->next) {
+    value = value + iface->stats[index];
+  }
+
+  return value;
+}
+
+static port_list_t *ovs_stats_get_port_by_interface_uuid(const char *uuid) {
+  if (uuid == NULL)
     return NULL;
 
-  for (port_list_t *port = g_port_list_head; port != NULL; port = port->next)
-    if ((strncmp(port->name, name, strlen(port->name)) == 0) &&
-        strlen(name) == strlen(port->name))
-      return port;
+  for (port_list_t *port = g_port_list_head; port != NULL; port = port->next) {
+    for (interface_list_t *iface = port->iface; iface != NULL;
+         iface = iface->next) {
+      if (strncmp(iface->iface_uuid, uuid, strlen(uuid)) == 0)
+        return port;
+    }
+  }
   return NULL;
+}
+
+static interface_list_t *ovs_stats_get_port_interface(port_list_t *port,
+                                                      const char *uuid) {
+  if (port == NULL || uuid == NULL)
+    return NULL;
+
+  for (interface_list_t *iface = port->iface; iface != NULL;
+       iface = iface->next) {
+    if (strncmp(iface->iface_uuid, uuid, strlen(uuid)) == 0)
+      return iface;
+  }
+  return NULL;
+}
+
+static interface_list_t *ovs_stats_get_interface(const char *uuid) {
+  if (uuid == NULL)
+    return NULL;
+
+  for (port_list_t *port = g_port_list_head; port != NULL; port = port->next) {
+    for (interface_list_t *iface = port->iface; iface != NULL;
+         iface = iface->next) {
+      if (strncmp(iface->iface_uuid, uuid, strlen(uuid)) == 0)
+        return iface;
+    }
+  }
+  return NULL;
+}
+
+static interface_list_t *ovs_stats_new_port_interface(port_list_t *port,
+                                                      const char *uuid) {
+  if (uuid == NULL)
+    return NULL;
+
+  interface_list_t *iface = ovs_stats_get_port_interface(port, uuid);
+
+  if (iface == NULL) {
+    iface = (interface_list_t *)calloc(1, sizeof(interface_list_t));
+    if (!iface) {
+      ERROR("%s: Error allocating interface", plugin_name);
+      return NULL;
+    }
+    memset(iface->stats, -1, sizeof(int64_t[IFACE_COUNTER_COUNT]));
+    sstrncpy(iface->iface_uuid, uuid, sizeof(iface->iface_uuid));
+    sstrncpy(iface->port_uuid, port->port_uuid, sizeof(iface->port_uuid));
+    pthread_mutex_lock(&g_stats_lock);
+    interface_list_t *iface_head = port->iface;
+    iface->next = iface_head;
+    port->iface = iface;
+    pthread_mutex_unlock(&g_stats_lock);
+  }
+  return iface;
 }
 
 /* Create or get port by port uuid */
@@ -255,7 +512,6 @@ static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
       ERROR("%s: Error allocating port", plugin_name);
       return NULL;
     }
-    memset(port->stats, -1, sizeof(int64_t[IFACE_COUNTER_COUNT]));
     sstrncpy(port->port_uuid, uuid, sizeof(port->port_uuid));
     pthread_mutex_lock(&g_stats_lock);
     port->next = g_port_list_head;
@@ -453,7 +709,7 @@ static void ovs_stats_bridge_table_result_cb(yajl_val jresult,
   return;
 }
 
-/* Update port name */
+/* Update port name and interface UUID(s)*/
 static int ovs_stats_update_port(const char *uuid, yajl_val port) {
   const char *new[] = {"new", NULL};
   const char *name[] = {"name", NULL};
@@ -472,6 +728,46 @@ static int ovs_stats_update_port(const char *uuid, yajl_val port) {
           sstrncpy(portentry->name, YAJL_GET_STRING(port_name),
                    sizeof(portentry->name));
           pthread_mutex_unlock(&g_stats_lock);
+
+          yajl_val ifaces_root = ovs_utils_get_value_by_key(row, "interfaces");
+          char *ifaces_root_key =
+              YAJL_GET_STRING(YAJL_GET_ARRAY(ifaces_root)->values[0]);
+
+          char *iface_uuid_str = NULL;
+
+          if (strcmp("set", ifaces_root_key) == 0) {
+            // ifaces_root is ["set", [[ "uuid", "<some_uuid>" ], [ "uuid",
+            // "<another_uuid>" ], ... ]]
+            yajl_val ifaces_list = YAJL_GET_ARRAY(ifaces_root)->values[1];
+
+            // ifaces_list is [[ "uuid", "<some_uuid>" ], [ "uuid",
+            // "<another_uuid>" ], ... ]]
+            for (int i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
+              yajl_val iface_tuple = YAJL_GET_ARRAY(ifaces_list)->values[i];
+
+              // iface_tuple is [ "uuid", "<some_uuid>" ]
+              iface_uuid_str =
+                  YAJL_GET_STRING(YAJL_GET_ARRAY(iface_tuple)->values[1]);
+
+              interface_list_t *iface =
+                  ovs_stats_get_port_interface(portentry, iface_uuid_str);
+
+              if (iface == NULL) {
+                iface = ovs_stats_new_port_interface(portentry, iface_uuid_str);
+              }
+            }
+          } else {
+            // ifaces_root is [ "uuid", "<some_uuid>" ]
+            iface_uuid_str =
+                YAJL_GET_STRING(YAJL_GET_ARRAY(ifaces_root)->values[1]);
+
+            interface_list_t *iface =
+                ovs_stats_get_port_interface(portentry, iface_uuid_str);
+
+            if (iface == NULL) {
+              iface = ovs_stats_new_port_interface(portentry, iface_uuid_str);
+            }
+          }
         }
       }
     }
@@ -492,6 +788,14 @@ static int ovs_stats_del_port(const char *uuid) {
         g_port_list_head = port->next;
       else
         prev_port->next = port->next;
+
+      for (interface_list_t *iface = port->iface; iface != NULL;
+           iface = port->iface) {
+        interface_list_t *del = iface;
+        port->iface = iface->next;
+        sfree(del);
+      }
+
       sfree(port);
       break;
     }
@@ -551,12 +855,13 @@ static void ovs_stats_port_table_delete_cb(yajl_val jupdates) {
 }
 
 /* Update interface statistics */
-static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
+static int ovs_stats_update_iface_stats(interface_list_t *iface,
+                                        yajl_val stats) {
   yajl_val stat;
   iface_counter counter_index = 0;
   char *counter_name = NULL;
   int64_t counter_value = 0;
-  if (stats && YAJL_IS_ARRAY(stats))
+  if (stats && YAJL_IS_ARRAY(stats)) {
     for (size_t i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
       stat = YAJL_GET_ARRAY(stats)->values[i];
       if (!YAJL_IS_ARRAY(stat))
@@ -566,19 +871,22 @@ static int ovs_stats_update_iface_stats(port_list_t *port, yajl_val stats) {
       counter_value = YAJL_GET_INTEGER(YAJL_GET_ARRAY(stat)->values[1]);
       if (counter_index == not_supported)
         continue;
-      port->stats[counter_index] = counter_value;
+
+      iface->stats[counter_index] = counter_value;
     }
+  }
 
   return 0;
 }
 
 /* Update interface external_ids */
-static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
+static int ovs_stats_update_iface_ext_ids(interface_list_t *iface,
+                                          yajl_val ext_ids) {
   yajl_val ext_id;
   char *key;
   char *value;
 
-  if (ext_ids && YAJL_IS_ARRAY(ext_ids))
+  if (ext_ids && YAJL_IS_ARRAY(ext_ids)) {
     for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
       ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
       if (!YAJL_IS_ARRAY(ext_id))
@@ -586,24 +894,26 @@ static int ovs_stats_update_iface_ext_ids(port_list_t *port, yajl_val ext_ids) {
       key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
       value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
       if (key && value) {
-        if (strncmp(key, "iface-id", strlen(key)) == 0)
-          sstrncpy(port->ex_iface_id, value, sizeof(port->ex_iface_id));
-        else if (strncmp(key, "vm-uuid", strlen(key)) == 0)
-          sstrncpy(port->ex_vm_id, value, sizeof(port->ex_vm_id));
+        if (strncmp(key, "iface-id", strlen(key)) == 0) {
+          sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
+        } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
+          sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
+        }
       }
     }
+  }
 
   return 0;
 }
 
 /* Get interface statistic and external_ids */
-static int ovs_stats_update_iface(yajl_val iface) {
-  if (!iface || !YAJL_IS_OBJECT(iface)) {
-    ERROR("ovs_stats plugin: incorrect JSON port data");
+static int ovs_stats_update_iface(yajl_val iface_obj) {
+  if (!iface_obj || !YAJL_IS_OBJECT(iface_obj)) {
+    ERROR("ovs_stats plugin: incorrect JSON interface data");
     return -1;
   }
 
-  yajl_val row = ovs_utils_get_value_by_key(iface, "new");
+  yajl_val row = ovs_utils_get_value_by_key(iface_obj, "new");
   if (!row || !YAJL_IS_OBJECT(row))
     return 0;
 
@@ -611,13 +921,30 @@ static int ovs_stats_update_iface(yajl_val iface) {
   if (!iface_name || !YAJL_IS_STRING(iface_name))
     return 0;
 
-  port_list_t *port = ovs_stats_get_port_by_name(YAJL_GET_STRING(iface_name));
-  if (port == NULL)
+  yajl_val iface_uuid = ovs_utils_get_value_by_key(row, "_uuid");
+  if (!iface_uuid || !YAJL_IS_ARRAY(iface_uuid) ||
+      YAJL_GET_ARRAY(iface_uuid)->len != 2)
     return 0;
+
+  char *iface_uuid_str = NULL;
+
+  iface_uuid_str = YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]);
+
+  if (iface_uuid_str == NULL) {
+    ERROR("ovs_stats plugin: incorrect JSON interface data");
+    return -1;
+  }
+
+  interface_list_t *iface = ovs_stats_get_interface(iface_uuid_str);
+
+  if (iface == NULL)
+    return 0;
+
+  sstrncpy(iface->name, YAJL_GET_STRING(iface_name), sizeof(iface->name));
 
   yajl_val iface_stats = ovs_utils_get_value_by_key(row, "statistics");
   yajl_val iface_ext_ids = ovs_utils_get_value_by_key(row, "external_ids");
-  yajl_val iface_uuid = ovs_utils_get_value_by_key(row, "_uuid");
+
   /*
    * {
         "statistics": [
@@ -637,21 +964,42 @@ static int ovs_stats_update_iface(yajl_val iface) {
       }
    Check that statistics is an array with 2 elements
    */
+
   if (iface_stats && YAJL_IS_ARRAY(iface_stats) &&
       YAJL_GET_ARRAY(iface_stats)->len == 2)
-    ovs_stats_update_iface_stats(port, YAJL_GET_ARRAY(iface_stats)->values[1]);
+    ovs_stats_update_iface_stats(iface, YAJL_GET_ARRAY(iface_stats)->values[1]);
   if (iface_ext_ids && YAJL_IS_ARRAY(iface_ext_ids))
-    ovs_stats_update_iface_ext_ids(port,
+    ovs_stats_update_iface_ext_ids(iface,
                                    YAJL_GET_ARRAY(iface_ext_ids)->values[1]);
-  if (iface_uuid && YAJL_IS_ARRAY(iface_uuid) &&
-      YAJL_GET_ARRAY(iface_uuid)->len == 2 &&
-      YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]) != NULL)
-    sstrncpy(port->iface_uuid,
-             YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]),
-             sizeof(port->iface_uuid));
-  else {
-    ERROR("ovs_stats plugin: incorrect JSON interface data");
-    return -1;
+
+  return 0;
+}
+
+/* Delete interface */
+static int ovs_stats_del_interface(const char *uuid) {
+  port_list_t *port;
+
+  port = ovs_stats_get_port_by_interface_uuid(uuid);
+
+  if (port != NULL) {
+    interface_list_t *prev_iface = NULL;
+
+    for (interface_list_t *iface = port->iface; iface != NULL;
+         iface = port->iface) {
+      if (strncmp(iface->iface_uuid, uuid, strlen(iface->iface_uuid))) {
+
+        interface_list_t *del = iface;
+
+        if (prev_iface == NULL)
+          port->iface = iface->next;
+        else
+          prev_iface->next = iface->next;
+
+        sfree(del);
+        break;
+      } else
+        prev_iface = iface;
+    }
   }
 
   return 0;
@@ -710,11 +1058,12 @@ static void ovs_stats_interface_table_change_cb(yajl_val jupdates) {
     }
    */
   const char *path[] = {"Interface", NULL};
-  yajl_val ports = yajl_tree_get(jupdates, path, yajl_t_object);
+  yajl_val interfaces = yajl_tree_get(jupdates, path, yajl_t_object);
   pthread_mutex_lock(&g_stats_lock);
-  if (ports && YAJL_IS_OBJECT(ports))
-    for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++)
-      ovs_stats_update_iface(YAJL_GET_OBJECT(ports)->values[i]);
+  if (interfaces && YAJL_IS_OBJECT(interfaces))
+    for (size_t i = 0; i < YAJL_GET_OBJECT(interfaces)->len; i++) {
+      ovs_stats_update_iface(YAJL_GET_OBJECT(interfaces)->values[i]);
+    }
   pthread_mutex_unlock(&g_stats_lock);
   return;
 }
@@ -726,6 +1075,19 @@ static void ovs_stats_interface_table_result_cb(yajl_val jresult,
     ovs_stats_interface_table_change_cb(jresult);
   else
     ERROR("%s: Error received from OvSDB. Table: Interface", plugin_name);
+  return;
+}
+
+/* Handle Interface Table delete event */
+static void ovs_stats_interface_table_delete_cb(yajl_val jupdates) {
+  const char *path[] = {"Interface", NULL};
+  yajl_val interfaces = yajl_tree_get(jupdates, path, yajl_t_object);
+  pthread_mutex_lock(&g_stats_lock);
+  if (interfaces && YAJL_IS_OBJECT(interfaces))
+    for (size_t i = 0; i < YAJL_GET_OBJECT(interfaces)->len; i++) {
+      ovs_stats_del_interface(YAJL_GET_OBJECT(interfaces)->keys[i]);
+    }
+  pthread_mutex_unlock(&g_stats_lock);
   return;
 }
 
@@ -762,6 +1124,10 @@ static void ovs_stats_initialize(ovs_db_t *pdb) {
       ovs_stats_interface_table_result_cb,
       OVS_DB_TABLE_CB_FLAG_INITIAL | OVS_DB_TABLE_CB_FLAG_INSERT |
           OVS_DB_TABLE_CB_FLAG_MODIFY);
+
+  ovs_db_table_cb_register(pdb, "Interface", interface_columns,
+                           ovs_stats_interface_table_delete_cb, NULL,
+                           OVS_DB_TABLE_CB_FLAG_DELETE);
 }
 
 /* Check if bridge is configured to be monitored in config file */
@@ -781,6 +1147,13 @@ static int ovs_stats_is_monitored_bridge(const char *br_name) {
 static void ovs_stats_free_port_list(port_list_t *head) {
   for (port_list_t *i = head; i != NULL;) {
     port_list_t *del = i;
+
+    for (interface_list_t *iface = i->iface; iface != NULL; iface = i->iface) {
+      interface_list_t *del2 = iface;
+      i->iface = iface->next;
+      sfree(del2);
+    }
+
     i = i->next;
     sfree(del);
   }
@@ -867,6 +1240,11 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
           }
         }
       }
+    } else if (strcasecmp("InterfaceStats", child->key) == 0) {
+      if (cf_util_get_boolean(child, &interface_stats) != 0) {
+        ERROR("%s: parse '%s' option failed", plugin_name, child->key);
+        return -1;
+      }
     } else {
       WARNING("%s: option '%s' not allowed here", plugin_name, child->key);
       goto cleanup_fail;
@@ -907,7 +1285,6 @@ static int ovs_stats_plugin_init(void) {
 static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
   bridge_list_t *bridge;
   port_list_t *port;
-  char devname[PORT_NAME_SIZE_MAX * 2];
 
   pthread_mutex_lock(&g_stats_lock);
   for (bridge = g_bridge_list_head; bridge != NULL; bridge = bridge->next) {
@@ -919,72 +1296,11 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
              * is called after Interface Table update callback but before
              * Port table Update callback. Will add this port on next read */
             continue;
-          meta_data_t *meta = meta_data_create();
-          if (meta != NULL) {
-            meta_data_add_string(meta, "uuid", port->iface_uuid);
-            if (strlen(port->ex_vm_id))
-              meta_data_add_string(meta, "vm-uuid", port->ex_vm_id);
-            if (strlen(port->ex_iface_id))
-              meta_data_add_string(meta, "iface-id", port->ex_iface_id);
-          }
-          snprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
-          ovs_stats_submit_one(devname, "if_collisions", NULL,
-                               port->stats[collisions], meta);
-          ovs_stats_submit_two(devname, "if_dropped", NULL,
-                               port->stats[rx_dropped], port->stats[tx_dropped],
-                               meta);
-          ovs_stats_submit_two(devname, "if_errors", NULL,
-                               port->stats[rx_errors], port->stats[tx_errors],
-                               meta);
-          ovs_stats_submit_two(devname, "if_packets", NULL,
-                               port->stats[rx_packets], port->stats[tx_packets],
-                               meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "crc",
-                               port->stats[rx_crc_err], meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "frame",
-                               port->stats[rx_frame_err], meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "over",
-                               port->stats[rx_over_err], meta);
-          ovs_stats_submit_one(devname, "if_rx_octets", NULL,
-                               port->stats[rx_bytes], meta);
-          ovs_stats_submit_one(devname, "if_tx_octets", NULL,
-                               port->stats[tx_bytes], meta);
-          ovs_stats_submit_two(devname, "if_packets", "1_to_64_packets",
-                               port->stats[rx_1_to_64_packets],
-                               port->stats[tx_1_to_64_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "65_to_127_packets",
-                               port->stats[rx_65_to_127_packets],
-                               port->stats[tx_65_to_127_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "128_to_255_packets",
-                               port->stats[rx_128_to_255_packets],
-                               port->stats[tx_128_to_255_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "256_to_511_packets",
-                               port->stats[rx_256_to_511_packets],
-                               port->stats[tx_256_to_511_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "512_to_1023_packets",
-                               port->stats[rx_512_to_1023_packets],
-                               port->stats[tx_512_to_1023_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "1024_to_1518_packets",
-                               port->stats[rx_1024_to_1522_packets],
-                               port->stats[tx_1024_to_1522_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "1523_to_max_packets",
-                               port->stats[rx_1523_to_max_packets],
-                               port->stats[tx_1523_to_max_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "broadcast_packets",
-                               port->stats[rx_broadcast_packets],
-                               port->stats[tx_broadcast_packets], meta);
-          ovs_stats_submit_one(devname, "if_multicast", "tx_multicast_packets",
-                               port->stats[tx_multicast_packets], meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "rx_undersized_errors",
-                               port->stats[rx_undersized_errors], meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "rx_oversize_errors",
-                               port->stats[rx_oversize_errors], meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "rx_fragmented_errors",
-                               port->stats[rx_fragmented_errors], meta);
-          ovs_stats_submit_one(devname, "if_rx_errors", "rx_jabber_errors",
-                               port->stats[rx_jabber_errors], meta);
 
-          meta_data_destroy(meta);
+          ovs_stats_submit_port(bridge, port);
+
+          if (interface_stats)
+            ovs_stats_submit_interfaces(bridge, port);
         }
     } else
       continue;
