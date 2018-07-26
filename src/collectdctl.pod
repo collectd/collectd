@@ -85,7 +85,7 @@ C<unixsock> plugin. Each value is printed on its own line. I.E<nbsp>e., this
 command returns a list of valid identifiers that may be used with the other
 commands.
 
-=item B<liststate> [B<state=>I<E<lt>STATE<gt>>]
+=item B<liststate> [B<state=>I<E<lt>state<gt>>]
 
 Returns a list of all values (by their identifier) available to the
 C<unixsock> plugin with their state. It's possibile filter all the values by

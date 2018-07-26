@@ -81,7 +81,7 @@ Example:
   <- | 1182204284 myhost/cpu-0/cpu-user
   ...
 
-=item B<LISTSTATE>
+=item B<LISTSTATE> [B<state=>I<E<lt>state<gt>>]
 
 Returns a list of the values available in the value cache together with the
 time of the last update, so that querying applications can issue a B<GETVAL>
@@ -90,6 +90,8 @@ update time as an epoch value, the identifier and the internal state of the
 value, all separated by a space. The update time is the time of the last value,
 as provided by the collecting instance and may be very different from the
 time the server considers to be "now".
+The list can be also filtered by state using the option provided by the command.
+Valid values are: OKAY, ERROR,<...>
 
 Example:
   -> | LISTSTATE
