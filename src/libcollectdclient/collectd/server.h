@@ -74,7 +74,7 @@ typedef struct {
 
   /* interface is the name of the interface to use when subscribing to a
    * multicast group. Has no effect when using unicast. */
-  char *interface;
+  char *iface;
 } lcc_listener_t;
 
 /* lcc_listen_and_write listens on the provided UDP socket (or opens one using

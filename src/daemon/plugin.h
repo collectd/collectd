@@ -34,6 +34,7 @@
 #include "meta_data.h"
 #include "utils_time.h"
 
+#include <inttypes.h>
 #include <pthread.h>
 
 #define DS_TYPE_COUNTER 0

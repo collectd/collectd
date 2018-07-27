@@ -1044,6 +1044,37 @@ To generate the `configure` script, you'll need the following dependencies:
 The `build.sh' script takes no arguments.
 
 
+Building on Windows
+-----------------------------------------------
+
+Collectd can be built on Windows using Cygwin, and the result is a binary that
+runs natively on Windows. That is, Cygwin is only needed for building, not running,
+collectd.
+
+You will need to install the following Cygwin packages:
+- automake
+- bison
+- flex
+- git
+- libtool
+- make
+- mingw64-x86_64-dlfcn
+- mingw64-x86_64-gcc-core
+- mingw64-x86_64-zlib
+- pkg-config
+
+To build, just run the `build.sh' script in your Cygwin terminal. By default, it installs
+to "C:/Program Files/collectd". You can change the location by setting the INSTALL_DIR
+variable:
+
+$ export INSTALL_DIR="C:/some/other/install/directory"
+$ ./build.sh
+
+or:
+
+$ INSTALL_DIR="C:/some/other/install/directory" ./build.sh
+
+
 Crosscompiling
 --------------
 

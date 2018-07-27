@@ -335,6 +335,7 @@ int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 int parse_value_file(char const *path, value_t *ret_value, int ds_type);
 
 #if !HAVE_GETPWNAM_R
+struct passwd;
 int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
                struct passwd **pwbufp);
 #endif
