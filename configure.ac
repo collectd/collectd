@@ -779,8 +779,12 @@ AC_FUNC_STRERROR_R
 
 SAVE_CFLAGS="$CFLAGS"
 CFLAGS="-Wall -Werror"
-SAVE_LDFAGS="$LDFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
 LDFLAGS=""
+if test "x$ac_system" = "xWindows"; then
+  # This is exported from build.sh
+  LDFLAGS="$LDFLAGS -L${GNULIB_DIR}"
+fi
 
 AC_CACHE_CHECK([for strtok_r],
   [c_cv_have_strtok_r_default],
