@@ -39,6 +39,7 @@ typedef struct threshold_s {
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
   char data_source[DATA_MAX_NAME_LEN];
+  char alert_name[DATA_MAX_NAME_LEN];
   gauge_t warning_min;
   gauge_t warning_max;
   gauge_t failure_min;

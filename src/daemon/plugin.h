@@ -156,6 +156,7 @@ typedef struct notification_meta_s {
 typedef struct notification_s {
   int severity;
   cdtime_t time;
+  char alert_name[DATA_MAX_NAME_LEN];
   char message[NOTIF_MAX_MSG_LEN];
   char host[DATA_MAX_NAME_LEN];
   char plugin[DATA_MAX_NAME_LEN];

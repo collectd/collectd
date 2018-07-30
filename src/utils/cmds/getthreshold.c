@@ -137,6 +137,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     i++;
   if (threshold.data_source[0] != 0)
     i++;
+  if (threshold.alert_name[0] != 0)
+    i++;
   if (!isnan(threshold.warning_min))
     i++;
   if (!isnan(threshold.warning_max))
@@ -165,6 +167,8 @@ int handle_getthreshold(FILE *fh, char *buffer) {
     print_to_socket(fh, "Type Instance: %s\n", threshold.type_instance);
   if (threshold.data_source[0] != 0)
     print_to_socket(fh, "Data Source: %s\n", threshold.data_source);
+  if (threshold.alert_name[0] != 0)
+    print_to_socket(fh, "Alert Name: %s\n", threshold.alert_name);
   if (!isnan(threshold.warning_min))
     print_to_socket(fh, "Warning Min: %g\n", threshold.warning_min);
   if (!isnan(threshold.warning_max))

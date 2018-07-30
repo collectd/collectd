@@ -108,6 +108,8 @@ static int set_option(notification_t *n, const char *option,
     sstrncpy(n->type, value, sizeof(n->type));
   else if (strcasecmp("type_instance", option) == 0)
     sstrncpy(n->type_instance, value, sizeof(n->type_instance));
+  else if (strcasecmp("alert_name", option) == 0)
+    sstrncpy(n->alert_name, value, sizeof(n->alert_name));
   else
     return 1;
 
