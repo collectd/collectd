@@ -1285,9 +1285,11 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
   }
 
   pids_list_t *new_pids = NULL;
+  pid_t *new_pids_array = NULL;
   size_t new_pids_count = 0;
 
   pids_list_t *lost_pids = NULL;
+  pid_t *lost_pids_array = NULL;
   size_t lost_pids_count = 0;
 
   for (size_t i = 0; i < ngroup->num_names; ++i) {
@@ -1310,79 +1312,89 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
                    "%u, removed: %u.",
         ngroup->desc, (unsigned)new_pids_count, (unsigned)lost_pids_count);
 
-  if (new_pids_count > 0 || lost_pids_count > 0) {
+  if (new_pids && new_pids_count > 0) {
+    new_pids_array = malloc(new_pids_count * sizeof(pid_t));
+    if (new_pids_array == NULL) {
+      ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Memory "
+                       "allocation failed",
+            ngroup->desc);
+      result = -1;
+      goto cleanup;
+    }
+    pids_list_to_array(new_pids_array, new_pids, new_pids_count);
 
-    if (new_pids && new_pids_count > 0) {
-      pid_t new_pids_array[new_pids_count];
-      pids_list_to_array(new_pids_array, new_pids,
-                         STATIC_ARRAY_SIZE(new_pids_array));
+    /* no pids are monitored for this group yet: start monitoring */
+    if (0 == ngroup->monitored_pids_count) {
 
-      /* no pids are monitored for this group yet: start monitoring */
-      if (0 == ngroup->monitored_pids_count) {
-
-        int start_result =
-            pqos_mon_start_pids(new_pids_count, new_pids_array, ngroup->events,
-                                (void *)ngroup->desc, group_mon_data);
-        if (PQOS_RETVAL_OK == start_result) {
-          ngroup->monitored_pids_count = new_pids_count;
-        } else {
-          ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
-                           "STARTING pids monitoring",
-                ngroup->desc, start_result);
-          result = -1;
-          goto pqos_error_recovery;
-        }
-
+      int start_result =
+          pqos_mon_start_pids(new_pids_count, new_pids_array, ngroup->events,
+                              (void *)ngroup->desc, group_mon_data);
+      if (PQOS_RETVAL_OK == start_result) {
+        ngroup->monitored_pids_count = new_pids_count;
       } else {
+        ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
+                         "STARTING pids monitoring",
+              ngroup->desc, start_result);
+        result = -1;
+        goto pqos_error_recovery;
+      }
 
-        int add_result =
-            pqos_mon_add_pids(new_pids_count, new_pids_array, group_mon_data);
-        if (PQOS_RETVAL_OK == add_result)
-          ngroup->monitored_pids_count += new_pids_count;
-        else {
-          ERROR(RDT_PLUGIN
-                ": rdt_refresh_ngroup: \'%s\'. Error [%d] while ADDING pids.",
-                ngroup->desc, add_result);
-          result = -1;
-          goto pqos_error_recovery;
-        }
+    } else {
+
+      int add_result =
+          pqos_mon_add_pids(new_pids_count, new_pids_array, group_mon_data);
+      if (PQOS_RETVAL_OK == add_result)
+        ngroup->monitored_pids_count += new_pids_count;
+      else {
+        ERROR(RDT_PLUGIN
+              ": rdt_refresh_ngroup: \'%s\'. Error [%d] while ADDING pids.",
+              ngroup->desc, add_result);
+        result = -1;
+        goto pqos_error_recovery;
       }
     }
-
-    if (lost_pids && lost_pids_count > 0) {
-      pid_t lost_pids_array[lost_pids_count];
-      pids_list_to_array(lost_pids_array, lost_pids,
-                         STATIC_ARRAY_SIZE(lost_pids_array));
-
-      if (lost_pids_count == ngroup->monitored_pids_count) {
-        /* all pids for this group are lost: stop monitoring */
-        int stop_result = pqos_mon_stop(group_mon_data);
-        if (PQOS_RETVAL_OK != stop_result) {
-          ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
-                           "STOPPING monitoring",
-                ngroup->desc, stop_result);
-          result = -1;
-          goto pqos_error_recovery;
-        }
-        ngroup->monitored_pids_count = 0;
-      } else {
-        assert(lost_pids_count < ngroup->monitored_pids_count);
-        int remove_result = pqos_mon_remove_pids(
-            lost_pids_count, lost_pids_array, group_mon_data);
-        if (PQOS_RETVAL_OK == remove_result) {
-          ngroup->monitored_pids_count -= lost_pids_count;
-        } else {
-          ERROR(RDT_PLUGIN
-                ": rdt_refresh_ngroup: \'%s\'. Error [%d] while REMOVING pids.",
-                ngroup->desc, remove_result);
-          result = -1;
-          goto pqos_error_recovery;
-        }
-      }
-    }
-
-    ngroup->proc_pids_array = proc_pids_array_curr;
   }
+
+  if (lost_pids && lost_pids_count > 0) {
+    lost_pids_array = malloc(lost_pids_count * sizeof(pid_t));
+    if (lost_pids_array == NULL) {
+      ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Memory "
+                       "allocation failed",
+            ngroup->desc);
+      result = -1;
+      goto cleanup;
+    }
+    pids_list_to_array(lost_pids_array, lost_pids, lost_pids_count);
+
+    if (lost_pids_count == ngroup->monitored_pids_count) {
+      /* all pids for this group are lost: stop monitoring */
+      int stop_result = pqos_mon_stop(group_mon_data);
+      if (PQOS_RETVAL_OK != stop_result) {
+        ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
+                         "STOPPING monitoring",
+              ngroup->desc, stop_result);
+        result = -1;
+        goto pqos_error_recovery;
+      }
+      ngroup->monitored_pids_count = 0;
+    } else {
+      assert(lost_pids_count < ngroup->monitored_pids_count);
+      int remove_result = pqos_mon_remove_pids(lost_pids_count, lost_pids_array,
+                                               group_mon_data);
+      if (PQOS_RETVAL_OK == remove_result) {
+        ngroup->monitored_pids_count -= lost_pids_count;
+      } else {
+        ERROR(RDT_PLUGIN
+              ": rdt_refresh_ngroup: \'%s\'. Error [%d] while REMOVING pids.",
+              ngroup->desc, remove_result);
+        result = -1;
+        goto pqos_error_recovery;
+      }
+    }
+  }
+
+  if (new_pids_count > 0 || lost_pids_count > 0)
+    ngroup->proc_pids_array = proc_pids_array_curr;
 
   goto cleanup;
 
@@ -1434,8 +1446,14 @@ cleanup:
   if (new_pids)
     pids_list_free(new_pids);
 
+  if (new_pids_array)
+    free(new_pids_array);
+
   if (lost_pids)
     pids_list_free(lost_pids);
+
+  if (lost_pids_array)
+    free(lost_pids_array);
 
   return result;
 }
