@@ -93,6 +93,7 @@ build_cygwin()
           --dir=${TOP_SRCDIR}/gnulib/build \
           canonicalize-lgpl \
           fcntl-h \
+          fnmatch \
           getsockopt \
           gettimeofday \
           nanosleep \
@@ -141,7 +142,10 @@ build_cygwin()
       --datarootdir="${DATADIR}" \
       --disable-all-plugins \
       --host="mingw32" \
-      --enable-logfile
+      --enable-logfile \
+      --enable-match_regex \
+      --enable-target_replace \
+      --enable-target_set
 
     cp ${GNULIB_DIR}/../config.h src/gnulib_config.h
     echo "#include <config.h.in>" >> src/gnulib_config.h
