@@ -304,6 +304,21 @@ static void ovs_stats_submit_interfaces(bridge_list_t *bridge,
   }
 }
 
+static int ovs_stats_get_port_stat_value(port_list_t *port,
+                                         iface_counter index) {
+  if (port == NULL)
+    return 0;
+
+  int value = 0;
+
+  for (interface_list_t *iface = port->iface; iface != NULL;
+       iface = iface->next) {
+    value = value + iface->stats[index];
+  }
+
+  return value;
+}
+
 static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
 
@@ -415,21 +430,6 @@ static port_list_t *ovs_stats_get_port(const char *uuid) {
       return port;
   }
   return NULL;
-}
-
-static int ovs_stats_get_port_stat_value(port_list_t *port,
-                                         iface_counter index) {
-  if (port == NULL)
-    return 0;
-
-  int value = 0;
-
-  for (interface_list_t *iface = port->iface; iface != NULL;
-       iface = iface->next) {
-    value = value + iface->stats[index];
-  }
-
-  return value;
 }
 
 static port_list_t *ovs_stats_get_port_by_interface_uuid(const char *uuid) {
