@@ -21,8 +21,8 @@
  * THE SOFTWARE.
  */
 
-#include "configfile.h"
 #include "common.h"
+#include "configfile.h"
 #include "plugin.h"
 
 #include <stdio.h>
@@ -48,12 +48,12 @@ typedef struct wmi_query_s {
   char *statement;
   char *instance_prefix;
   char *instances_from;
-  LIST_TYPE(wmi_metric_t) *metrics;
+  LIST_TYPE(wmi_metric_t) * metrics;
 } wmi_query_t;
 LIST_DEF_TYPE(wmi_query_t);
 void wmi_query_free(wmi_query_t *q);
 
-static LIST_TYPE(wmi_query_t) *queries_g;
+static LIST_TYPE(wmi_query_t) * queries_g;
 static wmi_connection_t *wmi;
 
 static wmi_metric_t *config_get_metric(oconfig_item_t *ci) {
@@ -124,7 +124,8 @@ static wmi_query_t *config_get_query(oconfig_item_t *ci) {
     }
   }
 
-  if (metrics == NULL || statement == NULL || (instance_prefix == NULL && instances_from == NULL)) {
+  if (metrics == NULL || statement == NULL ||
+      (instance_prefix == NULL && instances_from == NULL)) {
     LIST_FREE(metrics, wmi_metric_free);
     free(statement);
     free(instance_prefix);
@@ -211,7 +212,7 @@ static int wmi_exec_query(wmi_query_t *q) {
     sstrncpy(vl.host, hostname_g, sizeof(vl.host));
     sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
 
-    LIST_TYPE(wmi_metric_t) *mn;
+    LIST_TYPE(wmi_metric_t) * mn;
     for (mn = q->metrics; mn != NULL; mn = LIST_NEXT(mn)) {
       VARIANT value_v;
       VARIANT plugin_instance_v;
@@ -235,16 +236,20 @@ static int wmi_exec_query(wmi_query_t *q) {
         log_warn("cannot find field 'value' in type %s.", ds->type);
 
       if (q->instances_from == NULL) {
-        sstrncpy(vl.plugin_instance, q->instance_prefix, sizeof(vl.plugin_instance));
+        sstrncpy(vl.plugin_instance, q->instance_prefix,
+                 sizeof(vl.plugin_instance));
       } else {
-        if (wmi_result_get_value(result, q->instances_from, &plugin_instance_v) != 0) {
+        if (wmi_result_get_value(result, q->instances_from,
+                                 &plugin_instance_v) != 0) {
           log_err("failed to read field '%s'", q->instances_from);
         }
         plugin_instance_s = variant_get_string(&plugin_instance_v);
         if (plugin_instance_s == NULL) {
           log_err("failed to convert plugin_instance to string");
         }
-        sstrncpy(vl.plugin_instance, ssnprintf_alloc("%s%s", q->instance_prefix, plugin_instance_s), sizeof(vl.plugin_instance));
+        sstrncpy(vl.plugin_instance,
+                 ssnprintf_alloc("%s%s", q->instance_prefix, plugin_instance_s),
+                 sizeof(vl.plugin_instance));
       }
 
       vl.values_len = 1;
@@ -264,13 +269,14 @@ static int wmi_exec_query(wmi_query_t *q) {
   return 0;
 }
 
-static int wmi_configure(oconfig_item_t *ci, LIST_TYPE(wmi_query_t) **queries) {
+static int wmi_configure(oconfig_item_t *ci,
+                         LIST_TYPE(wmi_query_t) * *queries) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *c = &ci->children[i];
     if (strcasecmp("Query", c->key) == 0) {
       wmi_query_t *q = config_get_query(c);
       if (!q) {
-        log_err("cannot read Query %d", i+1);
+        log_err("cannot read Query %d", i + 1);
         return -1;
       }
       LIST_INSERT_FRONT(*queries, q);
@@ -301,7 +307,7 @@ static int wmi_shutdown(void) {
 }
 
 static int wmi_read(void) {
-  LIST_TYPE(wmi_query_t) *q;
+  LIST_TYPE(wmi_query_t) * q;
   for (q = queries_g; q != NULL; q = LIST_NEXT(q)) {
     int status = wmi_exec_query(LIST_NODE(q));
     if (status != 0)

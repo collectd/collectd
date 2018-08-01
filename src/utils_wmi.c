@@ -34,7 +34,8 @@
 #define log_err(...) ERROR("wmi_utils: " __VA_ARGS__)
 #define log_warn(...) WARNING("wmi_utils: " __VA_ARGS__)
 
-static enum VARENUM variant_unsigned_integer_types[] = {VT_UI1, VT_UI2, VT_UI4, VT_UI8, VT_UINT};
+static enum VARENUM variant_unsigned_integer_types[] = {VT_UI1, VT_UI2, VT_UI4,
+                                                        VT_UI8, VT_UINT};
 
 static int variant_is_unsigned_integer(VARIANT *v) {
   int i;
@@ -44,7 +45,8 @@ static int variant_is_unsigned_integer(VARIANT *v) {
   return 0;
 }
 
-static enum VARENUM variant_signed_integer_types[] = {VT_I1, VT_I2, VT_I4, VT_I8, VT_INT};
+static enum VARENUM variant_signed_integer_types[] = {VT_I1, VT_I2, VT_I4,
+                                                      VT_I8, VT_INT};
 
 static int variant_is_signed_integer(VARIANT *v) {
   int i;
@@ -203,7 +205,8 @@ char *wstrtostr(const wchar_t *source) {
   return result;
 }
 
-static HRESULT wmi_make_call(IDispatch *dispatcher, const wchar_t *name_str, DISPPARAMS *params, VARIANT *result, WORD flags) {
+static HRESULT wmi_make_call(IDispatch *dispatcher, const wchar_t *name_str,
+                             DISPPARAMS *params, VARIANT *result, WORD flags) {
   HRESULT hr;
   DISPID dispid[1];
   BSTR name;
@@ -217,24 +220,27 @@ static HRESULT wmi_make_call(IDispatch *dispatcher, const wchar_t *name_str, DIS
     return hr;
 
   hr = dispatcher->lpVtbl->Invoke(dispatcher, dispid[0], &IID_NULL,
-                                  LOCALE_SYSTEM_DEFAULT, flags,
-                                  params, result, NULL, NULL);
+                                  LOCALE_SYSTEM_DEFAULT, flags, params, result,
+                                  NULL, NULL);
   if (FAILED(hr))
     return hr;
 
   return 0;
 }
 
-HRESULT wmi_invoke_method(IDispatch *dispatcher, const wchar_t *method_name, DISPPARAMS *params, VARIANT *result) {
-  return wmi_make_call(dispatcher, method_name, params, result, DISPATCH_METHOD);
+HRESULT wmi_invoke_method(IDispatch *dispatcher, const wchar_t *method_name,
+                          DISPPARAMS *params, VARIANT *result) {
+  return wmi_make_call(dispatcher, method_name, params, result,
+                       DISPATCH_METHOD);
 }
 
-HRESULT wmi_get_property(IDispatch *dispatcher, const wchar_t *property_name, VARIANT *result) {
+HRESULT wmi_get_property(IDispatch *dispatcher, const wchar_t *property_name,
+                         VARIANT *result) {
   DISPPARAMS params = {
-    .cArgs = 0,
-	.cNamedArgs = 0,
+      .cArgs = 0, .cNamedArgs = 0,
   };
-  return wmi_make_call(dispatcher, property_name, &params, result, DISPATCH_PROPERTYGET);
+  return wmi_make_call(dispatcher, property_name, &params, result,
+                       DISPATCH_PROPERTYGET);
 }
 
 wmi_result_list_t *wmi_query(wmi_connection_t *connection, const char *query) {
@@ -255,13 +261,16 @@ wmi_result_list_t *wmi_query(wmi_connection_t *connection, const char *query) {
   params.rgvarg[0].bstrVal = SysAllocString(wquery);
   free(wquery);
 
-  status = wmi_invoke_method(connection->dispatcher, L"ExecQuery", &params, &methodResult);
+  status = wmi_invoke_method(connection->dispatcher, L"ExecQuery", &params,
+                             &methodResult);
   SysFreeString(params.rgvarg[0].bstrVal);
   VariantClear(args);
   if (FAILED(status)) {
     free(res);
     VariantClear(&methodResult);
-    log_err("unknown error [0x%x] during query: '%s'. Error details: ExecQuery() failed.", (unsigned)status, query);
+    log_err("unknown error [0x%x] during query: '%s'. Error details: "
+            "ExecQuery() failed.",
+            (unsigned)status, query);
     return NULL;
   }
 
@@ -300,20 +309,17 @@ wmi_result_t *wmi_get_next_result(wmi_result_list_t *results) {
 
   HRESULT hr;
   VARIANTARG args[1] = {{
-    .vt = VT_UI4,
-	.uintVal = results->last_result + 1,
+      .vt = VT_UI4, .uintVal = results->last_result + 1,
   }};
   DISPPARAMS params = {
-    .cArgs = 1,
-    .cNamedArgs = 0,
-	.rgvarg = args,
+      .cArgs = 1, .cNamedArgs = 0, .rgvarg = args,
   };
   VARIANT varResult;
 
   hr = wmi_invoke_method(results->results, L"ItemIndex", &params, &varResult);
   if (FAILED(hr)) {
     VariantClear(&varResult);
-	VariantClear(args);
+    VariantClear(args);
     log_err("cannot get next result. Error code 0x%x", (unsigned)hr);
     return NULL;
   }
@@ -340,12 +346,14 @@ void handle_error(HRESULT hr, const char *property_name) {
     log_err("property %s not found.", property_name);
     break;
   default:
-    log_err("unknown error 0x%x while fetching property %s", (unsigned)hr, property_name);
+    log_err("unknown error 0x%x while fetching property %s", (unsigned)hr,
+            property_name);
     break;
   }
 }
 
-int wmi_result_get_value(const wmi_result_t *result, const char *name, VARIANT *value) {
+int wmi_result_get_value(const wmi_result_t *result, const char *name,
+                         VARIANT *value) {
   VARIANT propertyResult;
   VARIANT methodResult;
   HRESULT hr;
@@ -354,37 +362,35 @@ int wmi_result_get_value(const wmi_result_t *result, const char *name, VARIANT *
   if (FAILED(hr)) {
     VariantClear(&propertyResult);
     handle_error(hr, name);
-	return -1;
+    return -1;
   }
 
   wchar_t *wname = strtowstr(name);
   VARIANTARG args[1] = {{
-    .vt = VT_BSTR,
-	.bstrVal = SysAllocString(wname),
+      .vt = VT_BSTR, .bstrVal = SysAllocString(wname),
   }};
   free(wname);
   DISPPARAMS params = {
-    .cArgs = 1,
-    .cNamedArgs = 0,
-	.rgvarg = args,
+      .cArgs = 1, .cNamedArgs = 0, .rgvarg = args,
   };
 
-  hr = wmi_invoke_method(propertyResult.pdispVal, L"Item", &params, &methodResult);
+  hr = wmi_invoke_method(propertyResult.pdispVal, L"Item", &params,
+                         &methodResult);
   VariantClear(&propertyResult);
   SysFreeString(params.rgvarg[0].bstrVal);
   VariantClear(args);
   if (FAILED(hr)) {
     VariantClear(&methodResult);
     handle_error(hr, name);
-	return -1;
+    return -1;
   }
   hr = wmi_get_property(methodResult.pdispVal, L"Value", value);
   VariantClear(&methodResult);
   if (FAILED(hr)) {
     handle_error(hr, name);
-	return -1;
+    return -1;
   }
- 
+
   return 0;
 }
 
