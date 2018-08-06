@@ -56,6 +56,7 @@ static const char *proc_fs = "/tmp/procfs_stub";
  *   0 on success.
  *   -1 on base dir creation error.
  *   -2 on comm file creation error.
+ *   -3 on comm file write error.
  */
 int stub_procfs_setup(const stub_proc_pid_t *proc_pids_array,
                       const size_t proc_pids_array_length) {
@@ -73,9 +74,13 @@ int stub_procfs_setup(const stub_proc_pid_t *proc_pids_array,
     FILE *fp = fopen(path, "w");
     if (!fp)
       return -2;
-    fwrite(proc_pids_array[i].comm, sizeof(char),
-           strlen(proc_pids_array[i].comm), fp);
+
+    size_t slen = strlen(proc_pids_array[i].comm);
+    size_t wlen = fwrite(proc_pids_array[i].comm, sizeof(char), slen, fp);
     fclose(fp);
+
+    if (slen != wlen)
+      return -3;
   }
   return 0;
 }
