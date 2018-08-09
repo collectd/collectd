@@ -56,7 +56,118 @@ static int variant_is_signed_integer(VARIANT *v) {
   return 0;
 }
 
-uint64_t variant_get_unsigned(VARIANT *v) {
+static char *varenum_to_string(VARENUM v) {
+  switch (v) {
+  case VT_EMPTY:
+    return "VT_EMPTY";
+  case VT_NULL:
+    return "VT_NULL";
+  case VT_I2:
+    return "VT_I2";
+  case VT_I4:
+    return "VT_I4";
+  case VT_R4:
+    return "VT_R4";
+  case VT_R8:
+    return "VT_R8";
+  case VT_CY:
+    return "VT_CY";
+  case VT_DATE:
+    return "VT_DATE";
+  case VT_BSTR:
+    return "VT_BSTR";
+  case VT_DISPATCH:
+    return "VT_DISPATCH";
+  case VT_ERROR:
+    return "VT_ERROR";
+  case VT_BOOL:
+    return "VT_BOOL";
+  case VT_VARIANT:
+    return "VT_VARIANT";
+  case VT_UNKNOWN:
+    return "VT_UNKNOWN";
+  case VT_DECIMAL:
+    return "VT_DECIMAL";
+  case VT_I1:
+    return "VT_I1";
+  case VT_UI1:
+    return "VT_UI1";
+  case VT_UI2:
+    return "VT_UI2";
+  case VT_UI4:
+    return "VT_UI4";
+  case "VT_I8":
+    return "VT_I8";
+  case "VT_UI8":
+    return "VT_UI8";
+  case "VT_INT":
+    return "VT_INT";
+  case "VT_UINT":
+    return "VT_UINT";
+  case "VT_VOID":
+    return "VT_VOID";
+  case "VT_HRESULT":
+    return "VT_HRESULT";
+  case "VT_PTR":
+    return "VT_PTR";
+  case "VT_SAFEARRAY":
+    return "VT_SAFEARRAY";
+  case "VT_CARRAY":
+    return "VT_CARRAY";
+  case "VT_USERDEFINED":
+    return "VT_USERDEFINED";
+  case "VT_LPSTR":
+    return "VT_LPSTR";
+  case "VT_LPWSTR":
+    return "VT_LPWSTR";
+  case "VT_RECORD":
+    return "VT_RECORD";
+  case "VT_INT_PTR":
+    return "VT_INT_PTR";
+  case "VT_UINT_PTR":
+    return "VT_UINT_PTR";
+  case "VT_FILETIME":
+    return "VT_FILETIME";
+  case "VT_BLOB":
+    return "VT_BLOB";
+  case "VT_STREAM":
+    return "VT_STREAM";
+  case "VT_STORAGE":
+    return "VT_STORAGE";
+  case "VT_STREAMED_OBJECT":
+    return "VT_STREAMED_OBJECT";
+  case "VT_STORED_OBJECT":
+    return "VT_STORED_OBJECT";
+  case "VT_BLOB_OBJECT":
+    return "VT_BLOB_OBJECT";
+  case "VT_CF":
+    return "VT_CF";
+  case "VT_CLSID":
+    return "VT_CLSID";
+  case "VT_VERSIONED_STREAM":
+    return "VT_VERSIONED_STREAM";
+  case "VT_BSTR_BLOB":
+    return "VT_BSTR_BLOB";
+  case "VT_VECTOR":
+    return "VT_VECTOR";
+  case "VT_ARRAY":
+    return "VT_ARRAY";
+  case "VT_BYREF":
+    return "VT_BYREF";
+  case "VT_RESERVED":
+    return "VT_RESERVED";
+  case "VT_ILLEGAL":
+    return "VT_ILLEGAL";
+  case "VT_ILLEGALMASKED":
+    return "VT_ILLEGALMASKED";
+  case "VT_TYPEMASK":
+    return "VT_TYPEMASK";
+  default:
+    return "<unknown>";
+  }
+}
+
+static uint64_t variant_get_unsigned_integer(VARIANT *v) {
   switch (v->vt) {
   case VT_UI1:
     return v->bVal;
@@ -69,12 +180,12 @@ uint64_t variant_get_unsigned(VARIANT *v) {
   case VT_UINT:
     return v->uintVal;
   default:
-    log_err("conversion problem at line %d", __LINE__);
+    log_err("cannot convert from type %s (%d) to uint64_t", varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
 
-int64_t variant_get_signed_integer(VARIANT *v) {
+static int64_t variant_get_signed_integer(VARIANT *v) {
   switch (v->vt) {
   case VT_I1:
     return v->bVal;
@@ -87,7 +198,7 @@ int64_t variant_get_signed_integer(VARIANT *v) {
   case VT_INT:
     return v->intVal;
   default:
-    log_err("conversion problem at line %d", __LINE__);
+    log_err("cannot convert from type %s (%d) to int64_t", varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -96,14 +207,14 @@ static int variant_is_real(VARIANT *v) {
   return v->vt == VT_R4 || v->vt == VT_R8;
 }
 
-double variant_get_real(VARIANT *v) {
+static double variant_get_real(VARIANT *v) {
   switch (v->vt) {
   case VT_R4:
     return v->fltVal;
   case VT_R8:
     return v->dblVal;
   default:
-    log_err("conversion problem at line %d", __LINE__);
+    log_err("cannot convert from type %s (%d) to int", varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -112,7 +223,7 @@ int64_t variant_get_int64(VARIANT *v) {
   int64_t result = 0;
 
   if (variant_is_unsigned_integer(v))
-    return variant_get_unsigned(v);
+    return variant_get_unsigned_integer(v);
   else if (variant_is_signed_integer(v))
     return variant_get_signed_integer(v);
   else if (variant_is_real(v))
@@ -123,10 +234,9 @@ int64_t variant_get_int64(VARIANT *v) {
     if (status <= 0)
       log_err("cannot convert '%s' to int64.", str);
     free(str);
-
     return result;
   } else {
-    log_err("cannot convert from type %d to int64.", (int)v->vt);
+    log_err("cannot convert from type %s (%d) to int64_t", varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -135,7 +245,7 @@ uint64_t variant_get_uint64(VARIANT *v) {
   uint64_t result = 0;
 
   if (variant_is_unsigned_integer(v))
-    return variant_get_unsigned(v);
+    return variant_get_unsigned_integer(v);
   else if (variant_is_signed_integer(v))
     return variant_get_signed_integer(v);
   else if (variant_is_real(v))
@@ -149,7 +259,7 @@ uint64_t variant_get_uint64(VARIANT *v) {
 
     return result;
   } else {
-    log_err("cannot convert from type %d to int64.", (int)v->vt);
+    log_err("cannot convert from type %s (%d) to uint64_t", varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -158,7 +268,7 @@ double variant_get_double(VARIANT *v) {
   double result = 0;
 
   if (variant_is_unsigned_integer(v))
-    return variant_get_unsigned(v);
+    return variant_get_unsigned_integer(v);
   else if (variant_is_signed_integer(v))
     return variant_get_signed_integer(v);
   else if (variant_is_real(v))
@@ -172,14 +282,16 @@ double variant_get_double(VARIANT *v) {
 
     return result;
   } else {
-    log_err("cannot convert from type %d to double.", (int)v->vt);
+    log_err("cannot convert from type %s (%d) to double", varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
 
 char *variant_get_string(VARIANT *v) {
-  if (v->vt != VT_BSTR)
+  if (v->vt != VT_BSTR) {
+    log_err("cannot convert from type %s (%d) to string", varenum_to_string(v->vt), v->vt);
     return NULL;
+  }
   return wstrtostr(v->bstrVal);
 }
 
@@ -266,7 +378,6 @@ wmi_result_list_t *wmi_query(wmi_connection_t *connection, const char *query) {
   SysFreeString(params.rgvarg[0].bstrVal);
   VariantClear(args);
   if (FAILED(status)) {
-    free(res);
     VariantClear(&methodResult);
     log_err("unknown error [0x%x] during query: '%s'. Error details: "
             "ExecQuery() failed.",
@@ -295,9 +406,10 @@ wmi_result_list_t *wmi_query(wmi_connection_t *connection, const char *query) {
 }
 
 void wmi_result_list_release(wmi_result_list_t *results) {
-  if (results)
+  if (results) {
     results->results->lpVtbl->Release(results->results);
-  free(results);
+    free(results);
+  }
 }
 
 wmi_result_t *wmi_get_next_result(wmi_result_list_t *results) {
@@ -335,12 +447,13 @@ wmi_result_t *wmi_get_next_result(wmi_result_list_t *results) {
 }
 
 void wmi_result_release(wmi_result_t *result) {
-  if (result)
+  if (result) {
     result->result->lpVtbl->Release(result->result);
-  free(result);
+    free(result);
+  }
 }
 
-void handle_error(HRESULT hr, const char *property_name) {
+static void log_hresult_error(HRESULT hr, const char *property_name) {
   switch (hr) {
   case WBEM_E_NOT_FOUND:
     log_err("property %s not found.", property_name);
@@ -361,7 +474,7 @@ int wmi_result_get_value(const wmi_result_t *result, const char *name,
   hr = wmi_get_property(result->result, L"Properties_", &propertyResult);
   if (FAILED(hr)) {
     VariantClear(&propertyResult);
-    handle_error(hr, name);
+    log_hresult_error(hr, name);
     return -1;
   }
 
@@ -381,13 +494,13 @@ int wmi_result_get_value(const wmi_result_t *result, const char *name,
   VariantClear(args);
   if (FAILED(hr)) {
     VariantClear(&methodResult);
-    handle_error(hr, name);
+    log_hresult_error(hr, name);
     return -1;
   }
   hr = wmi_get_property(methodResult.pdispVal, L"Value", value);
   VariantClear(&methodResult);
   if (FAILED(hr)) {
-    handle_error(hr, name);
+    log_hresult_error(hr, name);
     return -1;
   }
 
