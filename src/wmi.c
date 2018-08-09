@@ -212,7 +212,7 @@ static int wmi_exec_query(wmi_query_t *q) {
     sstrncpy(vl.host, hostname_g, sizeof(vl.host));
     sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
 
-    LIST_TYPE(wmi_metric_t) * mn;
+    LIST_TYPE(wmi_metric_t) *mn;
     for (mn = q->metrics; mn != NULL; mn = LIST_NEXT(mn)) {
       VARIANT value_v;
       VARIANT plugin_instance_v;
