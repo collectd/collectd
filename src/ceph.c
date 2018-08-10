@@ -990,7 +990,7 @@ static int cconn_connect(struct cconn *io) {
     return err;
   }
   address.sun_family = AF_UNIX;
-  snprintf(address.sun_path, sizeof(address.sun_path), "%s", io->d->asok_path);
+  ssnprintf(address.sun_path, sizeof(address.sun_path), "%s", io->d->asok_path);
   RETRY_ON_EINTR(err, connect(fd, (struct sockaddr *)&address,
                               sizeof(struct sockaddr_un)));
   if (err < 0) {
@@ -1153,8 +1153,8 @@ static ssize_t cconn_handle_event(struct cconn *io) {
     return -EDOM;
   case CSTATE_WRITE_REQUEST: {
     char cmd[32];
-    snprintf(cmd, sizeof(cmd), "%s%d%s", "{ \"prefix\": \"", io->request_type,
-             "\" }\n");
+    ssnprintf(cmd, sizeof(cmd), "%s%d%s", "{ \"prefix\": \"", io->request_type,
+              "\" }\n");
     size_t cmd_len = strlen(cmd);
     RETRY_ON_EINTR(
         ret, write(io->asok, ((char *)&cmd) + io->amt, cmd_len - io->amt));

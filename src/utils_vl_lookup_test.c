@@ -28,6 +28,7 @@
 
 #include "testing.h"
 #include "utils_vl_lookup.h"
+#include "common.h"
 
 static bool expect_new_obj;
 static bool have_new_obj;
@@ -68,12 +69,12 @@ static void *lookup_class_callback(data_set_t const *ds, value_list_t const *vl,
   memcpy(&last_class_ident, class, sizeof(last_class_ident));
 
   obj = malloc(sizeof(*obj));
-  strncpy(obj->host, vl->host, sizeof(obj->host));
-  strncpy(obj->plugin, vl->plugin, sizeof(obj->plugin));
-  strncpy(obj->plugin_instance, vl->plugin_instance,
-          sizeof(obj->plugin_instance));
-  strncpy(obj->type, vl->type, sizeof(obj->type));
-  strncpy(obj->type_instance, vl->type_instance, sizeof(obj->type_instance));
+  sstrncpy(obj->host, vl->host, sizeof(obj->host));
+  sstrncpy(obj->plugin, vl->plugin, sizeof(obj->plugin));
+  sstrncpy(obj->plugin_instance, vl->plugin_instance,
+           sizeof(obj->plugin_instance));
+  sstrncpy(obj->type, vl->type, sizeof(obj->type));
+  sstrncpy(obj->type_instance, vl->type_instance, sizeof(obj->type_instance));
 
   have_new_obj = true;
 
@@ -88,12 +89,12 @@ static int checked_lookup_add(lookup_t *obj, /* {{{ */
   lookup_identifier_t ident;
   void *user_class;
 
-  strncpy(ident.host, host, sizeof(ident.host));
-  strncpy(ident.plugin, plugin, sizeof(ident.plugin));
-  strncpy(ident.plugin_instance, plugin_instance,
-          sizeof(ident.plugin_instance));
-  strncpy(ident.type, type, sizeof(ident.type));
-  strncpy(ident.type_instance, type_instance, sizeof(ident.type_instance));
+  sstrncpy(ident.host, host, sizeof(ident.host));
+  sstrncpy(ident.plugin, plugin, sizeof(ident.plugin));
+  sstrncpy(ident.plugin_instance, plugin_instance,
+           sizeof(ident.plugin_instance));
+  sstrncpy(ident.type, type, sizeof(ident.type));
+  sstrncpy(ident.type_instance, type_instance, sizeof(ident.type_instance));
 
   user_class = malloc(sizeof(ident));
   memmove(user_class, &ident, sizeof(ident));
@@ -110,11 +111,11 @@ static int checked_lookup_search(lookup_t *obj, char const *host,
   value_list_t vl = VALUE_LIST_INIT;
   data_set_t const *ds = &ds_unknown;
 
-  strncpy(vl.host, host, sizeof(vl.host));
-  strncpy(vl.plugin, plugin, sizeof(vl.plugin));
-  strncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  strncpy(vl.type, type, sizeof(vl.type));
-  strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  sstrncpy(vl.host, host, sizeof(vl.host));
+  sstrncpy(vl.plugin, plugin, sizeof(vl.plugin));
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
   if (strcmp(vl.type, "test") == 0)
     ds = &ds_test;

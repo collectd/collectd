@@ -522,12 +522,11 @@ static int do_check(lcc_connection_t *connection) {
   gauge_t *values;
   char **values_names;
   size_t values_num;
-  char ident_str[1024];
+  char ident_str[1024] = {};
   lcc_identifier_t ident;
   int status;
 
-  snprintf(ident_str, sizeof(ident_str), "%s/%s", hostname_g, value_string_g);
-  ident_str[sizeof(ident_str) - 1] = 0;
+  snprintf(ident_str, sizeof(ident_str) - 1, "%s/%s", hostname_g, value_string_g);
 
   status = lcc_string_to_identifier(connection, &ident, ident_str);
   if (status != 0) {
@@ -571,7 +570,7 @@ static int do_check(lcc_connection_t *connection) {
 } /* int do_check */
 
 int main(int argc, char **argv) {
-  char address[1024];
+  char address[1024] = {};
   lcc_connection_t *connection;
 
   int status;
@@ -651,8 +650,7 @@ int main(int argc, char **argv) {
     usage(argv[0]);
   }
 
-  snprintf(address, sizeof(address), "unix:%s", socket_file_g);
-  address[sizeof(address) - 1] = 0;
+  snprintf(address, sizeof(address) - 1, "unix:%s", socket_file_g);
 
   connection = NULL;
   status = lcc_connect(address, &connection);

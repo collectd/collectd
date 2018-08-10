@@ -91,10 +91,10 @@ static int expect_label(char const *name, char const *got, char const *want) {
   char msg[1024];
 
   if (ok)
-    snprintf(msg, sizeof(msg), "label[\"%s\"] = \"%s\"", name, got);
+    ssnprintf(msg, sizeof(msg), "label[\"%s\"] = \"%s\"", name, got);
   else
-    snprintf(msg, sizeof(msg), "label[\"%s\"] = \"%s\", want \"%s\"", name, got,
-             want);
+    ssnprintf(msg, sizeof(msg), "label[\"%s\"] = \"%s\", want \"%s\"", name,
+              got, want);
 
   OK1(ok, msg);
   return 0;

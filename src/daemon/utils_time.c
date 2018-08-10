@@ -156,7 +156,7 @@ int format_rfc3339(char *buffer, size_t buffer_size, struct tm const *t_tm,
   size_left -= len;
 
   if (print_nano) {
-    if ((len = snprintf(pos, size_left, ".%09ld", nsec)) == 0)
+    if ((len = ssnprintf(pos, size_left, ".%09ld", nsec)) == 0)
       return ENOMEM;
     pos += len;
     size_left -= len;

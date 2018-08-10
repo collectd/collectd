@@ -458,7 +458,7 @@ static int fc_read_dir_callback(const char *dirname, const char *filename,
   if (dir == NULL)
     return -1;
 
-  snprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
+  ssnprintf(abs_path, sizeof(abs_path), "%s/%s", dirname, filename);
 
   int status = lstat(abs_path, &statbuf);
   if (status != 0) {

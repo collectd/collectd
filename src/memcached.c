@@ -676,8 +676,8 @@ static int memcached_add_read_callback(memcached_t *st) {
     return -1;
   }
 
-  snprintf(callback_name, sizeof(callback_name), "memcached/%s",
-           (st->name != NULL) ? st->name : "__legacy__");
+  ssnprintf(callback_name, sizeof(callback_name), "memcached/%s",
+            (st->name != NULL) ? st->name : "__legacy__");
 
   return plugin_register_complex_read(
       /* group = */ "memcached",

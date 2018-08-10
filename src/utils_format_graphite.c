@@ -128,24 +128,24 @@ static int gr_format_name_tagged(char *ret, int ret_len, value_list_t const *vl,
   gr_copy_escape_part(n_type_instance, vl->type_instance,
                       sizeof(n_type_instance), escape_char, 1);
 
-  snprintf(tmp_plugin, sizeof(tmp_plugin), ";plugin=%s", n_plugin);
+  ssnprintf(tmp_plugin, sizeof(tmp_plugin), ";plugin=%s", n_plugin);
 
   if (n_plugin_instance[0] != '\0')
-    snprintf(tmp_plugin_instance, sizeof(tmp_plugin_instance),
-             ";plugin_instance=%s", n_plugin_instance);
+    ssnprintf(tmp_plugin_instance, sizeof(tmp_plugin_instance),
+              ";plugin_instance=%s", n_plugin_instance);
   else
     tmp_plugin_instance[0] = '\0';
 
   if (!(flags & GRAPHITE_DROP_DUPE_FIELDS) || strcmp(n_plugin, n_type) != 0)
-    snprintf(tmp_type, sizeof(tmp_type), ";type=%s", n_type);
+    ssnprintf(tmp_type, sizeof(tmp_type), ";type=%s", n_type);
   else
     tmp_type[0] = '\0';
 
   if (n_type_instance[0] != '\0') {
     if (!(flags & GRAPHITE_DROP_DUPE_FIELDS) ||
         strcmp(n_plugin_instance, n_type_instance) != 0)
-      snprintf(tmp_type_instance, sizeof(tmp_type_instance),
-               ";type_instance=%s", n_type_instance);
+      ssnprintf(tmp_type_instance, sizeof(tmp_type_instance),
+                ";type_instance=%s", n_type_instance);
     else
       tmp_type_instance[0] = '\0';
   } else
@@ -154,25 +154,25 @@ static int gr_format_name_tagged(char *ret, int ret_len, value_list_t const *vl,
   /* Assert always_append_ds -> ds_name */
   assert(!(flags & GRAPHITE_ALWAYS_APPEND_DS) || (ds_name != NULL));
   if (ds_name != NULL) {
-    snprintf(tmp_ds_name, sizeof(tmp_ds_name), ";ds_name=%s", ds_name);
+    ssnprintf(tmp_ds_name, sizeof(tmp_ds_name), ";ds_name=%s", ds_name);
 
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s.%s", n_plugin, ds_name);
+      ssnprintf(tmp_metric, sizeof(tmp_metric), "%s.%s", n_plugin, ds_name);
     else
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s.%s.%s", n_plugin, n_type,
-               ds_name);
+      ssnprintf(tmp_metric, sizeof(tmp_metric), "%s.%s.%s", n_plugin, n_type,
+                ds_name);
   } else {
     tmp_ds_name[0] = '\0';
 
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s", n_plugin);
+      ssnprintf(tmp_metric, sizeof(tmp_metric), "%s", n_plugin);
     else
-      snprintf(tmp_metric, sizeof(tmp_metric), "%s.%s", n_plugin, n_type);
+      ssnprintf(tmp_metric, sizeof(tmp_metric), "%s.%s", n_plugin, n_type);
   }
 
-  snprintf(ret, ret_len, "%s%s%s;host=%s%s%s%s%s%s", prefix, tmp_metric,
-           postfix, n_host, tmp_plugin, tmp_plugin_instance, tmp_type,
-           tmp_type_instance, tmp_ds_name);
+  ssnprintf(ret, ret_len, "%s%s%s;host=%s%s%s%s%s%s", prefix, tmp_metric,
+            postfix, n_host, tmp_plugin, tmp_plugin_instance, tmp_type,
+            tmp_type_instance, tmp_ds_name);
 
   return 0;
 }
@@ -211,9 +211,9 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
                       sizeof(n_type_instance), escape_char, preserve_separator);
 
   if (n_plugin_instance[0] != '\0')
-    snprintf(tmp_plugin, sizeof(tmp_plugin), "%s%c%s", n_plugin,
-             (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-             n_plugin_instance);
+    ssnprintf(tmp_plugin, sizeof(tmp_plugin), "%s%c%s", n_plugin,
+              (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+              n_plugin_instance);
   else
     sstrncpy(tmp_plugin, n_plugin, sizeof(tmp_plugin));
 
@@ -221,9 +221,9 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) && strcmp(n_plugin, n_type) == 0)
       sstrncpy(tmp_type, n_type_instance, sizeof(tmp_type));
     else
-      snprintf(tmp_type, sizeof(tmp_type), "%s%c%s", n_type,
-               (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
-               n_type_instance);
+      ssnprintf(tmp_type, sizeof(tmp_type), "%s%c%s", n_type,
+                (flags & GRAPHITE_SEPARATE_INSTANCES) ? '.' : '-',
+                n_type_instance);
   } else
     sstrncpy(tmp_type, n_type, sizeof(tmp_type));
 
@@ -232,14 +232,14 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   if (ds_name != NULL) {
     if ((flags & GRAPHITE_DROP_DUPE_FIELDS) &&
         strcmp(tmp_plugin, tmp_type) == 0)
-      snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix,
-               tmp_plugin, ds_name);
+      ssnprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix,
+                tmp_plugin, ds_name);
     else
-      snprintf(ret, ret_len, "%s%s%s.%s.%s.%s", prefix, n_host, postfix,
-               tmp_plugin, tmp_type, ds_name);
+      ssnprintf(ret, ret_len, "%s%s%s.%s.%s.%s", prefix, n_host, postfix,
+                tmp_plugin, tmp_type, ds_name);
   } else
-    snprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
-             tmp_type);
+    ssnprintf(ret, ret_len, "%s%s%s.%s.%s", prefix, n_host, postfix, tmp_plugin,
+              tmp_type);
 
   return 0;
 }
@@ -310,8 +310,8 @@ int format_graphite(char *buffer, size_t buffer_size, data_set_t const *ds,
 
     /* Compute the graphite command */
     message_len =
-        (size_t)snprintf(message, sizeof(message), "%s %s %u\r\n", key, values,
-                         (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
+        (size_t) ssnprintf(message, sizeof(message), "%s %s %u\r\n", key,
+                           values, (unsigned int)CDTIME_T_TO_TIME_T(vl->time));
     if (message_len >= sizeof(message)) {
       P_ERROR("format_graphite: message buffer too small: "
               "Need %" PRIsz " bytes.",

@@ -190,15 +190,15 @@ static lcc_value_list_t *create_value_list(void) /* {{{ */
     vl->values_types[0] = LCC_TYPE_DERIVE;
 
   snprintf(vl->identifier.host, sizeof(vl->identifier.host), "host%04i",
-           host_num);
+            host_num);
   snprintf(vl->identifier.plugin, sizeof(vl->identifier.plugin), "plugin%03i",
-           get_boundet_random(0, conf_num_plugins));
+            get_boundet_random(0, conf_num_plugins));
   strncpy(vl->identifier.type,
-          (vl->values_types[0] == LCC_TYPE_GAUGE) ? "gauge" : "derive",
-          sizeof(vl->identifier.type));
+           (vl->values_types[0] == LCC_TYPE_GAUGE) ? "gauge" : "derive",
+           sizeof(vl->identifier.type));
   vl->identifier.type[sizeof(vl->identifier.type) - 1] = 0;
-  snprintf(vl->identifier.type_instance, sizeof(vl->identifier.type_instance),
-           "ti%li", random());
+  snprintf(vl->identifier.type_instance,
+           sizeof(vl->identifier.type_instance), "ti%li", random());
 
   return vl;
 } /* }}} int create_value_list */

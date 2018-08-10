@@ -72,8 +72,8 @@ static void rdt_dump_cgroups(void) {
 
     memset(cores, 0, sizeof(cores));
     for (int j = 0; j < cgroup->num_cores; j++) {
-      snprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
-               cgroup->cores[j]);
+      ssnprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
+                cgroup->cores[j]);
     }
 
     DEBUG(RDT_PLUGIN ":  group[%zu]:", i);
@@ -146,7 +146,7 @@ static int rdt_default_cgroups(void) {
     cgroup->num_cores = 1;
     cgroup->cores[0] = i;
 
-    snprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
+    ssnprintf(desc, sizeof(desc), "%d", g_rdt->pqos_cpu->cores[i].lcore);
     cgroup->desc = strdup(desc);
     if (cgroup->desc == NULL) {
       ERROR(RDT_PLUGIN ": Error allocating core group description");
@@ -344,7 +344,7 @@ static void rdt_submit_derive(const char *cgroup, const char *type,
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
   sstrncpy(vl.type, type, sizeof(vl.type));
   if (type_instance)
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
@@ -360,7 +360,7 @@ static void rdt_submit_gauge(const char *cgroup, const char *type,
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, RDT_PLUGIN, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", cgroup);
   sstrncpy(vl.type, type, sizeof(vl.type));
   if (type_instance)
     sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));

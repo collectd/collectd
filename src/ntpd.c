@@ -267,7 +267,7 @@ static int ntpd_config(const char *key, const char *value) {
   } else if (strcasecmp(key, "Port") == 0) {
     int port = (int)(atof(value));
     if ((port > 0) && (port <= 65535))
-      snprintf(ntpd_port, sizeof(ntpd_port), "%i", port);
+      ssnprintf(ntpd_port, sizeof(ntpd_port), "%i", port);
     else
       sstrncpy(ntpd_port, value, sizeof(ntpd_port));
   } else if (strcasecmp(key, "ReverseLookups") == 0) {
@@ -771,8 +771,8 @@ static int ntpd_get_name_refclock(char *buffer, size_t buffer_size,
     return ntpd_get_name_from_address(buffer, buffer_size, peer_info, 0);
 
   if (include_unit_id)
-    snprintf(buffer, buffer_size, "%s-%" PRIu32, refclock_names[refclock_id],
-             unit_id);
+    ssnprintf(buffer, buffer_size, "%s-%" PRIu32, refclock_names[refclock_id],
+              unit_id);
   else
     sstrncpy(buffer, refclock_names[refclock_id], buffer_size);
 

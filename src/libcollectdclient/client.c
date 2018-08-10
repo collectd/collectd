@@ -101,7 +101,9 @@
 
 #define LCC_SET_ERRSTR(c, ...)                                                 \
   do {                                                                         \
-    snprintf((c)->errbuf, sizeof((c)->errbuf), __VA_ARGS__);                   \
+    if (snprintf((c)->errbuf, sizeof((c)->errbuf), __VA_ARGS__) >=             \
+        sizeof((c)->errbuf))                                                   \
+      (c)->errbuf[sizeof((c)->errbuf) - 1] = '\0';                             \
   } while (0)
 
 /*
@@ -146,7 +148,7 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
   buf[0] = 0;
 
 #if !HAVE_STRERROR_R
-  snprintf(buf, buflen, "Error #%i; strerror_r is not available.", errnum);
+  ssnprintf(buf, buflen, "Error #%i; strerror_r is not available.", errnum);
 /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
@@ -599,7 +601,7 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
                char ***ret_values_names) {
   char ident_str[6 * LCC_NAME_LEN];
   char ident_esc[12 * LCC_NAME_LEN];
-  char command[14 * LCC_NAME_LEN];
+  char command[14 * LCC_NAME_LEN] = {};
 
   lcc_response_t res;
   size_t values_num;
@@ -622,7 +624,7 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
   if (status != 0)
     return status;
 
-  snprintf(command, sizeof(command), "GETVAL %s",
+  snprintf(command, sizeof(command) - 1, "GETVAL %s",
            lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
   command[sizeof(command) - 1] = 0;
 

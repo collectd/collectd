@@ -494,7 +494,7 @@ static int openvpn_config(const char *key, const char *value) {
     instance->file = status_file;
     instance->name = status_name;
 
-    snprintf(callback_name, sizeof(callback_name), "openvpn/%s", status_name);
+    ssnprintf(callback_name, sizeof(callback_name), "openvpn/%s", status_name);
 
     int status = plugin_register_complex_read(
         /* group = */ "openvpn",

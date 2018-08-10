@@ -237,7 +237,8 @@ static int wg_callback_init(struct wg_callback *cb) {
     cb->sock_fd =
         socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (cb->sock_fd < 0) {
-      snprintf(connerr, sizeof(connerr), "failed to open socket: %s", STRERRNO);
+      ssnprintf(connerr, sizeof(connerr), "failed to open socket: %s",
+                STRERRNO);
       continue;
     }
 
@@ -245,8 +246,8 @@ static int wg_callback_init(struct wg_callback *cb) {
 
     status = connect(cb->sock_fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      snprintf(connerr, sizeof(connerr), "failed to connect to remote host: %s",
-               STRERRNO);
+      ssnprintf(connerr, sizeof(connerr),
+                "failed to connect to remote host: %s", STRERRNO);
       close(cb->sock_fd);
       cb->sock_fd = -1;
       continue;
@@ -541,11 +542,11 @@ static int wg_config_node(oconfig_item_t *ci) {
 
   /* FIXME: Legacy configuration syntax. */
   if (cb->name == NULL)
-    snprintf(callback_name, sizeof(callback_name), "write_graphite/%s/%s/%s",
-             cb->node, cb->service, cb->protocol);
+    ssnprintf(callback_name, sizeof(callback_name), "write_graphite/%s/%s/%s",
+              cb->node, cb->service, cb->protocol);
   else
-    snprintf(callback_name, sizeof(callback_name), "write_graphite/%s",
-             cb->name);
+    ssnprintf(callback_name, sizeof(callback_name), "write_graphite/%s",
+              cb->name);
 
   plugin_register_write(callback_name, wg_write,
                         &(user_data_t){

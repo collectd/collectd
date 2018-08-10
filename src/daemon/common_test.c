@@ -62,6 +62,34 @@ DEF_TEST(sstrncpy) {
   return 0;
 }
 
+DEF_TEST(ssnprintf) {
+  char buffer[16] = "";
+  char *ptr = &buffer[4];
+  int status;
+
+  buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;
+  buffer[12] = buffer[13] = buffer[14] = buffer[15] = 0xff;
+
+  status = ssnprintf(ptr, 8, "%s", "foobar");
+  OK(status == 6);
+  EXPECT_EQ_STR("foobar", ptr);
+  OK(buffer[3] == buffer[12]);
+
+  status = ssnprintf(ptr, 8, "%s", "abc");
+  OK(status == 3);
+  EXPECT_EQ_STR("abc", ptr);
+  OK(buffer[3] == buffer[12]);
+
+  status = ssnprintf(ptr, 8, "%s", "collectd");
+  OK(status == 8);
+  OK(ptr[7] == 0);
+  EXPECT_EQ_STR("collect", ptr);
+  OK(buffer[3] == buffer[12]);
+
+  return 0;
+}
+
+
 DEF_TEST(sstrdup) {
   char *ptr;
 
@@ -190,7 +218,7 @@ DEF_TEST(escape_slashes) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     char buffer[32];
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    sstrncpy(buffer, cases[i].str, sizeof(buffer));
     OK(escape_slashes(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
@@ -215,7 +243,7 @@ DEF_TEST(escape_string) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     char buffer[16];
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    sstrncpy(buffer, cases[i].str, sizeof(buffer));
     OK(escape_string(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
@@ -243,7 +271,7 @@ DEF_TEST(strunescape) {
   EXPECT_EQ_STR("With \"quotes\"", buffer);
 
   /* Backslash before null byte */
-  strncpy(buffer, "\\tbackslash end\\", sizeof(buffer));
+  memcpy(buffer, "\\tbackslash end\\", sizeof(buffer));
   status = strunescape(buffer, sizeof(buffer));
   OK(status != 0);
   EXPECT_EQ_STR("\tbackslash end", buffer);
@@ -363,6 +391,7 @@ DEF_TEST(value_to_rate) {
 
 int main(void) {
   RUN_TEST(sstrncpy);
+  RUN_TEST(ssnprintf);
   RUN_TEST(sstrdup);
   RUN_TEST(strsplit);
   RUN_TEST(strjoin);

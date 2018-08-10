@@ -106,10 +106,10 @@ static void dpdk_helper_config_default(dpdk_helper_ctx_t *phc) {
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
-  snprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
-  snprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
-  snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
-           DPDK_DEFAULT_RTE_CONFIG);
+  ssnprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
+  ssnprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
+  ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
+            DPDK_DEFAULT_RTE_CONFIG);
 }
 
 int dpdk_helper_eal_config_set(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec) {
@@ -184,8 +184,8 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
 
       status = cf_util_get_string_buffer(child, prefix, sizeof(prefix));
       if (status == 0) {
-        snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
-                 "/var/run/.%s_config", prefix);
+        ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+                  "/var/run/.%s_config", prefix);
         DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
       }
     } else if (strcasecmp("LogLevel", child->key) == 0) {
@@ -836,8 +836,8 @@ uint128_t str_to_uint128(const char *str, int len) {
     memset(high_str, 0, sizeof(high_str));
     memset(low_str, 0, sizeof(low_str));
 
-    strncpy(high_str, str, len - 16);
-    strncpy(low_str, str + len - 16, 16);
+    sstrncpy(high_str, str, len - 16);
+    sstrncpy(low_str, str + len - 16, 16);
 
     lcore_mask.low = strtoull_safe(low_str, &err);
     if (err)

@@ -58,7 +58,7 @@
  * is ignored. */
 #define C_PSQL_PAR_APPEND(buf, buf_len, parameter, value)                      \
   if ((0 < (buf_len)) && (NULL != (value)) && ('\0' != *(value))) {            \
-    int s = snprintf(buf, buf_len, " %s = '%s'", parameter, value);            \
+    int s = ssnprintf(buf, buf_len, " %s = '%s'", parameter, value);           \
     if (0 < s) {                                                               \
       buf += s;                                                                \
       buf_len -= s;                                                            \
@@ -323,7 +323,7 @@ static int c_psql_connect(c_psql_database_t *db) {
   if ((!db) || (!db->database))
     return -1;
 
-  status = snprintf(buf, buf_len, "dbname = '%s'", db->database);
+  status = ssnprintf(buf, buf_len, "dbname = '%s'", db->database);
   if (0 < status) {
     buf += status;
     buf_len -= status;
@@ -426,8 +426,8 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
       params[i] = db->user;
       break;
     case C_PSQL_PARAM_INTERVAL:
-      snprintf(interval, sizeof(interval), "%.3f",
-               CDTIME_T_TO_DOUBLE(plugin_get_interval()));
+      ssnprintf(interval, sizeof(interval), "%.3f",
+                CDTIME_T_TO_DOUBLE(plugin_get_interval()));
       params[i] = interval;
       break;
     case C_PSQL_PARAM_INSTANCE:
@@ -940,7 +940,7 @@ static int c_psql_shutdown(void) {
 
     if (db->writers_num > 0) {
       char cb_name[DATA_MAX_NAME_LEN];
-      snprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->database);
+      ssnprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->database);
 
       if (!had_flush) {
         plugin_unregister_flush("postgresql");
@@ -1201,7 +1201,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
     }
   }
 
-  snprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->instance);
+  ssnprintf(cb_name, sizeof(cb_name), "postgresql-%s", db->instance);
 
   user_data_t ud = {.data = db, .free_func = c_psql_database_delete};
 

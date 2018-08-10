@@ -419,8 +419,8 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   // incorporate the data source type
   if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL)) {
     char ds_type[DATA_MAX_NAME_LEN];
-    snprintf(ds_type, sizeof(ds_type), "%s:rate",
-             DS_TYPE_TO_STRING(ds->ds[index].type));
+    ssnprintf(ds_type, sizeof(ds_type), "%s:rate",
+              DS_TYPE_TO_STRING(ds->ds[index].type));
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_type\": \"%s\"",
                       ret_str, ds_type);
     free(ret_str);
@@ -453,7 +453,7 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
   // incorporate the data source index
   {
     char ds_index[DATA_MAX_NAME_LEN];
-    snprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
+    ssnprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
     res = my_asprintf(&temp_str, "%s, \"collectd_data_source_index\": %s",
                       ret_str, ds_index);
     free(ret_str);
@@ -534,17 +534,17 @@ static char *sensu_value_to_json(struct sensu_host const *host, /* {{{ */
                      host->separator);
   if (host->always_append_ds || (ds->ds_num > 1)) {
     if (host->event_service_prefix == NULL)
-      snprintf(service_buffer, sizeof(service_buffer), "%s.%s", name_buffer,
-               ds->ds[index].name);
+      ssnprintf(service_buffer, sizeof(service_buffer), "%s.%s", name_buffer,
+                ds->ds[index].name);
     else
-      snprintf(service_buffer, sizeof(service_buffer), "%s%s.%s",
-               host->event_service_prefix, name_buffer, ds->ds[index].name);
+      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s.%s",
+                host->event_service_prefix, name_buffer, ds->ds[index].name);
   } else {
     if (host->event_service_prefix == NULL)
       sstrncpy(service_buffer, name_buffer, sizeof(service_buffer));
     else
-      snprintf(service_buffer, sizeof(service_buffer), "%s%s",
-               host->event_service_prefix, name_buffer);
+      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s",
+                host->event_service_prefix, name_buffer);
   }
 
   // Replace collectd sensor name reserved characters so that time series DB is
@@ -1139,7 +1139,8 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
     return -1;
   }
 
-  snprintf(callback_name, sizeof(callback_name), "write_sensu/%s", host->name);
+  ssnprintf(callback_name, sizeof(callback_name), "write_sensu/%s",
+            host->name);
 
   user_data_t ud = {.data = host, .free_func = sensu_free};
 

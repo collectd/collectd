@@ -156,7 +156,7 @@ static int vserver_read(void) {
     if (dent->d_name[0] == '.')
       continue;
 
-    len = snprintf(file, sizeof(file), PROCDIR "/%s", dent->d_name);
+    len = ssnprintf(file, sizeof(file), PROCDIR "/%s", dent->d_name);
     if ((len < 0) || (len >= BUFSIZE))
       continue;
 
@@ -170,7 +170,7 @@ static int vserver_read(void) {
       continue;
 
     /* socket message accounting */
-    len = snprintf(file, sizeof(file), PROCDIR "/%s/cacct", dent->d_name);
+    len = ssnprintf(file, sizeof(file), PROCDIR "/%s/cacct", dent->d_name);
     if ((len < 0) || ((size_t)len >= sizeof(file)))
       continue;
 
@@ -212,7 +212,7 @@ static int vserver_read(void) {
     }
 
     /* thread information and load */
-    len = snprintf(file, sizeof(file), PROCDIR "/%s/cvirt", dent->d_name);
+    len = ssnprintf(file, sizeof(file), PROCDIR "/%s/cvirt", dent->d_name);
     if ((len < 0) || ((size_t)len >= sizeof(file)))
       continue;
 
@@ -256,7 +256,7 @@ static int vserver_read(void) {
     }
 
     /* processes and memory usage */
-    len = snprintf(file, sizeof(file), PROCDIR "/%s/limit", dent->d_name);
+    len = ssnprintf(file, sizeof(file), PROCDIR "/%s/limit", dent->d_name);
     if ((len < 0) || ((size_t)len >= sizeof(file)))
       continue;
 

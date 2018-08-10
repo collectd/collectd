@@ -480,9 +480,9 @@ static int rc_flush(__attribute__((unused)) cdtime_t timeout, /* {{{ */
     return EINVAL;
 
   if (datadir != NULL)
-    snprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
+    ssnprintf(filename, sizeof(filename), "%s/%s.rrd", datadir, identifier);
   else
-    snprintf(filename, sizeof(filename), "%s.rrd", identifier);
+    ssnprintf(filename, sizeof(filename), "%s.rrd", identifier);
 
   rrd_clear_error();
   status = rrdc_connect(daemon_address);

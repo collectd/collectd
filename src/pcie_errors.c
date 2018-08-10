@@ -403,8 +403,8 @@ static void pcie_dispatch_notification(pcie_device_t *dev, notification_t *n,
                                        const char *type,
                                        const char *type_instance) {
   sstrncpy(n->host, hostname_g, sizeof(n->host));
-  snprintf(n->plugin_instance, sizeof(n->plugin_instance), "%04x:%02x:%02x.%d",
-           dev->domain, dev->bus, dev->device, dev->function);
+  ssnprintf(n->plugin_instance, sizeof(n->plugin_instance), "%04x:%02x:%02x.%d",
+            dev->domain, dev->bus, dev->device, dev->function);
   sstrncpy(n->type, type, sizeof(n->type));
   sstrncpy(n->type_instance, type_instance, sizeof(n->type_instance));
 
@@ -432,8 +432,8 @@ static void pcie_dispatch_correctable_errors(pcie_device_t *dev,
 
       DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s set", dev->domain,
             dev->bus, dev->device, dev->function, err->desc);
-      snprintf(n.message, sizeof(n.message), "Correctable Error set: %s",
-               err->desc);
+      ssnprintf(n.message, sizeof(n.message), "Correctable Error set: %s",
+                err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, PCIE_SEV_CE);
 
     } else if (err->mask & dev->correctable_errors) {
@@ -441,8 +441,8 @@ static void pcie_dispatch_correctable_errors(pcie_device_t *dev,
             dev->bus, dev->device, dev->function, err->desc);
 
       n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message), "Correctable Error cleared: %s",
-               err->desc);
+      ssnprintf(n.message, sizeof(n.message), "Correctable Error cleared: %s",
+                err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, PCIE_SEV_CE);
     }
   }
@@ -472,8 +472,8 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
             dev->bus, dev->device, dev->function, err->desc, type_instance);
 
       n.severity = (severity & err->mask) ? NOTIF_FAILURE : NOTIF_WARNING;
-      snprintf(n.message, sizeof(n.message), "Uncorrectable(%s) Error set: %s",
-               type_instance, err->desc);
+      ssnprintf(n.message, sizeof(n.message), "Uncorrectable(%s) Error set: %s",
+                type_instance, err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, type_instance);
 
     } else if (err->mask & dev->uncorrectable_errors) {
@@ -482,8 +482,8 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
             type_instance);
 
       n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message),
-               "Uncorrectable(%s) Error cleared: %s", type_instance, err->desc);
+      ssnprintf(n.message, sizeof(n.message),
+                "Uncorrectable(%s) Error cleared: %s", type_instance, err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, type_instance);
     }
   }
@@ -575,16 +575,16 @@ static void pcie_check_dev_status(pcie_device_t *dev, int pos) {
 
       DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s set", dev->domain,
             dev->bus, dev->device, dev->function, err->desc);
-      snprintf(n.message, sizeof(n.message), "Device Status Error set: %s",
-               err->desc);
+      ssnprintf(n.message, sizeof(n.message), "Device Status Error set: %s",
+                err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, type_instance);
 
     } else if (err->mask & dev->device_status) {
       DEBUG(PCIE_ERRORS_PLUGIN ": %04x:%02x:%02x.%d: %s cleared", dev->domain,
             dev->bus, dev->device, dev->function, err->desc);
       n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message), "Device Status Error cleared: %s",
-               err->desc);
+      ssnprintf(n.message, sizeof(n.message), "Device Status Error cleared: %s",
+                err->desc);
       pcie_dispatch_notification(dev, &n, PCIE_ERROR, type_instance);
     }
   }

@@ -477,7 +477,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
     return -1;
   }
 
-  snprintf(cb_name, sizeof(cb_name), "tail_csv/%s", id->path);
+  ssnprintf(cb_name, sizeof(cb_name), "tail_csv/%s", id->path);
 
   status = plugin_register_complex_read(
       NULL, cb_name, tcsv_read, interval,

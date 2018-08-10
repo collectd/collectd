@@ -106,10 +106,10 @@ static const char *cdbi_strerror(dbi_conn conn, /* {{{ */
   msg = NULL;
   status = dbi_conn_error(conn, &msg);
   if ((status >= 0) && (msg != NULL))
-    snprintf(buffer, buffer_size, "%s (status %i)", msg, status);
+    ssnprintf(buffer, buffer_size, "%s (status %i)", msg, status);
   else
-    snprintf(buffer, buffer_size, "dbi_conn_error failed with status %i",
-             status);
+    ssnprintf(buffer, buffer_size, "dbi_conn_error failed with status %i",
+              status);
 
   return buffer;
 } /* }}} const char *cdbi_conn_error */
@@ -130,12 +130,12 @@ static int cdbi_result_get_field(dbi_result res, /* {{{ */
     long long value;
 
     value = dbi_result_get_longlong_idx(res, index);
-    snprintf(buffer, buffer_size, "%lli", value);
+    ssnprintf(buffer, buffer_size, "%lli", value);
   } else if (src_type == DBI_TYPE_DECIMAL) {
     double value;
 
     value = dbi_result_get_double_idx(res, index);
-    snprintf(buffer, buffer_size, "%63.15g", value);
+    ssnprintf(buffer, buffer_size, "%63.15g", value);
   } else if (src_type == DBI_TYPE_STRING) {
     const char *value;
 

@@ -34,10 +34,9 @@ static int cpufreq_init(void) {
   num_cpu = 0;
 
   while (1) {
-    status = snprintf(filename, sizeof(filename),
-                      "/sys/devices/system/cpu/cpu%d/cpufreq/"
-                      "scaling_cur_freq",
-                      num_cpu);
+    status = ssnprintf(filename, sizeof(filename),
+                       "/sys/devices/system/cpu/cpu%d/cpufreq/"
+                       "scaling_cur_freq", num_cpu);
     if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
       break;
 
@@ -62,7 +61,7 @@ static void cpufreq_submit(int cpu_num, value_t value) {
   vl.values_len = 1;
   sstrncpy(vl.plugin, "cpufreq", sizeof(vl.plugin));
   sstrncpy(vl.type, "cpufreq", sizeof(vl.type));
-  snprintf(vl.type_instance, sizeof(vl.type_instance), "%i", cpu_num);
+  ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i", cpu_num);
 
   plugin_dispatch_values(&vl);
 }
@@ -70,8 +69,8 @@ static void cpufreq_submit(int cpu_num, value_t value) {
 static int cpufreq_read(void) {
   for (int i = 0; i < num_cpu; i++) {
     char filename[PATH_MAX];
-    snprintf(filename, sizeof(filename),
-             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+    ssnprintf(filename, sizeof(filename),
+              "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
 
     value_t v;
     if (parse_value_file(filename, &v, DS_TYPE_GAUGE) != 0) {

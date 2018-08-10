@@ -411,12 +411,12 @@ static int plugin_load_file(char const *file, bool global) {
   if (dlh == NULL) {
     char errbuf[1024] = "";
 
-    snprintf(errbuf, sizeof(errbuf),
-             "dlopen(\"%s\") failed: %s. "
-             "The most common cause for this problem is missing dependencies. "
-             "Use ldd(1) to check the dependencies of the plugin / shared "
-             "object.",
-             file, dlerror());
+    ssnprintf(errbuf, sizeof(errbuf),
+              "dlopen(\"%s\") failed: %s. "
+              "The most common cause for this problem is missing dependencies. "
+              "Use ldd(1) to check the dependencies of the plugin / shared "
+              "object.",
+              file, dlerror());
 
     /* This error is printed to STDERR unconditionally. If list_log is NULL,
      * plugin_log() will also print to STDERR. We avoid duplicate output by
@@ -648,7 +648,7 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%" PRIu64, (uint64_t)read_threads_num);
+    ssnprintf(name, sizeof(name), "reader#%" PRIu64, (uint64_t)read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -837,8 +837,8 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%" PRIu64,
-             (uint64_t)write_threads_num);
+    ssnprintf(name, sizeof(name), "writer#%" PRIu64,
+              (uint64_t)write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -992,7 +992,7 @@ int plugin_load(char const *plugin_name, bool global) {
 
   /* `cpu' should not match `cpufreq'. To solve this we add SHLIB_SUFFIX to the
    * type when matching the filename */
-  status = snprintf(typename, sizeof(typename), "%s" SHLIB_SUFFIX, plugin_name);
+  status = ssnprintf(typename, sizeof(typename), "%s" SHLIB_SUFFIX, plugin_name);
   if ((status < 0) || ((size_t)status >= sizeof(typename))) {
     WARNING("plugin_load: Filename too long: \"%s" SHLIB_SUFFIX "\"",
             plugin_name);
@@ -1008,7 +1008,7 @@ int plugin_load(char const *plugin_name, bool global) {
     if (strcasecmp(de->d_name, typename))
       continue;
 
-    status = snprintf(filename, sizeof(filename), "%s/%s", dir, de->d_name);
+    status = ssnprintf(filename, sizeof(filename), "%s/%s", dir, de->d_name);
     if ((status < 0) || ((size_t)status >= sizeof(filename))) {
       WARNING("plugin_load: Filename too long: \"%s/%s\"", dir, de->d_name);
       continue;
@@ -2221,7 +2221,7 @@ EXPORT void plugin_log(int level, const char *format, ...) {
 #endif
 
   va_start(ap, format);
-  vsnprintf(msg, sizeof(msg), format, ap);
+  vsnprintf(msg, sizeof(msg) - 1, format, ap);
   msg[sizeof(msg) - 1] = '\0';
   va_end(ap);
 
@@ -2256,7 +2256,8 @@ void daemon_log(int level, const char *format, ...) {
 
   va_list ap;
   va_start(ap, format);
-  vsnprintf(msg, sizeof(msg), format, ap);
+  vsnprintf(msg, sizeof(msg) - 1, format, ap);
+  msg[sizeof(msg) - 1] = '\0';
   va_end(ap);
 
   plugin_log(level, "%s plugin: %s", name, msg);

@@ -124,8 +124,8 @@ static llentry_t *mcelog_dimm(const mcelog_memory_rec_t *rec,
   char dimm_name[DATA_MAX_NAME_LEN];
 
   if (strlen(rec->dimm_name) > 0) {
-    snprintf(dimm_name, sizeof(dimm_name), "%s_%s", rec->location,
-             rec->dimm_name);
+    ssnprintf(dimm_name, sizeof(dimm_name), "%s_%s", rec->location,
+              rec->dimm_name);
   } else
     sstrncpy(dimm_name, rec->location, sizeof(dimm_name));
 
@@ -355,8 +355,8 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
   sstrncpy(n.host, hostname_g, sizeof(n.host));
 
   if (mr->dimm_name[0] != '\0')
-    snprintf(n.plugin_instance, sizeof(n.plugin_instance), "%s_%s",
-             mr->location, mr->dimm_name);
+    ssnprintf(n.plugin_instance, sizeof(n.plugin_instance), "%s_%s",
+              mr->location, mr->dimm_name);
   else
     sstrncpy(n.plugin_instance, mr->location, sizeof(n.plugin_instance));
 
@@ -367,7 +367,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
                                             mr->corrected_err_total);
     plugin_notification_meta_add_signed_int(&n, MCELOG_CORRECTED_ERR_TIMED,
                                             mr->corrected_err_timed);
-    snprintf(n.message, sizeof(n.message), MCELOG_CORRECTED_ERR);
+    ssnprintf(n.message, sizeof(n.message), MCELOG_CORRECTED_ERR);
     sstrncpy(n.type_instance, MCELOG_CORRECTED_ERR_TYPE_INS,
              sizeof(n.type_instance));
     plugin_dispatch_notification(&n);
@@ -383,7 +383,7 @@ static int mcelog_dispatch_mem_notifications(const mcelog_memory_rec_t *mr) {
                                             mr->uncorrected_err_total);
     plugin_notification_meta_add_signed_int(&n, MCELOG_UNCORRECTED_ERR_TIMED,
                                             mr->uncorrected_err_timed);
-    snprintf(n.message, sizeof(n.message), MCELOG_UNCORRECTED_ERR);
+    ssnprintf(n.message, sizeof(n.message), MCELOG_UNCORRECTED_ERR);
     sstrncpy(n.type_instance, MCELOG_UNCORRECTED_ERR_TYPE_INS,
              sizeof(n.type_instance));
     n.severity = NOTIF_FAILURE;
@@ -421,15 +421,15 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
   mcelog_update_dimm_stats(dimm, mr);
 
   if (mr->dimm_name[0] != '\0')
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s_%s",
-             mr->location, mr->dimm_name);
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s_%s",
+              mr->location, mr->dimm_name);
   else
     sstrncpy(vl.plugin_instance, mr->location, sizeof(vl.plugin_instance));
 
   plugin_dispatch_values(&vl);
 
-  snprintf(vl.type_instance, sizeof(vl.type_instance),
-           "corrected_memory_errors_in_%s", mr->corrected_err_timed_period);
+  ssnprintf(vl.type_instance, sizeof(vl.type_instance),
+            "corrected_memory_errors_in_%s", mr->corrected_err_timed_period);
   vl.values = &(value_t){.derive = (derive_t)mr->corrected_err_timed};
   plugin_dispatch_values(&vl);
 
@@ -438,8 +438,9 @@ static int mcelog_submit(const mcelog_memory_rec_t *mr) {
   vl.values = &(value_t){.derive = (derive_t)mr->uncorrected_err_total};
   plugin_dispatch_values(&vl);
 
-  snprintf(vl.type_instance, sizeof(vl.type_instance),
-           "uncorrected_memory_errors_in_%s", mr->uncorrected_err_timed_period);
+  ssnprintf(vl.type_instance, sizeof(vl.type_instance),
+            "uncorrected_memory_errors_in_%s",
+            mr->uncorrected_err_timed_period);
   vl.values = &(value_t){.derive = (derive_t)mr->uncorrected_err_timed};
   plugin_dispatch_values(&vl);
 

@@ -566,9 +566,9 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
   now = cdtime();
 
   if (datadir == NULL)
-    snprintf(key, sizeof(key), "%s.rrd", identifier);
+    ssnprintf(key, sizeof(key), "%s.rrd", identifier);
   else
-    snprintf(key, sizeof(key), "%s/%s.rrd", datadir, identifier);
+    ssnprintf(key, sizeof(key), "%s/%s.rrd", datadir, identifier);
   key[sizeof(key) - 1] = 0;
 
   status = c_avl_get(cache, key, (void *)&rc);

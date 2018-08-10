@@ -164,7 +164,8 @@ void plugin_log(int level, char const *format, ...) {
   va_list ap;
 
   va_start(ap, format);
-  vsnprintf(buffer, sizeof(buffer), format, ap);
+  vsnprintf(buffer, sizeof(buffer) - 1, format, ap);
+  buffer[sizeof(buffer) - 1] = '\0';
   va_end(ap);
 
   printf("plugin_log (%i, \"%s\");\n", level, buffer);
@@ -175,7 +176,8 @@ void daemon_log(int level, char const *format, ...) {
   va_list ap;
 
   va_start(ap, format);
-  vsnprintf(buffer, sizeof(buffer), format, ap);
+  vsnprintf(buffer, sizeof(buffer) - 1, format, ap);
+  buffer[sizeof(buffer) - 1] = '\0';
   va_end(ap);
 
   printf("daemon_log (%i, \"%s\");\n", level, buffer);

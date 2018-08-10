@@ -116,9 +116,9 @@ static void handle_attribute(SkDisk *d, const SkSmartAttributeParsedData *a,
     sstrncpy(notif.host, hostname_g, sizeof(notif.host));
     sstrncpy(notif.plugin_instance, name, sizeof(notif.plugin_instance));
     sstrncpy(notif.type_instance, a->name, sizeof(notif.type_instance));
-    snprintf(notif.message, sizeof(notif.message),
-             "attribute %s is below allowed threshold (%d < %d)", a->name,
-             a->current_value, a->threshold);
+    ssnprintf(notif.message, sizeof(notif.message),
+              "attribute %s is below allowed threshold (%d < %d)", a->name,
+              a->current_value, a->threshold);
     plugin_dispatch_notification(&notif);
   }
 }

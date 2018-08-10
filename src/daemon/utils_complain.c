@@ -52,7 +52,7 @@ vcomplain(int level, c_complain_t *c, const char *format, va_list ap) {
   if (c->interval > TIME_T_TO_CDTIME_T(86400))
     c->interval = TIME_T_TO_CDTIME_T(86400);
 
-  vsnprintf(message, sizeof(message), format, ap);
+  vsnprintf(message, sizeof(message) - 1, format, ap);
   message[sizeof(message) - 1] = '\0';
 
   plugin_log(level, "%s", message);
@@ -91,7 +91,7 @@ void c_do_release(int level, c_complain_t *c, const char *format, ...) {
   c->complained_once = false;
 
   va_start(ap, format);
-  vsnprintf(message, sizeof(message), format, ap);
+  vsnprintf(message, sizeof(message) - 1, format, ap);
   message[sizeof(message) - 1] = '\0';
   va_end(ap);
 

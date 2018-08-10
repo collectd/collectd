@@ -258,7 +258,7 @@ static void uuidcache_init(void) {
         * (This is useful, if the cdrom on /dev/hdc must not
         * be accessed.)
         */
-        snprintf(device, sizeof(device), "%s/%s", DEVLABELDIR, ptname);
+        ssnprintf(device, sizeof(device), "%s/%s", DEVLABELDIR, ptname);
         if (!get_label_uuid(device, &label, uuid)) {
           uuidcache_addentry(sstrdup(device), label, uuid);
         }

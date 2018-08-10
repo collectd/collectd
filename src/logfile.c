@@ -84,19 +84,19 @@ static void logfile_print(const char *msg, int severity,
   if (print_severity) {
     switch (severity) {
     case LOG_ERR:
-      snprintf(level_str, sizeof(level_str), "[error] ");
+      ssnprintf(level_str, sizeof(level_str), "[error] ");
       break;
     case LOG_WARNING:
-      snprintf(level_str, sizeof(level_str), "[warning] ");
+      ssnprintf(level_str, sizeof(level_str), "[warning] ");
       break;
     case LOG_NOTICE:
-      snprintf(level_str, sizeof(level_str), "[notice] ");
+      ssnprintf(level_str, sizeof(level_str), "[notice] ");
       break;
     case LOG_INFO:
-      snprintf(level_str, sizeof(level_str), "[info] ");
+      ssnprintf(level_str, sizeof(level_str), "[info] ");
       break;
     case LOG_DEBUG:
-      snprintf(level_str, sizeof(level_str), "[debug] ");
+      ssnprintf(level_str, sizeof(level_str), "[debug] ");
       break;
     default:
       break;

@@ -66,7 +66,7 @@ static void md_submit(const int minor, const char *type_instance,
   vl.values = &(value_t){.gauge = value};
   vl.values_len = 1;
   sstrncpy(vl.plugin, "md", sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", minor);
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", minor);
   sstrncpy(vl.type, "md_disks", sizeof(vl.type));
   sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -175,7 +175,7 @@ static int md_read(void) {
      * major/minor, but that again can be tricky if the filesystem
      * with the device file is mounted using the "nodev" option.
      */
-    snprintf(path, sizeof(path), "%s/%s", DEV_DIR, name);
+    ssnprintf(path, sizeof(path), "%s/%s", DEV_DIR, name);
 
     md_process(minor, path);
   }

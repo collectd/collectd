@@ -126,7 +126,7 @@ char *subst_string(char *buf, size_t buflen, const char *string,
     }
 
     /* Copy the new string in `temp' to `buf' for the next round. */
-    strncpy(buf, temp, buflen);
+    sstrncpy(buf, temp, buflen);
   }
 
   if (i >= buflen) {

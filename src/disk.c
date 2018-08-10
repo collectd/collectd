@@ -493,10 +493,10 @@ static int disk_read(void) {
         sstrncpy(disk_name, props_disk_name_bsd, sizeof(disk_name));
       else {
         ERROR("disk plugin: can't find bsd disk name.");
-        snprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
+        ssnprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
       }
     } else
-      snprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
+      ssnprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
 
     DEBUG("disk plugin: disk_name = \"%s\"", disk_name);
 
@@ -954,9 +954,7 @@ static int disk_read(void) {
     return 0;
 
   for (int counter = 0; counter < disks; counter++) {
-    strncpy(name, ds->disk_name, sizeof(name));
-    name[sizeof(name) - 1] =
-        '\0'; /* strncpy doesn't terminate longer strings */
+    sstrncpy(name, ds->disk_name, sizeof(name));
 
     if (ignorelist_match(ignorelist, name) != 0) {
       ds++;

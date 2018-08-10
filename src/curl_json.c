@@ -217,7 +217,7 @@ static void cj_advance_array(cj_t *db) {
   db->state[db->depth].index++;
 
   char name[DATA_MAX_NAME_LEN];
-  snprintf(name, sizeof(name), "%d", db->state[db->depth].index);
+  ssnprintf(name, sizeof(name), "%d", db->state[db->depth].index);
   cj_load_key(db, name);
 }
 
@@ -601,8 +601,8 @@ static int cj_init_curl(cj_t *db) /* {{{ */
       return -1;
     }
 
-    snprintf(db->credentials, credentials_size, "%s:%s", db->user,
-             (db->pass == NULL) ? "" : db->pass);
+    ssnprintf(db->credentials, credentials_size, "%s:%s", db->user,
+              (db->pass == NULL) ? "" : db->pass);
     curl_easy_setopt(db->curl, CURLOPT_USERPWD, db->credentials);
 #endif
 
@@ -800,8 +800,8 @@ static void cj_submit_impl(cj_t *db, cj_key_t *key, value_t *value) /* {{{ */
   if (key->instance == NULL) {
     int len = 0;
     for (int i = 0; i < db->depth; i++)
-      len += snprintf(vl.type_instance + len, sizeof(vl.type_instance) - len,
-                      i ? "-%s" : "%s", db->state[i + 1].name);
+      len += ssnprintf(vl.type_instance + len, sizeof(vl.type_instance) - len,
+                       i ? "-%s" : "%s", db->state[i + 1].name);
   } else
     sstrncpy(vl.type_instance, key->instance, sizeof(vl.type_instance));
 

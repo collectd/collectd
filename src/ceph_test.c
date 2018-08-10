@@ -45,7 +45,7 @@ static int test_handler(void *user, char const *val, char const *key) {
   if (strcmp("filestore.example_latency", key) == 0)
     return RETRY_AVGCOUNT;
 
-  snprintf(status, sizeof(status),
+  ssnprintf(status, sizeof(status),
            "unexpected call: test_handler(\"%s\") = \"%s\"", key, val);
   ok = false;
 
@@ -54,14 +54,14 @@ static int test_handler(void *user, char const *val, char const *key) {
       continue;
 
     if (strcmp(val, t->cases[i].value) != 0) {
-      snprintf(status, sizeof(status),
-               "test_handler(\"%s\") = \"%s\", want \"%s\"", key, val,
-               t->cases[i].value);
+      ssnprintf(status, sizeof(status),
+                "test_handler(\"%s\") = \"%s\", want \"%s\"", key, val,
+                t->cases[i].value);
       ok = false;
       break;
     }
 
-    snprintf(status, sizeof(status), "test_handler(\"%s\") = \"%s\"", key, val);
+    ssnprintf(status, sizeof(status), "test_handler(\"%s\") = \"%s\"", key, val);
     ok = true;
     break;
   }

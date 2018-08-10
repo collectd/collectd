@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "oconfig.h"
+#include "common.h"
 
 extern FILE *yyin;
 extern int yyparse(void);
@@ -49,7 +50,7 @@ static oconfig_item_t *oconfig_parse_fh(FILE *fh) {
   yyset_in(fh);
 
   if (NULL == c_file) {
-    status = snprintf(file, sizeof(file), "<fd#%d>", fileno(fh));
+    status = ssnprintf(file, sizeof(file), "<fd#%d>", fileno(fh));
 
     if ((status < 0) || (((size_t)status) >= sizeof(file))) {
       c_file = "<unknown>";

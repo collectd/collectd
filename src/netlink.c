@@ -509,8 +509,8 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (strcmp(tc_type, "filter") == 0)
       numberic_id = tm->tcm_parent;
 
-    snprintf(tc_inst, sizeof(tc_inst), "%s-%x:%x", kind, numberic_id >> 16,
-             numberic_id & 0x0000FFFF);
+    ssnprintf(tc_inst, sizeof(tc_inst), "%s-%x:%x", kind, numberic_id >> 16,
+              numberic_id & 0x0000FFFF);
   }
 
   DEBUG("netlink plugin: qos_filter_cb: got %s for %s (%i).", tc_type, dev,

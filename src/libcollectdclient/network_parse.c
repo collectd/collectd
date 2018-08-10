@@ -158,7 +158,8 @@ static int parse_string(void *payload, size_t payload_size, char *out,
       (payload_size > out_size))
     return EINVAL;
 
-  strncpy(out, in, out_size);
+  strncpy(out, in, out_size - 1);
+  out[out_size - 1] = '\0';
   return 0;
 }
 

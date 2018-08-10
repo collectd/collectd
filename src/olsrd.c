@@ -291,8 +291,8 @@ static int olsrd_cb_links(int lineno, /* {{{ */
     if (config_want_links == OLSRD_WANT_DETAIL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s-lq", fields[0],
-               fields[1]);
+      ssnprintf(type_instance, sizeof(type_instance), "%s-%s-lq", fields[0],
+                fields[1]);
 
       DEBUG("olsrd plugin: links: type_instance = %s;  lq = %g;", type_instance,
             lq);
@@ -315,8 +315,8 @@ static int olsrd_cb_links(int lineno, /* {{{ */
     if (config_want_links == OLSRD_WANT_DETAIL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", fields[0],
-               fields[1]);
+      ssnprintf(type_instance, sizeof(type_instance), "%s-%s-rx", fields[0],
+                fields[1]);
 
       DEBUG("olsrd plugin: links: type_instance = %s; nlq = %g;", type_instance,
             lq);
@@ -493,8 +493,8 @@ static int olsrd_cb_topology(int lineno, /* {{{ */
     if (config_want_topology == OLSRD_WANT_DETAIL) {
       char type_instance[DATA_MAX_NAME_LEN] = {0};
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s-lq", fields[0],
-               fields[1]);
+      ssnprintf(type_instance, sizeof(type_instance), "%s-%s-lq", fields[0],
+                fields[1]);
       DEBUG("olsrd plugin: type_instance = %s; lq = %g;", type_instance, lq);
       olsrd_submit(/* p.-inst = */ "topology", /* type = */ "signal_quality",
                    type_instance, lq);
@@ -512,8 +512,8 @@ static int olsrd_cb_topology(int lineno, /* {{{ */
     } else {
       char type_instance[DATA_MAX_NAME_LEN] = {0};
 
-      snprintf(type_instance, sizeof(type_instance), "%s-%s-nlq", fields[0],
-               fields[1]);
+      ssnprintf(type_instance, sizeof(type_instance), "%s-%s-nlq", fields[0],
+                fields[1]);
       DEBUG("olsrd plugin: type_instance = %s; nlq = %g;", type_instance, nlq);
       olsrd_submit(/* p.-inst = */ "topology", /* type = */ "signal_quality",
                    type_instance, nlq);

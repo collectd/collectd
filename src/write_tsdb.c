@@ -455,8 +455,8 @@ static int wt_send_message(const char *key, const char *value, cdtime_t time,
   }
 
   status =
-      snprintf(message, sizeof(message), "put %s %.0f %s fqdn=%s %s %s\r\n",
-               key, CDTIME_T_TO_DOUBLE(time), value, host, tags, host_tags);
+      ssnprintf(message, sizeof(message), "put %s %.0f %s fqdn=%s %s %s\r\n",
+                key, CDTIME_T_TO_DOUBLE(time), value, host, tags, host_tags);
   sfree(temp);
   if (status < 0)
     return -1;
@@ -606,9 +606,9 @@ static int wt_config_tsd(oconfig_item_t *ci) {
     }
   }
 
-  snprintf(callback_name, sizeof(callback_name), "write_tsdb/%s/%s",
-           cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
-           cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
+  ssnprintf(callback_name, sizeof(callback_name), "write_tsdb/%s/%s",
+            cb->node != NULL ? cb->node : WT_DEFAULT_NODE,
+            cb->service != NULL ? cb->service : WT_DEFAULT_SERVICE);
 
   user_data_t user_data = {.data = cb, .free_func = wt_callback_free};
 

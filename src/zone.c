@@ -62,7 +62,7 @@ static int zone_read_procfile(char const *pidstr, char const *name, void *buf,
   int fd;
 
   char procfile[MAX_PROCFS_PATH];
-  (void)snprintf(procfile, sizeof(procfile), "/proc/%s/%s", pidstr, name);
+  (void) ssnprintf(procfile, sizeof(procfile), "/proc/%s/%s", pidstr, name);
   if ((fd = open(procfile, O_RDONLY)) == -1) {
     return 1;
   }

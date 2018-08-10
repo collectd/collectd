@@ -146,10 +146,10 @@ static int array_grow(void **array, size_t *array_len, size_t elem_size) {
   return 0;
 } /* array_grow */
 
-static int parse_identifier(lcc_connection_t *c, const char *value,
+static int _parse_identifier(lcc_connection_t *c, const char *value,
                             lcc_identifier_t *ident) {
   char hostname[1024];
-  char ident_str[1024] = "";
+  char ident_str[1024] = {};
   int n_slashes;
 
   int status;
@@ -166,11 +166,10 @@ static int parse_identifier(lcc_connection_t *c, const char *value,
     }
     hostname[sizeof(hostname) - 1] = '\0';
 
-    snprintf(ident_str, sizeof(ident_str), "%s/%s", hostname, value);
-    ident_str[sizeof(ident_str) - 1] = '\0';
+    if (snprintf(ident_str, sizeof(ident_str), "%s/%s", hostname, value) >= sizeof(ident_str))
+      ident_str[sizeof(ident_str) - 1] = '\0';
   } else {
-    strncpy(ident_str, value, sizeof(ident_str));
-    ident_str[sizeof(ident_str) - 1] = '\0';
+    strncpy(ident_str, value, sizeof(ident_str) - 1);
   }
 
   status = lcc_string_to_identifier(c, ident, ident_str);
@@ -180,7 +179,7 @@ static int parse_identifier(lcc_connection_t *c, const char *value,
     return -1;
   }
   return 0;
-} /* parse_identifier */
+} /* _parse_identifier */
 
 static int getval(lcc_connection_t *c, int argc, char **argv) {
   lcc_identifier_t ident;
@@ -198,7 +197,7 @@ static int getval(lcc_connection_t *c, int argc, char **argv) {
     return -1;
   }
 
-  status = parse_identifier(c, argv[1], &ident);
+  status = _parse_identifier(c, argv[1], &ident);
   if (status != 0)
     return status;
 
@@ -293,7 +292,7 @@ static int flush(lcc_connection_t *c, int argc, char **argv) {
         BAIL_OUT(status);
 
       memset(identifiers + (identifiers_num - 1), 0, sizeof(*identifiers));
-      status = parse_identifier(c, value, identifiers + (identifiers_num - 1));
+      status = _parse_identifier(c, value, identifiers + (identifiers_num - 1));
       if (status != 0)
         BAIL_OUT(status);
     } else {
@@ -402,7 +401,7 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
   vl.values = values;
   vl.values_types = values_types;
 
-  status = parse_identifier(c, argv[1], &vl.identifier);
+  status = _parse_identifier(c, argv[1], &vl.identifier);
   if (status != 0)
     return status;
 
@@ -543,7 +542,7 @@ int main(int argc, char **argv) {
 
     switch (opt) {
     case 's':
-      snprintf(address, sizeof(address), "unix:%s", optarg);
+      snprintf(address, sizeof(address) - 1, "unix:%s", optarg);
       address[sizeof(address) - 1] = '\0';
       break;
     case 'h':

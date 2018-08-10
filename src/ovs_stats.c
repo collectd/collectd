@@ -927,7 +927,8 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
             if (strlen(port->ex_iface_id))
               meta_data_add_string(meta, "iface-id", port->ex_iface_id);
           }
-          snprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
+          ssnprintf(devname, sizeof(devname), "%s.%s", bridge->name,
+                    port->name);
           ovs_stats_submit_one(devname, "if_collisions", NULL,
                                port->stats[collisions], meta);
           ovs_stats_submit_two(devname, "if_dropped", NULL,

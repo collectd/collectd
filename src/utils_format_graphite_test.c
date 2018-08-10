@@ -154,7 +154,7 @@ DEF_TEST(metric_name) {
     };
 
     char want[1024];
-    snprintf(want, sizeof(want), "%s 42 1480063672\r\n", cases[i].want_name);
+    ssnprintf(want, sizeof(want), "%s 42 1480063672\r\n", cases[i].want_name);
 
     if (cases[i].plugin_instance != NULL)
       sstrncpy(vl.plugin_instance, cases[i].plugin_instance,

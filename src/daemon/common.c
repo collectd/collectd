@@ -83,11 +83,24 @@ static pthread_mutex_t strerror_r_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 char *sstrncpy(char *dest, const char *src, size_t n) {
-  strncpy(dest, src, n);
+  strncpy(dest, src, n - 1);
   dest[n - 1] = '\0';
 
   return dest;
 } /* char *sstrncpy */
+
+int ssnprintf(char *str, size_t size, const char *format, ...) {
+  int status;
+  va_list ap;
+
+  va_start(ap, format);
+  status = vsnprintf(str, size, format, ap);
+  va_end(ap);
+  if (status >= size)
+    str[size - 1] = '\0';
+
+  return status;
+} /* int ssnprintf */
 
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
 {
@@ -664,7 +677,7 @@ int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name) {
   if (kc == NULL)
     return -1;
 
-  snprintf(ident, sizeof(ident), "%s,%i,%s", module, instance, name);
+  ssnprintf(ident, sizeof(ident), "%s,%i,%s", module, instance, name);
 
   *ksp_ptr = kstat_lookup(kc, module, instance, name);
   if (*ksp_ptr == NULL) {

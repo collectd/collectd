@@ -266,7 +266,7 @@ static int ctail_config_add_file(oconfig_item_t *ci) {
   }
 
   char str[255];
-  snprintf(str, sizeof(str), "tail-%zu", tail_file_num++);
+  ssnprintf(str, sizeof(str), "tail-%zu", tail_file_num++);
 
   plugin_register_complex_read(
       NULL, str, ctail_read, interval,
