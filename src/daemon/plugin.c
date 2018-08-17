@@ -146,6 +146,7 @@ static bool plugin_ctx_key_initialized;
 static long write_limit_high;
 static long write_limit_low;
 
+static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 static derive_t stats_values_dropped;
 static bool record_statistics;
 
@@ -2076,7 +2077,6 @@ static bool check_drop_value(void) /* {{{ */
 
 EXPORT int plugin_dispatch_values(value_list_t const *vl) {
   int status;
-  static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 
   if (check_drop_value()) {
     if (record_statistics) {
@@ -2105,6 +2105,15 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
   int failed = 0;
   gauge_t sum = 0.0;
   va_list ap;
+
+  if (check_drop_value()) {
+    if (record_statistics) {
+      pthread_mutex_lock(&statistics_lock);
+      stats_values_dropped++;
+      pthread_mutex_unlock(&statistics_lock);
+    }
+    return (0);
+  }
 
   assert(template->values_len == 1);
 
