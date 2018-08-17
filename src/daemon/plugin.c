@@ -2112,7 +2112,7 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
       stats_values_dropped++;
       pthread_mutex_unlock(&statistics_lock);
     }
-    return (0);
+    return 0;
   }
 
   assert(template->values_len == 1);
