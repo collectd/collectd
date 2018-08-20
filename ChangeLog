@@ -1,3 +1,81 @@
+xxxxxxxxxx, Version 5.8.1
+
+    * collectd: Fix BaseDir option, thanks to Mariusz Białończyk and Pavel Rochnyak, https://github.com/collectd/collectd/pull/2857
+
+    * write_prometheus: Fix MHD_USE_INTERNAL_POLLING_THREAD flag in newer
+      libmicrohttpd, thanks to Pavel Rochnyak, https://github.com/collectd/collectd/pull/2850
+
+    * build system: use kstat.h, when available, thanks to Dagobert Michelsen,
+      Pavel Rochnyak, https://github.com/collectd/collectd/pull/2784
+
+    * build system: Fix distcheck on MacOS, thanks to Ruben Kerkhof
+
+    * build system: add missing include of "collectd.h" to fix builds on Solaris,
+      thanks to Pavel Rochnyak
+
+    * build system: add endianess checks for AIX, fix gcc issue on Mac byteorder,
+      fix byteorder on Solaris, add fallback for endianess conversion, thanks to
+      Dagobert Michelsen (multiple cherry picks from master)
+
+    * intel_pmu: add core groups feature, thanks to Kamil Wiatrowski, https://github.com/collectd/collectd/pull/2681
+
+    * ipmi plugin: Fix segfault for wrong data type, thanks to Mariusz Szafrański, https://github.com/collectd/collectd/pull/2742
+
+    * Fix typo in collectd.conf.pod, thanks to Pavel Rochnyak, https://github.com/collectd/collectd/pull/2760
+
+    * uuid plugin: Fix hostname setting, thanks to Pavel Rochnyak, https://github.com/collectd/collectd/pull/2736
+
+    * perl plugin: fix compile fail, thanks to Pavel Rochnyak, https://github.com/collectd/collectd/pull/2734
+
+    * ipmi plugin: multiple fixes, thanks to Mariusz Szafrański
+
+    * intel_pmu: fix compatibility issue with collectd 5.8, thanks to Kamil Wiatrowski
+
+    * intel_pmu: fix possible null pointer dereference, thanks to Kamil
+      Wiatrowski, https://github.com/collectd/collectd/pull/2676
+
+    * write_prometheus: set SO_REUSEADDRESS on listening socket, thanks to Pavel
+      Rochnyak, https://github.com/collectd/collectd/pull/2684
+
+    * write_kafka: fix build failure with deprecated API call, thanks to Pavel
+      Rochnyak, https://github.com/collectd/collectd/pull/2683
+
+    * docs: update note on dpdkstat, thanks to Maryam Tahhan, https://github.com/collectd/collectd/pull/2613
+
+    * ipmi_plugin: fix broken sensor configuration option, thanks to Pavel Rochnyak, https://github.com/collectd/collectd/pull/2629
+
+    * tail plugin: fix several regressions, thanks to Pavel Rochnyak, https://github.com/collectd/collectd/pull/2611
+
+    * memcached plugin: check for closed connection to avoid deadlock, thanks to
+      Pavel Rochnyak, https://github.com/collectd/collectd/pull/2612
+
+    * df plugin: fix memory leak in error case, thanks to Takahashi tsc
+
+    * build system: Fix out-of-tree builds, thanks to Florian Forster
+
+    * collectd: improve error handling, check return values, thanks to Florian
+      Forster
+
+    * email plugin: fix coverity scan, thanks to Florian Forster
+
+    * ovs_stats: fix deadlock, thanks to Volodymyr Mytnyk, https://github.com/collectd/collectd/pull/2590
+
+    * ceph plugin: fix segfault, thanks to Aleksei Zakharov
+
+    * table plugin: Add explicit NULL checks, thanks to Florian Forster
+
+    * exec plugin: check retutn value of plugin_thread_create, thanks to Florian
+      Forster
+
+    * rrdtool plugin: check return value, thanks to Florian Forster
+
+    * ovs stats plugin: fix reconnect after thread terminated, thanks to Volodymyr
+      Mytnyk and Maram Tahhan
+
+    * powerdns plugin: several cleanups, thanks to Florian Forster
+
+    * perl plugin: Fix exporting notification meta data, thanks to Florian Forster
+
 2017-11-17, Version 5.8.0
 	* collectd: The core daemon is now completely licensed under the MIT
 	  license.
