@@ -9100,6 +9100,40 @@ only on the host system.
 
 Only I<Connection> is required.
 
+Consider the following example config:
+
+ <Plugin "virt">
+   Connection "qemu:///system"
+   HostnameFormat "hostname"
+   InterfaceFormat "address"
+   PluginInstanceFormat "name"
+ </Plugin>
+
+It will generate the following values:
+
+  node42.example.com/virt-instance-0006f26c/disk_octets-vda
+  node42.example.com/virt-instance-0006f26c/disk_ops-vda
+  node42.example.com/virt-instance-0006f26c/if_dropped-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/if_errors-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/if_octets-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/if_packets-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/memory-actual_balloon
+  node42.example.com/virt-instance-0006f26c/memory-available
+  node42.example.com/virt-instance-0006f26c/memory-last_update
+  node42.example.com/virt-instance-0006f26c/memory-major_fault
+  node42.example.com/virt-instance-0006f26c/memory-minor_fault
+  node42.example.com/virt-instance-0006f26c/memory-rss
+  node42.example.com/virt-instance-0006f26c/memory-swap_in
+  node42.example.com/virt-instance-0006f26c/memory-swap_out
+  node42.example.com/virt-instance-0006f26c/memory-total
+  node42.example.com/virt-instance-0006f26c/memory-unused
+  node42.example.com/virt-instance-0006f26c/memory-usable
+  node42.example.com/virt-instance-0006f26c/virt_cpu_total
+  node42.example.com/virt-instance-0006f26c/virt_vcpu-0
+
+You can get information on the metric's units from the online libvirt documentation.
+For instance, I<virt_cpu_total> is in nanoseconds.
+
 =over 4
 
 =item B<Connection> I<uri>
@@ -9202,7 +9236,8 @@ B<uuid> means use the guest's UUID. This is useful if you want to track the
 same guest across migrations.
 
 B<hostname> means to use the global B<Hostname> setting, which is probably not
-useful on its own because all guests will appear to have the same name.
+useful on its own because all guests will appear to have the same name. This is
+useful in conjunction with B<PluginInstanceFormat> though.
 
 You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
