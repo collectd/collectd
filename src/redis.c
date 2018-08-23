@@ -97,7 +97,8 @@ static void redis_node_free(void *arg) {
     rq = next;
   }
 
-  redisFree(rn->redisContext);
+  if (rn->redisContext)
+    redisFree(rn->redisContext);
   sfree(rn->name);
   sfree(rn->host);
   sfree(rn->passwd);
