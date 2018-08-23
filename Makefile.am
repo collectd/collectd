@@ -2,11 +2,13 @@ ACLOCAL_AMFLAGS = -I m4
 AM_YFLAGS = -d
 
 if BUILD_WIN32
-pkgdatadir=$(datadir)
-pkglibdir=$(libdir)/plugins
-pkglocalstatedir=${localstatedir}
+cpkgdatadir=$(datadir)
+cpkglibdir=$(libdir)/plugins
+cpkglocalstatedir=${localstatedir}
 else
-pkglocalstatedir=${localstatedir}/lib/${PACKAGE_NAME}
+cpkgdatadir=$(pkgdatadir)
+cpkglibdir=$(pkglibdir)
+cpkglocalstatedir=${localstatedir}/lib/${PACKAGE_NAME}
 endif
 
 BUILT_SOURCES = \
@@ -165,7 +167,7 @@ TESTS = $(check_PROGRAMS)
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_srcdir)/testwrapper.sh
 
 
-jardir = $(pkgdatadir)/java
+jardir = $(cpkgdatadir)/java
 
 pkglib_LTLIBRARIES =
 
@@ -184,9 +186,9 @@ AM_CPPFLAGS = \
 	-DPREFIX='"${prefix}"' \
 	-DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"' \
 	-DLOCALSTATEDIR='"${localstatedir}"' \
-	-DPKGLOCALSTATEDIR='"${pkglocalstatedir}"' \
-	-DPLUGINDIR='"${pkglibdir}"' \
-	-DPKGDATADIR='"${pkgdatadir}"'
+	-DPKGLOCALSTATEDIR='"${cpkglocalstatedir}"' \
+	-DPLUGINDIR='"${cpkglibdir}"' \
+	-DPKGDATADIR='"${cpkgdatadir}"'
 if BUILD_WIN32
 AM_CPPFLAGS += -DNOGDI
 endif
@@ -2094,15 +2096,15 @@ install-exec-hook:
 	else \
 		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
-	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
-	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
+	$(mkinstalldirs) $(DESTDIR)$(cpkgdatadir)
+	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(cpkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
-		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+		$(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 uninstall-hook:
-	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(cpkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
-	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+	rm -f $(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 all-local: @PERL_BINDINGS@
 
