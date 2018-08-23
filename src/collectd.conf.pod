@@ -7359,6 +7359,7 @@ parameters and set of user-defined queries for this node.
     <Node "example">
         Host "localhost"
         Port "6379"
+        #Socket "/var/run/redis/redis.sock"
         Timeout 2000
         ReportCommandStats false
         ReportCpuUsage true
@@ -7391,6 +7392,11 @@ running on.
 The B<Port> option is the TCP port on which the Redis instance accepts
 connections. Either a service name of a port number may be given. Please note
 that numerical port numbers must be given as a string, too.
+
+=item B<Socket> I<Path>
+
+Connect to Redis using the UNIX domain socket at I<Path>. If this
+setting is given, the B<Hostname> and B<Port> settings are ignored.
 
 =item B<Password> I<Password>
 
