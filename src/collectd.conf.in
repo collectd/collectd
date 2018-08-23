@@ -1276,6 +1276,7 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
+#      #Socket "/var/run/redis/redis.sock"
 #      Timeout 2000
 #      <Query "LLEN myqueue">
 #        #Database 0

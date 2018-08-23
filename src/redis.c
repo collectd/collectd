@@ -70,6 +70,7 @@ typedef struct redis_node_s redis_node_t;
 struct redis_node_s {
   char *name;
   char *host;
+  char *socket;
   char *passwd;
   int port;
   struct timeval timeout;
@@ -101,6 +102,7 @@ static void redis_node_free(void *arg) {
     redisFree(rn->redisContext);
   sfree(rn->name);
   sfree(rn->host);
+  sfree(rn->socket);
   sfree(rn->passwd);
   sfree(rn);
 } /* void redis_node_free */
@@ -213,6 +215,8 @@ static int redis_config_node(oconfig_item_t *ci) /* {{{ */
         rn->port = status;
         status = 0;
       }
+    } else if (strcasecmp("Socket", option->key) == 0) {
+      status = cf_util_get_string(option, &rn->socket);
     } else if (strcasecmp("Query", option->key) == 0) {
       redis_query_t *rq = redis_config_query(option);
       if (rq == NULL) {
@@ -591,15 +595,23 @@ static void redis_check_connection(redis_node_t *rn) {
   if (rn->redisContext)
     return;
 
-  redisContext *rh = redisConnectWithTimeout(rn->host, rn->port, rn->timeout);
+  redisContext *rh;
+  if (rn->socket != NULL)
+    rh = redisConnectUnixWithTimeout(rn->socket, rn->timeout);
+  else
+    rh = redisConnectWithTimeout(rn->host, rn->port, rn->timeout);
 
   if (rh == NULL) {
     ERROR("redis plugin: can't allocate redis context");
     return;
   }
   if (rh->err) {
-    ERROR("redis plugin: unable to connect to node `%s' (%s:%d): %s.", rn->name,
-          rn->host, rn->port, rh->errstr);
+    if (rn->socket)
+      ERROR("redis plugin: unable to connect to node `%s' (%s): %s.", rn->name,
+            rn->socket, rh->errstr);
+    else
+      ERROR("redis plugin: unable to connect to node `%s' (%s:%d): %s.",
+            rn->name, rn->host, rn->port, rh->errstr);
     redisFree(rh);
     return;
   }
@@ -760,8 +772,14 @@ static int redis_read(user_data_t *user_data) /* {{{ */
 {
   redis_node_t *rn = user_data->data;
 
-  DEBUG("redis plugin: querying info from node `%s' (%s:%d).", rn->name,
-        rn->host, rn->port);
+#if COLLECT_DEBUG
+  if (rn->socket)
+    DEBUG("redis plugin: querying info from node `%s' (%s).", rn->name,
+          rn->socket);
+  else
+    DEBUG("redis plugin: querying info from node `%s' (%s:%d).", rn->name,
+          rn->host, rn->port);
+#endif
 
   redis_check_connection(rn);
 
