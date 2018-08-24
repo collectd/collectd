@@ -181,13 +181,14 @@ static int cpufreq_read(void) {
         }
         cdtime_t now = cdtime();
         gauge_t g;
-	if (j < MAX_AVAIL_FREQS) {
-          if (value_to_rate(&g, v, DS_TYPE_DERIVE, now, &t_data[i].time_state[j]) != 0 ){
+        if (j < MAX_AVAIL_FREQS) {
+          if (value_to_rate(&g, v, DS_TYPE_DERIVE, now,
+                            &t_data[i].time_state[j]) != 0) {
             continue;
             j++;
           }
           cpufreq_submit(i, "percent", state, &(value_t){.gauge = g});
-	}
+        }
         j++;
       }
       fclose(fh);
