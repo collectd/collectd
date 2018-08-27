@@ -2745,6 +2745,10 @@ match any one of the criteria are collected. By default only selected
 partitions are collected if a selection is made. If no selection is configured
 at all, B<all> partitions are selected.
 
+=item B<LogOnce> B<false>|B<false>
+
+Only log stat() errors once.
+
 =item B<ReportByDevice> B<true>|B<false>
 
 Report using the device name rather than the mountpoint. i.e. with this I<false>,
