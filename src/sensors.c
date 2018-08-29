@@ -365,9 +365,9 @@ static int sensors_load_conf(void) {
       if ((feature->type != SENSORS_FEATURE_IN) &&
           (feature->type != SENSORS_FEATURE_FAN) &&
           (feature->type != SENSORS_FEATURE_TEMP) &&
-          (feature->type != SENSORS_FEATURE_HUMIDITY) &&
 #if SENSORS_API_VERSION >= 0x402
           (feature->type != SENSORS_FEATURE_CURR) &&
+          (feature->type != SENSORS_FEATURE_HUMIDITY) &&
 #endif
           (feature->type != SENSORS_FEATURE_POWER)) {
         DEBUG("sensors plugin: sensors_load_conf: "
@@ -385,9 +385,9 @@ static int sensors_load_conf(void) {
         if ((subfeature->type != SENSORS_SUBFEATURE_IN_INPUT) &&
             (subfeature->type != SENSORS_SUBFEATURE_FAN_INPUT) &&
             (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT) &&
-            (subfeature->type != SENSORS_SUBFEATURE_HUMIDITY_INPUT) &&
 #if SENSORS_API_VERSION >= 0x402
             (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT) &&
+            (subfeature->type != SENSORS_SUBFEATURE_HUMIDITY_INPUT) &&
 #endif
             (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
           continue;
@@ -519,11 +519,11 @@ static int sensors_read(void) {
       type = "temperature";
     else if (fl->feature->type == SENSORS_FEATURE_POWER)
       type = "power";
-    else if (fl->feature->type == SENSORS_FEATURE_HUMIDITY)
-      type = "humidity";
 #if SENSORS_API_VERSION >= 0x402
     else if (fl->feature->type == SENSORS_FEATURE_CURR)
       type = "current";
+    else if (fl->feature->type == SENSORS_FEATURE_HUMIDITY)
+      type = "humidity";
 #endif
     else
       continue;
