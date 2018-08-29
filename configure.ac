@@ -514,6 +514,11 @@ if test "x$ac_system" = "xLinux"; then
     ]]
   )
 
+  AC_CHECK_HEADERS([btrfs/ioctl.h],
+    [have_linux_btrfs_ioctl_h="yes"],
+    [have_linux_btrfs_ioctl_h="no ( btrfs/ioctl.h not found )"]
+  )
+
   # For ipvs module
   AC_CHECK_HEADERS_ONCE([linux/ip_vs.h])
 
@@ -6291,6 +6296,7 @@ plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
+plugin_btrfs="no"
 plugin_ceph="no"
 plugin_cgroups="no"
 plugin_conntrack="no"
@@ -6365,6 +6371,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_cpufreq="yes"
   plugin_disk="yes"
   plugin_drbd="yes"
+  plugin_btrfs="yes"
   plugin_entropy="yes"
   plugin_fhcount="yes"
   plugin_fscache="yes"
@@ -6498,6 +6505,10 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
   if test "x$have_strptime" = "xyes"; then
     plugin_bind="yes"
   fi
+fi
+
+if test "x$have_linux_btrfs_ioctl_h" = "xyes"; then
+  plugin_btrfs="yes"
 fi
 
 if test "x$with_libopenipmipthread" = "xyes"; then
@@ -6707,6 +6718,7 @@ AC_PLUGIN([ascent],              [$plugin_ascent],          [AscentEmu player st
 AC_PLUGIN([barometer],           [$plugin_barometer],       [Barometer sensor on I2C])
 AC_PLUGIN([battery],             [$plugin_battery],         [Battery statistics])
 AC_PLUGIN([bind],                [$plugin_bind],            [ISC Bind nameserver statistics])
+AC_PLUGIN([btrfs],               [$plugin_btrfs],           [Btrfs device statistics])
 AC_PLUGIN([ceph],                [$plugin_ceph],            [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],         [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                     [Chrony statistics])
@@ -7129,6 +7141,7 @@ AC_MSG_RESULT([    ascent  . . . . . . . $enable_ascent])
 AC_MSG_RESULT([    barometer . . . . . . $enable_barometer])
 AC_MSG_RESULT([    battery . . . . . . . $enable_battery])
 AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
+AC_MSG_RESULT([    btrfs . . . . . . . . $enable_btrfs])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])

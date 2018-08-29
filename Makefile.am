@@ -1024,6 +1024,13 @@ interface_la_LIBADD += -lperfstat
 endif
 endif # BUILD_PLUGIN_INTERFACE
 
+if BUILD_PLUGIN_BTRFS
+pkglib_LTLIBRARIES += btrfs.la
+btrfs_la_SOURCES = src/btrfs.c
+btrfs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+btrfs_la_LIBADD = 
+endif
+
 if BUILD_PLUGIN_IPC
 pkglib_LTLIBRARIES += ipc.la
 ipc_la_SOURCES = src/ipc.c
