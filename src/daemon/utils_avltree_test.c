@@ -51,7 +51,7 @@ struct kv_t {
 };
 
 static int kv_compare(const void *a_ptr, const void *b_ptr) {
-  return strcmp(((struct kv_t*)a_ptr)->key, ((struct kv_t*)b_ptr)->key);
+  return strcmp(((struct kv_t *)a_ptr)->key, ((struct kv_t *)b_ptr)->key);
 }
 
 DEF_TEST(success) {
@@ -70,7 +70,8 @@ DEF_TEST(success) {
 
   struct kv_t sorted_cases[STATIC_ARRAY_SIZE(cases)];
   memcpy(sorted_cases, cases, sizeof(cases));
-  qsort(sorted_cases, STATIC_ARRAY_SIZE(cases), sizeof(struct kv_t), kv_compare);
+  qsort(sorted_cases, STATIC_ARRAY_SIZE(cases), sizeof(struct kv_t),
+        kv_compare);
 
   c_avl_tree_t *t;
 
@@ -106,8 +107,9 @@ DEF_TEST(success) {
     c_avl_iterator_t *iter = c_avl_get_iterator(t);
     char *key;
     char *value;
-    for (size_t i = 0; c_avl_iterator_next(iter, (void**)&key, (void**)&value) == 0; i++) {
-      EXPECT_EQ_STR(sorted_cases[i].key,   key);
+    for (size_t i = 0;
+         c_avl_iterator_next(iter, (void **)&key, (void **)&value) == 0; i++) {
+      EXPECT_EQ_STR(sorted_cases[i].key, key);
       EXPECT_EQ_STR(sorted_cases[i].value, value);
     }
     c_avl_iterator_destroy(iter);
@@ -118,9 +120,11 @@ DEF_TEST(success) {
     c_avl_iterator_t *iter = c_avl_get_iterator(t);
     char *key;
     char *value;
-    for (size_t i = 0; c_avl_iterator_prev(iter, (void**)&key, (void**)&value) == 0; i++) {
-      EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases)-1-i].key,   key);
-      EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases)-1-i].value, value);
+    for (size_t i = 0;
+         c_avl_iterator_prev(iter, (void **)&key, (void **)&value) == 0; i++) {
+      EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases) - 1 - i].key, key);
+      EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases) - 1 - i].value,
+                    value);
     }
     c_avl_iterator_destroy(iter);
   }
