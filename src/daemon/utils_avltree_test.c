@@ -107,12 +107,14 @@ DEF_TEST(success) {
     c_avl_iterator_t *iter = c_avl_get_iterator(t);
     char *key;
     char *value;
-    for (size_t i = 0;
-         c_avl_iterator_next(iter, (void **)&key, (void **)&value) == 0; i++) {
+    size_t i = 0;
+    while (c_avl_iterator_next(iter, (void **)&key, (void **)&value) == 0) {
       EXPECT_EQ_STR(sorted_cases[i].key, key);
       EXPECT_EQ_STR(sorted_cases[i].value, value);
+      i++;
     }
     c_avl_iterator_destroy(iter);
+    EXPECT_EQ_INT(i, STATIC_ARRAY_SIZE(cases));
   }
 
   /* iterate backward */
@@ -120,13 +122,15 @@ DEF_TEST(success) {
     c_avl_iterator_t *iter = c_avl_get_iterator(t);
     char *key;
     char *value;
-    for (size_t i = 0;
-         c_avl_iterator_prev(iter, (void **)&key, (void **)&value) == 0; i++) {
+    size_t i = 0;
+    while (c_avl_iterator_prev(iter, (void **)&key, (void **)&value) == 0) {
       EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases) - 1 - i].key, key);
       EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases) - 1 - i].value,
                     value);
+      i++;
     }
     c_avl_iterator_destroy(iter);
+    EXPECT_EQ_INT(i, STATIC_ARRAY_SIZE(cases));
   }
 
   /* remove half */
