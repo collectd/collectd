@@ -45,11 +45,17 @@ static int compare_callback(void const *v0, void const *v1) {
   return strcmp(v0, v1);
 }
 
+struct kv_t {
+  char *key;
+  char *value;
+};
+
+static int kv_compare(const void *a_ptr, const void *b_ptr) {
+  return strcmp(((struct kv_t*)a_ptr)->key, ((struct kv_t*)b_ptr)->key);
+}
+
 DEF_TEST(success) {
-  struct {
-    char *key;
-    char *value;
-  } cases[] = {
+  struct kv_t cases[] = {
       {"Eeph7chu", "vai1reiV"}, {"igh3Paiz", "teegh1Ee"},
       {"caip6Uu8", "ooteQu8n"}, {"Aech6vah", "AijeeT0l"},
       {"Xah0et2L", "gah8Taep"}, {"BocaeB8n", "oGaig8io"},
@@ -61,6 +67,10 @@ DEF_TEST(success) {
       {"lo3Thee3", "ahDu4Zuj"}, {"Rah8kohv", "ieShoc7E"},
       {"ieN5engi", "Aevou1ah"}, {"ooTe4OhP", "aingai5Y"},
   };
+
+  struct kv_t sorted_cases[STATIC_ARRAY_SIZE(cases)];
+  memcpy(sorted_cases, cases, sizeof(cases));
+  qsort(sorted_cases, STATIC_ARRAY_SIZE(cases), sizeof(struct kv_t), kv_compare);
 
   c_avl_tree_t *t;
 
@@ -89,6 +99,30 @@ DEF_TEST(success) {
 
     CHECK_ZERO(c_avl_get(t, cases[i].key, (void *)&value_ret));
     EXPECT_EQ_STR(cases[i].value, value_ret);
+  }
+
+  /* iterate forward */
+  {
+    c_avl_iterator_t *iter = c_avl_get_iterator(t);
+    char *key;
+    char *value;
+    for (size_t i = 0; c_avl_iterator_next(iter, (void**)&key, (void**)&value) == 0; i++) {
+      EXPECT_EQ_STR(sorted_cases[i].key,   key);
+      EXPECT_EQ_STR(sorted_cases[i].value, value);
+    }
+    c_avl_iterator_destroy(iter);
+  }
+
+  /* iterate backward */
+  {
+    c_avl_iterator_t *iter = c_avl_get_iterator(t);
+    char *key;
+    char *value;
+    for (size_t i = 0; c_avl_iterator_prev(iter, (void**)&key, (void**)&value) == 0; i++) {
+      EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases)-1-i].key,   key);
+      EXPECT_EQ_STR(sorted_cases[STATIC_ARRAY_SIZE(cases)-1-i].value, value);
+    }
+    c_avl_iterator_destroy(iter);
   }
 
   /* remove half */
