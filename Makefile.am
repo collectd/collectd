@@ -61,6 +61,7 @@ EXTRA_DIST = \
 	src/collectd-tg.pod \
 	src/collectd-threshold.pod \
 	src/collectd-unixsock.pod \
+	src/collectd-btrfs.pod \
 	src/collectd.conf.pod \
 	src/collectd.pod \
 	src/collectdctl.pod \
@@ -91,6 +92,7 @@ dist_man_MANS = \
 	src/collectd-tg.1 \
 	src/collectd-threshold.5 \
 	src/collectd-unixsock.5 \
+  src/collectd-btrfs.5 \
 	src/types.db.5
 
 
@@ -276,7 +278,7 @@ collectd_LDFLAGS += -ldl -Wl,--out-implib,libcollectd.a
 else
 collectd_SOURCES += src/daemon/cmd.c
 endif
-	
+
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
@@ -1028,7 +1030,7 @@ if BUILD_PLUGIN_BTRFS
 pkglib_LTLIBRARIES += btrfs.la
 btrfs_la_SOURCES = src/btrfs.c
 btrfs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-btrfs_la_LIBADD = 
+btrfs_la_LIBADD =
 endif
 
 if BUILD_PLUGIN_IPC

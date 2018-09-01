@@ -115,14 +115,16 @@ static int      btrfs_submit_read_stats( char* path ) {
     DIR *dirstream = opendir( btrfs_path );
     if ( dirstream == NULL ){
         ERROR( "[btrfs] ERROR: open on %s failed %s\n", btrfs_path, strerror(errno) );
-        return -1;
+        ret = -1;
+        goto onerr;
     }
 
 // get fd
     fd = dirfd(dirstream);
     if( fd < 0 ){
         ERROR( "[btrfs] ERROR: open on %s failed: %s\n", btrfs_path, strerror(errno) );
-        return -1;
+        ret = -1;
+        goto onerr;
     }
 
 
@@ -132,7 +134,7 @@ static int      btrfs_submit_read_stats( char* path ) {
     ret = ioctl( fd, BTRFS_IOC_FS_INFO, &fs_args );
     if( ret < 0 ) {
         ERROR( "[btrfs] ERROR: ioctl(BTRFS_IOC_FS_INFO) on %s failed: %s\n", btrfs_path, strerror(errno));
-        return -1;
+        goto onerr;
     }
 
 // get device stats
@@ -144,7 +146,7 @@ static int      btrfs_submit_read_stats( char* path ) {
     ret = ioctl( fd, BTRFS_IOC_GET_DEV_STATS, &dev_stats_args );
     if( ret < 0 ) {
         ERROR( "[btrfs] ERROR: ioctl(BTRFS_IOC_GET_DEV_STATS) on %s failed: %s\n", btrfs_path, strerror(errno));
-        return -1;
+        goto onerr;
     }
 
 // replace / with _
@@ -156,12 +158,14 @@ static int      btrfs_submit_read_stats( char* path ) {
     btrfs_submit_value( btrfs_path, "err-corrupt", dev_stats_args.values[BTRFS_DEV_STAT_CORRUPTION_ERRS] );
     btrfs_submit_value( btrfs_path, "err-generate", dev_stats_args.values[BTRFS_DEV_STAT_GENERATION_ERRS] );
 
+
+onerr:
 // cleanup
   closedir( dirstream );
   close( fd );
   free( btrfs_path );
 
-  return 0;
+  return ret;
 }
 
 

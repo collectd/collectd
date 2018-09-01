@@ -16,19 +16,23 @@ LoadPlugin unixsock
 
 
 LoadPlugin btrfs
+<Plugin btrfs>
+  Path "/tmp/btrfstest"
+</Plugin>
+
 EOF
 fi
 
 if [ ! -f /tmp/btrfstest.image ]; then
     dd if=/dev/zero bs=1M count=150 of=/tmp/btrfstest.image
     mkfs.btrfs /tmp/btrfstest.image
+
+    mkdir -p /tmp/btrfstest
+    mount /tmp/btrfstest.image /tmp/btrfstest
+    dd if=/dev/urandom of=/tmp/btrfstest/random.file
+    dd if=/dev/urandom bs=1M count=1 seek=50 of=/tmp/btrfstest.image
 fi
 
-umount /tmp/btrfstest
-mkdir -p /tmp/btrfstest
-mount /tmp/btrfstest.image /tmp/btrfstest
-dd if=/dev/urandom of=/tmp/btrfstest/random.file
-dd if=/dev/urandom bs=1M count=1 seek=50 of=/tmp/btrfstest.image
 
 
-#./collectd -C contrib/btrfs/collectd_btrfs.conf -f
+./collectd -C contrib/btrfs/collectd_btrfs.conf -f

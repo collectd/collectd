@@ -1,0 +1,48 @@
+=encoding UTF-8
+
+=head1 NAME
+
+collectd-btrfs - Documentation of collectd's I<Btrfs plugin>
+
+=head1 SYNOPSIS
+
+LoadPlugin btrfs
+<Plugin btrfs>
+  Path "/tmp/btrfstest"
+</Plugin>
+
+
+=head1 DESCRIPTION
+
+The btrfs plugin read the device stats from an mounted BTRFS-Filesystem.
+
+=head1 CONFIGURATION
+
+Here is a configuration example to get you started. Read below for more
+information.
+
+LoadPlugin btrfs
+<Plugin btrfs>
+  Path "/tmp/btrfstest"
+</Plugin>
+
+
+LoadPlugin btrfs
+<Plugin btrfs>
+  Path "/"
+  Path "/media/data"
+  Path "/tmp/btrfstest"
+</Plugin>
+
+As you can see, you can use the Path multiple times, for every path the device
+statistics will be readed.
+
+
+=head1 SEE ALSO
+
+L<collectd(1)>,
+L<collectd.conf(5)>
+
+=head1 AUTHOR
+
+Martin Langlotz E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>
