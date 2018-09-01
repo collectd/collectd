@@ -1,7 +1,6 @@
 /**
  * collectd - src/btrfs.c
- * Copyright (C) 2005-2009  Florian octo Forster
- * Copyright (C) 2009       Paul Sadauskas
+ * Copyright (C) 2018       Martin Langlotz
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,8 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  * Authors:
- *   Florian octo Forster <octo at collectd.org>
- *   Paul Sadauskas <psadauskas at gmail.com>
+ *   Martin Langlotz < stackshadow at evilbrain . de >
  **/
 
 #include "collectd.h"
@@ -27,68 +25,172 @@
 #include "plugin.h"
 #include "utils_ignorelist.h"
 #include "utils_mount.h"
+#include "utils_avltree.h"
 
 #include <btrfs/ioctl.h>
 
 
 #define PLUGIN_NAME "btrfs"
+static const char*    config_keys[] = { "Path" };
+static int            config_keys_num = STATIC_ARRAY_SIZE(config_keys);
+static char*          conf_btrfs_path;
+static c_avl_tree_t*  conf_list_btrfs_paths = NULL;
 
-// see
-// https://github.com/kdave/btrfs-progs/blob/master/cmds-device.c
 
-//static int btrfs_dispatch
 
-static int btrfs_read(void) {
 
-// vars
-    //derive_t counter = 10000;
-    gauge_t gauge = 10;
+static int      btrfs_avl_compare( const void *key, const void *value ){ return 1; };
+
+
+static int      btrfs_config( const char *key, const char *value ) {
+
+// create linked-list
+  if( conf_list_btrfs_paths == NULL ){
+    conf_list_btrfs_paths = c_avl_create( btrfs_avl_compare );
+  }
+
+
+
+
+  if (strcasecmp("Path", key) == 0) {
+
+    int ret = 0;
+
+  // get btrfs-path
+    conf_btrfs_path = strdup(value);
+    if ( conf_btrfs_path == NULL ){
+      return 1;
+    }
+
+    ret = c_avl_insert( conf_list_btrfs_paths, conf_btrfs_path, conf_btrfs_path );
+    if( ret < 0 ) {
+        ERROR( "[btrfs] ERROR: c_avl_insert\n" );
+        exit(-1);
+    }
+
+    DEBUG( "[btrfs] Set path: %s \n", conf_btrfs_path );
+
+  }
+
+
+  return 0;
+} /* int disk_config */
+
+
+static void     btrfs_submit_value( const char* folder, const char* error, gauge_t value ){
+
 
 // value
-    value_t value = {
-//        .derive = counter,
-        .gauge = gauge
-    };
+    value_t         tmp_value = { .gauge = value };
+    value_list_t    vl = VALUE_LIST_INIT;
 
-
-
-
-    //struct      btrfs_ioctl_get_dev_stats args = {0};
-    char        path[BTRFS_DEVICE_PATH_NAME_MAX + 1];
-
-    strncpy( path, "/dev/sda3", BTRFS_DEVICE_PATH_NAME_MAX );
-    path[BTRFS_DEVICE_PATH_NAME_MAX] = 0;
-
-    //args.devid = "61ca4c37-dd9c-475c-a673-b6ef5df03603";
-    //args.nr_items = BTRFS_DEV_STAT_VALUES_MAX;
-    //args.flags = 0;
-
-
-
-
-
-
-
-    value_list_t vl = VALUE_LIST_INIT;
-
-    vl.values = &value;
+// create value-list
+    vl.values = &tmp_value;
     vl.values_len = 1;
 
-    //sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+// create value
     sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
-    sstrncpy(vl.plugin_instance, "my_plugin_instance", sizeof(vl.plugin_instance));
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s#%s", folder, error );
     sstrncpy(vl.type, "count", sizeof(vl.type));
 
+// send it
     plugin_dispatch_values(&vl);
+}
+
+
+static int      btrfs_submit_read_stats( char* path ) {
+
+
+// vars
+    char*       btrfs_path = NULL;
+    int         fd = 0;
+    int         ret = 0;
+
+
+// copy to temporary
+    btrfs_path = strdup( path );
+
+
+// open
+    DIR *dirstream = opendir( btrfs_path );
+    if ( dirstream == NULL ){
+        ERROR( "[btrfs] ERROR: open on %s failed %s\n", btrfs_path, strerror(errno) );
+        return -1;
+    }
+
+// get fd
+    fd = dirfd(dirstream);
+    if( fd < 0 ){
+        ERROR( "[btrfs] ERROR: open on %s failed: %s\n", btrfs_path, strerror(errno) );
+        return -1;
+    }
+
+
+
+// get fs info
+    struct btrfs_ioctl_fs_info_args fs_args = {0};
+    ret = ioctl( fd, BTRFS_IOC_FS_INFO, &fs_args );
+    if( ret < 0 ) {
+        ERROR( "[btrfs] ERROR: ioctl(BTRFS_IOC_FS_INFO) on %s failed: %s\n", btrfs_path, strerror(errno));
+        return -1;
+    }
+
+// get device stats
+    struct btrfs_ioctl_get_dev_stats dev_stats_args = {0};
+    dev_stats_args.devid = fs_args.max_id;
+    dev_stats_args.nr_items = BTRFS_DEV_STAT_VALUES_MAX;
+    dev_stats_args.flags = 0;
+
+    ret = ioctl( fd, BTRFS_IOC_GET_DEV_STATS, &dev_stats_args );
+    if( ret < 0 ) {
+        ERROR( "[btrfs] ERROR: ioctl(BTRFS_IOC_GET_DEV_STATS) on %s failed: %s\n", btrfs_path, strerror(errno));
+        return -1;
+    }
+
+// replace / with _
+    escape_slashes( btrfs_path, strlen(btrfs_path) * sizeof(char) );
+
+    btrfs_submit_value( btrfs_path, "err-write", dev_stats_args.values[BTRFS_DEV_STAT_WRITE_ERRS] );
+    btrfs_submit_value( btrfs_path, "err-read", dev_stats_args.values[BTRFS_DEV_STAT_READ_ERRS] );
+    btrfs_submit_value( btrfs_path, "err-flush", dev_stats_args.values[BTRFS_DEV_STAT_FLUSH_ERRS] );
+    btrfs_submit_value( btrfs_path, "err-corrupt", dev_stats_args.values[BTRFS_DEV_STAT_CORRUPTION_ERRS] );
+    btrfs_submit_value( btrfs_path, "err-generate", dev_stats_args.values[BTRFS_DEV_STAT_GENERATION_ERRS] );
+
+// cleanup
+  closedir( dirstream );
+  close( fd );
+  free( btrfs_path );
+
+  return 0;
+}
+
+
+static int      btrfs_read(void) {
+
+
+// vars
+  int     ret = 0;
+  char*   path = NULL;
+
+// iterate over config-paths
+  c_avl_iterator_t* iterator = c_avl_get_iterator( conf_list_btrfs_paths );
+  ret = c_avl_iterator_next( iterator, (void**)&path, (void**)&path );
+  while( ret == 0 ){
+    btrfs_submit_read_stats( path );
+    ret = c_avl_iterator_next( iterator, (void**)&path, (void**)&path );
+  }
+  c_avl_iterator_destroy( iterator );
 
 
  return 0;
 }
 
+
+
+
 void module_register(void) {
-
-    plugin_register_read( "btrfs", btrfs_read );
-
+  plugin_register_config( "btrfs", btrfs_config, config_keys, config_keys_num );
+  plugin_register_read( "btrfs", btrfs_read );
 }
 
 
