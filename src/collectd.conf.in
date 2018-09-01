@@ -357,6 +357,11 @@
 #  </View>
 #</Plugin>
 
+#LoadPlugin btrfs
+#<Plugin btrfs>
+#  Path "/mnt/data"
+#</Plugin>
+
 #<Plugin ceph>
 #  LongRunAvgLatency false
 #  ConvertSpecialMetricTypes true
