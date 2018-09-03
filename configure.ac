@@ -6507,8 +6507,8 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
   fi
 fi
 
-if test "x$have_linux_btrfs_ioctl_h" = "xyes"; then
-  plugin_btrfs="yes"
+if test "x$have_linux_btrfs_ioctl_h" != "xyes"; then
+  plugin_btrfs="no"
 fi
 
 if test "x$with_libopenipmipthread" = "xyes"; then
