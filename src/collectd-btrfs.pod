@@ -4,45 +4,58 @@
 
 collectd-btrfs - Documentation of collectd's I<Btrfs plugin>
 
-=head1 SYNOPSIS
-
-LoadPlugin btrfs
-<Plugin btrfs>
-  Path "/tmp/btrfstest"
-</Plugin>
-
 
 =head1 DESCRIPTION
 
-The btrfs plugin read the device stats from an mounted BTRFS-Filesystem.
+The btrfs plugin read device stats from an mounted BTRFS-Filesystem.
+
+
+Error counts reported by this plugin ( mainly from btrfs-documentation, see man L<btrfs-device> )
+
+count-err-write
+   Failed writes to the block devices, means that the layers beneath the filesystem were not able to satisfy the
+   write request.
+
+count-err-read
+   Read request analogy to count-err-write.
+
+count-err-flush
+   Number of failed writes with the FLUSH flag set. The flushing is a method of forcing a particular order between
+   write requests and is crucial for implementing crash consistency. In case of btrfs, all the metadata blocks must
+   be permanently stored on the block device before the superblock is written.
+
+count-err-corrupt
+   A block checksum mismatched or a corrupted metadata header was found.
+
+count-err-generate
+   The block generation does not match the expected value (eg. stored in the parent node).
+
+count-err
+    The sum of all error-counts mentioned above
+
 
 =head1 CONFIGURATION
 
 Here is a configuration example to get you started. Read below for more
 information.
 
-LoadPlugin btrfs
-<Plugin btrfs>
-  Path "/tmp/btrfstest"
-</Plugin>
+  LoadPlugin btrfs
+  <Plugin btrfs>
+    RefreshMounts "on"
+  </Plugin>
 
 
-LoadPlugin btrfs
-<Plugin btrfs>
-  Path "/"
-  Path "/media/data"
-  Path "/tmp/btrfstest"
-</Plugin>
-
-As you can see, you can use the Path multiple times, for every path the device
-statistics will be readed.
+B<RefreshMounts> If this is set to "on", the plugin load /proc/mounts on every refresh.
+This is useful if you often mount/unmount btrfs-volumes. If you not use this option,
+mounted btrfs-volumes will be readed during start of collectd.
 
 
 =head1 SEE ALSO
 
 L<collectd(1)>,
 L<collectd.conf(5)>
+L<btrfs-device>
 
 =head1 AUTHOR
 
-Martin Langlotz E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>
+Martin Langlotz E<lt>martin.langlotzE<nbsp>atE<nbsp>evilbrain.deE<gt>

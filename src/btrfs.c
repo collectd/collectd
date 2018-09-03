@@ -23,48 +23,100 @@
 
 #include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
 #include "utils_ignorelist.h"
+#include "utils_llist.h"
 #include "utils_mount.h"
 
 #include <btrfs/ioctl.h>
 
 #define PLUGIN_NAME "btrfs"
-static const char *config_keys[] = {"Path"};
+static const char *config_keys[] = {"RefreshMounts"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-static char *conf_btrfs_path;
-static c_avl_tree_t *conf_list_btrfs_paths = NULL;
+static char btrfs_is_init = 0;
+static char btrfs_conf_refresh_always = 0;
+static llist_t *llist_btrfs_paths = NULL;
 
-static int btrfs_avl_compare(const void *key, const void *value) { return 1; };
+static int btrfs_mountlist_create() {
 
-static int btrfs_config(const char *key, const char *value) {
-
-  // create linked-list
-  if (conf_list_btrfs_paths == NULL) {
-    conf_list_btrfs_paths = c_avl_create(btrfs_avl_compare);
+  if (llist_btrfs_paths != NULL) {
+    llentry_t *e = llist_head(llist_btrfs_paths);
+    while (e != NULL) {
+      sfree(e->key);
+      e = e->next;
+    }
+    llist_destroy(llist_btrfs_paths);
   }
 
-  if (strcasecmp("Path", key) == 0) {
-
-    int ret = 0;
-
-    // get btrfs-path
-    conf_btrfs_path = strdup(value);
-    if (conf_btrfs_path == NULL) {
-      return 1;
-    }
-
-    ret = c_avl_insert(conf_list_btrfs_paths, conf_btrfs_path, conf_btrfs_path);
-    if (ret < 0) {
-      ERROR("[btrfs] ERROR: c_avl_insert\n");
-      exit(-1);
-    }
-
-    DEBUG("[btrfs] Set path: %s \n", conf_btrfs_path);
+  llist_btrfs_paths = llist_create();
+  if (llist_btrfs_paths == NULL) {
+    return -1;
   }
 
   return 0;
-} /* int disk_config */
+}
+
+static int btrfs_mountlist_read() {
+
+  FILE *file_mounts = setmntent("/proc/mounts", "r");
+  if (file_mounts == NULL) {
+    return -1;
+  }
+
+  struct mntent *mount_entry = getmntent(file_mounts);
+  while (mount_entry != NULL) {
+
+    if (strncmp(mount_entry->mnt_type, "btrfs", 5) == 0) {
+      char *mnt_dir = strdup(mount_entry->mnt_dir);
+      llist_append(llist_btrfs_paths, llentry_create(mnt_dir, NULL));
+    }
+
+    mount_entry = getmntent(file_mounts);
+  }
+
+  endmntent(file_mounts);
+  return 0;
+}
+
+static int btrfs_init() {
+
+  if (btrfs_is_init == 1)
+    return 0;
+
+  int ret = btrfs_mountlist_create();
+  if (ret < 0) {
+    return -1;
+  }
+
+  ret = btrfs_mountlist_read();
+  if (ret < 0) {
+    return -1;
+  }
+
+  btrfs_is_init = 1;
+  return 0;
+}
+
+static int btrfs_config(const char *key, const char *value) {
+
+  int ret = -1;
+
+  ret = btrfs_init();
+  if (ret < 0) {
+    return -1;
+  }
+
+  if (strcasecmp("RefreshMounts", key) == 0) {
+
+    if (strcasecmp("on", value) == 0) {
+      btrfs_conf_refresh_always = 1;
+      DEBUG("[btrfs] Enable refresh on every read \n");
+    } else {
+      btrfs_conf_refresh_always = 0;
+    }
+  }
+
+  return 0;
+}
 
 static void btrfs_submit_value(const char *folder, const char *error,
                                gauge_t value) {
@@ -79,15 +131,15 @@ static void btrfs_submit_value(const char *folder, const char *error,
 
   // create value
   sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s#%s", folder,
-           error);
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s", folder);
+  snprintf(vl.type_instance, sizeof(vl.type_instance), "%s", error);
   sstrncpy(vl.type, "count", sizeof(vl.type));
 
   // send it
   plugin_dispatch_values(&vl);
 }
 
-static int btrfs_submit_read_stats(char *path) {
+static int btrfs_submit_read_stats(char *mount_path) {
 
   // vars
   char *btrfs_path = NULL;
@@ -95,7 +147,7 @@ static int btrfs_submit_read_stats(char *path) {
   int ret = 0;
 
   // copy to temporary
-  btrfs_path = strdup(path);
+  btrfs_path = strdup(mount_path);
 
   // open
   DIR *dirstream = opendir(btrfs_path);
@@ -150,6 +202,14 @@ static int btrfs_submit_read_stats(char *path) {
   btrfs_submit_value(btrfs_path, "err-generate",
                      dev_stats_args.values[BTRFS_DEV_STAT_GENERATION_ERRS]);
 
+  gauge_t sum = 0;
+  sum += dev_stats_args.values[BTRFS_DEV_STAT_WRITE_ERRS];
+  sum += dev_stats_args.values[BTRFS_DEV_STAT_READ_ERRS];
+  sum += dev_stats_args.values[BTRFS_DEV_STAT_FLUSH_ERRS];
+  sum += dev_stats_args.values[BTRFS_DEV_STAT_CORRUPTION_ERRS];
+  sum += dev_stats_args.values[BTRFS_DEV_STAT_GENERATION_ERRS];
+  btrfs_submit_value(btrfs_path, "err", sum);
+
 onerr:
   // cleanup
   closedir(dirstream);
@@ -163,21 +223,47 @@ static int btrfs_read(void) {
 
   // vars
   int ret = 0;
-  char *path = NULL;
 
-  // iterate over config-paths
-  c_avl_iterator_t *iterator = c_avl_get_iterator(conf_list_btrfs_paths);
-  ret = c_avl_iterator_next(iterator, (void **)&path, (void **)&path);
-  while (ret == 0) {
-    btrfs_submit_read_stats(path);
-    ret = c_avl_iterator_next(iterator, (void **)&path, (void **)&path);
+  ret = btrfs_init();
+  if (ret < 0) {
+    return -1;
   }
-  c_avl_iterator_destroy(iterator);
+
+  if (btrfs_conf_refresh_always == 1) {
+    DEBUG("[btrfs] Refresh mounts..\n");
+
+    ret = btrfs_mountlist_create();
+    if (ret < 0) {
+      return -1;
+    }
+
+    btrfs_mountlist_read();
+  }
+
+  for (llentry_t *e = llist_head(llist_btrfs_paths); e != NULL; e = e->next) {
+    btrfs_submit_read_stats(e->key);
+  }
 
   return 0;
 }
 
+static int btrfs_shutdown(void) {
+
+  if (llist_btrfs_paths != NULL) {
+    llentry_t *e = llist_head(llist_btrfs_paths);
+    while (e != NULL) {
+      sfree(e->key);
+      e = e->next;
+    }
+    llist_destroy(llist_btrfs_paths);
+  }
+
+  return 0;
+} /* static int powerdns_shutdown */
+
 void module_register(void) {
-  plugin_register_config("btrfs", btrfs_config, config_keys, config_keys_num);
-  plugin_register_read("btrfs", btrfs_read);
+  plugin_register_config(PLUGIN_NAME, btrfs_config, config_keys,
+                         config_keys_num);
+  plugin_register_read(PLUGIN_NAME, btrfs_read);
+  plugin_register_shutdown(PLUGIN_NAME, btrfs_shutdown);
 }
