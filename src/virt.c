@@ -2101,7 +2101,7 @@ static int lv_read(user_data_t *ud) {
       ERROR(PLUGIN_NAME
             " failed to get stats for block device (%s) in domain %s",
             state->block_devices[i].path,
-            virDomainGetName(state->domains[i].ptr));
+            virDomainGetName(state->block_devices[i].dom));
   }
 
   /* Get interface stats for each domain. */
