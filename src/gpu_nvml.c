@@ -17,7 +17,17 @@ static char *nv_errline = "";
     nv_errline = #f;                                                           \
     goto catch;                                                                \
   }
+
+#define TRY_CATCH_OPTIONAL(f, catch)                                           \
+  if ((nv_status = f) != NVML_SUCCESS &&                                       \
+      nv_status != NVML_ERROR_NOT_SUPPORTED) {                                 \
+    nv_errline = #f;                                                           \
+    goto catch;                                                                \
+  }
+
 #define TRY(f) TRY_CATCH(f, catch)
+#define TRYOPT(f) TRY_CATCH_OPTIONAL(f, catch)
+
 #define WRAPGAUGE(x) ((value_t){.gauge = (gauge_t)(x)})
 
 static const char *config_keys[] = {
@@ -26,6 +36,8 @@ static const char *config_keys[] = {
 };
 static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 
+// This is a bitflag, necessitating the (extremely conservative) assumption
+// that there are no more than 64 GPUs on this system.
 static uint64_t conf_match_mask = 0;
 static bool conf_mask_is_exclude = 0;
 
@@ -98,13 +110,6 @@ static int nvml_read(void) {
     device_count = 64;
   }
 
-  nvmlDevice_t dev;
-  char dev_name[MAX_DEVNAME_LEN + 1];
-  unsigned int fan_speed;
-  nvmlUtilization_t utilization;
-  nvmlMemory_t meminfo;
-  unsigned int core_temp;
-
   for (int ix = 0; ix < device_count; ix++) {
 
     int is_match = ((1 << ix) & conf_match_mask) || (conf_match_mask == 0);
@@ -112,31 +117,65 @@ static int nvml_read(void) {
       continue;
     }
 
+    nvmlDevice_t dev;
     TRY(nvmlDeviceGetHandleByIndex(ix, &dev));
 
+    char dev_name[MAX_DEVNAME_LEN + 1];
     dev_name[0] = '\0';
     TRY(nvmlDeviceGetName(dev, dev_name, MAX_DEVNAME_LEN));
 
-    TRY(nvmlDeviceGetMemoryInfo(dev, &meminfo))
-    TRY(nvmlDeviceGetUtilizationRates(dev, &utilization))
-    TRY(nvmlDeviceGetFanSpeed(dev, &fan_speed))
-    TRY(nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &core_temp))
+    // Try to be as lenient as possible with the variety of devices that are
+    // out there, ignoring any NOT_SUPPORTED errors gently.
+    nvmlMemory_t meminfo;
+    TRYOPT(nvmlDeviceGetMemoryInfo(dev, &meminfo))
+    if (nv_status == NVML_SUCCESS) {
+      double pct_mem_used = 100. * (double)meminfo.used / meminfo.total;
+      nvml_submit(dev_name, "percent", "mem_used", WRAPGAUGE(pct_mem_used));
+    }
 
-    double pct_mem_used = 100. * (double)meminfo.used / meminfo.total;
+    nvmlUtilization_t utilization;
+    TRYOPT(nvmlDeviceGetUtilizationRates(dev, &utilization))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit(dev_name, "percent", "gpu_used", WRAPGAUGE(utilization.gpu));
 
-    nvml_submit(dev_name, "percent", "GPU", WRAPGAUGE(pct_mem_used));
-    nvml_submit(dev_name, "percent", "GPU", WRAPGAUGE(utilization.gpu));
-    nvml_submit(dev_name, "fanspeed", "GPU", WRAPGAUGE(fan_speed));
-    nvml_submit(dev_name, "temperature", "GPU", WRAPGAUGE(core_temp));
+    unsigned int fan_speed;
+    TRYOPT(nvmlDeviceGetFanSpeed(dev, &fan_speed))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit(dev_name, "fanspeed", NULL, WRAPGAUGE(fan_speed));
+
+    unsigned int core_temp;
+    TRYOPT(nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &core_temp))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit(dev_name, "temperature", "core", WRAPGAUGE(core_temp));
+
+    unsigned int sm_clk_mhz;
+    TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm_clk_mhz))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit(dev_name, "frequency", "sm", WRAPGAUGE(1e6 * sm_clk_mhz));
+
+    unsigned int mem_clk_mhz;
+    TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_MEM, &mem_clk_mhz))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit(dev_name, "frequency", "mem", WRAPGAUGE(1e6 * mem_clk_mhz));
+
+    unsigned int power_mW;
+    TRYOPT(nvmlDeviceGetPowerUsage(dev, &power_mW))
+    if (nv_status == NVML_SUCCESS)
+      nvml_submit(dev_name, "power", NULL, WRAPGAUGE(1e-3 * power_mW));
+
     continue;
 
-    catch : WARNING("NVML call \"%s\" failed with code %d!", nv_errline,
-                    nv_status);
+    // Failures here indicate transient errors or removal of GPU. In either
+    // case it will either be resolved or the GPU will no longer be enumerated
+    // the next time round.
+    catch : WARNING("NVML call \"%s\" failed with code %d on dev at index %d!",
+                    nv_errline, nv_status, ix);
     continue;
   }
 
   return 0;
 
+  // Failures here indicate serious misconfiguration; we bail out totally.
 catch_nocount:
   ERROR("Failed to enumerate NVIDIA GPUs (\"%s\" returned %d)", nv_errline,
         nv_status);
