@@ -656,6 +656,12 @@
 #  PauseConnect 5
 #</Plugin>
 
+#<Plugin gpu_nvml>
+#   GPUIndex 0
+#   GPUIndex 2
+#   IgnoreSelected 0
+#</Plugin>
+
 #<Plugin grpc>
 #	<Server "example.com" "50051">
 #		EnableSSL true

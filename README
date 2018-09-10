@@ -135,6 +135,9 @@ Features
     - gps
       Monitor gps related data through gpsd.
 
+    - gpu_nvml
+      Monitor NVIDIA GPU statistics available through NVML.
+
     - hddtemp
       Hard disk temperatures using hddtempd.
 
@@ -748,6 +751,10 @@ Prerequisites
     For compiling on Darwin in general and the `apple_sensors' plugin in
     particular.
     <http://developer.apple.com/corefoundation/>
+
+  * CUDA (optional)
+    Used by the `gpu_nvml' plugin
+    <https://developer.nvidia.com/cuda-downloads>
 
   * libatasmart (optional)
     Used by the `smart' plugin.
