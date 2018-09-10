@@ -48,9 +48,11 @@ static int nvml_config(const char *key, const char *value) {
   if (strcasecmp(key, config_keys[0]) == 0) {
     device_ix = strtoul(value, &eptr, 10);
     if (eptr == value) {
+      ERROR("Failed to parse GPUIndex value \"%s\"", value);
       return -1;
     }
-    if (device_ix > 64) {
+    if (device_ix >= 64) {
+      ERROR("At most 64 GPUs (0 <= GPUIndex < 64) are supported!");
       return -2;
     }
     conf_match_mask |= (1 << device_ix);
@@ -58,6 +60,7 @@ static int nvml_config(const char *key, const char *value) {
     if
       IS_TRUE(value) { conf_mask_is_exclude = 1; }
   } else {
+    ERROR("Unrecognized config option %s", key);
     return -10;
   }
 
