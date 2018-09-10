@@ -31,8 +31,7 @@ static char *nv_errline = "";
 #define WRAPGAUGE(x) ((value_t){.gauge = (gauge_t)(x)})
 
 static const char *config_keys[] = {
-    "GPUIndex",
-    "IgnoreSelected",
+    "GPUIndex", "IgnoreSelected",
 };
 static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 
@@ -175,7 +174,7 @@ static int nvml_read(void) {
 
   return 0;
 
-  // Failures here indicate serious misconfiguration; we bail out totally.
+// Failures here indicate serious misconfiguration; we bail out totally.
 catch_nocount:
   ERROR("Failed to enumerate NVIDIA GPUs (\"%s\" returned %d)", nv_errline,
         nv_status);
