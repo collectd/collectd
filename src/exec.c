@@ -273,6 +273,19 @@ static void set_environment(void) /* {{{ */
 #endif
 } /* }}} void set_environment */
 
+static void unset_environment(void) /* {{{ */
+{
+#ifdef HAVE_SETENV
+  unsetenv("COLLECTD_INTERVAL");
+  unsetenv("COLLECTD_HOSTNAME");
+#else
+  snprintf(env_interval, sizeof(env_interval), "COLLECTD_INTERVAL");
+  putenv(env_interval);
+  snprintf(env_hostname, sizeof(env_hostname), "COLLECTD_HOSTNAME");
+  putenv(env_hostname);
+#endif
+} /* }}} void unset_environment */
+
 __attribute__((noreturn)) static void exec_child(program_list_t *pl, int uid,
                                                  int gid, int egid) /* {{{ */
 {
@@ -481,6 +494,8 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
     goto failed;
   }
 
+  set_environment();
+
   pid = fork();
   if (pid < 0) {
     ERROR("exec plugin: fork failed: %s",
@@ -516,14 +531,14 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
       close(fd_pipe_err[1]);
     }
 
-    set_environment();
-
     /* Unblock all signals */
     reset_signal_mask();
 
     exec_child(pl, uid, gid, egid);
     /* does not return */
   }
+
+  unset_environment();
 
   close(fd_pipe_in[0]);
   close(fd_pipe_out[1]);
@@ -547,6 +562,8 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   return pid;
 
 failed:
+  unset_environment();
+
   close_pipe(fd_pipe_in);
   close_pipe(fd_pipe_out);
   close_pipe(fd_pipe_err);
