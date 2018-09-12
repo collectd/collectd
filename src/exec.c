@@ -240,11 +240,17 @@ static int exec_config(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* int exec_config }}} */
 
+#if !defined(HAVE_SETENV)
+static char env_interval[64];
+// max hostname len is 255, so this should be enough
+static char env_hostname[300];
+#endif
+
 static void set_environment(void) /* {{{ */
 {
+#ifdef HAVE_SETENV
   char buffer[1024];
 
-#ifdef HAVE_SETENV
   snprintf(buffer, sizeof(buffer), "%.3f",
            CDTIME_T_TO_DOUBLE(plugin_get_interval()));
   setenv("COLLECTD_INTERVAL", buffer, /* overwrite = */ 1);
@@ -252,12 +258,13 @@ static void set_environment(void) /* {{{ */
   sstrncpy(buffer, hostname_g, sizeof(buffer));
   setenv("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
 #else
-  snprintf(buffer, sizeof(buffer), "COLLECTD_INTERVAL=%.3f",
+  snprintf(env_interval, sizeof(env_interval), "COLLECTD_INTERVAL=%.3f",
            CDTIME_T_TO_DOUBLE(plugin_get_interval()));
-  putenv(buffer);
+  putenv(env_interval);
 
-  snprintf(buffer, sizeof(buffer), "COLLECTD_HOSTNAME=%s", hostname_g);
-  putenv(buffer);
+  snprintf(env_hostname, sizeof(env_hostname), "COLLECTD_HOSTNAME=%s",
+           hostname_g);
+  putenv(env_hostname);
 #endif
 } /* }}} void set_environment */
 
