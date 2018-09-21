@@ -25,46 +25,6 @@
 
 #include <oaidl.h>
 
-#define LIST_NODE_DECL(node_type) node_type _node
-#define LIST_NEXT_DECL(node_type) node_type *_next
-#define LIST_NODE(nodeptr) (nodeptr->_node)
-#define LIST_NEXT(nodeptr) (nodeptr->_next)
-#define LIST_HEAD(list) (list)
-
-#define LIST_TYPE(type) list_##type##_t
-
-#define LIST_DECL_TYPE(node_type)                                              \
-  struct list_##node_type##_s;                                                 \
-  typedef struct list_##node_type##_s LIST_TYPE(node_type)
-
-#define LIST_DEF_TYPE(node_type)                                               \
-  LIST_DECL_TYPE(node_type);                                                   \
-  struct list_##node_type##_s {                                                \
-    LIST_NODE_DECL(node_type *);                                               \
-    LIST_NEXT_DECL(LIST_TYPE(node_type));                                      \
-  }
-
-#define LIST_INSERT_FRONT(list, new_node)                                      \
-  do {                                                                         \
-    __typeof__(list) _n = malloc(sizeof(__typeof__(*list)));                   \
-    LIST_NEXT(_n) = list;                                                      \
-    LIST_NODE(_n) = new_node;                                                  \
-    list = _n;                                                                 \
-  } while (0)
-
-#define LIST_FREE(list, node_free)                                             \
-  do {                                                                         \
-    __typeof__(list) _head = list;                                             \
-    while (_head != NULL) {                                                    \
-      __typeof__(_head) _next = LIST_NEXT(_head);                              \
-      node_free(LIST_NODE(_head));                                             \
-      free(_head);                                                             \
-      _head = _next;                                                           \
-    }                                                                          \
-  } while (0)
-
-#define COUNTOF(x) (sizeof(x) / sizeof(x[0]))
-
 typedef struct wmi_connection_s { IDispatch *dispatcher; } wmi_connection_t;
 
 typedef struct wmi_result_list_s {

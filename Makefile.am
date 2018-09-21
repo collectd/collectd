@@ -2111,7 +2111,6 @@ install-exec-hook:
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
 		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
 if BUILD_WIN32
-	$(mkinstalldirs) "$(DESTDIR)$(sbindir)"
 	$(INSTALL) -m 0644 $(srcdir)/libuuid.dll "$(pkglibdir)/libuuid.dll"
 endif
 

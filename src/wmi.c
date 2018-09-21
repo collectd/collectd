@@ -36,24 +36,53 @@
 #define log_err(...) ERROR("wmi: " __VA_ARGS__)
 #define log_warn(...) WARNING("wmi: " __VA_ARGS__)
 
+#define LIST_INSERT_FRONT(list, new_node)                                      \
+  do {                                                                         \
+    __typeof__(list) n = malloc(sizeof(__typeof__(*list)));                    \
+    n->next = list;                                                            \
+    n->node = new_node;                                                        \
+    list = n;                                                                  \
+  } while(0)
+
+#define LIST_FREE(list, node_free)                                             \
+  do {                                                                         \
+    __typeof__(list) head = list;                                              \
+    while (head != NULL) {                                                     \
+      __typeof__(head) next = head->next;                                      \
+      node_free(head->node);                                                   \
+      free(head);                                                              \
+      head = next;                                                             \
+    }                                                                          \
+  } while(0)
+
 typedef struct wmi_metric_s {
   char *type;
   char *instance;
   char *values_from;
 } wmi_metric_t;
-LIST_DEF_TYPE(wmi_metric_t);
+
+typedef struct wmi_metric_list_s {
+  wmi_metric_t *node;
+  wmi_metric_t *next;
+} wmi_metric_list_t;
+
 void wmi_metric_free(wmi_metric_t *m);
 
 typedef struct wmi_query_s {
   char *statement;
   char *instance_prefix;
   char *instances_from;
-  LIST_TYPE(wmi_metric_t) * metrics;
+  wmi_metric_list_t * metrics;
 } wmi_query_t;
-LIST_DEF_TYPE(wmi_query_t);
+
+typedef struct wmi_query_list_s {
+  wmi_query_t *node;
+  wmi_query_t *next;
+} wmi_query_list_t;
+
 void wmi_query_free(wmi_query_t *q);
 
-static LIST_TYPE(wmi_query_t) * queries_g;
+static wmi_query_list_t *queries_g;
 static wmi_connection_t *wmi;
 
 static wmi_metric_t *config_get_metric(oconfig_item_t *ci) {
@@ -103,7 +132,7 @@ static wmi_query_t *config_get_query(oconfig_item_t *ci) {
   char *instance_prefix = NULL;
   char *instances_from = NULL;
   wmi_query_t *query = NULL;
-  LIST_TYPE(wmi_metric_t) *metrics = NULL;
+  wmi_metric_list_t *metrics = NULL;
 
   assert(strcasecmp("Query", ci->key) == 0);
 
@@ -212,14 +241,14 @@ static int wmi_exec_query(wmi_query_t *q) {
     sstrncpy(vl.host, hostname_g, sizeof(vl.host));
     sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
 
-    LIST_TYPE(wmi_metric_t) *mn;
-    for (mn = q->metrics; mn != NULL; mn = LIST_NEXT(mn)) {
+    wmi_metric_list_t *mn;
+    for (mn = q->metrics; mn != NULL; mn = mn->_next) {
       VARIANT value_v;
       VARIANT plugin_instance_v;
       value_t value_vt;
       char *plugin_instance_s = NULL;
       const data_set_t *ds = NULL;
-      wmi_metric_t *m = LIST_NODE(mn);
+      wmi_metric_t *m = mn->_node;
 
       ds = plugin_get_ds(m->type);
       int index_in_ds;
@@ -269,8 +298,7 @@ static int wmi_exec_query(wmi_query_t *q) {
   return 0;
 }
 
-static int wmi_configure(oconfig_item_t *ci,
-                         LIST_TYPE(wmi_query_t) * *queries) {
+static int wmi_configure(oconfig_item_t *ci, wmi_query_list_t **queries) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *c = &ci->children[i];
     if (strcasecmp("Query", c->key) == 0) {
@@ -307,9 +335,9 @@ static int wmi_shutdown(void) {
 }
 
 static int wmi_read(void) {
-  LIST_TYPE(wmi_query_t) * q;
-  for (q = queries_g; q != NULL; q = LIST_NEXT(q)) {
-    int status = wmi_exec_query(LIST_NODE(q));
+  wmi_query_list_t *q;
+  for (q = queries_g; q != NULL; q = q->_next) {
+    int status = wmi_exec_query(q->_node);
     if (status != 0)
       return status;
   }

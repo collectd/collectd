@@ -34,6 +34,8 @@
 #define log_err(...) ERROR("wmi_utils: " __VA_ARGS__)
 #define log_warn(...) WARNING("wmi_utils: " __VA_ARGS__)
 
+#define COUNTOF(x) (sizeof(x) / sizeof(x[0]))
+
 static enum VARENUM variant_unsigned_integer_types[] = {VT_UI1, VT_UI2, VT_UI4,
                                                         VT_UI8, VT_UINT};
 
