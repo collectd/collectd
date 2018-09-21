@@ -175,13 +175,11 @@ DEF_TEST(redfish_preconfig) {
   int ret = redfish_preconfig();
 
   EXPECT_EQ_INT(0, ret);
-  CHECK_NOT_NULL(ctx);
-  CHECK_NOT_NULL(ctx->queries);
-  CHECK_NOT_NULL(ctx->services);
+  CHECK_NOT_NULL(ctx.queries);
+  CHECK_NOT_NULL(ctx.services);
 
-  llist_destroy(ctx->services);
-  c_avl_destroy(ctx->queries);
-  free(ctx);
+  llist_destroy(ctx.services);
+  c_avl_destroy(ctx.queries);
 
   return 0;
 }
@@ -459,14 +457,13 @@ DEF_TEST(config_service) {
   ci->children[3].values->type = OCONFIG_TYPE_STRING;
   ci->children[3].values->value.string = "fans";
 
-  ctx = calloc(1, sizeof(*ctx));
-  ctx->services = llist_create();
+  ctx.services = llist_create();
 
   int ret = redfish_config_service(ci);
 
   EXPECT_EQ_INT(0, ret);
 
-  for (llentry_t *llserv = llist_head(ctx->services); llserv != NULL;
+  for (llentry_t *llserv = llist_head(ctx.services); llserv != NULL;
        llserv = llserv->next) {
     redfish_service_t *serv = (redfish_service_t *)llserv->value;
     sfree(serv->name);
@@ -478,8 +475,7 @@ DEF_TEST(config_service) {
     sfree(serv->queries);
     sfree(serv);
   }
-  llist_destroy(ctx->services);
-  sfree(ctx);
+  llist_destroy(ctx.services);
 
   sfree(ci->children[3].values);
   sfree(ci->children[2].values);
@@ -556,6 +552,53 @@ DEF_TEST(service_destroy) {
   return 0;
 }
 
+DEF_TEST(job_destroy) {
+  /* Check for memory leaks when a job is destroyed */
+  redfish_job_t *job = calloc(1, sizeof(*job));
+  redfish_job_destroy(job);
+  return 0;
+}
+
+DEF_TEST(json_get_string_1) {
+  const char *json_text = "{ \"MemberId\": \"1234\" }";
+
+  json_error_t error;
+  json_t *root = json_loads(json_text, 0, &error);
+
+  if (!root) {
+    return -1;
+  }
+
+  char str[20];
+  json_t *json = json_object_get(root, "MemberId");
+  redfish_json_get_string(str, sizeof(str), json);
+
+  json_decref(root);
+
+  EXPECT_EQ_STR("1234", str);
+  return 0;
+}
+
+DEF_TEST(json_get_string_2) {
+  const char *json_text = "{ \"MemberId\": 9876 }";
+
+  json_error_t error;
+  json_t *root = json_loads(json_text, 0, &error);
+
+  if (!root) {
+    return -1;
+  }
+
+  char str[20];
+  json_t *json = json_object_get(root, "MemberId");
+  redfish_json_get_string(str, sizeof(str), json);
+
+  json_decref(root);
+
+  EXPECT_EQ_STR("9876", str);
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(read_queries);
   RUN_TEST(convert_val);
@@ -566,5 +609,8 @@ int main(void) {
   RUN_TEST(config_service);
   RUN_TEST(process_payload_property);
   RUN_TEST(service_destroy);
+  RUN_TEST(job_destroy);
+  RUN_TEST(json_get_string_1);
+  RUN_TEST(json_get_string_2);
   END_TEST;
 }

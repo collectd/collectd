@@ -31,6 +31,7 @@
 
 #include "common.h"
 #include "utils_avltree.h"
+#include "utils_deq.h"
 #include "utils_llist.h"
 
 #include <redfish.h>
@@ -73,15 +74,9 @@ struct redfish_service_s {
 };
 typedef struct redfish_service_s redfish_service_t;
 
-struct redfish_ctx_s {
-  llist_t *services;
-  c_avl_tree_t *queries;
-};
-typedef struct redfish_ctx_s redfish_ctx_t;
-
 struct redfish_payload_ctx_s {
   redfish_service_t *service;
-  llist_t *resources;
+  redfish_query_t *query;
 };
 typedef struct redfish_payload_ctx_s redfish_payload_ctx_t;
 
@@ -95,16 +90,33 @@ union redfish_value_u {
 };
 typedef union redfish_value_u redfish_value_t;
 
-static redfish_ctx_t *ctx;
+typedef struct redfish_job_s {
+  DEQ_LINKS(struct redfish_job_s);
+  redfish_payload_ctx_t *service_query;
+} redfish_job_t;
+
+DEQ_DECLARE(redfish_job_t, redfish_job_list_t);
+
+struct redfish_ctx_s {
+  llist_t *services;
+  c_avl_tree_t *queries;
+  pthread_t worker_thread;
+  redfish_job_list_t jobs;
+};
+typedef struct redfish_ctx_s redfish_ctx_t;
+
+/* Globals */
+static redfish_ctx_t ctx;
 
 static int redfish_cleanup(void);
 static int redfish_validate_config(void);
+static void *redfish_worker_thread(void __attribute__((unused)) * args);
 
 #if COLLECT_DEBUG
 static void redfish_print_config(void) {
   DEBUG(PLUGIN_NAME ": ====================CONFIGURATION====================");
-  DEBUG(PLUGIN_NAME ": SERVICES: %d", llist_size(ctx->services));
-  for (llentry_t *le = llist_head(ctx->services); le != NULL; le = le->next) {
+  DEBUG(PLUGIN_NAME ": SERVICES: %d", llist_size(ctx.services));
+  for (llentry_t *le = llist_head(ctx.services); le != NULL; le = le->next) {
     redfish_service_t *s = (redfish_service_t *)le->value;
     char queries_str[MAX_STR_LEN];
 
@@ -126,11 +138,11 @@ static void redfish_print_config(void) {
 
   DEBUG(PLUGIN_NAME ": =====================================================");
 
-  c_avl_iterator_t *i = c_avl_get_iterator(ctx->queries);
+  c_avl_iterator_t *i = c_avl_get_iterator(ctx.queries);
   char *key;
   redfish_query_t *q;
 
-  DEBUG(PLUGIN_NAME ": QUERIES: %d", c_avl_size(ctx->queries));
+  DEBUG(PLUGIN_NAME ": QUERIES: %d", c_avl_size(ctx.queries));
 
   while (c_avl_iterator_next(i, (void *)&key, (void *)&q) == 0) {
     DEBUG(PLUGIN_NAME ": --------------------");
@@ -174,6 +186,11 @@ static void redfish_service_destroy(redfish_service_t *service) {
   sfree(service);
 }
 
+static void redfish_job_destroy(redfish_job_t *job) {
+  sfree(job->service_query);
+  sfree(job);
+}
+
 static int redfish_init(void) {
 #if COLLECT_DEBUG
   redfish_print_config();
@@ -185,7 +202,15 @@ static int redfish_init(void) {
     return ret;
   }
 
-  for (llentry_t *le = llist_head(ctx->services); le != NULL; le = le->next) {
+  DEQ_INIT(ctx.jobs);
+  ret = pthread_create(&ctx.worker_thread, NULL, redfish_worker_thread, NULL);
+
+  if (ret != 0) {
+    ERROR(PLUGIN_NAME ": Creation of thread failed");
+    return ret;
+  }
+
+  for (llentry_t *le = llist_head(ctx.services); le != NULL; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
     /* Ignore redfish version */
     service->flags |= REDFISH_FLAG_SERVICE_NO_VERSION_DOC;
@@ -215,7 +240,7 @@ static int redfish_init(void) {
     /* Preparing query pointers list for every service */
     for (size_t i = 0; i < service->queries_num; i++) {
       redfish_query_t *ptr;
-      if (c_avl_get(ctx->queries, (void *)service->queries[i], (void *)&ptr) !=
+      if (c_avl_get(ctx.queries, (void *)service->queries[i], (void *)&ptr) !=
           0) {
         ERROR(PLUGIN_NAME ": Cannot find a service query in a context");
         goto error;
@@ -235,7 +260,7 @@ static int redfish_init(void) {
 
 error:
   /* Freeing libredfish resources & llists */
-  for (llentry_t *le = llist_head(ctx->services); le != NULL; le = le->next) {
+  for (llentry_t *le = llist_head(ctx.services); le != NULL; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
 
     redfish_service_destroy(service);
@@ -244,27 +269,20 @@ error:
 }
 
 static int redfish_preconfig(void) {
-  /* Allocating plugin context */
-  ctx = calloc(1, sizeof(*ctx));
-  if (ctx == NULL)
+  /* Creating placeholder for services */
+  ctx.services = llist_create();
+  if (ctx.services == NULL)
     goto error;
 
-  /* Creating placeholder for services */
-  ctx->services = llist_create();
-  if (ctx->services == NULL)
-    goto free_ctx;
-
   /* Creating placeholder for queries */
-  ctx->queries = c_avl_create((void *)strcmp);
-  if (ctx->services == NULL)
+  ctx.queries = c_avl_create((void *)strcmp);
+  if (ctx.services == NULL)
     goto free_services;
 
   return 0;
 
 free_services:
-  llist_destroy(ctx->services);
-free_ctx:
-  sfree(ctx);
+  llist_destroy(ctx.services);
 error:
   ERROR(PLUGIN_NAME ": Failed to allocate memory for plugin context");
   return -ENOMEM;
@@ -506,12 +524,14 @@ static int redfish_config_service(oconfig_item_t *cfg_item) {
   }
 
   llentry_t *entry = llentry_create(service->name, service);
-  if (entry == NULL) {
+
+  if (entry != NULL)
+    llist_append(ctx.services, entry);
+  else {
     ERROR(PLUGIN_NAME ": Failed to create list for service name \"%s\"",
           service->name);
     goto free_service;
   }
-  llist_append(ctx->services, entry);
 
   return 0;
 
@@ -530,7 +550,7 @@ static int redfish_config(oconfig_item_t *cfg_item) {
     oconfig_item_t *child = cfg_item->children + i;
 
     if (strcasecmp("Query", child->key) == 0)
-      ret = redfish_config_query(child, ctx->queries);
+      ret = redfish_config_query(child, ctx.queries);
     else if (strcasecmp("Service", child->key) == 0)
       ret = redfish_config_service(child);
     else {
@@ -548,7 +568,7 @@ static int redfish_config(oconfig_item_t *cfg_item) {
 
 static int redfish_validate_config(void) {
   /* Service validation */
-  for (llentry_t *llserv = llist_head(ctx->services); llserv != NULL;
+  for (llentry_t *llserv = llist_head(ctx.services); llserv != NULL;
        llserv = llserv->next) {
     redfish_service_t *service = llserv->value;
     if (service->name == NULL) {
@@ -580,7 +600,7 @@ static int redfish_validate_config(void) {
       redfish_query_t *query_query;
       bool found = false;
       char *key;
-      c_avl_iterator_t *query_iter = c_avl_get_iterator(ctx->queries);
+      c_avl_iterator_t *query_iter = c_avl_get_iterator(ctx.queries);
       while (c_avl_iterator_next(query_iter, (void *)&key,
                                  (void *)&query_query) == 0 &&
              !found) {
@@ -601,7 +621,7 @@ static int redfish_validate_config(void) {
     }
   }
 
-  c_avl_iterator_t *queries_iter = c_avl_get_iterator(ctx->queries);
+  c_avl_iterator_t *queries_iter = c_avl_get_iterator(ctx.queries);
   char *key;
   redfish_query_t *query;
 
@@ -702,6 +722,21 @@ static int redfish_convert_val(redfish_value_t *value,
   return 0;
 }
 
+static int redfish_json_get_string(char *const value, const size_t value_len,
+                                   const json_t *const json) {
+  if (json_is_string(json)) {
+    const char *str_val = json_string_value(json);
+    sstrncpy(value, str_val, value_len);
+    return 0;
+  } else if (json_is_integer(json)) {
+    snprintf(value, value_len, "%d", (int)json_integer_value(json));
+    return 0;
+  }
+
+  ERROR(PLUGIN_NAME ": Expected JSON value to be a string or an integer");
+  return -EINVAL;
+}
+
 static void redfish_process_payload_property(const redfish_property_t *prop,
                                              const json_t *json_array,
                                              const redfish_resource_t *res,
@@ -739,10 +774,11 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
         continue;
       }
 
-      int ch_count = snprintf(v1.type_instance, sizeof(v1.type_instance), "%d",
-                              (int)json_integer_value(member_id));
-      if (ch_count == 0) {
-        ERROR(PLUGIN_NAME ": Failed to convert MemberId to a character");
+      int ret = redfish_json_get_string(v1.type_instance,
+                                        sizeof(v1.type_instance), member_id);
+
+      if (ret != 0) {
+        ERROR(PLUGIN_NAME ": Cannot convert MemberId to a type instance");
         continue;
       }
     }
@@ -780,25 +816,28 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
 
 static void redfish_process_payload(bool success, unsigned short http_code,
                                     redfishPayload *payload, void *context) {
+  redfish_job_t *job = (redfish_job_t *)context;
+
   if (!success) {
     WARNING(PLUGIN_NAME ": Query has failed, HTTP code = %u\n", http_code);
-    return;
+    goto free_job;
   }
-  redfish_payload_ctx_t *res_serv = (redfish_payload_ctx_t *)context;
-  redfish_service_t *serv = res_serv->service;
+
+  redfish_service_t *serv = job->service_query->service;
+
   if (!payload) {
     WARNING(PLUGIN_NAME ": Failed to get payload for service name \"%s\"",
             serv->name);
-    return;
+    goto free_job;
   }
 
-  for (llentry_t *llres = llist_head(res_serv->resources); llres != NULL;
-       llres = llres->next) {
+  for (llentry_t *llres = llist_head(job->service_query->query->resources);
+       llres != NULL; llres = llres->next) {
     redfish_resource_t *res = (redfish_resource_t *)llres->value;
     json_t *json_array = json_object_get(payload->json, res->name);
 
     if (json_array == NULL) {
-      ERROR(PLUGIN_NAME ": Could not find resource \"%s\"", res->name);
+      WARNING(PLUGIN_NAME ": Could not find resource \"%s\"", res->name);
       continue;
     }
 
@@ -808,37 +847,95 @@ static void redfish_process_payload(bool success, unsigned short http_code,
 
       redfish_process_payload_property(prop, json_array, res, serv);
     }
-    json_decref(json_array);
   }
+
+free_job:
+  cleanupPayload(payload);
+  redfish_job_destroy(job);
+}
+
+static void *redfish_worker_thread(void __attribute__((unused)) * args) {
+  INFO(PLUGIN_NAME ": Worker is running");
+
+  for (;;) {
+    usleep(10);
+
+    if (DEQ_IS_EMPTY(ctx.jobs))
+      continue;
+
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    redfish_job_t *job = DEQ_HEAD(ctx.jobs);
+    getPayloadByPathAsync(job->service_query->service->redfish,
+                          job->service_query->query->endpoint, NULL,
+                          redfish_process_payload, job);
+    DEQ_REMOVE_HEAD(ctx.jobs);
+
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+  }
+
+  pthread_exit(NULL);
+  return NULL;
 }
 
 static int redfish_read(__attribute__((unused)) user_data_t *ud) {
-  for (llentry_t *le = llist_head(ctx->services); le != NULL; le = le->next) {
+  for (llentry_t *le = llist_head(ctx.services); le != NULL; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
+
     for (llentry_t *le = llist_head(service->query_ptrs); le != NULL;
          le = le->next) {
       redfish_query_t *query = (redfish_query_t *)le->value;
-      redfish_payload_ctx_t rs = {.service = service,
-                                  .resources = query->resources};
-      getPayloadByPathAsync(service->redfish, query->endpoint, NULL,
-                            redfish_process_payload, &rs);
-      /* TODO: Work around for race condition. Needs permanent fix. */
-      sleep(10);
-      // serviceDecRefAndWait(service->redfish);
+      redfish_job_t *job = calloc(1, sizeof(*job));
+
+      if (job == NULL) {
+        WARNING(PLUGIN_NAME ": Failed to allocate memory for task");
+        continue;
+      }
+
+      DEQ_ITEM_INIT(job);
+
+      redfish_payload_ctx_t *serv_res = calloc(1, sizeof(*serv_res));
+
+      if (serv_res == NULL) {
+        WARNING(PLUGIN_NAME ": Failed to allocate memory for task's context");
+        sfree(job);
+        continue;
+      }
+
+      serv_res->query = query;
+      serv_res->service = service;
+      job->service_query = serv_res;
+
+      DEQ_INSERT_TAIL(ctx.jobs, job);
     }
   }
   return 0;
 }
 
 static int redfish_cleanup(void) {
-  for (llentry_t *le = llist_head(ctx->services); le; le = le->next) {
+  INFO(PLUGIN_NAME ": Cleaning up");
+  /* Shutting down a worker thread */
+  if (pthread_cancel(ctx.worker_thread) != 0)
+    ERROR(PLUGIN_NAME ": Failed to cancel the worker thread");
+
+  if (pthread_join(ctx.worker_thread, NULL) != 0)
+    ERROR(PLUGIN_NAME ": Failed to join the worker thread");
+
+  /* Cleaning worker's queue */
+  while (!DEQ_IS_EMPTY(ctx.jobs)) {
+    redfish_job_t *job = DEQ_HEAD(ctx.jobs);
+    DEQ_REMOVE_HEAD(ctx.jobs);
+    redfish_job_destroy(job);
+  }
+
+  for (llentry_t *le = llist_head(ctx.services); le; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
 
     redfish_service_destroy(service);
   }
-  llist_destroy(ctx->services);
+  llist_destroy(ctx.services);
 
-  c_avl_iterator_t *i = c_avl_get_iterator(ctx->queries);
+  c_avl_iterator_t *i = c_avl_get_iterator(ctx.queries);
 
   char *key;
   redfish_query_t *query;
@@ -854,17 +951,21 @@ static int redfish_cleanup(void) {
         sfree(property->plugin_inst);
         sfree(property->type);
         sfree(property->type_inst);
+        sfree(property);
       }
       sfree(resource->name);
+      llist_destroy(resource->properties);
+      sfree(resource);
     }
     sfree(query->name);
     sfree(query->endpoint);
+    llist_destroy(query->resources);
     sfree(query);
   }
 
   c_avl_iterator_destroy(i);
-  c_avl_destroy(ctx->queries);
-  sfree(ctx);
+  c_avl_destroy(ctx.queries);
+
   return 0;
 }
 
