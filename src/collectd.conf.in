@@ -202,6 +202,7 @@
 #@BUILD_PLUGIN_TEAMSPEAK2_TRUE@LoadPlugin teamspeak2
 #@BUILD_PLUGIN_TED_TRUE@LoadPlugin ted
 #@BUILD_PLUGIN_THERMAL_TRUE@LoadPlugin thermal
+#@BUILD_PLUGIN_THERMAL_THROTTLE_TRUE@LoadPlugin thermal_throttle
 #@BUILD_PLUGIN_TOKYOTYRANT_TRUE@LoadPlugin tokyotyrant
 #@BUILD_PLUGIN_TURBOSTAT_TRUE@LoadPlugin turbostat
 #@BUILD_PLUGIN_UNIXSOCK_TRUE@LoadPlugin unixsock
