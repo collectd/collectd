@@ -1021,10 +1021,24 @@
 #</Plugin>
 
 #<Plugin nginx>
+#   # Single host nginx configuration.
+#   # Backward compatible.
 #	URL "http://localhost/status?auto"
 #	User "www-user"
 #	Password "secret"
 #	CACert "/etc/ssl/ca.crt"
+#
+#   # Alternatively, this style of configuration
+#   # can be used for multiple hosts/instances.
+#   <Host hostName1>
+#      URL "http://localhost/status?auto"
+#      User "www-user"
+#      Password "secret"
+#      CACert "/etc/ssl/ca.crt"
+#   </Host>
+#   <Host hostName2>
+#      URL "http://localhost:8080/status?auto"
+#   </Host>
 #</Plugin>
 
 #<Plugin notify_desktop>

@@ -5588,6 +5588,30 @@ isn't compiled by default. Please refer to
 L<http://wiki.codemongers.com/NginxStubStatusModule> for more information on
 how to compile and configure nginx and this module.
 
+The C<nginx plugin> accepts two styles of configuration:
+
+1. Single nginx instance monitoring configuration:
+
+  <Plugin nginx>
+      URL "http://localhost/status?auto"
+      User "www-user"
+      Password "secret"
+      CACert "/etc/ssl/ca.crt"
+  </Plugin>
+
+2. A newer form that supports multiple nginx instances:
+
+  <Plugin nginx>
+      <Instance production>
+          URL "http://production.server/nginx_status"
+          User "stats"
+          Password "password"
+      </Instance>
+      <Instance staging>
+          URL "http://staging.server/nginx_status"
+      </Instance>
+  </Plugin>
+
 The following options are accepted by the C<nginx plugin>:
 
 =over 4
@@ -5603,6 +5627,10 @@ Optional user name needed for authentication.
 =item B<Password> I<Password>
 
 Optional password needed for authentication.
+
+=item B<Hostname> I<Hostname>
+
+Optional hostname associated with an nginx instance, defaults to the global hostname
 
 =item B<VerifyPeer> B<true|false>
 
