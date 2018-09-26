@@ -1021,7 +1021,7 @@
 #</Plugin>
 
 #<Plugin nginx>
-#   # Single host nginx configuration.
+#   # Single instance nginx configuration.
 #   # Backward compatible.
 #	URL "http://localhost/status?auto"
 #	User "www-user"
@@ -1029,16 +1029,17 @@
 #	CACert "/etc/ssl/ca.crt"
 #
 #   # Alternatively, this style of configuration
-#   # can be used for multiple hosts/instances.
-#   <Host hostName1>
-#      URL "http://localhost/status?auto"
-#      User "www-user"
-#      Password "secret"
-#      CACert "/etc/ssl/ca.crt"
-#   </Host>
-#   <Host hostName2>
-#      URL "http://localhost:8080/status?auto"
-#   </Host>
+#   # can be used for multiple instances.
+#   <Instance production>
+#       URL "http://production.server/nginx_status"
+#       User "stats"
+#       Password "password"
+#       Hostname "prod"
+#   </Instance>
+#   <Instance staging>
+#       URL "http://staging.server/nginx_status"
+#       Hostname "stage"
+#   </Instance>
 #</Plugin>
 
 #<Plugin notify_desktop>

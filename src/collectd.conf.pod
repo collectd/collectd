@@ -5606,9 +5606,11 @@ The C<nginx plugin> accepts two styles of configuration:
           URL "http://production.server/nginx_status"
           User "stats"
           Password "password"
+          Hostname "prod"
       </Instance>
       <Instance staging>
           URL "http://staging.server/nginx_status"
+          Hostname "stage"
       </Instance>
   </Plugin>
 
