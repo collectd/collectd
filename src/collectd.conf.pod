@@ -3774,6 +3774,28 @@ independent from the I<JavaClass> argument passed to B<LoadPlugin>.
 
 =back
 
+=head2 Plugin C<llite>
+
+The I<Lustre Lite plugin> collects Lustre(http://lustre.org/) file system
+client statistics. These include metadata operations and I/O movement.
+
+The following configuration options are available:
+
+=over 4
+
+=item B<Filesystem> B<lustre_filesystem_name>
+
+Lustre filesystem to gather data on, a list can be found in /proc/fs/lustre/llite,
+but drop the -<hex string>.
+
+=item B<IgnoreSelected> B<true>|B<false>
+
+Invert the selection: If set to true, all filesystems B<except> the ones that
+match any one of the criteria are collected. If no selection is configured
+at all, B<all> filesystems are selected.
+
+=back
+
 =head2 Plugin C<load>
 
 The I<Load plugin> collects the system load. These numbers give a rough overview
