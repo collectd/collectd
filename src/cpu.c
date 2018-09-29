@@ -857,7 +857,9 @@ static int cpu_read(void) {
   }
 
   if (pnumcpu != numcpu || perfcpu == NULL) {
-    free(perfcpu);
+    if (perfcpu != NULL) {
+        free(perfcpu);
+    }
     perfcpu = malloc(numcpu * sizeof(perfstat_cpu_t));
   }
   pnumcpu = numcpu;
