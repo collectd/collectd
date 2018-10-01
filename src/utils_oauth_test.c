@@ -147,5 +147,3 @@ int main(int argc, char **argv) /* {{{ */
 
   END_TEST;
 } /* }}} int main */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

@@ -282,5 +282,3 @@ int gce_access_token(char const *email, char *buffer,
   pthread_mutex_unlock(&token_lock);
   return 0;
 } /* }}} char *gce_token */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

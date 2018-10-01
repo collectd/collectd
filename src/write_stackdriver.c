@@ -647,5 +647,3 @@ void module_register(void) /* {{{ */
   plugin_register_complex_config("write_stackdriver", wg_config);
   plugin_register_init("write_stackdriver", wg_init);
 } /* }}} void module_register */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */
