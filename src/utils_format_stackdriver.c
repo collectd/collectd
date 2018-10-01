@@ -68,9 +68,8 @@ static int json_string(yajl_gen gen, char const *s) /* {{{ */
 
 static int json_time(yajl_gen gen, cdtime_t t) {
   char buffer[64];
-  size_t status;
 
-  status = rfc3339(buffer, sizeof(buffer), t);
+  size_t status = rfc3339(buffer, sizeof(buffer), t);
   if (status != 0) {
     return status;
   }
@@ -91,23 +90,19 @@ static int json_time(yajl_gen gen, cdtime_t t) {
  */
 static int format_gcm_resource(yajl_gen gen, sd_resource_t *res) /* {{{ */
 {
-  int status;
-
   yajl_gen_map_open(gen);
 
-  status = json_string(gen, "type") || json_string(gen, res->type);
+  int status = json_string(gen, "type") || json_string(gen, res->type);
   if (status != 0)
     return status;
 
   if (res->labels_num != 0) {
-    size_t i;
-
     status = json_string(gen, "labels");
     if (status != 0)
       return status;
 
     yajl_gen_map_open(gen);
-    for (i = 0; i < res->labels_num; i++) {
+    for (size_t i = 0; i < res->labels_num; i++) {
       status = json_string(gen, res->labels[i].key) ||
                json_string(gen, res->labels[i].value);
       if (status != 0)
@@ -135,9 +130,7 @@ static int format_gcm_typed_value(yajl_gen gen, int ds_type,
 
   yajl_gen_map_open(gen);
   if (ds_type == DS_TYPE_GAUGE) {
-    int status;
-
-    status = json_string(gen, "doubleValue");
+    int status = json_string(gen, "doubleValue");
     if (status != 0)
       return status;
 
@@ -479,9 +472,6 @@ void sd_output_destroy(sd_output_t *out) /* {{{ */
 int sd_output_add(sd_output_t *out, data_set_t const *ds,
                   value_list_t const *vl) /* {{{ */
 {
-  char key[6 * DATA_MAX_NAME_LEN];
-  int status;
-
   /* first, check that we have all appropriate metric descriptors. */
   for (size_t i = 0; i < ds->ds_num; i++) {
     char buffer[4 * DATA_MAX_NAME_LEN];
@@ -492,7 +482,8 @@ int sd_output_add(sd_output_t *out, data_set_t const *ds,
     }
   }
 
-  status = FORMAT_VL(key, sizeof(key), vl);
+  char key[6 * DATA_MAX_NAME_LEN];
+  int status = FORMAT_VL(key, sizeof(key), vl);
   if (status != 0) {
     ERROR("sd_output_add: FORMAT_VL failed with status %d.", status);
     return status;
@@ -540,13 +531,11 @@ int sd_output_register_metric(sd_output_t *out, data_set_t const *ds,
 
 char *sd_output_reset(sd_output_t *out) /* {{{ */
 {
-  unsigned char const *json_buffer = NULL;
-  char *ret;
-
   sd_output_finalize(out);
 
+  unsigned char const *json_buffer = NULL;
   yajl_gen_get_buf(out->gen, &json_buffer, &(size_t){0});
-  ret = strdup((void const *)json_buffer);
+  char *ret = strdup((void const *)json_buffer);
 
   sd_output_reset_staged(out);
 
@@ -560,9 +549,7 @@ char *sd_output_reset(sd_output_t *out) /* {{{ */
 
 sd_resource_t *sd_resource_create(char const *type) /* {{{ */
 {
-  sd_resource_t *res;
-
-  res = malloc(sizeof(*res));
+  sd_resource_t *res = malloc(sizeof(*res));
   if (res == NULL)
     return NULL;
   memset(res, 0, sizeof(*res));
@@ -581,12 +568,10 @@ sd_resource_t *sd_resource_create(char const *type) /* {{{ */
 
 void sd_resource_destroy(sd_resource_t *res) /* {{{ */
 {
-  size_t i;
-
   if (res == NULL)
     return;
 
-  for (i = 0; i < res->labels_num; i++) {
+  for (size_t i = 0; i < res->labels_num; i++) {
     sfree(res->labels[i].key);
     sfree(res->labels[i].value);
   }
@@ -598,12 +583,11 @@ void sd_resource_destroy(sd_resource_t *res) /* {{{ */
 int sd_resource_add_label(sd_resource_t *res, char const *key,
                           char const *value) /* {{{ */
 {
-  sd_label_t *l;
-
   if ((res == NULL) || (key == NULL) || (value == NULL))
     return EINVAL;
 
-  l = realloc(res->labels, sizeof(*res->labels) * (res->labels_num + 1));
+  sd_label_t *l =
+      realloc(res->labels, sizeof(*res->labels) * (res->labels_num + 1));
   if (l == NULL)
     return ENOMEM;
 
@@ -705,5 +689,3 @@ int sd_format_metric_descriptor(char *buffer, size_t buffer_size,
   yajl_gen_free(gen);
   return 0;
 } /* }}} int sd_format_metric_descriptor */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */
