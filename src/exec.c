@@ -39,6 +39,7 @@
 #include <signal.h>
 #include <sys/types.h>
 
+#include <stdlib.h>
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
 #endif
@@ -76,6 +77,11 @@ typedef struct program_list_and_notification_s {
   program_list_t *pl;
   notification_t n;
 } program_list_and_notification_t;
+
+/*
+* constants
+*/
+const long int MAX_GRBUF_SIZE= 65536;
 
 /*
  * Private variables
@@ -416,21 +422,56 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
         grbuf_size = sysconf(_SC_PAGESIZE);
       if (grbuf_size <= 0)
         grbuf_size = 4096;
-      char grbuf[grbuf_size];
 
-      status = getgrnam_r(pl->group, &gr, grbuf, sizeof(grbuf), &gr_ptr);
-      if (status != 0) {
-        ERROR("exec plugin: Failed to get group information "
-              "for group ``%s'': %s",
-              pl->group, sstrerror(status, errbuf, sizeof(errbuf)));
-        goto failed;
+      long int size;
+      size = grbuf_size;
+      char *temp = NULL;
+      char *grbuf = NULL;
+      int getgr_failed = 0;
+      grbuf = malloc(size);
+      if (grbuf == NULL) {
+         ERROR ("exec plugin: get group information for '%s' failed: buffer malloc() failed", pl->group);
+         getgr_failed = 1;
+         goto gr_finally;
+      }
+      int status;
+      while((status = getgrnam_r(pl->group, &gr, grbuf, size, &gr_ptr)) != 0 ) {
+        switch (errno) {
+          case ERANGE:
+             if ((size + grbuf_size) < size || (size + grbuf_size) > MAX_GRBUF_SIZE) {
+                ERROR ("exec plugin: get group information for '%s' max buffer limit (%ld) reached \n", pl->group, MAX_GRBUF_SIZE);
+                getgr_failed = 1;
+                goto gr_finally;
+             }
+             /* grow the buffer by 'grbuf_size' each time getgrnamr fails */
+             size += grbuf_size;
+             temp = realloc(grbuf, size);
+             if (temp == NULL) {
+                ERROR ("exec plugin: get group information for '%s' realloc() buffer to (%ld) failed ", pl->group, size);
+                getgr_failed = 1;
+                goto gr_finally;
+             }
+             grbuf = temp;
+             break;
+          default:
+             ERROR ("exec plugin: default errno: get group information for '%s' failed : %s",pl->group, sstrerror(status, errbuf, sizeof(errbuf)));
+             getgr_failed = 1;
+             goto gr_finally;
+        }
       }
       if (gr_ptr == NULL) {
         ERROR("exec plugin: No such group: `%s'", pl->group);
-        goto failed;
+        getgr_failed = 1;
+        goto gr_finally;
       }
-
       egid = gr.gr_gid;
+gr_finally:
+      free(grbuf);
+      DEBUG("exec plugin: release grbuf memory " );
+      grbuf=NULL;
+      if (getgr_failed > 0) {
+         goto failed;
+      }
     } else {
       egid = gid;
     }
