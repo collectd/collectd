@@ -455,7 +455,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
         default:
           ERROR("exec plugin: default errno: get group information for '%s' "
                 "failed : %s",
-                pl->group, sstrerror(status, errbuf, sizeof(errbuf)));
+                pl->group, STRERRNO);
           getgr_failed = 1;
           goto gr_finally;
         }
