@@ -750,9 +750,8 @@ static void *exec_notification_one(void *arg) /* {{{ */
   else if (n->severity == NOTIF_OKAY)
     severity = "OKAY";
 
-  fprintf(fh,
-          "Severity: %s\n"
-          "Time: %.3f\n",
+  fprintf(fh, "Severity: %s\n"
+              "Time: %.3f\n",
           severity, CDTIME_T_TO_DOUBLE(n->time));
 
   /* Print the optional fields */
