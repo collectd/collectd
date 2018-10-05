@@ -346,64 +346,10 @@ static void close_pipe(int fd_pipe[2]) /* {{{ */
 } /* }}} void close_pipe */
 
 /*
- * Creates three pipes (one for reading, one for writing and one for errors),
- * forks a child, sets up the pipes so that fd_in is connected to STDIN of
- * the child and fd_out is connected to STDOUT and fd_err is connected to STDERR
- * of the child. Then is calls `exec_child'.
+ * Get effective group ID from group name.
  */
-static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
-                      int *fd_err) /* {{{ */
-{
-  int fd_pipe_in[2] = {-1, -1};
-  int fd_pipe_out[2] = {-1, -1};
-  int fd_pipe_err[2] = {-1, -1};
-  int status;
-  int pid;
-
-  int uid;
-  int gid;
-  int egid;
-
-  struct passwd *sp_ptr;
-  struct passwd sp;
-
-  if (pl->pid != 0)
-    return -1;
-
-  long int nambuf_size = sysconf(_SC_GETPW_R_SIZE_MAX);
-  if (nambuf_size <= 0)
-    nambuf_size = sysconf(_SC_PAGESIZE);
-  if (nambuf_size <= 0)
-    nambuf_size = 4096;
-  char nambuf[nambuf_size];
-
-  if ((create_pipe(fd_pipe_in) == -1) || (create_pipe(fd_pipe_out) == -1) ||
-      (create_pipe(fd_pipe_err) == -1))
-    goto failed;
-
-  sp_ptr = NULL;
-  status = getpwnam_r(pl->user, &sp, nambuf, sizeof(nambuf), &sp_ptr);
-  if (status != 0) {
-    ERROR("exec plugin: Failed to get user information for user ``%s'': %s",
-          pl->user, STRERROR(status));
-    goto failed;
-  }
-
-  if (sp_ptr == NULL) {
-    ERROR("exec plugin: No such user: `%s'", pl->user);
-    goto failed;
-  }
-
-  uid = sp.pw_uid;
-  gid = sp.pw_gid;
-  if (uid == 0) {
-    ERROR("exec plugin: Cowardly refusing to exec program as root.");
-    goto failed;
-  }
-
-  /* The group configured in the configfile is set as effective group, because
-   * this way the forked process can (re-)gain the user's primary group. */
-  egid = -1;
+static int getegid(program_list_t *pl) {
+  int egid = -1;
   if (pl->group != NULL) {
     if (*pl->group != '\0') {
       struct group *gr_ptr = NULL;
@@ -477,6 +423,68 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
       egid = gid;
     }
   } /* if (pl->group == NULL) */
+  return egid;
+}
+
+/*
+ * Creates three pipes (one for reading, one for writing and one for errors),
+ * forks a child, sets up the pipes so that fd_in is connected to STDIN of
+ * the child and fd_out is connected to STDOUT and fd_err is connected to STDERR
+ * of the child. Then is calls `exec_child'.
+ */
+static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
+                      int *fd_err) /* {{{ */
+{
+  int fd_pipe_in[2] = {-1, -1};
+  int fd_pipe_out[2] = {-1, -1};
+  int fd_pipe_err[2] = {-1, -1};
+  int status;
+  int pid;
+
+  int uid;
+  int gid;
+  int egid;
+
+  struct passwd *sp_ptr;
+  struct passwd sp;
+
+  if (pl->pid != 0)
+    return -1;
+
+  long int nambuf_size = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (nambuf_size <= 0)
+    nambuf_size = sysconf(_SC_PAGESIZE);
+  if (nambuf_size <= 0)
+    nambuf_size = 4096;
+  char nambuf[nambuf_size];
+
+  if ((create_pipe(fd_pipe_in) == -1) || (create_pipe(fd_pipe_out) == -1) ||
+      (create_pipe(fd_pipe_err) == -1))
+    goto failed;
+
+  sp_ptr = NULL;
+  status = getpwnam_r(pl->user, &sp, nambuf, sizeof(nambuf), &sp_ptr);
+  if (status != 0) {
+    ERROR("exec plugin: Failed to get user information for user ``%s'': %s",
+          pl->user, STRERROR(status));
+    goto failed;
+  }
+
+  if (sp_ptr == NULL) {
+    ERROR("exec plugin: No such user: `%s'", pl->user);
+    goto failed;
+  }
+
+  uid = sp.pw_uid;
+  gid = sp.pw_gid;
+  if (uid == 0) {
+    ERROR("exec plugin: Cowardly refusing to exec program as root.");
+    goto failed;
+  }
+
+  /* The group configured in the configfile is set as effective group, because
+   * this way the forked process can (re-)gain the user's primary group. */
+  egid = getegid(pl);
 
   pid = fork();
   if (pid < 0) {
@@ -742,8 +750,9 @@ static void *exec_notification_one(void *arg) /* {{{ */
   else if (n->severity == NOTIF_OKAY)
     severity = "OKAY";
 
-  fprintf(fh, "Severity: %s\n"
-              "Time: %.3f\n",
+  fprintf(fh,
+          "Severity: %s\n"
+          "Time: %.3f\n",
           severity, CDTIME_T_TO_DOUBLE(n->time));
 
   /* Print the optional fields */
