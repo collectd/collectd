@@ -145,7 +145,6 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD
 
-  DEBUG("format_json: values_to_json: buffer = %s;", buffer);
   sfree(rates);
   return 0;
 } /* }}} int values_to_json */
@@ -179,8 +178,6 @@ static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD
 
-  DEBUG("format_json: dstypes_to_json: buffer = %s;", buffer);
-
   return 0;
 } /* }}} int dstypes_to_json */
 
@@ -212,8 +209,6 @@ static int dsnames_to_json(char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD("]");
 
 #undef BUFFER_ADD
-
-  DEBUG("format_json: dsnames_to_json: buffer = %s;", buffer);
 
   return 0;
 } /* }}} int dsnames_to_json */
@@ -377,8 +372,6 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD_KEYVAL
 #undef BUFFER_ADD
-
-  DEBUG("format_json: value_list_to_json: buffer = %s;", buffer);
 
   return 0;
 } /* }}} int value_list_to_json */
