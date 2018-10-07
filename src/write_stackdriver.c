@@ -31,6 +31,7 @@
 
 #include <curl/curl.h>
 #include <pthread.h>
+#include <yajl/yajl_tree.h>
 
 /*
  * Private variables
@@ -116,142 +117,175 @@ static char *wg_get_authorization_header(wg_callback_t *cb) { /* {{{ */
   return strdup(authorization_header);
 } /* }}} char *wg_get_authorization_header */
 
-static int wg_call_metricdescriptor_create(wg_callback_t *cb,
-                                           char const *payload) {
-  /* {{{ */
-  char final_url[1024];
-  int status =
-      snprintf(final_url, sizeof(final_url), "%s/projects/%s/metricDescriptors",
-               cb->url, cb->project);
-  if ((status < 1) || ((size_t)status >= sizeof(final_url)))
-    return -1;
+typedef struct {
+  int code;
+  char *message;
+} api_error_t;
 
-  char *authorization_header = wg_get_authorization_header(cb);
-  if (authorization_header == NULL)
-    return -1;
+static api_error_t *parse_api_error(char const *body) {
+  char errbuf[1024];
+  yajl_val root = yajl_tree_parse(body, errbuf, sizeof(errbuf));
+  if (root == NULL) {
+    ERROR("write_stackdriver plugin: yajl_tree_parse failed: %s", errbuf);
+    return NULL;
+  }
 
-  struct curl_slist *headers = NULL;
-  headers = curl_slist_append(headers, "Content-Type: application/json");
-  headers = curl_slist_append(headers, authorization_header);
+  api_error_t *err = calloc(1, sizeof(*err));
+  if (err == NULL) {
+    ERROR("write_stackdriver plugin: calloc failed");
+    yajl_tree_free(root);
+    return NULL;
+  }
 
-  CURL *curl = curl_easy_init();
-  if (!curl) {
-    ERROR("write_stackdriver plugin: curl_easy_init failed.");
-    curl_slist_free_all(headers);
-    sfree(authorization_header);
+  yajl_val code = yajl_tree_get(root, (char const *[]){"error", "code", NULL},
+                                yajl_t_number);
+  if (code != NULL) {
+    err->code = YAJL_GET_INTEGER(code);
+  }
+
+  yajl_val message = yajl_tree_get(
+      root, (char const *[]){"error", "message", NULL}, yajl_t_string);
+  if (message != NULL) {
+    err->message = strdup(YAJL_GET_STRING(message));
+  }
+
+  return err;
+}
+
+static char *api_error_string(api_error_t *err, char *buffer,
+                              size_t buffer_size) {
+  if (err == NULL) {
+    strncpy(buffer, "Unknown error (API error is NULL)", buffer_size);
+  } else if (err->message == NULL) {
+    snprintf(buffer, buffer_size, "API error %d", err->code);
+  } else {
+    snprintf(buffer, buffer_size, "API error %d: %s", err->code, err->message);
+  }
+
+  return buffer;
+}
+#define API_ERROR_STRING(err) api_error_string(err, (char[1024]){""}, 1024)
+
+// do_post does a HTTP POST request, assuming a JSON payload and using OAuth
+// authentication. Returns -1 on error and the HTTP status code otherwise.
+// ret_content, if not NULL, will contain the server's response.
+// If ret_content is provided and the server responds with a 4xx or 5xx error,
+// an appropriate message will be logged.
+static int do_post(wg_callback_t *cb, char const *url, void const *payload,
+                   wg_memory_t *ret_content) {
+  if (cb->curl == NULL) {
+    cb->curl = curl_easy_init();
+    if (cb->curl == NULL) {
+      ERROR("write_stackdriver plugin: curl_easy_init() failed");
+      return -1;
+    }
+
+    curl_easy_setopt(cb->curl, CURLOPT_ERRORBUFFER, cb->curl_errbuf);
+    curl_easy_setopt(cb->curl, CURLOPT_NOSIGNAL, 1L);
+  }
+
+  curl_easy_setopt(cb->curl, CURLOPT_POST, 1L);
+  curl_easy_setopt(cb->curl, CURLOPT_URL, url);
+
+  /* header */
+  char *auth_header = wg_get_authorization_header(cb);
+  if (auth_header == NULL) {
+    ERROR("write_stackdriver plugin: getting access token failed with");
     return -1;
   }
 
-  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-  curl_easy_setopt(cb->curl, CURLOPT_USERAGENT,
-                   PACKAGE_NAME "/" PACKAGE_VERSION);
-  char curl_errbuf[CURL_ERROR_SIZE];
-  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf);
-  curl_easy_setopt(curl, CURLOPT_URL, final_url);
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_POST, 1L);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload);
+  struct curl_slist *headers =
+      curl_slist_append(NULL, "Content-Type: application/json");
+  headers = curl_slist_append(headers, auth_header);
+  curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, headers);
 
-  wg_memory_t res = {
-      .memory = NULL, .size = 0,
-  };
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wg_write_memory_cb);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &res);
+  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, payload);
 
-  status = curl_easy_perform(curl);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION,
+                   ret_content ? wg_write_memory_cb : NULL);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, ret_content);
+
+  int status = curl_easy_perform(cb->curl);
+
+  /* clean up that has to happen in any case */
+  curl_slist_free_all(headers);
+  sfree(auth_header);
+  curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, NULL);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, NULL);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, NULL);
+
   if (status != CURLE_OK) {
-    ERROR(
-        "write_stackdriver plugin: curl_easy_perform failed with status %d: %s",
-        status, curl_errbuf);
-    sfree(res.memory);
-    curl_easy_cleanup(curl);
-    curl_slist_free_all(headers);
-    sfree(authorization_header);
+    ERROR("write_stackdriver plugin: POST %s failed: %s", url, cb->curl_errbuf);
+    sfree(ret_content->memory);
+    ret_content->size = 0;
     return -1;
   }
 
   long http_code = 0;
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-  if ((http_code < 200) || (http_code >= 300)) {
-    ERROR("write_stackdriver plugin: POST request to %s failed: HTTP error %ld",
-          final_url, http_code);
-    INFO("write_stackdriver plugin: Server replied: %s", res.memory);
-    sfree(res.memory);
-    curl_easy_cleanup(curl);
-    curl_slist_free_all(headers);
-    sfree(authorization_header);
-    return -1;
+  curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+  if (ret_content != NULL) {
+    if ((status >= 400) && (status < 500)) {
+      ERROR("write_stackdriver plugin: POST %s: %s", url,
+            API_ERROR_STRING(parse_api_error(ret_content->memory)));
+    } else if (status >= 500) {
+      WARNING("write_stackdriver plugin: POST %s: %s", url,
+              ret_content->memory);
+    }
   }
 
-  sfree(res.memory);
-  curl_easy_cleanup(curl);
-  curl_slist_free_all(headers);
-  sfree(authorization_header);
+  return (int)http_code;
+} /* int do_post */
+
+static int wg_call_metricdescriptor_create(wg_callback_t *cb,
+                                           char const *payload) {
+  char url[1024];
+  snprintf(url, sizeof(url), "%s/projects/%s/metricDescriptors", cb->url,
+           cb->project);
+  wg_memory_t response = {0};
+
+  int status = do_post(cb, url, payload, &response);
+  if (status == -1) {
+    ERROR("write_stackdriver plugin: POST %s failed", url);
+    return -1;
+  }
+  sfree(response.memory);
+
+  if (status != 200) {
+    ERROR("write_stackdriver plugin: POST %s: unexpected response code: got "
+          "%d, want 200",
+          url, status);
+    return -1;
+  }
   return 0;
-} /* }}} int wg_call_metricdescriptor_create */
+} /* int wg_call_metricdescriptor_create */
+
+static int wg_call_timeseries_write(wg_callback_t *cb, char const *payload) {
+  char url[1024];
+  snprintf(url, sizeof(url), "%s/projects/%s/timeSeries", cb->url, cb->project);
+  wg_memory_t response = {0};
+
+  int status = do_post(cb, url, payload, &response);
+  if (status == -1) {
+    ERROR("write_stackdriver plugin: POST %s failed", url);
+    return -1;
+  }
+  sfree(response.memory);
+
+  if (status != 200) {
+    ERROR("write_stackdriver plugin: POST %s: unexpected response code: got "
+          "%d, want 200",
+          url, status);
+    return -1;
+  }
+  return 0;
+} /* int wg_call_timeseries_write */
 
 static void wg_reset_buffer(wg_callback_t *cb) /* {{{ */
 {
   cb->timeseries_count = 0;
   cb->send_buffer_init_time = cdtime();
 } /* }}} wg_reset_buffer */
-
-static int wg_call_timeseries_write(wg_callback_t *cb,
-                                    char const *payload) /* {{{ */
-{
-  char final_url[1024];
-  int status = snprintf(final_url, sizeof(final_url),
-                        "%s/projects/%s/timeSeries", cb->url, cb->project);
-  if ((status < 1) || ((size_t)status >= sizeof(final_url)))
-    return -1;
-
-  char *authorization_header = wg_get_authorization_header(cb);
-  if (authorization_header == NULL)
-    return -1;
-
-  struct curl_slist *headers = NULL;
-  headers = curl_slist_append(headers, authorization_header);
-  headers = curl_slist_append(headers, "Content-Type: application/json");
-
-  curl_easy_setopt(cb->curl, CURLOPT_URL, final_url);
-  curl_easy_setopt(cb->curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(cb->curl, CURLOPT_POST, 1L);
-  curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, payload);
-
-  wg_memory_t res = {
-      .memory = NULL, .size = 0,
-  };
-  curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, wg_write_memory_cb);
-  curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, &res);
-
-  status = curl_easy_perform(cb->curl);
-  if (status != CURLE_OK) {
-    ERROR(
-        "write_stackdriver plugin: curl_easy_perform failed with status %d: %s",
-        status, cb->curl_errbuf);
-    sfree(res.memory);
-    curl_slist_free_all(headers);
-    sfree(authorization_header);
-    return -1;
-  }
-
-  long http_code = 0;
-  curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
-  if ((http_code < 200) || (http_code >= 300)) {
-    ERROR("write_stackdriver plugin: POST request to %s failed: HTTP error %ld",
-          final_url, http_code);
-    INFO("write_stackdriver plugin: Server replied: %s", res.memory);
-    sfree(res.memory);
-    curl_slist_free_all(headers);
-    sfree(authorization_header);
-    return -1;
-  }
-
-  sfree(res.memory);
-  curl_slist_free_all(headers);
-  sfree(authorization_header);
-  return status;
-} /* }}} wg_call_timeseries_write */
 
 static int wg_callback_init(wg_callback_t *cb) /* {{{ */
 {
@@ -553,9 +587,9 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
     if (cb->project == NULL) {
       cb->project = cfg.project_id;
-      INFO(
-          "write_stackdriver plugin: Automatically detected project ID: \"%s\"",
-          cb->project);
+      INFO("write_stackdriver plugin: Automatically detected project ID: "
+           "\"%s\"",
+           cb->project);
     } else {
       sfree(cfg.project_id);
     }
@@ -567,9 +601,9 @@ static int wg_config(oconfig_item_t *ci) /* {{{ */
 
     if (cb->project == NULL) {
       cb->project = cfg.project_id;
-      INFO(
-          "write_stackdriver plugin: Automatically detected project ID: \"%s\"",
-          cb->project);
+      INFO("write_stackdriver plugin: Automatically detected project ID: "
+           "\"%s\"",
+           cb->project);
     } else {
       sfree(cfg.project_id);
     }
