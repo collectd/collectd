@@ -359,8 +359,8 @@ static int getegr_id(program_list_t *pl, int gid) /* {{{ */
   if (pl->group == NULL) {
     return -1;
   }
-  if (strcmp(pl->group,"") == 0) {
-     return gid;
+  if (strcmp(pl->group, "") == 0) {
+    return gid;
   }
   struct group *gr_ptr = NULL;
   struct group gr;
@@ -376,22 +376,22 @@ static int getegr_id(program_list_t *pl, int gid) /* {{{ */
 
   do {
     temp = realloc(grbuf, grbuf_size);
-    if ( temp == NULL ) {
+    if (temp == NULL) {
       ERROR("exec plugin: getegr_id for %s: realloc buffer[%ld] failed ",
-                pl->group, grbuf_size);
+            pl->group, grbuf_size);
       sfree(grbuf);
       return -2;
     }
     grbuf = temp;
-    if(getgrnam_r(pl->group, &gr, grbuf, grbuf_size, &gr_ptr) == 0) {
+    if (getgrnam_r(pl->group, &gr, grbuf, grbuf_size, &gr_ptr) == 0) {
       sfree(grbuf);
       if (gr_ptr == NULL) {
-        ERROR("exec plugin: No such group: `%s'", pl->group);        
+        ERROR("exec plugin: No such group: `%s'", pl->group);
         return -1;
       }
       return gr.gr_gid;
-    } else if ( errno == ERANGE) {
-        grbuf_size += grbuf_size; // increment buffer size and try again
+    } else if (errno == ERANGE) {
+      grbuf_size += grbuf_size; // increment buffer size and try again
     } else {
       ERROR("exec plugin: getegr_id failed %s", STRERRNO);
       sfree(grbuf);
