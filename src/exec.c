@@ -39,7 +39,6 @@
 #include <signal.h>
 #include <sys/types.h>
 
-#include <stdlib.h>
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
 #endif
@@ -347,84 +346,61 @@ static void close_pipe(int fd_pipe[2]) /* {{{ */
 
 /*
  * Get effective group ID from group name.
+ * Input arguments:
+ *       pl  :program list struct with group name
+ *       gid :group id to fallback in case egid cannot be determined.
+ * Returns:
+ *       egid effective group id if successfull,
+ *            -1 if group is not defined/not found.
+ *            -2 for any buffer allocation error.
  */
 static int getegr_id(program_list_t *pl, int gid) /* {{{ */
 {
-  int egid = -1;
-  if (pl->group != NULL) {
-    if (*pl->group != '\0') {
-      struct group *gr_ptr = NULL;
-      struct group gr;
+  if (pl->group == NULL) {
+    return -1;
+  }
+  if (strcmp(pl->group,"") == 0) {
+     return gid;
+  }
+  struct group *gr_ptr = NULL;
+  struct group gr;
 
-      long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
-      if (grbuf_size <= 0)
-        grbuf_size = sysconf(_SC_PAGESIZE);
-      if (grbuf_size <= 0)
-        grbuf_size = 4096;
+  long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
+  if (grbuf_size <= 0)
+    grbuf_size = sysconf(_SC_PAGESIZE);
+  if (grbuf_size <= 0)
+    grbuf_size = 4096;
 
-      long int size;
-      size = grbuf_size;
-      char *temp = NULL;
-      char *grbuf = NULL;
-      int getgr_failed = 0;
-      grbuf = malloc(size);
-      if (grbuf == NULL) {
-        ERROR("exec plugin: get group information for '%s' failed: buffer "
-              "malloc() failed",
-              pl->group);
-        getgr_failed = 1;
-        goto gr_finally;
-      }
-      int status;
-      while ((status = getgrnam_r(pl->group, &gr, grbuf, size, &gr_ptr)) != 0) {
-        switch (errno) {
-        case ERANGE:
-          if ((size + grbuf_size) < size ||
-              (size + grbuf_size) > MAX_GRBUF_SIZE) {
-            ERROR("exec plugin: get group information for '%s' max buffer "
-                  "limit (%ld) reached \n",
-                  pl->group, MAX_GRBUF_SIZE);
-            getgr_failed = 1;
-            goto gr_finally;
-          }
-          /* grow the buffer by 'grbuf_size' each time getgrnamr fails */
-          size += grbuf_size;
-          temp = realloc(grbuf, size);
-          if (temp == NULL) {
-            ERROR("exec plugin: get group information for '%s' realloc() "
-                  "buffer to (%ld) failed ",
-                  pl->group, size);
-            getgr_failed = 1;
-            goto gr_finally;
-          }
-          grbuf = temp;
-          break;
-        default:
-          ERROR("exec plugin: default errno: get group information for '%s' "
-                "failed : %s",
-                pl->group, STRERRNO);
-          getgr_failed = 1;
-          goto gr_finally;
-        }
-      }
-      if (gr_ptr == NULL) {
-        ERROR("exec plugin: No such group: `%s'", pl->group);
-        getgr_failed = 1;
-        goto gr_finally;
-      }
-      egid = gr.gr_gid;
-    gr_finally:
-      free(grbuf);
-      DEBUG("exec plugin: release grbuf memory ");
-      grbuf = NULL;
-      if (getgr_failed > 0) {
-        egid = -2; // arbitrary value to indicate fail
-      }
-    } else {
-      egid = gid;
+  char *temp = NULL;
+  char *grbuf = NULL;
+
+  do {
+    temp = realloc(grbuf, grbuf_size);
+    if ( temp == NULL ) {
+      ERROR("exec plugin: getegr_id for %s: realloc buffer[%ld] failed ",
+                pl->group, grbuf_size);
+      sfree(grbuf);
+      return -2;
     }
-  } /* if (pl->group == NULL) */
-  return egid;
+    grbuf = temp;
+    if(getgrnam_r(pl->group, &gr, grbuf, grbuf_size, &gr_ptr) == 0) {
+      sfree(grbuf);
+      if (gr_ptr == NULL) {
+        ERROR("exec plugin: No such group: `%s'", pl->group);        
+        return -1;
+      }
+      return gr.gr_gid;
+    } else if ( errno == ERANGE) {
+        grbuf_size += grbuf_size; // increment buffer size and try again
+    } else {
+      ERROR("exec plugin: getegr_id failed %s", STRERRNO);
+      sfree(grbuf);
+      return -2;
+    }
+  } while (grbuf_size <= MAX_GRBUF_SIZE);
+  ERROR("exec plugin: getegr_id Max grbuf size reached  for %s", pl->group);
+  sfree(grbuf);
+  return -2;
 }
 
 /*
@@ -486,8 +462,7 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   /* The group configured in the configfile is set as effective group, because
    * this way the forked process can (re-)gain the user's primary group. */
   egid = getegr_id(pl, gid);
-  if (egid <= -2) {
-    ERROR("exec plugin: getegr_id failed: %s", STRERRNO);
+  if (egid == -2) {
     goto failed;
   }
 
