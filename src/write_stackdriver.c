@@ -139,14 +139,17 @@ static api_error_t *parse_api_error(char const *body) {
 
   yajl_val code = yajl_tree_get(root, (char const *[]){"error", "code", NULL},
                                 yajl_t_number);
-  if (code != NULL) {
+  if (YAJL_IS_INTEGER(code)) {
     err->code = YAJL_GET_INTEGER(code);
   }
 
   yajl_val message = yajl_tree_get(
       root, (char const *[]){"error", "message", NULL}, yajl_t_string);
-  if (message != NULL) {
-    err->message = strdup(YAJL_GET_STRING(message));
+  if (YAJL_IS_STRING(message)) {
+    char const *m = YAJL_GET_STRING(message);
+    if (m != NULL) {
+      err->message = strdup(m);
+    }
   }
 
   return err;
