@@ -358,7 +358,7 @@ ssize_t read_file_contents(char const *filename, char *buf, size_t bufsize);
 counter_t counter_diff(counter_t old_value, counter_t new_value);
 
 /* Convert a rate back to a value_t. When converting to a derive_t, counter_t
- * or absoltue_t, take fractional residuals into account. This is important
+ * or absolute_t, take fractional residuals into account. This is important
  * when scaling counters, for example.
  * Returns zero on success. Returns EAGAIN when called for the first time; in
  * this case the value_t is invalid and the next call should succeed. Other
