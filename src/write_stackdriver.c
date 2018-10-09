@@ -187,6 +187,12 @@ static int do_post(wg_callback_t *cb, char const *url, void const *payload,
   curl_easy_setopt(cb->curl, CURLOPT_POST, 1L);
   curl_easy_setopt(cb->curl, CURLOPT_URL, url);
 
+  long timeout_ms = 2 * CDTIME_T_TO_MS(plugin_get_interval());
+  if (timeout_ms < 10000) {
+    timeout_ms = 10000;
+  }
+  curl_easy_setopt(cb->curl, CURLOPT_TIMEOUT_MS, timeout_ms);
+
   /* header */
   char *auth_header = wg_get_authorization_header(cb);
   if (auth_header == NULL) {
