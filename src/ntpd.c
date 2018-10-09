@@ -832,11 +832,13 @@ static int ntpd_read(void) {
   if (status != 0) {
     ERROR("ntpd plugin: ntpd_do_query (REQ_GET_KERNEL) failed with status %i",
           status);
+    free(ik);
     return status;
   } else if ((ik == NULL) || (ik_num == 0) || (ik_size == 0)) {
     ERROR("ntpd plugin: ntpd_do_query returned unexpected data. "
           "(ik = %p; ik_num = %i; ik_size = %i)",
           (void *)ik, ik_num, ik_size);
+    free(ik);
     return -1;
   }
 
