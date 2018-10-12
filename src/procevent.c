@@ -346,9 +346,8 @@ static int gen_message_payload(int state, int pid, char *process,
     goto err;
 
   if (yajl_gen_string(
-          g,
-          (u_char *)(state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
-                                : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE),
+          g, (u_char *)(state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
+                                   : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE),
           strlen((state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
                              : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE))) !=
       yajl_gen_status_ok)
@@ -407,9 +406,8 @@ static int gen_message_payload(int state, int pid, char *process,
     goto err;
 
   if (yajl_gen_string(
-          g,
-          (u_char *)(state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
-                                : PROCEVENT_VF_STATUS_NORMAL_VALUE),
+          g, (u_char *)(state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
+                                   : PROCEVENT_VF_STATUS_NORMAL_VALUE),
           strlen((state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
                              : PROCEVENT_VF_STATUS_NORMAL_VALUE))) !=
       yajl_gen_status_ok)
