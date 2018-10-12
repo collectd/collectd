@@ -143,7 +143,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
  * Private functions
  */
 
-static int gen_message_payload(int state, int pid, char *process,
+static int gen_message_payload(int state, long pid, char *process,
                                long long unsigned int timestamp, char **buf) {
   const unsigned char *buf2;
   yajl_gen g;
@@ -206,7 +206,7 @@ static int gen_message_payload(int state, int pid, char *process,
   event_name_len = event_name_len +
                    13; // "process", 3 spaces, 2 parentheses and null-terminator
   memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, event_name_len, "process %s (%d) %s", process, pid,
+  snprintf(json_str, event_name_len, "process %s (%ld) %s", process, pid,
            (state == 0 ? PROCEVENT_EVENT_NAME_DOWN_VALUE
                        : PROCEVENT_EVENT_NAME_UP_VALUE));
 
@@ -321,7 +321,7 @@ static int gen_message_payload(int state, int pid, char *process,
       alarm_condition_len + 25; // "process", "state", "change", 4 spaces, 2
                                 // parentheses and null-terminator
   memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, alarm_condition_len, "process %s (%d) state change",
+  snprintf(json_str, alarm_condition_len, "process %s (%ld) state change",
            process, pid);
 
   if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
@@ -391,7 +391,7 @@ static int gen_message_payload(int state, int pid, char *process,
       specific_problem_len +
       13; // "process", 3 spaces, 2 parentheses and null-terminator
   memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, specific_problem_len, "process %s (%d) %s", process, pid,
+  snprintf(json_str, specific_problem_len, "process %s (%ld) %s", process, pid,
            (state == 0 ? PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE
                        : PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE));
 
@@ -446,13 +446,13 @@ err:
 }
 
 // Does /proc/<pid>/comm contain a process name we are interested in?
-static processlist_t *process_check(int pid) {
+static processlist_t *process_check(long pid) {
   int len, is_match, retval;
   char file[BUFSIZE];
   FILE *fh;
   char buffer[BUFSIZE];
 
-  len = snprintf(file, sizeof(file), PROCDIR "/%d/comm", pid);
+  len = snprintf(file, sizeof(file), PROCDIR "/%ld/comm", pid);
 
   if ((len < 0) || (len >= BUFSIZE)) {
     WARNING("procevent process_check: process name too large");
@@ -461,14 +461,14 @@ static processlist_t *process_check(int pid) {
 
   if (NULL == (fh = fopen(file, "r"))) {
     // No /proc/<pid>/comm for this pid, just ignore
-    DEBUG("procevent plugin: no comm file available for pid %d", pid);
+    DEBUG("procevent plugin: no comm file available for pid %ld", pid);
     return NULL;
   }
 
   retval = fscanf(fh, "%[^\n]", buffer);
 
   if (retval < 0) {
-    WARNING("procevent process_check: unable to read comm file for pid %d",
+    WARNING("procevent process_check: unable to read comm file for pid %ld",
             pid);
     fclose(fh);
     return NULL;
@@ -477,7 +477,7 @@ static processlist_t *process_check(int pid) {
   // Now that we have the process name in the buffer, check if we are
   // even interested in it
   if (ignorelist_match(ignorelist, buffer) != 0) {
-    DEBUG("procevent process_check: ignoring process %s (%d)", buffer, pid);
+    DEBUG("procevent process_check: ignoring process %s (%ld)", buffer, pid);
     fclose(fh);
     return NULL;
   }
@@ -507,12 +507,12 @@ static processlist_t *process_check(int pid) {
     is_match = (strcmp(buffer, pl->process) == 0 ? 1 : 0);
 
     if (is_match == 1) {
-      DEBUG("procevent plugin: process %d name match for %s", pid, buffer);
+      DEBUG("procevent plugin: process %ld name match for %s", pid, buffer);
 
       if (pl->pid == pid) {
         // this is a match, and we've already stored the exact pid/name combo
         DEBUG("procevent plugin: found exact match with name %s, PID %ld for "
-              "incoming PID %d",
+              "incoming PID %ld",
               pl->process, pl->pid, pid);
         match = pl;
         break;
@@ -520,7 +520,7 @@ static processlist_t *process_check(int pid) {
         // this is a match, and we've found a candidate processlist_t to store
         // this new pid/name combo
         DEBUG("procevent plugin: reusing pl object with PID %ld for incoming "
-              "PID %d",
+              "PID %ld",
               pl->pid, pid);
         pl->pid = pid;
         match = pl;
@@ -530,7 +530,7 @@ static processlist_t *process_check(int pid) {
         // claimed this pid/name combo,
         // so keep looking
         DEBUG("procevent plugin: found pl object with matching name for "
-              "incoming PID %d, but object is in use by PID %ld",
+              "incoming PID %ld, but object is in use by PID %ld",
               pid, pl->pid);
         match = pl;
         continue;
@@ -545,9 +545,9 @@ static processlist_t *process_check(int pid) {
     // contained a pid/name combo,
     // then make a new one and add it to the linked list
 
-    DEBUG(
-        "procevent plugin: allocating new processlist_t object for PID %d (%s)",
-        pid, buffer);
+    DEBUG("procevent plugin: allocating new processlist_t object for PID %ld "
+          "(%s)",
+          pid, buffer);
 
     processlist_t *pl2;
     char *process;
@@ -585,7 +585,7 @@ static processlist_t *process_check(int pid) {
 }
 
 // Does our map have this PID or name?
-static processlist_t *process_map_check(int pid, char *process) {
+static processlist_t *process_map_check(long pid, char *process) {
   processlist_t *pl;
 
   pthread_mutex_lock(&procevent_list_lock);
@@ -1046,7 +1046,8 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
   return (0);
 } /* }}} int procevent_config */
 
-static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
+static void procevent_dispatch_notification(long pid,
+                                            const char *type, /* {{{ */
                                             gauge_t value, char *process,
                                             long long unsigned int timestamp) {
   char *buf = NULL;
@@ -1081,7 +1082,7 @@ static void procevent_dispatch_notification(int pid, const char *type, /* {{{ */
   DEBUG("procevent plugin: notification message: %s",
         n.meta->nm_value.nm_string);
 
-  DEBUG("procevent plugin: dispatching state %d for PID %d (%s)", (int)value,
+  DEBUG("procevent plugin: dispatching state %d for PID %ld (%s)", (int)value,
         pid, process);
 
   plugin_dispatch_notification(&n);
@@ -1121,9 +1122,10 @@ static int procevent_read(void) /* {{{ */
         procevent_dispatch_notification(ring.buffer[ring.tail][0], "gauge",
                                         ring.buffer[ring.tail][1], pl->process,
                                         ring.buffer[ring.tail][3]);
-        DEBUG("procevent plugin: PID %d (%s) EXITED, removing PID from process "
-              "list",
-              pl->pid, pl->process);
+        DEBUG(
+            "procevent plugin: PID %ld (%s) EXITED, removing PID from process "
+            "list",
+            pl->pid, pl->process);
         pl->pid = -1;
         pl->last_status = -1;
       }
