@@ -127,7 +127,7 @@ bin_PROGRAMS = \
 endif # BUILD_WIN32
 
 
-EXTRA_LTLIBRARIES = \
+noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
@@ -1517,7 +1517,7 @@ python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
 if HAVE_LIBMNL
-EXTRA_LTLIBRARIES += libtaskstats.la
+noinst_LTLIBRARIES += libtaskstats.la
 libtaskstats_la_SOURCES = \
 	src/utils_taskstats.c \
 	src/utils_taskstats.h
