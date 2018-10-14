@@ -873,11 +873,13 @@ static int ntpd_read(void) {
     ERROR(
         "ntpd plugin: ntpd_do_query (REQ_PEER_LIST_SUM) failed with status %i",
         status);
+    free(ps);
     return status;
   } else if ((ps == NULL) || (ps_num == 0) || (ps_size == 0)) {
     ERROR("ntpd plugin: ntpd_do_query returned unexpected data. "
           "(ps = %p; ps_num = %i; ps_size = %i)",
           (void *)ps, ps_num, ps_size);
+    free(ps);
     return -1;
   }
 
