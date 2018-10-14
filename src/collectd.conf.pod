@@ -5713,6 +5713,36 @@ Default: C<Collectd notify: %s@%s>
 
 =back
 
+=head2 Plugin C<notify_icinga>
+
+The I<notify_icinga> plugin sends notifications to Icinga's REST API endpoint.
+One can use it to implement a passive check.
+
+Available configuration options:
+
+=over 4
+
+=item B<IcingaHost> I<hostname>
+
+=item B<IcingaPort> I<port number>
+
+These two describe the network endpoint to push notifications to.
+
+=item B<IcingaUser> I<username>
+
+=item B<IcingaPassword> I<password>
+
+These two describe the user:password pair to be used for authentication.
+
+=item B<LogOnly> B<true|false>
+
+This parameter disables any external communication, so the whole URL will be written to the
+log file only. Its main purpose is debugging.
+
+See also: L<https://www.icinga.com/docs/icinga2/latest/doc/12-icinga2-api/#authentication>
+
+=back
+
 =head2 Plugin C<notify_nagios>
 
 The I<notify_nagios> plugin writes notifications to Nagios' I<command file> as
