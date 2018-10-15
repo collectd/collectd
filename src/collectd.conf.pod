@@ -7323,7 +7323,7 @@ B<Synopsis:>
   <Plugin procevent>
     BufferLength 10
     Process "name"
-    RegexProcess "regex"
+    ProcessRegex "regex"
   </Plugin>
  
 B<Options:>
@@ -7341,7 +7341,7 @@ becomes available for storing a new event.
 Enumerate a process name to monitor.  All processes that match this exact
 name will be monitored for EXECs and EXITs.
 
-=item B<RegexProcess> I<regex>
+=item B<ProcessRegex> I<regex>
  
 Enumerate a process pattern to monitor.  All processes that match this 
 regular expression will be monitored for EXECs and EXITs.
