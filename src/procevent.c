@@ -136,7 +136,7 @@ static circbuf_t ring;
 static processlist_t *processlist_head = NULL;
 static int event_id = 0;
 
-static const char *config_keys[] = {"BufferLength", "Process", "RegexProcess"};
+static const char *config_keys[] = {"BufferLength", "Process", "ProcessRegex"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /*
@@ -1027,7 +1027,7 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
     buffer_length = atoi(value);
   } else if (strcasecmp(key, "Process") == 0) {
     ignorelist_add(ignorelist, value);
-  } else if (strcasecmp(key, "RegexProcess") == 0) {
+  } else if (strcasecmp(key, "ProcessRegex") == 0) {
 #if HAVE_REGEX_H
     status = ignorelist_add(ignorelist, value);
 
@@ -1037,7 +1037,7 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
     }
 #else
     WARNING("procevent plugin: The plugin has been compiled without support "
-            "for the \"RegexProcess\" option.");
+            "for the \"ProcessRegex\" option.");
 #endif
   } else {
     return (-1);
