@@ -58,7 +58,7 @@ static int variant_is_signed_integer(VARIANT *v) {
   return 0;
 }
 
-static char *varenum_to_string(VARENUM v) {
+static char *varenum_to_string(const enum VARENUM v) {
   switch (v) {
   case VT_EMPTY:
     return "VT_EMPTY";
@@ -98,72 +98,68 @@ static char *varenum_to_string(VARENUM v) {
     return "VT_UI2";
   case VT_UI4:
     return "VT_UI4";
-  case "VT_I8":
+  case VT_I8:
     return "VT_I8";
-  case "VT_UI8":
+  case VT_UI8:
     return "VT_UI8";
-  case "VT_INT":
+  case VT_INT:
     return "VT_INT";
-  case "VT_UINT":
+  case VT_UINT:
     return "VT_UINT";
-  case "VT_VOID":
+  case VT_VOID:
     return "VT_VOID";
-  case "VT_HRESULT":
+  case VT_HRESULT:
     return "VT_HRESULT";
-  case "VT_PTR":
+  case VT_PTR:
     return "VT_PTR";
-  case "VT_SAFEARRAY":
+  case VT_SAFEARRAY:
     return "VT_SAFEARRAY";
-  case "VT_CARRAY":
+  case VT_CARRAY:
     return "VT_CARRAY";
-  case "VT_USERDEFINED":
+  case VT_USERDEFINED:
     return "VT_USERDEFINED";
-  case "VT_LPSTR":
+  case VT_LPSTR:
     return "VT_LPSTR";
-  case "VT_LPWSTR":
+  case VT_LPWSTR:
     return "VT_LPWSTR";
-  case "VT_RECORD":
+  case VT_RECORD:
     return "VT_RECORD";
-  case "VT_INT_PTR":
+  case VT_INT_PTR:
     return "VT_INT_PTR";
-  case "VT_UINT_PTR":
+  case VT_UINT_PTR:
     return "VT_UINT_PTR";
-  case "VT_FILETIME":
+  case VT_FILETIME:
     return "VT_FILETIME";
-  case "VT_BLOB":
+  case VT_BLOB:
     return "VT_BLOB";
-  case "VT_STREAM":
+  case VT_STREAM:
     return "VT_STREAM";
-  case "VT_STORAGE":
+  case VT_STORAGE:
     return "VT_STORAGE";
-  case "VT_STREAMED_OBJECT":
+  case VT_STREAMED_OBJECT:
     return "VT_STREAMED_OBJECT";
-  case "VT_STORED_OBJECT":
+  case VT_STORED_OBJECT:
     return "VT_STORED_OBJECT";
-  case "VT_BLOB_OBJECT":
+  case VT_BLOB_OBJECT:
     return "VT_BLOB_OBJECT";
-  case "VT_CF":
+  case VT_CF:
     return "VT_CF";
-  case "VT_CLSID":
+  case VT_CLSID:
     return "VT_CLSID";
-  case "VT_VERSIONED_STREAM":
+  case VT_VERSIONED_STREAM:
     return "VT_VERSIONED_STREAM";
-  case "VT_BSTR_BLOB":
+  case VT_BSTR_BLOB:
     return "VT_BSTR_BLOB";
-  case "VT_VECTOR":
+  case VT_VECTOR:
     return "VT_VECTOR";
-  case "VT_ARRAY":
+  case VT_ARRAY:
     return "VT_ARRAY";
-  case "VT_BYREF":
+  case VT_BYREF:
     return "VT_BYREF";
-  case "VT_RESERVED":
+  case VT_RESERVED:
     return "VT_RESERVED";
-  case "VT_ILLEGAL":
+  case VT_ILLEGAL:
     return "VT_ILLEGAL";
-  case "VT_ILLEGALMASKED":
-    return "VT_ILLEGALMASKED";
-  case "VT_TYPEMASK":
-    return "VT_TYPEMASK";
   default:
     return "<unknown>";
   }

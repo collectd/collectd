@@ -63,7 +63,7 @@ typedef struct wmi_metric_s {
 
 typedef struct wmi_metric_list_s {
   wmi_metric_t *node;
-  wmi_metric_t *next;
+  struct wmi_metric_list_s *next;
 } wmi_metric_list_t;
 
 void wmi_metric_free(wmi_metric_t *m);
@@ -77,7 +77,7 @@ typedef struct wmi_query_s {
 
 typedef struct wmi_query_list_s {
   wmi_query_t *node;
-  wmi_query_t *next;
+  struct wmi_query_list_s *next;
 } wmi_query_list_t;
 
 void wmi_query_free(wmi_query_t *q);
@@ -242,13 +242,13 @@ static int wmi_exec_query(wmi_query_t *q) {
     sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
 
     wmi_metric_list_t *mn;
-    for (mn = q->metrics; mn != NULL; mn = mn->_next) {
+    for (mn = q->metrics; mn != NULL; mn = mn->next) {
       VARIANT value_v;
       VARIANT plugin_instance_v;
       value_t value_vt;
       char *plugin_instance_s = NULL;
       const data_set_t *ds = NULL;
-      wmi_metric_t *m = mn->_node;
+      wmi_metric_t *m = mn->node;
 
       ds = plugin_get_ds(m->type);
       int index_in_ds;
@@ -336,8 +336,8 @@ static int wmi_shutdown(void) {
 
 static int wmi_read(void) {
   wmi_query_list_t *q;
-  for (q = queries_g; q != NULL; q = q->_next) {
-    int status = wmi_exec_query(q->_node);
+  for (q = queries_g; q != NULL; q = q->next) {
+    int status = wmi_exec_query(q->node);
     if (status != 0)
       return status;
   }
