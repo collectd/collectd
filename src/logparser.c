@@ -670,15 +670,21 @@ static int logparser_shutdown(void) {
     if (parser->job != NULL)
       message_parser_cleanup(parser->job);
 
-    for (size_t j = 0; j < parser->patterns_len; j++)
+    for (size_t j = 0; j < parser->patterns_len; j++) {
       if (parser->patterns[j].free_user_data != NULL)
         parser->patterns[j].free_user_data(parser->patterns[j].user_data);
+
+      sfree(parser->patterns[j].name);
+      sfree(parser->patterns[j].regex);
+      sfree(parser->patterns[j].excluderegex);
+    }
 
     sfree(parser->patterns);
     sfree(parser->filename);
     sfree(parser->def_plugin_inst);
     sfree(parser->def_type);
     sfree(parser->def_type_inst);
+    sfree(parser->name);
   }
 
   sfree(logparser_ctx.parsers);

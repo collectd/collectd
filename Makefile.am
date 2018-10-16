@@ -1225,6 +1225,19 @@ logparser_la_SOURCES = src/logparser.c \
 	src/utils_latency_config.c src/utils_latency_config.h
 logparser_la_CPPFLAGS = $(AM_CPPFLAGS)
 logparser_la_LDFLAGS = $(PLUGIN_LDFLAGS) -lm
+
+test_plugin_logparser_SOURCES = src/logparser_test.c \
+       src/utils_message_parser.c \
+       src/utils_tail_match.c src/utils_tail_match.h \
+       src/utils_tail.c src/utils_tail.h \
+       src/utils_match.c src/utils_match.h \
+       src/daemon/configfile.c \
+       src/daemon/types_list.c
+test_plugin_logparser_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_logparser_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_logparser_LDADD = liboconfig.la libplugin_mock.la liblatency.la
+check_PROGRAMS += test_plugin_logparser
+TESTS += test_plugin_logparser
 endif
 
 if BUILD_PLUGIN_LOG_LOGSTASH
