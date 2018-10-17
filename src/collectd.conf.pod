@@ -1600,6 +1600,13 @@ LoadPlugin connectivity
   Interface eth1
 </Plugin>
 
+This example shows C<connectivity plugin> monitoring all interfaces except "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth1
+  IgnoreSelected true
+</Plugin>
+
 =over 4
 
 =item B<Interface> I<interface_name>
