@@ -1189,13 +1189,13 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
 
   virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(vinfo[0]));
   if (vinfo == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
   }
 
   unsigned char *cpumaps = calloc(nr_virt_cpu, cpu_map_len);
   if (cpumaps == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     sfree(vinfo);
     return -1;
   }
