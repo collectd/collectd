@@ -24,10 +24,30 @@
  * Authors:
  *   Martin Kennelly <martin.kennelly@intel.com>
  *   Marcin Mozejko <marcinx.mozejko@intel.com>
+ *   Adrian Boczkowski <adrianx.boczkowski@intel.com>
  **/
 
+#define plugin_dispatch_values redfish_test_plugin_dispatch_values_mock
 #include "redfish.c"
 #include "testing.h"
+
+#define VALUE_CACHE_SIZE (1)
+
+static value_list_t last_dispatched_value_list;
+static value_t last_dispatched_values[VALUE_CACHE_SIZE];
+int redfish_test_plugin_dispatch_values_mock(value_list_t const *vl) {
+  last_dispatched_value_list = *vl;
+  size_t len = MIN(vl->values_len, VALUE_CACHE_SIZE);
+  for (size_t i = 0; i < len; ++i) {
+    last_dispatched_values[i] = vl->values[i];
+  }
+  last_dispatched_value_list.values = last_dispatched_values;
+  return 0;
+}
+
+static value_list_t *redfish_test_get_last_dispatched_value_list() {
+  return &last_dispatched_value_list;
+}
 
 DEF_TEST(read_queries) {
   oconfig_item_t *ci = calloc(1, sizeof(*ci));
@@ -455,6 +475,8 @@ DEF_TEST(config_service) {
     sfree(serv->passwd);
     for (int i = 0; i < serv->queries_num; i++)
       sfree(serv->queries[i]);
+    sfree(serv->queries);
+    sfree(serv);
   }
   llist_destroy(ctx->services);
   sfree(ctx);
@@ -469,6 +491,71 @@ DEF_TEST(config_service) {
   return 0;
 }
 
+DEF_TEST(process_payload_property) {
+  redfish_property_t property;
+  property.name = "Abc";
+  property.plugin_inst = "TestPluginInstance";
+  property.type = "MAGIC";
+  property.type_inst = "TestTypeInstance";
+
+  redfish_resource_t resource;
+  resource.name = "ResourceName";
+
+  redfish_service_t service;
+  service.host = "localhost";
+
+  const char *json_text = "["
+                          "  { \"Abc\": 4567 }"
+                          "]";
+  json_error_t error;
+  json_t *root = json_loads(json_text, 0, &error);
+
+  if (!root) {
+    return -1;
+  }
+
+  redfish_process_payload_property(&property, root, &resource, &service);
+
+  json_decref(root);
+
+  value_list_t *v = redfish_test_get_last_dispatched_value_list();
+  EXPECT_EQ_INT(1, v->values_len);
+  EXPECT_EQ_STR("MAGIC", v->type);
+  EXPECT_EQ_INT(4567, v->values->derive);
+  EXPECT_EQ_STR("TestPluginInstance", v->plugin_instance);
+  EXPECT_EQ_STR("TestTypeInstance", v->type_instance);
+  EXPECT_EQ_STR("localhost", v->host);
+  EXPECT_EQ_STR("redfish", v->plugin);
+  return 0;
+}
+
+DEF_TEST(service_destroy) {
+  /* Check for memory leaks when a service is destroyed */
+  redfish_service_t *service = calloc(1, sizeof(*service));
+
+  service->name = strdup("Name");
+  service->host = strdup("http://localhost:1234");
+  service->user = strdup("User");
+  service->passwd = strdup("Password");
+  service->token = strdup("Token");
+
+  service->queries = calloc(2, sizeof(*service->queries));
+  service->queries[0] = strdup("Query1");
+  service->queries[1] = strdup("Query2");
+  service->queries_num = 2;
+
+  service->query_ptrs = llist_create();
+
+  service->flags |= REDFISH_FLAG_SERVICE_NO_VERSION_DOC;
+  service->auth.authCodes.userPass.username = service->user;
+  service->auth.authCodes.userPass.password = service->passwd;
+  service->redfish = createServiceEnumerator(service->host, NULL,
+                                             &service->auth, service->flags);
+
+  redfish_service_destroy(service);
+  return 0;
+}
+
 int main(void) {
   RUN_TEST(read_queries);
   RUN_TEST(convert_val);
@@ -477,5 +564,7 @@ int main(void) {
   RUN_TEST(config_resource);
   RUN_TEST(config_query);
   RUN_TEST(config_service);
+  RUN_TEST(process_payload_property);
+  RUN_TEST(service_destroy);
   END_TEST;
 }

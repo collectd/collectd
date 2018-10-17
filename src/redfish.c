@@ -24,6 +24,7 @@
  * Authors:
  *   Marcin Mozejko <marcinx.mozejko@intel.com>
  *   Martin Kennelly <martin.kennelly@intel.com>
+ *   Adrian Boczkowski <adrianx.boczkowski@intel.com>
  **/
 
 #include "collectd.h"
@@ -94,7 +95,7 @@ union redfish_value_u {
 };
 typedef union redfish_value_u redfish_value_t;
 
-redfish_ctx_t *ctx;
+static redfish_ctx_t *ctx;
 
 static int redfish_cleanup(void);
 static int redfish_validate_config(void);
@@ -131,7 +132,7 @@ static void redfish_print_config(void) {
 
   DEBUG(PLUGIN_NAME ": QUERIES: %d", c_avl_size(ctx->queries));
 
-  while (c_avl_iterator_next(i, (void **)&key, (void **)&q) == 0) {
+  while (c_avl_iterator_next(i, (void *)&key, (void *)&q) == 0) {
     DEBUG(PLUGIN_NAME ": --------------------");
     DEBUG(PLUGIN_NAME ": Query: %s", q->name);
     DEBUG(PLUGIN_NAME ":   Endpoint: %s", q->endpoint);
@@ -154,6 +155,25 @@ static void redfish_print_config(void) {
 }
 #endif
 
+static void redfish_service_destroy(redfish_service_t *service) {
+  /* This is checked internally by cleanupServiceEnumerator() also,
+   * but as long as it's a third-party library let's be a little 'defensive' */
+  if (service->redfish != NULL)
+    cleanupServiceEnumerator(service->redfish);
+
+  /* Destroy all service members, sfree() as well as strarray_free()
+   * and llist_destroy() are safe to call on NULL argument */
+  sfree(service->name);
+  sfree(service->host);
+  sfree(service->user);
+  sfree(service->passwd);
+  sfree(service->token);
+  strarray_free(service->queries, (size_t)service->queries_num);
+  llist_destroy(service->query_ptrs);
+
+  sfree(service);
+}
+
 static int redfish_init(void) {
 #if COLLECT_DEBUG
   redfish_print_config();
@@ -168,7 +188,7 @@ static int redfish_init(void) {
   for (llentry_t *le = llist_head(ctx->services); le != NULL; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
     /* Ignore redfish version */
-    service->flags |= 0x00000001;
+    service->flags |= REDFISH_FLAG_SERVICE_NO_VERSION_DOC;
 
     /* Preparing struct for authentication */
     if (service->user && service->passwd) {
@@ -187,32 +207,38 @@ static int redfish_init(void) {
     }
 
     service->query_ptrs = llist_create();
-    if (service->query_ptrs == NULL)
+    if (service->query_ptrs == NULL) {
+      ERROR(PLUGIN_NAME ": Failed to allocate memory for service query list");
       goto error;
+    }
 
     /* Preparing query pointers list for every service */
     for (size_t i = 0; i < service->queries_num; i++) {
       redfish_query_t *ptr;
-      if (c_avl_get(ctx->queries, service->queries[i], (void **)&ptr) != 0)
+      if (c_avl_get(ctx->queries, (void *)service->queries[i], (void *)&ptr) !=
+          0) {
+        ERROR(PLUGIN_NAME ": Cannot find a service query in a context");
         goto error;
+      }
 
       llentry_t *entry = llentry_create(ptr->name, ptr);
       if (entry != NULL)
         llist_append(service->query_ptrs, entry);
-      else
+      else {
+        ERROR(PLUGIN_NAME ": Failed to allocate memory for a query list entry");
         goto error;
+      }
     }
   }
 
   return 0;
 
 error:
-  ERROR(PLUGIN_NAME ": Failed to allocate memory for service queries list");
   /* Freeing libredfish resources & llists */
   for (llentry_t *le = llist_head(ctx->services); le != NULL; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
-    cleanupServiceEnumerator(service->redfish);
-    llist_destroy(service->query_ptrs);
+
+    redfish_service_destroy(service);
   }
   return -ENOMEM;
 }
@@ -229,7 +255,7 @@ static int redfish_preconfig(void) {
     goto free_ctx;
 
   /* Creating placeholder for queries */
-  ctx->queries = c_avl_create((int (*)(const void *, const void *))strcmp);
+  ctx->queries = c_avl_create((void *)strcmp);
   if (ctx->services == NULL)
     goto free_services;
 
@@ -250,20 +276,19 @@ static int redfish_config_property(redfish_resource_t *resource,
   assert(cfg_item != NULL);
 
   redfish_property_t *property = calloc(1, sizeof(*property));
-  int ret = 0;
 
   if (property == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for property");
     return -ENOMEM;
   }
 
-  ret = cf_util_get_string(cfg_item, &property->name);
+  int ret = cf_util_get_string(cfg_item, &property->name);
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Could not get property argument in resource section "
                       "named \"%s\"",
           resource->name);
     ret = -EINVAL;
-    goto free_property;
+    goto free_all;
   }
 
   for (int i = 0; i < cfg_item->children_num; i++) {
@@ -291,13 +316,12 @@ static int redfish_config_property(redfish_resource_t *resource,
   }
 
   llentry_t *entry = llentry_create(property->name, property);
-  if (entry != NULL)
-    llist_append(resource->properties, entry);
-  else {
+  if (entry == NULL) {
     ERROR(PLUGIN_NAME ": Failed to allocate memory for property");
     ret = -ENOMEM;
     goto free_all;
   }
+  llist_append(resource->properties, entry);
 
   return 0;
 
@@ -306,7 +330,6 @@ free_all:
   sfree(property->plugin_inst);
   sfree(property->type);
   sfree(property->type_inst);
-free_property:
   sfree(property);
   return ret;
 }
@@ -318,52 +341,50 @@ static int redfish_config_resource(redfish_query_t *query,
 
   redfish_resource_t *resource = calloc(1, sizeof(*resource));
 
-  if (resource == NULL)
-    goto error;
+  if (resource == NULL) {
+    ERROR(PLUGIN_NAME ": Failed to allocate memory for resource");
+    return -ENOMEM;
+  }
 
   resource->properties = llist_create();
 
   if (resource->properties == NULL)
-    goto free_resource;
+    goto free_memory;
 
   int ret = cf_util_get_string(cfg_item, &resource->name);
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Could not get resource name for query named \"%s\"",
           query->name);
-    goto free_list;
+    goto free_memory;
   }
   for (int i = 0; i < cfg_item->children_num; i++) {
     oconfig_item_t *opt = cfg_item->children + i;
-    if (strcasecmp("Property", opt->key) == 0)
-      ret = redfish_config_property(resource, opt);
-    else {
-      ERROR(PLUGIN_NAME ": Invalid configuration option \"%s\".", opt->key);
+    if (strcasecmp("Property", opt->key) != 0) {
+      WARNING(PLUGIN_NAME ": Invalid configuration option \"%s\".", opt->key);
+      continue;
     }
 
+    ret = redfish_config_property(resource, opt);
+
     if (ret != 0) {
-      goto free_name;
+      goto free_memory;
     }
   }
 
   llentry_t *entry = llentry_create(resource->name, resource);
-  if (entry != NULL)
-    llist_append(query->resources, entry);
-  else
-    goto free_name;
+  if (entry == NULL) {
+    ERROR(PLUGIN_NAME ": Failed to allocate memory for resource list entry");
+    goto free_memory;
+  }
+  llist_append(query->resources, entry);
 
   return 0;
 
-free_name:
+free_memory:
   sfree(resource->name);
-free_list:
   llist_destroy(resource->properties);
-free_resource:
   sfree(resource);
   return -1;
-
-error:
-  ERROR(PLUGIN_NAME ": Failed to allocate memory for resource");
-  return -ENOMEM;
 }
 
 static int redfish_config_query(oconfig_item_t *cfg_item,
@@ -375,20 +396,19 @@ static int redfish_config_query(oconfig_item_t *cfg_item,
     return -ENOMEM;
   }
 
-  int ret = 0;
-
   query->resources = llist_create();
 
+  int ret;
   if (query->resources == NULL) {
     ret = -ENOMEM;
-    goto free_query;
+    goto free_all;
   }
 
   ret = cf_util_get_string(cfg_item, &query->name);
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Unable to get query name. Query ignored");
     ret = -EINVAL;
-    goto free_list;
+    goto free_all;
   }
 
   for (int i = 0; i < cfg_item->children_num; i++) {
@@ -422,51 +442,36 @@ static int redfish_config_query(oconfig_item_t *cfg_item,
 free_all:
   sfree(query->name);
   sfree(query->endpoint);
-free_list:
   llist_destroy(query->resources);
-free_query:
   sfree(query);
   return ret;
 }
 
 static int redfish_read_queries(oconfig_item_t *cfg_item, char ***queries_ptr) {
-  size_t q_num = cfg_item->values_num;
+  char **queries = NULL;
+  size_t queries_num = 0;
 
-  *queries_ptr = calloc(1, sizeof(**queries_ptr) * q_num);
-  if (*queries_ptr == NULL) {
-    ERROR(PLUGIN_NAME ": Failed to allocate memory for queries list");
-    goto error;
+  for (int i = 0; i < cfg_item->values_num; ++i) {
+    strarray_add(&queries, &queries_num, cfg_item->values[i].value.string);
   }
 
-  char **queries = *queries_ptr;
-  size_t i;
-  for (i = 0; i < q_num; i++) {
-    if (cfg_item->values[i].type != OCONFIG_TYPE_STRING) {
-      ERROR(PLUGIN_NAME ": 'Queries' requires string arguments");
-      goto free_array;
-    }
-    queries[i] = strdup(cfg_item->values[i].value.string);
-
-    if (queries[i] == NULL)
-      goto free_array;
+  if (queries_num != (size_t)cfg_item->values_num) {
+    ERROR(PLUGIN_NAME ": Failed to allocate memory for query list");
+    strarray_free(queries, queries_num);
+    return -ENOMEM;
   }
 
+  *queries_ptr = queries;
   return 0;
-
-free_array:
-  for (int j = 0; j <= i; j++)
-    sfree(queries[j]);
-  sfree(queries);
-error:
-  sfree(queries_ptr);
-  return -1;
 }
 
 static int redfish_config_service(oconfig_item_t *cfg_item) {
   redfish_service_t *service = calloc(1, sizeof(*service));
 
-  if (service == NULL)
-    goto error;
+  if (service == NULL) {
+    ERROR(PLUGIN_NAME ": Failed to allocate memory for service");
+    return -ENOMEM;
+  }
 
   int ret = cf_util_get_string(cfg_item, &service->name);
   if (ret != 0) {
@@ -496,37 +501,23 @@ static int redfish_config_service(oconfig_item_t *cfg_item) {
       ERROR(PLUGIN_NAME ": Something went wrong processing the service named \
             \"%s\"",
             service->name);
-      goto free_string_query;
+      goto free_service;
     }
   }
 
   llentry_t *entry = llentry_create(service->name, service);
-  if (entry != NULL)
-    llist_append(ctx->services, entry);
-  else {
+  if (entry == NULL) {
     ERROR(PLUGIN_NAME ": Failed to create list for service name \"%s\"",
           service->name);
-    goto free_string_query;
+    goto free_service;
   }
+  llist_append(ctx->services, entry);
 
   return 0;
 
-free_string_query:
-  sfree(service->name);
-  sfree(service->host);
-  sfree(service->user);
-  sfree(service->passwd);
-  sfree(service->token);
-  for (int j = 0; j < service->queries_num; j++)
-    sfree(service->queries[j]);
-
 free_service:
-  sfree(service);
+  redfish_service_destroy(service);
   return -1;
-
-error:
-  ERROR(PLUGIN_NAME ": Failed to allocate memory for service");
-  return -ENOMEM;
 }
 
 static int redfish_config(oconfig_item_t *cfg_item) {
@@ -590,8 +581,8 @@ static int redfish_validate_config(void) {
       bool found = false;
       char *key;
       c_avl_iterator_t *query_iter = c_avl_get_iterator(ctx->queries);
-      while (c_avl_iterator_next(query_iter, (void **)&key,
-                                 (void **)&query_query) == 0 &&
+      while (c_avl_iterator_next(query_iter, (void *)&key,
+                                 (void *)&query_query) == 0 &&
              !found) {
         if (query_query->name != NULL && service->queries[i] != NULL &&
             strcmp(query_query->name, service->queries[i]) == 0) {
@@ -615,8 +606,7 @@ static int redfish_validate_config(void) {
   redfish_query_t *query;
 
   /* Query validation */
-  while (c_avl_iterator_next(queries_iter, (void **)&key, (void **)&query) ==
-         0) {
+  while (c_avl_iterator_next(queries_iter, (void *)&key, (void *)&query) == 0) {
     if (query->name == NULL) {
       ERROR(PLUGIN_NAME ": A query does not have a name");
       goto error;
@@ -712,106 +702,113 @@ static int redfish_convert_val(redfish_value_t *value,
   return 0;
 }
 
+static void redfish_process_payload_property(const redfish_property_t *prop,
+                                             const json_t *json_array,
+                                             const redfish_resource_t *res,
+                                             const redfish_service_t *serv) {
+  /* Iterating through array of sensor(s) */
+  for (int i = 0; i < json_array_size(json_array); i++) {
+    json_t *item = json_array_get(json_array, i);
+    if (item == NULL) {
+      ERROR(PLUGIN_NAME ": Failure retrieving array member for resource \"%s\"",
+            res->name);
+      continue;
+    }
+    json_t *object = json_object_get(item, prop->name);
+    if (object == NULL) {
+      ERROR(PLUGIN_NAME
+            ": Failure retreiving property \"%s\" from resource \"%s\"",
+            prop->name, res->name);
+      continue;
+    }
+    value_list_t v1 = VALUE_LIST_INIT;
+    v1.values_len = 1;
+    if (prop->plugin_inst != NULL)
+      sstrncpy(v1.plugin_instance, prop->plugin_inst,
+               sizeof(v1.plugin_instance));
+    if (prop->type_inst != NULL)
+      sstrncpy(v1.type_instance, prop->type_inst, sizeof(v1.type_instance));
+    else {
+      /* Retrieving MemberId of sensor */
+      json_t *member_id = json_object_get(item, "MemberId");
+      if (member_id == NULL) {
+        ERROR(PLUGIN_NAME
+              ": Failed to get MemberId for property \"%s\" in resource "
+              "\"%s\"",
+              prop->name, res->name);
+        continue;
+      }
+
+      int ch_count = snprintf(v1.type_instance, sizeof(v1.type_instance), "%d",
+                              (int)json_integer_value(member_id));
+      if (ch_count == 0) {
+        ERROR(PLUGIN_NAME ": Failed to convert MemberId to a character");
+        continue;
+      }
+    }
+
+    /* Checking whether real or integer value */
+    redfish_value_t value;
+    redfish_value_type_t type = VAL_TYPE_STR;
+    if (json_is_string(object)) {
+      value.string = (char *)json_string_value(object);
+    } else if (json_is_integer(object)) {
+      type = VAL_TYPE_INT;
+      value.integer = json_integer_value(object);
+    } else if (json_is_real(object)) {
+      type = VAL_TYPE_REAL;
+      value.real = json_real_value(object);
+    }
+    const data_set_t *ds = plugin_get_ds(prop->type);
+
+    /* Check if data set found */
+    if (ds == NULL)
+      continue;
+
+    v1.values = &(value_t){0};
+    redfish_convert_val(&value, type, v1.values, ds->ds[0].type);
+
+    sstrncpy(v1.host, serv->host, sizeof(v1.host));
+    sstrncpy(v1.plugin, PLUGIN_NAME, sizeof(v1.plugin));
+    sstrncpy(v1.type, prop->type, sizeof(v1.type));
+    plugin_dispatch_values(&v1);
+    /* Clear values assigned in case of leakage */
+    v1.values = NULL;
+    v1.values_len = 0;
+  }
+}
+
 static void redfish_process_payload(bool success, unsigned short http_code,
                                     redfishPayload *payload, void *context) {
-  if (success == false) {
+  if (!success) {
     WARNING(PLUGIN_NAME ": Query has failed, HTTP code = %u\n", http_code);
     return;
   }
   redfish_payload_ctx_t *res_serv = (redfish_payload_ctx_t *)context;
   redfish_service_t *serv = res_serv->service;
-  if (payload) {
-    json_t *json_array;
-    for (llentry_t *llres = llist_head(res_serv->resources); llres != NULL;
-         llres = llres->next) {
-      redfish_resource_t *res = (redfish_resource_t *)llres->value;
-      json_array = json_object_get(payload->json, res->name);
-      for (llentry_t *llprop = llist_head(res->properties); llprop != NULL;
-           llprop = llprop->next) {
-        redfish_property_t *prop = (redfish_property_t *)llprop->value;
-        if (json_array == NULL) {
-          ERROR("Could not find resource \"%s\"", res->name);
-          continue;
-        }
+  if (!payload) {
+    WARNING(PLUGIN_NAME ": Failed to get payload for service name \"%s\"",
+            serv->name);
+    return;
+  }
 
-        /* Iterating through array of sensor(s) */
-        for (int i = 0; i < json_array_size(json_array); i++) {
-          json_t *member_id;
-          json_t *object;
-          json_t *item = json_array_get(json_array, i);
-          if (item == NULL) {
-            ERROR("Failure retrieving array member for resource \"%s\"",
-                  res->name);
-            continue;
-          }
-          object = json_object_get(item, prop->name);
-          if (object == NULL) {
-            ERROR("Failure retreiving property \"%s\" from resource \"%s\"",
-                  prop->name, res->name);
-            continue;
-          }
-          value_list_t v1 = VALUE_LIST_INIT;
-          v1.values_len = 1;
-          if (prop->plugin_inst != NULL)
-            sstrncpy(v1.plugin_instance, prop->plugin_inst,
-                     sizeof(v1.plugin_instance));
-          if (prop->type_inst != NULL)
-            sstrncpy(v1.type_instance, prop->type_inst,
-                     sizeof(v1.type_instance));
-          else {
-            /* Retrieving MemberId of sensor */
-            member_id = json_object_get(item, "MemberId");
-            if (member_id == NULL) {
-              ERROR("Failed to get MemberId for property \"%s\" in resource "
-                    "\"%s\"",
-                    prop->name, res->name);
-              continue;
-            }
-            char type_instance[sizeof(v1.type_instance)];
-            int ch_count = snprintf(type_instance, sizeof(type_instance), "%d",
-                                    (int)json_integer_value(member_id));
-            if (ch_count != 0)
-              sstrncpy(v1.type_instance, type_instance,
-                       sizeof(v1.type_instance));
-            else {
-              ERROR("Failed to convert MemberId to a character");
-              continue;
-            }
-          }
-          /* Checking whether real or integer value */
-          redfish_value_t value;
-          redfish_value_type_t type = VAL_TYPE_STR;
-          if (json_is_string(object)) {
-            value.string = (char *)json_string_value(object);
-          } else if (json_is_integer(object)) {
-            type = VAL_TYPE_INT;
-            value.integer = json_integer_value(object);
-          } else if (json_is_real(object)) {
-            type = VAL_TYPE_REAL;
-            value.real = json_real_value(object);
-          }
-          const data_set_t *ds = plugin_get_ds(prop->type);
+  for (llentry_t *llres = llist_head(res_serv->resources); llres != NULL;
+       llres = llres->next) {
+    redfish_resource_t *res = (redfish_resource_t *)llres->value;
+    json_t *json_array = json_object_get(payload->json, res->name);
 
-          /* Check if data set found */
-          if (ds == NULL)
-            continue;
-
-          v1.values = &(value_t){0};
-          redfish_convert_val(&value, type, v1.values, ds->ds[0].type);
-
-          sstrncpy(v1.host, serv->host, sizeof(v1.host));
-          sstrncpy(v1.plugin, PLUGIN_NAME, sizeof(v1.plugin));
-          sstrncpy(v1.type, prop->type, sizeof(v1.type));
-          plugin_dispatch_values(&v1);
-          /* Clear values assigned in case of leakage */
-          v1.values = NULL;
-          v1.values_len = 0;
-        }
-      }
-      json_decref(json_array);
+    if (json_array == NULL) {
+      ERROR(PLUGIN_NAME ": Could not find resource \"%s\"", res->name);
+      continue;
     }
-  } else {
-    WARNING("Failed to get payload for service name \"%s\"", serv->name);
+
+    for (llentry_t *llprop = llist_head(res->properties); llprop != NULL;
+         llprop = llprop->next) {
+      redfish_property_t *prop = (redfish_property_t *)llprop->value;
+
+      redfish_process_payload_property(prop, json_array, res, serv);
+    }
+    json_decref(json_array);
   }
 }
 
@@ -837,19 +834,7 @@ static int redfish_cleanup(void) {
   for (llentry_t *le = llist_head(ctx->services); le; le = le->next) {
     redfish_service_t *service = (redfish_service_t *)le->value;
 
-    cleanupServiceEnumerator(service->redfish);
-    for (size_t i = 0; i < service->queries_num; i++)
-      sfree(service->queries[i]);
-
-    llist_destroy(service->query_ptrs);
-
-    sfree(service->name);
-    sfree(service->host);
-    sfree(service->user);
-    sfree(service->passwd);
-    sfree(service->token);
-    sfree(service->queries);
-    sfree(service);
+    redfish_service_destroy(service);
   }
   llist_destroy(ctx->services);
 
@@ -858,7 +843,7 @@ static int redfish_cleanup(void) {
   char *key;
   redfish_query_t *query;
 
-  while (c_avl_iterator_next(i, (void **)&key, (void **)&query) == 0) {
+  while (c_avl_iterator_next(i, (void *)&key, (void *)&query) == 0) {
     for (llentry_t *le = llist_head(query->resources); le != NULL;
          le = le->next) {
       redfish_resource_t *resource = (redfish_resource_t *)le->value;

@@ -2192,7 +2192,7 @@ AC_ARG_WITH([libredfish],
     else
       with_libredfish="yes"
       LIBREDFISH_CPPFLAGS="$LIBREDFISH_CPPFLAGS -I$withval/include"
-      LIBREDFISH_LDFLAGS="$LIBREDFISh_LDFLAGS -L$withval/lib"
+      LIBREDFISH_LDFLAGS="$LIBREDFISH_LDFLAGS -L$withval/lib"
     fi; fi
   ],
   [with_libredfish="yes"]
@@ -2201,7 +2201,7 @@ AC_ARG_WITH([libredfish],
 SAVE_CPPFLAGS="$CPPFLAGS"
 SAVE_LDFLAGS="$LDFLAGS"
 CPPFLAGS="$CPPFLAGS $LIBREDFISH_CPPFLAGS"
-LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
+LDFLAGS="$LDFLAGS $LIBREDFISH_LDFLAGS"
 
 if test "x$with_libredfish" = "xyes"; then
   if test "x$LIBREDFISH_CPPFLAGS" != "x"; then
