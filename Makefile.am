@@ -574,6 +574,68 @@ liboconfig_la_SOURCES = \
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
+if BUILD_WITH_LIBCURL
+if BUILD_WITH_LIBSSL
+if BUILD_WITH_LIBYAJL2
+EXTRA_LTLIBRARIES += liboauth.la
+liboauth_la_SOURCES = \
+	src/utils_oauth.c \
+	src/utils_oauth.h
+liboauth_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS) \
+	$(BUILD_WITH_LIBSSL_CFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+liboauth_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS) \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_utils_oauth
+TESTS += test_utils_oauth
+test_utils_oauth_SOURCES = \
+	src/utils_oauth_test.c
+test_utils_oauth_LDADD = \
+	liboauth.la \
+	libcommon.la \
+	libplugin_mock.la
+
+EXTRA_LTLIBRARIES += libgce.la
+libgce_la_SOURCES = \
+	src/utils_gce.c \
+	src/utils_gce.h
+libgce_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS)
+libgce_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+endif
+
+if BUILD_WITH_LIBYAJL2
+EXTRA_LTLIBRARIES += libformat_stackdriver.la
+libformat_stackdriver_la_SOURCES = \
+	src/utils_format_stackdriver.c \
+	src/utils_format_stackdriver.h
+libformat_stackdriver_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+libformat_stackdriver_la_LIBADD = \
+	libavltree.la \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_format_stackdriver
+TESTS += test_format_stackdriver
+test_format_stackdriver_SOURCES = \
+	src/utils_format_stackdriver_test.c \
+	src/testing.h
+test_format_stackdriver_LDADD = \
+	libformat_stackdriver.la \
+	libplugin_mock.la \
+	-lm
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -1975,6 +2037,15 @@ if BUILD_PLUGIN_WRITE_SENSU
 pkglib_LTLIBRARIES += write_sensu.la
 write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_STACKDRIVER
+pkglib_LTLIBRARIES += write_stackdriver.la
+write_stackdriver_la_SOURCES = src/write_stackdriver.c
+write_stackdriver_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_stackdriver_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_stackdriver_la_LIBADD = libformat_stackdriver.la libgce.la liboauth.la \
+                     $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB

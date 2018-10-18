@@ -10342,6 +10342,133 @@ attribute for each metric being sent out to I<Sensu>.
 
 =back
 
+=head2 Plugin C<write_stackdriver>
+
+The C<write_stackdriver> plugin writes metrics to the
+I<Google Stackdriver Monitoring> service.
+
+This plugin supports two authentication methods: When configured, credentials
+are read from the JSON credentials file specified with B<CredentialFile>.
+Alternatively, when running on
+I<Google Compute Engine> (GCE), an I<OAuth> token is retrieved from the
+I<metadata server> and used to authenticate to GCM.
+
+B<Synopsis:>
+
+ <Plugin write_stackdriver>
+   CredentialFile "/path/to/service_account.json"
+   <Resource "global">
+     Label "project_id" "monitored_project"
+   </Resource>
+ </Plugin>
+
+=over 4
+
+=item B<CredentialFile> I<file>
+
+Path to a JSON credentials file holding the credentials for a GCP service
+account.
+
+If B<CredentialFile> is not specified, the plugin uses I<Application Default
+Credentials>. That means which credentials are used depends on the environment:
+
+=over 4
+
+=item
+
+The environment variable C<GOOGLE_APPLICATION_CREDENTIALS> is checked. If this
+variable is specified it should point to a JSON file that defines the
+credentials.
+
+=item
+
+The path C<${HOME}/.config/gcloud/application_default_credentials.json> is
+checked. This where credentials used by the I<gcloud> command line utility are
+stored. You can use C<gcloud auth application-default login> to create these
+credentials.
+
+Please note that these credentials are often of your personal account, not a
+service account, and are therefore unfit to be used in a production
+environment.
+
+=item
+
+When running on GCE, the built-in service account associated with the virtual
+machine instance is used.
+See also the B<Email> option below.
+
+=back
+
+=item B<Project> I<Project>
+
+The I<Project ID> or the I<Project Number> of the I<Stackdriver Account>. The
+I<Project ID> is a string identifying the GCP project, which you can chose
+freely when creating a new project. The I<Project Number> is a 12-digit decimal
+number. You can look up both on the I<Developer Console>.
+
+This setting is optional. If not set, the project ID is read from the
+credentials file or determined from the GCE's metadata service.
+
+=item B<Email> I<Email> (GCE only)
+
+Choses the GCE I<Service Account> used for authentication.
+
+Each GCE instance has a C<default> I<Service Account> but may also be
+associated with additional I<Service Accounts>. This is often used to restrict
+the permissions of services running on the GCE instance to the required
+minimum. The I<write_stackdriver plugin> requires the
+C<https://www.googleapis.com/auth/monitoring> scope. When multiple I<Service
+Accounts> are available, this option selects which one is used by
+I<write_stackdriver plugin>.
+
+=item B<Resource> I<ResourceType>
+
+Configures the I<Monitored Resource> to use when storing metrics.
+More information on I<Monitored Resources> and I<Monitored Resource Types> are
+available at L<https://cloud.google.com/monitoring/api/resources>.
+
+This block takes one string argument, the I<ResourceType>. Inside the block are
+one or more B<Label> options which configure the resource labels.
+
+This block is optional. The default value depends on the runtime environment:
+on GCE, the C<gce_instance> resource type is used, otherwise the C<global>
+resource type ist used:
+
+=over 4
+
+=item
+
+B<On GCE>, defaults to the equivalent of this config:
+
+  <Resource "gce_instance">
+    Label "project_id" "<project_id>"
+    Label "instance_id" "<instance_id>"
+    Label "zone" "<zone>"
+  </Resource>
+
+The values for I<project_id>, I<instance_id> and I<zone> are read from the GCE
+metadata service.
+
+=item
+
+B<Elsewhere>, i.e. not on GCE, defaults to the equivalent of this config:
+
+  <Resource "global">
+    Label "project_id" "<Project>"
+  </Resource>
+
+Where I<Project> refers to the value of the B<Project> option or the project ID
+inferred from the B<CredentialFile>.
+
+=back
+
+=item B<Url> I<Url>
+
+URL of the I<Stackdriver Monitoring> API. Defaults to
+C<https://monitoring.googleapis.com/v3>.
+
+=back
+
 =head2 Plugin C<xencpu>
 
 This plugin collects metrics of hardware CPU load for machine running Xen
