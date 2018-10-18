@@ -225,8 +225,10 @@ static int do_post(wg_callback_t *cb, char const *url, void const *payload,
 
   if (status != CURLE_OK) {
     ERROR("write_stackdriver plugin: POST %s failed: %s", url, cb->curl_errbuf);
-    sfree(ret_content->memory);
-    ret_content->size = 0;
+    if (ret_content != NULL) {
+      sfree(ret_content->memory);
+      ret_content->size = 0;
+    }
     return -1;
   }
 
