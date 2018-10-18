@@ -32,12 +32,12 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include "semaphore.h"
 #include "sys/mman.h"
-#include "utils_dpdk.h"
+#include "utils/dpdk/dpdk.h"
 #include "utils_time.h"
 
 #include <rte_config.h>

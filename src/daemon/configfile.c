@@ -29,11 +29,11 @@
 
 #include "liboconfig/oconfig.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "filter_chain.h"
 #include "plugin.h"
 #include "types_list.h"
+#include "utils/common/common.h"
 
 #if HAVE_WORDEXP_H
 #include <wordexp.h>

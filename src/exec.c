@@ -28,11 +28,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#include "utils_cmd_putnotif.h"
-#include "utils_cmd_putval.h"
+#include "utils/cmds/putnotif.h"
+#include "utils/cmds/putval.h"
 
 #include <grp.h>
 #include <pwd.h>

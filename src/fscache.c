@@ -21,11 +21,11 @@
 
 #include "collectd.h"
 
+#include "plugin.h"
+#include "utils/common/common.h"
 #include <stdio.h>  /* a header needed for FILE */
 #include <stdlib.h> /* used for atoi */
 #include <string.h> /* a header needed for scanf function */
-#include "common.h"
-#include "plugin.h"
 
 #if !KERNEL_LINUX
 #error "This module only supports the Linux implementation of fscache"

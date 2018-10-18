@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h" /* auxiliary functions */
-#include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
+#include "plugin.h"              /* plugin_register_*, plugin_dispatch_values */
+#include "utils/common/common.h" /* auxiliary functions */
 
 #if HAVE_NETDB_H
 #include <netdb.h> /* struct addrinfo */

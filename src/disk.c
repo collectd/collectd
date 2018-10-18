@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_ignorelist.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 
 #if HAVE_MACH_MACH_TYPES_H
 #include <mach/mach_types.h>

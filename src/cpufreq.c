@@ -22,8 +22,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #define MAX_AVAIL_FREQS 20
 

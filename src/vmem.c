@@ -26,8 +26,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if KERNEL_LINUX
 static const char *config_keys[] = {"Verbose"};

@@ -35,9 +35,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_ignorelist.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 
 #if defined(HAVE_SENSORS_SENSORS_H)
 #include <sensors/sensors.h>

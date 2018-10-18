@@ -41,8 +41,8 @@ extern "C" {
 #include <stdbool.h>
 
 #include "collectd.h"
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include "daemon/utils_cache.h"
 }

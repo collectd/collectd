@@ -43,7 +43,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "utils_heap.h"
+#include "utils/heap/heap.h"
 
 #include "collectd/client.h"
 #include "collectd/network.h"

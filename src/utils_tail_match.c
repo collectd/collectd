@@ -31,11 +31,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_latency_config.h"
-#include "utils_match.h"
-#include "utils_tail.h"
+#include "utils/common/common.h"
+#include "utils/latency/latency_config.h"
+#include "utils/match/match.h"
+#include "utils/tail/tail.h"
 #include "utils_tail_match.h"
 
 struct cu_tail_match_simple_s {

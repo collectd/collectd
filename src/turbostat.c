@@ -37,8 +37,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_time.h"
 
 #include "msr-index.h"

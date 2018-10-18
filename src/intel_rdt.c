@@ -26,8 +26,8 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
-#include "utils_config_cores.h"
+#include "utils/common/common.h"
+#include "utils/config_cores/config_cores.h"
 
 #include <pqos.h>
 

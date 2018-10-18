@@ -44,9 +44,9 @@ SOFTWARE.
 
  **/
 
-#include "common.h"
-#include "plugin.h"
 #include "collectd.h"
+#include "plugin.h"
+#include "utils/common/common.h"
 
 #include <stdio.h>
 

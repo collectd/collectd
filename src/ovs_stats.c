@@ -28,9 +28,9 @@
  *   Taras Chornyi <tarasx.chornyi@intel.com>
  */
 
-#include "common.h"
+#include "utils/common/common.h"
 
-#include "utils_ovs.h" /* OvS helpers */
+#include "utils/ovs/ovs.h" /* OvS helpers */
 
 /* Plugin name */
 static const char plugin_name[] = "ovs_stats";
@@ -280,8 +280,11 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
       if (strlen(iface->ex_iface_id))
         meta_data_add_string(meta, "iface-id", iface->ex_iface_id);
     }
-    snprintf(devname, sizeof(devname), "%s.%s.%s", bridge->name, port->name,
-             iface->name);
+    strjoin(devname, sizeof(devname),
+            (char *[]){
+                bridge->name, port->name, iface->name,
+            },
+            3, ".");
     ovs_stats_submit_one(devname, "if_collisions", NULL,
                          iface->stats[collisions], meta);
     ovs_stats_submit_two(devname, "if_dropped", NULL, iface->stats[rx_dropped],
