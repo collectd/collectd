@@ -577,7 +577,7 @@ liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
 if BUILD_WITH_LIBYAJL2
-EXTRA_LTLIBRARIES += liboauth.la
+noinst_LTLIBRARIES += liboauth.la
 liboauth_la_SOURCES = \
 	src/utils_oauth.c \
 	src/utils_oauth.h
@@ -600,7 +600,7 @@ test_utils_oauth_LDADD = \
 	libcommon.la \
 	libplugin_mock.la
 
-EXTRA_LTLIBRARIES += libgce.la
+noinst_LTLIBRARIES += libgce.la
 libgce_la_SOURCES = \
 	src/utils_gce.c \
 	src/utils_gce.h
@@ -614,7 +614,7 @@ endif
 endif
 
 if BUILD_WITH_LIBYAJL2
-EXTRA_LTLIBRARIES += libformat_stackdriver.la
+noinst_LTLIBRARIES += libformat_stackdriver.la
 libformat_stackdriver_la_SOURCES = \
 	src/utils_format_stackdriver.c \
 	src/utils_format_stackdriver.h
