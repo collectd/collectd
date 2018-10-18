@@ -236,10 +236,10 @@ static int do_post(wg_callback_t *cb, char const *url, void const *payload,
   curl_easy_getinfo(cb->curl, CURLINFO_RESPONSE_CODE, &http_code);
 
   if (ret_content != NULL) {
-    if ((status >= 400) && (status < 500)) {
+    if ((http_code >= 400) && (http_code < 500)) {
       ERROR("write_stackdriver plugin: POST %s: %s", url,
             API_ERROR_STRING(parse_api_error(ret_content->memory)));
-    } else if (status >= 500) {
+    } else if (http_code >= 500) {
       WARNING("write_stackdriver plugin: POST %s: %s", url,
               ret_content->memory);
     }
