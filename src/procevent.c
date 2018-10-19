@@ -789,6 +789,9 @@ static int read_event() {
       } else if (errno != EINTR) {
         ERROR("procevent plugin: socket receive error: %d", errno);
         return -1;
+      } else {
+        // Interrupt, so just return
+        return 0;
       }
     }
 
