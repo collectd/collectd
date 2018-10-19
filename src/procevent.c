@@ -128,7 +128,6 @@ static int procevent_netlink_thread_loop = 0;
 static int procevent_netlink_thread_error = 0;
 static pthread_t procevent_netlink_thread_id;
 static int procevent_dequeue_thread_loop = 0;
-static int procevent_dequeue_thread_error = 0;
 static pthread_t procevent_dequeue_thread_id;
 static pthread_mutex_t procevent_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t procevent_data_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -457,8 +456,6 @@ err:
 // NOTE: Caller MUST hold procevent_data_lock when calling this function
 static processlist_t *process_check(long pid) {
   char file[BUFSIZE];
-  FILE *fh;
-  char buffer[BUFSIZE];
 
   int len = snprintf(file, sizeof(file), PROCDIR "/%ld/comm", pid);
 
@@ -467,12 +464,15 @@ static processlist_t *process_check(long pid) {
     return NULL;
   }
 
+  FILE *fh;
+
   if (NULL == (fh = fopen(file, "r"))) {
     // No /proc/<pid>/comm for this pid, just ignore
     DEBUG("procevent plugin: no comm file available for pid %ld", pid);
     return NULL;
   }
 
+  char buffer[BUFSIZE];
   int retval = fscanf(fh, "%[^\n]", buffer);
 
   if (retval < 0) {
@@ -585,18 +585,20 @@ static processlist_t *process_check(long pid) {
 static processlist_t *process_map_check(long pid, char *process) {
   for (processlist_t *pl = processlist_head; pl != NULL; pl = pl->next) {
     int match_pid = 0;
-    int match_process = 0;
-    int match = 0;
 
     if (pid > 0) {
       if (pl->pid == pid)
         match_pid = 1;
     }
 
+    int match_process = 0;
+
     if (process != NULL) {
       if (strcmp(pl->process, process) == 0)
         match_process = 1;
     }
+
+    int match = 0;
 
     if (pid > 0 && process == NULL && match_pid == 1)
       match = 1;
@@ -623,10 +625,6 @@ static int process_map_refresh(void) {
   }
 
   while (42) {
-    char file[BUFSIZE];
-
-    struct stat statbuf;
-
     errno = 0;
     struct dirent *dent = readdir(proc);
     if (dent == NULL) {
@@ -642,9 +640,13 @@ static int process_map_refresh(void) {
     if (dent->d_name[0] == '.')
       continue;
 
+    char file[BUFSIZE];
+
     int len = snprintf(file, sizeof(file), PROCDIR "/%s", dent->d_name);
     if ((len < 0) || (len >= BUFSIZE))
       continue;
+
+    struct stat statbuf;
 
     int status = stat(file, &statbuf);
     if (status != 0) {
@@ -754,10 +756,6 @@ static int read_event() {
     return 0;
 
   while (42) {
-    int proc_id = -1;
-    int proc_status = -1;
-    int proc_extra = -1;
-
     pthread_mutex_lock(&procevent_thread_lock);
 
     if (procevent_netlink_thread_loop <= 0) {
@@ -798,6 +796,10 @@ static int read_event() {
     // read in case there are more (and if there aren't, it will be
     // handled above in the error-checking)
     recv_flags = MSG_DONTWAIT;
+
+    int proc_id = -1;
+    int proc_status = -1;
+    int proc_extra = -1;
 
     switch (nlcn_msg.proc_ev.what) {
     case PROC_EVENT_NONE:
@@ -869,7 +871,7 @@ static int read_event() {
 }
 
 // Read from ring buffer and dispatch to write plugins
-static int read_ring_buffer() {
+static void read_ring_buffer() {
   pthread_mutex_lock(&procevent_data_lock);
 
   // If there's currently nothing to read from the buffer,
@@ -924,8 +926,6 @@ static int read_ring_buffer() {
   }
 
   pthread_mutex_unlock(&procevent_data_lock);
-
-  return 0;
 }
 
 // Entry point for thread responsible for listening
@@ -949,7 +949,7 @@ static void *procevent_netlink_thread(void *arg) /* {{{ */
 
   pthread_mutex_unlock(&procevent_thread_lock);
 
-  return ((void *)0);
+  return (void *)0;
 } /* }}} void *procevent_netlink_thread */
 
 // Entry point for thread responsible for reading from
@@ -961,31 +961,26 @@ static void *procevent_dequeue_thread(void *arg) /* {{{ */
   while (procevent_dequeue_thread_loop > 0) {
     pthread_mutex_unlock(&procevent_thread_lock);
 
-    int status = read_ring_buffer();
+    read_ring_buffer();
 
     pthread_mutex_lock(&procevent_thread_lock);
-
-    if (status < 0) {
-      procevent_dequeue_thread_error = 1;
-      break;
-    }
   } /* while (procevent_dequeue_thread_loop > 0) */
 
   pthread_mutex_unlock(&procevent_thread_lock);
 
-  return ((void *)0);
+  return (void *)0;
 } /* }}} void *procevent_dequeue_thread */
 
 static int start_netlink_thread(void) /* {{{ */
 {
-  int status;
-
   pthread_mutex_lock(&procevent_thread_lock);
 
   if (procevent_netlink_thread_loop != 0) {
     pthread_mutex_unlock(&procevent_thread_lock);
-    return (0);
+    return 0;
   }
+
+  int status;
 
   if (nl_sock == -1) {
     status = nl_connect();
@@ -1023,7 +1018,7 @@ static int start_netlink_thread(void) /* {{{ */
     } else
       nl_sock = -1;
 
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&procevent_thread_lock);
@@ -1033,26 +1028,23 @@ static int start_netlink_thread(void) /* {{{ */
 
 static int start_dequeue_thread(void) /* {{{ */
 {
-  int status;
-
   pthread_mutex_lock(&procevent_thread_lock);
 
   if (procevent_dequeue_thread_loop != 0) {
     pthread_mutex_unlock(&procevent_thread_lock);
-    return (0);
+    return 0;
   }
 
   procevent_dequeue_thread_loop = 1;
-  procevent_dequeue_thread_error = 0;
 
-  status = plugin_thread_create(&procevent_dequeue_thread_id, /* attr = */ NULL,
-                                procevent_dequeue_thread,
-                                /* arg = */ (void *)0, "procevent");
+  int status = plugin_thread_create(&procevent_dequeue_thread_id,
+                                    /* attr = */ NULL, procevent_dequeue_thread,
+                                    /* arg = */ (void *)0, "procevent");
   if (status != 0) {
     procevent_dequeue_thread_loop = 0;
     ERROR("procevent plugin: Starting dequeue thread failed.");
     pthread_mutex_unlock(&procevent_thread_lock);
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&procevent_thread_lock);
@@ -1073,14 +1065,14 @@ static int start_threads(void) /* {{{ */
 
 static int stop_netlink_thread(int shutdown) /* {{{ */
 {
-  int socket_status, thread_status;
+  int socket_status;
 
   if (nl_sock != -1) {
     socket_status = close(nl_sock);
     if (socket_status != 0) {
       ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock,
             socket_status, strerror(errno));
-      return (-1);
+      return -1;
     } else
       nl_sock = -1;
   } else
@@ -1090,13 +1082,18 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
 
   if (procevent_netlink_thread_loop == 0) {
     pthread_mutex_unlock(&procevent_thread_lock);
-    return (-1);
+    return -1;
   }
 
+  // Set thread termination status
   procevent_netlink_thread_loop = 0;
   pthread_mutex_unlock(&procevent_thread_lock);
 
+  // Let threads waiting on access to the data know to move
+  // on such that they'll see the thread's termination status
   pthread_cond_broadcast(&procevent_cond);
+
+  int thread_status;
 
   if (shutdown == 1) {
     // Calling pthread_cancel here in
@@ -1144,7 +1141,7 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
 
   if (procevent_dequeue_thread_loop == 0) {
     pthread_mutex_unlock(&procevent_thread_lock);
-    return (-1);
+    return -1;
   }
 
   procevent_dequeue_thread_loop = 0;
@@ -1177,12 +1174,11 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
 
   pthread_mutex_lock(&procevent_thread_lock);
   memset(&procevent_dequeue_thread_id, 0, sizeof(procevent_dequeue_thread_id));
-  procevent_dequeue_thread_error = 0;
   pthread_mutex_unlock(&procevent_thread_lock);
 
   DEBUG("procevent plugin: Finished requesting stop of dequeue thread");
 
-  return (status);
+  return status;
 } /* }}} int stop_dequeue_thread */
 
 static int stop_threads(int shutdown) /* {{{ */
@@ -1190,7 +1186,7 @@ static int stop_threads(int shutdown) /* {{{ */
   int status = stop_netlink_thread(shutdown);
   int status2 = stop_dequeue_thread(shutdown);
 
-  if (status < 0)
+  if (status != 0)
     return status;
   else
     return status2;
@@ -1213,15 +1209,15 @@ static int procevent_init(void) /* {{{ */
 
   if (status == -1) {
     ERROR("procevent plugin: Initial process mapping failed.");
-    return (-1);
+    return -1;
   }
 
   if (ignorelist == NULL) {
     NOTICE("procevent plugin: No processes have been configured.");
-    return (-1);
+    return -1;
   }
 
-  return (start_threads());
+  return start_threads();
 } /* }}} int procevent_init */
 
 static int procevent_config(const char *key, const char *value) /* {{{ */
@@ -1239,35 +1235,39 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 
     if (status != 0) {
       ERROR("procevent plugin: invalid regular expression: %s", value);
-      return (1);
+      return 1;
     }
 #else
     WARNING("procevent plugin: The plugin has been compiled without support "
             "for the \"ProcessRegex\" option.");
 #endif
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int procevent_config */
 
 static void procevent_dispatch_notification(long pid,
                                             const char *type, /* {{{ */
                                             gauge_t value, char *process,
                                             long long unsigned int timestamp) {
-  char *buf = NULL;
-  notification_t n = {NOTIF_FAILURE, cdtime(), "", "", "procevent", "", "", "",
+
+  notification_t n = {(value == 1 ? NOTIF_OKAY : NOTIF_FAILURE),
+                      cdtime(),
+                      "",
+                      "",
+                      "procevent",
+                      "",
+                      "",
+                      "",
                       NULL};
-
-  if (value == 1)
-    n.severity = NOTIF_OKAY;
-
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, process, sizeof(n.plugin_instance));
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
 
+  char *buf = NULL;
   gen_message_payload(value, pid, process, timestamp, &buf);
 
   notification_meta_t *m = calloc(1, sizeof(*m));
@@ -1311,25 +1311,12 @@ static int procevent_read(void) /* {{{ */
 
     start_netlink_thread();
 
-    return (-1);
+    return -1;
   } /* if (procevent_netlink_thread_error != 0) */
-
-  if (procevent_dequeue_thread_error != 0) {
-
-    pthread_mutex_unlock(&procevent_thread_lock);
-
-    ERROR("procevent plugin: The dequeue thread had a problem. Restarting it.");
-
-    stop_dequeue_thread(0);
-
-    start_dequeue_thread();
-
-    return (-1);
-  } /* if (procevent_dequeue_thread_error != 0) */
 
   pthread_mutex_unlock(&procevent_thread_lock);
 
-  return (0);
+  return 0;
 } /* }}} int procevent_read */
 
 static int procevent_shutdown(void) /* {{{ */
@@ -1355,6 +1342,8 @@ static int procevent_shutdown(void) /* {{{ */
 
     pl = pl_next;
   }
+
+  ignorelist_free(ignorelist);
 
   return status;
 } /* }}} int procevent_shutdown */
