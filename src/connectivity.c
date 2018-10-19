@@ -558,6 +558,12 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
         continue;
       }
 
+      if (errno == EINTR)
+      {
+        // Interrupt, so just return
+        return 0;
+      }
+
       /* Anything else is an error */
       ERROR("connectivity plugin: read_event: Error recv: %d", status);
       return status;
