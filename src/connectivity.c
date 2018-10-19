@@ -120,12 +120,10 @@ static int connectivity_netlink_thread_loop = 0;
 static int connectivity_netlink_thread_error = 0;
 static pthread_t connectivity_netlink_thread_id;
 static int connectivity_dequeue_thread_loop = 0;
-static int connectivity_dequeue_thread_error = 0;
 static pthread_t connectivity_dequeue_thread_id;
 static pthread_mutex_t connectivity_threads_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t connectivity_data_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t connectivity_cond = PTHREAD_COND_INITIALIZER;
-// static struct mnl_socket *sock;
 static int nl_sock = -1;
 static int event_id = 0;
 static int unsent_statuses = 0;
@@ -430,12 +428,10 @@ static interface_list_t *add_interface(const char *interface, int status,
 }
 
 static int connectivity_link_state(struct nlmsghdr *msg) {
-  struct ifinfomsg *ifi = mnl_nlmsg_get_payload(msg);
-  struct nlattr *attr;
-
   pthread_mutex_lock(&connectivity_data_lock);
 
-  interface_list_t *il = NULL;
+  struct nlattr *attr;
+  struct ifinfomsg *ifi = mnl_nlmsg_get_payload(msg);
 
   /* Scan attribute list for device name. */
   mnl_attr_for_each(attr, msg, sizeof(*ifi)) {
@@ -461,11 +457,11 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
       break;
     }
 
+    interface_list_t *il = NULL;
+
     for (il = interface_list_head; il != NULL; il = il->next)
       if (strcmp(dev, il->interface) == 0)
         break;
-
-    uint32_t prev_status;
 
     if (il == NULL) {
       // We haven't encountered this interface yet, so add it to the linked list
@@ -478,6 +474,8 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
         return MNL_CB_ERROR;
       }
     }
+
+    uint32_t prev_status;
 
     prev_status = il->status;
     il->status =
@@ -535,8 +533,6 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
     return ret;
 
   while (42) {
-    char buf[4096];
-
     pthread_mutex_lock(&connectivity_threads_lock);
 
     if (connectivity_netlink_thread_loop <= 0) {
@@ -546,6 +542,7 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
 
     pthread_mutex_unlock(&connectivity_threads_lock);
 
+    char buf[4096];
     int status = recv(nl, buf, sizeof(buf), recv_flags);
 
     if (status < 0) {
@@ -629,7 +626,7 @@ static void send_interface_status() {
   unsent_statuses = 0;
 }
 
-static int read_interface_status() /* {{{ */
+static void read_interface_status() /* {{{ */
 {
   pthread_mutex_lock(&connectivity_data_lock);
 
@@ -639,8 +636,6 @@ static int read_interface_status() /* {{{ */
   send_interface_status();
 
   pthread_mutex_unlock(&connectivity_data_lock);
-
-  return 0;
 } /* }}} int *read_interface_status */
 
 static void *connectivity_netlink_thread(void *arg) /* {{{ */
@@ -662,7 +657,7 @@ static void *connectivity_netlink_thread(void *arg) /* {{{ */
 
   pthread_mutex_unlock(&connectivity_threads_lock);
 
-  return ((void *)0);
+  return (void *)0;
 } /* }}} void *connectivity_netlink_thread */
 
 static void *connectivity_dequeue_thread(void *arg) /* {{{ */
@@ -672,14 +667,9 @@ static void *connectivity_dequeue_thread(void *arg) /* {{{ */
   while (connectivity_dequeue_thread_loop > 0) {
     pthread_mutex_unlock(&connectivity_threads_lock);
 
-    int status = read_interface_status();
+    read_interface_status();
 
     pthread_mutex_lock(&connectivity_threads_lock);
-
-    if (status < 0) {
-      connectivity_dequeue_thread_error = 1;
-      break;
-    }
   } /* while (connectivity_dequeue_thread_loop > 0) */
 
   pthread_mutex_unlock(&connectivity_threads_lock);
@@ -710,17 +700,17 @@ static int nl_connect() {
 
 static int start_netlink_thread(void) /* {{{ */
 {
-  int status;
-
   pthread_mutex_lock(&connectivity_threads_lock);
 
   if (connectivity_netlink_thread_loop != 0) {
     pthread_mutex_unlock(&connectivity_threads_lock);
-    return (0);
+    return 0;
   }
 
   connectivity_netlink_thread_loop = 1;
   connectivity_netlink_thread_error = 0;
+
+  int status;
 
   if (nl_sock == -1) {
     status = nl_connect();
@@ -747,7 +737,7 @@ static int start_netlink_thread(void) /* {{{ */
     } else
       nl_sock = -1;
 
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&connectivity_threads_lock);
@@ -761,11 +751,10 @@ static int start_dequeue_thread(void) /* {{{ */
 
   if (connectivity_dequeue_thread_loop != 0) {
     pthread_mutex_unlock(&connectivity_threads_lock);
-    return (0);
+    return 0;
   }
 
   connectivity_dequeue_thread_loop = 1;
-  connectivity_dequeue_thread_error = 0;
 
   int status =
       plugin_thread_create(&connectivity_dequeue_thread_id,
@@ -775,7 +764,7 @@ static int start_dequeue_thread(void) /* {{{ */
     connectivity_dequeue_thread_loop = 0;
     ERROR("connectivity plugin: Starting dequeue thread failed.");
     pthread_mutex_unlock(&connectivity_threads_lock);
-    return (-1);
+    return -1;
   }
 
   pthread_mutex_unlock(&connectivity_threads_lock);
@@ -796,7 +785,7 @@ static int start_threads(void) /* {{{ */
 
 static int stop_netlink_thread(int shutdown) /* {{{ */
 {
-  int socket_status, thread_stratus;
+  int socket_status;
 
   if (nl_sock != -1) {
     socket_status = close(nl_sock);
@@ -821,8 +810,10 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
   pthread_mutex_unlock(&connectivity_threads_lock);
 
   // Let threads waiting on access to the interface list know to move
-  // on such that they'll see the threads termination status
+  // on such that they'll see the thread's termination status
   pthread_cond_broadcast(&connectivity_cond);
+
+  int thread_status;
 
   if (shutdown == 1) {
     // Since the thread is blocking, calling pthread_join
@@ -838,23 +829,23 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
 
     DEBUG("connectivity plugin: Canceling netlink thread for process shutdown");
 
-    thread_stratus = pthread_cancel(connectivity_netlink_thread_id);
+    thread_status = pthread_cancel(connectivity_netlink_thread_id);
 
-    if (thread_stratus != 0 && thread_stratus != ESRCH) {
+    if (thread_status != 0 && thread_status != ESRCH) {
       ERROR("connectivity plugin: Unable to cancel netlink thread: %d",
-            thread_stratus);
-      thread_stratus = -1;
+            thread_status);
+      thread_status = -1;
     } else
-      thread_stratus = 0;
+      thread_status = 0;
   } else {
-    thread_stratus =
+    thread_status =
         pthread_join(connectivity_netlink_thread_id, /* return = */ NULL);
-    if (thread_stratus != 0 && thread_stratus != ESRCH) {
+    if (thread_status != 0 && thread_status != ESRCH) {
       ERROR("connectivity plugin: Stopping netlink thread failed: %d",
-            thread_stratus);
-      thread_stratus = -1;
+            thread_status);
+      thread_status = -1;
     } else
-      thread_stratus = 0;
+      thread_status = 0;
   }
 
   pthread_mutex_lock(&connectivity_threads_lock);
@@ -868,18 +859,16 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
   if (socket_status != 0)
     return socket_status;
   else
-    return thread_stratus;
+    return thread_status;
 }
 
 static int stop_dequeue_thread(int shutdown) /* {{{ */
 {
-  int status;
-
   pthread_mutex_lock(&connectivity_threads_lock);
 
   if (connectivity_dequeue_thread_loop == 0) {
     pthread_mutex_unlock(&connectivity_threads_lock);
-    return (-1);
+    return -1;
   }
 
   // Set thread termination status
@@ -889,6 +878,8 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
   // Let threads waiting on access to the interface list know to move
   // on such that they'll see the threads termination status
   pthread_cond_broadcast(&connectivity_cond);
+
+  int status;
 
   if (shutdown == 1) {
     // Calling pthread_cancel here in
@@ -916,12 +907,11 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
   pthread_mutex_lock(&connectivity_threads_lock);
   memset(&connectivity_dequeue_thread_id, 0,
          sizeof(connectivity_dequeue_thread_id));
-  connectivity_dequeue_thread_error = 0;
   pthread_mutex_unlock(&connectivity_threads_lock);
 
   DEBUG("connectivity plugin: Finished requesting stop of dequeue thread");
 
-  return (status);
+  return status;
 } /* }}} int stop_dequeue_thread */
 
 static int stop_threads(int shutdown) /* {{{ */
@@ -942,7 +932,7 @@ static int connectivity_init(void) /* {{{ */
            "be monitored");
   }
 
-  return (start_threads());
+  return start_threads();
 } /* }}} int connectivity_init */
 
 static int connectivity_config(const char *key, const char *value) /* {{{ */
@@ -960,27 +950,33 @@ static int connectivity_config(const char *key, const char *value) /* {{{ */
       invert = 0;
     ignorelist_set_invert(ignorelist, invert);
   } else {
-    return (-1);
+    return -1;
   }
 
-  return (0);
+  return 0;
 } /* }}} int connectivity_config */
 
 static void
 connectivity_dispatch_notification(const char *interface, const char *type,
                                    gauge_t value, gauge_t old_value,
                                    long long unsigned int timestamp) {
-  char *buf = NULL;
-  notification_t n = {
-      NOTIF_FAILURE, cdtime(), "", "", "connectivity", "", "", "", NULL};
 
-  if (value == LINK_STATE_UP)
-    n.severity = NOTIF_OKAY;
+  notification_t n = {(value == LINK_STATE_UP ? NOTIF_OKAY : NOTIF_FAILURE),
+                      cdtime(),
+                      "",
+                      "",
+                      "connectivity",
+                      "",
+                      "",
+                      "",
+                      NULL};
 
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, interface, sizeof(n.plugin_instance));
   sstrncpy(n.type, "gauge", sizeof(n.type));
   sstrncpy(n.type_instance, "interface_status", sizeof(n.type_instance));
+
+  char *buf = NULL;
 
   gen_message_payload(value, old_value, interface, timestamp, &buf);
 
@@ -1033,33 +1029,19 @@ static int connectivity_read(void) /* {{{ */
 
     start_netlink_thread();
 
-    return (-1);
+    return -1;
   } /* if (connectivity_netlink_thread_error != 0) */
-
-  if (connectivity_dequeue_thread_error != 0) {
-
-    pthread_mutex_unlock(&connectivity_threads_lock);
-
-    ERROR("connectivity plugin: The dequeue thread had a problem. Restarting "
-          "it.");
-
-    stop_dequeue_thread(0);
-
-    start_dequeue_thread();
-
-    return (-1);
-  } /* if (connectivity_dequeue_thread_error != 0) */
 
   pthread_mutex_unlock(&connectivity_threads_lock);
 
-  return (0);
+  return 0;
 } /* }}} int connectivity_read */
 
 static int connectivity_shutdown(void) /* {{{ */
 {
   DEBUG("connectivity plugin: Shutting down thread.");
-  if (stop_threads(1) < 0)
-    return (-1);
+
+  int status = stop_threads(1);
 
   interface_list_t *il = interface_list_head;
   while (il != NULL) {
@@ -1075,7 +1057,7 @@ static int connectivity_shutdown(void) /* {{{ */
 
   ignorelist_free(ignorelist);
 
-  return (0);
+  return status;
 } /* }}} int connectivity_shutdown */
 
 void module_register(void) {
