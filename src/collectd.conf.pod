@@ -1662,6 +1662,10 @@ installed) to get the current CPU frequency. If this file does not exist make
 sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
 installed and an "cpu governor" (that's a kernel module) is loaded.
 
+If system has I<cpufreq-stats> kernel module loaded, this plugin reports
+rate of p-state (cpu frequency) transitions and percent of time, spent in each
+p-state.
+
 =head2 Plugin C<cpusleep>
 
 This plugin doesn't have any options. It reads CLOCK_BOOTTIME and

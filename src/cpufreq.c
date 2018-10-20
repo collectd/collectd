@@ -33,36 +33,43 @@ struct cpu_data_t {
   value_to_rate_state_t time_state[MAX_AVAIL_FREQS];
 } * cpu_data;
 
-/* Flags denoting capability of reporting stats. */
-unsigned report_time_in_state, report_total_trans;
+/* Flags denoting capability of reporting CPU frequency statistics. */
+static bool report_p_stats = false;
 
-static int counter_init(void) {
+static void cpufreq_stats_init(void) {
   cpu_data = calloc(num_cpu, sizeof(struct cpu_data_t));
   if (cpu_data == NULL)
-    return 0;
+    return;
 
-  report_time_in_state = 1;
-  report_total_trans = 1;
+  report_p_stats = true;
 
   /* Check for stats module and disable if not present. */
   for (int i = 0; i < num_cpu; i++) {
     char filename[PATH_MAX];
-    int status = snprintf(filename, sizeof(filename),
-                      "/sys/devices/system/cpu/cpu%d/cpufreq/"
-                      "stats/time_in_state",
-                      num_cpu);
-    if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
-      report_time_in_state = 0;
 
-    status = snprintf(filename, sizeof(filename),
-                      "/sys/devices/system/cpu/cpu%d/cpufreq/"
-                      "stats/total_transitions",
-                      num_cpu);
-    if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
-      report_total_trans = 0;
+    snprintf(filename, sizeof(filename),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
+    if (access(filename, R_OK)) {
+      NOTICE("cpufreq plugin: File %s not exists or no access. P-State "
+             "statistics will not be reported. Check if `cpufreq-stats' kernel "
+             "module is loaded.",
+             filename);
+      report_p_stats = false;
+      break;
+    }
+
+    snprintf(filename, sizeof(filename),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
+    if (access(filename, R_OK)) {
+      NOTICE("cpufreq plugin: File %s not exists or no access. P-State "
+             "statistics will not be reported. Check if `cpufreq-stats' kernel "
+             "module is loaded.",
+             filename);
+      report_p_stats = false;
+      break;
     }
   }
-  return 0;
+  return;
 }
 
 static int cpufreq_init(void) {
@@ -72,9 +79,9 @@ static int cpufreq_init(void) {
 
   while (1) {
     int status = snprintf(filename, sizeof(filename),
-                      "/sys/devices/system/cpu/cpu%d/cpufreq/"
-                      "scaling_cur_freq",
-                      num_cpu);
+                          "/sys/devices/system/cpu/cpu%d/cpufreq/"
+                          "scaling_cur_freq",
+                          num_cpu);
     if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
       break;
 
@@ -85,7 +92,7 @@ static int cpufreq_init(void) {
   }
 
   INFO("cpufreq plugin: Found %d CPU%s", num_cpu, (num_cpu == 1) ? "" : "s");
-  counter_init();
+  cpufreq_stats_init();
 
   if (num_cpu == 0)
     plugin_unregister_read("cpufreq");
@@ -127,49 +134,59 @@ static int cpufreq_read(void) {
 
     cpufreq_submit(i, "cpufreq", NULL, &v);
 
-    /* Read total transitions for cpu frequency */
-    if (report_total_trans) {
+    if (report_p_stats) {
+      /* Read total transitions for cpu frequency */
       snprintf(filename, sizeof(filename),
                "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
       if (parse_value_file(filename, &v, DS_TYPE_COUNTER) != 0) {
-        WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
+        ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
         continue;
       }
       cpufreq_submit(i, "counter", "transitions", &v);
-    }
 
-    /*
-     * Determine percentage time in each state for cpu during previous interval.
-     */
-    if (report_time_in_state) {
-      int j = 0;
-      cdtime_t now = cdtime();
-      char state[DATA_MAX_NAME_LEN];
-
+      /* Determine percentage time in each state for cpu during previous
+       * interval. */
       snprintf(filename, sizeof(filename),
                "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
 
       FILE *fh = fopen(filename, "r");
-      if (fh == NULL)
+      if (fh == NULL) {
+        ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
         continue;
+      }
 
-      char buffer[DATA_MAX_NAME_LEN];  //128
+      int j = 0;
+      cdtime_t now = cdtime();
+      char buffer[DATA_MAX_NAME_LEN];
 
       while (fgets(buffer, sizeof(buffer), fh) != NULL) {
         unsigned long long time;
+        char state[DATA_MAX_NAME_LEN];
+
+        /*
+         * State time units is 10ms. To get rate of seconds per second
+         * we have to divide by 100. To get percents we have to multiply it
+         * by 100 back. So, just use parsed value directly.
+         */
         if (!sscanf(buffer, "%s%llu", state, &time)) {
-          WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
-          fclose(fh);
-          return 0;
+          ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
+          break;
         }
 
         if (j < MAX_AVAIL_FREQS) {
           gauge_t g;
-          if (value_to_rate(&g, (value_t){.counter = time}, DS_TYPE_COUNTER, now, &cpu_data[i].time_state[j]) != 0) {
-            continue;
+          if (value_to_rate(&g, (value_t){.counter = time}, DS_TYPE_COUNTER,
+                            now, &(cpu_data[i].time_state[j])) != 0) {
             j++;
+            continue;
           }
           cpufreq_submit(i, "percent", state, &(value_t){.gauge = g});
+        } else {
+          NOTICE("cpufreq plugin: Found too much frequency states (%d > %d). "
+                 "Plugin needs to be recompiled. Please open a bug report for "
+                 "this.",
+                 (j + 1), MAX_AVAIL_FREQS);
+          break;
         }
         j++;
       }
