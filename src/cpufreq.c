@@ -29,16 +29,16 @@
 
 static int num_cpu;
 
-struct thread_data {
+struct cpu_data_t {
   value_to_rate_state_t time_state[MAX_AVAIL_FREQS];
-} * t_data;
+} * cpu_data;
 
 /* Flags denoting capability of reporting stats. */
 unsigned report_time_in_state, report_total_trans;
 
 static int counter_init(void) {
-  t_data = calloc(num_cpu, sizeof(struct thread_data));
-  if (t_data == NULL)
+  cpu_data = calloc(num_cpu, sizeof(struct cpu_data_t));
+  if (cpu_data == NULL)
     return 0;
 
   report_time_in_state = 1;
@@ -46,9 +46,8 @@ static int counter_init(void) {
 
   /* Check for stats module and disable if not present. */
   for (int i = 0; i < num_cpu; i++) {
-    char filename[256];
-    int status;
-    status = snprintf(filename, sizeof(filename),
+    char filename[PATH_MAX];
+    int status = snprintf(filename, sizeof(filename),
                       "/sys/devices/system/cpu/cpu%d/cpufreq/"
                       "stats/time_in_state",
                       num_cpu);
@@ -67,13 +66,12 @@ static int counter_init(void) {
 }
 
 static int cpufreq_init(void) {
-  int status;
-  char filename[256];
+  char filename[PATH_MAX];
 
   num_cpu = 0;
 
   while (1) {
-    status = snprintf(filename, sizeof(filename),
+    int status = snprintf(filename, sizeof(filename),
                       "/sys/devices/system/cpu/cpu%d/cpufreq/"
                       "scaling_cur_freq",
                       num_cpu);
@@ -114,9 +112,6 @@ static void cpufreq_submit(int cpu_num, const char *type,
 static int cpufreq_read(void) {
   for (int i = 0; i < num_cpu; i++) {
     char filename[PATH_MAX];
-    FILE *fh;
-    long long t;
-    char buffer[DATA_MAX_NAME_LEN];
     /* Read cpu frequency */
     snprintf(filename, sizeof(filename),
              "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
@@ -148,28 +143,29 @@ static int cpufreq_read(void) {
      */
     if (report_time_in_state) {
       int j = 0;
-      char state[DATA_MAX_NAME_LEN], time[DATA_MAX_NAME_LEN];
+      cdtime_t now = cdtime();
+      char state[DATA_MAX_NAME_LEN];
 
       snprintf(filename, sizeof(filename),
                "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
-      fh = fopen(filename, "r");
+
+      FILE *fh = fopen(filename, "r");
       if (fh == NULL)
         continue;
+
+      char buffer[DATA_MAX_NAME_LEN];  //128
+
       while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-        if (!sscanf(buffer, "%s%lli", state, &t)) {
+        unsigned long long time;
+        if (!sscanf(buffer, "%s%llu", state, &time)) {
+          WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
           fclose(fh);
           return 0;
         }
-        snprintf(time, sizeof(time), "%lli", t);
-        if (parse_value(time, &v, DS_TYPE_DERIVE) != 0) {
-          WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
-          continue;
-        }
-        cdtime_t now = cdtime();
-        gauge_t g;
+
         if (j < MAX_AVAIL_FREQS) {
-          if (value_to_rate(&g, v, DS_TYPE_DERIVE, now,
-                            &t_data[i].time_state[j]) != 0) {
+          gauge_t g;
+          if (value_to_rate(&g, (value_t){.counter = time}, DS_TYPE_COUNTER, now, &cpu_data[i].time_state[j]) != 0) {
             continue;
             j++;
           }
