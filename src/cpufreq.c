@@ -31,7 +31,6 @@ static int num_cpu;
 
 struct thread_data {
   value_to_rate_state_t time_state[MAX_AVAIL_FREQS];
-  long long transition_prev;
 } * t_data;
 
 /* Flags denoting capability of reporting stats. */
@@ -62,17 +61,6 @@ static int counter_init(void) {
                       num_cpu);
     if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
       report_total_trans = 0;
-
-    /* Initialize total transitions for cpu frequency */
-    if (report_total_trans) {
-      value_t v;
-      snprintf(filename, sizeof(filename),
-               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
-      if (parse_value_file(filename, &v, DS_TYPE_COUNTER) != 0) {
-        WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
-        continue;
-      }
-      t_data[i].transition_prev = v.counter;
     }
   }
   return 0;
@@ -152,9 +140,7 @@ static int cpufreq_read(void) {
         WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
         continue;
       }
-      counter_t c = counter_diff(t_data[i].transition_prev, v.counter);
-      t_data[i].transition_prev = v.counter;
-      cpufreq_submit(i, "transitions", NULL, &(value_t){.counter = c});
+      cpufreq_submit(i, "counter", "transitions", &v);
     }
 
     /*
