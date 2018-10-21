@@ -117,11 +117,11 @@ static void cpufreq_submit(int cpu_num, const char *type,
 }
 
 static int cpufreq_read(void) {
-  for (int i = 0; i < num_cpu; i++) {
+  for (int cpu = 0; cpu < num_cpu; cpu++) {
     char filename[PATH_MAX];
     /* Read cpu frequency */
     snprintf(filename, sizeof(filename),
-             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", cpu);
 
     value_t v;
     if (parse_value_file(filename, &v, DS_TYPE_GAUGE) != 0) {
@@ -132,22 +132,23 @@ static int cpufreq_read(void) {
     /* convert kHz to Hz */
     v.gauge *= 1000.0;
 
-    cpufreq_submit(i, "cpufreq", NULL, &v);
+    cpufreq_submit(cpu, "cpufreq", NULL, &v);
 
     if (report_p_stats) {
       /* Read total transitions for cpu frequency */
       snprintf(filename, sizeof(filename),
-               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
+               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", cpu);
       if (parse_value_file(filename, &v, DS_TYPE_COUNTER) != 0) {
         ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
         continue;
       }
-      cpufreq_submit(i, "counter", "transitions", &v);
+      cpufreq_submit(cpu, "counter", "transitions", &v);
 
       /* Determine percentage time in each state for cpu during previous
        * interval. */
       snprintf(filename, sizeof(filename),
-               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
+               "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state",
+               cpu);
 
       FILE *fh = fopen(filename, "r");
       if (fh == NULL) {
@@ -155,40 +156,41 @@ static int cpufreq_read(void) {
         continue;
       }
 
-      int j = 0;
+      int state_index = 0;
       cdtime_t now = cdtime();
       char buffer[DATA_MAX_NAME_LEN];
 
       while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+        unsigned int frequency;
         unsigned long long time;
-        char state[DATA_MAX_NAME_LEN];
 
         /*
          * State time units is 10ms. To get rate of seconds per second
          * we have to divide by 100. To get percents we have to multiply it
          * by 100 back. So, just use parsed value directly.
          */
-        if (!sscanf(buffer, "%s%llu", state, &time)) {
+        if (!sscanf(buffer, "%u%llu", &frequency, &time)) {
           ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
           break;
         }
 
-        if (j < MAX_AVAIL_FREQS) {
-          gauge_t g;
-          if (value_to_rate(&g, (value_t){.counter = time}, DS_TYPE_COUNTER,
-                            now, &(cpu_data[i].time_state[j])) != 0) {
-            j++;
-            continue;
-          }
-          cpufreq_submit(i, "percent", state, &(value_t){.gauge = g});
-        } else {
+        char state[DATA_MAX_NAME_LEN];
+        snprintf(state, sizeof(state), "%u", frequency);
+
+        if (state_index >= MAX_AVAIL_FREQS) {
           NOTICE("cpufreq plugin: Found too much frequency states (%d > %d). "
                  "Plugin needs to be recompiled. Please open a bug report for "
                  "this.",
-                 (j + 1), MAX_AVAIL_FREQS);
+                 (state_index + 1), MAX_AVAIL_FREQS);
           break;
         }
-        j++;
+
+        gauge_t g;
+        if (value_to_rate(&g, (value_t){.counter = time}, DS_TYPE_COUNTER, now,
+                          &(cpu_data[cpu].time_state[state_index])) == 0) {
+          cpufreq_submit(cpu, "percent", state, &(value_t){.gauge = g});
+        }
+        state_index++;
       }
       fclose(fh);
     }
