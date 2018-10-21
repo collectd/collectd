@@ -526,8 +526,8 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
   fclose(fp);
 
   return (first);
-} /* static cu_mount_t *cu_mount_gen_getmntent (void) */
-/* #endif HAVE_TWO_GETMNTENT || HAVE_GEN_GETMNTENT || HAVE_SUN_GETMNTENT */
+}
+/* #endif HAVE_{TWO,GEN,SUN}_GETMNTENT */
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"
@@ -664,6 +664,8 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list) {
   new = cu_mount_gen_getmntent();
 #elif HAVE_SEQ_GETMNTENT
 #error "This version of `getmntent' hat not yet been implemented!"
+#elif HAVE_GETMNTENT_R
+  new = cu_mount_getmntent();
 #elif HAVE_ONE_GETMNTENT
   new = cu_mount_getmntent();
 #else
