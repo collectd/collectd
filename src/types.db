@@ -260,6 +260,7 @@ total_threads           value:DERIVE:0:U
 total_time_in_ms        value:DERIVE:0:U
 total_values            value:DERIVE:0:U
 turbo_enabled           value:GAUGE:0:1
+transitions             value:DERIVE:0:U
 uptime                  value:GAUGE:0:4294967295
 uncore_ratio            value:GAUGE:0:U
 users                   value:GAUGE:0:65535
