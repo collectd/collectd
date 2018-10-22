@@ -968,7 +968,7 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
           ovs_stats_submit_two(devname, "if_packets", "512_to_1023_packets",
                                port->stats[rx_512_to_1023_packets],
                                port->stats[tx_512_to_1023_packets], meta);
-          ovs_stats_submit_two(devname, "if_packets", "1024_to_1518_packets",
+          ovs_stats_submit_two(devname, "if_packets", "1024_to_1522_packets",
                                port->stats[rx_1024_to_1522_packets],
                                port->stats[tx_1024_to_1522_packets], meta);
           ovs_stats_submit_two(devname, "if_packets", "1523_to_max_packets",
