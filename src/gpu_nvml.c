@@ -1,3 +1,25 @@
+/*
+Copyright 2018 Evgeny Naumov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include "daemon/collectd.h"
 #include "daemon/common.h"
 #include "daemon/plugin.h"
@@ -28,10 +50,12 @@ static char *nv_errline = "";
 #define TRY(f) TRY_CATCH(f, catch)
 #define TRYOPT(f) TRY_CATCH_OPTIONAL(f, catch)
 
-#define WRAPGAUGE(x) ((value_t){.gauge = (gauge_t)(x)})
+#define KEY_GPUINDEX "GPUIndex"
+#define KEY_IGNORESELECTED "IgnoreSelected"
 
 static const char *config_keys[] = {
-    "GPUIndex", "IgnoreSelected",
+    KEY_GPUINDEX,
+    KEY_IGNORESELECTED,
 };
 static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 
@@ -42,25 +66,24 @@ static bool conf_mask_is_exclude = 0;
 
 static int nvml_config(const char *key, const char *value) {
 
-  unsigned long device_ix;
   char *eptr;
 
-  if (strcasecmp(key, config_keys[0]) == 0) {
-    device_ix = strtoul(value, &eptr, 10);
+  if (strcasecmp(key, KEY_GPUINDEX) == 0) {
+    unsigned long device_ix = strtoul(value, &eptr, 10);
     if (eptr == value) {
-      ERROR("Failed to parse GPUIndex value \"%s\"", value);
+      ERROR(PLUGIN_NAME ": Failed to parse GPUIndex value \"%s\"", value);
       return -1;
     }
     if (device_ix >= 64) {
-      ERROR("At most 64 GPUs (0 <= GPUIndex < 64) are supported!");
+      ERROR(PLUGIN_NAME
+            ": At most 64 GPUs (0 <= GPUIndex < 64) are supported!");
       return -2;
     }
     conf_match_mask |= (1 << device_ix);
-  } else if (strcasecmp(key, config_keys[1])) {
-    if
-      IS_TRUE(value) { conf_mask_is_exclude = 1; }
+  } else if (strcasecmp(key, KEY_IGNORESELECTED)) {
+    conf_mask_is_exclude = IS_TRUE(value);
   } else {
-    ERROR("Unrecognized config option %s", key);
+    ERROR(PLUGIN_NAME ": Unrecognized config option %s", key);
     return -10;
   }
 
@@ -71,7 +94,7 @@ static int nvml_init(void) {
   TRY(nvmlInit());
   return 0;
 
-  catch : ERROR("NVML init failed with %d", nv_status);
+  catch : ERROR(PLUGIN_NAME ": NVML init failed with %d", nv_status);
   return -1;
 }
 
@@ -79,16 +102,16 @@ static int nvml_shutdown(void) {
   TRY(nvmlShutdown())
   return 0;
 
-  catch : ERROR("NVML shutdown failed with %d", nv_status);
+  catch : ERROR(PLUGIN_NAME ": NVML shutdown failed with %d", nv_status);
   return -1;
 }
 
 static void nvml_submit(const char *plugin_instance, const char *type,
-                        const char *type_instance, value_t nvml) {
+                        const char *type_instance, gauge_t nvml) {
 
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &nvml;
+  vl.values = &(value_t){.gauge = nvml};
   vl.values_len = 1;
 
   sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
@@ -112,9 +135,10 @@ static int nvml_read(void) {
     device_count = 64;
   }
 
-  for (int ix = 0; ix < device_count; ix++) {
+  for (unsigned int ix = 0; ix < device_count; ix++) {
 
-    int is_match = ((1 << ix) & conf_match_mask) || (conf_match_mask == 0);
+    unsigned int is_match =
+        ((1 << ix) & conf_match_mask) || (conf_match_mask == 0);
     if (conf_mask_is_exclude == !!is_match) {
       continue;
     }
@@ -122,55 +146,55 @@ static int nvml_read(void) {
     nvmlDevice_t dev;
     TRY(nvmlDeviceGetHandleByIndex(ix, &dev));
 
-    char dev_name[MAX_DEVNAME_LEN + 1];
-    dev_name[0] = '\0';
-    TRY(nvmlDeviceGetName(dev, dev_name, MAX_DEVNAME_LEN));
+    char dev_name[MAX_DEVNAME_LEN + 1] = {0};
+    TRY(nvmlDeviceGetName(dev, dev_name, sizeof(dev_name) - 1));
 
     // Try to be as lenient as possible with the variety of devices that are
     // out there, ignoring any NOT_SUPPORTED errors gently.
     nvmlMemory_t meminfo;
     TRYOPT(nvmlDeviceGetMemoryInfo(dev, &meminfo))
     if (nv_status == NVML_SUCCESS) {
-      double pct_mem_used = 100. * (double)meminfo.used / meminfo.total;
-      nvml_submit(dev_name, "percent", "mem_used", WRAPGAUGE(pct_mem_used));
+      nvml_submit(dev_name, "memory", "used", meminfo.used);
+      nvml_submit(dev_name, "memory", "free", meminfo.free);
     }
 
     nvmlUtilization_t utilization;
     TRYOPT(nvmlDeviceGetUtilizationRates(dev, &utilization))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "percent", "gpu_used", WRAPGAUGE(utilization.gpu));
+      nvml_submit(dev_name, "percent", "gpu_used", utilization.gpu);
 
     unsigned int fan_speed;
     TRYOPT(nvmlDeviceGetFanSpeed(dev, &fan_speed))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "fanspeed", NULL, WRAPGAUGE(fan_speed));
+      nvml_submit(dev_name, "fanspeed", NULL, fan_speed);
 
     unsigned int core_temp;
     TRYOPT(nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &core_temp))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "temperature", "core", WRAPGAUGE(core_temp));
+      nvml_submit(dev_name, "temperature", "core", core_temp);
 
     unsigned int sm_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "frequency", "sm", WRAPGAUGE(1e6 * sm_clk_mhz));
+      nvml_submit(dev_name, "frequency", "sm", 1e6 * sm_clk_mhz);
 
     unsigned int mem_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_MEM, &mem_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "frequency", "mem", WRAPGAUGE(1e6 * mem_clk_mhz));
+      nvml_submit(dev_name, "frequency", "mem", 1e6 * mem_clk_mhz);
 
     unsigned int power_mW;
     TRYOPT(nvmlDeviceGetPowerUsage(dev, &power_mW))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "power", NULL, WRAPGAUGE(1e-3 * power_mW));
+      nvml_submit(dev_name, "power", NULL, 1e-3 * power_mW);
 
     continue;
 
     // Failures here indicate transient errors or removal of GPU. In either
     // case it will either be resolved or the GPU will no longer be enumerated
     // the next time round.
-    catch : WARNING("NVML call \"%s\" failed with code %d on dev at index %d!",
+    catch : WARNING(PLUGIN_NAME
+                    ": NVML call \"%s\" failed (%d) on dev at index %d!",
                     nv_errline, nv_status, ix);
     continue;
   }
@@ -179,8 +203,8 @@ static int nvml_read(void) {
 
 // Failures here indicate serious misconfiguration; we bail out totally.
 catch_nocount:
-  ERROR("Failed to enumerate NVIDIA GPUs (\"%s\" returned %d)", nv_errline,
-        nv_status);
+  ERROR(PLUGIN_NAME ": Failed to enumerate NVIDIA GPUs (\"%s\" returned %d)",
+        nv_errline, nv_status);
   return -1;
 }
 
