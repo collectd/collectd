@@ -75,7 +75,7 @@ before_script: autoreconf -fi
 script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
   - ./configure
-  - make -j 4
+  - make -j $(nproc)
   - make check
 
 addons:
@@ -85,5 +85,5 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: collectd-changes@verplant.org
     build_command_prepend: "./configure; make clean"
-    build_command: "make -j 4"
+    build_command: "make -j $(nproc)"
     branch_pattern: coverity_scan
