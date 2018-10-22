@@ -158,16 +158,16 @@ typedef int(printer)(const char *, ...);
  */
 
 #if HAVE_PCAP_H
-static pcap_t *pcap_obj = NULL;
+static pcap_t *pcap_obj;
 #endif
 
-static ip_list_t *IgnoreList = NULL;
+static ip_list_t *IgnoreList;
 
 #if HAVE_PCAP_H
-static void (*Callback)(const rfc1035_header_t *) = NULL;
+static void (*Callback)(const rfc1035_header_t *);
 
-static int query_count_intvl = 0;
-static int query_count_total = 0;
+static int query_count_intvl;
+static int query_count_total;
 #ifdef __OpenBSD__
 static struct bpf_timeval last_ts;
 #else
@@ -267,7 +267,7 @@ static int rfc1035NameUnpack(const char *buf, size_t sz, off_t *off, char *name,
   off_t no = 0;
   unsigned char c;
   size_t len;
-  static int loop_detect = 0;
+  static int loop_detect;
   if (loop_detect > 2)
     return 4; /* compression loop */
   if (ns == 0)

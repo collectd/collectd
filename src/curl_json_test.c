@@ -139,7 +139,7 @@ DEF_TEST(parse) {
   return 0;
 }
 
-int main(int argc, char **argv) {
+int main(void) {
   cj_submit = test_submit;
 
   RUN_TEST(parse);

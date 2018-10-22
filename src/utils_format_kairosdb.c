@@ -154,7 +154,7 @@ static int values_to_kairosdb(char *buffer, size_t buffer_size, /* {{{ */
     BUFFER_ADD("[[");
     BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
     BUFFER_ADD(",");
-    BUFFER_ADD("%llu", vl->values[ds_idx].counter);
+    BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[ds_idx].counter);
   } else if (ds->ds[ds_idx].type == DS_TYPE_DERIVE) {
     BUFFER_ADD("[[");
     BUFFER_ADD("%" PRIu64, CDTIME_T_TO_MS(vl->time));
@@ -356,5 +356,3 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
       (*ret_buffer_free) - 2, http_attrs, http_attrs_num, data_ttl,
       metrics_prefix);
 } /* }}} int format_kairosdb_value_list */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

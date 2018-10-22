@@ -43,7 +43,7 @@ struct rrdcreate_config_s {
   char **consolidation_functions;
   size_t consolidation_functions_num;
 
-  _Bool async;
+  bool async;
 };
 typedef struct rrdcreate_config_s rrdcreate_config_t;
 

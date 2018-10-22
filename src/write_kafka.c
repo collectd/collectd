@@ -43,7 +43,7 @@ struct kafka_topic_context {
 #define KAFKA_FORMAT_GRAPHITE 2
   uint8_t format;
   unsigned int graphite_flags;
-  _Bool store_rates;
+  bool store_rates;
   rd_kafka_topic_conf_t *conf;
   rd_kafka_topic_t *topic;
   rd_kafka_conf_t *kafka_conf;
@@ -76,6 +76,14 @@ static void kafka_log(const rd_kafka_t *rkt, int level, const char *fac,
   plugin_log(level, "%s", msg);
 }
 #endif
+
+static rd_kafka_resp_err_t kafka_error() {
+#if RD_KAFKA_VERSION >= 0x000b00ff
+  return rd_kafka_last_error();
+#else
+  return rd_kafka_errno2err(errno);
+#endif
+}
 
 static uint32_t kafka_hash(const char *keydata, size_t keylen) {
   uint32_t hash = 5381;
@@ -147,7 +155,7 @@ static int kafka_handle(struct kafka_topic_context *ctx) /* {{{ */
     if ((ctx->topic = rd_kafka_topic_new(ctx->kafka, ctx->topic_name,
                                          topic_conf)) == NULL) {
       ERROR("write_kafka plugin: cannot create topic : %s\n",
-            rd_kafka_err2str(rd_kafka_errno2err(errno)));
+            rd_kafka_err2str(kafka_error()));
       return errno;
     }
 
@@ -265,7 +273,7 @@ static void kafka_config_topic(rd_kafka_conf_t *conf,
   }
 
   tctx->escape_char = '.';
-  tctx->store_rates = 1;
+  tctx->store_rates = true;
   tctx->format = KAFKA_FORMAT_JSON;
   tctx->key = NULL;
 
@@ -374,6 +382,10 @@ static void kafka_config_topic(rd_kafka_conf_t *conf,
     } else if (strcasecmp("GraphitePreserveSeparator", child->key) == 0) {
       status = cf_util_get_flag(child, &tctx->graphite_flags,
                                 GRAPHITE_PRESERVE_SEPARATOR);
+
+    } else if (strcasecmp("GraphiteUseTags", child->key) == 0) {
+      status =
+          cf_util_get_flag(child, &tctx->graphite_flags, GRAPHITE_USE_TAGS);
 
     } else if (strcasecmp("GraphitePrefix", child->key) == 0) {
       status = cf_util_get_string(child, &tctx->prefix);

@@ -157,8 +157,8 @@ typedef struct featurelist {
   struct featurelist *next;
 } featurelist_t;
 
-static char *conffile = NULL;
-static _Bool use_labels = 0;
+static char *conffile;
+static bool use_labels;
 /* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
 
 #else /* if SENSORS_API_VERSION >= 0x500 */
@@ -166,7 +166,7 @@ static _Bool use_labels = 0;
 	"as bug."
 #endif
 
-static featurelist_t *first_feature = NULL;
+static featurelist_t *first_feature;
 static ignorelist_t *sensor_list;
 
 #if SENSORS_API_VERSION < 0x400
@@ -225,7 +225,7 @@ static int sensors_config(const char *key, const char *value) {
   }
 #if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
   else if (strcasecmp(key, "UseLabels") == 0) {
-    use_labels = IS_TRUE(value) ? 1 : 0;
+    use_labels = IS_TRUE(value);
   }
 #endif
   else {
@@ -251,7 +251,7 @@ static void sensors_free_features(void) {
 }
 
 static int sensors_load_conf(void) {
-  static int call_once = 0;
+  static int call_once;
 
   FILE *fh = NULL;
   featurelist_t *last_feature = NULL;
@@ -368,6 +368,9 @@ static int sensors_load_conf(void) {
 #if SENSORS_API_VERSION >= 0x402
           (feature->type != SENSORS_FEATURE_CURR) &&
 #endif
+#if SENSORS_API_VERSION >= 0x431
+          (feature->type != SENSORS_FEATURE_HUMIDITY) &&
+#endif
           (feature->type != SENSORS_FEATURE_POWER)) {
         DEBUG("sensors plugin: sensors_load_conf: "
               "Ignoring feature `%s', "
@@ -386,6 +389,9 @@ static int sensors_load_conf(void) {
             (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT) &&
 #if SENSORS_API_VERSION >= 0x402
             (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT) &&
+#endif
+#if SENSORS_API_VERSION >= 0x431
+            (subfeature->type != SENSORS_SUBFEATURE_HUMIDITY_INPUT) &&
 #endif
             (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
           continue;
@@ -520,6 +526,10 @@ static int sensors_read(void) {
 #if SENSORS_API_VERSION >= 0x402
     else if (fl->feature->type == SENSORS_FEATURE_CURR)
       type = "current";
+#endif
+#if SENSORS_API_VERSION >= 0x431
+    else if (fl->feature->type == SENSORS_FEATURE_HUMIDITY)
+      type = "humidity";
 #endif
     else
       continue;

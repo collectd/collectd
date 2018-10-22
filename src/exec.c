@@ -78,9 +78,14 @@ typedef struct program_list_and_notification_s {
 } program_list_and_notification_t;
 
 /*
+ * constants
+ */
+const long int MAX_GRBUF_SIZE = 65536;
+
+/*
  * Private variables
  */
-static program_list_t *pl_head = NULL;
+static program_list_t *pl_head;
 static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -340,6 +345,65 @@ static void close_pipe(int fd_pipe[2]) /* {{{ */
 } /* }}} void close_pipe */
 
 /*
+ * Get effective group ID from group name.
+ * Input arguments:
+ *       pl  :program list struct with group name
+ *       gid :group id to fallback in case egid cannot be determined.
+ * Returns:
+ *       egid effective group id if successfull,
+ *            -1 if group is not defined/not found.
+ *            -2 for any buffer allocation error.
+ */
+static int getegr_id(program_list_t *pl, int gid) /* {{{ */
+{
+  if (pl->group == NULL) {
+    return -1;
+  }
+  if (strcmp(pl->group, "") == 0) {
+    return gid;
+  }
+  struct group *gr_ptr = NULL;
+  struct group gr;
+
+  long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
+  if (grbuf_size <= 0)
+    grbuf_size = sysconf(_SC_PAGESIZE);
+  if (grbuf_size <= 0)
+    grbuf_size = 4096;
+
+  char *temp = NULL;
+  char *grbuf = NULL;
+
+  do {
+    temp = realloc(grbuf, grbuf_size);
+    if (temp == NULL) {
+      ERROR("exec plugin: getegr_id for %s: realloc buffer[%ld] failed ",
+            pl->group, grbuf_size);
+      sfree(grbuf);
+      return -2;
+    }
+    grbuf = temp;
+    if (getgrnam_r(pl->group, &gr, grbuf, grbuf_size, &gr_ptr) == 0) {
+      sfree(grbuf);
+      if (gr_ptr == NULL) {
+        ERROR("exec plugin: No such group: `%s'", pl->group);
+        return -1;
+      }
+      return gr.gr_gid;
+    } else if (errno == ERANGE) {
+      grbuf_size += grbuf_size; // increment buffer size and try again
+    } else {
+      ERROR("exec plugin: getegr_id failed %s", STRERRNO);
+      sfree(grbuf);
+      return -2;
+    }
+  } while (grbuf_size <= MAX_GRBUF_SIZE);
+  ERROR("exec plugin: getegr_id Max grbuf size reached  for %s", pl->group);
+  sfree(grbuf);
+  return -2;
+}
+
+/*
  * Creates three pipes (one for reading, one for writing and one for errors),
  * forks a child, sets up the pipes so that fd_in is connected to STDIN of
  * the child and fd_out is connected to STDOUT and fd_err is connected to STDERR
@@ -397,36 +461,10 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
 
   /* The group configured in the configfile is set as effective group, because
    * this way the forked process can (re-)gain the user's primary group. */
-  egid = -1;
-  if (pl->group != NULL) {
-    if (*pl->group != '\0') {
-      struct group *gr_ptr = NULL;
-      struct group gr;
-
-      long int grbuf_size = sysconf(_SC_GETGR_R_SIZE_MAX);
-      if (grbuf_size <= 0)
-        grbuf_size = sysconf(_SC_PAGESIZE);
-      if (grbuf_size <= 0)
-        grbuf_size = 4096;
-      char grbuf[grbuf_size];
-
-      status = getgrnam_r(pl->group, &gr, grbuf, sizeof(grbuf), &gr_ptr);
-      if (status != 0) {
-        ERROR("exec plugin: Failed to get group information "
-              "for group ``%s'': %s",
-              pl->group, STRERROR(status));
-        goto failed;
-      }
-      if (gr_ptr == NULL) {
-        ERROR("exec plugin: No such group: `%s'", pl->group);
-        goto failed;
-      }
-
-      egid = gr.gr_gid;
-    } else {
-      egid = gid;
-    }
-  } /* if (pl->group == NULL) */
+  egid = getegr_id(pl, gid);
+  if (egid == -2) {
+    goto failed;
+  }
 
   pid = fork();
   if (pid < 0) {

@@ -429,7 +429,7 @@ static int dpdk_stats_reinit_helper() {
   size_t data_size = sizeof(dpdk_stats_ctx_t) +
                      (ctx->stats_count * DPDK_STATS_CTX_GET_XSTAT_SIZE);
 
-  DEBUG("%s:%d helper reinit (new_size=%zu)", __FUNCTION__, __LINE__,
+  DEBUG("%s:%d helper reinit (new_size=%" PRIsz ")", __FUNCTION__, __LINE__,
         data_size);
 
   dpdk_stats_ctx_t tmp_ctx;

@@ -24,12 +24,17 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+#include "gnulib_config.h"
+#endif
+
 #include "config.h"
 
 #include <arpa/inet.h> /* htons */
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -122,40 +127,40 @@ struct lcc_network_buffer_s {
 /*
  * Private functions
  */
-static _Bool have_gcrypt(void) /* {{{ */
+static bool have_gcrypt(void) /* {{{ */
 {
-  static _Bool result = 0;
-  static _Bool need_init = 1;
+  static bool result;
+  static bool need_init = true;
 
   if (!need_init)
     return result;
-  need_init = 0;
+  need_init = false;
 
 #if HAVE_GCRYPT_H
 #if GCRYPT_VERSION_NUMBER < 0x010600
   if (gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread))
-    return 0;
+    return false;
 #endif
 
   if (!gcry_check_version(GCRYPT_VERSION))
-    return 0;
+    return false;
 
   if (!gcry_control(GCRYCTL_INIT_SECMEM, 32768, 0))
-    return 0;
+    return false;
 
   gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 
-  result = 1;
-  return 1;
+  result = true;
+  return true;
 #else
-  return 0;
+  return false;
 #endif
-} /* }}} _Bool have_gcrypt */
+} /* }}} bool have_gcrypt */
 
 #ifndef HAVE_HTONLL
 static uint64_t htonll(uint64_t val) /* {{{ */
 {
-  static int config = 0;
+  static int config;
 
   uint32_t hi;
   uint32_t lo;
@@ -185,7 +190,7 @@ static uint64_t htonll(uint64_t val) /* {{{ */
 
 static double htond(double val) /* {{{ */
 {
-  static int config = 0;
+  static int config;
 
   union {
     uint8_t byte[8];

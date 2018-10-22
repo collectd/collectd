@@ -38,6 +38,7 @@
  *     Protocol "udp"
  *     LogSendErrors true
  *     Prefix "collectd"
+ *     UseTags true
  *   </Carbon>
  * </Plugin>
  */
@@ -65,7 +66,7 @@
 #endif
 
 #ifndef WG_DEFAULT_LOG_SEND_ERRORS
-#define WG_DEFAULT_LOG_SEND_ERRORS 1
+#define WG_DEFAULT_LOG_SEND_ERRORS true
 #endif
 
 #ifndef WG_DEFAULT_ESCAPE
@@ -92,7 +93,7 @@ struct wg_callback {
   char *node;
   char *service;
   char *protocol;
-  _Bool log_send_errors;
+  bool log_send_errors;
   char *prefix;
   char *postfix;
   char escape_char;
@@ -111,7 +112,7 @@ struct wg_callback {
   /* Force reconnect useful for load balanced environments */
   cdtime_t last_reconnect_time;
   cdtime_t reconnect_interval;
-  _Bool reconnect_interval_reached;
+  bool reconnect_interval_reached;
 };
 
 /* wg_force_reconnect_check closes cb->sock_fd when it was open for longer
@@ -131,7 +132,7 @@ static void wg_force_reconnect_check(struct wg_callback *cb) {
   close(cb->sock_fd);
   cb->sock_fd = -1;
   cb->last_reconnect_time = now;
-  cb->reconnect_interval_reached = 1;
+  cb->reconnect_interval_reached = true;
 
   INFO("write_graphite plugin: Connection closed after %.3f seconds.",
        CDTIME_T_TO_DOUBLE(now - cb->last_reconnect_time));
@@ -175,7 +176,7 @@ static int wg_flush_nolock(cdtime_t timeout, struct wg_callback *cb) {
   int status;
 
   DEBUG("write_graphite plugin: wg_flush_nolock: timeout = %.3f; "
-        "send_buf_fill = %zu;",
+        "send_buf_fill = %" PRIsz ";",
         (double)timeout, cb->send_buf_fill);
 
   /* timeout == 0  => flush unconditionally */
@@ -274,7 +275,7 @@ static int wg_callback_init(struct wg_callback *cb) {
   if (!cb->reconnect_interval_reached || (cb->send_buf_free == 0))
     wg_reset_buffer(cb);
   else
-    cb->reconnect_interval_reached = 0;
+    cb->reconnect_interval_reached = false;
 
   return 0;
 }
@@ -373,7 +374,8 @@ static int wg_send_message(char const *message, struct wg_callback *cb) {
   cb->send_buf_fill += message_len;
   cb->send_buf_free -= message_len;
 
-  DEBUG("write_graphite plugin: [%s]:%s (%s) buf %zu/%zu (%.1f %%) \"%s\"",
+  DEBUG("write_graphite plugin: [%s]:%s (%s) buf %" PRIsz "/%" PRIsz
+        " (%.1f %%) \"%s\"",
         cb->node, cb->service, cb->protocol, cb->send_buf_fill,
         sizeof(cb->send_buf),
         100.0 * ((double)cb->send_buf_fill) / ((double)sizeof(cb->send_buf)),
@@ -465,7 +467,7 @@ static int wg_config_node(oconfig_item_t *ci) {
   cb->protocol = strdup(WG_DEFAULT_PROTOCOL);
   cb->last_reconnect_time = cdtime();
   cb->reconnect_interval = 0;
-  cb->reconnect_interval_reached = 0;
+  cb->reconnect_interval_reached = false;
   cb->log_send_errors = WG_DEFAULT_LOG_SEND_ERRORS;
   cb->prefix = NULL;
   cb->postfix = NULL;
@@ -517,6 +519,8 @@ static int wg_config_node(oconfig_item_t *ci) {
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_PRESERVE_SEPARATOR);
     else if (strcasecmp("DropDuplicateFields", child->key) == 0)
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_DROP_DUPE_FIELDS);
+    else if (strcasecmp("UseTags", child->key) == 0)
+      cf_util_get_flag(child, &cb->format_flags, GRAPHITE_USE_TAGS);
     else if (strcasecmp("EscapeCharacter", child->key) == 0)
       config_set_char(&cb->escape_char, child);
     else {

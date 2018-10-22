@@ -182,7 +182,7 @@ curl_stats_t *curl_stats_from_config(oconfig_item_t *ci) {
     oconfig_item_t *c = ci->children + i;
     size_t field;
 
-    _Bool enabled = 0;
+    bool enabled = 0;
 
     for (field = 0; field < STATIC_ARRAY_SIZE(field_specs); ++field) {
       if (!strcasecmp(c->key, field_specs[field].config_key))

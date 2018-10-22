@@ -53,11 +53,11 @@ struct nut_ups_s {
 static const char *config_keys[] = {"UPS", "FORCESSL", "VERIFYPEER", "CAPATH",
                                     "CONNECTTIMEOUT"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-static int force_ssl = 0;   // Initialized to default of 0 (false)
-static int verify_peer = 0; // Initialized to default of 0 (false)
+static int force_ssl;   // Initialized to default of 0 (false)
+static int verify_peer; // Initialized to default of 0 (false)
 static int ssl_flags = UPSCLI_CONN_TRYSSL;
 static int connect_timeout = -1;
-static char *ca_path = NULL;
+static char *ca_path;
 
 static int nut_read(user_data_t *user_data);
 
@@ -144,8 +144,7 @@ static int nut_verify_peer(const char *value) {
 
 static int nut_ca_path(const char *value) {
   if (value != NULL && strcmp(value, "") != 0) {
-    ca_path = malloc(strlen(value) + 1);
-    strncpy(ca_path, value, (strlen(value) + 1));
+    ca_path = strdup(value);
   } else {
     ca_path = NULL; // Should alread be set to NULL from initialization
   }

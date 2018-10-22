@@ -43,13 +43,11 @@ struct cu_tail_s {
 
 static int cu_tail_reopen(cu_tail_t *obj) {
   int seek_end = 0;
-  FILE *fh;
   struct stat stat_buf = {0};
-  int status;
 
-  status = stat(obj->file, &stat_buf);
+  int status = stat(obj->file, &stat_buf);
   if (status != 0) {
-    ERROR("utils_tail: stat (%s) failed: %s", obj->file, STRERRNO);
+    P_ERROR("utils_tail: stat (%s) failed: %s", obj->file, STRERRNO);
     return -1;
   }
 
@@ -57,10 +55,10 @@ static int cu_tail_reopen(cu_tail_t *obj) {
   if ((obj->fh != NULL) && (stat_buf.st_ino == obj->stat.st_ino)) {
     /* Seek to the beginning if file was truncated */
     if (stat_buf.st_size < obj->stat.st_size) {
-      INFO("utils_tail: File `%s' was truncated.", obj->file);
+      P_INFO("utils_tail: File `%s' was truncated.", obj->file);
       status = fseek(obj->fh, 0, SEEK_SET);
       if (status != 0) {
-        ERROR("utils_tail: fseek (%s) failed: %s", obj->file, STRERRNO);
+        P_ERROR("utils_tail: fseek (%s) failed: %s", obj->file, STRERRNO);
         fclose(obj->fh);
         obj->fh = NULL;
         return -1;
@@ -75,16 +73,16 @@ static int cu_tail_reopen(cu_tail_t *obj) {
   if ((obj->stat.st_ino == 0) || (obj->stat.st_ino == stat_buf.st_ino))
     seek_end = 1;
 
-  fh = fopen(obj->file, "r");
+  FILE *fh = fopen(obj->file, "r");
   if (fh == NULL) {
-    ERROR("utils_tail: fopen (%s) failed: %s", obj->file, STRERRNO);
+    P_ERROR("utils_tail: fopen (%s) failed: %s", obj->file, STRERRNO);
     return -1;
   }
 
   if (seek_end != 0) {
     status = fseek(fh, 0, SEEK_END);
     if (status != 0) {
-      ERROR("utils_tail: fseek (%s) failed: %s", obj->file, STRERRNO);
+      P_ERROR("utils_tail: fseek (%s) failed: %s", obj->file, STRERRNO);
       fclose(fh);
       return -1;
     }

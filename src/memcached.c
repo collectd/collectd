@@ -69,7 +69,7 @@ struct memcached_s {
 };
 typedef struct memcached_s memcached_t;
 
-static _Bool memcached_have_instances = 0;
+static bool memcached_have_instances;
 
 static void memcached_free(void *arg) {
   memcached_t *st = arg;
@@ -285,6 +285,12 @@ static int memcached_query_daemon(char *buffer, size_t buffer_size,
       close(st->fd);
       st->fd = -1;
       return -1;
+    } else if (status == 0) {
+      ERROR("memcached plugin: Instance \"%s\": Connection closed by peer",
+            st->name);
+      close(st->fd);
+      st->fd = -1;
+      return -1;
     }
 
     buffer_fill += (size_t)status;
@@ -469,7 +475,7 @@ static int memcached_read(user_data_t *user_data) {
     if (strsplit(line, fields, 3) != 3)
       continue;
 
-    int name_len = strlen(fields[1]);
+    size_t name_len = strlen(fields[1]);
     if (name_len == 0)
       continue;
 
@@ -696,7 +702,7 @@ static int config_add_instance(oconfig_item_t *ci) {
   int status = 0;
 
   /* Disable automatic generation of default instance in the init callback. */
-  memcached_have_instances = 1;
+  memcached_have_instances = true;
 
   memcached_t *st = calloc(1, sizeof(*st));
   if (st == NULL) {
@@ -749,7 +755,7 @@ static int config_add_instance(oconfig_item_t *ci) {
 } /* int config_add_instance */
 
 static int memcached_config(oconfig_item_t *ci) {
-  _Bool have_instance_block = 0;
+  bool have_instance_block = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -791,7 +797,7 @@ static int memcached_init(void) {
 
   int status = memcached_add_read_callback(st);
   if (status == 0)
-    memcached_have_instances = 1;
+    memcached_have_instances = true;
 
   return status;
 } /* int memcached_init */

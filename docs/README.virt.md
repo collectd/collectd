@@ -43,7 +43,7 @@ Collectd will just use the domain tags, but never enforces or requires them.
 It is up to an external entity, like a software management system,
 to attach and manage the tags to the domain.
 
-Please note that unless you have such tag-aware management sofware,
+Please note that unless you have such tag-aware management software,
 it most likely make no sense to enable more than one reader instance on your
 setup.
 
@@ -179,8 +179,8 @@ API, but it is rather a byproduct of how libvirt and QEMU interact.
 
 Whenever we query more than one VM, we should take care to avoid that one blocked VM prevent other,
 well behaving VMs to be queried. We don't want one rogue VM to disrupt well-behaving VMs.
-Unfortunately, any way we enumerate VMs, either implicitely, using the libvirt bulk stats API,
-or explicitely, listing all libvirt domains and query each one in turn, we may unpredictably encounter
+Unfortunately, any way we enumerate VMs, either implicitly, using the libvirt bulk stats API,
+or explicitly, listing all libvirt domains and query each one in turn, we may unpredictably encounter
 one unresponsive VM.
 
 There are many possible approaches to deal with this issue. The virt plugin supports
@@ -237,4 +237,3 @@ The QEMU core, including the handling of the QMP protocol, is single-threaded.
 All the above combined make it possible for a client to block forever waiting for one QMP
 request, if QEMU itself is blocked. The most likely cause of block is I/O, and this is especially
 true considering how QEMU is used in a datacenter.
-

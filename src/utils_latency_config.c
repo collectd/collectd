@@ -25,29 +25,28 @@
  *   Pavel Rochnyack <pavel2000 at ngs.ru>
  */
 
-#include "utils_latency_config.h"
-#include "common.h"
 #include "collectd.h"
+#include "common.h"
+#include "utils_latency_config.h"
 
 static int latency_config_add_percentile(latency_config_t *conf,
-                                         oconfig_item_t *ci,
-                                         const char *plugin) {
+                                         oconfig_item_t *ci) {
   double percent;
   int status = cf_util_get_double(ci, &percent);
   if (status != 0)
     return status;
 
   if ((percent <= 0.0) || (percent >= 100)) {
-    ERROR("%s plugin: The value for \"%s\" must be between 0 and 100, "
-          "exclusively.",
-          plugin, ci->key);
+    P_ERROR("The value for \"%s\" must be between 0 and 100, "
+            "exclusively.",
+            ci->key);
     return ERANGE;
   }
 
   double *tmp = realloc(conf->percentile,
                         sizeof(*conf->percentile) * (conf->percentile_num + 1));
   if (tmp == NULL) {
-    ERROR("%s plugin: realloc failed.", plugin);
+    P_ERROR("realloc failed.");
     return ENOMEM;
   }
   conf->percentile = tmp;
@@ -57,31 +56,29 @@ static int latency_config_add_percentile(latency_config_t *conf,
   return 0;
 } /* int latency_config_add_percentile */
 
-static int latency_config_add_bucket(latency_config_t *conf, oconfig_item_t *ci,
-                                     const char *plugin) {
+static int latency_config_add_bucket(latency_config_t *conf,
+                                     oconfig_item_t *ci) {
   if ((ci->values_num != 2) || (ci->values[0].type != OCONFIG_TYPE_NUMBER) ||
       (ci->values[1].type != OCONFIG_TYPE_NUMBER)) {
-    ERROR("%s plugin: \"%s\" requires exactly two numeric arguments.", plugin,
-          ci->key);
+    P_ERROR("\"%s\" requires exactly two numeric arguments.", ci->key);
     return EINVAL;
   }
 
   if (ci->values[1].value.number &&
       ci->values[1].value.number <= ci->values[0].value.number) {
-    ERROR("%s plugin: MIN must be less than MAX in \"%s\".", plugin, ci->key);
+    P_ERROR("MIN must be less than MAX in \"%s\".", ci->key);
     return ERANGE;
   }
 
   if (ci->values[0].value.number < 0) {
-    ERROR("%s plugin: MIN must be greater then or equal to zero in \"%s\".",
-          plugin, ci->key);
+    P_ERROR("MIN must be greater then or equal to zero in \"%s\".", ci->key);
     return ERANGE;
   }
 
   latency_bucket_t *tmp =
       realloc(conf->buckets, sizeof(*conf->buckets) * (conf->buckets_num + 1));
   if (tmp == NULL) {
-    ERROR("%s plugin: realloc failed.", plugin);
+    P_ERROR("realloc failed.");
     return ENOMEM;
   }
   conf->buckets = tmp;
@@ -94,22 +91,21 @@ static int latency_config_add_bucket(latency_config_t *conf, oconfig_item_t *ci,
   return 0;
 } /* int latency_config_add_bucket */
 
-int latency_config(latency_config_t *conf, oconfig_item_t *ci,
-                   char const *plugin) {
+int latency_config(latency_config_t *conf, oconfig_item_t *ci) {
   int status = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Percentile", child->key) == 0)
-      status = latency_config_add_percentile(conf, child, plugin);
+      status = latency_config_add_percentile(conf, child);
     else if (strcasecmp("Bucket", child->key) == 0)
-      status = latency_config_add_bucket(conf, child, plugin);
+      status = latency_config_add_bucket(conf, child);
     else if (strcasecmp("BucketType", child->key) == 0)
       status = cf_util_get_string(child, &conf->bucket_type);
     else
-      WARNING("%s plugin: \"%s\" is not a valid option within a \"%s\" block.",
-              plugin, child->key, ci->key);
+      P_WARNING("\"%s\" is not a valid option within a \"%s\" block.",
+                child->key, ci->key);
 
     if (status != 0)
       return status;
@@ -117,9 +113,9 @@ int latency_config(latency_config_t *conf, oconfig_item_t *ci,
 
   if ((status == 0) && (conf->percentile_num == 0) &&
       (conf->buckets_num == 0)) {
-    ERROR("%s plugin: The \"%s\" block must contain at least one "
-          "\"Percentile\" or \"Bucket\" option.",
-          plugin, ci->key);
+    P_ERROR("The \"%s\" block must contain at least one "
+            "\"Percentile\" or \"Bucket\" option.",
+            ci->key);
     return EINVAL;
   }
 

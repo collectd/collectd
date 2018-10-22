@@ -24,8 +24,9 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+
+#include "common.h" /* for STATIC_ARRAY_SIZE */
 
 #include "meta_data.h"
 #include "testing.h"
@@ -37,7 +38,7 @@ DEF_TEST(base) {
   int64_t si;
   uint64_t ui;
   double d;
-  _Bool b;
+  bool b;
 
   CHECK_NOT_NULL(m = meta_data_create());
 

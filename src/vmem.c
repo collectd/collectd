@@ -33,7 +33,7 @@
 static const char *config_keys[] = {"Verbose"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static int verbose_output = 0;
+static int verbose_output;
 /* #endif KERNEL_LINUX */
 
 #else
