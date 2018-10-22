@@ -252,10 +252,8 @@ static int create_sockets(socket_entry_t **ret_sockets, /* {{{ */
       sockets_num++;
       break;
     } else {
-      int yes = 1;
-
       status = setsockopt(sockets[sockets_num].fd, SOL_SOCKET, SO_REUSEADDR,
-                          (void *)&yes, sizeof(yes));
+                          &(int){1}, sizeof(int));
       if (status != 0) {
         WARNING("gmond plugin: setsockopt(2) failed: %s", STRERRNO);
       }

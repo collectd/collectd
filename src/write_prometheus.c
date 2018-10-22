@@ -763,8 +763,7 @@ static int prom_open_socket(int addrfamily) {
     if (fd == -1)
       continue;
 
-    int tmp = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp)) != 0) {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) != 0) {
       WARNING("write_prometheus: setsockopt(SO_REUSEADDR) failed: %s",
               STRERRNO);
       close(fd);
