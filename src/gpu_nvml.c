@@ -66,9 +66,8 @@ static bool conf_mask_is_exclude = 0;
 
 static int nvml_config(const char *key, const char *value) {
 
-  char *eptr;
-
   if (strcasecmp(key, KEY_GPUINDEX) == 0) {
+    char *eptr;
     unsigned long device_ix = strtoul(value, &eptr, 10);
     if (eptr == value) {
       ERROR(PLUGIN_NAME ": Failed to parse GPUIndex value \"%s\"", value);
@@ -106,8 +105,8 @@ static int nvml_shutdown(void) {
   return -1;
 }
 
-static void nvml_submit(const char *plugin_instance, const char *type,
-                        const char *type_instance, gauge_t nvml) {
+static void nvml_submit_gauge(const char *plugin_instance, const char *type,
+                              const char *type_instance, gauge_t nvml) {
 
   value_list_t vl = VALUE_LIST_INIT;
 
@@ -154,39 +153,39 @@ static int nvml_read(void) {
     nvmlMemory_t meminfo;
     TRYOPT(nvmlDeviceGetMemoryInfo(dev, &meminfo))
     if (nv_status == NVML_SUCCESS) {
-      nvml_submit(dev_name, "memory", "used", meminfo.used);
-      nvml_submit(dev_name, "memory", "free", meminfo.free);
+      nvml_submit_gauge(dev_name, "memory", "used", meminfo.used);
+      nvml_submit_gauge(dev_name, "memory", "free", meminfo.free);
     }
 
     nvmlUtilization_t utilization;
     TRYOPT(nvmlDeviceGetUtilizationRates(dev, &utilization))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "percent", "gpu_used", utilization.gpu);
+      nvml_submit_gauge(dev_name, "percent", "gpu_used", utilization.gpu);
 
     unsigned int fan_speed;
     TRYOPT(nvmlDeviceGetFanSpeed(dev, &fan_speed))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "fanspeed", NULL, fan_speed);
+      nvml_submit_gauge(dev_name, "fanspeed", NULL, fan_speed);
 
     unsigned int core_temp;
     TRYOPT(nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &core_temp))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "temperature", "core", core_temp);
+      nvml_submit_gauge(dev_name, "temperature", "core", core_temp);
 
     unsigned int sm_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "frequency", "sm", 1e6 * sm_clk_mhz);
+      nvml_submit_gauge(dev_name, "frequency", "sm", 1e6 * sm_clk_mhz);
 
     unsigned int mem_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_MEM, &mem_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "frequency", "mem", 1e6 * mem_clk_mhz);
+      nvml_submit_gauge(dev_name, "frequency", "mem", 1e6 * mem_clk_mhz);
 
     unsigned int power_mW;
     TRYOPT(nvmlDeviceGetPowerUsage(dev, &power_mW))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit(dev_name, "power", NULL, 1e-3 * power_mW);
+      nvml_submit_gauge(dev_name, "power", NULL, 1e-3 * power_mW);
 
     continue;
 
