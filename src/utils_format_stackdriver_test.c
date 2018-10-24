@@ -20,6 +20,8 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
+#include "collectd.h"
+
 #include "testing.h"
 #include "utils_format_stackdriver.h"
 
