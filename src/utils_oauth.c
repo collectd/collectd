@@ -425,9 +425,10 @@ static int new_token(oauth_t *auth) /* {{{ */
 
 static int renew_token(oauth_t *auth) /* {{{ */
 {
-  /* TODO(octo): Make sure that we get a new token 60 seconds or so before the
-   * old one expires. */
-  if (auth->valid_until > cdtime())
+  /* Renew OAuth token 30 seconds *before* it expires. */
+  cdtime_t const slack = TIME_T_TO_CDTIME_T(30);
+
+  if (auth->valid_until > (cdtime() + slack))
     return 0;
 
   return new_token(auth);
