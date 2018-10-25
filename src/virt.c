@@ -511,8 +511,9 @@ static int get_pcpu_stats(virDomainPtr dom) {
       total_syst_cpu_time = param[i].value.ul;
   }
 
-  submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
-                 NULL);
+  if (total_user_cpu_time > 0 || total_syst_cpu_time > 0)
+    submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
+                   NULL);
 
   virTypedParamsClear(param, nparams);
   sfree(param);
