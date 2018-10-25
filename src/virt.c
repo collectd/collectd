@@ -240,6 +240,9 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
       ERROR(PLUGIN_NAME ": Failed to get " _name);                             \
   } while (0)
 
+static void submit_derive2(const char *type, derive_t v0, derive_t v1,
+                           virDomainPtr dom, const char *devname);
+
 /* Connection. */
 static virConnectPtr conn = 0;
 static char *conn_string = NULL;
@@ -410,12 +413,6 @@ static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
 
-struct lv_info {
-  virDomainInfo di;
-  unsigned long long total_user_cpu_time;
-  unsigned long long total_syst_cpu_time;
-};
-
 struct lv_block_info {
   virDomainBlockStatsStruct bi;
 
@@ -479,58 +476,50 @@ static int get_block_info(struct lv_block_info *binfo,
     virErrorPtr err;                                                           \
     err = (conn) ? virConnGetLastError((conn)) : virGetLastError();            \
     if (err)                                                                   \
-      ERROR("%s: %s", (s), err->message);                                      \
+      ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
 
-static void init_lv_info(struct lv_info *info) {
-  if (info != NULL)
-    memset(info, 0, sizeof(*info));
-}
-
-static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
 #ifdef HAVE_CPU_STATS
-  virTypedParameterPtr param = NULL;
-  int nparams = 0;
-#endif /* HAVE_CPU_STATS */
-  int ret = virDomainGetInfo(dom, &(info->di));
-  if (ret != 0) {
-    return ret;
-  }
-
-#ifdef HAVE_CPU_STATS
-  nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
+static int get_pcpu_stats(virDomainPtr dom) {
+  int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
   if (nparams < 0) {
     VIRT_ERROR(conn, "getting the CPU params count");
     return -1;
   }
 
-  param = calloc(nparams, sizeof(virTypedParameter));
+  virTypedParameterPtr param = calloc(nparams, sizeof(virTypedParameter));
   if (param == NULL) {
-    ERROR("virt plugin: alloc(%i) for cpu parameters failed.", nparams);
+    ERROR(PLUGIN_NAME " plugin: alloc(%i) for cpu parameters failed.", nparams);
     return -1;
   }
 
-  ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
+  int ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
   if (ret < 0) {
     virTypedParamsClear(param, nparams);
     sfree(param);
-    VIRT_ERROR(conn, "getting the disk params values");
+    VIRT_ERROR(conn, "getting the CPU params values");
     return -1;
   }
 
+  unsigned long long total_user_cpu_time = 0;
+  unsigned long long total_syst_cpu_time = 0;
+
   for (int i = 0; i < nparams; ++i) {
     if (!strcmp(param[i].field, "user_time"))
-      info->total_user_cpu_time = param[i].value.ul;
+      total_user_cpu_time = param[i].value.ul;
     else if (!strcmp(param[i].field, "system_time"))
-      info->total_syst_cpu_time = param[i].value.ul;
+      total_syst_cpu_time = param[i].value.ul;
   }
+
+  submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
+                 NULL);
 
   virTypedParamsClear(param, nparams);
   sfree(param);
-#endif /* HAVE_CPU_STATS */
 
   return 0;
 }
+#endif /* HAVE_CPU_STATS */
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
   int n;
@@ -675,14 +664,6 @@ static void submit_derive2(const char *type, derive_t v0, derive_t v1,
 
   submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
 } /* void submit_derive2 */
-
-static void pcpu_submit(virDomainPtr dom, struct lv_info *info) {
-#ifdef HAVE_CPU_STATS
-  if (extra_stats & ex_stats_pcpu)
-    submit_derive2("ps_cputime", info->total_user_cpu_time,
-                   info->total_syst_cpu_time, dom, NULL);
-#endif /* HAVE_CPU_STATS */
-}
 
 static double cpu_ns_to_percent(unsigned int node_cpus,
                                 unsigned long long cpu_time_old,
@@ -1465,15 +1446,13 @@ static int get_job_stats(virDomainPtr domain) {
 #endif /* HAVE_JOB_STATS */
 
 static int get_domain_metrics(domain_t *domain) {
-  struct lv_info info;
-
   if (!domain || !domain->ptr) {
-    ERROR(PLUGIN_NAME ": get_domain_metrics: NULL pointer");
+    ERROR(PLUGIN_NAME "plugin: get_domain_metrics: NULL pointer");
     return -1;
   }
 
-  init_lv_info(&info);
-  int status = lv_domain_info(domain->ptr, &info);
+  virDomainInfo info;
+  int status = virDomainGetInfo(domain->ptr, &info);
   if (status != 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
           status);
@@ -1490,20 +1469,24 @@ static int get_domain_metrics(domain_t *domain) {
 #else
     /* virDomainGetState is not available. Submit 0, which corresponds to
      * unknown reason. */
-    domain_state_submit(domain->ptr, info.di.state, 0);
+    domain_state_submit(domain->ptr, info.state, 0);
 #endif
   }
 
   /* Gather remaining stats only for running domains */
-  if (info.di.state != VIR_DOMAIN_RUNNING)
+  if (info.state != VIR_DOMAIN_RUNNING)
     return 0;
 
-  pcpu_submit(domain->ptr, &info);
-  cpu_submit(domain, info.di.cpuTime);
+#ifdef HAVE_CPU_STATS
+  if (extra_stats & ex_stats_pcpu)
+    get_pcpu_stats(domain->ptr);
+#endif
 
-  memory_submit(domain->ptr, (gauge_t)info.di.memory * 1024);
+  cpu_submit(domain, info.cpuTime);
 
-  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.di.nrVirtCpu);
+  memory_submit(domain->ptr, (gauge_t)info.memory * 1024);
+
+  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
   GET_STATS(get_memory_stats, "memory stats", domain->ptr);
 
 #ifdef HAVE_PERF_STATS
@@ -1528,7 +1511,7 @@ static int get_domain_metrics(domain_t *domain) {
 #endif
 
   /* Update cached virDomainInfo. It has to be done after cpu_submit */
-  memcpy(&domain->info, &info.di, sizeof(domain->info));
+  memcpy(&domain->info, &info, sizeof(domain->info));
   return 0;
 }
 
