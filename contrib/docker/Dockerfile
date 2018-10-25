@@ -7,9 +7,10 @@ COPY rootfs_prefix/ /usr/src/rootfs_prefix/
 
 RUN apt-get update \
  && apt-get upgrade \
- && apt-get install \
+ && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     collectd-core \
     collectd-utils \
+    libcurl3-gnutls \
     build-essential \
  && make -C /usr/src/rootfs_prefix/ \
  && apt-get --purge remove build-essential \
