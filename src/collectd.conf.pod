@@ -9673,6 +9673,13 @@ B<Options:>
 
 =over 4
 
+=item B<Host> I<Host>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+This option is supported only for libmicrohttpd newer than 0.9.0.
+
 =item B<Port> I<Port>
 
 Port the embedded webserver should listen on. Defaults to B<9103>.
