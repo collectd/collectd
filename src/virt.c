@@ -240,9 +240,6 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
       ERROR(PLUGIN_NAME ": Failed to get " _name);                             \
   } while (0)
 
-static void submit_derive2(const char *type, derive_t v0, derive_t v1,
-                           virDomainPtr dom, const char *devname);
-
 /* Connection. */
 static virConnectPtr conn = 0;
 static char *conn_string = NULL;
@@ -478,49 +475,6 @@ static int get_block_info(struct lv_block_info *binfo,
     if (err)                                                                   \
       ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
-
-#ifdef HAVE_CPU_STATS
-static int get_pcpu_stats(virDomainPtr dom) {
-  int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
-  if (nparams < 0) {
-    VIRT_ERROR(conn, "getting the CPU params count");
-    return -1;
-  }
-
-  virTypedParameterPtr param = calloc(nparams, sizeof(virTypedParameter));
-  if (param == NULL) {
-    ERROR(PLUGIN_NAME " plugin: alloc(%i) for cpu parameters failed.", nparams);
-    return -1;
-  }
-
-  int ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
-  if (ret < 0) {
-    virTypedParamsClear(param, nparams);
-    sfree(param);
-    VIRT_ERROR(conn, "getting the CPU params values");
-    return -1;
-  }
-
-  unsigned long long total_user_cpu_time = 0;
-  unsigned long long total_syst_cpu_time = 0;
-
-  for (int i = 0; i < nparams; ++i) {
-    if (!strcmp(param[i].field, "user_time"))
-      total_user_cpu_time = param[i].value.ul;
-    else if (!strcmp(param[i].field, "system_time"))
-      total_syst_cpu_time = param[i].value.ul;
-  }
-
-  if (total_user_cpu_time > 0 || total_syst_cpu_time > 0)
-    submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
-                   NULL);
-
-  virTypedParamsClear(param, nparams);
-  sfree(param);
-
-  return 0;
-}
-#endif /* HAVE_CPU_STATS */
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
   int n;
@@ -1202,6 +1156,49 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   sfree(vinfo);
   return 0;
 }
+
+#ifdef HAVE_CPU_STATS
+static int get_pcpu_stats(virDomainPtr dom) {
+  int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
+  if (nparams < 0) {
+    VIRT_ERROR(conn, "getting the CPU params count");
+    return -1;
+  }
+
+  virTypedParameterPtr param = calloc(nparams, sizeof(virTypedParameter));
+  if (param == NULL) {
+    ERROR(PLUGIN_NAME " plugin: alloc(%i) for cpu parameters failed.", nparams);
+    return -1;
+  }
+
+  int ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
+  if (ret < 0) {
+    virTypedParamsClear(param, nparams);
+    sfree(param);
+    VIRT_ERROR(conn, "getting the CPU params values");
+    return -1;
+  }
+
+  unsigned long long total_user_cpu_time = 0;
+  unsigned long long total_syst_cpu_time = 0;
+
+  for (int i = 0; i < nparams; ++i) {
+    if (!strcmp(param[i].field, "user_time"))
+      total_user_cpu_time = param[i].value.ul;
+    else if (!strcmp(param[i].field, "system_time"))
+      total_syst_cpu_time = param[i].value.ul;
+  }
+
+  if (total_user_cpu_time > 0 || total_syst_cpu_time > 0)
+    submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
+                   NULL);
+
+  virTypedParamsClear(param, nparams);
+  sfree(param);
+
+  return 0;
+}
+#endif /* HAVE_CPU_STATS */
 
 #ifdef HAVE_DOM_REASON
 static int get_domain_state(virDomainPtr domain) {
