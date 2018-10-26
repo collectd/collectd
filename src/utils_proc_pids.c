@@ -191,8 +191,10 @@ int fetch_pids_for_procs(const char *procfs_path,
 
   int init_result = initialize_proc_pids(
       procs_names_array, procs_names_array_size, proc_pids_array);
-  if (0 != init_result)
+  if (0 != init_result) {
+    closedir(proc_dir);
     return -1;
+  }
 
   /* Go through procfs and find PIDS and their comms */
   struct dirent *entry;
