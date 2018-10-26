@@ -135,7 +135,7 @@ Features
     - gps
       Monitor gps related data through gpsd.
 
-    - gpu_nvml
+    - gpu_nvidia
       Monitor NVIDIA GPU statistics available through NVML.
 
     - hddtemp
@@ -753,7 +753,7 @@ Prerequisites
     <http://developer.apple.com/corefoundation/>
 
   * CUDA (optional)
-    Used by the `gpu_nvml' plugin
+    Used by the `gpu_nvidia' plugin
     <https://developer.nvidia.com/cuda-downloads>
 
   * libatasmart (optional)

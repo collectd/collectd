@@ -3210,7 +3210,7 @@ Pause to apply between attempts of connection to gpsd in seconds (default 5 sec)
 
 =back
 
-=head2 Plugin C<gpu_nvml>
+=head2 Plugin C<gpu_nvidia>
 
 Efficiently collects various statistics from the system's NVIDIA GPUs using the
 NVML library. Currently collected are fan speed, core temperature, percent

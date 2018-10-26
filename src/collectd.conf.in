@@ -657,10 +657,10 @@
 #  PauseConnect 5
 #</Plugin>
 
-#<Plugin gpu_nvml>
+#<Plugin gpu_nvidia>
 #   GPUIndex 0
 #   GPUIndex 2
-#   IgnoreSelected 0
+#   IgnoreSelected false
 #</Plugin>
 
 #<Plugin grpc>

@@ -29,7 +29,7 @@ SOFTWARE.
 #include <stdio.h>
 
 #define MAX_DEVNAME_LEN 256
-#define PLUGIN_NAME "gpu_nvml"
+#define PLUGIN_NAME "gpu_nvidia"
 
 static nvmlReturn_t nv_status = NVML_SUCCESS;
 static char *nv_errline = "";
@@ -174,12 +174,13 @@ static int nvml_read(void) {
     unsigned int sm_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "frequency", "sm", 1e6 * sm_clk_mhz);
+      nvml_submit_gauge(dev_name, "frequency", "multiprocessor",
+                        1e6 * sm_clk_mhz);
 
     unsigned int mem_clk_mhz;
     TRYOPT(nvmlDeviceGetClockInfo(dev, NVML_CLOCK_MEM, &mem_clk_mhz))
     if (nv_status == NVML_SUCCESS)
-      nvml_submit_gauge(dev_name, "frequency", "mem", 1e6 * mem_clk_mhz);
+      nvml_submit_gauge(dev_name, "frequency", "memory", 1e6 * mem_clk_mhz);
 
     unsigned int power_mW;
     TRYOPT(nvmlDeviceGetPowerUsage(dev, &power_mW))

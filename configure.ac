@@ -6414,7 +6414,7 @@ plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
 plugin_gps="no"
-plugin_gpu_nvml="no"
+plugin_gpu_nvidia="no"
 plugin_grpc="no"
 plugin_hugepages="no"
 plugin_intel_pmu="no"
@@ -6845,7 +6845,7 @@ AC_PLUGIN([filecount],           [yes],                       [Count files in di
 AC_PLUGIN([fscache],             [$plugin_fscache],           [fscache statistics])
 AC_PLUGIN([gmond],               [$with_libganglia],          [Ganglia plugin])
 AC_PLUGIN([gps],                 [$plugin_gps],               [GPS plugin])
-AC_PLUGIN([gpu_nvml],            [$with_cuda],                [NVIDIA GPU plugin])
+AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
@@ -7271,7 +7271,7 @@ AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])
 AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
 AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
 AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
-AC_MSG_RESULT([    gpu_nvml  . . . . . . $enable_gpu_nvml])
+AC_MSG_RESULT([    gpu_nvidia  . . . . . $enable_gpu_nvidia])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])

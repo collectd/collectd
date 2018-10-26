@@ -1014,11 +1014,11 @@ gps_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGPS_LDFLAGS)
 gps_la_LIBADD = -lpthread $(BUILD_WITH_LIBGPS_LIBS)
 endif
 
-if BUILD_PLUGIN_GPU_NVML
-pkglib_LTLIBRARIES += gpu_nvml.la
-gpu_nvml_la_SOURCES = src/gpu_nvml.c
-gpu_nvml_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_GPU_CUDA_LDFLAGS)
-gpu_nvml_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
+if BUILD_PLUGIN_GPU_NVIDIA
+pkglib_LTLIBRARIES += gpu_nvidia.la
+gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
+gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_GPU_CUDA_LDFLAGS)
+gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
 endif
 
 if BUILD_PLUGIN_GRPC
