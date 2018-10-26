@@ -692,7 +692,9 @@ static int disk_read(void) {
     char *output_name;
 
     numfields = strsplit(buffer, fields, 32);
-    if ((numfields != 14) && (numfields != 7))
+
+    /* need either 7 fields (partition) or at least 14 fields */
+    if ((numfields != 7) && (numfields < 14))
       continue;
 
     minor = atoll(fields[1]);
@@ -726,7 +728,8 @@ static int disk_read(void) {
       read_sectors = atoll(fields[4]);
       write_ops = atoll(fields[5]);
       write_sectors = atoll(fields[6]);
-    } else if (numfields == 14) {
+    } else {
+      assert(numfields >= 14);
       read_ops = atoll(fields[3]);
       write_ops = atoll(fields[7]);
 
@@ -745,9 +748,6 @@ static int disk_read(void) {
         io_time = atof(fields[12]);
         weighted_time = atof(fields[13]);
       }
-    } else {
-      DEBUG("numfields = %i; => unknown file format.", numfields);
-      continue;
     }
 
     {

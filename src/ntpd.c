@@ -810,11 +810,13 @@ static int ntpd_read(void) {
   if (status != 0) {
     ERROR("ntpd plugin: ntpd_do_query (REQ_GET_KERNEL) failed with status %i",
           status);
+    free(ik);
     return status;
   } else if ((ik == NULL) || (ik_num == 0) || (ik_size == 0)) {
     ERROR("ntpd plugin: ntpd_do_query returned unexpected data. "
           "(ik = %p; ik_num = %i; ik_size = %i)",
           (void *)ik, ik_num, ik_size);
+    free(ik);
     return -1;
   }
 
@@ -849,11 +851,13 @@ static int ntpd_read(void) {
     ERROR(
         "ntpd plugin: ntpd_do_query (REQ_PEER_LIST_SUM) failed with status %i",
         status);
+    free(ps);
     return status;
   } else if ((ps == NULL) || (ps_num == 0) || (ps_size == 0)) {
     ERROR("ntpd plugin: ntpd_do_query returned unexpected data. "
           "(ps = %p; ps_num = %i; ps_size = %i)",
           (void *)ps, ps_num, ps_size);
+    free(ps);
     return -1;
   }
 
