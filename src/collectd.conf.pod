@@ -8865,6 +8865,33 @@ dynamic number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
 if there is only one package and C<pkgE<lt>nE<gt>-coreE<lt>mE<gt>> if there is
 more than one, where I<n> is the n-th core of package I<m>.
 
+=item B<RestoreAffinityPolicy> I<AllCPUs>|I<Restore>
+
+Reading data from CPU has side-effect: collectd process's CPU affinity mask
+changes. After reading data is completed, affinity mask needs to be restored.
+This option allows to set restore policy.
+
+B<AllCPUs> (the default): Restore the affinity by setting affinity to any/all
+CPUs.
+
+B<Restore>: Save affinity using sched_getaffinity() before reading data and
+restore it after.
+
+On some systems, sched_getaffinity() will fail due to inconsistency of the CPU
+set size between userspace and kernel. In these cases plugin will detect the
+unsuccessful call and fail with an error, preventing data collection.
+Most of configurations does not need to save affinity as Collectd process is
+allowed to run on any/all available CPUs.
+
+If you need to save and restore affinity and get errors like 'Unable to save
+the CPU affinity', setting 'possible_cpus' kernel boot option may also help.
+
+See following links for details:
+
+L<https://github.com/collectd/collectd/issues/1593>
+L<https://sourceware.org/bugzilla/show_bug.cgi?id=15630>
+L<https://bugzilla.kernel.org/show_bug.cgi?id=151821>
+
 =back
 
 =head2 Plugin C<unixsock>

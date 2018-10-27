@@ -51,12 +51,11 @@
 
 typedef enum affinity_policy_enum {
   policy_restore_affinity, /* restore cpu affinity to whatever it was before */
-  policy_allcpus_affinity, /* do not restore affinity, set to all cpus */
-  policy_invalid
+  policy_allcpus_affinity  /* do not restore affinity, set to all cpus */
 } affinity_policy_t;
 
-/* the default is to preserve cpu affinity */
-static affinity_policy_t affinity_policy = policy_restore_affinity;
+/* the default is to set cpu affinity to all cpus */
+static affinity_policy_t affinity_policy = policy_allcpus_affinity;
 
 /*
  * This tool uses the Model-Specific Registers (MSRs) present on Intel
@@ -1467,8 +1466,8 @@ err:
 int save_affinity(void) {
   if (affinity_policy == policy_restore_affinity) {
     /* Try to save the scheduling affinity, as it will be modified by
-    * get_counters.
-    */
+     * get_counters().
+     */
     if (sched_getaffinity(0, cpu_saved_affinity_setsize,
                           cpu_saved_affinity_set) != 0)
       return -1;
@@ -1508,7 +1507,8 @@ static int turbostat_read(void) {
   }
 
   if (save_affinity() != 0) {
-    ERROR("turbostat plugin: Unable to save the CPU affinity");
+    ERROR("turbostat plugin: Unable to save the CPU affinity. Please read the "
+          "docs about RestoreAffinityPolicy option.");
     return -1;
   }
 
@@ -1617,15 +1617,6 @@ err:
   return ret;
 }
 
-affinity_policy_t parse_affinity_policy(const char *value) {
-  if (strcasecmp("AffinityRestore", value) == 0)
-    return policy_restore_affinity;
-  else if (strcasecmp("AffinityAllCPUs", value) == 0)
-    return policy_allcpus_affinity;
-
-  return policy_invalid;
-}
-
 static int turbostat_config(const char *key, const char *value) {
   long unsigned int tmp_val;
   char *end;
@@ -1673,11 +1664,13 @@ static int turbostat_config(const char *key, const char *value) {
     }
     tcc_activation_temp = (unsigned int)tmp_val;
   } else if (strcasecmp("RestoreAffinityPolicy", key) == 0) {
-    affinity_policy = parse_affinity_policy(value);
-    if (affinity_policy == policy_invalid) {
-      /* set to default policy if requested policy is invalid */
+    if (strcasecmp("Restore", value) == 0)
       affinity_policy = policy_restore_affinity;
+    else if (strcasecmp("AllCPUs", value) == 0)
+      affinity_policy = policy_allcpus_affinity;
+    else {
       ERROR("turbostat plugin: Invalid RestoreAffinityPolicy '%s'", value);
+      return -1;
     }
   } else {
     ERROR("turbostat plugin: Invalid configuration option '%s'", key);
