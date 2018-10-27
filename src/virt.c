@@ -464,7 +464,7 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   do {                                                                         \
     status = _f(__VA_ARGS__);                                                  \
     if (status != 0)                                                           \
-      ERROR(PLUGIN_NAME ": Failed to get " _name);                             \
+      ERROR(PLUGIN_NAME " plugin: Failed to get " _name);                      \
   } while (0)
 
 /* Connection. */
@@ -770,7 +770,7 @@ static int init_notif(notification_t *notif, const virDomainPtr domain,
   value_list_t vl = VALUE_LIST_INIT;
 
   if (!notif) {
-    ERROR(PLUGIN_NAME ": init_notif: NULL pointer");
+    ERROR(PLUGIN_NAME " plugin: init_notif: NULL pointer");
     return -1;
   }
 
@@ -849,7 +849,7 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
               (time_diff_sec * node_cpus * NANOSEC_IN_SEC);
   }
 
-  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64
+  DEBUG(PLUGIN_NAME " plugin: node_cpus=%u cpu_time_old=%" PRIu64
                     " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
                     " time_diff_sec=%f percent=%f",
         node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
@@ -944,7 +944,8 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
       }
 
       if (ex_stats_table[j + 1].name == NULL) {
-        ERROR(PLUGIN_NAME ": Unmatched ExtraStats option: %s", exstats[i]);
+        ERROR(PLUGIN_NAME " plugin: Unmatched ExtraStats option: %s",
+              exstats[i]);
       }
     }
   }
@@ -953,7 +954,7 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
 
 static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   if ((state < 0) || ((size_t)state >= STATIC_ARRAY_SIZE(domain_states))) {
-    ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: state=%d", state);
     return;
   }
 
@@ -962,7 +963,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
 #ifdef HAVE_DOM_REASON
   if ((reason < 0) ||
       ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
-    ERROR(PLUGIN_NAME ": Array index out of bounds: reason=%d", reason);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: reason=%d", reason);
     return;
   }
 
@@ -971,8 +972,8 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
    * have different number of reasons. We need to check if reason was
    * successfully parsed */
   if (!reason_str) {
-    ERROR(PLUGIN_NAME ": Invalid reason (%d) for domain state: %s", reason,
-          state_str);
+    ERROR(PLUGIN_NAME " plugin: Invalid reason (%d) for domain state: %s",
+          reason, state_str);
     return;
   }
 #else
@@ -1001,7 +1002,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
     severity = NOTIF_FAILURE;
     break;
   default:
-    ERROR(PLUGIN_NAME ": Unrecognized domain state (%d)", state);
+    ERROR(PLUGIN_NAME " plugin: Unrecognized domain state (%d)", state);
     return;
   }
   submit_notif(dom, severity, msg, "domain_state", NULL);
@@ -1083,17 +1084,14 @@ static int lv_config(const char *key, const char *value) {
   }
 
   if (strcasecmp(key, "HostnameFormat") == 0) {
-    char *value_copy;
-    char *fields[HF_MAX_FIELDS];
-    int n;
-
-    value_copy = strdup(value);
+    char *value_copy = strdup(value);
     if (value_copy == NULL) {
       ERROR(PLUGIN_NAME " plugin: strdup failed.");
       return -1;
     }
 
-    n = strsplit(value_copy, fields, HF_MAX_FIELDS);
+    char *fields[HF_MAX_FIELDS];
+    int n = strsplit(value_copy, fields, HF_MAX_FIELDS);
     if (n < 1) {
       sfree(value_copy);
       ERROR(PLUGIN_NAME " plugin: HostnameFormat: no fields");
@@ -1123,17 +1121,14 @@ static int lv_config(const char *key, const char *value) {
   }
 
   if (strcasecmp(key, "PluginInstanceFormat") == 0) {
-    char *value_copy;
-    char *fields[PLGINST_MAX_FIELDS];
-    int n;
-
-    value_copy = strdup(value);
+    char *value_copy = strdup(value);
     if (value_copy == NULL) {
       ERROR(PLUGIN_NAME " plugin: strdup failed.");
       return -1;
     }
 
-    n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
+    char *fields[PLGINST_MAX_FIELDS];
+    int n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
     if (n < 1) {
       sfree(value_copy);
       ERROR(PLUGIN_NAME " plugin: PluginInstanceFormat: no fields");
@@ -1249,7 +1244,7 @@ static int lv_connect(void) {
     }
     int status = virNodeGetInfo(conn, &nodeinfo);
     if (status != 0) {
-      ERROR(PLUGIN_NAME ": virNodeGetInfo failed");
+      ERROR(PLUGIN_NAME " plugin: virNodeGetInfo failed");
       return -1;
     }
   }
@@ -1696,7 +1691,7 @@ static int get_job_stats(virDomainPtr domain) {
 
 static int get_domain_metrics(domain_t *domain) {
   if (!domain || !domain->ptr) {
-    ERROR(PLUGIN_NAME "plugin: get_domain_metrics: NULL pointer");
+    ERROR(PLUGIN_NAME " plugin: get_domain_metrics: NULL pointer");
     return -1;
   }
 
@@ -1871,7 +1866,7 @@ static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
   assert(thread_data != NULL);
   ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to initialize mutex, err %u", ret);
+    ERROR(PLUGIN_NAME " plugin: Failed to initialize mutex, err %u", ret);
     return ret;
   }
 
@@ -2071,7 +2066,7 @@ static int lv_read(user_data_t *ud) {
 #endif
 
     if (status != 0)
-      ERROR(PLUGIN_NAME " failed to get metrics for domain=%s",
+      ERROR(PLUGIN_NAME " plugin: failed to get metrics for domain=%s",
             virDomainGetName(dom->ptr));
   }
 
@@ -2080,7 +2075,7 @@ static int lv_read(user_data_t *ud) {
     int status = get_block_stats(&state->block_devices[i]);
     if (status != 0)
       ERROR(PLUGIN_NAME
-            " failed to get stats for block device (%s) in domain %s",
+            " plugin: failed to get stats for block device (%s) in domain %s",
             state->block_devices[i].path,
             virDomainGetName(state->block_devices[i].dom));
   }
@@ -2089,10 +2084,11 @@ static int lv_read(user_data_t *ud) {
   for (int i = 0; i < state->nr_interface_devices; ++i) {
     int status = get_if_dev_stats(&state->interface_devices[i]);
     if (status != 0)
-      ERROR(PLUGIN_NAME
-            " failed to get interface stats for device (%s) in domain %s",
-            state->interface_devices[i].path,
-            virDomainGetName(state->interface_devices[i].dom));
+      ERROR(
+          PLUGIN_NAME
+          " plugin: failed to get interface stats for device (%s) in domain %s",
+          state->interface_devices[i].path,
+          virDomainGetName(state->interface_devices[i].dom));
   }
 
   return 0;
@@ -2516,14 +2512,10 @@ static void free_domains(struct lv_read_state *state) {
 
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
                       bool active) {
-  domain_t *new_ptr;
+
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
-  if (state->domains)
-    new_ptr = realloc(state->domains, new_size);
-  else
-    new_ptr = malloc(new_size);
-
+  domain_t *new_ptr = realloc(state->domains, new_size);
   if (new_ptr == NULL)
     return -1;
 
@@ -2548,20 +2540,15 @@ static void free_block_devices(struct lv_read_state *state) {
 
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
                             const char *path) {
-  struct block_device *new_ptr;
-  int new_size =
-      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
-  char *path_copy;
 
-  path_copy = strdup(path);
+  char *path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  if (state->block_devices)
-    new_ptr = realloc(state->block_devices, new_size);
-  else
-    new_ptr = malloc(new_size);
+  int new_size =
+      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
 
+  struct block_device *new_ptr = realloc(state->block_devices, new_size);
   if (new_ptr == NULL) {
     sfree(path_copy);
     return -1;
@@ -2588,42 +2575,46 @@ static void free_interface_devices(struct lv_read_state *state) {
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
                                 unsigned int number) {
-  struct interface_device *new_ptr;
-  int new_size =
-      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[21];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;
 
-  path_copy = strdup(path);
+  char *path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  address_copy = strdup(address);
+  char *address_copy = strdup(address);
   if (!address_copy) {
     sfree(path_copy);
     return -1;
   }
 
+  char number_string[21];
   snprintf(number_string, sizeof(number_string), "interface-%u", number);
-
-  if (state->interface_devices)
-    new_ptr = realloc(state->interface_devices, new_size);
-  else
-    new_ptr = malloc(new_size);
-
-  if (new_ptr == NULL) {
+  char *number_copy = strdup(number_string);
+  if (!number_copy) {
     sfree(path_copy);
     sfree(address_copy);
     return -1;
   }
+
+  int new_size =
+      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
+
+  struct interface_device *new_ptr =
+      realloc(state->interface_devices, new_size);
+  if (new_ptr == NULL) {
+    sfree(path_copy);
+    sfree(address_copy);
+    sfree(number_copy);
+    return -1;
+  }
+
   state->interface_devices = new_ptr;
   state->interface_devices[state->nr_interface_devices].dom = dom;
   state->interface_devices[state->nr_interface_devices].path = path_copy;
   state->interface_devices[state->nr_interface_devices].address = address_copy;
-  state->interface_devices[state->nr_interface_devices].number =
-      strdup(number_string);
+  state->interface_devices[state->nr_interface_devices].number = number_copy;
   return state->nr_interface_devices++;
 }
 
