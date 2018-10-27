@@ -172,6 +172,12 @@ static void cpufreq_read_stats(int cpu) {
     gauge_t g;
     if (value_to_rate(&g, (value_t){.derive = time}, DS_TYPE_DERIVE, now,
                       &(cpu_data[cpu].time_state[state_index])) == 0) {
+      /*
+       * Due to some inaccuracy reported value can be a bit greatrer than 100.1.
+       * That produces gaps on charts.
+       */
+      if (g > 100.1)
+        g = 100.1;
       cpufreq_submit(cpu, "percent", state, &(value_t){.gauge = g});
     }
     state_index++;
