@@ -2074,6 +2074,58 @@ if test "x$with_kvm_openfiles" = "xyes"; then
   with_libkvm="yes"
 fi
 
+# --with-cuda {{{
+# only CUDA provides the nvml.h header
+AC_ARG_WITH([cuda],
+  [AS_HELP_STRING([--with-cuda@<:@=PREFIX@:>@], [Path to cuda.])],
+  [
+    if test "x$withval" = "xyes"; then
+      with_cuda="yes"
+    else if test "x$withval" = "xno"; then
+      with_cuda="no"
+    else
+      with_cuda="yes"
+      CUDA_CFLAGS="$CUDA_CFLAGS -I$withval/include"
+      CUDA_LDFLAGS="$CUDA_LDFLAGS -L$withval/lib"
+    fi; fi
+  ],
+  [ with_cuda="yes"
+    CUDA_CFLAGS="$CUDA_CFLAGS -I/opt/cuda/include"
+    CUDA_LDFLAGS="$CUDA_LDFLAGS -L/opt/cuda/lib64"
+  ]
+)
+
+SAVE_CFLAGS="$CFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CFLAGS="$CFLAGS $CUDA_CFLAGS"
+LDFLAGS="$LDFLAGS $CUDA_LDFLAGS"
+
+if test "x$with_cuda" = "xyes"; then
+  AC_CHECK_HEADERS([nvml.h],
+    [with_cuda="yes"],
+    [with_cuda="no (header file missing)"]
+  )
+fi
+
+if test "x$with_cuda" = "xpkgconfig"; then
+  AC_CHECK_HEADERS([nvml.h],
+    [],
+    [with_cuda="no (header file missing)"]
+  )
+fi
+
+if test "x$with_cuda" = "xyes"; then
+  BUILD_WITH_CUDA_CFLAGS="$CUDA_CFLAGS"
+  BUILD_WITH_CUDA_LDFLAGS="$CUDA_LDFLAGS"
+  BUILD_WITH_CUDA_LIBS="-lnvidia-ml"
+fi
+
+AC_SUBST([BUILD_WITH_CUDA_CFLAGS])
+AC_SUBST([BUILD_WITH_CUDA_LDFLAGS])
+AC_SUBST([BUILD_WITH_CUDA_LIBS])
+
+# }}}
+
 # --with-libaquaero5 {{{
 AC_ARG_WITH([libaquaero5],
   [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [Path to aquatools-ng source code.])],
@@ -6362,6 +6414,7 @@ plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
 plugin_gps="no"
+plugin_gpu_nvidia="no"
 plugin_grpc="no"
 plugin_hugepages="no"
 plugin_intel_pmu="no"
@@ -6792,6 +6845,7 @@ AC_PLUGIN([filecount],           [yes],                       [Count files in di
 AC_PLUGIN([fscache],             [$plugin_fscache],           [fscache statistics])
 AC_PLUGIN([gmond],               [$with_libganglia],          [Ganglia plugin])
 AC_PLUGIN([gps],                 [$plugin_gps],               [GPS plugin])
+AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin])
 AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
 AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
 AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
@@ -7102,6 +7156,7 @@ AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Libraries:])
+AC_MSG_RESULT([    cuda  . . . . . . . . $with_cuda])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
@@ -7216,6 +7271,7 @@ AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])
 AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
 AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
 AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
+AC_MSG_RESULT([    gpu_nvidia  . . . . . $enable_gpu_nvidia])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])

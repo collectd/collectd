@@ -3210,6 +3210,30 @@ Pause to apply between attempts of connection to gpsd in seconds (default 5 sec)
 
 =back
 
+=head2 Plugin C<gpu_nvidia>
+
+Efficiently collects various statistics from the system's NVIDIA GPUs using the
+NVML library. Currently collected are fan speed, core temperature, percent
+load, percent memory used, compute and memory frequencies, and power
+consumption.
+
+=over 4
+
+=item B<GPUIndex>
+
+If one or more of these options is specified, only GPUs at that index (as
+determined by nvidia-utils through I<nvidia-smi>) have statistics collected.
+If no instance of this option is specified, all GPUs are monitored.
+
+=item B<IgnoreSelected>
+
+If set to true, all detected GPUs B<except> the ones at indices specified by
+B<GPUIndex> entries are collected. For greater clarity, setting IgnoreSelected
+without any GPUIndex directives will result in B<no> statistics being
+collected.
+
+=back
+
 =head2 Plugin C<grpc>
 
 The I<grpc> plugin provides an RPC interface to submit values to or query
