@@ -49,6 +49,14 @@
 
 #define PLUGIN_NAME "turbostat"
 
+typedef enum affinity_policy_enum {
+  policy_restore_affinity, /* restore cpu affinity to whatever it was before */
+  policy_allcpus_affinity  /* do not restore affinity, set to all cpus */
+} affinity_policy_t;
+
+/* the default is to set cpu affinity to all cpus */
+static affinity_policy_t affinity_policy = policy_allcpus_affinity;
+
 /*
  * This tool uses the Model-Specific Registers (MSRs) present on Intel
  * processors.
@@ -244,6 +252,7 @@ static const char *config_keys[] = {
     "TCCActivationTemp",
     "RunningAveragePowerLimit",
     "LogicalCoreNames",
+    "RestoreAffinityPolicy",
 };
 static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -1454,6 +1463,30 @@ err:
   return ret;
 }
 
+int save_affinity(void) {
+  if (affinity_policy == policy_restore_affinity) {
+    /* Try to save the scheduling affinity, as it will be modified by
+     * get_counters().
+     */
+    if (sched_getaffinity(0, cpu_saved_affinity_setsize,
+                          cpu_saved_affinity_set) != 0)
+      return -1;
+  }
+
+  return 0;
+}
+
+void restore_affinity(void) {
+  /* Let's restore the affinity to the value saved in save_affinity */
+  if (affinity_policy == policy_restore_affinity)
+    (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
+                            cpu_saved_affinity_set);
+  else {
+    /* reset the affinity to all present cpus */
+    (void)sched_setaffinity(0, cpu_present_setsize, cpu_present_set);
+  }
+}
+
 static int turbostat_read(void) {
   int ret;
 
@@ -1473,10 +1506,9 @@ static int turbostat_read(void) {
     }
   }
 
-  /* Saving the scheduling affinity, as it will be modified by get_counters */
-  if (sched_getaffinity(0, cpu_saved_affinity_setsize,
-                        cpu_saved_affinity_set) != 0) {
-    ERROR("turbostat plugin: Unable to save the CPU affinity: %s", STRERRNO);
+  if (save_affinity() != 0) {
+    ERROR("turbostat plugin: Unable to save the CPU affinity. Please read the "
+          "docs about RestoreAffinityPolicy option.");
     return -1;
   }
 
@@ -1513,13 +1545,8 @@ static int turbostat_read(void) {
   }
   ret = 0;
 out:
-  /*
-   * Let's restore the affinity
-   * This might fail if the number of CPU changed, but we can't do anything in
-   * that case..
-   */
-  (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
-                          cpu_saved_affinity_set);
+  restore_affinity();
+
   return ret;
 }
 
@@ -1636,6 +1663,15 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     tcc_activation_temp = (unsigned int)tmp_val;
+  } else if (strcasecmp("RestoreAffinityPolicy", key) == 0) {
+    if (strcasecmp("Restore", value) == 0)
+      affinity_policy = policy_restore_affinity;
+    else if (strcasecmp("AllCPUs", value) == 0)
+      affinity_policy = policy_allcpus_affinity;
+    else {
+      ERROR("turbostat plugin: Invalid RestoreAffinityPolicy '%s'", value);
+      return -1;
+    }
   } else {
     ERROR("turbostat plugin: Invalid configuration option '%s'", key);
     return -1;
