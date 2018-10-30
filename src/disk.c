@@ -662,7 +662,7 @@ static int disk_read(void) {
   char buffer[1024];
 
   char *fields[32];
-  static unsigned int local_poll_count = 0;
+  static unsigned int poll_count = 0;
 
   derive_t read_sectors = 0;
   derive_t write_sectors = 0;
@@ -685,17 +685,15 @@ static int disk_read(void) {
     return -1;
   }
 
+  poll_count++;
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    char *disk_name;
-    char *output_name;
-
     int numfields = strsplit(buffer, fields, 32);
 
     /* need either 7 fields (partition) or at least 14 fields */
     if ((numfields != 7) && (numfields < 14))
       continue;
 
-    disk_name = fields[2];
+    char *disk_name = fields[2];
 
     for (ds = disklist, pre_ds = disklist; ds != NULL;
          pre_ds = ds, ds = ds->next)
@@ -715,7 +713,6 @@ static int disk_read(void) {
         disklist = ds;
       else
         pre_ds->next = ds;
-      ds->poll_count = local_poll_count;
     }
 
     is_disk = 0;
@@ -817,14 +814,13 @@ static int disk_read(void) {
 
     } /* if (is_disk) */
 
-    /* Don't write to the RRDs if we've just started.. */
-    ds->poll_count++;
-    if (ds->poll_count <= 2) {
-      DEBUG("disk plugin: (ds->poll_count = %i) <= "
-            "(min_poll_count = 2); => Not writing.",
-            ds->poll_count);
+    /* Skip first cycle for newly-added disk */
+    if (ds->poll_count == 0) {
+      DEBUG("disk plugin: (ds->poll_count = 0) => Skipping.");
+      ds->poll_count = poll_count;
       continue;
     }
+    ds->poll_count++;
 
     if ((read_ops == 0) && (write_ops == 0)) {
       DEBUG("disk plugin: ((read_ops == 0) && "
@@ -832,7 +828,7 @@ static int disk_read(void) {
       continue;
     }
 
-    output_name = disk_name;
+    char *output_name = disk_name;
 
 #if HAVE_LIBUDEV_H
     char *alt_name = NULL;
@@ -877,26 +873,29 @@ static int disk_read(void) {
 #endif
   } /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
 
-  local_poll_count++;
+  /* Remove disks that have disappeared from diskstats */
   for (ds = disklist, pre_ds = disklist; ds != NULL;) {
-      /* test if we have seen the disk in diskstats */
-      if (ds->poll_count != local_poll_count) {
-        diskstats_t *old_ds = ds;
-        /* free the ds */
-        if (pre_ds == disklist) {
-            /* first element */
-            disklist = ds->next;
-            ds = disklist;
-            pre_ds = ds;
-        } else {
-            pre_ds->next = ds->next;
-            ds = ds->next;
-        }
-        free(old_ds);
-      } else {
-        pre_ds = ds;
-        ds = ds->next;
-      }
+    /* Disk exists */
+    if (ds->poll_count == poll_count) {
+      pre_ds = ds;
+      ds = ds->next;
+      continue;
+    }
+
+    /* Disk is missing, remove it */
+    diskstats_t *missing_ds = ds;
+    if (pre_ds == disklist) {
+      disklist = ds->next;
+      ds = disklist;
+      pre_ds = ds;
+    } else {
+      pre_ds->next = ds->next;
+      ds = ds->next;
+    }
+
+    DEBUG("disk plugin: Disk %s disappeared.", missing_ds->name);
+    free(missing_ds->name);
+    free(missing_ds);
   }
   fclose(fh);
 /* #endif defined(KERNEL_LINUX) */
