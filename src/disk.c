@@ -662,9 +662,6 @@ static int disk_read(void) {
   char buffer[1024];
 
   char *fields[32];
-  int numfields;
-
-  int minor = 0;
 
   derive_t read_sectors = 0;
   derive_t write_sectors = 0;
@@ -691,13 +688,11 @@ static int disk_read(void) {
     char *disk_name;
     char *output_name;
 
-    numfields = strsplit(buffer, fields, 32);
+    int numfields = strsplit(buffer, fields, 32);
 
     /* need either 7 fields (partition) or at least 14 fields */
     if ((numfields != 7) && (numfields < 14))
       continue;
-
-    minor = atoll(fields[1]);
 
     disk_name = fields[2];
 
@@ -736,18 +731,16 @@ static int disk_read(void) {
       read_sectors = atoll(fields[5]);
       write_sectors = atoll(fields[9]);
 
-      if (minor == 0) {
-        is_disk = 1;
-        read_merged = atoll(fields[4]);
-        read_time = atoll(fields[6]);
-        write_merged = atoll(fields[8]);
-        write_time = atoll(fields[10]);
+      is_disk = 1;
+      read_merged = atoll(fields[4]);
+      read_time = atoll(fields[6]);
+      write_merged = atoll(fields[8]);
+      write_time = atoll(fields[10]);
 
-        in_progress = atof(fields[11]);
+      in_progress = atof(fields[11]);
 
-        io_time = atof(fields[12]);
-        weighted_time = atof(fields[13]);
-      }
+      io_time = atof(fields[12]);
+      weighted_time = atof(fields[13]);
     }
 
     {
