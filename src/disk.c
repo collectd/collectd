@@ -820,7 +820,7 @@ static int disk_read(void) {
       ds->poll_count = poll_count;
       continue;
     }
-    ds->poll_count++;
+    ds->poll_count = poll_count;
 
     if ((read_ops == 0) && (write_ops == 0)) {
       DEBUG("disk plugin: ((read_ops == 0) && "
@@ -884,14 +884,12 @@ static int disk_read(void) {
 
     /* Disk is missing, remove it */
     diskstats_t *missing_ds = ds;
-    if (pre_ds == disklist) {
-      disklist = ds->next;
-      ds = disklist;
-      pre_ds = ds;
+    if (ds == disklist) {
+      pre_ds = disklist = ds->next;
     } else {
       pre_ds->next = ds->next;
-      ds = ds->next;
     }
+    ds = ds->next;
 
     DEBUG("disk plugin: Disk %s disappeared.", missing_ds->name);
     free(missing_ds->name);
