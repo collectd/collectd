@@ -126,6 +126,13 @@ normally and spawning processes from Python will work as intended.
 
 =back
 
+=item B<Import> I<Name>
+
+Imports the python script I<Name> and loads it into the collectd
+python process. If your python script is not found, be sure its
+directory exists in python's B<sys.path>. You can prepend to the
+B<sys.path> using the B<ModulePath> configuration option.
+
 =item E<lt>B<Module> I<Name>E<gt> block
 
 This block may be used to pass on configuration settings to a Python module.
