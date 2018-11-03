@@ -1795,6 +1795,7 @@ finance page and dispatch the value to collectd.
     <Page "stock_quotes">
       Plugin "quotes"
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+      AddressFamily "any"
       User "foo"
       Password "bar"
       Digest false
@@ -1834,6 +1835,16 @@ Defaults to C<curl>.
 
 URL of the web site to retrieve. Since a regular expression will be used to
 extract information from this data, non-binary data is a big plus here ;)
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6. If C<libcurl> is compiled
+without IPv6 support, the latter will result in a warning, and fallback to C<any>.
+If C<Type> cannot be parsed, C<any> will be used as well (all IP versions that
+your system allows).
 
 =item B<User> I<Name>
 

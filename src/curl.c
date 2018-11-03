@@ -57,6 +57,7 @@ struct web_page_s /* {{{ */
   char *instance;
 
   char *url;
+  int address_family;
   char *user;
   char *pass;
   char *credentials;
@@ -345,6 +346,7 @@ static int cc_page_init_curl(web_page_t *wp) /* {{{ */
   curl_easy_setopt(wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt(wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(wp->curl, CURLOPT_MAXREDIRS, 50L);
+  curl_easy_setopt(wp->curl, CURLOPT_IPRESOLVE, wp->address_family);
 
   if (wp->user != NULL) {
 #ifdef HAVE_CURLOPT_USERNAME
@@ -398,6 +400,8 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   cdtime_t interval = 0;
   web_page_t *page;
   int status;
+  char *af = NULL;
+  curl_version_info_data *curl_info = curl_version_info(CURLVERSION_NOW);
 
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
     WARNING("curl plugin: `Page' blocks need exactly one string argument.");
@@ -411,6 +415,7 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   }
   page->plugin_name = NULL;
   page->url = NULL;
+  page->address_family = CURL_IPRESOLVE_WHATEVER;
   page->user = NULL;
   page->pass = NULL;
   page->digest = false;
@@ -437,7 +442,19 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &page->plugin_name);
     else if (strcasecmp("URL", child->key) == 0)
       status = cf_util_get_string(child, &page->url);
-    else if (strcasecmp("User", child->key) == 0)
+    else if (strcasecmp("AddressFamily", child->key) == 0) {
+      status = cf_util_get_string(child, &af);
+      if (status != 0 || af == NULL) {
+        page->address_family = CURL_IPRESOLVE_WHATEVER;
+      } else if (strcasecmp("inet4", af) == 0 || strcasecmp("ipv4", af) == 0) {
+        page->address_family = CURL_IPRESOLVE_V4;
+      } else if (strcasecmp("inet6", af) == 0 || strcasecmp("ipv6", af) == 0) {
+        if (curl_info->features & CURL_VERSION_IPV6)
+          page->address_family = CURL_IPRESOLVE_V6;
+        else
+          WARNING("curl plugin: IPv6 not supported by this libCURL.");
+      }
+    } else if (strcasecmp("User", child->key) == 0)
       status = cf_util_get_string(child, &page->user);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &page->pass);

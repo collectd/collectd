@@ -403,6 +403,7 @@
 #<Plugin curl>
 #  <Page "stock_quotes">
 #    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+#    AddressFamily "any"
 #    User "foo"
 #    Password "bar"
 #    Digest false
