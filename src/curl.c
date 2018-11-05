@@ -445,7 +445,8 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &af);
       if (status != 0 || af == NULL) {
         WARNING("curl plugin: Cannot parse value of `%s' "
-                "for instance `%s'.", child->key, page->instance);
+                "for instance `%s'.",
+                child->key, page->instance);
       } else if (strcasecmp("any", af) == 0) {
         page->address_family = CURL_IPRESOLVE_WHATEVER;
       } else if (strcasecmp("ipv4", af) == 0) {
@@ -462,7 +463,8 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
                   "Using fallback `any'.");
       } else {
         WARNING("curl plugin: Unsupported value of `%s' "
-                "for instance `%s'.", child->key, page->instance);
+                "for instance `%s'.",
+                child->key, page->instance);
         status = -1;
       }
     } else if (strcasecmp("User", child->key) == 0)
