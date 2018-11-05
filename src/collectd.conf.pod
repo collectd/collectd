@@ -1841,10 +1841,12 @@ extract information from this data, non-binary data is a big plus here ;)
 IP version to resolve URL to. Useful in cases when hostname in URL resolves
 to both IPv4 and IPv6 addresses, and you are interested in using one of them
 specifically.
-Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6. If C<libcurl> is compiled
-without IPv6 support, the latter will result in a warning, and fallback to C<any>.
-If C<Type> cannot be parsed, C<any> will be used as well (all IP versions that
-your system allows).
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<Page>
+block will be ignored.
 
 =item B<User> I<Name>
 
