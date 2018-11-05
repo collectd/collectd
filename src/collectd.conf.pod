@@ -1613,11 +1613,6 @@ LoadPlugin connectivity
 
 interface(s) to monitor connect to. 
 
-=item I<Status>
-
-If I<Status> is greater than or equal to zero the message indicates interface is up,
-if I<Status> is less than zero the message indicates interface is down. 
-
 =back
 
 =head2 Plugin C<conntrack>
