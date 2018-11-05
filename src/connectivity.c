@@ -558,8 +558,7 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
         continue;
       }
 
-      if (errno == EINTR)
-      {
+      if (errno == EINTR) {
         // Interrupt, so just return
         return 0;
       }
@@ -614,13 +613,9 @@ static void send_interface_status() {
   for (interface_list_t *il = interface_list_head; il != NULL;
        il = il->next) /* {{{ */
   {
-    uint32_t status;
-    uint32_t prev_status;
-    uint32_t sent;
-
-    status = il->status;
-    prev_status = il->prev_status;
-    sent = il->sent;
+    uint32_t status = il->status;
+    uint32_t prev_status = il->prev_status;
+    uint32_t sent = il->sent;
 
     if (status != prev_status && sent == 0) {
       connectivity_dispatch_notification(il->interface, "gauge", status,
@@ -945,6 +940,9 @@ static int connectivity_config(const char *key, const char *value) /* {{{ */
 {
   if (ignorelist == NULL) {
     ignorelist = ignorelist_create(/* invert = */ 1);
+
+    if (ignorelist == NULL)
+      return -1;
   }
 
   if (strcasecmp(key, "Interface") == 0) {
