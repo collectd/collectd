@@ -42,9 +42,9 @@ static const char *config_keys[] = {"Disk", "IgnoreSelected", "IgnoreSleepMode",
 
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static ignorelist_t *ignorelist = NULL;
-static int ignore_sleep_mode = 0;
-static int use_serial = 0;
+static ignorelist_t *ignorelist;
+static int ignore_sleep_mode;
+static int use_serial;
 
 static int smart_config(const char *key, const char *value) {
   if (ignorelist == NULL)

@@ -71,11 +71,11 @@
 #define WCOREDUMP(s) 0
 #endif /* ! WCOREDUMP */
 
-static int loop = 0;
-static int restart = 0;
+static int loop;
+static int restart;
 
-static const char *pidfile = NULL;
-static pid_t collectd_pid = 0;
+static const char *pidfile;
+static pid_t collectd_pid;
 
 __attribute__((noreturn)) static void exit_usage(const char *name) {
   printf("Usage: %s <options> [-- <collectd options>]\n"
@@ -95,26 +95,26 @@ __attribute__((noreturn)) static void exit_usage(const char *name) {
 } /* exit_usage */
 
 static int pidfile_create(void) {
-  FILE *file = NULL;
+  FILE *file;
 
-  if (NULL == pidfile)
+  if (pidfile == NULL)
     pidfile = COLLECTDMON_PIDFILE;
 
-  if (NULL == (file = fopen(pidfile, "w"))) {
+  if ((file = fopen(pidfile, "w")) == NULL) {
     syslog(LOG_ERR, "Error: couldn't open PID-file (%s) for writing: %s",
            pidfile, strerror(errno));
     return -1;
   }
 
-  fprintf(file, "%i\n", (int)getpid());
+  fprintf(file, "%d\n", (int)getpid());
   fclose(file);
   return 0;
 } /* pidfile_create */
 
 static int pidfile_delete(void) {
-  assert(NULL != pidfile);
+  assert(pidfile);
 
-  if (0 != unlink(pidfile)) {
+  if (unlink(pidfile) != 0) {
     syslog(LOG_ERR, "Error: couldn't delete PID-file (%s): %s", pidfile,
            strerror(errno));
     return -1;
@@ -123,41 +123,37 @@ static int pidfile_delete(void) {
 } /* pidfile_remove */
 
 static int daemonize(void) {
-  struct rlimit rl;
-  int dev_null;
-
-  pid_t pid = 0;
-  int i = 0;
-
-  if (0 != chdir("/")) {
+  if (chdir("/") != 0) {
     fprintf(stderr, "Error: chdir() failed: %s\n", strerror(errno));
     return -1;
   }
 
-  if (0 != getrlimit(RLIMIT_NOFILE, &rl)) {
+  struct rlimit rl;
+  if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
     fprintf(stderr, "Error: getrlimit() failed: %s\n", strerror(errno));
     return -1;
   }
 
-  if (0 > (pid = fork())) {
+  pid_t pid = fork();
+  if (pid < 0) {
     fprintf(stderr, "Error: fork() failed: %s\n", strerror(errno));
     return -1;
   } else if (pid != 0) {
     exit(0);
   }
 
-  if (0 != pidfile_create())
+  if (pidfile_create() != 0)
     return -1;
 
   setsid();
 
-  if (RLIM_INFINITY == rl.rlim_max)
+  if (rl.rlim_max == RLIM_INFINITY)
     rl.rlim_max = 1024;
 
-  for (i = 0; i < (int)rl.rlim_max; ++i)
+  for (int i = 0; i < (int)rl.rlim_max; ++i)
     close(i);
 
-  dev_null = open("/dev/null", O_RDWR);
+  int dev_null = open("/dev/null", O_RDWR);
   if (dev_null == -1) {
     syslog(LOG_ERR, "Error: couldn't open /dev/null: %s", strerror(errno));
     return -1;
@@ -192,9 +188,9 @@ static int daemonize(void) {
 } /* daemonize */
 
 static int collectd_start(char **argv) {
-  pid_t pid = 0;
+  pid_t pid = fork();
 
-  if (0 > (pid = fork())) {
+  if (pid < 0) {
     syslog(LOG_ERR, "Error: fork() failed: %s", strerror(errno));
     return -1;
   } else if (pid != 0) {
@@ -208,10 +204,10 @@ static int collectd_start(char **argv) {
 } /* collectd_start */
 
 static int collectd_stop(void) {
-  if (0 == collectd_pid)
+  if (collectd_pid == 0)
     return 0;
 
-  if (0 != kill(collectd_pid, SIGTERM)) {
+  if (kill(collectd_pid, SIGTERM) != 0) {
     syslog(LOG_ERR, "Error: kill() failed: %s", strerror(errno));
     return -1;
   }
@@ -230,7 +226,7 @@ static void sig_hup_handler(int __attribute__((unused)) signo) {
 
 static void log_status(int status) {
   if (WIFEXITED(status)) {
-    if (0 == WEXITSTATUS(status))
+    if (WEXITSTATUS(status) == 0)
       syslog(LOG_INFO, "Info: collectd terminated with exit status %i",
              WEXITSTATUS(status));
     else
@@ -246,24 +242,24 @@ static void log_status(int status) {
 static void check_respawn(void) {
   time_t t = time(NULL);
 
-  static time_t timestamp = 0;
-  static int counter = 0;
+  static time_t timestamp;
+  static int counter;
 
-  if ((t - 120) < timestamp)
+  if (timestamp >= t - 120)
     ++counter;
   else {
     timestamp = t;
     counter = 0;
   }
 
-  if (10 < counter) {
+  if (counter >= 10) {
     unsigned int time_left = 300;
 
     syslog(LOG_ERR, "Error: collectd is respawning too fast - "
                     "disabled for %i seconds",
            time_left);
 
-    while ((0 < (time_left = sleep(time_left))) && (0 == loop))
+    while (((time_left = sleep(time_left)) > 0) && loop == 0)
       ;
   }
   return;
@@ -274,15 +270,13 @@ int main(int argc, char **argv) {
   char *collectd = NULL;
   char **collectd_argv = NULL;
 
-  struct sigaction sa;
-
   int i = 0;
 
   /* parse command line options */
   while (42) {
     int c = getopt(argc, argv, "hc:P:");
 
-    if (-1 == c)
+    if (c == -1)
       break;
 
     switch (c) {
@@ -299,19 +293,19 @@ int main(int argc, char **argv) {
   }
 
   for (i = optind; i < argc; ++i)
-    if (0 == strcmp(argv[i], "-f"))
+    if (strcmp(argv[i], "-f") == 0)
       break;
 
   /* i < argc => -f already present */
   collectd_argc = 1 + argc - optind + ((i < argc) ? 0 : 1);
-  collectd_argv = (char **)calloc(collectd_argc + 1, sizeof(char *));
+  collectd_argv = calloc(collectd_argc + 1, sizeof(*collectd_argv));
 
-  if (NULL == collectd_argv) {
+  if (collectd_argv == NULL) {
     fprintf(stderr, "Out of memory.");
     return 3;
   }
 
-  collectd_argv[0] = (NULL == collectd) ? "collectd" : collectd;
+  collectd_argv[0] = (collectd == NULL) ? "collectd" : collectd;
 
   if (i == argc)
     collectd_argv[collectd_argc - 1] = "-f";
@@ -323,22 +317,23 @@ int main(int argc, char **argv) {
 
   openlog("collectdmon", LOG_CONS | LOG_PID, LOG_DAEMON);
 
-  if (-1 == daemonize()) {
+  if (daemonize() == -1) {
     free(collectd_argv);
     return 1;
   }
 
-  sa.sa_handler = sig_int_term_handler;
-  sa.sa_flags = 0;
+  struct sigaction sa = {
+      .sa_handler = sig_int_term_handler, .sa_flags = 0,
+  };
   sigemptyset(&sa.sa_mask);
 
-  if (0 != sigaction(SIGINT, &sa, NULL)) {
+  if (sigaction(SIGINT, &sa, NULL) != 0) {
     syslog(LOG_ERR, "Error: sigaction() failed: %s", strerror(errno));
     free(collectd_argv);
     return 1;
   }
 
-  if (0 != sigaction(SIGTERM, &sa, NULL)) {
+  if (sigaction(SIGTERM, &sa, NULL) != 0) {
     syslog(LOG_ERR, "Error: sigaction() failed: %s", strerror(errno));
     free(collectd_argv);
     return 1;
@@ -346,24 +341,24 @@ int main(int argc, char **argv) {
 
   sa.sa_handler = sig_hup_handler;
 
-  if (0 != sigaction(SIGHUP, &sa, NULL)) {
+  if (sigaction(SIGHUP, &sa, NULL) != 0) {
     syslog(LOG_ERR, "Error: sigaction() failed: %s", strerror(errno));
     free(collectd_argv);
     return 1;
   }
 
-  while (0 == loop) {
+  while (loop == 0) {
     int status = 0;
 
-    if (0 != collectd_start(collectd_argv)) {
+    if (collectd_start(collectd_argv) != 0) {
       syslog(LOG_ERR, "Error: failed to start collectd.");
       break;
     }
 
-    assert(0 < collectd_pid);
+    assert(collectd_pid >= 0);
     while ((collectd_pid != waitpid(collectd_pid, &status, 0)) &&
-           (EINTR == errno))
-      if ((0 != loop) || (0 != restart))
+           errno == EINTR)
+      if (loop != 0 || restart != 0)
         collectd_stop();
 
     collectd_pid = 0;
@@ -371,10 +366,10 @@ int main(int argc, char **argv) {
     log_status(status);
     check_respawn();
 
-    if (0 != restart) {
+    if (restart != 0) {
       syslog(LOG_INFO, "Info: restarting collectd");
       restart = 0;
-    } else if (0 == loop)
+    } else if (loop == 0)
       syslog(LOG_WARNING, "Warning: restarting collectd");
   }
 

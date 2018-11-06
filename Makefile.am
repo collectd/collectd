@@ -1,6 +1,15 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_YFLAGS = -d
 
+if BUILD_WIN32
+cpkgdatadir=$(datadir)
+cpkglibdir=$(libdir)/plugins
+cpkglocalstatedir=${localstatedir}
+else
+cpkgdatadir=$(pkgdatadir)
+cpkglibdir=$(pkglibdir)
+cpkglocalstatedir=${localstatedir}/lib/${PACKAGE_NAME}
+endif
 
 BUILT_SOURCES = \
 	src/libcollectdclient/collectd/lcc_features.h \
@@ -61,6 +70,7 @@ EXTRA_DIST = \
 	src/types.db \
 	src/types.db.pod \
 	src/valgrind.FreeBSD.suppress \
+	src/valgrind.suppress \
 	testwrapper.sh \
 	version-gen.sh
 
@@ -98,7 +108,13 @@ pkginclude_HEADERS = \
 
 lib_LTLIBRARIES = libcollectdclient.la
 
+if BUILD_WIN32
+# TODO: Build all executables on Windows as well.
+sbin_PROGRAMS = \
+        collectd
 
+bin_PROGRAMS =
+else
 sbin_PROGRAMS = \
 	collectd \
 	collectdmon
@@ -108,6 +124,7 @@ bin_PROGRAMS = \
 	collectd-nagios \
 	collectd-tg \
 	collectdctl
+endif # BUILD_WIN32
 
 
 noinst_LTLIBRARIES = \
@@ -141,7 +158,8 @@ check_PROGRAMS = \
 	test_utils_subst \
 	test_utils_time \
 	test_utils_vl_lookup \
-	test_libcollectd_network_parse
+	test_libcollectd_network_parse \
+	test_utils_config_cores
 
 
 TESTS = $(check_PROGRAMS)
@@ -149,7 +167,7 @@ TESTS = $(check_PROGRAMS)
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_srcdir)/testwrapper.sh
 
 
-jardir = $(pkgdatadir)/java
+jardir = $(cpkgdatadir)/java
 
 pkglib_LTLIBRARIES =
 
@@ -158,6 +176,9 @@ PLUGIN_LDFLAGS = \
 	-module \
 	-avoid-version \
 	-export-symbols-regex '\<module_register\>'
+if BUILD_WIN32
+PLUGIN_LDFLAGS += -shared -no-undefined -lcollectd -L.
+endif
 
 
 AM_CPPFLAGS = \
@@ -165,13 +186,26 @@ AM_CPPFLAGS = \
 	-DPREFIX='"${prefix}"' \
 	-DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"' \
 	-DLOCALSTATEDIR='"${localstatedir}"' \
-	-DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"' \
-	-DPLUGINDIR='"${pkglibdir}"' \
-	-DPKGDATADIR='"${pkgdatadir}"'
+	-DPKGLOCALSTATEDIR='"${cpkglocalstatedir}"' \
+	-DPLUGINDIR='"${cpkglibdir}"' \
+	-DPKGDATADIR='"${cpkgdatadir}"'
+if BUILD_WIN32
+AM_CPPFLAGS += -DNOGDI
+endif
 
+COMMON_DEPS =
+if BUILD_WIN32
+COMMON_DEPS += collectd.exe
+endif
 
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
+if BUILD_WIN32
+COMMON_LIBS += -lws2_32
+endif
+if BUILD_WITH_GNULIB
+COMMON_LIBS += -lgnu
+endif
 if BUILD_WITH_CAPABILITY
 COMMON_LIBS += -lcap
 endif
@@ -193,6 +227,7 @@ endif
 
 
 collectd_SOURCES = \
+	src/daemon/cmd.h \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h \
 	src/daemon/configfile.c \
@@ -235,6 +270,13 @@ collectd_LDADD = \
 	$(COMMON_LIBS) \
 	$(DLOPEN_LIBS)
 
+if BUILD_WIN32
+collectd_SOURCES += src/daemon/cmd_windows.c
+collectd_LDFLAGS += -ldl -Wl,--out-implib,libcollectd.a
+else
+collectd_SOURCES += src/daemon/cmd.c
+endif
+	
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
@@ -246,6 +288,9 @@ collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
+if BUILD_WIN32
+collectd_LDFLAGS += -Wl,--out-implib,libcollectd.a
+endif
 
 collectdmon_SOURCES = src/collectdmon.c
 
@@ -325,6 +370,11 @@ test_utils_subst_SOURCES = \
 	src/daemon/utils_subst.c \
 	src/daemon/utils_subst.h
 test_utils_subst_LDADD = libplugin_mock.la
+
+test_utils_config_cores_SOURCES = \
+	src/utils_config_cores_test.c \
+	src/testing.h
+test_utils_config_cores_LDADD = libplugin_mock.la
 
 libavltree_la_SOURCES = \
 	src/daemon/utils_avltree.c \
@@ -483,7 +533,8 @@ libcollectdclient_la_SOURCES = \
 	src/libcollectdclient/network.c \
 	src/libcollectdclient/network_buffer.c \
 	src/libcollectdclient/network_parse.c \
-	src/libcollectdclient/server.c
+	src/libcollectdclient/server.c \
+	src/libcollectdclient/collectd/stdendian.h
 libcollectdclient_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
@@ -491,6 +542,10 @@ libcollectdclient_la_CPPFLAGS = \
 	-I$(srcdir)/src/daemon
 libcollectdclient_la_LDFLAGS = -version-info 2:0:1
 libcollectdclient_la_LIBADD = -lm
+if BUILD_WIN32
+libcollectdclient_la_LDFLAGS += -shared -no-undefined
+libcollectdclient_la_LIBADD += -lgnu -lws2_32 -liphlpapi
+endif
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
@@ -519,6 +574,68 @@ liboconfig_la_SOURCES = \
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
+if BUILD_WITH_LIBCURL
+if BUILD_WITH_LIBSSL
+if BUILD_WITH_LIBYAJL2
+noinst_LTLIBRARIES += liboauth.la
+liboauth_la_SOURCES = \
+	src/utils_oauth.c \
+	src/utils_oauth.h
+liboauth_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS) \
+	$(BUILD_WITH_LIBSSL_CFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+liboauth_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS) \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_utils_oauth
+TESTS += test_utils_oauth
+test_utils_oauth_SOURCES = \
+	src/utils_oauth_test.c
+test_utils_oauth_LDADD = \
+	liboauth.la \
+	libcommon.la \
+	libplugin_mock.la
+
+noinst_LTLIBRARIES += libgce.la
+libgce_la_SOURCES = \
+	src/utils_gce.c \
+	src/utils_gce.h
+libgce_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS)
+libgce_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+endif
+
+if BUILD_WITH_LIBYAJL2
+noinst_LTLIBRARIES += libformat_stackdriver.la
+libformat_stackdriver_la_SOURCES = \
+	src/utils_format_stackdriver.c \
+	src/utils_format_stackdriver.h
+libformat_stackdriver_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+libformat_stackdriver_la_LIBADD = \
+	libavltree.la \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_format_stackdriver
+TESTS += test_format_stackdriver
+test_format_stackdriver_SOURCES = \
+	src/utils_format_stackdriver_test.c \
+	src/testing.h
+test_format_stackdriver_LDADD = \
+	libformat_stackdriver.la \
+	libplugin_mock.la \
+	-lm
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -537,6 +654,20 @@ amqp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBRABBITMQ_CPPFLAGS)
 amqp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRABBITMQ_LDFLAGS)
 amqp_la_LIBADD = \
 	$(BUILD_WITH_LIBRABBITMQ_LIBS) \
+	libcmds.la \
+	libformat_graphite.la \
+	libformat_json.la
+endif
+
+if BUILD_PLUGIN_AMQP1
+pkglib_LTLIBRARIES += amqp1.la
+amqp1_la_SOURCES = \
+	src/amqp1.c \
+	src/utils_deq.h
+amqp1_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
+amqp1_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
+amqp1_la_LIBADD = \
+	$(BUILD_WITH_LIBQPIDPROTON_LIBS) \
 	libcmds.la \
 	libformat_graphite.la \
 	libformat_json.la
@@ -592,7 +723,7 @@ if BUILD_PLUGIN_BAROMETER
 pkglib_LTLIBRARIES += barometer.la
 barometer_la_SOURCES = src/barometer.c
 barometer_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-barometer_la_LIBADD = -lm
+barometer_la_LIBADD = -lm $(BUILD_WITH_LIBI2C_LIBS)
 endif
 
 if BUILD_PLUGIN_BATTERY
@@ -883,6 +1014,13 @@ gps_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGPS_LDFLAGS)
 gps_la_LIBADD = -lpthread $(BUILD_WITH_LIBGPS_LIBS)
 endif
 
+if BUILD_PLUGIN_GPU_NVIDIA
+pkglib_LTLIBRARIES += gpu_nvidia.la
+gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
+gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_GPU_CUDA_LDFLAGS)
+gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
+endif
+
 if BUILD_PLUGIN_GRPC
 pkglib_LTLIBRARIES += grpc.la
 grpc_la_SOURCES = src/grpc.cc
@@ -913,7 +1051,10 @@ endif
 
 if BUILD_PLUGIN_INTEL_PMU
 pkglib_LTLIBRARIES += intel_pmu.la
-intel_pmu_la_SOURCES = src/intel_pmu.c
+intel_pmu_la_SOURCES = \
+	src/intel_pmu.c \
+	src/utils_config_cores.h \
+	src/utils_config_cores.c
 intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
 intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
 intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
@@ -921,7 +1062,10 @@ endif
 
 if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
-intel_rdt_la_SOURCES = src/intel_rdt.c
+intel_rdt_la_SOURCES = \
+	src/intel_rdt.c \
+	src/utils_config_cores.h \
+	src/utils_config_cores.c
 intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
@@ -1012,6 +1156,7 @@ if BUILD_PLUGIN_LOGFILE
 pkglib_LTLIBRARIES += logfile.la
 logfile_la_SOURCES = src/logfile.c
 logfile_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+logfile_la_DEPENDENCIES = $(COMMON_DEPS)
 endif
 
 if BUILD_PLUGIN_LOG_LOGSTASH
@@ -1351,6 +1496,24 @@ ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
 endif
 
+if BUILD_PLUGIN_PCIE_ERRORS
+pkglib_LTLIBRARIES += pcie_errors.la
+pcie_errors_la_SOURCES = src/pcie_errors.c
+pcie_errors_la_CPPFLAGS = $(AM_CPPFLAGS)
+pcie_errors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_pcie_errors_SOURCES = \
+	src/pcie_errors_test.c \
+	src/daemon/utils_llist.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_pcie_errors_LDADD = liboconfig.la libplugin_mock.la
+check_PROGRAMS += test_plugin_pcie_errors
+TESTS += test_plugin_pcie_errors
+endif
+
 if BUILD_PLUGIN_PERL
 pkglib_LTLIBRARIES += perl.la
 perl_la_SOURCES = src/perl.c
@@ -1528,7 +1691,7 @@ pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = src/snmp.c
 snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
 snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
-snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+snmp_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBNETSNMP_LIBS)
 endif
 
 if BUILD_PLUGIN_SNMP_AGENT
@@ -1537,6 +1700,23 @@ snmp_agent_la_SOURCES = src/snmp_agent.c
 snmp_agent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
 snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
 snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
+
+test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
+                                 src/daemon/utils_avltree.c \
+                                 src/daemon/utils_llist.c \
+                                 src/daemon/configfile.c \
+                                 src/daemon/types_list.c
+test_plugin_snmp_agent_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS)
+test_plugin_snmp_agent_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
+test_plugin_snmp_agent_LDADD = liboconfig.la libplugin_mock.la \
+	$(BUILD_WITH_LIBNETSNMPAGENT_LIBS) $(BUILD_WITH_LIBNETSNMP_LIBS)
+
+check_PROGRAMS += test_plugin_snmp_agent
+TESTS += test_plugin_snmp_agent
+
+
 endif
 
 if BUILD_PLUGIN_STATSD
@@ -1766,18 +1946,15 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 
-# TODO: enable once we support only modern libvirts which depends on libnl-3
-# the libvirt on wheezy is linked in libnl v1, and there is a small leak here,
-# triggered by the library initialization. There are no means to avoid it,
-# and libvirt switched to libnl3 anyway
-#test_plugin_virt_SOURCES = src/virt_test.c
-#test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
-#	$(BUILD_WITH_LIBVIRT_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
-#test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS)
-#test_plugin_virt_LDADD = libplugin_mock.la \
-#	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
-#check_PROGRAMS += test_plugin_virt
-#TESTS += test_plugin_virt
+test_plugin_virt_SOURCES = src/virt_test.c
+test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
+test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
+	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
+test_plugin_virt_LDADD = libplugin_mock.la \
+	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
+check_PROGRAMS += test_plugin_virt
+TESTS += test_plugin_virt
 endif
 
 if BUILD_PLUGIN_VMEM
@@ -1875,6 +2052,15 @@ if BUILD_PLUGIN_WRITE_SENSU
 pkglib_LTLIBRARIES += write_sensu.la
 write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_STACKDRIVER
+pkglib_LTLIBRARIES += write_stackdriver.la
+write_stackdriver_la_SOURCES = src/write_stackdriver.c
+write_stackdriver_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_stackdriver_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_stackdriver_la_LIBADD = libformat_stackdriver.la libgce.la liboauth.la \
+                     $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB
@@ -1992,19 +2178,19 @@ install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(sysconfdir)
 	if test -e $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	then \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
+		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf.pkg-orig; \
 	else \
-		$(INSTALL) -m 0640 $(srcdir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
+		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
-	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
-	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
+	$(mkinstalldirs) $(DESTDIR)$(cpkgdatadir)
+	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(cpkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
-		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+		$(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 uninstall-hook:
-	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(cpkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
-	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+	rm -f $(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 all-local: @PERL_BINDINGS@
 
@@ -2084,3 +2270,4 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
+

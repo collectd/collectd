@@ -79,9 +79,9 @@ struct cx_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   char *post_body;
   int timeout;
@@ -240,8 +240,8 @@ static int cx_check_type(const data_set_t *ds, cx_xpath_t *xpath) /* {{{ */
   }
 
   if (ds->ds_num != xpath->values_len) {
-    WARNING("curl_xml plugin: DataSet `%s' requires %zu values, but config "
-            "talks about %zu",
+    WARNING("curl_xml plugin: DataSet `%s' requires %" PRIsz
+            " values, but config talks about %" PRIsz,
             xpath->type, ds->ds_num, xpath->values_len);
     return -1;
   }
@@ -823,6 +823,8 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
+  cdtime_t interval = 0;
+
   /* Fill the `cx_t' structure.. */
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -853,6 +855,8 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->post_body);
     else if (strcasecmp("Namespace", child->key) == 0)
       status = cx_config_add_namespace(db, child);
+    else if (strcasecmp("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("Timeout", child->key) == 0)
       status = cf_util_get_int(child, &db->timeout);
     else if (strcasecmp("Statistics", child->key) == 0) {
@@ -891,7 +895,7 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
   char *cb_name = ssnprintf_alloc("curl_xml-%s-%s", db->instance, db->url);
 
   plugin_register_complex_read(/* group = */ "curl_xml", cb_name, cx_read,
-                               /* interval = */ 0,
+                               /* interval = */ interval,
                                &(user_data_t){
                                    .data = db, .free_func = cx_free,
                                });

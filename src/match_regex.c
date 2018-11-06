@@ -66,7 +66,7 @@ struct mr_match_s {
   mr_regex_t *type;
   mr_regex_t *type_instance;
   llist_t *meta; /* Maps each meta key into mr_regex_t* */
-  _Bool invert;
+  bool invert;
 };
 
 /*
@@ -245,7 +245,7 @@ static int mr_create(const oconfig_item_t *ci, void **user_data) /* {{{ */
     return -ENOMEM;
   }
 
-  m->invert = 0;
+  m->invert = false;
 
   status = 0;
   for (int i = 0; i < ci->children_num; i++) {

@@ -289,6 +289,9 @@ int timeval_cmp(struct timeval tv0, struct timeval tv1, struct timeval *delta);
 int check_create_dir(const char *file_orig);
 
 #ifdef HAVE_LIBKSTAT
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
 int get_kstat(kstat_t **ksp_ptr, char *module, int instance, char *name);
 long long get_kstat_value(kstat_t *ksp, char *name);
 #endif
@@ -316,7 +319,7 @@ int format_name(char *ret, int ret_len, const char *hostname,
   format_name(ret, ret_len, (vl)->host, (vl)->plugin, (vl)->plugin_instance,   \
               (vl)->type, (vl)->type_instance)
 int format_values(char *ret, size_t ret_len, const data_set_t *ds,
-                  const value_list_t *vl, _Bool store_rates);
+                  const value_list_t *vl, bool store_rates);
 
 int parse_identifier(char *str, char **ret_host, char **ret_plugin,
                      char **ret_plugin_instance, char **ret_type,
@@ -332,6 +335,7 @@ int parse_values(char *buffer, value_list_t *vl, const data_set_t *ds);
 int parse_value_file(char const *path, value_t *ret_value, int ds_type);
 
 #if !HAVE_GETPWNAM_R
+struct passwd;
 int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
                struct passwd **pwbufp);
 #endif
@@ -354,7 +358,7 @@ ssize_t read_file_contents(char const *filename, char *buf, size_t bufsize);
 counter_t counter_diff(counter_t old_value, counter_t new_value);
 
 /* Convert a rate back to a value_t. When converting to a derive_t, counter_t
- * or absoltue_t, take fractional residuals into account. This is important
+ * or absolute_t, take fractional residuals into account. This is important
  * when scaling counters, for example.
  * Returns zero on success. Returns EAGAIN when called for the first time; in
  * this case the value_t is invalid and the next call should succeed. Other
@@ -383,12 +387,10 @@ int strtogauge(const char *string, gauge_t *ret_value);
 int strarray_add(char ***ret_array, size_t *ret_array_len, char const *str);
 void strarray_free(char **array, size_t array_len);
 
-#ifdef HAVE_SYS_CAPABILITY_H
 /** Check if the current process benefits from the capability passed in
  * argument. Returns zero if it does, less than zero if it doesn't or on error.
  * See capabilities(7) for the list of possible capabilities.
  * */
 int check_capability(int arg);
-#endif /* HAVE_SYS_CAPABILITY_H */
 
 #endif /* COMMON_H */

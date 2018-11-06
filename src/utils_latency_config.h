@@ -47,14 +47,13 @@ typedef struct {
   char *bucket_type;
 
   /*
-  _Bool lower;
-  _Bool upper;
-  _Bool avg;
+  bool lower;
+  bool upper;
+  bool avg;
   */
 } latency_config_t;
 
-int latency_config(latency_config_t *conf, oconfig_item_t *ci,
-                   char const *plugin);
+int latency_config(latency_config_t *conf, oconfig_item_t *ci);
 
 int latency_config_copy(latency_config_t *dst, const latency_config_t src);
 

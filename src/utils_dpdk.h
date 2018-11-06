@@ -74,7 +74,7 @@ int dpdk_helper_command(dpdk_helper_ctx_t *phc, enum DPDK_CMD cmd, int *result,
                         cdtime_t cmd_wait_time);
 void *dpdk_helper_priv_get(dpdk_helper_ctx_t *phc);
 int dpdk_helper_data_size_get(dpdk_helper_ctx_t *phc);
-uint8_t dpdk_helper_eth_dev_count();
+uint8_t dpdk_helper_eth_dev_count(void);
 
 /* forward declaration of handler function that is called by helper from
  * child process. not implemented in helper. must be provided by client. */

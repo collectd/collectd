@@ -129,7 +129,7 @@ static int Config_init(PyObject *s, PyObject *args, PyObject *kwds) {
 static PyObject *Config_repr(PyObject *s) {
   Config *self = (Config *)s;
   PyObject *ret = NULL;
-  static PyObject *node_prefix = NULL, *root_prefix = NULL, *ending = NULL;
+  static PyObject *node_prefix, *root_prefix, *ending;
 
   /* This is ok because we have the GIL, so this is thread-save by default. */
   if (node_prefix == NULL)

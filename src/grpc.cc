@@ -241,7 +241,7 @@ static grpc::Status unmarshal_meta_data(const grpcMetadata &rpc_metadata,
   *md_out = meta_data_create();
   if (*md_out == nullptr) {
     return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                        grpc::string("failed to metadata list"));
+                        grpc::string("failed to create metadata list"));
   }
   for (auto kv : rpc_metadata) {
     auto k = kv.first.c_str();
@@ -664,7 +664,7 @@ static int c_grpc_config_listen(oconfig_item_t *ci) {
       }
       pkcp.cert_chain = read_file(cert);
     } else if (!strcasecmp("VerifyPeer", child->key)) {
-      _Bool verify = 0;
+      bool verify = false;
       if (cf_util_get_boolean(child, &verify)) {
         return -1;
       }

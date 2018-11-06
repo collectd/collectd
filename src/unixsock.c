@@ -55,14 +55,14 @@ static const char *config_keys[] = {"SocketFile", "SocketGroup", "SocketPerms",
                                     "DeleteSocket"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static int loop = 0;
+static int loop;
 
 /* socket configuration */
 static int sock_fd = -1;
-static char *sock_file = NULL;
-static char *sock_group = NULL;
+static char *sock_file;
+static char *sock_group;
 static int sock_perms = S_IRWXU | S_IRWXG;
-static _Bool delete_socket = 0;
+static bool delete_socket;
 
 static pthread_t listen_thread = (pthread_t)0;
 
@@ -208,7 +208,6 @@ static void *us_handle_client(void *arg) {
     char buffer_copy[1024];
     char *fields[128];
     int fields_num;
-    int len;
 
     errno = 0;
     if (fgets(buffer, sizeof(buffer), fhin) == NULL) {
@@ -222,7 +221,7 @@ static void *us_handle_client(void *arg) {
       break;
     }
 
-    len = strlen(buffer);
+    size_t len = strlen(buffer);
     while ((len > 0) &&
            ((buffer[len - 1] == '\n') || (buffer[len - 1] == '\r')))
       buffer[--len] = '\0';
@@ -350,9 +349,9 @@ static int us_config(const char *key, const char *val) {
     sock_perms = (int)strtol(val, NULL, 8);
   } else if (strcasecmp(key, "DeleteSocket") == 0) {
     if (IS_TRUE(val))
-      delete_socket = 1;
+      delete_socket = true;
     else
-      delete_socket = 0;
+      delete_socket = false;
   } else {
     return -1;
   }
@@ -361,7 +360,7 @@ static int us_config(const char *key, const char *val) {
 } /* int us_config */
 
 static int us_init(void) {
-  static int have_init = 0;
+  static int have_init;
 
   int status;
 

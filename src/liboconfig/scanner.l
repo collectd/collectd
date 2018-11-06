@@ -27,6 +27,11 @@
  */
 
 %{
+#ifdef WIN32
+#include "gnulib_config.h"
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include "oconfig.h"
@@ -40,9 +45,9 @@
 
 
 /* multiline string buffer */
-static char *ml_buffer = NULL;
-static int   ml_pos    = 0;
-static int   ml_len    = 0;
+static char *ml_buffer;
+static size_t ml_pos;
+static size_t ml_len;
 
 #define ml_free (ml_len - ml_pos)
 
@@ -110,12 +115,12 @@ IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 {UNQUOTED_STRING}	{yylval.string = yytext; return (UNQUOTED_STRING);}
 
 \"{QUOTED_STRING}\\{EOL} {
-	int len = strlen (yytext);
+	size_t len = strlen (yytext);
 
 	ml_pos = 0;
 
 	/* remove "\\<EOL>" */
-	if ('\r' == yytext[len - 2])
+	if (yytext[len - 2] == '\r')
 		len -= 3;
 	else
 		len -= 2;
@@ -126,10 +131,10 @@ IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 }
 <ML>^{WHITE_SPACE}+ {/* remove leading white-space */}
 <ML>{NON_WHITE_SPACE}{QUOTED_STRING}\\{EOL} {
-	int len = strlen (yytext);
+	size_t len = strlen (yytext);
 
 	/* remove "\\<EOL>" */
-	if ('\r' == yytext[len - 2])
+	if (yytext[len - 2] == '\r')
 		len -= 3;
 	else
 		len -= 2;
@@ -147,18 +152,17 @@ IPV6_ADDR ({IPV6_BASE})|(\[{IPV6_BASE}\](:{PORT})?)
 %%
 static void ml_append (char *string)
 {
-	int len = strlen (string);
-	int s;
+	size_t len = strlen (string);
 
 	if (ml_free <= len) {
 		ml_len += len - ml_free + 1;
 		ml_buffer = realloc (ml_buffer, ml_len);
-		if (NULL == ml_buffer)
+		if (ml_buffer == NULL)
 			YY_FATAL_ERROR ("out of dynamic memory in ml_append");
 	}
 
-	s = snprintf (ml_buffer + ml_pos, ml_free, "%s", string);
-	if ((0 > s) || (ml_free <= s))
+	int s = snprintf(ml_buffer + ml_pos, ml_free, "%s", string);
+	if (s < 0 || (size_t)s >= ml_free)
 		YY_FATAL_ERROR ("failed to write to multiline buffer");
 
 	ml_pos += s;

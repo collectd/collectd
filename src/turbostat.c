@@ -49,6 +49,14 @@
 
 #define PLUGIN_NAME "turbostat"
 
+typedef enum affinity_policy_enum {
+  policy_restore_affinity, /* restore cpu affinity to whatever it was before */
+  policy_allcpus_affinity  /* do not restore affinity, set to all cpus */
+} affinity_policy_t;
+
+/* the default is to set cpu affinity to all cpus */
+static affinity_policy_t affinity_policy = policy_allcpus_affinity;
+
 /*
  * This tool uses the Model-Specific Registers (MSRs) present on Intel
  * processors.
@@ -65,12 +73,12 @@
  *
  * This value is automatically set if mperf or aperf go backward
  */
-static _Bool aperf_mperf_unstable;
+static bool aperf_mperf_unstable;
 
 /*
  * If set, use kernel logical core numbering for all "per core" metrics.
  */
-static _Bool config_lcn;
+static bool config_lcn;
 
 /*
  * Bitmask of the list of core C states supported by the processor.
@@ -78,7 +86,7 @@ static _Bool config_lcn;
  */
 static unsigned int do_core_cstate;
 static unsigned int config_core_cstate;
-static _Bool apply_config_core_cstate;
+static bool apply_config_core_cstate;
 
 /*
  * Bitmask of the list of pacages C states supported by the processor.
@@ -86,15 +94,15 @@ static _Bool apply_config_core_cstate;
  */
 static unsigned int do_pkg_cstate;
 static unsigned int config_pkg_cstate;
-static _Bool apply_config_pkg_cstate;
+static bool apply_config_pkg_cstate;
 
 /*
  * Boolean indicating if the processor supports 'I/O System-Management Interrupt
  * counter'
  */
-static _Bool do_smi;
-static _Bool config_smi;
-static _Bool apply_config_smi;
+static bool do_smi;
+static bool config_smi;
+static bool apply_config_smi;
 
 /*
  * Boolean indicating if the processor supports 'Digital temperature sensor'
@@ -105,9 +113,9 @@ static _Bool apply_config_smi;
  * might be wrong
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
-static _Bool do_dts;
-static _Bool config_dts;
-static _Bool apply_config_dts;
+static bool do_dts;
+static bool config_dts;
+static bool apply_config_dts;
 
 /*
  * Boolean indicating if the processor supports 'Package thermal management'
@@ -118,9 +126,9 @@ static _Bool apply_config_dts;
  * might be wrong
  *  - Temperatures above the tcc_activation_temp are not recorded
  */
-static _Bool do_ptm;
-static _Bool config_ptm;
-static _Bool apply_config_ptm;
+static bool do_ptm;
+static bool config_ptm;
+static bool apply_config_ptm;
 
 /*
  * Thermal Control Circuit Activation Temperature as configured by the user.
@@ -129,14 +137,21 @@ static _Bool apply_config_ptm;
  */
 static unsigned int tcc_activation_temp;
 
+static unsigned int do_power_fields;
+#define UFS_PLATFORM (1 << 0)
+#define TURBO_PLATFORM (1 << 1)
+#define PSTATES_PLATFORM (1 << 2)
+
 static unsigned int do_rapl;
 static unsigned int config_rapl;
-static _Bool apply_config_rapl;
+static bool apply_config_rapl;
 static double rapl_energy_units;
+static double rapl_power_units;
 
 #define RAPL_PKG (1 << 0)
 /* 0x610 MSR_PKG_POWER_LIMIT */
 /* 0x611 MSR_PKG_ENERGY_STATUS */
+/* 0x614 MSR_PKG_POWER_INFO */
 #define RAPL_DRAM (1 << 1)
 /* 0x618 MSR_DRAM_POWER_LIMIT */
 /* 0x619 MSR_DRAM_ENERGY_STATUS */
@@ -188,6 +203,10 @@ static struct pkg_data {
   uint32_t energy_dram;  /* MSR_DRAM_ENERGY_STATUS */
   uint32_t energy_cores; /* MSR_PP0_ENERGY_STATUS */
   uint32_t energy_gfx;   /* MSR_PP1_ENERGY_STATUS */
+  uint32_t tdp;
+  uint8_t turbo_enabled;
+  uint8_t pstates_enabled;
+  uint32_t uncore;
   unsigned int tcc_activation_temp;
   unsigned int pkg_temp_c;
 } * package_delta, *package_even, *package_odd;
@@ -195,10 +214,10 @@ static struct pkg_data {
 #define DELTA_COUNTERS thread_delta, core_delta, package_delta
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
-static _Bool is_even = 1;
+static bool is_even = true;
 
-static _Bool allocated = 0;
-static _Bool initialized = 0;
+static bool allocated;
+static bool initialized;
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no)                    \
   (thread_base + (pkg_no)*topology.num_cores * topology.num_threads +          \
@@ -210,8 +229,8 @@ static _Bool initialized = 0;
 struct cpu_topology {
   unsigned int package_id;
   unsigned int core_id;
-  _Bool first_core_in_package;
-  _Bool first_thread_in_core;
+  bool first_core_in_package;
+  bool first_thread_in_core;
 };
 
 static struct topology {
@@ -233,6 +252,7 @@ static const char *config_keys[] = {
     "TCCActivationTemp",
     "RunningAveragePowerLimit",
     "LogicalCoreNames",
+    "RestoreAffinityPolicy",
 };
 static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -243,10 +263,10 @@ static const int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 /*
  * Open a MSR device for reading
  * Can change the scheduling affinity of the current process if multiple_read is
- * 1
+ * true
  */
 static int __attribute__((warn_unused_result))
-open_msr(unsigned int cpu, _Bool multiple_read) {
+open_msr(unsigned int cpu, bool multiple_read) {
   char pathname[32];
   int fd;
 
@@ -395,6 +415,8 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p) {
   if (do_rapl & RAPL_PKG) {
     READ_MSR(MSR_PKG_ENERGY_STATUS, &msr);
     p->energy_pkg = msr & 0xFFFFFFFF;
+    READ_MSR(MSR_PKG_POWER_INFO, &msr);
+    p->tdp = msr & 0x7FFF;
   }
   if (do_rapl & RAPL_CORES) {
     READ_MSR(MSR_PP0_ENERGY_STATUS, &msr);
@@ -411,6 +433,18 @@ get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p) {
   if (do_ptm) {
     READ_MSR(MSR_IA32_PACKAGE_THERM_STATUS, &msr);
     p->pkg_temp_c = p->tcc_activation_temp - ((msr >> 16) & 0x7F);
+  }
+  if (do_power_fields & TURBO_PLATFORM) {
+    READ_MSR(MSR_IA32_MISC_ENABLE, &msr);
+    p->turbo_enabled = !((msr >> 38) & 0x1);
+  }
+  if (do_power_fields & PSTATES_PLATFORM) {
+    READ_MSR(MSR_IA32_MISC_ENABLE, &msr);
+    p->pstates_enabled = (msr >> 16) & 0x1;
+  }
+  if (do_power_fields & UFS_PLATFORM) {
+    READ_MSR(MSR_UNCORE_FREQ_SCALING, &msr);
+    p->uncore = msr & 0x1F;
   }
 
 out:
@@ -442,6 +476,11 @@ static inline void delta_package(struct pkg_data *delta,
   delta->energy_cores = new->energy_cores - old->energy_cores;
   delta->energy_gfx = new->energy_gfx - old->energy_gfx;
   delta->energy_dram = new->energy_dram - old->energy_dram;
+  delta->tdp = new->tdp;
+  delta->turbo_enabled = new->turbo_enabled;
+  delta->pstates_enabled = new->pstates_enabled;
+  delta->tcc_activation_temp = new->tcc_activation_temp;
+  delta->uncore = new->uncore;
 }
 
 /*
@@ -487,7 +526,7 @@ delta_thread(struct thread_data *delta, const struct thread_data *new,
               "the entire interval. Fix this by running "
               "Linux-2.6.30 or later.");
 
-      aperf_mperf_unstable = 1;
+      aperf_mperf_unstable = true;
     }
   }
 
@@ -627,9 +666,11 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
     turbostat_submit(name, "percent", "pc10", 100.0 * p->pc10 / t->tsc);
 
   if (do_rapl) {
-    if (do_rapl & RAPL_PKG)
+    if (do_rapl & RAPL_PKG) {
       turbostat_submit(name, "power", "pkg",
                        p->energy_pkg * rapl_energy_units / interval_float);
+      turbostat_submit(name, "tdp", "pkg", p->tdp * rapl_power_units);
+    }
     if (do_rapl & RAPL_CORES)
       turbostat_submit(name, "power", "cores",
                        p->energy_cores * rapl_energy_units / interval_float);
@@ -640,6 +681,18 @@ static int submit_counters(struct thread_data *t, struct core_data *c,
       turbostat_submit(name, "power", "DRAM",
                        p->energy_dram * rapl_energy_units / interval_float);
   }
+
+  if (do_power_fields & TURBO_PLATFORM) {
+    turbostat_submit(name, "turbo_enabled", NULL, p->turbo_enabled);
+  }
+  if (do_power_fields & PSTATES_PLATFORM) {
+    turbostat_submit(name, "pstates_enabled", NULL, p->pstates_enabled);
+  }
+  if (do_power_fields & UFS_PLATFORM) {
+    turbostat_submit(name, "uncore_ratio", NULL, p->uncore);
+  }
+  turbostat_submit(name, "temperature", "tcc_activation",
+                   p->tcc_activation_temp);
 done:
   return 0;
 }
@@ -895,14 +948,14 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     switch (model) {
     /* Atom (partial) */
     case 0x27:
-      do_smi = 0;
+      do_smi = false;
       do_core_cstate = 0;
       do_pkg_cstate = (1 << 2) | (1 << 4) | (1 << 6);
       break;
     /* Silvermont */
     case 0x37: /* BYT */
     case 0x4D: /* AVN */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 1) | (1 << 6);
       do_pkg_cstate = (1 << 6);
       break;
@@ -912,7 +965,7 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
                   Forest */
     case 0x1F: /* Core i7 and i5 Processor - Nehalem */
     case 0x2E: /* Nehalem-EX Xeon - Beckton */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6);
       do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       break;
@@ -920,21 +973,21 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x25: /* Westmere Client - Clarkdale, Arrandale */
     case 0x2C: /* Westmere EP - Gulftown */
     case 0x2F: /* Westmere-EX Xeon - Eagleton */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6);
       do_pkg_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       break;
     /* Sandy Bridge */
     case 0x2A: /* SNB */
     case 0x2D: /* SNB Xeon */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
     /* Ivy Bridge */
     case 0x3A: /* IVB */
     case 0x3E: /* IVB Xeon */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
@@ -942,31 +995,31 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x3C: /* HSW */
     case 0x3F: /* HSW */
     case 0x46: /* HSW */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
     case 0x45: /* HSW */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) |
                       (1 << 9) | (1 << 10);
       break;
-    /* Broadwel */
+    /* Broadwell */
     case 0x4F: /* BDW */
     case 0x56: /* BDX-DE */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7);
       break;
     case 0x3D: /* BDW */
-      do_smi = 1;
+      do_smi = true;
       do_core_cstate = (1 << 3) | (1 << 6) | (1 << 7);
       do_pkg_cstate = (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (1 << 8) |
                       (1 << 9) | (1 << 10);
       break;
     default:
-      do_smi = 0;
+      do_smi = false;
       do_core_cstate = 0;
       do_pkg_cstate = 0;
       break;
@@ -985,10 +1038,12 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     case 0x4F: /* BDX */
     case 0x56: /* BDX-DE */
       do_rapl = RAPL_PKG | RAPL_DRAM;
+      do_power_fields = TURBO_PLATFORM | UFS_PLATFORM | PSTATES_PLATFORM;
       break;
     case 0x2D: /* SNB Xeon */
     case 0x3E: /* IVB Xeon */
       do_rapl = RAPL_PKG | RAPL_CORES | RAPL_DRAM;
+      do_power_fields = TURBO_PLATFORM | PSTATES_PLATFORM;
       break;
     case 0x37: /* BYT */
     case 0x4D: /* AVN */
@@ -1023,6 +1078,7 @@ static int __attribute__((warn_unused_result)) probe_cpu(void) {
     if (get_msr(0, MSR_RAPL_POWER_UNIT, &msr))
       return 0;
 
+    rapl_power_units = 1.0 / (1 << (msr & 0xF));
     if (model == 0x37)
       rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
     else
@@ -1227,7 +1283,7 @@ static int __attribute__((warn_unused_result)) topology_probe(void) {
     if (ret < 0)
       goto err;
     else if ((unsigned int)ret == i)
-      cpu->first_core_in_package = 1;
+      cpu->first_core_in_package = true;
 
     ret = get_threads_on_core(i);
     if (ret < 0)
@@ -1241,7 +1297,7 @@ static int __attribute__((warn_unused_result)) topology_probe(void) {
     if (ret < 0)
       goto err;
     else if ((unsigned int)ret == i)
-      cpu->first_thread_in_core = 1;
+      cpu->first_thread_in_core = true;
 
     DEBUG("turbostat plugin: cpu %d pkg %d core %d\n", i, cpu->package_id,
           cpu->core_id);
@@ -1289,15 +1345,15 @@ static int allocate_counters(struct thread_data **threads,
   *cores = calloc(total_cores, sizeof(struct core_data));
   if (*cores == NULL) {
     ERROR("turbostat plugin: calloc failed");
-    sfree(threads);
+    sfree(*threads);
     return -1;
   }
 
   *packages = calloc(topology.num_packages, sizeof(struct pkg_data));
   if (*packages == NULL) {
     ERROR("turbostat plugin: calloc failed");
-    sfree(cores);
-    sfree(threads);
+    sfree(*cores);
+    sfree(*threads);
     return -1;
   }
 
@@ -1338,8 +1394,8 @@ static void initialize_counters(void) {
 }
 
 static void free_all_buffers(void) {
-  allocated = 0;
-  initialized = 0;
+  allocated = false;
+  initialized = false;
 
   CPU_FREE(cpu_present_set);
   cpu_present_set = NULL;
@@ -1400,11 +1456,35 @@ static int setup_all_buffers(void) {
   DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, EVEN_COUNTERS));
   DO_OR_GOTO_ERR(for_all_cpus(set_temperature_target, ODD_COUNTERS));
 
-  allocated = 1;
+  allocated = true;
   return 0;
 err:
   free_all_buffers();
   return ret;
+}
+
+int save_affinity(void) {
+  if (affinity_policy == policy_restore_affinity) {
+    /* Try to save the scheduling affinity, as it will be modified by
+     * get_counters().
+     */
+    if (sched_getaffinity(0, cpu_saved_affinity_setsize,
+                          cpu_saved_affinity_set) != 0)
+      return -1;
+  }
+
+  return 0;
+}
+
+void restore_affinity(void) {
+  /* Let's restore the affinity to the value saved in save_affinity */
+  if (affinity_policy == policy_restore_affinity)
+    (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
+                            cpu_saved_affinity_set);
+  else {
+    /* reset the affinity to all present cpus */
+    (void)sched_setaffinity(0, cpu_present_setsize, cpu_present_set);
+  }
 }
 
 static int turbostat_read(void) {
@@ -1426,10 +1506,9 @@ static int turbostat_read(void) {
     }
   }
 
-  /* Saving the scheduling affinity, as it will be modified by get_counters */
-  if (sched_getaffinity(0, cpu_saved_affinity_setsize,
-                        cpu_saved_affinity_set) != 0) {
-    ERROR("turbostat plugin: Unable to save the CPU affinity");
+  if (save_affinity() != 0) {
+    ERROR("turbostat plugin: Unable to save the CPU affinity. Please read the "
+          "docs about RestoreAffinityPolicy option.");
     return -1;
   }
 
@@ -1437,8 +1516,8 @@ static int turbostat_read(void) {
     if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
       goto out;
     time_even = cdtime();
-    is_even = 1;
-    initialized = 1;
+    is_even = true;
+    initialized = true;
     ret = 0;
     goto out;
   }
@@ -1447,7 +1526,7 @@ static int turbostat_read(void) {
     if ((ret = for_all_cpus(get_counters, ODD_COUNTERS)) < 0)
       goto out;
     time_odd = cdtime();
-    is_even = 0;
+    is_even = false;
     time_delta = time_odd - time_even;
     if ((ret = for_all_cpus_delta(ODD_COUNTERS, EVEN_COUNTERS)) < 0)
       goto out;
@@ -1457,7 +1536,7 @@ static int turbostat_read(void) {
     if ((ret = for_all_cpus(get_counters, EVEN_COUNTERS)) < 0)
       goto out;
     time_even = cdtime();
-    is_even = 1;
+    is_even = true;
     time_delta = time_even - time_odd;
     if ((ret = for_all_cpus_delta(EVEN_COUNTERS, ODD_COUNTERS)) < 0)
       goto out;
@@ -1466,13 +1545,8 @@ static int turbostat_read(void) {
   }
   ret = 0;
 out:
-  /*
-   * Let's restore the affinity
-   * This might fail if the number of CPU changed, but we can't do anything in
-   * that case..
-   */
-  (void)sched_setaffinity(0, cpu_saved_affinity_setsize,
-                          cpu_saved_affinity_set);
+  restore_affinity();
+
   return ret;
 }
 
@@ -1554,7 +1628,7 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     config_core_cstate = (unsigned int)tmp_val;
-    apply_config_core_cstate = 1;
+    apply_config_core_cstate = true;
   } else if (strcasecmp("PackageCstates", key) == 0) {
     tmp_val = strtoul(value, &end, 0);
     if (*end != '\0' || tmp_val > UINT_MAX) {
@@ -1562,16 +1636,16 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     config_pkg_cstate = (unsigned int)tmp_val;
-    apply_config_pkg_cstate = 1;
+    apply_config_pkg_cstate = true;
   } else if (strcasecmp("SystemManagementInterrupt", key) == 0) {
     config_smi = IS_TRUE(value);
-    apply_config_smi = 1;
+    apply_config_smi = true;
   } else if (strcasecmp("DigitalTemperatureSensor", key) == 0) {
     config_dts = IS_TRUE(value);
-    apply_config_dts = 1;
+    apply_config_dts = true;
   } else if (strcasecmp("PackageThermalManagement", key) == 0) {
     config_ptm = IS_TRUE(value);
-    apply_config_ptm = 1;
+    apply_config_ptm = true;
   } else if (strcasecmp("LogicalCoreNames", key) == 0) {
     config_lcn = IS_TRUE(value);
   } else if (strcasecmp("RunningAveragePowerLimit", key) == 0) {
@@ -1581,7 +1655,7 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     config_rapl = (unsigned int)tmp_val;
-    apply_config_rapl = 1;
+    apply_config_rapl = true;
   } else if (strcasecmp("TCCActivationTemp", key) == 0) {
     tmp_val = strtoul(value, &end, 0);
     if (*end != '\0' || tmp_val > UINT_MAX) {
@@ -1589,6 +1663,15 @@ static int turbostat_config(const char *key, const char *value) {
       return -1;
     }
     tcc_activation_temp = (unsigned int)tmp_val;
+  } else if (strcasecmp("RestoreAffinityPolicy", key) == 0) {
+    if (strcasecmp("Restore", value) == 0)
+      affinity_policy = policy_restore_affinity;
+    else if (strcasecmp("AllCPUs", value) == 0)
+      affinity_policy = policy_allcpus_affinity;
+    else {
+      ERROR("turbostat plugin: Invalid RestoreAffinityPolicy '%s'", value);
+      return -1;
+    }
   } else {
     ERROR("turbostat plugin: Invalid configuration option '%s'", key);
     return -1;

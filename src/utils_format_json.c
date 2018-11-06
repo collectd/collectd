@@ -130,7 +130,7 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
       else
         BUFFER_ADD("null");
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-      BUFFER_ADD("%llu", vl->values[i].counter);
+      BUFFER_ADD("%" PRIu64, (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       BUFFER_ADD("%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
@@ -145,7 +145,6 @@ static int values_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD
 
-  DEBUG("format_json: values_to_json: buffer = %s;", buffer);
   sfree(rates);
   return 0;
 } /* }}} int values_to_json */
@@ -179,8 +178,6 @@ static int dstypes_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD
 
-  DEBUG("format_json: dstypes_to_json: buffer = %s;", buffer);
-
   return 0;
 } /* }}} int dstypes_to_json */
 
@@ -212,8 +209,6 @@ static int dsnames_to_json(char *buffer, size_t buffer_size, /* {{{ */
   BUFFER_ADD("]");
 
 #undef BUFFER_ADD
-
-  DEBUG("format_json: dsnames_to_json: buffer = %s;", buffer);
 
   return 0;
 } /* }}} int dsnames_to_json */
@@ -267,7 +262,7 @@ static int meta_data_keys_to_json(char *buffer, size_t buffer_size, /* {{{ */
       if (meta_data_get_double(meta, key, &value) == 0)
         BUFFER_ADD(",\"%s\":%f", key, value);
     } else if (type == MD_TYPE_BOOLEAN) {
-      _Bool value = 0;
+      bool value = false;
       if (meta_data_get_boolean(meta, key, &value) == 0)
         BUFFER_ADD(",\"%s\":%s", key, value ? "true" : "false");
     }
@@ -377,8 +372,6 @@ static int value_list_to_json(char *buffer, size_t buffer_size, /* {{{ */
 
 #undef BUFFER_ADD_KEYVAL
 #undef BUFFER_ADD
-
-  DEBUG("format_json: value_list_to_json: buffer = %s;", buffer);
 
   return 0;
 } /* }}} int value_list_to_json */

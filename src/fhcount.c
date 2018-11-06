@@ -25,25 +25,25 @@
 static const char *config_keys[] = {"ValuesAbsolute", "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-static _Bool values_absolute = 1;
-static _Bool values_percentage = 0;
+static bool values_absolute = true;
+static bool values_percentage;
 
 static int fhcount_config(const char *key, const char *value) {
   int ret = -1;
 
   if (strcasecmp(key, "ValuesAbsolute") == 0) {
     if (IS_TRUE(value)) {
-      values_absolute = 1;
+      values_absolute = true;
     } else {
-      values_absolute = 0;
+      values_absolute = false;
     }
 
     ret = 0;
   } else if (strcasecmp(key, "ValuesPercentage") == 0) {
     if (IS_TRUE(value)) {
-      values_percentage = 1;
+      values_percentage = true;
     } else {
-      values_percentage = 0;
+      values_percentage = false;
     }
 
     ret = 0;

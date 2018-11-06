@@ -43,7 +43,6 @@ struct cu_tail_match_simple_s {
   char plugin_instance[DATA_MAX_NAME_LEN];
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
-  cdtime_t interval;
   latency_config_t latency_config;
 };
 typedef struct cu_tail_match_simple_s cu_tail_match_simple_t;
@@ -57,10 +56,7 @@ struct cu_tail_match_match_s {
 typedef struct cu_tail_match_match_s cu_tail_match_match_t;
 
 struct cu_tail_match_s {
-  int flags;
   cu_tail_t *tail;
-
-  cdtime_t interval;
   cu_tail_match_match_t *matches;
   size_t matches_num;
 };
@@ -92,7 +88,6 @@ static int simple_submit_match(cu_match_t *match, void *user_data) {
   sstrncpy(vl.type, data->type, sizeof(vl.type));
   sstrncpy(vl.type_instance, data->type_instance, sizeof(vl.type_instance));
 
-  vl.interval = data->interval;
   plugin_dispatch_values(&vl);
 
   match_value_reset(match_value);
@@ -111,17 +106,16 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
   sstrncpy(vl.plugin, data->plugin, sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, data->plugin_instance,
            sizeof(vl.plugin_instance));
-  vl.interval = data->interval;
   vl.time = cdtime();
 
   /* Submit percentiles */
   sstrncpy(vl.type, data->type, sizeof(vl.type));
   for (size_t i = 0; i < data->latency_config.percentile_num; i++) {
     if (strlen(data->type_instance) != 0)
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.117s-%.2f",
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.50s-%.5g",
                data->type_instance, data->latency_config.percentile[i]);
     else
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.0f",
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.5g",
                data->latency_config.percentile[i]);
 
     vl.values = &(value_t){
@@ -150,11 +144,10 @@ static int latency_submit_match(cu_match_t *match, void *user_data) {
         bucket.upper_bound ? CDTIME_T_TO_DOUBLE(bucket.upper_bound) : INFINITY;
 
     if (strlen(data->type_instance) != 0)
-      snprintf(vl.type_instance, sizeof(vl.type_instance),
-               "%.54s-%.54s-%.2g_%.2g", data->type, data->type_instance,
-               lower_bound, upper_bound);
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.50s-%.50s-%g_%g",
+               data->type, data->type_instance, lower_bound, upper_bound);
     else
-      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.107s-%.2g_%.2g",
+      snprintf(vl.type_instance, sizeof(vl.type_instance), "%.50s-%g_%g",
                data->type, lower_bound, upper_bound);
 
     vl.values = &(value_t){
@@ -249,8 +242,6 @@ int tail_match_add_match(cu_tail_match_t *obj, cu_match_t *match,
   obj->matches = temp;
   obj->matches_num++;
 
-  DEBUG("tail_match_add_match interval %lf",
-        CDTIME_T_TO_DOUBLE(((cu_tail_match_simple_t *)user_data)->interval));
   temp = obj->matches + (obj->matches_num - 1);
 
   temp->match = match;
@@ -265,8 +256,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
                                 const char *excluderegex, int ds_type,
                                 const char *plugin, const char *plugin_instance,
                                 const char *type, const char *type_instance,
-                                const latency_config_t latency_cfg,
-                                const cdtime_t interval) {
+                                const latency_config_t latency_cfg) {
   cu_match_t *match;
   cu_tail_match_simple_t *user_data;
   int status;
@@ -290,8 +280,6 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
   if (type_instance != NULL)
     sstrncpy(user_data->type_instance, type_instance,
              sizeof(user_data->type_instance));
-
-  user_data->interval = interval;
 
   if ((ds_type & UTILS_MATCH_DS_TYPE_GAUGE) &&
       (ds_type & UTILS_MATCH_CF_GAUGE_DIST)) {

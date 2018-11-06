@@ -76,7 +76,7 @@ struct uc_iter_s {
   cache_entry_t *entry;
 };
 
-static c_avl_tree_t *cache_tree = NULL;
+static c_avl_tree_t *cache_tree;
 static pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int cache_compare(const cache_entry_t *a, const cache_entry_t *b) {
@@ -154,7 +154,7 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
   ce = cache_alloc(ds->ds_num);
   if (ce == NULL) {
     sfree(key_copy);
-    ERROR("uc_insert: cache_alloc (%zu) failed.", ds->ds_num);
+    ERROR("uc_insert: cache_alloc (%" PRIsz ") failed.", ds->ds_num);
     return -1;
   }
 
@@ -201,7 +201,7 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
   ce->last_time = vl->time;
   ce->last_update = cdtime();
   ce->interval = vl->interval;
-  ce->state = STATE_OKAY;
+  ce->state = STATE_UNKNOWN;
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
     sfree(key_copy);
@@ -381,7 +381,7 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
       return -1;
     } /* switch (ds->ds[i].type) */
 
-    DEBUG("uc_update: %s: ds[%zu] = %lf", name, i, ce->values_gauge[i]);
+    DEBUG("uc_update: %s: ds[%" PRIsz "] = %lf", name, i, ce->values_gauge[i]);
   } /* for (i) */
 
   /* Update the history if it exists. */
@@ -469,8 +469,8 @@ gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
   if (ret_num != ds->ds_num) {
-    ERROR("utils_cache: uc_get_rate: ds[%s] has %zu values, "
-          "but uc_get_rate_by_name returned %zu.",
+    ERROR("utils_cache: uc_get_rate: ds[%s] has %" PRIsz " values, "
+          "but uc_get_rate_by_name returned %" PRIsz ".",
           ds->type, ds->ds_num, ret_num);
     sfree(ret);
     return NULL;
@@ -488,7 +488,7 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
 
   pthread_mutex_lock(&cache_lock);
 
-  if (c_avl_get(cache_tree, name, (void *) &ce) == 0) {
+  if (c_avl_get(cache_tree, name, (void *)&ce) == 0) {
     assert(ce != NULL);
 
     /* remove missing values from getval */
@@ -504,8 +504,7 @@ int uc_get_value_by_name(const char *name, value_t **ret_values,
         memcpy(ret, ce->values_raw, ret_num * sizeof(value_t));
       }
     }
-  }
-  else {
+  } else {
     DEBUG("utils_cache: uc_get_value_by_name: No such value: %s", name);
     status = -1;
   }
@@ -537,10 +536,10 @@ value_t *uc_get_value(const data_set_t *ds, const value_list_t *vl) {
 
   /* This is important - the caller has no other way of knowing how many
    * values are returned. */
-  if (ret_num != (size_t) ds->ds_num) {
-    ERROR("utils_cache: uc_get_value: ds[%s] has %zu values, "
-          "but uc_get_value_by_name returned %zu.", ds->type, ds->ds_num,
-          ret_num);
+  if (ret_num != (size_t)ds->ds_num) {
+    ERROR("utils_cache: uc_get_value: ds[%s] has %" PRIsz " values, "
+          "but uc_get_value_by_name returned %" PRIsz ".",
+          ds->type, ds->ds_num, ret_num);
     sfree(ret);
     return (NULL);
   }
@@ -999,7 +998,7 @@ int uc_meta_data_exists(const value_list_t *vl,
                         const value_list_t *vl, const char *key, double value)
                         UC_WRAP(meta_data_add_double) int uc_meta_data_add_boolean(
                             const value_list_t *vl, const char *key,
-                            _Bool value) UC_WRAP(meta_data_add_boolean)
+                            bool value) UC_WRAP(meta_data_add_boolean)
 
                             int uc_meta_data_get_string(const value_list_t *vl,
                                                         const char *key,
@@ -1015,6 +1014,6 @@ int uc_meta_data_exists(const value_list_t *vl,
                                             const char *key, double *value)
                                             UC_WRAP(meta_data_get_double) int uc_meta_data_get_boolean(
                                                 const value_list_t *vl,
-                                                const char *key, _Bool *value)
+                                                const char *key, bool *value)
                                                 UC_WRAP(meta_data_get_boolean)
 #undef UC_WRAP

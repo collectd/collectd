@@ -56,14 +56,14 @@ int meta_data_add_signed_int(meta_data_t *md, const char *key, int64_t value);
 int meta_data_add_unsigned_int(meta_data_t *md, const char *key,
                                uint64_t value);
 int meta_data_add_double(meta_data_t *md, const char *key, double value);
-int meta_data_add_boolean(meta_data_t *md, const char *key, _Bool value);
+int meta_data_add_boolean(meta_data_t *md, const char *key, bool value);
 
 int meta_data_get_string(meta_data_t *md, const char *key, char **value);
 int meta_data_get_signed_int(meta_data_t *md, const char *key, int64_t *value);
 int meta_data_get_unsigned_int(meta_data_t *md, const char *key,
                                uint64_t *value);
 int meta_data_get_double(meta_data_t *md, const char *key, double *value);
-int meta_data_get_boolean(meta_data_t *md, const char *key, _Bool *value);
+int meta_data_get_boolean(meta_data_t *md, const char *key, bool *value);
 
 /* Returns the value as a string, regardless of the type. */
 int meta_data_as_string(meta_data_t *md, const char *key, char **value);

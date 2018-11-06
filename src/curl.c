@@ -60,14 +60,14 @@ struct web_page_s /* {{{ */
   char *user;
   char *pass;
   char *credentials;
-  _Bool digest;
-  _Bool verify_peer;
-  _Bool verify_host;
+  bool digest;
+  bool verify_peer;
+  bool verify_host;
   char *cacert;
   struct curl_slist *headers;
   char *post_body;
-  _Bool response_time;
-  _Bool response_code;
+  bool response_time;
+  bool response_code;
   int timeout;
   curl_stats_t *stats;
 
@@ -78,19 +78,13 @@ struct web_page_s /* {{{ */
   size_t buffer_fill;
 
   web_match_t *matches;
-
-  web_page_t *next;
 }; /* }}} */
-
-/*
- * Global variables;
- */
-/* static CURLM *curl = NULL; */
-static web_page_t *pages_g = NULL;
 
 /*
  * Private functions
  */
+static int cc_read_page(user_data_t *ud);
+
 static size_t cc_curl_callback(void *buf, /* {{{ */
                                size_t size, size_t nmemb, void *user_data) {
   web_page_t *wp;
@@ -138,8 +132,9 @@ static void cc_web_match_free(web_match_t *wm) /* {{{ */
   sfree(wm);
 } /* }}} void cc_web_match_free */
 
-static void cc_web_page_free(web_page_t *wp) /* {{{ */
+static void cc_web_page_free(void *arg) /* {{{ */
 {
+  web_page_t *wp = (web_page_t *)arg;
   if (wp == NULL)
     return;
 
@@ -162,7 +157,6 @@ static void cc_web_page_free(web_page_t *wp) /* {{{ */
   sfree(wp->buffer);
 
   cc_web_match_free(wp->matches);
-  cc_web_page_free(wp->next);
   sfree(wp);
 } /* }}} void cc_web_page_free */
 
@@ -401,6 +395,7 @@ static int cc_page_init_curl(web_page_t *wp) /* {{{ */
 
 static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
 {
+  cdtime_t interval = 0;
   web_page_t *page;
   int status;
 
@@ -418,11 +413,11 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   page->url = NULL;
   page->user = NULL;
   page->pass = NULL;
-  page->digest = 0;
-  page->verify_peer = 1;
-  page->verify_host = 1;
-  page->response_time = 0;
-  page->response_code = 0;
+  page->digest = false;
+  page->verify_peer = true;
+  page->verify_host = true;
+  page->response_time = false;
+  page->response_code = false;
   page->timeout = -1;
   page->stats = NULL;
 
@@ -465,6 +460,8 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
       status = cc_config_append_string("Header", &page->headers, child);
     else if (strcasecmp("Post", child->key) == 0)
       status = cf_util_get_string(child, &page->post_body);
+    else if (strcasecmp("Interval", child->key) == 0)
+      status = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("Timeout", child->key) == 0)
       status = cf_util_get_int(child, &page->timeout);
     else if (strcasecmp("Statistics", child->key) == 0) {
@@ -508,17 +505,15 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
-  /* Add the new page to the linked list */
-  if (pages_g == NULL)
-    pages_g = page;
-  else {
-    web_page_t *prev;
+  /* If all went well, register this page for reading */
+  char *cb_name = ssnprintf_alloc("curl-%s-%s", page->instance, page->url);
 
-    prev = pages_g;
-    while (prev->next != NULL)
-      prev = prev->next;
-    prev->next = page;
-  }
+  plugin_register_complex_read(/* group = */ NULL, cb_name, cc_read_page,
+                               interval,
+                               &(user_data_t){
+                                   .data = page, .free_func = cc_web_page_free,
+                               });
+  sfree(cb_name);
 
   return 0;
 } /* }}} int cc_config_add_page */
@@ -557,10 +552,6 @@ static int cc_config(oconfig_item_t *ci) /* {{{ */
 
 static int cc_init(void) /* {{{ */
 {
-  if (pages_g == NULL) {
-    INFO("curl plugin: No pages have been defined.");
-    return -1;
-  }
   curl_global_init(CURL_GLOBAL_SSL);
   return 0;
 } /* }}} int cc_init */
@@ -609,8 +600,16 @@ static void cc_submit_response_time(const web_page_t *wp, /* {{{ */
   plugin_dispatch_values(&vl);
 } /* }}} void cc_submit_response_time */
 
-static int cc_read_page(web_page_t *wp) /* {{{ */
+static int cc_read_page(user_data_t *ud) /* {{{ */
 {
+
+  if ((ud == NULL) || (ud->data == NULL)) {
+    ERROR("curl plugin: cc_read_page: Invalid user data.");
+    return -1;
+  }
+
+  web_page_t *wp = (web_page_t *)ud->data;
+
   int status;
   cdtime_t start = 0;
 
@@ -667,25 +666,7 @@ static int cc_read_page(web_page_t *wp) /* {{{ */
   return 0;
 } /* }}} int cc_read_page */
 
-static int cc_read(void) /* {{{ */
-{
-  for (web_page_t *wp = pages_g; wp != NULL; wp = wp->next)
-    cc_read_page(wp);
-
-  return 0;
-} /* }}} int cc_read */
-
-static int cc_shutdown(void) /* {{{ */
-{
-  cc_web_page_free(pages_g);
-  pages_g = NULL;
-
-  return 0;
-} /* }}} int cc_shutdown */
-
 void module_register(void) {
   plugin_register_complex_config("curl", cc_config);
   plugin_register_init("curl", cc_init);
-  plugin_register_read("curl", cc_read);
-  plugin_register_shutdown("curl", cc_shutdown);
 } /* void module_register */

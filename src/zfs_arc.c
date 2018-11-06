@@ -99,6 +99,11 @@ static void free_zfs_values(kstat_t *ksp) {
 }
 
 #elif defined(KERNEL_SOLARIS)
+
+#if HAVE_KSTAT_H
+#include <kstat.h>
+#endif
+
 extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name) {
@@ -224,6 +229,23 @@ static int za_read(void) {
     ERROR("zfs_arc plugin: `llist_create' failed.");
     fclose(fh);
     return -1;
+  }
+
+  // Ignore the first two lines because they contain information about
+  // the rest of the file.
+  // See kstat_seq_show_headers module/spl/spl-kstat.c of the spl kernel
+  // module.
+  if (fgets(buffer, sizeof(buffer), fh) == NULL) {
+    ERROR("zfs_arc plugin: \"%s\" does not contain a single line.",
+          ZOL_ARCSTATS_FILE);
+    fclose(fh);
+    return (-1);
+  }
+  if (fgets(buffer, sizeof(buffer), fh) == NULL) {
+    ERROR("zfs_arc plugin: \"%s\" does not contain at least two lines.",
+          ZOL_ARCSTATS_FILE);
+    fclose(fh);
+    return (-1);
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
