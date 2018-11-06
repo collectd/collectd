@@ -101,7 +101,7 @@ struct interface_list_s {
   uint32_t status;
   uint32_t prev_status;
   uint32_t sent;
-  long long unsigned int timestamp;
+  cdtime_t timestamp;
 
   struct interface_list_s *next;
 };
@@ -126,34 +126,23 @@ static pthread_mutex_t connectivity_data_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t connectivity_cond = PTHREAD_COND_INITIALIZER;
 static int nl_sock = -1;
 static int event_id = 0;
-static int unsent_statuses = 0;
+static int statuses_to_send = 0;
 
 static const char *config_keys[] = {"Interface", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-
-/*
- * Prototype
- */
-
-static void
-connectivity_dispatch_notification(const char *interface, const char *type,
-                                   gauge_t value, gauge_t old_value,
-                                   long long unsigned int timestamp);
 
 /*
  * Private functions
  */
 
 static int gen_message_payload(int state, int old_state, const char *interface,
-                               long long unsigned int timestamp, char **buf) {
+                               cdtime_t timestamp, char **buf) {
   const unsigned char *buf2;
   yajl_gen g;
   char json_str[DATA_MAX_NAME_LEN];
 
 #if !defined(HAVE_YAJL_V2)
-  yajl_gen_config conf = {};
-
-  conf.beautify = 0;
+  yajl_gen_config conf = {0};
 #endif
 
 #if HAVE_YAJL_V2
@@ -188,9 +177,9 @@ static int gen_message_payload(int state, int old_state, const char *interface,
     goto err;
 
   event_id = event_id + 1;
-  int event_id_len = sizeof(char) * sizeof(int) * 4 + 1;
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, event_id_len, "%d", event_id);
+  if (snprintf(json_str, sizeof(json_str), "%d", event_id) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
@@ -202,15 +191,11 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       yajl_gen_status_ok)
     goto err;
 
-  int event_name_len = 0;
-  event_name_len = event_name_len + strlen(interface);    // interface name
-  event_name_len = event_name_len + (state == 0 ? 4 : 2); // "down" or "up"
-  event_name_len =
-      event_name_len + 12; // "interface", 2 spaces and null-terminator
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, event_name_len, "interface %s %s", interface,
-           (state == 0 ? CONNECTIVITY_EVENT_NAME_DOWN_VALUE
-                       : CONNECTIVITY_EVENT_NAME_UP_VALUE));
+  if (snprintf(json_str, sizeof(json_str), "interface %s %s", interface,
+               (state == 0 ? CONNECTIVITY_EVENT_NAME_DOWN_VALUE
+                           : CONNECTIVITY_EVENT_NAME_UP_VALUE)) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
       yajl_gen_status_ok) {
@@ -223,11 +208,10 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       yajl_gen_status_ok)
     goto err;
 
-  int last_epoch_microsec_len =
-      sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, last_epoch_microsec_len, "%llu",
-           (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+  if (snprintf(json_str, sizeof(json_str), "%lu", CDTIME_T_TO_US(cdtime())) <
+      0) {
+    goto err;
+  }
 
   if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
@@ -282,11 +266,9 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       yajl_gen_status_ok)
     goto err;
 
-  int start_epoch_microsec_len =
-      sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, start_epoch_microsec_len, "%llu",
-           (long long unsigned int)timestamp);
+  if (snprintf(json_str, sizeof(json_str), "%lu", timestamp) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
@@ -367,13 +349,12 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       yajl_gen_status_ok)
     goto err;
 
-  if (yajl_gen_map_close(g) != yajl_gen_status_ok)
+  // close state change and header fields
+  if (yajl_gen_map_close(g) != yajl_gen_status_ok ||
+      yajl_gen_map_close(g) != yajl_gen_status_ok)
     goto err;
 
   // *** END state change fields ***
-
-  if (yajl_gen_map_close(g) != yajl_gen_status_ok)
-    goto err;
 
   if (yajl_gen_get_buf(g, &buf2, &len) != yajl_gen_status_ok)
     goto err;
@@ -417,7 +398,7 @@ static interface_list_t *add_interface(const char *interface, int status,
   il->interface = interface2;
   il->status = status;
   il->prev_status = prev_status;
-  il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
+  il->timestamp = CDTIME_T_TO_US(cdtime());
   il->sent = 0;
   il->next = interface_list_head;
   interface_list_head = il;
@@ -480,7 +461,7 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
     prev_status = il->status;
     il->status =
         ((ifi->ifi_flags & IFF_RUNNING) ? LINK_STATE_UP : LINK_STATE_DOWN);
-    il->timestamp = (long long unsigned int)CDTIME_T_TO_US(cdtime());
+    il->timestamp = CDTIME_T_TO_US(cdtime());
 
     // If the new status is different than the previous status,
     // store the previous status and set sent to zero, and set the
@@ -488,7 +469,7 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
     if (il->status != prev_status) {
       il->prev_status = prev_status;
       il->sent = 0;
-      unsent_statuses = 1;
+      statuses_to_send = 1;
     }
 
     DEBUG("connectivity plugin (%llu): Interface %s status is now %s",
@@ -559,8 +540,8 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
       }
 
       if (errno == EINTR) {
-        // Interrupt, so just return
-        return 0;
+        // Interrupt, so just continue and try again
+        continue;
       }
 
       /* Anything else is an error */
@@ -608,6 +589,57 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
   return ret;
 }
 
+static void connectivity_dispatch_notification(const char *interface,
+                                               const char *type, gauge_t value,
+                                               gauge_t old_value,
+                                               cdtime_t timestamp) {
+
+  notification_t n = {(value == LINK_STATE_UP ? NOTIF_OKAY : NOTIF_FAILURE),
+                      cdtime(),
+                      "",
+                      "",
+                      "connectivity",
+                      "",
+                      "",
+                      "",
+                      NULL};
+
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
+  sstrncpy(n.plugin_instance, interface, sizeof(n.plugin_instance));
+  sstrncpy(n.type, "gauge", sizeof(n.type));
+  sstrncpy(n.type_instance, "interface_status", sizeof(n.type_instance));
+
+  char *buf = NULL;
+
+  gen_message_payload(value, old_value, interface, timestamp, &buf);
+
+  notification_meta_t *m = calloc(1, sizeof(*m));
+
+  if (m == NULL) {
+    sfree(buf);
+    ERROR("connectivity plugin: unable to allocate metadata: %s", STRERRNO);
+    return;
+  }
+
+  sstrncpy(m->name, "ves", sizeof(m->name));
+  m->nm_value.nm_string = sstrdup(buf);
+  m->type = NM_TYPE_STRING;
+  n.meta = m;
+
+  DEBUG("connectivity plugin: notification message: %s",
+        n.meta->nm_value.nm_string);
+
+  DEBUG("connectivity plugin: dispatching state %d for interface %s",
+        (int)value, interface);
+
+  plugin_dispatch_notification(&n);
+  plugin_notification_meta_free(n.meta);
+
+  // strdup'd in gen_message_payload
+  if (buf != NULL)
+    sfree(buf);
+}
+
 // NOTE: Caller MUST hold connectivity_data_lock when calling this function
 static void send_interface_status() {
   for (interface_list_t *il = interface_list_head; il != NULL;
@@ -624,14 +656,16 @@ static void send_interface_status() {
     }
   } /* }}} for (il = interface_list_head; il != NULL; il = il->next) */
 
-  unsent_statuses = 0;
+  statuses_to_send = 0;
 }
 
 static void read_interface_status() /* {{{ */
 {
   pthread_mutex_lock(&connectivity_data_lock);
 
-  if (!unsent_statuses)
+  // If we don't have any interface statuses to dispatch,
+  // then we wait until signalled
+  if (!statuses_to_send)
     pthread_cond_wait(&connectivity_cond, &connectivity_data_lock);
 
   send_interface_status();
@@ -959,57 +993,6 @@ static int connectivity_config(const char *key, const char *value) /* {{{ */
 
   return 0;
 } /* }}} int connectivity_config */
-
-static void
-connectivity_dispatch_notification(const char *interface, const char *type,
-                                   gauge_t value, gauge_t old_value,
-                                   long long unsigned int timestamp) {
-
-  notification_t n = {(value == LINK_STATE_UP ? NOTIF_OKAY : NOTIF_FAILURE),
-                      cdtime(),
-                      "",
-                      "",
-                      "connectivity",
-                      "",
-                      "",
-                      "",
-                      NULL};
-
-  sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.plugin_instance, interface, sizeof(n.plugin_instance));
-  sstrncpy(n.type, "gauge", sizeof(n.type));
-  sstrncpy(n.type_instance, "interface_status", sizeof(n.type_instance));
-
-  char *buf = NULL;
-
-  gen_message_payload(value, old_value, interface, timestamp, &buf);
-
-  notification_meta_t *m = calloc(1, sizeof(*m));
-
-  if (m == NULL) {
-    sfree(buf);
-    ERROR("connectivity plugin: unable to allocate metadata: %s", STRERRNO);
-    return;
-  }
-
-  sstrncpy(m->name, "ves", sizeof(m->name));
-  m->nm_value.nm_string = sstrdup(buf);
-  m->type = NM_TYPE_STRING;
-  n.meta = m;
-
-  DEBUG("connectivity plugin: notification message: %s",
-        n.meta->nm_value.nm_string);
-
-  DEBUG("connectivity plugin: dispatching state %d for interface %s",
-        (int)value, interface);
-
-  plugin_dispatch_notification(&n);
-  plugin_notification_meta_free(n.meta);
-
-  // strdup'd in gen_message_payload
-  if (buf != NULL)
-    sfree(buf);
-}
 
 static int connectivity_read(void) /* {{{ */
 {
