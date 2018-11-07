@@ -6,32 +6,6 @@
  * helper functions
  */
 
-/*
- * NAME
- *   pids_list_get_element
- *
- * DESCRIPTION
- *   Gets list element at index position. Assumes list was created by
- *   pids_list_add_pid function.
- *
- * PARAMETERS
- *   `list'      Pids list
- *   `index'     Position of desired element relative to given list pointer.
- *
- * RETURN VALUE
- *   Pointer to element at index position.
- *   NULL if index exceeds list's length.
- */
-pids_list_t *pids_list_get_element(pids_list_t *list, const size_t index) {
-  assert(list);
-  size_t current = 0;
-  while (list != NULL && current != index) {
-    list = list->next;
-    current++;
-  }
-  return list;
-}
-
 typedef struct stub_proc_pid {
   proc_comm_t comm;
   pid_t pid;
@@ -118,71 +92,49 @@ DEF_TEST(initialize_proc_pids__on_nullptr) {
   /* setup */
   const char *procs_names_array[] = {"proc1", "proc2", "proc3"};
   const size_t procs_names_array_size = STATIC_ARRAY_SIZE(procs_names_array);
-  proc_pids_t *proc_pids_array = NULL;
+  proc_pids_t **proc_pids_array = NULL;
 
   /* check */
   int result = initialize_proc_pids(procs_names_array, procs_names_array_size,
                                     &proc_pids_array);
   EXPECT_EQ_INT(0, result);
   for (size_t i = 0; i < procs_names_array_size; ++i)
-    EXPECT_EQ_STR(procs_names_array[i], proc_pids_array[i].proccess_name);
+    EXPECT_EQ_STR(procs_names_array[i], proc_pids_array[i]->process_name);
 
   /* cleanup */
-  free(proc_pids_array);
+  proc_pids_free(proc_pids_array, procs_names_array_size);
   return 0;
 }
 
-DEF_TEST(add_proc_pid__empty_list) {
+DEF_TEST(pid_list_add_pid__empty_list) {
   /* setup */
-  proc_pids_t proc_pids_instance;
-  proc_pids_instance.pids = NULL;
+  pids_list_t *proc_pids_instance = calloc(1, sizeof(*proc_pids_instance));
   pid_t pid = 1234;
 
   /* check */
-  pids_list_add_pid(&proc_pids_instance.pids, pid);
-  pids_list_t *added = pids_list_get_element(proc_pids_instance.pids, 0);
-  EXPECT_EQ_INT(pid, added->pid);
+  pids_list_add_pid(proc_pids_instance, pid);
+  EXPECT_EQ_INT(pid, proc_pids_instance->pids[0]);
 
   /* cleanup */
-  pids_list_free(proc_pids_instance.pids);
+  pids_list_free(proc_pids_instance);
   return 0;
 }
 
-DEF_TEST(add_proc_pid__non_empty_list) {
+DEF_TEST(pid_list_add_pid__non_empty_list) {
   /* setup */
-  proc_pids_t proc_pids_instance;
-  proc_pids_instance.pids = NULL;
+  pids_list_t *proc_pids_instance = calloc(1, sizeof(*proc_pids_instance));
   pid_t pids[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
 
   /* check */
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids); ++i)
-    pids_list_add_pid(&proc_pids_instance.pids, pids[i]);
+    pids_list_add_pid(proc_pids_instance, pids[i]);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids); ++i) {
-    pids_list_t *added = pids_list_get_element(proc_pids_instance.pids, i);
-    EXPECT_EQ_INT(pids[i], added->pid);
+    EXPECT_EQ_INT(pids[i], proc_pids_instance->pids[i]);
   }
 
   /* cleanup */
-  pids_list_free(proc_pids_instance.pids);
-  return 0;
-}
-
-DEF_TEST(pids_list_to_array__non_empty_list) {
-  /* setup */
-  pid_t pids[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
-  pids_list_t *pids_list = NULL;
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids); ++i)
-    pids_list_add_pid(&pids_list, pids[i]);
-
-  /* check */
-  pid_t target_array[STATIC_ARRAY_SIZE(pids)];
-  pids_list_to_array(target_array, pids_list, STATIC_ARRAY_SIZE(target_array));
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids); ++i)
-    EXPECT_EQ_INT(pids[i], target_array[i]);
-
-  /* cleanup */
-  pids_list_free(pids_list);
+  pids_list_free(proc_pids_instance);
   return 0;
 }
 
@@ -190,18 +142,19 @@ DEF_TEST(pids_list_add_pids_list__non_empty_lists) {
   /* setup */
   pid_t pids_array_1[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
   pid_t pids_array_2[] = {2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007};
-  pids_list_t *pids_list_1 = NULL;
-  pids_list_t *pids_list_2 = NULL;
-  size_t increase = 0;
+  pids_list_t *pids_list_1 = calloc(1, sizeof(*pids_list_1));
+  pids_list_t *pids_list_2 = calloc(1, sizeof(*pids_list_2));
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_1); ++i) {
-    pids_list_add_pid(&pids_list_1, pids_array_1[i]);
-    pids_list_add_pid(&pids_list_2, pids_array_2[i]);
+    pids_list_add_pid(pids_list_1, pids_array_1[i]);
+    pids_list_add_pid(pids_list_2, pids_array_2[i]);
   }
 
   /* check */
-  int result = pids_list_add_pids_list(&pids_list_1, pids_list_2, &increase);
+  int result = pids_list_add_list(pids_list_1, pids_list_2);
   EXPECT_EQ_INT(0, result);
-  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array_2), increase);
+  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array_2) +
+                    STATIC_ARRAY_SIZE(pids_array_1),
+                pids_list_1->size);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_1); ++i) {
     EXPECT_EQ_INT(1, pids_list_contains_pid(pids_list_1, pids_array_1[i]));
@@ -217,16 +170,15 @@ DEF_TEST(pids_list_add_pids_list__non_empty_lists) {
 DEF_TEST(pids_list_add_pids_list__add_to_empty) {
   /* setup */
   pid_t pids_array[] = {2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007};
-  pids_list_t *pids_list_1 = NULL;
-  pids_list_t *pids_list_2 = NULL;
-  size_t increase = 0;
+  pids_list_t *pids_list_1 = calloc(1, sizeof(*pids_list_1));
+  pids_list_t *pids_list_2 = calloc(1, sizeof(*pids_list_2));
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array); ++i)
-    pids_list_add_pid(&pids_list_2, pids_array[i]);
+    pids_list_add_pid(pids_list_2, pids_array[i]);
 
   /* check */
-  int result = pids_list_add_pids_list(&pids_list_1, pids_list_2, &increase);
+  int result = pids_list_add_list(pids_list_1, pids_list_2);
   EXPECT_EQ_INT(0, result);
-  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array), increase);
+  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array), pids_list_1->size);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array); ++i)
     EXPECT_EQ_INT(1, pids_list_contains_pid(pids_list_1, pids_array[i]));
@@ -307,7 +259,7 @@ DEF_TEST(read_proc_name__invalid_name) {
   return 0;
 }
 
-DEF_TEST(fetch_pids_for_procs__one_proc_many_pid) {
+DEF_TEST(update_proc_pids__one_proc_many_pid) {
   /* setup */
   const char *proc_names[] = {"proc1"};
   stub_proc_pid_t pp_stubs[] = {{"proc1", 1007},
@@ -315,35 +267,39 @@ DEF_TEST(fetch_pids_for_procs__one_proc_many_pid) {
                                 {"proc1", 1009},
                                 {"proc2", 1010},
                                 {"proc3", 1011}};
+  proc_pids_t **proc_pids = NULL;
+  int result;
   stub_procfs_setup(pp_stubs, STATIC_ARRAY_SIZE(pp_stubs));
-  proc_pids_t *output = NULL;
+
+  result = initialize_proc_pids(proc_names, STATIC_ARRAY_SIZE(proc_names),
+                                &proc_pids);
+  EXPECT_EQ_INT(0, result);
 
   /* check */
-  int result = fetch_pids_for_procs(proc_fs, proc_names,
-                                    STATIC_ARRAY_SIZE(proc_names), &output);
+  result = update_proc_pids(proc_fs, proc_pids, STATIC_ARRAY_SIZE(proc_names));
   EXPECT_EQ_INT(0, result);
 
   /* proc name check */
-  EXPECT_EQ_STR(proc_names[0], output[0].proccess_name);
+  EXPECT_EQ_STR(proc_names[0], proc_pids[0]->process_name);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pp_stubs); ++i) {
     if (0 == strcmp(pp_stubs[i].comm, proc_names[0]))
       /* check if proc struct has correct pids */
-      EXPECT_EQ_INT(pids_list_contains_pid(output[0].pids, pp_stubs[i].pid), 1);
+      EXPECT_EQ_INT(pids_list_contains_pid(proc_pids[0]->curr, pp_stubs[i].pid),
+                    1);
     else
       /* check if proc struct has no incorrect pids */
-      EXPECT_EQ_INT(pids_list_contains_pid(output[0].pids, pp_stubs[i].pid), 0);
+      EXPECT_EQ_INT(pids_list_contains_pid(proc_pids[0]->curr, pp_stubs[i].pid),
+                    0);
   }
 
   /* cleanup */
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(proc_names); ++i)
-    pids_list_free(output[i].pids);
-  free(output);
+  proc_pids_free(proc_pids, STATIC_ARRAY_SIZE(proc_names));
   stub_procfs_teardown();
   return 0;
 }
 
-DEF_TEST(fetch_pids_for_procs__many_proc_many_pid) {
+DEF_TEST(update_proc_pids__many_proc_many_pid) {
   /* setup */
   const char *proc_names[] = {"proc1", "proc2", "proc3"};
   stub_proc_pid_t pp_stubs[] = {
@@ -351,35 +307,37 @@ DEF_TEST(fetch_pids_for_procs__many_proc_many_pid) {
       {"proc2", 2008}, {"proc2", 2009}, {"proc3", 3007}, {"proc3", 3008},
       {"proc3", 3009}, {"proc4", 4007}, {"proc4", 4008}, {"proc4", 4009},
       {"proc5", 5007}, {"proc5", 5008}, {"proc5", 5009}};
+  proc_pids_t **proc_pids = NULL;
+  int result;
   stub_procfs_setup(pp_stubs, STATIC_ARRAY_SIZE(pp_stubs));
-  proc_pids_t *output = NULL;
+
+  result = initialize_proc_pids(proc_names, STATIC_ARRAY_SIZE(proc_names),
+                                &proc_pids);
+  EXPECT_EQ_INT(0, result);
 
   /* check */
-  int result = fetch_pids_for_procs(proc_fs, proc_names,
-                                    STATIC_ARRAY_SIZE(proc_names), &output);
+  result = update_proc_pids(proc_fs, proc_pids, STATIC_ARRAY_SIZE(proc_names));
   EXPECT_EQ_INT(0, result);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(proc_names); ++i) {
 
     /* proc name check */
-    EXPECT_EQ_STR(proc_names[i], output[i].proccess_name);
+    EXPECT_EQ_STR(proc_names[i], proc_pids[i]->process_name);
 
     for (size_t j = 0; j < STATIC_ARRAY_SIZE(pp_stubs); ++j) {
       if (0 == strcmp(pp_stubs[j].comm, proc_names[i]))
         /* check if proc struct has correct pids */
-        EXPECT_EQ_INT(pids_list_contains_pid(output[i].pids, pp_stubs[j].pid),
-                      1);
+        EXPECT_EQ_INT(
+            pids_list_contains_pid(proc_pids[i]->curr, pp_stubs[j].pid), 1);
       else
         /* check if proc struct has no incorrect pids */
-        EXPECT_EQ_INT(pids_list_contains_pid(output[i].pids, pp_stubs[j].pid),
-                      0);
+        EXPECT_EQ_INT(
+            pids_list_contains_pid(proc_pids[i]->curr, pp_stubs[j].pid), 0);
     }
   }
 
   /* cleanup */
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(proc_names); ++i)
-    pids_list_free(output[i].pids);
-  free(output);
+  proc_pids_free(proc_pids, STATIC_ARRAY_SIZE(proc_names));
   stub_procfs_teardown();
   return 0;
 }
@@ -388,24 +346,27 @@ DEF_TEST(pids_list_diff__all_changed) {
   /* setup */
   pid_t pids_array_before[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
   pid_t pids_array_after[] = {2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007};
-  pids_list_t *pids_list_before = NULL;
-  pids_list_t *pids_list_after = NULL;
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_after); ++i) {
-    pids_list_add_pid(&pids_list_before, pids_array_before[i]);
-    pids_list_add_pid(&pids_list_after, pids_array_after[i]);
-  }
+  proc_pids_t proc_pids;
+  pids_list_t curr;
+  pids_list_t prev;
 
-  pids_list_t *new_pids = NULL;
-  size_t new_pids_count = 0;
-  pids_list_t *lost_pids = NULL;
-  size_t lost_pids_count = 0;
+  prev.pids = pids_array_before;
+  prev.size = STATIC_ARRAY_SIZE(pids_array_before);
+  prev.allocated = prev.size;
+  curr.pids = pids_array_after;
+  curr.size = STATIC_ARRAY_SIZE(pids_array_after);
+  curr.allocated = curr.size;
+  proc_pids.curr = &curr;
+  proc_pids.prev = &prev;
+
+  pids_list_t *new_pids = calloc(1, sizeof(*new_pids));
+  pids_list_t *lost_pids = calloc(1, sizeof(*lost_pids));
 
   /* check */
-  int result = pids_list_diff(pids_list_before, pids_list_after, &new_pids,
-                              &new_pids_count, &lost_pids, &lost_pids_count);
+  int result = pids_list_diff(&proc_pids, new_pids, lost_pids);
   EXPECT_EQ_INT(0, result);
-  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array_before), lost_pids_count);
-  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array_after), new_pids_count);
+  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array_before), lost_pids->size);
+  EXPECT_EQ_INT(STATIC_ARRAY_SIZE(pids_array_after), new_pids->size);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_before); ++i) {
     EXPECT_EQ_INT(1, pids_list_contains_pid(new_pids, pids_array_after[i]));
@@ -413,8 +374,6 @@ DEF_TEST(pids_list_diff__all_changed) {
   }
 
   /* cleanup */
-  pids_list_free(pids_list_before);
-  pids_list_free(pids_list_after);
   pids_list_free(new_pids);
   pids_list_free(lost_pids);
 
@@ -424,27 +383,31 @@ DEF_TEST(pids_list_diff__all_changed) {
 DEF_TEST(pids_list_diff__nothing_changed) {
   /* setup */
   pid_t pids_array_before[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
-  pids_list_t *pids_list_before = NULL;
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_before); ++i) {
-    pids_list_add_pid(&pids_list_before, pids_array_before[i]);
-  }
+  proc_pids_t proc_pids;
+  pids_list_t curr;
+  pids_list_t prev;
 
-  pids_list_t *new_pids = NULL;
-  size_t new_pids_count = 0;
-  pids_list_t *lost_pids = NULL;
-  size_t lost_pids_count = 0;
+  prev.pids = pids_array_before;
+  prev.size = STATIC_ARRAY_SIZE(pids_array_before);
+  prev.allocated = prev.size;
+  curr.pids = pids_array_before;
+  curr.size = STATIC_ARRAY_SIZE(pids_array_before);
+  curr.allocated = curr.size;
+  proc_pids.curr = &curr;
+  proc_pids.prev = &prev;
+
+  pids_list_t *new_pids = calloc(1, sizeof(*new_pids));
+  pids_list_t *lost_pids = calloc(1, sizeof(*lost_pids));
 
   /* check */
-  int result = pids_list_diff(pids_list_before, pids_list_before, &new_pids,
-                              &new_pids_count, &lost_pids, &lost_pids_count);
+  int result = pids_list_diff(&proc_pids, new_pids, lost_pids);
   EXPECT_EQ_INT(0, result);
-  EXPECT_EQ_INT(0, lost_pids_count);
-  EXPECT_EQ_INT(0, new_pids_count);
-  OK(NULL == new_pids);
-  OK(NULL == lost_pids);
+  EXPECT_EQ_INT(0, lost_pids->size);
+  EXPECT_EQ_INT(0, new_pids->size);
 
   /* cleanup */
-  pids_list_free(pids_list_before);
+  pids_list_free(lost_pids);
+  pids_list_free(new_pids);
 
   return 0;
 }
@@ -454,30 +417,31 @@ DEF_TEST(pids_list_diff__one_added) {
   pid_t pids_array_before[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
   pid_t pids_array_after[] = {1000, 1001, 1002, 1003, 1004,
                               1005, 1006, 1007, 1008};
-  pids_list_t *pids_list_before = NULL;
-  pids_list_t *pids_list_after = NULL;
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_before); ++i)
-    pids_list_add_pid(&pids_list_before, pids_array_before[i]);
+  proc_pids_t proc_pids;
+  pids_list_t curr;
+  pids_list_t prev;
 
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_after); ++i)
-    pids_list_add_pid(&pids_list_after, pids_array_after[i]);
+  prev.pids = pids_array_before;
+  prev.size = STATIC_ARRAY_SIZE(pids_array_before);
+  prev.allocated = prev.size;
+  curr.pids = pids_array_after;
+  curr.size = STATIC_ARRAY_SIZE(pids_array_after);
+  curr.allocated = curr.size;
+  proc_pids.curr = &curr;
+  proc_pids.prev = &prev;
 
-  pids_list_t *new_pids = NULL;
-  size_t new_pids_count = 0;
-  pids_list_t *lost_pids = NULL;
-  size_t lost_pids_count = 0;
+  pids_list_t *new_pids = calloc(1, sizeof(*new_pids));
+  pids_list_t *lost_pids = calloc(1, sizeof(*lost_pids));
 
   /* check */
-  int result = pids_list_diff(pids_list_before, pids_list_after, &new_pids,
-                              &new_pids_count, &lost_pids, &lost_pids_count);
+  int result = pids_list_diff(&proc_pids, new_pids, lost_pids);
   EXPECT_EQ_INT(0, result);
-  EXPECT_EQ_INT(0, lost_pids_count);
-  EXPECT_EQ_INT(1, new_pids_count);
-  EXPECT_EQ_INT(1008, new_pids->pid);
+  EXPECT_EQ_INT(0, lost_pids->size);
+  EXPECT_EQ_INT(1, new_pids->size);
+  EXPECT_EQ_INT(1008, new_pids->pids[0]);
 
   /* cleanup */
-  pids_list_free(pids_list_before);
-  pids_list_free(pids_list_after);
+  pids_list_free(lost_pids);
   pids_list_free(new_pids);
 
   return 0;
@@ -488,31 +452,33 @@ DEF_TEST(pids_list_diff__one_removed) {
   pid_t pids_array_before[] = {1000, 1001, 1002, 1003, 1004,
                                1005, 1006, 1007, 1008};
   pid_t pids_array_after[] = {1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007};
-  pids_list_t *pids_list_before = NULL;
-  pids_list_t *pids_list_after = NULL;
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_before); ++i)
-    pids_list_add_pid(&pids_list_before, pids_array_before[i]);
 
-  for (size_t i = 0; i < STATIC_ARRAY_SIZE(pids_array_after); ++i)
-    pids_list_add_pid(&pids_list_after, pids_array_after[i]);
+  proc_pids_t proc_pids;
+  pids_list_t curr;
+  pids_list_t prev;
 
-  pids_list_t *new_pids = NULL;
-  size_t new_pids_count = 0;
-  pids_list_t *lost_pids = NULL;
-  size_t lost_pids_count = 0;
+  prev.pids = pids_array_before;
+  prev.size = STATIC_ARRAY_SIZE(pids_array_before);
+  prev.allocated = prev.size;
+  curr.pids = pids_array_after;
+  curr.size = STATIC_ARRAY_SIZE(pids_array_after);
+  curr.allocated = curr.size;
+  proc_pids.curr = &curr;
+  proc_pids.prev = &prev;
+
+  pids_list_t *new_pids = calloc(1, sizeof(*new_pids));
+  pids_list_t *lost_pids = calloc(1, sizeof(*lost_pids));
 
   /* check */
-  int result = pids_list_diff(pids_list_before, pids_list_after, &new_pids,
-                              &new_pids_count, &lost_pids, &lost_pids_count);
+  int result = pids_list_diff(&proc_pids, new_pids, lost_pids);
   EXPECT_EQ_INT(0, result);
-  EXPECT_EQ_INT(1, lost_pids_count);
-  EXPECT_EQ_INT(0, new_pids_count);
-  EXPECT_EQ_INT(1008, lost_pids->pid);
+  EXPECT_EQ_INT(0, new_pids->size);
+  EXPECT_EQ_INT(1, lost_pids->size);
+  EXPECT_EQ_INT(1008, lost_pids->pids[0]);
 
   /* cleanup */
-  pids_list_free(pids_list_before);
-  pids_list_free(pids_list_after);
   pids_list_free(lost_pids);
+  pids_list_free(new_pids);
 
   return 0;
 }
@@ -520,17 +486,16 @@ DEF_TEST(pids_list_diff__one_removed) {
 int main(void) {
   stub_procfs_teardown();
   RUN_TEST(initialize_proc_pids__on_nullptr);
-  RUN_TEST(add_proc_pid__empty_list);
-  RUN_TEST(add_proc_pid__non_empty_list);
-  RUN_TEST(pids_list_to_array__non_empty_list);
+  RUN_TEST(pid_list_add_pid__empty_list);
+  RUN_TEST(pid_list_add_pid__non_empty_list);
   RUN_TEST(pids_list_add_pids_list__non_empty_lists);
   RUN_TEST(pids_list_add_pids_list__add_to_empty);
   RUN_TEST(get_pid_number__valid_dir);
   RUN_TEST(get_pid_number__invalid_dir_name);
   RUN_TEST(read_proc_name__valid_name);
   RUN_TEST(read_proc_name__invalid_name);
-  RUN_TEST(fetch_pids_for_procs__one_proc_many_pid);
-  RUN_TEST(fetch_pids_for_procs__many_proc_many_pid);
+  RUN_TEST(update_proc_pids__one_proc_many_pid);
+  RUN_TEST(update_proc_pids__many_proc_many_pid);
   RUN_TEST(pids_list_diff__all_changed);
   RUN_TEST(pids_list_diff__nothing_changed);
   RUN_TEST(pids_list_diff__one_added);

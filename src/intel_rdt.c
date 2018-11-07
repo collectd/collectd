@@ -1,7 +1,7 @@
 /**
  * collectd - src/intel_rdt.c
  *
- * Copyright(c) 2016-2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016-2019 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
  *   Serhiy Pshyk <serhiyx.pshyk@intel.com>
  *   Starzyk, Mateusz <mateuszx.starzyk@intel.com>
  *   Wojciech Andralojc <wojciechx.andralojc@intel.com>
+ *   Michał Aleksiński <michalx.aleksinski@intel.com>
  **/
 
 #include "collectd.h"
@@ -66,7 +67,7 @@ struct rdt_name_group_s {
   char *desc;
   size_t num_names;
   char **names;
-  proc_pids_t *proc_pids_array;
+  proc_pids_t **proc_pids;
   size_t monitored_pids_count;
   enum pqos_mon_event events;
 };
@@ -81,6 +82,8 @@ struct rdt_ctx_s {
   rdt_name_group_t ngroups[RDT_MAX_NAMES_GROUPS];
   struct pqos_mon_data *pngroups[RDT_MAX_NAMES_GROUPS];
   size_t num_ngroups;
+  proc_pids_t **proc_pids;
+  size_t num_proc_pids;
 #endif /* LIBPQOS2 */
   const struct pqos_cpuinfo *pqos_cpu;
   const struct pqos_cap *pqos_cap;
@@ -244,12 +247,10 @@ static void rdt_dump_pids_data(void) {
   for (size_t i = 0; i < g_rdt->num_ngroups; ++i) {
     memset(pids, 0, sizeof(pids));
     for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
-      pids_list_t *list = g_rdt->ngroups[i].proc_pids_array[j].pids;
-      while (list != NULL) {
+      pids_list_t *list = g_rdt->ngroups[i].proc_pids[j].curr;
+      for (size_t k = 0; k < list->size; k++)
         snprintf(pids + strlen(pids), sizeof(pids) - strlen(pids) - 1, " %u",
-                 list->pid);
-        list = list->next;
-      }
+                 list->pids[k]);
     }
     DEBUG(RDT_PLUGIN ":  [%s] %s", g_rdt->ngroups[i].desc, pids);
   }
@@ -434,7 +435,7 @@ static int oconfig_to_ngroups(const oconfig_item_t *item,
       return -ENOMEM;
     }
 
-    groups[index].proc_pids_array = NULL;
+    groups[index].proc_pids = NULL;
     groups[index].monitored_pids_count = 0;
 
     index++;
@@ -448,6 +449,16 @@ static int oconfig_to_ngroups(const oconfig_item_t *item,
   return index;
 }
 
+/*
+ * NAME
+ *   rdt_free_ngroups
+ *
+ * DESCRIPTION
+ *   Function to deallocate memory allocated for name groups.
+ *
+ * PARAMETERS
+ *   `rdt'       Pointer to rdt context
+ */
 static void rdt_free_ngroups(rdt_ctx_t *rdt) {
   for (int i = 0; i < RDT_MAX_NAMES_GROUPS; i++) {
     if (rdt->ngroups[i].desc)
@@ -456,20 +467,30 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
     sfree(rdt->ngroups[i].desc);
     strarray_free(rdt->ngroups[i].names, rdt->ngroups[i].num_names);
 
-    if (rdt->ngroups[i].proc_pids_array) {
-      for (size_t j = 0; j < rdt->ngroups[i].num_names; ++j) {
-        if (NULL == rdt->ngroups[i].proc_pids_array[j].pids)
-          continue;
-        pids_list_free(rdt->ngroups[i].proc_pids_array[j].pids);
-      }
+    if (rdt->ngroups[i].proc_pids)
+      proc_pids_free(rdt->ngroups[i].proc_pids, rdt->ngroups[i].num_names);
 
-      sfree(rdt->ngroups[i].proc_pids_array);
-    }
     rdt->ngroups[i].num_names = 0;
     sfree(rdt->pngroups[i]);
   }
+  if (rdt->proc_pids)
+    sfree(rdt->proc_pids);
 }
 
+/*
+ * NAME
+ *   rdt_config_ngroups
+ *
+ * DESCRIPTION
+ *   Reads name groups configuration.
+ *
+ * PARAMETERS
+ *   `rdt`       Pointer to rdt context
+ *   `item'      Config option containing process names groups.
+ *
+ * RETURN VALUE
+ *  0 on success. Negative number on error.
+ */
 static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
   int n = 0;
   enum pqos_mon_event events = 0;
@@ -553,6 +574,20 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
   return 0;
 }
 
+/*
+ * NAME
+ *   rdt_refresh_ngroup
+ *
+ * DESCRIPTION
+ *   Refresh pids monitored by name group.
+ *
+ * PARAMETERS
+ *   `ngroup`         Pointer to name group.
+ *   `group_mon_data' PQoS monitoring context.
+ *
+ * RETURN VALUE
+ *  0 on success. Negative number on error.
+ */
 static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
                               struct pqos_mon_data *group_mon_data) {
 
@@ -561,7 +596,7 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
   if (NULL == ngroup)
     return -1;
 
-  if (NULL == ngroup->proc_pids_array) {
+  if (NULL == ngroup->proc_pids) {
     ERROR(RDT_PLUGIN
           ": rdt_refresh_ngroup: \'%s\' uninitialized process pids array.",
           ngroup->desc);
@@ -572,34 +607,15 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
   DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' process names group.",
         ngroup->desc);
 
-  proc_pids_t *proc_pids_array_prev = ngroup->proc_pids_array;
-  proc_pids_t *proc_pids_array_curr = NULL;
+  proc_pids_t **proc_pids = ngroup->proc_pids;
+  pids_list_t added_pids;
+  pids_list_t removed_pids;
 
-  int fetch_result =
-      fetch_pids_for_procs(RDT_PROC_PATH, (const char **)ngroup->names,
-                           ngroup->num_names, &proc_pids_array_curr);
-
-  if (0 != fetch_result) {
-    ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' failed to fetch PIDs.",
-          ngroup->desc);
-    return fetch_result;
-  }
-
-  pids_list_t *new_pids = NULL;
-  pid_t *new_pids_array = NULL;
-  size_t new_pids_count = 0;
-
-  pids_list_t *lost_pids = NULL;
-  pid_t *lost_pids_array = NULL;
-  size_t lost_pids_count = 0;
+  memset(&added_pids, 0, sizeof(added_pids));
+  memset(&removed_pids, 0, sizeof(removed_pids));
 
   for (size_t i = 0; i < ngroup->num_names; ++i) {
-    if (NULL == proc_pids_array_prev[i].pids &&
-        NULL == proc_pids_array_curr[i].pids)
-      continue;
-    int diff_result = pids_list_diff(
-        proc_pids_array_prev[i].pids, proc_pids_array_curr[i].pids, &new_pids,
-        &new_pids_count, &lost_pids, &lost_pids_count);
+    int diff_result = pids_list_diff(proc_pids[i], &added_pids, &removed_pids);
     if (0 != diff_result) {
       ERROR(RDT_PLUGIN
             ": rdt_refresh_ngroup: \'%s\'. Error [%d] during PID diff.",
@@ -611,27 +627,18 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
 
   DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' process names group, added: "
                    "%u, removed: %u.",
-        ngroup->desc, (unsigned)new_pids_count, (unsigned)lost_pids_count);
+        ngroup->desc, (unsigned)added_pids.size, (unsigned)removed_pids.size);
 
-  if (new_pids && new_pids_count > 0) {
-    new_pids_array = malloc(new_pids_count * sizeof(pid_t));
-    if (new_pids_array == NULL) {
-      ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Memory "
-                       "allocation failed",
-            ngroup->desc);
-      result = -1;
-      goto cleanup;
-    }
-    pids_list_to_array(new_pids_array, new_pids, new_pids_count);
+  if (added_pids.size > 0) {
 
     /* no pids are monitored for this group yet: start monitoring */
     if (0 == ngroup->monitored_pids_count) {
 
       int start_result =
-          pqos_mon_start_pids(new_pids_count, new_pids_array, ngroup->events,
+          pqos_mon_start_pids(added_pids.size, added_pids.pids, ngroup->events,
                               (void *)ngroup->desc, group_mon_data);
       if (PQOS_RETVAL_OK == start_result) {
-        ngroup->monitored_pids_count = new_pids_count;
+        ngroup->monitored_pids_count = added_pids.size;
       } else {
         ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Error [%d] while "
                          "STARTING pids monitoring",
@@ -643,9 +650,9 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     } else {
 
       int add_result =
-          pqos_mon_add_pids(new_pids_count, new_pids_array, group_mon_data);
+          pqos_mon_add_pids(added_pids.size, added_pids.pids, group_mon_data);
       if (PQOS_RETVAL_OK == add_result)
-        ngroup->monitored_pids_count += new_pids_count;
+        ngroup->monitored_pids_count += added_pids.size;
       else {
         ERROR(RDT_PLUGIN
               ": rdt_refresh_ngroup: \'%s\'. Error [%d] while ADDING pids.",
@@ -656,18 +663,10 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
     }
   }
 
-  if (lost_pids && lost_pids_count > 0) {
-    lost_pids_array = malloc(lost_pids_count * sizeof(pid_t));
-    if (lost_pids_array == NULL) {
-      ERROR(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\'. Memory "
-                       "allocation failed",
-            ngroup->desc);
-      result = -1;
-      goto cleanup;
-    }
-    pids_list_to_array(lost_pids_array, lost_pids, lost_pids_count);
+  if (removed_pids.size > 0) {
 
-    if (lost_pids_count == ngroup->monitored_pids_count) {
+    /* all pids are removed: stop monitoring */
+    if (removed_pids.size == ngroup->monitored_pids_count) {
       /* all pids for this group are lost: stop monitoring */
       int stop_result = pqos_mon_stop(group_mon_data);
       if (PQOS_RETVAL_OK != stop_result) {
@@ -679,11 +678,10 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
       }
       ngroup->monitored_pids_count = 0;
     } else {
-      assert(lost_pids_count < ngroup->monitored_pids_count);
-      int remove_result = pqos_mon_remove_pids(lost_pids_count, lost_pids_array,
-                                               group_mon_data);
+      int remove_result = pqos_mon_remove_pids(
+          removed_pids.size, removed_pids.pids, group_mon_data);
       if (PQOS_RETVAL_OK == remove_result) {
-        ngroup->monitored_pids_count -= lost_pids_count;
+        ngroup->monitored_pids_count -= removed_pids.size;
       } else {
         ERROR(RDT_PLUGIN
               ": rdt_refresh_ngroup: \'%s\'. Error [%d] while REMOVING pids.",
@@ -693,9 +691,6 @@ static int rdt_refresh_ngroup(rdt_name_group_t *ngroup,
       }
     }
   }
-
-  if (new_pids_count > 0 || lost_pids_count > 0)
-    ngroup->proc_pids_array = proc_pids_array_curr;
 
   goto cleanup;
 
@@ -715,50 +710,29 @@ pqos_error_recovery:
   DEBUG(RDT_PLUGIN ": rdt_refresh_ngroup: \'%s\' group RESET after error.",
         ngroup->desc);
   pqos_mon_stop(group_mon_data);
-  for (size_t i = 0; i < ngroup->num_names; ++i) {
-    if (ngroup->proc_pids_array[i].pids)
-      pids_list_free(ngroup->proc_pids_array[i].pids);
-  }
-  sfree(ngroup->proc_pids_array);
+  for (size_t i = 0; i < ngroup->num_names; ++i)
+    if (ngroup->proc_pids[i]->curr)
+      ngroup->proc_pids[i]->curr->size = 0;
 
-  initialize_proc_pids((const char **)ngroup->names, ngroup->num_names,
-                       &ngroup->proc_pids_array);
   ngroup->monitored_pids_count = 0;
 
 cleanup:
-  if (ngroup->proc_pids_array == proc_pids_array_curr) {
-    assert(proc_pids_array_curr);
-    /* new list was successfully saved, free the old one */
-    for (size_t i = 0; i < ngroup->num_names; ++i)
-      if (proc_pids_array_prev[i].pids)
-        pids_list_free(proc_pids_array_prev[i].pids);
-
-    sfree(proc_pids_array_prev);
-
-  } else {
-    /* new list was not saved. Free the new list, keep the old one*/
-    for (size_t i = 0; i < ngroup->num_names; ++i)
-      if (proc_pids_array_curr[i].pids)
-        pids_list_free(proc_pids_array_curr[i].pids);
-
-    sfree(proc_pids_array_curr);
-  }
-
-  if (new_pids)
-    pids_list_free(new_pids);
-
-  if (new_pids_array)
-    free(new_pids_array);
-
-  if (lost_pids)
-    pids_list_free(lost_pids);
-
-  if (lost_pids_array)
-    free(lost_pids_array);
+  pids_list_clear(&added_pids);
+  pids_list_clear(&removed_pids);
 
   return result;
 }
 
+/*
+ * NAME
+ *   read_pids_data
+ *
+ * DESCRIPTION
+ *   Poll monitoring statistics for name groups
+ *
+ * RETURN VALUE
+ *  0 on success. Negative number on error.
+ */
 static int read_pids_data() {
 
   if (0 == g_rdt->num_ngroups) {
@@ -824,6 +798,12 @@ static int read_pids_data() {
 #endif /* COLLECT_DEBUG */
 
 groups_refresh:
+  ret = update_proc_pids(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
+  if (0 != ret) {
+    ERROR(RDT_PLUGIN ": Initial update of proc pids failed");
+    return ret;
+  }
+
   for (size_t i = 0; i < g_rdt->num_ngroups; i++) {
     int refresh_result =
         rdt_refresh_ngroup(&(g_rdt->ngroups[i]), g_rdt->pngroups[i]);
@@ -844,6 +824,13 @@ groups_refresh:
   return ret;
 }
 
+/*
+ * NAME
+ *   rdt_init_pids_monitoring
+ *
+ * DESCRIPTION
+ *   Initialize pids monitoring for all name groups
+ */
 static void rdt_init_pids_monitoring() {
   for (size_t group_idx = 0; group_idx < g_rdt->num_ngroups; group_idx++) {
     /*
@@ -853,7 +840,7 @@ static void rdt_init_pids_monitoring() {
      */
     rdt_name_group_t *ng = &g_rdt->ngroups[group_idx];
     int init_result = initialize_proc_pids((const char **)ng->names,
-                                           ng->num_names, &ng->proc_pids_array);
+                                           ng->num_names, &ng->proc_pids);
     if (0 != init_result) {
       ERROR(RDT_PLUGIN
             ": Initialization of proc_pids for group %zu failed. Error: %d",
@@ -861,6 +848,28 @@ static void rdt_init_pids_monitoring() {
       continue;
     }
 
+    /* update global proc_pids table */
+    proc_pids_t **proc_pids = realloc(g_rdt->proc_pids,
+                                      (g_rdt->num_proc_pids + ng->num_names) *
+                                          sizeof(*g_rdt->proc_pids));
+    if (NULL == proc_pids) {
+      ERROR(RDT_PLUGIN ": Alloc error\n");
+      continue;
+    }
+
+    for (size_t i = 0; i < ng->num_names; i++)
+      proc_pids[g_rdt->num_proc_pids + i] = ng->proc_pids[i];
+
+    g_rdt->proc_pids = proc_pids;
+    g_rdt->num_proc_pids += ng->num_names;
+  }
+
+  int update_result =
+      update_proc_pids(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
+  if (0 != update_result)
+    ERROR(RDT_PLUGIN ": Initial update of proc pids failed");
+
+  for (size_t group_idx = 0; group_idx < g_rdt->num_ngroups; group_idx++) {
     int refresh_result = rdt_refresh_ngroup(&(g_rdt->ngroups[group_idx]),
                                             g_rdt->pngroups[group_idx]);
     if (0 != refresh_result)
@@ -869,7 +878,13 @@ static void rdt_init_pids_monitoring() {
   }
 }
 #endif /* LIBPQOS2 */
-
+/*
+ * NAME
+ *   rdt_free_ngroups
+ *
+ * DESCRIPTION
+ *   Function to deallocate memory allocated for core groups.
+ */
 static void rdt_free_cgroups(void) {
   config_cores_cleanup(&g_rdt->cores);
   for (int i = 0; i < RDT_MAX_CORES; i++) {

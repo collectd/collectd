@@ -1,7 +1,7 @@
 /**
  * collectd - src/utils_config_pids.h
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018-2019 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@
  * Authors:
  *   Starzyk, Mateusz <mateuszx.starzyk@intel.com>
  *   Wojciech Andralojc <wojciechx.andralojc@intel.com>
+ *   Michał Aleksiński <michalx.aleksinski@intel.com>
  **/
 
 #include <dirent.h>
@@ -40,16 +41,18 @@
  */
 typedef char proc_comm_t[MAX_PROC_NAME_LEN + 1];
 
-/* Linked one-way list of pids. */
+/* List of pids. */
 typedef struct pids_list_s {
-  pid_t pid;
-  struct pids_list_s *next;
+  pid_t *pids;
+  size_t size;
+  size_t allocated;
 } pids_list_t;
 
 /* Holds process name and list of pids assigned to that name */
 typedef struct proc_pids_s {
-  proc_comm_t proccess_name;
-  pids_list_t *pids;
+  proc_comm_t process_name;
+  pids_list_t *prev;
+  pids_list_t *curr;
 } proc_pids_t;
 
 /*
@@ -85,18 +88,52 @@ int is_proc_name_valid(const char *name);
  *   pids_list_add_pid
  *
  * DESCRIPTION
- *   Adds pid at the end of the pids list.
- *   Allocates memory for new pid element, it is up to user to free it.
+ *   Adds pid at the end of the pids array.
+ *   Reallocates memory for new pid element, it is up to user to free it.
  *
  * PARAMETERS
- *   `list'     Head of target pids_list.
+ *   `list'     Target pids_list.
  *   `pid'      Pid to be added.
  *
  * RETURN VALUE
  *   On success, returns 0.
  *   -1 on memory allocation error.
  */
-int pids_list_add_pid(pids_list_t **list, const pid_t pid);
+int pids_list_add_pid(pids_list_t *list, const pid_t pid);
+
+/*
+ * NAME
+ *   pids_list_clear
+ *
+ * DESCRIPTION
+ *   Remove all pids from the list
+ *
+ * PARAMETERS
+ *   `list'     Target pids_list.
+ *
+ * RETURN VALUE
+ *   On success, return 0
+ */
+int pids_list_clear(pids_list_t *list);
+
+/*
+ * NAME
+ *   pids_list_add_list
+ *
+ * DESCRIPTION
+ *   Adds pids list at the end of the pids list.
+ *   Allocates memory for new pid elements, it is up to user to free it.
+ *
+ * PARAMETERS
+ *   `dst'      Target PIDs list.
+ *   `src'      Source PIDs list.
+ *
+ * RETURN VALUE
+ *   On success, returns 0.
+ *   -1 on memory allocation error.
+ */
+#
+int pids_list_add_list(pids_list_t *dst, pids_list_t *src);
 
 /*
  * NAME
@@ -106,7 +143,7 @@ int pids_list_add_pid(pids_list_t **list, const pid_t pid);
  *   Tests if pids list contains specific pid.
  *
  * PARAMETERS
- *   `list'     Head of pids_list.
+ *   `list'     pids_list to check.
  *   `pid'      Pid to be searched for.
  *
  * RETURN VALUE
@@ -117,26 +154,6 @@ int pids_list_contains_pid(pids_list_t *list, const pid_t pid);
 
 /*
  * NAME
- *   pids_list_add_pids_list
- *
- * DESCRIPTION
- *   Adds pids list at the end of the pids list.
- *   Allocates memory for new pid elements, it is up to user to free it.
- *   Increases dst_num by a number of added PIDs.
- *
- * PARAMETERS
- *   `dst'      Head of target PIDs list.
- *   `src'      Head of source PIDs list.
- *   `dst_num'  Variable to be increased by a number of appended PIDs.
- *
- * RETURN VALUE
- *   On success, returns 0.
- *   -1 on memory allocation error.
- */
-int pids_list_add_pids_list(pids_list_t **dst, pids_list_t *src,
-                            size_t *dst_num);
-/*
- * NAME
  *   read_proc_name
  *
  * DESCRIPTION
@@ -144,7 +161,7 @@ int pids_list_add_pids_list(pids_list_t **dst, pids_list_t *src,
  *   Strips new-line character (\n).
  *
  * PARAMETERS
- *   `procfs_path` Path to systems proc directory (e.g. /proc)
+ *   `procfs_path' Path to systems proc directory (e.g. /proc)
  *   `pid_entry'   Dirent for PID directory
  *   `name'        Output buffer for process name, recommended proc_comm.
  *   `out_size'    Output buffer size, recommended sizeof(proc_comm)
@@ -175,22 +192,6 @@ int get_pid_number(struct dirent *entry, pid_t *pid);
 
 /*
  * NAME
- *   pids_list_to_array
- *
- * DESCRIPTION
- *   Copies element from list to array. Assumes the space for the array is
- *   allocated.
- *
- * PARAMETERS
- *   `array'      First element of target array
- *   `list'       Head of the list
- *   `array_length' Length (element count) of the target array
- */
-void pids_list_to_array(pid_t *array, pids_list_t *list,
-                        const size_t array_length);
-
-/*
- * NAME
  *   initialize_proc_pids
  *
  * DESCRIPTION
@@ -201,7 +202,7 @@ void pids_list_to_array(pid_t *array, pids_list_t *list,
  *   `procs_names_array'      Array of null-terminated strings with
  *                            process' names to be copied to new array
  *   `procs_names_array_size' procs_names_array element count
- *   `proc_pids_array'        Address of pointer, under which new
+ *   `proc_pids'              Address of pointer, under which new
  *                            array of proc_pids will be allocated.
  *                            Must be NULL.
  * RETURN VALUE
@@ -210,34 +211,26 @@ void pids_list_to_array(pid_t *array, pids_list_t *list,
  */
 int initialize_proc_pids(const char **procs_names_array,
                          const size_t procs_names_array_size,
-                         proc_pids_t **proc_pids_array);
+                         proc_pids_t **proc_pids[]);
 
 /*
  * NAME
- *   fetch_pids_for_procs
+ *   update_proc_pids
  *
  * DESCRIPTION
- *   Finds PIDs matching given process's names.
- *   Searches all PID directories in /proc fs and
- *   allocates memory for proc_pids structs, it is up to user to free it.
- *   Output array will have same element count as input array.
+ *   Updates PIDs matching processes's names.
+ *   Searches all PID directories in /proc fs and updates current pids_list.
  *
  * PARAMETERS
- *   `procfs_path'            Path to systems proc directory (e.g. /proc)
- *   `procs_names_array'      Array of null-terminated strings with
- *                            process' names to be copied to new array
- *   `procs_names_array_size' procs_names_array element count
- *   `proc_pids_array'        Address of pointer, under which new
- *                            array of proc_pids will be allocated.
- *                            Must be NULL.
+ *   `procfs_path'     Path to systems proc directory (e.g. /proc)
+ *   `proc_pids'       Array of proc_pids pointers to be updated.
+ *   `proc_pids_num'   proc_pids element count
  *
  * RETURN VALUE
  *   0 on success. -1 on error.
  */
-int fetch_pids_for_procs(const char *procfs_path,
-                         const char **procs_names_array,
-                         const size_t procs_names_array_size,
-                         proc_pids_t **proc_pids_array);
+int update_proc_pids(const char *procfs_path, proc_pids_t *proc_pids[],
+                     size_t proc_pids_num);
 
 /*
  * NAME
@@ -247,15 +240,26 @@ int fetch_pids_for_procs(const char *procfs_path,
  *   Searches for differences in two given lists
  *
  * PARAMETERS
- *   `prev'            List of pids before changes
- *   `curr'            List of pids after changes
- *   `added'           Result array storing new pids which appeared in `curr'
- *   `added_num'       `added_num' array length
- *   `removed'         Result array storing pids which disappeared in `prev'
- *   `removed_num'     `removed' array length
+ *   `proc'            List of pids
+ *   `added'           New pids which appeared
+ *   `removed'         Result array storing pids which disappeared
  * RETURN VALUE
  *   0 on success. Negative number on error.
  */
-int pids_list_diff(pids_list_t *prev, pids_list_t *curr, pids_list_t **added,
-                   size_t *added_num, pids_list_t **removed,
-                   size_t *removed_num);
+int pids_list_diff(proc_pids_t *proc, pids_list_t *added, pids_list_t *removed);
+
+/*
+ * NAME
+ *   proc_pids_free
+ *
+ * DESCRIPTION
+ *   Releses memory allocatd for proc_pids
+ *
+ * PARAMETERS
+ *   `proc_pids'       Array of proc_pids
+ *   `proc_pids_num'   proc_pids element count
+ *
+ * RETURN VALUE
+ *   0 on success. -1 on error.
+ */
+int proc_pids_free(proc_pids_t *proc_pids[], size_t proc_pids_num);
