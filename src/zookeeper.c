@@ -233,8 +233,9 @@ static int zookeeper_read(void) {
       DEBUG("Uncollected zookeeper MNTR field %s", fields[0]);
     }
   }
-  /* Reports 0 for followers, -1 for no zk_server_state, # when zk_followers present. */
-  /* Intended to be used for quorum detection by taking max for each time period. */
+  /* Reports 0 for followers, -1 for no zk_server_state, # when zk_followers
+   * present. Intended to be used for quorum detection by taking max for each
+   * time period. */
   zookeeper_submit_gauge("count", "quorum", followers);
 
   return 0;
