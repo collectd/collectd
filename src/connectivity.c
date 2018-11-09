@@ -208,8 +208,8 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       yajl_gen_status_ok)
     goto err;
 
-  if (snprintf(json_str, sizeof(json_str), "%lu", CDTIME_T_TO_US(cdtime())) <
-      0) {
+  if (snprintf(json_str, sizeof(json_str), "%" PRIu64,
+               CDTIME_T_TO_US(cdtime())) < 0) {
     goto err;
   }
 
@@ -266,7 +266,8 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       yajl_gen_status_ok)
     goto err;
 
-  if (snprintf(json_str, sizeof(json_str), "%lu", timestamp) < 0) {
+  if (snprintf(json_str, sizeof(json_str), "%" PRIu64,
+               CDTIME_T_TO_US(timestamp)) < 0) {
     goto err;
   }
 
@@ -398,7 +399,7 @@ static interface_list_t *add_interface(const char *interface, int status,
   il->interface = interface2;
   il->status = status;
   il->prev_status = prev_status;
-  il->timestamp = CDTIME_T_TO_US(cdtime());
+  il->timestamp = cdtime();
   il->sent = 0;
   il->next = interface_list_head;
   interface_list_head = il;
@@ -456,12 +457,10 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
       }
     }
 
-    uint32_t prev_status;
-
-    prev_status = il->status;
+    uint32_t prev_status = il->status;
     il->status =
         ((ifi->ifi_flags & IFF_RUNNING) ? LINK_STATE_UP : LINK_STATE_DOWN);
-    il->timestamp = CDTIME_T_TO_US(cdtime());
+    il->timestamp = cdtime();
 
     // If the new status is different than the previous status,
     // store the previous status and set sent to zero, and set the
@@ -487,31 +486,19 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
 }
 
 static int msg_handler(struct nlmsghdr *msg) {
-  switch (msg->nlmsg_type) {
-  case RTM_NEWADDR:
-  case RTM_DELADDR:
-  case RTM_NEWROUTE:
-  case RTM_DELROUTE:
-  case RTM_DELLINK:
-    // Not of interest in current version
-    break;
-  case RTM_NEWLINK:
-    connectivity_link_state(msg);
-    break;
-  default:
-    ERROR("connectivity plugin: msg_handler: Unknown netlink nlmsg_type %d",
-          msg->nlmsg_type);
-    break;
+  // We are only interested in RTM_NEWLINK messages
+  if (msg->nlmsg_type != RTM_NEWLINK) {
+    return 0;
   }
-  return 0;
+  return connectivity_link_state(msg);
 }
 
-static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
+static int read_event(int (*msg_handler)(struct nlmsghdr *)) {
   int ret = 0;
   int recv_flags = MSG_DONTWAIT;
 
-  if (nl == -1)
-    return ret;
+  if (nl_sock == -1 || msg_handler == NULL)
+    return EINVAL;
 
   while (42) {
     pthread_mutex_lock(&connectivity_threads_lock);
@@ -524,7 +511,7 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
     pthread_mutex_unlock(&connectivity_threads_lock);
 
     char buf[4096];
-    int status = recv(nl, buf, sizeof(buf), recv_flags);
+    int status = recv(nl_sock, buf, sizeof(buf), recv_flags);
 
     if (status < 0) {
 
@@ -567,7 +554,9 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
 
       /* Message is some kind of error */
       if (h->nlmsg_type == NLMSG_ERROR) {
-        ERROR("connectivity plugin: read_event: Message is an error");
+        struct nlmsgerr *l_err = (struct nlmsgerr *)NLMSG_DATA(h);
+        ERROR("connectivity plugin: read_event: Message is an error: %d",
+              l_err->error);
         return -1; // Error
       }
 
@@ -590,43 +579,34 @@ static int read_event(int nl, int (*msg_handler)(struct nlmsghdr *)) {
 }
 
 static void connectivity_dispatch_notification(const char *interface,
-                                               const char *type, gauge_t value,
-                                               gauge_t old_value,
+                                               gauge_t value, gauge_t old_value,
                                                cdtime_t timestamp) {
 
-  notification_t n = {(value == LINK_STATE_UP ? NOTIF_OKAY : NOTIF_FAILURE),
-                      cdtime(),
-                      "",
-                      "",
-                      "connectivity",
-                      "",
-                      "",
-                      "",
-                      NULL};
+  notification_t n = {
+      .severity = (value == LINK_STATE_UP ? NOTIF_OKAY : NOTIF_FAILURE),
+      .time = cdtime(),
+      .plugin = "connectivity",
+      .type = "gauge",
+      .type_instance = "interface_status",
+  };
 
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   sstrncpy(n.plugin_instance, interface, sizeof(n.plugin_instance));
-  sstrncpy(n.type, "gauge", sizeof(n.type));
-  sstrncpy(n.type_instance, "interface_status", sizeof(n.type_instance));
 
   char *buf = NULL;
 
   gen_message_payload(value, old_value, interface, timestamp, &buf);
 
-  notification_meta_t *m = calloc(1, sizeof(*m));
+  int status = plugin_notification_meta_add_string(&n, "ves", buf);
 
-  if (m == NULL) {
+  if (status < 0) {
     sfree(buf);
-    ERROR("connectivity plugin: unable to allocate metadata: %s", STRERRNO);
+    ERROR("connectivity plugin: unable to set notification VES metadata: %s",
+          STRERRNO);
     return;
   }
 
-  sstrncpy(m->name, "ves", sizeof(m->name));
-  m->nm_value.nm_string = sstrdup(buf);
-  m->type = NM_TYPE_STRING;
-  n.meta = m;
-
-  DEBUG("connectivity plugin: notification message: %s",
+  DEBUG("connectivity plugin: notification VES metadata: %s",
         n.meta->nm_value.nm_string);
 
   DEBUG("connectivity plugin: dispatching state %d for interface %s",
@@ -650,8 +630,8 @@ static void send_interface_status() {
     uint32_t sent = il->sent;
 
     if (status != prev_status && sent == 0) {
-      connectivity_dispatch_notification(il->interface, "gauge", status,
-                                         prev_status, il->timestamp);
+      connectivity_dispatch_notification(il->interface, status, prev_status,
+                                         il->timestamp);
       il->sent = 1;
     }
   } /* }}} for (il = interface_list_head; il != NULL; il = il->next) */
@@ -680,7 +660,7 @@ static void *connectivity_netlink_thread(void *arg) /* {{{ */
   while (connectivity_netlink_thread_loop > 0) {
     pthread_mutex_unlock(&connectivity_threads_lock);
 
-    int status = read_event(nl_sock, msg_handler);
+    int status = read_event(msg_handler);
 
     pthread_mutex_lock(&connectivity_threads_lock);
 
@@ -727,6 +707,7 @@ static int nl_connect() {
   if (rc == -1) {
     ERROR("connectivity plugin: socket bind failed: %s", STRERRNO);
     close(nl_sock);
+    nl_sock = -1;
     return -1;
   }
 
@@ -769,8 +750,9 @@ static int start_netlink_thread(void) /* {{{ */
     if (status2 != 0) {
       ERROR("connectivity plugin: failed to close socket %d: %d (%s)", nl_sock,
             status2, STRERRNO);
-    } else
-      nl_sock = -1;
+    }
+
+    nl_sock = -1;
 
     return -1;
   }
@@ -827,8 +809,9 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     if (socket_status != 0) {
       ERROR("connectivity plugin: failed to close socket %d: %d (%s)", nl_sock,
             socket_status, STRERRNO);
-    } else
-      nl_sock = -1;
+    }
+
+    nl_sock = -1;
   } else
     socket_status = 0;
 
@@ -897,7 +880,7 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     return thread_status;
 }
 
-static int stop_dequeue_thread(int shutdown) /* {{{ */
+static int stop_dequeue_thread() /* {{{ */
 {
   pthread_mutex_lock(&connectivity_threads_lock);
 
@@ -914,30 +897,18 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
   // on such that they'll see the threads termination status
   pthread_cond_broadcast(&connectivity_cond);
 
-  int status;
+  // Calling pthread_cancel here just assures that the thread is
+  // gone and that the process has been fully terminated.
 
-  if (shutdown == 1) {
-    // Calling pthread_cancel here in
-    // the case of a shutdown just assures that the thread is
-    // gone and that the process has been fully terminated.
+  DEBUG("connectivity plugin: Canceling dequeue thread for process shutdown");
 
-    DEBUG("connectivity plugin: Canceling dequeue thread for process shutdown");
+  int status = pthread_cancel(connectivity_dequeue_thread_id);
 
-    status = pthread_cancel(connectivity_dequeue_thread_id);
-
-    if (status != 0 && status != ESRCH) {
-      ERROR("connectivity plugin: Unable to cancel dequeue thread: %d", status);
-      status = -1;
-    } else
-      status = 0;
-  } else {
-    status = pthread_join(connectivity_dequeue_thread_id, /* return = */ NULL);
-    if (status != 0 && status != ESRCH) {
-      ERROR("connectivity plugin: Stopping dequeue thread failed.");
-      status = -1;
-    } else
-      status = 0;
-  }
+  if (status != 0 && status != ESRCH) {
+    ERROR("connectivity plugin: Unable to cancel dequeue thread: %d", status);
+    status = -1;
+  } else
+    status = 0;
 
   pthread_mutex_lock(&connectivity_threads_lock);
   memset(&connectivity_dequeue_thread_id, 0,
@@ -949,10 +920,10 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
   return status;
 } /* }}} int stop_dequeue_thread */
 
-static int stop_threads(int shutdown) /* {{{ */
+static int stop_threads() /* {{{ */
 {
-  int status = stop_netlink_thread(shutdown);
-  int status2 = stop_dequeue_thread(shutdown);
+  int status = stop_netlink_thread(1);
+  int status2 = stop_dequeue_thread();
 
   if (status != 0)
     return status;
@@ -1028,7 +999,7 @@ static int connectivity_shutdown(void) /* {{{ */
 {
   DEBUG("connectivity plugin: Shutting down thread.");
 
-  int status = stop_threads(1);
+  int status = stop_threads();
 
   interface_list_t *il = interface_list_head;
   while (il != NULL) {
