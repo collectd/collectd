@@ -176,10 +176,11 @@ static int zookeeper_read(void) {
   char *save_ptr;
   char *line;
   char *fields[2];
-  long followers = -1;
+  long followers = 0;
 
   if (zookeeper_query(buf, sizeof(buf)) < 0) {
-    return -1;
+    zookeeper_submit_gauge("count", "quorum", -1);
+    return 0;
   }
 
   ptr = buf;
@@ -225,17 +226,12 @@ static int zookeeper_read(void) {
       zookeeper_submit_gauge("count", "synced_followers", atol(fields[1]));
     } else if (FIELD_CHECK(fields[0], "zk_pending_syncs")) {
       zookeeper_submit_gauge("count", "pending_syncs", atol(fields[1]));
-    } else if (FIELD_CHECK(fields[0], "zk_server_state")) {
-      if (followers < 0) {
-        followers = 0;
-      }
     } else {
       DEBUG("Uncollected zookeeper MNTR field %s", fields[0]);
     }
   }
-  /* Reports 0 for followers, -1 for no zk_server_state, # when zk_followers
-   * present. Intended to be used for quorum detection by taking max for each
-   * time period. */
+  /* Reports 0 for followers, # when zk_followers present. Intended to be used
+   * for quorum detection by taking max for each time period. */
   zookeeper_submit_gauge("count", "quorum", followers);
 
   return 0;
