@@ -174,6 +174,7 @@
 #@BUILD_PLUGIN_ORACLE_TRUE@LoadPlugin oracle
 #@BUILD_PLUGIN_OVS_EVENTS_TRUE@LoadPlugin ovs_events
 #@BUILD_PLUGIN_OVS_STATS_TRUE@LoadPlugin ovs_stats
+#@BUILD_PLUGIN_PCIE_ERRORS_TRUE@LoadPlugin pcie_errors
 #@BUILD_PLUGIN_PERL_TRUE@LoadPlugin perl
 #@BUILD_PLUGIN_PINBA_TRUE@LoadPlugin pinba
 #@BUILD_PLUGIN_PING_TRUE@LoadPlugin ping
@@ -222,6 +223,7 @@
 #@BUILD_PLUGIN_WRITE_REDIS_TRUE@LoadPlugin write_redis
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_WRITE_SENSU_TRUE@LoadPlugin write_sensu
+#@BUILD_PLUGIN_WRITE_STACKDRIVER_TRUE@LoadPlugin write_stackdriver
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XENCPU_TRUE@LoadPlugin xencpu
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
@@ -658,6 +660,12 @@
 #  Port "2947"
 #  Timeout 0.015
 #  PauseConnect 5
+#</Plugin>
+
+#<Plugin gpu_nvidia>
+#   GPUIndex 0
+#   GPUIndex 2
+#   IgnoreSelected false
 #</Plugin>
 
 #<Plugin grpc>
@@ -1135,6 +1143,12 @@
 #  Bridges "br0" "br_ext"
 #</Plugin>
 
+#<Plugin pcie_errors>
+#  Source "sysfs"
+#  ReportMasked false
+#  PersistentNotifications false
+#</Plugin>
+
 #<Plugin perl>
 #	IncludeDir "/my/include/path"
 #	BaseName "Collectd::Plugins"
@@ -1274,6 +1288,7 @@
 #   <Node example>
 #      Host "redis.example.com"
 #      Port "6379"
+#      #Socket "/var/run/redis/redis.sock"
 #      Timeout 2000
 #      <Query "LLEN myqueue">
 #        #Database 0
@@ -1295,6 +1310,7 @@
 #		CollectMemory true
 #		CollectDF true
 #		CollectDisk true
+#		CollectHealth true
 #	</Router>
 #</Plugin>
 
@@ -1781,6 +1797,16 @@
 #	</Node>
 #	Tag "foobar"
 #	Attribute "foo" "bar"
+#</Plugin>
+
+#<Plugin write_stackdriver>
+#  Project "stackdriver-account"
+#  CredentialFile "/path/to/gcp-project-id-12345.json"
+#  Email "123456789012@developer.gserviceaccount.com"
+#  <Resource "global">
+#    Label "project_id" "gcp-project-id"
+#  </Resource>
+#  Url "https://monitoring.googleapis.com/v3"
 #</Plugin>
 
 #<Plugin write_tsdb>

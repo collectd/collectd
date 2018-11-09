@@ -43,7 +43,11 @@
 #include "common.h"
 #include "utils_dpdk.h"
 
+#if RTE_VERSION <= RTE_VERSION_NUM(18, 5, 0, 0)
 #define DPDK_DEFAULT_RTE_CONFIG "/var/run/.rte_config"
+#else
+#define DPDK_DEFAULT_RTE_CONFIG "/var/run/dpdk/rte/config"
+#endif
 #define DPDK_EAL_ARGC 10
 // Complete trace should fit into 1024 chars. Trace contain some headers
 // and text together with traced data from pipe. This is the reason why
@@ -184,8 +188,13 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
 
       status = cf_util_get_string_buffer(child, prefix, sizeof(prefix));
       if (status == 0) {
+#if RTE_VERSION <= RTE_VERSION_NUM(18, 5, 0, 0)
         snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
                  "/var/run/.%s_config", prefix);
+#else
+        snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+                 "/var/run/dpdk/%s/config", prefix);
+#endif
         DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
       }
     } else if (strcasecmp("LogLevel", child->key) == 0) {
@@ -853,7 +862,11 @@ uint128_t str_to_uint128(const char *str, int len) {
 }
 
 uint8_t dpdk_helper_eth_dev_count(void) {
+#if RTE_VERSION < RTE_VERSION_NUM(18, 05, 0, 0)
   uint8_t ports = rte_eth_dev_count();
+#else
+  uint8_t ports = rte_eth_dev_count_avail();
+#endif
   if (ports == 0) {
     ERROR(
         "%s:%d: No DPDK ports available. Check bound devices to DPDK driver.\n",

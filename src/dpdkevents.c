@@ -419,8 +419,12 @@ static int dpdk_events_config(oconfig_item_t *ci) {
 static int dpdk_helper_link_status_get(dpdk_helper_ctx_t *phc) {
   dpdk_events_ctx_t *ec = DPDK_EVENTS_CTX_GET(phc);
 
-  /* get Link Status values from DPDK */
+/* get Link Status values from DPDK */
+#if RTE_VERSION < RTE_VERSION_NUM(18, 05, 0, 0)
   uint8_t nb_ports = rte_eth_dev_count();
+#else
+  uint8_t nb_ports = rte_eth_dev_count_avail();
+#endif
   if (nb_ports == 0) {
     DPDK_CHILD_LOG("dpdkevent-helper: No DPDK ports available. "
                    "Check bound devices to DPDK driver.\n");

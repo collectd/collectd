@@ -201,7 +201,7 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
   ce->last_time = vl->time;
   ce->last_update = cdtime();
   ce->interval = vl->interval;
-  ce->state = STATE_OKAY;
+  ce->state = STATE_UNKNOWN;
 
   if (c_avl_insert(cache_tree, key_copy, ce) != 0) {
     sfree(key_copy);

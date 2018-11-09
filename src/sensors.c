@@ -368,6 +368,9 @@ static int sensors_load_conf(void) {
 #if SENSORS_API_VERSION >= 0x402
           (feature->type != SENSORS_FEATURE_CURR) &&
 #endif
+#if SENSORS_API_VERSION >= 0x431
+          (feature->type != SENSORS_FEATURE_HUMIDITY) &&
+#endif
           (feature->type != SENSORS_FEATURE_POWER)) {
         DEBUG("sensors plugin: sensors_load_conf: "
               "Ignoring feature `%s', "
@@ -386,6 +389,9 @@ static int sensors_load_conf(void) {
             (subfeature->type != SENSORS_SUBFEATURE_TEMP_INPUT) &&
 #if SENSORS_API_VERSION >= 0x402
             (subfeature->type != SENSORS_SUBFEATURE_CURR_INPUT) &&
+#endif
+#if SENSORS_API_VERSION >= 0x431
+            (subfeature->type != SENSORS_SUBFEATURE_HUMIDITY_INPUT) &&
 #endif
             (subfeature->type != SENSORS_SUBFEATURE_POWER_INPUT))
           continue;
@@ -520,6 +526,10 @@ static int sensors_read(void) {
 #if SENSORS_API_VERSION >= 0x402
     else if (fl->feature->type == SENSORS_FEATURE_CURR)
       type = "current";
+#endif
+#if SENSORS_API_VERSION >= 0x431
+    else if (fl->feature->type == SENSORS_FEATURE_HUMIDITY)
+      type = "humidity";
 #endif
     else
       continue;

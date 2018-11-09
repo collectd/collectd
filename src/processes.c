@@ -924,7 +924,7 @@ static void ps_submit_proc_list(procstat_t *ps) {
     sstrncpy(vl.type, "delay_rate", sizeof(vl.type));
     sstrncpy(vl.type_instance, delay_metrics[i].type_instance,
              sizeof(vl.type_instance));
-    vl.values[0].gauge = delay_metrics[i].rate_ns * delay_factor;
+    vl.values[0].gauge = delay_metrics[i].rate_ns / delay_factor;
     vl.values_len = 1;
     plugin_dispatch_values(&vl);
   }

@@ -125,8 +125,6 @@ typedef struct {
   /* make sure we don't access the database object in parallel */
   pthread_mutex_t db_lock;
 
-  cdtime_t interval;
-
   /* writer "caching" settings */
   cdtime_t commit_interval;
   cdtime_t next_commit;
@@ -236,8 +234,6 @@ static c_psql_database_t *c_psql_database_new(const char *name) {
   db->writers_num = 0;
 
   pthread_mutex_init(&db->db_lock, /* attrs = */ NULL);
-
-  db->interval = 0;
 
   db->commit_interval = 0;
   db->next_commit = 0;
@@ -431,8 +427,7 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
       break;
     case C_PSQL_PARAM_INTERVAL:
       snprintf(interval, sizeof(interval), "%.3f",
-               (db->interval > 0) ? CDTIME_T_TO_DOUBLE(db->interval)
-                                  : plugin_get_interval());
+               CDTIME_T_TO_DOUBLE(plugin_get_interval()));
       params[i] = interval;
       break;
     case C_PSQL_PARAM_INSTANCE:
@@ -548,7 +543,7 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
   status = udb_query_prepare_result(
       q, prep_area, host,
       (db->plugin_name != NULL) ? db->plugin_name : "postgresql", db->instance,
-      column_names, (size_t)column_num, db->interval);
+      column_names, (size_t)column_num);
 
   if (0 != status) {
     log_err("udb_query_prepare_result failed with status %i.", status);
@@ -1123,6 +1118,7 @@ static int c_psql_config_writer(oconfig_item_t *ci) {
 static int c_psql_config_database(oconfig_item_t *ci) {
   c_psql_database_t *db;
 
+  cdtime_t interval = 0;
   char cb_name[DATA_MAX_NAME_LEN];
   static bool have_flush;
 
@@ -1163,7 +1159,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
       config_add_writer(c, writers, writers_num, &db->writers,
                         &db->writers_num);
     else if (0 == strcasecmp(c->key, "Interval"))
-      cf_util_get_cdtime(c, &db->interval);
+      cf_util_get_cdtime(c, &interval);
     else if (strcasecmp("CommitInterval", c->key) == 0)
       cf_util_get_cdtime(c, &db->commit_interval);
     else if (strcasecmp("ExpireDelay", c->key) == 0)
@@ -1211,8 +1207,8 @@ static int c_psql_config_database(oconfig_item_t *ci) {
 
   if (db->queries_num > 0) {
     ++db->ref_cnt;
-    plugin_register_complex_read("postgresql", cb_name, c_psql_read,
-                                 /* interval = */ db->interval, &ud);
+    plugin_register_complex_read("postgresql", cb_name, c_psql_read, interval,
+                                 &ud);
   }
   if (db->writers_num > 0) {
     ++db->ref_cnt;

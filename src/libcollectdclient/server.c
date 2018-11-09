@@ -23,6 +23,10 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#ifdef WIN32
+#include "gnulib_config.h"
+#endif
+
 #include "config.h"
 
 #if !defined(__GNUC__) || !__GNUC__
@@ -47,6 +51,11 @@
 
 #include <stdio.h>
 #define DEBUG(...) printf(__VA_ARGS__)
+
+#ifdef WIN32
+#include <ws2tcpip.h>
+#define AI_ADDRCONFIG 0
+#endif
 
 static bool is_multicast(struct addrinfo const *ai) {
   if (ai->ai_family == AF_INET) {
@@ -81,13 +90,20 @@ static int server_multicast_join(lcc_listener_t *srv,
     struct ip_mreqn mreq = {
         .imr_address.s_addr = INADDR_ANY,
         .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
-        .imr_ifindex = if_nametoindex(srv->interface),
+        .imr_ifindex = if_nametoindex(srv->iface),
+    };
+#else
+#ifdef WIN32
+    struct ip_mreq mreq = {
+        .imr_interface.s_addr = INADDR_ANY,
+        .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
     };
 #else
     struct ip_mreq mreq = {
         .imr_multiaddr.s_addr = sa->sin_addr.s_addr,
     };
-#endif
+#endif /* WIN32 */
+#endif /* HAVE_STRUCT_IP_MREQN_IMR_IFINDEX */
     status = setsockopt(srv->conn, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,
                         sizeof(mreq));
     if (status == -1)
@@ -106,7 +122,7 @@ static int server_multicast_join(lcc_listener_t *srv,
       return errno;
 
     struct ipv6_mreq mreq6 = {
-        .ipv6mr_interface = if_nametoindex(srv->interface),
+        .ipv6mr_interface = if_nametoindex(srv->iface),
     };
     memmove(&mreq6.ipv6mr_multiaddr, &sa->sin6_addr, sizeof(struct in6_addr));
 

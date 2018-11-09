@@ -138,6 +138,9 @@ Features
     - gps
       Monitor gps related data through gpsd.
 
+    - gpu_nvidia
+      Monitor NVIDIA GPU statistics available through NVML.
+
     - hddtemp
       Hard disk temperatures using hddtempd.
 
@@ -316,6 +319,10 @@ Features
       Detailed instructions for installing and setting up Open vSwitch, see
       OVS documentation.
       <http://openvswitch.org/support/dist-docs/INSTALL.rst.html>
+
+    - pcie_errors
+      Read errors from PCI Express Device Status and AER extended capabilities.
+      <https://www.design-reuse.com/articles/38374/pcie-error-logging-and-handling-on-a-typical-soc.html>
 
     - perl
       The perl plugin implements a Perl-interpreter into collectd. You can
@@ -748,6 +755,10 @@ Prerequisites
     particular.
     <http://developer.apple.com/corefoundation/>
 
+  * CUDA (optional)
+    Used by the `gpu_nvidia' plugin
+    <https://developer.nvidia.com/cuda-downloads>
+
   * libatasmart (optional)
     Used by the `smart' plugin.
     <http://git.0pointer.de/?p=libatasmart.git>
@@ -1041,6 +1052,37 @@ To generate the `configure` script, you'll need the following dependencies:
 - pkg-config
 
 The `build.sh' script takes no arguments.
+
+
+Building on Windows
+-----------------------------------------------
+
+Collectd can be built on Windows using Cygwin, and the result is a binary that
+runs natively on Windows. That is, Cygwin is only needed for building, not running,
+collectd.
+
+You will need to install the following Cygwin packages:
+- automake
+- bison
+- flex
+- git
+- libtool
+- make
+- mingw64-x86_64-dlfcn
+- mingw64-x86_64-gcc-core
+- mingw64-x86_64-zlib
+- pkg-config
+
+To build, just run the `build.sh' script in your Cygwin terminal. By default, it installs
+to "C:/Program Files/collectd". You can change the location by setting the INSTALL_DIR
+variable:
+
+$ export INSTALL_DIR="C:/some/other/install/directory"
+$ ./build.sh
+
+or:
+
+$ INSTALL_DIR="C:/some/other/install/directory" ./build.sh
 
 
 Crosscompiling

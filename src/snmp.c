@@ -97,7 +97,6 @@ struct host_definition_s {
 
   void *sess_handle;
   c_complain_t complaint;
-  cdtime_t interval;
   data_definition_t **data_list;
   int data_list_len;
 };
@@ -743,6 +742,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   int status = 0;
 
   /* Registration stuff. */
+  cdtime_t interval = 0;
   char cb_name[DATA_MAX_NAME_LEN];
 
   hd = calloc(1, sizeof(*hd));
@@ -758,7 +758,6 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   }
 
   hd->sess_handle = NULL;
-  hd->interval = 0;
 
   /* These mean that we have not set a timeout or retry value */
   hd->timeout = 0;
@@ -780,7 +779,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
     else if (strcasecmp("Collect", option->key) == 0)
       status = csnmp_config_add_host_collect(hd, option);
     else if (strcasecmp("Interval", option->key) == 0)
-      status = cf_util_get_cdtime(option, &hd->interval);
+      status = cf_util_get_cdtime(option, &interval);
     else if (strcasecmp("Username", option->key) == 0)
       status = cf_util_get_string(option, &hd->username);
     else if (strcasecmp("AuthProtocol", option->key) == 0)
@@ -875,7 +874,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   snprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
 
   status = plugin_register_complex_read(
-      /* group = */ NULL, cb_name, csnmp_read_host, hd->interval,
+      /* group = */ NULL, cb_name, csnmp_read_host, interval,
       &(user_data_t){
           .data = hd, .free_func = csnmp_host_definition_destroy,
       });
@@ -1314,8 +1313,6 @@ static int csnmp_dispatch_table(host_definition_t *host,
   sstrncpy(vl.plugin, data->plugin_name, sizeof(vl.plugin));
   sstrncpy(vl.type, data->type, sizeof(vl.type));
 
-  vl.interval = host->interval;
-
   have_more = 1;
   while (have_more) {
     bool suffix_skipped = 0;
@@ -1542,7 +1539,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
       value_cell_ptr[0] = value_cell_ptr[0]->next;
   } /* while (have_more) */
 
-  return (0);
+  return 0;
 } /* int csnmp_dispatch_table */
 
 static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
@@ -2048,8 +2045,6 @@ static int csnmp_read_value(host_definition_t *host, data_definition_t *data) {
     sstrncpy(vl.plugin_instance, data->plugin_instance.value,
              sizeof(vl.plugin_instance));
 
-  vl.interval = host->interval;
-
   req = snmp_pdu_create(SNMP_MSG_GET);
   if (req == NULL) {
     ERROR("snmp plugin: snmp_pdu_create failed.");
@@ -2110,9 +2105,6 @@ static int csnmp_read_host(user_data_t *ud) {
   int i;
 
   host = ud->data;
-
-  if (host->interval == 0)
-    host->interval = plugin_get_interval();
 
   if (host->sess_handle == NULL)
     csnmp_host_open_session(host);
