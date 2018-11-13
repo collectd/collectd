@@ -59,9 +59,12 @@
 
 #define PROCEVENT_EXITED 0
 #define PROCEVENT_STARTED 1
-#define PROCEVENT_FIELDS 4 // pid, status, extra, timestamp
+#define PROCEVENT_FIELDS 3 // pid, status, timestamp
 #define BUFSIZE 512
 #define PROCDIR "/proc"
+#define RBUF_PROC_ID_INDEX 0
+#define RBUF_PROC_STATUS_INDEX 1
+#define RBUF_TIME_INDEX 2
 
 #define PROCEVENT_DOMAIN_FIELD "domain"
 #define PROCEVENT_DOMAIN_VALUE "fault"
@@ -106,7 +109,7 @@ typedef struct {
   int head;
   int tail;
   int maxLen;
-  long long unsigned int **buffer;
+  cdtime_t **buffer;
 } circbuf_t;
 
 struct processlist_s {
@@ -142,27 +145,17 @@ static const char *config_keys[] = {"BufferLength", "Process", "ProcessRegex"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 /*
- * Prototypes
- */
-
-static void procevent_dispatch_notification(long pid, const char *type,
-                                            gauge_t value, char *process,
-                                            long long unsigned int timestamp);
-
-/*
  * Private functions
  */
 
 static int gen_message_payload(int state, long pid, char *process,
-                               long long unsigned int timestamp, char **buf) {
+                               cdtime_t timestamp, char **buf) {
   const unsigned char *buf2;
   yajl_gen g;
   char json_str[DATA_MAX_NAME_LEN];
 
 #if !defined(HAVE_YAJL_V2)
-  yajl_gen_config conf = {};
-
-  conf.beautify = 0;
+  yajl_gen_config conf = {0};
 #endif
 
 #if HAVE_YAJL_V2
@@ -196,9 +189,9 @@ static int gen_message_payload(int state, long pid, char *process,
     goto err;
 
   event_id = event_id + 1;
-  int event_id_len = sizeof(char) * sizeof(int) * 4 + 1;
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, event_id_len, "%d", event_id);
+  if (snprintf(json_str, sizeof(json_str), "%d", event_id) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
@@ -209,16 +202,11 @@ static int gen_message_payload(int state, long pid, char *process,
                       strlen(PROCEVENT_EVENT_NAME_FIELD)) != yajl_gen_status_ok)
     goto err;
 
-  int event_name_len = 0;
-  event_name_len = event_name_len + (sizeof(char) * sizeof(int) * 4); // pid
-  event_name_len = event_name_len + strlen(process);      // process name
-  event_name_len = event_name_len + (state == 0 ? 4 : 2); // "down" or "up"
-  event_name_len = event_name_len +
-                   13; // "process", 3 spaces, 2 parentheses and null-terminator
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, event_name_len, "process %s (%ld) %s", process, pid,
-           (state == 0 ? PROCEVENT_EVENT_NAME_DOWN_VALUE
-                       : PROCEVENT_EVENT_NAME_UP_VALUE));
+  if (snprintf(json_str, sizeof(json_str), "process %s (%ld) %s", process, pid,
+               (state == 0 ? PROCEVENT_EVENT_NAME_DOWN_VALUE
+                           : PROCEVENT_EVENT_NAME_UP_VALUE)) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
       yajl_gen_status_ok) {
@@ -231,11 +219,10 @@ static int gen_message_payload(int state, long pid, char *process,
       yajl_gen_status_ok)
     goto err;
 
-  int last_epoch_microsec_len =
-      sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, last_epoch_microsec_len, "%llu",
-           (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+  if (snprintf(json_str, sizeof(json_str), "%" PRIu64,
+               CDTIME_T_TO_US(cdtime())) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
@@ -286,11 +273,10 @@ static int gen_message_payload(int state, long pid, char *process,
       yajl_gen_status_ok)
     goto err;
 
-  int start_epoch_microsec_len =
-      sizeof(char) * sizeof(long long unsigned int) * 4 + 1;
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, start_epoch_microsec_len, "%llu",
-           (long long unsigned int)timestamp);
+  if (snprintf(json_str, sizeof(json_str), "%" PRIu64,
+               CDTIME_T_TO_US(timestamp)) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_number(g, json_str, strlen(json_str)) != yajl_gen_status_ok) {
     goto err;
@@ -323,16 +309,10 @@ static int gen_message_payload(int state, long pid, char *process,
       yajl_gen_status_ok)
     goto err;
 
-  int alarm_condition_len = 0;
-  alarm_condition_len =
-      alarm_condition_len + (sizeof(char) * sizeof(int) * 4);  // pid
-  alarm_condition_len = alarm_condition_len + strlen(process); // process name
-  alarm_condition_len =
-      alarm_condition_len + 25; // "process", "state", "change", 4 spaces, 2
-                                // parentheses and null-terminator
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, alarm_condition_len, "process %s (%ld) state change",
-           process, pid);
+  if (snprintf(json_str, sizeof(json_str), "process %s (%ld) state change",
+               process, pid) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
       yajl_gen_status_ok) {
@@ -391,19 +371,11 @@ static int gen_message_payload(int state, long pid, char *process,
       yajl_gen_status_ok)
     goto err;
 
-  int specific_problem_len = 0;
-  specific_problem_len =
-      specific_problem_len + (sizeof(char) * sizeof(int) * 4);   // pid
-  specific_problem_len = specific_problem_len + strlen(process); // process name
-  specific_problem_len =
-      specific_problem_len + (state == 0 ? 4 : 2); // "down" or "up"
-  specific_problem_len =
-      specific_problem_len +
-      13; // "process", 3 spaces, 2 parentheses and null-terminator
-  memset(json_str, '\0', DATA_MAX_NAME_LEN);
-  snprintf(json_str, specific_problem_len, "process %s (%ld) %s", process, pid,
-           (state == 0 ? PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE
-                       : PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE));
+  if (snprintf(json_str, sizeof(json_str), "process %s (%ld) %s", process, pid,
+               (state == 0 ? PROCEVENT_SPECIFIC_PROBLEM_DOWN_VALUE
+                           : PROCEVENT_SPECIFIC_PROBLEM_UP_VALUE)) < 0) {
+    goto err;
+  }
 
   if (yajl_gen_string(g, (u_char *)json_str, strlen(json_str)) !=
       yajl_gen_status_ok) {
@@ -423,12 +395,11 @@ static int gen_message_payload(int state, long pid, char *process,
       yajl_gen_status_ok)
     goto err;
 
-  if (yajl_gen_map_close(g) != yajl_gen_status_ok)
-    goto err;
-
   // *** END fault fields ***
 
-  if (yajl_gen_map_close(g) != yajl_gen_status_ok)
+  // close fault and header fields
+  if (yajl_gen_map_close(g) != yajl_gen_status_ok ||
+      yajl_gen_map_close(g) != yajl_gen_status_ok)
     goto err;
 
   if (yajl_gen_get_buf(g, &buf2, &len) != yajl_gen_status_ok)
@@ -600,12 +571,11 @@ static processlist_t *process_map_check(long pid, char *process) {
 
     int match = 0;
 
-    if (pid > 0 && process == NULL && match_pid == 1)
+    if ((pid > 0 && process == NULL && match_pid == 1) ||
+        (pid < 0 && process != NULL && match_process == 1) ||
+        (pid > 0 && process != NULL && match_pid == 1 && match_process == 1)) {
       match = 1;
-    else if (pid < 0 && process != NULL && match_process == 1)
-      match = 1;
-    else if (pid > 0 && process != NULL && match_pid == 1 && match_process == 1)
-      match = 1;
+    }
 
     if (match == 1) {
       return pl;
@@ -705,6 +675,7 @@ static int nl_connect() {
   if (rc == -1) {
     ERROR("procevent plugin: socket bind failed: %d", errno);
     close(nl_sock);
+    nl_sock = -1;
     return -1;
   }
 
@@ -774,7 +745,7 @@ static int read_event() {
         pthread_mutex_lock(&procevent_data_lock);
 
         // There was nothing more to receive for now, so...
-        // If ring head does not equal ring tail, there is data
+        // If ring head does not equal ring tail, then there is data
         // in the ring buffer for the dequeue thread to read, so
         // signal it
         if (ring.head != ring.tail)
@@ -790,27 +761,20 @@ static int read_event() {
         ERROR("procevent plugin: socket receive error: %d", errno);
         return -1;
       } else {
-        // Interrupt, so just return
-        return 0;
+        // Interrupt, so just continue and try again
+        continue;
       }
     }
 
     // We successfully received a message, so don't block on the next
     // read in case there are more (and if there aren't, it will be
-    // handled above in the error-checking)
+    // handled above in the EWOULDBLOCK error-checking)
     recv_flags = MSG_DONTWAIT;
 
     int proc_id = -1;
     int proc_status = -1;
-    int proc_extra = -1;
 
     switch (nlcn_msg.proc_ev.what) {
-    case PROC_EVENT_NONE:
-    case PROC_EVENT_FORK:
-    case PROC_EVENT_UID:
-    case PROC_EVENT_GID:
-      // Not of interest in current version
-      break;
     case PROC_EVENT_EXEC:
       proc_status = PROCEVENT_STARTED;
       proc_id = nlcn_msg.proc_ev.event_data.exec.process_pid;
@@ -818,14 +782,14 @@ static int read_event() {
     case PROC_EVENT_EXIT:
       proc_id = nlcn_msg.proc_ev.event_data.exit.process_pid;
       proc_status = PROCEVENT_EXITED;
-      proc_extra = nlcn_msg.proc_ev.event_data.exit.exit_code;
       break;
     default:
+      // Otherwise not of interest
       break;
     }
 
     // If we're interested in this process status event, place the event
-    // in the ring buffer for consumption by the main polling thread.
+    // in the ring buffer for consumption by the dequeue (dispatch) thread.
 
     if (proc_status != -1) {
       pthread_mutex_lock(&procevent_data_lock);
@@ -845,23 +809,13 @@ static int read_event() {
         usleep(1000);
         continue;
       } else {
-        DEBUG("procevent plugin: Process %d status is now %s at %llu", proc_id,
+        DEBUG("procevent plugin: Process %d status is now %s at %lu", proc_id,
               (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"),
-              (long long unsigned int)CDTIME_T_TO_US(cdtime()));
+              CDTIME_T_TO_US(cdtime()));
 
-        if (proc_status == PROCEVENT_EXITED) {
-          ring.buffer[ring.head][0] = proc_id;
-          ring.buffer[ring.head][1] = proc_status;
-          ring.buffer[ring.head][2] = proc_extra;
-          ring.buffer[ring.head][3] =
-              (long long unsigned int)CDTIME_T_TO_US(cdtime());
-        } else {
-          ring.buffer[ring.head][0] = proc_id;
-          ring.buffer[ring.head][1] = proc_status;
-          ring.buffer[ring.head][2] = 0;
-          ring.buffer[ring.head][3] =
-              (long long unsigned int)CDTIME_T_TO_US(cdtime());
-        }
+        ring.buffer[ring.head][RBUF_PROC_ID_INDEX] = proc_id;
+        ring.buffer[ring.head][RBUF_PROC_STATUS_INDEX] = proc_status;
+        ring.buffer[ring.head][RBUF_TIME_INDEX] = cdtime();
 
         ring.head = next;
       }
@@ -871,6 +825,46 @@ static int read_event() {
   }
 
   return 0;
+}
+
+static void procevent_dispatch_notification(long pid, gauge_t value,
+                                            char *process, cdtime_t timestamp) {
+
+  notification_t n = {
+      .severity = (value == 1 ? NOTIF_OKAY : NOTIF_FAILURE),
+      .time = cdtime(),
+      .plugin = "procevent",
+      .type = "gauge",
+      .type_instance = "process_status",
+  };
+
+  sstrncpy(n.host, hostname_g, sizeof(n.host));
+  sstrncpy(n.plugin_instance, process, sizeof(n.plugin_instance));
+
+  char *buf = NULL;
+  gen_message_payload(value, pid, process, timestamp, &buf);
+
+  int status = plugin_notification_meta_add_string(&n, "ves", buf);
+
+  if (status < 0) {
+    sfree(buf);
+    ERROR("procevent plugin: unable to set notification VES metadata: %s",
+          STRERRNO);
+    return;
+  }
+
+  DEBUG("procevent plugin: notification VES metadata: %s",
+        n.meta->nm_value.nm_string);
+
+  DEBUG("procevent plugin: dispatching state %d for PID %ld (%s)", (int)value,
+        pid, process);
+
+  plugin_dispatch_notification(&n);
+  plugin_notification_meta_free(n.meta);
+
+  // strdup'd in gen_message_payload
+  if (buf != NULL)
+    sfree(buf);
 }
 
 // Read from ring buffer and dispatch to write plugins
@@ -888,14 +882,15 @@ static void read_ring_buffer() {
     if (next >= ring.maxLen)
       next = 0;
 
-    if (ring.buffer[ring.tail][1] == PROCEVENT_EXITED) {
+    if (ring.buffer[ring.tail][RBUF_PROC_STATUS_INDEX] == PROCEVENT_EXITED) {
       processlist_t *pl = process_map_check(ring.buffer[ring.tail][0], NULL);
 
       if (pl != NULL) {
         // This process is of interest to us, so publish its EXITED status
-        procevent_dispatch_notification(ring.buffer[ring.tail][0], "gauge",
-                                        ring.buffer[ring.tail][1], pl->process,
-                                        ring.buffer[ring.tail][3]);
+        procevent_dispatch_notification(
+            ring.buffer[ring.tail][RBUF_PROC_ID_INDEX],
+            ring.buffer[ring.tail][RBUF_PROC_STATUS_INDEX], pl->process,
+            ring.buffer[ring.tail][RBUF_TIME_INDEX]);
         DEBUG(
             "procevent plugin: PID %ld (%s) EXITED, removing PID from process "
             "list",
@@ -903,7 +898,8 @@ static void read_ring_buffer() {
         pl->pid = -1;
         pl->last_status = -1;
       }
-    } else if (ring.buffer[ring.tail][1] == PROCEVENT_STARTED) {
+    } else if (ring.buffer[ring.tail][RBUF_PROC_STATUS_INDEX] ==
+               PROCEVENT_STARTED) {
       // a new process has started, so check if we should monitor it
       processlist_t *pl = process_check(ring.buffer[ring.tail][0]);
 
@@ -913,9 +909,10 @@ static void read_ring_buffer() {
 
       if (pl != NULL && pl->last_status != PROCEVENT_STARTED) {
         // This process is of interest to us, so publish its STARTED status
-        procevent_dispatch_notification(ring.buffer[ring.tail][0], "gauge",
-                                        ring.buffer[ring.tail][1], pl->process,
-                                        ring.buffer[ring.tail][3]);
+        procevent_dispatch_notification(
+            ring.buffer[ring.tail][RBUF_PROC_ID_INDEX],
+            ring.buffer[ring.tail][RBUF_PROC_STATUS_INDEX], pl->process,
+            ring.buffer[ring.tail][RBUF_TIME_INDEX]);
 
         pl->last_status = PROCEVENT_STARTED;
 
@@ -1018,8 +1015,9 @@ static int start_netlink_thread(void) /* {{{ */
     if (status2 != 0) {
       ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock,
             status2, STRERRNO);
-    } else
-      nl_sock = -1;
+    }
+
+    nl_sock = -1;
 
     return -1;
   }
@@ -1075,9 +1073,9 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     if (socket_status != 0) {
       ERROR("procevent plugin: failed to close socket %d: %d (%s)", nl_sock,
             socket_status, strerror(errno));
-      return -1;
-    } else
-      nl_sock = -1;
+    }
+
+    nl_sock = -1;
   } else
     socket_status = 0;
 
@@ -1136,10 +1134,8 @@ static int stop_netlink_thread(int shutdown) /* {{{ */
     return thread_status;
 } /* }}} int stop_netlink_thread */
 
-static int stop_dequeue_thread(int shutdown) /* {{{ */
+static int stop_dequeue_thread() /* {{{ */
 {
-  int status;
-
   pthread_mutex_lock(&procevent_thread_lock);
 
   if (procevent_dequeue_thread_loop == 0) {
@@ -1152,28 +1148,18 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
 
   pthread_cond_broadcast(&procevent_cond);
 
-  if (shutdown == 1) {
-    // Calling pthread_cancel here in
-    // the case of a shutdown just assures that the thread is
-    // gone and that the process has been fully terminated.
+  // Calling pthread_cancel here just assures that the thread is
+  // gone and that the process has been fully terminated.
 
-    DEBUG("procevent plugin: Canceling dequeue thread for process shutdown");
+  DEBUG("procevent plugin: Canceling dequeue thread for process shutdown");
 
-    status = pthread_cancel(procevent_dequeue_thread_id);
+  int status = pthread_cancel(procevent_dequeue_thread_id);
 
-    if (status != 0 && status != ESRCH) {
-      ERROR("procevent plugin: Unable to cancel dequeue thread: %d", status);
-      status = -1;
-    } else
-      status = 0;
-  } else {
-    status = pthread_join(procevent_dequeue_thread_id, /* return = */ NULL);
-    if (status != 0 && status != ESRCH) {
-      ERROR("procevent plugin: Stopping dequeue thread failed.");
-      status = -1;
-    } else
-      status = 0;
-  }
+  if (status != 0 && status != ESRCH) {
+    ERROR("procevent plugin: Unable to cancel dequeue thread: %d", status);
+    status = -1;
+  } else
+    status = 0;
 
   pthread_mutex_lock(&procevent_thread_lock);
   memset(&procevent_dequeue_thread_id, 0, sizeof(procevent_dequeue_thread_id));
@@ -1184,10 +1170,10 @@ static int stop_dequeue_thread(int shutdown) /* {{{ */
   return status;
 } /* }}} int stop_dequeue_thread */
 
-static int stop_threads(int shutdown) /* {{{ */
+static int stop_threads() /* {{{ */
 {
-  int status = stop_netlink_thread(shutdown);
-  int status2 = stop_dequeue_thread(shutdown);
+  int status = stop_netlink_thread(1);
+  int status2 = stop_dequeue_thread();
 
   if (status != 0)
     return status;
@@ -1200,12 +1186,10 @@ static int procevent_init(void) /* {{{ */
   ring.head = 0;
   ring.tail = 0;
   ring.maxLen = buffer_length;
-  ring.buffer = (long long unsigned int **)calloc(
-      buffer_length, sizeof(long long unsigned int *));
+  ring.buffer = (cdtime_t **)calloc(buffer_length, sizeof(cdtime_t *));
 
   for (int i = 0; i < buffer_length; i++) {
-    ring.buffer[i] = (long long unsigned int *)calloc(
-        PROCEVENT_FIELDS, sizeof(long long unsigned int));
+    ring.buffer[i] = (cdtime_t *)calloc(PROCEVENT_FIELDS, sizeof(cdtime_t));
   }
 
   int status = process_map_refresh();
@@ -1227,6 +1211,10 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 {
   if (ignorelist == NULL)
     ignorelist = ignorelist_create(/* invert = */ 1);
+
+  if (ignorelist == NULL) {
+    return -1;
+  }
 
   if (strcasecmp(key, "BufferLength") == 0) {
     buffer_length = atoi(value);
@@ -1250,55 +1238,6 @@ static int procevent_config(const char *key, const char *value) /* {{{ */
 
   return 0;
 } /* }}} int procevent_config */
-
-static void procevent_dispatch_notification(long pid,
-                                            const char *type, /* {{{ */
-                                            gauge_t value, char *process,
-                                            long long unsigned int timestamp) {
-
-  notification_t n = {(value == 1 ? NOTIF_OKAY : NOTIF_FAILURE),
-                      cdtime(),
-                      "",
-                      "",
-                      "procevent",
-                      "",
-                      "",
-                      "",
-                      NULL};
-  sstrncpy(n.host, hostname_g, sizeof(n.host));
-  sstrncpy(n.plugin_instance, process, sizeof(n.plugin_instance));
-  sstrncpy(n.type, "gauge", sizeof(n.type));
-  sstrncpy(n.type_instance, "process_status", sizeof(n.type_instance));
-
-  char *buf = NULL;
-  gen_message_payload(value, pid, process, timestamp, &buf);
-
-  notification_meta_t *m = calloc(1, sizeof(*m));
-
-  if (m == NULL) {
-    sfree(buf);
-    ERROR("procevent plugin: unable to allocate metadata: %s", STRERRNO);
-    return;
-  }
-
-  sstrncpy(m->name, "ves", sizeof(m->name));
-  m->nm_value.nm_string = sstrdup(buf);
-  m->type = NM_TYPE_STRING;
-  n.meta = m;
-
-  DEBUG("procevent plugin: notification message: %s",
-        n.meta->nm_value.nm_string);
-
-  DEBUG("procevent plugin: dispatching state %d for PID %ld (%s)", (int)value,
-        pid, process);
-
-  plugin_dispatch_notification(&n);
-  plugin_notification_meta_free(n.meta);
-
-  // strdup'd in gen_message_payload
-  if (buf != NULL)
-    sfree(buf);
-}
 
 static int procevent_read(void) /* {{{ */
 {
@@ -1326,7 +1265,7 @@ static int procevent_shutdown(void) /* {{{ */
 {
   DEBUG("procevent plugin: Shutting down threads.");
 
-  int status = stop_threads(1);
+  int status = stop_threads();
 
   for (int i = 0; i < buffer_length; i++) {
     free(ring.buffer[i]);
