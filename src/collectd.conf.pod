@@ -7969,26 +7969,26 @@ Sets how the values are cumulated. I<Type> is one of:
 
 =item B<GaugeAverage>
 
-Calculate the average.
+Calculate the average of all values matched during the interval.
 
 =item B<GaugeMin>
 
-Use the smallest number only.
+Report the smallest value matched during the interval.
 
 =item B<GaugeMax>
 
-Use the greatest number only.
+Report the greatest value matched during the interval.
 
 =item B<GaugeLast>
 
-Use the last number found.
+Report the last value matched during the interval.
 
 =item B<GaugePersist>
 
-Use the last number found. The number is not reset at the end of an interval.
-It is continously reported until another number is matched. This is intended
-for cases in which only state changes are reported, for example a thermometer
-that only reports the temperature when it changes.
+Report the last matching value. The metric is I<not> reset to C<NaN> at the end
+of an interval. It is continuously reported until another value is matched.
+This is intended for cases in which only state changes are reported, for
+example a thermometer that only reports the temperature when it changes.
 
 =item B<CounterSet>
 
@@ -8018,6 +8018,9 @@ internal counter.
 Increase the internal counter by one. These B<DSType> are the only ones that do
 not use the matched subexpression, but simply count the number of matched
 lines. Thus, you may use a regular expression without submatch in this case.
+
+B<GaugeInc> is reset to I<zero> after every read, unlike other B<Gauge*>
+metrics which are reset to C<NaN>.
 
 =item B<Distribution>
 
@@ -8092,8 +8095,12 @@ The B<Gauge*> and B<Distribution> types interpret the submatch as a floating
 point number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types
 interpret the submatch as an unsigned integer using L<strtoull(3)>. The
 B<Derive*> types interpret the submatch as a signed integer using
-L<strtoll(3)>. B<CounterInc> and B<DeriveInc> do not use the submatch at all
-and it may be omitted in this case.
+L<strtoll(3)>. B<CounterInc>, B<DeriveInc> and B<GaugeInc> do not use the
+submatch at all and it may be omitted in this case.
+
+The B<Gauge*> types, unless noted otherwise, are reset to C<NaN> after being
+reported. In other words, B<GaugeAverage> reports the average of all values
+matched since the last metric was reported (or C<NaN> if there was no match).
 
 =item B<Type> I<Type>
 
