@@ -1085,7 +1085,7 @@ static int sysevent_read(void) /* {{{ */
           "Restarting it.",
           sysevent_socket_thread_error);
 
-    stop_threads(0);
+    stop_threads();
 
     start_threads();
 
@@ -1101,7 +1101,7 @@ static int sysevent_shutdown(void) /* {{{ */
 {
   DEBUG("sysevent plugin: Shutting down thread.");
 
-  int status = stop_threads(1);
+  int status = stop_threads();
   int status2 = 0;
 
   if (sock != -1) {
