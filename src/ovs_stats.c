@@ -333,19 +333,16 @@ static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
 
     for (interface_list_t *iface = port->iface; iface != NULL;
          iface = iface->next) {
-      memset(key_str, '\0', DATA_MAX_NAME_LEN);
-      snprintf(key_str, 6, "uuid%d", i);
+      snprintf(key_str, sizeof(key_str), "uuid%d", i);
       meta_data_add_string(meta, key_str, iface->iface_uuid);
 
       if (strlen(iface->ex_vm_id)) {
-        memset(key_str, '\0', DATA_MAX_NAME_LEN);
-        snprintf(key_str, 9, "vm-uuid%d", i);
+        snprintf(key_str, sizeof(key_str), "vm-uuid%d", i);
         meta_data_add_string(meta, key_str, iface->ex_vm_id);
       }
 
       if (strlen(iface->ex_iface_id)) {
-        memset(key_str, '\0', DATA_MAX_NAME_LEN);
-        snprintf(key_str, 10, "iface-id%d", i);
+        snprintf(key_str, sizeof(key_str), "iface-id%d", i);
         meta_data_add_string(meta, key_str, iface->ex_iface_id);
       }
 
@@ -1300,7 +1297,7 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
              * is called after Interface Table update callback but before
              * Port table Update callback. Will add this port on next read */
             continue;
-          
+
           ovs_stats_submit_port(bridge, port);
 
           if (interface_stats)
