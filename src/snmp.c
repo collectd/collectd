@@ -1539,7 +1539,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
       value_cell_ptr[0] = value_cell_ptr[0]->next;
   } /* while (have_more) */
 
-  return (0);
+  return 0;
 } /* int csnmp_dispatch_table */
 
 static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {

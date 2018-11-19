@@ -101,41 +101,45 @@ typedef struct bridge_list_s {
   struct bridge_list_s *next; /* Next bridge*/
 } bridge_list_t;
 
+#define cnt_str(x) [x] = #x
+
 static const char *const iface_counter_table[IFACE_COUNTER_COUNT] = {
-        [collisions] = "collisions",
-        [rx_bytes] = "rx_bytes",
-        [rx_crc_err] = "rx_crc_err",
-        [rx_dropped] = "rx_dropped",
-        [rx_errors] = "rx_errors",
-        [rx_frame_err] = "rx_frame_err",
-        [rx_over_err] = "rx_over_err",
-        [rx_packets] = "rx_packets",
-        [tx_bytes] = "tx_bytes",
-        [tx_dropped] = "tx_dropped",
-        [tx_errors] = "tx_errors",
-        [tx_packets] = "tx_packets",
-        [rx_1_to_64_packets] = "rx_1_to_64_packets",
-        [rx_65_to_127_packets] = "rx_65_to_127_packets",
-        [rx_128_to_255_packets] = "rx_128_to_255_packets",
-        [rx_256_to_511_packets] = "rx_256_to_511_packets",
-        [rx_512_to_1023_packets] = "rx_512_to_1023_packets",
-        [rx_1024_to_1522_packets] = "rx_1024_to_1518_packets",
-        [rx_1523_to_max_packets] = "rx_1523_to_max_packets",
-        [tx_1_to_64_packets] = "tx_1_to_64_packets",
-        [tx_65_to_127_packets] = "tx_65_to_127_packets",
-        [tx_128_to_255_packets] = "tx_128_to_255_packets",
-        [tx_256_to_511_packets] = "tx_256_to_511_packets",
-        [tx_512_to_1023_packets] = "tx_512_to_1023_packets",
-        [tx_1024_to_1522_packets] = "tx_1024_to_1518_packets",
-        [tx_1523_to_max_packets] = "tx_1523_to_max_packets",
-        [tx_multicast_packets] = "tx_multicast_packets",
-        [rx_broadcast_packets] = "rx_broadcast_packets",
-        [tx_broadcast_packets] = "tx_broadcast_packets",
-        [rx_undersized_errors] = "rx_undersized_errors",
-        [rx_oversize_errors] = "rx_oversize_errors",
-        [rx_fragmented_errors] = "rx_fragmented_errors",
-        [rx_jabber_errors] = "rx_jabber_errors",
+    cnt_str(collisions),
+    cnt_str(rx_bytes),
+    cnt_str(rx_crc_err),
+    cnt_str(rx_dropped),
+    cnt_str(rx_errors),
+    cnt_str(rx_frame_err),
+    cnt_str(rx_over_err),
+    cnt_str(rx_packets),
+    cnt_str(tx_bytes),
+    cnt_str(tx_dropped),
+    cnt_str(tx_errors),
+    cnt_str(tx_packets),
+    cnt_str(rx_1_to_64_packets),
+    cnt_str(rx_65_to_127_packets),
+    cnt_str(rx_128_to_255_packets),
+    cnt_str(rx_256_to_511_packets),
+    cnt_str(rx_512_to_1023_packets),
+    cnt_str(rx_1024_to_1522_packets),
+    cnt_str(rx_1523_to_max_packets),
+    cnt_str(tx_1_to_64_packets),
+    cnt_str(tx_65_to_127_packets),
+    cnt_str(tx_128_to_255_packets),
+    cnt_str(tx_256_to_511_packets),
+    cnt_str(tx_512_to_1023_packets),
+    cnt_str(tx_1024_to_1522_packets),
+    cnt_str(tx_1523_to_max_packets),
+    cnt_str(tx_multicast_packets),
+    cnt_str(rx_broadcast_packets),
+    cnt_str(tx_broadcast_packets),
+    cnt_str(rx_undersized_errors),
+    cnt_str(rx_oversize_errors),
+    cnt_str(rx_fragmented_errors),
+    cnt_str(rx_jabber_errors),
 };
+
+#undef cnt_str
 
 /* Entry into the list of network bridges */
 static bridge_list_t *g_bridge_list_head;
@@ -280,7 +284,7 @@ static void ovs_stats_submit_interfaces(bridge_list_t *bridge,
     ovs_stats_submit_two(devname, "if_packets", "512_to_1023_packets",
                          iface->stats[rx_512_to_1023_packets],
                          iface->stats[tx_512_to_1023_packets], meta);
-    ovs_stats_submit_two(devname, "if_packets", "1024_to_1518_packets",
+    ovs_stats_submit_two(devname, "if_packets", "1024_to_1522_packets",
                          iface->stats[rx_1024_to_1522_packets],
                          iface->stats[tx_1024_to_1522_packets], meta);
     ovs_stats_submit_two(devname, "if_packets", "1523_to_max_packets",
@@ -391,7 +395,7 @@ static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
       ovs_stats_get_port_stat_value(port, rx_512_to_1023_packets),
       ovs_stats_get_port_stat_value(port, tx_512_to_1023_packets), meta);
   ovs_stats_submit_two(
-      devname, "if_packets", "1024_to_1518_packets",
+      devname, "if_packets", "1024_to_1522_packets",
       ovs_stats_get_port_stat_value(port, rx_1024_to_1522_packets),
       ovs_stats_get_port_stat_value(port, tx_1024_to_1522_packets), meta);
   ovs_stats_submit_two(
@@ -1296,7 +1300,7 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
              * is called after Interface Table update callback but before
              * Port table Update callback. Will add this port on next read */
             continue;
-
+          
           ovs_stats_submit_port(bridge, port);
 
           if (interface_stats)

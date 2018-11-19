@@ -621,7 +621,7 @@ int c_avl_iterator_prev(c_avl_iterator_t *iter, void **key, void **value) {
     return -1;
 
   if (iter->node == NULL) {
-    for (n = iter->tree->root; n != NULL; n = n->left)
+    for (n = iter->tree->root; n != NULL; n = n->right)
       if (n->right == NULL)
         break;
     iter->node = n;

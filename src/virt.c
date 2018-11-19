@@ -464,7 +464,7 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   do {                                                                         \
     status = _f(__VA_ARGS__);                                                  \
     if (status != 0)                                                           \
-      ERROR(PLUGIN_NAME ": Failed to get " _name);                             \
+      ERROR(PLUGIN_NAME " plugin: Failed to get " _name);                      \
   } while (0)
 
 /* Connection. */
@@ -639,12 +639,6 @@ static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
 
-struct lv_info {
-  virDomainInfo di;
-  unsigned long long total_user_cpu_time;
-  unsigned long long total_syst_cpu_time;
-};
-
 struct lv_block_info {
   virDomainBlockStatsStruct bi;
 
@@ -708,58 +702,8 @@ static int get_block_info(struct lv_block_info *binfo,
     virErrorPtr err;                                                           \
     err = (conn) ? virConnGetLastError((conn)) : virGetLastError();            \
     if (err)                                                                   \
-      ERROR("%s: %s", (s), err->message);                                      \
+      ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
-
-static void init_lv_info(struct lv_info *info) {
-  if (info != NULL)
-    memset(info, 0, sizeof(*info));
-}
-
-static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
-#ifdef HAVE_CPU_STATS
-  virTypedParameterPtr param = NULL;
-  int nparams = 0;
-#endif /* HAVE_CPU_STATS */
-  int ret = virDomainGetInfo(dom, &(info->di));
-  if (ret != 0) {
-    return ret;
-  }
-
-#ifdef HAVE_CPU_STATS
-  nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
-  if (nparams < 0) {
-    VIRT_ERROR(conn, "getting the CPU params count");
-    return -1;
-  }
-
-  param = calloc(nparams, sizeof(virTypedParameter));
-  if (param == NULL) {
-    ERROR("virt plugin: alloc(%i) for cpu parameters failed.", nparams);
-    return -1;
-  }
-
-  ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
-  if (ret < 0) {
-    virTypedParamsClear(param, nparams);
-    sfree(param);
-    VIRT_ERROR(conn, "getting the disk params values");
-    return -1;
-  }
-
-  for (int i = 0; i < nparams; ++i) {
-    if (!strcmp(param[i].field, "user_time"))
-      info->total_user_cpu_time = param[i].value.ul;
-    else if (!strcmp(param[i].field, "system_time"))
-      info->total_syst_cpu_time = param[i].value.ul;
-  }
-
-  virTypedParamsClear(param, nparams);
-  sfree(param);
-#endif /* HAVE_CPU_STATS */
-
-  return 0;
-}
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
   const char *name;
@@ -826,7 +770,7 @@ static int init_notif(notification_t *notif, const virDomainPtr domain,
   value_list_t vl = VALUE_LIST_INIT;
 
   if (!notif) {
-    ERROR(PLUGIN_NAME ": init_notif: NULL pointer");
+    ERROR(PLUGIN_NAME " plugin: init_notif: NULL pointer");
     return -1;
   }
 
@@ -892,14 +836,6 @@ static void submit_derive2(const char *type, derive_t v0, derive_t v1,
   submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
 } /* void submit_derive2 */
 
-static void pcpu_submit(virDomainPtr dom, struct lv_info *info) {
-#ifdef HAVE_CPU_STATS
-  if (extra_stats & ex_stats_pcpu)
-    submit_derive2("ps_cputime", info->total_user_cpu_time,
-                   info->total_syst_cpu_time, dom, NULL);
-#endif /* HAVE_CPU_STATS */
-}
-
 static double cpu_ns_to_percent(unsigned int node_cpus,
                                 unsigned long long cpu_time_old,
                                 unsigned long long cpu_time_new) {
@@ -913,7 +849,7 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
               (time_diff_sec * node_cpus * NANOSEC_IN_SEC);
   }
 
-  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64
+  DEBUG(PLUGIN_NAME " plugin: node_cpus=%u cpu_time_old=%" PRIu64
                     " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
                     " time_diff_sec=%f percent=%f",
         node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
@@ -1008,7 +944,8 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
       }
 
       if (ex_stats_table[j + 1].name == NULL) {
-        ERROR(PLUGIN_NAME ": Unmatched ExtraStats option: %s", exstats[i]);
+        ERROR(PLUGIN_NAME " plugin: Unmatched ExtraStats option: %s",
+              exstats[i]);
       }
     }
   }
@@ -1017,7 +954,7 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
 
 static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   if ((state < 0) || ((size_t)state >= STATIC_ARRAY_SIZE(domain_states))) {
-    ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: state=%d", state);
     return;
   }
 
@@ -1026,7 +963,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
 #ifdef HAVE_DOM_REASON
   if ((reason < 0) ||
       ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
-    ERROR(PLUGIN_NAME ": Array index out of bounds: reason=%d", reason);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: reason=%d", reason);
     return;
   }
 
@@ -1035,8 +972,8 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
    * have different number of reasons. We need to check if reason was
    * successfully parsed */
   if (!reason_str) {
-    ERROR(PLUGIN_NAME ": Invalid reason (%d) for domain state: %s", reason,
-          state_str);
+    ERROR(PLUGIN_NAME " plugin: Invalid reason (%d) for domain state: %s",
+          reason, state_str);
     return;
   }
 #else
@@ -1065,7 +1002,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
     severity = NOTIF_FAILURE;
     break;
   default:
-    ERROR(PLUGIN_NAME ": Unrecognized domain state (%d)", state);
+    ERROR(PLUGIN_NAME " plugin: Unrecognized domain state (%d)", state);
     return;
   }
   submit_notif(dom, severity, msg, "domain_state", NULL);
@@ -1147,17 +1084,14 @@ static int lv_config(const char *key, const char *value) {
   }
 
   if (strcasecmp(key, "HostnameFormat") == 0) {
-    char *value_copy;
-    char *fields[HF_MAX_FIELDS];
-    int n;
-
-    value_copy = strdup(value);
+    char *value_copy = strdup(value);
     if (value_copy == NULL) {
       ERROR(PLUGIN_NAME " plugin: strdup failed.");
       return -1;
     }
 
-    n = strsplit(value_copy, fields, HF_MAX_FIELDS);
+    char *fields[HF_MAX_FIELDS];
+    int n = strsplit(value_copy, fields, HF_MAX_FIELDS);
     if (n < 1) {
       sfree(value_copy);
       ERROR(PLUGIN_NAME " plugin: HostnameFormat: no fields");
@@ -1187,17 +1121,14 @@ static int lv_config(const char *key, const char *value) {
   }
 
   if (strcasecmp(key, "PluginInstanceFormat") == 0) {
-    char *value_copy;
-    char *fields[PLGINST_MAX_FIELDS];
-    int n;
-
-    value_copy = strdup(value);
+    char *value_copy = strdup(value);
     if (value_copy == NULL) {
       ERROR(PLUGIN_NAME " plugin: strdup failed.");
       return -1;
     }
 
-    n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
+    char *fields[PLGINST_MAX_FIELDS];
+    int n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
     if (n < 1) {
       sfree(value_copy);
       ERROR(PLUGIN_NAME " plugin: PluginInstanceFormat: no fields");
@@ -1313,7 +1244,7 @@ static int lv_connect(void) {
     }
     int status = virNodeGetInfo(conn, &nodeinfo);
     if (status != 0) {
-      ERROR(PLUGIN_NAME ": virNodeGetInfo failed");
+      ERROR(PLUGIN_NAME " plugin: virNodeGetInfo failed");
       return -1;
     }
   }
@@ -1411,13 +1342,13 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
 
   virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(vinfo[0]));
   if (vinfo == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
   }
 
   unsigned char *cpumaps = calloc(nr_virt_cpu, cpu_map_len);
   if (cpumaps == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     sfree(vinfo);
     return -1;
   }
@@ -1442,6 +1373,49 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   sfree(vinfo);
   return 0;
 }
+
+#ifdef HAVE_CPU_STATS
+static int get_pcpu_stats(virDomainPtr dom) {
+  int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
+  if (nparams < 0) {
+    VIRT_ERROR(conn, "getting the CPU params count");
+    return -1;
+  }
+
+  virTypedParameterPtr param = calloc(nparams, sizeof(virTypedParameter));
+  if (param == NULL) {
+    ERROR(PLUGIN_NAME " plugin: alloc(%i) for cpu parameters failed.", nparams);
+    return -1;
+  }
+
+  int ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
+  if (ret < 0) {
+    virTypedParamsClear(param, nparams);
+    sfree(param);
+    VIRT_ERROR(conn, "getting the CPU params values");
+    return -1;
+  }
+
+  unsigned long long total_user_cpu_time = 0;
+  unsigned long long total_syst_cpu_time = 0;
+
+  for (int i = 0; i < nparams; ++i) {
+    if (!strcmp(param[i].field, "user_time"))
+      total_user_cpu_time = param[i].value.ul;
+    else if (!strcmp(param[i].field, "system_time"))
+      total_syst_cpu_time = param[i].value.ul;
+  }
+
+  if (total_user_cpu_time > 0 || total_syst_cpu_time > 0)
+    submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
+                   NULL);
+
+  virTypedParamsClear(param, nparams);
+  sfree(param);
+
+  return 0;
+}
+#endif /* HAVE_CPU_STATS */
 
 #ifdef HAVE_DOM_REASON
 
@@ -1716,15 +1690,13 @@ static int get_job_stats(virDomainPtr domain) {
 #endif /* HAVE_JOB_STATS */
 
 static int get_domain_metrics(domain_t *domain) {
-  struct lv_info info;
-
   if (!domain || !domain->ptr) {
-    ERROR(PLUGIN_NAME ": get_domain_metrics: NULL pointer");
+    ERROR(PLUGIN_NAME " plugin: get_domain_metrics: NULL pointer");
     return -1;
   }
 
-  init_lv_info(&info);
-  int status = lv_domain_info(domain->ptr, &info);
+  virDomainInfo info;
+  int status = virDomainGetInfo(domain->ptr, &info);
   if (status != 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
           status);
@@ -1742,15 +1714,19 @@ static int get_domain_metrics(domain_t *domain) {
   }
 
   /* Gather remaining stats only for running domains */
-  if (info.di.state != VIR_DOMAIN_RUNNING)
+  if (info.state != VIR_DOMAIN_RUNNING)
     return 0;
 
-  pcpu_submit(domain->ptr, &info);
-  cpu_submit(domain, info.di.cpuTime);
+#ifdef HAVE_CPU_STATS
+  if (extra_stats & ex_stats_pcpu)
+    get_pcpu_stats(domain->ptr);
+#endif
 
-  memory_submit(domain->ptr, (gauge_t)info.di.memory * 1024);
+  cpu_submit(domain, info.cpuTime);
 
-  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.di.nrVirtCpu);
+  memory_submit(domain->ptr, (gauge_t)info.memory * 1024);
+
+  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
   GET_STATS(get_memory_stats, "memory stats", domain->ptr);
 
 #ifdef HAVE_PERF_STATS
@@ -1775,7 +1751,7 @@ static int get_domain_metrics(domain_t *domain) {
 #endif
 
   /* Update cached virDomainInfo. It has to be done after cpu_submit */
-  memcpy(&domain->info, &info.di, sizeof(domain->info));
+  memcpy(&domain->info, &info, sizeof(domain->info));
 
   return 0;
 }
@@ -1890,7 +1866,7 @@ static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
   assert(thread_data != NULL);
   ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to initialize mutex, err %u", ret);
+    ERROR(PLUGIN_NAME " plugin: Failed to initialize mutex, err %u", ret);
     return ret;
   }
 
@@ -2090,7 +2066,7 @@ static int lv_read(user_data_t *ud) {
 #endif
 
     if (status != 0)
-      ERROR(PLUGIN_NAME " failed to get metrics for domain=%s",
+      ERROR(PLUGIN_NAME " plugin: failed to get metrics for domain=%s",
             virDomainGetName(dom->ptr));
   }
 
@@ -2099,19 +2075,20 @@ static int lv_read(user_data_t *ud) {
     int status = get_block_stats(&state->block_devices[i]);
     if (status != 0)
       ERROR(PLUGIN_NAME
-            " failed to get stats for block device (%s) in domain %s",
+            " plugin: failed to get stats for block device (%s) in domain %s",
             state->block_devices[i].path,
-            virDomainGetName(state->domains[i].ptr));
+            virDomainGetName(state->block_devices[i].dom));
   }
 
   /* Get interface stats for each domain. */
   for (int i = 0; i < state->nr_interface_devices; ++i) {
     int status = get_if_dev_stats(&state->interface_devices[i]);
     if (status != 0)
-      ERROR(PLUGIN_NAME
-            " failed to get interface stats for device (%s) in domain %s",
-            state->interface_devices[i].path,
-            virDomainGetName(state->interface_devices[i].dom));
+      ERROR(
+          PLUGIN_NAME
+          " plugin: failed to get interface stats for device (%s) in domain %s",
+          state->interface_devices[i].path,
+          virDomainGetName(state->interface_devices[i].dom));
   }
 
   return 0;
@@ -2535,14 +2512,10 @@ static void free_domains(struct lv_read_state *state) {
 
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
                       bool active) {
-  domain_t *new_ptr;
+
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
-  if (state->domains)
-    new_ptr = realloc(state->domains, new_size);
-  else
-    new_ptr = malloc(new_size);
-
+  domain_t *new_ptr = realloc(state->domains, new_size);
   if (new_ptr == NULL)
     return -1;
 
@@ -2567,20 +2540,15 @@ static void free_block_devices(struct lv_read_state *state) {
 
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
                             const char *path) {
-  struct block_device *new_ptr;
-  int new_size =
-      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
-  char *path_copy;
 
-  path_copy = strdup(path);
+  char *path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  if (state->block_devices)
-    new_ptr = realloc(state->block_devices, new_size);
-  else
-    new_ptr = malloc(new_size);
+  int new_size =
+      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
 
+  struct block_device *new_ptr = realloc(state->block_devices, new_size);
   if (new_ptr == NULL) {
     sfree(path_copy);
     return -1;
@@ -2607,42 +2575,46 @@ static void free_interface_devices(struct lv_read_state *state) {
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
                                 unsigned int number) {
-  struct interface_device *new_ptr;
-  int new_size =
-      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[21];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;
 
-  path_copy = strdup(path);
+  char *path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  address_copy = strdup(address);
+  char *address_copy = strdup(address);
   if (!address_copy) {
     sfree(path_copy);
     return -1;
   }
 
+  char number_string[21];
   snprintf(number_string, sizeof(number_string), "interface-%u", number);
-
-  if (state->interface_devices)
-    new_ptr = realloc(state->interface_devices, new_size);
-  else
-    new_ptr = malloc(new_size);
-
-  if (new_ptr == NULL) {
+  char *number_copy = strdup(number_string);
+  if (!number_copy) {
     sfree(path_copy);
     sfree(address_copy);
     return -1;
   }
+
+  int new_size =
+      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
+
+  struct interface_device *new_ptr =
+      realloc(state->interface_devices, new_size);
+  if (new_ptr == NULL) {
+    sfree(path_copy);
+    sfree(address_copy);
+    sfree(number_copy);
+    return -1;
+  }
+
   state->interface_devices = new_ptr;
   state->interface_devices[state->nr_interface_devices].dom = dom;
   state->interface_devices[state->nr_interface_devices].path = path_copy;
   state->interface_devices[state->nr_interface_devices].address = address_copy;
-  state->interface_devices[state->nr_interface_devices].number =
-      strdup(number_string);
+  state->interface_devices[state->nr_interface_devices].number = number_copy;
   return state->nr_interface_devices++;
 }
 

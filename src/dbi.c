@@ -603,15 +603,16 @@ static int cdbi_read_database_query(cdbi_database_t *db, /* {{{ */
     } /* }}} */
 
     /* Get the next row from the database. */
+    if (!dbi_result_has_next_row(res))
+      break;
+
     status = dbi_result_next_row(res); /* {{{ */
     if (status != 1) {
-      if (dbi_conn_error(db->connection, NULL) != 0) {
-        char errbuf[1024];
-        WARNING("dbi plugin: cdbi_read_database_query (%s, %s): "
-                "dbi_result_next_row failed: %s.",
-                db->name, udb_query_get_name(q),
-                cdbi_strerror(db->connection, errbuf, sizeof(errbuf)));
-      }
+      char errbuf[1024];
+      WARNING("dbi plugin: cdbi_read_database_query (%s, %s): "
+              "dbi_result_next_row failed: %s.",
+              db->name, udb_query_get_name(q),
+              cdbi_strerror(db->connection, errbuf, sizeof(errbuf)));
       break;
     } /* }}} */
   }   /* }}} while (42) */

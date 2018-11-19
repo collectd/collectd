@@ -651,6 +651,8 @@ cu_mount_t *cu_mount_getlist(cu_mount_t **list) {
   new = cu_mount_gen_getmntent();
 #elif HAVE_SEQ_GETMNTENT
 #error "This version of `getmntent' hat not yet been implemented!"
+#elif HAVE_GETMNTENT_R
+  new = cu_mount_getmntent();
 #elif HAVE_ONE_GETMNTENT
   new = cu_mount_getmntent();
 #else

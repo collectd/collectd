@@ -498,6 +498,14 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
       continue;
     }
 
+    /* allow multiple sockets to use the same PORT number */
+    int yes = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+      ERROR("statsd plugin: setsockopt (reuseaddr): %s", STRERRNO);
+      close(fd);
+      continue;
+    }
+
     getnameinfo(ai_ptr->ai_addr, ai_ptr->ai_addrlen, str_node, sizeof(str_node),
                 str_service, sizeof(str_service),
                 NI_DGRAM | NI_NUMERICHOST | NI_NUMERICSERV);
@@ -525,6 +533,7 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
     memset(tmp, 0, sizeof(*tmp));
     tmp->fd = fd;
     tmp->events = POLLIN | POLLPRI;
+    INFO("statsd plugin: Listening on [%s]:%s.", str_node, str_service);
   }
 
   freeaddrinfo(ai_list);

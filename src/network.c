@@ -1728,10 +1728,9 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 #else
   int loop = 0;
 #endif
-  int yes = 1;
 
   /* allow multiple sockets to use the same PORT number */
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) == -1) {
     ERROR("network plugin: setsockopt (reuseaddr): %s", STRERRNO);
     return -1;
   }

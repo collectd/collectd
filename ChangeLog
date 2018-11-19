@@ -1,3 +1,78 @@
+2018-10-23, Version 5.8.1
+	* collectd: Fix "BaseDir" option. Thanks to Mariusz Białończyk and
+	  Pavel Rochnyak. #2857
+	* collectd: improve error handling, check return values. Thanks to
+	  Florian Forster.
+	* Build System: use "kstat.h", when available. Thanks to Dagobert
+	  Michelsen and Pavel Rochnyak. #2784
+	* Build System: Fix distcheck on MacOS. Thanks to Ruben Kerkhof.
+	* Build System: add missing include of ""collectd.h"" to fix builds on
+	  Solaris. Thanks to Pavel Rochnyak.
+	* Build System: add endianess checks for AIX, fix GCC issue on Mac
+	  byteorder, fix byteorder on Solaris, add fallback for endianess
+	  conversion. Thanks to Dagobert Michelsen (multiple cherry picks from
+	  master).
+	* Build System: Out-of-tree builds have been fixed. Thanks to Florian
+	  Forster. #2602
+	* Configuration: Error handling in the config parsing code has been
+	  improved. Thanks to Florian Forster.
+	* Documentation: Fix typo in collectd.conf(5). Thanks to Pavel Rochnyak.
+	  #2760
+	* Documentation: update note on dpdkstat. Thanks to Maryam Tahhan. #2613
+	* Various plugins: Errors found by the static code analysis tool
+	  Coverity were fixed. Thanks to Florian Forster. #2559, #2560, #2561,
+	  #2562, #2563, #2565, #2568, #2575, #2579, #2580, #2588, #2589
+	* Ceph plugin: A segfault has been fixed. Thanks to Aleksei Zakharov and
+	  Matthias Runge. #2572
+	* DF plugin: fix memory leak in error case. Thanks to Takahashi tsc.
+	* Exec plugin: check return value of "plugin_thread_create()". Thanks to
+	  Florian Forster.
+	* Exec plugin: Handling of large groups has been fixed. Thanks to
+	  Sridhar Mallem. #2696
+	* Exec plugin: Incorrect use of *putenv(3)* has been fixed. Thanks to
+	  Daniel Vrátil.
+	* Exec plugin: A deadlock related to setting environment variables after
+	  *fork()* has been fixed. Thanks to Daniel Vrátil.
+	* Intel PMU plugin: add core groups feature. Thanks to Kamil Wiatrowski.
+	  #2681
+	* Intel PMU plugin: fix compatibility issue with collectd 5.8. Thanks to
+	  Kamil Wiatrowski.
+	* Intel PMU plugin: fix possible "NULL" pointer dereference. Thanks to
+	  Kamil Wiatrowski. #2676
+	* IPMI plugin: A segfault caused by a wrong data type has been fixed.
+	  Thanks to Mariusz Szafrański. #2742
+	* IPMI plugin: The sensor configuration option has been fixed. Thanks to
+	  Pavel Rochnyak. #2629
+	* memcached plugin: A deadlock situation has been fixed. Thanks to Pavel
+	  Rochnyak. #2612
+	* NFS plugin: Support for NFSv4 has been fixed. Thanks to Jan-Philipp
+	  Litza. #2076
+	* NTPd plugin: A memory leak in the error handling path has been fixed.
+	  Thanks to Ruben Kerkhof. #2942
+	* OVS Stats plugin: A deadlock situation has been fixed. Thanks to
+	  Volodymyr Mytnyk. #2590
+	* OVS Stats plugin: Fix reconnect after thread terminated. Thanks to
+	  Volodymyr Mytnyk and Maram Tahhan. #2574
+	* Perl plugin: A compilation failure has been fixed. Thanks to Pavel
+	  Rochnyak. #2732
+	* Perl plugin: Fix exporting notification meta data. Thanks to Florian
+	  Forster.
+	* RRDtool plugin: Handling of very large "GAUGE" metrics has been fixed.
+	  Thanks to Miroslav Lichvar. #2566
+	* Tail plugin: Several regressions have been fixed. Thanks to Pavel
+	  Rochnyak. #2535, #2587, #2611
+	* turbostat plugin: A potential segfault due to an incorrect *free()*
+	  has been fixed. Thanks to Ruben Kerkhof. #2948
+	* UUID plugin: Fix hostname setting. Thanks to Pavel Rochnyak. #2723
+	* virt plugin: A segfault during error handling has been fixed. Thanks
+	  to Ruben Kerkhof. {{Issue|2919]}
+	* Write Kafka plugin: A build failure due to a deprecated API call has
+	  been fixed. Thanks to Pavel Rochnyak. #2607, #2628, #2640
+	* Write Prometheus plugin: Fix "MHD_USE_INTERNAL_POLLING_THREAD" flag in
+	  newer libmicrohttpd. Thanks to Pavel Rochnyak. #2849
+	* Write Prometheus plugin: set "SO_REUSEADDRESS" on listening socket.
+	  Thanks to Pavel Rochnyak. #2570, #2673
+
 2017-11-17, Version 5.8.0
 	* collectd: The core daemon is now completely licensed under the MIT
 	  license.

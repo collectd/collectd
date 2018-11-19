@@ -27,10 +27,6 @@
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
 **/
 
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "collectd.h"
 
 #include "common.h"
@@ -68,12 +64,17 @@
 extern kstat_ctl_t *kc;
 #endif
 
+#if !defined(MSG_DONTWAIT)
+#if defined(MSG_NONBLOCK)
 /* AIX doesn't have MSG_DONTWAIT */
-#ifndef MSG_DONTWAIT
 #define MSG_DONTWAIT MSG_NONBLOCK
-#endif
+#else
+/* Windows doesn't have MSG_DONTWAIT or MSG_NONBLOCK */
+#define MSG_DONTWAIT 0
+#endif /* defined(MSG_NONBLOCK) */
+#endif /* !defined(MSG_DONTWAIT) */
 
-#if !HAVE_GETPWNAM_R
+#if !HAVE_GETPWNAM_R && defined(HAVE_GETPWNAM)
 static pthread_mutex_t getpwnam_r_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
@@ -1132,6 +1133,9 @@ int parse_value_file(char const *path, value_t *ret_value, int ds_type) {
 #if !HAVE_GETPWNAM_R
 int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
                struct passwd **pwbufp) {
+#ifndef HAVE_GETPWNAM
+  return -1;
+#else
   int status = 0;
   struct passwd *pw;
 
@@ -1174,6 +1178,7 @@ int getpwnam_r(const char *name, struct passwd *pwbuf, char *buf, size_t buflen,
   pthread_mutex_unlock(&getpwnam_r_lock);
 
   return status;
+#endif /* HAVE_GETPWNAM */
 } /* int getpwnam_r */
 #endif /* !HAVE_GETPWNAM_R */
 

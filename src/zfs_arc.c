@@ -231,6 +231,23 @@ static int za_read(void) {
     return -1;
   }
 
+  // Ignore the first two lines because they contain information about
+  // the rest of the file.
+  // See kstat_seq_show_headers module/spl/spl-kstat.c of the spl kernel
+  // module.
+  if (fgets(buffer, sizeof(buffer), fh) == NULL) {
+    ERROR("zfs_arc plugin: \"%s\" does not contain a single line.",
+          ZOL_ARCSTATS_FILE);
+    fclose(fh);
+    return (-1);
+  }
+  if (fgets(buffer, sizeof(buffer), fh) == NULL) {
+    ERROR("zfs_arc plugin: \"%s\" does not contain at least two lines.",
+          ZOL_ARCSTATS_FILE);
+    fclose(fh);
+    return (-1);
+  }
+
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
     char *fields[3];
     value_t v;
