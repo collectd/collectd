@@ -6246,6 +6246,7 @@ B<Synopsis:>
    Address "127.0.0.1"
    Socket "/var/run/openvswitch/db.sock"
    Bridges "br0" "br_ext"
+   InterfaceStats false
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -6278,6 +6279,13 @@ List of OVS bridge names to be monitored by this plugin. If this option is
 omitted or is empty then all OVS bridges will be monitored.
 
 Default: empty (monitor all bridges)
+
+=item B<InterfaceStats> B<false>|B<true>
+
+Indicates that the plugin should gather statistics for individual interfaces
+in addition to ports.  This can be useful when monitoring an OVS setup with
+bond ports, where you might wish to know individual statistics for the
+interfaces included in the bonds.  Defaults to B<false>.
 
 =back
 
