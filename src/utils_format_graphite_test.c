@@ -81,6 +81,11 @@ DEF_TEST(metric_name) {
           .type_instance = "test: \"hello\"",
           .want_name = "example@com.test-foo@@test@.single-test@@@hello@",
       },
+      {
+          .plugin_instance = "foo (test)",
+          .type_instance = "test: \"hello\"",
+          .want_name = "example,com.test-foo,,test,.single-test,,,hello,",
+      },
       /* flag GRAPHITE_SEPARATE_INSTANCES */
       {
           .plugin_instance = "foo",
