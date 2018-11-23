@@ -9445,6 +9445,7 @@ Synopsis:
      LogSendErrors true
      Prefix "collectd"
      UseTags false
+     ReverseHost false
    </Node>
  </Plugin>
 
@@ -9553,6 +9554,30 @@ version 1.1.x.
 
 If set to B<true>, the B<SeparateInstances> and B<PreserveSeparator> settings
 are not used.
+
+Default value: B<false>.
+
+=item B<ReverseHost> B<false>|B<true>
+
+If set to B<true>, the (dot separated) parts of the B<host> field of the
+I<value list> will be rewritten in reverse order. The rewrite happens I<before>
+special characters are replaced with the B<EscapeCharacter>.
+
+This option might be convenient if the metrics are presented with Graphite in a
+DNS like tree structure (probably without replacing dots in hostnames).
+
+Example:
+ Hostname "node3.cluster1.example.com"
+ LoadPlugin "cpu"
+ LoadPlugin "write_graphite"
+ <Plugin "write_graphite">
+  <Node "graphite.example.com">
+   EscapeCharacter "."
+   ReverseHost true
+  </Node>
+ </Plugin>
+
+ result on the wire: com.example.cluster1.node3.cpu-0.cpu-idle 99.900993 1543010932
 
 Default value: B<false>.
 
