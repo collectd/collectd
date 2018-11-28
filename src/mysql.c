@@ -433,6 +433,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
 
   const char *query;
   int field_num;
+  int status_rows_reported;
 
   /* WTF? libmysqlclient does not seem to provide any means to
    * translate a column name to a column index ... :-/ */
@@ -441,6 +442,7 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   const int SLAVE_SQL_RUNNING_IDX = 11;
   const int EXEC_MASTER_LOG_POS_IDX = 21;
   const int SECONDS_BEHIND_MASTER_IDX = 32;
+  const int CHANNEL_NAME_IDX = 55;
 
   query = "SHOW SLAVE STATUS";
 
@@ -448,91 +450,109 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
   if (res == NULL)
     return -1;
 
-  row = mysql_fetch_row(res);
-  if (row == NULL) {
+  status_rows_reported = 0;
+
+  const size_t CHANNEL_BUF_SIZE = 128;
+  char channel_buf[CHANNEL_BUF_SIZE];
+
+  while ((row = mysql_fetch_row(res)) != NULL) {
+    field_num = mysql_num_fields(res);
+    if (field_num < 33) {
+      ERROR("mysql plugin: Failed to get slave statistics: "
+            "`%s' returned less than 33 columns.",
+            query);
+      mysql_free_result(res);
+      return -1;
+    }
+
+    if (db->slave_stats) {
+      unsigned long long counter;
+      double gauge;
+      char *channel = NULL;
+      if (field_num > CHANNEL_NAME_IDX) {
+        channel = row[CHANNEL_NAME_IDX];
+      }
+
+      counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
+      if (channel == NULL) {
+        derive_submit("mysql_log_position", "slave-read", counter, db);
+      } else {
+        snprintf(channel_buf, CHANNEL_BUF_SIZE, "%s/slave-read", channel);
+        derive_submit("mysql_log_position", channel_buf, counter, db);
+      }
+
+      counter = atoll(row[EXEC_MASTER_LOG_POS_IDX]);
+      if (channel == NULL) {
+        derive_submit("mysql_log_position", "slave-exec", counter, db);
+      } else {
+        snprintf(channel_buf, CHANNEL_BUF_SIZE, "%s/slave-exec", channel);
+        derive_submit("mysql_log_position", channel_buf, counter, db);
+      }
+
+      if (row[SECONDS_BEHIND_MASTER_IDX] != NULL) {
+        gauge = atof(row[SECONDS_BEHIND_MASTER_IDX]);
+        gauge_submit("time_offset", channel, gauge, db);
+        if (status_rows_reported == 0) {
+          gauge_submit("time_offset", NULL, gauge, db);
+        }
+      }
+    }
+
+    if (db->slave_notif) {
+      notification_t n = {0,  cdtime(),      "", "",  "mysql",
+                          "", "time_offset", "", NULL};
+
+      char *io, *sql;
+
+      io = row[SLAVE_IO_RUNNING_IDX];
+      sql = row[SLAVE_SQL_RUNNING_IDX];
+
+      set_host(db, n.host, sizeof(n.host));
+
+      /* Assured by "mysql_config_database" */
+      assert(db->instance != NULL);
+      sstrncpy(n.plugin_instance, db->instance, sizeof(n.plugin_instance));
+
+      if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
+          (db->slave_io_running)) {
+        n.severity = NOTIF_WARNING;
+        snprintf(n.message, sizeof(n.message),
+                 "slave I/O thread not started or not connected to master");
+        plugin_dispatch_notification(&n);
+        db->slave_io_running = false;
+      } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
+                 (!db->slave_io_running)) {
+        n.severity = NOTIF_OKAY;
+        snprintf(n.message, sizeof(n.message),
+                 "slave I/O thread started and connected to master");
+        plugin_dispatch_notification(&n);
+        db->slave_io_running = true;
+      }
+
+      if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
+          (db->slave_sql_running)) {
+        n.severity = NOTIF_WARNING;
+        snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+        plugin_dispatch_notification(&n);
+        db->slave_sql_running = false;
+      } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
+                 (!db->slave_sql_running)) {
+        n.severity = NOTIF_OKAY;
+        snprintf(n.message, sizeof(n.message), "slave SQL thread started");
+        plugin_dispatch_notification(&n);
+        db->slave_sql_running = true;
+      }
+    }
+
+    status_rows_reported++;
+  }
+  if (status_rows_reported == 0) {
     ERROR("mysql plugin: Failed to get slave statistics: "
           "`%s' did not return any rows.",
           query);
     mysql_free_result(res);
     return -1;
   }
-
-  field_num = mysql_num_fields(res);
-  if (field_num < 33) {
-    ERROR("mysql plugin: Failed to get slave statistics: "
-          "`%s' returned less than 33 columns.",
-          query);
-    mysql_free_result(res);
-    return -1;
-  }
-
-  if (db->slave_stats) {
-    unsigned long long counter;
-    double gauge;
-
-    counter = atoll(row[READ_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "slave-read", counter, db);
-
-    counter = atoll(row[EXEC_MASTER_LOG_POS_IDX]);
-    derive_submit("mysql_log_position", "slave-exec", counter, db);
-
-    if (row[SECONDS_BEHIND_MASTER_IDX] != NULL) {
-      gauge = atof(row[SECONDS_BEHIND_MASTER_IDX]);
-      gauge_submit("time_offset", NULL, gauge, db);
-    }
-  }
-
-  if (db->slave_notif) {
-    notification_t n = {0,  cdtime(),      "", "",  "mysql",
-                        "", "time_offset", "", NULL};
-
-    char *io, *sql;
-
-    io = row[SLAVE_IO_RUNNING_IDX];
-    sql = row[SLAVE_SQL_RUNNING_IDX];
-
-    set_host(db, n.host, sizeof(n.host));
-
-    /* Assured by "mysql_config_database" */
-    assert(db->instance != NULL);
-    sstrncpy(n.plugin_instance, db->instance, sizeof(n.plugin_instance));
-
-    if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
-        (db->slave_io_running)) {
-      n.severity = NOTIF_WARNING;
-      snprintf(n.message, sizeof(n.message),
-               "slave I/O thread not started or not connected to master");
-      plugin_dispatch_notification(&n);
-      db->slave_io_running = false;
-    } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
-               (!db->slave_io_running)) {
-      n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message),
-               "slave I/O thread started and connected to master");
-      plugin_dispatch_notification(&n);
-      db->slave_io_running = true;
-    }
-
-    if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
-        (db->slave_sql_running)) {
-      n.severity = NOTIF_WARNING;
-      snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
-      plugin_dispatch_notification(&n);
-      db->slave_sql_running = false;
-    } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
-               (!db->slave_sql_running)) {
-      n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message), "slave SQL thread started");
-      plugin_dispatch_notification(&n);
-      db->slave_sql_running = true;
-    }
-  }
-
-  row = mysql_fetch_row(res);
-  if (row != NULL)
-    WARNING("mysql plugin: `%s' returned more than one row - "
-            "ignoring further results.",
-            query);
 
   mysql_free_result(res);
 
