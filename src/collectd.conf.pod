@@ -9287,7 +9287,7 @@ be set to C<var_lib_libvirt_images_image1.qcow2>.
 Setting C<BlockDeviceFormatBasename true> will cause the I<type instance> to be
 set to C<image1.qcow2>.
 
-=item B<HostnameFormat> B<name|uuid|hostname|...>
+=item B<HostnameFormat> B<name|uuid|hostname|metadata...>
 
 When the virt plugin logs data, it sets the hostname of the collected data
 according to this setting. The default is to use the guest name as provided by
@@ -9299,6 +9299,9 @@ same guest across migrations.
 B<hostname> means to use the global B<Hostname> setting, which is probably not
 useful on its own because all guests will appear to have the same name. This is
 useful in conjunction with B<PluginInstanceFormat> though.
+
+B<metadata> means use information from guest's metadata. Use
+B<HostnameMetadataNS> and B<HostnameMetadataXPath> to localize this information.
 
 You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
@@ -9318,17 +9321,36 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid|none>
+=item B<PluginInstanceFormat> B<name|uuid|metadata|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
 data according to this setting. The default is to not set the plugin_instance.
 
 B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+B<metadata> means use information from guest's metadata.
 
 You can also specify combinations of the B<name> and B<uuid> fields.
 For example B<name uuid> means to concatenate the guest name and UUID
 (with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
+
+=item B<HostnameMetadataNS> B<string>
+
+When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
+selects in which metadata namespace we will pick the hostname. The default is
+I<http://openstack.org/xmlns/libvirt/nova/1.0>.
+
+=item B<HostnameMetadataXPath> B<string>
+
+When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
+describes where the hostname is located in the libvirt metadata. The default is
+I</instance/name/text()>.
+
+=item B<Instances> B<integer>
+
+How many read instances you want to use for this plugin. The default is one,
+and the sensible setting is a multiple of the B<ReadThreads> value.
+If you are not sure, just use the default setting.
 
 =item B<ExtraStats> B<string>
 

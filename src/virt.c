@@ -129,6 +129,8 @@ static const char *config_keys[] = {"Connection",
                                     "IgnoreSelected",
 
                                     "HostnameFormat",
+                                    "HostnameMetadataNS",
+                                    "HostnameMetadataXPath",
                                     "InterfaceFormat",
 
                                     "PluginInstanceFormat",
@@ -557,19 +559,28 @@ static int nr_instances = NR_INSTANCES_DEFAULT;
 static struct lv_user_data lv_read_user_data[NR_INSTANCES_MAX];
 
 /* HostnameFormat. */
-#define HF_MAX_FIELDS 3
+#define HF_MAX_FIELDS 4
 
-enum hf_field { hf_none = 0, hf_hostname, hf_name, hf_uuid };
+enum hf_field { hf_none = 0, hf_hostname, hf_name, hf_uuid, hf_metadata };
 
 static enum hf_field hostname_format[HF_MAX_FIELDS] = {hf_name};
 
 /* PluginInstanceFormat */
-#define PLGINST_MAX_FIELDS 2
+#define PLGINST_MAX_FIELDS 3
 
-enum plginst_field { plginst_none = 0, plginst_name, plginst_uuid };
+enum plginst_field {
+  plginst_none = 0,
+  plginst_name,
+  plginst_uuid,
+  plginst_metadata
+};
 
 static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] = {
     plginst_none};
+
+/* HostnameMetadataNS && HostnameMetadataXPath */
+static char *hm_xpath;
+static char *hm_ns;
 
 /* BlockDeviceFormat */
 enum bd_field { target, source };
@@ -705,6 +716,95 @@ static int get_block_info(struct lv_block_info *binfo,
       ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
 
+char *metadata_get_hostname(virDomainPtr dom) {
+  const char *xpath_str = NULL;
+  if (hm_xpath == NULL)
+    xpath_str = "/instance/name/text()";
+  else
+    xpath_str = hm_xpath;
+
+  const char *namespace = NULL;
+  if (hm_ns == NULL) {
+    namespace = "http://openstack.org/xmlns/libvirt/nova/1.0";
+  } else {
+    namespace = hm_ns;
+  }
+
+  char *metadata_str = virDomainGetMetadata(
+      dom, VIR_DOMAIN_METADATA_ELEMENT, namespace, VIR_DOMAIN_AFFECT_CURRENT);
+  if (metadata_str == NULL) {
+    return NULL;
+  }
+
+  char *hostname = NULL;
+  xmlXPathContextPtr xpath_ctx = NULL;
+  xmlXPathObjectPtr xpath_obj = NULL;
+  xmlNodePtr xml_node = NULL;
+
+  xmlDocPtr xml_doc =
+      xmlReadDoc((xmlChar *)metadata_str, NULL, NULL, XML_PARSE_NONET);
+  if (xml_doc == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlReadDoc failed to read metadata");
+    goto metadata_end;
+  }
+
+  xpath_ctx = xmlXPathNewContext(xml_doc);
+  if (xpath_ctx == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathNewContext(%s) failed for metadata",
+          metadata_str);
+    goto metadata_end;
+  }
+  xpath_obj = xmlXPathEval((xmlChar *)xpath_str, xpath_ctx);
+  if (xpath_obj == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed for metadata",
+          xpath_str);
+    goto metadata_end;
+  }
+
+  if (xpath_obj->type != XPATH_NODESET) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unexpected return type %d "
+                      "(wanted %d) for metadata",
+          xpath_str, xpath_obj->type, XPATH_NODESET);
+    goto metadata_end;
+  }
+
+  // TODO(sileht): We can support || operator by looping on nodes here
+  if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
+    WARNING(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
+                        "expected=1 for metadata",
+            xpath_str,
+            (xpath_obj->nodesetval == NULL) ? 0
+                                            : xpath_obj->nodesetval->nodeNr);
+    goto metadata_end;
+  }
+
+  xml_node = xpath_obj->nodesetval->nodeTab[0];
+  if (xml_node->type == XML_TEXT_NODE) {
+    hostname = strdup((const char *)xml_node->content);
+  } else if (xml_node->type == XML_ATTRIBUTE_NODE) {
+    hostname = strdup((const char *)xml_node->children->content);
+  } else {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unsupported node type %d",
+          xpath_str, xml_node->type);
+    goto metadata_end;
+  }
+
+  if (hostname == NULL) {
+    ERROR(PLUGIN_NAME " plugin: strdup(%s) hostname failed", xpath_str);
+    goto metadata_end;
+  }
+
+metadata_end:
+  if (xpath_obj)
+    xmlXPathFreeObject(xpath_obj);
+  if (xpath_ctx)
+    xmlXPathFreeContext(xpath_ctx);
+  if (xml_doc)
+    xmlFreeDoc(xml_doc);
+  sfree(metadata_str);
+  return hostname;
+}
+
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
   const char *name;
   char uuid[VIR_UUID_STRING_BUFLEN];
@@ -736,6 +836,11 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
       if (virDomainGetUUIDString(dom, uuid) == 0)
         SSTRNCAT(vl->host, uuid, sizeof(vl->host));
       break;
+    case hf_metadata:
+      name = metadata_get_hostname(dom);
+      if (name)
+        SSTRNCAT(vl->host, name, sizeof(vl->host));
+      break;
     }
   }
 
@@ -758,6 +863,11 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
     case plginst_uuid:
       if (virDomainGetUUIDString(dom, uuid) == 0)
         SSTRNCAT(vl->plugin_instance, uuid, sizeof(vl->plugin_instance));
+      break;
+    case plginst_metadata:
+      name = metadata_get_hostname(dom);
+      if (name)
+        SSTRNCAT(vl->plugin_instance, name, sizeof(vl->plugin_instance));
       break;
     }
   }
@@ -1083,6 +1193,28 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
 
+  if (strcasecmp(key, "HostnameMetadataNS") == 0) {
+    char *tmp = strdup(value);
+    if (tmp == NULL) {
+      ERROR(PLUGIN_NAME " plugin: HostnameMetadataNS strdup failed.");
+      return 1;
+    }
+    sfree(hm_ns);
+    hm_ns = tmp;
+    return 0;
+  }
+
+  if (strcasecmp(key, "HostnameMetadataXPath") == 0) {
+    char *tmp = strdup(value);
+    if (tmp == NULL) {
+      ERROR(PLUGIN_NAME " plugin: HostnameMetadataXPath strdup failed.");
+      return 1;
+    }
+    sfree(hm_xpath);
+    hm_xpath = tmp;
+    return 0;
+  }
+
   if (strcasecmp(key, "HostnameFormat") == 0) {
     char *value_copy = strdup(value);
     if (value_copy == NULL) {
@@ -1105,6 +1237,8 @@ static int lv_config(const char *key, const char *value) {
         hostname_format[i] = hf_name;
       else if (strcasecmp(fields[i], "uuid") == 0)
         hostname_format[i] = hf_uuid;
+      else if (strcasecmp(fields[i], "metadata") == 0)
+        hostname_format[i] = hf_metadata;
       else {
         ERROR(PLUGIN_NAME " plugin: unknown HostnameFormat field: %s",
               fields[i]);
@@ -1143,6 +1277,8 @@ static int lv_config(const char *key, const char *value) {
         plugin_instance_format[i] = plginst_name;
       else if (strcasecmp(fields[i], "uuid") == 0)
         plugin_instance_format[i] = plginst_uuid;
+      else if (strcasecmp(fields[i], "metadata") == 0)
+        plugin_instance_format[i] = plginst_metadata;
       else {
         ERROR(PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s",
               fields[i]);
