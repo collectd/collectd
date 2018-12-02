@@ -734,75 +734,75 @@ char *metadata_get_hostname(virDomainPtr dom) {
       dom, VIR_DOMAIN_METADATA_ELEMENT, namespace, VIR_DOMAIN_AFFECT_CURRENT);
   if (metadata_str == NULL) {
     return NULL;
-  } else {
-    char *hostname = NULL;
-    xmlDocPtr xml_doc = NULL;
-    xmlXPathContextPtr xpath_ctx = NULL;
-    xmlXPathObjectPtr xpath_obj = NULL;
-    xmlNodePtr xml_node = NULL;
-
-    xml_doc = xmlReadDoc((xmlChar *)metadata_str, NULL, NULL, XML_PARSE_NONET);
-    if (xml_doc == NULL) {
-      ERROR(PLUGIN_NAME " plugin: xmlReadDoc failed to read metadata");
-      goto metadata_end;
-    }
-
-    xpath_ctx = xmlXPathNewContext(xml_doc);
-    if (xpath_ctx == NULL) {
-      ERROR(PLUGIN_NAME " plugin: xmlXPathNewContext(%s) failed for metadata",
-            metadata_str);
-      goto metadata_end;
-    }
-    xpath_obj = xmlXPathEval((xmlChar *)xpath_str, xpath_ctx);
-    if (xpath_obj == NULL) {
-      ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed for metadata",
-            xpath_str);
-      goto metadata_end;
-    }
-
-    if (xpath_obj->type != XPATH_NODESET) {
-      ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unexpected return type %d "
-                        "(wanted %d) for metadata",
-            xpath_str, xpath_obj->type, XPATH_NODESET);
-      goto metadata_end;
-    }
-
-    // TODO(sileht): We can support || operator by looping on nodes here
-    if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
-      WARNING(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
-                          "expected=1 for metadata",
-              xpath_str,
-              (xpath_obj->nodesetval == NULL) ? 0
-                                              : xpath_obj->nodesetval->nodeNr);
-      goto metadata_end;
-    }
-
-    xml_node = xpath_obj->nodesetval->nodeTab[0];
-    if (xml_node->type == XML_TEXT_NODE) {
-      hostname = strdup((const char *)xml_node->content);
-    } else if (xml_node->type == XML_ATTRIBUTE_NODE) {
-      hostname = strdup((const char *)xml_node->children->content);
-    } else {
-      ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unsupported node type %d",
-            xpath_str, xml_node->type);
-      goto metadata_end;
-    }
-
-    if (hostname == NULL) {
-      ERROR(PLUGIN_NAME " plugin: strdup(%s) hostname failed", xpath_str);
-      goto metadata_end;
-    }
-
-  metadata_end:
-    if (xpath_obj)
-      xmlXPathFreeObject(xpath_obj);
-    if (xpath_ctx)
-      xmlXPathFreeContext(xpath_ctx);
-    if (xml_doc)
-      xmlFreeDoc(xml_doc);
-    sfree(metadata_str);
-    return hostname;
   }
+
+  char *hostname = NULL;
+  xmlXPathContextPtr xpath_ctx = NULL;
+  xmlXPathObjectPtr xpath_obj = NULL;
+  xmlNodePtr xml_node = NULL;
+
+  xmlDocPtr xml_doc =
+      xmlReadDoc((xmlChar *)metadata_str, NULL, NULL, XML_PARSE_NONET);
+  if (xml_doc == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlReadDoc failed to read metadata");
+    goto metadata_end;
+  }
+
+  xpath_ctx = xmlXPathNewContext(xml_doc);
+  if (xpath_ctx == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathNewContext(%s) failed for metadata",
+          metadata_str);
+    goto metadata_end;
+  }
+  xpath_obj = xmlXPathEval((xmlChar *)xpath_str, xpath_ctx);
+  if (xpath_obj == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed for metadata",
+          xpath_str);
+    goto metadata_end;
+  }
+
+  if (xpath_obj->type != XPATH_NODESET) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unexpected return type %d "
+                      "(wanted %d) for metadata",
+          xpath_str, xpath_obj->type, XPATH_NODESET);
+    goto metadata_end;
+  }
+
+  // TODO(sileht): We can support || operator by looping on nodes here
+  if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
+    WARNING(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
+                        "expected=1 for metadata",
+            xpath_str,
+            (xpath_obj->nodesetval == NULL) ? 0
+                                            : xpath_obj->nodesetval->nodeNr);
+    goto metadata_end;
+  }
+
+  xml_node = xpath_obj->nodesetval->nodeTab[0];
+  if (xml_node->type == XML_TEXT_NODE) {
+    hostname = strdup((const char *)xml_node->content);
+  } else if (xml_node->type == XML_ATTRIBUTE_NODE) {
+    hostname = strdup((const char *)xml_node->children->content);
+  } else {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unsupported node type %d",
+          xpath_str, xml_node->type);
+    goto metadata_end;
+  }
+
+  if (hostname == NULL) {
+    ERROR(PLUGIN_NAME " plugin: strdup(%s) hostname failed", xpath_str);
+    goto metadata_end;
+  }
+
+metadata_end:
+  if (xpath_obj)
+    xmlXPathFreeObject(xpath_obj);
+  if (xpath_ctx)
+    xmlXPathFreeContext(xpath_ctx);
+  if (xml_doc)
+    xmlFreeDoc(xml_doc);
+  sfree(metadata_str);
+  return hostname;
 }
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
