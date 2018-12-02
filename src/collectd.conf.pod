@@ -9402,10 +9402,37 @@ B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 =back
 
 =item B<PersistentNotification> B<true>|B<false>
+
 Override default configuration to only send notifications when there is a change
 in the lifecycle state of a domain. When set to true notifications will be sent
 for every read cycle. Default is false. Does not affect the stats being
 dispatched.
+
+=item B<Instances> B<integer>
+
+How many read instances you want to use for this plugin. The default is one,
+and the sensible setting is a multiple of the B<ReadThreads> value.
+
+This option is only useful then domains are specially tagged.
+If you are not sure, just use the default setting.
+
+The reader instance will only query the domains with attached a matching tag.
+Tags should have the form of 'virt-X' where X is reader instance number,
+starting from 0.
+
+The special-purpose reader instance #0, guaranteed to be always present,
+will query all the domains with missing or unrecognized tag, so no domain will
+ever left out.
+
+Domain tagging is done with custom attribute in the libvirt domain metadata
+section. Value is taken by XPath I</domain/metadata/ovirtmap/tag/text()>
+expression in I<http://ovirt.org/ovirtmap/tag/1.0> namespace.
+(XPath and namespace values are not configurable yet).
+
+Tagging could be used by management application to evenly spread the
+load among the reader threads, or to pin on the same threads all
+the libvirt domains which use the same shared storage, to minimize
+the disruption in presence of storage outages.
 
 =back
 
