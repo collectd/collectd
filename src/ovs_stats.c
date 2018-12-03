@@ -232,10 +232,10 @@ static void ovs_stats_submit_two(const char *dev, const char *type,
   plugin_dispatch_values(&vl);
 }
 
-static void ovs_stats_submit_interfaces(bridge_list_t *bridge,
-                                        port_list_t *port) {
+static void ovs_stats_submit_interfaces(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
 
+  bridge_list_t *bridge = port->br;
   for (interface_list_t *iface = port->iface; iface != NULL;
        iface = iface->next) {
     meta_data_t *meta = meta_data_create();
@@ -322,7 +322,7 @@ static int ovs_stats_get_port_stat_value(port_list_t *port,
   return value;
 }
 
-static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
+static void ovs_stats_submit_port(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
 
   meta_data_t *meta = meta_data_create();
@@ -348,6 +348,7 @@ static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
       i++;
     }
   }
+  bridge_list_t *bridge = port->br;
   snprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
   ovs_stats_submit_one(devname, "if_collisions", NULL,
                        ovs_stats_get_port_stat_value(port, collisions), meta);
@@ -488,11 +489,9 @@ static interface_list_t *ovs_stats_new_port_interface(port_list_t *port,
     }
     memset(iface->stats, -1, sizeof(int64_t[IFACE_COUNTER_COUNT]));
     sstrncpy(iface->iface_uuid, uuid, sizeof(iface->iface_uuid));
-    pthread_mutex_lock(&g_stats_lock);
     interface_list_t *iface_head = port->iface;
     iface->next = iface_head;
     port->iface = iface;
-    pthread_mutex_unlock(&g_stats_lock);
   }
   return iface;
 }
@@ -512,15 +511,11 @@ static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
       return NULL;
     }
     sstrncpy(port->port_uuid, uuid, sizeof(port->port_uuid));
-    pthread_mutex_lock(&g_stats_lock);
     port->next = g_port_list_head;
     g_port_list_head = port;
-    pthread_mutex_unlock(&g_stats_lock);
   }
   if (bridge != NULL) {
-    pthread_mutex_lock(&g_stats_lock);
     port->br = bridge;
-    pthread_mutex_unlock(&g_stats_lock);
   }
   return port;
 }
@@ -537,6 +532,19 @@ static bridge_list_t *ovs_stats_get_bridge(bridge_list_t *head,
       return bridge;
   }
   return NULL;
+}
+
+/* Check if bridge is configured to be monitored in config file */
+static int ovs_stats_is_monitored_bridge(const char *br_name) {
+  /* if no bridges are configured, return true */
+  if (g_monitored_bridge_list_head == NULL)
+    return 1;
+
+  /* check if given bridge exists */
+  if (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL)
+    return 1;
+
+  return 0;
 }
 
 /* Delete bridge */
@@ -579,7 +587,6 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
   const char *new[] = {"new", NULL};
   const char *name[] = {"name", NULL};
   const char *ports[] = {"ports", NULL};
-  bridge_list_t *br = NULL;
 
   if (!bridge || !YAJL_IS_OBJECT(bridge))
     goto failure;
@@ -589,32 +596,33 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
     return 0;
 
   yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
-  if (br_name && YAJL_IS_STRING(br_name)) {
-    br = ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
-    pthread_mutex_lock(&g_stats_lock);
-    if (br == NULL) {
-      br = calloc(1, sizeof(*br));
-      if (!br) {
-        pthread_mutex_unlock(&g_stats_lock);
-        ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
-        return -1;
-      }
+  if (!br_name || !YAJL_IS_STRING(br_name))
+    return 0;
 
-      char *tmp = YAJL_GET_STRING(br_name);
-      if (tmp != NULL)
-        br->name = strdup(tmp);
+  if (!ovs_stats_is_monitored_bridge(YAJL_GET_STRING(br_name)))
+    return 0;
 
-      if (br->name == NULL) {
-        sfree(br);
-        pthread_mutex_unlock(&g_stats_lock);
-        ERROR("%s: strdup failed.", plugin_name);
-        return -1;
-      }
-
-      br->next = g_bridge_list_head;
-      g_bridge_list_head = br;
+  bridge_list_t *br =
+      ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
+  if (br == NULL) {
+    br = calloc(1, sizeof(*br));
+    if (!br) {
+      ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
+      return -1;
     }
-    pthread_mutex_unlock(&g_stats_lock);
+
+    char *tmp = YAJL_GET_STRING(br_name);
+    if (tmp != NULL)
+      br->name = strdup(tmp);
+
+    if (br->name == NULL) {
+      sfree(br);
+      ERROR("%s: strdup failed.", plugin_name);
+      return -1;
+    }
+
+    br->next = g_bridge_list_head;
+    g_bridge_list_head = br;
   }
 
   yajl_val br_ports = yajl_tree_get(row, ports, yajl_t_array);
@@ -682,10 +690,12 @@ static void ovs_stats_bridge_table_change_cb(yajl_val jupdates) {
   if (!bridges || !YAJL_IS_OBJECT(bridges))
     return;
 
+  pthread_mutex_lock(&g_stats_lock);
   for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
     yajl_val bridge = YAJL_GET_OBJECT(bridges)->values[i];
     ovs_stats_update_bridge(bridge);
   }
+  pthread_mutex_unlock(&g_stats_lock);
 }
 
 /* Handle Bridge Table delete event */
@@ -736,10 +746,8 @@ static int ovs_stats_update_port(const char *uuid, yajl_val port) {
   if (!portentry)
     return 0;
 
-  pthread_mutex_lock(&g_stats_lock);
   sstrncpy(portentry->name, YAJL_GET_STRING(port_name),
            sizeof(portentry->name));
-  pthread_mutex_unlock(&g_stats_lock);
 
   yajl_val ifaces_root = ovs_utils_get_value_by_key(row, "interfaces");
   char *ifaces_root_key =
@@ -821,10 +829,12 @@ static void ovs_stats_port_table_change_cb(yajl_val jupdates) {
   if (!ports || !YAJL_IS_OBJECT(ports))
     return;
 
+  pthread_mutex_lock(&g_stats_lock);
   for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
     yajl_val port = YAJL_GET_OBJECT(ports)->values[i];
     ovs_stats_update_port(YAJL_GET_OBJECT(ports)->keys[i], port);
   }
+  pthread_mutex_unlock(&g_stats_lock);
   return;
 }
 
@@ -880,20 +890,21 @@ static int ovs_stats_update_iface_stats(interface_list_t *iface,
 static int ovs_stats_update_iface_ext_ids(interface_list_t *iface,
                                           yajl_val ext_ids) {
 
-  if (ext_ids && YAJL_IS_ARRAY(ext_ids)) {
-    for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
-      yajl_val ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
-      if (!YAJL_IS_ARRAY(ext_id))
-        return -1;
+  if (!ext_ids || !YAJL_IS_ARRAY(ext_ids))
+    return 0;
 
-      char *key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
-      char *value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
-      if (key && value) {
-        if (strncmp(key, "iface-id", strlen(key)) == 0) {
-          sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
-        } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
-          sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
-        }
+  for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
+    yajl_val ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
+    if (!YAJL_IS_ARRAY(ext_id))
+      return -1;
+
+    char *key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
+    char *value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
+    if (key && value) {
+      if (strncmp(key, "iface-id", strlen(key)) == 0) {
+        sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
+      } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
+        sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
       }
     }
   }
@@ -1128,19 +1139,6 @@ static void ovs_stats_initialize(ovs_db_t *pdb) {
                            OVS_DB_TABLE_CB_FLAG_DELETE);
 }
 
-/* Check if bridge is configured to be monitored in config file */
-static int ovs_stats_is_monitored_bridge(const char *br_name) {
-  /* if no bridges are configured, return true */
-  if (g_monitored_bridge_list_head == NULL)
-    return 1;
-
-  /* check if given bridge exists */
-  if (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL)
-    return 1;
-
-  return 0;
-}
-
 /* Delete all ports from port list */
 static void ovs_stats_free_port_list(port_list_t *head) {
   for (port_list_t *i = head; i != NULL;) {
@@ -1281,29 +1279,22 @@ static int ovs_stats_plugin_init(void) {
 
 /* OvS stats read callback. Read bridge/port information and submit it*/
 static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
-  bridge_list_t *bridge;
-  port_list_t *port;
-
   pthread_mutex_lock(&g_stats_lock);
-  for (bridge = g_bridge_list_head; bridge != NULL; bridge = bridge->next) {
-    if (!ovs_stats_is_monitored_bridge(bridge->name))
+  for (port_list_t *port = g_port_list_head; port != NULL; port = port->next) {
+    if (strlen(port->name) == 0)
+      /* Skip port w/o name. This is possible when read callback
+       * is called after Interface Table update callback but before
+       * Port table Update callback. Will add this port on next read */
       continue;
 
-    for (port = g_port_list_head; port != NULL; port = port->next) {
-      if (port->br != bridge)
-        continue;
+    /* Skip port if it has no bridge */
+    if (!port->br)
+      continue;
 
-      if (strlen(port->name) == 0)
-        /* Skip port w/o name. This is possible when read callback
-         * is called after Interface Table update callback but before
-         * Port table Update callback. Will add this port on next read */
-        continue;
+    ovs_stats_submit_port(port);
 
-      ovs_stats_submit_port(bridge, port);
-
-      if (interface_stats)
-        ovs_stats_submit_interfaces(bridge, port);
-    }
+    if (interface_stats)
+      ovs_stats_submit_interfaces(port);
   }
   pthread_mutex_unlock(&g_stats_lock);
   return 0;
