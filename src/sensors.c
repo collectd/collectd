@@ -149,7 +149,7 @@ typedef struct featurelist {
 static char *conffile = SENSORS_CONF_PATH;
 /* #endif SENSORS_API_VERSION < 0x400 */
 
-#elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+#elif (SENSORS_API_VERSION >= 0x400)
 typedef struct featurelist {
   const sensors_chip_name *chip;
   const sensors_feature *feature;
@@ -159,11 +159,6 @@ typedef struct featurelist {
 
 static char *conffile;
 static bool use_labels;
-/* #endif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
-
-#else /* if SENSORS_API_VERSION >= 0x500 */
-#error "This version of libsensors is not supported yet. Please report this " \
-	"as bug."
 #endif
 
 static featurelist_t *first_feature;
@@ -223,7 +218,7 @@ static int sensors_config(const char *key, const char *value) {
     if (IS_TRUE(value))
       ignorelist_set_invert(sensor_list, 0);
   }
-#if (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+#if (SENSORS_API_VERSION >= 0x400)
   else if (strcasecmp(key, "UseLabels") == 0) {
     use_labels = IS_TRUE(value);
   }
@@ -351,7 +346,7 @@ static int sensors_load_conf(void) {
   }   /* while sensors_get_detected_chips */
 /* #endif SENSORS_API_VERSION < 0x400 */
 
-#elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+#elif (SENSORS_API_VERSION >= 0x400)
   chip_num = 0;
   while ((chip = sensors_get_detected_chips(NULL, &chip_num)) != NULL) {
     const sensors_feature *feature;
@@ -414,7 +409,7 @@ static int sensors_load_conf(void) {
       } /* while (subfeature) */
     }   /* while (feature) */
   }     /* while (chip) */
-#endif /* (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
+#endif /* (SENSORS_API_VERSION >= 0x400) */
 
   if (first_feature == NULL) {
     sensors_cleanup();
@@ -489,7 +484,7 @@ static int sensors_read(void) {
   } /* for fl = first_feature .. NULL */
 /* #endif SENSORS_API_VERSION < 0x400 */
 
-#elif (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500)
+#elif (SENSORS_API_VERSION >= 0x400)
   for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {
     double value;
     int status;
@@ -536,7 +531,7 @@ static int sensors_read(void) {
 
     sensors_submit(plugin_instance, type, type_instance, value);
   } /* for fl = first_feature .. NULL */
-#endif /* (SENSORS_API_VERSION >= 0x400) && (SENSORS_API_VERSION < 0x500) */
+#endif /* (SENSORS_API_VERSION >= 0x400) */
 
   return 0;
 } /* int sensors_read */
