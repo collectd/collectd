@@ -63,6 +63,7 @@ typedef enum iface_counter {
   tx_512_to_1023_packets,
   tx_1024_to_1522_packets,
   tx_1523_to_max_packets,
+  rx_multicast_packets,
   tx_multicast_packets,
   rx_broadcast_packets,
   tx_broadcast_packets,
@@ -70,6 +71,21 @@ typedef enum iface_counter {
   rx_oversize_errors,
   rx_fragmented_errors,
   rx_jabber_errors,
+  rx_error_bytes,
+  rx_l3_l4_xsum_error,
+  rx_management_dropped,
+  rx_mbuf_allocation_errors,
+  rx_total_bytes,
+  rx_total_missed_packets,
+  rx_undersize_errors,
+  rx_management_packets,
+  tx_management_packets,
+  rx_good_bytes,
+  tx_good_bytes,
+  rx_good_packets,
+  tx_good_packets,
+  rx_total_packets,
+  tx_total_packets,
   __iface_counter_max
 } iface_counter;
 
@@ -129,6 +145,7 @@ static const char *const iface_counter_table[IFACE_COUNTER_COUNT] = {
     cnt_str(tx_512_to_1023_packets),
     cnt_str(tx_1024_to_1522_packets),
     cnt_str(tx_1523_to_max_packets),
+    cnt_str(rx_multicast_packets),
     cnt_str(tx_multicast_packets),
     cnt_str(rx_broadcast_packets),
     cnt_str(tx_broadcast_packets),
@@ -136,6 +153,21 @@ static const char *const iface_counter_table[IFACE_COUNTER_COUNT] = {
     cnt_str(rx_oversize_errors),
     cnt_str(rx_fragmented_errors),
     cnt_str(rx_jabber_errors),
+    cnt_str(rx_error_bytes),
+    cnt_str(rx_l3_l4_xsum_error),
+    cnt_str(rx_management_dropped),
+    cnt_str(rx_mbuf_allocation_errors),
+    cnt_str(rx_total_bytes),
+    cnt_str(rx_total_missed_packets),
+    cnt_str(rx_undersize_errors),
+    cnt_str(rx_management_packets),
+    cnt_str(tx_management_packets),
+    cnt_str(rx_good_bytes),
+    cnt_str(tx_good_bytes),
+    cnt_str(rx_good_packets),
+    cnt_str(tx_good_packets),
+    cnt_str(rx_total_packets),
+    cnt_str(tx_total_packets),
 };
 
 #undef cnt_str
@@ -292,8 +324,6 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
     ovs_stats_submit_two(devname, "if_packets", "broadcast_packets",
                          iface->stats[rx_broadcast_packets],
                          iface->stats[tx_broadcast_packets], meta);
-    ovs_stats_submit_one(devname, "if_multicast", "tx_multicast_packets",
-                         iface->stats[tx_multicast_packets], meta);
     ovs_stats_submit_one(devname, "if_rx_errors", "rx_undersized_errors",
                          iface->stats[rx_undersized_errors], meta);
     ovs_stats_submit_one(devname, "if_rx_errors", "rx_oversize_errors",
@@ -302,6 +332,35 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
                          iface->stats[rx_fragmented_errors], meta);
     ovs_stats_submit_one(devname, "if_rx_errors", "rx_jabber_errors",
                          iface->stats[rx_jabber_errors], meta);
+    ovs_stats_submit_one(devname, "if_rx_octets", "rx_error_bytes",
+                         iface->stats[rx_error_bytes], meta);
+    ovs_stats_submit_one(devname, "if_errors", "rx_l3_l4_xsum_error",
+                         iface->stats[rx_l3_l4_xsum_error], meta);
+    ovs_stats_submit_one(devname, "if_dropped", "rx_management_dropped",
+                         iface->stats[rx_management_dropped], meta);
+    ovs_stats_submit_one(devname, "if_errors", "rx_mbuf_allocation_errors",
+                         iface->stats[rx_mbuf_allocation_errors], meta);
+    ovs_stats_submit_one(devname, "if_octets", "rx_total_bytes",
+                         iface->stats[rx_total_bytes], meta);
+    ovs_stats_submit_one(devname, "if_packets", "rx_total_missed_packets",
+                         iface->stats[rx_total_missed_packets], meta);
+    ovs_stats_submit_one(devname, "if_rx_errors", "rx_undersize_errors",
+                         iface->stats[rx_undersize_errors], meta);
+    ovs_stats_submit_two(devname, "if_packets", "management_packets",
+                         iface->stats[rx_management_packets],
+                         iface->stats[tx_management_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "multicast_packets",
+                         iface->stats[rx_multicast_packets],
+                         iface->stats[tx_multicast_packets], meta);
+    ovs_stats_submit_two(devname, "if_octets", "good_bytes",
+                         iface->stats[rx_good_bytes],
+                         iface->stats[tx_good_bytes], meta);
+    ovs_stats_submit_two(devname, "if_packets", "good_packets",
+                         iface->stats[rx_good_packets],
+                         iface->stats[tx_good_packets], meta);
+    ovs_stats_submit_two(devname, "if_packets", "total_packets",
+                         iface->stats[rx_total_packets],
+                         iface->stats[tx_total_packets], meta);
 
     meta_data_destroy(meta);
   }
@@ -404,9 +463,6 @@ static void ovs_stats_submit_port(port_list_t *port) {
       ovs_stats_get_port_stat_value(port, rx_broadcast_packets),
       ovs_stats_get_port_stat_value(port, tx_broadcast_packets), meta);
   ovs_stats_submit_one(
-      devname, "if_multicast", "tx_multicast_packets",
-      ovs_stats_get_port_stat_value(port, tx_multicast_packets), meta);
-  ovs_stats_submit_one(
       devname, "if_rx_errors", "rx_undersized_errors",
       ovs_stats_get_port_stat_value(port, rx_undersized_errors), meta);
   ovs_stats_submit_one(devname, "if_rx_errors", "rx_oversize_errors",
@@ -417,6 +473,47 @@ static void ovs_stats_submit_port(port_list_t *port) {
       ovs_stats_get_port_stat_value(port, rx_fragmented_errors), meta);
   ovs_stats_submit_one(devname, "if_rx_errors", "rx_jabber_errors",
                        ovs_stats_get_port_stat_value(port, rx_jabber_errors),
+                       meta);
+  ovs_stats_submit_one(devname, "if_rx_octets", "rx_error_bytes",
+                       ovs_stats_get_port_stat_value(port, rx_error_bytes),
+                       meta);
+  ovs_stats_submit_one(devname, "if_errors", "rx_l3_l4_xsum_error",
+                       ovs_stats_get_port_stat_value(port, rx_l3_l4_xsum_error),
+                       meta);
+  ovs_stats_submit_one(
+      devname, "if_dropped", "rx_management_dropped",
+      ovs_stats_get_port_stat_value(port, rx_management_dropped), meta);
+  ovs_stats_submit_one(
+      devname, "if_errors", "rx_mbuf_allocation_errors",
+      ovs_stats_get_port_stat_value(port, rx_mbuf_allocation_errors), meta);
+  ovs_stats_submit_one(devname, "if_octets", "rx_total_bytes",
+                       ovs_stats_get_port_stat_value(port, rx_total_bytes),
+                       meta);
+  ovs_stats_submit_one(
+      devname, "if_packets", "rx_total_missed_packets",
+      ovs_stats_get_port_stat_value(port, rx_total_missed_packets), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "rx_undersize_errors",
+                       ovs_stats_get_port_stat_value(port, rx_undersize_errors),
+                       meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "management_packets",
+      ovs_stats_get_port_stat_value(port, rx_management_packets),
+      ovs_stats_get_port_stat_value(port, tx_management_packets), meta);
+  ovs_stats_submit_two(
+      devname, "if_packets", "multicast_packets",
+      ovs_stats_get_port_stat_value(port, rx_multicast_packets),
+      ovs_stats_get_port_stat_value(port, tx_multicast_packets), meta);
+  ovs_stats_submit_two(devname, "if_octets", "good_bytes",
+                       ovs_stats_get_port_stat_value(port, rx_good_bytes),
+                       ovs_stats_get_port_stat_value(port, tx_good_bytes),
+                       meta);
+  ovs_stats_submit_two(devname, "if_packets", "good_packets",
+                       ovs_stats_get_port_stat_value(port, rx_good_packets),
+                       ovs_stats_get_port_stat_value(port, tx_good_packets),
+                       meta);
+  ovs_stats_submit_two(devname, "if_packets", "total_packets",
+                       ovs_stats_get_port_stat_value(port, rx_total_packets),
+                       ovs_stats_get_port_stat_value(port, tx_total_packets),
                        meta);
 
   meta_data_destroy(meta);
