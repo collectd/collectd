@@ -232,10 +232,10 @@ static void ovs_stats_submit_two(const char *dev, const char *type,
   plugin_dispatch_values(&vl);
 }
 
-static void ovs_stats_submit_interfaces(bridge_list_t *bridge,
-                                        port_list_t *port) {
+static void ovs_stats_submit_interfaces(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
 
+  bridge_list_t *bridge = port->br;
   for (interface_list_t *iface = port->iface; iface != NULL;
        iface = iface->next) {
     meta_data_t *meta = meta_data_create();
@@ -322,7 +322,7 @@ static int ovs_stats_get_port_stat_value(port_list_t *port,
   return value;
 }
 
-static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
+static void ovs_stats_submit_port(port_list_t *port) {
   char devname[PORT_NAME_SIZE_MAX * 2];
 
   meta_data_t *meta = meta_data_create();
@@ -348,6 +348,7 @@ static void ovs_stats_submit_port(bridge_list_t *bridge, port_list_t *port) {
       i++;
     }
   }
+  bridge_list_t *bridge = port->br;
   snprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
   ovs_stats_submit_one(devname, "if_collisions", NULL,
                        ovs_stats_get_port_stat_value(port, collisions), meta);
@@ -545,7 +546,6 @@ static int ovs_stats_is_monitored_bridge(const char *br_name) {
 
   return 0;
 }
-
 
 /* Delete bridge */
 static int ovs_stats_del_bridge(yajl_val bridge) {
@@ -1279,26 +1279,22 @@ static int ovs_stats_plugin_init(void) {
 
 /* OvS stats read callback. Read bridge/port information and submit it*/
 static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
-  bridge_list_t *bridge;
-  port_list_t *port;
-
   pthread_mutex_lock(&g_stats_lock);
-  for (bridge = g_bridge_list_head; bridge != NULL; bridge = bridge->next) {
-    for (port = g_port_list_head; port != NULL; port = port->next) {
-      if (port->br != bridge)
-        continue;
+  for (port_list_t *port = g_port_list_head; port != NULL; port = port->next) {
+    if (strlen(port->name) == 0)
+      /* Skip port w/o name. This is possible when read callback
+       * is called after Interface Table update callback but before
+       * Port table Update callback. Will add this port on next read */
+      continue;
 
-      if (strlen(port->name) == 0)
-        /* Skip port w/o name. This is possible when read callback
-         * is called after Interface Table update callback but before
-         * Port table Update callback. Will add this port on next read */
-        continue;
+    /* Skip port if it has no bridge */
+    if (!port->br)
+      continue;
 
-      ovs_stats_submit_port(bridge, port);
+    ovs_stats_submit_port(port);
 
-      if (interface_stats)
-        ovs_stats_submit_interfaces(bridge, port);
-    }
+    if (interface_stats)
+      ovs_stats_submit_interfaces(port);
   }
   pthread_mutex_unlock(&g_stats_lock);
   return 0;
