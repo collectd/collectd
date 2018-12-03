@@ -474,27 +474,27 @@ static void ovs_stats_submit_port(port_list_t *port) {
   ovs_stats_submit_one(devname, "if_rx_errors", "rx_jabber_errors",
                        ovs_stats_get_port_stat_value(port, rx_jabber_errors),
                        meta);
-  ovs_stats_submit_one(
-      devname, "if_rx_octets", "rx_error_bytes",
-      ovs_stats_get_port_stat_value(port, rx_error_bytes), meta);
-  ovs_stats_submit_one(
-      devname, "if_errors", "rx_l3_l4_xsum_error",
-      ovs_stats_get_port_stat_value(port, rx_l3_l4_xsum_error), meta);
+  ovs_stats_submit_one(devname, "if_rx_octets", "rx_error_bytes",
+                       ovs_stats_get_port_stat_value(port, rx_error_bytes),
+                       meta);
+  ovs_stats_submit_one(devname, "if_errors", "rx_l3_l4_xsum_error",
+                       ovs_stats_get_port_stat_value(port, rx_l3_l4_xsum_error),
+                       meta);
   ovs_stats_submit_one(
       devname, "if_dropped", "rx_management_dropped",
       ovs_stats_get_port_stat_value(port, rx_management_dropped), meta);
   ovs_stats_submit_one(
       devname, "if_errors", "rx_mbuf_allocation_errors",
       ovs_stats_get_port_stat_value(port, rx_mbuf_allocation_errors), meta);
-  ovs_stats_submit_one(
-      devname, "if_octets", "rx_total_bytes",
-      ovs_stats_get_port_stat_value(port, rx_total_bytes), meta);
+  ovs_stats_submit_one(devname, "if_octets", "rx_total_bytes",
+                       ovs_stats_get_port_stat_value(port, rx_total_bytes),
+                       meta);
   ovs_stats_submit_one(
       devname, "if_packets", "rx_total_missed_packets",
       ovs_stats_get_port_stat_value(port, rx_total_missed_packets), meta);
-  ovs_stats_submit_one(
-      devname, "if_rx_errors", "rx_undersize_errors",
-      ovs_stats_get_port_stat_value(port, rx_undersize_errors), meta);
+  ovs_stats_submit_one(devname, "if_rx_errors", "rx_undersize_errors",
+                       ovs_stats_get_port_stat_value(port, rx_undersize_errors),
+                       meta);
   ovs_stats_submit_two(
       devname, "if_packets", "management_packets",
       ovs_stats_get_port_stat_value(port, rx_management_packets),
@@ -503,18 +503,18 @@ static void ovs_stats_submit_port(port_list_t *port) {
       devname, "if_packets", "multicast_packets",
       ovs_stats_get_port_stat_value(port, rx_multicast_packets),
       ovs_stats_get_port_stat_value(port, tx_multicast_packets), meta);
-  ovs_stats_submit_two(
-      devname, "if_octets", "good_bytes",
-      ovs_stats_get_port_stat_value(port, rx_good_bytes),
-      ovs_stats_get_port_stat_value(port, tx_good_bytes), meta);
-  ovs_stats_submit_two(
-      devname, "if_packets", "good_packets",
-      ovs_stats_get_port_stat_value(port, rx_good_packets),
-      ovs_stats_get_port_stat_value(port, tx_good_packets), meta);
-  ovs_stats_submit_two(
-      devname, "if_packets", "total_packets",
-      ovs_stats_get_port_stat_value(port, rx_total_packets),
-      ovs_stats_get_port_stat_value(port, tx_total_packets), meta);
+  ovs_stats_submit_two(devname, "if_octets", "good_bytes",
+                       ovs_stats_get_port_stat_value(port, rx_good_bytes),
+                       ovs_stats_get_port_stat_value(port, tx_good_bytes),
+                       meta);
+  ovs_stats_submit_two(devname, "if_packets", "good_packets",
+                       ovs_stats_get_port_stat_value(port, rx_good_packets),
+                       ovs_stats_get_port_stat_value(port, tx_good_packets),
+                       meta);
+  ovs_stats_submit_two(devname, "if_packets", "total_packets",
+                       ovs_stats_get_port_stat_value(port, rx_total_packets),
+                       ovs_stats_get_port_stat_value(port, tx_total_packets),
+                       meta);
 
   meta_data_destroy(meta);
 }
