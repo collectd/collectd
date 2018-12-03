@@ -80,7 +80,6 @@ typedef enum iface_counter {
 
 typedef struct interface_s {
   char name[PORT_NAME_SIZE_MAX];      /* Interface name */
-  char port_uuid[UUID_SIZE];          /* Port table _uuid */
   char iface_uuid[UUID_SIZE];         /* Interface table uuid */
   char ex_iface_id[UUID_SIZE];        /* External iface id */
   char ex_vm_id[UUID_SIZE];           /* External vm id */
@@ -489,7 +488,6 @@ static interface_list_t *ovs_stats_new_port_interface(port_list_t *port,
     }
     memset(iface->stats, -1, sizeof(int64_t[IFACE_COUNTER_COUNT]));
     sstrncpy(iface->iface_uuid, uuid, sizeof(iface->iface_uuid));
-    sstrncpy(iface->port_uuid, port->port_uuid, sizeof(iface->port_uuid));
     pthread_mutex_lock(&g_stats_lock);
     interface_list_t *iface_head = port->iface;
     iface->next = iface_head;
