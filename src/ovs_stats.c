@@ -579,7 +579,6 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
   const char *new[] = {"new", NULL};
   const char *name[] = {"name", NULL};
   const char *ports[] = {"ports", NULL};
-  bridge_list_t *br = NULL;
 
   if (!bridge || !YAJL_IS_OBJECT(bridge))
     goto failure;
@@ -589,33 +588,35 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
     return 0;
 
   yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
-  if (br_name && YAJL_IS_STRING(br_name)) {
-    br = ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
-    pthread_mutex_lock(&g_stats_lock);
-    if (br == NULL) {
-      br = calloc(1, sizeof(*br));
-      if (!br) {
-        pthread_mutex_unlock(&g_stats_lock);
-        ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
-        return -1;
-      }
+  if (!br_name || !YAJL_IS_STRING(br_name))
+    return 0;
 
-      char *tmp = YAJL_GET_STRING(br_name);
-      if (tmp != NULL)
-        br->name = strdup(tmp);
-
-      if (br->name == NULL) {
-        sfree(br);
-        pthread_mutex_unlock(&g_stats_lock);
-        ERROR("%s: strdup failed.", plugin_name);
-        return -1;
-      }
-
-      br->next = g_bridge_list_head;
-      g_bridge_list_head = br;
+  bridge_list_t *br =
+      ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
+  pthread_mutex_lock(&g_stats_lock);
+  if (br == NULL) {
+    br = calloc(1, sizeof(*br));
+    if (!br) {
+      pthread_mutex_unlock(&g_stats_lock);
+      ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
+      return -1;
     }
-    pthread_mutex_unlock(&g_stats_lock);
+
+    char *tmp = YAJL_GET_STRING(br_name);
+    if (tmp != NULL)
+      br->name = strdup(tmp);
+
+    if (br->name == NULL) {
+      sfree(br);
+      pthread_mutex_unlock(&g_stats_lock);
+      ERROR("%s: strdup failed.", plugin_name);
+      return -1;
+    }
+
+    br->next = g_bridge_list_head;
+    g_bridge_list_head = br;
   }
+  pthread_mutex_unlock(&g_stats_lock);
 
   yajl_val br_ports = yajl_tree_get(row, ports, yajl_t_array);
   if (!br_ports || !YAJL_IS_ARRAY(br_ports))
