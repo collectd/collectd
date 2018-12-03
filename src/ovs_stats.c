@@ -80,7 +80,6 @@ typedef enum iface_counter {
 
 typedef struct interface_s {
   char name[PORT_NAME_SIZE_MAX];      /* Interface name */
-  char port_uuid[UUID_SIZE];          /* Port table _uuid */
   char iface_uuid[UUID_SIZE];         /* Interface table uuid */
   char ex_iface_id[UUID_SIZE];        /* External iface id */
   char ex_vm_id[UUID_SIZE];           /* External vm id */
@@ -489,7 +488,6 @@ static interface_list_t *ovs_stats_new_port_interface(port_list_t *port,
     }
     memset(iface->stats, -1, sizeof(int64_t[IFACE_COUNTER_COUNT]));
     sstrncpy(iface->iface_uuid, uuid, sizeof(iface->iface_uuid));
-    sstrncpy(iface->port_uuid, port->port_uuid, sizeof(iface->port_uuid));
     pthread_mutex_lock(&g_stats_lock);
     interface_list_t *iface_head = port->iface;
     iface->next = iface_head;
@@ -546,31 +544,33 @@ static int ovs_stats_del_bridge(yajl_val bridge) {
   const char *old[] = {"old", NULL};
   const char *name[] = {"name", NULL};
 
-  yajl_val row;
-
-  if (bridge && YAJL_IS_OBJECT(bridge)) {
-    row = yajl_tree_get(bridge, old, yajl_t_object);
-    if (row && YAJL_IS_OBJECT(row)) {
-      yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
-      if (br_name && YAJL_IS_STRING(br_name)) {
-        bridge_list_t *prev_br = g_bridge_list_head;
-        for (bridge_list_t *br = g_bridge_list_head; br != NULL;
-             prev_br = br, br = br->next) {
-          if ((strncmp(br->name, br_name->u.string, strlen(br->name)) == 0) &&
-              strlen(br->name) == strlen(br_name->u.string)) {
-            if (br == g_bridge_list_head)
-              g_bridge_list_head = br->next;
-            else
-              prev_br->next = br->next;
-            sfree(br->name);
-            sfree(br);
-            break;
-          }
-        }
-      }
-    }
-  } else
+  if (!bridge || !YAJL_IS_OBJECT(bridge)) {
     WARNING("%s: Incorrect data for deleting bridge", plugin_name);
+    return 0;
+  }
+
+  yajl_val row = yajl_tree_get(bridge, old, yajl_t_object);
+  if (!row || !YAJL_IS_OBJECT(row))
+    return 0;
+
+  yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
+  if (!br_name || !YAJL_IS_STRING(br_name))
+    return 0;
+
+  bridge_list_t *prev_br = g_bridge_list_head;
+  for (bridge_list_t *br = g_bridge_list_head; br != NULL;
+       prev_br = br, br = br->next) {
+    if ((strncmp(br->name, br_name->u.string, strlen(br->name)) == 0) &&
+        strlen(br->name) == strlen(br_name->u.string)) {
+      if (br == g_bridge_list_head)
+        g_bridge_list_head = br->next;
+      else
+        prev_br->next = br->next;
+      sfree(br->name);
+      sfree(br);
+      break;
+    }
+  }
   return 0;
 }
 
@@ -581,62 +581,66 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
   const char *ports[] = {"ports", NULL};
   bridge_list_t *br = NULL;
 
-  if (bridge && YAJL_IS_OBJECT(bridge)) {
-    yajl_val row = yajl_tree_get(bridge, new, yajl_t_object);
-    if (row && YAJL_IS_OBJECT(row)) {
-      yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
-      yajl_val br_ports = yajl_tree_get(row, ports, yajl_t_array);
-      if (br_name && YAJL_IS_STRING(br_name)) {
-        br = ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
-        pthread_mutex_lock(&g_stats_lock);
-        if (br == NULL) {
-          br = calloc(1, sizeof(*br));
-          if (!br) {
-            pthread_mutex_unlock(&g_stats_lock);
-            ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
-            return -1;
-          }
-          char *tmp = YAJL_GET_STRING(br_name);
+  if (!bridge || !YAJL_IS_OBJECT(bridge))
+    goto failure;
 
-          if (tmp != NULL)
-            br->name = strdup(tmp);
-          if (br->name == NULL) {
-            sfree(br);
-            pthread_mutex_unlock(&g_stats_lock);
-            ERROR("%s: strdup failed.", plugin_name);
-            return -1;
-          }
-          br->next = g_bridge_list_head;
-          g_bridge_list_head = br;
-        }
+  yajl_val row = yajl_tree_get(bridge, new, yajl_t_object);
+  if (!row || !YAJL_IS_OBJECT(row))
+    return 0;
+
+  yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
+  if (br_name && YAJL_IS_STRING(br_name)) {
+    br = ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
+    pthread_mutex_lock(&g_stats_lock);
+    if (br == NULL) {
+      br = calloc(1, sizeof(*br));
+      if (!br) {
         pthread_mutex_unlock(&g_stats_lock);
+        ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
+        return -1;
       }
-      if (br_ports && YAJL_IS_ARRAY(br_ports)) {
-        char *tmp = YAJL_GET_STRING(br_ports->u.array.values[0]);
-        if (tmp != NULL && strcmp("set", tmp) == 0) {
-          yajl_val *array = YAJL_GET_ARRAY(br_ports)->values;
-          size_t array_len = YAJL_GET_ARRAY(br_ports)->len;
-          if (array != NULL && array_len > 0 && YAJL_IS_ARRAY(array[1])) {
-            if (YAJL_GET_ARRAY(array[1]) == NULL)
-              goto failure;
-            else {
-              yajl_val *ports_arr = YAJL_GET_ARRAY(array[1])->values;
-              size_t ports_num = YAJL_GET_ARRAY(array[1])->len;
-              for (size_t i = 0; i < ports_num && ports_arr != NULL; i++) {
-                tmp = YAJL_GET_STRING(ports_arr[i]->u.array.values[1]);
-                if (tmp != NULL)
-                  ovs_stats_new_port(br, tmp);
-                else
-                  goto failure;
-              }
-            }
-          }
-        } else
-          ovs_stats_new_port(br, YAJL_GET_STRING(br_ports->u.array.values[1]));
+
+      char *tmp = YAJL_GET_STRING(br_name);
+      if (tmp != NULL)
+        br->name = strdup(tmp);
+
+      if (br->name == NULL) {
+        sfree(br);
+        pthread_mutex_unlock(&g_stats_lock);
+        ERROR("%s: strdup failed.", plugin_name);
+        return -1;
+      }
+
+      br->next = g_bridge_list_head;
+      g_bridge_list_head = br;
+    }
+    pthread_mutex_unlock(&g_stats_lock);
+  }
+
+  yajl_val br_ports = yajl_tree_get(row, ports, yajl_t_array);
+  if (!br_ports || !YAJL_IS_ARRAY(br_ports))
+    return 0;
+
+  char *tmp = YAJL_GET_STRING(br_ports->u.array.values[0]);
+  if (tmp != NULL && strcmp("set", tmp) == 0) {
+    yajl_val *array = YAJL_GET_ARRAY(br_ports)->values;
+    size_t array_len = YAJL_GET_ARRAY(br_ports)->len;
+    if (array != NULL && array_len > 0 && YAJL_IS_ARRAY(array[1])) {
+      if (YAJL_GET_ARRAY(array[1]) == NULL)
+        goto failure;
+
+      yajl_val *ports_arr = YAJL_GET_ARRAY(array[1])->values;
+      size_t ports_num = YAJL_GET_ARRAY(array[1])->len;
+      for (size_t i = 0; i < ports_num && ports_arr != NULL; i++) {
+        tmp = YAJL_GET_STRING(ports_arr[i]->u.array.values[1]);
+        if (tmp != NULL)
+          ovs_stats_new_port(br, tmp);
+        else
+          goto failure;
       }
     }
   } else {
-    goto failure;
+    ovs_stats_new_port(br, YAJL_GET_STRING(br_ports->u.array.values[1]));
   }
 
   return 0;
@@ -673,14 +677,14 @@ static void ovs_stats_bridge_table_change_cb(yajl_val jupdates) {
     }
    */
   const char *path[] = {"Bridge", NULL};
-
   yajl_val bridges = yajl_tree_get(jupdates, path, yajl_t_object);
 
-  if (bridges && YAJL_IS_OBJECT(bridges)) {
-    for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
-      yajl_val bridge = YAJL_GET_OBJECT(bridges)->values[i];
-      ovs_stats_update_bridge(bridge);
-    }
+  if (!bridges || !YAJL_IS_OBJECT(bridges))
+    return;
+
+  for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
+    yajl_val bridge = YAJL_GET_OBJECT(bridges)->values[i];
+    ovs_stats_update_bridge(bridge);
   }
 }
 
@@ -688,16 +692,15 @@ static void ovs_stats_bridge_table_change_cb(yajl_val jupdates) {
 static void ovs_stats_bridge_table_delete_cb(yajl_val jupdates) {
   const char *path[] = {"Bridge", NULL};
   yajl_val bridges = yajl_tree_get(jupdates, path, yajl_t_object);
-  yajl_val bridge;
-  if (bridges && YAJL_IS_OBJECT(bridges)) {
-    pthread_mutex_lock(&g_stats_lock);
-    for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
-      bridge = YAJL_GET_OBJECT(bridges)->values[i];
-      ovs_stats_del_bridge(bridge);
-    }
-    pthread_mutex_unlock(&g_stats_lock);
+  if (!bridges || !YAJL_IS_OBJECT(bridges))
+    return;
+
+  pthread_mutex_lock(&g_stats_lock);
+  for (size_t i = 0; i < YAJL_GET_OBJECT(bridges)->len; i++) {
+    yajl_val bridge = YAJL_GET_OBJECT(bridges)->values[i];
+    ovs_stats_del_bridge(bridge);
   }
-  return;
+  pthread_mutex_unlock(&g_stats_lock);
 }
 
 /* Handle JSON with Bridge table initial values */
@@ -714,68 +717,60 @@ static void ovs_stats_bridge_table_result_cb(yajl_val jresult,
 static int ovs_stats_update_port(const char *uuid, yajl_val port) {
   const char *new[] = {"new", NULL};
   const char *name[] = {"name", NULL};
-  yajl_val row;
-  port_list_t *portentry = NULL;
-  if (port && YAJL_IS_OBJECT(port)) {
-    row = yajl_tree_get(port, new, yajl_t_object);
-    if (row && YAJL_IS_OBJECT(row)) {
-      yajl_val port_name = yajl_tree_get(row, name, yajl_t_string);
-      if (port_name && YAJL_IS_STRING(port_name)) {
-        portentry = ovs_stats_get_port(uuid);
-        if (portentry == NULL)
-          portentry = ovs_stats_new_port(NULL, uuid);
-        if (portentry) {
-          pthread_mutex_lock(&g_stats_lock);
-          sstrncpy(portentry->name, YAJL_GET_STRING(port_name),
-                   sizeof(portentry->name));
-          pthread_mutex_unlock(&g_stats_lock);
 
-          yajl_val ifaces_root = ovs_utils_get_value_by_key(row, "interfaces");
-          char *ifaces_root_key =
-              YAJL_GET_STRING(YAJL_GET_ARRAY(ifaces_root)->values[0]);
-
-          char *iface_uuid_str = NULL;
-
-          if (strcmp("set", ifaces_root_key) == 0) {
-            // ifaces_root is ["set", [[ "uuid", "<some_uuid>" ], [ "uuid",
-            // "<another_uuid>" ], ... ]]
-            yajl_val ifaces_list = YAJL_GET_ARRAY(ifaces_root)->values[1];
-
-            // ifaces_list is [[ "uuid", "<some_uuid>" ], [ "uuid",
-            // "<another_uuid>" ], ... ]]
-            for (int i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
-              yajl_val iface_tuple = YAJL_GET_ARRAY(ifaces_list)->values[i];
-
-              // iface_tuple is [ "uuid", "<some_uuid>" ]
-              iface_uuid_str =
-                  YAJL_GET_STRING(YAJL_GET_ARRAY(iface_tuple)->values[1]);
-
-              interface_list_t *iface =
-                  ovs_stats_get_port_interface(portentry, iface_uuid_str);
-
-              if (iface == NULL) {
-                iface = ovs_stats_new_port_interface(portentry, iface_uuid_str);
-              }
-            }
-          } else {
-            // ifaces_root is [ "uuid", "<some_uuid>" ]
-            iface_uuid_str =
-                YAJL_GET_STRING(YAJL_GET_ARRAY(ifaces_root)->values[1]);
-
-            interface_list_t *iface =
-                ovs_stats_get_port_interface(portentry, iface_uuid_str);
-
-            if (iface == NULL) {
-              iface = ovs_stats_new_port_interface(portentry, iface_uuid_str);
-            }
-          }
-        }
-      }
-    }
-  } else {
+  if (!port || !YAJL_IS_OBJECT(port)) {
     ERROR("Incorrect JSON Port data");
     return -1;
   }
+
+  yajl_val row = yajl_tree_get(port, new, yajl_t_object);
+  if (!row || !YAJL_IS_OBJECT(row))
+    return 0;
+
+  yajl_val port_name = yajl_tree_get(row, name, yajl_t_string);
+  if (!port_name || !YAJL_IS_STRING(port_name))
+    return 0;
+
+  /* Create or get port by port uuid */
+  port_list_t *portentry = ovs_stats_new_port(NULL, uuid);
+  if (!portentry)
+    return 0;
+
+  pthread_mutex_lock(&g_stats_lock);
+  sstrncpy(portentry->name, YAJL_GET_STRING(port_name),
+           sizeof(portentry->name));
+  pthread_mutex_unlock(&g_stats_lock);
+
+  yajl_val ifaces_root = ovs_utils_get_value_by_key(row, "interfaces");
+  char *ifaces_root_key =
+      YAJL_GET_STRING(YAJL_GET_ARRAY(ifaces_root)->values[0]);
+
+  if (strcmp("set", ifaces_root_key) == 0) {
+    // ifaces_root is ["set", [[ "uuid", "<some_uuid>" ], [ "uuid",
+    // "<another_uuid>" ], ... ]]
+    yajl_val ifaces_list = YAJL_GET_ARRAY(ifaces_root)->values[1];
+
+    // ifaces_list is [[ "uuid", "<some_uuid>" ], [ "uuid",
+    // "<another_uuid>" ], ... ]]
+    for (int i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
+      yajl_val iface_tuple = YAJL_GET_ARRAY(ifaces_list)->values[i];
+
+      // iface_tuple is [ "uuid", "<some_uuid>" ]
+      char *iface_uuid_str =
+          YAJL_GET_STRING(YAJL_GET_ARRAY(iface_tuple)->values[1]);
+
+      // Also checks if interface already registered
+      ovs_stats_new_port_interface(portentry, iface_uuid_str);
+    }
+  } else {
+    // ifaces_root is [ "uuid", "<some_uuid>" ]
+    char *iface_uuid_str =
+        YAJL_GET_STRING(YAJL_GET_ARRAY(ifaces_root)->values[1]);
+
+    // Also checks if interface already registered
+    ovs_stats_new_port_interface(portentry, iface_uuid_str);
+  }
+
   return 0;
 }
 
@@ -823,12 +818,12 @@ static void ovs_stats_port_table_change_cb(yajl_val jupdates) {
    */
   const char *path[] = {"Port", NULL};
   yajl_val ports = yajl_tree_get(jupdates, path, yajl_t_object);
-  yajl_val port;
-  if (ports && YAJL_IS_OBJECT(ports)) {
-    for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
-      port = YAJL_GET_OBJECT(ports)->values[i];
-      ovs_stats_update_port(YAJL_GET_OBJECT(ports)->keys[i], port);
-    }
+  if (!ports || !YAJL_IS_OBJECT(ports))
+    return;
+
+  for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
+    yajl_val port = YAJL_GET_OBJECT(ports)->values[i];
+    ovs_stats_update_port(YAJL_GET_OBJECT(ports)->keys[i], port);
   }
   return;
 }
@@ -846,11 +841,13 @@ static void ovs_stats_port_table_result_cb(yajl_val jresult, yajl_val jerror) {
 static void ovs_stats_port_table_delete_cb(yajl_val jupdates) {
   const char *path[] = {"Port", NULL};
   yajl_val ports = yajl_tree_get(jupdates, path, yajl_t_object);
+  if (!ports || !YAJL_IS_OBJECT(ports))
+    return;
+
   pthread_mutex_lock(&g_stats_lock);
-  if (ports && YAJL_IS_OBJECT(ports))
-    for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
-      ovs_stats_del_port(YAJL_GET_OBJECT(ports)->keys[i]);
-    }
+  for (size_t i = 0; i < YAJL_GET_OBJECT(ports)->len; i++) {
+    ovs_stats_del_port(YAJL_GET_OBJECT(ports)->keys[i]);
+  }
   pthread_mutex_unlock(&g_stats_lock);
   return;
 }
@@ -858,23 +855,22 @@ static void ovs_stats_port_table_delete_cb(yajl_val jupdates) {
 /* Update interface statistics */
 static int ovs_stats_update_iface_stats(interface_list_t *iface,
                                         yajl_val stats) {
-  yajl_val stat;
-  iface_counter counter_index = 0;
-  char *counter_name = NULL;
-  int64_t counter_value = 0;
-  if (stats && YAJL_IS_ARRAY(stats)) {
-    for (size_t i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
-      stat = YAJL_GET_ARRAY(stats)->values[i];
-      if (!YAJL_IS_ARRAY(stat))
-        return -1;
-      counter_name = YAJL_GET_STRING(YAJL_GET_ARRAY(stat)->values[0]);
-      counter_index = ovs_stats_counter_name_to_type(counter_name);
-      counter_value = YAJL_GET_INTEGER(YAJL_GET_ARRAY(stat)->values[1]);
-      if (counter_index == not_supported)
-        continue;
 
-      iface->stats[counter_index] = counter_value;
-    }
+  if (!stats || !YAJL_IS_ARRAY(stats))
+    return 0;
+
+  for (size_t i = 0; i < YAJL_GET_ARRAY(stats)->len; i++) {
+    yajl_val stat = YAJL_GET_ARRAY(stats)->values[i];
+    if (!YAJL_IS_ARRAY(stat))
+      return -1;
+
+    char *counter_name = YAJL_GET_STRING(YAJL_GET_ARRAY(stat)->values[0]);
+    iface_counter counter_index = ovs_stats_counter_name_to_type(counter_name);
+    int64_t counter_value = YAJL_GET_INTEGER(YAJL_GET_ARRAY(stat)->values[1]);
+    if (counter_index == not_supported)
+      continue;
+
+    iface->stats[counter_index] = counter_value;
   }
 
   return 0;
@@ -883,17 +879,15 @@ static int ovs_stats_update_iface_stats(interface_list_t *iface,
 /* Update interface external_ids */
 static int ovs_stats_update_iface_ext_ids(interface_list_t *iface,
                                           yajl_val ext_ids) {
-  yajl_val ext_id;
-  char *key;
-  char *value;
 
   if (ext_ids && YAJL_IS_ARRAY(ext_ids)) {
     for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
-      ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
+      yajl_val ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
       if (!YAJL_IS_ARRAY(ext_id))
         return -1;
-      key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
-      value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
+
+      char *key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
+      char *value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
       if (key && value) {
         if (strncmp(key, "iface-id", strlen(key)) == 0) {
           sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
@@ -927,17 +921,13 @@ static int ovs_stats_update_iface(yajl_val iface_obj) {
       YAJL_GET_ARRAY(iface_uuid)->len != 2)
     return 0;
 
-  char *iface_uuid_str = NULL;
-
-  iface_uuid_str = YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]);
-
+  char *iface_uuid_str = YAJL_GET_STRING(YAJL_GET_ARRAY(iface_uuid)->values[1]);
   if (iface_uuid_str == NULL) {
     ERROR("ovs_stats plugin: incorrect JSON interface data");
     return -1;
   }
 
   interface_list_t *iface = ovs_stats_get_interface(iface_uuid_str);
-
   if (iface == NULL)
     return 0;
 
@@ -969,6 +959,7 @@ static int ovs_stats_update_iface(yajl_val iface_obj) {
   if (iface_stats && YAJL_IS_ARRAY(iface_stats) &&
       YAJL_GET_ARRAY(iface_stats)->len == 2)
     ovs_stats_update_iface_stats(iface, YAJL_GET_ARRAY(iface_stats)->values[1]);
+
   if (iface_ext_ids && YAJL_IS_ARRAY(iface_ext_ids))
     ovs_stats_update_iface_ext_ids(iface,
                                    YAJL_GET_ARRAY(iface_ext_ids)->values[1]);
@@ -978,28 +969,28 @@ static int ovs_stats_update_iface(yajl_val iface_obj) {
 
 /* Delete interface */
 static int ovs_stats_del_interface(const char *uuid) {
-  port_list_t *port;
+  port_list_t *port = ovs_stats_get_port_by_interface_uuid(uuid);
 
-  port = ovs_stats_get_port_by_interface_uuid(uuid);
+  if (port == NULL)
+    return 0;
 
-  if (port != NULL) {
-    interface_list_t *prev_iface = NULL;
+  interface_list_t *prev_iface = NULL;
 
-    for (interface_list_t *iface = port->iface; iface != NULL;
-         iface = port->iface) {
-      if (strncmp(iface->iface_uuid, uuid, strlen(iface->iface_uuid))) {
+  for (interface_list_t *iface = port->iface; iface != NULL;
+       iface = port->iface) {
+    if (strncmp(iface->iface_uuid, uuid, strlen(iface->iface_uuid))) {
 
-        interface_list_t *del = iface;
+      interface_list_t *del = iface;
 
-        if (prev_iface == NULL)
-          port->iface = iface->next;
-        else
-          prev_iface->next = iface->next;
+      if (prev_iface == NULL)
+        port->iface = iface->next;
+      else
+        prev_iface->next = iface->next;
 
-        sfree(del);
-        break;
-      } else
-        prev_iface = iface;
+      sfree(del);
+      break;
+    } else {
+      prev_iface = iface;
     }
   }
 
@@ -1060,12 +1051,15 @@ static void ovs_stats_interface_table_change_cb(yajl_val jupdates) {
    */
   const char *path[] = {"Interface", NULL};
   yajl_val interfaces = yajl_tree_get(jupdates, path, yajl_t_object);
+  if (!interfaces || !YAJL_IS_OBJECT(interfaces))
+    return;
+
   pthread_mutex_lock(&g_stats_lock);
-  if (interfaces && YAJL_IS_OBJECT(interfaces))
-    for (size_t i = 0; i < YAJL_GET_OBJECT(interfaces)->len; i++) {
-      ovs_stats_update_iface(YAJL_GET_OBJECT(interfaces)->values[i]);
-    }
+  for (size_t i = 0; i < YAJL_GET_OBJECT(interfaces)->len; i++) {
+    ovs_stats_update_iface(YAJL_GET_OBJECT(interfaces)->values[i]);
+  }
   pthread_mutex_unlock(&g_stats_lock);
+
   return;
 }
 
@@ -1083,12 +1077,15 @@ static void ovs_stats_interface_table_result_cb(yajl_val jresult,
 static void ovs_stats_interface_table_delete_cb(yajl_val jupdates) {
   const char *path[] = {"Interface", NULL};
   yajl_val interfaces = yajl_tree_get(jupdates, path, yajl_t_object);
+  if (!interfaces || !YAJL_IS_OBJECT(interfaces))
+    return;
+
   pthread_mutex_lock(&g_stats_lock);
-  if (interfaces && YAJL_IS_OBJECT(interfaces))
-    for (size_t i = 0; i < YAJL_GET_OBJECT(interfaces)->len; i++) {
-      ovs_stats_del_interface(YAJL_GET_OBJECT(interfaces)->keys[i]);
-    }
+  for (size_t i = 0; i < YAJL_GET_OBJECT(interfaces)->len; i++) {
+    ovs_stats_del_interface(YAJL_GET_OBJECT(interfaces)->keys[i]);
+  }
   pthread_mutex_unlock(&g_stats_lock);
+
   return;
 }
 
@@ -1289,22 +1286,24 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
 
   pthread_mutex_lock(&g_stats_lock);
   for (bridge = g_bridge_list_head; bridge != NULL; bridge = bridge->next) {
-    if (ovs_stats_is_monitored_bridge(bridge->name)) {
-      for (port = g_port_list_head; port != NULL; port = port->next)
-        if (port->br == bridge) {
-          if (strlen(port->name) == 0)
-            /* Skip port w/o name. This is possible when read callback
-             * is called after Interface Table update callback but before
-             * Port table Update callback. Will add this port on next read */
-            continue;
-
-          ovs_stats_submit_port(bridge, port);
-
-          if (interface_stats)
-            ovs_stats_submit_interfaces(bridge, port);
-        }
-    } else
+    if (!ovs_stats_is_monitored_bridge(bridge->name))
       continue;
+
+    for (port = g_port_list_head; port != NULL; port = port->next) {
+      if (port->br != bridge)
+        continue;
+
+      if (strlen(port->name) == 0)
+        /* Skip port w/o name. This is possible when read callback
+         * is called after Interface Table update callback but before
+         * Port table Update callback. Will add this port on next read */
+        continue;
+
+      ovs_stats_submit_port(bridge, port);
+
+      if (interface_stats)
+        ovs_stats_submit_interfaces(bridge, port);
+    }
   }
   pthread_mutex_unlock(&g_stats_lock);
   return 0;
