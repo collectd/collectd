@@ -873,20 +873,21 @@ static int ovs_stats_update_iface_stats(interface_list_t *iface,
 static int ovs_stats_update_iface_ext_ids(interface_list_t *iface,
                                           yajl_val ext_ids) {
 
-  if (ext_ids && YAJL_IS_ARRAY(ext_ids)) {
-    for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
-      yajl_val ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
-      if (!YAJL_IS_ARRAY(ext_id))
-        return -1;
+  if (!ext_ids || !YAJL_IS_ARRAY(ext_ids))
+    return 0;
 
-      char *key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
-      char *value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
-      if (key && value) {
-        if (strncmp(key, "iface-id", strlen(key)) == 0) {
-          sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
-        } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
-          sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
-        }
+  for (size_t i = 0; i < YAJL_GET_ARRAY(ext_ids)->len; i++) {
+    yajl_val ext_id = YAJL_GET_ARRAY(ext_ids)->values[i];
+    if (!YAJL_IS_ARRAY(ext_id))
+      return -1;
+
+    char *key = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[0]);
+    char *value = YAJL_GET_STRING(YAJL_GET_ARRAY(ext_id)->values[1]);
+    if (key && value) {
+      if (strncmp(key, "iface-id", strlen(key)) == 0) {
+        sstrncpy(iface->ex_iface_id, value, sizeof(iface->ex_iface_id));
+      } else if (strncmp(key, "vm-uuid", strlen(key)) == 0) {
+        sstrncpy(iface->ex_vm_id, value, sizeof(iface->ex_vm_id));
       }
     }
   }
