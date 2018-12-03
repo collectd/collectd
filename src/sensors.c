@@ -47,109 +47,10 @@
 #define SENSORS_API_VERSION 0x000
 #endif
 
-/*
- * The sensors library prior to version 3.0 (internal version 0x400) didn't
- * report the type of values, only a name. The following lists are there to
- * convert from the names to the type. They are not used with the new
- * interface.
- */
-#if SENSORS_API_VERSION < 0x400
-static char *sensor_type_name_map[] = {
-#define SENSOR_TYPE_VOLTAGE 0
-    "voltage",
-#define SENSOR_TYPE_FANSPEED 1
-    "fanspeed",
-#define SENSOR_TYPE_TEMPERATURE 2
-    "temperature",
-#define SENSOR_TYPE_POWER 3
-    "power",
-#define SENSOR_TYPE_UNKNOWN 4
-    NULL};
-
-struct sensors_labeltypes_s {
-  char *label;
-  int type;
-};
-typedef struct sensors_labeltypes_s sensors_labeltypes_t;
-
-/* finite list of known labels extracted from lm_sensors */
-static sensors_labeltypes_t known_features[] = {
-    {"fan1", SENSOR_TYPE_FANSPEED},
-    {"fan2", SENSOR_TYPE_FANSPEED},
-    {"fan3", SENSOR_TYPE_FANSPEED},
-    {"fan4", SENSOR_TYPE_FANSPEED},
-    {"fan5", SENSOR_TYPE_FANSPEED},
-    {"fan6", SENSOR_TYPE_FANSPEED},
-    {"fan7", SENSOR_TYPE_FANSPEED},
-    {"AIN2", SENSOR_TYPE_VOLTAGE},
-    {"AIN1", SENSOR_TYPE_VOLTAGE},
-    {"in10", SENSOR_TYPE_VOLTAGE},
-    {"in9", SENSOR_TYPE_VOLTAGE},
-    {"in8", SENSOR_TYPE_VOLTAGE},
-    {"in7", SENSOR_TYPE_VOLTAGE},
-    {"in6", SENSOR_TYPE_VOLTAGE},
-    {"in5", SENSOR_TYPE_VOLTAGE},
-    {"in4", SENSOR_TYPE_VOLTAGE},
-    {"in3", SENSOR_TYPE_VOLTAGE},
-    {"in2", SENSOR_TYPE_VOLTAGE},
-    {"in0", SENSOR_TYPE_VOLTAGE},
-    {"CPU_Temp", SENSOR_TYPE_TEMPERATURE},
-    {"remote_temp", SENSOR_TYPE_TEMPERATURE},
-    {"temp1", SENSOR_TYPE_TEMPERATURE},
-    {"temp2", SENSOR_TYPE_TEMPERATURE},
-    {"temp3", SENSOR_TYPE_TEMPERATURE},
-    {"temp4", SENSOR_TYPE_TEMPERATURE},
-    {"temp5", SENSOR_TYPE_TEMPERATURE},
-    {"temp6", SENSOR_TYPE_TEMPERATURE},
-    {"temp7", SENSOR_TYPE_TEMPERATURE},
-    {"temp", SENSOR_TYPE_TEMPERATURE},
-    {"Vccp2", SENSOR_TYPE_VOLTAGE},
-    {"Vccp1", SENSOR_TYPE_VOLTAGE},
-    {"vdd", SENSOR_TYPE_VOLTAGE},
-    {"vid5", SENSOR_TYPE_VOLTAGE},
-    {"vid4", SENSOR_TYPE_VOLTAGE},
-    {"vid3", SENSOR_TYPE_VOLTAGE},
-    {"vid2", SENSOR_TYPE_VOLTAGE},
-    {"vid1", SENSOR_TYPE_VOLTAGE},
-    {"vid", SENSOR_TYPE_VOLTAGE},
-    {"vin4", SENSOR_TYPE_VOLTAGE},
-    {"vin3", SENSOR_TYPE_VOLTAGE},
-    {"vin2", SENSOR_TYPE_VOLTAGE},
-    {"vin1", SENSOR_TYPE_VOLTAGE},
-    {"voltbatt", SENSOR_TYPE_VOLTAGE},
-    {"volt12", SENSOR_TYPE_VOLTAGE},
-    {"volt5", SENSOR_TYPE_VOLTAGE},
-    {"vrm", SENSOR_TYPE_VOLTAGE},
-    {"5.0V", SENSOR_TYPE_VOLTAGE},
-    {"5V", SENSOR_TYPE_VOLTAGE},
-    {"3.3V", SENSOR_TYPE_VOLTAGE},
-    {"2.5V", SENSOR_TYPE_VOLTAGE},
-    {"2.0V", SENSOR_TYPE_VOLTAGE},
-    {"12V", SENSOR_TYPE_VOLTAGE},
-    {"power1", SENSOR_TYPE_POWER}};
-static int known_features_num = STATIC_ARRAY_SIZE(known_features);
-/* end new naming */
-#endif /* SENSORS_API_VERSION < 0x400 */
-
 static const char *config_keys[] = {"Sensor", "IgnoreSelected",
                                     "SensorConfigFile", "UseLabels"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
-#if SENSORS_API_VERSION < 0x400
-typedef struct featurelist {
-  const sensors_chip_name *chip;
-  const sensors_feature_data *data;
-  int type;
-  struct featurelist *next;
-} featurelist_t;
-
-#ifndef SENSORS_CONF_PATH
-#define SENSORS_CONF_PATH "/etc/sensors.conf"
-#endif
-static char *conffile = SENSORS_CONF_PATH;
-/* #endif SENSORS_API_VERSION < 0x400 */
-
-#elif (SENSORS_API_VERSION >= 0x400)
 typedef struct featurelist {
   const sensors_chip_name *chip;
   const sensors_feature *feature;
@@ -159,40 +60,9 @@ typedef struct featurelist {
 
 static char *conffile;
 static bool use_labels;
-#endif
 
 static featurelist_t *first_feature;
 static ignorelist_t *sensor_list;
-
-#if SENSORS_API_VERSION < 0x400
-/* full chip name logic borrowed from lm_sensors */
-static int sensors_snprintf_chip_name(char *buf, size_t buf_size,
-                                      const sensors_chip_name *chip) {
-  int status = -1;
-
-  if (chip->bus == SENSORS_CHIP_NAME_BUS_ISA) {
-    status = snprintf(buf, buf_size, "%s-isa-%04x", chip->prefix, chip->addr);
-  } else if (chip->bus == SENSORS_CHIP_NAME_BUS_DUMMY) {
-    status = snprintf(buf, buf_size, "%s-%s-%04x", chip->prefix, chip->busname,
-                      chip->addr);
-  } else {
-    status = snprintf(buf, buf_size, "%s-i2c-%d-%02x", chip->prefix, chip->bus,
-                      chip->addr);
-  }
-
-  return status;
-} /* int sensors_snprintf_chip_name */
-
-static int sensors_feature_name_to_type(const char *name) {
-  /* Yes, this is slow, but it's only ever done during initialization, so
-   * it's a one time cost.. */
-  for (int i = 0; i < known_features_num; i++)
-    if (strcasecmp(known_features[i].label, name) == 0)
-      return known_features[i].type;
-
-  return SENSOR_TYPE_UNKNOWN;
-} /* int sensors_feature_name_to_type */
-#endif
 
 static int sensors_config(const char *key, const char *value) {
   if (sensor_list == NULL)
@@ -217,13 +87,9 @@ static int sensors_config(const char *key, const char *value) {
     ignorelist_set_invert(sensor_list, 1);
     if (IS_TRUE(value))
       ignorelist_set_invert(sensor_list, 0);
-  }
-#if (SENSORS_API_VERSION >= 0x400)
-  else if (strcasecmp(key, "UseLabels") == 0) {
+  } else if (strcasecmp(key, "UseLabels") == 0) {
     use_labels = IS_TRUE(value);
-  }
-#endif
-  else {
+  } else {
     return -1;
   }
 
@@ -279,74 +145,6 @@ static int sensors_load_conf(void) {
     return -1;
   }
 
-#if SENSORS_API_VERSION < 0x400
-  chip_num = 0;
-  while ((chip = sensors_get_detected_chips(&chip_num)) != NULL) {
-    int feature_num0 = 0;
-    int feature_num1 = 0;
-
-    while (42) {
-      const sensors_feature_data *feature;
-      int feature_type;
-      featurelist_t *fl;
-
-      feature = sensors_get_all_features(*chip, &feature_num0, &feature_num1);
-
-      /* Check if all features have been read. */
-      if (feature == NULL)
-        break;
-
-      /* "master features" only */
-      if (feature->mapping != SENSORS_NO_MAPPING) {
-        DEBUG("sensors plugin: sensors_load_conf: "
-              "Ignoring subfeature `%s', "
-              "because (feature->mapping "
-              "!= SENSORS_NO_MAPPING).",
-              feature->name);
-        continue;
-      }
-
-      /* skip ignored in sensors.conf */
-      if (sensors_get_ignored(*chip, feature->number) == 0) {
-        DEBUG("sensors plugin: sensors_load_conf: "
-              "Ignoring subfeature `%s', "
-              "because "
-              "`sensors_get_ignored' told "
-              "me so.",
-              feature->name);
-        continue;
-      }
-
-      feature_type = sensors_feature_name_to_type(feature->name);
-      if (feature_type == SENSOR_TYPE_UNKNOWN) {
-        DEBUG("sensors plugin: sensors_load_conf: "
-              "Ignoring subfeature `%s', "
-              "because its type is "
-              "unknown.",
-              feature->name);
-        continue;
-      }
-
-      fl = calloc(1, sizeof(*fl));
-      if (fl == NULL) {
-        ERROR("sensors plugin: calloc failed.");
-        continue;
-      }
-
-      fl->chip = chip;
-      fl->data = feature;
-      fl->type = feature_type;
-
-      if (first_feature == NULL)
-        first_feature = fl;
-      else
-        last_feature->next = fl;
-      last_feature = fl;
-    } /* while sensors_get_all_features */
-  }   /* while sensors_get_detected_chips */
-/* #endif SENSORS_API_VERSION < 0x400 */
-
-#elif (SENSORS_API_VERSION >= 0x400)
   chip_num = 0;
   while ((chip = sensors_get_detected_chips(NULL, &chip_num)) != NULL) {
     const sensors_feature *feature;
@@ -409,7 +207,6 @@ static int sensors_load_conf(void) {
       } /* while (subfeature) */
     }   /* while (feature) */
   }     /* while (chip) */
-#endif /* (SENSORS_API_VERSION >= 0x400) */
 
   if (first_feature == NULL) {
     sensors_cleanup();
@@ -461,30 +258,6 @@ static int sensors_read(void) {
   if (sensors_load_conf() != 0)
     return -1;
 
-#if SENSORS_API_VERSION < 0x400
-  for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {
-    double value;
-    int status;
-    char plugin_instance[DATA_MAX_NAME_LEN];
-    char type_instance[DATA_MAX_NAME_LEN];
-
-    status = sensors_get_feature(*fl->chip, fl->data->number, &value);
-    if (status < 0)
-      continue;
-
-    status = sensors_snprintf_chip_name(plugin_instance,
-                                        sizeof(plugin_instance), fl->chip);
-    if (status < 0)
-      continue;
-
-    sstrncpy(type_instance, fl->data->name, sizeof(type_instance));
-
-    sensors_submit(plugin_instance, sensor_type_name_map[fl->type],
-                   type_instance, value);
-  } /* for fl = first_feature .. NULL */
-/* #endif SENSORS_API_VERSION < 0x400 */
-
-#elif (SENSORS_API_VERSION >= 0x400)
   for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {
     double value;
     int status;
@@ -531,7 +304,6 @@ static int sensors_read(void) {
 
     sensors_submit(plugin_instance, type, type_instance, value);
   } /* for fl = first_feature .. NULL */
-#endif /* (SENSORS_API_VERSION >= 0x400) */
 
   return 0;
 } /* int sensors_read */

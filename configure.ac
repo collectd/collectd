@@ -5270,6 +5270,27 @@ if test "x$with_libsensors" = "xyes"; then
 fi
 
 if test "x$with_libsensors" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_sensors_cppflags"
+  AC_PREPROC_IFELSE(
+    [
+      AC_LANG_SOURCE(
+        [[
+          #include <sensors/sensors.h>
+          #if SENSORS_API_VERSION < 0x400
+          #error "required libsensors version >= 3.0"
+          #endif
+        ]]
+      )
+    ],
+    [with_libsensors="yes"],
+    [with_libsensors="no (sensors library version 3.0.0 or higher is required)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libsensors" = "xyes"; then
   BUILD_WITH_LIBSENSORS_CPPFLAGS="$with_sensors_cppflags"
   BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
   BUILD_WITH_LIBSENSORS_LIBS="-lsensors"
