@@ -163,7 +163,7 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
                 buflen);
     }
   }
-    /* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
@@ -823,6 +823,86 @@ int lcc_flush(lcc_connection_t *c, const char *plugin, /* {{{ */
   lcc_response_free(&res);
   return 0;
 } /* }}} int lcc_flush */
+
+int lcc_evalstate(lcc_connection_t *c, lcc_identifier_t *ident) /* {{{ */
+{
+  char ident_str[6 * LCC_NAME_LEN];
+  char ident_esc[12 * LCC_NAME_LEN];
+  char command[14 * LCC_NAME_LEN];
+
+  lcc_response_t res;
+
+  if (c == NULL)
+    return -1;
+
+  if (ident == NULL) {
+    lcc_set_errno(c, EINVAL);
+    return -1;
+  }
+
+  /* Build a commend with an escaped version of the identifier string. */
+  int status = lcc_identifier_to_string(c, ident_str, sizeof(ident_str), ident);
+  if (status != 0)
+    return status;
+
+  snprintf(command, sizeof(command), "EVALSTATE %s",
+           lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
+  command[sizeof(command) - 1] = 0;
+
+  status = lcc_sendreceive(c, command, &res);
+  if (status != 0)
+    return status;
+
+  if (res.status != 0) {
+    LCC_SET_ERRSTR(c, "Server error: %s", res.message);
+    lcc_response_free(&res);
+    return -1;
+  }
+
+  lcc_response_free(&res);
+
+  return 0;
+} /* }}} int lcc_evalstate */
+
+int lcc_flushstate(lcc_connection_t *c, lcc_identifier_t *ident) /* {{{ */
+{
+  char ident_str[6 * LCC_NAME_LEN];
+  char ident_esc[12 * LCC_NAME_LEN];
+  char command[14 * LCC_NAME_LEN];
+
+  lcc_response_t res;
+
+  if (c == NULL)
+    return -1;
+
+  if (ident == NULL) {
+    lcc_set_errno(c, EINVAL);
+    return -1;
+  }
+
+  /* Build a commend with an escaped version of the identifier string. */
+  int status = lcc_identifier_to_string(c, ident_str, sizeof(ident_str), ident);
+  if (status != 0)
+    return status;
+
+  snprintf(command, sizeof(command), "FLUSHSTATE %s",
+           lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
+  command[sizeof(command) - 1] = 0;
+
+  status = lcc_sendreceive(c, command, &res);
+  if (status != 0)
+    return status;
+
+  if (res.status != 0) {
+    LCC_SET_ERRSTR(c, "Server error: %s", res.message);
+    lcc_response_free(&res);
+    return -1;
+  }
+
+  lcc_response_free(&res);
+
+  return 0;
+} /* }}} int lcc_flushstate */
 
 /* TODO: Implement lcc_putnotif */
 
