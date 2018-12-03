@@ -533,6 +533,20 @@ static bridge_list_t *ovs_stats_get_bridge(bridge_list_t *head,
   return NULL;
 }
 
+/* Check if bridge is configured to be monitored in config file */
+static int ovs_stats_is_monitored_bridge(const char *br_name) {
+  /* if no bridges are configured, return true */
+  if (g_monitored_bridge_list_head == NULL)
+    return 1;
+
+  /* check if given bridge exists */
+  if (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL)
+    return 1;
+
+  return 0;
+}
+
+
 /* Delete bridge */
 static int ovs_stats_del_bridge(yajl_val bridge) {
   const char *old[] = {"old", NULL};
@@ -583,6 +597,9 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
 
   yajl_val br_name = yajl_tree_get(row, name, yajl_t_string);
   if (!br_name || !YAJL_IS_STRING(br_name))
+    return 0;
+
+  if (!ovs_stats_is_monitored_bridge(YAJL_GET_STRING(br_name)))
     return 0;
 
   bridge_list_t *br =
@@ -1122,19 +1139,6 @@ static void ovs_stats_initialize(ovs_db_t *pdb) {
                            OVS_DB_TABLE_CB_FLAG_DELETE);
 }
 
-/* Check if bridge is configured to be monitored in config file */
-static int ovs_stats_is_monitored_bridge(const char *br_name) {
-  /* if no bridges are configured, return true */
-  if (g_monitored_bridge_list_head == NULL)
-    return 1;
-
-  /* check if given bridge exists */
-  if (ovs_stats_get_bridge(g_monitored_bridge_list_head, br_name) != NULL)
-    return 1;
-
-  return 0;
-}
-
 /* Delete all ports from port list */
 static void ovs_stats_free_port_list(port_list_t *head) {
   for (port_list_t *i = head; i != NULL;) {
@@ -1280,9 +1284,6 @@ static int ovs_stats_plugin_read(__attribute__((unused)) user_data_t *ud) {
 
   pthread_mutex_lock(&g_stats_lock);
   for (bridge = g_bridge_list_head; bridge != NULL; bridge = bridge->next) {
-    if (!ovs_stats_is_monitored_bridge(bridge->name))
-      continue;
-
     for (port = g_port_list_head; port != NULL; port = port->next) {
       if (port->br != bridge)
         continue;
