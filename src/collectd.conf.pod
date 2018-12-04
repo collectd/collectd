@@ -9319,7 +9319,7 @@ At the moment of writing (collectd-5.5), hostname string is limited to 62
 characters. In case when combination of fields exceeds 62 characters,
 hostname will be truncated without a warning.
 
-=item B<InterfaceFormat> B<name>|B<address>
+=item B<InterfaceFormat> B<name>|B<address>|B<number>
 
 When the virt plugin logs interface data, it sets the name of the collected
 data according to this setting. The default is to use the path as provided by
@@ -9328,6 +9328,8 @@ setting B<name>.
 
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
+
+B<number> means use the interface's number in guest.
 
 =item B<PluginInstanceFormat> B<name|uuid|metadata|none>
 
