@@ -9356,6 +9356,16 @@ When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
 describes where the hostname is located in the libvirt metadata. The default is
 I</instance/name/text()>.
 
+=item B<ReportBlockDevices> B<true>|B<false>
+
+Enabled by default. Allows to disable stats reporting of block devices for
+whole plugin.
+
+=item B<ReportNetworkInterfaces> B<true>|B<false>
+
+Enabled by default. Allows to disable stats reporting of network interfaces for
+whole plugin.
+
 =item B<ExtraStats> B<string>
 
 Report additional extra statistics. The default is no extra statistics, preserving

@@ -143,6 +143,9 @@ static const char *config_keys[] = {"Connection",
 /* PersistentNotification is false by default */
 static bool persistent_notification = false;
 
+static bool report_block_devices = true;
+static bool report_network_interfaces = true;
+
 /* Thread used for handling libvirt notifications events */
 static virt_notif_thread_t notif_thread;
 
@@ -1365,6 +1368,16 @@ static int lv_config(const char *key, const char *value) {
 
   if (strcasecmp(key, "PersistentNotification") == 0) {
     persistent_notification = IS_TRUE(value);
+    return 0;
+  }
+
+  if (strcasecmp(key, "ReportBlockDevices") == 0) {
+    report_block_devices = IS_TRUE(value);
+    return 0;
+  }
+
+  if (strcasecmp(key, "ReportNetworkInterfaces") == 0) {
+    report_network_interfaces = IS_TRUE(value);
     return 0;
   }
 
@@ -2624,10 +2637,12 @@ static int refresh_lists(struct lv_read_instance *inst) {
       goto cont;
 
     /* Block devices. */
-    lv_add_block_devices(state, dom, domname, xpath_ctx);
+    if (report_block_devices)
+      lv_add_block_devices(state, dom, domname, xpath_ctx);
 
     /* Network interfaces. */
-    lv_add_network_interfaces(state, dom, domname, xpath_ctx);
+    if (report_network_interfaces)
+      lv_add_network_interfaces(state, dom, domname, xpath_ctx);
 
   cont:
     if (xpath_ctx)
