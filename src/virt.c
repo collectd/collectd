@@ -1118,16 +1118,26 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   submit_notif(dom, severity, msg, "domain_state", NULL);
 }
 
-static int lv_config(const char *key, const char *value) {
-  if (virInitialize() != 0)
-    return 1;
-
+static int lv_init_ignorelists() {
   if (il_domains == NULL)
     il_domains = ignorelist_create(1);
   if (il_block_devices == NULL)
     il_block_devices = ignorelist_create(1);
   if (il_interface_devices == NULL)
     il_interface_devices = ignorelist_create(1);
+
+  if (!il_domains || !il_block_devices || !il_interface_devices)
+    return 1;
+
+  return 0;
+}
+
+static int lv_config(const char *key, const char *value) {
+  if (virInitialize() != 0)
+    return 1;
+
+  if (lv_init_ignorelists() != 0)
+    return 1;
 
   if (strcasecmp(key, "Connection") == 0) {
     char *tmp = strdup(value);
@@ -2267,6 +2277,10 @@ static int lv_init(void) {
   if (virInitialize() != 0)
     return -1;
 
+  /* Init ignorelists if there was no explicit configuration */
+  if (lv_init_ignorelists() != 0)
+    return -1;
+
   /* event implementation must be registered before connection is opened */
   if (!persistent_notification)
     if (register_event_impl() != 0)
@@ -2447,14 +2461,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
   /* Fetch each domain and add it to the list, unless ignore. */
   for (int i = 0; i < n; ++i) {
-    const char *name;
-    char *xml = NULL;
-    xmlDocPtr xml_doc = NULL;
-    xmlXPathContextPtr xpath_ctx = NULL;
-    xmlXPathObjectPtr xpath_obj = NULL;
-    char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
-    virDomainInfo info;
-    int status;
 
 #ifdef HAVE_LIST_ALL_DOMAINS
     virDomainPtr dom = domains[i];
@@ -2479,16 +2485,17 @@ static int refresh_lists(struct lv_read_instance *inst) {
        */
       ERROR(PLUGIN_NAME " plugin: malloc failed.");
       virDomainFree(dom);
-      goto cont;
+      continue;
     }
 
-    name = virDomainGetName(dom);
-    if (name == NULL) {
+    const char *domname = virDomainGetName(dom);
+    if (domname == NULL) {
       VIRT_ERROR(conn, "virDomainGetName");
-      goto cont;
+      continue;
     }
 
-    status = virDomainGetInfo(dom, &info);
+    virDomainInfo info;
+    int status = virDomainGetInfo(dom, &info);
     if (status != 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
             status);
@@ -2500,11 +2507,15 @@ static int refresh_lists(struct lv_read_instance *inst) {
       continue;
     }
 
-    if (il_domains && ignorelist_match(il_domains, name) != 0)
-      goto cont;
+    if (ignorelist_match(il_domains, domname) != 0)
+      continue;
 
     /* Get a list of devices for this domain. */
-    xml = virDomainGetXMLDesc(dom, 0);
+    xmlDocPtr xml_doc = NULL;
+    xmlXPathContextPtr xpath_ctx = NULL;
+    xmlXPathObjectPtr xpath_obj = NULL;
+
+    char *xml = virDomainGetXMLDesc(dom, 0);
     if (!xml) {
       VIRT_ERROR(conn, "virDomainGetXMLDesc");
       goto cont;
@@ -2519,12 +2530,13 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
     xpath_ctx = xmlXPathNewContext(xml_doc);
 
-    if (lv_domain_get_tag(xpath_ctx, name, tag) < 0) {
+    char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
+    if (lv_domain_get_tag(xpath_ctx, domname, tag) < 0) {
       ERROR(PLUGIN_NAME " plugin: lv_domain_get_tag failed.");
       goto cont;
     }
 
-    if (!lv_instance_include_domain(inst, name, tag))
+    if (!lv_instance_include_domain(inst, domname, tag))
       goto cont;
 
     /* Block devices. */
@@ -2538,24 +2550,18 @@ static int refresh_lists(struct lv_read_instance *inst) {
       goto cont;
 
     for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-      xmlNodePtr node;
-      char *path = NULL;
-
-      node = xpath_obj->nodesetval->nodeTab[j];
+      xmlNodePtr node = xpath_obj->nodesetval->nodeTab[j];
       if (!node)
         continue;
-      path = (char *)xmlGetProp(node, (xmlChar *)"dev");
+
+      char *path = (char *)xmlGetProp(node, (xmlChar *)"dev");
       if (!path)
         continue;
 
-      if (il_block_devices &&
-          ignore_device_match(il_block_devices, name, path) != 0)
-        goto cont2;
+      if (ignore_device_match(il_block_devices, domname, path) == 0)
+        add_block_device(state, dom, path);
 
-      add_block_device(state, dom, path);
-    cont2:
-      if (path)
-        xmlFree(path);
+      xmlFree(path);
     }
     xmlXPathFreeObject(xpath_obj);
 
@@ -2571,9 +2577,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
     for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
       char *path = NULL;
       char *address = NULL;
-      xmlNodePtr xml_interface;
 
-      xml_interface = xml_interfaces->nodeTab[j];
+      xmlNodePtr xml_interface = xml_interfaces->nodeTab[j];
       if (!xml_interface)
         continue;
 
@@ -2593,13 +2598,11 @@ static int refresh_lists(struct lv_read_instance *inst) {
         }
       }
 
-      if (il_interface_devices &&
-          (ignore_device_match(il_interface_devices, name, path) != 0 ||
-           ignore_device_match(il_interface_devices, name, address) != 0))
-        goto cont3;
+      if ((ignore_device_match(il_interface_devices, domname, path) == 0 &&
+           ignore_device_match(il_interface_devices, domname, address) == 0)) {
+        add_interface_device(state, dom, path, address, j + 1);
+      }
 
-      add_interface_device(state, dom, path, address, j + 1);
-    cont3:
       if (path)
         xmlFree(path);
       if (address)
@@ -2756,20 +2759,17 @@ static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
 
 static int ignore_device_match(ignorelist_t *il, const char *domname,
                                const char *devpath) {
-  char *name;
-  int r;
-
   if ((domname == NULL) || (devpath == NULL))
     return 0;
 
   size_t n = strlen(domname) + strlen(devpath) + 2;
-  name = malloc(n);
+  char *name = malloc(n);
   if (name == NULL) {
     ERROR(PLUGIN_NAME " plugin: malloc failed.");
     return 0;
   }
   snprintf(name, n, "%s:%s", domname, devpath);
-  r = ignorelist_match(il, name);
+  int r = ignorelist_match(il, name);
   sfree(name);
   return r;
 }
