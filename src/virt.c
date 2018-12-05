@@ -2425,10 +2425,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
                                    VIR_CONNECT_LIST_DOMAINS_INACTIVE);
   n = virConnectListAllDomains(conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
 #else
-  int *domids;
-
   /* Get list of domains. */
-  domids = calloc(n, sizeof(*domids));
+  int *domids = calloc(n, sizeof(*domids));
   if (domids == NULL) {
     ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
@@ -2465,8 +2463,7 @@ static int refresh_lists(struct lv_read_instance *inst) {
 #ifdef HAVE_LIST_ALL_DOMAINS
     virDomainPtr dom = domains[i];
 #else
-    virDomainPtr dom = NULL;
-    dom = virDomainLookupByID(conn, domids[i]);
+    virDomainPtr dom = virDomainLookupByID(conn, domids[i]);
     if (dom == NULL) {
       VIRT_ERROR(conn, "virDomainLookupByID");
       /* Could be that the domain went away -- ignore it anyway. */
@@ -2503,7 +2500,7 @@ static int refresh_lists(struct lv_read_instance *inst) {
     }
 
     if (info.state != VIR_DOMAIN_RUNNING) {
-      DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", name);
+      DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", domname);
       continue;
     }
 
