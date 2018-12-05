@@ -2400,6 +2400,94 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
   return 0;
 }
 
+static void lv_add_block_devices(struct lv_read_state *state, virDomainPtr dom,
+                                 const char *domname,
+                                 xmlXPathContextPtr xpath_ctx) {
+  const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
+  if (blockdevice_format == source)
+    bd_xmlpath = "/domain/devices/disk/source[@dev]";
+
+  xmlXPathObjectPtr xpath_obj =
+      xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
+
+  if (xpath_obj == NULL)
+    return;
+
+  if (xpath_obj->type != XPATH_NODESET || xpath_obj->nodesetval == NULL) {
+    xmlXPathFreeObject(xpath_obj);
+    return;
+  }
+
+  for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
+    xmlNodePtr node = xpath_obj->nodesetval->nodeTab[j];
+    if (!node)
+      continue;
+
+    char *path = (char *)xmlGetProp(node, (xmlChar *)"dev");
+    if (!path)
+      continue;
+
+    if (ignore_device_match(il_block_devices, domname, path) == 0)
+      add_block_device(state, dom, path);
+
+    xmlFree(path);
+  }
+  xmlXPathFreeObject(xpath_obj);
+}
+
+static void lv_add_network_interfaces(struct lv_read_state *state,
+                                      virDomainPtr dom, const char *domname,
+                                      xmlXPathContextPtr xpath_ctx) {
+  xmlXPathObjectPtr xpath_obj = xmlXPathEval(
+      (xmlChar *)"/domain/devices/interface[target[@dev]]", xpath_ctx);
+
+  if (xpath_obj == NULL)
+    return;
+
+  if (xpath_obj->type != XPATH_NODESET || xpath_obj->nodesetval == NULL) {
+    xmlXPathFreeObject(xpath_obj);
+    return;
+  }
+
+  xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
+
+  for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
+    char *path = NULL;
+    char *address = NULL;
+
+    xmlNodePtr xml_interface = xml_interfaces->nodeTab[j];
+    if (!xml_interface)
+      continue;
+
+    for (xmlNodePtr child = xml_interface->children; child;
+         child = child->next) {
+      if (child->type != XML_ELEMENT_NODE)
+        continue;
+
+      if (xmlStrEqual(child->name, (const xmlChar *)"target")) {
+        path = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+        if (!path)
+          continue;
+      } else if (xmlStrEqual(child->name, (const xmlChar *)"mac")) {
+        address = (char *)xmlGetProp(child, (const xmlChar *)"address");
+        if (!address)
+          continue;
+      }
+    }
+
+    if ((ignore_device_match(il_interface_devices, domname, path) == 0 &&
+         ignore_device_match(il_interface_devices, domname, address) == 0)) {
+      add_interface_device(state, dom, path, address, j + 1);
+    }
+
+    if (path)
+      xmlFree(path);
+    if (address)
+      xmlFree(address);
+  }
+  xmlXPathFreeObject(xpath_obj);
+}
+
 static int refresh_lists(struct lv_read_instance *inst) {
   struct lv_read_state *state = &inst->read_state;
   int n;
@@ -2510,7 +2598,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
     /* Get a list of devices for this domain. */
     xmlDocPtr xml_doc = NULL;
     xmlXPathContextPtr xpath_ctx = NULL;
-    xmlXPathObjectPtr xpath_obj = NULL;
 
     char *xml = virDomainGetXMLDesc(dom, 0);
     if (!xml) {
@@ -2537,78 +2624,12 @@ static int refresh_lists(struct lv_read_instance *inst) {
       goto cont;
 
     /* Block devices. */
-    const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
-    if (blockdevice_format == source)
-      bd_xmlpath = "/domain/devices/disk/source[@dev]";
-    xpath_obj = xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
-
-    if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-        xpath_obj->nodesetval == NULL)
-      goto cont;
-
-    for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-      xmlNodePtr node = xpath_obj->nodesetval->nodeTab[j];
-      if (!node)
-        continue;
-
-      char *path = (char *)xmlGetProp(node, (xmlChar *)"dev");
-      if (!path)
-        continue;
-
-      if (ignore_device_match(il_block_devices, domname, path) == 0)
-        add_block_device(state, dom, path);
-
-      xmlFree(path);
-    }
-    xmlXPathFreeObject(xpath_obj);
+    lv_add_block_devices(state, dom, domname, xpath_ctx);
 
     /* Network interfaces. */
-    xpath_obj = xmlXPathEval(
-        (xmlChar *)"/domain/devices/interface[target[@dev]]", xpath_ctx);
-    if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-        xpath_obj->nodesetval == NULL)
-      goto cont;
-
-    xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
-
-    for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
-      char *path = NULL;
-      char *address = NULL;
-
-      xmlNodePtr xml_interface = xml_interfaces->nodeTab[j];
-      if (!xml_interface)
-        continue;
-
-      for (xmlNodePtr child = xml_interface->children; child;
-           child = child->next) {
-        if (child->type != XML_ELEMENT_NODE)
-          continue;
-
-        if (xmlStrEqual(child->name, (const xmlChar *)"target")) {
-          path = (char *)xmlGetProp(child, (const xmlChar *)"dev");
-          if (!path)
-            continue;
-        } else if (xmlStrEqual(child->name, (const xmlChar *)"mac")) {
-          address = (char *)xmlGetProp(child, (const xmlChar *)"address");
-          if (!address)
-            continue;
-        }
-      }
-
-      if ((ignore_device_match(il_interface_devices, domname, path) == 0 &&
-           ignore_device_match(il_interface_devices, domname, address) == 0)) {
-        add_interface_device(state, dom, path, address, j + 1);
-      }
-
-      if (path)
-        xmlFree(path);
-      if (address)
-        xmlFree(address);
-    }
+    lv_add_network_interfaces(state, dom, domname, xpath_ctx);
 
   cont:
-    if (xpath_obj)
-      xmlXPathFreeObject(xpath_obj);
     if (xpath_ctx)
       xmlXPathFreeContext(xpath_ctx);
     if (xml_doc)
