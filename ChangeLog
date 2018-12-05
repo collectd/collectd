@@ -72,6 +72,8 @@
 	  newer libmicrohttpd. Thanks to Pavel Rochnyak. #2849
 	* Write Prometheus plugin: set "SO_REUSEADDRESS" on listening socket.
 	  Thanks to Pavel Rochnyak. #2570, #2673
+	* Write Syslog plugin: The new "write_syslog" plugin writes value
+	  lists as syslog messages. Thanks to Shirly Radco. #3019
 
 2017-11-17, Version 5.8.0
 	* collectd: The core daemon is now completely licensed under the MIT

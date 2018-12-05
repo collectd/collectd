@@ -172,6 +172,9 @@ Jiri Tyr <jiri.tyr at gmail.com>
 Julien Ammous <j.ammous at gmail.com>
  - Lua plugin.
 
+Shirly Radco <sradco at redhat.com>
+ - write_syslog plugin.
+
 Kevin Bowling <kbowling at llnw.com>
  - write_tsdb plugin for http://opentsdb.net/
 

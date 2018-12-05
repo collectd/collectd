@@ -563,6 +563,10 @@ Features
       Sends data to Sensu, a stream processing and monitoring system, via the
       Sensu client local TCP socket.
 
+    - write_syslog
+      Sends data in syslog format, using TCP, where the message
+      contains the metric in human or JSON format.
+
     - write_tsdb
       Sends data OpenTSDB, a scalable no master, no shared state time series
       database.
