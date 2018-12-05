@@ -138,6 +138,9 @@ static const char *config_keys[] = {"Connection",
                                     "Instances",
                                     "ExtraStats",
                                     "PersistentNotification",
+
+                                    "ReportBlockDevices",
+                                    "ReportNetworkInterfaces",
                                     NULL};
 
 /* PersistentNotification is false by default */
