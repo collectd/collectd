@@ -354,11 +354,11 @@ int match_apply(cu_match_t *obj, const char *str) {
   }
 
   if (status != 0) {
-    ERROR("utils_match: match_apply: match_substr failed.");
+    ERROR("utils_match: match_apply: match_substr failed on \"%s\".");
   } else {
     status = obj->callback(str, matches, matches_num, obj->user_data);
     if (status != 0) {
-      ERROR("utils_match: match_apply: callback failed.");
+      ERROR("utils_match: match_apply: callback failed on \"%s\".");
     }
   }
 
