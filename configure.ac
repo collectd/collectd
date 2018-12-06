@@ -2380,13 +2380,30 @@ if test "x$with_libdpdk" != "xno"; then
 fi
 
 if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LIBS="$LIBS"
+  LIBS="$LIBDPDK_LIBS $LIBS"
   SAVE_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-  AC_CHECK_LIB([dpdk], [rte_eal_init],
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$LIBDPDK_CFLAGS $CFLAGS"
+  AC_LINK_IFELSE(
+    [
+      AC_LANG_PROGRAM(
+        [[
+          #include <rte_eal.h>
+        ]],
+        [[return rte_eal_init(0, NULL);]]
+      )
+    ],
     [with_libdpdk="yes"],
     [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
   )
+  LIBS="$SAVE_LIBS"
   LDFLAGS="$SAVE_LDFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
 # }}}
