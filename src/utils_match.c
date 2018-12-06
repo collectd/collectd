@@ -328,7 +328,7 @@ int match_apply(cu_match_t *obj, const char *str) {
                 /* eflags = */ 0);
     /* Regex did match, so exclude this line */
     if (status == 0) {
-      DEBUG("ExludeRegex matched, don't count that line\n");
+      DEBUG("ExcludeRegex matched, don't count that line\n");
       return 0;
     }
   }
@@ -354,11 +354,11 @@ int match_apply(cu_match_t *obj, const char *str) {
   }
 
   if (status != 0) {
-    ERROR("utils_match: match_apply: match_substr failed on \"%s\".");
+    ERROR("utils_match: match_apply: match_substr failed on \"%s\".", str);
   } else {
     status = obj->callback(str, matches, matches_num, obj->user_data);
     if (status != 0) {
-      ERROR("utils_match: match_apply: callback failed on \"%s\".");
+      ERROR("utils_match: match_apply: callback failed on \"%s\".", str);
     }
   }
 
