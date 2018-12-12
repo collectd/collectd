@@ -235,8 +235,8 @@ static int logparser_config_match(oconfig_item_t *ci, log_parser_t *parser) {
   return 0;
 
 free_user_data:
-  if (pattern->user_data != NULL)
-    pattern->free_user_data(pattern->user_data);
+  if (user_data != NULL)
+    logparser_free_user_data(user_data);
 free_ptr:
   sfree(ptr);
   return -1;
@@ -575,7 +575,7 @@ static void logparser_process_msg(log_parser_t *parser, message_t *msg,
 
       for (size_t i = 0; i < user_data->infos_len; i++) {
         char *ptr = NULL;
-        size_t size;
+        size_t size = 0;
         switch (user_data->infos[i].type) {
         case MSG_ITEM_SEVERITY:
           n.severity = user_data->infos[i].val.severity;
@@ -597,7 +597,7 @@ static void logparser_process_msg(log_parser_t *parser, message_t *msg,
           return;
         }
 
-        if (user_data->infos[i].type != MSG_ITEM_SEVERITY) {
+        if (ptr != NULL && size > 0) {
           if (user_data->infos[i].val.str_override != NULL)
             sstrncpy(ptr, user_data->infos[i].val.str_override, size);
           else
