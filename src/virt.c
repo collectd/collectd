@@ -500,6 +500,7 @@ static int ignore_device_match(ignorelist_t *, const char *domname,
 struct block_device {
   virDomainPtr dom; /* domain */
   char *path;       /* name of block device */
+  bool has_source;  /* information whether source is defined or not */
 };
 
 /* Actual list of network interfaces found on last refresh. */
@@ -534,7 +535,7 @@ static int add_domain(struct lv_read_state *state, virDomainPtr dom,
 
 static void free_block_devices(struct lv_read_state *state);
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
-                            const char *path);
+                            const char *path, bool has_source);
 
 static void free_interface_devices(struct lv_read_state *state);
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
@@ -2419,35 +2420,76 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
 static void lv_add_block_devices(struct lv_read_state *state, virDomainPtr dom,
                                  const char *domname,
                                  xmlXPathContextPtr xpath_ctx) {
-  const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
-  if (blockdevice_format == source)
-    bd_xmlpath = "/domain/devices/disk/source[@dev]";
-
   xmlXPathObjectPtr xpath_obj =
-      xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
+      xmlXPathEval((const xmlChar *)"/domain/devices/disk", xpath_ctx);
 
-  if (xpath_obj == NULL)
+  if (xpath_obj == NULL) {
+    DEBUG(PLUGIN_NAME " plugin: no disk xpath-object found for domain %s",
+          domname);
     return;
+  }
 
   if (xpath_obj->type != XPATH_NODESET || xpath_obj->nodesetval == NULL) {
-    xmlXPathFreeObject(xpath_obj);
-    return;
+    DEBUG(PLUGIN_NAME " plugin: no disk node found for domain %s", domname);
+    goto cleanup;
   }
 
-  for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-    xmlNodePtr node = xpath_obj->nodesetval->nodeTab[j];
-    if (!node)
+  xmlNodeSetPtr xml_block_devices = xpath_obj->nodesetval;
+  for (int i = 0; i < xml_block_devices->nodeNr; ++i) {
+    xmlNodePtr xml_device = xpath_obj->nodesetval->nodeTab[i];
+    char *path_str = NULL;
+    char *source_str = NULL;
+
+    if (!xml_device)
       continue;
 
-    char *path = (char *)xmlGetProp(node, (xmlChar *)"dev");
-    if (!path)
-      continue;
+    /* Fetching path and source for block device */
+    for (xmlNodePtr child = xml_device->children; child; child = child->next) {
+      if (child->type != XML_ELEMENT_NODE)
+        continue;
 
-    if (ignore_device_match(il_block_devices, domname, path) == 0)
-      add_block_device(state, dom, path);
+      /* we are interested only in either "target" or "source" elements */
+      if (xmlStrEqual(child->name, (const xmlChar *)"target"))
+        path_str = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+      else if (xmlStrEqual(child->name, (const xmlChar *)"source")) {
+        /* name of the source is located in "dev" or "file" element (it depends
+         * on type of source). Trying "dev" at first*/
+        source_str = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+        if (!source_str)
+          source_str = (char *)xmlGetProp(child, (const xmlChar *)"file");
+      }
+      /* ignoring any other element*/
+    }
 
-    xmlFree(path);
+    /* source_str will be interpreted as a device path if blockdevice_format
+     *  param is set to 'source'. */
+    const char *device_path =
+        (blockdevice_format == source) ? source_str : path_str;
+
+    if (!device_path) {
+      /* no path found and we can't add block_device without it */
+      WARNING(PLUGIN_NAME " plugin: could not generate device path for disk in "
+                          "domain %s - disk device will be ignored in reports",
+              domname);
+      goto cont;
+    }
+
+    if (ignore_device_match(il_block_devices, domname, device_path) == 0) {
+      /* we only have to store information whether 'source' exists or not */
+      bool has_source = (source_str != NULL) ? true : false;
+
+      add_block_device(state, dom, device_path, has_source);
+    }
+
+  cont:
+    if (path_str)
+      xmlFree(path_str);
+
+    if (source_str)
+      xmlFree(source_str);
   }
+
+cleanup:
   xmlXPathFreeObject(xpath_obj);
 }
 
@@ -2714,7 +2756,7 @@ static void free_block_devices(struct lv_read_state *state) {
 }
 
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
-                            const char *path) {
+                            const char *path, bool has_source) {
 
   char *path_copy = strdup(path);
   if (!path_copy)
@@ -2731,6 +2773,7 @@ static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
   state->block_devices = new_ptr;
   state->block_devices[state->nr_block_devices].dom = dom;
   state->block_devices[state->nr_block_devices].path = path_copy;
+  state->block_devices[state->nr_block_devices].has_source = has_source;
   return state->nr_block_devices++;
 }
 
