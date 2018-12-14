@@ -1032,7 +1032,7 @@ static void cconn_close(struct cconn *io) {
 static int cconn_process_data(struct cconn *io, yajl_struct *yajl,
                               yajl_handle hand) {
   int ret;
-  struct values_tmp *vtmp = calloc(1, sizeof(struct values_tmp) * 1);
+  struct values_tmp *vtmp = calloc(1, sizeof(*vtmp));
   if (!vtmp) {
     return -ENOMEM;
   }
