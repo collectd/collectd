@@ -476,7 +476,7 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
     return 0;
   }
 
-  list_item = (c_ipmi_sensor_list_t *)calloc(1, sizeof(c_ipmi_sensor_list_t));
+  list_item = calloc(1, sizeof(*list_item));
   if (list_item == NULL) {
     pthread_mutex_unlock(&st->sensor_list_lock);
     return -1;
