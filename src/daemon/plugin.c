@@ -627,7 +627,7 @@ static void start_read_threads(size_t num) /* {{{ */
   if (read_threads != NULL)
     return;
 
-  read_threads = calloc(num, sizeof(pthread_t));
+  read_threads = calloc(num, sizeof(*read_threads));
   if (read_threads == NULL) {
     ERROR("plugin: start_read_threads: calloc failed.");
     return;
@@ -816,7 +816,7 @@ static void start_write_threads(size_t num) /* {{{ */
   if (write_threads != NULL)
     return;
 
-  write_threads = calloc(num, sizeof(pthread_t));
+  write_threads = calloc(num, sizeof(*write_threads));
   if (write_threads == NULL) {
     ERROR("plugin: start_write_threads: calloc failed.");
     return;
