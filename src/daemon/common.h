@@ -64,6 +64,8 @@ struct value_to_rate_state_s {
 };
 typedef struct value_to_rate_state_s value_to_rate_state_t;
 
+char *sstrcpy(char *to, char *from);
+
 char *sstrncpy(char *dest, const char *src, size_t n);
 
 __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
@@ -117,6 +119,22 @@ int sread(int fd, void *buf, size_t count);
  *   case.
  */
 int swrite(int fd, const void *buf, size_t count);
+
+/*
+ * NAME
+ *   strstartswith
+ *
+ * DESCRIPTION
+ *   Checks if a string starts with a substring.
+ *
+ * PARAMETERS
+ *   `pre'         The prefix to look for.
+ *   `str'         The string that will be examined for a prefix.
+ *
+ * RETURN VALUE
+ *    Returns 1 if str starts with pre. 0 otherwise.
+*/
+int strstartswith(const char *pre, const char *str);
 
 /*
  * NAME
