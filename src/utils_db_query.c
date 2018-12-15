@@ -347,39 +347,42 @@ static int udb_result_prepare_result(udb_result_t const *r, /* {{{ */
    * r->instances_buffer, r->values_buffer, and r->metadata_buffer {{{ */
   if (r->instances_num > 0) {
     prep_area->instances_pos =
-        (size_t *)calloc(r->instances_num, sizeof(size_t));
+        calloc(r->instances_num, sizeof(*prep_area->instances_pos));
     if (prep_area->instances_pos == NULL) {
       P_ERROR("udb_result_prepare_result: calloc failed.");
       BAIL_OUT(-ENOMEM);
     }
 
     prep_area->instances_buffer =
-        (char **)calloc(r->instances_num, sizeof(char *));
+        calloc(r->instances_num, sizeof(*prep_area->instances_buffer));
     if (prep_area->instances_buffer == NULL) {
       P_ERROR("udb_result_prepare_result: calloc failed.");
       BAIL_OUT(-ENOMEM);
     }
   } /* if (r->instances_num > 0) */
 
-  prep_area->values_pos = (size_t *)calloc(r->values_num, sizeof(size_t));
+  prep_area->values_pos = calloc(r->values_num, sizeof(*prep_area->values_pos));
   if (prep_area->values_pos == NULL) {
     P_ERROR("udb_result_prepare_result: calloc failed.");
     BAIL_OUT(-ENOMEM);
   }
 
-  prep_area->values_buffer = (char **)calloc(r->values_num, sizeof(char *));
+  prep_area->values_buffer =
+      calloc(r->values_num, sizeof(*prep_area->values_buffer));
   if (prep_area->values_buffer == NULL) {
     P_ERROR("udb_result_prepare_result: calloc failed.");
     BAIL_OUT(-ENOMEM);
   }
 
-  prep_area->metadata_pos = (size_t *)calloc(r->metadata_num, sizeof(size_t));
+  prep_area->metadata_pos =
+      calloc(r->metadata_num, sizeof(*prep_area->metadata_pos));
   if (prep_area->metadata_pos == NULL) {
     P_ERROR("udb_result_prepare_result: calloc failed.");
     BAIL_OUT(-ENOMEM);
   }
 
-  prep_area->metadata_buffer = (char **)calloc(r->metadata_num, sizeof(char *));
+  prep_area->metadata_buffer =
+      calloc(r->metadata_num, sizeof(*prep_area->metadata_buffer));
   if (prep_area->metadata_buffer == NULL) {
     P_ERROR("udb_result_prepare_result: calloc failed.");
     BAIL_OUT(-ENOMEM);
