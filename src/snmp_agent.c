@@ -2202,8 +2202,7 @@ static int snmp_agent_register_oid(oid_t *oid, Netsnmp_Node_Handler *handler) {
   if (c_avl_get(g_agent->registered_oids, (void *)oid, NULL) == 0)
     return OID_EXISTS;
   else {
-    oid_t *new_oid = calloc(1, sizeof(*oid));
-
+    oid_t *new_oid = calloc(1, sizeof(*new_oid));
     if (new_oid == NULL) {
       ERROR(PLUGIN_NAME ": Could not allocate memory to register new OID");
       return -ENOMEM;
