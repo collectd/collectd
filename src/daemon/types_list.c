@@ -113,7 +113,7 @@ static void parse_line(char *buf) {
   sstrncpy(ds->type, fields[0], sizeof(ds->type));
 
   ds->ds_num = fields_num - 1;
-  ds->ds = (data_source_t *)calloc(ds->ds_num, sizeof(data_source_t));
+  ds->ds = calloc(ds->ds_num, sizeof(*ds->ds));
   if (ds->ds == NULL) {
     sfree(ds);
     return;
