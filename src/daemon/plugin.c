@@ -320,7 +320,6 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
   int i;
   llentry_t *le;
   int n;
-  char **keys;
 
   n = llist_size(*list);
   if (n == 0) {
@@ -328,11 +327,9 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
     return;
   }
 
-  keys = calloc(n, sizeof(char *));
-
+  char **keys = calloc(n, sizeof(*keys));
   if (keys == NULL) {
     ERROR("%s: failed to allocate memory for list of callbacks", comment);
-
     return;
   }
 
