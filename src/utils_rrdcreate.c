@@ -111,7 +111,7 @@ static srrd_create_args_t *srrd_create_args_create(const char *filename,
     return NULL;
   }
 
-  args->argv = calloc((size_t)(argc + 1), sizeof(*args->argv));
+  args->argv = calloc(argc + 1, sizeof(*args->argv));
   if (args->argv == NULL) {
     P_ERROR("srrd_create_args_create: calloc failed.");
     srrd_create_args_destroy(args);
