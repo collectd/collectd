@@ -255,7 +255,7 @@ static int tss2_get_socket(FILE **ret_read_fh, FILE **ret_write_fh) {
               config_host ? config_host : DEFAULT_HOST,
               config_port ? config_port : DEFAULT_PORT);
     }
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
     if (memcmp("[TS]\r\n", buffer, 6) != 0) {
       ERROR("teamspeak2 plugin: Unexpected response when connecting "
@@ -309,7 +309,7 @@ static int tss2_receive_line(FILE *fh, char *buffer, int buffer_size) {
     return -1;
   }
 
-  buffer[buffer_size - 1] = 0;
+  buffer[buffer_size - 1] = '\0';
   return 0;
 } /* int tss2_receive_line */
 
@@ -337,7 +337,7 @@ static int tss2_select_vserver(FILE *read_fh, FILE *write_fh,
     ERROR("teamspeak2 plugin: tss2_receive_line failed.");
     return -1;
   }
-  response[sizeof(response) - 1] = 0;
+  response[sizeof(response) - 1] = '\0';
 
   /* Check answer */
   if ((strncasecmp("OK", response, 2) == 0) &&
@@ -379,7 +379,7 @@ static int tss2_vserver_gapl(FILE *read_fh, FILE *write_fh,
       ERROR("teamspeak2 plugin: tss2_receive_line failed.");
       return -1;
     }
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
     if (strncmp("average_packet_loss=", buffer,
                 strlen("average_packet_loss=")) == 0) {

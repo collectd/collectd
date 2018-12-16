@@ -113,7 +113,7 @@ static void c_ipmi_error(c_ipmi_instance_t *st, const char *func, int status) {
   if (errbuf[0] == 0) {
     snprintf(errbuf, sizeof(errbuf), "Unknown error %#x", status);
   }
-  errbuf[sizeof(errbuf) - 1] = 0;
+  errbuf[sizeof(errbuf) - 1] = '\0';
 
   ERROR("ipmi plugin: %s failed for `%s`: %s", func, st->name, errbuf);
 } /* void c_ipmi_error */
@@ -310,7 +310,7 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
     return;
 
   ipmi_sensor_get_name(sensor, temp, sizeof(temp));
-  temp[sizeof(temp) - 1] = 0;
+  temp[sizeof(temp) - 1] = '\0';
 
   if (entity_id_string != NULL && strlen(temp))
     snprintf(sensor_name, sizeof(sensor_name), "%s %s", temp, entity_id_string);

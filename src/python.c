@@ -367,7 +367,7 @@ void cpy_log_exception(const char *context) {
       continue;
 
     if (cpy[strlen(cpy) - 1] == '\n')
-      cpy[strlen(cpy) - 1] = 0;
+      cpy[strlen(cpy) - 1] = '\0';
 
     Py_BEGIN_ALLOW_THREADS;
     ERROR("%s", cpy);

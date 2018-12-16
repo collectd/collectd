@@ -112,7 +112,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
 
     /* Strip colon off the first column, if found */
     if (key[key_len - 1] == ':')
-      key[key_len - 1] = 0;
+      key[key_len - 1] = '\0';
 
     status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
     if (status != 0)

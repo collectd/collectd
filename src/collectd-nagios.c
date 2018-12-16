@@ -527,7 +527,7 @@ static int do_check(lcc_connection_t *connection) {
   int status;
 
   snprintf(ident_str, sizeof(ident_str), "%s/%s", hostname_g, value_string_g);
-  ident_str[sizeof(ident_str) - 1] = 0;
+  ident_str[sizeof(ident_str) - 1] = '\0';
 
   status = lcc_string_to_identifier(connection, &ident, ident_str);
   if (status != 0) {
@@ -652,7 +652,7 @@ int main(int argc, char **argv) {
   }
 
   snprintf(address, sizeof(address), "unix:%s", socket_file_g);
-  address[sizeof(address) - 1] = 0;
+  address[sizeof(address) - 1] = '\0';
 
   connection = NULL;
   status = lcc_connect(address, &connection);

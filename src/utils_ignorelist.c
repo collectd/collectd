@@ -267,7 +267,7 @@ int ignorelist_add(ignorelist_t *il, const char *entry) {
       return ENOMEM;
 
     /* trim trailing slash */
-    copy[strlen(copy) - 1] = 0;
+    copy[strlen(copy) - 1] = '\0';
 
     status = ignorelist_append_regex(il, copy);
     sfree(copy);

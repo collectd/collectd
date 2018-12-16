@@ -251,7 +251,7 @@ static int ceph_cb_boolean(void *ctx, int bool_val) { return CEPH_CB_CONTINUE; }
     if (dest_size > dest_len) {                                                \
       sstrncpy((dest) + dest_len, (src), dest_size - dest_len);                \
     }                                                                          \
-    (dest)[dest_size - 1] = 0;                                                 \
+    (dest)[dest_size - 1] = '\0';                                              \
   } while (0)
 
 static int ceph_cb_number(void *ctx, const char *number_val,
@@ -350,7 +350,7 @@ static int ceph_cb_map_key(void *ctx, const unsigned char *key,
   }
 
   memmove(state->key, key, sz - 1);
-  state->key[sz - 1] = 0;
+  state->key[sz - 1] = '\0';
 
   return CEPH_CB_CONTINUE;
 }

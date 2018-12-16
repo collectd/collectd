@@ -469,7 +469,7 @@ static int powerdns_get_data_dgram(list_item_t *item, char **ret_buffer) {
   }
 
   memcpy(buffer, temp, buffer_size - 1);
-  buffer[buffer_size - 1] = 0;
+  buffer[buffer_size - 1] = '\0';
 
   *ret_buffer = buffer;
   return 0;

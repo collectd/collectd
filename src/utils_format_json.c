@@ -58,7 +58,7 @@ static int json_escape_string(char *buffer, size_t buffer_size, /* {{{ */
 #define BUFFER_ADD(c)                                                          \
   do {                                                                         \
     if (dst_pos >= (buffer_size - 1)) {                                        \
-      buffer[buffer_size - 1] = 0;                                             \
+      buffer[buffer_size - 1] = '\0';                                          \
       return -ENOMEM;                                                          \
     }                                                                          \
     buffer[dst_pos] = (c);                                                     \

@@ -107,7 +107,7 @@ static void o_report_error(const char *where, /* {{{ */
     status = OCIErrorGet(eh, (ub4)record_number,
                          /* sqlstate = */ NULL, &error_code, (text *)&buffer[0],
                          (ub4)sizeof(buffer), OCI_HTYPE_ERROR);
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
     if (status == OCI_NO_DATA)
       return;

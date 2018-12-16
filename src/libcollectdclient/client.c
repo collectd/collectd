@@ -80,22 +80,22 @@
  * is very useful to add formatted stuff to the end of a buffer. */
 #define SSTRCPY(d, s)                                                          \
   do {                                                                         \
-    strncpy((d), (s), sizeof(d));                                              \
-    (d)[sizeof(d) - 1] = 0;                                                    \
+    strncpy((d), (s), sizeof(d) - 1);                                          \
+    (d)[sizeof(d) - 1] = '\0';                                                 \
   } while (0)
 
 #define SSTRCAT(d, s)                                                          \
   do {                                                                         \
     size_t _l = strlen(d);                                                     \
     strncpy((d) + _l, (s), sizeof(d) - _l);                                    \
-    (d)[sizeof(d) - 1] = 0;                                                    \
+    (d)[sizeof(d) - 1] = '\0';                                                 \
   } while (0)
 
 #define SSTRCATF(d, ...)                                                       \
   do {                                                                         \
     char _b[sizeof(d)];                                                        \
     snprintf(_b, sizeof(_b), __VA_ARGS__);                                     \
-    _b[sizeof(_b) - 1] = 0;                                                    \
+    _b[sizeof(_b) - 1] = '\0';                                                 \
     SSTRCAT((d), _b);                                                          \
   } while (0)
 
@@ -172,7 +172,7 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
   }
 #endif /* STRERROR_R_CHAR_P */
 
-  buf[buflen - 1] = 0;
+  buf[buflen - 1] = '\0';
 
   return buf;
 } /* char *sstrerror */
@@ -183,7 +183,7 @@ static int lcc_set_errno(lcc_connection_t *c, int err) /* {{{ */
     return -1;
 
   sstrerror(err, c->errbuf, sizeof(c->errbuf));
-  c->errbuf[sizeof(c->errbuf) - 1] = 0;
+  c->errbuf[sizeof(c->errbuf) - 1] = '\0';
 
   return 0;
 } /* }}} int lcc_set_errno */
@@ -244,7 +244,7 @@ static void lcc_chomp(char *str) /* {{{ */
   while (str_len > 0) {
     if (str[str_len - 1] >= 32)
       break;
-    str[str_len - 1] = 0;
+    str[str_len - 1] = '\0';
     str_len--;
   }
 } /* }}} void lcc_chomp */
@@ -308,7 +308,7 @@ static int lcc_receive(lcc_connection_t *c, /* {{{ */
 
   /* Now copy the message. */
   strncpy(res.message, ptr, sizeof(res.message));
-  res.message[sizeof(res.message) - 1] = 0;
+  res.message[sizeof(res.message) - 1] = '\0';
 
   /* Error or no lines follow: We're done. */
   if (res.status <= 0) {
@@ -624,7 +624,7 @@ int lcc_getval(lcc_connection_t *c, lcc_identifier_t *ident, /* {{{ */
 
   snprintf(command, sizeof(command), "GETVAL %s",
            lcc_strescape(ident_esc, ident_str, sizeof(ident_esc)));
-  command[sizeof(command) - 1] = 0;
+  command[sizeof(command) - 1] = '\0';
 
   /* Send talk to the daemon.. */
   status = lcc_sendreceive(c, command, &res);
@@ -930,7 +930,7 @@ int lcc_identifier_to_string(lcc_connection_t *c, /* {{{ */
                ident->type_instance);
   }
 
-  string[string_size - 1] = 0;
+  string[string_size - 1] = '\0';
   return 0;
 } /* }}} int lcc_identifier_to_string */
 

@@ -1577,7 +1577,6 @@ static char *ps_get_cmdline(long pid,
     return NULL;
   }
 
-  info.pr_psargs[sizeof(info.pr_psargs) - 1] = 0;
   sstrncpy(buffer, info.pr_psargs, buffer_size);
 
   return buffer;
