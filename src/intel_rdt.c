@@ -124,7 +124,7 @@ static void rdt_free_cgroups(void) {
 static int rdt_default_cgroups(void) {
   unsigned num_cores = g_rdt->pqos_cpu->num_cores;
 
-  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*(g_rdt->cores.cgroups)));
+  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*g_rdt->cores.cgroups));
   if (g_rdt->cores.cgroups == NULL) {
     ERROR(RDT_PLUGIN ": Error allocating core groups array");
     return -ENOMEM;
@@ -137,7 +137,7 @@ static int rdt_default_cgroups(void) {
     char desc[DATA_MAX_NAME_LEN];
 
     /* set core group info */
-    cgroup->cores = calloc(1, sizeof(*(cgroup->cores)));
+    cgroup->cores = calloc(1, sizeof(*cgroup->cores));
     if (cgroup->cores == NULL) {
       ERROR(RDT_PLUGIN ": Error allocating cores array");
       rdt_free_cgroups();

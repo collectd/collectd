@@ -413,7 +413,7 @@ static staging_entry_t *staging_entry_get(const char *host, /* {{{ */
   sstrncpy(se->key, key, sizeof(se->key));
   se->flags = 0;
 
-  se->vl.values = (value_t *)calloc(values_len, sizeof(*se->vl.values));
+  se->vl.values = calloc(values_len, sizeof(*se->vl.values));
   if (se->vl.values == NULL) {
     sfree(se);
     return NULL;
@@ -743,8 +743,8 @@ static void *mc_receive_thread(void *arg) /* {{{ */
     return (void *)-1;
   }
 
-  mc_receive_sockets = (struct pollfd *)calloc(mc_receive_sockets_num,
-                                               sizeof(*mc_receive_sockets));
+  mc_receive_sockets =
+      calloc(mc_receive_sockets_num, sizeof(*mc_receive_sockets));
   if (mc_receive_sockets == NULL) {
     ERROR("gmond plugin: calloc failed.");
     for (size_t i = 0; i < mc_receive_sockets_num; i++)

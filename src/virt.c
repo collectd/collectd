@@ -1432,7 +1432,7 @@ static int lv_domain_block_info(virDomainPtr dom, const char *path,
     return -1;
   }
 
-  virTypedParameterPtr params = calloc((size_t)nparams, sizeof(*params));
+  virTypedParameterPtr params = calloc(nparams, sizeof(*params));
   if (params == NULL) {
     ERROR("virt plugin: alloc(%i) for block=%s parameters failed.", nparams,
           path);
@@ -1502,7 +1502,7 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   int max_cpus = VIR_NODEINFO_MAXCPUS(nodeinfo);
   int cpu_map_len = VIR_CPU_MAPLEN(max_cpus);
 
-  virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(vinfo[0]));
+  virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(*vinfo));
   if (vinfo == NULL) {
     ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
@@ -1544,7 +1544,7 @@ static int get_pcpu_stats(virDomainPtr dom) {
     return -1;
   }
 
-  virTypedParameterPtr param = calloc(nparams, sizeof(virTypedParameter));
+  virTypedParameterPtr param = calloc(nparams, sizeof(*param));
   if (param == NULL) {
     ERROR(PLUGIN_NAME " plugin: alloc(%i) for cpu parameters failed.", nparams);
     return -1;
@@ -1627,9 +1627,9 @@ static int get_domain_state_notify(virDomainPtr domain) {
 
 static int get_memory_stats(virDomainPtr domain) {
   virDomainMemoryStatPtr minfo =
-      calloc(VIR_DOMAIN_MEMORY_STAT_NR, sizeof(virDomainMemoryStatStruct));
+      calloc(VIR_DOMAIN_MEMORY_STAT_NR, sizeof(*minfo));
   if (minfo == NULL) {
-    ERROR("virt plugin: malloc failed.");
+    ERROR("virt plugin: calloc failed.");
     return -1;
   }
 

@@ -116,7 +116,7 @@ cn_strdup(const char *str) /* {{{ */
   char *ret;
 
   strsize = strlen(str) + 1;
-  ret = (char *)malloc(strsize);
+  ret = malloc(strsize);
   if (ret != NULL)
     memcpy(ret, str, strsize);
   return ret;
@@ -130,13 +130,13 @@ static int filter_ds(size_t *values_num, double **values,
   if (match_ds_g == NULL)
     return RET_OKAY;
 
-  new_values = (gauge_t *)calloc(match_ds_num_g, sizeof(*new_values));
+  new_values = calloc(match_ds_num_g, sizeof(*new_values));
   if (new_values == NULL) {
     fprintf(stderr, "calloc failed: %s\n", strerror(errno));
     return RET_UNKNOWN;
   }
 
-  new_names = (char **)calloc(match_ds_num_g, sizeof(*new_names));
+  new_names = calloc(match_ds_num_g, sizeof(*new_names));
   if (new_names == NULL) {
     fprintf(stderr, "calloc failed: %s\n", strerror(errno));
     free(new_values);

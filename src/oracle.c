@@ -247,9 +247,7 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
   } /* while (status == 0) */
 
   while ((status == 0) && (db->queries_num > 0)) {
-    db->q_prep_areas = (udb_query_preparation_area_t **)calloc(
-        db->queries_num, sizeof(*db->q_prep_areas));
-
+    db->q_prep_areas = calloc(db->queries_num, sizeof(*db->q_prep_areas));
     if (db->q_prep_areas == NULL) {
       WARNING("oracle plugin: calloc failed");
       status = -1;

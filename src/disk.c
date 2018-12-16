@@ -701,7 +701,7 @@ static int disk_read(void) {
         break;
 
     if (ds == NULL) {
-      if ((ds = (diskstats_t *)calloc(1, sizeof(diskstats_t))) == NULL)
+      if ((ds = calloc(1, sizeof(*ds))) == NULL)
         continue;
 
       if ((ds->name = strdup(disk_name)) == NULL) {
@@ -989,9 +989,8 @@ static int disk_read(void) {
   }
 
   if (numdisk != pnumdisk || stat_disk == NULL) {
-    if (stat_disk != NULL)
-      free(stat_disk);
-    stat_disk = (perfstat_disk_t *)calloc(numdisk, sizeof(perfstat_disk_t));
+    free(stat_disk);
+    stat_disk = calloc(numdisk, sizeof(*stat_disk));
   }
   pnumdisk = numdisk;
 

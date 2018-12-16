@@ -609,9 +609,8 @@ static int ovs_db_json_data_process(ovs_db_t *pdb, const char *data,
 
 /* Allocate JSON reader instance */
 static ovs_json_reader_t *ovs_json_reader_alloc() {
-  ovs_json_reader_t *jreader = NULL;
-
-  if ((jreader = calloc(sizeof(ovs_json_reader_t), 1)) == NULL)
+  ovs_json_reader_t *jreader = calloc(1, sizeof(*jreader));
+  if (jreader == NULL)
     return NULL;
 
   return jreader;
@@ -720,13 +719,17 @@ static void ovs_db_reconnect(ovs_db_t *pdb) {
   if (pdb->unix_path[0] != '\0') {
     /* use UNIX socket instead of INET address */
     node_info = pdb->unix_path;
-    result = calloc(1, sizeof(struct addrinfo));
-    struct sockaddr_un *sa_unix = calloc(1, sizeof(struct sockaddr_un));
-    if (result == NULL || sa_unix == NULL) {
-      sfree(result);
-      sfree(sa_unix);
+
+    struct sockaddr_un *sa_unix = calloc(1, sizeof(*sa_unix));
+    if (sa_unix == NULL)
+      return;
+
+    result = calloc(1, sizeof(*result));
+    if (result == NULL) {
+      free(sa_unix);
       return;
     }
+
     result->ai_family = AF_UNIX;
     result->ai_socktype = SOCK_STREAM;
     result->ai_addrlen = sizeof(*sa_unix);
@@ -1121,7 +1124,7 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
 
   if (cb) {
     /* register result callback */
-    if ((new_cb = calloc(1, sizeof(ovs_callback_t))) == NULL)
+    if ((new_cb = calloc(1, sizeof(*new_cb))) == NULL)
       goto yajl_gen_failure;
 
     /* add new callback to front */
@@ -1179,7 +1182,7 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
     return -1;
 
   /* allocate new update callback */
-  if ((new_cb = calloc(1, sizeof(ovs_callback_t))) == NULL)
+  if ((new_cb = calloc(1, sizeof(*new_cb))) == NULL)
     return -1;
 
   /* init YAJL generator */

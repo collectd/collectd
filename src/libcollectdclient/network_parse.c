@@ -303,8 +303,8 @@ static int parse_values(void *payload, size_t payload_size,
     return EINVAL;
 
   state->values_len = (size_t)n;
-  state->values = calloc(sizeof(*state->values), state->values_len);
-  state->values_types = calloc(sizeof(*state->values_types), state->values_len);
+  state->values = calloc(state->values_len, sizeof(*state->values));
+  state->values_types = calloc(state->values_len, sizeof(*state->values_types));
   if ((state->values == NULL) || (state->values_types == NULL)) {
     return ENOMEM;
   }

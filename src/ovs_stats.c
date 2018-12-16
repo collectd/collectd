@@ -579,8 +579,8 @@ static interface_list_t *ovs_stats_new_port_interface(port_list_t *port,
   interface_list_t *iface = ovs_stats_get_port_interface(port, uuid);
 
   if (iface == NULL) {
-    iface = (interface_list_t *)calloc(1, sizeof(interface_list_t));
-    if (!iface) {
+    iface = calloc(1, sizeof(*iface));
+    if (iface == NULL) {
       ERROR("%s: Error allocating interface", plugin_name);
       return NULL;
     }
@@ -602,8 +602,8 @@ static port_list_t *ovs_stats_new_port(bridge_list_t *bridge,
   port_list_t *port = ovs_stats_get_port(uuid);
 
   if (port == NULL) {
-    port = (port_list_t *)calloc(1, sizeof(port_list_t));
-    if (!port) {
+    port = calloc(1, sizeof(*port));
+    if (port == NULL) {
       ERROR("%s: Error allocating port", plugin_name);
       return NULL;
     }
@@ -703,7 +703,7 @@ static int ovs_stats_update_bridge(yajl_val bridge) {
       ovs_stats_get_bridge(g_bridge_list_head, YAJL_GET_STRING(br_name));
   if (br == NULL) {
     br = calloc(1, sizeof(*br));
-    if (!br) {
+    if (br == NULL) {
       ERROR("%s: calloc(%zu) failed.", plugin_name, sizeof(*br));
       return -1;
     }
@@ -1312,7 +1312,7 @@ static int ovs_stats_plugin_config(oconfig_item_t *ci) {
         char const *br_name = child->values[j].value.string;
         if ((bridge = ovs_stats_get_bridge(g_monitored_bridge_list_head,
                                            br_name)) == NULL) {
-          if ((bridge = calloc(1, sizeof(bridge_list_t))) == NULL) {
+          if ((bridge = calloc(1, sizeof(*bridge))) == NULL) {
             ERROR("%s: Error allocating memory for bridge", plugin_name);
             goto cleanup_fail;
           } else {
