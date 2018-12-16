@@ -85,7 +85,7 @@ static int checked_lookup_add(lookup_t *obj, /* {{{ */
                               char const *plugin_instance, char const *type,
                               char const *type_instance,
                               unsigned int group_by) {
-  lookup_identifier_t ident = {0};
+  lookup_identifier_t ident = {{0}};
   void *user_class;
 
   strncpy(ident.host, host, sizeof(ident.host) - 1);
