@@ -85,15 +85,15 @@ static int checked_lookup_add(lookup_t *obj, /* {{{ */
                               char const *plugin_instance, char const *type,
                               char const *type_instance,
                               unsigned int group_by) {
-  lookup_identifier_t ident;
+  lookup_identifier_t ident = {0};
   void *user_class;
 
-  strncpy(ident.host, host, sizeof(ident.host));
-  strncpy(ident.plugin, plugin, sizeof(ident.plugin));
+  strncpy(ident.host, host, sizeof(ident.host) - 1);
+  strncpy(ident.plugin, plugin, sizeof(ident.plugin) - 1);
   strncpy(ident.plugin_instance, plugin_instance,
-          sizeof(ident.plugin_instance));
-  strncpy(ident.type, type, sizeof(ident.type));
-  strncpy(ident.type_instance, type_instance, sizeof(ident.type_instance));
+          sizeof(ident.plugin_instance) - 1);
+  strncpy(ident.type, type, sizeof(ident.type) - 1);
+  strncpy(ident.type_instance, type_instance, sizeof(ident.type_instance) - 1);
 
   user_class = malloc(sizeof(ident));
   memmove(user_class, &ident, sizeof(ident));
@@ -110,11 +110,11 @@ static int checked_lookup_search(lookup_t *obj, char const *host,
   value_list_t vl = VALUE_LIST_INIT;
   data_set_t const *ds = &ds_unknown;
 
-  strncpy(vl.host, host, sizeof(vl.host));
-  strncpy(vl.plugin, plugin, sizeof(vl.plugin));
-  strncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
-  strncpy(vl.type, type, sizeof(vl.type));
-  strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+  strncpy(vl.host, host, sizeof(vl.host) - 1);
+  strncpy(vl.plugin, plugin, sizeof(vl.plugin) - 1);
+  strncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance) - 1);
+  strncpy(vl.type, type, sizeof(vl.type) - 1);
+  strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance) - 1);
 
   if (strcmp(vl.type, "test") == 0)
     ds = &ds_test;
