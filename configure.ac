@@ -2075,52 +2075,39 @@ if test "x$with_kvm_openfiles" = "xyes"; then
 fi
 
 # --with-cuda {{{
-# only CUDA provides the nvml.h header
 AC_ARG_WITH([cuda],
   [AS_HELP_STRING([--with-cuda@<:@=PREFIX@:>@], [Path to cuda.])],
   [
-    if test "x$withval" = "xyes"; then
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_cuda_cppflags="-I$withval/include"
+      with_cuda_ldflags="-I$withval/lib"
       with_cuda="yes"
-    else if test "x$withval" = "xno"; then
-      with_cuda="no"
     else
-      with_cuda="yes"
-      CUDA_CFLAGS="$CUDA_CFLAGS -I$withval/include"
-      CUDA_LDFLAGS="$CUDA_LDFLAGS -L$withval/lib"
-    fi; fi
+      with_cuda="$withval"
+    fi
   ],
-  [ with_cuda="yes"
-    CUDA_CFLAGS="$CUDA_CFLAGS -I/opt/cuda/include"
-    CUDA_LDFLAGS="$CUDA_LDFLAGS -L/opt/cuda/lib64"
-  ]
+  [with_cuda="no"]
 )
 
-SAVE_CFLAGS="$CFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-CFLAGS="$CFLAGS $CUDA_CFLAGS"
-LDFLAGS="$LDFLAGS $CUDA_LDFLAGS"
-
 if test "x$with_cuda" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_cuda_cppflags"
+
   AC_CHECK_HEADERS([nvml.h],
     [with_cuda="yes"],
-    [with_cuda="no (header file missing)"]
+    [with_cuda="no (nvml.h not found)"]
   )
-fi
 
-if test "x$with_cuda" = "xpkgconfig"; then
-  AC_CHECK_HEADERS([nvml.h],
-    [],
-    [with_cuda="no (header file missing)"]
-  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_cuda" = "xyes"; then
-  BUILD_WITH_CUDA_CFLAGS="$CUDA_CFLAGS"
+  BUILD_WITH_CUDA_CPPFLAGS="$CUDA_CPPFLAGS"
   BUILD_WITH_CUDA_LDFLAGS="$CUDA_LDFLAGS"
   BUILD_WITH_CUDA_LIBS="-lnvidia-ml"
 fi
 
-AC_SUBST([BUILD_WITH_CUDA_CFLAGS])
+AC_SUBST([BUILD_WITH_CUDA_CPPFLAGS])
 AC_SUBST([BUILD_WITH_CUDA_LDFLAGS])
 AC_SUBST([BUILD_WITH_CUDA_LIBS])
 
@@ -7196,7 +7183,6 @@ AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Libraries:])
-AC_MSG_RESULT([    cuda  . . . . . . . . $with_cuda])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
@@ -7230,6 +7216,7 @@ AC_MSG_RESULT([    libnetapp . . . . . . $with_libnetapp])
 AC_MSG_RESULT([    libnetsnmp  . . . . . $with_libnetsnmp])
 AC_MSG_RESULT([    libnetsnmpagent . . . $with_libnetsnmpagent])
 AC_MSG_RESULT([    libnotify . . . . . . $with_libnotify])
+AC_MSG_RESULT([    libnvidia-ml  . . . . $with_cuda])
 AC_MSG_RESULT([    libopenipmi . . . . . $with_libopenipmipthread])
 AC_MSG_RESULT([    liboping  . . . . . . $with_liboping])
 AC_MSG_RESULT([    libowcapi . . . . . . $with_libowcapi])
