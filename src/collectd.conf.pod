@@ -5333,8 +5333,9 @@ When configuring with B<Interface> only the basic statistics will be collected,
 namely octets, packets, and errors. These statistics are collected by
 the C<interface> plugin, too, so using both at the same time is no benefit.
 
-When configured with B<VerboseInterface> all counters B<except> the basic ones,
-so that no data needs to be collected twice if you use the C<interface> plugin.
+When configured with B<VerboseInterface> all counters B<except> the basic ones
+will be collected, so that no data needs to be collected twice if you use the
+C<interface> plugin.
 This includes dropped packets, received multicast packets, collisions and a
 whole zoo of differentiated RX and TX errors. You can try the following command
 to get an idea of what awaits you:
