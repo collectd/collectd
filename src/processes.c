@@ -587,7 +587,8 @@ static void ps_list_add(const char *name, const char *cmdline,
                       entry->cpu_system_counter);
 
 #if HAVE_LIBTASKSTATS
-    ps_update_delay(ps, pse, entry);
+    if (entry->has_delay)
+      ps_update_delay(ps, pse, entry);
 #endif
   }
 }
