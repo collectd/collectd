@@ -43,6 +43,12 @@ typedef struct partition_state_st {
   uint32_t nodes_states[NODE_STATE_END];
   /* counts jobs states indexed by enum job_states in slurm.h */
   uint32_t jobs_states[JOB_END];
+  /* other node flags */
+  uint32_t drain;
+  uint32_t completing;
+  uint32_t no_respond;
+  uint32_t power_save;
+  uint32_t fail;
 } partition_state_t;
 
 /* based on enum node_states from slurm.h */
@@ -125,6 +131,11 @@ static void slurm_submit_partition(partition_state_t *partition) {
   for (int i=0; i<NODE_STATE_END; i++) {
     slurm_submit(partition->name, "count", node_state_names[i], partition->nodes_states[i]);
   }
+  slurm_submit(partition->name, "count", "drain", partition->drain);
+  slurm_submit(partition->name, "count", "completing", partition->completing);
+  slurm_submit(partition->name, "count", "no_respond", partition->no_respond);
+  slurm_submit(partition->name, "count", "power_save", partition->power_save);
+  slurm_submit(partition->name, "count", "fail", partition->fail);
 }
 
 static int slurm_read(void) {
@@ -209,6 +220,16 @@ static int slurm_read(void) {
         /* some non-existant nodes (name is NULL) may show up as node_state FUTURE */
         uint8_t node_state = node_ptr->node_state & NODE_STATE_BASE;
         partition_state->nodes_states[node_state]++;
+        if (node_ptr->node_state & NODE_STATE_DRAIN)
+          partition_state->drain++;
+        if (node_ptr->node_state & NODE_STATE_COMPLETING)
+          partition_state->completing++;
+        if (node_ptr->node_state & NODE_STATE_NO_RESPOND)
+          partition_state->no_respond++;
+        if (node_ptr->node_state & NODE_STATE_POWER_SAVE)
+          partition_state->power_save++;
+        if (node_ptr->node_state & NODE_STATE_FAIL)
+          partition_state->fail++;
       }
     }
   }
