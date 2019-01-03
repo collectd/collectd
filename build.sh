@@ -75,7 +75,7 @@ build_cygwin()
     : ${DATADIR:="${INSTALL_DIR}"}
 
     echo "Installing collectd to ${INSTALL_DIR}."
-    TOP_SRCDIR=$(pwd)
+    TOP_SRCDIR="$(pwd)"
     MINGW_ROOT="$(x86_64-w64-mingw32-gcc -print-sysroot)/mingw"
     export GNULIB_DIR="${TOP_SRCDIR}/gnulib/build/gllib"
 

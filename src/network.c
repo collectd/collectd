@@ -403,7 +403,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 #if COLLECT_DEBUG
     char name[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(name, sizeof(name), vl);
-    name[sizeof(name) - 1] = 0;
+    name[sizeof(name) - 1] = '\0';
     DEBUG("network plugin: network_dispatch_values: "
           "NOT dispatching %s.",
           name);
@@ -1728,10 +1728,9 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 #else
   int loop = 0;
 #endif
-  int yes = 1;
 
   /* allow multiple sockets to use the same PORT number */
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) == -1) {
     ERROR("network plugin: setsockopt (reuseaddr): %s", STRERRNO);
     return -1;
   }
@@ -2641,7 +2640,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 #if COLLECT_DEBUG
     char name[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(name, sizeof(name), vl);
-    name[sizeof(name) - 1] = 0;
+    name[sizeof(name) - 1] = '\0';
     DEBUG("network plugin: network_write: "
           "NOT sending %s.",
           name);

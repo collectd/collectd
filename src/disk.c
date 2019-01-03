@@ -662,10 +662,7 @@ static int disk_read(void) {
   char buffer[1024];
 
   char *fields[32];
-  int numfields;
-  int fieldshift = 0;
-
-  int minor = 0;
+  static unsigned int poll_count = 0;
 
   derive_t read_sectors = 0;
   derive_t write_sectors = 0;
@@ -684,28 +681,19 @@ static int disk_read(void) {
   diskstats_t *ds, *pre_ds;
 
   if ((fh = fopen("/proc/diskstats", "r")) == NULL) {
-    fh = fopen("/proc/partitions", "r");
-    if (fh == NULL) {
-      ERROR("disk plugin: fopen (/proc/{diskstats,partitions}) failed.");
-      return -1;
-    }
-
-    /* Kernel is 2.4.* */
-    fieldshift = 1;
+    ERROR("disk plugin: fopen(\"/proc/diskstats\"): %s", STRERRNO);
+    return -1;
   }
 
+  poll_count++;
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    char *disk_name;
-    char *output_name;
+    int numfields = strsplit(buffer, fields, 32);
 
-    numfields = strsplit(buffer, fields, 32);
-
-    if ((numfields != (14 + fieldshift)) && (numfields != 7))
+    /* need either 7 fields (partition) or at least 14 fields */
+    if ((numfields != 7) && (numfields < 14))
       continue;
 
-    minor = atoll(fields[1]);
-
-    disk_name = fields[2 + fieldshift];
+    char *disk_name = fields[2];
 
     for (ds = disklist, pre_ds = disklist; ds != NULL;
          pre_ds = ds, ds = ds->next)
@@ -713,7 +701,7 @@ static int disk_read(void) {
         break;
 
     if (ds == NULL) {
-      if ((ds = (diskstats_t *)calloc(1, sizeof(diskstats_t))) == NULL)
+      if ((ds = calloc(1, sizeof(*ds))) == NULL)
         continue;
 
       if ((ds->name = strdup(disk_name)) == NULL) {
@@ -734,28 +722,24 @@ static int disk_read(void) {
       read_sectors = atoll(fields[4]);
       write_ops = atoll(fields[5]);
       write_sectors = atoll(fields[6]);
-    } else if (numfields == (14 + fieldshift)) {
-      read_ops = atoll(fields[3 + fieldshift]);
-      write_ops = atoll(fields[7 + fieldshift]);
-
-      read_sectors = atoll(fields[5 + fieldshift]);
-      write_sectors = atoll(fields[9 + fieldshift]);
-
-      if ((fieldshift == 0) || (minor == 0)) {
-        is_disk = 1;
-        read_merged = atoll(fields[4 + fieldshift]);
-        read_time = atoll(fields[6 + fieldshift]);
-        write_merged = atoll(fields[8 + fieldshift]);
-        write_time = atoll(fields[10 + fieldshift]);
-
-        in_progress = atof(fields[11 + fieldshift]);
-
-        io_time = atof(fields[12 + fieldshift]);
-        weighted_time = atof(fields[13 + fieldshift]);
-      }
     } else {
-      DEBUG("numfields = %i; => unknown file format.", numfields);
-      continue;
+      assert(numfields >= 14);
+      read_ops = atoll(fields[3]);
+      write_ops = atoll(fields[7]);
+
+      read_sectors = atoll(fields[5]);
+      write_sectors = atoll(fields[9]);
+
+      is_disk = 1;
+      read_merged = atoll(fields[4]);
+      read_time = atoll(fields[6]);
+      write_merged = atoll(fields[8]);
+      write_time = atoll(fields[10]);
+
+      in_progress = atof(fields[11]);
+
+      io_time = atof(fields[12]);
+      weighted_time = atof(fields[13]);
     }
 
     {
@@ -830,14 +814,13 @@ static int disk_read(void) {
 
     } /* if (is_disk) */
 
-    /* Don't write to the RRDs if we've just started.. */
-    ds->poll_count++;
-    if (ds->poll_count <= 2) {
-      DEBUG("disk plugin: (ds->poll_count = %i) <= "
-            "(min_poll_count = 2); => Not writing.",
-            ds->poll_count);
+    /* Skip first cycle for newly-added disk */
+    if (ds->poll_count == 0) {
+      DEBUG("disk plugin: (ds->poll_count = 0) => Skipping.");
+      ds->poll_count = poll_count;
       continue;
     }
+    ds->poll_count = poll_count;
 
     if ((read_ops == 0) && (write_ops == 0)) {
       DEBUG("disk plugin: ((read_ops == 0) && "
@@ -845,7 +828,7 @@ static int disk_read(void) {
       continue;
     }
 
-    output_name = disk_name;
+    char *output_name = disk_name;
 
 #if HAVE_LIBUDEV_H
     char *alt_name = NULL;
@@ -890,6 +873,28 @@ static int disk_read(void) {
 #endif
   } /* while (fgets (buffer, sizeof (buffer), fh) != NULL) */
 
+  /* Remove disks that have disappeared from diskstats */
+  for (ds = disklist, pre_ds = disklist; ds != NULL;) {
+    /* Disk exists */
+    if (ds->poll_count == poll_count) {
+      pre_ds = ds;
+      ds = ds->next;
+      continue;
+    }
+
+    /* Disk is missing, remove it */
+    diskstats_t *missing_ds = ds;
+    if (ds == disklist) {
+      pre_ds = disklist = ds->next;
+    } else {
+      pre_ds->next = ds->next;
+    }
+    ds = ds->next;
+
+    DEBUG("disk plugin: Disk %s disappeared.", missing_ds->name);
+    free(missing_ds->name);
+    free(missing_ds);
+  }
   fclose(fh);
 /* #endif defined(KERNEL_LINUX) */
 
@@ -984,9 +989,8 @@ static int disk_read(void) {
   }
 
   if (numdisk != pnumdisk || stat_disk == NULL) {
-    if (stat_disk != NULL)
-      free(stat_disk);
-    stat_disk = (perfstat_disk_t *)calloc(numdisk, sizeof(perfstat_disk_t));
+    free(stat_disk);
+    stat_disk = calloc(numdisk, sizeof(*stat_disk));
   }
   pnumdisk = numdisk;
 

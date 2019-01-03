@@ -442,7 +442,7 @@ int strunescape(char *buf, size_t buf_len) {
     /* Move everything after the position one position to the left.
      * Add a null-byte as last character in the buffer. */
     memmove(buf + i + 1, buf + i + 2, buf_len - i - 2);
-    buf[buf_len - 1] = 0;
+    buf[buf_len - 1] = '\0';
   }
   return 0;
 } /* int strunescape */
@@ -1013,7 +1013,7 @@ int parse_value(const char *value_orig, value_t *ret_value, int ds_type) {
   value_len = strlen(value);
 
   while ((value_len > 0) && isspace((int)value[value_len - 1])) {
-    value[value_len - 1] = 0;
+    value[value_len - 1] = '\0';
     value_len--;
   }
 

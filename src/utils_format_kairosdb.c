@@ -69,7 +69,7 @@ static int kairosdb_escape_string(char *buffer, size_t buffer_size, /* {{{ */
 #define BUFFER_ADD(c)                                                          \
   do {                                                                         \
     if (dst_pos >= (buffer_size - 1)) {                                        \
-      buffer[buffer_size - 1] = 0;                                             \
+      buffer[buffer_size - 1] = '\0';                                          \
       return -ENOMEM;                                                          \
     }                                                                          \
     buffer[dst_pos] = (c);                                                     \
@@ -356,5 +356,3 @@ int format_kairosdb_value_list(char *buffer, /* {{{ */
       (*ret_buffer_free) - 2, http_attrs, http_attrs_num, data_ttl,
       metrics_prefix);
 } /* }}} int format_kairosdb_value_list */
-
-/* vim: set sw=2 sts=2 et fdm=marker : */

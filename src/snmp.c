@@ -1146,7 +1146,7 @@ static int csnmp_strvbcopy_hexstring(char *dst, /* {{{ */
 
     if (((size_t)status) >= buffer_free) /* truncated */
     {
-      dst[dst_size - 1] = 0;
+      dst[dst_size - 1] = '\0';
       return ENOMEM;
     } else /* if (status < buffer_free) */
     {
@@ -1193,7 +1193,7 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
     dst[i] = src[i];
   }
   dst[num_chars] = 0;
-  dst[dst_size - 1] = 0;
+  dst[dst_size - 1] = '\0';
 
   if (dst_size <= vb->val_len)
     return ENOMEM;

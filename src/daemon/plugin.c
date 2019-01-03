@@ -146,6 +146,7 @@ static bool plugin_ctx_key_initialized;
 static long write_limit_high;
 static long write_limit_low;
 
+static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 static derive_t stats_values_dropped;
 static bool record_statistics;
 
@@ -319,7 +320,6 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
   int i;
   llentry_t *le;
   int n;
-  char **keys;
 
   n = llist_size(*list);
   if (n == 0) {
@@ -327,11 +327,9 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
     return;
   }
 
-  keys = calloc(n, sizeof(char *));
-
+  char **keys = calloc(n, sizeof(*keys));
   if (keys == NULL) {
     ERROR("%s: failed to allocate memory for list of callbacks", comment);
-
     return;
   }
 
@@ -629,7 +627,7 @@ static void start_read_threads(size_t num) /* {{{ */
   if (read_threads != NULL)
     return;
 
-  read_threads = (pthread_t *)calloc(num, sizeof(pthread_t));
+  read_threads = calloc(num, sizeof(*read_threads));
   if (read_threads == NULL) {
     ERROR("plugin: start_read_threads: calloc failed.");
     return;
@@ -818,7 +816,7 @@ static void start_write_threads(size_t num) /* {{{ */
   if (write_threads != NULL)
     return;
 
-  write_threads = (pthread_t *)calloc(num, sizeof(pthread_t));
+  write_threads = calloc(num, sizeof(*write_threads));
   if (write_threads == NULL) {
     ERROR("plugin: start_write_threads: calloc failed.");
     return;
@@ -2076,7 +2074,6 @@ static bool check_drop_value(void) /* {{{ */
 
 EXPORT int plugin_dispatch_values(value_list_t const *vl) {
   int status;
-  static pthread_mutex_t statistics_lock = PTHREAD_MUTEX_INITIALIZER;
 
   if (check_drop_value()) {
     if (record_statistics) {
@@ -2105,6 +2102,15 @@ plugin_dispatch_multivalue(value_list_t const *template, /* {{{ */
   int failed = 0;
   gauge_t sum = 0.0;
   va_list ap;
+
+  if (check_drop_value()) {
+    if (record_statistics) {
+      pthread_mutex_lock(&statistics_lock);
+      stats_values_dropped++;
+      pthread_mutex_unlock(&statistics_lock);
+    }
+    return 0;
+  }
 
   assert(template->values_len == 1);
 

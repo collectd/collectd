@@ -142,7 +142,7 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
    * be fine and we can return. */
   clearerr(obj->fh);
   if (fgets(buf, buflen, obj->fh) != NULL) {
-    buf[buflen - 1] = 0;
+    buf[buflen - 1] = '\0';
     return 0;
   }
 
@@ -168,7 +168,7 @@ int cu_tail_readline(cu_tail_t *obj, char *buf, int buflen) {
   /* If we get here: file was re-opened and there may be more to read.. Let's
    * try again. */
   if (fgets(buf, buflen, obj->fh) != NULL) {
-    buf[buflen - 1] = 0;
+    buf[buflen - 1] = '\0';
     return 0;
   }
 

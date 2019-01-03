@@ -129,6 +129,8 @@ static const char *config_keys[] = {"Connection",
                                     "IgnoreSelected",
 
                                     "HostnameFormat",
+                                    "HostnameMetadataNS",
+                                    "HostnameMetadataXPath",
                                     "InterfaceFormat",
 
                                     "PluginInstanceFormat",
@@ -136,10 +138,16 @@ static const char *config_keys[] = {"Connection",
                                     "Instances",
                                     "ExtraStats",
                                     "PersistentNotification",
+
+                                    "ReportBlockDevices",
+                                    "ReportNetworkInterfaces",
                                     NULL};
 
 /* PersistentNotification is false by default */
 static bool persistent_notification = false;
+
+static bool report_block_devices = true;
+static bool report_network_interfaces = true;
 
 /* Thread used for handling libvirt notifications events */
 static virt_notif_thread_t notif_thread;
@@ -464,7 +472,7 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
   do {                                                                         \
     status = _f(__VA_ARGS__);                                                  \
     if (status != 0)                                                           \
-      ERROR(PLUGIN_NAME ": Failed to get " _name);                             \
+      ERROR(PLUGIN_NAME " plugin: Failed to get " _name);                      \
   } while (0)
 
 /* Connection. */
@@ -557,19 +565,28 @@ static int nr_instances = NR_INSTANCES_DEFAULT;
 static struct lv_user_data lv_read_user_data[NR_INSTANCES_MAX];
 
 /* HostnameFormat. */
-#define HF_MAX_FIELDS 3
+#define HF_MAX_FIELDS 4
 
-enum hf_field { hf_none = 0, hf_hostname, hf_name, hf_uuid };
+enum hf_field { hf_none = 0, hf_hostname, hf_name, hf_uuid, hf_metadata };
 
 static enum hf_field hostname_format[HF_MAX_FIELDS] = {hf_name};
 
 /* PluginInstanceFormat */
-#define PLGINST_MAX_FIELDS 2
+#define PLGINST_MAX_FIELDS 3
 
-enum plginst_field { plginst_none = 0, plginst_name, plginst_uuid };
+enum plginst_field {
+  plginst_none = 0,
+  plginst_name,
+  plginst_uuid,
+  plginst_metadata
+};
 
 static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] = {
     plginst_none};
+
+/* HostnameMetadataNS && HostnameMetadataXPath */
+static char *hm_xpath;
+static char *hm_ns;
 
 /* BlockDeviceFormat */
 enum bd_field { target, source };
@@ -639,12 +656,6 @@ static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
 
-struct lv_info {
-  virDomainInfo di;
-  unsigned long long total_user_cpu_time;
-  unsigned long long total_syst_cpu_time;
-};
-
 struct lv_block_info {
   virDomainBlockStatsStruct bi;
 
@@ -708,57 +719,96 @@ static int get_block_info(struct lv_block_info *binfo,
     virErrorPtr err;                                                           \
     err = (conn) ? virConnGetLastError((conn)) : virGetLastError();            \
     if (err)                                                                   \
-      ERROR("%s: %s", (s), err->message);                                      \
+      ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
 
-static void init_lv_info(struct lv_info *info) {
-  if (info != NULL)
-    memset(info, 0, sizeof(*info));
-}
+char *metadata_get_hostname(virDomainPtr dom) {
+  const char *xpath_str = NULL;
+  if (hm_xpath == NULL)
+    xpath_str = "/instance/name/text()";
+  else
+    xpath_str = hm_xpath;
 
-static int lv_domain_info(virDomainPtr dom, struct lv_info *info) {
-#ifdef HAVE_CPU_STATS
-  virTypedParameterPtr param = NULL;
-  int nparams = 0;
-#endif /* HAVE_CPU_STATS */
-  int ret = virDomainGetInfo(dom, &(info->di));
-  if (ret != 0) {
-    return ret;
+  const char *namespace = NULL;
+  if (hm_ns == NULL) {
+    namespace = "http://openstack.org/xmlns/libvirt/nova/1.0";
+  } else {
+    namespace = hm_ns;
   }
 
-#ifdef HAVE_CPU_STATS
-  nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
-  if (nparams < 0) {
-    VIRT_ERROR(conn, "getting the CPU params count");
-    return -1;
+  char *metadata_str = virDomainGetMetadata(
+      dom, VIR_DOMAIN_METADATA_ELEMENT, namespace, VIR_DOMAIN_AFFECT_CURRENT);
+  if (metadata_str == NULL) {
+    return NULL;
   }
 
-  param = calloc(nparams, sizeof(virTypedParameter));
-  if (param == NULL) {
-    ERROR("virt plugin: alloc(%i) for cpu parameters failed.", nparams);
-    return -1;
+  char *hostname = NULL;
+  xmlXPathContextPtr xpath_ctx = NULL;
+  xmlXPathObjectPtr xpath_obj = NULL;
+  xmlNodePtr xml_node = NULL;
+
+  xmlDocPtr xml_doc =
+      xmlReadDoc((xmlChar *)metadata_str, NULL, NULL, XML_PARSE_NONET);
+  if (xml_doc == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlReadDoc failed to read metadata");
+    goto metadata_end;
   }
 
-  ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
-  if (ret < 0) {
-    virTypedParamsClear(param, nparams);
-    sfree(param);
-    VIRT_ERROR(conn, "getting the disk params values");
-    return -1;
+  xpath_ctx = xmlXPathNewContext(xml_doc);
+  if (xpath_ctx == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathNewContext(%s) failed for metadata",
+          metadata_str);
+    goto metadata_end;
+  }
+  xpath_obj = xmlXPathEval((xmlChar *)xpath_str, xpath_ctx);
+  if (xpath_obj == NULL) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) failed for metadata",
+          xpath_str);
+    goto metadata_end;
   }
 
-  for (int i = 0; i < nparams; ++i) {
-    if (!strcmp(param[i].field, "user_time"))
-      info->total_user_cpu_time = param[i].value.ul;
-    else if (!strcmp(param[i].field, "system_time"))
-      info->total_syst_cpu_time = param[i].value.ul;
+  if (xpath_obj->type != XPATH_NODESET) {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unexpected return type %d "
+                      "(wanted %d) for metadata",
+          xpath_str, xpath_obj->type, XPATH_NODESET);
+    goto metadata_end;
   }
 
-  virTypedParamsClear(param, nparams);
-  sfree(param);
-#endif /* HAVE_CPU_STATS */
+  // TODO(sileht): We can support || operator by looping on nodes here
+  if (xpath_obj->nodesetval == NULL || xpath_obj->nodesetval->nodeNr != 1) {
+    WARNING(PLUGIN_NAME " plugin: xmlXPathEval(%s) return nodeset size=%i "
+                        "expected=1 for metadata",
+            xpath_str,
+            (xpath_obj->nodesetval == NULL) ? 0
+                                            : xpath_obj->nodesetval->nodeNr);
+    goto metadata_end;
+  }
 
-  return 0;
+  xml_node = xpath_obj->nodesetval->nodeTab[0];
+  if (xml_node->type == XML_TEXT_NODE) {
+    hostname = strdup((const char *)xml_node->content);
+  } else if (xml_node->type == XML_ATTRIBUTE_NODE) {
+    hostname = strdup((const char *)xml_node->children->content);
+  } else {
+    ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unsupported node type %d",
+          xpath_str, xml_node->type);
+    goto metadata_end;
+  }
+
+  if (hostname == NULL) {
+    ERROR(PLUGIN_NAME " plugin: strdup(%s) hostname failed", xpath_str);
+    goto metadata_end;
+  }
+
+metadata_end:
+  if (xpath_obj)
+    xmlXPathFreeObject(xpath_obj);
+  if (xpath_ctx)
+    xmlXPathFreeContext(xpath_ctx);
+  if (xml_doc)
+    xmlFreeDoc(xml_doc);
+  sfree(metadata_str);
+  return hostname;
 }
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
@@ -792,6 +842,11 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
       if (virDomainGetUUIDString(dom, uuid) == 0)
         SSTRNCAT(vl->host, uuid, sizeof(vl->host));
       break;
+    case hf_metadata:
+      name = metadata_get_hostname(dom);
+      if (name)
+        SSTRNCAT(vl->host, name, sizeof(vl->host));
+      break;
     }
   }
 
@@ -815,6 +870,11 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
       if (virDomainGetUUIDString(dom, uuid) == 0)
         SSTRNCAT(vl->plugin_instance, uuid, sizeof(vl->plugin_instance));
       break;
+    case plginst_metadata:
+      name = metadata_get_hostname(dom);
+      if (name)
+        SSTRNCAT(vl->plugin_instance, name, sizeof(vl->plugin_instance));
+      break;
     }
   }
 
@@ -826,7 +886,7 @@ static int init_notif(notification_t *notif, const virDomainPtr domain,
   value_list_t vl = VALUE_LIST_INIT;
 
   if (!notif) {
-    ERROR(PLUGIN_NAME ": init_notif: NULL pointer");
+    ERROR(PLUGIN_NAME " plugin: init_notif: NULL pointer");
     return -1;
   }
 
@@ -892,14 +952,6 @@ static void submit_derive2(const char *type, derive_t v0, derive_t v1,
   submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
 } /* void submit_derive2 */
 
-static void pcpu_submit(virDomainPtr dom, struct lv_info *info) {
-#ifdef HAVE_CPU_STATS
-  if (extra_stats & ex_stats_pcpu)
-    submit_derive2("ps_cputime", info->total_user_cpu_time,
-                   info->total_syst_cpu_time, dom, NULL);
-#endif /* HAVE_CPU_STATS */
-}
-
 static double cpu_ns_to_percent(unsigned int node_cpus,
                                 unsigned long long cpu_time_old,
                                 unsigned long long cpu_time_new) {
@@ -913,7 +965,7 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
               (time_diff_sec * node_cpus * NANOSEC_IN_SEC);
   }
 
-  DEBUG(PLUGIN_NAME ": node_cpus=%u cpu_time_old=%" PRIu64
+  DEBUG(PLUGIN_NAME " plugin: node_cpus=%u cpu_time_old=%" PRIu64
                     " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
                     " time_diff_sec=%f percent=%f",
         node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
@@ -1008,7 +1060,8 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
       }
 
       if (ex_stats_table[j + 1].name == NULL) {
-        ERROR(PLUGIN_NAME ": Unmatched ExtraStats option: %s", exstats[i]);
+        ERROR(PLUGIN_NAME " plugin: Unmatched ExtraStats option: %s",
+              exstats[i]);
       }
     }
   }
@@ -1017,7 +1070,7 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
 
 static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
   if ((state < 0) || ((size_t)state >= STATIC_ARRAY_SIZE(domain_states))) {
-    ERROR(PLUGIN_NAME ": Array index out of bounds: state=%d", state);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: state=%d", state);
     return;
   }
 
@@ -1026,7 +1079,7 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
 #ifdef HAVE_DOM_REASON
   if ((reason < 0) ||
       ((size_t)reason >= STATIC_ARRAY_SIZE(domain_reasons[0]))) {
-    ERROR(PLUGIN_NAME ": Array index out of bounds: reason=%d", reason);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: reason=%d", reason);
     return;
   }
 
@@ -1035,8 +1088,8 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
    * have different number of reasons. We need to check if reason was
    * successfully parsed */
   if (!reason_str) {
-    ERROR(PLUGIN_NAME ": Invalid reason (%d) for domain state: %s", reason,
-          state_str);
+    ERROR(PLUGIN_NAME " plugin: Invalid reason (%d) for domain state: %s",
+          reason, state_str);
     return;
   }
 #else
@@ -1065,22 +1118,32 @@ static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
     severity = NOTIF_FAILURE;
     break;
   default:
-    ERROR(PLUGIN_NAME ": Unrecognized domain state (%d)", state);
+    ERROR(PLUGIN_NAME " plugin: Unrecognized domain state (%d)", state);
     return;
   }
   submit_notif(dom, severity, msg, "domain_state", NULL);
 }
 
-static int lv_config(const char *key, const char *value) {
-  if (virInitialize() != 0)
-    return 1;
-
+static int lv_init_ignorelists() {
   if (il_domains == NULL)
     il_domains = ignorelist_create(1);
   if (il_block_devices == NULL)
     il_block_devices = ignorelist_create(1);
   if (il_interface_devices == NULL)
     il_interface_devices = ignorelist_create(1);
+
+  if (!il_domains || !il_block_devices || !il_interface_devices)
+    return 1;
+
+  return 0;
+}
+
+static int lv_config(const char *key, const char *value) {
+  if (virInitialize() != 0)
+    return 1;
+
+  if (lv_init_ignorelists() != 0)
+    return 1;
 
   if (strcasecmp(key, "Connection") == 0) {
     char *tmp = strdup(value);
@@ -1146,18 +1209,37 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
 
-  if (strcasecmp(key, "HostnameFormat") == 0) {
-    char *value_copy;
-    char *fields[HF_MAX_FIELDS];
-    int n;
+  if (strcasecmp(key, "HostnameMetadataNS") == 0) {
+    char *tmp = strdup(value);
+    if (tmp == NULL) {
+      ERROR(PLUGIN_NAME " plugin: HostnameMetadataNS strdup failed.");
+      return 1;
+    }
+    sfree(hm_ns);
+    hm_ns = tmp;
+    return 0;
+  }
 
-    value_copy = strdup(value);
+  if (strcasecmp(key, "HostnameMetadataXPath") == 0) {
+    char *tmp = strdup(value);
+    if (tmp == NULL) {
+      ERROR(PLUGIN_NAME " plugin: HostnameMetadataXPath strdup failed.");
+      return 1;
+    }
+    sfree(hm_xpath);
+    hm_xpath = tmp;
+    return 0;
+  }
+
+  if (strcasecmp(key, "HostnameFormat") == 0) {
+    char *value_copy = strdup(value);
     if (value_copy == NULL) {
       ERROR(PLUGIN_NAME " plugin: strdup failed.");
       return -1;
     }
 
-    n = strsplit(value_copy, fields, HF_MAX_FIELDS);
+    char *fields[HF_MAX_FIELDS];
+    int n = strsplit(value_copy, fields, HF_MAX_FIELDS);
     if (n < 1) {
       sfree(value_copy);
       ERROR(PLUGIN_NAME " plugin: HostnameFormat: no fields");
@@ -1171,6 +1253,8 @@ static int lv_config(const char *key, const char *value) {
         hostname_format[i] = hf_name;
       else if (strcasecmp(fields[i], "uuid") == 0)
         hostname_format[i] = hf_uuid;
+      else if (strcasecmp(fields[i], "metadata") == 0)
+        hostname_format[i] = hf_metadata;
       else {
         ERROR(PLUGIN_NAME " plugin: unknown HostnameFormat field: %s",
               fields[i]);
@@ -1187,17 +1271,14 @@ static int lv_config(const char *key, const char *value) {
   }
 
   if (strcasecmp(key, "PluginInstanceFormat") == 0) {
-    char *value_copy;
-    char *fields[PLGINST_MAX_FIELDS];
-    int n;
-
-    value_copy = strdup(value);
+    char *value_copy = strdup(value);
     if (value_copy == NULL) {
       ERROR(PLUGIN_NAME " plugin: strdup failed.");
       return -1;
     }
 
-    n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
+    char *fields[PLGINST_MAX_FIELDS];
+    int n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
     if (n < 1) {
       sfree(value_copy);
       ERROR(PLUGIN_NAME " plugin: PluginInstanceFormat: no fields");
@@ -1212,6 +1293,8 @@ static int lv_config(const char *key, const char *value) {
         plugin_instance_format[i] = plginst_name;
       else if (strcasecmp(fields[i], "uuid") == 0)
         plugin_instance_format[i] = plginst_uuid;
+      else if (strcasecmp(fields[i], "metadata") == 0)
+        plugin_instance_format[i] = plginst_metadata;
       else {
         ERROR(PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s",
               fields[i]);
@@ -1291,6 +1374,16 @@ static int lv_config(const char *key, const char *value) {
     return 0;
   }
 
+  if (strcasecmp(key, "ReportBlockDevices") == 0) {
+    report_block_devices = IS_TRUE(value);
+    return 0;
+  }
+
+  if (strcasecmp(key, "ReportNetworkInterfaces") == 0) {
+    report_network_interfaces = IS_TRUE(value);
+    return 0;
+  }
+
   /* Unrecognised option. */
   return -1;
 }
@@ -1313,7 +1406,7 @@ static int lv_connect(void) {
     }
     int status = virNodeGetInfo(conn, &nodeinfo);
     if (status != 0) {
-      ERROR(PLUGIN_NAME ": virNodeGetInfo failed");
+      ERROR(PLUGIN_NAME " plugin: virNodeGetInfo failed");
       return -1;
     }
   }
@@ -1339,7 +1432,7 @@ static int lv_domain_block_info(virDomainPtr dom, const char *path,
     return -1;
   }
 
-  virTypedParameterPtr params = calloc((size_t)nparams, sizeof(*params));
+  virTypedParameterPtr params = calloc(nparams, sizeof(*params));
   if (params == NULL) {
     ERROR("virt plugin: alloc(%i) for block=%s parameters failed.", nparams,
           path);
@@ -1409,15 +1502,15 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   int max_cpus = VIR_NODEINFO_MAXCPUS(nodeinfo);
   int cpu_map_len = VIR_CPU_MAPLEN(max_cpus);
 
-  virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(vinfo[0]));
+  virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(*vinfo));
   if (vinfo == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
   }
 
   unsigned char *cpumaps = calloc(nr_virt_cpu, cpu_map_len);
   if (cpumaps == NULL) {
-    ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     sfree(vinfo);
     return -1;
   }
@@ -1442,6 +1535,49 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   sfree(vinfo);
   return 0;
 }
+
+#ifdef HAVE_CPU_STATS
+static int get_pcpu_stats(virDomainPtr dom) {
+  int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
+  if (nparams < 0) {
+    VIRT_ERROR(conn, "getting the CPU params count");
+    return -1;
+  }
+
+  virTypedParameterPtr param = calloc(nparams, sizeof(*param));
+  if (param == NULL) {
+    ERROR(PLUGIN_NAME " plugin: alloc(%i) for cpu parameters failed.", nparams);
+    return -1;
+  }
+
+  int ret = virDomainGetCPUStats(dom, param, nparams, -1, 1, 0); // total stats.
+  if (ret < 0) {
+    virTypedParamsClear(param, nparams);
+    sfree(param);
+    VIRT_ERROR(conn, "getting the CPU params values");
+    return -1;
+  }
+
+  unsigned long long total_user_cpu_time = 0;
+  unsigned long long total_syst_cpu_time = 0;
+
+  for (int i = 0; i < nparams; ++i) {
+    if (!strcmp(param[i].field, "user_time"))
+      total_user_cpu_time = param[i].value.ul;
+    else if (!strcmp(param[i].field, "system_time"))
+      total_syst_cpu_time = param[i].value.ul;
+  }
+
+  if (total_user_cpu_time > 0 || total_syst_cpu_time > 0)
+    submit_derive2("ps_cputime", total_user_cpu_time, total_syst_cpu_time, dom,
+                   NULL);
+
+  virTypedParamsClear(param, nparams);
+  sfree(param);
+
+  return 0;
+}
+#endif /* HAVE_CPU_STATS */
 
 #ifdef HAVE_DOM_REASON
 
@@ -1491,9 +1627,9 @@ static int get_domain_state_notify(virDomainPtr domain) {
 
 static int get_memory_stats(virDomainPtr domain) {
   virDomainMemoryStatPtr minfo =
-      calloc(VIR_DOMAIN_MEMORY_STAT_NR, sizeof(virDomainMemoryStatStruct));
+      calloc(VIR_DOMAIN_MEMORY_STAT_NR, sizeof(*minfo));
   if (minfo == NULL) {
-    ERROR("virt plugin: malloc failed.");
+    ERROR("virt plugin: calloc failed.");
     return -1;
   }
 
@@ -1716,15 +1852,13 @@ static int get_job_stats(virDomainPtr domain) {
 #endif /* HAVE_JOB_STATS */
 
 static int get_domain_metrics(domain_t *domain) {
-  struct lv_info info;
-
   if (!domain || !domain->ptr) {
-    ERROR(PLUGIN_NAME ": get_domain_metrics: NULL pointer");
+    ERROR(PLUGIN_NAME " plugin: get_domain_metrics: NULL pointer");
     return -1;
   }
 
-  init_lv_info(&info);
-  int status = lv_domain_info(domain->ptr, &info);
+  virDomainInfo info;
+  int status = virDomainGetInfo(domain->ptr, &info);
   if (status != 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
           status);
@@ -1742,15 +1876,19 @@ static int get_domain_metrics(domain_t *domain) {
   }
 
   /* Gather remaining stats only for running domains */
-  if (info.di.state != VIR_DOMAIN_RUNNING)
+  if (info.state != VIR_DOMAIN_RUNNING)
     return 0;
 
-  pcpu_submit(domain->ptr, &info);
-  cpu_submit(domain, info.di.cpuTime);
+#ifdef HAVE_CPU_STATS
+  if (extra_stats & ex_stats_pcpu)
+    get_pcpu_stats(domain->ptr);
+#endif
 
-  memory_submit(domain->ptr, (gauge_t)info.di.memory * 1024);
+  cpu_submit(domain, info.cpuTime);
 
-  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.di.nrVirtCpu);
+  memory_submit(domain->ptr, (gauge_t)info.memory * 1024);
+
+  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
   GET_STATS(get_memory_stats, "memory stats", domain->ptr);
 
 #ifdef HAVE_PERF_STATS
@@ -1775,7 +1913,7 @@ static int get_domain_metrics(domain_t *domain) {
 #endif
 
   /* Update cached virDomainInfo. It has to be done after cpu_submit */
-  memcpy(&domain->info, &info.di, sizeof(domain->info));
+  memcpy(&domain->info, &info, sizeof(domain->info));
 
   return 0;
 }
@@ -1890,7 +2028,7 @@ static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
   assert(thread_data != NULL);
   ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to initialize mutex, err %u", ret);
+    ERROR(PLUGIN_NAME " plugin: Failed to initialize mutex, err %u", ret);
     return ret;
   }
 
@@ -2090,7 +2228,7 @@ static int lv_read(user_data_t *ud) {
 #endif
 
     if (status != 0)
-      ERROR(PLUGIN_NAME " failed to get metrics for domain=%s",
+      ERROR(PLUGIN_NAME " plugin: failed to get metrics for domain=%s",
             virDomainGetName(dom->ptr));
   }
 
@@ -2099,19 +2237,20 @@ static int lv_read(user_data_t *ud) {
     int status = get_block_stats(&state->block_devices[i]);
     if (status != 0)
       ERROR(PLUGIN_NAME
-            " failed to get stats for block device (%s) in domain %s",
+            " plugin: failed to get stats for block device (%s) in domain %s",
             state->block_devices[i].path,
-            virDomainGetName(state->domains[i].ptr));
+            virDomainGetName(state->block_devices[i].dom));
   }
 
   /* Get interface stats for each domain. */
   for (int i = 0; i < state->nr_interface_devices; ++i) {
     int status = get_if_dev_stats(&state->interface_devices[i]);
     if (status != 0)
-      ERROR(PLUGIN_NAME
-            " failed to get interface stats for device (%s) in domain %s",
-            state->interface_devices[i].path,
-            virDomainGetName(state->interface_devices[i].dom));
+      ERROR(
+          PLUGIN_NAME
+          " plugin: failed to get interface stats for device (%s) in domain %s",
+          state->interface_devices[i].path,
+          virDomainGetName(state->interface_devices[i].dom));
   }
 
   return 0;
@@ -2152,6 +2291,10 @@ static void lv_fini_instance(size_t i) {
 
 static int lv_init(void) {
   if (virInitialize() != 0)
+    return -1;
+
+  /* Init ignorelists if there was no explicit configuration */
+  if (lv_init_ignorelists() != 0)
     return -1;
 
   /* event implementation must be registered before connection is opened */
@@ -2273,6 +2416,94 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
   return 0;
 }
 
+static void lv_add_block_devices(struct lv_read_state *state, virDomainPtr dom,
+                                 const char *domname,
+                                 xmlXPathContextPtr xpath_ctx) {
+  const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
+  if (blockdevice_format == source)
+    bd_xmlpath = "/domain/devices/disk/source[@dev]";
+
+  xmlXPathObjectPtr xpath_obj =
+      xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
+
+  if (xpath_obj == NULL)
+    return;
+
+  if (xpath_obj->type != XPATH_NODESET || xpath_obj->nodesetval == NULL) {
+    xmlXPathFreeObject(xpath_obj);
+    return;
+  }
+
+  for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
+    xmlNodePtr node = xpath_obj->nodesetval->nodeTab[j];
+    if (!node)
+      continue;
+
+    char *path = (char *)xmlGetProp(node, (xmlChar *)"dev");
+    if (!path)
+      continue;
+
+    if (ignore_device_match(il_block_devices, domname, path) == 0)
+      add_block_device(state, dom, path);
+
+    xmlFree(path);
+  }
+  xmlXPathFreeObject(xpath_obj);
+}
+
+static void lv_add_network_interfaces(struct lv_read_state *state,
+                                      virDomainPtr dom, const char *domname,
+                                      xmlXPathContextPtr xpath_ctx) {
+  xmlXPathObjectPtr xpath_obj = xmlXPathEval(
+      (xmlChar *)"/domain/devices/interface[target[@dev]]", xpath_ctx);
+
+  if (xpath_obj == NULL)
+    return;
+
+  if (xpath_obj->type != XPATH_NODESET || xpath_obj->nodesetval == NULL) {
+    xmlXPathFreeObject(xpath_obj);
+    return;
+  }
+
+  xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
+
+  for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
+    char *path = NULL;
+    char *address = NULL;
+
+    xmlNodePtr xml_interface = xml_interfaces->nodeTab[j];
+    if (!xml_interface)
+      continue;
+
+    for (xmlNodePtr child = xml_interface->children; child;
+         child = child->next) {
+      if (child->type != XML_ELEMENT_NODE)
+        continue;
+
+      if (xmlStrEqual(child->name, (const xmlChar *)"target")) {
+        path = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+        if (!path)
+          continue;
+      } else if (xmlStrEqual(child->name, (const xmlChar *)"mac")) {
+        address = (char *)xmlGetProp(child, (const xmlChar *)"address");
+        if (!address)
+          continue;
+      }
+    }
+
+    if ((ignore_device_match(il_interface_devices, domname, path) == 0 &&
+         ignore_device_match(il_interface_devices, domname, address) == 0)) {
+      add_interface_device(state, dom, path, address, j + 1);
+    }
+
+    if (path)
+      xmlFree(path);
+    if (address)
+      xmlFree(address);
+  }
+  xmlXPathFreeObject(xpath_obj);
+}
+
 static int refresh_lists(struct lv_read_instance *inst) {
   struct lv_read_state *state = &inst->read_state;
   int n;
@@ -2298,10 +2529,8 @@ static int refresh_lists(struct lv_read_instance *inst) {
                                    VIR_CONNECT_LIST_DOMAINS_INACTIVE);
   n = virConnectListAllDomains(conn, &domains, VIR_CONNECT_LIST_DOMAINS_ACTIVE);
 #else
-  int *domids;
-
   /* Get list of domains. */
-  domids = calloc(n, sizeof(*domids));
+  int *domids = calloc(n, sizeof(*domids));
   if (domids == NULL) {
     ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
@@ -2334,20 +2563,11 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
   /* Fetch each domain and add it to the list, unless ignore. */
   for (int i = 0; i < n; ++i) {
-    const char *name;
-    char *xml = NULL;
-    xmlDocPtr xml_doc = NULL;
-    xmlXPathContextPtr xpath_ctx = NULL;
-    xmlXPathObjectPtr xpath_obj = NULL;
-    char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
-    virDomainInfo info;
-    int status;
 
 #ifdef HAVE_LIST_ALL_DOMAINS
     virDomainPtr dom = domains[i];
 #else
-    virDomainPtr dom = NULL;
-    dom = virDomainLookupByID(conn, domids[i]);
+    virDomainPtr dom = virDomainLookupByID(conn, domids[i]);
     if (dom == NULL) {
       VIRT_ERROR(conn, "virDomainLookupByID");
       /* Could be that the domain went away -- ignore it anyway. */
@@ -2366,16 +2586,17 @@ static int refresh_lists(struct lv_read_instance *inst) {
        */
       ERROR(PLUGIN_NAME " plugin: malloc failed.");
       virDomainFree(dom);
-      goto cont;
+      continue;
     }
 
-    name = virDomainGetName(dom);
-    if (name == NULL) {
+    const char *domname = virDomainGetName(dom);
+    if (domname == NULL) {
       VIRT_ERROR(conn, "virDomainGetName");
-      goto cont;
+      continue;
     }
 
-    status = virDomainGetInfo(dom, &info);
+    virDomainInfo info;
+    int status = virDomainGetInfo(dom, &info);
     if (status != 0) {
       ERROR(PLUGIN_NAME " plugin: virDomainGetInfo failed with status %i.",
             status);
@@ -2383,15 +2604,18 @@ static int refresh_lists(struct lv_read_instance *inst) {
     }
 
     if (info.state != VIR_DOMAIN_RUNNING) {
-      DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", name);
+      DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", domname);
       continue;
     }
 
-    if (il_domains && ignorelist_match(il_domains, name) != 0)
-      goto cont;
+    if (ignorelist_match(il_domains, domname) != 0)
+      continue;
 
     /* Get a list of devices for this domain. */
-    xml = virDomainGetXMLDesc(dom, 0);
+    xmlDocPtr xml_doc = NULL;
+    xmlXPathContextPtr xpath_ctx = NULL;
+
+    char *xml = virDomainGetXMLDesc(dom, 0);
     if (!xml) {
       VIRT_ERROR(conn, "virDomainGetXMLDesc");
       goto cont;
@@ -2406,96 +2630,24 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
     xpath_ctx = xmlXPathNewContext(xml_doc);
 
-    if (lv_domain_get_tag(xpath_ctx, name, tag) < 0) {
+    char tag[PARTITION_TAG_MAX_LEN] = {'\0'};
+    if (lv_domain_get_tag(xpath_ctx, domname, tag) < 0) {
       ERROR(PLUGIN_NAME " plugin: lv_domain_get_tag failed.");
       goto cont;
     }
 
-    if (!lv_instance_include_domain(inst, name, tag))
+    if (!lv_instance_include_domain(inst, domname, tag))
       goto cont;
 
     /* Block devices. */
-    const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
-    if (blockdevice_format == source)
-      bd_xmlpath = "/domain/devices/disk/source[@dev]";
-    xpath_obj = xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
-
-    if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-        xpath_obj->nodesetval == NULL)
-      goto cont;
-
-    for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-      xmlNodePtr node;
-      char *path = NULL;
-
-      node = xpath_obj->nodesetval->nodeTab[j];
-      if (!node)
-        continue;
-      path = (char *)xmlGetProp(node, (xmlChar *)"dev");
-      if (!path)
-        continue;
-
-      if (il_block_devices &&
-          ignore_device_match(il_block_devices, name, path) != 0)
-        goto cont2;
-
-      add_block_device(state, dom, path);
-    cont2:
-      if (path)
-        xmlFree(path);
-    }
-    xmlXPathFreeObject(xpath_obj);
+    if (report_block_devices)
+      lv_add_block_devices(state, dom, domname, xpath_ctx);
 
     /* Network interfaces. */
-    xpath_obj = xmlXPathEval(
-        (xmlChar *)"/domain/devices/interface[target[@dev]]", xpath_ctx);
-    if (xpath_obj == NULL || xpath_obj->type != XPATH_NODESET ||
-        xpath_obj->nodesetval == NULL)
-      goto cont;
-
-    xmlNodeSetPtr xml_interfaces = xpath_obj->nodesetval;
-
-    for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
-      char *path = NULL;
-      char *address = NULL;
-      xmlNodePtr xml_interface;
-
-      xml_interface = xml_interfaces->nodeTab[j];
-      if (!xml_interface)
-        continue;
-
-      for (xmlNodePtr child = xml_interface->children; child;
-           child = child->next) {
-        if (child->type != XML_ELEMENT_NODE)
-          continue;
-
-        if (xmlStrEqual(child->name, (const xmlChar *)"target")) {
-          path = (char *)xmlGetProp(child, (const xmlChar *)"dev");
-          if (!path)
-            continue;
-        } else if (xmlStrEqual(child->name, (const xmlChar *)"mac")) {
-          address = (char *)xmlGetProp(child, (const xmlChar *)"address");
-          if (!address)
-            continue;
-        }
-      }
-
-      if (il_interface_devices &&
-          (ignore_device_match(il_interface_devices, name, path) != 0 ||
-           ignore_device_match(il_interface_devices, name, address) != 0))
-        goto cont3;
-
-      add_interface_device(state, dom, path, address, j + 1);
-    cont3:
-      if (path)
-        xmlFree(path);
-      if (address)
-        xmlFree(address);
-    }
+    if (report_network_interfaces)
+      lv_add_network_interfaces(state, dom, domname, xpath_ctx);
 
   cont:
-    if (xpath_obj)
-      xmlXPathFreeObject(xpath_obj);
     if (xpath_ctx)
       xmlXPathFreeContext(xpath_ctx);
     if (xml_doc)
@@ -2535,14 +2687,10 @@ static void free_domains(struct lv_read_state *state) {
 
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
                       bool active) {
-  domain_t *new_ptr;
+
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
-  if (state->domains)
-    new_ptr = realloc(state->domains, new_size);
-  else
-    new_ptr = malloc(new_size);
-
+  domain_t *new_ptr = realloc(state->domains, new_size);
   if (new_ptr == NULL)
     return -1;
 
@@ -2567,20 +2715,15 @@ static void free_block_devices(struct lv_read_state *state) {
 
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
                             const char *path) {
-  struct block_device *new_ptr;
-  int new_size =
-      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
-  char *path_copy;
 
-  path_copy = strdup(path);
+  char *path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  if (state->block_devices)
-    new_ptr = realloc(state->block_devices, new_size);
-  else
-    new_ptr = malloc(new_size);
+  int new_size =
+      sizeof(state->block_devices[0]) * (state->nr_block_devices + 1);
 
+  struct block_device *new_ptr = realloc(state->block_devices, new_size);
   if (new_ptr == NULL) {
     sfree(path_copy);
     return -1;
@@ -2607,61 +2750,62 @@ static void free_interface_devices(struct lv_read_state *state) {
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
                                 const char *path, const char *address,
                                 unsigned int number) {
-  struct interface_device *new_ptr;
-  int new_size =
-      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
-  char *path_copy, *address_copy, number_string[21];
 
   if ((path == NULL) || (address == NULL))
     return EINVAL;
 
-  path_copy = strdup(path);
+  char *path_copy = strdup(path);
   if (!path_copy)
     return -1;
 
-  address_copy = strdup(address);
+  char *address_copy = strdup(address);
   if (!address_copy) {
     sfree(path_copy);
     return -1;
   }
 
+  char number_string[21];
   snprintf(number_string, sizeof(number_string), "interface-%u", number);
-
-  if (state->interface_devices)
-    new_ptr = realloc(state->interface_devices, new_size);
-  else
-    new_ptr = malloc(new_size);
-
-  if (new_ptr == NULL) {
+  char *number_copy = strdup(number_string);
+  if (!number_copy) {
     sfree(path_copy);
     sfree(address_copy);
     return -1;
   }
+
+  int new_size =
+      sizeof(state->interface_devices[0]) * (state->nr_interface_devices + 1);
+
+  struct interface_device *new_ptr =
+      realloc(state->interface_devices, new_size);
+  if (new_ptr == NULL) {
+    sfree(path_copy);
+    sfree(address_copy);
+    sfree(number_copy);
+    return -1;
+  }
+
   state->interface_devices = new_ptr;
   state->interface_devices[state->nr_interface_devices].dom = dom;
   state->interface_devices[state->nr_interface_devices].path = path_copy;
   state->interface_devices[state->nr_interface_devices].address = address_copy;
-  state->interface_devices[state->nr_interface_devices].number =
-      strdup(number_string);
+  state->interface_devices[state->nr_interface_devices].number = number_copy;
   return state->nr_interface_devices++;
 }
 
 static int ignore_device_match(ignorelist_t *il, const char *domname,
                                const char *devpath) {
-  char *name;
-  int r;
-
   if ((domname == NULL) || (devpath == NULL))
     return 0;
 
   size_t n = strlen(domname) + strlen(devpath) + 2;
-  name = malloc(n);
+  char *name = malloc(n);
   if (name == NULL) {
     ERROR(PLUGIN_NAME " plugin: malloc failed.");
     return 0;
   }
   snprintf(name, n, "%s:%s", domname, devpath);
-  r = ignorelist_match(il, name);
+  int r = ignorelist_match(il, name);
   sfree(name);
   return r;
 }

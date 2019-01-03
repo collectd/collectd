@@ -279,7 +279,7 @@ static statname_lookup_t lookup_table[] = /* {{{ */
         {"ipv6-questions", "dns_question", "incoming-ipv6"},
         {"malloc-bytes", "gauge", "malloc_bytes"},
         {"max-mthread-stack", "gauge", "max_mthread_stack"},
-        {"no-packet-error", "gauge", "no_packet_error"},
+        {"no-packet-error", "errors", "no_packet_error"},
         {"noedns-outqueries", "dns_question", "outgoing-noedns"},
         {"noping-outqueries", "dns_question", "outgoing-noping"},
         {"over-capacity-drops", "dns_question", "incoming-over_capacity"},
@@ -469,7 +469,7 @@ static int powerdns_get_data_dgram(list_item_t *item, char **ret_buffer) {
   }
 
   memcpy(buffer, temp, buffer_size - 1);
-  buffer[buffer_size - 1] = 0;
+  buffer[buffer_size - 1] = '\0';
 
   *ret_buffer = buffer;
   return 0;

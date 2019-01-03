@@ -143,7 +143,7 @@ static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
   while (buffer_size > 0) {
     if ((buffer[buffer_size - 1] == '\n') ||
         (buffer[buffer_size - 1] == '\r')) {
-      buffer[buffer_size - 1] = 0;
+      buffer[buffer_size - 1] = '\0';
       buffer_size--;
     } else {
       break;

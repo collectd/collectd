@@ -299,7 +299,7 @@ static int cow_read_values(const char *path, const char *name,
 
     snprintf(file, sizeof(file), "%s/%s", path,
              family_info->features[i].filename);
-    file[sizeof(file) - 1] = 0;
+    file[sizeof(file) - 1] = '\0';
 
     buffer = NULL;
     buffer_size = 0;

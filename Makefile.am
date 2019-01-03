@@ -2,11 +2,13 @@ ACLOCAL_AMFLAGS = -I m4
 AM_YFLAGS = -d
 
 if BUILD_WIN32
-pkgdatadir=$(datadir)
-pkglibdir=$(libdir)/plugins
-pkglocalstatedir=${localstatedir}
+cpkgdatadir=$(datadir)
+cpkglibdir=$(libdir)/plugins
+cpkglocalstatedir=${localstatedir}
 else
-pkglocalstatedir=${localstatedir}/lib/${PACKAGE_NAME}
+cpkgdatadir=$(pkgdatadir)
+cpkglibdir=$(pkglibdir)
+cpkglocalstatedir=${localstatedir}/lib/${PACKAGE_NAME}
 endif
 
 BUILT_SOURCES = \
@@ -125,7 +127,7 @@ bin_PROGRAMS = \
 endif # BUILD_WIN32
 
 
-EXTRA_LTLIBRARIES = \
+noinst_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
@@ -165,7 +167,7 @@ TESTS = $(check_PROGRAMS)
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_srcdir)/testwrapper.sh
 
 
-jardir = $(pkgdatadir)/java
+jardir = $(cpkgdatadir)/java
 
 pkglib_LTLIBRARIES =
 
@@ -184,9 +186,9 @@ AM_CPPFLAGS = \
 	-DPREFIX='"${prefix}"' \
 	-DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"' \
 	-DLOCALSTATEDIR='"${localstatedir}"' \
-	-DPKGLOCALSTATEDIR='"${pkglocalstatedir}"' \
-	-DPLUGINDIR='"${pkglibdir}"' \
-	-DPKGDATADIR='"${pkgdatadir}"'
+	-DPKGLOCALSTATEDIR='"${cpkglocalstatedir}"' \
+	-DPLUGINDIR='"${cpkglibdir}"' \
+	-DPKGDATADIR='"${cpkgdatadir}"'
 if BUILD_WIN32
 AM_CPPFLAGS += -DNOGDI
 endif
@@ -572,6 +574,68 @@ liboconfig_la_SOURCES = \
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
+if BUILD_WITH_LIBCURL
+if BUILD_WITH_LIBSSL
+if BUILD_WITH_LIBYAJL2
+noinst_LTLIBRARIES += liboauth.la
+liboauth_la_SOURCES = \
+	src/utils_oauth.c \
+	src/utils_oauth.h
+liboauth_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS) \
+	$(BUILD_WITH_LIBSSL_CFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+liboauth_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS) \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_utils_oauth
+TESTS += test_utils_oauth
+test_utils_oauth_SOURCES = \
+	src/utils_oauth_test.c
+test_utils_oauth_LDADD = \
+	liboauth.la \
+	libcommon.la \
+	libplugin_mock.la
+
+noinst_LTLIBRARIES += libgce.la
+libgce_la_SOURCES = \
+	src/utils_gce.c \
+	src/utils_gce.h
+libgce_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS)
+libgce_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+endif
+
+if BUILD_WITH_LIBYAJL2
+noinst_LTLIBRARIES += libformat_stackdriver.la
+libformat_stackdriver_la_SOURCES = \
+	src/utils_format_stackdriver.c \
+	src/utils_format_stackdriver.h
+libformat_stackdriver_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+libformat_stackdriver_la_LIBADD = \
+	libavltree.la \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_format_stackdriver
+TESTS += test_format_stackdriver
+test_format_stackdriver_SOURCES = \
+	src/utils_format_stackdriver_test.c \
+	src/testing.h
+test_format_stackdriver_LDADD = \
+	libformat_stackdriver.la \
+	libplugin_mock.la \
+	-lm
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
@@ -960,6 +1024,14 @@ gps_la_SOURCES = src/gps.c
 gps_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBGPS_CFLAGS)
 gps_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGPS_LDFLAGS)
 gps_la_LIBADD = -lpthread $(BUILD_WITH_LIBGPS_LIBS)
+endif
+
+if BUILD_PLUGIN_GPU_NVIDIA
+pkglib_LTLIBRARIES += gpu_nvidia.la
+gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
+gpu_nvidia_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) $(BUILD_WITH_GPU_CUDA_CPPFLAGS)
+gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_GPU_CUDA_LDFLAGS)
+gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
 endif
 
 if BUILD_PLUGIN_GRPC
@@ -1527,7 +1599,7 @@ python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
 if HAVE_LIBMNL
-EXTRA_LTLIBRARIES += libtaskstats.la
+noinst_LTLIBRARIES += libtaskstats.la
 libtaskstats_la_SOURCES = \
 	src/utils_taskstats.c \
 	src/utils_taskstats.h
@@ -1950,6 +2022,7 @@ pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = src/write_mongodb.c
 write_mongodb_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMONGOC_CFLAGS)
 write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+write_mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_PROMETHEUS
@@ -1985,6 +2058,15 @@ if BUILD_PLUGIN_WRITE_SENSU
 pkglib_LTLIBRARIES += write_sensu.la
 write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_STACKDRIVER
+pkglib_LTLIBRARIES += write_stackdriver.la
+write_stackdriver_la_SOURCES = src/write_stackdriver.c
+write_stackdriver_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_stackdriver_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_stackdriver_la_LIBADD = libformat_stackdriver.la libgce.la liboauth.la \
+                     $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB
@@ -2106,15 +2188,15 @@ install-exec-hook:
 	else \
 		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
-	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
-	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
+	$(mkinstalldirs) $(DESTDIR)$(cpkgdatadir)
+	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(cpkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
-		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+		$(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 uninstall-hook:
-	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(cpkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
-	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+	rm -f $(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 all-local: @PERL_BINDINGS@
 

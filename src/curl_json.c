@@ -236,7 +236,7 @@ static int cj_cb_number(void *ctx, const char *number, yajl_len_t number_len) {
   /* Create a null-terminated version of the string. */
   char buffer[number_len + 1];
   memcpy(buffer, number, number_len);
-  buffer[sizeof(buffer) - 1] = 0;
+  buffer[sizeof(buffer) - 1] = '\0';
 
   if (db->state[db->depth].entry == NULL ||
       db->state[db->depth].entry->type != KEY) {
@@ -272,7 +272,7 @@ static int cj_cb_map_key(void *ctx, unsigned char const *in_name,
   char name[in_name_len + 1];
 
   memmove(name, in_name, in_name_len);
-  name[sizeof(name) - 1] = 0;
+  name[sizeof(name) - 1] = '\0';
 
   if (cj_load_key(ctx, name) != 0)
     return CJ_CB_ABORT;

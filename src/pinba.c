@@ -280,9 +280,6 @@ static int pb_del_socket(pinba_socket_t *s, /* {{{ */
 
 static int pb_add_socket(pinba_socket_t *s, /* {{{ */
                          const struct addrinfo *ai) {
-  int fd;
-  int tmp;
-  int status;
 
   if (s->fd_num == PINBA_MAX_SOCKETS) {
     WARNING("pinba plugin: Sorry, you have hit the built-in limit of "
@@ -292,14 +289,13 @@ static int pb_add_socket(pinba_socket_t *s, /* {{{ */
     return -1;
   }
 
-  fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+  int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
   if (fd < 0) {
     ERROR("pinba plugin: socket(2) failed: %s", STRERRNO);
     return 0;
   }
 
-  tmp = 1;
-  status = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp));
+  int status = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
   if (status != 0) {
     WARNING("pinba plugin: setsockopt(SO_REUSEADDR) failed: %s", STRERRNO);
   }

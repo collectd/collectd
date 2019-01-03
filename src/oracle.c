@@ -107,7 +107,7 @@ static void o_report_error(const char *where, /* {{{ */
     status = OCIErrorGet(eh, (ub4)record_number,
                          /* sqlstate = */ NULL, &error_code, (text *)&buffer[0],
                          (ub4)sizeof(buffer), OCI_HTYPE_ERROR);
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
 
     if (status == OCI_NO_DATA)
       return;
@@ -247,9 +247,7 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
   } /* while (status == 0) */
 
   while ((status == 0) && (db->queries_num > 0)) {
-    db->q_prep_areas = (udb_query_preparation_area_t **)calloc(
-        db->queries_num, sizeof(*db->q_prep_areas));
-
+    db->q_prep_areas = calloc(db->queries_num, sizeof(*db->q_prep_areas));
     if (db->q_prep_areas == NULL) {
       WARNING("oracle plugin: calloc failed");
       status = -1;
