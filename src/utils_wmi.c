@@ -178,7 +178,8 @@ static uint64_t variant_get_unsigned_integer(VARIANT *v) {
   case VT_UINT:
     return v->uintVal;
   default:
-    log_err("cannot convert from type %s (%d) to uint64_t", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to uint64_t",
+            varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -196,7 +197,8 @@ static int64_t variant_get_signed_integer(VARIANT *v) {
   case VT_INT:
     return v->intVal;
   default:
-    log_err("cannot convert from type %s (%d) to int64_t", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to int64_t",
+            varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -212,7 +214,8 @@ static double variant_get_real(VARIANT *v) {
   case VT_R8:
     return v->dblVal;
   default:
-    log_err("cannot convert from type %s (%d) to int", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to int", varenum_to_string(v->vt),
+            v->vt);
     return 0;
   }
 }
@@ -234,7 +237,8 @@ int64_t variant_get_int64(VARIANT *v) {
     free(str);
     return result;
   } else {
-    log_err("cannot convert from type %s (%d) to int64_t", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to int64_t",
+            varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -257,7 +261,8 @@ uint64_t variant_get_uint64(VARIANT *v) {
 
     return result;
   } else {
-    log_err("cannot convert from type %s (%d) to uint64_t", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to uint64_t",
+            varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
@@ -280,14 +285,16 @@ double variant_get_double(VARIANT *v) {
 
     return result;
   } else {
-    log_err("cannot convert from type %s (%d) to double", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to double",
+            varenum_to_string(v->vt), v->vt);
     return 0;
   }
 }
 
 char *variant_get_string(VARIANT *v) {
   if (v->vt != VT_BSTR) {
-    log_err("cannot convert from type %s (%d) to string", varenum_to_string(v->vt), v->vt);
+    log_err("cannot convert from type %s (%d) to string",
+            varenum_to_string(v->vt), v->vt);
     return NULL;
   }
   return wstrtostr(v->bstrVal);

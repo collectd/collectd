@@ -42,7 +42,7 @@
     n->next = list;                                                            \
     n->node = new_node;                                                        \
     list = n;                                                                  \
-  } while(0)
+  } while (0)
 
 #define LIST_FREE(list, node_free)                                             \
   do {                                                                         \
@@ -53,7 +53,7 @@
       free(head);                                                              \
       head = next;                                                             \
     }                                                                          \
-  } while(0)
+  } while (0)
 
 typedef struct wmi_metric_s {
   char *type;
@@ -72,7 +72,7 @@ typedef struct wmi_query_s {
   char *statement;
   char *instance_prefix;
   char *instances_from;
-  wmi_metric_list_t * metrics;
+  wmi_metric_list_t *metrics;
 } wmi_query_t;
 
 typedef struct wmi_query_list_s {
@@ -191,15 +191,18 @@ void wmi_metric_free(wmi_metric_t *m) {
   free(m);
 }
 
-static char *get_plugin_instance(const char *instances_from, const char *instance_prefix, wmi_result_t *wmi_result) {
+static char *get_plugin_instance(const char *instances_from,
+                                 const char *instance_prefix,
+                                 wmi_result_t *wmi_result) {
   VARIANT plugin_instance_base_v;
   char *plugin_instance_base_s = NULL;
   char *plugin_instance_s = NULL;
 
   if (instances_from == NULL)
-	return ssnprintf_alloc(instance_prefix);
-	
-  if (wmi_result_get_value(wmi_result, instances_from, &plugin_instance_base_v) != 0) {
+    return ssnprintf_alloc(instance_prefix);
+
+  if (wmi_result_get_value(wmi_result, instances_from,
+                           &plugin_instance_base_v) != 0) {
     log_err("failed to read field '%s'", instances_from);
     return "";
   }
@@ -208,19 +211,21 @@ static char *get_plugin_instance(const char *instances_from, const char *instanc
     log_err("failed to convert plugin_instance to string");
     return "";
   }
-  plugin_instance_s = ssnprintf_alloc("%s%s", instance_prefix, plugin_instance_s);
+  plugin_instance_s =
+      ssnprintf_alloc("%s%s", instance_prefix, plugin_instance_s);
   VariantClear(&plugin_instance_base_v);
   free(plugin_instance_base_s);
   return plugin_instance_s;
 }
 
-static void submit(const char *type, const char *type_instance, const char *plugin_instance,
-                   value_t *values, size_t values_len) {
+static void submit(const char *type, const char *type_instance,
+                   const char *plugin_instance, value_t *values,
+                   size_t values_len) {
   value_list_t vl = VALUE_LIST_INIT;
 
   vl.values = values;
   vl.values_len = values_len;
-	
+
   sstrncpy(vl.host, hostname_g, sizeof(vl.host));
   sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
 
@@ -232,19 +237,24 @@ static void submit(const char *type, const char *type_instance, const char *plug
   plugin_dispatch_values(&vl);
 }
 
-static void gauge_submit(const char *type, const char *type_instance, const char *plugin_instance, gauge_t value) {
+static void gauge_submit(const char *type, const char *type_instance,
+                         const char *plugin_instance, gauge_t value) {
   submit(type, type_instance, plugin_instance, &(value_t){.gauge = value}, 1);
 }
 
-static void derive_submit(const char *type, const char *type_instance, const char *plugin_instance, derive_t value) {
+static void derive_submit(const char *type, const char *type_instance,
+                          const char *plugin_instance, derive_t value) {
   submit(type, type_instance, plugin_instance, &(value_t){.derive = value}, 1);
 }
 
-static void absolute_submit(const char *type, const char *type_instance, const char *plugin_instance, absolute_t value) {
-  submit(type, type_instance, plugin_instance, &(value_t){.absolute = value}, 1);
+static void absolute_submit(const char *type, const char *type_instance,
+                            const char *plugin_instance, absolute_t value) {
+  submit(type, type_instance, plugin_instance, &(value_t){.absolute = value},
+         1);
 }
 
-static void counter_submit(const char *type, const char *type_instance, const char *plugin_instance, counter_t value) {
+static void counter_submit(const char *type, const char *type_instance,
+                           const char *plugin_instance, counter_t value) {
   submit(type, type_instance, plugin_instance, &(value_t){.counter = value}, 1);
 }
 
@@ -269,10 +279,13 @@ static int wmi_exec_query(wmi_query_t *q) {
       wmi_metric_t *m = mn->node;
 
       ds = plugin_get_ds(m->type);
-	  if (ds->ds_num != 1) {
-        log_err("data set for metric type '%s' has %" PRIsz " data sources, but the wmi plugin only works for types with 1 source", m->type, ds->ds_num);
+      if (ds->ds_num != 1) {
+        log_err("data set for metric type '%s' has %" PRIsz
+                " data sources, but the wmi plugin only works for types with 1 "
+                "source",
+                m->type, ds->ds_num);
         continue;
-	  }
+      }
 
       if (wmi_result_get_value(result, m->values_from, &value_v) != 0) {
         VariantClear(&value_v);
@@ -280,20 +293,25 @@ static int wmi_exec_query(wmi_query_t *q) {
         continue;
       }
 
-	  plugin_instance_s = get_plugin_instance(q->instances_from, q->instance_prefix, result);
+      plugin_instance_s =
+          get_plugin_instance(q->instances_from, q->instance_prefix, result);
 
-	  switch (ds->ds[0].type) {
+      switch (ds->ds[0].type) {
       case DS_TYPE_ABSOLUTE:
-        absolute_submit(m->type, m->instance, plugin_instance_s, variant_get_uint64(&value_v));
+        absolute_submit(m->type, m->instance, plugin_instance_s,
+                        variant_get_uint64(&value_v));
         break;
       case DS_TYPE_COUNTER:
-        counter_submit(m->type, m->instance, plugin_instance_s, variant_get_uint64(&value_v));
+        counter_submit(m->type, m->instance, plugin_instance_s,
+                       variant_get_uint64(&value_v));
         break;
       case DS_TYPE_GAUGE:
-        gauge_submit(m->type, m->instance, plugin_instance_s, variant_get_double(&value_v));
+        gauge_submit(m->type, m->instance, plugin_instance_s,
+                     variant_get_double(&value_v));
         break;
       case DS_TYPE_DERIVE:
-        derive_submit(m->type, m->instance, plugin_instance_s, variant_get_int64(&value_v));
+        derive_submit(m->type, m->instance, plugin_instance_s,
+                      variant_get_int64(&value_v));
         break;
       }
 
