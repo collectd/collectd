@@ -7261,11 +7261,8 @@ AC_MSG_RESULT([    librouteros . . . . . $with_librouteros])
 AC_MSG_RESULT([    librrd  . . . . . . . $with_librrd])
 AC_MSG_RESULT([    libsensors  . . . . . $with_libsensors])
 AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
-<<<<<<< HEAD
 AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
-=======
 AC_MSG_RESULT([    libslurm .  . . . . . $with_libslurm])
->>>>>>> Add new slurm plugin
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])
