@@ -191,37 +191,61 @@ void wmi_metric_free(wmi_metric_t *m) {
   free(m);
 }
 
-static void store(VARIANT *src, value_t *dst, int dst_type) {
-  switch (dst_type) {
-  case DS_TYPE_GAUGE:
-    dst->gauge = variant_get_double(src);
-    break;
+static char *get_plugin_instance(const char *instances_from, const char *instance_prefix, wmi_result_t *wmi_result) {
+  VARIANT plugin_instance_base_v;
+  char *plugin_instance_base_s = NULL;
+  char *plugin_instance_s = NULL;
 
-  case DS_TYPE_DERIVE:
-    dst->derive = variant_get_int64(src);
-    break;
-
-  case DS_TYPE_ABSOLUTE:
-    dst->absolute = variant_get_uint64(src);
-    break;
-
-  case DS_TYPE_COUNTER:
-    dst->counter = variant_get_uint64(src);
-    break;
-
-  default:
-    log_err("destination type '%d' is not supported", dst_type);
-    break;
+  if (instances_from == NULL)
+	return ssnprintf_alloc(instance_prefix);
+	
+  if (wmi_result_get_value(wmi_result, instances_from, &plugin_instance_base_v) != 0) {
+    log_err("failed to read field '%s'", instances_from);
+    return "";
   }
+  plugin_instance_base_s = variant_get_string(&plugin_instance_base_v);
+  if (plugin_instance_base_s == NULL) {
+    log_err("failed to convert plugin_instance to string");
+    return "";
+  }
+  plugin_instance_s = ssnprintf_alloc("%s%s", instance_prefix, plugin_instance_s);
+  VariantClear(&plugin_instance_base_v);
+  free(plugin_instance_base_s);
+  return plugin_instance_s;
 }
 
-/* Find position of `name` in `ds` */
-static int find_index_in_ds(const data_set_t *ds, const char *name) {
-  int i;
-  for (i = 0; i < ds->ds_num; i++)
-    if (strcmp(ds->ds[i].name, name) == 0)
-      return i;
-  return -1;
+static void submit(const char *type, const char *type_instance, const char *plugin_instance,
+                   value_t *values, size_t values_len) {
+  value_list_t vl = VALUE_LIST_INIT;
+
+  vl.values = values;
+  vl.values_len = values_len;
+	
+  sstrncpy(vl.host, hostname_g, sizeof(vl.host));
+  sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
+
+  sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance != NULL)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
+}
+
+static void gauge_submit(const char *type, const char *type_instance, const char *plugin_instance, gauge_t value) {
+  submit(type, type_instance, plugin_instance, &(value_t){.gauge = value}, 1);
+}
+
+static void derive_submit(const char *type, const char *type_instance, const char *plugin_instance, derive_t value) {
+  submit(type, type_instance, plugin_instance, &(value_t){.derive = value}, 1);
+}
+
+static void absolute_submit(const char *type, const char *type_instance, const char *plugin_instance, absolute_t value) {
+  submit(type, type_instance, plugin_instance, &(value_t){.absolute = value}, 1);
+}
+
+static void counter_submit(const char *type, const char *type_instance, const char *plugin_instance, counter_t value) {
+  submit(type, type_instance, plugin_instance, &(value_t){.counter = value}, 1);
 }
 
 static int wmi_exec_query(wmi_query_t *q) {
@@ -236,60 +260,45 @@ static int wmi_exec_query(wmi_query_t *q) {
 
   wmi_result_t *result;
   while ((result = wmi_get_next_result(results))) {
-    value_list_t vl = VALUE_LIST_INIT;
-
-    sstrncpy(vl.host, hostname_g, sizeof(vl.host));
-    sstrncpy(vl.plugin, "wmi", sizeof(vl.plugin));
 
     wmi_metric_list_t *mn;
     for (mn = q->metrics; mn != NULL; mn = mn->next) {
       VARIANT value_v;
-      VARIANT plugin_instance_v;
-      value_t value_vt;
       char *plugin_instance_s = NULL;
       const data_set_t *ds = NULL;
       wmi_metric_t *m = mn->node;
 
       ds = plugin_get_ds(m->type);
-      int index_in_ds;
+	  if (ds->ds_num != 1) {
+        log_err("data set for metric type '%s' has %" PRIsz " data sources, but the wmi plugin only works for types with 1 source", m->type, ds->ds_num);
+        continue;
+	  }
+
       if (wmi_result_get_value(result, m->values_from, &value_v) != 0) {
         VariantClear(&value_v);
         log_err("failed to read field '%s'", m->values_from);
         continue;
       }
 
-      index_in_ds = find_index_in_ds(ds, "value");
-      if (index_in_ds != -1)
-        store(&value_v, &value_vt, ds->ds[index_in_ds].type);
-      else
-        log_warn("cannot find field 'value' in type %s.", ds->type);
+	  plugin_instance_s = get_plugin_instance(q->instances_from, q->instance_prefix, result);
 
-      if (q->instances_from == NULL) {
-        sstrncpy(vl.plugin_instance, q->instance_prefix,
-                 sizeof(vl.plugin_instance));
-      } else {
-        if (wmi_result_get_value(result, q->instances_from,
-                                 &plugin_instance_v) != 0) {
-          log_err("failed to read field '%s'", q->instances_from);
-        }
-        plugin_instance_s = variant_get_string(&plugin_instance_v);
-        if (plugin_instance_s == NULL) {
-          log_err("failed to convert plugin_instance to string");
-        }
-        sstrncpy(vl.plugin_instance,
-                 ssnprintf_alloc("%s%s", q->instance_prefix, plugin_instance_s),
-                 sizeof(vl.plugin_instance));
+	  switch (ds->ds[0].type) {
+      case DS_TYPE_ABSOLUTE:
+        absolute_submit(m->type, m->instance, plugin_instance_s, variant_get_uint64(&value_v));
+        break;
+      case DS_TYPE_COUNTER:
+        counter_submit(m->type, m->instance, plugin_instance_s, variant_get_uint64(&value_v));
+        break;
+      case DS_TYPE_GAUGE:
+        gauge_submit(m->type, m->instance, plugin_instance_s, variant_get_double(&value_v));
+        break;
+      case DS_TYPE_DERIVE:
+        derive_submit(m->type, m->instance, plugin_instance_s, variant_get_int64(&value_v));
+        break;
       }
 
-      vl.values_len = 1;
-      vl.values = calloc(vl.values_len, sizeof(value_t));
-      vl.values[0] = value_vt;
-      sstrncpy(vl.type_instance, m->instance, sizeof(vl.type_instance));
-      sstrncpy(vl.type, m->type, sizeof(vl.type));
-      plugin_dispatch_values(&vl);
       free(plugin_instance_s);
       VariantClear(&value_v);
-      VariantClear(&plugin_instance_v);
     }
     wmi_result_release(result);
   }

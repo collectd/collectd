@@ -2121,8 +2121,7 @@ uninstall-hook:
 
 all-local: @PERL_BINDINGS@
 
-# Windows doesn't have a shared library for libuuid.dll.
-# So we need to build a wrapper.
+# Windows doesn't have a shared library for libuuid.dll, so we need to build a wrapper.
 libuuid.dll:
 	${CC} -x c /dev/null -shared -o libuuid.dll -Wl,-whole-archive -luuid -Wl,-no-whole-archive
 
