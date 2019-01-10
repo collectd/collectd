@@ -111,18 +111,18 @@ static void slurm_submit(const char *plugin_instance, const char *type,
 
 static void slurm_submit_partition(partition_state_t *partition) {
   for (int i = 0; i < JOB_END; i++) {
-    slurm_submit(partition->name, "count", job_state_names[i],
+    slurm_submit(partition->name, "slurm_job_state", job_state_names[i],
                  partition->jobs_states[i]);
   }
   for (int i = 0; i < NODE_STATE_END; i++) {
-    slurm_submit(partition->name, "count", node_state_names[i],
+    slurm_submit(partition->name, "slurm_node_state", node_state_names[i],
                  partition->nodes_states[i]);
   }
-  slurm_submit(partition->name, "count", "drain", partition->drain);
-  slurm_submit(partition->name, "count", "completing", partition->completing);
-  slurm_submit(partition->name, "count", "no_respond", partition->no_respond);
-  slurm_submit(partition->name, "count", "power_save", partition->power_save);
-  slurm_submit(partition->name, "count", "fail", partition->fail);
+  slurm_submit(partition->name, "slurm_node_flag", "drain", partition->drain);
+  slurm_submit(partition->name, "slurm_node_flag", "completing", partition->completing);
+  slurm_submit(partition->name, "slurm_node_flag", "no_respond", partition->no_respond);
+  slurm_submit(partition->name, "slurm_node_flag", "power_save", partition->power_save);
+  slurm_submit(partition->name, "slurm_node_flag", "fail", partition->fail);
 }
 
 static int slurm_read(void) {
