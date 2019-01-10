@@ -83,6 +83,10 @@ case $host_os in
     AC_DEFINE([KERNEL_FREEBSD], [1], [True if program is to be compiled for a FreeBSD kernel])
     ac_system="FreeBSD"
     ;;
+  *dragonfly*)
+    AC_DEFINE([KERNEL_DRAGONFLY], [1], [True if program is to be compiled for a DragonFly BSD kernel])
+    ac_system="DragonFlyBSD"
+    ;;
   *linux*)
     AC_DEFINE([KERNEL_LINUX], [1], [True if program is to be compiled for a Linux kernel])
     ac_system="Linux"
@@ -112,6 +116,7 @@ AC_MSG_RESULT([$ac_system])
 AM_CONDITIONAL([BUILD_AIX], [test "x$ac_system" = "xAIX"])
 AM_CONDITIONAL([BUILD_DARWIN], [test "x$ac_system" = "xDarwin"])
 AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
+AM_CONDITIONAL([BUILD_DRAGONFLY], [test "x$ac_system" = "xDragonFlyBSD"])
 AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
 AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
@@ -671,7 +676,7 @@ AC_CHECK_HEADERS([netinet/if_ether.h], [], [],
   ]]
 )
 
-AC_CHECK_HEADERS([net/pfvar.h],
+AC_CHECK_HEADERS([net/pfvar.h net/pf/pfvar.h],
   [have_net_pfvar_h="yes"],
   [have_net_pfvar_h="no"],
   [[
@@ -1709,6 +1714,21 @@ AC_CHECK_MEMBERS([struct kinfo_proc.ki_pid, struct kinfo_proc.ki_rssize, struct 
   ],
   [],
   [[
+    #include <kvm.h>
+    #include <sys/param.h>
+    #include <sys/sysctl.h>
+    #include <sys/user.h>
+  ]]
+)
+
+AC_CHECK_MEMBERS([struct kinfo_proc.kp_pid, struct kinfo_proc.kp_rssize, struct kinfo_proc.kp_ru],
+  [
+    AC_DEFINE([HAVE_STRUCT_KINFO_PROC_DRAGONFLY], [1], [Define if struct kinfo_proc exists in the DragonFly BSD variant.])
+    have_struct_kinfo_proc_dragonfly="yes"
+  ],
+  [],
+  [[
+    #include <sys/types.h>
     #include <kvm.h>
     #include <sys/param.h>
     #include <sys/sysctl.h>
@@ -6645,7 +6665,6 @@ if test "x$ac_system" = "xFreeBSD"; then
   plugin_zfs_arc="yes"
 fi
 
-
 if test "x$with_perfstat" = "xyes"; then
   plugin_contextswitch="yes"
   plugin_cpu="yes"
@@ -6831,6 +6850,10 @@ if test "x$have_thread_info" = "xyes"; then
 fi
 
 if test "x$with_kvm_getprocs" = "xyes" && test "x$have_struct_kinfo_proc_freebsd" = "xyes"; then
+  plugin_processes="yes"
+fi
+
+if test "x$with_kvm_getprocs" = "xyes" && test "x$have_struct_kinfo_proc_dragonfly" = "xyes"; then
   plugin_processes="yes"
 fi
 
