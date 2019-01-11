@@ -37,6 +37,9 @@
 #define PLUGIN_NAME "slurm"
 #define PART_NAME_SIZE 128
 
+/* this function declaration is missing in slurm.h */
+extern void slurm_free_stats_response_msg(stats_info_response_msg_t *msg);
+
 typedef struct partition_state_st {
   char name[PART_NAME_SIZE];
   /* counts nodes states indexed by enum node_states in slurm.h */
@@ -119,10 +122,68 @@ static void slurm_submit_partition(partition_state_t *partition) {
                  partition->nodes_states[i]);
   }
   slurm_submit(partition->name, "slurm_node_flag", "drain", partition->drain);
-  slurm_submit(partition->name, "slurm_node_flag", "completing", partition->completing);
-  slurm_submit(partition->name, "slurm_node_flag", "no_respond", partition->no_respond);
-  slurm_submit(partition->name, "slurm_node_flag", "power_save", partition->power_save);
+  slurm_submit(partition->name, "slurm_node_flag", "completing",
+               partition->completing);
+  slurm_submit(partition->name, "slurm_node_flag", "no_respond",
+               partition->no_respond);
+  slurm_submit(partition->name, "slurm_node_flag", "power_save",
+               partition->power_save);
   slurm_submit(partition->name, "slurm_node_flag", "fail", partition->fail);
+}
+
+static void slurm_submit_stats(stats_info_response_msg_t *stats_resp) {
+  slurm_submit("stats", "slurm_stats", "parts_packed",
+               stats_resp->parts_packed);
+  slurm_submit("stats", "slurm_stats", "server_thread_count",
+               stats_resp->server_thread_count);
+  slurm_submit("stats", "slurm_stats", "agent_queue_size",
+               stats_resp->agent_queue_size);
+  slurm_submit("stats", "slurm_stats", "schedule_cycle_max",
+               stats_resp->schedule_cycle_max);
+  slurm_submit("stats", "slurm_stats", "schedule_cycle_last",
+               stats_resp->schedule_cycle_last);
+  slurm_submit("stats", "slurm_stats", "schedule_cycle_sum",
+               stats_resp->schedule_cycle_sum);
+  slurm_submit("stats", "slurm_stats", "schedule_cycle_counter",
+               stats_resp->schedule_cycle_counter);
+  slurm_submit("stats", "slurm_stats", "schedule_cycle_depth",
+               stats_resp->schedule_cycle_depth);
+  slurm_submit("stats", "slurm_stats", "schedule_queue_len",
+               stats_resp->schedule_queue_len);
+  slurm_submit("stats", "slurm_stats", "jobs_submitted",
+               stats_resp->jobs_submitted);
+  slurm_submit("stats", "slurm_stats", "jobs_started",
+               stats_resp->jobs_started);
+  slurm_submit("stats", "slurm_stats", "jobs_completed",
+               stats_resp->jobs_completed);
+  slurm_submit("stats", "slurm_stats", "jobs_canceled",
+               stats_resp->jobs_canceled);
+  slurm_submit("stats", "slurm_stats", "jobs_failed", stats_resp->jobs_failed);
+  slurm_submit("stats", "slurm_stats", "bf_backfilled_jobs",
+               stats_resp->bf_backfilled_jobs);
+  slurm_submit("stats", "slurm_stats", "bf_last_backfilled_jobs",
+               stats_resp->bf_last_backfilled_jobs);
+  slurm_submit("stats", "slurm_stats", "bf_cycle_counter",
+               stats_resp->bf_cycle_counter);
+  slurm_submit("stats", "slurm_stats", "bf_cycle_sum",
+               stats_resp->bf_cycle_sum);
+  slurm_submit("stats", "slurm_stats", "bf_cycle_last",
+               stats_resp->bf_cycle_last);
+  slurm_submit("stats", "slurm_stats", "bf_cycle_max",
+               stats_resp->bf_cycle_max);
+  slurm_submit("stats", "slurm_stats", "bf_last_depth",
+               stats_resp->bf_last_depth);
+  slurm_submit("stats", "slurm_stats", "bf_last_depth_try",
+               stats_resp->bf_last_depth_try);
+  slurm_submit("stats", "slurm_stats", "bf_depth_sum",
+               stats_resp->bf_depth_sum);
+  slurm_submit("stats", "slurm_stats", "bf_depth_try_sum",
+               stats_resp->bf_depth_try_sum);
+  slurm_submit("stats", "slurm_stats", "bf_queue_len",
+               stats_resp->bf_queue_len);
+  slurm_submit("stats", "slurm_stats", "bf_queue_len_sum",
+               stats_resp->bf_queue_len_sum);
+  slurm_submit("stats", "slurm_stats", "bf_active", stats_resp->bf_active);
 }
 
 static int slurm_read(void) {
@@ -134,6 +195,8 @@ static int slurm_read(void) {
   partition_state_t *partition_state;
   node_info_msg_t *node_buffer_ptr = NULL;
   node_info_t *node_ptr;
+  stats_info_response_msg_t *stats_resp;
+  stats_info_request_msg_t stats_req;
 
   if (slurm_load_jobs((time_t)NULL, &job_buffer_ptr, SHOW_ALL)) {
     ERROR("slurm_load_jobs error");
@@ -151,6 +214,14 @@ static int slurm_read(void) {
     slurm_free_node_info_msg(node_buffer_ptr);
     ERROR("slurm_load_partitions error");
     return -1;
+  }
+
+  stats_req.command_id = STAT_COMMAND_GET;
+  if (slurm_get_statistics(&stats_resp, &stats_req)) {
+    slurm_free_job_info_msg(job_buffer_ptr);
+    slurm_free_node_info_msg(node_buffer_ptr);
+    slurm_free_partition_info_msg(part_buffer_ptr);
+    ERROR("slurm_get_statistics error");
   }
 
   /* SLURM APIs provide *non-relational* data about nodes, partitions and jobs.
@@ -224,9 +295,12 @@ static int slurm_read(void) {
   for (int i = 0; i < num_partitions; i++)
     slurm_submit_partition(&partition_states[i]);
 
+  slurm_submit_stats(stats_resp);
+
   slurm_free_job_info_msg(job_buffer_ptr);
   slurm_free_node_info_msg(node_buffer_ptr);
   slurm_free_partition_info_msg(part_buffer_ptr);
+  slurm_free_stats_response_msg(stats_resp);
   free(partition_states);
   return 0;
 }
