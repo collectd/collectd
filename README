@@ -379,7 +379,8 @@ Features
       sound level meters, thermometers, and much more.
 
     - slurm
-      Gathers per-partition node and job state information using libslurm.
+      Gathers per-partition node and job state information using libslurm,
+      as well as internal health statistics.
 
     - smart
       Collect SMART statistics, notably load cycle count, temperature

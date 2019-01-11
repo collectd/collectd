@@ -7904,7 +7904,8 @@ measurements are discarded.
 
 =head2 Plugin C<slurm>
 
-This plugin collects per-partition SLURM node and job state information.
+This plugin collects per-partition SLURM node and job state information, as
+well as internal health statistics.
 It takes no options. It should run on a node that is capable of running the
 I<sinfo> and I<squeue> commands, i.e. it has a running slurmd and a valid
 slurm.conf.
