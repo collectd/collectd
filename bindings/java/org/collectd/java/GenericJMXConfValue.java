@@ -138,6 +138,9 @@ class GenericJMXConfValue
     {
         return (new Long(((AtomicLong) obj).get()));
     }
+    else if (obj instanceof Boolean) {
+      return (Boolean) obj ? 1 : 0;
+    }
 
     return (null);
   } /* }}} Number genericObjectToNumber */
