@@ -36,6 +36,7 @@
 
 #include <amqp.h>
 #include <amqp_framing.h>
+#include <amqp_ssl_socket.h>
 
 #ifdef HAVE_AMQP_TCP_SOCKET_H
 #include <amqp_tcp_socket.h>
@@ -97,6 +98,13 @@ struct camqp_config_s {
   bool queue_durable;
   bool queue_auto_delete;
 
+  /* TLS */
+  char *ca_cert;
+  char *client_cert;
+  char *client_key;
+  bool verify_peer;
+  bool verify_hostname;
+
   amqp_connection_state_t connection;
   pthread_mutex_t lock;
 };
@@ -131,6 +139,8 @@ static void camqp_close_connection(camqp_config_t *conf) /* {{{ */
   amqp_channel_close(conf->connection, CAMQP_CHANNEL, AMQP_REPLY_SUCCESS);
   amqp_connection_close(conf->connection, AMQP_REPLY_SUCCESS);
   amqp_destroy_connection(conf->connection);
+  if (conf->ca_cert != NULL)
+    amqp_uninitialize_ssl_library();
   close(sockfd);
   conf->connection = NULL;
 } /* }}} void camqp_close_connection */
@@ -431,12 +441,48 @@ static int camqp_connect(camqp_config_t *conf) /* {{{ */
                           */
   /* TODO: add support for SSL using amqp_ssl_socket_new
    *       and related functions */
-  socket = amqp_tcp_socket_new(conf->connection);
-  if (!socket) {
-    ERROR("amqp plugin: amqp_tcp_socket_new failed.");
-    amqp_destroy_connection(conf->connection);
-    conf->connection = NULL;
-    return ENOMEM;
+  if (conf->ca_cert != NULL) {
+    socket = amqp_ssl_socket_new(conf->connection);
+    if (!socket) {
+      ERROR("amqp plugin: amqp_ssl_socket_new failed.");
+      amqp_destroy_connection(conf->connection);
+      conf->connection = NULL;
+      return ENOMEM;
+    }
+    amqp_ssl_socket_set_verify_peer(socket, 0);
+    amqp_ssl_socket_set_verify_hostname(socket, 0);
+
+    status = amqp_ssl_socket_set_cacert(socket, conf->ca_cert);
+    if (status != 0) {
+      ERROR("amqp plugin: amqp_ssl_socket_set_cacert failed.");
+      amqp_destroy_connection(conf->connection);
+      amqp_uninitialize_ssl_library();
+      conf->connection = NULL;
+      return status;
+    }
+    if (conf->verify_peer)
+      amqp_ssl_socket_set_verify_peer(socket, 1);
+    if (conf->verify_hostname)
+      amqp_ssl_socket_set_verify_hostname(socket, 1);
+    if (conf->client_cert != NULL && conf->client_key != NULL) {
+      status =
+          amqp_ssl_socket_set_key(socket, conf->client_cert, conf->client_key);
+      if (status != 0) {
+        ERROR("amqp plugin: amqp_ssl_socket_set_key failed.");
+        amqp_destroy_connection(conf->connection);
+        amqp_uninitialize_ssl_library();
+        conf->connection = NULL;
+        return status;
+      }
+    }
+  } else {
+    socket = amqp_tcp_socket_new(conf->connection);
+    if (!socket) {
+      ERROR("amqp plugin: amqp_tcp_socket_new failed.");
+      amqp_destroy_connection(conf->connection);
+      conf->connection = NULL;
+      return ENOMEM;
+    }
   }
 
   status = amqp_socket_open(socket, CONF(conf, host), conf->port);
@@ -861,6 +907,12 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
   conf->queue = NULL;
   conf->queue_durable = false;
   conf->queue_auto_delete = true;
+  /* TLS */
+  conf->ca_cert = NULL;
+  conf->client_cert = NULL;
+  conf->client_key = NULL;
+  conf->verify_peer = true;
+  conf->verify_hostname = true;
   /* general */
   conf->connection = NULL;
   pthread_mutex_init(&conf->lock, /* attr = */ NULL);
@@ -939,6 +991,16 @@ static int camqp_config_connection(oconfig_item_t *ci, /* {{{ */
       sfree(tmp_buff);
     } else if (strcasecmp("ConnectionRetryDelay", child->key) == 0)
       status = cf_util_get_int(child, &conf->connection_retry_delay);
+    else if (strcasecmp("CACert", child->key) == 0)
+      status = cf_util_get_string(child, &conf->ca_cert);
+    else if (strcasecmp("ClientCert", child->key) == 0)
+      status = cf_util_get_string(child, &conf->client_cert);
+    else if (strcasecmp("ClientKey", child->key) == 0)
+      status = cf_util_get_string(child, &conf->client_key);
+    else if ((strcasecmp("VerifyPeer", child->key) == 0))
+      status = cf_util_get_boolean(child, &conf->verify_peer);
+    else if ((strcasecmp("VerifyHostname", child->key) == 0))
+      status = cf_util_get_boolean(child, &conf->verify_hostname);
     else
       WARNING("amqp plugin: Ignoring unknown "
               "configuration option \"%s\".",
