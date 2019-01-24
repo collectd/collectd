@@ -1133,7 +1133,11 @@ static void *cpy_interactive(void *pipefd) {
     cpy_log_exception("interactive session init");
   }
   cur_sig = PyOS_setsig(SIGINT, python_sigint_handler);
+#if PY_VERSION_HEX < 0x03070000
   PyOS_AfterFork();
+#else
+  PyOS_AfterFork_Child();
+#endif
   PyEval_InitThreads();
   close(*(int *)pipefd);
   PyRun_InteractiveLoop(stdin, "<stdin>");
