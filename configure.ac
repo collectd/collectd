@@ -39,7 +39,13 @@ AC_PROG_MAKE_SET
 AM_PROG_CC_C_O
 
 AC_PROG_LEX
+if test x"$LEX" = x: || ! $LEX --version >/dev/null; then
+  AC_MSG_ERROR([lex or flex is required])
+fi
 AC_PROG_YACC
+if test x"$YACC" = x: || ! $YACC --version >/dev/null; then
+  AC_MSG_ERROR([yacc or bison is required])
+fi
 
 AC_PATH_PROG([VALGRIND], [valgrind])
 
