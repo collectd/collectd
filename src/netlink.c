@@ -357,11 +357,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     if (mnl_attr_get_type(attr) != IFLA_STATS64)
       continue;
 
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats64)) < 0) {
-      char errbuf[1024];
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 mnl_attr_validate2 "
-            "failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    uint16_t attr_len = mnl_attr_get_payload_len(attr);
+    if (attr_len < sizeof(*stats.stats64)) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_STATS64 attribute has "
+            "insufficient data.");
       return MNL_CB_ERROR;
     }
     stats.stats64 = mnl_attr_get_payload(attr);
@@ -375,11 +374,10 @@ static int link_filter_cb(const struct nlmsghdr *nlh,
     if (mnl_attr_get_type(attr) != IFLA_STATS)
       continue;
 
-    if (mnl_attr_validate2(attr, MNL_TYPE_UNSPEC, sizeof(*stats.stats32)) < 0) {
-      char errbuf[1024];
-      ERROR("netlink plugin: link_filter_cb: IFLA_STATS mnl_attr_validate2 "
-            "failed: %s",
-            sstrerror(errno, errbuf, sizeof(errbuf)));
+    uint16_t attr_len = mnl_attr_get_payload_len(attr);
+    if (attr_len < sizeof(*stats.stats32)) {
+      ERROR("netlink plugin: link_filter_cb: IFLA_STATS attribute has "
+            "insufficient data.");
       return MNL_CB_ERROR;
     }
     stats.stats32 = mnl_attr_get_payload(attr);
