@@ -2609,6 +2609,7 @@ static void lv_add_network_interfaces(struct lv_read_state *state,
   for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
     char *path = NULL;
     char *address = NULL;
+    const int itf_number = j + 1;
 
     xmlNodePtr xml_interface = xml_interfaces->nodeTab[j];
     if (!xml_interface)
@@ -2630,10 +2631,30 @@ static void lv_add_network_interfaces(struct lv_read_state *state,
       }
     }
 
-    if ((ignore_device_match(il_interface_devices, domname, path) == 0 &&
-         ignore_device_match(il_interface_devices, domname, address) == 0)) {
-      add_interface_device(state, dom, path, address, j + 1);
+    bool device_ignored = false;
+    switch (interface_format) {
+    case if_name:
+      if (ignore_device_match(il_interface_devices, domname, path) != 0)
+        device_ignored = true;
+      break;
+    case if_address:
+      if (ignore_device_match(il_interface_devices, domname, address) != 0)
+        device_ignored = true;
+      break;
+    case if_number: {
+      char number_string[4];
+      snprintf(number_string, sizeof(number_string), "%d", itf_number);
+      if (ignore_device_match(il_interface_devices, domname, number_string) !=
+          0)
+        device_ignored = true;
+    } break;
+    default:
+      ERROR(PLUGIN_NAME " plugin: Unknown interface_format option: %d",
+            interface_format);
     }
+
+    if (!device_ignored)
+      add_interface_device(state, dom, path, address, itf_number);
 
     if (path)
       xmlFree(path);
