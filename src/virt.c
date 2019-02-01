@@ -2664,6 +2664,24 @@ static void lv_add_network_interfaces(struct lv_read_state *state,
   xmlXPathFreeObject(xpath_obj);
 }
 
+static bool is_domain_ignored(virDomainPtr dom) {
+  const char *domname = virDomainGetName(dom);
+
+  if (domname == NULL) {
+    VIRT_ERROR(conn, "virDomainGetName failed, ignoring domain");
+    return true;
+  }
+
+  if (ignorelist_match(il_domains, domname) != 0) {
+    DEBUG(PLUGIN_NAME
+          " plugin: ignoring domain '%s' because of ignorelist option",
+          domname);
+    return true;
+  }
+
+  return false;
+}
+
 static int refresh_lists(struct lv_read_instance *inst) {
   struct lv_read_state *state = &inst->read_state;
   int n;
@@ -2713,8 +2731,9 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
 #ifdef HAVE_LIST_ALL_DOMAINS
   for (int i = 0; i < m; ++i)
-    if (add_domain(state, domains_inactive[i], 0) < 0) {
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    if (is_domain_ignored(domains_inactive[i]) ||
+        add_domain(state, domains_inactive[i], 0) < 0) {
+      /* domain ignored or failed during adding to domains list*/
       virDomainFree(domains_inactive[i]);
       domains_inactive[i] = NULL;
       continue;
@@ -2735,8 +2754,10 @@ static int refresh_lists(struct lv_read_instance *inst) {
     }
 #endif
 
-    if (add_domain(state, dom, 1) < 0) {
+    if (is_domain_ignored(dom) || add_domain(state, dom, 1) < 0) {
       /*
+       * domain ignored or failed during adding to domains list
+       *
        * When domain is already tracked, then there is
        * no problem with memory handling (will be freed
        * with the rest of domains cached data)
@@ -2744,7 +2765,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
        * before adding domain to track) we have to take
        * care it ourselves and call virDomainFree
        */
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
       virDomainFree(dom);
       continue;
     }
@@ -2767,9 +2787,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
       DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", domname);
       continue;
     }
-
-    if (ignorelist_match(il_domains, domname) != 0)
-      continue;
 
     /* Get a list of devices for this domain. */
     xmlDocPtr xml_doc = NULL;
@@ -2847,12 +2864,13 @@ static void free_domains(struct lv_read_state *state) {
 
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
                       bool active) {
-
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
   domain_t *new_ptr = realloc(state->domains, new_size);
-  if (new_ptr == NULL)
+  if (new_ptr == NULL) {
+    ERROR(PLUGIN_NAME " plugin: realloc failed in add_domain()");
     return -1;
+  }
 
   state->domains = new_ptr;
   state->domains[state->nr_domains].ptr = dom;
