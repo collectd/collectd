@@ -1,3 +1,5 @@
+# Travis CI configuration file
+# https://travis-ci.org/collectd/collectd
 env:
   global:
    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
@@ -6,6 +8,9 @@ env:
 
 sudo: required
 dist: trusty
+os:
+  - linux
+  - osx
 compiler:
   - gcc
   - clang
@@ -13,8 +18,9 @@ language: c
 before_install:
   # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" && ! "${TRAVIS_JOB_NUMBER}" =~ \.1$ ]]; then exit 0; fi
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq --no-install-recommends
+  - if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then
+    sudo apt-get update -qq &&
+    sudo apt-get install -qq --no-install-recommends
       autotools-dev
       iptables-dev
       libatasmart-dev
@@ -71,6 +77,41 @@ before_install:
       python3-dev
       python-dev
       xfslibs-dev
+    ; fi
+
+  # libgcrypt, libpq & libxml2 are already installed & can't be listed again.
+  # ganglia has a file conflict with coreutils.
+  - if [[ "$TRAVIS_OS_NAME" = "osx" ]]; then
+    brew install
+      curl
+      libdbi
+      glib
+      hiredis
+      openldap
+      lua
+      libmemcached
+      libmicrohttpd
+      libmodbus
+      mosquitto
+      mysql-client
+      libnotify
+      liboping
+      libpcap
+      perl
+      protobuf-c
+      rabbitmq-c
+      librdkafka
+      riemann-client
+      rrdtool
+      net-snmp
+      libstatgrab
+      tokyo-cabinet
+      varnish
+      libvirt
+      yajl
+      protobuf
+      python
+    ; fi
 before_script: autoreconf -fi
 script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
