@@ -51,6 +51,26 @@ the mailing list have a tendency to fall through the cracks.
     entries to `src/types.db`, you should talk to us early in the design
     process.
 
+### ChangeLog
+
+All PRs need to have a one-line description in the initial pull request body.
+This information is used to automatically generate release notes. Follow this
+style:
+
+```
+Foo plugin: A specific issue people had has been fixed.
+```
+
+Start with "Foo plugin" to give the reader context for the information. Other
+common prefixes are "collectd" for the core daemon and "Build system". Use past
+tense and passive voice the for remainder, e.g. "a bug has been fixed", "a
+feature has been added".
+
+Some PRs should not be added to the release notes, e.g. changes to project
+internal documentation (such as this file). Those changes are not interesting
+for external users of the project and would reduce the value of the release
+notes. Maintainers may use the `Unlisted Change` label to mark those PRs.
+
 ## Other resources
 
 *   [Mailing list](http://mailman.verplant.org/listinfo/collectd)
