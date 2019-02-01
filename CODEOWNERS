@@ -1,0 +1,15 @@
+# Code ownership information.
+# See https://help.github.com/articles/about-code-owners/ for details.
+
+# These owners will be the default owners for everything in the repo. Unless a
+# later match takes precedence, # @trusted-contributors will be requested for
+# review when someone opens a pull request.
+*       @trusted-contributors
+
+/src/intel_pmu.c	@kwiatrox @sunkuranganath
+/src/intel_rdt.c	@kwiatrox @sunkuranganath
+/src/ipmi.c		@anaudx @rjablonx
+/src/mcelog.c		@kwiatrox @sunkuranganath
+/src/virt.c		@anaudx @rjablonx
+# TODO(#2926): Add the following owners:
+#/src/redfish.c		@kkepka @mkobyli
