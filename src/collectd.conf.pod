@@ -9252,13 +9252,51 @@ surrounded by I</.../> and collectd was compiled with support for regexps.
 
 The default is to collect statistics for all domains and all their devices.
 
-Example:
+B<Note:> B<BlockDevice> and B<InterfaceDevice> options are related to
+corresponding B<*Format> options. Specifically, B<BlockDevice> filtering depends
+on B<BlockDeviceFormat> setting - if user wants to filter block devices by
+'target' name then B<BlockDeviceFormat> option has to be set to 'target' and
+B<BlockDevice> option must be set to a valid block device target
+name("/:hdb/"). Mixing formats and filter values from different worlds (i.e.,
+using 'target' name as B<BlockDevice> value with B<BlockDeviceFormat> set to
+'source') may lead to unexpected results (all devices filtered out or all
+visible, depending on the value of B<IgnoreSelected> option).
+Similarly, option B<InterfaceDevice> is related to B<InterfaceFormat> setting
+(i.e., when user wants to use MAC address as a filter then B<InterfaceFormat>
+has to be set to 'address' - using wrong type here may filter out all of the
+interfaces).
+
+B<Example 1:>
+
+Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
+will be collected:
 
  BlockDevice "/:hdb/"
  IgnoreSelected "true"
+ BlockDeviceFormat "target"
 
-Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
-will be collected.
+B<Example 2:>
+
+Collect metrics only for block device on 'baremetal0' domain when its
+'source' matches given path:
+
+ BlockDevice "baremetal0:/var/lib/libvirt/images/baremetal0.qcow2"
+ BlockDeviceFormat source
+
+As you can see it is possible to filter devices/interfaces using
+various formats - for block devices 'target' or 'source' name can be
+used.  Interfaces can be filtered using 'name', 'address' or 'number'.
+
+B<Example 3:>
+
+Collect metrics only for domains 'baremetal0' and 'baremetal1' and
+ignore any other domain:
+
+ Domain "baremetal0"
+ Domain "baremetal1"
+
+It is possible to filter multiple block devices/domains/interfaces by
+adding multiple filtering entries in separate lines.
 
 =item B<BlockDeviceFormat> B<target>|B<source>
 
@@ -9288,6 +9326,11 @@ Setting C<BlockDeviceFormat target> will cause the I<type instance> to be set
 to C<sda>.
 Setting C<BlockDeviceFormat source> will cause the I<type instance> to be set
 to C<var_lib_libvirt_images_image1.qcow2>.
+
+B<Note:> this option determines also what field will be used for
+filtering over block devices (filter value in B<BlockDevice>
+will be applied to target or source). More info about filtering
+block devices can be found in the description of B<BlockDevice>.
 
 =item B<BlockDeviceFormatBasename> B<false>|B<true>
 
@@ -9338,6 +9381,11 @@ B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
 B<number> means use the interface's number in guest.
+
+B<Note:> this option determines also what field will be used for
+filtering over interface device (filter value in B<InterfaceDevice>
+will be applied to name, address or number).  More info about filtering
+interfaces can be found in the description of B<InterfaceDevice>.
 
 =item B<PluginInstanceFormat> B<name|uuid|metadata|none>
 
