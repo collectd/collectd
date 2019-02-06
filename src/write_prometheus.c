@@ -760,7 +760,12 @@ static int prom_open_socket(int addrfamily) {
 
   int fd = -1;
   for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
-    fd = socket(ai->ai_family, ai->ai_socktype | SOCK_CLOEXEC, 0);
+    int flags = ai->ai_socktype;
+#ifdef SOCK_CLOEXEC
+    flags |= SOCK_CLOEXEC;
+#endif
+
+    fd = socket(ai->ai_family, flags, 0);
     if (fd == -1)
       continue;
 
