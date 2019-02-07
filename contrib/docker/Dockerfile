@@ -1,4 +1,4 @@
-FROM debian:stable
+FROM debian:stable-slim
 
 ENV DEBIAN_FRONTEND noninteractive
 COPY 50docker-apt-conf /etc/apt/apt.conf.d/
