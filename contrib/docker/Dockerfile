@@ -21,4 +21,5 @@ COPY collectd.conf.d /etc/collectd/collectd.conf.d
 
 ENV LD_PRELOAD /usr/src/rootfs_prefix/rootfs_prefix.so
 
-CMD [ "/usr/sbin/collectd", "-f"]
+ENTRYPOINT ["/usr/sbin/collectd"]
+CMD ["-f"]
