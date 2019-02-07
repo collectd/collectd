@@ -53,18 +53,18 @@ the mailing list have a tendency to fall through the cracks.
 
 ### ChangeLog
 
-All PRs need to have a one-line description in the initial pull request body.
+All PRs need to have a one-line summary in the initial pull description.
 This information is used to automatically generate release notes. Follow this
 style:
 
 ```
-Foo plugin: A specific issue people had has been fixed.
+ChangeLog: Foo plugin: A specific issue people had has been fixed.
 ```
 
-Start with "Foo plugin" to give the reader context for the information. Other
-common prefixes are "collectd" for the core daemon and "Build system". Use past
-tense and passive voice the for remainder, e.g. "a bug has been fixed", "a
-feature has been added".
+The summary should start with "Foo plugin" to give the reader context for the
+information. Other common prefixes are "collectd" for the core daemon and
+"Build system". Use past tense and passive voice the for remainder, e.g. "a bug
+has been fixed", "a feature has been added".
 
 Some PRs should not be added to the release notes, e.g. changes to project
 internal documentation (such as this file). Those changes are not interesting
