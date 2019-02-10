@@ -42,9 +42,9 @@ the mailing list have a tendency to fall through the cracks.
     integration environment will try to build it on a number of platforms. If
     this reports a failure, please investigate and fix the problem. We will at
     best do a very casual review for failing PRs.
-*   *Don't rebase:* Rebasing your branch destroys the review history. If a review
-    takes a long time, we may ask you to rebase on a more recent *master*, but
-    please don't do it without being asked.
+*   *Don't rebase:* Rebasing your branch destroys the review history. If a
+    review takes a long time, we may ask you to rebase on a more recent
+    *master*, but please don't do that without being asked.
 *   *types.db:* One of the most common mistakes made by new contributors is the
     addition of (many) new *types* in the file `src/types.db`. The majority of
     usecases can be met with one of the existing entries. If you plan to add new
@@ -53,20 +53,26 @@ the mailing list have a tendency to fall through the cracks.
 
 ### ChangeLog
 
-All PRs need to have a one-line summary in the initial pull description.
-This information is used to automatically generate release notes. Follow this
-style:
+PRs need to have a one-line summary in the *PR description*. This information
+is used to automatically generate release notes. If you got here after creating
+the PR, you need to go to the *PR description* (shown as the first "comment" on
+the PR, made by yourself) and *edit* that description. Editing a PR will
+trigger the "ChangeLog" status to be updated.
+
+For the summary itself, follow this style:
 
 ```
 ChangeLog: Foo plugin: A specific issue people had has been fixed.
 ```
 
-The summary should start with "Foo plugin" to give the reader context for the
-information. Other common prefixes are "collectd" for the core daemon and
-"Build system". Use past tense and passive voice the for remainder, e.g. "a bug
-has been fixed", "a feature has been added".
+The summary must be on a line of its own, with a "ChangeLog:" prefix at the
+beginning of the line. The test should start with "Foo plugin" to give the
+reader context for the information. Other common contexts are "collectd" for
+the core daemon, "Build system", and "Documentation". Use past tense and
+passive voice the for remainder, e.g. "a bug has been fixed", "a feature has
+been added".
 
-Some PRs should not be added to the release notes, e.g. changes to project
+Some PRs should be excluded from the release notes, e.g. changes to project
 internal documentation (such as this file). Those changes are not interesting
 for external users of the project and would reduce the value of the release
 notes. Maintainers may use the `Unlisted Change` label to mark those PRs.
