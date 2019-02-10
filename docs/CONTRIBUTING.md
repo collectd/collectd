@@ -66,7 +66,7 @@ ChangeLog: Foo plugin: A specific issue people had has been fixed.
 ```
 
 The summary must be on a line of its own, with a "ChangeLog:" prefix at the
-beginning of the line. The test should start with "Foo plugin" to give the
+beginning of the line. The text should start with "Foo plugin" to give the
 reader context for the information. Other common contexts are "collectd" for
 the core daemon, "Build system", and "Documentation". Use past tense and
 passive voice the for remainder, e.g. "a bug has been fixed", "a feature has
