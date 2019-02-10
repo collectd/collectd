@@ -168,10 +168,12 @@ DEF_TEST(strjoin) {
                      cases[i].fields_num, cases[i].separator);
     EXPECT_EQ_INT(cases[i].want_return, status);
     EXPECT_EQ_STR(cases[i].want_buffer, buffer);
-  }
 
-  /* use (NULL, 0) to determine required buffer size. */
-  EXPECT_EQ_INT(3, strjoin(NULL, 0, (char *[]){"a", "b"}, 2, "-"));
+    /* use (NULL, 0) to determine required buffer size. */
+    EXPECT_EQ_INT(cases[i].want_return,
+                  strjoin(NULL, 0, cases[i].fields, cases[i].fields_num,
+                          cases[i].separator));
+  }
 
   return 0;
 }

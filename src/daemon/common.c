@@ -338,6 +338,9 @@ int strjoin(char *buffer, size_t buffer_size, char **fields, size_t fields_num,
       buffer_req += sep_len;
     buffer_req += field_len;
 
+    if (buffer_size == 0)
+      continue;
+
     if ((i != 0) && (sep_len > 0)) {
       if (sep_len >= avail) {
         /* prevent subsequent iterations from writing to the
