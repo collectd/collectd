@@ -51,6 +51,7 @@ struct instance_definition_s {
   metric_definition_t **metric_list;
   size_t metric_list_len;
   ssize_t time_from;
+  bool last_line;
   struct instance_definition_s *next;
 };
 typedef struct instance_definition_s instance_definition_t;
@@ -207,6 +208,7 @@ static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
 static int tcsv_read(user_data_t *ud) {
   instance_definition_t *id;
   id = ud->data;
+  char buffer_last[1024];
 
   if (id->tail == NULL) {
     id->tail = cu_tail_create(id->path);
@@ -222,6 +224,7 @@ static int tcsv_read(user_data_t *ud) {
     int status;
 
     status = cu_tail_readline(id->tail, buffer, (int)sizeof(buffer));
+
     if (status != 0) {
       ERROR("tail_csv plugin: File \"%s\": cu_tail_readline failed "
             "with status %i.",
@@ -230,10 +233,23 @@ static int tcsv_read(user_data_t *ud) {
     }
 
     buffer_len = strlen(buffer);
-    if (buffer_len == 0)
-      break;
 
-    tcsv_read_buffer(id, buffer, buffer_len);
+    // Make a copy if we're doing last line
+    if (id->last_line && buffer_len > 0)
+      strncpy(buffer_last, buffer, sizeof(buffer_last));
+
+    if (buffer_len == 0) {
+      // If we're only parsing the last line, parse it now
+      if (id->last_line) {
+        buffer_len = strlen(buffer_last);
+        tcsv_read_buffer(id, buffer_last, buffer_len);
+      }
+      break;
+    }
+
+    // Print the line if we're printing all of them
+    if (!id->last_line)
+      tcsv_read_buffer(id, buffer, buffer_len);
   }
 
   return 0;
@@ -427,6 +443,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   id->path = NULL;
   id->metric_list = NULL;
   id->time_from = -1;
+  id->last_line = false;
   id->next = NULL;
 
   status = cf_util_get_string(ci, &id->path);
@@ -447,6 +464,8 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
       cf_util_get_cdtime(option, &interval);
     else if (strcasecmp("TimeFrom", option->key) == 0)
       status = tcsv_config_get_index(option, &id->time_from);
+    else if (strcasecmp("LastLineOnly", option->key) == 0)
+      status = cf_util_get_boolean(option, &id->last_line);
     else if (strcasecmp("Plugin", option->key) == 0)
       status = cf_util_get_string(option, &id->plugin_name);
     else {

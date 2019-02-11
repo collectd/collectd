@@ -8560,6 +8560,7 @@ B<Synopsis:>
        Interval 600
        Collect "snort-dropped"
        #TimeFrom 0
+       LastLineOnly false
    </File>
  </Plugin>
 
@@ -8634,6 +8635,10 @@ Defaults to the plugin's default interval.
 Rather than using the local time when dispatching a value, read the timestamp
 from the field with the zero-based index I<Index>. The value is interpreted as
 seconds since epoch. The value is parsed as a double and may be factional.
+
+=item B<LastLineOnly> I<true>|I<false>
+
+Rather than sending all lines in the CSV file, we only enter the last one
 
 =back
 
