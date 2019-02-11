@@ -67,7 +67,7 @@ static int value_list_to_string(char *buffer, int buffer_len,
   memset(buffer, '\0', buffer_len);
 
   double t = CDTIME_T_TO_DOUBLE(vl->time);
-  int status = snprintf(buffer, buffer_len, "%f", t);
+  int status = snprintf(buffer, buffer_len, "%.6f", t);
   if ((status < 1) || (status >= buffer_len))
     return -1;
   int offset = status;
