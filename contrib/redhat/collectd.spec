@@ -38,9 +38,13 @@
 %global _hardened_build 1
 %{?perl_default_filter}
 
+# disable collectd debug by default
+%bcond_with debug
+
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
+%define with_amqp1 0%{!?_without_amqp1:1}
 %define with_apache 0%{!?_without_apache:1}
 %define with_apcups 0%{!?_without_apcups:1}
 %define with_ascent 0%{!?_without_ascent:1}
@@ -80,12 +84,12 @@
 %define with_iptables 0%{!?_without_iptables:1}
 %define with_ipvs 0%{!?_without_ipvs:1}
 %define with_irq 0%{!?_without_irq:1}
-%define with_java 0%{!?_without_java:0}
+%define with_java 0%{!?_without_java:1}
 %define with_load 0%{!?_without_load:1}
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
 %define with_lua 0%{!?_without_lua:1}
-%define with_lvm 0%{!?_without_lvm:0}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_mcelog 0%{!?_without_mcelog:1}
@@ -165,8 +169,6 @@
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
 
-# amqp1 plugh
-%define with_amqp1 0%{!?_without_amqp1:0}
 # plugin apple_sensors disabled, requires a Mac
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
 # plugin aquaero disabled, requires a libaquaero5
@@ -179,8 +181,6 @@
 %define with_dpdkstat 0%{!?_without_dpdkstat:0}
 # plugin grpc disabled, requires protobuf-compiler >= 3.0
 %define with_grpc 0%{!?_without_grpc:0}
-# plugin gpu-nvidia disabled,
-%define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
 # plugin intel_pmu disabled, requires libjevents
@@ -209,8 +209,6 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_stackdriver disabled, requires google libs
-%define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
 # plugin xencpu disabled, requires xen-devel from non-default repo
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
@@ -251,16 +249,12 @@
 %define with_xmms 0
 %endif
 
-%if 0%{?rhel} && 0%{?rhel} > 6
-%define with_lvm 0
-%endif
-
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.8.1.99
-Release:	12%{?dist}
+Version:	5.7.1
+Release:	9%{?dist}
 URL:		https://collectd.org
-Source:		https://collectd.org/files/%{name}-%{version}.tar.gz
+Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
@@ -287,24 +281,24 @@ every 10 seconds by default.
 
 %if %{with_amqp}
 %package amqp
-Summary:	AMQP plugin for collectd
+Summary:	AMQP 0.9 plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	librabbitmq-devel
 %description amqp
-The AMQP plugin transmits or receives values collected by collectd via the
-Advanced Message Queuing Protocol (AMQP).
+The AMQP 0.9 plugin transmits or receives values collected by collectd via the
+Advanced Message Queuing Protocol v0.9 (AMQP).
 %endif
 
 %if %{with_amqp1}
 %package amqp1
-Summary:	AMQP 1.x plugin for collectd
+Summary:	AMQP 1.0 plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	librabbitmq-devel
-%description amqp
-The AMQP plugin transmits or receives values collected by collectd via the
-Advanced Message Queuing Protocol (AMQP).
+BuildRequires:	qpid-proton-c-devel
+%description amqp1
+The AMQP 1.0 plugin transmits or receives values collected by collectd via the
+Advanced Message Queuing Protocol v1.0 (AMQP1).
 %endif
 
 %if %{with_apache}
@@ -482,15 +476,6 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	protobuf-compiler
 %description grpc
 This plugin embeds a gRPC server into Collectd.
-%endif
-
-%if %{with_gpu_nvidia}
-%package gpu_nvidia
-Summary:	GPU Nvidia plugin for collectd
-Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-%description gpu_nvidia
-This plugin is for Nvidia GPUs.
 %endif
 
 %if %{with_hddtemp}
@@ -1273,12 +1258,6 @@ Collectd utilities
 %define _with_grpc --disable-grpc
 %endif
 
-%if %{with_gpu_nvidia}
-%define _with_gpu_nvidia --enable-gpu_nvidia
-%else
-%define _with_gpu_nvidia --disable-gpu_nvidia
-%endif
-
 %if %{with_hddtemp}
 %define _with_hddtemp --enable-hddtemp
 %else
@@ -1402,7 +1381,7 @@ Collectd utilities
 %if %{with_mcelog}
 %define _with_mcelog --enable-mcelog
 %else
-%define _with_mbmon --disable-mcelog
+%define _with_mcelog --disable-mcelog
 %endif
 
 %if %{with_md}
@@ -1878,12 +1857,6 @@ Collectd utilities
 %define _with_write_sensu --disable-write_sensu
 %endif
 
-%if %{with_write_stackdriver}
-%define _with_write_stackdriver --enable-write_stackdriver
-%else
-%define _with_write_stackdriver --disable-write_stackdriver
-%endif
-
 %if %{with_write_tsdb}
 %define _with_write_tsdb --enable-write_tsdb
 %else
@@ -1920,8 +1893,15 @@ Collectd utilities
 %define _with_zookeeper --disable-zookeeper
 %endif
 
+%if %{with debug}
+%define _feature_debug --enable-debug
+%else
+%define _feature_debug --disable-debug
+%endif
+
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
 	%{?_python_config} \
+	%{?_feature_debug} \
 	--disable-static \
 	--enable-all-plugins=yes \
 	--enable-match_empty_counter \
@@ -1974,7 +1954,6 @@ Collectd utilities
 	%{?_with_gmond} \
 	%{?_with_gps} \
 	%{?_with_grpc} \
-	%{?_with_gpu_nvidia} \
 	%{?_with_hddtemp} \
 	%{?_with_hugepages} \
 	%{?_with_intel_pmu} \
@@ -2075,7 +2054,6 @@ Collectd utilities
 	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
 	%{?_with_write_sensu} \
-	%{?_with_write_stackdriver} \
 	%{?_with_write_tsdb} \
 	%{?_with_xencpu} \
 	%{?_with_xmms} \
@@ -2412,9 +2390,6 @@ fi
 %endif
 %if %{with_write_sensu}
 %{_libdir}/%{name}/write_sensu.so
-%endif
-%if %{with_write_stackdriver}
-%{_libdir}/%{name}/write_stackdriver.so
 %endif
 %if %{with_write_tsdb}
 %{_libdir}/%{name}/write_tsdb.so
@@ -2796,6 +2771,9 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Sep 28 2017 Jakub Jankowski <shasta@toxcorp.com> - 5.7.1-9
+- Fix mbmon/mcelog build options
+
 * Thu Sep 28 2017 xakru <calvinxakru@gmail.com> - 5.7.1-8
 - Add new libcollectdclient/network_parse
 - Add new libcollectdclient/server
