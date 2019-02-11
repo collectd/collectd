@@ -182,22 +182,14 @@ err:
 
 static void log_logstash_log(int severity, const char *msg,
                              user_data_t __attribute__((unused)) * user_data) {
-  yajl_gen g;
-#if !defined(HAVE_YAJL_V2)
-  yajl_gen_config conf = {};
-
-  conf.beautify = 0;
-#endif
-
   if (severity > log_level)
     return;
 
 #if HAVE_YAJL_V2
-  g = yajl_gen_alloc(NULL);
+  yajl_gen g = yajl_gen_alloc(NULL);
 #else
-  g = yajl_gen_alloc(&conf, NULL);
+  yajl_gen g = yajl_gen_alloc(&(yajl_gen_config){0}, NULL);
 #endif
-
   if (g == NULL) {
     fprintf(stderr, "Could not allocate JSON generator.\n");
     return;

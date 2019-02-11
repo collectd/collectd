@@ -51,6 +51,21 @@ static const char *config_keys[] = {"Sensor", "IgnoreSelected",
                                     "SensorConfigFile", "UseLabels"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
+#if SENSORS_API_VERSION < 0x400
+typedef struct featurelist {
+  const sensors_chip_name *chip;
+  const sensors_feature_data *data;
+  int type;
+  struct featurelist *next;
+} featurelist_t;
+
+#ifndef SENSORS_CONF_PATH
+#define SENSORS_CONF_PATH "/etc/sensors.conf"
+#endif
+static char *conffile = SENSORS_CONF_PATH;
+/* #endif SENSORS_API_VERSION < 0x400 */
+
+#elif (SENSORS_API_VERSION >= 0x400)
 typedef struct featurelist {
   const sensors_chip_name *chip;
   const sensors_feature *feature;
@@ -60,6 +75,7 @@ typedef struct featurelist {
 
 static char *conffile;
 static bool use_labels;
+#endif
 
 static featurelist_t *first_feature;
 static ignorelist_t *sensor_list;
@@ -87,9 +103,13 @@ static int sensors_config(const char *key, const char *value) {
     ignorelist_set_invert(sensor_list, 1);
     if (IS_TRUE(value))
       ignorelist_set_invert(sensor_list, 0);
-  } else if (strcasecmp(key, "UseLabels") == 0) {
+  }
+#if (SENSORS_API_VERSION >= 0x400)
+  else if (strcasecmp(key, "UseLabels") == 0) {
     use_labels = IS_TRUE(value);
-  } else {
+  }
+#endif
+  else {
     return -1;
   }
 
@@ -145,6 +165,74 @@ static int sensors_load_conf(void) {
     return -1;
   }
 
+#if SENSORS_API_VERSION < 0x400
+  chip_num = 0;
+  while ((chip = sensors_get_detected_chips(&chip_num)) != NULL) {
+    int feature_num0 = 0;
+    int feature_num1 = 0;
+
+    while (42) {
+      const sensors_feature_data *feature;
+      int feature_type;
+      featurelist_t *fl;
+
+      feature = sensors_get_all_features(*chip, &feature_num0, &feature_num1);
+
+      /* Check if all features have been read. */
+      if (feature == NULL)
+        break;
+
+      /* "master features" only */
+      if (feature->mapping != SENSORS_NO_MAPPING) {
+        DEBUG("sensors plugin: sensors_load_conf: "
+              "Ignoring subfeature `%s', "
+              "because (feature->mapping "
+              "!= SENSORS_NO_MAPPING).",
+              feature->name);
+        continue;
+      }
+
+      /* skip ignored in sensors.conf */
+      if (sensors_get_ignored(*chip, feature->number) == 0) {
+        DEBUG("sensors plugin: sensors_load_conf: "
+              "Ignoring subfeature `%s', "
+              "because "
+              "`sensors_get_ignored' told "
+              "me so.",
+              feature->name);
+        continue;
+      }
+
+      feature_type = sensors_feature_name_to_type(feature->name);
+      if (feature_type == SENSOR_TYPE_UNKNOWN) {
+        DEBUG("sensors plugin: sensors_load_conf: "
+              "Ignoring subfeature `%s', "
+              "because its type is "
+              "unknown.",
+              feature->name);
+        continue;
+      }
+
+      fl = calloc(1, sizeof(*fl));
+      if (fl == NULL) {
+        ERROR("sensors plugin: calloc failed.");
+        continue;
+      }
+
+      fl->chip = chip;
+      fl->data = feature;
+      fl->type = feature_type;
+
+      if (first_feature == NULL)
+        first_feature = fl;
+      else
+        last_feature->next = fl;
+      last_feature = fl;
+    } /* while sensors_get_all_features */
+  }   /* while sensors_get_detected_chips */
+/* #endif SENSORS_API_VERSION < 0x400 */
+
+#elif (SENSORS_API_VERSION >= 0x400)
   chip_num = 0;
   while ((chip = sensors_get_detected_chips(NULL, &chip_num)) != NULL) {
     const sensors_feature *feature;
@@ -207,6 +295,7 @@ static int sensors_load_conf(void) {
       } /* while (subfeature) */
     }   /* while (feature) */
   }     /* while (chip) */
+#endif /* (SENSORS_API_VERSION >= 0x400) */
 
   if (first_feature == NULL) {
     sensors_cleanup();
@@ -258,6 +347,30 @@ static int sensors_read(void) {
   if (sensors_load_conf() != 0)
     return -1;
 
+#if SENSORS_API_VERSION < 0x400
+  for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {
+    double value;
+    int status;
+    char plugin_instance[DATA_MAX_NAME_LEN];
+    char type_instance[DATA_MAX_NAME_LEN];
+
+    status = sensors_get_feature(*fl->chip, fl->data->number, &value);
+    if (status < 0)
+      continue;
+
+    status = sensors_snprintf_chip_name(plugin_instance,
+                                        sizeof(plugin_instance), fl->chip);
+    if (status < 0)
+      continue;
+
+    sstrncpy(type_instance, fl->data->name, sizeof(type_instance));
+
+    sensors_submit(plugin_instance, sensor_type_name_map[fl->type],
+                   type_instance, value);
+  } /* for fl = first_feature .. NULL */
+/* #endif SENSORS_API_VERSION < 0x400 */
+
+#elif (SENSORS_API_VERSION >= 0x400)
   for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {
     double value;
     int status;
@@ -304,6 +417,7 @@ static int sensors_read(void) {
 
     sensors_submit(plugin_instance, type, type_instance, value);
   } /* for fl = first_feature .. NULL */
+#endif /* (SENSORS_API_VERSION >= 0x400) */
 
   return 0;
 } /* int sensors_read */
