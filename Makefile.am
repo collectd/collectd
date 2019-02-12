@@ -1370,6 +1370,14 @@ network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 network_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 network_la_LIBADD += $(GCRYPT_LIBS)
 endif
+
+test_plugin_network_SOURCES = src/network_test.c \
+			      src/daemon/configfile.c \
+			      src/daemon/types_list.c
+test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_network_LDADD = liboconfig.la libplugin_mock.la libmetadata.la
+check_PROGRAMS += test_plugin_network
 endif
 
 if BUILD_PLUGIN_NFS
