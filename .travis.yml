@@ -122,6 +122,7 @@ addons:
     - protobuf
     - protobuf-c
     - python
+    - qpid-proton
     - rabbitmq-c
     - riemann-client
     - rrdtool
