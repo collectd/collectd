@@ -22,8 +22,7 @@ before_script: autoreconf -fi
 script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
   - ./configure
-  - make
-  - make check
+  - make distcheck
 
 addons:
   apt:
