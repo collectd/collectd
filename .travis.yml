@@ -21,7 +21,7 @@ before_script: autoreconf -fi
 script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
   - ./configure
-  - make distcheck
+  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking"
 
 addons:
   apt:
