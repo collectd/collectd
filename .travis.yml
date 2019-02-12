@@ -15,6 +15,7 @@ matrix:
       osx_image: xcode10.1
       compiler: clang
       env: PATH="/usr/local/opt/mysql-client/bin:$PATH"
+      env: CXX=clang++
     - os: linux
       dist: xenial
       compiler: clang
