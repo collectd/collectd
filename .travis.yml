@@ -12,6 +12,7 @@ matrix:
   include:
     - os: osx
       osx_image: xcode10.1
+      compiler: clang
     - os: linux
       dist: xenial
       compiler: clang
