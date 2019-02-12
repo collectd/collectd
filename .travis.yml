@@ -50,7 +50,7 @@ addons:
     - libmicrohttpd-dev
     - libmnl-dev
     - libmodbus-dev
-    - libmosquitto0-dev
+    - libmosquitto-dev
     - libmysqlclient-dev
     - libnotify-dev
     - libopenipmi-dev
