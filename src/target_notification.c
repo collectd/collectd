@@ -26,8 +26,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_subst.h"
 

@@ -29,8 +29,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if HAVE_NETDB_H
 #include <netdb.h>

@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 static void v5_swap_instances(value_list_t *vl) /* {{{ */
 {

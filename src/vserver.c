@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <dirent.h>
 #include <sys/types.h>

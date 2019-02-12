@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <jni.h>
 

@@ -28,10 +28,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "meta_data.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_cache.h"
 
 #include <assert.h>

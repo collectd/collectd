@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_latency_config.h"
+#include "utils/common/common.h"
+#include "utils/latency/latency_config.h"
 #include "utils_tail_match.h"
 
 /*

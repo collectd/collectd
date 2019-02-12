@@ -32,13 +32,13 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
 
 #include "plugin.h"
 
+#include "utils/db_query/db_query.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
-#include "utils_db_query.h"
 
 #include <libpq-fe.h>
 #include <pg_config_manual.h>

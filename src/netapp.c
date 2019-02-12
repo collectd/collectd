@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "utils_ignorelist.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 
 #include <netapp_api.h>
 #include <netapp_errno.h>

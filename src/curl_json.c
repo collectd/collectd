@@ -23,11 +23,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/curl_stats/curl_stats.h"
 #include "utils_complain.h"
-#include "utils_curl_stats.h"
 
 #include <sys/types.h>
 #include <sys/un.h>

@@ -30,14 +30,14 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "filter_chain.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/heap/heap.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
-#include "utils_heap.h"
 #include "utils_llist.h"
 #include "utils_random.h"
 #include "utils_time.h"

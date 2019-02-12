@@ -21,8 +21,8 @@ SOFTWARE.
 */
 
 #include "daemon/collectd.h"
-#include "daemon/common.h"
 #include "daemon/plugin.h"
+#include "utils/common/common.h"
 
 #include <nvml.h>
 #include <stdint.h>

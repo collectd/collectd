@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_rrdcreate.h"
+#include "utils/common/common.h"
+#include "utils/rrdcreate/rrdcreate.h"
 
 #undef HAVE_CONFIG_H
 #include <rrd.h>

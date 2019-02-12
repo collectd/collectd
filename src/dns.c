@@ -26,10 +26,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#include "utils_dns.h"
+#include "utils/dns/dns.h"
 #include <poll.h>
 
 #include <pcap.h>

@@ -33,9 +33,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
-#include "meta_data.h"
+#include "utils/common/common.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_llist.h"
 
 #include <regex.h>

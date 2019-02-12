@@ -30,8 +30,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "write_riemann_threshold.h"

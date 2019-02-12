@@ -33,13 +33,13 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <procfs.h>
 #include <zone.h>
 
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
 
 #define MAX_PROCFS_PATH 40
 #define FRC2PCT(pp) (((float)(pp)) / 0x8000 * 100)

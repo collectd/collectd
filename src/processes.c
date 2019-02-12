@@ -38,12 +38,12 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if HAVE_LIBTASKSTATS
+#include "utils/taskstats/taskstats.h"
 #include "utils_complain.h"
-#include "utils_taskstats.h"
 #endif
 
 /* Include header files for the mach system, if they exist.. */

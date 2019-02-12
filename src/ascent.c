@@ -26,8 +26,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <curl/curl.h>
 #include <libxml/parser.h>

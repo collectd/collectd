@@ -25,10 +25,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_format_json.h"
-#include "utils_format_kairosdb.h"
+#include "utils/common/common.h"
+#include "utils/format_json/format_json.h"
+#include "utils/format_kairosdb/format_kairosdb.h"
 
 #include <curl/curl.h>
 

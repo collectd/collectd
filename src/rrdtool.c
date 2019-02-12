@@ -25,11 +25,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/rrdcreate/rrdcreate.h"
 #include "utils_random.h"
-#include "utils_rrdcreate.h"
 
 #include <rrd.h>
 

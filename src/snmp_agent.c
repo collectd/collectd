@@ -29,8 +29,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_llist.h"
 #include <regex.h>

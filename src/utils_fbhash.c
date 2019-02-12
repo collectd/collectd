@@ -28,7 +28,7 @@
 
 #include "plugin.h"
 
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
 #include "utils_fbhash.h"
 
 struct fbhash_s {

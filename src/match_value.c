@@ -31,8 +31,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 
 #define SATISFY_ALL 0
