@@ -133,3 +133,4 @@ addons:
 git:
   quiet: true
   submodules: false
+  depth: 1
