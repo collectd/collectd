@@ -132,3 +132,4 @@ addons:
 
 git:
   quiet: true
+  submodules: false
