@@ -129,3 +129,6 @@ addons:
     - tokyo-cabinet
     - varnish
     - yajl
+
+git:
+  quiet: true
