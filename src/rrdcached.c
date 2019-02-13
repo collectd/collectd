@@ -59,7 +59,7 @@ static rrdcreate_config_t rrdcreate_config = {
  * Prototypes.
  */
 static int rc_write(const data_set_t *ds, const value_list_t *vl,
-                    user_data_t __attribute__((unused)) * user_data);
+                    __attribute__((unused)) user_data_t *ud);
 static int rc_flush(__attribute__((unused)) cdtime_t timeout,
                     const char *identifier,
                     __attribute__((unused)) user_data_t *ud);
