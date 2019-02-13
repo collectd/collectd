@@ -41,19 +41,15 @@ static char *datadir;
 static char *daemon_address;
 static bool config_create_files = true;
 static bool config_collect_stats = true;
-static rrdcreate_config_t rrdcreate_config = {
-    /* stepsize = */ 0,
-    /* heartbeat = */ 0,
-    /* rrarows = */ 1200,
-    /* xff = */ 0.1,
-
-    /* timespans = */ NULL,
-    /* timespans_num = */ 0,
-
-    /* consolidation_functions = */ NULL,
-    /* consolidation_functions_num = */ 0,
-
-    /* async = */ 0};
+static rrdcreate_config_t rrdcreate_config = {.stepsize = 0,
+                                              .heartbeat = 0,
+                                              .rrarows = 1200,
+                                              .xff = 0.1,
+                                              .timespans = NULL,
+                                              .timespans_num = 0,
+                                              .consolidation_functions = NULL,
+                                              .consolidation_functions_num = 0,
+                                              .async = 0};
 
 /*
  * Prototypes.
