@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "utils_ignorelist.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 
 #include <netapp_api.h>
 #include <netapp_errno.h>
@@ -2974,7 +2974,7 @@ static int cna_init(void) /* {{{ */
   char err[256] = {0};
 
   if (!na_startup(err, sizeof(err))) {
-    err[sizeof(err) - 1] = 0;
+    err[sizeof(err) - 1] = '\0';
     ERROR("netapp plugin: Error initializing netapp API: %s", err);
     return 1;
   }

@@ -1662,6 +1662,10 @@ installed) to get the current CPU frequency. If this file does not exist make
 sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
 installed and an "cpu governor" (that's a kernel module) is loaded.
 
+If the system has the I<cpufreq-stats> kernel module loaded, this plugin reports
+the rate of p-state (cpu frequency) transitions and the percentage of time spent
+in each p-state.
+
 =head2 Plugin C<cpusleep>
 
 This plugin doesn't have any options. It reads CLOCK_BOOTTIME and
@@ -3203,6 +3207,30 @@ This only applies from gpsd release-2.95.
 =item B<PauseConnect> I<Seconds>
 
 Pause to apply between attempts of connection to gpsd in seconds (default 5 sec).
+
+=back
+
+=head2 Plugin C<gpu_nvidia>
+
+Efficiently collects various statistics from the system's NVIDIA GPUs using the
+NVML library. Currently collected are fan speed, core temperature, percent
+load, percent memory used, compute and memory frequencies, and power
+consumption.
+
+=over 4
+
+=item B<GPUIndex>
+
+If one or more of these options is specified, only GPUs at that index (as
+determined by nvidia-utils through I<nvidia-smi>) have statistics collected.
+If no instance of this option is specified, all GPUs are monitored.
+
+=item B<IgnoreSelected>
+
+If set to true, all detected GPUs B<except> the ones at indices specified by
+B<GPUIndex> entries are collected. For greater clarity, setting IgnoreSelected
+without any GPUIndex directives will result in B<no> statistics being
+collected.
 
 =back
 
@@ -5305,8 +5333,9 @@ When configuring with B<Interface> only the basic statistics will be collected,
 namely octets, packets, and errors. These statistics are collected by
 the C<interface> plugin, too, so using both at the same time is no benefit.
 
-When configured with B<VerboseInterface> all counters B<except> the basic ones,
-so that no data needs to be collected twice if you use the C<interface> plugin.
+When configured with B<VerboseInterface> all counters B<except> the basic ones
+will be collected, so that no data needs to be collected twice if you use the
+C<interface> plugin.
 This includes dropped packets, received multicast packets, collisions and a
 whole zoo of differentiated RX and TX errors. You can try the following command
 to get an idea of what awaits you:
@@ -6246,6 +6275,7 @@ B<Synopsis:>
    Address "127.0.0.1"
    Socket "/var/run/openvswitch/db.sock"
    Bridges "br0" "br_ext"
+   InterfaceStats false
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -6278,6 +6308,13 @@ List of OVS bridge names to be monitored by this plugin. If this option is
 omitted or is empty then all OVS bridges will be monitored.
 
 Default: empty (monitor all bridges)
+
+=item B<InterfaceStats> B<false>|B<true>
+
+Indicates that the plugin should gather statistics for individual interfaces
+in addition to ports.  This can be useful when monitoring an OVS setup with
+bond ports, where you might wish to know individual statistics for the
+interfaces included in the bonds.  Defaults to B<false>.
 
 =back
 
@@ -8451,26 +8488,26 @@ Sets how the values are cumulated. I<Type> is one of:
 
 =item B<GaugeAverage>
 
-Calculate the average.
+Calculate the average of all values matched during the interval.
 
 =item B<GaugeMin>
 
-Use the smallest number only.
+Report the smallest value matched during the interval.
 
 =item B<GaugeMax>
 
-Use the greatest number only.
+Report the greatest value matched during the interval.
 
 =item B<GaugeLast>
 
-Use the last number found.
+Report the last value matched during the interval.
 
 =item B<GaugePersist>
 
-Use the last number found. The number is not reset at the end of an interval.
-It is continously reported until another number is matched. This is intended
-for cases in which only state changes are reported, for example a thermometer
-that only reports the temperature when it changes.
+Report the last matching value. The metric is I<not> reset to C<NaN> at the end
+of an interval. It is continuously reported until another value is matched.
+This is intended for cases in which only state changes are reported, for
+example a thermometer that only reports the temperature when it changes.
 
 =item B<CounterSet>
 
@@ -8500,6 +8537,9 @@ internal counter.
 Increase the internal counter by one. These B<DSType> are the only ones that do
 not use the matched subexpression, but simply count the number of matched
 lines. Thus, you may use a regular expression without submatch in this case.
+
+B<GaugeInc> is reset to I<zero> after every read, unlike other B<Gauge*>
+metrics which are reset to C<NaN>.
 
 =item B<Distribution>
 
@@ -8574,8 +8614,12 @@ The B<Gauge*> and B<Distribution> types interpret the submatch as a floating
 point number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types
 interpret the submatch as an unsigned integer using L<strtoull(3)>. The
 B<Derive*> types interpret the submatch as a signed integer using
-L<strtoll(3)>. B<CounterInc> and B<DeriveInc> do not use the submatch at all
-and it may be omitted in this case.
+L<strtoll(3)>. B<CounterInc>, B<DeriveInc> and B<GaugeInc> do not use the
+submatch at all and it may be omitted in this case.
+
+The B<Gauge*> types, unless noted otherwise, are reset to C<NaN> after being
+reported. In other words, B<GaugeAverage> reports the average of all values
+matched since the last metric was reported (or C<NaN> if there was no match).
 
 =item B<Type> I<Type>
 
@@ -8928,6 +8972,33 @@ dynamic number assigned by the kernel. Otherwise, C<coreE<lt>nE<gt>> is used
 if there is only one package and C<pkgE<lt>nE<gt>-coreE<lt>mE<gt>> if there is
 more than one, where I<n> is the n-th core of package I<m>.
 
+=item B<RestoreAffinityPolicy> I<AllCPUs>|I<Restore>
+
+Reading data from CPU has side-effect: collectd process's CPU affinity mask
+changes. After reading data is completed, affinity mask needs to be restored.
+This option allows to set restore policy.
+
+B<AllCPUs> (the default): Restore the affinity by setting affinity to any/all
+CPUs.
+
+B<Restore>: Save affinity using sched_getaffinity() before reading data and
+restore it after.
+
+On some systems, sched_getaffinity() will fail due to inconsistency of the CPU
+set size between userspace and kernel. In these cases plugin will detect the
+unsuccessful call and fail with an error, preventing data collection.
+Most of configurations does not need to save affinity as Collectd process is
+allowed to run on any/all available CPUs.
+
+If you need to save and restore affinity and get errors like 'Unable to save
+the CPU affinity', setting 'possible_cpus' kernel boot option may also help.
+
+See following links for details:
+
+L<https://github.com/collectd/collectd/issues/1593>
+L<https://sourceware.org/bugzilla/show_bug.cgi?id=15630>
+L<https://bugzilla.kernel.org/show_bug.cgi?id=151821>
+
 =back
 
 =head2 Plugin C<unixsock>
@@ -9197,6 +9268,40 @@ only on the host system.
 
 Only I<Connection> is required.
 
+Consider the following example config:
+
+ <Plugin "virt">
+   Connection "qemu:///system"
+   HostnameFormat "hostname"
+   InterfaceFormat "address"
+   PluginInstanceFormat "name"
+ </Plugin>
+
+It will generate the following values:
+
+  node42.example.com/virt-instance-0006f26c/disk_octets-vda
+  node42.example.com/virt-instance-0006f26c/disk_ops-vda
+  node42.example.com/virt-instance-0006f26c/if_dropped-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/if_errors-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/if_octets-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/if_packets-ca:fe:ca:fe:ca:fe
+  node42.example.com/virt-instance-0006f26c/memory-actual_balloon
+  node42.example.com/virt-instance-0006f26c/memory-available
+  node42.example.com/virt-instance-0006f26c/memory-last_update
+  node42.example.com/virt-instance-0006f26c/memory-major_fault
+  node42.example.com/virt-instance-0006f26c/memory-minor_fault
+  node42.example.com/virt-instance-0006f26c/memory-rss
+  node42.example.com/virt-instance-0006f26c/memory-swap_in
+  node42.example.com/virt-instance-0006f26c/memory-swap_out
+  node42.example.com/virt-instance-0006f26c/memory-total
+  node42.example.com/virt-instance-0006f26c/memory-unused
+  node42.example.com/virt-instance-0006f26c/memory-usable
+  node42.example.com/virt-instance-0006f26c/virt_cpu_total
+  node42.example.com/virt-instance-0006f26c/virt_vcpu-0
+
+You can get information on the metric's units from the online libvirt documentation.
+For instance, I<virt_cpu_total> is in nanoseconds.
+
 =over 4
 
 =item B<Connection> I<uri>
@@ -9289,7 +9394,7 @@ be set to C<var_lib_libvirt_images_image1.qcow2>.
 Setting C<BlockDeviceFormatBasename true> will cause the I<type instance> to be
 set to C<image1.qcow2>.
 
-=item B<HostnameFormat> B<name|uuid|hostname|...>
+=item B<HostnameFormat> B<name|uuid|hostname|metadata...>
 
 When the virt plugin logs data, it sets the hostname of the collected data
 according to this setting. The default is to use the guest name as provided by
@@ -9299,7 +9404,11 @@ B<uuid> means use the guest's UUID. This is useful if you want to track the
 same guest across migrations.
 
 B<hostname> means to use the global B<Hostname> setting, which is probably not
-useful on its own because all guests will appear to have the same name.
+useful on its own because all guests will appear to have the same name. This is
+useful in conjunction with B<PluginInstanceFormat> though.
+
+B<metadata> means use information from guest's metadata. Use
+B<HostnameMetadataNS> and B<HostnameMetadataXPath> to localize this information.
 
 You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
@@ -9309,7 +9418,7 @@ At the moment of writing (collectd-5.5), hostname string is limited to 62
 characters. In case when combination of fields exceeds 62 characters,
 hostname will be truncated without a warning.
 
-=item B<InterfaceFormat> B<name>|B<address>
+=item B<InterfaceFormat> B<name>|B<address>|B<number>
 
 When the virt plugin logs interface data, it sets the name of the collected
 data according to this setting. The default is to use the path as provided by
@@ -9319,23 +9428,42 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid|none>
+B<number> means use the interface's number in guest.
+
+=item B<PluginInstanceFormat> B<name|uuid|metadata|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
 data according to this setting. The default is to not set the plugin_instance.
 
 B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+B<metadata> means use information from guest's metadata.
 
 You can also specify combinations of the B<name> and B<uuid> fields.
 For example B<name uuid> means to concatenate the guest name and UUID
 (with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
-=item B<Instances> B<integer>
+=item B<HostnameMetadataNS> B<string>
 
-How many read instances you want to use for this plugin. The default is one,
-and the sensible setting is a multiple of the B<ReadThreads> value.
-If you are not sure, just use the default setting.
+When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
+selects in which metadata namespace we will pick the hostname. The default is
+I<http://openstack.org/xmlns/libvirt/nova/1.0>.
+
+=item B<HostnameMetadataXPath> B<string>
+
+When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
+describes where the hostname is located in the libvirt metadata. The default is
+I</instance/name/text()>.
+
+=item B<ReportBlockDevices> B<true>|B<false>
+
+Enabled by default. Allows to disable stats reporting of block devices for
+whole plugin.
+
+=item B<ReportNetworkInterfaces> B<true>|B<false>
+
+Enabled by default. Allows to disable stats reporting of network interfaces for
+whole plugin.
 
 =item B<ExtraStats> B<string>
 
@@ -9387,10 +9515,37 @@ B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 =back
 
 =item B<PersistentNotification> B<true>|B<false>
+
 Override default configuration to only send notifications when there is a change
 in the lifecycle state of a domain. When set to true notifications will be sent
 for every read cycle. Default is false. Does not affect the stats being
 dispatched.
+
+=item B<Instances> B<integer>
+
+How many read instances you want to use for this plugin. The default is one,
+and the sensible setting is a multiple of the B<ReadThreads> value.
+
+This option is only useful when domains are specially tagged.
+If you are not sure, just use the default setting.
+
+The reader instance will only query the domains with attached matching tag.
+Tags should have the form of 'virt-X' where X is the reader instance number,
+starting from 0.
+
+The special-purpose reader instance #0, guaranteed to be always present,
+will query all the domains with missing or unrecognized tag, so no domain will
+ever be left out.
+
+Domain tagging is done with a custom attribute in the libvirt domain metadata
+section. Value is selected by an XPath I</domain/metadata/ovirtmap/tag/text()>
+expression in the I<http://ovirt.org/ovirtmap/tag/1.0> namespace.
+(XPath and namespace values are not configurable yet).
+
+Tagging could be used by management applications to evenly spread the
+load among the reader threads, or to pin on the same threads all
+the libvirt domains which use the same shared storage, to minimize
+the disruption in presence of storage outages.
 
 =back
 
@@ -9724,6 +9879,13 @@ using I<Prometheus>.
 B<Options:>
 
 =over 4
+
+=item B<Host> I<Host>
+
+Bind to the hostname / address I<Host>. By default, the plugin will bind to the
+"any" address, i.e. accept packets sent to any of the hosts addresses.
+
+This option is supported only for libmicrohttpd newer than 0.9.0.
 
 =item B<Port> I<Port>
 
@@ -10395,6 +10557,133 @@ I<Sensu>.
 
 Consider the two given strings to be the key and value of an additional
 attribute for each metric being sent out to I<Sensu>.
+
+=back
+
+=head2 Plugin C<write_stackdriver>
+
+The C<write_stackdriver> plugin writes metrics to the
+I<Google Stackdriver Monitoring> service.
+
+This plugin supports two authentication methods: When configured, credentials
+are read from the JSON credentials file specified with B<CredentialFile>.
+Alternatively, when running on
+I<Google Compute Engine> (GCE), an I<OAuth> token is retrieved from the
+I<metadata server> and used to authenticate to GCM.
+
+B<Synopsis:>
+
+ <Plugin write_stackdriver>
+   CredentialFile "/path/to/service_account.json"
+   <Resource "global">
+     Label "project_id" "monitored_project"
+   </Resource>
+ </Plugin>
+
+=over 4
+
+=item B<CredentialFile> I<file>
+
+Path to a JSON credentials file holding the credentials for a GCP service
+account.
+
+If B<CredentialFile> is not specified, the plugin uses I<Application Default
+Credentials>. That means which credentials are used depends on the environment:
+
+=over 4
+
+=item
+
+The environment variable C<GOOGLE_APPLICATION_CREDENTIALS> is checked. If this
+variable is specified it should point to a JSON file that defines the
+credentials.
+
+=item
+
+The path C<${HOME}/.config/gcloud/application_default_credentials.json> is
+checked. This where credentials used by the I<gcloud> command line utility are
+stored. You can use C<gcloud auth application-default login> to create these
+credentials.
+
+Please note that these credentials are often of your personal account, not a
+service account, and are therefore unfit to be used in a production
+environment.
+
+=item
+
+When running on GCE, the built-in service account associated with the virtual
+machine instance is used.
+See also the B<Email> option below.
+
+=back
+
+=item B<Project> I<Project>
+
+The I<Project ID> or the I<Project Number> of the I<Stackdriver Account>. The
+I<Project ID> is a string identifying the GCP project, which you can chose
+freely when creating a new project. The I<Project Number> is a 12-digit decimal
+number. You can look up both on the I<Developer Console>.
+
+This setting is optional. If not set, the project ID is read from the
+credentials file or determined from the GCE's metadata service.
+
+=item B<Email> I<Email> (GCE only)
+
+Choses the GCE I<Service Account> used for authentication.
+
+Each GCE instance has a C<default> I<Service Account> but may also be
+associated with additional I<Service Accounts>. This is often used to restrict
+the permissions of services running on the GCE instance to the required
+minimum. The I<write_stackdriver plugin> requires the
+C<https://www.googleapis.com/auth/monitoring> scope. When multiple I<Service
+Accounts> are available, this option selects which one is used by
+I<write_stackdriver plugin>.
+
+=item B<Resource> I<ResourceType>
+
+Configures the I<Monitored Resource> to use when storing metrics.
+More information on I<Monitored Resources> and I<Monitored Resource Types> are
+available at L<https://cloud.google.com/monitoring/api/resources>.
+
+This block takes one string argument, the I<ResourceType>. Inside the block are
+one or more B<Label> options which configure the resource labels.
+
+This block is optional. The default value depends on the runtime environment:
+on GCE, the C<gce_instance> resource type is used, otherwise the C<global>
+resource type ist used:
+
+=over 4
+
+=item
+
+B<On GCE>, defaults to the equivalent of this config:
+
+  <Resource "gce_instance">
+    Label "project_id" "<project_id>"
+    Label "instance_id" "<instance_id>"
+    Label "zone" "<zone>"
+  </Resource>
+
+The values for I<project_id>, I<instance_id> and I<zone> are read from the GCE
+metadata service.
+
+=item
+
+B<Elsewhere>, i.e. not on GCE, defaults to the equivalent of this config:
+
+  <Resource "global">
+    Label "project_id" "<Project>"
+  </Resource>
+
+Where I<Project> refers to the value of the B<Project> option or the project ID
+inferred from the B<CredentialFile>.
+
+=back
+
+=item B<Url> I<Url>
+
+URL of the I<Stackdriver Monitoring> API. Defaults to
+C<https://monitoring.googleapis.com/v3>.
 
 =back
 

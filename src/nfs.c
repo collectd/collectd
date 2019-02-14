@@ -24,8 +24,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if HAVE_KSTAT_H
 #include <kstat.h>

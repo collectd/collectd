@@ -45,11 +45,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
+#include "utils/format_graphite/format_graphite.h"
 #include "utils_complain.h"
-#include "utils_format_graphite.h"
 
 #include <netdb.h>
 

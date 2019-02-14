@@ -31,7 +31,7 @@
 #include "collectd.h"
 
 #include "configfile.h"
-#include "meta_data.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_time.h"
 
 #include <inttypes.h>
@@ -245,7 +245,7 @@ int plugin_shutdown_all(void);
  *
  * DESCRIPTION
  *  Calls the write function of the given plugin with the provided data set and
- *  value list. It differs from `plugin_dispatch_value' in that it does not
+ *  value list. It differs from `plugin_dispatch_values' in that it does not
  *  update the cache, does not do threshold checking, call the chain subsystem
  *  and so on. It looks up the requested plugin and invokes the function, end
  *  of story.

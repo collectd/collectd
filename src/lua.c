@@ -29,8 +29,8 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_lua.h"
 
 /* Include the Lua API header files. */

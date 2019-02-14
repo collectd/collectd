@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_match.h"
+#include "utils/common/common.h"
+#include "utils/match/match.h"
 
 #include <libmemcached/memcached.h>
 

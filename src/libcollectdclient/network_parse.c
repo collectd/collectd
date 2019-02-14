@@ -154,11 +154,12 @@ static int parse_string(void *payload, size_t payload_size, char *out,
                         size_t out_size) {
   char *in = payload;
 
-  if ((payload_size < 1) || (in[payload_size - 1] != 0) ||
+  if ((payload_size < 1) || (in[payload_size - 1] != '\0') ||
       (payload_size > out_size))
     return EINVAL;
 
-  strncpy(out, in, out_size);
+  strncpy(out, in, out_size - 1);
+  out[out_size - 1] = '\0';
   return 0;
 }
 
@@ -303,8 +304,8 @@ static int parse_values(void *payload, size_t payload_size,
     return EINVAL;
 
   state->values_len = (size_t)n;
-  state->values = calloc(sizeof(*state->values), state->values_len);
-  state->values_types = calloc(sizeof(*state->values_types), state->values_len);
+  state->values = calloc(state->values_len, sizeof(*state->values));
+  state->values_types = calloc(state->values_len, sizeof(*state->values_types));
   if ((state->values == NULL) || (state->values_types == NULL)) {
     return ENOMEM;
   }

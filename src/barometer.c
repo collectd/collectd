@@ -21,8 +21,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 
 #include <fcntl.h>
@@ -252,7 +252,7 @@ static averaging_t temperature_averaging;
  * @return Zero when successful
  */
 static int averaging_create(averaging_t *avg, int size) {
-  avg->ring_buffer = calloc((size_t)size, sizeof(*avg->ring_buffer));
+  avg->ring_buffer = calloc(size, sizeof(*avg->ring_buffer));
   if (avg->ring_buffer == NULL) {
     ERROR("barometer: averaging_create - ring buffer allocation of size %d "
           "failed",

@@ -26,12 +26,12 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "meta_data.h"
 #include "plugin.h"
+#include "utils/common/common.h"
+#include "utils/lookup/vl_lookup.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_cache.h" /* for uc_get_rate() */
 #include "utils_subst.h"
-#include "utils_vl_lookup.h"
 
 #define AGG_MATCHES_ALL(str) (strcmp("/.*/", str) == 0)
 #define AGG_FUNC_PLACEHOLDER "%{aggregation}"

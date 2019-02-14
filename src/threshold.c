@@ -25,9 +25,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
 
@@ -309,7 +309,10 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   /* If the state didn't change, report if `persistent' is specified. If the
    * state is `okay', then only report if `persist_ok` flag is set. */
   if (state == state_old) {
-    if ((th->flags & UT_FLAG_PERSIST) == 0)
+    if (state == STATE_UNKNOWN) {
+      /* From UNKNOWN to UNKNOWN. Persist doesn't apply here. */
+      return 0;
+    } else if ((th->flags & UT_FLAG_PERSIST) == 0)
       return 0;
     else if ((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0))
       return 0;
@@ -367,6 +370,10 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       snprintf(buf, bufsize, ": All data sources are within range again. "
                              "Current value of \"%s\" is %f.",
                ds->ds[ds_index].name, values[ds_index]);
+  } else if (state == STATE_UNKNOWN) {
+    ERROR("ut_report_state: metric transition to UNKNOWN from a different "
+          "state. This shouldn't happen.");
+    return 0;
   } else {
     double min;
     double max;
@@ -455,7 +462,7 @@ static int ut_check_one_data_source(
   if (ds != NULL) {
     ds_name = ds->ds[ds_index].name;
     if ((th->data_source[0] != 0) && (strcmp(ds_name, th->data_source) != 0))
-      return STATE_OKAY;
+      return STATE_UNKNOWN;
   }
 
   if ((th->flags & UT_FLAG_INVERT) != 0) {
@@ -484,6 +491,7 @@ static int ut_check_one_data_source(
     case STATE_WARNING:
       hysteresis_for_warning = th->hysteresis;
       break;
+    case STATE_UNKNOWN:
     case STATE_OKAY:
       /* do nothing -- the hysteresis only applies to the non-normal states */
       break;
@@ -525,7 +533,8 @@ static int ut_check_one_data_source(
  *
  * Checks all data sources of a value list against the given threshold, using
  * the ut_check_one_data_source function above. Returns the worst status,
- * which is `okay' if nothing has failed.
+ * which is `okay' if nothing has failed or `unknown' if no valid datasource was
+ * defined.
  * Returns less than zero if the data set doesn't have any data sources.
  */
 static int ut_check_one_threshold(const data_set_t *ds, const value_list_t *vl,

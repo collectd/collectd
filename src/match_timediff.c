@@ -26,8 +26,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
+#include "utils/common/common.h"
 
 #define SATISFY_ALL 0
 #define SATISFY_ANY 1

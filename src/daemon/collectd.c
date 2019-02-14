@@ -28,9 +28,9 @@
 #include "cmd.h"
 #include "collectd.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <netdb.h>
 #include <sys/types.h>

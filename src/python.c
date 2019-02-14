@@ -31,7 +31,7 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
 
 #include "cpython.h"
 
@@ -367,7 +367,7 @@ void cpy_log_exception(const char *context) {
       continue;
 
     if (cpy[strlen(cpy) - 1] == '\n')
-      cpy[strlen(cpy) - 1] = 0;
+      cpy[strlen(cpy) - 1] = '\0';
 
     Py_BEGIN_ALLOW_THREADS;
     ERROR("%s", cpy);
@@ -1133,7 +1133,11 @@ static void *cpy_interactive(void *pipefd) {
     cpy_log_exception("interactive session init");
   }
   cur_sig = PyOS_setsig(SIGINT, python_sigint_handler);
+#if PY_VERSION_HEX < 0x03070000
   PyOS_AfterFork();
+#else
+  PyOS_AfterFork_Child();
+#endif
   PyEval_InitThreads();
   close(*(int *)pipefd);
   PyRun_InteractiveLoop(stdin, "<stdin>");

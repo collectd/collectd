@@ -27,9 +27,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
 #include "write_riemann_threshold.h"
@@ -63,7 +63,7 @@ static int ut_check_one_data_source(
   if (ds != NULL) {
     ds_name = ds->ds[ds_index].name;
     if ((th->data_source[0] != 0) && (strcmp(ds_name, th->data_source) != 0))
-      return STATE_OKAY;
+      return STATE_UNKNOWN;
   }
 
   if ((th->flags & UT_FLAG_INVERT) != 0) {
@@ -73,8 +73,9 @@ static int ut_check_one_data_source(
 
   /* XXX: This is an experimental code, not optimized, not fast, not reliable,
    * and probably, do not work as you expect. Enjoy! :D */
-  if ((th->hysteresis > 0) &&
-      ((prev_state = uc_get_state(ds, vl)) != STATE_OKAY)) {
+  prev_state = uc_get_state(ds, vl);
+  if ((th->hysteresis > 0) && (prev_state != STATE_OKAY) &&
+      (prev_state != STATE_UNKNOWN)) {
     switch (prev_state) {
     case STATE_ERROR:
       if ((!isnan(th->failure_min) &&

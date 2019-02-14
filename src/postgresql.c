@@ -32,13 +32,13 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
 
 #include "plugin.h"
 
+#include "utils/db_query/db_query.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
-#include "utils_db_query.h"
 
 #include <libpq-fe.h>
 #include <pg_config_manual.h>
@@ -511,14 +511,14 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
   }
 
   column_num = PQnfields(res);
-  column_names = (char **)calloc(column_num, sizeof(char *));
-  if (NULL == column_names) {
+  column_names = calloc(column_num, sizeof(*column_names));
+  if (column_names == NULL) {
     log_err("calloc failed.");
     BAIL_OUT(-1);
   }
 
-  column_values = (char **)calloc(column_num, sizeof(char *));
-  if (NULL == column_values) {
+  column_values = calloc(column_num, sizeof(*column_values));
+  if (column_values == NULL) {
     log_err("calloc failed.");
     BAIL_OUT(-1);
   }
@@ -976,9 +976,9 @@ static int config_query_param_add(udb_query_t *q, oconfig_item_t *ci) {
   c_psql_param_t *tmp;
 
   data = udb_query_get_user_data(q);
-  if (NULL == data) {
+  if (data == NULL) {
     data = calloc(1, sizeof(*data));
-    if (NULL == data) {
+    if (data == NULL) {
       log_err("Out of memory.");
       return -1;
     }
@@ -989,7 +989,7 @@ static int config_query_param_add(udb_query_t *q, oconfig_item_t *ci) {
   }
 
   tmp = realloc(data->params, (data->params_num + 1) * sizeof(*data->params));
-  if (NULL == tmp) {
+  if (tmp == NULL) {
     log_err("Out of memory.");
     return -1;
   }
@@ -1176,9 +1176,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
   }
 
   if (db->queries_num > 0) {
-    db->q_prep_areas = (udb_query_preparation_area_t **)calloc(
-        db->queries_num, sizeof(*db->q_prep_areas));
-
+    db->q_prep_areas = calloc(db->queries_num, sizeof(*db->q_prep_areas));
     if (db->q_prep_areas == NULL) {
       log_err("Out of memory.");
       c_psql_database_delete(db);

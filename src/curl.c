@@ -23,10 +23,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_curl_stats.h"
-#include "utils_match.h"
+#include "utils/common/common.h"
+#include "utils/curl_stats/curl_stats.h"
+#include "utils/match/match.h"
 #include "utils_time.h"
 
 #include <curl/curl.h>

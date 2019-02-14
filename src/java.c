@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <jni.h>
 
@@ -1057,7 +1057,7 @@ static int jtoc_values_array(JNIEnv *jvm_env, /* {{{ */
     BAIL_OUT(-1);
   }
 
-  values = (value_t *)calloc(values_num, sizeof(value_t));
+  values = calloc(values_num, sizeof(*values));
   if (values == NULL) {
     ERROR("java plugin: jtoc_values_array: calloc failed.");
     BAIL_OUT(-1);

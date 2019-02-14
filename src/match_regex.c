@@ -33,9 +33,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "filter_chain.h"
-#include "meta_data.h"
+#include "utils/common/common.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_llist.h"
 
 #include <regex.h>
@@ -151,7 +151,7 @@ static int mr_add_regex(mr_regex_t **re_head, const char *re_str, /* {{{ */
   if (status != 0) {
     char errmsg[1024];
     regerror(status, &re->re, errmsg, sizeof(errmsg));
-    errmsg[sizeof(errmsg) - 1] = 0;
+    errmsg[sizeof(errmsg) - 1] = '\0';
     log_err("Compiling regex `%s' for `%s' failed: %s.", re->re_str, option,
             errmsg);
     sfree(re->re_str);
