@@ -1,6 +1,6 @@
 env:
   LANG: C
-  DEFAULT_CONFIG_OPTS: --enable-debug --without-libstatgrab
+  DEFAULT_CONFIG_OPTS: --enable-debug --without-libstatgrab --disable-dependency-tracking
 
 
 ###
@@ -16,7 +16,7 @@ release_ready_task:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
   checks_script:
-    - make -s distcheck
+    - make -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
