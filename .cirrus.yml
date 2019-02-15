@@ -6,7 +6,7 @@ env:
 ###
 # make distcheck and other sanity checks
 #
-relase_ready_task:
+release_ready_task:
   container:
     image: collectd/ci:stretch_amd64
   lint_script:
@@ -19,7 +19,7 @@ relase_ready_task:
     - make -s distcheck
 
 ###
-# Default toolchain and build flags use in deb packages, on a range of Debian
+# Default toolchain and build flags used in deb packages, on a range of Debian
 # and Ubuntu releases (+ Debian/unstable)
 # Most should succeed, and PRs shouldn't break them.
 #
@@ -65,7 +65,7 @@ debian_default_toolchain_task:
     - /checks/check-built-plugins.sh
 
 ###
-# Default toolchain and build flags use in RPM packages, on a range of RedHat
+# Default toolchain and build flags used in RPM packages, on a range of RedHat
 # and Fedora releases (+ Fedora/rawhide)
 # Most should succeed, and PRs shouldn't break them.
 #
