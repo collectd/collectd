@@ -11584,7 +11584,7 @@ be an FQDN.
 =head1 IGNORELISTS
 
 B<Ignorelists> are a generic framework to either ignore some metrics or report
-specific metircs only. Plugins usually provide one or more options to specify
+specific metrics only. Plugins usually provide one or more options to specify
 the items (mounts points, devices, ...) and the boolean option
 C<IgnoreSelected>.
 
