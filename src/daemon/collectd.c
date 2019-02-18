@@ -357,7 +357,7 @@ static int configure_collectd(struct cmdline_config *config) {
    * Also, this will automatically load modules.
    */
   if (cf_read(config->configfile)) {
-    fprintf(stderr, "Error: Reading the config file failed!\n");
+    fprintf(stderr, "Error: Parsing the config file failed!\n");
     return 1;
   }
 
