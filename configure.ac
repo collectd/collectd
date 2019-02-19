@@ -2136,9 +2136,6 @@ CPPFLAGS="$CPPFLAGS $LIBAQUAERO5_CFLAGS"
 LDFLAGS="$LDFLAGS $LIBAQUAERO5_LDFLAGS"
 
 if test "x$with_libaquaero5" = "xyes"; then
-  if test "x$LIBAQUAERO5_CFLAGS" != "x"; then
-    AC_MSG_NOTICE([libaquaero5 CPPFLAGS: $LIBAQUAERO5_CFLAGS])
-  fi
   AC_CHECK_HEADERS([libaquaero5.h],
     [with_libaquaero5="yes"],
     [with_libaquaero5="no (libaquaero5.h not found)"]
@@ -2146,9 +2143,6 @@ if test "x$with_libaquaero5" = "xyes"; then
 fi
 
 if test "x$with_libaquaero5" = "xyes"; then
-  if test "x$LIBAQUAERO5_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libaquaero5 LDFLAGS: $LIBAQUAERO5_LDFLAGS])
-  fi
   AC_CHECK_LIB([aquaero5], libaquaero5_poll,
     [with_libaquaero5="yes"],
     [with_libaquaero5="no (symbol 'libaquaero5_poll' not found)"]
@@ -2189,9 +2183,6 @@ CPPFLAGS="$CPPFLAGS $LIBHIREDIS_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
 
 if test "x$with_libhiredis" = "xyes"; then
-  if test "x$LIBHIREDIS_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libhiredis CPPFLAGS: $LIBHIREDIS_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([hiredis/hiredis.h],
     [with_libhiredis="yes"],
     [with_libhiredis="no (hiredis.h not found)"]
@@ -2199,9 +2190,6 @@ if test "x$with_libhiredis" = "xyes"; then
 fi
 
 if test "x$with_libhiredis" = "xyes"; then
-  if test "x$LIBHIREDIS_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libhiredis LDFLAGS: $LIBHIREDIS_LDFLAGS])
-  fi
   AC_CHECK_LIB([hiredis], [redisCommand],
     [with_libhiredis="yes"],
     [with_libhiredis="no (symbol 'redisCommand' not found)"]
@@ -2639,9 +2627,6 @@ LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
 LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"; then
-  if test "x$GCRYPT_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([gcrypt CPPFLAGS: $GCRYPT_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([gcrypt.h],
     [with_libgcrypt="yes"],
     [with_libgcrypt="no (gcrypt.h not found)"]
@@ -2978,18 +2963,6 @@ if test "x$with_java" = "xyes"; then
   fi; fi
 fi
 
-if test "x$JAVA_CPPFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_CPPFLAGS set to: $JAVA_CPPFLAGS])
-fi
-if test "x$JAVA_CFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_CFLAGS set to: $JAVA_CFLAGS])
-fi
-if test "x$JAVA_LDFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
-fi
-if test "x$JAVA_LIBS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
-fi
 if test "x$JAVAC" = "x"; then
   with_javac_path="$PATH"
   if test "x$with_java_home" != "x"; then
@@ -3047,7 +3020,6 @@ fi
 
 if test "x$with_java" = "xyes"; then
   JAVA_LIBS="$JAVA_LIBS -ljvm"
-  AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3087,10 +3059,6 @@ CPPFLAGS="$CPPFLAGS $LIBLDAP_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBLDAP_LDFLAGS"
 
 if test "x$with_libldap" = "xyes"; then
-  if test "x$LIBLDAP_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libldap CPPFLAGS: $LIBLDAP_CPPFLAGS])
-  fi
-
   AC_CHECK_HEADERS([ldap.h],
     [with_libldap="yes"],
     [with_libldap="no ('ldap.h' not found)"]
@@ -3098,10 +3066,6 @@ if test "x$with_libldap" = "xyes"; then
 fi
 
 if test "x$with_libldap" = "xyes"; then
-  if test "x$LIBLDAP_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libldap LDFLAGS: $LIBLDAP_LDFLAGS])
-  fi
-
   AC_CHECK_LIB([ldap], [ldap_initialize],
     [with_libldap="yes"],
     [with_libldap="no (symbol 'ldap_initialize' not found)"]
@@ -3409,7 +3373,6 @@ AC_ARG_WITH([libmodbus],
 
 # configure using pkg-config
 if test "x$with_libmodbus" = "xuse_pkgconfig"; then
-  AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
   $PKG_CONFIG --exists 'libmodbus' 2>/dev/null
   if test $? -ne 0; then
     with_libmodbus="no (pkg-config doesn't know libmodbus)"
@@ -3492,10 +3455,6 @@ if test "x$with_libmongoc" = "xyes"; then
 
   CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
 
-  if test "x$CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CFLAGS])
-  fi
-
   AC_CHECK_HEADERS([mongoc.h],
     [with_libmongoc="yes"],
     [with_libmongoc="no ('mongoc.h' not found)"]
@@ -3510,10 +3469,6 @@ if test "x$with_libmongoc" = "xyes"; then
 
   CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
   LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
-
-  if test "x$LIBMONGOC_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
-  fi
 
   AC_CHECK_LIB([mongoc-1.0], [mongoc_init],
     [with_libmongoc="yes"],
@@ -3818,9 +3773,6 @@ CPPFLAGS="$CPPFLAGS $LIBNETAPP_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBNETAPP_LDFLAGS"
 
 if test "x$with_libnetapp" = "xyes"; then
-  if test "x$LIBNETAPP_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([netapp CPPFLAGS: $LIBNETAPP_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([netapp_api.h],
     [with_libnetapp="yes"],
     [with_libnetapp="no (netapp_api.h not found)"]
@@ -3828,15 +3780,9 @@ if test "x$with_libnetapp" = "xyes"; then
 fi
 
 if test "x$with_libnetapp" = "xyes"; then
-  if test "x$LIBNETAPP_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([netapp LDFLAGS: $LIBNETAPP_LDFLAGS])
-  fi
-
   if test "x$LIBNETAPP_LIBS" = "x"; then
     LIBNETAPP_LIBS="$PTHREAD_LIBS -lxml -ladt -lssl -lm -lcrypto -lz"
   fi
-
-  AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
 
   AC_CHECK_LIB([netapp], [na_server_invoke_elem],
     [with_libnetapp="yes"],
@@ -5663,7 +5609,6 @@ fi
 
 # configure using pkg-config
 if test "x$with_libupsclient" = "xuse_pkgconfig"; then
-  AC_MSG_NOTICE([Checking for libupsclient using $PKG_CONFIG])
   $PKG_CONFIG --exists 'libupsclient' 2>/dev/null
   if test $? -ne 0; then
     with_libupsclient="no (pkg-config doesn't know libupsclient)"
