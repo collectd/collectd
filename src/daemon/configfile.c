@@ -411,10 +411,12 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
   }
 
   /* Hm, no complex plugin found. Dispatch the values one by one */
-  for (int i = 0; i < ci->children_num; i++) {
-    if (ci->children[i].children == NULL)
-      dispatch_value_plugin(name, ci->children + i);
-    else {
+  for (int i = 0, ret = 0; i < ci->children_num; i++) {
+    if (ci->children[i].children == NULL) {
+      ret = dispatch_value_plugin(name, ci->children + i);
+      if (ret != 0)
+        return ret;
+    } else {
       WARNING("There is a `%s' block within the "
               "configuration for the %s plugin. "
               "The plugin either only expects "
