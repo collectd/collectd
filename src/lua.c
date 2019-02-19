@@ -263,8 +263,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
   return 0;
 } /* }}} lua_cb_dispatch_values */
 
-static void lua_cb_free(void *data)
-{
+static void lua_cb_free(void *data) {
   clua_callback_data_t *cb = data;
   free(cb->lua_function_name);
   free(cb);
@@ -301,14 +300,14 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   cb->lua_function_name = strdup(function_name);
   pthread_mutex_init(&cb->lock, NULL);
 
-  int status = plugin_register_complex_read(/* group = */ "lua",
-                                            /* name      = */ function_name,
-                                            /* callback  = */ clua_read,
-                                            /* interval  = */ 0,
-                                            &(user_data_t){
-                                                .data = cb,
-                                                .free_func = lua_cb_free,
-                                            });
+  int status =
+      plugin_register_complex_read(/* group = */ "lua",
+                                   /* name      = */ function_name,
+                                   /* callback  = */ clua_read,
+                                   /* interval  = */ 0,
+                                   &(user_data_t){
+                                       .data = cb, .free_func = lua_cb_free,
+                                   });
 
   if (status != 0)
     return luaL_error(L, "%s", "plugin_register_complex_read failed");
@@ -349,8 +348,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   int status = plugin_register_write(/* name = */ function_name,
                                      /* callback  = */ clua_write,
                                      &(user_data_t){
-                                         .data = cb,
-                                         .free_func = lua_cb_free,
+                                         .data = cb, .free_func = lua_cb_free,
                                      });
 
   if (status != 0)
