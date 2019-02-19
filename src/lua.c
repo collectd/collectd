@@ -48,7 +48,7 @@ typedef struct lua_script_s {
 
 typedef struct {
   lua_State *lua_state;
-  const char *lua_function_name;
+  char *lua_function_name;
   pthread_mutex_t lock;
   int callback_id;
 } clua_callback_data_t;
@@ -263,6 +263,13 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
   return 0;
 } /* }}} lua_cb_dispatch_values */
 
+static void lua_cb_free(void *data)
+{
+  clua_callback_data_t *cb = data;
+  free(cb->lua_function_name);
+  free(cb);
+}
+
 static int lua_cb_register_read(lua_State *L) /* {{{ */
 {
   int nargs = lua_gettop(L);
@@ -300,6 +307,7 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
                                             /* interval  = */ 0,
                                             &(user_data_t){
                                                 .data = cb,
+                                                .free_func = lua_cb_free,
                                             });
 
   if (status != 0)
@@ -342,6 +350,7 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
                                      /* callback  = */ clua_write,
                                      &(user_data_t){
                                          .data = cb,
+                                         .free_func = lua_cb_free,
                                      });
 
   if (status != 0)
