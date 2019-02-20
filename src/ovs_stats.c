@@ -860,7 +860,7 @@ static int ovs_stats_update_port(const char *uuid, yajl_val port) {
 
     // ifaces_list is [[ "uuid", "<some_uuid>" ], [ "uuid",
     // "<another_uuid>" ], ... ]]
-    for (int i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
       yajl_val iface_tuple = YAJL_GET_ARRAY(ifaces_list)->values[i];
 
       // iface_tuple is [ "uuid", "<some_uuid>" ]
