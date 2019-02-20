@@ -6308,7 +6308,7 @@ then
 	plugin_df="yes"
 fi
 
-if test "x$c_cv_have_getmntent_r" = "xyes"
+if test "x$have_getmntent_r" = "xyes"
 then
 	plugin_df="yes"
 fi
