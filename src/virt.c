@@ -722,7 +722,7 @@ static int get_block_info(struct lv_block_info *binfo,
       ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
 
-char *metadata_get_hostname(virDomainPtr dom) {
+static char *metadata_get_hostname(virDomainPtr dom) {
   const char *xpath_str = NULL;
   if (hm_xpath == NULL)
     xpath_str = "/instance/name/text()";
