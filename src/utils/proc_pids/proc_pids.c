@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_config_pids.c
+ * collectd - src/utils/proc_pids/proc_pids.c
  *
  * Copyright(c) 2018-2019 Intel Corporation. All rights reserved.
  *
@@ -29,7 +29,7 @@
 
 #include "collectd.h"
 #include "utils/common/common.h"
-#include "utils_proc_pids.h"
+#include "utils/proc_pids/proc_pids.h"
 
 #define UTIL_NAME "utils_proc_pids"
 
@@ -40,7 +40,7 @@ void pids_list_free(pids_list_t *list) {
   sfree(list);
 }
 
-int is_proc_name_valid(const char *name) {
+int proc_pids_is_name_valid(const char *name) {
 
   if (name != NULL) {
     unsigned len = strlen(name);
@@ -123,8 +123,27 @@ int pids_list_contains_pid(pids_list_t *list, const pid_t pid) {
   return 0;
 }
 
-int read_proc_name(const char *procfs_path, const struct dirent *pid_entry,
-                   char *name, const size_t out_size) {
+/*
+ * NAME
+ *   read_proc_name
+ *
+ * DESCRIPTION
+ *   Reads process name from given pid directory.
+ *   Strips new-line character (\n).
+ *
+ * PARAMETERS
+ *   `procfs_path' Path to systems proc directory (e.g. /proc)
+ *   `pid_entry'   Dirent for PID directory
+ *   `name'        Output buffer for process name, recommended proc_comm.
+ *   `out_size'    Output buffer size, recommended sizeof(proc_comm)
+ *
+ * RETURN VALUE
+ *   On success, the number of read bytes (includes stripped \n).
+ *   -1 on file open error
+*/
+static int read_proc_name(const char *procfs_path,
+                          const struct dirent *pid_entry, char *name,
+                          const size_t out_size) {
   assert(pid_entry);
   assert(name);
   assert(out_size);
@@ -155,7 +174,22 @@ int read_proc_name(const char *procfs_path, const struct dirent *pid_entry,
   return read_length;
 }
 
-int get_pid_number(struct dirent *entry, pid_t *pid) {
+/*
+ * NAME
+ *   get_pid_number
+ *
+ * DESCRIPTION
+ *   Gets pid number for given /proc/pid directory entry or
+ *   returns error if input directory does not hold PID information.
+ *
+ * PARAMETERS
+ *   `entry'    Dirent for PID directory
+ *   `pid'      PID number to be filled
+ *
+ * RETURN VALUE
+ *   0 on success. -1 on error.
+ */
+static int get_pid_number(struct dirent *entry, pid_t *pid) {
   char *tmp_end; /* used for strtoul error check*/
 
   if (pid == NULL || entry == NULL)
@@ -173,9 +207,9 @@ int get_pid_number(struct dirent *entry, pid_t *pid) {
   return 0;
 }
 
-int initialize_proc_pids(const char **procs_names_array,
-                         const size_t procs_names_array_size,
-                         proc_pids_t **proc_pids[]) {
+int proc_pids_init(const char **procs_names_array,
+                   const size_t procs_names_array_size,
+                   proc_pids_t **proc_pids[]) {
 
   proc_pids_t **proc_pids_array;
   assert(proc_pids);
@@ -190,7 +224,7 @@ int initialize_proc_pids(const char **procs_names_array,
   for (size_t i = 0; i < procs_names_array_size; ++i) {
     proc_pids_array[i] = calloc(1, sizeof(**proc_pids_array));
     if (NULL == proc_pids_array[i])
-      goto initialize_proc_pids_error;
+      goto proc_pids_init_error;
 
     sstrncpy(proc_pids_array[i]->process_name, procs_names_array[i],
              STATIC_ARRAY_SIZE(proc_pids_array[i]->process_name));
@@ -201,7 +235,7 @@ int initialize_proc_pids(const char **procs_names_array,
   *proc_pids = proc_pids_array;
 
   return 0;
-initialize_proc_pids_error:
+proc_pids_init_error:
   if (NULL != proc_pids_array) {
     for (size_t i = 0; i < procs_names_array_size; ++i) {
       free(proc_pids_array[i]);
@@ -219,7 +253,7 @@ static void swap_proc_pids(proc_pids_t **proc_pids, size_t proc_pids_num) {
   }
 }
 
-int update_proc_pids(const char *procfs_path, proc_pids_t **proc_pids,
+int proc_pids_update(const char *procfs_path, proc_pids_t **proc_pids,
                      size_t proc_pids_num) {
   assert(procfs_path);
   assert(proc_pids);

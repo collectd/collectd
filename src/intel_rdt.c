@@ -31,7 +31,7 @@
 #include "collectd.h"
 #include "utils/common/common.h"
 #include "utils/config_cores/config_cores.h"
-#include "utils_proc_pids.h"
+#include "utils/proc_pids/proc_pids.h"
 #include <pqos.h>
 
 #define RDT_PLUGIN "intel_rdt"
@@ -526,7 +526,7 @@ static int rdt_config_ngroups(rdt_ctx_t *rdt, const oconfig_item_t *item) {
          name_idx++) {
       DEBUG(RDT_PLUGIN ":    checking process name [%zu]: %s", name_idx,
             rdt->ngroups[group_idx].names[name_idx]);
-      if (!is_proc_name_valid(rdt->ngroups[group_idx].names[name_idx])) {
+      if (!proc_pids_is_name_valid(rdt->ngroups[group_idx].names[name_idx])) {
         ERROR(RDT_PLUGIN ": Process name group '%s' contains invalid name '%s'",
               rdt->ngroups[group_idx].desc,
               rdt->ngroups[group_idx].names[name_idx]);
@@ -798,7 +798,7 @@ static int read_pids_data() {
 #endif /* COLLECT_DEBUG */
 
 groups_refresh:
-  ret = update_proc_pids(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
+  ret = proc_pids_update(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
   if (0 != ret) {
     ERROR(RDT_PLUGIN ": Initial update of proc pids failed");
     return ret;
@@ -839,8 +839,8 @@ static void rdt_init_pids_monitoring() {
      * PIDs statistics detection.
      */
     rdt_name_group_t *ng = &g_rdt->ngroups[group_idx];
-    int init_result = initialize_proc_pids((const char **)ng->names,
-                                           ng->num_names, &ng->proc_pids);
+    int init_result =
+        proc_pids_init((const char **)ng->names, ng->num_names, &ng->proc_pids);
     if (0 != init_result) {
       ERROR(RDT_PLUGIN
             ": Initialization of proc_pids for group %zu failed. Error: %d",
@@ -865,7 +865,7 @@ static void rdt_init_pids_monitoring() {
   }
 
   int update_result =
-      update_proc_pids(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
+      proc_pids_update(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
   if (0 != update_result)
     ERROR(RDT_PLUGIN ": Initial update of proc pids failed");
 

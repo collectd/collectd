@@ -1,5 +1,5 @@
 #include "testing.h"
-#include "utils_proc_pids.c" /* sic */
+#include "utils/proc_pids/proc_pids.c" /* sic */
 #include <sys/stat.h>
 
 /***************************************************************************
@@ -88,15 +88,15 @@ int stub_procfs_teardown() {
 /***************************************************************************
  * tests
  */
-DEF_TEST(initialize_proc_pids__on_nullptr) {
+DEF_TEST(proc_pids_init__on_nullptr) {
   /* setup */
   const char *procs_names_array[] = {"proc1", "proc2", "proc3"};
   const size_t procs_names_array_size = STATIC_ARRAY_SIZE(procs_names_array);
   proc_pids_t **proc_pids_array = NULL;
 
   /* check */
-  int result = initialize_proc_pids(procs_names_array, procs_names_array_size,
-                                    &proc_pids_array);
+  int result = proc_pids_init(procs_names_array, procs_names_array_size,
+                              &proc_pids_array);
   EXPECT_EQ_INT(0, result);
   for (size_t i = 0; i < procs_names_array_size; ++i)
     EXPECT_EQ_STR(procs_names_array[i], proc_pids_array[i]->process_name);
@@ -259,7 +259,7 @@ DEF_TEST(read_proc_name__invalid_name) {
   return 0;
 }
 
-DEF_TEST(update_proc_pids__one_proc_many_pid) {
+DEF_TEST(proc_pids_update__one_proc_many_pid) {
   /* setup */
   const char *proc_names[] = {"proc1"};
   stub_proc_pid_t pp_stubs[] = {{"proc1", 1007},
@@ -271,12 +271,12 @@ DEF_TEST(update_proc_pids__one_proc_many_pid) {
   int result;
   stub_procfs_setup(pp_stubs, STATIC_ARRAY_SIZE(pp_stubs));
 
-  result = initialize_proc_pids(proc_names, STATIC_ARRAY_SIZE(proc_names),
-                                &proc_pids);
+  result =
+      proc_pids_init(proc_names, STATIC_ARRAY_SIZE(proc_names), &proc_pids);
   EXPECT_EQ_INT(0, result);
 
   /* check */
-  result = update_proc_pids(proc_fs, proc_pids, STATIC_ARRAY_SIZE(proc_names));
+  result = proc_pids_update(proc_fs, proc_pids, STATIC_ARRAY_SIZE(proc_names));
   EXPECT_EQ_INT(0, result);
 
   /* proc name check */
@@ -299,7 +299,7 @@ DEF_TEST(update_proc_pids__one_proc_many_pid) {
   return 0;
 }
 
-DEF_TEST(update_proc_pids__many_proc_many_pid) {
+DEF_TEST(proc_pids_update__many_proc_many_pid) {
   /* setup */
   const char *proc_names[] = {"proc1", "proc2", "proc3"};
   stub_proc_pid_t pp_stubs[] = {
@@ -311,12 +311,12 @@ DEF_TEST(update_proc_pids__many_proc_many_pid) {
   int result;
   stub_procfs_setup(pp_stubs, STATIC_ARRAY_SIZE(pp_stubs));
 
-  result = initialize_proc_pids(proc_names, STATIC_ARRAY_SIZE(proc_names),
-                                &proc_pids);
+  result =
+      proc_pids_init(proc_names, STATIC_ARRAY_SIZE(proc_names), &proc_pids);
   EXPECT_EQ_INT(0, result);
 
   /* check */
-  result = update_proc_pids(proc_fs, proc_pids, STATIC_ARRAY_SIZE(proc_names));
+  result = proc_pids_update(proc_fs, proc_pids, STATIC_ARRAY_SIZE(proc_names));
   EXPECT_EQ_INT(0, result);
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(proc_names); ++i) {
@@ -485,7 +485,7 @@ DEF_TEST(pids_list_diff__one_removed) {
 
 int main(void) {
   stub_procfs_teardown();
-  RUN_TEST(initialize_proc_pids__on_nullptr);
+  RUN_TEST(proc_pids_init__on_nullptr);
   RUN_TEST(pid_list_add_pid__empty_list);
   RUN_TEST(pid_list_add_pid__non_empty_list);
   RUN_TEST(pids_list_add_pids_list__non_empty_lists);
@@ -494,8 +494,8 @@ int main(void) {
   RUN_TEST(get_pid_number__invalid_dir_name);
   RUN_TEST(read_proc_name__valid_name);
   RUN_TEST(read_proc_name__invalid_name);
-  RUN_TEST(update_proc_pids__one_proc_many_pid);
-  RUN_TEST(update_proc_pids__many_proc_many_pid);
+  RUN_TEST(proc_pids_update__one_proc_many_pid);
+  RUN_TEST(proc_pids_update__many_proc_many_pid);
   RUN_TEST(pids_list_diff__all_changed);
   RUN_TEST(pids_list_diff__nothing_changed);
   RUN_TEST(pids_list_diff__one_added);

@@ -378,7 +378,7 @@ test_utils_config_cores_SOURCES = \
 test_utils_config_cores_LDADD = libplugin_mock.la
 
 test_utils_proc_pids_SOURCES = \
-	src/utils_proc_pids_test.c \
+	src/utils/proc_pids/proc_pids_test.c \
 	src/testing.h
 test_utils_proc_pids_LDADD = libplugin_mock.la
 
@@ -1071,8 +1071,8 @@ if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
 intel_rdt_la_SOURCES = \
 	src/intel_rdt.c \
-	src/utils_proc_pids.c \
-	src/utils_proc_pids.h \
+	src/utils/proc_pids/proc_pids.c \
+	src/utils/proc_pids/proc_pids.h \
 	src/utils/config_cores/config_cores.h \
 	src/utils/config_cores/config_cores.c
 intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
@@ -1082,7 +1082,7 @@ intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
 test_plugin_intel_rdt_SOURCES = \
 	src/intel_rdt_test.c \
 	src/utils/config_cores/config_cores.c \
-	src/utils_proc_pids.c \
+	src/utils/proc_pids/proc_pids.c \
 	src/daemon/configfile.c \
 	src/daemon/types_list.c
 test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS)

@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_config_pids.h
+ * collectd - src/utils/proc_pids/proc_pids.h
  *
  * Copyright(c) 2018-2019 Intel Corporation. All rights reserved.
  *
@@ -69,22 +69,6 @@ void pids_list_free(pids_list_t *list);
 
 /*
  * NAME
- *   is_proc_name_valid
- *
- * DESCRIPTION
- *   Checks if given string as valid process name.
- *
- * PARAMETERS
- *   `name'     null-terminated char array
- *
- * RETURN VALUE
- *   If given name is a valid process name, returns 1,
- *   Otherwise returns 0.
- */
-int is_proc_name_valid(const char *name);
-
-/*
- * NAME
  *   pids_list_add_pid
  *
  * DESCRIPTION
@@ -132,7 +116,6 @@ int pids_list_clear(pids_list_t *list);
  *   On success, returns 0.
  *   -1 on memory allocation error.
  */
-#
 int pids_list_add_list(pids_list_t *dst, pids_list_t *src);
 
 /*
@@ -154,45 +137,39 @@ int pids_list_contains_pid(pids_list_t *list, const pid_t pid);
 
 /*
  * NAME
- *   read_proc_name
+ *   pids_list_diff
  *
  * DESCRIPTION
- *   Reads process name from given pid directory.
- *   Strips new-line character (\n).
+ *   Searches for differences in two given lists
  *
  * PARAMETERS
- *   `procfs_path' Path to systems proc directory (e.g. /proc)
- *   `pid_entry'   Dirent for PID directory
- *   `name'        Output buffer for process name, recommended proc_comm.
- *   `out_size'    Output buffer size, recommended sizeof(proc_comm)
- *
+ *   `proc'            List of pids
+ *   `added'           New pids which appeared
+ *   `removed'         Result array storing pids which disappeared
  * RETURN VALUE
- *   On success, the number of read bytes (includes stripped \n).
- *   -1 on file open error
+ *   0 on success. Negative number on error.
  */
-int read_proc_name(const char *procfs_path, const struct dirent *pid_entry,
-                   char *name, const size_t out_size);
+int pids_list_diff(proc_pids_t *proc, pids_list_t *added, pids_list_t *removed);
 
 /*
  * NAME
- *   get_pid_number
+ *   proc_pids_is_name_valid
  *
  * DESCRIPTION
- *   Gets pid number for given /proc/pid directory entry or
- *   returns error if input directory does not hold PID information.
+ *   Checks if given string is valid process name.
  *
  * PARAMETERS
- *   `entry'    Dirent for PID directory
- *   `pid'      PID number to be filled
+ *   `name'     null-terminated char array
  *
  * RETURN VALUE
- *   0 on success. -1 on error.
+ *   If given name is a valid process name, returns 1,
+ *   Otherwise returns 0.
  */
-int get_pid_number(struct dirent *entry, pid_t *pid);
+int proc_pids_is_name_valid(const char *name);
 
 /*
  * NAME
- *   initialize_proc_pids
+ *   proc_pids_init
  *
  * DESCRIPTION
  *   Helper function to properly initialize array of proc_pids.
@@ -209,13 +186,13 @@ int get_pid_number(struct dirent *entry, pid_t *pid);
  *   0 on success. Negative number on error:
  *   -1: allocation error
  */
-int initialize_proc_pids(const char **procs_names_array,
-                         const size_t procs_names_array_size,
-                         proc_pids_t **proc_pids[]);
+int proc_pids_init(const char **procs_names_array,
+                   const size_t procs_names_array_size,
+                   proc_pids_t **proc_pids[]);
 
 /*
  * NAME
- *   update_proc_pids
+ *   proc_pids_update
  *
  * DESCRIPTION
  *   Updates PIDs matching processes's names.
@@ -229,24 +206,8 @@ int initialize_proc_pids(const char **procs_names_array,
  * RETURN VALUE
  *   0 on success. -1 on error.
  */
-int update_proc_pids(const char *procfs_path, proc_pids_t *proc_pids[],
+int proc_pids_update(const char *procfs_path, proc_pids_t *proc_pids[],
                      size_t proc_pids_num);
-
-/*
- * NAME
- *   pids_list_diff
- *
- * DESCRIPTION
- *   Searches for differences in two given lists
- *
- * PARAMETERS
- *   `proc'            List of pids
- *   `added'           New pids which appeared
- *   `removed'         Result array storing pids which disappeared
- * RETURN VALUE
- *   0 on success. Negative number on error.
- */
-int pids_list_diff(proc_pids_t *proc, pids_list_t *added, pids_list_t *removed);
 
 /*
  * NAME
