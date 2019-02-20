@@ -71,7 +71,7 @@ static void rdt_dump_cgroups(void) {
     core_group_t *cgroup = g_rdt->cores.cgroups + i;
 
     memset(cores, 0, sizeof(cores));
-    for (int j = 0; j < cgroup->num_cores; j++) {
+    for (size_t j = 0; j < cgroup->num_cores; j++) {
       snprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
                cgroup->cores[j]);
     }
@@ -100,8 +100,7 @@ static void rdt_dump_data(void) {
    * MBR - remote memory bandwidth
    */
   DEBUG("  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-  for (int i = 0; i < g_rdt->num_groups; i++) {
-
+  for (size_t i = 0; i < g_rdt->num_groups; i++) {
     const struct pqos_event_values *pv = &g_rdt->pgroups[i]->values;
 
     double llc = bytes_to_kb(pv->llc);
