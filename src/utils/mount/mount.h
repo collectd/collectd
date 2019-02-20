@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_mount.h
+ * collectd - src/utils/mount/mount.h
  * Copyright (C) 2005,2006  Niki W. Waibel
  *
  * This program is free software; you can redistribute it and/
