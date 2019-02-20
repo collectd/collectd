@@ -722,7 +722,7 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 
   int status = c_avl_insert(metrics, fam->name, fam);
   if (status != 0) {
-    ERROR("write_prometheus plugin: Adding \"%s\" failed.", name);
+    ERROR("write_prometheus plugin: Adding \"%s\" failed.", fam->name);
     metric_family_destroy(fam);
     return NULL;
   }
