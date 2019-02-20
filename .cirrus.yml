@@ -17,7 +17,7 @@ release_ready_task:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
   checks_script:
-    - make -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
@@ -60,9 +60,9 @@ debian_default_toolchain_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -sk
+    - make -j2 -sk
   tests_script:
-    - make -sk check
+    - make -j2 -sk check
     - /checks/check-built-plugins.sh
 
 ###
@@ -99,9 +99,9 @@ redhat_default_toolchain_task:
     - gcc --version
     - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
   build_script:
-    - make -sk
+    - make -j2 -sk
   tests_script:
-    - make -sk check
+    - make -j2 -sk check
     - /checks/check-built-plugins.sh
 
 
@@ -131,9 +131,9 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
-        - make -sk check
+        - make -j2 -sk check
 
     # build against libstatgrab, should always pass
     - env:
@@ -149,7 +149,7 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
         - >
           for i in cpu disk interface load memory swap users; do
@@ -174,9 +174,9 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
-        - make -sk check
+        - make -j2 -sk check
 
     # build using clang with a collection of strict build flags, will most
     # probably always fail
@@ -215,9 +215,9 @@ non_standard_toolchains_task:
           -Wno-typedef-redefinition
           -Wno-gnu-variable-sized-type-not-at-end'
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
-        - make -sk check
+        - make -j2 -sk check
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -247,6 +247,6 @@ bleeding_edge_compilers_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -sk
+    - make -j2 -sk
   tests_script:
-    - make -sk check
+    - make -j2 -sk check
