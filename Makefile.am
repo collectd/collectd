@@ -2109,10 +2109,10 @@ am__v_POD2MAN_C_0 = @echo "  POD2MAN " $@;
 am__v_POD2MAN_C_1 =
 
 .pod.1:
-	$(AM_V_POD2MAN_C)pod2man --errors=die --release=$(VERSION) --center=$(PACKAGE) $< $@
+	$(AM_V_POD2MAN_C)pod2man --release=$(VERSION) --center=$(PACKAGE) $< $@
 
 .pod.5:
-	$(AM_V_POD2MAN_C)pod2man --errors=die --section=5 --release=$(VERSION) --center=$(PACKAGE) $< $@
+	$(AM_V_POD2MAN_C)pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< $@
 
 V_PROTOC = $(v_protoc_@AM_V@)
 v_protoc_ = $(v_protoc_@AM_DEFAULT_V@)
