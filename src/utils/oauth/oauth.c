@@ -280,7 +280,7 @@ static int get_assertion(oauth_t *auth, char *buffer,
   status = snprintf(buffer, buffer_size, "%s.%s.%s", header, claim, signature);
   if (status < 1)
     return -1;
-  else if (status >= buffer_size)
+  else if ((size_t)status >= buffer_size)
     return ENOMEM;
 
   return 0;
