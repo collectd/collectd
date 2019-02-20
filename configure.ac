@@ -6630,7 +6630,7 @@ if test "x$c_cv_have_one_getmntent" = "xyes"; then
   plugin_df="yes"
 fi
 
-if test "x$c_cv_have_getmntent_r" = "xyes"; then
+if test "x$have_getmntent_r" = "xyes"; then
   plugin_df="yes"
 fi
 
