@@ -1583,7 +1583,7 @@ if test "x$have_getmntent" = "xlibc"; then
       AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
-            [[#include "$srcdir/src/utils_mount.h"]],
+            [[#include "$srcdir/src/utils/mount/mount.h"]],
             [[
               FILE *fh;
               struct mntent *me;
@@ -1605,7 +1605,7 @@ if test "x$have_getmntent" = "xlibc"; then
       AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
-            [[#include "$srcdir/src/utils_mount.h"]],
+            [[#include "$srcdir/src/utils/mount/mount.h"]],
             [[
               FILE *fh;
               struct mnttab mt;
