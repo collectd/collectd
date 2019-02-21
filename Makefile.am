@@ -258,9 +258,9 @@ collectd_SOURCES = \
 	src/daemon/utils_threshold.h
 
 
-collectd_CFLAGS = $(AM_CFLAGS)
+collectd_CFLAGS = $(AM_CFLAGS) $(PIE_CFLAGS)
 collectd_CPPFLAGS = $(AM_CPPFLAGS)
-collectd_LDFLAGS = -export-dynamic
+collectd_LDFLAGS = -export-dynamic $(PIE_LDFLAGS)
 collectd_LDADD = \
 	libavltree.la \
 	libcommon.la \
@@ -293,12 +293,16 @@ collectd_LDFLAGS += -Wl,--out-implib,libcollectd.a
 endif
 
 collectdmon_SOURCES = src/collectdmon.c
+collectdmon_CFLAGS = $(AM_CFLAGS) $(PIE_CFLAGS)
+collectdmon_LDFLAGS = $(AM_LDFLAGS) $(PIE_LDFLAGS)
 
 
 collectd_nagios_SOURCES = src/collectd-nagios.c
+collectd_nagios_CFLAGS = $(AM_CFLAGS) $(PIE_CFLAGS)
 collectd_nagios_CPPFLAGS = $(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
+collectd_nagios_LDFLAGS = $(AM_LDFLAGS) $(PIE_LDFLAGS)
 collectd_nagios_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectd_nagios_LDADD += -lsocket
@@ -309,9 +313,11 @@ endif
 
 
 collectdctl_SOURCES = src/collectdctl.c
+collectdctl_CFLAGS = $(AM_CFLAGS) $(PIE_CFLAGS)
 collectdctl_CPPFLAGS = $(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
+collectdctl_LDFLAGS = $(AM_LDFLAGS) $(PIE_LDFLAGS)
 collectdctl_LDADD = libcollectdclient.la
 if BUILD_WITH_LIBSOCKET
 collectdctl_LDADD += -lsocket
@@ -322,9 +328,11 @@ endif
 
 
 collectd_tg_SOURCES = src/collectd-tg.c
+collectd_tg_CFLAGS = $(AM_CFLAGS) $(PIE_CFLAGS)
 collectd_tg_CPPFLAGS = $(AM_CPPFLAGS) \
 	-I$(srcdir)/src/libcollectdclient \
 	-I$(top_builddir)/src/libcollectdclient
+collectd_tg_LDFLAGS = $(AM_LDFLAGS) $(PIE_LDFLAGS)
 collectd_tg_LDADD = \
 	$(PTHREAD_LIBS) \
 	libheap.la \

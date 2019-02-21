@@ -7081,6 +7081,16 @@ if test "x$enable_werror" != "xno"; then
   AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
 fi
 
+AC_ARG_ENABLE([hardening],
+  [AS_HELP_STRING([--disable-hardening], [disable hardening options @<:@default=no@:>@])],
+  [enable_hardening=$enableval],
+  [enable_hardening=yes]
+)
+
+if test "x$enable_hardening" != "xno"; then
+  COLLECTD_CHECK_PIE
+fi
+
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 
