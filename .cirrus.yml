@@ -26,10 +26,6 @@ release_ready_task:
 #
 debian_default_toolchain_task:
   matrix:
-    - allow_failures: true
-      skip_notifications: true
-      container:
-        image: collectd/ci:wheezy_amd64 # TODO: fix this platform
     - allow_failures: false
       container:
         image: collectd/ci:jessie_amd64
