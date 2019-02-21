@@ -151,25 +151,6 @@ non_standard_toolchains_task:
             fi
           done
 
-    # build against musl-libc using gcc wrapper, expected to fail
-    - env:
-        LABEL: musl libc
-      allow_failures: true
-      skip_notifications: true
-      configure_script:
-        - ./build.sh
-        - musl-gcc --version
-        - >
-          ./configure CC=musl-gcc
-          $DEFAULT_CONFIG_OPTS
-          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
-          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
-          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-      build_script:
-        - make -j2 -sk
-      tests_script:
-        - make -j2 -sk check
-
     # build using clang with a collection of strict build flags, will most
     # probably always fail
     - env:
