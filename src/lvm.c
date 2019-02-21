@@ -26,7 +26,15 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
+#if GNUC > 4
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic warning "-Wcpp"
+#endif
+
 #include <lvm2app.h>
+#if GNUC > 4
+#pragma GCC diagnostic pop
+#endif
 
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
