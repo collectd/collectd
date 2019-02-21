@@ -79,10 +79,6 @@ redhat_default_toolchain_task:
     - allow_failures: true
       skip_notifications: true
       container:
-        image: collectd/ci:fedora26_x86_64
-    - allow_failures: true
-      skip_notifications: true
-      container:
         image: collectd/ci:fedora28_x86_64
     # fedora/rawhide is expected to fail
     - allow_failures: true
