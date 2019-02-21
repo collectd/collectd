@@ -117,7 +117,7 @@ non_standard_toolchains_task:
         - ./build.sh
         - clang --version
         - >
-          ./configure CC=clang
+          ./configure CC=clang CXX=clang++
           $DEFAULT_CONFIG_OPTS
           CFLAGS="$(dpkg-buildflags --get CFLAGS)"
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
@@ -180,7 +180,7 @@ non_standard_toolchains_task:
         - ./build.sh
         - clang --version
         - >
-          ./configure CC=clang
+          ./configure CC=clang CXX=clang++
           $DEFAULT_CONFIG_OPTS
           CFLAGS='-Wall
           -Wno-error
