@@ -26,8 +26,6 @@
 
 package org.collectd.java;
 
-import static javax.management.remote.rmi.RMIConnectorServer.RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
@@ -39,6 +37,9 @@ import javax.management.MBeanServerConnection;
 import javax.management.remote.JMXServiceURL;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
+
+import static javax.management.remote.rmi.RMIConnectorServer.RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE;
+
 import javax.rmi.ssl.SslRMIClientSocketFactory;
 
 import org.collectd.api.Collectd;
