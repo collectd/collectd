@@ -26,8 +26,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #define NAGIOS_OK 0
 #define NAGIOS_WARNING 1

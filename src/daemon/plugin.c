@@ -30,14 +30,14 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "filter_chain.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/heap/heap.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
-#include "utils_heap.h"
 #include "utils_llist.h"
 #include "utils_random.h"
 #include "utils_time.h"
@@ -320,7 +320,6 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
   int i;
   llentry_t *le;
   int n;
-  char **keys;
 
   n = llist_size(*list);
   if (n == 0) {
@@ -328,11 +327,9 @@ static void log_list_callbacks(llist_t **list, /* {{{ */
     return;
   }
 
-  keys = calloc(n, sizeof(char *));
-
+  char **keys = calloc(n, sizeof(*keys));
   if (keys == NULL) {
     ERROR("%s: failed to allocate memory for list of callbacks", comment);
-
     return;
   }
 
@@ -630,7 +627,7 @@ static void start_read_threads(size_t num) /* {{{ */
   if (read_threads != NULL)
     return;
 
-  read_threads = (pthread_t *)calloc(num, sizeof(pthread_t));
+  read_threads = calloc(num, sizeof(*read_threads));
   if (read_threads == NULL) {
     ERROR("plugin: start_read_threads: calloc failed.");
     return;
@@ -819,7 +816,7 @@ static void start_write_threads(size_t num) /* {{{ */
   if (write_threads != NULL)
     return;
 
-  write_threads = (pthread_t *)calloc(num, sizeof(pthread_t));
+  write_threads = calloc(num, sizeof(*write_threads));
   if (write_threads == NULL) {
     ERROR("plugin: start_write_threads: calloc failed.");
     return;

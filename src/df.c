@@ -23,10 +23,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_ignorelist.h"
-#include "utils_mount.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
+#include "utils/mount/mount.h"
 
 #if HAVE_STATVFS
 #if HAVE_SYS_STATVFS_H

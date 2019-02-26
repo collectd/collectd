@@ -22,12 +22,12 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "plugin.h"
-#include "utils_format_stackdriver.h"
-#include "utils_gce.h"
-#include "utils_oauth.h"
+#include "utils/common/common.h"
+#include "utils/format_stackdriver/format_stackdriver.h"
+#include "utils/gce/gce.h"
+#include "utils/oauth/oauth.h"
 
 #include <curl/curl.h>
 #include <pthread.h>

@@ -115,8 +115,7 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
 
   if (ci_orig->values_num > 0) /* {{{ */
   {
-    ci_copy->values = (oconfig_value_t *)calloc((size_t)ci_orig->values_num,
-                                                sizeof(*ci_copy->values));
+    ci_copy->values = calloc(ci_orig->values_num, sizeof(*ci_copy->values));
     if (ci_copy->values == NULL) {
       fprintf(stderr, "calloc failed.\n");
       free(ci_copy->key);
@@ -144,8 +143,8 @@ oconfig_item_t *oconfig_clone(const oconfig_item_t *ci_orig) {
 
   if (ci_orig->children_num > 0) /* {{{ */
   {
-    ci_copy->children = (oconfig_item_t *)calloc((size_t)ci_orig->children_num,
-                                                 sizeof(*ci_copy->children));
+    ci_copy->children =
+        calloc(ci_orig->children_num, sizeof(*ci_copy->children));
     if (ci_copy->children == NULL) {
       fprintf(stderr, "calloc failed.\n");
       oconfig_free(ci_copy);

@@ -5333,8 +5333,9 @@ When configuring with B<Interface> only the basic statistics will be collected,
 namely octets, packets, and errors. These statistics are collected by
 the C<interface> plugin, too, so using both at the same time is no benefit.
 
-When configured with B<VerboseInterface> all counters B<except> the basic ones,
-so that no data needs to be collected twice if you use the C<interface> plugin.
+When configured with B<VerboseInterface> all counters B<except> the basic ones
+will be collected, so that no data needs to be collected twice if you use the
+C<interface> plugin.
 This includes dropped packets, received multicast packets, collisions and a
 whole zoo of differentiated RX and TX errors. You can try the following command
 to get an idea of what awaits you:
@@ -6274,6 +6275,7 @@ B<Synopsis:>
    Address "127.0.0.1"
    Socket "/var/run/openvswitch/db.sock"
    Bridges "br0" "br_ext"
+   InterfaceStats false
  </Plugin>
 
 The plugin provides the following configuration options:
@@ -6306,6 +6308,13 @@ List of OVS bridge names to be monitored by this plugin. If this option is
 omitted or is empty then all OVS bridges will be monitored.
 
 Default: empty (monitor all bridges)
+
+=item B<InterfaceStats> B<false>|B<true>
+
+Indicates that the plugin should gather statistics for individual interfaces
+in addition to ports.  This can be useful when monitoring an OVS setup with
+bond ports, where you might wish to know individual statistics for the
+interfaces included in the bonds.  Defaults to B<false>.
 
 =back
 
@@ -8388,26 +8397,26 @@ Sets how the values are cumulated. I<Type> is one of:
 
 =item B<GaugeAverage>
 
-Calculate the average.
+Calculate the average of all values matched during the interval.
 
 =item B<GaugeMin>
 
-Use the smallest number only.
+Report the smallest value matched during the interval.
 
 =item B<GaugeMax>
 
-Use the greatest number only.
+Report the greatest value matched during the interval.
 
 =item B<GaugeLast>
 
-Use the last number found.
+Report the last value matched during the interval.
 
 =item B<GaugePersist>
 
-Use the last number found. The number is not reset at the end of an interval.
-It is continously reported until another number is matched. This is intended
-for cases in which only state changes are reported, for example a thermometer
-that only reports the temperature when it changes.
+Report the last matching value. The metric is I<not> reset to C<NaN> at the end
+of an interval. It is continuously reported until another value is matched.
+This is intended for cases in which only state changes are reported, for
+example a thermometer that only reports the temperature when it changes.
 
 =item B<CounterSet>
 
@@ -8437,6 +8446,9 @@ internal counter.
 Increase the internal counter by one. These B<DSType> are the only ones that do
 not use the matched subexpression, but simply count the number of matched
 lines. Thus, you may use a regular expression without submatch in this case.
+
+B<GaugeInc> is reset to I<zero> after every read, unlike other B<Gauge*>
+metrics which are reset to C<NaN>.
 
 =item B<Distribution>
 
@@ -8511,8 +8523,12 @@ The B<Gauge*> and B<Distribution> types interpret the submatch as a floating
 point number, using L<strtod(3)>. The B<Counter*> and B<AbsoluteSet> types
 interpret the submatch as an unsigned integer using L<strtoull(3)>. The
 B<Derive*> types interpret the submatch as a signed integer using
-L<strtoll(3)>. B<CounterInc> and B<DeriveInc> do not use the submatch at all
-and it may be omitted in this case.
+L<strtoll(3)>. B<CounterInc>, B<DeriveInc> and B<GaugeInc> do not use the
+submatch at all and it may be omitted in this case.
+
+The B<Gauge*> types, unless noted otherwise, are reset to C<NaN> after being
+reported. In other words, B<GaugeAverage> reports the average of all values
+matched since the last metric was reported (or C<NaN> if there was no match).
 
 =item B<Type> I<Type>
 
@@ -9287,7 +9303,7 @@ be set to C<var_lib_libvirt_images_image1.qcow2>.
 Setting C<BlockDeviceFormatBasename true> will cause the I<type instance> to be
 set to C<image1.qcow2>.
 
-=item B<HostnameFormat> B<name|uuid|hostname|...>
+=item B<HostnameFormat> B<name|uuid|hostname|metadata...>
 
 When the virt plugin logs data, it sets the hostname of the collected data
 according to this setting. The default is to use the guest name as provided by
@@ -9300,6 +9316,9 @@ B<hostname> means to use the global B<Hostname> setting, which is probably not
 useful on its own because all guests will appear to have the same name. This is
 useful in conjunction with B<PluginInstanceFormat> though.
 
+B<metadata> means use information from guest's metadata. Use
+B<HostnameMetadataNS> and B<HostnameMetadataXPath> to localize this information.
+
 You can also specify combinations of these fields. For example B<name uuid>
 means to concatenate the guest name and UUID (with a literal colon character
 between, thus I<"foo:1234-1234-1234-1234">).
@@ -9308,7 +9327,7 @@ At the moment of writing (collectd-5.5), hostname string is limited to 62
 characters. In case when combination of fields exceeds 62 characters,
 hostname will be truncated without a warning.
 
-=item B<InterfaceFormat> B<name>|B<address>
+=item B<InterfaceFormat> B<name>|B<address>|B<number>
 
 When the virt plugin logs interface data, it sets the name of the collected
 data according to this setting. The default is to use the path as provided by
@@ -9318,23 +9337,42 @@ setting B<name>.
 B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
-=item B<PluginInstanceFormat> B<name|uuid|none>
+B<number> means use the interface's number in guest.
+
+=item B<PluginInstanceFormat> B<name|uuid|metadata|none>
 
 When the virt plugin logs data, it sets the plugin_instance of the collected
 data according to this setting. The default is to not set the plugin_instance.
 
 B<name> means use the guest's name as provided by the hypervisor.
 B<uuid> means use the guest's UUID.
+B<metadata> means use information from guest's metadata.
 
 You can also specify combinations of the B<name> and B<uuid> fields.
 For example B<name uuid> means to concatenate the guest name and UUID
 (with a literal colon character between, thus I<"foo:1234-1234-1234-1234">).
 
-=item B<Instances> B<integer>
+=item B<HostnameMetadataNS> B<string>
 
-How many read instances you want to use for this plugin. The default is one,
-and the sensible setting is a multiple of the B<ReadThreads> value.
-If you are not sure, just use the default setting.
+When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
+selects in which metadata namespace we will pick the hostname. The default is
+I<http://openstack.org/xmlns/libvirt/nova/1.0>.
+
+=item B<HostnameMetadataXPath> B<string>
+
+When B<metadata> is used in B<HostnameFormat> or B<PluginInstanceFormat>, this
+describes where the hostname is located in the libvirt metadata. The default is
+I</instance/name/text()>.
+
+=item B<ReportBlockDevices> B<true>|B<false>
+
+Enabled by default. Allows to disable stats reporting of block devices for
+whole plugin.
+
+=item B<ReportNetworkInterfaces> B<true>|B<false>
+
+Enabled by default. Allows to disable stats reporting of network interfaces for
+whole plugin.
 
 =item B<ExtraStats> B<string>
 
@@ -9386,10 +9424,37 @@ B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 =back
 
 =item B<PersistentNotification> B<true>|B<false>
+
 Override default configuration to only send notifications when there is a change
 in the lifecycle state of a domain. When set to true notifications will be sent
 for every read cycle. Default is false. Does not affect the stats being
 dispatched.
+
+=item B<Instances> B<integer>
+
+How many read instances you want to use for this plugin. The default is one,
+and the sensible setting is a multiple of the B<ReadThreads> value.
+
+This option is only useful when domains are specially tagged.
+If you are not sure, just use the default setting.
+
+The reader instance will only query the domains with attached matching tag.
+Tags should have the form of 'virt-X' where X is the reader instance number,
+starting from 0.
+
+The special-purpose reader instance #0, guaranteed to be always present,
+will query all the domains with missing or unrecognized tag, so no domain will
+ever be left out.
+
+Domain tagging is done with a custom attribute in the libvirt domain metadata
+section. Value is selected by an XPath I</domain/metadata/ovirtmap/tag/text()>
+expression in the I<http://ovirt.org/ovirtmap/tag/1.0> namespace.
+(XPath and namespace values are not configurable yet).
+
+Tagging could be used by management applications to evenly spread the
+load among the reader threads, or to pin on the same threads all
+the libvirt domains which use the same shared storage, to minimize
+the disruption in presence of storage outages.
 
 =back
 
@@ -11519,7 +11584,7 @@ be an FQDN.
 =head1 IGNORELISTS
 
 B<Ignorelists> are a generic framework to either ignore some metrics or report
-specific metircs only. Plugins usually provide one or more options to specify
+specific metrics only. Plugins usually provide one or more options to specify
 the items (mounts points, devices, ...) and the boolean option
 C<IgnoreSelected>.
 

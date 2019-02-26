@@ -26,10 +26,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
-#include "utils_latency.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/latency/latency.h"
 
 #include <netdb.h>
 #include <poll.h>

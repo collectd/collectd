@@ -26,8 +26,8 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
-#include "utils_config_cores.h"
+#include "utils/common/common.h"
+#include "utils/config_cores/config_cores.h"
 
 #include <pqos.h>
 
@@ -71,7 +71,7 @@ static void rdt_dump_cgroups(void) {
     core_group_t *cgroup = g_rdt->cores.cgroups + i;
 
     memset(cores, 0, sizeof(cores));
-    for (int j = 0; j < cgroup->num_cores; j++) {
+    for (size_t j = 0; j < cgroup->num_cores; j++) {
       snprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
                cgroup->cores[j]);
     }
@@ -100,8 +100,7 @@ static void rdt_dump_data(void) {
    * MBR - remote memory bandwidth
    */
   DEBUG("  CORE     RMID    LLC[KB]   MBL[MB]    MBR[MB]");
-  for (int i = 0; i < g_rdt->num_groups; i++) {
-
+  for (size_t i = 0; i < g_rdt->num_groups; i++) {
     const struct pqos_event_values *pv = &g_rdt->pgroups[i]->values;
 
     double llc = bytes_to_kb(pv->llc);
@@ -124,7 +123,7 @@ static void rdt_free_cgroups(void) {
 static int rdt_default_cgroups(void) {
   unsigned num_cores = g_rdt->pqos_cpu->num_cores;
 
-  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*(g_rdt->cores.cgroups)));
+  g_rdt->cores.cgroups = calloc(num_cores, sizeof(*g_rdt->cores.cgroups));
   if (g_rdt->cores.cgroups == NULL) {
     ERROR(RDT_PLUGIN ": Error allocating core groups array");
     return -ENOMEM;
@@ -137,7 +136,7 @@ static int rdt_default_cgroups(void) {
     char desc[DATA_MAX_NAME_LEN];
 
     /* set core group info */
-    cgroup->cores = calloc(1, sizeof(*(cgroup->cores)));
+    cgroup->cores = calloc(1, sizeof(*cgroup->cores));
     if (cgroup->cores == NULL) {
       ERROR(RDT_PLUGIN ": Error allocating cores array");
       rdt_free_cgroups();

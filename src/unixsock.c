@@ -26,15 +26,15 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#include "utils_cmd_flush.h"
-#include "utils_cmd_getthreshold.h"
-#include "utils_cmd_getval.h"
-#include "utils_cmd_listval.h"
-#include "utils_cmd_putnotif.h"
-#include "utils_cmd_putval.h"
+#include "utils/cmds/flush.h"
+#include "utils/cmds/getthreshold.h"
+#include "utils/cmds/getval.h"
+#include "utils/cmds/listval.h"
+#include "utils/cmds/putnotif.h"
+#include "utils/cmds/putval.h"
 
 #include <sys/stat.h>
 #include <sys/un.h>

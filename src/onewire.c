@@ -21,9 +21,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_ignorelist.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 
 #include <owcapi.h>
 #include <regex.h>
@@ -299,7 +299,7 @@ static int cow_read_values(const char *path, const char *name,
 
     snprintf(file, sizeof(file), "%s/%s", path,
              family_info->features[i].filename);
-    file[sizeof(file) - 1] = 0;
+    file[sizeof(file) - 1] = '\0';
 
     buffer = NULL;
     buffer_size = 0;

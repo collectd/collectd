@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_complain.h"
 #include "utils_time.h"
 
@@ -722,7 +722,7 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 
   int status = c_avl_insert(metrics, fam->name, fam);
   if (status != 0) {
-    ERROR("write_prometheus plugin: Adding \"%s\" failed.", name);
+    ERROR("write_prometheus plugin: Adding \"%s\" failed.", fam->name);
     metric_family_destroy(fam);
     return NULL;
   }
@@ -760,7 +760,12 @@ static int prom_open_socket(int addrfamily) {
 
   int fd = -1;
   for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
-    fd = socket(ai->ai_family, ai->ai_socktype | SOCK_CLOEXEC, 0);
+    int flags = ai->ai_socktype;
+#ifdef SOCK_CLOEXEC
+    flags |= SOCK_CLOEXEC;
+#endif
+
+    fd = socket(ai->ai_family, flags, 0);
     if (fd == -1)
       continue;
 

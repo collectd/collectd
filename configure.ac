@@ -1583,7 +1583,7 @@ if test "x$have_getmntent" = "xlibc"; then
       AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
-            [[#include "$srcdir/src/utils_mount.h"]],
+            [[#include "$srcdir/src/utils/mount/mount.h"]],
             [[
               FILE *fh;
               struct mntent *me;
@@ -1605,7 +1605,7 @@ if test "x$have_getmntent" = "xlibc"; then
       AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
-            [[#include "$srcdir/src/utils_mount.h"]],
+            [[#include "$srcdir/src/utils/mount/mount.h"]],
             [[
               FILE *fh;
               struct mnttab mt;
@@ -2075,52 +2075,39 @@ if test "x$with_kvm_openfiles" = "xyes"; then
 fi
 
 # --with-cuda {{{
-# only CUDA provides the nvml.h header
 AC_ARG_WITH([cuda],
   [AS_HELP_STRING([--with-cuda@<:@=PREFIX@:>@], [Path to cuda.])],
   [
-    if test "x$withval" = "xyes"; then
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_cuda_cppflags="-I$withval/include"
+      with_cuda_ldflags="-I$withval/lib"
       with_cuda="yes"
-    else if test "x$withval" = "xno"; then
-      with_cuda="no"
     else
-      with_cuda="yes"
-      CUDA_CFLAGS="$CUDA_CFLAGS -I$withval/include"
-      CUDA_LDFLAGS="$CUDA_LDFLAGS -L$withval/lib"
-    fi; fi
+      with_cuda="$withval"
+    fi
   ],
-  [ with_cuda="yes"
-    CUDA_CFLAGS="$CUDA_CFLAGS -I/opt/cuda/include"
-    CUDA_LDFLAGS="$CUDA_LDFLAGS -L/opt/cuda/lib64"
-  ]
+  [with_cuda="no"]
 )
 
-SAVE_CFLAGS="$CFLAGS"
-SAVE_LDFLAGS="$LDFLAGS"
-CFLAGS="$CFLAGS $CUDA_CFLAGS"
-LDFLAGS="$LDFLAGS $CUDA_LDFLAGS"
-
 if test "x$with_cuda" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_cuda_cppflags"
+
   AC_CHECK_HEADERS([nvml.h],
     [with_cuda="yes"],
-    [with_cuda="no (header file missing)"]
+    [with_cuda="no (nvml.h not found)"]
   )
-fi
 
-if test "x$with_cuda" = "xpkgconfig"; then
-  AC_CHECK_HEADERS([nvml.h],
-    [],
-    [with_cuda="no (header file missing)"]
-  )
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_cuda" = "xyes"; then
-  BUILD_WITH_CUDA_CFLAGS="$CUDA_CFLAGS"
+  BUILD_WITH_CUDA_CPPFLAGS="$CUDA_CPPFLAGS"
   BUILD_WITH_CUDA_LDFLAGS="$CUDA_LDFLAGS"
   BUILD_WITH_CUDA_LIBS="-lnvidia-ml"
 fi
 
-AC_SUBST([BUILD_WITH_CUDA_CFLAGS])
+AC_SUBST([BUILD_WITH_CUDA_CPPFLAGS])
 AC_SUBST([BUILD_WITH_CUDA_LDFLAGS])
 AC_SUBST([BUILD_WITH_CUDA_LIBS])
 
@@ -2149,9 +2136,6 @@ CPPFLAGS="$CPPFLAGS $LIBAQUAERO5_CFLAGS"
 LDFLAGS="$LDFLAGS $LIBAQUAERO5_LDFLAGS"
 
 if test "x$with_libaquaero5" = "xyes"; then
-  if test "x$LIBAQUAERO5_CFLAGS" != "x"; then
-    AC_MSG_NOTICE([libaquaero5 CPPFLAGS: $LIBAQUAERO5_CFLAGS])
-  fi
   AC_CHECK_HEADERS([libaquaero5.h],
     [with_libaquaero5="yes"],
     [with_libaquaero5="no (libaquaero5.h not found)"]
@@ -2159,9 +2143,6 @@ if test "x$with_libaquaero5" = "xyes"; then
 fi
 
 if test "x$with_libaquaero5" = "xyes"; then
-  if test "x$LIBAQUAERO5_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libaquaero5 LDFLAGS: $LIBAQUAERO5_LDFLAGS])
-  fi
   AC_CHECK_LIB([aquaero5], libaquaero5_poll,
     [with_libaquaero5="yes"],
     [with_libaquaero5="no (symbol 'libaquaero5_poll' not found)"]
@@ -2202,9 +2183,6 @@ CPPFLAGS="$CPPFLAGS $LIBHIREDIS_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
 
 if test "x$with_libhiredis" = "xyes"; then
-  if test "x$LIBHIREDIS_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libhiredis CPPFLAGS: $LIBHIREDIS_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([hiredis/hiredis.h],
     [with_libhiredis="yes"],
     [with_libhiredis="no (hiredis.h not found)"]
@@ -2212,9 +2190,6 @@ if test "x$with_libhiredis" = "xyes"; then
 fi
 
 if test "x$with_libhiredis" = "xyes"; then
-  if test "x$LIBHIREDIS_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libhiredis LDFLAGS: $LIBHIREDIS_LDFLAGS])
-  fi
   AC_CHECK_LIB([hiredis], [redisCommand],
     [with_libhiredis="yes"],
     [with_libhiredis="no (symbol 'redisCommand' not found)"]
@@ -2465,13 +2440,30 @@ if test "x$with_libdpdk" != "xno"; then
 fi
 
 if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LIBS="$LIBS"
+  LIBS="$LIBDPDK_LIBS $LIBS"
   SAVE_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-  AC_CHECK_LIB([dpdk], [rte_eal_init],
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$LIBDPDK_CFLAGS $CFLAGS"
+  AC_LINK_IFELSE(
+    [
+      AC_LANG_PROGRAM(
+        [[
+          #include <rte_eal.h>
+        ]],
+        [[return rte_eal_init(0, NULL);]]
+      )
+    ],
     [with_libdpdk="yes"],
     [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
   )
+  LIBS="$SAVE_LIBS"
   LDFLAGS="$SAVE_LDFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
 # }}}
@@ -2635,9 +2627,6 @@ LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
 LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"; then
-  if test "x$GCRYPT_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([gcrypt CPPFLAGS: $GCRYPT_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([gcrypt.h],
     [with_libgcrypt="yes"],
     [with_libgcrypt="no (gcrypt.h not found)"]
@@ -2974,18 +2963,6 @@ if test "x$with_java" = "xyes"; then
   fi; fi
 fi
 
-if test "x$JAVA_CPPFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_CPPFLAGS set to: $JAVA_CPPFLAGS])
-fi
-if test "x$JAVA_CFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_CFLAGS set to: $JAVA_CFLAGS])
-fi
-if test "x$JAVA_LDFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
-fi
-if test "x$JAVA_LIBS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
-fi
 if test "x$JAVAC" = "x"; then
   with_javac_path="$PATH"
   if test "x$with_java_home" != "x"; then
@@ -3043,7 +3020,6 @@ fi
 
 if test "x$with_java" = "xyes"; then
   JAVA_LIBS="$JAVA_LIBS -ljvm"
-  AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
@@ -3083,10 +3059,6 @@ CPPFLAGS="$CPPFLAGS $LIBLDAP_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBLDAP_LDFLAGS"
 
 if test "x$with_libldap" = "xyes"; then
-  if test "x$LIBLDAP_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libldap CPPFLAGS: $LIBLDAP_CPPFLAGS])
-  fi
-
   AC_CHECK_HEADERS([ldap.h],
     [with_libldap="yes"],
     [with_libldap="no ('ldap.h' not found)"]
@@ -3094,10 +3066,6 @@ if test "x$with_libldap" = "xyes"; then
 fi
 
 if test "x$with_libldap" = "xyes"; then
-  if test "x$LIBLDAP_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libldap LDFLAGS: $LIBLDAP_LDFLAGS])
-  fi
-
   AC_CHECK_LIB([ldap], [ldap_initialize],
     [with_libldap="yes"],
     [with_libldap="no (symbol 'ldap_initialize' not found)"]
@@ -3405,7 +3373,6 @@ AC_ARG_WITH([libmodbus],
 
 # configure using pkg-config
 if test "x$with_libmodbus" = "xuse_pkgconfig"; then
-  AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
   $PKG_CONFIG --exists 'libmodbus' 2>/dev/null
   if test $? -ne 0; then
     with_libmodbus="no (pkg-config doesn't know libmodbus)"
@@ -3488,10 +3455,6 @@ if test "x$with_libmongoc" = "xyes"; then
 
   CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
 
-  if test "x$CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CFLAGS])
-  fi
-
   AC_CHECK_HEADERS([mongoc.h],
     [with_libmongoc="yes"],
     [with_libmongoc="no ('mongoc.h' not found)"]
@@ -3507,10 +3470,6 @@ if test "x$with_libmongoc" = "xyes"; then
   CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
   LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
 
-  if test "x$LIBMONGOC_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
-  fi
-
   AC_CHECK_LIB([mongoc-1.0], [mongoc_init],
     [with_libmongoc="yes"],
     [with_libmongoc="no (symbol 'mongoc_init' not found)"]
@@ -3523,10 +3482,12 @@ fi
 if test "x$with_libmongoc" = "xyes"; then
   BUILD_WITH_LIBMONGOC_CFLAGS="$LIBMONGOC_CFLAGS"
   BUILD_WITH_LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS"
+  BUILD_WITH_LIBMONGOC_LIBS="$LIBMONGOC_LIBS"
 fi
 
 AC_SUBST([BUILD_WITH_LIBMONGOC_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMONGOC_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBMONGOC_LIBS])
 # }}}
 
 # --with-libmosquitto {{{
@@ -3812,9 +3773,6 @@ CPPFLAGS="$CPPFLAGS $LIBNETAPP_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBNETAPP_LDFLAGS"
 
 if test "x$with_libnetapp" = "xyes"; then
-  if test "x$LIBNETAPP_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([netapp CPPFLAGS: $LIBNETAPP_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([netapp_api.h],
     [with_libnetapp="yes"],
     [with_libnetapp="no (netapp_api.h not found)"]
@@ -3822,15 +3780,9 @@ if test "x$with_libnetapp" = "xyes"; then
 fi
 
 if test "x$with_libnetapp" = "xyes"; then
-  if test "x$LIBNETAPP_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([netapp LDFLAGS: $LIBNETAPP_LDFLAGS])
-  fi
-
   if test "x$LIBNETAPP_LIBS" = "x"; then
     LIBNETAPP_LIBS="$PTHREAD_LIBS -lxml -ladt -lssl -lm -lcrypto -lz"
   fi
-
-  AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
 
   AC_CHECK_LIB([netapp], [na_server_invoke_elem],
     [with_libnetapp="yes"],
@@ -5268,6 +5220,27 @@ if test "x$with_libsensors" = "xyes"; then
 fi
 
 if test "x$with_libsensors" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_sensors_cppflags"
+  AC_PREPROC_IFELSE(
+    [
+      AC_LANG_SOURCE(
+        [[
+          #include <sensors/sensors.h>
+          #if SENSORS_API_VERSION < 0x400
+          #error "required libsensors version >= 3.0"
+          #endif
+        ]]
+      )
+    ],
+    [with_libsensors="yes"],
+    [with_libsensors="no (sensors library version 3.0.0 or higher is required)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libsensors" = "xyes"; then
   BUILD_WITH_LIBSENSORS_CPPFLAGS="$with_sensors_cppflags"
   BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
   BUILD_WITH_LIBSENSORS_LIBS="-lsensors"
@@ -5636,7 +5609,6 @@ fi
 
 # configure using pkg-config
 if test "x$with_libupsclient" = "xuse_pkgconfig"; then
-  AC_MSG_NOTICE([Checking for libupsclient using $PKG_CONFIG])
   $PKG_CONFIG --exists 'libupsclient' 2>/dev/null
   if test $? -ne 0; then
     with_libupsclient="no (pkg-config doesn't know libupsclient)"
@@ -6658,7 +6630,7 @@ if test "x$c_cv_have_one_getmntent" = "xyes"; then
   plugin_df="yes"
 fi
 
-if test "x$c_cv_have_getmntent_r" = "xyes"; then
+if test "x$have_getmntent_r" = "xyes"; then
   plugin_df="yes"
 fi
 
@@ -6951,7 +6923,6 @@ AC_PLUGIN([vserver],             [$plugin_vserver],           [Linux VServer sta
 AC_PLUGIN([wireless],            [$plugin_wireless],          [Wireless statistics])
 AC_PLUGIN([write_graphite],      [yes],                       [Graphite / Carbon output plugin])
 AC_PLUGIN([write_http],          [$with_libcurl],             [HTTP output plugin])
-AC_PLUGIN([write_stackdriver],   [$plugin_write_stackdriver], [Google Stackdriver Monitoring output plugin])
 AC_PLUGIN([write_kafka],         [$with_librdkafka],          [Kafka output plugin])
 AC_PLUGIN([write_log],           [yes],                       [Log output plugin])
 AC_PLUGIN([write_mongodb],       [$with_libmongoc],           [MongoDB output plugin])
@@ -6959,6 +6930,7 @@ AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write 
 AC_PLUGIN([write_redis],         [$with_libhiredis],          [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$with_libriemann_client],   [Riemann output plugin])
 AC_PLUGIN([write_sensu],         [yes],                       [Sensu output plugin])
+AC_PLUGIN([write_stackdriver],   [$plugin_write_stackdriver], [Google Stackdriver Monitoring output plugin])
 AC_PLUGIN([write_tsdb],          [yes],                       [TSDB output plugin])
 AC_PLUGIN([xencpu],              [$plugin_xencpu],            [Xen Host CPU usage])
 AC_PLUGIN([xmms],                [$with_libxmms],             [XMMS statistics])
@@ -7156,7 +7128,6 @@ AC_MSG_RESULT([    YACC  . . . . . . . . $YACC])
 AC_MSG_RESULT([    YFLAGS  . . . . . . . $YFLAGS])
 AC_MSG_RESULT()
 AC_MSG_RESULT([  Libraries:])
-AC_MSG_RESULT([    cuda  . . . . . . . . $with_cuda])
 AC_MSG_RESULT([    intel mic . . . . . . $with_mic])
 AC_MSG_RESULT([    libaquaero5 . . . . . $with_libaquaero5])
 AC_MSG_RESULT([    libatasmart . . . . . $with_libatasmart])
@@ -7190,6 +7161,7 @@ AC_MSG_RESULT([    libnetapp . . . . . . $with_libnetapp])
 AC_MSG_RESULT([    libnetsnmp  . . . . . $with_libnetsnmp])
 AC_MSG_RESULT([    libnetsnmpagent . . . $with_libnetsnmpagent])
 AC_MSG_RESULT([    libnotify . . . . . . $with_libnotify])
+AC_MSG_RESULT([    libnvidia-ml  . . . . $with_cuda])
 AC_MSG_RESULT([    libopenipmi . . . . . $with_libopenipmipthread])
 AC_MSG_RESULT([    liboping  . . . . . . $with_liboping])
 AC_MSG_RESULT([    libowcapi . . . . . . $with_libowcapi])

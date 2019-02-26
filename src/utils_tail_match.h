@@ -33,8 +33,8 @@
  *   regular expressions.
  */
 
-#include "utils_latency_config.h"
-#include "utils_match.h"
+#include "utils/latency/latency_config.h"
+#include "utils/match/match.h"
 
 struct cu_tail_match_s;
 typedef struct cu_tail_match_s cu_tail_match_t;

@@ -29,11 +29,11 @@
 
 #include "liboconfig/oconfig.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "filter_chain.h"
 #include "plugin.h"
 #include "types_list.h"
+#include "utils/common/common.h"
 
 #if HAVE_WORDEXP_H
 #include <wordexp.h>
@@ -411,10 +411,12 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
   }
 
   /* Hm, no complex plugin found. Dispatch the values one by one */
-  for (int i = 0; i < ci->children_num; i++) {
-    if (ci->children[i].children == NULL)
-      dispatch_value_plugin(name, ci->children + i);
-    else {
+  for (int i = 0, ret = 0; i < ci->children_num; i++) {
+    if (ci->children[i].children == NULL) {
+      ret = dispatch_value_plugin(name, ci->children + i);
+      if (ret != 0)
+        return ret;
+    } else {
       WARNING("There is a `%s' block within the "
               "configuration for the %s plugin. "
               "The plugin either only expects "
@@ -1064,7 +1066,7 @@ int cf_util_get_string(const oconfig_item_t *ci, char **ret_string) /* {{{ */
 } /* }}} int cf_util_get_string */
 
 /* Assures the config option is a string and copies it to the provided buffer.
- * Assures null-termination. */
+ * Assures NUL-termination. */
 int cf_util_get_string_buffer(const oconfig_item_t *ci, char *buffer, /* {{{ */
                               size_t buffer_size) {
   if ((ci == NULL) || (buffer == NULL) || (buffer_size < 1))
@@ -1076,7 +1078,7 @@ int cf_util_get_string_buffer(const oconfig_item_t *ci, char *buffer, /* {{{ */
   }
 
   strncpy(buffer, ci->values[0].value.string, buffer_size);
-  buffer[buffer_size - 1] = 0;
+  buffer[buffer_size - 1] = '\0';
 
   return 0;
 } /* }}} int cf_util_get_string_buffer */

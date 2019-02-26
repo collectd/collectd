@@ -19,8 +19,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 static const char *config_keys[] = {"ValuesAbsolute", "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);

@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -1221,10 +1221,10 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
         continue;
 
       status = add_str_to_list(&sensu_tags_arr, tmp);
+      DEBUG("write_sensu plugin: Got tag: %s", tmp);
       sfree(tmp);
       if (status != 0)
         continue;
-      DEBUG("write_sensu plugin: Got tag: %s", tmp);
     } else {
       WARNING("write_sensu plugin: Ignoring unknown "
               "configuration option \"%s\" at top level.",

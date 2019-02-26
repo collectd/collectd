@@ -30,9 +30,9 @@
 
 #include "collectd.h"
 
-#include "common.h" /* auxiliary functions */
+#include "utils/common/common.h" /* auxiliary functions */
 
-#include "utils_ovs.h" /* OVS helpers */
+#include "utils/ovs/ovs.h" /* OVS helpers */
 
 #define OVS_EVENTS_IFACE_NAME_SIZE 128
 #define OVS_EVENTS_IFACE_UUID_SIZE 64
