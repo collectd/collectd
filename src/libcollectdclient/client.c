@@ -843,7 +843,7 @@ int lcc_listval(lcc_connection_t *c, char *state, /* {{{ */
 
   SSTRCPY(command, "LISTVAL");
 
-   if (state != NULL) {
+  if (state != NULL) {
     char buffer[2 * LCC_NAME_LEN];
     SSTRCATF(command, " state=%s",
              lcc_strescape(buffer, state, sizeof(buffer)));
