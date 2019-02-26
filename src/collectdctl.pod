@@ -81,9 +81,10 @@ flushed only.
 =item B<listval>
 
 Returns a list of all values (by their identifier) available to the
-C<unixsock> plugin. Each value is printed on its own line. I.E<nbsp>e., this
-command returns a list of valid identifiers that may be used with the other
-commands.
+C<unixsock> plugin. It's possibile filter all the values by
+state. Each value is printed on its own line. I.E<nbsp>e., this command
+returns a list of valid identifiers that may be used with the other commands.
+The valid values for the state are: OKAY, ERROR,<...>
 
 =item B<putval> I<E<lt>identifierE<gt>> [B<interval=>I<E<lt>secondsE<gt>>]
 I<E<lt>value-list(s)E<gt>>

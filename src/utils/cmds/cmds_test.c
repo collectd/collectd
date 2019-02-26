@@ -107,6 +107,9 @@ static struct {
     {
         "LISTVAL", NULL, CMD_OK, CMD_LISTVAL,
     },
+    {
+        "LISTVAL state=OKAY", NULL, CMD_OK, CMD_LISTVAL,
+    },
 
     /* Invalid LISTVAL commands. */
     {

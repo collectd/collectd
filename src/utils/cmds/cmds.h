@@ -57,6 +57,12 @@ typedef struct {
 } cmd_flush_t;
 
 typedef struct {
+  double timeout;
+
+   char *state;
+} cmd_listval_t;
+
+typedef struct {
   char *raw_identifier;
   identifier_t identifier;
 } cmd_getval_t;
