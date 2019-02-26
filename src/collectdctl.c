@@ -362,18 +362,18 @@ static int listval(lcc_connection_t *c, int argc, char **argv) {
   for (int i = 1; i < argc; ++i) {
     char *key, *value;
 
-     key = argv[i];
+    key = argv[i];
     value = strchr(argv[i], (int)'=');
 
-     if (!value) {
+    if (!value) {
       fprintf(stderr, "ERROR: listval: Invalid option ``%s''.\n", argv[i]);
       BAIL_OUT(-1);
     }
 
-     *value = '\0';
+    *value = '\0';
     ++value;
 
-     if (strcasecmp(key, "state") == 0) {
+    if (strcasecmp(key, "state") == 0) {
       state = value;
     } else {
       fprintf(stderr, "ERROR: listval: Unknown option `%s'.\n", key);

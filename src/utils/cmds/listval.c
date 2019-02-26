@@ -49,7 +49,7 @@ cmd_status_t cmd_parse_listval(size_t argc, char **argv,
     char *opt_value;
     int status;
 
-     opt_key = NULL;
+    opt_key = NULL;
     opt_value = NULL;
     status = cmd_parse_option(argv[i], &opt_key, &opt_value, err);
     if (status != 0) {
@@ -59,7 +59,7 @@ cmd_status_t cmd_parse_listval(size_t argc, char **argv,
       return CMD_PARSE_ERROR;
     }
 
-     if (strcasecmp("state", opt_key) == 0) {
+    if (strcasecmp("state", opt_key) == 0) {
       ret_listval->state = opt_value;
     } else {
       cmd_error(CMD_PARSE_ERROR, err, "Cannot parse option `%s'.", opt_key);
@@ -134,6 +134,5 @@ void cmd_destroy_listval(cmd_listval_t *listval) {
   if (listval == NULL)
     return;
 
-   sfree(listval->state);
   listval->state = NULL;
 } /* void cmd_destroy_listval */

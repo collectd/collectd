@@ -115,6 +115,9 @@ static struct {
     {
         "LISTVAL invalid", NULL, CMD_PARSE_ERROR, CMD_UNKNOWN,
     },
+    {
+        "LISTVAL invalid=option", NULL, CMD_PARSE_ERROR, CMD_UNKNOWN,
+    },
 
     /* Valid PUTVAL commands. */
     {
