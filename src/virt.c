@@ -1718,21 +1718,26 @@ static int get_disk_err(virDomainPtr domain) {
 #endif /* HAVE_DISK_ERR */
 
 static int get_block_device_stats(struct block_device *block_dev) {
-  virDomainBlockInfo binfo;
-  init_block_info(&binfo);
-
   if (!block_dev) {
     ERROR(PLUGIN_NAME " plugin: get_block_stats NULL pointer");
     return -1;
   }
 
-  /* Block info statistics can be only fetched from devices with 'source'
-   * defined */
-  if (block_dev->has_source) {
-    if (virDomainGetBlockInfo(block_dev->dom, block_dev->path, &binfo, 0) < 0) {
-      ERROR(PLUGIN_NAME " plugin: virDomainGetBlockInfo failed for path: %s",
-            block_dev->path);
-      return -1;
+  virDomainBlockInfo binfo;
+  init_block_info(&binfo);
+
+  /* Fetching block info stats only if needed*/
+  if (extra_stats & (ex_stats_disk_allocation | ex_stats_disk_capacity |
+                     ex_stats_disk_physical)) {
+    /* Block info statistics can be only fetched from devices with 'source'
+     * defined */
+    if (block_dev->has_source) {
+      if (virDomainGetBlockInfo(block_dev->dom, block_dev->path, &binfo, 0) <
+          0) {
+        ERROR(PLUGIN_NAME " plugin: virDomainGetBlockInfo failed for path: %s",
+              block_dev->path);
+        return -1;
+      }
     }
   }
 
