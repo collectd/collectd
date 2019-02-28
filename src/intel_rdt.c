@@ -247,7 +247,7 @@ static void rdt_dump_pids_data(void) {
   for (size_t i = 0; i < g_rdt->num_ngroups; ++i) {
     memset(pids, 0, sizeof(pids));
     for (size_t j = 0; j < g_rdt->ngroups[i].num_names; ++j) {
-      pids_list_t *list = g_rdt->ngroups[i].proc_pids[j].curr;
+      pids_list_t *list = g_rdt->ngroups[i].proc_pids[j]->curr;
       for (size_t k = 0; k < list->size; k++)
         snprintf(pids + strlen(pids), sizeof(pids) - strlen(pids) - 1, " %u",
                  list->pids[k]);
