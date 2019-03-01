@@ -212,7 +212,6 @@ ps_vm                   value:GAUGE:0:9223372036854775807
 pstates_enabled         value:GAUGE:0:1
 pubsub                  value:GAUGE:0:U
 queue_length            value:GAUGE:0:U
-realpower		value:GAUGE:U:U
 records                 value:GAUGE:0:U
 redis_command_cputime   value:DERIVE:0:U
 requests                value:GAUGE:0:U
