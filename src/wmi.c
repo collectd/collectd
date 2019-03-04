@@ -31,6 +31,7 @@
 #include <wbemidl.h>
 #include <windows.h>
 
+#include "utils_complain.h"
 #include "utils_wmi.h"
 
 #define log_err(...) ERROR("wmi: " __VA_ARGS__)
@@ -259,6 +260,8 @@ static void counter_submit(const char *type, const char *type_instance,
 }
 
 static int wmi_exec_query(wmi_query_t *q) {
+  c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
+
   wmi_result_list_t *results;
   results = wmi_query(wmi, q->statement);
 
@@ -280,10 +283,11 @@ static int wmi_exec_query(wmi_query_t *q) {
 
       ds = plugin_get_ds(m->type);
       if (ds->ds_num != 1) {
-        log_err("data set for metric type '%s' has %" PRIsz
-                " data sources, but the wmi plugin only works for types with 1 "
-                "source",
-                m->type, ds->ds_num);
+        c_complain(LOG_ERR, &complaint,
+                   "wmi: data set for metric type '%s' has %" PRIsz
+                   " data sources, but the wmi plugin only works for types "
+                   "with 1 source",
+                   m->type, ds->ds_num);
         continue;
       }
 
