@@ -9557,13 +9557,11 @@ Type: string
 
 Type instance for the metric.
 
-Mandatory
-
 Optional
 
 Type: string
 
-Default: The value retrieved from the field specified in "ValuesFrom".
+Default: The field name specified in "ValuesFrom".
 
 =back
 

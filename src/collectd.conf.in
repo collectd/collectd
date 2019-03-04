@@ -1906,7 +1906,7 @@
 #@BUILD_PLUGIN_WMI_TRUE@LoadPlugin "wmi"
 #<Plugin wmi>
 #  <Query>
-#    Statement "select * from Win32_PerfFormattedData_PerfOS_Processor where Name = '_Total'"
+#    Statement "select * from Win32_PerfFormattedData_PerfOS_Processor where Name != '_Total'"
 #    InstancePrefix "cpu"
 #    InstancesFrom "Name"
 #    <Metric>
