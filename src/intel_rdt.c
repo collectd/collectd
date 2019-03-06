@@ -864,10 +864,12 @@ static void rdt_init_pids_monitoring() {
     g_rdt->num_proc_pids += ng->num_names;
   }
 
-  int update_result =
-      proc_pids_update(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
-  if (0 != update_result)
-    ERROR(RDT_PLUGIN ": Initial update of proc pids failed");
+  if (g_rdt->num_ngroups > 0) {
+    int update_result =
+        proc_pids_update(RDT_PROC_PATH, g_rdt->proc_pids, g_rdt->num_proc_pids);
+    if (0 != update_result)
+      ERROR(RDT_PLUGIN ": Initial update of proc pids failed");
+  }
 
   for (size_t group_idx = 0; group_idx < g_rdt->num_ngroups; group_idx++) {
     int refresh_result = rdt_refresh_ngroup(&(g_rdt->ngroups[group_idx]),
