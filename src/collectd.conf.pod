@@ -9421,6 +9421,18 @@ B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 
 =item B<vcpupin>: report pinning of domain VCPUs to host physical CPUs.
 
+=item B<disk_physical>: report 'disk_physical' statistic for disk device.
+B<Note>: This statistic is only reported for disk devices with 'source'
+property available.
+
+=item B<disk_allocation>: report 'disk_allocation' statistic for disk device.
+B<Note>: This statistic is only reported for disk devices with 'source'
+property available.
+
+=item B<disk_capacity>: report 'disk_capacity' statistic for disk device.
+B<Note>: This statistic is only reported for disk devices with 'source'
+property available.
+
 =back
 
 =item B<PersistentNotification> B<true>|B<false>

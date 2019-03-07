@@ -500,6 +500,7 @@ static int ignore_device_match(ignorelist_t *, const char *domname,
 struct block_device {
   virDomainPtr dom; /* domain */
   char *path;       /* name of block device */
+  bool has_source;  /* information whether source is defined or not */
 };
 
 /* Actual list of network interfaces found on last refresh. */
@@ -534,7 +535,7 @@ static int add_domain(struct lv_read_state *state, virDomainPtr dom,
 
 static void free_block_devices(struct lv_read_state *state);
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
-                            const char *path);
+                            const char *path, bool has_source);
 
 static void free_interface_devices(struct lv_read_state *state);
 static int add_interface_device(struct lv_read_state *state, virDomainPtr dom,
@@ -616,6 +617,9 @@ enum ex_stats {
   ex_stats_job_stats_completed = 1 << 8,
   ex_stats_job_stats_background = 1 << 9,
 #endif
+  ex_stats_disk_allocation = 1 << 10,
+  ex_stats_disk_capacity = 1 << 11,
+  ex_stats_disk_physical = 1 << 12
 };
 
 static unsigned int extra_stats = ex_stats_none;
@@ -643,6 +647,9 @@ static const struct ex_stats_item ex_stats_table[] = {
     {"job_stats_completed", ex_stats_job_stats_completed},
     {"job_stats_background", ex_stats_job_stats_background},
 #endif
+    {"disk_allocation", ex_stats_disk_allocation},
+    {"disk_capacity", ex_stats_disk_capacity},
+    {"disk_physical", ex_stats_disk_physical},
     {NULL, ex_stats_none},
 };
 
@@ -656,7 +663,7 @@ static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
 
-struct lv_block_info {
+struct lv_block_stats {
   virDomainBlockStatsStruct bi;
 
   long long rd_total_times;
@@ -666,50 +673,56 @@ struct lv_block_info {
   long long fl_total_times;
 };
 
-static void init_block_info(struct lv_block_info *binfo) {
-  if (binfo == NULL)
+static void init_block_stats(struct lv_block_stats *bstats) {
+  if (bstats == NULL)
     return;
 
-  binfo->bi.rd_req = -1;
-  binfo->bi.wr_req = -1;
-  binfo->bi.rd_bytes = -1;
-  binfo->bi.wr_bytes = -1;
+  bstats->bi.rd_req = -1;
+  bstats->bi.wr_req = -1;
+  bstats->bi.rd_bytes = -1;
+  bstats->bi.wr_bytes = -1;
 
-  binfo->rd_total_times = -1;
-  binfo->wr_total_times = -1;
-  binfo->fl_req = -1;
-  binfo->fl_total_times = -1;
+  bstats->rd_total_times = -1;
+  bstats->wr_total_times = -1;
+  bstats->fl_req = -1;
+  bstats->fl_total_times = -1;
+}
+
+static void init_block_info(virDomainBlockInfoPtr binfo) {
+  binfo->allocation = -1;
+  binfo->capacity = -1;
+  binfo->physical = -1;
 }
 
 #ifdef HAVE_BLOCK_STATS_FLAGS
 
-#define GET_BLOCK_INFO_VALUE(NAME, FIELD)                                      \
+#define GET_BLOCK_STATS_VALUE(NAME, FIELD)                                     \
   if (!strcmp(param[i].field, NAME)) {                                         \
-    binfo->FIELD = param[i].value.l;                                           \
+    bstats->FIELD = param[i].value.l;                                          \
     continue;                                                                  \
   }
 
-static int get_block_info(struct lv_block_info *binfo,
-                          virTypedParameterPtr param, int nparams) {
-  if (binfo == NULL || param == NULL)
+static int get_block_stats(struct lv_block_stats *bstats,
+                           virTypedParameterPtr param, int nparams) {
+  if (bstats == NULL || param == NULL)
     return -1;
 
   for (int i = 0; i < nparams; ++i) {
     /* ignore type. Everything must be LLONG anyway. */
-    GET_BLOCK_INFO_VALUE("rd_operations", bi.rd_req);
-    GET_BLOCK_INFO_VALUE("wr_operations", bi.wr_req);
-    GET_BLOCK_INFO_VALUE("rd_bytes", bi.rd_bytes);
-    GET_BLOCK_INFO_VALUE("wr_bytes", bi.wr_bytes);
-    GET_BLOCK_INFO_VALUE("rd_total_times", rd_total_times);
-    GET_BLOCK_INFO_VALUE("wr_total_times", wr_total_times);
-    GET_BLOCK_INFO_VALUE("flush_operations", fl_req);
-    GET_BLOCK_INFO_VALUE("flush_total_times", fl_total_times);
+    GET_BLOCK_STATS_VALUE("rd_operations", bi.rd_req);
+    GET_BLOCK_STATS_VALUE("wr_operations", bi.wr_req);
+    GET_BLOCK_STATS_VALUE("rd_bytes", bi.rd_bytes);
+    GET_BLOCK_STATS_VALUE("wr_bytes", bi.wr_bytes);
+    GET_BLOCK_STATS_VALUE("rd_total_times", rd_total_times);
+    GET_BLOCK_STATS_VALUE("wr_total_times", wr_total_times);
+    GET_BLOCK_STATS_VALUE("flush_operations", fl_req);
+    GET_BLOCK_STATS_VALUE("flush_total_times", fl_total_times);
   }
 
   return 0;
 }
 
-#undef GET_BLOCK_INFO_VALUE
+#undef GET_BLOCK_STATS_VALUE
 
 #endif /* HAVE_BLOCK_STATS_FLAGS */
 
@@ -1002,8 +1015,9 @@ static void vcpu_submit(derive_t value, virDomainPtr dom, int vcpu_nr,
   submit(dom, type, type_instance, &(value_t){.derive = value}, 1);
 }
 
-static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
-                        const char *dev) {
+static void disk_block_stats_submit(struct lv_block_stats *bstats,
+                                    virDomainPtr dom, const char *dev,
+                                    virDomainBlockInfoPtr binfo) {
   char *dev_copy = strdup(dev);
   const char *type_instance = dev_copy;
 
@@ -1022,28 +1036,42 @@ static void disk_submit(struct lv_block_info *binfo, virDomainPtr dom,
   snprintf(flush_type_instance, sizeof(flush_type_instance), "flush-%s",
            type_instance);
 
-  if ((binfo->bi.rd_req != -1) && (binfo->bi.wr_req != -1))
-    submit_derive2("disk_ops", (derive_t)binfo->bi.rd_req,
-                   (derive_t)binfo->bi.wr_req, dom, type_instance);
+  if ((bstats->bi.rd_req != -1) && (bstats->bi.wr_req != -1))
+    submit_derive2("disk_ops", (derive_t)bstats->bi.rd_req,
+                   (derive_t)bstats->bi.wr_req, dom, type_instance);
 
-  if ((binfo->bi.rd_bytes != -1) && (binfo->bi.wr_bytes != -1))
-    submit_derive2("disk_octets", (derive_t)binfo->bi.rd_bytes,
-                   (derive_t)binfo->bi.wr_bytes, dom, type_instance);
+  if ((bstats->bi.rd_bytes != -1) && (bstats->bi.wr_bytes != -1))
+    submit_derive2("disk_octets", (derive_t)bstats->bi.rd_bytes,
+                   (derive_t)bstats->bi.wr_bytes, dom, type_instance);
 
   if (extra_stats & ex_stats_disk) {
-    if ((binfo->rd_total_times != -1) && (binfo->wr_total_times != -1))
-      submit_derive2("disk_time", (derive_t)binfo->rd_total_times,
-                     (derive_t)binfo->wr_total_times, dom, type_instance);
+    if ((bstats->rd_total_times != -1) && (bstats->wr_total_times != -1))
+      submit_derive2("disk_time", (derive_t)bstats->rd_total_times,
+                     (derive_t)bstats->wr_total_times, dom, type_instance);
 
-    if (binfo->fl_req != -1)
+    if (bstats->fl_req != -1)
       submit(dom, "total_requests", flush_type_instance,
-             &(value_t){.derive = (derive_t)binfo->fl_req}, 1);
-    if (binfo->fl_total_times != -1) {
-      derive_t value = binfo->fl_total_times / 1000; // ns -> ms
+             &(value_t){.derive = (derive_t)bstats->fl_req}, 1);
+    if (bstats->fl_total_times != -1) {
+      derive_t value = bstats->fl_total_times / 1000; // ns -> ms
       submit(dom, "total_time_in_ms", flush_type_instance,
              &(value_t){.derive = value}, 1);
     }
   }
+
+  /* disk_allocation, disk_capacity and disk_physical are stored only
+   * if corresponding extrastats are set in collectd configuration file */
+  if ((extra_stats & ex_stats_disk_allocation) && binfo->allocation != -1)
+    submit(dom, "disk_allocation", type_instance,
+           &(value_t){.gauge = (gauge_t)binfo->allocation}, 1);
+
+  if ((extra_stats & ex_stats_disk_capacity) && binfo->capacity != -1)
+    submit(dom, "disk_capacity", type_instance,
+           &(value_t){.gauge = (gauge_t)binfo->capacity}, 1);
+
+  if ((extra_stats & ex_stats_disk_physical) && binfo->physical != -1)
+    submit(dom, "disk_physical", type_instance,
+           &(value_t){.gauge = (gauge_t)binfo->physical}, 1);
 
   sfree(dev_copy);
 }
@@ -1422,8 +1450,8 @@ static void lv_disconnect(void) {
   WARNING(PLUGIN_NAME " plugin: closed connection to libvirt");
 }
 
-static int lv_domain_block_info(virDomainPtr dom, const char *path,
-                                struct lv_block_info *binfo) {
+static int lv_domain_block_stats(virDomainPtr dom, const char *path,
+                                 struct lv_block_stats *bstats) {
 #ifdef HAVE_BLOCK_STATS_FLAGS
   int nparams = 0;
   if (virDomainBlockStatsFlags(dom, path, NULL, &nparams, 0) < 0 ||
@@ -1443,14 +1471,14 @@ static int lv_domain_block_info(virDomainPtr dom, const char *path,
   if (virDomainBlockStatsFlags(dom, path, params, &nparams, 0) < 0) {
     VIRT_ERROR(conn, "getting the disk params values");
   } else {
-    rc = get_block_info(binfo, params, nparams);
+    rc = get_block_stats(bstats, params, nparams);
   }
 
   virTypedParamsClear(params, nparams);
   sfree(params);
   return rc;
 #else
-  return virDomainBlockStats(dom, path, &(binfo->bi), sizeof(binfo->bi));
+  return virDomainBlockStats(dom, path, &(bstats->bi), sizeof(bstats->bi));
 #endif /* HAVE_BLOCK_STATS_FLAGS */
 }
 
@@ -1689,22 +1717,39 @@ static int get_disk_err(virDomainPtr domain) {
 }
 #endif /* HAVE_DISK_ERR */
 
-static int get_block_stats(struct block_device *block_dev) {
-
+static int get_block_device_stats(struct block_device *block_dev) {
   if (!block_dev) {
     ERROR(PLUGIN_NAME " plugin: get_block_stats NULL pointer");
     return -1;
   }
 
-  struct lv_block_info binfo;
+  virDomainBlockInfo binfo;
   init_block_info(&binfo);
 
-  if (lv_domain_block_info(block_dev->dom, block_dev->path, &binfo) < 0) {
-    ERROR(PLUGIN_NAME " plugin: lv_domain_block_info failed");
+  /* Fetching block info stats only if needed*/
+  if (extra_stats & (ex_stats_disk_allocation | ex_stats_disk_capacity |
+                     ex_stats_disk_physical)) {
+    /* Block info statistics can be only fetched from devices with 'source'
+     * defined */
+    if (block_dev->has_source) {
+      if (virDomainGetBlockInfo(block_dev->dom, block_dev->path, &binfo, 0) <
+          0) {
+        ERROR(PLUGIN_NAME " plugin: virDomainGetBlockInfo failed for path: %s",
+              block_dev->path);
+        return -1;
+      }
+    }
+  }
+
+  struct lv_block_stats bstats;
+  init_block_stats(&bstats);
+
+  if (lv_domain_block_stats(block_dev->dom, block_dev->path, &bstats) < 0) {
+    ERROR(PLUGIN_NAME " plugin: lv_domain_block_stats failed");
     return -1;
   }
 
-  disk_submit(&binfo, block_dev->dom, block_dev->path);
+  disk_block_stats_submit(&bstats, block_dev->dom, block_dev->path, &binfo);
   return 0;
 }
 
@@ -2234,7 +2279,7 @@ static int lv_read(user_data_t *ud) {
 
   /* Get block device stats for each domain. */
   for (int i = 0; i < state->nr_block_devices; ++i) {
-    int status = get_block_stats(&state->block_devices[i]);
+    int status = get_block_device_stats(&state->block_devices[i]);
     if (status != 0)
       ERROR(PLUGIN_NAME
             " plugin: failed to get stats for block device (%s) in domain %s",
@@ -2419,35 +2464,76 @@ static int lv_instance_include_domain(struct lv_read_instance *inst,
 static void lv_add_block_devices(struct lv_read_state *state, virDomainPtr dom,
                                  const char *domname,
                                  xmlXPathContextPtr xpath_ctx) {
-  const char *bd_xmlpath = "/domain/devices/disk/target[@dev]";
-  if (blockdevice_format == source)
-    bd_xmlpath = "/domain/devices/disk/source[@dev]";
-
   xmlXPathObjectPtr xpath_obj =
-      xmlXPathEval((const xmlChar *)bd_xmlpath, xpath_ctx);
+      xmlXPathEval((const xmlChar *)"/domain/devices/disk", xpath_ctx);
 
-  if (xpath_obj == NULL)
+  if (xpath_obj == NULL) {
+    DEBUG(PLUGIN_NAME " plugin: no disk xpath-object found for domain %s",
+          domname);
     return;
+  }
 
   if (xpath_obj->type != XPATH_NODESET || xpath_obj->nodesetval == NULL) {
-    xmlXPathFreeObject(xpath_obj);
-    return;
+    DEBUG(PLUGIN_NAME " plugin: no disk node found for domain %s", domname);
+    goto cleanup;
   }
 
-  for (int j = 0; j < xpath_obj->nodesetval->nodeNr; ++j) {
-    xmlNodePtr node = xpath_obj->nodesetval->nodeTab[j];
-    if (!node)
+  xmlNodeSetPtr xml_block_devices = xpath_obj->nodesetval;
+  for (int i = 0; i < xml_block_devices->nodeNr; ++i) {
+    xmlNodePtr xml_device = xpath_obj->nodesetval->nodeTab[i];
+    char *path_str = NULL;
+    char *source_str = NULL;
+
+    if (!xml_device)
       continue;
 
-    char *path = (char *)xmlGetProp(node, (xmlChar *)"dev");
-    if (!path)
-      continue;
+    /* Fetching path and source for block device */
+    for (xmlNodePtr child = xml_device->children; child; child = child->next) {
+      if (child->type != XML_ELEMENT_NODE)
+        continue;
 
-    if (ignore_device_match(il_block_devices, domname, path) == 0)
-      add_block_device(state, dom, path);
+      /* we are interested only in either "target" or "source" elements */
+      if (xmlStrEqual(child->name, (const xmlChar *)"target"))
+        path_str = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+      else if (xmlStrEqual(child->name, (const xmlChar *)"source")) {
+        /* name of the source is located in "dev" or "file" element (it depends
+         * on type of source). Trying "dev" at first*/
+        source_str = (char *)xmlGetProp(child, (const xmlChar *)"dev");
+        if (!source_str)
+          source_str = (char *)xmlGetProp(child, (const xmlChar *)"file");
+      }
+      /* ignoring any other element*/
+    }
 
-    xmlFree(path);
+    /* source_str will be interpreted as a device path if blockdevice_format
+     *  param is set to 'source'. */
+    const char *device_path =
+        (blockdevice_format == source) ? source_str : path_str;
+
+    if (!device_path) {
+      /* no path found and we can't add block_device without it */
+      WARNING(PLUGIN_NAME " plugin: could not generate device path for disk in "
+                          "domain %s - disk device will be ignored in reports",
+              domname);
+      goto cont;
+    }
+
+    if (ignore_device_match(il_block_devices, domname, device_path) == 0) {
+      /* we only have to store information whether 'source' exists or not */
+      bool has_source = (source_str != NULL) ? true : false;
+
+      add_block_device(state, dom, device_path, has_source);
+    }
+
+  cont:
+    if (path_str)
+      xmlFree(path_str);
+
+    if (source_str)
+      xmlFree(source_str);
   }
+
+cleanup:
   xmlXPathFreeObject(xpath_obj);
 }
 
@@ -2714,7 +2800,7 @@ static void free_block_devices(struct lv_read_state *state) {
 }
 
 static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
-                            const char *path) {
+                            const char *path, bool has_source) {
 
   char *path_copy = strdup(path);
   if (!path_copy)
@@ -2731,6 +2817,7 @@ static int add_block_device(struct lv_read_state *state, virDomainPtr dom,
   state->block_devices = new_ptr;
   state->block_devices[state->nr_block_devices].dom = dom;
   state->block_devices[state->nr_block_devices].path = path_copy;
+  state->block_devices[state->nr_block_devices].has_source = has_source;
   return state->nr_block_devices++;
 }
 
