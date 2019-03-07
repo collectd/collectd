@@ -1,5 +1,6 @@
 env:
   LANG: C
+  CIRRUS_CLONE_DEPTH: 1
   DEFAULT_CONFIG_OPTS: --enable-debug --without-libstatgrab --disable-dependency-tracking
 
 
@@ -16,7 +17,7 @@ release_ready_task:
     - ./build.sh
     - ./configure $DEFAULT_CONFIG_OPTS
   checks_script:
-    - make -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
 
 ###
 # Default toolchain and build flags used in deb packages, on a range of Debian
@@ -25,10 +26,6 @@ release_ready_task:
 #
 debian_default_toolchain_task:
   matrix:
-    - allow_failures: true
-      skip_notifications: true
-      container:
-        image: collectd/ci:wheezy_amd64 # TODO: fix this platform
     - allow_failures: false
       container:
         image: collectd/ci:jessie_amd64
@@ -59,9 +56,9 @@ debian_default_toolchain_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -sk
+    - make -j2 -sk
   tests_script:
-    - make -sk check
+    - make -j2 -sk check
     - /checks/check-built-plugins.sh
 
 ###
@@ -82,10 +79,6 @@ redhat_default_toolchain_task:
     - allow_failures: true
       skip_notifications: true
       container:
-        image: collectd/ci:fedora26_x86_64
-    - allow_failures: true
-      skip_notifications: true
-      container:
         image: collectd/ci:fedora28_x86_64
     # fedora/rawhide is expected to fail
     - allow_failures: true
@@ -98,9 +91,9 @@ redhat_default_toolchain_task:
     - gcc --version
     - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
   build_script:
-    - make -sk
+    - make -j2 -sk
   tests_script:
-    - make -sk check
+    - make -j2 -sk check
     - /checks/check-built-plugins.sh
 
 
@@ -124,15 +117,15 @@ non_standard_toolchains_task:
         - ./build.sh
         - clang --version
         - >
-          ./configure CC=clang
+          ./configure CC=clang CXX=clang++
           $DEFAULT_CONFIG_OPTS
           CFLAGS="$(dpkg-buildflags --get CFLAGS)"
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
-        - make -sk check
+        - make -j2 -sk check
 
     # build against libstatgrab, should always pass
     - env:
@@ -148,7 +141,7 @@ non_standard_toolchains_task:
           CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
           LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
         - >
           for i in cpu disk interface load memory swap users; do
@@ -157,25 +150,6 @@ non_standard_toolchains_task:
               exit 1
             fi
           done
-
-    # build against musl-libc using gcc wrapper, expected to fail
-    - env:
-        LABEL: musl libc
-      allow_failures: true
-      skip_notifications: true
-      configure_script:
-        - ./build.sh
-        - musl-gcc --version
-        - >
-          ./configure CC=musl-gcc
-          $DEFAULT_CONFIG_OPTS
-          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
-          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
-          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-      build_script:
-        - make -sk
-      tests_script:
-        - make -sk check
 
     # build using clang with a collection of strict build flags, will most
     # probably always fail
@@ -187,7 +161,7 @@ non_standard_toolchains_task:
         - ./build.sh
         - clang --version
         - >
-          ./configure CC=clang
+          ./configure CC=clang CXX=clang++
           $DEFAULT_CONFIG_OPTS
           CFLAGS='-Wall
           -Wno-error
@@ -214,9 +188,9 @@ non_standard_toolchains_task:
           -Wno-typedef-redefinition
           -Wno-gnu-variable-sized-type-not-at-end'
       build_script:
-        - make -sk
+        - make -j2 -sk
       tests_script:
-        - make -sk check
+        - make -j2 -sk check
 
 ###
 # Build using a range of compilers, available in debian/unstable. NB: might
@@ -246,6 +220,6 @@ bleeding_edge_compilers_task:
       CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
       LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
   build_script:
-    - make -sk
+    - make -j2 -sk
   tests_script:
-    - make -sk check
+    - make -j2 -sk check
