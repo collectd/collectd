@@ -2055,6 +2055,8 @@ static int start_event_loop(virt_notif_thread_t *thread_data) {
     return -1;
   }
 
+  DEBUG(PLUGIN_NAME " plugin: starting event loop");
+
   virt_notif_thread_set_active(thread_data, 1);
   if (pthread_create(&thread_data->event_loop_tid, NULL, event_loop_worker,
                      thread_data)) {
@@ -2070,6 +2072,9 @@ static int start_event_loop(virt_notif_thread_t *thread_data) {
 
 /* stop event loop thread and deregister callback */
 static void stop_event_loop(virt_notif_thread_t *thread_data) {
+
+  DEBUG(PLUGIN_NAME " plugin: stopping event loop");
+
   /* Stopping loop */
   if (virt_notif_thread_is_active(thread_data)) {
     virt_notif_thread_set_active(thread_data, 0);
@@ -2311,8 +2316,6 @@ static int lv_init(void) {
 
   if (lv_connect() != 0)
     return -1;
-
-  DEBUG(PLUGIN_NAME " plugin: starting event loop");
 
   if (!persistent_notification) {
     virt_notif_thread_init(&notif_thread);
@@ -2821,8 +2824,6 @@ static int lv_shutdown(void) {
   for (int i = 0; i < nr_instances; ++i) {
     lv_fini_instance(i);
   }
-
-  DEBUG(PLUGIN_NAME " plugin: stopping event loop");
 
   if (!persistent_notification)
     stop_event_loop(&notif_thread);
