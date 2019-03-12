@@ -1939,12 +1939,13 @@ virt_la_CFLAGS = $(AM_CFLAGS) \
 virt_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 virt_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 
-test_plugin_virt_SOURCES = src/virt_test.c
+test_plugin_virt_SOURCES = src/virt_test.c src/daemon/configfile.c \
+	src/daemon/types_list.c
 test_plugin_virt_CPPFLAGS = $(AM_CPPFLAGS) \
 	$(BUILD_WITH_LIBVIRT_CPPFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 test_plugin_virt_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBVIRT_LDFLAGS) $(BUILD_WITH_LIBXML2_LDFLAGS)
-test_plugin_virt_LDADD = libplugin_mock.la \
+test_plugin_virt_LDADD = liboconfig.la libplugin_mock.la \
 	$(BUILD_WITH_LIBVIRT_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 check_PROGRAMS += test_plugin_virt
 TESTS += test_plugin_virt
