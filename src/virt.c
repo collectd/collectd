@@ -1155,6 +1155,11 @@ static int lv_init_ignorelists() {
 /* Validates config option that may take multiple strings arguments.
  * Returns 0 on success, -1 otherwise */
 static int check_config_multiple_string_entry(const oconfig_item_t *ci) {
+  if (ci == NULL) {
+    ERROR(PLUGIN_NAME " plugin: ci oconfig_item can't be NULL");
+    return -1;
+  }
+
   if (ci->values_num < 1) {
     ERROR(PLUGIN_NAME
           " plugin: the '%s' option requires at least one string argument",
@@ -1312,8 +1317,10 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "HostnameFormat") == 0) {
       /* this option can take multiple strings arguments in one config line*/
-      if (check_config_multiple_string_entry(c) != 0)
+      if (check_config_multiple_string_entry(c) != 0) {
+        ERROR(PLUGIN_NAME " plugin: Could not get 'HostnameFormat' parameter");
         return -1;
+      }
 
       const int params_num = c->values_num;
       for (int i = 0; i < params_num; ++i) {
@@ -1339,8 +1346,11 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "PluginInstanceFormat") == 0) {
       /* this option can handle list of string parameters in one line*/
-      if (check_config_multiple_string_entry(c) != 0)
+      if (check_config_multiple_string_entry(c) != 0) {
+        ERROR(PLUGIN_NAME
+              " plugin: Could not get 'PluginInstanceFormat' parameter");
         return -1;
+      }
 
       const int params_num = c->values_num;
       for (int i = 0; i < params_num; ++i) {
