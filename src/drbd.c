@@ -36,8 +36,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 static const char *drbd_stats = "/proc/drbd";
 static const char *drbd_names[] = {

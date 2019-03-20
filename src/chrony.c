@@ -28,14 +28,19 @@
 
 #include "collectd.h"
 
-#include "common.h" /* auxiliary functions */
-#include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
+#include "plugin.h"              /* plugin_register_*, plugin_dispatch_values */
+#include "utils/common/common.h" /* auxiliary functions */
 
 #if HAVE_NETDB_H
 #include <netdb.h> /* struct addrinfo */
 #endif
 #if HAVE_ARPA_INET_H
 #include <arpa/inet.h> /* ntohs/ntohl */
+#endif
+
+/* AIX doesn't have MSG_DONTWAIT */
+#ifndef MSG_DONTWAIT
+#define MSG_DONTWAIT MSG_NONBLOCK
 #endif
 
 #define CONFIG_KEY_HOST "Host"
@@ -437,6 +442,15 @@ static int chrony_recv_response(tChrony_Response *p_resp,
   } else {
     *p_resp_size = rc;
     return CHRONY_RC_OK;
+  }
+}
+
+static void chrony_flush_recv_queue(void) {
+  char buf[1];
+
+  if (g_chrony_is_connected) {
+    while (recv(g_chrony_socket, buf, sizeof(buf), MSG_DONTWAIT) > 0)
+      ;
   }
 }
 
@@ -963,6 +977,9 @@ static int chrony_read(void) {
 
     g_chrony_seq_is_initialized = 1;
   }
+
+  /* Ignore late responses that may have been received */
+  chrony_flush_recv_queue();
 
   /* Get daemon stats */
   rc = chrony_request_daemon_stats();

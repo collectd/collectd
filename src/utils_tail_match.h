@@ -33,8 +33,8 @@
  *   regular expressions.
  */
 
-#include "utils_latency_config.h"
-#include "utils_match.h"
+#include "utils/latency/latency_config.h"
+#include "utils/match/match.h"
 
 struct cu_tail_match_s;
 typedef struct cu_tail_match_s cu_tail_match_t;
@@ -80,9 +80,8 @@ void tail_match_destroy(cu_tail_match_t *obj);
  *   When `tail_match_destroy' is called the `user_data' pointer is freed using
  *   the `free_user_data' callback - if it is not NULL.
  *   When using this interface the `tail_match' module doesn't dispatch any
- * values
- *   itself - all that has to happen in either the match-callbacks or the
- *   submit_match callback.
+ *   values itself - all that has to happen in either the match-callbacks or
+ *   the submit_match callback.
  *
  * RETURN VALUE
  *   Zero upon success, non-zero otherwise.
@@ -98,14 +97,13 @@ int tail_match_add_match(cu_tail_match_t *obj, cu_match_t *match,
  *  tail_match_add_match_simple
  *
  * DESCRIPTION
- *  A simplified version of `tail_match_add_match'. The regular expressen
- * `regex'
- *  must match a number, which is then dispatched according to `ds_type'. See
- *  the `match_create_simple' function in utils_match.h for a description how
- *  this flag effects calculation of a new value.
+ *  A simplified version of `tail_match_add_match'. The regular expression
+ *  `regex' must match a number, which is then dispatched according to
+ * `ds_type'.
+ *  See the `match_create_simple' function in utils_match.h for a description
+ *  how this flag effects calculation of a new value.
  *  The values gathered are dispatched by the tail_match module in this case.
- * The
- *  passed `plugin', `plugin_instance', `type', and `type_instance' are
+ *  The passed `plugin', `plugin_instance', `type', and `type_instance' are
  *  directly used when submitting these values.
  *  With excluderegex it is possible to exlude lines from the match.
  *  The `latency_cfg' specifies configuration for submitting latency.
@@ -117,8 +115,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
                                 const char *excluderegex, int ds_type,
                                 const char *plugin, const char *plugin_instance,
                                 const char *type, const char *type_instance,
-                                const latency_config_t latency_cfg,
-                                const cdtime_t interval);
+                                const latency_config_t latency_cfg);
 
 /*
  * NAME
@@ -130,8 +127,7 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
  *   added `utils_match' objects.
  *   After all lines have been read and processed, the submit_match callback is
  *   called or, in case of tail_match_add_match_simple, the data is dispatched
- * to
- *   the daemon directly.
+ *   to the daemon directly.
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.

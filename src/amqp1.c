@@ -26,12 +26,12 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_cmd_putval.h"
-#include "utils_deq.h"
-#include "utils_format_graphite.h"
-#include "utils_format_json.h"
+#include "utils/cmds/putval.h"
+#include "utils/common/common.h"
+#include "utils/deq/deq.h"
+#include "utils/format_graphite/format_graphite.h"
+#include "utils/format_json/format_json.h"
 #include "utils_random.h"
 
 #include <proton/condition.h>
@@ -372,7 +372,7 @@ static int amqp1_notify(notification_t const *n,
   }
 
   cd_message_t *cdm = malloc(sizeof(*cdm));
-  if (cdm == NULL ){
+  if (cdm == NULL) {
     ERROR("amqp1 plugin: notify failed");
     return -1;
   }
@@ -471,15 +471,16 @@ static int amqp1_write(const data_set_t *ds, const value_list_t *vl, /* {{{ */
     format_json_initialize((char *)cdm->mbuf.start, &bfill, &bfree);
     format_json_value_list((char *)cdm->mbuf.start, &bfill, &bfree, ds, vl,
                            instance->store_rates);
-    status= format_json_finalize((char *)cdm->mbuf.start, &bfill, &bfree);
+    status = format_json_finalize((char *)cdm->mbuf.start, &bfill, &bfree);
     if (status != 0) {
-      ERROR("amqp1 plugin: format_json_finalize failed with status %i.", status);
+      ERROR("amqp1 plugin: format_json_finalize failed with status %i.",
+            status);
       cd_message_free(cdm);
-      return(status);
+      return status;
     }
     cdm->mbuf.size = strlen(cdm->mbuf.start);
     if (cdm->mbuf.size >= BUFSIZE) {
-      ERROR("amqp1 plugin: format graphite failed");
+      ERROR("amqp1 plugin: format json failed");
       cd_message_free(cdm);
       return -1;
     }

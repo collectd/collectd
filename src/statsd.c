@@ -26,10 +26,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
-#include "utils_latency.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/latency/latency.h"
 
 #include <netdb.h>
 #include <poll.h>
@@ -489,8 +489,8 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
     int fd;
     struct pollfd *tmp;
 
-    char dbg_node[NI_MAXHOST];
-    char dbg_service[NI_MAXSERV];
+    char str_node[NI_MAXHOST];
+    char str_service[NI_MAXSERV];
 
     fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype, ai_ptr->ai_protocol);
     if (fd < 0) {
@@ -498,15 +498,24 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
       continue;
     }
 
-    getnameinfo(ai_ptr->ai_addr, ai_ptr->ai_addrlen, dbg_node, sizeof(dbg_node),
-                dbg_service, sizeof(dbg_service),
+    /* allow multiple sockets to use the same PORT number */
+    int yes = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+      ERROR("statsd plugin: setsockopt (reuseaddr): %s", STRERRNO);
+      close(fd);
+      continue;
+    }
+
+    getnameinfo(ai_ptr->ai_addr, ai_ptr->ai_addrlen, str_node, sizeof(str_node),
+                str_service, sizeof(str_service),
                 NI_DGRAM | NI_NUMERICHOST | NI_NUMERICSERV);
-    DEBUG("statsd plugin: Trying to bind to [%s]:%s ...", dbg_node,
-          dbg_service);
+    DEBUG("statsd plugin: Trying to bind to [%s]:%s ...", str_node,
+          str_service);
 
     status = bind(fd, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
     if (status != 0) {
-      ERROR("statsd plugin: bind(2) failed: %s", STRERRNO);
+      ERROR("statsd plugin: bind(2) to [%s]:%s failed: %s", str_node,
+            str_service, STRERRNO);
       close(fd);
       continue;
     }
@@ -524,6 +533,7 @@ static int statsd_network_init(struct pollfd **ret_fds, /* {{{ */
     memset(tmp, 0, sizeof(*tmp));
     tmp->fd = fd;
     tmp->events = POLLIN | POLLPRI;
+    INFO("statsd plugin: Listening on [%s]:%s.", str_node, str_service);
   }
 
   freeaddrinfo(ai_list);

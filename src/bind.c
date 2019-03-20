@@ -43,8 +43,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <time.h>
 
@@ -73,9 +73,9 @@ typedef int (*list_callback_t)(const char *name, value_t value,
 struct cb_view_s {
   char *name;
 
-  int qtypes;
-  int resolver_stats;
-  int cacherrsets;
+  _Bool qtypes;
+  _Bool resolver_stats;
+  _Bool cacherrsets;
 
   char **zones;
   size_t zones_num;
@@ -107,12 +107,12 @@ typedef struct list_info_ptr_s list_info_ptr_t;
 static bool config_parse_time = true;
 
 static char *url;
-static int global_opcodes = 1;
-static int global_qtypes = 1;
-static int global_server_stats = 1;
-static int global_zone_maint_stats = 1;
-static int global_resolver_stats;
-static int global_memory_stats = 1;
+static _Bool global_opcodes = 1;
+static _Bool global_qtypes = 1;
+static _Bool global_server_stats = 1;
+static _Bool global_zone_maint_stats = 1;
+static _Bool global_resolver_stats;
+static _Bool global_memory_stats = 1;
 static int timeout = -1;
 
 static cb_view_t *views;
@@ -343,8 +343,6 @@ static int bind_xml_read_derive(xmlDoc *doc, xmlNode *node, /* {{{ */
 
   int status = parse_value(str_ptr, &value, DS_TYPE_DERIVE);
   if (status != 0) {
-    ERROR("bind plugin: Parsing string \"%s\" to derive value failed.",
-          str_ptr);
     xmlFree(str_ptr);
     return -1;
   }
@@ -1410,22 +1408,6 @@ static int bind_xml(const char *data) /* {{{ */
   return ret;
 } /* }}} int bind_xml */
 
-static int bind_config_set_bool(const char *name, int *var, /* {{{ */
-                                oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_BOOLEAN)) {
-    WARNING("bind plugin: The `%s' option needs "
-            "exactly one boolean argument.",
-            name);
-    return -1;
-  }
-
-  if (ci->values[0].value.boolean)
-    *var = 1;
-  else
-    *var = 0;
-  return 0;
-} /* }}} int bind_config_set_bool */
-
 static int bind_config_add_view_zone(cb_view_t *view, /* {{{ */
                                      oconfig_item_t *ci) {
   if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
@@ -1484,11 +1466,11 @@ static int bind_config_add_view(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("QTypes", child->key) == 0)
-      bind_config_set_bool("QTypes", &tmp->qtypes, child);
+      cf_util_get_boolean(child, &tmp->qtypes);
     else if (strcasecmp("ResolverStats", child->key) == 0)
-      bind_config_set_bool("ResolverStats", &tmp->resolver_stats, child);
+      cf_util_get_boolean(child, &tmp->resolver_stats);
     else if (strcasecmp("CacheRRSets", child->key) == 0)
-      bind_config_set_bool("CacheRRSets", &tmp->cacherrsets, child);
+      cf_util_get_boolean(child, &tmp->cacherrsets);
     else if (strcasecmp("Zone", child->key) == 0)
       bind_config_add_view_zone(tmp, child);
     else {
@@ -1508,27 +1490,19 @@ static int bind_config(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Url", child->key) == 0) {
-      if ((child->values_num != 1) ||
-          (child->values[0].type != OCONFIG_TYPE_STRING)) {
-        WARNING("bind plugin: The `Url' option needs "
-                "exactly one string argument.");
-        return -1;
-      }
-
-      sfree(url);
-      url = strdup(child->values[0].value.string);
+      cf_util_get_string(child, &url);
     } else if (strcasecmp("OpCodes", child->key) == 0)
-      bind_config_set_bool("OpCodes", &global_opcodes, child);
+      cf_util_get_boolean(child, &global_opcodes);
     else if (strcasecmp("QTypes", child->key) == 0)
-      bind_config_set_bool("QTypes", &global_qtypes, child);
+      cf_util_get_boolean(child, &global_qtypes);
     else if (strcasecmp("ServerStats", child->key) == 0)
-      bind_config_set_bool("ServerStats", &global_server_stats, child);
+      cf_util_get_boolean(child, &global_server_stats);
     else if (strcasecmp("ZoneMaintStats", child->key) == 0)
-      bind_config_set_bool("ZoneMaintStats", &global_zone_maint_stats, child);
+      cf_util_get_boolean(child, &global_zone_maint_stats);
     else if (strcasecmp("ResolverStats", child->key) == 0)
-      bind_config_set_bool("ResolverStats", &global_resolver_stats, child);
+      cf_util_get_boolean(child, &global_resolver_stats);
     else if (strcasecmp("MemoryStats", child->key) == 0)
-      bind_config_set_bool("MemoryStats", &global_memory_stats, child);
+      cf_util_get_boolean(child, &global_memory_stats);
     else if (strcasecmp("View", child->key) == 0)
       bind_config_add_view(child);
     else if (strcasecmp("ParseTime", child->key) == 0)

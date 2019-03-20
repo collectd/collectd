@@ -26,11 +26,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_cmd_putval.h"
-#include "utils_format_graphite.h"
-#include "utils_format_json.h"
+#include "utils/cmds/putval.h"
+#include "utils/common/common.h"
+#include "utils/format_graphite/format_graphite.h"
+#include "utils/format_json/format_json.h"
 #include "utils_random.h"
 
 #include <errno.h>
@@ -382,6 +382,10 @@ static void kafka_config_topic(rd_kafka_conf_t *conf,
     } else if (strcasecmp("GraphitePreserveSeparator", child->key) == 0) {
       status = cf_util_get_flag(child, &tctx->graphite_flags,
                                 GRAPHITE_PRESERVE_SEPARATOR);
+
+    } else if (strcasecmp("GraphiteUseTags", child->key) == 0) {
+      status =
+          cf_util_get_flag(child, &tctx->graphite_flags, GRAPHITE_USE_TAGS);
 
     } else if (strcasecmp("GraphitePrefix", child->key) == 0) {
       status = cf_util_get_string(child, &tctx->prefix);

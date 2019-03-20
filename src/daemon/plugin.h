@@ -31,9 +31,10 @@
 #include "collectd.h"
 
 #include "configfile.h"
-#include "meta_data.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_time.h"
 
+#include <inttypes.h>
 #include <pthread.h>
 
 #define DS_TYPE_COUNTER 0
@@ -171,6 +172,7 @@ struct user_data_s {
 typedef struct user_data_s user_data_t;
 
 struct plugin_ctx_s {
+  char *name;
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
@@ -243,7 +245,7 @@ int plugin_shutdown_all(void);
  *
  * DESCRIPTION
  *  Calls the write function of the given plugin with the provided data set and
- *  value list. It differs from `plugin_dispatch_value' in that it does not
+ *  value list. It differs from `plugin_dispatch_values' in that it does not
  *  update the cache, does not do threshold checking, call the chain subsystem
  *  and so on. It looks up the requested plugin and invokes the function, end
  *  of story.
@@ -397,6 +399,15 @@ int parse_notif_severity(const char *severity);
 #else              /* COLLECT_DEBUG */
 #define DEBUG(...) /* noop */
 #endif             /* ! COLLECT_DEBUG */
+
+/* This will log messages, prefixed by plugin name */
+void daemon_log(int level, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
+
+#define P_ERROR(...) daemon_log(LOG_ERR, __VA_ARGS__)
+#define P_WARNING(...) daemon_log(LOG_WARNING, __VA_ARGS__)
+#define P_NOTICE(...) daemon_log(LOG_NOTICE, __VA_ARGS__)
+#define P_INFO(...) daemon_log(LOG_INFO, __VA_ARGS__)
 
 const data_set_t *plugin_get_ds(const char *name);
 

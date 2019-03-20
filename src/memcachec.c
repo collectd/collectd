@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_match.h"
+#include "utils/common/common.h"
+#include "utils/match/match.h"
 
 #include <libmemcached/memcached.h>
 
@@ -123,21 +123,6 @@ static int cmc_page_init_memc(web_page_t *wp) /* {{{ */
   return 0;
 } /* }}} int cmc_page_init_memc */
 
-static int cmc_config_add_string(const char *name, char **dest, /* {{{ */
-                                 oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("memcachec plugin: `%s' needs exactly one string argument.", name);
-    return -1;
-  }
-
-  sfree(*dest);
-  *dest = strdup(ci->values[0].value.string);
-  if (*dest == NULL)
-    return -1;
-
-  return 0;
-} /* }}} int cmc_config_add_string */
-
 static int cmc_config_add_match_dstype(int *dstype_ret, /* {{{ */
                                        oconfig_item_t *ci) {
   int dstype;
@@ -204,16 +189,15 @@ static int cmc_config_add_match(web_page_t *page, /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Regex", child->key) == 0)
-      status = cmc_config_add_string("Regex", &match->regex, child);
+      status = cf_util_get_string(child, &match->regex);
     else if (strcasecmp("ExcludeRegex", child->key) == 0)
-      status =
-          cmc_config_add_string("ExcludeRegex", &match->exclude_regex, child);
+      status = cf_util_get_string(child, &match->exclude_regex);
     else if (strcasecmp("DSType", child->key) == 0)
       status = cmc_config_add_match_dstype(&match->dstype, child);
     else if (strcasecmp("Type", child->key) == 0)
-      status = cmc_config_add_string("Type", &match->type, child);
+      status = cf_util_get_string(child, &match->type);
     else if (strcasecmp("Instance", child->key) == 0)
-      status = cmc_config_add_string("Instance", &match->instance, child);
+      status = cf_util_get_string(child, &match->instance);
     else {
       WARNING("memcachec plugin: Option `%s' not allowed here.", child->key);
       status = -1;
@@ -301,11 +285,11 @@ static int cmc_config_add_page(oconfig_item_t *ci) /* {{{ */
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Server", child->key) == 0)
-      status = cmc_config_add_string("Server", &page->server, child);
+      status = cf_util_get_string(child, &page->server);
     else if (strcasecmp("Key", child->key) == 0)
-      status = cmc_config_add_string("Key", &page->key, child);
+      status = cf_util_get_string(child, &page->key);
     else if (strcasecmp("Plugin", child->key) == 0)
-      status = cmc_config_add_string("Plugin", &page->plugin_name, child);
+      status = cf_util_get_string(child, &page->plugin_name);
     else if (strcasecmp("Match", child->key) == 0)
       /* Be liberal with failing matches => don't set `status'. */
       cmc_config_add_match(page, child);

@@ -47,8 +47,8 @@
 #endif /* DEBUG */
 
 /* ... while we want the definition found in plugin.h. */
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include "filter_chain.h"
 

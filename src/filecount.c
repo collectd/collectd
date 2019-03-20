@@ -23,8 +23,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -153,26 +153,6 @@ static int fc_config_add_dir_instance(fc_directory_conf_t *dir,
 
   return fc_config_set_instance(dir, ci->values[0].value.string);
 } /* int fc_config_add_dir_instance */
-
-static int fc_config_add_dir_name(fc_directory_conf_t *dir,
-                                  oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("filecount plugin: The `Name' config option needs exactly one "
-            "string argument.");
-    return -1;
-  }
-
-  char *temp = strdup(ci->values[0].value.string);
-  if (temp == NULL) {
-    ERROR("filecount plugin: strdup failed.");
-    return -1;
-  }
-
-  sfree(dir->name);
-  dir->name = temp;
-
-  return 0;
-} /* int fc_config_add_dir_name */
 
 static int fc_config_add_dir_mtime(fc_directory_conf_t *dir,
                                    oconfig_item_t *ci) {
@@ -369,7 +349,7 @@ static int fc_config_add_dir(oconfig_item_t *ci) {
     else if (strcasecmp("Instance", option->key) == 0)
       status = fc_config_add_dir_instance(dir, option);
     else if (strcasecmp("Name", option->key) == 0)
-      status = fc_config_add_dir_name(dir, option);
+      status = cf_util_get_string(option, &dir->name);
     else if (strcasecmp("MTime", option->key) == 0)
       status = fc_config_add_dir_mtime(dir, option);
     else if (strcasecmp("Size", option->key) == 0)

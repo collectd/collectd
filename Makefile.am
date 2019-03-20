@@ -1,6 +1,15 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_YFLAGS = -d
 
+if BUILD_WIN32
+cpkgdatadir=$(datadir)
+cpkglibdir=$(libdir)/plugins
+cpkglocalstatedir=${localstatedir}
+else
+cpkgdatadir=$(pkgdatadir)
+cpkglibdir=$(pkglibdir)
+cpkglocalstatedir=${localstatedir}/lib/${PACKAGE_NAME}
+endif
 
 BUILT_SOURCES = \
 	src/libcollectdclient/collectd/lcc_features.h \
@@ -99,7 +108,13 @@ pkginclude_HEADERS = \
 
 lib_LTLIBRARIES = libcollectdclient.la
 
+if BUILD_WIN32
+# TODO: Build all executables on Windows as well.
+sbin_PROGRAMS = \
+        collectd
 
+bin_PROGRAMS =
+else
 sbin_PROGRAMS = \
 	collectd \
 	collectdmon
@@ -109,6 +124,7 @@ bin_PROGRAMS = \
 	collectd-nagios \
 	collectd-tg \
 	collectdctl
+endif # BUILD_WIN32
 
 
 noinst_LTLIBRARIES = \
@@ -151,7 +167,7 @@ TESTS = $(check_PROGRAMS)
 LOG_COMPILER = env VALGRIND="@VALGRIND@" $(abs_srcdir)/testwrapper.sh
 
 
-jardir = $(pkgdatadir)/java
+jardir = $(cpkgdatadir)/java
 
 pkglib_LTLIBRARIES =
 
@@ -160,6 +176,9 @@ PLUGIN_LDFLAGS = \
 	-module \
 	-avoid-version \
 	-export-symbols-regex '\<module_register\>'
+if BUILD_WIN32
+PLUGIN_LDFLAGS += -shared -no-undefined -lcollectd -L.
+endif
 
 
 AM_CPPFLAGS = \
@@ -167,13 +186,26 @@ AM_CPPFLAGS = \
 	-DPREFIX='"${prefix}"' \
 	-DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"' \
 	-DLOCALSTATEDIR='"${localstatedir}"' \
-	-DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"' \
-	-DPLUGINDIR='"${pkglibdir}"' \
-	-DPKGDATADIR='"${pkgdatadir}"'
+	-DPKGLOCALSTATEDIR='"${cpkglocalstatedir}"' \
+	-DPLUGINDIR='"${cpkglibdir}"' \
+	-DPKGDATADIR='"${cpkgdatadir}"'
+if BUILD_WIN32
+AM_CPPFLAGS += -DNOGDI
+endif
 
+COMMON_DEPS =
+if BUILD_WIN32
+COMMON_DEPS += collectd.exe
+endif
 
 # Link to these libraries..
 COMMON_LIBS = $(PTHREAD_LIBS)
+if BUILD_WIN32
+COMMON_LIBS += -lws2_32
+endif
+if BUILD_WITH_GNULIB
+COMMON_LIBS += -lgnu
+endif
 if BUILD_WITH_CAPABILITY
 COMMON_LIBS += -lcap
 endif
@@ -195,7 +227,6 @@ endif
 
 
 collectd_SOURCES = \
-	src/daemon/cmd.c \
 	src/daemon/cmd.h \
 	src/daemon/collectd.c \
 	src/daemon/collectd.h \
@@ -205,8 +236,8 @@ collectd_SOURCES = \
 	src/daemon/filter_chain.h \
 	src/daemon/globals.c \
 	src/daemon/globals.h \
-	src/daemon/meta_data.c \
-	src/daemon/meta_data.h \
+	src/utils/metadata/meta_data.c \
+	src/utils/metadata/meta_data.h \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
 	src/daemon/utils_cache.c \
@@ -239,6 +270,13 @@ collectd_LDADD = \
 	$(COMMON_LIBS) \
 	$(DLOPEN_LIBS)
 
+if BUILD_WIN32
+collectd_SOURCES += src/daemon/cmd_windows.c
+collectd_LDFLAGS += -ldl -Wl,--out-implib,libcollectd.a
+else
+collectd_SOURCES += src/daemon/cmd.c
+endif
+	
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
@@ -250,6 +288,9 @@ collectd_CFLAGS += $(BUILD_WITH_LIBSTATGRAB_CFLAGS)
 collectd_LDADD += $(BUILD_WITH_LIBSTATGRAB_LDFLAGS)
 endif
 
+if BUILD_WIN32
+collectd_LDFLAGS += -Wl,--out-implib,libcollectd.a
+endif
 
 collectdmon_SOURCES = src/collectdmon.c
 
@@ -300,22 +341,22 @@ endif
 
 
 test_common_SOURCES = \
-	src/daemon/common_test.c \
+	src/utils/common/common_test.c \
 	src/testing.h
 test_common_LDADD = libplugin_mock.la
 
 test_meta_data_SOURCES = \
-	src/daemon/meta_data_test.c \
+	src/utils/metadata/meta_data_test.c \
 	src/testing.h
 test_meta_data_LDADD = libmetadata.la libplugin_mock.la
 
 test_utils_avltree_SOURCES = \
-	src/daemon/utils_avltree_test.c \
+	src/utils/avltree/avltree_test.c \
 	src/testing.h
 test_utils_avltree_LDADD = libavltree.la $(COMMON_LIBS)
 
 test_utils_heap_SOURCES = \
-	src/daemon/utils_heap_test.c \
+	src/utils/heap/heap_test.c \
 	src/testing.h
 test_utils_heap_LDADD = libheap.la $(COMMON_LIBS)
 
@@ -331,30 +372,30 @@ test_utils_subst_SOURCES = \
 test_utils_subst_LDADD = libplugin_mock.la
 
 test_utils_config_cores_SOURCES = \
-	src/utils_config_cores_test.c \
+	src/utils/config_cores/config_cores_test.c \
 	src/testing.h
 test_utils_config_cores_LDADD = libplugin_mock.la
 
 libavltree_la_SOURCES = \
-	src/daemon/utils_avltree.c \
-	src/daemon/utils_avltree.h
+	src/utils/avltree/avltree.c \
+	src/utils/avltree/avltree.h
 
 libcommon_la_SOURCES = \
-	src/daemon/common.c \
-	src/daemon/common.h
+	src/utils/common/common.c \
+	src/utils/common/common.h
 libcommon_la_LIBADD = $(COMMON_LIBS)
 
 libheap_la_SOURCES = \
-	src/daemon/utils_heap.c \
-	src/daemon/utils_heap.h
+	src/utils/heap/heap.c \
+	src/utils/heap/heap.h
 
 libignorelist_la_SOURCES = \
-	src/utils_ignorelist.c \
-	src/utils_ignorelist.h
+	src/utils/ignorelist/ignorelist.c \
+	src/utils/ignorelist/ignorelist.h
 
 libmetadata_la_SOURCES = \
-	src/daemon/meta_data.c \
-	src/daemon/meta_data.h
+	src/utils/metadata/meta_data.c \
+	src/utils/metadata/meta_data.h
 
 libplugin_mock_la_SOURCES = \
 	src/daemon/plugin_mock.c \
@@ -368,11 +409,11 @@ libplugin_mock_la_CPPFLAGS = $(AM_CPPFLAGS) -DMOCK_TIME
 libplugin_mock_la_LIBADD = libcommon.la libignorelist.la $(COMMON_LIBS)
 
 libformat_graphite_la_SOURCES = \
-	src/utils_format_graphite.c \
-	src/utils_format_graphite.h
+	src/utils/format_graphite/format_graphite.c \
+	src/utils/format_graphite/format_graphite.h
 
 test_format_graphite_SOURCES = \
-	src/utils_format_graphite_test.c \
+	src/utils/format_graphite/format_graphite_test.c \
 	src/testing.h
 test_format_graphite_LDADD = \
 	libformat_graphite.la \
@@ -381,8 +422,8 @@ test_format_graphite_LDADD = \
 	-lm
 
 libformat_json_la_SOURCES = \
-	src/utils_format_json.c \
-	src/utils_format_json.h
+	src/utils/format_json/format_json.c \
+	src/utils/format_json/format_json.h
 libformat_json_la_CPPFLAGS  = $(AM_CPPFLAGS)
 libformat_json_la_LDFLAGS   = $(AM_LDFLAGS)
 libformat_json_la_LIBADD    =
@@ -394,7 +435,7 @@ libformat_json_la_LIBADD   += $(BUILD_WITH_LIBYAJL_LIBS)
 check_PROGRAMS += test_format_json
 
 test_format_json_SOURCES = \
-	src/utils_format_json_test.c \
+	src/utils/format_json/format_json_test.c \
 	src/testing.h
 test_format_json_LDADD = \
 	libformat_json.la \
@@ -412,16 +453,16 @@ check_PROGRAMS += test_plugin_ceph
 endif
 
 liblatency_la_SOURCES = \
-	src/utils_latency.c \
-	src/utils_latency.h \
-	src/utils_latency_config.c \
-	src/utils_latency_config.h
+	src/utils/latency/latency.c \
+	src/utils/latency/latency.h \
+	src/utils/latency/latency_config.c \
+	src/utils/latency/latency_config.h
 liblatency_la_LIBADD = \
 	libcommon.la \
 	-lm
 
 test_utils_latency_SOURCES = \
-	src/utils_latency_test.c \
+	src/utils/latency/latency_test.c \
 	src/testing.h
 test_utils_latency_LDADD = \
 	liblatency.la \
@@ -429,41 +470,41 @@ test_utils_latency_LDADD = \
 	-lm
 
 libcmds_la_SOURCES = \
-	src/utils_cmds.c \
-	src/utils_cmds.h \
-	src/utils_cmd_flush.c \
-	src/utils_cmd_flush.h \
-	src/utils_cmd_getthreshold.c \
-	src/utils_cmd_getthreshold.h \
-	src/utils_cmd_getval.c \
-	src/utils_cmd_getval.h \
-	src/utils_cmd_listval.c \
-	src/utils_cmd_listval.h \
-	src/utils_cmd_putnotif.c \
-	src/utils_cmd_putnotif.h \
-	src/utils_cmd_putval.c \
-	src/utils_cmd_putval.h \
-	src/utils_parse_option.c \
-	src/utils_parse_option.h
+	src/utils/cmds/cmds.c \
+	src/utils/cmds/cmds.h \
+	src/utils/cmds/flush.c \
+	src/utils/cmds/flush.h \
+	src/utils/cmds/getthreshold.c \
+	src/utils/cmds/getthreshold.h \
+	src/utils/cmds/getval.c \
+	src/utils/cmds/getval.h \
+	src/utils/cmds/listval.c \
+	src/utils/cmds/listval.h \
+	src/utils/cmds/putnotif.c \
+	src/utils/cmds/putnotif.h \
+	src/utils/cmds/putval.c \
+	src/utils/cmds/putval.h \
+	src/utils/cmds/parse_option.c \
+	src/utils/cmds/parse_option.h
 libcmds_la_LIBADD = \
 	libcommon.la \
 	libmetadata.la \
 	-lm
 
 test_utils_cmds_SOURCES = \
-	src/utils_cmds_test.c \
+	src/utils/cmds/cmds_test.c \
 	src/testing.h
 test_utils_cmds_LDADD = \
 	libcmds.la \
 	libplugin_mock.la
 
 liblookup_la_SOURCES = \
-	src/utils_vl_lookup.c \
-	src/utils_vl_lookup.h
+	src/utils/lookup/vl_lookup.c \
+	src/utils/lookup/vl_lookup.h
 liblookup_la_LIBADD = libavltree.la
 
 test_utils_vl_lookup_SOURCES = \
-	src/utils_vl_lookup_test.c \
+	src/utils/lookup/vl_lookup_test.c \
 	src/testing.h
 test_utils_vl_lookup_LDADD = \
 	liblookup.la \
@@ -473,11 +514,11 @@ test_utils_vl_lookup_LDADD += -lkstat
 endif
 
 libmount_la_SOURCES = \
-	src/utils_mount.c \
-	src/utils_mount.h
+	src/utils/mount/mount.c \
+	src/utils/mount/mount.h
 
 test_utils_mount_SOURCES = \
-	src/utils_mount_test.c \
+	src/utils/mount/mount_test.c \
 	src/testing.h
 test_utils_mount_LDADD = \
 	libmount.la \
@@ -501,6 +542,10 @@ libcollectdclient_la_CPPFLAGS = \
 	-I$(srcdir)/src/daemon
 libcollectdclient_la_LDFLAGS = -version-info 2:0:1
 libcollectdclient_la_LIBADD = -lm
+if BUILD_WIN32
+libcollectdclient_la_LDFLAGS += -shared -no-undefined
+libcollectdclient_la_LIBADD += -lgnu -lws2_32 -liphlpapi
+endif
 if BUILD_WITH_LIBGCRYPT
 libcollectdclient_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 libcollectdclient_la_LDFLAGS += $(GCRYPT_LDFLAGS)
@@ -529,13 +574,75 @@ liboconfig_la_SOURCES = \
 liboconfig_la_CPPFLAGS = -I$(srcdir)/src/liboconfig $(AM_CPPFLAGS)
 liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 
+if BUILD_WITH_LIBCURL
+if BUILD_WITH_LIBSSL
+if BUILD_WITH_LIBYAJL2
+noinst_LTLIBRARIES += liboauth.la
+liboauth_la_SOURCES = \
+	src/utils/oauth/oauth.c \
+	src/utils/oauth/oauth.h
+liboauth_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS) \
+	$(BUILD_WITH_LIBSSL_CFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+liboauth_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS) \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_utils_oauth
+TESTS += test_utils_oauth
+test_utils_oauth_SOURCES = \
+	src/utils/oauth/oauth_test.c
+test_utils_oauth_LDADD = \
+	liboauth.la \
+	libcommon.la \
+	libplugin_mock.la
+
+noinst_LTLIBRARIES += libgce.la
+libgce_la_SOURCES = \
+	src/utils/gce/gce.c \
+	src/utils/gce/gce.h
+libgce_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBCURL_CFLAGS)
+libgce_la_LIBADD = \
+	$(BUILD_WITH_LIBCURL_LIBS)
+endif
+endif
+endif
+
+if BUILD_WITH_LIBYAJL2
+noinst_LTLIBRARIES += libformat_stackdriver.la
+libformat_stackdriver_la_SOURCES = \
+	src/utils/format_stackdriver/format_stackdriver.c \
+	src/utils/format_stackdriver/format_stackdriver.h
+libformat_stackdriver_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(BUILD_WITH_LIBYAJL_CPPFLAGS)
+libformat_stackdriver_la_LIBADD = \
+	libavltree.la \
+	$(BUILD_WITH_LIBSSL_LIBS) \
+	$(BUILD_WITH_LIBYAJL_LIBS)
+
+check_PROGRAMS += test_format_stackdriver
+TESTS += test_format_stackdriver
+test_format_stackdriver_SOURCES = \
+	src/utils/format_stackdriver/format_stackdriver_test.c \
+	src/testing.h
+test_format_stackdriver_LDADD = \
+	libformat_stackdriver.la \
+	libplugin_mock.la \
+	-lm
+endif
 
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
 aggregation_la_SOURCES = \
 	src/aggregation.c \
-	src/utils_vl_lookup.c \
-	src/utils_vl_lookup.h
+	src/utils/lookup/vl_lookup.c \
+	src/utils/lookup/vl_lookup.h
 aggregation_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 aggregation_la_LIBADD = -lm
 endif
@@ -556,7 +663,7 @@ if BUILD_PLUGIN_AMQP1
 pkglib_LTLIBRARIES += amqp1.la
 amqp1_la_SOURCES = \
 	src/amqp1.c \
-	src/utils_deq.h
+	src/utils/deq/deq.h
 amqp1_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
 amqp1_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
 amqp1_la_LIBADD = \
@@ -720,10 +827,10 @@ if BUILD_PLUGIN_CURL
 pkglib_LTLIBRARIES += curl.la
 curl_la_SOURCES = \
 	src/curl.c \
-	src/utils_curl_stats.c \
-	src/utils_curl_stats.h \
-	src/utils_match.c \
-	src/utils_match.h
+	src/utils/curl_stats/curl_stats.c \
+	src/utils/curl_stats/curl_stats.h \
+	src/utils/match/match.c \
+	src/utils/match/match.h
 curl_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 curl_la_LIBADD = liblatency.la $(BUILD_WITH_LIBCURL_LIBS)
@@ -733,15 +840,15 @@ if BUILD_PLUGIN_CURL_JSON
 pkglib_LTLIBRARIES += curl_json.la
 curl_json_la_SOURCES = \
 	src/curl_json.c \
-	src/utils_curl_stats.c \
-	src/utils_curl_stats.h
+	src/utils/curl_stats/curl_stats.c \
+	src/utils/curl_stats/curl_stats.h
 curl_json_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 curl_json_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 curl_json_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 curl_json_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
 
 test_plugin_curl_json_SOURCES = src/curl_json_test.c \
-				src/utils_curl_stats.c \
+				src/utils/curl_stats/curl_stats.c \
 				src/daemon/configfile.c \
 				src/daemon/types_list.c
 test_plugin_curl_json_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
@@ -754,8 +861,8 @@ if BUILD_PLUGIN_CURL_XML
 pkglib_LTLIBRARIES += curl_xml.la
 curl_xml_la_SOURCES = \
 	src/curl_xml.c \
-	src/utils_curl_stats.c \
-	src/utils_curl_stats.h
+	src/utils/curl_stats/curl_stats.c \
+	src/utils/curl_stats/curl_stats.h
 curl_xml_la_CFLAGS = $(AM_CFLAGS) \
 		$(BUILD_WITH_LIBCURL_CFLAGS) $(BUILD_WITH_LIBXML2_CFLAGS)
 curl_xml_la_LDFLAGS = $(PLUGIN_LDFLAGS)
@@ -766,8 +873,8 @@ if BUILD_PLUGIN_DBI
 pkglib_LTLIBRARIES += dbi.la
 dbi_la_SOURCES = \
 	src/dbi.c \
-	src/utils_db_query.c \
-	src/utils_db_query.h
+	src/utils/db_query/db_query.c \
+	src/utils/db_query/db_query.h
 dbi_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBDBI_CPPFLAGS)
 dbi_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBDBI_LDFLAGS)
 dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)
@@ -817,8 +924,8 @@ if BUILD_PLUGIN_DNS
 pkglib_LTLIBRARIES += dns.la
 dns_la_SOURCES = \
 	src/dns.c \
-	src/utils_dns.c \
-	src/utils_dns.h
+	src/utils/dns/dns.c \
+	src/utils/dns/dns.h
 dns_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPCAP_CPPFLAGS)
 dns_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPCAP_LDFLAGS)
 dns_la_LIBADD = $(BUILD_WITH_LIBPCAP_LIBS)
@@ -826,7 +933,7 @@ endif
 
 if BUILD_PLUGIN_DPDKEVENTS
 pkglib_LTLIBRARIES += dpdkevents.la
-dpdkevents_la_SOURCES = src/dpdkevents.c src/utils_dpdk.c src/utils_dpdk.h
+dpdkevents_la_SOURCES = src/dpdkevents.c src/utils/dpdk/dpdk.c src/utils/dpdk/dpdk.h
 dpdkevents_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
 dpdkevents_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkevents_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
@@ -835,7 +942,7 @@ endif
 
 if BUILD_PLUGIN_DPDKSTAT
 pkglib_LTLIBRARIES += dpdkstat.la
-dpdkstat_la_SOURCES = src/dpdkstat.c src/utils_dpdk.c src/utils_dpdk.h
+dpdkstat_la_SOURCES = src/dpdkstat.c src/utils/dpdk/dpdk.c src/utils/dpdk/dpdk.h
 dpdkstat_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBDPDK_CPPFLAGS)
 dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
@@ -907,6 +1014,14 @@ gps_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGPS_LDFLAGS)
 gps_la_LIBADD = -lpthread $(BUILD_WITH_LIBGPS_LIBS)
 endif
 
+if BUILD_PLUGIN_GPU_NVIDIA
+pkglib_LTLIBRARIES += gpu_nvidia.la
+gpu_nvidia_la_SOURCES = src/gpu_nvidia.c
+gpu_nvidia_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) $(BUILD_WITH_GPU_CUDA_CPPFLAGS)
+gpu_nvidia_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_GPU_CUDA_LDFLAGS)
+gpu_nvidia_la_LIBADD = $(BUILD_WITH_CUDA_LIBS)
+endif
+
 if BUILD_PLUGIN_GRPC
 pkglib_LTLIBRARIES += grpc.la
 grpc_la_SOURCES = src/grpc.cc
@@ -939,8 +1054,8 @@ if BUILD_PLUGIN_INTEL_PMU
 pkglib_LTLIBRARIES += intel_pmu.la
 intel_pmu_la_SOURCES = \
 	src/intel_pmu.c \
-	src/utils_config_cores.h \
-	src/utils_config_cores.c
+	src/utils/config_cores/config_cores.h \
+	src/utils/config_cores/config_cores.c
 intel_pmu_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBJEVENTS_CPPFLAGS)
 intel_pmu_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJEVENTS_LDFLAGS)
 intel_pmu_la_LIBADD = $(BUILD_WITH_LIBJEVENTS_LIBS)
@@ -950,8 +1065,8 @@ if BUILD_PLUGIN_INTEL_RDT
 pkglib_LTLIBRARIES += intel_rdt.la
 intel_rdt_la_SOURCES = \
 	src/intel_rdt.c \
-	src/utils_config_cores.h \
-	src/utils_config_cores.c
+	src/utils/config_cores/config_cores.h \
+	src/utils/config_cores/config_cores.c
 intel_rdt_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPQOS_CPPFLAGS)
 intel_rdt_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPQOS_LDFLAGS)
 intel_rdt_la_LIBADD = $(BUILD_WITH_LIBPQOS_LIBS)
@@ -1042,6 +1157,7 @@ if BUILD_PLUGIN_LOGFILE
 pkglib_LTLIBRARIES += logfile.la
 logfile_la_SOURCES = src/logfile.c
 logfile_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+logfile_la_DEPENDENCIES = $(COMMON_DEPS)
 endif
 
 if BUILD_PLUGIN_LOG_LOGSTASH
@@ -1144,8 +1260,8 @@ if BUILD_PLUGIN_MEMCACHEC
 pkglib_LTLIBRARIES += memcachec.la
 memcachec_la_SOURCES = \
 	src/memcachec.c \
-	src/utils_match.c \
-	src/utils_match.h
+	src/utils/match/match.c \
+	src/utils/match/match.h
 memcachec_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBMEMCACHED_CPPFLAGS)
 memcachec_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMEMCACHED_LDFLAGS)
 memcachec_la_LIBADD = liblatency.la $(BUILD_WITH_LIBMEMCACHED_LIBS)
@@ -1352,8 +1468,8 @@ if BUILD_PLUGIN_ORACLE
 pkglib_LTLIBRARIES += oracle.la
 oracle_la_SOURCES = \
 	src/oracle.c \
-	src/utils_db_query.c \
-	src/utils_db_query.h
+	src/utils/db_query/db_query.c \
+	src/utils/db_query/db_query.h
 oracle_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_ORACLE_CPPFLAGS)
 oracle_la_LIBADD = $(BUILD_WITH_ORACLE_LIBS)
 oracle_la_LDFLAGS = $(PLUGIN_LDFLAGS)
@@ -1363,8 +1479,8 @@ if BUILD_PLUGIN_OVS_EVENTS
 pkglib_LTLIBRARIES += ovs_events.la
 ovs_events_la_SOURCES = \
 	src/ovs_events.c \
-	src/utils_ovs.c \
-	src/utils_ovs.h
+	src/utils/ovs/ovs.c \
+	src/utils/ovs/ovs.h
 ovs_events_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ovs_events_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_events_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
@@ -1374,11 +1490,29 @@ if BUILD_PLUGIN_OVS_STATS
 pkglib_LTLIBRARIES += ovs_stats.la
 ovs_stats_la_SOURCES = \
 	src/ovs_stats.c \
-	src/utils_ovs.c \
-	src/utils_ovs.h
+	src/utils/ovs/ovs.c \
+	src/utils/ovs/ovs.h
 ovs_stats_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
 ovs_stats_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
 ovs_stats_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS)
+endif
+
+if BUILD_PLUGIN_PCIE_ERRORS
+pkglib_LTLIBRARIES += pcie_errors.la
+pcie_errors_la_SOURCES = src/pcie_errors.c
+pcie_errors_la_CPPFLAGS = $(AM_CPPFLAGS)
+pcie_errors_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+
+test_plugin_pcie_errors_SOURCES = \
+	src/pcie_errors_test.c \
+	src/daemon/utils_llist.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_pcie_errors_CPPFLAGS = $(AM_CPPFLAGS)
+test_plugin_pcie_errors_LDFLAGS = $(PLUGIN_LDFLAGS)
+test_plugin_pcie_errors_LDADD = liboconfig.la libplugin_mock.la
+check_PROGRAMS += test_plugin_pcie_errors
+TESTS += test_plugin_pcie_errors
 endif
 
 if BUILD_PLUGIN_PERL
@@ -1427,8 +1561,8 @@ if BUILD_PLUGIN_POSTGRESQL
 pkglib_LTLIBRARIES += postgresql.la
 postgresql_la_SOURCES = \
 	src/postgresql.c \
-	src/utils_db_query.c \
-	src/utils_db_query.h
+	src/utils/db_query/db_query.c \
+	src/utils/db_query/db_query.h
 postgresql_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBPQ_CPPFLAGS)
 postgresql_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
 	$(BUILD_WITH_LIBPQ_LDFLAGS)
@@ -1455,8 +1589,8 @@ endif
 if HAVE_LIBMNL
 noinst_LTLIBRARIES += libtaskstats.la
 libtaskstats_la_SOURCES = \
-	src/utils_taskstats.c \
-	src/utils_taskstats.h
+	src/utils/taskstats/taskstats.c \
+	src/utils/taskstats/taskstats.h
 libtaskstats_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
 libtaskstats_la_LIBADD = $(BUILD_WITH_LIBMNL_LIBS)
 endif
@@ -1503,8 +1637,8 @@ if BUILD_PLUGIN_RRDCACHED
 pkglib_LTLIBRARIES += rrdcached.la
 rrdcached_la_SOURCES = \
 	src/rrdcached.c \
-	src/utils_rrdcreate.c \
-	src/utils_rrdcreate.h
+	src/utils/rrdcreate/rrdcreate.c \
+	src/utils/rrdcreate/rrdcreate.h
 rrdcached_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
 rrdcached_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdcached_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
@@ -1514,8 +1648,8 @@ if BUILD_PLUGIN_RRDTOOL
 pkglib_LTLIBRARIES += rrdtool.la
 rrdtool_la_SOURCES = \
 	src/rrdtool.c \
-	src/utils_rrdcreate.c \
-	src/utils_rrdcreate.h
+	src/utils/rrdcreate/rrdcreate.c \
+	src/utils/rrdcreate/rrdcreate.h
 rrdtool_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBRRD_CFLAGS)
 rrdtool_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBRRD_LDFLAGS)
 rrdtool_la_LIBADD = $(BUILD_WITH_LIBRRD_LIBS)
@@ -1558,7 +1692,7 @@ pkglib_LTLIBRARIES += snmp.la
 snmp_la_SOURCES = src/snmp.c
 snmp_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBNETSNMP_CPPFLAGS)
 snmp_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMP_LDFLAGS)
-snmp_la_LIBADD = $(BUILD_WITH_LIBNETSNMP_LIBS)
+snmp_la_LIBADD = libignorelist.la $(BUILD_WITH_LIBNETSNMP_LIBS)
 endif
 
 if BUILD_PLUGIN_SNMP_AGENT
@@ -1569,7 +1703,7 @@ snmp_agent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS)
 snmp_agent_la_LIBADD = $(BUILD_WITH_LIBNETSNMPAGENT_LIBS)
 
 test_plugin_snmp_agent_SOURCES = src/snmp_agent_test.c \
-                                 src/daemon/utils_avltree.c \
+                                 src/utils/avltree/avltree.c \
                                  src/daemon/utils_llist.c \
                                  src/daemon/configfile.c \
                                  src/daemon/types_list.c
@@ -1640,10 +1774,10 @@ if BUILD_PLUGIN_TAIL
 pkglib_LTLIBRARIES += tail.la
 tail_la_SOURCES = \
 	src/tail.c \
-	src/utils_match.c \
-	src/utils_match.h \
-	src/utils_tail.c \
-	src/utils_tail.h \
+	src/utils/match/match.c \
+	src/utils/match/match.h \
+	src/utils/tail/tail.c \
+	src/utils/tail/tail.h \
 	src/utils_tail_match.c \
 	src/utils_tail_match.h
 tail_la_LDFLAGS = $(PLUGIN_LDFLAGS)
@@ -1654,8 +1788,8 @@ if BUILD_PLUGIN_TAIL_CSV
 pkglib_LTLIBRARIES += tail_csv.la
 tail_csv_la_SOURCES = \
 	src/tail_csv.c \
-	src/utils_tail.c \
-	src/utils_tail.h
+	src/utils/tail/tail.c \
+	src/utils/tail/tail.h
 tail_csv_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
@@ -1845,8 +1979,8 @@ if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = \
 	src/write_http.c \
-	src/utils_format_kairosdb.c \
-	src/utils_format_kairosdb.h
+	src/utils/format_kairosdb/format_kairosdb.c \
+	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
 write_http_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 write_http_la_LIBADD = libformat_json.la $(BUILD_WITH_LIBCURL_LIBS)
@@ -1876,6 +2010,7 @@ pkglib_LTLIBRARIES += write_mongodb.la
 write_mongodb_la_SOURCES = src/write_mongodb.c
 write_mongodb_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMONGOC_CFLAGS)
 write_mongodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBMONGOC_LDFLAGS)
+write_mongodb_la_LIBADD = $(BUILD_WITH_LIBMONGOC_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_PROMETHEUS
@@ -1911,6 +2046,15 @@ if BUILD_PLUGIN_WRITE_SENSU
 pkglib_LTLIBRARIES += write_sensu.la
 write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_STACKDRIVER
+pkglib_LTLIBRARIES += write_stackdriver.la
+write_stackdriver_la_SOURCES = src/write_stackdriver.c
+write_stackdriver_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_stackdriver_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+write_stackdriver_la_LIBADD = libformat_stackdriver.la libgce.la liboauth.la \
+                     $(BUILD_WITH_LIBCURL_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB
@@ -1965,20 +2109,10 @@ am__v_POD2MAN_C_0 = @echo "  POD2MAN " $@;
 am__v_POD2MAN_C_1 =
 
 .pod.1:
-	$(AM_V_POD2MAN_C)pod2man --release=$(VERSION) --center=$(PACKAGE) $< \
-		>.pod2man.tmp.$$$$ 2>/dev/null && mv -f .pod2man.tmp.$$$$ $@ || true
-	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
-	then \
-		echo "$@ has some POD errors!"; false; \
-	fi
+	$(AM_V_POD2MAN_C)pod2man --release=$(VERSION) --center=$(PACKAGE) $< $@
 
 .pod.5:
-	$(AM_V_POD2MAN_C)pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< \
-		>.pod2man.tmp.$$$$ 2>/dev/null && mv -f .pod2man.tmp.$$$$ $@ || true
-	@if grep '\<POD ERRORS\>' $@ >/dev/null 2>&1; \
-	then \
-		echo "$@ has some POD errors!"; false; \
-	fi
+	$(AM_V_POD2MAN_C)pod2man --section=5 --release=$(VERSION) --center=$(PACKAGE) $< $@
 
 V_PROTOC = $(v_protoc_@AM_V@)
 v_protoc_ = $(v_protoc_@AM_DEFAULT_V@)
@@ -2032,15 +2166,15 @@ install-exec-hook:
 	else \
 		$(INSTALL) -m 0640 $(builddir)/src/collectd.conf $(DESTDIR)$(sysconfdir)/collectd.conf; \
 	fi; \
-	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
-	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(pkgdatadir)/types.db;
+	$(mkinstalldirs) $(DESTDIR)$(cpkgdatadir)
+	$(INSTALL) -m 0644 $(srcdir)/src/types.db $(DESTDIR)$(cpkgdatadir)/types.db;
 	$(INSTALL) -m 0644 $(srcdir)/src/postgresql_default.conf \
-		$(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+		$(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 uninstall-hook:
-	rm -f $(DESTDIR)$(pkgdatadir)/types.db;
+	rm -f $(DESTDIR)$(cpkgdatadir)/types.db;
 	rm -f $(DESTDIR)$(sysconfdir)/collectd.conf
-	rm -f $(DESTDIR)$(pkgdatadir)/postgresql_default.conf;
+	rm -f $(DESTDIR)$(cpkgdatadir)/postgresql_default.conf;
 
 all-local: @PERL_BINDINGS@
 
@@ -2120,3 +2254,4 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
+

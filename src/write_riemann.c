@@ -30,8 +30,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "write_riemann_threshold.h"
@@ -699,21 +699,13 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     } else if (strcasecmp("Port", child->key) == 0) {
       host->port = cf_util_get_port_number(child);
       if (host->port == -1) {
-        ERROR("write_riemann plugin: Invalid argument "
-              "configured for the \"Port\" "
-              "option.");
         break;
       }
     } else if (strcasecmp("Protocol", child->key) == 0) {
       char tmp[16];
       status = cf_util_get_string_buffer(child, tmp, sizeof(tmp));
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
 
       if (strcasecmp("UDP", tmp) == 0)
         host->client_type = RIEMANN_CLIENT_UDP;
@@ -729,31 +721,16 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
                 tmp);
     } else if (strcasecmp("TLSCAFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_ca_file);
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("TLSCertFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_cert_file);
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("TLSKeyFile", child->key) == 0) {
       status = cf_util_get_string(child, &host->tls_key_file);
-      if (status != 0) {
-        ERROR("write_riemann plugin: cf_util_get_"
-              "string_buffer failed with "
-              "status %i.",
-              status);
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &host->store_rates);
       if (status != 0)

@@ -47,6 +47,10 @@
 #include <net/if.h>
 #endif
 
+#ifdef WIN32
+#define AI_ADDRCONFIG 0
+#endif
+
 #include "collectd/network.h"
 #include "collectd/network_buffer.h"
 
@@ -364,15 +368,15 @@ int lcc_server_set_ttl(lcc_server_t *srv, uint8_t ttl) /* {{{ */
   return 0;
 } /* }}} int lcc_server_set_ttl */
 
-int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
+int lcc_server_set_interface(lcc_server_t *srv, char const *iface) /* {{{ */
 {
   unsigned int if_index;
   int status;
 
-  if ((srv == NULL) || (interface == NULL))
+  if ((srv == NULL) || (iface == NULL))
     return EINVAL;
 
-  if_index = if_nametoindex(interface);
+  if_index = if_nametoindex(iface);
   if (if_index == 0)
     return ENOENT;
 
@@ -420,8 +424,8 @@ int lcc_server_set_interface(lcc_server_t *srv, char const *interface) /* {{{ */
 
 /* else: Not a multicast interface. */
 #if defined(SO_BINDTODEVICE)
-  status = setsockopt(srv->fd, SOL_SOCKET, SO_BINDTODEVICE, interface,
-                      (socklen_t)(strlen(interface) + 1));
+  status = setsockopt(srv->fd, SOL_SOCKET, SO_BINDTODEVICE, iface,
+                      (socklen_t)(strlen(iface) + 1));
   if (status != 0)
     return -1;
 #endif

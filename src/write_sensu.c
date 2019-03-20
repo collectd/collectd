@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -1084,12 +1084,8 @@ static int sensu_config_node(oconfig_item_t *ci) /* {{{ */
         break;
     } else if (strcasecmp("Port", child->key) == 0) {
       status = cf_util_get_service(child, &host->service);
-      if (status != 0) {
-        ERROR("write_sensu plugin: Invalid argument "
-              "configured for the \"Port\" "
-              "option.");
+      if (status != 0)
         break;
-      }
     } else if (strcasecmp("StoreRates", child->key) == 0) {
       status = cf_util_get_boolean(child, &host->store_rates);
       if (status != 0)
@@ -1225,10 +1221,10 @@ static int sensu_config(oconfig_item_t *ci) /* {{{ */
         continue;
 
       status = add_str_to_list(&sensu_tags_arr, tmp);
+      DEBUG("write_sensu plugin: Got tag: %s", tmp);
       sfree(tmp);
       if (status != 0)
         continue;
-      DEBUG("write_sensu plugin: Got tag: %s", tmp);
     } else {
       WARNING("write_sensu plugin: Ignoring unknown "
               "configuration option \"%s\" at top level.",

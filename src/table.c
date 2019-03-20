@@ -30,7 +30,7 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
 
 #include "plugin.h"
 
@@ -132,18 +132,6 @@ static size_t tables_num;
 /*
  * configuration handling
  */
-
-static int tbl_config_set_s(char *name, char **var, oconfig_item_t *ci) {
-  if (ci->values_num != 1 || ci->values[0].type != OCONFIG_TYPE_STRING) {
-    log_err("\"%s\" expects a single string argument.", name);
-    return 1;
-  }
-
-  sfree(*var);
-  *var = sstrdup(ci->values[0].value.string);
-  return 0;
-} /* tbl_config_set_separator */
-
 static int tbl_config_append_array_i(char *name, size_t **var, size_t *len,
                                      oconfig_item_t *ci) {
   if (ci->values_num < 1) {
@@ -196,9 +184,9 @@ static int tbl_config_result(tbl_t *tbl, oconfig_item_t *ci) {
     oconfig_item_t *c = ci->children + i;
 
     if (strcasecmp(c->key, "Type") == 0)
-      tbl_config_set_s(c->key, &res->type, c);
+      cf_util_get_string(c, &res->type);
     else if (strcasecmp(c->key, "InstancePrefix") == 0)
-      tbl_config_set_s(c->key, &res->instance_prefix, c);
+      cf_util_get_string(c, &res->instance_prefix);
     else if (strcasecmp(c->key, "InstancesFrom") == 0)
       tbl_config_append_array_i(c->key, &res->instances, &res->instances_num,
                                 c);
@@ -253,11 +241,11 @@ static int tbl_config_table(oconfig_item_t *ci) {
     oconfig_item_t *c = ci->children + i;
 
     if (strcasecmp(c->key, "Separator") == 0)
-      tbl_config_set_s(c->key, &tbl->sep, c);
+      cf_util_get_string(c, &tbl->sep);
     else if (strcasecmp(c->key, "Plugin") == 0)
-      tbl_config_set_s(c->key, &tbl->plugin_name, c);
+      cf_util_get_string(c, &tbl->plugin_name);
     else if (strcasecmp(c->key, "Instance") == 0)
-      tbl_config_set_s(c->key, &tbl->instance, c);
+      cf_util_get_string(c, &tbl->instance);
     else if (strcasecmp(c->key, "Result") == 0)
       tbl_config_result(tbl, c);
     else

@@ -32,13 +32,13 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
 
 #include "plugin.h"
 
+#include "utils/db_query/db_query.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
-#include "utils_db_query.h"
 
 #include <libpq-fe.h>
 #include <pg_config_manual.h>
@@ -124,8 +124,6 @@ typedef struct {
 
   /* make sure we don't access the database object in parallel */
   pthread_mutex_t db_lock;
-
-  cdtime_t interval;
 
   /* writer "caching" settings */
   cdtime_t commit_interval;
@@ -236,8 +234,6 @@ static c_psql_database_t *c_psql_database_new(const char *name) {
   db->writers_num = 0;
 
   pthread_mutex_init(&db->db_lock, /* attrs = */ NULL);
-
-  db->interval = 0;
 
   db->commit_interval = 0;
   db->next_commit = 0;
@@ -431,8 +427,7 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
       break;
     case C_PSQL_PARAM_INTERVAL:
       snprintf(interval, sizeof(interval), "%.3f",
-               (db->interval > 0) ? CDTIME_T_TO_DOUBLE(db->interval)
-                                  : plugin_get_interval());
+               CDTIME_T_TO_DOUBLE(plugin_get_interval()));
       params[i] = interval;
       break;
     case C_PSQL_PARAM_INSTANCE:
@@ -516,14 +511,14 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
   }
 
   column_num = PQnfields(res);
-  column_names = (char **)calloc(column_num, sizeof(char *));
-  if (NULL == column_names) {
+  column_names = calloc(column_num, sizeof(*column_names));
+  if (column_names == NULL) {
     log_err("calloc failed.");
     BAIL_OUT(-1);
   }
 
-  column_values = (char **)calloc(column_num, sizeof(char *));
-  if (NULL == column_values) {
+  column_values = calloc(column_num, sizeof(*column_values));
+  if (column_values == NULL) {
     log_err("calloc failed.");
     BAIL_OUT(-1);
   }
@@ -548,7 +543,7 @@ static int c_psql_exec_query(c_psql_database_t *db, udb_query_t *q,
   status = udb_query_prepare_result(
       q, prep_area, host,
       (db->plugin_name != NULL) ? db->plugin_name : "postgresql", db->instance,
-      column_names, (size_t)column_num, db->interval);
+      column_names, (size_t)column_num);
 
   if (0 != status) {
     log_err("udb_query_prepare_result failed with status %i.", status);
@@ -981,9 +976,9 @@ static int config_query_param_add(udb_query_t *q, oconfig_item_t *ci) {
   c_psql_param_t *tmp;
 
   data = udb_query_get_user_data(q);
-  if (NULL == data) {
+  if (data == NULL) {
     data = calloc(1, sizeof(*data));
-    if (NULL == data) {
+    if (data == NULL) {
       log_err("Out of memory.");
       return -1;
     }
@@ -994,7 +989,7 @@ static int config_query_param_add(udb_query_t *q, oconfig_item_t *ci) {
   }
 
   tmp = realloc(data->params, (data->params_num + 1) * sizeof(*data->params));
-  if (NULL == tmp) {
+  if (tmp == NULL) {
     log_err("Out of memory.");
     return -1;
   }
@@ -1123,6 +1118,7 @@ static int c_psql_config_writer(oconfig_item_t *ci) {
 static int c_psql_config_database(oconfig_item_t *ci) {
   c_psql_database_t *db;
 
+  cdtime_t interval = 0;
   char cb_name[DATA_MAX_NAME_LEN];
   static bool have_flush;
 
@@ -1163,7 +1159,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
       config_add_writer(c, writers, writers_num, &db->writers,
                         &db->writers_num);
     else if (0 == strcasecmp(c->key, "Interval"))
-      cf_util_get_cdtime(c, &db->interval);
+      cf_util_get_cdtime(c, &interval);
     else if (strcasecmp("CommitInterval", c->key) == 0)
       cf_util_get_cdtime(c, &db->commit_interval);
     else if (strcasecmp("ExpireDelay", c->key) == 0)
@@ -1180,9 +1176,7 @@ static int c_psql_config_database(oconfig_item_t *ci) {
   }
 
   if (db->queries_num > 0) {
-    db->q_prep_areas = (udb_query_preparation_area_t **)calloc(
-        db->queries_num, sizeof(*db->q_prep_areas));
-
+    db->q_prep_areas = calloc(db->queries_num, sizeof(*db->q_prep_areas));
     if (db->q_prep_areas == NULL) {
       log_err("Out of memory.");
       c_psql_database_delete(db);
@@ -1211,8 +1205,8 @@ static int c_psql_config_database(oconfig_item_t *ci) {
 
   if (db->queries_num > 0) {
     ++db->ref_cnt;
-    plugin_register_complex_read("postgresql", cb_name, c_psql_read,
-                                 /* interval = */ db->interval, &ud);
+    plugin_register_complex_read("postgresql", cb_name, c_psql_read, interval,
+                                 &ud);
   }
   if (db->writers_num > 0) {
     ++db->ref_cnt;

@@ -27,11 +27,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#include "utils_format_graphite.h"
-#include "utils_format_json.h"
+#include "utils/format_graphite/format_graphite.h"
+#include "utils/format_json/format_json.h"
 
 #include <netdb.h>
 

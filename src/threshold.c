@@ -25,9 +25,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_threshold.h"
 
@@ -109,90 +109,6 @@ static int ut_threshold_add(const threshold_t *th) { /* {{{ */
  * The following approximately two hundred functions are used to handle the
  * configuration and fill the threshold list.
  * {{{ */
-static int ut_config_type_datasource(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("threshold values: The `DataSource' option needs exactly one "
-            "string argument.");
-    return -1;
-  }
-
-  sstrncpy(th->data_source, ci->values[0].value.string,
-           sizeof(th->data_source));
-
-  return 0;
-} /* int ut_config_type_datasource */
-
-static int ut_config_type_instance(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("threshold values: The `Instance' option needs exactly one "
-            "string argument.");
-    return -1;
-  }
-
-  sstrncpy(th->type_instance, ci->values[0].value.string,
-           sizeof(th->type_instance));
-
-  return 0;
-} /* int ut_config_type_instance */
-
-static int ut_config_type_max(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    WARNING("threshold values: The `%s' option needs exactly one "
-            "number argument.",
-            ci->key);
-    return -1;
-  }
-
-  if (strcasecmp(ci->key, "WarningMax") == 0)
-    th->warning_max = ci->values[0].value.number;
-  else
-    th->failure_max = ci->values[0].value.number;
-
-  return 0;
-} /* int ut_config_type_max */
-
-static int ut_config_type_min(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    WARNING("threshold values: The `%s' option needs exactly one "
-            "number argument.",
-            ci->key);
-    return -1;
-  }
-
-  if (strcasecmp(ci->key, "WarningMin") == 0)
-    th->warning_min = ci->values[0].value.number;
-  else
-    th->failure_min = ci->values[0].value.number;
-
-  return 0;
-} /* int ut_config_type_min */
-
-static int ut_config_type_hits(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    WARNING("threshold values: The `%s' option needs exactly one "
-            "number argument.",
-            ci->key);
-    return -1;
-  }
-
-  th->hits = ci->values[0].value.number;
-
-  return 0;
-} /* int ut_config_type_hits */
-
-static int ut_config_type_hysteresis(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_NUMBER)) {
-    WARNING("threshold values: The `%s' option needs exactly one "
-            "number argument.",
-            ci->key);
-    return -1;
-  }
-
-  th->hysteresis = ci->values[0].value.number;
-
-  return 0;
-} /* int ut_config_type_hysteresis */
-
 static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
   threshold_t th;
   int status = 0;
@@ -223,15 +139,19 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
     oconfig_item_t *option = ci->children + i;
 
     if (strcasecmp("Instance", option->key) == 0)
-      status = ut_config_type_instance(&th, option);
+      status = cf_util_get_string_buffer(option, th.type_instance,
+                                         sizeof(th.type_instance));
     else if (strcasecmp("DataSource", option->key) == 0)
-      status = ut_config_type_datasource(&th, option);
-    else if ((strcasecmp("WarningMax", option->key) == 0) ||
-             (strcasecmp("FailureMax", option->key) == 0))
-      status = ut_config_type_max(&th, option);
-    else if ((strcasecmp("WarningMin", option->key) == 0) ||
-             (strcasecmp("FailureMin", option->key) == 0))
-      status = ut_config_type_min(&th, option);
+      status = cf_util_get_string_buffer(option, th.data_source,
+                                         sizeof(th.data_source));
+    else if (strcasecmp("WarningMax", option->key) == 0)
+      status = cf_util_get_double(option, &th.warning_max);
+    else if (strcasecmp("FailureMax", option->key) == 0)
+      status = cf_util_get_double(option, &th.failure_max);
+    else if (strcasecmp("WarningMin", option->key) == 0)
+      status = cf_util_get_double(option, &th.warning_min);
+    else if (strcasecmp("FailureMin", option->key) == 0)
+      status = cf_util_get_double(option, &th.failure_min);
     else if (strcasecmp("Interesting", option->key) == 0)
       status = cf_util_get_flag(option, &th.flags, UT_FLAG_INTERESTING);
     else if (strcasecmp("Invert", option->key) == 0)
@@ -243,9 +163,9 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
     else if (strcasecmp("Percentage", option->key) == 0)
       status = cf_util_get_flag(option, &th.flags, UT_FLAG_PERCENTAGE);
     else if (strcasecmp("Hits", option->key) == 0)
-      status = ut_config_type_hits(&th, option);
+      status = cf_util_get_int(option, &th.hits);
     else if (strcasecmp("Hysteresis", option->key) == 0)
-      status = ut_config_type_hysteresis(&th, option);
+      status = cf_util_get_double(option, &th.hysteresis);
     else {
       WARNING("threshold values: Option `%s' not allowed inside a `Type' "
               "block.",
@@ -263,19 +183,6 @@ static int ut_config_type(const threshold_t *th_orig, oconfig_item_t *ci) {
 
   return status;
 } /* int ut_config_type */
-
-static int ut_config_plugin_instance(threshold_t *th, oconfig_item_t *ci) {
-  if ((ci->values_num != 1) || (ci->values[0].type != OCONFIG_TYPE_STRING)) {
-    WARNING("threshold values: The `Instance' option needs exactly one "
-            "string argument.");
-    return -1;
-  }
-
-  sstrncpy(th->plugin_instance, ci->values[0].value.string,
-           sizeof(th->plugin_instance));
-
-  return 0;
-} /* int ut_config_plugin_instance */
 
 static int ut_config_plugin(const threshold_t *th_orig, oconfig_item_t *ci) {
   threshold_t th;
@@ -302,7 +209,8 @@ static int ut_config_plugin(const threshold_t *th_orig, oconfig_item_t *ci) {
     if (strcasecmp("Type", option->key) == 0)
       status = ut_config_type(&th, option);
     else if (strcasecmp("Instance", option->key) == 0)
-      status = ut_config_plugin_instance(&th, option);
+      status = cf_util_get_string_buffer(option, th.plugin_instance,
+                                         sizeof(th.plugin_instance));
     else {
       WARNING("threshold values: Option `%s' not allowed inside a `Plugin' "
               "block.",
@@ -401,7 +309,10 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
   /* If the state didn't change, report if `persistent' is specified. If the
    * state is `okay', then only report if `persist_ok` flag is set. */
   if (state == state_old) {
-    if ((th->flags & UT_FLAG_PERSIST) == 0)
+    if (state == STATE_UNKNOWN) {
+      /* From UNKNOWN to UNKNOWN. Persist doesn't apply here. */
+      return 0;
+    } else if ((th->flags & UT_FLAG_PERSIST) == 0)
       return 0;
     else if ((state == STATE_OKAY) && ((th->flags & UT_FLAG_PERSIST_OK) == 0))
       return 0;
@@ -459,6 +370,10 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
       snprintf(buf, bufsize, ": All data sources are within range again. "
                              "Current value of \"%s\" is %f.",
                ds->ds[ds_index].name, values[ds_index]);
+  } else if (state == STATE_UNKNOWN) {
+    ERROR("ut_report_state: metric transition to UNKNOWN from a different "
+          "state. This shouldn't happen.");
+    return 0;
   } else {
     double min;
     double max;
@@ -547,7 +462,7 @@ static int ut_check_one_data_source(
   if (ds != NULL) {
     ds_name = ds->ds[ds_index].name;
     if ((th->data_source[0] != 0) && (strcmp(ds_name, th->data_source) != 0))
-      return STATE_OKAY;
+      return STATE_UNKNOWN;
   }
 
   if ((th->flags & UT_FLAG_INVERT) != 0) {
@@ -576,6 +491,7 @@ static int ut_check_one_data_source(
     case STATE_WARNING:
       hysteresis_for_warning = th->hysteresis;
       break;
+    case STATE_UNKNOWN:
     case STATE_OKAY:
       /* do nothing -- the hysteresis only applies to the non-normal states */
       break;
@@ -617,7 +533,8 @@ static int ut_check_one_data_source(
  *
  * Checks all data sources of a value list against the given threshold, using
  * the ut_check_one_data_source function above. Returns the worst status,
- * which is `okay' if nothing has failed.
+ * which is `okay' if nothing has failed or `unknown' if no valid datasource was
+ * defined.
  * Returns less than zero if the data set doesn't have any data sources.
  */
 static int ut_check_one_threshold(const data_set_t *ds, const value_list_t *vl,

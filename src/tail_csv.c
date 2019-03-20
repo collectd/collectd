@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h" /* auxiliary functions */
-#include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
-#include "utils_tail.h"
+#include "plugin.h"              /* plugin_register_*, plugin_dispatch_values */
+#include "utils/common/common.h" /* auxiliary functions */
+#include "utils/tail/tail.h"
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -50,7 +50,6 @@ struct instance_definition_s {
   cu_tail_t *tail;
   metric_definition_t **metric_list;
   size_t metric_list_len;
-  cdtime_t interval;
   ssize_t time_from;
   struct instance_definition_s *next;
 };
@@ -77,7 +76,6 @@ static int tcsv_submit(instance_definition_t *id, metric_definition_t *md,
     sstrncpy(vl.type_instance, md->instance, sizeof(vl.type_instance));
 
   vl.time = t;
-  vl.interval = id->interval;
 
   return plugin_dispatch_values(&vl);
 }
@@ -145,7 +143,7 @@ static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
   while (buffer_size > 0) {
     if ((buffer[buffer_size - 1] == '\n') ||
         (buffer[buffer_size - 1] == '\r')) {
-      buffer[buffer_size - 1] = 0;
+      buffer[buffer_size - 1] = '\0';
       buffer_size--;
     } else {
       break;
@@ -418,6 +416,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   int status = 0;
 
   /* Registration variables */
+  cdtime_t interval = 0;
   char cb_name[DATA_MAX_NAME_LEN];
 
   id = calloc(1, sizeof(*id));
@@ -436,9 +435,6 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
     return status;
   }
 
-  /* Use default interval. */
-  id->interval = plugin_get_interval();
-
   for (int i = 0; i < ci->children_num; ++i) {
     oconfig_item_t *option = ci->children + i;
     status = 0;
@@ -448,7 +444,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
     else if (strcasecmp("Collect", option->key) == 0)
       status = tcsv_config_add_instance_collect(id, option);
     else if (strcasecmp("Interval", option->key) == 0)
-      cf_util_get_cdtime(option, &id->interval);
+      cf_util_get_cdtime(option, &interval);
     else if (strcasecmp("TimeFrom", option->key) == 0)
       status = tcsv_config_get_index(option, &id->time_from);
     else if (strcasecmp("Plugin", option->key) == 0)
@@ -484,7 +480,7 @@ static int tcsv_config_add_file(oconfig_item_t *ci) {
   snprintf(cb_name, sizeof(cb_name), "tail_csv/%s", id->path);
 
   status = plugin_register_complex_read(
-      NULL, cb_name, tcsv_read, id->interval,
+      NULL, cb_name, tcsv_read, interval,
       &(user_data_t){
           .data = id, .free_func = tcsv_instance_definition_destroy,
       });

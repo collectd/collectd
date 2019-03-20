@@ -27,8 +27,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "utils_fbhash.h"
@@ -113,6 +113,7 @@ struct sockent_client {
 #endif
   cdtime_t next_resolve_reconnect;
   cdtime_t resolve_interval;
+  struct sockaddr_storage *bind_addr;
 };
 
 struct sockent_server {
@@ -402,7 +403,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 #if COLLECT_DEBUG
     char name[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(name, sizeof(name), vl);
-    name[sizeof(name) - 1] = 0;
+    name[sizeof(name) - 1] = '\0';
     DEBUG("network plugin: network_dispatch_values: "
           "NOT dispatching %s.",
           name);
@@ -1501,6 +1502,7 @@ static void free_sockent_client(struct sockent_client *sec) /* {{{ */
     sec->fd = -1;
   }
   sfree(sec->addr);
+  sfree(sec->bind_addr);
 #if HAVE_GCRYPT_H
   sfree(sec->username);
   sfree(sec->password);
@@ -1683,6 +1685,42 @@ static int network_set_interface(const sockent_t *se,
   return 0;
 } /* }}} network_set_interface */
 
+static int network_bind_socket_to_addr(sockent_t *se,
+                                       const struct addrinfo *ai) {
+
+  if (se->data.client.bind_addr == NULL)
+    return 0;
+
+  DEBUG("network_plugin: fd %i: bind socket to address", se->data.client.fd);
+  char pbuffer[64];
+
+  if (ai->ai_family == AF_INET) {
+    struct sockaddr_in *addr =
+        (struct sockaddr_in *)(se->data.client.bind_addr);
+    inet_ntop(AF_INET, &(addr->sin_addr), pbuffer, 64);
+    DEBUG("network_plugin: binding client socket to ipv4 address: %s", pbuffer);
+    if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
+        -1) {
+      ERROR("network plugin: failed to bind client socket (ipv4) to %s: %s",
+            pbuffer, STRERRNO);
+      return -1;
+    }
+  } else if (ai->ai_family == AF_INET6) {
+    struct sockaddr_in6 *addr =
+        (struct sockaddr_in6 *)(se->data.client.bind_addr);
+    inet_ntop(AF_INET6, &(addr->sin6_addr), pbuffer, 64);
+    DEBUG("network_plugin: binding client socket to ipv6 address: %s", pbuffer);
+    if (bind(se->data.client.fd, (struct sockaddr *)addr, sizeof(*addr)) ==
+        -1) {
+      ERROR("network plugin: failed to bind client socket (ipv6) to %s: %s",
+            pbuffer, STRERRNO);
+      return -1;
+    }
+  }
+
+  return 0;
+} /* int network_bind_socket_to_addr */
+
 static int network_bind_socket(int fd, const struct addrinfo *ai,
                                const int interface_idx) {
 #if KERNEL_SOLARIS
@@ -1690,10 +1728,9 @@ static int network_bind_socket(int fd, const struct addrinfo *ai,
 #else
   int loop = 0;
 #endif
-  int yes = 1;
 
   /* allow multiple sockets to use the same PORT number */
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) == -1) {
     ERROR("network plugin: setsockopt (reuseaddr): %s", STRERRNO);
     return -1;
   }
@@ -1834,6 +1871,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
   } else {
     se->data.client.fd = -1;
     se->data.client.addr = NULL;
+    se->data.client.bind_addr = NULL;
     se->data.client.resolve_interval = 0;
     se->data.client.next_resolve_reconnect = 0;
 #if HAVE_GCRYPT_H
@@ -1989,6 +2027,7 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
 
     network_set_ttl(se, ai_ptr);
     network_set_interface(se, ai_ptr);
+    network_bind_socket_to_addr(se, ai_ptr);
 
     /* We don't open more than one write-socket per
      * node/service pair.. */
@@ -2601,7 +2640,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 #if COLLECT_DEBUG
     char name[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(name, sizeof(name), vl);
-    name[sizeof(name) - 1] = 0;
+    name[sizeof(name) - 1] = '\0';
     DEBUG("network plugin: network_write: "
           "NOT sending %s.",
           name);
@@ -2683,6 +2722,57 @@ static int network_config_set_interface(const oconfig_item_t *ci, /* {{{ */
   *interface = if_nametoindex(if_name);
   return 0;
 } /* }}} int network_config_set_interface */
+
+static int
+network_config_set_bind_address(const oconfig_item_t *ci,
+                                struct sockaddr_storage **bind_address) {
+  if ((*bind_address) != NULL) {
+    ERROR("network_plugin: only a single bind address is allowed");
+    return -1;
+  }
+
+  char addr_text[256];
+
+  if (cf_util_get_string_buffer(ci, addr_text, sizeof(addr_text)) != 0)
+    return -1;
+
+  int ret;
+  struct addrinfo *res = NULL;
+  struct addrinfo ai_hints = {.ai_family = AF_UNSPEC,
+                              .ai_flags = AI_NUMERICHOST,
+                              .ai_protocol = IPPROTO_UDP,
+                              .ai_socktype = SOCK_DGRAM};
+
+  ret = getaddrinfo(addr_text, NULL, &ai_hints, &res);
+  if (ret) {
+    ERROR("network plugin: Bind address option has invalid address set: %s",
+          gai_strerror(ret));
+    return -1;
+  }
+
+  *bind_address = malloc(sizeof(**bind_address));
+  if (*bind_address == NULL) {
+    ERROR("network plugin: network_config_set_bind_address: malloc failed.");
+    return -1;
+  }
+  (*bind_address)->ss_family = res->ai_family;
+  if (res->ai_family == AF_INET) {
+    struct sockaddr_in *addr = (struct sockaddr_in *)(*bind_address);
+    inet_pton(AF_INET, addr_text, &(addr->sin_addr));
+  } else if (res->ai_family == AF_INET6) {
+    struct sockaddr_in6 *addr = (struct sockaddr_in6 *)(*bind_address);
+    inet_pton(AF_INET6, addr_text, &(addr->sin6_addr));
+  } else {
+    ERROR("network plugin: %s is an unknown address format %d\n", addr_text,
+          res->ai_family);
+    sfree(*bind_address);
+    freeaddrinfo(res);
+    return -1;
+  }
+
+  freeaddrinfo(res);
+  return 0;
+} /* int network_config_set_bind_address */
 
 static int network_config_set_buffer_size(const oconfig_item_t *ci) /* {{{ */
 {
@@ -2843,6 +2933,8 @@ static int network_config_add_server(const oconfig_item_t *ci) /* {{{ */
 #endif /* HAVE_GCRYPT_H */
         if (strcasecmp("Interface", child->key) == 0)
       network_config_set_interface(child, &se->interface);
+    else if (strcasecmp("BindAddress", child->key) == 0)
+      network_config_set_bind_address(child, &se->data.client.bind_addr);
     else if (strcasecmp("ResolveInterval", child->key) == 0)
       cf_util_get_cdtime(child, &se->data.client.resolve_interval);
     else {

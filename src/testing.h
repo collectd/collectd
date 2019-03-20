@@ -100,6 +100,18 @@ static int check_count__;
     printf("ok %i - %s = %" PRIu64 "\n", ++check_count__, #actual, got__);     \
   } while (0)
 
+#define EXPECT_EQ_PTR(expect, actual)                                          \
+  do {                                                                         \
+    void *want__ = expect;                                                     \
+    void *got__ = actual;                                                      \
+    if (got__ != want__) {                                                     \
+      printf("not ok %i - %s = %p, want %p\n", ++check_count__, #actual,       \
+             got__, want__);                                                   \
+      return -1;                                                               \
+    }                                                                          \
+    printf("ok %i - %s = %p\n", ++check_count__, #actual, got__);              \
+  } while (0)
+
 #define EXPECT_EQ_DOUBLE(expect, actual)                                       \
   do {                                                                         \
     double want__ = (double)expect;                                            \

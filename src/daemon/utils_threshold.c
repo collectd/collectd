@@ -26,8 +26,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_threshold.h"
 
 #include <pthread.h>

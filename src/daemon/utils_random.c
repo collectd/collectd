@@ -31,6 +31,14 @@
 
 #include <pthread.h>
 
+#ifdef WIN32
+double erand48(unsigned short unused[3]) {
+  return (double)rand() / (double)RAND_MAX;
+}
+
+long int jrand48(unsigned short unused[3]) { return rand(); }
+#endif
+
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static bool have_seed;
 static unsigned short seed[3];
@@ -46,6 +54,10 @@ static void cdrand_seed(void) {
   seed[0] = (unsigned short)t;
   seed[1] = (unsigned short)(t >> 16);
   seed[2] = (unsigned short)(t >> 32);
+
+#ifdef WIN32
+  srand((unsigned)t);
+#endif
 
   have_seed = true;
 }

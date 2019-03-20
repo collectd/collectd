@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_complain.h"
 #include "utils_time.h"
 
@@ -54,6 +54,7 @@
 static c_avl_tree_t *metrics;
 static pthread_mutex_t metrics_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static char *httpd_host = NULL;
 static unsigned short httpd_port = 9103;
 static struct MHD_Daemon *httpd;
 
@@ -721,7 +722,7 @@ metric_family_get(data_set_t const *ds, value_list_t const *vl, size_t ds_index,
 
   int status = c_avl_insert(metrics, fam->name, fam);
   if (status != 0) {
-    ERROR("write_prometheus plugin: Adding \"%s\" failed.", name);
+    ERROR("write_prometheus plugin: Adding \"%s\" failed.", fam->name);
     metric_family_destroy(fam);
     return NULL;
   }
@@ -746,7 +747,7 @@ static int prom_open_socket(int addrfamily) {
   snprintf(service, sizeof(service), "%hu", httpd_port);
 
   struct addrinfo *res;
-  int status = getaddrinfo(NULL, service,
+  int status = getaddrinfo(httpd_host, service,
                            &(struct addrinfo){
                                .ai_flags = AI_PASSIVE | AI_ADDRCONFIG,
                                .ai_family = addrfamily,
@@ -759,13 +760,17 @@ static int prom_open_socket(int addrfamily) {
 
   int fd = -1;
   for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
-    fd = socket(ai->ai_family, ai->ai_socktype | SOCK_CLOEXEC, 0);
+    int flags = ai->ai_socktype;
+#ifdef SOCK_CLOEXEC
+    flags |= SOCK_CLOEXEC;
+#endif
+
+    fd = socket(ai->ai_family, flags, 0);
     if (fd == -1)
       continue;
 
-    int tmp = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(tmp)) != 0) {
-      WARNING("write_prometheus: setsockopt(SO_REUSEADDR) failed: %s",
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) != 0) {
+      WARNING("write_prometheus plugin: setsockopt(SO_REUSEADDR) failed: %s",
               STRERRNO);
       close(fd);
       fd = -1;
@@ -784,6 +789,15 @@ static int prom_open_socket(int addrfamily) {
       continue;
     }
 
+    char str_node[NI_MAXHOST];
+    char str_service[NI_MAXSERV];
+
+    getnameinfo(ai->ai_addr, ai->ai_addrlen, str_node, sizeof(str_node),
+                str_service, sizeof(str_service),
+                NI_NUMERICHOST | NI_NUMERICSERV);
+
+    INFO("write_prometheus plugin: Listening on [%s]:%s.", str_node,
+         str_service);
     break;
   }
 
@@ -798,12 +812,19 @@ static struct MHD_Daemon *prom_start_daemon() {
   if (fd == -1)
     fd = prom_open_socket(PF_INET);
   if (fd == -1) {
-    ERROR("write_prometheus plugin: Opening a listening socket failed.");
+    ERROR("write_prometheus plugin: Opening a listening socket for [%s]:%hu "
+          "failed.",
+          (httpd_host != NULL) ? httpd_host : "::", httpd_port);
     return NULL;
   }
 
+  unsigned int flags = MHD_USE_THREAD_PER_CONNECTION | MHD_USE_DEBUG;
+#if MHD_VERSION >= 0x00095300
+  flags |= MHD_USE_INTERNAL_POLLING_THREAD;
+#endif
+
   struct MHD_Daemon *d = MHD_start_daemon(
-      MHD_USE_THREAD_PER_CONNECTION | MHD_USE_DEBUG, httpd_port,
+      flags, httpd_port,
       /* MHD_AcceptPolicyCallback = */ NULL,
       /* MHD_AcceptPolicyCallback arg = */ NULL, http_handler, NULL,
       MHD_OPTION_LISTEN_SOCKET, fd, MHD_OPTION_EXTERNAL_LOGGER, prom_logger,
@@ -840,7 +861,15 @@ static int prom_config(oconfig_item_t *ci) {
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
-    if (strcasecmp("Port", child->key) == 0) {
+    if (strcasecmp("Host", child->key) == 0) {
+#if MHD_VERSION >= 0x00090000
+      cf_util_get_string(child, &httpd_host);
+#else
+      ERROR("write_prometheus plugin: Option `Host' not supported. Please "
+            "upgrade libmicrohttpd to at least 0.9.0");
+      return -1;
+#endif
+    } else if (strcasecmp("Port", child->key) == 0) {
       int status = cf_util_get_port_number(child);
       if (status > 0)
         httpd_port = (unsigned short)status;
@@ -868,7 +897,6 @@ static int prom_init() {
   if (httpd == NULL) {
     httpd = prom_start_daemon();
     if (httpd == NULL) {
-      ERROR("write_prometheus plugin: MHD_start_daemon() failed.");
       return -1;
     }
     DEBUG("write_prometheus plugin: Successfully started microhttpd %s",
@@ -960,6 +988,8 @@ static int prom_shutdown() {
     metrics = NULL;
   }
   pthread_mutex_unlock(&metrics_lock);
+
+  sfree(httpd_host);
 
   return 0;
 }

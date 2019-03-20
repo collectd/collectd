@@ -21,8 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
-#include "common.h"
 #include "globals.h"
+#include "utils/common/common.h"
 
 #if HAVE_KSTAT_H
 #include <kstat.h>

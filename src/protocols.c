@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_ignorelist.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 
 #if !KERNEL_LINUX
 #error "No applicable input method."
@@ -58,7 +58,6 @@ static void submit(const char *protocol_name, const char *str_key,
 
   status = parse_value(str_value, &value, DS_TYPE_DERIVE);
   if (status != 0) {
-    ERROR("protocols plugin: Parsing string as integer failed: %s", str_value);
     return;
   }
 

@@ -145,9 +145,9 @@ DEF_TEST(format_name_regex_index) {
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_OCTET_STR,
                             (const u_char *)plugin_inst, strlen(plugin_inst));
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER,
-                            (const u_char *)&vcpu, 1);
+                            (const u_char *)&vcpu, sizeof(vcpu));
   snmp_varlist_add_variable(&index_list_tmp, NULL, 0, ASN_INTEGER,
-                            (const u_char *)&cpu, 1);
+                            (const u_char *)&cpu, sizeof(cpu));
 
   build_oid_noalloc(index_oid.oid, sizeof(index_oid.oid), &index_oid.oid_len,
                     NULL, 0, index_list_tmp);
@@ -663,9 +663,15 @@ DEF_TEST(get_token) {
 }
 
 DEF_TEST(tokenize) {
-  regmatch_t m[3] = {{5, 6},    /* "1" */
-                     {12, 13},  /* "2" */
-                     {19, 20}}; /* "3" */
+  regmatch_t m[3];
+
+  m[0].rm_so = 5;
+  m[0].rm_eo = 6;
+  m[1].rm_so = 12;
+  m[1].rm_eo = 13;
+  m[2].rm_so = 19;
+  m[2].rm_eo = 20;
+
   c_avl_tree_t *tokens =
       c_avl_create((int (*)(const void *, const void *))num_compare);
   const char input[] = "testA1-testB2-testC3";

@@ -1,5 +1,6 @@
 *   Version of collectd:
 *   Operating system / distribution:
+*   Kernel version (if applicable):
 
 ## Expected behavior
 

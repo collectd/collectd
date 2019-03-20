@@ -28,9 +28,9 @@
 #include "cmd.h"
 #include "collectd.h"
 
-#include "common.h"
 #include "configfile.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <netdb.h>
 #include <sys/types.h>
@@ -51,6 +51,14 @@
 #define COLLECTD_LOCALE "C"
 #endif
 
+#ifdef WIN32
+#undef COLLECT_DAEMON
+#include <unistd.h>
+#undef gethostname
+#include <locale.h>
+#include <winsock2.h>
+#endif
+
 static int loop;
 
 static int init_hostname(void) {
@@ -60,10 +68,14 @@ static int init_hostname(void) {
     return 0;
   }
 
+#ifdef WIN32
+  long hostname_len = NI_MAXHOST;
+#else
   long hostname_len = sysconf(_SC_HOST_NAME_MAX);
   if (hostname_len == -1) {
     hostname_len = NI_MAXHOST;
   }
+#endif /* WIN32 */
   char hostname[hostname_len];
 
   if (gethostname(hostname, hostname_len) != 0) {
@@ -295,7 +307,7 @@ static int do_shutdown(void) {
 static void read_cmdline(int argc, char **argv, struct cmdline_config *config) {
   /* read options */
   while (1) {
-    int c = getopt(argc, argv, "htTC:"
+    int c = getopt(argc, argv, "BhtTC:"
 #if COLLECT_DAEMON
                                "fP:"
 #endif
@@ -345,8 +357,7 @@ static int configure_collectd(struct cmdline_config *config) {
    * Also, this will automatically load modules.
    */
   if (cf_read(config->configfile)) {
-    fprintf(stderr, "Error: Reading the config file failed!\n"
-                    "Read the logs for details.\n");
+    fprintf(stderr, "Error: Parsing the config file failed!\n");
     return 1;
   }
 

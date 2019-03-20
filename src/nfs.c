@@ -24,8 +24,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if HAVE_KSTAT_H
 #include <kstat.h>
@@ -519,7 +519,8 @@ static int nfs_submit_nfs4_client(const char *instance, char **fields,
 static void nfs_read_linux(FILE *fh, const char *inst) {
   char buffer[1024];
 
-  char *fields[64];
+  // The stats line is prefixed with type and number of fields, thus plus 2
+  char *fields[MAX(NFS4_SERVER_MAX_PROC, NFS4_CLIENT_MAX_PROC) + 2];
   int fields_num = 0;
 
   if (fh == NULL)
