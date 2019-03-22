@@ -703,6 +703,7 @@
 
 #<Plugin "intel_rdt">
 #  Cores "0-2"
+#  Processes "sshd"
 #</Plugin>
 
 #<Plugin interface>

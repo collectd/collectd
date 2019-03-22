@@ -475,6 +475,8 @@ static void rdt_free_ngroups(rdt_ctx_t *rdt) {
   }
   if (rdt->proc_pids)
     sfree(rdt->proc_pids);
+
+  rdt->num_ngroups = 0;
 }
 
 /*
@@ -882,7 +884,7 @@ static void rdt_init_pids_monitoring() {
 #endif /* LIBPQOS2 */
 /*
  * NAME
- *   rdt_free_ngroups
+ *   rdt_free_cgroups
  *
  * DESCRIPTION
  *   Function to deallocate memory allocated for core groups.
@@ -892,6 +894,7 @@ static void rdt_free_cgroups(void) {
   for (int i = 0; i < RDT_MAX_CORES; i++) {
     sfree(g_rdt->pcgroups[i]);
   }
+  g_rdt->cores.num_cgroups = 0;
 }
 
 static int rdt_default_cgroups(void) {
@@ -1101,21 +1104,27 @@ static int rdt_config(oconfig_item_t *ci) {
       reports a failure in configuration and
       aborts
     */
-    return (0);
+    return 0;
   }
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strncasecmp("Cores", child->key, (size_t)strlen("Cores")) == 0) {
-      if (rdt_config_cgroups(child) != 0) {
+      if (g_rdt->cores.num_cgroups > 0) {
+        ERROR(RDT_PLUGIN
+              ": Configuration parameter \"%s\" can be used only once.",
+              child->key);
         g_state = CONFIGURATION_ERROR;
+      } else if (rdt_config_cgroups(child) != 0)
+        g_state = CONFIGURATION_ERROR;
+
+      if (g_state == CONFIGURATION_ERROR)
         /* if we return -1 at this point collectd
            reports a failure in configuration and
            aborts
          */
-        return (0);
-      }
+        return 0;
 
 #if COLLECT_DEBUG
       rdt_dump_cgroups();
@@ -1128,21 +1137,24 @@ static int rdt_config(oconfig_item_t *ci) {
                          "Resctrl monitoring is needed for PIDs monitoring.",
               child->key);
         g_state = CONFIGURATION_ERROR;
-        /* if we return -1 at this point collectd
-           reports a failure in configuration and
-           aborts
-         */
-        return 0;
       }
 
-      if (rdt_config_ngroups(g_rdt, child) != 0) {
+      else if (g_rdt->num_ngroups > 0) {
+        ERROR(RDT_PLUGIN
+              ": Configuration parameter \"%s\" can be used only once.",
+              child->key);
         g_state = CONFIGURATION_ERROR;
+      }
+
+      else if (rdt_config_ngroups(g_rdt, child) != 0)
+        g_state = CONFIGURATION_ERROR;
+
+      if (g_state == CONFIGURATION_ERROR)
         /* if we return -1 at this point collectd
            reports a failure in configuration and
            aborts
          */
         return 0;
-      }
 
 #if COLLECT_DEBUG
       rdt_dump_ngroups();
@@ -1249,8 +1261,17 @@ static void rdt_init_cores_monitoring() {
 
 static int rdt_init(void) {
 
-  if (g_state == CONFIGURATION_ERROR)
+  if (g_state == CONFIGURATION_ERROR) {
+    if (g_rdt != NULL) {
+      if (g_rdt->cores.num_cgroups > 0)
+        rdt_free_cgroups();
+#ifdef LIBPQOS2
+      if (g_rdt->num_ngroups > 0)
+        rdt_free_ngroups(g_rdt);
+#endif
+    }
     return -1;
+  }
 
   int rdt_preinint_result = rdt_preinit();
   if (rdt_preinint_result != 0)
