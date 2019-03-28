@@ -1189,25 +1189,19 @@ static int lv_config(oconfig_item_t *ci) {
     oconfig_item_t *c = ci->children + i;
 
     if (strcasecmp(c->key, "Connection") == 0) {
-      if (cf_util_get_string(c, &conn_string) != 0 || conn_string == NULL) {
-        ERROR(PLUGIN_NAME " plugin: Could not get 'Connection' parameter");
+      if (cf_util_get_string(c, &conn_string) != 0 || conn_string == NULL)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "RefreshInterval") == 0) {
-      if (cf_util_get_int(c, &interval) != 0) {
-        ERROR(PLUGIN_NAME " plugin: Could not get 'RefreshInterval' parameter");
+      if (cf_util_get_int(c, &interval) != 0)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "Domain") == 0) {
       char *domain_name = NULL;
-      if (cf_util_get_string(c, &domain_name) != 0 || domain_name == NULL) {
-        ERROR(PLUGIN_NAME " plugin: Could not get 'Domain' parameter");
+      if (cf_util_get_string(c, &domain_name) != 0)
         return -1;
-      }
 
       if (ignorelist_add(il_domains, domain_name)) {
         ERROR(PLUGIN_NAME " plugin: Adding '%s' to domain-ignorelist failed",
@@ -1220,10 +1214,8 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "BlockDevice") == 0) {
       char *device_name = NULL;
-      if (cf_util_get_string(c, &device_name) != 0 || device_name == NULL) {
-        ERROR(PLUGIN_NAME " plugin: Could not get 'BlockDevice' parameter");
+      if (cf_util_get_string(c, &device_name) != 0)
         return -1;
-      }
 
       if (ignorelist_add(il_block_devices, device_name) != 0) {
         ERROR(PLUGIN_NAME
@@ -1237,11 +1229,8 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "BlockDeviceFormat") == 0) {
       char *device_format = NULL;
-      if (cf_util_get_string(c, &device_format) != 0 || device_format == NULL) {
-        ERROR(PLUGIN_NAME
-              " plugin: Could not get 'BlockDeviceFormat' parameter");
+      if (cf_util_get_string(c, &device_format) != 0)
         return -1;
-      }
 
       if (strcasecmp(device_format, "target") == 0)
         blockdevice_format = target;
@@ -1257,20 +1246,14 @@ static int lv_config(oconfig_item_t *ci) {
       sfree(device_format);
       continue;
     } else if (strcasecmp(c->key, "BlockDeviceFormatBasename") == 0) {
-      if (cf_util_get_boolean(c, &blockdevice_format_basename) != 0) {
-        ERROR(PLUGIN_NAME
-              " plugin: Could not get 'BlockDeviceFormatBasename' parameter");
+      if (cf_util_get_boolean(c, &blockdevice_format_basename) != 0)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "InterfaceDevice") == 0) {
       char *interface_name = NULL;
-      if (cf_util_get_string(c, &interface_name) != 0 ||
-          interface_name == NULL) {
-        ERROR(PLUGIN_NAME " plugin: Could not get 'InterfaceDevice' parameter");
+      if (cf_util_get_string(c, &interface_name) != 0)
         return -1;
-      }
 
       if (ignorelist_add(il_interface_devices, interface_name)) {
         ERROR(PLUGIN_NAME " plugin: Adding '%s' to interface-ignorelist failed",
@@ -1283,10 +1266,8 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "IgnoreSelected") == 0) {
       bool ignore_selected = false;
-      if (cf_util_get_boolean(c, &ignore_selected) != 0) {
-        ERROR(PLUGIN_NAME " plugin: Could not get 'IgnoreSelected' parameter");
+      if (cf_util_get_boolean(c, &ignore_selected) != 0)
         return -1;
-      }
 
       if (ignore_selected) {
         ignorelist_set_invert(il_domains, 0);
@@ -1300,19 +1281,13 @@ static int lv_config(oconfig_item_t *ci) {
 
       continue;
     } else if (strcasecmp(c->key, "HostnameMetadataNS") == 0) {
-      if (cf_util_get_string(c, &hm_ns) != 0) {
-        ERROR(PLUGIN_NAME
-              " plugin: Could not get 'HostnameMetadataNS' parameter");
+      if (cf_util_get_string(c, &hm_ns) != 0)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "HostnameMetadataXPath") == 0) {
-      if (cf_util_get_string(c, &hm_xpath) != 0) {
-        ERROR(PLUGIN_NAME
-              " plugin: Could not get 'HostnameMetadataXPath' parameter");
+      if (cf_util_get_string(c, &hm_xpath) != 0)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "HostnameFormat") == 0) {
@@ -1378,10 +1353,8 @@ static int lv_config(oconfig_item_t *ci) {
       continue;
     } else if (strcasecmp(c->key, "InterfaceFormat") == 0) {
       char *format = NULL;
-      if (cf_util_get_string(c, &format) != 0 || format == NULL) {
-        ERROR(PLUGIN_NAME " plugin: could not get 'InterfaceFormat' parameter");
+      if (cf_util_get_string(c, &format) != 0)
         return -1;
-      }
 
       if (strcasecmp(format, "name") == 0)
         interface_format = if_name;
@@ -1398,10 +1371,8 @@ static int lv_config(oconfig_item_t *ci) {
       sfree(format);
       continue;
     } else if (strcasecmp(c->key, "Instances") == 0) {
-      if (cf_util_get_int(c, &nr_instances) != 0) {
-        ERROR(PLUGIN_NAME " plugin: could not get 'Instances' parameter");
+      if (cf_util_get_int(c, &nr_instances) != 0)
         return -1;
-      }
 
       if (nr_instances <= 0) {
         ERROR(PLUGIN_NAME " plugin: Instances <= 0 makes no sense.");
@@ -1419,10 +1390,8 @@ static int lv_config(oconfig_item_t *ci) {
     } else if (strcasecmp(c->key, "ExtraStats") == 0) {
       char *ex_str = NULL;
 
-      if (cf_util_get_string(c, &ex_str) != 0 || ex_str == NULL) {
-        ERROR(PLUGIN_NAME " plugin: could not get 'ExtraStats' parameter");
+      if (cf_util_get_string(c, &ex_str) != 0)
         return -1;
-      }
 
       char *exstats[EX_STATS_MAX_FIELDS];
       int numexstats = strsplit(ex_str, exstats, STATIC_ARRAY_SIZE(exstats));
@@ -1443,30 +1412,21 @@ static int lv_config(oconfig_item_t *ci) {
       }
 #endif
 
-      /* ExtraStats parsed successfully*/
+      /* ExtraStats parsed successfully */
       continue;
     } else if (strcasecmp(c->key, "PersistentNotification") == 0) {
-      if (cf_util_get_boolean(c, &persistent_notification) != 0) {
-        ERROR(PLUGIN_NAME
-              " plugin: could not get 'PersistentNotification' parameter");
+      if (cf_util_get_boolean(c, &persistent_notification) != 0)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "ReportBlockDevices") == 0) {
-      if (cf_util_get_boolean(c, &report_block_devices) != 0) {
-        ERROR(PLUGIN_NAME
-              " plugin: could not get 'ReportBlockDevices' parameter");
+      if (cf_util_get_boolean(c, &report_block_devices) != 0)
         return -1;
-      }
 
       continue;
     } else if (strcasecmp(c->key, "ReportNetworkInterfaces") == 0) {
-      if (cf_util_get_boolean(c, &report_network_interfaces) != 0) {
-        ERROR(PLUGIN_NAME
-              " plugin: could not get 'ReportNetworkInterfaces' parameter");
+      if (cf_util_get_boolean(c, &report_network_interfaces) != 0)
         return -1;
-      }
 
       continue;
     } else {
