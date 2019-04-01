@@ -7912,8 +7912,6 @@ slurm.conf.
 Note that this plugin needs the B<Globals> option set to I<true> in order to
 function properly.
 
-=back
-
 =head2 Plugin C<smart>
 
 The C<smart> plugin collects SMART information from physical
