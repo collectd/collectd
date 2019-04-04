@@ -1094,10 +1094,21 @@ static value_t csnmp_value_list_to_value(const struct variable_list *vl,
               type);
         ret.gauge = NAN;
       }
+    } else {
+      if (type == DS_TYPE_COUNTER) {
+	ret.counter = (scale * ret.counter) + shift;
+      } else if (type == DS_TYPE_GAUGE) {
+	if (ret.gauge != NAN)
+	    ret.gauge = (scale * ret.gauge) + shift;
+      } else if (type == DS_TYPE_DERIVE) {
+        ret.derive = (derive_t)((scale * ret.derive) + shift);
+      } else if (type == DS_TYPE_ABSOLUTE) {
+	ret.absolute = (absolute_t)((scale * ret.absolute ) + shift);
+      }
     }
   } /* if (vl->type == ASN_OCTET_STR) */
   else if (type == DS_TYPE_COUNTER) {
-    ret.counter = tmp_unsigned;
+    ret.counter = (scale * tmp_unsigned) + shift;
   } else if (type == DS_TYPE_GAUGE) {
     if (!defined)
       ret.gauge = NAN;
@@ -1107,11 +1118,11 @@ static value_t csnmp_value_list_to_value(const struct variable_list *vl,
       ret.gauge = (scale * tmp_unsigned) + shift;
   } else if (type == DS_TYPE_DERIVE) {
     if (prefer_signed)
-      ret.derive = (derive_t)tmp_signed;
+      ret.derive = (derive_t)((scale * tmp_signed) + shift);
     else
-      ret.derive = (derive_t)tmp_unsigned;
+      ret.derive = (derive_t)((scale * tmp_unsigned) + shift);
   } else if (type == DS_TYPE_ABSOLUTE) {
-    ret.absolute = (absolute_t)tmp_unsigned;
+    ret.absolute = (absolute_t)((scale * tmp_unsigned) + shift);
   } else {
     ERROR("snmp plugin: csnmp_value_list_to_value: Unknown data source "
           "type: %i.",
@@ -1233,7 +1244,7 @@ static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
   } else {
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
-        /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
+        dd->scale, dd->shift, hd->name, dd->name);
     snprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
   }
 
