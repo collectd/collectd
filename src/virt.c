@@ -117,32 +117,6 @@ typedef struct virt_notif_thread_s {
   bool is_active;
 } virt_notif_thread_t;
 
-static const char *config_keys[] = {"Connection",
-
-                                    "RefreshInterval",
-
-                                    "Domain",
-                                    "BlockDevice",
-                                    "BlockDeviceFormat",
-                                    "BlockDeviceFormatBasename",
-                                    "InterfaceDevice",
-                                    "IgnoreSelected",
-
-                                    "HostnameFormat",
-                                    "HostnameMetadataNS",
-                                    "HostnameMetadataXPath",
-                                    "InterfaceFormat",
-
-                                    "PluginInstanceFormat",
-
-                                    "Instances",
-                                    "ExtraStats",
-                                    "PersistentNotification",
-
-                                    "ReportBlockDevices",
-                                    "ReportNetworkInterfaces",
-                                    NULL};
-
 /* PersistentNotification is false by default */
 static bool persistent_notification = false;
 
@@ -465,7 +439,6 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
 };
 #endif /* HAVE_DOM_REASON */
 
-#define NR_CONFIG_KEYS ((sizeof config_keys / sizeof config_keys[0]) - 1)
 #define NANOSEC_IN_SEC 1e9
 
 #define GET_STATS(_f, _name, ...)                                              \
@@ -1076,8 +1049,18 @@ static void disk_block_stats_submit(struct lv_block_stats *bstats,
   sfree(dev_copy);
 }
 
-static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
+/**
+ * Function for parsing ExtraStats configuration options.
+ * Result of parsing is stored under 'out_parsed_flags' pointer.
+ *
+ * Returns 0 in case of success and 1 in case of parsing error
+ */
+static int parse_ex_stats_flags(unsigned int *out_parsed_flags, char **exstats,
+                                int numexstats) {
   unsigned int ex_stats_flags = ex_stats_none;
+
+  assert(out_parsed_flags != NULL);
+
   for (int i = 0; i < numexstats; i++) {
     for (int j = 0; ex_stats_table[j].name != NULL; j++) {
       if (strcasecmp(exstats[i], ex_stats_table[j].name) == 0) {
@@ -1090,10 +1073,13 @@ static unsigned int parse_ex_stats_flags(char **exstats, int numexstats) {
       if (ex_stats_table[j + 1].name == NULL) {
         ERROR(PLUGIN_NAME " plugin: Unmatched ExtraStats option: %s",
               exstats[i]);
+        return 1;
       }
     }
   }
-  return ex_stats_flags;
+
+  *out_parsed_flags = ex_stats_flags;
+  return 0;
 }
 
 static void domain_state_submit_notif(virDomainPtr dom, int state, int reason) {
@@ -1166,224 +1152,255 @@ static int lv_init_ignorelists() {
   return 0;
 }
 
-static int lv_config(const char *key, const char *value) {
-  if (virInitialize() != 0)
-    return 1;
-
-  if (lv_init_ignorelists() != 0)
-    return 1;
-
-  if (strcasecmp(key, "Connection") == 0) {
-    char *tmp = strdup(value);
-    if (tmp == NULL) {
-      ERROR(PLUGIN_NAME " plugin: Connection strdup failed.");
-      return 1;
-    }
-    sfree(conn_string);
-    conn_string = tmp;
-    return 0;
+/* Validates config option that may take multiple strings arguments.
+ * Returns 0 on success, -1 otherwise */
+static int check_config_multiple_string_entry(const oconfig_item_t *ci) {
+  if (ci == NULL) {
+    ERROR(PLUGIN_NAME " plugin: ci oconfig_item can't be NULL");
+    return -1;
   }
 
-  if (strcasecmp(key, "RefreshInterval") == 0) {
-    char *eptr = NULL;
-    interval = strtol(value, &eptr, 10);
-    if (eptr == NULL || *eptr != '\0')
-      return 1;
-    return 0;
+  if (ci->values_num < 1) {
+    ERROR(PLUGIN_NAME
+          " plugin: the '%s' option requires at least one string argument",
+          ci->key);
+    return -1;
   }
 
-  if (strcasecmp(key, "Domain") == 0) {
-    if (ignorelist_add(il_domains, value))
-      return 1;
-    return 0;
-  }
-  if (strcasecmp(key, "BlockDevice") == 0) {
-    if (ignorelist_add(il_block_devices, value))
-      return 1;
-    return 0;
-  }
-
-  if (strcasecmp(key, "BlockDeviceFormat") == 0) {
-    if (strcasecmp(value, "target") == 0)
-      blockdevice_format = target;
-    else if (strcasecmp(value, "source") == 0)
-      blockdevice_format = source;
-    else {
-      ERROR(PLUGIN_NAME " plugin: unknown BlockDeviceFormat: %s", value);
+  for (int i = 0; i < ci->values_num; ++i) {
+    if (ci->values[i].type != OCONFIG_TYPE_STRING) {
+      ERROR(PLUGIN_NAME
+            " plugin: one of the '%s' options is not a valid string",
+            ci->key);
       return -1;
     }
-    return 0;
-  }
-  if (strcasecmp(key, "BlockDeviceFormatBasename") == 0) {
-    blockdevice_format_basename = IS_TRUE(value) ? true : false;
-    return 0;
-  }
-  if (strcasecmp(key, "InterfaceDevice") == 0) {
-    if (ignorelist_add(il_interface_devices, value))
-      return 1;
-    return 0;
   }
 
-  if (strcasecmp(key, "IgnoreSelected") == 0) {
-    if (IS_TRUE(value)) {
-      ignorelist_set_invert(il_domains, 0);
-      ignorelist_set_invert(il_block_devices, 0);
-      ignorelist_set_invert(il_interface_devices, 0);
-    } else {
-      ignorelist_set_invert(il_domains, 1);
-      ignorelist_set_invert(il_block_devices, 1);
-      ignorelist_set_invert(il_interface_devices, 1);
-    }
-    return 0;
+  return 0;
+}
+
+static int lv_config(oconfig_item_t *ci) {
+  if (lv_init_ignorelists() != 0) {
+    ERROR(PLUGIN_NAME " plugin: lv_init_ignorelist failed.");
+    return -1;
   }
 
-  if (strcasecmp(key, "HostnameMetadataNS") == 0) {
-    char *tmp = strdup(value);
-    if (tmp == NULL) {
-      ERROR(PLUGIN_NAME " plugin: HostnameMetadataNS strdup failed.");
-      return 1;
-    }
-    sfree(hm_ns);
-    hm_ns = tmp;
-    return 0;
-  }
+  for (int i = 0; i < ci->children_num; ++i) {
+    oconfig_item_t *c = ci->children + i;
 
-  if (strcasecmp(key, "HostnameMetadataXPath") == 0) {
-    char *tmp = strdup(value);
-    if (tmp == NULL) {
-      ERROR(PLUGIN_NAME " plugin: HostnameMetadataXPath strdup failed.");
-      return 1;
-    }
-    sfree(hm_xpath);
-    hm_xpath = tmp;
-    return 0;
-  }
+    if (strcasecmp(c->key, "Connection") == 0) {
+      if (cf_util_get_string(c, &conn_string) != 0 || conn_string == NULL)
+        return -1;
 
-  if (strcasecmp(key, "HostnameFormat") == 0) {
-    char *value_copy = strdup(value);
-    if (value_copy == NULL) {
-      ERROR(PLUGIN_NAME " plugin: strdup failed.");
-      return -1;
-    }
+      continue;
+    } else if (strcasecmp(c->key, "RefreshInterval") == 0) {
+      if (cf_util_get_int(c, &interval) != 0)
+        return -1;
 
-    char *fields[HF_MAX_FIELDS];
-    int n = strsplit(value_copy, fields, HF_MAX_FIELDS);
-    if (n < 1) {
-      sfree(value_copy);
-      ERROR(PLUGIN_NAME " plugin: HostnameFormat: no fields");
-      return -1;
-    }
+      continue;
+    } else if (strcasecmp(c->key, "Domain") == 0) {
+      char *domain_name = NULL;
+      if (cf_util_get_string(c, &domain_name) != 0)
+        return -1;
 
-    for (int i = 0; i < n; ++i) {
-      if (strcasecmp(fields[i], "hostname") == 0)
-        hostname_format[i] = hf_hostname;
-      else if (strcasecmp(fields[i], "name") == 0)
-        hostname_format[i] = hf_name;
-      else if (strcasecmp(fields[i], "uuid") == 0)
-        hostname_format[i] = hf_uuid;
-      else if (strcasecmp(fields[i], "metadata") == 0)
-        hostname_format[i] = hf_metadata;
-      else {
-        ERROR(PLUGIN_NAME " plugin: unknown HostnameFormat field: %s",
-              fields[i]);
-        sfree(value_copy);
+      if (ignorelist_add(il_domains, domain_name)) {
+        ERROR(PLUGIN_NAME " plugin: Adding '%s' to domain-ignorelist failed",
+              domain_name);
+        sfree(domain_name);
         return -1;
       }
-    }
-    sfree(value_copy);
 
-    for (int i = n; i < HF_MAX_FIELDS; ++i)
-      hostname_format[i] = hf_none;
+      sfree(domain_name);
+      continue;
+    } else if (strcasecmp(c->key, "BlockDevice") == 0) {
+      char *device_name = NULL;
+      if (cf_util_get_string(c, &device_name) != 0)
+        return -1;
 
-    return 0;
-  }
+      if (ignorelist_add(il_block_devices, device_name) != 0) {
+        ERROR(PLUGIN_NAME
+              " plugin: Adding '%s' to block-device-ignorelist failed",
+              device_name);
+        sfree(device_name);
+        return -1;
+      }
 
-  if (strcasecmp(key, "PluginInstanceFormat") == 0) {
-    char *value_copy = strdup(value);
-    if (value_copy == NULL) {
-      ERROR(PLUGIN_NAME " plugin: strdup failed.");
-      return -1;
-    }
+      sfree(device_name);
+      continue;
+    } else if (strcasecmp(c->key, "BlockDeviceFormat") == 0) {
+      char *device_format = NULL;
+      if (cf_util_get_string(c, &device_format) != 0)
+        return -1;
 
-    char *fields[PLGINST_MAX_FIELDS];
-    int n = strsplit(value_copy, fields, PLGINST_MAX_FIELDS);
-    if (n < 1) {
-      sfree(value_copy);
-      ERROR(PLUGIN_NAME " plugin: PluginInstanceFormat: no fields");
-      return -1;
-    }
+      if (strcasecmp(device_format, "target") == 0)
+        blockdevice_format = target;
+      else if (strcasecmp(device_format, "source") == 0)
+        blockdevice_format = source;
+      else {
+        ERROR(PLUGIN_NAME " plugin: unknown BlockDeviceFormat: %s",
+              device_format);
+        sfree(device_format);
+        return -1;
+      }
 
-    for (int i = 0; i < n; ++i) {
-      if (strcasecmp(fields[i], "none") == 0) {
+      sfree(device_format);
+      continue;
+    } else if (strcasecmp(c->key, "BlockDeviceFormatBasename") == 0) {
+      if (cf_util_get_boolean(c, &blockdevice_format_basename) != 0)
+        return -1;
+
+      continue;
+    } else if (strcasecmp(c->key, "InterfaceDevice") == 0) {
+      char *interface_name = NULL;
+      if (cf_util_get_string(c, &interface_name) != 0)
+        return -1;
+
+      if (ignorelist_add(il_interface_devices, interface_name)) {
+        ERROR(PLUGIN_NAME " plugin: Adding '%s' to interface-ignorelist failed",
+              interface_name);
+        sfree(interface_name);
+        return -1;
+      }
+
+      sfree(interface_name);
+      continue;
+    } else if (strcasecmp(c->key, "IgnoreSelected") == 0) {
+      bool ignore_selected = false;
+      if (cf_util_get_boolean(c, &ignore_selected) != 0)
+        return -1;
+
+      if (ignore_selected) {
+        ignorelist_set_invert(il_domains, 0);
+        ignorelist_set_invert(il_block_devices, 0);
+        ignorelist_set_invert(il_interface_devices, 0);
+      } else {
+        ignorelist_set_invert(il_domains, 1);
+        ignorelist_set_invert(il_block_devices, 1);
+        ignorelist_set_invert(il_interface_devices, 1);
+      }
+
+      continue;
+    } else if (strcasecmp(c->key, "HostnameMetadataNS") == 0) {
+      if (cf_util_get_string(c, &hm_ns) != 0)
+        return -1;
+
+      continue;
+    } else if (strcasecmp(c->key, "HostnameMetadataXPath") == 0) {
+      if (cf_util_get_string(c, &hm_xpath) != 0)
+        return -1;
+
+      continue;
+    } else if (strcasecmp(c->key, "HostnameFormat") == 0) {
+      /* this option can take multiple strings arguments in one config line*/
+      if (check_config_multiple_string_entry(c) != 0) {
+        ERROR(PLUGIN_NAME " plugin: Could not get 'HostnameFormat' parameter");
+        return -1;
+      }
+
+      const int params_num = c->values_num;
+      for (int i = 0; i < params_num; ++i) {
+        const char *param_name = c->values[i].value.string;
+        if (strcasecmp(param_name, "hostname") == 0)
+          hostname_format[i] = hf_hostname;
+        else if (strcasecmp(param_name, "name") == 0)
+          hostname_format[i] = hf_name;
+        else if (strcasecmp(param_name, "uuid") == 0)
+          hostname_format[i] = hf_uuid;
+        else if (strcasecmp(param_name, "metadata") == 0)
+          hostname_format[i] = hf_metadata;
+        else {
+          ERROR(PLUGIN_NAME " plugin: unknown HostnameFormat field: %s",
+                param_name);
+          return -1;
+        }
+      }
+
+      for (int i = params_num; i < HF_MAX_FIELDS; ++i)
+        hostname_format[i] = hf_none;
+
+      continue;
+    } else if (strcasecmp(c->key, "PluginInstanceFormat") == 0) {
+      /* this option can handle list of string parameters in one line*/
+      if (check_config_multiple_string_entry(c) != 0) {
+        ERROR(PLUGIN_NAME
+              " plugin: Could not get 'PluginInstanceFormat' parameter");
+        return -1;
+      }
+
+      const int params_num = c->values_num;
+      for (int i = 0; i < params_num; ++i) {
+        const char *param_name = c->values[i].value.string;
+        if (strcasecmp(param_name, "none") == 0) {
+          plugin_instance_format[i] = plginst_none;
+          break;
+        } else if (strcasecmp(param_name, "name") == 0)
+          plugin_instance_format[i] = plginst_name;
+        else if (strcasecmp(param_name, "uuid") == 0)
+          plugin_instance_format[i] = plginst_uuid;
+        else if (strcasecmp(param_name, "metadata") == 0)
+          plugin_instance_format[i] = plginst_metadata;
+        else {
+          ERROR(PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s",
+                param_name);
+
+          return -1;
+        }
+      }
+
+      for (int i = params_num; i < PLGINST_MAX_FIELDS; ++i)
         plugin_instance_format[i] = plginst_none;
-        break;
-      } else if (strcasecmp(fields[i], "name") == 0)
-        plugin_instance_format[i] = plginst_name;
-      else if (strcasecmp(fields[i], "uuid") == 0)
-        plugin_instance_format[i] = plginst_uuid;
-      else if (strcasecmp(fields[i], "metadata") == 0)
-        plugin_instance_format[i] = plginst_metadata;
+
+      continue;
+    } else if (strcasecmp(c->key, "InterfaceFormat") == 0) {
+      char *format = NULL;
+      if (cf_util_get_string(c, &format) != 0)
+        return -1;
+
+      if (strcasecmp(format, "name") == 0)
+        interface_format = if_name;
+      else if (strcasecmp(format, "address") == 0)
+        interface_format = if_address;
+      else if (strcasecmp(format, "number") == 0)
+        interface_format = if_number;
       else {
-        ERROR(PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s",
-              fields[i]);
-        sfree(value_copy);
+        ERROR(PLUGIN_NAME " plugin: unknown InterfaceFormat: %s", format);
+        sfree(format);
         return -1;
       }
-    }
-    sfree(value_copy);
 
-    for (int i = n; i < PLGINST_MAX_FIELDS; ++i)
-      plugin_instance_format[i] = plginst_none;
+      sfree(format);
+      continue;
+    } else if (strcasecmp(c->key, "Instances") == 0) {
+      if (cf_util_get_int(c, &nr_instances) != 0)
+        return -1;
 
-    return 0;
-  }
+      if (nr_instances <= 0) {
+        ERROR(PLUGIN_NAME " plugin: Instances <= 0 makes no sense.");
+        return -1;
+      }
+      if (nr_instances > NR_INSTANCES_MAX) {
+        ERROR(PLUGIN_NAME " plugin: Instances=%i > NR_INSTANCES_MAX=%i"
+                          " use a lower setting or recompile the plugin.",
+              nr_instances, NR_INSTANCES_MAX);
+        return -1;
+      }
 
-  if (strcasecmp(key, "InterfaceFormat") == 0) {
-    if (strcasecmp(value, "name") == 0)
-      interface_format = if_name;
-    else if (strcasecmp(value, "address") == 0)
-      interface_format = if_address;
-    else if (strcasecmp(value, "number") == 0)
-      interface_format = if_number;
-    else {
-      ERROR(PLUGIN_NAME " plugin: unknown InterfaceFormat: %s", value);
-      return -1;
-    }
-    return 0;
-  }
+      DEBUG(PLUGIN_NAME " plugin: configured %i instances", nr_instances);
+      continue;
+    } else if (strcasecmp(c->key, "ExtraStats") == 0) {
+      char *ex_str = NULL;
 
-  if (strcasecmp(key, "Instances") == 0) {
-    char *eptr = NULL;
-    double val = strtod(value, &eptr);
+      if (cf_util_get_string(c, &ex_str) != 0)
+        return -1;
 
-    if (*eptr != '\0') {
-      ERROR(PLUGIN_NAME " plugin: Invalid value for Instances = '%s'", value);
-      return 1;
-    }
-    if (val <= 0) {
-      ERROR(PLUGIN_NAME " plugin: Instances <= 0 makes no sense.");
-      return 1;
-    }
-    if (val > NR_INSTANCES_MAX) {
-      ERROR(PLUGIN_NAME " plugin: Instances=%f > NR_INSTANCES_MAX=%i"
-                        " use a lower setting or recompile the plugin.",
-            val, NR_INSTANCES_MAX);
-      return 1;
-    }
-
-    nr_instances = (int)val;
-    DEBUG(PLUGIN_NAME " plugin: configured %i instances", nr_instances);
-    return 0;
-  }
-
-  if (strcasecmp(key, "ExtraStats") == 0) {
-    char *localvalue = strdup(value);
-    if (localvalue != NULL) {
       char *exstats[EX_STATS_MAX_FIELDS];
-      int numexstats =
-          strsplit(localvalue, exstats, STATIC_ARRAY_SIZE(exstats));
-      extra_stats = parse_ex_stats_flags(exstats, numexstats);
-      sfree(localvalue);
+      int numexstats = strsplit(ex_str, exstats, STATIC_ARRAY_SIZE(exstats));
+      int status = parse_ex_stats_flags(&extra_stats, exstats, numexstats);
+      sfree(ex_str);
+      if (status != 0) {
+        ERROR(PLUGIN_NAME " plugin: parsing 'ExtraStats' option failed");
+        return status;
+      }
 
 #ifdef HAVE_JOB_STATS
       if ((extra_stats & ex_stats_job_stats_completed) &&
@@ -1391,29 +1408,35 @@ static int lv_config(const char *key, const char *value) {
         ERROR(PLUGIN_NAME " plugin: Invalid job stats configuration. Only one "
                           "type of job statistics can be collected at the same "
                           "time");
-        return 1;
+        return -1;
       }
 #endif
+
+      /* ExtraStats parsed successfully */
+      continue;
+    } else if (strcasecmp(c->key, "PersistentNotification") == 0) {
+      if (cf_util_get_boolean(c, &persistent_notification) != 0)
+        return -1;
+
+      continue;
+    } else if (strcasecmp(c->key, "ReportBlockDevices") == 0) {
+      if (cf_util_get_boolean(c, &report_block_devices) != 0)
+        return -1;
+
+      continue;
+    } else if (strcasecmp(c->key, "ReportNetworkInterfaces") == 0) {
+      if (cf_util_get_boolean(c, &report_network_interfaces) != 0)
+        return -1;
+
+      continue;
+    } else {
+      /* Unrecognised option. */
+      ERROR(PLUGIN_NAME " plugin: Unrecognized option: '%s'", c->key);
+      return -1;
     }
   }
 
-  if (strcasecmp(key, "PersistentNotification") == 0) {
-    persistent_notification = IS_TRUE(value);
-    return 0;
-  }
-
-  if (strcasecmp(key, "ReportBlockDevices") == 0) {
-    report_block_devices = IS_TRUE(value);
-    return 0;
-  }
-
-  if (strcasecmp(key, "ReportNetworkInterfaces") == 0) {
-    report_network_interfaces = IS_TRUE(value);
-    return 0;
-  }
-
-  /* Unrecognised option. */
-  return -1;
+  return 0;
 }
 
 static int lv_connect(void) {
@@ -2566,6 +2589,7 @@ static void lv_add_network_interfaces(struct lv_read_state *state,
   for (int j = 0; j < xml_interfaces->nodeNr; ++j) {
     char *path = NULL;
     char *address = NULL;
+    const int itf_number = j + 1;
 
     xmlNodePtr xml_interface = xml_interfaces->nodeTab[j];
     if (!xml_interface)
@@ -2587,10 +2611,30 @@ static void lv_add_network_interfaces(struct lv_read_state *state,
       }
     }
 
-    if ((ignore_device_match(il_interface_devices, domname, path) == 0 &&
-         ignore_device_match(il_interface_devices, domname, address) == 0)) {
-      add_interface_device(state, dom, path, address, j + 1);
+    bool device_ignored = false;
+    switch (interface_format) {
+    case if_name:
+      if (ignore_device_match(il_interface_devices, domname, path) != 0)
+        device_ignored = true;
+      break;
+    case if_address:
+      if (ignore_device_match(il_interface_devices, domname, address) != 0)
+        device_ignored = true;
+      break;
+    case if_number: {
+      char number_string[4];
+      snprintf(number_string, sizeof(number_string), "%d", itf_number);
+      if (ignore_device_match(il_interface_devices, domname, number_string) !=
+          0)
+        device_ignored = true;
+    } break;
+    default:
+      ERROR(PLUGIN_NAME " plugin: Unknown interface_format option: %d",
+            interface_format);
     }
+
+    if (!device_ignored)
+      add_interface_device(state, dom, path, address, itf_number);
 
     if (path)
       xmlFree(path);
@@ -2598,6 +2642,24 @@ static void lv_add_network_interfaces(struct lv_read_state *state,
       xmlFree(address);
   }
   xmlXPathFreeObject(xpath_obj);
+}
+
+static bool is_domain_ignored(virDomainPtr dom) {
+  const char *domname = virDomainGetName(dom);
+
+  if (domname == NULL) {
+    VIRT_ERROR(conn, "virDomainGetName failed, ignoring domain");
+    return true;
+  }
+
+  if (ignorelist_match(il_domains, domname) != 0) {
+    DEBUG(PLUGIN_NAME
+          " plugin: ignoring domain '%s' because of ignorelist option",
+          domname);
+    return true;
+  }
+
+  return false;
 }
 
 static int refresh_lists(struct lv_read_instance *inst) {
@@ -2649,8 +2711,9 @@ static int refresh_lists(struct lv_read_instance *inst) {
 
 #ifdef HAVE_LIST_ALL_DOMAINS
   for (int i = 0; i < m; ++i)
-    if (add_domain(state, domains_inactive[i], 0) < 0) {
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
+    if (is_domain_ignored(domains_inactive[i]) ||
+        add_domain(state, domains_inactive[i], 0) < 0) {
+      /* domain ignored or failed during adding to domains list*/
       virDomainFree(domains_inactive[i]);
       domains_inactive[i] = NULL;
       continue;
@@ -2671,8 +2734,10 @@ static int refresh_lists(struct lv_read_instance *inst) {
     }
 #endif
 
-    if (add_domain(state, dom, 1) < 0) {
+    if (is_domain_ignored(dom) || add_domain(state, dom, 1) < 0) {
       /*
+       * domain ignored or failed during adding to domains list
+       *
        * When domain is already tracked, then there is
        * no problem with memory handling (will be freed
        * with the rest of domains cached data)
@@ -2680,7 +2745,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
        * before adding domain to track) we have to take
        * care it ourselves and call virDomainFree
        */
-      ERROR(PLUGIN_NAME " plugin: malloc failed.");
       virDomainFree(dom);
       continue;
     }
@@ -2703,9 +2767,6 @@ static int refresh_lists(struct lv_read_instance *inst) {
       DEBUG(PLUGIN_NAME " plugin: skipping inactive domain %s", domname);
       continue;
     }
-
-    if (ignorelist_match(il_domains, domname) != 0)
-      continue;
 
     /* Get a list of devices for this domain. */
     xmlDocPtr xml_doc = NULL;
@@ -2783,12 +2844,13 @@ static void free_domains(struct lv_read_state *state) {
 
 static int add_domain(struct lv_read_state *state, virDomainPtr dom,
                       bool active) {
-
   int new_size = sizeof(state->domains[0]) * (state->nr_domains + 1);
 
   domain_t *new_ptr = realloc(state->domains, new_size);
-  if (new_ptr == NULL)
+  if (new_ptr == NULL) {
+    ERROR(PLUGIN_NAME " plugin: realloc failed in add_domain()");
     return -1;
+  }
 
   state->domains = new_ptr;
   state->domains[state->nr_domains].ptr = dom;
@@ -2928,7 +2990,7 @@ static int lv_shutdown(void) {
 }
 
 void module_register(void) {
-  plugin_register_config(PLUGIN_NAME, lv_config, config_keys, NR_CONFIG_KEYS);
+  plugin_register_complex_config("virt", lv_config);
   plugin_register_init(PLUGIN_NAME, lv_init);
   plugin_register_shutdown(PLUGIN_NAME, lv_shutdown);
 }
