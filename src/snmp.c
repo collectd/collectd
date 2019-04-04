@@ -1096,14 +1096,14 @@ static value_t csnmp_value_list_to_value(const struct variable_list *vl,
       }
     } else {
       if (type == DS_TYPE_COUNTER) {
-	ret.counter = (scale * ret.counter) + shift;
+        ret.counter = (scale * ret.counter) + shift;
       } else if (type == DS_TYPE_GAUGE) {
-	if (ret.gauge != NAN)
-	    ret.gauge = (scale * ret.gauge) + shift;
+        if (ret.gauge != NAN)
+          ret.gauge = (scale * ret.gauge) + shift;
       } else if (type == DS_TYPE_DERIVE) {
         ret.derive = (derive_t)((scale * ret.derive) + shift);
       } else if (type == DS_TYPE_ABSOLUTE) {
-	ret.absolute = (absolute_t)((scale * ret.absolute ) + shift);
+        ret.absolute = (absolute_t)((scale * ret.absolute) + shift);
       }
     }
   } /* if (vl->type == ASN_OCTET_STR) */
@@ -1242,9 +1242,8 @@ static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
     csnmp_strvbcopy(il->value, vb, sizeof(il->value));
 
   } else {
-    value_t val = csnmp_value_list_to_value(
-        vb, DS_TYPE_COUNTER,
-        dd->scale, dd->shift, hd->name, dd->name);
+    value_t val = csnmp_value_list_to_value(vb, DS_TYPE_COUNTER, dd->scale,
+                                            dd->shift, hd->name, dd->name);
     snprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
   }
 
