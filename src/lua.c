@@ -278,9 +278,6 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
 
   luaL_checktype(L, 1, LUA_TFUNCTION);
 
-  char function_name[DATA_MAX_NAME_LEN];
-  snprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
-
   int callback_id = clua_store_callback(L, 1);
   if (callback_id < 0)
     return luaL_error(L, "%s", "Storing callback function failed");
@@ -294,6 +291,9 @@ static int lua_cb_register_read(lua_State *L) /* {{{ */
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL)
     return luaL_error(L, "%s", "calloc failed");
+
+  char function_name[DATA_MAX_NAME_LEN];
+  snprintf(function_name, sizeof(function_name), "lua/%p", thread);
 
   cb->lua_state = thread;
   cb->callback_id = callback_id;
@@ -323,9 +323,6 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
 
   luaL_checktype(L, 1, LUA_TFUNCTION);
 
-  char function_name[DATA_MAX_NAME_LEN] = "";
-  snprintf(function_name, sizeof(function_name), "lua/%s", lua_tostring(L, 1));
-
   int callback_id = clua_store_callback(L, 1);
   if (callback_id < 0)
     return luaL_error(L, "%s", "Storing callback function failed");
@@ -339,6 +336,9 @@ static int lua_cb_register_write(lua_State *L) /* {{{ */
   clua_callback_data_t *cb = calloc(1, sizeof(*cb));
   if (cb == NULL)
     return luaL_error(L, "%s", "calloc failed");
+
+  char function_name[DATA_MAX_NAME_LEN] = "";
+  snprintf(function_name, sizeof(function_name), "lua/%p", thread);
 
   cb->lua_state = thread;
   cb->callback_id = callback_id;
