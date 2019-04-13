@@ -4453,6 +4453,12 @@ For Modbus/RTU, specifies the path to the serial device being used.
 For Modbus/RTU, specifies the baud rate of the serial device.
 Note, connections currently support only 8/N/1.
 
+=item B<UARTType> I<UARTType>
+
+For Modbus/RTU, specifies the type of the serial device.
+RS232, RS422 and RS485 are supported. Defaults to RS232.
+Available only on Linux systems with libmodbus>=2.9.4.
+
 =item B<Interval> I<Interval>
 
 Sets the interval (in seconds) in which the values will be collected from this
