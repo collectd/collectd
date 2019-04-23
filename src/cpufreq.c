@@ -109,8 +109,10 @@ static int cpufreq_init(void) {
   int cpufreq;
   size_t cf_len = sizeof(cpufreq);
 
-  if(sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0)
+  if(sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+    WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
     plugin_unregister_read("cpufreq");
+  }
 #endif
 
   return 0;
@@ -232,7 +234,7 @@ static int cpufreq_read(void) {
   size_t cf_len = sizeof(cpufreq);
 
   if(sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
-    WARNING("cpufreq plugin: reading \"%s\" failed.", mib);
+    WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
     return 0;
   }
 
