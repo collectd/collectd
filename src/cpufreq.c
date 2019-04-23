@@ -26,8 +26,8 @@
 #include "utils/common/common.h"
 
 #if KERNEL_FREEBSD
-#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
 #endif
 
 #if KERNEL_LINUX
@@ -109,7 +109,7 @@ static int cpufreq_init(void) {
   int cpufreq;
   size_t cf_len = sizeof(cpufreq);
 
-  if(sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+  if (sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
     WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
     plugin_unregister_read("cpufreq");
   }
@@ -233,7 +233,7 @@ static int cpufreq_read(void) {
   int cpufreq;
   size_t cf_len = sizeof(cpufreq);
 
-  if(sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+  if (sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
     WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
     return 0;
   }
