@@ -6788,7 +6788,7 @@ AC_PLUGIN([java],                [$with_java],                [Embed the Java Vi
 AC_PLUGIN([load],                [$plugin_load],              [System load])
 AC_PLUGIN([log_logstash],        [$plugin_log_logstash],      [Logstash json_event compatible logging])
 AC_PLUGIN([logfile],             [yes],                       [File logging plugin])
-AC_PLUGIN([logparser],           [yes],                     [Log parsing plugin])
+AC_PLUGIN([logparser],           [yes],                       [Log parsing plugin])
 AC_PLUGIN([lpar],                [$with_perfstat],            [AIX logical partitions statistics])
 AC_PLUGIN([lua],                 [$with_liblua],              [Lua plugin])
 AC_PLUGIN([madwifi],             [$have_linux_wireless_h],    [Madwifi wireless statistics])

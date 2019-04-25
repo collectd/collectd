@@ -1,5 +1,5 @@
 /**
- * collectd - src/utils_message_parser_test.c
+ * collectd - src/utils/message_parser/message_parser_test.c
  *
  * Copyright(c) 2018 Intel Corporation. All rights reserved.
  *
@@ -26,7 +26,7 @@
  **/
 
 #include "testing.h"
-#include "utils_message_parser.c"
+#include "utils/message_parser/message_parser.c"
 
 #define TEST_PATTERN_NAME "test_pattern_name"
 #define TEST_REGEX "test_regex"

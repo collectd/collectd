@@ -4061,23 +4061,26 @@ B<Message> blocks which are defined below.
 
 =item B<FirstFullRead> I<true>|I<false>
 
-Set to true if want to read the file from the beginning first time.
+Set to true if the file has to be parsed from the beginning on the first read.
+If false only subsequent writes to log file will be parsed.
 
 =item B<Message> I<Name>
 
-B<Message> block contains matches to search the log file for.
+B<Message> block contains matches to search the log file for. Each B<Message>
+block builds a notification message using matched elements if its mandatory
+B<Match> blocks are matched.
 
 =item B<DefaultPluginInstance> I<String>
 
-Sets the default plugin instance.
+Sets the default value for the plugin instance of the notification.
 
 =item B<DefaultType> I<String>
 
-Sets the default type.
+Sets the default value for the type of the notification.
 
 =item B<DefaultTypeInstance> I<String>
 
-Sets the default type instance.
+Sets the default value for the type instance of the notification.
 
 =item B<DefaultSeverity> I<String>
 
@@ -4120,11 +4123,11 @@ optional. Default value is set to true.
 If set to true, it sets plugin instance to string returned by regex. It can be
 overridden by user string.
 
-=item B<Tyoe> I<true>|I<String>
+=item B<Type> I<true>|I<String>
 
 Sets notification type using rules like B<PluginInstance>.
 
-=item B<TyoeInstance> I<true>|I<String>
+=item B<TypeInstance> I<true>|I<String>
 
 Sets notification type instance using rules like above.
 

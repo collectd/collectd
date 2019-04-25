@@ -1,5 +1,5 @@
 /*
- * collectd - src/utils_message_parser.c
+ * collectd - src/utils/message_parser/message_parser.c
  * MIT License
  *
  * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.
@@ -29,10 +29,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#include "utils_message_parser.h"
+#include "utils/message_parser/message_parser.h"
 
 #define UTIL_NAME "utils_message_parser"
 
@@ -91,8 +91,8 @@ static int start_message_assembly(parser_job_data_t *self) {
   if (self->message_idx >= self->messages_max_len) {
     INFO(UTIL_NAME ": Exceeded message buffer size: %zu",
          self->messages_max_len);
-    if (self->resize_message_buffer(
-            self, self->messages_max_len + MSG_STOR_INC_STEP) != 0) {
+    if (self->resize_message_buffer(self, self->messages_max_len +
+                                              MSG_STOR_INC_STEP) != 0) {
       ERROR(UTIL_NAME ": Insufficient message buffer size: %zu. Remaining "
                       "messages for this read will be skipped",
             self->messages_max_len);

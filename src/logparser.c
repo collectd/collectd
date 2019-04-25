@@ -27,9 +27,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
+#include "utils/common/common.h"
+#include "utils/message_parser/message_parser.h"
 #include "utils_llist.h"
-#include "utils_message_parser.h"
 
 #define PLUGIN_NAME "logparser"
 

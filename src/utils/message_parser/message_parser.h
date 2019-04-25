@@ -1,5 +1,5 @@
 /*
- * collectd - src/utils_message_parser.h
+ * collectd - src/utils/message_parser/message_parser.h
  * MIT License
  *
  * Copyright(c) 2017-2018 Intel Corporation. All rights reserved.

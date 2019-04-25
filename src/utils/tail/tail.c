@@ -72,7 +72,7 @@ static int cu_tail_reopen(cu_tail_t *obj, bool force_rewind) {
    * if we re-open the same file again or the file opened is the first at all
    * or the first after an error */
   if ((obj->stat.st_ino == 0) || (obj->stat.st_ino == stat_buf.st_ino))
-    seek_end = force_rewind ? false : true;
+    seek_end = !force_rewind;
 
   FILE *fh = fopen(obj->file, "r");
   if (fh == NULL) {
