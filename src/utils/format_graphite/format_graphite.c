@@ -37,8 +37,7 @@
 /* helper function for reverse_hostname */
 void reverse_string(char *r_host, int len) {
   char t;
-  for (int i = 0; i < len / 2; i++) {
-    int j = len - i - 1;
+  for (int i = 0, j = len - 1; i < j; i++, j--) {
     t = r_host[i];
     r_host[i] = r_host[j];
     r_host[j] = t;
@@ -152,8 +151,7 @@ static int gr_format_name_tagged(char *ret, int ret_len, value_list_t const *vl,
     postfix = "";
 
   if (flags & GRAPHITE_REVERSE_HOST) {
-    int len_host = strlen(vl->host);
-    char r_host[len_host + 1];
+    char r_host[DATA_MAX_NAME_LEN];
     reverse_hostname(r_host, vl->host);
     gr_copy_escape_part(n_host, r_host, sizeof(n_host), escape_char, 1);
   } else {
@@ -237,8 +235,7 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
   bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
 
   if (flags & GRAPHITE_REVERSE_HOST) {
-    int len_host = strlen(vl->host);
-    char r_host[len_host + 1];
+    char r_host[DATA_MAX_NAME_LEN];
     reverse_hostname(r_host, vl->host);
     gr_copy_escape_part(n_host, r_host, sizeof(n_host), escape_char,
                         preserve_separator);
