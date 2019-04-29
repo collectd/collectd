@@ -25,6 +25,12 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
+#if KERNEL_FREEBSD
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#endif
+
+#if KERNEL_LINUX
 #define MAX_AVAIL_FREQS 20
 
 static int num_cpu;
@@ -71,8 +77,10 @@ static void cpufreq_stats_init(void) {
   }
   return;
 }
+#endif /* KERNEL_LINUX */
 
 static int cpufreq_init(void) {
+#if KERNEL_LINUX
   char filename[PATH_MAX];
 
   num_cpu = 0;
@@ -96,6 +104,16 @@ static int cpufreq_init(void) {
 
   if (num_cpu == 0)
     plugin_unregister_read("cpufreq");
+#elif KERNEL_FREEBSD
+  char mib[] = "dev.cpu.0.freq";
+  int cpufreq;
+  size_t cf_len = sizeof(cpufreq);
+
+  if (sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+    WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
+    plugin_unregister_read("cpufreq");
+  }
+#endif
 
   return 0;
 } /* int cpufreq_init */
@@ -116,6 +134,7 @@ static void cpufreq_submit(int cpu_num, const char *type,
   plugin_dispatch_values(&vl);
 }
 
+#if KERNEL_LINUX
 static void cpufreq_read_stats(int cpu) {
   char filename[PATH_MAX];
   /* Read total transitions for cpu frequency */
@@ -184,8 +203,10 @@ static void cpufreq_read_stats(int cpu) {
   }
   fclose(fh);
 }
+#endif /* KERNEL_LINUX */
 
 static int cpufreq_read(void) {
+#if KERNEL_LINUX
   for (int cpu = 0; cpu < num_cpu; cpu++) {
     char filename[PATH_MAX];
     /* Read cpu frequency */
@@ -206,6 +227,23 @@ static int cpufreq_read(void) {
     if (report_p_stats)
       cpufreq_read_stats(cpu);
   }
+#elif KERNEL_FREEBSD
+  /* FreeBSD currently only has 1 freq setting.  See BUGS in cpufreq(4) */
+  char mib[] = "dev.cpu.0.freq";
+  int cpufreq;
+  size_t cf_len = sizeof(cpufreq);
+
+  if (sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+    WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
+    return 0;
+  }
+
+  value_t v;
+  /* convert Mhz to Hz */
+  v.gauge = cpufreq * 1000000.0;
+
+  cpufreq_submit(0, "cpufreq", NULL, &v);
+#endif
   return 0;
 } /* int cpufreq_read */
 
