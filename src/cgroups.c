@@ -23,10 +23,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_ignorelist.h"
-#include "utils_mount.h"
+#include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
+#include "utils/mount/mount.h"
 
 static char const *config_keys[] = {"CGroup", "IgnoreSelected"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -112,7 +112,7 @@ static int read_cpuacct_procs(const char *dirname, char const *cgroup_name,
 
     /* Strip colon off the first column, if found */
     if (key[key_len - 1] == ':')
-      key[key_len - 1] = 0;
+      key[key_len - 1] = '\0';
 
     status = parse_value(fields[1], &value, DS_TYPE_DERIVE);
     if (status != 0)

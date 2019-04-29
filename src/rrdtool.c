@@ -25,11 +25,11 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/rrdcreate/rrdcreate.h"
 #include "utils_random.h"
-#include "utils_rrdcreate.h"
 
 #include <rrd.h>
 
@@ -569,7 +569,7 @@ static int rrd_cache_flush_identifier(cdtime_t timeout,
     snprintf(key, sizeof(key), "%s.rrd", identifier);
   else
     snprintf(key, sizeof(key), "%s/%s.rrd", datadir, identifier);
-  key[sizeof(key) - 1] = 0;
+  key[sizeof(key) - 1] = '\0';
 
   status = c_avl_get(cache, key, (void *)&rc);
   if (status != 0) {

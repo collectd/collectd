@@ -24,9 +24,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
 #include "utils_complain.h"
 
 #if HAVE_SYS_IOCTL_H

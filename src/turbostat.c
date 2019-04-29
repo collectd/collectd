@@ -37,8 +37,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_time.h"
 
 #include "msr-index.h"
@@ -1463,7 +1463,7 @@ err:
   return ret;
 }
 
-int save_affinity(void) {
+static int save_affinity(void) {
   if (affinity_policy == policy_restore_affinity) {
     /* Try to save the scheduling affinity, as it will be modified by
      * get_counters().
@@ -1476,7 +1476,7 @@ int save_affinity(void) {
   return 0;
 }
 
-void restore_affinity(void) {
+static void restore_affinity(void) {
   /* Let's restore the affinity to the value saved in save_affinity */
   if (affinity_policy == policy_restore_affinity)
     (void)sched_setaffinity(0, cpu_saved_affinity_setsize,

@@ -22,8 +22,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <hiredis/hiredis.h>
 #include <sys/time.h>

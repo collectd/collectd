@@ -22,8 +22,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #define MAX_AVAIL_FREQS 20
 
@@ -37,7 +37,7 @@ struct cpu_data_t {
 static bool report_p_stats = false;
 
 static void cpufreq_stats_init(void) {
-  cpu_data = calloc(num_cpu, sizeof(struct cpu_data_t));
+  cpu_data = calloc(num_cpu, sizeof(*cpu_data));
   if (cpu_data == NULL)
     return;
 

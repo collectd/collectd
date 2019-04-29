@@ -32,8 +32,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "utils_dpdk.h"
+#include "utils/common/common.h"
+#include "utils/dpdk/dpdk.h"
 
 #include <rte_config.h>
 #include <rte_ethdev.h>

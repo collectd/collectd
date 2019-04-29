@@ -28,8 +28,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if COLLECT_DEBUG
 static int log_level = LOG_DEBUG;

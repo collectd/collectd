@@ -29,8 +29,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #ifdef HAVE_MACH_KERN_RETURN_H
 #include <mach/kern_return.h>

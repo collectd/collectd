@@ -26,9 +26,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
-#include "utils_db_query.h"
+#include "utils/common/common.h"
+#include "utils/db_query/db_query.h"
 
 #include <dbi/dbi.h>
 

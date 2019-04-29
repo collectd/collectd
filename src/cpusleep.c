@@ -32,9 +32,9 @@
 
 #include "collectd.h"
 
-#include <time.h>
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
+#include <time.h>
 
 static void cpusleep_submit(derive_t cpu_sleep) {
   value_list_t vl = VALUE_LIST_INIT;

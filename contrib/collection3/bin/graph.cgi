@@ -140,10 +140,10 @@ sub main
   if (param ('debug'))
   {
     print <<HTTP;
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
 
 HTTP
-    $ContentType = 'text/plain';
+    $ContentType = 'text/plain; charset=utf-8';
   }
 
   if ($GraphWidth)

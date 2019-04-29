@@ -25,7 +25,7 @@
  */
 
 #include "collectd.h"
-#include "common.h" /* for STATIC_ARRAY_SIZE */
+#include "utils/common/common.h" /* for STATIC_ARRAY_SIZE */
 
 #include "testing.h"
 #include "utils_subst.h"

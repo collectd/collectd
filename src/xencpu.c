@@ -21,8 +21,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <xenctrl.h>
 
@@ -56,7 +56,7 @@ static int xencpu_init(void) {
 
   xc_physinfo_t *physinfo;
 
-  physinfo = calloc(1, sizeof(xc_physinfo_t));
+  physinfo = calloc(1, sizeof(*physinfo));
   if (physinfo == NULL) {
     ERROR("xencpu plugin: calloc() for physinfo failed.");
     xc_interface_close(xc_handle);
@@ -75,14 +75,14 @@ static int xencpu_init(void) {
 
   INFO("xencpu plugin: Found %" PRIu32 " processors.", num_cpus);
 
-  cpu_info = calloc(num_cpus, sizeof(xc_cpuinfo_t));
+  cpu_info = calloc(num_cpus, sizeof(*cpu_info));
   if (cpu_info == NULL) {
     ERROR("xencpu plugin: calloc() for num_cpus failed.");
     xc_interface_close(xc_handle);
     return ENOMEM;
   }
 
-  cpu_states = calloc(num_cpus, sizeof(value_to_rate_state_t));
+  cpu_states = calloc(num_cpus, sizeof(*cpu_states));
   if (cpu_states == NULL) {
     ERROR("xencpu plugin: calloc() for cpu_states failed.");
     xc_interface_close(xc_handle);

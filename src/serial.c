@@ -23,8 +23,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if !KERNEL_LINUX
 #error "No applicable input method."
@@ -79,7 +79,7 @@ static int serial_read(void) {
       continue;
     if (fields[0][len - 1] != ':')
       continue;
-    fields[0][len - 1] = 0;
+    fields[0][len - 1] = '\0';
 
     for (int i = 1; i < numfields; i++) {
       len = strlen(fields[i]);

@@ -27,8 +27,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_complain.h"
 #include "utils_fbhash.h"
@@ -403,7 +403,7 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 #if COLLECT_DEBUG
     char name[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(name, sizeof(name), vl);
-    name[sizeof(name) - 1] = 0;
+    name[sizeof(name) - 1] = '\0';
     DEBUG("network plugin: network_dispatch_values: "
           "NOT dispatching %s.",
           name);
@@ -2640,7 +2640,7 @@ static int network_write(const data_set_t *ds, const value_list_t *vl,
 #if COLLECT_DEBUG
     char name[6 * DATA_MAX_NAME_LEN];
     FORMAT_VL(name, sizeof(name), vl);
-    name[sizeof(name) - 1] = 0;
+    name[sizeof(name) - 1] = '\0';
     DEBUG("network plugin: network_write: "
           "NOT sending %s.",
           name);

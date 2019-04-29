@@ -23,9 +23,9 @@
 
 #include "collectd.h"
 
-#include "common.h" /* auxiliary functions */
-#include "plugin.h" /* plugin_register_*, plugin_dispatch_values */
-#include "utils_tail.h"
+#include "plugin.h"              /* plugin_register_*, plugin_dispatch_values */
+#include "utils/common/common.h" /* auxiliary functions */
+#include "utils/tail/tail.h"
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -143,7 +143,7 @@ static int tcsv_read_buffer(instance_definition_t *id, char *buffer,
   while (buffer_size > 0) {
     if ((buffer[buffer_size - 1] == '\n') ||
         (buffer[buffer_size - 1] == '\r')) {
-      buffer[buffer_size - 1] = 0;
+      buffer[buffer_size - 1] = '\0';
       buffer_size--;
     } else {
       break;

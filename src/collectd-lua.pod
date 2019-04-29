@@ -150,12 +150,12 @@ L<lua(1)>,
 =head1 AUTHOR
 
 The C<Lua plugin> has been written by
-Julien Ammous E<lt>j.ammous<nbsp>atE<nbsp>gmail.comE<gt>,
+Julien Ammous E<lt>j.ammousE<nbsp>atE<nbsp>gmail.comE<gt>,
 Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt> and
-Ruben Kerkhof E<lt>ruben<nbsp>atE<nbsp>rubenkerkhof.com<gt> and
+Ruben Kerkhof E<lt>rubenE<nbsp>atE<nbsp>rubenkerkhof.comE<gt>.
 
 This manpage has been written by Ruben Kerkhof
-E<lt>ruben<nbsp>atE<nbsp>rubenkerkhof.com<gt>.
+E<lt>rubenE<nbsp>atE<nbsp>rubenkerkhof.comE<gt>.
 It is based on the L<collectd-perl(5)> manual page by
 Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt> and
 Sebastian Harl E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.

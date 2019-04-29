@@ -29,8 +29,8 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #ifdef HAVE_MYSQL_H
 #include <mysql.h>

@@ -99,9 +99,8 @@ bindings/perl/pm_to_blib
 cscope.*
 
 # Unit tests
-src/daemon/test-suite.log
+test-suite.log
 src/tests/
-src/test-suite.log
 test_*
 
 # src/daemon/...

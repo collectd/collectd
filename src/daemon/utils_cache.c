@@ -28,10 +28,10 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "meta_data.h"
 #include "plugin.h"
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/metadata/meta_data.h"
 #include "utils_cache.h"
 
 #include <assert.h>
@@ -826,9 +826,7 @@ int uc_inc_hits(const data_set_t *ds, const value_list_t *vl, int step) {
  * Iterator interface
  */
 uc_iter_t *uc_get_iterator(void) {
-  uc_iter_t *iter;
-
-  iter = (uc_iter_t *)calloc(1, sizeof(*iter));
+  uc_iter_t *iter = calloc(1, sizeof(*iter));
   if (iter == NULL)
     return NULL;
 

@@ -38,12 +38,12 @@
 
 #include "collectd.h"
 
-#include "common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if HAVE_LIBTASKSTATS
+#include "utils/taskstats/taskstats.h"
 #include "utils_complain.h"
-#include "utils_taskstats.h"
 #endif
 
 /* Include header files for the mach system, if they exist.. */
@@ -216,7 +216,7 @@ typedef struct process_entry_s {
 
 typedef struct procstat_entry_s {
   unsigned long id;
-  unsigned long age;
+  unsigned char age;
 
   derive_t vmem_minflt_counter;
   derive_t vmem_majflt_counter;
@@ -587,7 +587,8 @@ static void ps_list_add(const char *name, const char *cmdline,
                       entry->cpu_system_counter);
 
 #if HAVE_LIBTASKSTATS
-    ps_update_delay(ps, pse, entry);
+    if (entry->has_delay)
+      ps_update_delay(ps, pse, entry);
 #endif
   }
 }
@@ -616,7 +617,7 @@ static void ps_list_reset(void) {
     pse_prev = NULL;
     pse = ps->instances;
     while (pse != NULL) {
-      if (pse->age > 10) {
+      if (pse->age > 0) {
         DEBUG("Removing this procstat entry cause it's too old: "
               "id = %lu; name = %s;",
               pse->id, ps->name);
@@ -631,7 +632,7 @@ static void ps_list_reset(void) {
           pse = pse_prev->next;
         }
       } else {
-        pse->age++;
+        pse->age = 1;
         pse_prev = pse;
         pse = pse->next;
       }
@@ -1577,7 +1578,6 @@ static char *ps_get_cmdline(long pid,
     return NULL;
   }
 
-  info.pr_psargs[sizeof(info.pr_psargs) - 1] = 0;
   sstrncpy(buffer, info.pr_psargs, buffer_size);
 
   return buffer;

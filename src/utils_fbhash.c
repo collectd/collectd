@@ -28,7 +28,7 @@
 
 #include "plugin.h"
 
-#include "utils_avltree.h"
+#include "utils/avltree/avltree.h"
 #include "utils_fbhash.h"
 
 struct fbhash_s {
@@ -102,7 +102,7 @@ static int fbh_read_file(fbhash_t *h) /* {{{ */
     char *key_copy;
     char *value_copy;
 
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[sizeof(buffer) - 1] = '\0';
     len = strlen(buffer);
 
     /* Remove trailing newline characters. */

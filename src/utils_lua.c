@@ -24,7 +24,7 @@
  *   Florian Forster <octo at collectd.org>
  **/
 
-#include "common.h"
+#include "utils/common/common.h"
 #include "utils_lua.h"
 
 static int ltoc_values(lua_State *L, /* {{{ */
