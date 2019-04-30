@@ -34,6 +34,35 @@
 /* Utils functions to format data sets in graphite format.
  * Largely taken from write_graphite.c as it remains the same formatting */
 
+/* helper function for reverse_hostname */
+void reverse_string(char *r_host, int len) {
+  for (int i = 0, j = len - 1; i < j; i++, j--) {
+    char t = r_host[i];
+    r_host[i] = r_host[j];
+    r_host[j] = t;
+  }
+}
+
+void reverse_hostname(char *r_host, char const *orig_host) {
+  int len_host = strlen(orig_host);
+
+  /* put reversed hostname into working copy */
+  for (int i = 0; i < len_host; i++)
+    r_host[i] = orig_host[len_host - 1 - i];
+  r_host[len_host] = '\0';
+
+  /* reverse labels (except last) */
+  int p = 0;
+  for (int i = 0; i < len_host; i++)
+    if (r_host[i] == '.') {
+      reverse_string(&r_host[p], i - p);
+      p = i + 1;
+    }
+
+  /* reverse last label */
+  reverse_string(&r_host[p], len_host - p);
+}
+
 static int gr_format_values(char *ret, size_t ret_len, int ds_num,
                             const data_set_t *ds, const value_list_t *vl,
                             gauge_t const *rates) {
@@ -120,7 +149,13 @@ static int gr_format_name_tagged(char *ret, int ret_len, value_list_t const *vl,
   if (postfix == NULL)
     postfix = "";
 
-  gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char, 1);
+  if (flags & GRAPHITE_REVERSE_HOST) {
+    char r_host[DATA_MAX_NAME_LEN];
+    reverse_hostname(r_host, vl->host);
+    gr_copy_escape_part(n_host, r_host, sizeof(n_host), escape_char, 1);
+  } else {
+    gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char, 1);
+  }
   gr_copy_escape_part(n_plugin, vl->plugin, sizeof(n_plugin), escape_char, 1);
   gr_copy_escape_part(n_plugin_instance, vl->plugin_instance,
                       sizeof(n_plugin_instance), escape_char, 1);
@@ -198,8 +233,15 @@ static int gr_format_name(char *ret, int ret_len, value_list_t const *vl,
 
   bool preserve_separator = (flags & GRAPHITE_PRESERVE_SEPARATOR);
 
-  gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
-                      preserve_separator);
+  if (flags & GRAPHITE_REVERSE_HOST) {
+    char r_host[DATA_MAX_NAME_LEN];
+    reverse_hostname(r_host, vl->host);
+    gr_copy_escape_part(n_host, r_host, sizeof(n_host), escape_char,
+                        preserve_separator);
+  } else {
+    gr_copy_escape_part(n_host, vl->host, sizeof(n_host), escape_char,
+                        preserve_separator);
+  }
   gr_copy_escape_part(n_plugin, vl->plugin, sizeof(n_plugin), escape_char,
                       preserve_separator);
   gr_copy_escape_part(n_plugin_instance, vl->plugin_instance,

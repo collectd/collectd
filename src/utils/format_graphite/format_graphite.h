@@ -32,6 +32,7 @@
 #define GRAPHITE_DROP_DUPE_FIELDS 0x08
 #define GRAPHITE_PRESERVE_SEPARATOR 0x10
 #define GRAPHITE_USE_TAGS 0x20
+#define GRAPHITE_REVERSE_HOST 0x40
 
 int format_graphite(char *buffer, size_t buffer_size, const data_set_t *ds,
                     const value_list_t *vl, const char *prefix,
