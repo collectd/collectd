@@ -36,9 +36,8 @@
 
 /* helper function for reverse_hostname */
 void reverse_string(char *r_host, int len) {
-  char t;
   for (int i = 0, j = len - 1; i < j; i++, j--) {
-    t = r_host[i];
+    char t = r_host[i];
     r_host[i] = r_host[j];
     r_host[j] = t;
   }
