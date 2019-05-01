@@ -471,9 +471,6 @@ static int lua_script_load(const char *script_path) /* {{{ */
     else
       ERROR("Lua plugin: Executing script \"%s\" failed:\n%s",
             script_path, errmsg);
-
-    lua_script_free(script);
-    return -1;
   }
 
   /* Append this script to the global list of scripts. */
@@ -486,6 +483,9 @@ static int lua_script_load(const char *script_path) /* {{{ */
   } else {
     scripts = script;
   }
+
+  if (status != 0)
+    return -1;
 
   return 0;
 } /* }}} int lua_script_load */
