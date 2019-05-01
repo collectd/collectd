@@ -261,6 +261,7 @@ static int lua_cb_dispatch_values(lua_State *L) /* {{{ */
 static void lua_cb_free(void *data) {
   clua_callback_data_t *cb = data;
   free(cb->lua_function_name);
+  pthread_mutex_destroy(&cb->lock);
   free(cb);
 }
 
