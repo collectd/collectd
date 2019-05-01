@@ -41,7 +41,6 @@
 #include <pthread.h>
 
 typedef struct lua_script_s {
-  char *script_path;
   lua_State *lua_state;
   struct lua_script_s *next;
 } lua_script_t;
@@ -389,7 +388,6 @@ static void lua_script_free(lua_script_t *script) /* {{{ */
     script->lua_state = NULL;
   }
 
-  sfree(script->script_path);
   sfree(script);
 
   lua_script_free(next);
@@ -453,14 +451,7 @@ static int lua_script_load(const char *script_path) /* {{{ */
     return status;
   }
 
-  script->script_path = strdup(script_path);
-  if (script->script_path == NULL) {
-    ERROR("Lua plugin: strdup failed.");
-    lua_script_free(script);
-    return -1;
-  }
-
-  status = luaL_loadfile(script->lua_state, script->script_path);
+  status = luaL_loadfile(script->lua_state, script_path);
   if (status != 0) {
     ERROR("Lua plugin: luaL_loadfile failed: %s",
           lua_tostring(script->lua_state, -1));
@@ -482,7 +473,7 @@ static int lua_script_load(const char *script_path) /* {{{ */
             status);
     else
       ERROR("Lua plugin: Executing script \"%s\" failed:\n%s",
-            script->script_path, errmsg);
+            script_path, errmsg);
 
     lua_script_free(script);
     return -1;
