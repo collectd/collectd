@@ -469,7 +469,7 @@ static int lua_script_load(const char *script_path) /* {{{ */
             "In addition, no error message could be retrieved from the stack.",
             status);
     else
-      ERROR("Lua plugin: Executing script \"%s\" failed:\n%s",
+      ERROR("Lua plugin: Executing script \"%s\" failed: %s",
             script_path, errmsg);
   }
 
