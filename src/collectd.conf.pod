@@ -10705,6 +10705,141 @@ C<https://monitoring.googleapis.com/v3>.
 
 =back
 
+=head2 Plugin C<write_syslog>
+
+The C<write_syslog> plugin writes data in I<syslog> format log messages.
+It implements the basic syslog protocol, RFC 5424, extends it with
+content-based filtering, rich filtering capabilities,
+flexible configuration options and adds features such as using TCP for transport.
+The plugin can connect to a I<Syslog> daemon, like syslog-ng and rsyslog, that will
+ingest metrics, transform and ship them to the specified output.
+The plugin uses I<TCP> over the "line based" protocol with a default port 44514.
+The data will be sent in blocks of at most 1428 bytes to minimize the number of
+network packets.
+
+Synopsis:
+
+ <Plugin write_syslog>
+   ResolveInterval 60
+   ResolveJitter 60
+   <Node "example">
+     Host "syslog-1.my.domain"
+     Port "44514"
+     Prefix "collectd"
+     MessageFormat "human"
+     HostTags ""
+   </Node>
+ </Plugin>
+
+The configuration consists of one or more E<lt>B<Node>E<nbsp>I<Name>E<gt>
+blocks and global directives.
+
+Global directives are:
+
+=over 4
+
+=item B<ResolveInterval> I<seconds>
+
+=item B<ResolveJitter> I<seconds>
+
+When I<collectd> connects to a syslog node, it will request the hostname from
+DNS. This can become a problem if the syslog node is unavailable or badly
+configured because collectd will request DNS in order to reconnect for every
+metric, which can flood your DNS. So you can cache the last value for
+I<ResolveInterval> seconds.
+Defaults to the I<Interval> of the I<write_syslog plugin>, e.g. 10E<nbsp>seconds.
+
+You can also define a jitter, a random interval to wait in addition to
+I<ResolveInterval>. This prevents all your collectd servers to resolve the
+hostname at the same time when the connection fails.
+Defaults to the I<Interval> of the I<write_syslog plugin>, e.g. 10E<nbsp>seconds.
+
+B<Note:> If the DNS resolution has already been successful when the socket
+closes, the plugin will try to reconnect immediately with the cached
+information. DNS is queried only when the socket is closed for a longer than
+I<ResolveInterval> + I<ResolveJitter> seconds.
+
+=back
+
+Inside the B<Node> blocks, the following options are recognized:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<44514>.
+
+
+=item B<HostTags> I<String>
+
+When set, I<HostTags> is added to the end of the metric.
+It is intended to be used for adding additional metadata to tag the metric with.
+Dots and whitespace are I<not> escaped in this string.
+
+Examples:
+
+When MessageFormat is set to "human".
+
+  ["prefix1" "example1"="example1_v"]["prefix2" "example2"="example2_v"]"
+
+When MessageFormat is set to "JSON", text should be in JSON format.
+Escaping the quotation marks is required.
+
+  HostTags "\"prefix1\": {\"example1\":\"example1_v\",\"example2\":\"example2_v\"}"
+
+=item B<MessageFormat> I<String>
+
+I<MessageFormat> selects the format in which messages are sent to the
+syslog deamon, human or JSON. Defaults to human.
+
+Syslog message format:
+
+<priority>VERSION ISOTIMESTAMP HOSTNAME APPLICATION PID MESSAGEID STRUCTURED-DATA MSG
+
+The difference between the message formats are in the STRUCTURED-DATA and MSG parts.
+
+Human format:
+
+  <166>1 ISOTIMESTAMP HOSTNAME collectd PID MESSAGEID
+  ["collectd" "value": "v1" "plugin"="plugin_v" "plugin_instance"="plugin_instance_v"
+  "type_instance"="type_instance_v" "type"="type_v" "ds_name"="ds_name_v" "interval"="interval_v" ]
+  "host_tag_example"="host_tag_example_v" plugin_v.type_v.ds_name_v="v1"
+
+JSON format:
+
+  <166>1 ISOTIMESTAMP HOSTNAME collectd PID MESSAGEID STRUCTURED-DATA
+  {
+    "collectd": {
+    "time": time_as_epoch, "interval": interval_v, "plugin": "plugin_v",
+    "plugin_instance": "plugin_instance_v", "type":"type_v",
+    "type_instance": "type_instance_v", "plugin_v": {"type_v": v1}
+    } , "host":"host_v", "host_tag_example": "host_tag_example_v"
+  }
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true>, convert counter values to rates. If set to B<false>
+(the default) counter values are stored as is, as an increasing
+integer number.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=item B<Prefix> I<String>
+
+When set, I<Prefix> is added to all metrics names as a prefix. It is intended in
+case you want to be able to define the source of the specific metric. Dots and
+whitespace are I<not> escaped in this string.
+
+=back
+
 =head2 Plugin C<xencpu>
 
 This plugin collects metrics of hardware CPU load for machine running Xen
