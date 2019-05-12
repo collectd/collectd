@@ -2297,7 +2297,7 @@ static int lv_read(user_data_t *ud) {
     if (dom->active)
       status = get_domain_metrics(dom);
 #ifdef HAVE_DOM_REASON
-    else
+    else if (extra_stats & ex_stats_domain_state)
       status = submit_domain_state(dom->ptr);
 #endif
 

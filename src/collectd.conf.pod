@@ -9466,9 +9466,7 @@ I<0.9.5> or later.
 =item B<disk_err>: report disk errors if any occured. Requires libvirt API version
 I<0.9.10> or later.
 
-=item B<domain_state>: report domain state and reason in human-readable format as
-a notification. If libvirt API version I<0.9.2> or later is available, domain
-reason will be included in notification.
+=item B<domain_state>: report domain state and reason as 'domain_state' metric.
 
 =item B<fs_info>: report file system information as a notification. Requires
 libvirt API version I<1.2.11> or later. Can be collected only if I<Guest Agent>
