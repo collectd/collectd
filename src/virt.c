@@ -926,6 +926,10 @@ static void memory_stats_submit(gauge_t value, virDomainPtr dom,
     return;
   }
 
+  /* Skip 'last_update' reporting as that is not memory but timestamp */
+  if (tag_index == 9)
+    return;
+
   submit(dom, "memory", tags[tag_index], &(value_t){.gauge = value}, 1);
 }
 
