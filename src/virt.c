@@ -2382,10 +2382,10 @@ static int lv_init(void) {
   if (lv_init_ignorelists() != 0)
     return -1;
 
-  lv_connect();
-
   if (!persistent_notification)
     virt_notif_thread_init(&notif_thread);
+
+  lv_connect();
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
