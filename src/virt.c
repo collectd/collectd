@@ -1631,16 +1631,7 @@ static int get_pcpu_stats(virDomainPtr dom) {
 #endif /* HAVE_CPU_STATS */
 
 #ifdef HAVE_DOM_REASON
-
-static void domain_state_submit(virDomainPtr dom, int state, int reason) {
-  value_t values[] = {
-      {.gauge = (gauge_t)state}, {.gauge = (gauge_t)reason},
-  };
-
-  submit(dom, "domain_state", NULL, values, STATIC_ARRAY_SIZE(values));
-}
-
-static int get_domain_state(virDomainPtr domain) {
+static int submit_domain_state(virDomainPtr domain) {
   int domain_state = 0;
   int domain_reason = 0;
 
@@ -1651,9 +1642,13 @@ static int get_domain_state(virDomainPtr domain) {
     return status;
   }
 
-  domain_state_submit(domain, domain_state, domain_reason);
+  value_t values[] = {
+      {.gauge = (gauge_t)domain_state}, {.gauge = (gauge_t)domain_reason},
+  };
 
-  return status;
+  submit(domain, "domain_state", NULL, values, STATIC_ARRAY_SIZE(values));
+
+  return 0;
 }
 
 #ifdef HAVE_LIST_ALL_DOMAINS
@@ -1938,7 +1933,7 @@ static int get_domain_metrics(domain_t *domain) {
      * however it doesn't provide a reason for entering particular state.
      * We need to get it from virDomainGetState.
      */
-    GET_STATS(get_domain_state, "domain reason", domain->ptr);
+    GET_STATS(submit_domain_state, "domain reason", domain->ptr);
 #endif
   }
 
@@ -2303,7 +2298,7 @@ static int lv_read(user_data_t *ud) {
       status = get_domain_metrics(dom);
 #ifdef HAVE_DOM_REASON
     else
-      status = get_domain_state(dom->ptr);
+      status = submit_domain_state(dom->ptr);
 #endif
 
     if (status != 0)
