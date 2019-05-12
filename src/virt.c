@@ -926,10 +926,6 @@ static void memory_stats_submit(gauge_t value, virDomainPtr dom,
     return;
   }
 
-  /* Skip 'last_update' reporting as that is not memory but timestamp */
-  if (tag_index == 9)
-    return;
-
   submit(dom, "memory", tags[tag_index], &(value_t){.gauge = value}, 1);
 }
 
@@ -1697,8 +1693,42 @@ static int get_memory_stats(virDomainPtr domain) {
     return mem_stats;
   }
 
-  for (int i = 0; i < mem_stats; i++)
-    memory_stats_submit((gauge_t)minfo[i].val * 1024, domain, minfo[i].tag);
+  derive_t swap_in = -1;
+  derive_t swap_out = -1;
+  derive_t min_flt = -1;
+  derive_t maj_flt = -1;
+
+  for (int i = 0; i < mem_stats; i++) {
+    if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_SWAP_IN)
+      swap_in = minfo[i].val;
+    else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_SWAP_OUT)
+      swap_out = minfo[i].val;
+    else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_MAJOR_FAULT)
+      min_flt = minfo[i].val;
+    else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_MINOR_FAULT)
+      maj_flt = minfo[i].val;
+#ifdef LIBVIR_CHECK_VERSION
+#if LIBVIR_CHECK_VERSION(2, 1, 0)
+    else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_LAST_UPDATE)
+      /* Skip 'last_update' reporting as that is not memory but timestamp */
+      continue;
+#endif
+#endif
+    else
+      memory_stats_submit((gauge_t)minfo[i].val * 1024, domain, minfo[i].tag);
+  }
+
+  if (swap_in > 0 || swap_out > 0) {
+    submit(domain, "swap_io", "in", &(value_t){.gauge = swap_in}, 1);
+    submit(domain, "swap_io", "out", &(value_t){.gauge = swap_out}, 1);
+  }
+
+  if (min_flt > -1 || maj_flt > -1) {
+    value_t values[] = {
+        {.gauge = (gauge_t)min_flt}, {.gauge = (gauge_t)maj_flt},
+    };
+    submit(domain, "ps_pagefaults", NULL, values, STATIC_ARRAY_SIZE(values));
+  }
 
   sfree(minfo);
   return 0;
