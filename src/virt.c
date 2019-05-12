@@ -635,6 +635,8 @@ static enum if_field interface_format = if_name;
 static time_t last_refresh = (time_t)0;
 
 static int refresh_lists(struct lv_read_instance *inst);
+static int register_event_impl(void);
+static int start_event_loop(virt_notif_thread_t *thread_data);
 
 struct lv_block_stats {
   virDomainBlockStatsStruct bi;
@@ -1441,6 +1443,11 @@ static int lv_config(oconfig_item_t *ci) {
 
 static int lv_connect(void) {
   if (conn == NULL) {
+    /* event implementation must be registered before connection is opened */
+    if (!persistent_notification)
+      if (register_event_impl() != 0)
+        return -1;
+
 /* `conn_string == NULL' is acceptable */
 #ifdef HAVE_FS_INFO
     /* virDomainGetFSInfo requires full read-write access connection */
@@ -1458,8 +1465,17 @@ static int lv_connect(void) {
     int status = virNodeGetInfo(conn, &nodeinfo);
     if (status != 0) {
       ERROR(PLUGIN_NAME " plugin: virNodeGetInfo failed");
+      virConnectClose(conn);
+      conn = NULL;
       return -1;
     }
+
+    if (!persistent_notification)
+      if (start_event_loop(&notif_thread) != 0) {
+        virConnectClose(conn);
+        conn = NULL;
+        return -1;
+      }
   }
   c_release(LOG_NOTICE, &conn_complain,
             PLUGIN_NAME " plugin: Connection established.");
@@ -2091,10 +2107,9 @@ static void *event_loop_worker(void *arg) {
 }
 
 static int virt_notif_thread_init(virt_notif_thread_t *thread_data) {
-  int ret;
-
   assert(thread_data != NULL);
-  ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
+
+  int ret = pthread_mutex_init(&thread_data->active_mutex, NULL);
   if (ret != 0) {
     ERROR(PLUGIN_NAME " plugin: Failed to initialize mutex, err %u", ret);
     return ret;
@@ -2230,33 +2245,23 @@ static int persistent_domains_state_notification(void) {
 }
 
 static int lv_read(user_data_t *ud) {
-  time_t t;
-  struct lv_read_instance *inst = NULL;
-  struct lv_read_state *state = NULL;
-
   if (ud->data == NULL) {
     ERROR(PLUGIN_NAME " plugin: NULL userdata");
     return -1;
   }
 
-  inst = ud->data;
-  state = &inst->read_state;
+  struct lv_read_instance *inst = ud->data;
+  struct lv_read_state *state = &inst->read_state;
 
-  bool reconnect = conn == NULL ? true : false;
-  /* event implementation must be registered before connection is opened */
-  if (inst->id == 0) {
-    if (!persistent_notification && reconnect)
-      if (register_event_impl() != 0)
-        return -1;
-
+  if (inst->id == 0)
     if (lv_connect() < 0)
       return -1;
 
-    if (!persistent_notification && reconnect && conn != NULL)
-      if (start_event_loop(&notif_thread) != 0)
-        return -1;
-  }
+  /* Wait until inst#0 establish connection */
+  if (conn == NULL)
+    return 0;
 
+  time_t t;
   time(&t);
 
   /* Need to refresh domain or device lists? */
@@ -2377,19 +2382,10 @@ static int lv_init(void) {
   if (lv_init_ignorelists() != 0)
     return -1;
 
-  /* event implementation must be registered before connection is opened */
+  lv_connect();
+
   if (!persistent_notification)
-    if (register_event_impl() != 0)
-      return -1;
-
-  if (lv_connect() != 0)
-    return -1;
-
-  if (!persistent_notification) {
     virt_notif_thread_init(&notif_thread);
-    if (start_event_loop(&notif_thread) != 0)
-      return -1;
-  }
 
   DEBUG(PLUGIN_NAME " plugin: starting %i instances", nr_instances);
 
