@@ -1668,8 +1668,7 @@ static int get_domain_state_notify(virDomainPtr domain) {
     return status;
   }
 
-  if (persistent_notification)
-    domain_state_submit_notif(domain, domain_state, domain_reason);
+  domain_state_submit_notif(domain, domain_state, domain_reason);
 
   return status;
 }
