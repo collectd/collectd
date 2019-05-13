@@ -1731,9 +1731,9 @@ static int get_memory_stats(virDomainPtr domain) {
       swap_in = minfo[i].val;
     else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_SWAP_OUT)
       swap_out = minfo[i].val;
-    else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_MAJOR_FAULT)
-      min_flt = minfo[i].val;
     else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_MINOR_FAULT)
+      min_flt = minfo[i].val;
+    else if (minfo[i].tag == VIR_DOMAIN_MEMORY_STAT_MAJOR_FAULT)
       maj_flt = minfo[i].val;
 #ifdef LIBVIR_CHECK_VERSION
 #if LIBVIR_CHECK_VERSION(2, 1, 0)
