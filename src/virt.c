@@ -2258,8 +2258,11 @@ static int lv_read(user_data_t *ud) {
       return -1;
 
   /* Wait until inst#0 establish connection */
-  if (conn == NULL)
+  if (conn == NULL) {
+    DEBUG(PLUGIN_NAME " plugin#%s: Wait until inst#0 establish connection",
+          inst->tag);
     return 0;
+  }
 
   time_t t;
   time(&t);
