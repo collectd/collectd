@@ -303,6 +303,16 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     switch (detail) {
     case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED: /* Guest finished shutdown
                                                 sequence */
+#ifdef LIBVIR_CHECK_VERSION
+#if LIBVIR_CHECK_VERSION(3, 4, 0)
+    case VIR_DOMAIN_EVENT_SHUTDOWN_GUEST: /* Domain finished shutting down after
+                                             request from the guest itself (e.g.
+                                             hardware-specific action) */
+    case VIR_DOMAIN_EVENT_SHUTDOWN_HOST:  /* Domain finished shutting down after
+                                             request from the host (e.g. killed
+                                             by a signal) */
+#endif
+#endif
       ret = VIR_DOMAIN_SHUTDOWN_USER;
       break;
     default:
