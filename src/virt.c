@@ -2386,7 +2386,8 @@ static int lv_init(void) {
     return -1;
 
   if (!persistent_notification)
-    virt_notif_thread_init(&notif_thread);
+    if (virt_notif_thread_init(&notif_thread) != 0)
+      return -1;
 
   lv_connect();
 
