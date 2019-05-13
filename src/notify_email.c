@@ -104,7 +104,7 @@ static void monitor_cb(const char *buf, int buflen, int writing,
 static int notify_email_init(void) {
   char server[MAXSTRING];
 
-  snprintf(server, sizeof(server), "%s:%i",
+  ssnprintf(server, sizeof(server), "%s:%i",
            (smtp_host == NULL) ? DEFAULT_SMTP_HOST : smtp_host, smtp_port);
 
   pthread_mutex_lock(&session_lock);
@@ -214,14 +214,14 @@ static int notify_email_notification(const notification_t *n,
   char *buf_ptr = buf;
   int buf_len = sizeof(buf);
 
-  snprintf(severity, sizeof(severity), "%s",
+  ssnprintf(severity, sizeof(severity), "%s",
            (n->severity == NOTIF_FAILURE)
                ? "FAILURE"
                : ((n->severity == NOTIF_WARNING)
                       ? "WARNING"
                       : ((n->severity == NOTIF_OKAY) ? "OKAY" : "UNKNOWN")));
 
-  snprintf(subject, sizeof(subject),
+  ssnprintf(subject, sizeof(subject),
            (email_subject == NULL) ? DEFAULT_SMTP_SUBJECT : email_subject,
            severity, n->host);
 
@@ -231,7 +231,7 @@ static int notify_email_notification(const notification_t *n,
   timestamp_str[sizeof(timestamp_str) - 1] = '\0';
 
   /* Let's make RFC822 message text with \r\n EOLs */
-  int status = snprintf(buf, buf_len,
+  int status = ssnprintf(buf, buf_len,
                         "MIME-Version: 1.0\r\n"
                         "Content-Type: text/plain; charset=\"US-ASCII\"\r\n"
                         "Content-Transfer-Encoding: 8bit\r\n"
@@ -248,7 +248,7 @@ static int notify_email_notification(const notification_t *n,
 
 #define APPEND(format, value)                                                  \
   if ((buf_len > 0) && (strlen(value) > 0)) {                                  \
-    status = snprintf(buf_ptr, buf_len, format "\r\n", value);                 \
+    status = ssnprintf(buf_ptr, buf_len, format "\r\n", value);                 \
     if (status > 0) {                                                          \
       buf_ptr += status;                                                       \
       buf_len -= status;                                                       \

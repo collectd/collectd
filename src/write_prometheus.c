@@ -164,7 +164,7 @@ static char *format_labels(char *buffer, size_t buffer_size,
    * know that they are sane. */
   for (size_t i = 0; i < m->n_label; i++) {
     char value[LABEL_VALUE_SIZE];
-    snprintf(labels[i], LABEL_BUFFER_SIZE, "%s=\"%s\"", m->label[i]->name,
+    ssnprintf(labels[i], LABEL_BUFFER_SIZE, "%s=\"%s\"", m->label[i]->name,
              escape_label_value(value, sizeof(value), m->label[i]->value));
   }
 
@@ -183,10 +183,10 @@ static void format_text(ProtobufCBuffer *buffer) {
   while (c_avl_iterator_next(iter, (void *)&unused_name, (void *)&fam) == 0) {
     char line[1024]; /* 4x DATA_MAX_NAME_LEN? */
 
-    snprintf(line, sizeof(line), "# HELP %s %s\n", fam->name, fam->help);
+    ssnprintf(line, sizeof(line), "# HELP %s %s\n", fam->name, fam->help);
     buffer->append(buffer, strlen(line), (uint8_t *)line);
 
-    snprintf(line, sizeof(line), "# TYPE %s %s\n", fam->name,
+    ssnprintf(line, sizeof(line), "# TYPE %s %s\n", fam->name,
              (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE)
                  ? "gauge"
                  : "counter");
@@ -199,15 +199,15 @@ static void format_text(ProtobufCBuffer *buffer) {
 
       char timestamp_ms[24] = "";
       if (m->has_timestamp_ms)
-        snprintf(timestamp_ms, sizeof(timestamp_ms), " %" PRIi64,
+        ssnprintf(timestamp_ms, sizeof(timestamp_ms), " %" PRIi64,
                  m->timestamp_ms);
 
       if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__GAUGE)
-        snprintf(line, sizeof(line), "%s{%s} " GAUGE_FORMAT "%s\n", fam->name,
+        ssnprintf(line, sizeof(line), "%s{%s} " GAUGE_FORMAT "%s\n", fam->name,
                  format_labels(labels, sizeof(labels), m), m->gauge->value,
                  timestamp_ms);
       else /* if (fam->type == IO__PROMETHEUS__CLIENT__METRIC_TYPE__COUNTER) */
-        snprintf(line, sizeof(line), "%s{%s} %.0f%s\n", fam->name,
+        ssnprintf(line, sizeof(line), "%s{%s} %.0f%s\n", fam->name,
                  format_labels(labels, sizeof(labels), m), m->counter->value,
                  timestamp_ms);
 
@@ -217,7 +217,7 @@ static void format_text(ProtobufCBuffer *buffer) {
   c_avl_iterator_destroy(iter);
 
   char server[1024];
-  snprintf(server, sizeof(server), "\n# collectd/write_prometheus %s at %s\n",
+  ssnprintf(server, sizeof(server), "\n# collectd/write_prometheus %s at %s\n",
            PACKAGE_VERSION, hostname_g);
   buffer->append(buffer, strlen(server), (uint8_t *)server);
 
@@ -635,7 +635,7 @@ metric_family_create(char *name, data_set_t const *ds, value_list_t const *vl,
   msg->name = name;
 
   char help[1024];
-  snprintf(
+  ssnprintf(
       help, sizeof(help),
       "write_prometheus plugin: '%s' Type: '%s', Dstype: '%s', Dsname: '%s'",
       vl->plugin, vl->type, DS_TYPE_TO_STRING(ds->ds[ds_index].type),
@@ -744,7 +744,7 @@ static void prom_logger(__attribute__((unused)) void *arg, char const *fmt,
 static int prom_open_socket(int addrfamily) {
   /* {{{ */
   char service[NI_MAXSERV];
-  snprintf(service, sizeof(service), "%hu", httpd_port);
+  ssnprintf(service, sizeof(service), "%hu", httpd_port);
 
   struct addrinfo *res;
   int status = getaddrinfo(httpd_host, service,

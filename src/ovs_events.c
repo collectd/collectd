@@ -158,7 +158,7 @@ static char *ovs_events_get_select_params() {
       return NULL;
     }
     opt_buff = new_buff;
-    int ret = snprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
+    int ret = ssnprintf(opt_buff + buff_off, buff_size - buff_off, option_fmt,
                        iface->name);
     if (ret < 0) {
       sfree(opt_buff);
@@ -339,7 +339,7 @@ ovs_events_dispatch_notification(const ovs_events_iface_info_t *ifinfo) {
   }
 
   /* fill the notification data */
-  snprintf(n.message, sizeof(n.message),
+  ssnprintf(n.message, sizeof(n.message),
            "link state of \"%s\" interface has been changed to \"%s\"",
            ifinfo->name, msg_link_status);
   sstrncpy(n.host, hostname_g, sizeof(n.host));

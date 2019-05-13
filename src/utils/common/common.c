@@ -89,6 +89,22 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
   return dest;
 } /* char *sstrncpy */
 
+/* ssnprintf returns zero on success, one if truncation occurred
+   and a negative integer onerror. */
+int ssnprintf(char *str, size_t sz, const char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+
+  int ret = vsnprintf(str, sz, format, ap);
+
+  va_end(ap);
+
+  if (ret < 0) {
+    return ret;
+  }
+  return (size_t)ret >= sz;
+} /* int ssnprintf */
+
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
 {
   char static_buffer[1024] = "";

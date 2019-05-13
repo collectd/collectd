@@ -144,16 +144,16 @@ static int format_typed_value(yajl_gen gen, int ds_type, value_t v,
   }
   case DS_TYPE_DERIVE: {
     derive_t diff = v.derive - (derive_t)start_value;
-    snprintf(integer, sizeof(integer), "%" PRIi64, diff);
+    ssnprintf(integer, sizeof(integer), "%" PRIi64, diff);
     break;
   }
   case DS_TYPE_COUNTER: {
     counter_t diff = counter_diff((counter_t)start_value, v.counter);
-    snprintf(integer, sizeof(integer), "%llu", diff);
+    ssnprintf(integer, sizeof(integer), "%llu", diff);
     break;
   }
   case DS_TYPE_ABSOLUTE: {
-    snprintf(integer, sizeof(integer), "%" PRIu64, v.absolute);
+    ssnprintf(integer, sizeof(integer), "%" PRIu64, v.absolute);
     break;
   }
   default: {
@@ -210,10 +210,10 @@ static int metric_type(char *buffer, size_t buffer_size, data_set_t const *ds,
 
 #define GCM_PREFIX "custom.googleapis.com/collectd/"
   if ((ds_index != 0) || strcmp("value", ds_name) != 0) {
-    snprintf(buffer, buffer_size, GCM_PREFIX "%s/%s_%s", vl->plugin, vl->type,
+    ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s_%s", vl->plugin, vl->type,
              ds_name);
   } else {
-    snprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
+    ssnprintf(buffer, buffer_size, GCM_PREFIX "%s/%s", vl->plugin, vl->type);
   }
 
   char const *whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -280,7 +280,7 @@ static int read_cumulative_state(data_set_t const *ds, value_list_t const *vl,
   }
 
   char start_value_key[DATA_MAX_NAME_LEN];
-  snprintf(start_value_key, sizeof(start_value_key),
+  ssnprintf(start_value_key, sizeof(start_value_key),
            "stackdriver:start_value[%d]", ds_index);
 
   int status =

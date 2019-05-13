@@ -912,7 +912,7 @@ const char *qtype_str(int t) {
     return "ANY"; /* ... 255 */
 #endif /* __BIND >= 19950621 */
   default:
-    snprintf(buf, sizeof(buf), "#%i", t);
+    ssnprintf(buf, sizeof(buf), "#%i", t);
     return buf;
   } /* switch (t) */
 }
@@ -931,7 +931,7 @@ const char *opcode_str(int o) {
   case 5:
     return "Update";
   default:
-    snprintf(buf, sizeof(buf), "Opcode%d", o);
+    ssnprintf(buf, sizeof(buf), "Opcode%d", o);
     return buf;
   }
 }
@@ -998,7 +998,7 @@ const char *rcode_str(int rcode) {
 #endif /* RFC2136 rcodes */
 #endif /* __BIND >= 19950621 */
   default:
-    snprintf(buf, sizeof(buf), "RCode%i", rcode);
+    ssnprintf(buf, sizeof(buf), "RCode%i", rcode);
     return buf;
   }
 } /* const char *rcode_str (int rcode) */

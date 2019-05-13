@@ -196,7 +196,7 @@ DEF_TEST(parse) {
     memset(&cmd, 0, sizeof(cmd));
 
     status = cmd_parse(input, &cmd, parse_data[i].opts, &err);
-    snprintf(description, sizeof(description), "cmd_parse (\"%s\", opts=%p) = "
+    ssnprintf(description, sizeof(description), "cmd_parse (\"%s\", opts=%p) = "
                                                "%d (type=%d [%s]); want %d "
                                                "(type=%d [%s])",
              parse_data[i].input, parse_data[i].opts, status, cmd.type,

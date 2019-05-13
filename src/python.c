@@ -285,7 +285,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback,
   PyObject *mod = NULL;
 
   if (name != NULL) {
-    snprintf(buf, size, "python.%s", name);
+    ssnprintf(buf, size, "python.%s", name);
     return;
   }
 
@@ -294,14 +294,14 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback,
     module = cpy_unicode_or_bytes_to_string(&mod);
 
   if (module != NULL) {
-    snprintf(buf, size, "python.%s", module);
+    ssnprintf(buf, size, "python.%s", module);
     Py_XDECREF(mod);
     PyErr_Clear();
     return;
   }
   Py_XDECREF(mod);
 
-  snprintf(buf, size, "python.%p", callback);
+  ssnprintf(buf, size, "python.%p", callback);
   PyErr_Clear();
 }
 
