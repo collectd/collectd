@@ -70,7 +70,8 @@
 
 /*
   virConnectListAllDomains() appeared in 0.10.2 (Sep 2012)
-  Note that LIBVIR_CHECK_VERSION appeared a year later (Dec 2013, libvirt-1.2.0),
+  Note that LIBVIR_CHECK_VERSION appeared a year later (Dec 2013,
+  libvirt-1.2.0),
   so in some systems which actually have virConnectListAllDomains()
   we can't detect this.
  */
