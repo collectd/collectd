@@ -278,7 +278,7 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
   char subname[DATA_MAX_NAME_LEN];
   if (!lua_isfunction(L, 1) && lua_isstring(L, 1)) {
     const char *fname = lua_tostring(L, 1);
-    snprintf(subname, sizeof(subname), "%s()", fname);
+    ssnprintf(subname, sizeof(subname), "%s()", fname);
 
     lua_getglobal(L, fname); // Push function into stack
     lua_remove(L, 1);        // Remove string from stack
@@ -288,7 +288,7 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
   } else {
     lua_getfield(L, LUA_REGISTRYINDEX, "collectd:callback_num");
     int tmp = lua_tointeger(L, -1);
-    snprintf(subname, sizeof(subname), "callback_%d", tmp);
+    ssnprintf(subname, sizeof(subname), "callback_%d", tmp);
     lua_pop(L, 1); // Remove old value from stack
     lua_pushinteger(L, tmp + 1);
     lua_setfield(L, LUA_REGISTRYINDEX, "collectd:callback_num"); // pops value
@@ -298,7 +298,7 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
 
   lua_getfield(L, LUA_REGISTRYINDEX, "collectd:script_path");
   char function_name[DATA_MAX_NAME_LEN];
-  snprintf(function_name, sizeof(function_name), "lua/%s/%s",
+  ssnprintf(function_name, sizeof(function_name), "lua/%s/%s",
            lua_tostring(L, -1), subname);
   lua_pop(L, 1);
 
@@ -530,7 +530,7 @@ static int lua_config_script(const oconfig_item_t *ci) /* {{{ */
   if (base_path[0] == '\0')
     sstrncpy(abs_path, rel_path, sizeof(abs_path));
   else
-    snprintf(abs_path, sizeof(abs_path), "%s/%s", base_path, rel_path);
+    ssnprintf(abs_path, sizeof(abs_path), "%s/%s", base_path, rel_path);
 
   DEBUG("Lua plugin: abs_path = \"%s\";", abs_path);
 

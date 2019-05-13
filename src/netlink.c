@@ -509,7 +509,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (strcmp(tc_type, "filter") == 0)
       numberic_id = tm->tcm_parent;
 
-    snprintf(tc_inst, sizeof(tc_inst), "%s-%x:%x", kind, numberic_id >> 16,
+    ssnprintf(tc_inst, sizeof(tc_inst), "%s-%x:%x", kind, numberic_id >> 16,
              numberic_id & 0x0000FFFF);
   }
 
@@ -541,7 +541,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
 
       stats_submitted = true;
 
-      int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
+      int r = ssnprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
                        tc_inst);
       if ((size_t)r >= sizeof(type_instance)) {
         ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",
@@ -580,7 +580,7 @@ static int qos_filter_cb(const struct nlmsghdr *nlh, void *args) {
     if (!stats_submitted && ts != NULL) {
       char type_instance[DATA_MAX_NAME_LEN];
 
-      int r = snprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
+      int r = ssnprintf(type_instance, sizeof(type_instance), "%s-%s", tc_type,
                        tc_inst);
       if ((size_t)r >= sizeof(type_instance)) {
         ERROR("netlink plugin: type_instance truncated to %zu bytes, need %d",

@@ -397,7 +397,7 @@ static staging_entry_t *staging_entry_get(const char *host, /* {{{ */
   if (staging_tree == NULL)
     return NULL;
 
-  snprintf(key, sizeof(key), "%s/%s/%s", host, type,
+  ssnprintf(key, sizeof(key), "%s/%s/%s", host, type,
            (type_instance != NULL) ? type_instance : "");
 
   se = NULL;

@@ -111,7 +111,7 @@ static void c_ipmi_error(c_ipmi_instance_t *st, const char *func, int status) {
   }
 
   if (errbuf[0] == 0) {
-    snprintf(errbuf, sizeof(errbuf), "Unknown error %#x", status);
+    ssnprintf(errbuf, sizeof(errbuf), "Unknown error %#x", status);
   }
   errbuf[sizeof(errbuf) - 1] = '\0';
 
@@ -201,7 +201,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
           sstrncpy(n.type_instance, list_item->type_instance,
                    sizeof(n.type_instance));
           sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-          snprintf(n.message, sizeof(n.message), "sensor %s not present",
+          ssnprintf(n.message, sizeof(n.message), "sensor %s not present",
                    list_item->sensor_name);
 
           plugin_dispatch_notification(&n);
@@ -254,7 +254,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
       sstrncpy(n.type_instance, list_item->type_instance,
                sizeof(n.type_instance));
       sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-      snprintf(n.message, sizeof(n.message), "sensor %s present",
+      ssnprintf(n.message, sizeof(n.message), "sensor %s present",
                list_item->sensor_name);
 
       plugin_dispatch_notification(&n);
@@ -313,7 +313,7 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
   temp[sizeof(temp) - 1] = '\0';
 
   if (entity_id_string != NULL && strlen(temp))
-    snprintf(sensor_name, sizeof(sensor_name), "%s %s", temp, entity_id_string);
+    ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", temp, entity_id_string);
   else if (entity_id_string != NULL)
     sstrncpy(sensor_name, entity_id_string, sizeof(sensor_name));
   else
@@ -338,7 +338,7 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
       sensor_id_ptr = strstr(temp, "(");
       if (sensor_id_ptr != NULL) {
         /* `sensor_id_ptr' now points to "(123)". */
-        snprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
+        ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
                  sensor_id_ptr);
       }
       /* else: don't touch sensor_name. */
@@ -493,7 +493,7 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
   /* if sensor provides the percentage value, use "percent" collectd type
      and add the `percent` to the type instance of the reported value */
   if (ipmi_sensor_get_percentage(sensor)) {
-    snprintf(list_item->type_instance, sizeof(list_item->type_instance),
+    ssnprintf(list_item->type_instance, sizeof(list_item->type_instance),
              "percent-%s", sensor_name_ptr);
     type = "percent";
   } else {
@@ -514,7 +514,7 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
     sstrncpy(n.type_instance, list_item->type_instance,
              sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-    snprintf(n.message, sizeof(n.message), "sensor %s added",
+    ssnprintf(n.message, sizeof(n.message), "sensor %s added",
              list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
@@ -561,7 +561,7 @@ static int sensor_list_remove(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
     sstrncpy(n.type_instance, list_item->type_instance,
              sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
-    snprintf(n.message, sizeof(n.message), "sensor %s removed",
+    ssnprintf(n.message, sizeof(n.message), "sensor %s removed",
              list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
@@ -674,11 +674,11 @@ static int sensor_threshold_event_handler(
       ipmi_get_reading_name(event_type, sensor_type, offset);
   sensor_get_name(sensor, n.type_instance, sizeof(n.type_instance));
   if (value_present != IPMI_NO_VALUES_PRESENT)
-    snprintf(n.message, sizeof(n.message),
+    ssnprintf(n.message, sizeof(n.message),
              "sensor %s received event: %s, value is %f", n.type_instance,
              event_state, value);
   else
-    snprintf(n.message, sizeof(n.message),
+    ssnprintf(n.message, sizeof(n.message),
              "sensor %s received event: %s, value not provided",
              n.type_instance, event_state);
 
@@ -699,7 +699,7 @@ static int sensor_threshold_event_handler(
   /* both values present, so fall-through to add raw value too */
   case IPMI_RAW_VALUE_PRESENT: {
     char buf[DATA_MAX_NAME_LEN] = {0};
-    snprintf(buf, sizeof(buf), "0x%2.2x", raw_value);
+    ssnprintf(buf, sizeof(buf), "0x%2.2x", raw_value);
     plugin_notification_meta_add_string(&n, "raw", buf);
   } break;
   default:
@@ -741,7 +741,7 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
   const char *event_state =
       ipmi_get_reading_name(event_type, sensor_type, offset);
   sensor_get_name(sensor, n.type_instance, sizeof(n.type_instance));
-  snprintf(n.message, sizeof(n.message), "sensor %s received event: %s",
+  ssnprintf(n.message, sizeof(n.message), "sensor %s received event: %s",
            n.type_instance, event_state);
 
   DEBUG("Discrete event received for sensor %s", n.type_instance);
@@ -1253,7 +1253,7 @@ static int c_ipmi_init(void) {
     /* The `st->name` is used as "domain name" for ipmi_open_domain().
      * That value should be unique, so we do plugin_register_complex_read()
      * at first as it checks the uniqueness. */
-    snprintf(callback_name, sizeof(callback_name), "ipmi/%s", st->name);
+    ssnprintf(callback_name, sizeof(callback_name), "ipmi/%s", st->name);
 
     user_data_t ud = {
         .data = st,

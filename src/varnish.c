@@ -107,7 +107,7 @@ static int varnish_submit(const char *plugin_instance, /* {{{ */
 
   if (plugin_instance == NULL)
     plugin_instance = "default";
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
            plugin_instance, category);
 
   sstrncpy(vl.type, type, sizeof(vl.type));
@@ -1759,7 +1759,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     return EINVAL;
   }
 
-  snprintf(callback_name, sizeof(callback_name), "varnish/%s",
+  ssnprintf(callback_name, sizeof(callback_name), "varnish/%s",
            (conf->instance == NULL) ? "localhost" : conf->instance);
 
   plugin_register_complex_read(

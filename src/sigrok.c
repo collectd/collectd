@@ -247,7 +247,7 @@ static int sigrok_init_driver(struct config_device *cfdev,
   }
   cfdev->sdi = devlist->data;
   g_slist_free(devlist);
-  snprintf(hwident, sizeof(hwident), "%s %s %s",
+  ssnprintf(hwident, sizeof(hwident), "%s %s %s",
            cfdev->sdi->vendor ? cfdev->sdi->vendor : "",
            cfdev->sdi->model ? cfdev->sdi->model : "",
            cfdev->sdi->version ? cfdev->sdi->version : "");

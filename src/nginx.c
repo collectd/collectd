@@ -122,7 +122,7 @@ static int init(void) {
     curl_easy_setopt(curl, CURLOPT_PASSWORD, (pass == NULL) ? "" : pass);
 #else
     static char credentials[1024];
-    int status = snprintf(credentials, sizeof(credentials), "%s:%s", user,
+    int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
                           pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("nginx plugin: Credentials would have been truncated.");

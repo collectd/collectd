@@ -218,7 +218,7 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
           (db->database != NULL) ? db->database : "<default>");
 
     if (db->instance != NULL)
-      snprintf(cb_name, sizeof(cb_name), "mysql-%s", db->instance);
+      ssnprintf(cb_name, sizeof(cb_name), "mysql-%s", db->instance);
     else
       sstrncpy(cb_name, "mysql", sizeof(cb_name));
 
@@ -500,14 +500,14 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     if (((io == NULL) || (strcasecmp(io, "yes") != 0)) &&
         (db->slave_io_running)) {
       n.severity = NOTIF_WARNING;
-      snprintf(n.message, sizeof(n.message),
+      ssnprintf(n.message, sizeof(n.message),
                "slave I/O thread not started or not connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = false;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                (!db->slave_io_running)) {
       n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message),
+      ssnprintf(n.message, sizeof(n.message),
                "slave I/O thread started and connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = true;
@@ -516,13 +516,13 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
     if (((sql == NULL) || (strcasecmp(sql, "yes") != 0)) &&
         (db->slave_sql_running)) {
       n.severity = NOTIF_WARNING;
-      snprintf(n.message, sizeof(n.message), "slave SQL thread not started");
+      ssnprintf(n.message, sizeof(n.message), "slave SQL thread not started");
       plugin_dispatch_notification(&n);
       db->slave_sql_running = false;
     } else if (((sql != NULL) && (strcasecmp(sql, "yes") == 0)) &&
                (!db->slave_sql_running)) {
       n.severity = NOTIF_OKAY;
-      snprintf(n.message, sizeof(n.message), "slave SQL thread started");
+      ssnprintf(n.message, sizeof(n.message), "slave SQL thread started");
       plugin_dispatch_notification(&n);
       db->slave_sql_running = true;
     }
