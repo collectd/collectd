@@ -107,6 +107,9 @@
 #define HAVE_DOM_REASON_POSTCOPY 1
 #endif
 
+#if LIBVIR_CHECK_VERSION(4, 10, 0)
+#define HAVE_DOM_REASON_SHUTOFF_DAEMON 1
+#endif
 #endif /* LIBVIR_CHECK_VERSION */
 
 /* structure used for aggregating notification-thread data*/
@@ -300,6 +303,16 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
     switch (detail) {
     case VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED: /* Guest finished shutdown
                                                 sequence */
+#ifdef LIBVIR_CHECK_VERSION
+#if LIBVIR_CHECK_VERSION(3, 4, 0)
+    case VIR_DOMAIN_EVENT_SHUTDOWN_GUEST: /* Domain finished shutting down after
+                                             request from the guest itself (e.g.
+                                             hardware-specific action) */
+    case VIR_DOMAIN_EVENT_SHUTDOWN_HOST:  /* Domain finished shutting down after
+                                             request from the host (e.g. killed
+                                             by a signal) */
+#endif
+#endif
       ret = VIR_DOMAIN_SHUTDOWN_USER;
       break;
     default:
@@ -425,6 +438,10 @@ const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
             "domain failed to start",
         [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT] =
             "restored from a snapshot which was taken while domain was shutoff",
+#ifdef HAVE_DOM_REASON_SHUTOFF_DAEMON
+        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_DAEMON] =
+            "daemon decides to kill domain during reconnection processing",
+#endif
 
         [VIR_DOMAIN_CRASHED][VIR_DOMAIN_CRASHED_UNKNOWN] =
             "the reason is unknown",
