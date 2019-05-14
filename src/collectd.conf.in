@@ -495,6 +495,7 @@
 
 #<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
+#    AddressFamily "any"
 #    Host "my_host"
 #    #Plugin "stats"
 #    Instance "some_instance"
