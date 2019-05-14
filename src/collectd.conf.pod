@@ -1959,6 +1959,7 @@ C<_stats> runtime statistics module of I<CouchDB>
 
   <Plugin curl_json>
     <URL "http://localhost:5984/_stats">
+      AddressFamily "any"
       Instance "httpd"
       <Key "httpd/requests/count">
         Type "http_requests"
@@ -2002,6 +2003,18 @@ values for all map keys or array indices will be collectd.
 The following options are valid within B<URL> blocks:
 
 =over 4
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<URL>
+block will be ignored.
 
 =item B<Host> I<Name>
 
