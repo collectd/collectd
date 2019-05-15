@@ -1804,6 +1804,7 @@ finance page and dispatch the value to collectd.
     <Page "stock_quotes">
       Plugin "quotes"
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+      AddressFamily "any"
       User "foo"
       Password "bar"
       Digest false
@@ -1843,6 +1844,18 @@ Defaults to C<curl>.
 
 URL of the web site to retrieve. Since a regular expression will be used to
 extract information from this data, non-binary data is a big plus here ;)
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<Page>
+block will be ignored.
 
 =item B<User> I<Name>
 
@@ -1955,6 +1968,7 @@ C<_stats> runtime statistics module of I<CouchDB>
 
   <Plugin curl_json>
     <URL "http://localhost:5984/_stats">
+      AddressFamily "any"
       Instance "httpd"
       <Key "httpd/requests/count">
         Type "http_requests"
@@ -1998,6 +2012,18 @@ values for all map keys or array indices will be collectd.
 The following options are valid within B<URL> blocks:
 
 =over 4
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<URL>
+block will be ignored.
 
 =item B<Host> I<Name>
 
@@ -2070,6 +2096,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
 
  <Plugin "curl_xml">
    <URL "http://localhost/stats.xml">
+     AddressFamily "any"
      Host "my_host"
      #Plugin "curl_xml"
      Instance "some_instance"
@@ -2105,6 +2132,18 @@ that should be relative to the base element.
 Within the B<URL> block the following options are accepted:
 
 =over 4
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<URL>
+block will be ignored.
 
 =item B<Host> I<Name>
 
