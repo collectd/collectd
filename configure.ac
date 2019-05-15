@@ -635,16 +635,6 @@ fi
 
 # }}}
 
-# For the dns plugin
-AC_CHECK_HEADERS([arpa/nameser.h])
-AC_CHECK_HEADERS([arpa/nameser_compat.h], [], [],
-  [[
-    #if HAVE_ARPA_NAMESER_H
-    # include <arpa/nameser.h>
-    #endif
-  ]]
-)
-
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
   [[
     #if HAVE_SYS_SOCKET_H
