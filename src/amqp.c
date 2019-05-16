@@ -320,17 +320,17 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
   amqp_queue_declare_ok_t *qd_ret;
   amqp_basic_consume_ok_t *cm_ret;
 
-  qd_ret = amqp_queue_declare(conf->connection,
-                              /* channel     = */ CAMQP_CHANNEL,
-                              /* queue       = */
-                                  (conf->queue != NULL)
-                                  ? amqp_cstring_bytes(conf->queue)
-                                  : AMQP_EMPTY_BYTES,
-                              /* passive     = */ 0,
-                              /* durable     = */ conf->queue_durable,
-                              /* exclusive   = */ 0,
-                              /* auto_delete = */ conf->queue_auto_delete,
-                              /* arguments   = */ AMQP_EMPTY_TABLE);
+  qd_ret =
+      amqp_queue_declare(conf->connection,
+                         /* channel     = */ CAMQP_CHANNEL,
+                         /* queue       = */
+                         (conf->queue != NULL) ? amqp_cstring_bytes(conf->queue)
+                                               : AMQP_EMPTY_BYTES,
+                         /* passive     = */ 0,
+                         /* durable     = */ conf->queue_durable,
+                         /* exclusive   = */ 0,
+                         /* auto_delete = */ conf->queue_auto_delete,
+                         /* arguments   = */ AMQP_EMPTY_TABLE);
   if (qd_ret == NULL) {
     ERROR("amqp plugin: amqp_queue_declare failed.");
     camqp_close_connection(conf);
@@ -360,8 +360,8 @@ static int camqp_setup_queue(camqp_config_t *conf) /* {{{ */
         /* queue       = */ amqp_cstring_bytes(conf->queue),
         /* exchange    = */ amqp_cstring_bytes(conf->exchange),
         /* routing_key = */
-            (conf->routing_key != NULL) ? amqp_cstring_bytes(conf->routing_key)
-                                        : AMQP_EMPTY_BYTES,
+        (conf->routing_key != NULL) ? amqp_cstring_bytes(conf->routing_key)
+                                    : AMQP_EMPTY_BYTES,
         /* arguments   = */ AMQP_EMPTY_TABLE);
     if ((qb_ret == NULL) && camqp_is_error(conf)) {
       char errbuf[1024];

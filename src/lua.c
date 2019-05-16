@@ -28,10 +28,10 @@
  *   Ruben Kerkhof <ruben at rubenkerkhof.com>
  **/
 
-#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
 #include "utils_lua.h"
+#include "collectd.h"
 
 /* Include the Lua API header files. */
 #include <lauxlib.h>

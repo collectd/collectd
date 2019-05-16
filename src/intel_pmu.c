@@ -26,8 +26,8 @@
  *   Kamil Wiatrowski <kamilx.wiatrowski@intel.com>
  **/
 
-#include "collectd.h"
 #include "utils/common/common.h"
+#include "collectd.h"
 
 #include "utils/config_cores/config_cores.h"
 
