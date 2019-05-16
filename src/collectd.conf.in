@@ -404,6 +404,7 @@
 #<Plugin curl>
 #  <Page "stock_quotes">
 #    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+#    AddressFamily "any"
 #    User "foo"
 #    Password "bar"
 #    Digest false
@@ -426,6 +427,7 @@
 
 #<Plugin curl_json>
 #  <URL "http://localhost:80/test.json">
+#    AddressFamily "any"
 #    Instance "test_http_json"
 #    <Key "testArray/0">
 #      Type "gauge"
@@ -462,6 +464,7 @@
 # }
 ## See: http://wiki.apache.org/couchdb/Runtime_Statistics
 #  <URL "http://localhost:5984/_stats">
+#    AddressFamily "ipv4"
 #    Instance "httpd"
 #    <Key "httpd/requests/count">
 #      Type "http_requests"
@@ -477,6 +480,7 @@
 #  </URL>
 ## Database status metrics:
 #  <URL "http://localhost:5984/_all_dbs">
+#    AddressFamily "ipv6"
 #    Instance "dbs"
 #    <Key "*/doc_count">
 #      Type "gauge"
@@ -492,6 +496,7 @@
 
 #<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
+#    AddressFamily "any"
 #    Host "my_host"
 #    #Plugin "stats"
 #    Instance "some_instance"
