@@ -282,9 +282,7 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
     }
     strjoin(devname, sizeof(devname),
             (char *[]){
-                bridge->name,
-                port->name,
-                iface->name,
+                bridge->name, port->name, iface->name,
             },
             3, ".");
     ovs_stats_submit_one(devname, "if_collisions", NULL,

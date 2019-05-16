@@ -785,9 +785,7 @@ static void *ovs_poll_worker(void *arg) {
   ovs_db_t *pdb = (ovs_db_t *)arg; /* pointer to OVS DB */
   ovs_json_reader_t *jreader = NULL;
   struct pollfd poll_fd = {
-      .fd = pdb->sock,
-      .events = POLLIN | POLLPRI,
-      .revents = 0,
+      .fd = pdb->sock, .events = POLLIN | POLLPRI, .revents = 0,
   };
 
   /* create JSON reader instance */

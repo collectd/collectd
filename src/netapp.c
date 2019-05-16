@@ -643,8 +643,7 @@ static int submit_two_derive(const char *host,
                              derive_t val0, derive_t val1, cdtime_t timestamp,
                              cdtime_t interval) {
   value_t values[] = {
-      {.derive = val0},
-      {.derive = val1},
+      {.derive = val0}, {.derive = val1},
   };
 
   return submit_values(host, plugin_inst, type, type_inst, values,
@@ -667,8 +666,7 @@ static int submit_two_gauge(const char *host, const char *plugin_inst, /* {{{ */
                             gauge_t val0, gauge_t val1, cdtime_t timestamp,
                             cdtime_t interval) {
   value_t values[] = {
-      {.gauge = val0},
-      {.gauge = val1},
+      {.gauge = val0}, {.gauge = val1},
   };
 
   return submit_values(host, plugin_inst, type, type_inst, values,
@@ -780,8 +778,9 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
 
   /* Check for and submit disk-octet values */
   if (HAS_ALL_FLAGS(old_data->flags, CFG_VOLUME_PERF_IO) &&
-      HAS_ALL_FLAGS(new_data->flags, HAVE_VOLUME_PERF_BYTES_READ |
-                                         HAVE_VOLUME_PERF_BYTES_WRITE)) {
+      HAS_ALL_FLAGS(new_data->flags,
+                    HAVE_VOLUME_PERF_BYTES_READ |
+                        HAVE_VOLUME_PERF_BYTES_WRITE)) {
     submit_two_derive(
         hostname, plugin_instance, "disk_octets", /* type instance = */ NULL,
         (derive_t)new_data->read_bytes, (derive_t)new_data->write_bytes,
@@ -799,15 +798,15 @@ static int submit_volume_perf_data(const char *hostname, /* {{{ */
   }
 
   /* Check for, calculate and submit disk-latency values */
-  if (HAS_ALL_FLAGS(old_data->flags, CFG_VOLUME_PERF_LATENCY |
-                                         HAVE_VOLUME_PERF_OPS_READ |
-                                         HAVE_VOLUME_PERF_OPS_WRITE |
-                                         HAVE_VOLUME_PERF_LATENCY_READ |
-                                         HAVE_VOLUME_PERF_LATENCY_WRITE) &&
-      HAS_ALL_FLAGS(new_data->flags, HAVE_VOLUME_PERF_OPS_READ |
-                                         HAVE_VOLUME_PERF_OPS_WRITE |
-                                         HAVE_VOLUME_PERF_LATENCY_READ |
-                                         HAVE_VOLUME_PERF_LATENCY_WRITE)) {
+  if (HAS_ALL_FLAGS(old_data->flags,
+                    CFG_VOLUME_PERF_LATENCY | HAVE_VOLUME_PERF_OPS_READ |
+                        HAVE_VOLUME_PERF_OPS_WRITE |
+                        HAVE_VOLUME_PERF_LATENCY_READ |
+                        HAVE_VOLUME_PERF_LATENCY_WRITE) &&
+      HAS_ALL_FLAGS(new_data->flags,
+                    HAVE_VOLUME_PERF_OPS_READ | HAVE_VOLUME_PERF_OPS_WRITE |
+                        HAVE_VOLUME_PERF_LATENCY_READ |
+                        HAVE_VOLUME_PERF_LATENCY_WRITE)) {
     gauge_t latency_per_op_read;
     gauge_t latency_per_op_write;
 
@@ -1407,8 +1406,9 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
 
     ssnprintf(plugin_instance, sizeof(plugin_instance), "volume-%s", v->name);
 
-    if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_SNAP_USED |
-                                    HAVE_VOLUME_USAGE_SNAP_RSVD)) {
+    if (HAS_ALL_FLAGS(v->flags,
+                      HAVE_VOLUME_USAGE_SNAP_USED |
+                          HAVE_VOLUME_USAGE_SNAP_RSVD)) {
       if (v->snap_reserved > v->snap_used) {
         snap_reserve_free = v->snap_reserved - v->snap_used;
         snap_reserve_used = v->snap_used;
@@ -1422,8 +1422,9 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
 
     /* The space used by snapshots but not reserved for them is included in
      * both, norm_used and snap_norm_used. If possible, subtract this here. */
-    if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_NORM_USED |
-                                    HAVE_VOLUME_USAGE_SNAP_USED)) {
+    if (HAS_ALL_FLAGS(v->flags,
+                      HAVE_VOLUME_USAGE_NORM_USED |
+                          HAVE_VOLUME_USAGE_SNAP_USED)) {
       if (norm_used >= snap_norm_used)
         norm_used -= snap_norm_used;
       else {
@@ -1465,8 +1466,9 @@ static int cna_submit_volume_usage_data(const char *hostname, /* {{{ */
                     "df_complex", "snap_reserved", (double)snap_reserve_free,
                     /* timestamp = */ 0, interval);
 
-    if (HAS_ALL_FLAGS(v->flags, HAVE_VOLUME_USAGE_SNAP_USED |
-                                    HAVE_VOLUME_USAGE_SNAP_RSVD))
+    if (HAS_ALL_FLAGS(v->flags,
+                      HAVE_VOLUME_USAGE_SNAP_USED |
+                          HAVE_VOLUME_USAGE_SNAP_RSVD))
       submit_double(hostname, /* plugin instance = */ plugin_instance,
                     "df_complex", "snap_reserve_used",
                     (double)snap_reserve_used, /* timestamp = */ 0, interval);
@@ -2796,8 +2798,7 @@ static int cna_register_host(host_config_t *host) /* {{{ */
       /* callback  = */ cna_read,
       /* interval  = */ host->interval,
       &(user_data_t){
-          .data = host,
-          .free_func = (void *)free_host_config,
+          .data = host, .free_func = (void *)free_host_config,
       });
 
   return 0;

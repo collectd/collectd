@@ -29,11 +29,11 @@
 
 #include "collectd.h"
 
-#include <regex.h>
 #include "utils/avltree/avltree.h"
 #include "utils/common/common.h"
 #include "utils_cache.h"
 #include "utils_llist.h"
+#include <regex.h>
 
 #include <net-snmp/net-snmp-config.h>
 

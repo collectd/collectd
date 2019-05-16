@@ -367,9 +367,8 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
     if (state_old == STATE_MISSING)
       ssnprintf(buf, bufsize, ": Value is no longer missing.");
     else
-      ssnprintf(buf, bufsize,
-                ": All data sources are within range again. "
-                "Current value of \"%s\" is %f.",
+      ssnprintf(buf, bufsize, ": All data sources are within range again. "
+                              "Current value of \"%s\" is %f.",
                 ds->ds[ds_index].name, values[ds_index]);
   } else if (state == STATE_UNKNOWN) {
     ERROR("ut_report_state: metric transition to UNKNOWN from a different "
@@ -392,9 +391,8 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "", max,
                   ((th->flags & UT_FLAG_PERCENTAGE) != 0) ? "%" : "");
       } else {
-        ssnprintf(buf, bufsize,
-                  ": Data source \"%s\" is currently "
-                  "%f. That is %s the %s threshold of %f%s.",
+        ssnprintf(buf, bufsize, ": Data source \"%s\" is currently "
+                                "%f. That is %s the %s threshold of %f%s.",
                   ds->ds[ds_index].name, values[ds_index],
                   isnan(min) ? "below" : "above",
                   (state == STATE_ERROR) ? "failure" : "warning",
@@ -427,9 +425,8 @@ static int ut_report_state(const data_set_t *ds, const value_list_t *vl,
                 (value < min) ? min : max);
     } else /* is not inverted */
     {
-      ssnprintf(buf, bufsize,
-                ": Data source \"%s\" is currently "
-                "%f. That is %s the %s threshold of %f.",
+      ssnprintf(buf, bufsize, ": Data source \"%s\" is currently "
+                              "%f. That is %s the %s threshold of %f.",
                 ds->ds[ds_index].name, values[ds_index],
                 (values[ds_index] < min) ? "below" : "above",
                 (state == STATE_ERROR) ? "failure" : "warning",
