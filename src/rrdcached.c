@@ -426,8 +426,7 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   char *values_array[2] = {
-      [0] = values,
-      [1] = NULL,
+          [0] = values, [1] = NULL,
   };
 
   while (42) {

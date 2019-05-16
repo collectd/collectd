@@ -156,8 +156,7 @@ static char *format_labels(char *buffer, size_t buffer_size,
 #define LABEL_BUFFER_SIZE (LABEL_KEY_SIZE + LABEL_VALUE_SIZE + 4)
 
   char *labels[3] = {
-      (char[LABEL_BUFFER_SIZE]){0},
-      (char[LABEL_BUFFER_SIZE]){0},
+      (char[LABEL_BUFFER_SIZE]){0}, (char[LABEL_BUFFER_SIZE]){0},
       (char[LABEL_BUFFER_SIZE]){0},
   };
 

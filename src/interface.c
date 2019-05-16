@@ -82,9 +82,7 @@ static int pnif;
  * (Module-)Global variables
  */
 static const char *config_keys[] = {
-    "Interface",
-    "IgnoreSelected",
-    "ReportInactive",
+    "Interface", "IgnoreSelected", "ReportInactive",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -162,8 +160,7 @@ static void if_submit(const char *dev, const char *type, derive_t rx,
                       derive_t tx) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = rx},
-      {.derive = tx},
+      {.derive = rx}, {.derive = tx},
   };
 
   if (ignorelist_match(ignorelist, dev) != 0)
@@ -191,7 +188,7 @@ static int interface_read(void) {
 #define IFA_TX_PACKT ifi_opackets
 #define IFA_RX_ERROR ifi_ierrors
 #define IFA_TX_ERROR ifi_oerrors
-  /* #endif HAVE_STRUCT_IF_DATA */
+/* #endif HAVE_STRUCT_IF_DATA */
 
 #elif HAVE_STRUCT_NET_DEVICE_STATS
 #define IFA_DATA net_device_stats
@@ -229,7 +226,7 @@ static int interface_read(void) {
   }
 
   freeifaddrs(if_list);
-  /* #endif HAVE_GETIFADDRS */
+/* #endif HAVE_GETIFADDRS */
 
 #elif KERNEL_LINUX
   FILE *fh;
@@ -285,7 +282,7 @@ static int interface_read(void) {
   }
 
   fclose(fh);
-  /* #endif KERNEL_LINUX */
+/* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
   derive_t rx;
@@ -335,7 +332,7 @@ static int interface_read(void) {
     if ((rx != -1LL) || (tx != -1LL))
       if_submit(iname, "if_errors", rx, tx);
   }
-  /* #endif HAVE_LIBKSTAT */
+/* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_network_io_stats *ios;
@@ -348,7 +345,7 @@ static int interface_read(void) {
       continue;
     if_submit(ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
   }
-  /* #endif HAVE_LIBSTATGRAB */
+/* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
   perfstat_id_t id;

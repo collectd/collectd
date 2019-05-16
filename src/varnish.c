@@ -1546,8 +1546,7 @@ static int varnish_init(void) /* {{{ */
       /* callback  = */ varnish_read,
       /* interval  = */ 0,
       &(user_data_t){
-          .data = conf,
-          .free_func = varnish_config_free,
+          .data = conf, .free_func = varnish_config_free,
       });
 
   return 0;
@@ -1752,7 +1751,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
       !conf->collect_mgt && !conf->collect_lck && !conf->collect_mempool &&
       !conf->collect_mse
 #endif
-  ) {
+      ) {
     WARNING("Varnish plugin: No metric has been configured for "
             "instance \"%s\". Disabling this instance.",
             (conf->instance == NULL) ? "localhost" : conf->instance);
@@ -1769,8 +1768,7 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
       /* callback  = */ varnish_read,
       /* interval  = */ 0,
       &(user_data_t){
-          .data = conf,
-          .free_func = varnish_config_free,
+          .data = conf, .free_func = varnish_config_free,
       });
 
   have_instance = true;
