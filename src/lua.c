@@ -299,7 +299,7 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
   lua_getfield(L, LUA_REGISTRYINDEX, "collectd:script_path");
   char function_name[DATA_MAX_NAME_LEN];
   ssnprintf(function_name, sizeof(function_name), "lua/%s/%s",
-           lua_tostring(L, -1), subname);
+            lua_tostring(L, -1), subname);
   lua_pop(L, 1);
 
   int callback_id = clua_store_callback(L, 1);
@@ -322,14 +322,14 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
   pthread_mutex_init(&cb->lock, NULL);
 
   if (PLUGIN_READ == type) {
-    int status =
-        plugin_register_complex_read(/* group = */ "lua",
-                                     /* name      = */ function_name,
-                                     /* callback  = */ clua_read,
-                                     /* interval  = */ 0,
-                                     &(user_data_t){
-                                         .data = cb, .free_func = lua_cb_free,
-                                     });
+    int status = plugin_register_complex_read(/* group = */ "lua",
+                                              /* name      = */ function_name,
+                                              /* callback  = */ clua_read,
+                                              /* interval  = */ 0,
+                                              &(user_data_t){
+                                                  .data = cb,
+                                                  .free_func = lua_cb_free,
+                                              });
 
     if (status != 0)
       return luaL_error(L, "%s", "plugin_register_complex_read failed");
@@ -338,7 +338,8 @@ static int lua_cb_register_generic(lua_State *L, int type) /* {{{ */
     int status = plugin_register_write(/* name = */ function_name,
                                        /* callback  = */ clua_write,
                                        &(user_data_t){
-                                           .data = cb, .free_func = lua_cb_free,
+                                           .data = cb,
+                                           .free_func = lua_cb_free,
                                        });
 
     if (status != 0)

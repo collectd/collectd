@@ -202,7 +202,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
                    sizeof(n.type_instance));
           sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
           ssnprintf(n.message, sizeof(n.message), "sensor %s not present",
-                   list_item->sensor_name);
+                    list_item->sensor_name);
 
           plugin_dispatch_notification(&n);
         }
@@ -255,7 +255,7 @@ static void sensor_read_handler(ipmi_sensor_t *sensor, int err,
                sizeof(n.type_instance));
       sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
       ssnprintf(n.message, sizeof(n.message), "sensor %s present",
-               list_item->sensor_name);
+                list_item->sensor_name);
 
       plugin_dispatch_notification(&n);
     }
@@ -313,7 +313,8 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
   temp[sizeof(temp) - 1] = '\0';
 
   if (entity_id_string != NULL && strlen(temp))
-    ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", temp, entity_id_string);
+    ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", temp,
+              entity_id_string);
   else if (entity_id_string != NULL)
     sstrncpy(sensor_name, entity_id_string, sizeof(sensor_name));
   else
@@ -339,7 +340,7 @@ static void sensor_get_name(ipmi_sensor_t *sensor, char *buffer, int buf_len) {
       if (sensor_id_ptr != NULL) {
         /* `sensor_id_ptr' now points to "(123)". */
         ssnprintf(sensor_name, sizeof(sensor_name), "%s %s", sensor_name_ptr,
-                 sensor_id_ptr);
+                  sensor_id_ptr);
       }
       /* else: don't touch sensor_name. */
     }
@@ -494,7 +495,7 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
      and add the `percent` to the type instance of the reported value */
   if (ipmi_sensor_get_percentage(sensor)) {
     ssnprintf(list_item->type_instance, sizeof(list_item->type_instance),
-             "percent-%s", sensor_name_ptr);
+              "percent-%s", sensor_name_ptr);
     type = "percent";
   } else {
     /* use type instance as a name of the sensor */
@@ -515,7 +516,7 @@ static int sensor_list_add(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
              sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     ssnprintf(n.message, sizeof(n.message), "sensor %s added",
-             list_item->sensor_name);
+              list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
   }
@@ -562,7 +563,7 @@ static int sensor_list_remove(c_ipmi_instance_t *st, ipmi_sensor_t *sensor) {
              sizeof(n.type_instance));
     sstrncpy(n.type, list_item->sensor_type, sizeof(n.type));
     ssnprintf(n.message, sizeof(n.message), "sensor %s removed",
-             list_item->sensor_name);
+              list_item->sensor_name);
 
     plugin_dispatch_notification(&n);
   }
@@ -675,12 +676,12 @@ static int sensor_threshold_event_handler(
   sensor_get_name(sensor, n.type_instance, sizeof(n.type_instance));
   if (value_present != IPMI_NO_VALUES_PRESENT)
     ssnprintf(n.message, sizeof(n.message),
-             "sensor %s received event: %s, value is %f", n.type_instance,
-             event_state, value);
+              "sensor %s received event: %s, value is %f", n.type_instance,
+              event_state, value);
   else
     ssnprintf(n.message, sizeof(n.message),
-             "sensor %s received event: %s, value not provided",
-             n.type_instance, event_state);
+              "sensor %s received event: %s, value not provided",
+              n.type_instance, event_state);
 
   DEBUG("Threshold event received for sensor %s", n.type_instance);
 
@@ -742,7 +743,7 @@ static int sensor_discrete_event_handler(ipmi_sensor_t *sensor,
       ipmi_get_reading_name(event_type, sensor_type, offset);
   sensor_get_name(sensor, n.type_instance, sizeof(n.type_instance));
   ssnprintf(n.message, sizeof(n.message), "sensor %s received event: %s",
-           n.type_instance, event_state);
+            n.type_instance, event_state);
 
   DEBUG("Discrete event received for sensor %s", n.type_instance);
 

@@ -314,11 +314,11 @@ static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
       status =
           ssnprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
     else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
-      status =
-          ssnprintf(buffer_ptr, buffer_free, " %lf", ci->values[i].value.number);
+      status = ssnprintf(buffer_ptr, buffer_free, " %lf",
+                         ci->values[i].value.number);
     else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
       status = ssnprintf(buffer_ptr, buffer_free, " %s",
-                        ci->values[i].value.boolean ? "true" : "false");
+                         ci->values[i].value.boolean ? "true" : "false");
 
     if ((status < 0) || (status >= buffer_free))
       return -1;

@@ -81,16 +81,16 @@ static int value_list_to_string(char *buffer, int buffer_len,
 
     if (ds->ds[i].type == DS_TYPE_COUNTER) {
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                        (uint64_t)vl->values[i].counter);
+                         (uint64_t)vl->values[i].counter);
     } else if (ds->ds[i].type == DS_TYPE_GAUGE) {
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%f",
-                        vl->values[i].gauge);
+                         vl->values[i].gauge);
     } else if (ds->ds[i].type == DS_TYPE_DERIVE) {
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
-                        vl->values[i].derive);
+                         vl->values[i].derive);
     } else /* if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */ {
       status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
-                        vl->values[i].absolute);
+                         vl->values[i].absolute);
     }
 
     if ((status < 1) || (status >= (buffer_len - offset)))
@@ -426,7 +426,8 @@ static int rc_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   char *values_array[2] = {
-          [0] = values, [1] = NULL,
+      [0] = values,
+      [1] = NULL,
   };
 
   while (42) {

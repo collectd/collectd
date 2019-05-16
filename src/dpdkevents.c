@@ -512,7 +512,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
         char dev_name[DATA_MAX_NAME_LEN];
         if (ec->config.link_status.port_name[i][0] != 0) {
           ssnprintf(dev_name, sizeof(dev_name), "%s",
-                   ec->config.link_status.port_name[i]);
+                    ec->config.link_status.port_name[i]);
         } else {
           ssnprintf(dev_name, sizeof(dev_name), "port.%d", i);
         }
@@ -521,7 +521,7 @@ static int dpdk_events_link_status_dispatch(dpdk_helper_ctx_t *phc) {
           int sev = ec->link_info[i].link_status ? NOTIF_OKAY : NOTIF_WARNING;
           char msg[DATA_MAX_NAME_LEN];
           ssnprintf(msg, sizeof(msg), "Link Status: %s",
-                   ec->link_info[i].link_status ? "UP" : "DOWN");
+                    ec->link_info[i].link_status ? "UP" : "DOWN");
           dpdk_events_notification_dispatch(sev, dev_name,
                                             ec->link_info[i].read_time, msg);
         } else {

@@ -229,7 +229,7 @@ static int udb_result_submit(udb_result_t *r, /* {{{ */
       tmp[sizeof(tmp) - 1] = '\0';
 
       ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s-%s",
-               r->instance_prefix, tmp);
+                r->instance_prefix, tmp);
     }
   }
   vl.type_instance[sizeof(vl.type_instance) - 1] = '\0';

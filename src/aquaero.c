@@ -81,8 +81,8 @@ static void aquaero_submit_array(const char *type,
     if (value_array[i] == AQ5_FLOAT_UNDEF)
       continue;
 
-    ssnprintf(type_instance, sizeof(type_instance), "%s%d", type_instance_prefix,
-             i + 1);
+    ssnprintf(type_instance, sizeof(type_instance), "%s%d",
+              type_instance_prefix, i + 1);
     aquaero_submit(type, type_instance, value_array[i]);
   }
 }

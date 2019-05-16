@@ -145,7 +145,7 @@ static void rdt_dump_cgroups(void) {
     memset(cores, 0, sizeof(cores));
     for (size_t j = 0; j < cgroup->num_cores; j++) {
       ssnprintf(cores + strlen(cores), sizeof(cores) - strlen(cores) - 1, " %d",
-               cgroup->cores[j]);
+                cgroup->cores[j]);
     }
 
     DEBUG(RDT_PLUGIN ":  group[%zu]:", i);
@@ -172,7 +172,7 @@ static void rdt_dump_ngroups(void) {
     memset(names, 0, sizeof(names));
     for (size_t j = 0; j < g_rdt->ngroups[i].num_names; j++)
       ssnprintf(names + strlen(names), sizeof(names) - strlen(names) - 1, " %s",
-               g_rdt->ngroups[i].names[j]);
+                g_rdt->ngroups[i].names[j]);
 
     DEBUG(RDT_PLUGIN ":  group[%d]:", (int)i);
     DEBUG(RDT_PLUGIN ":    description: %s", g_rdt->ngroups[i].desc);
@@ -250,7 +250,7 @@ static void rdt_dump_pids_data(void) {
       pids_list_t *list = g_rdt->ngroups[i].proc_pids[j]->curr;
       for (size_t k = 0; k < list->size; k++)
         ssnprintf(pids + strlen(pids), sizeof(pids) - strlen(pids) - 1, " %u",
-                 list->pids[k]);
+                  list->pids[k]);
     }
     DEBUG(RDT_PLUGIN ":  [%s] %s", g_rdt->ngroups[i].desc, pids);
   }
@@ -851,9 +851,9 @@ static void rdt_init_pids_monitoring() {
     }
 
     /* update global proc_pids table */
-    proc_pids_t **proc_pids = realloc(g_rdt->proc_pids,
-                                      (g_rdt->num_proc_pids + ng->num_names) *
-                                          sizeof(*g_rdt->proc_pids));
+    proc_pids_t **proc_pids =
+        realloc(g_rdt->proc_pids, (g_rdt->num_proc_pids + ng->num_names) *
+                                      sizeof(*g_rdt->proc_pids));
     if (NULL == proc_pids) {
       ERROR(RDT_PLUGIN ": Alloc error\n");
       continue;

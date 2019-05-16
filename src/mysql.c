@@ -225,7 +225,8 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
     plugin_register_complex_read(
         /* group = */ NULL, cb_name, mysql_read, /* interval = */ 0,
         &(user_data_t){
-            .data = db, .free_func = mysql_database_free,
+            .data = db,
+            .free_func = mysql_database_free,
         });
   } else {
     mysql_database_free(db);
@@ -354,7 +355,8 @@ static void derive_submit(const char *type, const char *type_instance,
 
 static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   submit("mysql_octets", NULL, values, STATIC_ARRAY_SIZE(values), db);
@@ -501,14 +503,14 @@ static int mysql_read_slave_stats(mysql_database_t *db, MYSQL *con) {
         (db->slave_io_running)) {
       n.severity = NOTIF_WARNING;
       ssnprintf(n.message, sizeof(n.message),
-               "slave I/O thread not started or not connected to master");
+                "slave I/O thread not started or not connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = false;
     } else if (((io != NULL) && (strcasecmp(io, "yes") == 0)) &&
                (!db->slave_io_running)) {
       n.severity = NOTIF_OKAY;
       ssnprintf(n.message, sizeof(n.message),
-               "slave I/O thread started and connected to master");
+                "slave I/O thread started and connected to master");
       plugin_dispatch_notification(&n);
       db->slave_io_running = true;
     }

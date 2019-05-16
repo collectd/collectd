@@ -123,7 +123,7 @@ static int init(void) {
 #else
     static char credentials[1024];
     int status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
-                          pass == NULL ? "" : pass);
+                           pass == NULL ? "" : pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("nginx plugin: Credentials would have been truncated.");
       return -1;

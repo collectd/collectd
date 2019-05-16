@@ -123,7 +123,8 @@ static int redis_node_add(redis_node_t *rn) /* {{{ */
       /* callback  = */ redis_read,
       /* interval  = */ 0,
       &(user_data_t){
-          .data = rn, .free_func = redis_node_free,
+          .data = rn,
+          .free_func = redis_node_free,
       });
 } /* }}} */
 

@@ -742,7 +742,8 @@ static void snmp_agent_table_data_remove(data_definition_t *dd,
       .severity = NOTIF_WARNING, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
   ssnprintf(n.message, sizeof(n.message),
-           "Removed data row from table %s with index %s", td->name, index_str);
+            "Removed data row from table %s with index %s", td->name,
+            index_str);
   DEBUG(PLUGIN_NAME ": %s", n.message);
   plugin_dispatch_notification(&n);
 
@@ -2001,7 +2002,7 @@ static int snmp_agent_update_index(data_definition_t *dd,
         .severity = NOTIF_OKAY, .time = cdtime(), .plugin = PLUGIN_NAME};
     sstrncpy(n.host, hostname_g, sizeof(n.host));
     ssnprintf(n.message, sizeof(n.message),
-             "Data added to table %s with index %s", td->name, index_str);
+              "Data added to table %s with index %s", td->name, index_str);
     DEBUG(PLUGIN_NAME ": %s", n.message);
 
     plugin_dispatch_notification(&n);
