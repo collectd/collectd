@@ -228,7 +228,7 @@ char *gce_scope(char const *email) /* {{{ */
   char url[1024];
 
   ssnprintf(url, sizeof(url), GCE_SCOPE_URL_FORMAT,
-           (email != NULL) ? email : GCE_DEFAULT_SERVICE_ACCOUNT);
+            (email != NULL) ? email : GCE_DEFAULT_SERVICE_ACCOUNT);
 
   return read_url(url);
 } /* }}} char *gce_scope */

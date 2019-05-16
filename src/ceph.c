@@ -1154,7 +1154,7 @@ static ssize_t cconn_handle_event(struct cconn *io) {
   case CSTATE_WRITE_REQUEST: {
     char cmd[32];
     ssnprintf(cmd, sizeof(cmd), "%s%d%s", "{ \"prefix\": \"", io->request_type,
-             "\" }\n");
+              "\" }\n");
     size_t cmd_len = strlen(cmd);
     RETRY_ON_EINTR(
         ret, write(io->asok, ((char *)&cmd) + io->amt, cmd_len - io->amt));

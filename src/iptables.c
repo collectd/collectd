@@ -222,7 +222,7 @@ static int submit6_match(const struct ip6t_entry_match *match,
   sstrncpy(vl.plugin, "ip6tables", sizeof(vl.plugin));
 
   status = ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-                    chain->table, chain->chain);
+                     chain->table, chain->chain);
   if ((status < 1) || ((unsigned int)status >= sizeof(vl.plugin_instance)))
     return 0;
 
@@ -231,7 +231,7 @@ static int submit6_match(const struct ip6t_entry_match *match,
   } else {
     if (chain->rule_type == RTYPE_NUM)
       ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
-               chain->rule.num);
+                chain->rule.num);
     else
       sstrncpy(vl.type_instance, (char *)match->data, sizeof(vl.type_instance));
   }
@@ -270,7 +270,7 @@ static int submit_match(const struct ipt_entry_match *match,
   sstrncpy(vl.plugin, "iptables", sizeof(vl.plugin));
 
   status = ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s-%s",
-                    chain->table, chain->chain);
+                     chain->table, chain->chain);
   if ((status < 1) || ((unsigned int)status >= sizeof(vl.plugin_instance)))
     return 0;
 
@@ -279,7 +279,7 @@ static int submit_match(const struct ipt_entry_match *match,
   } else {
     if (chain->rule_type == RTYPE_NUM)
       ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%i",
-               chain->rule.num);
+                chain->rule.num);
     else
       sstrncpy(vl.type_instance, (char *)match->data, sizeof(vl.type_instance));
   }

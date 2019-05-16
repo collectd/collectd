@@ -23,7 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Niki W. Waibel <niki.waibel@gmx.net>
-**/
+ **/
 
 #ifndef COMMON_H
 #define COMMON_H

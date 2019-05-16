@@ -209,7 +209,7 @@ static void mic_submit_cpu(int micnumber, const char *type_instance, int core,
     ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   else /* per-core statistics */
     ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-cpu-%i",
-             micnumber, core);
+              micnumber, core);
   strncpy(vl.type, "cpu", sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 

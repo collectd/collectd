@@ -1078,7 +1078,8 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
                                  /* callback = */ mb_read,
                                  /* interval = */ interval,
                                  &(user_data_t){
-                                     .data = host, .free_func = host_free,
+                                     .data = host,
+                                     .free_func = host_free,
                                  });
   } else {
     host_free(host);

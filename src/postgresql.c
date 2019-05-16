@@ -58,7 +58,7 @@
  * is ignored. */
 #define C_PSQL_PAR_APPEND(buf, buf_len, parameter, value)                      \
   if ((0 < (buf_len)) && (NULL != (value)) && ('\0' != *(value))) {            \
-    int s = ssnprintf(buf, buf_len, " %s = '%s'", parameter, value);            \
+    int s = ssnprintf(buf, buf_len, " %s = '%s'", parameter, value);           \
     if (0 < s) {                                                               \
       buf += s;                                                                \
       buf_len -= s;                                                            \
@@ -427,7 +427,7 @@ static PGresult *c_psql_exec_query_params(c_psql_database_t *db, udb_query_t *q,
       break;
     case C_PSQL_PARAM_INTERVAL:
       ssnprintf(interval, sizeof(interval), "%.3f",
-               CDTIME_T_TO_DOUBLE(plugin_get_interval()));
+                CDTIME_T_TO_DOUBLE(plugin_get_interval()));
       params[i] = interval;
       break;
     case C_PSQL_PARAM_INSTANCE:
@@ -673,7 +673,7 @@ static char *values_type_to_sqlarray(const data_set_t *ds, char *string,
       status = ssnprintf(str_ptr, str_len, ",'gauge'");
     else
       status = ssnprintf(str_ptr, str_len, ",'%s'",
-                        DS_TYPE_TO_STRING(ds->ds[i].type));
+                         DS_TYPE_TO_STRING(ds->ds[i].type));
 
     if (status < 1) {
       str_len = 0;
@@ -738,7 +738,7 @@ static char *values_to_sqlarray(const data_set_t *ds, const value_list_t *vl,
       status = ssnprintf(str_ptr, str_len, ",%lf", rates[i]);
     } else if (ds->ds[i].type == DS_TYPE_COUNTER)
       status = ssnprintf(str_ptr, str_len, ",%" PRIu64,
-                        (uint64_t)vl->values[i].counter);
+                         (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
       status = ssnprintf(str_ptr, str_len, ",%" PRIi64, vl->values[i].derive);
     else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)

@@ -209,7 +209,7 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
         break;
 
       status = ssnprintf(buffer, sizeof(buffer), "RRA:%s:%.10f:%u:%u",
-                        rra_types[j], cfg->xff, cdp_len, cdp_num);
+                         rra_types[j], cfg->xff, cdp_len, cdp_num);
 
       if ((status < 0) || ((size_t)status >= sizeof(buffer))) {
         P_ERROR("rra_get: Buffer would have been truncated.");

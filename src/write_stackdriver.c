@@ -110,7 +110,7 @@ static char *wg_get_authorization_header(wg_callback_t *cb) { /* {{{ */
   }
 
   status = ssnprintf(authorization_header, sizeof(authorization_header),
-                    "Authorization: Bearer %s", access_token);
+                     "Authorization: Bearer %s", access_token);
   if ((status < 1) || ((size_t)status >= sizeof(authorization_header)))
     return NULL;
 
@@ -252,7 +252,7 @@ static int wg_call_metricdescriptor_create(wg_callback_t *cb,
                                            char const *payload) {
   char url[1024];
   ssnprintf(url, sizeof(url), "%s/projects/%s/metricDescriptors", cb->url,
-           cb->project);
+            cb->project);
   wg_memory_t response = {0};
 
   int status = do_post(cb, url, payload, &response);
@@ -273,7 +273,8 @@ static int wg_call_metricdescriptor_create(wg_callback_t *cb,
 
 static int wg_call_timeseries_write(wg_callback_t *cb, char const *payload) {
   char url[1024];
-  ssnprintf(url, sizeof(url), "%s/projects/%s/timeSeries", cb->url, cb->project);
+  ssnprintf(url, sizeof(url), "%s/projects/%s/timeSeries", cb->url,
+            cb->project);
   wg_memory_t response = {0};
 
   int status = do_post(cb, url, payload, &response);

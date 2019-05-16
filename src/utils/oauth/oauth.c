@@ -184,9 +184,9 @@ static int get_claim(oauth_t *auth, char *buffer, size_t buffer_size) /* {{{ */
 
   /* create the claim set */
   status =
-      ssnprintf(claim, sizeof(claim), OAUTH_CLAIM_FORMAT, auth->iss, auth->scope,
-               auth->aud, (unsigned long)CDTIME_T_TO_TIME_T(exp),
-               (unsigned long)CDTIME_T_TO_TIME_T(iat));
+      ssnprintf(claim, sizeof(claim), OAUTH_CLAIM_FORMAT, auth->iss,
+                auth->scope, auth->aud, (unsigned long)CDTIME_T_TO_TIME_T(exp),
+                (unsigned long)CDTIME_T_TO_TIME_T(iat));
   if (status < 1)
     return -1;
   else if ((size_t)status >= sizeof(claim))
@@ -351,7 +351,7 @@ static int new_token(oauth_t *auth) /* {{{ */
   }
 
   ssnprintf(post_data, sizeof(post_data), "grant_type=%s&assertion=%s",
-           OAUTH_GRANT_TYPE, assertion);
+            OAUTH_GRANT_TYPE, assertion);
 
   curl = curl_easy_init();
   if (curl == NULL) {
@@ -531,7 +531,8 @@ oauth_google_t oauth_create_google_json(char const *buffer, char const *scope) {
   }
 
   oauth_google_t ret = {
-      .project_id = strdup(project_id), .oauth = oauth,
+      .project_id = strdup(project_id),
+      .oauth = oauth,
   };
 
   yajl_tree_free(root);
@@ -590,7 +591,7 @@ oauth_google_t oauth_create_google_default(char const *scope) {
   if ((home = getenv("HOME")) != NULL) {
     char path[PATH_MAX];
     ssnprintf(path, sizeof(path),
-             "%s/.config/gcloud/application_default_credentials.json", home);
+              "%s/.config/gcloud/application_default_credentials.json", home);
 
     oauth_google_t ret = oauth_create_google_file(path, scope);
     if (ret.oauth != NULL) {

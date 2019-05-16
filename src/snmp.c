@@ -876,7 +876,8 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   status = plugin_register_complex_read(
       /* group = */ NULL, cb_name, csnmp_read_host, interval,
       &(user_data_t){
-          .data = hd, .free_func = csnmp_host_definition_destroy,
+          .data = hd,
+          .free_func = csnmp_host_definition_destroy,
       });
   if (status != 0) {
     ERROR("snmp plugin: Registering complex read function failed.");
@@ -1141,7 +1142,7 @@ static int csnmp_strvbcopy_hexstring(char *dst, /* {{{ */
     int status;
 
     status = ssnprintf(buffer_ptr, buffer_free, (i == 0) ? "%02x" : ":%02x",
-                      (unsigned int)vb->val.bitstring[i]);
+                       (unsigned int)vb->val.bitstring[i]);
     assert(status >= 0);
 
     if (((size_t)status) >= buffer_free) /* truncated */
@@ -1174,9 +1175,9 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
     src = (char *)vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS) {
     return ssnprintf(dst, dst_size,
-                    "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
-                    (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
-                    (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
+                     "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
+                     (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
+                     (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
     return EINVAL;
@@ -1496,7 +1497,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
         sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
       else
         ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                 data->type_instance.prefix, temp);
+                  data->type_instance.prefix, temp);
     } else if (data->type_instance.value) {
       sstrncpy(vl.type_instance, data->type_instance.value,
                sizeof(vl.type_instance));
@@ -1514,7 +1515,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
         sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
       else
         ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
-                 data->plugin_instance.prefix, temp);
+                  data->plugin_instance.prefix, temp);
     } else if (data->plugin_instance.value) {
       sstrncpy(vl.plugin_instance, data->plugin_instance.value,
                sizeof(vl.plugin_instance));

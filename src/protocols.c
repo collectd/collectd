@@ -41,7 +41,8 @@
  * Global variables
  */
 static const char *config_keys[] = {
-    "Value", "IgnoreSelected",
+    "Value",
+    "IgnoreSelected",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
@@ -155,7 +156,7 @@ static int read_file(const char *path) {
         char match_name[2 * DATA_MAX_NAME_LEN];
 
         ssnprintf(match_name, sizeof(match_name), "%s:%s", key_buffer,
-                 key_fields[i]);
+                  key_fields[i]);
 
         if (ignorelist_match(values_list, match_name))
           continue;

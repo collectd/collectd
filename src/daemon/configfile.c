@@ -267,7 +267,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .interval = cf_get_default_interval(), .name = strdup(name),
+      .interval = cf_get_default_interval(),
+      .name = strdup(name),
   };
   if (ctx.name == NULL)
     return ENOMEM;
@@ -313,11 +314,11 @@ static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
       status =
           ssnprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
     else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
-      status =
-          ssnprintf(buffer_ptr, buffer_free, " %lf", ci->values[i].value.number);
+      status = ssnprintf(buffer_ptr, buffer_free, " %lf",
+                         ci->values[i].value.number);
     else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
       status = ssnprintf(buffer_ptr, buffer_free, " %s",
-                        ci->values[i].value.boolean ? "true" : "false");
+                         ci->values[i].value.boolean ? "true" : "false");
 
     if ((status < 0) || (status >= buffer_free))
       return -1;
@@ -475,9 +476,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp = realloc(dst->children,
-                 sizeof(oconfig_item_t) *
-                     (dst->children_num + src->children_num - 1));
+  temp =
+      realloc(dst->children, sizeof(oconfig_item_t) *
+                                 (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -516,9 +517,8 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp =
-      realloc(dst->children,
-              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
+  temp = realloc(dst->children, sizeof(oconfig_item_t) *
+                                    (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
