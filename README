@@ -48,6 +48,10 @@ Features
     - buddyinfo
       Statistics from buddyinfo file about memory fragmentation.
 
+    - capabilities
+      Platform static capabilities decoded from SMBIOS using dmidecode.
+      <https://www.nongnu.org/dmidecode/>
+
     - ceph
       Statistics from the Ceph distributed storage system.
 
@@ -843,7 +847,8 @@ Prerequisites
     <http://netfilter.org/>
 
   * libjansson (optional)
-    Used by the `dpdk_telemetry` plugin.
+    Parse JSON data. This is used for the `capabilities' and `dpdk_telemetry` plugins.
+    <http://www.digip.org/jansson/>
 
   * libjevents (optional)
     The jevents library is used by the `intel_pmu' plugin to access the Linux

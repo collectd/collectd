@@ -100,6 +100,7 @@
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
 #@BUILD_PLUGIN_BUDDYINFO_TRUE@LoadPlugin buddyinfo
+#@BUILD_PLUGIN_CAPABILITIES_TRUE@LoadPlugin capabilities
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
@@ -367,7 +368,11 @@
 #</Plugin>
 
 #<Plugin buddyinfo>
-#	Zone "Normal"
+#  Zone "Normal"
+#</Plugin>
+
+#<Plugin capabilities>
+#  Port "9104"
 #</Plugin>
 
 #<Plugin ceph>
