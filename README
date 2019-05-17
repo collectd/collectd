@@ -45,6 +45,10 @@ Features
       Name server and resolver statistics from the `statistics-channel'
       interface of BIND 9.5, 9,6 and later.
 
+    - capabilities
+      Platform static capabilities decoded from SMBIOS using dmidecode.
+      <https://www.nongnu.org/dmidecode/>
+
     - ceph
       Statistics from the Ceph distributed storage system.
 
@@ -819,6 +823,10 @@ Prerequisites
   * libiptc (optional)
     For querying iptables counters.
     <http://netfilter.org/>
+
+  * libjansson (optional)
+    Parse JSON data. This is needed for the `capabilities' plugin.
+    <http://www.digip.org/jansson/>
 
   * libjevents (optional)
     The jevents library is used by the `intel_pmu' plugin to access the Linux

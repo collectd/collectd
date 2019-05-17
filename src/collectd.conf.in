@@ -99,6 +99,7 @@
 #@BUILD_PLUGIN_BAROMETER_TRUE@LoadPlugin barometer
 #@BUILD_PLUGIN_BATTERY_TRUE@LoadPlugin battery
 #@BUILD_PLUGIN_BIND_TRUE@LoadPlugin bind
+#@BUILD_PLUGIN_CAPABILITIES_TRUE@LoadPlugin capabilities
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
@@ -360,6 +361,10 @@
 #
 #    Zone "127.in-addr.arpa/IN"
 #  </View>
+#</Plugin>
+
+#<Plugin capabilities>
+#  Port "9104"
 #</Plugin>
 
 #<Plugin ceph>

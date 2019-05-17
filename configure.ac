@@ -4492,6 +4492,51 @@ AC_SUBST([BUILD_WITH_LIBPQOS_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBPQOS_LIBS])
 # }}}
 
+# --with-libjansson {{{
+AC_ARG_WITH([libjansson],
+[AS_HELP_STRING([--with-libjansson@<:@=PREFIX@:>@], [Path to libjansson.])],
+[
+  if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+   with_libjansson_cppflags="-I$withval/include"
+   with_libjansson_ldflags="-L$withval/lib"
+   with_libjansson="yes"
+  else
+      with_libjansson="$withval"
+  fi
+],
+  [with_libjansson="yes"]
+)
+
+if test "x$with_libjansson" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libjansson_cppflags"
+
+  AC_CHECK_HEADERS([jansson.h],
+    [with_libjansson="yes"],
+    [with_libjansson="no (jansson.h not found)"]
+  )
+ CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libjansson" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_jansson_ldflags"
+
+  AC_CHECK_LIB([jansson], [json_is_object],
+    [with_jansson="yes"],
+    [with_jansson="no (Symbol 'json_is_object' not found)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+BUILD_WITH_LIBJANSSON_CPPFLAGS="$with_libjansson_cppflags"
+BUILD_WITH_LIBJANSSON_LDFLAGS="$with_libjansson_ldflags"
+BUILD_WITH_LIBJANSSON_LIBS="-ljansson"
+AC_SUBST(BUILD_WITH_LIBJANSSON_CPPFLAGS)
+AC_SUBST(BUILD_WITH_LIBJANSSON_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBJANSSON_LIBS)
+# }}}
+
 # --with-libjevents {{{
 with_libjevents_cppflags=""
 with_libjevents_ldflags=""
@@ -6311,6 +6356,7 @@ plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
+plugin_capabilities="no"
 plugin_ceph="no"
 plugin_cgroups="no"
 plugin_connectivity="no"
@@ -6439,6 +6485,10 @@ if test "x$ac_system" = "xLinux"; then
 
   if test "x$have_pci_regs_h" = "xyes"; then
     plugin_pcie_errors="yes"
+  fi
+
+  if test "x$with_libmicrohttpd" = "xyes" && test "x$with_libjansson" = "xyes"; then
+    plugin_capabilities="yes"
   fi
 fi
 
@@ -6742,6 +6792,7 @@ AC_PLUGIN([ascent],              [$plugin_ascent],            [AscentEmu player 
 AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor on I2C])
 AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
 AC_PLUGIN([bind],                [$plugin_bind],              [ISC Bind nameserver statistics])
+AC_PLUGIN([capabilities],        [$plugin_capabilities],      [Platform static capabilities])
 AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
@@ -7102,6 +7153,7 @@ AC_MSG_RESULT([    libhiredis  . . . . . $with_libhiredis])
 AC_MSG_RESULT([    libi2c-dev  . . . . . $with_libi2c])
 AC_MSG_RESULT([    libiokit  . . . . . . $with_libiokit])
 AC_MSG_RESULT([    libiptc . . . . . . . $with_libiptc])
+AC_MSG_RESULT([    libjansson  . . . . . $with_libjansson])
 AC_MSG_RESULT([    libjevents  . . . . . $with_libjevents])
 AC_MSG_RESULT([    libjvm  . . . . . . . $with_java])
 AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
@@ -7173,6 +7225,7 @@ AC_MSG_RESULT([    ascent  . . . . . . . $enable_ascent])
 AC_MSG_RESULT([    barometer . . . . . . $enable_barometer])
 AC_MSG_RESULT([    battery . . . . . . . $enable_battery])
 AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
+AC_MSG_RESULT([    capabilities  . . . . $enable_capabilities])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])
