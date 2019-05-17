@@ -392,6 +392,23 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
                       RIEMANN_EVENT_FIELD_NONE);
   }
 
+  if (vl->meta) {
+    char **toc;
+    int n = meta_data_toc(vl->meta, &toc);
+
+    for (int i = 0; i < n; i++) {
+      char *key = toc[i];
+      char *value;
+
+      if (0 == meta_data_as_string(vl->meta, key, &value)) {
+        riemann_event_string_attribute_add(event, key, value);
+        free(value);
+      }
+    }
+
+    free(toc);
+  }
+
   DEBUG("write_riemann plugin: Successfully created message for metric: "
         "host = \"%s\", service = \"%s\"",
         event->host, event->service);
