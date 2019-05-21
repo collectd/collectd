@@ -222,6 +222,7 @@
 #@BUILD_PLUGIN_WIRELESS_TRUE@LoadPlugin wireless
 #@BUILD_PLUGIN_WRITE_GRAPHITE_TRUE@LoadPlugin write_graphite
 #@BUILD_PLUGIN_WRITE_HTTP_TRUE@LoadPlugin write_http
+#@BUILD_PLUGIN_WRITE_INFLUXDB_UDP_TRUE@LoadPlugin write_influxdb_udp
 #@BUILD_PLUGIN_WRITE_KAFKA_TRUE@LoadPlugin write_kafka
 #@BUILD_PLUGIN_WRITE_LOG_TRUE@LoadPlugin write_log
 #@BUILD_PLUGIN_WRITE_MONGODB_TRUE@LoadPlugin write_mongodb
@@ -1791,6 +1792,13 @@
 #		LowSpeedLimit 0
 #		Timeout 0
 #	</Node>
+#</Plugin>
+
+#<Plugin write_influxdb_udp>
+#  Server "localhost"
+#  StoreRates true
+#  MaxPacketSize 32768
+#  TimeToLive 128
 #</Plugin>
 
 #<Plugin write_kafka>
