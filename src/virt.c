@@ -1566,7 +1566,15 @@ static int get_perf_events(virDomainPtr domain) {
   if (status == -1) {
     ERROR(PLUGIN_NAME " plugin: virDomainListGetStats failed with status %i.",
           status);
-    return status;
+
+    virErrorPtr err = virConnGetLastError(conn);
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: perf");
+      extra_stats &= ~(ex_stats_perf);
+    }
+
+    return -1;
   }
 
   for (int i = 0; i < status; ++i)
@@ -1615,9 +1623,21 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   if (status < 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
           status);
+
+    virErrorPtr err = virConnGetLastError(conn);
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      if (extra_stats & ex_stats_vcpu)
+        ERROR(PLUGIN_NAME
+              " plugin: Disabled unsupported ExtraStats selector: vcpu");
+      if (extra_stats & ex_stats_vcpupin)
+        ERROR(PLUGIN_NAME
+              " plugin: Disabled unsupported ExtraStats selector: vcpupin");
+      extra_stats &= ~(ex_stats_vcpu | ex_stats_vcpupin);
+    }
+
     sfree(cpumaps);
     sfree(vinfo);
-    return status;
+    return -1;
   }
 
   for (int i = 0; i < nr_virt_cpu; ++i) {
@@ -1637,6 +1657,14 @@ static int get_pcpu_stats(virDomainPtr dom) {
   int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
   if (nparams < 0) {
     VIRT_ERROR(conn, "getting the CPU params count");
+
+    virErrorPtr err = virConnGetLastError(conn);
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: pcpu");
+      extra_stats &= ~(ex_stats_pcpu);
+    }
+
     return -1;
   }
 
@@ -1729,7 +1757,15 @@ static int get_memory_stats(virDomainPtr domain) {
     ERROR(PLUGIN_NAME " plugin: virDomainMemoryStats failed with mem_stats %i.",
           mem_stats);
     sfree(minfo);
-    return mem_stats;
+
+    virErrorPtr err = virConnGetLastError(conn);
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: memory");
+      extra_stats &= ~(ex_stats_memory);
+    }
+
+    return -1;
   }
 
   derive_t swap_in = -1;
@@ -1786,6 +1822,15 @@ static int get_disk_err(virDomainPtr domain) {
   if (disk_err_count == -1) {
     ERROR(PLUGIN_NAME
           " plugin: failed to get preferred size of disk errors array");
+
+    virErrorPtr err = virConnGetLastError(conn);
+
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: disk_err");
+      extra_stats &= ~(ex_stats_disk_err);
+    }
+
     return -1;
   }
 
@@ -1832,6 +1877,24 @@ static int get_block_device_stats(struct block_device *block_dev) {
           0) {
         ERROR(PLUGIN_NAME " plugin: virDomainGetBlockInfo failed for path: %s",
               block_dev->path);
+
+        virErrorPtr err = virConnGetLastError(conn);
+        if (err->code == VIR_ERR_NO_SUPPORT) {
+
+          if (extra_stats & ex_stats_disk_allocation)
+            ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats "
+                              "selector: disk_allocation");
+          if (extra_stats & ex_stats_disk_capacity)
+            ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats "
+                              "selector: disk_capacity");
+          if (extra_stats & ex_stats_disk_physical)
+            ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats "
+                              "selector: disk_physical");
+
+          extra_stats &= ~(ex_stats_disk_allocation | ex_stats_disk_capacity |
+                           ex_stats_disk_physical);
+        }
+
         return -1;
       }
     }
@@ -1918,7 +1981,15 @@ static int get_fs_info(virDomainPtr domain) {
   if (mount_points_cnt == -1) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetFSInfo failed: %d",
           mount_points_cnt);
-    return mount_points_cnt;
+
+    virErrorPtr err = virConnGetLastError(conn);
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: fs_info");
+      extra_stats &= ~(ex_stats_fs_info);
+    }
+
+    return -1;
   }
 
   for (int i = 0; i < mount_points_cnt; ++i) {
@@ -1965,7 +2036,6 @@ static void job_stats_submit(virDomainPtr domain, virTypedParameterPtr param) {
 }
 
 static int get_job_stats(virDomainPtr domain) {
-  int ret = 0;
   int job_type = 0;
   int nparams = 0;
   virTypedParameterPtr params = NULL;
@@ -1973,10 +2043,24 @@ static int get_job_stats(virDomainPtr domain) {
                   ? VIR_DOMAIN_JOB_STATS_COMPLETED
                   : 0;
 
-  ret = virDomainGetJobStats(domain, &job_type, &params, &nparams, flags);
+  int ret = virDomainGetJobStats(domain, &job_type, &params, &nparams, flags);
   if (ret != 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetJobStats failed: %d", ret);
-    return ret;
+
+    virErrorPtr err = virConnGetLastError(conn);
+    // VIR_ERR_INVALID_ARG returned when VIR_DOMAIN_JOB_STATS_COMPLETED flag is
+    // not supported by driver
+    if (err->code == VIR_ERR_NO_SUPPORT || err->code == VIR_ERR_INVALID_ARG) {
+      if (extra_stats & ex_stats_job_stats_completed)
+        ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats selector: "
+                          "job_stats_completed");
+      if (extra_stats & ex_stats_job_stats_background)
+        ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats selector: "
+                          "job_stats_background");
+      extra_stats &=
+          ~(ex_stats_job_stats_completed | ex_stats_job_stats_background);
+    }
+    return -1;
   }
 
   DEBUG(PLUGIN_NAME " plugin: job_type=%d nparams=%d", job_type, nparams);
@@ -1988,7 +2072,7 @@ static int get_job_stats(virDomainPtr domain) {
   }
 
   virTypedParamsFree(params, nparams);
-  return ret;
+  return 0;
 }
 #endif /* HAVE_JOB_STATS */
 
