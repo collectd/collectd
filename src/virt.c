@@ -1589,7 +1589,6 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
 
 static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   int max_cpus = VIR_NODEINFO_MAXCPUS(nodeinfo);
-  int cpu_map_len = VIR_CPU_MAPLEN(max_cpus);
 
   virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(*vinfo));
   if (vinfo == NULL) {
@@ -1597,11 +1596,17 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
     return -1;
   }
 
-  unsigned char *cpumaps = calloc(nr_virt_cpu, cpu_map_len);
-  if (cpumaps == NULL) {
-    ERROR(PLUGIN_NAME " plugin: calloc failed.");
-    sfree(vinfo);
-    return -1;
+  int cpu_map_len = 0;
+  unsigned char *cpumaps = NULL;
+  if (extra_stats & ex_stats_vcpupin) {
+    cpu_map_len = VIR_CPU_MAPLEN(max_cpus);
+    cpumaps = calloc(nr_virt_cpu, cpu_map_len);
+
+    if (cpumaps == NULL) {
+      ERROR(PLUGIN_NAME " plugin: calloc failed.");
+      sfree(vinfo);
+      return -1;
+    }
   }
 
   int status =
