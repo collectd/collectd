@@ -610,7 +610,8 @@ enum ex_stats {
 #endif
   ex_stats_disk_allocation = 1 << 10,
   ex_stats_disk_capacity = 1 << 11,
-  ex_stats_disk_physical = 1 << 12
+  ex_stats_disk_physical = 1 << 12,
+  ex_stats_memory = 1 << 13
 };
 
 static unsigned int extra_stats = ex_stats_none;
@@ -641,6 +642,7 @@ static const struct ex_stats_item ex_stats_table[] = {
     {"disk_allocation", ex_stats_disk_allocation},
     {"disk_capacity", ex_stats_disk_capacity},
     {"disk_physical", ex_stats_disk_physical},
+    {"memory", ex_stats_memory},
     {NULL, ex_stats_none},
 };
 
@@ -2019,7 +2021,8 @@ static int get_domain_metrics(domain_t *domain) {
   memory_submit(domain->ptr, (gauge_t)info.memory * 1024);
 
   GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
-  GET_STATS(get_memory_stats, "memory stats", domain->ptr);
+  if (extra_stats & ex_stats_memory)
+    GET_STATS(get_memory_stats, "memory stats", domain->ptr);
 
 #ifdef HAVE_PERF_STATS
   if (extra_stats & ex_stats_perf)

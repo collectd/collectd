@@ -9520,6 +9520,9 @@ Requires libvirt API version I<1.2.9> or later.
 a domain. Only one type of job statistics can be collected at the same time.
 Requires libvirt API version I<1.2.9> or later.
 
+=item B<memory>: report statistics about memory usage details, provided
+by libvirt virDomainMemoryStats() function.
+
 =item B<pcpu>: report the physical user/system cpu time consumed by the hypervisor, per-vm.
 Requires libvirt API version I<0.9.11> or later.
 
