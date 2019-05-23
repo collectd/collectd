@@ -9531,6 +9531,8 @@ metrics they must be enabled for domain and supported by the platform. Requires
 libvirt API version I<1.3.3> or later.
 B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 
+=item B<vcpu>: report domain virtual CPUs utilisation.
+
 =item B<vcpupin>: report pinning of domain VCPUs to host physical CPUs.
 
 =item B<disk_physical>: report 'disk_physical' statistic for disk device.

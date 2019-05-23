@@ -611,7 +611,8 @@ enum ex_stats {
   ex_stats_disk_allocation = 1 << 10,
   ex_stats_disk_capacity = 1 << 11,
   ex_stats_disk_physical = 1 << 12,
-  ex_stats_memory = 1 << 13
+  ex_stats_memory = 1 << 13,
+  ex_stats_vcpu = 1 << 14
 };
 
 static unsigned int extra_stats = ex_stats_none;
@@ -643,6 +644,7 @@ static const struct ex_stats_item ex_stats_table[] = {
     {"disk_capacity", ex_stats_disk_capacity},
     {"disk_physical", ex_stats_disk_physical},
     {"memory", ex_stats_memory},
+    {"vcpu", ex_stats_vcpu},
     {NULL, ex_stats_none},
 };
 
@@ -1613,7 +1615,8 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   }
 
   for (int i = 0; i < nr_virt_cpu; ++i) {
-    vcpu_submit(vinfo[i].cpuTime, domain, vinfo[i].number, "virt_vcpu");
+    if (extra_stats & ex_stats_vcpu)
+      vcpu_submit(vinfo[i].cpuTime, domain, vinfo[i].number, "virt_vcpu");
     if (extra_stats & ex_stats_vcpupin)
       vcpu_pin_submit(domain, max_cpus, i, cpumaps, cpu_map_len);
   }
@@ -2020,7 +2023,8 @@ static int get_domain_metrics(domain_t *domain) {
 
   memory_submit(domain->ptr, (gauge_t)info.memory * 1024);
 
-  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
+  if (extra_stats & (ex_stats_vcpu | ex_stats_vcpupin))
+    GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
   if (extra_stats & ex_stats_memory)
     GET_STATS(get_memory_stats, "memory stats", domain->ptr);
 
