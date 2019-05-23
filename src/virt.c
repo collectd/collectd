@@ -976,7 +976,7 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
   }
 
   DEBUG(PLUGIN_NAME " plugin: node_cpus=%u cpu_time_old=%" PRIu64
-                    " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
+                    " cpu_time_new=%" PRIu64 " cpu_time_diff=%" PRIu64
                     " time_diff_sec=%f percent=%f",
         node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
         (uint64_t)cpu_time_diff, time_diff_sec, percent);
@@ -1523,8 +1523,8 @@ static int lv_domain_block_stats(virDomainPtr dom, const char *path,
 
   virTypedParameterPtr params = calloc(nparams, sizeof(*params));
   if (params == NULL) {
-    ERROR("virt plugin: alloc(%i) for block=%s parameters failed.", nparams,
-          path);
+    ERROR(PLUGIN_NAME " plugin: alloc(%i) for block=%s parameters failed.",
+          nparams, path);
     return -1;
   }
 
@@ -1564,7 +1564,8 @@ static int get_perf_events(virDomainPtr domain) {
   int status =
       virDomainListGetStats(domain_array, VIR_DOMAIN_STATS_PERF, &stats, 0);
   if (status == -1) {
-    ERROR("virt plugin: virDomainListGetStats failed with status %i.", status);
+    ERROR(PLUGIN_NAME " plugin: virDomainListGetStats failed with status %i.",
+          status);
     return status;
   }
 
@@ -1718,14 +1719,14 @@ static int get_memory_stats(virDomainPtr domain) {
   virDomainMemoryStatPtr minfo =
       calloc(VIR_DOMAIN_MEMORY_STAT_NR, sizeof(*minfo));
   if (minfo == NULL) {
-    ERROR("virt plugin: calloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
   }
 
   int mem_stats =
       virDomainMemoryStats(domain, minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
   if (mem_stats < 0) {
-    ERROR("virt plugin: virDomainMemoryStats failed with mem_stats %i.",
+    ERROR(PLUGIN_NAME " plugin: virDomainMemoryStats failed with mem_stats %i.",
           mem_stats);
     sfree(minfo);
     return mem_stats;
