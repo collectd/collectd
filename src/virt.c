@@ -2203,11 +2203,22 @@ static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr con_,
   return 0;
 }
 
+static void virt_eventloop_timeout_cb(int timer ATTRIBUTE_UNUSED,
+                                      void *timer_info) {}
+
 static int register_event_impl(void) {
   if (virEventRegisterDefaultImpl() < 0) {
     virErrorPtr err = virGetLastError();
     ERROR(PLUGIN_NAME
           " plugin: error while event implementation registering: %s",
+          err && err->message ? err->message : "Unknown error");
+    return -1;
+  }
+
+  if (virEventAddTimeout(CDTIME_T_TO_MS(plugin_get_interval()),
+                         virt_eventloop_timeout_cb, NULL, NULL) < 0) {
+    virErrorPtr err = virGetLastError();
+    ERROR(PLUGIN_NAME " plugin: virEventAddTimeout failed: %s",
           err && err->message ? err->message : "Unknown error");
     return -1;
   }
