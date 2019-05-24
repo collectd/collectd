@@ -2418,6 +2418,21 @@ static int lv_read(user_data_t *ud) {
     return 0;
   }
 
+  int ret = virConnectIsAlive(conn);
+  if (ret == 0) { /* Connection lost */
+    if (inst->id == 0) {
+      c_complain(LOG_ERR, &conn_complain,
+                 PLUGIN_NAME " plugin: Lost connection.");
+
+      if (!persistent_notification)
+        stop_event_loop(&notif_thread);
+
+      lv_disconnect();
+      last_refresh = 0;
+    }
+    return -1;
+  }
+
   time_t t;
   time(&t);
 
