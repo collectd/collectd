@@ -111,6 +111,7 @@ struct value_list_s {
   char type[DATA_MAX_NAME_LEN];
   char type_instance[DATA_MAX_NAME_LEN];
   meta_data_t *meta;
+  gauge_t *rates;
 };
 typedef struct value_list_s value_list_t;
 

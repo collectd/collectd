@@ -682,6 +682,7 @@ static void plugin_value_list_free(value_list_t *vl) /* {{{ */
 
   meta_data_destroy(vl->meta);
   sfree(vl->values);
+  sfree(vl->rates);
   sfree(vl);
 } /* }}} void plugin_value_list_free */
 
@@ -1989,7 +1990,7 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
       return 0;
   }
 
-  /* Update the value cache */
+  /* Update the value cache and copy rates to vl */
   uc_update(ds, vl);
 
   if (post_cache_chain != NULL) {

@@ -138,8 +138,7 @@ static void uc_check_range(const data_set_t *ds, cache_entry_t *ce) {
   }
 } /* void uc_check_range */
 
-static int uc_insert(const data_set_t *ds, const value_list_t *vl,
-                     const char *key) {
+static int uc_insert(const data_set_t *ds, value_list_t *vl, const char *key) {
   char *key_copy;
   cache_entry_t *ce;
 
@@ -194,6 +193,14 @@ static int uc_insert(const data_set_t *ds, const value_list_t *vl,
       return -1;
     } /* switch (ds->ds[i].type) */
   }   /* for (i) */
+
+  assert(vl->rates == NULL);
+  vl->rates = malloc(ds->ds_num * sizeof(*vl->rates));
+  if (vl->rates == NULL) {
+    ERROR("utils_cache: uc_insert: malloc failed for rates.");
+  } else {
+    memcpy(vl->rates, ce->values_gauge, ds->ds_num * sizeof(gauge_t));
+  }
 
   /* Prune invalid gauge data */
   uc_check_range(ds, ce);
@@ -312,7 +319,7 @@ int uc_check_timeout(void) {
   return 0;
 } /* int uc_check_timeout */
 
-int uc_update(const data_set_t *ds, const value_list_t *vl) {
+int uc_update(const data_set_t *ds, value_list_t *vl) {
   char name[6 * DATA_MAX_NAME_LEN];
   cache_entry_t *ce = NULL;
   int status;
@@ -396,6 +403,14 @@ int uc_update(const data_set_t *ds, const value_list_t *vl) {
     ce->history_index = (ce->history_index + 1) % ce->history_length;
   }
 
+  assert(vl->rates == NULL);
+  vl->rates = malloc(ds->ds_num * sizeof(*vl->rates));
+  if (vl->rates == NULL) {
+    ERROR("utils_cache: uc_insert: malloc failed for rates.");
+  } else {
+    memcpy(vl->rates, ce->values_gauge, ds->ds_num * sizeof(gauge_t));
+  }
+
   /* Prune invalid gauge data */
   uc_check_range(ds, ce);
 
@@ -455,14 +470,31 @@ gauge_t *uc_get_rate(const data_set_t *ds, const value_list_t *vl) {
   char name[6 * DATA_MAX_NAME_LEN];
   gauge_t *ret = NULL;
   size_t ret_num = 0;
-  int status;
+
+  if (vl->rates) {
+    if (vl->values_len != ds->ds_num) {
+      ERROR("utils_cache: uc_get_rate: ds[%s] has %" PRIsz " values, "
+            "but vl has %" PRIsz ".",
+            ds->type, ds->ds_num, vl->values_len);
+      return NULL;
+    }
+
+    ret = malloc(vl->values_len * sizeof(*ret));
+    if (ret == NULL) {
+      ERROR("utils_cache: uc_get_rate: malloc failed.");
+      return NULL;
+    }
+
+    memcpy(ret, vl->rates, vl->values_len * sizeof(gauge_t));
+    return ret;
+  }
 
   if (FORMAT_VL(name, sizeof(name), vl) != 0) {
     ERROR("utils_cache: uc_get_rate: FORMAT_VL failed.");
     return NULL;
   }
 
-  status = uc_get_rate_by_name(name, &ret, &ret_num);
+  int status = uc_get_rate_by_name(name, &ret, &ret_num);
   if (status != 0)
     return NULL;
 
