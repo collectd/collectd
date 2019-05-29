@@ -946,7 +946,8 @@ static void memory_stats_submit(gauge_t value, virDomainPtr dom,
                                "last_update",    "disk_caches"};
 
   if ((tag_index < 0) || (tag_index >= (int)STATIC_ARRAY_SIZE(tags))) {
-    ERROR("virt plugin: Array index out of bounds: tag_index = %d", tag_index);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: tag_index = %d",
+          tag_index);
     return;
   }
 
