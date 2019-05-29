@@ -396,11 +396,12 @@ static partition_state_t *find_partition(partition_state_t *partitions,
  * Submit one gauge value
  */
 static void slurm_submit(const char *plugin_instance, const char *type,
-                         const char *type_instance, gauge_t value) {
+                         const char *type_instance, value_t *values,
+                         size_t values_len) {
   value_list_t vl = VALUE_LIST_INIT;
 
-  vl.values = &(value_t){.gauge = value};
-  vl.values_len = 1;
+  vl.values = values;
+  vl.values_len = values_len;
   sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
   if (plugin_instance != NULL)
     sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
@@ -414,67 +415,61 @@ static void slurm_submit(const char *plugin_instance, const char *type,
 static void slurm_submit_partition(partition_state_t *partition) {
   for (int i = 0; i < JOB_END; i++) {
     slurm_submit(partition->name, "slurm_job_state", job_state_names[i],
-                 partition->jobs_states_count[i]);
+                 &(value_t){.gauge = partition->jobs_states_count[i]}, 1);
   }
   for (int i = 0; i < NUM_NODE_STATES; i++) {
     slurm_submit(partition->name, "slurm_node_state", node_state_names[i],
-                 partition->nodes_states_count[i]);
+                 &(value_t){.gauge = partition->nodes_states_count[i]}, 1);
   }
 }
 
 static void slurm_submit_stats(stats_info_response_msg_t *stats_resp) {
-  slurm_submit("stats", "slurm_stats", "parts_packed",
-               stats_resp->parts_packed);
-  slurm_submit("stats", "slurm_stats", "server_thread_count",
-               stats_resp->server_thread_count);
-  slurm_submit("stats", "slurm_stats", "agent_queue_size",
-               stats_resp->agent_queue_size);
-  slurm_submit("stats", "slurm_stats", "schedule_cycle_max",
-               stats_resp->schedule_cycle_max);
-  slurm_submit("stats", "slurm_stats", "schedule_cycle_last",
-               stats_resp->schedule_cycle_last);
-  slurm_submit("stats", "slurm_stats", "schedule_cycle_sum",
-               stats_resp->schedule_cycle_sum);
-  slurm_submit("stats", "slurm_stats", "schedule_cycle_counter",
-               stats_resp->schedule_cycle_counter);
-  slurm_submit("stats", "slurm_stats", "schedule_cycle_depth",
-               stats_resp->schedule_cycle_depth);
-  slurm_submit("stats", "slurm_stats", "schedule_queue_len",
-               stats_resp->schedule_queue_len);
-  slurm_submit("stats", "slurm_stats", "jobs_submitted",
-               stats_resp->jobs_submitted);
-  slurm_submit("stats", "slurm_stats", "jobs_started",
-               stats_resp->jobs_started);
-  slurm_submit("stats", "slurm_stats", "jobs_completed",
-               stats_resp->jobs_completed);
-  slurm_submit("stats", "slurm_stats", "jobs_canceled",
-               stats_resp->jobs_canceled);
-  slurm_submit("stats", "slurm_stats", "jobs_failed", stats_resp->jobs_failed);
-  slurm_submit("stats", "slurm_stats", "bf_backfilled_jobs",
-               stats_resp->bf_backfilled_jobs);
-  slurm_submit("stats", "slurm_stats", "bf_last_backfilled_jobs",
-               stats_resp->bf_last_backfilled_jobs);
-  slurm_submit("stats", "slurm_stats", "bf_cycle_counter",
-               stats_resp->bf_cycle_counter);
-  slurm_submit("stats", "slurm_stats", "bf_cycle_sum",
-               stats_resp->bf_cycle_sum);
-  slurm_submit("stats", "slurm_stats", "bf_cycle_last",
-               stats_resp->bf_cycle_last);
-  slurm_submit("stats", "slurm_stats", "bf_cycle_max",
-               stats_resp->bf_cycle_max);
-  slurm_submit("stats", "slurm_stats", "bf_last_depth",
-               stats_resp->bf_last_depth);
-  slurm_submit("stats", "slurm_stats", "bf_last_depth_try",
-               stats_resp->bf_last_depth_try);
-  slurm_submit("stats", "slurm_stats", "bf_depth_sum",
-               stats_resp->bf_depth_sum);
-  slurm_submit("stats", "slurm_stats", "bf_depth_try_sum",
-               stats_resp->bf_depth_try_sum);
-  slurm_submit("stats", "slurm_stats", "bf_queue_len",
-               stats_resp->bf_queue_len);
-  slurm_submit("stats", "slurm_stats", "bf_queue_len_sum",
-               stats_resp->bf_queue_len_sum);
-  slurm_submit("stats", "slurm_stats", "bf_active", stats_resp->bf_active);
+  value_t load_values[] = {
+      {.gauge = stats_resp->server_thread_count},
+      {.gauge = stats_resp->agent_count},
+      {.gauge = stats_resp->agent_queue_size},
+      {.gauge = stats_resp->dbd_agent_queue_size},
+  };
+  slurm_submit("slurm_stats", "slurm_stats_load", NULL, load_values,
+               STATIC_ARRAY_SIZE(load_values));
+
+  value_t schedule_values[] = {
+      {.counter = stats_resp->schedule_cycle_max},
+      {.gauge = stats_resp->schedule_cycle_last},
+      {.counter = stats_resp->schedule_cycle_sum},
+      {.counter = stats_resp->schedule_cycle_counter},
+      {.derive = stats_resp->schedule_cycle_depth},
+      {.gauge = stats_resp->schedule_queue_len},
+  };
+  slurm_submit("slurm_stats", "slurm_stats_cycles", NULL, schedule_values,
+               STATIC_ARRAY_SIZE(schedule_values));
+
+  value_t jobs_values[] = {
+      {.derive = stats_resp->jobs_submitted},
+      {.derive = stats_resp->jobs_started},
+      {.derive = stats_resp->jobs_completed},
+      {.derive = stats_resp->jobs_canceled},
+      {.derive = stats_resp->jobs_failed},
+  };
+  slurm_submit("slurm_stats", "slurm_stats_jobs", NULL, jobs_values,
+               STATIC_ARRAY_SIZE(jobs_values));
+
+  value_t bf_values[] = {
+      {.derive = stats_resp->bf_backfilled_jobs},
+      {.derive = stats_resp->bf_backfilled_pack_jobs},
+      {.counter = stats_resp->bf_cycle_counter},
+      {.gauge = stats_resp->bf_cycle_last},
+      {.counter = stats_resp->bf_cycle_max},
+      {.counter = stats_resp->bf_cycle_sum},
+      {.gauge = stats_resp->bf_last_depth},
+      {.gauge = stats_resp->bf_last_depth_try},
+      {.counter = stats_resp->bf_depth_sum},
+      {.counter = stats_resp->bf_depth_try_sum},
+      {.gauge = stats_resp->bf_queue_len},
+      {.counter = stats_resp->bf_queue_len_sum},
+  };
+  slurm_submit("slurm_stats", "slurm_stats_backfill", NULL, bf_values,
+               STATIC_ARRAY_SIZE(bf_values));
 }
 
 static int slurm_read(void) {
