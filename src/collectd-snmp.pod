@@ -245,22 +245,18 @@ traffic.
 
 =item B<Scale> I<Value>
 
-The gauge-values returned by the SNMP-agent are multiplied by I<Value>.  This
+The values returned by the SNMP-agent are multiplied by I<Value>.  This
 is useful when values are transferred as a fixed point real number. For example,
 thermometers may transfer B<243> but actually mean B<24.3>, so you can specify
 a scale value of B<0.1> to correct this. The default value is, of course,
 B<1.0>.
 
-This value is not applied to counter-values.
-
 =item B<Shift> I<Value>
 
-I<Value> is added to gauge-values returned by the SNMP-agent after they have
+I<Value> is added to values returned by the SNMP-agent after they have
 been multiplied by any B<Scale> value. If, for example, a thermometer returns
 degrees Kelvin you could specify a shift of B<273.15> here to store values in
 degrees Celsius. The default value is, of course, B<0.0>.
-
-This value is not applied to counter-values.
 
 =item B<Ignore> I<Value> [, I<Value> ...]
 
