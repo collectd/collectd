@@ -255,6 +255,7 @@ struct receive_list_entry_s {
   char *data;
   int data_len;
   int fd;
+  struct sockaddr_storage sender;
   struct receive_list_entry_s *next;
 };
 typedef struct receive_list_entry_s receive_list_entry_t;
@@ -971,7 +972,8 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
 #define PP_SIGNED 0x01
 #define PP_ENCRYPTED 0x02
 static int parse_packet(sockent_t *se, void *buffer, size_t buffer_size,
-                        int flags, const char *username);
+                        int flags, const char *username,
+                        struct sockaddr_storage *sender);
 
 #define BUFFER_READ(p, s)                                                      \
   do {                                                                         \
@@ -1097,7 +1099,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
             pss.username);
   } else {
     parse_packet(se, buffer + buffer_offset, buffer_len - buffer_offset,
-                 flags | PP_SIGNED, pss.username);
+                 flags | PP_SIGNED, pss.username, /* sender = */ NULL);
   }
 
   sfree(secret);
@@ -1145,7 +1147,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   }
 
   parse_packet(se, buffer + part_len, buffer_size - part_len, flags,
-               /* username = */ NULL);
+               /* username = */ NULL, /* sender = */ NULL);
 
   *ret_buffer = buffer + buffer_size;
   *ret_buffer_size = 0;
@@ -1253,7 +1255,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   }
 
   parse_packet(se, buffer + buffer_offset, payload_len, flags | PP_ENCRYPTED,
-               pea.username);
+               pea.username, /* sender = */ NULL);
 
   /* Update return values */
   *ret_buffer = buffer + part_size;
@@ -1313,7 +1315,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
 static int parse_packet(sockent_t *se, /* {{{ */
                         void *buffer, size_t buffer_size, int flags,
-                        const char *username) {
+                        const char *username,
+                        struct sockaddr_storage *address) {
   int status;
 
   value_list_t vl = VALUE_LIST_INIT;
@@ -1487,6 +1490,15 @@ static int parse_packet(sockent_t *se, /* {{{ */
       buffer_size -= (size_t)pkg_length;
     }
   } /* while (buffer_size > sizeof (part_header_t)) */
+
+  if (status == 0 && address) {
+    char host[48];
+    int ret = getnameinfo((struct sockaddr *)address,
+                          sizeof(struct sockaddr_storage), host, sizeof(host),
+                          NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV);
+    if (ret == 0)
+      uc_meta_data_add_string(&vl, "network:ip_address", host);
+  }
 
   if (status == 0 && buffer_size > 0)
     WARNING("network plugin: parse_packet: Received truncated "
@@ -2215,7 +2227,7 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
     }
 
     parse_packet(se, ent->data, ent->data_len, /* flags = */ 0,
-                 /* username = */ NULL);
+                 /* username = */ NULL, &ent->sender);
     sfree(ent->data);
     sfree(ent);
   } /* while (42) */
@@ -2256,8 +2268,12 @@ static int network_receive(void) /* {{{ */
         continue;
       status--;
 
-      buffer_len = recv(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
-                        0 /* no flags */);
+      struct sockaddr_storage address;
+      socklen_t length = sizeof(address);
+      memset(&address, 0, length);
+      buffer_len =
+          recvfrom(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
+                   0 /* no flags */, (struct sockaddr *)&address, &length);
       if (buffer_len < 0) {
         status = (errno != 0) ? errno : -1;
         ERROR("network plugin: recv(2) failed: %s", STRERRNO);
@@ -2290,6 +2306,7 @@ static int network_receive(void) /* {{{ */
 
       memcpy(ent->data, buffer, buffer_len);
       ent->data_len = buffer_len;
+      memcpy(&ent->sender, &address, sizeof(ent->sender));
 
       if (private_list_head == NULL)
         private_list_head = ent;
