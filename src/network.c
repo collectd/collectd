@@ -255,6 +255,7 @@ struct receive_list_entry_s {
   char *data;
   int data_len;
   int fd;
+  struct sockaddr_storage sender;
   struct receive_list_entry_s *next;
 };
 typedef struct receive_list_entry_s receive_list_entry_t;
@@ -392,7 +393,8 @@ static bool check_send_notify_okay(const notification_t *n) /* {{{ */
 } /* }}} bool check_send_notify_okay */
 
 static int network_dispatch_values(value_list_t *vl, /* {{{ */
-                                   const char *username) {
+                                   const char *username,
+                                   struct sockaddr_storage *address) {
   int status;
 
   if ((vl->time == 0) || (strlen(vl->host) == 0) || (strlen(vl->plugin) == 0) ||
@@ -430,6 +432,27 @@ static int network_dispatch_values(value_list_t *vl, /* {{{ */
 
   if (username != NULL) {
     status = meta_data_add_string(vl->meta, "network:username", username);
+    if (status != 0) {
+      ERROR("network plugin: meta_data_add_string failed.");
+      meta_data_destroy(vl->meta);
+      vl->meta = NULL;
+      return status;
+    }
+  }
+
+  if (address != NULL) {
+    char host[48];
+    status = getnameinfo((struct sockaddr *)address,
+                         sizeof(struct sockaddr_storage), host, sizeof(host),
+                         NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV);
+    if (status != 0) {
+      ERROR("network plugin: meta_data_add_string failed.");
+      meta_data_destroy(vl->meta);
+      vl->meta = NULL;
+      return status;
+    }
+
+    status = meta_data_add_string(vl->meta, "network:ip_address", host);
     if (status != 0) {
       ERROR("network plugin: meta_data_add_string failed.");
       meta_data_destroy(vl->meta);
@@ -971,7 +994,8 @@ static int parse_part_string(void **ret_buffer, size_t *ret_buffer_len,
 #define PP_SIGNED 0x01
 #define PP_ENCRYPTED 0x02
 static int parse_packet(sockent_t *se, void *buffer, size_t buffer_size,
-                        int flags, const char *username);
+                        int flags, const char *username,
+                        struct sockaddr_storage *sender);
 
 #define BUFFER_READ(p, s)                                                      \
   do {                                                                         \
@@ -1097,7 +1121,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
             pss.username);
   } else {
     parse_packet(se, buffer + buffer_offset, buffer_len - buffer_offset,
-                 flags | PP_SIGNED, pss.username);
+                 flags | PP_SIGNED, pss.username, /* sender = */ NULL);
   }
 
   sfree(secret);
@@ -1108,7 +1132,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-/* #endif HAVE_GCRYPT_H */
+  /* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1145,7 +1169,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
   }
 
   parse_packet(se, buffer + part_len, buffer_size - part_len, flags,
-               /* username = */ NULL);
+               /* username = */ NULL, /* sender = */ NULL);
 
   *ret_buffer = buffer + buffer_size;
   *ret_buffer_size = 0;
@@ -1253,7 +1277,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
   }
 
   parse_packet(se, buffer + buffer_offset, payload_len, flags | PP_ENCRYPTED,
-               pea.username);
+               pea.username, /* sender = */ NULL);
 
   /* Update return values */
   *ret_buffer = buffer + part_size;
@@ -1263,7 +1287,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-/* #endif HAVE_GCRYPT_H */
+  /* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1313,7 +1337,8 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
 static int parse_packet(sockent_t *se, /* {{{ */
                         void *buffer, size_t buffer_size, int flags,
-                        const char *username) {
+                        const char *username,
+                        struct sockaddr_storage *address) {
   int status;
 
   value_list_t vl = VALUE_LIST_INIT;
@@ -1398,7 +1423,7 @@ static int parse_packet(sockent_t *se, /* {{{ */
       if (status != 0)
         break;
 
-      network_dispatch_values(&vl, username);
+      network_dispatch_values(&vl, username, address);
 
       sfree(vl.values);
     } else if (pkg_type == TYPE_TIME) {
@@ -1668,7 +1693,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-/* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -2215,7 +2240,7 @@ static void *dispatch_thread(void __attribute__((unused)) * arg) /* {{{ */
     }
 
     parse_packet(se, ent->data, ent->data_len, /* flags = */ 0,
-                 /* username = */ NULL);
+                 /* username = */ NULL, &ent->sender);
     sfree(ent->data);
     sfree(ent);
   } /* while (42) */
@@ -2256,8 +2281,12 @@ static int network_receive(void) /* {{{ */
         continue;
       status--;
 
-      buffer_len = recv(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
-                        0 /* no flags */);
+      struct sockaddr_storage address;
+      socklen_t length = sizeof(address);
+      memset(&address, 0, length);
+      buffer_len =
+          recvfrom(listen_sockets_pollfd[i].fd, buffer, sizeof(buffer),
+                   0 /* no flags */, (struct sockaddr *)&address, &length);
       if (buffer_len < 0) {
         status = (errno != 0) ? errno : -1;
         ERROR("network plugin: recv(2) failed: %s", STRERRNO);
@@ -2290,6 +2319,7 @@ static int network_receive(void) /* {{{ */
 
       memcpy(ent->data, buffer, buffer_len);
       ent->data_len = buffer_len;
+      memcpy(&ent->sender, &address, sizeof(ent->sender));
 
       if (private_list_head == NULL)
         private_list_head = ent;
