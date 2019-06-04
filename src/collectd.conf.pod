@@ -9508,6 +9508,8 @@ The configuration consists of one or more B<Query> blocks.
 
 Each B<Query> block contains the following:
 
+=over 4
+
 =item B<Statement> I<Statement>
 
 The WMI query to execute. It must return columns with name corresponding to what is set
@@ -9535,7 +9537,11 @@ Type: string
 
 Default: Empty string
 
+=back
+
 =head3 B<Metric> blocks
+
+=over 4
 
 =item B<Type> I<Type>
 
