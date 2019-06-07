@@ -4771,7 +4771,7 @@ if test "$PYTHON_CONFIG" != ""; then
   if test $? -ne 0; then
     with_libpython="no"
   fi
-  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
+  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs --embed`" || LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
   if test $? -ne 0; then
     with_libpython="no"
   fi
