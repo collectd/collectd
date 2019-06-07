@@ -682,6 +682,10 @@ static char *metric_family_name(data_set_t const *ds, value_list_t const *vl,
 
   char name[5 * DATA_MAX_NAME_LEN];
   strjoin(name, sizeof(name), (char **)fields, fields_num, "_");
+  for (size_t i = 0; i < strlen(name); i++)
+        if (name[i] == '.')
+          name[i] = '_';
+
   return strdup(name);
 }
 
