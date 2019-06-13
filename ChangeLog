@@ -4,20 +4,20 @@
 	* Build System: configure.ac: run dpdk build tests only if pkgconfig
 	  fails. Thanks to Luca Boccassi, Pavel Rochnyak. #3015
 	* Build System: The "df" plugin is now built when "getmntent_r()" is
-	  available. Thanks to Florian Foster. #3095
+	  available. Thanks to Florian Forster. #3095
 	* Build System: The ability to turn on collectd "debug" feature in RPMs
 	  has been added. Thanks to dehotot. #2755
 	* collectd: A new "UNKNOWN" state as the initial state of metrics has
-	  been added. Thanks to Luis Fernández Álvarez, Florian Foster. #2976
+	  been added. Thanks to Luis Fernández Álvarez, Florian Forster. #2976
 	* collectd: Base port to Windows. Thanks to Sean Campbell. #2810
 	* collectd: Code ownership of five plugins has been handed out to folks
-	  from Intel. Thanks to Florian Foster. #3053
+	  from Intel. Thanks to Florian Forster. #3053
 	* collectd: config parser: Improved error reporting on global options.
 	  Thanks to Pavel Rochnyak. #2813
 	* collectd: daemon: make plugin_dispatch_multivalue() obey write queue
 	  limits. Thanks to Adam Romanek. #2898
 	* collectd: Macros "STRERROR" and "STRERRNO" have been added. Thanks to
-	  Florian Foster. #2519
+	  Florian Forster. #2519
 	* collectd: Plugin name field has been added to plugin context to
 	  improve error reporting. Thanks to Pavel Rochnyak. #2821
 	* collectd-tg: Use "CLOCK_REALTIME" for collectd-tg times. Thanks to
@@ -30,7 +30,7 @@
 	* tree-wide: Use interval value from plugin context, do not set
 	  "vl->interval" in plugins more. Thanks to Pavel Rochnyak. #2847
 	* tree-wide: Utilities and libraries have been moved to "src/utils/".
-	  Thanks to Florian Foster. #2961
+	  Thanks to Florian Forster. #2961
 	* AMPQ1 plugin: A new plugin to write to amqp1 protocol. Thanks to Andy
 	  Smith. #2618
 	* Chrony plugin: Ignoring late responses has been added. Thanks to
@@ -42,11 +42,11 @@
 	* Disk plugin: Report number of in progress disk IO requests on FreeBSD.
 	  Thanks to Nathan Huff. #2878
 	* Exec plugin: Dynamic allocation of grname buffer has been added.
-	  Thanks to sreedi, Florian Foster. #2937
+	  Thanks to sreedi, Florian Forster. #2937
 	* GPU NVML plugin: New plugin to collect NVIDIA GPU stats. Thanks to
 	  Evgeny Naumov. #2923
 	* gRPC plugin: The "VerifyPeer" option for servers has been added.
-	  Thanks to Florian Foster. #2593
+	  Thanks to Florian Forster. #2593
 	* Intel RDT plugin: Support for groups of PIDs has been added. Thanks to
 	  Wojciech Andralojc, Mateusz Starzyk, Michal Aleksinski. #2891
 	* IPMI plugin: Config options "SELSensor" and "SELIgnoreSelected" have
@@ -69,7 +69,7 @@
 	* PCIe Errors plugin: New plugin to read "PCIe" errors. Thanks to Kamil
 	  Wiatrowski. #2733
 	* Processes plugin: Support for Linux Delay Accounting has been added.
-	  Thanks to Florian Foster. #2598
+	  Thanks to Florian Forster. #2598
 	* Redis plugin: Keyspace "hitratio" metric has been added, metric
 	  "operations_per_second" has been removed, an option for connecting via
 	  UNIX socket has been added. Thanks to Pavel Rochnyak. #2838, #2845,
@@ -102,13 +102,13 @@
 	* virt plugin: Block info statistics for disk devices have been added.
 	  Thanks to Radoslaw Jablonski. #2874
 	* Wireless plugin: A "bitrate" metric has been added. Thanks to Florian
-	  Foster. #2950
+	  Forster. #2950
 	* Write Graphite, Write Kafka plugins: Support for Graphite 1.1+ tag has
 	  been added. Thanks to Dan Cech. #2631
 	* Write Prometheus plugin: Option "Host" has been added. Thanks to Pavel
 	  Rochnyak. #2969
 	* Write Stackdriver plugin: New plugin to write to Google Stackdriver
-	  Monitoring. Thanks to Florian Foster. #2472
+	  Monitoring. Thanks to Florian Forster. #2472
 	* Write Syslog plugin: "write_syslog" plugin writes values lists as
 	  syslog messages. Thanks to Shirly Radco. #3019
 	* Build System: A warning that pkgdatadir and pkglibdir were previously
@@ -116,7 +116,7 @@
 	  GNULIB_DIR has been added to LDFLAGS in configure.ac on Windows.
 	  Thanks to Sean Campbell. #2907, #2885, #2882
 	* Build System: Including "utils/mount/mount.h" has been fixed. Thanks
-	  to Florian Foster. #3097
+	  to Florian Forster. #3097
 	* Build System: The amount of output from ./configure has been reduced,
 	  rendering of collectd-lua(5) manpage has been fixed, don't hide errors
 	  when creating manpage. Thanks to Ruben Kerkhof. #3086, #3088, #3092
@@ -125,7 +125,7 @@
 	* collectd: A stringop compiler warning has been fixed. Thanks to Ruben
 	  Kerkhof, Juan Osorio Robles. #3021
 	* collectd: An invalid memory access in the "strjoin()" function has
-	  been fixed. Thanks to Florian Foster. #3063
+	  been fixed. Thanks to Florian Forster. #3063
 	* collectd: collectd binary has been refactored. Thanks to Sean
 	  Campbell, Sebastian Harl. #2745
 	* collectd: collectdmon cannot exit command line options parse loop has
@@ -144,14 +144,14 @@
 	  no-op code. Thanks to Pavel Rochnyak. #2779
 	* collectd: src/daemon/plugin.c: Refactor plugin_load_file(),
 	  src/utils_format_json.c: Remove chatty debug messages. Thanks to
-	  Florian Foster. #2558, #2938
+	  Florian Forster. #2558, #2938
 	* collectd: Stop poisoning function in debug mode. Thanks to Ruben
 	  Kerkhof. #2804
 	* collectd: The number of allocations when parsing types.db has been
 	  reduced. Thanks to Ruben Kerkhof. #3091
 	* collectd: The organization of the source repository has been improved.
-	  Thanks to Florian Foster. #2961
-	* collectd: Typos have been fixed. Thanks to Florian Foster, Jakub
+	  Thanks to Florian Forster. #2961
+	* collectd: Typos have been fixed. Thanks to Florian Forster, Jakub
 	  Jankowski, William Pursell. #2944, #2692, #2643
 	* tree-wide: cleanup: cf_util_get* instead of local copy in plugins,
 	  prefixed error reporting. Thanks to Pavel Rochnyak. #2833
@@ -180,7 +180,7 @@
 	* Intel RDT plugin: Compiler warnings have been fixed. Thanks to Ruben
 	  Kerkhof. #3104
 	* Log Logstash plugin: Non-portable struct initialization with "{}" has
-	  been fixed. Thanks to Florian Foster. #2988
+	  been fixed. Thanks to Florian Forster. #2988
 	* LUA plugin: A memory leak has been fixed. Thanks to Ruben Kerkhof.
 	  #3090
 	* MySQL plugin: Properly cleanup dropped MySQL connections. Thanks to
@@ -197,7 +197,7 @@
 	  hosts in ntpd plugin. Thanks to Pavel Rochnyak, Ivan Kurnosov. #2822,
 	  #2376
 	* OAuth plugin: src/utils_oauth.c: Renew OAuth tokens 30 seconds before
-	  they expire. Thanks to Florian Foster. #2970
+	  they expire. Thanks to Florian Forster. #2970
 	* OVS Stats plugin: A macro to populate counters list has been added,
 	  value of "OpenFlow" has been corrected. Thanks to Matteo Croce. #2966,
 	  #2963
@@ -225,7 +225,7 @@
 	  plugins: Compiler warnings have been fixed. Thanks to Ruben Kerkhof.
 	  #3093, #3098, #3099, #3100, #3102, #3103, #3104
 	* virt plugin: Code "do {} while(0)" around macro has been removed.
-	  Thanks to Florian Foster. #2579
+	  Thanks to Florian Forster. #2579
 	* virt plugin: Compiler warnings, a segfault in libvirt, typo in error
 	  messages have been fixed. Thanks to Antoine Naud, Ruben Kerkhof, sarah
 	  niuxu18. #2808, #2919, #2957
@@ -236,14 +236,14 @@
 	* Write MongoDB plugin: Plugin dependencies have been fixed. Thanks to
 	  Pavel Rochnyak. #3010
 	* Write Prometheus plugin: A compilation issue on Mac OS X has been
-	  fixed. Thanks to Florian Foster. #3059
+	  fixed. Thanks to Florian Forster. #3059
 	* Write Redis plugin: Bug ""max_set_duration" deletes unexpected data"
 	  has been fixed. Thanks to takahashi-tsc. #2773
 	* Write Stackdriver plugin: Potential NULL dereference and error
-	  reporting have been fixed. Thanks to Florian Foster. #2960
+	  reporting have been fixed. Thanks to Florian Forster. #2960
 	* collectd.conf(5): a typo has been fixed, the tail plugin's
 	  documentation has been improved. Thanks to Ruben Kerkhof, Florian
-	  Foster. #3087, #2994
+	  Forster. #3087, #2994
 	* collectd.conf.pod: virt: "Instances" option has been documented, a
 	  clarifying example has been added. Thanks to Pavel Rochnyak, Fabien
 	  Wernli. #2990, #2903
@@ -253,9 +253,9 @@
 	  Ward. #3078
 	* CONTRIBUTING.md: Improve wording around ChangeLog; fix example,
 	  document the new change log requirement / behavior. Thanks to Florian
-	  Foster. #3061, #3054
+	  Forster. #3061, #3054
 	* docs/review_comments.md: document with frequent review comments has
-	  been started. Thanks to Florian Foster. #2964
+	  been started. Thanks to Florian Forster. #2964
 	* README: Include compiler defenses suggestion, do not point users to
 	  non-existing file. Thanks to Kevin Laatz, Ruben Kerkhof. #2721, #2045
 
