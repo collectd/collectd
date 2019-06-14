@@ -21,7 +21,7 @@
  *
  * Authors:
  *   Red Hat NFVPE
- *     Andrew Bays <abays at redhat.com> 
+ *     Andrew Bays <abays at redhat.com>
  *     Aneesh Puttur <aputtur at redhat.com>
  **/
 
@@ -306,10 +306,11 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       (state == 0 ? strlen(CONNECTIVITY_NEW_STATE_FIELD_DOWN_VALUE)
                   : strlen(CONNECTIVITY_NEW_STATE_FIELD_UP_VALUE));
 
-  if (yajl_gen_string(
-          g, (u_char *)(state == 0 ? CONNECTIVITY_NEW_STATE_FIELD_DOWN_VALUE
-                                   : CONNECTIVITY_NEW_STATE_FIELD_UP_VALUE),
-          new_state_len) != yajl_gen_status_ok)
+  if (yajl_gen_string(g,
+                      (u_char *)(state == 0
+                                     ? CONNECTIVITY_NEW_STATE_FIELD_DOWN_VALUE
+                                     : CONNECTIVITY_NEW_STATE_FIELD_UP_VALUE),
+                      new_state_len) != yajl_gen_status_ok)
     goto err;
 
   // oldState
@@ -322,10 +323,11 @@ static int gen_message_payload(int state, int old_state, const char *interface,
       (old_state == 0 ? strlen(CONNECTIVITY_OLD_STATE_FIELD_DOWN_VALUE)
                       : strlen(CONNECTIVITY_OLD_STATE_FIELD_UP_VALUE));
 
-  if (yajl_gen_string(
-          g, (u_char *)(old_state == 0 ? CONNECTIVITY_OLD_STATE_FIELD_DOWN_VALUE
-                                       : CONNECTIVITY_OLD_STATE_FIELD_UP_VALUE),
-          old_state_len) != yajl_gen_status_ok)
+  if (yajl_gen_string(g,
+                      (u_char *)(old_state == 0
+                                     ? CONNECTIVITY_OLD_STATE_FIELD_DOWN_VALUE
+                                     : CONNECTIVITY_OLD_STATE_FIELD_UP_VALUE),
+                      old_state_len) != yajl_gen_status_ok)
     goto err;
 
   // stateChangeFieldsVersion
@@ -694,7 +696,9 @@ static void *connectivity_dequeue_thread(void *arg) /* {{{ */
 
 static int nl_connect() {
   struct sockaddr_nl sa_nl = {
-      .nl_family = AF_NETLINK, .nl_groups = RTMGRP_LINK, .nl_pid = getpid(),
+      .nl_family = AF_NETLINK,
+      .nl_groups = RTMGRP_LINK,
+      .nl_pid = getpid(),
   };
 
   nl_sock = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
