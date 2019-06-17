@@ -27,10 +27,10 @@
 
 #include "collectd.h"
 
-#include "utils/common/common.h"
 #include "plugin.h"
-#include "utils_complain.h"
+#include "utils/common/common.h"
 #include "utils/ignorelist/ignorelist.h"
+#include "utils_complain.h"
 
 #include <asm/types.h>
 #include <errno.h>
@@ -474,7 +474,8 @@ static int connectivity_link_state(struct nlmsghdr *msg) {
     }
 
     DEBUG("connectivity plugin (%llu): Interface %s status is now %s",
-          il->timestamp, dev, ((ifi->ifi_flags & IFF_RUNNING) ? "UP" : "DOWN"));
+          (unsigned long long)il->timestamp, dev,
+          ((ifi->ifi_flags & IFF_RUNNING) ? "UP" : "DOWN"));
 
     // no need to loop again, we found the interface name attr
     // (otherwise the first if-statement in the loop would
