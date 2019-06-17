@@ -218,8 +218,7 @@
 %define with_zone 0%{!?_without_zone:0}
 # plugin gpu_nvidia requires cuda-nvml-dev
 # get it from https://developer.nvidia.com/cuda-downloads
-# then use rpm2cpio to extract it from the huge cuda-repo rpm
-# rpm2cpio cuda-repo-rhel7-10-1-local-10.1.168-418.67-1.0-1.x86_64.rpm | cpio -icv '*cuda-nvml-dev-10-1-10.1.168-1.x86_64.rpm' '*cuda-license-10-1-10.1.168-1.x86_64.rpm'
+# then install cuda-nvml-dev-10-1 or other version
 %define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
 # not sure why this one's failing
 %define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
