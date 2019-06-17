@@ -216,7 +216,10 @@
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
 %define with_zone 0%{!?_without_zone:0}
-# requires cuda (I think)
+# plugin gpu_nvidia requires cuda-nvml-dev
+# get it from https://developer.nvidia.com/cuda-downloads
+# then use rpm2cpio to extract it from the huge cuda-repo rpm
+# rpm2cpio cuda-repo-rhel7-10-1-local-10.1.168-418.67-1.0-1.x86_64.rpm | cpio -icv '*cuda-nvml-dev-10-1-10.1.168-1.x86_64.rpm' '*cuda-license-10-1-10.1.168-1.x86_64.rpm'
 %define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
 # not sure why this one's failing
 %define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
@@ -966,7 +969,7 @@ The riemann plugin submits values to Riemann, an event stream processor.
 Summary:	stackdriver plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	curl-devel, libxml2-devel, liboauth-devel
+BuildRequires:	curl-devel, yajl-devel, openssl-devel
 %description write_stackdriver
 The write_stackdriver collectd plugin writes metrics to the
 Google Stackdriver Monitoring service.
@@ -977,7 +980,7 @@ Google Stackdriver Monitoring service.
 Summary:	stackdriver plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	curl-devel, libxml2-devel, liboauth-devel
+BuildRequires: cuda-nvml-dev-10-1
 %description gpu_nvidia
 The gpu_nvidia collectd plugin collects NVidia GPU metrics.
 %endif
