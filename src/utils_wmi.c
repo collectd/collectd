@@ -354,7 +354,8 @@ HRESULT wmi_invoke_method(IDispatch *dispatcher, const wchar_t *method_name,
 HRESULT wmi_get_property(IDispatch *dispatcher, const wchar_t *property_name,
                          VARIANT *result) {
   DISPPARAMS params = {
-      .cArgs = 0, .cNamedArgs = 0,
+      .cArgs = 0,
+      .cNamedArgs = 0,
   };
   return wmi_make_call(dispatcher, property_name, &params, result,
                        DISPATCH_PROPERTYGET);
@@ -426,10 +427,13 @@ wmi_result_t *wmi_get_next_result(wmi_result_list_t *results) {
 
   HRESULT hr;
   VARIANTARG args[1] = {{
-      .vt = VT_UI4, .uintVal = results->last_result + 1,
+      .vt = VT_UI4,
+      .uintVal = results->last_result + 1,
   }};
   DISPPARAMS params = {
-      .cArgs = 1, .cNamedArgs = 0, .rgvarg = args,
+      .cArgs = 1,
+      .cNamedArgs = 0,
+      .rgvarg = args,
   };
   VARIANT varResult;
 
@@ -485,11 +489,14 @@ int wmi_result_get_value(const wmi_result_t *result, const char *name,
 
   wchar_t *wname = strtowstr(name);
   VARIANTARG args[1] = {{
-      .vt = VT_BSTR, .bstrVal = SysAllocString(wname),
+      .vt = VT_BSTR,
+      .bstrVal = SysAllocString(wname),
   }};
   free(wname);
   DISPPARAMS params = {
-      .cArgs = 1, .cNamedArgs = 0, .rgvarg = args,
+      .cArgs = 1,
+      .cNamedArgs = 0,
+      .rgvarg = args,
   };
 
   hr = wmi_invoke_method(propertyResult.pdispVal, L"Item", &params,

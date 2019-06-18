@@ -25,7 +25,9 @@
 
 #include <oaidl.h>
 
-typedef struct wmi_connection_s { IDispatch *dispatcher; } wmi_connection_t;
+typedef struct wmi_connection_s {
+  IDispatch *dispatcher;
+} wmi_connection_t;
 
 typedef struct wmi_result_list_s {
   IDispatch *results;
@@ -34,7 +36,9 @@ typedef struct wmi_result_list_s {
   int last_result;
 } wmi_result_list_t;
 
-typedef struct wmi_result_s { IDispatch *result; } wmi_result_t;
+typedef struct wmi_result_s {
+  IDispatch *result;
+} wmi_result_t;
 
 char *wstrtostr(const wchar_t *source);
 

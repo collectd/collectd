@@ -129,18 +129,18 @@ static wmi_metric_t *config_get_metric(oconfig_item_t *ci) {
   ds = plugin_get_ds(metric->type);
   if (ds == NULL) {
     log_err("wmi: Failed to look up type \"%s\" for metric. It may "
-	        "not be defined in the types.db file. Please read the "
-			"types.db(5) manual page for more details.",
-			metric->type);
+            "not be defined in the types.db file. Please read the "
+            "types.db(5) manual page for more details.",
+            metric->type);
     return NULL;
   } else if (ds->ds_num != 1) {
     log_err("wmi: Data set for metric type \"%s\" has %" PRIsz
             " data sources, but the wmi plugin only works for types "
             "with 1 source",
             metric->type, ds->ds_num);
-	return NULL;
+    return NULL;
   }
-  
+
   metric->data_source_type = ds->ds->type;
   return metric;
 }
