@@ -116,6 +116,7 @@
 %define with_openvpn 0%{!?_without_openvpn:1}
 %define with_ovs_events 0%{!?_without_ovs_events:1}
 %define with_ovs_stats 0%{!?_without_ovs_stats:1}
+%define with_pcie_errors 0%{!?_without_pcie_errors:1}
 %define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
@@ -160,6 +161,7 @@
 %define with_write_prometheus 0%{!?_without_write_prometheus:1}
 %define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_stackdriver 0%{!?_without_write_stackdriver:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_syslog 0%{!?_without_write_syslog:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
@@ -214,6 +216,12 @@
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
 %define with_zone 0%{!?_without_zone:0}
+# plugin gpu_nvidia requires cuda-nvml-dev
+# get it from https://developer.nvidia.com/cuda-downloads
+# then install cuda-nvml-dev-10-1 or other version
+%define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
+# not sure why this one's failing
+%define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
 
 # Plugins not buildable on RHEL < 6
 %if 0%{?rhel} && 0%{?rhel} < 6
@@ -252,8 +260,8 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.7.1
-Release:	9%{?dist}
+Version:	5.9.0
+Release:	1%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -741,6 +749,16 @@ The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
 %endif
 
+%if %{with_pcie_errors}
+%package pcie_errors
+Summary:	PCI Express errors plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description pcie_errors
+The pcie_errors plugin collects PCI Express errors from Device Status in Capability
+structure and from Advanced Error Reporting Extended Capability.
+%endif
+
 %if %{with_pinba}
 %package pinba
 Summary:	Pinba plugin for collectd
@@ -943,6 +961,27 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	riemann-c-client-devel >= 1.6
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
+%if %{with_write_stackdriver}
+%package write_stackdriver
+Summary:	stackdriver plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel, yajl-devel, openssl-devel
+%description write_stackdriver
+The write_stackdriver collectd plugin writes metrics to the
+Google Stackdriver Monitoring service.
+%endif
+
+%if %{with_gpu_nvidia}
+%package gpu_nvidia
+Summary:	stackdriver plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires: cuda-nvml-dev-10-1
+%description gpu_nvidia
+The gpu_nvidia collectd plugin collects NVidia GPU metrics.
 %endif
 
 %if %{with_xencpu}
@@ -1553,6 +1592,12 @@ Collectd utilities
 %define _with_perl --disable-perl
 %endif
 
+%if %{with_pcie_errors}
+%define _with_pcie_errors --enable-pcie_errors
+%else
+%define _with_pcie_errors --disable-pcie_errors
+%endif
+
 %if %{with_pf}
 %define _with_pf --enable-pf
 %else
@@ -1852,6 +1897,18 @@ Collectd utilities
 %define _with_write_riemann --disable-write_riemann
 %endif
 
+%if %{with_write_stackdriver}
+%define _with_write_stackdriver --enable-write_stackdriver
+%else
+%define _with_write_stackdriver --disable-write_stackdriver
+%endif
+
+%if %{with_gpu_nvidia}
+%define _with_gpu_nvidia --enable-gpu_nvidia
+%else
+%define _with_gpu_nvidia --disable-gpu_nvidia
+%endif
+
 %if %{with_write_sensu}
 %define _with_write_sensu --enable-write_sensu
 %else
@@ -2009,6 +2066,7 @@ Collectd utilities
 	%{?_with_ovs_events} \
 	%{?_with_ovs_stats} \
 	%{?_with_perl} \
+	%{?_with_pcie_errors} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
 	%{?_with_ping} \
@@ -2060,6 +2118,8 @@ Collectd utilities
 	%{?_with_write_prometheus} \
 	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
+	%{?_with_write_stackdriver} \
+	%{?_with_gpu_nvidia} \
 	%{?_with_write_sensu} \
 	%{?_with_write_syslog} \
 	%{?_with_write_tsdb} \
@@ -2667,6 +2727,11 @@ fi
 %{_libdir}/%{name}/perl.so
 %endif
 
+%if %{with_pcie_errors}
+%files pcie_errors
+%{_libdir}/%{name}/pcie_errors.so
+%endif
+
 %if %{with_pinba}
 %files pinba
 %{_libdir}/%{name}/pinba.so
@@ -2760,6 +2825,16 @@ fi
 %{_libdir}/%{name}/write_riemann.so
 %endif
 
+%if %{with_write_stackdriver}
+%files write_stackdriver
+%{_libdir}/%{name}/write_stackdriver.so
+%endif
+
+%if %{with_gpu_nvidia}
+%files write_gpu_nvidia
+%{_libdir}/%{name}/write_gpu_nvidia.so
+%endif
+
 %if %{with_xencpu}
 %files xencpu
 %{_libdir}/%{name}/xencpu.so
@@ -2782,6 +2857,11 @@ fi
 %doc contrib/
 
 %changelog
+* Fri Jun 14 2019 Fabien Wernli <rpmbuild@faxmodem.org> - 5.9.0-1
+- add code for write_stackdriver (disabled for now)
+- add code for gpu_nvidia (disabled for now)
+- add pcie_errors
+
 * Thu Sep 28 2017 Jakub Jankowski <shasta@toxcorp.com> - 5.7.1-9
 - Fix mbmon/mcelog build options
 
