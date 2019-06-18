@@ -60,6 +60,7 @@ typedef struct wmi_metric_s {
   char *type;
   char *instance;
   char *values_from;
+  int data_source_type;
 } wmi_metric_t;
 
 typedef struct wmi_metric_list_s {
@@ -91,6 +92,7 @@ static wmi_metric_t *config_get_metric(oconfig_item_t *ci) {
   char *instance = NULL;
   char *type = NULL;
   char *values_from = NULL;
+  const data_set_t *ds = NULL;
   wmi_metric_t *metric = NULL;
 
   assert(strcasecmp("Metric", ci->key) == 0);
@@ -124,6 +126,22 @@ static wmi_metric_t *config_get_metric(oconfig_item_t *ci) {
   metric->type = type;
   metric->values_from = values_from;
 
+  ds = plugin_get_ds(metric->type);
+  if (ds == NULL) {
+    log_err("wmi: Failed to look up type \"%s\" for metric. It may "
+	        "not be defined in the types.db file. Please read the "
+			"types.db(5) manual page for more details.",
+			metric->type);
+    return NULL;
+  } else if (ds->ds_num != 1) {
+    log_err("wmi: Data set for metric type \"%s\" has %" PRIsz
+            " data sources, but the wmi plugin only works for types "
+            "with 1 source",
+            metric->type, ds->ds_num);
+	return NULL;
+  }
+  
+  metric->data_source_type = ds->ds->type;
   return metric;
 }
 
@@ -204,7 +222,7 @@ static char *get_plugin_instance(const char *instances_from,
 
   if (wmi_result_get_value(wmi_result, instances_from,
                            &plugin_instance_base_v) != 0) {
-    log_err("failed to read field '%s'", instances_from);
+    log_err("failed to read field \"%s\"", instances_from);
     return "";
   }
   plugin_instance_base_s = variant_get_string(&plugin_instance_base_v);
@@ -260,8 +278,6 @@ static void counter_submit(const char *type, const char *type_instance,
 }
 
 static int wmi_exec_query(wmi_query_t *q) {
-  c_complain_t complaint = C_COMPLAIN_INIT_STATIC;
-
   wmi_result_list_t *results;
   results = wmi_query(wmi, q->statement);
 
@@ -278,29 +294,18 @@ static int wmi_exec_query(wmi_query_t *q) {
     for (mn = q->metrics; mn != NULL; mn = mn->next) {
       VARIANT value_v;
       char *plugin_instance_s = NULL;
-      const data_set_t *ds = NULL;
       wmi_metric_t *m = mn->node;
-
-      ds = plugin_get_ds(m->type);
-      if (ds->ds_num != 1) {
-        c_complain(LOG_ERR, &complaint,
-                   "wmi: data set for metric type '%s' has %" PRIsz
-                   " data sources, but the wmi plugin only works for types "
-                   "with 1 source",
-                   m->type, ds->ds_num);
-        continue;
-      }
 
       if (wmi_result_get_value(result, m->values_from, &value_v) != 0) {
         VariantClear(&value_v);
-        log_err("failed to read field '%s'", m->values_from);
+        log_err("failed to read field \"%s\"", m->values_from);
         continue;
       }
 
       plugin_instance_s =
           get_plugin_instance(q->instances_from, q->instance_prefix, result);
 
-      switch (ds->ds[0].type) {
+      switch (m->data_source_type) {
       case DS_TYPE_ABSOLUTE:
         absolute_submit(m->type, m->instance, plugin_instance_s,
                         variant_get_uint64(&value_v));
