@@ -127,7 +127,7 @@ bin_PROGRAMS = \
 endif # BUILD_WIN32
 
 
-noinst_LTLIBRARIES = \
+nonreq_LTLIBRARIES = \
 	libavltree.la \
 	libcmds.la \
 	libcommon.la \
@@ -577,7 +577,7 @@ liboconfig_la_LDFLAGS = -avoid-version $(LEXLIB)
 if BUILD_WITH_LIBCURL
 if BUILD_WITH_LIBSSL
 if BUILD_WITH_LIBYAJL2
-noinst_LTLIBRARIES += liboauth.la
+nonreq_LTLIBRARIES += liboauth.la
 liboauth_la_SOURCES = \
 	src/utils_oauth.c \
 	src/utils_oauth.h
@@ -600,7 +600,7 @@ test_utils_oauth_LDADD = \
 	libcommon.la \
 	libplugin_mock.la
 
-noinst_LTLIBRARIES += libgce.la
+nonreq_LTLIBRARIES += libgce.la
 libgce_la_SOURCES = \
 	src/utils_gce.c \
 	src/utils_gce.h
@@ -614,7 +614,7 @@ endif
 endif
 
 if BUILD_WITH_LIBYAJL2
-noinst_LTLIBRARIES += libformat_stackdriver.la
+nonreq_LTLIBRARIES += libformat_stackdriver.la
 libformat_stackdriver_la_SOURCES = \
 	src/utils_format_stackdriver.c \
 	src/utils_format_stackdriver.h
@@ -1599,7 +1599,7 @@ python_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBPYTHON_LDFLAGS)
 endif
 
 if HAVE_LIBMNL
-noinst_LTLIBRARIES += libtaskstats.la
+nonreq_LTLIBRARIES += libtaskstats.la
 libtaskstats_la_SOURCES = \
 	src/utils_taskstats.c \
 	src/utils_taskstats.h
@@ -2277,3 +2277,8 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
 
+if BUILD_WIN32
+	EXTRA_LTLIBRARIES = nonreq_LTLIBRARIES
+else
+	noinst_LTLIBRARIES = nonreq_LTLIBRARIES
+endif
