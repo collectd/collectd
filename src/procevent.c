@@ -336,8 +336,9 @@ static int gen_message_payload(int state, long pid, char *process,
     goto err;
 
   if (yajl_gen_string(
-          g, (u_char *)(state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
-                                   : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE),
+          g,
+          (u_char *)(state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
+                                : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE),
           strlen((state == 0 ? PROCEVENT_EVENT_SEVERITY_CRITICAL_VALUE
                              : PROCEVENT_EVENT_SEVERITY_NORMAL_VALUE))) !=
       yajl_gen_status_ok)
@@ -388,8 +389,9 @@ static int gen_message_payload(int state, long pid, char *process,
     goto err;
 
   if (yajl_gen_string(
-          g, (u_char *)(state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
-                                   : PROCEVENT_VF_STATUS_NORMAL_VALUE),
+          g,
+          (u_char *)(state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
+                                : PROCEVENT_VF_STATUS_NORMAL_VALUE),
           strlen((state == 0 ? PROCEVENT_VF_STATUS_CRITICAL_VALUE
                              : PROCEVENT_VF_STATUS_NORMAL_VALUE))) !=
       yajl_gen_status_ok)
@@ -662,7 +664,9 @@ static int process_map_refresh(void) {
 
 static int nl_connect() {
   struct sockaddr_nl sa_nl = {
-      .nl_family = AF_NETLINK, .nl_groups = CN_IDX_PROC, .nl_pid = getpid(),
+      .nl_family = AF_NETLINK,
+      .nl_groups = CN_IDX_PROC,
+      .nl_pid = getpid(),
   };
 
   nl_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
