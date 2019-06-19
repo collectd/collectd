@@ -61,7 +61,7 @@ static const char *config_keys[] = {"ReportRelative"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static int load_config(const char *key, const char *value) {
-  if (strcasecmp(key, "ReportRelative") == 0)
+  if (strcasecmp(key, "ReportRelative") == 0) {
 #ifdef _SC_NPROCESSORS_ONLN
     report_relative_load = IS_TRUE(value);
 #else
@@ -69,6 +69,8 @@ static int load_config(const char *key, const char *value) {
             "is not available, because I can't determine the "
             "number of CPUS on this system. Sorry.");
 #endif
+    return 0;
+  }
   return -1;
 }
 static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {

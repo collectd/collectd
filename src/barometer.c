@@ -1309,7 +1309,7 @@ static int collectd_barometer_config(const char *key, const char *value) {
   } else if (strcasecmp(key, "Normalization") == 0) {
     int normalize_tmp = atoi(value);
     if (normalize_tmp < 0 || normalize_tmp > 2) {
-      WARNING("barometer: collectd_barometer_config: invalid normalization: %d",
+      ERROR("barometer: collectd_barometer_config: invalid normalization: %d",
               normalize_tmp);
       return 1;
     }
