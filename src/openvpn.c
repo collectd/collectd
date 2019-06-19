@@ -506,7 +506,7 @@ static int openvpn_config(const char *key, const char *value) {
         });
 
     if (status == EINVAL) {
-      WARNING("openvpn plugin: status filename \"%s\" "
+      ERROR("openvpn plugin: status filename \"%s\" "
               "already used, please choose a "
               "different one.",
               status_name);
