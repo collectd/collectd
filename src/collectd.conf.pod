@@ -3718,6 +3718,14 @@ Defaults to B<false>.
 
 =back
 
+=head2 Plugin C<ipstats>
+
+This plugin collects counts for ipv4 and ipv6 packets received, transmitted
+and forwarded on all interfaces combined.  At the moment it's only supported
+on FreeBSD.
+
+This plugin doesn't have any options (yet).
+
 =head2 Plugin C<iptables>
 
 =over 4
