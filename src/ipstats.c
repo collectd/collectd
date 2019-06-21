@@ -37,18 +37,25 @@
 #include <netinet6/ip6_var.h>
 #endif
 
-static void ipstats_submit(const char *family, const char *type, derive_t rx,
-                           derive_t tx, derive_t fwd) {
+static void ipstats_submit(const char *family, derive_t rx, derive_t tx,
+                           derive_t fwd) {
   value_list_t vl = VALUE_LIST_INIT;
-  value_t values[] = {{.derive = rx}, {.derive = tx}, {.derive = fwd}};
-
-  vl.values = values;
-  vl.values_len = STATIC_ARRAY_SIZE(values);
+  vl.values_len = 1;
 
   sstrncpy(vl.plugin, "ipstats", sizeof(vl.plugin));
   sstrncpy(vl.plugin_instance, family, sizeof(vl.plugin_instance));
-  sstrncpy(vl.type, type, sizeof(vl.type));
+  sstrncpy(vl.type, "packets", sizeof(vl.type));
 
+  sstrncpy(vl.type_instance, "rx", sizeof(vl.type_instance));
+  vl.values = &(value_t){.derive = rx};
+  plugin_dispatch_values(&vl);
+
+  sstrncpy(vl.type_instance, "tx", sizeof(vl.type_instance));
+  vl.values = &(value_t){.derive = tx};
+  plugin_dispatch_values(&vl);
+
+  sstrncpy(vl.type_instance, "fwd", sizeof(vl.type_instance));
+  vl.values = &(value_t){.derive = fwd};
   plugin_dispatch_values(&vl);
 } /* void ipstats_submit */
 
@@ -61,7 +68,7 @@ static int ipstats_read(void) {
   if (sysctlbyname(mib, &ipstat, &ipslen, NULL, 0) != 0)
     WARNING("ipstats plugin: sysctl \"%s\" failed.", mib);
   else
-    ipstats_submit("ipv4", "ips_packets", ipstat.ips_total, ipstat.ips_localout,
+    ipstats_submit("ipv4", ipstat.ips_total, ipstat.ips_localout,
                    ipstat.ips_forward);
 
   struct ip6stat ip6stat;
@@ -71,8 +78,8 @@ static int ipstats_read(void) {
   if (sysctlbyname(mib6, &ip6stat, &ip6slen, NULL, 0) != 0)
     WARNING("ipstats plugin: sysctl \"%s\" failed.", mib);
   else
-    ipstats_submit("ipv6", "ips_packets", ip6stat.ip6s_total,
-                   ip6stat.ip6s_localout, ip6stat.ip6s_forward);
+    ipstats_submit("ipv6", ip6stat.ip6s_total, ip6stat.ip6s_localout,
+                   ip6stat.ip6s_forward);
 #endif
 
   return 0;
