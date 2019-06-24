@@ -267,7 +267,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .interval = cf_get_default_interval(), .name = strdup(name),
+      .interval = cf_get_default_interval(),
+      .name = strdup(name),
   };
   if (ctx.name == NULL)
     return ENOMEM;
@@ -413,10 +414,11 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
   /* Hm, no complex plugin found. Dispatch the values one by one */
   for (int i = 0, ret = 0; i < ci->children_num; i++) {
     if (ci->children[i].children == NULL) {
-      oconfig_item_t *child = ci -> children + i;
+      oconfig_item_t *child = ci->children + i;
       ret = dispatch_value_plugin(name, child);
       if (ret != 0) {
-        ERROR("Plugin %s failed to handle option %s, return code: %i", name, child -> key, ret);
+        ERROR("Plugin %s failed to handle option %s, return code: %i", name,
+              child->key, ret);
         return ret;
       }
     } else {
@@ -478,9 +480,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp = realloc(dst->children,
-                 sizeof(oconfig_item_t) *
-                     (dst->children_num + src->children_num - 1));
+  temp =
+      realloc(dst->children, sizeof(oconfig_item_t) *
+                                 (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -519,9 +521,8 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp =
-      realloc(dst->children,
-              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
+  temp = realloc(dst->children, sizeof(oconfig_item_t) *
+                                    (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -809,7 +810,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-/* #endif HAVE_WORDEXP_H */
+  /* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
