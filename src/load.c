@@ -91,7 +91,9 @@ static void load_submit(gauge_t snum, gauge_t mnum, gauge_t lnum) {
 
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.gauge = snum}, {.gauge = mnum}, {.gauge = lnum},
+      {.gauge = snum},
+      {.gauge = mnum},
+      {.gauge = lnum},
   };
 
   vl.values = values;
@@ -116,7 +118,7 @@ static int load_read(void) {
   else {
     WARNING("load: getloadavg failed: %s", STRERRNO);
   }
-/* #endif HAVE_GETLOADAVG */
+    /* #endif HAVE_GETLOADAVG */
 
 #elif defined(KERNEL_LINUX)
   gauge_t snum, mnum, lnum;
@@ -151,7 +153,7 @@ static int load_read(void) {
   lnum = atof(fields[2]);
 
   load_submit(snum, mnum, lnum);
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBSTATGRAB
   gauge_t snum, mnum, lnum;
@@ -164,7 +166,7 @@ static int load_read(void) {
   mnum = ls->min5;
   lnum = ls->min15;
   load_submit(snum, mnum, lnum);
-/* #endif HAVE_LIBSTATGRAB */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
   gauge_t snum, mnum, lnum;
@@ -180,7 +182,7 @@ static int load_read(void) {
   mnum = (float)cputotal.loadavg[1] / (float)(1 << SBITS);
   lnum = (float)cputotal.loadavg[2] / (float)(1 << SBITS);
   load_submit(snum, mnum, lnum);
-/* #endif HAVE_PERFSTAT */
+  /* #endif HAVE_PERFSTAT */
 
 #else
 #error "No applicable input method."

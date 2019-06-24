@@ -1310,7 +1310,7 @@ static int collectd_barometer_config(const char *key, const char *value) {
     int normalize_tmp = atoi(value);
     if (normalize_tmp < 0 || normalize_tmp > 2) {
       ERROR("barometer: collectd_barometer_config: invalid normalization: %d",
-              normalize_tmp);
+            normalize_tmp);
       return 1;
     }
     config_normalize = normalize_tmp;
