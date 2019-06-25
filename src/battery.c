@@ -404,16 +404,16 @@ static int read_sysfs_capacity(char const *dir, /* {{{ */
 } /* }}} int read_sysfs_capacity */
 
 static int read_sysfs_capacity_from_charge(char const *dir, /* {{{ */
-                               char const *power_supply,
-                               char const *plugin_instance) {
+                                           char const *power_supply,
+                                           char const *plugin_instance) {
   gauge_t capacity_charged = NAN;
   gauge_t capacity_full = NAN;
   gauge_t capacity_design = NAN;
   gauge_t voltage_min_design = NAN;
   int status;
 
-  status =
-      sysfs_file_to_gauge(dir, power_supply, "voltage_min_design", &voltage_min_design);
+  status = sysfs_file_to_gauge(dir, power_supply, "voltage_min_design",
+                               &voltage_min_design);
   if (status != 0)
     return status;
   voltage_min_design *= SYSFS_FACTOR;
@@ -440,7 +440,6 @@ static int read_sysfs_capacity_from_charge(char const *dir, /* {{{ */
                   capacity_full * SYSFS_FACTOR, capacity_design * SYSFS_FACTOR);
   return 0;
 } /* }}} int read_sysfs_capacity_from_charge */
-
 
 static int read_sysfs_callback(char const *dir, /* {{{ */
                                char const *power_supply, void *user_data) {
