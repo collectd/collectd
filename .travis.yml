@@ -37,6 +37,7 @@ before_install:
 before_script: autoreconf -vif
 
 script:
+  - if [ $(uname -m) = x86_64 ]; then sudo apt-get install -y libxen-dev; fi
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
   - ./configure
   - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
