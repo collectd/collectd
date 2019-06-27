@@ -1,5 +1,5 @@
-#include "testing.h"
 #include "utils/proc_pids/proc_pids.c" /* sic */
+#include "testing.h"
 #include <sys/stat.h>
 
 /***************************************************************************
