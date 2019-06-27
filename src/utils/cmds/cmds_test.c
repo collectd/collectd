@@ -24,9 +24,9 @@
  *   Sebastian 'tokkee' Harl <sh at tokkee.org>
  **/
 
+#include "utils/common/common.h"
 #include "testing.h"
 #include "utils/cmds/cmds.h"
-#include "utils/common/common.h"
 
 static void error_cb(void *ud, cmd_status_t status, const char *format,
                      va_list ap) {

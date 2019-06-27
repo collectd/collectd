@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "utils/common/common.h"
+#include "testing.h"
 
 #if HAVE_KSTAT_H
 #include <kstat.h>
