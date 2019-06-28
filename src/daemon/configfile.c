@@ -413,9 +413,10 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
   /* Hm, no complex plugin found. Dispatch the values one by one */
   for (int i = 0, ret = 0; i < ci->children_num; i++) {
     if (ci->children[i].children == NULL) {
-      ret = dispatch_value_plugin(name, ci->children + i);
+      oconfig_item_t *child = ci -> children + i;
+      ret = dispatch_value_plugin(name, child);
       if (ret != 0) {
-        ERROR("dispatch for plugin %s returned non-zero code : %i", name, ret);
+        ERROR("Plugin %s failed to handle option %s, return code: %i", name, child -> key, ret);
         return ret;
       }
     } else {
