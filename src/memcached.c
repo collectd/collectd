@@ -509,6 +509,13 @@ static int memcached_read(user_data_t *user_data) {
     }
 
     /*
+     * Number of secs since the server started
+     */
+    else if (FIELD_IS("uptime")) {
+      submit_gauge("uptime", NULL, atof(fields[2]), st);
+    }
+
+    /*
      * Number of bytes used and available (total - used)
      */
     else if (FIELD_IS("bytes")) {
