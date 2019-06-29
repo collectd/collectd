@@ -336,21 +336,22 @@ static int mr_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
   if (mr_match_regexen(m->type_instance, vl->type_instance) ==
       FC_MATCH_NO_MATCH)
     return nomatch_value;
-  if (vl->meta != NULL) {
-    for (llentry_t *e = llist_head(m->meta); e != NULL; e = e->next) {
-      mr_regex_t *meta_re = (mr_regex_t *)e->value;
-      char *value;
-      int status = meta_data_get_string(vl->meta, e->key, &value);
-      if (status == (-ENOENT)) /* key is not present */
-        return nomatch_value;
-      if (status != 0) /* some other problem */
-        continue;      /* error will have already been printed. */
-      if (mr_match_regexen(meta_re, value) == FC_MATCH_NO_MATCH) {
-        sfree(value);
-        return nomatch_value;
-      }
+  for (llentry_t *e = llist_head(m->meta); e != NULL; e = e->next) {
+    mr_regex_t *meta_re = (mr_regex_t *)e->value;
+    char *value;
+    int status;
+    if (vl->meta == NULL)
+      return nomatch_value;
+    status = meta_data_get_string(vl->meta, e->key, &value);
+    if (status == (-ENOENT)) /* key is not present */
+      return nomatch_value;
+    if (status != 0) /* some other problem */
+      continue;      /* error will have already been printed. */
+    if (mr_match_regexen(meta_re, value) == FC_MATCH_NO_MATCH) {
       sfree(value);
+      return nomatch_value;
     }
+    sfree(value);
   }
 
   return match_value;
