@@ -152,7 +152,7 @@ static int read_file(const char *path) {
 
     for (i = 0; i < key_fields_num; i++) {
       if (values_list != NULL) {
-        char match_name[2 * DATA_MAX_NAME_LEN];
+        char match_name[sizeof(key_buffer) +1];
 
         snprintf(match_name, sizeof(match_name), "%s:%s", key_buffer,
                  key_fields[i]);

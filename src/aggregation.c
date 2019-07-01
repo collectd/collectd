@@ -172,7 +172,7 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
              sizeof(inst->ident.plugin_instance));
   else {
     char tmp_plugin[DATA_MAX_NAME_LEN];
-    char tmp_plugin_instance[DATA_MAX_NAME_LEN] = "";
+    char tmp_plugin_instance[DATA_MAX_NAME_LEN];
 
     if ((agg->regex_fields & LU_GROUP_BY_PLUGIN) &&
         (agg->group_by & LU_GROUP_BY_PLUGIN))
@@ -198,10 +198,10 @@ static int agg_instance_create_name(agg_instance_t *inst, /* {{{ */
       sstrncpy(inst->ident.plugin_instance, AGG_FUNC_PLACEHOLDER,
                sizeof(inst->ident.plugin_instance));
     else if (strcmp("", tmp_plugin) != 0)
-      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance),
+      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance)  + sizeof(AGG_FUNC_PLACEHOLDER),
                "%s-%s", tmp_plugin, AGG_FUNC_PLACEHOLDER);
     else if (strcmp("", tmp_plugin_instance) != 0)
-      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance),
+      snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance) + sizeof(AGG_FUNC_PLACEHOLDER),
                "%s-%s", tmp_plugin_instance, AGG_FUNC_PLACEHOLDER);
     else
       snprintf(inst->ident.plugin_instance, sizeof(inst->ident.plugin_instance),

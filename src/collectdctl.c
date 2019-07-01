@@ -149,7 +149,7 @@ static int array_grow(void **array, size_t *array_len, size_t elem_size) {
 static int parse_identifier(lcc_connection_t *c, const char *value,
                             lcc_identifier_t *ident) {
   char hostname[1024];
-  char ident_str[1024] = "";
+  char ident_str[1025];
   int n_slashes;
 
   int status;

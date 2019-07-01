@@ -689,7 +689,7 @@ static int ut_missing(const value_list_t *vl,
   FORMAT_VL(identifier, sizeof(identifier), vl);
 
   NOTIFICATION_INIT_VL(&n, vl);
-  snprintf(n.message, sizeof(n.message),
+  snprintf(n.message, sizeof(n.message) + sizeof(identifier),
            "%s has not been updated for %.3f seconds.", identifier,
            CDTIME_T_TO_DOUBLE(missing_time));
   n.time = now;
