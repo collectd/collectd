@@ -56,9 +56,10 @@ static int sl_config(const char *key, const char *value) {
     }
   } else if (strcasecmp(key, "NotifyLevel") == 0) {
     notif_severity = parse_notif_severity(value);
-    if (notif_severity < 0)
+    if (notif_severity < 0) {
       ERROR("syslog: invalid notification severity [%s]", value);
-    return 1;
+      return 1;
+    }
   }
 
   return 0;
