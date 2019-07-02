@@ -3972,6 +3972,8 @@ if test "x$with_libnetsnmpagent" = "xyes"; then
 fi
 
 if test "x$with_libnetsnmpagent" = "xyes"; then
+  BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS="$with_libnetsnmpagent_cppflags"
+  BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS="$with_libnetsnmpagent_ldflags"
   BUILD_WITH_LIBNETSNMPAGENT_LIBS="-lnetsnmpagent $libnetsnmphelpers"
 fi
 
