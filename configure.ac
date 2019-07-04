@@ -6420,6 +6420,7 @@ plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
 plugin_turbostat="no"
+plugin_ubi="no"
 plugin_uptime="no"
 plugin_users="no"
 plugin_virt="no"
@@ -6913,6 +6914,7 @@ AC_PLUGIN([thermal],             [$plugin_thermal],           [Linux ACPI therma
 AC_PLUGIN([threshold],           [yes],                       [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant],         [$with_libtokyotyrant],      [TokyoTyrant database statistics])
 AC_PLUGIN([turbostat],           [$plugin_turbostat],         [Advanced statistic on Intel cpu states])
+AC_PLUGIN([ubi],                 [$plugin_ubi],               [UBI statistics])
 AC_PLUGIN([unixsock],            [yes],                       [Unixsock communication plugin])
 AC_PLUGIN([uptime],              [$plugin_uptime],            [Uptime statistics])
 AC_PLUGIN([users],               [$plugin_users],             [User statistics])
@@ -7341,6 +7343,7 @@ AC_MSG_RESULT([    thermal . . . . . . . $enable_thermal])
 AC_MSG_RESULT([    threshold . . . . . . $enable_threshold])
 AC_MSG_RESULT([    tokyotyrant . . . . . $enable_tokyotyrant])
 AC_MSG_RESULT([    turbostat . . . . . . $enable_turbostat])
+AC_MSG_RESULT([    ubi . . . . . . . . . $enable_ubi])
 AC_MSG_RESULT([    unixsock  . . . . . . $enable_unixsock])
 AC_MSG_RESULT([    uptime  . . . . . . . $enable_uptime])
 AC_MSG_RESULT([    users . . . . . . . . $enable_users])
