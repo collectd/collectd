@@ -610,7 +610,9 @@ enum ex_stats {
 #endif
   ex_stats_disk_allocation = 1 << 10,
   ex_stats_disk_capacity = 1 << 11,
-  ex_stats_disk_physical = 1 << 12
+  ex_stats_disk_physical = 1 << 12,
+  ex_stats_memory = 1 << 13,
+  ex_stats_vcpu = 1 << 14
 };
 
 static unsigned int extra_stats = ex_stats_none;
@@ -641,6 +643,8 @@ static const struct ex_stats_item ex_stats_table[] = {
     {"disk_allocation", ex_stats_disk_allocation},
     {"disk_capacity", ex_stats_disk_capacity},
     {"disk_physical", ex_stats_disk_physical},
+    {"memory", ex_stats_memory},
+    {"vcpu", ex_stats_vcpu},
     {NULL, ex_stats_none},
 };
 
@@ -942,7 +946,8 @@ static void memory_stats_submit(gauge_t value, virDomainPtr dom,
                                "last_update",    "disk_caches"};
 
   if ((tag_index < 0) || (tag_index >= (int)STATIC_ARRAY_SIZE(tags))) {
-    ERROR("virt plugin: Array index out of bounds: tag_index = %d", tag_index);
+    ERROR(PLUGIN_NAME " plugin: Array index out of bounds: tag_index = %d",
+          tag_index);
     return;
   }
 
@@ -972,7 +977,7 @@ static double cpu_ns_to_percent(unsigned int node_cpus,
   }
 
   DEBUG(PLUGIN_NAME " plugin: node_cpus=%u cpu_time_old=%" PRIu64
-                    " cpu_time_new=%" PRIu64 "cpu_time_diff=%" PRIu64
+                    " cpu_time_new=%" PRIu64 " cpu_time_diff=%" PRIu64
                     " time_diff_sec=%f percent=%f",
         node_cpus, (uint64_t)cpu_time_old, (uint64_t)cpu_time_new,
         (uint64_t)cpu_time_diff, time_diff_sec, percent);
@@ -1519,8 +1524,8 @@ static int lv_domain_block_stats(virDomainPtr dom, const char *path,
 
   virTypedParameterPtr params = calloc(nparams, sizeof(*params));
   if (params == NULL) {
-    ERROR("virt plugin: alloc(%i) for block=%s parameters failed.", nparams,
-          path);
+    ERROR(PLUGIN_NAME " plugin: alloc(%i) for block=%s parameters failed.",
+          nparams, path);
     return -1;
   }
 
@@ -1560,8 +1565,17 @@ static int get_perf_events(virDomainPtr domain) {
   int status =
       virDomainListGetStats(domain_array, VIR_DOMAIN_STATS_PERF, &stats, 0);
   if (status == -1) {
-    ERROR("virt plugin: virDomainListGetStats failed with status %i.", status);
-    return status;
+    ERROR(PLUGIN_NAME " plugin: virDomainListGetStats failed with status %i.",
+          status);
+
+    virErrorPtr err = virGetLastError();
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: perf");
+      extra_stats &= ~(ex_stats_perf);
+    }
+
+    return -1;
   }
 
   for (int i = 0; i < status; ++i)
@@ -1586,7 +1600,6 @@ static void vcpu_pin_submit(virDomainPtr dom, int max_cpus, int vcpu,
 
 static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   int max_cpus = VIR_NODEINFO_MAXCPUS(nodeinfo);
-  int cpu_map_len = VIR_CPU_MAPLEN(max_cpus);
 
   virVcpuInfoPtr vinfo = calloc(nr_virt_cpu, sizeof(*vinfo));
   if (vinfo == NULL) {
@@ -1594,11 +1607,17 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
     return -1;
   }
 
-  unsigned char *cpumaps = calloc(nr_virt_cpu, cpu_map_len);
-  if (cpumaps == NULL) {
-    ERROR(PLUGIN_NAME " plugin: calloc failed.");
-    sfree(vinfo);
-    return -1;
+  int cpu_map_len = 0;
+  unsigned char *cpumaps = NULL;
+  if (extra_stats & ex_stats_vcpupin) {
+    cpu_map_len = VIR_CPU_MAPLEN(max_cpus);
+    cpumaps = calloc(nr_virt_cpu, cpu_map_len);
+
+    if (cpumaps == NULL) {
+      ERROR(PLUGIN_NAME " plugin: calloc failed.");
+      sfree(vinfo);
+      return -1;
+    }
   }
 
   int status =
@@ -1606,13 +1625,26 @@ static int get_vcpu_stats(virDomainPtr domain, unsigned short nr_virt_cpu) {
   if (status < 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetVcpus failed with status %i.",
           status);
+
+    virErrorPtr err = virGetLastError();
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      if (extra_stats & ex_stats_vcpu)
+        ERROR(PLUGIN_NAME
+              " plugin: Disabled unsupported ExtraStats selector: vcpu");
+      if (extra_stats & ex_stats_vcpupin)
+        ERROR(PLUGIN_NAME
+              " plugin: Disabled unsupported ExtraStats selector: vcpupin");
+      extra_stats &= ~(ex_stats_vcpu | ex_stats_vcpupin);
+    }
+
     sfree(cpumaps);
     sfree(vinfo);
-    return status;
+    return -1;
   }
 
   for (int i = 0; i < nr_virt_cpu; ++i) {
-    vcpu_submit(vinfo[i].cpuTime, domain, vinfo[i].number, "virt_vcpu");
+    if (extra_stats & ex_stats_vcpu)
+      vcpu_submit(vinfo[i].cpuTime, domain, vinfo[i].number, "virt_vcpu");
     if (extra_stats & ex_stats_vcpupin)
       vcpu_pin_submit(domain, max_cpus, i, cpumaps, cpu_map_len);
   }
@@ -1627,6 +1659,14 @@ static int get_pcpu_stats(virDomainPtr dom) {
   int nparams = virDomainGetCPUStats(dom, NULL, 0, -1, 1, 0);
   if (nparams < 0) {
     VIRT_ERROR(conn, "getting the CPU params count");
+
+    virErrorPtr err = virGetLastError();
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: pcpu");
+      extra_stats &= ~(ex_stats_pcpu);
+    }
+
     return -1;
   }
 
@@ -1709,17 +1749,25 @@ static int get_memory_stats(virDomainPtr domain) {
   virDomainMemoryStatPtr minfo =
       calloc(VIR_DOMAIN_MEMORY_STAT_NR, sizeof(*minfo));
   if (minfo == NULL) {
-    ERROR("virt plugin: calloc failed.");
+    ERROR(PLUGIN_NAME " plugin: calloc failed.");
     return -1;
   }
 
   int mem_stats =
       virDomainMemoryStats(domain, minfo, VIR_DOMAIN_MEMORY_STAT_NR, 0);
   if (mem_stats < 0) {
-    ERROR("virt plugin: virDomainMemoryStats failed with mem_stats %i.",
+    ERROR(PLUGIN_NAME " plugin: virDomainMemoryStats failed with mem_stats %i.",
           mem_stats);
     sfree(minfo);
-    return mem_stats;
+
+    virErrorPtr err = virGetLastError();
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: memory");
+      extra_stats &= ~(ex_stats_memory);
+    }
+
+    return -1;
   }
 
   derive_t swap_in = -1;
@@ -1776,6 +1824,15 @@ static int get_disk_err(virDomainPtr domain) {
   if (disk_err_count == -1) {
     ERROR(PLUGIN_NAME
           " plugin: failed to get preferred size of disk errors array");
+
+    virErrorPtr err = virGetLastError();
+
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: disk_err");
+      extra_stats &= ~(ex_stats_disk_err);
+    }
+
     return -1;
   }
 
@@ -1822,6 +1879,24 @@ static int get_block_device_stats(struct block_device *block_dev) {
           0) {
         ERROR(PLUGIN_NAME " plugin: virDomainGetBlockInfo failed for path: %s",
               block_dev->path);
+
+        virErrorPtr err = virGetLastError();
+        if (err->code == VIR_ERR_NO_SUPPORT) {
+
+          if (extra_stats & ex_stats_disk_allocation)
+            ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats "
+                              "selector: disk_allocation");
+          if (extra_stats & ex_stats_disk_capacity)
+            ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats "
+                              "selector: disk_capacity");
+          if (extra_stats & ex_stats_disk_physical)
+            ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats "
+                              "selector: disk_physical");
+
+          extra_stats &= ~(ex_stats_disk_allocation | ex_stats_disk_capacity |
+                           ex_stats_disk_physical);
+        }
+
         return -1;
       }
     }
@@ -1908,7 +1983,15 @@ static int get_fs_info(virDomainPtr domain) {
   if (mount_points_cnt == -1) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetFSInfo failed: %d",
           mount_points_cnt);
-    return mount_points_cnt;
+
+    virErrorPtr err = virGetLastError();
+    if (err->code == VIR_ERR_NO_SUPPORT) {
+      ERROR(PLUGIN_NAME
+            " plugin: Disabled unsupported ExtraStats selector: fs_info");
+      extra_stats &= ~(ex_stats_fs_info);
+    }
+
+    return -1;
   }
 
   for (int i = 0; i < mount_points_cnt; ++i) {
@@ -1955,7 +2038,6 @@ static void job_stats_submit(virDomainPtr domain, virTypedParameterPtr param) {
 }
 
 static int get_job_stats(virDomainPtr domain) {
-  int ret = 0;
   int job_type = 0;
   int nparams = 0;
   virTypedParameterPtr params = NULL;
@@ -1963,10 +2045,24 @@ static int get_job_stats(virDomainPtr domain) {
                   ? VIR_DOMAIN_JOB_STATS_COMPLETED
                   : 0;
 
-  ret = virDomainGetJobStats(domain, &job_type, &params, &nparams, flags);
+  int ret = virDomainGetJobStats(domain, &job_type, &params, &nparams, flags);
   if (ret != 0) {
     ERROR(PLUGIN_NAME " plugin: virDomainGetJobStats failed: %d", ret);
-    return ret;
+
+    virErrorPtr err = virGetLastError();
+    // VIR_ERR_INVALID_ARG returned when VIR_DOMAIN_JOB_STATS_COMPLETED flag is
+    // not supported by driver
+    if (err->code == VIR_ERR_NO_SUPPORT || err->code == VIR_ERR_INVALID_ARG) {
+      if (extra_stats & ex_stats_job_stats_completed)
+        ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats selector: "
+                          "job_stats_completed");
+      if (extra_stats & ex_stats_job_stats_background)
+        ERROR(PLUGIN_NAME " plugin: Disabled unsupported ExtraStats selector: "
+                          "job_stats_background");
+      extra_stats &=
+          ~(ex_stats_job_stats_completed | ex_stats_job_stats_background);
+    }
+    return -1;
   }
 
   DEBUG(PLUGIN_NAME " plugin: job_type=%d nparams=%d", job_type, nparams);
@@ -1978,7 +2074,7 @@ static int get_job_stats(virDomainPtr domain) {
   }
 
   virTypedParamsFree(params, nparams);
-  return ret;
+  return 0;
 }
 #endif /* HAVE_JOB_STATS */
 
@@ -2019,8 +2115,10 @@ static int get_domain_metrics(domain_t *domain) {
 
   memory_submit(domain->ptr, (gauge_t)info.memory * 1024);
 
-  GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
-  GET_STATS(get_memory_stats, "memory stats", domain->ptr);
+  if (extra_stats & (ex_stats_vcpu | ex_stats_vcpupin))
+    GET_STATS(get_vcpu_stats, "vcpu stats", domain->ptr, info.nrVirtCpu);
+  if (extra_stats & ex_stats_memory)
+    GET_STATS(get_memory_stats, "memory stats", domain->ptr);
 
 #ifdef HAVE_PERF_STATS
   if (extra_stats & ex_stats_perf)
@@ -2107,11 +2205,22 @@ static int domain_lifecycle_event_cb(__attribute__((unused)) virConnectPtr con_,
   return 0;
 }
 
+static void virt_eventloop_timeout_cb(int timer ATTRIBUTE_UNUSED,
+                                      void *timer_info) {}
+
 static int register_event_impl(void) {
   if (virEventRegisterDefaultImpl() < 0) {
     virErrorPtr err = virGetLastError();
     ERROR(PLUGIN_NAME
           " plugin: error while event implementation registering: %s",
+          err && err->message ? err->message : "Unknown error");
+    return -1;
+  }
+
+  if (virEventAddTimeout(CDTIME_T_TO_MS(plugin_get_interval()),
+                         virt_eventloop_timeout_cb, NULL, NULL) < 0) {
+    virErrorPtr err = virGetLastError();
+    ERROR(PLUGIN_NAME " plugin: virEventAddTimeout failed: %s",
           err && err->message ? err->message : "Unknown error");
     return -1;
   }
@@ -2309,6 +2418,21 @@ static int lv_read(user_data_t *ud) {
     DEBUG(PLUGIN_NAME " plugin#%s: Wait until inst#0 establish connection",
           inst->tag);
     return 0;
+  }
+
+  int ret = virConnectIsAlive(conn);
+  if (ret == 0) { /* Connection lost */
+    if (inst->id == 0) {
+      c_complain(LOG_ERR, &conn_complain,
+                 PLUGIN_NAME " plugin: Lost connection.");
+
+      if (!persistent_notification)
+        stop_event_loop(&notif_thread);
+
+      lv_disconnect();
+      last_refresh = 0;
+    }
+    return -1;
   }
 
   time_t t;

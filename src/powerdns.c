@@ -89,48 +89,48 @@ all-outqueries        counts the number of outgoing UDP queries since starting
 answers-slow          counts the number of queries answered after 1 second
 answers0-1            counts the number of queries answered within 1 millisecond
 answers1-10           counts the number of queries answered within 10
-milliseconds
+                      milliseconds
 answers10-100         counts the number of queries answered within 100
-milliseconds
+                      milliseconds
 answers100-1000       counts the number of queries answered within 1 second
 cache-bytes           size of the cache in bytes (since 3.3.1)
 cache-entries         shows the number of entries in the cache
 cache-hits            counts the number of cache hits since starting, this does
-not include hits that got answered from the packet-cache
+                      not include hits that got answered from the packet-cache
 cache-misses          counts the number of cache misses since starting
 case-mismatches       counts the number of mismatches in character case since
-starting
+                      starting
 chain-resends         number of queries chained to existing outstanding query
 client-parse-errors   counts number of client packets that could not be parsed
 concurrent-queries    shows the number of MThreads currently running
 dlg-only-drops        number of records dropped because of delegation only
-setting
+                      setting
 dont-outqueries       number of outgoing queries dropped because of 'dont-query'
-setting (since 3.3)
+                      setting (since 3.3)
 edns-ping-matches     number of servers that sent a valid EDNS PING respons
 edns-ping-mismatches  number of servers that sent an invalid EDNS PING response
 failed-host-entries   number of servers that failed to resolve
 ipv6-outqueries       number of outgoing queries over IPv6
 ipv6-questions        counts all End-user initiated queries with the RD bit set,
-received over IPv6 UDP
+                      received over IPv6 UDP
 malloc-bytes          returns the number of bytes allocated by the process
-(broken, always returns 0)
+                      (broken, always returns 0)
 max-mthread-stack     maximum amount of thread stack ever used
 negcache-entries      shows the number of entries in the Negative answer cache
 no-packet-error       number of errorneous received packets
 noedns-outqueries     number of queries sent out without EDNS
 noerror-answers       counts the number of times it answered NOERROR since
-starting
+                      starting
 noping-outqueries     number of queries sent out without ENDS PING
 nsset-invalidations   number of times an nsset was dropped because it no longer
-worked
+                      worked
 nsspeeds-entries      shows the number of entries in the NS speeds map
 nxdomain-answers      counts the number of times it answered NXDOMAIN since
-starting
+                      starting
 outgoing-timeouts     counts the number of timeouts on outgoing UDP queries
-since starting
+                      since starting
 over-capacity-drops   questions dropped because over maximum concurrent query
-limit (since 3.2)
+                      limit (since 3.2)
 packetcache-bytes     size of the packet cache in bytes (since 3.3.1)
 packetcache-entries   size of packet cache (since 3.2)
 packetcache-hits      packet cache hits (since 3.2)
@@ -139,32 +139,32 @@ policy-drops          packets dropped because of (Lua) policy decision
 qa-latency            shows the current latency average
 questions             counts all end-user initiated queries with the RD bit set
 resource-limits       counts number of queries that could not be performed
-because of resource limits
+                      because of resource limits
 security-status       security status based on security polling
 server-parse-errors   counts number of server replied packets that could not be
-parsed
+                      parsed
 servfail-answers      counts the number of times it answered SERVFAIL since
-starting
+                      starting
 spoof-prevents        number of times PowerDNS considered itself spoofed, and
-dropped the data
+                      dropped the data
 sys-msec              number of CPU milliseconds spent in 'system' mode
 tcp-client-overflow   number of times an IP address was denied TCP access
-because it already had too many connections
+                      because it already had too many connections
 tcp-clients           counts the number of currently active TCP/IP clients
 tcp-outqueries        counts the number of outgoing TCP queries since starting
 tcp-questions         counts all incoming TCP queries (since starting)
 throttle-entries      shows the number of entries in the throttle map
 throttled-out         counts the number of throttled outgoing UDP queries since
-starting
+                      starting
 throttled-outqueries  idem to throttled-out
 unauthorized-tcp      number of TCP questions denied because of allow-from
-restrictions
+                      restrictions
 unauthorized-udp      number of UDP questions denied because of allow-from
-restrictions
+                      restrictions
 unexpected-packets    number of answers from remote servers that were unexpected
-(might point to spoofing)
+                      (might point to spoofing)
 unreachables          number of times nameservers were unreachable since
-starting
+                      starting
 uptime                number of seconds process has been running (since 3.1.5)
 user-msec             number of CPU milliseconds spent in 'user' mode
 }}} */
@@ -301,6 +301,7 @@ static statname_lookup_t lookup_table[] = /* {{{ */
         {"unauthorized-tcp", "counter", "denied-unauthorized_tcp"},
         {"unauthorized-udp", "counter", "denied-unauthorized_udp"},
         {"unexpected-packets", "dns_answer", "unexpected"},
+        {"unreachables", "counter", "unreachables"},
         {"uptime", "uptime", NULL}}; /* }}} */
 static int lookup_table_length = STATIC_ARRAY_SIZE(lookup_table);
 
