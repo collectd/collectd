@@ -74,7 +74,6 @@
 	  Thanks to Pavel Rochnyak. #2570, #2673
 	* Write Syslog plugin: The new "write_syslog" plugin writes value
 	  lists as syslog messages. Thanks to Shirly Radco. #3019
-	* Write Ubi plugin: The new "read_ubi" plugin reads value for UBIFS.
 
 2017-11-17, Version 5.8.0
 	* collectd: The core daemon is now completely licensed under the MIT

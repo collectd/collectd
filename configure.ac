@@ -6420,7 +6420,7 @@ plugin_tcpconns="no"
 plugin_ted="no"
 plugin_thermal="no"
 plugin_turbostat="no"
-plugin_ubi="no"
+plugin_ubi="yes"
 plugin_uptime="no"
 plugin_users="no"
 plugin_virt="no"
@@ -6914,7 +6914,7 @@ AC_PLUGIN([thermal],             [$plugin_thermal],           [Linux ACPI therma
 AC_PLUGIN([threshold],           [yes],                       [Threshold checking plugin])
 AC_PLUGIN([tokyotyrant],         [$with_libtokyotyrant],      [TokyoTyrant database statistics])
 AC_PLUGIN([turbostat],           [$plugin_turbostat],         [Advanced statistic on Intel cpu states])
-AC_PLUGIN([ubi],                 [$plugin_ubi],               [UBI statistics])
+AC_PLUGIN([ubi],                 [$plugin_ubi],               [UBIFS statistics])
 AC_PLUGIN([unixsock],            [yes],                       [Unixsock communication plugin])
 AC_PLUGIN([uptime],              [$plugin_uptime],            [Uptime statistics])
 AC_PLUGIN([users],               [$plugin_users],             [User statistics])
