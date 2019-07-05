@@ -301,6 +301,7 @@ static statname_lookup_t lookup_table[] = /* {{{ */
         {"unauthorized-tcp", "counter", "denied-unauthorized_tcp"},
         {"unauthorized-udp", "counter", "denied-unauthorized_udp"},
         {"unexpected-packets", "dns_answer", "unexpected"},
+        {"unreachables", "counter", "unreachables"},
         {"uptime", "uptime", NULL}}; /* }}} */
 static int lookup_table_length = STATIC_ARRAY_SIZE(lookup_table);
 
