@@ -1602,6 +1602,11 @@
 #	RunningAveragePowerLimit "7"
 #</Plugin>
 
+#<Plugin ubi>
+#	Device "ubi0"
+#	IgnoreSelected false
+#</Plugin>
+
 #<Plugin unixsock>
 #	SocketFile "@prefix@/var/run/@PACKAGE_NAME@-unixsock"
 #	SocketGroup "collectd"
