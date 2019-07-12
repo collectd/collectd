@@ -1391,6 +1391,21 @@ network_la_CPPFLAGS += $(GCRYPT_CPPFLAGS)
 network_la_LDFLAGS += $(GCRYPT_LDFLAGS)
 network_la_LIBADD += $(GCRYPT_LIBS)
 endif
+
+test_plugin_network_SOURCES = \
+	src/network_test.c \
+	src/utils_fbhash.c \
+	src/daemon/configfile.c \
+	src/daemon/types_list.c
+test_plugin_network_CPPFLAGS = $(AM_CPPFLAGS) $(GCRYPT_CPPFLAGS)
+test_plugin_network_LDFLAGS = $(PLUGIN_LDFLAGS) $(GCRYPT_LDFLAGS)
+test_plugin_network_LDADD = \
+	libavltree.la \
+	liboconfig.la \
+	libplugin_mock.la \
+	libmetadata.la \
+	$(GCRYPT_LIBS)
+check_PROGRAMS += test_plugin_network
 endif
 
 if BUILD_PLUGIN_NFS
