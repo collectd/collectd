@@ -466,7 +466,7 @@ static int handle_ipv6(struct ip6_hdr *ipv6, int len) {
 
   return 1; /* Success */
 } /* int handle_ipv6 */
-/* #endif HAVE_IPV6 */
+  /* #endif HAVE_IPV6 */
 
 #else  /* if !HAVE_IPV6 */
 static int handle_ipv6(__attribute__((unused)) void *pkg,
@@ -837,7 +837,7 @@ const char *qtype_str(int t) {
   case 32769:
     return "DLV";
   default:
-    snprintf(buf, sizeof(buf), "#%i", t);
+    ssnprintf(buf, sizeof(buf), "#%i", t);
     return buf;
   } /* switch (t) */
 }
@@ -856,7 +856,7 @@ const char *opcode_str(int o) {
   case 5:
     return "Update";
   default:
-    snprintf(buf, sizeof(buf), "Opcode%d", o);
+    ssnprintf(buf, sizeof(buf), "Opcode%d", o);
     return buf;
   }
 }
@@ -904,7 +904,7 @@ const char *rcode_str(int rcode) {
   case 18:
     return "BADTIME";
   default:
-    snprintf(buf, sizeof(buf), "RCode%i", rcode);
+    ssnprintf(buf, sizeof(buf), "RCode%i", rcode);
     return buf;
   }
 } /* const char *rcode_str (int rcode) */

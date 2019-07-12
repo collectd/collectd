@@ -23,7 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Niki W. Waibel <niki.waibel@gmx.net>
-**/
+ **/
 
 #ifndef COMMON_H
 #define COMMON_H
@@ -65,6 +65,9 @@ struct value_to_rate_state_s {
 typedef struct value_to_rate_state_s value_to_rate_state_t;
 
 char *sstrncpy(char *dest, const char *src, size_t n);
+
+__attribute__((format(printf, 3, 4))) int ssnprintf(char *str, size_t size,
+                                                    char const *format, ...);
 
 __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
                                                             ...);

@@ -200,7 +200,7 @@ static int dispatch_global_option(const oconfig_item_t *ci) {
     return global_option_set(ci->key, ci->values[0].value.string, 0);
   else if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
     char tmp[128];
-    snprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
+    ssnprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
     return global_option_set(ci->key, tmp, 0);
   } else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN) {
     if (ci->values[0].value.boolean)
@@ -312,13 +312,13 @@ static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
 
     if (ci->values[i].type == OCONFIG_TYPE_STRING)
       status =
-          snprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
+          ssnprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
     else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
-      status =
-          snprintf(buffer_ptr, buffer_free, " %lf", ci->values[i].value.number);
+      status = ssnprintf(buffer_ptr, buffer_free, " %lf",
+                         ci->values[i].value.number);
     else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
-      status = snprintf(buffer_ptr, buffer_free, " %s",
-                        ci->values[i].value.boolean ? "true" : "false");
+      status = ssnprintf(buffer_ptr, buffer_free, " %s",
+                         ci->values[i].value.boolean ? "true" : "false");
 
     if ((status < 0) || (status >= buffer_free))
       return -1;
@@ -670,7 +670,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
     if ((de->d_name[0] == '.') || (de->d_name[0] == 0))
       continue;
 
-    status = snprintf(name, sizeof(name), "%s/%s", dir, de->d_name);
+    status = ssnprintf(name, sizeof(name), "%s/%s", dir, de->d_name);
     if ((status < 0) || ((size_t)status >= sizeof(name))) {
       ERROR("configfile: Not including `%s/%s' because its"
             " name is too long.",
@@ -1239,7 +1239,7 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
     P_ERROR("cf_util_get_service: Out of memory.");
     return -1;
   }
-  snprintf(service, 6, "%i", port);
+  ssnprintf(service, 6, "%i", port);
 
   sfree(*ret_string);
   *ret_string = service;

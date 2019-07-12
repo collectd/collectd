@@ -147,7 +147,7 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
 
 #if !HAVE_STRERROR_R
   snprintf(buf, buflen, "Error #%i; strerror_r is not available.", errnum);
-/* #endif !HAVE_STRERROR_R */
+  /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -157,17 +157,19 @@ static char *sstrerror(int errnum, char *buf, size_t buflen) {
       if ((temp != NULL) && (temp != buf) && (temp[0] != 0))
         strncpy(buf, temp, buflen);
       else
-        strncpy(buf, "strerror_r did not return "
-                     "an error message",
+        strncpy(buf,
+                "strerror_r did not return "
+                "an error message",
                 buflen);
     }
   }
-/* #endif STRERROR_R_CHAR_P */
+    /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
-    snprintf(buf, buflen, "Error #%i; "
-                          "Additionally, strerror_r failed.",
+    snprintf(buf, buflen,
+             "Error #%i; "
+             "Additionally, strerror_r failed.",
              errnum);
   }
 #endif /* STRERROR_R_CHAR_P */

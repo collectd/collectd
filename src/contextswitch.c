@@ -73,7 +73,7 @@ static int cs_read(void) {
   }
 
   cs_submit(value);
-/* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif KERNEL_LINUX
   FILE *fh;
@@ -116,7 +116,7 @@ static int cs_read(void) {
 
   if (status == -2)
     ERROR("contextswitch plugin: Unable to find context switch value.");
-/* #endif  KERNEL_LINUX */
+    /* #endif  KERNEL_LINUX */
 
 #elif HAVE_PERFSTAT
   int status = 0;

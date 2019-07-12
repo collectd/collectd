@@ -25,6 +25,7 @@
 #include "config.h"
 #endif
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,6 +80,22 @@
 
 extern char *optarg;
 extern int optind;
+
+/* ssnprintf returns zero on success, one if truncation occurred
+   and a negative integer onerror. */
+static int _ssnprintf(char *str, size_t sz, const char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+
+  int ret = vsnprintf(str, sz, format, ap);
+
+  va_end(ap);
+
+  if (ret < 0) {
+    return ret;
+  }
+  return (size_t)ret >= sz;
+} /* int _ssnprintf */
 
 __attribute__((noreturn)) static void exit_usage(const char *name, int status) {
   fprintf(
@@ -166,7 +183,7 @@ static int parse_identifier(lcc_connection_t *c, const char *value,
     }
     hostname[sizeof(hostname) - 1] = '\0';
 
-    snprintf(ident_str, sizeof(ident_str), "%s/%s", hostname, value);
+    _ssnprintf(ident_str, sizeof(ident_str), "%s/%s", hostname, value);
     ident_str[sizeof(ident_str) - 1] = '\0';
   } else {
     strncpy(ident_str, value, sizeof(ident_str));
@@ -276,8 +293,9 @@ static int flush(lcc_connection_t *c, int argc, char **argv) {
                 value);
         BAIL_OUT(-1);
       } else if ((endptr != NULL) && (*endptr != '\0')) {
-        fprintf(stderr, "WARNING: Ignoring trailing garbage after timeout: "
-                        "%s.\n",
+        fprintf(stderr,
+                "WARNING: Ignoring trailing garbage after timeout: "
+                "%s.\n",
                 endptr);
       }
     } else if (strcasecmp(key, "plugin") == 0) {
@@ -324,8 +342,9 @@ static int flush(lcc_connection_t *c, int argc, char **argv) {
           char id[1024];
 
           lcc_identifier_to_string(c, id, sizeof(id), identifiers + j);
-          fprintf(stderr, "ERROR: Failed to flush plugin `%s', "
-                          "identifier `%s': %s.\n",
+          fprintf(stderr,
+                  "ERROR: Failed to flush plugin `%s', "
+                  "identifier `%s': %s.\n",
                   (plugins[i] == NULL) ? "(all)" : plugins[i], id,
                   lcc_strerror(c));
         }
@@ -369,8 +388,9 @@ static int listval(lcc_connection_t *c, int argc, char **argv) {
 
     status = lcc_identifier_to_string(c, id, sizeof(id), ret_ident + i);
     if (status != 0) {
-      fprintf(stderr, "ERROR: listval: Failed to convert returned "
-                      "identifier to a string: %s\n",
+      fprintf(stderr,
+              "ERROR: listval: Failed to convert returned "
+              "identifier to a string: %s\n",
               lcc_strerror(c));
       continue;
     }
@@ -428,8 +448,9 @@ static int putval(lcc_connection_t *c, int argc, char **argv) {
                   value);
           return -1;
         } else if ((endptr != NULL) && (*endptr != '\0')) {
-          fprintf(stderr, "WARNING: Ignoring trailing garbage after "
-                          "interval: %s.\n",
+          fprintf(stderr,
+                  "WARNING: Ignoring trailing garbage after "
+                  "interval: %s.\n",
                   endptr);
         }
       } else {
@@ -543,7 +564,7 @@ int main(int argc, char **argv) {
 
     switch (opt) {
     case 's':
-      snprintf(address, sizeof(address), "unix:%s", optarg);
+      _ssnprintf(address, sizeof(address), "unix:%s", optarg);
       address[sizeof(address) - 1] = '\0';
       break;
     case 'h':

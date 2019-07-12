@@ -322,7 +322,7 @@ static int nfs_config(const char *key, const char *value) {
 
 #if KERNEL_LINUX
 static int nfs_init(void) { return 0; }
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
 static int nfs_init(void) {
@@ -594,7 +594,7 @@ static int nfs_read(void) {
 
   return 0;
 }
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
 static int nfs_read(void) {

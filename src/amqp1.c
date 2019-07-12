@@ -624,13 +624,13 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
     return status;
   } else {
     char tpname[DATA_MAX_NAME_LEN];
-    status = snprintf(tpname, sizeof(tpname), "amqp1/%s", instance->name);
+    status = ssnprintf(tpname, sizeof(tpname), "amqp1/%s", instance->name);
     if ((status < 0) || (size_t)status >= sizeof(tpname)) {
       ERROR("amqp1 plugin: Instance name would have been truncated.");
       return -1;
     }
-    status = snprintf(instance->send_to, sizeof(instance->send_to), "/%s/%s",
-                      transport->address, instance->name);
+    status = ssnprintf(instance->send_to, sizeof(instance->send_to), "/%s/%s",
+                       transport->address, instance->name);
     if ((status < 0) || (size_t)status >= sizeof(instance->send_to)) {
       ERROR("amqp1 plugin: send_to address would have been truncated.");
       return -1;
@@ -639,14 +639,16 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
       status = plugin_register_notification(
           tpname, amqp1_notify,
           &(user_data_t){
-              .data = instance, .free_func = amqp1_config_instance_free,
+              .data = instance,
+              .free_func = amqp1_config_instance_free,
           });
     } else {
-      status = plugin_register_write(
-          tpname, amqp1_write,
-          &(user_data_t){
-              .data = instance, .free_func = amqp1_config_instance_free,
-          });
+      status =
+          plugin_register_write(tpname, amqp1_write,
+                                &(user_data_t){
+                                    .data = instance,
+                                    .free_func = amqp1_config_instance_free,
+                                });
     }
 
     if (status != 0) {

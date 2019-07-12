@@ -324,7 +324,8 @@ static void submit_derive(const char *type, const char *type_instance,
 
 static void submit_octets(derive_t queries, derive_t responses) {
   value_t values[] = {
-      {.derive = queries}, {.derive = responses},
+      {.derive = queries},
+      {.derive = responses},
   };
   value_list_t vl = VALUE_LIST_INIT;
 

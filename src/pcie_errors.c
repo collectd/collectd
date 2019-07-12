@@ -492,7 +492,7 @@ static void pcie_dispatch_uncorrectable_errors(pcie_device_t *dev,
 /* Find offset of PCI Express Capability Structure
  * in PCI configuration space.
  * Returns offset, -1 if not found.
-**/
+ **/
 static int pcie_find_cap_exp(pcie_device_t *dev) {
   int pos = pcie_read8(dev, PCI_CAPABILITY_LIST) & ~3;
 
@@ -515,7 +515,7 @@ static int pcie_find_cap_exp(pcie_device_t *dev) {
 
 /* Find offset of Advanced Error Reporting Capability.
  * Returns AER offset, -1 if not found.
-**/
+ **/
 static int pcie_find_ecap_aer(pcie_device_t *dev) {
   int pos = PCIE_ECAP_OFFSET;
   uint32_t header = pcie_read32(dev, pos);

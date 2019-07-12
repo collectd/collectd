@@ -35,21 +35,29 @@ struct {
 } cases[] = {
     {
         "{\"access_token\":\"MaeC6kaePhie1ree\",\"expires_in\":3600}",
-        /* status = */ 0, "MaeC6kaePhie1ree", TIME_T_TO_CDTIME_T_STATIC(3600),
+        /* status = */ 0,
+        "MaeC6kaePhie1ree",
+        TIME_T_TO_CDTIME_T_STATIC(3600),
     },
     {
         "{\"token_type\":\"Bearer\",\"expires_in\":1800,\"access_token\":"
         "\"aeThiebee2gushuY\"}",
-        /* status = */ 0, "aeThiebee2gushuY", TIME_T_TO_CDTIME_T_STATIC(1800),
+        /* status = */ 0,
+        "aeThiebee2gushuY",
+        TIME_T_TO_CDTIME_T_STATIC(1800),
     },
     {
         "{\"ignored_key\":\"uaph5aewaeghi1Ge\",\"expires_in\":3600}",
-        /* status = */ -1, NULL, 0,
+        /* status = */ -1,
+        NULL,
+        0,
     },
     {
         /* expires_in missing */
         "{\"access_token\":\"shaephohbie9Ahch\"}",
-        /* status = */ -1, NULL, 0,
+        /* status = */ -1,
+        NULL,
+        0,
     },
 };
 

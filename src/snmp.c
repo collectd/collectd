@@ -171,7 +171,7 @@ static int csnmp_oid_to_string(char *buffer, size_t buffer_size,
   char *oid_str_ptr[MAX_OID_LEN];
 
   for (size_t i = 0; i < o->oid_len; i++) {
-    snprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
+    ssnprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
   }
 
@@ -871,12 +871,13 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
         "= %i }",
         hd->name, hd->address, hd->community, hd->version);
 
-  snprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
+  ssnprintf(cb_name, sizeof(cb_name), "snmp-%s", hd->name);
 
   status = plugin_register_complex_read(
       /* group = */ NULL, cb_name, csnmp_read_host, interval,
       &(user_data_t){
-          .data = hd, .free_func = csnmp_host_definition_destroy,
+          .data = hd,
+          .free_func = csnmp_host_definition_destroy,
       });
   if (status != 0) {
     ERROR("snmp plugin: Registering complex read function failed.");
@@ -1140,8 +1141,8 @@ static int csnmp_strvbcopy_hexstring(char *dst, /* {{{ */
   for (size_t i = 0; i < vb->val_len; i++) {
     int status;
 
-    status = snprintf(buffer_ptr, buffer_free, (i == 0) ? "%02x" : ":%02x",
-                      (unsigned int)vb->val.bitstring[i]);
+    status = ssnprintf(buffer_ptr, buffer_free, (i == 0) ? "%02x" : ":%02x",
+                       (unsigned int)vb->val.bitstring[i]);
     assert(status >= 0);
 
     if (((size_t)status) >= buffer_free) /* truncated */
@@ -1173,10 +1174,10 @@ static int csnmp_strvbcopy(char *dst, /* {{{ */
   else if (vb->type == ASN_BIT_STR)
     src = (char *)vb->val.bitstring;
   else if (vb->type == ASN_IPADDRESS) {
-    return snprintf(dst, dst_size,
-                    "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
-                    (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
-                    (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
+    return ssnprintf(dst, dst_size,
+                     "%" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8 "",
+                     (uint8_t)vb->val.string[0], (uint8_t)vb->val.string[1],
+                     (uint8_t)vb->val.string[2], (uint8_t)vb->val.string[3]);
   } else {
     dst[0] = 0;
     return EINVAL;
@@ -1234,7 +1235,7 @@ static csnmp_cell_char_t *csnmp_get_char_cell(const struct variable_list *vb,
     value_t val = csnmp_value_list_to_value(
         vb, DS_TYPE_COUNTER,
         /* scale = */ 1.0, /* shift = */ 0.0, hd->name, dd->name);
-    snprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
+    ssnprintf(il->value, sizeof(il->value), "%" PRIu64, (uint64_t)val.counter);
   }
 
   return il;
@@ -1479,7 +1480,7 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->host.prefix == NULL)
         sstrncpy(vl.host, temp, sizeof(vl.host));
       else
-        snprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
+        ssnprintf(vl.host, sizeof(vl.host), "%s%s", data->host.prefix, temp);
     } else {
       sstrncpy(vl.host, host->name, sizeof(vl.host));
     }
@@ -1495,8 +1496,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->type_instance.prefix == NULL)
         sstrncpy(vl.type_instance, temp, sizeof(vl.type_instance));
       else
-        snprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
-                 data->type_instance.prefix, temp);
+        ssnprintf(vl.type_instance, sizeof(vl.type_instance), "%s%s",
+                  data->type_instance.prefix, temp);
     } else if (data->type_instance.value) {
       sstrncpy(vl.type_instance, data->type_instance.value,
                sizeof(vl.type_instance));
@@ -1513,8 +1514,8 @@ static int csnmp_dispatch_table(host_definition_t *host,
       if (data->plugin_instance.prefix == NULL)
         sstrncpy(vl.plugin_instance, temp, sizeof(vl.plugin_instance));
       else
-        snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
-                 data->plugin_instance.prefix, temp);
+        ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%s%s",
+                  data->plugin_instance.prefix, temp);
     } else if (data->plugin_instance.value) {
       sstrncpy(vl.plugin_instance, data->plugin_instance.value,
                sizeof(vl.plugin_instance));

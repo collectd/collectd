@@ -172,7 +172,7 @@ static int snmp_agent_oid_to_string(char *buf, size_t buf_size,
   char *oid_str_ptr[MAX_OID_LEN];
 
   for (size_t i = 0; i < o->oid_len; i++) {
-    snprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
+    ssnprintf(oid_str[i], sizeof(oid_str[i]), "%lu", (unsigned long)o->oid[i]);
     oid_str_ptr[i] = oid_str[i];
   }
 
@@ -736,13 +736,14 @@ static void snmp_agent_table_data_remove(data_definition_t *dd,
   if (index == NULL)
     snmp_agent_oid_to_string(index_str, sizeof(index_str), index_oid);
   else
-    snprintf(index_str, sizeof(index_str), "%d", *index);
+    ssnprintf(index_str, sizeof(index_str), "%d", *index);
 
   notification_t n = {
       .severity = NOTIF_WARNING, .time = cdtime(), .plugin = PLUGIN_NAME};
   sstrncpy(n.host, hostname_g, sizeof(n.host));
-  snprintf(n.message, sizeof(n.message),
-           "Removed data row from table %s with index %s", td->name, index_str);
+  ssnprintf(n.message, sizeof(n.message),
+            "Removed data row from table %s with index %s", td->name,
+            index_str);
   DEBUG(PLUGIN_NAME ": %s", n.message);
   plugin_dispatch_notification(&n);
 
@@ -960,7 +961,7 @@ static int snmp_agent_build_name(char **name, c_avl_tree_t *tokens) {
     strncat(out, tok->str, DATA_MAX_NAME_LEN - strlen(out) - 1);
     if (tok->key != NULL) {
       if (tok->key->type == ASN_INTEGER) {
-        snprintf(str, sizeof(str), "%ld", *tok->key->val.integer);
+        ssnprintf(str, sizeof(str), "%ld", *tok->key->val.integer);
         strncat(out, str, DATA_MAX_NAME_LEN - strlen(out) - 1);
       } else /* OCTET_STR */
         strncat(out, (char *)tok->key->val.string,
@@ -1013,7 +1014,7 @@ static int snmp_agent_format_name(char *name, int name_len,
         }
 
         if (td->index_keys[i].type == ASN_INTEGER) {
-          snprintf(str, sizeof(str), "%ld", *key->val.integer);
+          ssnprintf(str, sizeof(str), "%ld", *key->val.integer);
           fields[source] = str;
         } else /* OCTET_STR */
           fields[source] = (char *)key->val.string;
@@ -1836,7 +1837,7 @@ static int snmp_agent_set_vardata(void *data, size_t *data_len, u_char asn_type,
   case ASN_OCTET_STR:
     if (type == DS_TYPE_GAUGE) {
       char buf[DATA_MAX_NAME_LEN];
-      snprintf(buf, sizeof(buf), "%.2f", val->gauge);
+      ssnprintf(buf, sizeof(buf), "%.2f", val->gauge);
       if (*data_len < strlen(buf))
         return -EINVAL;
       *data_len = strlen(buf);
@@ -1995,13 +1996,13 @@ static int snmp_agent_update_index(data_definition_t *dd,
     if (index == NULL)
       snmp_agent_oid_to_string(index_str, sizeof(index_str), index_oid);
     else
-      snprintf(index_str, sizeof(index_str), "%d", *index);
+      ssnprintf(index_str, sizeof(index_str), "%d", *index);
 
     notification_t n = {
         .severity = NOTIF_OKAY, .time = cdtime(), .plugin = PLUGIN_NAME};
     sstrncpy(n.host, hostname_g, sizeof(n.host));
-    snprintf(n.message, sizeof(n.message),
-             "Data added to table %s with index %s", td->name, index_str);
+    ssnprintf(n.message, sizeof(n.message),
+              "Data added to table %s with index %s", td->name, index_str);
     DEBUG(PLUGIN_NAME ": %s", n.message);
 
     plugin_dispatch_notification(&n);

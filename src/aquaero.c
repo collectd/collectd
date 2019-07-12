@@ -81,8 +81,8 @@ static void aquaero_submit_array(const char *type,
     if (value_array[i] == AQ5_FLOAT_UNDEF)
       continue;
 
-    snprintf(type_instance, sizeof(type_instance), "%s%d", type_instance_prefix,
-             i + 1);
+    ssnprintf(type_instance, sizeof(type_instance), "%s%d",
+              type_instance_prefix, i + 1);
     aquaero_submit(type, type_instance, value_array[i]);
   }
 }
@@ -130,7 +130,7 @@ static int aquaero_read(void) {
         (aq_data.fan_vrm_temp[i] != AQ5_FLOAT_UNDEF))
       continue;
 
-    snprintf(type_instance, sizeof(type_instance), "fan%d", i + 1);
+    ssnprintf(type_instance, sizeof(type_instance), "fan%d", i + 1);
 
     aquaero_submit("fanspeed", type_instance, aq_data.fan_rpm[i]);
     aquaero_submit("percent", type_instance, aq_data.fan_duty[i]);
@@ -139,7 +139,7 @@ static int aquaero_read(void) {
 
     /* Report the voltage reglator module (VRM) temperature with a
      * different type instance. */
-    snprintf(type_instance, sizeof(type_instance), "fan%d-vrm", i + 1);
+    ssnprintf(type_instance, sizeof(type_instance), "fan%d-vrm", i + 1);
     aquaero_submit("temperature", type_instance, aq_data.fan_vrm_temp[i]);
   }
 

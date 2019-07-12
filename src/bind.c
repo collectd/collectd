@@ -1538,8 +1538,9 @@ static int bind_init(void) /* {{{ */
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
 #ifdef HAVE_CURLOPT_TIMEOUT_MS
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
-                   (timeout >= 0) ? (long)timeout : (long)CDTIME_T_TO_MS(
-                                                        plugin_get_interval()));
+                   (timeout >= 0)
+                       ? (long)timeout
+                       : (long)CDTIME_T_TO_MS(plugin_get_interval()));
 #endif
 
   return 0;
