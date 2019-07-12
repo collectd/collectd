@@ -225,7 +225,8 @@ static int mysql_config_database(oconfig_item_t *ci) /* {{{ */
     plugin_register_complex_read(
         /* group = */ NULL, cb_name, mysql_read, /* interval = */ 0,
         &(user_data_t){
-            .data = db, .free_func = mysql_database_free,
+            .data = db,
+            .free_func = mysql_database_free,
         });
   } else {
     mysql_database_free(db);
@@ -354,7 +355,8 @@ static void derive_submit(const char *type, const char *type_instance,
 
 static void traffic_submit(derive_t rx, derive_t tx, mysql_database_t *db) {
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   submit("mysql_octets", NULL, values, STATIC_ARRAY_SIZE(values), db);

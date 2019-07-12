@@ -131,16 +131,16 @@ static bool report_network_interfaces = true;
 static virt_notif_thread_t notif_thread;
 
 const char *domain_states[] = {
-        [VIR_DOMAIN_NOSTATE] = "no state",
-        [VIR_DOMAIN_RUNNING] = "the domain is running",
-        [VIR_DOMAIN_BLOCKED] = "the domain is blocked on resource",
-        [VIR_DOMAIN_PAUSED] = "the domain is paused by user",
-        [VIR_DOMAIN_SHUTDOWN] = "the domain is being shut down",
-        [VIR_DOMAIN_SHUTOFF] = "the domain is shut off",
-        [VIR_DOMAIN_CRASHED] = "the domain is crashed",
+    [VIR_DOMAIN_NOSTATE] = "no state",
+    [VIR_DOMAIN_RUNNING] = "the domain is running",
+    [VIR_DOMAIN_BLOCKED] = "the domain is blocked on resource",
+    [VIR_DOMAIN_PAUSED] = "the domain is paused by user",
+    [VIR_DOMAIN_SHUTDOWN] = "the domain is being shut down",
+    [VIR_DOMAIN_SHUTOFF] = "the domain is shut off",
+    [VIR_DOMAIN_CRASHED] = "the domain is crashed",
 #ifdef HAVE_DOM_STATE_PMSUSPENDED
-        [VIR_DOMAIN_PMSUSPENDED] =
-            "the domain is suspended by guest power management",
+    [VIR_DOMAIN_PMSUSPENDED] =
+        "the domain is suspended by guest power management",
 #endif
 };
 
@@ -352,107 +352,99 @@ static int map_domain_event_detail_to_reason(int event, int detail) {
 
 #define DOMAIN_STATE_REASON_MAX_SIZE 20
 const char *domain_reasons[][DOMAIN_STATE_REASON_MAX_SIZE] = {
-        [VIR_DOMAIN_NOSTATE][VIR_DOMAIN_NOSTATE_UNKNOWN] =
-            "the reason is unknown",
+    [VIR_DOMAIN_NOSTATE][VIR_DOMAIN_NOSTATE_UNKNOWN] = "the reason is unknown",
 
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_UNKNOWN] =
-            "the reason is unknown",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_BOOTED] =
-            "normal startup from boot",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_MIGRATED] =
-            "migrated from another host",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_RESTORED] =
-            "restored from a state file",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_FROM_SNAPSHOT] =
-            "restored from snapshot",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_UNPAUSED] =
-            "returned from paused state",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_MIGRATION_CANCELED] =
-            "returned from migration",
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_SAVE_CANCELED] =
-            "returned from failed save process",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_UNKNOWN] = "the reason is unknown",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_BOOTED] =
+        "normal startup from boot",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_MIGRATED] =
+        "migrated from another host",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_RESTORED] =
+        "restored from a state file",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_FROM_SNAPSHOT] =
+        "restored from snapshot",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_UNPAUSED] =
+        "returned from paused state",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_MIGRATION_CANCELED] =
+        "returned from migration",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_SAVE_CANCELED] =
+        "returned from failed save process",
 #ifdef HAVE_DOM_REASON_RUNNING_WAKEUP
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_WAKEUP] =
-            "returned from pmsuspended due to wakeup event",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_WAKEUP] =
+        "returned from pmsuspended due to wakeup event",
 #endif
 #ifdef HAVE_DOM_REASON_CRASHED
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_CRASHED] =
-            "resumed from crashed",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_CRASHED] = "resumed from crashed",
 #endif
 #ifdef HAVE_DOM_REASON_POSTCOPY
-        [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_POSTCOPY] =
-            "running in post-copy migration mode",
+    [VIR_DOMAIN_RUNNING][VIR_DOMAIN_RUNNING_POSTCOPY] =
+        "running in post-copy migration mode",
 #endif
-        [VIR_DOMAIN_BLOCKED][VIR_DOMAIN_BLOCKED_UNKNOWN] =
-            "the reason is unknown",
+    [VIR_DOMAIN_BLOCKED][VIR_DOMAIN_BLOCKED_UNKNOWN] = "the reason is unknown",
 
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_UNKNOWN] =
-            "the reason is unknown",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_USER] = "paused on user request",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_MIGRATION] =
-            "paused for offline migration",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_SAVE] = "paused for save",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_DUMP] =
-            "paused for offline core dump",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_IOERROR] =
-            "paused due to a disk I/O error",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_WATCHDOG] =
-            "paused due to a watchdog event",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_FROM_SNAPSHOT] =
-            "paused after restoring from snapshot",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_UNKNOWN] = "the reason is unknown",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_USER] = "paused on user request",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_MIGRATION] =
+        "paused for offline migration",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_SAVE] = "paused for save",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_DUMP] =
+        "paused for offline core dump",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_IOERROR] =
+        "paused due to a disk I/O error",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_WATCHDOG] =
+        "paused due to a watchdog event",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_FROM_SNAPSHOT] =
+        "paused after restoring from snapshot",
 #ifdef HAVE_DOM_REASON_PAUSED_SHUTTING_DOWN
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_SHUTTING_DOWN] =
-            "paused during shutdown process",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_SHUTTING_DOWN] =
+        "paused during shutdown process",
 #endif
 #ifdef HAVE_DOM_REASON_PAUSED_SNAPSHOT
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_SNAPSHOT] =
-            "paused while creating a snapshot",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_SNAPSHOT] =
+        "paused while creating a snapshot",
 #endif
 #ifdef HAVE_DOM_REASON_PAUSED_CRASHED
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_CRASHED] =
-            "paused due to a guest crash",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_CRASHED] =
+        "paused due to a guest crash",
 #endif
 #ifdef HAVE_DOM_REASON_PAUSED_STARTING_UP
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_STARTING_UP] =
-            "the domain is being started",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_STARTING_UP] =
+        "the domain is being started",
 #endif
 #ifdef HAVE_DOM_REASON_POSTCOPY
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_POSTCOPY] =
-            "paused for post-copy migration",
-        [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_POSTCOPY_FAILED] =
-            "paused after failed post-copy",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_POSTCOPY] =
+        "paused for post-copy migration",
+    [VIR_DOMAIN_PAUSED][VIR_DOMAIN_PAUSED_POSTCOPY_FAILED] =
+        "paused after failed post-copy",
 #endif
-        [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_UNKNOWN] =
-            "the reason is unknown",
-        [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_USER] =
-            "shutting down on user request",
+    [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_UNKNOWN] =
+        "the reason is unknown",
+    [VIR_DOMAIN_SHUTDOWN][VIR_DOMAIN_SHUTDOWN_USER] =
+        "shutting down on user request",
 
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_UNKNOWN] =
-            "the reason is unknown",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_SHUTDOWN] = "normal shutdown",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_DESTROYED] = "forced poweroff",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_CRASHED] = "domain crashed",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_MIGRATED] =
-            "migrated to another host",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_SAVED] = "saved to a file",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_FAILED] =
-            "domain failed to start",
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT] =
-            "restored from a snapshot which was taken while domain was shutoff",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_UNKNOWN] = "the reason is unknown",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_SHUTDOWN] = "normal shutdown",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_DESTROYED] = "forced poweroff",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_CRASHED] = "domain crashed",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_MIGRATED] =
+        "migrated to another host",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_SAVED] = "saved to a file",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_FAILED] = "domain failed to start",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT] =
+        "restored from a snapshot which was taken while domain was shutoff",
 #ifdef HAVE_DOM_REASON_SHUTOFF_DAEMON
-        [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_DAEMON] =
-            "daemon decides to kill domain during reconnection processing",
+    [VIR_DOMAIN_SHUTOFF][VIR_DOMAIN_SHUTOFF_DAEMON] =
+        "daemon decides to kill domain during reconnection processing",
 #endif
 
-        [VIR_DOMAIN_CRASHED][VIR_DOMAIN_CRASHED_UNKNOWN] =
-            "the reason is unknown",
+    [VIR_DOMAIN_CRASHED][VIR_DOMAIN_CRASHED_UNKNOWN] = "the reason is unknown",
 #ifdef VIR_DOMAIN_CRASHED_PANICKED
-        [VIR_DOMAIN_CRASHED][VIR_DOMAIN_CRASHED_PANICKED] = "domain panicked",
+    [VIR_DOMAIN_CRASHED][VIR_DOMAIN_CRASHED_PANICKED] = "domain panicked",
 #endif
 
 #ifdef HAVE_DOM_STATE_PMSUSPENDED
-        [VIR_DOMAIN_PMSUSPENDED][VIR_DOMAIN_PMSUSPENDED_UNKNOWN] =
-            "the reason is unknown",
+    [VIR_DOMAIN_PMSUSPENDED][VIR_DOMAIN_PMSUSPENDED_UNKNOWN] =
+        "the reason is unknown",
 #endif
 };
 #endif /* HAVE_DOM_REASON */
@@ -742,7 +734,8 @@ static char *metadata_get_hostname(virDomainPtr dom) {
   const char *namespace = NULL;
   if (hm_ns == NULL) {
     namespace = "http://openstack.org/xmlns/libvirt/nova/1.0";
-  } else {
+  } // namespace =hm_ns;
+  else {
     namespace = hm_ns;
   }
 
@@ -957,7 +950,8 @@ static void memory_stats_submit(gauge_t value, virDomainPtr dom,
 static void submit_derive2(const char *type, derive_t v0, derive_t v1,
                            virDomainPtr dom, const char *devname) {
   value_t values[] = {
-      {.derive = v0}, {.derive = v1},
+      {.derive = v0},
+      {.derive = v1},
   };
 
   submit(dom, type, devname, values, STATIC_ARRAY_SIZE(values));
@@ -1718,7 +1712,8 @@ static int submit_domain_state(virDomainPtr domain) {
   }
 
   value_t values[] = {
-      {.gauge = (gauge_t)domain_state}, {.gauge = (gauge_t)domain_reason},
+      {.gauge = (gauge_t)domain_state},
+      {.gauge = (gauge_t)domain_reason},
   };
 
   submit(domain, "domain_state", NULL, values, STATIC_ARRAY_SIZE(values));
@@ -1802,7 +1797,8 @@ static int get_memory_stats(virDomainPtr domain) {
 
   if (min_flt > 0 || maj_flt > 0) {
     value_t values[] = {
-        {.gauge = (gauge_t)min_flt}, {.gauge = (gauge_t)maj_flt},
+        {.gauge = (gauge_t)min_flt},
+        {.gauge = (gauge_t)maj_flt},
     };
     submit(domain, "ps_pagefaults", NULL, values, STATIC_ARRAY_SIZE(values));
   }

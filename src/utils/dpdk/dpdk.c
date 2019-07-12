@@ -704,7 +704,8 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
 
   /* non blocking check on helper logging pipe */
   struct pollfd fds = {
-      .fd = phc->pipes[0], .events = POLLIN,
+      .fd = phc->pipes[0],
+      .events = POLLIN,
   };
   int data_avail = poll(&fds, 1, 0);
   DEBUG("%s:dpdk_helper_check_pipe: poll data_avail=%d", phc->shm_name,

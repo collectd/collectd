@@ -639,14 +639,16 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
       status = plugin_register_notification(
           tpname, amqp1_notify,
           &(user_data_t){
-              .data = instance, .free_func = amqp1_config_instance_free,
+              .data = instance,
+              .free_func = amqp1_config_instance_free,
           });
     } else {
-      status = plugin_register_write(
-          tpname, amqp1_write,
-          &(user_data_t){
-              .data = instance, .free_func = amqp1_config_instance_free,
-          });
+      status =
+          plugin_register_write(tpname, amqp1_write,
+                                &(user_data_t){
+                                    .data = instance,
+                                    .free_func = amqp1_config_instance_free,
+                                });
     }
 
     if (status != 0) {

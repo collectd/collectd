@@ -851,9 +851,9 @@ static void rdt_init_pids_monitoring() {
     }
 
     /* update global proc_pids table */
-    proc_pids_t **proc_pids = realloc(g_rdt->proc_pids,
-                                      (g_rdt->num_proc_pids + ng->num_names) *
-                                          sizeof(*g_rdt->proc_pids));
+    proc_pids_t **proc_pids =
+        realloc(g_rdt->proc_pids, (g_rdt->num_proc_pids + ng->num_names) *
+                                      sizeof(*g_rdt->proc_pids));
     if (NULL == proc_pids) {
       ERROR(RDT_PLUGIN ": Alloc error\n");
       continue;

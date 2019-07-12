@@ -531,7 +531,8 @@ oauth_google_t oauth_create_google_json(char const *buffer, char const *scope) {
   }
 
   oauth_google_t ret = {
-      .project_id = strdup(project_id), .oauth = oauth,
+      .project_id = strdup(project_id),
+      .oauth = oauth,
   };
 
   yajl_tree_free(root);

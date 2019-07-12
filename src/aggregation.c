@@ -398,10 +398,9 @@ static int agg_instance_read(agg_instance_t *inst, cdtime_t t) /* {{{ */
     READ_FUNC(average, (inst->sum / ((gauge_t)inst->num)));
     READ_FUNC(min, inst->min);
     READ_FUNC(max, inst->max);
-    READ_FUNC(stddev,
-              sqrt((((gauge_t)inst->num) * inst->squares_sum) -
-                   (inst->sum * inst->sum)) /
-                  ((gauge_t)inst->num));
+    READ_FUNC(stddev, sqrt((((gauge_t)inst->num) * inst->squares_sum) -
+                           (inst->sum * inst->sum)) /
+                          ((gauge_t)inst->num));
   }
 
   /* Reset internal state. */
