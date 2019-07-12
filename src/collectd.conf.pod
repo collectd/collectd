@@ -9520,6 +9520,9 @@ Requires libvirt API version I<1.2.9> or later.
 a domain. Only one type of job statistics can be collected at the same time.
 Requires libvirt API version I<1.2.9> or later.
 
+=item B<memory>: report statistics about memory usage details, provided
+by libvirt virDomainMemoryStats() function.
+
 =item B<pcpu>: report the physical user/system cpu time consumed by the hypervisor, per-vm.
 Requires libvirt API version I<0.9.11> or later.
 
@@ -9527,6 +9530,8 @@ Requires libvirt API version I<0.9.11> or later.
 metrics they must be enabled for domain and supported by the platform. Requires
 libvirt API version I<1.3.3> or later.
 B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
+
+=item B<vcpu>: report domain virtual CPUs utilisation.
 
 =item B<vcpupin>: report pinning of domain VCPUs to host physical CPUs.
 

@@ -159,8 +159,7 @@ check_PROGRAMS = \
 	test_utils_time \
 	test_utils_vl_lookup \
 	test_libcollectd_network_parse \
-	test_utils_config_cores \
-	test_utils_proc_pids
+	test_utils_config_cores
 
 
 TESTS = $(check_PROGRAMS)
@@ -277,7 +276,7 @@ collectd_LDFLAGS += -ldl -Wl,--out-implib,libcollectd.a
 else
 collectd_SOURCES += src/daemon/cmd.c
 endif
-	
+
 if BUILD_FEATURE_DAEMON
 collectd_CPPFLAGS += -DPIDFILE='"${localstatedir}/run/${PACKAGE_NAME}.pid"'
 endif
@@ -1089,6 +1088,7 @@ test_plugin_intel_rdt_CPPFLAGS = $(AM_CPPFLAGS)
 test_plugin_intel_rdt_LDFLAGS = $(PLUGIN_LDFLAGS)
 test_plugin_intel_rdt_LDADD = liboconfig.la libplugin_mock.la
 check_PROGRAMS += test_plugin_intel_rdt
+TESTS += test_utils_proc_pids
 TESTS += test_plugin_intel_rdt
 endif
 

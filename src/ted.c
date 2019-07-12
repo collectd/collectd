@@ -243,7 +243,7 @@ static int ted_config(const char *key, const char *value) {
 
     tmp = atoi(value);
     if (tmp < 0) {
-      WARNING("ted plugin: Invalid retry count: %i", tmp);
+      ERROR("ted plugin: Invalid retry count: %i", tmp);
       return 1;
     }
     conf_retries = tmp;
