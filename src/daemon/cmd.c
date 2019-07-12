@@ -24,8 +24,8 @@
 #include "cmd.h"
 #include "collectd.h"
 
-#include "utils/common/common.h"
 #include <sys/un.h>
+#include "utils/common/common.h"
 
 static void *do_flush(void __attribute__((unused)) * arg) {
   INFO("Flushing all data.");
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
 #ifdef KERNEL_LINUX
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
-      ) {
+  ) {
     pid_t pid;
     if ((pid = fork()) == -1) {
       /* error */

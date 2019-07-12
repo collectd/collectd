@@ -22,7 +22,11 @@ message LabelPair {
 }
 
 enum MetricType {
-  COUNTER = 0; GAUGE = 1; SUMMARY = 2; UNTYPED = 3; HISTOGRAM = 4;
+  COUNTER = 0;
+  GAUGE = 1;
+  SUMMARY = 2;
+  UNTYPED = 3;
+  HISTOGRAM = 4;
 }
 
 message Gauge { optional double value = 1; }

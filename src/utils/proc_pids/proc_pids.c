@@ -27,9 +27,9 @@
  *   Michał Aleksiński <michalx.aleksinski@intel.com>
  **/
 
-#include "collectd.h"
-#include "utils/common/common.h"
 #include "utils/proc_pids/proc_pids.h"
+#include "utils/common/common.h"
+#include "collectd.h"
 
 #define UTIL_NAME "utils_proc_pids"
 
@@ -140,7 +140,7 @@ int pids_list_contains_pid(pids_list_t *list, const pid_t pid) {
  * RETURN VALUE
  *   On success, the number of read bytes (includes stripped \n).
  *   -1 on file open error
-*/
+ */
 static int read_proc_name(const char *procfs_path,
                           const struct dirent *pid_entry, char *name,
                           const size_t out_size) {

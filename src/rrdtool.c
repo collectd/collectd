@@ -120,7 +120,7 @@ static int srrd_update(char *filename, char *template, int argc,
 
   return status;
 } /* int srrd_update */
-  /* #endif HAVE_THREADSAFE_LIBRRD */
+/* #endif HAVE_THREADSAFE_LIBRRD */
 
 #else  /* !HAVE_THREADSAFE_LIBRRD */
 static int srrd_update(char *filename, char *template, int argc,

@@ -335,7 +335,7 @@ static int interface_read(void) {
     if ((rx != -1LL) || (tx != -1LL))
       if_submit(iname, "if_errors", rx, tx);
   }
-    /* #endif HAVE_LIBKSTAT */
+  /* #endif HAVE_LIBKSTAT */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_network_io_stats *ios;
@@ -348,7 +348,7 @@ static int interface_read(void) {
       continue;
     if_submit(ios[i].interface_name, "if_octets", ios[i].rx, ios[i].tx);
   }
-    /* #endif HAVE_LIBSTATGRAB */
+  /* #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT)
   perfstat_id_t id;

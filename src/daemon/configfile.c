@@ -810,7 +810,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-  /* #endif HAVE_WORDEXP_H */
+/* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,

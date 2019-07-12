@@ -23,8 +23,8 @@
 #ifndef UTILS_OAUTH_H
 #define UTILS_OAUTH_H
 
-#include "collectd.h"
 #include "utils_time.h"
+#include "collectd.h"
 
 #ifndef GOOGLE_OAUTH_URL
 #define GOOGLE_OAUTH_URL "https://www.googleapis.com/oauth2/v3/token"

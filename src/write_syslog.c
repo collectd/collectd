@@ -47,8 +47,8 @@
  *
  */
 
-#include "collectd.h"
 #include "utils/common/common.h"
+#include "collectd.h"
 
 #include "plugin.h"
 #include "utils_cache.h"

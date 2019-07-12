@@ -255,8 +255,9 @@ static void check_respawn(void) {
   if (counter >= 10) {
     unsigned int time_left = 300;
 
-    syslog(LOG_ERR, "Error: collectd is respawning too fast - "
-                    "disabled for %i seconds",
+    syslog(LOG_ERR,
+           "Error: collectd is respawning too fast - "
+           "disabled for %i seconds",
            time_left);
 
     while (((time_left = sleep(time_left)) > 0) && loop == 0)
@@ -323,7 +324,8 @@ int main(int argc, char **argv) {
   }
 
   struct sigaction sa = {
-      .sa_handler = sig_int_term_handler, .sa_flags = 0,
+      .sa_handler = sig_int_term_handler,
+      .sa_flags = 0,
   };
   sigemptyset(&sa.sa_mask);
 

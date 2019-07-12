@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "collectd.h"
 #include "utils/common/common.h" /* STATIC_ARRAY_SIZE */
+#include "collectd.h"
 
 #include "testing.h"
 #include "utils/avltree/avltree.h"

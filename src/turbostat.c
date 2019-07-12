@@ -41,8 +41,8 @@
 #include "utils/common/common.h"
 #include "utils_time.h"
 
-#include "msr-index.h"
 #include <cpuid.h>
+#include "msr-index.h"
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
 #endif /* HAVE_SYS_CAPABILITY_H */

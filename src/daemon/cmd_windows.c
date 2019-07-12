@@ -21,10 +21,10 @@
  * DEALINGS IN THE SOFTWARE.
  **/
 
-#include "cmd.h"
-#include "plugin.h"
 #include <stdio.h>
 #include <windows.h>
+#include "cmd.h"
+#include "plugin.h"
 
 int main(int argc, char **argv) {
   WSADATA wsaData;
