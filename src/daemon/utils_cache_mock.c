@@ -24,8 +24,8 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include <errno.h>
 #include "utils_cache.h"
+#include <errno.h>
 
 #include <errno.h>
 

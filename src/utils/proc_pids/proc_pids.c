@@ -27,9 +27,9 @@
  *   Michał Aleksiński <michalx.aleksinski@intel.com>
  **/
 
-#include "utils/proc_pids/proc_pids.h"
-#include "utils/common/common.h"
 #include "collectd.h"
+#include "utils/common/common.h"
+#include "utils/proc_pids/proc_pids.h"
 
 #define UTIL_NAME "utils_proc_pids"
 

@@ -33,8 +33,8 @@
 /* do not automatically get the thread specific Perl interpreter */
 #define PERL_NO_GET_CONTEXT
 
-#include <stdbool.h>
 #include "collectd.h"
+#include <stdbool.h>
 
 #include <EXTERN.h>
 #include <perl.h>

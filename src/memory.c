@@ -121,12 +121,12 @@ static int memory_init(void) {
   /* #endif HAVE_HOST_STATISTICS */
 
 #elif HAVE_SYSCTLBYNAME
-  /* no init stuff */
-  /* #endif HAVE_SYSCTLBYNAME */
+/* no init stuff */
+/* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(KERNEL_LINUX)
-  /* no init stuff */
-  /* #endif KERNEL_LINUX */
+/* no init stuff */
+/* #endif KERNEL_LINUX */
 
 #elif defined(HAVE_LIBKSTAT)
   /* getpagesize(3C) tells me this does not fail.. */
@@ -140,7 +140,7 @@ static int memory_init(void) {
     return -1;
   }
 
-  /* #endif HAVE_LIBKSTAT */
+    /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL
   pagesize = getpagesize();
@@ -148,11 +148,11 @@ static int memory_init(void) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
     return -1;
   }
-  /* #endif HAVE_SYSCTL */
+    /* #endif HAVE_SYSCTL */
 
 #elif HAVE_LIBSTATGRAB
-  /* no init stuff */
-  /* #endif HAVE_LIBSTATGRAB */
+/* no init stuff */
+/* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
   pagesize = getpagesize();

@@ -26,8 +26,8 @@
 
 #define DBL_PRECISION 1e-6
 
-#include "utils/common/common.h" /* for STATIC_ARRAY_SIZE */
 #include "collectd.h"
+#include "utils/common/common.h" /* for STATIC_ARRAY_SIZE */
 
 #include "testing.h"
 #include "utils/latency/latency.h"

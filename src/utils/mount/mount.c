@@ -522,7 +522,7 @@ static cu_mount_t *cu_mount_gen_getmntent(void) {
 
 #elif HAVE_SEQ_GETMNTENT
 #warn "This version of `getmntent' hat not yet been implemented!"
-/* #endif HAVE_SEQ_GETMNTENT */
+  /* #endif HAVE_SEQ_GETMNTENT */
 
 #elif HAVE_GETMNTENT_R
 static cu_mount_t *cu_mount_getmntent(void) {

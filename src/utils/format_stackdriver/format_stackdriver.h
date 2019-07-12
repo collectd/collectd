@@ -23,8 +23,8 @@
 #ifndef UTILS_FORMAT_STACKDRIVER_H
 #define UTILS_FORMAT_STACKDRIVER_H 1
 
-#include "plugin.h"
 #include "collectd.h"
+#include "plugin.h"
 
 /* sd_output_t is a buffer to which value_list_t* can be added and from which
  * an appropriately formatted char* can be read. */

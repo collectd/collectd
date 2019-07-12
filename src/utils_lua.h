@@ -27,8 +27,8 @@
 #ifndef UTILS_LUA_H
 #define UTILS_LUA_H 1
 
-#include "plugin.h"
 #include "collectd.h"
+#include "plugin.h"
 
 #include <lua.h>
 

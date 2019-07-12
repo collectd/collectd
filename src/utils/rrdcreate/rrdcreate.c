@@ -343,7 +343,7 @@ static int srrd_create(const char *filename, /* {{{ */
 
   return status;
 } /* }}} int srrd_create */
-/* #endif HAVE_THREADSAFE_LIBRRD */
+  /* #endif HAVE_THREADSAFE_LIBRRD */
 
 #else  /* !HAVE_THREADSAFE_LIBRRD */
 static int srrd_create(const char *filename, /* {{{ */

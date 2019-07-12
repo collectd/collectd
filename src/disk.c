@@ -209,7 +209,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-  /* #endif HAVE_IOKIT_IOKITLIB_H */
+    /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -221,7 +221,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-  /* #endif KERNEL_LINUX */
+    /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -236,7 +236,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-  /* #endif KERNEL_FREEBSD */
+    /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -947,7 +947,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-  /* #endif defined(HAVE_LIBKSTAT) */
+    /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -974,7 +974,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-  /* #endif defined(HAVE_LIBSTATGRAB) */
+    /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;

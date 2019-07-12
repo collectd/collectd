@@ -597,7 +597,7 @@ static void chrony_init_req(tChrony_Request *p_req) {
 /* Original code licensed as GPLv2, by Richard P. Purnow, Miroslav Lichvar */
 /* Original name: double UTI_tFloatNetworkToHost(tFloat f) */
 static double ntohf(tFloat p_float) {
-  /* Convert tFloat in Network-bit-order to double in host-bit-order */
+/* Convert tFloat in Network-bit-order to double in host-bit-order */
 
 #define FLOAT_EXP_BITS 7
 #define FLOAT_EXP_MIN (-(1 << (FLOAT_EXP_BITS - 1)))

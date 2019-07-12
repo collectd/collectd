@@ -41,8 +41,8 @@
 #include "utils/common/common.h"
 #include "utils_time.h"
 
-#include <cpuid.h>
 #include "msr-index.h"
+#include <cpuid.h>
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
 #endif /* HAVE_SYS_CAPABILITY_H */
@@ -1434,9 +1434,9 @@ static void free_all_buffers(void) {
   package_delta = NULL;
 }
 
-/**********************
- * Collectd functions *
- **********************/
+  /**********************
+   * Collectd functions *
+   **********************/
 
 #define DO_OR_GOTO_ERR(something)                                              \
   do {                                                                         \

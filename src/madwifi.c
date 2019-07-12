@@ -99,8 +99,8 @@
 #error "No applicable input method."
 #endif
 
-#include <linux/wireless.h>
 #include "madwifi.h"
+#include <linux/wireless.h>
 
 struct stat_spec {
   uint16_t flags;

@@ -29,8 +29,8 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#include <poll.h>
 #include "utils/dns/dns.h"
+#include <poll.h>
 
 #include <pcap.h>
 
