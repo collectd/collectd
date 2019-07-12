@@ -188,7 +188,8 @@ static int get_family_id(ts_t *ts) {
 
   struct genlmsghdr *genh = mnl_nlmsg_put_extra_header(nlh, sizeof(*genh));
   *genh = (struct genlmsghdr){
-      .cmd = CTRL_CMD_GETFAMILY, .version = 0x01,
+      .cmd = CTRL_CMD_GETFAMILY,
+      .version = 0x01,
   };
 
   mnl_attr_put_strz(nlh, CTRL_ATTR_FAMILY_NAME, TASKSTATS_GENL_NAME);

@@ -245,16 +245,17 @@ static int test_network_parse() {
     uint8_t buffer[LCC_NETWORK_BUFFER_SIZE_DEFAULT];
     size_t buffer_size = sizeof(buffer);
     if (decode_string(raw_packet_data[i], buffer, &buffer_size)) {
-      fprintf(stderr, "lcc_network_parse(raw_packet_data[%" PRIsz "]):"
-                      " decoding string failed\n",
+      fprintf(stderr,
+              "lcc_network_parse(raw_packet_data[%" PRIsz "]):"
+              " decoding string failed\n",
               i);
       return -1;
     }
 
-    int status =
-        lcc_network_parse(buffer, buffer_size, (lcc_network_parse_options_t){
-                                                   .writer = nop_writer,
-                                               });
+    int status = lcc_network_parse(buffer, buffer_size,
+                                   (lcc_network_parse_options_t){
+                                       .writer = nop_writer,
+                                   });
     if (status != 0) {
       fprintf(stderr,
               "lcc_network_parse(raw_packet_data[%" PRIsz "]) = %d, want 0\n",
@@ -466,7 +467,8 @@ static int test_decrypt_aes256() {
 
   int status = decrypt_aes256(
       &(buffer_t){
-          .data = ciphertext, .len = ciphertext_len,
+          .data = ciphertext,
+          .len = ciphertext_len,
       },
       iv, iv_len, "admin");
   if (status != 0) {
