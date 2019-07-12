@@ -26,10 +26,10 @@
  *   Marc Fournier <marc.fournier at camptocamp.com>
  **/
 
-#include "collectd.h"
 #include "plugin.h"
 #include "utils/common/common.h"
 #include "utils_time.h"
+#include "collectd.h"
 
 #define CGPS_TRUE 1
 #define CGPS_FALSE 0

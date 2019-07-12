@@ -341,7 +341,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
-  /* #endif LEGACY_LIBMODBUS */
+/* #endif LEGACY_LIBMODBUS */
 
 #else /* if !LEGACY_LIBMODBUS */
 /* Version 2.9.2 */

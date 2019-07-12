@@ -1668,7 +1668,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-/* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+    /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "

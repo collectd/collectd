@@ -181,7 +181,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
     pthread_mutex_unlock(&strerror_r_lock);
   }
-/* #endif !HAVE_STRERROR_R */
+  /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -191,17 +191,19 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
       if ((temp != NULL) && (temp != buf) && (temp[0] != '\0'))
         sstrncpy(buf, temp, buflen);
       else
-        sstrncpy(buf, "strerror_r did not return "
-                      "an error message",
+        sstrncpy(buf,
+                 "strerror_r did not return "
+                 "an error message",
                  buflen);
     }
   }
-/* #endif STRERROR_R_CHAR_P */
+  /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
-    snprintf(buf, buflen, "Error #%i; "
-                          "Additionally, strerror_r failed.",
+    snprintf(buf, buflen,
+             "Error #%i; "
+             "Additionally, strerror_r failed.",
              errnum);
   }
 #endif /* STRERROR_R_CHAR_P */

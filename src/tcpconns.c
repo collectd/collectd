@@ -413,7 +413,7 @@ static int conn_handle_ports(uint16_t port_local, uint16_t port_remote,
 #if TCP_STATE_MIN > 0
       || (state < TCP_STATE_MIN)
 #endif
-          ) {
+  ) {
     NOTICE("tcpconns plugin: Ignoring connection with "
            "unknown state 0x%02" PRIx8 ".",
            state);

@@ -659,7 +659,9 @@ static int mc_handle_metadata_msg(Ganglia_metadata_msg *msg) /* {{{ */
     break;
   }
 
-  default: { return -1; }
+  default: {
+    return -1;
+  }
   }
 
   return 0;
