@@ -165,6 +165,7 @@ AC_CHECK_HEADERS_ONCE([ \
   kstat.h \
   kvm.h \
   libgen.h \
+  locale.h \
   mntent.h \
   mnttab.h \
   netdb.h \
@@ -758,6 +759,7 @@ AC_CHECK_FUNCS_ONCE([ \
     select \
     setenv \
     setgroups \
+    setlocale \
     strcasecmp \
     strdup \
     strncasecmp \
