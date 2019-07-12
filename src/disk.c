@@ -59,9 +59,6 @@
 #include <libgeom.h>
 #endif
 
-#if HAVE_LIMITS_H
-#include <limits.h>
-#endif
 #ifndef UINT_MAX
 #define UINT_MAX 4294967295U
 #endif
