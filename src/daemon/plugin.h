@@ -233,6 +233,7 @@ void plugin_set_dir(const char *dir);
  *  this case.
  */
 int plugin_load(const char *name, bool global);
+bool plugin_is_loaded(char const *name);
 
 int plugin_init_all(void);
 void plugin_read_all(void);
