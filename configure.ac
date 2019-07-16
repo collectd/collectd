@@ -165,6 +165,7 @@ AC_CHECK_HEADERS_ONCE([ \
   kstat.h \
   kvm.h \
   libgen.h \
+  locale.h \
   mntent.h \
   mnttab.h \
   netdb.h \
@@ -742,26 +743,12 @@ test_cxx_flags() {
 #
 AC_CHECK_FUNCS_ONCE([ \
     asprintf \
-    closelog \
-    getaddrinfo \
-    getgrnam_r \
-    getnameinfo \
     getpwnam \
     getpwnam_r \
-    gettimeofday \
     if_indextoname \
-    openlog \
-    regcomp \
-    regerror \
-    regexec \
-    regfree \
-    select \
     setenv \
     setgroups \
-    strcasecmp \
-    strdup \
-    strncasecmp \
-    sysconf
+    setlocale
   ]
 )
 
