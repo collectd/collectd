@@ -47,9 +47,9 @@
 #endif
 
 static const char *config_keys[] = {
-    "Device",         "MountPoint",   "FSType",         "IgnoreSelected",
-    "ReportAvailUsed",
-    "ReportByDevice", "ReportInodes", "ValuesAbsolute", "ValuesPercentage"};
+    "Device",         "MountPoint",      "FSType",
+    "IgnoreSelected", "ReportAvailUsed", "ReportByDevice",
+    "ReportInodes",   "ValuesAbsolute",  "ValuesPercentage"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
 static ignorelist_t *il_device;
@@ -99,7 +99,7 @@ static int df_config(const char *key, const char *value) {
       ignorelist_set_invert(il_fstype, 1);
     }
     return 0;
-  } else if (strcasecmp (key, "ReportAvailUsed") == 0) {
+  } else if (strcasecmp(key, "ReportAvailUsed") == 0) {
     if (IS_TRUE(value))
       report_availused = 1;
     else
@@ -293,7 +293,7 @@ static int df_read(void) {
           uint64_t available = blk_free + blk_used;
 
           df_submit_one(disk_name, "percent_bytes", "availused",
-                        (gauge_t) ((float_t)(blk_used) / available * 100));
+                        (gauge_t)((float_t)(blk_used) / available * 100));
         }
       } else {
         retval = -1;
