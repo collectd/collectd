@@ -292,7 +292,7 @@ static int df_read(void) {
         if (report_availused) {
           uint64_t available = blk_free + blk_used;
 
-          df_submit_one(disk_name, "percent_bytes", "availused",
+          df_submit_one(disk_name, "percent_avail", "availused",
                         (gauge_t)((float_t)(blk_used) / available * 100));
         }
       } else {
