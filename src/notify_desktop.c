@@ -102,7 +102,7 @@ static int c_notify(const notification_t *n,
 
   notification = notify_notification_new(summary, n->message, NULL
 #if NOTIFY_CHECK_VERSION(0, 7, 0)
-                                         );
+  );
 #else
                                          ,
                                          NULL);
