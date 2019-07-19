@@ -251,7 +251,7 @@ static int init(void) {
 
   INFO("cpu plugin: Found %i processor%s.", (int)cpu_list_len,
        cpu_list_len == 1 ? "" : "s");
-/* #endif PROCESSOR_CPU_LOAD_INFO */
+  /* #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(HAVE_LIBKSTAT)
   kstat_t *ksp_chain;
@@ -267,7 +267,7 @@ static int init(void) {
        ksp_chain = ksp_chain->ks_next)
     if (strncmp(ksp_chain->ks_module, "cpu_stat", 8) == 0)
       ksp[numcpu++] = ksp_chain;
-/* #endif HAVE_LIBKSTAT */
+      /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
   size_t numcpu_size;
@@ -282,7 +282,7 @@ static int init(void) {
     WARNING("cpu plugin: sysctl: %s", STRERRNO);
     return -1;
   }
-/* #endif CAN_USE_SYSCTL */
+    /* #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME)
   size_t numcpu_size;
@@ -307,7 +307,7 @@ static int init(void) {
            "%i)",
            numcpu);
 #endif
-/* #endif HAVE_SYSCTLBYNAME */
+    /* #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB)
 /* nothing to initialize */
@@ -630,7 +630,7 @@ static int cpu_read(void) {
     cpu_stage(cpu, COLLECTD_CPU_STATE_IDLE,
               (derive_t)cpu_info.cpu_ticks[CPU_STATE_IDLE], now);
   }
-/* }}} #endif PROCESSOR_CPU_LOAD_INFO */
+    /* }}} #endif PROCESSOR_CPU_LOAD_INFO */
 
 #elif defined(KERNEL_LINUX) /* {{{ */
   int cpu;
@@ -708,7 +708,7 @@ static int cpu_read(void) {
     cpu_stage(cpu, COLLECTD_CPU_STATE_NICE, (derive_t)nice_value, now);
   }
   fclose(fh);
-/* }}} #endif defined(KERNEL_LINUX) */
+  /* }}} #endif defined(KERNEL_LINUX) */
 
 #elif defined(HAVE_LIBKSTAT) /* {{{ */
   static cpu_stat_t cs;
@@ -729,7 +729,7 @@ static int cpu_read(void) {
     cpu_stage(ksp[cpu]->ks_instance, COLLECTD_CPU_STATE_WAIT,
               (derive_t)cs.cpu_sysinfo.cpu[CPU_WAIT], now);
   }
-/* }}} #endif defined(HAVE_LIBKSTAT) */
+    /* }}} #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL /* {{{ */
   uint64_t cpuinfo[numcpu][CPUSTATES];
@@ -786,10 +786,10 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-/* }}} #endif CAN_USE_SYSCTL */
+    /* }}} #endif CAN_USE_SYSCTL */
 
 #elif defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYSCTL_KERN_CP_TIMES) /* {{{  \
-                                                                          */
+                                                                        */
   long cpuinfo[maxcpu][CPUSTATES];
   size_t cpuinfo_size;
 
@@ -809,7 +809,7 @@ static int cpu_read(void) {
     cpu_stage(i, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[i][CP_INTR],
               now);
   }
-/* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
+    /* }}} #endif HAVE_SYSCTL_KERN_CP_TIMES */
 
 #elif defined(HAVE_SYSCTLBYNAME) /* {{{ */
   long cpuinfo[CPUSTATES];
@@ -827,7 +827,7 @@ static int cpu_read(void) {
   cpu_stage(0, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cpuinfo[CP_SYS], now);
   cpu_stage(0, COLLECTD_CPU_STATE_IDLE, (derive_t)cpuinfo[CP_IDLE], now);
   cpu_stage(0, COLLECTD_CPU_STATE_INTERRUPT, (derive_t)cpuinfo[CP_INTR], now);
-/* }}} #endif HAVE_SYSCTLBYNAME */
+  /* }}} #endif HAVE_SYSCTLBYNAME */
 
 #elif defined(HAVE_LIBSTATGRAB) /* {{{ */
   sg_cpu_stats *cs;
@@ -844,7 +844,7 @@ static int cpu_read(void) {
   cpu_state(0, COLLECTD_CPU_STATE_SYSTEM, (derive_t)cs->kernel);
   cpu_state(0, COLLECTD_CPU_STATE_USER, (derive_t)cs->user);
   cpu_state(0, COLLECTD_CPU_STATE_WAIT, (derive_t)cs->iowait);
-/* }}} #endif HAVE_LIBSTATGRAB */
+  /* }}} #endif HAVE_LIBSTATGRAB */
 
 #elif defined(HAVE_PERFSTAT) /* {{{ */
   perfstat_id_t id;

@@ -472,7 +472,8 @@ static int cldap_config_add(oconfig_item_t *ci) /* {{{ */
                                       /* callback  = */ cldap_read_host,
                                       /* interval  = */ 0,
                                       &(user_data_t){
-                                          .data = st, .free_func = cldap_free,
+                                          .data = st,
+                                          .free_func = cldap_free,
                                       });
 } /* }}} int cldap_config_add */
 

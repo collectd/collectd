@@ -56,22 +56,22 @@ struct latency_counter_s {
 };
 
 /*
-* Histogram represents the distribution of data, it has a list of "bins".
-* Each bin represents an interval and has a count (frequency) of
-* number of values fall within its interval.
-*
-* Histogram's range is determined by the number of bins and the bin width,
-* There are 1000 bins and all bins have the same width of default 1 millisecond.
-* When a value above this range is added, Histogram's range is increased by
-* increasing the bin width (note that number of bins remains always at 1000).
-* This operation of increasing bin width is little expensive as each bin need
-* to be visited to update its count. To reduce frequent change of bin width,
-* new bin width will be the next nearest power of 2. Example: 2, 4, 8, 16, 32,
-* 64, 128, 256, 512, 1024, 2048, 5086, ...
-*
-* So, if the required bin width is 300, then new bin width will be 512 as it is
-* the next nearest power of 2.
-*/
+ * Histogram represents the distribution of data, it has a list of "bins".
+ * Each bin represents an interval and has a count (frequency) of
+ * number of values fall within its interval.
+ *
+ * Histogram's range is determined by the number of bins and the bin width,
+ * There are 1000 bins and all bins have the same width of default 1
+ * millisecond. When a value above this range is added, Histogram's range is
+ * increased by increasing the bin width (note that number of bins remains
+ * always at 1000). This operation of increasing bin width is little expensive
+ * as each bin need to be visited to update its count. To reduce frequent change
+ * of bin width, new bin width will be the next nearest power of 2. Example: 2,
+ * 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 5086, ...
+ *
+ * So, if the required bin width is 300, then new bin width will be 512 as it is
+ * the next nearest power of 2.
+ */
 static void change_bin_width(latency_counter_t *lc, cdtime_t latency) /* {{{ */
 {
   /* This function is called because the new value is above histogram's range.

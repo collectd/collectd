@@ -466,7 +466,7 @@ static int handle_ipv6(struct ip6_hdr *ipv6, int len) {
 
   return 1; /* Success */
 } /* int handle_ipv6 */
-/* #endif HAVE_IPV6 */
+  /* #endif HAVE_IPV6 */
 
 #else  /* if !HAVE_IPV6 */
 static int handle_ipv6(__attribute__((unused)) void *pkg,

@@ -131,5 +131,5 @@ int tail_match_add_match_simple(cu_tail_match_t *obj, const char *regex,
  *
  * RETURN VALUE
  *   Zero on success, nonzero on failure.
-*/
+ */
 int tail_match_read(cu_tail_match_t *obj);

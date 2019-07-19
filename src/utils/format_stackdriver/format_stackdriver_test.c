@@ -27,7 +27,9 @@
 
 DEF_TEST(sd_format_metric_descriptor) {
   value_list_t vl = {
-      .host = "example.com", .plugin = "unit-test", .type = "example",
+      .host = "example.com",
+      .plugin = "unit-test",
+      .type = "example",
   };
   char got[1024];
 
@@ -36,7 +38,10 @@ DEF_TEST(sd_format_metric_descriptor) {
       .ds_num = 1,
       .ds =
           &(data_source_t){
-              .name = "value", .type = DS_TYPE_GAUGE, .min = NAN, .max = NAN,
+              .name = "value",
+              .type = DS_TYPE_GAUGE,
+              .min = NAN,
+              .max = NAN,
           },
   };
   EXPECT_EQ_INT(

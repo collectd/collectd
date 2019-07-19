@@ -267,7 +267,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .interval = cf_get_default_interval(), .name = strdup(name),
+      .interval = cf_get_default_interval(),
+      .name = strdup(name),
   };
   if (ctx.name == NULL)
     return ENOMEM;
@@ -479,9 +480,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp = realloc(dst->children,
-                 sizeof(oconfig_item_t) *
-                     (dst->children_num + src->children_num - 1));
+  temp =
+      realloc(dst->children, sizeof(oconfig_item_t) *
+                                 (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -520,9 +521,8 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp =
-      realloc(dst->children,
-              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
+  temp = realloc(dst->children, sizeof(oconfig_item_t) *
+                                    (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;

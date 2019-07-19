@@ -697,8 +697,8 @@ static int cx_config_add_namespace(cx_t *db, /* {{{ */
     return EINVAL;
   }
 
-  cx_namespace_t *ns = realloc(
-      db->namespaces, sizeof(*db->namespaces) * (db->namespaces_num + 1));
+  cx_namespace_t *ns = realloc(db->namespaces, sizeof(*db->namespaces) *
+                                                   (db->namespaces_num + 1));
   if (ns == NULL) {
     ERROR("curl_xml plugin: realloc failed.");
     return ENOMEM;
@@ -925,7 +925,8 @@ static int cx_config_add_url(oconfig_item_t *ci) /* {{{ */
   plugin_register_complex_read(/* group = */ "curl_xml", cb_name, cx_read,
                                /* interval = */ interval,
                                &(user_data_t){
-                                   .data = db, .free_func = cx_free,
+                                   .data = db,
+                                   .free_func = cx_free,
                                });
   sfree(cb_name);
   return 0;

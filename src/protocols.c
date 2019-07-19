@@ -41,7 +41,8 @@
  * Global variables
  */
 static const char *config_keys[] = {
-    "Value", "IgnoreSelected",
+    "Value",
+    "IgnoreSelected",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 

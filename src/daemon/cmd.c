@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
 #ifdef KERNEL_LINUX
       && notify_upstart() == 0 && notify_systemd() == 0
 #endif
-      ) {
+  ) {
     pid_t pid;
     if ((pid = fork()) == -1) {
       /* error */
