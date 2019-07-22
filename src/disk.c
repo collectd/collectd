@@ -59,9 +59,6 @@
 #include <libgeom.h>
 #endif
 
-#if HAVE_LIMITS_H
-#include <limits.h>
-#endif
 #ifndef UINT_MAX
 #define UINT_MAX 4294967295U
 #endif
@@ -209,7 +206,7 @@ static int disk_init(void) {
     io_master_port = MACH_PORT_NULL;
     return -1;
   }
-/* #endif HAVE_IOKIT_IOKITLIB_H */
+    /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_LINUX
 #if HAVE_LIBUDEV_H
@@ -221,7 +218,7 @@ static int disk_init(void) {
     }
   }
 #endif /* HAVE_LIBUDEV_H */
-/* #endif KERNEL_LINUX */
+    /* #endif KERNEL_LINUX */
 
 #elif KERNEL_FREEBSD
   int rv;
@@ -236,7 +233,7 @@ static int disk_init(void) {
     ERROR("geom_stats_open() failed, returned %d", rv);
     return -1;
   }
-/* #endif KERNEL_FREEBSD */
+    /* #endif KERNEL_FREEBSD */
 
 #elif HAVE_LIBKSTAT
   kstat_t *ksp_chain;
@@ -275,7 +272,8 @@ static void disk_submit(const char *plugin_instance, const char *type,
                         derive_t read, derive_t write) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = read}, {.derive = write},
+      {.derive = read},
+      {.derive = write},
   };
 
   vl.values = values;
@@ -292,7 +290,8 @@ static void submit_io_time(char const *plugin_instance, derive_t io_time,
                            derive_t weighted_time) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = io_time}, {.derive = weighted_time},
+      {.derive = io_time},
+      {.derive = weighted_time},
   };
 
   vl.values = values;
@@ -493,10 +492,11 @@ static int disk_read(void) {
         sstrncpy(disk_name, props_disk_name_bsd, sizeof(disk_name));
       else {
         ERROR("disk plugin: can't find bsd disk name.");
-        snprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
+        ssnprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major,
+                  disk_minor);
       }
     } else
-      snprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
+      ssnprintf(disk_name, sizeof(disk_name), "%i-%i", disk_major, disk_minor);
 
     DEBUG("disk plugin: disk_name = \"%s\"", disk_name);
 
@@ -532,7 +532,7 @@ static int disk_read(void) {
       disk_submit(disk_name, "disk_time", read_tme / 1000, write_tme / 1000);
   }
   IOObjectRelease(disk_list);
-/* #endif HAVE_IOKIT_IOKITLIB_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H */
 
 #elif KERNEL_FREEBSD
   int retry, dirty;
@@ -896,7 +896,7 @@ static int disk_read(void) {
     free(missing_ds);
   }
   fclose(fh);
-/* #endif defined(KERNEL_LINUX) */
+  /* #endif defined(KERNEL_LINUX) */
 
 #elif HAVE_LIBKSTAT
 #if HAVE_KSTAT_IO_T_WRITES && HAVE_KSTAT_IO_T_NWRITES && HAVE_KSTAT_IO_T_WTIME
@@ -944,7 +944,7 @@ static int disk_read(void) {
       disk_submit(ksp[i]->ks_name, "disk_ops", kio.KIO_ROPS, kio.KIO_WOPS);
     }
   }
-/* #endif defined(HAVE_LIBKSTAT) */
+    /* #endif defined(HAVE_LIBKSTAT) */
 
 #elif defined(HAVE_LIBSTATGRAB)
   sg_disk_io_stats *ds;
@@ -971,7 +971,7 @@ static int disk_read(void) {
     disk_submit(name, "disk_octets", ds->read_bytes, ds->write_bytes);
     ds++;
   }
-/* #endif defined(HAVE_LIBSTATGRAB) */
+    /* #endif defined(HAVE_LIBSTATGRAB) */
 
 #elif defined(HAVE_PERFSTAT)
   derive_t read_sectors;

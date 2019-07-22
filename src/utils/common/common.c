@@ -25,7 +25,7 @@
  *   Niki W. Waibel <niki.waibel@gmx.net>
  *   Sebastian Harl <sh at tokkee.org>
  *   Michał Mirosław <mirq-linux at rere.qmqm.pl>
-**/
+ **/
 
 #include "collectd.h"
 
@@ -88,6 +88,22 @@ char *sstrncpy(char *dest, const char *src, size_t n) {
 
   return dest;
 } /* char *sstrncpy */
+
+/* ssnprintf returns zero on success, one if truncation occurred
+   and a negative integer onerror. */
+int ssnprintf(char *str, size_t sz, const char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+
+  int ret = vsnprintf(str, sz, format, ap);
+
+  va_end(ap);
+
+  if (ret < 0) {
+    return ret;
+  }
+  return (size_t)ret >= sz;
+} /* int ssnprintf */
 
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
 {
@@ -165,7 +181,7 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
 
     pthread_mutex_unlock(&strerror_r_lock);
   }
-/* #endif !HAVE_STRERROR_R */
+    /* #endif !HAVE_STRERROR_R */
 
 #elif STRERROR_R_CHAR_P
   {
@@ -175,17 +191,19 @@ char *sstrerror(int errnum, char *buf, size_t buflen) {
       if ((temp != NULL) && (temp != buf) && (temp[0] != '\0'))
         sstrncpy(buf, temp, buflen);
       else
-        sstrncpy(buf, "strerror_r did not return "
-                      "an error message",
+        sstrncpy(buf,
+                 "strerror_r did not return "
+                 "an error message",
                  buflen);
     }
   }
-/* #endif STRERROR_R_CHAR_P */
+    /* #endif STRERROR_R_CHAR_P */
 
 #else
   if (strerror_r(errnum, buf, buflen) != 0) {
-    snprintf(buf, buflen, "Error #%i; "
-                          "Additionally, strerror_r failed.",
+    snprintf(buf, buflen,
+             "Error #%i; "
+             "Additionally, strerror_r failed.",
              errnum);
   }
 #endif /* STRERROR_R_CHAR_P */
@@ -721,9 +739,8 @@ long long get_kstat_value(kstat_t *ksp, char *name) {
   else if (kn->data_type == KSTAT_DATA_UINT32)
     retval = (long long)kn->value.ui32;
   else if (kn->data_type == KSTAT_DATA_INT64)
-    retval =
-        (long long)kn->value.i64; /* According to ANSI C99 `long long' must hold
-                                     at least 64 bits */
+    retval = (long long)kn->value.i64; /* According to ANSI C99 `long long' must
+                                          hold at least 64 bits */
   else if (kn->data_type == KSTAT_DATA_UINT64)
     retval = (long long)kn->value.ui64; /* XXX: Might overflow! */
   else
@@ -752,8 +769,8 @@ unsigned long long htonll(unsigned long long n) {
 #endif /* HAVE_HTONLL */
 
 #if FP_LAYOUT_NEED_NOTHING
-/* Well, we need nothing.. */
-/* #endif FP_LAYOUT_NEED_NOTHING */
+  /* Well, we need nothing.. */
+  /* #endif FP_LAYOUT_NEED_NOTHING */
 
 #elif FP_LAYOUT_NEED_ENDIANFLIP || FP_LAYOUT_NEED_INTSWAP
 #if FP_LAYOUT_NEED_ENDIANFLIP

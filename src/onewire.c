@@ -297,8 +297,8 @@ static int cow_read_values(const char *path, const char *name,
     char file[4096];
     char *endptr;
 
-    snprintf(file, sizeof(file), "%s/%s", path,
-             family_info->features[i].filename);
+    ssnprintf(file, sizeof(file), "%s/%s", path,
+              family_info->features[i].filename);
     file[sizeof(file) - 1] = '\0';
 
     buffer = NULL;
@@ -348,11 +348,11 @@ static int cow_read_ds2409(const char *path) {
   char subpath[4096];
   int status;
 
-  status = snprintf(subpath, sizeof(subpath), "%s/main", path);
+  status = ssnprintf(subpath, sizeof(subpath), "%s/main", path);
   if ((status > 0) && (status < (int)sizeof(subpath)))
     cow_read_bus(subpath);
 
-  status = snprintf(subpath, sizeof(subpath), "%s/aux", path);
+  status = ssnprintf(subpath, sizeof(subpath), "%s/aux", path);
   if ((status > 0) && (status < (int)sizeof(subpath)))
     cow_read_bus(subpath);
 
@@ -384,9 +384,9 @@ static int cow_read_bus(const char *path) {
     dummy = NULL;
 
     if (strcmp("/", path) == 0)
-      status = snprintf(subpath, sizeof(subpath), "/%s", buffer_ptr);
+      status = ssnprintf(subpath, sizeof(subpath), "/%s", buffer_ptr);
     else
-      status = snprintf(subpath, sizeof(subpath), "%s/%s", path, buffer_ptr);
+      status = ssnprintf(subpath, sizeof(subpath), "%s/%s", path, buffer_ptr);
     if ((status <= 0) || (status >= (int)sizeof(subpath)))
       continue;
 

@@ -24,8 +24,14 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
+// clang-format off
+/*
+ * Explicit order is required or _FILE_OFFSET_BITS will have definition mismatches on Solaris
+ * See Github Issue #3193 for details
+ */
 #include "utils/common/common.h"
+#include "testing.h"
+// clang-format on
 
 #if HAVE_KSTAT_H
 #include <kstat.h>
@@ -280,10 +286,15 @@ DEF_TEST(parse_values) {
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     data_source_t dsrc = {
-        .name = "value", .type = DS_TYPE_GAUGE, .min = 0.0, .max = NAN,
+        .name = "value",
+        .type = DS_TYPE_GAUGE,
+        .min = 0.0,
+        .max = NAN,
     };
     data_set_t ds = {
-        .type = "example", .ds_num = 1, .ds = &dsrc,
+        .type = "example",
+        .ds_num = 1,
+        .ds = &dsrc,
     };
 
     value_t v = {
@@ -344,7 +355,8 @@ DEF_TEST(value_to_rate) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     cdtime_t t0 = TIME_T_TO_CDTIME_T(cases[i].t0);
     value_to_rate_state_t state = {
-        .last_value = cases[i].v0, .last_time = t0,
+        .last_value = cases[i].v0,
+        .last_time = t0,
     };
     gauge_t got;
 

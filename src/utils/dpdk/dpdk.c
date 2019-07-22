@@ -110,10 +110,10 @@ static void dpdk_helper_config_default(dpdk_helper_ctx_t *phc) {
 
   DPDK_HELPER_TRACE(phc->shm_name);
 
-  snprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
-  snprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
-  snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
-           DPDK_DEFAULT_RTE_CONFIG);
+  ssnprintf(phc->eal_config.coremask, DATA_MAX_NAME_LEN, "%s", "0xf");
+  ssnprintf(phc->eal_config.memory_channels, DATA_MAX_NAME_LEN, "%s", "1");
+  ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN, "%s",
+            DPDK_DEFAULT_RTE_CONFIG);
 }
 
 int dpdk_helper_eal_config_set(dpdk_helper_ctx_t *phc, dpdk_eal_config_t *ec) {
@@ -189,11 +189,11 @@ int dpdk_helper_eal_config_parse(dpdk_helper_ctx_t *phc, oconfig_item_t *ci) {
       status = cf_util_get_string_buffer(child, prefix, sizeof(prefix));
       if (status == 0) {
 #if RTE_VERSION <= RTE_VERSION_NUM(18, 5, 0, 0)
-        snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
-                 "/var/run/.%s_config", prefix);
+        ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+                  "/var/run/.%s_config", prefix);
 #else
-        snprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
-                 "/var/run/dpdk/%s/config", prefix);
+        ssnprintf(phc->eal_config.file_prefix, DATA_MAX_NAME_LEN,
+                  "/var/run/dpdk/%s/config", prefix);
 #endif
         DEBUG("dpdk_common: EAL:File prefix %s", phc->eal_config.file_prefix);
       }
@@ -304,8 +304,8 @@ int dpdk_helper_init(const char *name, size_t data_size,
   DPDK_HELPER_TRACE(name);
 
   /* Allocate dpdk_helper_ctx_t and
-  * initialize a POSIX SHared Memory (SHM) object.
-  */
+   * initialize a POSIX SHared Memory (SHM) object.
+   */
   int err = dpdk_shm_init(name, shm_size, (void **)&phc);
   if (err != 0) {
     return -errno;
@@ -704,7 +704,8 @@ static void dpdk_helper_check_pipe(dpdk_helper_ctx_t *phc) {
 
   /* non blocking check on helper logging pipe */
   struct pollfd fds = {
-      .fd = phc->pipes[0], .events = POLLIN,
+      .fd = phc->pipes[0],
+      .events = POLLIN,
   };
   int data_avail = poll(&fds, 1, 0);
   DEBUG("%s:dpdk_helper_check_pipe: poll data_avail=%d", phc->shm_name,

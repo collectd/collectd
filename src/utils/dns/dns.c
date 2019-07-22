@@ -79,12 +79,6 @@
 #if HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#if HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#if HAVE_ARPA_NAMESER_COMPAT_H
-#include <arpa/nameser_compat.h>
-#endif
 
 #if HAVE_NETDB_H
 #include <netdb.h>
@@ -472,7 +466,7 @@ static int handle_ipv6(struct ip6_hdr *ipv6, int len) {
 
   return 1; /* Success */
 } /* int handle_ipv6 */
-/* #endif HAVE_IPV6 */
+  /* #endif HAVE_IPV6 */
 
 #else  /* if !HAVE_IPV6 */
 static int handle_ipv6(__attribute__((unused)) void *pkg,
@@ -666,253 +660,184 @@ void handle_pcap(u_char *udata, const struct pcap_pkthdr *hdr,
 
 const char *qtype_str(int t) {
   static char buf[32];
+  // clang-format off
+  /*
+  Built (with minor cleanup) from glibc-2.29 by
+    cat resolv/arpa/nameser.h | grep "ns_t_" | \
+    perl -ne '/ns_t_(\S+)\ =\ (\d+)/; print "  case $2:\n    return \"".uc($1)."\";\n";'
+  */
+  // clang-format on
   switch (t) {
-#if (defined(__NAMESER)) && (__NAMESER >= 19991001)
-  case ns_t_a:
+  case 1:
     return "A";
-  case ns_t_ns:
+  case 2:
     return "NS";
-  case ns_t_md:
+  case 3:
     return "MD";
-  case ns_t_mf:
+  case 4:
     return "MF";
-  case ns_t_cname:
+  case 5:
     return "CNAME";
-  case ns_t_soa:
+  case 6:
     return "SOA";
-  case ns_t_mb:
+  case 7:
     return "MB";
-  case ns_t_mg:
+  case 8:
     return "MG";
-  case ns_t_mr:
+  case 9:
     return "MR";
-  case ns_t_null:
+  case 10:
     return "NULL";
-  case ns_t_wks:
+  case 11:
     return "WKS";
-  case ns_t_ptr:
+  case 12:
     return "PTR";
-  case ns_t_hinfo:
+  case 13:
     return "HINFO";
-  case ns_t_minfo:
+  case 14:
     return "MINFO";
-  case ns_t_mx:
+  case 15:
     return "MX";
-  case ns_t_txt:
+  case 16:
     return "TXT";
-  case ns_t_rp:
+  case 17:
     return "RP";
-  case ns_t_afsdb:
+  case 18:
     return "AFSDB";
-  case ns_t_x25:
+  case 19:
     return "X25";
-  case ns_t_isdn:
+  case 20:
     return "ISDN";
-  case ns_t_rt:
+  case 21:
     return "RT";
-  case ns_t_nsap:
+  case 22:
     return "NSAP";
-  case ns_t_nsap_ptr:
+  case 23:
     return "NSAP-PTR";
-  case ns_t_sig:
+  case 24:
     return "SIG";
-  case ns_t_key:
+  case 25:
     return "KEY";
-  case ns_t_px:
+  case 26:
     return "PX";
-  case ns_t_gpos:
+  case 27:
     return "GPOS";
-  case ns_t_aaaa:
+  case 28:
     return "AAAA";
-  case ns_t_loc:
+  case 29:
     return "LOC";
-  case ns_t_nxt:
+  case 30:
     return "NXT";
-  case ns_t_eid:
+  case 31:
     return "EID";
-  case ns_t_nimloc:
+  case 32:
     return "NIMLOC";
-  case ns_t_srv:
+  case 33:
     return "SRV";
-  case ns_t_atma:
+  case 34:
     return "ATMA";
-  case ns_t_naptr:
+  case 35:
     return "NAPTR";
-  case ns_t_opt:
-    return "OPT";
-#if __NAMESER >= 19991006
-  case ns_t_kx:
+  case 36:
     return "KX";
-  case ns_t_cert:
+  case 37:
     return "CERT";
-  case ns_t_a6:
+  case 38:
     return "A6";
-  case ns_t_dname:
+  case 39:
     return "DNAME";
-  case ns_t_sink:
+  case 40:
     return "SINK";
-  case ns_t_tsig:
-    return "TSIG";
-#endif
-#if __NAMESER >= 20090302
-  case ns_t_apl:
-    return "APL";
-  case ns_t_ds:
-    return "DS";
-  case ns_t_sshfp:
-    return "SSHFP";
-  case ns_t_ipseckey:
-    return "IPSECKEY";
-  case ns_t_rrsig:
-    return "RRSIG";
-  case ns_t_nsec:
-    return "NSEC";
-  case ns_t_dnskey:
-    return "DNSKEY";
-  case ns_t_dhcid:
-    return "DHCID";
-  case ns_t_nsec3:
-    return "NSEC3";
-  case ns_t_nsec3param:
-    return "NSEC3PARAM";
-  case ns_t_hip:
-    return "HIP";
-  case ns_t_spf:
-    return "SPF";
-  case ns_t_ixfr:
-    return "IXFR";
-#endif
-  case ns_t_axfr:
-    return "AXFR";
-  case ns_t_mailb:
-    return "MAILB";
-  case ns_t_maila:
-    return "MAILA";
-  case ns_t_any:
-    return "ANY";
-#if __NAMESER >= 19991006
-  case ns_t_zxfr:
-    return "ZXFR";
-#endif
-#if __NAMESER >= 20090302
-  case ns_t_dlv:
-    return "DLV";
-#endif
-/* #endif __NAMESER >= 19991001 */
-#elif (defined(__BIND)) && (__BIND >= 19950621)
-  case T_A:
-    return "A"; /* 1 ... */
-  case T_NS:
-    return "NS";
-  case T_MD:
-    return "MD";
-  case T_MF:
-    return "MF";
-  case T_CNAME:
-    return "CNAME";
-  case T_SOA:
-    return "SOA";
-  case T_MB:
-    return "MB";
-  case T_MG:
-    return "MG";
-  case T_MR:
-    return "MR";
-  case T_NULL:
-    return "NULL";
-  case T_WKS:
-    return "WKS";
-  case T_PTR:
-    return "PTR";
-  case T_HINFO:
-    return "HINFO";
-  case T_MINFO:
-    return "MINFO";
-  case T_MX:
-    return "MX";
-  case T_TXT:
-    return "TXT";
-  case T_RP:
-    return "RP";
-  case T_AFSDB:
-    return "AFSDB";
-  case T_X25:
-    return "X25";
-  case T_ISDN:
-    return "ISDN";
-  case T_RT:
-    return "RT";
-  case T_NSAP:
-    return "NSAP";
-  case T_NSAP_PTR:
-    return "NSAP_PTR";
-  case T_SIG:
-    return "SIG";
-  case T_KEY:
-    return "KEY";
-  case T_PX:
-    return "PX";
-  case T_GPOS:
-    return "GPOS";
-  case T_AAAA:
-    return "AAAA";
-  case T_LOC:
-    return "LOC";
-  case T_NXT:
-    return "NXT";
-  case T_EID:
-    return "EID";
-  case T_NIMLOC:
-    return "NIMLOC";
-  case T_SRV:
-    return "SRV";
-  case T_ATMA:
-    return "ATMA";
-  case T_NAPTR:
-    return "NAPTR"; /* ... 35 */
-#if (__BIND >= 19960801)
-  case T_KX:
-    return "KX"; /* 36 ... */
-  case T_CERT:
-    return "CERT";
-  case T_A6:
-    return "A6";
-  case T_DNAME:
-    return "DNAME";
-  case T_SINK:
-    return "SINK";
-  case T_OPT:
+  case 41:
     return "OPT";
-  case T_APL:
+  case 42:
     return "APL";
-  case T_DS:
+  case 43:
     return "DS";
-  case T_SSHFP:
+  case 44:
     return "SSHFP";
-  case T_RRSIG:
+  case 45:
+    return "IPSECKEY";
+  case 46:
     return "RRSIG";
-  case T_NSEC:
+  case 47:
     return "NSEC";
-  case T_DNSKEY:
-    return "DNSKEY"; /* ... 48 */
-  case T_TKEY:
-    return "TKEY"; /* 249 */
-#endif /* __BIND >= 19960801 */
-  case T_TSIG:
-    return "TSIG"; /* 250 ... */
-  case T_IXFR:
+  case 48:
+    return "DNSKEY";
+  case 49:
+    return "DHCID";
+  case 50:
+    return "NSEC3";
+  case 51:
+    return "NSEC3PARAM";
+  case 52:
+    return "TLSA";
+  case 53:
+    return "SMIMEA";
+  case 55:
+    return "HIP";
+  case 56:
+    return "NINFO";
+  case 57:
+    return "RKEY";
+  case 58:
+    return "TALINK";
+  case 59:
+    return "CDS";
+  case 60:
+    return "CDNSKEY";
+  case 61:
+    return "OPENPGPKEY";
+  case 62:
+    return "CSYNC";
+  case 99:
+    return "SPF";
+  case 100:
+    return "UINFO";
+  case 101:
+    return "UID";
+  case 102:
+    return "GID";
+  case 103:
+    return "UNSPEC";
+  case 104:
+    return "NID";
+  case 105:
+    return "L32";
+  case 106:
+    return "L64";
+  case 107:
+    return "LP";
+  case 108:
+    return "EUI48";
+  case 109:
+    return "EUI64";
+  case 249:
+    return "TKEY";
+  case 250:
+    return "TSIG";
+  case 251:
     return "IXFR";
-  case T_AXFR:
+  case 252:
     return "AXFR";
-  case T_MAILB:
+  case 253:
     return "MAILB";
-  case T_MAILA:
+  case 254:
     return "MAILA";
-  case T_ANY:
-    return "ANY"; /* ... 255 */
-#endif /* __BIND >= 19950621 */
+  case 255:
+    return "ANY";
+  case 256:
+    return "URI";
+  case 257:
+    return "CAA";
+  case 258:
+    return "AVC";
+  case 32768:
+    return "TA";
+  case 32769:
+    return "DLV";
   default:
-    snprintf(buf, sizeof(buf), "#%i", t);
+    ssnprintf(buf, sizeof(buf), "#%i", t);
     return buf;
   } /* switch (t) */
 }
@@ -931,74 +856,55 @@ const char *opcode_str(int o) {
   case 5:
     return "Update";
   default:
-    snprintf(buf, sizeof(buf), "Opcode%d", o);
+    ssnprintf(buf, sizeof(buf), "Opcode%d", o);
     return buf;
   }
 }
 
 const char *rcode_str(int rcode) {
   static char buf[32];
+  /* RFC2136 rcodes */
+  // clang-format off
+  /*
+  Built (with minor cleanup) from glibc-2.29 by
+    cat resolv/arpa/nameser.h | grep "ns_r_" | \
+    perl -ne '/ns_r_(\S+)\ =\ (\d+)/; print "  case $2:\n    return \"".uc($1)."\";\n";'
+
+  https://tools.ietf.org/html/rfc2671 assigns EDNS Extended RCODE "16" to "BADVERS"
+  https://tools.ietf.org/html/rfc2845 declares 0..15 as DNS RCODE and 16 is BADSIG.
+  */
+  // clang-format on
   switch (rcode) {
-#if (defined(__NAMESER)) && (__NAMESER >= 19991006)
-  case ns_r_noerror:
-    return "NOERROR";
-  case ns_r_formerr:
+  case 1:
     return "FORMERR";
-  case ns_r_servfail:
+  case 2:
     return "SERVFAIL";
-  case ns_r_nxdomain:
+  case 3:
     return "NXDOMAIN";
-  case ns_r_notimpl:
+  case 4:
     return "NOTIMPL";
-  case ns_r_refused:
+  case 5:
     return "REFUSED";
-  case ns_r_yxdomain:
+  case 6:
     return "YXDOMAIN";
-  case ns_r_yxrrset:
+  case 7:
     return "YXRRSET";
-  case ns_r_nxrrset:
+  case 8:
     return "NXRRSET";
-  case ns_r_notauth:
+  case 9:
     return "NOTAUTH";
-  case ns_r_notzone:
+  case 10:
     return "NOTZONE";
-  case ns_r_max:
+  case 11:
     return "MAX";
-  case ns_r_badsig:
+  case 16:
     return "BADSIG";
-  case ns_r_badkey:
+  case 17:
     return "BADKEY";
-  case ns_r_badtime:
+  case 18:
     return "BADTIME";
-/* #endif __NAMESER >= 19991006 */
-#elif (defined(__BIND)) && (__BIND >= 19950621)
-  case NOERROR:
-    return "NOERROR";
-  case FORMERR:
-    return "FORMERR";
-  case SERVFAIL:
-    return "SERVFAIL";
-  case NXDOMAIN:
-    return "NXDOMAIN";
-  case NOTIMP:
-    return "NOTIMP";
-  case REFUSED:
-    return "REFUSED";
-#if defined(YXDOMAIN) && defined(NXRRSET)
-  case YXDOMAIN:
-    return "YXDOMAIN";
-  case YXRRSET:
-    return "YXRRSET";
-  case NXRRSET:
-    return "NXRRSET";
-  case NOTAUTH:
-    return "NOTAUTH";
-  case NOTZONE:
-    return "NOTZONE";
-#endif /* RFC2136 rcodes */
-#endif /* __BIND >= 19950621 */
   default:
-    snprintf(buf, sizeof(buf), "RCode%i", rcode);
+    ssnprintf(buf, sizeof(buf), "RCode%i", rcode);
     return buf;
   }
 } /* const char *rcode_str (int rcode) */

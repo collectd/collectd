@@ -200,7 +200,7 @@ static int dispatch_global_option(const oconfig_item_t *ci) {
     return global_option_set(ci->key, ci->values[0].value.string, 0);
   else if (ci->values[0].type == OCONFIG_TYPE_NUMBER) {
     char tmp[128];
-    snprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
+    ssnprintf(tmp, sizeof(tmp), "%lf", ci->values[0].value.number);
     return global_option_set(ci->key, tmp, 0);
   } else if (ci->values[0].type == OCONFIG_TYPE_BOOLEAN) {
     if (ci->values[0].value.boolean)
@@ -267,7 +267,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .interval = cf_get_default_interval(), .name = strdup(name),
+      .interval = cf_get_default_interval(),
+      .name = strdup(name),
   };
   if (ctx.name == NULL)
     return ENOMEM;
@@ -311,13 +312,13 @@ static int dispatch_value_plugin(const char *plugin, oconfig_item_t *ci) {
 
     if (ci->values[i].type == OCONFIG_TYPE_STRING)
       status =
-          snprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
+          ssnprintf(buffer_ptr, buffer_free, " %s", ci->values[i].value.string);
     else if (ci->values[i].type == OCONFIG_TYPE_NUMBER)
-      status =
-          snprintf(buffer_ptr, buffer_free, " %lf", ci->values[i].value.number);
+      status = ssnprintf(buffer_ptr, buffer_free, " %lf",
+                         ci->values[i].value.number);
     else if (ci->values[i].type == OCONFIG_TYPE_BOOLEAN)
-      status = snprintf(buffer_ptr, buffer_free, " %s",
-                        ci->values[i].value.boolean ? "true" : "false");
+      status = ssnprintf(buffer_ptr, buffer_free, " %s",
+                         ci->values[i].value.boolean ? "true" : "false");
 
     if ((status < 0) || (status >= buffer_free))
       return -1;
@@ -413,9 +414,13 @@ static int dispatch_block_plugin(oconfig_item_t *ci) {
   /* Hm, no complex plugin found. Dispatch the values one by one */
   for (int i = 0, ret = 0; i < ci->children_num; i++) {
     if (ci->children[i].children == NULL) {
-      ret = dispatch_value_plugin(name, ci->children + i);
-      if (ret != 0)
+      oconfig_item_t *child = ci->children + i;
+      ret = dispatch_value_plugin(name, child);
+      if (ret != 0) {
+        ERROR("Plugin %s failed to handle option %s, return code: %i", name,
+              child->key, ret);
         return ret;
+      }
     } else {
       WARNING("There is a `%s' block within the "
               "configuration for the %s plugin. "
@@ -475,9 +480,9 @@ static int cf_ci_replace_child(oconfig_item_t *dst, oconfig_item_t *src,
     return 0;
   }
 
-  temp = realloc(dst->children,
-                 sizeof(oconfig_item_t) *
-                     (dst->children_num + src->children_num - 1));
+  temp =
+      realloc(dst->children, sizeof(oconfig_item_t) *
+                                 (dst->children_num + src->children_num - 1));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -516,9 +521,8 @@ static int cf_ci_append_children(oconfig_item_t *dst, oconfig_item_t *src) {
   if ((src == NULL) || (src->children_num == 0))
     return 0;
 
-  temp =
-      realloc(dst->children,
-              sizeof(oconfig_item_t) * (dst->children_num + src->children_num));
+  temp = realloc(dst->children, sizeof(oconfig_item_t) *
+                                    (dst->children_num + src->children_num));
   if (temp == NULL) {
     ERROR("configfile: realloc failed.");
     return -1;
@@ -666,7 +670,7 @@ static oconfig_item_t *cf_read_dir(const char *dir, const char *pattern,
     if ((de->d_name[0] == '.') || (de->d_name[0] == 0))
       continue;
 
-    status = snprintf(name, sizeof(name), "%s/%s", dir, de->d_name);
+    status = ssnprintf(name, sizeof(name), "%s/%s", dir, de->d_name);
     if ((status < 0) || ((size_t)status >= sizeof(name))) {
       ERROR("configfile: Not including `%s/%s' because its"
             " name is too long.",
@@ -806,7 +810,7 @@ static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
 
   return root;
 } /* oconfig_item_t *cf_read_generic */
-/* #endif HAVE_WORDEXP_H */
+  /* #endif HAVE_WORDEXP_H */
 
 #else  /* if !HAVE_WORDEXP_H */
 static oconfig_item_t *cf_read_generic(const char *path, const char *pattern,
@@ -1235,7 +1239,7 @@ int cf_util_get_service(const oconfig_item_t *ci, char **ret_string) /* {{{ */
     P_ERROR("cf_util_get_service: Out of memory.");
     return -1;
   }
-  snprintf(service, 6, "%i", port);
+  ssnprintf(service, 6, "%i", port);
 
   sfree(*ret_string);
   *ret_string = service;

@@ -109,8 +109,8 @@ static char *wg_get_authorization_header(wg_callback_t *cb) { /* {{{ */
     return NULL;
   }
 
-  status = snprintf(authorization_header, sizeof(authorization_header),
-                    "Authorization: Bearer %s", access_token);
+  status = ssnprintf(authorization_header, sizeof(authorization_header),
+                     "Authorization: Bearer %s", access_token);
   if ((status < 1) || ((size_t)status >= sizeof(authorization_header)))
     return NULL;
 
@@ -160,9 +160,9 @@ static char *api_error_string(api_error_t *err, char *buffer,
   if (err == NULL) {
     strncpy(buffer, "Unknown error (API error is NULL)", buffer_size);
   } else if (err->message == NULL) {
-    snprintf(buffer, buffer_size, "API error %d", err->code);
+    ssnprintf(buffer, buffer_size, "API error %d", err->code);
   } else {
-    snprintf(buffer, buffer_size, "API error %d: %s", err->code, err->message);
+    ssnprintf(buffer, buffer_size, "API error %d: %s", err->code, err->message);
   }
 
   return buffer;
@@ -251,8 +251,8 @@ static int do_post(wg_callback_t *cb, char const *url, void const *payload,
 static int wg_call_metricdescriptor_create(wg_callback_t *cb,
                                            char const *payload) {
   char url[1024];
-  snprintf(url, sizeof(url), "%s/projects/%s/metricDescriptors", cb->url,
-           cb->project);
+  ssnprintf(url, sizeof(url), "%s/projects/%s/metricDescriptors", cb->url,
+            cb->project);
   wg_memory_t response = {0};
 
   int status = do_post(cb, url, payload, &response);
@@ -273,7 +273,8 @@ static int wg_call_metricdescriptor_create(wg_callback_t *cb,
 
 static int wg_call_timeseries_write(wg_callback_t *cb, char const *payload) {
   char url[1024];
-  snprintf(url, sizeof(url), "%s/projects/%s/timeSeries", cb->url, cb->project);
+  ssnprintf(url, sizeof(url), "%s/projects/%s/timeSeries", cb->url,
+            cb->project);
   wg_memory_t response = {0};
 
   int status = do_post(cb, url, payload, &response);

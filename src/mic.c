@@ -132,7 +132,7 @@ static void mic_submit_memory_use(int micnumber, const char *type_instance,
   vl.values_len = 1;
 
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, "memory", sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -164,7 +164,7 @@ static void mic_submit_temp(int micnumber, const char *type, gauge_t value) {
   vl.values_len = 1;
 
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, "temperature", sizeof(vl.type));
   strncpy(vl.type_instance, type, sizeof(vl.type_instance));
 
@@ -206,10 +206,10 @@ static void mic_submit_cpu(int micnumber, const char *type_instance, int core,
 
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
   if (core < 0) /* global aggregation */
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   else /* per-core statistics */
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-cpu-%i",
-             micnumber, core);
+    ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-cpu-%i",
+              micnumber, core);
   strncpy(vl.type, "cpu", sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
@@ -258,7 +258,7 @@ static void mic_submit_power(int micnumber, const char *type,
   vl.values_len = 1;
 
   strncpy(vl.plugin, "mic", sizeof(vl.plugin));
-  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
+  ssnprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", micnumber);
   strncpy(vl.type, type, sizeof(vl.type));
   strncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 

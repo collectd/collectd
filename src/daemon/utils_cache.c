@@ -275,7 +275,8 @@ int uc_check_timeout(void) {
    * plugin calls the cache interface. */
   for (size_t i = 0; i < expired_num; i++) {
     value_list_t vl = {
-        .time = expired[i].time, .interval = expired[i].interval,
+        .time = expired[i].time,
+        .interval = expired[i].interval,
     };
 
     if (parse_identifier_vl(expired[i].key, &vl) != 0) {

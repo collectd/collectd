@@ -366,7 +366,8 @@ static int create_register_callback(llist_t **list, /* {{{ */
   cf->cf_callback = callback;
   if (ud == NULL) {
     cf->cf_udata = (user_data_t){
-        .data = NULL, .free_func = NULL,
+        .data = NULL,
+        .free_func = NULL,
     };
   } else {
     cf->cf_udata = *ud;
@@ -1294,8 +1295,10 @@ EXPORT int plugin_register_flush(const char *name, plugin_flush_cb callback,
         /* name      = */ flush_name,
         /* callback  = */ plugin_flush_timeout_callback,
         /* interval  = */ ctx.flush_interval,
-        /* user data = */ &(user_data_t){
-            .data = cb, .free_func = plugin_flush_timeout_callback_free,
+        /* user data = */
+        &(user_data_t){
+            .data = cb,
+            .free_func = plugin_flush_timeout_callback_free,
         });
 
     sfree(flush_name);

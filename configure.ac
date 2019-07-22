@@ -165,6 +165,7 @@ AC_CHECK_HEADERS_ONCE([ \
   kstat.h \
   kvm.h \
   libgen.h \
+  locale.h \
   mntent.h \
   mnttab.h \
   netdb.h \
@@ -635,16 +636,6 @@ fi
 
 # }}}
 
-# For the dns plugin
-AC_CHECK_HEADERS([arpa/nameser.h])
-AC_CHECK_HEADERS([arpa/nameser_compat.h], [], [],
-  [[
-    #if HAVE_ARPA_NAMESER_H
-    # include <arpa/nameser.h>
-    #endif
-  ]]
-)
-
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
   [[
     #if HAVE_SYS_SOCKET_H
@@ -768,6 +759,7 @@ AC_CHECK_FUNCS_ONCE([ \
     select \
     setenv \
     setgroups \
+    setlocale \
     strcasecmp \
     strdup \
     strncasecmp \
@@ -777,8 +769,10 @@ AC_CHECK_FUNCS_ONCE([ \
 
 AC_FUNC_STRERROR_R
 
-SAVE_CFLAGS="$CFLAGS"
-CFLAGS="-Wall -Werror"
+if test "x$GCC" = "xyes"; then
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -Wall -Werror"
+fi
 SAVE_LDFLAGS="$LDFLAGS"
 LDFLAGS=""
 if test "x$ac_system" = "xWindows"; then
@@ -3868,7 +3862,10 @@ if test "x$with_libnetsnmp" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
   SAVE_LDFLAGS="$LDFLAGS"
   SAVE_LIBS="$LIBS"
-  CPPFLAGS="$CPPFLAGS $with_libnetsnmp_cppflags -Wall -Werror"
+  CPPFLAGS="$CPPFLAGS $with_libnetsnmp_cppflags"
+  if test "x$GCC" = "xyes"; then
+    CPPFLAGS="$CPPFLAGS -Wall -Werror"
+  fi
   LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
   LIBS="$LIBS -lnetsnmp"
 
@@ -3977,6 +3974,8 @@ if test "x$with_libnetsnmpagent" = "xyes"; then
 fi
 
 if test "x$with_libnetsnmpagent" = "xyes"; then
+  BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS="$with_libnetsnmpagent_cppflags"
+  BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS="$with_libnetsnmpagent_ldflags"
   BUILD_WITH_LIBNETSNMPAGENT_LIBS="-lnetsnmpagent $libnetsnmphelpers"
 fi
 
@@ -4331,7 +4330,10 @@ if test "x$with_libperl" = "xyes"; then
   # (see issues #41 and #42)
   SAVE_CFLAGS="$CFLAGS"
   SAVE_LIBS="$LIBS"
-  CFLAGS="$CFLAGS $PERL_CFLAGS -Wall -Werror"
+  CFLAGS="$CFLAGS $PERL_CFLAGS"
+  if test "x$GCC" = "xyes"; then
+    CFLAGS="$CFLAGS -Wall -Werror"
+  fi
   LIBS="$LIBS $PERL_LIBS"
 
   AC_CACHE_CHECK([for broken Perl_load_module()],
@@ -7076,11 +7078,13 @@ AC_SUBST([LCC_VERSION_STRING])
 
 AC_CONFIG_FILES([src/libcollectdclient/collectd/lcc_features.h])
 
-AM_CFLAGS="-Wall"
-AM_CXXFLAGS="-Wall"
-if test "x$enable_werror" != "xno"; then
-  AM_CFLAGS="$AM_CFLAGS -Werror"
-  AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
+if test "x$GCC" = "xyes"; then
+  AM_CFLAGS="-Wall"
+  AM_CXXFLAGS="-Wall"
+  if test "x$enable_werror" != "xno"; then
+    AM_CFLAGS="$AM_CFLAGS -Werror"
+    AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
+  fi
 fi
 
 AC_SUBST([AM_CFLAGS])

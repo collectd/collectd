@@ -18,7 +18,7 @@
  *
  * Author:
  *   Niki W. Waibel <niki.waibel@gmx.net>
-**/
+ **/
 
 /* See below for instructions how to use the public functions. */
 

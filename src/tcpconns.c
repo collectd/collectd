@@ -413,7 +413,7 @@ static int conn_handle_ports(uint16_t port_local, uint16_t port_remote,
 #if TCP_STATE_MIN > 0
       || (state < TCP_STATE_MIN)
 #endif
-          ) {
+  ) {
     NOTICE("tcpconns plugin: Ignoring connection with "
            "unknown state 0x%02" PRIx8 ".",
            state);
@@ -630,10 +630,10 @@ static int conn_read_file(const char *file) {
 
   return 0;
 } /* int conn_read_file */
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
-/* #endif HAVE_SYSCTLBYNAME */
+  /* #endif HAVE_SYSCTLBYNAME */
 
 #elif HAVE_LIBKVM_NLIST
 #endif /* HAVE_LIBKVM_NLIST */
@@ -729,7 +729,7 @@ static int conn_read(void) {
 
   return 0;
 } /* int conn_read */
-/* #endif KERNEL_LINUX */
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_SYSCTLBYNAME
 static int conn_read(void) {
@@ -848,8 +848,8 @@ static int conn_read(void) {
 
   return 0;
 }
-/* int conn_read */
-/* #endif HAVE_KVM_GETFILES */
+  /* int conn_read */
+  /* #endif HAVE_KVM_GETFILES */
 
 #elif HAVE_LIBKVM_NLIST
 static int kread(u_long addr, void *buf, int size) {
@@ -966,7 +966,7 @@ static int conn_read(void) {
 
   return 0;
 }
-/* #endif HAVE_LIBKVM_NLIST */
+  /* #endif HAVE_LIBKVM_NLIST */
 
 #elif KERNEL_AIX
 

@@ -259,7 +259,7 @@ static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     return EINVAL;
 
   if (slave->instance[0] == 0)
-    snprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
+    ssnprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
 
   vl.values = &value;
   vl.values_len = 1;
@@ -341,7 +341,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
-/* #endif LEGACY_LIBMODBUS */
+  /* #endif LEGACY_LIBMODBUS */
 
 #else /* if !LEGACY_LIBMODBUS */
 /* Version 2.9.2 */
@@ -1072,13 +1072,14 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
   if (status == 0) {
     char name[1024];
 
-    snprintf(name, sizeof(name), "modbus-%s", host->host);
+    ssnprintf(name, sizeof(name), "modbus-%s", host->host);
 
     plugin_register_complex_read(/* group = */ NULL, name,
                                  /* callback = */ mb_read,
                                  /* interval = */ interval,
                                  &(user_data_t){
-                                     .data = host, .free_func = host_free,
+                                     .data = host,
+                                     .free_func = host_free,
                                  });
   } else {
     host_free(host);

@@ -132,7 +132,8 @@ static void tss2_submit_io(const char *plugin_instance, const char *type,
    */
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   vl.values = values;
