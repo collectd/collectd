@@ -41,6 +41,8 @@ void plugin_set_dir(const char *dir) { /* nop */
 
 int plugin_load(const char *name, bool global) { return ENOTSUP; }
 
+bool plugin_is_loaded(const char *name) { return false; }
+
 int plugin_register_config(const char *name,
                            int (*callback)(const char *key, const char *val),
                            const char **keys, int keys_num) {

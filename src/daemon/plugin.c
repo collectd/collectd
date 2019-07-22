@@ -906,15 +906,13 @@ void plugin_set_dir(const char *dir) {
     ERROR("plugin_set_dir: strdup(\"%s\") failed", dir);
 }
 
-static bool plugin_is_loaded(char const *name) {
-  int status;
-
+bool plugin_is_loaded(char const *name) {
   if (plugins_loaded == NULL)
     plugins_loaded =
         c_avl_create((int (*)(const void *, const void *))strcasecmp);
   assert(plugins_loaded != NULL);
 
-  status = c_avl_get(plugins_loaded, name, /* ret_value = */ NULL);
+  int status = c_avl_get(plugins_loaded, name, /* ret_value = */ NULL);
   return status == 0;
 }
 
