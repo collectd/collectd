@@ -816,6 +816,7 @@ metadata_end:
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
   const char *name;
+  char *metaname;
   char uuid[VIR_UUID_STRING_BUFLEN];
 
   sstrncpy(vl->plugin, PLUGIN_NAME, sizeof(vl->plugin));
@@ -846,9 +847,10 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
         SSTRNCAT(vl->host, uuid, sizeof(vl->host));
       break;
     case hf_metadata:
-      name = metadata_get_hostname(dom);
-      if (name)
-        SSTRNCAT(vl->host, name, sizeof(vl->host));
+      metaname = metadata_get_hostname(dom);
+      if (metaname)
+        SSTRNCAT(vl->host, metaname, sizeof(vl->host));
+      sfree(metaname);
       break;
     }
   }
@@ -874,9 +876,10 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
         SSTRNCAT(vl->plugin_instance, uuid, sizeof(vl->plugin_instance));
       break;
     case plginst_metadata:
-      name = metadata_get_hostname(dom);
-      if (name)
-        SSTRNCAT(vl->plugin_instance, name, sizeof(vl->plugin_instance));
+      metaname = metadata_get_hostname(dom);
+      if (metaname)
+        SSTRNCAT(vl->plugin_instance, metaname, sizeof(vl->plugin_instance));
+      sfree(metaname);
       break;
     }
   }
