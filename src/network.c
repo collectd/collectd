@@ -381,7 +381,7 @@ static bool check_send_notify_okay(const notification_t *n) /* {{{ */
         LOG_ERR, &complain_forwarding,
         "network plugin: A notification has been received via the network "
         "and forwarding is enabled. Forwarding of notifications is currently "
-        "not supported, because there is not loop-deteciton available. "
+        "not supported, because there is not loop-detection available. "
         "Please contact the collectd mailing list if you need this "
         "feature.");
   }
