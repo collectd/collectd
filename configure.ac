@@ -5756,7 +5756,7 @@ if test "x$with_libxmms" = "xyes"; then
 fi
 
 if test "x$with_libxmms" = "xyes"; then
-  SAVE_CPPFLAGS="$CFLAGS"
+  SAVE_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$with_xmms_cflags"
 
   AC_CHECK_HEADER([xmmsctrl.h],
