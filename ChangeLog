@@ -1,3 +1,33 @@
+2019-07-24, Version 5.9.1
+	* collectd: redhat spec: fix build due to new upstream plugins. Thanks
+	  to Fabien Wernli. #3175
+	* collectd: regex match: Fix unexpected match with empty meta data .
+	  Thanks to Takuro Ashie. #3178
+	* collectd: Fix return value or loglevel for several plugins. Thanks to
+	  Fabien Wernli. #3182
+	* collectd: Add standard include early or _FILE_OFFSET_BITS will have
+	  definition … . Thanks to Dagobert Michelsen. #3193
+	* collectd: Use GCC-specific flags only when compiling with GCC. Thanks
+	  to Dagobert Michelsen. #3195
+	* Use test_utils_proc_pids only when compiling the plugin that uses it.
+	  Thanks to Dagobert Michelsen. #3197
+	* DNS plugin: Do not use headers from glibc. Thanks to Pavel Rochnyak.
+	  #3156, #3145
+	* collectd: Add missing definitions for libnetsnmpagent. Thanks to
+	  Dagobert Michelsen. #3203
+	* collectd: Move Makefile rules for pid_test inside conditional for
+	  code. Thanks to Dagobert Michelsen. #3206
+	* collectd: Recover setlocale() call in src/daemon/collectd.c do_init().
+	  Thanks to Pavel Rochnyak. #3214, #3181
+	* collectd: Add snprintf wrapper for GCC 8.2/3. Thanks to zebity. #3153,
+	  #2895, #3038
+	* collectd: Fix bug that leads to CPPFLAGS gets overridden with CFLAGS
+	  when libxmms is enabled. Thanks to Dagobert Michelsen. #3207
+	* Write_Riemann plugin: Copy MetaData to Riemann events in
+	  write_riemann. Thanks to Romain Tartière. #3158
+	* virt plugin: Fix memory leak with libvirt MetadataXPath enabled.
+	  Thanks to Pavel Rochnyak. #3225, #3230
+
 2019-06-13, Version 5.9.0
 	* Build System: configure.ac: option "--with-libxml2" has been added.
 	  Thanks to Dimitrios Apostolou, Pavel Rochnyak. #2864
