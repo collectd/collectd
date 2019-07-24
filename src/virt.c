@@ -724,7 +724,10 @@ static int get_block_stats(struct lv_block_stats *bstats,
       ERROR(PLUGIN_NAME " plugin: %s failed: %s", (s), err->message);          \
   } while (0)
 
-static char *metadata_get_hostname(virDomainPtr dom) {
+enum metadata_set_type_e { META_APPEND_HOST, META_APPEND_PLUGIN_INSTANCE };
+
+static void set_field_from_metadata(value_list_t *vl, virDomainPtr dom,
+                                    enum metadata_set_type_e field) {
   const char *xpath_str = NULL;
   if (hm_xpath == NULL)
     xpath_str = "/instance/name/text()";
@@ -742,10 +745,10 @@ static char *metadata_get_hostname(virDomainPtr dom) {
   char *metadata_str = virDomainGetMetadata(
       dom, VIR_DOMAIN_METADATA_ELEMENT, namespace, VIR_DOMAIN_AFFECT_CURRENT);
   if (metadata_str == NULL) {
-    return NULL;
+    return;
   }
 
-  char *hostname = NULL;
+  const char *value = NULL;
   xmlXPathContextPtr xpath_ctx = NULL;
   xmlXPathObjectPtr xpath_obj = NULL;
   xmlNodePtr xml_node = NULL;
@@ -789,18 +792,25 @@ static char *metadata_get_hostname(virDomainPtr dom) {
 
   xml_node = xpath_obj->nodesetval->nodeTab[0];
   if (xml_node->type == XML_TEXT_NODE) {
-    hostname = strdup((const char *)xml_node->content);
+    value = (const char *)xml_node->content;
   } else if (xml_node->type == XML_ATTRIBUTE_NODE) {
-    hostname = strdup((const char *)xml_node->children->content);
+    value = (const char *)xml_node->children->content;
   } else {
     ERROR(PLUGIN_NAME " plugin: xmlXPathEval(%s) unsupported node type %d",
           xpath_str, xml_node->type);
     goto metadata_end;
   }
 
-  if (hostname == NULL) {
-    ERROR(PLUGIN_NAME " plugin: strdup(%s) hostname failed", xpath_str);
+  if (value == NULL)
     goto metadata_end;
+
+  switch (field) {
+  case META_APPEND_HOST:
+    SSTRNCAT(vl->host, value, sizeof(vl->host));
+    break;
+  case META_APPEND_PLUGIN_INSTANCE:
+    SSTRNCAT(vl->plugin_instance, value, sizeof(vl->plugin_instance));
+    break;
   }
 
 metadata_end:
@@ -811,7 +821,6 @@ metadata_end:
   if (xml_doc)
     xmlFreeDoc(xml_doc);
   sfree(metadata_str);
-  return hostname;
 }
 
 static void init_value_list(value_list_t *vl, virDomainPtr dom) {
@@ -846,9 +855,7 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
         SSTRNCAT(vl->host, uuid, sizeof(vl->host));
       break;
     case hf_metadata:
-      name = metadata_get_hostname(dom);
-      if (name)
-        SSTRNCAT(vl->host, name, sizeof(vl->host));
+      set_field_from_metadata(vl, dom, META_APPEND_HOST);
       break;
     }
   }
@@ -874,13 +881,10 @@ static void init_value_list(value_list_t *vl, virDomainPtr dom) {
         SSTRNCAT(vl->plugin_instance, uuid, sizeof(vl->plugin_instance));
       break;
     case plginst_metadata:
-      name = metadata_get_hostname(dom);
-      if (name)
-        SSTRNCAT(vl->plugin_instance, name, sizeof(vl->plugin_instance));
+      set_field_from_metadata(vl, dom, META_APPEND_PLUGIN_INSTANCE);
       break;
     }
   }
-
 } /* void init_value_list */
 
 static int init_notif(notification_t *notif, const virDomainPtr domain,
