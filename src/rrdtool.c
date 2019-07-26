@@ -791,14 +791,18 @@ static int rrd_write(const data_set_t *ds, const value_list_t *vl,
   }
 
   char filename[PATH_MAX];
-  if (value_list_to_filename(filename, sizeof(filename), vl) != 0) {
-    ERROR("rrdtool plugin: failed to build filename");
+  int value_list_to_filename_ret;
+  value_list_to_filename_ret = value_list_to_filename(filename, sizeof(filename), vl);
+  if (value_list_to_filename_ret != 0) {
+    ERROR("rrdtool plugin: failed to build filename: %i",value_list_to_filename_ret);
     return -1;
   }
 
   char values[32 * (ds->ds_num + 1)];
-  if (value_list_to_string(values, sizeof(values), ds, vl) != 0) {
-    ERROR("rrdtool plugin: failed to build values string");
+  int value_list_to_string_ret;
+  value_list_to_string_ret = value_list_to_string(values, sizeof(values), ds, vl);
+  if (value_list_to_string_ret != 0) {
+    ERROR("rrdtool plugin: failed to build values string %s, %s, %s: %i", vl->host, vl->plugin, vl->type, value_list_to_string_ret);
     return -1;
   }
 
