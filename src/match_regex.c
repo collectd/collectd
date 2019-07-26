@@ -342,7 +342,7 @@ static int mr_match(const data_set_t __attribute__((unused)) * ds, /* {{{ */
     int status;
     if (vl->meta == NULL)
       return nomatch_value;
-    status = meta_data_get_string(vl->meta, e->key, &value);
+    status = meta_data_as_string(vl->meta, e->key, &value);
     if (status == (-ENOENT)) /* key is not present */
       return nomatch_value;
     if (status != 0) /* some other problem */
