@@ -208,7 +208,7 @@ static int rra_get(char ***ret, const value_list_t *vl, /* {{{ */
       if (rra_num >= rra_max)
         break;
 
-      status = ssnprintf(buffer, sizeof(buffer), "RRA:%s:%.10f:%u:%u",
+      status = snprintf(buffer, sizeof(buffer), "RRA:%s:%.10f:%u:%u",
                          rra_types[j], cfg->xff, cdp_len, cdp_num);
 
       if ((status < 0) || ((size_t)status >= sizeof(buffer))) {
@@ -285,7 +285,7 @@ static int ds_get(char ***ret, /* {{{ */
     } else
       ssnprintf(max, sizeof(max), "%f", d->max);
 
-    status = ssnprintf(
+    status = snprintf(
         buffer, sizeof(buffer), "DS:%s:%s:%i:%s:%s", d->name, type,
         (cfg->heartbeat > 0) ? cfg->heartbeat
                              : (int)CDTIME_T_TO_TIME_T(2 * vl->interval),

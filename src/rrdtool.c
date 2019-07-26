@@ -173,7 +173,7 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
   memset(buffer, '\0', buffer_len);
 
   tt = CDTIME_T_TO_TIME_T(vl->time);
-  status = ssnprintf(buffer, buffer_len, "%u", (unsigned int)tt);
+  status = snprintf(buffer, buffer_len, "%u", (unsigned int)tt);
   if ((status < 1) || (status >= buffer_len))
     return -1;
   offset = status;
@@ -186,16 +186,16 @@ static int value_list_to_string_multiple(char *buffer, int buffer_len,
       return -1;
 
     if (ds->ds[i].type == DS_TYPE_COUNTER)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
                          (uint64_t)vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_GAUGE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
+      status = snprintf(buffer + offset, buffer_len - offset, ":" GAUGE_FORMAT,
                          vl->values[i].gauge);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIi64,
                          vl->values[i].derive);
     else /*if (ds->ds[i].type == DS_TYPE_ABSOLUTE) */
-      status = ssnprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
+      status = snprintf(buffer + offset, buffer_len - offset, ":%" PRIu64,
                          vl->values[i].absolute);
 
     if ((status < 1) || (status >= (buffer_len - offset)))
@@ -218,19 +218,19 @@ static int value_list_to_string(char *buffer, int buffer_len,
   tt = CDTIME_T_TO_TIME_T(vl->time);
   switch (ds->ds[0].type) {
   case DS_TYPE_DERIVE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
+    status = snprintf(buffer, buffer_len, "%u:%" PRIi64, (unsigned)tt,
                        vl->values[0].derive);
     break;
   case DS_TYPE_GAUGE:
-    status = ssnprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
+    status = snprintf(buffer, buffer_len, "%u:" GAUGE_FORMAT, (unsigned)tt,
                        vl->values[0].gauge);
     break;
   case DS_TYPE_COUNTER:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
+    status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
                        (uint64_t)vl->values[0].counter);
     break;
   case DS_TYPE_ABSOLUTE:
-    status = ssnprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
+    status = snprintf(buffer, buffer_len, "%u:%" PRIu64, (unsigned)tt,
                        vl->values[0].absolute);
     break;
   default:
