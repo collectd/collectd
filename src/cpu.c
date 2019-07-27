@@ -60,7 +60,7 @@
 
 #if (defined(HAVE_SYSCTL) && HAVE_SYSCTL) ||                                   \
     (defined(HAVE_SYSCTLBYNAME) && HAVE_SYSCTLBYNAME)
-#ifdef HAVE_SYS_SYSCTL_H
+#if defined(HAVE_SYS_SYSCTL_H) && !defined(__GLIBC__)
 #include <sys/sysctl.h>
 #endif
 

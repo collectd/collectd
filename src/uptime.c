@@ -33,7 +33,7 @@
  */
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYS_SYSCTL_H
+#elif defined(HAVE_SYS_SYSCTL_H) && !defined(__GLIBC__)
 #include <sys/sysctl.h>
 /* Using sysctl interface to retrieve the boot time on *BSD / Darwin / OS X
  * systems */

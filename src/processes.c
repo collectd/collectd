@@ -87,7 +87,7 @@
 #if HAVE_MACH_VM_PROT_H
 #include <mach/vm_prot.h>
 #endif
-#if HAVE_SYS_SYSCTL_H
+#if defined(HAVE_SYS_SYSCTL_H) && !defined(__GLIBC__)
 #include <sys/sysctl.h>
 #endif
 /* #endif HAVE_THREAD_INFO */

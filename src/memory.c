@@ -28,7 +28,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#ifdef HAVE_SYS_SYSCTL_H
+#if defined(HAVE_SYS_SYSCTL_H) && !defined(__GLIBC__)
 #include <sys/sysctl.h>
 #endif
 #ifdef HAVE_SYS_VMMETER_H
