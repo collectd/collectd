@@ -110,8 +110,8 @@ sub cpu_read {
             $v{'type_instance'} = $cpu_instances[$key];
             $v{'values'} = [ $counters[$key] ];
             plugin_dispatch_values(\%v);
+        }
     }
-}
 }
 
 sub df_read {
@@ -137,7 +137,7 @@ sub df_read {
         $v{'type_instance'} = $val;
         $v{'values'} = [ $parts[5] * ($parts[6] - $parts[7]), $parts[5] * $parts[7] ];
         plugin_dispatch_values(\%v);
-}
+    }
 }
 
 sub load_read {
@@ -180,7 +180,7 @@ sub processes_read {
         $v{'type_instance'} = $key;
         $v{'values'} = [ $ps_states->{$key} ];
         plugin_dispatch_values(\%v);
-}
+    }
 }
 
 sub users_read {
