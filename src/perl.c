@@ -1225,31 +1225,6 @@ static void c_ithread_destroy(c_ithread_t *ithread) {
   return;
 } /* static void c_ithread_destroy (c_ithread_t *) */
 
-static void c_ithread_destructor(void *arg) {
-  c_ithread_t *ithread = (c_ithread_t *)arg;
-  c_ithread_t *t = NULL;
-
-  if (NULL == perl_threads)
-    return;
-
-  pthread_mutex_lock(&perl_threads->mutex);
-
-  for (t = perl_threads->head; NULL != t; t = t->next)
-    if (t == ithread)
-      break;
-
-  /* the ithread no longer exists */
-  if (NULL == t) {
-    pthread_mutex_unlock(&perl_threads->mutex);
-    return;
-  }
-
-  c_ithread_destroy(ithread);
-
-  pthread_mutex_unlock(&perl_threads->mutex);
-  return;
-} /* static void c_ithread_destructor (void *) */
-
 /* must be called with perl_threads->mutex locked */
 static c_ithread_t *c_ithread_create(PerlInterpreter *base) {
   c_ithread_t *t = NULL;
@@ -2428,7 +2403,7 @@ static int init_pi(int argc, char **argv) {
   }
 #endif /* COLLECT_DEBUG */
 
-  if (0 != pthread_key_create(&perl_thr_key, c_ithread_destructor)) {
+  if (0 != pthread_key_create(&perl_thr_key, NULL)) {
     log_err("init_pi: pthread_key_create failed");
 
     /* this must not happen - cowardly giving up if it does */
