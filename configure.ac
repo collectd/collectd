@@ -3950,7 +3950,13 @@ if test "x$with_libnetsnmpagent" = "xyes"; then
   )
 
   AC_CHECK_LIB([netsnmpagent], [init_agent],
-    [with_libnetsnmpagent="yes"],
+    [
+      # libnetsnmp can be built without without mib loading support
+      AC_CHECK_LIB([netsnmp], [get_tree],
+        [with_libnetsnmpagent="yes"],
+        [with_libnetsnmpagent="no (libnetsnmp doesn't support mib loading)"]
+      )
+    ],
     [with_libnetsnmpagent="no (libnetsnmpagent not found)"],
     [$libnetsnmphelpers]
   )
