@@ -1429,6 +1429,29 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
   return 0;
 } /* int ps_read_process (...) */
 
+static int procs_running(void) {
+  char buffer[4096] = {};
+
+  char *running;
+
+  ssize_t status;
+
+  status = read_file_contents("/proc/stat", buffer, sizeof(buffer) - 1);
+  if (status <= 0) {
+    return -1;
+  }
+
+  running = strstr(buffer, "procs_running");
+  if (!running) {
+    WARNING("procs_running not found, assuming 1");
+    return 1;
+  }
+
+  running += 14;
+
+  return atoi(running);
+}
+
 static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
   char *buf_ptr;
   size_t len;
@@ -2083,6 +2106,8 @@ static int ps_read(void) {
   }
 
   closedir(proc);
+
+  running = procs_running();
 
   ps_submit_state("running", running);
   ps_submit_state("sleeping", sleeping);
