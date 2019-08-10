@@ -56,6 +56,8 @@ int udb_query_pick_from_list(oconfig_item_t *ci, udb_query_t **src_list,
 const char *udb_query_get_name(udb_query_t *q);
 const char *udb_query_get_statement(udb_query_t *q);
 
+unsigned int udb_query_get_interval(udb_query_t *q);
+
 void udb_query_set_user_data(udb_query_t *q, void *user_data);
 void *udb_query_get_user_data(udb_query_t *q);
 
@@ -71,7 +73,7 @@ int udb_query_prepare_result(udb_query_t const *q,
                              udb_query_preparation_area_t *prep_area,
                              const char *host, const char *plugin,
                              const char *db_name, char **column_names,
-                             size_t column_num);
+                             size_t column_num, cdtime_t interval);
 int udb_query_handle_result(udb_query_t const *q,
                             udb_query_preparation_area_t *prep_area,
                             char **column_values);
@@ -83,3 +85,4 @@ udb_query_allocate_preparation_area(udb_query_t *q);
 void udb_query_delete_preparation_area(udb_query_preparation_area_t *q_area);
 
 #endif /* UTILS_DB_QUERY_H */
+

@@ -45,11 +45,18 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+#include <time.h>
+#include <unistd.h>
+
 #include "collectd.h"
 
+#include "common.h"
 #include "plugin.h"
-#include "utils/common/common.h"
-#include "utils/db_query/db_query.h"
+#include "utils_db_query.h"
 
 #include <oci.h>
 
@@ -62,6 +69,7 @@ struct o_database_s {
   char *connect_id;
   char *username;
   char *password;
+  char *password_cmd;
   char *plugin_name;
 
   udb_query_preparation_area_t **q_prep_areas;
@@ -72,13 +80,33 @@ struct o_database_s {
 };
 typedef struct o_database_s o_database_t;
 
+struct o_sqlexec_s {
+  char *query_name;
+  time_t prev_start_time;
+  struct o_sqlexec_s *next;
+};
+
+typedef struct o_sqlexec_s o_sqlexec_t;
+
+/*
+  The hash table for storing the query execution details based on hash index.
+*/
+
+struct sqlexec_hashtab_s {
+  int size;
+  int count;
+  o_sqlexec_t **sqlexecs;
+};
+
+typedef struct sqlexec_hashtab_s sqlexec_hashtab_t;
+
 /*
  * Global variables
  */
-static udb_query_t **queries;
-static size_t queries_num;
-static o_database_t **databases;
-static size_t databases_num;
+static udb_query_t **queries = NULL;
+static size_t queries_num = 0;
+static o_database_t **databases = NULL;
+static size_t databases_num = 0;
 
 OCIEnv *oci_env = NULL;
 OCIError *oci_error = NULL;
@@ -86,6 +114,114 @@ OCIError *oci_error = NULL;
 /*
  * Functions
  */
+
+// This for initiating the structure o_sqlexec_t with the key as query name
+// and value as previous execution time.
+static o_sqlexec_t *new_sqlexec(const char *k, time_t v) {
+    o_sqlexec_t *i = malloc(sizeof(o_sqlexec_t));
+    i->query_name = strdup(k);
+    i->prev_start_time = v;
+    i->next = NULL;
+    return i;
+} /* }}} o_sqlexec_t */
+
+// This function is for initiating the hash table which holds the array of
+// query execution details structure and index of the array is getting generated
+// using hash function applied on the query name key of that structure.
+
+static sqlexec_hashtab_t *ht_new(int queries_num) {
+    sqlexec_hashtab_t *ht = malloc(sizeof(sqlexec_hashtab_t));
+
+    ht->size = queries_num;
+    ht->count = 0;
+    ht->sqlexecs = calloc((size_t)ht->size, sizeof(o_sqlexec_t*));
+    return ht;
+} /* }}} sqlexec_hashtab_t */
+
+
+// This function is for deleting the query execution structure (o_sqlexec_t)
+// from the array.
+
+static void free_sqlexec_node(o_sqlexec_t *i) {
+    free(i->query_name);
+    free(i);
+} /* }}} void free_sqlexec_node */
+
+void free_sqlexec(o_sqlexec_t *sq) {
+    o_sqlexec_t *temp = NULL;
+    while (sq != NULL) {
+       temp = sq;
+       sq = sq->next;
+       free(temp);
+    }
+} /* }}} void del_sqlexec */
+
+// This function deallocates the memory area from hash table.
+void free_sqlexec_hashtab_t(sqlexec_hashtab_t *ht) {
+    for (int i = 0; i < ht->size; i++) {
+        o_sqlexec_t *sqlexec = ht->sqlexecs[i];
+        if (sqlexec != NULL) {
+            free_sqlexec(sqlexec);
+        }
+    }
+    free(ht->sqlexecs);
+    free(ht->count);
+    free(ht->size);
+    free(ht);
+} /* }}} void free_sqlexec_hashtab_t */
+
+
+// This function is generating hash key index for the sqlexec_hashtab_t
+static int sqlexec_get_hash(
+    const char* s, const int num_buckets
+) {
+    int total = 0;
+    const int len_s = strlen(s);
+
+    for (int i = 0; i <len_s; i++)
+      total += (int)s[i];
+    return  (total + len_s) % num_buckets;
+} /* }}} int sqlexec_get_hash */
+
+
+// This function is inserting the o_sqlexec_t struct in hash table array
+// with the index generated using hash functions on the struct query_name key.
+// For hash collisions, this function is storing the elements in the linked list.
+
+void ht_insert(sqlexec_hashtab_t *ht, const char *key, time_t value) {
+    o_sqlexec_t *sqlexec = new_sqlexec(key, value);
+    int index = sqlexec_get_hash(key, ht->size);
+    o_sqlexec_t *cur_sqlexec = ht->sqlexecs[index];
+    o_sqlexec_t *prev_sqlexec = cur_sqlexec;
+    while (cur_sqlexec != NULL) {
+            if (strcmp(cur_sqlexec->query_name, key) == 0) {
+                free_sqlexec_node(cur_sqlexec);
+                cur_sqlexec = sqlexec;
+                prev_sqlexec->next = cur_sqlexec;
+                ht->count++;
+                return;
+            }
+        prev_sqlexec = cur_sqlexec;
+        cur_sqlexec = cur_sqlexec->next;
+    }
+    ht->sqlexecs[index] = sqlexec;
+    ht->count++;
+} /* }}} void ht_insert */
+
+
+// This function returns the previous execution time for a given query name.
+time_t sqlexec_search(sqlexec_hashtab_t *ht, const char *key) {
+    int index = sqlexec_get_hash(key, ht->size);
+    o_sqlexec_t *sqlexec = ht->sqlexecs[index];
+    while (sqlexec != NULL) {
+            if (strcmp(sqlexec->query_name, key) == 0) {
+                return sqlexec->prev_start_time;
+            }
+        sqlexec = sqlexec->next;
+    }
+    return 0;
+} /* }}} time_t sqlexec_search */
+
 static void o_report_error(const char *where, /* {{{ */
                            const char *db_name, const char *query_name,
                            const char *what, OCIError *eh) {
@@ -107,7 +243,7 @@ static void o_report_error(const char *where, /* {{{ */
     status = OCIErrorGet(eh, (ub4)record_number,
                          /* sqlstate = */ NULL, &error_code, (text *)&buffer[0],
                          (ub4)sizeof(buffer), OCI_HTYPE_ERROR);
-    buffer[sizeof(buffer) - 1] = '\0';
+    buffer[sizeof(buffer) - 1] = 0;
 
     if (status == OCI_NO_DATA)
       return;
@@ -141,6 +277,7 @@ static void o_database_free(o_database_t *db) /* {{{ */
   sfree(db->connect_id);
   sfree(db->username);
   sfree(db->password);
+  sfree(db->password_cmd);
   sfree(db->queries);
   sfree(db->plugin_name);
 
@@ -194,6 +331,7 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
   db->connect_id = NULL;
   db->username = NULL;
   db->password = NULL;
+  db->password_cmd = NULL;
   db->plugin_name = NULL;
 
   status = cf_util_get_string(ci, &db->name);
@@ -214,6 +352,8 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &db->username);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &db->password);
+    else if (strcasecmp("PasswordCommand", child->key) == 0)
+      status = cf_util_get_string(child, &db->password_cmd);
     else if (strcasecmp("Plugin", child->key) == 0)
       status = cf_util_get_string(child, &db->plugin_name);
     else if (strcasecmp("Query", child->key) == 0)
@@ -238,8 +378,10 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
       WARNING("oracle plugin: `Username' not given for query `%s'", db->name);
       status = -1;
     }
-    if (db->password == NULL) {
-      WARNING("oracle plugin: `Password' not given for query `%s'", db->name);
+    if (db->password == NULL && db->password_cmd == NULL) {
+      WARNING(
+          "oracle plugin: no `Password' or `PasswordCommand' for query `%s'",
+          db->name);
       status = -1;
     }
 
@@ -247,7 +389,9 @@ static int o_config_add_database(oconfig_item_t *ci) /* {{{ */
   } /* while (status == 0) */
 
   while ((status == 0) && (db->queries_num > 0)) {
-    db->q_prep_areas = calloc(db->queries_num, sizeof(*db->q_prep_areas));
+    db->q_prep_areas = (udb_query_preparation_area_t **)calloc(
+        db->queries_num, sizeof(*db->q_prep_areas));
+
     if (db->q_prep_areas == NULL) {
       WARNING("oracle plugin: calloc failed");
       status = -1;
@@ -306,10 +450,10 @@ static int o_config(oconfig_item_t *ci) /* {{{ */
     }
 
     if (queries_num > 0) {
-      DEBUG(
-          "oracle plugin: o_config: queries_num = %" PRIsz "; queries[0] = %p; "
-          "udb_query_get_user_data (queries[0]) = %p;",
-          queries_num, (void *)queries[0], udb_query_get_user_data(queries[0]));
+      DEBUG("oracle plugin: o_config: queries_num = %zu; queries[0] = %p; "
+            "udb_query_get_user_data (queries[0]) = %p;",
+            queries_num, (void *)queries[0],
+            udb_query_get_user_data(queries[0]));
     }
   } /* for (ci->children) */
 
@@ -352,12 +496,18 @@ static int o_init(void) /* {{{ */
 
 static int o_read_database_query(o_database_t *db, /* {{{ */
                                  udb_query_t *q,
-                                 udb_query_preparation_area_t *prep_area) {
+                                 udb_query_preparation_area_t *prep_area,
+                                 sqlexec_hashtab_t *ht
+                                 ) {
   char **column_names;
   char **column_values;
   size_t column_num;
+  unsigned int oci_interval;
+  double time_diff;
 
   OCIStmt *oci_statement;
+  char *key=malloc(sizeof(char) * 120);
+
 
   /* List of `OCIDefine' pointers. These defines map columns to the buffer
    * space declared above. */
@@ -366,6 +516,31 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
   int status;
 
   oci_statement = udb_query_get_user_data(q);
+  oci_interval = udb_query_get_interval(q);
+
+  /* Get the current timestamp */
+  time_t current_time = time(NULL);
+  DEBUG("oracle plugin: current sys time %ld(%s).", current_time, ctime(&current_time));
+
+  /* Get the prev execution timestamp for the query */
+  key = strcpy(key, db->name);
+  key = strcat(key, "_");
+  key = strcat(key, udb_query_get_name(q));
+  time_t prev_start_time = sqlexec_search(ht, key);
+  if (prev_start_time != 0) {
+    time_diff = difftime(current_time, prev_start_time);
+  } else {
+    time_diff = oci_interval + 1;
+  }
+
+  if (time_diff < oci_interval) {
+    return 0;
+  }
+
+  /* Update the hash table with the query name and the current time only for queries which have non zero interval defined */
+  if oci_interval > 0 {
+    ht_insert(ht, key, current_time);
+  }
 
   /* Prepare the statement */
   if (oci_statement == NULL) /* {{{ */
@@ -530,8 +705,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     memcpy(column_names[i], column_name, column_name_length);
     column_names[i][column_name_length] = 0;
 
-    DEBUG("oracle plugin: o_read_database_query: column_names[%" PRIsz "] = %s;"
-          " column_name_length = %" PRIu32 ";",
+    DEBUG("oracle plugin: o_read_database_query: column_names[%zu] = %s; "
+          "column_name_length = %" PRIu32 ";",
           i, column_names[i], (uint32_t)column_name_length);
 
     status = OCIDefineByPos(oci_statement, &oci_defines[i], oci_error,
@@ -548,7 +723,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
   status = udb_query_prepare_result(
       q, prep_area, (db->host != NULL) ? db->host : hostname_g,
       /* plugin = */ (db->plugin_name != NULL) ? db->plugin_name : "oracle",
-      db->name, column_names, column_num);
+      db->name, column_names, column_num,
+      /* interval = */ 0);
   if (status != 0) {
     ERROR("oracle plugin: o_read_database_query (%s, %s): "
           "udb_query_prepare_result failed.",
@@ -580,8 +756,6 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     }
   } /* }}} while (42) */
 
-  udb_query_finish_result(q, prep_area);
-
   /* DEBUG ("oracle plugin: o_read_database_query: This statement succeeded:
    * %s", q->statement); */
   FREE_ALL;
@@ -591,7 +765,81 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
 #undef ALLOC_OR_FAIL
 } /* }}} int o_read_database_query */
 
-static int o_read_database(o_database_t *db) /* {{{ */
+static int o_read_password_command(o_database_t *db) /* {{{ */
+{
+  const size_t pw_increment = 128;
+  char cmdbuf[4096], *sp, *bp, *ep = cmdbuf + sizeof cmdbuf, *fmtval;
+  char *pass, *nl;
+  size_t remain, w, r, px;
+  FILE *out;
+
+  for (sp = db->password_cmd, bp = cmdbuf; bp < ep;) {
+    switch (*sp) {
+    case '\0':
+      *bp++ = '\0';
+      goto success;
+    case '%':
+      switch (sp[1]) {
+      case 'u':
+        fmtval = db->username;
+        break;
+      case 'n':
+        fmtval = db->connect_id;
+        break;
+      case '%':
+        fmtval = "%";
+        break;
+      default:
+        ERROR("o_read_password_command '%s': invalid specifier %%'%c'",
+              db->password_cmd, sp[1]);
+        return -1;
+      }
+      remain = ep - bp;
+      w = snprintf(bp, remain, "%s", fmtval);
+      if (w < 0 || w >= remain)
+        goto fail_bufsiz;
+      bp += w;
+      sp += 2;
+      break;
+    default:
+      *bp++ = *sp++;
+    }
+  }
+fail_bufsiz:
+  ERROR("o_read_password_command '%s': command too long", db->password_cmd);
+  return -1;
+success:
+  out = popen(cmdbuf, "r");
+  if (!out) {
+    ERROR("o_read_password_command: popen '%s': %s", cmdbuf, strerror(errno));
+    return -1;
+  }
+
+  // read up to the first newline into pass.
+  pass = smalloc(pw_increment + 1);
+  for (px = 0;;) {
+    r = fread(pass + px, 1, pw_increment, out);
+    pass[px + r] = '\0';
+    if ((nl = strchr(pass + px, '\n')) != NULL) {
+      *nl = '\0';
+      break;
+    }
+    if (r < pw_increment)
+      break;
+    px += r;
+    pass = realloc(pass, px + pw_increment);
+    if (!pass) {
+      ERROR("o_read_password_command: realloc: %s", strerror(errno));
+      fclose(out);
+      return -1;
+    }
+  }
+  db->password = pass;
+  fclose(out);
+  return 0;
+} /* }}} int o_read_password_command /*/
+
+static int o_read_database(o_database_t *db, sqlexec_hashtab_t *ht) /* {{{ */
 {
   int status;
 
@@ -632,6 +880,11 @@ static int o_read_database(o_database_t *db) /* {{{ */
     }
   } /* if (db->oci_service_context != NULL) */
 
+  if (db->password == NULL && db->password_cmd != NULL) {
+    if ((status = o_read_password_command(db)) != 0)
+      return status;
+  }
+
   if (db->oci_service_context == NULL) {
     status = OCILogon(oci_env, oci_error, &db->oci_service_context,
                       (OraText *)db->username, (ub4)strlen(db->username),
@@ -640,7 +893,7 @@ static int o_read_database(o_database_t *db) /* {{{ */
     if ((status != OCI_SUCCESS) && (status != OCI_SUCCESS_WITH_INFO)) {
       char errfunc[256];
 
-      ssnprintf(errfunc, sizeof(errfunc), "OCILogon(\"%s\")", db->connect_id);
+      snprintf(errfunc, sizeof(errfunc), "OCILogon(\"%s\")", db->connect_id);
 
       o_report_error("o_read_database", db->name, NULL, errfunc, oci_error);
       DEBUG("oracle plugin: OCILogon (%s): db->oci_service_context = %p;",
@@ -658,7 +911,7 @@ static int o_read_database(o_database_t *db) /* {{{ */
         db->connect_id, db->oci_service_context);
 
   for (size_t i = 0; i < db->queries_num; i++)
-    o_read_database_query(db, db->queries[i], db->q_prep_areas[i]);
+    o_read_database_query(db, db->queries[i], db->q_prep_areas[i],ht);
 
   return 0;
 } /* }}} int o_read_database */
@@ -666,10 +919,36 @@ static int o_read_database(o_database_t *db) /* {{{ */
 static int o_read(void) /* {{{ */
 {
   size_t i;
+  size_t records;
+  sqlexec_hashtab_t *ht = ht_new((queries_num * databases_num) + 1);
+  FILE *infile;
+  infile = fopen ("/dev/shm/collectd_oracle_query.stats", "r");
+  if (infile != NULL) {
+    while (1) {
+       records = fread(ht, sizeof(*ht), 1, infile);
+       if (feof(infile)) {
+         break;
+       }
+     }
+    fclose (infile);
+  }
 
-  for (i = 0; i < databases_num; i++)
-    o_read_database(databases[i]);
+  for (i = 0; i < databases_num; i++) {
+    o_read_database(databases[i], ht);
+  }
 
+  // write the sql execution hash table to the file so it can fetch details
+  // and resume for the next collectd iteration.
+  FILE *outfile;
+  outfile = fopen ("/dev/shm/collectd_oracle_query.stats", "w");
+    if (outfile == NULL)
+    {
+        ERROR("o_write_file: error writing to file /dev/shm/collectd_oracle_query.stats");
+        return -1;
+    }
+  records = fwrite (ht, sizeof(*ht), 1, outfile);
+  fclose(outfile);
+  free_sqlexec_hashtab_t(ht);
   return 0;
 } /* }}} int o_read */
 
@@ -700,6 +979,8 @@ static int o_shutdown(void) /* {{{ */
   queries = NULL;
   queries_num = 0;
 
+  if (remove("/dev/shm/collectd_oracle_query.stats") != 0)
+      ERROR("o_write_file: error removing file /dev/shm/collectd_oracle_query.stats");
   return 0;
 } /* }}} int o_shutdown */
 
@@ -710,3 +991,4 @@ void module_register(void) /* {{{ */
   plugin_register_read("oracle", o_read);
   plugin_register_shutdown("oracle", o_shutdown);
 } /* }}} void module_register */
+
