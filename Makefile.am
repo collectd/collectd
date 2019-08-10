@@ -239,7 +239,9 @@ collectd_SOURCES = \
 	src/utils/metadata/meta_data.c \
 	src/utils/metadata/meta_data.h \
 	src/utils_closefrom.c \
+	src/utils_closefrom.h \
 	src/utils_strtonum.c \
+	src/utils_strtonum.h \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
 	src/daemon/utils_cache.c \
