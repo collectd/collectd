@@ -504,9 +504,6 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
       close(fd);
     }
 
-    /* Close all other file descriptors in optimized way */
-    closefrom(fd_max_used + 1);
-
     /* Connect the `in' pipe to STDIN */
     if (fd_pipe_in[0] != STDIN_FILENO) {
       dup2(fd_pipe_in[0], STDIN_FILENO);
