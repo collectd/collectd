@@ -747,27 +747,12 @@ test_cxx_flags() {
 #
 AC_CHECK_FUNCS_ONCE([ \
     asprintf \
-    closelog \
-    getaddrinfo \
-    getgrnam_r \
-    getnameinfo \
     getpwnam \
     getpwnam_r \
-    gettimeofday \
     if_indextoname \
-    openlog \
-    regcomp \
-    regerror \
-    regexec \
-    regfree \
-    select \
     setenv \
     setgroups \
-    setlocale \
-    strcasecmp \
-    strdup \
-    strncasecmp \
-    sysconf
+    setlocale
   ]
 )
 

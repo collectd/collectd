@@ -647,7 +647,8 @@ static void start_read_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "reader#%" PRIu64, (uint64_t)read_threads_num);
+    ssnprintf(name, sizeof(name), "reader#%" PRIu64,
+              (uint64_t)read_threads_num);
     set_thread_name(read_threads[read_threads_num], name);
 
     read_threads_num++;
@@ -836,8 +837,8 @@ static void start_write_threads(size_t num) /* {{{ */
     }
 
     char name[THREAD_NAME_MAX];
-    snprintf(name, sizeof(name), "writer#%" PRIu64,
-             (uint64_t)write_threads_num);
+    ssnprintf(name, sizeof(name), "writer#%" PRIu64,
+              (uint64_t)write_threads_num);
     set_thread_name(write_threads[write_threads_num], name);
 
     write_threads_num++;
@@ -906,15 +907,13 @@ void plugin_set_dir(const char *dir) {
     ERROR("plugin_set_dir: strdup(\"%s\") failed", dir);
 }
 
-static bool plugin_is_loaded(char const *name) {
-  int status;
-
+bool plugin_is_loaded(char const *name) {
   if (plugins_loaded == NULL)
     plugins_loaded =
         c_avl_create((int (*)(const void *, const void *))strcasecmp);
   assert(plugins_loaded != NULL);
 
-  status = c_avl_get(plugins_loaded, name, /* ret_value = */ NULL);
+  int status = c_avl_get(plugins_loaded, name, /* ret_value = */ NULL);
   return status == 0;
 }
 
