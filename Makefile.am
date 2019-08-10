@@ -238,6 +238,7 @@ collectd_SOURCES = \
 	src/daemon/globals.h \
 	src/utils/metadata/meta_data.c \
 	src/utils/metadata/meta_data.h \
+	src/compat/closefrom.c \
 	src/daemon/plugin.c \
 	src/daemon/plugin.h \
 	src/daemon/utils_cache.c \
@@ -292,7 +293,7 @@ if BUILD_WIN32
 collectd_LDFLAGS += -Wl,--out-implib,libcollectd.a
 endif
 
-collectdmon_SOURCES = src/collectdmon.c
+collectdmon_SOURCES = src/collectdmon.c src/compat/closefrom.c
 
 
 collectd_nagios_SOURCES = src/collectd-nagios.c

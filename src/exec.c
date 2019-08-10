@@ -34,6 +34,8 @@
 #include "utils/cmds/putnotif.h"
 #include "utils/cmds/putval.h"
 
+#include "compat/missing.h"
+
 #include <grp.h>
 #include <pwd.h>
 #include <signal.h>
@@ -91,6 +93,14 @@ static pthread_mutex_t pl_lock = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Functions
  */
+static inline int int_max(int a, int b) {
+  if (a >= b) {
+    return a;
+  } else {
+    return b;
+  }
+}
+
 static void sigchld_handler(int __attribute__((unused)) signal) /* {{{ */
 {
   pid_t pid;
@@ -493,16 +503,21 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
     ERROR("exec plugin: fork failed: %s", STRERRNO);
     goto failed;
   } else if (pid == 0) {
-    int fd_num;
+    int fd_max_used = -1;
+
+    /* Determine the highest FD we need to keep */
+    fd_max_used = int_max(int_max(fd_pipe_in[0], fd_pipe_out[1]), fd_pipe_err[1]);
 
     /* Close all file descriptors but the pipe end we need. */
-    fd_num = getdtablesize();
-    for (int fd = 0; fd < fd_num; fd++) {
+    for (int fd = 0; fd < fd_max_used; fd++) {
       if ((fd == fd_pipe_in[0]) || (fd == fd_pipe_out[1]) ||
           (fd == fd_pipe_err[1]))
         continue;
       close(fd);
     }
+
+    /* Close all other file descriptors in optimized way */
+    closefrom(fd_max_used + 1);
 
     /* Connect the `in' pipe to STDIN */
     if (fd_pipe_in[0] != STDIN_FILENO) {
