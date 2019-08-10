@@ -55,7 +55,7 @@
 
 #include <unistd.h>
 
-#include "compat/missing.h"
+#include "utils_closefrom.h"
 
 #ifndef PREFIX
 #define PREFIX "/opt/" PACKAGE_NAME

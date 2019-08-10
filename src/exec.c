@@ -34,7 +34,7 @@
 #include "utils/cmds/putnotif.h"
 #include "utils/cmds/putval.h"
 
-#include "compat/missing.h"
+#include "utils_closefrom.h"
 
 #include <grp.h>
 #include <pwd.h>
