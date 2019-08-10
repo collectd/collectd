@@ -506,7 +506,8 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
     int fd_max_used = -1;
 
     /* Determine the highest FD we need to keep */
-    fd_max_used = int_max(int_max(fd_pipe_in[0], fd_pipe_out[1]), fd_pipe_err[1]);
+    fd_max_used =
+        int_max(int_max(fd_pipe_in[0], fd_pipe_out[1]), fd_pipe_err[1]);
 
     /* Close all file descriptors but the pipe end we need. */
     for (int fd = 0; fd < fd_max_used; fd++) {
