@@ -85,4 +85,3 @@ udb_query_allocate_preparation_area(udb_query_t *q);
 void udb_query_delete_preparation_area(udb_query_preparation_area_t *q_area);
 
 #endif /* UTILS_DB_QUERY_H */
-

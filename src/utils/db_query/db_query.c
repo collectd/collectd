@@ -59,7 +59,6 @@ struct udb_query_s /* {{{ */
   unsigned int min_version;
   unsigned int max_version;
 
-
   udb_result_t *results;
 }; /* }}} */
 
@@ -1072,4 +1071,3 @@ void udb_query_delete_preparation_area(
 
   free(q_area);
 } /* }}} void udb_query_delete_preparation_area */
-

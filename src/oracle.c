@@ -45,10 +45,10 @@
  *   Florian octo Forster <octo at collectd.org>
  **/
 
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <math.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -118,11 +118,11 @@ OCIError *oci_error = NULL;
 // This for initiating the structure o_sqlexec_t with the key as query name
 // and value as previous execution time.
 static o_sqlexec_t *new_sqlexec(const char *k, time_t v) {
-    o_sqlexec_t *i = malloc(sizeof(o_sqlexec_t));
-    i->query_name = strdup(k);
-    i->prev_start_time = v;
-    i->next = NULL;
-    return i;
+  o_sqlexec_t *i = malloc(sizeof(o_sqlexec_t));
+  i->query_name = strdup(k);
+  i->prev_start_time = v;
+  i->next = NULL;
+  return i;
 } /* }}} o_sqlexec_t */
 
 // This function is for initiating the hash table which holds the array of
@@ -130,96 +130,91 @@ static o_sqlexec_t *new_sqlexec(const char *k, time_t v) {
 // using hash function applied on the query name key of that structure.
 
 static sqlexec_hashtab_t *ht_new(int queries_num) {
-    sqlexec_hashtab_t *ht = malloc(sizeof(sqlexec_hashtab_t));
+  sqlexec_hashtab_t *ht = malloc(sizeof(sqlexec_hashtab_t));
 
-    ht->size = queries_num;
-    ht->count = 0;
-    ht->sqlexecs = calloc((size_t)ht->size, sizeof(o_sqlexec_t*));
-    return ht;
+  ht->size = queries_num;
+  ht->count = 0;
+  ht->sqlexecs = calloc((size_t)ht->size, sizeof(o_sqlexec_t *));
+  return ht;
 } /* }}} sqlexec_hashtab_t */
-
 
 // This function is for deleting the query execution structure (o_sqlexec_t)
 // from the array.
 
 static void free_sqlexec_node(o_sqlexec_t *i) {
-    free(i->query_name);
-    free(i);
+  free(i->query_name);
+  free(i);
 } /* }}} void free_sqlexec_node */
 
 void free_sqlexec(o_sqlexec_t *sq) {
-    o_sqlexec_t *temp = NULL;
-    while (sq != NULL) {
-       temp = sq;
-       sq = sq->next;
-       free(temp);
-    }
+  o_sqlexec_t *temp = NULL;
+  while (sq != NULL) {
+    temp = sq;
+    sq = sq->next;
+    free(temp);
+  }
 } /* }}} void del_sqlexec */
 
 // This function deallocates the memory area from hash table.
 void free_sqlexec_hashtab_t(sqlexec_hashtab_t *ht) {
-    for (int i = 0; i < ht->size; i++) {
-        o_sqlexec_t *sqlexec = ht->sqlexecs[i];
-        if (sqlexec != NULL) {
-            free_sqlexec(sqlexec);
-        }
+  for (int i = 0; i < ht->size; i++) {
+    o_sqlexec_t *sqlexec = ht->sqlexecs[i];
+    if (sqlexec != NULL) {
+      free_sqlexec(sqlexec);
     }
-    free(ht->sqlexecs);
-    free(ht->count);
-    free(ht->size);
-    free(ht);
+  }
+  free(ht->sqlexecs);
+  free(ht->count);
+  free(ht->size);
+  free(ht);
 } /* }}} void free_sqlexec_hashtab_t */
 
-
 // This function is generating hash key index for the sqlexec_hashtab_t
-static int sqlexec_get_hash(
-    const char* s, const int num_buckets
-) {
-    int total = 0;
-    const int len_s = strlen(s);
+static int sqlexec_get_hash(const char *s, const int num_buckets) {
+  int total = 0;
+  const int len_s = strlen(s);
 
-    for (int i = 0; i <len_s; i++)
-      total += (int)s[i];
-    return  (total + len_s) % num_buckets;
+  for (int i = 0; i < len_s; i++)
+    total += (int)s[i];
+  return (total + len_s) % num_buckets;
 } /* }}} int sqlexec_get_hash */
-
 
 // This function is inserting the o_sqlexec_t struct in hash table array
 // with the index generated using hash functions on the struct query_name key.
-// For hash collisions, this function is storing the elements in the linked list.
+// For hash collisions, this function is storing the elements in the linked
+// list.
 
 void ht_insert(sqlexec_hashtab_t *ht, const char *key, time_t value) {
-    o_sqlexec_t *sqlexec = new_sqlexec(key, value);
-    int index = sqlexec_get_hash(key, ht->size);
-    o_sqlexec_t *cur_sqlexec = ht->sqlexecs[index];
-    o_sqlexec_t *prev_sqlexec = cur_sqlexec;
-    while (cur_sqlexec != NULL) {
-            if (strcmp(cur_sqlexec->query_name, key) == 0) {
-                free_sqlexec_node(cur_sqlexec);
-                cur_sqlexec = sqlexec;
-                prev_sqlexec->next = cur_sqlexec;
-                ht->count++;
-                return;
-            }
-        prev_sqlexec = cur_sqlexec;
-        cur_sqlexec = cur_sqlexec->next;
+  o_sqlexec_t *sqlexec = new_sqlexec(key, value);
+  int index = sqlexec_get_hash(key, ht->size);
+  o_sqlexec_t *cur_sqlexec = ht->sqlexecs[index];
+  o_sqlexec_t *prev_sqlexec = cur_sqlexec;
+  while (cur_sqlexec != NULL) {
+    if (strcmp(cur_sqlexec->query_name, key) == 0) {
+      free_sqlexec_node(cur_sqlexec);
+      cur_sqlexec = sqlexec;
+      prev_sqlexec->next = cur_sqlexec;
+      ht->count++;
+      return;
     }
-    ht->sqlexecs[index] = sqlexec;
-    ht->count++;
+    prev_sqlexec = cur_sqlexec;
+    cur_sqlexec = cur_sqlexec->next;
+  }
+  ht->sqlexecs[index] = sqlexec;
+  ht->count++;
 } /* }}} void ht_insert */
-
 
 // This function returns the previous execution time for a given query name.
 time_t sqlexec_search(sqlexec_hashtab_t *ht, const char *key) {
-    int index = sqlexec_get_hash(key, ht->size);
-    o_sqlexec_t *sqlexec = ht->sqlexecs[index];
-    while (sqlexec != NULL) {
-            if (strcmp(sqlexec->query_name, key) == 0) {
-                return sqlexec->prev_start_time;
-            }
-        sqlexec = sqlexec->next;
+  int index = sqlexec_get_hash(key, ht->size);
+  o_sqlexec_t *sqlexec = ht->sqlexecs[index];
+  while (sqlexec != NULL) {
+    if (strcmp(sqlexec->query_name, key) == 0) {
+      return sqlexec->prev_start_time;
     }
-    return 0;
+    sqlexec = sqlexec->next;
+  }
+  return 0;
 } /* }}} time_t sqlexec_search */
 
 static void o_report_error(const char *where, /* {{{ */
@@ -497,8 +492,7 @@ static int o_init(void) /* {{{ */
 static int o_read_database_query(o_database_t *db, /* {{{ */
                                  udb_query_t *q,
                                  udb_query_preparation_area_t *prep_area,
-                                 sqlexec_hashtab_t *ht
-                                 ) {
+                                 sqlexec_hashtab_t *ht) {
   char **column_names;
   char **column_values;
   size_t column_num;
@@ -506,8 +500,7 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
   double time_diff;
 
   OCIStmt *oci_statement;
-  char *key=malloc(sizeof(char) * 120);
-
+  char *key = malloc(sizeof(char) * 120);
 
   /* List of `OCIDefine' pointers. These defines map columns to the buffer
    * space declared above. */
@@ -520,7 +513,8 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
 
   /* Get the current timestamp */
   time_t current_time = time(NULL);
-  DEBUG("oracle plugin: current sys time %ld(%s).", current_time, ctime(&current_time));
+  DEBUG("oracle plugin: current sys time %ld(%s).", current_time,
+        ctime(&current_time));
 
   /* Get the prev execution timestamp for the query */
   key = strcpy(key, db->name);
@@ -537,10 +531,10 @@ static int o_read_database_query(o_database_t *db, /* {{{ */
     return 0;
   }
 
-  /* Update the hash table with the query name and the current time only for queries which have non zero interval defined */
-  if oci_interval > 0 {
-    ht_insert(ht, key, current_time);
-  }
+  /* Update the hash table with the query name and the current time only for
+   * queries which have non zero interval defined */
+  if
+    oci_interval > 0 { ht_insert(ht, key, current_time); }
 
   /* Prepare the statement */
   if (oci_statement == NULL) /* {{{ */
@@ -911,7 +905,7 @@ static int o_read_database(o_database_t *db, sqlexec_hashtab_t *ht) /* {{{ */
         db->connect_id, db->oci_service_context);
 
   for (size_t i = 0; i < db->queries_num; i++)
-    o_read_database_query(db, db->queries[i], db->q_prep_areas[i],ht);
+    o_read_database_query(db, db->queries[i], db->q_prep_areas[i], ht);
 
   return 0;
 } /* }}} int o_read_database */
@@ -922,15 +916,15 @@ static int o_read(void) /* {{{ */
   size_t records;
   sqlexec_hashtab_t *ht = ht_new((queries_num * databases_num) + 1);
   FILE *infile;
-  infile = fopen ("/dev/shm/collectd_oracle_query.stats", "r");
+  infile = fopen("/dev/shm/collectd_oracle_query.stats", "r");
   if (infile != NULL) {
     while (1) {
-       records = fread(ht, sizeof(*ht), 1, infile);
-       if (feof(infile)) {
-         break;
-       }
-     }
-    fclose (infile);
+      records = fread(ht, sizeof(*ht), 1, infile);
+      if (feof(infile)) {
+        break;
+      }
+    }
+    fclose(infile);
   }
 
   for (i = 0; i < databases_num; i++) {
@@ -940,13 +934,13 @@ static int o_read(void) /* {{{ */
   // write the sql execution hash table to the file so it can fetch details
   // and resume for the next collectd iteration.
   FILE *outfile;
-  outfile = fopen ("/dev/shm/collectd_oracle_query.stats", "w");
-    if (outfile == NULL)
-    {
-        ERROR("o_write_file: error writing to file /dev/shm/collectd_oracle_query.stats");
-        return -1;
-    }
-  records = fwrite (ht, sizeof(*ht), 1, outfile);
+  outfile = fopen("/dev/shm/collectd_oracle_query.stats", "w");
+  if (outfile == NULL) {
+    ERROR("o_write_file: error writing to file "
+          "/dev/shm/collectd_oracle_query.stats");
+    return -1;
+  }
+  records = fwrite(ht, sizeof(*ht), 1, outfile);
   fclose(outfile);
   free_sqlexec_hashtab_t(ht);
   return 0;
@@ -980,7 +974,8 @@ static int o_shutdown(void) /* {{{ */
   queries_num = 0;
 
   if (remove("/dev/shm/collectd_oracle_query.stats") != 0)
-      ERROR("o_write_file: error removing file /dev/shm/collectd_oracle_query.stats");
+    ERROR("o_write_file: error removing file "
+          "/dev/shm/collectd_oracle_query.stats");
   return 0;
 } /* }}} int o_shutdown */
 
@@ -991,4 +986,3 @@ void module_register(void) /* {{{ */
   plugin_register_read("oracle", o_read);
   plugin_register_shutdown("oracle", o_shutdown);
 } /* }}} void module_register */
-
