@@ -33,7 +33,7 @@ with the plugin:
 
 =over 4
 
-=item
+=item *
 
 E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
 
@@ -41,13 +41,13 @@ E-Mail type (e.g. "ham", "spam", "virus", ...) and size (bytes):
 
 If C<size> is less than or equal to zero, C<size> is ignored.
 
-=item
+=item *
 
 Spam score:
 
   s:<value>
 
-=item
+=item *
 
 Successful spam checks (e.g. "BAYES_99", "SUBJECT_DRUG_GAP_C", ...):
 
@@ -69,6 +69,6 @@ The C<email plugin> has been written by Sebastian Harl E<lt>shE<nbsp>atE<nbsp>to
 
 The SpamAssassin-plugin has been written by Alexander Wirt E<lt>formorerE<nbsp>atE<nbsp>formorer.deE<gt>.
 
-This manpage has been written by Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>.
+This manpage has been written by Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>.
 
 =cut

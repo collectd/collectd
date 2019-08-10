@@ -1,29 +1,37 @@
-/*
- * collectd/java - org/collectd/java/GenericJMXConfValue.java
- * Copyright (C) 2009  Florian octo Forster
+/**
+ * collectd - bindings/java/org/collectd/java/GenericJMXConfValue.java
+ * Copyright (C) 2009       Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *   Florian octo Forster <octo at verplant.org>
+ *   Florian octo Forster <octo at collectd.org>
  */
 
 package org.collectd.java;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Iterator;
 import java.util.ArrayList;
 
@@ -34,6 +42,7 @@ import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.OpenType;
 import javax.management.openmbean.CompositeData;
+import javax.management.openmbean.TabularData;
 import javax.management.openmbean.InvalidKeyException;
 
 import org.collectd.api.Collectd;
@@ -63,6 +72,7 @@ class GenericJMXConfValue
   private List<String> _attributes;
   private String _instance_prefix;
   private List<String> _instance_from;
+  private String _plugin_name;
   private boolean _is_table;
 
   /**
@@ -119,6 +129,14 @@ class GenericJMXConfValue
     else if (obj instanceof BigInteger)
     {
       return (BigInteger.ZERO.add ((BigInteger) obj));
+    }
+    else if (obj instanceof AtomicInteger)
+    {
+        return (new Integer(((AtomicInteger) obj).get()));
+    }
+    else if (obj instanceof AtomicLong)
+    {
+        return (new Long(((AtomicLong) obj).get()));
     }
 
     return (null);
@@ -290,6 +308,45 @@ class GenericJMXConfValue
     {
       if (value instanceof CompositeData)
         return (queryAttributeRecursive ((CompositeData) value, attrName));
+      else if (value instanceof TabularData)
+        return (queryAttributeRecursive ((TabularData) value, attrName));
+      else
+        return (null);
+    }
+  } /* }}} queryAttributeRecursive */
+
+  private Object queryAttributeRecursive (TabularData parent, /* {{{ */
+      List<String> attrName)
+  {
+    String key;
+    Object value = null;
+
+    key = attrName.remove (0);
+
+    @SuppressWarnings("unchecked")
+    Collection<CompositeData> table = (Collection<CompositeData>) parent.values();
+    for (CompositeData compositeData : table)
+    {
+      if (key.equals(compositeData.get("key")))
+      {
+        value = compositeData.get("value");
+      }
+    }
+    if (null == value)
+    {
+      return (null);
+    }
+
+    if (attrName.size () == 0)
+    {
+      return (value);
+    }
+    else
+    {
+      if (value instanceof CompositeData)
+        return (queryAttributeRecursive ((CompositeData) value, attrName));
+      else if (value instanceof TabularData)
+        return (queryAttributeRecursive ((TabularData) value, attrName));
       else
         return (null);
     }
@@ -336,6 +393,8 @@ class GenericJMXConfValue
     {
       if (value instanceof CompositeData)
         return (queryAttributeRecursive((CompositeData) value, attrNameList));
+      else if (value instanceof TabularData)
+        return (queryAttributeRecursive((TabularData) value, attrNameList));
       else if (value instanceof OpenType)
       {
         OpenType ot = (OpenType) value;
@@ -346,7 +405,7 @@ class GenericJMXConfValue
       else
       {
         Collectd.logError ("GenericJMXConfValue: Received object of "
-            + "unknown class.");
+            + "unknown class. " + attrName + " " + ((value == null)?"null":value.getClass().getName()));
         return (null);
       }
     }
@@ -431,6 +490,7 @@ class GenericJMXConfValue
     this._attributes = new ArrayList<String> ();
     this._instance_prefix = null;
     this._instance_from = new ArrayList<String> ();
+    this._plugin_name = null;
     this._is_table = false;
 
     /*
@@ -479,6 +539,12 @@ class GenericJMXConfValue
         String tmp = getConfigString (child);
         if (tmp != null)
           this._instance_from.add (tmp);
+      }
+      else if (child.getKey ().equalsIgnoreCase ("PluginName"))
+      {
+        String tmp = getConfigString (child);
+        if (tmp != null)
+          this._plugin_name = tmp;
       }
       else
         throw (new IllegalArgumentException ("Unknown option: "
@@ -533,6 +599,10 @@ class GenericJMXConfValue
 
     vl = new ValueList (pd);
     vl.setType (this._ds_name);
+    if (this._plugin_name != null)
+    {
+      vl.setPlugin (this._plugin_name);
+    }
 
     /*
      * Build the instnace prefix from the fixed string prefix and the

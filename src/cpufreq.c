@@ -21,117 +21,233 @@
  **/
 
 #include "collectd.h"
-#include "common.h"
+
 #include "plugin.h"
+#include "utils/common/common.h"
 
-#define MODULE_NAME "cpufreq"
+#if KERNEL_FREEBSD
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#endif
 
-static int num_cpu = 0;
+#if KERNEL_LINUX
+#define MAX_AVAIL_FREQS 20
 
-static int cpufreq_init (void)
-{
-        int status;
-	char filename[256];
+static int num_cpu;
 
-	num_cpu = 0;
+struct cpu_data_t {
+  value_to_rate_state_t time_state[MAX_AVAIL_FREQS];
+} * cpu_data;
 
-	while (1)
-	{
-		status = ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/"
-				"scaling_cur_freq", num_cpu);
-		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
-			break;
+/* Flags denoting capability of reporting CPU frequency statistics. */
+static bool report_p_stats = false;
 
-		if (access (filename, R_OK))
-			break;
+static void cpufreq_stats_init(void) {
+  cpu_data = calloc(num_cpu, sizeof(*cpu_data));
+  if (cpu_data == NULL)
+    return;
 
-		num_cpu++;
-	}
+  report_p_stats = true;
 
-	INFO ("cpufreq plugin: Found %d CPU%s", num_cpu,
-			(num_cpu == 1) ? "" : "s");
+  /* Check for stats module and disable if not present. */
+  for (int i = 0; i < num_cpu; i++) {
+    char filename[PATH_MAX];
 
-	if (num_cpu == 0)
-		plugin_unregister_read ("cpufreq");
+    snprintf(filename, sizeof(filename),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", i);
+    if (access(filename, R_OK)) {
+      NOTICE("cpufreq plugin: File %s not exists or no access. P-State "
+             "statistics will not be reported. Check if `cpufreq-stats' kernel "
+             "module is loaded.",
+             filename);
+      report_p_stats = false;
+      break;
+    }
 
-	return (0);
+    snprintf(filename, sizeof(filename),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", i);
+    if (access(filename, R_OK)) {
+      NOTICE("cpufreq plugin: File %s not exists or no access. P-State "
+             "statistics will not be reported. Check if `cpufreq-stats' kernel "
+             "module is loaded.",
+             filename);
+      report_p_stats = false;
+      break;
+    }
+  }
+  return;
+}
+#endif /* KERNEL_LINUX */
+
+static int cpufreq_init(void) {
+#if KERNEL_LINUX
+  char filename[PATH_MAX];
+
+  num_cpu = 0;
+
+  while (1) {
+    int status = snprintf(filename, sizeof(filename),
+                          "/sys/devices/system/cpu/cpu%d/cpufreq/"
+                          "scaling_cur_freq",
+                          num_cpu);
+    if ((status < 1) || ((unsigned int)status >= sizeof(filename)))
+      break;
+
+    if (access(filename, R_OK))
+      break;
+
+    num_cpu++;
+  }
+
+  INFO("cpufreq plugin: Found %d CPU%s", num_cpu, (num_cpu == 1) ? "" : "s");
+  cpufreq_stats_init();
+
+  if (num_cpu == 0)
+    plugin_unregister_read("cpufreq");
+#elif KERNEL_FREEBSD
+  char mib[] = "dev.cpu.0.freq";
+  int cpufreq;
+  size_t cf_len = sizeof(cpufreq);
+
+  if (sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+    WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
+    plugin_unregister_read("cpufreq");
+  }
+#endif
+
+  return 0;
 } /* int cpufreq_init */
 
-static void cpufreq_submit (int cpu_num, double value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
+static void cpufreq_submit(int cpu_num, const char *type,
+                           const char *type_instance, value_t *value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	values[0].gauge = value;
+  vl.values = value;
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "cpufreq", sizeof(vl.plugin));
+  snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", cpu_num);
+  if (type != NULL)
+    sstrncpy(vl.type, type, sizeof(vl.type));
+  if (type_instance != NULL)
+    sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
 
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "cpufreq", sizeof (vl.plugin));
-	sstrncpy (vl.type, "cpufreq", sizeof (vl.type));
-	ssnprintf (vl.type_instance, sizeof (vl.type_instance),
-			"%i", cpu_num);
-
-	plugin_dispatch_values (&vl);
+  plugin_dispatch_values(&vl);
 }
 
-static int cpufreq_read (void)
-{
-        int status;
-	unsigned long long val;
-	int i = 0;
-	FILE *fp;
-	char filename[256];
-	char buffer[16];
+#if KERNEL_LINUX
+static void cpufreq_read_stats(int cpu) {
+  char filename[PATH_MAX];
+  /* Read total transitions for cpu frequency */
+  snprintf(filename, sizeof(filename),
+           "/sys/devices/system/cpu/cpu%d/cpufreq/stats/total_trans", cpu);
 
-	for (i = 0; i < num_cpu; i++)
-	{
-		status = ssnprintf (filename, sizeof (filename),
-				"/sys/devices/system/cpu/cpu%d/cpufreq/"
-				"scaling_cur_freq", i);
-		if ((status < 1) || ((unsigned int)status >= sizeof (filename)))
-			return (-1);
+  value_t v;
+  if (parse_value_file(filename, &v, DS_TYPE_DERIVE) != 0) {
+    ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
+    return;
+  }
+  cpufreq_submit(cpu, "transitions", NULL, &v);
 
-		if ((fp = fopen (filename, "r")) == NULL)
-		{
-			char errbuf[1024];
-			WARNING ("cpufreq: fopen (%s): %s", filename,
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			return (-1);
-		}
+  /* Determine percentage time in each state for cpu during previous
+   * interval. */
+  snprintf(filename, sizeof(filename),
+           "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", cpu);
 
-		if (fgets (buffer, 16, fp) == NULL)
-		{
-			char errbuf[1024];
-			WARNING ("cpufreq: fgets: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-			fclose (fp);
-			return (-1);
-		}
+  FILE *fh = fopen(filename, "r");
+  if (fh == NULL) {
+    ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
+    return;
+  }
 
-		if (fclose (fp))
-		{
-			char errbuf[1024];
-			WARNING ("cpufreq: fclose: %s",
-					sstrerror (errno, errbuf,
-						sizeof (errbuf)));
-		}
+  int state_index = 0;
+  cdtime_t now = cdtime();
+  char buffer[DATA_MAX_NAME_LEN];
 
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    unsigned int frequency;
+    unsigned long long time;
 
-		/* You're seeing correctly: The file is reporting kHz values.. */
-		val = atoll (buffer) * 1000;
+    /*
+     * State time units is 10ms. To get rate of seconds per second
+     * we have to divide by 100. To get percents we have to multiply it
+     * by 100 back. So, just use parsed value directly.
+     */
+    if (!sscanf(buffer, "%u%llu", &frequency, &time)) {
+      ERROR("cpufreq plugin: Reading \"%s\" failed.", filename);
+      break;
+    }
 
-		cpufreq_submit (i, val);
-	}
+    char state[DATA_MAX_NAME_LEN];
+    snprintf(state, sizeof(state), "%u", frequency);
 
-	return (0);
+    if (state_index >= MAX_AVAIL_FREQS) {
+      NOTICE("cpufreq plugin: Found too many frequency states (%d > %d). "
+             "Plugin needs to be recompiled. Please open a bug report for "
+             "this.",
+             (state_index + 1), MAX_AVAIL_FREQS);
+      break;
+    }
+
+    gauge_t g;
+    if (value_to_rate(&g, (value_t){.derive = time}, DS_TYPE_DERIVE, now,
+                      &(cpu_data[cpu].time_state[state_index])) == 0) {
+      /*
+       * Due to some inaccuracy reported value can be a bit greatrer than 100.1.
+       * That produces gaps on charts.
+       */
+      if (g > 100.1)
+        g = 100.1;
+      cpufreq_submit(cpu, "percent", state, &(value_t){.gauge = g});
+    }
+    state_index++;
+  }
+  fclose(fh);
+}
+#endif /* KERNEL_LINUX */
+
+static int cpufreq_read(void) {
+#if KERNEL_LINUX
+  for (int cpu = 0; cpu < num_cpu; cpu++) {
+    char filename[PATH_MAX];
+    /* Read cpu frequency */
+    snprintf(filename, sizeof(filename),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", cpu);
+
+    value_t v;
+    if (parse_value_file(filename, &v, DS_TYPE_GAUGE) != 0) {
+      WARNING("cpufreq plugin: Reading \"%s\" failed.", filename);
+      continue;
+    }
+
+    /* convert kHz to Hz */
+    v.gauge *= 1000.0;
+
+    cpufreq_submit(cpu, "cpufreq", NULL, &v);
+
+    if (report_p_stats)
+      cpufreq_read_stats(cpu);
+  }
+#elif KERNEL_FREEBSD
+  /* FreeBSD currently only has 1 freq setting.  See BUGS in cpufreq(4) */
+  char mib[] = "dev.cpu.0.freq";
+  int cpufreq;
+  size_t cf_len = sizeof(cpufreq);
+
+  if (sysctlbyname(mib, &cpufreq, &cf_len, NULL, 0) != 0) {
+    WARNING("cpufreq plugin: sysctl \"%s\" failed.", mib);
+    return 0;
+  }
+
+  value_t v;
+  /* convert Mhz to Hz */
+  v.gauge = cpufreq * 1000000.0;
+
+  cpufreq_submit(0, "cpufreq", NULL, &v);
+#endif
+  return 0;
 } /* int cpufreq_read */
 
-void module_register (void)
-{
-	plugin_register_init ("cpufreq", cpufreq_init);
-	plugin_register_read ("cpufreq", cpufreq_read);
+void module_register(void) {
+  plugin_register_init("cpufreq", cpufreq_init);
+  plugin_register_read("cpufreq", cpufreq_read);
 }

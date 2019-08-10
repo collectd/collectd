@@ -620,6 +620,11 @@ sets the type instance instead. I<(optional)>
 Works like the option of the same name directly beneath the I<MBean> block, but
 sets the type instance instead. I<(optional)>
 
+=item B<PluginName> I<name>
+
+When set, overrides the default setting for the I<plugin> field
+(C<GenericJMX>).
+
 =item B<Table> B<true>|B<false>
 
 Set this to true if the returned attribute is a I<composite type>. If set to
@@ -693,5 +698,5 @@ L<types.db(5)>
 
 =head1 AUTHOR
 
-Florian Forster E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>
+Florian Forster E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>
 

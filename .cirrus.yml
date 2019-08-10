@@ -1,0 +1,225 @@
+env:
+  LANG: C
+  CIRRUS_CLONE_DEPTH: 1
+  DEFAULT_CONFIG_OPTS: --enable-debug --without-libstatgrab --disable-dependency-tracking
+
+
+###
+# make distcheck and other sanity checks
+#
+release_ready_task:
+  container:
+    image: collectd/ci:stretch_amd64
+  lint_script:
+    - /checks/check-bashisms.sh
+    - /checks/check-pod.sh
+  configure_script:
+    - ./build.sh
+    - ./configure $DEFAULT_CONFIG_OPTS
+  checks_script:
+    - make -j2 -s distcheck DISTCHECK_CONFIGURE_FLAGS="${DEFAULT_CONFIG_OPTS}"
+
+###
+# Default toolchain and build flags used in deb packages, on a range of Debian
+# and Ubuntu releases (+ Debian/unstable)
+# Most should succeed, and PRs shouldn't break them.
+#
+debian_default_toolchain_task:
+  matrix:
+    - allow_failures: false
+      container:
+        image: collectd/ci:jessie_amd64
+    - allow_failures: false
+      container:
+        image: collectd/ci:stretch_amd64
+    - allow_failures: false
+      container:
+        image: collectd/ci:stretch_i386
+    - allow_failures: false
+      container:
+        image: collectd/ci:trusty_amd64
+    - allow_failures: false
+      container:
+        image: collectd/ci:xenial_amd64
+    # debian/unstable is expected to fail
+    - allow_failures: true
+      skip_notifications: true
+      only_if: $CIRRUS_BRANCH == 'master'
+      container:
+        image: collectd/ci:sid_amd64
+  configure_script:
+    - ./build.sh
+    - gcc --version
+    - >
+      ./configure CC=gcc $DEFAULT_CONFIG_OPTS
+      CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+      CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
+      LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+  build_script:
+    - make -j2 -sk
+  tests_script:
+    - make -j2 -sk check
+    - /checks/check-built-plugins.sh
+
+###
+# Default toolchain and build flags used in RPM packages, on a range of RedHat
+# and Fedora releases (+ Fedora/rawhide)
+# Most should succeed, and PRs shouldn't break them.
+#
+redhat_default_toolchain_task:
+  matrix:
+    - allow_failures: false
+      skip_notifications: false
+      container:
+        image: collectd/ci:el6_x86_64
+    - allow_failures: true
+      skip_notifications: true
+      container:
+        image: collectd/ci:el7_x86_64 # TODO: fix this platform
+    - allow_failures: true
+      skip_notifications: true
+      container:
+        image: collectd/ci:fedora28_x86_64
+    # fedora/rawhide is expected to fail
+    - allow_failures: true
+      skip_notifications: true
+      only_if: $CIRRUS_BRANCH == 'master'
+      container:
+        image: collectd/ci:fedora_rawhide_x86_64
+  configure_script:
+    - ./build.sh
+    - gcc --version
+    - ./configure CC=gcc $DEFAULT_CONFIG_OPTS CFLAGS="$(rpm --eval '%optflags')"
+  build_script:
+    - make -j2 -sk
+  tests_script:
+    - make -j2 -sk check
+    - /checks/check-built-plugins.sh
+
+
+###
+# Misc non-standard build environment & options on most recent released debian
+# version.
+# Some are expected to fail, others should always pass
+non_standard_toolchains_task:
+  container:
+    image: collectd/ci:stretch_amd64
+  only_if: $CIRRUS_PR == ''
+
+  matrix:
+
+    # build using clang with default build flags, should always pass
+    - env:
+        LABEL: clang
+      allow_failures: true # TODO: fix this platform
+      skip_notifications: true
+      configure_script:
+        - ./build.sh
+        - clang --version
+        - >
+          ./configure CC=clang CXX=clang++
+          $DEFAULT_CONFIG_OPTS
+          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
+          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+      build_script:
+        - make -j2 -sk
+      tests_script:
+        - make -j2 -sk check
+
+    # build against libstatgrab, should always pass
+    - env:
+        LABEL: statgrab
+      allow_failures: false
+      skip_notifications: false
+      configure_script:
+        - ./build.sh
+        - gcc --version
+        - >
+          ./configure --with-libstatgrab --enable-debug
+          CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+          CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
+          LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+      build_script:
+        - make -j2 -sk
+      tests_script:
+        - >
+          for i in cpu disk interface load memory swap users; do
+            if ! $(ldd ".libs/${i}.so" 2>/dev/null | grep -q 'libstatgrab.so'); then
+              echo "plugin $i NOT linked against libstatgrab"
+              exit 1
+            fi
+          done
+
+    # build using clang with a collection of strict build flags, will most
+    # probably always fail
+    - env:
+        LABEL: clang strict
+      allow_failures: true
+      skip_notifications: true
+      configure_script:
+        - ./build.sh
+        - clang --version
+        - >
+          ./configure CC=clang CXX=clang++
+          $DEFAULT_CONFIG_OPTS
+          CFLAGS='-Wall
+          -Wno-error
+          -Wextra
+          -Wformat=2
+          -Wformat-security
+          -Wformat-nonliteral
+          -Wmissing-include-dirs
+          -Wold-style-definition
+          -Wpointer-arith
+          -Winit-self
+          -Wmissing-prototypes
+          -Wimplicit-function-declaration
+          -Wmissing-declarations
+          -Wstrict-prototypes
+          -Wmissing-noreturn
+          -Wshadow
+          -Wendif-labels
+          -Wwrite-strings
+          -Wno-unused-parameter
+          -Wno-missing-field-initializers
+          -Wdate-time
+          -Wnested-externs
+          -Wno-typedef-redefinition
+          -Wno-gnu-variable-sized-type-not-at-end'
+      build_script:
+        - make -j2 -sk
+      tests_script:
+        - make -j2 -sk check
+
+###
+# Build using a range of compilers, available in debian/unstable. NB: might
+# fail because of changes to the distro, not the compiler used.
+#
+bleeding_edge_compilers_task:
+  container:
+    image: collectd/ci:sid_amd64
+  only_if: $CIRRUS_BRANCH == 'master'
+  allow_failures: true
+  skip_notifications: true
+  env:
+    matrix:
+      CC: gcc-7
+      CC: gcc-8
+      CC: clang-6.0
+      CC: clang-7
+      CC: clang-8
+      CC: clang-9
+  configure_script:
+    - ./build.sh
+    - $CC --version
+    - >
+      ./configure CC=$CC
+      $DEFAULT_CONFIG_OPTS
+      CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+      CPPLAGS="$(dpkg-buildflags --get CPPFLAGS)"
+      LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+  build_script:
+    - make -j2 -sk
+  tests_script:
+    - make -j2 -sk check

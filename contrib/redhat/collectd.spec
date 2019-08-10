@@ -1,7 +1,7 @@
 #
 # q: What is this ?
 # a: A specfile for building RPM packages of current collectd releases, for
-#    RHEL/CentOS versions 5 and 6. By default all the plugins which are
+#    RHEL/CentOS versions 5, 6 and 7. By default all the plugins which are
 #    buildable based on the libraries available in the distribution + the
 #    EPEL repository, will be built. Plugins depending on external libs will
 #    be packaged in separate RPMs.
@@ -14,10 +14,12 @@
 # - enable the EPEL repository (http://dl.fedoraproject.org/pub/epel/) in the
 #   configuration files for your target systems (/etc/mock/*.cfg).
 #
-# - copy this file in your ~/rpmbuild/SPECS/ directory
-#
 # - fetch the desired collectd release file from https://collectd.org/files/
-#   and save it in your ~/rpmbuild/SOURCES/ directory
+#   and save it in your ~/rpmbuild/SOURCES/ directory (or build your own out of
+#   the git repository: ./build.sh && ./configure && make dist)
+#
+# - copy this file in your ~/rpmbuild/SPECS/ directory. Make sure the
+#   "Version:" tag matches the version from the tarball.
 #
 # - build the SRPM first:
 #   mock -r centos-6-x86_64 --buildsrpm --spec ~/rpmbuild/SPECS/collectd.spec \
@@ -34,63 +36,69 @@
 #
 
 %global _hardened_build 1
+%{?perl_default_filter}
 
-# plugins only buildable on RHEL6
-# (NB: %{elN} macro is not available on RHEL < 6)
-%{?el6:%global _has_libyajl 1}
-%{?el6:%global _has_recent_libpcap 1}
-%{?el6:%global _has_recent_sockios_h 1}
-%{?el6:%global _has_recent_libganglia 1}
-%{?el6:%global _has_working_libiptc 1}
-%{?el6:%global _has_ip_vs_h 1}
-%{?el6:%global _has_lvm2app_h 1}
-%{?el6:%global _has_perl_extutils_embed 1}
+# disable collectd debug by default
+%bcond_with debug
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
 %define with_amqp 0%{!?_without_amqp:1}
+%define with_amqp1 0%{!?_without_amqp1:1}
 %define with_apache 0%{!?_without_apache:1}
 %define with_apcups 0%{!?_without_apcups:1}
 %define with_ascent 0%{!?_without_ascent:1}
 %define with_battery 0%{!?_without_battery:1}
 %define with_bind 0%{!?_without_bind:1}
+%define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
+%define with_chrony 0%{!?_without_chrony:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
 %define with_cpufreq 0%{!?_without_cpufreq:1}
+%define with_cpusleep 0%{!?_without_cpusleep:1}
 %define with_csv 0%{!?_without_csv:1}
 %define with_curl 0%{!?_without_curl:1}
-%define with_curl_json 0%{!?_without_curl_json:0%{?_has_libyajl}}
+%define with_curl_json 0%{!?_without_curl_json:1}
 %define with_curl_xml 0%{!?_without_curl_xml:1}
 %define with_dbi 0%{!?_without_dbi:1}
 %define with_df 0%{!?_without_df:1}
 %define with_disk 0%{!?_without_disk:1}
-%define with_dns 0%{!?_without_dns:0%{?_has_recent_libpcap}}
+%define with_dns 0%{!?_without_dns:1}
+%define with_drbd 0%{!?_without_drbd:1}
 %define with_email 0%{!?_without_email:1}
 %define with_entropy 0%{!?_without_entropy:1}
-%define with_ethstat 0%{!?_without_ethstat:0%{?_has_recent_sockios_h}}
+%define with_ethstat 0%{!?_without_ethstat:1}
 %define with_exec 0%{!?_without_exec:1}
+%define with_fhcount 0%{!?_without_fhcount:1}
 %define with_filecount 0%{!?_without_filecount:1}
 %define with_fscache 0%{!?_without_fscache:1}
-%define with_gmond 0%{!?_without_gmond:0%{?_has_recent_libganglia}}
+%define with_gmond 0%{!?_without_gmond:1}
+%define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
+%define with_hugepages 0%{!?_without_hugepages:1}
 %define with_interface 0%{!?_without_interface:1}
+%define with_ipc 0%{!?_without_ipc:1}
 %define with_ipmi 0%{!?_without_ipmi:1}
-%define with_iptables 0%{!?_without_iptables:0%{?_has_working_libiptc}}
-%define with_ipvs 0%{!?_without_ipvs:0%{?_has_ip_vs_h}}
+%define with_iptables 0%{!?_without_iptables:1}
+%define with_ipvs 0%{!?_without_ipvs:1}
 %define with_irq 0%{!?_without_irq:1}
 %define with_java 0%{!?_without_java:1}
-%define with_libvirt 0%{!?_without_libvirt:1}
 %define with_load 0%{!?_without_load:1}
+%define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
-%define with_lvm 0%{!?_without_lvm:0%{?_has_lvm2app_h}}
+%define with_lua 0%{!?_without_lua:1}
+%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
+%define with_mcelog 0%{!?_without_mcelog:1}
 %define with_md 0%{!?_without_md:1}
 %define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
+%define with_modbus 0%{!?_without_modbus:1}
+%define with_mqtt 0%{!?_without_mqtt:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
 %define with_mysql 0%{!?_without_mysql:1}
 %define with_netlink 0%{!?_without_netlink:1}
@@ -99,12 +107,17 @@
 %define with_nginx 0%{!?_without_nginx:1}
 %define with_notify_desktop 0%{!?_without_notify_desktop:1}
 %define with_notify_email 0%{!?_without_notify_email:1}
+%define with_notify_nagios 0%{!?_without_notify_nagios:1}
 %define with_ntpd 0%{!?_without_ntpd:1}
 %define with_numa 0%{!?_without_numa:1}
 %define with_nut 0%{!?_without_nut:1}
 %define with_olsrd 0%{!?_without_olsrd:1}
+%define with_openldap 0%{!?_without_openldap:1}
 %define with_openvpn 0%{!?_without_openvpn:1}
-%define with_perl 0%{!?_without_perl:0%{?_has_perl_extutils_embed}}
+%define with_ovs_events 0%{!?_without_ovs_events:1}
+%define with_ovs_stats 0%{!?_without_ovs_stats:1}
+%define with_pcie_errors 0%{!?_without_pcie_errors:1}
+%define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
 %define with_postgresql 0%{!?_without_postgresql:1}
@@ -112,12 +125,17 @@
 %define with_processes 0%{!?_without_processes:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
+%define with_redis 0%{!?_without_redis:1}
+%define with_rrdcached 0%{!?_without_rrdcached:1}
 %define with_rrdtool 0%{!?_without_rrdtool:1}
 %define with_sensors 0%{!?_without_sensors:1}
 %define with_serial 0%{!?_without_serial:1}
+%define with_smart 0%{!?_without_smart:1}
 %define with_snmp 0%{!?_without_snmp:1}
+%define with_snmp_agent 0%{!?_without_snmp_agent:1}
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
+%define with_synproxy 0%{!?_without_synproxy:0}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
@@ -127,17 +145,29 @@
 %define with_ted 0%{!?_without_ted:1}
 %define with_thermal 0%{!?_without_thermal:1}
 %define with_threshold 0%{!?_without_threshold:1}
+%define with_turbostat 0%{!?_without_turbostat:1}
 %define with_unixsock 0%{!?_without_unixsock:1}
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
 %define with_varnish 0%{!?_without_varnish:1}
+%define with_virt 0%{!?_without_virt:1}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
 %define with_write_graphite 0%{!?_without_write_graphite:1}
 %define with_write_http 0%{!?_without_write_http:1}
+%define with_write_log 0%{!?_without_write_log:1}
+%define with_write_prometheus 0%{!?_without_write_prometheus:1}
+%define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_stackdriver 0%{!?_without_write_stackdriver:1}
+%define with_write_sensu 0%{!?_without_write_sensu:1}
+%define with_write_syslog 0%{!?_without_write_syslog:1}
+%define with_write_tsdb 0%{!?_without_write_tsdb:1}
+%define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
+%define with_zfs_arc 0%{!?_without_zfs_arc:1}
+%define with_zookeeper 0%{!?_without_zookeeper:1}
 
 # Plugins not built by default because of dependencies on libraries not
 # available in RHEL or EPEL:
@@ -146,12 +176,22 @@
 %define with_apple_sensors 0%{!?_without_apple_sensors:0}
 # plugin aquaero disabled, requires a libaquaero5
 %define with_aquaero 0%{!?_without_aquaero:0}
+# plugin barometer disabled, requires a libi2c
+%define with_barometer 0%{!?_without_barometer:0}
+# plugin dpdkevents disabled, requires libdpdk
+%define with_dpdkevents 0%{!?_without_dpdkevents:0}
+# plugin dpdkstat disabled, requires libdpdk
+%define with_dpdkstat 0%{!?_without_dpdkstat:0}
+# plugin grpc disabled, requires protobuf-compiler >= 3.0
+%define with_grpc 0%{!?_without_grpc:0}
 # plugin lpar disabled, requires AIX
 %define with_lpar 0%{!?_without_lpar:0}
+# plugin intel_pmu disabled, requires libjevents
+%define with_intel_pmu 0%{!?_without_intel_pmu:0}
+# plugin intel_rdt disabled, requires intel-cmt-cat
+%define with_intel_rdt 0%{!?_without_intel_rdt:0}
 # plugin mic disabled, requires Mic
 %define with_mic 0%{!?_without_mic:0}
-# plugin modbus disabled, requires libmodbus
-%define with_modbus 0%{!?_without_modbus:0}
 # plugin netapp disabled, requires libnetapp
 %define with_netapp 0%{!?_without_netapp:0}
 # plugin onewire disabled, requires libowfs
@@ -160,42 +200,85 @@
 %define with_oracle 0%{!?_without_oracle:0}
 # plugin oracle disabled, requires BSD
 %define with_pf 0%{!?_without_pf:0}
-# plugin redis disabled, requires credis
-%define with_redis 0%{!?_without_redis:0}
 # plugin routeros disabled, requires librouteros
 %define with_routeros 0%{!?_without_routeros:0}
-# plugin rrdcached disabled, requires rrdtool >= 1.4
-%define with_rrdcached 0%{!?_without_rrdcached:0}
 # plugin sigrok disabled, requires libsigrok
 %define with_sigrok 0%{!?_without_sigrok:0}
 # plugin tape disabled, requires libkstat
 %define with_tape 0%{!?_without_tape:0}
 # plugin tokyotyrant disabled, requires tcrdb.h
 %define with_tokyotyrant 0%{!?_without_tokyotyrant:0}
+# plugin write_kafka disabled, requires librdkafka
+%define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin write_redis disabled, requires credis
-%define with_write_redis 0%{!?_without_write_redis:0}
-# plugin xmms disabled, requires xmms
-%define with_xmms 0%{!?_without_xmms:0}
-# plugin zfs_arc disabled, requires FreeBSD/Solaris
-%define with_zfs_arc 0%{!?_without_zfs_arc:0}
+# plugin xencpu disabled, requires xen-devel from non-default repo
+%define with_xencpu 0%{!?_without_xencpu:0}
+# plugin zone disabled, requires Solaris
+%define with_zone 0%{!?_without_zone:0}
+# plugin gpu_nvidia requires cuda-nvml-dev
+# get it from https://developer.nvidia.com/cuda-downloads
+# then install cuda-nvml-dev-10-1 or other version
+%define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
+# not sure why this one's failing
+%define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
 
-Summary:	Statistics collection daemon for filling RRD files
+# Plugins not buildable on RHEL < 6
+%if 0%{?rhel} && 0%{?rhel} < 6
+%define with_ceph 0
+%define with_curl_json 0
+%define with_log_logstash 0
+%define with_dns 0
+%define with_ethstat 0
+%define with_gmond 0
+%define with_iptables 0
+%define with_ipvs 0
+%define with_lvm 0
+%define with_modbus 0
+%define with_netlink 0
+%define with_redis 0
+%define with_smart 0
+%define with_turbostat 0
+%define with_write_prometheus 0
+%define with_write_redis 0
+%define with_write_riemann 0
+%endif
+
+# Plugins not buildable on RHEL < 7
+%if 0%{?rhel} && 0%{?rhel} < 7
+%define with_cpusleep 0
+%define with_gps 0
+%define with_mqtt 0
+%define with_ovs_events 0
+%define with_ovs_stats 0
+%define with_redis 0
+%define with_rrdcached 0
+%define with_write_redis 0
+%define with_write_riemann 0
+%define with_xmms 0
+%endif
+
+Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.4.0
+Version:	5.9.0
 Release:	1%{?dist}
-URL:		http://collectd.org
-Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
+URL:		https://collectd.org
+Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
 Group:		System Environment/Daemons
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root
-BuildRequires:	libgcrypt-devel, kernel-headers
+BuildRequires:	libgcrypt-devel, kernel-headers, libcap-devel, which
 Vendor:		collectd development team <collectd@verplant.org>
 
+%if 0%{?fedora} || 0%{?rhel} >= 7
+BuildRequires:		xfsprogs-devel
+%{?systemd_requires}
+BuildRequires:		systemd
+%else
 Requires(post):		chkconfig
 Requires(preun):	chkconfig, initscripts
 Requires(postun):	initscripts
+%endif
 
 %description
 collectd is a small daemon which collects system information periodically and
@@ -207,13 +290,24 @@ every 10 seconds by default.
 
 %if %{with_amqp}
 %package amqp
-Summary:	AMQP plugin for collectd
+Summary:	AMQP 0.9 plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	librabbitmq-devel
 %description amqp
-The AMQP plugin transmits or receives values collected by collectd via the
-Advanced Message Queuing Protocol (AMQP).
+The AMQP 0.9 plugin transmits or receives values collected by collectd via the
+Advanced Message Queuing Protocol v0.9 (AMQP).
+%endif
+
+%if %{with_amqp1}
+%package amqp1
+Summary:	AMQP 1.0 plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	qpid-proton-c-devel
+%description amqp1
+The AMQP 1.0 plugin transmits or receives values collected by collectd via the
+Advanced Message Queuing Protocol v1.0 (AMQP1).
 %endif
 
 %if %{with_apache}
@@ -247,6 +341,15 @@ open-source server software for the game World of Warcraft by Blizzard
 Entertainment.
 %endif
 
+%if %{with_barometer}
+%package barometer
+Summary:       barometer plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+%description barometer
+Collects pressure and temperature from digital barometers.
+%endif
+
 %if %{with_bind}
 %package bind
 Summary:	Bind plugin for collectd
@@ -256,6 +359,25 @@ BuildRequires:	libxml2-devel, curl-devel
 %description bind
 The BIND plugin retrieves this information that's encoded in XML and provided
 via HTTP and submits the values to collectd.
+%endif
+
+%if %{with_ceph}
+%package ceph
+Summary:       Ceph plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ceph
+Ceph plugin for collectd
+%endif
+
+%if %{with_chrony}
+%package chrony
+Summary:       Chrony plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+%description chrony
+Chrony plugin for collectd
 %endif
 
 %if %{with_curl}
@@ -302,6 +424,17 @@ The DBI plugin uses libdbi, a database abstraction library, to execute SQL
 statements on a database and read back the result.
 %endif
 
+%if %{with_disk}
+%package disk
+Summary:	disk plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%{?_has_libudev:BuildRequires:  libudev-devel}
+%description disk
+The "disk" plugin collects information about the usage of physical disks and
+logical disks (partitions).
+%endif
+
 %if %{with_dns}
 %package dns
 Summary:	DNS plugin for collectd
@@ -334,6 +467,26 @@ The gmond plugin subscribes to a Multicast group to receive data from gmond,
 the client daemon of the Ganglia project.
 %endif
 
+%if %{with_gps}
+%package gps
+Summary:	GPS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	gpsd-devel
+%description gps
+This plugin monitor gps related data through gpsd.
+%endif
+
+%if %{with_grpc}
+%package grpc
+Summary:	GRPC plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	protobuf-compiler
+%description grpc
+This plugin embeds a gRPC server into Collectd.
+%endif
+
 %if %{with_hddtemp}
 %package hddtemp
 Summary:	Hddtemp plugin for collectd
@@ -342,6 +495,27 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+%if %{with_intel_pmu}
+%package intel_pmu
+Summary:	Intel PMU plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description intel_pmu
+The intel_pmu plugin reads performance counters provided by the Linux
+kernel perf interface.
+%endif
+
+%if %{with_intel_rdt}
+%package intel_rdt
+Summary:	Intel RDT plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	intel-cmt-cat
+%description intel_rdt
+The intel_rdt plugin collects information provided by monitoring features of
+Intel Resource Director Technology (Intel(R) RDT).
 %endif
 
 %if %{with_ipmi}
@@ -372,21 +546,32 @@ the byte- and packet-counters of selected rules and submit them to collectd.
 Summary:	Java plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	java-devel, jpackage-utils
-Requires:	java, jpackage-utils
+BuildRequires:	java-devel >= 1.6, jpackage-utils >= 1.6
+Requires:	java >= 1.6, jpackage-utils >= 1.6
 %description java
 This plugin for collectd allows plugins to be written in Java and executed
 in an embedded JVM.
 %endif
 
-%if %{with_libvirt}
-%package libvirt
-Summary:	Libvirt plugin for collectd
+%if %{with_log_logstash}
+%package log_logstash
+Summary:       log_logstash plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description log_logstash
+This plugin logs in logstash JSON format
+%endif
+
+%if %{with_lua}
+%package lua
+Summary:	Lua plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libvirt-devel
-%description libvirt
-This plugin collects information from virtualized guests.
+BuildRequires:	lua-devel
+%description lua
+The Lua plugin embeds a Lua interpreter into collectd and exposes the
+application programming interface (API) to Lua scripts.
 %endif
 
 %if %{with_lvm}
@@ -398,6 +583,16 @@ BuildRequires:	lvm2-devel
 %description lvm
 This plugin collects size of “Logical Volumes” (LV) and “Volume Groups” (VG)
 of Linux' “Logical Volume Manager” (LVM).
+%endif
+
+%if %{with_mcelog}
+%package mcelog
+Summary:	Mcelog plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description mcelog
+This plugin monitors machine check exceptions reported by mcelog and generates
+appropriate notifications when machine check exceptions are detected.
 %endif
 
 %if %{with_memcachec}
@@ -422,6 +617,16 @@ The mic plugin collects CPU usage, memory usage, temperatures and power
 consumption from Intel Many Integrated Core (MIC) CPUs.
 %endif
 
+%if %{with_modbus}
+%package modbus
+Summary:       modbus plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libmodbus-devel
+%description modbus
+The modbus plugin collects values from Modbus/TCP enabled devices
+%endif
+
 %if %{with_mysql}
 %package mysql
 Summary:	MySQL plugin for collectd
@@ -433,15 +638,24 @@ MySQL querying plugin. This plugin provides data of issued commands, called
 handlers and database traffic.
 %endif
 
+%if %{with_mqtt}
+%package mqtt
+Summary:	mqtt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	mosquitto-devel
+%description mqtt
+The MQTT plugin publishes and subscribes to MQTT topics.
+%endif
+
 %if %{with_netlink}
 %package netlink
 Summary:	netlink plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	libmnl-devel
+BuildRequires:	libmnl-devel, iproute-devel
 %description netlink
-This plugin collects very detailed Linux network interface and routing
-statistics.
+The netlink plugin collects detailed network interface and routing statistics.
 %endif
 
 %if %{with_nginx}
@@ -486,16 +700,63 @@ BuildRequires:	nut-devel
 This plugin for collectd provides Network UPS Tools support.
 %endif
 
+%if %{with_openldap}
+%package openldap
+Summary:       Openldap plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: openldap-devel
+%description openldap
+This plugin reads monitoring information from OpenLDAP's cn=Monitor subtree.
+%endif
+
+%if %{with_ovs_events}
+%package ovs_events
+Summary:       Open vSwitch events plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ovs_events
+This plugin monitors the link status of Open vSwitch (OVS) connected
+interfaces, dispatches the values to collectd and sends notifications
+whenever a link state change occurs in the OVS database.
+%endif
+
+%if %{with_ovs_stats}
+%package ovs_stats
+Summary:       Open vSwitch statistics plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description ovs_stats
+This plugin collects statictics of OVS connected bridges and
+interfaces.
+%endif
+
 %if %{with_perl}
 %package perl
 Summary:	Perl plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
+	%if 0%{?rhel} && 0%{?rhel} < 6
+BuildRequires:	perl
+	%else
 BuildRequires:	perl-ExtUtils-Embed
+	%endif
 %description perl
 The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
+%endif
+
+%if %{with_pcie_errors}
+%package pcie_errors
+Summary:	PCI Express errors plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description pcie_errors
+The pcie_errors plugin collects PCI Express errors from Device Status in Capability
+structure and from Advanced Error Reporting Extended Capability.
 %endif
 
 %if %{with_pinba}
@@ -536,11 +797,11 @@ database.
 Summary:	Python plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-%if 0%{?rhel} >= 6
-BuildRequires: python-devel
-%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 BuildRequires: python26-devel
-%endif
+	%else
+BuildRequires: python-devel
+	%endif
 %description python
 The Python plugin embeds a Python interpreter into collectd and exposes the
 application programming interface (API) to Python-scripts.
@@ -551,10 +812,10 @@ application programming interface (API) to Python-scripts.
 Summary:	Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description redis
 The Redis plugin connects to one or more instances of Redis, a key-value store,
-and collects usage information using the credis library.
+and collects usage information using the hiredis library.
 %endif
 
 %if %{with_rrdcached}
@@ -599,6 +860,17 @@ measurements fed to collectd. This includes multimeters, sound level meters,
 thermometers, and much more.
 %endif
 
+%if %{with_smart}
+%package smart
+Summary:       SMART plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: libatasmart-devel
+%description smart
+Collect SMART statistics, notably load cycle count, temperature and bad
+sectors.
+%endif
+
 %if %{with_snmp}
 %package snmp
 Summary:	SNMP plugin for collectd
@@ -609,6 +881,16 @@ BuildRequires:	net-snmp-devel
 This plugin for collectd allows querying of network equipment using SNMP.
 %endif
 
+%if %{with_snmp_agent}
+%package snmp_agent
+Summary:	SNMP AgentX plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	net-snmp-devel
+%description snmp_agent
+This plugin for collectd to support AgentX integration.
+%endif
+
 %if %{with_varnish}
 %package varnish
 Summary:	Varnish plugin for collectd
@@ -617,6 +899,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	varnish-libs-devel
 %description varnish
 The Varnish plugin collects information about Varnish, an HTTP accelerator.
+%endif
+
+%if %{with_virt}
+%package virt
+Summary:	Virt plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libvirt-devel
+%description virt
+This plugin collects information from virtualized guests.
 %endif
 
 %if %{with_write_http}
@@ -630,12 +922,33 @@ The Write-HTTP plugin sends the values collected by collectd to a web-server
 using HTTP POST requests.
 %endif
 
+%if %{with_write_kafka}
+%package write_kafka
+Summary:       Write-kafka plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: librdkafka-devel
+%description write_kafka
+The write_kafka plugin sends values to kafka, a distributed messaging system.
+%endif
+
+%if %{with_write_prometheus}
+%package write_prometheus
+Summary:	Write-prometheus plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	libmicrohttpd-devel
+%description write_prometheus
+The Write Prometheus plugin exposes collected values using an embedded HTTP
+server, turning the collectd daemon into a Prometheus exporter.
+%endif
+
 %if %{with_write_redis}
 %package write_redis
 Summary:	Write-Redis plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	credis-devel
+BuildRequires:	hiredis-devel
 %description write_redis
 The Write Redis plugin stores values in Redis, a “data structures server”.
 %endif
@@ -645,9 +958,50 @@ The Write Redis plugin stores values in Redis, a “data structures server”.
 Summary:	riemann plugin for collectd
 Group:		System Environment/Daemons
 Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	protobuf-c-devel
+BuildRequires:	riemann-c-client-devel >= 1.6
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
+%if %{with_write_stackdriver}
+%package write_stackdriver
+Summary:	stackdriver plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel, yajl-devel, openssl-devel
+%description write_stackdriver
+The write_stackdriver collectd plugin writes metrics to the
+Google Stackdriver Monitoring service.
+%endif
+
+%if %{with_gpu_nvidia}
+%package gpu_nvidia
+Summary:	stackdriver plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires: cuda-nvml-dev-10-1
+%description gpu_nvidia
+The gpu_nvidia collectd plugin collects NVidia GPU metrics.
+%endif
+
+%if %{with_xencpu}
+%package xencpu
+Summary:	xencpu plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xen-devel
+%description xencpu
+The xencpu plugin collects CPU statistics from Xen.
+%endif
+
+%if %{with_xmms}
+%package xmms
+Summary:	XMMS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xmms-devel
+%description xmms
+The xmms plugin collects information from the XMMS music player.
 %endif
 
 %package collection3
@@ -692,6 +1046,13 @@ Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
 %description -n libcollectdclient-devel
 Development files for libcollectdclient
 
+%package -n collectd-utils
+Summary:	Collectd utilities
+Group:		System Environment/Daemons
+Requires:	libcollectdclient%{?_isa} = %{version}-%{release}
+Requires:	collectd%{?_isa} = %{version}-%{release}
+%description -n collectd-utils
+Collectd utilities
 
 %prep
 %setup -q
@@ -707,6 +1068,12 @@ Development files for libcollectdclient
 %define _with_amqp --enable-amqp
 %else
 %define _with_amqp --disable-amqp
+%endif
+
+%if %{with_amqp1}
+%define _with_amqp1 --enable-amqp1
+%else
+%define _with_amqp1 --disable-amqp1
 %endif
 
 %if %{with_apache}
@@ -739,6 +1106,12 @@ Development files for libcollectdclient
 %define _with_ascent --disable-ascent
 %endif
 
+%if %{with_barometer}
+%define _with_barometer --enable-barometer
+%else
+%define _with_barometer --disable-barometer
+%endif
+
 %if %{with_battery}
 %define _with_battery --enable-battery
 %else
@@ -755,6 +1128,12 @@ Development files for libcollectdclient
 %define _with_cgroups --enable-cgroups
 %else
 %define _with_cgroups --disable-cgroups
+%endif
+
+%if %{with_chrony}
+%define _with_chrony --enable-chrony
+%else
+%define _with_chrony --disable-chrony
 %endif
 
 %if %{with_conntrack}
@@ -781,10 +1160,22 @@ Development files for libcollectdclient
 %define _with_cpufreq --disable-cpufreq
 %endif
 
+%if %{with_cpusleep}
+%define _with_cpusleep --enable-cpusleep
+%else
+%define _with_cpusleep --disable-cpusleep
+%endif
+
 %if %{with_csv}
 %define _with_csv --enable-csv
 %else
 %define _with_csv --disable-csv
+%endif
+
+%if %{with_ceph}
+%define _with_ceph --enable-ceph
+%else
+%define _with_ceph --disable-ceph
 %endif
 
 %if %{with_curl}
@@ -808,7 +1199,7 @@ Development files for libcollectdclient
 %if %{with_dbi}
 %define _with_dbi --enable-dbi
 %else
-%define _with_dbi --disable-dbi --without-libdbi
+%define _with_dbi --disable-dbi
 %endif
 
 %if %{with_df}
@@ -827,6 +1218,24 @@ Development files for libcollectdclient
 %define _with_dns --enable-dns
 %else
 %define _with_dns --disable-dns
+%endif
+
+%if %{with_drbd}
+%define _with_drbd --enable-drbd
+%else
+%define _with_drbd --disable-drbd
+%endif
+
+%if %{with_dpdkevents}
+%define _with_dpdkevents --enable-dpdkevents
+%else
+%define _with_dpdkevents --disable-dpdkevents
+%endif
+
+%if %{with_dpdkstat}
+%define _with_dpdkstat --enable-dpdkstat
+%else
+%define _with_dpdkstat --disable-dpdkstat
 %endif
 
 %if %{with_email}
@@ -853,6 +1262,12 @@ Development files for libcollectdclient
 %define _with_exec --disable-exec
 %endif
 
+%if %{with_fhcount}
+%define _with_fhcount --enable-fhcount
+%else
+%define _with_fhcount --disable-fhcount
+%endif
+
 %if %{with_filecount}
 %define _with_filecount --enable-filecount
 %else
@@ -871,16 +1286,52 @@ Development files for libcollectdclient
 %define _with_gmond --disable-gmond
 %endif
 
+%if %{with_gps}
+%define _with_gps --enable-gps
+%else
+%define _with_gps --disable-gps
+%endif
+
+%if %{with_grpc}
+%define _with_grpc --enable-grpc
+%else
+%define _with_grpc --disable-grpc
+%endif
+
 %if %{with_hddtemp}
 %define _with_hddtemp --enable-hddtemp
 %else
 %define _with_hddtemp --disable-hddtemp
 %endif
 
+%if %{with_hugepages}
+%define _with_hugepages --enable-hugepages
+%else
+%define _with_hugepages --disable-hugepages
+%endif
+
+%if %{with_intel_pmu}
+%define _with_intel_pmu --enable-intel_pmu
+%else
+%define _with_intel_pmu --disable-intel_pmu
+%endif
+
+%if %{with_intel_rdt}
+%define _with_intel_rdt --enable-intel_rdt
+%else
+%define _with_intel_rdt --disable-intel_rdt
+%endif
+
 %if %{with_interface}
 %define _with_interface --enable-interface
 %else
 %define _with_interface --disable-interface
+%endif
+
+%if %{with_ipc}
+%define _with_ipc --enable-ipc
+%else
+%define _with_ipc --disable-ipc
 %endif
 
 %if %{with_ipmi}
@@ -913,10 +1364,10 @@ Development files for libcollectdclient
 %define _with_java --disable-java
 %endif
 
-%if %{with_libvirt}
-%define _with_libvirt --enable-libvirt
+%if %{with_virt}
+%define _with_virt --enable-virt
 %else
-%define _with_libvirt --disable-libvirt
+%define _with_virt --disable-virt
 %endif
 
 %if %{with_load}
@@ -931,10 +1382,22 @@ Development files for libcollectdclient
 %define _with_logfile --disable-logfile
 %endif
 
+%if %{with_log_logstash}
+%define _with_log_logstash --enable-log_logstash
+%else
+%define _with_log_logstash --disable-log_logstash
+%endif
+
 %if %{with_lpar}
 %define _with_lpar --enable-lpar
 %else
 %define _with_lpar --disable-lpar
+%endif
+
+%if %{with_lua}
+%define _with_lua --enable-lua
+%else
+%define _with_lua --disable-lua
 %endif
 
 %if %{with_lvm}
@@ -953,6 +1416,12 @@ Development files for libcollectdclient
 %define _with_mbmon --enable-mbmon
 %else
 %define _with_mbmon --disable-mbmon
+%endif
+
+%if %{with_mcelog}
+%define _with_mcelog --enable-mcelog
+%else
+%define _with_mcelog --disable-mcelog
 %endif
 
 %if %{with_md}
@@ -995,6 +1464,12 @@ Development files for libcollectdclient
 %define _with_multimeter --enable-multimeter
 %else
 %define _with_multimeter --disable-multimeter
+%endif
+
+%if %{with_mqtt}
+%define _with_mqtt --enable-mqtt
+%else
+%define _with_mqtt --disable-mqtt
 %endif
 
 %if %{with_mysql}
@@ -1042,7 +1517,13 @@ Development files for libcollectdclient
 %if %{with_notify_email}
 %define _with_notify_email --enable-notify_email
 %else
-%define _with_notify_email --disable-notify_email --without-libesmpt
+%define _with_notify_email --disable-notify_email
+%endif
+
+%if %{with_notify_nagios}
+%define _with_notify_nagios --enable-notify_nagios
+%else
+%define _with_notify_nagios --disable-notify_nagios
 %endif
 
 %if %{with_ntpd}
@@ -1075,6 +1556,12 @@ Development files for libcollectdclient
 %define _with_onewire --disable-onewire
 %endif
 
+%if %{with_openldap}
+%define _with_openldap --enable-openldap
+%else
+%define _with_openldap --disable-openldap
+%endif
+
 %if %{with_openvpn}
 %define _with_openvpn --enable-openvpn
 %else
@@ -1087,10 +1574,28 @@ Development files for libcollectdclient
 %define _with_oracle --disable-oracle
 %endif
 
+%if %{with_ovs_events}
+%define _with_ovs_events --enable-ovs_events
+%else
+%define _with_ovs_events --disable-ovs_events
+%endif
+
+%if %{with_ovs_stats}
+%define _with_ovs_stats --enable-ovs_stats
+%else
+%define _with_ovs_stats --disable-ovs_stats
+%endif
+
 %if %{with_perl}
 %define _with_perl --enable-perl --with-perl-bindings="INSTALLDIRS=vendor"
 %else
-%define _with_perl --disable-perl --without-libperl
+%define _with_perl --disable-perl
+%endif
+
+%if %{with_pcie_errors}
+%define _with_pcie_errors --enable-pcie_errors
+%else
+%define _with_pcie_errors --disable-pcie_errors
 %endif
 
 %if %{with_pf}
@@ -1136,11 +1641,12 @@ Development files for libcollectdclient
 %endif
 
 %if %{with_python}
-%if 0%{?rhel} >= 6
-%define _with_python --enable-python
-%else
+	%if 0%{?rhel} && 0%{?rhel} < 6
 %define _with_python --enable-python --with-python=%{_bindir}/python2.6
-%endif
+%define _python_config PYTHON_CONFIG="%{_bindir}/python2.6-config"
+	%else
+%define _with_python --enable-python
+	%endif
 %else
 %define _with_python --disable-python
 %endif
@@ -1187,10 +1693,22 @@ Development files for libcollectdclient
 %define _with_sigrok --disable-sigrok
 %endif
 
+%if %{with_smart}
+%define _with_smart --enable-smart
+%else
+%define _with_smart --disable-smart
+%endif
+
 %if %{with_snmp}
 %define _with_snmp --enable-snmp
 %else
 %define _with_snmp --disable-snmp
+%endif
+
+%if %{with_snmp_agent}
+%define _with_snmp_agent --enable-snmp_agent
+%else
+%define _with_snmp_agent --disable-snmp_agent
 %endif
 
 %if %{with_statsd}
@@ -1203,6 +1721,12 @@ Development files for libcollectdclient
 %define _with_swap --enable-swap
 %else
 %define _with_swap --disable-swap
+%endif
+
+%if %{with_synproxy}
+%define _with_synproxy --enable-synproxy
+%else
+%define _with_synproxy --disable-synproxy
 %endif
 
 %if %{with_syslog}
@@ -1271,6 +1795,12 @@ Development files for libcollectdclient
 %define _with_tokyotyrant --disable-tokyotyrant
 %endif
 
+%if %{with_turbostat}
+%define _with_turbostat --enable-turbostat
+%else
+%define _with_turbostat --disable-turbostat
+%endif
+
 %if %{with_unixsock}
 %define _with_unixsock --enable-unixsock
 %else
@@ -1331,22 +1861,76 @@ Development files for libcollectdclient
 %define _with_write_http --disable-write_http
 %endif
 
+%if %{with_write_kafka}
+%define _with_write_kafka --enable-write_kafka
+%else
+%define _with_write_kafka --disable-write_kafka
+%endif
+
+%if %{with_write_log}
+%define _with_write_log --enable-write_log
+%else
+%define _with_write_log --disable-write_log
+%endif
+
 %if %{with_write_mongodb}
 %define _with_write_mongodb --enable-write_mongodb
 %else
-%define _with_write_mongodb --disable-write_mongodb --without-libmongoc
+%define _with_write_mongodb --disable-write_mongodb
+%endif
+
+%if %{with_write_prometheus}
+%define _with_write_prometheus --enable-write_prometheus
+%else
+%define _with_write_prometheus --disable-write_prometheus
 %endif
 
 %if %{with_write_redis}
 %define _with_write_redis --enable-write_redis
 %else
-%define _with_write_redis --disable-write_redis --without-libcredis
+%define _with_write_redis --disable-write_redis
 %endif
 
 %if %{with_write_riemann}
 %define _with_write_riemann --enable-write_riemann
 %else
 %define _with_write_riemann --disable-write_riemann
+%endif
+
+%if %{with_write_stackdriver}
+%define _with_write_stackdriver --enable-write_stackdriver
+%else
+%define _with_write_stackdriver --disable-write_stackdriver
+%endif
+
+%if %{with_gpu_nvidia}
+%define _with_gpu_nvidia --enable-gpu_nvidia
+%else
+%define _with_gpu_nvidia --disable-gpu_nvidia
+%endif
+
+%if %{with_write_sensu}
+%define _with_write_sensu --enable-write_sensu
+%else
+%define _with_write_sensu --disable-write_sensu
+%endif
+
+%if %{with_write_syslog}
+%define _with_write_syslog --enable-write_syslog
+%else
+%define _with_write_syslog --disable-write_syslog
+%endif
+
+%if %{with_write_tsdb}
+%define _with_write_tsdb --enable-write_tsdb
+%else
+%define _with_write_tsdb --disable-write_tsdb
+%endif
+
+%if %{with_xencpu}
+%define _with_xencpu --enable-xencpu
+%else
+%define _with_xencpu --disable-xencpu
 %endif
 
 %if %{with_xmms}
@@ -1361,9 +1945,28 @@ Development files for libcollectdclient
 %define _with_zfs_arc --disable-zfs_arc
 %endif
 
+%if %{with_zone}
+%define _with_zone --enable-zone
+%else
+%define _with_zone --disable-zone
+%endif
+
+%if %{with_zookeeper}
+%define _with_zookeeper --enable-zookeeper
+%else
+%define _with_zookeeper --disable-zookeeper
+%endif
+
+%if %{with debug}
+%define _feature_debug --enable-debug
+%else
+%define _feature_debug --disable-debug
+%endif
+
 %configure CFLAGS="%{optflags} -DLT_LAZY_OR_NOW=\"RTLD_LAZY|RTLD_GLOBAL\"" \
+	%{?_python_config} \
+	%{?_feature_debug} \
 	--disable-static \
-	--without-included-ltdl \
 	--enable-all-plugins=yes \
 	--enable-match_empty_counter \
 	--enable-match_hashed \
@@ -1377,115 +1980,154 @@ Development files for libcollectdclient
 	--enable-target_v5upgrade \
 	%{?_with_aggregation} \
 	%{?_with_amqp} \
+	%{?_with_amqp1} \
 	%{?_with_apache} \
 	%{?_with_apcups} \
 	%{?_with_apple_sensors} \
 	%{?_with_aquaero} \
 	%{?_with_ascent} \
+	%{?_with_barometer} \
 	%{?_with_battery} \
 	%{?_with_bind} \
+	%{?_with_ceph} \
 	%{?_with_cgroups} \
+	%{?_with_chrony} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
-	%{?_with_cpu} \
 	%{?_with_cpufreq} \
+	%{?_with_cpusleep} \
+	%{?_with_cpu} \
 	%{?_with_csv} \
-	%{?_with_curl} \
 	%{?_with_curl_json} \
 	%{?_with_curl_xml} \
+	%{?_with_curl} \
 	%{?_with_dbi} \
 	%{?_with_df} \
 	%{?_with_disk} \
 	%{?_with_dns} \
+	%{?_with_drbd} \
+	%{?_with_dpdkevents} \
+	%{?_with_dpdkstat} \
 	%{?_with_email} \
 	%{?_with_entropy} \
 	%{?_with_ethstat} \
 	%{?_with_exec} \
+	%{?_with_fhcount} \
 	%{?_with_filecount} \
 	%{?_with_fscache} \
 	%{?_with_gmond} \
+	%{?_with_gps} \
+	%{?_with_grpc} \
 	%{?_with_hddtemp} \
+	%{?_with_hugepages} \
+	%{?_with_intel_pmu} \
+	%{?_with_intel_rdt} \
 	%{?_with_interface} \
+	%{?_with_ipc} \
 	%{?_with_ipmi} \
 	%{?_with_iptables} \
 	%{?_with_ipvs} \
+	%{?_with_irq} \
 	%{?_with_java} \
-	%{?_with_libvirt} \
+	%{?_with_load} \
+	%{?_with_log_logstash} \
+	%{?_with_logfile} \
 	%{?_with_lpar} \
+	%{?_with_lua} \
 	%{?_with_lvm} \
+	%{?_with_madwifi} \
+	%{?_with_mbmon} \
+	%{?_with_mcelog} \
+	%{?_with_md} \
 	%{?_with_memcachec} \
+	%{?_with_memcached} \
+	%{?_with_memory} \
 	%{?_with_mic} \
 	%{?_with_modbus} \
+	%{?_with_mqtt} \
 	%{?_with_multimeter} \
 	%{?_with_mysql} \
 	%{?_with_netapp} \
 	%{?_with_netlink} \
+	%{?_with_network} \
+	%{?_with_nfs} \
 	%{?_with_nginx} \
 	%{?_with_notify_desktop} \
 	%{?_with_notify_email} \
+	%{?_with_notify_nagios} \
+	%{?_with_ntpd} \
+	%{?_with_numa} \
 	%{?_with_nut} \
+	%{?_with_olsrd} \
 	%{?_with_onewire} \
+	%{?_with_openldap} \
+	%{?_with_openvpn} \
 	%{?_with_oracle} \
+	%{?_with_ovs_events} \
+	%{?_with_ovs_stats} \
 	%{?_with_perl} \
+	%{?_with_pcie_errors} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
 	%{?_with_ping} \
 	%{?_with_postgresql} \
+	%{?_with_powerdns} \
+	%{?_with_processes} \
+	%{?_with_protocols} \
 	%{?_with_python} \
 	%{?_with_redis} \
 	%{?_with_routeros} \
 	%{?_with_rrdcached} \
 	%{?_with_rrdtool} \
 	%{?_with_sensors} \
-	%{?_with_sigrok} \
-	%{?_with_snmp} \
-	%{?_with_tape} \
-	%{?_with_tokyotyrant} \
-	%{?_with_varnish} \
-	%{?_with_write_http} \
-	%{?_with_write_mongodb} \
-	%{?_with_write_redis} \
-	%{?_with_xmms} \
-	%{?_with_zfs_arc} \
-	%{?_with_irq} \
-	%{?_with_load} \
-	%{?_with_logfile} \
-	%{?_with_madwifi} \
-	%{?_with_mbmon} \
-	%{?_with_md} \
-	%{?_with_memcached} \
-	%{?_with_memory} \
-	%{?_with_network} \
-	%{?_with_nfs} \
-	%{?_with_ntpd} \
-	%{?_with_numa} \
-	%{?_with_olsrd} \
-	%{?_with_openvpn} \
-	%{?_with_powerdns} \
-	%{?_with_processes} \
-	%{?_with_protocols} \
 	%{?_with_serial} \
+	%{?_with_sigrok} \
+	%{?_with_smart} \
+	%{?_with_snmp} \
+	%{?_with_snmp_agent} \
 	%{?_with_statsd} \
 	%{?_with_swap} \
+	%{?_with_synproxy} \
 	%{?_with_syslog} \
 	%{?_with_table} \
-	%{?_with_tail} \
 	%{?_with_tail_csv} \
+	%{?_with_tail} \
+	%{?_with_tape} \
 	%{?_with_tcpconns} \
 	%{?_with_teamspeak2} \
 	%{?_with_ted} \
 	%{?_with_thermal} \
 	%{?_with_threshold} \
+	%{?_with_tokyotyrant} \
+	%{?_with_turbostat} \
 	%{?_with_unixsock} \
 	%{?_with_uptime} \
 	%{?_with_users} \
 	%{?_with_uuid} \
+	%{?_with_varnish} \
+	%{?_with_virt} \
 	%{?_with_vmem} \
 	%{?_with_vserver} \
 	%{?_with_wireless}\
 	%{?_with_write_graphite} \
 	%{?_with_write_http} \
-	%{?_with_write_riemann}
+	%{?_with_write_http} \
+	%{?_with_write_kafka} \
+	%{?_with_write_log} \
+	%{?_with_write_mongodb} \
+	%{?_with_write_prometheus} \
+	%{?_with_write_redis} \
+	%{?_with_write_riemann} \
+	%{?_with_write_stackdriver} \
+	%{?_with_gpu_nvidia} \
+	%{?_with_write_sensu} \
+	%{?_with_write_syslog} \
+	%{?_with_write_tsdb} \
+	%{?_with_xencpu} \
+	%{?_with_xmms} \
+	%{?_with_zfs_arc} \
+	%{?_with_zone} \
+	%{?_with_zookeeper}
 
 
 %{__make} %{?_smp_mflags}
@@ -1494,7 +2136,11 @@ Development files for libcollectdclient
 %install
 rm -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot}
-%{__install} -Dp -m 0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%{__install} -Dp -m0644 contrib/systemd.collectd.service %{buildroot}%{_unitdir}/collectd.service
+%else
+%{__install} -Dp -m0755 contrib/redhat/init.d-collectd %{buildroot}%{_initrddir}/collectd
+%endif
 %{__install} -Dp -m0644 src/collectd.conf %{buildroot}%{_sysconfdir}/collectd.conf
 %{__install} -d %{buildroot}%{_sharedstatedir}/collectd/
 %{__install} -d %{buildroot}%{_sysconfdir}/collectd.d/
@@ -1502,20 +2148,16 @@ rm -rf %{buildroot}
 %{__mkdir} -p %{buildroot}%{_localstatedir}/www
 %{__mkdir} -p %{buildroot}/%{_sysconfdir}/httpd/conf.d
 
-%{__cp} -a contrib/collection3 %{buildroot}%{_localstatedir}/www
-%{__cp} -a contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+%{__mv} contrib/collection3 %{buildroot}%{_localstatedir}/www
+%{__mv} contrib/redhat/collection3.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
-%{__cp} -a contrib/php-collection %{buildroot}%{_localstatedir}/www
-%{__cp} -a contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
+%{__mv} contrib/php-collection %{buildroot}%{_localstatedir}/www
+%{__mv} contrib/redhat/php-collection.conf %{buildroot}/%{_sysconfdir}/httpd/conf.d/
 
 ### Clean up docs
 find contrib/ -type f -exec %{__chmod} a-x {} \;
 # *.la files shouldn't be distributed.
 rm -f %{buildroot}/%{_libdir}/{collectd/,}*.la
-
-# Move the Perl examples to a separate directory.
-mkdir perl-examples
-find contrib -name '*.p[lm]' -exec mv {} perl-examples/ \;
 
 # Remove Perl hidden .packlist files.
 find %{buildroot} -type f -name .packlist -delete
@@ -1523,14 +2165,23 @@ find %{buildroot} -type f -name .packlist -delete
 find %{buildroot} -type f -name perllocal.pod -delete
 
 %if ! %{with_java}
+rm -f %{buildroot}%{_datadir}/collectd/java/collectd-api.jar
+rm -f %{buildroot}%{_datadir}/collectd/java/generic-jmx.jar
 rm -f %{buildroot}%{_mandir}/man5/collectd-java.5*
+%endif
+
+%if ! %{with_lua}
+rm -f %{buildroot}%{_mandir}/man5/collectd-lua.5*
 %endif
 
 %if ! %{with_perl}
 rm -f %{buildroot}%{_mandir}/man5/collectd-perl.5*
 rm -f %{buildroot}%{_mandir}/man3/Collectd::Unixsock.3pm*
-rm -fr perl-examples/
 rm -fr %{buildroot}/usr/lib/perl5/
+%endif
+
+%if ! %{with_postgresql}
+rm -f %{buildroot}%{_datadir}/collectd/postgresql_default.conf
 %endif
 
 %if ! %{with_python}
@@ -1546,18 +2197,32 @@ rm -f %{buildroot}%{_mandir}/man5/collectd-snmp.5*
 rm -rf %{buildroot}
 
 %post
-/sbin/chkconfig --add collectd
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%systemd_post collectd.service
+%else
+/sbin/chkconfig --add collectd || :
+%endif
 
 %preun
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%systemd_preun collectd.service
+%else
+# stop collectd only when uninstalling
 if [ $1 -eq 0 ]; then
-	/sbin/service collectd stop &>/dev/null
-	/sbin/chkconfig --del collectd
+	/sbin/service collectd stop >/dev/null 2>&1 || :
+	/sbin/chkconfig --del collectd || :
 fi
+%endif
 
 %postun
-if [ $1 -ge 1 ]; then
-	/sbin/service collectd condrestart &>/dev/null || :
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%systemd_postun_with_restart collectd.service
+%else
+# restart collectd only when upgrading
+if [ $1 -eq 1 ]; then
+	/sbin/service collectd condrestart >/dev/null 2>&1 || :
 fi
+%endif
 
 %post -n libcollectdclient -p /sbin/ldconfig
 %postun -n libcollectdclient -p /sbin/ldconfig
@@ -1566,19 +2231,17 @@ fi
 %files
 %doc AUTHORS COPYING ChangeLog README
 %config(noreplace) %{_sysconfdir}/collectd.conf
+%if 0%{?fedora} || 0%{?rhel} >= 7
+%{_unitdir}/collectd.service
+%else
 %{_initrddir}/collectd
+%endif
 %{_sbindir}/collectd
-%{_bindir}/collectd-nagios
-%{_bindir}/collectd-tg
-%{_bindir}/collectdctl
 %{_sbindir}/collectdmon
-%{_datadir}/collectd/
+%{_datadir}/collectd/types.db
 %{_sharedstatedir}/collectd
-%{_mandir}/man1/collectd-nagios.1*
 %{_mandir}/man1/collectd.1*
-%{_mandir}/man1/collectdctl.1*
 %{_mandir}/man1/collectdmon.1*
-%{_mandir}/man1/collectd-tg.1*
 %{_mandir}/man5/collectd-email.5*
 %{_mandir}/man5/collectd-exec.5*
 %{_mandir}/man5/collectd-threshold.5*
@@ -1622,14 +2285,17 @@ fi
 %if %{with_cpufreq}
 %{_libdir}/%{name}/cpufreq.so
 %endif
+%if %{with_cpusleep}
+%{_libdir}/%{name}/cpusleep.so
+%endif
 %if %{with_csv}
 %{_libdir}/%{name}/csv.so
 %endif
 %if %{with_df}
 %{_libdir}/%{name}/df.so
 %endif
-%if %{with_disk}
-%{_libdir}/%{name}/disk.so
+%if %{with_drbd}
+%{_libdir}/%{name}/drbd.so
 %endif
 %if %{with_ethstat}
 %{_libdir}/%{name}/ethstat.so
@@ -1640,14 +2306,23 @@ fi
 %if %{with_exec}
 %{_libdir}/%{name}/exec.so
 %endif
+%if %{with_fhcount}
+%{_libdir}/%{name}/fhcount.so
+%endif
 %if %{with_filecount}
 %{_libdir}/%{name}/filecount.so
 %endif
 %if %{with_fscache}
 %{_libdir}/%{name}/fscache.so
 %endif
+%if %{with_hugepages}
+%{_libdir}/%{name}/hugepages.so
+%endif
 %if %{with_interface}
 %{_libdir}/%{name}/interface.so
+%endif
+%if %{with_ipc}
+%{_libdir}/%{name}/ipc.so
 %endif
 %if %{with_ipvs}
 %{_libdir}/%{name}/ipvs.so
@@ -1667,6 +2342,9 @@ fi
 %if %{with_mbmon}
 %{_libdir}/%{name}/mbmon.so
 %endif
+%if %{with_mcelog}
+%{_libdir}/%{name}/mcelog.so
+%endif
 %if %{with_md}
 %{_libdir}/%{name}/md.so
 %endif
@@ -1684,6 +2362,9 @@ fi
 %endif
 %if %{with_nfs}
 %{_libdir}/%{name}/nfs.so
+%endif
+%if %{with_notify_nagios}
+%{_libdir}/%{name}/notify_nagios.so
 %endif
 %if %{with_ntpd}
 %{_libdir}/%{name}/ntpd.so
@@ -1715,6 +2396,9 @@ fi
 %if %{with_swap}
 %{_libdir}/%{name}/swap.so
 %endif
+%if %{with_synproxy}
+%{_libdir}/%{name}/synproxy.so
+%endif
 %if %{with_syslog}
 %{_libdir}/%{name}/syslog.so
 %endif
@@ -1739,8 +2423,11 @@ fi
 %if %{with_thermal}
 %{_libdir}/%{name}/thermal.so
 %endif
-%if %{with_load}
+%if %{with_threshold}
 %{_libdir}/%{name}/threshold.so
+%endif
+%if %{with_turbostat}
+%{_libdir}/%{name}/turbostat.so
 %endif
 %if %{with_unixsock}
 %{_libdir}/%{name}/unixsock.so
@@ -1766,7 +2453,24 @@ fi
 %if %{with_write_graphite}
 %{_libdir}/%{name}/write_graphite.so
 %endif
-
+%if %{with_write_log}
+%{_libdir}/%{name}/write_log.so
+%endif
+%if %{with_write_syslog}
+%{_libdir}/%{name}/write_syslog.so
+%endif
+%if %{with_write_sensu}
+%{_libdir}/%{name}/write_sensu.so
+%endif
+%if %{with_write_tsdb}
+%{_libdir}/%{name}/write_tsdb.so
+%endif
+%if %{with_zfs_arc}
+%{_libdir}/%{name}/zfs_arc.so
+%endif
+%if %{with_zookeeper}
+%{_libdir}/%{name}/zookeeper.so
+%endif
 
 %files -n libcollectdclient-devel
 %{_includedir}/collectd/client.h
@@ -1774,14 +2478,30 @@ fi
 %{_includedir}/collectd/network_buffer.h
 %{_includedir}/collectd/lcc_features.h
 %{_libdir}/pkgconfig/libcollectdclient.pc
+%{_includedir}/collectd/network_parse.h
+%{_includedir}/collectd/server.h
+%{_includedir}/collectd/types.h
+%{_libdir}/libcollectdclient.so
 
 %files -n libcollectdclient
-%{_libdir}/libcollectdclient.so
 %{_libdir}/libcollectdclient.so.*
+
+%files -n collectd-utils
+%{_bindir}/collectd-nagios
+%{_bindir}/collectd-tg
+%{_bindir}/collectdctl
+%{_mandir}/man1/collectdctl.1*
+%{_mandir}/man1/collectd-nagios.1*
+%{_mandir}/man1/collectd-tg.1*
 
 %if %{with_amqp}
 %files amqp
 %{_libdir}/%{name}/amqp.so
+%endif
+
+%if %{with_amqp1}
+%files amqp1
+%{_libdir}/%{name}/amqp1.so
 %endif
 
 %if %{with_apache}
@@ -1799,9 +2519,24 @@ fi
 %{_libdir}/%{name}/ascent.so
 %endif
 
+%if %{with_barometer}
+%files barometer
+%{_libdir}/%{name}/barometer.so
+%endif
+
 %if %{with_bind}
 %files bind
 %{_libdir}/%{name}/bind.so
+%endif
+
+%if %{with_ceph}
+%files ceph
+%{_libdir}/%{name}/ceph.so
+%endif
+
+%if %{with_chrony}
+%files chrony
+%{_libdir}/%{name}/chrony.so
 %endif
 
 %if %{with_curl}
@@ -1819,6 +2554,11 @@ fi
 %{_libdir}/%{name}/curl_xml.so
 %endif
 
+%if %{with_disk}
+%files disk
+%{_libdir}/%{name}/disk.so
+%endif
+
 %if %{with_dns}
 %files dns
 %{_libdir}/%{name}/dns.so
@@ -1827,6 +2567,16 @@ fi
 %if %{with_dbi}
 %files dbi
 %{_libdir}/%{name}/dbi.so
+%endif
+
+%if %{with_dpdkevents}
+%files dpdkevents
+%{_libdir}/%{name}/dpdkevents.so
+%endif
+
+%if %{with_dpdkstat}
+%files dpdkstat
+%{_libdir}/%{name}/dpdkstat.so
 %endif
 
 %if %{with_email}
@@ -1839,9 +2589,29 @@ fi
 %{_libdir}/%{name}/gmond.so
 %endif
 
+%if %{with_gps}
+%files gps
+%{_libdir}/%{name}/gps.so
+%endif
+
+%if %{with_grpc}
+%files grpc
+%{_libdir}/%{name}/grpc.so
+%endif
+
 %if %{with_hddtemp}
 %files hddtemp
 %{_libdir}/%{name}/hddtemp.so
+%endif
+
+%if %{with_intel_pmu}
+%files intel_pmu
+%{_libdir}/%{name}/intel_pmu.so
+%endif
+
+%if %{with_intel_rdt}
+%files intel_rdt
+%{_libdir}/%{name}/intel_rdt.so
 %endif
 
 %if %{with_ipmi}
@@ -1856,15 +2626,26 @@ fi
 
 %if %{with_java}
 %files java
-%{_prefix}/share/collectd/java/collectd-api.jar
-%{_prefix}/share/collectd/java/generic-jmx.jar
+%{_datadir}/collectd/java/collectd-api.jar
+%{_datadir}/collectd/java/generic-jmx.jar
 %{_libdir}/%{name}/java.so
 %{_mandir}/man5/collectd-java.5*
 %endif
 
-%if %{with_libvirt}
-%files libvirt
-%{_libdir}/%{name}/libvirt.so
+%if %{with_virt}
+%files virt
+%{_libdir}/%{name}/virt.so
+%endif
+
+%if %{with_log_logstash}
+%files log_logstash
+%{_libdir}/%{name}/log_logstash.so
+%endif
+
+%if %{with_lua}
+%files lua
+%{_mandir}/man5/collectd-lua*
+%{_libdir}/%{name}/lua.so
 %endif
 
 %if %{with_lvm}
@@ -1880,6 +2661,16 @@ fi
 %if %{with_mic}
 %files mic
 %{_libdir}/%{name}/mic.so
+%endif
+
+%if %{with_modbus}
+%files modbus
+%{_libdir}/%{name}/modbus.so
+%endif
+
+%if %{with_mqtt}
+%files mqtt
+%{_libdir}/%{name}/mqtt.so
 %endif
 
 %if %{with_mysql}
@@ -1912,14 +2703,33 @@ fi
 %{_libdir}/%{name}/nut.so
 %endif
 
+%if %{with_openldap}
+%files openldap
+%{_libdir}/%{name}/openldap.so
+%endif
+
+%if %{with_ovs_events}
+%files ovs_events
+%{_libdir}/%{name}/ovs_events.so
+%endif
+
+%if %{with_ovs_stats}
+%files ovs_stats
+%{_libdir}/%{name}/ovs_stats.so
+%endif
+
 %if %{with_perl}
 %files perl
-%doc perl-examples/*
 %{perl_vendorlib}/Collectd.pm
 %{perl_vendorlib}/Collectd/
 %{_mandir}/man3/Collectd::Unixsock.3pm*
 %{_mandir}/man5/collectd-perl.5*
 %{_libdir}/%{name}/perl.so
+%endif
+
+%if %{with_pcie_errors}
+%files pcie_errors
+%{_libdir}/%{name}/pcie_errors.so
 %endif
 
 %if %{with_pinba}
@@ -1934,7 +2744,7 @@ fi
 
 %if %{with_postgresql}
 %files postgresql
-%{_prefix}/share/collectd/postgresql_default.conf
+%{_datadir}/collectd/postgresql_default.conf
 %{_libdir}/%{name}/postgresql.so
 %endif
 
@@ -1969,10 +2779,20 @@ fi
 %{_libdir}/%{name}/sigrok.so
 %endif
 
+%if %{with_smart}
+%files smart
+%{_libdir}/%{name}/smart.so
+%endif
+
 %if %{with_snmp}
 %files snmp
 %{_mandir}/man5/collectd-snmp.5*
 %{_libdir}/%{name}/snmp.so
+%endif
+
+%if %{with_snmp_agent}
+%files snmp_agent
+%{_libdir}/%{name}/snmp_agent.so
 %endif
 
 %if %{with_varnish}
@@ -1985,6 +2805,16 @@ fi
 %{_libdir}/%{name}/write_http.so
 %endif
 
+%if %{with_write_kafka}
+%files write_kafka
+%{_libdir}/%{name}/write_kafka.so
+%endif
+
+%if %{with_write_prometheus}
+%files write_prometheus
+%{_libdir}/%{name}/write_prometheus.so
+%endif
+
 %if %{with_write_redis}
 %files write_redis
 %{_libdir}/%{name}/write_redis.so
@@ -1993,6 +2823,26 @@ fi
 %if %{with_write_riemann}
 %files write_riemann
 %{_libdir}/%{name}/write_riemann.so
+%endif
+
+%if %{with_write_stackdriver}
+%files write_stackdriver
+%{_libdir}/%{name}/write_stackdriver.so
+%endif
+
+%if %{with_gpu_nvidia}
+%files write_gpu_nvidia
+%{_libdir}/%{name}/write_gpu_nvidia.so
+%endif
+
+%if %{with_xencpu}
+%files xencpu
+%{_libdir}/%{name}/xencpu.so
+%endif
+
+%if %{with_xmms}
+%files xmms
+%{_libdir}/%{name}/xmms.so
 %endif
 
 %files collection3
@@ -2007,11 +2857,90 @@ fi
 %doc contrib/
 
 %changelog
-* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
+* Fri Jun 14 2019 Fabien Wernli <rpmbuild@faxmodem.org> - 5.9.0-1
+- add code for write_stackdriver (disabled for now)
+- add code for gpu_nvidia (disabled for now)
+- add pcie_errors
+
+* Thu Sep 28 2017 Jakub Jankowski <shasta@toxcorp.com> - 5.7.1-9
+- Fix mbmon/mcelog build options
+
+* Thu Sep 28 2017 xakru <calvinxakru@gmail.com> - 5.7.1-8
+- Add new libcollectdclient/network_parse
+- Add new libcollectdclient/server
+- Add new libcollectdclient/types
+- Add new synproxy plugin
+
+* Fri Aug 18 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-7
+- Add new intel_pmu plugin
+
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-6
+- Move recently added plugins to subpackages
+
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-5
+- Add new ovs_stats plugin
+
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-4
+- Don't enable XFS support on RHEL6, it is missing for i386
+
+* Sun Mar 05 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-3
+- Add dpdkevents plugin, disabled by default
+
+* Wed Feb 22 2017 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.1-2
+- Enable XFS support in df plugin
+- Fix bogus date in changelog
+
+* Sun Jan 01 2017 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.1-1
+- New upstream version
+
+* Sat Dec 31 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-4
+- Add new ovs_events plugin
+
+* Sat Dec 31 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-3
+- Add new mcelog plugin
+
+* Tue Nov 29 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.7.0-2
+- Disable redis plugin on RHEL 6, hiredis has been retired from EPEL6
+
+* Mon Oct 10 2016 Marc Fournier <marc.fournier@camptocamp.com> - 5.7.0-1
+- New PRE-RELEASE version
+- New plugins enabled by default: hugepages, write_prometheus
+- New plugins disabled by default: dpdkstat, intel_rdt
+
+* Mon Oct 10 2016 Victor Demonchy <v.demonchy@criteo.com> - 5.6.1-1
+- New upstream version
+
+* Sun Aug 14 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.6.0-1
+- New upstream version
+- New plugins enabled by default: chrony, cpusleep, gps, lua, mqtt, notify_nagios
+- New plugins disabled by default: grpc, xencpu, zone
+
+* Tue Jul 26 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.5.2-1
+- New upstream version
+- Contains fix for CVE-2016-6254
+- Change collectd.org url to https
+
+* Sat Jun 04 2016 Ruben Kerkhof <ruben@rubenkerkhof.com> 5.5.1-1
+- New upstream version
+
+* Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
+- New upstream version
+- New plugins enabled by default: ceph, drbd, log_logstash, write_tsdb, smart,
+  openldap, redis, write_redis, zookeeper, write_log, write_sensu, ipc,
+  turbostat, fhcount
+- New plugins disabled by default: barometer, write_kafka
+- Enable zfs_arc, now supported on Linux
+- Install disk plugin in a dedicated package, as it depends on libudev
+- use systemd on EL7, sysvinit on EL6 & EL5
+- Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
+- Add build-dependency on libcap-devel
+
+* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.2-1
 - New upstream version
 - Build netlink plugin by default
 - Enable cgroups, lvm and statsd plugins
 - Enable (but don't build by default) mic, aquaero and sigrok plugins
+- Enable modbus, memcachec and xmms plugins on RHEL7
 
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version
@@ -2022,6 +2951,14 @@ fi
 - Removed duplicate --enable-aggregation
 - Added some comments & usage examples
 - Replaced a couple of "Buildrequires" by "BuildRequires"
+- Enabled modbus plugin on RHEL6
+- Enabled netlink plugin on RHEL6 and RHEL7
+- Allow perl plugin to build on RHEL5
+- Add support for RHEL7
+- Misc perl-related improvements:
+  * prevent rpmbuild from extracting dependencies from files in /usr/share/doc
+  * don't package collection3 and php-collection twice
+  * keep perl scripts from contrib/ in collectd-contrib
 
 * Wed Apr 10 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.0-1
 - New upstream version
@@ -2029,7 +2966,7 @@ fi
 - Enabled tail_csv plugin
 - Installed collectd-tc manpage
 
-* Thu Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
+* Fri Jan 11 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-3
 - remove dependency on libstatgrab, which isn't required on linux
 
 * Thu Jan 03 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.2.0-2
@@ -2051,7 +2988,7 @@ fi
 * Sat Nov 17 2012 Ruben Kerkhof <ruben@tilaa.nl> 5.1.0-2
 - Move perl stuff to perl_vendorlib
 - Replace hardcoded paths with macros
-- Remove unneccesary Requires
+- Remove unnecessary Requires
 - Removed .a and .la files
 - Some other small cleanups
 
@@ -2059,7 +2996,7 @@ fi
 - New upstream version
 - Changes to support 5.1.0
 - Enabled all buildable plugins based on libraries available on EL6 + EPEL
-- All plugins requiring external libraries are now shipped in seperate
+- All plugins requiring external libraries are now shipped in separate
   packages.
 - No longer treat Java plugin as an exception, correctly set $JAVA_HOME during
   the build process + ensure build deps are installed.
@@ -2077,11 +3014,11 @@ fi
   non-essential stuff.
 - Replaced BuildPrereq by BuildRequires
 
-* Tue Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
+* Mon Jan 03 2011 Monetate <jason.stelzer@monetate.com> 5.0.1
 - New upstream version
 - Changes to support 5.0.1
 
-* Tue Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
+* Mon Jan 04 2010 Rackspace <stu.hood@rackspace.com> 4.9.0
 - New upstream version
 - Changes to support 4.9.0
 - Added support for Java/GenericJMX plugin
@@ -2099,7 +3036,7 @@ fi
 - New major releas
 - Changes to support 4.0.5
 
-* Wed Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
+* Thu Jan 11 2007 Iain Lea <iain@bricbrac.de> 3.11.0-0
 - fixed spec file to build correctly on fedora core
 - added improved init.d script to work with chkconfig
 - added %%post and %%postun to call chkconfig automatically
@@ -2107,10 +3044,10 @@ fi
 * Sun Jul 09 2006 Florian octo Forster <octo@verplant.org> 3.10.0-1
 - New upstream version
 
-* Tue Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
+* Sun Jun 25 2006 Florian octo Forster <octo@verplant.org> 3.9.4-1
 - New upstream version
 
-* Tue Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
+* Thu Jun 01 2006 Florian octo Forster <octo@verplant.org> 3.9.3-1
 - New upstream version
 
 * Tue May 09 2006 Florian octo Forster <octo@verplant.org> 3.9.2-1
@@ -2126,10 +3063,10 @@ fi
 - New upstream version
 - Added the `apache' package.
 
-* Thu Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
+* Tue Mar 14 2006 Florian octo Forster <octo@verplant.org> 3.8.2-1
 - New upstream version
 
-* Thu Mar 13 2006 Florian octo Forster <octo@verplant.org> 3.8.1-1
+* Mon Mar 13 2006 Florian octo Forster <octo@verplant.org> 3.8.1-1
 - New upstream version
 
 * Thu Mar 09 2006 Florian octo Forster <octo@verplant.org> 3.8.0-1
@@ -2166,7 +3103,7 @@ fi
 * Sat Nov 05 2005 Florian octo Forster <octo@verplant.org> 3.3.0-1
 - New upstream version
 
-* Tue Oct 26 2005 Florian octo Forster <octo@verplant.org> 3.2.0-1
+* Wed Oct 26 2005 Florian octo Forster <octo@verplant.org> 3.2.0-1
 - New upstream version
 - Added statement to remove the `*.la' files. This fixes a problem when
   `Unpackaged files terminate build' is in effect.
@@ -2183,13 +3120,13 @@ fi
 * Fri Sep 16 2005 Florian octo Forster <octo@verplant.org> 2.1.0-1
 - New upstream version
 
-* Mon Sep 10 2005 Florian octo Forster <octo@verplant.org> 2.0.0-1
+* Sat Sep 10 2005 Florian octo Forster <octo@verplant.org> 2.0.0-1
 - New upstream version
 
 * Mon Aug 29 2005 Florian octo Forster <octo@verplant.org> 1.8.0-1
 - New upstream version
 
-* Sun Aug 25 2005 Florian octo Forster <octo@verplant.org> 1.7.0-1
+* Thu Aug 25 2005 Florian octo Forster <octo@verplant.org> 1.7.0-1
 - New upstream version
 
 * Sun Aug 21 2005 Florian octo Forster <octo@verplant.org> 1.6.0-1

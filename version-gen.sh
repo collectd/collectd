@@ -1,13 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-DEFAULT_VERSION="5.4.1.git"
+DEFAULT_VERSION="5.9.0.git"
 
-VERSION="`git describe 2> /dev/null | sed -e 's/^collectd-//'`"
+if [ -d .git ]; then
+	VERSION="`git describe --dirty=+ --abbrev=7 2> /dev/null | grep collectd | sed -e 's/^collectd-//' -e 's/-/./g'`"
+fi
 
 if test -z "$VERSION"; then
 	VERSION="$DEFAULT_VERSION"
 fi
 
-VERSION="`echo \"$VERSION\" | sed -e 's/-/./g'`"
-
-echo -n "$VERSION"
+printf "%s" "$VERSION"

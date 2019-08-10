@@ -86,7 +86,7 @@ function error($code, $code_msg, $title, $msg) {
 	imagestring($png, 4, ceil(($w-strlen($title)*imagefontwidth(4)) / 2), 10, $title, $c_txt);
 	imagestring($png, 5, 60, 35, sprintf('%s [%d]', $code_msg, $code), $c_etxt);
 	if (function_exists('imagettfbbox') && is_file($config['error_font'])) {
-		// Detailled error message
+		// Detailed error message
 		$fmt_msg = makeTextBlock($msg, $errorfont, 10, $w-86);
 		$fmtbox  = imagettfbbox(12, 0, $errorfont, $fmt_msg);
 		imagettftext($png, 10, 0, 55, 35+3+imagefontwidth(5)-$fmtbox[7]+$fmtbox[1], $c_txt, $errorfont, $fmt_msg);

@@ -1,19 +1,24 @@
-/*
- * collectd/java - org/collectd/java/GenericJMXConfConnection.java
+/**
+ * collectd - bindings/java/org/collectd/java/GenericJMXConfConnection.java
  * Copyright (C) 2009-2012  Florian octo Forster
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; only version 2 of the License is applicable.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  *
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
@@ -30,8 +35,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import javax.management.MBeanServerConnection;
-import javax.management.ObjectName;
-import javax.management.MalformedObjectNameException;
 
 import javax.management.remote.JMXServiceURL;
 import javax.management.remote.JMXConnector;
@@ -49,7 +52,8 @@ class GenericJMXConfConnection
   private String _host = null;
   private String _instance_prefix = null;
   private String _service_url = null;
-  private MBeanServerConnection _jmx_connection = null;
+  private JMXConnector _jmx_connector = null;
+  private MBeanServerConnection _mbean_connection = null;
   private List<GenericJMXConfMBean> _mbeans = null;
 
   /*
@@ -86,65 +90,77 @@ class GenericJMXConfConnection
       return (this._host);
     }
 
-    try
-    {
-      InetAddress localHost = InetAddress.getLocalHost();
-      return (localHost.getHostName ());
-    }
-    catch (UnknownHostException e)
-    {
-      return ("localhost");
-    }
+    return Collectd.getHostname();
   } /* }}} String getHost */
 
-private void connect () /* {{{ */
-{
-  JMXServiceURL service_url;
-  JMXConnector connector;
-  Map environment;
-
-  if (_jmx_connection != null)
-    return;
-
-  environment = null;
-  if (this._password != null)
+  private void connect () /* {{{ */
   {
-    String[] credentials;
+    JMXServiceURL service_url;
+    Map<String,Object> environment;
 
-    if (this._username == null)
-      this._username = new String ("monitorRole");
+    // already connected
+    if (this._jmx_connector != null) {
+      return;
+    }
 
-    credentials = new String[] { this._username, this._password };
+    environment = null;
+    if (this._password != null)
+    {
+      String[] credentials;
 
-    environment = new HashMap ();
-    environment.put (JMXConnector.CREDENTIALS, credentials);
-  }
+      if (this._username == null)
+        this._username = new String ("monitorRole");
 
-  try
+      credentials = new String[] { this._username, this._password };
+
+      environment = new HashMap<String,Object> ();
+      environment.put (JMXConnector.CREDENTIALS, credentials);
+      environment.put (JMXConnectorFactory.PROTOCOL_PROVIDER_CLASS_LOADER, this.getClass().getClassLoader());
+    }
+
+    try
+    {
+      service_url = new JMXServiceURL (this._service_url);
+      this._jmx_connector = JMXConnectorFactory.connect (service_url, environment);
+      this._mbean_connection = _jmx_connector.getMBeanServerConnection ();
+    }
+    catch (Exception e)
+    {
+      Collectd.logError ("GenericJMXConfConnection: "
+          + "Creating MBean server connection failed: " + e);
+      disconnect ();
+      return;
+    }
+  } /* }}} void connect */
+
+  private void disconnect () /* {{{ */
   {
-    service_url = new JMXServiceURL (this._service_url);
-    connector = JMXConnectorFactory.connect (service_url, environment);
-    _jmx_connection = connector.getMBeanServerConnection ();
-  }
-  catch (Exception e)
-  {
-    Collectd.logError ("GenericJMXConfConnection: "
-        + "Creating MBean server connection failed: " + e);
-    return;
-  }
-} /* }}} void connect */
+    try
+    {
+      if (this._jmx_connector != null) {
+        this._jmx_connector.close();
+      }
+    }
+    catch (Exception e)
+    {
+      // It's fine if close throws an exception
+    }
 
-/*
- * public methods
- *
- * <Connection>
- *   Host "tomcat0.mycompany"
- *   ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:17264/jmxrmi"
- *   Collect "java.lang:type=GarbageCollector,name=Copy"
- *   Collect "java.lang:type=Memory"
- * </Connection>
- *
- */
+    this._jmx_connector = null;
+    this._mbean_connection = null;
+  } /* }}} void disconnect */
+
+  /*
+   * public methods
+   *
+   * <Connection>
+   *   Host "tomcat0.mycompany"
+   *   ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:17264/jmxrmi"
+   *   Collect "java.lang:type=GarbageCollector,name=Copy"
+   *   Collect "java.lang:type=Memory"
+   * </Connection>
+   *
+   */
   public GenericJMXConfConnection (OConfigItem ci) /* {{{ */
     throws IllegalArgumentException
   {
@@ -221,9 +237,10 @@ private void connect () /* {{{ */
   {
     PluginData pd;
 
+    // try to connect
     connect ();
 
-    if (this._jmx_connection == null)
+    if (this._mbean_connection == null)
       return;
 
     Collectd.logDebug ("GenericJMXConfConnection.query: "
@@ -238,11 +255,11 @@ private void connect () /* {{{ */
     {
       int status;
 
-      status = this._mbeans.get (i).query (this._jmx_connection, pd,
+      status = this._mbeans.get (i).query (this._mbean_connection, pd,
           this._instance_prefix);
       if (status != 0)
       {
-        this._jmx_connection = null;
+        disconnect ();
         return;
       }
     } /* for */

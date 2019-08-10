@@ -1,0 +1,41 @@
+[Unit]
+Description=Collectd statistics daemon
+Documentation=man:collectd(1) man:collectd.conf(5)
+After=local-fs.target network-online.target
+Requires=local-fs.target network-online.target
+
+[Service]
+ExecStart=/usr/sbin/collectd
+EnvironmentFile=-/etc/sysconfig/collectd
+EnvironmentFile=-/etc/default/collectd
+
+# A few plugins won't work without some privileges, which you'll have to
+# specify using the CapabilityBoundingSet directive below.
+#
+# Here's a (incomplete) list of the plugins known capability requirements:
+#   ceph            CAP_DAC_OVERRIDE
+#   dns             CAP_NET_RAW
+#   exec            CAP_SETUID CAP_SETGID
+#   intel_rdt       CAP_SYS_RAWIO
+#   intel_pmu       CAP_SYS_ADMIN
+#   iptables        CAP_NET_ADMIN
+#   ping            CAP_NET_RAW
+#   processes       CAP_NET_ADMIN  (CollectDelayAccounting only)
+#   smart           CAP_SYS_RAWIO
+#   turbostat       CAP_SYS_RAWIO
+#
+# Example, if you use the iptables plugin alongside the dns or ping plugin:
+#CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+#
+# By default, drop all capabilities:
+CapabilityBoundingSet=
+
+# Tell systemd it will receive a notification from collectd over its control
+# socket once the daemon is ready. See systemd.service(5) for more details.
+Type=notify
+
+# Restart the collectd daemon when it fails.
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

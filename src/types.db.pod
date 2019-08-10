@@ -59,7 +59,7 @@ L<rrdcreate(1)>
 =head1 AUTHOR
 
 B<collectd> has been written by Florian Forster
-E<lt>octoE<nbsp>atE<nbsp>verplant.orgE<gt>.
+E<lt>octoE<nbsp>atE<nbsp>collectd.orgE<gt>.
 
 This manpage has been written by Sebastian Harl
 E<lt>shE<nbsp>atE<nbsp>tokkee.orgE<gt>.

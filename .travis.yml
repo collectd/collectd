@@ -1,0 +1,140 @@
+# Travis CI configuration file
+# https://travis-ci.org/collectd/collectd
+language: c
+
+env:
+  global:
+    - MAKEFLAGS="-j 2"
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+    # via the "travis encrypt" command using the project repo's public key
+    - secure: "ZdWWp0XX3C4sLIp4lqeQTWC7vt+GsWjmyRiD17T9833NBAW4dddz310I6iyeXe6oX09ZFFiVIN4ogx9ANcNBx9jriGXI2/82nBhpxOJBebet8JCNS5VeTr4rDSfQOKP+Oc+ko5KbbghTuAtO2CFYiH3jZUcn4TdsYbVanf+TwUs="
+
+matrix:
+  include:
+    - os: osx
+      osx_image: xcode10.1
+      compiler: clang
+      env:
+        - CXX=clang++
+        - PATH="/usr/local/opt/mysql-client/bin:$PATH"
+    - os: linux
+      dist: xenial
+      compiler: clang
+    - os: linux
+      dist: xenial
+      compiler: gcc
+
+before_install:
+  # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
+  - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" && ! "${TRAVIS_JOB_NUMBER}" =~ \.1$ ]]; then exit 0; fi
+
+before_script: autoreconf -vif
+
+script:
+  - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
+  - ./configure
+  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+
+addons:
+  apt:
+    packages:
+    - autotools-dev
+    - iptables-dev
+    - libatasmart-dev
+    - libcap-dev
+    - libcurl4-gnutls-dev
+    - libdbi0-dev
+    - libesmtp-dev
+    - libganglia1-dev
+    - libgcrypt11-dev
+    - libglib2.0-dev
+    - libgps-dev
+    - libhiredis-dev
+    - libi2c-dev
+    - libldap2-dev
+    - libltdl-dev
+    - liblua50-dev
+    - liblua5.1-0-dev
+    - liblua5.2-dev
+    - liblvm2-dev
+    - libmemcached-dev
+    - libmicrohttpd-dev
+    - libmnl-dev
+    - libmodbus-dev
+    - libmosquitto-dev
+    - libmysqlclient-dev
+    - libnotify-dev
+    - libopenipmi-dev
+    - liboping-dev
+    - libow-dev
+    - libpcap-dev
+    - libperl-dev
+    - libpq-dev
+    - libprotobuf-c0-dev
+    - librabbitmq-dev
+    - librdkafka-dev
+    - libriemann-client-dev
+    - librrd-dev
+    - libsensors4-dev
+    - libsigrok-dev
+    - libsnmp-dev
+    - libstatgrab-dev
+    - libtokyocabinet-dev
+    - libtokyotyrant-dev
+    - libudev-dev
+    - libupsclient-dev
+    - libvarnish-dev
+    - libvirt-dev
+    - libxen-dev
+    - libxml2-dev
+    - libyajl-dev
+    - linux-libc-dev
+    - perl
+    - protobuf-c-compiler
+    - python3-dev
+    - python-dev
+    - xfslibs-dev
+  coverity_scan:
+    project:
+      name: "collectd/collectd"
+      description: "Build submitted via Travis CI"
+    notification_email: collectd-changes@verplant.org
+    build_command_prepend: "./configure; make clean"
+    build_command: "make -j $(nproc)"
+    branch_pattern: coverity_scan
+  homebrew:
+    packages:
+    - curl
+    - glib
+    - hiredis
+    - libdbi
+    - libmemcached
+    - libmicrohttpd
+    - libmodbus
+    - libnotify
+    - liboping
+    - libpcap
+    - librdkafka
+    - libstatgrab
+    - libvirt
+    - lua
+    - mosquitto
+    - mysql-client
+    - net-snmp
+    - openldap
+    - perl
+    - protobuf
+    - protobuf-c
+    - python
+    - qpid-proton
+    - rabbitmq-c
+    - riemann-client
+    - rrdtool
+    - tokyo-cabinet
+    - varnish
+    - yajl
+
+git:
+  quiet: true
+  submodules: false
+  depth: 1

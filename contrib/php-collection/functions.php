@@ -536,7 +536,7 @@ function rrd_get_color($code, $line = true) {
 }
 
 /**
- * Draw RRD file based on it's structure
+ * Draw RRD file based on its structure
  * @host
  * @plugin
  * @pinst
@@ -635,7 +635,7 @@ function collectd_draw_rrd($host, $plugin, $pinst = null, $type, $tinst = null, 
 }
 
 /**
- * Draw RRD file based on it's structure
+ * Draw RRD file based on its structure
  * @timespan
  * @host
  * @plugin

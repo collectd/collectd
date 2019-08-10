@@ -1,6 +1,6 @@
 /**
  * collectd - src/swap.c
- * Copyright (C) 2005-2012  Florian octo Forster
+ * Copyright (C) 2005-2014  Florian octo Forster
  * Copyright (C) 2009       Stefan Völkel
  * Copyright (C) 2009       Manuel Sanmartin
  * Copyright (C) 2010       Aurélien Reynaud
@@ -25,69 +25,75 @@
  **/
 
 #if HAVE_CONFIG_H
-# include "config.h"
-# undef HAVE_CONFIG_H
+#include "config.h"
+#undef HAVE_CONFIG_H
 #endif
-/* avoid swap.h error "Cannot use swapctl in the large files compilation environment" */
+/* avoid swap.h error "Cannot use swapctl in the large files compilation
+ * environment" */
 #if HAVE_SYS_SWAP_H && !defined(_LP64) && _FILE_OFFSET_BITS == 64
-#  undef _FILE_OFFSET_BITS
-#  undef _LARGEFILE64_SOURCE
+#undef _FILE_OFFSET_BITS
+#undef _LARGEFILE64_SOURCE
 #endif
 
 #include "collectd.h"
-#include "common.h"
+
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #if HAVE_SYS_SWAP_H
-# include <sys/swap.h>
+#include <sys/swap.h>
 #endif
 #if HAVE_VM_ANON_H
-# include <vm/anon.h>
+#include <vm/anon.h>
 #endif
 #if HAVE_SYS_PARAM_H
-#  include <sys/param.h>
+#include <sys/param.h>
 #endif
 #if HAVE_SYS_SYSCTL_H
-#  include <sys/sysctl.h>
+#include <sys/sysctl.h>
 #endif
 #if HAVE_SYS_DKSTAT_H
-#  include <sys/dkstat.h>
+#include <sys/dkstat.h>
 #endif
 #if HAVE_KVM_H
-#  include <kvm.h>
+#include <kvm.h>
 #endif
 
 #if HAVE_STATGRAB_H
-# include <statgrab.h>
+#include <statgrab.h>
 #endif
 
 #if HAVE_PERFSTAT
-# include <sys/protosw.h>
-# include <libperfstat.h>
+#include <libperfstat.h>
+#include <sys/protosw.h>
 #endif
 
-#undef  MAX
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#undef MAX
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 #if KERNEL_LINUX
-# define SWAP_HAVE_REPORT_BY_DEVICE 1
+#define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_bytes = 0;
-static _Bool report_by_device = 0;
+static bool report_bytes;
+static bool report_by_device;
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
-# define SWAP_HAVE_REPORT_BY_DEVICE 1
+#define SWAP_HAVE_REPORT_BY_DEVICE 1
 static derive_t pagesize;
-static _Bool report_by_device = 0;
+static bool report_by_device;
 /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
+
+#elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
+/* No global variables */
+/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
 
 #elif defined(VM_SWAPUSAGE)
 /* No global variables */
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-static kvm_t *kvm_obj = NULL;
+static kvm_t *kvm_obj;
 int kvm_pagesize;
 /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
@@ -97,355 +103,290 @@ int kvm_pagesize;
 
 #elif HAVE_PERFSTAT
 static int pagesize;
-static perfstat_memory_total_t pmemory;
 /*# endif HAVE_PERFSTAT */
 
 #else
-# error "No applicable input method."
+#error "No applicable input method."
 #endif /* HAVE_LIBSTATGRAB */
 
-static const char *config_keys[] =
-{
-	"ReportBytes",
-	"ReportByDevice"
-};
-static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
+static bool values_absolute = true;
+static bool values_percentage;
+static bool report_io = true;
 
-static int swap_config (const char *key, const char *value) /* {{{ */
+static int swap_config(oconfig_item_t *ci) /* {{{ */
 {
-	if (strcasecmp ("ReportBytes", key) == 0)
-	{
+  for (int i = 0; i < ci->children_num; i++) {
+    oconfig_item_t *child = ci->children + i;
+    if (strcasecmp("ReportBytes", child->key) == 0)
 #if KERNEL_LINUX
-		report_bytes = IS_TRUE (value) ? 1 : 0;
+      cf_util_get_boolean(child, &report_bytes);
 #else
-		WARNING ("swap plugin: The \"ReportBytes\" option is only "
-				"valid under Linux. "
-				"The option is going to be ignored.");
+      WARNING("swap plugin: The \"ReportBytes\" option "
+              "is only valid under Linux. "
+              "The option is going to be ignored.");
 #endif
-	}
-	else if (strcasecmp ("ReportByDevice", key) == 0)
-	{
+    else if (strcasecmp("ReportByDevice", child->key) == 0)
 #if SWAP_HAVE_REPORT_BY_DEVICE
-		if (IS_TRUE (value))
-			report_by_device = 1;
-		else
-			report_by_device = 0;
+      cf_util_get_boolean(child, &report_by_device);
 #else
-		WARNING ("swap plugin: The \"ReportByDevice\" option is not "
-				"supported on this platform. "
-				"The option is going to be ignored.");
+      WARNING("swap plugin: The \"ReportByDevice\" option "
+              "is not supported on this platform. "
+              "The option is going to be ignored.");
 #endif /* SWAP_HAVE_REPORT_BY_DEVICE */
-	}
-	else
-	{
-		return (-1);
-	}
+    else if (strcasecmp("ValuesAbsolute", child->key) == 0)
+      cf_util_get_boolean(child, &values_absolute);
+    else if (strcasecmp("ValuesPercentage", child->key) == 0)
+      cf_util_get_boolean(child, &values_percentage);
+    else if (strcasecmp("ReportIO", child->key) == 0)
+      cf_util_get_boolean(child, &report_io);
+    else
+      WARNING("swap plugin: Unknown config option: \"%s\"", child->key);
+  }
 
-	return (0);
+  return 0;
 } /* }}} int swap_config */
 
-static int swap_init (void) /* {{{ */
+static int swap_init(void) /* {{{ */
 {
 #if KERNEL_LINUX
-	pagesize = (derive_t) sysconf (_SC_PAGESIZE);
-/* #endif KERNEL_LINUX */
+  pagesize = (derive_t)sysconf(_SC_PAGESIZE);
+  /* #endif KERNEL_LINUX */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
-	/* getpagesize(3C) tells me this does not fail.. */
-	pagesize = (derive_t) getpagesize ();
-/* #endif HAVE_SWAPCTL */
+  /* getpagesize(3C) tells me this does not fail.. */
+  pagesize = (derive_t)getpagesize();
+  /* #endif HAVE_SWAPCTL */
 
 #elif defined(VM_SWAPUSAGE)
-	/* No init stuff */
+/* No init stuff */
 /* #endif defined(VM_SWAPUSAGE) */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-	if (kvm_obj != NULL)
-	{
-		kvm_close (kvm_obj);
-		kvm_obj = NULL;
-	}
+  char errbuf[_POSIX2_LINE_MAX];
 
-	kvm_pagesize = getpagesize ();
+  if (kvm_obj != NULL) {
+    kvm_close(kvm_obj);
+    kvm_obj = NULL;
+  }
 
-	if ((kvm_obj = kvm_open (NULL, /* execfile */
-					NULL, /* corefile */
-					NULL, /* swapfile */
-					O_RDONLY, /* flags */
-					NULL)) /* errstr */
-			== NULL)
-	{
-		ERROR ("swap plugin: kvm_open failed.");
-		return (-1);
-	}
-/* #endif HAVE_LIBKVM_GETSWAPINFO */
+  kvm_pagesize = getpagesize();
+
+  kvm_obj = kvm_openfiles(NULL, "/dev/null", NULL, O_RDONLY, errbuf);
+
+  if (kvm_obj == NULL) {
+    ERROR("swap plugin: kvm_openfiles failed, %s", errbuf);
+    return -1;
+  }
+    /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
 #elif HAVE_LIBSTATGRAB
-	/* No init stuff */
+/* No init stuff */
 /* #endif HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-	pagesize = getpagesize();
+  pagesize = getpagesize();
 #endif /* HAVE_PERFSTAT */
 
-	return (0);
+  return 0;
 } /* }}} int swap_init */
 
-static void swap_submit (const char *plugin_instance, /* {{{ */
-		const char *type, const char *type_instance,
-		value_t value)
-{
-	value_list_t vl = VALUE_LIST_INIT;
+static void swap_submit_usage(char const *plugin_instance, /* {{{ */
+                              gauge_t used, gauge_t free,
+                              char const *other_name, gauge_t other_value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	assert (type != NULL);
+  vl.values = &(value_t){.gauge = NAN};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "swap", sizeof(vl.plugin));
+  if (plugin_instance != NULL)
+    sstrncpy(vl.plugin_instance, plugin_instance, sizeof(vl.plugin_instance));
+  sstrncpy(vl.type, "swap", sizeof(vl.type));
 
-	vl.values = &value;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "swap", sizeof (vl.plugin));
-	if (plugin_instance != NULL)
-		sstrncpy (vl.plugin_instance, plugin_instance, sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, type, sizeof (vl.type));
-	if (type_instance != NULL)
-		sstrncpy (vl.type_instance, type_instance, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-} /* }}} void swap_submit_inst */
-
-static void swap_submit_gauge (const char *plugin_instance, /* {{{ */
-		const char *type_instance, gauge_t value)
-{
-	value_t v;
-
-	v.gauge = value;
-	swap_submit (plugin_instance, "swap", type_instance, v);
-} /* }}} void swap_submit_gauge */
+  if (values_absolute)
+    plugin_dispatch_multivalue(&vl, false, DS_TYPE_GAUGE, "used", used, "free",
+                               free, other_name, other_value, NULL);
+  if (values_percentage)
+    plugin_dispatch_multivalue(&vl, true, DS_TYPE_GAUGE, "used", used, "free",
+                               free, other_name, other_value, NULL);
+} /* }}} void swap_submit_usage */
 
 #if KERNEL_LINUX || HAVE_PERFSTAT
-static void swap_submit_derive (const char *plugin_instance, /* {{{ */
-		const char *type_instance, derive_t value)
-{
-	value_t v;
+__attribute__((nonnull(1))) static void
+swap_submit_derive(char const *type_instance, /* {{{ */
+                   derive_t value) {
+  value_list_t vl = VALUE_LIST_INIT;
 
-	v.derive = value;
-	swap_submit (plugin_instance, "swap_io", type_instance, v);
+  vl.values = &(value_t){.derive = value};
+  vl.values_len = 1;
+  sstrncpy(vl.plugin, "swap", sizeof(vl.plugin));
+  sstrncpy(vl.type, "swap_io", sizeof(vl.type));
+  sstrncpy(vl.type_instance, type_instance, sizeof(vl.type_instance));
+
+  plugin_dispatch_values(&vl);
 } /* }}} void swap_submit_derive */
 #endif
 
 #if KERNEL_LINUX
-static int swap_read_separate (void) /* {{{ */
+static int swap_read_separate(void) /* {{{ */
 {
-	FILE *fh;
-	char buffer[1024];
+  FILE *fh;
+  char buffer[1024];
 
-	fh = fopen ("/proc/swaps", "r");
-	if (fh == NULL)
-	{
-		char errbuf[1024];
-		WARNING ("swap plugin: fopen (/proc/swaps) failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+  fh = fopen("/proc/swaps", "r");
+  if (fh == NULL) {
+    WARNING("swap plugin: fopen (/proc/swaps) failed: %s", STRERRNO);
+    return -1;
+  }
 
-	while (fgets (buffer, sizeof (buffer), fh) != NULL)
-	{
-		char *fields[8];
-		int numfields;
-		char *endptr;
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    char *fields[8];
+    int numfields;
+    char *endptr;
 
-		char path[PATH_MAX];
-		gauge_t size;
-		gauge_t used;
-		gauge_t free;
+    char path[PATH_MAX];
+    gauge_t total;
+    gauge_t used;
 
-		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields != 5)
-			continue;
+    numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+    if (numfields != 5)
+      continue;
 
-		sstrncpy (path, fields[0], sizeof (path));
-		escape_slashes (path, sizeof (path));
+    sstrncpy(path, fields[0], sizeof(path));
+    escape_slashes(path, sizeof(path));
 
-		errno = 0;
-		endptr = NULL;
-		size = strtod (fields[2], &endptr);
-		if ((endptr == fields[2]) || (errno != 0))
-			continue;
+    errno = 0;
+    endptr = NULL;
+    total = strtod(fields[2], &endptr);
+    if ((endptr == fields[2]) || (errno != 0))
+      continue;
 
-		errno = 0;
-		endptr = NULL;
-		used = strtod (fields[3], &endptr);
-		if ((endptr == fields[3]) || (errno != 0))
-			continue;
+    errno = 0;
+    endptr = NULL;
+    used = strtod(fields[3], &endptr);
+    if ((endptr == fields[3]) || (errno != 0))
+      continue;
 
-		if (size < used)
-			continue;
+    if (total < used)
+      continue;
 
-		free = size - used;
+    swap_submit_usage(path, used * 1024.0, (total - used) * 1024.0, NULL, NAN);
+  }
 
-		swap_submit_gauge (path, "used", used);
-		swap_submit_gauge (path, "free", free);
-	}
+  fclose(fh);
 
-	fclose (fh);
-
-	return (0);
+  return 0;
 } /* }}} int swap_read_separate */
 
-static int swap_read_combined (void) /* {{{ */
+static int swap_read_combined(void) /* {{{ */
 {
-	FILE *fh;
-	char buffer[1024];
+  FILE *fh;
+  char buffer[1024];
 
-	uint8_t have_data = 0;
-	gauge_t swap_used   = 0.0;
-	gauge_t swap_cached = 0.0;
-	gauge_t swap_free   = 0.0;
-	gauge_t swap_total  = 0.0;
+  gauge_t swap_used = NAN;
+  gauge_t swap_cached = NAN;
+  gauge_t swap_free = NAN;
+  gauge_t swap_total = NAN;
 
-	fh = fopen ("/proc/meminfo", "r");
-	if (fh == NULL)
-	{
-		char errbuf[1024];
-		WARNING ("swap plugin: fopen (/proc/meminfo) failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+  fh = fopen("/proc/meminfo", "r");
+  if (fh == NULL) {
+    WARNING("swap plugin: fopen (/proc/meminfo) failed: %s", STRERRNO);
+    return -1;
+  }
 
-	while (fgets (buffer, sizeof (buffer), fh) != NULL)
-	{
-		char *fields[8];
-		int numfields;
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    char *fields[8];
+    int numfields;
 
-		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
-		if (numfields < 2)
-			continue;
+    numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
+    if (numfields < 2)
+      continue;
 
-		if (strcasecmp (fields[0], "SwapTotal:") == 0)
-		{
-			swap_total = strtod (fields[1], /* endptr = */ NULL);
-			have_data |= 0x01;
-		}
-		else if (strcasecmp (fields[0], "SwapFree:") == 0)
-		{
-			swap_free = strtod (fields[1], /* endptr = */ NULL);
-			have_data |= 0x02;
-		}
-		else if (strcasecmp (fields[0], "SwapCached:") == 0)
-		{
-			swap_cached = strtod (fields[1], /* endptr = */ NULL);
-			have_data |= 0x04;
-		}
-	}
+    if (strcasecmp(fields[0], "SwapTotal:") == 0)
+      strtogauge(fields[1], &swap_total);
+    else if (strcasecmp(fields[0], "SwapFree:") == 0)
+      strtogauge(fields[1], &swap_free);
+    else if (strcasecmp(fields[0], "SwapCached:") == 0)
+      strtogauge(fields[1], &swap_cached);
+  }
 
-	fclose (fh);
+  fclose(fh);
 
-	if (have_data != 0x07)
-		return (ENOENT);
+  if (isnan(swap_total) || isnan(swap_free))
+    return ENOENT;
 
-	if (isnan (swap_total)
-			|| (swap_total <= 0.0)
-			|| ((swap_free + swap_cached) > swap_total))
-		return (EINVAL);
+  /* Some systems, OpenVZ for example, don't provide SwapCached. */
+  if (isnan(swap_cached))
+    swap_used = swap_total - swap_free;
+  else
+    swap_used = swap_total - (swap_free + swap_cached);
+  assert(!isnan(swap_used));
 
-	swap_used = swap_total - (swap_free + swap_cached);
+  if (swap_used < 0.0)
+    return EINVAL;
 
-	swap_submit_gauge (NULL, "used",   1024.0 * swap_used);
-	swap_submit_gauge (NULL, "free",   1024.0 * swap_free);
-	swap_submit_gauge (NULL, "cached", 1024.0 * swap_cached);
-
-	return (0);
+  swap_submit_usage(NULL, swap_used * 1024.0, swap_free * 1024.0,
+                    isnan(swap_cached) ? NULL : "cached",
+                    isnan(swap_cached) ? NAN : swap_cached * 1024.0);
+  return 0;
 } /* }}} int swap_read_combined */
 
-static int swap_read_io (void) /* {{{ */
+static int swap_read_io(void) /* {{{ */
 {
-	FILE *fh;
-	char buffer[1024];
+  char buffer[1024];
 
-	_Bool old_kernel = 0;
+  uint8_t have_data = 0;
+  derive_t swap_in = 0;
+  derive_t swap_out = 0;
 
-	uint8_t have_data = 0;
-	derive_t swap_in  = 0;
-	derive_t swap_out = 0;
+  FILE *fh = fopen("/proc/vmstat", "r");
+  if (fh == NULL) {
+    WARNING("swap: fopen(/proc/vmstat): %s", STRERRNO);
+    return -1;
+  }
 
-	fh = fopen ("/proc/vmstat", "r");
-	if (fh == NULL)
-	{
-		/* /proc/vmstat does not exist in kernels <2.6 */
-		fh = fopen ("/proc/stat", "r");
-		if (fh == NULL)
-		{
-			char errbuf[1024];
-			WARNING ("swap: fopen: %s",
-					sstrerror (errno, errbuf, sizeof (errbuf)));
-			return (-1);
-		}
-		else
-			old_kernel = 1;
-	}
+  while (fgets(buffer, sizeof(buffer), fh) != NULL) {
+    char *fields[8];
+    int numfields = strsplit(buffer, fields, STATIC_ARRAY_SIZE(fields));
 
-	while (fgets (buffer, sizeof (buffer), fh) != NULL)
-	{
-		char *fields[8];
-		int numfields;
+    if (numfields != 2)
+      continue;
 
-		numfields = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+    if (strcasecmp("pswpin", fields[0]) == 0) {
+      strtoderive(fields[1], &swap_in);
+      have_data |= 0x01;
+    } else if (strcasecmp("pswpout", fields[0]) == 0) {
+      strtoderive(fields[1], &swap_out);
+      have_data |= 0x02;
+    }
+  } /* while (fgets) */
 
-		if (!old_kernel)
-		{
-			if (numfields != 2)
-				continue;
+  fclose(fh);
 
-			if (strcasecmp ("pswpin", fields[0]) == 0)
-			{
-				strtoderive (fields[1], &swap_in);
-				have_data |= 0x01;
-			}
-			else if (strcasecmp ("pswpout", fields[0]) == 0)
-			{
-				strtoderive (fields[1], &swap_out);
-				have_data |= 0x02;
-			}
-		}
-		else /* if (old_kernel) */
-		{
-			if (numfields != 3)
-				continue;
+  if (have_data != 0x03)
+    return ENOENT;
 
-			if (strcasecmp ("page", fields[0]) == 0)
-			{
-				strtoderive (fields[1], &swap_in);
-				strtoderive (fields[2], &swap_out);
-			}
-		}
-	} /* while (fgets) */
+  if (report_bytes) {
+    swap_in = swap_in * pagesize;
+    swap_out = swap_out * pagesize;
+  }
 
-	fclose (fh);
+  swap_submit_derive("in", swap_in);
+  swap_submit_derive("out", swap_out);
 
-	if (have_data != 0x03)
-		return (ENOENT);
-
-	if (report_bytes)
-	{
-		swap_in = swap_in * pagesize;
-		swap_out = swap_out * pagesize;
-	}
-
-	swap_submit_derive (NULL, "in",  swap_in);
-	swap_submit_derive (NULL, "out", swap_out);
-
-	return (0);
+  return 0;
 } /* }}} int swap_read_io */
 
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-	if (report_by_device)
-		swap_read_separate ();
-	else
-		swap_read_combined ();
+  if (report_by_device)
+    swap_read_separate();
+  else
+    swap_read_combined();
 
-	swap_read_io ();
+  if (report_io)
+    swap_read_io();
 
-	return (0);
+  return 0;
 } /* }}} int swap_read */
 /* #endif KERNEL_LINUX */
 
@@ -460,351 +401,315 @@ static int swap_read (void) /* {{{ */
  */
 #elif 0 && HAVE_LIBKSTAT
 /* kstat-based read function */
-static int swap_read_kstat (void) /* {{{ */
+static int swap_read_kstat(void) /* {{{ */
 {
-	derive_t swap_alloc;
-	derive_t swap_resv;
-	derive_t swap_avail;
+  gauge_t swap_alloc;
+  gauge_t swap_resv;
+  gauge_t swap_avail;
 
-	struct anoninfo ai;
+  struct anoninfo ai;
 
-	if (swapctl (SC_AINFO, &ai) == -1)
-	{
-		char errbuf[1024];
-		ERROR ("swap plugin: swapctl failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
+  if (swapctl(SC_AINFO, &ai) == -1) {
+    ERROR("swap plugin: swapctl failed: %s", STRERRNO);
+    return -1;
+  }
 
-	/*
-	 * Calculations from:
-	 * http://cvs.opensolaris.org/source/xref/on/usr/src/cmd/swap/swap.c
-	 * Also see:
-	 * http://www.itworld.com/Comp/2377/UIR980701perf/ (outdated?)
-	 * /usr/include/vm/anon.h
-	 *
-	 * In short, swap -s shows: allocated + reserved = used, available
-	 *
-	 * However, Solaris does not allow to allocated/reserved more than the
-	 * available swap (physical memory + disk swap), so the pedant may
-	 * prefer: allocated + unallocated = reserved, available
-	 *
-	 * We map the above to: used + resv = n/a, free
-	 *
-	 * Does your brain hurt yet?  - Christophe Kalt
-	 *
-	 * Oh, and in case you wonder,
-	 * swap_alloc = pagesize * ( ai.ani_max - ai.ani_free );
-	 * can suffer from a 32bit overflow.
-	 */
-	swap_alloc  = (derive_t) ((ai.ani_max - ai.ani_free) * pagesize);
-	swap_resv   = (derive_t) ((ai.ani_resv + ai.ani_free - ai.ani_max)
-			* pagesize);
-	swap_avail  = (derive_t) ((ai.ani_max - ai.ani_resv) * pagesize);
+  /*
+   * Calculations from:
+   * http://cvs.opensolaris.org/source/xref/on/usr/src/cmd/swap/swap.c
+   * Also see:
+   * http://www.itworld.com/Comp/2377/UIR980701perf/ (outdated?)
+   * /usr/include/vm/anon.h
+   *
+   * In short, swap -s shows: allocated + reserved = used, available
+   *
+   * However, Solaris does not allow to allocated/reserved more than the
+   * available swap (physical memory + disk swap), so the pedant may
+   * prefer: allocated + unallocated = reserved, available
+   *
+   * We map the above to: used + resv = n/a, free
+   *
+   * Does your brain hurt yet?  - Christophe Kalt
+   *
+   * Oh, and in case you wonder,
+   * swap_alloc = pagesize * ( ai.ani_max - ai.ani_free );
+   * can suffer from a 32bit overflow.
+   */
+  swap_alloc = (gauge_t)((ai.ani_max - ai.ani_free) * pagesize);
+  swap_resv = (gauge_t)((ai.ani_resv + ai.ani_free - ai.ani_max) * pagesize);
+  swap_avail = (gauge_t)((ai.ani_max - ai.ani_resv) * pagesize);
 
-	swap_submit_gauge (NULL, "used", swap_alloc);
-	swap_submit_gauge (NULL, "free", swap_avail);
-	swap_submit_gauge (NULL, "reserved", swap_resv);
-
-	return (0);
+  swap_submit_usage(NULL, swap_alloc, swap_avail, "reserved", swap_resv);
+  return 0;
 } /* }}} int swap_read_kstat */
-/* #endif 0 && HAVE_LIBKSTAT */
+  /* #endif 0 && HAVE_LIBKSTAT */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS
 /* swapctl-based read function */
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-        swaptbl_t *s;
-	char *s_paths;
-        int swap_num;
-        int status;
-        int i;
+  swaptbl_t *s;
+  char *s_paths;
+  int swap_num;
+  int status;
 
-        derive_t avail = 0;
-        derive_t total = 0;
+  gauge_t avail = 0;
+  gauge_t total = 0;
 
-        swap_num = swapctl (SC_GETNSWP, NULL);
-        if (swap_num < 0)
-        {
-                ERROR ("swap plugin: swapctl (SC_GETNSWP) failed with status %i.",
-                                swap_num);
-                return (-1);
-        }
-        else if (swap_num == 0)
-                return (0);
+  swap_num = swapctl(SC_GETNSWP, NULL);
+  if (swap_num < 0) {
+    ERROR("swap plugin: swapctl (SC_GETNSWP) failed with status %i.", swap_num);
+    return -1;
+  } else if (swap_num == 0)
+    return 0;
 
-	/* Allocate and initialize the swaptbl_t structure */
-        s = (swaptbl_t *) smalloc (swap_num * sizeof (swapent_t) + sizeof (struct swaptable));
-        if (s == NULL)
-        {
-                ERROR ("swap plugin: smalloc failed.");
-                return (-1);
-        }
+  /* Allocate and initialize the swaptbl_t structure */
+  s = malloc(swap_num * sizeof(swapent_t) + sizeof(struct swaptable));
+  if (s == NULL) {
+    ERROR("swap plugin: malloc failed.");
+    return -1;
+  }
 
-	/* Memory to store the path names. We only use these paths when the
-	 * separate option has been configured, but it's easier to just
-	 * allocate enough memory in any case. */
-	s_paths = calloc (swap_num, PATH_MAX);
-	if (s_paths == NULL)
-	{
-		ERROR ("swap plugin: malloc failed.");
-		sfree (s);
-		return (-1);
-	}
-        for (i = 0; i < swap_num; i++)
-		s->swt_ent[i].ste_path = s_paths + (i * PATH_MAX);
-        s->swt_n = swap_num;
+  /* Memory to store the path names. We only use these paths when the
+   * separate option has been configured, but it's easier to just
+   * allocate enough memory in any case. */
+  s_paths = calloc(swap_num, PATH_MAX);
+  if (s_paths == NULL) {
+    ERROR("swap plugin: calloc failed.");
+    sfree(s);
+    return -1;
+  }
+  for (int i = 0; i < swap_num; i++)
+    s->swt_ent[i].ste_path = s_paths + (i * PATH_MAX);
+  s->swt_n = swap_num;
 
-        status = swapctl (SC_LIST, s);
-        if (status < 0)
-        {
-		char errbuf[1024];
-                ERROR ("swap plugin: swapctl (SC_LIST) failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		sfree (s_paths);
-                sfree (s);
-                return (-1);
-        }
-	else if (swap_num < status)
-	{
-		/* more elements returned than requested */
-		ERROR ("swap plugin: I allocated memory for %i structure%s, "
-				"but swapctl(2) claims to have returned %i. "
-				"I'm confused and will give up.",
-				swap_num, (swap_num == 1) ? "" : "s",
-				status);
-		sfree (s_paths);
-                sfree (s);
-                return (-1);
-	}
-	else if (swap_num > status)
-		/* less elements returned than requested */
-		swap_num = status;
+  status = swapctl(SC_LIST, s);
+  if (status < 0) {
+    ERROR("swap plugin: swapctl (SC_LIST) failed: %s", STRERRNO);
+    sfree(s_paths);
+    sfree(s);
+    return -1;
+  } else if (swap_num < status) {
+    /* more elements returned than requested */
+    ERROR("swap plugin: I allocated memory for %i structure%s, "
+          "but swapctl(2) claims to have returned %i. "
+          "I'm confused and will give up.",
+          swap_num, (swap_num == 1) ? "" : "s", status);
+    sfree(s_paths);
+    sfree(s);
+    return -1;
+  } else if (swap_num > status)
+    /* less elements returned than requested */
+    swap_num = status;
 
-        for (i = 0; i < swap_num; i++)
-        {
-		char path[PATH_MAX];
-		derive_t this_total;
-		derive_t this_avail;
+  for (int i = 0; i < swap_num; i++) {
+    char path[PATH_MAX];
+    gauge_t this_total;
+    gauge_t this_avail;
 
-                if ((s->swt_ent[i].ste_flags & ST_INDEL) != 0)
-                        continue;
+    if ((s->swt_ent[i].ste_flags & ST_INDEL) != 0)
+      continue;
 
-		this_total = ((derive_t) s->swt_ent[i].ste_pages) * pagesize;
-		this_avail = ((derive_t) s->swt_ent[i].ste_free)  * pagesize;
+    this_total = (gauge_t)(s->swt_ent[i].ste_pages * pagesize);
+    this_avail = (gauge_t)(s->swt_ent[i].ste_free * pagesize);
 
-		/* Shortcut for the "combined" setting (default) */
-		if (!report_by_device)
-		{
-			avail += this_avail;
-			total += this_total;
-			continue;
-		}
+    /* Shortcut for the "combined" setting (default) */
+    if (!report_by_device) {
+      avail += this_avail;
+      total += this_total;
+      continue;
+    }
 
-		sstrncpy (path, s->swt_ent[i].ste_path, sizeof (path));
-		escape_slashes (path, sizeof (path));
+    sstrncpy(path, s->swt_ent[i].ste_path, sizeof(path));
+    escape_slashes(path, sizeof(path));
 
-		swap_submit_gauge (path, "used", (gauge_t) (this_total - this_avail));
-		swap_submit_gauge (path, "free", (gauge_t) this_avail);
-        } /* for (swap_num) */
+    swap_submit_usage(path, this_total - this_avail, this_avail, NULL, NAN);
+  } /* for (swap_num) */
 
-        if (total < avail)
-        {
-                ERROR ("swap plugin: Total swap space (%"PRIi64") "
-                                "is less than free swap space (%"PRIi64").",
-                                total, avail);
-		sfree (s_paths);
-                sfree (s);
-                return (-1);
-        }
+  if (total < avail) {
+    ERROR(
+        "swap plugin: Total swap space (%g) is less than free swap space (%g).",
+        total, avail);
+    sfree(s_paths);
+    sfree(s);
+    return -1;
+  }
 
-	/* If the "separate" option was specified (report_by_device == 2), all
-	 * values have already been dispatched from within the loop. */
-	if (!report_by_device)
-	{
-		swap_submit_gauge (NULL, "used", (gauge_t) (total - avail));
-		swap_submit_gauge (NULL, "free", (gauge_t) avail);
-	}
+  /* If the "separate" option was specified (report_by_device == true) all
+   * values have already been dispatched from within the loop. */
+  if (!report_by_device)
+    swap_submit_usage(NULL, total - avail, avail, NULL, NAN);
 
-	sfree (s_paths);
-        sfree (s);
-	return (0);
+  sfree(s_paths);
+  sfree(s);
+  return 0;
 } /* }}} int swap_read */
-/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
+  /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_TWO_ARGS */
 
 #elif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-	struct swapent *swap_entries;
-	int swap_num;
-	int status;
-	int i;
+  struct swapent *swap_entries;
+  int swap_num;
+  int status;
 
-	derive_t used  = 0;
-	derive_t total = 0;
+  gauge_t used = 0;
+  gauge_t total = 0;
 
-	swap_num = swapctl (SWAP_NSWAP, NULL, 0);
-	if (swap_num < 0)
-	{
-		ERROR ("swap plugin: swapctl (SWAP_NSWAP) failed with status %i.",
-				swap_num);
-		return (-1);
-	}
-	else if (swap_num == 0)
-		return (0);
+  swap_num = swapctl(SWAP_NSWAP, NULL, 0);
+  if (swap_num < 0) {
+    ERROR("swap plugin: swapctl (SWAP_NSWAP) failed with status %i.", swap_num);
+    return -1;
+  } else if (swap_num == 0)
+    return 0;
 
-	swap_entries = calloc (swap_num, sizeof (*swap_entries));
-	if (swap_entries == NULL)
-	{
-		ERROR ("swap plugin: calloc failed.");
-		return (-1);
-	}
+  swap_entries = calloc(swap_num, sizeof(*swap_entries));
+  if (swap_entries == NULL) {
+    ERROR("swap plugin: calloc failed.");
+    return -1;
+  }
 
-	status = swapctl (SWAP_STATS, swap_entries, swap_num);
-	if (status != swap_num)
-	{
-		ERROR ("swap plugin: swapctl (SWAP_STATS) failed with status %i.",
-				status);
-		sfree (swap_entries);
-		return (-1);
-	}
+  status = swapctl(SWAP_STATS, swap_entries, swap_num);
+  if (status != swap_num) {
+    ERROR("swap plugin: swapctl (SWAP_STATS) failed with status %i.", status);
+    sfree(swap_entries);
+    return -1;
+  }
 
 #if defined(DEV_BSIZE) && (DEV_BSIZE > 0)
-# define C_SWAP_BLOCK_SIZE ((derive_t) DEV_BSIZE)
+#define C_SWAP_BLOCK_SIZE ((gauge_t)DEV_BSIZE)
 #else
-# define C_SWAP_BLOCK_SIZE ((derive_t) 512)
+#define C_SWAP_BLOCK_SIZE 512.0
 #endif
 
-	for (i = 0; i < swap_num; i++)
-	{
-		if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
-			continue;
+  /* TODO: Report per-device stats. The path name is available from
+   * swap_entries[i].se_path */
+  for (int i = 0; i < swap_num; i++) {
+    if ((swap_entries[i].se_flags & SWF_ENABLE) == 0)
+      continue;
 
-		used  += ((derive_t) swap_entries[i].se_inuse)
-			* C_SWAP_BLOCK_SIZE;
-		total += ((derive_t) swap_entries[i].se_nblks)
-			* C_SWAP_BLOCK_SIZE;
-	}
+    used += ((gauge_t)swap_entries[i].se_inuse) * C_SWAP_BLOCK_SIZE;
+    total += ((gauge_t)swap_entries[i].se_nblks) * C_SWAP_BLOCK_SIZE;
+  }
 
-	if (total < used)
-	{
-		ERROR ("swap plugin: Total swap space (%"PRIu64") "
-				"is less than used swap space (%"PRIu64").",
-				total, used);
-		return (-1);
-	}
+  if (total < used) {
+    ERROR(
+        "swap plugin: Total swap space (%g) is less than used swap space (%g).",
+        total, used);
+    sfree(swap_entries);
+    return -1;
+  }
 
-	swap_submit_gauge (NULL, "used", (gauge_t) used);
-	swap_submit_gauge (NULL, "free", (gauge_t) (total - used));
+  swap_submit_usage(NULL, used, total - used, NULL, NAN);
 
-	sfree (swap_entries);
-
-	return (0);
+  sfree(swap_entries);
+  return 0;
 } /* }}} int swap_read */
-/* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
+  /* #endif HAVE_SWAPCTL && HAVE_SWAPCTL_THREE_ARGS */
 
 #elif defined(VM_SWAPUSAGE)
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-	int              mib[3];
-	size_t           mib_len;
-	struct xsw_usage sw_usage;
-	size_t           sw_usage_len;
+  int mib[3];
+  size_t mib_len;
+  struct xsw_usage sw_usage;
+  size_t sw_usage_len;
 
-	mib_len = 2;
-	mib[0]  = CTL_VM;
-	mib[1]  = VM_SWAPUSAGE;
+  mib_len = 2;
+  mib[0] = CTL_VM;
+  mib[1] = VM_SWAPUSAGE;
 
-	sw_usage_len = sizeof (struct xsw_usage);
+  sw_usage_len = sizeof(struct xsw_usage);
 
-	if (sysctl (mib, mib_len, &sw_usage, &sw_usage_len, NULL, 0) != 0)
-		return (-1);
+  if (sysctl(mib, mib_len, &sw_usage, &sw_usage_len, NULL, 0) != 0)
+    return -1;
 
-	/* The returned values are bytes. */
-	swap_submit_gauge (NULL, "used", (gauge_t) sw_usage.xsu_used);
-	swap_submit_gauge (NULL, "free", (gauge_t) sw_usage.xsu_avail);
+  /* The returned values are bytes. */
+  swap_submit_usage(NULL, (gauge_t)sw_usage.xsu_used,
+                    (gauge_t)sw_usage.xsu_avail, NULL, NAN);
 
-	return (0);
+  return 0;
 } /* }}} int swap_read */
-/* #endif VM_SWAPUSAGE */
+  /* #endif VM_SWAPUSAGE */
 
 #elif HAVE_LIBKVM_GETSWAPINFO
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-	struct kvm_swap data_s;
-	int             status;
+  struct kvm_swap data_s;
+  int status;
 
-	derive_t used;
-	derive_t free;
-	derive_t total;
+  gauge_t used;
+  gauge_t total;
 
-	if (kvm_obj == NULL)
-		return (-1);
+  if (kvm_obj == NULL)
+    return -1;
 
-	/* only one structure => only get the grand total, no details */
-	status = kvm_getswapinfo (kvm_obj, &data_s, 1, 0);
-	if (status == -1)
-		return (-1);
+  /* only one structure => only get the grand total, no details */
+  status = kvm_getswapinfo(kvm_obj, &data_s, 1, 0);
+  if (status == -1)
+    return -1;
 
-	total = (derive_t) data_s.ksw_total;
-	used  = (derive_t) data_s.ksw_used;
+  total = (gauge_t)data_s.ksw_total;
+  used = (gauge_t)data_s.ksw_used;
 
-	total *= (derive_t) kvm_pagesize;
-	used  *= (derive_t) kvm_pagesize;
+  total *= (gauge_t)kvm_pagesize;
+  used *= (gauge_t)kvm_pagesize;
 
-	free = total - used;
+  swap_submit_usage(NULL, used, total - used, NULL, NAN);
 
-	swap_submit_gauge (NULL, "used", (gauge_t) used);
-	swap_submit_gauge (NULL, "free", (gauge_t) free);
-
-	return (0);
+  return 0;
 } /* }}} int swap_read */
-/* #endif HAVE_LIBKVM_GETSWAPINFO */
+  /* #endif HAVE_LIBKVM_GETSWAPINFO */
 
 #elif HAVE_LIBSTATGRAB
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-	sg_swap_stats *swap;
+  sg_swap_stats *swap;
 
-	swap = sg_get_swap_stats ();
+  swap = sg_get_swap_stats();
+  if (swap == NULL)
+    return -1;
 
-	if (swap == NULL)
-		return (-1);
+  swap_submit_usage(NULL, (gauge_t)swap->used, (gauge_t)swap->free, NULL, NAN);
 
-	swap_submit_gauge (NULL, "used", (gauge_t) swap->used);
-	swap_submit_gauge (NULL, "free", (gauge_t) swap->free);
-
-	return (0);
+  return 0;
 } /* }}} int swap_read */
-/* #endif  HAVE_LIBSTATGRAB */
+  /* #endif  HAVE_LIBSTATGRAB */
 
 #elif HAVE_PERFSTAT
-static int swap_read (void) /* {{{ */
+static int swap_read(void) /* {{{ */
 {
-        if(perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1) < 0)
-	{
-                char errbuf[1024];
-                WARNING ("memory plugin: perfstat_memory_total failed: %s",
-                        sstrerror (errno, errbuf, sizeof (errbuf)));
-                return (-1);
-        }
+  perfstat_memory_total_t pmemory = {0};
+  int status;
 
-	swap_submit_gauge (NULL, "used", (gauge_t) (pmemory.pgsp_total - pmemory.pgsp_free) * pagesize);
-	swap_submit_gauge (NULL, "free", (gauge_t) pmemory.pgsp_free * pagesize );
-	swap_submit_gauge (NULL, "reserved", (gauge_t) pmemory.pgsp_rsvd * pagesize);
-	swap_submit_derive (NULL, "in",  (derive_t) pmemory.pgspins * pagesize);
-	swap_submit_derive (NULL, "out", (derive_t) pmemory.pgspouts * pagesize);
+  gauge_t total;
+  gauge_t free;
+  gauge_t reserved;
 
-	return (0);
+  status =
+      perfstat_memory_total(NULL, &pmemory, sizeof(perfstat_memory_total_t), 1);
+  if (status < 0) {
+    WARNING("swap plugin: perfstat_memory_total failed: %s", STRERRNO);
+    return -1;
+  }
+
+  total = (gauge_t)(pmemory.pgsp_total * pagesize);
+  free = (gauge_t)(pmemory.pgsp_free * pagesize);
+  reserved = (gauge_t)(pmemory.pgsp_rsvd * pagesize);
+
+  swap_submit_usage(NULL, total - free, free, "reserved", reserved);
+
+  if (report_io) {
+    swap_submit_derive("in", (derive_t)pmemory.pgspins * pagesize);
+    swap_submit_derive("out", (derive_t)pmemory.pgspouts * pagesize);
+  }
+
+  return 0;
 } /* }}} int swap_read */
 #endif /* HAVE_PERFSTAT */
 
-void module_register (void)
-{
-	plugin_register_config ("swap", swap_config,
-			config_keys, config_keys_num);
-	plugin_register_init ("swap", swap_init);
-	plugin_register_read ("swap", swap_read);
+void module_register(void) {
+  plugin_register_complex_config("swap", swap_config);
+  plugin_register_init("swap", swap_init);
+  plugin_register_read("swap", swap_read);
 } /* void module_register */
-
-/* vim: set fdm=marker : */
