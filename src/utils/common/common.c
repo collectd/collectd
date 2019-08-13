@@ -1456,13 +1456,13 @@ int service_name_to_port_number(const char *service_name) {
       service_number = (int)ntohs(sa->sin6_port);
     }
 
-    if ((service_number > 0) && (service_number <= 65535))
+    if (service_number > 0)
       break;
   }
 
   freeaddrinfo(ai_list);
 
-  if ((service_number > 0) && (service_number <= 65535))
+  if (service_number > 0)
     return service_number;
   return -1;
 } /* int service_name_to_port_number */
