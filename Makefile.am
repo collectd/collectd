@@ -724,6 +724,16 @@ aquaero_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBAQUAERO5_LDFLAGS)
 aquaero_la_LIBADD = -laquaero5
 endif
 
+if BUILD_PLUGIN_ARANGODB
+pkglib_LTLIBRARIES += arangodb.la
+arangodb_la_SOURCES = src/arangodb.c
+arangodb_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
+arangodb_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+arangodb_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+arangodb_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBYAJL_LIBS)
+
+endif
+
 if BUILD_PLUGIN_ASCENT
 pkglib_LTLIBRARIES += ascent.la
 ascent_la_SOURCES = src/ascent.c

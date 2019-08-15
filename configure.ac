@@ -6990,6 +6990,7 @@ AC_PLUGIN([apache],              [$with_libcurl],             [Apache httpd stat
 AC_PLUGIN([apcups],              [yes],                       [Statistics of UPSes by APC])
 AC_PLUGIN([apple_sensors],       [$with_libiokit],            [Apple hardware sensors])
 AC_PLUGIN([aquaero],             [$with_libaquaero5],         [Aquaero hardware sensors])
+AC_PLUGIN([arangodb],            [$with_libcurl],             [ArangoDB statistics])
 AC_PLUGIN([ascent],              [$plugin_ascent],            [AscentEmu player statistics])
 AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor on I2C])
 AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
