@@ -145,6 +145,9 @@ static bool endpoint_parse(endpoint_t * endpoint);
 static pthread_mutex_t service_data_set_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool service_data_set_done = false;
 
+static pthread_mutex_t rocks_data_set_mutex = PTHREAD_MUTEX_INITIALIZER;
+static bool rocks_data_set_done = false;
+
 
 //
 // entry point from collectd daemon
@@ -371,7 +374,7 @@ static void cluster_decode_health(yajl_val health_response) {
                                      .data = service,
                                      .free_func = free_service,
                                    });
-      printf("created service  %s\n", *key_idx);
+      DEBUG("created service  %s\n", *key_idx);
     } // for
   } // if
 } // cluster_decode_health
@@ -492,7 +495,6 @@ static service_t * new_service_single(cluster_t * cluster) {
     memset(service, 0, sizeof(service_t));
 
     service->endpoint.given = sstrdup(cluster->endpoint.given);
-    service->service_name = sstrdup(cluster->instance_name);
     // trying to make a unique name if several single servers
     service->registered_name = ssnprintf_alloc("arangodb-%s-%s-%s", cluster->instance_name,
                                                cluster->endpoint.host, cluster->endpoint.port);
@@ -504,6 +506,8 @@ static service_t * new_service_single(cluster_t * cluster) {
       WARNING("arangodb plugin: new_service_single given bad endpoint for %s", cluster->instance_name);
     } // if
 
+    service->service_name = ssnprintf_alloc("SINGLE-%s", service->endpoint.port);
+    
     if (NULL != service) {
       start_curl_session(&service->curlinfo);
 
@@ -780,9 +784,9 @@ static void service_decode_stats(service_t * service, yajl_val srv_stats, yajl_v
         // default interval?
         ssnprintf(vl.host, DATA_MAX_NAME_LEN, "%s", service->endpoint.host);
         ssnprintf(vl.plugin, DATA_MAX_NAME_LEN, "arangodb");
-        if (NULL != service->role) {
-          ssnprintf(vl.plugin_instance, DATA_MAX_NAME_LEN, "%s-%s",
-                    service->role, service->endpoint.port);
+        if (NULL != service->service_name) {
+          ssnprintf(vl.plugin_instance, DATA_MAX_NAME_LEN, "%s",
+                    service->service_name);
         } else {
           ssnprintf(vl.plugin_instance, DATA_MAX_NAME_LEN, "no-role-%s", service->endpoint.port);
         } // else
@@ -875,7 +879,7 @@ static void service_get_engine(service_t * service) {
 
   if (NULL == service->engine) {
     yajl_val engine_node = NULL;
-    printf("reading engine\n");
+
     ret_val = curl_perform(&service->curlinfo, &service->endpoint, "/_api/engine", &engine_node);
 
     if (0 == ret_val) {
@@ -910,13 +914,23 @@ static int service_get_rocksdb(service_t * service) {
   // this test is redundant, but safe
   if (NULL != service->engine && 0 == strcasecmp("rocksdb", service->engine)) {
     yajl_val rocks_node = NULL;
-    printf("reading rocksdb\n");
+
     ret_val = curl_perform(&service->curlinfo, &service->endpoint, "/_api/engine/stats", &rocks_node);
 
     if (0 == ret_val && YAJL_IS_OBJECT(rocks_node)) {
       const char **key_idx;
       yajl_val *value_idx;
-      int idx, temp;
+      int idx = 0, temp;
+      bool locked = true;
+
+      // only keep lock if first thread loading rocks values
+      DEBUG("rocks locked\n");
+      pthread_mutex_lock(&rocks_data_set_mutex);
+      if (rocks_data_set_done) {
+        locked = false;
+        pthread_mutex_unlock(&rocks_data_set_mutex);
+        DEBUG("rocks unlocked early\n");
+      } // if
       
       for (idx = 0, key_idx = rocks_node->u.object.keys, value_idx = rocks_node->u.object.values;
            idx < rocks_node->u.object.len;
@@ -926,7 +940,7 @@ static int service_get_rocksdb(service_t * service) {
         if (YAJL_IS_NUMBER(*value_idx)) {
 
           // register data types first time through
-          if (!service->engine_init_done) {
+          if (!rocks_data_set_done) {
             data_set_t data_set;
             data_source_t data_source;
             
@@ -946,7 +960,7 @@ static int service_get_rocksdb(service_t * service) {
             data_set.ds = &data_source;
 
             temp = plugin_register_data_set(&data_set);
-            printf("data_set.type: %s (%d)\n", data_set.type, temp);
+            DEBUG("data_set.type: %s (%d)\n", data_set.type, temp);
             
             if ( 0 != temp) {
               WARNING("arangodb plugin: plugin_register_data_set returned %d on %s.", temp, data_set.type);
@@ -984,12 +998,16 @@ static int service_get_rocksdb(service_t * service) {
             WARNING("arangodb plugin: plugin_dispatch_values returned %d on %s.", temp, *key_idx);
           } // if
         } else {
-          printf("ignoring non-number %s\n", *key_idx);
+          DEBUG("ignoring non-number %s\n", *key_idx);
         } // else
         
       } // for
-      
-      service->engine_init_done = true;
+
+      if (locked) {
+        rocks_data_set_done = (0 < idx);
+        pthread_mutex_unlock(&rocks_data_set_mutex);
+        DEBUG("rocks unlocked\n");
+      } // if
 
     } else if (-1 == ret_val) {
       WARNING("arangodb plugin: service_get_rocksdb failed");
@@ -1011,7 +1029,6 @@ static char * arangodb_get_role(curlinfo_t * curlinfo, endpoint_t * endpoint) {
   int ret_val;
   yajl_val role_node = NULL;
 
-  printf("reading role\n");
   ret_val = curl_perform(curlinfo, endpoint, "/_admin/server/role", &role_node);
 
   if (0 == ret_val) {
@@ -1168,7 +1185,7 @@ static bool endpoint_parse(endpoint_t * endpoint) {
     } // else
   } // if
 
-  printf("endpoint_parse: ret_flag %d, given %s, host %s, port %s, scheme %s\n",
+  DEBUG("endpoint_parse: ret_flag %d, given %s, host %s, port %s, scheme %s\n",
          (int)ret_flag, endpoint->given, endpoint->host, endpoint->port, endpoint->url_scheme);
 
   return ret_flag;
