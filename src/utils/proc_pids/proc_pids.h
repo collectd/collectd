@@ -27,6 +27,9 @@
  *   Michał Aleksiński <michalx.aleksinski@intel.com>
  **/
 
+#ifndef UTILS_PROC_PIDS_PROC_PIDS_H
+#define UTILS_PROC_PIDS_PROC_PIDS_H 1
+
 #include <dirent.h>
 #include <sys/types.h>
 
@@ -224,3 +227,5 @@ int proc_pids_update(const char *procfs_path, proc_pids_t *proc_pids[],
  *   0 on success. -1 on error.
  */
 int proc_pids_free(proc_pids_t *proc_pids[], size_t proc_pids_num);
+
+#endif /* UTILS_PROC_PIDS_PROC_PIDS_H */

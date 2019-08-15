@@ -106,8 +106,8 @@ function refillSelect(options, select) {
 		newOption.setAttribute('style', 'font-style: italic');
 		newOption.appendChild(document.createTextNode('- please select -'));
 		select.appendChild(newOption);
-		for (i = 0; i < optCnt; i++) {
-			newOption = document.createElement("option");
+		for (var i = 0; i < optCnt; i++) {
+			var newOption = document.createElement("option");
 			newOption.value = options[i].firstChild ? options[i].firstChild.data : '';
 			if (keepSelection && newOption.value == oldValue)
 				newOption.setAttribute('selected', 'selected');
@@ -311,7 +311,7 @@ function GraphAppend() {
 function ListOfGraph(response) {
 	var graphs = response ? response.getElementsByTagName('graph') : null;
 	if (graphs && graphs.length > 0) {
-		for (i = 0; i < graphs.length; i++)
+		for (var i = 0; i < graphs.length; i++)
 			GraphDoAppend(graphs[i].getAttribute('host'), graphs[i].getAttribute('plugin'), graphs[i].getAttribute('plugin_instance'),
 			              graphs[i].getAttribute('type'), graphs[i].getAttribute('type_instance'), graphs[i].getAttribute('timespan'),
 			              graphs[i].getAttribute('tinyLegend') == '1', graphs[i].getAttribute('logarithmic') == '1');
@@ -326,7 +326,7 @@ function GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, l
 		var graph_id   = 'graph_'+nextGraphId++;
 		var graph_src  = graph_url+'?host='+encodeURIComponent(host)+'&plugin='+encodeURIComponent(plugin)+'&plugin_instance='+encodeURIComponent(pinst)+'&type='+encodeURIComponent(type);
 		var graph_alt  = '';
-		var grap_title = '';
+		var graph_title = '';
 		if (tinst == '@') {
 			graph_alt   = host+'/'+plugin+(pinst.length > 0 ? '-'+pinst : '')+'/'+type;
 			graph_title = type+' of '+plugin+(pinst.length > 0 ? '-'+pinst : '')+' plugin for '+host;
@@ -346,11 +346,11 @@ function GraphDoAppend(host, plugin, pinst, type, tinst, timespan, tinyLegend, l
 		graphList.push(graph_id+' '+encodeURIComponent(graph_alt)+(logarithmic ? '&logarithmic=1' : '')+(tinyLegend ? '&tinylegend=1' : '')+'&timespan='+encodeURIComponent(timespan));
 
 		// Graph container
-		newGraph = document.createElement('div');
+		var newGraph = document.createElement('div');
 		newGraph.setAttribute('class', 'graph');
 		newGraph.setAttribute('id', graph_id);
 		// Graph cell + graph
-		newImg = document.createElement('img');
+		var newImg = document.createElement('img');
 		newImg.setAttribute('src', graph_src);
 		newImg.setAttribute('alt', graph_alt);
 		newImg.setAttribute('title', graph_title);
@@ -397,7 +397,7 @@ function GraphToggleTools(graph) {
 		document.getElementById('ge_graphid').value = graph;
 		document.getElementById('ge_tinylegend').checked = src_url.match(/&tinylegend=1/);
 		document.getElementById('ge_logarithmic').checked = src_url.match(/&logarithmic=1/);
-		for (i = 0; i < ts_sel.options.length; i++)
+		for (var i = 0; i < ts_sel.options.length; i++)
 			if (ts_sel.options[i].value == ts) {
 				ts_sel.selectedIndex = i;
 				break;
@@ -513,7 +513,7 @@ function GraphAdjust(graph) {
 				imgs[imgCnt].setAttribute('src', newSrc);
 
 				var myList = Array();
-				for (i = 0; i < graphList.length; i++)
+				for (var i = 0; i < graphList.length; i++)
 					if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ') {
 						newSrc = graphList[i];
 						newSrc = newSrc.replace(/&logarithmic=[^&]*/, '');
@@ -544,7 +544,7 @@ function GraphRemove(graph) {
 			document.getElementById('nograph').style.display = 'block';
 
 		var myList = Array();
-		for (i = 0; i < graphList.length; i++)
+		for (var i = 0; i < graphList.length; i++)
 			if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ')
 				continue;
 			else
@@ -558,7 +558,7 @@ function GraphMoveUp(graph) {
 	var graphId   = graph == null ? document.getElementById('ge_graphid').value : graph;
 	var childCnt  = graphs.childNodes.length;
 	var prevGraph = null;
-	for (i = 0; i < childCnt; i++)
+	for (var i = 0; i < childCnt; i++)
 		if (graphs.childNodes[i].nodeName == 'div' || graphs.childNodes[i].nodeName == 'DIV') {
 			if (graphs.childNodes[i].id == 'nograph') {
 				// Skip
@@ -590,7 +590,7 @@ function GraphMoveDown(graph) {
 	var childCnt  = graphs.childNodes.length;
 	var nextGraph = null;
 	var myGraph   = null;
-	for (i = 0; i < childCnt; i++)
+	for (var i = 0; i < childCnt; i++)
 		if (graphs.childNodes[i].nodeName == 'div' || graphs.childNodes[i].nodeName == 'DIV') {
 			if (graphs.childNodes[i].id == 'nograph') {
 				// Skip
@@ -603,12 +603,12 @@ function GraphMoveDown(graph) {
 				break;
 			}
 		}
-	for (i = 0; i < graphList.length; i++)
-		if (graphList[i].substring(0, graphId.length) == graphId && graphList[i].charAt(graphId.length) == ' ') {
-			if (i+1 < graphList.length) {
-				var tmp = graphList[i+1];
-				graphList[i+1] = graphList[i];
-				graphList[i]   = tmp;
+	for (var j = 0; j < graphList.length; j++)
+		if (graphList[j].substring(0, graphId.length) == graphId && graphList[j].charAt(graphId.length) == ' ') {
+			if (j+1 < graphList.length) {
+				var tmp = graphList[j+1];
+				graphList[j+1] = graphList[i];
+				graphList[j]   = tmp;
 			}
 			break;
 		}
@@ -619,7 +619,7 @@ function GraphListFromCookie(lname) {
 	if (document.cookie.length > 0) {
 		var cname= 'graphLst'+lname+'=';
 		var cookies = document.cookie.split('; ');
-		for (i = 0; i < cookies.length; i++)
+		for (var i = 0; i < cookies.length; i++)
 			if (cookies[i].substring(0, cname.length) == cname)
 				return cookies[i].substring(cname.length).split('/');
 	}
@@ -663,7 +663,7 @@ function GraphListRefresh() {
 	} else {
 		select.removeAttribute('disabled');
 		for (i = 0; i < optCnt; i++) {
-			newOption = document.createElement("option");
+			var newOption = document.createElement("option");
 			newOption.value = options[i][0];
 			if (newOption.value == oldValue)
 				newOption.setAttribute('selected', 'selected');
@@ -705,7 +705,7 @@ function GraphSave() {
 	if (graphList.length > 0) {
 		// Save graph list to cookie
 		var str = '';
-		for (i = 0; i < graphList.length; i++) {
+		for (var i = 0; i < graphList.length; i++) {
 			var g = graphList[i].indexOf(' ');
 			if (i > 0)
 				str += '/';
@@ -743,7 +743,7 @@ function GraphLoad() {
 	// Load graph list from cookie
 	var grLst = GraphListFromCookie(cname);
 	var oldLength = graphList.length;
-	for (i = 0; i < grLst.length; i++) {
+	for (var i = 0; i < grLst.length; i++) {
 		var host        = '';
 		var plugin      = '';
 		var pinst       = '';
@@ -753,7 +753,7 @@ function GraphLoad() {
 		var logarithmic = false;
 		var tinyLegend  = false;
 		var graph = grLst[i].split('&');
-		for (j = 0; j < graph.length; j++)
+		for (var j = 0; j < graph.length; j++)
 			if (graph[j] == 'logarithmic=1')
 				logarithmic = true;
 			else if (graph[j] == 'tinylegend=1')
