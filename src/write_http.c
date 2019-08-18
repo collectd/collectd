@@ -40,6 +40,10 @@
 #define WRITE_HTTP_DEFAULT_PREFIX "collectd"
 #endif
 
+#ifndef WRITE_HTTP_RESPONSE_BUFFER_SIZE
+#define WRITE_HTTP_RESPONSE_BUFFER_SIZE 4096
+#endif
+
 /*
  * Private variables
  */
@@ -83,6 +87,9 @@ struct wh_callback_s {
 
   pthread_mutex_t send_lock;
 
+  char *response_buffer;
+  size_t response_buffer_size;
+
   int data_ttl;
   char *metrics_prefix;
 };
@@ -90,6 +97,24 @@ typedef struct wh_callback_s wh_callback_t;
 
 static char **http_attrs;
 static size_t http_attrs_num;
+
+static size_t wh_curl_write_callback(char *ptr, size_t size, size_t nmemb,
+                                     void *userdata) {
+
+  wh_callback_t *cb = (wh_callback_t *)userdata;
+  int len = 0;
+
+  DEBUG("write_http plugin: curl callback writing %zu bytes of output.", nmemb);
+  if (nmemb > cb->response_buffer_size - 1)
+    len = cb->response_buffer_size - 1;
+  else
+    len = nmemb;
+
+  memcpy(cb->response_buffer, ptr, len);
+  cb->response_buffer[cb->response_buffer_size] = '\0';
+
+  return nmemb;
+}
 
 static void wh_log_http_error(wh_callback_t *cb) {
   if (!cb->log_http_error)
@@ -117,6 +142,12 @@ static void wh_reset_buffer(wh_callback_t *cb) /* {{{ */
     format_json_initialize(cb->send_buffer, &cb->send_buffer_fill,
                            &cb->send_buffer_free);
   }
+
+  if (cb->response_buffer == NULL)
+    return;
+  memset(cb->response_buffer, 0, cb->response_buffer_size);
+  cb->send_buffer_fill = 0;
+
 } /* }}} wh_reset_buffer */
 
 /* must hold cb->send_lock when calling */
@@ -126,6 +157,8 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
 
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, &wh_curl_write_callback);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, (void *)cb);
   status = curl_easy_perform(cb->curl);
 
   wh_log_http_error(cb);
@@ -134,6 +167,11 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
     ERROR("write_http plugin: curl_easy_perform failed with "
           "status %i: %s",
           status, cb->curl_errbuf);
+    if (strlen(cb->response_buffer) > 0) {
+      ERROR("write_http plugin: curl_response=%s", cb->response_buffer);
+    }
+  } else {
+    DEBUG("write_http plugin: curl_response=%s", cb->response_buffer);
   }
   return status;
 } /* }}} wh_post_nolock */
@@ -807,6 +845,16 @@ static int wh_config_node(oconfig_item_t *ci) /* {{{ */
     wh_callback_free(cb);
     return -1;
   }
+
+  cb->response_buffer_size = WRITE_HTTP_RESPONSE_BUFFER_SIZE;
+  cb->response_buffer = malloc(cb->response_buffer_size);
+  if (cb->response_buffer == NULL) {
+    ERROR("write_http plugin: malloc(%" PRIsz ") failed.",
+          cb->send_buffer_size);
+    wh_callback_free(cb);
+    return -1;
+  }
+
   /* Nulls the buffer and sets ..._free and ..._fill. */
   wh_reset_buffer(cb);
 
