@@ -90,7 +90,6 @@ struct wh_callback_s {
 
   char *response_buffer;
   size_t response_buffer_size;
-  size_t response_buffer_fill;
 
   int data_ttl;
   char *metrics_prefix;
@@ -101,6 +100,19 @@ static char **http_attrs;
 static size_t http_attrs_num;
 
 static size_t wh_curl_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+
+  wh_callback_t *cb = (wh_callback_t *) userdata;
+  int len=0;
+
+  DEBUG("write_http plugin: curl callback writing %lu bytes of output.",nmemb);
+  if(nmemb > cb->response_buffer_size -1)
+    len = cb->response_buffer_size-1;
+  else
+    len=nmemb;
+
+  memcpy(cb->response_buffer,ptr,len);
+  cb->response_buffer[cb->response_buffer_size]='\0';
+
   return nmemb;
 }
 
@@ -146,7 +158,7 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
   curl_easy_setopt(cb->curl, CURLOPT_URL, cb->location);
   curl_easy_setopt(cb->curl, CURLOPT_POSTFIELDS, data);
   curl_easy_setopt(cb->curl, CURLOPT_WRITEFUNCTION, &wh_curl_write_callback);
-  //curl_easy_setopt(cu->curl, CURLOPT_WRITEDATA, (void *)&chunk);
+  curl_easy_setopt(cb->curl, CURLOPT_WRITEDATA, (void *)cb);
   status = curl_easy_perform(cb->curl);
 
   wh_log_http_error(cb);
@@ -155,6 +167,12 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
     ERROR("write_http plugin: curl_easy_perform failed with "
           "status %i: %s",
           status, cb->curl_errbuf);
+    if(strlen(cb->response_buffer) > 0) {
+      ERROR("write_http plugin: curl_response=%s",cb->response_buffer);
+    }
+  }
+  else {
+    DEBUG("write_http plugin: curl_response=%s",cb->response_buffer);
   }
   return status;
 } /* }}} wh_post_nolock */
