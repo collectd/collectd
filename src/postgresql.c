@@ -58,7 +58,7 @@
  * is ignored. */
 #define C_PSQL_PAR_APPEND(buf, buf_len, parameter, value)                      \
   if ((0 < (buf_len)) && (NULL != (value)) && ('\0' != *(value))) {            \
-    int s = snprintf(buf, buf_len, " %s = '%s'", parameter, value);           \
+    int s = snprintf(buf, buf_len, " %s = '%s'", parameter, value);            \
     if (0 < s) {                                                               \
       buf += s;                                                                \
       buf_len -= s;                                                            \
