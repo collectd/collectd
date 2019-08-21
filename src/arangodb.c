@@ -324,12 +324,12 @@ static int cluster_read(user_data_t *ud) {
         } // if
 
         yajl_tree_free(health_node);
+
       } // else
 
       if (0==ret_val) {
         // done with cluster_t work, unregister
         plugin_unregister_read(cluster->registered_name);
-
         // WARNING: cluster object likely unusable now
         cluster = NULL;
       } // if
@@ -496,7 +496,8 @@ static service_t * new_service_single(cluster_t * cluster) {
 
     service->endpoint.given = sstrdup(cluster->endpoint.given);
     // trying to make a unique name if several single servers
-    service->registered_name = ssnprintf_alloc("arangodb-%s-%s-%s", cluster->instance_name,
+    //  NOTE: intentionally using arangod prefix instead of arangodb to be diff from cluster name
+    service->registered_name = ssnprintf_alloc("arangod-%s-%s-%s", cluster->instance_name,
                                                cluster->endpoint.host, cluster->endpoint.port);
     
       // reparse endpoint for this object
