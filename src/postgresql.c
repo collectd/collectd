@@ -58,7 +58,7 @@
  * is ignored. */
 #define C_PSQL_PAR_APPEND(buf, buf_len, parameter, value)                      \
   if ((0 < (buf_len)) && (NULL != (value)) && ('\0' != *(value))) {            \
-    int s = ssnprintf(buf, buf_len, " %s = '%s'", parameter, value);           \
+    int s = snprintf(buf, buf_len, " %s = '%s'", parameter, value);           \
     if (0 < s) {                                                               \
       buf += s;                                                                \
       buf_len -= s;                                                            \
@@ -323,7 +323,7 @@ static int c_psql_connect(c_psql_database_t *db) {
   if ((!db) || (!db->database))
     return -1;
 
-  status = ssnprintf(buf, buf_len, "dbname = '%s'", db->database);
+  status = snprintf(buf, buf_len, "dbname = '%s'", db->database);
   if (0 < status) {
     buf += status;
     buf_len -= status;
