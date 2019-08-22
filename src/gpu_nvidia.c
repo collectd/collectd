@@ -174,7 +174,7 @@ static int nvml_read(void) {
 
     char dev_name[NVML_DEVICE_NAME_BUFFER_SIZE] = {0};
     if( instance_by & INSTANCE_BY_GPUNAME ) {
-      TRY(nvmlDeviceGetName(dev, dev_name, sizeof(dev_name) - 1));
+      TRY(nvmlDeviceGetName(dev, dev_name, NVML_DEVICE_NAME_BUFFER_SIZE));
     }
     
     // Try to be as lenient as possible with the variety of devices that are
