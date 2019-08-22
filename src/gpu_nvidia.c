@@ -54,12 +54,9 @@ static char *nv_errline = "";
 #define KEY_INSTANCE_BY_GPUINDEX "InstanceByGPUIndex"
 #define KEY_INSTANCE_BY_GPUNAME "InstanceByGPUName"
 
-static const char *config_keys[] = {
-    KEY_GPUINDEX,
-    KEY_IGNORESELECTED,
-    KEY_INSTANCE_BY_GPUINDEX,
-    KEY_INSTANCE_BY_GPUNAME
-};
+static const char *config_keys[] = {KEY_GPUINDEX, KEY_IGNORESELECTED,
+                                    KEY_INSTANCE_BY_GPUINDEX,
+                                    KEY_INSTANCE_BY_GPUNAME};
 static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 
 // This is a bitflag, necessitating the (extremely conservative) assumption
@@ -70,7 +67,7 @@ static bool conf_mask_is_exclude = 0;
 // use GPU index and device name by default
 #define INSTANCE_BY_GPUINDEX (1 << 0)
 #define INSTANCE_BY_GPUNAME (1 << 1)
-static uint8_t instance_by = INSTANCE_BY_GPUINDEX | INSTANCE_BY_GPUNAME; 
+static uint8_t instance_by = INSTANCE_BY_GPUINDEX | INSTANCE_BY_GPUNAME;
 
 static int nvml_config(const char *key, const char *value) {
   if (strcasecmp(key, KEY_GPUINDEX) == 0) {
@@ -122,8 +119,8 @@ static int nvml_shutdown(void) {
   return -1;
 }
 
-static void nvml_submit_gauge(int device_idx, const char *device_name, 
-                              const char *type, const char *type_instance, 
+static void nvml_submit_gauge(int device_idx, const char *device_name,
+                              const char *type, const char *type_instance,
                               gauge_t nvml) {
 
   value_list_t vl = VALUE_LIST_INIT;
@@ -135,13 +132,13 @@ static void nvml_submit_gauge(int device_idx, const char *device_name,
 
   // use gpu index and name or either of the two
   if (instance_by == (INSTANCE_BY_GPUNAME | INSTANCE_BY_GPUINDEX)) {
-    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-%s", 
+    snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-%s",
              device_idx, device_name);
   } else if (instance_by & INSTANCE_BY_GPUINDEX) {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", device_idx);
   } else if (instance_by & INSTANCE_BY_GPUNAME) {
     sstrncpy(vl.plugin_instance, device_name, sizeof(vl.plugin_instance));
-  }  
+  }
 
   sstrncpy(vl.type, type, sizeof(vl.type));
 
@@ -173,10 +170,10 @@ static int nvml_read(void) {
     TRY(nvmlDeviceGetHandleByIndex(ix, &dev));
 
     char dev_name[NVML_DEVICE_NAME_BUFFER_SIZE] = {0};
-    if( instance_by & INSTANCE_BY_GPUNAME ) {
+    if (instance_by & INSTANCE_BY_GPUNAME) {
       TRY(nvmlDeviceGetName(dev, dev_name, NVML_DEVICE_NAME_BUFFER_SIZE));
     }
-    
+
     // Try to be as lenient as possible with the variety of devices that are
     // out there, ignoring any NOT_SUPPORTED errors gently.
     nvmlMemory_t meminfo;
