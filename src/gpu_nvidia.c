@@ -68,10 +68,11 @@ static uint64_t conf_match_mask = 0;
 static bool conf_mask_is_exclude = 0;
 
 // use GPU index and device name by default
-static uint8_t instance_by = 0x02; 
+#define INSTANCE_BY_GPUINDEX (1 << 0)
+#define INSTANCE_BY_GPUNAME (1 << 1)
+static uint8_t instance_by = INSTANCE_BY_GPUINDEX | INSTANCE_BY_GPUNAME; 
 
 static int nvml_config(const char *key, const char *value) {
-
   if (strcasecmp(key, KEY_GPUINDEX) == 0) {
     char *eptr;
     unsigned long device_ix = strtoul(value, &eptr, 10);
@@ -85,15 +86,17 @@ static int nvml_config(const char *key, const char *value) {
       return -2;
     }
     conf_match_mask |= (1 << device_ix);
-  } else if (strcasecmp(key, KEY_IGNORESELECTED)) {
+  } else if (strcasecmp(key, KEY_IGNORESELECTED) == 0) {
     conf_mask_is_exclude = IS_TRUE(value);
-  } else if (strcasecmp(key, KEY_INSTANCE_BY_GPUINDEX)) {
+  } else if (strcasecmp(key, KEY_INSTANCE_BY_GPUINDEX) == 0) {
+    // if KEY_INSTANCE_BY_GPUINDEX is set to false, set bit to 0
     if (IS_FALSE(value)) {
-      instance_by &= ~(1 << 0);
+      instance_by &= ~INSTANCE_BY_GPUINDEX;
     }
-  } else if (strcasecmp(key, KEY_INSTANCE_BY_GPUNAME)) {
+  } else if (strcasecmp(key, KEY_INSTANCE_BY_GPUNAME) == 0) {
+    // if KEY_INSTANCE_BY_GPUNAME is set to false, set bit to 0
     if (IS_FALSE(value)) {
-      instance_by &= ~(1 << 1);
+      instance_by &= ~INSTANCE_BY_GPUNAME;
     }
   } else {
     ERROR(PLUGIN_NAME ": Unrecognized config option %s", key);
@@ -130,12 +133,13 @@ static void nvml_submit_gauge(int device_idx, const char *device_name,
 
   sstrncpy(vl.plugin, PLUGIN_NAME, sizeof(vl.plugin));
 
-  if (instance_by & 0x02) {
+  // use gpu index and name or either of the two
+  if (instance_by == (INSTANCE_BY_GPUNAME | INSTANCE_BY_GPUINDEX)) {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i-%s", 
-            device_idx, device_name);
-  } else if (instance_by & (1 << 0)) {
+             device_idx, device_name);
+  } else if (instance_by & INSTANCE_BY_GPUINDEX) {
     snprintf(vl.plugin_instance, sizeof(vl.plugin_instance), "%i", device_idx);
-  } else if (instance_by & (1 << 1)) {
+  } else if (instance_by & INSTANCE_BY_GPUNAME) {
     sstrncpy(vl.plugin_instance, device_name, sizeof(vl.plugin_instance));
   }  
 
