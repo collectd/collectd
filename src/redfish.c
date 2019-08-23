@@ -767,7 +767,7 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
       /* Default TypeInstance is MemberId */
       char type_inst[40] = "MemberId";
       if (prop->type_inst != NULL)
-      sstrncpy(type_inst, prop->type_inst, sizeof(type_inst));
+        sstrncpy(type_inst, prop->type_inst, sizeof(type_inst));
 
       /* Retrieving sensor ID and setting TypeInstance */
       json_t *sensor_id = json_object_get(item, prop->type_inst);
