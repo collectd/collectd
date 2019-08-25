@@ -97,6 +97,8 @@ cdtime_t global_option_get_time(char const *option, cdtime_t default_value);
 
 cdtime_t cf_get_default_interval(void);
 
+double cf_get_default_start_time(void);
+
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon
  * success. */

@@ -1085,7 +1085,39 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  rf->rf_next_read = cdtime();
+  /* set the time of the first read according to "StartAt" in collectd.conf */
+  double start_time = rf->rf_ctx.start_time;
+  if(start_time < 0) {
+    // no start time given
+    rf->rf_next_read = cdtime();
+  } else {
+    cdtime_t start_cdtms = DOUBLE_TO_CDTIME_T(start_time);
+    cdtime_t now = cdtime();
+    struct timeval tv = CDTIME_T_TO_TIMEVAL(now);
+    uint64_t curr_msec = (gmtime(&(tv.tv_sec))->tm_sec) * 1000 + tv.tv_usec/1000;
+    cdtime_t curr_cdtms = MS_TO_CDTIME_T(curr_msec);
+ 
+    //NOTICE("%s: current time: %lu sec, %lu ms in minute, start time: %.3lf, interval: %lu", rf->rf_name, tv.tv_sec, curr_msec, start_time, CDTIME_T_TO_MS(rf->rf_interval));
+
+    int64_t sleep_cdt = start_cdtms - curr_cdtms;
+    while(sleep_cdt < 0)
+    {
+      sleep_cdt += rf->rf_interval;
+    }
+
+    if(sleep_cdt > 0)
+    {
+      rf->rf_next_read = now + sleep_cdt;
+      INFO("%s - now: %lu.%lu, first read: %lu (in %lu ms)", 
+        rf->rf_name, tv.tv_sec, tv.tv_usec/1000, 
+        CDTIME_T_TO_TIME_T(rf->rf_next_read), CDTIME_T_TO_MS(sleep_cdt));
+    }
+    else
+    {
+      rf->rf_next_read = cdtime();
+    }
+  }
+
   rf->rf_effective_interval = rf->rf_interval;
 
   pthread_mutex_lock(&read_lock);
@@ -1160,6 +1192,7 @@ EXPORT int plugin_register_read(const char *name, int (*callback)(void)) {
   rf->rf_type = RF_SIMPLE;
   rf->rf_interval = plugin_get_interval();
   rf->rf_ctx.interval = rf->rf_interval;
+  rf->rf_ctx.start_time = plugin_get_start_time();
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -1203,6 +1236,7 @@ EXPORT int plugin_register_complex_read(const char *group, const char *name,
 
   rf->rf_ctx = plugin_get_ctx();
   rf->rf_ctx.interval = rf->rf_interval;
+  rf->rf_ctx.start_time = plugin_get_start_time();
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -2544,6 +2578,20 @@ EXPORT cdtime_t plugin_get_interval(void) {
 
   return cf_get_default_interval();
 } /* cdtime_t plugin_get_interval */
+
+EXPORT double plugin_get_start_time(void) {
+  double start_time;
+
+  start_time = plugin_get_ctx().start_time;
+
+  if (start_time >= 0)
+    return start_time;
+
+  // StartAt is optional and the default is set to -1
+  //P_ERROR("plugin_get_start_time: Unable to determine start time from context.");
+
+  return cf_get_default_start_time();
+} /* double plugin_get_start_time */
 
 typedef struct {
   plugin_ctx_t ctx;

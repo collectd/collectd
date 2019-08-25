@@ -173,6 +173,7 @@ typedef struct user_data_s user_data_t;
 
 struct plugin_ctx_s {
   char *name;
+  double start_time;
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
@@ -447,6 +448,17 @@ plugin_ctx_t plugin_set_ctx(plugin_ctx_t ctx);
  *  everything else fails, it will fall back to 10 seconds.
  */
 cdtime_t plugin_get_interval(void);
+
+/*
+ * NAME
+ *  plugin_get_start_time
+ *
+ * DESCRIPTION
+ *  This function returns the current value of the plugin's start time. The
+ *  return value will be a positive value in all cases. If
+ *  everything else fails, it will fall back to 0.
+ */
+double plugin_get_start_time(void);
 
 /*
  * Context-aware thread management.

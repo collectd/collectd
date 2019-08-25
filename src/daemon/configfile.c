@@ -106,6 +106,7 @@ static cf_global_option_t cf_global_options[] = {
     {"Hostname", NULL, 0, NULL},
     {"FQDNLookup", NULL, 0, "true"},
     {"Interval", NULL, 0, NULL},
+    {"StartAt", NULL, 0, NULL},
     {"ReadThreads", NULL, 0, "5"},
     {"WriteThreads", NULL, 0, "5"},
     {"WriteQueueLimitHigh", NULL, 0, NULL},
@@ -285,7 +286,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .interval = cf_get_default_interval(),
+      .start_time = cf_get_default_start_time(), 
+      .interval = cf_get_default_interval(), 
       .name = strdup(name),
   };
   if (ctx.name == NULL)
@@ -296,6 +298,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
     if (strcasecmp("Globals", child->key) == 0)
       cf_util_get_boolean(child, &global);
+    else if (strcasecmp("StartAt", child->key) == 0)
+      cf_util_get_double(child, &ctx.start_time);
     else if (strcasecmp("Interval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.interval);
     else if (strcasecmp("FlushInterval", child->key) == 0)
@@ -906,6 +910,26 @@ long global_option_get_long(const char *option, long default_value) {
   return value;
 } /* char *global_option_get_long */
 
+double global_option_get_double(const char *name, double def) /* {{{ */
+{
+  char const *optstr;
+  char *endptr = NULL;
+  double v;
+
+  optstr = global_option_get(name);
+  if (optstr == NULL)
+    return def;
+
+  errno = 0;
+  v = (float)strtod(optstr, &endptr);
+  if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
+    return def;
+  else if (v <= 0.0)
+    return def;
+
+  return v;
+} /* }}} float global_option_get_float */
+
 cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
 {
   char const *optstr;
@@ -929,6 +953,10 @@ cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
 cdtime_t cf_get_default_interval(void) {
   return global_option_get_time("Interval",
                                 DOUBLE_TO_CDTIME_T(COLLECTD_DEFAULT_INTERVAL));
+}
+
+double cf_get_default_start_time(void) {
+  return global_option_get_double("StartAt", -1.0);
 }
 
 void cf_unregister(const char *type) {
