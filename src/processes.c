@@ -1431,7 +1431,7 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
 static int procs_running(void) {
   char buffer[4096] = {};
-
+  char id[] = "procs_running "; /* white space terminated */
   char *running;
 
   ssize_t status;
@@ -1441,13 +1441,18 @@ static int procs_running(void) {
     return -1;
   }
 
-  running = strstr(buffer, "procs_running");
+  /* the data contains :
+   * the literal string 'procs_running',
+   * a whitespace
+   * the number of running processes.
+   * The parser does include the white-space character.
+   */
+  running = strstr(buffer, id);
   if (!running) {
     WARNING("procs_running not found, assuming 1");
     return 1;
   }
-
-  running += 14;
+  running += strlen(id);
 
   return atoi(running);
 }
