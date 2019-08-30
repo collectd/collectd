@@ -774,7 +774,7 @@ static void service_decode_stats(service_t * service, yajl_val srv_stats, yajl_v
         
         stat = yajl_tree_get(srv_stats, (const char **)stats_path, yajl_t_any);
         if (YAJL_IS_OBJECT(stat)) {
-          stats_path[2] = "count";
+          stats_path[2] = "sum";
           stat = yajl_tree_get(srv_stats, (const char **)stats_path, yajl_t_number);
         } // if
       } // if
