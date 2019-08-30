@@ -1433,6 +1433,8 @@ static int procs_running(void) {
   char buffer[4096] = {};
   char id[] = "procs_running "; /* white space terminated */
   char *running;
+  char *endptr = NULL;
+  long result = 0L;
 
   ssize_t status;
 
@@ -1449,12 +1451,17 @@ static int procs_running(void) {
    */
   running = strstr(buffer, id);
   if (!running) {
-    WARNING("procs_running not found, assuming 1");
-    return 1;
+    WARNING("procs_running not found");
+    return -1;
   }
   running += strlen(id);
 
-  return atoi(running);
+  result = strtol(running, &endptr, 10);
+  if ( (*running != '\0') && ((*endptr == '\0') || (*endptr == '\n')) ) {
+    return (int)result;
+  }
+
+  return -1;
 }
 
 static char *ps_get_cmdline(long pid, char *name, char *buf, size_t buf_len) {
