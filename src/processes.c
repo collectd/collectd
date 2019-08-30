@@ -1457,7 +1457,7 @@ static int procs_running(void) {
   running += strlen(id);
 
   result = strtol(running, &endptr, 10);
-  if ( (*running != '\0') && ((*endptr == '\0') || (*endptr == '\n')) ) {
+  if ((*running != '\0') && ((*endptr == '\0') || (*endptr == '\n'))) {
     return (int)result;
   }
 
