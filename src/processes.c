@@ -2119,6 +2119,7 @@ static int ps_read(void) {
 
   closedir(proc);
 
+  /* get procs_running from /proc/stat */
   running = procs_running();
 
   ps_submit_state("running", running);
