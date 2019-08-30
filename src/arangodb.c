@@ -688,11 +688,12 @@ static size_t cluster_write_callback(void *buf,
 
 
 static int service_read(user_data_t *ud) {
-  int ret_val;
+  int ret_val, ret_rocks;
   service_t * service;
   
   ret_val = 0;
-
+  ret_rocks = -1;
+  
   if ( NULL != ud && NULL != ud->data) {
     yajl_val service_node = NULL, desc_node = NULL;
     service = (service_t *)ud->data;
@@ -724,10 +725,15 @@ static int service_read(user_data_t *ud) {
     yajl_tree_free(desc_node);
 
     // rocksdb statistics retrieved every pass if engine
-    if (0 == ret_val && NULL != service->engine && 0 == strcasecmp("rocksdb", service->engine)) {
-      ret_val = service_get_rocksdb(service);
+    if (NULL != service->engine && 0 == strcasecmp("rocksdb", service->engine)) {
+      ret_rocks = service_get_rocksdb(service);
     } // if
-    
+
+    // possible for basic stats to be disabled and rocksdb to be enabled
+    //  or vice-versa ... if one is good, show happiness
+    if (0 == ret_val || 0 == ret_rocks) {
+      ret_val = 0;
+    } // if
   } else {
     ERROR("arangodb plugin: service_read: Invalid user data.");
     ret_val = -1;
@@ -766,7 +772,7 @@ static void service_decode_stats(service_t * service, yajl_val srv_stats, yajl_v
         stats_path[1] = identifier->u.string;
         stats_path[2] = (char *)0;
         
-        stat = yajl_tree_get(srv_stats, (const char **)stats_path, yajl_t_number);
+        stat = yajl_tree_get(srv_stats, (const char **)stats_path, yajl_t_any);
         if (YAJL_IS_OBJECT(stat)) {
           stats_path[2] = "count";
           stat = yajl_tree_get(srv_stats, (const char **)stats_path, yajl_t_number);
