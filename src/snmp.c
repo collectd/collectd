@@ -764,7 +764,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
   /* These mean that we have not set a timeout or retry value */
   hd->timeout = 0;
   hd->retries = -1;
-  hd->build_size = 0;
+  hd->bulk_size = 0;
 
   for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *option = ci->children + i;
