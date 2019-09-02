@@ -1577,7 +1577,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   csnmp_oid_type_t oid_list_todo[oid_list_len];
 
   int status;
-  size_t i,j;
+  size_t i, j;
 
   /* `value_list_head' and `value_cells_tail' implement a linked list for each
    * value. `instance_cells_head' and `instance_cells_tail' implement a linked
@@ -1593,8 +1593,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   csnmp_cell_value_t **value_cells_head;
   csnmp_cell_value_t **value_cells_tail;
 
-  DEBUG("snmp plugin: csnmp_read_table (host = %s, data = %s (%ld))", host->name,
-        data->name, data->values_len);
+  DEBUG("snmp plugin: csnmp_read_table (host = %s, data = %s (%ld))",
+        host->name, data->name, data->values_len);
 
   if (host->sess_handle == NULL) {
     DEBUG("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
@@ -1696,10 +1696,10 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
     }
 
     if (req->command == SNMP_MSG_GETBULK) {
-        /* In bulk mode the host will send 'max_repetitions' values per
-           requested variable, so we need to split it per number of variable
-           to stay 'in budget' */
-        req->max_repetitions = floor(host->bulk_size/oid_list_todo_num);
+      /* In bulk mode the host will send 'max_repetitions' values per
+         requested variable, so we need to split it per number of variable
+         to stay 'in budget' */
+      req->max_repetitions = floor(host->bulk_size / oid_list_todo_num);
     }
 
     res = NULL;
@@ -1783,7 +1783,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       }
       /* Calculate value index from todo list */
       while ((i < oid_list_len) && !oid_list_todo[i]) {
-        i++; j++;
+        i++;
+        j++;
       }
       if (i >= oid_list_len) {
         break;
