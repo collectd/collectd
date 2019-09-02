@@ -1402,6 +1402,7 @@
 #       Version 2
 #       Community "another_string"
 #       Collect "std_traffic" "hr_users"
+#       Bulk_Size 100
 #   </Host>
 #   <Host "some.ups.mydomain.org">
 #       Address "192.168.0.3"
