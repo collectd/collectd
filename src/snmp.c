@@ -1593,8 +1593,8 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   csnmp_cell_value_t **value_cells_head;
   csnmp_cell_value_t **value_cells_tail;
 
-  DEBUG("snmp plugin: csnmp_read_table (host = %s, data = %s (%ld))",
-        host->name, data->name, data->values_len);
+  DEBUG("snmp plugin: csnmp_read_table (host = %s, data = %s)", host->name,
+        data->name);
 
   if (host->sess_handle == NULL) {
     DEBUG("snmp plugin: csnmp_read_table: host->sess_handle == NULL");
