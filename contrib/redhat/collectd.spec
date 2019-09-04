@@ -136,6 +136,7 @@
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
 %define with_synproxy 0%{!?_without_synproxy:0}
+%define with_sysevent 0%{!?_without_sysevent:1}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
@@ -253,6 +254,7 @@
 %define with_ovs_stats 0
 %define with_redis 0
 %define with_rrdcached 0
+%define with_sysevent 0
 %define with_write_redis 0
 %define with_write_riemann 0
 %define with_xmms 0
@@ -889,6 +891,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	net-snmp-devel
 %description snmp_agent
 This plugin for collectd to support AgentX integration.
+%endif
+
+%if %{with_sysevent}
+%package sysevent
+Summary:       Rsyslog event plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description sysevent
+Monitors rsyslog for system events.
 %endif
 
 %if %{with_varnish}
@@ -1729,6 +1741,12 @@ Collectd utilities
 %define _with_synproxy --disable-synproxy
 %endif
 
+%if %{with_sysevent}
+%define _with_sysevent --enable-sysevent
+%else
+%define _with_sysevent --disable-sysevent
+%endif
+
 %if %{with_syslog}
 %define _with_syslog --enable-syslog
 %else
@@ -2088,6 +2106,7 @@ Collectd utilities
 	%{?_with_statsd} \
 	%{?_with_swap} \
 	%{?_with_synproxy} \
+	%{?_with_sysevent} \
 	%{?_with_syslog} \
 	%{?_with_table} \
 	%{?_with_tail_csv} \
@@ -2793,6 +2812,11 @@ fi
 %if %{with_snmp_agent}
 %files snmp_agent
 %{_libdir}/%{name}/snmp_agent.so
+%endif
+
+%if %{with_sysevent}
+%files sysevent
+%{_libdir}/%{name}/sysevent.so
 %endif
 
 %if %{with_varnish}
