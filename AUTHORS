@@ -69,9 +69,6 @@ Aneesh Puttur <aputtur at redhat.com>
 Andy Smith <ansmith at redhat.com>
  - AMQP 1.0 plugin.
 
-Aneesh Puttur <aputtur at redhat.com>
- - connectivity plugin.
-
 Anthony Dewhurst <dewhurst at gmail.com>
  - zfs_arc plugin.
 
