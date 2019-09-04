@@ -1478,7 +1478,7 @@ returned by plugin is in json format.
 B<Synopsis:>
 
   <Plugin capabilities>
-    Host "<hostname>"
+    Host "localhost"
     Port "9104"
   </Plugin>
 
