@@ -52,6 +52,8 @@ static entry_type entry[] = {
     DMI_ENTRY_MAP,       DMI_ENTRY_END};
 static size_t len = STATIC_ARRAY_SIZE(entry);
 
+static struct MHD_Response *mhd_res = NULL;
+
 /* mock functions */
 int dmi_reader_init(dmi_reader_t *reader, const dmi_type type) {
   reader->current_type = DMI_ENTRY_NONE;
@@ -82,13 +84,13 @@ void MHD_stop_daemon(struct MHD_Daemon *daemon) {}
 struct MHD_Response *
 MHD_create_response_from_buffer(size_t size, void *data,
                                 enum MHD_ResponseMemoryMode mode) {
-  return NULL;
+  return mhd_res;
 }
 
 struct MHD_Response *MHD_create_response_from_data(size_t size, void *data,
                                                    int must_free,
                                                    int must_copy) {
-  return NULL;
+  return mhd_res;
 }
 
 int MHD_add_response_header(struct MHD_Response *response, const char *header,
@@ -212,7 +214,7 @@ DEF_TEST(plugin_config_fail) {
 
 DEF_TEST(http_handler) {
   void *state = NULL;
-  g_cap_string = "TEST";
+  g_cap_json = "TEST";
   int ret = cap_http_handler(NULL, NULL, NULL, MHD_HTTP_METHOD_PUT, NULL, NULL,
                              NULL, &state);
   EXPECT_EQ_INT(MHD_NO, ret);
@@ -225,10 +227,18 @@ DEF_TEST(http_handler) {
 
   ret = cap_http_handler(NULL, NULL, NULL, MHD_HTTP_METHOD_GET, NULL, NULL,
                          NULL, &state);
+  EXPECT_EQ_INT(MHD_NO, ret);
+  CHECK_NOT_NULL(state);
+
+  /* mock not NULL pointer */
+  mhd_res = (struct MHD_Response *)&(int){0};
+  ret = cap_http_handler(NULL, NULL, NULL, MHD_HTTP_METHOD_GET, NULL, NULL,
+                         NULL, &state);
   EXPECT_EQ_INT(MHD_HTTP_OK, ret);
   CHECK_NOT_NULL(state);
 
-  g_cap_string = NULL;
+  g_cap_json = NULL;
+  mhd_res = NULL;
 
   return 0;
 }

@@ -46,7 +46,7 @@ typedef struct dmi_type_name_s {
   const char *name;
 } dmi_type_name_t;
 
-static char *g_cap_string = NULL;
+static char *g_cap_json = NULL;
 static char *httpd_host = NULL;
 static unsigned short httpd_port = 9104;
 static struct MHD_Daemon *httpd;
@@ -127,13 +127,13 @@ static int cap_get_dmi_variables(json_t *parent, const dmi_type type,
       DEBUG("    %s:%s", reader.name, reader.value);
       attributes = NULL;
       if (entries == NULL) {
-        ERROR(CAP_PLUGIN ": unexpected dmi output format");
+        ERROR(CAP_PLUGIN ": unexpected dmi output format.");
         dmi_reader_clean(&reader);
         return -1;
       }
       if (json_object_set_new(entries, reader.name,
                               json_string(reader.value))) {
-        ERROR(CAP_PLUGIN ": Failed to set json entry.");
+        ERROR(CAP_PLUGIN ": Failed to set json object for entries.");
         dmi_reader_clean(&reader);
         return -1;
       }
@@ -142,7 +142,7 @@ static int cap_get_dmi_variables(json_t *parent, const dmi_type type,
     case DMI_ENTRY_LIST_NAME:
       DEBUG("    %s:", reader.name);
       if (entries == NULL) {
-        ERROR(CAP_PLUGIN ": unexpected dmi output format");
+        ERROR(CAP_PLUGIN ": unexpected dmi output format.");
         dmi_reader_clean(&reader);
         return -1;
       }
@@ -153,7 +153,8 @@ static int cap_get_dmi_variables(json_t *parent, const dmi_type type,
         return -1;
       }
       if (json_object_set_new(entries, reader.name, attributes)) {
-        ERROR(CAP_PLUGIN ": Failed to set json entry.");
+        ERROR(CAP_PLUGIN ": Failed to set json object for entry %s.",
+              reader.name);
         dmi_reader_clean(&reader);
         return -1;
       }
@@ -202,15 +203,19 @@ static int cap_http_handler(void *cls, struct MHD_Connection *connection,
     *connection_state = &(int){44};
     return MHD_YES;
   }
-  DEBUG(CAP_PLUGIN ": formatted response: %s", g_cap_string);
+  DEBUG(CAP_PLUGIN ": formatted response: %s", g_cap_json);
 
 #if defined(MHD_VERSION) && MHD_VERSION >= 0x00090500
   struct MHD_Response *res = MHD_create_response_from_buffer(
-      strlen(g_cap_string), g_cap_string, MHD_RESPMEM_PERSISTENT);
+      strlen(g_cap_json), g_cap_json, MHD_RESPMEM_PERSISTENT);
 #else
   struct MHD_Response *res =
-      MHD_create_response_from_data(strlen(g_cap_string), g_cap_string, 0, 0);
+      MHD_create_response_from_data(strlen(g_cap_json), g_cap_json, 0, 0);
 #endif
+  if (res == NULL) {
+    ERROR(CAP_PLUGIN ": MHD create response failed.");
+    return MHD_NO;
+  }
 
   MHD_add_response_header(res, MHD_HTTP_HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);
   int status = MHD_queue_response(connection, MHD_HTTP_OK, res);
@@ -264,12 +269,14 @@ static int cap_open_socket() {
     }
 
     if (bind(fd, ai->ai_addr, ai->ai_addrlen) != 0) {
+      INFO(CAP_PLUGIN ": bind failed: %s", STRERRNO);
       close(fd);
       fd = -1;
       continue;
     }
 
     if (listen(fd, LISTEN_BACKLOG) != 0) {
+      INFO(CAP_PLUGIN ": listen failed: %s", STRERRNO);
       close(fd);
       fd = -1;
       continue;
@@ -313,10 +320,8 @@ static struct MHD_Daemon *cap_start_daemon() {
 #endif
       MHD_OPTION_EXTERNAL_LOGGER, cap_logger, NULL, MHD_OPTION_END);
 
-  if (d == NULL) {
+  if (d == NULL)
     ERROR(CAP_PLUGIN ": MHD_start_daemon() failed.");
-    return NULL;
-  }
 
   return d;
 }
@@ -364,7 +369,7 @@ static int cap_shutdown() {
   }
 
   sfree(httpd_host);
-  sfree(g_cap_string);
+  sfree(g_cap_json);
   return 0;
 }
 
@@ -383,10 +388,10 @@ static int cap_init(void) {
       return -1;
     }
 
-  g_cap_string = json_dumps(root, JSON_COMPACT);
+  g_cap_json = json_dumps(root, JSON_COMPACT);
   json_decref(root);
 
-  if (g_cap_string == NULL) {
+  if (g_cap_json == NULL) {
     ERROR(CAP_PLUGIN ": json_dumps() failed.");
     cap_shutdown();
     return -1;

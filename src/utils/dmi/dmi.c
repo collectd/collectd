@@ -53,7 +53,7 @@
 #include "utils/common/common.h"
 #include "utils/dmi/dmi.h"
 
-#define UTIL_NAME "DMI_READER"
+#define UTIL_NAME "dmi_reader"
 
 #define DMIDECODE_CMD_FMT_LEN DMI_MAX_LEN
 
@@ -66,7 +66,7 @@ static int dmi_read_entry(dmi_reader_t *r) {
       buff++;
     if (*buff == '\0') {
       r->current_type = DMI_ENTRY_NONE;
-      r->_read_callback = dmi_look_for_handle;
+      r->_read_next = dmi_look_for_handle;
       return DMI_OK;
     }
 
@@ -108,7 +108,7 @@ static int dmi_read_type_name(dmi_reader_t *r) {
 
     r->name = r->_buff;
     r->current_type = DMI_ENTRY_NAME;
-    r->_read_callback = dmi_read_entry;
+    r->_read_next = dmi_read_entry;
 
     return DMI_OK;
   }
@@ -123,7 +123,7 @@ static int dmi_look_for_handle(dmi_reader_t *r) {
     if (strncmp(handle, r->_buff, strlen(handle)) != 0)
       continue;
 
-    r->_read_callback = dmi_read_type_name;
+    r->_read_next = dmi_read_type_name;
     return DMI_OK;
   }
 
@@ -153,8 +153,8 @@ int dmi_reader_init(dmi_reader_t *reader, const dmi_type type) {
 
   reader->name = NULL;
   reader->value = NULL;
-  reader->_read_callback = dmi_look_for_handle;
   reader->current_type = DMI_ENTRY_NONE;
+  reader->_read_next = dmi_look_for_handle;
 
   return DMI_OK;
 }
@@ -165,23 +165,25 @@ void dmi_reader_clean(dmi_reader_t *reader) {
     return;
   }
 
-  if (reader->_fd)
+  if (reader->_fd) {
     pclose(reader->_fd);
+    reader->_fd = NULL;
+  }
 
-  reader->_fd = NULL;
-  reader->_read_callback = NULL;
+  reader->_read_next = NULL;
 }
 
 int dmi_read_next(dmi_reader_t *reader) {
-  if (reader == NULL || reader->_read_callback == NULL || reader->_fd == NULL) {
+  if (reader == NULL || reader->_read_next == NULL || reader->_fd == NULL) {
     ERROR(UTIL_NAME ".%s: NULL pointer.", __func__);
     return DMI_ERROR;
   }
-  int ret = reader->_read_callback(reader);
+  int ret = reader->_read_next(reader);
 
   if (reader->current_type == DMI_ENTRY_END || ret == DMI_ERROR) {
     pclose(reader->_fd);
-    reader->_read_callback = NULL;
+    reader->_fd = NULL;
+    reader->_read_next = NULL;
     DEBUG(UTIL_NAME ": dmidecode reader finished, status=%d.", ret);
   }
 

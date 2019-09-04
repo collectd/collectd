@@ -95,7 +95,7 @@ typedef enum entry_type_e {
 typedef struct dmi_reader_s {
   FILE *_fd;
   char _buff[DMI_MAX_LEN];
-  int (*_read_callback)(struct dmi_reader_s *reader);
+  int (*_read_next)(struct dmi_reader_s *reader);
   /* Type of current entry */
   entry_type current_type;
   /* Entry name, the pointer changes after every read. */
