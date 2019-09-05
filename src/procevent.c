@@ -815,7 +815,7 @@ static int read_event() {
       } else {
         DEBUG("procevent plugin: Process %d status is now %s at %llu", proc_id,
               (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"),
-              CDTIME_T_TO_US(cdtime()));
+              (unsigned long long)cdtime());
 
         ring.buffer[ring.head][RBUF_PROC_ID_INDEX] = proc_id;
         ring.buffer[ring.head][RBUF_PROC_STATUS_INDEX] = proc_status;
