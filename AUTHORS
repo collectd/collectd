@@ -57,6 +57,7 @@ Andreas Henriksson <andreas at fatal.se>
  - libmnl support in the netlink plugin.
 
 Andrew Bays <abays at redhat.com>
+ - procevent plugin.
  - sysevent plugin.
 
 Andy Parkins <andyp at fussylogic.co.uk>

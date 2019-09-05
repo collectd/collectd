@@ -1646,6 +1646,14 @@ processes_la_LIBADD += libtaskstats.la
 endif
 endif
 
+if BUILD_PLUGIN_PROCEVENT
+pkglib_LTLIBRARIES += procevent.la
+procevent_la_SOURCES = src/procevent.c
+procevent_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+procevent_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+procevent_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS) libignorelist.la
+endif
+
 if BUILD_PLUGIN_PROTOCOLS
 pkglib_LTLIBRARIES += protocols.la
 protocols_la_SOURCES = src/protocols.c
