@@ -813,7 +813,7 @@ static int read_event() {
         usleep(1000);
         continue;
       } else {
-        DEBUG("procevent plugin: Process %d status is now %s at %lu", proc_id,
+        DEBUG("procevent plugin: Process %d status is now %s at %llu", proc_id,
               (proc_status == PROCEVENT_EXITED ? "EXITED" : "STARTED"),
               CDTIME_T_TO_US(cdtime()));
 
