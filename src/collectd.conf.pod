@@ -1606,7 +1606,7 @@ LoadPlugin connectivity
   Interface eth1
   IgnoreSelected true
 </Plugin>
-
+ 
 =over 4
 
 =item B<Interface> I<interface_name>
