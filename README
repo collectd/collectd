@@ -46,7 +46,8 @@ Features
       interface of BIND 9.5, 9,6 and later.
 
     - capabilities
-      Platform static capabilities decoded from SMBIOS using dmidecode.
+      Platform capabilities decoded from hardware subsystems, for example from
+      SMBIOS using dmidecode.
       <https://www.nongnu.org/dmidecode/>
 
     - ceph

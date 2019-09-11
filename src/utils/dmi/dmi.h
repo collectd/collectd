@@ -28,6 +28,9 @@
 #ifndef UTILS_DMI_H
 #define UTILS_DMI_H
 
+/* Size of buffer for single dmi entry, just an estimation with big margin,
+ * could be increased if the new generation of platform requires it to.
+ */
 #define DMI_MAX_LEN 256
 
 #define DMI_OK 0
