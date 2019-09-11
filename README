@@ -49,7 +49,8 @@ Features
       Statistics from buddyinfo file about memory fragmentation.
 
     - capabilities
-      Platform static capabilities decoded from SMBIOS using dmidecode.
+      Platform capabilities decoded from hardware subsystems, for example from
+      SMBIOS using dmidecode.
       <https://www.nongnu.org/dmidecode/>
 
     - ceph
