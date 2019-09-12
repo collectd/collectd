@@ -2538,6 +2538,65 @@ values. Defaults to the global hostname setting.
 
 =back
 
+=head2 Plugin C<dcpmm>
+
+The I<dcpmm plugin> will collect Intel(R) Optane(TM) DC Persistent Memory related performance statistics.
+
+B<Synopsis:>
+
+ <Plugin "dcpmm">
+   Interval 10.0
+   CollectHealth 0
+   CollectPerfMetrics 1
+   EnableDispatchAll 0
+ </Plugin>
+
+=over 4
+
+=item B<Interval> I<time in seconds>
+
+Sets the I<Interval (in seconds)> in which the values will be collected. Defaults to C<global Interval> value.
+This will override the I<global Interval> for I<dcpmm> plugin. None of the other plugins will be affected.
+
+=item B<CollectHealth> I<0>|I<1>
+
+Collects health information. I<CollectHealth and CollectPerfMetrics cannot be 1 at the same time>. Defaults to C<0>.
+
+The health information metrics are the following:
+  health_status        Overall health summary (0: normal | 1: non-critical | 2: critical | 3: fatal).
+  percentage_remaining The module’s remaining life as a percentage value of factory expected life span.
+  percentage_used      The module’s used life as a percentage value of factory expected life span.
+  power_on_time        The lifetime the DIMM has been powered on in seconds.
+  uptime               The current uptime of the DIMM for the current power cycle in seconds.
+  last_shutdown_time   The time the system was last shutdown. The time is represented in epoch (seconds).
+  media_temp           The media’s current temperature in degrees Celsius.
+  controller_temp      The controller’s current temperature in degrees Celsius.
+  max_media_temp       The media’s the highest temperature reported in degrees Celsius.
+  max_controller_temp  The controller’s highest temperature reported in degrees Celsius.
+
+=item B<CollectPerfMetrics> I<0>|I<1>
+
+Collects memory performance metrics. I<CollectHealth and CollectPerfMetrics cannot be 1 at the same time>. Defaults to C<1>.
+
+The memory performance metrics are the following:
+  total_bytes_read    Number of bytes transacted by the read operations.
+  total_bytes_written Number of bytes transacted by the write operations.
+  read_64B_ops_rcvd   Number of read operations performed to the physical media in 64 bytes granularity.
+  write_64B_ops_rcvd  Number of write operations performed to the physical media in 64 bytes granularity.
+  media_read_ops      Number of read operations performed to the physical media.
+  media_write_ops     Number of write operations performed to the physical media.
+  host_reads          Number of read operations received from the CPU (memory controller).
+  host_writes         Number of write operations received from the CPU (memory controller).
+  read_hit_ratio      Measures the efficiency of the buffer in the read path. Range of 0.0 - 0.75.
+  write_hit_ratio     Measures the efficiency of the buffer in the write path. Range of 0.0 - 1.0.
+
+=item B<EnableDispatchAll> I<0>
+
+This parameter helps to seamlessly enable simultaneous health and memory perf metrics collection in future.
+This is unused at the moment and I<must> always be I<0>.
+
+=back
+
 =head2 Plugin C<df>
 
 =over 4

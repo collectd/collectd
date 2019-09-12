@@ -112,6 +112,7 @@
 #@BUILD_PLUGIN_CURL_JSON_TRUE@LoadPlugin curl_json
 #@BUILD_PLUGIN_CURL_XML_TRUE@LoadPlugin curl_xml
 #@BUILD_PLUGIN_DBI_TRUE@LoadPlugin dbi
+#@BUILD_PLUGIN_DCPMM_TRUE@LoadPlugin dcpmm
 #@BUILD_PLUGIN_DF_TRUE@LoadPlugin df
 #@BUILD_PLUGIN_DISK_TRUE@LoadPlugin disk
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
@@ -542,6 +543,13 @@
 #		#Query "..."
 #		#Host "..."
 #	</Database>
+#</Plugin>
+
+#<Plugin dcpmm>
+#    Interval 10.0
+#    CollectHealth 0
+#    CollectPerfMetrics 1
+#    EnableDispatchAll 0
 #</Plugin>
 
 #<Plugin df>
