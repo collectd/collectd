@@ -63,7 +63,6 @@ typedef struct client_info client_info_t;
 static client_info_t client;
 static char g_client_path[BUF_SIZE];
 static char g_dpdk_path[BUF_SIZE];
-cdtime_t dpdk_tel_interval = 0;
 
 static int dpdk_telemetry_config(oconfig_item_t *ci) {
   int ret, i;
@@ -91,7 +90,6 @@ static int dpdk_telemetry_config(oconfig_item_t *ci) {
     }
   }
 
-  dpdk_tel_interval = plugin_get_interval();
   return 0;
 }
 
@@ -261,14 +259,13 @@ static int dpdk_telemetry_socket_init(void) {
   if (client.s_send < 0) {
     ERROR(PLUGIN_NAME ": Failed to open socket errno(%d), error(%s)", errno,
           strerror(errno));
-    dpdk_telemetry_cleanup();
     return -1;
   }
   client.s_recv = socket(AF_UNIX, SOCK_SEQPACKET, 0);
   if (client.s_recv < 0) {
     ERROR(PLUGIN_NAME ": Failed to open message socket errno(%d), error(%s)",
           errno, strerror(errno));
-    dpdk_telemetry_cleanup();
+    close(client.s_send);
     return -1;
   }
   client.addr.sun_family = AF_UNIX;
@@ -278,7 +275,8 @@ static int dpdk_telemetry_socket_init(void) {
               sizeof(client.addr)) < 0) {
     ERROR(PLUGIN_NAME ": Failed to connect errno(%d), error(%s)", errno,
           strerror(errno));
-    dpdk_telemetry_cleanup();
+    close(client.s_send);
+    close(client.s_recv);
     return -1;
   }
   client.addrs.sun_family = AF_UNIX;
@@ -289,13 +287,15 @@ static int dpdk_telemetry_socket_init(void) {
            sizeof(client.addrs)) < 0) {
     ERROR(PLUGIN_NAME ": Failed to bind errno(%d), error(%s)", errno,
           strerror(errno));
-    dpdk_telemetry_cleanup();
+    close(client.s_send);
+    close(client.s_recv);
     return -1;
   }
   if (listen(client.s_recv, 1) < 0) {
     ERROR(PLUGIN_NAME ": Listen failed errno(%d), error(%s)", errno,
           strerror(errno));
-    dpdk_telemetry_cleanup();
+    close(client.s_send);
+    close(client.s_recv);
     return -1;
   }
   snprintf(message, sizeof(message),
@@ -305,14 +305,16 @@ static int dpdk_telemetry_socket_init(void) {
   if (send(client.s_send, message, strlen(message), 0) < 0) {
     ERROR(PLUGIN_NAME ": Could not send register message errno(%d), error(%s)",
           errno, strerror(errno));
-    dpdk_telemetry_cleanup();
+    close(client.s_send);
+    close(client.s_recv);
     return -1;
   }
   client.fd = accept(client.s_recv, NULL, NULL);
   if (client.fd < 0) {
     ERROR(PLUGIN_NAME ": Failed to accept errno(%d), error(%s)", errno,
           strerror(errno));
-    dpdk_telemetry_cleanup();
+    close(client.s_send);
+    close(client.s_recv);
     return -1;
   }
   return 0;
@@ -341,61 +343,35 @@ static int dpdk_telemetry_read(user_data_t *ud) {
   INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
   char buffer[BUF_SIZE];
   int bytes = 0, ret;
-  cdtime_t prev = 0;
   char *json_string[MAX_COMMANDS] = {"{\"action\":0,\"command\":"
                                      "\"ports_all_stat_values\",\"data\":null}",
                                      "{\"action\":0,\"command\":"
                                      "\"global_stat_values\",\"data\":null}"};
   size_t size = sizeof(json_string) / sizeof(json_string[0]);
 
-  prev = cdtime();
   for (int i = 0; i < size; i++) {
-    /* Exit the read function after passing the half of the
-     * plugin interval to avoid blocking of other collectd plugins.
-     */
-    if ((cdtime() - prev) > (dpdk_tel_interval / 2)) {
-      ERROR(PLUGIN_NAME ":Cannot read after the interval %d", __LINE__);
-      return -1;
-    }
-    while (1) {
-      /* Exit the read function after passing the half of the plugin
-       * interval in order to avoid blocking of other collectd
-       * plugins.
-       *
-       * For send() and parse_json() failures, try reconnecting
-       * to the socket, as we don't know what exactly happened on
-       * server side.
-       */
-      if ((cdtime() - prev) > (dpdk_tel_interval / 2)) {
-        ERROR(PLUGIN_NAME ":Cannot read after interval %d", __LINE__);
-        return -1;
+    if (send(client.fd, json_string[i], strlen(json_string[i]), 0) < 0) {
+      ERROR(PLUGIN_NAME
+            ": Could not send request for stats errno(%d), error(%s)",
+            errno, strerror(errno));
+      if (errno == EBADF || errno == ECONNRESET || errno == ENOTCONN ||
+          errno == EPIPE) {
+        dpdk_telemetry_cleanup();
+        dpdk_telemetry_socket_init();
+        send(client.fd, json_string[i], strlen(json_string[i]), 0);
       }
-      if (send(client.fd, json_string[i], strlen(json_string[i]), 0) < 0) {
-        ERROR(PLUGIN_NAME ": Could not send stats errno(%d), error(%s)", errno,
-              strerror(errno));
-        if (errno == EBADF || errno == ECONNRESET || errno == ENOTCONN ||
-            errno == EPIPE) {
-          dpdk_telemetry_cleanup();
-          if (dpdk_telemetry_socket_init() < 0)
-            continue;
-        }
+    } else {
+      bytes = recv(client.fd, buffer, sizeof(buffer) - 1, 0);
+      if (bytes < 0) {
+        ERROR(PLUGIN_NAME ": Could not receive stats errno(%d), error(%s)",
+              errno, strerror(errno));
+        dpdk_telemetry_cleanup();
+        dpdk_telemetry_socket_init();
       } else {
-        bytes = recv(client.fd, buffer, sizeof(buffer) - 1, 0);
-        if (bytes < 0) {
-          ERROR(PLUGIN_NAME ": Could not receive stats errno(%d), error(%s)",
-                errno, strerror(errno));
-          continue;
-        } else {
-          buffer[bytes] = '\0';
-          ret = parse_json(buffer);
-          if (ret < 0) {
-            ERROR(PLUGIN_NAME ": Parsing failed");
-            dpdk_telemetry_cleanup();
-            dpdk_telemetry_socket_init();
-            continue;
-          }
-          break;
-        }
+        buffer[bytes] = '\0';
+        ret = parse_json(buffer);
+        if (ret < 0)
+          ERROR(PLUGIN_NAME ": Parsing failed");
       }
     }
   }
@@ -403,27 +379,17 @@ static int dpdk_telemetry_read(user_data_t *ud) {
 }
 
 static int dpdk_telemetry_init(void) {
-  cdtime_t prev = 0;
 
-  prev = cdtime();
-  while (1) {
-    /* If server socket is already not running, try connecting
-     * for period of 6 seconds to provide resiliency.
-     * If server doesn't shows up even after  6seconds, mark the
-     * initialization as failure.
-     */
-    if ((cdtime() - prev) > dpdk_tel_interval) {
-      ERROR(PLUGIN_NAME ":Cannot retry initialization after the interval");
-      return -1;
-    }
-    if (dpdk_telemetry_socket_init() < 0) {
-      ERROR(PLUGIN_NAME ": Socket initialization failed");
-      continue;
-    }
-    break;
-  }
-  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read,
-                               dpdk_tel_interval, NULL);
+  INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+
+  client.s_send = -1;
+  client.s_recv = -1;
+  client.fd = -1;
+  if (dpdk_telemetry_socket_init() < 0)
+    ERROR(PLUGIN_NAME ": Socket initialization failed.");
+
+  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, 0, NULL);
+
   return 0;
 }
 
