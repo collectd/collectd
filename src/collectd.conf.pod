@@ -1548,6 +1548,35 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<check_uptime>
+
+The I<check_uptime plugin> designed to check and notify about host or service
+status based on I<uptime> metric.
+
+When new metric of I<uptime> type appears in cache, OK notification is sent.
+When new value for metric is less than previous value, WARNING notification is
+sent about host/service restart.
+When no new updates comes for metric and cache entry expires, then FAILURE
+notification is sent about unreachable host or service.
+
+By default (when no explicit configuration), plugin checks for I<uptime> metric.
+
+B<Synopsis:>
+
+ <Plugin "check_uptime">
+   Type "uptime"
+   Type "my_uptime_type"
+ </Plugin>
+
+=over 4
+
+=item B<Type> I<Type>
+
+Metric type to check for status/values. The type should consist single GAUGE
+data source.
+
+=back
+
 =head2 Plugin C<chrony>
 
 The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock

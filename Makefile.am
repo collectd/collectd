@@ -768,6 +768,12 @@ chrony_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 chrony_la_LIBADD = -lm
 endif
 
+if BUILD_PLUGIN_CHECK_UPTIME
+pkglib_LTLIBRARIES += check_uptime.la
+check_uptime_la_SOURCES = src/check_uptime.c
+check_uptime_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
 conntrack_la_SOURCES = src/conntrack.c
