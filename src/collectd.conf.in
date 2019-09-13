@@ -547,9 +547,9 @@
 
 #<Plugin dcpmm>
 #    Interval 10.0
-#    CollectHealth 0
-#    CollectPerfMetrics 1
-#    EnableDispatchAll 0
+#    CollectHealth false
+#    CollectPerfMetrics true
+#    EnableDispatchAll false
 #</Plugin>
 
 #<Plugin df>

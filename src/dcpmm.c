@@ -32,9 +32,10 @@
 #include "pmw_api.h"
 
 #define PLUGIN_NAME "dcpmm"
+#define PRINT_BOOL(s) (s ? "true" : "false")
 
 int num_nvdimms;
-int enable_dispatch_all = 0;
+bool enable_dispatch_all = false;
 cdtime_t interval = 0;
 PMWATCH_OP_BUF pmw_output_buf;
 PMWATCH_CONFIG_NODE pmwatch_config;
@@ -193,13 +194,20 @@ static int dcpmm_init(void) {
 
   ret = PMWAPIGetDIMMCount(&num_nvdimms);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to obtain count of Intel(R) Optane DCPMM.");
+    ERROR(PLUGIN_NAME ": Failed to obtain count of Intel(R) Optane DCPMM."
+                      "A common cause for this is collectd running without"
+                      "root privileges. Ensure that collectd is running with"
+                      "root privileges.");
+
     return ret;
   }
 
   ret = PMWAPIStart(pmwatch_config);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to start the collection.");
+    ERROR(PLUGIN_NAME ": Failed to start the collection."
+                      "A common cause for this is collectd running without"
+                      "root privileges. Ensure that collectd is running with"
+                      "root privileges.");
     return ret;
   }
 
@@ -229,13 +237,14 @@ static int dcpmm_config(oconfig_item_t *ci) {
       }
     } else if (strncasecmp("CollectHealth", child->key,
                            strlen("CollectHealth")) == 0) {
-      ret = cf_util_get_int(child, &pmwatch_config.collect_health);
+      ret = cf_util_get_boolean(child, &pmwatch_config.collect_health);
+
     } else if (strncasecmp("CollectPerfMetrics", child->key,
                            strlen("CollectPerfMetrics")) == 0) {
-      ret = cf_util_get_int(child, &pmwatch_config.collect_perf_metrics);
+      ret = cf_util_get_boolean(child, &pmwatch_config.collect_perf_metrics);
     } else if (strncasecmp("EnableDispatchAll", child->key,
                            strlen("EnableDispatchAll")) == 0) {
-      ret = cf_util_get_int(child, &enable_dispatch_all);
+      ret = cf_util_get_boolean(child, &enable_dispatch_all);
     } else {
       ERROR(PLUGIN_NAME ": Unkown configuration parameter %s.", child->key);
       ret = 1;
@@ -247,10 +256,18 @@ static int dcpmm_config(oconfig_item_t *ci) {
     }
   }
 
-  DEBUG("%s Config: Interval %.2f ; CollectHealth %d ; CollectdPerfMetrics %d "
-        "; EnableDispatchAll %d",
-        PLUGIN_NAME, pmwatch_config.interval, pmwatch_config.collect_health,
-        pmwatch_config.collect_perf_metrics, enable_dispatch_all);
+  DEBUG("%s Config: Interval %.2f ; CollectHealth %s ; CollectdPerfMetrics %s "
+        "; EnableDispatchAll %s",
+        PLUGIN_NAME, pmwatch_config.interval,
+        PRINT_BOOL(pmwatch_config.collect_health),
+        PRINT_BOOL(pmwatch_config.collect_perf_metrics),
+        PRINT_BOOL(enable_dispatch_all));
+
+  if (!pmwatch_config.collect_health && !pmwatch_config.collect_perf_metrics) {
+    ERROR(PLUGIN_NAME ": CollectdHealth and CollectPerfMetrics are disabled. "
+                      "Enable atleast one.");
+    return 1;
+  }
 
   plugin_register_complex_read(NULL, PLUGIN_NAME, dcpmm_read, interval, NULL);
 

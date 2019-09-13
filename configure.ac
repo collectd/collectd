@@ -4388,8 +4388,8 @@ fi
 AC_SUBST([PERL_CFLAGS])
 AC_SUBST([PERL_LIBS])
 
-
 # }}}
+
 
 # --with-libpmwapi {{{
 AC_ARG_WITH([libpmwapi],
