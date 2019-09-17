@@ -472,7 +472,7 @@ static int read_socket() {
     } else {
       DEBUG("sysevent plugin: writing %s", buffer);
 
-      strncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
+      sstrncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
       ring.timestamp[ring.head] = cdtime();
       ring.head = next;
     }
