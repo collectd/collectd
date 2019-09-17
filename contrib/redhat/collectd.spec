@@ -123,6 +123,7 @@
 %define with_postgresql 0%{!?_without_postgresql:1}
 %define with_powerdns 0%{!?_without_powerdns:1}
 %define with_processes 0%{!?_without_processes:1}
+%define with_procevent 0%{!?_without_procevent:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
 %define with_redis 0%{!?_without_redis:1}
@@ -136,6 +137,7 @@
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
 %define with_synproxy 0%{!?_without_synproxy:0}
+%define with_sysevent 0%{!?_without_sysevent:1}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
@@ -251,8 +253,10 @@
 %define with_mqtt 0
 %define with_ovs_events 0
 %define with_ovs_stats 0
+%define with_procevent 0
 %define with_redis 0
 %define with_rrdcached 0
+%define with_sysevent 0
 %define with_write_redis 0
 %define with_write_riemann 0
 %define with_xmms 0
@@ -792,6 +796,16 @@ The PostgreSQL plugin connects to and executes SQL statements on a PostgreSQL
 database.
 %endif
 
+%if %{with_procevent}
+%package procevent
+Summary:       Processes event plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description procevent
+Monitors process starts/stops via netlink library.
+%endif
+
 %if %{with_python}
 %package python
 Summary:	Python plugin for collectd
@@ -889,6 +903,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	net-snmp-devel
 %description snmp_agent
 This plugin for collectd to support AgentX integration.
+%endif
+
+%if %{with_sysevent}
+%package sysevent
+Summary:       Rsyslog event plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description sysevent
+Monitors rsyslog for system events.
 %endif
 
 %if %{with_varnish}
@@ -1634,6 +1658,12 @@ Collectd utilities
 %define _with_processes --disable-processes
 %endif
 
+%if %{with_procevent}
+%define _with_procevent --enable-procevent
+%else
+%define _with_procevent --disable-procevent
+%endif
+
 %if %{with_protocols}
 %define _with_protocols --enable-protocols
 %else
@@ -1727,6 +1757,12 @@ Collectd utilities
 %define _with_synproxy --enable-synproxy
 %else
 %define _with_synproxy --disable-synproxy
+%endif
+
+%if %{with_sysevent}
+%define _with_sysevent --enable-sysevent
+%else
+%define _with_sysevent --disable-sysevent
 %endif
 
 %if %{with_syslog}
@@ -2073,6 +2109,7 @@ Collectd utilities
 	%{?_with_postgresql} \
 	%{?_with_powerdns} \
 	%{?_with_processes} \
+	%{?_with_procevent} \
 	%{?_with_protocols} \
 	%{?_with_python} \
 	%{?_with_redis} \
@@ -2088,6 +2125,7 @@ Collectd utilities
 	%{?_with_statsd} \
 	%{?_with_swap} \
 	%{?_with_synproxy} \
+	%{?_with_sysevent} \
 	%{?_with_syslog} \
 	%{?_with_table} \
 	%{?_with_tail_csv} \
@@ -2748,6 +2786,11 @@ fi
 %{_libdir}/%{name}/postgresql.so
 %endif
 
+%if %{with_procevent}
+%files procevent
+%{_libdir}/%{name}/procevent.so
+%endif
+
 %if %{with_python}
 %files python
 %{_mandir}/man5/collectd-python*
@@ -2793,6 +2836,11 @@ fi
 %if %{with_snmp_agent}
 %files snmp_agent
 %{_libdir}/%{name}/snmp_agent.so
+%endif
+
+%if %{with_sysevent}
+%files sysevent
+%{_libdir}/%{name}/sysevent.so
 %endif
 
 %if %{with_varnish}

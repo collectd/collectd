@@ -102,6 +102,7 @@
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
+#@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
@@ -180,6 +181,7 @@
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
+#@BUILD_PLUGIN_PROCEVENT_TRUE@LoadPlugin procevent
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDIS_TRUE@LoadPlugin redis
@@ -194,6 +196,7 @@
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
+#@BUILD_PLUGIN_SYSEVENT_TRUE@LoadPlugin sysevent
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 #@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
@@ -1271,6 +1274,12 @@
 #	</Process>
 #</Plugin>
 
+#<Plugin "procevent">
+#  BufferLength 10
+#  ProcessRegex "/^ovs.*$/" 
+#  Process tuned
+#</Plugin>
+
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
@@ -1464,6 +1473,13 @@
 #	ValuesAbsolute true
 #	ValuesPercentage false
 #	ReportIO true
+#</Plugin>
+
+#<Plugin sysevent>
+#       Listen "127.0.0.1" "6666"
+#       BufferSize 1024
+#       BufferLength 10
+#       RegexFilter "regex"
 #</Plugin>
 
 #<Plugin table>
