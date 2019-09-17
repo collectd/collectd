@@ -325,8 +325,12 @@ static int strlisttoarray(char *str_list, char ***names, size_t *names_num) {
       continue;
 
     if ((isdupstr((const char **)*names, *names_num, token))) {
-      ERROR(RDT_PLUGIN ": Duplicated process name \'%s\' in group \'%s\'",
-            token, str_list);
+      if (str_list != NULL)
+        ERROR(RDT_PLUGIN ": Duplicated process name \'%s\' in group \'%s\'",
+              token, str_list);
+      else
+        ERROR(RDT_PLUGIN ": Duplicated process name \'%s\'", token);
+
       return -EINVAL;
     } else {
       if (0 != strarray_add(names, names_num, token)) {
