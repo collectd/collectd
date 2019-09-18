@@ -472,7 +472,7 @@ static int read_socket() {
     } else {
       DEBUG("sysevent plugin: writing %s", buffer);
 
-      strncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
+      sstrncpy(ring.buffer[ring.head], buffer, sizeof(buffer));
       ring.timestamp[ring.head] = cdtime();
       ring.head = next;
     }
@@ -924,15 +924,25 @@ static int sysevent_init(void) /* {{{ */
   ring.buffer = (char **)calloc(buffer_length, sizeof(char *));
 
   if (ring.buffer == NULL) {
-    ERROR("sysevent plugin: sysevent_init calloc failed");
+    ERROR("sysevent plugin: sysevent_init ring buffer calloc failed");
     return -1;
   }
 
   for (int i = 0; i < buffer_length; i++) {
     ring.buffer[i] = calloc(1, listen_buffer_size);
+
+    if (ring.buffer[i] == NULL) {
+      ERROR("sysevent plugin: sysevent_init ring buffer entry calloc failed");
+      return -1;
+    }
   }
 
   ring.timestamp = (cdtime_t *)calloc(buffer_length, sizeof(cdtime_t));
+
+  if (ring.timestamp == NULL) {
+    ERROR("sysevent plugin: sysevent_init ring buffer timestamp calloc failed");
+    return -1;
+  }
 
   if (sock == -1) {
     struct addrinfo hints = {
