@@ -37,157 +37,119 @@
 #include <netinet6/ip6_var.h>
 #endif
 
-static const char *config_keys_v4[] = {"ip4receive", "ip4badsum",
-                                       "ip4tooshort", "ip4toosmall",
-                                       "ip4badhlen", "ip4badlen",
-                                       "ip4fragment", "ip4fragdrop",
-                                       "ip4fragtimeout", "ip4forward",
-                                       "ip4fastforward", "ip4cantforward",
-                                       "ip4redirectsent", "ip4noproto",
-                                       "ip4deliver", "ip4transmit",
-                                       "ip4odrop", "ip4reassemble",
-                                       "ip4fragmented", "ip4ofragment",
-                                       "ip4cantfrag", "ip4badoptions",
-                                       "ip4noroute", "ip4badvers",
-                                       "ip4rawout", "ip4toolong",
-                                       "ip4notmember", "ip4nogif",
-                                       "ip4badaddr"};
+static const char *config_keys_v4[] = {
+    "ip4receive",      "ip4badsum",     "ip4tooshort",    "ip4toosmall",
+    "ip4badhlen",      "ip4badlen",     "ip4fragment",    "ip4fragdrop",
+    "ip4fragtimeout",  "ip4forward",    "ip4fastforward", "ip4cantforward",
+    "ip4redirectsent", "ip4noproto",    "ip4deliver",     "ip4transmit",
+    "ip4odrop",        "ip4reassemble", "ip4fragmented",  "ip4ofragment",
+    "ip4cantfrag",     "ip4badoptions", "ip4noroute",     "ip4badvers",
+    "ip4rawout",       "ip4toolong",    "ip4notmember",   "ip4nogif",
+    "ip4badaddr"};
 static int config_keys_v4_num = STATIC_ARRAY_SIZE(config_keys_v4);
 
-static bool config_vals_v4[] = {true, false, false, false, false, false,
-                                false, false, false, true, false, false,
-                                false, false, false, true, false, false,
-                                false, false, false, false, false, false,
-                                false, false, false, false, false};
+static bool config_vals_v4[] = {
+    true,  false, false, false, false, false, false, false, false, true,
+    false, false, false, false, false, true,  false, false, false, false,
+    false, false, false, false, false, false, false, false, false};
 static int config_vals_v4_num = STATIC_ARRAY_SIZE(config_vals_v4);
 
-static const char *value_keys_v4[] = {"receive", "badsum",
-                                      "tooshort", "toosmall",
-                                      "badhlen", "badlen",
-                                      "fragment", "fragdrop",
-                                      "fragtimeout", "forward",
-                                      "fastforward", "cantforward",
-                                      "redirectsent", "noproto",
-                                      "deliver", "transmit",
-                                      "odrop", "reassemble",
-                                      "fragmented", "ofragment",
-                                      "cantfrag", "badoptions",
-                                      "noroute", "badvers",
-                                      "rawout", "toolong",
-                                      "notmember", "nogif",
-                                      "badaddr"};
+static const char *value_keys_v4[] = {
+    "receive",     "badsum",      "tooshort",     "toosmall",    "badhlen",
+    "badlen",      "fragment",    "fragdrop",     "fragtimeout", "forward",
+    "fastforward", "cantforward", "redirectsent", "noproto",     "deliver",
+    "transmit",    "odrop",       "reassemble",   "fragmented",  "ofragment",
+    "cantfrag",    "badoptions",  "noroute",      "badvers",     "rawout",
+    "toolong",     "notmember",   "nogif",        "badaddr"};
 static int value_keys_v4_num = STATIC_ARRAY_SIZE(value_keys_v4);
 
-static uint64_t value_vals_v4[] = {0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0};
+static uint64_t value_vals_v4[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int value_vals_v4_num = STATIC_ARRAY_SIZE(value_vals_v4);
 
-static const char *config_keys_v6[] = {"ip6receive", "ip6tooshort",
-                                       "ip6toosmall", "ip6fragment",
-                                       "ip6fragdrop", "ip6fragtimeout",
-                                       "ip6fragoverflow", "ip6forward",
-                                       "ip6cantforward", "ip6redirectsent",
-                                       "ip6deliver", "ip6transmit",
-                                       "ip6odrop", "ip6reassemble",
-                                       "ip6fragmented", "ip6ofragment",
-                                       "ip6cantfrag", "ip6badoptions",
-                                       "ip6noroute", "ip6badvers",
-                                       "ip6rawout", "ip6badscope",
-                                       "ip6notmember", "ip6nogif",
-                                       "ip6toomanyhdr"};
+static const char *config_keys_v6[] = {
+    "ip6receive",     "ip6tooshort",     "ip6toosmall",     "ip6fragment",
+    "ip6fragdrop",    "ip6fragtimeout",  "ip6fragoverflow", "ip6forward",
+    "ip6cantforward", "ip6redirectsent", "ip6deliver",      "ip6transmit",
+    "ip6odrop",       "ip6reassemble",   "ip6fragmented",   "ip6ofragment",
+    "ip6cantfrag",    "ip6badoptions",   "ip6noroute",      "ip6badvers",
+    "ip6rawout",      "ip6badscope",     "ip6notmember",    "ip6nogif",
+    "ip6toomanyhdr"};
 static int config_keys_v6_num = STATIC_ARRAY_SIZE(config_keys_v6);
 
-static bool config_vals_v6[] = {true, false, false, false, false, false,
-                                false, true, false, false, false, true,
-                                false, false, false, false, false, false,
-                                false, false, false, false, false, false,
-                                false};
+static bool config_vals_v6[] = {true,  false, false, false, false, false, false,
+                                true,  false, false, false, true,  false, false,
+                                false, false, false, false, false, false, false,
+                                false, false, false, false};
 static int config_vals_v6_num = STATIC_ARRAY_SIZE(config_vals_v6);
 
-static const char *value_keys_v6[] = {"receive", "tooshort",
-                                      "toosmall", "fragment",
-                                      "fragdrop", "fragtimeout",
-                                      "fragoverflow", "forward",
-                                      "cantforward", "redirectsent",
-                                      "deliver", "transmit",
-                                      "odrop", "reassemble",
-                                      "fragmented", "ofragment",
-                                      "cantfrag", "badoptions",
-                                      "noroute", "badvers",
-                                      "rawout", "badscope",
-                                      "notmember", "nogif",
-                                      "toomanyhdr"};
+static const char *value_keys_v6[] = {
+    "receive",     "tooshort",     "toosmall",   "fragment",    "fragdrop",
+    "fragtimeout", "fragoverflow", "forward",    "cantforward", "redirectsent",
+    "deliver",     "transmit",     "odrop",      "reassemble",  "fragmented",
+    "ofragment",   "cantfrag",     "badoptions", "noroute",     "badvers",
+    "rawout",      "badscope",     "notmember",  "nogif",       "toomanyhdr"};
 static int value_keys_v6_num = STATIC_ARRAY_SIZE(value_keys_v6);
 
-static uint64_t value_vals_v6[] = {0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0,
-                                   0};
+static uint64_t value_vals_v6[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int value_vals_v6_num = STATIC_ARRAY_SIZE(value_vals_v6);
 
-static int ipstats_init(void)
-{
+static int ipstats_init(void) {
   /* IPv4 */
   if (config_keys_v4_num != config_vals_v4_num) {
     ERROR("config_keys_v4 must be same size as config_vals_v4");
-    return(-1);
+    return (-1);
   }
 
   if (value_keys_v4_num != config_keys_v4_num) {
     ERROR("value_keys_v4 must be same size as config_keys_v4");
-    return(-1);
+    return (-1);
   }
 
   if (value_keys_v4_num != value_vals_v4_num) {
     ERROR("value_keys_v4 must be same size as value_vals_v4");
-    return(-1);
+    return (-1);
   }
 
   /* IPv6 */
   if (config_keys_v6_num != config_vals_v6_num) {
     ERROR("config_keys_v6 must be same size as config_vals_v6");
-    return(-1);
+    return (-1);
   }
 
   if (value_keys_v6_num != config_keys_v6_num) {
     ERROR("value_keys_v6 must be same size as config_keys_v6");
-    return(-1);
+    return (-1);
   }
 
   if (value_keys_v6_num != value_vals_v6_num) {
     ERROR("value_keys_v6 must be same size as value_vals_v6");
-    return(-1);
+    return (-1);
   }
 
-  return(0);
+  return (0);
 }
 
-static int ipstats_config(char const *key, char const *value)
-{
-  for(int i = 0 ; i < config_keys_v4_num ; i++)
+static int ipstats_config(char const *key, char const *value) {
+  for (int i = 0; i < config_keys_v4_num; i++)
     if (strcasecmp(key, config_keys_v4[i]) == 0) {
       config_vals_v4[i] = true;
-      return(0);
+      return (0);
     }
 
-  for(int i = 0 ; i < config_keys_v6_num ; i++)
+  for (int i = 0; i < config_keys_v6_num; i++)
     if (strcasecmp(key, config_keys_v6[i]) == 0) {
       config_vals_v6[i] = true;
-      return(0);
+      return (0);
     }
 
   WARNING("ipstats plugin: invalid config key: %s", key);
   return -1;
 } /* int ipstats_config */
 
-
 #if KERNEL_FREEBSD
-static void ipstats_submit_v4(const struct ipstat *ipstat_p)
-{
+static void ipstats_submit_v4(const struct ipstat *ipstat_p) {
   value_list_t vl = VALUE_LIST_INIT;
   vl.values_len = 1;
 
@@ -226,16 +188,15 @@ static void ipstats_submit_v4(const struct ipstat *ipstat_p)
   sstrncpy(vl.plugin_instance, "ipv4", sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "packets", sizeof(vl.type));
 
-  for( int i = 0 ; i < config_vals_v4_num ; i++)
-    if(config_vals_v4[i] == true) {
+  for (int i = 0; i < config_vals_v4_num; i++)
+    if (config_vals_v4[i] == true) {
       sstrncpy(vl.type_instance, value_keys_v4[i], sizeof(vl.type_instance));
-      vl.values = &(value_t){ .derive = value_vals_v4[i] };
+      vl.values = &(value_t){.derive = value_vals_v4[i]};
       plugin_dispatch_values(&vl);
     }
 } /* void ipstats_submit_v4 */
 
-static void ipstats_submit_v6(const struct ip6stat *ip6stat_p)
-{
+static void ipstats_submit_v6(const struct ip6stat *ip6stat_p) {
   value_list_t vl = VALUE_LIST_INIT;
   vl.values_len = 1;
 
@@ -270,10 +231,10 @@ static void ipstats_submit_v6(const struct ip6stat *ip6stat_p)
   sstrncpy(vl.plugin_instance, "ipv6", sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "packets", sizeof(vl.type));
 
-  for( int i = 0 ; i < config_vals_v6_num ; i++)
-    if(config_vals_v6[i] == true) {
+  for (int i = 0; i < config_vals_v6_num; i++)
+    if (config_vals_v6[i] == true) {
       sstrncpy(vl.type_instance, value_keys_v6[i], sizeof(vl.type_instance));
-      vl.values = &(value_t){ .derive = value_vals_v6[i] };
+      vl.values = &(value_t){.derive = value_vals_v6[i]};
       plugin_dispatch_values(&vl);
     }
 } /* void ipstats_submit_v6 */
@@ -308,5 +269,6 @@ static int ipstats_read(void) {
 void module_register(void) {
   plugin_register_init("ipstats", ipstats_init);
   plugin_register_read("ipstats", ipstats_read);
-  plugin_register_config("ipstats", ipstats_config, config_keys_v4, config_keys_v4_num);
+  plugin_register_config("ipstats", ipstats_config, config_keys_v4,
+                         config_keys_v4_num);
 }
