@@ -55,6 +55,8 @@
 
 #include <unistd.h>
 
+#include "utils_closefrom.h"
+
 #ifndef PREFIX
 #define PREFIX "/opt/" PACKAGE_NAME
 #endif
@@ -147,11 +149,8 @@ static int daemonize(void) {
 
   setsid();
 
-  if (rl.rlim_max == RLIM_INFINITY)
-    rl.rlim_max = 1024;
-
-  for (int i = 0; i < (int)rl.rlim_max; ++i)
-    close(i);
+  /* Close all file descriptors in optimized way */
+  closefrom(0);
 
   int dev_null = open("/dev/null", O_RDWR);
   if (dev_null == -1) {
