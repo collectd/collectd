@@ -4878,9 +4878,10 @@ or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
 
- Enable the collection of wsrep plugin statistics, used in Master-Master
- replication setups like in MySQL Galera/Percona XtraDB Cluster.
- User needs only privileges to execute 'SHOW GLOBAL STATUS'
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'.
+Defaults to B<false>.
 
 =item B<ConnectTimeout> I<Seconds>
 
