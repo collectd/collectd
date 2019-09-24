@@ -4579,11 +4579,11 @@ if test "x$with_libjansson" = "xyes"; then
 fi
 if test "x$with_libjansson" = "xyes"; then
   SAVE_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $with_jansson_ldflags"
+  LDFLAGS="$LDFLAGS $with_libjansson_ldflags"
 
   AC_CHECK_LIB([jansson], [json_is_object],
-    [with_jansson="yes"],
-    [with_jansson="no (Symbol 'json_is_object' not found)"]
+    [with_libjansson="yes"],
+    [with_libjansson="no (Symbol 'json_is_object' not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
