@@ -35,6 +35,7 @@
 #define PRINT_BOOL(s) (s ? "true" : "false")
 
 int num_nvdimms;
+int skip_stop = 0;
 bool enable_dispatch_all = false;
 cdtime_t interval = 0;
 PMWATCH_OP_BUF pmw_output_buf;
@@ -95,6 +96,7 @@ static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
   ret = PMWAPIRead(&pmw_output_buf);
   if (ret != 0) {
     ERROR(PLUGIN_NAME ": Failed to read data from the collection.");
+
     return ret;
   }
 
@@ -165,7 +167,13 @@ static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
 static int dcpmm_stop(void) {
   DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
 
-  int ret;
+  int ret = 0;
+
+  if (skip_stop) {
+    DEBUG(PLUGIN_NAME ": %s:%d skipping stop function", __FUNCTION__, __LINE__);
+
+    return ret;
+  }
 
   ret = PMWAPIStop();
   if (ret != 0) {
@@ -194,20 +202,25 @@ static int dcpmm_init(void) {
 
   ret = PMWAPIGetDIMMCount(&num_nvdimms);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to obtain count of Intel(R) Optane DCPMM."
-                      "A common cause for this is collectd running without"
-                      "root privileges. Ensure that collectd is running with"
-                      "root privileges.");
+    ERROR(PLUGIN_NAME
+          ": Failed to obtain count of Intel(R) Optane DCPMM. "
+          "A common cause for this is collectd running without "
+          "root privileges. Ensure that collectd is running with "
+          "root privileges. Also, make sure that Intel(R) Optane DC "
+          "Persistent Memory is available in the system.");
+    skip_stop = 1;
 
     return ret;
   }
 
   ret = PMWAPIStart(pmwatch_config);
   if (ret != 0) {
-    ERROR(PLUGIN_NAME ": Failed to start the collection."
-                      "A common cause for this is collectd running without"
-                      "root privileges. Ensure that collectd is running with"
+    ERROR(PLUGIN_NAME ": Failed to start the collection. "
+                      "A common cause for this is collectd running without "
+                      "root privileges. Ensure that collectd is running with "
                       "root privileges.");
+    skip_stop = 1;
+
     return ret;
   }
 
@@ -216,6 +229,7 @@ static int dcpmm_init(void) {
   if (pmw_output_buf == NULL) {
     ERROR(PLUGIN_NAME ": Memory allocation for output buffer failed.");
     dcpmm_stop();
+    skip_stop = 1;
     ret = 1;
   }
 
