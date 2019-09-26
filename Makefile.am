@@ -165,7 +165,8 @@ check_PROGRAMS = \
 	test_utils_time \
 	test_utils_vl_lookup \
 	test_libcollectd_network_parse \
-	test_utils_config_cores
+	test_utils_config_cores \
+        test_utils_metrics_list
 
 
 TESTS = $(check_PROGRAMS)
@@ -394,6 +395,11 @@ test_utils_subst_SOURCES = \
 	src/daemon/utils_subst.c \
 	src/daemon/utils_subst.h
 test_utils_subst_LDADD = libplugin_mock.la
+
+test_utils_metrics_list_SOURCES = \
+	src/daemon/metrics_list_test.c \
+	src/testing.h
+test_utils_metrics_list_LDADD = libavltree.la $(COMMON_LIBS)
 
 test_utils_config_cores_SOURCES = \
 	src/utils/config_cores/config_cores_test.c \
@@ -2512,4 +2518,3 @@ generic-jmx.jar: $(JAVA_TIMESTAMP_FILE)
 
 jar_DATA = collectd-api.jar generic-jmx.jar
 endif
-

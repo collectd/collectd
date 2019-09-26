@@ -101,6 +101,29 @@ typedef struct value_list_s value_list_t;
 #define VALUE_LIST_INIT                                                        \
   { .values = NULL, .meta = NULL }
 
+struct identity_s {
+  char *        name;
+  struct c_avl_tree_s *root_p;
+
+  pthread_mutex_t lock;
+};
+typedef struct identity_s identity_t;
+
+struct metric_s {
+  value_t     value;
+  int         value_ds_type;
+  cdtime_t    time;
+  cdtime_t    interval;
+  identity_t *identity;
+};
+typedef struct metric_s metric_t;
+
+struct metrics_list_s {
+  metric_t               metric;
+  struct metrics_list_s *next_p;
+};
+struct metrics_list_s metrics_list_t;
+
 struct data_source_s {
   char name[DATA_MAX_NAME_LEN];
   int type;
