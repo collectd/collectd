@@ -914,6 +914,9 @@ Prerequisites
 
   * libpmwapi (optional)
     Used by the `dcpmm` plugin.
+    The library github: https://github.com/intel/intel-pmwatch
+    Follow the pmwatch build instructions mentioned for dcpmm plugin and
+    use the install path to resolve the dependency here.
 
   * libpq (optional)
     The PostgreSQL C client library used by the `postgresql' plugin.
