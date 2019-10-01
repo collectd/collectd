@@ -858,6 +858,17 @@ AC_CHECK_FUNCS([socket],
 AM_CONDITIONAL([BUILD_WITH_LIBSOCKET], [test "x$socket_needs_socket" = "xyes"])
 AM_CONDITIONAL([BUILD_WITH_GNULIB], [test "x$socket_needs_gnulib" = "xyes"])
 
+AC_CHECK_FUNCS([inet_ntop],
+  [],
+  [
+    AC_CHECK_LIB([nsl], [inet_ntop],
+      [inet_ntop_needs_nsl="yes"],
+      [AC_MSG_ERROR([cannot find inet_ntop() in libnsl])]
+    )
+  ]
+)
+AM_CONDITIONAL([BUILD_WITH_LIBNSL], [test "x$inet_ntop_needs_nsl" = "xyes"])
+
 clock_gettime_needs_posix4="no"
 AC_CHECK_FUNCS([clock_gettime],
   [have_clock_gettime="yes"],
