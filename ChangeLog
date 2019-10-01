@@ -1,3 +1,9 @@
+2019-10-01, Version 5.9.2
+	* syslog plugin: Don't fail if syslog loglevel doesn't match. Thanks to
+	  Fabien Wernli. #3236 #3238
+	* collectd: Fix ssnprintf wrapper. Thanks to Fabien Wernli. #3237
+	* rdt plugin: Fix compile time issues. Thanks to Matthias Runge. #3245
+
 2019-07-24, Version 5.9.1
 	* collectd: redhat spec: fix build due to new upstream plugins. Thanks
 	  to Fabien Wernli. #3175
