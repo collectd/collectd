@@ -821,6 +821,9 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       status = -1;
       break;
     }
+    if (hd->bulk_size > 0 && hd->version < 2) {
+      WARNING("snmp plugin: Bulk transferts is only available for snmp v2 and later, host '%s' is configured as version '%d'", hd->name, hd->version );
+    }
     if (hd->version == 3) {
       if (hd->username == NULL) {
         WARNING("snmp plugin: `Username' not given for host `%s'", hd->name);
