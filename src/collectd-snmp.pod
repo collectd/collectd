@@ -375,10 +375,7 @@ The C<Net-SNMP> library default is 5.
 
 =item B<BulkSize> I<Integer>
 
-This option activate and configure snmp bulk transfers. For B<Table> data it allows
-the host to send multiple values per query. Only available for SNMP v2 and greater, this
-usually allow for more efficient querying and faster data transferts.
-The default is 0/disabled.
+Configures the size of SNMP bulk tranfers, The default is 0, which disables bulk transfers altogether.
 
 =back
 
