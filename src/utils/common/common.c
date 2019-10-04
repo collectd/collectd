@@ -60,6 +60,11 @@
 #include <kstat.h>
 #endif
 
+/* for execvpe */
+#ifdef WIN32
+#include <process.h>
+#endif
+
 #ifdef HAVE_LIBKSTAT
 extern kstat_ctl_t *kc;
 #endif
@@ -1604,3 +1609,84 @@ int check_capability(__attribute__((unused)) int arg) /* {{{ */
   return 0;
 } /* }}} int check_capability */
 #endif /* HAVE_CAPABILITY */
+
+int sexecvpe(const char *file, char *const argv[], char *const envp[]) /* {{{ */
+{
+#ifdef WIN32
+  return execvpe(file, argv, envp);
+#else
+  if (*file == '\0') {
+    errno = ENOENT;
+    return -1;
+  }
+
+  if (strchr(file, '/'))
+    return execve(file, argv, envp);
+
+  const char *path = getenv("PATH");
+
+  if (!path)
+    path = "/usr/local/bin:/bin:/usr/bin";
+
+  /* Enforce NAME_MAX and PATH_MAX as the maximum size to avoid overflowing
+     stack allocation. */
+  size_t file_len = strnlen(file, NAME_MAX) + 1;
+  size_t path_len = strnlen(path, PATH_MAX - 1) + 1;
+
+  if (file_len - 1 > NAME_MAX) {
+    errno = ENAMETOOLONG;
+    return -1;
+  }
+
+  const char *subp;
+  bool got_eacces = false;
+
+  for (const char *p = path;; p = subp) {
+    char buffer[path_len + file_len + 1];
+
+    subp = strchr(p, ':');
+    if (!subp)
+      subp = p + strlen(p);
+
+    /* If PATH is larger than PATH_MAX, skip to the next one. */
+    if (subp - p >= path_len) {
+      if (*subp == '\0')
+        break;
+
+      continue;
+    }
+
+    /* Build string "path/file" for execution. */
+    memcpy(buffer, p, subp - p);
+    buffer[subp - p] = '/';
+    memcpy(buffer + (subp - p) + (subp > p), file, file_len);
+
+    execve(buffer, argv, envp);
+
+    switch (errno) {
+    case EACCES:
+      /* Remember that we got permission denied. */
+      got_eacces = true;
+    case ENOENT:
+    case ESTALE:
+    case ENOTDIR:
+    case ENODEV:
+    case ETIMEDOUT:
+      /* Catch any errors that tell us the file is missing or not executable,
+         then try the next path. */
+      break;
+
+    default:
+      return -1;
+    }
+
+    if (*subp++ == '\0')
+      break;
+  }
+
+  if (got_eacces)
+    errno = EACCES;
+
+  return -1;
+#endif
+} /* }}} int sexecvpe */

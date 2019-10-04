@@ -75,6 +75,7 @@ __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
 char *sstrdup(const char *s);
 void *smalloc(size_t size);
 char *sstrerror(int errnum, char *buf, size_t buflen);
+int sexecvpe(const char *file, char *const argv[], char *const envp[]);
 
 #ifndef ERRBUF_SIZE
 #define ERRBUF_SIZE 256
