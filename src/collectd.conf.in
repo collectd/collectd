@@ -1402,7 +1402,7 @@
 #       Version 2
 #       Community "another_string"
 #       Collect "std_traffic" "hr_users"
-#       Bulk_Size 100
+#       BulkSize 0
 #   </Host>
 #   <Host "some.ups.mydomain.org">
 #       Address "192.168.0.3"
@@ -1412,6 +1412,15 @@
 #       Interval 300
 # 	Timeout 5
 #	Retries 5
+#   </Host>
+#   <Host "highend.switch.example.org">
+#       Address "192.168.0.3"
+#       Version 2
+#       Community "another_string"
+#       Collect "std_traffic"
+#       Interval 10
+#       Timeout 10
+#       BulkSize 100
 #   </Host>
 #</Plugin>
 
