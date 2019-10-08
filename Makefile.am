@@ -166,7 +166,7 @@ check_PROGRAMS = \
 	test_utils_vl_lookup \
 	test_libcollectd_network_parse \
 	test_utils_config_cores \
-        test_utils_metrics_list
+	test_utils_metrics_list
 
 
 TESTS = $(check_PROGRAMS)

@@ -112,6 +112,8 @@ typedef struct identity_s identity_t;
 struct metric_s {
   value_t     value;
   int         value_ds_type;
+  char        type[DATA_MAX_NAME_LEN];
+  char        ds_name[DATA_MAX_NAME_LEN];
   cdtime_t    time;
   cdtime_t    interval;
   identity_t *identity;
@@ -122,7 +124,7 @@ struct metrics_list_s {
   metric_t               metric;
   struct metrics_list_s *next_p;
 };
-struct metrics_list_s metrics_list_t;
+typedef struct metrics_list_s metrics_list_t;
 
 struct data_source_s {
   char name[DATA_MAX_NAME_LEN];
