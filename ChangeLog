@@ -1,3 +1,300 @@
+2019-10-01, Version 5.9.2
+	* syslog plugin: Don't fail if syslog loglevel doesn't match. Thanks to
+	  Fabien Wernli. #3236 #3238
+	* collectd: Fix ssnprintf wrapper. Thanks to Fabien Wernli. #3237
+	* rdt plugin: Fix compile time issues. Thanks to Matthias Runge. #3245
+
+2019-07-24, Version 5.9.1
+	* collectd: redhat spec: fix build due to new upstream plugins. Thanks
+	  to Fabien Wernli. #3175
+	* collectd: regex match: Fix unexpected match with empty meta data .
+	  Thanks to Takuro Ashie. #3178
+	* collectd: Fix return value or loglevel for several plugins. Thanks to
+	  Fabien Wernli. #3182
+	* collectd: Add standard include early or _FILE_OFFSET_BITS will have
+	  definition … . Thanks to Dagobert Michelsen. #3193
+	* collectd: Use GCC-specific flags only when compiling with GCC. Thanks
+	  to Dagobert Michelsen. #3195
+	* Use test_utils_proc_pids only when compiling the plugin that uses it.
+	  Thanks to Dagobert Michelsen. #3197
+	* DNS plugin: Do not use headers from glibc. Thanks to Pavel Rochnyak.
+	  #3156, #3145
+	* collectd: Add missing definitions for libnetsnmpagent. Thanks to
+	  Dagobert Michelsen. #3203
+	* collectd: Move Makefile rules for pid_test inside conditional for
+	  code. Thanks to Dagobert Michelsen. #3206
+	* collectd: Recover setlocale() call in src/daemon/collectd.c do_init().
+	  Thanks to Pavel Rochnyak. #3214, #3181
+	* collectd: Add snprintf wrapper for GCC 8.2/3. Thanks to zebity. #3153,
+	  #2895, #3038
+	* collectd: Fix bug that leads to CPPFLAGS gets overridden with CFLAGS
+	  when libxmms is enabled. Thanks to Dagobert Michelsen. #3207
+	* Write_Riemann plugin: Copy MetaData to Riemann events in
+	  write_riemann. Thanks to Romain Tartière. #3158
+	* virt plugin: Fix memory leak with libvirt MetadataXPath enabled.
+	  Thanks to Pavel Rochnyak. #3225, #3230
+
+2019-06-13, Version 5.9.0
+	* Build System: configure.ac: option "--with-libxml2" has been added.
+	  Thanks to Dimitrios Apostolou, Pavel Rochnyak. #2864
+	* Build System: configure.ac: run dpdk build tests only if pkgconfig
+	  fails. Thanks to Luca Boccassi, Pavel Rochnyak. #3015
+	* Build System: The "df" plugin is now built when "getmntent_r()" is
+	  available. Thanks to Florian Forster. #3095
+	* Build System: The ability to turn on collectd "debug" feature in RPMs
+	  has been added. Thanks to dehotot. #2755
+	* collectd: A new "UNKNOWN" state as the initial state of metrics has
+	  been added. Thanks to Luis Fernández Álvarez, Florian Forster. #2976
+	* collectd: Base port to Windows. Thanks to Sean Campbell. #2810
+	* collectd: Code ownership of five plugins has been handed out to folks
+	  from Intel. Thanks to Florian Forster. #3053
+	* collectd: config parser: Improved error reporting on global options.
+	  Thanks to Pavel Rochnyak. #2813
+	* collectd: daemon: make plugin_dispatch_multivalue() obey write queue
+	  limits. Thanks to Adam Romanek. #2898
+	* collectd: Macros "STRERROR" and "STRERRNO" have been added. Thanks to
+	  Florian Forster. #2519
+	* collectd: Plugin name field has been added to plugin context to
+	  improve error reporting. Thanks to Pavel Rochnyak. #2821
+	* collectd-tg: Use "CLOCK_REALTIME" for collectd-tg times. Thanks to
+	  Andrew Bays. #2837
+	* tree-wide: Don't initialize static pointers to NULL, use "bool" from
+	  "stdbool.h" (instead of "_Bool"). Thanks to Ruben Kerkhof. #2771,
+	  #2772
+	* tree-wide: Replace zu with "PRIsz" and llu with "PRIu64". Thanks to
+	  Sean Campbell. #2512
+	* tree-wide: Use interval value from plugin context, do not set
+	  "vl->interval" in plugins more. Thanks to Pavel Rochnyak. #2847
+	* tree-wide: Utilities and libraries have been moved to "src/utils/".
+	  Thanks to Florian Forster. #2961
+	* AMPQ1 plugin: A new plugin to write to amqp1 protocol. Thanks to Andy
+	  Smith. #2618
+	* Chrony plugin: Ignoring late responses has been added. Thanks to
+	  Miroslav Lichvar, Pavel Rochnyak. #2896
+	* CPUFreq plugin: Read number of p-state transitions and time spent in
+	  each p-state. Thanks to Sexton Rory. #2803
+	* cURL, cURL-XML plugins: Option "Interval" has been added. Thanks to
+	  Pavel Rochnyak. #2847
+	* Disk plugin: Report number of in progress disk IO requests on FreeBSD.
+	  Thanks to Nathan Huff. #2878
+	* Exec plugin: Dynamic allocation of grname buffer has been added.
+	  Thanks to sreedi, Florian Forster. #2937
+	* GPU NVML plugin: New plugin to collect NVIDIA GPU stats. Thanks to
+	  Evgeny Naumov. #2923
+	* gRPC plugin: The "VerifyPeer" option for servers has been added.
+	  Thanks to Florian Forster. #2593
+	* Intel RDT plugin: Support for groups of PIDs has been added. Thanks to
+	  Wojciech Andralojc, Mateusz Starzyk, Michal Aleksinski. #2891
+	* IPMI plugin: Config options "SELSensor" and "SELIgnoreSelected" have
+	  been added. Thanks to Mariusz Szafranski. #2796
+	* Modbus plugin: Support for 64 bit vals has been added, support for
+	  CDAB endian 32-bit modbus polls has been added. Thanks to Anthony
+	  Vickers, PJ Bostley. #2670, #2660
+	* Modbus plugin: The "Scale" and "Shift" metrics have been added. Thanks
+	  to cekstam. #2729
+	* Netlink plugin: Handle new counter from Linux kernel version 4.6+.
+	  Thanks to Pavel Rochnyak. #2767
+	* Network plugin: Option "BindAddress" has been added. Thanks to Ofir
+	  Hermesh. #2831
+	* Ping plugin: An "AddressFamily" configuration option has been added.
+	  Thanks to 依云 lilydjwg. #2961
+	* OVS Stats plugin: Extended metrics "ovs-dpdk" have been added. Thanks
+	  to Matteo Croce, Ryan McCabe. #3000
+	* OVS Stats plugin: Support of bond interface and a "InterfaceStats"
+	  config option have been added. Thanks to Andrew Bays. #2880
+	* PCIe Errors plugin: New plugin to read "PCIe" errors. Thanks to Kamil
+	  Wiatrowski. #2733
+	* Processes plugin: Support for Linux Delay Accounting has been added.
+	  Thanks to Florian Forster. #2598
+	* Redis plugin: Keyspace "hitratio" metric has been added, metric
+	  "operations_per_second" has been removed, an option for connecting via
+	  UNIX socket has been added. Thanks to Pavel Rochnyak. #2838, #2845,
+	  #2904
+	* RouterOS plugin: Support for temperature and voltage data has been
+	  added, use MAC-address when Radio-name is missing. Thanks to Pavel
+	  Rochnyak. #2851, #2854
+	* RRDCacheD plugin: Time resolution has been improved to microseconds.
+	  Thanks to Brian T. O'Neill. #3065
+	* Sensors plugin: Checks for upper limit of "SENSORS_API_VERSION" have
+	  been removed, support for libsensors older than 3.0.0 has been
+	  dropped. Thanks to Pavel Rochnyak. #3013, #3014
+	* SNMP plugin: New options "PluginInstance", "TypeInstance",
+	  "TypeInstanceOID", "PluginInstanceOID", "FilterOID", "FilterValues"
+	  and "FilterIgnoreSelected" have been added. Thanks to Pavel Rochnyak.
+	  #2817, #2819
+	* SNMP Agent plugin: Multiple key indexes to snmp table and other new
+	  features have been added, refactoring, coverity scan issues have been
+	  fixed. Thanks to Marcin Mozejko. #2702, #2844
+	* Swap plugin: Support for Linux 2.4 has been dropped. Thanks to Pavel
+	  Rochnyak. #2979
+	* Turbostat plugin: Configuration option "RestoreAffinityPolicy" has
+	  been added. Thanks to Pablo Llopis. #2627
+	* Turbostat plugin: New metrics "P-states", "Turboboost", "Platform
+	  TDP", "Uncore bus ratio" have been added. Thanks to Sexton Rory. #2806
+	* Turbostat plugin: Support of reporting GPU power on SKL has been
+	  added. Thanks to Gordon Kelly. #2605
+	* virt plugin: Allow read "Hostname" from libvirt metadata. Thanks to
+	  Mehdi ABAAKOUK. #2807
+	* virt plugin: Block info statistics for disk devices have been added.
+	  Thanks to Radoslaw Jablonski. #2874
+	* Wireless plugin: A "bitrate" metric has been added. Thanks to Florian
+	  Forster. #2950
+	* Write Graphite, Write Kafka plugins: Support for Graphite 1.1+ tag has
+	  been added. Thanks to Dan Cech. #2631
+	* Write Prometheus plugin: Option "Host" has been added. Thanks to Pavel
+	  Rochnyak. #2969
+	* Write Stackdriver plugin: New plugin to write to Google Stackdriver
+	  Monitoring. Thanks to Florian Forster. #2472
+	* Write Syslog plugin: "write_syslog" plugin writes values lists as
+	  syslog messages. Thanks to Shirly Radco. #3019
+	* Build System: A warning that pkgdatadir and pkglibdir were previously
+	  defined has been fixed, additional plugins have been enabled,
+	  GNULIB_DIR has been added to LDFLAGS in configure.ac on Windows.
+	  Thanks to Sean Campbell. #2907, #2885, #2882
+	* Build System: Including "utils/mount/mount.h" has been fixed. Thanks
+	  to Florian Forster. #3097
+	* Build System: The amount of output from ./configure has been reduced,
+	  rendering of collectd-lua(5) manpage has been fixed, don't hide errors
+	  when creating manpage. Thanks to Ruben Kerkhof. #3086, #3088, #3092
+	* collectd: A bug in "c_avl_iterator_prev" has been fixed. Thanks to
+	  volth. #2917
+	* collectd: A stringop compiler warning has been fixed. Thanks to Ruben
+	  Kerkhof, Juan Osorio Robles. #3021
+	* collectd: An invalid memory access in the "strjoin()" function has
+	  been fixed. Thanks to Florian Forster. #3063
+	* collectd: collectd binary has been refactored. Thanks to Sean
+	  Campbell, Sebastian Harl. #2745
+	* collectd: collectdmon cannot exit command line options parse loop has
+	  been fixed. Thanks to takahashi-tsc. #2774
+	* collectd: Endianness checks for AIX have been added, gcc issue on Mac
+	  byteorder has been fixed, fallback for endianness conversion has been
+	  added. Thanks to Dagobert Michelsen. #2761, #2741, #2717
+	* collectd: Handle failure of simple config callbacks. Thanks to Ruben
+	  Kerkhof. #3085
+	* collectd: Include "kstat.h" if available to provide "kstat_ctl_t",
+	  include "kstat.h" when available. Thanks to Dagobert Michelsen. #2716,
+	  #2711
+	* collectd: Parsing option for avoiding making BaseDir has been fixed.
+	  Thanks to Mariusz Białończyk. #2856
+	* collectd: Remove empty "cmd_listval_t" data structure and related
+	  no-op code. Thanks to Pavel Rochnyak. #2779
+	* collectd: src/daemon/plugin.c: Refactor plugin_load_file(),
+	  src/utils_format_json.c: Remove chatty debug messages. Thanks to
+	  Florian Forster. #2558, #2938
+	* collectd: Stop poisoning function in debug mode. Thanks to Ruben
+	  Kerkhof. #2804
+	* collectd: The number of allocations when parsing types.db has been
+	  reduced. Thanks to Ruben Kerkhof. #3091
+	* collectd: The organization of the source repository has been improved.
+	  Thanks to Florian Forster. #2961
+	* collectd: Typos have been fixed. Thanks to Florian Forster, Jakub
+	  Jankowski, William Pursell. #2944, #2692, #2643
+	* tree-wide: cleanup: cf_util_get* instead of local copy in plugins,
+	  prefixed error reporting. Thanks to Pavel Rochnyak. #2833
+	* tree-wide: Some style issues have been fixed. Thanks to Ruben Kerkhof.
+	  #3022
+	* tree-wide: "sstrerror()" has been replaced with "STRERRNO". Thanks to
+	  Pavel Rochnyak. #2735
+	* AMQP1 plugin: Potential memory leaks found via scan-build have been
+	  fixed, a typo in error log message has been fixed, cleanups. Thanks to
+	  Andy Smith, Andrew Bays, Ruben Kerkhof. #2802, #2876, #2797
+	* Barometer plugin: Support to "libi2c-4.0" has been added. Thanks to
+	  Pavel Rochnyak. #2783
+	* DBI, Oracle, PostgreSQL plugins: Fixes and improvements. Thanks to
+	  Pavel Rochnyak. #1705
+	* Disk plugin: "HAVE_UDEV_H" has been changed to "HAVE_LIBUDEV_H".
+	  Thanks to Dylan Stephano-Shachter. #2668
+	* Disk plugin: In linux, reset the disk when it disappears from
+	  "/proc/diskstats". Thanks to Nikita Kozlov, Pavel Rochnyak. #2551
+	* DPDK Events, DPDK Stats plugins: Buffer size for parsing lcores has
+	  been increased, a deprecation warning has been fixed, runtime config
+	  file path has been fixed. Thanks to Kevin Laatz. #2722, #2840, #2924
+	* DPDK Stats plugin: A compilation issue has been fixed. Thanks to
+	  Volodymyr Mytnyk. #2524
+	* GPS plugin: Build with gpsd version 3.18 has been fixed. Thanks to
+	  Baruch Siach. #2947
+	* Intel RDT plugin: Compiler warnings have been fixed. Thanks to Ruben
+	  Kerkhof. #3104
+	* Log Logstash plugin: Non-portable struct initialization with "{}" has
+	  been fixed. Thanks to Florian Forster. #2988
+	* LUA plugin: A memory leak has been fixed. Thanks to Ruben Kerkhof.
+	  #3090
+	* MySQL plugin: Properly cleanup dropped MySQL connections. Thanks to
+	  Dhrupad Bhardwaj. #2704
+	* Netlink plugin: Truncation warnings have been fixed. Thanks to Ruben
+	  Kerkhof. #2777
+	* NFS plugin: Message "Unexpected number of fields for NFSv4 server
+	  statistics: 62" has been fixed. Thanks to Yedidyah Bar David. #2076
+	* NFS plugin: Number of fields for "NFSv4" has been fixed. Thanks to
+	  Jan-Philipp Litza. #2915
+	* Notify Email plugin: All notification parameters have been included
+	  into email. Thanks to Pavel Rochnyak. #2834
+	* NTPd plugin: Don't treat normal peers as refclocks, skip "0.0.0.0"
+	  hosts in ntpd plugin. Thanks to Pavel Rochnyak, Ivan Kurnosov. #2822,
+	  #2376
+	* OAuth plugin: src/utils_oauth.c: Renew OAuth tokens 30 seconds before
+	  they expire. Thanks to Florian Forster. #2970
+	* OVS Stats plugin: A macro to populate counters list has been added,
+	  value of "OpenFlow" has been corrected. Thanks to Matteo Croce. #2966,
+	  #2963
+	* OVS Stats plugin: Code style, cleanup and improvements. Thanks to
+	  Pavel Rochnyak. #3011, #3012
+	* OVS Stats, OVS Events plugins: utils_ovs: Avoid potential access of
+	  freed memory, fixes. Thanks to Ciara Loftus, Mark Kavanagh. #2801,
+	  #2731
+	* Processes plugin: Compilation has been fixed when ps_delay() is not
+	  used. Thanks to Pavel Rochnyak. #2610
+	* Python plugin: A compilation warning with Python 3.7 has been fixed.
+	  Thanks to Manoj Srivastava. #3042
+	* Redis plugin: Bugfixes, extended error reporting, persistent
+	  connections and parallel polling, ability to select db for queries has
+	  been fixed. Thanks to Pavel Rochnyak, skob. #2826, #2789
+	* Router OS plugin: Unset radio-name showing up as "(null)" has been
+	  fixed. Thanks to melak. #2740
+	* RRDCacheD plugin: Cleanup rrdcached plugin a bit. Thanks to Pavel
+	  Rochnyak. #3080
+	* RRDTool plugin: Error reporting has been extended. Thanks to Pavel
+	  Rochnyak. #2825
+	* Sensors plugin: Support for humidity sensors has been added. Thanks to
+	  Sarah Fischmann. #2913
+	* Sensu, OVS Stat, Turbostat, virt, OAuth, Write Prometheus, Intel RDT
+	  plugins: Compiler warnings have been fixed. Thanks to Ruben Kerkhof.
+	  #3093, #3098, #3099, #3100, #3102, #3103, #3104
+	* virt plugin: Code "do {} while(0)" around macro has been removed.
+	  Thanks to Florian Forster. #2579
+	* virt plugin: Compiler warnings, a segfault in libvirt, typo in error
+	  messages have been fixed. Thanks to Antoine Naud, Ruben Kerkhof, sarah
+	  niuxu18. #2808, #2919, #2957
+	* virt plugin: Optional "virDomainGetCPUStats()" has been removed from
+	  main flow, cleanup. Thanks to Pavel Rochnyak. #2972, #2978
+	* virt plugin: Tracking of VM state changes has been fixed. Thanks to
+	  Radoslaw Jablonski. #2701
+	* Write MongoDB plugin: Plugin dependencies have been fixed. Thanks to
+	  Pavel Rochnyak. #3010
+	* Write Prometheus plugin: A compilation issue on Mac OS X has been
+	  fixed. Thanks to Florian Forster. #3059
+	* Write Redis plugin: Bug ""max_set_duration" deletes unexpected data"
+	  has been fixed. Thanks to takahashi-tsc. #2773
+	* Write Stackdriver plugin: Potential NULL dereference and error
+	  reporting have been fixed. Thanks to Florian Forster. #2960
+	* collectd.conf(5): a typo has been fixed, the tail plugin's
+	  documentation has been improved. Thanks to Ruben Kerkhof, Florian
+	  Forster. #3087, #2994
+	* collectd.conf.pod: virt: "Instances" option has been documented, a
+	  clarifying example has been added. Thanks to Pavel Rochnyak, Fabien
+	  Wernli. #2990, #2903
+	* collectd-python: "Import" configuration option has been documented.
+	  Thanks to Tyler Harper. #2985
+	* collectd-snmp.pod: Document thread usage correctly. Thanks to Nathan
+	  Ward. #3078
+	* CONTRIBUTING.md: Improve wording around ChangeLog; fix example,
+	  document the new change log requirement / behavior. Thanks to Florian
+	  Forster. #3061, #3054
+	* docs/review_comments.md: document with frequent review comments has
+	  been started. Thanks to Florian Forster. #2964
+	* README: Include compiler defenses suggestion, do not point users to
+	  non-existing file. Thanks to Kevin Laatz, Ruben Kerkhof. #2721, #2045
+
 2018-10-23, Version 5.8.1
 	* collectd: Fix "BaseDir" option. Thanks to Mariusz Białończyk and
 	  Pavel Rochnyak. #2857

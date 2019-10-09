@@ -99,10 +99,7 @@ int ssnprintf(char *str, size_t sz, const char *format, ...) {
 
   va_end(ap);
 
-  if (ret < 0) {
-    return ret;
-  }
-  return (size_t)ret >= sz;
+  return ret;
 } /* int ssnprintf */
 
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
