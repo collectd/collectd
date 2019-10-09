@@ -26,11 +26,8 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#ifdef HAVE_SYS_SYSCTL_H
+#if defined(HAVE_SYSCTLBYNAME) && defined(HAVE_SYS_SYSCTL_H)
 #include <sys/sysctl.h>
-#endif
-
-#if HAVE_SYSCTLBYNAME
 /* no global variables */
 /* #endif HAVE_SYSCTLBYNAME */
 
