@@ -241,6 +241,9 @@ static int dpdk_telemetry_cleanup(void) {
   close(client.s_send);
   close(client.s_recv);
   close(client.fd);
+  client.s_send = -1;
+  client.s_recv = -1;
+  client.fd = -1;
   return 0;
 }
 
@@ -265,7 +268,7 @@ static int dpdk_telemetry_socket_init(void) {
   if (client.s_recv < 0) {
     ERROR(PLUGIN_NAME ": Failed to open message socket errno(%d), error(%s)",
           errno, strerror(errno));
-    close(client.s_send);
+    dpdk_telemetry_cleanup();
     return -1;
   }
   client.addr.sun_family = AF_UNIX;
@@ -275,8 +278,7 @@ static int dpdk_telemetry_socket_init(void) {
               sizeof(client.addr)) < 0) {
     ERROR(PLUGIN_NAME ": Failed to connect errno(%d), error(%s)", errno,
           strerror(errno));
-    close(client.s_send);
-    close(client.s_recv);
+    dpdk_telemetry_cleanup();
     return -1;
   }
   client.addrs.sun_family = AF_UNIX;
@@ -287,15 +289,13 @@ static int dpdk_telemetry_socket_init(void) {
            sizeof(client.addrs)) < 0) {
     ERROR(PLUGIN_NAME ": Failed to bind errno(%d), error(%s)", errno,
           strerror(errno));
-    close(client.s_send);
-    close(client.s_recv);
+    dpdk_telemetry_cleanup();
     return -1;
   }
   if (listen(client.s_recv, 1) < 0) {
     ERROR(PLUGIN_NAME ": Listen failed errno(%d), error(%s)", errno,
           strerror(errno));
-    close(client.s_send);
-    close(client.s_recv);
+    dpdk_telemetry_cleanup();
     return -1;
   }
   snprintf(message, sizeof(message),
@@ -305,16 +305,14 @@ static int dpdk_telemetry_socket_init(void) {
   if (send(client.s_send, message, strlen(message), 0) < 0) {
     ERROR(PLUGIN_NAME ": Could not send register message errno(%d), error(%s)",
           errno, strerror(errno));
-    close(client.s_send);
-    close(client.s_recv);
+    dpdk_telemetry_cleanup();
     return -1;
   }
   client.fd = accept(client.s_recv, NULL, NULL);
   if (client.fd < 0) {
     ERROR(PLUGIN_NAME ": Failed to accept errno(%d), error(%s)", errno,
           strerror(errno));
-    close(client.s_send);
-    close(client.s_recv);
+    dpdk_telemetry_cleanup();
     return -1;
   }
   return 0;
