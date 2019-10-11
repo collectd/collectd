@@ -1581,7 +1581,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
   csnmp_oid_type_t oid_list_todo[oid_list_len];
 
   int status;
-  size_t i, j;
+  size_t i;
 
   /* `value_list_head' and `value_cells_tail' implement a linked list for each
    * value. `instance_cells_head' and `instance_cells_tail' implement a linked
@@ -1777,6 +1777,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
       continue;
     }
 
+    size_t j;
     for (vb = res->variables, j = 0; (vb != NULL);
          vb = vb->next_variable, j++) {
       i = j;
