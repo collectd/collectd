@@ -375,7 +375,7 @@ The C<Net-SNMP> library default is 5.
 
 =item B<BulkSize> I<Integer>
 
-Configures the size of SNMP bulk tranfers, The default is 0, which disables bulk transfers altogether.
+Configures the size of SNMP bulk transfers. The default is 0, which disables bulk transfers altogether.
 
 =back
 

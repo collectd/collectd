@@ -99,7 +99,6 @@ struct host_definition_s {
   c_complain_t complaint;
   data_definition_t **data_list;
   int data_list_len;
-
   int bulk_size;
 };
 typedef struct host_definition_s host_definition_t;
@@ -822,7 +821,7 @@ static int csnmp_config_add_host(oconfig_item_t *ci) {
       break;
     }
     if (hd->bulk_size > 0 && hd->version < 2) {
-      WARNING("snmp plugin: Bulk transferts is only available for snmp v2 and "
+      WARNING("snmp plugin: Bulk transfers is only available for SNMP v2 and "
               "later, host '%s' is configured as version '%d'",
               hd->name, hd->version);
     }
@@ -1665,7 +1664,7 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
   status = 0;
   while (status == 0) {
-    /* If SNMP v2 and later and bulk transfert enabled, use GETBULK PDU */
+    /* If SNMP v2 and later and bulk transfers enabled, use GETBULK PDU */
     if (host->version > 1 && host->bulk_size > 0) {
       req = snmp_pdu_create(SNMP_MSG_GETBULK);
       req->non_repeaters = 0;
@@ -1780,11 +1779,10 @@ static int csnmp_read_table(host_definition_t *host, data_definition_t *data) {
 
     for (vb = res->variables, j = 0; (vb != NULL);
          vb = vb->next_variable, j++) {
+      i = j;
       /* If bulk request is active convert value index of the extra value */
       if (host->version > 1 && host->bulk_size > 0) {
-        i = j % oid_list_todo_num;
-      } else {
-        i = j;
+        i %= oid_list_todo_num;
       }
       /* Calculate value index from todo list */
       while ((i < oid_list_len) && !oid_list_todo[i]) {
