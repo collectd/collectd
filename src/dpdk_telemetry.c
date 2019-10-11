@@ -67,7 +67,7 @@ static char g_dpdk_path[BUF_SIZE];
 static int dpdk_telemetry_config(oconfig_item_t *ci) {
   int ret, i;
 
-  INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
 
   for (i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
@@ -245,7 +245,7 @@ static int dpdk_telemetry_cleanup(void) {
 }
 
 static int dpdk_telemetry_socket_init(void) {
-  INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
   char message[BUF_SIZE];
 
   /* Here we look up the length of the g_dpdk_path string
@@ -321,7 +321,7 @@ static int dpdk_telemetry_socket_init(void) {
 }
 
 static int dpdk_telemetry_shutdown(void) {
-  INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
   char msg[BUF_SIZE];
   int ret;
 
@@ -340,7 +340,7 @@ static int dpdk_telemetry_shutdown(void) {
 }
 
 static int dpdk_telemetry_read(user_data_t *ud) {
-  INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
   char buffer[BUF_SIZE];
   int bytes = 0, ret;
   char *json_string[MAX_COMMANDS] = {"{\"action\":0,\"command\":"
@@ -380,7 +380,7 @@ static int dpdk_telemetry_read(user_data_t *ud) {
 
 static int dpdk_telemetry_init(void) {
 
-  INFO(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
+  DEBUG(PLUGIN_NAME ": %s:%d", __FUNCTION__, __LINE__);
 
   client.s_send = -1;
   client.s_recv = -1;
