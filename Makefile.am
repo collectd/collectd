@@ -1420,6 +1420,12 @@ test_plugin_network_LDADD = \
 	libplugin_mock.la \
 	libmetadata.la \
 	$(GCRYPT_LIBS)
+if BUILD_WITH_LIBSOCKET
+test_plugin_network_LDADD += -lsocket
+endif
+if BUILD_WITH_LIBNSL
+test_plugin_network_LDADD += -lnsl
+endif
 check_PROGRAMS += test_plugin_network
 endif
 
