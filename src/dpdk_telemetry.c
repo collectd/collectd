@@ -388,13 +388,12 @@ static int dpdk_telemetry_init(void) {
   if (dpdk_telemetry_socket_init() < 0)
     ERROR(PLUGIN_NAME ": Socket initialization failed.");
 
-  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, 0, NULL);
-
   return 0;
 }
 
 void module_register(void) {
   plugin_register_init(PLUGIN_NAME, dpdk_telemetry_init);
   plugin_register_complex_config(PLUGIN_NAME, dpdk_telemetry_config);
+  plugin_register_complex_read(NULL, PLUGIN_NAME, dpdk_telemetry_read, 0, NULL);
   plugin_register_shutdown(PLUGIN_NAME, dpdk_telemetry_shutdown);
 }
