@@ -344,6 +344,9 @@ Piotr Hosowicz <the55 at wp.pl>
 Radoslaw Jablonski
  - Logparser plugin.
 
+Remi Ferrand <remi.ferrand at cc.in2p3.fr>
+ - livestatus plugin.
+
 Reshma Pattan
  - DPDK Telemetry plugin.
 
