@@ -97,6 +97,7 @@ files                   value:GAUGE:0:U
 filter_result           value:DERIVE:0:U
 flow                    value:GAUGE:0:U
 fork_rate               value:DERIVE:0:U
+freepages               value:GAUGE:0:U
 frequency               value:GAUGE:0:U
 frequency_error         value:GAUGE:-1000000:1000000
 frequency_offset        value:GAUGE:-1000000:1000000
