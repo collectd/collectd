@@ -221,9 +221,9 @@ DEF_TEST(escape_string) {
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    char buffer[16];
+    char buffer[16] = {0};
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    strncpy(buffer, cases[i].str, sizeof(buffer) - 1);
     OK(escape_string(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
