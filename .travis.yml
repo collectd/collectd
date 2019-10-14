@@ -18,10 +18,10 @@ matrix:
         - CXX=clang++
         - PATH="/usr/local/opt/mysql-client/bin:$PATH"
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: gcc
 
 before_install:
