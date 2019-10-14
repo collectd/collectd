@@ -215,6 +215,8 @@ static int ls_parse(const char *lresponse, livestatus_status_t *lstatus) {
       rc = -1;
       goto free_all_fields;
     }
+
+    memset(fields[j], 0x0, 32);
   }
 
   pchar = (char *)lresponse;
