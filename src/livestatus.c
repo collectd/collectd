@@ -37,6 +37,8 @@
 #define LIVESTATUS_FIELD_SEP ';'
 #define LIVESTATUS_PLUGIN_NAME "livestatus"
 
+typedef uint64_t lcounter_t;
+
 static const char *config_keys[] = {"LivestatusSocketFile", "OnFailureMaxRetry",
                                     "OnFailureBackOffSeconds"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -73,23 +75,23 @@ typedef struct livestatus_s livestatus_t;
 
 struct livestatus_status_s {
   int cached_log_messages;
-  int connections;
+  lcounter_t connections;
   double connections_rate;
-  int forks;
+  lcounter_t forks;
   double forks_rate;
-  int host_checks;
+  lcounter_t host_checks;
   double host_checks_rate;
-  int livecheck_overflows;
+  lcounter_t livecheck_overflows;
   double livecheck_overflows_rate;
-  int livechecks;
+  lcounter_t livechecks;
   double livechecks_rate;
-  int log_messages;
+  lcounter_t log_messages;
   double log_messages_rate;
-  int neb_callbacks;
+  lcounter_t neb_callbacks;
   double neb_callbacks_rate;
-  int requests;
+  lcounter_t requests;
   double requests_rate;
-  int service_checks;
+  lcounter_t service_checks;
   double service_checks_rate;
 };
 typedef struct livestatus_status_s livestatus_status_t;
@@ -99,24 +101,24 @@ static livestatus_t livestatus_obj;
 livestatus_status_t c_to_livestatus_status(const char **fields) {
   livestatus_status_t status = {
       .cached_log_messages = atoi(fields[0]),
-      .connections = atoi(fields[1]),
-      .connections_rate = atof(fields[2]),
-      .forks = atoi(fields[3]),
-      .forks_rate = atof(fields[4]),
-      .host_checks = atoi(fields[5]),
-      .host_checks_rate = atof(fields[6]),
-      .livecheck_overflows = atoi(fields[7]),
-      .livecheck_overflows_rate = atof(fields[8]),
-      .livechecks = atoi(fields[9]),
-      .livechecks_rate = atof(fields[10]),
-      .log_messages = atoi(fields[11]),
-      .log_messages_rate = atof(fields[12]),
-      .neb_callbacks = atoi(fields[13]),
-      .neb_callbacks_rate = atof(fields[14]),
-      .requests = atoi(fields[15]),
-      .requests_rate = atof(fields[16]),
-      .service_checks = atoi(fields[17]),
-      .service_checks_rate = atof(fields[18]),
+      .connections = strtoull(fields[1], NULL, 10),
+      .connections_rate = strtod(fields[2], NULL),
+      .forks = strtoull(fields[3], NULL, 10),
+      .forks_rate = strtod(fields[4], NULL),
+      .host_checks = strtoull(fields[5], NULL, 10),
+      .host_checks_rate = strtod(fields[6], NULL),
+      .livecheck_overflows = strtoull(fields[7], NULL, 10),
+      .livecheck_overflows_rate = strtod(fields[8], NULL),
+      .livechecks = strtoull(fields[9], NULL, 10),
+      .livechecks_rate = strtod(fields[10], NULL),
+      .log_messages = strtoull(fields[11], NULL, 10),
+      .log_messages_rate = strtod(fields[12], NULL),
+      .neb_callbacks = strtoull(fields[13], NULL, 10),
+      .neb_callbacks_rate = strtod(fields[14], NULL),
+      .requests = strtoull(fields[15], NULL, 10),
+      .requests_rate = strtod(fields[16], NULL),
+      .service_checks = strtoull(fields[17], NULL, 10),
+      .service_checks_rate = strtod(fields[18], NULL),
   };
 
   return status;
