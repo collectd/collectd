@@ -280,10 +280,15 @@ DEF_TEST(parse_values) {
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     data_source_t dsrc = {
-        .name = "value", .type = DS_TYPE_GAUGE, .min = 0.0, .max = NAN,
+        .name = "value",
+        .type = DS_TYPE_GAUGE,
+        .min = 0.0,
+        .max = NAN,
     };
     data_set_t ds = {
-        .type = "example", .ds_num = 1, .ds = &dsrc,
+        .type = "example",
+        .ds_num = 1,
+        .ds = &dsrc,
     };
 
     value_t v = {
@@ -344,7 +349,8 @@ DEF_TEST(value_to_rate) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     cdtime_t t0 = TIME_T_TO_CDTIME_T(cases[i].t0);
     value_to_rate_state_t state = {
-        .last_value = cases[i].v0, .last_time = t0,
+        .last_value = cases[i].v0,
+        .last_time = t0,
     };
     gauge_t got;
 
