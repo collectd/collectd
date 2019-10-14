@@ -108,6 +108,7 @@ addons:
     packages:
     - curl
     - glib
+    - grpc
     - hiredis
     - libdbi
     - libmemcached
@@ -119,7 +120,9 @@ addons:
     - librdkafka
     - libstatgrab
     - libvirt
+    - libxml2
     - lua
+    - mongo-c-driver
     - mosquitto
     - mysql-client
     - net-snmp
