@@ -196,9 +196,9 @@ DEF_TEST(escape_slashes) {
   };
 
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
-    char buffer[32];
+    char buffer[32] = {0};
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    strncpy(buffer, cases[i].str, sizeof(buffer) - 1);
     OK(escape_slashes(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
