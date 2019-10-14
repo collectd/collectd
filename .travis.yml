@@ -85,7 +85,6 @@ addons:
     - libsensors4-dev
     - libsigrok-dev
     - libsnmp-dev
-    - libstatgrab-dev
     - libtokyocabinet-dev
     - libtokyotyrant-dev
     - libudev-dev
@@ -123,7 +122,6 @@ addons:
     - liboping
     - libpcap
     - librdkafka
-    - libstatgrab
     - libvirt
     - libxml2
     - lua
