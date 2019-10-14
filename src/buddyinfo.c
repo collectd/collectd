@@ -1,7 +1,6 @@
 /**
  * collectd - src/buddyinfo.c
- * Copyright (C) 2005-2010  Florian octo Forster
- * Copyright (C) 2009       Manuel Sanmartin
+ * Copyright (C) 2019       Asaf Kahlon
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
