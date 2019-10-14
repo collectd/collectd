@@ -14,15 +14,18 @@ matrix:
     - os: osx
       osx_image: xcode11.2
       compiler: clang
+      jdk: openjdk10
       env:
         - CXX=clang++
         - PATH="/usr/local/opt/mysql-client/bin:$PATH"
     - os: linux
       dist: xenial
       compiler: clang
+      jdk: openjdk10
     - os: linux
       dist: xenial
       compiler: gcc
+      jdk: openjdk10
 
 before_install:
   # When building the coverity_scan branch, allow only the first job to continue to avoid travis-ci/travis-ci#1975.
