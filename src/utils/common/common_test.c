@@ -198,7 +198,7 @@ DEF_TEST(escape_slashes) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     char buffer[32];
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    strcpy(buffer, cases[i].str);
     OK(escape_slashes(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
@@ -223,7 +223,8 @@ DEF_TEST(escape_string) {
   for (size_t i = 0; i < STATIC_ARRAY_SIZE(cases); i++) {
     char buffer[16];
 
-    strncpy(buffer, cases[i].str, sizeof(buffer));
+    /* in this case, buffer is always large enough */
+    strcpy(buffer, cases[i].str);
     OK(escape_string(buffer, sizeof(buffer)) == 0);
     EXPECT_EQ_STR(cases[i].want, buffer);
   }
@@ -232,7 +233,7 @@ DEF_TEST(escape_string) {
 }
 
 DEF_TEST(strunescape) {
-  char buffer[16];
+  char buffer[17];
   int status;
 
   strncpy(buffer, "foo\\tbar", sizeof(buffer));
