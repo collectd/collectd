@@ -360,8 +360,8 @@ static int ls_collectd_dispatch(const livestatus_status_t *status) {
 
   L_DISPATCH(ls_collectd_dispatch_count, status->cached_log_messages,
              "cached_log_messages");
-  L_DISPATCH(ls_collectd_dispatch_count, status->connections, "connections");
-  L_DISPATCH(ls_collectd_dispatch_counter, status->connections_rate,
+  L_DISPATCH(ls_collectd_dispatch_counter, status->connections, "connections");
+  L_DISPATCH(ls_collectd_dispatch_count, status->connections_rate,
              "connections_rate");
   L_DISPATCH(ls_collectd_dispatch_counter, status->forks, "forks");
   L_DISPATCH(ls_collectd_dispatch_count, status->forks_rate, "forks_rate");
