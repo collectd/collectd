@@ -38,6 +38,7 @@ script:
   - type pkg-config
   - pkg-config --list-all | sort -u
   - ./configure
+  - cat config.log
   - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
 
 addons:
