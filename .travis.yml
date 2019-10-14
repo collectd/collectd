@@ -32,8 +32,8 @@ before_script: autoreconf -vif
 
 script:
   - if [[ "${TRAVIS_BRANCH}" == "coverity_scan" ]]; then exit 0; fi
-  - ./configure
-  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug"
+  - ./configure --disable-lvm
+  - make distcheck DISTCHECK_CONFIGURE_FLAGS="--disable-dependency-tracking --enable-debug --disable-lvm"
 
 addons:
   apt:
