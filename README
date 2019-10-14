@@ -207,10 +207,6 @@ Features
       collectd without the need to start a heavy interpreter every interval.
       See collectd-lua(5) for details.
 
-    - lvm
-      Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
-      “Logical Volume Manager” (LVM).
-
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
       interfaces that use the Atheros chipset and the MadWifi driver.
@@ -844,10 +840,6 @@ Prerequisites
   * liblua (optional)
     Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
     <https://www.lua.org/>
-
-  * liblvm2 (optional)
-    Used by the `lvm' plugin.
-    <ftp://sources.redhat.com/pub/lvm2/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.
