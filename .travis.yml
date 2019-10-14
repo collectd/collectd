@@ -18,6 +18,7 @@ matrix:
       env:
         - CXX=clang++
         - PATH="/usr/local/opt/mysql-client/bin:$PATH"
+        - JAVA_HOME="/Library/Java/JavaVirtualMachines/openjdk-13.jdk/Contents/Home"
     - os: linux
       dist: xenial
       compiler: clang
