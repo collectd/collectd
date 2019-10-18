@@ -2934,7 +2934,7 @@ fi
 %doc contrib/
 
 %changelog
-* Fri Oct 18 2019 Matthias Runge <mrunge@redhad.com> - 5.10.0-1
+* Fri Oct 18 2019 Matthias Runge <mrunge@redhat.com> - 5.10.0-1
 - update to 5.10.0
 
 * Fri Jun 14 2019 Fabien Wernli <rpmbuild@faxmodem.org> - 5.9.0-1
