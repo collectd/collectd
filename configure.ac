@@ -743,10 +743,10 @@ test_cxx_flags() {
 #
 AC_CHECK_FUNCS_ONCE([ \
     asprintf \
+    execvpe \
     getpwnam \
     getpwnam_r \
     if_indextoname \
-    setenv \
     setgroups \
     setlocale
   ]

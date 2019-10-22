@@ -26,6 +26,9 @@
 #define _DEFAULT_SOURCE
 #define _BSD_SOURCE /* For setgroups */
 
+/* _GNU_SOURCE is needed in Linux to use execvpe */
+#define _GNU_SOURCE
+
 #include "collectd.h"
 
 #include "plugin.h"
@@ -42,6 +45,8 @@
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
 #endif
+
+extern char **environ;
 
 #define PL_NORMAL 0x01
 #define PL_NOTIF_ACTION 0x02
@@ -245,49 +250,9 @@ static int exec_config(oconfig_item_t *ci) /* {{{ */
   return 0;
 } /* int exec_config }}} */
 
-#if !defined(HAVE_SETENV)
-static char env_interval[64];
-// max hostname len is 255, so this should be enough
-static char env_hostname[300];
-#endif
-
-static void set_environment(void) /* {{{ */
-{
-#ifdef HAVE_SETENV
-  char buffer[1024];
-
-  snprintf(buffer, sizeof(buffer), "%.3f",
-           CDTIME_T_TO_DOUBLE(plugin_get_interval()));
-  setenv("COLLECTD_INTERVAL", buffer, /* overwrite = */ 1);
-
-  sstrncpy(buffer, hostname_g, sizeof(buffer));
-  setenv("COLLECTD_HOSTNAME", buffer, /* overwrite = */ 1);
-#else
-  snprintf(env_interval, sizeof(env_interval), "COLLECTD_INTERVAL=%.3f",
-           CDTIME_T_TO_DOUBLE(plugin_get_interval()));
-  putenv(env_interval);
-
-  snprintf(env_hostname, sizeof(env_hostname), "COLLECTD_HOSTNAME=%s",
-           hostname_g);
-  putenv(env_hostname);
-#endif
-} /* }}} void set_environment */
-
-static void unset_environment(void) /* {{{ */
-{
-#ifdef HAVE_SETENV
-  unsetenv("COLLECTD_INTERVAL");
-  unsetenv("COLLECTD_HOSTNAME");
-#else
-  snprintf(env_interval, sizeof(env_interval), "COLLECTD_INTERVAL");
-  putenv(env_interval);
-  snprintf(env_hostname, sizeof(env_hostname), "COLLECTD_HOSTNAME");
-  putenv(env_hostname);
-#endif
-} /* }}} void unset_environment */
-
-__attribute__((noreturn)) static void exec_child(program_list_t *pl, int uid,
-                                                 int gid, int egid) /* {{{ */
+__attribute__((noreturn)) static void exec_child(program_list_t *pl,
+                                                 char **envp, int uid, int gid,
+                                                 int egid) /* {{{ */
 {
   int status;
 
@@ -328,7 +293,12 @@ __attribute__((noreturn)) static void exec_child(program_list_t *pl, int uid,
     exit(-1);
   }
 
+#ifdef HAVE_EXECVPE
+  execvpe(pl->exec, pl->argv, envp);
+#else
+  environ = envp;
   execvp(pl->exec, pl->argv);
+#endif
 
   ERROR("exec plugin: Failed to execute ``%s'': %s", pl->exec, STRERRNO);
   exit(-1);
@@ -486,17 +456,42 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
     goto failed;
   }
 
-  set_environment();
+  double interval = CDTIME_T_TO_DOUBLE(plugin_get_interval());
 
   pid = fork();
   if (pid < 0) {
     ERROR("exec plugin: fork failed: %s", STRERRNO);
     goto failed;
   } else if (pid == 0) {
-    int fd_num;
+    char interval_buf[128];
+    snprintf(interval_buf, sizeof(interval_buf), "COLLECTD_INTERVAL=%.3f",
+             interval);
+
+    /* max hostname len is 255, so this should be enough */
+    char hostname_buf[300];
+    snprintf(hostname_buf, sizeof(hostname_buf), "COLLECTD_HOSTNAME=%s",
+             hostname_g);
+
+    size_t env_size = 0;
+    while (environ[env_size] != NULL) {
+      ++env_size;
+    }
+
+    /* Copy the environment variables */
+    char *envp[env_size + 3];
+    size_t envp_idx;
+    for (envp_idx = 0; environ[envp_idx] != NULL && envp_idx < env_size;
+         ++envp_idx) {
+      envp[envp_idx] = environ[envp_idx];
+    }
+
+    /* Add the collectd environment variables */
+    envp[envp_idx++] = interval_buf;
+    envp[envp_idx++] = hostname_buf;
+    envp[envp_idx++] = NULL;
 
     /* Close all file descriptors but the pipe end we need. */
-    fd_num = getdtablesize();
+    int fd_num = getdtablesize();
     for (int fd = 0; fd < fd_num; fd++) {
       if ((fd == fd_pipe_in[0]) || (fd == fd_pipe_out[1]) ||
           (fd == fd_pipe_err[1]))
@@ -525,11 +520,9 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
     /* Unblock all signals */
     reset_signal_mask();
 
-    exec_child(pl, uid, gid, egid);
+    exec_child(pl, envp, uid, gid, egid);
     /* does not return */
   }
-
-  unset_environment();
 
   close(fd_pipe_in[0]);
   close(fd_pipe_out[1]);
@@ -553,8 +546,6 @@ static int fork_child(program_list_t *pl, int *fd_in, int *fd_out,
   return pid;
 
 failed:
-  unset_environment();
-
   close_pipe(fd_pipe_in);
   close_pipe(fd_pipe_out);
   close_pipe(fd_pipe_err);
