@@ -90,7 +90,6 @@
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
 %define with_lua 0%{!?_without_lua:1}
-%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_mcelog 0%{!?_without_mcelog:1}
@@ -236,7 +235,6 @@
 %define with_gmond 0
 %define with_iptables 0
 %define with_ipvs 0
-%define with_lvm 0
 %define with_modbus 0
 %define with_netlink 0
 %define with_redis 0
@@ -266,8 +264,8 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.9.0
-Release:	1%{?dist}
+Version:	5.9.2
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -588,17 +586,6 @@ BuildRequires:	lua-devel
 %description lua
 The Lua plugin embeds a Lua interpreter into collectd and exposes the
 application programming interface (API) to Lua scripts.
-%endif
-
-%if %{with_lvm}
-%package lvm
-Summary:	LVM plugin for collectd
-Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	lvm2-devel
-%description lvm
-This plugin collects size of “Logical Volumes” (LV) and “Volume Groups” (VG)
-of Linux' “Logical Volume Manager” (LVM).
 %endif
 
 %if %{with_mcelog}
@@ -1442,12 +1429,6 @@ Collectd utilities
 %define _with_lua --disable-lua
 %endif
 
-%if %{with_lvm}
-%define _with_lvm --enable-lvm
-%else
-%define _with_lvm --disable-lvm
-%endif
-
 %if %{with_madwifi}
 %define _with_madwifi --enable-madwifi
 %else
@@ -2089,7 +2070,6 @@ Collectd utilities
 	%{?_with_logfile} \
 	%{?_with_lpar} \
 	%{?_with_lua} \
-	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
 	%{?_with_mcelog} \
@@ -2710,11 +2690,6 @@ fi
 %{_libdir}/%{name}/lua.so
 %endif
 
-%if %{with_lvm}
-%files lvm
-%{_libdir}/%{name}/lvm.so
-%endif
-
 %if %{with_memcachec}
 %files memcachec
 %{_libdir}/%{name}/memcachec.so
@@ -2929,6 +2904,9 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
+- Remove lvm plugin, liblvmapp has been deprecated upstream
+
 * Fri Jun 14 2019 Fabien Wernli <rpmbuild@faxmodem.org> - 5.9.0-1
 - add code for write_stackdriver (disabled for now)
 - add code for gpu_nvidia (disabled for now)

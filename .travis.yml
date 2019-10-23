@@ -63,7 +63,6 @@ addons:
     - liblua50-dev
     - liblua5.1-0-dev
     - liblua5.2-dev
-    - liblvm2-dev
     - libmemcached-dev
     - libmicrohttpd-dev
     - libmnl-dev
