@@ -743,10 +743,10 @@ test_cxx_flags() {
 #
 AC_CHECK_FUNCS_ONCE([ \
     asprintf \
+    execvpe \
     getpwnam \
     getpwnam_r \
     if_indextoname \
-    setenv \
     setgroups \
     setlocale
   ]
@@ -857,6 +857,17 @@ AC_CHECK_FUNCS([socket],
 )
 AM_CONDITIONAL([BUILD_WITH_LIBSOCKET], [test "x$socket_needs_socket" = "xyes"])
 AM_CONDITIONAL([BUILD_WITH_GNULIB], [test "x$socket_needs_gnulib" = "xyes"])
+
+AC_CHECK_FUNCS([inet_ntop],
+  [],
+  [
+    AC_CHECK_LIB([nsl], [inet_ntop],
+      [inet_ntop_needs_nsl="yes"],
+      [AC_MSG_ERROR([cannot find inet_ntop() in libnsl])]
+    )
+  ]
+)
+AM_CONDITIONAL([BUILD_WITH_LIBNSL], [test "x$inet_ntop_needs_nsl" = "xyes"])
 
 clock_gettime_needs_posix4="no"
 AC_CHECK_FUNCS([clock_gettime],
@@ -3156,67 +3167,6 @@ then
 fi
 AC_SUBST(BUILD_WITH_LIBLUA_CFLAGS)
 AC_SUBST(BUILD_WITH_LIBLUA_LIBS)
-# }}}
-
-# --with-liblvm2app {{{
-AC_ARG_WITH([liblvm2app],
-  [AS_HELP_STRING([--with-liblvm2app@<:@=PREFIX@:>@], [Path to liblvm2app.])],
-  [
-    if test "x$withval" = "xno"; then
-      with_liblvm2app="no"
-    else
-      with_liblvm2app="yes"
-      if test "x$withval" != "xyes"; then
-        with_liblvm2app_cppflags="-I$withval/include"
-        with_liblvm2app_ldflags="-L$withval/lib"
-      fi
-    fi
-  ],
-  [
-    if test "x$ac_system" = "xLinux"; then
-      with_liblvm2app="yes"
-    else
-      with_liblvm2app="no (Linux only library)"
-    fi
-  ]
-)
-
-if test "x$with_liblvm2app" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
-
-  AC_CHECK_HEADERS([lvm2app.h],
-    [with_liblvm2app="yes"],
-    [with_liblvm2app="no (lvm2app.h not found)"]
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-if test "x$with_liblvm2app" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  SAVE_LDFLAGS="$LDFLAGS"
-  CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
-  LDFLAGS="$LDFLAGS $with_liblvm2app_ldflags"
-
-  AC_CHECK_LIB([lvm2app], [lvm_lv_get_property],
-    [with_liblvm2app="yes"],
-    [with_liblvm2app="no (Symbol 'lvm_lv_get_property' not found)"]
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-  LDFLAGS="$SAVE_LDFLAGS"
-fi
-
-if test "x$with_liblvm2app" = "xyes"; then
-  BUILD_WITH_LIBLVM2APP_CPPFLAGS="$with_liblvm2app_cppflags"
-  BUILD_WITH_LIBLVM2APP_LDFLAGS="$with_liblvm2app_ldflags"
-  BUILD_WITH_LIBLVM2APP_LIBS="-llvm2app"
-fi
-
-AC_SUBST([BUILD_WITH_LIBLVM2APP_CPPFLAGS])
-AC_SUBST([BUILD_WITH_LIBLVM2APP_LDFLAGS])
-AC_SUBST([BUILD_WITH_LIBLVM2APP_LIBS])
 # }}}
 
 # --with-libmemcached {{{
@@ -6362,6 +6312,7 @@ plugin_battery="no"
 plugin_bind="no"
 plugin_ceph="no"
 plugin_cgroups="no"
+plugin_connectivity="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
@@ -6446,7 +6397,6 @@ if test "x$ac_system" = "xLinux"; then
   plugin_ipc="yes"
   plugin_irq="yes"
   plugin_load="yes"
-  plugin_lvm="yes"
   plugin_mcelog="yes"
   plugin_memory="yes"
   plugin_nfs="yes"
@@ -6480,6 +6430,10 @@ if test "x$ac_system" = "xLinux"; then
     plugin_ovs_events="yes"
     plugin_ovs_stats="yes"
     plugin_procevent="yes"
+
+    if test "x$with_libmnl" = "xyes"; then
+      plugin_connectivity="yes"
+    fi
   fi
 
   if test "x$have_pci_regs_h" = "xyes"; then
@@ -6791,6 +6745,7 @@ AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon stati
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
 AC_PLUGIN([check_uptime],        [yes],                       [Notify about uptime reset])
+AC_PLUGIN([connectivity],        [$plugin_connectivity],      [Network interface up/down events])
 AC_PLUGIN([conntrack],           [$plugin_conntrack],         [nf_conntrack statistics])
 AC_PLUGIN([contextswitch],       [$plugin_contextswitch],     [context switch statistics])
 AC_PLUGIN([cpu],                 [$plugin_cpu],               [CPU usage statistics])
@@ -6834,7 +6789,6 @@ AC_PLUGIN([log_logstash],        [$plugin_log_logstash],      [Logstash json_eve
 AC_PLUGIN([logfile],             [yes],                       [File logging plugin])
 AC_PLUGIN([lpar],                [$with_perfstat],            [AIX logical partitions statistics])
 AC_PLUGIN([lua],                 [$with_liblua],              [Lua plugin])
-AC_PLUGIN([lvm],                 [$with_liblvm2app],          [LVM statistics])
 AC_PLUGIN([madwifi],             [$have_linux_wireless_h],    [Madwifi wireless statistics])
 AC_PLUGIN([match_empty_counter], [yes],                       [The empty counter match])
 AC_PLUGIN([match_hashed],        [yes],                       [The hashed match])
@@ -7153,7 +7107,6 @@ AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
 AC_MSG_RESULT([    libkvm  . . . . . . . $with_libkvm])
 AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
 AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
-AC_MSG_RESULT([    liblvm2app  . . . . . $with_liblvm2app])
 AC_MSG_RESULT([    libmemcached  . . . . $with_libmemcached])
 AC_MSG_RESULT([    libmicrohttpd . . . . $with_libmicrohttpd])
 AC_MSG_RESULT([    libmnl  . . . . . . . $with_libmnl])
@@ -7223,6 +7176,7 @@ AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])
 AC_MSG_RESULT([    check_uptime. . . . . $enable_check_uptime])
+AC_MSG_RESULT([    connectivity. . . . . $enable_connectivity])
 AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
@@ -7266,7 +7220,6 @@ AC_MSG_RESULT([    logfile . . . . . . . $enable_logfile])
 AC_MSG_RESULT([    log_logstash  . . . . $enable_log_logstash])
 AC_MSG_RESULT([    lpar  . . . . . . . . $enable_lpar])
 AC_MSG_RESULT([    lua . . . . . . . . . $enable_lua])
-AC_MSG_RESULT([    lvm . . . . . . . . . $enable_lvm])
 AC_MSG_RESULT([    madwifi . . . . . . . $enable_madwifi])
 AC_MSG_RESULT([    match_empty_counter . $enable_match_empty_counter])
 AC_MSG_RESULT([    match_hashed  . . . . $enable_match_hashed])

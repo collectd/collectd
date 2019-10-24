@@ -774,6 +774,15 @@ check_uptime_la_SOURCES = src/check_uptime.c
 check_uptime_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_CONNECTIVITY
+pkglib_LTLIBRARIES += connectivity.la
+connectivity_la_SOURCES = src/connectivity.c
+connectivity_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBMNL_CFLAGS)
+connectivity_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBYAJL_CPPFLAGS)
+connectivity_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBYAJL_LDFLAGS)
+connectivity_la_LIBADD = $(BUILD_WITH_LIBYAJL_LIBS) $(BUILD_WITH_LIBMNL_LIBS) libignorelist.la
+endif
+
 if BUILD_PLUGIN_CONNTRACK
 pkglib_LTLIBRARIES += conntrack.la
 conntrack_la_SOURCES = src/conntrack.c
@@ -1213,14 +1222,6 @@ lua_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 lua_la_LIBADD = $(BUILD_WITH_LIBLUA_LIBS)
 endif
 
-if BUILD_PLUGIN_LVM
-pkglib_LTLIBRARIES += lvm.la
-lvm_la_SOURCES = src/lvm.c
-lvm_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLVM2APP_CPPFLAGS)
-lvm_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLVM2APP_LDFLAGS)
-lvm_la_LIBADD = $(BUILD_WITH_LIBLVM2APP_LIBS)
-endif
-
 if BUILD_PLUGIN_MADWIFI
 pkglib_LTLIBRARIES += madwifi.la
 madwifi_la_SOURCES = \
@@ -1411,6 +1412,12 @@ test_plugin_network_LDADD = \
 	libplugin_mock.la \
 	libmetadata.la \
 	$(GCRYPT_LIBS)
+if BUILD_WITH_LIBSOCKET
+test_plugin_network_LDADD += -lsocket
+endif
+if BUILD_WITH_LIBNSL
+test_plugin_network_LDADD += -lnsl
+endif
 check_PROGRAMS += test_plugin_network
 endif
 

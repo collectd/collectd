@@ -53,6 +53,7 @@
 %define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
 %define with_chrony 0%{!?_without_chrony:1}
+%define with_connectivity 0%{!?_without_connectivity:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
@@ -89,7 +90,6 @@
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
 %define with_lua 0%{!?_without_lua:1}
-%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_mcelog 0%{!?_without_mcelog:1}
@@ -235,7 +235,6 @@
 %define with_gmond 0
 %define with_iptables 0
 %define with_ipvs 0
-%define with_lvm 0
 %define with_modbus 0
 %define with_netlink 0
 %define with_redis 0
@@ -248,6 +247,7 @@
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_connectivity 0
 %define with_cpusleep 0
 %define with_gps 0
 %define with_mqtt 0
@@ -264,8 +264,8 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.9.0
-Release:	1%{?dist}
+Version:	5.9.2
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -382,6 +382,16 @@ Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
 %description chrony
 Chrony plugin for collectd
+%endif
+
+%if %{with_connectivity}
+%package connectivity
+Summary:       Connectivity plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: libmnl-devel, yajl-devel
+%description connectivity
+Monitors network interface up/down status via netlink library.
 %endif
 
 %if %{with_curl}
@@ -576,17 +586,6 @@ BuildRequires:	lua-devel
 %description lua
 The Lua plugin embeds a Lua interpreter into collectd and exposes the
 application programming interface (API) to Lua scripts.
-%endif
-
-%if %{with_lvm}
-%package lvm
-Summary:	LVM plugin for collectd
-Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	lvm2-devel
-%description lvm
-This plugin collects size of “Logical Volumes” (LV) and “Volume Groups” (VG)
-of Linux' “Logical Volume Manager” (LVM).
 %endif
 
 %if %{with_mcelog}
@@ -1160,6 +1159,12 @@ Collectd utilities
 %define _with_chrony --disable-chrony
 %endif
 
+%if %{with_connectivity}
+%define _with_connectivity --enable-connectivity
+%else
+%define _with_connectivity --disable-connectivity
+%endif
+
 %if %{with_conntrack}
 %define _with_conntrack --enable-conntrack
 %else
@@ -1422,12 +1427,6 @@ Collectd utilities
 %define _with_lua --enable-lua
 %else
 %define _with_lua --disable-lua
-%endif
-
-%if %{with_lvm}
-%define _with_lvm --enable-lvm
-%else
-%define _with_lvm --disable-lvm
 %endif
 
 %if %{with_madwifi}
@@ -2028,6 +2027,7 @@ Collectd utilities
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
 	%{?_with_chrony} \
+	%{?_with_connectivity} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
@@ -2070,7 +2070,6 @@ Collectd utilities
 	%{?_with_logfile} \
 	%{?_with_lpar} \
 	%{?_with_lua} \
-	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
 	%{?_with_mcelog} \
@@ -2577,6 +2576,11 @@ fi
 %{_libdir}/%{name}/chrony.so
 %endif
 
+%if %{with_connectivity}
+%files connectivity
+%{_libdir}/%{name}/connectivity.so
+%endif
+
 %if %{with_curl}
 %files curl
 %{_libdir}/%{name}/curl.so
@@ -2684,11 +2688,6 @@ fi
 %files lua
 %{_mandir}/man5/collectd-lua*
 %{_libdir}/%{name}/lua.so
-%endif
-
-%if %{with_lvm}
-%files lvm
-%{_libdir}/%{name}/lvm.so
 %endif
 
 %if %{with_memcachec}
@@ -2905,6 +2904,9 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
+- Remove lvm plugin, liblvmapp has been deprecated upstream
+
 * Fri Jun 14 2019 Fabien Wernli <rpmbuild@faxmodem.org> - 5.9.0-1
 - add code for write_stackdriver (disabled for now)
 - add code for gpu_nvidia (disabled for now)

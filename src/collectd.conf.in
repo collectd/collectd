@@ -103,6 +103,7 @@
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
 #@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
+#@BUILD_PLUGIN_CONNECTIVITY_TRUE@LoadPlugin connectivity
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
@@ -143,7 +144,6 @@
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
-#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
@@ -383,6 +383,10 @@
 #	Host    "localhost"
 #	Port    "323"
 #	Timeout "2"
+#</Plugin>
+
+#<Plugin connectivity>
+#  Interface eth0
 #</Plugin>
 
 #<Plugin cgroups>

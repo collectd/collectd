@@ -101,22 +101,6 @@ int ssnprintf(char *str, size_t sz, const char *format, ...) {
   return ret;
 } /* int ssnprintf */
 
-/* ssnprintf2 returns zero on success, one if truncation occurred
-   and a negative integer on error. */
-int ssnprintf2(char *str, size_t sz, const char *format, ...) {
-  va_list ap;
-  va_start(ap, format);
-
-  int ret = vsnprintf(str, sz, format, ap);
-
-  va_end(ap);
-
-  if (ret < 0) {
-    return ret;
-  }
-  return (size_t)ret >= sz;
-} /* int ssnprintf2 */
-
 char *ssnprintf_alloc(char const *format, ...) /* {{{ */
 {
   char static_buffer[1024] = "";

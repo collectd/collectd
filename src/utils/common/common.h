@@ -69,9 +69,6 @@ char *sstrncpy(char *dest, const char *src, size_t n);
 __attribute__((format(printf, 3, 4))) int ssnprintf(char *str, size_t size,
                                                     char const *format, ...);
 
-__attribute__((format(printf, 3, 4))) int ssnprintf2(char *str, size_t size,
-                                                     char const *format, ...);
-
 __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
                                                             ...);
 

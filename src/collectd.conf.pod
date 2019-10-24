@@ -1603,6 +1603,47 @@ Connection timeout in seconds. Defaults to B<2>.
 
 =back
 
+=head2 Plugin Connectivity
+
+connectivity - Documentation of collectd's C<connectivity plugin>
+
+
+  LoadPlugin connectivity
+  # ...
+  <Plugin connectivity>
+    Interface eth0
+  </Plugin>
+
+The C<connectivity plugin> queries interface status using netlink (man 7 netlink) which provides information about network interfaces via the NETLINK_ROUTE family (man 7 rtnetlink). The plugin translates the value it receives to collectd's internal format and, depending on the write plugins you have loaded, it may be written to disk or submitted to another instance.
+The plugin listens to interfaces enumerated within the plugin configuration (see below).  If no interfaces are listed, then the default is for all interfaces to be monitored.
+
+This example shows C<connectivity plugin> monitoring all interfaces.
+LoadPlugin connectivity
+<Plugin connectivity>
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring 2 interfaces, "eth0" and "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth0
+  Interface eth1
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring all interfaces except "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth1
+  IgnoreSelected true
+</Plugin>
+ 
+=over 4
+
+=item B<Interface> I<interface_name>
+
+interface(s) to monitor connect to. 
+
+=back
+
 =head2 Plugin C<conntrack>
 
 This plugin collects IP conntrack statistics.
@@ -4787,7 +4828,7 @@ Hostname of the database server. Defaults to B<localhost>.
 
 Username to use when connecting to the database. The user does not have to be
 granted any privileges (which is synonym to granting the C<USAGE> privilege),
-unless you want to collectd replication statistics (see B<MasterStats> and
+unless you want to collect replication statistics (see B<MasterStats> and
 B<SlaveStats> below). In this case, the user needs the C<REPLICATION CLIENT>
 (or C<SUPER>) privileges. Else, any existing MySQL user will do.
 
@@ -4837,9 +4878,10 @@ or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
 
- Enable the collection of wsrep plugin statistics, used in Master-Master
- replication setups like in MySQL Galera/Percona XtraDB Cluster.
- User needs only privileges to execute 'SHOW GLOBAL STATUS'
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'.
+Defaults to B<false>.
 
 =item B<ConnectTimeout> I<Seconds>
 
