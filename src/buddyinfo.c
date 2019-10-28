@@ -41,13 +41,23 @@ static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static ignorelist_t *ignorelist;
 
 static int buddyinfo_config(const char *key, const char *value) {
-  if (ignorelist == NULL)
+  if (ignorelist == NULL) {
     ignorelist = ignorelist_create(1);
+    if (ignorelist != NULL) {
+      sfree(ignorelist);
+      return ENOMEM;
+    }
+  }
 
-  if (strcasecmp(key, "Zone") == 0)
-    ignorelist_add(ignorelist, value);
-  else
+  if (strcasecmp(key, "Zone") == 0) {
+    if (ignorelist_add(ignorelist, value)) {
+      ERROR("buddyinfo plugin: cannot add value to ignorelist");
+      return -1;
+    }
+  } else {
+    ERROR("buddyinfo plugin: invalid option: %s", key);
     return -1;
+  }
 
   return 0;
 }
@@ -87,14 +97,17 @@ static int buddyinfo_read(void) {
       continue;
 
     numfields = strsplit(dummy, fields, BUDDYINFO_FIELDS);
-    if (numfields != BUDDYINFO_FIELDS)
+    if (numfields != BUDDYINFO_FIELDS) {
+      WARNING("line %s doesn't contain %d orders, skipping...", buffer,
+              MAX_ORDER);
       continue;
+    }
 
     zone = fields[1];
     for (int i = 1; i <= MAX_ORDER; i++) {
       ssnprintf(pagesize_kb, sizeof(pagesize_kb), "%dKB",
                 NUM_OF_KB(pagesize, i - 1));
-      buddyinfo_submit(zone, pagesize_kb, atoll(fields[i + 1]));
+      buddyinfo_submit(zone, pagesize_kb, (int)atoll(fields[i + 1]));
     }
   }
 
@@ -102,8 +115,16 @@ static int buddyinfo_read(void) {
   return 0;
 }
 
+static int buddyinfo_shutdown(void) {
+  ignorelist_free(ignorelist);
+
+  return 0;
+}
+
 void module_register(void) {
+
   plugin_register_config("buddyinfo", buddyinfo_config, config_keys,
                          config_keys_num);
   plugin_register_read("buddyinfo", buddyinfo_read);
+  plugin_register_shutdown("buddy", buddyinfo_shutdown);
 }
