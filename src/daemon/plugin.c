@@ -1119,10 +1119,10 @@ static int plugin_insert_read(read_func_t *rf) {
     if (sleep_cdt > 0) {
       rf->rf_next_read = now + sleep_cdt;
       INFO(
-          "%s plugin: wait %.3fms before first read at %lu.%03lds since epoche",
+          "%s plugin: wait %.3fms before first read at %ld.%03ds since epoche",
           rf->rf_name, CDTIME_T_TO_DOUBLE(sleep_cdt),
-          CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec,
-          CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec / 1000);
+          (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
+          (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec / 1000));
     } else {
       rf->rf_next_read = cdtime();
     }
