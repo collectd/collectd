@@ -50,6 +50,17 @@
 #WriteQueueLimitHigh 1000000
 #WriteQueueLimitLow   800000
 
+#----------------------------------------------------------------------------#
+# StartRead specifies when the first read for each read plugin is performed. #
+# The float value is in seconds and specifies the minutes, seconds and       #
+# milliseconds per hour. This may be overwritten on a per-plugin base by     #
+# using the 'StartAt' option of the LoadPlugin block:                       #
+#   <LoadPlugin foo>                                                         #
+#       StartRead 301.42 # minute 5, second 1, millisecond 420               #
+#   </LoadPlugin>                                                            #
+#----------------------------------------------------------------------------#
+#StartRead -1.0
+
 ##############################################################################
 # Logging                                                                    #
 #----------------------------------------------------------------------------#

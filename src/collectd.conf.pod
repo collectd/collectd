@@ -9,6 +9,7 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/var/lib/collectd"
   PIDFile "/run/collectd.pid"
   Interval 10.0
+  StartRead -1.0
 
   LoadPlugin cpu
   LoadPlugin load
@@ -138,6 +139,13 @@ defined in this plugin. By default, this is disabled.
 =item B<FlushTimeout> I<Seconds>
 
 Specifies the value of the timeout argument of the flush callback.
+
+=item B<StartRead> I<Seconds>
+
+Sets a start time for the specific read plugin. The value is interpreted as 
+minutes, seconds and milliseconds of an hour. This plugin setting overrides the
+global B<StartRead> setting. If a plugin provides its own support for specifying
+a start time, that setting will take precedence.
 
 =back
 
@@ -320,6 +328,13 @@ to the same value.
 
 Enabling the B<CollectInternalStats> option is of great help to figure out the
 values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
+
+=item B<StartRead> I<Seconds>
+
+Configures when read plugins start execution. This allows the acquisition of 
+metrics at specific times, e.g. at round points in time. It also allows 
+staggered reading (even within a second) to prevent measurements from affecting 
+each other.
 
 =item B<Hostname> I<Name>
 
