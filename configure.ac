@@ -5518,7 +5518,7 @@ AC_ARG_WITH([libupsclient],
     else if test "x$withval" = "xyes"; then
       with_libupsclient="use_pkgconfig"
     else
-      if test -x "$withval"; then
+      if test -f "$withval" && test -x "$withval"; then
         with_libupsclient_config="$withval"
         with_libupsclient="use_libupsclient_config"
       else if test -x "$withval/bin/libupsclient-config"; then
