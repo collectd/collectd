@@ -2722,6 +2722,7 @@ if test "x$withval" != "xno"; then
   else
     AC_MSG_RESULT([no])
     with_libgrpcpp="no (requires C++11 support)"
+    with_libprotobuf="no (<google/protobuf/util/time_util.h> requires C++11 support)"
   fi
 fi
 
@@ -4568,7 +4569,7 @@ if test "x$withval" != "xno"; then
   AC_CHECK_LIB([protobuf], [main],
     [
       SAVE_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="$with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
+      CPPFLAGS="-std=c++11 $with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
       if test "x$PROTOBUF_LIBS" = "x"
       then
         PROTOBUF_LIBS="-lprotobuf"
