@@ -910,6 +910,11 @@ static int exec_shutdown(void) /* {{{ */
       INFO("exec plugin: Sent SIGTERM to %hu", (unsigned short int)pl->pid);
     }
 
+    for (int i = 0; pl->argv[i] != NULL; i++) {
+      sfree(pl->argv[i]);
+    }
+    sfree(pl->argv);
+    sfree(pl->exec);
     sfree(pl->user);
     sfree(pl);
 
