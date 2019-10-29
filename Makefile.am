@@ -2217,13 +2217,16 @@ BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
 
 collectd.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
-		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $<
+		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) \
+	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 types.pb.cc: $(srcdir)/proto/types.proto
-	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) \
+	$(srcdir)/proto/types.proto
 endif
 endif
 
