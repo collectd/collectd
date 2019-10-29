@@ -32,7 +32,8 @@
 #include <unistd.h>
 
 #define MAX_ORDER 11
-#define BUDDYINFO_FIELDS MAX_ORDER + 2 // "zone" + Name + (MAX_ORDER entries)
+#define BUDDYINFO_FIELDS                                                       \
+  MAX_ORDER + 4 // "Node" + node_num + "zone" + Name + (MAX_ORDER entries)
 #define NUM_OF_KB(pagesize, order) ((pagesize) / 1024) * (1 << (order))
 
 static const char *config_keys[] = {"Zone"};
@@ -43,9 +44,10 @@ static ignorelist_t *ignorelist;
 static int buddyinfo_config(const char *key, const char *value) {
   if (ignorelist == NULL) {
     ignorelist = ignorelist_create(1);
-    if (ignorelist != NULL) {
+    if (ignorelist == NULL) {
+      ERROR("buddyinfo plugin: ignorelist_create failed");
       sfree(ignorelist);
-      return ENOMEM;
+      return -ENOMEM;
     }
   }
 
@@ -62,8 +64,8 @@ static int buddyinfo_config(const char *key, const char *value) {
   return 0;
 }
 
-static void buddyinfo_submit(const char *zone, const char *size,
-                             const int freepages) {
+static void buddyinfo_submit(const char *zone_fullname, const char *zone,
+                             const char *size, const int freepages) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t value = {.gauge = freepages};
 
@@ -73,7 +75,7 @@ static void buddyinfo_submit(const char *zone, const char *size,
   vl.values = &value;
   vl.values_len = 1;
   sstrncpy(vl.plugin, "buddyinfo", sizeof(vl.plugin));
-  sstrncpy(vl.plugin_instance, zone, sizeof(vl.plugin_instance));
+  sstrncpy(vl.plugin_instance, zone_fullname, sizeof(vl.plugin_instance));
   sstrncpy(vl.type, "freepages", sizeof(vl.type));
   sstrncpy(vl.type_instance, size, sizeof(vl.type_instance));
 
@@ -82,10 +84,10 @@ static void buddyinfo_submit(const char *zone, const char *size,
 
 static int buddyinfo_read(void) {
   FILE *fh;
-  char buffer[1024], pagesize_kb[8];
+  char buffer[1024], pagesize_kb[8], zone_fullname[16];
   char *dummy, *zone;
   char *fields[BUDDYINFO_FIELDS];
-  int numfields, pagesize = getpagesize();
+  int node_num, numfields, pagesize = getpagesize();
 
   if ((fh = fopen("/proc/buddyinfo", "r")) == NULL) {
     WARNING("buddyinfo plugin: fopen: %s", STRERRNO);
@@ -93,7 +95,7 @@ static int buddyinfo_read(void) {
   }
 
   while (fgets(buffer, sizeof(buffer), fh) != NULL) {
-    if (!(dummy = strstr(buffer, "zone")))
+    if (!(dummy = strstr(buffer, "Node")))
       continue;
 
     numfields = strsplit(dummy, fields, BUDDYINFO_FIELDS);
@@ -103,11 +105,14 @@ static int buddyinfo_read(void) {
       continue;
     }
 
-    zone = fields[1];
+    node_num = atoi(fields[1]);
+    zone = fields[3];
+    ssnprintf(zone_fullname, sizeof(zone_fullname), "Node%d/%s", node_num,
+              zone);
     for (int i = 1; i <= MAX_ORDER; i++) {
       ssnprintf(pagesize_kb, sizeof(pagesize_kb), "%dKB",
                 NUM_OF_KB(pagesize, i - 1));
-      buddyinfo_submit(zone, pagesize_kb, (int)atoll(fields[i + 1]));
+      buddyinfo_submit(zone_fullname, zone, pagesize_kb, atoi(fields[i + 3]));
     }
   }
 
