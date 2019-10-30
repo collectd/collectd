@@ -5399,7 +5399,7 @@ AC_ARG_WITH([libtokyotyrant],
       with_libtokyotyrant="$withval"
     else
       with_libtokyotyrant_cppflags="-I$withval/include"
-      with_libtokyotyrant_ldflags="-L$withval/include"
+      with_libtokyotyrant_ldflags="-L$withval/lib"
       with_libtokyotyrant_libs="-ltokyotyrant"
       with_libtokyotyrant="yes"
     fi
