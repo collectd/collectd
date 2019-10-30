@@ -46,7 +46,6 @@ static int buddyinfo_config(const char *key, const char *value) {
     ignorelist = ignorelist_create(1);
     if (ignorelist == NULL) {
       ERROR("buddyinfo plugin: ignorelist_create failed");
-      sfree(ignorelist);
       return -ENOMEM;
     }
   }
