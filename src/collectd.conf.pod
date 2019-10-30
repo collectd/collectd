@@ -142,10 +142,12 @@ Specifies the value of the timeout argument of the flush callback.
 
 =item B<StartRead> I<Seconds>
 
-Sets a start time for the specific read plugin. The value is interpreted as 
-minutes, seconds and milliseconds of an hour. This plugin setting overrides the
-global B<StartRead> setting. If a plugin provides its own support for specifying
-a start time, that setting will take precedence.
+Sets the read time for the initial read for the specific read plugin. This 
+plugin setting overrides the global B<StartRead> setting. It allows the ordered 
+execution of read plugins to ensure staggered reading even when multiple read 
+threads are used together with groups where each read plugin is started 
+at the same time. Staggered reading within the range of milliseconds enables
+round timestamps (within the range of seconds) to be preserved. 
 
 =back
 
@@ -331,10 +333,16 @@ values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
 
 =item B<StartRead> I<Seconds>
 
-Configures when read plugins start execution. This allows the acquisition of 
-metrics at specific times, e.g. at round points in time. It also allows 
-staggered reading (even within a second) to prevent measurements from affecting 
-each other.
+Configures when read plugins start the execution of their first read. This can 
+be used to force round timestamps, e.g. every full minute by setting StartRead 
+to 0 and Interval to 60. The float value is in seconds. Values greater or equal 
+than 60 are interpreted as minutes of an hour. Smaller values are interpreted 
+as seconds of a minute (value mod 60). Decimal places represent milliseconds of 
+a second. 
+To minimize the initial delay, the first read is determined based on the 
+collectd start time, the requested StartRead and the Interval values. Assuming 
+collectd starts in the 13th second of the minute, the start second should be 0 
+and the interval 30s, the initial reading is delayed by 17s until second 30.
 
 =item B<Hostname> I<Name>
 

@@ -1099,7 +1099,7 @@ static int plugin_insert_read(read_func_t *rf) {
         (((tv.tv_sec / 60) % 60) * 60 // minute of hour in seconds
          + gmtime(&(tv.tv_sec))->tm_sec) *
             1000             // add seconds of minute and convert to ms
-        + tv.tv_usec / 1000; // add ms
+        + tv.tv_usec / 1000; // add millisecond of second
 
     /* convert to cdt time */
     cdtime_t curr_cdt = MS_TO_CDTIME_T(curr_msec);

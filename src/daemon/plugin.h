@@ -456,7 +456,7 @@ cdtime_t plugin_get_interval(void);
  * DESCRIPTION
  *  This function returns the current value of the plugin's start time. The
  *  return value will be a positive value in all cases. If
- *  everything else fails, it will fall back to 0.
+ *  everything else fails, it will fall back to -1.0 (StartRead not set).
  */
 double plugin_get_start_time(void);
 
