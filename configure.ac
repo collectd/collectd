@@ -99,6 +99,10 @@ case $host_os in
     AC_DEFINE([KERNEL_SOLARIS], [1], [True if program is to be compiled for a Solaris kernel])
     ac_system="Solaris"
     ;;
+  *mingw32*)
+    AC_DEFINE([KERNEL_WIN32], [1], [True if program is to be compiled for a Windows kernel])
+    ac_system="Windows"
+    ;;
   *)
     ac_system="unknown"
     ;;
@@ -111,6 +115,7 @@ AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
 AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
 AM_CONDITIONAL([BUILD_OPENBSD], [test "x$ac_system" = "xOpenBSD"])
 AM_CONDITIONAL([BUILD_SOLARIS], [test "x$ac_system" = "xSolaris"])
+AM_CONDITIONAL([BUILD_WIN32], [test "x$ac_system" = "xWindows"])
 
 if test "x$ac_system" = "xSolaris"; then
   AC_DEFINE([_POSIX_PTHREAD_SEMANTICS], [1], [Define to enforce POSIX thread semantics under Solaris.])
@@ -160,6 +165,7 @@ AC_CHECK_HEADERS_ONCE([ \
   kstat.h \
   kvm.h \
   libgen.h \
+  locale.h \
   mntent.h \
   mnttab.h \
   netdb.h \
@@ -550,6 +556,12 @@ if test "x$ac_system" = "xLinux"; then
     AC_DEFINE([HAVE_CAPABILITY], [1], [Define to 1 if you have cap_get_proc() (-lcap).])
   fi
 
+  # For pcie_errors plugin
+  AC_CHECK_HEADERS([linux/pci_regs.h],
+    [have_pci_regs_h="yes"],
+    [have_pci_regs_h="no (linux/pci_regs.h not found)"]
+  )
+
 else
   have_linux_raid_md_u_h="no"
   have_linux_wireless_h="no"
@@ -623,16 +635,6 @@ if test "x$enable_xfs" != "xno"; then
 fi
 
 # }}}
-
-# For the dns plugin
-AC_CHECK_HEADERS([arpa/nameser.h])
-AC_CHECK_HEADERS([arpa/nameser_compat.h], [], [],
-  [[
-    #if HAVE_ARPA_NAMESER_H
-    # include <arpa/nameser.h>
-    #endif
-  ]]
-)
 
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
   [[
@@ -741,34 +743,26 @@ test_cxx_flags() {
 #
 AC_CHECK_FUNCS_ONCE([ \
     asprintf \
-    closelog \
-    getaddrinfo \
-    getgrnam_r \
-    getnameinfo \
+    execvpe \
+    getpwnam \
     getpwnam_r \
-    gettimeofday \
     if_indextoname \
-    openlog \
-    regcomp \
-    regerror \
-    regexec \
-    regfree \
-    select \
-    setenv \
     setgroups \
-    strcasecmp \
-    strdup \
-    strncasecmp \
-    sysconf
+    setlocale
   ]
 )
 
 AC_FUNC_STRERROR_R
 
-SAVE_CFLAGS="$CFLAGS"
-# Emulate behavior of src/Makefile.am
 if test "x$GCC" = "xyes"; then
+  SAVE_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -Wall -Werror"
+fi
+SAVE_LDFLAGS="$LDFLAGS"
+LDFLAGS=""
+if test "x$ac_system" = "xWindows"; then
+  # This is exported from build.sh
+  LDFLAGS="$LDFLAGS -L${GNULIB_DIR}"
 fi
 
 AC_CACHE_CHECK([for strtok_r],
@@ -842,6 +836,7 @@ if test "x$c_cv_have_strtok_r_default" = "xno"; then
 fi
 
 CFLAGS="$SAVE_CFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
 if test "x$c_cv_have_strtok_r_reentrant" = "xyes"; then
   CFLAGS="$CFLAGS -D_REENTRANT=1"
 fi
@@ -851,11 +846,28 @@ AC_CHECK_FUNCS([socket],
   [
     AC_CHECK_LIB([socket], [socket],
       [socket_needs_socket="yes"],
-      [AC_MSG_ERROR([cannot find socket() in libsocket])]
+      [
+        AC_CHECK_LIB([gnu], [rpl_socket],
+          [socket_needs_gnulib="yes"],
+          [AC_MSG_ERROR([cannot find socket() in libsocket])]
+        )
+      ]
     )
   ]
 )
 AM_CONDITIONAL([BUILD_WITH_LIBSOCKET], [test "x$socket_needs_socket" = "xyes"])
+AM_CONDITIONAL([BUILD_WITH_GNULIB], [test "x$socket_needs_gnulib" = "xyes"])
+
+AC_CHECK_FUNCS([inet_ntop],
+  [],
+  [
+    AC_CHECK_LIB([nsl], [inet_ntop],
+      [inet_ntop_needs_nsl="yes"],
+      [AC_MSG_ERROR([cannot find inet_ntop() in libnsl])]
+    )
+  ]
+)
+AM_CONDITIONAL([BUILD_WITH_LIBNSL], [test "x$inet_ntop_needs_nsl" = "xyes"])
 
 clock_gettime_needs_posix4="no"
 AC_CHECK_FUNCS([clock_gettime],
@@ -1561,13 +1573,13 @@ if test "x$have_getmntent" = "xlibc"; then
       AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
-            [[#include "$srcdir/src/utils_mount.h"]],
+            [[#include "$srcdir/src/utils/mount/mount.h"]],
             [[
               FILE *fh;
               struct mntent *me;
               fh = setmntent ("/etc/mtab", "r");
               me = getmntent (fh);
-              return(me->mnt_passno);
+              return me->mnt_passno;
             ]]
           )
         ],
@@ -1583,14 +1595,14 @@ if test "x$have_getmntent" = "xlibc"; then
       AC_COMPILE_IFELSE(
         [
           AC_LANG_PROGRAM(
-            [[#include "$srcdir/src/utils_mount.h"]],
+            [[#include "$srcdir/src/utils/mount/mount.h"]],
             [[
               FILE *fh;
               struct mnttab mt;
               int status;
               fh = fopen ("/etc/mnttab", "r");
               status = getmntent (fh, &mt);
-              return(status);
+              return status;
             ]]
           )
         ],
@@ -1878,14 +1890,23 @@ fi
 
 # libi2c-dev
 if test "x$ac_system" = "xLinux"; then
+  with_libi2c_libs=""
+  AC_CHECK_HEADERS([i2c/smbus.h],
+    [with_libi2c_libs="-li2c"]
+  )
   AC_CHECK_DECL([i2c_smbus_read_i2c_block_data],
     [with_libi2c="yes"],
     [with_libi2c="no (symbol i2c_smbus_read_i2c_block_data not found - have you installed libi2c-dev ?)"],
     [[
       #include <stdlib.h>
       #include <linux/i2c-dev.h>
+      #if HAVE_I2C_SMBUS_H
+      # include <i2c/smbus.h>
+      #endif
     ]]
   )
+  BUILD_WITH_LIBI2C_LIBS="$with_libi2c_libs"
+  AC_SUBST([BUILD_WITH_LIBI2C_LIBS])
 else
   with_libi2c="no (Linux only)"
 fi
@@ -2043,6 +2064,45 @@ if test "x$with_kvm_openfiles" = "xyes"; then
   with_libkvm="yes"
 fi
 
+# --with-cuda {{{
+AC_ARG_WITH([cuda],
+  [AS_HELP_STRING([--with-cuda@<:@=PREFIX@:>@], [Path to cuda.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_cuda_cppflags="-I$withval/include"
+      with_cuda_ldflags="-I$withval/lib"
+      with_cuda="yes"
+    else
+      with_cuda="$withval"
+    fi
+  ],
+  [with_cuda="no"]
+)
+
+if test "x$with_cuda" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_cuda_cppflags"
+
+  AC_CHECK_HEADERS([nvml.h],
+    [with_cuda="yes"],
+    [with_cuda="no (nvml.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_cuda" = "xyes"; then
+  BUILD_WITH_CUDA_CPPFLAGS="$CUDA_CPPFLAGS"
+  BUILD_WITH_CUDA_LDFLAGS="$CUDA_LDFLAGS"
+  BUILD_WITH_CUDA_LIBS="-lnvidia-ml"
+fi
+
+AC_SUBST([BUILD_WITH_CUDA_CPPFLAGS])
+AC_SUBST([BUILD_WITH_CUDA_LDFLAGS])
+AC_SUBST([BUILD_WITH_CUDA_LIBS])
+
+# }}}
+
 # --with-libaquaero5 {{{
 AC_ARG_WITH([libaquaero5],
   [AS_HELP_STRING([--with-libaquaero5@<:@=PREFIX@:>@], [Path to aquatools-ng source code.])],
@@ -2066,9 +2126,6 @@ CPPFLAGS="$CPPFLAGS $LIBAQUAERO5_CFLAGS"
 LDFLAGS="$LDFLAGS $LIBAQUAERO5_LDFLAGS"
 
 if test "x$with_libaquaero5" = "xyes"; then
-  if test "x$LIBAQUAERO5_CFLAGS" != "x"; then
-    AC_MSG_NOTICE([libaquaero5 CPPFLAGS: $LIBAQUAERO5_CFLAGS])
-  fi
   AC_CHECK_HEADERS([libaquaero5.h],
     [with_libaquaero5="yes"],
     [with_libaquaero5="no (libaquaero5.h not found)"]
@@ -2076,9 +2133,6 @@ if test "x$with_libaquaero5" = "xyes"; then
 fi
 
 if test "x$with_libaquaero5" = "xyes"; then
-  if test "x$LIBAQUAERO5_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libaquaero5 LDFLAGS: $LIBAQUAERO5_LDFLAGS])
-  fi
   AC_CHECK_LIB([aquaero5], libaquaero5_poll,
     [with_libaquaero5="yes"],
     [with_libaquaero5="no (symbol 'libaquaero5_poll' not found)"]
@@ -2119,9 +2173,6 @@ CPPFLAGS="$CPPFLAGS $LIBHIREDIS_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBHIREDIS_LDFLAGS"
 
 if test "x$with_libhiredis" = "xyes"; then
-  if test "x$LIBHIREDIS_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libhiredis CPPFLAGS: $LIBHIREDIS_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([hiredis/hiredis.h],
     [with_libhiredis="yes"],
     [with_libhiredis="no (hiredis.h not found)"]
@@ -2129,9 +2180,6 @@ if test "x$with_libhiredis" = "xyes"; then
 fi
 
 if test "x$with_libhiredis" = "xyes"; then
-  if test "x$LIBHIREDIS_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libhiredis LDFLAGS: $LIBHIREDIS_LDFLAGS])
-  fi
   AC_CHECK_LIB([hiredis], [redisCommand],
     [with_libhiredis="yes"],
     [with_libhiredis="no (symbol 'redisCommand' not found)"]
@@ -2273,6 +2321,8 @@ fi
 
 AC_SUBST(BUILD_WITH_LIBCURL_CFLAGS)
 AC_SUBST(BUILD_WITH_LIBCURL_LIBS)
+
+AM_CONDITIONAL([BUILD_WITH_LIBCURL], [test "x$with_libcurl" = "xyes"])
 # }}}
 
 # --with-libdbi {{{
@@ -2380,13 +2430,30 @@ if test "x$with_libdpdk" != "xno"; then
 fi
 
 if test "x$with_libdpdk" = "xyes"; then
+  SAVE_LIBS="$LIBS"
+  LIBS="$LIBDPDK_LIBS $LIBS"
   SAVE_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LIBDPDK_LDFLAGS $LDFLAGS"
-  AC_CHECK_LIB([dpdk], [rte_eal_init],
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$LIBDPDK_CPPFLAGS $CPPFLAGS"
+  SAVE_CFLAGS="$CFLAGS"
+  CFLAGS="$LIBDPDK_CFLAGS $CFLAGS"
+  AC_LINK_IFELSE(
+    [
+      AC_LANG_PROGRAM(
+        [[
+          #include <rte_eal.h>
+        ]],
+        [[return rte_eal_init(0, NULL);]]
+      )
+    ],
     [with_libdpdk="yes"],
     [with_libdpdk="no (symbol 'rte_eal_init' not found)"]
   )
+  LIBS="$SAVE_LIBS"
   LDFLAGS="$SAVE_LDFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  CFLAGS="$SAVE_CFLAGS"
 fi
 
 # }}}
@@ -2550,9 +2617,6 @@ LDFLAGS="$LDFLAGS $GCRYPT_LDFLAGS"
 LIBS="$LIBS $GCRYPT_LIBS"
 
 if test "x$with_libgcrypt" = "xyes"; then
-  if test "x$GCRYPT_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([gcrypt CPPFLAGS: $GCRYPT_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([gcrypt.h],
     [with_libgcrypt="yes"],
     [with_libgcrypt="no (gcrypt.h not found)"]
@@ -2635,6 +2699,7 @@ AC_ARG_WITH([libgrpc++],
     if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
       with_libgrpcpp_cppflags="-I$withval/include"
       with_libgrpcpp_ldflags="-L$withval/lib"
+      with_libgrpcpp_bin="$withval/bin"
       with_libgrpcpp="yes"
     fi
     if test "x$withval" = "xno"; then
@@ -2657,6 +2722,7 @@ if test "x$withval" != "xno"; then
   else
     AC_MSG_RESULT([no])
     with_libgrpcpp="no (requires C++11 support)"
+    with_libprotobuf="no (<google/protobuf/util/time_util.h> requires C++11 support)"
   fi
 fi
 
@@ -2714,7 +2780,11 @@ AC_SUBST([BUILD_WITH_LIBGRPCPP_LIBS])
 # }}}
 
 AC_ARG_VAR([GRPC_CPP_PLUGIN], [path to the grpc_cpp_plugin binary])
-AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+if test "x$with_libgrpcpp_bin" = "x"; then
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin])
+else
+  AC_PATH_PROG([GRPC_CPP_PLUGIN], [grpc_cpp_plugin], [], "$with_libgrpcpp_bin:$PATH")
+fi
 AM_CONDITIONAL([HAVE_GRPC_CPP], [test "x$GRPC_CPP_PLUGIN" != "x"])
 
 # --with-libiptc {{{
@@ -2884,18 +2954,6 @@ if test "x$with_java" = "xyes"; then
   fi; fi
 fi
 
-if test "x$JAVA_CPPFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_CPPFLAGS set to: $JAVA_CPPFLAGS])
-fi
-if test "x$JAVA_CFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_CFLAGS set to: $JAVA_CFLAGS])
-fi
-if test "x$JAVA_LDFLAGS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_LDFLAGS set to: $JAVA_LDFLAGS])
-fi
-if test "x$JAVA_LIBS" != "x"; then
-  AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
-fi
 if test "x$JAVAC" = "x"; then
   with_javac_path="$PATH"
   if test "x$with_java_home" != "x"; then
@@ -2953,7 +3011,6 @@ fi
 
 if test "x$with_java" = "xyes"; then
   JAVA_LIBS="$JAVA_LIBS -ljvm"
-  AC_MSG_NOTICE([Building with JAVA_LIBS set to: $JAVA_LIBS])
 fi
 
 CPPFLAGS="$SAVE_CPPFLAGS"
@@ -2993,10 +3050,6 @@ CPPFLAGS="$CPPFLAGS $LIBLDAP_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBLDAP_LDFLAGS"
 
 if test "x$with_libldap" = "xyes"; then
-  if test "x$LIBLDAP_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libldap CPPFLAGS: $LIBLDAP_CPPFLAGS])
-  fi
-
   AC_CHECK_HEADERS([ldap.h],
     [with_libldap="yes"],
     [with_libldap="no ('ldap.h' not found)"]
@@ -3004,10 +3057,6 @@ if test "x$with_libldap" = "xyes"; then
 fi
 
 if test "x$with_libldap" = "xyes"; then
-  if test "x$LIBLDAP_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libldap LDFLAGS: $LIBLDAP_LDFLAGS])
-  fi
-
   AC_CHECK_LIB([ldap], [ldap_initialize],
     [with_libldap="yes"],
     [with_libldap="no (symbol 'ldap_initialize' not found)"]
@@ -3044,18 +3093,33 @@ else
           PKG_CHECK_MODULES([LUA], [lua5.3],
             [with_liblua="yes"],
             [
-              PKG_CHECK_MODULES([LUA], [lua-5.2],
+              PKG_CHECK_MODULES([LUA], [lua53],
                 [with_liblua="yes"],
                 [
-                  PKG_CHECK_MODULES([LUA], [lua5.2],
+                  PKG_CHECK_MODULES([LUA], [lua-5.2],
                     [with_liblua="yes"],
                     [
-                      PKG_CHECK_MODULES([LUA], [lua-5.1],
+                      PKG_CHECK_MODULES([LUA], [lua5.2],
                         [with_liblua="yes"],
                         [
-                          PKG_CHECK_MODULES([LUA], [lua5.1],
+                          PKG_CHECK_MODULES([LUA], [lua52],
                             [with_liblua="yes"],
-                            [with_liblua="no (pkg-config cannot find liblua)"]
+                            [
+                              PKG_CHECK_MODULES([LUA], [lua-5.1],
+                                [with_liblua="yes"],
+                                [
+                                  PKG_CHECK_MODULES([LUA], [lua5.1],
+                                    [with_liblua="yes"],
+                                    [
+                                      PKG_CHECK_MODULES([LUA], [lua51],
+                                        [with_liblua="yes"],
+                                        [with_liblua="no (pkg-config cannot find liblua)"]
+                                      )
+                                    ]
+                                  )
+                                ]
+                              )
+                            ]
                           )
                         ]
                       )
@@ -3104,67 +3168,6 @@ then
 fi
 AC_SUBST(BUILD_WITH_LIBLUA_CFLAGS)
 AC_SUBST(BUILD_WITH_LIBLUA_LIBS)
-# }}}
-
-# --with-liblvm2app {{{
-AC_ARG_WITH([liblvm2app],
-  [AS_HELP_STRING([--with-liblvm2app@<:@=PREFIX@:>@], [Path to liblvm2app.])],
-  [
-    if test "x$withval" = "xno"; then
-      with_liblvm2app="no"
-    else
-      with_liblvm2app="yes"
-      if test "x$withval" != "xyes"; then
-        with_liblvm2app_cppflags="-I$withval/include"
-        with_liblvm2app_ldflags="-L$withval/lib"
-      fi
-    fi
-  ],
-  [
-    if test "x$ac_system" = "xLinux"; then
-      with_liblvm2app="yes"
-    else
-      with_liblvm2app="no (Linux only library)"
-    fi
-  ]
-)
-
-if test "x$with_liblvm2app" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
-
-  AC_CHECK_HEADERS([lvm2app.h],
-    [with_liblvm2app="yes"],
-    [with_liblvm2app="no (lvm2app.h not found)"]
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-fi
-
-if test "x$with_liblvm2app" = "xyes"; then
-  SAVE_CPPFLAGS="$CPPFLAGS"
-  SAVE_LDFLAGS="$LDFLAGS"
-  CPPFLAGS="$CPPFLAGS $with_liblvm2app_cppflags"
-  LDFLAGS="$LDFLAGS $with_liblvm2app_ldflags"
-
-  AC_CHECK_LIB([lvm2app], [lvm_lv_get_property],
-    [with_liblvm2app="yes"],
-    [with_liblvm2app="no (Symbol 'lvm_lv_get_property' not found)"]
-  )
-
-  CPPFLAGS="$SAVE_CPPFLAGS"
-  LDFLAGS="$SAVE_LDFLAGS"
-fi
-
-if test "x$with_liblvm2app" = "xyes"; then
-  BUILD_WITH_LIBLVM2APP_CPPFLAGS="$with_liblvm2app_cppflags"
-  BUILD_WITH_LIBLVM2APP_LDFLAGS="$with_liblvm2app_ldflags"
-  BUILD_WITH_LIBLVM2APP_LIBS="-llvm2app"
-fi
-
-AC_SUBST([BUILD_WITH_LIBLVM2APP_CPPFLAGS])
-AC_SUBST([BUILD_WITH_LIBLVM2APP_LDFLAGS])
-AC_SUBST([BUILD_WITH_LIBLVM2APP_LIBS])
 # }}}
 
 # --with-libmemcached {{{
@@ -3300,7 +3303,6 @@ AC_ARG_WITH([libmodbus],
 
 # configure using pkg-config
 if test "x$with_libmodbus" = "xuse_pkgconfig"; then
-  AC_MSG_NOTICE([Checking for libmodbus using $PKG_CONFIG])
   $PKG_CONFIG --exists 'libmodbus' 2>/dev/null
   if test $? -ne 0; then
     with_libmodbus="no (pkg-config doesn't know libmodbus)"
@@ -3383,10 +3385,6 @@ if test "x$with_libmongoc" = "xyes"; then
 
   CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
 
-  if test "x$CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc CPPFLAGS: $LIBMONGOC_CFLAGS])
-  fi
-
   AC_CHECK_HEADERS([mongoc.h],
     [with_libmongoc="yes"],
     [with_libmongoc="no ('mongoc.h' not found)"]
@@ -3402,10 +3400,6 @@ if test "x$with_libmongoc" = "xyes"; then
   CPPFLAGS="$CPPFLAGS $LIBMONGOC_CFLAGS"
   LDFLAGS="$LDFLAGS $LIBMONGOC_LDFLAGS"
 
-  if test "x$LIBMONGOC_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([libmongoc LDFLAGS: $LIBMONGOC_LDFLAGS])
-  fi
-
   AC_CHECK_LIB([mongoc-1.0], [mongoc_init],
     [with_libmongoc="yes"],
     [with_libmongoc="no (symbol 'mongoc_init' not found)"]
@@ -3418,10 +3412,12 @@ fi
 if test "x$with_libmongoc" = "xyes"; then
   BUILD_WITH_LIBMONGOC_CFLAGS="$LIBMONGOC_CFLAGS"
   BUILD_WITH_LIBMONGOC_LDFLAGS="$LIBMONGOC_LDFLAGS"
+  BUILD_WITH_LIBMONGOC_LIBS="$LIBMONGOC_LIBS"
 fi
 
 AC_SUBST([BUILD_WITH_LIBMONGOC_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMONGOC_LDFLAGS])
+AC_SUBST([BUILD_WITH_LIBMONGOC_LIBS])
 # }}}
 
 # --with-libmosquitto {{{
@@ -3655,6 +3651,18 @@ if test "x$with_libmnl" = "xyes"; then
     [[#include <linux/if_link.h>]]
   )
 
+  AC_CHECK_MEMBERS([struct rtnl_link_stats.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
+  AC_CHECK_MEMBERS([struct rtnl_link_stats64.rx_nohandler],
+    [],
+    [],
+    [[#include <linux/if_link.h>]]
+  )
+
   AC_CHECK_LIB([mnl], [mnl_nlmsg_get_payload],
     [with_libmnl="yes"],
     [with_libmnl="no (symbol 'mnl_nlmsg_get_payload' not found)"],
@@ -3668,6 +3676,7 @@ if test "x$with_libmnl" = "xyes"; then
 fi
 AC_SUBST([BUILD_WITH_LIBMNL_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBMNL_LIBS])
+AM_CONDITIONAL([HAVE_LIBMNL], [test "x$with_libmnl" = "xyes"])
 # }}}
 
 # --with-libnetapp {{{
@@ -3694,9 +3703,6 @@ CPPFLAGS="$CPPFLAGS $LIBNETAPP_CPPFLAGS"
 LDFLAGS="$LDFLAGS $LIBNETAPP_LDFLAGS"
 
 if test "x$with_libnetapp" = "xyes"; then
-  if test "x$LIBNETAPP_CPPFLAGS" != "x"; then
-    AC_MSG_NOTICE([netapp CPPFLAGS: $LIBNETAPP_CPPFLAGS])
-  fi
   AC_CHECK_HEADERS([netapp_api.h],
     [with_libnetapp="yes"],
     [with_libnetapp="no (netapp_api.h not found)"]
@@ -3704,15 +3710,9 @@ if test "x$with_libnetapp" = "xyes"; then
 fi
 
 if test "x$with_libnetapp" = "xyes"; then
-  if test "x$LIBNETAPP_LDFLAGS" != "x"; then
-    AC_MSG_NOTICE([netapp LDFLAGS: $LIBNETAPP_LDFLAGS])
-  fi
-
   if test "x$LIBNETAPP_LIBS" = "x"; then
     LIBNETAPP_LIBS="$PTHREAD_LIBS -lxml -ladt -lssl -lm -lcrypto -lz"
   fi
-
-  AC_MSG_NOTICE([netapp LIBS: $LIBNETAPP_LIBS])
 
   AC_CHECK_LIB([netapp], [na_server_invoke_elem],
     [with_libnetapp="yes"],
@@ -3775,11 +3775,70 @@ if test "x$with_libnetsnmp" = "xyes"; then
   LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
 
   AC_CHECK_LIB([netsnmp], [init_snmp],
-    [with_libnetsmp="yes"],
+    [with_libnetsnmp="yes"],
     [with_libnetsnmp="no (libnetsnmp not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmp" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
+
+  AC_CHECK_LIB([netsnmp], [netsnmp_get_version],
+    [with_libnetsnmp="yes"],
+    [with_libnetsnmp="no (couldn't get libnetsnmp version)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libnetsnmp" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  SAVE_LDFLAGS="$LDFLAGS"
+  SAVE_LIBS="$LIBS"
+  CPPFLAGS="$CPPFLAGS $with_libnetsnmp_cppflags"
+  if test "x$GCC" = "xyes"; then
+    CPPFLAGS="$CPPFLAGS -Wall -Werror"
+  fi
+  LDFLAGS="$LDFLAGS $with_libnetsnmp_ldflags"
+  LIBS="$LIBS -lnetsnmp"
+
+  AC_CACHE_CHECK([whether netsnmp library has old API],
+    [c_cv_have_netsnmp_old_api],
+    [
+      AC_LINK_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[
+              #include <net-snmp/net-snmp-config.h>
+              #include <net-snmp/net-snmp-includes.h>
+            ]],
+            [[
+              netsnmp_variable_list *key = SNMP_MALLOC_TYPEDEF(netsnmp_variable_list);;
+              int val;
+              u_char type = ASN_INTEGER;
+              snmp_set_var_value(key, &val, sizeof(val));
+              snmp_set_var_typed_value(key, type, &val, sizeof(val));
+              return 0;
+            ]]
+          )
+        ],
+        [c_cv_have_netsnmp_old_api="no"],
+        [c_cv_have_netsnmp_old_api="yes"]
+      )
+    ]
+  )
+
+  if test "x$c_cv_have_netsnmp_old_api" = "xyes"; then
+    AC_DEFINE([HAVE_NETSNMP_OLD_API], [1],
+              ["Define 1 if you have old netsnmp API]")
+  fi
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+  LDFLAGS="$SAVE_LDFLAGS"
+  LIBS="$SAVE_LIBS"
 fi
 
 if test "x$with_libnetsnmp" = "xyes"; then
@@ -3793,7 +3852,7 @@ AC_SUBST([BUILD_WITH_LIBNETSNMP_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBNETSNMP_LIBS])
 # }}}
 
-# --with-libnetsmpagent {{{
+# --with-libnetsnmpagent {{{
 AC_ARG_WITH([libnetsnmpagent],
   [AS_HELP_STRING([--with-libnetsnmpagent@<:@=PREFIX@:>@], [Path to libnetsnmpagent.])],
   [
@@ -3842,7 +3901,13 @@ if test "x$with_libnetsnmpagent" = "xyes"; then
   )
 
   AC_CHECK_LIB([netsnmpagent], [init_agent],
-    [with_libnetsnmpagent="yes"],
+    [
+      # libnetsnmp can be built without mib loading support
+      AC_CHECK_LIB([netsnmp], [get_tree],
+        [with_libnetsnmpagent="yes"],
+        [with_libnetsnmpagent="no (libnetsnmp doesn't support mib loading)"]
+      )
+    ],
     [with_libnetsnmpagent="no (libnetsnmpagent not found)"],
     [$libnetsnmphelpers]
   )
@@ -3851,6 +3916,8 @@ if test "x$with_libnetsnmpagent" = "xyes"; then
 fi
 
 if test "x$with_libnetsnmpagent" = "xyes"; then
+  BUILD_WITH_LIBNETSNMPAGENT_CPPFLAGS="$with_libnetsnmpagent_cppflags"
+  BUILD_WITH_LIBNETSNMPAGENT_LDFLAGS="$with_libnetsnmpagent_ldflags"
   BUILD_WITH_LIBNETSNMPAGENT_LIBS="-lnetsnmpagent $libnetsnmphelpers"
 fi
 
@@ -4075,7 +4142,7 @@ if test "x$with_libpcap" = "xyes"; then
             [[#include <pcap.h>]],
             [[
               int val = PCAP_ERROR_IFACE_NOT_UP;
-              return(val);
+              return val;
             ]]
           )
         ],
@@ -4205,7 +4272,10 @@ if test "x$with_libperl" = "xyes"; then
   # (see issues #41 and #42)
   SAVE_CFLAGS="$CFLAGS"
   SAVE_LIBS="$LIBS"
-  CFLAGS="$CFLAGS $PERL_CFLAGS -Wall -Werror"
+  CFLAGS="$CFLAGS $PERL_CFLAGS"
+  if test "x$GCC" = "xyes"; then
+    CFLAGS="$CFLAGS -Wall -Werror"
+  fi
   LIBS="$LIBS $PERL_LIBS"
 
   AC_CACHE_CHECK([for broken Perl_load_module()],
@@ -4499,7 +4569,7 @@ if test "x$withval" != "xno"; then
   AC_CHECK_LIB([protobuf], [main],
     [
       SAVE_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="$with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
+      CPPFLAGS="-std=c++11 $with_libprotobuf_cppflags $PROTOBUF_CFLAGS"
       if test "x$PROTOBUF_LIBS" = "x"
       then
         PROTOBUF_LIBS="-lprotobuf"
@@ -4645,7 +4715,7 @@ if test "$PYTHON_CONFIG" != ""; then
   if test $? -ne 0; then
     with_libpython="no"
   fi
-  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
+  LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs --embed`" || LIBPYTHON_LIBS="`${PYTHON_CONFIG} --libs`"
   if test $? -ne 0; then
     with_libpython="no"
   fi
@@ -4679,6 +4749,56 @@ if test "$with_libpython" != "xno"; then
   LIBS="$SAVE_LIBS"
 fi
 # }}} --with-libpython
+
+# --with-libqpid_proton {{{
+AC_ARG_WITH([libqpid_proton],
+  [AS_HELP_STRING([--with-libqpid_proton@<:@=PREFIX@:>@], [Path to libqpid_proton.])],
+  [
+    if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+      with_libqpid_proton_cppflags="-I$withval/include"
+      with_libqpid_proton_ldflags="-L$withval/lib"
+      with_libqpid_proton="yes"
+    else
+      with_libqpid_proton="$withval"
+    fi
+  ],
+  [with_libqpid_proton="yes"]
+)
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libqpid_proton_cppflags"
+
+  AC_CHECK_HEADERS([proton/proactor.h],
+    [with_libqpid_proton="yes"],
+    [with_libqpid_proton="no (proton/proactor.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libqpid_proton_ldflags"
+
+  AC_CHECK_LIB([qpid-proton], [pn_connection],
+    [with_libqpid_proton="yes"],
+    [with_libqpid_proton="no (Symbol 'pn_connection' not found)"])
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libqpid_proton" = "xyes"; then
+  BUILD_WITH_LIBQPIDPROTON_CPPFLAGS="$with_libqpid_proton_cppflags"
+  BUILD_WITH_LIBQPIDPROTON_LDFLAGS="$with_libqpid_proton_ldflags"
+  BUILD_WITH_LIBQPIDPROTON_LIBS="-lqpid-proton"
+fi
+
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_CPPFLAGS)
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBQPIDPROTON_LIBS)
+
+# }}}
 
 # --with-librabbitmq {{{
 AC_ARG_WITH([librabbitmq],
@@ -5044,6 +5164,27 @@ if test "x$with_libsensors" = "xyes"; then
 fi
 
 if test "x$with_libsensors" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_sensors_cppflags"
+  AC_PREPROC_IFELSE(
+    [
+      AC_LANG_SOURCE(
+        [[
+          #include <sensors/sensors.h>
+          #if SENSORS_API_VERSION < 0x400
+          #error "required libsensors version >= 3.0"
+          #endif
+        ]]
+      )
+    ],
+    [with_libsensors="yes"],
+    [with_libsensors="no (sensors library version 3.0.0 or higher is required)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libsensors" = "xyes"; then
   BUILD_WITH_LIBSENSORS_CPPFLAGS="$with_sensors_cppflags"
   BUILD_WITH_LIBSENSORS_LDFLAGS="$with_sensors_ldflags"
   BUILD_WITH_LIBSENSORS_LIBS="-lsensors"
@@ -5062,6 +5203,55 @@ PKG_CHECK_MODULES([LIBSIGROK], [libsigrok < 0.4],
   [with_libsigrok="yes"],
   [with_libsigrok="no (pkg-config could not find libsigrok)"]
 )
+# }}}
+
+# --with-libssl {{{
+with_libssl_cflags=""
+with_libssl_ldflags=""
+AC_ARG_WITH([libssl], [AS_HELP_STRING([--with-libssl@<:@=PREFIX@:>@], [Path to libssl.])],
+[
+	if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+		with_libssl_cppflags="-I$withval/include"
+		with_libssl_ldflags="-L$withval/lib"
+		with_libssl="yes"
+	else
+		with_libssl="$withval"
+	fi
+],
+[
+	with_libssl="yes"
+])
+if test "x$with_libssl" = "xyes"; then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libssl_cppflags"
+
+  AC_CHECK_HEADERS([openssl/sha.h openssl/blowfish.h openssl/rand.h],
+    [with_libssl="yes"],
+    [with_libssl="no (ssl header not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libssl" = "xyes"; then
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	SAVE_LDFLAGS="$LDFLAGS"
+	CPPFLAGS="$CPPFLAGS $with_libssl_cppflags"
+	LDFLAGS="$LDFLAGS $with_libssl_ldflags"
+
+	AC_CHECK_LIB([ssl], [OPENSSL_init_ssl], [with_libssl="yes"], [with_libssl="no (Symbol 'SSL_library_init' not found)"])
+
+	CPPFLAGS="$SAVE_CPPFLAGS"
+	LDFLAGS="$SAVE_LDFLAGS"
+fi
+if test "x$with_libssl" = "xyes"; then
+	BUILD_WITH_LIBSSL_CFLAGS="$with_libssl_cflags"
+	BUILD_WITH_LIBSSL_LDFLAGS="$with_libssl_ldflags"
+	BUILD_WITH_LIBSSL_LIBS="-lssl -lcrypto"
+	AC_SUBST([BUILD_WITH_LIBSSL_CFLAGS])
+	AC_SUBST([BUILD_WITH_LIBSSL_LDFLAGS])
+	AC_SUBST([BUILD_WITH_LIBSSL_LIBS])
+	AC_DEFINE([HAVE_LIBSSL], [1], [Define if libssl is present and usable.])
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBSSL, test "x$with_libssl" = "xyes")
 # }}}
 
 # --with-libstatgrab {{{
@@ -5363,7 +5553,6 @@ fi
 
 # configure using pkg-config
 if test "x$with_libupsclient" = "xuse_pkgconfig"; then
-  AC_MSG_NOTICE([Checking for libupsclient using $PKG_CONFIG])
   $PKG_CONFIG --exists 'libupsclient' 2>/dev/null
   if test $? -ne 0; then
     with_libupsclient="no (pkg-config doesn't know libupsclient)"
@@ -5524,15 +5713,15 @@ if test "x$with_libxmms" = "xyes"; then
 fi
 
 if test "x$with_libxmms" = "xyes"; then
-  SAVE_CFLAGS="$CFLAGS"
-  CFLAGS="$with_xmms_cflags"
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$with_xmms_cflags"
 
   AC_CHECK_HEADER([xmmsctrl.h],
     [with_libxmms="yes"],
     [with_libxmms="no"],
   )
 
-  CFLAGS="$SAVE_CFLAGS"
+  CPPFLAGS="$SAVE_CPPFLAGS"
 fi
 
 if test "x$with_libxmms" = "xyes"; then
@@ -5619,6 +5808,7 @@ AC_SUBST([BUILD_WITH_LIBYAJL_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBYAJL_LIBS])
 
 AM_CONDITIONAL([BUILD_WITH_LIBYAJL], [test "x$with_libyajl" = "xyes"])
+AM_CONDITIONAL([BUILD_WITH_LIBYAJL2], [test "x$with_libyajl$with_libyajl2" = "xyesyes"])
 # }}}
 
 # --with-mic {{{
@@ -5750,32 +5940,41 @@ AC_SUBST([BUILD_WITH_LIBVARNISH_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBVARNISH_LIBS])
 # }}}
 
-# pkg-config --exists 'libxml-2.0'; pkg-config --exists libvirt {{{
-$PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
-if test $? -eq 0; then
-  with_libxml2="yes"
-else
-  with_libxml2="no (pkg-config doesn't know libxml-2.0)"
-fi
-
-$PKG_CONFIG --exists libvirt 2>/dev/null
-if test $? = 0; then
-  with_libvirt="yes"
-else
-  with_libvirt="no (pkg-config doesn't know libvirt)"
-fi
-
-if test "x$with_libxml2" = "xyes"; then
-  with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
-  if test $? -ne 0; then
-    with_libxml2="no"
-  fi
-
-  with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
-  if test $? -ne 0; then
-    with_libxml2="no"
-  fi
-fi
+# --with-libxml2 {{{
+AC_ARG_WITH(libxml2,
+  [AS_HELP_STRING([--with-libxml2@<:@=PREFIX@:>@], [Path to libxml2.])],
+  [
+    if test "x$withval" = "xno"; then
+      with_libxml2="no"
+    else if test "x$withval" = "xyes"; then
+      $PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
+      if test $? -eq 0; then
+        with_libxml2="yes"
+        with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
+        with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
+      else
+        with_libxml2="no (pkg-config doesn't know libxml-2.0)"
+      fi
+    else
+      with_libxml2="yes"
+      with_libxml2_cflags="-I$withval/include"
+      with_libxml2_ldflags="-L$withval/lib"
+    fi; fi
+  ],
+  dnl  if no argument --with-libxml2 was passed, find the library locations
+  dnl  with pkg-config just like above, when --with-libxml2=yes.
+  [
+    with_libxml2="yes"
+    $PKG_CONFIG --exists 'libxml-2.0' 2>/dev/null
+    if test $? -eq 0; then
+      with_libxml2="yes"
+      with_libxml2_cflags="`$PKG_CONFIG --cflags libxml-2.0`"
+      with_libxml2_ldflags="`$PKG_CONFIG --libs libxml-2.0`"
+    else
+      with_libxml2="no (pkg-config doesn't know libxml-2.0)"
+    fi
+  ]
+)
 
 if test "x$with_libxml2" = "xyes"; then
   SAVE_CPPFLAGS="$CPPFLAGS"
@@ -5808,6 +6007,15 @@ fi
 
 AC_SUBST([BUILD_WITH_LIBXML2_CFLAGS])
 AC_SUBST([BUILD_WITH_LIBXML2_LIBS])
+# }}}
+
+# pkg-config --exists libvirt {{{
+$PKG_CONFIG --exists libvirt 2>/dev/null
+if test $? = 0; then
+  with_libvirt="yes"
+else
+  with_libvirt="no (pkg-config doesn't know libvirt)"
+fi
 
 if test "x$with_libvirt" = "xyes"; then
   with_libvirt_cflags="`$PKG_CONFIG --cflags libvirt`"
@@ -6105,6 +6313,7 @@ plugin_battery="no"
 plugin_bind="no"
 plugin_ceph="no"
 plugin_cgroups="no"
+plugin_connectivity="no"
 plugin_conntrack="no"
 plugin_contextswitch="no"
 plugin_cpu="no"
@@ -6122,6 +6331,7 @@ plugin_ethstat="no"
 plugin_fhcount="no"
 plugin_fscache="no"
 plugin_gps="no"
+plugin_gpu_nvidia="no"
 plugin_grpc="no"
 plugin_hugepages="no"
 plugin_intel_pmu="no"
@@ -6140,15 +6350,18 @@ plugin_nfs="no"
 plugin_numa="no"
 plugin_ovs_events="no"
 plugin_ovs_stats="no"
+plugin_pcie_errors="no"
 plugin_perl="no"
 plugin_pinba="no"
 plugin_processes="no"
+plugin_procevent="no"
 plugin_protocols="no"
 plugin_python="no"
 plugin_serial="no"
 plugin_smart="no"
 plugin_swap="no"
 plugin_synproxy="no"
+plugin_sysevent="no"
 plugin_tape="no"
 plugin_tcpconns="no"
 plugin_ted="no"
@@ -6161,6 +6374,7 @@ plugin_vmem="no"
 plugin_vserver="no"
 plugin_wireless="no"
 plugin_write_prometheus="no"
+plugin_write_stackdriver="no"
 plugin_xencpu="no"
 plugin_zfs_arc="no"
 plugin_zone="no"
@@ -6184,7 +6398,6 @@ if test "x$ac_system" = "xLinux"; then
   plugin_ipc="yes"
   plugin_irq="yes"
   plugin_load="yes"
-  plugin_lvm="yes"
   plugin_mcelog="yes"
   plugin_memory="yes"
   plugin_nfs="yes"
@@ -6217,6 +6430,15 @@ if test "x$ac_system" = "xLinux"; then
   if test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
     plugin_ovs_events="yes"
     plugin_ovs_stats="yes"
+    plugin_procevent="yes"
+
+    if test "x$with_libmnl" = "xyes"; then
+      plugin_connectivity="yes"
+    fi
+  fi
+
+  if test "x$have_pci_regs_h" = "xyes"; then
+    plugin_pcie_errors="yes"
   fi
 fi
 
@@ -6228,7 +6450,6 @@ if test "x$ac_system" = "xNetBSD"; then
   plugin_disk="yes"
   plugin_entropy="yes"
   plugin_irq="yes"
-  plugin_nfs="yes"
   plugin_processes="yes"
 fi
 
@@ -6248,6 +6469,7 @@ fi
 # FreeBSD
 
 if test "x$ac_system" = "xFreeBSD"; then
+  plugin_cpufreq="yes"
   plugin_disk="yes"
   plugin_zfs_arc="yes"
 fi
@@ -6316,12 +6538,17 @@ if test "x$with_libcurl" = "xyes" && test "x$with_libyajl" = "xyes"; then
   plugin_curl_json="yes"
 fi
 
+if test "x$with_libcurl" = "xyes" && test "x$with_libssl" = "xyes" && test "x$with_libyajl" = "xyes" && test "x$with_libyajl2" = "xyes"; then
+  plugin_write_stackdriver="yes"
+fi
+
 if test "x$with_libcurl" = "xyes" && test "x$with_libxml2" = "xyes"; then
   plugin_curl_xml="yes"
 fi
 
 if test "x$with_libyajl" = "xyes"; then
   plugin_ceph="yes"
+  plugin_sysevent="yes"
 fi
 
 if test "x$have_processor_info" = "xyes"; then
@@ -6356,7 +6583,7 @@ if test "x$c_cv_have_one_getmntent" = "xyes"; then
   plugin_df="yes"
 fi
 
-if test "x$c_cv_have_getmntent_r" = "xyes"; then
+if test "x$have_getmntent_r" = "xyes"; then
   plugin_df="yes"
 fi
 
@@ -6379,8 +6606,18 @@ if test "x$with_libgps" = "xyes"; then
   plugin_gps="yes"
 fi
 
-if test "x$with_libgrpcpp" = "xyes" && test "x$with_libprotobuf" = "xyes" && test "x$have_protoc3" = "xyes" && test "x$GRPC_CPP_PLUGIN" != "x"; then
-  plugin_grpc="yes"
+plugin_grpc="yes"
+if test "x$GRPC_CPP_PLUGIN" = "x"; then
+  plugin_grpc="no (grpc_cpp_plugin not found)"
+fi
+if test "x$have_protoc3" != "xyes"; then
+  plugin_grpc="no (protoc3 not found)"
+fi
+if test "x$with_libprotobuf" != "xyes"; then
+  plugin_grpc="no (libprotobuf not found)"
+fi
+if test "x$with_libgrpcpp" != "xyes"; then
+  plugin_grpc="no (libgrpc++ not found)"
 fi
 
 if test "x$have_getifaddrs" = "xyes"; then
@@ -6494,161 +6731,169 @@ AC_ARG_ENABLE([all-plugins],
 
 m4_divert_once([HELP_ENABLE], [])
 
-AC_PLUGIN([aggregation],         [yes],                     [Aggregation plugin])
-AC_PLUGIN([amqp],                [$with_librabbitmq],       [AMQP output plugin])
-AC_PLUGIN([apache],              [$with_libcurl],           [Apache httpd statistics])
-AC_PLUGIN([apcups],              [yes],                     [Statistics of UPSes by APC])
-AC_PLUGIN([apple_sensors],       [$with_libiokit],          [Apple hardware sensors])
-AC_PLUGIN([aquaero],             [$with_libaquaero5],       [Aquaero hardware sensors])
-AC_PLUGIN([ascent],              [$plugin_ascent],          [AscentEmu player statistics])
-AC_PLUGIN([barometer],           [$plugin_barometer],       [Barometer sensor on I2C])
-AC_PLUGIN([battery],             [$plugin_battery],         [Battery statistics])
-AC_PLUGIN([bind],                [$plugin_bind],            [ISC Bind nameserver statistics])
-AC_PLUGIN([ceph],                [$plugin_ceph],            [Ceph daemon statistics])
-AC_PLUGIN([cgroups],             [$plugin_cgroups],         [CGroups CPU usage accounting])
-AC_PLUGIN([chrony],              [yes],                     [Chrony statistics])
-AC_PLUGIN([conntrack],           [$plugin_conntrack],       [nf_conntrack statistics])
-AC_PLUGIN([contextswitch],       [$plugin_contextswitch],   [context switch statistics])
-AC_PLUGIN([cpu],                 [$plugin_cpu],             [CPU usage statistics])
-AC_PLUGIN([cpufreq],             [$plugin_cpufreq],         [CPU frequency statistics])
-AC_PLUGIN([cpusleep],            [$plugin_cpusleep],        [CPU sleep statistics])
-AC_PLUGIN([csv],                 [yes],                     [CSV output plugin])
-AC_PLUGIN([curl],                [$with_libcurl],           [CURL generic web statistics])
-AC_PLUGIN([curl_json],           [$plugin_curl_json],       [CouchDB statistics])
-AC_PLUGIN([curl_xml],            [$plugin_curl_xml],        [CURL generic xml statistics])
-AC_PLUGIN([dbi],                 [$with_libdbi],            [General database statistics])
-AC_PLUGIN([df],                  [$plugin_df],              [Filesystem usage statistics])
-AC_PLUGIN([disk],                [$plugin_disk],            [Disk usage statistics])
-AC_PLUGIN([dns],                 [$with_libpcap],           [DNS traffic analysis])
-AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],      [Events from DPDK])
-AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],        [Stats from DPDK])
-AC_PLUGIN([drbd],                [$plugin_drbd],            [DRBD statistics])
-AC_PLUGIN([email],               [yes],                     [EMail statistics])
-AC_PLUGIN([entropy],             [$plugin_entropy],         [Entropy statistics])
-AC_PLUGIN([ethstat],             [$plugin_ethstat],         [Stats from NIC driver])
-AC_PLUGIN([exec],                [yes],                     [Execution of external programs])
-AC_PLUGIN([fhcount],             [$plugin_fhcount],         [File handles statistics])
-AC_PLUGIN([filecount],           [yes],                     [Count files in directories])
-AC_PLUGIN([fscache],             [$plugin_fscache],         [fscache statistics])
-AC_PLUGIN([gmond],               [$with_libganglia],        [Ganglia plugin])
-AC_PLUGIN([gps],                 [$plugin_gps],             [GPS plugin])
-AC_PLUGIN([grpc],                [$plugin_grpc],            [gRPC plugin])
-AC_PLUGIN([hddtemp],             [yes],                     [Query hddtempd])
-AC_PLUGIN([hugepages],           [$plugin_hugepages],       [Hugepages statistics])
-AC_PLUGIN([intel_pmu],           [$with_libjevents],        [Intel performance monitor plugin])
-AC_PLUGIN([intel_rdt],           [$with_libpqos],           [Intel RDT monitor plugin])
-AC_PLUGIN([interface],           [$plugin_interface],       [Interface traffic statistics])
-AC_PLUGIN([ipc],                 [$plugin_ipc],             [IPC statistics])
-AC_PLUGIN([ipmi],                [$plugin_ipmi],            [IPMI sensor statistics])
-AC_PLUGIN([iptables],            [$with_libiptc],           [IPTables rule counters])
-AC_PLUGIN([ipvs],                [$plugin_ipvs],            [IPVS connection statistics])
-AC_PLUGIN([irq],                 [$plugin_irq],             [IRQ statistics])
-AC_PLUGIN([java],                [$with_java],              [Embed the Java Virtual Machine])
-AC_PLUGIN([load],                [$plugin_load],            [System load])
-AC_PLUGIN([log_logstash],        [$plugin_log_logstash],    [Logstash json_event compatible logging])
-AC_PLUGIN([logfile],             [yes],                     [File logging plugin])
-AC_PLUGIN([lpar],                [$with_perfstat],          [AIX logical partitions statistics])
-AC_PLUGIN([lua],                 [$with_liblua],            [Lua plugin])
-AC_PLUGIN([lvm],                 [$with_liblvm2app],        [LVM statistics])
-AC_PLUGIN([madwifi],             [$have_linux_wireless_h],  [Madwifi wireless statistics])
-AC_PLUGIN([match_empty_counter], [yes],                     [The empty counter match])
-AC_PLUGIN([match_hashed],        [yes],                     [The hashed match])
-AC_PLUGIN([match_regex],         [yes],                     [The regex match])
-AC_PLUGIN([match_timediff],      [yes],                     [The timediff match])
-AC_PLUGIN([match_value],         [yes],                     [The value match])
-AC_PLUGIN([mbmon],               [yes],                     [Query mbmond])
-AC_PLUGIN([mcelog],              [$plugin_mcelog],          [Machine Check Exceptions notifications])
-AC_PLUGIN([md],                  [$have_linux_raid_md_u_h], [md (Linux software RAID) devices])
-AC_PLUGIN([memcachec],           [$with_libmemcached],      [memcachec statistics])
-AC_PLUGIN([memcached],           [yes],                     [memcached statistics])
-AC_PLUGIN([memory],              [$plugin_memory],          [Memory usage])
-AC_PLUGIN([mic],                 [$with_mic],               [Intel Many Integrated Core stats])
-AC_PLUGIN([modbus],              [$with_libmodbus],         [Modbus plugin])
-AC_PLUGIN([mqtt],                [$with_libmosquitto],      [MQTT output plugin])
-AC_PLUGIN([multimeter],          [$plugin_multimeter],      [Read multimeter values])
-AC_PLUGIN([mysql],               [$with_libmysql],          [MySQL statistics])
-AC_PLUGIN([netapp],              [$with_libnetapp],         [NetApp plugin])
-AC_PLUGIN([netlink],             [$with_libmnl],            [Enhanced Linux network statistics])
-AC_PLUGIN([network],             [yes],                     [Network communication plugin])
-AC_PLUGIN([nfs],                 [$plugin_nfs],             [NFS statistics])
-AC_PLUGIN([nginx],               [$with_libcurl],           [nginx statistics])
-AC_PLUGIN([notify_desktop],      [$with_libnotify],         [Desktop notifications])
-AC_PLUGIN([notify_email],        [$with_libesmtp],          [Email notifier])
-AC_PLUGIN([notify_nagios],       [yes],                     [Nagios notification plugin])
-AC_PLUGIN([ntpd],                [yes],                     [NTPd statistics])
-AC_PLUGIN([numa],                [$plugin_numa],            [NUMA virtual memory statistics])
-AC_PLUGIN([nut],                 [$with_libupsclient],      [Network UPS tools statistics])
-AC_PLUGIN([olsrd],               [yes],                     [olsrd statistics])
-AC_PLUGIN([onewire],             [$with_libowcapi],         [OneWire sensor statistics])
-AC_PLUGIN([openldap],            [$with_libldap],           [OpenLDAP statistics])
-AC_PLUGIN([openvpn],             [yes],                     [OpenVPN client statistics])
-AC_PLUGIN([oracle],              [$with_oracle],            [Oracle plugin])
-AC_PLUGIN([ovs_events],          [$plugin_ovs_events],      [OVS events plugin])
-AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],       [OVS statistics plugin])
-AC_PLUGIN([perl],                [$plugin_perl],            [Embed a Perl interpreter])
-AC_PLUGIN([pf],                  [$have_net_pfvar_h],       [BSD packet filter (PF) statistics])
+AC_PLUGIN([aggregation],         [yes],                       [Aggregation plugin])
+AC_PLUGIN([amqp],                [$with_librabbitmq],         [AMQP output plugin])
+AC_PLUGIN([amqp1],               [$with_libqpid_proton],      [AMQP 1.0 output plugin])
+AC_PLUGIN([apache],              [$with_libcurl],             [Apache httpd statistics])
+AC_PLUGIN([apcups],              [yes],                       [Statistics of UPSes by APC])
+AC_PLUGIN([apple_sensors],       [$with_libiokit],            [Apple hardware sensors])
+AC_PLUGIN([aquaero],             [$with_libaquaero5],         [Aquaero hardware sensors])
+AC_PLUGIN([ascent],              [$plugin_ascent],            [AscentEmu player statistics])
+AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor on I2C])
+AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
+AC_PLUGIN([bind],                [$plugin_bind],              [ISC Bind nameserver statistics])
+AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
+AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
+AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
+AC_PLUGIN([check_uptime],        [yes],                       [Notify about uptime reset])
+AC_PLUGIN([connectivity],        [$plugin_connectivity],      [Network interface up/down events])
+AC_PLUGIN([conntrack],           [$plugin_conntrack],         [nf_conntrack statistics])
+AC_PLUGIN([contextswitch],       [$plugin_contextswitch],     [context switch statistics])
+AC_PLUGIN([cpu],                 [$plugin_cpu],               [CPU usage statistics])
+AC_PLUGIN([cpufreq],             [$plugin_cpufreq],           [CPU frequency statistics])
+AC_PLUGIN([cpusleep],            [$plugin_cpusleep],          [CPU sleep statistics])
+AC_PLUGIN([csv],                 [yes],                       [CSV output plugin])
+AC_PLUGIN([curl],                [$with_libcurl],             [CURL generic web statistics])
+AC_PLUGIN([curl_json],           [$plugin_curl_json],         [CouchDB statistics])
+AC_PLUGIN([curl_xml],            [$plugin_curl_xml],          [CURL generic xml statistics])
+AC_PLUGIN([dbi],                 [$with_libdbi],              [General database statistics])
+AC_PLUGIN([df],                  [$plugin_df],                [Filesystem usage statistics])
+AC_PLUGIN([disk],                [$plugin_disk],              [Disk usage statistics])
+AC_PLUGIN([dns],                 [$with_libpcap],             [DNS traffic analysis])
+AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],        [Events from DPDK])
+AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],          [Stats from DPDK])
+AC_PLUGIN([drbd],                [$plugin_drbd],              [DRBD statistics])
+AC_PLUGIN([email],               [yes],                       [EMail statistics])
+AC_PLUGIN([entropy],             [$plugin_entropy],           [Entropy statistics])
+AC_PLUGIN([ethstat],             [$plugin_ethstat],           [Stats from NIC driver])
+AC_PLUGIN([exec],                [yes],                       [Execution of external programs])
+AC_PLUGIN([fhcount],             [$plugin_fhcount],           [File handles statistics])
+AC_PLUGIN([filecount],           [yes],                       [Count files in directories])
+AC_PLUGIN([fscache],             [$plugin_fscache],           [fscache statistics])
+AC_PLUGIN([gmond],               [$with_libganglia],          [Ganglia plugin])
+AC_PLUGIN([gps],                 [$plugin_gps],               [GPS plugin])
+AC_PLUGIN([gpu_nvidia],          [$with_cuda],                [NVIDIA GPU plugin])
+AC_PLUGIN([grpc],                [$plugin_grpc],              [gRPC plugin])
+AC_PLUGIN([hddtemp],             [yes],                       [Query hddtempd])
+AC_PLUGIN([hugepages],           [$plugin_hugepages],         [Hugepages statistics])
+AC_PLUGIN([intel_pmu],           [$with_libjevents],          [Intel performance monitor plugin])
+AC_PLUGIN([intel_rdt],           [$with_libpqos],             [Intel RDT monitor plugin])
+AC_PLUGIN([interface],           [$plugin_interface],         [Interface traffic statistics])
+AC_PLUGIN([ipc],                 [$plugin_ipc],               [IPC statistics])
+AC_PLUGIN([ipmi],                [$plugin_ipmi],              [IPMI sensor statistics])
+AC_PLUGIN([iptables],            [$with_libiptc],             [IPTables rule counters])
+AC_PLUGIN([ipvs],                [$plugin_ipvs],              [IPVS connection statistics])
+AC_PLUGIN([irq],                 [$plugin_irq],               [IRQ statistics])
+AC_PLUGIN([java],                [$with_java],                [Embed the Java Virtual Machine])
+AC_PLUGIN([load],                [$plugin_load],              [System load])
+AC_PLUGIN([log_logstash],        [$plugin_log_logstash],      [Logstash json_event compatible logging])
+AC_PLUGIN([logfile],             [yes],                       [File logging plugin])
+AC_PLUGIN([lpar],                [$with_perfstat],            [AIX logical partitions statistics])
+AC_PLUGIN([lua],                 [$with_liblua],              [Lua plugin])
+AC_PLUGIN([madwifi],             [$have_linux_wireless_h],    [Madwifi wireless statistics])
+AC_PLUGIN([match_empty_counter], [yes],                       [The empty counter match])
+AC_PLUGIN([match_hashed],        [yes],                       [The hashed match])
+AC_PLUGIN([match_regex],         [yes],                       [The regex match])
+AC_PLUGIN([match_timediff],      [yes],                       [The timediff match])
+AC_PLUGIN([match_value],         [yes],                       [The value match])
+AC_PLUGIN([mbmon],               [yes],                       [Query mbmond])
+AC_PLUGIN([mcelog],              [$plugin_mcelog],            [Machine Check Exceptions notifications])
+AC_PLUGIN([md],                  [$have_linux_raid_md_u_h],   [md (Linux software RAID) devices])
+AC_PLUGIN([memcachec],           [$with_libmemcached],        [memcachec statistics])
+AC_PLUGIN([memcached],           [yes],                       [memcached statistics])
+AC_PLUGIN([memory],              [$plugin_memory],            [Memory usage])
+AC_PLUGIN([mic],                 [$with_mic],                 [Intel Many Integrated Core stats])
+AC_PLUGIN([modbus],              [$with_libmodbus],           [Modbus plugin])
+AC_PLUGIN([mqtt],                [$with_libmosquitto],        [MQTT output plugin])
+AC_PLUGIN([multimeter],          [$plugin_multimeter],        [Read multimeter values])
+AC_PLUGIN([mysql],               [$with_libmysql],            [MySQL statistics])
+AC_PLUGIN([netapp],              [$with_libnetapp],           [NetApp plugin])
+AC_PLUGIN([netlink],             [$with_libmnl],              [Enhanced Linux network statistics])
+AC_PLUGIN([network],             [yes],                       [Network communication plugin])
+AC_PLUGIN([nfs],                 [$plugin_nfs],               [NFS statistics])
+AC_PLUGIN([nginx],               [$with_libcurl],             [nginx statistics])
+AC_PLUGIN([notify_desktop],      [$with_libnotify],           [Desktop notifications])
+AC_PLUGIN([notify_email],        [$with_libesmtp],            [Email notifier])
+AC_PLUGIN([notify_nagios],       [yes],                       [Nagios notification plugin])
+AC_PLUGIN([ntpd],                [yes],                       [NTPd statistics])
+AC_PLUGIN([numa],                [$plugin_numa],              [NUMA virtual memory statistics])
+AC_PLUGIN([nut],                 [$with_libupsclient],        [Network UPS tools statistics])
+AC_PLUGIN([olsrd],               [yes],                       [olsrd statistics])
+AC_PLUGIN([onewire],             [$with_libowcapi],           [OneWire sensor statistics])
+AC_PLUGIN([openldap],            [$with_libldap],             [OpenLDAP statistics])
+AC_PLUGIN([openvpn],             [yes],                       [OpenVPN client statistics])
+AC_PLUGIN([oracle],              [$with_oracle],              [Oracle plugin])
+AC_PLUGIN([ovs_events],          [$plugin_ovs_events],        [OVS events plugin])
+AC_PLUGIN([ovs_stats],           [$plugin_ovs_stats],         [OVS statistics plugin])
+AC_PLUGIN([pcie_errors],         [$plugin_pcie_errors],       [PCIe errors plugin])
+AC_PLUGIN([perl],                [$plugin_perl],              [Embed a Perl interpreter])
+AC_PLUGIN([pf],                  [$have_net_pfvar_h],         [BSD packet filter (PF) statistics])
 # FIXME: Check for libevent, too.
-AC_PLUGIN([pinba],               [$plugin_pinba],           [Pinba statistics])
-AC_PLUGIN([ping],                [$with_liboping],          [Network latency statistics])
-AC_PLUGIN([postgresql],          [$with_libpq],             [PostgreSQL database statistics])
-AC_PLUGIN([powerdns],            [yes],                     [PowerDNS statistics])
-AC_PLUGIN([processes],           [$plugin_processes],       [Process statistics])
-AC_PLUGIN([protocols],           [$plugin_protocols],       [Protocol (IP, TCP, ...) statistics])
-AC_PLUGIN([python],              [$plugin_python],          [Embed a Python interpreter])
-AC_PLUGIN([redis],               [$with_libhiredis],        [Redis plugin])
-AC_PLUGIN([routeros],            [$with_librouteros],       [RouterOS plugin])
-AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],     [RRDTool output plugin])
-AC_PLUGIN([rrdtool],             [$with_librrd],            [RRDTool output plugin])
-AC_PLUGIN([sensors],             [$with_libsensors],        [lm_sensors statistics])
-AC_PLUGIN([serial],              [$plugin_serial],          [serial port traffic])
-AC_PLUGIN([sigrok],              [$with_libsigrok],         [sigrok acquisition sources])
-AC_PLUGIN([smart],               [$plugin_smart],           [SMART statistics])
-AC_PLUGIN([snmp],                [$with_libnetsnmp],        [SNMP querying plugin])
-AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],   [SNMP agent plugin])
-AC_PLUGIN([statsd],              [yes],                     [StatsD plugin])
-AC_PLUGIN([swap],                [$plugin_swap],            [Swap usage statistics])
-AC_PLUGIN([synproxy],            [$plugin_synproxy],        [Synproxy stats plugin])
-AC_PLUGIN([syslog],              [$have_syslog],            [Syslog logging plugin])
-AC_PLUGIN([table],               [yes],                     [Parsing of tabular data])
-AC_PLUGIN([tail],                [yes],                     [Parsing of logfiles])
-AC_PLUGIN([tail_csv],            [yes],                     [Parsing of CSV files])
-AC_PLUGIN([tape],                [$plugin_tape],            [Tape drive statistics])
-AC_PLUGIN([target_notification], [yes],                     [The notification target])
-AC_PLUGIN([target_replace],      [yes],                     [The replace target])
-AC_PLUGIN([target_scale],        [yes],                     [The scale target])
-AC_PLUGIN([target_set],          [yes],                     [The set target])
-AC_PLUGIN([target_v5upgrade],    [yes],                     [The v5upgrade target])
-AC_PLUGIN([tcpconns],            [$plugin_tcpconns],        [TCP connection statistics])
-AC_PLUGIN([teamspeak2],          [yes],                     [TeamSpeak2 server statistics])
-AC_PLUGIN([ted],                 [$plugin_ted],             [Read The Energy Detective values])
-AC_PLUGIN([thermal],             [$plugin_thermal],         [Linux ACPI thermal zone statistics])
-AC_PLUGIN([threshold],           [yes],                     [Threshold checking plugin])
-AC_PLUGIN([tokyotyrant],         [$with_libtokyotyrant],    [TokyoTyrant database statistics])
-AC_PLUGIN([turbostat],           [$plugin_turbostat],       [Advanced statistic on Intel cpu states])
-AC_PLUGIN([unixsock],            [yes],                     [Unixsock communication plugin])
-AC_PLUGIN([uptime],              [$plugin_uptime],          [Uptime statistics])
-AC_PLUGIN([users],               [$plugin_users],           [User statistics])
-AC_PLUGIN([uuid],                [yes],                     [UUID as hostname plugin])
-AC_PLUGIN([varnish],             [$with_libvarnish],        [Varnish cache statistics])
-AC_PLUGIN([virt],                [$plugin_virt],            [Virtual machine statistics])
-AC_PLUGIN([vmem],                [$plugin_vmem],            [Virtual memory statistics])
-AC_PLUGIN([vserver],             [$plugin_vserver],         [Linux VServer statistics])
-AC_PLUGIN([wireless],            [$plugin_wireless],        [Wireless statistics])
-AC_PLUGIN([write_graphite],      [yes],                     [Graphite / Carbon output plugin])
-AC_PLUGIN([write_http],          [$with_libcurl],           [HTTP output plugin])
-AC_PLUGIN([write_kafka],         [$with_librdkafka],        [Kafka output plugin])
-AC_PLUGIN([write_log],           [yes],                     [Log output plugin])
-AC_PLUGIN([write_mongodb],       [$with_libmongoc],         [MongoDB output plugin])
-AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus], [Prometheus write plugin])
-AC_PLUGIN([write_redis],         [$with_libhiredis],        [Redis output plugin])
-AC_PLUGIN([write_riemann],       [$with_libriemann_client], [Riemann output plugin])
-AC_PLUGIN([write_sensu],         [yes],                     [Sensu output plugin])
-AC_PLUGIN([write_tsdb],          [yes],                     [TSDB output plugin])
-AC_PLUGIN([xencpu],              [$plugin_xencpu],          [Xen Host CPU usage])
-AC_PLUGIN([xmms],                [$with_libxmms],           [XMMS statistics])
-AC_PLUGIN([zfs_arc],             [$plugin_zfs_arc],         [ZFS ARC statistics])
-AC_PLUGIN([zone],                [$plugin_zone],            [Solaris container statistics])
-AC_PLUGIN([zookeeper],           [yes],                     [Zookeeper statistics])
+AC_PLUGIN([pinba],               [$plugin_pinba],             [Pinba statistics])
+AC_PLUGIN([ping],                [$with_liboping],            [Network latency statistics])
+AC_PLUGIN([postgresql],          [$with_libpq],               [PostgreSQL database statistics])
+AC_PLUGIN([powerdns],            [yes],                       [PowerDNS statistics])
+AC_PLUGIN([processes],           [$plugin_processes],         [Process statistics])
+AC_PLUGIN([procevent],           [$plugin_procevent],         [Process event (start, stop) statistics])
+AC_PLUGIN([protocols],           [$plugin_protocols],         [Protocol (IP, TCP, ...) statistics])
+AC_PLUGIN([python],              [$plugin_python],            [Embed a Python interpreter])
+AC_PLUGIN([redis],               [$with_libhiredis],          [Redis plugin])
+AC_PLUGIN([routeros],            [$with_librouteros],         [RouterOS plugin])
+AC_PLUGIN([rrdcached],           [$librrd_rrdc_update],       [RRDTool output plugin])
+AC_PLUGIN([rrdtool],             [$with_librrd],              [RRDTool output plugin])
+AC_PLUGIN([sensors],             [$with_libsensors],          [lm_sensors statistics])
+AC_PLUGIN([serial],              [$plugin_serial],            [serial port traffic])
+AC_PLUGIN([sigrok],              [$with_libsigrok],           [sigrok acquisition sources])
+AC_PLUGIN([smart],               [$plugin_smart],             [SMART statistics])
+AC_PLUGIN([snmp],                [$with_libnetsnmp],          [SNMP querying plugin])
+AC_PLUGIN([snmp_agent],          [$with_libnetsnmpagent],     [SNMP agent plugin])
+AC_PLUGIN([statsd],              [yes],                       [StatsD plugin])
+AC_PLUGIN([swap],                [$plugin_swap],              [Swap usage statistics])
+AC_PLUGIN([synproxy],            [$plugin_synproxy],          [Synproxy stats plugin])
+AC_PLUGIN([sysevent],            [$plugin_sysevent],          [rsyslog events])
+AC_PLUGIN([syslog],              [$have_syslog],              [Syslog logging plugin])
+AC_PLUGIN([table],               [yes],                       [Parsing of tabular data])
+AC_PLUGIN([tail],                [yes],                       [Parsing of logfiles])
+AC_PLUGIN([tail_csv],            [yes],                       [Parsing of CSV files])
+AC_PLUGIN([tape],                [$plugin_tape],              [Tape drive statistics])
+AC_PLUGIN([target_notification], [yes],                       [The notification target])
+AC_PLUGIN([target_replace],      [yes],                       [The replace target])
+AC_PLUGIN([target_scale],        [yes],                       [The scale target])
+AC_PLUGIN([target_set],          [yes],                       [The set target])
+AC_PLUGIN([target_v5upgrade],    [yes],                       [The v5upgrade target])
+AC_PLUGIN([tcpconns],            [$plugin_tcpconns],          [TCP connection statistics])
+AC_PLUGIN([teamspeak2],          [yes],                       [TeamSpeak2 server statistics])
+AC_PLUGIN([ted],                 [$plugin_ted],               [Read The Energy Detective values])
+AC_PLUGIN([thermal],             [$plugin_thermal],           [Linux ACPI thermal zone statistics])
+AC_PLUGIN([threshold],           [yes],                       [Threshold checking plugin])
+AC_PLUGIN([tokyotyrant],         [$with_libtokyotyrant],      [TokyoTyrant database statistics])
+AC_PLUGIN([turbostat],           [$plugin_turbostat],         [Advanced statistic on Intel cpu states])
+AC_PLUGIN([unixsock],            [yes],                       [Unixsock communication plugin])
+AC_PLUGIN([uptime],              [$plugin_uptime],            [Uptime statistics])
+AC_PLUGIN([users],               [$plugin_users],             [User statistics])
+AC_PLUGIN([uuid],                [yes],                       [UUID as hostname plugin])
+AC_PLUGIN([varnish],             [$with_libvarnish],          [Varnish cache statistics])
+AC_PLUGIN([virt],                [$plugin_virt],              [Virtual machine statistics])
+AC_PLUGIN([vmem],                [$plugin_vmem],              [Virtual memory statistics])
+AC_PLUGIN([vserver],             [$plugin_vserver],           [Linux VServer statistics])
+AC_PLUGIN([wireless],            [$plugin_wireless],          [Wireless statistics])
+AC_PLUGIN([write_graphite],      [yes],                       [Graphite / Carbon output plugin])
+AC_PLUGIN([write_http],          [$with_libcurl],             [HTTP output plugin])
+AC_PLUGIN([write_kafka],         [$with_librdkafka],          [Kafka output plugin])
+AC_PLUGIN([write_log],           [yes],                       [Log output plugin])
+AC_PLUGIN([write_mongodb],       [$with_libmongoc],           [MongoDB output plugin])
+AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus],  [Prometheus write plugin])
+AC_PLUGIN([write_redis],         [$with_libhiredis],          [Redis output plugin])
+AC_PLUGIN([write_riemann],       [$with_libriemann_client],   [Riemann output plugin])
+AC_PLUGIN([write_sensu],         [yes],                       [Sensu output plugin])
+AC_PLUGIN([write_stackdriver],   [$plugin_write_stackdriver], [Google Stackdriver Monitoring output plugin])
+AC_PLUGIN([write_syslog],        [yes],                       [Syslog output plugin])
+AC_PLUGIN([write_tsdb],          [yes],                       [TSDB output plugin])
+AC_PLUGIN([xencpu],              [$plugin_xencpu],            [Xen Host CPU usage])
+AC_PLUGIN([xmms],                [$with_libxmms],             [XMMS statistics])
+AC_PLUGIN([zfs_arc],             [$plugin_zfs_arc],           [ZFS ARC statistics])
+AC_PLUGIN([zone],                [$plugin_zone],              [Solaris container statistics])
+AC_PLUGIN([zookeeper],           [yes],                       [Zookeeper statistics])
 
 dnl Default configuration file
 # Load either syslog or logfile
@@ -6786,11 +7031,13 @@ AC_SUBST([LCC_VERSION_STRING])
 
 AC_CONFIG_FILES([src/libcollectdclient/collectd/lcc_features.h])
 
-AM_CFLAGS="-Wall"
-AM_CXXFLAGS="-Wall"
-if test "x$enable_werror" != "xno"; then
-  AM_CFLAGS="$AM_CFLAGS -Werror"
-  AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
+if test "x$GCC" = "xyes"; then
+  AM_CFLAGS="-Wall"
+  AM_CXXFLAGS="-Wall"
+  if test "x$enable_werror" != "xno"; then
+    AM_CFLAGS="$AM_CFLAGS -Werror"
+    AM_CXXFLAGS="$AM_CXXFLAGS -Werror"
+  fi
 fi
 
 AC_SUBST([AM_CFLAGS])
@@ -6861,7 +7108,6 @@ AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
 AC_MSG_RESULT([    libkvm  . . . . . . . $with_libkvm])
 AC_MSG_RESULT([    libldap . . . . . . . $with_libldap])
 AC_MSG_RESULT([    liblua  . . . . . . . $with_liblua])
-AC_MSG_RESULT([    liblvm2app  . . . . . $with_liblvm2app])
 AC_MSG_RESULT([    libmemcached  . . . . $with_libmemcached])
 AC_MSG_RESULT([    libmicrohttpd . . . . $with_libmicrohttpd])
 AC_MSG_RESULT([    libmnl  . . . . . . . $with_libmnl])
@@ -6873,6 +7119,7 @@ AC_MSG_RESULT([    libnetapp . . . . . . $with_libnetapp])
 AC_MSG_RESULT([    libnetsnmp  . . . . . $with_libnetsnmp])
 AC_MSG_RESULT([    libnetsnmpagent . . . $with_libnetsnmpagent])
 AC_MSG_RESULT([    libnotify . . . . . . $with_libnotify])
+AC_MSG_RESULT([    libnvidia-ml  . . . . $with_cuda])
 AC_MSG_RESULT([    libopenipmi . . . . . $with_libopenipmipthread])
 AC_MSG_RESULT([    liboping  . . . . . . $with_liboping])
 AC_MSG_RESULT([    libowcapi . . . . . . $with_libowcapi])
@@ -6884,6 +7131,7 @@ AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
 AC_MSG_RESULT([    libprotobuf-c . . . . $with_libprotobuf_c])
 AC_MSG_RESULT([    libpython . . . . . . $with_libpython])
+AC_MSG_RESULT([    libqpid-proton .  . . $with_libqpid_proton])
 AC_MSG_RESULT([    librabbitmq . . . . . $with_librabbitmq])
 AC_MSG_RESULT([    libriemann-client . . $with_libriemann_client])
 AC_MSG_RESULT([    librdkafka  . . . . . $with_librdkafka])
@@ -6891,6 +7139,7 @@ AC_MSG_RESULT([    librouteros . . . . . $with_librouteros])
 AC_MSG_RESULT([    librrd  . . . . . . . $with_librrd])
 AC_MSG_RESULT([    libsensors  . . . . . $with_libsensors])
 AC_MSG_RESULT([    libsigrok   . . . . . $with_libsigrok])
+AC_MSG_RESULT([    libssl  . . . . . . . $with_libssl])
 AC_MSG_RESULT([    libstatgrab . . . . . $with_libstatgrab])
 AC_MSG_RESULT([    libtokyotyrant  . . . $with_libtokyotyrant])
 AC_MSG_RESULT([    libudev . . . . . . . $with_libudev])
@@ -6915,6 +7164,7 @@ AC_MSG_RESULT()
 AC_MSG_RESULT([  Modules:])
 AC_MSG_RESULT([    aggregation . . . . . $enable_aggregation])
 AC_MSG_RESULT([    amqp    . . . . . . . $enable_amqp])
+AC_MSG_RESULT([    amqp1   . . . . . . . $enable_amqp1])
 AC_MSG_RESULT([    apache  . . . . . . . $enable_apache])
 AC_MSG_RESULT([    apcups  . . . . . . . $enable_apcups])
 AC_MSG_RESULT([    apple_sensors . . . . $enable_apple_sensors])
@@ -6926,6 +7176,8 @@ AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])
+AC_MSG_RESULT([    check_uptime. . . . . $enable_check_uptime])
+AC_MSG_RESULT([    connectivity. . . . . $enable_connectivity])
 AC_MSG_RESULT([    conntrack . . . . . . $enable_conntrack])
 AC_MSG_RESULT([    contextswitch . . . . $enable_contextswitch])
 AC_MSG_RESULT([    cpu . . . . . . . . . $enable_cpu])
@@ -6951,6 +7203,7 @@ AC_MSG_RESULT([    filecount . . . . . . $enable_filecount])
 AC_MSG_RESULT([    fscache . . . . . . . $enable_fscache])
 AC_MSG_RESULT([    gmond . . . . . . . . $enable_gmond])
 AC_MSG_RESULT([    gps . . . . . . . . . $enable_gps])
+AC_MSG_RESULT([    gpu_nvidia  . . . . . $enable_gpu_nvidia])
 AC_MSG_RESULT([    grpc  . . . . . . . . $enable_grpc])
 AC_MSG_RESULT([    hddtemp . . . . . . . $enable_hddtemp])
 AC_MSG_RESULT([    hugepages . . . . . . $enable_hugepages])
@@ -6968,7 +7221,6 @@ AC_MSG_RESULT([    logfile . . . . . . . $enable_logfile])
 AC_MSG_RESULT([    log_logstash  . . . . $enable_log_logstash])
 AC_MSG_RESULT([    lpar  . . . . . . . . $enable_lpar])
 AC_MSG_RESULT([    lua . . . . . . . . . $enable_lua])
-AC_MSG_RESULT([    lvm . . . . . . . . . $enable_lvm])
 AC_MSG_RESULT([    madwifi . . . . . . . $enable_madwifi])
 AC_MSG_RESULT([    match_empty_counter . $enable_match_empty_counter])
 AC_MSG_RESULT([    match_hashed  . . . . $enable_match_hashed])
@@ -7004,6 +7256,7 @@ AC_MSG_RESULT([    openvpn . . . . . . . $enable_openvpn])
 AC_MSG_RESULT([    oracle  . . . . . . . $enable_oracle])
 AC_MSG_RESULT([    ovs_events  . . . . . $enable_ovs_events])
 AC_MSG_RESULT([    ovs_stats . . . . . . $enable_ovs_stats])
+AC_MSG_RESULT([    pcie_errors . . . . . $enable_pcie_errors])
 AC_MSG_RESULT([    perl  . . . . . . . . $enable_perl])
 AC_MSG_RESULT([    pf  . . . . . . . . . $enable_pf])
 AC_MSG_RESULT([    pinba . . . . . . . . $enable_pinba])
@@ -7011,6 +7264,7 @@ AC_MSG_RESULT([    ping  . . . . . . . . $enable_ping])
 AC_MSG_RESULT([    postgresql  . . . . . $enable_postgresql])
 AC_MSG_RESULT([    powerdns  . . . . . . $enable_powerdns])
 AC_MSG_RESULT([    processes . . . . . . $enable_processes])
+AC_MSG_RESULT([    procevent . . . . . . $enable_procevent])
 AC_MSG_RESULT([    protocols . . . . . . $enable_protocols])
 AC_MSG_RESULT([    python  . . . . . . . $enable_python])
 AC_MSG_RESULT([    redis . . . . . . . . $enable_redis])
@@ -7026,6 +7280,7 @@ AC_MSG_RESULT([    snmp_agent  . . . . . $enable_snmp_agent])
 AC_MSG_RESULT([    statsd  . . . . . . . $enable_statsd])
 AC_MSG_RESULT([    swap  . . . . . . . . $enable_swap])
 AC_MSG_RESULT([    synproxy  . . . . . . $enable_synproxy])
+AC_MSG_RESULT([    sysevent. . . . . . . $enable_sysevent])
 AC_MSG_RESULT([    syslog  . . . . . . . $enable_syslog])
 AC_MSG_RESULT([    table . . . . . . . . $enable_table])
 AC_MSG_RESULT([    tail_csv  . . . . . . $enable_tail_csv])
@@ -7061,6 +7316,8 @@ AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])
 AC_MSG_RESULT([    write_sensu . . . . . $enable_write_sensu])
+AC_MSG_RESULT([    write_stackdriver . . $enable_write_stackdriver])
+AC_MSG_RESULT([    write_syslog . .  . . $enable_write_syslog])
 AC_MSG_RESULT([    write_tsdb  . . . . . $enable_write_tsdb])
 AC_MSG_RESULT([    xencpu  . . . . . . . $enable_xencpu])
 AC_MSG_RESULT([    xmms  . . . . . . . . $enable_xmms])
@@ -7078,3 +7335,4 @@ if test "x$dependency_warning" = "xyes"; then
 fi
 
 # vim: set fdm=marker sw=2 sts=2 ts=2 et :
+
