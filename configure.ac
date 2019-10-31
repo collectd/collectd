@@ -6450,6 +6450,7 @@ if test "x$ac_system" = "xNetBSD"; then
   plugin_disk="yes"
   plugin_entropy="yes"
   plugin_irq="yes"
+  plugin_nfs="yes"
   plugin_processes="yes"
 fi
 
