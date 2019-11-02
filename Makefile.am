@@ -136,6 +136,7 @@ noinst_LTLIBRARIES = \
 	libheap.la \
 	libignorelist.la \
 	liblatency.la \
+	libllist.la \
 	liblookup.la \
 	libmetadata.la \
 	libmount.la \
@@ -244,8 +245,6 @@ collectd_SOURCES = \
 	src/daemon/utils_cache.h \
 	src/daemon/utils_complain.c \
 	src/daemon/utils_complain.h \
-	src/daemon/utils_llist.c \
-	src/daemon/utils_llist.h \
 	src/daemon/utils_random.c \
 	src/daemon/utils_random.h \
 	src/daemon/utils_subst.c \
@@ -265,6 +264,7 @@ collectd_LDADD = \
 	libavltree.la \
 	libcommon.la \
 	libheap.la \
+	libllist.la \
 	liboconfig.la \
 	-lm \
 	$(COMMON_LIBS) \
@@ -392,6 +392,10 @@ libheap_la_SOURCES = \
 libignorelist_la_SOURCES = \
 	src/utils/ignorelist/ignorelist.c \
 	src/utils/ignorelist/ignorelist.h
+
+libllist_la_SOURCES = \
+	src/daemon/utils_llist.c \
+	src/daemon/utils_llist.h
 
 libmetadata_la_SOURCES = \
 	src/utils/metadata/meta_data.c \
