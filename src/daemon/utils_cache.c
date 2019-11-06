@@ -998,15 +998,16 @@ static meta_data_t *uc_get_meta(const value_list_t *vl) /* {{{ */
     pthread_mutex_unlock(&cache_lock);                                         \
     return status;                                                             \
   }
-int uc_meta_data_exists(const value_list_t *vl,
-                        const char *key) UC_WRAP(meta_data_exists)
+int uc_meta_data_exists(const value_list_t *vl, const char *key)
+    UC_WRAP(meta_data_exists)
 
-    int uc_meta_data_delete(const value_list_t *vl,
-                            const char *key) UC_WRAP(meta_data_delete)
+        int uc_meta_data_delete(const value_list_t *vl, const char *key)
+            UC_WRAP(meta_data_delete)
 
-/* The second argument is called `toc` in the API, but the macro expects
- * `key`. */
-int uc_meta_data_toc(const value_list_t *vl, char ***key) UC_WRAP(meta_data_toc)
+    /* The second argument is called `toc` in the API, but the macro expects
+     * `key`. */
+    int uc_meta_data_toc(const value_list_t *vl,
+                         char ***key) UC_WRAP(meta_data_toc)
 
 #undef UC_WRAP
 
