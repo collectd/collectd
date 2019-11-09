@@ -28,7 +28,8 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#if (defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
+#if (defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)) ||              \
+    defined(__OpenBSD__)
 /* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
@@ -82,7 +83,7 @@ static kstat_t *ksz;
 /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
-/* OpenBSD variant does not have sysctlbyname */ 
+/* OpenBSD variant does not have sysctlbyname */
 static int pagesize;
 /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
@@ -145,7 +146,7 @@ static int memory_init(void) {
     /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
-/* OpenBSD variant does not have sysctlbyname */ 
+  /* OpenBSD variant does not have sysctlbyname */
   pagesize = getpagesize();
   if (pagesize <= 0) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
@@ -412,7 +413,7 @@ static int memory_read_internal(value_list_t *vl) {
   /* #endif HAVE_LIBKSTAT */
 
 #elif HAVE_SYSCTL && __OpenBSD__
-/* OpenBSD variant does not have HAVE_SYSCTLBYNAME */ 
+  /* OpenBSD variant does not have HAVE_SYSCTLBYNAME */
   int mib[] = {CTL_VM, VM_METER};
   struct vmtotal vmtotal = {0};
   gauge_t mem_active;
