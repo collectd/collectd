@@ -28,7 +28,7 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#if defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)
+#if (defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
 /* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
@@ -81,10 +81,10 @@ static kstat_t *ksp;
 static kstat_t *ksz;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL && HAVE_SYSCTLBYNAME
-/* force BSD variant take HAVE_SYSCTLBYNAME conditional path above */ 
+#elif HAVE_SYSCTL && __OpenBSD__
+/* OpenBSD variant does not have sysctlbyname */ 
 static int pagesize;
-/* #endif HAVE_SYSCTL && HAVE_SYSCTLBYNAME */
+/* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
 /* no global variables */
@@ -144,14 +144,14 @@ static int memory_init(void) {
 
     /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL && HAVE_SYSCTLBYNAME
-/* force BSD variant take HAVE_SYSCTLBYNAME conditional path above */ 
+#elif HAVE_SYSCTL && __OpenBSD__
+/* OpenBSD variant does not have sysctlbyname */ 
   pagesize = getpagesize();
   if (pagesize <= 0) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
     return -1;
   }
-    /* #endif HAVE_SYSCTL */
+    /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
 /* no init stuff */
@@ -411,8 +411,8 @@ static int memory_read_internal(value_list_t *vl) {
                 (gauge_t)arcsize, "unusable", (gauge_t)mem_unus);
   /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL && HAVE_SYSCTLBYNAME
-/* force BSD variant take HAVE_SYSCTLBYNAME conditional path above */ 
+#elif HAVE_SYSCTL && __OpenBSD__
+/* OpenBSD variant does not have HAVE_SYSCTLBYNAME */ 
   int mib[] = {CTL_VM, VM_METER};
   struct vmtotal vmtotal = {0};
   gauge_t mem_active;
@@ -434,7 +434,7 @@ static int memory_read_internal(value_list_t *vl) {
 
   MEMORY_SUBMIT("active", mem_active, "inactive", mem_inactive, "free",
                 mem_free);
-  /* #endif HAVE_SYSCTL */
+  /* #endif HAVE_SYSCTL && __OpenBSD__ */
 
 #elif HAVE_LIBSTATGRAB
   sg_mem_stats *ios;
