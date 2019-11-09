@@ -28,7 +28,8 @@
 #include "plugin.h"
 #include "utils/common/common.h"
 
-#ifdef HAVE_SYS_SYSCTL_H
+#if defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)
+/* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
 #ifdef HAVE_SYS_VMMETER_H
@@ -80,9 +81,10 @@ static kstat_t *ksp;
 static kstat_t *ksz;
 /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL
+#elif HAVE_SYSCTL && HAVE_SYSCTLBYNAME
+/* force BSD variant take HAVE_SYSCTLBYNAME conditional path above */ 
 static int pagesize;
-/* #endif HAVE_SYSCTL */
+/* #endif HAVE_SYSCTL && HAVE_SYSCTLBYNAME */
 
 #elif HAVE_LIBSTATGRAB
 /* no global variables */
@@ -142,7 +144,8 @@ static int memory_init(void) {
 
     /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL
+#elif HAVE_SYSCTL && HAVE_SYSCTLBYNAME
+/* force BSD variant take HAVE_SYSCTLBYNAME conditional path above */ 
   pagesize = getpagesize();
   if (pagesize <= 0) {
     ERROR("memory plugin: Invalid pagesize: %i", pagesize);
@@ -408,7 +411,8 @@ static int memory_read_internal(value_list_t *vl) {
                 (gauge_t)arcsize, "unusable", (gauge_t)mem_unus);
   /* #endif HAVE_LIBKSTAT */
 
-#elif HAVE_SYSCTL
+#elif HAVE_SYSCTL && HAVE_SYSCTLBYNAME
+/* force BSD variant take HAVE_SYSCTLBYNAME conditional path above */ 
   int mib[] = {CTL_VM, VM_METER};
   struct vmtotal vmtotal = {0};
   gauge_t mem_active;
