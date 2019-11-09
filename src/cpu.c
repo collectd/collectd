@@ -58,7 +58,7 @@
 #include <sys/sysinfo.h>
 #endif /* HAVE_LIBKSTAT */
 
-#if defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)
+#if (defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
 /* Implies BSD variant */
 #include <sys/sysctl.h>
 #endif
@@ -79,13 +79,13 @@
 #endif /* HAVE_SYS_DKSTAT_H */
 
 #define CAN_USE_SYSCTL 0
-#if defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)
+#if (defined(HAVE_SYSCTL) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
 /* Implies BSD variant */
 #if defined(CTL_HW) && defined(HW_NCPU) && defined(CTL_KERN) &&                \
     defined(KERN_CPTIME) && defined(CPUSTATES)
 #define CAN_USE_SYSCTL 1
 #endif
-#endif /* HAVE_SYSCTL_H && HAVE_SYSCTLBYNAME */
+#endif /* HAVE_SYSCTL_H && HAVE_SYSCTLBYNAME || __OpenBSD__ */
 
 #define COLLECTD_CPU_STATE_USER 0
 #define COLLECTD_CPU_STATE_SYSTEM 1
@@ -143,7 +143,7 @@ static int numcpu;
 /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
-/* Only possible for BSD variant */
+/* Only possible for (Open) BSD variant */
 static int numcpu;
 /* #endif CAN_USE_SYSCTL */
 
@@ -269,7 +269,7 @@ static int init(void) {
       /* #endif HAVE_LIBKSTAT */
 
 #elif CAN_USE_SYSCTL
-  /* Only on BSD variant */
+  /* Only on (Open) BSD variant */
   size_t numcpu_size;
   int mib[2] = {CTL_HW, HW_NCPU};
   int status;
@@ -733,7 +733,7 @@ static int cpu_read(void) {
     /* }}} #endif defined(HAVE_LIBKSTAT) */
 
 #elif CAN_USE_SYSCTL /* {{{ */
-  /* Only on BSD variant */
+  /* Only on (Open) BSD variant */
   uint64_t cpuinfo[numcpu][CPUSTATES];
   size_t cpuinfo_size;
   int status;

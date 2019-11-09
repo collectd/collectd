@@ -49,7 +49,7 @@
 #if HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#if defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)
+#if (defined(HAVE_SYS_SYSCTL_H) && defined(HAVE_SYSCTLBYNAME)) || defined(__OpenBSD__)
 /* implies BSD variant */
 #include <sys/sysctl.h>
 #endif
