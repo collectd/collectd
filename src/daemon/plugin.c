@@ -1078,17 +1078,17 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
     return 0;
 } /* int plugin_compare_read_func */
 
-/* 
- * Set the time of the first read according to the settings AlignRead and 
+/*
+ * Set the time of the first read according to the settings AlignRead and
  * Interval in collectd.conf.
- * 
- * The AlignRead value is in seconds. Values greater than or equal to 60 
- * determine the minute of an hour (integer part after division with 60). 
- * Values between 0 and 59 (mod 60) determine the second of a minute. Decimal 
- * places set the millisecond of a second.  
+ *
+ * The AlignRead value is in seconds. Values greater than or equal to 60
+ * determine the minute of an hour (integer part after division with 60).
+ * Values between 0 and 59 (mod 60) determine the second of a minute. Decimal
+ * places set the millisecond of a second.
  */
 static void plugin_set_next_read_time(read_func_t *rf) {
-  
+
   double start = rf->rf_ctx.align_read; /* (default is -1.0) */
 
   /* if AlignRead is not set, start reading immediately */
@@ -1101,7 +1101,7 @@ static void plugin_set_next_read_time(read_func_t *rf) {
     struct timeval tv = CDTIME_T_TO_TIMEVAL(now);
     uint64_t curr_msec =
         (((tv.tv_sec / 60) % 60) * 60 // minute of hour in seconds
-        + gmtime(&(tv.tv_sec))->tm_sec) *
+         + gmtime(&(tv.tv_sec))->tm_sec) *
             1000             // add seconds of minute and convert to ms
         + tv.tv_usec / 1000; // add millisecond of second
 
@@ -1136,7 +1136,7 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  plugin_set_next_read_time( rf );
+  plugin_set_next_read_time(rf);
 
   rf->rf_effective_interval = rf->rf_interval;
 

@@ -454,7 +454,7 @@ cdtime_t plugin_get_interval(void);
  *  plugin_get_align_read
  *
  * DESCRIPTION
- *  This function returns the current value of the plugin's AlignRead setting. 
+ *  This function returns the current value of the plugin's AlignRead setting.
  *  The return value will be a positive value or -1.0, if AlignRead is not set.
  */
 double plugin_get_align_read(void);
