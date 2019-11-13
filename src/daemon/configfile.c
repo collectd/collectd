@@ -106,7 +106,7 @@ static cf_global_option_t cf_global_options[] = {
     {"Hostname", NULL, 0, NULL},
     {"FQDNLookup", NULL, 0, "true"},
     {"Interval", NULL, 0, NULL},
-    {"StartRead", NULL, 0, NULL},
+    {"AlignRead", NULL, 0, NULL},
     {"ReadThreads", NULL, 0, "5"},
     {"WriteThreads", NULL, 0, "5"},
     {"WriteQueueLimitHigh", NULL, 0, NULL},
@@ -286,7 +286,7 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
   /* default to the global interval set before loading this plugin */
   plugin_ctx_t ctx = {
-      .start_time = cf_get_default_start_read(),
+      .align_read = cf_get_default_align_read(),
       .interval = cf_get_default_interval(),
       .name = strdup(name),
   };
@@ -298,8 +298,8 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
 
     if (strcasecmp("Globals", child->key) == 0)
       cf_util_get_boolean(child, &global);
-    else if (strcasecmp("StartRead", child->key) == 0)
-      cf_util_get_double(child, &ctx.start_time);
+    else if (strcasecmp("AlignRead", child->key) == 0)
+      cf_util_get_double(child, &ctx.align_read);
     else if (strcasecmp("Interval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.interval);
     else if (strcasecmp("FlushInterval", child->key) == 0)
@@ -955,8 +955,8 @@ cdtime_t cf_get_default_interval(void) {
                                 DOUBLE_TO_CDTIME_T(COLLECTD_DEFAULT_INTERVAL));
 }
 
-double cf_get_default_start_read(void) {
-  return global_option_get_double("StartRead", -1.0);
+double cf_get_default_align_read(void) {
+  return global_option_get_double("AlignRead", -1.0);
 }
 
 void cf_unregister(const char *type) {

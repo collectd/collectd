@@ -173,7 +173,7 @@ typedef struct user_data_s user_data_t;
 
 struct plugin_ctx_s {
   char *name;
-  double start_time;
+  double align_read;
   cdtime_t interval;
   cdtime_t flush_interval;
   cdtime_t flush_timeout;
@@ -451,14 +451,13 @@ cdtime_t plugin_get_interval(void);
 
 /*
  * NAME
- *  plugin_get_start_time
+ *  plugin_get_align_read
  *
  * DESCRIPTION
- *  This function returns the current value of the plugin's start time. The
- *  return value will be a positive value in all cases. If
- *  everything else fails, it will fall back to -1.0 (StartRead not set).
+ *  This function returns the current value of the plugin's AlignRead setting. 
+ *  The return value will be a positive value or -1.0, if AlignRead is not set.
  */
-double plugin_get_start_time(void);
+double plugin_get_align_read(void);
 
 /*
  * Context-aware thread management.

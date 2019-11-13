@@ -1078,39 +1078,39 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
     return 0;
 } /* int plugin_compare_read_func */
 
-/* Add a read function to both, the heap and a linked list. The linked list if
- * used to look-up read functions, especially for the remove function. The heap
- * is used to determine which plugin to read next. */
-static int plugin_insert_read(read_func_t *rf) {
-  int status;
-  llentry_t *le;
+/* 
+ * Set the time of the first read according to the settings AlignRead and 
+ * Interval in collectd.conf.
+ * 
+ * The AlignRead value is in seconds. Values greater than or equal to 60 
+ * determine the minute of an hour (integer part after division with 60). 
+ * Values between 0 and 59 (mod 60) determine the second of a minute. Decimal 
+ * places set the millisecond of a second.  
+ */
+static void plugin_set_next_read_time(read_func_t *rf) {
+  
+  double start = rf->rf_ctx.align_read; /* (default is -1.0) */
 
-  /* set the time of the first read according to "StartRead" in collectd.conf
-     start minute, second, millisecond is given as float in seconds */
-  double start = rf->rf_ctx.start_time; /* (default is -1.0) */
+  /* if AlignRead is not set, start reading immediately */
   if (start < 0) {
-    /* if StartAt is not defined, start reading immediately */
     rf->rf_next_read = cdtime();
   } else {
-    /* get minute in hour and second+millisecond in minute */
     cdtime_t now = cdtime();
+
+    /* get minute in hour and second in minute and millisecond in second */
     struct timeval tv = CDTIME_T_TO_TIMEVAL(now);
     uint64_t curr_msec =
         (((tv.tv_sec / 60) % 60) * 60 // minute of hour in seconds
-         + gmtime(&(tv.tv_sec))->tm_sec) *
+        + gmtime(&(tv.tv_sec))->tm_sec) *
             1000             // add seconds of minute and convert to ms
         + tv.tv_usec / 1000; // add millisecond of second
 
-    /* convert to cdt time */
-    cdtime_t curr_cdt = MS_TO_CDTIME_T(curr_msec);
-    cdtime_t start_cdt = DOUBLE_TO_CDTIME_T(start);
-
-    /* NOTICE("%s: current time: %lu sec, %lu ms in minute, start time: %.3lf,
+    /* DEBUG("%s: current time: %lu sec, %lu ms in minute, start time: %.3lf,
     interval: %lu", rf->rf_name, tv.tv_sec, curr_msec, start,
     CDTIME_T_TO_MS(rf->rf_interval)); */
 
-    /* get time to sleep until next read */
-    int64_t sleep_cdt = start_cdt - curr_cdt;
+    /* determine delay until next (aligned) read */
+    int64_t sleep_cdt = DOUBLE_TO_CDTIME_T(start) - MS_TO_CDTIME_T(curr_msec);
     while (sleep_cdt < 0) {
       sleep_cdt += rf->rf_interval;
     }
@@ -1118,14 +1118,25 @@ static int plugin_insert_read(read_func_t *rf) {
     /* set the next read time */
     if (sleep_cdt > 0) {
       rf->rf_next_read = now + sleep_cdt;
-      INFO("%s plugin: wait %.3fms before first read at %ld.%03ds since epoche",
-           rf->rf_name, CDTIME_T_TO_DOUBLE(sleep_cdt),
-           (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
-           (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec / 1000));
+
+      DEBUG("%s plugin: wait %.3fs before first read at %ld.%03ds since epoche",
+            rf->rf_name, CDTIME_T_TO_DOUBLE(sleep_cdt),
+            (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
+            (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec / 1000));
     } else {
       rf->rf_next_read = cdtime();
     }
   }
+} /* void plugin_set_next_read_time */
+
+/* Add a read function to both, the heap and a linked list. The linked list if
+ * used to look-up read functions, especially for the remove function. The heap
+ * is used to determine which plugin to read next. */
+static int plugin_insert_read(read_func_t *rf) {
+  int status;
+  llentry_t *le;
+
+  plugin_set_next_read_time( rf );
 
   rf->rf_effective_interval = rf->rf_interval;
 
@@ -1201,7 +1212,7 @@ EXPORT int plugin_register_read(const char *name, int (*callback)(void)) {
   rf->rf_type = RF_SIMPLE;
   rf->rf_interval = plugin_get_interval();
   rf->rf_ctx.interval = rf->rf_interval;
-  rf->rf_ctx.start_time = plugin_get_start_time();
+  rf->rf_ctx.align_read = plugin_get_align_read();
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -1245,7 +1256,7 @@ EXPORT int plugin_register_complex_read(const char *group, const char *name,
 
   rf->rf_ctx = plugin_get_ctx();
   rf->rf_ctx.interval = rf->rf_interval;
-  rf->rf_ctx.start_time = plugin_get_start_time();
+  rf->rf_ctx.align_read = plugin_get_align_read();
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -2588,20 +2599,14 @@ EXPORT cdtime_t plugin_get_interval(void) {
   return cf_get_default_interval();
 } /* cdtime_t plugin_get_interval */
 
-EXPORT double plugin_get_start_time(void) {
-  double start_time;
+EXPORT double plugin_get_align_read(void) {
+  double align_read = plugin_get_ctx().align_read;
 
-  start_time = plugin_get_ctx().start_time;
+  if (align_read >= 0)
+    return align_read;
 
-  if (start_time >= 0)
-    return start_time;
-
-  // StartAt is optional and the default is set to -1
-  // P_ERROR("plugin_get_start_time: Unable to determine start time from
-  // context.");
-
-  return cf_get_default_start_read();
-} /* double plugin_get_start_time */
+  return cf_get_default_align_read();
+} /* double plugin_get_align_read */
 
 typedef struct {
   plugin_ctx_t ctx;
