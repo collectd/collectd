@@ -2092,8 +2092,8 @@ if test "x$with_cuda" = "xyes"; then
 fi
 
 if test "x$with_cuda" = "xyes"; then
-  BUILD_WITH_CUDA_CPPFLAGS="$CUDA_CPPFLAGS"
-  BUILD_WITH_CUDA_LDFLAGS="$CUDA_LDFLAGS"
+  BUILD_WITH_CUDA_CPPFLAGS="$with_cuda_cppflags"
+  BUILD_WITH_CUDA_LDFLAGS="$with_cuda_ldflags"
   BUILD_WITH_CUDA_LIBS="-lnvidia-ml"
 fi
 
