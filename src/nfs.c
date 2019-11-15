@@ -611,20 +611,26 @@ static int nfs_read(void) {
 static int nfs_read(void) {
   struct nfsstats ns;
   size_t size = sizeof(ns);
-  int mib[] = { CTL_VFS, 2, NFS_NFSSTATS };
+  int mib[] = {CTL_VFS, 2, NFS_NFSSTATS};
   value_t values[nfs3_procedures_names_num];
   int i;
 
   /* NetBSD reports v2 statistics mapped to v3 and doen't yet support v4 */
-  if (!report_v3) return 0;
-  if (sysctl(mib, 3, &ns, &size, NULL, 0) != 0) return 1;
+  if (!report_v3)
+    return 0;
+  if (sysctl(mib, 3, &ns, &size, NULL, 0) != 0)
+    return 1;
 
-  for (i = 0; i < nfs3_procedures_names_num; i++) values[i].counter = (derive_t)ns.rpccnt[i];
-  nfs_procedures_submit("v3client", nfs3_procedures_names, values, nfs3_procedures_names_num);
+  for (i = 0; i < nfs3_procedures_names_num; i++)
+    values[i].counter = (derive_t)ns.rpccnt[i];
+  nfs_procedures_submit("v3client", nfs3_procedures_names, values,
+                        nfs3_procedures_names_num);
 
-  for (i = 0; i < nfs3_procedures_names_num; i++) values[i].counter = (derive_t)ns.srvrpccnt[i];
-  nfs_procedures_submit("v3server", nfs3_procedures_names, values, nfs3_procedures_names_num);
-     
+  for (i = 0; i < nfs3_procedures_names_num; i++)
+    values[i].counter = (derive_t)ns.srvrpccnt[i];
+  nfs_procedures_submit("v3server", nfs3_procedures_names, values,
+                        nfs3_procedures_names_num);
+
   return 0;
 }
 /* #endif KERNEL_NETBSD */
