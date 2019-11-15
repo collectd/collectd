@@ -338,7 +338,7 @@ static void submit_io_time(char const *plugin_instance, derive_t io_time,
 } /* void submit_io_time */
 #endif /* KERNEL_FREEBSD || (HAVE_SYSCTL && KERNEL_NETBSD) || KERNEL_LINUX */
 
-#ifdef KERNEL_FREEBSD || KERNEL_LINUX
+#if KERNEL_FREEBSD || KERNEL_LINUX
 static void submit_in_progress(char const *disk_name, gauge_t in_progress) {
   value_list_t vl = VALUE_LIST_INIT;
 
