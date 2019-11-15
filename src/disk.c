@@ -137,8 +137,8 @@ static int pnumdisk;
 
 #elif HAVE_SYSCTL && KERNEL_NETBSD
 
-#include <sys/sysctl.h>
 #include <sys/iostat.h>
+#include <sys/sysctl.h>
 
 static struct io_sysctl *drives = NULL;
 static size_t ndrive = 0;
@@ -273,18 +273,18 @@ static int disk_init(void) {
   mib[1] = HW_IOSTATS;
   mib[2] = sizeof(struct io_sysctl);
   if (sysctl(mib, 3, NULL, &size, NULL, 0) == -1) {
-    ERROR ("disk plugin: sysctl for ndrives failed");
+    ERROR("disk plugin: sysctl for ndrives failed");
     return -1;
   }
   ndrive = size / sizeof(struct io_sysctl);
 
-  if (size == 0 ) {
-    ERROR ("disk plugin: no drives found");
+  if (size == 0) {
+    ERROR("disk plugin: no drives found");
     return -1;
   }
   drives = (struct io_sysctl *)malloc(size);
   if (drives == NULL) {
-    ERROR ("disk plugin: memory allocation failure");
+    ERROR("disk plugin: memory allocation failure");
     return -1;
   }
 #endif /* HAVE_SYSCTL && KERNEL_NETBSD */
@@ -1069,20 +1069,20 @@ static int disk_read(void) {
   mib[1] = HW_IOSTATS;
   mib[2] = sizeof(struct io_sysctl);
   if (sysctl(mib, 3, NULL, &size, NULL, 0) == -1) {
-    ERROR ("disk plugin: sysctl for ndrives failed");
+    ERROR("disk plugin: sysctl for ndrives failed");
     return -1;
   }
   nndrive = size / sizeof(struct io_sysctl);
 
-  if (size == 0 ) {
-    ERROR ("disk plugin: no drives found");
+  if (size == 0) {
+    ERROR("disk plugin: no drives found");
     return -1;
   }
   /* number of drives changed, reallocate buffer */
   if (nndrive != ndrive) {
     drives = (struct io_sysctl *)realloc(drives, size);
     if (drives == NULL) {
-      ERROR ("disk plugin: memory allocation failure");
+      ERROR("disk plugin: memory allocation failure");
       return -1;
     }
     ndrive = nndrive;
@@ -1093,7 +1093,7 @@ static int disk_read(void) {
   mib[1] = HW_IOSTATS;
   mib[2] = sizeof(struct io_sysctl);
   if (sysctl(mib, 3, drives, &size, NULL, 0) == -1) {
-    ERROR ("disk plugin: sysctl for drive stats failed");
+    ERROR("disk plugin: sysctl for drive stats failed");
     return -1;
   }
 
