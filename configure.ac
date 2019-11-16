@@ -4711,7 +4711,7 @@ if test "$PYTHON_CONFIG" != ""; then
   if test $? -ne 0; then
     with_libpython="no"
   fi
-  LIBPYTHON_LDFLAGS="`${PYTHON_CONFIG} --ldflags`"
+  LIBPYTHON_LDFLAGS="`${PYTHON_CONFIG} --ldflags --embed`" || LIBPYTHON_LDFLAGS="`${PYTHON_CONFIG} --ldflags`"
   if test $? -ne 0; then
     with_libpython="no"
   fi
