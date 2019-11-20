@@ -102,26 +102,39 @@ typedef struct value_list_s value_list_t;
   { .values = NULL, .meta = NULL }
 
 struct identity_s {
-  char *        name;
+  char *name;
   struct c_avl_tree_s *root_p;
 
   pthread_mutex_t lock;
 };
 typedef struct identity_s identity_t;
 
+/* The meta data list may be shared between multiple metrics_t structures, and
+ * thus a referenxce count and a mutex are needed for changes/deletions. */
+struct meta_data_list_head_s {
+  int ref_count;
+  pthread_mutex_t lock;
+  meta_data_t *meta;
+};
+typedef struct meta_data_list_head_s meta_data_list_head_t;
+
 struct metric_s {
-  value_t     value;
-  int         value_ds_type;
-  char        type[DATA_MAX_NAME_LEN];
-  char        ds_name[DATA_MAX_NAME_LEN];
-  cdtime_t    time;
-  cdtime_t    interval;
+  value_t value;
+  int value_ds_type;
+  char type[DATA_MAX_NAME_LEN];
+  char ds_name[DATA_MAX_NAME_LEN];
+  cdtime_t time;
+  cdtime_t interval;
+  meta_data_list_head_t *meta;
   identity_t *identity;
 };
 typedef struct metric_s metric_t;
 
+#define METRIC_STRUCT_INIT                                                     \
+  { .identity = NULL, .meta = NULL }
+
 struct metrics_list_s {
-  metric_t               metric;
+  metric_t metric;
   struct metrics_list_s *next_p;
 };
 typedef struct metrics_list_s metrics_list_t;
@@ -355,6 +368,45 @@ int plugin_unregister_notification(const char *name);
  */
 void plugin_log_available_writers(void);
 
+/*
+ * NAME
+ * plugin_convert_values_to_metrics
+ *
+ * DESCRIPTION
+ *  This function converts a metric value list (in value_list_t format) into a
+ *  linked list of single sopurce metrics (in the format of metrics_list_t).
+ *  The size of the resulting linked list of metrics depends on the number of
+ *  metric values in the value_list_t (and that depends on the type of the
+ *  metric value in the types.db). This function flattens out the metric,
+ *  ensuring that there is only a single source type per metric value.
+ *
+ * ARGUMENTS
+ *  `vl'        A Pointer to a Value list created by ’read’ plugins.
+ *  `ml’        A pointer to a pointer to a metrics list that the values should
+ *              be appended to. Can be NULL if a new metrics list needs to be
+ *              created.
+ *
+ * RETURNS
+ *  Zero on success, and various negative integers on failure (the integer
+ *  values correspond roughly to system call error codes, where applicable )
+ */
+int plugin_convert_values_to_metrics(value_list_t const *vl,
+                                     metrics_list_t **ml);
+
+/*
+ * NAME
+ * destroy_identity
+ *
+ * DESCRIPTION
+ * This function takes a pointer to a identity key-value label sore,
+ * and reclaims the memory.
+ *
+ * ARGUMENTS
+ *  `identity'  Pointer to a list of identity defining key-value pairs to
+ *             reclaim memory from.
+ *
+ */
+void destroy_identity(identity_t *identity);
 /*
  * NAME
  *  plugin_dispatch_values

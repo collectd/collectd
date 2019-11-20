@@ -1501,6 +1501,291 @@ static int compare_read_func_group(llentry_t *e, void *ud) /* {{{ */
   return strcmp(rf->rf_group, (const char *)group);
 } /* }}} int compare_read_func_group */
 
+static int get_values_data_set(value_list_t const *vl, data_set_t **data_set) {
+  if (vl == NULL) {
+    return -1;
+  }
+
+  if (data_sets == NULL) {
+    ERROR("plugin_dispatch_values: No data sets registered. "
+          "Could the types database be read? Check "
+          "your `TypesDB' setting!");
+    return -1;
+  }
+
+  if (c_avl_get(data_sets, vl->type, (void *)data_set) != 0) {
+    char ident[6 * DATA_MAX_NAME_LEN]; /* host, plugin, plugin_instance, type,
+                                        * type_instance, + delimiters */
+
+    FORMAT_VL(ident, sizeof(ident), vl);
+    INFO("plugin_dispatch_values: Dataset not found: %s "
+         "(from \"%s\"), check your types.db!",
+         vl->type, ident);
+    return -1;
+  }
+
+  DEBUG("plugin_dispatch_values: time = %.3f; interval = %.3f; "
+        "host = %s; "
+        "plugin = %s; plugin_instance = %s; "
+        "type = %s; type_instance = %s;",
+        CDTIME_T_TO_DOUBLE(vl->time), CDTIME_T_TO_DOUBLE(vl->interval),
+        vl->host, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
+
+#if COLLECT_DEBUG && !defined(NDEBUG)
+  assert(0 == strcmp((*data_set)->type, vl->type));
+#else
+  if (0 != strcmp((*data_set)->type, vl->type))
+    WARNING(
+        "plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
+        vl->host, vl->plugin, vl->plugin_instance, ds->type, vl->type);
+#endif
+
+#if COLLECT_DEBUG && !defined(NDEBUG)
+  assert((*data_set)->ds_num == vl->values_len);
+#else
+  if ((*data_set)->ds_num != vl->values_len) {
+    ERROR("plugin_dispatch_values: <%s/%s-%s/%s-%s> ds->type = %s: "
+          "(ds->ds_num = %" PRIsz ") != "
+          "(vl->values_len = %" PRIsz ")",
+          vl->host, vl->plugin, vl->plugin_instance, vl->type,
+          vl->type_instance, ds->type, ds->ds_num, vl->values_len);
+    return -1;
+  }
+#endif
+  return 0;
+}
+
+static void destroy_metadata_head(meta_data_list_head_t *meta_p) {
+  if (meta_p != NULL) {
+    pthread_mutex_lock(&meta_p->lock);
+    if (meta_p->meta != NULL) {
+
+      if (meta_p->ref_count > 0) {
+        meta_p->ref_count--;
+        if (meta_p->ref_count == 0) {
+          meta_data_destroy(meta_p->meta);
+          meta_p->meta = NULL;
+          pthread_mutex_unlock(&meta_p->lock);
+          sfree(meta_p);
+          return;
+        }
+      }
+    }
+    pthread_mutex_unlock(&meta_p->lock);
+  }
+}
+
+static void destroy_metrics_list(metrics_list_t *this_list_p) {
+  metrics_list_t *index_p = this_list_p;
+  while (index_p != NULL) {
+    if (index_p->metric.identity != NULL) {
+      destroy_identity(index_p->metric.identity);
+    }
+    if (index_p->metric.meta != NULL) {
+      /* Could the shared meta data have been removed already? */
+      if (index_p->metric.meta->meta != NULL) {
+        destroy_metadata_head(index_p->metric.meta);
+        index_p->metric.meta = NULL;
+      }
+    }
+
+    index_p = index_p->next_p;
+    free(this_list_p);
+    this_list_p = index_p;
+  }
+}
+
+EXPORT void destroy_identity(identity_t *identity) {
+  if (identity == NULL) {
+    return;
+  }
+  if (identity->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(identity->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if (key_p != NULL) {
+          sfree(key_p);
+        }
+        if (value_p != NULL) {
+          sfree(value_p);
+        }
+      }
+    }
+    c_avl_iterator_destroy(iter_p);
+    c_avl_destroy(identity->root_p);
+    identity->root_p = NULL;
+  }
+  if (identity->name != NULL) {
+    sfree(identity->name);
+  }
+  sfree(identity);
+}
+
+/* This does the heavy lifting in coverting the actual metric data */
+static int value_to_metric(value_list_t const *vl,
+                           meta_data_list_head_t *meta_p, data_set_t const *ds,
+                           metrics_list_t **new_metric_list_p,
+                           metrics_list_t **new_tail_p) {
+
+  metrics_list_t *tail_p = NULL;
+  metrics_list_t *head_p = NULL;
+  int out_of_memory = 0;
+  cdtime_t metric_time = 0;
+  cdtime_t metric_interval = 0;
+
+  if (vl->time == 0)
+    metric_time = cdtime();
+  else
+    metric_time = vl->time;
+  if (vl->interval == 0)
+    metric_interval = plugin_get_interval();
+  else
+    metric_interval = vl->interval;
+
+  for (size_t i = 0; i < vl->values_len; ++i) {
+    metrics_list_t *list_p = (metrics_list_t *)malloc(sizeof(metrics_list_t));
+    if (list_p == NULL) {
+      out_of_memory = 1;
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      break;
+    }
+    list_p->metric.meta = meta_p;
+    if (meta_p != NULL) {
+      pthread_mutex_lock(&list_p->metric.meta->lock);
+      list_p->metric.meta->ref_count++;
+      pthread_mutex_unlock(&list_p->metric.meta->lock);
+    }
+
+    list_p->metric.time = metric_time;
+    list_p->metric.interval = metric_interval;
+
+    sstrncpy(list_p->metric.type, vl->type, sizeof(list_p->metric.type));
+
+    list_p->metric.value = vl->values[i];
+    list_p->metric.value_ds_type = ds->ds[i].type;
+    sstrncpy(list_p->metric.ds_name, ds->ds[i].name,
+             sizeof(list_p->metric.ds_name));
+    list_p->metric.identity = (identity_t *)malloc(sizeof(identity_t));
+    if (list_p->metric.identity == NULL) {
+      out_of_memory = 1;
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      break;
+    }
+    list_p->metric.identity->root_p =
+        c_avl_create((int (*)(const void *, const void *))strcmp);
+    char *value_p = strdup(vl->host);
+    char *label_p = strdup("_host");
+    if ((value_p == NULL) || (label_p == NULL)) {
+      out_of_memory = 1;
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      break;
+    }
+    int insert = c_avl_insert(list_p->metric.identity->root_p, (void *)label_p,
+                              (void *)value_p);
+    if (insert != 0) {
+      out_of_memory = 1;
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      break;
+    }
+    size_t name_length = 3 + strlen(vl->plugin) + strlen(vl->type) +
+                         strlen(list_p->metric.ds_name);
+    list_p->metric.identity->name = (char *)malloc(name_length);
+    if (list_p->metric.identity->name == NULL) {
+      out_of_memory = 1;
+      break;
+    }
+    if (((size_t)snprintf(list_p->metric.identity->name, name_length,
+                          "%s/%s/%s", vl->plugin, vl->type,
+                          list_p->metric.ds_name)) >= name_length) {
+      out_of_memory = 1;
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      break;
+    }
+
+    if (head_p == NULL) {
+      head_p = list_p;
+    } else {
+      tail_p->next_p = list_p;
+    }
+    tail_p = list_p;
+  }
+  if (out_of_memory != 0) {
+    destroy_metrics_list(head_p);
+    head_p = NULL;
+    tail_p = NULL;
+    *new_metric_list_p = NULL;
+    *new_tail_p = NULL;
+    return -ENOMEM;
+  }
+  *new_metric_list_p = head_p;
+  *new_tail_p = tail_p;
+  return 0;
+}
+
+EXPORT int plugin_convert_values_to_metrics(value_list_t const *vl,
+                                            metrics_list_t **ml) {
+  if ((vl == NULL) || (vl->values_len == 0)) {
+    NOTICE("No value list to convert");
+    return -ENOENT;
+  }
+  if (ml == NULL) {
+    NOTICE("No destination provided");
+    return -EINVAL;
+  }
+  DEBUG("time = %.3f; interval = %.3f; "
+        "host = %s; "
+        "plugin = %s; plugin_instance = %s; "
+        "type = %s; type_instance = %s;",
+        CDTIME_T_TO_DOUBLE(vl->time), CDTIME_T_TO_DOUBLE(vl->interval),
+        vl->host, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
+
+  data_set_t *ds = NULL;
+  int retval = get_values_data_set(vl, &ds);
+  if (retval != 0) {
+    ERROR("Could not get data source type from value list");
+    return retval;
+  }
+  if (ds == NULL) {
+    char ident[6 * DATA_MAX_NAME_LEN]; /* host, plugin, plugin_instance, type,
+                                        * type_instance, + delimiters */
+    FORMAT_VL(ident, sizeof(ident), vl);
+    ERROR("Dataset not found: \"%s\" "
+          "(from \"%s\"), at %s, line %d.",
+          vl->type, ident, __FILE__, __LINE__);
+
+    return -ENOMEM;
+  }
+  meta_data_list_head_t *meta_p = NULL;
+
+  if (vl->meta != NULL) {
+    meta_p = (meta_data_list_head_t *)calloc(1, sizeof(meta_data_list_head_t));
+    if (meta_p == NULL) {
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      return -ENOMEM;
+    }
+    meta_p->meta = meta_data_clone(vl->meta);
+    if (meta_p->meta == NULL) {
+      sfree(meta_p);
+      ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+      return -ENOMEM;
+    }
+  }
+  metrics_list_t *new_metrics_list_p = NULL;
+  metrics_list_t *new_tail_p = NULL;
+
+  if (value_to_metric(vl, meta_p, ds, &new_metrics_list_p, &new_tail_p) != 0) {
+    destroy_metadata_head(meta_p);
+    ERROR("Out of memory at %s, line %d.", __FILE__, __LINE__);
+    return -ENOMEM;
+  }
+  new_tail_p->next_p = *ml;
+  *ml = new_metrics_list_p;
+  return 0;
+}
+
 EXPORT int plugin_unregister_read_group(const char *group) /* {{{ */
 {
   llentry_t *le;
@@ -2094,52 +2379,12 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
                     "registered. Please load at least one output plugin, "
                     "if you want the collected data to be stored.");
 
-  if (data_sets == NULL) {
-    ERROR("plugin_dispatch_values: No data sets registered. "
-          "Could the types database be read? Check "
-          "your `TypesDB' setting!");
-    return -1;
-  }
-
   data_set_t *ds = NULL;
-  if (c_avl_get(data_sets, vl->type, (void *)&ds) != 0) {
-    char ident[6 * DATA_MAX_NAME_LEN];
-
-    FORMAT_VL(ident, sizeof(ident), vl);
-    INFO("plugin_dispatch_values: Dataset not found: %s "
-         "(from \"%s\"), check your types.db!",
-         vl->type, ident);
-    return -1;
+  int retval = 0;
+  if ((retval = get_values_data_set(vl, &ds)) != 0) {
+    ERROR("Could not get data source type from value list");
+    return retval;
   }
-
-  DEBUG("plugin_dispatch_values: time = %.3f; interval = %.3f; "
-        "host = %s; "
-        "plugin = %s; plugin_instance = %s; "
-        "type = %s; type_instance = %s;",
-        CDTIME_T_TO_DOUBLE(vl->time), CDTIME_T_TO_DOUBLE(vl->interval),
-        vl->host, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
-
-#if COLLECT_DEBUG
-  assert(0 == strcmp(ds->type, vl->type));
-#else
-  if (0 != strcmp(ds->type, vl->type))
-    WARNING(
-        "plugin_dispatch_values: <%s/%s-%s> (ds->type = %s) != (vl->type = %s)",
-        vl->host, vl->plugin, vl->plugin_instance, ds->type, vl->type);
-#endif
-
-#if COLLECT_DEBUG
-  assert(ds->ds_num == vl->values_len);
-#else
-  if (ds->ds_num != vl->values_len) {
-    ERROR("plugin_dispatch_values: <%s/%s-%s/%s-%s> ds->type = %s: "
-          "(ds->ds_num = %" PRIsz ") != "
-          "(vl->values_len = %" PRIsz ")",
-          vl->host, vl->plugin, vl->plugin_instance, vl->type,
-          vl->type_instance, ds->type, ds->ds_num, vl->values_len);
-    return -1;
-  }
-#endif
 
   escape_slashes(vl->host, sizeof(vl->host));
   escape_slashes(vl->plugin, sizeof(vl->plugin));

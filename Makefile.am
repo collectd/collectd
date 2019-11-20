@@ -398,8 +398,32 @@ test_utils_subst_LDADD = libplugin_mock.la
 
 test_utils_metrics_list_SOURCES = \
 	src/daemon/metrics_list_test.c \
+	src/daemon/utils_cache.h \
+	src/daemon/utils_cache.c \
+	src/daemon/utils_llist.h \
+	src/daemon/utils_llist.c \
+	src/daemon/configfile.h \
+	src/daemon/configfile.c \
+	src/daemon/utils_time.c \
+	src/daemon/utils_time.h \
+	src/daemon/globals.h \
+	src/daemon/globals.c \
+	src/daemon/filter_chain.h \
+	src/daemon/filter_chain.c \
+	src/daemon/types_list.h \
+	src/daemon/types_list.c \
+	src/daemon/utils_complain.h \
+	src/daemon/utils_complain.c \
+	src/daemon/utils_random.h \
+	src/daemon/utils_random.c \
 	src/testing.h
-test_utils_metrics_list_LDADD = libavltree.la $(COMMON_LIBS)
+test_utils_metrics_list_LDADD = libavltree.la \
+	libcommon.la \
+	libmetadata.la \
+	libheap.la \
+	liboconfig.la \
+	$(COMMON_LIBS)
+test_utils_metrics_list_LDFLAGS = -ldl  -pthread
 
 test_utils_config_cores_SOURCES = \
 	src/utils/config_cores/config_cores_test.c \
