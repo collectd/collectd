@@ -682,6 +682,10 @@ static void redis_read_server_info(redis_node_t *rn) {
                     "total_net_input_bytes", DS_TYPE_DERIVE);
   redis_handle_info(rn->name, rr->str, "total_bytes", "output",
                     "total_net_output_bytes", DS_TYPE_DERIVE);
+  redis_handle_info(rn->name, rr->str, "current", "master_repl_offset",
+                    "master_repl_offset", DS_TYPE_GAUGE);
+  redis_handle_info(rn->name, rr->str, "current", "slave_repl_offset",
+                    "slave_repl_offset", DS_TYPE_GAUGE);
 
   redis_keyspace_usage(rn, rr->str);
 
