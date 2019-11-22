@@ -4591,7 +4591,7 @@ if test "x$with_libjansson" = "xyes"; then
 
   AC_CHECK_LIB([jansson], [json_loads],
     [with_libjansson="yes"],
-    [with_libjansson="no (Symbol 'json_loads' not found)"]
+    [with_libjansson="no (symbol 'json_loads' not found)"]
   )
 
   LDFLAGS="$SAVE_LDFLAGS"
