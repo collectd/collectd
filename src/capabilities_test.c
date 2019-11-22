@@ -250,7 +250,7 @@ DEF_TEST(get_dmi_variables) {
   int ret = cap_get_dmi_variables(root, 0, "TEST_TYPE");
   EXPECT_EQ_INT(0, ret);
 
-  char *test_str = json_dumps(root, JSON_COMPACT);
+  char *test_str = json_dumps(root, JSON_COMPACT | JSON_PRESERVE_ORDER);
   CHECK_NOT_NULL(test_str);
   json_decref(root);
   EXPECT_EQ_STR(RESULT_STRING_JSON, test_str);
@@ -262,7 +262,7 @@ DEF_TEST(get_dmi_variables) {
   ret = cap_get_dmi_variables(root, 1, "TEST_TYPE2");
   EXPECT_EQ_INT(-1, ret);
 
-  test_str = json_dumps(root, JSON_COMPACT);
+  test_str = json_dumps(root, JSON_COMPACT | JSON_PRESERVE_ORDER);
   CHECK_NOT_NULL(test_str);
   json_decref(root);
   EXPECT_EQ_STR("{\"TEST_TYPE2\":[]}", test_str);
