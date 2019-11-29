@@ -928,7 +928,7 @@ double global_option_get_double(const char *name, double def) /* {{{ */
     return def;
 
   return v;
-} /* }}} float global_option_get_float */
+} /* }}} double global_option_get_double */
 
 cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
 {

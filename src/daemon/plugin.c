@@ -1087,7 +1087,7 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
  * Values between 0 and 59 (mod 60) determine the second of a minute. Decimal
  * places set the millisecond of a second.
  */
-static void plugin_set_next_read_time(read_func_t *rf) {
+static void plugin_set_first_read_time(read_func_t *rf) {
 
   double start = rf->rf_ctx.align_read; /* (default is -1.0) */
 
@@ -1127,7 +1127,7 @@ static void plugin_set_next_read_time(read_func_t *rf) {
       rf->rf_next_read = cdtime();
     }
   }
-} /* void plugin_set_next_read_time */
+} /* void plugin_set_first_read_time */
 
 /* Add a read function to both, the heap and a linked list. The linked list if
  * used to look-up read functions, especially for the remove function. The heap
@@ -1136,7 +1136,7 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  plugin_set_next_read_time(rf);
+  plugin_set_first_read_time(rf);
 
   rf->rf_effective_interval = rf->rf_interval;
 
