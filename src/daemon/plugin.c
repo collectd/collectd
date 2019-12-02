@@ -165,6 +165,7 @@ static bool record_statistics;
  * Static functions
  */
 static int plugin_dispatch_values_internal(value_list_t *vl);
+static void destroy_metadata_head(meta_data_list_head_t *meta_p);
 
 static const char *plugin_get_dir(void) {
   if (plugindir == NULL)
@@ -683,6 +684,116 @@ static void stop_read_threads(void) {
   sfree(read_threads);
   read_threads_num = 0;
 } /* void stop_read_threads */
+
+static identity_t *clone_identity(identity_t const *identity_orig) {
+  identity_t *identity_p = NULL;
+  if (identity_orig == NULL) {
+    return identity_p;
+  }
+  identity_p = (identity_t *)malloc(sizeof(*identity_p));
+  if (identity_p == NULL) {
+    return identity_p;
+  }
+  identity_p->root_p =
+      c_avl_create((int (*)(const void *, const void *))strcmp);
+  if (identity_p->root_p == NULL) {
+    sfree(identity_p);
+    return identity_p;
+  }
+  if (identity_orig->root_p != NULL) {
+    c_avl_iterator_t *iter_p = c_avl_get_iterator(identity_orig->root_p);
+    if (iter_p != NULL) {
+      char *key_p = NULL;
+      char *value_p = NULL;
+      while ((c_avl_iterator_next(iter_p, (void **)&key_p,
+                                  (void **)&value_p)) == 0) {
+        if (key_p == NULL) {
+          WARNING("clone_identity: NULL key found in labels: %s",
+                  identity_orig->name != NULL ? identity_orig->name : "");
+          continue;
+        }
+        char *new_key_p = strdup(key_p);
+        char *new_value_p = NULL;
+        if (value_p != NULL) {
+          new_value_p = strdup(value_p);
+        }
+        if ((new_key_p == NULL) || (value_p != NULL && new_value_p == NULL)) {
+          destroy_identity(identity_p);
+          c_avl_iterator_destroy(iter_p);
+          if (new_key_p != NULL) {
+            sfree(new_key_p);
+          }
+          if (new_value_p != NULL) {
+            sfree(new_value_p);
+          }
+          return identity_p;
+        }
+        if (c_avl_insert(identity_p->root_p, new_key_p, new_value_p)) {
+          destroy_identity(identity_p);
+          c_avl_iterator_destroy(iter_p);
+          if (new_key_p != NULL) {
+            sfree(new_key_p);
+          }
+          if (new_value_p != NULL) {
+            sfree(new_value_p);
+          }
+          return identity_p;
+        }
+      }
+      c_avl_iterator_destroy(iter_p);
+    }
+  }
+  if (identity_orig->name != NULL) {
+    identity_p->name = strdup(identity_orig->name);
+    if (identity_p->name == NULL) {
+      destroy_identity(identity_p);
+      return NULL;
+    }
+  }
+  return identity_p;
+}
+
+static metric_t *plugin_metric_clone(metric_t const *metric_orig) { /* {{{ */
+  metric_t *metric_p = NULL;
+  if (metric_orig == NULL) {
+    return metric_p;
+  }
+  metric_p = (metric_t *)malloc(sizeof(*metric_p));
+  if (metric_p == NULL) {
+    return metric_p;
+  }
+  memcpy(metric_p, metric_orig, sizeof(*metric_p));
+
+  /* Do not copy metadata: there can be only one */
+  if (metric_p->meta != NULL) { /* Points to the same metadata list head */
+    pthread_mutex_lock(&metric_p->meta->lock);
+    if (metric_orig->meta->meta != NULL) {
+      metric_p->meta->ref_count++;
+    }
+    pthread_mutex_unlock(&metric_p->meta->lock);
+  }
+
+  if (metric_orig->identity != NULL) {
+    metric_p->identity = clone_identity(metric_orig->identity);
+  } else {
+    metric_p->identity = NULL;
+  }
+
+  return metric_p;
+} /* }}}  metric_t * plugin_metric_clone  */
+
+static void plugin_metric_free(metric_t *metric_p) {
+  if (metric_p == NULL) {
+    return;
+  }
+  if (metric_p->meta != NULL) {
+    destroy_metadata_head(metric_p->meta);
+  }
+  if (metric_p->identity != NULL) {
+    destroy_identity(metric_p->identity);
+  }
+  sfree(metric_p);
+}
 
 static void plugin_value_list_free(value_list_t *vl) /* {{{ */
 {
