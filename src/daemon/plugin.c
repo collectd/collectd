@@ -96,7 +96,7 @@ typedef struct cache_event_func_s cache_event_func_t;
 struct write_queue_s;
 typedef struct write_queue_s write_queue_t;
 struct write_queue_s {
-  value_list_t *vl;
+  metric_t *metric;
   plugin_ctx_t ctx;
   write_queue_t *next;
 };
@@ -164,8 +164,9 @@ static bool record_statistics;
 /*
  * Static functions
  */
-static int plugin_dispatch_values_internal(value_list_t *vl);
 static void destroy_metadata_head(meta_data_list_head_t *meta_p);
+static void destroy_metrics_list(metrics_list_t *this_list_p);
+static int plugin_dispatch_metric_internal(metric_t *metric_p);
 
 static const char *plugin_get_dir(void) {
   if (plugindir == NULL)
@@ -767,12 +768,11 @@ static metric_t *plugin_metric_clone(metric_t const *metric_orig) { /* {{{ */
   /* Do not copy metadata: there can be only one */
   if (metric_p->meta != NULL) { /* Points to the same metadata list head */
     pthread_mutex_lock(&metric_p->meta->lock);
-    if (metric_orig->meta->meta != NULL) {
-      metric_p->meta->ref_count++;
-    }
+    metric_p->meta->ref_count++;
     pthread_mutex_unlock(&metric_p->meta->lock);
   }
 
+  /* Identity pointer is changed to point to a copy */
   if (metric_orig->identity != NULL) {
     metric_p->identity = clone_identity(metric_orig->identity);
   } else {
@@ -845,48 +845,62 @@ plugin_value_list_clone(value_list_t const *vl_orig) /* {{{ */
   return vl;
 } /* }}} value_list_t *plugin_value_list_clone */
 
+static int plugin_write_enqueue_metric(metrics_list_t *ml) { /* {{{ */
+  metrics_list_t *index_p = ml;
+  while (index_p != NULL) {
+    write_queue_t *q;
+
+    q = malloc(sizeof(*q));
+    if (q == NULL) {
+      return ENOMEM;
+    }
+    q->metric = plugin_metric_clone(&index_p->metric);
+    if (q->metric == NULL) {
+      sfree(q);
+      return ENOMEM;
+    }
+    q->next = NULL;
+    /* Store context of caller (read plugin); otherwise, it would not be
+     * available to the write plugins when actually dispatching the
+     * value-list later on. */
+    q->ctx = plugin_get_ctx();
+
+    pthread_mutex_lock(&write_lock);
+
+    if (write_queue_tail == NULL) {
+      write_queue_head = q;
+      write_queue_tail = q;
+      write_queue_length = 1;
+    } else {
+      write_queue_tail->next = q;
+      write_queue_tail = q;
+      write_queue_length += 1;
+    }
+
+    pthread_cond_signal(&write_cond);
+    pthread_mutex_unlock(&write_lock);
+    index_p = index_p->next_p;
+  }
+  return 0;
+} /* }}} int plugin_write_enqueue_metric */
+
 static int plugin_write_enqueue(value_list_t const *vl) /* {{{ */
 {
-  write_queue_t *q;
-
-  q = malloc(sizeof(*q));
-  if (q == NULL)
-    return ENOMEM;
-  q->next = NULL;
-
-  q->vl = plugin_value_list_clone(vl);
-  if (q->vl == NULL) {
-    sfree(q);
-    return ENOMEM;
+  metrics_list_t *ml = NULL;
+  int retval = (plugin_convert_values_to_metrics(vl, &ml));
+  if (retval != 0) {
+    return retval;
   }
+  retval = plugin_write_enqueue_metric(ml);
+  destroy_metrics_list(ml);
 
-  /* Store context of caller (read plugin); otherwise, it would not be
-   * available to the write plugins when actually dispatching the
-   * value-list later on. */
-  q->ctx = plugin_get_ctx();
-
-  pthread_mutex_lock(&write_lock);
-
-  if (write_queue_tail == NULL) {
-    write_queue_head = q;
-    write_queue_tail = q;
-    write_queue_length = 1;
-  } else {
-    write_queue_tail->next = q;
-    write_queue_tail = q;
-    write_queue_length += 1;
-  }
-
-  pthread_cond_signal(&write_cond);
-  pthread_mutex_unlock(&write_lock);
-
-  return 0;
+  return retval;
 } /* }}} int plugin_write_enqueue */
 
-static value_list_t *plugin_write_dequeue(void) /* {{{ */
+static metric_t *plugin_write_dequeue(void) /* {{{ */
 {
   write_queue_t *q;
-  value_list_t *vl;
+  metric_t *metric_p;
 
   pthread_mutex_lock(&write_lock);
 
@@ -910,21 +924,21 @@ static value_list_t *plugin_write_dequeue(void) /* {{{ */
 
   (void)plugin_set_ctx(q->ctx);
 
-  vl = q->vl;
+  metric_p = q->metric;
   sfree(q);
-  return vl;
-} /* }}} value_list_t *plugin_write_dequeue */
+  return metric_p;
+} /* }}} metric_t *plugin_write_dequeue */
 
 static void *plugin_write_thread(void __attribute__((unused)) * args) /* {{{ */
 {
   while (write_loop) {
-    value_list_t *vl = plugin_write_dequeue();
-    if (vl == NULL)
+    metric_t *metric_p = NULL;
+    metric_p = plugin_write_dequeue();
+    if (metric_p == NULL)
       continue;
 
-    plugin_dispatch_values_internal(vl);
-
-    plugin_value_list_free(vl);
+    (void) plugin_dispatch_metric_internal(metric_p);
+    plugin_metric_free(metric_p);
   }
 
   pthread_exit(NULL);
@@ -992,7 +1006,7 @@ static void stop_write_threads(void) /* {{{ */
   i = 0;
   for (q = write_queue_head; q != NULL;) {
     write_queue_t *q1 = q;
-    plugin_value_list_free(q->vl);
+    plugin_metric_free(q->metric);
     q = q->next;
     sfree(q1);
     i++;
@@ -1003,7 +1017,7 @@ static void stop_write_threads(void) /* {{{ */
   pthread_mutex_unlock(&write_lock);
 
   if (i > 0) {
-    WARNING("plugin: %" PRIsz " value list%s left after shutting down "
+    WARNING("plugin: %" PRIsz " metric%s left after shutting down "
             "the write threads.",
             i, (i == 1) ? " was" : "s were");
   }
@@ -2458,31 +2472,24 @@ void plugin_dispatch_cache_event(enum cache_event_type_e event_type,
   return;
 }
 
-static int plugin_dispatch_values_internal(value_list_t *vl) {
-  int status;
+static int plugin_dispatch_metric_internal(metric_t *metric_p) {
+  int retval = 0;
+  char *host_p = NULL;
+
   static c_complain_t no_write_complaint = C_COMPLAIN_INIT_STATIC;
-
-  bool free_meta_data = false;
-
-  assert(vl != NULL);
-
-  /* These fields are initialized by plugin_value_list_clone() if needed: */
-  assert(vl->host[0] != 0);
-  assert(vl->time != 0); /* The time is determined at _enqueue_ time. */
-  assert(vl->interval != 0);
-
-  if (vl->type[0] == 0 || vl->values == NULL || vl->values_len < 1) {
-    ERROR("plugin_dispatch_values: Invalid value list "
+  assert(metric_p != NULL);
+  assert(metric_p->time != 0); /* The time is determined at _enqueue_ time. */
+  assert(metric_p->interval != 0);
+  assert(metric_p->identity != NULL);
+  if (metric_p->type[0] == 0 || metric_p->ds_name[0] == 0) {
+    ERROR("plugin_dispatch_values: Invalid metric "
           "from plugin %s.",
-          vl->plugin);
-    return -1;
+          metric_p->identity->name);
+    return -EINVAL;
   }
-
-  /* Free meta data only if the calling function didn't specify any. In
-   * this case matches and targets may add some and the calling function
-   * may not expect (and therefore free) that data. */
-  if (vl->meta == NULL)
-    free_meta_data = true;
+  retval = c_avl_get(metric_p->identity->root_p, (void *)"_host",
+                     (void **)&host_p);
+  assert(retval == 0);
 
   if (list_write == NULL)
     c_complain_once(LOG_WARNING, &no_write_complaint,
@@ -2490,48 +2497,15 @@ static int plugin_dispatch_values_internal(value_list_t *vl) {
                     "registered. Please load at least one output plugin, "
                     "if you want the collected data to be stored.");
 
-  data_set_t *ds = NULL;
-  int retval = 0;
-  if ((retval = get_values_data_set(vl, &ds)) != 0) {
-    ERROR("Could not get data source type from value list");
-    return retval;
+  data_set_t const *ds = plugin_get_ds(metric_p->type);
+  if (ds == NULL) {
+    ERROR("Could not get data source type from metric");
+    return -EINVAL;
   }
-
-  escape_slashes(vl->host, sizeof(vl->host));
-  escape_slashes(vl->plugin, sizeof(vl->plugin));
-  escape_slashes(vl->plugin_instance, sizeof(vl->plugin_instance));
-  escape_slashes(vl->type, sizeof(vl->type));
-  escape_slashes(vl->type_instance, sizeof(vl->type_instance));
-
-  if (pre_cache_chain != NULL) {
-    status = fc_process_chain(ds, vl, pre_cache_chain);
-    if (status < 0) {
-      WARNING("plugin_dispatch_values: Running the "
-              "pre-cache chain failed with "
-              "status %i (%#x).",
-              status, status);
-    } else if (status == FC_TARGET_STOP)
-      return 0;
-  }
-
-  /* Update the value cache */
-  uc_update(ds, vl);
-
-  if (post_cache_chain != NULL) {
-    status = fc_process_chain(ds, vl, post_cache_chain);
-    if (status < 0) {
-      WARNING("plugin_dispatch_values: Running the "
-              "post-cache chain failed with "
-              "status %i (%#x).",
-              status, status);
-    }
-  } else
-    fc_default_action(ds, vl);
-
-  if ((free_meta_data == true) && (vl->meta != NULL)) {
-    meta_data_destroy(vl->meta);
-    vl->meta = NULL;
-  }
+  /**** TODO: Handle caching here !! ****/
+  /* fc_process_chain(ds, vl, pre_cache_chain); */
+  /* uc_update(ds, vl); */
+  /* fc_process_chain(ds, vl, post_cache_chain); */
 
   return 0;
 } /* int plugin_dispatch_values_internal */
