@@ -405,6 +405,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
         riemann_event_string_attribute_add(event, key, value);
         free(value);
       }
+      free(toc[i]);
     }
 
     free(toc);
