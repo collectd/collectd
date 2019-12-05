@@ -10132,17 +10132,18 @@ which means the connection never times out.
 
 Enables printing of HTTP error code to log. Turned off by default.
 
+=item E<lt>B<Statistics> I<Name>E<gt>
+
+One B<Statistics> block can be used to specify cURL statistics to be collected
+for each request to the remote URL. See the section "cURL Statistics" above
+for details.
+
 The C<write_http> plugin regularly submits the collected values to the HTTP
 server. How frequently this happens depends on how much data you are collecting
 and the size of B<BufferSize>. The optimal value to set B<Timeout> to is
 slightly below this interval, which you can estimate by monitoring the network
 traffic between collectd and the HTTP server.
 
-=item B<E<lt>StatisticsE<gt>>
-
-One B<Statistics> block can be used to specify cURL statistics to be collected
-for each request to the remote URL. See the section "cURL Statistics" above
-for details.
 
 =back
 

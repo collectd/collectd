@@ -132,8 +132,15 @@ static int wh_post_nolock(wh_callback_t *cb, char const *data) /* {{{ */
 
   wh_log_http_error(cb);
 
-  if (cb->curl_stats != NULL)
-    curl_stats_dispatch(cb->curl_stats, cb->curl, NULL, "write_http", cb->name);
+  if (cb->curl_stats != NULL) {
+    int rc = curl_stats_dispatch(cb->curl_stats, cb->curl, NULL, "write_http",
+                                 cb->name);
+    if (rc != 0) {
+      ERROR("write_http plugin: curl_stats_dispatch failed with "
+            "status %i",
+            rc);
+    }
+  }
 
   if (status != CURLE_OK) {
     ERROR("write_http plugin: curl_easy_perform failed with "
@@ -323,6 +330,7 @@ static void wh_callback_free(void *data) /* {{{ */
   }
 
   curl_stats_destroy(cb->curl_stats);
+  cb->curl_stats = NULL;
 
   if (cb->headers != NULL) {
     curl_slist_free_all(cb->headers);
