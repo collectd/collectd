@@ -46,7 +46,7 @@ if [ "x$INIT" == "xyes" ]; then
 
     # dir could be absent if its the first run
     if [ -d "$STRDIR" ]; then
-	rsync -a $STRDIR/ $TMPDIR/
+	rsync -aI $STRDIR/ $TMPDIR/
     fi
 
     exit 0
@@ -55,7 +55,7 @@ fi
 if [ "x$STOP" == "xyes" ]; then
     if [ -d "$TMPDIR" ]; then
 	[[ -d $STRDIR ]] || mkdir $STRDIR
-	rsync -a $TMPDIR/ $STRDIR/
+	rsync -aI $TMPDIR/ $STRDIR/
 	rm -rf $TMPDIR
 	exit 0
     else
@@ -67,7 +67,7 @@ fi
 if [ "x$SYNC" == "xyes" ]; then
     if [ -d "$TMPDIR" ]; then
 	[[ -d $STRDIR ]] || mkdir $STRDIR
-	rsync -a $TMPDIR/ $STRDIR/
+	rsync -aI $TMPDIR/ $STRDIR/
 	exit 0
     fi
 fi
