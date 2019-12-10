@@ -54,6 +54,6 @@ set -x
 
 autoheader \
 && aclocal \
-&& $libtoolize --ltdl --copy --force \
+&& ($libtoolize --ltdl --copy --force || echo Ignore error) \
 && automake --add-missing --copy \
 && autoconf
