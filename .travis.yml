@@ -111,7 +111,6 @@ addons:
     packages:
     - curl
     - glib
-    - grpc
     - hiredis
     - libdbi
     - libmemcached
