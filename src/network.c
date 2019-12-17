@@ -2762,6 +2762,7 @@ network_config_set_bind_address(const oconfig_item_t *ci,
   *bind_address = malloc(sizeof(**bind_address));
   if (*bind_address == NULL) {
     ERROR("network plugin: network_config_set_bind_address: malloc failed.");
+    freeaddrinfo(res);
     return -1;
   }
   (*bind_address)->ss_family = res->ai_family;

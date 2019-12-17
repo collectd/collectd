@@ -572,8 +572,10 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("Format", child->key) == 0) {
       char *key = NULL;
       status = cf_util_get_string(child, &key);
-      if (status != 0)
+      if (status != 0) {
+        amqp1_config_instance_free(instance);
         return status;
+      }
       assert(key != NULL);
       if (strcasecmp(key, "Command") == 0) {
         instance->format = AMQP1_FORMAT_COMMAND;
@@ -627,12 +629,14 @@ static int amqp1_config_instance(oconfig_item_t *ci) /* {{{ */
     status = ssnprintf(tpname, sizeof(tpname), "amqp1/%s", instance->name);
     if ((status < 0) || (size_t)status >= sizeof(tpname)) {
       ERROR("amqp1 plugin: Instance name would have been truncated.");
+      amqp1_config_instance_free(instance);
       return -1;
     }
     status = ssnprintf(instance->send_to, sizeof(instance->send_to), "/%s/%s",
                        transport->address, instance->name);
     if ((status < 0) || (size_t)status >= sizeof(instance->send_to)) {
       ERROR("amqp1 plugin: send_to address would have been truncated.");
+      amqp1_config_instance_free(instance);
       return -1;
     }
     if (instance->notify) {
