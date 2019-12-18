@@ -2564,16 +2564,18 @@ This will override the I<global Interval> for I<dcpmm> plugin. None of the other
 Collects health information. I<CollectHealth and CollectPerfMetrics cannot be true at the same time>. Defaults to C<false>.
 
 The health information metrics are the following:
-  health_status        Overall health summary (0: normal | 1: non-critical | 2: critical | 3: fatal).
-  percentage_remaining The module’s remaining life as a percentage value of factory expected life span.
-  percentage_used      The module’s used life as a percentage value of factory expected life span.
-  power_on_time        The lifetime the DIMM has been powered on in seconds.
-  uptime               The current uptime of the DIMM for the current power cycle in seconds.
-  last_shutdown_time   The time the system was last shutdown. The time is represented in epoch (seconds).
-  media_temp           The media’s current temperature in degrees Celsius.
-  controller_temp      The controller’s current temperature in degrees Celsius.
-  max_media_temp       The media’s the highest temperature reported in degrees Celsius.
-  max_controller_temp  The controller’s highest temperature reported in degrees Celsius.
+  health_status              Overall health summary (0: normal | 1: non-critical | 2: critical | 3: fatal).
+  lifespan_remaining         The module’s remaining life as a percentage value of factory expected life span.
+  lifespan_used              The module’s used life as a percentage value of factory expected life span.
+  power_on_time              The lifetime the DIMM has been powered on in seconds.
+  uptime                     The current uptime of the DIMM for the current power cycle in seconds.
+  last_shutdown_time         The time the system was last shutdown. The time is represented in epoch (seconds).
+  media_temperature          The media’s current temperature in degree Celsius.
+  controller_temperature     The controller’s current temperature in degree Celsius.
+  max_media_temperature      The media’s the highest temperature reported in degree Celsius.
+  max_controller_temperature The controller’s highest temperature reported in degree Celsius.
+  tsc_cycles                 The number of tsc cycles during each interval.
+  epoch                      The timestamp in seconds at which the metrics are collected from DCPMM DIMMs.
 
 =item B<CollectPerfMetrics> I<true>|I<false>
 
@@ -2588,8 +2590,10 @@ The memory performance metrics are the following:
   media_write_ops     Number of write operations performed to the physical media.
   host_reads          Number of read operations received from the CPU (memory controller).
   host_writes         Number of write operations received from the CPU (memory controller).
-  read_hit_ratio      Measures the efficiency of the buffer in the read path. Range of 0.0 - 0.75.
+  read_hit_ratio      Measures the efficiency of the buffer in the read path. Range of 0.0 - 1.0.
   write_hit_ratio     Measures the efficiency of the buffer in the write path. Range of 0.0 - 1.0.
+  tsc_cycles          The number of tsc cycles during each interval.
+  epoch               The timestamp in seconds at which the metrics are collected from DCPMM DIMMs.
 
 =item B<EnableDispatchAll> I<false>
 

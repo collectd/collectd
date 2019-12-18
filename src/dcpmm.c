@@ -69,8 +69,10 @@ static void add_metric(const char *plugin_inst, const char *type,
 
   if (strncmp(type_inst, "read_hit_ratio", strlen("read_hit_ratio")) == 0 ||
       strncmp(type_inst, "write_hit_ratio", strlen("write_hit_ratio")) == 0 ||
-      strncmp(type_inst, "media_temp", strlen("media_temp")) == 0 ||
-      strncmp(type_inst, "controller_temp", strlen("controller_temp")) == 0) {
+      strncmp(type_inst, "media_temperature", strlen("media_temperature")) ==
+          0 ||
+      strncmp(type_inst, "controller_temperature",
+              strlen("controller_temperature")) == 0) {
     snprintf(n.message, sizeof(n.message), "Value: %0.2f", value);
   } else {
     snprintf(n.message, sizeof(n.message), "Value: %0.0f", value);
@@ -106,7 +108,7 @@ static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
     if (pmwatch_config.collect_perf_metrics) {
       add_metric(dimm_num, "timestamp", "epoch",
                  PMWATCH_OP_BUF_EPOCH(&pmw_output_buf[i]));
-      add_metric(dimm_num, "timestamp", "timestamp",
+      add_metric(dimm_num, "timestamp", "tsc_cycles",
                  PMWATCH_OP_BUF_TIMESTAMP(&pmw_output_buf[i]));
       add_metric(dimm_num, "media", "total_bytes_read",
                  PMWATCH_OP_BUF_TOTAL_BYTES_READ(&pmw_output_buf[i]));
@@ -136,13 +138,13 @@ static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
       }
       add_metric(dimm_num, "timestamp", "epoch",
                  PMWATCH_OP_BUF_EPOCH(&pmw_output_buf[i]));
-      add_metric(dimm_num, "timestamp", "timestamp",
+      add_metric(dimm_num, "timestamp", "tsc_cycles",
                  PMWATCH_OP_BUF_TIMESTAMP(&pmw_output_buf[i]));
       add_metric(dimm_num, "health", "health_status",
                  PMWATCH_OP_BUF_HEALTH_STATUS(&pmw_output_buf[i]));
-      add_metric(dimm_num, "health", "percentage_remaining",
+      add_metric(dimm_num, "health", "lifespan_remaining",
                  PMWATCH_OP_BUF_PERCENTAGE_REMAINING(&pmw_output_buf[i]));
-      add_metric(dimm_num, "health", "percentage_used",
+      add_metric(dimm_num, "health", "lifespan_used",
                  PMWATCH_OP_BUF_PERCENTAGE_USED(&pmw_output_buf[i]));
       add_metric(dimm_num, "health", "power_on_time",
                  PMWATCH_OP_POWER_ON_TIME(&pmw_output_buf[i]));
@@ -150,13 +152,13 @@ static int dcpmm_read(__attribute__((unused)) user_data_t *ud) {
                  PMWATCH_OP_BUF_UPTIME(&pmw_output_buf[i]));
       add_metric(dimm_num, "health", "last_shutdown_time",
                  PMWATCH_OP_BUF_LAST_SHUTDOWN_TIME(&pmw_output_buf[i]));
-      add_metric(dimm_num, "health", "media_temp",
+      add_metric(dimm_num, "health", "media_temperature",
                  PMWATCH_OP_BUF_MEDIA_TEMP(&pmw_output_buf[i]));
-      add_metric(dimm_num, "health", "controller_temp",
+      add_metric(dimm_num, "health", "controller_temperature",
                  PMWATCH_OP_BUF_CONTROLLER_TEMP(&pmw_output_buf[i]));
-      add_metric(dimm_num, "health", "max_media_temp",
+      add_metric(dimm_num, "health", "max_media_temperature",
                  PMWATCH_OP_BUF_MAX_MEDIA_TEMP(&pmw_output_buf[i]));
-      add_metric(dimm_num, "health", "max_controller_temp",
+      add_metric(dimm_num, "health", "max_controller_temperature",
                  PMWATCH_OP_BUF_MAX_CONTROLLER_TEMP(&pmw_output_buf[i]));
     }
   }
