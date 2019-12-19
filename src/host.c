@@ -147,7 +147,7 @@ static void *host_thread(void *arg) /* {{{ */
       host = key.mv_data;
       tv_then = data.mv_data;
 
-      if (tv_now.tv_sec - tv_then->tv_sec >= lost_interval) {
+      if (tv_now.tv_sec - tv_then->tv_sec >= lost_interval + thread_interval) {
 
         notification_t n;
         char message[NOTIF_MAX_MSG_LEN];
@@ -357,12 +357,14 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
     } else {
 
-      /* have we seen host recently? if so it is good enough, exit cheaply */
+      /* have we seen host in the same second as we did our last put? if so
+       * it is good enough, exit cheaply
+       */
 
       struct timeval *tv_then = data.mv_data;
 
       if (data.mv_size == sizeof(struct timespec) &&
-          ((tv_then = data.mv_data)) && (tv_then->tv_sec < tv_now.tv_sec)) {
+          ((tv_then = data.mv_data)) && (tv_then->tv_sec == tv_now.tv_sec)) {
         mdb_dbi_close(env, dbi);
         mdb_txn_abort(txn);
         return 0;
@@ -391,7 +393,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
     data.mv_size = sizeof(tv_now);
     data.mv_data = &tv_now;
 
-    rc = mdb_put(txn, dbi, &key, &data, MDB_NOOVERWRITE);
+    rc = mdb_put(txn, dbi, &key, &data, add ? MDB_NOOVERWRITE : 0);
     if (MDB_KEYEXIST == rc) {
 
       /* another thread beat us to it, do nothing */
