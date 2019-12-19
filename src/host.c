@@ -45,7 +45,8 @@
 #define DEFAULT_THREAD_INTERVAL 2
 #define DEFAULT_DELAY_INTERVAL 60
 
-static const char *config_keys[] = {"HOSTPATH", "LOSTINTERVAL", "DELAYINTERVAL"};
+static const char *config_keys[] = {"HOSTPATH", "LOSTINTERVAL",
+                                    "DELAYINTERVAL"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 static char *host_path = DEFAULT_HOST_PATH;
 static int lost_interval = DEFAULT_LOST_INTERVAL;
@@ -123,17 +124,17 @@ static void *host_thread(void *arg) /* {{{ */
        */
 
       if (key.mv_size != sizeof(n.host) ||
-              data.mv_size != sizeof(struct timespec)) {
+          data.mv_size != sizeof(struct timespec)) {
 
-          rc = mdb_cursor_del(cursor, 0);
-          if (rc) {
-            ERROR("mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
-            mdb_cursor_close(cursor);
-            mdb_txn_abort(txn);
-            goto skip;
-          }
+        rc = mdb_cursor_del(cursor, 0);
+        if (rc) {
+          ERROR("mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
+          mdb_cursor_close(cursor);
+          mdb_txn_abort(txn);
+          goto skip;
+        }
 
-          continue;
+        continue;
       }
 
       /* too old? if so, we've lost the host.
@@ -159,16 +160,15 @@ static void *host_thread(void *arg) /* {{{ */
           goto skip;
         }
 
-        ssnprintf(message, sizeof(message), "Host not seen for %d seconds: %.*s",
-                (int)(tv_now.tv_sec - tv_then->tv_sec), (int)sizeof(n.host), host);
-        notification_init(&n, NOTIF_FAILURE, message, host, PLUGIN_NAME,
-                          NULL, "host", "lost");
+        ssnprintf(
+            message, sizeof(message), "Host not seen for %d seconds: %.*s",
+            (int)(tv_now.tv_sec - tv_then->tv_sec), (int)sizeof(n.host), host);
+        notification_init(&n, NOTIF_FAILURE, message, host, PLUGIN_NAME, NULL,
+                          "host", "lost");
         n.time = cdtime();
 
         plugin_dispatch_notification(&n);
-
       }
-
     }
     mdb_cursor_close(cursor);
 
@@ -178,7 +178,7 @@ static void *host_thread(void *arg) /* {{{ */
       goto skip;
     }
 
-skip:
+  skip:
     pthread_mutex_lock(&host_lock);
 
     if (host_thread_loop <= 0)
@@ -250,21 +250,22 @@ static int stop_thread(void) /* {{{ */
   return status;
 } /* }}} int stop_thread */
 
-static int host_init (void) {
+static int host_init(void) {
   int rc;
 
   if (host_path) {
 
     rc = mdb_env_create(&env);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
+            mdb_strerror(rc), rc);
       return -1;
     }
 
     rc = mdb_env_open(env, host_path, MDB_NOSUBDIR, 0664);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)",
-              host_path, mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)", host_path,
+            mdb_strerror(rc), rc);
       mdb_env_close(env);
       env = NULL;
       return -1;
@@ -276,162 +277,155 @@ static int host_init (void) {
   return 0;
 }
 
-static int host_shutdown (void) {
+static int host_shutdown(void) {
 
-    if (env) {
+  if (env) {
 
-      INFO(PLUGIN_NAME " plugin: shutting down thread.");
-      if (stop_thread() < 0)
-        return -1;
+    INFO(PLUGIN_NAME " plugin: shutting down thread.");
+    if (stop_thread() < 0)
+      return -1;
 
-      mdb_env_close(env);
-    }
+    mdb_env_close(env);
+  }
 
-    return 0;
+  return 0;
 }
 
 static int host_write(const data_set_t *ds, const value_list_t *vl,
-                    __attribute__((unused)) user_data_t *user_data) {
+                      __attribute__((unused)) user_data_t *user_data) {
 
   if (env) {
-      MDB_txn *txn;
-      MDB_dbi dbi;
-      MDB_val key, data;
-      struct timeval tv_now;
-      int rc;
-      int add = 0;
+    MDB_txn *txn;
+    MDB_dbi dbi;
+    MDB_val key, data;
+    struct timeval tv_now;
+    int rc;
+    int add = 0;
 
-      rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
-      if (rc != 0) {
-        ERROR("gettimeofday failed: %s", STRERRNO);
-        return -1;
-      }
+    rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
+    if (rc != 0) {
+      ERROR("gettimeofday failed: %s", STRERRNO);
+      return -1;
+    }
 
-      /* first pass - do we exist at all? read only transaction makes this efficient */
+    /* first pass - do we exist at all? read only transaction makes this
+     * efficient */
 
-      key.mv_size = sizeof(vl->host);
-      key.mv_data = (void *)vl->host;
+    key.mv_size = sizeof(vl->host);
+    key.mv_data = (void *)vl->host;
 
-      rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
-      if (rc) {
-        ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
-        return -1;
-      }
+    rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
+    if (rc) {
+      ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+      return -1;
+    }
 
-      rc = mdb_dbi_open(txn, NULL, 0, &dbi);
-      if (MDB_NOTFOUND == rc) {
+    rc = mdb_dbi_open(txn, NULL, 0, &dbi);
+    if (MDB_NOTFOUND == rc) {
 
-        /* brand new database, skip the get */
+      /* brand new database, skip the get */
 
-      }
-      else if (rc) {
+    } else if (rc) {
 
-        /* error happened */
+      /* error happened */
 
-        ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
-        mdb_txn_abort(txn);
-        return -1;
+      ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+      mdb_txn_abort(txn);
+      return -1;
 
-      }
-      else {
+    } else {
 
-        /* existing database, do the get */
+      /* existing database, do the get */
 
-        rc = mdb_get(txn, dbi, &key, &data);
+      rc = mdb_get(txn, dbi, &key, &data);
+    }
 
-      }
+    if (MDB_NOTFOUND == rc) {
 
-      if (MDB_NOTFOUND == rc) {
+      /* new host found, send a notification */
 
-        /* new host found, send a notification */
+      add = 1;
 
-        add = 1;
+    } else if (rc) {
 
-      }
-      else if (rc) {
+      /* error happened */
 
-        /* error happened */
-
-        ERROR("mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
-        mdb_dbi_close(env, dbi);
-        mdb_txn_abort(txn);
-        return -1;
-
-      }
-      else {
-
-          /* have we seen host recently? if so it is good enough, exit cheaply */
-
-          struct timeval *tv_then = data.mv_data;
-
-          if (data.mv_size == sizeof(struct timespec) &&
-                  ((tv_then = data.mv_data)) &&
-                  (tv_then->tv_sec < tv_now.tv_sec)) {
-              mdb_dbi_close(env, dbi);
-              mdb_txn_abort(txn);
-              return 0;
-          }
-
-      }
-
+      ERROR("mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
       mdb_dbi_close(env, dbi);
       mdb_txn_abort(txn);
+      return -1;
 
-      /* second pass - update with the time last seen, this is more expensive, but rarer */
+    } else {
 
-      rc = mdb_txn_begin(env, NULL, 0, &txn);
-      if (rc) {
-        ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
-        return -1;
-      }
+      /* have we seen host recently? if so it is good enough, exit cheaply */
 
-      rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
-      if (rc) {
-        ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
-        mdb_txn_abort(txn);
-        return -1;
-      }
+      struct timeval *tv_then = data.mv_data;
 
-      data.mv_size = sizeof(tv_now);
-      data.mv_data = &tv_now;
-
-      rc = mdb_put(txn, dbi, &key, &data, MDB_NOOVERWRITE);
-      if (MDB_KEYEXIST == rc) {
-
-          /* another thread beat us to it, do nothing */
-          add = 0;
-
-      }
-      else if (rc) {
-        ERROR("mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
+      if (data.mv_size == sizeof(struct timespec) &&
+          ((tv_then = data.mv_data)) && (tv_then->tv_sec < tv_now.tv_sec)) {
         mdb_dbi_close(env, dbi);
         mdb_txn_abort(txn);
-        return -1;
+        return 0;
       }
+    }
 
-      rc = mdb_txn_commit(txn);
-      if (rc) {
-        ERROR("mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
-        mdb_dbi_close(env, dbi);
-        return -1;
-      }
+    mdb_dbi_close(env, dbi);
+    mdb_txn_abort(txn);
 
+    /* second pass - update with the time last seen, this is more expensive, but
+     * rarer */
+
+    rc = mdb_txn_begin(env, NULL, 0, &txn);
+    if (rc) {
+      ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+      return -1;
+    }
+
+    rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
+    if (rc) {
+      ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+      mdb_txn_abort(txn);
+      return -1;
+    }
+
+    data.mv_size = sizeof(tv_now);
+    data.mv_data = &tv_now;
+
+    rc = mdb_put(txn, dbi, &key, &data, MDB_NOOVERWRITE);
+    if (MDB_KEYEXIST == rc) {
+
+      /* another thread beat us to it, do nothing */
+      add = 0;
+
+    } else if (rc) {
+      ERROR("mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
       mdb_dbi_close(env, dbi);
+      mdb_txn_abort(txn);
+      return -1;
+    }
 
-      /* finally, handle the notification if needed */
-      if (add) {
-          notification_t n;
-          char message[NOTIF_MAX_MSG_LEN];
+    rc = mdb_txn_commit(txn);
+    if (rc) {
+      ERROR("mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
+      mdb_dbi_close(env, dbi);
+      return -1;
+    }
 
-          ssnprintf(message, sizeof(message), "Host is found: %.*s",
-                  (int)sizeof(vl->host), vl->host);
-          notification_init(&n, NOTIF_OKAY, message, vl->host, PLUGIN_NAME,
-                            NULL, "host", "found");
-          n.time = cdtime();
+    mdb_dbi_close(env, dbi);
 
-          plugin_dispatch_notification(&n);
-      }
+    /* finally, handle the notification if needed */
+    if (add) {
+      notification_t n;
+      char message[NOTIF_MAX_MSG_LEN];
 
+      ssnprintf(message, sizeof(message), "Host is found: %.*s",
+                (int)sizeof(vl->host), vl->host);
+      notification_init(&n, NOTIF_OKAY, message, vl->host, PLUGIN_NAME, NULL,
+                        "host", "found");
+      n.time = cdtime();
+
+      plugin_dispatch_notification(&n);
+    }
   }
 
   return 0;
@@ -445,27 +439,25 @@ static int host_config(const char *key, const char *value) {
       host_path = NULL;
     }
     return 0;
-  }
-  else if (strcasecmp(key, "LOSTINTERVAL") == 0) {
+  } else if (strcasecmp(key, "LOSTINTERVAL") == 0) {
     if (value != NULL) {
       lost_interval = atoi(value);
     }
     return 0;
-  }
-  else if (strcasecmp(key, "DELAYINTERVAL") == 0) {
+  } else if (strcasecmp(key, "DELAYINTERVAL") == 0) {
     if (value != NULL) {
       delay_interval = atoi(value);
     }
     return 0;
-  }
-  else
+  } else
     return -1;
 } /* int host_config */
 
 void module_register(void) {
-  plugin_register_init (PLUGIN_NAME, host_init);
-  plugin_register_config(PLUGIN_NAME, host_config, config_keys, config_keys_num);
+  plugin_register_init(PLUGIN_NAME, host_init);
+  plugin_register_config(PLUGIN_NAME, host_config, config_keys,
+                         config_keys_num);
   /* If config is supplied, the global host_path will be set. */
   plugin_register_write(PLUGIN_NAME, host_write, NULL);
-  plugin_register_shutdown (PLUGIN_NAME, host_shutdown);
+  plugin_register_shutdown(PLUGIN_NAME, host_shutdown);
 }
