@@ -41,9 +41,9 @@
 #define PLUGIN_NAME "host"
 
 #define DEFAULT_HOST_PATH "hosts"
-#define DEFAULT_LOST_INTERVAL 30
+#define DEFAULT_LOST_INTERVAL 60
 #define DEFAULT_THREAD_INTERVAL 2
-#define DEFAULT_DELAY_INTERVAL 0
+#define DEFAULT_DELAY_INTERVAL 60
 
 static const char *config_keys[] = {"HOSTPATH", "LOSTINTERVAL", "DELAYINTERVAL"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
@@ -72,6 +72,12 @@ static void *host_thread(void *arg) /* {{{ */
   }
 
   pthread_mutex_lock(&host_lock);
+
+  ts_wait.tv_sec = tv_begin.tv_sec + delay_interval + thread_interval;
+  ts_wait.tv_nsec = 0;
+
+  pthread_cond_timedwait(&host_cond, &host_lock, &ts_wait);
+
   while (host_thread_loop > 0) {
     MDB_txn *txn;
     MDB_dbi dbi;
@@ -140,8 +146,7 @@ static void *host_thread(void *arg) /* {{{ */
       host = key.mv_data;
       tv_then = data.mv_data;
 
-      if ((tv_now.tv_sec - tv_then->tv_sec >= lost_interval) &&
-              (tv_now.tv_sec - tv_begin.tv_sec >= delay_interval)) {
+      if (tv_now.tv_sec - tv_then->tv_sec >= lost_interval) {
 
         notification_t n;
         char message[NOTIF_MAX_MSG_LEN];
@@ -421,7 +426,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
           ssnprintf(message, sizeof(message), "Host is found: %.*s",
                   (int)sizeof(vl->host), vl->host);
           notification_init(&n, NOTIF_OKAY, message, vl->host, PLUGIN_NAME,
-                            NULL, "host", "lost");
+                            NULL, "host", "found");
           n.time = cdtime();
 
           plugin_dispatch_notification(&n);
