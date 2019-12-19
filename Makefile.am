@@ -1063,6 +1063,14 @@ hddtemp_la_LIBADD += -lsocket
 endif
 endif
 
+if BUILD_PLUGIN_HOST
+pkglib_LTLIBRARIES += host.la
+host_la_SOURCES = src/host.c
+host_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBLMDB_CPPFLAGS)
+host_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBLMDB_LDFLAGS)
+host_la_LIBADD = -llmdb
+endif
+
 if BUILD_PLUGIN_HUGEPAGES
 pkglib_LTLIBRARIES += hugepages.la
 hugepages_la_SOURCES = src/hugepages.c
