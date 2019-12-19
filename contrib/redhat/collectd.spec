@@ -78,6 +78,7 @@
 %define with_gmond 0%{!?_without_gmond:1}
 %define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
+%define with_host 0%{!?_without_host:1}
 %define with_hugepages 0%{!?_without_hugepages:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
@@ -509,6 +510,16 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}, hddtemp
 %description hddtemp
 The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
+%endif
+
+%if %{with_host}
+%package host
+Summary:        Host plugin for collectd
+Group:          System Environment/Daemons
+Requires:       %{name}%{?_isa} = %{version}-%{release}, liblmdb
+%description host
+The host plugin sends notifications when a host is seen for the first time,
+and when a host has not been seen for a configurable interval.
 %endif
 
 %if %{with_intel_pmu}
@@ -1333,6 +1344,12 @@ Collectd utilities
 %define _with_hddtemp --disable-hddtemp
 %endif
 
+%if %{with_host}
+%define _with_host --enable-host
+%else
+%define _with_host --disable-host
+%endif
+
 %if %{with_hugepages}
 %define _with_hugepages --enable-hugepages
 %else
@@ -2055,6 +2072,7 @@ Collectd utilities
 	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
+        %{?_with_host} \
 	%{?_with_hugepages} \
 	%{?_with_intel_pmu} \
 	%{?_with_intel_rdt} \
@@ -2646,6 +2664,11 @@ fi
 %{_libdir}/%{name}/hddtemp.so
 %endif
 
+%if %{with_host}
+%files host
+%{_libdir}/%{name}/host.so
+%endif
+
 %if %{with_intel_pmu}
 %files intel_pmu
 %{_libdir}/%{name}/intel_pmu.so
@@ -2904,6 +2927,9 @@ fi
 %doc contrib/
 
 %changelog
+* Thu Dec 19 2019 Graham Leggett <minfrin@sharp.fm> - 5.9.2-2
+- Add new host plugin
+
 * Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
 - Remove lvm plugin, liblvmapp has been deprecated upstream
 

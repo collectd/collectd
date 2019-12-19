@@ -3449,6 +3449,28 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =back
 
+=head2 Plugin C<host>
+
+The host plugin keeps track of hosts that have been recently seen, and sends
+notifications when a host is seen for the first time, and subsequently when
+a host has gone missing after not being seen for a period of time.
+
+=over 4
+
+=item B<HostPath> I<path/to/database>
+
+Path and filename of the LMDB hosts database. Defaults to B<hosts>.
+
+=item B<LostInterval> I<Seconds>
+
+Number of seconds to pass before a host is notified as missing. Defaults to B<30>.
+
+=item B<DelayInterval> I<Seconds>
+
+Number of seconds after startup to suppress missing notifications. Defaults to B<0>.
+
+=back
+
 =head2 Plugin C<hugepages>
 
 To collect B<hugepages> information, collectd reads directories

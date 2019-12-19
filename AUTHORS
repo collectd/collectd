@@ -165,6 +165,9 @@ Franck Lombardi
 Gergely Nagy <algernon at madhouse-project.org>
  - Write-Riemann plugin.
 
+Graham Leggett <minfrin at sharp.fm>
+ - host plugin.
+
 Jason Pepas <cell at ices.utexas.edu>
  - nfs plugin.
 
