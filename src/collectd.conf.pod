@@ -3451,15 +3451,23 @@ TCP-Port to connect to. Defaults to B<7634>.
 
 =head2 Plugin C<host>
 
-The host plugin keeps track of hosts that have been recently seen, and sends
+The B<host> plugin keeps track of hosts that have been recently seen, and sends
 notifications when a host is seen for the first time, and subsequently when
-a host has gone missing after not being seen for a period of time.
+a host has gone missing after not being seen for a period of time. The duration
+after which a host is considered missing is controlled with the B<LostInterval>
+option.
+
+To ensure that no notifications are missed or duplicated, the hosts are
+persisted in an LMDB key/value store, which is kept across collectd restarts.
+The hosts plugin provides a grace period after starting up for hosts to tell
+us they are still present, catching hosts that have gone missing during our
+restart. The grace period is controlled with the B<DelayInterval> option.
 
 =over 4
 
 =item B<HostPath> I<path/to/database>
 
-Path and filename of the LMDB hosts database. Defaults to B<hosts>.
+Path and filename of the LMDB hosts key/value store. Defaults to B<hosts>.
 
 =item B<LostInterval> I<Seconds>
 
