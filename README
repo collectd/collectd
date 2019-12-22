@@ -665,7 +665,7 @@ Features
       Selects multiple value lists based on patterns or regular expressions
       and creates new aggregated values lists from those.
 
-    - host
+    - check_presence
       Detects whether a host has been seen for the first time, or whether a
       host has not been seen for a specified interval, and creates
       notifications for each case.

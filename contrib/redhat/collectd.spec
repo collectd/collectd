@@ -52,6 +52,7 @@
 %define with_bind 0%{!?_without_bind:1}
 %define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
+%define with_check_presence 0%{!?_without_check_presence:1}
 %define with_chrony 0%{!?_without_chrony:1}
 %define with_connectivity 0%{!?_without_connectivity:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
@@ -78,7 +79,6 @@
 %define with_gmond 0%{!?_without_gmond:1}
 %define with_gps 0%{!?_without_gps:1}
 %define with_hddtemp 0%{!?_without_hddtemp:1}
-%define with_host 0%{!?_without_host:1}
 %define with_hugepages 0%{!?_without_hugepages:1}
 %define with_interface 0%{!?_without_interface:1}
 %define with_ipc 0%{!?_without_ipc:1}
@@ -512,14 +512,14 @@ The HDDTemp plugin collects the temperature of hard disks. The temperatures are
 provided via SMART and queried by the external hddtemp daemon.
 %endif
 
-%if %{with_host}
-%package host
-Summary:        Host plugin for collectd
+%if %{with_check_presence}
+%package check_presence
+Summary:        Check presence plugin for collectd
 Group:          System Environment/Daemons
 Requires:       %{name}%{?_isa} = %{version}-%{release}, liblmdb
-%description host
-The host plugin sends notifications when a host is seen for the first time,
-and when a host has not been seen for a configurable interval.
+%description check_presence
+The check_presence plugin sends notifications when a host is seen for the first
+time, and when a host has not been seen for a configurable interval.
 %endif
 
 %if %{with_intel_pmu}
@@ -1218,6 +1218,12 @@ Collectd utilities
 %define _with_ceph --disable-ceph
 %endif
 
+%if %{with_check_presence}
+%define _with_check_presence --enable-check_presence
+%else
+%define _with_check_presence --disable-check_presence
+%endif
+
 %if %{with_curl}
 %define _with_curl --enable-curl
 %else
@@ -1342,12 +1348,6 @@ Collectd utilities
 %define _with_hddtemp --enable-hddtemp
 %else
 %define _with_hddtemp --disable-hddtemp
-%endif
-
-%if %{with_host}
-%define _with_host --enable-host
-%else
-%define _with_host --disable-host
 %endif
 
 %if %{with_hugepages}
@@ -2043,6 +2043,7 @@ Collectd utilities
 	%{?_with_bind} \
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
+    %{?_with_check_presence} \
 	%{?_with_chrony} \
 	%{?_with_connectivity} \
 	%{?_with_conntrack} \
@@ -2072,7 +2073,6 @@ Collectd utilities
 	%{?_with_gps} \
 	%{?_with_grpc} \
 	%{?_with_hddtemp} \
-        %{?_with_host} \
 	%{?_with_hugepages} \
 	%{?_with_intel_pmu} \
 	%{?_with_intel_rdt} \
@@ -2589,6 +2589,11 @@ fi
 %{_libdir}/%{name}/ceph.so
 %endif
 
+%if %{with_check_presence}
+%files check_presence
+%{_libdir}/%{name}/check_presence.so
+%endif
+
 %if %{with_chrony}
 %files chrony
 %{_libdir}/%{name}/chrony.so
@@ -2662,11 +2667,6 @@ fi
 %if %{with_hddtemp}
 %files hddtemp
 %{_libdir}/%{name}/hddtemp.so
-%endif
-
-%if %{with_host}
-%files host
-%{_libdir}/%{name}/host.so
 %endif
 
 %if %{with_intel_pmu}
@@ -2928,7 +2928,7 @@ fi
 
 %changelog
 * Thu Dec 19 2019 Graham Leggett <minfrin@sharp.fm> - 5.9.2-2
-- Add new host plugin
+- Add new check_presence plugin
 
 * Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
 - Remove lvm plugin, liblvmapp has been deprecated upstream
