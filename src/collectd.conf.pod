@@ -1548,6 +1548,39 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<check_presence>
+
+The B<check_presence> plugin keeps track of hosts that have been recently seen,
+and sends notifications when a host is seen for the first time, and subsequently
+when a host has gone missing after not being seen for a period of time. The
+duration after which a host is considered missing is controlled with the
+B<HostTimeout> option.
+
+To ensure that no notifications are missed or duplicated, the hosts are
+persisted in an LMDB key/value store, which is kept across collectd restarts.
+The hosts plugin provides a grace period after starting up for hosts to tell
+us they are still present, catching hosts that have gone missing during our
+restart. The grace period is controlled with the B<StartupDelay> option.
+
+An additional two seconds are added on top of B<HostTimeout> and B<StartupDelay>
+automatically to ensure there are no race conditions where a host might be
+declared missing but then immediately found.
+
+=over 4
+
+=item B<StateDatastore> I<path/to/database>
+
+Path and filename of the LMDB hosts key/value store. Defaults to B<check-presence>.
+
+=item B<HostTimeout> I<Seconds>
+
+=item B<StartupDelay> I<Seconds>
+
+Number of seconds after startup to suppress missing notifications. Defaults to B<20>,
+which is twice the value of Interval.
+
+=back
+
 =head2 Plugin C<check_uptime>
 
 The I<check_uptime plugin> designed to check and notify about host or service
@@ -3446,39 +3479,6 @@ Hostname to connect to. Defaults to B<127.0.0.1>.
 =item B<Port> I<Port>
 
 TCP-Port to connect to. Defaults to B<7634>.
-
-=back
-
-=head2 Plugin C<host>
-
-The B<host> plugin keeps track of hosts that have been recently seen, and sends
-notifications when a host is seen for the first time, and subsequently when
-a host has gone missing after not being seen for a period of time. The duration
-after which a host is considered missing is controlled with the B<HostTimeout>
-option.
-
-To ensure that no notifications are missed or duplicated, the hosts are
-persisted in an LMDB key/value store, which is kept across collectd restarts.
-The hosts plugin provides a grace period after starting up for hosts to tell
-us they are still present, catching hosts that have gone missing during our
-restart. The grace period is controlled with the B<StartupDelay> option.
-
-An additional two seconds are added on top of B<HostTimeout> and B<StartupDelay>
-automatically to ensure there are no race conditions where a host might be
-declared missing but then immediately found.
-
-=over 4
-
-=item B<StateDatastore> I<path/to/database>
-
-Path and filename of the LMDB hosts key/value store. Defaults to B<hosts>.
-
-=item B<HostTimeout> I<Seconds>
-
-=item B<StartupDelay> I<Seconds>
-
-Number of seconds after startup to suppress missing notifications. Defaults to B<20>,
-which is twice the value of Interval.
 
 =back
 

@@ -102,6 +102,7 @@
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
+#@BUILD_PLUGIN_CHECK_PRESENCE_TRUE@LoadPlugin check_presence
 #@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
 #@BUILD_PLUGIN_CONNECTIVITY_TRUE@LoadPlugin connectivity
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
@@ -131,7 +132,6 @@
 #@BUILD_PLUGIN_GPS_TRUE@LoadPlugin gps
 #@BUILD_PLUGIN_GRPC_TRUE@LoadPlugin grpc
 #@BUILD_PLUGIN_HDDTEMP_TRUE@LoadPlugin hddtemp
-#@BUILD_PLUGIN_HOST_TRUE@LoadPlugin host
 #@BUILD_PLUGIN_HUGEPAGES_TRUE@LoadPlugin hugepages
 #@BUILD_PLUGIN_INTEL_PMU_TRUE@LoadPlugin intel_pmu
 #@BUILD_PLUGIN_INTEL_RDT_TRUE@LoadPlugin intel_rdt
@@ -378,6 +378,12 @@
 #  <Daemon "mds.a">
 #    SocketPath "/var/run/ceph/ceph-mds.ceph1.asok"
 #  </Daemon>
+#</Plugin>
+
+#<Plugin check_presence>
+#    StateDatastore "check-presence"
+#    HostTimeout 20
+#    StartupDelay 20
 #</Plugin>
 
 #<Plugin chrony>
@@ -696,12 +702,6 @@
 #<Plugin hddtemp>
 #  Host "127.0.0.1"
 #  Port "7634"
-#</Plugin>
-
-#<Plugin host>
-#    StateDatastore "hosts"
-#    HostTimeout 20
-#    StartupDelay 20
 #</Plugin>
 
 #<Plugin hugepages>

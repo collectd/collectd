@@ -1,5 +1,5 @@
 /**
- * collectd - src/host.c
+ * collectd - src/check_presence.c
  * Copyright (C) 2019       Graham Leggett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -38,9 +38,9 @@
 
 #include <lmdb.h>
 
-#define PLUGIN_NAME "host"
+#define PLUGIN_NAME "check_presence"
 
-#define DEFAULT_STATE_DATASTORE "hosts"
+#define DEFAULT_STATE_DATASTORE "check-presence"
 #define DEFAULT_HOST_TIMEOUT 20
 #define DEFAULT_THREAD_INTERVAL 2
 #define DEFAULT_STARTUP_DELAY 20
@@ -53,24 +53,24 @@ static int host_timeout = DEFAULT_HOST_TIMEOUT;
 static int startup_delay = DEFAULT_STARTUP_DELAY;
 static int thread_interval = DEFAULT_THREAD_INTERVAL;
 
-static pthread_mutex_t host_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t host_cond = PTHREAD_COND_INITIALIZER;
-static int host_thread_loop;
-static pthread_t host_thread_id;
+static pthread_mutex_t presence_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t presence_cond = PTHREAD_COND_INITIALIZER;
+static int presence_thread_loop;
+static pthread_t presence_thread_id;
 
 static MDB_env *env;
 
-static void *host_thread(void *arg) /* {{{ */
+static void *presence_thread(void *arg) /* {{{ */
 {
   struct timeval tv_begin = {0};
 
   if (gettimeofday(&tv_begin, NULL) < 0) {
     ERROR(PLUGIN_NAME " plugin: gettimeofday failed: %s", STRERRNO);
-    host_thread_loop = 0;
+    presence_thread_loop = 0;
     return (void *)0;
   }
 
-  pthread_mutex_lock(&host_lock);
+  pthread_mutex_lock(&presence_lock);
 
   /*
    * Startup delay - give the hosts a chance to remind us they're
@@ -90,19 +90,19 @@ static void *host_thread(void *arg) /* {{{ */
   ts_wait.tv_sec = tv_begin.tv_sec + startup_delay + thread_interval;
   ts_wait.tv_nsec = 0;
 
-  pthread_cond_timedwait(&host_cond, &host_lock, &ts_wait);
+  pthread_cond_timedwait(&presence_cond, &presence_lock, &ts_wait);
 
-  while (host_thread_loop > 0) {
+  while (presence_thread_loop > 0) {
 
     struct timeval tv_now = {0};
 
     if (gettimeofday(&tv_now, NULL) < 0) {
       ERROR(PLUGIN_NAME " plugin: gettimeofday failed: %s", STRERRNO);
-      host_thread_loop = 0;
+      presence_thread_loop = 0;
       break;
     }
 
-    pthread_mutex_unlock(&host_lock);
+    pthread_mutex_unlock(&presence_lock);
 
     /*
      * Cleanup thread - have any hosts been gone too long?
@@ -218,77 +218,77 @@ static void *host_thread(void *arg) /* {{{ */
     }
 
   skip:
-    pthread_mutex_lock(&host_lock);
+    pthread_mutex_lock(&presence_lock);
 
-    if (host_thread_loop <= 0)
+    if (presence_thread_loop <= 0)
       break;
 
     ts_wait.tv_sec = tv_now.tv_sec + thread_interval;
     ts_wait.tv_nsec = 0;
 
-    pthread_cond_timedwait(&host_cond, &host_lock, &ts_wait);
-    if (host_thread_loop <= 0)
+    pthread_cond_timedwait(&presence_cond, &presence_lock, &ts_wait);
+    if (presence_thread_loop <= 0)
       break;
-  } /* while (host_thread_loop > 0) */
+  } /* while (presence_thread_loop > 0) */
 
-  pthread_mutex_unlock(&host_lock);
+  pthread_mutex_unlock(&presence_lock);
 
   return (void *)0;
-} /* }}} void *host_thread */
+} /* }}} void *presence_thread */
 
 static int start_thread(void) /* {{{ */
 {
 
-  pthread_mutex_lock(&host_lock);
+  pthread_mutex_lock(&presence_lock);
 
-  if (host_thread_loop != 0) {
-    pthread_mutex_unlock(&host_lock);
+  if (presence_thread_loop != 0) {
+    pthread_mutex_unlock(&presence_lock);
     return 0;
   }
 
-  host_thread_loop = 1;
-  int status =
-      plugin_thread_create(&host_thread_id, /* attr = */ NULL, host_thread,
-                           /* arg = */ (void *)0, "host");
+  presence_thread_loop = 1;
+  int status = plugin_thread_create(&presence_thread_id, /* attr = */ NULL,
+                                    presence_thread,
+                                    /* arg = */ (void *)0, "host");
   if (status != 0) {
-    host_thread_loop = 0;
+    presence_thread_loop = 0;
     ERROR(PLUGIN_NAME " plugin: starting thread failed.");
-    pthread_mutex_unlock(&host_lock);
+    pthread_mutex_unlock(&presence_lock);
     return -1;
   }
 
-  pthread_mutex_unlock(&host_lock);
+  pthread_mutex_unlock(&presence_lock);
   return 0;
 } /* }}} int start_thread */
 
 static int stop_thread(void) /* {{{ */
 {
 
-  pthread_mutex_lock(&host_lock);
+  pthread_mutex_lock(&presence_lock);
 
-  if (host_thread_loop == 0) {
-    pthread_mutex_unlock(&host_lock);
+  if (presence_thread_loop == 0) {
+    pthread_mutex_unlock(&presence_lock);
     return -1;
   }
 
-  host_thread_loop = 0;
-  pthread_cond_broadcast(&host_cond);
-  pthread_mutex_unlock(&host_lock);
+  presence_thread_loop = 0;
+  pthread_cond_broadcast(&presence_cond);
+  pthread_mutex_unlock(&presence_lock);
 
-  int status = pthread_join(host_thread_id, /* return = */ NULL);
+  int status = pthread_join(presence_thread_id, /* return = */ NULL);
   if (status != 0) {
     ERROR(PLUGIN_NAME " plugin: stopping thread failed.");
     status = -1;
   }
 
-  pthread_mutex_lock(&host_lock);
-  memset(&host_thread_id, 0, sizeof(host_thread_id));
-  pthread_mutex_unlock(&host_lock);
+  pthread_mutex_lock(&presence_lock);
+  memset(&presence_thread_id, 0, sizeof(presence_thread_id));
+  pthread_mutex_unlock(&presence_lock);
 
   return status;
 } /* }}} int stop_thread */
 
-static int host_init(void) {
+static int presence_init(void) {
 
   if (!state_datastore) {
     return 0;
@@ -313,7 +313,7 @@ static int host_init(void) {
   return start_thread();
 }
 
-static int host_shutdown(void) {
+static int presence_shutdown(void) {
 
   if (env) {
 
@@ -327,8 +327,8 @@ static int host_shutdown(void) {
   return 0;
 }
 
-static int host_write(const data_set_t *ds, const value_list_t *vl,
-                      __attribute__((unused)) user_data_t *user_data) {
+static int presence_write(const data_set_t *ds, const value_list_t *vl,
+                          __attribute__((unused)) user_data_t *user_data) {
 
   /* step aside quitely if not configured */
   if (!env) {
@@ -502,7 +502,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
   return 0;
 }
 
-static int host_config(const char *key, const char *value) {
+static int presence_config(const char *key, const char *value) {
   if (strcasecmp(key, "STATEDATASTORE") == 0) {
     if (value != NULL && strcmp(value, "") != 0) {
       state_datastore = strdup(value);
@@ -522,13 +522,12 @@ static int host_config(const char *key, const char *value) {
     return 0;
   } else
     return -1;
-} /* int host_config */
+} /* int presence_config */
 
 void module_register(void) {
-  plugin_register_init(PLUGIN_NAME, host_init);
-  plugin_register_config(PLUGIN_NAME, host_config, config_keys,
+  plugin_register_init(PLUGIN_NAME, presence_init);
+  plugin_register_config(PLUGIN_NAME, presence_config, config_keys,
                          config_keys_num);
-  /* If config is supplied, the global host_path will be set. */
-  plugin_register_write(PLUGIN_NAME, host_write, NULL);
-  plugin_register_shutdown(PLUGIN_NAME, host_shutdown);
+  plugin_register_write(PLUGIN_NAME, presence_write, NULL);
+  plugin_register_shutdown(PLUGIN_NAME, presence_shutdown);
 }
