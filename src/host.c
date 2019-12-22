@@ -72,6 +72,19 @@ static void *host_thread(void *arg) /* {{{ */
 
   pthread_mutex_lock(&host_lock);
 
+  /*
+   * Startup delay - give the hosts a chance to remind us they're
+   * still here.
+   *
+   * When we start up after a reboot or restart, chances are all hosts
+   * on the list will have exceeded the interval through no fault of
+   * their own. To prevent the sending of erroneous failure notifications
+   * we back off for enough time to allow remote hosts to check in and
+   * remind us they're still there.
+   *
+   * Any host that hasn't checked in by this point can be safely assumed
+   * to have vanished, and will accurately trigger a notification.
+   */
   struct timespec ts_wait = {0};
 
   ts_wait.tv_sec = tv_begin.tv_sec + delay_interval + thread_interval;
@@ -90,6 +103,20 @@ static void *host_thread(void *arg) /* {{{ */
     }
 
     pthread_mutex_unlock(&host_lock);
+
+    /*
+     * Cleanup thread - have any hosts been gone too long?
+     *
+     * We run with a two second delay between each invocation, and walk
+     * the hosts list looking for hosts that we haven't seen for more
+     * than our threshold.
+     *
+     * Hosts that have gone missing are removed from our list, and a
+     * notification is sent.
+     *
+     * When the host returns, the host will be detected by host_write,
+     * and a notification that the host has been seen will be sent.
+     */
 
     MDB_txn *txn = NULL;
 
@@ -307,8 +334,18 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
       return -1;
     }
 
-    /* first pass - do we exist at all? read only transaction makes this
-     * efficient */
+    /*
+     * Fast path - have we seen this host before?
+     *
+     * WHile this step is not strictly necessary, in the vast majority of
+     * cases we will have seen the host before, and we will have seen the
+     * host many times in the same second as each metric is written.
+     *
+     * The LMDB key value store offers very cheap lock free reads, allowing
+     * multiple threads to handle writes without any mutexes.
+     *
+     * This first step discards unnecessary writes as quickly as possible.
+     */
 
     MDB_val key = {0}, data = {0};
 
@@ -381,8 +418,18 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
     mdb_dbi_close(env, dbi);
     mdb_txn_abort(txn);
 
-    /* second pass - update with the time last seen, this is more expensive, but
-     * rarer */
+    /*
+     * Slow path - we need to update the host's record.
+     *
+     * At this point the host is either brand new, or we have not seen this host
+     * during this second, and we need to perform a write to update the key
+     * value store.
+     *
+     * The LMDB key value store handles locking for us so that writes from
+     * multiple threads are serialised correctly. As soon as the write is
+     * complete, the subsequent reads follow the fast path above, keeping this
+     * as inexpensive as possible.
+     */
 
     rc = mdb_txn_begin(env, NULL, 0, &txn);
     if (rc) {
