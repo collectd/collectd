@@ -284,28 +284,27 @@ static int stop_thread(void) /* {{{ */
 
 static int host_init(void) {
 
-  if (state_datastore) {
-
-    int rc = mdb_env_create(&env);
-    if (rc) {
-      ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
-            mdb_strerror(rc), rc);
-      return -1;
-    }
-
-    rc = mdb_env_open(env, state_datastore, MDB_NOSUBDIR, 0664);
-    if (rc) {
-      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)",
-            state_datastore, mdb_strerror(rc), rc);
-      mdb_env_close(env);
-      env = NULL;
-      return -1;
-    }
-
-    return start_thread();
+  if (!state_datastore) {
+    return 0;
   }
 
-  return 0;
+  int rc = mdb_env_create(&env);
+  if (rc) {
+    ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
+          mdb_strerror(rc), rc);
+    return -1;
+  }
+
+  rc = mdb_env_open(env, state_datastore, MDB_NOSUBDIR, 0664);
+  if (rc) {
+    ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)",
+          state_datastore, mdb_strerror(rc), rc);
+    mdb_env_close(env);
+    env = NULL;
+    return -1;
+  }
+
+  return start_thread();
 }
 
 static int host_shutdown(void) {
@@ -325,163 +324,166 @@ static int host_shutdown(void) {
 static int host_write(const data_set_t *ds, const value_list_t *vl,
                       __attribute__((unused)) user_data_t *user_data) {
 
-  if (env) {
-    struct timeval tv_now = {0};
+  /* step aside quitely if not configured */
+  if (!env) {
+    return 0;
+  }
 
-    int rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
-    if (rc != 0) {
-      ERROR("gettimeofday failed: %s", STRERRNO);
-      return -1;
-    }
+  struct timeval tv_now = {0};
 
-    /*
-     * Fast path - have we seen this host before?
-     *
-     * WHile this step is not strictly necessary, in the vast majority of
-     * cases we will have seen the host before, and we will have seen the
-     * host many times in the same second as each metric is written.
-     *
-     * The LMDB key value store offers very cheap lock free reads, allowing
-     * multiple threads to handle writes without any mutexes.
-     *
-     * This first step discards unnecessary writes as quickly as possible.
-     */
+  int rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
+  if (rc != 0) {
+    ERROR("gettimeofday failed: %s", STRERRNO);
+    return -1;
+  }
 
-    MDB_val key = {0}, data = {0};
+  /*
+   * Fast path - have we seen this host before?
+   *
+   * WHile this step is not strictly necessary, in the vast majority of
+   * cases we will have seen the host before, and we will have seen the
+   * host many times in the same second as each metric is written.
+   *
+   * The LMDB key value store offers very cheap lock free reads, allowing
+   * multiple threads to handle writes without any mutexes.
+   *
+   * This first step discards unnecessary writes as quickly as possible.
+   */
 
-    key.mv_size = sizeof(vl->host);
-    key.mv_data = (void *)vl->host;
+  MDB_val key = {0}, data = {0};
 
-    MDB_txn *txn = NULL;
+  key.mv_size = sizeof(vl->host);
+  key.mv_data = (void *)vl->host;
 
-    rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
-    if (rc) {
-      ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
-      return -1;
-    }
+  MDB_txn *txn = NULL;
 
-    MDB_dbi dbi = {0};
+  rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
+  if (rc) {
+    ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+    return -1;
+  }
 
-    rc = mdb_dbi_open(txn, NULL, 0, &dbi);
-    if (MDB_NOTFOUND == rc) {
+  MDB_dbi dbi = {0};
 
-      /* brand new database, skip the get */
+  rc = mdb_dbi_open(txn, NULL, 0, &dbi);
+  if (MDB_NOTFOUND == rc) {
 
-    } else if (rc) {
+    /* brand new database, skip the get */
 
-      /* error happened */
+  } else if (rc) {
 
-      ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
-      mdb_txn_abort(txn);
-      return -1;
+    /* error happened */
 
-    } else {
+    ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+    mdb_txn_abort(txn);
+    return -1;
 
-      /* existing database, do the get */
+  } else {
 
-      rc = mdb_get(txn, dbi, &key, &data);
-    }
+    /* existing database, do the get */
 
-    int add = 0;
+    rc = mdb_get(txn, dbi, &key, &data);
+  }
 
-    if (MDB_NOTFOUND == rc) {
+  int add = 0;
 
-      /* new host found, send a notification */
+  if (MDB_NOTFOUND == rc) {
 
-      add = 1;
+    /* new host found, send a notification */
 
-    } else if (rc) {
+    add = 1;
 
-      /* error happened */
+  } else if (rc) {
 
-      ERROR("mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
-      mdb_dbi_close(env, dbi);
-      mdb_txn_abort(txn);
-      return -1;
+    /* error happened */
 
-    } else {
-
-      /* have we seen host in the same second as we did our last put? if so
-       * it is good enough, exit cheaply
-       */
-
-      struct timeval *tv_then = data.mv_data;
-
-      if (data.mv_size == sizeof(struct timespec) &&
-          ((tv_then = data.mv_data)) && (tv_then->tv_sec == tv_now.tv_sec)) {
-        mdb_dbi_close(env, dbi);
-        mdb_txn_abort(txn);
-        return 0;
-      }
-    }
-
+    ERROR("mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_dbi_close(env, dbi);
     mdb_txn_abort(txn);
+    return -1;
 
-    /*
-     * Slow path - we need to update the host's record.
-     *
-     * At this point the host is either brand new, or we have not seen this host
-     * during this second, and we need to perform a write to update the key
-     * value store.
-     *
-     * The LMDB key value store handles locking for us so that writes from
-     * multiple threads are serialised correctly. As soon as the write is
-     * complete, the subsequent reads follow the fast path above, keeping this
-     * as inexpensive as possible.
+  } else {
+
+    /* have we seen host in the same second as we did our last put? if so
+     * it is good enough, exit cheaply
      */
 
-    rc = mdb_txn_begin(env, NULL, 0, &txn);
-    if (rc) {
-      ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
-      return -1;
-    }
+    struct timeval *tv_then = data.mv_data;
 
-    rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
-    if (rc) {
-      ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
-      mdb_txn_abort(txn);
-      return -1;
-    }
-
-    data.mv_size = sizeof(tv_now);
-    data.mv_data = &tv_now;
-
-    rc = mdb_put(txn, dbi, &key, &data, add ? MDB_NOOVERWRITE : 0);
-    if (MDB_KEYEXIST == rc) {
-
-      /* another thread beat us to it, do nothing */
-      add = 0;
-
-    } else if (rc) {
-      ERROR("mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
+    if (data.mv_size == sizeof(struct timespec) && ((tv_then = data.mv_data)) &&
+        (tv_then->tv_sec == tv_now.tv_sec)) {
       mdb_dbi_close(env, dbi);
       mdb_txn_abort(txn);
-      return -1;
+      return 0;
     }
+  }
 
-    rc = mdb_txn_commit(txn);
-    if (rc) {
-      ERROR("mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
-      mdb_dbi_close(env, dbi);
-      return -1;
-    }
+  mdb_dbi_close(env, dbi);
+  mdb_txn_abort(txn);
 
+  /*
+   * Slow path - we need to update the host's record.
+   *
+   * At this point the host is either brand new, or we have not seen this host
+   * during this second, and we need to perform a write to update the key
+   * value store.
+   *
+   * The LMDB key value store handles locking for us so that writes from
+   * multiple threads are serialised correctly. As soon as the write is
+   * complete, the subsequent reads follow the fast path above, keeping this
+   * as inexpensive as possible.
+   */
+
+  rc = mdb_txn_begin(env, NULL, 0, &txn);
+  if (rc) {
+    ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+    return -1;
+  }
+
+  rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
+  if (rc) {
+    ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+    mdb_txn_abort(txn);
+    return -1;
+  }
+
+  data.mv_size = sizeof(tv_now);
+  data.mv_data = &tv_now;
+
+  rc = mdb_put(txn, dbi, &key, &data, add ? MDB_NOOVERWRITE : 0);
+  if (MDB_KEYEXIST == rc) {
+
+    /* another thread beat us to it, do nothing */
+    add = 0;
+
+  } else if (rc) {
+    ERROR("mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_dbi_close(env, dbi);
+    mdb_txn_abort(txn);
+    return -1;
+  }
 
-    /* finally, handle the notification if needed */
-    if (add) {
-      notification_t n = {0};
-      char message[NOTIF_MAX_MSG_LEN];
+  rc = mdb_txn_commit(txn);
+  if (rc) {
+    ERROR("mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
+    mdb_dbi_close(env, dbi);
+    return -1;
+  }
 
-      ssnprintf(message, sizeof(message), "Host is found: %.*s",
-                (int)sizeof(vl->host), vl->host);
-      notification_init(&n, NOTIF_OKAY, message, vl->host, PLUGIN_NAME, NULL,
-                        "host", "found");
-      n.time = cdtime();
+  mdb_dbi_close(env, dbi);
 
-      plugin_dispatch_notification(&n);
-    }
+  /* finally, handle the notification if needed */
+  if (add) {
+    notification_t n = {0};
+    char message[NOTIF_MAX_MSG_LEN];
+
+    ssnprintf(message, sizeof(message), "Host is found: %.*s",
+              (int)sizeof(vl->host), vl->host);
+    notification_init(&n, NOTIF_OKAY, message, vl->host, PLUGIN_NAME, NULL,
+                      "host", "found");
+    n.time = cdtime();
+
+    plugin_dispatch_notification(&n);
   }
 
   return 0;
