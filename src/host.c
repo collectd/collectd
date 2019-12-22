@@ -214,8 +214,9 @@ static int start_thread(void) /* {{{ */
   }
 
   host_thread_loop = 1;
-  int status = plugin_thread_create(&host_thread_id, /* attr = */ NULL, host_thread,
-                                /* arg = */ (void *)0, "host");
+  int status =
+      plugin_thread_create(&host_thread_id, /* attr = */ NULL, host_thread,
+                           /* arg = */ (void *)0, "host");
   if (status != 0) {
     host_thread_loop = 0;
     ERROR("ping plugin: Starting thread failed.");
@@ -258,7 +259,7 @@ static int host_init(void) {
 
   if (host_path) {
 
-	int rc = mdb_env_create(&env);
+    int rc = mdb_env_create(&env);
     if (rc) {
       ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
             mdb_strerror(rc), rc);
