@@ -62,9 +62,7 @@ static MDB_env *env;
 
 static void *host_thread(void *arg) /* {{{ */
 {
-  struct timeval tv_begin;
-  struct timeval tv_now;
-  struct timespec ts_wait;
+  struct timeval tv_begin = {0};
 
   if (gettimeofday(&tv_begin, NULL) < 0) {
     ERROR("host plugin: gettimeofday failed: %s", STRERRNO);
@@ -74,17 +72,16 @@ static void *host_thread(void *arg) /* {{{ */
 
   pthread_mutex_lock(&host_lock);
 
+  struct timespec ts_wait = {0};
+
   ts_wait.tv_sec = tv_begin.tv_sec + delay_interval + thread_interval;
   ts_wait.tv_nsec = 0;
 
   pthread_cond_timedwait(&host_cond, &host_lock, &ts_wait);
 
   while (host_thread_loop > 0) {
-    MDB_txn *txn;
-    MDB_dbi dbi;
-    MDB_val key, data;
-    MDB_cursor *cursor;
-    int rc;
+
+    struct timeval tv_now = {0};
 
     if (gettimeofday(&tv_now, NULL) < 0) {
       ERROR("host plugin: gettimeofday failed: %s", STRERRNO);
@@ -94,11 +91,15 @@ static void *host_thread(void *arg) /* {{{ */
 
     pthread_mutex_unlock(&host_lock);
 
-    rc = mdb_txn_begin(env, NULL, 0, &txn);
+    MDB_txn *txn = NULL;
+
+    int rc = mdb_txn_begin(env, NULL, 0, &txn);
     if (rc) {
       ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
       goto skip;
     }
+
+    MDB_dbi dbi = {0};
 
     rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
     if (rc) {
@@ -107,6 +108,8 @@ static void *host_thread(void *arg) /* {{{ */
       goto skip;
     }
 
+    MDB_cursor *cursor = NULL;
+
     rc = mdb_cursor_open(txn, dbi, &cursor);
     if (rc) {
       ERROR("mdb_cursor_open returned: %s (%d)", mdb_strerror(rc), rc);
@@ -114,14 +117,15 @@ static void *host_thread(void *arg) /* {{{ */
       goto skip;
     }
 
+    MDB_val key = {0}, data = {0};
+
     while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-      notification_t n;
-      struct timeval *tv_then;
-      const char *host;
 
       /* sanity check - remove any entries that have mismatched sizes,
        * this might happen after an upgrade.
        */
+
+      notification_t n = {0};
 
       if (key.mv_size != sizeof(n.host) ||
           data.mv_size != sizeof(struct timespec)) {
@@ -144,12 +148,14 @@ static void *host_thread(void *arg) /* {{{ */
        *
        */
 
-      host = key.mv_data;
+      const char *host = key.mv_data;
+
+      struct timeval *tv_then = {0};
+
       tv_then = data.mv_data;
 
       if (tv_now.tv_sec - tv_then->tv_sec >= lost_interval + thread_interval) {
 
-        notification_t n;
         char message[NOTIF_MAX_MSG_LEN];
 
         rc = mdb_cursor_del(cursor, 0);
@@ -199,7 +205,6 @@ static void *host_thread(void *arg) /* {{{ */
 
 static int start_thread(void) /* {{{ */
 {
-  int status;
 
   pthread_mutex_lock(&host_lock);
 
@@ -209,7 +214,7 @@ static int start_thread(void) /* {{{ */
   }
 
   host_thread_loop = 1;
-  status = plugin_thread_create(&host_thread_id, /* attr = */ NULL, host_thread,
+  int status = plugin_thread_create(&host_thread_id, /* attr = */ NULL, host_thread,
                                 /* arg = */ (void *)0, "host");
   if (status != 0) {
     host_thread_loop = 0;
@@ -224,7 +229,6 @@ static int start_thread(void) /* {{{ */
 
 static int stop_thread(void) /* {{{ */
 {
-  int status;
 
   pthread_mutex_lock(&host_lock);
 
@@ -237,7 +241,7 @@ static int stop_thread(void) /* {{{ */
   pthread_cond_broadcast(&host_cond);
   pthread_mutex_unlock(&host_lock);
 
-  status = pthread_join(host_thread_id, /* return = */ NULL);
+  int status = pthread_join(host_thread_id, /* return = */ NULL);
   if (status != 0) {
     ERROR("host plugin: Stopping thread failed.");
     status = -1;
@@ -251,11 +255,10 @@ static int stop_thread(void) /* {{{ */
 } /* }}} int stop_thread */
 
 static int host_init(void) {
-  int rc;
 
   if (host_path) {
 
-    rc = mdb_env_create(&env);
+	int rc = mdb_env_create(&env);
     if (rc) {
       ERROR(PLUGIN_NAME " plugin: mdb_env_create failed: %s (%d)",
             mdb_strerror(rc), rc);
@@ -295,14 +298,9 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
                       __attribute__((unused)) user_data_t *user_data) {
 
   if (env) {
-    MDB_txn *txn;
-    MDB_dbi dbi;
-    MDB_val key, data;
-    struct timeval tv_now;
-    int rc;
-    int add = 0;
+    struct timeval tv_now = {0};
 
-    rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
+    int rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
     if (rc != 0) {
       ERROR("gettimeofday failed: %s", STRERRNO);
       return -1;
@@ -311,14 +309,20 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
     /* first pass - do we exist at all? read only transaction makes this
      * efficient */
 
+    MDB_val key = {0}, data = {0};
+
     key.mv_size = sizeof(vl->host);
     key.mv_data = (void *)vl->host;
+
+    MDB_txn *txn = NULL;
 
     rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
     if (rc) {
       ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
       return -1;
     }
+
+    MDB_dbi dbi = {0};
 
     rc = mdb_dbi_open(txn, NULL, 0, &dbi);
     if (MDB_NOTFOUND == rc) {
@@ -339,6 +343,8 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
       rc = mdb_get(txn, dbi, &key, &data);
     }
+
+    int add = 0;
 
     if (MDB_NOTFOUND == rc) {
 
@@ -417,7 +423,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
     /* finally, handle the notification if needed */
     if (add) {
-      notification_t n;
+      notification_t n = {0};
       char message[NOTIF_MAX_MSG_LEN];
 
       ssnprintf(message, sizeof(message), "Host is found: %.*s",
