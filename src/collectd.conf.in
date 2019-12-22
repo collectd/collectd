@@ -699,8 +699,9 @@
 #</Plugin>
 
 #<Plugin host>
-#    HostPath "hosts"
-#    LostInterval 30
+#    StateDatastore "hosts"
+#    HostTimeout 10
+#    StartupDelay 10
 #</Plugin>
 
 #<Plugin hugepages>

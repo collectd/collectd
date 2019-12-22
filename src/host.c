@@ -40,17 +40,17 @@
 
 #define PLUGIN_NAME "host"
 
-#define DEFAULT_HOST_PATH "hosts"
-#define DEFAULT_LOST_INTERVAL 10
+#define DEFAULT_STATE_DATASTORE "hosts"
+#define DEFAULT_HOST_TIMEOUT 10
 #define DEFAULT_THREAD_INTERVAL 2
-#define DEFAULT_DELAY_INTERVAL 10
+#define DEFAULT_STARTUP_DELAY 10
 
-static const char *config_keys[] = {"HOSTPATH", "LOSTINTERVAL",
-                                    "DELAYINTERVAL"};
+static const char *config_keys[] = {"STATEDATASTORE", "HOSTTIMEOUT",
+                                    "STARTUPDELAY"};
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
-static char *host_path = DEFAULT_HOST_PATH;
-static int lost_interval = DEFAULT_LOST_INTERVAL;
-static int delay_interval = DEFAULT_DELAY_INTERVAL;
+static char *state_datastore = DEFAULT_STATE_DATASTORE;
+static int host_timeout = DEFAULT_HOST_TIMEOUT;
+static int startup_delay = DEFAULT_STARTUP_DELAY;
 static int thread_interval = DEFAULT_THREAD_INTERVAL;
 
 static pthread_mutex_t host_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -87,7 +87,7 @@ static void *host_thread(void *arg) /* {{{ */
    */
   struct timespec ts_wait = {0};
 
-  ts_wait.tv_sec = tv_begin.tv_sec + delay_interval + thread_interval;
+  ts_wait.tv_sec = tv_begin.tv_sec + startup_delay + thread_interval;
   ts_wait.tv_nsec = 0;
 
   pthread_cond_timedwait(&host_cond, &host_lock, &ts_wait);
@@ -181,7 +181,7 @@ static void *host_thread(void *arg) /* {{{ */
 
       tv_then = data.mv_data;
 
-      if (tv_now.tv_sec - tv_then->tv_sec >= lost_interval + thread_interval) {
+      if (tv_now.tv_sec - tv_then->tv_sec >= host_timeout + thread_interval) {
 
         char message[NOTIF_MAX_MSG_LEN];
 
@@ -284,7 +284,7 @@ static int stop_thread(void) /* {{{ */
 
 static int host_init(void) {
 
-  if (host_path) {
+  if (state_datastore) {
 
     int rc = mdb_env_create(&env);
     if (rc) {
@@ -293,9 +293,9 @@ static int host_init(void) {
       return -1;
     }
 
-    rc = mdb_env_open(env, host_path, MDB_NOSUBDIR, 0664);
+    rc = mdb_env_open(env, state_datastore, MDB_NOSUBDIR, 0664);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)", host_path,
+      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)", state_datastore,
             mdb_strerror(rc), rc);
       mdb_env_close(env);
       env = NULL;
@@ -488,21 +488,21 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 }
 
 static int host_config(const char *key, const char *value) {
-  if (strcasecmp(key, "HOSTPATH") == 0) {
+  if (strcasecmp(key, "STATEDATASTORE") == 0) {
     if (value != NULL && strcmp(value, "") != 0) {
-      host_path = strdup(value);
+      state_datastore = strdup(value);
     } else {
-      host_path = NULL;
+      state_datastore = NULL;
     }
     return 0;
-  } else if (strcasecmp(key, "LOSTINTERVAL") == 0) {
+  } else if (strcasecmp(key, "HOSTTIMEOUT") == 0) {
     if (value != NULL) {
-      lost_interval = atoi(value);
+      host_timeout = atoi(value);
     }
     return 0;
-  } else if (strcasecmp(key, "DELAYINTERVAL") == 0) {
+  } else if (strcasecmp(key, "STARTUPDELAY") == 0) {
     if (value != NULL) {
-      delay_interval = atoi(value);
+      startup_delay = atoi(value);
     }
     return 0;
   } else
