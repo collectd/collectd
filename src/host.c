@@ -41,9 +41,9 @@
 #define PLUGIN_NAME "host"
 
 #define DEFAULT_HOST_PATH "hosts"
-#define DEFAULT_LOST_INTERVAL 60
+#define DEFAULT_LOST_INTERVAL 10
 #define DEFAULT_THREAD_INTERVAL 2
-#define DEFAULT_DELAY_INTERVAL 60
+#define DEFAULT_DELAY_INTERVAL 10
 
 static const char *config_keys[] = {"HOSTPATH", "LOSTINTERVAL",
                                     "DELAYINTERVAL"};

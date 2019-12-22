@@ -3471,11 +3471,11 @@ Path and filename of the LMDB hosts key/value store. Defaults to B<hosts>.
 
 =item B<LostInterval> I<Seconds>
 
-Number of seconds to pass before a host is notified as missing. Defaults to B<60>.
+Number of seconds to pass before a host is notified as missing. Defaults to B<10>.
 
 =item B<DelayInterval> I<Seconds>
 
-Number of seconds after startup to suppress missing notifications. Defaults to B<60>.
+Number of seconds after startup to suppress missing notifications. Defaults to B<10>.
 
 =back
 
