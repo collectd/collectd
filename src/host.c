@@ -295,8 +295,8 @@ static int host_init(void) {
 
     rc = mdb_env_open(env, state_datastore, MDB_NOSUBDIR, 0664);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)", state_datastore,
-            mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: opening path '%s' failed: %s (%d)",
+            state_datastore, mdb_strerror(rc), rc);
       mdb_env_close(env);
       env = NULL;
       return -1;
