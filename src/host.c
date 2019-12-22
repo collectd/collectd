@@ -122,7 +122,8 @@ static void *host_thread(void *arg) /* {{{ */
 
     int rc = mdb_txn_begin(env, NULL, 0, &txn);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)",
+            mdb_strerror(rc), rc);
       goto skip;
     }
 
@@ -130,7 +131,8 @@ static void *host_thread(void *arg) /* {{{ */
 
     rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)",
+            mdb_strerror(rc), rc);
       mdb_txn_abort(txn);
       goto skip;
     }
@@ -139,7 +141,8 @@ static void *host_thread(void *arg) /* {{{ */
 
     rc = mdb_cursor_open(txn, dbi, &cursor);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: mdb_cursor_open returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_cursor_open returned: %s (%d)",
+            mdb_strerror(rc), rc);
       mdb_txn_abort(txn);
       goto skip;
     }
@@ -159,7 +162,8 @@ static void *host_thread(void *arg) /* {{{ */
 
         rc = mdb_cursor_del(cursor, 0);
         if (rc) {
-          ERROR(PLUGIN_NAME " plugin: mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
+          ERROR(PLUGIN_NAME " plugin: mdb_cursor_del returned: %s (%d)",
+                mdb_strerror(rc), rc);
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           goto skip;
@@ -187,7 +191,8 @@ static void *host_thread(void *arg) /* {{{ */
 
         rc = mdb_cursor_del(cursor, 0);
         if (rc) {
-          ERROR(PLUGIN_NAME " plugin: mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
+          ERROR(PLUGIN_NAME " plugin: mdb_cursor_del returned: %s (%d)",
+                mdb_strerror(rc), rc);
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           goto skip;
@@ -207,7 +212,8 @@ static void *host_thread(void *arg) /* {{{ */
 
     rc = mdb_txn_commit(txn);
     if (rc) {
-      ERROR(PLUGIN_NAME " plugin: mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_txn_commit returned: %s (%d)",
+            mdb_strerror(rc), rc);
       goto skip;
     }
 
@@ -359,7 +365,8 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
   if (rc) {
-    ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)",
+          mdb_strerror(rc), rc);
     return -1;
   }
 
@@ -374,7 +381,8 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
     /* error happened */
 
-    ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)",
+          mdb_strerror(rc), rc);
     mdb_txn_abort(txn);
     return -1;
 
@@ -397,7 +405,8 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
     /* error happened */
 
-    ERROR(PLUGIN_NAME " plugin: mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_get returned: %s (%d)", mdb_strerror(rc),
+          rc);
     mdb_dbi_close(env, dbi);
     mdb_txn_abort(txn);
     return -1;
@@ -436,13 +445,15 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   rc = mdb_txn_begin(env, NULL, 0, &txn);
   if (rc) {
-    ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)",
+          mdb_strerror(rc), rc);
     return -1;
   }
 
   rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
   if (rc) {
-    ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)",
+          mdb_strerror(rc), rc);
     mdb_txn_abort(txn);
     return -1;
   }
@@ -457,7 +468,8 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
     add = 0;
 
   } else if (rc) {
-    ERROR(PLUGIN_NAME " plugin: mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_put returned: %s (%d)", mdb_strerror(rc),
+          rc);
     mdb_dbi_close(env, dbi);
     mdb_txn_abort(txn);
     return -1;
@@ -465,7 +477,8 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   rc = mdb_txn_commit(txn);
   if (rc) {
-    ERROR(PLUGIN_NAME " plugin: mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_txn_commit returned: %s (%d)",
+          mdb_strerror(rc), rc);
     mdb_dbi_close(env, dbi);
     return -1;
   }
