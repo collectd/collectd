@@ -41,9 +41,9 @@
 #define PLUGIN_NAME "host"
 
 #define DEFAULT_STATE_DATASTORE "hosts"
-#define DEFAULT_HOST_TIMEOUT 10
+#define DEFAULT_HOST_TIMEOUT 20
 #define DEFAULT_THREAD_INTERVAL 2
-#define DEFAULT_STARTUP_DELAY 10
+#define DEFAULT_STARTUP_DELAY 20
 
 static const char *config_keys[] = {"STATEDATASTORE", "HOSTTIMEOUT",
                                     "STARTUPDELAY"};

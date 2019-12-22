@@ -700,8 +700,8 @@
 
 #<Plugin host>
 #    StateDatastore "hosts"
-#    HostTimeout 10
-#    StartupDelay 10
+#    HostTimeout 20
+#    StartupDelay 20
 #</Plugin>
 
 #<Plugin hugepages>

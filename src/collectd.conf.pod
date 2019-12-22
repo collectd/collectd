@@ -3463,6 +3463,10 @@ The hosts plugin provides a grace period after starting up for hosts to tell
 us they are still present, catching hosts that have gone missing during our
 restart. The grace period is controlled with the B<StartupDelay> option.
 
+An additional two seconds are added on top of B<HostTimeout> and B<StartupDelay>
+automatically to ensure there are no race conditions where a host might be
+declared missing but then immediately found.
+
 =over 4
 
 =item B<StateDatastore> I<path/to/database>
@@ -3471,11 +3475,10 @@ Path and filename of the LMDB hosts key/value store. Defaults to B<hosts>.
 
 =item B<HostTimeout> I<Seconds>
 
-Number of seconds to pass before a host is notified as missing. Defaults to B<10>.
-
 =item B<StartupDelay> I<Seconds>
 
-Number of seconds after startup to suppress missing notifications. Defaults to B<10>.
+Number of seconds after startup to suppress missing notifications. Defaults to B<20>,
+which is twice the value of Interval.
 
 =back
 
