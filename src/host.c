@@ -65,7 +65,7 @@ static void *host_thread(void *arg) /* {{{ */
   struct timeval tv_begin = {0};
 
   if (gettimeofday(&tv_begin, NULL) < 0) {
-    ERROR("host plugin: gettimeofday failed: %s", STRERRNO);
+    ERROR(PLUGIN_NAME " plugin: gettimeofday failed: %s", STRERRNO);
     host_thread_loop = 0;
     return (void *)0;
   }
@@ -97,7 +97,7 @@ static void *host_thread(void *arg) /* {{{ */
     struct timeval tv_now = {0};
 
     if (gettimeofday(&tv_now, NULL) < 0) {
-      ERROR("host plugin: gettimeofday failed: %s", STRERRNO);
+      ERROR(PLUGIN_NAME " plugin: gettimeofday failed: %s", STRERRNO);
       host_thread_loop = 0;
       break;
     }
@@ -122,7 +122,7 @@ static void *host_thread(void *arg) /* {{{ */
 
     int rc = mdb_txn_begin(env, NULL, 0, &txn);
     if (rc) {
-      ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
       goto skip;
     }
 
@@ -130,7 +130,7 @@ static void *host_thread(void *arg) /* {{{ */
 
     rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
     if (rc) {
-      ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
       mdb_txn_abort(txn);
       goto skip;
     }
@@ -139,7 +139,7 @@ static void *host_thread(void *arg) /* {{{ */
 
     rc = mdb_cursor_open(txn, dbi, &cursor);
     if (rc) {
-      ERROR("mdb_cursor_open returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_cursor_open returned: %s (%d)", mdb_strerror(rc), rc);
       mdb_txn_abort(txn);
       goto skip;
     }
@@ -159,7 +159,7 @@ static void *host_thread(void *arg) /* {{{ */
 
         rc = mdb_cursor_del(cursor, 0);
         if (rc) {
-          ERROR("mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
+          ERROR(PLUGIN_NAME " plugin: mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           goto skip;
@@ -187,7 +187,7 @@ static void *host_thread(void *arg) /* {{{ */
 
         rc = mdb_cursor_del(cursor, 0);
         if (rc) {
-          ERROR("mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
+          ERROR(PLUGIN_NAME " plugin: mdb_cursor_del returned: %s (%d)", mdb_strerror(rc), rc);
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           goto skip;
@@ -207,7 +207,7 @@ static void *host_thread(void *arg) /* {{{ */
 
     rc = mdb_txn_commit(txn);
     if (rc) {
-      ERROR("mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
+      ERROR(PLUGIN_NAME " plugin: mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
       goto skip;
     }
 
@@ -246,7 +246,7 @@ static int start_thread(void) /* {{{ */
                            /* arg = */ (void *)0, "host");
   if (status != 0) {
     host_thread_loop = 0;
-    ERROR("ping plugin: Starting thread failed.");
+    ERROR(PLUGIN_NAME " plugin: starting thread failed.");
     pthread_mutex_unlock(&host_lock);
     return -1;
   }
@@ -271,7 +271,7 @@ static int stop_thread(void) /* {{{ */
 
   int status = pthread_join(host_thread_id, /* return = */ NULL);
   if (status != 0) {
-    ERROR("host plugin: Stopping thread failed.");
+    ERROR(PLUGIN_NAME " plugin: stopping thread failed.");
     status = -1;
   }
 
@@ -333,7 +333,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   int rc = gettimeofday(&tv_now, /* struct timezone = */ NULL);
   if (rc != 0) {
-    ERROR("gettimeofday failed: %s", STRERRNO);
+    ERROR(PLUGIN_NAME " plugin: gettimeofday failed: %s", STRERRNO);
     return -1;
   }
 
@@ -359,7 +359,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
   if (rc) {
-    ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
     return -1;
   }
 
@@ -374,7 +374,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
     /* error happened */
 
-    ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_txn_abort(txn);
     return -1;
 
@@ -397,7 +397,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
     /* error happened */
 
-    ERROR("mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_get returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_dbi_close(env, dbi);
     mdb_txn_abort(txn);
     return -1;
@@ -436,13 +436,13 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   rc = mdb_txn_begin(env, NULL, 0, &txn);
   if (rc) {
-    ERROR("mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_txn_begin returned: %s (%d)", mdb_strerror(rc), rc);
     return -1;
   }
 
   rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
   if (rc) {
-    ERROR("mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_dbi_open returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_txn_abort(txn);
     return -1;
   }
@@ -457,7 +457,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
     add = 0;
 
   } else if (rc) {
-    ERROR("mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_put returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_dbi_close(env, dbi);
     mdb_txn_abort(txn);
     return -1;
@@ -465,7 +465,7 @@ static int host_write(const data_set_t *ds, const value_list_t *vl,
 
   rc = mdb_txn_commit(txn);
   if (rc) {
-    ERROR("mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
+    ERROR(PLUGIN_NAME " plugin: mdb_txn_commit returned: %s (%d)", mdb_strerror(rc), rc);
     mdb_dbi_close(env, dbi);
     return -1;
   }
