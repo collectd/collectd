@@ -81,8 +81,10 @@ struct user_config_s {
 #endif
   bool collect_vcl;
   bool collect_workers;
-#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   bool collect_vsm;
+#endif
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
   bool collect_lck;
   bool collect_mempool;
   bool collect_mgt;
@@ -747,7 +749,7 @@ static int varnish_monitor(void *priv,
 #endif
   }
 
-#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   if (conf->collect_vsm) {
     if (strcmp(name, "vsm_free") == 0)
       return varnish_submit_gauge(conf->instance, "vsm", "bytes", "free", val);
@@ -763,7 +765,9 @@ static int varnish_monitor(void *priv,
       return varnish_submit_derive(conf->instance, "vsm", "total_bytes",
                                    "overflowed", val);
   }
+#endif
 
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
   if (conf->collect_vbe) {
     /* @TODO figure out the collectd type for bitmap
     if (strcmp(name, "happy") == 0)
@@ -1545,8 +1549,10 @@ static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
 #endif
   conf->collect_vcl = false;
   conf->collect_workers = false;
-#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
   conf->collect_vsm = false;
+#endif
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
   conf->collect_lck = false;
   conf->collect_mempool = false;
   conf->collect_mgt = false;
@@ -1694,11 +1700,11 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
     else if (strcasecmp("CollectWorkers", child->key) == 0)
       cf_util_get_boolean(child, &conf->collect_workers);
     else if (strcasecmp("CollectVSM", child->key) == 0)
-#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
       cf_util_get_boolean(child, &conf->collect_vsm);
 #else
       WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
-              child->key, "v4");
+              child->key, "v4 or v5");
 #endif
     else if (strcasecmp("CollectLock", child->key) == 0)
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
@@ -1781,8 +1787,11 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
       && !conf->collect_uptime
 #endif
       && !conf->collect_vcl && !conf->collect_workers
+#if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
+      && !conf->collect_vsm 
+#endif
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
-      && !conf->collect_vsm && !conf->collect_vbe && !conf->collect_smf &&
+      && !conf->collect_vbe && !conf->collect_smf &&
       !conf->collect_mgt && !conf->collect_lck && !conf->collect_mempool &&
       !conf->collect_mse
 #endif
