@@ -1842,6 +1842,7 @@
 #      CollectSMF false           # Varnish 4 and above
 #      CollectVBE false           # Varnish 4 and above
 #      CollectMSE false           # Varnish-Plus only
+#      CollectGOTO false          # Varnish-Plus 6 only
 #   </Instance>
 #</Plugin>
 
