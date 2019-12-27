@@ -1691,6 +1691,7 @@
 #      CollectSMF false
 #      CollectVBE false
 #      CollectMSE false           # Varnish-Plus only
+#      CollectGOTO false           # Varnish-Plus 6 only
 #   </Instance>
 #</Plugin>
 

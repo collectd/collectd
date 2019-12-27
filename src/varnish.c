@@ -63,6 +63,9 @@ struct user_config_s {
   bool collect_smf;
   bool collect_vbe;
   bool collect_mse;
+#if HAVE_VARNISH_V6
+  bool collect_goto;
+#endif
 };
 typedef struct user_config_s user_config_t; /* }}} */
 
@@ -933,6 +936,20 @@ static int varnish_monitor(void *priv,
                                    "total_operations", "sniped_objects", val);
   }
 
+#if HAVE_VARNISH_V6
+  if (conf->collect_goto) {
+    if (strcmp(name, "goto_dns_cache_hits") == 0)
+      return varnish_submit_derive(conf->instance, "goto", "total_operations",
+                                   "dns_cache_hits", val);
+    else if (strcmp(name, "goto_dns_lookups") == 0)
+      return varnish_submit_derive(conf->instance, "goto", "total_operations",
+                                   "dns_lookups", val);
+    else if (strcmp(name, "goto_dns_lookup_fails") == 0)
+      return varnish_submit_derive(conf->instance, "goto", "total_operations",
+                                   "dns_lookup_fails", val);
+  }
+#endif
+
   return 0;
 
 } /* }}} static int varnish_monitor */
@@ -1078,6 +1095,9 @@ static int varnish_config_apply_default(user_config_t *conf) /* {{{ */
   conf->collect_smf = false;
   conf->collect_vbe = false;
   conf->collect_mse = false;
+#if HAVE_VARNISH_V6
+  conf->collect_goto = false;
+#endif
 
   return 0;
 } /* }}} int varnish_config_apply_default */
@@ -1202,6 +1222,13 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
       cf_util_get_boolean(child, &conf->collect_vbe);
     else if (strcasecmp("CollectMSE", child->key) == 0)
       cf_util_get_boolean(child, &conf->collect_mse);
+    else if (strcasecmp("CollectGOTO", child->key) == 0)
+#if HAVE_VARNISH_V6
+      cf_util_get_boolean(child, &conf->collect_goto);
+#else
+      WARNING("Varnish plugin: \"%s\" is available for Varnish %s only.",
+              child->key, "v6");
+#endif
     else {
       WARNING("Varnish plugin: Ignoring unknown "
               "configuration option: \"%s\". Did "
@@ -1221,7 +1248,11 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
       && !conf->collect_vsm
 #endif
       && !conf->collect_vbe && !conf->collect_smf && !conf->collect_mgt &&
-      !conf->collect_lck && !conf->collect_mempool && !conf->collect_mse) {
+      !conf->collect_lck && !conf->collect_mempool && !conf->collect_mse
+#if HAVE_VARNISH_V6
+      && !conf->collect_goto
+#endif
+  ) {
     WARNING("Varnish plugin: No metric has been configured for "
             "instance \"%s\". Disabling this instance.",
             (conf->instance == NULL) ? "localhost" : conf->instance);
