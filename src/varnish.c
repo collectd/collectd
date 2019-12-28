@@ -765,22 +765,22 @@ static int varnish_monitor(void *priv,
 #if HAVE_VARNISH_V6
     else if (strcmp(name, "n_lru_nuked") == 0)
       return varnish_submit_derive(conf->instance, category, "total_objects",
-                                  "lru_nuked", val);
+                                   "lru_nuked", val);
     else if (strcmp(name, "n_lru_moved") == 0)
       return varnish_submit_derive(conf->instance, category, "total_objects",
-                                  "lru_moved", val);
+                                   "lru_moved", val);
     else if (strcmp(name, "n_vary") == 0)
       return varnish_submit_derive(conf->instance, category, "total_objects",
-                                  "vary_headers", val);
+                                   "vary_headers", val);
     else if (strcmp(name, "c_memcache_hit") == 0)
       return varnish_submit_derive(conf->instance, category, "total_operations",
-                                  "memcache_hit", val);
+                                   "memcache_hit", val);
     else if (strcmp(name, "c_memcache_miss") == 0)
       return varnish_submit_derive(conf->instance, category, "total_operations",
-                                  "memcache_miss", val);
+                                   "memcache_miss", val);
     else if (strcmp(name, "g_ykey_keys") == 0)
-      return varnish_submit_gauge(conf->instance, category, "objects",
-                                  "ykey", val);
+      return varnish_submit_gauge(conf->instance, category, "objects", "ykey",
+                                  val);
 #endif
   }
 
