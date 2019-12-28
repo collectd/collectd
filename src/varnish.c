@@ -846,8 +846,34 @@ static int varnish_monitor(void *priv,
                                   "bytes_available", val);
   }
 
+#if HAVE_VARNISH_V6
   /* No SMA specific counters */
+  if (conf->collect_mse) {
+    if (strcmp(name, "c_fail_malloc") == 0)
+      return varnish_submit_derive(conf->instance, "mse", "total_operations",
+                                   "alloc_fail_malloc", val);
+    else if (strcmp(name, "n_lru_nuked") == 0)
+      return varnish_submit_derive(conf->instance, "mse", "total_objects",
+                                   "lru_nuked", val);
+    else if (strcmp(name, "n_lru_moved") == 0)
+      return varnish_submit_derive(conf->instance, "mse", "total_objects",
+                                   "lru_moved", val);
+    else if (strcmp(name, "n_vary") == 0)
+      return varnish_submit_derive(conf->instance, "mse", "total_objects",
+                                   "vary_headers", val);
+    else if (strcmp(name, "c_memcache_hit") == 0)
+      return varnish_submit_derive(conf->instance, "mse", "total_operations",
+                                   "memcache_hit", val);
+    else if (strcmp(name, "c_memcache_miss") == 0)
+      return varnish_submit_derive(conf->instance, "mse", "total_operations",
+                                   "memcache_miss", val);
+    else if (strcmp(name, "g_ykey_keys") == 0)
+      return varnish_submit_gauge(conf->instance, "mse", "objects", "ykey",
+                                  val);
+  }
+#endif
 
+  /* No SMA specific counters */
   if (conf->collect_smf) {
     if (strcmp(name, "g_smf") == 0)
       return varnish_submit_gauge(conf->instance, "smf", "objects",
@@ -1815,12 +1841,11 @@ static int varnish_config_instance(const oconfig_item_t *ci) /* {{{ */
 #endif
       && !conf->collect_vcl && !conf->collect_workers
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5
-      && !conf->collect_vsm 
+      && !conf->collect_vsm
 #endif
 #if HAVE_VARNISH_V4 || HAVE_VARNISH_V5 || HAVE_VARNISH_V6
-      && !conf->collect_vbe && !conf->collect_smf &&
-      !conf->collect_mgt && !conf->collect_lck && !conf->collect_mempool &&
-      !conf->collect_mse
+      && !conf->collect_vbe && !conf->collect_smf && !conf->collect_mgt &&
+      !conf->collect_lck && !conf->collect_mempool && !conf->collect_mse
 #endif
 #if HAVE_VARNISH_V6
       && !conf->collect_goto
