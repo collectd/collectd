@@ -742,6 +742,11 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "c_fail") == 0)
       return varnish_submit_derive(conf->instance, category, "total_operations",
                                    "alloc_fail", val);
+#if HAVE_VARNISH_V6
+    else if (strcmp(name, "c_fail_malloc") == 0)
+      return varnish_submit_derive(conf->instance, category, "total_operations",
+                                   "alloc_fail_malloc", val);
+#endif
     else if (strcmp(name, "c_bytes") == 0)
       return varnish_submit_derive(conf->instance, category, "total_bytes",
                                    "bytes_allocated", val);
@@ -757,6 +762,26 @@ static int varnish_monitor(void *priv,
     else if (strcmp(name, "g_space") == 0)
       return varnish_submit_gauge(conf->instance, category, "bytes",
                                   "bytes_available", val);
+#if HAVE_VARNISH_V6
+    else if (strcmp(name, "n_lru_nuked") == 0)
+      return varnish_submit_derive(conf->instance, category, "total_objects",
+                                  "lru_nuked", val);
+    else if (strcmp(name, "n_lru_moved") == 0)
+      return varnish_submit_derive(conf->instance, category, "total_objects",
+                                  "lru_moved", val);
+    else if (strcmp(name, "n_vary") == 0)
+      return varnish_submit_derive(conf->instance, category, "total_objects",
+                                  "vary_headers", val);
+    else if (strcmp(name, "c_memcache_hit") == 0)
+      return varnish_submit_derive(conf->instance, category, "total_operations",
+                                  "memcache_hit", val);
+    else if (strcmp(name, "c_memcache_miss") == 0)
+      return varnish_submit_derive(conf->instance, category, "total_operations",
+                                  "memcache_miss", val);
+    else if (strcmp(name, "g_ykey_keys") == 0)
+      return varnish_submit_gauge(conf->instance, category, "objects",
+                                  "ykey", val);
+#endif
   }
 
   /* No SMA specific counters */
