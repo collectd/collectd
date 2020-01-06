@@ -1082,10 +1082,10 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
  * Set the time of the first read according to the settings AlignRead and
  * Interval in collectd.conf.
  *
- * The AlignRead value is in seconds. Values greater than or equal to 60
- * determine the minute of an hour (integer part after division with 60).
- * Values between 0 and 59 (mod 60) determine the second of a minute. Decimal
- * places set the millisecond of a second.
+ * The AlignRead value is in seconds. The value modulo 60 determines the second
+ * of a minute. The integer part of the value divided by 60 determines the
+ * minute of an hour. Optionally, decimal places can be used to set the
+ * fraction of a second (up to milliseconds precision).
  */
 static void plugin_set_first_read_time(read_func_t *rf) {
 

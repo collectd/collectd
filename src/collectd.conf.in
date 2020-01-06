@@ -51,14 +51,16 @@
 #WriteQueueLimitLow   800000
 
 #----------------------------------------------------------------------------#
-# AlignRead enables the aligned execution of read callbacks to specific      #
-# minutes of an hour, seconds of a minute and milliseconds of a second. The  #
-# float value itself is in seconds. Values greater than or equal to 60       #
-# determine the minute of an hour (integer part after division with 60).     #
-# Values between 0 and 59 (mod 60) determine the second of a minute.         #
-# Optionally, decimal places can be used to set the millisecond of a second. #
-# The value may be overwritten on a per-plugin base by using the 'AlignRead' # 
-# option of the LoadPlugin block:                                            #
+# If specified or set greater than or equal to zero, 'AlignRead' enables a   # 
+# (temporally) aligned execution of read callbacks. Together with the        #
+# 'Interval' option it determines in which minute of an hour, second of a    #
+# minute and fraction of a second read callbacks are triggered. 'AlignRead'  #
+# itself specifies when the initial call of a read function should happen.   #
+# The float value itself is in seconds. The value modulo 60 determines the   #
+# second of a minute. The integer part of the value divided by 60 determines #
+# the minute of an hour. Optionally, decimal places can be used to set the   #
+# fraction of a second. The value may be overwritten on a per-plugin base by #
+# using the 'AlignRead' option of the LoadPlugin block:                      #
 #   <LoadPlugin foo>                                                         #
 #       AlignRead 301.42 # minute 5, second 1, millisecond 420               #
 #   </LoadPlugin>                                                            #
