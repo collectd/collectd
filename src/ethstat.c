@@ -26,6 +26,7 @@
 
 #include "plugin.h"
 #include "utils/avltree/avltree.h"
+#include "utils/ignorelist/ignorelist.h"
 #include "utils/common/common.h"
 #include "utils_complain.h"
 
@@ -41,6 +42,9 @@
 #if HAVE_LINUX_ETHTOOL_H
 #include <linux/ethtool.h>
 #endif
+#if HAVE_IFADDRS_H
+#include <ifaddrs.h>
+#endif
 
 struct value_map_s {
   char type[DATA_MAX_NAME_LEN];
@@ -48,31 +52,93 @@ struct value_map_s {
 };
 typedef struct value_map_s value_map_t;
 
-static char **interfaces;
-static size_t interfaces_num;
+static char **regexed_interfaces = NULL;
+static size_t regexed_interfaces_num = 0;
+
+static char **valid_interfaces = NULL;
+static size_t valid_interfaces_num = 0;
 
 static c_avl_tree_t *value_map;
 
 static bool collect_mapped_only;
+
+static int ethstat_check_if_existing_interface(char **existing_interfaces, char *entry) {
+  char *aux;
+  int idx;
+
+  for(idx = 0; idx < valid_interfaces_num; ++idx) {
+    aux = strdup(existing_interfaces[idx]);
+    if (strcmp(aux, entry) == 0)
+      return 0;
+  }
+
+  return 1;
+}
+
+static int ethstat_get_matching_interface(const char *entry) {
+  size_t len;
+  struct ifaddrs *if_list = NULL;
+  char **v_tmp;
+  ignorelist_t *ethstat_ignorelist = NULL;
+
+  if (ethstat_ignorelist == NULL)
+    ethstat_ignorelist = ignorelist_create(/* invert = */ 1);
+  if (ethstat_ignorelist == NULL)
+    return 1;
+
+  len = strlen(entry);
+  if (len == 0) {
+    return 1;
+  }
+
+  #if HAVE_GETIFADDRS
+  ignorelist_add(ethstat_ignorelist, entry);
+
+  if (getifaddrs(&if_list) != 0) {
+    DEBUG("ethstat plugin: no new interface - no local interfaces were found");
+    return -1;
+  }
+  for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
+    if_ptr = if_ptr->ifa_next) {
+    if (ignorelist_match(ethstat_ignorelist, if_ptr->ifa_name) == 0 &&
+      ethstat_check_if_existing_interface(valid_interfaces, if_ptr->ifa_name) != 0) {
+      v_tmp = realloc(valid_interfaces, sizeof(*valid_interfaces) * (valid_interfaces_num + 1));
+      if (v_tmp == NULL)
+        return -1;
+
+      valid_interfaces = v_tmp;
+      valid_interfaces[valid_interfaces_num] = strdup(if_ptr->ifa_name);
+      valid_interfaces_num++;
+      INFO("ethstat plugin: Registered interface %s", if_ptr->ifa_name);
+    }
+  }
+  #endif
+
+  return 0;
+}
 
 static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
 {
   char **tmp;
   int status;
 
-  tmp = realloc(interfaces, sizeof(*interfaces) * (interfaces_num + 1));
+  tmp = realloc(regexed_interfaces, sizeof(*regexed_interfaces) * (regexed_interfaces_num + 1));
   if (tmp == NULL)
     return -1;
-  interfaces = tmp;
-  interfaces[interfaces_num] = NULL;
+  regexed_interfaces = tmp;
+  regexed_interfaces[regexed_interfaces_num] = NULL;
 
-  status = cf_util_get_string(ci, interfaces + interfaces_num);
+  status = cf_util_get_string(ci, regexed_interfaces + regexed_interfaces_num);
   if (status != 0)
     return status;
 
-  interfaces_num++;
-  INFO("ethstat plugin: Registered interface %s",
-       interfaces[interfaces_num - 1]);
+  status = ethstat_get_matching_interface(regexed_interfaces[regexed_interfaces_num]);
+  if (status != 0)
+    return status;
+
+  regexed_interfaces_num++;
+  INFO("ethstat plugin: Found interface matching regex %s",
+       regexed_interfaces[regexed_interfaces_num - 1]);
 
   return 0;
 } /* }}} int ethstat_add_interface */
@@ -290,8 +356,8 @@ static int ethstat_read_interface(char *device) {
 } /* }}} ethstat_read_interface */
 
 static int ethstat_read(void) {
-  for (size_t i = 0; i < interfaces_num; i++)
-    ethstat_read_interface(interfaces[i]);
+  for (size_t i = 0; i < valid_interfaces_num; i++)
+    ethstat_read_interface(valid_interfaces[i]);
 
   return 0;
 }
