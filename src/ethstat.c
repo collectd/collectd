@@ -26,8 +26,8 @@
 
 #include "plugin.h"
 #include "utils/avltree/avltree.h"
-#include "utils/ignorelist/ignorelist.h"
 #include "utils/common/common.h"
+#include "utils/ignorelist/ignorelist.h"
 #include "utils_complain.h"
 
 #if HAVE_SYS_IOCTL_H
@@ -62,11 +62,12 @@ static c_avl_tree_t *value_map;
 
 static bool collect_mapped_only;
 
-static int ethstat_check_if_existing_interface(char **existing_interfaces, char *entry) {
+static int ethstat_check_if_existing_interface(char **existing_interfaces,
+                                               char *entry) {
   char *aux;
   int idx;
 
-  for(idx = 0; idx < valid_interfaces_num; ++idx) {
+  for (idx = 0; idx < valid_interfaces_num; ++idx) {
     aux = strdup(existing_interfaces[idx]);
     if (strcmp(aux, entry) == 0)
       return 0;
@@ -91,7 +92,7 @@ static int ethstat_get_matching_interface(const char *entry) {
     return 1;
   }
 
-  #if HAVE_GETIFADDRS
+#if HAVE_GETIFADDRS
   ignorelist_add(ethstat_ignorelist, entry);
 
   if (getifaddrs(&if_list) != 0) {
@@ -99,10 +100,12 @@ static int ethstat_get_matching_interface(const char *entry) {
     return -1;
   }
   for (struct ifaddrs *if_ptr = if_list; if_ptr != NULL;
-    if_ptr = if_ptr->ifa_next) {
+       if_ptr = if_ptr->ifa_next) {
     if (ignorelist_match(ethstat_ignorelist, if_ptr->ifa_name) == 0 &&
-      ethstat_check_if_existing_interface(valid_interfaces, if_ptr->ifa_name) != 0) {
-      v_tmp = realloc(valid_interfaces, sizeof(*valid_interfaces) * (valid_interfaces_num + 1));
+        ethstat_check_if_existing_interface(valid_interfaces,
+                                            if_ptr->ifa_name) != 0) {
+      v_tmp = realloc(valid_interfaces,
+                      sizeof(*valid_interfaces) * (valid_interfaces_num + 1));
       if (v_tmp == NULL)
         return -1;
 
@@ -112,7 +115,7 @@ static int ethstat_get_matching_interface(const char *entry) {
       INFO("ethstat plugin: Registered interface %s", if_ptr->ifa_name);
     }
   }
-  #endif
+#endif
 
   return 0;
 }
@@ -122,7 +125,8 @@ static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
   char **tmp;
   int status;
 
-  tmp = realloc(regexed_interfaces, sizeof(*regexed_interfaces) * (regexed_interfaces_num + 1));
+  tmp = realloc(regexed_interfaces,
+                sizeof(*regexed_interfaces) * (regexed_interfaces_num + 1));
   if (tmp == NULL)
     return -1;
   regexed_interfaces = tmp;
@@ -132,7 +136,8 @@ static int ethstat_add_interface(const oconfig_item_t *ci) /* {{{ */
   if (status != 0)
     return status;
 
-  status = ethstat_get_matching_interface(regexed_interfaces[regexed_interfaces_num]);
+  status = ethstat_get_matching_interface(
+      regexed_interfaces[regexed_interfaces_num]);
   if (status != 0)
     return status;
 
