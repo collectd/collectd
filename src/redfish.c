@@ -764,23 +764,18 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
     if (prop->type_inst != NULL)
       sstrncpy(v1.type_instance, prop->type_inst, sizeof(v1.type_instance));
     else {
-      /* Default TypeInstance is MemberId */
-      char type_inst[40] = "MemberId";
-      if (prop->type_inst != NULL)
-        sstrncpy(type_inst, prop->type_inst, sizeof(type_inst));
-
-      /* Retrieving sensor ID and setting TypeInstance */
-      json_t *sensor_id = json_object_get(item, prop->type_inst);
-      if (sensor_id == NULL) {
+      /* Retrieving MemberId of sensor */
+      json_t *member_id = json_object_get(item, "MemberId");
+      if (member_id == NULL) {
         ERROR(PLUGIN_NAME
-              ": Failed to get \"%s\" for property \"%s\" in resource "
+              ": Failed to get MemberId for property \"%s\" in resource "
               "\"%s\"",
-              prop->type_inst, prop->name, res->name);
+              prop->name, res->name);
         continue;
       }
 
       int ret = redfish_json_get_string(v1.type_instance,
-                                        sizeof(v1.type_instance), sensor_id);
+                                        sizeof(v1.type_instance), member_id);
 
       if (ret != 0) {
         ERROR(PLUGIN_NAME ": Cannot convert \"%s\" to a type instance",
