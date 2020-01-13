@@ -4068,6 +4068,94 @@ TCP-Port to connect to. Defaults to B<411>.
 
 =back
 
+=head2 Plugin C<mdevents >
+ 
+The I< mdevents > plugin collects status changes from md (Linux software RAID) devices.
+
+RAID arrays are meant to allow users/administrators to keep systems up and
+running, in case of common hardware problems (disk failure). Mdadm is the
+standard software RAID management tool for Linux. It provides the ability to 
+monitor "metadata event" occurring such as disk failures, clean-to-dirty 
+transitions, and etc. The kernel provides the ability to report such actions to 
+the userspace via sysfs, and mdadm takes action accordingly with the monitoring 
+capability. The mdmon polls the /sys looking for changes in the entries 
+array_state, sync_action, and per disk state attribute files. This is meaningful
+for RAID1, 5 and 10 only.
+
+Mdevents plugin is based on gathering RAID array events that are
+written to syslog by mdadm. After registering an event, it can send a collectd
+notification that contains mdadm event's data. Event consists of event type,
+raid array name and, for particular events, name of component device.
+
+Example message:
+
+C<Jan 17 05:24:27 pc1 mdadm[188]: NewArray event detected on md device /dev/md0>
+
+Plugin also classifies gathered event. This means that a notification will have
+a different severity {OKAY, WARNING, FAILURE} for particular mdadm event.
+
+For proper work, mdevents plugin needs syslog and mdadm utilities to be present on
+the running system. Otherwise it will not be compiled as a part of collectd.
+
+B<Synopsis:>
+
+  <Plugin mdevents>
+    Event ""
+    IgnoreEvent False
+    Array ""
+    IgnoreArray False
+  </Plugin>
+
+B<Plugin configuration:>
+
+Mdevents plugin's configuration is mostly based on IgnoreList, which is a collectd's
+utility. User can specify what particular events/RAID arrays lie in his interest.
+Setting of IgnoreEvent/IgnoreArray booleans won't take effect if Event/Array config
+lists are empty - plugin will accept entry anyway.
+ 
+B<Options:>
+ 
+=over 4
+
+=item B<Event> I<"EventName">
+
+Names of events to be monitored, separated by spaces. Possible events include:
+
+Event Name        | Class of event
+------------------+---------------
+DeviceDisappeared | FAILURE
+RebuildStarted    | OKAY
+RebuildNN         | OKAY
+RebuildFinished   | WARNING
+Fail              | FAILURE
+FailSpare         | WARNING
+SpareActive       | OKAY
+NewArray          | OKAY
+DegradedArray     | FAILURE
+MoveSpare         | WARNING
+SparesMissing     | WARNING
+TestMessage       | OKAY
+
+User should set the events that should be monitored as a strings separated by spaces,
+for example Events "DeviceDisappeared Fail DegradedArray".
+
+=item B<IgnoreEvent> I<false>|I<true>
+
+If I<IgnoreEvent> is set to true, events specified in I<Events> will be ignored.
+If it's false, only specified events will be monitored.
+
+=item B<Array> I<arrays>
+
+User can specify an array or a group of arrays using regexp. Plugin will accept
+only RAID arrays names that start with "/dev/md".
+
+=item B<IgnoreArray> I<false>|I<true>
+
+If I<IgnoreArray> is set to true, arrays specified in I<Array> will be ignored.
+If it's false, only specified events will be monitored.
+
+=back
+
 =head2 Plugin C<mcelog>
 
 The C<mcelog plugin> uses mcelog to retrieve machine check exceptions.

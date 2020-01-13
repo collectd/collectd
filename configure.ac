@@ -6344,6 +6344,7 @@ plugin_irq="no"
 plugin_load="no"
 plugin_log_logstash="no"
 plugin_mcelog="no"
+plugin_mdevents="no"
 plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
@@ -6399,6 +6400,7 @@ if test "x$ac_system" = "xLinux"; then
   plugin_irq="yes"
   plugin_load="yes"
   plugin_mcelog="yes"
+  plugin_mdevents="yes"
   plugin_memory="yes"
   plugin_nfs="yes"
   plugin_numa="yes"
@@ -6799,6 +6801,7 @@ AC_PLUGIN([match_value],         [yes],                       [The value match])
 AC_PLUGIN([mbmon],               [yes],                       [Query mbmond])
 AC_PLUGIN([mcelog],              [$plugin_mcelog],            [Machine Check Exceptions notifications])
 AC_PLUGIN([md],                  [$have_linux_raid_md_u_h],   [md (Linux software RAID) devices])
+AC_PLUGIN([mdevents],            [$plugin_mdevents],          [Events from md (Linux Software RAID) devices])
 AC_PLUGIN([memcachec],           [$with_libmemcached],        [memcachec statistics])
 AC_PLUGIN([memcached],           [yes],                       [memcached statistics])
 AC_PLUGIN([memory],              [$plugin_memory],            [Memory usage])
@@ -7230,6 +7233,7 @@ AC_MSG_RESULT([    match_value . . . . . $enable_match_value])
 AC_MSG_RESULT([    mbmon . . . . . . . . $enable_mbmon])
 AC_MSG_RESULT([    mcelog  . . . . . . . $enable_mcelog])
 AC_MSG_RESULT([    md  . . . . . . . . . $enable_md])
+AC_MSG_RESULT([    mdevents  . . . . . . $enable_mdevents])
 AC_MSG_RESULT([    memcachec . . . . . . $enable_memcachec])
 AC_MSG_RESULT([    memcached . . . . . . $enable_memcached])
 AC_MSG_RESULT([    memory  . . . . . . . $enable_memory])
