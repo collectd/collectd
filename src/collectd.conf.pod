@@ -9,7 +9,9 @@ collectd.conf - Configuration for the system statistics collection daemon B<coll
   BaseDir "/var/lib/collectd"
   PIDFile "/run/collectd.pid"
   Interval 10.0
-  StartRead -1.0
+
+  # reads are not aligned by default: -1.0  (0.0 refers to second 0 of a minute)
+  AlignRead -1.0
 
   LoadPlugin cpu
   LoadPlugin load
@@ -336,7 +338,8 @@ fraction of a second read callbacks are triggered. The B<AlignRead> value is in
 seconds. The value modulo 60 determines the second of a minute. The integer 
 part of the value divided by 60 determines the minute of an hour. Optionally, 
 decimal places can be used to set the fraction of a second. For example, to 
-trigger read callbacks every full minute set AlignRead to 0 and Interval to 60.
+trigger read callbacks every full minute set AlignRead to 0 and Interval to 60. 
+Values below zero disable the read alignment (default: -1.0). 
 
 =item B<Hostname> I<Name>
 
