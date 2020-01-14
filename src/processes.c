@@ -1316,11 +1316,10 @@ static int ps_read_process(long pid, process_entry_t *ps, char *state) {
 
   snprintf(filename, sizeof(filename), "/proc/%li/stat", pid);
 
-  status = read_file_contents(filename, buffer, sizeof(buffer) - 1);
+  status = read_text_file_contents(filename, buffer, sizeof(buffer));
   if (status <= 0)
     return -1;
   buffer_len = (size_t)status;
-  buffer[buffer_len] = 0;
 
   /* The name of the process is enclosed in parens. Since the name can
    * contain parens itself, spaces, numbers and pretty much everything
@@ -1569,7 +1568,7 @@ static char *ps_get_cmdline(long pid,
 
   snprintf(path, sizeof(path), "/proc/%li/psinfo", pid);
 
-  status = read_file_contents(path, (void *)&info, sizeof(info));
+  status = read_file_contents(path, &info, sizeof(info));
   if ((status < 0) || (((size_t)status) != sizeof(info))) {
     ERROR("processes plugin: Unexpected return value "
           "while reading \"%s\": "

@@ -81,8 +81,7 @@
 extern char *optarg;
 extern int optind;
 
-/* ssnprintf returns zero on success, one if truncation occurred
-   and a negative integer onerror. */
+/* _ssnprintf returns result from vsnprintf (consistent with snprintf) */
 static int _ssnprintf(char *str, size_t sz, const char *format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -91,10 +90,7 @@ static int _ssnprintf(char *str, size_t sz, const char *format, ...) {
 
   va_end(ap);
 
-  if (ret < 0) {
-    return ret;
-  }
-  return (size_t)ret >= sz;
+  return ret;
 } /* int _ssnprintf */
 
 __attribute__((noreturn)) static void exit_usage(const char *name, int status) {

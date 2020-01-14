@@ -54,6 +54,9 @@ Features
     - chrony
       Chrony daemon statistics: Local clock drift, offset to peers, etc.
 
+    - connectivity
+      Event-based interface status.
+
     - conntrack
       Number of nf_conntrack entries.
 
@@ -204,10 +207,6 @@ Features
       collectd without the need to start a heavy interpreter every interval.
       See collectd-lua(5) for details.
 
-    - lvm
-      Size of “Logical Volumes” (LV) and “Volume Groups” (VG) of Linux'
-      “Logical Volume Manager” (LVM).
-
     - madwifi
       Queries very detailed usage statistics from wireless LAN adapters and
       interfaces that use the Atheros chipset and the MadWifi driver.
@@ -347,6 +346,9 @@ Features
     - processes
       Process counts: Number of running, sleeping, zombie, ... processes.
 
+    - procevent
+      Listens for process starts and exits via netlink.
+
     - protocols
       Counts various aspects of network protocols such as IP, TCP, UDP, etc.
 
@@ -390,6 +392,9 @@ Features
     - statsd
       Acts as a StatsD server, reading values sent over the network from StatsD
       clients and calculating rates and other aggregates out of these values.
+
+    - sysevent
+      Listens to rsyslog events and submits matched values.
 
     - swap
       Pages swapped out onto hard disk or whatever is called `swap' by the OS..
@@ -835,10 +840,6 @@ Prerequisites
   * liblua (optional)
     Used by the `lua' plugin. Currently, Lua 5.1 and later are supported.
     <https://www.lua.org/>
-
-  * liblvm2 (optional)
-    Used by the `lvm' plugin.
-    <ftp://sources.redhat.com/pub/lvm2/>
 
   * libmemcached (optional)
     Used by the `memcachec' plugin to connect to a memcache daemon.

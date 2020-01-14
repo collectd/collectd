@@ -2076,7 +2076,7 @@ static int cjni_config_load_plugin(oconfig_item_t *ci) /* {{{ */
     class->object = NULL;
   if (class->object == NULL) {
     ERROR("java plugin: cjni_config_load_plugin: "
-          "Could create a new `%s' object.",
+          "Could not create a new `%s' object.",
           class->name);
     cjni_thread_detach();
     free(class->name);

@@ -1548,6 +1548,35 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<check_uptime>
+
+The I<check_uptime plugin> designed to check and notify about host or service
+status based on I<uptime> metric.
+
+When new metric of I<uptime> type appears in cache, OK notification is sent.
+When new value for metric is less than previous value, WARNING notification is
+sent about host/service restart.
+When no new updates comes for metric and cache entry expires, then FAILURE
+notification is sent about unreachable host or service.
+
+By default (when no explicit configuration), plugin checks for I<uptime> metric.
+
+B<Synopsis:>
+
+ <Plugin "check_uptime">
+   Type "uptime"
+   Type "my_uptime_type"
+ </Plugin>
+
+=over 4
+
+=item B<Type> I<Type>
+
+Metric type to check for status/values. The type should consist single GAUGE
+data source.
+
+=back
+
 =head2 Plugin C<chrony>
 
 The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock
@@ -1571,6 +1600,47 @@ UDP-Port to connect to. Defaults to B<323>.
 =item B<Timeout> I<Timeout>
 
 Connection timeout in seconds. Defaults to B<2>.
+
+=back
+
+=head2 Plugin Connectivity
+
+connectivity - Documentation of collectd's C<connectivity plugin>
+
+
+  LoadPlugin connectivity
+  # ...
+  <Plugin connectivity>
+    Interface eth0
+  </Plugin>
+
+The C<connectivity plugin> queries interface status using netlink (man 7 netlink) which provides information about network interfaces via the NETLINK_ROUTE family (man 7 rtnetlink). The plugin translates the value it receives to collectd's internal format and, depending on the write plugins you have loaded, it may be written to disk or submitted to another instance.
+The plugin listens to interfaces enumerated within the plugin configuration (see below).  If no interfaces are listed, then the default is for all interfaces to be monitored.
+
+This example shows C<connectivity plugin> monitoring all interfaces.
+LoadPlugin connectivity
+<Plugin connectivity>
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring 2 interfaces, "eth0" and "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth0
+  Interface eth1
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring all interfaces except "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth1
+  IgnoreSelected true
+</Plugin>
+ 
+=over 4
+
+=item B<Interface> I<interface_name>
+
+interface(s) to monitor connect to. 
 
 =back
 
@@ -4758,7 +4828,7 @@ Hostname of the database server. Defaults to B<localhost>.
 
 Username to use when connecting to the database. The user does not have to be
 granted any privileges (which is synonym to granting the C<USAGE> privilege),
-unless you want to collectd replication statistics (see B<MasterStats> and
+unless you want to collect replication statistics (see B<MasterStats> and
 B<SlaveStats> below). In this case, the user needs the C<REPLICATION CLIENT>
 (or C<SUPER>) privileges. Else, any existing MySQL user will do.
 
@@ -4808,9 +4878,10 @@ or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
 
- Enable the collection of wsrep plugin statistics, used in Master-Master
- replication setups like in MySQL Galera/Percona XtraDB Cluster.
- User needs only privileges to execute 'SHOW GLOBAL STATUS'
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'.
+Defaults to B<false>.
 
 =item B<ConnectTimeout> I<Seconds>
 
@@ -7314,6 +7385,40 @@ reporting the corresponding processes only. Outside of B<Process> and
 B<ProcessMatch> blocks these options set the default value for subsequent
 matches.
 
+=head2 Plugin C<procevent>
+ 
+The I<procevent> plugin monitors when processes start (EXEC) and stop (EXIT).
+ 
+B<Synopsis:>
+ 
+  <Plugin procevent>
+    BufferLength 10
+    Process "name"
+    ProcessRegex "regex"
+  </Plugin>
+ 
+B<Options:>
+ 
+=over 4
+ 
+=item B<BufferLength> I<length>
+ 
+Maximum number of process events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+ 
+=item B<Process> I<name>
+ 
+Enumerate a process name to monitor.  All processes that match this exact
+name will be monitored for EXECs and EXITs.
+
+=item B<ProcessRegex> I<regex>
+ 
+Enumerate a process pattern to monitor.  All processes that match this 
+regular expression will be monitored for EXECs and EXITs.
+ 
+=back
+
 =head2 Plugin C<protocols>
 
 Collects a lot of information about various network protocols, such as I<IP>,
@@ -8336,6 +8441,70 @@ Enables or disables reporting swap IO. Defaults to B<true>.
 This is useful for the cases when swap IO is not neccessary, is not available,
 or is not reliable.
 
+=back
+
+=head2 Plugin C<sysevent>
+ 
+The I<sysevent> plugin monitors rsyslog messages.
+ 
+B<Synopsis:>
+ 
+  <Plugin sysevent>
+    Listen "192.168.0.2" "6666"
+    BufferSize 1024
+    BufferLength 10
+    RegexFilter "regex"
+  </Plugin>
+
+  rsyslog should be configured such that it sends data to the IP and port you
+  include in the plugin configuration.  For example, given the configuration
+  above, something like this would be set in /etc/rsyslog.conf:
+
+    if $programname != 'collectd' then
+    *.* @192.168.0.2:6666
+
+  This plugin is designed to consume JSON rsyslog data, so a more complete
+  rsyslog configuration would look like so (where we define a JSON template
+  and use it when sending data to our IP and port):
+
+    $template ls_json,"{%timestamp:::date-rfc3339,jsonf:@timestamp%, \
+    %source:::jsonf:@source_host%,\"@source\":\"syslog://%fromhost-ip:::json%\", \
+    \"@message\":\"%timestamp% %app-name%:%msg:::json%\",\"@fields\": \
+    {%syslogfacility-text:::jsonf:facility%,%syslogseverity:::jsonf:severity-num%, \
+    %syslogseverity-text:::jsonf:severity%,%programname:::jsonf:program%, \
+    %procid:::jsonf:processid%}}"
+
+    if $programname != 'collectd' then
+    *.* @192.168.0.2:6666;ls_json
+
+  Please note that these rsyslog.conf examples are *not* complete, as rsyslog
+  requires more than these options in the configuration file.  These examples 
+  are meant to demonstration the proper remote logging and JSON format syntax.
+
+B<Options:>
+ 
+=over 4
+ 
+=item B<Listen> I<host> I<port>
+ 
+Listen on this IP on this port for incoming rsyslog messages.
+
+=item B<BufferSize> I<length>
+ 
+Maximum allowed size for incoming rsyslog messages.  Messages that exceed 
+this number will be truncated to this size.  Default is 4096 bytes.
+
+=item B<BufferLength> I<length>
+ 
+Maximum number of rsyslog events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+
+=item B<RegexFilter> I<regex>
+ 
+Enumerate a regex filter to apply to all incoming rsyslog messages.  If a
+message matches this filter, it will be published.
+ 
 =back
 
 =head2 Plugin C<syslog>

@@ -373,6 +373,10 @@ How long to wait for a response. The C<Net-SNMP> library default is 1 second.
 The number of times that a query should be retried after the Timeout expires.
 The C<Net-SNMP> library default is 5.
 
+=item B<BulkSize> I<Integer>
+
+Configures the size of SNMP bulk transfers. The default is 0, which disables bulk transfers altogether.
+
 =back
 
 =head1 SEE ALSO

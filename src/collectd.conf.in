@@ -102,6 +102,8 @@
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
+#@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
+#@BUILD_PLUGIN_CONNECTIVITY_TRUE@LoadPlugin connectivity
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
@@ -142,7 +144,6 @@
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
-#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
@@ -180,6 +181,7 @@
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
+#@BUILD_PLUGIN_PROCEVENT_TRUE@LoadPlugin procevent
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDFISH_TRUE@LoadPlugin redfish
@@ -195,6 +197,7 @@
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
+#@BUILD_PLUGIN_SYSEVENT_TRUE@LoadPlugin sysevent
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 #@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
@@ -381,6 +384,10 @@
 #	Host    "localhost"
 #	Port    "323"
 #	Timeout "2"
+#</Plugin>
+
+#<Plugin connectivity>
+#  Interface eth0
 #</Plugin>
 
 #<Plugin cgroups>
@@ -1271,6 +1278,12 @@
 #	</Process>
 #</Plugin>
 
+#<Plugin "procevent">
+#  BufferLength 10
+#  ProcessRegex "/^ovs.*$/" 
+#  Process tuned
+#</Plugin>
+
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
@@ -1440,6 +1453,7 @@
 #       Version 2
 #       Community "another_string"
 #       Collect "std_traffic" "hr_users"
+#       BulkSize 0
 #   </Host>
 #   <Host "some.ups.mydomain.org">
 #       Address "192.168.0.3"
@@ -1449,6 +1463,15 @@
 #       Interval 300
 # 	Timeout 5
 #	Retries 5
+#   </Host>
+#   <Host "highend.switch.example.org">
+#       Address "192.168.0.3"
+#       Version 2
+#       Community "another_string"
+#       Collect "std_traffic"
+#       Interval 10
+#       Timeout 10
+#       BulkSize 100
 #   </Host>
 #</Plugin>
 
@@ -1501,6 +1524,13 @@
 #	ValuesAbsolute true
 #	ValuesPercentage false
 #	ReportIO true
+#</Plugin>
+
+#<Plugin sysevent>
+#       Listen "127.0.0.1" "6666"
+#       BufferSize 1024
+#       BufferLength 10
+#       RegexFilter "regex"
 #</Plugin>
 
 #<Plugin table>
