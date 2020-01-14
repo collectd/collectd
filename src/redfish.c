@@ -29,9 +29,9 @@
 
 #include "collectd.h"
 
-#include "common.h"
-#include "utils_avltree.h"
-#include "utils_deq.h"
+#include "utils/avltree/avltree.h"
+#include "utils/common/common.h"
+#include "utils/deq/deq.h"
 #include "utils_llist.h"
 
 #include <redfish.h>
@@ -778,7 +778,8 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
                                         sizeof(v1.type_instance), member_id);
 
       if (ret != 0) {
-        ERROR(PLUGIN_NAME ": Cannot convert MemberId to a type instance");
+        ERROR(PLUGIN_NAME ": Cannot convert \"%s\" to a type instance",
+              prop->type_inst);
         continue;
       }
     }
@@ -804,7 +805,7 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
     v1.values = &(value_t){0};
     redfish_convert_val(&value, type, v1.values, ds->ds[0].type);
 
-    sstrncpy(v1.host, serv->host, sizeof(v1.host));
+    sstrncpy(v1.host, serv->name, sizeof(v1.host));
     sstrncpy(v1.plugin, PLUGIN_NAME, sizeof(v1.plugin));
     sstrncpy(v1.type, prop->type, sizeof(v1.type));
     plugin_dispatch_values(&v1);

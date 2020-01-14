@@ -1686,7 +1686,7 @@ redfish_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBREDFISH_LDFLAGS)
 redfish_la_LIBADD = $(BUILD_WITH_LIBREDFISH_LIBS) -lredfish
 
 test_plugin_redfish_SOURCES = src/redfish_test.c \
-                              src/daemon/utils_avltree.c \
+                              src/utils/avltree/avltree.c \
                               src/daemon/utils_llist.c \
                               src/daemon/configfile.c \
                               src/daemon/types_list.c

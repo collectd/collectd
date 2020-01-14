@@ -498,7 +498,7 @@ DEF_TEST(process_payload_property) {
   resource.name = "ResourceName";
 
   redfish_service_t service;
-  service.host = "localhost";
+  service.name = "localhost";
 
   const char *json_text = "["
                           "  { \"Abc\": 4567 }"
