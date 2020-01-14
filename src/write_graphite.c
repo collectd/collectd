@@ -29,7 +29,7 @@
  * Based on the write_http plugin.
  **/
 
-/* write_graphite plugin configuation example
+/* write_graphite plugin configuration example
  *
  * <Plugin write_graphite>
  *   <Carbon>
@@ -39,6 +39,7 @@
  *     LogSendErrors true
  *     Prefix "collectd"
  *     UseTags true
+ *     ReverseHost false
  *   </Carbon>
  * </Plugin>
  */
@@ -521,6 +522,8 @@ static int wg_config_node(oconfig_item_t *ci) {
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_DROP_DUPE_FIELDS);
     else if (strcasecmp("UseTags", child->key) == 0)
       cf_util_get_flag(child, &cb->format_flags, GRAPHITE_USE_TAGS);
+    else if (strcasecmp("ReverseHost", child->key) == 0)
+      cf_util_get_flag(child, &cb->format_flags, GRAPHITE_REVERSE_HOST);
     else if (strcasecmp("EscapeCharacter", child->key) == 0)
       config_set_char(&cb->escape_char, child);
     else {
@@ -549,7 +552,8 @@ static int wg_config_node(oconfig_item_t *ci) {
 
   plugin_register_write(callback_name, wg_write,
                         &(user_data_t){
-                            .data = cb, .free_func = wg_callback_free,
+                            .data = cb,
+                            .free_func = wg_callback_free,
                         });
 
   plugin_register_flush(callback_name, wg_flush, &(user_data_t){.data = cb});

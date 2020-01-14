@@ -785,7 +785,9 @@ static void *ovs_poll_worker(void *arg) {
   ovs_db_t *pdb = (ovs_db_t *)arg; /* pointer to OVS DB */
   ovs_json_reader_t *jreader = NULL;
   struct pollfd poll_fd = {
-      .fd = pdb->sock, .events = POLLIN | POLLPRI, .revents = 0,
+      .fd = pdb->sock,
+      .events = POLLIN | POLLPRI,
+      .revents = 0,
   };
 
   /* create JSON reader instance */
@@ -1117,7 +1119,7 @@ int ovs_db_send_request(ovs_db_t *pdb, const char *method, const char *params,
   /* generate id field */
   OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, "id");
   uid = ovs_uid_generate();
-  snprintf(uid_buff, sizeof(uid_buff), "%" PRIX64, uid);
+  ssnprintf(uid_buff, sizeof(uid_buff), "%" PRIX64, uid);
   OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, uid_buff);
 
   OVS_YAJL_CALL(yajl_gen_map_close, jgen);
@@ -1203,7 +1205,7 @@ int ovs_db_table_cb_register(ovs_db_t *pdb, const char *tb_name,
     OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, OVS_DB_DEFAULT_DB_NAME);
 
     /* uid string <json-value> */
-    snprintf(uid_str, sizeof(uid_str), "%" PRIX64, new_cb->uid);
+    ssnprintf(uid_str, sizeof(uid_str), "%" PRIX64, new_cb->uid);
     OVS_YAJL_CALL(ovs_yajl_gen_tstring, jgen, uid_str);
 
     /* <monitor-requests> */

@@ -747,7 +747,8 @@ static int c_grpc_config_server(oconfig_item_t *ci) {
 
   auto callback_name = grpc::string("grpc/") + addr;
   user_data_t ud = {
-      .data = client, .free_func = c_grpc_destroy_write_callback,
+      .data = client,
+      .free_func = c_grpc_destroy_write_callback,
   };
 
   plugin_register_write(callback_name.c_str(), c_grpc_write, &ud);

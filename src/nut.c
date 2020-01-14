@@ -100,8 +100,10 @@ static int nut_add_ups(const char *name) {
       /* name      = */ cb_name,
       /* callback  = */ nut_read,
       /* interval  = */ 0,
-      /* user_data = */ &(user_data_t){
-          .data = ups, .free_func = free_nut_ups_t,
+      /* user_data = */
+      &(user_data_t){
+          .data = ups,
+          .free_func = free_nut_ups_t,
       });
 
   sfree(cb_name);

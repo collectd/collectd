@@ -336,7 +336,7 @@ static int battery_read(void) /* {{{ */
 
   return 0;
 } /* }}} int battery_read */
-/* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
+  /* #endif HAVE_IOKIT_IOKITLIB_H || HAVE_IOKIT_PS_IOPOWERSOURCES_H */
 
 #elif KERNEL_LINUX
 /* Reads a file which contains only a number (and optionally a trailing
@@ -349,11 +349,9 @@ static int sysfs_file_to_buffer(char const *dir, /* {{{ */
 
   snprintf(filename, sizeof(filename), "%s/%s/%s", dir, power_supply, basename);
 
-  status = (int)read_file_contents(filename, buffer, buffer_size - 1);
+  status = (int)read_text_file_contents(filename, buffer, buffer_size);
   if (status < 0)
     return status;
-
-  buffer[status] = '\0';
 
   strstripnewline(buffer);
   return 0;

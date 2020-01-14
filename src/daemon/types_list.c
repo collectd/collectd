@@ -96,8 +96,6 @@ static int parse_ds(data_source_t *dsrc, char *buf, size_t buf_len) {
 static void parse_line(char *buf) {
   char *fields[64];
   size_t fields_num;
-  data_set_t *ds;
-
   fields_num = strsplit(buf, fields, 64);
   if (fields_num < 2)
     return;
@@ -106,33 +104,27 @@ static void parse_line(char *buf) {
   if (fields[0][0] == '#')
     return;
 
-  ds = calloc(1, sizeof(*ds));
-  if (ds == NULL)
+  data_set_t ds = {{0}};
+
+  sstrncpy(ds.type, fields[0], sizeof(ds.type));
+
+  ds.ds_num = fields_num - 1;
+  ds.ds = calloc(ds.ds_num, sizeof(*ds.ds));
+  if (ds.ds == NULL)
     return;
 
-  sstrncpy(ds->type, fields[0], sizeof(ds->type));
-
-  ds->ds_num = fields_num - 1;
-  ds->ds = calloc(ds->ds_num, sizeof(*ds->ds));
-  if (ds->ds == NULL) {
-    sfree(ds);
-    return;
-  }
-
-  for (size_t i = 0; i < ds->ds_num; i++)
-    if (parse_ds(ds->ds + i, fields[i + 1], strlen(fields[i + 1])) != 0) {
+  for (size_t i = 0; i < ds.ds_num; i++)
+    if (parse_ds(ds.ds + i, fields[i + 1], strlen(fields[i + 1])) != 0) {
       ERROR("types_list: parse_line: Cannot parse data source #%" PRIsz
             " of data set %s",
-            i, ds->type);
-      sfree(ds->ds);
-      sfree(ds);
+            i, ds.type);
+      sfree(ds.ds);
       return;
     }
 
-  plugin_register_data_set(ds);
+  plugin_register_data_set(&ds);
 
-  sfree(ds->ds);
-  sfree(ds);
+  sfree(ds.ds);
 } /* void parse_line */
 
 static void parse_file(FILE *fh) {

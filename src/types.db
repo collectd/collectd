@@ -51,6 +51,8 @@ df                      used:GAUGE:0:1125899906842623, free:GAUGE:0:112589990684
 df_complex              value:GAUGE:0:U
 df_inodes               value:GAUGE:0:U
 dilution_of_precision   value:GAUGE:0:U
+disk_allocation         value:GAUGE:0:U
+disk_capacity           value:GAUGE:0:U
 disk_error              value:GAUGE:0:U
 disk_io_time            io_time:DERIVE:0:U, weighted_io_time:DERIVE:0:U
 disk_latency            read:GAUGE:0:U, write:GAUGE:0:U
@@ -58,6 +60,7 @@ disk_merged             read:DERIVE:0:U, write:DERIVE:0:U
 disk_octets             read:DERIVE:0:U, write:DERIVE:0:U
 disk_ops                read:DERIVE:0:U, write:DERIVE:0:U
 disk_ops_complex        value:DERIVE:0:U
+disk_physical           value:GAUGE:0:U
 disk_time               read:DERIVE:0:U, write:DERIVE:0:U
 dns_answer              value:DERIVE:0:U
 dns_notify              value:DERIVE:0:U
@@ -239,6 +242,7 @@ spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
+sysevent                value:GAUGE:0:1
 tcp_connections         value:GAUGE:0:4294967295
 tdp                     value:GAUGE:U:U
 temperature             value:GAUGE:U:U

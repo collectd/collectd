@@ -76,9 +76,11 @@ internal format and dispatches them. Depending on the write plugins you have
 loaded they may be written to disk or submitted to another instance or
 whatever you configured.
 
-Because querying a host via SNMP may produce a timeout multiple threads are
-used to query hosts in parallel. Depending on the number of hosts between one
-and ten threads are used.
+Because querying a host via SNMP may produce a timeout the "complex reads"
+polling method is used. The ReadThreads parameter in the main configuration
+influences the number of parallel polling jobs which can be undertaken. If
+you expect timeouts or some polling to take a long time, you should increase
+this parameter. Note that other plugins also use the same threads.
 
 =head1 CONFIGURATION
 
@@ -338,7 +340,7 @@ Selects the authentication protocol for SNMPv3 security.
 
 =item B<AuthPassphrase> I<Passphrase>
 
-Sets the authentication passphrase for SNMPv3 security. 
+Sets the authentication passphrase for SNMPv3 security.
 
 =item B<PrivacyProtocol> I<AES>|I<DES>
 
@@ -346,7 +348,7 @@ Selects the privacy (encryption) protocol for SNMPv3 security.
 
 =item B<PrivacyPassphrase> I<Passphrase>
 
-Sets the privacy (encryption) passphrase for SNMPv3 security. 
+Sets the privacy (encryption) passphrase for SNMPv3 security.
 
 =item B<Collect> I<Data> [I<Data> ...]
 
@@ -370,6 +372,10 @@ How long to wait for a response. The C<Net-SNMP> library default is 1 second.
 
 The number of times that a query should be retried after the Timeout expires.
 The C<Net-SNMP> library default is 5.
+
+=item B<BulkSize> I<Integer>
+
+Configures the size of SNMP bulk transfers. The default is 0, which disables bulk transfers altogether.
 
 =back
 

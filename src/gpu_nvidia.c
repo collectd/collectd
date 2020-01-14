@@ -54,7 +54,8 @@ static char *nv_errline = "";
 #define KEY_IGNORESELECTED "IgnoreSelected"
 
 static const char *config_keys[] = {
-    KEY_GPUINDEX, KEY_IGNORESELECTED,
+    KEY_GPUINDEX,
+    KEY_IGNORESELECTED,
 };
 static const unsigned int n_config_keys = STATIC_ARRAY_SIZE(config_keys);
 

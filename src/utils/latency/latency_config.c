@@ -124,7 +124,8 @@ int latency_config(latency_config_t *conf, oconfig_item_t *ci) {
 
 int latency_config_copy(latency_config_t *dst, const latency_config_t src) {
   *dst = (latency_config_t){
-      .percentile_num = src.percentile_num, .buckets_num = src.buckets_num,
+      .percentile_num = src.percentile_num,
+      .buckets_num = src.buckets_num,
   };
 
   dst->percentile = calloc(dst->percentile_num, sizeof(*dst->percentile));

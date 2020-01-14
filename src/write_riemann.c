@@ -291,17 +291,18 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
               vl->type_instance);
   if (host->always_append_ds || (ds->ds_num > 1)) {
     if (host->event_service_prefix == NULL)
-      snprintf(service_buffer, sizeof(service_buffer), "%s/%s", &name_buffer[1],
-               ds->ds[index].name);
+      ssnprintf(service_buffer, sizeof(service_buffer), "%s/%s",
+                &name_buffer[1], ds->ds[index].name);
     else
-      snprintf(service_buffer, sizeof(service_buffer), "%s%s/%s",
-               host->event_service_prefix, &name_buffer[1], ds->ds[index].name);
+      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s/%s",
+                host->event_service_prefix, &name_buffer[1],
+                ds->ds[index].name);
   } else {
     if (host->event_service_prefix == NULL)
       sstrncpy(service_buffer, &name_buffer[1], sizeof(service_buffer));
     else
-      snprintf(service_buffer, sizeof(service_buffer), "%s%s",
-               host->event_service_prefix, &name_buffer[1]);
+      ssnprintf(service_buffer, sizeof(service_buffer), "%s%s",
+                host->event_service_prefix, &name_buffer[1]);
   }
 
   riemann_event_set(
@@ -349,8 +350,8 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   if ((ds->ds[index].type != DS_TYPE_GAUGE) && (rates != NULL)) {
     char ds_type[DATA_MAX_NAME_LEN];
 
-    snprintf(ds_type, sizeof(ds_type), "%s:rate",
-             DS_TYPE_TO_STRING(ds->ds[index].type));
+    ssnprintf(ds_type, sizeof(ds_type), "%s:rate",
+              DS_TYPE_TO_STRING(ds->ds[index].type));
     riemann_event_string_attribute_add(event, "ds_type", ds_type);
   } else {
     riemann_event_string_attribute_add(event, "ds_type",
@@ -360,7 +361,7 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
   {
     char ds_index[DATA_MAX_NAME_LEN];
 
-    snprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
+    ssnprintf(ds_index, sizeof(ds_index), "%" PRIsz, index);
     riemann_event_string_attribute_add(event, "ds_index", ds_index);
   }
 
@@ -390,6 +391,23 @@ wrr_value_to_event(struct riemann_host const *host, /* {{{ */
 
     riemann_event_set(event, RIEMANN_EVENT_FIELD_METRIC_S64, (int64_t)metric,
                       RIEMANN_EVENT_FIELD_NONE);
+  }
+
+  if (vl->meta) {
+    char **toc;
+    int n = meta_data_toc(vl->meta, &toc);
+
+    for (int i = 0; i < n; i++) {
+      char *key = toc[i];
+      char *value;
+
+      if (0 == meta_data_as_string(vl->meta, key, &value)) {
+        riemann_event_string_attribute_add(event, key, value);
+        free(value);
+      }
+    }
+
+    free(toc);
   }
 
   DEBUG("write_riemann plugin: Successfully created message for metric: "
@@ -777,8 +795,8 @@ static int wrr_config_node(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
-  snprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
-           host->name);
+  ssnprintf(callback_name, sizeof(callback_name), "write_riemann/%s",
+            host->name);
 
   user_data_t ud = {.data = host, .free_func = wrr_free};
 

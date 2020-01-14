@@ -370,11 +370,11 @@ static int wm_config_node(oconfig_item_t *ci) /* {{{ */
 
     snprintf(cb_name, sizeof(cb_name), "write_mongodb/%s", node->name);
 
-    status =
-        plugin_register_write(cb_name, wm_write,
-                              &(user_data_t){
-                                  .data = node, .free_func = wm_config_free,
-                              });
+    status = plugin_register_write(cb_name, wm_write,
+                                   &(user_data_t){
+                                       .data = node,
+                                       .free_func = wm_config_free,
+                                   });
     INFO("write_mongodb plugin: registered write plugin %s %d", cb_name,
          status);
   }

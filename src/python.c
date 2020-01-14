@@ -285,7 +285,7 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback,
   PyObject *mod = NULL;
 
   if (name != NULL) {
-    snprintf(buf, size, "python.%s", name);
+    ssnprintf(buf, size, "python.%s", name);
     return;
   }
 
@@ -294,14 +294,14 @@ static void cpy_build_name(char *buf, size_t size, PyObject *callback,
     module = cpy_unicode_or_bytes_to_string(&mod);
 
   if (module != NULL) {
-    snprintf(buf, size, "python.%s", module);
+    ssnprintf(buf, size, "python.%s", module);
     Py_XDECREF(mod);
     PyErr_Clear();
     return;
   }
   Py_XDECREF(mod);
 
-  snprintf(buf, size, "python.%p", callback);
+  ssnprintf(buf, size, "python.%p", callback);
   PyErr_Clear();
 }
 
@@ -703,8 +703,9 @@ static PyObject *cpy_get_dataset(PyObject *self, PyObject *args) {
   for (size_t i = 0; i < ds->ds_num; ++i) {
     tuple = PyTuple_New(4);
     PyTuple_SET_ITEM(tuple, 0, cpy_string_to_unicode_or_bytes(ds->ds[i].name));
-    PyTuple_SET_ITEM(tuple, 1, cpy_string_to_unicode_or_bytes(
-                                   DS_TYPE_TO_STRING(ds->ds[i].type)));
+    PyTuple_SET_ITEM(
+        tuple, 1,
+        cpy_string_to_unicode_or_bytes(DS_TYPE_TO_STRING(ds->ds[i].type)));
     PyTuple_SET_ITEM(tuple, 2, float_or_none(ds->ds[i].min));
     PyTuple_SET_ITEM(tuple, 3, float_or_none(ds->ds[i].max));
     PyList_SET_ITEM(list, i, tuple);
@@ -774,7 +775,8 @@ static PyObject *cpy_register_generic_userdata(void *reg, void *handler,
 
   register_function(buf, handler,
                     &(user_data_t){
-                        .data = c, .free_func = cpy_destroy_user_data,
+                        .data = c,
+                        .free_func = cpy_destroy_user_data,
                     });
 
   ++cpy_num_callbacks;
@@ -817,7 +819,8 @@ static PyObject *cpy_register_read(PyObject *self, PyObject *args,
       /* group = */ "python", buf, cpy_read_callback,
       DOUBLE_TO_CDTIME_T(interval),
       &(user_data_t){
-          .data = c, .free_func = cpy_destroy_user_data,
+          .data = c,
+          .free_func = cpy_destroy_user_data,
       });
   ++cpy_num_callbacks;
   return cpy_string_to_unicode_or_bytes(buf);
@@ -1201,8 +1204,9 @@ static PyObject *cpy_oconfig_to_pyconfig(oconfig_item_t *ci, PyObject *parent) {
   values = PyTuple_New(ci->values_num); /* New reference. */
   for (int i = 0; i < ci->values_num; ++i) {
     if (ci->values[i].type == OCONFIG_TYPE_STRING) {
-      PyTuple_SET_ITEM(values, i, cpy_string_to_unicode_or_bytes(
-                                      ci->values[i].value.string));
+      PyTuple_SET_ITEM(
+          values, i,
+          cpy_string_to_unicode_or_bytes(ci->values[i].value.string));
     } else if (ci->values[i].type == OCONFIG_TYPE_NUMBER) {
       PyTuple_SET_ITEM(values, i,
                        PyFloat_FromDouble(ci->values[i].value.number));

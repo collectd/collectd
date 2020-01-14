@@ -28,7 +28,7 @@
  * CPU sleep is reported in milliseconds of sleep per second of wall
  * time. For that, the time difference between BOOT and MONOTONIC clocks
  * is reported using derive type.
-**/
+ **/
 
 #include "collectd.h"
 

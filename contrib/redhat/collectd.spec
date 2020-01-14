@@ -53,6 +53,7 @@
 %define with_ceph 0%{!?_without_ceph:1}
 %define with_cgroups 0%{!?_without_cgroups:1}
 %define with_chrony 0%{!?_without_chrony:1}
+%define with_connectivity 0%{!?_without_connectivity:1}
 %define with_conntrack 0%{!?_without_conntrack:1}
 %define with_contextswitch 0%{!?_without_contextswitch:1}
 %define with_cpu 0%{!?_without_cpu:1}
@@ -89,7 +90,6 @@
 %define with_log_logstash 0%{!?_without_log_logstash:1}
 %define with_logfile 0%{!?_without_logfile:1}
 %define with_lua 0%{!?_without_lua:1}
-%define with_lvm 0%{!?_without_lvm:1}
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_mcelog 0%{!?_without_mcelog:1}
@@ -116,12 +116,14 @@
 %define with_openvpn 0%{!?_without_openvpn:1}
 %define with_ovs_events 0%{!?_without_ovs_events:1}
 %define with_ovs_stats 0%{!?_without_ovs_stats:1}
+%define with_pcie_errors 0%{!?_without_pcie_errors:1}
 %define with_perl 0%{!?_without_perl:1}
 %define with_pinba 0%{!?_without_pinba:1}
 %define with_ping 0%{!?_without_ping:1}
 %define with_postgresql 0%{!?_without_postgresql:1}
 %define with_powerdns 0%{!?_without_powerdns:1}
 %define with_processes 0%{!?_without_processes:1}
+%define with_procevent 0%{!?_without_procevent:1}
 %define with_protocols 0%{!?_without_protocols:1}
 %define with_python 0%{!?_without_python:1}
 %define with_redis 0%{!?_without_redis:1}
@@ -135,6 +137,7 @@
 %define with_statsd 0%{!?_without_statsd:1}
 %define with_swap 0%{!?_without_swap:1}
 %define with_synproxy 0%{!?_without_synproxy:0}
+%define with_sysevent 0%{!?_without_sysevent:1}
 %define with_syslog 0%{!?_without_syslog:1}
 %define with_table 0%{!?_without_table:1}
 %define with_tail 0%{!?_without_tail:1}
@@ -160,7 +163,9 @@
 %define with_write_prometheus 0%{!?_without_write_prometheus:1}
 %define with_write_redis 0%{!?_without_write_redis:1}
 %define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_stackdriver 0%{!?_without_write_stackdriver:1}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
+%define with_write_syslog 0%{!?_without_write_syslog:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
 %define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
@@ -213,6 +218,12 @@
 %define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
 %define with_zone 0%{!?_without_zone:0}
+# plugin gpu_nvidia requires cuda-nvml-dev
+# get it from https://developer.nvidia.com/cuda-downloads
+# then install cuda-nvml-dev-10-1 or other version
+%define with_gpu_nvidia 0%{!?_without_gpu_nvidia:0}
+# not sure why this one's failing
+%define with_write_stackdriver 0%{!?_without_write_stackdriver:0}
 
 # Plugins not buildable on RHEL < 6
 %if 0%{?rhel} && 0%{?rhel} < 6
@@ -224,7 +235,6 @@
 %define with_gmond 0
 %define with_iptables 0
 %define with_ipvs 0
-%define with_lvm 0
 %define with_modbus 0
 %define with_netlink 0
 %define with_redis 0
@@ -237,13 +247,16 @@
 
 # Plugins not buildable on RHEL < 7
 %if 0%{?rhel} && 0%{?rhel} < 7
+%define with_connectivity 0
 %define with_cpusleep 0
 %define with_gps 0
 %define with_mqtt 0
 %define with_ovs_events 0
 %define with_ovs_stats 0
+%define with_procevent 0
 %define with_redis 0
 %define with_rrdcached 0
+%define with_sysevent 0
 %define with_write_redis 0
 %define with_write_riemann 0
 %define with_xmms 0
@@ -251,8 +264,8 @@
 
 Summary:	Statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.7.1
-Release:	9%{?dist}
+Version:	5.9.2
+Release:	2%{?dist}
 URL:		https://collectd.org
 Source:		https://collectd.org/files/%{name}-%{version}.tar.bz2
 License:	GPLv2
@@ -369,6 +382,16 @@ Group:         System Environment/Daemons
 Requires:      %{name}%{?_isa} = %{version}-%{release}
 %description chrony
 Chrony plugin for collectd
+%endif
+
+%if %{with_connectivity}
+%package connectivity
+Summary:       Connectivity plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: libmnl-devel, yajl-devel
+%description connectivity
+Monitors network interface up/down status via netlink library.
 %endif
 
 %if %{with_curl}
@@ -565,17 +588,6 @@ The Lua plugin embeds a Lua interpreter into collectd and exposes the
 application programming interface (API) to Lua scripts.
 %endif
 
-%if %{with_lvm}
-%package lvm
-Summary:	LVM plugin for collectd
-Group:		System Environment/Daemons
-Requires:	%{name}%{?_isa} = %{version}-%{release}
-BuildRequires:	lvm2-devel
-%description lvm
-This plugin collects size of “Logical Volumes” (LV) and “Volume Groups” (VG)
-of Linux' “Logical Volume Manager” (LVM).
-%endif
-
 %if %{with_mcelog}
 %package mcelog
 Summary:	Mcelog plugin for collectd
@@ -740,6 +752,16 @@ The Perl plugin embeds a Perl interpreter into collectd and exposes the
 application programming interface (API) to Perl-scripts.
 %endif
 
+%if %{with_pcie_errors}
+%package pcie_errors
+Summary:	PCI Express errors plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+%description pcie_errors
+The pcie_errors plugin collects PCI Express errors from Device Status in Capability
+structure and from Advanced Error Reporting Extended Capability.
+%endif
+
 %if %{with_pinba}
 %package pinba
 Summary:	Pinba plugin for collectd
@@ -771,6 +793,16 @@ BuildRequires:	postgresql-devel
 %description postgresql
 The PostgreSQL plugin connects to and executes SQL statements on a PostgreSQL
 database.
+%endif
+
+%if %{with_procevent}
+%package procevent
+Summary:       Processes event plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description procevent
+Monitors process starts/stops via netlink library.
 %endif
 
 %if %{with_python}
@@ -872,6 +904,16 @@ BuildRequires:	net-snmp-devel
 This plugin for collectd to support AgentX integration.
 %endif
 
+%if %{with_sysevent}
+%package sysevent
+Summary:       Rsyslog event plugin for collectd
+Group:         System Environment/Daemons
+Requires:      %{name}%{?_isa} = %{version}-%{release}
+BuildRequires: yajl-devel
+%description sysevent
+Monitors rsyslog for system events.
+%endif
+
 %if %{with_varnish}
 %package varnish
 Summary:	Varnish plugin for collectd
@@ -942,6 +984,27 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 BuildRequires:	riemann-c-client-devel >= 1.6
 %description write_riemann
 The riemann plugin submits values to Riemann, an event stream processor.
+%endif
+
+%if %{with_write_stackdriver}
+%package write_stackdriver
+Summary:	stackdriver plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	curl-devel, yajl-devel, openssl-devel
+%description write_stackdriver
+The write_stackdriver collectd plugin writes metrics to the
+Google Stackdriver Monitoring service.
+%endif
+
+%if %{with_gpu_nvidia}
+%package gpu_nvidia
+Summary:	stackdriver plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires: cuda-nvml-dev-10-1
+%description gpu_nvidia
+The gpu_nvidia collectd plugin collects NVidia GPU metrics.
 %endif
 
 %if %{with_xencpu}
@@ -1094,6 +1157,12 @@ Collectd utilities
 %define _with_chrony --enable-chrony
 %else
 %define _with_chrony --disable-chrony
+%endif
+
+%if %{with_connectivity}
+%define _with_connectivity --enable-connectivity
+%else
+%define _with_connectivity --disable-connectivity
 %endif
 
 %if %{with_conntrack}
@@ -1360,12 +1429,6 @@ Collectd utilities
 %define _with_lua --disable-lua
 %endif
 
-%if %{with_lvm}
-%define _with_lvm --enable-lvm
-%else
-%define _with_lvm --disable-lvm
-%endif
-
 %if %{with_madwifi}
 %define _with_madwifi --enable-madwifi
 %else
@@ -1552,6 +1615,12 @@ Collectd utilities
 %define _with_perl --disable-perl
 %endif
 
+%if %{with_pcie_errors}
+%define _with_pcie_errors --enable-pcie_errors
+%else
+%define _with_pcie_errors --disable-pcie_errors
+%endif
+
 %if %{with_pf}
 %define _with_pf --enable-pf
 %else
@@ -1586,6 +1655,12 @@ Collectd utilities
 %define _with_processes --enable-processes
 %else
 %define _with_processes --disable-processes
+%endif
+
+%if %{with_procevent}
+%define _with_procevent --enable-procevent
+%else
+%define _with_procevent --disable-procevent
 %endif
 
 %if %{with_protocols}
@@ -1681,6 +1756,12 @@ Collectd utilities
 %define _with_synproxy --enable-synproxy
 %else
 %define _with_synproxy --disable-synproxy
+%endif
+
+%if %{with_sysevent}
+%define _with_sysevent --enable-sysevent
+%else
+%define _with_sysevent --disable-sysevent
 %endif
 
 %if %{with_syslog}
@@ -1851,10 +1932,28 @@ Collectd utilities
 %define _with_write_riemann --disable-write_riemann
 %endif
 
+%if %{with_write_stackdriver}
+%define _with_write_stackdriver --enable-write_stackdriver
+%else
+%define _with_write_stackdriver --disable-write_stackdriver
+%endif
+
+%if %{with_gpu_nvidia}
+%define _with_gpu_nvidia --enable-gpu_nvidia
+%else
+%define _with_gpu_nvidia --disable-gpu_nvidia
+%endif
+
 %if %{with_write_sensu}
 %define _with_write_sensu --enable-write_sensu
 %else
 %define _with_write_sensu --disable-write_sensu
+%endif
+
+%if %{with_write_syslog}
+%define _with_write_syslog --enable-write_syslog
+%else
+%define _with_write_syslog --disable-write_syslog
 %endif
 
 %if %{with_write_tsdb}
@@ -1928,6 +2027,7 @@ Collectd utilities
 	%{?_with_ceph} \
 	%{?_with_cgroups} \
 	%{?_with_chrony} \
+	%{?_with_connectivity} \
 	%{?_with_conntrack} \
 	%{?_with_contextswitch} \
 	%{?_with_cpufreq} \
@@ -1970,7 +2070,6 @@ Collectd utilities
 	%{?_with_logfile} \
 	%{?_with_lpar} \
 	%{?_with_lua} \
-	%{?_with_lvm} \
 	%{?_with_madwifi} \
 	%{?_with_mbmon} \
 	%{?_with_mcelog} \
@@ -2002,12 +2101,14 @@ Collectd utilities
 	%{?_with_ovs_events} \
 	%{?_with_ovs_stats} \
 	%{?_with_perl} \
+	%{?_with_pcie_errors} \
 	%{?_with_pf} \
 	%{?_with_pinba} \
 	%{?_with_ping} \
 	%{?_with_postgresql} \
 	%{?_with_powerdns} \
 	%{?_with_processes} \
+	%{?_with_procevent} \
 	%{?_with_protocols} \
 	%{?_with_python} \
 	%{?_with_redis} \
@@ -2023,6 +2124,7 @@ Collectd utilities
 	%{?_with_statsd} \
 	%{?_with_swap} \
 	%{?_with_synproxy} \
+	%{?_with_sysevent} \
 	%{?_with_syslog} \
 	%{?_with_table} \
 	%{?_with_tail_csv} \
@@ -2053,7 +2155,10 @@ Collectd utilities
 	%{?_with_write_prometheus} \
 	%{?_with_write_redis} \
 	%{?_with_write_riemann} \
+	%{?_with_write_stackdriver} \
+	%{?_with_gpu_nvidia} \
 	%{?_with_write_sensu} \
+	%{?_with_write_syslog} \
 	%{?_with_write_tsdb} \
 	%{?_with_xencpu} \
 	%{?_with_xmms} \
@@ -2388,6 +2493,9 @@ fi
 %if %{with_write_log}
 %{_libdir}/%{name}/write_log.so
 %endif
+%if %{with_write_syslog}
+%{_libdir}/%{name}/write_syslog.so
+%endif
 %if %{with_write_sensu}
 %{_libdir}/%{name}/write_sensu.so
 %endif
@@ -2466,6 +2574,11 @@ fi
 %if %{with_chrony}
 %files chrony
 %{_libdir}/%{name}/chrony.so
+%endif
+
+%if %{with_connectivity}
+%files connectivity
+%{_libdir}/%{name}/connectivity.so
 %endif
 
 %if %{with_curl}
@@ -2577,11 +2690,6 @@ fi
 %{_libdir}/%{name}/lua.so
 %endif
 
-%if %{with_lvm}
-%files lvm
-%{_libdir}/%{name}/lvm.so
-%endif
-
 %if %{with_memcachec}
 %files memcachec
 %{_libdir}/%{name}/memcachec.so
@@ -2656,6 +2764,11 @@ fi
 %{_libdir}/%{name}/perl.so
 %endif
 
+%if %{with_pcie_errors}
+%files pcie_errors
+%{_libdir}/%{name}/pcie_errors.so
+%endif
+
 %if %{with_pinba}
 %files pinba
 %{_libdir}/%{name}/pinba.so
@@ -2670,6 +2783,11 @@ fi
 %files postgresql
 %{_datadir}/collectd/postgresql_default.conf
 %{_libdir}/%{name}/postgresql.so
+%endif
+
+%if %{with_procevent}
+%files procevent
+%{_libdir}/%{name}/procevent.so
 %endif
 
 %if %{with_python}
@@ -2719,6 +2837,11 @@ fi
 %{_libdir}/%{name}/snmp_agent.so
 %endif
 
+%if %{with_sysevent}
+%files sysevent
+%{_libdir}/%{name}/sysevent.so
+%endif
+
 %if %{with_varnish}
 %files varnish
 %{_libdir}/%{name}/varnish.so
@@ -2749,6 +2872,16 @@ fi
 %{_libdir}/%{name}/write_riemann.so
 %endif
 
+%if %{with_write_stackdriver}
+%files write_stackdriver
+%{_libdir}/%{name}/write_stackdriver.so
+%endif
+
+%if %{with_gpu_nvidia}
+%files write_gpu_nvidia
+%{_libdir}/%{name}/write_gpu_nvidia.so
+%endif
+
 %if %{with_xencpu}
 %files xencpu
 %{_libdir}/%{name}/xencpu.so
@@ -2771,6 +2904,14 @@ fi
 %doc contrib/
 
 %changelog
+* Mon Oct 14 2019 Ruben Kerkhof <ruben@rubenkerkhof.com> - 5.9.2-2
+- Remove lvm plugin, liblvmapp has been deprecated upstream
+
+* Fri Jun 14 2019 Fabien Wernli <rpmbuild@faxmodem.org> - 5.9.0-1
+- add code for write_stackdriver (disabled for now)
+- add code for gpu_nvidia (disabled for now)
+- add pcie_errors
+
 * Thu Sep 28 2017 Jakub Jankowski <shasta@toxcorp.com> - 5.7.1-9
 - Fix mbmon/mcelog build options
 

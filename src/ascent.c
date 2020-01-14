@@ -499,8 +499,8 @@ static int ascent_init(void) /* {{{ */
     static char credentials[1024];
     int status;
 
-    status = snprintf(credentials, sizeof(credentials), "%s:%s", user,
-                      (pass == NULL) ? "" : pass);
+    status = ssnprintf(credentials, sizeof(credentials), "%s:%s", user,
+                       (pass == NULL) ? "" : pass);
     if ((status < 0) || ((size_t)status >= sizeof(credentials))) {
       ERROR("ascent plugin: ascent_init: Returning an error because the "
             "credentials have been truncated.");

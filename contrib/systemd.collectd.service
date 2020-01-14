@@ -8,8 +8,6 @@ Requires=local-fs.target network-online.target
 ExecStart=/usr/sbin/collectd
 EnvironmentFile=-/etc/sysconfig/collectd
 EnvironmentFile=-/etc/default/collectd
-ProtectSystem=full
-ProtectHome=true
 
 # A few plugins won't work without some privileges, which you'll have to
 # specify using the CapabilityBoundingSet directive below.

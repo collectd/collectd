@@ -1548,6 +1548,35 @@ at all, B<all> cgroups are selected.
 
 =back
 
+=head2 Plugin C<check_uptime>
+
+The I<check_uptime plugin> designed to check and notify about host or service
+status based on I<uptime> metric.
+
+When new metric of I<uptime> type appears in cache, OK notification is sent.
+When new value for metric is less than previous value, WARNING notification is
+sent about host/service restart.
+When no new updates comes for metric and cache entry expires, then FAILURE
+notification is sent about unreachable host or service.
+
+By default (when no explicit configuration), plugin checks for I<uptime> metric.
+
+B<Synopsis:>
+
+ <Plugin "check_uptime">
+   Type "uptime"
+   Type "my_uptime_type"
+ </Plugin>
+
+=over 4
+
+=item B<Type> I<Type>
+
+Metric type to check for status/values. The type should consist single GAUGE
+data source.
+
+=back
+
 =head2 Plugin C<chrony>
 
 The C<chrony> plugin collects ntp data from a B<chronyd> server, such as clock
@@ -1571,6 +1600,47 @@ UDP-Port to connect to. Defaults to B<323>.
 =item B<Timeout> I<Timeout>
 
 Connection timeout in seconds. Defaults to B<2>.
+
+=back
+
+=head2 Plugin Connectivity
+
+connectivity - Documentation of collectd's C<connectivity plugin>
+
+
+  LoadPlugin connectivity
+  # ...
+  <Plugin connectivity>
+    Interface eth0
+  </Plugin>
+
+The C<connectivity plugin> queries interface status using netlink (man 7 netlink) which provides information about network interfaces via the NETLINK_ROUTE family (man 7 rtnetlink). The plugin translates the value it receives to collectd's internal format and, depending on the write plugins you have loaded, it may be written to disk or submitted to another instance.
+The plugin listens to interfaces enumerated within the plugin configuration (see below).  If no interfaces are listed, then the default is for all interfaces to be monitored.
+
+This example shows C<connectivity plugin> monitoring all interfaces.
+LoadPlugin connectivity
+<Plugin connectivity>
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring 2 interfaces, "eth0" and "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth0
+  Interface eth1
+</Plugin>
+
+This example shows C<connectivity plugin> monitoring all interfaces except "eth1".
+LoadPlugin connectivity
+<Plugin connectivity>
+  Interface eth1
+  IgnoreSelected true
+</Plugin>
+ 
+=over 4
+
+=item B<Interface> I<interface_name>
+
+interface(s) to monitor connect to. 
 
 =back
 
@@ -1656,15 +1726,24 @@ Defaults to B<true>.
 
 =head2 Plugin C<cpufreq>
 
-This plugin doesn't have any options. It reads
+This plugin is available on Linux and FreeBSD only.  It doesn't have any
+options.  On Linux it reads
 F</sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq> (for the first CPU
 installed) to get the current CPU frequency. If this file does not exist make
 sure B<cpufreqd> (L<http://cpufreqd.sourceforge.net/>) or a similar tool is
 installed and an "cpu governor" (that's a kernel module) is loaded.
 
-If the system has the I<cpufreq-stats> kernel module loaded, this plugin reports
-the rate of p-state (cpu frequency) transitions and the percentage of time spent
-in each p-state.
+On Linux, if the system has the I<cpufreq-stats> kernel module loaded, this
+plugin reports the rate of p-state (cpu frequency) transitions and the
+percentage of time spent in each p-state.
+
+On FreeBSD it does a sysctl dev.cpu.0.freq and submits this as instance 0.
+At this time FreeBSD only has one frequency setting for all cores.
+See the BUGS section in the FreeBSD man page for cpufreq(4) for more details.
+
+On FreeBSD the plugin checks the success of sysctl dev.cpu.0.freq and
+unregisters the plugin when this fails.  A message will be logged to indicate
+this.
 
 =head2 Plugin C<cpusleep>
 
@@ -1795,6 +1874,7 @@ finance page and dispatch the value to collectd.
     <Page "stock_quotes">
       Plugin "quotes"
       URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+      AddressFamily "any"
       User "foo"
       Password "bar"
       Digest false
@@ -1834,6 +1914,18 @@ Defaults to C<curl>.
 
 URL of the web site to retrieve. Since a regular expression will be used to
 extract information from this data, non-binary data is a big plus here ;)
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<Page>
+block will be ignored.
 
 =item B<User> I<Name>
 
@@ -1946,6 +2038,7 @@ C<_stats> runtime statistics module of I<CouchDB>
 
   <Plugin curl_json>
     <URL "http://localhost:5984/_stats">
+      AddressFamily "any"
       Instance "httpd"
       <Key "httpd/requests/count">
         Type "http_requests"
@@ -1989,6 +2082,18 @@ values for all map keys or array indices will be collectd.
 The following options are valid within B<URL> blocks:
 
 =over 4
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<URL>
+block will be ignored.
 
 =item B<Host> I<Name>
 
@@ -2061,6 +2166,7 @@ The B<curl_xml plugin> uses B<libcurl> (L<http://curl.haxx.se/>) and B<libxml2>
 
  <Plugin "curl_xml">
    <URL "http://localhost/stats.xml">
+     AddressFamily "any"
      Host "my_host"
      #Plugin "curl_xml"
      Instance "some_instance"
@@ -2096,6 +2202,18 @@ that should be relative to the base element.
 Within the B<URL> block the following options are accepted:
 
 =over 4
+
+=item B<AddressFamily> I<Type>
+
+IP version to resolve URL to. Useful in cases when hostname in URL resolves
+to both IPv4 and IPv6 addresses, and you are interested in using one of them
+specifically.
+Use C<ipv4> to enforce IPv4, C<ipv6> to enforce IPv6, or C<any> to keep the
+default behavior of resolving addresses to all IP versions your system allows.
+If C<libcurl> is compiled without IPv6 support, using C<ipv6> will result in
+a warning and fallback to C<any>.
+If C<Type> cannot be parsed, a warning will be printed and the whole B<URL>
+block will be ignored.
 
 =item B<Host> I<Name>
 
@@ -3498,6 +3616,7 @@ B<Synopsis:>
 
   <Plugin "intel_rdt">
     Cores "0-2" "3,4,6" "8-10,15"
+    Processes "sshd,qemu-system-x86" "bash"
   </Plugin>
 
 B<Options:>
@@ -3513,17 +3632,25 @@ recommended to set interval higher than 1 sec.
 
 =item B<Cores> I<cores groups>
 
-All events are reported on a per core basis. Monitoring of the events can be
-configured for group of cores (aggregated statistics). This field defines groups
-of cores on which to monitor supported events. The field is represented as list
-of strings with core group values. Each string represents a list of cores in a
-group. Allowed formats are:
+Monitoring of the events can be configured for group of cores
+(aggregated statistics). This field defines groups of cores on which to monitor
+supported events. The field is represented as list of strings with core group
+values. Each string represents a list of cores in a group. Allowed formats are:
     0,1,2,3
     0-10,20-18
     1,3,5-8,10,0x10-12
 
 If an empty string is provided as value for this field default cores
 configuration is applied - a separate group is created for each core.
+
+=item B<Processes> I<process names groups>
+
+Monitoring of the events can be configured for group of processes
+(aggregated statistics). This field defines groups of processes on which to
+monitor supported events. The field is represented as list of strings with
+process names group values. Each string represents a list of processes in a
+group. Allowed format is:
+    sshd,bash,qemu
 
 =back
 
@@ -4444,6 +4571,12 @@ For Modbus/RTU, specifies the path to the serial device being used.
 For Modbus/RTU, specifies the baud rate of the serial device.
 Note, connections currently support only 8/N/1.
 
+=item B<UARTType> I<UARTType>
+
+For Modbus/RTU, specifies the type of the serial device.
+RS232, RS422 and RS485 are supported. Defaults to RS232.
+Available only on Linux systems with libmodbus>=2.9.4.
+
 =item B<Interval> I<Interval>
 
 Sets the interval (in seconds) in which the values will be collected from this
@@ -4695,7 +4828,7 @@ Hostname of the database server. Defaults to B<localhost>.
 
 Username to use when connecting to the database. The user does not have to be
 granted any privileges (which is synonym to granting the C<USAGE> privilege),
-unless you want to collectd replication statistics (see B<MasterStats> and
+unless you want to collect replication statistics (see B<MasterStats> and
 B<SlaveStats> below). In this case, the user needs the C<REPLICATION CLIENT>
 (or C<SUPER>) privileges. Else, any existing MySQL user will do.
 
@@ -4745,9 +4878,10 @@ or SQL threads are not running. Defaults to B<false>.
 
 =item B<WsrepStats> I<true|false>
 
- Enable the collection of wsrep plugin statistics, used in Master-Master
- replication setups like in MySQL Galera/Percona XtraDB Cluster.
- User needs only privileges to execute 'SHOW GLOBAL STATUS'
+Enable the collection of wsrep plugin statistics, used in Master-Master
+replication setups like in MySQL Galera/Percona XtraDB Cluster.
+User needs only privileges to execute 'SHOW GLOBAL STATUS'.
+Defaults to B<false>.
 
 =item B<ConnectTimeout> I<Seconds>
 
@@ -7251,6 +7385,40 @@ reporting the corresponding processes only. Outside of B<Process> and
 B<ProcessMatch> blocks these options set the default value for subsequent
 matches.
 
+=head2 Plugin C<procevent>
+ 
+The I<procevent> plugin monitors when processes start (EXEC) and stop (EXIT).
+ 
+B<Synopsis:>
+ 
+  <Plugin procevent>
+    BufferLength 10
+    Process "name"
+    ProcessRegex "regex"
+  </Plugin>
+ 
+B<Options:>
+ 
+=over 4
+ 
+=item B<BufferLength> I<length>
+ 
+Maximum number of process events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+ 
+=item B<Process> I<name>
+ 
+Enumerate a process name to monitor.  All processes that match this exact
+name will be monitored for EXECs and EXITs.
+
+=item B<ProcessRegex> I<regex>
+ 
+Enumerate a process pattern to monitor.  All processes that match this 
+regular expression will be monitored for EXECs and EXITs.
+ 
+=back
+
 =head2 Plugin C<protocols>
 
 Collects a lot of information about various network protocols, such as I<IP>,
@@ -8273,6 +8441,70 @@ Enables or disables reporting swap IO. Defaults to B<true>.
 This is useful for the cases when swap IO is not neccessary, is not available,
 or is not reliable.
 
+=back
+
+=head2 Plugin C<sysevent>
+ 
+The I<sysevent> plugin monitors rsyslog messages.
+ 
+B<Synopsis:>
+ 
+  <Plugin sysevent>
+    Listen "192.168.0.2" "6666"
+    BufferSize 1024
+    BufferLength 10
+    RegexFilter "regex"
+  </Plugin>
+
+  rsyslog should be configured such that it sends data to the IP and port you
+  include in the plugin configuration.  For example, given the configuration
+  above, something like this would be set in /etc/rsyslog.conf:
+
+    if $programname != 'collectd' then
+    *.* @192.168.0.2:6666
+
+  This plugin is designed to consume JSON rsyslog data, so a more complete
+  rsyslog configuration would look like so (where we define a JSON template
+  and use it when sending data to our IP and port):
+
+    $template ls_json,"{%timestamp:::date-rfc3339,jsonf:@timestamp%, \
+    %source:::jsonf:@source_host%,\"@source\":\"syslog://%fromhost-ip:::json%\", \
+    \"@message\":\"%timestamp% %app-name%:%msg:::json%\",\"@fields\": \
+    {%syslogfacility-text:::jsonf:facility%,%syslogseverity:::jsonf:severity-num%, \
+    %syslogseverity-text:::jsonf:severity%,%programname:::jsonf:program%, \
+    %procid:::jsonf:processid%}}"
+
+    if $programname != 'collectd' then
+    *.* @192.168.0.2:6666;ls_json
+
+  Please note that these rsyslog.conf examples are *not* complete, as rsyslog
+  requires more than these options in the configuration file.  These examples 
+  are meant to demonstration the proper remote logging and JSON format syntax.
+
+B<Options:>
+ 
+=over 4
+ 
+=item B<Listen> I<host> I<port>
+ 
+Listen on this IP on this port for incoming rsyslog messages.
+
+=item B<BufferSize> I<length>
+ 
+Maximum allowed size for incoming rsyslog messages.  Messages that exceed 
+this number will be truncated to this size.  Default is 4096 bytes.
+
+=item B<BufferLength> I<length>
+ 
+Maximum number of rsyslog events that can be stored in plugin's ring buffer.
+By default, this is set to 10.  Once an event has been read, its location
+becomes available for storing a new event.
+
+=item B<RegexFilter> I<regex>
+ 
+Enumerate a regex filter to apply to all incoming rsyslog messages.  If a
+message matches this filter, it will be published.
+ 
 =back
 
 =head2 Plugin C<syslog>
@@ -9343,13 +9575,51 @@ surrounded by I</.../> and collectd was compiled with support for regexps.
 
 The default is to collect statistics for all domains and all their devices.
 
-Example:
+B<Note:> B<BlockDevice> and B<InterfaceDevice> options are related to
+corresponding B<*Format> options. Specifically, B<BlockDevice> filtering depends
+on B<BlockDeviceFormat> setting - if user wants to filter block devices by
+'target' name then B<BlockDeviceFormat> option has to be set to 'target' and
+B<BlockDevice> option must be set to a valid block device target
+name("/:hdb/"). Mixing formats and filter values from different worlds (i.e.,
+using 'target' name as B<BlockDevice> value with B<BlockDeviceFormat> set to
+'source') may lead to unexpected results (all devices filtered out or all
+visible, depending on the value of B<IgnoreSelected> option).
+Similarly, option B<InterfaceDevice> is related to B<InterfaceFormat> setting
+(i.e., when user wants to use MAC address as a filter then B<InterfaceFormat>
+has to be set to 'address' - using wrong type here may filter out all of the
+interfaces).
+
+B<Example 1:>
+
+Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
+will be collected:
 
  BlockDevice "/:hdb/"
  IgnoreSelected "true"
+ BlockDeviceFormat "target"
 
-Ignore all I<hdb> devices on any domain, but other block devices (eg. I<hda>)
-will be collected.
+B<Example 2:>
+
+Collect metrics only for block device on 'baremetal0' domain when its
+'source' matches given path:
+
+ BlockDevice "baremetal0:/var/lib/libvirt/images/baremetal0.qcow2"
+ BlockDeviceFormat source
+
+As you can see it is possible to filter devices/interfaces using
+various formats - for block devices 'target' or 'source' name can be
+used.  Interfaces can be filtered using 'name', 'address' or 'number'.
+
+B<Example 3:>
+
+Collect metrics only for domains 'baremetal0' and 'baremetal1' and
+ignore any other domain:
+
+ Domain "baremetal0"
+ Domain "baremetal1"
+
+It is possible to filter multiple block devices/domains/interfaces by
+adding multiple filtering entries in separate lines.
 
 =item B<BlockDeviceFormat> B<target>|B<source>
 
@@ -9379,6 +9649,11 @@ Setting C<BlockDeviceFormat target> will cause the I<type instance> to be set
 to C<sda>.
 Setting C<BlockDeviceFormat source> will cause the I<type instance> to be set
 to C<var_lib_libvirt_images_image1.qcow2>.
+
+B<Note:> this option determines also what field will be used for
+filtering over block devices (filter value in B<BlockDevice>
+will be applied to target or source). More info about filtering
+block devices can be found in the description of B<BlockDevice>.
 
 =item B<BlockDeviceFormatBasename> B<false>|B<true>
 
@@ -9429,6 +9704,11 @@ B<address> means use the interface's mac address. This is useful since the
 interface path might change between reboots of a guest or across migrations.
 
 B<number> means use the interface's number in guest.
+
+B<Note:> this option determines also what field will be used for
+filtering over interface device (filter value in B<InterfaceDevice>
+will be applied to name, address or number).  More info about filtering
+interfaces can be found in the description of B<InterfaceDevice>.
 
 =item B<PluginInstanceFormat> B<name|uuid|metadata|none>
 
@@ -9485,9 +9765,7 @@ I<0.9.5> or later.
 =item B<disk_err>: report disk errors if any occured. Requires libvirt API version
 I<0.9.10> or later.
 
-=item B<domain_state>: report domain state and reason in human-readable format as
-a notification. If libvirt API version I<0.9.2> or later is available, domain
-reason will be included in notification.
+=item B<domain_state>: report domain state and reason as 'domain_state' metric.
 
 =item B<fs_info>: report file system information as a notification. Requires
 libvirt API version I<1.2.11> or later. Can be collected only if I<Guest Agent>
@@ -9502,6 +9780,9 @@ Requires libvirt API version I<1.2.9> or later.
 a domain. Only one type of job statistics can be collected at the same time.
 Requires libvirt API version I<1.2.9> or later.
 
+=item B<memory>: report statistics about memory usage details, provided
+by libvirt virDomainMemoryStats() function.
+
 =item B<pcpu>: report the physical user/system cpu time consumed by the hypervisor, per-vm.
 Requires libvirt API version I<0.9.11> or later.
 
@@ -9510,7 +9791,21 @@ metrics they must be enabled for domain and supported by the platform. Requires
 libvirt API version I<1.3.3> or later.
 B<Note>: I<perf> metrics can't be collected if I<intel_rdt> plugin is enabled.
 
+=item B<vcpu>: report domain virtual CPUs utilisation.
+
 =item B<vcpupin>: report pinning of domain VCPUs to host physical CPUs.
+
+=item B<disk_physical>: report 'disk_physical' statistic for disk device.
+B<Note>: This statistic is only reported for disk devices with 'source'
+property available.
+
+=item B<disk_allocation>: report 'disk_allocation' statistic for disk device.
+B<Note>: This statistic is only reported for disk devices with 'source'
+property available.
+
+=item B<disk_capacity>: report 'disk_capacity' statistic for disk device.
+B<Note>: This statistic is only reported for disk devices with 'source'
+property available.
 
 =back
 
@@ -9601,6 +9896,7 @@ Synopsis:
      LogSendErrors true
      Prefix "collectd"
      UseTags false
+     ReverseHost false
    </Node>
  </Plugin>
 
@@ -9709,6 +10005,30 @@ version 1.1.x.
 
 If set to B<true>, the B<SeparateInstances> and B<PreserveSeparator> settings
 are not used.
+
+Default value: B<false>.
+
+=item B<ReverseHost> B<false>|B<true>
+
+If set to B<true>, the (dot separated) parts of the B<host> field of the
+I<value list> will be rewritten in reverse order. The rewrite happens I<before>
+special characters are replaced with the B<EscapeCharacter>.
+
+This option might be convenient if the metrics are presented with Graphite in a
+DNS like tree structure (probably without replacing dots in hostnames).
+
+Example:
+ Hostname "node3.cluster1.example.com"
+ LoadPlugin "cpu"
+ LoadPlugin "write_graphite"
+ <Plugin "write_graphite">
+  <Node "graphite.example.com">
+   EscapeCharacter "."
+   ReverseHost true
+  </Node>
+ </Plugin>
+
+ result on the wire: com.example.cluster1.node3.cpu-0.cpu-idle 99.900993 1543010932
 
 Default value: B<false>.
 
@@ -10684,6 +11004,141 @@ inferred from the B<CredentialFile>.
 
 URL of the I<Stackdriver Monitoring> API. Defaults to
 C<https://monitoring.googleapis.com/v3>.
+
+=back
+
+=head2 Plugin C<write_syslog>
+
+The C<write_syslog> plugin writes data in I<syslog> format log messages.
+It implements the basic syslog protocol, RFC 5424, extends it with
+content-based filtering, rich filtering capabilities,
+flexible configuration options and adds features such as using TCP for transport.
+The plugin can connect to a I<Syslog> daemon, like syslog-ng and rsyslog, that will
+ingest metrics, transform and ship them to the specified output.
+The plugin uses I<TCP> over the "line based" protocol with a default port 44514.
+The data will be sent in blocks of at most 1428 bytes to minimize the number of
+network packets.
+
+Synopsis:
+
+ <Plugin write_syslog>
+   ResolveInterval 60
+   ResolveJitter 60
+   <Node "example">
+     Host "syslog-1.my.domain"
+     Port "44514"
+     Prefix "collectd"
+     MessageFormat "human"
+     HostTags ""
+   </Node>
+ </Plugin>
+
+The configuration consists of one or more E<lt>B<Node>E<nbsp>I<Name>E<gt>
+blocks and global directives.
+
+Global directives are:
+
+=over 4
+
+=item B<ResolveInterval> I<seconds>
+
+=item B<ResolveJitter> I<seconds>
+
+When I<collectd> connects to a syslog node, it will request the hostname from
+DNS. This can become a problem if the syslog node is unavailable or badly
+configured because collectd will request DNS in order to reconnect for every
+metric, which can flood your DNS. So you can cache the last value for
+I<ResolveInterval> seconds.
+Defaults to the I<Interval> of the I<write_syslog plugin>, e.g. 10E<nbsp>seconds.
+
+You can also define a jitter, a random interval to wait in addition to
+I<ResolveInterval>. This prevents all your collectd servers to resolve the
+hostname at the same time when the connection fails.
+Defaults to the I<Interval> of the I<write_syslog plugin>, e.g. 10E<nbsp>seconds.
+
+B<Note:> If the DNS resolution has already been successful when the socket
+closes, the plugin will try to reconnect immediately with the cached
+information. DNS is queried only when the socket is closed for a longer than
+I<ResolveInterval> + I<ResolveJitter> seconds.
+
+=back
+
+Inside the B<Node> blocks, the following options are recognized:
+
+=over 4
+
+=item B<Host> I<Address>
+
+Hostname or address to connect to. Defaults to C<localhost>.
+
+=item B<Port> I<Service>
+
+Service name or port number to connect to. Defaults to C<44514>.
+
+
+=item B<HostTags> I<String>
+
+When set, I<HostTags> is added to the end of the metric.
+It is intended to be used for adding additional metadata to tag the metric with.
+Dots and whitespace are I<not> escaped in this string.
+
+Examples:
+
+When MessageFormat is set to "human".
+
+  ["prefix1" "example1"="example1_v"]["prefix2" "example2"="example2_v"]"
+
+When MessageFormat is set to "JSON", text should be in JSON format.
+Escaping the quotation marks is required.
+
+  HostTags "\"prefix1\": {\"example1\":\"example1_v\",\"example2\":\"example2_v\"}"
+
+=item B<MessageFormat> I<String>
+
+I<MessageFormat> selects the format in which messages are sent to the
+syslog deamon, human or JSON. Defaults to human.
+
+Syslog message format:
+
+<priority>VERSION ISOTIMESTAMP HOSTNAME APPLICATION PID MESSAGEID STRUCTURED-DATA MSG
+
+The difference between the message formats are in the STRUCTURED-DATA and MSG parts.
+
+Human format:
+
+  <166>1 ISOTIMESTAMP HOSTNAME collectd PID MESSAGEID
+  ["collectd" "value": "v1" "plugin"="plugin_v" "plugin_instance"="plugin_instance_v"
+  "type_instance"="type_instance_v" "type"="type_v" "ds_name"="ds_name_v" "interval"="interval_v" ]
+  "host_tag_example"="host_tag_example_v" plugin_v.type_v.ds_name_v="v1"
+
+JSON format:
+
+  <166>1 ISOTIMESTAMP HOSTNAME collectd PID MESSAGEID STRUCTURED-DATA
+  {
+    "collectd": {
+    "time": time_as_epoch, "interval": interval_v, "plugin": "plugin_v",
+    "plugin_instance": "plugin_instance_v", "type":"type_v",
+    "type_instance": "type_instance_v", "plugin_v": {"type_v": v1}
+    } , "host":"host_v", "host_tag_example": "host_tag_example_v"
+  }
+
+=item B<StoreRates> B<false>|B<true>
+
+If set to B<true>, convert counter values to rates. If set to B<false>
+(the default) counter values are stored as is, as an increasing
+integer number.
+
+=item B<AlwaysAppendDS> B<false>|B<true>
+
+If set to B<true>, append the name of the I<Data Source> (DS) to the "metric"
+identifier. If set to B<false> (the default), this is only done when there is
+more than one DS.
+
+=item B<Prefix> I<String>
+
+When set, I<Prefix> is added to all metrics names as a prefix. It is intended in
+case you want to be able to define the source of the specific metric. Dots and
+whitespace are I<not> escaped in this string.
 
 =back
 
@@ -11675,7 +12130,7 @@ be an FQDN.
 =head1 IGNORELISTS
 
 B<Ignorelists> are a generic framework to either ignore some metrics or report
-specific metircs only. Plugins usually provide one or more options to specify
+specific metrics only. Plugins usually provide one or more options to specify
 the items (mounts points, devices, ...) and the boolean option
 C<IgnoreSelected>.
 

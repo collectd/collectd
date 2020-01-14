@@ -97,6 +97,12 @@ enum mb_conntype_e /* {{{ */
   MBCONN_RTU }; /* }}} */
 typedef enum mb_conntype_e mb_conntype_t;
 
+enum mb_uarttype_e /* {{{ */
+{ UARTTYPE_RS232,
+  UARTTYPE_RS422,
+  UARTTYPE_RS485 }; /* }}} */
+typedef enum mb_uarttype_e mb_uarttype_t;
+
 struct mb_data_s;
 typedef struct mb_data_s mb_data_t;
 struct mb_data_s /* {{{ */
@@ -126,8 +132,9 @@ struct mb_host_s /* {{{ */
   char host[DATA_MAX_NAME_LEN];
   char node[NI_MAXHOST]; /* TCP hostname or RTU serial device */
   /* char service[NI_MAXSERV]; */
-  int port;     /* for Modbus/TCP */
-  int baudrate; /* for Modbus/RTU */
+  int port;               /* for Modbus/TCP */
+  int baudrate;           /* for Modbus/RTU */
+  mb_uarttype_t uarttype; /* UART type for Modbus/RTU */
   mb_conntype_t conntype;
 
   mb_slave_t *slaves;
@@ -252,7 +259,7 @@ static int mb_submit(mb_host_t *host, mb_slave_t *slave, /* {{{ */
     return EINVAL;
 
   if (slave->instance[0] == 0)
-    snprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
+    ssnprintf(slave->instance, sizeof(slave->instance), "slave_%i", slave->id);
 
   vl.values = &value;
   vl.values_len = 1;
@@ -334,7 +341,7 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
   host->is_connected = true;
   return 0;
 } /* }}} int mb_init_connection */
-/* #endif LEGACY_LIBMODBUS */
+  /* #endif LEGACY_LIBMODBUS */
 
 #else /* if !LEGACY_LIBMODBUS */
 /* Version 2.9.2 */
@@ -386,6 +393,22 @@ static int mb_init_connection(mb_host_t *host) /* {{{ */
     host->connection = NULL;
     return status;
   }
+
+#if defined(linux) && LIBMODBUS_VERSION_CHECK(2, 9, 4)
+  switch (host->uarttype) {
+  case UARTTYPE_RS485:
+    if (modbus_rtu_set_serial_mode(host->connection, MODBUS_RTU_RS485))
+      DEBUG("Modbus plugin: Setting RS485 mode failed.");
+    break;
+  case UARTTYPE_RS422:
+    /* libmodbus doesn't say anything about full-duplex symmetric RS422 UART */
+    break;
+  case UARTTYPE_RS232:
+    break;
+  default:
+    DEBUG("Modbus plugin: Invalid UART type!.");
+  }
+#endif /* defined(linux) && LIBMODBUS_VERSION_CHECK(2, 9, 4) */
 
   return 0;
 } /* }}} int mb_init_connection */
@@ -983,11 +1006,35 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
         status = -1;
     } else if (strcasecmp("Device", child->key) == 0) {
       status = cf_util_get_string_buffer(child, host->node, sizeof(host->node));
-      if (status == 0)
+      if (status == 0) {
         host->conntype = MBCONN_RTU;
+        host->uarttype = UARTTYPE_RS232;
+      }
     } else if (strcasecmp("Baudrate", child->key) == 0)
       status = cf_util_get_int(child, &host->baudrate);
-    else if (strcasecmp("Interval", child->key) == 0)
+    else if (strcasecmp("UARTType", child->key) == 0) {
+#if defined(linux) && !LEGACY_LIBMODBUS && LIBMODBUS_VERSION_CHECK(2, 9, 4)
+      char buffer[NI_MAXHOST];
+      status = cf_util_get_string_buffer(child, buffer, sizeof(buffer));
+      if (status != 0)
+        break;
+      if (strncmp(buffer, "RS485", 6) == 0)
+        host->uarttype = UARTTYPE_RS485;
+      else if (strncmp(buffer, "RS422", 6) == 0)
+        host->uarttype = UARTTYPE_RS422;
+      else if (strncmp(buffer, "RS232", 6) == 0)
+        host->uarttype = UARTTYPE_RS232;
+      else {
+        ERROR("Modbus plugin: The UARTType \"%s\" is unknown.", buffer);
+        status = -1;
+        break;
+      }
+#else
+      ERROR("Modbus plugin: Option `UARTType' not supported. Please "
+            "upgrade libmodbus to at least 2.9.4");
+      return -1;
+#endif
+    } else if (strcasecmp("Interval", child->key) == 0)
       status = cf_util_get_cdtime(child, &interval);
     else if (strcasecmp("Slave", child->key) == 0)
       /* Don't set status: Gracefully continue if a slave fails. */
@@ -1025,13 +1072,14 @@ static int mb_config_add_host(oconfig_item_t *ci) /* {{{ */
   if (status == 0) {
     char name[1024];
 
-    snprintf(name, sizeof(name), "modbus-%s", host->host);
+    ssnprintf(name, sizeof(name), "modbus-%s", host->host);
 
     plugin_register_complex_read(/* group = */ NULL, name,
                                  /* callback = */ mb_read,
                                  /* interval = */ interval,
                                  &(user_data_t){
-                                     .data = host, .free_func = host_free,
+                                     .data = host,
+                                     .free_func = host_free,
                                  });
   } else {
     host_free(host);

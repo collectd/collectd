@@ -1,4 +1,4 @@
-FROM debian:stable
+FROM debian:stable-slim
 
 ENV DEBIAN_FRONTEND noninteractive
 COPY 50docker-apt-conf /etc/apt/apt.conf.d/
@@ -21,4 +21,5 @@ COPY collectd.conf.d /etc/collectd/collectd.conf.d
 
 ENV LD_PRELOAD /usr/src/rootfs_prefix/rootfs_prefix.so
 
-CMD [ "/usr/sbin/collectd", "-f"]
+ENTRYPOINT ["/usr/sbin/collectd"]
+CMD ["-f"]

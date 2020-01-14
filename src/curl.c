@@ -57,6 +57,7 @@ struct web_page_s /* {{{ */
   char *instance;
 
   char *url;
+  int address_family;
   char *user;
   char *pass;
   char *credentials;
@@ -345,6 +346,7 @@ static int cc_page_init_curl(web_page_t *wp) /* {{{ */
   curl_easy_setopt(wp->curl, CURLOPT_ERRORBUFFER, wp->curl_errbuf);
   curl_easy_setopt(wp->curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(wp->curl, CURLOPT_MAXREDIRS, 50L);
+  curl_easy_setopt(wp->curl, CURLOPT_IPRESOLVE, wp->address_family);
 
   if (wp->user != NULL) {
 #ifdef HAVE_CURLOPT_USERNAME
@@ -411,6 +413,7 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   }
   page->plugin_name = NULL;
   page->url = NULL;
+  page->address_family = CURL_IPRESOLVE_WHATEVER;
   page->user = NULL;
   page->pass = NULL;
   page->digest = false;
@@ -437,7 +440,34 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
       status = cf_util_get_string(child, &page->plugin_name);
     else if (strcasecmp("URL", child->key) == 0)
       status = cf_util_get_string(child, &page->url);
-    else if (strcasecmp("User", child->key) == 0)
+    else if (strcasecmp("AddressFamily", child->key) == 0) {
+      char *af = NULL;
+      status = cf_util_get_string(child, &af);
+      if (status != 0 || af == NULL) {
+        WARNING("curl plugin: Cannot parse value of `%s' "
+                "for instance `%s'.",
+                child->key, page->instance);
+      } else if (strcasecmp("any", af) == 0) {
+        page->address_family = CURL_IPRESOLVE_WHATEVER;
+      } else if (strcasecmp("ipv4", af) == 0) {
+        page->address_family = CURL_IPRESOLVE_V4;
+      } else if (strcasecmp("ipv6", af) == 0) {
+        /* If curl supports ipv6, use it. If not, log a warning and
+         * fall back to default - don't set status to non-zero.
+         */
+        curl_version_info_data *curl_info = curl_version_info(CURLVERSION_NOW);
+        if (curl_info->features & CURL_VERSION_IPV6)
+          page->address_family = CURL_IPRESOLVE_V6;
+        else
+          WARNING("curl plugin: IPv6 not supported by this libCURL. "
+                  "Using fallback `any'.");
+      } else {
+        WARNING("curl plugin: Unsupported value of `%s' "
+                "for instance `%s'.",
+                child->key, page->instance);
+        status = -1;
+      }
+    } else if (strcasecmp("User", child->key) == 0)
       status = cf_util_get_string(child, &page->user);
     else if (strcasecmp("Password", child->key) == 0)
       status = cf_util_get_string(child, &page->pass);
@@ -511,7 +541,8 @@ static int cc_config_add_page(oconfig_item_t *ci) /* {{{ */
   plugin_register_complex_read(/* group = */ NULL, cb_name, cc_read_page,
                                interval,
                                &(user_data_t){
-                                   .data = page, .free_func = cc_web_page_free,
+                                   .data = page,
+                                   .free_func = cc_web_page_free,
                                });
   sfree(cb_name);
 

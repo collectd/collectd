@@ -293,7 +293,8 @@ static double ntohd(double val) /* {{{ */
 static int parse_values(void *payload, size_t payload_size,
                         lcc_value_list_t *state) {
   buffer_t *b = &(buffer_t){
-      .data = payload, .len = payload_size,
+      .data = payload,
+      .len = payload_size,
   };
 
   uint16_t n;
@@ -401,7 +402,8 @@ static int parse_sign_sha256(void *signature, size_t signature_len,
   }
 
   buffer_t *b = &(buffer_t){
-      .data = signature, .len = signature_len,
+      .data = signature,
+      .len = signature_len,
   };
 
   uint8_t hash[32];
@@ -459,7 +461,8 @@ static int parse_encrypt_aes256(void *data, size_t data_size,
   }
 
   buffer_t *b = &(buffer_t){
-      .data = data, .len = data_size,
+      .data = data,
+      .len = data_size,
   };
 
   uint16_t username_len;
@@ -508,7 +511,8 @@ static int parse_encrypt_aes256(void *data, size_t data_size,
 static int network_parse(void *data, size_t data_size, lcc_security_level_t sl,
                          lcc_network_parse_options_t const *opts) {
   buffer_t *b = &(buffer_t){
-      .data = data, .len = data_size,
+      .data = data,
+      .len = data_size,
   };
 
   lcc_value_list_t state = {0};

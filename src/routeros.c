@@ -53,7 +53,8 @@ static void cr_submit_io(cr_data_t *rd, const char *type, /* {{{ */
                          const char *type_instance, derive_t rx, derive_t tx) {
   value_list_t vl = VALUE_LIST_INIT;
   value_t values[] = {
-      {.derive = rx}, {.derive = tx},
+      {.derive = rx},
+      {.derive = tx},
   };
 
   vl.values = values;
@@ -150,8 +151,8 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
     name = "default";
 
   /*** RX ***/
-  snprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
-           name);
+  ssnprintf(type_instance, sizeof(type_instance), "%s-%s-rx", r->interface,
+            name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->rx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -159,8 +160,8 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->rx_ccq);
 
   /*** TX ***/
-  snprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
-           name);
+  ssnprintf(type_instance, sizeof(type_instance), "%s-%s-tx", r->interface,
+            name);
   cr_submit_gauge(rd, "bitrate", type_instance,
                   (gauge_t)(1000000.0 * r->tx_rate));
   cr_submit_gauge(rd, "signal_power", type_instance,
@@ -168,7 +169,7 @@ static void submit_regtable(cr_data_t *rd, /* {{{ */
   cr_submit_gauge(rd, "signal_quality", type_instance, (gauge_t)r->tx_ccq);
 
   /*** RX / TX ***/
-  snprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface, name);
+  ssnprintf(type_instance, sizeof(type_instance), "%s-%s", r->interface, name);
   cr_submit_io(rd, "if_octets", type_instance, (derive_t)r->rx_bytes,
                (derive_t)r->tx_bytes);
   cr_submit_gauge(rd, "snr", type_instance, (gauge_t)r->signal_to_noise);
@@ -438,11 +439,12 @@ static int cr_config_router(oconfig_item_t *ci) /* {{{ */
     return status;
   }
 
-  snprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
+  ssnprintf(read_name, sizeof(read_name), "routeros/%s", router_data->node);
   return plugin_register_complex_read(
       /* group = */ NULL, read_name, cr_read, /* interval = */ 0,
       &(user_data_t){
-          .data = router_data, .free_func = (void *)cr_free_data,
+          .data = router_data,
+          .free_func = (void *)cr_free_data,
       });
 } /* }}} int cr_config_router */
 

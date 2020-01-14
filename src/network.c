@@ -142,6 +142,7 @@ typedef struct sockent {
   } data;
 
   struct sockent *next;
+  pthread_mutex_t lock;
 } sockent_t;
 
 /*                      1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
@@ -381,7 +382,7 @@ static bool check_send_notify_okay(const notification_t *n) /* {{{ */
         LOG_ERR, &complain_forwarding,
         "network plugin: A notification has been received via the network "
         "and forwarding is enabled. Forwarding of notifications is currently "
-        "not supported, because there is not loop-deteciton available. "
+        "not supported, because there is not loop-detection available. "
         "Please contact the collectd mailing list if you need this "
         "feature.");
   }
@@ -1108,7 +1109,7 @@ static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_sign_sha256 */
-/* #endif HAVE_GCRYPT_H */
+  /* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_sign_sha256(sockent_t *se, /* {{{ */
@@ -1263,7 +1264,7 @@ static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
 
   return 0;
 } /* }}} int parse_part_encr_aes256 */
-/* #endif HAVE_GCRYPT_H */
+  /* #endif HAVE_GCRYPT_H */
 
 #else  /* if !HAVE_GCRYPT_H */
 static int parse_part_encr_aes256(sockent_t *se, /* {{{ */
@@ -1540,6 +1541,7 @@ static void sockent_destroy(sockent_t *se) /* {{{ */
 
     sfree(se->node);
     sfree(se->service);
+    pthread_mutex_destroy(&se->lock);
 
     if (se->type == SOCKENT_TYPE_CLIENT)
       free_sockent_client(&se->data.client);
@@ -1668,7 +1670,7 @@ static int network_set_interface(const sockent_t *se,
       ERROR("network plugin: setsockopt (bind-if): %s", STRERRNO);
       return -1;
     }
-/* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
+      /* #endif HAVE_IF_INDEXTONAME && SO_BINDTODEVICE */
 
 #else
     WARNING("network plugin: Cannot set the interface on a unicast "
@@ -1858,6 +1860,7 @@ static sockent_t *sockent_create(int type) /* {{{ */
   se->service = NULL;
   se->interface = 0;
   se->next = NULL;
+  pthread_mutex_init(&se->lock, NULL);
 
   if (type == SOCKENT_TYPE_SERVER) {
     se->data.server.fd = NULL;
@@ -1949,6 +1952,8 @@ static int sockent_client_disconnect(sockent_t *se) /* {{{ */
     client->fd = -1;
   }
 
+  DEBUG("network plugin: free (se = %p, addr = %p);", (void *)se,
+        (void *)client->addr);
   sfree(client->addr);
   client->addrlen = 0;
 
@@ -2020,6 +2025,8 @@ static int sockent_client_connect(sockent_t *se) /* {{{ */
       client->fd = -1;
       continue;
     }
+    DEBUG("network plugin: alloc (se = %p, addr = %p);", (void *)se,
+          (void *)client->addr);
 
     assert(sizeof(*client->addr) >= ai_ptr->ai_addrlen);
     memcpy(client->addr, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
@@ -2541,6 +2548,7 @@ static void network_send_buffer(char *buffer, size_t buffer_len) /* {{{ */
         buffer_len);
 
   for (sockent_t *se = sending_sockets; se != NULL; se = se->next) {
+    pthread_mutex_lock(&se->lock);
 #if HAVE_GCRYPT_H
     if (se->data.client.security_level == SECURITY_LEVEL_ENCRYPT)
       network_send_buffer_encrypted(se, buffer, buffer_len);
@@ -2549,6 +2557,7 @@ static void network_send_buffer(char *buffer, size_t buffer_len) /* {{{ */
     else /* if (se->data.client.security_level == SECURITY_LEVEL_NONE) */
 #endif   /* HAVE_GCRYPT_H */
       network_send_buffer_plain(se, buffer, buffer_len);
+    pthread_mutex_unlock(&se->lock);
   } /* for (sending_sockets) */
 } /* }}} void network_send_buffer */
 
@@ -2753,6 +2762,7 @@ network_config_set_bind_address(const oconfig_item_t *ci,
   *bind_address = malloc(sizeof(**bind_address));
   if (*bind_address == NULL) {
     ERROR("network plugin: network_config_set_bind_address: malloc failed.");
+    freeaddrinfo(res);
     return -1;
   }
   (*bind_address)->ss_family = res->ai_family;

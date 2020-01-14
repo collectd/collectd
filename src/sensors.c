@@ -230,7 +230,7 @@ static int sensors_load_conf(void) {
       last_feature = fl;
     } /* while sensors_get_all_features */
   }   /* while sensors_get_detected_chips */
-/* #endif SENSORS_API_VERSION < 0x400 */
+      /* #endif SENSORS_API_VERSION < 0x400 */
 
 #elif (SENSORS_API_VERSION >= 0x400)
   chip_num = 0;
@@ -368,7 +368,7 @@ static int sensors_read(void) {
     sensors_submit(plugin_instance, sensor_type_name_map[fl->type],
                    type_instance, value);
   } /* for fl = first_feature .. NULL */
-/* #endif SENSORS_API_VERSION < 0x400 */
+    /* #endif SENSORS_API_VERSION < 0x400 */
 
 #elif (SENSORS_API_VERSION >= 0x400)
   for (featurelist_t *fl = first_feature; fl != NULL; fl = fl->next) {

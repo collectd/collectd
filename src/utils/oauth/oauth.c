@@ -184,9 +184,9 @@ static int get_claim(oauth_t *auth, char *buffer, size_t buffer_size) /* {{{ */
 
   /* create the claim set */
   status =
-      snprintf(claim, sizeof(claim), OAUTH_CLAIM_FORMAT, auth->iss, auth->scope,
-               auth->aud, (unsigned long)CDTIME_T_TO_TIME_T(exp),
-               (unsigned long)CDTIME_T_TO_TIME_T(iat));
+      ssnprintf(claim, sizeof(claim), OAUTH_CLAIM_FORMAT, auth->iss,
+                auth->scope, auth->aud, (unsigned long)CDTIME_T_TO_TIME_T(exp),
+                (unsigned long)CDTIME_T_TO_TIME_T(iat));
   if (status < 1)
     return -1;
   else if ((size_t)status >= sizeof(claim))
@@ -209,7 +209,7 @@ static int get_signature(char *buffer, size_t buffer_size, /* {{{ */
   int status;
 
   /* Make the string to sign */
-  payload_len = snprintf(payload, sizeof(payload), "%s.%s", header, claim);
+  payload_len = ssnprintf(payload, sizeof(payload), "%s.%s", header, claim);
   if (payload_len < 1) {
     return -1;
   } else if (payload_len >= sizeof(payload)) {
@@ -277,10 +277,10 @@ static int get_assertion(oauth_t *auth, char *buffer,
   if (status != 0)
     return -1;
 
-  status = snprintf(buffer, buffer_size, "%s.%s.%s", header, claim, signature);
+  status = ssnprintf(buffer, buffer_size, "%s.%s.%s", header, claim, signature);
   if (status < 1)
     return -1;
-  else if (status >= buffer_size)
+  else if ((size_t)status >= buffer_size)
     return ENOMEM;
 
   return 0;
@@ -350,8 +350,8 @@ static int new_token(oauth_t *auth) /* {{{ */
     return -1;
   }
 
-  snprintf(post_data, sizeof(post_data), "grant_type=%s&assertion=%s",
-           OAUTH_GRANT_TYPE, assertion);
+  ssnprintf(post_data, sizeof(post_data), "grant_type=%s&assertion=%s",
+            OAUTH_GRANT_TYPE, assertion);
 
   curl = curl_easy_init();
   if (curl == NULL) {
@@ -531,7 +531,8 @@ oauth_google_t oauth_create_google_json(char const *buffer, char const *scope) {
   }
 
   oauth_google_t ret = {
-      .project_id = strdup(project_id), .oauth = oauth,
+      .project_id = strdup(project_id),
+      .oauth = oauth,
   };
 
   yajl_tree_free(root);
@@ -589,8 +590,8 @@ oauth_google_t oauth_create_google_default(char const *scope) {
   char const *home;
   if ((home = getenv("HOME")) != NULL) {
     char path[PATH_MAX];
-    snprintf(path, sizeof(path),
-             "%s/.config/gcloud/application_default_credentials.json", home);
+    ssnprintf(path, sizeof(path),
+              "%s/.config/gcloud/application_default_credentials.json", home);
 
     oauth_google_t ret = oauth_create_google_file(path, scope);
     if (ret.oauth != NULL) {

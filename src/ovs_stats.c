@@ -282,7 +282,9 @@ static void ovs_stats_submit_interfaces(port_list_t *port) {
     }
     strjoin(devname, sizeof(devname),
             (char *[]){
-                bridge->name, port->name, iface->name,
+                bridge->name,
+                port->name,
+                iface->name,
             },
             3, ".");
     ovs_stats_submit_one(devname, "if_collisions", NULL,
@@ -394,16 +396,16 @@ static void ovs_stats_submit_port(port_list_t *port) {
 
     for (interface_list_t *iface = port->iface; iface != NULL;
          iface = iface->next) {
-      snprintf(key_str, sizeof(key_str), "uuid%d", i);
+      ssnprintf(key_str, sizeof(key_str), "uuid%d", i);
       meta_data_add_string(meta, key_str, iface->iface_uuid);
 
       if (strlen(iface->ex_vm_id)) {
-        snprintf(key_str, sizeof(key_str), "vm-uuid%d", i);
+        ssnprintf(key_str, sizeof(key_str), "vm-uuid%d", i);
         meta_data_add_string(meta, key_str, iface->ex_vm_id);
       }
 
       if (strlen(iface->ex_iface_id)) {
-        snprintf(key_str, sizeof(key_str), "iface-id%d", i);
+        ssnprintf(key_str, sizeof(key_str), "iface-id%d", i);
         meta_data_add_string(meta, key_str, iface->ex_iface_id);
       }
 
@@ -411,7 +413,7 @@ static void ovs_stats_submit_port(port_list_t *port) {
     }
   }
   bridge_list_t *bridge = port->br;
-  snprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
+  ssnprintf(devname, sizeof(devname), "%s.%s", bridge->name, port->name);
   ovs_stats_submit_one(devname, "if_collisions", NULL,
                        ovs_stats_get_port_stat_value(port, collisions), meta);
   ovs_stats_submit_two(devname, "if_dropped", NULL,
@@ -860,7 +862,7 @@ static int ovs_stats_update_port(const char *uuid, yajl_val port) {
 
     // ifaces_list is [[ "uuid", "<some_uuid>" ], [ "uuid",
     // "<another_uuid>" ], ... ]]
-    for (int i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
+    for (size_t i = 0; i < YAJL_GET_ARRAY(ifaces_list)->len; i++) {
       yajl_val iface_tuple = YAJL_GET_ARRAY(ifaces_list)->values[i];
 
       // iface_tuple is [ "uuid", "<some_uuid>" ]

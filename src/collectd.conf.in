@@ -102,6 +102,8 @@
 #@BUILD_PLUGIN_CEPH_TRUE@LoadPlugin ceph
 #@BUILD_PLUGIN_CGROUPS_TRUE@LoadPlugin cgroups
 #@BUILD_PLUGIN_CHRONY_TRUE@LoadPlugin chrony
+#@BUILD_PLUGIN_CHECK_UPTIME_TRUE@LoadPlugin check_uptime
+#@BUILD_PLUGIN_CONNECTIVITY_TRUE@LoadPlugin connectivity
 #@BUILD_PLUGIN_CONNTRACK_TRUE@LoadPlugin conntrack
 #@BUILD_PLUGIN_CONTEXTSWITCH_TRUE@LoadPlugin contextswitch
 @BUILD_PLUGIN_CPU_TRUE@@BUILD_PLUGIN_CPU_TRUE@LoadPlugin cpu
@@ -142,7 +144,6 @@
 @BUILD_PLUGIN_LOAD_TRUE@@BUILD_PLUGIN_LOAD_TRUE@LoadPlugin load
 #@BUILD_PLUGIN_LPAR_TRUE@LoadPlugin lpar
 #@BUILD_PLUGIN_LUA_TRUE@LoadPlugin lua
-#@BUILD_PLUGIN_LVM_TRUE@LoadPlugin lvm
 #@BUILD_PLUGIN_MADWIFI_TRUE@LoadPlugin madwifi
 #@BUILD_PLUGIN_MBMON_TRUE@LoadPlugin mbmon
 #@BUILD_PLUGIN_MCELOG_TRUE@LoadPlugin mcelog
@@ -180,6 +181,7 @@
 #@BUILD_PLUGIN_POSTGRESQL_TRUE@LoadPlugin postgresql
 #@BUILD_PLUGIN_POWERDNS_TRUE@LoadPlugin powerdns
 #@BUILD_PLUGIN_PROCESSES_TRUE@LoadPlugin processes
+#@BUILD_PLUGIN_PROCEVENT_TRUE@LoadPlugin procevent
 #@BUILD_PLUGIN_PROTOCOLS_TRUE@LoadPlugin protocols
 #@BUILD_PLUGIN_PYTHON_TRUE@LoadPlugin python
 #@BUILD_PLUGIN_REDFISH_TRUE@LoadPlugin redfish
@@ -195,6 +197,7 @@
 #@BUILD_PLUGIN_SNMP_AGENT_TRUE@LoadPlugin snmp_agent
 #@BUILD_PLUGIN_STATSD_TRUE@LoadPlugin statsd
 #@BUILD_PLUGIN_SWAP_TRUE@LoadPlugin swap
+#@BUILD_PLUGIN_SYSEVENT_TRUE@LoadPlugin sysevent
 #@BUILD_PLUGIN_TABLE_TRUE@LoadPlugin table
 #@BUILD_PLUGIN_TAIL_TRUE@LoadPlugin tail
 #@BUILD_PLUGIN_TAIL_CSV_TRUE@LoadPlugin tail_csv
@@ -224,6 +227,7 @@
 #@BUILD_PLUGIN_WRITE_RIEMANN_TRUE@LoadPlugin write_riemann
 #@BUILD_PLUGIN_WRITE_SENSU_TRUE@LoadPlugin write_sensu
 #@BUILD_PLUGIN_WRITE_STACKDRIVER_TRUE@LoadPlugin write_stackdriver
+#@BUILD_PLUGIN_WRITE_SYSLOG_TRUE@LoadPlugin write_syslog
 #@BUILD_PLUGIN_WRITE_TSDB_TRUE@LoadPlugin write_tsdb
 #@BUILD_PLUGIN_XENCPU_TRUE@LoadPlugin xencpu
 #@BUILD_PLUGIN_XMMS_TRUE@LoadPlugin xmms
@@ -382,6 +386,10 @@
 #	Timeout "2"
 #</Plugin>
 
+#<Plugin connectivity>
+#  Interface eth0
+#</Plugin>
+
 #<Plugin cgroups>
 #  CGroup "libvirt"
 #  IgnoreSelected false
@@ -404,6 +412,7 @@
 #<Plugin curl>
 #  <Page "stock_quotes">
 #    URL "http://finance.google.com/finance?q=NYSE%3AAMD"
+#    AddressFamily "any"
 #    User "foo"
 #    Password "bar"
 #    Digest false
@@ -426,6 +435,7 @@
 
 #<Plugin curl_json>
 #  <URL "http://localhost:80/test.json">
+#    AddressFamily "any"
 #    Instance "test_http_json"
 #    <Key "testArray/0">
 #      Type "gauge"
@@ -462,6 +472,7 @@
 # }
 ## See: http://wiki.apache.org/couchdb/Runtime_Statistics
 #  <URL "http://localhost:5984/_stats">
+#    AddressFamily "ipv4"
 #    Instance "httpd"
 #    <Key "httpd/requests/count">
 #      Type "http_requests"
@@ -477,6 +488,7 @@
 #  </URL>
 ## Database status metrics:
 #  <URL "http://localhost:5984/_all_dbs">
+#    AddressFamily "ipv6"
 #    Instance "dbs"
 #    <Key "*/doc_count">
 #      Type "gauge"
@@ -492,6 +504,7 @@
 
 #<Plugin curl_xml>
 #  <URL "http://localhost/stats.xml">
+#    AddressFamily "any"
 #    Host "my_host"
 #    #Plugin "stats"
 #    Instance "some_instance"
@@ -704,6 +717,7 @@
 
 #<Plugin "intel_rdt">
 #  Cores "0-2"
+#  Processes "sshd"
 #</Plugin>
 
 #<Plugin interface>
@@ -1264,6 +1278,12 @@
 #	</Process>
 #</Plugin>
 
+#<Plugin "procevent">
+#  BufferLength 10
+#  ProcessRegex "/^ovs.*$/" 
+#  Process tuned
+#</Plugin>
+
 #<Plugin protocols>
 #	Value "/^Tcp:/"
 #	IgnoreSelected false
@@ -1433,6 +1453,7 @@
 #       Version 2
 #       Community "another_string"
 #       Collect "std_traffic" "hr_users"
+#       BulkSize 0
 #   </Host>
 #   <Host "some.ups.mydomain.org">
 #       Address "192.168.0.3"
@@ -1442,6 +1463,15 @@
 #       Interval 300
 # 	Timeout 5
 #	Retries 5
+#   </Host>
+#   <Host "highend.switch.example.org">
+#       Address "192.168.0.3"
+#       Version 2
+#       Community "another_string"
+#       Collect "std_traffic"
+#       Interval 10
+#       Timeout 10
+#       BulkSize 100
 #   </Host>
 #</Plugin>
 
@@ -1494,6 +1524,13 @@
 #	ValuesAbsolute true
 #	ValuesPercentage false
 #	ReportIO true
+#</Plugin>
+
+#<Plugin sysevent>
+#       Listen "127.0.0.1" "6666"
+#       BufferSize 1024
+#       BufferLength 10
+#       RegexFilter "regex"
 #</Plugin>
 
 #<Plugin table>
@@ -1715,7 +1752,7 @@
 #	InterfaceFormat name
 #	PluginInstanceFormat name
 #	Instances 1
-#	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpupin"
+#	ExtraStats "cpu_util disk disk_err domain_state fs_info job_stats_background pcpu perf vcpu vcpupin disk_physical disk_allocation disk_capacity memory"
 #	PersistentNotification false
 #</Plugin>
 
@@ -1738,6 +1775,7 @@
 #    SeparateInstances false
 #    PreserveSeparator false
 #    DropDuplicateFields false
+#    ReverseHost false
 #  </Node>
 #</Plugin>
 
@@ -1844,6 +1882,18 @@
 #    Label "project_id" "gcp-project-id"
 #  </Resource>
 #  Url "https://monitoring.googleapis.com/v3"
+#</Plugin>
+
+#<Plugin write_syslog>
+#	<Node>
+#		Host "localhost"
+#		Port "44514"
+#		Prefix "collectd"
+#		MessageFormat "human"
+#		HostTags ""
+#		StoreRates false
+#		AlwaysAppendDS false
+#	</Node>
 #</Plugin>
 
 #<Plugin write_tsdb>

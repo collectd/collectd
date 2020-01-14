@@ -23,7 +23,7 @@
  * Authors:
  *   Florian octo Forster <octo at collectd.org>
  *   Niki W. Waibel <niki.waibel@gmx.net>
-**/
+ **/
 
 #ifndef COMMON_H
 #define COMMON_H
@@ -65,6 +65,9 @@ struct value_to_rate_state_s {
 typedef struct value_to_rate_state_s value_to_rate_state_t;
 
 char *sstrncpy(char *dest, const char *src, size_t n);
+
+__attribute__((format(printf, 3, 4))) int ssnprintf(char *str, size_t size,
+                                                    char const *format, ...);
 
 __attribute__((format(printf, 1, 2))) char *ssnprintf_alloc(char const *format,
                                                             ...);
@@ -353,7 +356,11 @@ typedef int (*dirwalk_callback_f)(const char *dirname, const char *filename,
 int walk_directory(const char *dir, dirwalk_callback_f callback,
                    void *user_data, int hidden);
 /* Returns the number of bytes read or negative on error. */
-ssize_t read_file_contents(char const *filename, char *buf, size_t bufsize);
+ssize_t read_file_contents(char const *filename, void *buf, size_t bufsize);
+/* Writes the contents of the file into the buffer with a trailing NUL.
+ * Returns the number of bytes written to the buffer or negative on error. */
+ssize_t read_text_file_contents(char const *filename, char *buf,
+                                size_t bufsize);
 
 counter_t counter_diff(counter_t old_value, counter_t new_value);
 
