@@ -1107,8 +1107,8 @@ static void plugin_set_first_read_time(read_func_t *rf) {
     static bool align_error = true;
 
     if (align_error) {
-      ERROR("AlignRead has to be smaller than Interval (%.3lf >= %d)!",
-           alignRead, (int)rf->rf_interval);
+      ERROR("AlignRead has to be smaller than Interval (%.3lf >= %ld)!",
+            alignRead, CDTIME_T_TO_TIME_T(rf->rf_interval));
       align_error = false;
     }
 
@@ -1146,8 +1146,8 @@ static void plugin_set_first_read_time(read_func_t *rf) {
 
   /* put current minutes, seconds and fractions of a second in a microseconds
    * value (with stripped hours, days, etc.) */
-  uint64_t now_us =
-      (uint64_t)(now_tm->tm_min * 60 + now_tm->tm_sec) * 1000000 + now_tv.tv_usec;
+  uint64_t now_us = (uint64_t)(now_tm->tm_min * 60 + now_tm->tm_sec) * 1000000 +
+                    now_tv.tv_usec;
 
   /* determine the minimum delay until next (aligned) read */
   int64_t sleep_cdt = DOUBLE_TO_CDTIME_T(alignRead) - US_TO_CDTIME_T(now_us);
