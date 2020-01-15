@@ -1131,7 +1131,7 @@ static void plugin_set_first_read_time(read_func_t *rf) {
     if (align_error) {
       ERROR("Seconds and minutes of AlignRead and Interval have to be perfect "
             "divisors of 60 to perserve alignment.");
-      align_error = true;
+      align_error = false;
     }
 
     rf->rf_next_read = cdtime();
