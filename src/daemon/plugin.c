@@ -578,10 +578,16 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
 
     /* Check, if `rf_next_read' is in the past. */
     if (rf->rf_next_read < now) {
-      /* `rf_next_read' is in the past. Insert `now'
-       * so this value doesn't trail off into the
-       * past too much. */
-      rf->rf_next_read = now;
+      if (rf->rf_ctx.align_read < 0) {
+        /* `rf_next_read' is in the past. Insert `now' so this value doesn't
+         * trail off into the past too much. */
+        rf->rf_next_read = now;
+      } else {
+        /* ensure read alignment, if enabled */
+        while (rf->rf_next_read < now) {
+          rf->rf_next_read += rf->rf_interval;
+        }
+      }
     }
 
     DEBUG("plugin_read_thread: Next read of the `%s' plugin at %.3f.",
@@ -1085,48 +1091,78 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
  * The AlignRead value is in seconds. The value modulo 60 determines the second
  * of a minute. The integer part of the value divided by 60 determines the
  * minute of an hour. Optionally, decimal places can be used to set the
- * fraction of a second (up to milliseconds precision).
+ * fraction of a second (up to microseconds precision).
  */
 static void plugin_set_first_read_time(read_func_t *rf) {
+  double alignRead = rf->rf_ctx.align_read; /* (default is -1.0) */
 
-  double start = rf->rf_ctx.align_read; /* (default is -1.0) */
-
-  /* if AlignRead is not set, start reading immediately */
-  if (start < 0) {
+  /* If AlignRead is not set, start reading immediately. */
+  if (alignRead < 0) {
     rf->rf_next_read = cdtime();
-  } else {
-    cdtime_t now = cdtime();
-
-    /* get minute in hour and second in minute and millisecond in second */
-    struct timeval tv = CDTIME_T_TO_TIMEVAL(now);
-    uint64_t curr_msec =
-        (((tv.tv_sec / 60) % 60) * 60 // minute of hour in seconds
-         + gmtime(&(tv.tv_sec))->tm_sec) *
-            1000             // add seconds of minute and convert to ms
-        + tv.tv_usec / 1000; // add millisecond of second
-
-    /* DEBUG("%s: current time: %lu sec, %lu ms in minute, start time: %.3lf,
-    interval: %lu", rf->rf_name, tv.tv_sec, curr_msec, start,
-    CDTIME_T_TO_MS(rf->rf_interval)); */
-
-    /* determine delay until next (aligned) read */
-    int64_t sleep_cdt = DOUBLE_TO_CDTIME_T(start) - MS_TO_CDTIME_T(curr_msec);
-    while (sleep_cdt < 0) {
-      sleep_cdt += rf->rf_interval;
-    }
-
-    /* set the next read time */
-    if (sleep_cdt > 0) {
-      rf->rf_next_read = now + sleep_cdt;
-
-      DEBUG("%s plugin: wait %.3fs before first read at %ld.%03ds since epoche",
-            rf->rf_name, CDTIME_T_TO_DOUBLE(sleep_cdt),
-            (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
-            (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec / 1000));
-    } else {
-      rf->rf_next_read = cdtime();
-    }
+    return;
   }
+
+  /* AlignRead values greater than Interval do not make sense. */
+  if (alignRead >= rf->rf_interval) {
+    static bool align_error = true;
+
+    if (align_error) {
+      ERROR("AlignRead has to be smaller than Interval (%.3lf >= %d)!",
+           alignRead, (int)rf->rf_interval);
+      align_error = false;
+    }
+
+    rf->rf_next_read = cdtime();
+    return;
+  }
+
+  /* Seconds and minutes of Interval and AlignRead have to be perfect divisors
+   * of 60. Otherwise to perserve alignment. */
+  int sec_interval = CDTIME_T_TO_TIME_T(rf->rf_interval) % 60;
+  int sec_align = (long)alignRead % 60;
+  int min_interval = CDTIME_T_TO_TIME_T(rf->rf_interval) / 60;
+  int min_align = (int)(alignRead / 60);
+  if ((sec_interval > 0 && 60 % sec_interval != 0) ||
+      (sec_align > 0 && 60 % sec_align != 0) ||
+      (min_interval > 0 && 60 % min_interval != 0) ||
+      (min_align > 0 && 60 % min_align != 0)) {
+    static bool align_error = true;
+
+    if (align_error) {
+      ERROR("Seconds and minutes of AlignRead and Interval have to be perfect "
+            "divisors of 60 to perserve alignment.");
+      align_error = true;
+    }
+
+    rf->rf_next_read = cdtime();
+    return;
+  }
+
+  /* get minutes in current hour and seconds in current minute */
+  cdtime_t now = cdtime();
+  struct timeval now_tv = CDTIME_T_TO_TIMEVAL(now);
+  struct tm *now_tm;
+  now_tm = localtime(&now_tv.tv_sec);
+
+  /* put current minutes, seconds and fractions of a second in a microseconds
+   * value (with stripped hours, days, etc.) */
+  uint64_t now_us =
+      (uint64_t)(now_tm->tm_min * 60 + now_tm->tm_sec) * 1000000 + now_tv.tv_usec;
+
+  /* determine the minimum delay until next (aligned) read */
+  int64_t sleep_cdt = DOUBLE_TO_CDTIME_T(alignRead) - US_TO_CDTIME_T(now_us);
+  if (sleep_cdt < 0) {
+    sleep_cdt +=
+        rf->rf_interval * ceil((double)(-sleep_cdt) / (double)rf->rf_interval);
+  }
+
+  /* set the next read time */
+  rf->rf_next_read = now + sleep_cdt;
+
+  DEBUG("%s plugin: wait %.3fs before first read at %ld.%06ds since epoche",
+        rf->rf_name, CDTIME_T_TO_DOUBLE(sleep_cdt),
+        (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
+        (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec));
 } /* void plugin_set_first_read_time */
 
 /* Add a read function to both, the heap and a linked list. The linked list if
