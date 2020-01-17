@@ -802,7 +802,8 @@ static void redfish_process_payload_property(const redfish_property_t *prop,
     if (ds == NULL)
       continue;
 
-    v1.values = &(value_t){0};
+    value_t tmp = {0};
+    v1.values = &tmp;
     redfish_convert_val(&value, type, v1.values, ds->ds[0].type);
 
     sstrncpy(v1.host, serv->name, sizeof(v1.host));
