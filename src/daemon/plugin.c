@@ -122,6 +122,11 @@ static char *plugindir;
 #ifndef DEFAULT_MAX_READ_INTERVAL
 #define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T_STATIC(86400)
 #endif
+
+#ifndef DEFAULT_ALIGN_READ /* no alignment */
+#define DEFAULT_ALIGN_READ TIME_T_TO_CDTIME_T_STATIC(CDTIME_MAX)
+#endif
+
 static c_heap_t *read_heap;
 static llist_t *read_list;
 static int read_loop = 1;
@@ -130,6 +135,7 @@ static pthread_cond_t read_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t *read_threads;
 static size_t read_threads_num;
 static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
+static cdtime_t align_read = DEFAULT_ALIGN_READ;
 
 static write_queue_t *write_queue_head;
 static write_queue_t *write_queue_tail;
@@ -260,6 +266,27 @@ static void destroy_read_heap(void) /* {{{ */
   c_heap_destroy(read_heap);
   read_heap = NULL;
 } /* }}} void destroy_read_heap */
+
+static bool compliesReadAlign(cdtime_t value) /* {{{ */
+{
+  int seconds_in_minute = CDTIME_T_TO_TIME_T(value) % 60;
+  int minutes_in_hour = (CDTIME_T_TO_TIME_T(value) / 60) % 60;
+  if ((seconds_in_minute > 0 && 60 % seconds_in_minute != 0) ||
+      (minutes_in_hour > 0 && 60 % minutes_in_hour != 0)) {
+    static bool align_error = true;
+    if (align_error) {
+      INFO(
+          "Seconds and minutes of AlignRead, Interval and MaxReadInterval have "
+          "to be perfect divisors of 60 to perserve alignment. (%.3lf is not)",
+          CDTIME_T_TO_DOUBLE(value));
+      align_error = false;
+    }
+
+    return false;
+  } else {
+    return true;
+  }
+} /* }}} bool compliesReadAlign */
 
 static int register_callback(llist_t **list, /* {{{ */
                              const char *name, callback_func_t *cf) {
@@ -583,7 +610,8 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
          * trail off into the past too much. */
         rf->rf_next_read = now;
       } else {
-        /* ensure read alignment, if enabled */
+        /* The previous read was still aligned. Increase `rf_next_read' by a
+         * multiple of interval to ensure alignment of next read. */
         while (rf->rf_next_read < now) {
           rf->rf_next_read += rf->rf_interval;
         }
@@ -1091,24 +1119,25 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
  * The AlignRead value is in seconds. The value modulo 60 determines the second
  * of a minute. The integer part of the value divided by 60 determines the
  * minute of an hour. Optionally, decimal places can be used to set the
- * fraction of a second (up to microseconds precision).
+ * fraction of a second.
  */
 static void plugin_set_first_read_time(read_func_t *rf) {
-  double alignRead = rf->rf_ctx.align_read; /* (default is -1.0) */
+  cdtime_t align_read = rf->rf_ctx.align_read;
 
-  /* If AlignRead is not set, start reading immediately. */
-  if (alignRead < 0) {
+  /* If AlignRead is not set (default), start reading immediately. */
+  if (align_read == DEFAULT_ALIGN_READ) {
     rf->rf_next_read = cdtime();
     return;
   }
 
   /* AlignRead values greater than Interval do not make sense. */
-  if (alignRead >= rf->rf_interval) {
+  if (align_read >= rf->rf_interval) {
     static bool align_error = true;
 
     if (align_error) {
-      ERROR("AlignRead has to be smaller than Interval (%.3lf >= %ld)!",
-            alignRead, CDTIME_T_TO_TIME_T(rf->rf_interval));
+      ERROR("AlignRead has to be smaller than Interval (%.3lf >= %.3lf)!",
+            CDTIME_T_TO_DOUBLE(align_read),
+            CDTIME_T_TO_DOUBLE(rf->rf_interval));
       align_error = false;
     }
 
@@ -1116,21 +1145,11 @@ static void plugin_set_first_read_time(read_func_t *rf) {
     return;
   }
 
-  /* Seconds and minutes of Interval and AlignRead have to be perfect divisors
-   * of 60. Otherwise to perserve alignment. */
-  int sec_interval = CDTIME_T_TO_TIME_T(rf->rf_interval) % 60;
-  int sec_align = (long)alignRead % 60;
-  int min_interval = CDTIME_T_TO_TIME_T(rf->rf_interval) / 60;
-  int min_align = (int)(alignRead / 60);
-  if ((sec_interval > 0 && 60 % sec_interval != 0) ||
-      (sec_align > 0 && 60 % sec_align != 0) ||
-      (min_interval > 0 && 60 % min_interval != 0) ||
-      (min_align > 0 && 60 % min_align != 0)) {
+  /* Ignore AlignRead for invalid Interval and AlignRead values. */
+  if (!compliesReadAlign(rf->rf_interval) || !compliesReadAlign(align_read)) {
     static bool align_error = true;
-
     if (align_error) {
-      ERROR("Seconds and minutes of AlignRead and Interval have to be perfect "
-            "divisors of 60 to perserve alignment.");
+      WARNING("Ignore read alignment.");
       align_error = false;
     }
 
@@ -1138,29 +1157,41 @@ static void plugin_set_first_read_time(read_func_t *rf) {
     return;
   }
 
-  /* get minutes in current hour and seconds in current minute */
   cdtime_t now = cdtime();
+
+  /* Determine time since start of current hour (with stripped hours, days,
+   * etc.) */
   struct timeval now_tv = CDTIME_T_TO_TIMEVAL(now);
-  struct tm *now_tm;
-  now_tm = localtime(&now_tv.tv_sec);
+  struct tm *now_tm = localtime(&now_tv.tv_sec);
+  cdtime_t time_since_hour_start = US_TO_CDTIME_T(
+      (uint64_t)(now_tm->tm_min * 60 + now_tm->tm_sec) * 1000000 +
+      now_tv.tv_usec);
 
-  /* put current minutes, seconds and fractions of a second in a microseconds
-   * value (with stripped hours, days, etc.) */
-  uint64_t now_us = (uint64_t)(now_tm->tm_min * 60 + now_tm->tm_sec) * 1000000 +
-                    now_tv.tv_usec;
+  /* if alignment point in current hour is in the past */
+  if (time_since_hour_start > align_read) {
+    /* time between hour start and alignment point of current hour */
+    cdtime_t diff = time_since_hour_start - align_read;
 
-  /* determine the minimum delay until next (aligned) read */
-  int64_t sleep_cdt = DOUBLE_TO_CDTIME_T(alignRead) - US_TO_CDTIME_T(now_us);
-  if (sleep_cdt < 0) {
-    sleep_cdt +=
-        rf->rf_interval * ceil((double)(-sleep_cdt) / (double)rf->rf_interval);
+    /* determine no. of intervals that have to be added to the alignment
+     * point until it is in the future (compiler should fuse the division
+     * operations) */
+    uint64_t factor = diff / rf->rf_interval;
+    uint64_t remain = diff % rf->rf_interval;
+    if (remain > 0)
+      factor++;
+
+    /* set the next read to the alignment point in the current hour increased by
+     * the number of intervals needed to be in the future */
+    rf->rf_next_read =
+        now - time_since_hour_start + align_read + rf->rf_interval * factor;
+  } else {
+    /* alignment point is in the future, thus, add the alignment time to the
+     * "start of hour" time (now - time_since_hour_start) */
+    rf->rf_next_read = now - time_since_hour_start + align_read;
   }
-
-  /* set the next read time */
-  rf->rf_next_read = now + sleep_cdt;
 
   DEBUG("%s plugin: wait %.3fs before first read at %ld.%06ds since epoche",
-        rf->rf_name, CDTIME_T_TO_DOUBLE(sleep_cdt),
+        rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_next_read - now),
         (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
         (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec));
 } /* void plugin_set_first_read_time */
@@ -1714,6 +1745,25 @@ EXPORT int plugin_init_all(void) {
 
   max_read_interval =
       global_option_get_time("MaxReadInterval", DEFAULT_MAX_READ_INTERVAL);
+
+  align_read = global_option_get_time("AlignRead", DEFAULT_ALIGN_READ);
+  if (align_read != DEFAULT_ALIGN_READ) {
+    /* make sure that MaxReadInterval does not brake read alignment */
+    if (!compliesReadAlign(max_read_interval)) {
+      WARNING("MaxReadInterval (%.3lf) might brake alignment. Fall back to "
+              "default: %lu",
+              CDTIME_T_TO_DOUBLE(max_read_interval),
+              CDTIME_T_TO_TIME_T(DEFAULT_MAX_READ_INTERVAL));
+      max_read_interval = DEFAULT_MAX_READ_INTERVAL;
+    }
+
+    /* Check global ReadAlign value for compliance. */
+    if (!compliesReadAlign(align_read)) {
+      WARNING("Ignore global AlignRead value (%.3lf).",
+              CDTIME_T_TO_DOUBLE(align_read));
+      align_read = DEFAULT_ALIGN_READ;
+    }
+  }
 
   /* Start read-threads */
   if (read_heap != NULL) {

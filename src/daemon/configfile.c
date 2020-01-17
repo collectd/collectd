@@ -299,7 +299,7 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
     if (strcasecmp("Globals", child->key) == 0)
       cf_util_get_boolean(child, &global);
     else if (strcasecmp("AlignRead", child->key) == 0)
-      cf_util_get_double(child, &ctx.align_read);
+      cf_util_get_cdtime(child, &ctx.align_read);
     else if (strcasecmp("Interval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.interval);
     else if (strcasecmp("FlushInterval", child->key) == 0)
