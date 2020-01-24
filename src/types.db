@@ -240,6 +240,7 @@ snr                     value:GAUGE:0:U
 spam_check              value:GAUGE:0:U
 spam_score              value:GAUGE:U:U
 spl                     value:GAUGE:U:U
+stations                value:GAUGE:0:256
 swap                    value:GAUGE:0:1099511627776
 swap_io                 value:DERIVE:0:U
 sysevent                value:GAUGE:0:1
