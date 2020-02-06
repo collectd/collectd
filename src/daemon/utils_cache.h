@@ -118,6 +118,8 @@ int uc_iterator_get_meta(uc_iter_t *iter, meta_data_t **ret_meta);
  */
 int uc_meta_data_exists(const value_list_t *vl, const char *key);
 int uc_meta_data_delete(const value_list_t *vl, const char *key);
+/* Same API as meta_data_toc. */
+int uc_meta_data_toc(const value_list_t *vl, char ***toc);
 
 int uc_meta_data_add_string(const value_list_t *vl, const char *key,
                             const char *value);
