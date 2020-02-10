@@ -224,7 +224,6 @@ static int ipstats_read(void) {
     return -1;
   }
 
-  WARNING("ipstats plugin submitting values");
   ipstats_submit(&ipstat, &ip6stat);
 #endif
 
