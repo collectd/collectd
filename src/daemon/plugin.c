@@ -1113,7 +1113,8 @@ static bool rf_check_align_recurs(const double align_read, cdtime_t interval) {
       }
     }
 
-    /* if alignment is only to fractions of a second, an Interval with full seconds is valid */
+    /* if alignment is only to fractions of a second, an Interval with full
+     * seconds is valid */
     if (align_read < 1 && (interval % onesecond == 0)) {
       return true;
     }
@@ -1128,7 +1129,7 @@ static bool rf_check_align_recurs(const double align_read, cdtime_t interval) {
       if (oneminute % interval != 0) { /* interval has to perfectly divide 60 */
         return false;
       }
-    } else { /* Interval has minutes portion (>=60) */
+    } else {                         /* Interval has minutes portion (>=60) */
       if (onehour % interval != 0) { /* interval has to perfectly divide 1h */
         return false;
       }
