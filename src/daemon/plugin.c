@@ -123,10 +123,6 @@ static char *plugindir;
 #define DEFAULT_MAX_READ_INTERVAL TIME_T_TO_CDTIME_T_STATIC(86400)
 #endif
 
-#ifndef DEFAULT_ALIGN_READ /* no alignment */
-#define DEFAULT_ALIGN_READ TIME_T_TO_CDTIME_T_STATIC(CDTIME_MAX)
-#endif
-
 static c_heap_t *read_heap;
 static llist_t *read_list;
 static int read_loop = 1;
@@ -135,7 +131,7 @@ static pthread_cond_t read_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t *read_threads;
 static size_t read_threads_num;
 static cdtime_t max_read_interval = DEFAULT_MAX_READ_INTERVAL;
-static cdtime_t align_read = DEFAULT_ALIGN_READ;
+static double max_align_read = NO_ALIGN_READ;
 
 static write_queue_t *write_queue_head;
 static write_queue_t *write_queue_tail;
@@ -266,27 +262,6 @@ static void destroy_read_heap(void) /* {{{ */
   c_heap_destroy(read_heap);
   read_heap = NULL;
 } /* }}} void destroy_read_heap */
-
-static bool compliesReadAlign(cdtime_t value) /* {{{ */
-{
-  int seconds_in_minute = CDTIME_T_TO_TIME_T(value) % 60;
-  int minutes_in_hour = (CDTIME_T_TO_TIME_T(value) / 60) % 60;
-  if ((seconds_in_minute > 0 && 60 % seconds_in_minute != 0) ||
-      (minutes_in_hour > 0 && 60 % minutes_in_hour != 0)) {
-    static bool align_error = true;
-    if (align_error) {
-      INFO(
-          "Seconds and minutes of AlignRead, Interval and MaxReadInterval have "
-          "to be perfect divisors of 60 to perserve alignment. (%.3lf is not)",
-          CDTIME_T_TO_DOUBLE(value));
-      align_error = false;
-    }
-
-    return false;
-  } else {
-    return true;
-  }
-} /* }}} bool compliesReadAlign */
 
 static int register_callback(llist_t **list, /* {{{ */
                              const char *name, callback_func_t *cf) {
@@ -605,7 +580,7 @@ static void *plugin_read_thread(void __attribute__((unused)) * args) {
 
     /* Check, if `rf_next_read' is in the past. */
     if (rf->rf_next_read < now) {
-      if (rf->rf_ctx.align_read < 0) {
+      if (rf->rf_ctx.align_read == NO_ALIGN_READ) {
         /* `rf_next_read' is in the past. Insert `now' so this value doesn't
          * trail off into the past too much. */
         rf->rf_next_read = now;
@@ -1113,54 +1088,114 @@ static int plugin_compare_read_func(const void *arg0, const void *arg1) {
 } /* int plugin_compare_read_func */
 
 /*
+ * Check if the read alignment recurs for the given AlignRead and Interval.
+ * Return true, if alignment is recurring (and false otherwise).
+ */
+static bool rf_check_align_recurs(const double align_read, cdtime_t interval) {
+  const cdtime_t onehour = TIME_T_TO_CDTIME_T(3600);
+  const cdtime_t oneminute = TIME_T_TO_CDTIME_T(60);
+  const cdtime_t onesecond = TIME_T_TO_CDTIME_T(1);
+
+  if (interval >= onesecond) {
+    /* if Interval is in the range of hours */
+    if (interval >= onehour) {
+      /* strip hours as they do not affect the alignment */
+      interval = interval % onehour;
+
+      /* if Interval specifies full hours, read alignment is preserved */
+      if (interval == 0) {
+        return true;
+      }
+
+      /* Interval with stripped hours has to be larger than AlignRead */
+      if (DOUBLE_TO_CDTIME_T(align_read) >= interval) {
+        return false;
+      }
+    }
+
+    /* if alignment is only to fractions of a second, an Interval with full seconds is valid */
+    if (align_read < 1 && (interval % onesecond == 0)) {
+      return true;
+    }
+
+    /* if alignment is to seconds, an Interval with full minutes is valid */
+    if (align_read < 60 && (interval % oneminute == 0)) {
+      return true;
+    }
+
+    /* if Interval and AlignRead are less than minute (Interval > AlignRead) */
+    if (interval < oneminute) {
+      if (oneminute % interval != 0) { /* interval has to perfectly divide 60 */
+        return false;
+      }
+    } else { /* Interval has minutes portion (>=60) */
+      if (onehour % interval != 0) { /* interval has to perfectly divide 1h */
+        return false;
+      }
+    }
+  } else { /* AlignRead and Interval have only fractions of seconds */
+    /* Interval fraction of a second has to perfectly divide 1000000000 (ns) */
+    if (1000000000 % CDTIME_T_TO_NS(interval) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+} /* bool rf_check_align_recurs */
+
+/*
  * Set the time of the first read according to the settings AlignRead and
- * Interval in collectd.conf.
+ * Interval. The function is called from plugin_register[_complex]_read() via
+ * plugin_insert_read(). As complex read callbacks can specify an interval, we
+ * cannot perform alignment/interval compliance checks before.
  *
  * The AlignRead value is in seconds. The value modulo 60 determines the second
  * of a minute. The integer part of the value divided by 60 determines the
  * minute of an hour. Optionally, decimal places can be used to set the
  * fraction of a second.
  */
-static void plugin_set_first_read_time(read_func_t *rf) {
-  cdtime_t align_read = rf->rf_ctx.align_read;
-
-  /* If AlignRead is not set (default), start reading immediately. */
-  if (align_read == DEFAULT_ALIGN_READ) {
+static void rf_set_first_read_time(read_func_t *rf) {
+  /* if read alignment is disabled, start reading immediately. */
+  if (rf->rf_ctx.align_read == NO_ALIGN_READ) {
     rf->rf_next_read = cdtime();
     return;
   }
 
-  /* AlignRead values greater than Interval do not make sense. */
-  if (align_read >= rf->rf_interval) {
-    static bool align_error = true;
+  cdtime_t align_read = DOUBLE_TO_CDTIME_T(rf->rf_ctx.align_read);
+  cdtime_t interval = rf->rf_interval;
 
-    if (align_error) {
-      ERROR("AlignRead has to be smaller than Interval (%.3lf >= %.3lf)!",
-            CDTIME_T_TO_DOUBLE(align_read),
-            CDTIME_T_TO_DOUBLE(rf->rf_interval));
-      align_error = false;
+  /* AlignRead values greater than or equal to Interval do not make sense. */
+  if (align_read >= interval) {
+    static bool print_align_warning = true; /* print warning only once */
+
+    if (print_align_warning) {
+      WARNING("AlignRead has to be smaller than Interval!");
+      print_align_warning = false;
     }
 
-    rf->rf_next_read = cdtime();
-    return;
-  }
-
-  /* Ignore AlignRead for invalid Interval and AlignRead values. */
-  if (!compliesReadAlign(rf->rf_interval) || !compliesReadAlign(align_read)) {
-    static bool align_error = true;
-    if (align_error) {
-      WARNING("Ignore read alignment.");
-      align_error = false;
-    }
+    WARNING("Plugin '%s': Ignoring AlignRead option for '%s'. (%.3lf >= %.3lf)",
+            rf->rf_ctx.name, rf->rf_name, rf->rf_ctx.align_read,
+            CDTIME_T_TO_DOUBLE(interval));
 
     rf->rf_next_read = cdtime();
     return;
   }
 
-  cdtime_t now = cdtime();
+  if (!rf_check_align_recurs(rf->rf_ctx.align_read, interval)) {
+    WARNING("Plugin '%s': Ignoring AlignRead (%.3lf) for '%s' as alignment "
+            "will break over time with Interval %.3lf.",
+            rf->rf_ctx.name, rf->rf_ctx.align_read, rf->rf_name,
+            CDTIME_T_TO_DOUBLE(interval));
+
+    rf->rf_next_read = cdtime();
+    return;
+  } else if (rf->rf_ctx.align_read > max_align_read) {
+    max_align_read = rf->rf_ctx.align_read;
+  }
 
   /* Determine time since start of current hour (with stripped hours, days,
    * etc.) */
+  cdtime_t now = cdtime();
   struct timeval now_tv = CDTIME_T_TO_TIMEVAL(now);
   struct tm *now_tm = localtime(&now_tv.tv_sec);
   cdtime_t time_since_hour_start = US_TO_CDTIME_T(
@@ -1172,12 +1207,11 @@ static void plugin_set_first_read_time(read_func_t *rf) {
     /* time between hour start and alignment point of current hour */
     cdtime_t diff = time_since_hour_start - align_read;
 
-    /* determine no. of intervals that have to be added to the alignment
-     * point until it is in the future (compiler should fuse the division
-     * operations) */
+    /* determine no. of intervals that have to be added to the alignment point
+     * until it is in the future (compiler should fuse the division ops) */
     uint64_t factor = diff / rf->rf_interval;
-    uint64_t remain = diff % rf->rf_interval;
-    if (remain > 0)
+    uint64_t remainder = diff % rf->rf_interval;
+    if (remainder > 0)
       factor++;
 
     /* set the next read to the alignment point in the current hour increased by
@@ -1194,7 +1228,7 @@ static void plugin_set_first_read_time(read_func_t *rf) {
         rf->rf_name, CDTIME_T_TO_DOUBLE(rf->rf_next_read - now),
         (long int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_sec),
         (int)(CDTIME_T_TO_TIMEVAL(rf->rf_next_read).tv_usec));
-} /* void plugin_set_first_read_time */
+} /* void rf_set_first_read_time */
 
 /* Add a read function to both, the heap and a linked list. The linked list if
  * used to look-up read functions, especially for the remove function. The heap
@@ -1203,7 +1237,7 @@ static int plugin_insert_read(read_func_t *rf) {
   int status;
   llentry_t *le;
 
-  plugin_set_first_read_time(rf);
+  rf_set_first_read_time(rf);
 
   rf->rf_effective_interval = rf->rf_interval;
 
@@ -1279,7 +1313,6 @@ EXPORT int plugin_register_read(const char *name, int (*callback)(void)) {
   rf->rf_type = RF_SIMPLE;
   rf->rf_interval = plugin_get_interval();
   rf->rf_ctx.interval = rf->rf_interval;
-  rf->rf_ctx.align_read = plugin_get_align_read();
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -1323,7 +1356,6 @@ EXPORT int plugin_register_complex_read(const char *group, const char *name,
 
   rf->rf_ctx = plugin_get_ctx();
   rf->rf_ctx.interval = rf->rf_interval;
-  rf->rf_ctx.align_read = plugin_get_align_read();
 
   status = plugin_insert_read(rf);
   if (status != 0) {
@@ -1746,22 +1778,22 @@ EXPORT int plugin_init_all(void) {
   max_read_interval =
       global_option_get_time("MaxReadInterval", DEFAULT_MAX_READ_INTERVAL);
 
-  align_read = global_option_get_time("AlignRead", DEFAULT_ALIGN_READ);
-  if (align_read != DEFAULT_ALIGN_READ) {
-    /* make sure that MaxReadInterval does not brake read alignment */
-    if (!compliesReadAlign(max_read_interval)) {
-      WARNING("MaxReadInterval (%.3lf) might brake alignment. Fall back to "
-              "default: %lu",
-              CDTIME_T_TO_DOUBLE(max_read_interval),
-              CDTIME_T_TO_TIME_T(DEFAULT_MAX_READ_INTERVAL));
-      max_read_interval = DEFAULT_MAX_READ_INTERVAL;
+  /* The default MaxReadInterval is compliant with any AlignRead value. */
+  if (DEFAULT_MAX_READ_INTERVAL != max_read_interval) {
+    if (DOUBLE_TO_CDTIME_T(max_align_read) >= max_read_interval) {
+      WARNING("'MaxReadInterval' has to be greater than 'AlignRead'! (%.3lf >= "
+              "%.3lf)",
+              max_align_read, CDTIME_T_TO_DOUBLE(max_read_interval));
     }
 
-    /* Check global ReadAlign value for compliance. */
-    if (!compliesReadAlign(align_read)) {
-      WARNING("Ignore global AlignRead value (%.3lf).",
-              CDTIME_T_TO_DOUBLE(align_read));
-      align_read = DEFAULT_ALIGN_READ;
+    /* Check MaxReadInterval against AlignRead to minutes, seconds and fraction
+     * of seconds. */
+    if ((max_align_read >= 60 &&
+         !rf_check_align_recurs(max_align_read, max_read_interval)) ||
+        (max_align_read >= 1 && !rf_check_align_recurs(5, max_read_interval)) ||
+        !rf_check_align_recurs(0.5, max_read_interval)) {
+      WARNING("'MaxReadInterval' %.3lf might break read alignment!",
+              CDTIME_T_TO_DOUBLE(max_read_interval));
     }
   }
 
@@ -2684,15 +2716,6 @@ EXPORT cdtime_t plugin_get_interval(void) {
 
   return cf_get_default_interval();
 } /* cdtime_t plugin_get_interval */
-
-EXPORT double plugin_get_align_read(void) {
-  double align_read = plugin_get_ctx().align_read;
-
-  if (align_read >= 0)
-    return align_read;
-
-  return cf_get_default_align_read();
-} /* double plugin_get_align_read */
 
 typedef struct {
   plugin_ctx_t ctx;

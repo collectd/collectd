@@ -32,6 +32,10 @@
 #include "liboconfig/oconfig.h"
 #include "utils_time.h"
 
+#ifndef NO_ALIGN_READ
+#define NO_ALIGN_READ -1.0
+#endif
+
 /*
  * DESCRIPTION
  *  Remove a registered plugin from the internal data structures.
@@ -96,8 +100,6 @@ long global_option_get_long(const char *option, long default_value);
 cdtime_t global_option_get_time(char const *option, cdtime_t default_value);
 
 cdtime_t cf_get_default_interval(void);
-
-double cf_get_default_align_read(void);
 
 /* Assures the config option is a string, duplicates it and returns the copy in
  * "ret_string". If necessary "*ret_string" is freed first. Returns zero upon

@@ -89,6 +89,11 @@ static int dispatch_loadplugin(oconfig_item_t *ci);
 static int dispatch_block_plugin(oconfig_item_t *ci);
 
 /*
+ * Prototype of local functions.
+ */
+static double global_option_get_double(const char *name, double def);
+
+/*
  * Private variables
  */
 static cf_callback_t *first_callback;
@@ -284,9 +289,9 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
   if (strcmp("libvirt", name) == 0)
     name = "virt";
 
-  /* default to the global interval set before loading this plugin */
+  /* default to global AlignRead and Interval, set before loading this plugin */
   plugin_ctx_t ctx = {
-      .align_read = cf_get_default_align_read(),
+      .align_read = global_option_get_double("AlignRead", NO_ALIGN_READ),
       .interval = cf_get_default_interval(),
       .name = strdup(name),
   };
@@ -299,7 +304,7 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
     if (strcasecmp("Globals", child->key) == 0)
       cf_util_get_boolean(child, &global);
     else if (strcasecmp("AlignRead", child->key) == 0)
-      cf_util_get_cdtime(child, &ctx.align_read);
+      cf_util_get_double(child, &ctx.align_read);
     else if (strcasecmp("Interval", child->key) == 0)
       cf_util_get_cdtime(child, &ctx.interval);
     else if (strcasecmp("FlushInterval", child->key) == 0)
@@ -311,6 +316,18 @@ static int dispatch_loadplugin(oconfig_item_t *ci) {
               "for plugin \"%s\"",
               child->key, name);
     }
+  }
+
+  /* AlignRead values smaller than zero disable read alignment. */
+  if (ctx.align_read < 0) {
+    ctx.align_read = NO_ALIGN_READ;
+  }
+
+  if (ctx.align_read >= 3600) {
+    WARNING("configfile: Read alignment to hours is not supported. Ignoring "
+            "option for plugin \"%s\".",
+            name);
+    ctx.align_read = NO_ALIGN_READ;
   }
 
   plugin_ctx_t old_ctx = plugin_set_ctx(ctx);
@@ -910,7 +927,7 @@ long global_option_get_long(const char *option, long default_value) {
   return value;
 } /* char *global_option_get_long */
 
-double global_option_get_double(const char *name, double def) /* {{{ */
+static double global_option_get_double(const char *name, double def) /* {{{ */
 {
   char const *optstr;
   char *endptr = NULL;
@@ -923,8 +940,6 @@ double global_option_get_double(const char *name, double def) /* {{{ */
   errno = 0;
   v = (float)strtod(optstr, &endptr);
   if ((endptr == NULL) || (*endptr != 0) || (errno != 0))
-    return def;
-  else if (v <= 0.0)
     return def;
 
   return v;
@@ -953,10 +968,6 @@ cdtime_t global_option_get_time(const char *name, cdtime_t def) /* {{{ */
 cdtime_t cf_get_default_interval(void) {
   return global_option_get_time("Interval",
                                 DOUBLE_TO_CDTIME_T(COLLECTD_DEFAULT_INTERVAL));
-}
-
-double cf_get_default_align_read(void) {
-  return global_option_get_double("AlignRead", -1.0);
 }
 
 void cf_unregister(const char *type) {

@@ -110,8 +110,6 @@ extern cdtime_t cdtime_mock;
 
 cdtime_t cdtime(void);
 
-#define CDTIME_MAX UINT64_MAX
-
 #define RFC3339_SIZE 26     /* 2006-01-02T15:04:05+00:00 */
 #define RFC3339NANO_SIZE 36 /* 2006-01-02T15:04:05.999999999+00:00 */
 

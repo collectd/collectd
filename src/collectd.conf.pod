@@ -332,14 +332,18 @@ values to set B<WriteQueueLimitHigh> and B<WriteQueueLimitLow> to.
 =item B<AlignRead> I<Seconds>
 
 Enables time alignment of read callbacks, e.g. to obtain round timestamps or 
-the same timestamps on different systems. Together with the 'Interval' option 
-B<AlignRead> determines in which minute of an hour, second of a minute and 
-fraction of a second read callbacks are triggered. The B<AlignRead> value is in 
-seconds. The value modulo 60 determines the second of a minute. The integer 
-part of the value divided by 60 determines the minute of an hour. Optionally, 
-decimal places can be used to set the fraction of a second. For example, to 
-trigger read callbacks every full minute set AlignRead to 0 and Interval to 60. 
-Values below zero disable the read alignment (default: -1.0). 
+the same timestamps across systems. Together with the B<Interval> option 
+B<AlignRead> determines in which minutes of an hour and seconds of a minute 
+read callbacks are triggered. The value is in seconds. Modulo 60, it determines 
+the second of a minute. The integer part of the value divided by 60 determines 
+the minute of an hour. Optionally, decimal places can be used to set the 
+fraction of a second. In order not to lose alignment over time, an appropriate 
+B<Interval> has to be chosen. Additionally, B<AlignRead> has to be smaller than 
+B<Interval>. Values less than zero or greater than or equal to 3600 (1 hour) 
+disable read alignment (default: -1.0). 
+
+For example, to trigger read callbacks every full minute set AlignRead to 0 and 
+Interval to 60. 
 
 =item B<Hostname> I<Name>
 
