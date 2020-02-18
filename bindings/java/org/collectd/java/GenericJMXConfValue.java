@@ -26,32 +26,32 @@
 
 package org.collectd.java;
 
-import java.util.Arrays;
-import java.util.List;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.Iterator;
-import java.util.ArrayList;
-
-import java.math.BigDecimal;
-import java.math.BigInteger;
 
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
-import javax.management.openmbean.OpenType;
 import javax.management.openmbean.CompositeData;
-import javax.management.openmbean.TabularData;
 import javax.management.openmbean.InvalidKeyException;
+import javax.management.openmbean.OpenType;
+import javax.management.openmbean.TabularData;
 
 import org.collectd.api.Collectd;
 import org.collectd.api.DataSet;
 import org.collectd.api.DataSource;
-import org.collectd.api.ValueList;
-import org.collectd.api.PluginData;
-import org.collectd.api.OConfigValue;
 import org.collectd.api.OConfigItem;
+import org.collectd.api.OConfigValue;
+import org.collectd.api.PluginData;
+import org.collectd.api.ValueList;
+
+
 
 /**
  * Representation of a &lt;value&nbsp;/&gt; block and query functionality.
@@ -74,6 +74,11 @@ class GenericJMXConfValue
   private List<String> _instance_from;
   private String _plugin_name;
   private boolean _is_table;
+  
+  /**
+   * If true then atributes are always treated as simple attributes - no matter wheater they contian "dots" i name 
+   */
+  private boolean _force_flat;
 
   /**
    * Converts a generic (OpenType) object to a number.
@@ -362,11 +367,16 @@ class GenericJMXConfValue
 
     attrNameList = new ArrayList<String> ();
 
-    attrNameArray = attrName.split ("\\.");
-    key = attrNameArray[0];
-    for (int i = 1; i < attrNameArray.length; i++)
-      attrNameList.add (attrNameArray[i]);
-
+    if( this._force_flat == true ) {
+    	key = attrName;
+    }
+    else {
+    	attrNameArray = attrName.split ("\\.");
+    	key = attrNameArray[0];
+    	for (int i = 1; i < attrNameArray.length; i++)
+    		attrNameList.add (attrNameArray[i]);
+    }
+    
     try
     {
       try
@@ -492,6 +502,7 @@ class GenericJMXConfValue
     this._instance_from = new ArrayList<String> ();
     this._plugin_name = null;
     this._is_table = false;
+    this._force_flat = false;
 
     /*
      * <Value>
@@ -521,6 +532,12 @@ class GenericJMXConfValue
         Boolean tmp = getConfigBoolean (child);
         if (tmp != null)
           this._is_table = tmp.booleanValue ();
+      }
+      else if (child.getKey ().equalsIgnoreCase ("ForceFlat"))
+      {
+        Boolean tmp = getConfigBoolean (child);
+        if (tmp != null)
+          this._force_flat = tmp.booleanValue ();
       }
       else if (child.getKey ().equalsIgnoreCase ("Attribute"))
       {
