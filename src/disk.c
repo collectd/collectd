@@ -1103,10 +1103,9 @@ static int disk_read(void) {
     if (ignorelist_match(ignorelist, drives[i].name))
       continue;
 
-    disk_submit(drives[i].name, "disk_octets",
-                drives[i].rbytes, drives[i].wbytes);
-    disk_submit(drives[i].name, "disk_ops",
-                drives[i].rxfer, drives[i].wxfer);
+    disk_submit(drives[i].name, "disk_octets", drives[i].rbytes,
+                drives[i].wbytes);
+    disk_submit(drives[i].name, "disk_ops", drives[i].rxfer, drives[i].wxfer);
     submit_io_time(drives[i].name,
                    drives[i].time_sec * 1000 + drives[i].time_usec / 1000, 0);
   }
