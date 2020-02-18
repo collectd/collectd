@@ -28,12 +28,17 @@
 #include "utils/common/common.h"
 
 #if KERNEL_NETBSD
+// clang-format off
+/*
+ * Explicit order is required or it will not compile, see GitHub issue #3333
+ */
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
+// clang-format on
 #endif
 
 #if HAVE_KSTAT_H
@@ -633,7 +638,7 @@ static int nfs_read(void) {
 
   return 0;
 }
-/* #endif KERNEL_NETBSD */
+  /* #endif KERNEL_NETBSD */
 
 #elif HAVE_LIBKSTAT
 static int nfs_read(void) {
