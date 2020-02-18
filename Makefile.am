@@ -2049,6 +2049,8 @@ if BUILD_PLUGIN_WRITE_HTTP
 pkglib_LTLIBRARIES += write_http.la
 write_http_la_SOURCES = \
 	src/write_http.c \
+	src/utils/curl_stats/curl_stats.c \
+	src/utils/curl_stats/curl_stats.h \
 	src/utils/format_kairosdb/format_kairosdb.c \
 	src/utils/format_kairosdb/format_kairosdb.h
 write_http_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBCURL_CFLAGS)
