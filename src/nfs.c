@@ -621,9 +621,24 @@ static int nfs_read(void) {
   int i;
 
   /* NetBSD reports v2 statistics mapped to v3 and doen't yet support v4 */
-  if (!report_v3)
+  if (report_v2) {
+    if (!suppress_warning) {
+      WARNING(
+          "nfs plugin: NFSv2 statistics have been requested "
+          "but they are mapped to NFSv3 statistics in the kernel on NetBSD.");
+    }
     return 0;
-  if (sysctl(mib, 3, &ns, &size, NULL, 0) != 0)
+  }
+
+  if (report_v4) {
+    if (!suppress_warning) {
+      WARNING("nfs plugin: NFSv4 statistics have been requested "
+              "but they are not yet supported on NetBSD.");
+    }
+    return 0;
+  }
+
+  if (sysctl(mib, STATIC_ARRAY_SIZE(mib), &ns, &size, NULL, 0) != 0)
     return 1;
 
   for (i = 0; i < nfs3_procedures_names_num; i++)
