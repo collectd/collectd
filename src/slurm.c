@@ -24,8 +24,8 @@
 
 #include "collectd.h"
 
-#include "utils/common/common.h"
 #include "plugin.h"
+#include "utils/common/common.h"
 
 #include <slurm/slurm.h>
 #include <slurm/slurm_errno.h>
@@ -485,20 +485,20 @@ static int slurm_read(void) {
   stats_info_request_msg_t stats_req;
 
   if (slurm_load_jobs((time_t)NULL, &job_buffer_ptr, SHOW_ALL)) {
-    ERROR("slurm_load_jobs error");
+    ERROR(PLUGIN_NAME ": slurm_load_jobs error");
     return -1;
   }
 
   if (slurm_load_node((time_t)NULL, &node_buffer_ptr, SHOW_ALL)) {
     slurm_free_job_info_msg(job_buffer_ptr);
-    ERROR("slurm_load_node error");
+    ERROR(PLUGIN_NAME ": slurm_load_node error");
     return -1;
   }
 
   if (slurm_load_partitions((time_t)NULL, &part_buffer_ptr, 0)) {
     slurm_free_job_info_msg(job_buffer_ptr);
     slurm_free_node_info_msg(node_buffer_ptr);
-    ERROR("slurm_load_partitions error");
+    ERROR(PLUGIN_NAME ": slurm_load_partitions error");
     return -1;
   }
 
@@ -507,7 +507,7 @@ static int slurm_read(void) {
     slurm_free_job_info_msg(job_buffer_ptr);
     slurm_free_node_info_msg(node_buffer_ptr);
     slurm_free_partition_info_msg(part_buffer_ptr);
-    ERROR("slurm_get_statistics error");
+    ERROR(PLUGIN_NAME ": slurm_get_statistics error");
   }
 
   /* SLURM APIs provide *non-relational* data about nodes, partitions and jobs.
@@ -522,7 +522,7 @@ static int slurm_read(void) {
     slurm_free_job_info_msg(job_buffer_ptr);
     slurm_free_node_info_msg(node_buffer_ptr);
     slurm_free_partition_info_msg(part_buffer_ptr);
-    ERROR("alloc_partition_states");
+    ERROR(PLUGIN_NAME ": alloc_partition_states");
     return -1;
   }
 
@@ -532,8 +532,8 @@ static int slurm_read(void) {
     partition_state =
         find_partition(partition_states, num_partitions, job_ptr->partition);
     if (!partition_state) {
-      ERROR("slurm_read: cannot find partition %s from jobid %d"
-            " in partition list returned by slurm_load_partitions",
+      ERROR(PLUGIN_NAME ": slurm_read: cannot find partition %s from jobid %d"
+                        " in partition list returned by slurm_load_partitions",
             job_ptr->partition, job_ptr->job_id);
       continue;
     }
@@ -549,8 +549,8 @@ static int slurm_read(void) {
     partition_state =
         find_partition(partition_states, num_partitions, part_ptr->name);
     if (!partition_state) {
-      ERROR("slurm_read: cannot find partition %s"
-            " in partition list returned by slurm_load_partitions",
+      ERROR(PLUGIN_NAME ": slurm_read: cannot find partition %s"
+                        " in partition list returned by slurm_load_partitions",
             part_ptr->name);
       continue;
     }
