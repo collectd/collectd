@@ -70,7 +70,7 @@ Aneesh Puttur <aputtur at redhat.com>
 
 Andy Smith <ansmith at redhat.com>
  - AMQP 1.0 plugin.
- 
+
 Aneesh Puttur <aputtur at redhat.com>
  - connectivity plugin.
 
@@ -82,6 +82,9 @@ Anthony Gialluca <tonyabg at charter.net>
 
 Antony Dovgal <tony at daylessday.org>
  - memcached plugin.
+
+Asaf Kahlon <asafka7 at gmail.com>
+ - buddyinfo plugin
 
 Aurélien Reynaud <collectd at wattapower.net>
  - LPAR plugin.

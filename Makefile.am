@@ -750,6 +750,13 @@ bind_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 bind_la_LIBADD = $(BUILD_WITH_LIBCURL_LIBS) $(BUILD_WITH_LIBXML2_LIBS)
 endif
 
+if BUILD_PLUGIN_BUDDYINFO
+pkglib_LTLIBRARIES += buddyinfo.la
+buddyinfo_la_SOURCES = src/buddyinfo.c
+buddyinfo_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+buddyinfo_la_LIBADD = libignorelist.la
+endif
+
 if BUILD_PLUGIN_CEPH
 pkglib_LTLIBRARIES += ceph.la
 ceph_la_SOURCES = src/ceph.c

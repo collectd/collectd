@@ -1455,6 +1455,20 @@ By default no detailed zone information is collected.
 
 =back
 
+=head2 Plugin C<buddyinfo>
+
+The B<buddyinfo> plugin collects information by reading "/proc/buddyinfo".
+This file contains information about the number of available contagious
+physical pages at the moment.
+
+=over 4
+
+=item B<Zone> I<ZoneName>
+
+Zone to collect info about. Will collect all zones by default.
+
+=back
+
 =head2 Plugin C<ceph>
 
 The ceph plugin collects values from JSON data to be parsed by B<libyajl>
@@ -1635,12 +1649,12 @@ LoadPlugin connectivity
   Interface eth1
   IgnoreSelected true
 </Plugin>
- 
+
 =over 4
 
 =item B<Interface> I<interface_name>
 
-interface(s) to monitor connect to. 
+interface(s) to monitor connect to.
 
 =back
 
@@ -5615,7 +5629,7 @@ necessary in rare cases.
 
 Set the outgoing IP address for IP packets. This option can be used instead of
 the I<Interface> option to explicitly define the IP address which will be used
-to send Packets to the remote server. 
+to send Packets to the remote server.
 
 =item B<ResolveInterval> I<Seconds>
 
@@ -7386,37 +7400,37 @@ B<ProcessMatch> blocks these options set the default value for subsequent
 matches.
 
 =head2 Plugin C<procevent>
- 
+
 The I<procevent> plugin monitors when processes start (EXEC) and stop (EXIT).
- 
+
 B<Synopsis:>
- 
+
   <Plugin procevent>
     BufferLength 10
     Process "name"
     ProcessRegex "regex"
   </Plugin>
- 
+
 B<Options:>
- 
+
 =over 4
- 
+
 =item B<BufferLength> I<length>
- 
+
 Maximum number of process events that can be stored in plugin's ring buffer.
 By default, this is set to 10.  Once an event has been read, its location
 becomes available for storing a new event.
- 
+
 =item B<Process> I<name>
- 
+
 Enumerate a process name to monitor.  All processes that match this exact
 name will be monitored for EXECs and EXITs.
 
 =item B<ProcessRegex> I<regex>
- 
-Enumerate a process pattern to monitor.  All processes that match this 
+
+Enumerate a process pattern to monitor.  All processes that match this
 regular expression will be monitored for EXECs and EXITs.
- 
+
 =back
 
 =head2 Plugin C<protocols>
@@ -8353,11 +8367,11 @@ or is not reliable.
 =back
 
 =head2 Plugin C<sysevent>
- 
+
 The I<sysevent> plugin monitors rsyslog messages.
- 
+
 B<Synopsis:>
- 
+
   <Plugin sysevent>
     Listen "192.168.0.2" "6666"
     BufferSize 1024
@@ -8387,33 +8401,33 @@ B<Synopsis:>
     *.* @192.168.0.2:6666;ls_json
 
   Please note that these rsyslog.conf examples are *not* complete, as rsyslog
-  requires more than these options in the configuration file.  These examples 
+  requires more than these options in the configuration file.  These examples
   are meant to demonstration the proper remote logging and JSON format syntax.
 
 B<Options:>
- 
+
 =over 4
- 
+
 =item B<Listen> I<host> I<port>
- 
+
 Listen on this IP on this port for incoming rsyslog messages.
 
 =item B<BufferSize> I<length>
- 
-Maximum allowed size for incoming rsyslog messages.  Messages that exceed 
+
+Maximum allowed size for incoming rsyslog messages.  Messages that exceed
 this number will be truncated to this size.  Default is 4096 bytes.
 
 =item B<BufferLength> I<length>
- 
+
 Maximum number of rsyslog events that can be stored in plugin's ring buffer.
 By default, this is set to 10.  Once an event has been read, its location
 becomes available for storing a new event.
 
 =item B<RegexFilter> I<regex>
- 
+
 Enumerate a regex filter to apply to all incoming rsyslog messages.  If a
 message matches this filter, it will be published.
- 
+
 =back
 
 =head2 Plugin C<syslog>
@@ -8736,7 +8750,7 @@ the following schema:
   Bucket  20  50
   Bucket  50   0
 
-Metrics are reported with the I<type> set by B<BucketType> option (C<bucket> 
+Metrics are reported with the I<type> set by B<BucketType> option (C<bucket>
 by default) and the I<type instance>
 C<E<lt>TypeE<gt>[-E<lt>InstanceE<gt>]-E<lt>lower_boundE<gt>_E<lt>upper_boundE<gt>>.
 

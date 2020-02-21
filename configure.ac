@@ -6311,6 +6311,7 @@ plugin_ascent="no"
 plugin_barometer="no"
 plugin_battery="no"
 plugin_bind="no"
+plugin_buddyinfo="no"
 plugin_ceph="no"
 plugin_cgroups="no"
 plugin_connectivity="no"
@@ -6383,6 +6384,7 @@ plugin_zookeeper="no"
 # Linux
 if test "x$ac_system" = "xLinux"; then
   plugin_battery="yes"
+  plugin_buddyinfo="yes"
   plugin_cgroups="yes"
   plugin_conntrack="yes"
   plugin_contextswitch="yes"
@@ -6743,6 +6745,7 @@ AC_PLUGIN([ascent],              [$plugin_ascent],            [AscentEmu player 
 AC_PLUGIN([barometer],           [$plugin_barometer],         [Barometer sensor on I2C])
 AC_PLUGIN([battery],             [$plugin_battery],           [Battery statistics])
 AC_PLUGIN([bind],                [$plugin_bind],              [ISC Bind nameserver statistics])
+AC_PLUGIN([buddyinfo],           [$plugin_buddyinfo],         [buddyinfo statistics])
 AC_PLUGIN([ceph],                [$plugin_ceph],              [Ceph daemon statistics])
 AC_PLUGIN([cgroups],             [$plugin_cgroups],           [CGroups CPU usage accounting])
 AC_PLUGIN([chrony],              [yes],                       [Chrony statistics])
@@ -7174,6 +7177,7 @@ AC_MSG_RESULT([    ascent  . . . . . . . $enable_ascent])
 AC_MSG_RESULT([    barometer . . . . . . $enable_barometer])
 AC_MSG_RESULT([    battery . . . . . . . $enable_battery])
 AC_MSG_RESULT([    bind  . . . . . . . . $enable_bind])
+AC_MSG_RESULT([    buddyinfo . . . . . . $enable_buddyinfo])
 AC_MSG_RESULT([    ceph  . . . . . . . . $enable_ceph])
 AC_MSG_RESULT([    cgroups . . . . . . . $enable_cgroups])
 AC_MSG_RESULT([    chrony. . . . . . . . $enable_chrony])
