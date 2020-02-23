@@ -96,7 +96,7 @@ Number      Procedures  Procedures
 21                      commit
 */
 
-#if KERNEL_LINUX | HAVE_KSTAT
+#if KERNEL_LINUX || HAVE_LIBKSTAT
 static const char *nfs2_procedures_names[] = {
     "null", "getattr", "setattr", "root",   "lookup",  "readlink",
     "read", "wrcache", "write",   "create", "remove",  "rename",
