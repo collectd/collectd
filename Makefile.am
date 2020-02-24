@@ -906,6 +906,14 @@ dbi_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBDBI_LDFLAGS)
 dbi_la_LIBADD = $(BUILD_WITH_LIBDBI_LIBS)
 endif
 
+if BUILD_PLUGIN_DCPMM
+pkglib_LTLIBRARIES += dcpmm.la
+dcpmm_la_SOURCES = src/dcpmm.c
+dcpmm_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_LIBPMWAPI_CPPFLAGS)
+dcpmm_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBPMWAPI_LDFLAGS)
+dcpmm_la_LIBADD = -lpmwapi
+endif
+
 if BUILD_PLUGIN_DF
 pkglib_LTLIBRARIES += df.la
 df_la_SOURCES = src/df.c

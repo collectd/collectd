@@ -10,6 +10,7 @@ backends                value:GAUGE:0:65535
 bitrate                 value:GAUGE:0:4294967295
 blocked_clients         value:GAUGE:0:U
 bucket                  value:GAUGE:0:U
+buffer                  value:GAUGE:0:18446744073709551615
 bytes                   value:GAUGE:0:U
 cache_eviction          value:DERIVE:0:U
 cache_operation         value:DERIVE:0:U
@@ -35,6 +36,7 @@ commands                value:DERIVE:0:U
 connections             value:DERIVE:0:U
 conntrack               value:GAUGE:0:4294967295
 contextswitch           value:DERIVE:0:U
+controller              value:GAUGE:0:18446744073709551615
 cookies                 value:DERIVE:0:U
 count                   value:GAUGE:0:U
 counter                 value:COUNTER:U:U
@@ -105,6 +107,7 @@ frequency_offset        value:GAUGE:-1000000:1000000
 fscache_stat            value:DERIVE:0:U
 gauge                   value:GAUGE:U:U
 hash_collisions         value:DERIVE:0:U
+health                  value:GAUGE:0:18446744073709551615
 http_request_methods    value:DERIVE:0:U
 http_requests           value:DERIVE:0:U
 http_response_codes     value:DERIVE:0:U
@@ -136,6 +139,7 @@ job_stats               value:DERIVE:0:U
 latency                 value:GAUGE:0:U
 links                   value:GAUGE:0:U
 load                    shortterm:GAUGE:0:5000, midterm:GAUGE:0:5000, longterm:GAUGE:0:5000
+media                   value:GAUGE:0:18446744073709551615
 memory_bandwidth        value:DERIVE:0:U
 md_disks                value:GAUGE:0:U
 memcached_command       value:DERIVE:0:U
@@ -255,6 +259,7 @@ time_offset_ntp         value:GAUGE:-1000000:1000000
 time_offset_rms         value:GAUGE:-1000000:1000000
 time_ref                value:GAUGE:0:U
 timeleft                value:GAUGE:0:U
+timestamp               value:GAUGE:0:18446744073709551615
 total_bytes             value:DERIVE:0:U
 total_connections       value:DERIVE:0:U
 total_events            value:DERIVE:0:U

@@ -4341,6 +4341,74 @@ AC_SUBST([PERL_LIBS])
 
 # }}}
 
+
+# --with-libpmwapi {{{
+AC_ARG_WITH([libpmwapi],
+  [AS_HELP_STRING([--with-libpmwapi@<:@=PREFIX@:>@], [Path to libpmwapi.])],
+  [
+    if test "x$withval" = "xyes" || test "x$withval" = "xno"; then
+      with_libpmwapi="$withval"
+    else
+      with_libpmwapi_cppflags="-I$withval/include"
+      with_libpmwapi_ldflags="-L$withval/lib64"
+      with_libpmwapi="yes"
+    fi
+  ],
+  [with_libpmwapi="yes"]
+)
+
+if test "x$with_libpmwapi" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libpmwapi_cppflags"
+
+  AC_CHECK_HEADERS([pmw_api.h],
+    [with_libpmwapi="yes"],
+    [with_libpmwapi="no (pmw_api.h not found)"]
+  )
+
+  CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+if test "x$with_libpmwapi" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libpmwapi_ldflags"
+
+  AC_CHECK_LIB([pmwapi], [PMWAPIGetDIMMCount],
+    [with_libpmwapis="yes"],
+    [with_libpmwapi="no (symbol 'PMWAPIGetDIMMCount' not found)"],
+    [-lpmwcollect]
+  )
+
+  AC_CHECK_LIB([pmwapi], [PMWAPIStart],
+    [with_libpmwapi="yes"],
+    [with_libpmwapi="no (symbol 'PMWAPIStart' not found)"],
+    [-lpmwcollect]
+  )
+
+  AC_CHECK_LIB([pmwapi], [PMWAPIStop],
+    [with_libpmwapi="yes"],
+    [with_libpmwapi="no (symbol 'PMWAPIStop' not found)"],
+    [-lpmwcollect]
+  )
+
+  AC_CHECK_LIB([pmwapi], [PMWAPIRead],
+    [with_libpmwapi="yes"],
+    [with_libpmwapi="no (symbol 'PMWAPIRead' not found)"],
+    [-lpmwcollect]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+if test "x$with_libpmwapi" = "xyes"; then
+  BUILD_WITH_LIBPMWAPI_CPPFLAGS="$with_libpmwapi_cppflags"
+  BUILD_WITH_LIBPMWAPI_LDFLAGS="$with_libpmwapi_ldflags"
+fi
+
+AC_SUBST([BUILD_WITH_LIBPMWAPI_CPPFLAGS])
+AC_SUBST([BUILD_WITH_LIBPMWAPI_LDFLAGS])
+# }}}
+
 # --with-libpq {{{
 with_pg_config="pg_config"
 AC_ARG_WITH([libpq],
@@ -6811,6 +6879,7 @@ AC_PLUGIN([curl],                [$with_libcurl],             [CURL generic web 
 AC_PLUGIN([curl_json],           [$plugin_curl_json],         [CouchDB statistics])
 AC_PLUGIN([curl_xml],            [$plugin_curl_xml],          [CURL generic xml statistics])
 AC_PLUGIN([dbi],                 [$with_libdbi],              [General database statistics])
+AC_PLUGIN([dcpmm],               [$with_libpmwapi],           [Intel(R) Optane(TM) DC Persistent Memory performance and health statistics])
 AC_PLUGIN([df],                  [$plugin_df],                [Filesystem usage statistics])
 AC_PLUGIN([disk],                [$plugin_disk],              [Disk usage statistics])
 AC_PLUGIN([dns],                 [$with_libpcap],             [DNS traffic analysis])
@@ -7182,6 +7251,7 @@ AC_MSG_RESULT([    libowcapi . . . . . . $with_libowcapi])
 AC_MSG_RESULT([    libpcap . . . . . . . $with_libpcap])
 AC_MSG_RESULT([    libperfstat . . . . . $with_perfstat])
 AC_MSG_RESULT([    libperl . . . . . . . $with_libperl])
+AC_MSG_RESULT([    libpmwapi . . . . . . $with_libpmwapi])
 AC_MSG_RESULT([    libpq . . . . . . . . $with_libpq])
 AC_MSG_RESULT([    libpqos . . . . . . . $with_libpqos])
 AC_MSG_RESULT([    libprotobuf . . . . . $with_libprotobuf])
@@ -7245,6 +7315,7 @@ AC_MSG_RESULT([    curl  . . . . . . . . $enable_curl])
 AC_MSG_RESULT([    curl_json . . . . . . $enable_curl_json])
 AC_MSG_RESULT([    curl_xml  . . . . . . $enable_curl_xml])
 AC_MSG_RESULT([    dbi . . . . . . . . . $enable_dbi])
+AC_MSG_RESULT([    dcpmm  . . . . . .  . $enable_dcpmm])
 AC_MSG_RESULT([    df  . . . . . . . . . $enable_df])
 AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
