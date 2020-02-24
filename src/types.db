@@ -79,6 +79,7 @@ dns_transfer            value:DERIVE:0:U
 dns_update              value:DERIVE:0:U
 dns_zops                value:DERIVE:0:U
 domain_state            state:GAUGE:0:U, reason:GAUGE:0:U
+dpdk_telemetry          value:COUNTER:0:U
 drbd_resource           value:DERIVE:0:U
 duration                seconds:GAUGE:0:U
 email_check             value:GAUGE:0:U

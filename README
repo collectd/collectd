@@ -109,6 +109,15 @@ Features
       This plugin should be compiled with compiler defenses enabled, for
       example -fstack-protector.
 
+    - dpdk_telemetry
+      Collect DPDK interface, application and global statistics.
+      This plugin can be used as substitute to dpdkstat plugin.
+
+      This plugin is dependent on DPDK 19.08 release and must be used
+      along with the DPDK application.
+
+      Also, this plugin has dependency on Jansson library.
+
     - drbd
       Collect individual drbd resource statistics.
 
@@ -822,6 +831,9 @@ Prerequisites
   * libiptc (optional)
     For querying iptables counters.
     <http://netfilter.org/>
+
+  * libjansson (optional)
+    Used by the `dpdk_telemetry` plugin.
 
   * libjevents (optional)
     The jevents library is used by the `intel_pmu' plugin to access the Linux

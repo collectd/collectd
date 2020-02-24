@@ -2958,6 +2958,41 @@ convention will be used for the additional ports.
 
 =back
 
+=head2 Plugin C<dpdk_telemetry>
+
+
+The I< dpdk_telemetry > plugin collects DPDK ethernet device metrics via
+dpdk_telemetry library.
+
+The plugin retrieves metrics from a DPDK packet forwarding application
+by sending the JSON formatted message via a UNIX domain socket.
+The DPDK telemetry component will respond with a JSON formatted reply,
+delivering the requested metrics. The plugin parses the JSON data,
+and publishes the metric values to collectd for further use.
+
+B<Synopsis:>
+
+  <Plugin dpdk_telemetry>
+    ClientSocketPath "/var/run/.client"
+    DpdkSocketPath "/var/run/dpdk/rte/telemetry"
+  </Plugin>
+
+B<Options:>
+
+=over 2
+
+=item B<ClientSocketPath> I<Client_Path>
+
+The UNIX domain client socket at I<Client_Path> to receive messages from DPDK
+telemetry library. Defaults to B<"/var/run/.client">.
+
+=item B<DpdkSocketPath> I<Dpdk_Path>
+
+The UNIX domain DPDK telemetry socket to be connected at I<Dpdk_Path> to send
+messages. Defaults to B<"/var/run/dpdk/rte/telemetry">.
+
+=back
+
 =head2 Plugin C<email>
 
 =over 4

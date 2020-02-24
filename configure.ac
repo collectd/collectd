@@ -4492,6 +4492,51 @@ AC_SUBST([BUILD_WITH_LIBPQOS_LDFLAGS])
 AC_SUBST([BUILD_WITH_LIBPQOS_LIBS])
 # }}}
 
+# --with-libjansson {{{
+AC_ARG_WITH([libjansson],
+[AS_HELP_STRING([--with-libjansson@<:@=PREFIX@:>@], [Path to libjansson.])],
+[
+  if test "x$withval" != "xno" && test "x$withval" != "xyes"; then
+   with_libjansson_cppflags="-I$withval/include"
+   with_libjansson_ldflags="-L$withval/lib"
+   with_libjansson="yes"
+  else
+      with_libjansson="$withval"
+  fi
+],
+  [with_libjansson="yes"]
+)
+
+if test "x$with_libjansson" = "xyes"; then
+  SAVE_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $with_libjansson_cppflags"
+
+  AC_CHECK_HEADERS([jansson.h],
+    [with_libjansson="yes"],
+    [with_libjansson="no (jansson.h not found)"]
+  )
+ CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+if test "x$with_libjansson" = "xyes"; then
+  SAVE_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $with_libjansson_ldflags"
+
+  AC_CHECK_LIB([jansson], [json_loads],
+    [with_libjansson="yes"],
+    [with_libjansson="no (Symbol 'json_loads' not found)"]
+  )
+
+  LDFLAGS="$SAVE_LDFLAGS"
+fi
+
+BUILD_WITH_LIBJANSSON_CPPFLAGS="$with_libjansson_cppflags"
+BUILD_WITH_LIBJANSSON_LDFLAGS="$with_libjansson_ldflags"
+BUILD_WITH_LIBJANSSON_LIBS="-ljansson"
+AC_SUBST(BUILD_WITH_LIBJANSSON_CPPFLAGS)
+AC_SUBST(BUILD_WITH_LIBJANSSON_LDFLAGS)
+AC_SUBST(BUILD_WITH_LIBJANSSON_LIBS)
+# }}}
+
 # --with-libjevents {{{
 with_libjevents_cppflags=""
 with_libjevents_ldflags=""
@@ -6327,6 +6372,7 @@ plugin_disk="no"
 plugin_drbd="no"
 plugin_dpdkevents="no"
 plugin_dpdkstat="no"
+plugin_dpdk_telemetry="no"
 plugin_entropy="no"
 plugin_ethstat="no"
 plugin_fhcount="no"
@@ -6715,6 +6761,10 @@ if test "x$with_libdpdk" = "xyes"; then
   plugin_dpdkstat="yes"
 fi
 
+if test "x$with_libjansson" = "xyes"; then
+  plugin_dpdk_telemetry="yes"
+fi
+
 m4_divert_once([HELP_ENABLE], [
 collectd plugins:])
 
@@ -6766,6 +6816,7 @@ AC_PLUGIN([disk],                [$plugin_disk],              [Disk usage statis
 AC_PLUGIN([dns],                 [$with_libpcap],             [DNS traffic analysis])
 AC_PLUGIN([dpdkevents],          [$plugin_dpdkevents],        [Events from DPDK])
 AC_PLUGIN([dpdkstat],            [$plugin_dpdkstat],          [Stats from DPDK])
+AC_PLUGIN([dpdk_telemetry],      [$plugin_dpdk_telemetry],    [Metrics from DPDK Telemetry])
 AC_PLUGIN([drbd],                [$plugin_drbd],              [DRBD statistics])
 AC_PLUGIN([email],               [yes],                       [EMail statistics])
 AC_PLUGIN([entropy],             [$plugin_entropy],           [Entropy statistics])
@@ -7106,6 +7157,7 @@ AC_MSG_RESULT([    libhiredis  . . . . . $with_libhiredis])
 AC_MSG_RESULT([    libi2c-dev  . . . . . $with_libi2c])
 AC_MSG_RESULT([    libiokit  . . . . . . $with_libiokit])
 AC_MSG_RESULT([    libiptc . . . . . . . $with_libiptc])
+AC_MSG_RESULT([    libjansson  . . . . . $with_libjansson])
 AC_MSG_RESULT([    libjevents  . . . . . $with_libjevents])
 AC_MSG_RESULT([    libjvm  . . . . . . . $with_java])
 AC_MSG_RESULT([    libkstat  . . . . . . $with_kstat])
@@ -7198,6 +7250,7 @@ AC_MSG_RESULT([    disk  . . . . . . . . $enable_disk])
 AC_MSG_RESULT([    dns . . . . . . . . . $enable_dns])
 AC_MSG_RESULT([    dpdkevents. . . . . . $enable_dpdkevents])
 AC_MSG_RESULT([    dpdkstat  . . . . . . $enable_dpdkstat])
+AC_MSG_RESULT([    dpdk_telemetry. . . . $enable_dpdk_telemetry])
 AC_MSG_RESULT([    drbd  . . . . . . . . $enable_drbd])
 AC_MSG_RESULT([    email . . . . . . . . $enable_email])
 AC_MSG_RESULT([    entropy . . . . . . . $enable_entropy])

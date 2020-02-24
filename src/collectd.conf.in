@@ -120,6 +120,7 @@
 #@BUILD_PLUGIN_DNS_TRUE@LoadPlugin dns
 #@BUILD_PLUGIN_DPDKEVENTS_TRUE@LoadPlugin dpdkevents
 #@BUILD_PLUGIN_DPDKSTAT_TRUE@LoadPlugin dpdkstat
+#@BUILD_PLUGIN_DPDK_TELEMETRY_TRUE@LoadPlugin dpdk_telemetry
 #@BUILD_PLUGIN_DRBD_TRUE@LoadPlugin drbd
 #@BUILD_PLUGIN_EMAIL_TRUE@LoadPlugin email
 #@BUILD_PLUGIN_ENTROPY_TRUE@LoadPlugin entropy
@@ -612,6 +613,11 @@
 #  EnabledPortMask 0xffff
 #  PortName "interface1"
 #  PortName "interface2"
+#</Plugin>
+
+#<Plugin dpdk_telemetry>
+#	ClientSocketPath "/var/run/.client"
+#	DpdkSocketPath "/var/run/dpdk/rte/telemetry"
 #</Plugin>
 
 #<Plugin email>

@@ -974,6 +974,13 @@ dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(LIBDPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBDPDK_LDFLAGS)
 dpdkstat_la_LIBADD = $(LIBDPDK_LIBS)
 endif
+if BUILD_PLUGIN_DPDK_TELEMETRY
+pkglib_LTLIBRARIES += dpdk_telemetry.la
+dpdk_telemetry_la_SOURCES = src/dpdk_telemetry.c
+dpdk_telemetry_la_CFLAGS = $(AM_CFLAGS)
+dpdk_telemetry_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBJANSSON_LDFLAGS)
+dpdk_telemetry_la_LIBADD = $(BUILD_WITH_LIBJANSSON_LIBS)
+endif
 
 if BUILD_PLUGIN_DRBD
 pkglib_LTLIBRARIES += drbd.la
